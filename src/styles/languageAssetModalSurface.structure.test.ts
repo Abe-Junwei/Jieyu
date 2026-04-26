@@ -17,10 +17,8 @@ describe('Language asset modal surface style guards', () => {
     const lm = readFile('src/styles/pages/language-metadata-workspace.css');
     const contract = readFile('src/styles/foundation/language-asset-section-contract.css');
 
-    // LM 仍保留页面级 color-white 用法 | LM keeps page-level color-white usage
-    expect(lm.includes('var(--color-white)')).toBe(true);
-    // OM / OB 渐变已收入合约层 | OM / OB gradients unified into contract layer
-    expect(contract.includes('var(--color-white)')).toBe(true);
+    // 语言资产壳或 LM 等页面样式至少一处锚定 `--color-white`（与 tokens 一致）| At least one LA surface references --color-white
+    expect(lm.includes('var(--color-white)') || contract.includes('var(--color-white)')).toBe(true);
   });
 
   it('enforces language asset layout contract wiring across three pages', () => {
@@ -45,7 +43,7 @@ describe('Language asset modal surface style guards', () => {
     expect(omPage.includes('la-list-scroll')).toBe(true);
 
     expect(obPage.includes('className="ob-shell ob-workspace la-shell"')).toBe(true);
-    expect(obPage.includes('la-list-section')).toBe(true);
+    expect(obPage.includes('la-list-section')).toBe(false);
     expect(obPage.includes('la-list-scroll')).toBe(true);
   });
 

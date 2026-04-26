@@ -85,6 +85,7 @@ export interface AgentLoopRunnerDeps {
 
   // 副作用函数 | Side-effect functions
   persistSessionMemory: (memory: AiSessionMemory) => void;
+  persistAgentLoopCheckpoint?: (checkpoint: AiSessionMemory['pendingAgentLoopCheckpoint']) => Promise<string | undefined>;
   coordinationLiteEnabled: boolean;
   buildStreamCompletionEnv: () => Omit<
     ResolveAiChatStreamCompletionParams,
@@ -243,15 +244,20 @@ export async function runAgentLoop(
     // ── Token 预算警告 | Token budget warning ──
     if (shouldWarnTokenBudget(estimatedRemainingTokens, DEFAULT_AGENT_LOOP_CONFIG)) {
       const mem = deps.getSessionMemory();
+      const pendingCheckpoint: NonNullable<AiSessionMemory['pendingAgentLoopCheckpoint']> = {
+        kind: 'token_budget_warning',
+        originalUserText: deps.agentLoopSourceUserText,
+        continuationInput: continuationUserText,
+        step: loopStep,
+        estimatedRemainingTokens,
+        createdAt: nowIso(),
+      };
+      const taskId = await deps.persistAgentLoopCheckpoint?.(pendingCheckpoint);
       const nextMem: AiSessionMemory = {
         ...mem,
         pendingAgentLoopCheckpoint: {
-          kind: 'token_budget_warning',
-          originalUserText: deps.agentLoopSourceUserText,
-          continuationInput: continuationUserText,
-          step: loopStep,
-          estimatedRemainingTokens,
-          createdAt: nowIso(),
+          ...pendingCheckpoint,
+          ...(taskId ? { taskId } : {}),
         },
       };
       deps.setSessionMemory(nextMem);

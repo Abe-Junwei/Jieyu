@@ -42,7 +42,7 @@ export interface UseTranscriptionSegmentCreationControllerInput {
   reloadSegmentContents: () => Promise<void>;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
   setSaveState: (state: SaveState) => void;
-  createAdjacentUnit: (unit: LayerUnitDocType, duration: number) => Promise<void>;
+  createAdjacentUnit: (unit: LayerUnitDocType, duration: number) => Promise<string | void>;
   createUnitFromSelection: (
     start: number,
     end: number,
@@ -52,7 +52,7 @@ export interface UseTranscriptionSegmentCreationControllerInput {
 }
 
 export interface UseTranscriptionSegmentCreationControllerResult {
-  createNextSegmentRouted: (targetId: string) => Promise<void>;
+  createNextSegmentRouted: (targetId: string) => Promise<string | undefined>;
   createUnitFromSelectionRouted: (start: number, end: number) => Promise<void>;
 }
 
@@ -163,16 +163,16 @@ export function createTranscriptionSegmentCreationActions(
     await finalizeCreatedSegment(segment, options.doneMessageKey);
   };
 
-  const createNextSegmentRouted = async (targetId: string) => {
+  const createNextSegmentRouted = async (targetId: string): Promise<string | undefined> => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
     if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
       const selectedMedia = await resolveTimelineMediaForMutation();
       if (!assertTimelineMediaForMutation(selectedMedia, { locale, setSaveState: input.setSaveState })) {
-        return;
+        return undefined;
       }
       if (!routing.layer || !routing.segmentSourceLayer) {
         console.error('Missing target transcription layer');
-        return;
+        return undefined;
       }
 
       const gap = 0.02;
@@ -181,7 +181,7 @@ export function createTranscriptionSegmentCreationActions(
       const targetSegment = siblings.find((segment) => segment.id === targetId);
       if (!targetSegment) {
         input.setSaveState({ kind: 'error', message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { unitId: targetId }) });
-        return;
+        return undefined;
       }
 
       const targetIndex = siblings.findIndex((segment) => segment.id === targetId);
@@ -198,7 +198,7 @@ export function createTranscriptionSegmentCreationActions(
         parentUnit = resolveParentUnitForSegment(targetSegment);
         if (!parentUnit) {
           input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.segmentCreateNoParentSubdivision') });
-          return;
+          return undefined;
         }
         upperBound = Math.min(upperBound, parentUnit.endTime);
       }
@@ -207,7 +207,7 @@ export function createTranscriptionSegmentCreationActions(
       const endTime = Number(Math.min(upperBound, fallbackEnd).toFixed(3));
       if (!Number.isFinite(endTime) || endTime - startTime < minSpan) {
         input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.createFromSelectionOverlap') });
-        return;
+        return undefined;
       }
 
       const now = new Date().toISOString();
@@ -234,17 +234,18 @@ export function createTranscriptionSegmentCreationActions(
         doneMessageKey: 'transcription.unitAction.done.createNext',
         ...(parentUnit ? { parentUnit } : {}),
       });
-      return;
+      return newSeg.id;
     }
 
     const targetUnit = input.getUnitDocById(targetId);
     if (!targetUnit) {
       input.setSaveState({ kind: 'error', message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { unitId: targetId }) });
-      return;
+      return undefined;
     }
     const cap = mediaDurationSecForTimeBounds(input.selectedTimelineMedia);
     const mediaDuration = cap === Number.POSITIVE_INFINITY ? targetUnit.endTime + 2 : cap;
-    await input.createAdjacentUnit(targetUnit, mediaDuration);
+    const createdUnitId = await input.createAdjacentUnit(targetUnit, mediaDuration);
+    return typeof createdUnitId === 'string' && createdUnitId.length > 0 ? createdUnitId : undefined;
   };
 
   const createUnitFromSelectionRouted = async (start: number, end: number) => {

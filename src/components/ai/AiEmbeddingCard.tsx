@@ -34,7 +34,7 @@ export function AiEmbeddingCard() {
     onRetryAiTask,
   } = useEmbeddingContext();
 
-  const [taskTypeFilter, setTaskTypeFilter] = useState<'all' | 'embed' | 'gloss'>('all');
+  const [taskTypeFilter, setTaskTypeFilter] = useState<'all' | 'embed' | 'gloss' | 'agent_loop'>('all');
   const [embeddingAvailability, setEmbeddingAvailability] = useState<'idle' | 'testing' | 'available' | 'unavailable'>('idle');
   const [embeddingError, setEmbeddingError] = useState<string | null>(null);
   const lastEmbeddingTestRef = useRef<{ ts: number } | null>(null);
@@ -167,13 +167,14 @@ export function AiEmbeddingCard() {
           <span className="transcription-ai-caption ai-caption-inline">{messages.recentTasks}</span>
           <select
             value={taskTypeFilter}
-            onChange={(e) => setTaskTypeFilter(e.target.value as 'all' | 'embed' | 'gloss')}
+            onChange={(e) => setTaskTypeFilter(e.target.value as 'all' | 'embed' | 'gloss' | 'agent_loop')}
             className="ai-card-filter-select select-caret"
             aria-label={messages.recentTasks}
           >
             <option value="all">{messages.all}</option>
             <option value="embed">embed</option>
             <option value="gloss">gloss</option>
+            <option value="agent_loop">agent_loop</option>
           </select>
         </div>
         {visibleAiTasks.length === 0 ? (
@@ -190,6 +191,13 @@ export function AiEmbeddingCard() {
                   {task.modelId ? `${messages.modelLabel}: ${task.modelId}` : ''}
                   {task.modelId && task.errorMessage ? ' · ' : ''}
                   {task.errorMessage ? `${messages.errorLabel}: ${task.errorMessage}` : ''}
+                </div>
+              )}
+              {(task.resumable || task.checkpointJson || task.handoffReason) && (
+                <div className="ai-card-row ai-card-row-gap-sm">
+                  {task.resumable ? <span className="transcription-ai-tag">{messages.resumableLabel}</span> : null}
+                  {task.checkpointJson ? <span className="transcription-ai-tag">{messages.checkpointLabel}</span> : null}
+                  {task.handoffReason ? <span className="transcription-ai-tag">{`${messages.handoffReasonLabel}: ${task.handoffReason}`}</span> : null}
                 </div>
               )}
               <div className="ai-card-row ai-card-row-gap-sm">

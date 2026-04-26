@@ -32,6 +32,73 @@ function streamCompletionEnvOnly(): Omit<ResolveAiChatStreamCompletionParams, 'a
 }
 
 describe('runAgentLoop coordination lite', () => {
+  it('persists token-budget checkpoint and stores returned task id in session memory', async () => {
+    let sessionMemory: AiSessionMemory = {};
+    let taskSession: AiTaskSession = { id: 'task-1', status: 'executing', updatedAt: '2026-04-25T00:00:00.000Z' };
+    const initialToolResult: LocalContextToolResult = { ok: true, name: 'list_layers', result: { layers: [] } };
+    const persistAgentLoopCheckpoint = vi.fn(async () => 'task_agent_loop_budget_1');
+
+    const result = await runAgentLoop(
+      {
+        assistantId: 'ast-budget',
+        agentLoopSourceUserText: 'summarize current layers',
+        history: [],
+        historyCharBudget: 1000,
+        systemPrompt: 'system',
+        aiContext: null,
+        signal: new AbortController().signal,
+        routingPlan: {
+          queryFamily: 'unknown',
+          selectedTools: ['list_layers'],
+          scope: 'project',
+        },
+        aiChatAgentLoopEnabled: true,
+        getSessionMemory: () => sessionMemory,
+        setSessionMemory: (next) => { sessionMemory = next; },
+        getSettings: () => ({ model: 'mock-model' }),
+        getLocaleIsZhCn: () => true,
+        getAiContext: () => null,
+        getTaskSession: () => taskSession,
+        setTaskSession: (next) => {
+          taskSession = typeof next === 'function' ? next(taskSession) : next;
+        },
+        setMetrics: vi.fn(),
+        persistSessionMemory: vi.fn(),
+        persistAgentLoopCheckpoint,
+        coordinationLiteEnabled: false,
+        buildStreamCompletionEnv: streamCompletionEnvOnly,
+        orchestrator: {
+          sendMessage: vi.fn(() => ({
+            stream: (async function* () {
+              yield { done: true };
+            })(),
+          })),
+        },
+        insertAuditLog: vi.fn(async () => {}),
+      },
+      {
+        resolvedContent: 'tool payload ready',
+        resolvedStatus: 'done',
+        resolvedErrorMessage: undefined,
+        resolvedConnectionErrorMessage: undefined,
+        resolvedLocalToolResults: [initialToolResult],
+        rawAssistantContentForLoop: 'tool payload ready',
+        assistantReasoningContent: '',
+        reportedInputTokens: 4000,
+        totalOutputTokens: 0,
+        startStep: 1,
+      },
+    );
+
+    expect(result.loopExecuted).toBe(true);
+    expect(persistAgentLoopCheckpoint).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'token_budget_warning',
+      step: 1,
+      originalUserText: 'summarize current layers',
+    }));
+    expect(sessionMemory.pendingAgentLoopCheckpoint?.taskId).toBe('task_agent_loop_budget_1');
+  });
+
   it('emits audit-only coordination notifications for loop steps', async () => {
     let sessionMemory: AiSessionMemory = {};
     let taskSession: AiTaskSession = { id: 'task-1', status: 'executing', updatedAt: '2026-04-25T00:00:00.000Z' };

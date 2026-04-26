@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import 'fake-indexeddb/auto';
 
 const { mockShowToast } = vi.hoisted(() => ({
   mockShowToast: vi.fn(),

@@ -1,8 +1,9 @@
 import { t, tf, type Locale } from '.';
 import type { AiChatProviderKind } from '../ai/providers/providerCatalog';
+import type { VoiceMode } from '../services/voiceMode';
 
 type AiConnectionTestStatus = 'idle' | 'testing' | 'success' | 'error' | null | undefined;
-type AiChatPreferredMode = 'command' | 'dictation' | 'analysis' | null | undefined;
+type AiChatPreferredMode = VoiceMode | null | undefined;
 type AiChatConfirmationThreshold = 'always' | 'destructive' | 'never' | null | undefined;
 type AiChatPage = 'transcription' | 'glossing' | 'settings' | 'other' | null | undefined;
 type AiChatUnitKind = 'unit' | 'segment' | null | undefined;

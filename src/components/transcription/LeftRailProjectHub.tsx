@@ -11,6 +11,7 @@ import { getSidePaneSidebarMessages } from '../../i18n/messages';
 import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHubPreview';
+import { recordTranscriptionKeyboardAction } from '../../services/transcriptionKeyboardActionTelemetry';
 import { ModalPanel } from '../ui/ModalPanel';
 import { PanelButton } from '../ui/PanelButton';
 import { PanelChip } from '../ui/PanelChip';
@@ -182,14 +183,17 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   }, [projectImportState]);
 
   const openProjectArchivePicker = useCallback(() => {
+    recordTranscriptionKeyboardAction('toolbarOpenProjectArchivePicker');
     projectArchiveInputRef.current?.click();
   }, []);
 
   const openAnnotationImportPicker = useCallback(() => {
+    recordTranscriptionKeyboardAction('toolbarOpenAnnotationImportPicker');
     annotationImportInputRef.current?.click();
   }, []);
 
   const openTimeMappingDialog = useCallback(() => {
+    recordTranscriptionKeyboardAction('toolbarOpenTextTimeMappingDialog');
     setTimeMappingDialogState({
       offsetSecText: String(activeTextTimeMapping?.offsetSec ?? 0),
       scaleText: String(activeTextTimeMapping?.scale ?? 1),
@@ -381,6 +385,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   }, [activeTextTimeMapping, locale, showProjectHubLogicalTimeExchange]);
 
   const handleSelectTimeMappingHistoryItem = useCallback((offsetSec: number, scale: number) => {
+    recordTranscriptionKeyboardAction('toolbarTimeMappingFormHistorySelect');
     setTimeMappingDialogState((prev) => ({
       offsetSecText: String(offsetSec),
       scaleText: String(scale),
@@ -598,7 +603,10 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   }, [annotationImportState?.importing]);
 
   const handleCloseTimeMappingDialog = useCallback(() => {
-    if (!timeMappingDialogState?.saving) setTimeMappingDialogState(null);
+    if (!timeMappingDialogState?.saving) {
+      recordTranscriptionKeyboardAction('toolbarCloseTextTimeMappingDialog');
+      setTimeMappingDialogState(null);
+    }
   }, [timeMappingDialogState?.saving]);
 
   if (!hostElement) return null;
@@ -610,6 +618,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         type="button"
         className={`left-rail-btn left-rail-project-hub-btn ${isOpen ? 'left-rail-btn-active' : ''}`}
         onClick={() => {
+          recordTranscriptionKeyboardAction('toolbarProjectHubMenuToggle');
           setIsOpen((prev) => {
             const next = !prev;
             if (next) syncPanelPosition();
@@ -788,7 +797,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           <PanelButton
             variant="ghost"
             disabled={timeMappingDialogState.saving}
-            onClick={() => setTimeMappingDialogState(null)}
+            onClick={handleCloseTimeMappingDialog}
           >
             {t(locale, 'transcription.dialog.cancel')}
           </PanelButton>

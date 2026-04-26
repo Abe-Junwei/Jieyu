@@ -100,12 +100,11 @@ export interface VoiceAgentWidgetProps {
 // ── Mode labels ──
 
 const MODE_LABEL_KEYS = {
-  command: 'ai.assistantHub.mode.command',
+  chat: 'ai.assistantHub.mode.chat',
   dictation: 'ai.assistantHub.mode.dictation',
-  analysis: 'ai.assistantHub.mode.analysis',
 } as const;
 
-const MODE_ORDER: VoiceAgentMode[] = ['command', 'dictation', 'analysis'];
+const MODE_ORDER: Array<'chat' | 'dictation'> = ['chat', 'dictation'];
 
 const MODE_HINT_KEYS = {
   command: {
@@ -403,32 +402,39 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     }
   }, [onRefreshProviderStatus]);
 
-  const modeLabels: Record<VoiceAgentMode, string> = {
-    command: t(locale, MODE_LABEL_KEYS.command),
+  const nonDictationMode: Exclude<VoiceAgentMode, 'dictation'> = mode === 'analysis' ? 'analysis' : 'command';
+  const selectedMode: 'chat' | 'dictation' = mode === 'dictation' ? 'dictation' : 'chat';
+  const modeLabels: Record<'chat' | 'dictation', string> = {
+    chat: t(locale, MODE_LABEL_KEYS.chat),
     dictation: t(locale, MODE_LABEL_KEYS.dictation),
-    analysis: t(locale, MODE_LABEL_KEYS.analysis),
   };
+
+  const handleSwitchMode = (targetMode: 'chat' | 'dictation') => {
+    if (targetMode === 'dictation') {
+      onSwitchMode('dictation');
+      return;
+    }
+    onSwitchMode(nonDictationMode);
+  };
+
+  const isNonDictationMode = mode !== 'dictation';
   const sessionHint = listening
-    ? t(locale, MODE_HINT_KEYS[mode].active)
-    : t(locale, MODE_HINT_KEYS[mode].idle);
+    ? t(locale, isNonDictationMode ? MODE_HINT_KEYS.analysis.active : MODE_HINT_KEYS.dictation.active)
+    : t(locale, isNonDictationMode ? MODE_HINT_KEYS.analysis.idle : MODE_HINT_KEYS.dictation.idle);
   const sessionText = displayText || sessionHint;
   const isSessionEmpty = displayText.length === 0;
   const sessionTextPreviewProps = mode === 'dictation' && !isSessionEmpty ? dictationPreviewTextProps : undefined;
-  const sessionTargetLabel = mode === 'dictation'
-    ? t(locale, 'transcription.voiceWidget.targetLabel.dictation')
-    : mode === 'analysis'
-      ? t(locale, 'transcription.voiceWidget.targetLabel.analysis')
-      : t(locale, 'transcription.voiceWidget.targetLabel.command');
-  const processLabel = mode === 'dictation'
-    ? t(locale, 'transcription.voiceWidget.processLabel.dictation')
-    : mode === 'analysis'
-      ? t(locale, 'transcription.voiceWidget.processLabel.analysis')
-      : t(locale, 'transcription.voiceWidget.processLabel.command');
-  const detailLabel = mode === 'command'
-    ? t(locale, 'transcription.voiceWidget.detailLabel.command')
-    : t(locale, 'transcription.voiceWidget.detailLabel.range');
-  const workspaceLabel = t(locale, MODE_WORKSPACE_LABEL_KEYS[mode]);
-  const processSummary = t(locale, MODE_PROCESS_LABEL_KEYS[mode]);
+  const sessionTargetLabel = isNonDictationMode
+    ? t(locale, 'transcription.voiceWidget.targetLabel.analysis')
+    : t(locale, 'transcription.voiceWidget.targetLabel.dictation');
+  const processLabel = isNonDictationMode
+    ? t(locale, 'transcription.voiceWidget.processLabel.analysis')
+    : t(locale, 'transcription.voiceWidget.processLabel.dictation');
+  const detailLabel = isNonDictationMode
+    ? t(locale, 'transcription.voiceWidget.detailLabel.range')
+    : t(locale, 'transcription.voiceWidget.detailLabel.command');
+  const workspaceLabel = t(locale, isNonDictationMode ? MODE_WORKSPACE_LABEL_KEYS.analysis : MODE_WORKSPACE_LABEL_KEYS.dictation);
+  const processSummary = t(locale, isNonDictationMode ? MODE_PROCESS_LABEL_KEYS.analysis : MODE_PROCESS_LABEL_KEYS.dictation);
   const lastIntentSummary = (() => {
     if (!lastIntent) return t(locale, 'transcription.voiceWidget.common.none');
     switch (lastIntent.type) {
@@ -447,7 +453,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
           : lastIntent.text || t(locale, 'transcription.voiceWidget.common.none');
     }
   })();
-  const detailSummary = mode === 'command' ? lastIntentSummary : selectionSummary;
+  const detailSummary = isNonDictationMode ? selectionSummary : lastIntentSummary;
   const insightCount = session.entries.length + learningLogEntries.length;
   const agentStateLabel = t(locale, AGENT_STATE_LABEL_KEYS[agentState]);
   const showProviderConfig = showSettings && (engine === 'commercial' || engine === 'whisper-local');
@@ -533,9 +539,9 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                 key={m}
                 type="button"
                 role="radio"
-                aria-checked={mode === m}
-                className={`voice-agent-mode-btn ${mode === m ? 'voice-agent-mode-btn-active' : ''}`}
-                onClick={() => onSwitchMode(m)}
+                aria-checked={selectedMode === m}
+                className={`voice-agent-mode-btn ${selectedMode === m ? 'voice-agent-mode-btn-active' : ''}`}
+                onClick={() => handleSwitchMode(m)}
               >
                 {modeLabels[m]}
               </button>
@@ -551,7 +557,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
 
           <div className="voice-agent-session-meta">
             <span className={`voice-agent-session-badge voice-agent-session-badge-${mode}`}>
-              {modeLabels[mode]}
+              {modeLabels[selectedMode]}
             </span>
             {isRecording && (
               <div className="voice-agent-recording-indicator" aria-live="polite">

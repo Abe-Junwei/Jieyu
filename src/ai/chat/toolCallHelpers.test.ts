@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { AiChatToolCall, AiPromptContext } from './chatDomain.types';
-import { buildClarifyCandidates, buildToolAuditContext, buildToolDecisionAuditMetadata, extractClarifySplitPositionPatch, planToolCallTargets, resolveSelectionTargetPatchForTool, shouldAllowDeicticExecutionIntent, validateToolCallArguments } from './toolCallHelpers';
+import { resolveIntentConfidenceGate } from './intentConfidenceGate';
+import {
+  assessToolActionIntent,
+  buildClarifyCandidates,
+  buildToolAuditContext,
+  buildToolDecisionAuditMetadata,
+  extractClarifySplitPositionPatch,
+  planToolCallTargets,
+  resolveSelectionTargetPatchForTool,
+  shouldAllowDeicticExecutionIntent,
+  validateToolCallArguments,
+} from './toolCallHelpers';
 
 function makeSegmentContext(extraShortTerm: Partial<NonNullable<AiPromptContext['shortTerm']>> = {}): AiPromptContext {
   return {
@@ -248,5 +259,24 @@ describe('planToolCallTargets', () => {
     });
 
     expect(error).toBeNull();
+  });
+});
+
+describe('assessToolActionIntent — 语段/该/两个', () => {
+  it('treats 语段 as explicit segment scope so delete+demonstrative is execute (not action-level clarify)', () => {
+    expect(assessToolActionIntent('删除该语段').decision).toBe('execute');
+    expect(assessToolActionIntent('删除这两个语段').decision).toBe('execute');
+  });
+
+  it('keeps gray-zone phrasing as clarify', () => {
+    expect(assessToolActionIntent('这个句段呢？').decision).toBe('clarify');
+  });
+
+  it('passes intent confidence gate for 删除该语段 when gate enabled', () => {
+    const gated = resolveIntentConfidenceGate({
+      enabled: true,
+      assessment: assessToolActionIntent('删除该语段'),
+    });
+    expect(gated.decision).toBe('execute');
   });
 });

@@ -5,6 +5,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { DEFAULT_VOICE_MODE } from './voiceMode';
 
 // ── mock 依赖 | Mock dependencies ─────────────────────────────────────────
 
@@ -35,7 +36,7 @@ vi.mock('./GlobalContextService', () => ({
       actionFrequencies: {},
       actionDurations: {},
       fatigue: { score: 0, speakingRateTrend: 'stable' as const, pauseFrequencyTrend: 'stable' as const, lastBreakAt: 0 },
-      preferences: { preferredMode: 'command' as const, safeModeDefault: false, wakeWordEnabled: false, preferredEngine: 'web-speech' as const, preferredLang: null, confirmationThreshold: 'destructive' as const },
+      preferences: { preferredMode: DEFAULT_VOICE_MODE, safeModeDefault: false, wakeWordEnabled: false, preferredEngine: 'web-speech' as const, preferredLang: null, confirmationThreshold: 'destructive' as const },
       taskDurations: {},
       usageTimeDistribution: Array.from<number>({ length: 24 }).fill(0),
       totalSessions: 0,
@@ -102,14 +103,15 @@ describe('UserBehaviorStore', () => {
       actionId: 'playPause',
       durationMs: 100,
       sessionId: 'sess-1',
+      inputModality: 'text',
     });
     expect(mockRecordActionCtx).toHaveBeenCalledWith('playPause', 100, 'sess-1');
   });
 
   it('flush 将缓冲批量写入 DB | flush writes buffer to DB', async () => {
     await userBehaviorStore.init();
-    userBehaviorStore.recordAction({ actionId: 'undo', durationMs: 50, sessionId: 's1' });
-    userBehaviorStore.recordAction({ actionId: 'redo', durationMs: 30, sessionId: 's1' });
+    userBehaviorStore.recordAction({ actionId: 'undo', durationMs: 50, sessionId: 's1', inputModality: 'text' });
+    userBehaviorStore.recordAction({ actionId: 'redo', durationMs: 30, sessionId: 's1', inputModality: 'text' });
     await userBehaviorStore.flush();
     expect(mockRecordAction).toHaveBeenCalledTimes(2);
   });
@@ -123,7 +125,7 @@ describe('UserBehaviorStore', () => {
   it('缓冲 ≥50 条时自动刷新 | auto-flush when buffer reaches 50', async () => {
     await userBehaviorStore.init();
     for (let i = 0; i < 50; i++) {
-      userBehaviorStore.recordAction({ actionId: 'navNext', durationMs: 10, sessionId: 's1' });
+      userBehaviorStore.recordAction({ actionId: 'navNext', durationMs: 10, sessionId: 's1', inputModality: 'text' });
     }
     // flush 是异步的，等微任务完成 | flush is async, wait for microtasks
     await vi.advanceTimersByTimeAsync(0);
@@ -132,14 +134,14 @@ describe('UserBehaviorStore', () => {
 
   it('定时器触发周期性刷新 | timer triggers periodic flush', async () => {
     await userBehaviorStore.init();
-    userBehaviorStore.recordAction({ actionId: 'search', durationMs: 20, sessionId: 's1' });
+    userBehaviorStore.recordAction({ actionId: 'search', durationMs: 20, sessionId: 's1', inputModality: 'text' });
     await vi.advanceTimersByTimeAsync(5000);
     expect(mockRecordAction).toHaveBeenCalledTimes(1);
   });
 
   it('dispose 清理定时器与订阅 | dispose cleans timer and subscriptions', async () => {
     await userBehaviorStore.init();
-    userBehaviorStore.recordAction({ actionId: 'cancel', durationMs: 10, sessionId: 's1' });
+    userBehaviorStore.recordAction({ actionId: 'cancel', durationMs: 10, sessionId: 's1', inputModality: 'text' });
     userBehaviorStore.dispose();
     // 再次 advance 不应触发写入（定时器已清） | Advance should not trigger write (timer cleared)
     mockRecordAction.mockClear();
@@ -149,13 +151,14 @@ describe('UserBehaviorStore', () => {
 
   it('recordAction 使用默认参数 | recordAction uses default params', async () => {
     await userBehaviorStore.init();
-    userBehaviorStore.recordAction({ actionId: 'undo', durationMs: 10, sessionId: 's1' });
+    userBehaviorStore.recordAction({ actionId: 'undo', durationMs: 10, sessionId: 's1', inputModality: 'text' });
     await userBehaviorStore.flush();
     const call = (mockRecordAction.mock.calls as unknown[][])[0]![0] as Record<string, unknown>;
     expect(call.page).toBe('transcription');
     expect(call.aiAssisted).toBe(false);
     expect(call.voiceConfidence).toBeNull();
     expect(call.requiredConfirmation).toBe(false);
+    expect(call.inputModality).toBe('text');
   });
 
   it('recordAction 传入可选参数 | recordAction with optional params', async () => {
@@ -168,6 +171,7 @@ describe('UserBehaviorStore', () => {
       aiAssisted: true,
       voiceConfidence: 0.85,
       requiredConfirmation: true,
+      inputModality: 'voice',
     });
     await userBehaviorStore.flush();
     const call = (mockRecordAction.mock.calls as unknown[][])[0]![0] as Record<string, unknown>;
@@ -175,5 +179,6 @@ describe('UserBehaviorStore', () => {
     expect(call.aiAssisted).toBe(true);
     expect(call.voiceConfidence).toBe(0.85);
     expect(call.requiredConfirmation).toBe(true);
+    expect(call.inputModality).toBe('voice');
   });
 });

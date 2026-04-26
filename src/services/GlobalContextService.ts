@@ -15,6 +15,7 @@
 
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import type { ActionId } from './IntentRouter';
+import { DEFAULT_VOICE_MODE, type VoiceMode } from './voiceMode';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ export interface CorpusContext {
 }
 
 export interface UserPreferences {
-  preferredMode: 'command' | 'dictation' | 'analysis';
+  preferredMode: VoiceMode;
   safeModeDefault: boolean;
   wakeWordEnabled: boolean;
   preferredEngine: 'web-speech' | 'whisper-local' | 'commercial';
@@ -106,7 +107,7 @@ function createDefaultUserBehaviorProfile(): UserBehaviorProfile {
       lastBreakAt: Date.now(),
     },
     preferences: {
-      preferredMode: 'command',
+      preferredMode: DEFAULT_VOICE_MODE,
       safeModeDefault: false,
       wakeWordEnabled: false,
       preferredEngine: isCnLocale() ? 'commercial' : 'web-speech',

@@ -237,8 +237,9 @@ describe('AI tab', () => {
     renderModal();
     fireEvent.click(screen.getByText('AI'));
     await waitFor(() => expect(screen.getByText('AI 服务商')).toBeTruthy());
-    // Provider select is rendered with options
-    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    const providerSection = document.querySelector('.settings-ai-provider-selector-section');
+    expect(providerSection).toBeTruthy();
+    const select = within(providerSection as HTMLElement).getByRole('combobox') as HTMLSelectElement;
     expect(select.value).toBe('mock');
   });
 

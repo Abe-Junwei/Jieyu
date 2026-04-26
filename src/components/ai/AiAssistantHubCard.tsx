@@ -5,13 +5,12 @@ import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
 import { getConfidenceColor } from '../../hooks/voiceAgentPresentation';
 import { AiChatCard } from './AiChatCard';
 
-const MODE_LABEL_KEYS: Record<'command' | 'dictation' | 'analysis', 'ai.assistantHub.mode.command' | 'ai.assistantHub.mode.dictation' | 'ai.assistantHub.mode.analysis'> = {
-  command: 'ai.assistantHub.mode.command',
+const MODE_LABEL_KEYS: Record<'chat' | 'dictation', 'ai.assistantHub.mode.chat' | 'ai.assistantHub.mode.dictation'> = {
+  chat: 'ai.assistantHub.mode.chat',
   dictation: 'ai.assistantHub.mode.dictation',
-  analysis: 'ai.assistantHub.mode.analysis',
 };
 
-const MODE_ORDER: Array<'command' | 'dictation' | 'analysis'> = ['command', 'dictation', 'analysis'];
+const MODE_ORDER: Array<'chat' | 'dictation'> = ['chat', 'dictation'];
 
 export function AiAssistantHubCard() {
   const locale = useLocale();
@@ -38,6 +37,16 @@ export function AiAssistantHubCard() {
   const transcript = (voiceInterimText?.trim() || voiceFinalText?.trim() || '');
   const confidence = voiceConfidence ?? 0;
   const confidenceColor = confidence > 0 ? getConfidenceColor(confidence) : undefined;
+  const nonDictationMode = voiceMode === 'analysis' ? 'analysis' : 'command';
+  const selectedMode: 'chat' | 'dictation' = voiceMode === 'dictation' ? 'dictation' : 'chat';
+
+  const handleSwitchMode = (targetMode: 'chat' | 'dictation') => {
+    if (targetMode === 'dictation') {
+      onVoiceSwitchMode?.('dictation');
+      return;
+    }
+    onVoiceSwitchMode?.(nonDictationMode);
+  };
 
   return (
     <section className="transcription-ai-card transcription-ai-assistant-hub">
@@ -75,9 +84,9 @@ export function AiAssistantHubCard() {
                       key={mode}
                       type="button"
                       role="radio"
-                      aria-checked={voiceMode === mode}
-                      className={`transcription-ai-assistant-mode-btn ${voiceMode === mode ? 'is-active' : ''}`}
-                      onClick={() => onVoiceSwitchMode?.(mode)}
+                      aria-checked={selectedMode === mode}
+                      className={`transcription-ai-assistant-mode-btn ${selectedMode === mode ? 'is-active' : ''}`}
+                      onClick={() => handleSwitchMode(mode)}
                     >
                       {t(locale, MODE_LABEL_KEYS[mode])}
                     </button>

@@ -28,6 +28,7 @@ vi.mock('../../utils/panelAdaptiveLayout', () => ({
 function renderPanel(overrides: Partial<ComponentProps<typeof AiChatAlertsPanel>> = {}) {
   const props: ComponentProps<typeof AiChatAlertsPanel> = {
     isZh: false,
+    aiIsStreaming: false,
     errorWarningText: '',
     dismissedErrorWarning: false,
     alertCount: 0,
@@ -176,6 +177,62 @@ describe('AiChatAlertsPanel', () => {
     const confirmButton = screen.getByRole('button', { name: /Delete layer|删除层|Confirm/i });
     expect(confirmButton.getAttribute('disabled')).not.toBeNull();
     expect(screen.getByTestId('ai-changeset-preview')).toBeTruthy();
+  });
+
+  it('shows durable handoff section and triggers resume callback when agent loop checkpoint exists', () => {
+    const onResumeAgentLoop = vi.fn(async () => undefined);
+
+    renderPanel({
+      alertCount: 1,
+      showAlertBar: true,
+      aiPendingToolCall: null,
+      aiPendingAgentLoopCheckpoint: {
+        kind: 'token_budget_warning',
+        taskId: 'task_agent_loop_1',
+        originalUserText: '请继续生成下一步操作建议',
+        continuationInput: '继续',
+        step: 3,
+        estimatedRemainingTokens: 512,
+        createdAt: '2026-04-27T00:00:00.000Z',
+      },
+      onResumeAgentLoop,
+    });
+
+    const handoff = screen.getByTestId('ai-agent-loop-handoff-mvp');
+    expect(handoff.textContent).toMatch(/Approval Center \(Durable Handoff\)|审批中心（Durable Handoff）/);
+    expect(handoff.textContent).toContain('step=3');
+    expect(handoff.textContent).toContain('task=task_agent_loop_1');
+    expect(screen.getByText(/请继续生成下一步操作建议/)).toBeTruthy();
+    expect(screen.getByText(/Continuation:\s*继续/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Resume|继续执行/i }));
+    expect(onResumeAgentLoop).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables durable handoff resume action while ai stream is active', () => {
+    const onResumeAgentLoop = vi.fn(async () => undefined);
+
+    renderPanel({
+      alertCount: 1,
+      showAlertBar: true,
+      aiIsStreaming: true,
+      aiPendingToolCall: null,
+      aiPendingAgentLoopCheckpoint: {
+        kind: 'token_budget_warning',
+        taskId: 'task_agent_loop_busy',
+        originalUserText: '继续任务',
+        continuationInput: '继续',
+        step: 1,
+        createdAt: '2026-04-27T00:00:00.000Z',
+      },
+      onResumeAgentLoop,
+    });
+
+    const resumeButton = screen.getByRole('button', { name: /Resume|继续执行/i }) as HTMLButtonElement;
+    expect(resumeButton.disabled).toBe(true);
+
+    fireEvent.click(resumeButton);
+    expect(onResumeAgentLoop).toHaveBeenCalledTimes(0);
   });
 
   it('dismisses warning banner when warning exists', () => {

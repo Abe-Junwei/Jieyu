@@ -215,7 +215,7 @@ export function LanguageMetadataWorkspaceGeographySection({
             )}
           </div>
 
-          <div className="lm-geography-panel lm-geography-panel-preview">
+          <div className="lm-geography-panel">
             <div className="lm-geography-panel-header">
               <span className="panel-title-eyebrow lm-geography-panel-title">{t(locale, 'workspace.languageMetadata.geographyCoordinatesPreviewTitle')}</span>
               <p className="lm-geography-panel-description">{t(locale, 'workspace.languageMetadata.geographyCoordinatesPreviewDescription')}</p>

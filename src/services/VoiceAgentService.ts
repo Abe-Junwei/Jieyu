@@ -36,6 +36,7 @@ import { buildVoiceAgentStartConfig, testVoiceAgentCommercialProvider } from './
 import { startWakeWordDetectorRuntime } from './VoiceAgentService.wakeWord';
 import { startVoiceAgentRecording, stopVoiceAgentRecording } from './VoiceAgentService.recordingControls';
 import type { Locale } from '../i18n';
+import type { VoiceMode } from './voiceMode';
 
 const log = createLogger('VoiceAgentService');
 
@@ -76,7 +77,7 @@ function loadSttStrategyRuntime() {
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type VoiceAgentMode = 'command' | 'dictation' | 'analysis';
+export type VoiceAgentMode = VoiceMode;
 
 export type { GroundingContextData } from './VoiceAgentGroundingContext';
 
@@ -868,7 +869,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     Earcon.playSuccess();
     // Record action
     globalContext.markSessionStart();
-    userBehaviorStore.recordAction({ actionId, durationMs: 0, sessionId: this._session.id });
+    userBehaviorStore.recordAction({ actionId, durationMs: 0, sessionId: this._session.id, inputModality: 'voice' });
     this._setState({ agentState: 'idle' });
   }
 

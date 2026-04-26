@@ -263,6 +263,11 @@ vi.mock('../ai/ChatOrchestrator', () => {
           yield { delta: '', done: true };
           return;
         }
+        if (userText.includes('__DURABLE_RESUME_ONLY__')) {
+          yield { delta: '已从持久任务检查点继续。' };
+          yield { delta: '', done: true };
+          return;
+        }
         if (userText.includes('__STALL_NO_FIRST_CHUNK__')) {
           while (!signal?.aborted) {
             await new Promise((resolve) => setTimeout(resolve, 5));
@@ -750,6 +755,7 @@ describe('useAiChat abort and recovery', () => {
     expect(metadata.executionProgress?.appliedCount).toBe(1);
     expect(metadata.executionProgress?.totalCount).toBe(2);
     expect(metadata.executionProgress?.partial).toBe(true);
+    expect((metadata as { executed?: boolean }).executed).toBe(false);
     expect(metadata.proposeRollback?.attempted).toBe(true);
     expect(metadata.proposeRollback?.ok).toBe(true);
     expect(metadata.proposeRollback?.errorCount).toBe(0);
@@ -2749,6 +2755,67 @@ describe('useAiChat abort and recovery', () => {
     expect(storedAfter.pendingAgentLoopCheckpoint).toBeUndefined();
   });
 
+  it('should reload durable loop checkpoint from ai_tasks when task id is present', async () => {
+    const { result } = renderHook(() => useAiChat({
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          selectedUnitKind: 'segment',
+          activeSegmentUnitId: 'seg-current',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    const veryLongPrompt = `__LOCAL_CONTEXT_TOOL_FENCED__ ${'x'.repeat(12000)}`;
+    await act(async () => {
+      await result.current.send(veryLongPrompt);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const storedBefore = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      pendingAgentLoopCheckpoint?: { taskId?: string };
+    };
+    const taskId = storedBefore.pendingAgentLoopCheckpoint?.taskId;
+    expect(taskId).toBeTruthy();
+
+    const task = await db.ai_tasks.get(taskId!);
+    expect(task?.checkpointJson).toBeTruthy();
+    const durableCheckpoint = JSON.parse(task!.checkpointJson!) as {
+      data?: Record<string, unknown>;
+      at?: string;
+      kind?: string;
+    };
+    durableCheckpoint.data = {
+      ...(durableCheckpoint.data ?? {}),
+      continuationInput: '__DURABLE_RESUME_ONLY__',
+    };
+    await db.ai_tasks.update(taskId!, { checkpointJson: JSON.stringify(durableCheckpoint) });
+
+    await act(async () => {
+      await result.current.send('继续');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const resumedAssistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(resumedAssistant?.content).toContain('已从持久任务检查点继续。');
+
+    await waitFor(async () => {
+      const consumedTask = await db.ai_tasks.get(taskId!);
+      expect(consumedTask?.status).toBe('done');
+      expect(consumedTask?.resumable).toBe(false);
+    });
+  });
+
   it('should track interaction metrics across tool execution lifecycle', async () => {
     const onToolCall = vi.fn<(call: { name: string; arguments: Record<string, unknown> }) => Promise<{ ok: boolean; message: string }>>()
       .mockResolvedValueOnce({ ok: false, message: '目标不存在' })
@@ -3644,5 +3711,116 @@ describe('useAiChat abort and recovery', () => {
         }),
       }),
     );
+  });
+});
+
+describe('useAiChat — deactivateSessionDirective integration', () => {
+  beforeEach(async () => {
+    lastSystemPrompt = '';
+    outputCapRetryAttemptByPrompt.clear();
+    clearAiLocalStorage();
+    window.localStorage.removeItem('jieyu.aiChat.sessionMemory');
+    (featureFlags as { aiChatGrayMode: boolean; aiChatRollbackMode: boolean }).aiChatGrayMode = false;
+    (featureFlags as { aiChatGrayMode: boolean; aiChatRollbackMode: boolean }).aiChatRollbackMode = false;
+    await db.open();
+    await clearAiTables();
+  });
+
+  afterEach(async () => {
+    cleanup();
+    vi.restoreAllMocks();
+    (featureFlags as { aiChatGrayMode: boolean; aiChatRollbackMode: boolean }).aiChatGrayMode = false;
+    (featureFlags as { aiChatGrayMode: boolean; aiChatRollbackMode: boolean }).aiChatRollbackMode = false;
+    window.localStorage.removeItem('jieyu.aiChat.sessionMemory');
+    clearAiLocalStorage();
+    await clearAiTables();
+  });
+
+  it('clears ledger-applied response preference and persists when only directiveLedger matches (no sessionDirectives)', async () => {
+    const memorySeed = {
+      responsePreferences: { style: 'concise' as const },
+      directiveLedger: [
+        {
+          id: 'dir-ledg-hook-1',
+          category: 'response' as const,
+          scope: 'long_term' as const,
+          text: '简洁',
+          action: 'accepted' as const,
+          source: 'user_explicit' as const,
+          confidence: 0.88,
+          createdAt: '2026-04-26T00:00:00.000Z',
+          targetPath: 'responsePreferences.style',
+          value: 'concise',
+        },
+      ],
+    };
+    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify(memorySeed));
+
+    const { result } = renderHook(() => useAiChat());
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    expect(result.current.sessionMemory.responsePreferences?.style).toBe('concise');
+
+    await act(async () => {
+      result.current.deactivateSessionDirective('dir-ledg-hook-1');
+    });
+
+    expect(result.current.sessionMemory.responsePreferences).toBeUndefined();
+    const ledgerEntry = result.current.sessionMemory.directiveLedger?.find((e) => e.id === 'dir-ledg-hook-1');
+    expect(ledgerEntry?.action).toBe('superseded');
+
+    const stored = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      responsePreferences?: { style?: string };
+      directiveLedger?: Array<{ id: string; action: string }>;
+    };
+    expect(stored.responsePreferences).toBeUndefined();
+    expect(stored.directiveLedger?.find((e) => e.id === 'dir-ledg-hook-1')?.action).toBe('superseded');
+  });
+
+  it('clears ledger-applied tool preference and persists when only directiveLedger matches (no sessionDirectives)', async () => {
+    const memorySeed = {
+      toolPreferences: { preferLocalReads: true },
+      directiveLedger: [
+        {
+          id: 'dir-ledg-hook-tool-1',
+          category: 'tool' as const,
+          scope: 'long_term' as const,
+          text: '优先本地读',
+          action: 'accepted' as const,
+          source: 'user_explicit' as const,
+          confidence: 0.88,
+          createdAt: '2026-04-26T00:00:00.000Z',
+          targetPath: 'toolPreferences.preferLocalReads',
+          value: true,
+        },
+      ],
+    };
+    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify(memorySeed));
+
+    const { result } = renderHook(() => useAiChat());
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    expect(result.current.sessionMemory.toolPreferences?.preferLocalReads).toBe(true);
+
+    await act(async () => {
+      result.current.deactivateSessionDirective('dir-ledg-hook-tool-1');
+    });
+
+    expect(result.current.sessionMemory.toolPreferences).toBeUndefined();
+    const ledgerEntry = result.current.sessionMemory.directiveLedger?.find((e) => e.id === 'dir-ledg-hook-tool-1');
+    expect(ledgerEntry?.action).toBe('superseded');
+
+    const stored = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      toolPreferences?: { preferLocalReads?: boolean };
+      directiveLedger?: Array<{ id: string; action: string }>;
+    };
+    expect(stored.toolPreferences).toBeUndefined();
+    expect(stored.directiveLedger?.find((e) => e.id === 'dir-ledg-hook-tool-1')?.action).toBe('superseded');
   });
 });

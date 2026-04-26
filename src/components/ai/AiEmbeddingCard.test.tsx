@@ -43,7 +43,16 @@ describe('AiEmbeddingCard', () => {
       },
       aiEmbeddingTasks: [
         { id: 'task-pending', taskType: 'embed', status: 'pending', updatedAt: '2026-04-03T00:00:00.000Z' },
-        { id: 'task-done', taskType: 'embed', status: 'done', updatedAt: '2026-04-03T00:00:01.000Z', modelId: 'local-e5' },
+        {
+          id: 'task-done',
+          taskType: 'agent_loop',
+          status: 'done',
+          updatedAt: '2026-04-03T00:00:01.000Z',
+          modelId: 'local-e5',
+          resumable: true,
+          checkpointJson: '{"kind":"agent_loop_token_budget_warning"}',
+          handoffReason: 'token_budget_warning',
+        },
         { id: 'task-failed', taskType: 'gloss', status: 'failed', updatedAt: '2026-04-03T00:00:02.000Z', errorMessage: 'quota' },
       ],
       aiEmbeddingMatches: [
@@ -60,6 +69,7 @@ describe('AiEmbeddingCard', () => {
     expect(screen.getByText('向量索引')).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '引擎' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '最近 AI 任务' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'agent_loop' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '构建当前媒体' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '向量化笔记' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '向量化 PDF' })).toBeTruthy();
@@ -68,10 +78,29 @@ describe('AiEmbeddingCard', () => {
     expect(screen.getByText('最近完成: 7/10（跳过 3）')).toBeTruthy();
     expect(screen.getByText('排队 1')).toBeTruthy();
     expect(screen.getByText('完成 1')).toBeTruthy();
+    expect(screen.getByText('可续跑')).toBeTruthy();
+    expect(screen.getByText('有检查点')).toBeTruthy();
+    expect(screen.getByText('交接原因: token_budget_warning')).toBeTruthy();
     expect(screen.getByText('失败 1')).toBeTruthy();
     expect(screen.getByText('Fallback embedding active')).toBeTruthy();
     expect(activeMatch.className).toContain('ai-embed-match-btn-active');
     expect(screen.getByText('93.0%')).toBeTruthy();
+  });
+
+  it('supports selecting agent_loop task type filter', () => {
+    renderCard({
+      aiEmbeddingTasks: [
+        { id: 'task-embed', taskType: 'embed', status: 'done', updatedAt: '2026-04-03T00:00:00.000Z' },
+        { id: 'task-loop', taskType: 'agent_loop', status: 'failed', updatedAt: '2026-04-03T00:00:01.000Z' },
+      ],
+    });
+
+    fireEvent.change(screen.getByRole('combobox', { name: '最近 AI 任务' }), {
+      target: { value: 'agent_loop' },
+    });
+
+    expect(screen.getByText('AGENT_LOOP · FAILED')).toBeTruthy();
+    expect(screen.queryByText('EMBED · DONE')).toBeNull();
   });
 
   it('tests provider connectivity and dispatches action callbacks', async () => {

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { VoiceAgentWidget } from './VoiceAgentWidget';
 import type { VoiceAgentWidgetProps } from './VoiceAgentWidget';
+import { DEFAULT_VOICE_MODE } from '../services/voiceMode';
 
 afterEach(() => {
   cleanup();
@@ -25,7 +26,7 @@ function makeProps(overrides: Partial<VoiceAgentWidgetProps> = {}): VoiceAgentWi
   return {
     listening: false,
     speechActive: false,
-    mode: 'command',
+    mode: DEFAULT_VOICE_MODE,
     interimText: '',
     finalText: '',
     confidence: 0,
@@ -44,7 +45,7 @@ function makeProps(overrides: Partial<VoiceAgentWidgetProps> = {}): VoiceAgentWi
     energyLevel: 0,
     agentState: 'idle',
     recordingDuration: 0,
-    session: { id: 'session-1', startedAt: Date.now(), entries: [], mode: 'command' },
+    session: { id: 'session-1', startedAt: Date.now(), entries: [], mode: DEFAULT_VOICE_MODE },
     commercialProviderKind: 'groq',
     commercialProviderConfig: {},
     targetSummary: '当前页面操作',
@@ -71,6 +72,28 @@ function makeProps(overrides: Partial<VoiceAgentWidgetProps> = {}): VoiceAgentWi
 }
 
 describe('VoiceAgentWidget', () => {
+  it('shows chat plus dictation mode options and maps chat click to non-dictation mode', () => {
+    const onSwitchMode = vi.fn();
+
+    render(
+      <VoiceAgentWidget
+        {...makeProps({
+          mode: 'analysis',
+          onSwitchMode,
+        })}
+      />,
+    );
+
+    expect(screen.queryByRole('radio', { name: /指令|Command/i })).toBeNull();
+    expect(screen.queryByRole('radio', { name: /分析|Analysis/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole('radio', { name: /聊天|Chat/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /听写|Dictation/i }));
+
+    expect(onSwitchMode).toHaveBeenNthCalledWith(1, 'analysis');
+    expect(onSwitchMode).toHaveBeenNthCalledWith(2, 'dictation');
+  });
+
   it('renders disambiguation options and dispatches selection handlers', () => {
     const onSelectDisambiguation = vi.fn();
     const onDismissDisambiguation = vi.fn();

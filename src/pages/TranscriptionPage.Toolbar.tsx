@@ -9,6 +9,7 @@ import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import type { TranscriptionReviewPreset } from '../utils/transcriptionReviewQueue';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 
 export type TranscriptionPageToolbarProps = {
   filename: string;
@@ -246,7 +247,10 @@ export function TranscriptionPageToolbar({
           title={reviewSummaryLabel}
           aria-haspopup="dialog"
           aria-expanded={isReviewMenuOpen}
-          onClick={() => setIsReviewMenuOpen((prev) => !prev)}
+          onClick={() => {
+            recordTranscriptionKeyboardAction('toolbarReviewMenuToggle');
+            setIsReviewMenuOpen((prev) => !prev);
+          }}
         >
           {reviewSummaryLabel}
         </button>

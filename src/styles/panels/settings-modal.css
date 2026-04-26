@@ -406,6 +406,11 @@
   gap: var(--space-row-gap, 8px);
 }
 
+.settings-ai-provider-selector-section {
+  display: grid;
+  gap: var(--space-row-gap, 8px);
+}
+
 .settings-ai-provider-fields-section {
   gap: var(--space-row-gap, 8px);
 }

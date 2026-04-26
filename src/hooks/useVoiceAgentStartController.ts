@@ -6,6 +6,7 @@ import { detectRegion } from '../utils/regionDetection';
 import { toBcp47 } from '../utils/langMapping';
 import type { SttEngine, VoiceInputService as VoiceInputServiceType } from '../services/VoiceInputService';
 import type { CommercialProviderCreateConfig, SttEnhancementConfig, SttEnhancementSelectionKind } from '../services/stt';
+import type { VoiceMode } from '../services/voiceMode';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
 import { bindVoiceInputService } from './useVoiceAgent.serviceBindings';
@@ -34,7 +35,7 @@ function abortStaleMicStart(
   return true;
 }
 
-type VoiceAgentMode = 'command' | 'dictation' | 'analysis';
+type VoiceAgentMode = VoiceMode;
 
 interface UseVoiceAgentStartControllerOptions {
   locale: Locale;

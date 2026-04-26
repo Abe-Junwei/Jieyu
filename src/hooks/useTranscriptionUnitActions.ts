@@ -469,7 +469,7 @@ export function useTranscriptionUnitActions({
       media = await ensureTimelineMediaRowResolved();
     }
     if (!assertTimelineMediaForMutation(media, { locale, setSaveState })) {
-      return;
+      return undefined;
     }
     pushUndo(getUndoLabel(locale, 'createAdjacentUnit'));
     const now = new Date().toISOString();
@@ -508,6 +508,7 @@ export function useTranscriptionUnitActions({
         end: formatTime(finalEnd),
       }),
     });
+    return createdId;
   }, [createAnchor, ensureTimelineMediaRowResolved, locale, pushUndo, selectUnitPrimary, selectedUnitMedia, setSaveState, setUnitDrafts, setUnits]);
 
   const createUnitFromSelection = useCallback(async (

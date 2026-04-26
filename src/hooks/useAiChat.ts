@@ -21,6 +21,7 @@ import { buildSessionMemoryDigestSuppressionRefs, maybeAppendMemoryBrokerContext
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { buildConversationSummaryFromHistory, countHistoryUserTurns, estimateSummaryCoverageSimilarity, splitHistoryByRecentRounds, trimHistoryByChars, type HistoryChatMessage } from '../ai/chat/historyTrim';
 import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, deactivateSessionDirective as deactivateSessionDirectiveFromMemory, loadSessionMemory, persistSessionMemory, pruneDirectiveLedgerBySourceMessage, updateConversationSummaryMemory } from '../ai/chat/sessionMemory';
+import { completeAgentLoopCheckpointTask, loadPendingAgentLoopCheckpointFromTaskId, persistAgentLoopCheckpointTask } from '../ai/chat/agentLoopCheckpoint';
 import { updateSessionMemoryWithPrompt } from '../ai/chat/adaptiveInputProfile';
 import { updateSessionMemoryWithRecommendationEvent } from '../ai/chat/recommendationTelemetry';
 
@@ -272,6 +273,23 @@ export function useAiChat(options?: UseAiChatOptions) {
     persistSessionMemory(sessionMemoryRef.current);
   }, []);
 
+  const resolveAgentLoopResumeCheckpoint = useCallback(async (userText: string) => {
+    if (!isAgentLoopResumeText(userText)) return null;
+    const checkpoint = sessionMemoryRef.current.pendingAgentLoopCheckpoint ?? null;
+    if (!checkpoint?.taskId) return checkpoint;
+
+    const durableCheckpoint = await loadPendingAgentLoopCheckpointFromTaskId(checkpoint.taskId);
+    if (!durableCheckpoint) return checkpoint;
+
+    const nextMemory: AiSessionMemory = {
+      ...sessionMemoryRef.current,
+      pendingAgentLoopCheckpoint: durableCheckpoint,
+    };
+    sessionMemoryRef.current = nextMemory;
+    persistSessionMemory(nextMemory);
+    return durableCheckpoint;
+  }, []);
+
   const writeDirectiveMutationAuditLog = useCallback((
     mutationType: 'deactivate' | 'prune_source',
     payload: Record<string, unknown>,
@@ -447,9 +465,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       return;
     }
 
-    const resumeCheckpoint = isAgentLoopResumeText(trimmed)
-      ? (sessionMemoryRef.current.pendingAgentLoopCheckpoint ?? null)
-      : null;
+    const resumeCheckpoint = await resolveAgentLoopResumeCheckpoint(trimmed);
     if (!resumeCheckpoint && sessionMemoryRef.current.pendingAgentLoopCheckpoint) {
       clearPendingAgentLoopCheckpoint();
     }
@@ -1054,6 +1070,14 @@ export function useAiChat(options?: UseAiChatOptions) {
               setTaskSession,
               setMetrics,
               persistSessionMemory,
+              persistAgentLoopCheckpoint: async (checkpoint) => {
+                if (!checkpoint) return undefined;
+                return persistAgentLoopCheckpointTask({
+                  checkpoint,
+                  targetId: assistantId,
+                  modelId: settingsRef.current.model,
+                });
+              },
               buildStreamCompletionEnv,
               coordinationLiteEnabled: featureFlags.aiCoordinationLiteEnabled,
               orchestrator,
@@ -1102,6 +1126,9 @@ export function useAiChat(options?: UseAiChatOptions) {
             )
           ) {
             clearPendingAgentLoopCheckpoint();
+            if (resumeCheckpoint?.taskId) {
+              await completeAgentLoopCheckpointTask(resumeCheckpoint.taskId);
+            }
           }
           if (resolvedConnectionErrorMessage && shouldTrackRemoteStatus) {
             setConnectionTestStatus('error');

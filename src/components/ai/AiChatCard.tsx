@@ -52,7 +52,7 @@ function buildPinnedSummary(content: string, isZh: boolean): string {
     .replace(/\s+/g, ' ')
     .replace(/^(请记住|记住|请|以后|后续|默认|请务必|请始终)[:：,\s]*/i, '')
     .trim();
-  if (!normalized) return isZh ? '已记录本条内容' : 'Pinned content captured.';
+  if (!normalized) return isZh ? '\u5df2\u8bb0\u5f55\u672c\u6761\u5185\u5bb9' : 'Pinned content captured.';
   const primarySegments = normalized
     .split(/[。！？!?；;]+/)
     .map((segment) => segment.trim())
@@ -647,8 +647,9 @@ export function AiChatCard({
 
   // P0: count active alerts for the alert bar
   const hasToolPending = !!aiPendingToolCall;
+  const hasAgentLoopHandoffPending = Boolean(aiSessionMemory?.pendingAgentLoopCheckpoint);
   const hasDecisionLogs = (aiToolDecisionLogs ?? []).length > 0;
-  const alertCount = hasToolPending ? 1 : 0;
+  const alertCount = (hasToolPending || hasAgentLoopHandoffPending) ? 1 : 0;
   const errorWarningText = useMemo(() => {
     const raw = (aiLastError ?? '').trim();
     if (!raw) return null;
@@ -1616,17 +1617,24 @@ export function AiChatCard({
 
           <AiChatAlertsPanel
             isZh={isZh}
+            aiIsStreaming={Boolean(aiIsStreaming)}
             errorWarningText={errorWarningText ?? ''}
             dismissedErrorWarning={dismissedErrorWarning}
             alertCount={alertCount}
             debugUiShowAll={false}
             showAlertBar={showAlertBar}
             aiPendingToolCall={aiPendingToolCall}
+            aiPendingAgentLoopCheckpoint={aiSessionMemory?.pendingAgentLoopCheckpoint}
             aiToolDecisionLogs={aiToolDecisionLogs}
             timelineReadModelEpoch={timelineReadModelEpoch}
             onDismissErrorWarning={() => setDismissedErrorWarning(true)}
             onToggleAlertBar={() => setShowAlertBar((prev) => !prev)}
             onOpenDecisionReplay={(requestId) => openReplayBundle(requestId)}
+            onResumeAgentLoop={() => {
+              const checkpointContinuation = (aiSessionMemory?.pendingAgentLoopCheckpoint?.continuationInput ?? '').trim();
+              const resumeInput = checkpointContinuation || '继续';
+              return onSendAiMessage?.(resumeInput);
+            }}
             onConfirmPendingToolCall={onConfirmPendingToolCall}
             onCancelPendingToolCall={onCancelPendingToolCall}
           />
@@ -1776,22 +1784,22 @@ export function AiChatCard({
               )}
             </div>
             {activeDirectiveRows.length > 0 && (
-              <section className="ai-chat-composer-attachments" aria-label={isZh ? '指令与记忆' : 'Directives and memory'} data-testid="ai-directive-console-mvp">
+              <section className="ai-chat-composer-attachments" aria-label={isZh ? '\u6307\u4ee4\u4e0e\u8bb0\u5fc6' : 'Directives and memory'} data-testid="ai-directive-console-mvp">
                 <span className="ai-chat-composer-attachments-title">
-                  {isZh ? '指令与记忆（MVP）' : 'Directives and Memory (MVP)'}
+                  {isZh ? '\u6307\u4ee4\u4e0e\u8bb0\u5fc6\uff08MVP\uff09' : 'Directives and Memory (MVP)'}
                   <span className="ai-chat-pinned-count">{filteredDirectiveRows.length}</span>
                 </span>
                 <div className="ai-chat-alerts-pending-row">
-                  <span>{isZh ? '来源筛选：' : 'Source filter:'}</span>
+                  <span>{isZh ? '\u6765\u6e90\u7b5b\u9009\uff1a' : 'Source filter:'}</span>
                   <select
                     value={directiveSourceFilter}
                     onChange={(event) => setDirectiveSourceFilter(event.target.value as typeof directiveSourceFilter)}
-                    aria-label={isZh ? '指令来源筛选' : 'Directive source filter'}
+                    aria-label={isZh ? '\u6307\u4ee4\u6765\u6e90\u7b5b\u9009' : 'Directive source filter'}
                   >
-                    <option value="all">{isZh ? '全部' : 'All'}</option>
-                    <option value="user_explicit">{isZh ? '用户明确指令' : 'User explicit'}</option>
-                    <option value="background_extracted">{isZh ? '后台抽取' : 'Background extracted'}</option>
-                    <option value="pinned_message">{isZh ? '钉住消息' : 'Pinned message'}</option>
+                    <option value="all">{isZh ? '\u5168\u90e8' : 'All'}</option>
+                    <option value="user_explicit">{isZh ? '\u7528\u6237\u660e\u786e\u6307\u4ee4' : 'User explicit'}</option>
+                    <option value="background_extracted">{isZh ? '\u540e\u53f0\u62bd\u53d6' : 'Background extracted'}</option>
+                    <option value="pinned_message">{isZh ? '\u9489\u4f4f\u6d88\u606f' : 'Pinned message'}</option>
                   </select>
                 </div>
                 {directiveActionNotice && <div className="ai-chat-alerts-pending-risk">{directiveActionNotice}</div>}
@@ -1807,11 +1815,11 @@ export function AiChatCard({
                         className="ai-chat-composer-attachment-remove"
                         onClick={() => {
                           onDeactivateAiSessionDirective?.(item.id);
-                          setDirectiveActionNotice(isZh ? `已停用：${item.id}` : `Deactivated: ${item.id}`);
+                          setDirectiveActionNotice(isZh ? `\u5df2\u505c\u7528\uff1a${item.id}` : `Deactivated: ${item.id}`);
                         }}
                         disabled={!onDeactivateAiSessionDirective}
                       >
-                        {isZh ? '停用' : 'Deactivate'}
+                        {isZh ? '\u505c\u7528' : 'Deactivate'}
                       </button>
                       {item.sourceMessageId && (
                         <button
@@ -1821,13 +1829,13 @@ export function AiChatCard({
                             onPruneAiSessionDirectivesBySourceMessage?.(item.sourceMessageId as string);
                             setDirectiveActionNotice(
                               isZh
-                                ? `已按来源消息清理：${item.sourceMessageId}`
+                                ? `\u5df2\u6309\u6765\u6e90\u6d88\u606f\u6e05\u7406\uff1a${item.sourceMessageId}`
                                 : `Pruned by source message: ${item.sourceMessageId}`,
                             );
                           }}
                           disabled={!onPruneAiSessionDirectivesBySourceMessage}
                         >
-                          {isZh ? '同源清理' : 'Prune source'}
+                          {isZh ? '\u540c\u6e90\u6e05\u7406' : 'Prune source'}
                         </button>
                       )}
                     </article>

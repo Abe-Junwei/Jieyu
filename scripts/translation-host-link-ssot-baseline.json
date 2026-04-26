@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-21T07:18:15.436Z",
+  "generatedAt": "2026-04-26T23:10:59.931Z",
   "description": "translation host SSOT guard baseline (parent* token count in translation-related source files)",
   "files": {
-    "src/components/LayerActionPopover.tsx": 9,
+    "src/components/LayerActionPopover.tsx": 10,
     "src/components/SidePaneSidebar.tsx": 3,
     "src/db/adapter.ts": 4,
     "src/db/schemas.ts": 1,
@@ -10,7 +10,8 @@
     "src/hooks/transcriptionTypes.ts": 1,
     "src/hooks/useLayerActionPanel.ts": 1,
     "src/hooks/useTranscriptionLayerActions.ts": 3,
-    "src/i18n/layerConstraintServiceMessages.ts": 7,
+    "src/i18n/layerConstraintServiceMessages.ts": 3,
+    "src/pages/useTranscriptionLayerMetadataController.ts": 4,
     "src/services/EafService.ts": 3,
     "src/services/LayerConstraintService.ts": 19,
     "src/services/LayerOrderingService.ts": 3,

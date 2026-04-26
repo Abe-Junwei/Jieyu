@@ -20,6 +20,7 @@ const SEGMENTATION_TABLES = new Set([
 const ALLOWED_FILES = new Set([
   'src/db/dexieTranscriptionGraphStores.ts',
   'src/hooks/useTranscriptionVoiceTranslationActions.ts',
+  'src/services/AiCanonicalClusterRollbackSnapshot.ts',
   'src/services/LayerUnitSegmentWriteService.ts',
   'src/services/LayerSegmentGraphService.ts',
   'src/services/LayerSegmentQueryService.ts',

@@ -6,10 +6,11 @@ import { userBehaviorStore } from '../services/UserBehaviorStore';
 import { resolveVoiceIntent } from '../services/voiceIntentResolution';
 import type { ActionId, ActionIntent, VoiceIntent, VoiceSession, VoiceSessionEntry } from '../services/IntentRouter';
 import type { SttResult } from '../services/VoiceInputService';
+import type { VoiceMode } from '../services/voiceMode';
 import { loadIntentRouterRuntime, loadVoiceIntentRefineRuntime } from './useVoiceAgent.runtime';
 import { tf, type Locale } from '../i18n';
 
-type VoiceAgentMode = 'command' | 'dictation' | 'analysis';
+type VoiceAgentMode = VoiceMode;
 
 interface RefLike<T> {
   current: T;
@@ -81,7 +82,7 @@ function updateDisambiguationOptions(
 
 async function resolveVoiceIntentFromResult(options: {
   result: SttResult;
-  currentMode: 'command' | 'dictation' | 'analysis';
+  currentMode: VoiceMode;
   session: VoiceSession;
   aliasMap: Record<string, ActionId>;
   resolveIntentWithLlm: ((input: {
@@ -164,6 +165,7 @@ function executeVoiceIntent(options: {
         actionId: options.intent.actionId,
         durationMs: 0,
         sessionId: options.sessionId,
+        inputModality: 'voice',
       });
       options.setAgentState('idle');
       return;

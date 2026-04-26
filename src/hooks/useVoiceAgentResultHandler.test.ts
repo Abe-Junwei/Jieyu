@@ -5,6 +5,7 @@ import { renderHook, act } from '@testing-library/react';
 import { tf } from '../i18n';
 import type { SttResult } from '../services/VoiceInputService';
 import type { VoiceIntent, VoiceSession, ActionId } from '../services/IntentRouter';
+import { DEFAULT_VOICE_MODE, type VoiceMode } from '../services/voiceMode';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ vi.mock('../services/UserBehaviorStore', () => ({
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function makeSession(): VoiceSession {
-  return { id: 'sess-1', startedAt: 1, entries: [], mode: 'command' };
+  return { id: 'sess-1', startedAt: 1, entries: [], mode: DEFAULT_VOICE_MODE };
 }
 
 function makeFinalResult(text: string): SttResult {
@@ -98,7 +99,7 @@ function makeDefaultOptions(overrides: Record<string, unknown> = {}) {
   return {
     locale: 'zh-CN' as const,
     handlePipelineResult: vi.fn(() => false),
-    modeRef: makeRefLike<'command' | 'dictation' | 'analysis'>('command'),
+    modeRef: makeRefLike<VoiceMode>(DEFAULT_VOICE_MODE),
     safeModeRef: makeRefLike(false),
     sessionRef: makeRefLike(makeSession()),
     executeActionRef: makeRefLike(executeAction),
@@ -106,7 +107,7 @@ function makeDefaultOptions(overrides: Record<string, unknown> = {}) {
     insertDictationRef: makeRefLike(insertDictation),
     resolveIntentWithLlmRef: makeRefLike(undefined as ((input: {
       text: string;
-      mode: 'command' | 'dictation' | 'analysis';
+      mode: VoiceMode;
       session: VoiceSession;
     }) => Promise<VoiceIntent | null>) | undefined),
     aliasMapRef: makeRefLike<Record<string, ActionId>>({}),

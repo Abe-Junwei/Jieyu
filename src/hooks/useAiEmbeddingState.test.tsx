@@ -4,13 +4,44 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useAiEmbeddingState } from './useAiEmbeddingState';
 
+const { aiTaskRows } = vi.hoisted(() => ({
+  aiTaskRows: new Map<string, {
+    id: string;
+    taskType: 'embed' | 'gloss' | 'agent_loop';
+    status: 'pending' | 'running' | 'done' | 'failed';
+    updatedAt: string;
+    modelId?: string;
+    errorMessage?: string;
+    resumable?: boolean;
+    checkpointJson?: string;
+    lastHeartbeatAt?: string;
+    completedAt?: string;
+  }>(),
+}));
+
 vi.mock('../db', () => ({
   getDb: vi.fn(async () => ({
     collections: {
       ai_tasks: {
         find: () => ({
-          exec: async () => [],
+          exec: async () => Array.from(aiTaskRows.values()).map((row) => ({
+            toJSON: () => ({ ...row }),
+          })),
         }),
+        findOne: ({ selector }: { selector: { id: string } }) => ({
+          exec: async () => {
+            const row = aiTaskRows.get(selector.id);
+            return row ? { toJSON: () => ({ ...row }) } : null;
+          },
+        }),
+        update: async (id: string, patch: Record<string, unknown>) => {
+          const row = aiTaskRows.get(id);
+          if (!row) return;
+          aiTaskRows.set(id, {
+            ...row,
+            ...patch,
+          });
+        },
       },
     },
   })),
@@ -18,6 +49,7 @@ vi.mock('../db', () => ({
 
 afterEach(() => {
   vi.restoreAllMocks();
+  aiTaskRows.clear();
 });
 
 function makeServices() {
@@ -91,5 +123,76 @@ describe('useAiEmbeddingState', () => {
     expect(result.current.aiEmbeddingWarning).toContain('未生成可用 embedding');
     expect(result.current.aiEmbeddingProgressLabel).toContain('无法完成相似语段检索');
     expect(result.current.aiEmbeddingMatches).toEqual([]);
+  });
+
+  it('falls back to durable task cancellation when taskRunner cannot cancel agent_loop checkpoint task', async () => {
+    const services = makeServices();
+    services.taskRunner.cancel.mockReturnValue(false);
+    aiTaskRows.set('task-loop-1', {
+      id: 'task-loop-1',
+      taskType: 'agent_loop',
+      status: 'pending',
+      updatedAt: '2026-04-27T00:00:00.000Z',
+      resumable: true,
+      checkpointJson: '{"kind":"agent_loop_token_budget_warning"}',
+    });
+
+    const { result } = renderHook(() => useAiEmbeddingState({
+      locale: 'zh-CN',
+      enabled: true,
+      taskRunner: services.taskRunner,
+      embeddingService: services.embeddingService,
+      embeddingSearchService: services.embeddingSearchService,
+      selectedUnit: null,
+      unitsOnCurrentMedia: [],
+      getUnitTextForLayer: () => '',
+      formatTime: (seconds: number) => String(seconds),
+    }));
+
+    await act(async () => {
+      await result.current.handleCancelAiTask('task-loop-1');
+    });
+
+    const updated = aiTaskRows.get('task-loop-1');
+    expect(updated?.status).toBe('failed');
+    expect(updated?.resumable).toBe(false);
+    expect(updated?.errorMessage).toBe('cancelled_by_user');
+    expect(result.current.aiEmbeddingLastError).toBeNull();
+  });
+
+  it('falls back to durable task retry when taskRunner has no retry input for failed agent_loop checkpoint task', async () => {
+    const services = makeServices();
+    services.taskRunner.retry.mockResolvedValue(null);
+    aiTaskRows.set('task-loop-failed', {
+      id: 'task-loop-failed',
+      taskType: 'agent_loop',
+      status: 'failed',
+      updatedAt: '2026-04-27T00:00:00.000Z',
+      resumable: false,
+      checkpointJson: '{"kind":"agent_loop_token_budget_warning"}',
+      errorMessage: 'token budget exhausted',
+    });
+
+    const { result } = renderHook(() => useAiEmbeddingState({
+      locale: 'zh-CN',
+      enabled: true,
+      taskRunner: services.taskRunner,
+      embeddingService: services.embeddingService,
+      embeddingSearchService: services.embeddingSearchService,
+      selectedUnit: null,
+      unitsOnCurrentMedia: [],
+      getUnitTextForLayer: () => '',
+      formatTime: (seconds: number) => String(seconds),
+    }));
+
+    await act(async () => {
+      await result.current.handleRetryAiTask('task-loop-failed');
+    });
+
+    const updated = aiTaskRows.get('task-loop-failed');
+    expect(updated?.status).toBe('pending');
+    expect(updated?.resumable).toBe(true);
+    expect(result.current.aiEmbeddingLastError).toBeNull();
+    expect(result.current.aiEmbeddingProgressLabel).toContain('task-loop-failed');
   });
 });

@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 
 interface CreateTranscriptionExportCallbacksInput {
   setShowExportMenu: Dispatch<SetStateAction<boolean>>;
@@ -17,15 +18,40 @@ export function createTranscriptionExportCallbacks(
   input: CreateTranscriptionExportCallbacksInput,
 ): TranscriptionPageToolbarProps['exportCallbacks'] {
   return {
-    onToggleExportMenu: () => input.setShowExportMenu((value) => !value),
-    onExportEaf: input.handleExportEaf,
-    onExportTextGrid: input.handleExportTextGrid,
-    onExportTrs: input.handleExportTrs,
-    onExportFlextext: input.handleExportFlextext,
-    onExportToolbox: input.handleExportToolbox,
-    onExportJyt: input.handleExportJyt,
-    onExportJym: input.handleExportJym,
+    onToggleExportMenu: () => {
+      recordTranscriptionKeyboardAction('toolbarExportMenuToggle');
+      input.setShowExportMenu((value) => !value);
+    },
+    onExportEaf: () => {
+      recordTranscriptionKeyboardAction('toolbarExportEaf');
+      input.handleExportEaf();
+    },
+    onExportTextGrid: () => {
+      recordTranscriptionKeyboardAction('toolbarExportTextGrid');
+      input.handleExportTextGrid();
+    },
+    onExportTrs: () => {
+      recordTranscriptionKeyboardAction('toolbarExportTrs');
+      input.handleExportTrs();
+    },
+    onExportFlextext: () => {
+      recordTranscriptionKeyboardAction('toolbarExportFlextext');
+      input.handleExportFlextext();
+    },
+    onExportToolbox: () => {
+      recordTranscriptionKeyboardAction('toolbarExportToolbox');
+      input.handleExportToolbox();
+    },
+    onExportJyt: async () => {
+      recordTranscriptionKeyboardAction('toolbarExportJyt');
+      await input.handleExportJyt();
+    },
+    onExportJym: async () => {
+      recordTranscriptionKeyboardAction('toolbarExportJym');
+      await input.handleExportJym();
+    },
     onImportFile: (file: File) => {
+      recordTranscriptionKeyboardAction('toolbarImportAnnotationFile');
       void input.handleImportFile(file);
     },
   };

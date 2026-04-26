@@ -133,8 +133,21 @@ export const voiceAdapter: ToolObjectAdapter = {
       const target = segments[idx - 1];
       if (!target) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.navSegmentOutOfRange', { index: idx, total: segments.length }) };
       if (!ctx.navigateTo) return { ok: false, message: t(locale, 'transcription.aiTool.voice.navigateUnsupported') };
-      ctx.navigateTo(target.id);
-      return { ok: true, message: tf(locale, 'transcription.aiTool.voice.navSegmentDone', { index: idx, total: segments.length }) };
+      const previousFocusId = ctx.selectedUnit?.id;
+      const targetId = target.id;
+      const nav = ctx.navigateTo;
+      nav(targetId);
+      return {
+        ok: true,
+        message: tf(locale, 'transcription.aiTool.voice.navSegmentDone', { index: idx, total: segments.length }),
+        ...(previousFocusId !== undefined && previousFocusId !== targetId
+          ? {
+              rollback: async () => {
+                nav(previousFocusId);
+              },
+            }
+          : {}),
+      };
     }
     if (call.name === 'nav_to_time') {
       const timeSeconds = Number(call.arguments.timeSeconds);
@@ -163,7 +176,9 @@ export const voiceAdapter: ToolObjectAdapter = {
       const found = ctx.units.find((u) => u.id === segId);
       if (!found) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.segmentNotFound', { segmentId: segId }) };
       if (!ctx.navigateTo) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.focusSegmentUnsupported', { segmentId: segId }) };
-      ctx.navigateTo(segId);
+      const previousFocusId = ctx.selectedUnit?.id;
+      const nav = ctx.navigateTo;
+      nav(segId);
       return {
         ok: true,
         message: tf(locale, 'transcription.aiTool.voice.focusSegmentDone', {
@@ -171,6 +186,13 @@ export const voiceAdapter: ToolObjectAdapter = {
           startTime: found.startTime.toFixed(2),
           endTime: found.endTime.toFixed(2),
         }),
+        ...(previousFocusId !== undefined && previousFocusId !== segId
+          ? {
+              rollback: async () => {
+                nav(previousFocusId);
+              },
+            }
+          : {}),
       };
     }
     if (call.name === 'zoom_to_segment') {

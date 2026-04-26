@@ -7,6 +7,7 @@ import { useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResiz
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 import { useToast } from '../contexts/ToastContext';
 import { t, useLocale } from '../i18n';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 import type { TranscriptionVerticalPaneFocusState } from '../pages/TranscriptionPage.UIState';
 import { DEFAULT_TRANSCRIPTION_VERTICAL_PANE_FOCUS } from '../pages/TranscriptionPage.UIState';
 import { type TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';
@@ -955,7 +956,10 @@ export function TranscriptionTimelineVerticalView({
               type="button"
               className={`timeline-paired-reading-mode-btn${compactMode === 'both' ? ' is-active' : ''}`}
               aria-pressed={compactMode === 'both'}
-              onClick={() => setCompactMode('both')}
+              onClick={() => {
+                recordTranscriptionKeyboardAction('timelinePairedReadingColumnBoth');
+                setCompactMode('both');
+              }}
             >
               {t(locale, 'transcription.pairedReading.allColumns')}
             </button>
@@ -963,7 +967,10 @@ export function TranscriptionTimelineVerticalView({
               type="button"
               className={`timeline-paired-reading-mode-btn${compactMode === 'source' ? ' is-active' : ''}`}
               aria-pressed={compactMode === 'source'}
-              onClick={() => setCompactMode('source')}
+              onClick={() => {
+                recordTranscriptionKeyboardAction('timelinePairedReadingColumnSource');
+                setCompactMode('source');
+              }}
             >
               {t(locale, 'transcription.pairedReading.sourceOnly')}
             </button>
@@ -971,7 +978,10 @@ export function TranscriptionTimelineVerticalView({
               type="button"
               className={`timeline-paired-reading-mode-btn${compactMode === 'target' ? ' is-active' : ''}`}
               aria-pressed={compactMode === 'target'}
-              onClick={() => setCompactMode('target')}
+              onClick={() => {
+                recordTranscriptionKeyboardAction('timelinePairedReadingColumnTarget');
+                setCompactMode('target');
+              }}
             >
               {t(locale, 'transcription.pairedReading.translationOnly')}
             </button>

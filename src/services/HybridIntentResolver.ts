@@ -16,6 +16,7 @@
 import type { LLMProvider, ChatMessage, ChatRequestOptions } from '../ai/providers/LLMProvider';
 import { createLogger } from '../observability/logger';
 import { recordMetric, createMetricTags, isKnownMetricId } from '../observability/metrics';
+import type { VoiceMode } from './voiceMode';
 
 const log = createLogger('HybridIntentResolver');
 
@@ -52,7 +53,7 @@ export interface HybridResolverInput {
   /** 用户原文 | User text */
   userText: string;
   /** 当前模式 | Current mode */
-  mode: 'command' | 'dictation' | 'analysis' | 'chat';
+  mode: VoiceMode | 'chat';
   /** 当前媒体 ID | Current media ID */
   currentMediaId?: string;
   /** 当前层 ID | Current layer ID */

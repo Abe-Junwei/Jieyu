@@ -374,6 +374,66 @@ export async function buildClonedSegmentGraphForSplit(
   return { clonedContents, clonedLinks };
 }
 
+/**
+ * Snapshot only the segment rows (and their contents + links) for the given segment ids.
+ * Used for targeted AI rollback after segment deletes (does not snapshot entire layers).
+ */
+export async function snapshotLayerSegmentGraphBySegmentIds(
+  db: JieyuDatabase,
+  segmentIds: readonly string[],
+): Promise<LayerSegmentGraphSnapshot> {
+  const ids = uniqueIds(segmentIds);
+  if (ids.length === 0) {
+    return { units: [], contents: [], links: [] };
+  }
+
+  const bulkRows = await db.dexie.layer_units.bulkGet(ids);
+  const rows = bulkRows.filter((row): row is LayerUnitDocType => row?.unitType === 'segment');
+  if (rows.length === 0) {
+    return { units: [], contents: [], links: [] };
+  }
+
+  const segIds = rows.map((unit) => unit.id);
+  const [contents, links] = await Promise.all([
+    segIds.length === 0
+      ? Promise.resolve([] as LayerUnitContentDocType[])
+      : db.dexie.layer_unit_contents.where('unitId').anyOf(segIds).toArray(),
+    listSegmentLinksBySegmentIds(db, segIds),
+  ]);
+
+  return { units: rows, contents, links };
+}
+
+/**
+ * Re-insert a previously snapshotted segment subset without wiping unrelated segments in the layer.
+ */
+export async function reinsertLayerSegmentGraphSubset(
+  db: JieyuDatabase,
+  snapshot: LayerSegmentGraphSnapshot,
+): Promise<void> {
+  if (snapshot.units.length === 0 && snapshot.contents.length === 0 && snapshot.links.length === 0) {
+    return;
+  }
+
+  await withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForLayerSegmentGraphRw(db)],
+    async () => {
+      if (snapshot.units.length > 0) {
+        await bulkUpsertLayerUnits(db, snapshot.units);
+      }
+      if (snapshot.contents.length > 0) {
+        await bulkUpsertLayerUnitContents(db, snapshot.contents);
+      }
+      if (snapshot.links.length > 0) {
+        await LayerUnitSegmentWriteService.upsertSegmentLinks(db, snapshot.links);
+      }
+    },
+    { label: 'LayerSegmentGraphService.reinsertLayerSegmentGraphSubset' },
+  );
+}
+
 export async function snapshotLayerSegmentGraphByLayerIds(
   db: JieyuDatabase,
   layerIds: readonly string[],

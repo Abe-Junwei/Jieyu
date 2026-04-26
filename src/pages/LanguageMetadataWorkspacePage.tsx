@@ -5,7 +5,6 @@ import { JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
 import { useSearchParams } from 'react-router-dom';
 import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
-import { StructuralRuleProfileSandboxPanel } from '../components/StructuralRuleProfileSandboxPanel';
 import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, tf, useLocale } from '../i18n';
@@ -18,8 +17,6 @@ import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspaceDetailColumn';
 import { WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';
 import { LANGUAGE_ID_PARAM, NEW_LANGUAGE_ID, buildClassificationPathValue, buildDraft, createDisplayNameDraftRow, normalizeDisplayNameRows, parseAdministrativeDivisionText, parseAliasText, parseLineSeparatedText, readDisplayNameMatrixFallback, readEntryKindLabel, type HistoryItem, type LanguageDisplayNameDraftRow, type LanguageMetadataDraft, type WorkspaceLocale } from './languageMetadataWorkspace.shared';
-import { LinguisticStructuralProfileService, type StructuralRuleProfilePreview } from '../services/LinguisticService.structuralProfiles';
-
 export function LanguageMetadataWorkspacePage({
   registerSidePane = true,
   onClose,
@@ -41,9 +38,6 @@ export function LanguageMetadataWorkspacePage({
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
   const [searchText, setSearchText] = useState('');
-  const [structuralPreview, setStructuralPreview] = useState<StructuralRuleProfilePreview | null>(null);
-  const [structuralPreviewPending, setStructuralPreviewPending] = useState(false);
-  const [structuralPreviewError, setStructuralPreviewError] = useState('');
   const [draft, setDraft] = useState<LanguageMetadataDraft>(() => buildDraft(null, locale));
   // 搜索匹配元数据：用于 P2 match rendering | Search match metadata for P2 match rendering
   const [searchSuggestionMap, setSearchSuggestionMap] = useState<ReadonlyMap<string, LanguageCatalogSearchSuggestion>>(new Map());
@@ -72,14 +66,6 @@ export function LanguageMetadataWorkspacePage({
   selectedLanguageIdRef.current = selectedLanguageId;
   const searchParamsRef = useRef(searchParams);
   searchParamsRef.current = searchParams;
-  const structuralPreviewRequestRef = useRef(0);
-
-  useEffect(() => {
-    setStructuralPreview(null);
-    setStructuralPreviewError('');
-    structuralPreviewRequestRef.current = 0;
-  }, [selectedLanguageId]);
-
   const loadEntries = async (nextSearchText: string) => {
     setLoading(true);
     try {
@@ -428,31 +414,6 @@ export function LanguageMetadataWorkspacePage({
     }
   };
 
-  const handleStructuralPreview = async (glossText: string) => {
-    if (!selectedEntry) return;
-    const requestId = structuralPreviewRequestRef.current + 1;
-    structuralPreviewRequestRef.current = requestId;
-    const languageId = selectedEntry.id;
-    setStructuralPreviewPending(true);
-    try {
-      const preview = await LinguisticStructuralProfileService.previewStructuralRuleProfile({
-        languageId,
-        glossText,
-      });
-      if (structuralPreviewRequestRef.current !== requestId || selectedLanguageIdRef.current !== languageId) return;
-      setStructuralPreview(preview);
-      setStructuralPreviewError('');
-    } catch (previewError) {
-      if (structuralPreviewRequestRef.current !== requestId) return;
-      setStructuralPreview(null);
-      setStructuralPreviewError(previewError instanceof Error ? previewError.message : 'Structural profile preview failed');
-    } finally {
-      if (structuralPreviewRequestRef.current === requestId) {
-        setStructuralPreviewPending(false);
-      }
-    }
-  };
-
   const sidePaneContent = useMemo(() => (
     <div className="app-side-pane-feature-stack">
       <section className="app-side-pane-group" aria-label={t(locale, 'workspace.languageMetadata.sidePaneCurrent')}>
@@ -479,6 +440,7 @@ export function LanguageMetadataWorkspacePage({
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav">
           <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openOrthographyManager')}</OrthographyPanelLink>
+          <LanguageAssetRouteLink to="/assets/structural-profiles" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openStructuralProfiles')}</LanguageAssetRouteLink>
           <LanguageAssetRouteLink to="/assets/orthography-bridges" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openBridgeWorkspace')}</LanguageAssetRouteLink>
         </div>
       </section>
@@ -592,16 +554,6 @@ export function LanguageMetadataWorkspacePage({
         onRemoveDisplayNameRow={handleRemoveDisplayNameRow}
         onSelectEntry={handleSelectEntry}
       />
-
-      {selectedEntry ? (
-        <StructuralRuleProfileSandboxPanel
-          preview={structuralPreview}
-          pending={structuralPreviewPending}
-          errorMessage={structuralPreviewError}
-          initialGloss="1SG=COP dog-PL"
-          onPreview={handleStructuralPreview}
-        />
-      ) : null}
     </EmbeddedPanelShell>
   );
 }

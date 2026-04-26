@@ -5,6 +5,15 @@ export interface TaskRunContext {
   signal: AbortSignal;
   attempt: number;
   maxAttempts: number;
+  heartbeat: (checkpoint?: TaskRunnerCheckpoint) => Promise<void>;
+  checkpoint: (checkpoint: TaskRunnerCheckpoint) => Promise<void>;
+}
+
+export interface TaskRunnerCheckpoint {
+  kind: string;
+  message?: string;
+  data?: Record<string, unknown>;
+  at?: string;
 }
 
 export interface EnqueueTaskInput<TResult> {
@@ -14,6 +23,8 @@ export interface EnqueueTaskInput<TResult> {
   modelId?: string;
   maxAttempts?: number;
   timeoutMs?: number;
+  resumable?: boolean;
+  initialCheckpoint?: TaskRunnerCheckpoint;
   run: (context: TaskRunContext) => Promise<TResult>;
 }
 
@@ -69,6 +80,13 @@ function isMissingIndexedDbApiError(error: unknown): boolean {
     .filter((item) => item.length > 0)
     .join('\n');
   return details.includes('MissingAPIError') || details.includes('IndexedDB API missing');
+}
+
+function serializeCheckpoint(checkpoint: TaskRunnerCheckpoint): string {
+  return JSON.stringify({
+    ...checkpoint,
+    at: checkpoint.at ?? nowIso(),
+  });
 }
 
 class TaskTimeoutError extends Error {
@@ -170,6 +188,11 @@ export class TaskRunner {
       targetId: input.targetId,
       ...(input.targetType ? { targetType: input.targetType } : {}),
       ...(input.modelId ? { modelId: input.modelId } : {}),
+      attempt: 0,
+      maxAttempts,
+      timeoutMs,
+      ...(input.initialCheckpoint ? { checkpointJson: serializeCheckpoint(input.initialCheckpoint) } : {}),
+      ...(input.resumable !== undefined ? { resumable: input.resumable } : {}),
       createdAt: timestamp,
       updatedAt: timestamp,
     });
@@ -204,6 +227,26 @@ export class TaskRunner {
       this.retryInputs.set(taskId, retryInput);
       throw error;
     }
+  }
+
+  async checkpoint(taskId: string, checkpoint: TaskRunnerCheckpoint): Promise<void> {
+    const db = await getDb();
+    const timestamp = nowIso();
+    await db.collections.ai_tasks.update(taskId, {
+      checkpointJson: serializeCheckpoint({ ...checkpoint, at: checkpoint.at ?? timestamp }),
+      lastHeartbeatAt: timestamp,
+      updatedAt: timestamp,
+    });
+  }
+
+  async heartbeat(taskId: string, checkpoint?: TaskRunnerCheckpoint): Promise<void> {
+    const db = await getDb();
+    const timestamp = nowIso();
+    await db.collections.ai_tasks.update(taskId, {
+      lastHeartbeatAt: timestamp,
+      ...(checkpoint ? { checkpointJson: serializeCheckpoint({ ...checkpoint, at: checkpoint.at ?? timestamp }) } : {}),
+      updatedAt: timestamp,
+    });
   }
 
   private schedulePumpQueue(): void {
@@ -243,6 +286,7 @@ export class TaskRunner {
         }
 
         try {
+          await this.updateTaskAttempt(db, task.taskId, attempt, task.maxAttempts, task.timeoutMs);
           const result = await this.runWithTimeout(task, attempt);
           if (task.controller.signal.aborted) {
             throw new TaskCancelledError();
@@ -316,6 +360,8 @@ export class TaskRunner {
             signal: attemptController.signal,
             attempt,
             maxAttempts: task.maxAttempts,
+            heartbeat: (checkpoint?: TaskRunnerCheckpoint) => this.heartbeat(task.taskId, checkpoint),
+            checkpoint: (checkpoint: TaskRunnerCheckpoint) => this.checkpoint(task.taskId, checkpoint),
           }),
         timeoutPromise,
       ]);
@@ -366,7 +412,25 @@ export class TaskRunner {
     await db.collections.ai_tasks.update(taskId, {
       status,
       updatedAt: nowIso(),
+      ...(status === 'running' ? { startedAt: row.startedAt ?? nowIso() } : {}),
+      ...(status === 'done' || status === 'failed' ? { completedAt: nowIso() } : {}),
       ...(errorMessage ? { errorMessage } : {}),
+    });
+  }
+
+  private async updateTaskAttempt(
+    db: Awaited<ReturnType<typeof getDb>>,
+    taskId: string,
+    attempt: number,
+    maxAttempts: number,
+    timeoutMs: number,
+  ): Promise<void> {
+    await db.collections.ai_tasks.update(taskId, {
+      attempt,
+      maxAttempts,
+      timeoutMs,
+      lastHeartbeatAt: nowIso(),
+      updatedAt: nowIso(),
     });
   }
 }

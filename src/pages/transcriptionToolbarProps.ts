@@ -6,9 +6,50 @@ import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import { canDeleteCurrentAudio } from './transcriptionMediaGuards';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 import type { UttOpsMenuState } from './TranscriptionPage.UIState';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
 import type { TranscriptionReviewPreset } from '../utils/transcriptionReviewQueue';
+import type { ActionId } from '../services/IntentRouter';
+
+const DISPLAY_MODE_TO_ACTION: Record<WaveformDisplayMode, ActionId> = {
+  waveform: 'toolbarDisplayModeWaveform',
+  spectrogram: 'toolbarDisplayModeSpectrogram',
+  split: 'toolbarDisplayModeSplit',
+};
+
+const VISUAL_STYLE_TO_ACTION: Record<WaveformVisualStyle, ActionId> = {
+  balanced: 'toolbarVisualStyleBalanced',
+  dense: 'toolbarVisualStyleDense',
+  contrast: 'toolbarVisualStyleContrast',
+  line: 'toolbarVisualStyleLine',
+};
+
+const ACOUSTIC_TO_ACTION: Record<AcousticOverlayMode, ActionId> = {
+  none: 'toolbarAcousticOverlayNone',
+  f0: 'toolbarAcousticOverlayF0',
+  intensity: 'toolbarAcousticOverlayIntensity',
+  both: 'toolbarAcousticOverlayBoth',
+};
+
+const REVIEW_PRESET_TO_ACTION: Record<TranscriptionReviewPreset, ActionId> = {
+  all: 'toolbarReviewPresetAll',
+  time: 'toolbarReviewPresetTime',
+  content_concern: 'toolbarReviewPresetContentConcern',
+  content_missing: 'toolbarReviewPresetContentMissing',
+  manual_attention: 'toolbarReviewPresetManualAttention',
+  pending_review: 'toolbarReviewPresetPendingReview',
+};
+
+let lastToolbarVolumeTelemetryMs = 0;
+const TOOLBAR_VOLUME_TELEMETRY_INTERVAL_MS = 350;
+
+function recordToolbarVolumeTelemetryThrottled(): void {
+  const now = Date.now();
+  if (now - lastToolbarVolumeTelemetryMs < TOOLBAR_VOLUME_TELEMETRY_INTERVAL_MS) return;
+  lastToolbarVolumeTelemetryMs = now;
+  recordTranscriptionKeyboardAction('toolbarVolumeChange');
+}
 
 interface CreateTranscriptionToolbarPropsInput {
   locale: string;
@@ -81,19 +122,43 @@ export function createTranscriptionToolbarProps(
     isReady: input.player.isReady,
     isPlaying: input.player.isPlaying,
     playbackRate: input.player.playbackRate,
-    onPlaybackRateChange: input.player.setPlaybackRate,
+    onPlaybackRateChange: (rate) => {
+      recordTranscriptionKeyboardAction('toolbarPlaybackRateChange');
+      input.player.setPlaybackRate(rate);
+    },
     waveformDisplayMode: input.waveformDisplayMode,
-    onWaveformDisplayModeChange: input.setWaveformDisplayMode,
+    onWaveformDisplayModeChange: (mode) => {
+      recordTranscriptionKeyboardAction(DISPLAY_MODE_TO_ACTION[mode]);
+      input.setWaveformDisplayMode(mode);
+    },
     waveformVisualStyle: input.waveformVisualStyle,
-    onWaveformVisualStyleChange: input.setWaveformVisualStyle,
+    onWaveformVisualStyleChange: (style) => {
+      recordTranscriptionKeyboardAction(VISUAL_STYLE_TO_ACTION[style]);
+      input.setWaveformVisualStyle(style);
+    },
     acousticOverlayMode: input.acousticOverlayMode,
-    onAcousticOverlayModeChange: input.setAcousticOverlayMode,
+    onAcousticOverlayModeChange: (mode) => {
+      recordTranscriptionKeyboardAction(ACOUSTIC_TO_ACTION[mode]);
+      input.setAcousticOverlayMode(mode);
+    },
     volume: input.player.volume,
-    onVolumeChange: input.player.setVolume,
+    onVolumeChange: (vol) => {
+      recordToolbarVolumeTelemetryThrottled();
+      input.player.setVolume(vol);
+    },
     loop: input.globalLoopPlayback,
-    onLoopChange: input.setGlobalLoopPlayback,
-    onTogglePlayback: input.handleGlobalPlayPauseAction,
-    onSeek: input.player.seekBySeconds,
+    onLoopChange: (loop) => {
+      recordTranscriptionKeyboardAction('toggleGlobalLoop');
+      input.setGlobalLoopPlayback(loop);
+    },
+    onTogglePlayback: () => {
+      recordTranscriptionKeyboardAction('playPause');
+      input.handleGlobalPlayPauseAction();
+    },
+    onSeek: (delta) => {
+      recordTranscriptionKeyboardAction(delta < 0 ? 'seekBack10Sec' : 'seekForward10Sec');
+      input.player.seekBySeconds(delta);
+    },
     canUndo: input.canUndo,
     canRedo: input.canRedo,
     undoLabel: input.undoLabel,
@@ -108,25 +173,66 @@ export function createTranscriptionToolbarProps(
     showExportMenu: input.showExportMenu,
     importFileRef: input.importFileRef,
     exportMenuRef: input.exportMenuRef,
-    onRefresh: () => { void input.loadSnapshot(); },
-    onUndo: () => { void input.undo(); },
-    onRedo: () => { void input.redo(); },
-    onOpenProjectSetup: () => input.setShowProjectSetup(true),
-    onOpenAudioImport: () => input.setShowAudioImport(true),
-    onDeleteCurrentAudio: input.handleDeleteCurrentAudio,
-    onDeleteCurrentProject: input.handleDeleteCurrentProject,
+    onRefresh: () => {
+      recordTranscriptionKeyboardAction('toolbarRefresh');
+      void input.loadSnapshot();
+    },
+    onUndo: () => {
+      recordTranscriptionKeyboardAction('undo');
+      void input.undo();
+    },
+    onRedo: () => {
+      recordTranscriptionKeyboardAction('redo');
+      void input.redo();
+    },
+    onOpenProjectSetup: () => {
+      recordTranscriptionKeyboardAction('toolbarOpenProjectSetup');
+      input.setShowProjectSetup(true);
+    },
+    onOpenAudioImport: () => {
+      recordTranscriptionKeyboardAction('toolbarOpenAudioImport');
+      input.setShowAudioImport(true);
+    },
+    onDeleteCurrentAudio: () => {
+      recordTranscriptionKeyboardAction('deleteTimelineAudio');
+      input.handleDeleteCurrentAudio();
+    },
+    onDeleteCurrentProject: () => {
+      recordTranscriptionKeyboardAction('deleteTranscriptionProject');
+      input.handleDeleteCurrentProject();
+    },
     exportCallbacks: input.exportCallbacks,
-    onToggleNotes: input.toggleNotes,
-    onOpenUttOpsMenu: (x, y) => input.setUttOpsMenu({ x, y }),
+    onToggleNotes: () => {
+      recordTranscriptionKeyboardAction('toggleNotes');
+      input.toggleNotes();
+    },
+    onOpenUttOpsMenu: (x, y) => {
+      recordTranscriptionKeyboardAction('toolbarOpenUttOpsMenu');
+      input.setUttOpsMenu({ x, y });
+    },
     lowConfidenceCount: input.lowConfidenceCount,
     reviewIssueCount: input.reviewIssueCount,
     reviewPresetCounts: input.reviewPresetCounts,
     activeReviewPreset: input.activeReviewPreset,
-    onSelectReviewPreset: input.onSelectReviewPreset,
+    onSelectReviewPreset: (preset) => {
+      recordTranscriptionKeyboardAction(REVIEW_PRESET_TO_ACTION[preset]);
+      input.onSelectReviewPreset(preset);
+    },
     onOpenReviewIssues: input.onOpenReviewIssues,
-    onReviewPrev: input.onReviewPrev,
-    onReviewNext: input.onReviewNext,
-    ...(input.playableAcoustic ? { onAutoSegment: input.handleAutoSegment } : {}),
+    onReviewPrev: () => {
+      recordTranscriptionKeyboardAction('reviewPrev');
+      input.onReviewPrev();
+    },
+    onReviewNext: () => {
+      recordTranscriptionKeyboardAction('reviewNext');
+      input.onReviewNext();
+    },
+    ...(input.playableAcoustic ? {
+      onAutoSegment: () => {
+        recordTranscriptionKeyboardAction('autoSegmentRun');
+        input.handleAutoSegment();
+      },
+    } : {}),
     autoSegmentBusy: input.autoSegmentBusy,
   };
 }

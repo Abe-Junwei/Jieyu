@@ -18,6 +18,7 @@ import { t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { getTranscriptionAppService } from '../app/index';
 import { resolveTimelineAxisStatus, shouldShowLogicalAxisLengthOnAxisStrip } from '../utils/timelineAxisStatus';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 
 type AxisStatusRuntimeInput = Parameters<typeof resolveTimelineAxisStatus>[0];
 
@@ -129,12 +130,17 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
     unitsOnCurrentMedia,
   ]);
 
+  const handleWaveformResizeStartWithTelemetry = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    recordTranscriptionKeyboardAction('timelineWaveformResizeStart');
+    handleWaveformResizeStart(event);
+  }, [handleWaveformResizeStart]);
+
   const timelineTopPropsWithAxisStatus = useMemo(() => {
     const withResize = {
       ...timelineTopProps,
       headerProps: {
         ...timelineTopProps.headerProps,
-        ...(selectedMediaUrl ? { onWaveformResizeStart: handleWaveformResizeStart } : {}),
+        ...(selectedMediaUrl ? { onWaveformResizeStart: handleWaveformResizeStartWithTelemetry } : {}),
         isResizingWaveform,
       },
     };
@@ -170,7 +176,15 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
           ...(hiddenCount > 0 ? { hiddenByMediaFilterCount: hiddenCount } : {}),
           ...(activeTextTimelineMode ? { timelineMode: activeTextTimelineMode } : {}),
           ...(hint.kind === 'duration_short' && activeTextId
-            ? { expandLogical: { busy: logicalExpandBusy, onPress: expandLogicalDurationFromAxisStatus } }
+            ? {
+              expandLogical: {
+                busy: logicalExpandBusy,
+                onPress: () => {
+                  recordTranscriptionKeyboardAction('timelineAxisExpandLogicalDuration');
+                  expandLogicalDurationFromAxisStatus();
+                },
+              },
+            }
             : {}),
         };
       }
@@ -181,7 +195,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
     activeTextTimeMapping?.logicalDurationSec,
     activeTextTimelineMode,
     expandLogicalDurationFromAxisStatus,
-    handleWaveformResizeStart,
+    handleWaveformResizeStartWithTelemetry,
     isResizingWaveform,
     layersCount,
     locale,

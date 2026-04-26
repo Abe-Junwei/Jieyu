@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getActionLabel, type VoiceSession } from './IntentRouter';
 import type { CorpusContext, UserBehaviorProfile } from './GlobalContextService';
 import { buildVoiceAgentGroundingContext } from './VoiceAgentGroundingContext';
+import { DEFAULT_VOICE_MODE } from './voiceMode';
 
 function makeProfile(): UserBehaviorProfile {
   return {
@@ -66,7 +67,7 @@ function makeSession(): VoiceSession {
   return {
     id: 'session-1',
     startedAt: Date.now(),
-    mode: 'command',
+    mode: DEFAULT_VOICE_MODE,
     entries: [
       {
         timestamp: Date.now(),

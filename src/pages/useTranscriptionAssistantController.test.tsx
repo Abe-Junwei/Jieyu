@@ -7,6 +7,7 @@ import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { unitToView } from '../hooks/timelineUnitView';
 import { useTranscriptionAssistantController } from './useTranscriptionAssistantController';
+import { DEFAULT_VOICE_MODE } from '../services/voiceMode';
 
 const {
   mockBridgeTextForLayerTarget,
@@ -451,8 +452,8 @@ describe('useTranscriptionAssistantController', () => {
 
     await expect(result.current.handleResolveVoiceIntentWithLlm({
       text: '播放',
-      mode: 'command',
-      session: { id: 'session-1', startedAt: 0, entries: [], mode: 'command' },
+      mode: DEFAULT_VOICE_MODE,
+      session: { id: 'session-1', startedAt: 0, entries: [], mode: DEFAULT_VOICE_MODE },
     })).resolves.toBeNull();
   });
 });

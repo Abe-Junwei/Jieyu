@@ -4,6 +4,7 @@ import { globalContext } from '../services/GlobalContextService';
 import { userBehaviorStore } from '../services/UserBehaviorStore';
 import type { ActionId, VoiceSession } from '../services/IntentRouter';
 import type { SttEngine, VoiceInputService as VoiceInputServiceType } from '../services/VoiceInputService';
+import type { VoiceMode } from '../services/voiceMode';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
 
@@ -16,7 +17,7 @@ interface UseVoiceAgentTransportControlsOptions {
   listening: boolean;
   voiceActivateGenerationRef: RefLike<number>;
   exclusiveStartPromiseRef: RefLike<Promise<void> | null>;
-  start: (targetMode?: 'command' | 'dictation' | 'analysis') => Promise<void>;
+  start: (targetMode?: VoiceMode) => Promise<void>;
   stopDictationPipeline: () => void;
   clearInteractionPrompts: () => void;
   loadVoiceSessionStoreRuntime: () => Promise<typeof import('../services/VoiceSessionStore')>;
@@ -164,7 +165,7 @@ export function useVoiceAgentTransportControls({
     }
   }, [listening, serviceRef, setAgentState, setEngine]);
 
-  const toggle = useCallback((targetMode?: 'command' | 'dictation' | 'analysis') => {
+  const toggle = useCallback((targetMode?: VoiceMode) => {
     if (listening) {
       void stop();
     } else {
@@ -186,6 +187,7 @@ export function useVoiceAgentTransportControls({
       actionId: pendingConfirm.actionId,
       durationMs: 0,
       sessionId: sessionRef.current.id,
+      inputModality: 'voice',
     });
   }, [clearInteractionPrompts, executeActionRef, sessionRef]);
 

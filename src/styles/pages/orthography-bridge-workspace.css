@@ -29,7 +29,7 @@
   min-height: 0;
 }
 
-.ob-layout > .ob-list-panel {
+.ob-layout > .ob-browser {
   min-height: 220px;
 }
 
@@ -63,32 +63,28 @@
   gap: var(--space-row-gap, 8px);
 }
 
-/* ── List panel ── */
+/* ── 列表区（与 OM `om-browser` / LM master 一致：栈式、无套卡） | List browser — flat stack like OM ── */
 
-.ob-list-panel {
-  --la-list-gap: var(--space-row-gap, 8px);
-  --la-list-max-height: clamp(220px, 38vh, 420px);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 60%, transparent);
-  border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-header) 34%, var(--surface-panel));
+.ob-shell .ob-browser {
+  --la-list-gap: 2px;
+  display: grid;
+  gap: var(--space-stack-section, 12px);
+  min-width: 0;
 }
 
-.ob-list-panel .panel-section__body {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-/* 区块标题居中对齐（含描述） | Center section copy (title + description) */
-.ob-workspace :is(.ob-list-panel, .ob-bridge-panel) > .panel-section__header {
-  width: 100%;
-}
-
-.ob-workspace :is(.ob-list-panel, .ob-bridge-panel) .panel-section__copy {
-  width: 100%;
+.ob-browser-header,
+.ob-bridge-header {
+  display: grid;
+  gap: var(--space-title-content, 8px);
+  justify-items: start;
   text-align: left;
+  width: 100%;
+}
+
+.ob-shell .ob-browser .panel-section__description,
+.ob-shell .ob-bridge .panel-section__description {
+  max-width: 58ch;
+  margin-inline: 0;
 }
 
 .ob-search { width: 100%; }
@@ -141,12 +137,70 @@
   color: var(--surface-panel);
 }
 
-.ob-list {
-  display: grid;
-  gap: var(--la-list-gap);
+.ob-shell .ob-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(46vh, 500px);
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+  background: color-mix(in srgb, var(--surface-panel) 97%, var(--surface-header));
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 62%, transparent);
+  scrollbar-width: thin;
 }
 
-/* List item base 已收入 .la-shell 合约层 | unified via .la-shell contract */
+.ob-shell .ob-list .ob-list-item {
+  position: relative;
+  display: grid;
+  gap: var(--space-2, 8px);
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  align-content: start;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 80ms ease;
+}
+
+.ob-shell .ob-list .ob-list-item::before {
+  content: none;
+}
+
+.ob-shell .ob-list .ob-list-item:hover {
+  background: color-mix(in srgb, var(--accent-soft, var(--state-info-bg)) 40%, transparent);
+}
+
+.ob-shell .ob-list .ob-list-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.ob-shell .ob-list .ob-list-item:active {
+  box-shadow: none;
+}
+
+.ob-shell .ob-list .ob-list-item.ob-list-item-active {
+  background: var(--accent-soft, var(--state-info-bg));
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.ob-shell .ob-list .ob-list-item.ob-list-item-active::before {
+  display: none;
+}
+
+.ob-shell .ob-list .ob-list-item.ob-list-item-highlight {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -1px;
+}
 
 .ob-list-item-label { font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))); font-weight: 600; line-height: 1.45; }
 .ob-list-item-meta { color: var(--text-secondary); font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
@@ -156,10 +210,11 @@
 .ob-empty-callout {
   display: grid;
   gap: var(--space-row-gap, 8px);
-  padding: 12px;
-  border: 1px dashed color-mix(in srgb, var(--state-warning-text) 35%, transparent);
-  border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-warning-bg));
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
 .ob-inline-actions {
@@ -170,13 +225,13 @@
 
 /* State 已收入 .la-shell 合约层 | unified via .la-shell contract */
 
-/* ── Bridge panel ── */
+/* ── 桥接编辑区（与 LM 详情栏一致：无 panel-section 套卡） | Bridge editor — flat like LM detail column ── */
 
-.ob-bridge-panel {
-  height: 100%;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 62%, transparent);
-  border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-panel) 99%, var(--surface-header));
+.ob-bridge {
+  display: grid;
+  gap: var(--space-stack-section, 12px);
+  min-width: 0;
+  min-height: 0;
 }
 
 /* ── Bridge panel internal overrides ── */
@@ -248,7 +303,7 @@
   border-style: dashed;
 }
 
-.ob-bridge-panel .orthography-builder-panel {
+.ob-bridge .orthography-builder-panel {
   font-family: var(--font-base);
   color: var(--text-primary);
   margin-top: 0;
@@ -258,10 +313,10 @@
   box-shadow: none;
 }
 
-.ob-bridge-panel .orthography-builder-grid,
-.ob-bridge-panel .orthography-builder-bridge-grid { gap: var(--la-section-gap); }
+.ob-bridge .orthography-builder-grid,
+.ob-bridge .orthography-builder-bridge-grid { gap: var(--la-section-gap); }
 
-.ob-bridge-panel .orthography-builder-bridge-panel {
+.ob-bridge .orthography-builder-bridge-panel {
   display: grid;
   gap: var(--la-section-gap);
   margin-top: 0;
@@ -272,27 +327,27 @@
   background: transparent;
 }
 
-.ob-bridge-panel .orthography-builder-bridge-grid {
+.ob-bridge .orthography-builder-bridge-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
 }
 
-.ob-bridge-panel .ob-bridge-group { display: grid; gap: var(--space-stack-section, 12px); grid-column: 1 / -1; }
+.ob-bridge .ob-bridge-group { display: grid; gap: var(--space-stack-section, 12px); grid-column: 1 / -1; }
 
-.ob-bridge-panel .ob-bridge-group-source,
-.ob-bridge-panel .ob-bridge-group-meta {
+.ob-bridge .ob-bridge-group-source,
+.ob-bridge .ob-bridge-group-meta {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
 }
 
-.ob-bridge-panel .ob-bridge-group-source > :first-child { grid-column: span 2; }
+.ob-bridge .ob-bridge-group-source > :first-child { grid-column: span 2; }
 
-.ob-bridge-panel .ob-bridge-group-meta {
+.ob-bridge .ob-bridge-group-meta {
   position: relative;
   padding-top: 16px;
 }
 
-.ob-bridge-panel .ob-bridge-group-meta::before {
+.ob-bridge .ob-bridge-group-meta::before {
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
@@ -300,69 +355,69 @@
   background: color-mix(in srgb, var(--border-soft) 36%, transparent);
 }
 
-.ob-bridge-panel .ob-bridge-group-content {
+.ob-bridge .ob-bridge-group-content {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--la-section-gap);
 }
 
-.ob-bridge-panel .orthography-builder-rule-block { gap: var(--space-stack-section, 12px); grid-column: span 2; }
+.ob-bridge .orthography-builder-rule-block { gap: var(--space-stack-section, 12px); grid-column: span 2; }
 
-.ob-bridge-panel .orthography-builder-bridge-hint-box,
-.ob-bridge-panel .orthography-builder-validation-box,
-.ob-bridge-panel .orthography-builder-preview-box,
-.ob-bridge-panel .orthography-builder-actions { grid-column: span 1; }
+.ob-bridge .orthography-builder-bridge-hint-box,
+.ob-bridge .orthography-builder-validation-box,
+.ob-bridge .orthography-builder-preview-box,
+.ob-bridge .orthography-builder-actions { grid-column: span 1; }
 
-.ob-bridge-panel .orthography-builder-actions {
+.ob-bridge .orthography-builder-actions {
   align-self: end;
   padding-top: 0;
   border-top: 0;
   justify-content: flex-start;
 }
 
-.ob-bridge-panel .ob-bridge-group-content > .dialog-field,
-.ob-bridge-panel .ob-bridge-group-content > .orthography-builder-validation-box,
-.ob-bridge-panel .ob-bridge-group-content > .orthography-builder-preview-box { min-width: 0; }
+.ob-bridge .ob-bridge-group-content > .dialog-field,
+.ob-bridge .ob-bridge-group-content > .orthography-builder-validation-box,
+.ob-bridge .ob-bridge-group-content > .orthography-builder-preview-box { min-width: 0; }
 
-.ob-bridge-panel .ob-bridge-checkbox-row { align-self: end; }
+.ob-bridge .ob-bridge-checkbox-row { align-self: end; }
 
-.ob-bridge-panel :is(.dialog-field, .language-iso-input .dialog-field) { gap: var(--space-row-gap, 8px); }
-.ob-bridge-panel .orthography-builder-actions { gap: var(--space-row-gap, 8px); }
+.ob-bridge :is(.dialog-field, .language-iso-input .dialog-field) { gap: var(--space-row-gap, 8px); }
+.ob-bridge .orthography-builder-actions { gap: var(--space-row-gap, 8px); }
 
-.ob-bridge-panel .orthography-builder-preview-box,
-.ob-bridge-panel .orthography-builder-validation-box,
-.ob-bridge-panel .orthography-builder-hint { gap: var(--space-row-gap, 8px); padding: 10px 12px; }
+.ob-bridge .orthography-builder-preview-box,
+.ob-bridge .orthography-builder-validation-box,
+.ob-bridge .orthography-builder-hint { gap: var(--space-row-gap, 8px); padding: 0; }
 
-.ob-bridge-panel .orthography-builder-preview-box,
-.ob-bridge-panel .orthography-builder-validation-box,
-.ob-bridge-panel .orthography-builder-hint,
-.ob-bridge-panel .orthography-builder-rule-block { margin: 0; }
+.ob-bridge .orthography-builder-preview-box,
+.ob-bridge .orthography-builder-validation-box,
+.ob-bridge .orthography-builder-hint,
+.ob-bridge .orthography-builder-rule-block { margin: 0; }
 
-.ob-bridge-panel .orthography-builder-preview-box,
-.ob-bridge-panel .orthography-builder-hint,
-.ob-bridge-panel .orthography-builder-validation-box-neutral {
+.ob-bridge .orthography-builder-preview-box,
+.ob-bridge .orthography-builder-hint,
+.ob-bridge .orthography-builder-validation-box-neutral {
   border: 0;
   box-shadow: none;
-  background: color-mix(in srgb, var(--surface-header) 42%, var(--surface-panel));
+  background: transparent;
 }
 
-.ob-bridge-panel .orthography-builder-validation-box-error {
+.ob-bridge .orthography-builder-validation-box-error {
   border: 0;
   border-inline-start: 3px solid color-mix(in srgb, var(--state-danger-text) 72%, transparent);
 }
 
-.ob-bridge-panel .orthography-builder-validation-box-warn {
+.ob-bridge .orthography-builder-validation-box-warn {
   border: 0;
   border-inline-start: 3px solid color-mix(in srgb, var(--state-warning-text) 72%, transparent);
 }
 
-.ob-bridge-panel :is(input, select, textarea) {
+.ob-bridge :is(input, select, textarea) {
   font-family: var(--font-base);
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-primary);
 }
 
-.ob-bridge-panel .orthography-builder-rule-textarea {
+.ob-bridge .orthography-builder-rule-textarea {
   display: block;
   width: 100%;
   min-height: 128px;
@@ -371,43 +426,43 @@
   box-sizing: border-box;
 }
 
-.ob-bridge-panel :is(input, select, textarea)::placeholder { color: var(--text-secondary); }
+.ob-bridge :is(input, select, textarea)::placeholder { color: var(--text-secondary); }
 
-.ob-bridge-panel .orthography-builder-hint,
-.ob-bridge-panel .orthography-builder-helper-text {
+.ob-bridge .orthography-builder-hint,
+.ob-bridge .orthography-builder-helper-text {
   margin: 0;
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }
 
-.ob-bridge-panel .orthography-builder-rule-label { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); font-weight: 600; line-height: 1.5; }
+.ob-bridge .orthography-builder-rule-label { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); font-weight: 600; line-height: 1.5; }
 
-.ob-bridge-panel :is(.orthography-builder-preview-box, .orthography-builder-validation-box) {
+.ob-bridge :is(.orthography-builder-preview-box, .orthography-builder-validation-box) {
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
-.ob-bridge-panel :is(.orthography-builder-validation-list, .orthography-builder-context-list) {
+.ob-bridge :is(.orthography-builder-validation-list, .orthography-builder-context-list) {
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
-.ob-bridge-panel .orthography-builder-checkbox { font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))); color: var(--text-primary); }
-.ob-bridge-panel code { font-family: var(--font-mono); font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
+.ob-bridge .orthography-builder-checkbox { font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))); color: var(--text-primary); }
+.ob-bridge code { font-family: var(--font-mono); font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
 
-.ob-bridge-panel .orthography-builder-toolbar-actions {
+.ob-bridge .orthography-builder-toolbar-actions {
   justify-content: space-between;
   gap: var(--space-row-padding-y, 10px);
   padding-bottom: 4px;
 }
 
-.ob-bridge-panel .orthography-builder-preview-box,
-.ob-bridge-panel .orthography-builder-validation-box,
-.ob-bridge-panel .orthography-builder-hint,
-.ob-bridge-panel .orthography-builder-rule-block { border-radius: var(--radius-2xl); }
+.ob-bridge .orthography-builder-preview-box,
+.ob-bridge .orthography-builder-validation-box,
+.ob-bridge .orthography-builder-hint,
+.ob-bridge .orthography-builder-rule-block { border-radius: 0; }
 
-.ob-bridge-panel .orthography-builder-footer-actions {
+.ob-bridge .orthography-builder-footer-actions {
   grid-column: 1 / -1;
   position: sticky;
   bottom: 0;
@@ -415,10 +470,10 @@
   justify-content: flex-end;
   gap: var(--space-row-padding-y, 10px);
   margin-top: 4px;
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
-  border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-header) 44%, var(--surface-panel));
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
 /* dialog-field gap + label 已收入 .la-shell 合约层 | unified via .la-shell contract */
@@ -428,21 +483,21 @@
 @media (max-width: 1180px) and (min-width: 721px) {
   .ob-summary .ws-summary-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-  .ob-bridge-panel :is(
+  .ob-bridge :is(
     .ob-bridge-group-source,
     .ob-bridge-group-meta,
     .orthography-builder-bridge-grid,
     .ob-bridge-group-content
   ) { grid-template-columns: 1fr; }
 
-  .ob-bridge-panel .ob-bridge-group-source > :first-child,
-  .ob-bridge-panel .orthography-builder-rule-block,
-  .ob-bridge-panel .orthography-builder-bridge-hint-box,
-  .ob-bridge-panel .orthography-builder-validation-box,
-  .ob-bridge-panel .orthography-builder-preview-box,
-  .ob-bridge-panel .orthography-builder-actions { grid-column: auto; }
+  .ob-bridge .ob-bridge-group-source > :first-child,
+  .ob-bridge .orthography-builder-rule-block,
+  .ob-bridge .orthography-builder-bridge-hint-box,
+  .ob-bridge .orthography-builder-validation-box,
+  .ob-bridge .orthography-builder-preview-box,
+  .ob-bridge .orthography-builder-actions { grid-column: auto; }
 
-  .ob-bridge-panel .orthography-builder-actions {
+  .ob-bridge .orthography-builder-actions {
     padding-top: 8px;
     border-top: 1px solid color-mix(in srgb, var(--border-soft) 36%, transparent);
   }
@@ -454,5 +509,5 @@
 
   .ob-summary-links > .btn,
   .ob-inline-actions > .btn,
-  .ob-bridge-panel .orthography-builder-footer-actions > .btn { width: 100%; }
+  .ob-bridge .orthography-builder-footer-actions > .btn { width: 100%; }
 }

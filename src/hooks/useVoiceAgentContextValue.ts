@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { VoiceAgentContextValue } from '../contexts/VoiceAgentContext';
+import { DEFAULT_VOICE_MODE } from './useVoiceAgent';
 
 export type VoiceAgentContextSource = Partial<VoiceAgentContextValue>;
 
@@ -7,7 +8,7 @@ export function pickVoiceAgentContextValue(P: VoiceAgentContextSource): VoiceAge
   return {
     voiceListening: P.voiceListening ?? false,
     voiceSpeechActive: P.voiceSpeechActive ?? false,
-    voiceMode: P.voiceMode ?? 'command',
+    voiceMode: P.voiceMode ?? DEFAULT_VOICE_MODE,
     voiceInterimText: P.voiceInterimText ?? '',
     voiceFinalText: P.voiceFinalText ?? '',
     voiceConfidence: P.voiceConfidence ?? 0,

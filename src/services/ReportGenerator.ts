@@ -8,6 +8,7 @@
 
 import { getActionRecordsInRange, getTaskPhaseRecordsInRange, getDifficultSegmentsInRange, type UserBehaviorProfileDoc, type ActionRecordDoc, type TaskPhaseRecordDoc, type DifficultSegmentDoc } from './userBehaviorDB';
 import { globalContext } from './GlobalContextService';
+import { DEFAULT_VOICE_MODE } from './voiceMode';
 import type { Locale } from '../i18n';
 import { getReportGeneratorMessages } from '../i18n/messages';
 
@@ -319,7 +320,7 @@ export class ReportGenerator {
         pauseFrequencyTrend: 'stable',
         lastBreakAt: Date.now(),
         preferences: {
-          preferredMode: 'command',
+          preferredMode: DEFAULT_VOICE_MODE,
           safeModeDefault: false,
           wakeWordEnabled: false,
           preferredEngine: 'web-speech',

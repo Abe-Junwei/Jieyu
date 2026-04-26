@@ -1,4 +1,5 @@
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 
 type ReadyWorkspaceStageProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps'];
 type ReadyWorkspaceMediaInputProps = ReadyWorkspaceStageProps['mediaInputProps'];
@@ -14,6 +15,11 @@ export function buildReadyWorkspaceMediaInputProps(
 ): ReadyWorkspaceMediaInputProps {
   return {
     ref: input.mediaFileInputRef,
-    onChange: input.onDirectMediaImport,
+    onChange: (event) => {
+      if (event.target.files?.length) {
+        recordTranscriptionKeyboardAction('workspaceDirectMediaImportSelect');
+      }
+      input.onDirectMediaImport(event);
+    },
   };
 }

@@ -29,8 +29,8 @@
 node scripts/run-agent-evals.mjs --mode=enforce --assert-audit-trace=path/to/export.ndjson
 ```
 
-启用后，除原有 case 阈值外，还会校验导出中至少存在可解析的 `ai_tool_call_decision` 行，且存在带 `phase=decision` 与非空 `outcome` 的 metadata（详见 `scripts/run-agent-evals.mjs` 与 `scripts/run-agent-evals.test.ts`）。
+启用后，除原有 case 阈值外，还会校验导出中至少存在可解析的 `ai_tool_call_decision` 行，且存在带 `phase=decision`、非空 `outcome`、**`schemaVersion === 1`** 的 decision metadata（详见 `scripts/run-agent-evals.mjs` 与 `scripts/run-agent-evals.test.ts`）。
 
 ## CI
 
-默认 PR/push 只跑 `check:agent-evals`。若要在 CI 上追加 trace，可在 **手动** `workflow_dispatch` 中勾选 `.github/workflows/ci.yml` 的 `run_agent_evals_audit_trace`（见该 workflow 注释与输入说明）。
+`agent-evals-gate` job（`.github/workflows/ci.yml`）在 **PR 与 push（main/dev）** 上统一执行 `npm run check:agent-evals:trace`：先跑 suite 阈值，再对仓库内已提交的 `docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson` 做最小审计结构断言。fixture 变更需同步维护该 NDJSON，否则门禁失败。

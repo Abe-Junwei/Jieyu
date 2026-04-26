@@ -153,6 +153,26 @@ interface ReleaseEvidenceReport {
     approvalModes: Record<string, number>;
     sampleRequestIds?: string[];
   };
+  durableOrchestration?: {
+    status: string;
+    summary: {
+      total: number;
+      done: number;
+      failed: number;
+      running: number;
+      pending: number;
+      checkpointed: number;
+      resumable: number;
+      handoffRequired: number;
+      checkpointRecovered: number;
+      longTaskCompletionRate: number;
+      humanInterventionRate: number;
+      checkpointRecoveryRate: number;
+      avgDurationMs: number;
+    };
+    taskTypes: Record<string, number>;
+    handoffReasons: Record<string, number>;
+  };
   auditFieldDictionary?: {
     schemaVersion: number;
     status: string;
@@ -346,6 +366,79 @@ describe('generate-release-evidence-bundle script', () => {
 
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.trend.v1')).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('builds durable orchestration metrics from ai_task_snapshots export rows', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const snapshotsPath = path.join(tempDir, 'ai-task-snapshots.json');
+
+    try {
+      writeFileSync(snapshotsPath, JSON.stringify({
+        ai_task_snapshots: [
+          {
+            taskId: 'task-agent-loop-done',
+            taskType: 'agent_loop',
+            status: 'done',
+            hasCheckpoint: true,
+            resumable: false,
+            handoffReason: 'token_budget_warning',
+            durationMs: 1200,
+            updatedAt: '2026-04-27T10:00:00.000Z',
+          },
+          {
+            taskId: 'task-agent-loop-pending',
+            taskType: 'agent_loop',
+            status: 'pending',
+            hasCheckpoint: true,
+            resumable: true,
+            handoffReason: 'token_budget_warning',
+            durationMs: 800,
+            updatedAt: '2026-04-27T10:01:00.000Z',
+          },
+          {
+            taskId: 'task-embed-failed',
+            taskType: 'embed',
+            status: 'failed',
+            hasCheckpoint: false,
+            durationMs: 400,
+            updatedAt: '2026-04-27T10:02:00.000Z',
+          },
+        ],
+      }), 'utf8');
+
+      const result = runReleaseEvidenceScript([
+        '--profile=lite',
+        '--dry-run',
+        '--mode=shadow',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        `--ai-task-snapshots=${snapshotsPath}`,
+      ]);
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+
+      expect(report.durableOrchestration?.status).toBe('ready_or_partial');
+      expect(report.durableOrchestration?.summary.total).toBe(3);
+      expect(report.durableOrchestration?.summary.done).toBe(1);
+      expect(report.durableOrchestration?.summary.failed).toBe(1);
+      expect(report.durableOrchestration?.summary.pending).toBe(1);
+      expect(report.durableOrchestration?.summary.checkpointed).toBe(2);
+      expect(report.durableOrchestration?.summary.resumable).toBe(1);
+      expect(report.durableOrchestration?.summary.handoffRequired).toBe(2);
+      expect(report.durableOrchestration?.summary.checkpointRecovered).toBe(1);
+      expect(report.durableOrchestration?.summary.longTaskCompletionRate).toBe(0.3333);
+      expect(report.durableOrchestration?.summary.humanInterventionRate).toBe(0.6667);
+      expect(report.durableOrchestration?.summary.checkpointRecoveryRate).toBe(0.5);
+      expect(report.durableOrchestration?.summary.avgDurationMs).toBe(800);
+      expect(report.durableOrchestration?.taskTypes).toEqual({ agent_loop: 2, embed: 1 });
+      expect(report.durableOrchestration?.handoffReasons).toEqual({ token_budget_warning: 2 });
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'f3.durable-orchestration.v1')).toBe(true);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

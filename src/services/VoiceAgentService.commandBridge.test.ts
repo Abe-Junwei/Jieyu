@@ -5,7 +5,6 @@ import { detectAndRecordMemoryPattern, handleFinalSttResult, type CommandBridgeC
 import type { VoiceSession } from './IntentRouter';
 import type { SttResult } from './VoiceInputService';
 import { t, tf, type Locale } from '../i18n';
-
 const {
   mockRouteIntent,
   mockIsDestructiveAction,
@@ -129,7 +128,28 @@ describe('VoiceAgentService command bridge', () => {
       session: ctx.session,
     });
     expect(ctx.setState).toHaveBeenCalledWith({
-      error: t('zh-CN', 'transcription.voice.error.commandUnrecognized'),
+      error: t('zh-CN', 'transcription.voice.error.nonDictationIntentUnrecognized'),
+    });
+  });
+
+  it('reports the localized unrecognized-intent error when analysis-mode fallback returns null', async () => {
+    mockRouteIntent.mockReturnValue({
+      type: 'chat',
+      text: 'ignored',
+      raw: '分析这段内容',
+    });
+    const resolveIntentWithLlm = vi.fn(async () => null);
+    const ctx = makeContext('zh-CN', { mode: 'analysis', resolveIntentWithLlm });
+
+    await handleFinalSttResult(ctx, makeResult('分析这段内容'));
+
+    expect(resolveIntentWithLlm).toHaveBeenCalledWith({
+      text: '分析这段内容',
+      mode: 'analysis',
+      session: ctx.session,
+    });
+    expect(ctx.setState).toHaveBeenCalledWith({
+      error: t('zh-CN', 'transcription.voice.error.nonDictationIntentUnrecognized'),
     });
   });
 

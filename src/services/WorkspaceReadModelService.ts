@@ -469,6 +469,12 @@ export class WorkspaceReadModelService {
       hasError: normalizeTextValue(task.errorMessage).length > 0 || task.status === 'failed',
       isTerminal: task.status === 'done' || task.status === 'failed',
       durationMs: Math.max(0, toFiniteDateMs(task.updatedAt) - toFiniteDateMs(task.createdAt)),
+      ...(task.attempt !== undefined ? { attempt: task.attempt } : {}),
+      ...(task.maxAttempts !== undefined ? { maxAttempts: task.maxAttempts } : {}),
+      ...(task.lastHeartbeatAt ? { lastHeartbeatAt: task.lastHeartbeatAt } : {}),
+      ...(task.checkpointJson ? { hasCheckpoint: true } : {}),
+      ...(task.resumable !== undefined ? { resumable: task.resumable } : {}),
+      ...(task.handoffReason ? { handoffReason: task.handoffReason } : {}),
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
     }));

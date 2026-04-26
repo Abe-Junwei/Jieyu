@@ -7,6 +7,7 @@ export function isTranscriptionWorkspacePathname(pathname: string): boolean {
   if (pathname.startsWith('/transcription')) return true;
   return (
     pathname === '/assets/language-metadata'
+    || pathname === '/assets/structural-profiles'
     || pathname === '/assets/orthographies'
     || pathname === '/assets/orthography-bridges'
   );

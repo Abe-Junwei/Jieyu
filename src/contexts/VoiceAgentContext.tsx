@@ -6,7 +6,7 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { VoiceAgentMode, VoicePendingConfirm } from '../hooks/useVoiceAgent';
+import { DEFAULT_VOICE_MODE, type VoiceAgentMode, type VoicePendingConfirm } from '../hooks/useVoiceAgent';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -34,7 +34,7 @@ export interface VoiceAgentContextValue {
 export const DEFAULT_VOICE_AGENT_CONTEXT_VALUE: VoiceAgentContextValue = {
   voiceListening: false,
   voiceSpeechActive: false,
-  voiceMode: 'command',
+  voiceMode: DEFAULT_VOICE_MODE,
   voiceInterimText: '',
   voiceFinalText: '',
   voiceConfidence: 0,

@@ -407,7 +407,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes('export function useTranscriptionSegmentCreationController(')).toBe(true);
     expect(hookCode.includes("} from './transcriptionSegmentCreationActions';")).toBe(true);
     expect(hookCode.includes('return createTranscriptionSegmentCreationActions(input, locale);')).toBe(true);
-    expect(actionCode.includes('const createNextSegmentRouted = async (targetId: string) => {')).toBe(true);
+    expect(actionCode.includes('const createNextSegmentRouted = async (targetId: string): Promise<string | undefined> => {')).toBe(true);
     expect(actionCode.includes('const createUnitFromSelectionRouted = async (start: number, end: number) => {')).toBe(true);
     expect(actionCode.includes('await input.createAdjacentUnit(targetUnit, mediaDuration);')).toBe(true);
     expect(actionCode.includes('await input.createUnitFromSelection(start, end, {')).toBe(true);
@@ -470,6 +470,7 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(hookCode.includes("if (unitKind === 'segment') {")).toBe(true);
     expect(hookCode.includes('fireAndForget(deleteSelectedUnitsRouted(ids, layerId), { context:')).toBe(true);
+    expect(hookCode.includes('fireAndForget(mergeSelectedSegmentsRouted(ids, layerId), { context:')).toBe(true);
     expect(hookCode.includes('runMergeSelection(ids);')).toBe(true);
     expect(hookCode.includes('fireAndForget(splitRouted(id, splitTime, layerId), { context:')).toBe(true);
   });

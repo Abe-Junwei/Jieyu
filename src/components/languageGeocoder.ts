@@ -230,66 +230,108 @@ function readCachedResults(cacheKey: string): GeocodeSuggestion[] | undefined {
   return cached.results;
 }
 
+function formatNominatimServiceError(data: unknown): string {
+  if (!data || typeof data !== 'object') {
+    return 'unknown';
+  }
+  const rec = data as Record<string, unknown>;
+  if (typeof rec.error === 'string') {
+    return rec.error;
+  }
+  if (rec.error && typeof rec.error === 'object') {
+    return JSON.stringify(rec.error);
+  }
+  return JSON.stringify(data);
+}
+
 async function forwardGeocodeWithNominatim(options: ForwardGeocodeInternalOptions): Promise<GeocodeSuggestion[]> {
-  const params = new URLSearchParams({
-    q: options.query.trim(),
-    format: 'jsonv2',
-    limit: String(options.limit ?? 5),
-    dedupe: '1',
-    'accept-language': readLocaleLanguage(options.locale),
-  });
-  if (options.structuredAddress) {
-    params.set('addressdetails', '1');
-    params.set('namedetails', '1');
+  const execute = async (bypassProxy: boolean): Promise<GeocodeSuggestion[]> => {
+    const params = new URLSearchParams({
+      q: options.query.trim(),
+      format: 'jsonv2',
+      limit: String(options.limit ?? 5),
+      dedupe: '1',
+      'accept-language': readLocaleLanguage(options.locale),
+    });
+    if (options.structuredAddress) {
+      params.set('addressdetails', '1');
+      params.set('namedetails', '1');
+    }
+    const viewbox = buildBiasViewbox(options.bias);
+    if (viewbox) {
+      params.set('viewbox', viewbox);
+    }
+    if (options.countryCodes?.length) {
+      params.set('countrycodes', options.countryCodes.join(','));
+    }
+    const endpoint = bypassProxy
+      ? `https://nominatim.openstreetmap.org/search?${params}`
+      : buildMapProxyUrl('/nominatim/search', params)
+      ?? `https://nominatim.openstreetmap.org/search?${params}`;
+    const res = await fetch(endpoint, {
+      ...(options.signal ? { signal: options.signal } : {}),
+    });
+    if (!res.ok) {
+      throw new Error(`nominatim-forward-${res.status}`);
+    }
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error('nominatim-forward-json-parse');
+    }
+    if (Array.isArray(data)) {
+      const rows = data as Array<{
+        place_id: number;
+        display_name: string;
+        name?: string;
+        lat: string;
+        lon: string;
+        importance?: number;
+        boundingbox?: string[];
+        address?: Record<string, string | undefined>;
+        namedetails?: Record<string, string>;
+      }>;
+      return rows.map((item) => {
+        const bbox = parseBoundingBox(item.boundingbox);
+        const administrativeHierarchy = buildAdministrativeHierarchyFromNominatimAddress(item.address);
+        const matchedLanguageTag = item.namedetails
+          ? detectMatchedLanguageTag(options.query, item.namedetails)
+          : undefined;
+        return {
+          id: `nominatim:${item.place_id}`,
+          displayName: item.display_name,
+          primaryText: item.name || item.display_name.split(',')[0] || item.display_name,
+          secondaryText: item.display_name,
+          lat: Number(item.lat),
+          lng: Number(item.lon),
+          provider: 'nominatim' as const,
+          ...(item.importance !== undefined ? { confidence: item.importance } : {}),
+          ...(bbox ? { bbox } : {}),
+          ...(administrativeHierarchy ? { administrativeHierarchy } : {}),
+          ...(matchedLanguageTag ? { matchedLanguageTag } : {}),
+        };
+      });
+    }
+    if (data && typeof data === 'object' && 'error' in data) {
+      throw new Error(`nominatim:${formatNominatimServiceError(data)}`);
+    }
+    throw new Error('nominatim-forward-unexpected-json');
+  };
+
+  try {
+    return await execute(Boolean(options.bypassProxy));
+  } catch (error) {
+    if (
+      !options.bypassProxy
+      && Boolean(readMapProxyBaseUrl())
+      && readMapProxyFallbackEnabled()
+      && !options.signal?.aborted
+    ) {
+      return await execute(true);
+    }
+    throw error;
   }
-  const viewbox = buildBiasViewbox(options.bias);
-  if (viewbox) {
-    params.set('viewbox', viewbox);
-  }
-  if (options.countryCodes?.length) {
-    params.set('countrycodes', options.countryCodes.join(','));
-  }
-  const endpoint = options.bypassProxy
-    ? `https://nominatim.openstreetmap.org/search?${params}`
-    : buildMapProxyUrl('/nominatim/search', params)
-    ?? `https://nominatim.openstreetmap.org/search?${params}`;
-  const res = await fetch(endpoint, {
-    ...(options.signal ? { signal: options.signal } : {}),
-  });
-  if (!res.ok) {
-    return [];
-  }
-  const data = (await res.json()) as Array<{
-    place_id: number;
-    display_name: string;
-    name?: string;
-    lat: string;
-    lon: string;
-    importance?: number;
-    boundingbox?: string[];
-    address?: Record<string, string | undefined>;
-    namedetails?: Record<string, string>;
-  }>;
-  return data.map((item) => {
-    const bbox = parseBoundingBox(item.boundingbox);
-    const administrativeHierarchy = buildAdministrativeHierarchyFromNominatimAddress(item.address);
-    const matchedLanguageTag = item.namedetails
-      ? detectMatchedLanguageTag(options.query, item.namedetails)
-      : undefined;
-    return {
-      id: `nominatim:${item.place_id}`,
-      displayName: item.display_name,
-      primaryText: item.name || item.display_name.split(',')[0] || item.display_name,
-      secondaryText: item.display_name,
-      lat: Number(item.lat),
-      lng: Number(item.lon),
-      provider: 'nominatim' as const,
-      ...(item.importance !== undefined ? { confidence: item.importance } : {}),
-      ...(bbox ? { bbox } : {}),
-      ...(administrativeHierarchy ? { administrativeHierarchy } : {}),
-      ...(matchedLanguageTag ? { matchedLanguageTag } : {}),
-    };
-  });
 }
 
 async function forwardGeocodeWithMaptiler(options: ForwardGeocodeOptions): Promise<GeocodeSuggestion[]> {

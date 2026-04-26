@@ -14,9 +14,11 @@
 import { createContext, useContext } from 'react';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import type { EmbeddingProviderCreateConfig } from '../ai/embeddings/EmbeddingProvider';
-import type { LayerUnitDocType } from '../db';
+import type { AiTaskDoc, LayerUnitDocType } from '../db';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+
+type AiEmbeddingTaskRow = Pick<AiTaskDoc, 'id' | 'taskType' | 'status' | 'updatedAt' | 'modelId' | 'errorMessage' | 'resumable' | 'handoffReason' | 'checkpointJson'>;
 
 export interface EmbeddingContextValue {
   selectedUnit: LayerUnitDocType | null;
@@ -33,14 +35,7 @@ export interface EmbeddingContextValue {
     elapsedMs?: number;
     averageBatchMs?: number;
   } | null;
-  aiEmbeddingTasks: Array<{
-    id: string;
-    taskType: 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language';
-    status: 'pending' | 'running' | 'done' | 'failed';
-    updatedAt: string;
-    modelId?: string;
-    errorMessage?: string;
-  }>;
+  aiEmbeddingTasks: AiEmbeddingTaskRow[];
   aiEmbeddingMatches: Array<{
     unitId: string;
     score: number;

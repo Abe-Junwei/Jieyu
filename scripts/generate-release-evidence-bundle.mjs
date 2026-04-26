@@ -112,6 +112,21 @@ function resolveAiAuditExportPath() {
     : path.join(workspaceRoot, fromEnv);
 }
 
+function resolveAiTaskSnapshotsExportPath() {
+  const fromArg = parseArgValue('--ai-task-snapshots');
+  if (fromArg) {
+    return path.isAbsolute(fromArg)
+      ? fromArg
+      : path.join(workspaceRoot, fromArg);
+  }
+
+  const fromEnv = String(process.env.RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS ?? '').trim();
+  if (!fromEnv) return null;
+  return path.isAbsolute(fromEnv)
+    ? fromEnv
+    : path.join(workspaceRoot, fromEnv);
+}
+
 function resolveExtensionCapabilityAuditExportPath() {
   const fromArg = parseArgValue('--extension-capability-audit-export');
   if (fromArg) {
@@ -470,6 +485,103 @@ async function loadAiAuditExportRows(auditExportPath) {
     const rows = lower.endsWith('.ndjson')
       ? parseAuditRowsFromNdjson(rawText)
       : parseAuditRowsFromJson(rawText);
+    return {
+      rows,
+      readError: null,
+    };
+  } catch (error) {
+    return {
+      rows: [],
+      readError: toErrorPayload(error),
+    };
+  }
+}
+
+function normalizeAiTaskSnapshotRow(rawRow) {
+  if (!rawRow || typeof rawRow !== 'object') return null;
+  const row = rawRow.row && typeof rawRow.row === 'object'
+    ? rawRow.row
+    : rawRow.document && typeof rawRow.document === 'object'
+      ? rawRow.document
+      : rawRow;
+
+  const taskId = typeof row.taskId === 'string'
+    ? row.taskId
+    : (typeof row.task_id === 'string' ? row.task_id : '');
+  if (!taskId.trim()) return null;
+
+  const taskType = typeof row.taskType === 'string'
+    ? row.taskType
+    : (typeof row.task_type === 'string' ? row.task_type : 'unknown');
+  const status = typeof row.status === 'string' ? row.status : 'unknown';
+  const updatedAt = typeof row.updatedAt === 'string'
+    ? row.updatedAt
+    : (typeof row.updated_at === 'string' ? row.updated_at : '');
+  const handoffReason = typeof row.handoffReason === 'string'
+    ? row.handoffReason
+    : (typeof row.handoff_reason === 'string' ? row.handoff_reason : '');
+  const durationMs = toFiniteNumber(row.durationMs ?? row.duration_ms);
+
+  return {
+    taskId: taskId.trim(),
+    taskType: taskType.trim() || 'unknown',
+    status: status.trim() || 'unknown',
+    updatedAt,
+    durationMs: durationMs === null ? 0 : Math.max(0, durationMs),
+    hasCheckpoint: row.hasCheckpoint === true || row.has_checkpoint === true,
+    resumable: row.resumable === true,
+    handoffReason: handoffReason.trim(),
+  };
+}
+
+function parseAiTaskSnapshotRowsFromJson(rawText) {
+  const parsed = parseJsonMaybe(rawText);
+  if (!parsed) return [];
+  const candidateRows = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed.rows)
+      ? parsed.rows
+      : Array.isArray(parsed.aiTaskSnapshots)
+        ? parsed.aiTaskSnapshots
+        : Array.isArray(parsed.ai_task_snapshots)
+          ? parsed.ai_task_snapshots
+          : [];
+
+  const rows = [];
+  for (const candidate of candidateRows) {
+    const row = normalizeAiTaskSnapshotRow(candidate);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+function parseAiTaskSnapshotRowsFromNdjson(rawText) {
+  const rows = [];
+  const lines = rawText.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const parsed = parseJsonMaybe(trimmed);
+    const row = normalizeAiTaskSnapshotRow(parsed);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+async function loadAiTaskSnapshotRows(snapshotExportPath) {
+  if (!snapshotExportPath) {
+    return {
+      rows: [],
+      readError: null,
+    };
+  }
+
+  try {
+    const rawText = await readFile(snapshotExportPath, 'utf8');
+    const lower = snapshotExportPath.toLowerCase();
+    const rows = lower.endsWith('.ndjson')
+      ? parseAiTaskSnapshotRowsFromNdjson(rawText)
+      : parseAiTaskSnapshotRowsFromJson(rawText);
     return {
       rows,
       readError: null,
@@ -1927,6 +2039,125 @@ function buildActionApprovalCenterSection(input) {
   return out;
 }
 
+function selectLatestTaskSnapshotRows(rows) {
+  const toTimestamp = (value) => {
+    const parsed = Date.parse(String(value ?? ''));
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const latestByTask = new Map();
+  for (const row of rows) {
+    const previous = latestByTask.get(row.taskId);
+    if (!previous) {
+      latestByTask.set(row.taskId, row);
+      continue;
+    }
+    const prevAt = toTimestamp(previous.updatedAt);
+    const nextAt = toTimestamp(row.updatedAt);
+    if (nextAt !== null && (prevAt === null || nextAt >= prevAt)) {
+      latestByTask.set(row.taskId, row);
+    }
+  }
+  return [...latestByTask.values()].sort((a, b) => String(a.taskId).localeCompare(String(b.taskId)));
+}
+
+function ratio(numerator, denominator) {
+  return denominator > 0 ? Number((numerator / denominator).toFixed(4)) : 0;
+}
+
+function buildDurableOrchestrationSection(input) {
+  const {
+    snapshotExportPath,
+    snapshotRows,
+    readError,
+    releaseProfile,
+  } = input;
+
+  const emptySummary = {
+    total: 0,
+    done: 0,
+    failed: 0,
+    running: 0,
+    pending: 0,
+    checkpointed: 0,
+    resumable: 0,
+    handoffRequired: 0,
+    checkpointRecovered: 0,
+    longTaskCompletionRate: 0,
+    humanInterventionRate: 0,
+    checkpointRecoveryRate: 0,
+    avgDurationMs: 0,
+  };
+
+  if (!snapshotExportPath) {
+    return {
+      status: 'skipped',
+      skipReason: 'no_ai_task_snapshot_source',
+      summary: emptySummary,
+      taskTypes: {},
+      handoffReasons: {},
+    };
+  }
+
+  const rows = selectLatestTaskSnapshotRows(snapshotRows);
+  if (rows.length === 0) {
+    const out = {
+      status: 'skipped',
+      skipReason: 'no_ai_task_snapshot_rows',
+      snapshotExportPath: toRelativePath(snapshotExportPath),
+      summary: emptySummary,
+      taskTypes: {},
+      handoffReasons: {},
+    };
+    if (readError) out.readError = readError;
+    return out;
+  }
+
+  const summary = { ...emptySummary, total: rows.length };
+  const taskTypes = new Map();
+  const handoffReasons = new Map();
+  let durationSum = 0;
+  let durationSamples = 0;
+  const sampleTaskIds = [];
+
+  for (const row of rows) {
+    if (row.status === 'done') summary.done += 1;
+    else if (row.status === 'failed') summary.failed += 1;
+    else if (row.status === 'running') summary.running += 1;
+    else if (row.status === 'pending') summary.pending += 1;
+
+    if (row.hasCheckpoint) summary.checkpointed += 1;
+    if (row.resumable) summary.resumable += 1;
+    if (row.handoffReason || row.resumable) summary.handoffRequired += 1;
+    if (row.status === 'done' && row.hasCheckpoint && !row.resumable) summary.checkpointRecovered += 1;
+
+    taskTypes.set(row.taskType, (taskTypes.get(row.taskType) ?? 0) + 1);
+    if (row.handoffReason) {
+      handoffReasons.set(row.handoffReason, (handoffReasons.get(row.handoffReason) ?? 0) + 1);
+    }
+    if (row.durationMs > 0) {
+      durationSum += row.durationMs;
+      durationSamples += 1;
+    }
+    sampleTaskIds.push(row.taskId);
+  }
+
+  summary.longTaskCompletionRate = ratio(summary.done, summary.total);
+  summary.humanInterventionRate = ratio(summary.handoffRequired, summary.total);
+  summary.checkpointRecoveryRate = ratio(summary.checkpointRecovered, summary.checkpointed);
+  summary.avgDurationMs = durationSamples > 0 ? Number((durationSum / durationSamples).toFixed(2)) : 0;
+
+  const out = {
+    status: 'ready_or_partial',
+    snapshotExportPath: toRelativePath(snapshotExportPath),
+    summary,
+    taskTypes: Object.fromEntries([...taskTypes.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    handoffReasons: Object.fromEntries([...handoffReasons.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    ...(releaseProfile === 'full' ? { sampleTaskIds: sampleTaskIds.slice(0, 10) } : {}),
+  };
+  if (readError) out.readError = readError;
+  return out;
+}
+
 function isRetryTriggeredByMetadata(metadata) {
   if (!metadata || typeof metadata !== 'object') return false;
   if (metadata.retryTriggered === true) return true;
@@ -2210,6 +2441,7 @@ function buildReport(input) {
     coordinationLiteSection,
     userDirectiveGovernanceSection,
     actionApprovalCenterSection,
+    durableOrchestrationSection,
     auditFieldDictionarySection,
   } = input;
 
@@ -2401,6 +2633,23 @@ function buildReport(input) {
   });
 
   evidenceIndex.push({
+    conclusionId: 'f3.durable-orchestration.v1',
+    conclusion: durableOrchestrationSection.status === 'skipped'
+      ? 'F3 durable orchestration card skipped'
+      : 'F3 durable orchestration card generated',
+    evidenceType: durableOrchestrationSection.status === 'skipped'
+      ? 'durable_orchestration_skipped'
+      : 'durable_orchestration',
+    command: 'release_evidence:durable_orchestration',
+    module: 'ai-runtime',
+    exitCode: hasSectionReadError(durableOrchestrationSection) ? 1 : 0,
+    logPath: durableOrchestrationSection.snapshotExportPath ?? null,
+    keySummary: durableOrchestrationSection.status === 'skipped'
+      ? (durableOrchestrationSection.skipReason ?? 'skipped')
+      : `done=${durableOrchestrationSection.summary.done};checkpointed=${durableOrchestrationSection.summary.checkpointed};resumable=${durableOrchestrationSection.summary.resumable};checkpointRecoveryRate=${durableOrchestrationSection.summary.checkpointRecoveryRate}`,
+  });
+
+  evidenceIndex.push({
     conclusionId: 'm0.audit-field-dictionary.v1',
     conclusion: 'M0 audit field dictionary v1 generated',
     evidenceType: 'audit_field_dictionary_v1',
@@ -2448,6 +2697,7 @@ function buildReport(input) {
     || hasSectionReadError(backgroundMemoryExtractionSection)
     || hasSectionReadError(coordinationLiteSection)
     || hasSectionReadError(userDirectiveGovernanceSection)
+    || hasSectionReadError(durableOrchestrationSection)
     || hasSectionReadError(costGuardSection);
   if (aiEvidenceFailed) {
     evidenceIndex.push({
@@ -2505,6 +2755,7 @@ function buildReport(input) {
     coordinationLite: coordinationLiteSection,
     userDirectiveGovernance: userDirectiveGovernanceSection,
     actionApprovalCenter: actionApprovalCenterSection,
+    durableOrchestration: durableOrchestrationSection,
     auditFieldDictionary: auditFieldDictionarySection,
     costGuard: costGuardSection,
     extensions: extensionCapabilityAudit,
@@ -2539,6 +2790,7 @@ async function run() {
   const aiRequestIds = resolveAiRequestIds();
   const aiCardsFixturePath = resolveAiCardsFixturePath();
   const aiAuditExportPath = resolveAiAuditExportPath();
+  const aiTaskSnapshotsExportPath = resolveAiTaskSnapshotsExportPath();
   const extensionCapabilityAuditExportPath = resolveExtensionCapabilityAuditExportPath();
   const perfJsonReportPath = resolvePerfJsonReportPath();
   const aiRequestLimit = resolveAiRequestSampleLimit();
@@ -2554,6 +2806,7 @@ async function run() {
   const plannedSteps = getPipelineSteps(releaseProfile);
   const fixtureLoad = await loadAiCardsFixtureMap(aiCardsFixturePath);
   const auditLoad = await loadAiAuditExportRows(aiAuditExportPath);
+  const aiTaskSnapshotLoad = await loadAiTaskSnapshotRows(aiTaskSnapshotsExportPath);
   const extensionCapabilityAuditLoad = await loadExtensionCapabilityAuditRows(extensionCapabilityAuditExportPath);
   const perfJsonReportLoad = await loadPerfJsonReport(perfJsonReportPath);
   const resolvedRequestIds = aiRequestIds.length > 0
@@ -2648,6 +2901,12 @@ async function run() {
       auditExportPath: aiAuditExportPath,
       auditRows: auditLoad.rows,
       readError: auditLoad.readError,
+      releaseProfile,
+    }),
+    durableOrchestrationSection: buildDurableOrchestrationSection({
+      snapshotExportPath: aiTaskSnapshotsExportPath,
+      snapshotRows: aiTaskSnapshotLoad.rows,
+      readError: aiTaskSnapshotLoad.readError,
       releaseProfile,
     }),
     auditFieldDictionarySection: buildAuditFieldDictionarySection(),

@@ -18,10 +18,12 @@ import { createVoiceSessionState, loadIntentRouterRuntime, loadSttRuntime, loadS
 import { cleanupVoiceInputSubscriptions } from './useVoiceAgent.serviceBindings';
 import { useVoiceAgentModeController } from './useVoiceAgentModeController';
 import { useLocale } from '../i18n';
+import { DEFAULT_VOICE_MODE, type VoiceMode } from '../services/voiceMode';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type VoiceAgentMode = 'command' | 'dictation' | 'analysis';
+export type VoiceAgentMode = VoiceMode;
+export { DEFAULT_VOICE_MODE };
 
 export interface VoicePendingConfirm {
   actionId: ActionId;
@@ -117,7 +119,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
 
   const [listening, setListening] = useState(false);
   const [speechActive, setSpeechActive] = useState(false);
-  const [mode, setMode] = useState<VoiceAgentMode>('command');
+  const [mode, setMode] = useState<VoiceAgentMode>(DEFAULT_VOICE_MODE);
   const [interimText, setInterimText] = useState('');
   const [finalText, setFinalText] = useState('');
   const [confidence, setConfidence] = useState(0);
@@ -357,7 +359,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     setWakeWordEnabledState,
     setWakeWordEnergyLevel,
     onWake: () => {
-      void start('command');
+      void start(DEFAULT_VOICE_MODE);
     },
   });
 

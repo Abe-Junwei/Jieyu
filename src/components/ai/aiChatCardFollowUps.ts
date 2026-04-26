@@ -39,9 +39,9 @@ export function classifyRecommendationAdoption(
 }
 
 function humanizeLocalScope(scope: AiSessionMemoryLocalSemanticFrame['scope'], isZh: boolean): string {
-  if (scope === 'project') return isZh ? '整个项目' : 'the whole project';
-  if (scope === 'current_track') return isZh ? '当前音频' : 'the current audio';
-  return isZh ? '当前范围' : 'the current scope';
+  if (scope === 'project') return isZh ? '\u6574\u4e2a\u9879\u76ee' : 'the whole project';
+  if (scope === 'current_track') return isZh ? '\u5f53\u524d\u97f3\u9891' : 'the current audio';
+  return isZh ? '\u5f53\u524d\u8303\u56f4' : 'the current scope';
 }
 
 export function buildFollowUpSuggestions(params: {
@@ -71,18 +71,18 @@ export function buildFollowUpSuggestions(params: {
   if (lastFrame.domain === 'project_stats' || lastFrame.questionKind === 'count') {
     push(
       'breakdown-speaker',
-      isZh ? '按说话人分别统计' : 'Break down by speaker',
-      isZh ? `按说话人分别统计${scopeLabel}` : `Break down ${scopeLabel} by speaker`,
+      isZh ? '\u6309\u8bf4\u8bdd\u4eba\u5206\u522b\u7edf\u8ba1' : 'Break down by speaker',
+      isZh ? `\u6309\u8bf4\u8bdd\u4eba\u5206\u522b\u7edf\u8ba1${scopeLabel}` : `Break down ${scopeLabel} by speaker`,
     );
     push(
       'list-incomplete',
-      isZh ? '列出未完成项' : 'List incomplete items',
-      isZh ? `列出${scopeLabel}未完成的语段` : `List the incomplete segments in ${scopeLabel}`,
+      isZh ? '\u5217\u51fa\u672a\u5b8c\u6210\u9879' : 'List incomplete items',
+      isZh ? `\u5217\u51fa${scopeLabel}\u672a\u5b8c\u6210\u7684\u8bed\u6bb5` : `List the incomplete segments in ${scopeLabel}`,
     );
     push(
       'narrow-scope',
-      isZh ? '只看当前范围' : 'Narrow to current scope',
-      isZh ? '只看当前范围' : 'Only use the current scope',
+      isZh ? '\u53ea\u770b\u5f53\u524d\u8303\u56f4' : 'Narrow to current scope',
+      isZh ? '\u53ea\u770b\u5f53\u524d\u8303\u56f4' : 'Only use the current scope',
     );
     return out.slice(0, 3);
   }
@@ -90,18 +90,18 @@ export function buildFollowUpSuggestions(params: {
   if (lastFrame.questionKind === 'search' || lastFrame.questionKind === 'list') {
     push(
       'open-first',
-      isZh ? '展开第 1 条' : 'Open the first result',
-      isZh ? '展开第 1 条的详情' : 'Open the details for the first result',
+      isZh ? '\u5c55\u5f00\u7b2c 1 \u6761' : 'Open the first result',
+      isZh ? '\u5c55\u5f00\u7b2c 1 \u6761\u7684\u8be6\u60c5' : 'Open the details for the first result',
     );
     push(
       'list-incomplete',
-      isZh ? '列出未完成项' : 'List incomplete items',
-      isZh ? `列出${scopeLabel}未完成的语段` : `List the incomplete segments in ${scopeLabel}`,
+      isZh ? '\u5217\u51fa\u672a\u5b8c\u6210\u9879' : 'List incomplete items',
+      isZh ? `\u5217\u51fa${scopeLabel}\u672a\u5b8c\u6210\u7684\u8bed\u6bb5` : `List the incomplete segments in ${scopeLabel}`,
     );
     push(
       'narrow-scope',
-      isZh ? '只看当前范围' : 'Narrow to current scope',
-      isZh ? '只看当前范围' : 'Only use the current scope',
+      isZh ? '\u53ea\u770b\u5f53\u524d\u8303\u56f4' : 'Narrow to current scope',
+      isZh ? '\u53ea\u770b\u5f53\u524d\u8303\u56f4' : 'Only use the current scope',
     );
     return out.slice(0, 3);
   }
@@ -109,13 +109,13 @@ export function buildFollowUpSuggestions(params: {
   if (lastFrame.questionKind === 'detail') {
     push(
       'quality-check',
-      isZh ? '查看相关质量问题' : 'Check related quality issues',
-      isZh ? '查看这条语段的相关质量问题' : 'Check the related quality issues for this segment',
+      isZh ? '\u67e5\u770b\u76f8\u5173\u8d28\u91cf\u95ee\u9898' : 'Check related quality issues',
+      isZh ? '\u67e5\u770b\u8fd9\u6761\u8bed\u6bb5\u7684\u76f8\u5173\u8d28\u91cf\u95ee\u9898' : 'Check the related quality issues for this segment',
     );
     push(
       'linguistic-memory',
-      isZh ? '看词法标注' : 'Show linguistic annotations',
-      isZh ? '查看这条语段的词法标注' : 'Show the linguistic annotations for this segment',
+      isZh ? '\u770b\u8bcd\u6cd5\u6807\u6ce8' : 'Show linguistic annotations',
+      isZh ? '\u67e5\u770b\u8fd9\u6761\u8bed\u6bb5\u7684\u8bcd\u6cd5\u6807\u6ce8' : 'Show the linguistic annotations for this segment',
     );
   }
 

@@ -1,9 +1,152 @@
+import type { LayerUnitDocType } from '../db';
+import { getDb } from '../db';
+import { getTranscriptionAppService } from '../app/index';
 import { t, tf } from '../i18n';
 import { getAiToolSegmentExecutionToolNames } from '../ai/policy/aiToolPolicyMatrix';
+import {
+  captureAiCanonicalClusterRollbackSnapshot,
+  getAiStructuralRollbackMaxSelectionIds,
+  restoreAiCanonicalClusterRollbackSnapshot,
+} from '../services/AiCanonicalClusterRollbackSnapshot';
+import { reinsertLayerSegmentGraphSubset, snapshotLayerSegmentGraphBySegmentIds } from '../services/LayerSegmentGraphService';
 import { mediaDurationSecForTimeBounds } from '../utils/timelineMediaDurationForBounds';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { normalizeRequestedIds } from './useAiToolCallHandler.helpers';
-import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
+import type { AiSegmentSplitRollbackToken, ExecutionContext, ToolObjectAdapter } from './useAiToolCallHandler.types';
+
+function segmentMergeBoundarySplitTime(leftEnd: number, rightStart: number): number {
+  return Number(((leftEnd + rightStart) / 2).toFixed(3));
+}
+
+function resolveOrderedSegmentMergeSnapshot(
+  ctx: Pick<ExecutionContext, 'units'>,
+  requestedBatchIds: readonly string[],
+): LayerUnitDocType[] | null {
+  const idSet = new Set(requestedBatchIds);
+  const rows = (ctx.units ?? []).filter((u) => idSet.has(u.id));
+  if (rows.length !== requestedBatchIds.length) return null;
+  if (!rows.every((u) => u.unitType === 'segment')) return null;
+  return [...rows].sort((a, b) => a.startTime - b.startTime);
+}
+
+function buildSilentMergeSegmentRollback(
+  ctx: Pick<ExecutionContext, 'silentSegmentGraphSyncForAi'>,
+  sorted: LayerUnitDocType[],
+): (() => Promise<void>) | undefined {
+  if (sorted.length < 2) return undefined;
+  const sync = ctx.silentSegmentGraphSyncForAi;
+  if (!sync) return undefined;
+  const survivorId = sorted[0]!.id;
+  return async () => {
+    const app = getTranscriptionAppService();
+    for (let k = sorted.length - 1; k >= 1; k -= 1) {
+      const prev = sorted[k - 1]!;
+      const cur = sorted[k]!;
+      const splitTime = segmentMergeBoundarySplitTime(prev.endTime, cur.startTime);
+      await app.splitSegment(survivorId, splitTime);
+      await sync();
+    }
+  };
+}
+
+async function buildSegmentDeleteGraphRollback(
+  ctx: Pick<ExecutionContext, 'silentSegmentGraphSyncForAi'>,
+  segmentIds: readonly string[],
+): Promise<(() => Promise<void>) | undefined> {
+  if (segmentIds.length === 0) return undefined;
+  if (segmentIds.length > getAiStructuralRollbackMaxSelectionIds()) return undefined;
+  const sync = ctx.silentSegmentGraphSyncForAi;
+  if (!sync) return undefined;
+  const db = await getDb();
+  const snapshot = await snapshotLayerSegmentGraphBySegmentIds(db, segmentIds);
+  if (snapshot.units.length !== segmentIds.length) return undefined;
+  return async () => {
+    const dbInst = await getDb();
+    await reinsertLayerSegmentGraphSubset(dbInst, snapshot);
+    await sync();
+  };
+}
+
+async function buildSilentCanonicalMergeRollback(
+  ctx: Pick<ExecutionContext, 'silentSegmentGraphSyncForAi'>,
+  canonicalIds: readonly string[],
+): Promise<(() => Promise<void>) | undefined> {
+  const sync = ctx.silentSegmentGraphSyncForAi;
+  if (!sync) return undefined;
+  const db = await getDb();
+  const snap = await captureAiCanonicalClusterRollbackSnapshot(db, canonicalIds);
+  if (!snap) return undefined;
+  return async () => {
+    const dbInst = await getDb();
+    await restoreAiCanonicalClusterRollbackSnapshot(dbInst, snap);
+    await sync();
+  };
+}
+
+/**
+ * Partition timeline ids into standalone segment rows vs canonical hosts, snapshot both, restore canonical cluster first then segment-only graph.
+ */
+async function buildCombinedTimelineSelectionDeleteRollback(
+  ctx: Pick<ExecutionContext, 'units' | 'silentSegmentGraphSyncForAi'>,
+  timelineUnitIds: readonly string[],
+): Promise<(() => Promise<void>) | undefined> {
+  const sync = ctx.silentSegmentGraphSyncForAi;
+  if (!sync) return undefined;
+  if (timelineUnitIds.length > getAiStructuralRollbackMaxSelectionIds()) return undefined;
+  const unitById = new Map((ctx.units ?? []).map((u) => [u.id, u] as const));
+
+  const segmentLaneIds: string[] = [];
+  const canonicalLaneIds: string[] = [];
+  for (const id of timelineUnitIds) {
+    const row = unitById.get(id);
+    if (!row) {
+      segmentLaneIds.push(id);
+      continue;
+    }
+    if (row.unitType === 'segment') {
+      segmentLaneIds.push(id);
+    } else {
+      canonicalLaneIds.push(id);
+    }
+  }
+
+  const canonicalSet = new Set(canonicalLaneIds);
+  const standaloneSegmentIds = segmentLaneIds.filter((sid) => {
+    const parent = unitById.get(sid)?.parentUnitId?.trim();
+    return !parent || !canonicalSet.has(parent);
+  });
+
+  const db = await getDb();
+  const segmentRb = standaloneSegmentIds.length > 0
+    ? await buildSegmentDeleteGraphRollback(ctx, standaloneSegmentIds)
+    : undefined;
+  const canonSnap = canonicalLaneIds.length > 0
+    ? await captureAiCanonicalClusterRollbackSnapshot(db, canonicalLaneIds)
+    : null;
+  if (canonicalLaneIds.length > 0 && !canonSnap) return undefined;
+  if (standaloneSegmentIds.length > 0 && !segmentRb) return undefined;
+  if (!canonSnap && !segmentRb) return undefined;
+
+  return async () => {
+    if (canonSnap) {
+      const dbInst = await getDb();
+      await restoreAiCanonicalClusterRollbackSnapshot(dbInst, canonSnap);
+    }
+    if (segmentRb) {
+      await segmentRb();
+    }
+    await sync();
+  };
+}
+
+function isAiSegmentSplitRollbackToken(value: unknown): value is AiSegmentSplitRollbackToken {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return typeof v.keepSegmentId === 'string'
+    && typeof v.removeSegmentId === 'string'
+    && v.keepSegmentId.length > 0
+    && v.removeSegmentId.length > 0;
+}
 
 export const segmentAdapter: ToolObjectAdapter = {
   handles: getAiToolSegmentExecutionToolNames(),
@@ -17,8 +160,19 @@ export const segmentAdapter: ToolObjectAdapter = {
         if (!targetSegment) {
           return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: requestedSegmentId }) };
         }
-        await ctx.createTranscriptionSegment(targetSegment.id);
-        return { ok: true, message: t(locale, 'transcription.aiTool.segment.createDone') };
+        const created = await ctx.createTranscriptionSegment(targetSegment.id);
+        const newId = typeof created === 'string' && created.trim().length > 0 ? created.trim() : '';
+        return {
+          ok: true,
+          message: t(locale, 'transcription.aiTool.segment.createDone'),
+          ...(newId
+            ? {
+                rollback: async () => {
+                  await ctx.deleteUnit(newId);
+                },
+              }
+            : {}),
+        };
       }
       if (!ctx.hasRequestedUnitTarget()) {
         return { ok: false, message: t(locale, 'transcription.aiTool.segment.createMissingUnitId') };
@@ -29,8 +183,19 @@ export const segmentAdapter: ToolObjectAdapter = {
       }
       const cap = mediaDurationSecForTimeBounds(ctx.selectedUnitMedia);
       const mediaDuration = cap === Number.POSITIVE_INFINITY ? baseUnit.endTime + 2 : cap;
-      await ctx.createAdjacentUnit(baseUnit, mediaDuration);
-      return { ok: true, message: t(locale, 'transcription.aiTool.segment.createDone') };
+      const createdAdjacent = await ctx.createAdjacentUnit(baseUnit, mediaDuration);
+      const adjacentId = typeof createdAdjacent === 'string' && createdAdjacent.trim().length > 0 ? createdAdjacent.trim() : '';
+      return {
+        ok: true,
+        message: t(locale, 'transcription.aiTool.segment.createDone'),
+        ...(adjacentId
+          ? {
+              rollback: async () => {
+                await ctx.deleteUnit(adjacentId);
+              },
+            }
+          : {}),
+      };
     }
 
     if (call.name === 'split_transcription_segment') {
@@ -60,8 +225,19 @@ export const segmentAdapter: ToolObjectAdapter = {
             }),
           };
         }
-        await ctx.splitTranscriptionSegment(targetSegment.id, splitTime);
-        return { ok: true, message: tf(locale, 'transcription.aiTool.segment.splitDone', { splitTime: splitTime.toFixed(2) }) };
+        const splitHint = await ctx.splitTranscriptionSegment(targetSegment.id, splitTime);
+        const token = isAiSegmentSplitRollbackToken(splitHint) ? splitHint : null;
+        const mergeRollback = ctx.mergeAdjacentSegmentsForAiRollback;
+        const rollback = token && mergeRollback
+          ? async () => {
+              await mergeRollback(token.keepSegmentId, token.removeSegmentId);
+            }
+          : undefined;
+        return {
+          ok: true,
+          message: tf(locale, 'transcription.aiTool.segment.splitDone', { splitTime: splitTime.toFixed(2) }),
+          ...(rollback ? { rollback } : {}),
+        };
       }
       if (!ctx.hasRequestedUnitTarget()) {
         return { ok: false, message: t(locale, 'transcription.aiTool.segment.splitMissingUnitId') };
@@ -100,15 +276,36 @@ export const segmentAdapter: ToolObjectAdapter = {
         return { ok: false, message: t(locale, 'transcription.error.validation.mergeSelectionRequireAtLeastTwo') };
       }
       const requestedBatchIds = Array.from(new Set(requestedSegmentIds));
-      const mergeExecutor = ctx.mergeSelectedSegments ?? ctx.mergeSelectedUnits ?? ctx.mergeSelectedUnits;
+      const maxStructuralTargets = getAiStructuralRollbackMaxSelectionIds();
+      if (requestedBatchIds.length > maxStructuralTargets) {
+        return {
+          ok: false,
+          message: tf(locale, 'transcription.aiTool.segment.structuralRollbackTooManyTargets', {
+            count: requestedBatchIds.length,
+            max: maxStructuralTargets,
+          }),
+        };
+      }
+      const mergeExecutor = ctx.mergeSelectedSegments ?? ctx.mergeSelectedUnits;
       if (!mergeExecutor) {
         return { ok: false, message: t(locale, 'transcription.aiTool.voice.actionUnsupported') };
+      }
+      const mergeSnapshot = resolveOrderedSegmentMergeSnapshot(ctx, requestedBatchIds);
+      const mergeRollback = mergeSnapshot
+        ? buildSilentMergeSegmentRollback(ctx, mergeSnapshot)
+        : await buildSilentCanonicalMergeRollback(ctx, requestedBatchIds);
+      if (!mergeRollback) {
+        return {
+          ok: false,
+          message: t(locale, 'transcription.aiTool.segment.cannotCaptureStructuredRollback'),
+        };
       }
       try {
         await mergeExecutor(new Set(requestedBatchIds));
         return {
           ok: true,
           message: tf(locale, 'transcription.aiTool.segment.mergeSelectionDone', { count: requestedBatchIds.length }),
+          rollback: mergeRollback,
         };
       } catch (error) {
         const message = error instanceof Error && error.message.trim().length > 0
@@ -122,7 +319,25 @@ export const segmentAdapter: ToolObjectAdapter = {
       const requestedSegmentIds = normalizeRequestedIds(call.arguments.segmentIds);
       const requestedBatchIds = Array.from(new Set(requestedSegmentIds));
       if (requestedBatchIds.length > 0) {
-        const deleteBatch = ctx.deleteSelectedUnits ?? ctx.deleteSelectedUnits;
+        const maxStructuralTargets = getAiStructuralRollbackMaxSelectionIds();
+        if (requestedBatchIds.length > maxStructuralTargets) {
+          return {
+            ok: false,
+            message: tf(locale, 'transcription.aiTool.segment.structuralRollbackTooManyTargets', {
+              count: requestedBatchIds.length,
+              max: maxStructuralTargets,
+            }),
+          };
+        }
+        const deleteRollback = await buildCombinedTimelineSelectionDeleteRollback(ctx, requestedBatchIds)
+          ?? await buildSegmentDeleteGraphRollback(ctx, requestedBatchIds);
+        if (!deleteRollback) {
+          return {
+            ok: false,
+            message: t(locale, 'transcription.aiTool.segment.cannotCaptureStructuredRollback'),
+          };
+        }
+        const deleteBatch = ctx.deleteSelectedUnits;
         if (deleteBatch) {
           await deleteBatch(new Set(requestedBatchIds));
         } else {
@@ -133,6 +348,7 @@ export const segmentAdapter: ToolObjectAdapter = {
         return {
           ok: true,
           message: tf(locale, 'transcription.unitAction.done.deleteSelection', { count: requestedBatchIds.length }),
+          rollback: deleteRollback,
         };
       }
 
@@ -141,7 +357,24 @@ export const segmentAdapter: ToolObjectAdapter = {
         if (allIds.length === 0) {
           return { ok: false, message: t(locale, 'transcription.aiTool.voice.navSegmentEmpty') };
         }
-        const deleteBatchAll = ctx.deleteSelectedUnits ?? ctx.deleteSelectedUnits;
+        const maxStructuralTargets = getAiStructuralRollbackMaxSelectionIds();
+        if (allIds.length > maxStructuralTargets) {
+          return {
+            ok: false,
+            message: tf(locale, 'transcription.aiTool.segment.structuralRollbackTooManyTargets', {
+              count: allIds.length,
+              max: maxStructuralTargets,
+            }),
+          };
+        }
+        const deleteRollbackAll = await buildCombinedTimelineSelectionDeleteRollback(ctx, allIds);
+        if (!deleteRollbackAll) {
+          return {
+            ok: false,
+            message: t(locale, 'transcription.aiTool.segment.cannotCaptureStructuredRollback'),
+          };
+        }
+        const deleteBatchAll = ctx.deleteSelectedUnits;
         if (deleteBatchAll) {
           await deleteBatchAll(new Set(allIds));
         } else {
@@ -152,13 +385,26 @@ export const segmentAdapter: ToolObjectAdapter = {
         return {
           ok: true,
           message: tf(locale, 'transcription.unitAction.done.deleteSelection', { count: allIds.length }),
+          rollback: deleteRollbackAll,
         };
       }
 
       const requestedSegmentId = String(call.arguments.segmentId ?? '').trim();
       if (requestedSegmentId.length > 0) {
+        const singleRollback = await buildCombinedTimelineSelectionDeleteRollback(ctx, [requestedSegmentId])
+          ?? await buildSegmentDeleteGraphRollback(ctx, [requestedSegmentId]);
+        if (!singleRollback) {
+          return {
+            ok: false,
+            message: t(locale, 'transcription.aiTool.segment.cannotCaptureStructuredRollback'),
+          };
+        }
         await ctx.deleteUnit(requestedSegmentId);
-        return { ok: true, message: t(locale, 'transcription.aiTool.segment.deleteDone') };
+        return {
+          ok: true,
+          message: t(locale, 'transcription.aiTool.segment.deleteDone'),
+          rollback: singleRollback,
+        };
       }
 
       if (!ctx.hasRequestedUnitTarget()) {
@@ -168,8 +414,21 @@ export const segmentAdapter: ToolObjectAdapter = {
       if (!targetUnit) {
         return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUnitTarget() }) };
       }
+      const unitDeleteRollback = targetUnit.unitType === 'segment'
+        ? await buildSegmentDeleteGraphRollback(ctx, [targetUnit.id])
+        : await buildCombinedTimelineSelectionDeleteRollback(ctx, [targetUnit.id]);
+      if (!unitDeleteRollback) {
+        return {
+          ok: false,
+          message: t(locale, 'transcription.aiTool.segment.cannotCaptureStructuredRollback'),
+        };
+      }
       await ctx.deleteUnit(targetUnit.id);
-      return { ok: true, message: t(locale, 'transcription.aiTool.segment.deleteDone') };
+      return {
+        ok: true,
+        message: t(locale, 'transcription.aiTool.segment.deleteDone'),
+        rollback: unitDeleteRollback,
+      };
     }
 
     if (call.name === 'set_transcription_text') {
@@ -326,7 +585,9 @@ export const segmentAdapter: ToolObjectAdapter = {
         if (!ctx.saveSegmentContentForLayer) {
           return { ok: false, message: t(locale, 'transcription.aiTool.segment.clearTranslationMissingUnitId') };
         }
+        const previous = ctx.readSegmentLayerText?.(requestedSegmentId, targetLayerId) ?? '';
         await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, '');
+        const save = ctx.saveSegmentContentForLayer;
         const layerLabel = readAnyMultiLangLabel(targetLayer.name) ?? targetLayer.key;
         return {
           ok: true,
@@ -334,6 +595,13 @@ export const segmentAdapter: ToolObjectAdapter = {
             segmentId: requestedSegmentId,
             layerLabel,
           }),
+          ...(ctx.readSegmentLayerText && save
+            ? {
+                rollback: async () => {
+                  await save(requestedSegmentId, targetLayerId, previous);
+                },
+              }
+            : {}),
         };
       }
       if (!ctx.hasRequestedUnitTarget()) {
@@ -343,7 +611,9 @@ export const segmentAdapter: ToolObjectAdapter = {
       if (!targetUnit) {
         return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUnitTarget() }) };
       }
+      const previous = ctx.readUnitLayerText?.(targetUnit.id, targetLayerId) ?? '';
       await ctx.saveUnitLayerText(targetUnit.id, '', targetLayerId);
+      const saveLayer = ctx.saveUnitLayerText;
       const layerLabel = readAnyMultiLangLabel(targetLayer.name) ?? targetLayer.key;
       return {
         ok: true,
@@ -351,6 +621,13 @@ export const segmentAdapter: ToolObjectAdapter = {
           segmentId: targetUnit.id,
           layerLabel,
         }),
+        ...(ctx.readUnitLayerText && saveLayer
+          ? {
+              rollback: async () => {
+                await saveLayer(targetUnit.id, previous, targetLayerId);
+              },
+            }
+          : {}),
       };
     }
 

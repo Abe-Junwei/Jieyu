@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-04-26T23:15:44.458Z",
+  "ai_task_snapshots": [
+    {
+      "id": "task-release-agent-loop-done",
+      "taskId": "task-release-agent-loop-done",
+      "taskType": "agent_loop",
+      "status": "done",
+      "targetId": "release-evidence-target",
+      "targetType": "ai_chat_agent_loop",
+      "modelId": "runtime-export-model",
+      "hasError": false,
+      "isTerminal": true,
+      "durationMs": 2,
+      "attempt": 0,
+      "maxAttempts": 1,
+      "lastHeartbeatAt": "2026-04-26T23:15:44.448Z",
+      "hasCheckpoint": true,
+      "resumable": false,
+      "handoffReason": "token_budget_warning",
+      "createdAt": "2026-04-26T23:15:44.448Z",
+      "updatedAt": "2026-04-26T23:15:44.450Z"
+    },
+    {
+      "id": "task-release-agent-loop-resumable",
+      "taskId": "task-release-agent-loop-resumable",
+      "taskType": "agent_loop",
+      "status": "pending",
+      "targetId": "release-evidence-target",
+      "targetType": "ai_chat_agent_loop",
+      "modelId": "runtime-export-model",
+      "hasError": false,
+      "isTerminal": false,
+      "durationMs": 0,
+      "attempt": 0,
+      "maxAttempts": 1,
+      "lastHeartbeatAt": "2026-04-26T23:15:44.445Z",
+      "hasCheckpoint": true,
+      "resumable": true,
+      "handoffReason": "token_budget_warning",
+      "createdAt": "2026-04-26T23:15:44.445Z",
+      "updatedAt": "2026-04-26T23:15:44.445Z"
+    },
+    {
+      "id": "task-release-embed-failed",
+      "taskId": "task-release-embed-failed",
+      "taskType": "embed",
+      "status": "failed",
+      "targetId": "release-evidence-target",
+      "targetType": "unit",
+      "modelId": "embed-runtime-export",
+      "hasError": true,
+      "isTerminal": true,
+      "durationMs": 4000,
+      "createdAt": "2026-04-27T00:00:00.000Z",
+      "updatedAt": "2026-04-27T00:00:04.000Z"
+    }
+  ]
+}

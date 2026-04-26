@@ -371,6 +371,9 @@ function normalizePendingAgentLoopCheckpoint(memory: AiSessionMemory): AiSession
   }
   return {
     kind,
+    ...(typeof checkpoint.taskId === 'string' && checkpoint.taskId.trim().length > 0
+      ? { taskId: checkpoint.taskId.trim() }
+      : {}),
     originalUserText,
     continuationInput,
     step,

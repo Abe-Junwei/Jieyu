@@ -3,6 +3,7 @@ import type { LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from './timelineUnitView';
 import type { TimelineUnit } from './transcriptionTypes';
 import { DEFAULT_KEYBINDINGS, getEffectiveKeymap, matchKeyEvent } from '../services/KeybindingService';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 import { fireAndForget } from '../utils/fireAndForget';
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -278,6 +279,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         if (matchKeyEvent(e, combo) && globalActions[actionId]) {
           e.preventDefault();
           globalActions[actionId]();
+          recordTranscriptionKeyboardAction(actionId);
           return;
         }
       }
@@ -298,6 +300,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         manualSelectTsRef.current = Date.now();
         selectUnit(target.id);
         if (player.isReady) player.playRegion(target.startTime, target.endTime);
+        recordTranscriptionKeyboardAction(direction === 1 ? 'navNext' : 'navPrev');
       }
     },
     [timelineUnitsOnCurrentMedia, navFocusUnitId, selectUnit, player, manualSelectTsRef],
@@ -314,6 +317,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       if (matchKeyEvent(e, combo)) {
         e.preventDefault();
         waveformActionsRef.current[actionId]?.(e);
+        recordTranscriptionKeyboardAction(actionId);
         return;
       }
     }

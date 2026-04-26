@@ -5,6 +5,7 @@ import { fireAndForget } from '../utils/fireAndForget';
 interface UseTranscriptionOverlayActionRoutingControllerInput {
   deleteSelectedUnitsRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
   deleteUnitRouted: (id: string, layerIdOverride?: string) => Promise<void>;
+  mergeSelectedSegmentsRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
   mergeWithPreviousRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   mergeWithNextRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   splitRouted: (id: string, splitTime: number, layerIdOverride?: string) => Promise<void>;
@@ -31,6 +32,7 @@ export function useTranscriptionOverlayActionRoutingController(
   const {
     deleteSelectedUnitsRouted,
     deleteUnitRouted,
+    mergeSelectedSegmentsRouted,
     mergeWithPreviousRouted,
     mergeWithNextRouted,
     splitRouted,
@@ -50,12 +52,13 @@ export function useTranscriptionOverlayActionRoutingController(
     runDeleteSelection(primaryId, ids);
   }, [deleteSelectedUnitsRouted, runDeleteSelection]);
 
-  const runOverlayMergeSelection = useCallback((ids: Set<string>, unitKind: TimelineUnitKind, _layerId: string) => {
+  const runOverlayMergeSelection = useCallback((ids: Set<string>, unitKind: TimelineUnitKind, layerId: string) => {
     if (unitKind === 'segment') {
+      fireAndForget(mergeSelectedSegmentsRouted(ids, layerId), { context: 'src/pages/useTranscriptionOverlayActionRoutingController.ts:L56', policy: 'user-visible' });
       return;
     }
     runMergeSelection(ids);
-  }, [runMergeSelection]);
+  }, [mergeSelectedSegmentsRouted, runMergeSelection]);
 
   const runOverlayDeleteOne = useCallback((id: string, unitKind: TimelineUnitKind, layerId: string) => {
     if (unitKind === 'segment') {

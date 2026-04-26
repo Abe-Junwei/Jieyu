@@ -346,6 +346,69 @@ describe('useVoiceInteraction', () => {
     expect(result.current.voiceSelectionSummary).toBe('12.00 - 15.00');
   });
 
+  it('uses the same non-dictation target summary semantics in command mode', () => {
+    const trcDefault = makeLayer('trc-default', 'transcription');
+
+    mockUseVoiceAgent.mockReturnValue({
+      mode: 'command',
+      agentState: 'idle',
+      listening: false,
+      engine: 'web-speech',
+      detectedLang: null,
+      notifyAiStreamStarted: vi.fn(),
+      notifyAiStreamFinished: vi.fn(),
+      testWhisperLocal: vi.fn(async () => ({ available: true })),
+      setExternalError: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      toggle: vi.fn(),
+      switchEngine: vi.fn(),
+      startRecording: vi.fn(async () => undefined),
+      stopRecording: vi.fn(async () => undefined),
+      isRecording: false,
+      disambiguationOptions: [],
+      pendingConfirm: null,
+      error: null,
+    });
+
+    const { result } = renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: '__auto__',
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      onVoiceAnalysisResult: vi.fn(),
+      selection: {
+        activeUnitId: 'utt-1',
+        selectedUnit: null,
+        selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
+        selectedLayerId: trcDefault.id,
+        selectedUnitKind: 'unit',
+        selectedTimeRangeLabel: '12.00 - 15.00',
+      },
+      defaultTranscriptionLayerId: trcDefault.id,
+      translationLayers: [],
+      layers: [trcDefault],
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend: vi.fn(async () => undefined),
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+    }));
+
+    expect(result.current.voiceTargetSummary).toMatch(/第 3 句 \/ AI 分析备注|Sentence 3 \/ AI analysis note/);
+    expect(result.current.voiceSelectionSummary).toBe('12.00 - 15.00');
+  });
+
   it('uses unified provider metadata for environment summary labels', () => {
     mockUseVoiceAgent.mockReturnValue({
       mode: 'dictation',

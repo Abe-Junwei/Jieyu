@@ -241,6 +241,7 @@ export interface AiSessionMemorySummaryQualityWarning {
 
 export interface AiSessionMemoryPendingAgentLoopCheckpoint {
   kind: 'token_budget_warning';
+  taskId?: string;
   originalUserText: string;
   continuationInput: string;
   step: number;

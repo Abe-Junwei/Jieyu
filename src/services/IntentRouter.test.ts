@@ -205,6 +205,16 @@ describe('IntentRouter', () => {
       expect(routeIntent('播放', 'analysis').type).toBe('action');
     });
 
+    it('matches colloquial playback via fuzzy rules in analysis mode', () => {
+      expect(routeIntent('播放一下', 'analysis')).toEqual({
+        type: 'action',
+        actionId: 'playPause',
+        confidence: 0.35,
+        raw: '播放一下',
+        fromFuzzy: true,
+      });
+    });
+
     it('routes unmatched text to chat', () => {
       const result = routeIntent('分析一下这个句子的语法结构', 'analysis');
       expect(result.type).toBe('chat');

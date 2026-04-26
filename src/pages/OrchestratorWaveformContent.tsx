@@ -25,6 +25,7 @@ import { VideoPreviewSection, type VideoLayoutMode } from '../components/transcr
 import { WaveformAreaSection } from '../components/transcription/TranscriptionLayoutSections';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
 import { t, tf, type Locale } from '../i18n';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 import type { AcousticStripContract } from '../hooks/timelineViewportTypes';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
@@ -519,8 +520,14 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                 subSelectionRange={subSelectionRange}
                 isResizingVideoPreview={isResizingVideoPreview}
                 isResizingVideoRightPanel={isResizingVideoRightPanel}
-                onVideoPreviewResizeStart={handleVideoPreviewResizeStart}
-                onVideoRightPanelResizeStart={handleVideoRightPanelResizeStart}
+                onVideoPreviewResizeStart={(event) => {
+                  recordTranscriptionKeyboardAction('timelineVideoResizeHandle');
+                  handleVideoPreviewResizeStart(event);
+                }}
+                onVideoRightPanelResizeStart={(event) => {
+                  recordTranscriptionKeyboardAction('timelineVideoResizeHandle');
+                  handleVideoRightPanelResizeStart(event);
+                }}
                 waveformStripHeight={waveformHeight}
                 waveformDisplayMode={waveformDisplayMode}
                 waveCanvasRef={effectiveWaveCanvasRef}

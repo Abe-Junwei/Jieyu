@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getDb } from '../db';
+import { getDb, type AiTaskDoc } from '../db';
 import { buildEmbeddingFallbackWarning, readFallbackReason } from '../ai/embeddings/fallbackWarning';
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { getAiEmbeddingStateMessages } from '../i18n/messages';
@@ -8,6 +8,61 @@ type TaskRunnerLike = {
   cancel: (taskId: string) => boolean;
   retry: (taskId: string) => Promise<string | null>;
 };
+
+type AiTaskRuntimeRow = Pick<AiTaskDoc, 'id' | 'taskType' | 'status' | 'resumable' | 'checkpointJson'>;
+
+async function readAiTaskRuntimeRow(taskId: string): Promise<AiTaskRuntimeRow | null> {
+  const db = await getDb();
+  const doc = await db.collections.ai_tasks.findOne({ selector: { id: taskId } }).exec();
+  if (!doc) return null;
+  const row = doc.toJSON();
+  return {
+    id: row.id,
+    taskType: row.taskType,
+    status: row.status,
+    ...(row.resumable !== undefined ? { resumable: row.resumable } : {}),
+    ...(row.checkpointJson ? { checkpointJson: row.checkpointJson } : {}),
+  };
+}
+
+function isDurableAgentLoopTask(row: AiTaskRuntimeRow | null): row is AiTaskRuntimeRow {
+  if (!row) return false;
+  if (row.taskType !== 'agent_loop') return false;
+  return Boolean(row.checkpointJson && row.checkpointJson.trim().length > 0);
+}
+
+async function markDurableAgentLoopTaskCancelled(taskId: string): Promise<boolean> {
+  const row = await readAiTaskRuntimeRow(taskId);
+  if (!isDurableAgentLoopTask(row)) return false;
+  if (row.status !== 'pending' && row.status !== 'running') return false;
+
+  const db = await getDb();
+  const timestamp = new Date().toISOString();
+  await db.collections.ai_tasks.update(taskId, {
+    status: 'failed',
+    resumable: false,
+    errorMessage: 'cancelled_by_user',
+    completedAt: timestamp,
+    updatedAt: timestamp,
+  });
+  return true;
+}
+
+async function retryDurableAgentLoopTask(taskId: string): Promise<string | null> {
+  const row = await readAiTaskRuntimeRow(taskId);
+  if (!isDurableAgentLoopTask(row)) return null;
+  if (row.status !== 'failed') return null;
+
+  const db = await getDb();
+  const timestamp = new Date().toISOString();
+  await db.collections.ai_tasks.update(taskId, {
+    status: 'pending',
+    resumable: true,
+    lastHeartbeatAt: timestamp,
+    updatedAt: timestamp,
+  });
+  return taskId;
+}
 
 type EmbeddingServiceLike = {
   terminate: () => void;
@@ -61,6 +116,8 @@ type UnitLike = {
   endTime: number;
 };
 
+type AiEmbeddingTaskRow = Pick<AiTaskDoc, 'id' | 'taskType' | 'status' | 'updatedAt' | 'modelId' | 'errorMessage' | 'resumable' | 'handoffReason' | 'checkpointJson'>;
+
 type UseAiEmbeddingStateParams = {
   locale: string;
   enabled?: boolean;
@@ -101,14 +158,7 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     elapsedMs?: number;
     averageBatchMs?: number;
   } | null>(null);
-  const [aiEmbeddingTasks, setAiEmbeddingTasks] = useState<Array<{
-    id: string;
-    taskType: 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language';
-    status: 'pending' | 'running' | 'done' | 'failed';
-    updatedAt: string;
-    modelId?: string;
-    errorMessage?: string;
-  }>>([]);
+  const [aiEmbeddingTasks, setAiEmbeddingTasks] = useState<AiEmbeddingTaskRow[]>([]);
   const [aiEmbeddingMatches, setAiEmbeddingMatches] = useState<Array<{
     unitId: string;
     score: number;
@@ -161,6 +211,9 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
         updatedAt: item.updatedAt,
         ...(item.modelId ? { modelId: item.modelId } : {}),
         ...(item.errorMessage ? { errorMessage: item.errorMessage } : {}),
+        ...(item.resumable !== undefined ? { resumable: item.resumable } : {}),
+        ...(item.handoffReason ? { handoffReason: item.handoffReason } : {}),
+        ...(item.checkpointJson ? { checkpointJson: item.checkpointJson } : {}),
       }));
     if (!isMountedRef.current) return;
     setAiEmbeddingTasks(normalized);
@@ -234,19 +287,31 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
   }, [enabled, requestRefreshEmbeddingTasks]);
 
   const handleCancelAiTask = useCallback(async (taskId: string) => {
-    const ok = taskRunner.cancel(taskId);
-    if (!ok) {
+    const runtimeCancelled = taskRunner.cancel(taskId);
+    const durableCancelled = runtimeCancelled ? false : await markDurableAgentLoopTaskCancelled(taskId);
+    if (!runtimeCancelled && !durableCancelled) {
       setAiEmbeddingLastError(messages.cancelUnavailable);
+    } else {
+      setAiEmbeddingLastError(null);
     }
     await refreshEmbeddingTasks();
   }, [messages.cancelUnavailable, refreshEmbeddingTasks, taskRunner]);
 
   const handleRetryAiTask = useCallback(async (taskId: string) => {
-    const nextTaskId = await taskRunner.retry(taskId);
+    let nextTaskId: string | null = null;
+    try {
+      nextTaskId = await taskRunner.retry(taskId);
+    } catch {
+      nextTaskId = null;
+    }
+    if (!nextTaskId) {
+      nextTaskId = await retryDurableAgentLoopTask(taskId);
+    }
     if (!nextTaskId) {
       setAiEmbeddingLastError(messages.retryUnavailable);
       return;
     }
+    setAiEmbeddingLastError(null);
     setAiEmbeddingProgressLabel(messages.reQueued(nextTaskId));
     await refreshEmbeddingTasks();
   }, [messages, refreshEmbeddingTasks, taskRunner]);

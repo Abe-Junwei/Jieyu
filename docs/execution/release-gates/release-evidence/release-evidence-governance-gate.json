@@ -3,12 +3,12 @@
   "reportType": "release-evidence",
   "degraded": false,
   "metadata": {
-    "generatedAt": "2026-04-25T15:09:55.799Z",
+    "generatedAt": "2026-04-26T10:34:02.641Z",
     "releaseProfile": "core",
     "mode": "enforce",
     "environment": "local",
     "appVersion": "1.1.0",
-    "gitShortSha": "d526ae2",
+    "gitShortSha": "6277d06",
     "nodeVersion": "v25.9.0",
     "workspaceRoot": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu",
     "stage": "A1b",
@@ -170,7 +170,7 @@
       "module": "ai-runtime",
       "exitCode": 0,
       "logPath": null,
-      "keySummary": "pending=0;blocked=1;confirmed=1"
+      "keySummary": "pending=0;blocked=1;confirmed=1;partialFailure=0"
     },
     {
       "conclusionId": "m0.audit-field-dictionary.v1",
@@ -499,7 +499,8 @@
       "blocked": 1,
       "confirmed": 1,
       "cancelled": 0,
-      "failed": 0
+      "failed": 0,
+      "partialFailureCount": 0
     },
     "riskTiers": {
       "high": 1,

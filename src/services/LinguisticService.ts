@@ -818,6 +818,16 @@ export class LinguisticService {
     await db.collections.token_lexeme_links.removeBySelector({ targetType, targetId });
   }
 
+  /** Remove specific lexeme↔token links by primary id (e.g. auto-gloss rollback). */
+  static async removeTokenLexemeLinksByIds(linkIds: readonly string[]): Promise<void> {
+    if (linkIds.length === 0) return;
+    const db = await getDb();
+    for (let i = linkIds.length - 1; i >= 0; i -= 1) {
+      const id = linkIds[i]!;
+      await db.collections.token_lexeme_links.remove(id);
+    }
+  }
+
   static async listLexemes(): Promise<LexemeDocType[]> {
     const db = await getDb();
     const docs = await db.collections.lexemes.find().exec();

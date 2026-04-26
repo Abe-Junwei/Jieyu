@@ -7,6 +7,17 @@
 
 import { memo, useEffect, useRef, type FC, type PointerEvent as ReactPointerEvent } from 'react';
 import { t, tf, useLocale } from '../../i18n';
+import { recordTranscriptionKeyboardAction } from '../../services/transcriptionKeyboardActionTelemetry';
+
+let lastWaveformAmplitudeTelemetryMs = 0;
+const WAVEFORM_AMPLITUDE_TELEMETRY_MS = 320;
+
+function recordWaveformAmplitudeSliderTelemetryThrottled(): void {
+  const now = Date.now();
+  if (now - lastWaveformAmplitudeTelemetryMs < WAVEFORM_AMPLITUDE_TELEMETRY_MS) return;
+  lastWaveformAmplitudeTelemetryMs = now;
+  recordTranscriptionKeyboardAction('waveformAmplitudeSliderChange');
+}
 import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
@@ -94,6 +105,7 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(fu
           className={`waveform-left-status-toggle ${snapEnabled ? 'waveform-left-status-toggle-on' : ''}`}
           onClick={(e) => {
             e.stopPropagation();
+            recordTranscriptionKeyboardAction('timelineZoomSnapToggle');
             onSnapToggle();
           }}
           title={snapEnabled ? t(locale, 'transcription.zoom.snapOn') : t(locale, 'transcription.zoom.snapOff')}
@@ -129,14 +141,21 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(fu
           max={4}
           step={0.05}
           value={amplitudeScale}
-          onChange={(e) => onAmplitudeChange(Number(e.target.value))}
+          onChange={(e) => {
+            recordWaveformAmplitudeSliderTelemetryThrottled();
+            onAmplitudeChange(Number(e.target.value));
+          }}
           title={tf(locale, 'transcription.statusStrip.gainValue', { value: amplitudeScale.toFixed(1) })}
           aria-label={tf(locale, 'transcription.statusStrip.gainValue', { value: amplitudeScale.toFixed(1) })}
         />
         <button
           type="button"
           className="waveform-left-status-value waveform-gain-reset"
-          onClick={(ev) => { ev.stopPropagation(); onAmplitudeReset(); }}
+          onClick={(ev) => {
+            ev.stopPropagation();
+            recordTranscriptionKeyboardAction('waveformAmplitudeReset');
+            onAmplitudeReset();
+          }}
           title={t(locale, 'transcription.statusStrip.gainReset')}
         >{amplitudeScale.toFixed(1)}x</button>
       </div>
@@ -149,6 +168,7 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(fu
               className={`waveform-layout-toggle-btn ${videoLayoutMode === 'top' ? 'active' : ''}`}
               onClick={(e) => {
                 e.stopPropagation();
+                recordTranscriptionKeyboardAction('timelineVideoLayoutModeTop');
                 onVideoLayoutModeChange('top');
               }}
               title={t(locale, 'transcription.statusStrip.layoutTopTitle')}
@@ -160,6 +180,7 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(fu
               className={`waveform-layout-toggle-btn ${videoLayoutMode === 'right' ? 'active' : ''}`}
               onClick={(e) => {
                 e.stopPropagation();
+                recordTranscriptionKeyboardAction('timelineVideoLayoutModeRight');
                 onVideoLayoutModeChange('right');
               }}
               title={t(locale, 'transcription.statusStrip.layoutRightTitle')}
@@ -171,6 +192,7 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(fu
               className={`waveform-layout-toggle-btn ${videoLayoutMode === 'left' ? 'active' : ''}`}
               onClick={(e) => {
                 e.stopPropagation();
+                recordTranscriptionKeyboardAction('timelineVideoLayoutModeLeft');
                 onVideoLayoutModeChange('left');
               }}
               title={t(locale, 'transcription.statusStrip.layoutLeftTitle')}
@@ -183,7 +205,10 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(fu
       {onLaneLabelWidthResize && (
         <div
           className="lane-label-resize-handle"
-          onPointerDown={onLaneLabelWidthResize}
+          onPointerDown={(event) => {
+            recordTranscriptionKeyboardAction('timelineLaneLabelResizeStart');
+            onLaneLabelWidthResize?.(event);
+          }}
           role="separator"
           aria-orientation="vertical"
           aria-label={t(locale, 'transcription.statusStrip.resizeLaneLabel')}

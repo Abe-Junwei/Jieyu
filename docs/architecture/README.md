@@ -3,7 +3,7 @@ title: Architecture 文档索引
 doc_type: architecture-index
 status: active
 owner: repo
-last_reviewed: 2026-04-24
+last_reviewed: 2026-04-26
 source_of_truth: current-state-index
 ---
 
@@ -28,6 +28,9 @@ source_of_truth: current-state-index
 - [transcription-deep-link-query-contract.md](./transcription-deep-link-query-contract.md)
   - 用途：`/transcription` 深链 query、`sessionStorage` 返回提示与实现挂点（对齐三页联动 P0-1）。
 
+- [transcription-voice-action-id-registry-contract.md](./transcription-voice-action-id-registry-contract.md)
+  - 用途：`ActionId` 与 `voiceIntentUi`、`dictKeys`、双语字典、`VoiceIntentLlmResolver` 允许列表的注册一致性；校验入口 `npm run check:transcription-text-telemetry-contract`。
+
 - [offline-pwa-first-visit-expectations.md](./offline-pwa-first-visit-expectations.md)
   - 用途：PWA / Service Worker 与**首次访问、冷启动、precache 边界**的用户预期（勘误表 C-3）。
 
@@ -45,6 +48,12 @@ source_of_truth: current-state-index
 
 - [桌面端浏览器支持策略.md](./桌面端浏览器支持策略.md)
   - 用途：产品对外兼容边界（桌面端 Chrome / Edge / Firefox / Safari 及国内双核浏览器的极速模式）；与 CSS 矩阵分工明确。
+
+- [ai-chat-tool-confirm-idempotency.md](./ai-chat-tool-confirm-idempotency.md)
+  - 用途：AI 聊天工具确认链路的幂等与审计契约（含 `propose_changes` 批处理、trace 与 `metadata.executed` 语义）。
+
+- [voice-unified-chat-path.md](./voice-unified-chat-path.md)
+  - 用途：非听写语音（command/analysis）与文字共用 AI 聊天主链的现状、功能开关、关键文件与回滚入口（灰度见 release-gates 配套文档）。
 
 - [CSS治理执行记录.md](./CSS治理执行记录.md)
   - 用途：记录季度治理执行证据（预算复盘、兼容复核、视觉基线与废弃窗口推进）。

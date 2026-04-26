@@ -60,6 +60,7 @@ describe('sessionMemory P2 helpers', () => {
         originalUserText: '  how many speakers are there in the project  ',
         continuationInput: '  __LOCAL_TOOL_RESULT__  ',
         step: 1.9,
+        taskId: ' task_agent_loop_1 ',
       },
     }));
     const loaded = loadSessionMemory();
@@ -68,6 +69,7 @@ describe('sessionMemory P2 helpers', () => {
       originalUserText: 'how many speakers are there in the project',
       continuationInput: '__LOCAL_TOOL_RESULT__',
       step: 1,
+      taskId: 'task_agent_loop_1',
     });
   });
 
@@ -287,6 +289,35 @@ describe('sessionMemory P2 helpers', () => {
       id: 'dir-st',
       action: 'superseded',
       supersededBy: 'dir-st_deactivated',
+    });
+    const prompt = buildUserDirectivePrompt(next);
+    expect(prompt).toBe('');
+  });
+
+  it('deactivates ledger-only long_term tool preference: clears toolPreferences and prompt lines', () => {
+    const memory = {
+      toolPreferences: { preferLocalReads: true },
+      directiveLedger: [
+        {
+          id: 'dir-tool-led',
+          category: 'tool' as const,
+          scope: 'long_term' as const,
+          text: '优先本地读',
+          action: 'accepted' as const,
+          source: 'user_explicit' as const,
+          confidence: 0.88,
+          createdAt: '2026-04-25T00:00:00.000Z',
+          targetPath: 'toolPreferences.preferLocalReads',
+          value: true,
+        },
+      ],
+    };
+    const next = deactivateSessionDirective(memory, 'dir-tool-led');
+    expect(next.toolPreferences).toBeUndefined();
+    expect(next.directiveLedger?.[0]).toMatchObject({
+      id: 'dir-tool-led',
+      action: 'superseded',
+      supersededBy: 'dir-tool-led_deactivated',
     });
     const prompt = buildUserDirectivePrompt(next);
     expect(prompt).toBe('');

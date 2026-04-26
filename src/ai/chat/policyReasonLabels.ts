@@ -1,11 +1,11 @@
 export type PolicyReasonLocale = 'zh-CN' | 'en-US';
 
 const POLICY_REASON_LABELS_ZH: Record<string, string> = {
-  user_directive_never_execute: '已被用户指令禁止自动执行',
-  user_directive_deny_destructive: '已被用户安全偏好阻断高风险破坏性操作',
-  user_directive_deny_batch: '已被用户指令阻断批量写入操作',
-  user_directive_confirmation_required: '用户偏好要求先确认再执行',
-  propose_changes_requires_confirmation: '提议变更模式要求人工确认后执行',
+  user_directive_never_execute: '\u5df2\u88ab\u7528\u6237\u6307\u4ee4\u7981\u6b62\u81ea\u52a8\u6267\u884c',
+  user_directive_deny_destructive: '\u5df2\u88ab\u7528\u6237\u5b89\u5168\u504f\u597d\u963b\u65ad\u9ad8\u98ce\u9669\u7834\u574f\u6027\u64cd\u4f5c',
+  user_directive_deny_batch: '\u5df2\u88ab\u7528\u6237\u6307\u4ee4\u963b\u65ad\u6279\u91cf\u5199\u5165\u64cd\u4f5c',
+  user_directive_confirmation_required: '\u7528\u6237\u504f\u597d\u8981\u6c42\u5148\u786e\u8ba4\u518d\u6267\u884c',
+  propose_changes_requires_confirmation: '\u63d0\u8bae\u53d8\u66f4\u6a21\u5f0f\u8981\u6c42\u4eba\u5de5\u786e\u8ba4\u540e\u6267\u884c',
 };
 
 const POLICY_REASON_LABELS_EN: Record<string, string> = {

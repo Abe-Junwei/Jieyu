@@ -23,11 +23,6 @@ on:
         required: false
         default: false
         type: boolean
-      run_agent_evals_audit_trace:
-        description: 'After standard agent evals, run audit NDJSON trace assertion (check:agent-evals:trace)'
-        required: false
-        default: false
-        type: boolean
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -104,6 +99,9 @@ jobs:
       - name: fireAndForget governance (context on all callsites)
         run: npm run check:fire-and-forget-governance
 
+      - name: Acceptance-1 (AI structural rollback smoke)
+        run: npm run check:acceptance-1
+
       - name: Test suite
         run: npm test
 
@@ -126,11 +124,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Agent evals gate (enforce)
-        run: npm run check:agent-evals
-
-      - name: Agent evals audit trace (optional, workflow_dispatch only)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_agent_evals_audit_trace == 'true' }}
+      - name: Agent evals gate (enforce + audit trace)
         run: npm run check:agent-evals:trace
 
       - name: Upload agent eval report
@@ -306,10 +300,16 @@ jobs:
           RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
         run: npm run export:release-evidence:extension-audit
 
+      - name: Export release evidence AI task snapshots input
+        env:
+          RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
+        run: npm run export:release-evidence:ai-task-snapshots
+
       - name: Release evidence core gate (enforce)
         env:
           RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+          RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
           RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
           RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:core
@@ -390,6 +390,7 @@ jobs:
         with:
           name: release-evidence-core-${{ github.run_id }}
           path: |
+            docs/execution/audits/ai-task-snapshots-export-v1.json
             docs/execution/release-gates/release-evidence/release-evidence-*.json
             docs/execution/release-gates/release-evidence/logs/**/*.log
           if-no-files-found: warn
@@ -423,10 +424,16 @@ jobs:
           RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
         run: npm run export:release-evidence:extension-audit
 
+      - name: Export release evidence AI task snapshots input
+        env:
+          RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
+        run: npm run export:release-evidence:ai-task-snapshots
+
       - name: Release evidence full gate (enforce)
         env:
           RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+          RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
           RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
           RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:full
@@ -509,6 +516,7 @@ jobs:
         with:
           name: release-evidence-full-${{ github.run_id }}
           path: |
+            docs/execution/audits/ai-task-snapshots-export-v1.json
             docs/execution/release-gates/release-evidence/release-evidence-*.json
             docs/execution/release-gates/release-evidence/logs/**/*.log
           if-no-files-found: warn

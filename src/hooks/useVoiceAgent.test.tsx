@@ -3,7 +3,6 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { useVoiceAgent } from './useVoiceAgent';
 import { clearVoiceAliasLearningLog, loadVoiceAliasLearningLog, saveVoiceIntentAliasMap, type ActionId } from '../services/IntentRouter';
-
 // ── Mock region detection (avoids 3-second timeout in tests) ──
 vi.mock('../utils/regionDetection', () => ({
   detectRegion: vi.fn().mockResolvedValue('global'),
@@ -534,6 +533,25 @@ describe('useVoiceAgent', () => {
       });
     });
 
+    it('does not mis-trigger destructive actions for natural dictation text containing command words', async () => {
+      const executeAction = makeExecuteAction();
+      const insertDictation = vi.fn();
+
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction, insertDictation }),
+      );
+
+      await act(async () => { await result.current.start('dictation'); });
+
+      const text = '今天的听写：如果说到删除这个词，也只是文本内容';
+      await dispatchSttResult({ text, confidence: 0.9 });
+
+      await waitFor(() => {
+        expect(insertDictation).toHaveBeenCalledWith(text);
+        expect(executeAction).not.toHaveBeenCalled();
+      });
+    });
+
     it('calls sendToAiChat when chat intent is received in analysis mode', async () => {
       const executeAction = makeExecuteAction();
       const sendToAiChat = vi.fn();
@@ -778,6 +796,97 @@ describe('useVoiceAgent', () => {
 
       await waitFor(() => {
         expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('uses resolveIntentWithLlm for unmatched analysis text', async () => {
+      const executeAction = makeExecuteAction();
+      const resolveIntentWithLlm = vi.fn().mockResolvedValue({
+        type: 'chat',
+        text: '我来分析这句话的语法结构',
+        raw: '分析这句话',
+      });
+
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction, resolveIntentWithLlm }),
+      );
+
+      await act(async () => { await result.current.start('analysis'); });
+
+      await dispatchSttResult({ text: '分析这句话', confidence: 0.91 });
+
+      await waitFor(() => {
+        expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('routes the same complex request into chat path for both command and analysis modes', async () => {
+      const transcript = '请结合上下文给出改写建议并解释原因';
+
+      const commandExecute = makeExecuteAction();
+      const commandSendToAiChat = vi.fn();
+      const commandResolveIntentWithLlm = vi.fn().mockResolvedValue({
+        type: 'chat',
+        text: '我会给出改写建议并解释原因。',
+        raw: transcript,
+      });
+      const { result: commandResult, unmount: unmountCommand } = renderHook(() =>
+        useVoiceAgent({
+          executeAction: commandExecute,
+          sendToAiChat: commandSendToAiChat,
+          resolveIntentWithLlm: commandResolveIntentWithLlm,
+        }),
+      );
+
+      await act(async () => { await commandResult.current.start('command'); });
+      await dispatchSttResult({ text: transcript, confidence: 0.91 });
+
+      await waitFor(() => {
+        expect(commandResolveIntentWithLlm).toHaveBeenCalledTimes(1);
+        expect(commandSendToAiChat).toHaveBeenCalledTimes(1);
+        expect(commandExecute).not.toHaveBeenCalled();
+      });
+      unmountCommand();
+
+      const analysisExecute = makeExecuteAction();
+      const analysisSendToAiChat = vi.fn();
+      const analysisResolveIntentWithLlm = vi.fn().mockResolvedValue({
+        type: 'chat',
+        text: '我会给出改写建议并解释原因。',
+        raw: transcript,
+      });
+      const { result: analysisResult } = renderHook(() =>
+        useVoiceAgent({
+          executeAction: analysisExecute,
+          sendToAiChat: analysisSendToAiChat,
+          resolveIntentWithLlm: analysisResolveIntentWithLlm,
+        }),
+      );
+
+      await act(async () => { await analysisResult.current.start('analysis'); });
+      await dispatchSttResult({ text: transcript, confidence: 0.91 });
+
+      await waitFor(() => {
+        expect(analysisResolveIntentWithLlm).toHaveBeenCalledTimes(1);
+        expect(analysisSendToAiChat).toHaveBeenCalledTimes(1);
+        expect(analysisExecute).not.toHaveBeenCalled();
+      });
+    });
+
+    it('keeps analysis-mode fast-path commands low-latency without LLM', async () => {
+      const executeAction = makeExecuteAction();
+      const resolveIntentWithLlm = vi.fn().mockResolvedValue(null);
+
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction, resolveIntentWithLlm }),
+      );
+
+      await act(async () => { await result.current.start('analysis'); });
+      await dispatchSttResult({ text: '播放', confidence: 0.95 });
+
+      await waitFor(() => {
+        expect(executeAction).toHaveBeenCalledWith('playPause');
+        expect(resolveIntentWithLlm).not.toHaveBeenCalled();
       });
     });
 

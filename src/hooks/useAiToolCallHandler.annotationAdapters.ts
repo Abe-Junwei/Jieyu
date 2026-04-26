@@ -1,6 +1,35 @@
 import { AutoGlossService } from '../ai/AutoGlossService';
+import type { LayerUnitDocType } from '../db';
+import { LinguisticService } from '../services/LinguisticService';
 import { t, tf } from '../i18n';
 import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
+
+const DEFAULT_ORTHOGRAPHY_KEY_FOR_BATCH_POS = 'default';
+
+function collectTokenPosSnapshotsByFormFromUnits(
+  units: readonly LayerUnitDocType[],
+  unitId: string,
+  form: string,
+  orthographyKey: string,
+): Array<{ tokenId: string; previous: string | null }> {
+  const normalizedForm = form.trim();
+  const unit = units.find((u) => u.id === unitId);
+  const words = unit?.words;
+  if (!words?.length) return [];
+  const out: Array<{ tokenId: string; previous: string | null }> = [];
+  for (const w of words) {
+    const tokenId = w.id;
+    if (!tokenId) continue;
+    const direct = w.form?.[orthographyKey];
+    if (direct !== normalizedForm && !Object.values(w.form ?? {}).some((v) => v === normalizedForm)) {
+      continue;
+    }
+    const raw = w.pos;
+    const prev = raw !== undefined && String(raw).trim() !== '' ? String(raw).trim() : null;
+    out.push({ tokenId, previous: prev });
+  }
+  return out;
+}
 
 export const glossAdapter: ToolObjectAdapter = {
   handles: ['auto_gloss_unit'],
@@ -11,7 +40,12 @@ export const glossAdapter: ToolObjectAdapter = {
     }
     const targetUnit = ctx.resolveRequestedUnit();
     if (!targetUnit) {
-      return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { unitId: ctx.describeRequestedUnitTarget() }) };
+      return {
+        ok: false,
+        message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', {
+          segmentId: ctx.describeRequestedUnitTarget(),
+        }),
+      };
     }
     const service = new AutoGlossService();
     const result = await service.glossUnit(targetUnit.id);
@@ -29,6 +63,10 @@ export const glossAdapter: ToolObjectAdapter = {
       const gloss = Object.values(m.gloss)[0] ?? '';
       return `${form}→${gloss}`;
     }).join('、');
+    const updateGloss = ctx.updateTokenGloss;
+    const canRollbackAutoGloss = Boolean(updateGloss)
+      && result.matched.length > 0
+      && result.matched.every((m) => typeof m.linkId === 'string' && m.linkId.length > 0);
     return {
       ok: true,
       message: tf(locale, 'transcription.aiTool.gloss.done', {
@@ -36,6 +74,22 @@ export const glossAdapter: ToolObjectAdapter = {
         total: result.total,
         labels,
       }),
+      ...(canRollbackAutoGloss && updateGloss
+        ? {
+            rollback: async () => {
+              const linkIds = result.matched.map((m) => m.linkId);
+              await LinguisticService.removeTokenLexemeLinksByIds(linkIds);
+              for (let i = result.matched.length - 1; i >= 0; i -= 1) {
+                const m = result.matched[i]!;
+                const langs = Object.keys(m.gloss);
+                for (let j = langs.length - 1; j >= 0; j -= 1) {
+                  const lang = langs[j]!;
+                  await updateGloss(m.tokenId, null, lang);
+                }
+              }
+            },
+          }
+        : {}),
     };
   },
 };
@@ -54,13 +108,22 @@ export const tokenAdapter: ToolObjectAdapter = {
         if (!ctx.updateTokenPos) {
           return { ok: false, message: t(locale, 'transcription.aiTool.token.setPosCallbackMissing') };
         }
+        const previous = ctx.readTokenPos?.(tokenId) ?? null;
         await ctx.updateTokenPos(tokenId, pos);
+        const updatePos = ctx.updateTokenPos;
         return {
           ok: true,
           message: tf(locale, 'transcription.aiTool.token.setPosDone', {
             tokenId,
             pos: pos ?? t(locale, 'transcription.aiTool.token.clearedValue'),
           }),
+          ...(ctx.readTokenPos && updatePos
+            ? {
+                rollback: async () => {
+                  await updatePos(tokenId, previous);
+                },
+              }
+            : {}),
         };
       }
 
@@ -72,7 +135,14 @@ export const tokenAdapter: ToolObjectAdapter = {
       if (!ctx.batchUpdateTokenPosByForm) {
         return { ok: false, message: t(locale, 'transcription.aiTool.token.batchSetPosCallbackMissing') };
       }
+      const snapshots = collectTokenPosSnapshotsByFormFromUnits(
+        ctx.units,
+        unitId,
+        form,
+        DEFAULT_ORTHOGRAPHY_KEY_FOR_BATCH_POS,
+      );
       const updated = await ctx.batchUpdateTokenPosByForm(unitId, form, pos);
+      const updatePos = ctx.updateTokenPos;
       return {
         ok: true,
         message: tf(locale, 'transcription.aiTool.token.batchSetPosDone', {
@@ -80,6 +150,16 @@ export const tokenAdapter: ToolObjectAdapter = {
           form,
           pos: pos ?? t(locale, 'transcription.aiTool.token.clearedValue'),
         }),
+        ...(snapshots.length > 0 && updatePos
+          ? {
+              rollback: async () => {
+                for (let i = snapshots.length - 1; i >= 0; i -= 1) {
+                  const row = snapshots[i]!;
+                  await updatePos(row.tokenId, row.previous);
+                }
+              },
+            }
+          : {}),
       };
     }
 
@@ -95,7 +175,9 @@ export const tokenAdapter: ToolObjectAdapter = {
       if (!ctx.updateTokenGloss) {
         return { ok: false, message: t(locale, 'transcription.aiTool.token.setGlossCallbackMissing') };
       }
+      const previous = ctx.readTokenGloss?.(tokenId, lang) ?? null;
       await ctx.updateTokenGloss(tokenId, gloss, lang);
+      const updateGloss = ctx.updateTokenGloss;
       return {
         ok: true,
         message: tf(locale, 'transcription.aiTool.token.setGlossDone', {
@@ -103,6 +185,13 @@ export const tokenAdapter: ToolObjectAdapter = {
           lang,
           gloss: gloss ?? t(locale, 'transcription.aiTool.token.clearedValue'),
         }),
+        ...(ctx.readTokenGloss && updateGloss
+          ? {
+              rollback: async () => {
+                await updateGloss(tokenId, previous, lang);
+              },
+            }
+          : {}),
       };
     }
 

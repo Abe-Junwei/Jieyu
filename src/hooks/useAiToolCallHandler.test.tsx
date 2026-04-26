@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as AiCanonicalClusterRollbackSnapshot from '../services/AiCanonicalClusterRollbackSnapshot';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import type { LayerUnitDocType, LayerDocType } from '../db';
+import { getDb } from '../db';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useAiToolCallHandler } from './useAiToolCallHandler';
 
@@ -16,6 +18,37 @@ afterEach(() => {
 });
 
 const NOW = new Date().toISOString();
+
+function installAiStructuralRollbackSnapshotSpies() {
+  vi.spyOn(AiCanonicalClusterRollbackSnapshot, 'captureAiCanonicalClusterRollbackSnapshot').mockImplementation(
+    async (_db: unknown, ids: readonly string[]) => {
+      if (ids.length === 0) return null;
+      const iso = new Date().toISOString();
+      return {
+        canonicalUnitIds: [...ids],
+        segmentGraph: { units: [], contents: [], links: [] },
+        canonicalUnits: ids.map((id) => ({
+          id,
+          unitType: 'unit' as const,
+          textId: 't1',
+          mediaId: 'm1',
+          startTime: 0,
+          endTime: 1,
+          transcription: {},
+          createdAt: iso,
+          updatedAt: iso,
+        })),
+        canonicalContents: [],
+        tokens: [],
+        morphemes: [],
+        tokenLexemeLinks: [],
+        anchors: [],
+        userNotes: [],
+      };
+    },
+  );
+  vi.spyOn(AiCanonicalClusterRollbackSnapshot, 'restoreAiCanonicalClusterRollbackSnapshot').mockResolvedValue(undefined);
+}
 
 function makeUnit(id: string): LayerUnitDocType {
   return {
@@ -71,6 +104,7 @@ function makeParams(
     executeAction: vi.fn(),
     getSegments: vi.fn(() => []),
     navigateTo: vi.fn(),
+    silentSegmentGraphSyncForAi: vi.fn(async () => {}),
     ...overrides,
   };
 }
@@ -232,6 +266,14 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
 // ---------------------------------------------------------------------------
 
 describe('useAiToolCallHandler — delete_transcription_segment', () => {
+  beforeEach(() => {
+    installAiStructuralRollbackSnapshotSpies();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('uses all current units when allSegments is requested', async () => {
     const deleteSelectionSpy = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
 
@@ -448,6 +490,19 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
 
   it('uses segmentId directly when deleting a routed segment target', async () => {
     const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+    const segmentId = 'seg-routed-direct-1';
+    const dbi = await getDb();
+    await dbi.dexie.layer_units.put({
+      id: segmentId,
+      textId: 't_rb_route',
+      mediaId: 'm_rb_route',
+      layerId: 'l_rb_route',
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as LayerUnitDocType);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
@@ -461,12 +516,13 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     await act(async () => {
       response = await result.current({
         name: 'delete_transcription_segment',
-        arguments: { segmentId: 'seg-1' },
+        arguments: { segmentId },
       });
     });
 
-    expect(deleteSpy).toHaveBeenCalledWith('seg-1');
+    expect(deleteSpy).toHaveBeenCalledWith(segmentId);
     expect(response?.ok).toBe(true);
+    await dbi.dexie.layer_units.delete(segmentId);
   });
 
   it('uses deleteSelectedUnits for batch delete targets', async () => {
@@ -475,6 +531,7 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
+          units: [makeUnit('seg-1'), makeUnit('seg-2')],
           deleteSelectedUnits: deleteSelectionSpy,
         }),
       ),
@@ -500,6 +557,7 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
+          units: [makeUnit('seg-1'), makeUnit('seg-2')],
           deleteSelectedUnits: deleteSelectionSpy,
         }),
       ),
@@ -520,6 +578,14 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
 });
 
 describe('useAiToolCallHandler — merge_transcription_segments', () => {
+  beforeEach(() => {
+    installAiStructuralRollbackSnapshotSpies();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('prefers mergeSelectedSegments when only segment ids are provided', async () => {
     const mergeSelectedUnits = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
     const mergeSelectedSegments = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
@@ -698,6 +764,110 @@ describe('useAiToolCallHandler — merge_transcription_segments', () => {
     expect(response?.ok).toBe(true);
     expect(mergeWithNext).toHaveBeenCalledWith('seg-2');
     expect(executeAction).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// voice navigation rollback (focus_segment / nav_to_segment)
+// ---------------------------------------------------------------------------
+
+describe('useAiToolCallHandler — voice navigation rollback', () => {
+  it('focus_segment exposes rollback that restores previous selection when it changed', async () => {
+    const u1 = makeUnit('u1');
+    const u2 = { ...makeUnit('u2'), startTime: 2, endTime: 3 };
+    const navigateTo = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          units: [u1, u2],
+          selectedUnit: u1,
+          navigateTo,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'focus_segment',
+        arguments: { segmentId: 'u2' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(navigateTo).toHaveBeenCalledTimes(1);
+    expect(navigateTo).toHaveBeenLastCalledWith('u2');
+    expect(typeof response?.rollback).toBe('function');
+    await act(async () => {
+      await response?.rollback?.();
+    });
+    expect(navigateTo).toHaveBeenCalledTimes(2);
+    expect(navigateTo).toHaveBeenLastCalledWith('u1');
+  });
+
+  it('focus_segment omits rollback when already focused on the target', async () => {
+    const u1 = makeUnit('u1');
+    const navigateTo = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          units: [u1],
+          selectedUnit: u1,
+          navigateTo,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'focus_segment',
+        arguments: { segmentId: 'u1' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(navigateTo).toHaveBeenCalledTimes(1);
+    expect(response?.rollback).toBeUndefined();
+  });
+
+  it('nav_to_segment exposes rollback that restores previous selection', async () => {
+    const uPrev = makeUnit('u-prev');
+    const uA = { ...makeUnit('u-a'), startTime: 0, endTime: 1 };
+    const uB = { ...makeUnit('u-b'), startTime: 1, endTime: 2 };
+    const navigateTo = vi.fn();
+    const getSegments = vi.fn(() => [uA, uB]);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          units: [uPrev, uA, uB],
+          selectedUnit: uPrev,
+          navigateTo,
+          getSegments,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'nav_to_segment',
+        arguments: { segmentIndex: 2 },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(navigateTo).toHaveBeenCalledTimes(1);
+    expect(navigateTo).toHaveBeenLastCalledWith('u-b');
+    expect(typeof response?.rollback).toBe('function');
+    await act(async () => {
+      await response?.rollback?.();
+    });
+    expect(navigateTo).toHaveBeenCalledTimes(2);
+    expect(navigateTo).toHaveBeenLastCalledWith('u-prev');
   });
 });
 
@@ -1102,6 +1272,42 @@ describe('useAiToolCallHandler — strict target requirements', () => {
 
     expect(response?.ok).toBe(true);
     expect(splitSegmentSpy).toHaveBeenCalledWith('seg-2', 2.5);
+    expect(response?.rollback).toBeUndefined();
+  });
+
+  it('split_transcription_segment rollback merges when split returns ids and mergeAdjacentSegmentsForAiRollback is wired', async () => {
+    const mergeSpy = vi.fn(async () => {});
+    const splitSegmentSpy = vi.fn(async () => ({
+      keepSegmentId: 'seg-2',
+      removeSegmentId: 'seg-new',
+    }));
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          splitTranscriptionSegment: splitSegmentSpy,
+          mergeAdjacentSegmentsForAiRollback: mergeSpy,
+          segmentTargets: [
+            { id: 'seg-2', kind: 'segment', startTime: 2, endTime: 3, text: '第二段' },
+          ],
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'split_transcription_segment',
+        arguments: { segmentId: 'seg-2', splitTime: 2.5 },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(typeof response?.rollback).toBe('function');
+    await act(async () => {
+      await response?.rollback?.();
+    });
+    expect(mergeSpy).toHaveBeenCalledWith('seg-2', 'seg-new');
   });
 
   it('rejects auto_gloss_unit without unitId', async () => {

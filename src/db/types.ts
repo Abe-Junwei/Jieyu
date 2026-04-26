@@ -209,7 +209,7 @@ export interface TokenLexemeLinkDocType {
 }
 
 export type AiTaskStatus = 'pending' | 'running' | 'done' | 'failed';
-export type AiTaskType = 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language';
+export type AiTaskType = 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language' | 'agent_loop';
 
 export interface AiTaskDoc {
   id: string;
@@ -219,6 +219,15 @@ export interface AiTaskDoc {
   targetType?: string;
   modelId?: string;
   errorMessage?: string;
+  attempt?: number;
+  maxAttempts?: number;
+  timeoutMs?: number;
+  startedAt?: string;
+  completedAt?: string;
+  lastHeartbeatAt?: string;
+  checkpointJson?: string;
+  resumable?: boolean;
+  handoffReason?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -1061,6 +1070,12 @@ export interface AiTaskSnapshotDocType {
   hasError: boolean;
   isTerminal: boolean;
   durationMs: number;
+  attempt?: number;
+  maxAttempts?: number;
+  lastHeartbeatAt?: string;
+  hasCheckpoint?: boolean;
+  resumable?: boolean;
+  handoffReason?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -13,6 +13,7 @@ import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
 import type { AcousticBatchSelectionRange, AcousticCalibrationStatus, AcousticPanelBatchDetail, AcousticPanelDetail } from '../utils/acousticPanelDetail';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import type { useAiChat } from '../hooks/useAiChat';
+import type { AiSegmentSplitRollbackToken } from '../hooks/useAiToolCallHandler.types';
 import type { useAiPanelLogic } from '../hooks/useAiPanelLogic';
 import type { EditEvent } from '../hooks/useEditEventBuffer';
 import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
@@ -57,8 +58,16 @@ export interface UseTranscriptionAiControllerInput {
     input: { languageId: string; alias?: string },
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
-  createTranscriptionSegment: (targetId: string) => Promise<void>;
-  splitTranscriptionSegment: (targetId: string, splitTime: number) => Promise<void>;
+  createTranscriptionSegment: (targetId: string) => Promise<string | void>;
+  /** Unit-layer “create next” used when segment routing is on unit docs; optional on segment-only bridges. */
+  createAdjacentUnit?: (utt: LayerUnitDocType, duration: number) => Promise<string | void>;
+  splitTranscriptionSegment: (targetId: string, splitTime: number) => Promise<AiSegmentSplitRollbackToken | void>;
+  /**
+   * Segment-layer merge used only for AI rollback of a prior split (no user Undo label).
+   */
+  mergeAdjacentSegmentsForAiRollback?: (keepId: string, removeId: string) => Promise<void>;
+  /** Reload segment graph after silent segment mutations used only for AI propose_changes rollbacks. */
+  silentSegmentGraphSyncForAi?: () => Promise<void>;
   mergeWithPrevious?: (id: string) => Promise<void>;
   mergeWithNext?: (id: string) => Promise<void>;
   /** Batch merge by resolved timeline unit ids (typically unit targets). */

@@ -25,6 +25,9 @@ export type AiEmbeddingCardMessages = {
   noTasks: string;
   modelLabel: string;
   errorLabel: string;
+  resumableLabel: string;
+  checkpointLabel: string;
+  handoffReasonLabel: string;
   cancel: string;
   retry: string;
   similarityResults: string;
@@ -66,6 +69,9 @@ export function getAiEmbeddingCardMessages(isZh: boolean): AiEmbeddingCardMessag
     noTasks: t(l, 'msg.embCard.noTasks'),
     modelLabel: t(l, 'msg.embCard.modelLabel'),
     errorLabel: t(l, 'msg.embCard.errorLabel'),
+    resumableLabel: t(l, 'msg.embCard.resumableLabel'),
+    checkpointLabel: t(l, 'msg.embCard.checkpointLabel'),
+    handoffReasonLabel: t(l, 'msg.embCard.handoffReasonLabel'),
     cancel: t(l, 'msg.embCard.cancel'),
     retry: t(l, 'msg.embCard.retry'),
     similarityResults: t(l, 'msg.embCard.similarityResults'),

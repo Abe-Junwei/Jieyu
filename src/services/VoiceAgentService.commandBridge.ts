@@ -180,7 +180,7 @@ export async function handleFinalSttResult(
         ctx.onExecuteAction?.(intent.actionId, intent.params);
         Earcon.playSuccess();
         globalContext.markSessionStart();
-        userBehaviorStore.recordAction({ actionId: intent.actionId, durationMs: 0, sessionId: session.id });
+        userBehaviorStore.recordAction({ actionId: intent.actionId, durationMs: 0, sessionId: session.id, inputModality: 'voice' });
         ctx.setState({ agentState: 'idle' });
       }
       break;

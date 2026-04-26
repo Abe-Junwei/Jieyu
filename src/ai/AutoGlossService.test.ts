@@ -64,6 +64,7 @@ describe('AutoGlossService', () => {
     // Verify link was created
     const links = await db.token_lexeme_links.where('[targetType+targetId]').equals(['token', 'tok_1']).toArray();
     expect(links.length).toBe(1);
+    expect(result.matched[0]?.linkId).toBe(links[0]?.id);
     expect(links[0]?.lexemeId).toBe('lex_1');
     expect(links[0]?.role).toBe('exact');
 

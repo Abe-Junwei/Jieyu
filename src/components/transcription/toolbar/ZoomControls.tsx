@@ -9,6 +9,17 @@ import { type FC, useCallback } from 'react';
 import { MaterialSymbol } from '../../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE } from '../../../utils/jieyuMaterialIcon';
 import { t, tf, useLocale } from '../../../i18n';
+import { recordTranscriptionKeyboardAction } from '../../../services/transcriptionKeyboardActionTelemetry';
+
+let lastZoomSliderTelemetryMs = 0;
+const ZOOM_SLIDER_TELEMETRY_MS = 350;
+
+function recordZoomSliderTelemetryThrottled(): void {
+  const now = Date.now();
+  if (now - lastZoomSliderTelemetryMs < ZOOM_SLIDER_TELEMETRY_MS) return;
+  lastZoomSliderTelemetryMs = now;
+  recordTranscriptionKeyboardAction('timelineZoomSliderChange');
+}
 
 export interface ZoomControlsProps {
   // 状态 | State
@@ -55,6 +66,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   }, [activeUnitId, unitsOnCurrentMedia, onZoomToUnit]);
 
   const handleOneToOne = useCallback(() => {
+    recordTranscriptionKeyboardAction('timelineZoomOneToOne');
     onZoomToPercent(Math.round((100 / fitPxPerSec) * 100), 'custom');
   }, [fitPxPerSec, onZoomToPercent]);
 
@@ -67,6 +79,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   }, [autoScrollEnabled, onAutoScrollEnabledChange]);
 
   const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    recordZoomSliderTelemetryThrottled();
     const pos = Number(e.target.value);
     const pct = 100 * Math.pow(maxZoomPercent / 100, pos / 1000);
     onZoomToPercent(pct, 'custom');

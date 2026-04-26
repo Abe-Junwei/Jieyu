@@ -34,6 +34,8 @@ export interface AutoGlossMatch {
   confidence: number;
   /** 匹配策略标签 | Match strategy label */
   matchType: MatchType;
+  /** `token_lexeme_links` row created for this match; used by `propose_changes` rollback. */
+  linkId: string;
 }
 
 /** Leipzig 规则提示（每个已赋 gloss 的 token） | Leipzig hint per glossed token */
@@ -166,6 +168,7 @@ export class AutoGlossService {
         gloss,
         confidence: best.confidence,
         matchType: best.matchType,
+        linkId: link.id,
       });
 
       // Leipzig 非阻断提示 | Non-blocking Leipzig hint

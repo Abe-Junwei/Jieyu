@@ -74,6 +74,7 @@ export function useVoiceAgentModeController({
         actionId,
         durationMs: 0,
         sessionId: sessionRef.current.id,
+        inputModality: 'voice',
       });
       setAgentState('idle');
     })();

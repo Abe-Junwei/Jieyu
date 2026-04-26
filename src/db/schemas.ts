@@ -155,7 +155,7 @@ const tokenLexemeLinkDocSchema = z.object({
 });
 
 const aiTaskStatusSchema = z.enum(['pending', 'running', 'done', 'failed']);
-const aiTaskTypeSchema = z.enum(['transcribe', 'gloss', 'translate', 'embed', 'detect_language']);
+const aiTaskTypeSchema = z.enum(['transcribe', 'gloss', 'translate', 'embed', 'detect_language', 'agent_loop']);
 
 const aiTaskDocSchema = z.object({
   id: z.string().min(1),
@@ -165,6 +165,15 @@ const aiTaskDocSchema = z.object({
   targetType: z.string().optional(),
   modelId: z.string().optional(),
   errorMessage: z.string().optional(),
+  attempt: z.number().int().min(0).optional(),
+  maxAttempts: z.number().int().min(1).optional(),
+  timeoutMs: z.number().int().min(1000).optional(),
+  startedAt: isoDateSchema.optional(),
+  completedAt: isoDateSchema.optional(),
+  lastHeartbeatAt: isoDateSchema.optional(),
+  checkpointJson: z.string().optional(),
+  resumable: z.boolean().optional(),
+  handoffReason: z.string().optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
@@ -982,6 +991,12 @@ const aiTaskSnapshotDocSchema = z.object({
   hasError: z.boolean(),
   isTerminal: z.boolean(),
   durationMs: z.number().min(0),
+  attempt: z.number().int().min(0).optional(),
+  maxAttempts: z.number().int().min(1).optional(),
+  lastHeartbeatAt: isoDateSchema.optional(),
+  hasCheckpoint: z.boolean().optional(),
+  resumable: z.boolean().optional(),
+  handoffReason: z.string().optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });

@@ -1,4 +1,5 @@
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 
 type ReadyWorkspaceStageProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps'];
 type ReadyWorkspaceObserverProps = ReadyWorkspaceStageProps['observerProps'];
@@ -16,6 +17,9 @@ export function buildReadyWorkspaceObserverProps(
   return {
     observerStage: input.observerStage,
     recommendations: input.recommendations,
-    onExecuteRecommendation: input.onExecuteRecommendation,
+    onExecuteRecommendation: (item) => {
+      recordTranscriptionKeyboardAction('workspaceObserverRecommendationExecute');
+      input.onExecuteRecommendation(item);
+    },
   };
 }

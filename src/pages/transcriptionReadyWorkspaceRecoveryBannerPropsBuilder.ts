@@ -1,4 +1,5 @@
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 
 type ReadyWorkspaceStageProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps'];
 type ReadyWorkspaceRecoveryBannerProps = ReadyWorkspaceStageProps['recoveryBannerProps'];
@@ -19,7 +20,13 @@ export function buildReadyWorkspaceRecoveryBannerProps(
     shouldRender: input.shouldRender,
     recoveryAvailable: input.recoveryAvailable,
     recoveryDiffSummary: input.recoveryDiffSummary,
-    onApply: input.onApply,
-    onDismiss: input.onDismiss,
+    onApply: () => {
+      recordTranscriptionKeyboardAction('workspaceRecoveryApply');
+      input.onApply();
+    },
+    onDismiss: () => {
+      recordTranscriptionKeyboardAction('workspaceRecoveryDismiss');
+      input.onDismiss();
+    },
   };
 }

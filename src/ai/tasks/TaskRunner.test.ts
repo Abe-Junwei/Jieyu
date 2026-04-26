@@ -42,6 +42,70 @@ describe('TaskRunner', () => {
 
     const row = await db.ai_tasks.get(enqueued.taskId);
     expect(row?.status).toBe('done');
+    expect(row?.attempt).toBe(1);
+    expect(row?.maxAttempts).toBe(1);
+    expect(row?.timeoutMs).toBeGreaterThanOrEqual(1000);
+    expect(row?.startedAt).toBeTruthy();
+    expect(row?.completedAt).toBeTruthy();
+  });
+
+  it('persists initial checkpoint and task-run checkpoints', async () => {
+    const runner = new TaskRunner(1);
+    const enqueued = await runner.enqueue({
+      taskType: 'embed',
+      targetId: 'embeddings',
+      resumable: true,
+      initialCheckpoint: {
+        kind: 'queued',
+        data: { batch: 1 },
+      },
+      run: async ({ taskId, checkpoint }) => {
+        const queuedRow = await db.ai_tasks.get(taskId);
+        expect(queuedRow?.resumable).toBe(true);
+        expect(JSON.parse(queuedRow?.checkpointJson ?? '{}')).toMatchObject({
+          kind: 'queued',
+          data: { batch: 1 },
+        });
+
+        await checkpoint({
+          kind: 'processed_batch',
+          message: 'batch persisted',
+          data: { done: 7 },
+        });
+        return 'checkpoint-ok';
+      },
+    });
+
+    await expect(enqueued.result).resolves.toBe('checkpoint-ok');
+    const row = await db.ai_tasks.get(enqueued.taskId);
+    expect(row?.status).toBe('done');
+    expect(row?.lastHeartbeatAt).toBeTruthy();
+    expect(JSON.parse(row?.checkpointJson ?? '{}')).toMatchObject({
+      kind: 'processed_batch',
+      message: 'batch persisted',
+      data: { done: 7 },
+    });
+  });
+
+  it('heartbeat updates lastHeartbeatAt and optionally checkpointJson', async () => {
+    const runner = new TaskRunner(1);
+
+    const enqueued = await runner.enqueue({
+      taskType: 'embed',
+      targetId: 'embeddings',
+      run: async ({ heartbeat }) => {
+        await heartbeat({ kind: 'heartbeat', data: { offset: 3 } });
+        return 'heartbeat-ok';
+      },
+    });
+
+    await expect(enqueued.result).resolves.toBe('heartbeat-ok');
+    const row = await db.ai_tasks.get(enqueued.taskId);
+    expect(row?.lastHeartbeatAt).toBeTruthy();
+    expect(JSON.parse(row?.checkpointJson ?? '{}')).toMatchObject({
+      kind: 'heartbeat',
+      data: { offset: 3 },
+    });
   });
 
   it('retries when handler fails and then succeeds', async () => {
@@ -67,6 +131,8 @@ describe('TaskRunner', () => {
 
     const row = await db.ai_tasks.get(enqueued.taskId);
     expect(row?.status).toBe('done');
+    expect(row?.attempt).toBe(2);
+    expect(row?.maxAttempts).toBe(2);
   });
 
   it('queues tasks when concurrency is 1', async () => {
@@ -80,6 +146,8 @@ describe('TaskRunner', () => {
         releaseFirst = () => resolve('first-ok');
       }),
     });
+
+    await waitForTaskStatus(first.taskId, 'running');
 
     const second = await runner.enqueue({
       taskType: 'embed',

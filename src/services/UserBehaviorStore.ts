@@ -34,6 +34,7 @@ class UserBehaviorStore {
     aiAssisted: boolean;
     voiceConfidence: number | null;
     requiredConfirmation: boolean;
+    inputModality: 'voice' | 'text';
   }> = [];
   private _flushTimer: ReturnType<typeof setTimeout> | null = null;
   private _flushIntervalMs = 5000; // flush every 5s
@@ -78,6 +79,7 @@ class UserBehaviorStore {
     aiAssisted?: boolean;
     voiceConfidence?: number | null;
     requiredConfirmation?: boolean;
+    inputModality: 'voice' | 'text';
   }): void {
     const {
       actionId,
@@ -87,6 +89,7 @@ class UserBehaviorStore {
       aiAssisted = false,
       voiceConfidence = null,
       requiredConfirmation = false,
+      inputModality,
     } = params;
 
     // Update in-memory profile (fast path)
@@ -101,6 +104,7 @@ class UserBehaviorStore {
       aiAssisted,
       voiceConfidence,
       requiredConfirmation,
+      inputModality,
     });
 
     // Trigger immediate flush if buffer is getting large

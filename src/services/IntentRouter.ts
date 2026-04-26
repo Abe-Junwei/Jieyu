@@ -14,6 +14,7 @@
  */
 
 import { appendVoiceAliasLearningLog, clearVoiceAliasLearningLog, getActionLabel, loadVoiceAliasLearningLog } from './voiceIntentUi';
+import { DEFAULT_VOICE_MODE, type VoiceMode } from './voiceMode';
 
 // ── Action IDs ──
 
@@ -39,11 +40,129 @@ export type ActionId =
   | 'navToIndex'
   | 'tabNext'
   | 'tabPrev'
+  | 'stepBack'
+  | 'stepForward'
+  | 'reviewNext'
+  | 'reviewPrev'
   // View
   | 'search'
   | 'toggleNotes'
   // Voice-specific
-  | 'toggleVoice';
+  | 'toggleVoice'
+  // Toolbar / timeline chrome (non-voice UI; telemetry + optional LLM mapping)
+  | 'seekBack10Sec'
+  | 'seekForward10Sec'
+  | 'toggleGlobalLoop'
+  | 'autoSegmentRun'
+  | 'deleteTimelineAudio'
+  | 'deleteTranscriptionProject'
+  // Transcription toolbar / project hub (text-modality telemetry; optional LLM mapping)
+  | 'toolbarPlaybackRateChange'
+  | 'toolbarVolumeChange'
+  | 'toolbarViewOptionsToggle'
+  | 'toolbarDisplayModeWaveform'
+  | 'toolbarDisplayModeSpectrogram'
+  | 'toolbarDisplayModeSplit'
+  | 'toolbarVisualStyleBalanced'
+  | 'toolbarVisualStyleDense'
+  | 'toolbarVisualStyleContrast'
+  | 'toolbarVisualStyleLine'
+  | 'toolbarAcousticOverlayNone'
+  | 'toolbarAcousticOverlayF0'
+  | 'toolbarAcousticOverlayIntensity'
+  | 'toolbarAcousticOverlayBoth'
+  | 'toolbarRefresh'
+  | 'toolbarOpenProjectSetup'
+  | 'toolbarOpenAudioImport'
+  | 'toolbarOpenUttOpsMenu'
+  | 'toolbarReviewMenuToggle'
+  | 'toolbarReviewPresetAll'
+  | 'toolbarReviewPresetTime'
+  | 'toolbarReviewPresetContentConcern'
+  | 'toolbarReviewPresetContentMissing'
+  | 'toolbarReviewPresetManualAttention'
+  | 'toolbarReviewPresetPendingReview'
+  | 'toolbarExportMenuToggle'
+  | 'toolbarExportEaf'
+  | 'toolbarExportTextGrid'
+  | 'toolbarExportTrs'
+  | 'toolbarExportFlextext'
+  | 'toolbarExportToolbox'
+  | 'toolbarExportJyt'
+  | 'toolbarExportJym'
+  | 'toolbarImportAnnotationFile'
+  | 'toolbarOpenSpeakerManagementPanel'
+  | 'toolbarPreviewProjectArchiveImport'
+  | 'toolbarImportProjectArchive'
+  | 'toolbarApplyTextTimeMapping'
+  // Timeline / list chrome (text-modality telemetry)
+  | 'timelineLaneHeaderToggle'
+  | 'timelineSeek'
+  | 'timelineWaveformResizeStart'
+  | 'timelineSearchNavigateToUnit'
+  | 'timelineSearchReplace'
+  | 'timelineSearchClose'
+  | 'timelineZoomFitAll'
+  | 'timelineZoomFitSelection'
+  | 'timelineZoomOneToOne'
+  | 'timelineZoomSliderChange'
+  | 'timelineZoomSnapToggle'
+  | 'timelineZoomAutoScrollToggle'
+  | 'timelineHistoryPanelToggle'
+  | 'timelineHistoryJumpToIndex'
+  | 'timelineHistoryRedo'
+  | 'timelineAxisExpandLogicalDuration'
+  | 'timelineWorkspaceLayoutHorizontal'
+  | 'timelineWorkspaceLayoutVertical'
+  | 'timelinePairedReadingColumnBoth'
+  | 'timelinePairedReadingColumnSource'
+  | 'timelinePairedReadingColumnTarget'
+  | 'timelineVideoResizeHandle'
+  | 'toolbarOpenTextTimeMappingDialog'
+  | 'toolbarCloseTextTimeMappingDialog'
+  | 'toolbarOpenProjectArchivePicker'
+  | 'toolbarOpenAnnotationImportPicker'
+  | 'toolbarProjectHubMenuToggle'
+  | 'toolbarTimeMappingFormHistorySelect'
+  | 'waveformAmplitudeSliderChange'
+  | 'waveformAmplitudeReset'
+  | 'timelineVideoLayoutModeTop'
+  | 'timelineVideoLayoutModeRight'
+  | 'timelineVideoLayoutModeLeft'
+  | 'timelineLaneLabelResizeStart'
+  // Workspace remainder (overlays, batch ops, observer, recovery, AI chrome, lasso, collaboration)
+  | 'workspaceObserverRecommendationExecute'
+  | 'workspaceBatchOpsClose'
+  | 'workspaceBatchOpsOffset'
+  | 'workspaceBatchOpsScale'
+  | 'workspaceBatchOpsSplitByRegex'
+  | 'workspaceBatchOpsMerge'
+  | 'workspaceBatchOpsJumpToUnit'
+  | 'overlayCloseContextMenu'
+  | 'overlayCloseUttOpsMenu'
+  | 'overlayMergeSelection'
+  | 'overlayOpenNoteFromMenu'
+  | 'overlayDeleteDialogDismiss'
+  | 'overlayDeleteDialogConfirm'
+  | 'overlayCloseNotePopover'
+  | 'overlayNoteAdd'
+  | 'overlayNoteUpdate'
+  | 'overlayNoteDelete'
+  | 'overlayAssignSpeaker'
+  | 'overlaySetSelfCertainty'
+  | 'overlayToggleSkipProcessing'
+  | 'overlayLayerDisplayUpdate'
+  | 'overlayLayerDisplayReset'
+  | 'workspaceRecoveryApply'
+  | 'workspaceRecoveryDismiss'
+  | 'workspaceAiPanelToggle'
+  | 'workspaceAiPanelResizeStart'
+  | 'workspaceTimelineLassoPointerDown'
+  | 'workspaceTimelineLassoPointerUp'
+  | 'workspaceConflictApplyRemote'
+  | 'workspaceConflictKeepLocal'
+  | 'workspaceConflictPostpone'
+  | 'workspaceDirectMediaImportSelect';
 
 const ACTION_ID_SET: ReadonlySet<ActionId> = new Set<ActionId>([
   'playPause',
@@ -63,9 +182,123 @@ const ACTION_ID_SET: ReadonlySet<ActionId> = new Set<ActionId>([
   'navToIndex',
   'tabNext',
   'tabPrev',
+  'stepBack',
+  'stepForward',
+  'reviewNext',
+  'reviewPrev',
   'search',
   'toggleNotes',
   'toggleVoice',
+  'seekBack10Sec',
+  'seekForward10Sec',
+  'toggleGlobalLoop',
+  'autoSegmentRun',
+  'deleteTimelineAudio',
+  'deleteTranscriptionProject',
+  'toolbarPlaybackRateChange',
+  'toolbarVolumeChange',
+  'toolbarViewOptionsToggle',
+  'toolbarDisplayModeWaveform',
+  'toolbarDisplayModeSpectrogram',
+  'toolbarDisplayModeSplit',
+  'toolbarVisualStyleBalanced',
+  'toolbarVisualStyleDense',
+  'toolbarVisualStyleContrast',
+  'toolbarVisualStyleLine',
+  'toolbarAcousticOverlayNone',
+  'toolbarAcousticOverlayF0',
+  'toolbarAcousticOverlayIntensity',
+  'toolbarAcousticOverlayBoth',
+  'toolbarRefresh',
+  'toolbarOpenProjectSetup',
+  'toolbarOpenAudioImport',
+  'toolbarOpenUttOpsMenu',
+  'toolbarReviewMenuToggle',
+  'toolbarReviewPresetAll',
+  'toolbarReviewPresetTime',
+  'toolbarReviewPresetContentConcern',
+  'toolbarReviewPresetContentMissing',
+  'toolbarReviewPresetManualAttention',
+  'toolbarReviewPresetPendingReview',
+  'toolbarExportMenuToggle',
+  'toolbarExportEaf',
+  'toolbarExportTextGrid',
+  'toolbarExportTrs',
+  'toolbarExportFlextext',
+  'toolbarExportToolbox',
+  'toolbarExportJyt',
+  'toolbarExportJym',
+  'toolbarImportAnnotationFile',
+  'toolbarOpenSpeakerManagementPanel',
+  'toolbarPreviewProjectArchiveImport',
+  'toolbarImportProjectArchive',
+  'toolbarApplyTextTimeMapping',
+  'timelineLaneHeaderToggle',
+  'timelineSeek',
+  'timelineWaveformResizeStart',
+  'timelineSearchNavigateToUnit',
+  'timelineSearchReplace',
+  'timelineSearchClose',
+  'timelineZoomFitAll',
+  'timelineZoomFitSelection',
+  'timelineZoomOneToOne',
+  'timelineZoomSliderChange',
+  'timelineZoomSnapToggle',
+  'timelineZoomAutoScrollToggle',
+  'timelineHistoryPanelToggle',
+  'timelineHistoryJumpToIndex',
+  'timelineHistoryRedo',
+  'timelineAxisExpandLogicalDuration',
+  'timelineWorkspaceLayoutHorizontal',
+  'timelineWorkspaceLayoutVertical',
+  'timelinePairedReadingColumnBoth',
+  'timelinePairedReadingColumnSource',
+  'timelinePairedReadingColumnTarget',
+  'timelineVideoResizeHandle',
+  'toolbarOpenTextTimeMappingDialog',
+  'toolbarCloseTextTimeMappingDialog',
+  'toolbarOpenProjectArchivePicker',
+  'toolbarOpenAnnotationImportPicker',
+  'toolbarProjectHubMenuToggle',
+  'toolbarTimeMappingFormHistorySelect',
+  'waveformAmplitudeSliderChange',
+  'waveformAmplitudeReset',
+  'timelineVideoLayoutModeTop',
+  'timelineVideoLayoutModeRight',
+  'timelineVideoLayoutModeLeft',
+  'timelineLaneLabelResizeStart',
+  'workspaceObserverRecommendationExecute',
+  'workspaceBatchOpsClose',
+  'workspaceBatchOpsOffset',
+  'workspaceBatchOpsScale',
+  'workspaceBatchOpsSplitByRegex',
+  'workspaceBatchOpsMerge',
+  'workspaceBatchOpsJumpToUnit',
+  'overlayCloseContextMenu',
+  'overlayCloseUttOpsMenu',
+  'overlayMergeSelection',
+  'overlayOpenNoteFromMenu',
+  'overlayDeleteDialogDismiss',
+  'overlayDeleteDialogConfirm',
+  'overlayCloseNotePopover',
+  'overlayNoteAdd',
+  'overlayNoteUpdate',
+  'overlayNoteDelete',
+  'overlayAssignSpeaker',
+  'overlaySetSelfCertainty',
+  'overlayToggleSkipProcessing',
+  'overlayLayerDisplayUpdate',
+  'overlayLayerDisplayReset',
+  'workspaceRecoveryApply',
+  'workspaceRecoveryDismiss',
+  'workspaceAiPanelToggle',
+  'workspaceAiPanelResizeStart',
+  'workspaceTimelineLassoPointerDown',
+  'workspaceTimelineLassoPointerUp',
+  'workspaceConflictApplyRemote',
+  'workspaceConflictKeepLocal',
+  'workspaceConflictPostpone',
+  'workspaceDirectMediaImportSelect',
 ]);
 
 export function isActionId(value: string): value is ActionId {
@@ -131,7 +364,7 @@ export interface VoiceSession {
   id: string;
   startedAt: number;
   entries: VoiceSessionEntry[];
-  mode: 'command' | 'dictation' | 'analysis';
+  mode: VoiceMode;
 }
 
 export interface VoiceReplayAction {
@@ -147,7 +380,7 @@ export function createVoiceSession(): VoiceSession {
     id: crypto.randomUUID(),
     startedAt: Date.now(),
     entries: [],
-    mode: 'command',
+    mode: DEFAULT_VOICE_MODE,
   };
 }
 
@@ -181,7 +414,7 @@ interface IntentRule {
 }
 
 /** Matches VoiceAgentMode values used for rule filtering. */
-type VoiceAgentMode = 'command' | 'dictation' | 'analysis';
+type VoiceAgentMode = VoiceMode;
 
 /**
  * Intent rules — ordered by priority (higher number = higher priority).
@@ -439,8 +672,9 @@ export function routeIntent(
     }
   }
 
-  // Try fuzzy rules (command mode only) — substring contains match
-  if (mode === 'command') {
+  // Try fuzzy rules for non-dictation modes (command + analysis)
+  const allowFuzzy = mode !== 'dictation';
+  if (allowFuzzy) {
     for (const rule of SORTED_FUZZY_RULES) {
       const kwList = rule.keywords.split(' ').filter(Boolean);
       const matched = kwList.some((kw) => {

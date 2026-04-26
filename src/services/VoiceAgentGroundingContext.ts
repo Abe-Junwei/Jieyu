@@ -1,6 +1,7 @@
 import type { CorpusContext, UserBehaviorProfile } from './GlobalContextService';
 import { getActionLabel, type ActionId, type VoiceSession } from './IntentRouter';
 import type { Locale } from '../i18n';
+import { DEFAULT_VOICE_MODE } from './voiceMode';
 
 export interface GroundingContextData {
   currentSegment: {
@@ -92,7 +93,7 @@ export function buildVoiceAgentGroundingContext({
         : 'destructive-only';
 
   const userProfile: GroundingContextData['userProfile'] = {
-    preferredMode: profile.preferences?.preferredMode ?? 'command',
+    preferredMode: profile.preferences?.preferredMode ?? DEFAULT_VOICE_MODE,
     mostUsedAction,
     fatigueScore: profile.fatigue?.score ?? 0,
     confirmationPreference,

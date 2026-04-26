@@ -6,6 +6,7 @@ import type { TranscriptionPageSidePaneProps } from './TranscriptionPage.SidePan
 import type { TranscriptionOverlaysProps } from '../components/TranscriptionOverlays';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
 import type { Locale } from '../i18n';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 export { buildReadyWorkspaceStageProps, type BuildReadyWorkspaceStagePropsInput } from './transcriptionReadyWorkspaceStagePropsBuilder';
 
 type HorizontalMediaLanesProps = TranscriptionPageTimelineHorizontalMediaLanesProps;
@@ -236,8 +237,14 @@ export function buildReadyWorkspaceSidePaneProps(
         locale: input.locale,
         verticalViewActive: input.verticalViewActive,
         translationLayerCount: input.translationLayerCount,
-        onSelectHorizontalMode: input.onSelectWorkspaceHorizontalLayout,
-        onSelectVerticalMode: input.onSelectWorkspaceVerticalLayout,
+        onSelectHorizontalMode: () => {
+          recordTranscriptionKeyboardAction('timelineWorkspaceLayoutHorizontal');
+          input.onSelectWorkspaceHorizontalLayout();
+        },
+        onSelectVerticalMode: () => {
+          recordTranscriptionKeyboardAction('timelineWorkspaceLayoutVertical');
+          input.onSelectWorkspaceVerticalLayout();
+        },
       },
     }) as ReadyWorkspaceSidePaneSidebarProps,
   };
@@ -267,19 +274,49 @@ export function buildReadyWorkspaceOverlaysProps(
 ): TranscriptionOverlaysProps {
   return {
     ctxMenu: input.ctxMenu,
-    onCloseCtxMenu: input.onCloseCtxMenu,
+    onCloseCtxMenu: () => {
+      recordTranscriptionKeyboardAction('overlayCloseContextMenu');
+      input.onCloseCtxMenu();
+    },
     uttOpsMenu: input.uttOpsMenu,
-    onCloseUttOpsMenu: input.onCloseUttOpsMenu,
+    onCloseUttOpsMenu: () => {
+      recordTranscriptionKeyboardAction('overlayCloseUttOpsMenu');
+      input.onCloseUttOpsMenu();
+    },
     selectedTimelineUnit: input.selectedTimelineUnit ?? null,
     selectedUnitIds: input.selectedUnitIds,
-    runDeleteSelection: input.runDeleteSelection,
-    runMergeSelection: input.runMergeSelection,
-    runSelectBefore: input.runSelectBefore,
-    runSelectAfter: input.runSelectAfter,
-    runDeleteOne: input.runDeleteOne,
-    runMergePrev: input.runMergePrev,
-    runMergeNext: input.runMergeNext,
-    runSplitAtTime: input.runSplitAtTime,
+    runDeleteSelection: (anchorId, selectedIds, unitKind, layerId) => {
+      recordTranscriptionKeyboardAction('deleteSegment');
+      input.runDeleteSelection(anchorId, selectedIds, unitKind, layerId);
+    },
+    runMergeSelection: (selectedIds, unitKind, layerId) => {
+      recordTranscriptionKeyboardAction('overlayMergeSelection');
+      input.runMergeSelection(selectedIds, unitKind, layerId);
+    },
+    runSelectBefore: (id) => {
+      recordTranscriptionKeyboardAction('selectBefore');
+      input.runSelectBefore(id);
+    },
+    runSelectAfter: (id) => {
+      recordTranscriptionKeyboardAction('selectAfter');
+      input.runSelectAfter(id);
+    },
+    runDeleteOne: (id, unitKind, layerId) => {
+      recordTranscriptionKeyboardAction('deleteSegment');
+      input.runDeleteOne(id, unitKind, layerId);
+    },
+    runMergePrev: (id, unitKind, layerId) => {
+      recordTranscriptionKeyboardAction('mergePrev');
+      input.runMergePrev(id, unitKind, layerId);
+    },
+    runMergeNext: (id, unitKind, layerId) => {
+      recordTranscriptionKeyboardAction('mergeNext');
+      input.runMergeNext(id, unitKind, layerId);
+    },
+    runSplitAtTime: (id, splitTime, unitKind, layerId) => {
+      recordTranscriptionKeyboardAction('splitSegment');
+      input.runSplitAtTime(id, splitTime, unitKind, layerId);
+    },
     getCurrentTime: input.getCurrentTime,
     onOpenNoteFromMenu: (
       x: number,
@@ -288,6 +325,7 @@ export function buildReadyWorkspaceOverlaysProps(
       layerId?: string,
       scope?: 'timeline' | 'waveform',
     ) => {
+      recordTranscriptionKeyboardAction('overlayOpenNoteFromMenu');
       if (layerId) {
         input.setNotePopover({ x, y, uttId, layerId, scope: scope ?? 'timeline' });
         return;
@@ -297,14 +335,32 @@ export function buildReadyWorkspaceOverlaysProps(
     deleteConfirmState: input.deleteConfirmState,
     muteDeleteConfirmInSession: input.muteDeleteConfirmInSession,
     setMuteDeleteConfirmInSession: input.setMuteDeleteConfirmInSession,
-    closeDeleteConfirmDialog: input.closeDeleteConfirmDialog,
-    confirmDeleteFromDialog: input.confirmDeleteFromDialog,
+    closeDeleteConfirmDialog: () => {
+      recordTranscriptionKeyboardAction('overlayDeleteDialogDismiss');
+      input.closeDeleteConfirmDialog();
+    },
+    confirmDeleteFromDialog: () => {
+      recordTranscriptionKeyboardAction('overlayDeleteDialogConfirm');
+      input.confirmDeleteFromDialog();
+    },
     notePopover: input.notePopover,
     currentNotes: input.currentNotes,
-    onCloseNotePopover: input.onCloseNotePopover,
-    addNote: input.addNote,
-    updateNote: input.updateNote,
-    deleteNote: input.deleteNote,
+    onCloseNotePopover: () => {
+      recordTranscriptionKeyboardAction('overlayCloseNotePopover');
+      input.onCloseNotePopover();
+    },
+    addNote: async (content, category) => {
+      recordTranscriptionKeyboardAction('overlayNoteAdd');
+      await input.addNote(content, category);
+    },
+    updateNote: async (id, updates) => {
+      recordTranscriptionKeyboardAction('overlayNoteUpdate');
+      await input.updateNote(id, updates);
+    },
+    deleteNote: async (id) => {
+      recordTranscriptionKeyboardAction('overlayNoteDelete');
+      await input.deleteNote(id);
+    },
     units: input.units,
     getUnitTextForLayer: input.getUnitTextForLayer,
     transcriptionLayers: input.transcriptionLayers,
@@ -312,12 +368,54 @@ export function buildReadyWorkspaceOverlaysProps(
     ...(input.resolveSelfCertaintyUnitIds ? { resolveSelfCertaintyUnitIds: input.resolveSelfCertaintyUnitIds } : {}),
     ...(input.speakerOptions ? { speakerOptions: input.speakerOptions } : {}),
     ...(input.speakerFilterOptions ? { speakerFilterOptions: input.speakerFilterOptions } : {}),
-    ...(input.onAssignSpeakerFromMenu ? { onAssignSpeakerFromMenu: input.onAssignSpeakerFromMenu } : {}),
-    ...(input.onSetUnitSelfCertaintyFromMenu ? { onSetUnitSelfCertaintyFromMenu: input.onSetUnitSelfCertaintyFromMenu } : {}),
-    ...(input.onToggleSkipProcessingFromMenu ? { onToggleSkipProcessingFromMenu: input.onToggleSkipProcessingFromMenu } : {}),
+    ...(input.onAssignSpeakerFromMenu
+      ? {
+        onAssignSpeakerFromMenu: (unitIds, kind, speakerId) => {
+          recordTranscriptionKeyboardAction('overlayAssignSpeaker');
+          input.onAssignSpeakerFromMenu!(unitIds, kind, speakerId);
+        },
+      }
+      : {}),
+    ...(input.onSetUnitSelfCertaintyFromMenu
+      ? {
+        onSetUnitSelfCertaintyFromMenu: (unitIds, kind, value, layerId) => {
+          recordTranscriptionKeyboardAction('overlaySetSelfCertainty');
+          input.onSetUnitSelfCertaintyFromMenu!(unitIds, kind, value, layerId);
+        },
+      }
+      : {}),
+    ...(input.onToggleSkipProcessingFromMenu
+      ? {
+        onToggleSkipProcessingFromMenu: (unitId, kind, layerId) => {
+          recordTranscriptionKeyboardAction('overlayToggleSkipProcessing');
+          input.onToggleSkipProcessingFromMenu!(unitId, kind, layerId);
+        },
+      }
+      : {}),
     ...(input.resolveSkipProcessingState ? { resolveSkipProcessingState: input.resolveSkipProcessingState } : {}),
-    ...(input.onOpenSpeakerManagementPanelFromMenu ? { onOpenSpeakerManagementPanelFromMenu: input.onOpenSpeakerManagementPanelFromMenu } : {}),
-    ...(input.displayStyleControl ? { displayStyleControl: input.displayStyleControl } : {}),
+    ...(input.onOpenSpeakerManagementPanelFromMenu
+      ? {
+        onOpenSpeakerManagementPanelFromMenu: () => {
+          recordTranscriptionKeyboardAction('toolbarOpenSpeakerManagementPanel');
+          input.onOpenSpeakerManagementPanelFromMenu!();
+        },
+      }
+      : {}),
+    ...(input.displayStyleControl
+      ? {
+        displayStyleControl: {
+          ...input.displayStyleControl,
+          onUpdate: (layerId, patch) => {
+            recordTranscriptionKeyboardAction('overlayLayerDisplayUpdate');
+            input.displayStyleControl!.onUpdate(layerId, patch);
+          },
+          onReset: (layerId) => {
+            recordTranscriptionKeyboardAction('overlayLayerDisplayReset');
+            input.displayStyleControl!.onReset(layerId);
+          },
+        },
+      }
+      : {}),
   };
 }
 
@@ -366,11 +464,16 @@ export function buildReadyWorkspaceConflictReviewDrawerProps(
   return {
     tickets: input.tickets,
     onApplyRemote: async (ticketId) => {
+      recordTranscriptionKeyboardAction('workspaceConflictApplyRemote');
       await input.onApplyRemoteConflictTicket(ticketId);
     },
     onKeepLocal: (ticketId) => {
+      recordTranscriptionKeyboardAction('workspaceConflictKeepLocal');
       input.onKeepLocalConflictTicket(ticketId);
     },
-    onPostpone: input.onPostponeConflictTicket,
+    onPostpone: (ticketId) => {
+      recordTranscriptionKeyboardAction('workspaceConflictPostpone');
+      input.onPostponeConflictTicket(ticketId);
+    },
   };
 }

@@ -8,22 +8,21 @@ import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
 import { materializePendingToolCallTargets } from '../hooks/useAiToolCallHandler.segmentTargeting';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { createDeferredEmbeddingSearchService } from '../ai/embeddings/DeferredEmbeddingSearchService';
-import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
 import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptContext';
 import { timelineUnitsToWaveformAnalysisRows } from '../hooks/timelineUnitView';
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { fireAndForget } from '../utils/fireAndForget';
-import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
 import { createTranscriptionAiToolRiskCheck } from './transcriptionAiToolRiskCheck';
 import { buildAiSegmentTargetDescriptors, resolveAiSegmentTargetScopeUnits } from './useTranscriptionAiController.segmentTargets';
 import { buildWaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import { vadCache } from '../services/vad/VadCacheService';
 import { formatRecentActions } from '../hooks/useEditEventBuffer';
 import { createMetricTags, recordMetric } from '../observability/metrics';
+import { createTranscriptionAiReadModelAccessors } from './transcriptionAiReadModelAccessors';
 import { buildOwnerUnitCandidates, resolveExplicitOwnerUnitForAi, resolveOwnerUnitForAi, resolveWritableAiTargetId } from './transcriptionAiSelectionResolver';
 import type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult } from './transcriptionAiController.types';
 import { useTranscriptionAiAcousticRuntime } from './useTranscriptionAiAcousticRuntime';
-import { TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX, toSyntheticUnitDoc } from '../utils/transcriptionAiControllerHelpers';
+import { bridgeTextForLayerTargetWithFallback, refreshRecentAiToolDecisionLogs, toSyntheticUnitDoc } from '../utils/transcriptionAiControllerHelpers';
 import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
@@ -135,15 +134,8 @@ export function useTranscriptionAiController(
   });
 
   const refreshAiToolDecisionLogs = useCallback(async () => {
-    try {
-      const normalized = await listRecentAiToolDecisionLogs(6);
-      setAiToolDecisionLogs(normalized);
-      setAiSidebarError((prev) => (prev?.startsWith(TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX) ? null : prev));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setAiSidebarError(`${TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX}${message}`);
-    }
-  }, []);
+    await refreshRecentAiToolDecisionLogs({ setAiToolDecisionLogs, setAiSidebarError });
+  }, [setAiSidebarError]);
 
   const segmentTargetScopeUnits = resolveAiSegmentTargetScopeUnits({
     units: allUnitsAsUnits,
@@ -180,31 +172,25 @@ export function useTranscriptionAiController(
     targetLayerId?: string;
     selectedLayerId?: string;
   }) => {
-    const { bridgeTextForLayerTarget, resolveFallbackSourceOrthographyId } = await loadOrthographyRuntime();
     const effectiveSelectedLayerId = (selectedLayerId ?? input.selectedLayerId).trim();
-    const fallbackSourceOrthographyId = resolveFallbackSourceOrthographyId({
-      layers: input.layers,
-      selectedLayerId: effectiveSelectedLayerId,
-    });
-    return bridgeTextForLayerTarget({
+    return bridgeTextForLayerTargetWithFallback({
       text,
       layers: input.layers,
       ...(targetLayerId !== undefined ? { targetLayerId } : {}),
       selectedLayerId: effectiveSelectedLayerId,
-      ...(fallbackSourceOrthographyId !== undefined ? { fallbackSourceOrthographyId } : {}),
     });
   }, [input.layers, input.selectedLayerId]);
 
-  const readSegmentLayerText = useCallback((segmentId: string, layerId: string) => {
-    const row = input.segmentContentByLayer?.get(layerId)?.get(segmentId);
-    return typeof row?.text === 'string' ? row.text : '';
-  }, [input.segmentContentByLayer]);
-
-  const readUnitLayerText = useCallback((unitId: string, layerId?: string) => {
-    const u = input.getUnitDocById(unitId) ?? segmentTargetScopeUnits.find((unit) => unit.id === unitId);
-    if (!u) return '';
-    return getUnitTextForLayer(u, layerId);
-  }, [getUnitTextForLayer, input.getUnitDocById, segmentTargetScopeUnits]);
+  const { readSegmentLayerText, readUnitLayerText, readTokenPos, readTokenGloss } = useMemo(
+    () => createTranscriptionAiReadModelAccessors<NonNullable<ReturnType<typeof input.getUnitDocById>>>({
+      segmentContentByLayer: input.segmentContentByLayer,
+      getUnitDocById: input.getUnitDocById,
+      segmentTargetScopeUnits,
+      getUnitTextForLayer,
+      allUnitRows: effectiveUnitIndex.allUnits,
+    }),
+    [effectiveUnitIndex.allUnits, getUnitTextForLayer, input.getUnitDocById, input.segmentContentByLayer, segmentTargetScopeUnits],
+  );
 
   const aiToolCallHandler = useAiToolCallHandler({
     units: segmentTargetScopeUnits,
@@ -215,10 +201,14 @@ export function useTranscriptionAiController(
     translationLayers: input.translationLayers,
     layerLinks: input.layerLinks,
     createLayer: input.createLayerWithActiveContext,
-    createAdjacentUnit: async () => undefined,
+    createAdjacentUnit: input.createAdjacentUnit ?? (async () => undefined),
     createTranscriptionSegment: input.createTranscriptionSegment,
     splitUnit: async () => undefined,
     splitTranscriptionSegment: input.splitTranscriptionSegment,
+    ...(input.mergeAdjacentSegmentsForAiRollback
+      ? { mergeAdjacentSegmentsForAiRollback: input.mergeAdjacentSegmentsForAiRollback }
+      : {}),
+    ...(input.silentSegmentGraphSyncForAi ? { silentSegmentGraphSyncForAi: input.silentSegmentGraphSyncForAi } : {}),
     ...(input.mergeWithPrevious ? { mergeWithPrevious: input.mergeWithPrevious } : {}),
     ...(input.mergeWithNext ? { mergeWithNext: input.mergeWithNext } : {}),
     mergeSelectedUnits: input.mergeSelectedUnits,
@@ -233,6 +223,8 @@ export function useTranscriptionAiController(
     saveSegmentContentForLayer: input.saveSegmentContentForLayer,
     readSegmentLayerText,
     readUnitLayerText,
+    readTokenPos,
+    readTokenGloss,
     segmentTargets: segmentTargetDescriptors,
     updateTokenPos: input.updateTokenPos,
     batchUpdateTokenPosByForm: input.batchUpdateTokenPosByForm,

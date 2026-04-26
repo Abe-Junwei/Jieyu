@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getAiChatCardMessages } from './aiChatCardMessages';
+import { DEFAULT_VOICE_MODE } from '../services/voiceMode';
 
 describe('getAiChatCardMessages.recommendedInputPlaceholder', () => {
   it('builds a translation-layer placeholder from focused context in zh-CN', () => {
@@ -34,7 +35,7 @@ describe('getAiChatCardMessages.recommendedInputPlaceholder', () => {
       selectedUnitKind: 'segment',
       rowNumber: 4,
       selectedText: '',
-      preferredMode: 'command',
+      preferredMode: DEFAULT_VOICE_MODE,
       confirmationThreshold: 'destructive',
     });
 

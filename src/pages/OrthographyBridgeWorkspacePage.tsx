@@ -9,7 +9,6 @@ import type { OrthographyBridgeShellFooterState } from '../components/Orthograph
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
 import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
-import { PanelSection } from '../components/ui/PanelSection';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../db';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
@@ -343,11 +342,11 @@ export function OrthographyBridgeWorkspacePage({
         </div>
       </section>
 
-      <PanelSection
-        className="ob-list-panel la-panel-section la-list-section"
-        title={t(locale, 'workspace.orthographyBridge.listTitle')}
-        description={t(locale, 'workspace.orthographyBridge.listDescription')}
-      >
+      <section className="ob-browser la-panel-section" aria-label={t(locale, 'workspace.orthographyBridge.listTitle')}>
+        <div className="ob-browser-header">
+          <h3 className="ob-browser-title">{t(locale, 'workspace.orthographyBridge.listTitle')}</h3>
+          <p className="panel-section__description">{t(locale, 'workspace.orthographyBridge.listDescription')}</p>
+        </div>
         <div className="ob-search-combobox">
           <input
             className="input ob-search"
@@ -443,10 +442,14 @@ export function OrthographyBridgeWorkspacePage({
             );
           })}
         </div>
-      </PanelSection>
+      </section>
 
       <div className="ob-detail-column la-panel-section">
-        <PanelSection className="ob-bridge-panel la-panel-section" title={t(locale, 'workspace.orthographyBridge.managerTitle')} description={t(locale, 'workspace.orthographyBridge.managerDescription')}>
+        <section className="ob-bridge la-panel-section" aria-label={t(locale, 'workspace.orthographyBridge.managerTitle')}>
+          <div className="ob-bridge-header">
+            <h3 className="ob-bridge-title">{t(locale, 'workspace.orthographyBridge.managerTitle')}</h3>
+            <p className="panel-section__description">{t(locale, 'workspace.orthographyBridge.managerDescription')}</p>
+          </div>
           <OrthographyBridgeManager
             targetOrthography={selectedOrthography ?? undefined}
             languageOptions={languageOptions}
@@ -455,7 +458,7 @@ export function OrthographyBridgeWorkspacePage({
             useShellFooter
             onShellFooterStateChange={handleShellFooterStateChange}
           />
-        </PanelSection>
+        </section>
       </div>
     </EmbeddedPanelShell>
   );

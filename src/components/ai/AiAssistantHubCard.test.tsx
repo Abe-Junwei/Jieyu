@@ -75,4 +75,32 @@ describe('AiAssistantHubCard', () => {
     expect(onVoiceConfirm).toHaveBeenCalledTimes(1);
     expect(onVoiceCancel).toHaveBeenCalledTimes(1);
   });
+
+  it('shows chat plus dictation mode options and maps chat toggle to non-dictation mode', () => {
+    const onVoiceSwitchMode = vi.fn();
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <AiAssistantHubContext.Provider
+          value={makeContextValue({
+            voiceEnabled: true,
+            voiceListening: true,
+            voiceMode: 'dictation',
+            onVoiceSwitchMode,
+          })}
+        >
+          <AiAssistantHubCard />
+        </AiAssistantHubContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.queryByRole('radio', { name: /指令|Command/i })).toBeNull();
+    expect(screen.queryByRole('radio', { name: /分析|Analysis/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole('radio', { name: /聊天|Chat/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /听写|Dictation/i }));
+
+    expect(onVoiceSwitchMode).toHaveBeenNthCalledWith(1, 'command');
+    expect(onVoiceSwitchMode).toHaveBeenNthCalledWith(2, 'dictation');
+  });
 });

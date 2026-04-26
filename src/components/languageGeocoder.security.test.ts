@@ -238,4 +238,55 @@ describe('languageGeocoder proxy security', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('retries direct nominatim when proxied nominatim forward search fails', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('proxy.example.com/maps/nominatim/search')) {
+        return new Response('bad gateway', { status: 502 });
+      }
+      expect(url.startsWith('https://nominatim.openstreetmap.org/search?')).toBe(true);
+      expect(url).toContain('q=');
+      return new Response(JSON.stringify([
+        {
+          place_id: 99,
+          display_name: 'Shandong, China',
+          name: 'Shandong',
+          lat: '36.3',
+          lon: '118.1',
+        },
+      ]), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const suggestions = await forwardGeocode({
+      providerConfig: createMaptilerProviderConfig(),
+      query: '山东',
+      locale: 'zh-CN',
+      structuredAddress: true,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(suggestions[0]).toMatchObject({
+      provider: 'nominatim',
+      primaryText: 'Shandong',
+      lat: 36.3,
+      lng: 118.1,
+    });
+  });
+
+  it('surfaces nominatim service {error} JSON as a thrown Error', async () => {
+    vi.unstubAllEnvs();
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: 'Rate limited' }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(forwardGeocode({
+      providerConfig: createMaptilerProviderConfig(),
+      query: '山东',
+      locale: 'zh-CN',
+      structuredAddress: true,
+    })).rejects.toThrow('nominatim:Rate limited');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

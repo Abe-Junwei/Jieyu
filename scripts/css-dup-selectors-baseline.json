@@ -3,6 +3,7 @@
   "allowedDuplicateClasses": [
     "app-side-pane-body-slot",
     "dialog-card",
+    "embedded-panel-shell",
     "jieyu-reduced-motion",
     "lane-label-resizing",
     "lane-link-connector-svg-arrow",

@@ -1,4 +1,5 @@
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 
 type ReadyWorkspaceBatchOpsSection = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps']['batchOpsSection'];
 type ReadyWorkspaceBatchOpsProps = ReadyWorkspaceBatchOpsSection['props'];
@@ -37,12 +38,30 @@ export function buildReadyWorkspaceBatchOpsSection(
       batchPreviewTextByLayerId: input.batchPreviewTextByLayerId,
       batchPreviewTextPropsByLayerId: input.batchPreviewTextPropsByLayerId ?? {},
       defaultBatchPreviewLayerId: input.defaultBatchPreviewLayerId,
-      onBatchClose: input.onCloseBatchOps,
-      onBatchOffset: input.onBatchOffset,
-      onBatchScale: input.onBatchScale,
-      onBatchSplitByRegex: input.onBatchSplitByRegex,
-      onBatchMerge: input.onBatchMerge,
-      onBatchJumpToUnit: input.onBatchJumpToUnit,
+      onBatchClose: () => {
+        recordTranscriptionKeyboardAction('workspaceBatchOpsClose');
+        input.onCloseBatchOps();
+      },
+      onBatchOffset: async (deltaSec) => {
+        recordTranscriptionKeyboardAction('workspaceBatchOpsOffset');
+        await input.onBatchOffset(deltaSec);
+      },
+      onBatchScale: async (factor, anchorTime) => {
+        recordTranscriptionKeyboardAction('workspaceBatchOpsScale');
+        await input.onBatchScale(factor, anchorTime);
+      },
+      onBatchSplitByRegex: async (pattern, flags) => {
+        recordTranscriptionKeyboardAction('workspaceBatchOpsSplitByRegex');
+        await input.onBatchSplitByRegex(pattern, flags);
+      },
+      onBatchMerge: async () => {
+        recordTranscriptionKeyboardAction('workspaceBatchOpsMerge');
+        await input.onBatchMerge();
+      },
+      onBatchJumpToUnit: (id) => {
+        recordTranscriptionKeyboardAction('workspaceBatchOpsJumpToUnit');
+        input.onBatchJumpToUnit(id);
+      },
     },
   };
 }

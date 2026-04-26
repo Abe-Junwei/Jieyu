@@ -59,4 +59,50 @@ describe('useAiChatToolAudit', () => {
 
     await expect(result.current.hasPersistedExecutionForRequest('req-2')).resolves.toBe(true);
   });
+
+  it('returns false for propose_changes partial-failure audit when metadata.executed is false (retry same parent requestId)', async () => {
+    await db.audit_logs.put({
+      id: 'audit-propose-partial',
+      collection: 'ai_messages',
+      documentId: 'assistant-propose-1',
+      action: 'update',
+      field: 'ai_tool_call_decision',
+      oldValue: 'pending:propose_changes',
+      newValue: 'confirm_failed:propose_changes:child_failed',
+      source: 'human',
+      timestamp: NOW,
+      requestId: 'req-parent-propose',
+      metadataJson: JSON.stringify({
+        schemaVersion: 1,
+        phase: 'decision',
+        outcome: 'confirm_failed',
+        executed: false,
+        reason: 'child_failed',
+        executionProgress: { appliedCount: 1, totalCount: 2, partial: true },
+      }),
+    });
+
+    const { result } = renderHook(() => useAiChatToolAudit());
+
+    await expect(result.current.hasPersistedExecutionForRequest('req-parent-propose')).resolves.toBe(false);
+  });
+
+  it('compact newValue without metadata still treats propose_changes child_failed as persisted (legacy)', async () => {
+    await db.audit_logs.put({
+      id: 'audit-propose-legacy',
+      collection: 'ai_messages',
+      documentId: 'assistant-propose-legacy',
+      action: 'update',
+      field: 'ai_tool_call_decision',
+      oldValue: 'pending:propose_changes',
+      newValue: 'confirm_failed:propose_changes:child_failed',
+      source: 'human',
+      timestamp: NOW,
+      requestId: 'req-legacy-compact',
+    });
+
+    const { result } = renderHook(() => useAiChatToolAudit());
+
+    await expect(result.current.hasPersistedExecutionForRequest('req-legacy-compact')).resolves.toBe(true);
+  });
 });

@@ -4,6 +4,12 @@ import type { AppShellSearchScope } from '../utils/appShellEvents';
 import type { Locale } from '../i18n';
 import type { SegmentTargetDescriptor } from './useAiToolCallHandler.segmentTargeting';
 
+/**
+ * Segment-layer split succeeded: keep the left segment id, remove the right (new) id for merge rollback.
+ * 段层拆段成功：保留左侧段 id、移除右侧新段 id，供 merge 补偿回滚。
+ */
+export type AiSegmentSplitRollbackToken = { keepSegmentId: string; removeSegmentId: string };
+
 /** 补偿上下文：记录最近成功创建的层，用于后续链接失败时回滚 | Compensation context: track recently created layers for rollback on link failure */
 export interface CompensationEntry {
   layerId: string;
@@ -24,10 +30,20 @@ export type UseAiToolCallHandlerParams = {
     input: { languageId: string; alias?: string },
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
-  createAdjacentUnit: (utt: LayerUnitDocType, duration: number) => Promise<void>;
-  createTranscriptionSegment?: (targetId: string) => Promise<void>;
+  createAdjacentUnit: (utt: LayerUnitDocType, duration: number) => Promise<string | void>;
+  createTranscriptionSegment?: (targetId: string) => Promise<string | void>;
   splitUnit: (unitId: string, splitTime: number) => Promise<void>;
-  splitTranscriptionSegment?: (targetId: string, splitTime: number) => Promise<void>;
+  splitTranscriptionSegment?: (targetId: string, splitTime: number) => Promise<AiSegmentSplitRollbackToken | void>;
+  /**
+   * Undo segment-layer split via `mergeAdjacentSegments(keepId, removeId)` + reload; no user Undo stack entry.
+   * 供 AI `propose_changes` 子步失败时逆序回滚拆段（不压入用户撤销栈）。
+   */
+  mergeAdjacentSegmentsForAiRollback?: (keepId: string, removeId: string) => Promise<void>;
+  /**
+   * Refresh segment read model after silent segment-graph mutations used only for AI batch rollbacks
+   * (split-for-merge-undo, segment delete restore). Omit when propose_changes rollback for segments is unsupported.
+   */
+  silentSegmentGraphSyncForAi?: () => Promise<void>;
   mergeWithPrevious?: (id: string) => Promise<void>;
   mergeWithNext?: (id: string) => Promise<void>;
   /** Preferred: merge selected timeline units (batch targets are unit ids after mapping). */
@@ -50,6 +66,10 @@ export type UseAiToolCallHandlerParams = {
   readSegmentLayerText?: (segmentId: string, layerId: string) => string;
   /** Read current unit text for a layer from the in-memory read model; enables rollback for unit-scoped writes. */
   readUnitLayerText?: (unitId: string, layerId?: string) => string;
+  /** Read current POS for a token id from the in-memory read model; enables rollback for `set_token_pos`. */
+  readTokenPos?: (tokenId: string) => string | null;
+  /** Read current gloss string for a token + lang from the in-memory read model; enables rollback for `set_token_gloss`. */
+  readTokenGloss?: (tokenId: string, lang?: string) => string | null;
   segmentTargets?: SegmentTargetDescriptor[];
   updateTokenPos?: (tokenId: string, pos: string | null) => Promise<void> | void;
   batchUpdateTokenPosByForm?: (unitId: string, form: string, pos: string | null) => Promise<number> | number;
@@ -99,6 +119,8 @@ export interface ExecutionContext {
   createTranscriptionSegment?: UseAiToolCallHandlerParams['createTranscriptionSegment'];
   splitUnit: UseAiToolCallHandlerParams['splitUnit'];
   splitTranscriptionSegment?: UseAiToolCallHandlerParams['splitTranscriptionSegment'];
+  mergeAdjacentSegmentsForAiRollback?: UseAiToolCallHandlerParams['mergeAdjacentSegmentsForAiRollback'];
+  silentSegmentGraphSyncForAi?: UseAiToolCallHandlerParams['silentSegmentGraphSyncForAi'];
   mergeWithPrevious?: UseAiToolCallHandlerParams['mergeWithPrevious'];
   mergeWithNext?: UseAiToolCallHandlerParams['mergeWithNext'];
   mergeSelectedUnits?: UseAiToolCallHandlerParams['mergeSelectedUnits'];
@@ -113,6 +135,8 @@ export interface ExecutionContext {
   saveSegmentContentForLayer?: UseAiToolCallHandlerParams['saveSegmentContentForLayer'];
   readSegmentLayerText?: UseAiToolCallHandlerParams['readSegmentLayerText'];
   readUnitLayerText?: UseAiToolCallHandlerParams['readUnitLayerText'];
+  readTokenPos?: UseAiToolCallHandlerParams['readTokenPos'];
+  readTokenGloss?: UseAiToolCallHandlerParams['readTokenGloss'];
   updateTokenPos?: UseAiToolCallHandlerParams['updateTokenPos'];
   batchUpdateTokenPosByForm?: UseAiToolCallHandlerParams['batchUpdateTokenPosByForm'];
   updateTokenGloss?: UseAiToolCallHandlerParams['updateTokenGloss'];

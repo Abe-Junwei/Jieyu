@@ -226,6 +226,7 @@ export function useVoiceInteraction({
 
   const voiceAgent = useVoiceAgent(voiceAgentOptions);
   voiceAgentRef.current = voiceAgent;
+  const isNonDictationMode = voiceAgent.mode !== 'dictation';
 
   const voiceTargetSummary = useMemo(() => {
     const hasSelection = Boolean(selection.selectedRowMeta || selection.selectedUnit);
@@ -235,12 +236,11 @@ export function useVoiceInteraction({
         ? messages.currentSentenceWithIndex(selection.selectedRowMeta.rowNumber)
         : (selection.selectedUnit ? messages.currentUnit : messages.noUnitSelected);
 
-    if (voiceAgent.mode === 'command') {
+    if (isNonDictationMode) {
+      if (hasSelection) {
+        return `${rowLabel} / ${messages.analysisNoteSuffix}`;
+      }
       return messages.currentPageAction;
-    }
-
-    if (voiceAgent.mode === 'analysis') {
-      return hasSelection ? `${rowLabel} / ${messages.analysisNoteSuffix}` : messages.noUnitSelected;
     }
 
     // \u89e3\u6790\u9996\u9009\u5c42 ID：selectedLayerId \u53ef\u80fd\u662f\u7a7a\u4e32，\u9700 trim \u540e\u5224\u65ad | resolve preferred layer ID with empty-string guard
@@ -273,7 +273,7 @@ export function useVoiceInteraction({
     messages,
     selection,
     translationLayers,
-    voiceAgent.mode,
+    isNonDictationMode,
   ]);
 
   const pushToTalkReady = useMemo(() => (
@@ -300,7 +300,7 @@ export function useVoiceInteraction({
         return messages.aiThinking;
       case 'idle':
       default:
-        if (voiceAgent.mode === 'analysis' && analysisWritebackFeedback) {
+        if (isNonDictationMode && analysisWritebackFeedback) {
           return analysisWritebackFeedback.message;
         }
         if (pushToTalkReady) {
@@ -308,10 +308,10 @@ export function useVoiceInteraction({
         }
         return voiceAgent.listening ? messages.listeningIdle : messages.readyToStart;
     }
-  }, [analysisWritebackFeedback, messages, pushToTalkReady, voiceAgent.agentState, voiceAgent.error, voiceAgent.listening, voiceAgent.mode]);
+  }, [analysisWritebackFeedback, isNonDictationMode, messages, pushToTalkReady, voiceAgent.agentState, voiceAgent.error, voiceAgent.listening, voiceAgent.mode]);
 
   useEffect(() => {
-    if (voiceAgent.mode !== 'analysis' && analysisWritebackFeedback) {
+    if (voiceAgent.mode === 'dictation' && analysisWritebackFeedback) {
       setAnalysisWritebackFeedback(null);
     }
   }, [analysisWritebackFeedback, voiceAgent.mode]);

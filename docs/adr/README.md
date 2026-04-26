@@ -43,6 +43,9 @@ source_of_truth: decision-index
 - [0022-annotation-analysis-graph-typed-relations.md](./0022-annotation-analysis-graph-typed-relations.md)（标注 analysisGraph 与 typed relation：非线性形态、exponent/process、fixture-first 与导出 projection）
 - [0023-全局布局与样式token壳层策略.md](./0023-全局布局与样式token壳层策略.md)（圆角/间距/阴影/壳内控制件与 `.la-shell` 合约；与 execution plan 2026-04-26 配套）
 - [0024-release-evidence-core-governance-dual-gate.md](./0024-release-evidence-core-governance-dual-gate.md)（release-evidence：`gate:release-evidence:core/full` 与 `gate:release-evidence:governance` 双闸职责与 CI 顺序）
+- [0025-ai-propose-changes-b2-rollback-boundary.md](./0025-ai-propose-changes-b2-rollback-boundary.md)（`propose_changes` 确认批处理逆序 rollback；B2 白名单与段层 split 契约；merge/delete 扩展见 ADR-0026）
+- [0026-ai-propose-changes-canonical-cluster-rollback.md](./0026-ai-propose-changes-canonical-cluster-rollback.md)（全路径可逆：规范单元簇快照 + 混合时间轴 merge/delete/`allSegments` 回滚）
+- [0027-voice-unified-non-dictation-chat-path.md](./0027-voice-unified-non-dictation-chat-path.md)（非听写语音与文字统一 AI 聊天主链；无开关、无旧分流）
 
 ## 建议格式
 

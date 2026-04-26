@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { forwardGeocode, type GeocodeSuggestion } from '../components/languageGeocoder';
 import { readMapProviderConfig } from '../components/languageMapEmbed.shared';
 import { t, tf } from '../i18n';
@@ -24,6 +25,38 @@ function countryOptionMatchesFilter(option: CountryOption, normalizedFilter: str
     || normalizeCountryToken(option.value).includes(normalizedFilter)
     || option.aliasTokens.some((token) => token.includes(normalizedFilter))
   );
+}
+
+/** 查询框按 Enter 时：仅当可唯一确定一国时才返回（无长列表时避免误加）| */
+function pickCountryOptionToAdd(
+  locale: WorkspaceLocale,
+  query: string,
+  countryOptions: CountryOption[],
+  filtered: CountryOption[],
+): CountryOption | null {
+  const q = query.trim();
+  if (!q) {
+    return null;
+  }
+
+  const resolved = resolveCountryByToken(locale, q);
+  if (resolved) {
+    return countryOptions.find((option) => option.value === resolved.isoCode) ?? null;
+  }
+
+  const n = normalizeCountryToken(q);
+  if (n.length === 2) {
+    const byCode = countryOptions.find((option) => normalizeCountryToken(option.value) === n);
+    if (byCode) {
+      return byCode;
+    }
+  }
+
+  if (filtered.length === 1) {
+    return filtered[0] ?? null;
+  }
+
+  return null;
 }
 
 interface LanguageMetadataAdministrativeDivisionPickerProps {
@@ -133,8 +166,9 @@ export function LanguageMetadataAdministrativeDivisionPicker({
   const latestSearchRequestIdRef = useRef(0);
   const latestCountriesTextRef = useRef(countriesText);
   const countriesLabelId = useId();
-  const countryOptionsListId = useId();
+  const countrySuggestListId = useId();
   const [countryFilter, setCountryFilter] = useState('');
+  const [countryListActiveIndex, setCountryListActiveIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<GeocodeSuggestion[]>([]);
   const [searchStatus, setSearchStatus] = useState<SearchStatus>('idle');
@@ -156,6 +190,30 @@ export function LanguageMetadataAdministrativeDivisionPicker({
     const normalizedFilter = normalizeCountryToken(countryFilter);
     return countryOptions.filter((option) => countryOptionMatchesFilter(option, normalizedFilter));
   }, [countryFilter, countryOptions]);
+
+  const countryListboxOptions = useMemo(() => {
+    if (!countryFilter.trim()) {
+      return [];
+    }
+    return filteredCountryOptions.filter((option) => !selectedCountryCodes.includes(option.value));
+  }, [countryFilter, filteredCountryOptions, selectedCountryCodes]);
+
+  const countryListboxVisible = countryListboxOptions.length > 0;
+
+  useEffect(() => {
+    setCountryListActiveIndex((i) => {
+      if (countryListboxOptions.length === 0) {
+        return -1;
+      }
+      if (i < 0) {
+        return -1;
+      }
+      if (i >= countryListboxOptions.length) {
+        return countryListboxOptions.length - 1;
+      }
+      return i;
+    });
+  }, [countryListboxOptions]);
 
   useEffect(() => {
     latestCountriesTextRef.current = countriesText;
@@ -362,6 +420,90 @@ export function LanguageMetadataAdministrativeDivisionPicker({
     setSelectedSuggestion(null);
   };
 
+  const addCountryFromOption = (option: CountryOption) => {
+    if (selectedCountryCodes.includes(option.value)) {
+      setCountryFilter('');
+      setCountryListActiveIndex(-1);
+      return;
+    }
+    const nextSet = new Set(selectedCountryCodes);
+    nextSet.add(option.value);
+    commitCountriesText([...nextSet].sort().join(', '));
+    setCountryFilter('');
+    setCountryListActiveIndex(-1);
+  };
+
+  const handleCountryComboboxKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      if (countryListboxVisible || countryFilter.trim()) {
+        event.preventDefault();
+        setCountryFilter('');
+        setCountryListActiveIndex(-1);
+      }
+      return;
+    }
+
+    if (countryListboxVisible) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setCountryListActiveIndex((i) => {
+          if (countryListboxOptions.length === 0) {
+            return -1;
+          }
+          if (i < 0) {
+            return 0;
+          }
+          return Math.min(i + 1, countryListboxOptions.length - 1);
+        });
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setCountryListActiveIndex((i) => {
+          if (countryListboxOptions.length === 0) {
+            return -1;
+          }
+          if (i <= 0) {
+            return 0;
+          }
+          return i - 1;
+        });
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const idx = countryListActiveIndex >= 0 ? countryListActiveIndex : 0;
+        const opt = countryListboxOptions[idx];
+        if (opt) {
+          addCountryFromOption(opt);
+        }
+        return;
+      }
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const option = pickCountryOptionToAdd(locale, countryFilter, countryOptions, filteredCountryOptions);
+      if (!option) {
+        return;
+      }
+      if (selectedCountryCodes.includes(option.value)) {
+        setCountryFilter('');
+        setCountryListActiveIndex(-1);
+        return;
+      }
+      const nextSet = new Set(selectedCountryCodes);
+      nextSet.add(option.value);
+      commitCountriesText([...nextSet].sort().join(', '));
+      setCountryFilter('');
+      setCountryListActiveIndex(-1);
+    }
+  };
+
+  const activeCountryOptionId = countryListActiveIndex >= 0 && countryListboxOptions[countryListActiveIndex]
+    ? `${countrySuggestListId}-opt-${countryListboxOptions[countryListActiveIndex].value}`
+    : undefined;
+
   return (
     <div className="lm-admin-picker">
       <div className="lm-admin-coverage-row">
@@ -379,64 +521,82 @@ export function LanguageMetadataAdministrativeDivisionPicker({
         <div className="lm-field lm-admin-coverage-field">
           <span id={countriesLabelId}>{t(locale, 'workspace.languageMetadata.countriesLabel')}</span>
           <div className="lm-country-multi" role="group" aria-labelledby={countriesLabelId}>
-            <input
-              type="search"
-              className="input lm-admin-text-input"
-              value={countryFilter}
-              onChange={(event) => setCountryFilter(event.target.value)}
-              placeholder={t(locale, 'workspace.languageMetadata.countriesFilterPlaceholder')}
-              aria-label={t(locale, 'workspace.languageMetadata.countriesFilterPlaceholder')}
-              aria-controls={countryOptionsListId}
-              autoComplete="off"
-            />
-            {selectedCountryOptions.length > 0 ? (
-              <ul className="lm-country-multi__chips" aria-label={t(locale, 'workspace.languageMetadata.countriesSelectedListAria')}>
-                {selectedCountryOptions.map((option) => (
-                  <li key={option.value}>
-                    <button
-                      type="button"
-                      className="lm-country-multi__chip btn btn-ghost"
-                      onClick={() => {
-                        const next = selectedCountryCodes.filter((code) => code !== option.value);
-                        commitCountriesText(next.sort().join(', '));
-                      }}
-                      aria-label={tf(locale, 'workspace.languageMetadata.countriesMultiRemoveAria', { country: option.label })}
-                    >
-                      <span>{option.label}</span>
-                      <span className="lm-country-multi__chip-x" aria-hidden="true">
-                        ×
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <ul id={countryOptionsListId} className="lm-country-multi__list" aria-label={t(locale, 'workspace.languageMetadata.countriesOptionsListAria')}>
-              {filteredCountryOptions.map((option) => {
-                const checked = selectedCountryCodes.includes(option.value);
-                return (
-                  <li key={option.value}>
-                    <label className="lm-country-multi__option">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(event) => {
-                          const nextSet = new Set(selectedCountryCodes);
-                          if (event.target.checked) {
-                            nextSet.add(option.value);
-                          } else {
-                            nextSet.delete(option.value);
-                          }
-                          commitCountriesText([...nextSet].sort().join(', '));
+            <div className="lm-country-multi__row">
+              <div className="lm-country-combobox">
+                <input
+                  type="text"
+                  className="input lm-country-multi__query"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-haspopup="listbox"
+                  aria-expanded={countryListboxVisible}
+                  aria-controls={countryListboxVisible ? countrySuggestListId : undefined}
+                  aria-activedescendant={countryListboxVisible ? activeCountryOptionId : undefined}
+                  aria-labelledby={countriesLabelId}
+                  value={countryFilter}
+                  onChange={(event) => {
+                    setCountryFilter(event.target.value);
+                    setCountryListActiveIndex(-1);
+                  }}
+                  onKeyDown={handleCountryComboboxKeyDown}
+                  placeholder={t(locale, 'workspace.languageMetadata.countriesFilterPlaceholder')}
+                  autoComplete="off"
+                  inputMode="search"
+                />
+                <div
+                  className={`language-iso-input-suggestions${countryListboxVisible ? '' : ' is-empty'}`}
+                  {...(countryListboxVisible
+                    ? {
+                      id: countrySuggestListId,
+                      role: 'listbox' as const,
+                      'aria-label': t(locale, 'workspace.languageMetadata.countriesTypeaheadListAria'),
+                    }
+                    : { 'aria-hidden': 'true' as const })}
+                >
+                  {countryListboxVisible
+                    ? countryListboxOptions.map((option, index) => (
+                      <div
+                        key={option.value}
+                        id={`${countrySuggestListId}-opt-${option.value}`}
+                        role="option"
+                        aria-selected={countryListActiveIndex === index}
+                        className={`language-iso-input-suggestion${countryListActiveIndex === index ? ' is-active' : ''}`}
+                        onMouseEnter={() => setCountryListActiveIndex(index)}
+                        onMouseDown={(mouseEvent) => {
+                          mouseEvent.preventDefault();
+                          addCountryFromOption(option);
                         }}
-                      />
-                      <span className="lm-country-multi__option-label">{option.label}</span>
-                      <span className="lm-country-multi__iso">{option.value}</span>
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
+                      >
+                        <span>{option.label}</span>
+                        <span className="lm-country-suggest-iso">{option.value}</span>
+                      </div>
+                    ))
+                    : null}
+                </div>
+              </div>
+              {selectedCountryOptions.length > 0 ? (
+                <ul className="lm-country-multi__chips" aria-label={t(locale, 'workspace.languageMetadata.countriesSelectedListAria')}>
+                  {selectedCountryOptions.map((option) => (
+                    <li key={option.value}>
+                      <button
+                        type="button"
+                        className="lm-country-multi__chip btn btn-ghost"
+                        onClick={() => {
+                          const next = selectedCountryCodes.filter((code) => code !== option.value);
+                          commitCountriesText(next.sort().join(', '));
+                        }}
+                        aria-label={tf(locale, 'workspace.languageMetadata.countriesMultiRemoveAria', { country: option.label })}
+                      >
+                        <span>{option.label}</span>
+                        <span className="lm-country-multi__chip-x" aria-hidden="true">
+                          ×
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
@@ -479,6 +639,7 @@ export function LanguageMetadataAdministrativeDivisionPicker({
 
           {searchOpen && (
             <ul className="lm-geocode-results">
+              {searchStatus === 'loading' ? <li className="lm-geocode-empty">{t(locale, 'workspace.languageMetadata.geocodeSearching')}</li> : null}
               {searchStatus === 'error' ? <li className="lm-geocode-empty">{t(locale, 'workspace.languageMetadata.administrativeDivisionSearchError')}</li> : null}
               {searchStatus === 'empty' ? <li className="lm-geocode-empty">{t(locale, 'workspace.languageMetadata.administrativeDivisionSearchNoResults')}</li> : null}
               {searchResults.map((suggestion) => (

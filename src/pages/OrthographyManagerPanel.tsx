@@ -207,126 +207,122 @@ export function OrthographyManagerPanel({
         </>
       ) : null}
 
-      <section className="om-browser panel-section la-panel-section" aria-label={t(locale, 'workspace.orthography.listTitle')}>
-        <div className="panel-section__body om-browser-body">
-          <div className="om-browser-header">
-            <p className="om-browser-title">{t(locale, 'workspace.orthography.listTitle')}</p>
-            <p className="panel-section__description">{t(locale, 'workspace.orthography.listDescription')}</p>
-          </div>
-          <div className="om-toolbar orthography-builder-group-body">
-            <div className="om-search-combobox">
-              <input
-                className="input panel-input om-search"
-                type="search"
-                role="combobox"
-                value={searchText}
-                onChange={(event) => onSearchTextChange(event.target.value)}
-                onKeyDown={onSearchKeyDown}
-                onFocus={onSearchInputFocus}
-                onBlur={onSearchInputBlur}
-                placeholder={t(locale, 'workspace.orthography.searchPlaceholder')}
-                aria-label={t(locale, 'workspace.orthography.searchPlaceholder')}
-                aria-autocomplete="list"
-                aria-haspopup="listbox"
-                aria-expanded={hasVisibleSearchSuggestions}
-                aria-controls={hasVisibleSearchSuggestions ? searchSuggestionListId : undefined}
-                aria-activedescendant={hasVisibleSearchSuggestions
-                  ? activeSearchSuggestionId
-                  : (activeIndex >= 0 ? `om-item-${filteredOrthographies[activeIndex]?.id ?? ''}` : undefined)}
-              />
-              <div
-                className={`language-iso-input-suggestions om-search-suggestions${hasVisibleSearchSuggestions ? '' : ' is-empty'}`}
-                {...(hasVisibleSearchSuggestions
-                  ? {
-                    id: searchSuggestionListId,
-                    role: 'listbox' as const,
-                    'aria-label': t(locale, 'workspace.orthography.searchPlaceholder'),
-                  }
-                  : { 'aria-hidden': 'true' as const })}
-              >
-                {hasVisibleSearchSuggestions
-                  ? searchSuggestions.map((suggestion, index) => (
-                    <div
-                      id={`om-search-suggestion-${index}`}
-                      key={`${suggestion.id}-${index}`}
-                      role="option"
-                      aria-selected={searchSuggestionActiveIndex === index}
-                      className={`language-iso-input-suggestion${searchSuggestionActiveIndex === index ? ' is-active' : ''}`}
-                      onMouseEnter={() => onSearchSuggestionHover?.(index)}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => onSearchSuggestionSelect?.(suggestion)}
-                    >
-                      <span className="om-search-suggestion-label">{formatLanguageCatalogSearchSuggestion(suggestion, locale)}</span>
-                    </div>
-                  ))
-                  : null}
-              </div>
+      <section className="om-browser la-panel-section" aria-label={t(locale, 'workspace.orthography.listTitle')}>
+        <div className="om-browser-header">
+          <h3 className="om-browser-title">{t(locale, 'workspace.orthography.listTitle')}</h3>
+          <p className="panel-section__description">{t(locale, 'workspace.orthography.listDescription')}</p>
+        </div>
+        <div className="om-toolbar orthography-builder-group-body">
+          <div className="om-search-combobox">
+            <input
+              className="input panel-input om-search"
+              type="search"
+              role="combobox"
+              value={searchText}
+              onChange={(event) => onSearchTextChange(event.target.value)}
+              onKeyDown={onSearchKeyDown}
+              onFocus={onSearchInputFocus}
+              onBlur={onSearchInputBlur}
+              placeholder={t(locale, 'workspace.orthography.searchPlaceholder')}
+              aria-label={t(locale, 'workspace.orthography.searchPlaceholder')}
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              aria-expanded={hasVisibleSearchSuggestions}
+              aria-controls={hasVisibleSearchSuggestions ? searchSuggestionListId : undefined}
+              aria-activedescendant={hasVisibleSearchSuggestions
+                ? activeSearchSuggestionId
+                : (activeIndex >= 0 ? `om-item-${filteredOrthographies[activeIndex]?.id ?? ''}` : undefined)}
+            />
+            <div
+              className={`language-iso-input-suggestions om-search-suggestions${hasVisibleSearchSuggestions ? '' : ' is-empty'}`}
+              {...(hasVisibleSearchSuggestions
+                ? {
+                  id: searchSuggestionListId,
+                  role: 'listbox' as const,
+                  'aria-label': t(locale, 'workspace.orthography.searchPlaceholder'),
+                }
+                : { 'aria-hidden': 'true' as const })}
+            >
+              {hasVisibleSearchSuggestions
+                ? searchSuggestions.map((suggestion, index) => (
+                  <div
+                    id={`om-search-suggestion-${index}`}
+                    key={`${suggestion.id}-${index}`}
+                    role="option"
+                    aria-selected={searchSuggestionActiveIndex === index}
+                    className={`language-iso-input-suggestion${searchSuggestionActiveIndex === index ? ' is-active' : ''}`}
+                    onMouseEnter={() => onSearchSuggestionHover?.(index)}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => onSearchSuggestionSelect?.(suggestion)}
+                  >
+                    <span className="om-search-suggestion-label">{formatLanguageCatalogSearchSuggestion(suggestion, locale)}</span>
+                  </div>
+                ))
+                : null}
             </div>
-            {projectLanguageIds.length > 0 ? (
-              <div className="om-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthography.filterProjectOnly')}>
-                <PanelButton
-                  role="radio"
-                  aria-checked={projectOnly}
-                  variant={projectOnly ? 'primary' : 'ghost'}
-                  onClick={() => onProjectOnlyChange(true)}
-                >
-                  {t(locale, 'workspace.orthography.filterProjectOnly')}
-                </PanelButton>
-                <PanelButton
-                  role="radio"
-                  aria-checked={!projectOnly}
-                  variant={!projectOnly ? 'primary' : 'ghost'}
-                  onClick={() => onProjectOnlyChange(false)}
-                >
-                  {t(locale, 'workspace.orthography.filterShowAll')}
-                </PanelButton>
-              </div>
-            ) : null}
           </div>
-
-          {!projectLanguageIds.length && showUnscopedIdleState ? (
-            <div className="om-callout orthography-builder-hint">
-              <PanelNote className="om-state om-state-warning">{t(locale, 'workspace.orthography.unscopedPrompt')}</PanelNote>
-              <PanelButton variant="ghost" onClick={onBrowseAll}>
+          {projectLanguageIds.length > 0 ? (
+            <div className="om-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthography.filterProjectOnly')}>
+              <PanelButton
+                role="radio"
+                aria-checked={projectOnly}
+                variant={projectOnly ? 'primary' : 'ghost'}
+                onClick={() => onProjectOnlyChange(true)}
+              >
+                {t(locale, 'workspace.orthography.filterProjectOnly')}
+              </PanelButton>
+              <PanelButton
+                role="radio"
+                aria-checked={!projectOnly}
+                variant={!projectOnly ? 'primary' : 'ghost'}
+                onClick={() => onProjectOnlyChange(false)}
+              >
                 {t(locale, 'workspace.orthography.filterShowAll')}
               </PanelButton>
             </div>
           ) : null}
+        </div>
 
-          {loading ? <PanelNote className="om-state">{t(locale, 'workspace.orthography.loading')}</PanelNote> : null}
-          {!loading && error ? <PanelNote variant="danger" className="om-state om-state-error">{t(locale, 'workspace.orthography.errorPrefix').replace('{message}', error)}</PanelNote> : null}
-          {!loading && !error && !showUnscopedIdleState && searchText.trim() && filteredOrthographies.length === 0 ? <PanelNote className="om-state om-state-warning">{t(locale, 'workspace.orthography.searchNoResults')}</PanelNote> : null}
-          {!loading && !error && !showUnscopedIdleState && !searchText.trim() && filteredOrthographies.length === 0 ? <PanelNote className="om-state">{t(locale, 'workspace.orthography.emptyList')}</PanelNote> : null}
-
-          <div className="om-list la-list-scroll" role="list" ref={listRef} aria-label={t(locale, 'workspace.orthography.listTitle')}>
-            {filteredOrthographies.map((orthography, index) => {
-              const badge = getOrthographyCatalogBadgeInfo(locale, orthography);
-              const active = orthography.id === selectedOrthography?.id;
-              const highlighted = index === activeIndex;
-              return (
-                <button
-                  key={orthography.id}
-                  id={`om-item-${orthography.id}`}
-                  type="button"
-                  className={`om-list-item${active ? ' om-list-item-active' : ''}${highlighted ? ' om-list-item-highlight' : ''}`}
-                  onClick={() => onSelectOrthography(orthography.id)}
-                >
-                  <span className="om-list-label">{formatOrthographyOptionLabel(orthography, locale)}</span>
-                  <span className="om-list-meta">
-                    <span>{resolveLabel(orthography.languageId)}</span>
-                    <span className={badge.className}>{badge.label}</span>
-                  </span>
-                </button>
-              );
-            })}
+        {!projectLanguageIds.length && showUnscopedIdleState ? (
+          <div className="om-callout orthography-builder-hint">
+            <PanelNote className="om-state om-state-warning">{t(locale, 'workspace.orthography.unscopedPrompt')}</PanelNote>
+            <PanelButton variant="ghost" onClick={onBrowseAll}>
+              {t(locale, 'workspace.orthography.filterShowAll')}
+            </PanelButton>
           </div>
+        ) : null}
+
+        {loading ? <PanelNote className="om-state">{t(locale, 'workspace.orthography.loading')}</PanelNote> : null}
+        {!loading && error ? <PanelNote variant="danger" className="om-state om-state-error">{t(locale, 'workspace.orthography.errorPrefix').replace('{message}', error)}</PanelNote> : null}
+        {!loading && !error && !showUnscopedIdleState && searchText.trim() && filteredOrthographies.length === 0 ? <PanelNote className="om-state om-state-warning">{t(locale, 'workspace.orthography.searchNoResults')}</PanelNote> : null}
+        {!loading && !error && !showUnscopedIdleState && !searchText.trim() && filteredOrthographies.length === 0 ? <PanelNote className="om-state">{t(locale, 'workspace.orthography.emptyList')}</PanelNote> : null}
+
+        <div className="om-list la-list-scroll" role="list" ref={listRef} aria-label={t(locale, 'workspace.orthography.listTitle')}>
+          {filteredOrthographies.map((orthography, index) => {
+            const badge = getOrthographyCatalogBadgeInfo(locale, orthography);
+            const active = orthography.id === selectedOrthography?.id;
+            const highlighted = index === activeIndex;
+            return (
+              <button
+                key={orthography.id}
+                id={`om-item-${orthography.id}`}
+                type="button"
+                className={`om-list-item${active ? ' om-list-item-active' : ''}${highlighted ? ' om-list-item-highlight' : ''}`}
+                onClick={() => onSelectOrthography(orthography.id)}
+              >
+                <span className="om-list-label">{formatOrthographyOptionLabel(orthography, locale)}</span>
+                <span className="om-list-meta">
+                  <span>{resolveLabel(orthography.languageId)}</span>
+                  <span className={badge.className}>{badge.label}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
       {selectedOrthography ? (
         <>
-          <hr className="om-divider" />
-
           {draft ? (
             <div className="om-form-stack orthography-builder-panel orthography-builder-panel-compact">
               <section className="om-subsection orthography-builder-group orthography-builder-group-divided">
@@ -482,9 +478,7 @@ export function OrthographyManagerPanel({
                   {t(locale, 'workspace.orthography.localizedNameAdd')}
                 </PanelButton>
 
-                <hr className="om-divider" />
-
-                <h3 className="panel-title-primary om-subsection-title orthography-builder-group-title">{builderMessages.examplesSectionTitle}</h3>
+                <h3 className="panel-title-primary om-subsection-title om-subsection-heading-follow orthography-builder-group-title">{builderMessages.examplesSectionTitle}</h3>
                 <div className="om-form-grid">
                   <FormField label={builderMessages.exemplarLabel} className="om-form-span-half">
                     <textarea className="input panel-input om-textarea" value={draft.exemplarMain} onChange={(event) => onDraftChange('exemplarMain', event.target.value)} placeholder={builderMessages.exemplarPlaceholder} />
@@ -541,8 +535,6 @@ export function OrthographyManagerPanel({
                     </div>
                   </div>
 
-                  <hr className="om-divider" />
-
                   <div className="om-form-grid">
                     <FormField label={t(locale, 'workspace.orthography.keyboardLayoutLabel')} className="om-form-span-half">
                       <input className="input panel-input" type="text" value={draft.keyboardLayout} onChange={(event) => onDraftChange('keyboardLayout', event.target.value)} placeholder={t(locale, 'workspace.orthography.keyboardLayoutPlaceholder')} />
@@ -554,8 +546,6 @@ export function OrthographyManagerPanel({
                       <textarea className="input panel-input om-textarea" value={draft.deadKeys} onChange={(event) => onDraftChange('deadKeys', event.target.value)} placeholder={t(locale, 'workspace.orthography.deadKeysPlaceholder')} />
                     </FormField>
                   </div>
-
-                  <hr className="om-divider" />
 
                   <div className="om-form-grid">
                     <FormField label={t(locale, 'workspace.orthography.normalizationFormLabel')} className="om-form-span-half">
@@ -589,8 +579,6 @@ export function OrthographyManagerPanel({
                       <textarea className="input panel-input om-textarea om-codearea" value={draft.conversionRulesJson} onChange={(event) => onDraftChange('conversionRulesJson', event.target.value)} placeholder={t(locale, 'workspace.orthography.conversionRulesPlaceholder')} />
                     </FormField>
                   </div>
-
-                  <hr className="om-divider" />
 
                   <div className="om-form-grid">
                     <FormField label={t(locale, 'workspace.orthography.notesZhLabel')} className="om-form-span-half">

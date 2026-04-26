@@ -3,6 +3,17 @@ import type { OrthographyDocType, LayerUnitDocType } from '../db';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import type WaveSurfer from 'wavesurfer.js';
 import type { TranscriptionPageTimelineTopProps } from './TranscriptionPage.TimelineTop';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+
+let lastTimelineSeekTelemetryMs = 0;
+const TIMELINE_SEEK_TELEMETRY_INTERVAL_MS = 280;
+
+function recordTimelineSeekTelemetryThrottled(): void {
+  const now = Date.now();
+  if (now - lastTimelineSeekTelemetryMs < TIMELINE_SEEK_TELEMETRY_INTERVAL_MS) return;
+  lastTimelineSeekTelemetryMs = now;
+  recordTranscriptionKeyboardAction('timelineSeek');
+}
 
 interface CreateTranscriptionTimelineTopPropsInput {
   player: {
@@ -41,11 +52,17 @@ export function createTranscriptionTimelineTopProps(
       duration: input.player.duration,
       units: input.unitsOnCurrentMedia,
       rulerView: input.rulerView,
-      onSeek: input.player.seekTo,
+      onSeek: (time) => {
+        recordTimelineSeekTelemetryThrottled();
+        input.player.seekTo(time);
+      },
       isReady: input.player.isReady,
       zoomPxPerSec: input.zoomPxPerSec,
       isLaneHeaderCollapsed: input.isTimelineLaneHeaderCollapsed,
-      onToggleLaneHeader: input.toggleTimelineLaneHeader,
+      onToggleLaneHeader: () => {
+        recordTranscriptionKeyboardAction('timelineLaneHeaderToggle');
+        input.toggleTimelineLaneHeader();
+      },
       instanceRef: input.player.instanceRef,
       waveCanvasRef: input.waveCanvasRef,
       tierContainerRef: input.tierContainerRef,
@@ -60,12 +77,17 @@ export function createTranscriptionTimelineTopProps(
       ...(input.searchOverlayRequest?.scope !== undefined && { initialScope: input.searchOverlayRequest.scope }),
       ...(input.searchOverlayRequest?.layerKinds !== undefined && { initialLayerKinds: input.searchOverlayRequest.layerKinds }),
       onNavigate: (id) => {
+        recordTranscriptionKeyboardAction('timelineSearchNavigateToUnit');
         input.manualSelectTsRef.current = Date.now();
         if (input.player.isPlaying) input.player.stop();
         input.selectUnit(id);
       },
-      onReplace: input.handleSearchReplace,
+      onReplace: (unitId, layerId, oldText, newText) => {
+        recordTranscriptionKeyboardAction('timelineSearchReplace');
+        input.handleSearchReplace(unitId, layerId, oldText, newText);
+      },
       onClose: () => {
+        recordTranscriptionKeyboardAction('timelineSearchClose');
         input.setShowSearch(false);
         input.setSearchOverlayRequest(null);
       },

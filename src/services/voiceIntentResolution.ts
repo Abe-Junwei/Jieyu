@@ -11,6 +11,7 @@ import type { SttResult } from './VoiceInputService';
 import type { ActionId, VoiceIntent, VoiceSession } from './IntentRouter';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
+import type { VoiceMode } from './voiceMode';
 
 // ── 依赖注入接口 | Dependency injection interfaces ───────────────────────
 
@@ -19,7 +20,7 @@ import { t } from '../i18n';
  * Core intent routing function dependencies — injected to support both
  * direct import (Service) and lazy-loaded import (Hook).
  */
-type VoiceAgentMode = 'command' | 'dictation' | 'analysis';
+type VoiceAgentMode = VoiceMode;
 
 export interface VoiceIntentResolutionDeps {
   routeIntent: (
@@ -37,7 +38,7 @@ export interface VoiceIntentResolutionDeps {
 
 export interface VoiceIntentResolutionInput {
   result: SttResult;
-  mode: 'command' | 'dictation' | 'analysis';
+  mode: VoiceMode;
   session: VoiceSession;
   aliasMap: Record<string, ActionId>;
   locale: Locale;
@@ -79,12 +80,14 @@ export async function resolveVoiceIntent(
     aliasMap: input.aliasMap,
   });
 
-  // ── Step 2: LLM 回退 | LLM fallback for chat intents in command mode ──
+  // ── Step 2: LLM 回退 | LLM fallback for chat intents in non-dictation modes ──
   let llmFallbackFailed = false;
   let llmResolvedAction = false;
   let errorMessage: string | null = null;
 
-  if (intent.type === 'chat' && input.mode === 'command' && input.resolveIntentWithLlm) {
+  const shouldResolveWithLlm = input.mode !== 'dictation';
+
+  if (intent.type === 'chat' && shouldResolveWithLlm && input.resolveIntentWithLlm) {
     try {
       const fallbackIntent = await input.resolveIntentWithLlm({
         text: input.result.text,
@@ -96,7 +99,7 @@ export async function resolveVoiceIntent(
         llmResolvedAction = intent.type === 'action';
       } else {
         llmFallbackFailed = true;
-        errorMessage = t(input.locale, 'transcription.voice.error.commandUnrecognized');
+        errorMessage = t(input.locale, 'transcription.voice.error.nonDictationIntentUnrecognized');
       }
     } catch (err) {
       llmFallbackFailed = true;

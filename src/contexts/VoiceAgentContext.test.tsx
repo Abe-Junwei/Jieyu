@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { VoiceAgentProvider, useVoiceAgentContext, DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from './VoiceAgentContext';
 import type { VoiceAgentContextValue } from './VoiceAgentContext';
-import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
+import { DEFAULT_VOICE_MODE, type VoiceAgentMode } from '../hooks/useVoiceAgent';
 
 function ProviderProbe({ testId }: { testId: string }) {
   const ctx = useVoiceAgentContext();
@@ -37,7 +37,7 @@ describe('VoiceAgentContext', () => {
       </VoiceAgentProvider>,
     );
 
-    expect(getByTestId('default-voice-mode').textContent).toBe('command');
+    expect(getByTestId('default-voice-mode').textContent).toBe(DEFAULT_VOICE_MODE);
     expect(getByTestId('default-voice-enabled').textContent).toBe('false');
     expect(getByTestId('default-voice-listening').textContent).toBe('false');
     expect(getByTestId('default-voice-error').textContent).toBe('null');

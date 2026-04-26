@@ -5,6 +5,7 @@ import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_MD, JIEYU_MATERIAL_WAVE_PLAY, 
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import { WAVEFORM_DISPLAY_MODE_OPTIONS, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 
 interface WaveformToolbarProps {
   filename: string;
@@ -160,7 +161,10 @@ export const WaveformToolbar = memo(function WaveformToolbar({
             aria-haspopup="dialog"
             aria-label={t(locale, 'transcription.wave.toolbar.viewOptions.triggerAria')}
             title={t(locale, 'transcription.wave.toolbar.viewOptions.triggerAria')}
-            onClick={() => setViewOptionsOpen((open) => !open)}
+            onClick={() => {
+              recordTranscriptionKeyboardAction('toolbarViewOptionsToggle');
+              setViewOptionsOpen((open) => !open);
+            }}
           >
             <MaterialSymbol name="tune" aria-hidden className={JIEYU_MATERIAL_WAVE_TRIGGER} />
           </button>

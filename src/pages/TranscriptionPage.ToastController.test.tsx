@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import { ToastController } from './TranscriptionPage.ToastController';
+import { DEFAULT_VOICE_MODE } from '../services/voiceMode';
 
 const showToast = vi.fn<(message: string, variant?: string, autoDismissMs?: number) => void>();
 const showSaveState = vi.fn<(state: SaveState) => void>();
@@ -20,7 +21,7 @@ vi.mock('../contexts/ToastContext', () => ({
 const baseProps = {
   voiceAgent: {
     agentState: 'idle',
-    mode: 'command',
+    mode: DEFAULT_VOICE_MODE,
     listening: false,
     isRecording: false,
   },

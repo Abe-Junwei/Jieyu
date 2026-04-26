@@ -35,9 +35,11 @@ const LexiconPage = lazy(() => import('./pages/LexiconPage').then(m => ({ defaul
 const LanguageMetadataWorkspacePage = lazy(() => import('./pages/LanguageMetadataWorkspacePage').then(m => ({ default: m.LanguageMetadataWorkspacePage })));
 const OrthographyManagerPage = lazy(() => import('./pages/OrthographyManagerPage').then(m => ({ default: m.OrthographyManagerPage })));
 const OrthographyBridgeWorkspacePage = lazy(() => import('./pages/OrthographyBridgeWorkspacePage').then(m => ({ default: m.OrthographyBridgeWorkspacePage })));
+const StructuralProfileWorkspacePage = lazy(() => import('./pages/StructuralProfileWorkspacePage').then(m => ({ default: m.StructuralProfileWorkspacePage })));
 
 function mapAssetPathToPanel(pathname: string): LanguageAssetPanel {
   if (pathname === '/assets/language-metadata') return 'language-metadata';
+  if (pathname === '/assets/structural-profiles') return 'structural-profiles';
   if (pathname === '/assets/orthographies') return 'orthographies';
   if (pathname === '/assets/orthography-bridges') return 'orthography-bridges';
   return 'none';
@@ -50,6 +52,10 @@ function prewarmLanguageAssetChunk(p: Promise<unknown>): void {
 function prewarmLanguageAssetPanel(panel: LanguageAssetPanel): void {
   if (panel === 'language-metadata') {
     prewarmLanguageAssetChunk(import('./pages/LanguageMetadataWorkspacePage'));
+    return;
+  }
+  if (panel === 'structural-profiles') {
+    prewarmLanguageAssetChunk(import('./pages/StructuralProfileWorkspacePage'));
     return;
   }
   if (panel === 'orthographies') {
@@ -347,6 +353,7 @@ export function App() {
     const prewarm = () => {
       if (cancelled) return;
       prewarmLanguageAssetPanel('language-metadata');
+      prewarmLanguageAssetPanel('structural-profiles');
       prewarmLanguageAssetPanel('orthographies');
       prewarmLanguageAssetPanel('orthography-bridges');
     };
@@ -419,6 +426,12 @@ export function App() {
       label: t(locale, 'app.nav.languageMetadata'),
       icon: 'translate',
       summary: t(locale, 'app.nav.summary.languageMetadata'),
+    },
+    {
+      to: '/assets/structural-profiles',
+      label: t(locale, 'app.nav.structuralProfiles'),
+      icon: 'layers',
+      summary: t(locale, 'app.nav.summary.structuralProfiles'),
     },
     {
       to: '/assets/orthographies',
@@ -676,6 +689,7 @@ export function App() {
                       element={<TranscriptionPage />}
                     />
                     <Route path="/assets/language-metadata" element={<TranscriptionPage />} />
+                    <Route path="/assets/structural-profiles" element={<TranscriptionPage />} />
                     <Route path="/assets/orthographies" element={<TranscriptionPage />} />
                     <Route path="/assets/orthography-bridges" element={<TranscriptionPage />} />
                     <Route path="/annotation" element={<AnnotationPage />} />
@@ -696,6 +710,16 @@ export function App() {
                     wide
                   >
                     <LanguageMetadataWorkspacePage registerSidePane={false} onClose={handleAssetPanelClose} />
+                  </ModalPanel>
+                  <ModalPanel
+                    isOpen={openAssetPanel === 'structural-profiles'}
+                    onClose={handleAssetPanelClose}
+                    ariaLabel={t(locale, 'app.nav.structuralProfiles')}
+                    closeLabel={t(locale, 'transcription.importDialog.close')}
+                    renderShell={false}
+                    wide
+                  >
+                    <StructuralProfileWorkspacePage registerSidePane={false} onClose={handleAssetPanelClose} />
                   </ModalPanel>
                   <ModalPanel
                     isOpen={openAssetPanel === 'orthographies'}

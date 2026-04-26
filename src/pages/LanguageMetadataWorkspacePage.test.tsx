@@ -24,7 +24,6 @@ const {
   mockForwardGeocode,
   mockReverseGeocode,
   mockSearchLanguageCatalogSuggestions,
-  mockPreviewStructuralRuleProfile,
 } = vi.hoisted(() => ({
   mockListLanguageCatalogEntries: vi.fn(),
   mockListLanguageCatalogHistory: vi.fn(),
@@ -37,7 +36,6 @@ const {
   mockForwardGeocode: vi.fn(),
   mockReverseGeocode: vi.fn(),
   mockSearchLanguageCatalogSuggestions: vi.fn(),
-  mockPreviewStructuralRuleProfile: vi.fn(),
 }));
 
 vi.mock('../services/LinguisticService.languageCatalog', () => ({
@@ -53,12 +51,6 @@ vi.mock('../services/LinguisticService.languageCatalog', () => ({
 
 vi.mock('../services/LanguageCatalogSearchService', () => ({
   searchLanguageCatalogSuggestions: mockSearchLanguageCatalogSuggestions,
-}));
-
-vi.mock('../services/LinguisticService.structuralProfiles', () => ({
-  LinguisticStructuralProfileService: {
-    previewStructuralRuleProfile: mockPreviewStructuralRuleProfile,
-  },
 }));
 
 vi.mock('../components/languageGeocoder', () => ({
@@ -219,7 +211,6 @@ describe('LanguageMetadataWorkspacePage', () => {
     mockForwardGeocode.mockReset();
     mockReverseGeocode.mockReset();
     mockSearchLanguageCatalogSuggestions.mockReset();
-    mockPreviewStructuralRuleProfile.mockReset();
 
     mockSearchLanguageCatalogSuggestions.mockImplementation(async ({ query }: { query: string; locale: string }) => {
       const normalizedQuery = query.trim().toLowerCase();
@@ -242,56 +233,6 @@ describe('LanguageMetadataWorkspacePage', () => {
           matchSource: 'localName' as const,
           rank: 0,
         }));
-    });
-    mockPreviewStructuralRuleProfile.mockResolvedValue({
-      resolution: {
-        profile: {
-          id: 'system.leipzig-structural.v1',
-          label: 'Leipzig structural profile',
-          version: '1',
-          scope: 'system',
-          symbols: {
-            morphemeBoundary: '-',
-            featureSeparator: '.',
-            cliticBoundary: '=',
-            infixStart: '<',
-            infixEnd: '>',
-            suppliedStart: '[',
-            suppliedEnd: ']',
-            alternationMarker: '\\',
-          },
-          zeroMarkers: ['ZERO'],
-          reduplicationMarkers: ['REDUP'],
-          warningPolicy: {
-            emptySegment: 'warning',
-            unmatchedWrapper: 'warning',
-            alternationMarker: 'info',
-          },
-          projectionTargets: ['latex'],
-        },
-        appliedAssetIds: [],
-        diagnostics: [],
-      },
-      parseResult: {
-        profileId: 'system.leipzig-structural.v1',
-        input: '1SG=COP dog-PL',
-        segments: [
-          { id: 'seg-1', text: '1SG', kind: 'feature', wordIndex: 0, startOffset: 0, endOffset: 3 },
-          { id: 'seg-2', text: 'COP', kind: 'feature', wordIndex: 0, startOffset: 4, endOffset: 7 },
-        ],
-        boundaries: [{ type: 'clitic', marker: '=', offset: 3, wordIndex: 0 }],
-        features: [{ segmentId: 'seg-1', label: '1SG' }],
-        warnings: [],
-        projectionDiagnostics: [{ target: 'latex', status: 'complete', message: 'ready' }],
-      },
-      candidateGraph: {
-        id: 'candidate',
-        text: '1SG=COP dog-PL',
-        displayGloss: '1SG=COP dog-PL',
-        nodes: [{ id: 'token-1', type: 'token', label: '1SG=COP dog-PL' }],
-        relations: [],
-        projectionDiagnostics: [{ target: 'latex', status: 'complete', message: 'ready' }],
-      },
     });
 
     mockListLanguageCatalogEntries.mockImplementation(async (input: {
@@ -380,22 +321,6 @@ describe('LanguageMetadataWorkspacePage', () => {
       reason: '修正工作台展示名',
       locale: 'zh-CN',
     });
-  });
-
-  it('previews structural profile rules from the language asset workspace', async () => {
-    renderWorkspace();
-
-    await screen.findByRole('heading', { name: 'Structural Profile' });
-    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
-
-    await waitFor(() => {
-      expect(mockPreviewStructuralRuleProfile).toHaveBeenCalledWith({
-        languageId: 'eng',
-        glossText: '1SG=COP dog-PL',
-      });
-    });
-    expect(await screen.findByText('Ready for confirmation.')).toBeTruthy();
-    expect(screen.getByText(/1SG:feature/)).toBeTruthy();
   });
 
   it('serializes supplemental display-name matrix rows when saving', async () => {
@@ -573,7 +498,7 @@ describe('LanguageMetadataWorkspacePage', () => {
     fireEvent.change(screen.getByRole('textbox', { name: '语系' }), { target: { value: '汉藏语系' } });
     fireEvent.change(screen.getByRole('textbox', { name: '语族' }), { target: { value: '藏缅语族' } });
     fireEvent.change(screen.getByRole('textbox', { name: '语支' }), { target: { value: '缅语支' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '方言' }), { target: { value: '阿昌话\n梁河话' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '方言' }), { target: { value: '阿昌话、梁河话' } });
     fireEvent.change(screen.getByRole('textbox', { name: '土语' }), { target: { value: '户撒土语' } });
 
     expect((screen.getByRole('textbox', { name: '谱系路径' }) as HTMLInputElement).value).toBe('语系: 汉藏语系 / 语族: 藏缅语族 / 语支: 缅语支 / 方言: 阿昌话、梁河话 / 土语: 户撒土语');

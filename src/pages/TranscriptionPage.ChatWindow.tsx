@@ -323,7 +323,7 @@ export function TranscriptionPageChatWindow({
             <div className="transcription-chat-window-header-meta">
               <div id={windowTitleId} className="transcription-chat-window-title">{title}</div>
               <div className="transcription-chat-window-subtitle">
-                {providerKind} · {connectionStatus} · {isZh ? `钉住 ${pinnedCount}` : `Pinned ${pinnedCount}`}
+                {providerKind} · {connectionStatus} · {isZh ? `\u9489\u4f4f ${pinnedCount}` : `Pinned ${pinnedCount}`}
               </div>
             </div>
             <div className="transcription-chat-window-header-controls" onPointerDown={(event) => event.stopPropagation()}>
@@ -390,17 +390,17 @@ export function TranscriptionPageChatWindow({
                   type="button"
                   className="transcription-chat-window-head-btn"
                   onClick={() => aiChatState.onClearAiMessages?.()}
-                  aria-label={isZh ? '清空会话' : 'Clear chat'}
-                  title={isZh ? '清空会话' : 'Clear chat'}
+                  aria-label={isZh ? '\u6e05\u7a7a\u4f1a\u8bdd' : 'Clear chat'}
+                  title={isZh ? '\u6e05\u7a7a\u4f1a\u8bdd' : 'Clear chat'}
                 >
-                  {isZh ? '清空' : 'Clear'}
+                  {isZh ? '\u6e05\u7a7a' : 'Clear'}
                 </button>
                 <button
                   type="button"
                   className="transcription-chat-window-head-btn"
                   onClick={() => setMinimized((prev) => !prev)}
-                  aria-label={minimized ? (isZh ? '展开窗口' : 'Expand') : (isZh ? '收起窗口' : 'Minimize')}
-                  title={minimized ? (isZh ? '展开窗口' : 'Expand') : (isZh ? '收起窗口' : 'Minimize')}
+                  aria-label={minimized ? (isZh ? '\u5c55\u5f00\u7a97\u53e3' : 'Expand') : (isZh ? '\u6536\u8d77\u7a97\u53e3' : 'Minimize')}
+                  title={minimized ? (isZh ? '\u5c55\u5f00\u7a97\u53e3' : 'Expand') : (isZh ? '\u6536\u8d77\u7a97\u53e3' : 'Minimize')}
                 >
                   {minimized ? '▢' : '—'}
                 </button>
@@ -408,8 +408,8 @@ export function TranscriptionPageChatWindow({
                   type="button"
                   className="transcription-chat-window-close"
                   onClick={() => setOpen(false)}
-                  aria-label={isZh ? '关闭聊天窗口' : 'Close chat window'}
-                  title={isZh ? '关闭聊天窗口' : 'Close chat window'}
+                  aria-label={isZh ? '\u5173\u95ed\u804a\u5929\u7a97\u53e3' : 'Close chat window'}
+                  title={isZh ? '\u5173\u95ed\u804a\u5929\u7a97\u53e3' : 'Close chat window'}
                 >
                   ×
                 </button>

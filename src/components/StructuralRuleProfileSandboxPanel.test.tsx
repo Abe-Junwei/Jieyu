@@ -2,6 +2,7 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { LocaleProvider } from '../i18n';
 import { StructuralRuleProfileSandboxPanel } from './StructuralRuleProfileSandboxPanel';
 import type { StructuralRuleProfilePreview } from '../services/LinguisticService.structuralProfiles';
 
@@ -60,12 +61,15 @@ describe('StructuralRuleProfileSandboxPanel', () => {
   it('toggles enabled state using the current enabled value', () => {
     const onToggleEnabled = vi.fn();
     render(
-      <StructuralRuleProfileSandboxPanel
-        preview={null}
-        onPreview={vi.fn()}
-        templateEnabled
-        onToggleEnabled={onToggleEnabled}
-      />,
+      <LocaleProvider locale="en-US">
+        <StructuralRuleProfileSandboxPanel
+          locale="en-US"
+          preview={null}
+          onPreview={vi.fn()}
+          templateEnabled
+          onToggleEnabled={onToggleEnabled}
+        />
+      </LocaleProvider>,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Disable' }));
@@ -75,12 +79,15 @@ describe('StructuralRuleProfileSandboxPanel', () => {
 
   it('catches import and export errors inside the panel', async () => {
     render(
-      <StructuralRuleProfileSandboxPanel
-        preview={preview}
-        onPreview={vi.fn()}
-        onImportTemplate={() => { throw new Error('bad import'); }}
-        onExportTemplate={() => { throw new Error('bad export'); }}
-      />,
+      <LocaleProvider locale="en-US">
+        <StructuralRuleProfileSandboxPanel
+          locale="en-US"
+          preview={preview}
+          onPreview={vi.fn()}
+          onImportTemplate={() => { throw new Error('bad import'); }}
+          onExportTemplate={() => { throw new Error('bad export'); }}
+        />
+      </LocaleProvider>,
     );
 
     fireEvent.change(screen.getByPlaceholderText('Paste exported StructuralRuleProfile JSON'), {

@@ -4,12 +4,13 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VoiceSession } from './IntentRouter';
 import { clearAllVoiceSessions, deleteVoiceSession, loadRecentVoiceSessions, saveVoiceSession } from './VoiceSessionStore';
+import { DEFAULT_VOICE_MODE } from './voiceMode';
 
 function makeSession(id: string, startedAt: number): VoiceSession {
   return {
     id,
     startedAt,
-    mode: 'command',
+    mode: DEFAULT_VOICE_MODE,
     entries: [
       {
         timestamp: startedAt,

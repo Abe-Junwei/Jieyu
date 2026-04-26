@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ActionRecordDoc, DifficultSegmentDoc, TaskPhaseRecordDoc, UserBehaviorProfileDoc } from './userBehaviorDB';
 import { ReportGenerator, type DailySummary } from './ReportGenerator';
 import { getActionRecordsInRange, getDifficultSegmentsInRange, getTaskPhaseRecordsInRange, loadBehaviorProfile } from './userBehaviorDB';
+import { DEFAULT_VOICE_MODE } from './voiceMode';
 
 vi.mock('./userBehaviorDB', () => ({
   getActionRecordsInRange: vi.fn(),
@@ -20,7 +21,7 @@ function createProfile(): UserBehaviorProfileDoc {
     pauseFrequencyTrend: 'stable',
     lastBreakAt: 0,
     preferences: {
-      preferredMode: 'command',
+      preferredMode: DEFAULT_VOICE_MODE,
       safeModeDefault: false,
       wakeWordEnabled: false,
       preferredEngine: 'web-speech',
@@ -46,6 +47,7 @@ function primeDailyMocks() {
       sessionId: 'session-a',
       page: 'transcription',
       requiredConfirmation: false,
+      inputModality: 'voice',
     },
     {
       actionId: 'undo',
@@ -56,6 +58,7 @@ function primeDailyMocks() {
       sessionId: 'session-a',
       page: 'transcription',
       requiredConfirmation: false,
+      inputModality: 'voice',
     },
   ];
 
@@ -69,6 +72,7 @@ function primeDailyMocks() {
       sessionId: 'session-prev',
       page: 'transcription',
       requiredConfirmation: false,
+      inputModality: 'voice',
     },
   ];
 

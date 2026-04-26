@@ -111,9 +111,14 @@ function evaluateAuditTrace(ndjsonPath) {
     const outcome = typeof metadata.outcome === 'string' ? metadata.outcome.trim() : '';
     return phase === 'decision' && outcome.length > 0;
   });
+  const schemaV1DecisionRows = metadataDecisionRows.filter((row) => {
+    const metadata = normalizeMetadata(row);
+    return metadata && Number(metadata.schemaVersion) === 1;
+  });
   const passed = parsed.errors.length === 0
     && decisionRows.length > 0
-    && metadataDecisionRows.length > 0;
+    && metadataDecisionRows.length > 0
+    && schemaV1DecisionRows.length > 0;
 
   const failureReasons = [];
   if (parsed.errors.length > 0) {
@@ -125,6 +130,9 @@ function evaluateAuditTrace(ndjsonPath) {
   if (metadataDecisionRows.length === 0) {
     failureReasons.push('missing_decision_metadata_phase_outcome');
   }
+  if (schemaV1DecisionRows.length === 0) {
+    failureReasons.push('missing_decision_metadata_schema_version_1');
+  }
 
   return {
     enabled: true,
@@ -132,6 +140,7 @@ function evaluateAuditTrace(ndjsonPath) {
     rowCount: parsed.rows.length,
     decisionRowCount: decisionRows.length,
     metadataDecisionRowCount: metadataDecisionRows.length,
+    schemaV1DecisionRowCount: schemaV1DecisionRows.length,
     parseErrorCount: parsed.errors.length,
     passed,
     failureReasons,
@@ -239,7 +248,7 @@ function main() {
   );
   if (auditTrace.enabled) {
     process.stdout.write(
-      `[agent-evals] audit-trace: decisionRows=${auditTrace.decisionRowCount}, decisionMetadataRows=${auditTrace.metadataDecisionRowCount}, parseErrors=${auditTrace.parseErrorCount}, passed=${auditTrace.passed}\n`,
+      `[agent-evals] audit-trace: decisionRows=${auditTrace.decisionRowCount}, decisionMetadataRows=${auditTrace.metadataDecisionRowCount}, schemaV1Rows=${auditTrace.schemaV1DecisionRowCount ?? 0}, parseErrors=${auditTrace.parseErrorCount}, passed=${auditTrace.passed}\n`,
     );
   }
 

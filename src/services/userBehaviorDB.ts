@@ -12,6 +12,7 @@
 import Dexie, { type Table } from 'dexie';
 import { reportIfUnexpectedDexieDegradation } from '../db/adapterDexieQueryErrors';
 import type { ActionId } from './IntentRouter';
+import type { VoiceMode } from './voiceMode';
 
 // ── Document Types ─────────────────────────────────────────────────────────
 
@@ -31,6 +32,8 @@ export interface ActionRecordDoc {
   voiceConfidence: number | null;
   /** True if user had to confirm this action (safe mode / fuzzy match). */
   requiredConfirmation: boolean;
+  /** Input channel: voice agent vs keyboard/click 等文本侧触发。 */
+  inputModality: 'voice' | 'text';
 }
 
 /** Aggregated user behavior profile snapshot. */
@@ -43,7 +46,7 @@ export interface UserBehaviorProfileDoc {
   pauseFrequencyTrend: 'increasing' | 'stable' | 'decreasing';
   lastBreakAt: number;
   preferences: {
-    preferredMode: 'command' | 'dictation' | 'analysis';
+    preferredMode: VoiceMode;
     safeModeDefault: boolean;
     wakeWordEnabled: boolean;
     preferredEngine: 'web-speech' | 'whisper-local' | 'commercial';

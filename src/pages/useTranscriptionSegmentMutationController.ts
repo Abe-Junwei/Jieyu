@@ -12,6 +12,7 @@ import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolve
 import { useTranscriptionSegmentBatchMerge } from './useTranscriptionSegmentBatchMerge';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 import { LayerUnitService } from '../services/LayerUnitService';
+import type { AiSegmentSplitRollbackToken } from '../hooks/useAiToolCallHandler.types';
 
 interface UseTranscriptionSegmentMutationControllerInput {
   activeLayerIdForEdits: string;
@@ -34,7 +35,8 @@ interface UseTranscriptionSegmentMutationControllerInput {
 }
 
 interface UseTranscriptionSegmentMutationControllerResult {
-  splitRouted: (id: string, splitTime: number, layerIdOverride?: string) => Promise<void>;
+  splitRouted: (id: string, splitTime: number, layerIdOverride?: string) => Promise<AiSegmentSplitRollbackToken | undefined>;
+  mergeAdjacentSegmentsForAiRollback: (keepId: string, removeId: string) => Promise<void>;
   mergeWithPreviousRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   mergeWithNextRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   mergeSelectedSegmentsRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
@@ -43,12 +45,7 @@ interface UseTranscriptionSegmentMutationControllerResult {
   toggleSkipProcessingRouted: (id: string, layerIdOverride?: string) => Promise<void>;
 }
 
-function setSegmentMutationActionError(
-  setSaveState: (state: SaveState) => void,
-  actionLabel: string,
-  i18nKey: string,
-  error: unknown,
-): void {
+function setSegmentMutationActionError(setSaveState: (state: SaveState) => void, actionLabel: string, i18nKey: string, error: unknown): void {
   const { message, meta } = reportActionError({ actionLabel, error, i18nKey: i18nKey });
   setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) });
 }
@@ -104,11 +101,22 @@ export function useTranscriptionSegmentMutationController(
     }
     return findUnitDocContainingRange(segment.startTime, segment.endTime);
   }, [findUnitDocContainingRange, getUnitDocById]);
+  const mergeAdjacentSegmentsForAiRollback = async (keepId: string, removeId: string) => {
+    segmentMutationReloadGenRef.current += 1;
+    const postReloadToken = segmentMutationReloadGenRef.current;
+    await transcriptionAppService.mergeAdjacentSegments(keepId, removeId);
+    await reloadSegments();
+    if (segmentMutationReloadGenRef.current !== postReloadToken) {
+      return;
+    }
+    await refreshSegmentUndoSnapshot();
+  };
+
   const splitRouted = useCallback(async (id: string, splitTime: number, layerIdOverride?: string) => {
     const startedAtMs = performance.now();
     const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
     const routing = resolveSegmentRoutingForLayer(targetLayerId);
-    await dispatchTimelineUnitMutation({
+    return dispatchTimelineUnitMutation<AiSegmentSplitRollbackToken | undefined>({
       unit: unitById.get(id),
       routing,
       onUnitDoc: async () => {
@@ -120,6 +128,7 @@ export function useTranscriptionSegmentMutationController(
           recordSegmentMutationLatency('split', 'error', startedAtMs);
           throw error;
         }
+        return undefined;
       },
       onSegmentLayer: async () => {
         pushUndo(t(locale, 'transcription.unitAction.undo.split'));
@@ -130,7 +139,7 @@ export function useTranscriptionSegmentMutationController(
           await reloadSegments();
           if (segmentMutationReloadGenRef.current !== postReloadToken) {
             recordSegmentMutationLatency('split', 'success', startedAtMs);
-            return;
+            return undefined;
           }
           await refreshSegmentUndoSnapshot();
           selectTimelineUnit(createSegmentTarget(splitResult.second.id, targetLayerId));
@@ -141,9 +150,14 @@ export function useTranscriptionSegmentMutationController(
             detail: `newSegment=${splitResult.second.id}`,
           });
           recordSegmentMutationLatency('split', 'success', startedAtMs);
+          return {
+            keepSegmentId: splitResult.first.id,
+            removeSegmentId: splitResult.second.id,
+          };
         } catch (error) {
           setSegmentMutationActionError(setSaveState, t(locale, 'transcription.unitAction.undo.split'), 'transcription.error.action.segmentSplitFailed', error);
           recordSegmentMutationLatency('split', 'error', startedAtMs);
+          return undefined;
         }
       },
     });
@@ -404,11 +418,12 @@ export function useTranscriptionSegmentMutationController(
 
   return {
     splitRouted,
+    mergeAdjacentSegmentsForAiRollback,
     mergeWithPreviousRouted,
     mergeWithNextRouted,
     mergeSelectedSegmentsRouted,
-    deleteUnitRouted: deleteUnitRouted,
-    deleteSelectedUnitsRouted: deleteSelectedUnitsRouted,
+    deleteUnitRouted,
+    deleteSelectedUnitsRouted,
     toggleSkipProcessingRouted,
   };
 }

@@ -58,7 +58,8 @@ const RULES = [
     mustInclude: [
       '.lm-workspace .ws-subsection { display: grid; gap: var(--space-stack-section, 12px); }',
       '.lm-subsection-header',
-      '.lm-field-block + .panel-section__copy',
+      'details.lm-subsection > .lm-grid + .panel-section__copy',
+      'details.lm-subsection > .lm-geography-coverage-layout + .panel-section__copy',
       'gap: var(--space-title-content, 8px);',
       '.lm-geography-panel-header { display: grid; gap: var(--space-title-content, 8px); }',
       '.lm-geocode-bar { display: flex; gap: var(--space-row-gap, 8px); }',
@@ -67,19 +68,19 @@ const RULES = [
   {
     file: 'src/styles/pages/orthography-bridge-workspace.css',
     mustInclude: [
-      '--la-list-gap: var(--space-row-gap, 8px);',
+      '--la-list-gap: 2px;',
       'gap: var(--space-stack-section, 12px);',
-      '.ob-bridge-panel .orthography-builder-actions { gap: var(--space-row-gap, 8px); }',
+      '.ob-bridge .orthography-builder-actions { gap: var(--space-row-gap, 8px); }',
     ],
   },
   {
     file: 'src/styles/pages/orthography-manager-panel.css',
     mustInclude: [
       '.om-body { display: grid; gap: var(--space-stack-page, 16px); min-height: 0; }',
-      '.om-browser-body',
+      '.om-shell .om-browser',
       'gap: var(--space-stack-section, 12px);',
       '.om-browser-header { display: grid; gap: var(--space-title-content, 8px); justify-items: start; text-align: left; }',
-      '.om-basic-grid div {',
+      '.om-basic-grid > div',
       'gap: var(--space-title-content, 8px);',
     ],
   },
@@ -129,7 +130,11 @@ const SELECTOR_NO_LITERAL_RULES = [
   },
   {
     file: 'src/styles/pages/language-metadata-workspace.css',
-    selector: '.lm-field-block + .panel-section__copy',
+    selector: '.lm-workspace details.lm-subsection > .lm-grid + .panel-section__copy',
+  },
+  {
+    file: 'src/styles/pages/language-metadata-workspace.css',
+    selector: '.lm-workspace details.lm-subsection > .lm-geography-coverage-layout + .panel-section__copy',
   },
   {
     file: 'src/styles/pages/language-metadata-workspace.css',

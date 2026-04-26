@@ -46,6 +46,7 @@ describe('run-agent-evals audit trace assertion', () => {
         field: 'ai_tool_call_decision',
         new_value: 'confirm_failed:propose_changes:child_failed',
         metadata_json: JSON.stringify({
+          schemaVersion: 1,
           phase: 'decision',
           outcome: 'confirm_failed',
           executionProgress: { appliedCount: 1, totalCount: 2, partial: true },
@@ -69,6 +70,63 @@ describe('run-agent-evals audit trace assertion', () => {
       expect(report.auditTrace?.enabled).toBe(true);
       expect(report.auditTrace?.passed).toBe(true);
       expect(report.auditTrace?.decisionRowCount).toBe(1);
+      expect((report.auditTrace as { schemaV1DecisionRowCount?: number })?.schemaV1DecisionRowCount).toBe(1);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails in enforce mode when decision metadata lacks schemaVersion 1', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'run-agent-evals-schema-'));
+    const suitePath = path.join(tempDir, 'suite.json');
+    const reportPath = path.join(tempDir, 'report.json');
+    const auditPath = path.join(tempDir, 'audit.ndjson');
+
+    try {
+      writeFileSync(suitePath, JSON.stringify({
+        suiteId: 'tmp-suite',
+        version: 1,
+        thresholds: {
+          requiredPassRate: 1,
+          maxFailedCases: 0,
+          requiredGoldenTasksMin: 0,
+          requiredTrajectorySignals: [],
+        },
+        cases: [
+          {
+            id: 'smoke',
+            name: 'smoke',
+            command: 'node -e "process.exit(0)"',
+            category: 'smoke',
+            goldenTaskCount: 0,
+            trajectorySignals: [],
+          },
+        ],
+      }), 'utf8');
+      writeFileSync(auditPath, `${JSON.stringify({
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        newValue: 'confirm_failed:propose_changes:child_failed',
+        metadataJson: JSON.stringify({
+          phase: 'decision',
+          outcome: 'confirm_failed',
+        }),
+      })}\n`, 'utf8');
+
+      const result = runAgentEvals([
+        '--mode=enforce',
+        `--suite=${suitePath}`,
+        `--report=${reportPath}`,
+        `--assert-audit-trace=${auditPath}`,
+      ], process.cwd());
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(readFileSync(reportPath, 'utf8')) as {
+        summary?: { thresholdPassed?: boolean; auditTracePassed?: boolean };
+        auditTrace?: { passed?: boolean; failureReasons?: string[] };
+      };
+      expect(report.summary?.thresholdPassed).toBe(false);
+      expect(report.auditTrace?.failureReasons).toContain('missing_decision_metadata_schema_version_1');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

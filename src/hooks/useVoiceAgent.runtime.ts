@@ -1,4 +1,5 @@
 import type { VoiceSession } from '../services/IntentRouter';
+import { DEFAULT_VOICE_MODE } from '../services/voiceMode';
 
 let voiceInputRuntimePromise: Promise<typeof import('../services/VoiceInputService')> | null = null;
 let wakeWordRuntimePromise: Promise<typeof import('../services/WakeWordDetector')> | null = null;
@@ -83,6 +84,6 @@ export function createVoiceSessionState(): VoiceSession {
     id: crypto.randomUUID(),
     startedAt: Date.now(),
     entries: [],
-    mode: 'command',
+    mode: DEFAULT_VOICE_MODE,
   };
 }

@@ -194,8 +194,8 @@
 .la-shell :is(
   .lm-history-panel .panel-section__title,
   .lm-subsection-header .panel-title-primary,
-  .ob-list-panel .panel-section__title,
-  .ob-bridge-panel .panel-section__title,
+  .ob-browser-title,
+  .ob-bridge-title,
   .orthography-builder-panel-compact .orthography-builder-group-title,
   .om-browser-title,
   .om-advanced-summary > .orthography-builder-group-title

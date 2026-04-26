@@ -6,6 +6,7 @@ import type { AiChatContextValue } from '../contexts/AiChatContext';
 import type { VoiceAgentContextValue } from '../contexts/VoiceAgentContext';
 import { pickAiChatContextValue } from './useAiChatContextValue';
 import { pickVoiceAgentContextValue } from './useVoiceAgentContextValue';
+import { DEFAULT_VOICE_MODE } from '../services/voiceMode';
 
 function makeAiChatSource(overrides: Partial<AiChatContextValue> = {}): Partial<AiChatContextValue> {
   return {
@@ -25,7 +26,7 @@ function makeVoiceSource(overrides: Partial<VoiceAgentContextValue> = {}): Parti
     voiceEnabled: false,
     voiceListening: false,
     voiceSpeechActive: false,
-    voiceMode: 'command',
+    voiceMode: DEFAULT_VOICE_MODE,
     voiceInterimText: '',
     voiceFinalText: '',
     voiceConfidence: 0,

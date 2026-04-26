@@ -10,6 +10,7 @@ import { createContext, useContext } from 'react';
 export type LanguageAssetPanel =
   | 'none'
   | 'language-metadata'
+  | 'structural-profiles'
   | 'orthographies'
   | 'orthography-bridges';
 

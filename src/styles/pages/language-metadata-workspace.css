@@ -98,18 +98,14 @@
   background: color-mix(in srgb, var(--surface-header) 80%, transparent);
 }
 
-/* ── Editor & history panels ── */
+/* ── Editor & history: flat stack (spacing from .la-panel-stack); no separate card chrome ── */
 
-.lm-workspace .lm-editor-panel {
+.lm-workspace :is(.lm-editor-panel, .lm-history-panel).panel-section {
+  padding: 0;
   border: 0;
-  border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-panel) 97%, var(--surface-header));
-}
-
-.lm-workspace .lm-history-panel {
-  border: 1px solid color-mix(in srgb, var(--border-soft) 62%, transparent);
-  border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-header) 34%, var(--surface-panel));
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 /* ── Toolbar ── */
@@ -265,8 +261,12 @@ details.lm-subsection > summary:focus-visible {
   line-height: 1.6;
 }
 
-/* ── 二级小标题 + 说明：使用 panel-section__copy + panel-subsection__description（Phase E 与 panel 命名对齐）| Secondary field labels aligned with the form grid */
-.lm-field-block + .panel-section__copy {
+/* ── 二级小标题 + 说明：使用 panel-section__copy + panel-subsection__description（Phase E 与 panel 命名对齐）| Secondary subsection copy after `.lm-grid` / geography coverage block needs `--lm-section-start-gap`（原 `.lm-field-block +` 与身份区 DOM 顺序不符，规则从未命中）| */
+.lm-workspace details.lm-subsection > .lm-grid + .panel-section__copy {
+  margin-top: var(--lm-section-start-gap);
+}
+
+.lm-workspace details.lm-subsection > .lm-geography-coverage-layout + .panel-section__copy {
   margin-top: var(--lm-section-start-gap);
 }
 
@@ -376,10 +376,6 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.9fr) auto auto;
   gap: var(--space-row-gap, 8px);
   align-items: end;
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 62%, transparent);
-  border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
 }
 
 .lm-matrix-row > .lm-field-block { grid-column: 2 / 3; }
@@ -391,10 +387,6 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid var(--border-soft);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header));
 }
 
 .lm-field-toolbar {
@@ -440,15 +432,6 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   display: grid;
   gap: var(--space-stack-section, 12px);
   min-width: 0;
-  padding: 16px;
-  border-radius: var(--radius-2xl);
-  border: 0;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 82%, var(--color-white)), color-mix(in srgb, var(--surface-header) 64%, var(--surface-panel)) 100%);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-white) 58%, transparent);
-}
-
-.lm-geography-panel-preview {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 94%, var(--color-white)), color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel)) 100%);
 }
 
 .lm-geography-panel-header { display: grid; gap: var(--space-title-content, 8px); }
@@ -528,7 +511,7 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
 .lm-geocode-wrapper { position: relative; }
 .lm-geocode-bar { display: flex; gap: var(--space-row-gap, 8px); }
 .lm-geocode-bar > input { flex: 1; min-width: 0; }
-.lm-geocode-btn { flex-shrink: 0; font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1))); padding: 4px 10px; }
+.lm-geocode-btn { flex-shrink: 0; }
 
 .lm-geocode-results {
   position: absolute;
@@ -626,10 +609,6 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   flex-direction: column;
   gap: var(--space-map-stack, 8px);
   margin-top: var(--space-map-stack, 8px);
-  padding: 8px 10px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  background: var(--surface-elevated);
 }
 
 .lm-map-config-actions { display: flex; gap: var(--space-map-stack, 8px); justify-content: flex-end; }
@@ -643,10 +622,6 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   gap: var(--space-map-section, 10px);
   min-height: 240px;
   place-items: center;
-  padding: var(--space-4);
-  border-radius: 8px;
-  border: 1px dashed color-mix(in srgb, var(--border-soft) 72%, transparent);
-  background: color-mix(in srgb, var(--surface-header) 68%, transparent);
   text-align: center;
 }
 
@@ -735,7 +710,8 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
 /* ── Administrative division picker ── */
 
 .lm-admin-picker { display: grid; gap: var(--space-admin-stack, 10px); }
-.lm-admin-search-shell { display: grid; gap: var(--space-admin-stack, 10px); }
+/* 叠在「分布国家」候选项（.language-iso-input-suggestions）之上，避免遮挡行政区检索栏的点击与焦点 | */
+.lm-admin-search-shell { position: relative; z-index: 5; display: grid; gap: var(--space-admin-stack, 10px); }
 .lm-admin-search-anchor { position: relative; }
 .lm-admin-search-summary { font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))); color: var(--text-secondary); line-height: 1.4; }
 .lm-admin-resolved-grid { display: grid; gap: var(--space-admin-stack, 10px); }
@@ -748,14 +724,31 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
 
 .lm-admin-coverage-row {
   display: grid;
-  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+  grid-template-columns: minmax(0, 10.5rem) minmax(0, 1fr);
   gap: var(--space-admin-stack, 10px);
-  align-items: end;
+  align-items: start;
 }
 
 .lm-admin-coverage-field { min-width: 0; }
+
+/* 宏区域 / 分布国家：与 `.lm-workspace` 下全局 `line-height:1.5` 及 search 控件默认样式对齐，避免两框高度不齐 | */
+.lm-workspace .lm-admin-coverage-row :is(select.input, .lm-country-multi__query) {
+  line-height: var(--input-line-height, 1.4);
+  min-height: var(--input-min-height, var(--input-h-md));
+}
+
+.lm-admin-coverage-field:first-child select.input {
+  width: 100%;
+  max-width: 10.5rem;
+}
+
 .lm-admin-text-input { padding: 8px 10px; }
 .lm-admin-text-input::placeholder { color: var(--text-secondary); font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))); }
+
+.lm-admin-coverage-row .lm-country-combobox .lm-country-multi__query::placeholder {
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
 
 .lm-admin-actions {
   display: flex;
@@ -776,13 +769,54 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   min-width: 0;
 }
 
+.lm-country-multi__row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-admin-inline, 8px);
+  min-width: 0;
+}
+
+.lm-country-combobox {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 17rem;
+}
+
+.lm-country-combobox > .language-iso-input-suggestions:not(.is-empty) {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin-top: 0;
+  z-index: var(--z-toolbar, 50);
+}
+
+.lm-country-multi__query {
+  width: 100%;
+}
+
+.lm-country-suggest-iso {
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 .lm-country-multi__chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-tight-offset, 6px);
   margin: 0;
   padding: 0;
   list-style: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 
 .lm-country-multi__chips > li {
@@ -807,48 +841,6 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   opacity: 0.75;
 }
 
-.lm-country-multi__list {
-  max-height: 220px;
-  overflow: auto;
-  margin: 0;
-  padding: 4px 0;
-  list-style: none;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-panel) 92%, transparent);
-}
-
-.lm-country-multi__list > li {
-  margin: 0;
-  padding: 0;
-}
-
-.lm-country-multi__option {
-  display: flex;
-  align-items: center;
-  gap: var(--space-admin-inline, 8px);
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
-  line-height: 1.35;
-}
-
-.lm-country-multi__option:hover {
-  background: color-mix(in srgb, var(--surface-header) 55%, transparent);
-}
-
-.lm-country-multi__option-label {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.lm-country-multi__iso {
-  flex: 0 0 auto;
-  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
 /* ── History ── */
 
 .lm-history-list {
@@ -859,13 +851,15 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   list-style: none;
 }
 
+.lm-history-list > li.lm-history-item + li.lm-history-item {
+  margin-top: var(--space-stack-section, 12px);
+  padding-top: var(--space-stack-section, 12px);
+  border-top: 1px solid var(--border-soft);
+}
+
 .lm-history-item {
   display: grid;
   gap: var(--space-micro-offset, 4px);
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 56%, transparent);
-  border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-header) 44%, var(--surface-panel));
 }
 
 .lm-history-item strong { color: var(--text-primary); }
@@ -916,6 +910,10 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   .lm-field-definition-grid { grid-template-columns: 1fr; }
   .lm-admin-resolved-row { grid-template-columns: 1fr; }
   .lm-admin-coverage-row { grid-template-columns: 1fr; }
+  .lm-admin-coverage-field:first-child select.input { max-width: 100%; }
+  .lm-country-multi__row { flex-wrap: wrap; align-items: flex-start; }
+  .lm-country-multi__chips { max-width: 100%; flex-wrap: wrap; overflow-x: visible; }
+  .lm-country-combobox { max-width: 100%; }
   .lm-geo-row { grid-template-columns: 1fr; }
   .lm-matrix-header, .lm-matrix-row { grid-template-columns: 1fr; }
   .lm-matrix-header { align-items: stretch; }

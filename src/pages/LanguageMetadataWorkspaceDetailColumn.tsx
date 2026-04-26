@@ -272,6 +272,34 @@ export function LanguageMetadataWorkspaceDetailColumn({
                 }} />
               </label>
               <label className="lm-field">
+                <span>{t(locale, 'workspace.languageMetadata.dialectsLabel')}</span>
+                <input
+                  className="input"
+                  type="text"
+                  value={draft.dialectsText}
+                  onChange={(event) => {
+                    onDraftChange('dialectsText', event.target.value);
+                    syncClassificationPath({ dialectsText: event.target.value });
+                  }}
+                  placeholder={t(locale, 'workspace.languageMetadata.dialectsPlaceholder')}
+                  aria-label={t(locale, 'workspace.languageMetadata.dialectsLabel')}
+                />
+              </label>
+              <label className="lm-field">
+                <span>{t(locale, 'workspace.languageMetadata.vernacularsLabel')}</span>
+                <input
+                  className="input"
+                  type="text"
+                  value={draft.vernacularsText}
+                  onChange={(event) => {
+                    onDraftChange('vernacularsText', event.target.value);
+                    syncClassificationPath({ vernacularsText: event.target.value });
+                  }}
+                  placeholder={t(locale, 'workspace.languageMetadata.vernacularsPlaceholder')}
+                  aria-label={t(locale, 'workspace.languageMetadata.vernacularsLabel')}
+                />
+              </label>
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.macrolanguageLabel')}</span>
                 <input className="input" type="text" value={draft.macrolanguage} onChange={(event) => onDraftChange('macrolanguage', event.target.value)} />
               </label>
@@ -304,22 +332,6 @@ export function LanguageMetadataWorkspaceDetailColumn({
                   <option value="visible">{t(locale, 'workspace.languageMetadata.visibilityVisible')}</option>
                   <option value="hidden">{t(locale, 'workspace.languageMetadata.visibilityHidden')}</option>
                 </select>
-              </label>
-            </div>
-            <div className="lm-grid">
-              <label className="lm-field lm-field-block">
-                <span>{t(locale, 'workspace.languageMetadata.dialectsLabel')}</span>
-                <textarea className="input lm-textarea" value={draft.dialectsText} onChange={(event) => {
-                  onDraftChange('dialectsText', event.target.value);
-                  syncClassificationPath({ dialectsText: event.target.value });
-                }} placeholder={t(locale, 'workspace.languageMetadata.dialectsPlaceholder')} />
-              </label>
-              <label className="lm-field lm-field-block">
-                <span>{t(locale, 'workspace.languageMetadata.vernacularsLabel')}</span>
-                <textarea className="input lm-textarea" value={draft.vernacularsText} onChange={(event) => {
-                  onDraftChange('vernacularsText', event.target.value);
-                  syncClassificationPath({ vernacularsText: event.target.value });
-                }} placeholder={t(locale, 'workspace.languageMetadata.vernacularsPlaceholder')} />
               </label>
               <label className="lm-field lm-field-block">
                 <span>{t(locale, 'workspace.languageMetadata.classificationPathLabel')}</span>
@@ -492,7 +504,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
         </div>
       </PanelSection>
 
-      <PanelSection className="lm-editor-panel lm-history-panel la-panel-section" title={t(locale, 'workspace.languageMetadata.historyTitle')} description={t(locale, 'workspace.languageMetadata.historyDescription')}>
+      <PanelSection className="lm-history-panel la-panel-section" title={t(locale, 'workspace.languageMetadata.historyTitle')} description={t(locale, 'workspace.languageMetadata.historyDescription')}>
         {historyItems.length > 0 ? (
           <ol className="lm-history-list">
             {historyItems.map((item) => (

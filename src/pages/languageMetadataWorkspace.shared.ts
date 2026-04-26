@@ -101,7 +101,7 @@ export function parseAliasText(value: string): string[] {
 
 export function parseLineSeparatedText(value: string): string[] {
   return value
-    .split('\n')
+    .split(/[\n,，、]+/)
     .map((item) => item.trim())
     .filter(Boolean);
 }

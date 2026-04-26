@@ -654,6 +654,7 @@ function TranscriptionPageReadyWorkspace({
 
   const {
     splitRouted,
+    mergeAdjacentSegmentsForAiRollback,
     mergeWithPreviousRouted,
     mergeWithNextRouted,
     mergeSelectedSegmentsRouted,
@@ -679,6 +680,20 @@ function TranscriptionPageReadyWorkspace({
     deleteSelectedUnits: deleteSelectedUnits,
     recordTimelineEdit,
   });
+
+  const splitRoutedVoidResult = useCallback(
+    async (id: string, splitTime: number, layerIdOverride?: string) => {
+      await splitRouted(id, splitTime, layerIdOverride);
+    },
+    [splitRouted],
+  );
+
+  /** ADR-0026: Dexie rollback refreshes segment-layer read model + undo snapshot. Canonical `layer_units` hosts rely on the same reload pipeline as other segment mutations; if UI ever diverges after-only-DB restore, extend this hook (do not bypass silent AI rollback). */
+  const silentSegmentGraphSyncForAi = useCallback(async () => {
+    await reloadSegments();
+    await refreshSegmentUndoSnapshot();
+    await reloadSegmentContents();
+  }, [reloadSegments, refreshSegmentUndoSnapshot, reloadSegmentContents]);
 
   const { createNextSegmentRouted, createUnitFromSelectionRouted } = useTranscriptionSegmentCreationController({
     activeLayerIdForEdits,
@@ -731,7 +746,7 @@ function TranscriptionPageReadyWorkspace({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     },
-    splitUnit: splitRouted,
+    splitUnit: splitRoutedVoidResult,
     selectAllBefore,
     selectAllAfter,
   });
@@ -746,9 +761,10 @@ function TranscriptionPageReadyWorkspace({
   } = useTranscriptionOverlayActionRoutingController({
     deleteSelectedUnitsRouted,
     deleteUnitRouted,
+    mergeSelectedSegmentsRouted,
     mergeWithPreviousRouted,
     mergeWithNextRouted,
-    splitRouted,
+    splitRouted: splitRoutedVoidResult,
     runDeleteSelection,
     runMergeSelection,
     runDeleteOne,
@@ -1752,7 +1768,10 @@ function TranscriptionPageReadyWorkspace({
     recentTimelineEditEvents,
     createLayerWithActiveContext,
     createTranscriptionSegment: createNextSegmentRouted,
+    createAdjacentUnit: _createAdjacentUnit,
     splitTranscriptionSegment: splitRouted,
+    mergeAdjacentSegmentsForAiRollback,
+    silentSegmentGraphSyncForAi,
     mergeWithPrevious: mergeWithPreviousRouted,
     mergeWithNext: mergeWithNextRouted,
     mergeSelectedUnits: mergeSelectedUnits,

@@ -5,6 +5,7 @@ import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import { segmentToView, unitToView } from '../hooks/timelineUnitView';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
+import type { AiSegmentSplitRollbackToken } from '../hooks/useAiToolCallHandler.types';
 import { useTranscriptionSegmentMutationController } from './useTranscriptionSegmentMutationController';
 
 const {
@@ -14,7 +15,10 @@ const {
   mockDeleteSegmentsBatch,
   mockUpdateUnit,
 } = vi.hoisted(() => ({
-  mockSplitSegment: vi.fn<(segmentId: string, splitTime: number) => Promise<{ second: { id: string } }>>(async () => ({ second: { id: 'seg-right' } })),
+  mockSplitSegment: vi.fn<(segmentId: string, splitTime: number) => Promise<{ first: { id: string }; second: { id: string } }>>(async (segmentId) => ({
+    first: { id: segmentId },
+    second: { id: 'seg-right' },
+  })),
   mockMergeAdjacentSegments: vi.fn<(leftId: string, rightId: string) => Promise<void>>(async () => undefined),
   mockDeleteSegment: vi.fn<(segmentId: string) => Promise<void>>(async () => undefined),
   mockDeleteSegmentsBatch: vi.fn<(segmentIds: readonly string[]) => Promise<void>>(async () => undefined),
@@ -150,15 +154,34 @@ describe('useTranscriptionSegmentMutationController', () => {
       selectTimelineUnit,
     })));
 
+    let splitToken: AiSegmentSplitRollbackToken | undefined;
     await act(async () => {
-      await result.current.splitRouted('seg-2', 1.5);
+      splitToken = await result.current.splitRouted('seg-2', 1.5);
     });
 
+    expect(splitToken).toEqual({ keepSegmentId: 'seg-2', removeSegmentId: 'seg-right' });
     expect(pushUndo).toHaveBeenCalledWith('拆分句段');
     expect(mockSplitSegment).toHaveBeenCalledWith('seg-2', 1.5);
     expect(reloadSegments).toHaveBeenCalled();
     expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
     expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-seg', unitId: 'seg-right', kind: 'segment' });
+  });
+
+  it('mergeAdjacentSegmentsForAiRollback merges then reloads and refreshes undo snapshot', async () => {
+    const reloadSegments = vi.fn(async () => undefined);
+    const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
+    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
+      reloadSegments,
+      refreshSegmentUndoSnapshot,
+    })));
+
+    await act(async () => {
+      await result.current.mergeAdjacentSegmentsForAiRollback('seg-1', 'seg-2');
+    });
+
+    expect(mockMergeAdjacentSegments).toHaveBeenCalledWith('seg-1', 'seg-2');
+    expect(reloadSegments).toHaveBeenCalled();
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
   });
 
   it('surfaces structured error when segment split fails', async () => {

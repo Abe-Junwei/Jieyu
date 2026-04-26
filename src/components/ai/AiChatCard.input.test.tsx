@@ -654,6 +654,94 @@ describe('AiChatCard input submit', () => {
     expect(within(view.container).getByRole('button', { name: /确认删除|Confirm Delete/i })).toBeTruthy();
   });
 
+  it('uses checkpoint continuationInput when resuming durable agent loop from alerts panel', () => {
+    const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          onSendAiMessage,
+          aiSessionMemory: {
+            pendingAgentLoopCheckpoint: {
+              kind: 'token_budget_warning',
+              taskId: 'task-loop-continue-1',
+              originalUserText: '请继续刚才的步骤',
+              continuationInput: '继续生成下一步并保留上下文',
+              step: 2,
+              createdAt: '2026-04-27T12:00:00.000Z',
+            },
+          },
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const resumeButton = within(view.container).getByRole('button', { name: /Resume|继续执行/i });
+    fireEvent.click(resumeButton);
+
+    expect(onSendAiMessage).toHaveBeenCalledTimes(1);
+    expect(onSendAiMessage).toHaveBeenCalledWith('继续生成下一步并保留上下文');
+  });
+
+  it('falls back to default resume text when checkpoint continuationInput is empty', () => {
+    const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          onSendAiMessage,
+          aiSessionMemory: {
+            pendingAgentLoopCheckpoint: {
+              kind: 'token_budget_warning',
+              taskId: 'task-loop-continue-2',
+              originalUserText: '继续',
+              continuationInput: '   ',
+              step: 4,
+              createdAt: '2026-04-27T12:01:00.000Z',
+            },
+          },
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const resumeButton = within(view.container).getByRole('button', { name: /Resume|继续执行/i });
+    fireEvent.click(resumeButton);
+
+    expect(onSendAiMessage).toHaveBeenCalledTimes(1);
+    expect(onSendAiMessage).toHaveBeenCalledWith('继续');
+  });
+
+  it('does not dispatch resume input while ai stream is active', () => {
+    const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          onSendAiMessage,
+          aiIsStreaming: true,
+          aiSessionMemory: {
+            pendingAgentLoopCheckpoint: {
+              kind: 'token_budget_warning',
+              taskId: 'task-loop-streaming-1',
+              originalUserText: '继续任务',
+              continuationInput: '继续下一步',
+              step: 5,
+              createdAt: '2026-04-27T12:02:00.000Z',
+            },
+          },
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const resumeButton = within(view.container).getByRole('button', { name: /Resume|继续执行/i }) as HTMLButtonElement;
+    expect(resumeButton.disabled).toBe(true);
+
+    fireEvent.click(resumeButton);
+    expect(onSendAiMessage).toHaveBeenCalledTimes(0);
+  });
+
   it('shows transient streaming hint on blocked Enter and clears it right after stop', () => {
     const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
 

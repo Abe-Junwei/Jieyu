@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { TimelineViewportProjection } from '../hooks/timelineViewportTypes';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
+import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
 import {
   buildReadyWorkspaceBatchOpsSection,
   type BuildReadyWorkspaceBatchOpsSectionInput,
@@ -152,17 +153,36 @@ export function buildReadyWorkspaceStageProps(
     unitsOnCurrentMedia: input.waveformTimelineItems,
     fitPxPerSec: input.timelineViewportProjection.fitPxPerSec,
     maxZoomPercent: input.timelineViewportProjection.maxZoomPercent,
-    onZoomToPercent: input.onZoomToPercent,
-    onZoomToUnit: input.onZoomToUnit,
-    onSnapEnabledChange: input.onSnapEnabledChange,
-    onAutoScrollEnabledChange: input.onAutoScrollEnabledChange,
+    onZoomToPercent: (percent: number, mode: 'fit-all' | 'fit-selection' | 'custom') => {
+      if (mode === 'fit-all') recordTranscriptionKeyboardAction('timelineZoomFitAll');
+      else if (mode === 'fit-selection') recordTranscriptionKeyboardAction('timelineZoomFitSelection');
+      input.onZoomToPercent(percent, mode);
+    },
+    onZoomToUnit: (startTime: number, endTime: number) => {
+      recordTranscriptionKeyboardAction('timelineZoomFitSelection');
+      input.onZoomToUnit(startTime, endTime);
+    },
+    onSnapEnabledChange: (enabled: boolean) => {
+      recordTranscriptionKeyboardAction('timelineZoomSnapToggle');
+      input.onSnapEnabledChange(enabled);
+    },
+    onAutoScrollEnabledChange: (enabled: boolean) => {
+      recordTranscriptionKeyboardAction('timelineZoomAutoScrollToggle');
+      input.onAutoScrollEnabledChange(enabled);
+    },
   });
 
   // 套索处理器程序集 | Lasso handlers assembly
   const buildLassoHandlers = () => ({
-    onPointerDownCapture: input.onLassoPointerDown,
+    onPointerDownCapture: (event: ReactPointerEvent<HTMLDivElement>) => {
+      recordTranscriptionKeyboardAction('workspaceTimelineLassoPointerDown');
+      input.onLassoPointerDown(event);
+    },
     onPointerMove: input.onLassoPointerMove,
-    onPointerUp: input.onLassoPointerUp,
+    onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => {
+      recordTranscriptionKeyboardAction('workspaceTimelineLassoPointerUp');
+      input.onLassoPointerUp(event);
+    },
     onScroll: input.onTimelineScroll,
   });
 
@@ -171,8 +191,14 @@ export function buildReadyWorkspaceStageProps(
     locale: input.locale,
     isAiPanelCollapsed: input.isAiPanelCollapsed,
     setIsAiPanelCollapsed: input.setIsAiPanelCollapsed,
-    handleAiPanelResizeStart: input.handleAiPanelResizeStart,
-    handleAiPanelToggle: input.handleAiPanelToggle,
+    handleAiPanelResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => {
+      recordTranscriptionKeyboardAction('workspaceAiPanelResizeStart');
+      input.handleAiPanelResizeStart(event);
+    },
+    handleAiPanelToggle: () => {
+      recordTranscriptionKeyboardAction('workspaceAiPanelToggle');
+      input.handleAiPanelToggle();
+    },
   });
 
   // 助手桥接程序集 | Assistant bridge assembly
