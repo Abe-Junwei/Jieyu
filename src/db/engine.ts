@@ -7,11 +7,12 @@
  */
 import Dexie, { type Table, type Transaction } from 'dexie';
 import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType, SegmentationV2BackfillRows, V28BackfillPlan, JieyuCollections } from './types';
-import { validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUnitMorphemeDoc, validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc, validateAiTaskDoc, validateEmbeddingDoc, validateAiConversationDoc, validateAiMessageDoc, validateLanguageDoc, validateLanguageDisplayNameDoc, validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc, validateCustomFieldDefinitionDoc, validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc, validateLocationDoc, validateBibliographicSourceDoc, validateGrammarDoc, validateAbbreviationDoc, validateStructuralRuleProfileAssetDoc, validatePhonemeDoc, validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc, validateUnitRelationDoc, validateLayerLinkDoc, validateTierDefinitionDoc, validateTierAnnotationDoc, validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc, validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc, validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc, validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc } from './schemas';
+import { validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUnitMorphemeDoc, validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc, validateAiTaskDoc, validateEmbeddingDoc, validateAiConversationDoc, validateAiMessageDoc, validateLanguageDoc, validateLanguageDisplayNameDoc, validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc, validateCustomFieldDefinitionDoc, validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc, validateLocationDoc, validateBibliographicSourceDoc, validateGrammarDoc, validateAbbreviationDoc, validateStructuralRuleProfileAssetDoc, validatePhonemeDoc, validateTagDefinitionDoc, validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc, validateUnitRelationDoc, validateLayerLinkDoc, validateTierDefinitionDoc, validateTierAnnotationDoc, validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc, validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc, validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc, validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc } from './schemas';
 import { DexieCollectionAdapter, TierBackedLayerCollectionAdapter, resolveBridgeId, BRIDGE_TIER_PREFIX } from './adapter';
 import { upgradeM18LinguisticUnitCutover } from './migrations/m18LinguisticUnitCutover';
 import { upgradeM41SelfCertaintyHostDepollute } from './migrations/m41SelfCertaintyHostDepollute';
 import { upgradeM42TrackEntityDocumentIds } from './migrations/m42TrackEntityDocumentIds';
+import { DEFAULT_LEIPZIG_STRUCTURAL_PROFILE } from '../annotation/structuralRuleProfile';
 import { markBackupDirtySinceLastExport } from '../utils/backupExportReminderState';
 import {
   isDexieIndexedQueryFallbackError,
@@ -30,7 +31,7 @@ export const JIEYU_DEXIE_DB_NAME = 'jieyudb_v2' as const;
  * 须与 `JieyuDexie` 构造器内**最高**的 `this.version(…)` 号一致，供健康检查 / 迁移回放测试（ARCH-5）。
  * Must match the highest `this.version(…)` in `JieyuDexie` — health + migration-replay (ARCH-5).
  */
-export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 44;
+export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 46;
 
 export function buildSegmentationV2BackfillRows(input: {
   units: LayerUnitDocType[];
@@ -242,6 +243,27 @@ export function buildV28BackfillPlanForText(input: {
   };
 
   return { segment, content };
+}
+
+/** Idempotent: greenfield DBs may jump to the target Dexie version without running per-version upgrade hooks, so this runs after `dexie.open()` in `_createDb`. */
+async function ensureSystemLeipzigStructuralProfileSeeded(dexie: JieyuDexie): Promise<void> {
+  const id = 'system.leipzig-structural.v1';
+  const existing = await dexie.structural_rule_profiles.get(id);
+  if (existing) {
+    return;
+  }
+  const now = new Date().toISOString();
+  const doc: StructuralRuleProfileAssetDocType = {
+    id,
+    scope: 'system',
+    enabled: true,
+    priority: 0,
+    profile: DEFAULT_LEIPZIG_STRUCTURAL_PROFILE,
+    createdAt: now,
+    updatedAt: now,
+  };
+  validateStructuralRuleProfileAssetDoc(doc);
+  await dexie.structural_rule_profiles.put(doc);
 }
 
 export class JieyuDexie extends Dexie {
@@ -1197,6 +1219,17 @@ export class JieyuDexie extends Dexie {
     this.version(44).stores({
       structural_rule_profiles: 'id, scope, languageId, projectId, enabled, priority, updatedAt',
     });
+
+    // v45: indexed lookup for per-unit analysisGraph candidates.
+    this.version(45).stores({
+      unit_relations: 'id, textId, sourceUnitId, targetUnitId, relationType, unitId, [unitId+relationType], [sourceUnitId+relationType], [targetUnitId+relationType]',
+    });
+
+    // v46: schema bump paired with `ensureSystemLeipzigStructuralProfileSeeded` (post-open; see v44 note).
+    this.version(46).stores({
+      structural_rule_profiles: 'id, scope, languageId, projectId, enabled, priority, updatedAt',
+      unit_relations: 'id, textId, sourceUnitId, targetUnitId, relationType, unitId, [unitId+relationType], [sourceUnitId+relationType], [targetUnitId+relationType]',
+    });
   }
 }
 
@@ -1317,16 +1350,16 @@ async function _createDb(): Promise<JieyuDatabase> {
     await dexie.open();
   } catch (err) {
     let recoveryHint: JieyuDatabaseOpenError['recoveryHint'] = 'unknown';
-    let message = '无法打开本地数据库，数据可能已损坏。';
+    let message = 'Unable to open the local database; stored data may be corrupted.';
     if (err instanceof DOMException) {
       if (err.name === 'AbortError' || err.name === 'UnknownError') {
         recoveryHint = 'corrupted';
-        message = '数据库文件损坏或浏览器版本不支持，建议导出备份后重置。';
+        message = 'The database file may be corrupted or unsupported by this browser version. Export a backup before resetting.';
       }
     } else if (err instanceof Error) {
       if (err.message.includes('blocked')) {
         recoveryHint = 'blocked';
-        message = '数据库被其他标签页占用，请关闭其他解语窗口后刷新。';
+        message = 'The database is blocked by another tab. Close other Jieyu windows and refresh.';
       }
     }
     const openError = new JieyuDatabaseOpenError(message, err, recoveryHint);
@@ -1342,6 +1375,11 @@ async function _createDb(): Promise<JieyuDatabase> {
     dispatchDbMigrationDoneEvent();
   }
   registerIndexedDbMutationBackupHooks(dexie);
+  try {
+    await ensureSystemLeipzigStructuralProfileSeeded(dexie);
+  } catch {
+    // Best-effort: seeding must not block app boot if a legacy row collides; callers still validate on write.
+  }
 
   const collections: JieyuCollections = {
     texts: new DexieCollectionAdapter(dexie.texts, validateTextDoc),

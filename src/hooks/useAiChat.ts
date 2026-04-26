@@ -33,6 +33,7 @@ import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamComp
 import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
 import { getDb } from '../db';
 import { enrichContextWithRag } from './useAiChat.rag';
+import { maybeAppendMemoryBrokerContext } from './useAiChat.memoryBroker';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { buildConversationSummaryFromHistory, countHistoryUserTurns, estimateSummaryCoverageSimilarity, splitHistoryByRecentRounds, trimHistoryByChars, type HistoryChatMessage } from '../ai/chat/historyTrim';
 import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, loadSessionMemory, persistSessionMemory, setSessionMemoryMessagePinned, updateConversationSummaryMemory } from '../ai/chat/sessionMemory';
@@ -74,29 +75,8 @@ function isAgentLoopResumeText(userText: string): boolean {
   return /^(继续|继续执行|接着|接着说|继续吧)$/u.test(normalized)
     || /^(continue|resume|go on)$/i.test(normalized);
 }
-export type {
-  AiChatProviderKind,
-  AiChatSettings,
-} from '../ai/providers/providerCatalog';
-export type {
-  AiChatToolCall,
-  AiChatToolName,
-  AiChatToolResult,
-  AiClarifyCandidate,
-  AiConnectionTestStatus,
-  AiContextDebugSnapshot,
-  AiInteractionMetrics,
-  AiPromptContext,
-  AiSessionMemory,
-  AiSystemPersonaKey,
-  AiTaskSession,
-  AiToolDecisionMode,
-  AiToolRiskCheckResult,
-  PendingAiToolCall,
-  PreviewContract,
-  UiChatMessage,
-  UseAiChatOptions,
-} from './useAiChat.types';
+export type { AiChatProviderKind, AiChatSettings } from '../ai/providers/providerCatalog';
+export type { AiChatToolCall, AiChatToolName, AiChatToolResult, AiClarifyCandidate, AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiPromptDraftSnapshot, AiPromptLayerLinkSnapshot, AiPromptLayerSnapshot, AiPromptNoteSummary, AiPromptSpeakerSnapshot, AiPromptVisibleTimelineState, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, PreviewContract, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
 
 export function useAiChat(options?: UseAiChatOptions) {
   // 保留主 hook 对确认执行 seam 的显式依赖，结构测试据此验证拆分边界 |
@@ -643,10 +623,12 @@ export function useAiChat(options?: UseAiChatOptions) {
       );
       let contextBlock = buildPromptContextBlock(aiContext, maxContextChars);
       let ragCitations: AiMessageCitation[] = [];
+      let memoryRecallShape: NonNullable<ResolveAiChatStreamCompletionParams['memoryRecallShape']> | undefined;
       if (featureFlags.aiChatRagEnabled) {
         ({
           contextBlock,
           citations: ragCitations,
+          memoryRecallShape,
         } = await enrichContextWithRag({
           embeddingSearchService: embeddingSearchServiceRef.current,
           userText: effectiveUserText,
@@ -655,6 +637,7 @@ export function useAiChat(options?: UseAiChatOptions) {
           promptContext: aiContext,
         }));
       }
+      contextBlock = await maybeAppendMemoryBrokerContext({ enabled: featureFlags.aiMemoryBrokerEnabled, query: effectiveUserText, contextBlock, tokenBudget: Math.floor(contextCharBudgets.sessionMemoryDigestMaxChars / 4), sessionMemory: sessionMemoryRef.current, alreadySurfacedRefs: ragCitations.map((item) => item.refId) });
       const contextDebugEnabled = isAiContextDebugEnabled();
       const nextDebugSnapshot: AiContextDebugSnapshot = buildContextDebugSnapshot({
         enabled: contextDebugEnabled,
@@ -969,6 +952,7 @@ export function useAiChat(options?: UseAiChatOptions) {
               assistantContent,
               userText: effectiveUserText,
               aiContext,
+            ...(memoryRecallShape ? { memoryRecallShape } : {}),
             },
             buildStreamCompletionEnv(),
           );

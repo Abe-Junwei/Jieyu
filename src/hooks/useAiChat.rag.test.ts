@@ -151,6 +151,13 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
     });
     expect(result.reflectionVerdict).toBe('retrieve');
     expect(result.cragVerdict).toBe('correct');
+    expect(result.memoryRecallShape).toEqual({
+      candidateCount: 2,
+      selectedCount: 2,
+      duplicateSuppressedCount: 0,
+      budgetSuppressedCount: 0,
+      freshnessBucket: 'unknown',
+    });
   });
 
   // ── retrieve + CRAG: incorrect ──────────────────────────────────────────
@@ -166,6 +173,10 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
     expect(result.cragVerdict).toBe('incorrect');
     expect(result.citations).toEqual([]);
     expect(result.contextBlock).toBe('base');
+    expect(result.memoryRecallShape).toEqual(expect.objectContaining({
+      candidateCount: 1,
+      selectedCount: 0,
+    }));
   });
 
   // ── retrieve + CRAG: ambiguous ──────────────────────────────────────────

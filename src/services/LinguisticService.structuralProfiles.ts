@@ -69,6 +69,18 @@ function assertScopedAsset(input: {
   }
 }
 
+function buildScopeInput(
+  scope: StructuralRuleProfileAssetDocType['scope'],
+  languageId: string | undefined,
+  projectId: string | undefined,
+): { scope: StructuralRuleProfileAssetDocType['scope']; languageId?: string; projectId?: string } {
+  return {
+    scope,
+    ...(languageId ? { languageId } : {}),
+    ...(projectId ? { projectId } : {}),
+  };
+}
+
 function sortProfileAssets(rows: StructuralRuleProfileAssetDocType[]): StructuralRuleProfileAssetDocType[] {
   return [...rows].sort((a, b) => {
     const priorityDiff = a.priority - b.priority;
@@ -87,8 +99,11 @@ export class LinguisticStructuralProfileService {
     const rows = await db.dexie.structural_rule_profiles.toArray();
     return sortProfileAssets(rows.filter((row) => {
       if (!selector.includeDisabled && !row.enabled) return false;
-      if (selector.languageId && row.languageId !== selector.languageId && row.scope === 'language') return false;
-      if (selector.projectId && row.projectId !== selector.projectId && row.scope === 'project') return false;
+      const hasLanguageFilter = selector.languageId !== undefined;
+      const hasProjectFilter = selector.projectId !== undefined;
+      if (row.scope === 'language') return hasLanguageFilter && row.languageId === selector.languageId;
+      if (row.scope === 'project') return hasProjectFilter && row.projectId === selector.projectId;
+      if (hasLanguageFilter || hasProjectFilter) return false;
       return true;
     }));
   }
@@ -100,7 +115,7 @@ export class LinguisticStructuralProfileService {
     const now = new Date().toISOString();
     const languageId = normalizeOptionalRef(input.languageId);
     const projectId = normalizeOptionalRef(input.projectId);
-    assertScopedAsset({ scope: input.scope, languageId, projectId });
+    assertScopedAsset(buildScopeInput(input.scope, languageId, projectId));
     const doc: StructuralRuleProfileAssetDocType = {
       id: newId('srp'),
       scope: input.scope,
@@ -129,7 +144,7 @@ export class LinguisticStructuralProfileService {
     const languageId = input.languageId === undefined ? existing.languageId : normalizeOptionalRef(input.languageId);
     const projectId = input.projectId === undefined ? existing.projectId : normalizeOptionalRef(input.projectId);
     const scope = input.scope ?? existing.scope;
-    assertScopedAsset({ scope, languageId, projectId });
+    assertScopedAsset(buildScopeInput(scope, languageId, projectId));
     const next: StructuralRuleProfileAssetDocType = {
       ...existing,
       scope,
@@ -161,24 +176,30 @@ export class LinguisticStructuralProfileService {
   static async previewStructuralRuleProfile(
     input: PreviewStructuralRuleProfileInput,
   ): Promise<StructuralRuleProfilePreview> {
-    const assets = await this.listStructuralRuleProfileAssets({
-      languageId: input.languageId,
-      projectId: input.projectId,
+    const glossText = input.glossText.trim();
+    if (!glossText) {
+      throw new Error('glossText must be non-empty');
+    }
+    const selector: StructuralRuleProfileAssetSelector = {
       includeDisabled: true,
-    });
+      ...(input.languageId ? { languageId: input.languageId } : {}),
+      ...(input.projectId ? { projectId: input.projectId } : {}),
+    };
+    const assets = await this.listStructuralRuleProfileAssets(selector);
+    const context: StructuralRuleProfileResolutionContext = {
+      ...(input.languageId ? { languageId: input.languageId } : {}),
+      ...(input.projectId ? { projectId: input.projectId } : {}),
+      ...(input.userOverrideProfile ? { userOverrideProfile: input.userOverrideProfile } : {}),
+    };
     const resolution = resolveStructuralRuleProfile(
       DEFAULT_LEIPZIG_STRUCTURAL_PROFILE,
       assets,
-      {
-        languageId: input.languageId,
-        projectId: input.projectId,
-        userOverrideProfile: input.userOverrideProfile,
-      },
+      context,
     );
-    const parseResult = parseGlossStructure(input.glossText, resolution.profile);
+    const parseResult = parseGlossStructure(glossText, resolution.profile);
     const candidateGraph = projectStructuralParseToAnalysisGraph(parseResult, {
-      text: input.text ?? input.glossText,
-      displayGloss: input.glossText,
+      text: input.text ?? glossText,
+      displayGloss: glossText,
     });
     return { resolution, parseResult, candidateGraph };
   }

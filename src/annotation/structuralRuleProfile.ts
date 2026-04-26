@@ -58,7 +58,7 @@ export type StructuralBoundaryType =
   | 'supplied'
   | 'alternation';
 
-export type StructuralSegmentKind = 'lexical' | 'feature' | 'zero' | 'infix' | 'supplied';
+export type StructuralSegmentKind = 'lexical' | 'feature' | 'zero' | 'reduplication' | 'infix' | 'supplied';
 
 export type StructuralParsedSegment = {
   id: string;
@@ -131,11 +131,19 @@ function startsWithMarker(input: string, offset: number, marker: string): boolea
   return input.slice(offset, offset + marker.length) === marker;
 }
 
+/** True when the segment should be treated as an interlinear gloss feature label (vs surface/lexical material). */
+function segmentLooksLikeGlossFeatureLabel(text: string): boolean {
+  if (!text) return false;
+  if (text !== text.toLocaleUpperCase('und')) return false;
+  return /\p{Lu}|\p{N}/u.test(text);
+}
+
 function classifySegment(text: string, profile: StructuralRuleProfile, forcedKind?: StructuralSegmentKind): StructuralSegmentKind {
   if (forcedKind) return forcedKind;
   const upper = text.toUpperCase();
   if (profile.zeroMarkers.some((marker) => marker.toUpperCase() === upper)) return 'zero';
-  if (/^[A-Z0-9]+$/.test(text)) return 'feature';
+  if (profile.reduplicationMarkers.some((marker) => marker.toUpperCase() === upper)) return 'reduplication';
+  if (segmentLooksLikeGlossFeatureLabel(text)) return 'feature';
   return 'lexical';
 }
 
@@ -177,7 +185,8 @@ export function parseGlossStructure(
       endOffset,
     };
     segments.push(segment);
-    if (segment.kind === 'feature' || segment.kind === 'zero' || segment.kind === 'infix' || segment.kind === 'supplied') {
+    // `features` lists morphosyntactic/grammatical feature tokens only; do not count `supplied` filler (coverage stats stay meaningful).
+    if (segment.kind === 'feature' || segment.kind === 'zero' || segment.kind === 'infix') {
       features.push({ segmentId: segment.id, label: segment.text });
     }
     segmentIndex += 1;

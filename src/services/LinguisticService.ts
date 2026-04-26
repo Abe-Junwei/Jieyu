@@ -48,6 +48,7 @@ import {
 import { remapLayerUnitsAndAnchorsForFirstAcousticImport } from '../utils/remapLayerUnitsForFirstAcousticImport';
 import { type ImportQualityReport } from './LinguisticService.constraints';
 import type { ApplyOrthographyBridgeInput, CloneOrthographyToLanguageInput, CreateOrthographyInput, CreateOrthographyBridgeInput, GetActiveOrthographyBridgeInput, ListOrthographyRecordsSelector, ListOrthographyBridgesSelector, PreviewOrthographyBridgeInput, UpdateOrthographyInput, UpdateOrthographyBridgeInput } from './LinguisticService.orthography';
+import type { CreateStructuralRuleProfileAssetInput, PreviewStructuralRuleProfileInput, StructuralRuleProfileAssetSelector, StructuralRuleProfilePreview, UpdateStructuralRuleProfileAssetInput } from './LinguisticService.structuralProfiles';
 import type { LanguageCatalogEntry, UpsertLanguageCatalogEntryInput } from './LinguisticService.languageCatalog';
 import { lookupIso639_3Seed } from './languageCatalogSeedLookup';
 import { SegmentMetaService } from './SegmentMetaService';
@@ -105,6 +106,10 @@ function loadTierService() {
 
 function loadOrthographyService() {
   return import('./LinguisticService.orthography');
+}
+
+function loadStructuralProfileService() {
+  return import('./LinguisticService.structuralProfiles');
 }
 
 function loadLanguageCatalogService() {
@@ -1366,6 +1371,26 @@ export class LinguisticService {
 
   static previewOrthographyBridge(input: PreviewOrthographyBridgeInput): string {
     return previewOrthographyBridgeText(input);
+  }
+
+  static async listStructuralRuleProfileAssets(selector: StructuralRuleProfileAssetSelector = {}) {
+    return (await loadStructuralProfileService()).LinguisticStructuralProfileService.listStructuralRuleProfileAssets(selector);
+  }
+
+  static async createStructuralRuleProfileAsset(input: CreateStructuralRuleProfileAssetInput) {
+    return (await loadStructuralProfileService()).LinguisticStructuralProfileService.createStructuralRuleProfileAsset(input);
+  }
+
+  static async updateStructuralRuleProfileAsset(input: UpdateStructuralRuleProfileAssetInput) {
+    return (await loadStructuralProfileService()).LinguisticStructuralProfileService.updateStructuralRuleProfileAsset(input);
+  }
+
+  static async setStructuralRuleProfileAssetEnabled(id: string, enabled: boolean) {
+    return (await loadStructuralProfileService()).LinguisticStructuralProfileService.setStructuralRuleProfileAssetEnabled(id, enabled);
+  }
+
+  static async previewStructuralRuleProfile(input: PreviewStructuralRuleProfileInput): Promise<StructuralRuleProfilePreview> {
+    return (await loadStructuralProfileService()).LinguisticStructuralProfileService.previewStructuralRuleProfile(input);
   }
 
   // ── Audio import ───────────────────────────────────────────

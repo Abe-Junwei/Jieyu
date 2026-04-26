@@ -1708,6 +1708,15 @@ function TranscriptionPageReadyWorkspace({
   });
 
   const aiScopeMediaItem = segmentScopeMediaItem ?? selectedTimelineMedia;
+  const noteCategorySummary = currentNotes.reduce<Record<string, number>>((acc, note) => {
+    const category = (note.category ?? 'comment').trim();
+    acc[category] = (acc[category] ?? 0) + 1;
+    return acc;
+  }, {});
+  const laneLockEntriesForAi = Object.entries(trackDisplayController.effectiveLaneLockMap)
+    .filter(([, laneIndex]) => typeof laneIndex === 'number' && Number.isFinite(laneIndex))
+    .slice(0, 16)
+    .map(([speakerId, laneIndex]) => ({ speakerId, laneIndex: Math.floor(laneIndex) }));
   const assistantBridgeControllerInput = buildReadyWorkspaceAssistantBridgeInput({
     selectedUnitIds,
     selectedUnit: selectedUnit ?? null,
@@ -1751,7 +1760,60 @@ function TranscriptionPageReadyWorkspace({
     updateTokenGloss,
     selectUnit,
     setSaveState,
+    unitDrafts,
     translationDrafts,
+    focusedTranslationDraftKeyRef,
+    speakers,
+    noteSummary: {
+      count: currentNotes.length,
+      byCategory: noteCategorySummary,
+      ...(focusedLayerRowId ? { focusedLayerId: focusedLayerRowId } : {}),
+      ...(notePopover?.uttId ? { currentTargetUnitId: notePopover.uttId } : {}),
+    },
+    visibleTimelineState: {
+      ...(selectedTimelineMedia?.id ? { currentMediaId: selectedTimelineMedia.id } : {}),
+      ...(selectedTimelineMedia?.filename ? { currentMediaFilename: selectedTimelineMedia.filename } : {}),
+      ...(focusedLayerRowId ? { focusedLayerId: focusedLayerRowId } : {}),
+      ...(selectedLayerId ? { selectedLayerId } : {}),
+      selectedUnitCount: selectedUnitIds.size,
+      verticalViewActive,
+      transcriptionTrackMode,
+      ...(timelineViewportProjection.documentSpanSec > 0
+        ? { documentSpanSec: timelineViewportProjection.documentSpanSec }
+        : {}),
+      ...(typeof timelineViewportProjection.zoomPercent === 'number' && Number.isFinite(timelineViewportProjection.zoomPercent)
+        ? { zoomPercent: timelineViewportProjection.zoomPercent }
+        : {}),
+      ...(typeof timelineViewportProjection.maxZoomPercent === 'number' && Number.isFinite(timelineViewportProjection.maxZoomPercent)
+        ? { maxZoomPercent: timelineViewportProjection.maxZoomPercent }
+        : {}),
+      ...(typeof timelineViewportProjection.zoomPxPerSec === 'number' && Number.isFinite(timelineViewportProjection.zoomPxPerSec)
+        ? { zoomPxPerSec: timelineViewportProjection.zoomPxPerSec }
+        : {}),
+      ...(typeof timelineViewportProjection.fitPxPerSec === 'number' && Number.isFinite(timelineViewportProjection.fitPxPerSec)
+        ? { fitPxPerSec: timelineViewportProjection.fitPxPerSec }
+        : {}),
+      ...(timelineViewportProjection.rulerView
+        ? {
+            rulerVisibleStartSec: timelineViewportProjection.rulerView.start,
+            rulerVisibleEndSec: timelineViewportProjection.rulerView.end,
+          }
+        : {}),
+      ...(typeof timelineViewportProjection.waveformScrollLeft === 'number' && Number.isFinite(timelineViewportProjection.waveformScrollLeft)
+        ? { waveformScrollLeftPx: timelineViewportProjection.waveformScrollLeft }
+        : {}),
+      ...(laneLockEntriesForAi.length > 0
+        ? {
+            laneLockSpeakerCount: Object.keys(trackDisplayController.effectiveLaneLockMap).length,
+            laneLocks: laneLockEntriesForAi,
+          }
+        : {}),
+      ...(speakerController.selectedSpeakerIdsForTrackLock.length > 0
+        ? { trackLockSpeakerIds: [...speakerController.selectedSpeakerIdsForTrackLock] }
+        : {}),
+      activeSpeakerFilterKey: speakerController.activeSpeakerFilterKey,
+    },
+    ...(typeof activeTextId === 'string' && activeTextId.trim().length > 0 ? { activeTextId: activeTextId.trim() } : {}),
     translationTextByLayer,
     locale,
     executeActionRef,

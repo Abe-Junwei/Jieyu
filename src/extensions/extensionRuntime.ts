@@ -1,3 +1,6 @@
+import { featureFlags } from '../ai/config/featureFlags';
+import { resolveExtensionTrustDecision, type ExtensionInvocationRecord } from './extensionTrustGovernance';
+
 export const EXTENSION_MANIFEST_SCHEMA_VERSION = '1.0.0' as const;
 
 export type ExtensionCapability =
@@ -6,6 +9,8 @@ export type ExtensionCapability =
   | 'read.language-assets'
   | 'write.language-assets'
   | 'invoke.ai';
+
+export type ExtensionTrustLevel = 'official' | 'trusted' | 'community' | 'untrusted';
 
 export interface ExtensionManifestV1 {
   schemaVersion: typeof EXTENSION_MANIFEST_SCHEMA_VERSION;
@@ -17,6 +22,11 @@ export interface ExtensionManifestV1 {
     maxHostVersion?: string;
   };
   capabilities: ExtensionCapability[];
+  trustLevel?: ExtensionTrustLevel;
+  declaredCapabilitiesVersion?: string;
+  quotaProfile?: {
+    maxCallsPerMinute?: number;
+  };
   entry: {
     activate: string;
     deactivate?: string;
@@ -71,6 +81,8 @@ export type ExtensionCapabilityAuditPayload = {
   ok: boolean;
   durationMs: number;
   errorMessage?: string;
+  trustLevel?: ExtensionTrustLevel;
+  denyReason?: string;
 };
 
 export interface ExtensionHostOptions {
@@ -286,6 +298,7 @@ export function createExtensionHost(options: ExtensionHostOptions): ExtensionHos
   let state: ExtensionLifecycleState = 'idle';
   let manifest: ExtensionManifestV1 | null = null;
   let hooks: ExtensionHooks | null = null;
+  const recentInvocations: ExtensionInvocationRecord[] = [];
 
   const getActivationContext = (): ExtensionActivationContext => {
     if (!manifest) {
@@ -380,25 +393,37 @@ export function createExtensionHost(options: ExtensionHostOptions): ExtensionHos
     if (!handler) {
       throw new ExtensionCapabilityDeniedError(`Capability not allowed by host: ${capability}`);
     }
-    const extensionId = manifest.id;
+    const activeManifest = manifest;
+    const extensionId = activeManifest.id;
     const started = typeof performance !== 'undefined' && typeof performance.now === 'function'
       ? performance.now()
       : Date.now();
-    const emitAudit = (ok: boolean, errorMessage?: string): void => {
+    const emitAudit = (ok: boolean, errorMessage?: string, denyReason?: string): void => {
       const end = typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
         : Date.now();
+      const durationMs = Math.round(end - started);
       options.onCapabilityAudit?.({
         extensionId,
         capability,
         ok,
-        durationMs: Math.round(end - started),
+        durationMs,
+        ...(activeManifest.trustLevel ? { trustLevel: activeManifest.trustLevel } : {}),
+        ...(denyReason ? { denyReason } : {}),
         ...(typeof errorMessage === 'string' && errorMessage.length > 0 ? { errorMessage } : {}),
       });
+      recentInvocations.push({ extensionId, capability, timestampMs: Date.now(), ok });
+      if (recentInvocations.length > 500) recentInvocations.splice(0, recentInvocations.length - 500);
     };
+    const trustDecision = resolveExtensionTrustDecision({ enabled: featureFlags.aiExtensionTrustGovernanceEnabled, manifest: activeManifest, capability, recentInvocations });
+    if (trustDecision.action === 'deny') {
+      const message = `Extension capability denied by trust governance: ${trustDecision.reason}`;
+      emitAudit(false, message, trustDecision.reason);
+      throw new ExtensionCapabilityDeniedError(message);
+    }
     const context: ExtensionInvocationContext = {
       hostVersion: options.hostVersion,
-      manifest,
+      manifest: activeManifest,
     };
     try {
       const result = await withTimeout(

@@ -125,6 +125,70 @@ export function resolveLocalToolRoutingPlan(
       ? memory.localToolState?.lastFrame?.metric
       : undefined);
 
+  if (isUnsavedDraftIntentText(userText)) {
+    return {
+      queryFamily: 'selection',
+      selectedTools: ['get_unsaved_drafts'],
+      scope: inferredScope ?? 'current_scope',
+    };
+  }
+
+  if (isVisibleTimelineStateIntentText(userText)) {
+    return {
+      queryFamily: 'selection',
+      selectedTools: ['get_visible_timeline_state'],
+      scope: inferredScope ?? 'current_scope',
+    };
+  }
+
+  if (isSpeakerBreakdownIntentText(userText)) {
+    return {
+      queryFamily: 'count',
+      selectedTools: ['get_speaker_breakdown'],
+      scope: inferredScope ?? 'current_track',
+    };
+  }
+
+  if (isSpeakerListIntentText(userText)) {
+    return {
+      queryFamily: 'list',
+      selectedTools: ['list_speakers'],
+      scope: inferredScope ?? 'current_scope',
+    };
+  }
+
+  if (isNoteDetailIntentText(userText)) {
+    return {
+      queryFamily: 'list',
+      selectedTools: ['list_notes_detail'],
+      scope: inferredScope ?? 'current_track',
+    };
+  }
+
+  if (isNoteListIntentText(userText)) {
+    return {
+      queryFamily: 'list',
+      selectedTools: ['list_notes'],
+      scope: inferredScope ?? 'current_scope',
+    };
+  }
+
+  if (isLayerLinkIntentText(userText)) {
+    return {
+      queryFamily: 'list',
+      selectedTools: ['list_layer_links'],
+      scope: inferredScope ?? 'current_scope',
+    };
+  }
+
+  if (isLayerListIntentText(userText)) {
+    return {
+      queryFamily: 'list',
+      selectedTools: ['list_layers'],
+      scope: inferredScope ?? 'current_scope',
+    };
+  }
+
   if (isGapCountIntentText(userText)) {
     const scope = inferredScope ?? 'current_track';
     return {
@@ -291,6 +355,58 @@ function inferMetricFromUserText(userText: string): LocalToolMetric | undefined 
   if (/(confidence|置信度|可信度)/i.test(text)) return 'ai_confidence_avg';
   if (/(segments?|units?|units?|rows?|语段|句段|条目)/i.test(text)) return 'unit_count';
   return undefined;
+}
+
+function isLayerListIntentText(userText: string): boolean {
+  const text = userText.trim();
+  if (!text) return false;
+  if (/(层链接|关联.*层|绑定.*层|host|layer\s*links?)/iu.test(text)) return false;
+  return /(当前.*层|有哪些层|层.*是什么|层.*内容|新建.*层|看到.*层|list\s+layers?|layers?\b)/iu.test(text);
+}
+
+function isLayerLinkIntentText(userText: string): boolean {
+  const text = userText.trim();
+  if (!text) return false;
+  return /(层链接|关联.*层|绑定.*层|宿主|首选.*链接|orphan.*layer|host.*layer|layer\s*links?)/iu.test(text);
+}
+
+function isUnsavedDraftIntentText(userText: string): boolean {
+  const text = userText.trim();
+  if (!text) return false;
+  return /(未保存|草稿|刚.*改|刚.*输入|还没保存|draft|unsaved|dirty)/iu.test(text);
+}
+
+function isSpeakerBreakdownIntentText(userText: string): boolean {
+  const text = userText.trim();
+  if (!text) return false;
+  if (/(有哪些说话人|说话人清单|list\s+speakers?|speaker\s+list)/iu.test(text)) return false;
+  return /(按说话人|各说话人|每个说话人|说话人分布|分布.*说话人|语段.*说话人|说话人.*语段|说话人.*统计|统计.*说话人|speaker\s+breakdown|segments?\s+per\s+speaker)/iu.test(text);
+}
+
+function isSpeakerListIntentText(userText: string): boolean {
+  const text = userText.trim();
+  if (!text) return false;
+  if (/(多少|几个|总共|count|how\s+many)/iu.test(text)) return false;
+  return /(说话人.*有哪些|有哪些说话人|说话人清单|list\s+speakers?|speaker\s+list)/iu.test(text);
+}
+
+function isNoteDetailIntentText(userText: string): boolean {
+  const text = userText.trim();
+  if (!text) return false;
+  return /(笔记明细|笔记详情|最近.*笔记|(逐条|具体).*笔记|note\s+(detail|entries)|list_notes_detail)/iu.test(text);
+}
+
+function isNoteListIntentText(userText: string): boolean {
+  const text = userText.trim();
+  if (!text) return false;
+  if (isNoteDetailIntentText(userText)) return false;
+  return /(笔记|注释|备注|todo|note\s+list|list\s+notes?)/iu.test(text);
+}
+
+function isVisibleTimelineStateIntentText(userText: string): boolean {
+  const text = userText.trim();
+  if (!text) return false;
+  return /(当前视图|可见状态|可见.*时间轴|时间轴状态|当前界面|当前聚焦|focus(ed)?\s+layer|visible\s+timeline|layout\s+mode|缩放|刻度|ruler|zoom)/iu.test(text);
 }
 
 function resolveProjectStatsCall(
@@ -671,6 +787,39 @@ export function resolveLocalToolCalls(
             ...call.arguments,
             limit: normalizeLimit(call.arguments.limit),
             scope,
+          },
+        };
+      }
+      case 'get_speaker_breakdown': {
+        const scope = resolvePreferredScope(call, userText, memory, scopeHint);
+        return {
+          ...call,
+          arguments: {
+            ...call.arguments,
+            scope,
+          },
+        };
+      }
+      case 'list_notes_detail': {
+        const scope = resolvePreferredScope(call, userText, memory, scopeHint);
+        return {
+          ...call,
+          arguments: {
+            ...call.arguments,
+            scope,
+            limit: (() => {
+              const raw = call.arguments.limit;
+              if (typeof raw === 'number' && Number.isFinite(raw)) {
+                return Math.min(50, Math.max(1, Math.floor(raw)));
+              }
+              if (typeof raw === 'string' && raw.trim().length > 0) {
+                const parsed = Number(raw);
+                if (Number.isFinite(parsed)) {
+                  return Math.min(50, Math.max(1, Math.floor(parsed)));
+                }
+              }
+              return 20;
+            })(),
           },
         };
       }

@@ -7,7 +7,7 @@ import { resolveToolIntentOutcome } from './useAiChat.intentResolution';
 import { handleInvalidToolArguments } from './useAiChat.argsValidation';
 import { resolveDestructiveGate } from './useAiChat.destructiveGate';
 import { executeAutoToolCall } from './useAiChat.autoExecute';
-import type { AiChatToolCall, AiInteractionMetrics, AiPromptContext, AiSessionMemory, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, UiChatMessage } from './useAiChat';
+import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, UiChatMessage } from './useAiChat';
 
 interface ResolveToolDecisionPipelineParams {
   assistantMessageId: string;
@@ -21,6 +21,7 @@ interface ResolveToolDecisionPipelineParams {
   toolDecisionMode: AiToolDecisionMode;
   toolFeedbackStyle: AiToolFeedbackStyle;
   planner?: Parameters<typeof buildToolAuditContext>[5];
+  memoryRecallShape?: AiMemoryRecallShapeTelemetry;
   allowDestructiveToolCalls: boolean;
   onToolRiskCheck?: ((call: AiChatToolCall) => Promise<AiToolRiskCheckResult | null | undefined> | AiToolRiskCheckResult | null | undefined) | null | undefined;
   preparePendingToolCall?: ((call: AiChatToolCall) => Promise<AiChatToolCall | null | undefined> | AiChatToolCall | null | undefined) | null | undefined;
@@ -73,6 +74,7 @@ export async function resolveToolDecisionPipeline({
   toolDecisionMode,
   toolFeedbackStyle,
   planner,
+  memoryRecallShape,
   allowDestructiveToolCalls,
   onToolRiskCheck,
   preparePendingToolCall,
@@ -133,6 +135,7 @@ export async function resolveToolDecisionPipeline({
     toolDecisionMode,
     toolFeedbackStyle,
     planner,
+    ...(memoryRecallShape ? { memoryRecallShape } : {}),
     writeToolIntentAuditLog,
   });
 

@@ -2,6 +2,7 @@
  * Zod 验证 Schema 与 validate 函数 | Zod validation schemas and validate functions
  */
 import { z } from 'zod';
+import { annotationAnalysisGraphFixtureSchema } from '../annotation/analysisGraph';
 import { structuralRuleProfileSchema } from '../annotation/structuralRuleProfile';
 import { UNIT_SELF_CERTAINTY_VALUES } from '../utils/unitSelfCertainty';
 import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType } from './types';
@@ -621,7 +622,7 @@ const layerDocDiscriminatedSchema = z.discriminatedUnion('layerType', [
 const layerUnitTypeSchema = z.enum(['unit', 'segment']);
 const layerUnitStatusSchema = z.enum(['raw', 'transcribed', 'translated', 'glossed', 'verified']);
 const layerContentRoleSchema = z.enum(['primary_text', 'translation', 'gloss', 'note', 'audio_ref']);
-const unitRelationTypeSchema = z.enum(['aligned_to', 'derived_from', 'linked_reference']);
+const unitRelationTypeSchema = z.enum(['aligned_to', 'derived_from', 'linked_reference', 'analysis_graph_candidate']);
 
 const layerUnitDocSchema = z
   .object({
@@ -679,10 +680,62 @@ const unitRelationDocSchema = z
     targetUnitId: z.string().min(1).optional(),
     relationType: unitRelationTypeSchema.optional(),
     provenance: provenanceSchema.optional(),
+    analysisGraphCandidate: z.unknown().optional(),
+    analysisGraphStatus: z.enum(['pending', 'accepted', 'rejected']).optional(),
+    manualConfirmed: z.boolean().optional(),
     createdAt: isoDateSchema,
     updatedAt: isoDateSchema,
   })
-  .passthrough();
+  .passthrough()
+  .superRefine((doc, ctx) => {
+    if (doc.analysisGraphStatus && doc.relationType !== 'analysis_graph_candidate') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['analysisGraphStatus'],
+        message: 'analysisGraphStatus requires relationType analysis_graph_candidate',
+      });
+    }
+    if (doc.relationType === 'analysis_graph_candidate' && !doc.analysisGraphCandidate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['analysisGraphCandidate'],
+        message: 'analysis_graph_candidate relation requires analysisGraphCandidate',
+      });
+    }
+    if (doc.relationType === 'analysis_graph_candidate' && doc.analysisGraphCandidate) {
+      const parsed = annotationAnalysisGraphFixtureSchema.safeParse(doc.analysisGraphCandidate);
+      if (!parsed.success) {
+        const first = parsed.error.issues[0];
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['analysisGraphCandidate', ...((first?.path as (string | number)[]) ?? [])],
+          message: first?.message ?? 'analysisGraphCandidate must match annotationAnalysisGraphFixtureSchema',
+        });
+      }
+    }
+    const reviewStatus = doc.provenance?.reviewStatus;
+    if (doc.analysisGraphStatus === 'pending' && reviewStatus && reviewStatus !== 'suggested') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['provenance', 'reviewStatus'],
+        message: 'pending analysis graph candidate requires suggested reviewStatus',
+      });
+    }
+    if (doc.analysisGraphStatus === 'accepted' && reviewStatus && reviewStatus !== 'confirmed') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['provenance', 'reviewStatus'],
+        message: 'accepted analysis graph candidate requires confirmed reviewStatus',
+      });
+    }
+    if (doc.analysisGraphStatus === 'rejected' && reviewStatus && reviewStatus !== 'rejected') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['provenance', 'reviewStatus'],
+        message: 'rejected analysis graph candidate requires rejected reviewStatus',
+      });
+    }
+  });
 
 const tierTypeSchema = z.enum(['time-aligned', 'time-subdivision', 'symbolic-subdivision', 'symbolic-association']);
 const tierContentTypeSchema = z.enum(['transcription', 'translation', 'gloss', 'pos', 'note', 'custom']);

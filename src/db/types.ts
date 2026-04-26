@@ -688,7 +688,7 @@ export function stripForbiddenTranslationParentLayerId(layer: LayerDocType): Lay
 export type LayerUnitType = 'unit' | 'segment';
 export type LayerUnitStatus = 'raw' | 'transcribed' | 'translated' | 'glossed' | 'verified';
 export type LayerContentRole = 'primary_text' | 'translation' | 'gloss' | 'note' | 'audio_ref';
-export type UnitRelationType = 'aligned_to' | 'derived_from' | 'linked_reference';
+export type UnitRelationType = 'aligned_to' | 'derived_from' | 'linked_reference' | 'analysis_graph_candidate';
 export type UnitRelationLinkType = 'equivalent' | 'projection' | 'bridge' | 'time_subdivision';
 
 /**
@@ -799,6 +799,9 @@ export interface UnitRelationDocType {
   targetLayerId?: string | undefined;
   unitId?: string | undefined;
   confidence?: number | undefined;
+  analysisGraphCandidate?: Record<string, unknown> | undefined;
+  analysisGraphStatus?: 'pending' | 'accepted' | 'rejected' | undefined;
+  manualConfirmed?: boolean | undefined;
 }
 
 export type UnitRelationViewDocType = UnitRelationDocType & {

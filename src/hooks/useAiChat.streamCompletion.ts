@@ -7,13 +7,14 @@ import { createMetricTags, recordMetric } from '../observability/metrics';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
-import type { AiChatToolCall, AiInteractionMetrics, AiPromptContext, AiSessionMemory, AiTaskSession, AiTaskTraceEntry, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, ToolAuditContext, UiChatMessage } from './useAiChat.types';
+import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiTaskTraceEntry, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, ToolAuditContext, UiChatMessage } from './useAiChat.types';
 
 export interface ResolveAiChatStreamCompletionParams {
   assistantId: string;
   assistantContent: string;
   userText: string;
   aiContext: AiPromptContext | null;
+  memoryRecallShape?: AiMemoryRecallShapeTelemetry;
   messages: UiChatMessage[];
   providerId: string;
   model: string;
@@ -196,6 +197,7 @@ export async function resolveAiChatStreamCompletion({
   assistantContent,
   userText,
   aiContext,
+  memoryRecallShape,
   messages,
   providerId,
   model,
@@ -410,6 +412,7 @@ export async function resolveAiChatStreamCompletion({
       toolDecisionMode,
       toolFeedbackStyle,
       planner,
+      ...(memoryRecallShape ? { memoryRecallShape } : {}),
       allowDestructiveToolCalls,
       ...(onToolRiskCheck ? { onToolRiskCheck } : {}),
       ...(preparePendingToolCall ? { preparePendingToolCall } : {}),

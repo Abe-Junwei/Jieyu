@@ -59,6 +59,10 @@ function sortAssetsForResolution(
   });
 }
 
+/**
+ * Each matching `asset.profile` **fully replaces** the effective profile for subsequent layers (no deep merge with defaults).
+ * @see 证据化发布与AI工具治理完整方案 — 附录 11.1a
+ */
 export function resolveStructuralRuleProfile(
   systemProfile: StructuralRuleProfile = DEFAULT_LEIPZIG_STRUCTURAL_PROFILE,
   assets: readonly StructuralRuleProfileAssetDocType[] = [],

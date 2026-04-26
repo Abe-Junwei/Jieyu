@@ -6,6 +6,9 @@ import path from 'node:path';
 
 interface PerfSection {
   status: string;
+  perfJsonReportReadError?: {
+    message: string;
+  };
   summary: {
     total: number;
     passed: number;
@@ -88,8 +91,16 @@ interface ReleaseEvidenceReport {
     } | null;
   };
   costGuard: CostGuardSection;
-  evidenceIndex: Array<{ conclusionId: string }>;
+  evidenceIndex: Array<{ conclusionId: string; evidenceType?: string }>;
   aiToolEvidenceCards: {
+    summary: {
+      total: number;
+      ready: number;
+      skipped: number;
+    };
+    auditReadError?: {
+      message: string;
+    };
     cards: Array<{
       requestId: string;
       status: string;
@@ -641,6 +652,90 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.perf.cards.find((card) => card.script === 'perf:track')?.metricObservedMs).toBe(201);
       expect(report.perf.cards.find((card) => card.script === 'test:timeline-cqrs-phase9')?.metricObservedMs).toBe(320);
       expect(report.perf.cards.find((card) => card.script === 'perf:ai')?.metricObservedMs).toBe(412);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails enforce mode when requested AI evidence cards cannot be built', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const missingAuditExportPath = path.join(tempDir, 'missing-ai-audit.ndjson');
+
+    try {
+      const result = runReleaseEvidenceScript([
+        '--profile=core',
+        '--dry-run',
+        '--mode=enforce',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        '--ai-request-ids=missing_request',
+        `--ai-audit-export=${missingAuditExportPath}`,
+      ]);
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+
+      expect(report.degraded).toBe(true);
+      expect(report.aiToolEvidenceCards.summary.ready).toBe(0);
+      expect(report.aiToolEvidenceCards.auditReadError?.message).toContain('missing-ai-audit.ndjson');
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'a2.ai-evidence-card.require-ready')).toBe(true);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'release-evidence.input-read.require-success')).toBe(true);
+      expect(report.summary?.failed).toBeGreaterThanOrEqual(2);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails enforce mode when an explicit perf JSON report cannot be read', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const missingPerfJsonPath = path.join(tempDir, 'missing-perf.json');
+
+    try {
+      const result = runReleaseEvidenceScript([
+        '--profile=full',
+        '--dry-run',
+        '--mode=enforce',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        `--perf-json-report=${missingPerfJsonPath}`,
+      ]);
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+
+      expect(report.degraded).toBe(true);
+      expect(report.perf.perfJsonReportReadError?.message).toContain('missing-perf.json');
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'release-evidence.input-read.require-success')).toBe(true);
+      expect(report.summary?.failed).toBeGreaterThanOrEqual(1);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('includes release-evidence section skips in the root summary', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+
+    try {
+      const result = runReleaseEvidenceScript([
+        '--profile=core',
+        '--dry-run',
+        '--mode=shadow',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+      ]);
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+
+      expect(report.summary?.total).toBe(report.evidenceIndex.length);
+      expect(report.summary?.skipped).toBeGreaterThan(5);
+      expect(report.evidenceIndex.some((item) => item.evidenceType === 'progressive_disclosure_skipped')).toBe(true);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

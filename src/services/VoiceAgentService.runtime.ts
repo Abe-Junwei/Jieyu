@@ -6,6 +6,8 @@
 import type { CommercialProviderKind, SttEngine } from './VoiceInputService';
 import type { CommercialProviderCreateConfig, SttEnhancementConfig, SttEnhancementSelectionKind } from './stt';
 import type { Region } from '../utils/regionDetection';
+import { featureFlags } from '../ai/config/featureFlags';
+import { getVoiceProviderManifestForEngine } from './stt/voiceProviderManifest';
 
 export interface BuildVoiceAgentStartConfigParams {
   lang: string;
@@ -51,7 +53,9 @@ export async function buildVoiceAgentStartConfig(
     lang: params.lang,
     continuous: true,
     interimResults: true,
-    preferredEngine: params.runtimeEngine,
+    preferredEngine: featureFlags.aiVoiceProviderManifestEnabled
+      ? getVoiceProviderManifestForEngine(params.runtimeEngine, params.commercialProviderKind).engine
+      : params.runtimeEngine,
     region: params.region,
     maxAlternatives: 3,
   };

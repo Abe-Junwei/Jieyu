@@ -17,10 +17,10 @@
     "logsDir": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate"
   },
   "summary": {
-    "total": 5,
+    "total": 11,
     "passed": 0,
     "failed": 0,
-    "skipped": 5
+    "skipped": 11
   },
   "evidenceIndex": [
     {
