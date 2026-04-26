@@ -139,6 +139,22 @@
   --space-12: 48px;
   --space-16: 64px;
 
+  /* 语义间距 Token（区块与标题节奏） | Semantic spacing tokens for section rhythm */
+  --space-stack-page: var(--space-4);
+  --space-stack-section: var(--space-3);
+  --space-title-content: var(--space-2);
+  --space-row-gap: var(--space-2);
+  --space-row-padding-y: 10px;
+  --space-section-padding: var(--space-3);
+  --space-tight-offset: 6px;
+  --space-micro-offset: var(--space-1);
+
+  /* 地图/行政区子域间距 Token | Map/admin domain spacing tokens */
+  --space-map-stack: var(--space-row-gap);
+  --space-map-section: 10px;
+  --space-admin-stack: 10px;
+  --space-admin-inline: var(--space-row-gap);
+
   /* 圆角 */
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -310,6 +326,11 @@
   --input-h-md: 32px;
   --input-h-lg: 36px;
   --input-h-xl: 40px;
+  --input-h-compact: var(--input-h-sm);
+  --input-padding-compact: 6px 8px;
+  --input-padding-compact-select: 6px 34px 6px 8px;
+  --input-padding-micro: 3px 6px;
+  --input-line-height-compact: 1.25;
   --btn-h-sm: 28px;
   --btn-h-md: 32px;
   --btn-h-compact: 30px;

@@ -46,6 +46,10 @@ export type UseAiToolCallHandlerParams = {
   saveUnitText: (unitId: string, text: string, layerId?: string) => Promise<void>;
   saveUnitLayerText: (unitId: string, text: string, layerId: string) => Promise<void>;
   saveSegmentContentForLayer?: (segmentId: string, layerId: string, value: string) => Promise<void>;
+  /** Read committed segment-layer text (segmentation v2 map); enables rollback for `propose_changes` child writes. */
+  readSegmentLayerText?: (segmentId: string, layerId: string) => string;
+  /** Read current unit text for a layer from the in-memory read model; enables rollback for unit-scoped writes. */
+  readUnitLayerText?: (unitId: string, layerId?: string) => string;
   segmentTargets?: SegmentTargetDescriptor[];
   updateTokenPos?: (tokenId: string, pos: string | null) => Promise<void> | void;
   batchUpdateTokenPosByForm?: (unitId: string, form: string, pos: string | null) => Promise<number> | number;
@@ -107,6 +111,8 @@ export interface ExecutionContext {
   saveUnitText: UseAiToolCallHandlerParams['saveUnitText'];
   saveUnitLayerText: UseAiToolCallHandlerParams['saveUnitLayerText'];
   saveSegmentContentForLayer?: UseAiToolCallHandlerParams['saveSegmentContentForLayer'];
+  readSegmentLayerText?: UseAiToolCallHandlerParams['readSegmentLayerText'];
+  readUnitLayerText?: UseAiToolCallHandlerParams['readUnitLayerText'];
   updateTokenPos?: UseAiToolCallHandlerParams['updateTokenPos'];
   batchUpdateTokenPosByForm?: UseAiToolCallHandlerParams['batchUpdateTokenPosByForm'];
   updateTokenGloss?: UseAiToolCallHandlerParams['updateTokenGloss'];

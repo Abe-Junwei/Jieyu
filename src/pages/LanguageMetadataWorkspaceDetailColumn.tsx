@@ -151,24 +151,22 @@ export function LanguageMetadataWorkspaceDetailColumn({
               </label>
             </div>
 
-            <div className="lm-subgroup">
-              <div className="lm-subgroup-header">
-                <span className="panel-title-secondary lm-subgroup-title">{t(locale, 'workspace.languageMetadata.aliasesLabel')}</span>
-                <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.aliasesPlaceholder')}</p>
-              </div>
-              <div className="lm-field lm-field-block">
-                <input
-                  className="input"
-                  type="text"
-                  value={draft.aliasesText}
-                  onChange={(event) => onDraftChange('aliasesText', event.target.value)}
-                  placeholder={t(locale, 'workspace.languageMetadata.aliasesPlaceholder')}
-                  aria-label={t(locale, 'workspace.languageMetadata.aliasesLabel')}
-                />
-              </div>
+            <div className="panel-section__copy">
+              <span className="panel-title-secondary">{t(locale, 'workspace.languageMetadata.aliasesLabel')}</span>
+              <p className="panel-subsection__description">{t(locale, 'workspace.languageMetadata.aliasesPlaceholder')}</p>
+            </div>
+            <div className="lm-field lm-field-block">
+              <input
+                className="input"
+                type="text"
+                value={draft.aliasesText}
+                onChange={(event) => onDraftChange('aliasesText', event.target.value)}
+                placeholder={t(locale, 'workspace.languageMetadata.aliasesPlaceholder')}
+                aria-label={t(locale, 'workspace.languageMetadata.aliasesLabel')}
+              />
             </div>
 
-            <details className="lm-subgroup lm-matrix-fieldset">
+            <details className="lm-matrix-fieldset">
               <summary className="lm-matrix-header">
                 <div>
                   <span className="lm-matrix-title">{t(locale, 'workspace.languageMetadata.matrixTitle')}</span>
@@ -337,12 +335,11 @@ export function LanguageMetadataWorkspaceDetailColumn({
               <h3 className="panel-title-primary">{t(locale, 'workspace.languageMetadata.sectionPopulation')}</h3>
               <p className="lm-subsection-description">{t(locale, 'workspace.languageMetadata.sectionPopulationDescription')}</p>
             </summary>
-            <div className="lm-subgroup">
-              <div className="lm-subgroup-header">
-                <span className="panel-title-secondary lm-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationTitle')}</span>
-                <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationDescription')}</p>
-              </div>
-              <div className="lm-grid">
+            <div className="panel-section__copy">
+              <span className="panel-title-secondary">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationTitle')}</span>
+              <p className="panel-subsection__description">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationDescription')}</p>
+            </div>
+            <div className="lm-grid">
                 <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.speakerCountL1Label')}</span>
                   <input className="input" type="text" inputMode="numeric" value={draft.speakerCountL1} onChange={(event) => onDraftChange('speakerCountL1', event.target.value)} />
@@ -374,14 +371,12 @@ export function LanguageMetadataWorkspaceDetailColumn({
                   <input className="input" type="text" inputMode="decimal" value={draft.literacyRate} onChange={(event) => onDraftChange('literacyRate', event.target.value)} />
                 </label>
               </div>
-            </div>
 
-            <div className="lm-subgroup">
-              <div className="lm-subgroup-header">
-                <span className="panel-title-secondary lm-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityTitle')}</span>
-                <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityDescription')}</p>
-              </div>
-              <div className="lm-grid">
+            <div className="panel-section__copy">
+              <span className="panel-title-secondary">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityTitle')}</span>
+              <p className="panel-subsection__description">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityDescription')}</p>
+            </div>
+            <div className="lm-grid">
                 <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.endangermentLevelLabel')}</span>
                   <select className="input" value={draft.endangermentLevel} onChange={(event) => onDraftChange('endangermentLevel', event.target.value)}>
@@ -443,7 +438,6 @@ export function LanguageMetadataWorkspaceDetailColumn({
                   <span>{t(locale, 'workspace.languageMetadata.egidsLabel')}</span>
                   <input className="input" type="text" value={draft.egids} onChange={(event) => onDraftChange('egids', event.target.value)} />
                 </label>
-              </div>
             </div>
           </details>
 

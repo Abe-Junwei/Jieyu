@@ -51,7 +51,7 @@
 .ob-summary-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-row-gap, 8px);
   align-items: center;
   justify-content: flex-end;
   color: var(--text-secondary);
@@ -60,13 +60,13 @@
 .ob-summary-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-row-gap, 8px);
 }
 
 /* ── List panel ── */
 
 .ob-list-panel {
-  --la-list-gap: 10px;
+  --la-list-gap: var(--space-row-gap, 8px);
   --la-list-max-height: clamp(220px, 38vh, 420px);
   display: flex;
   flex-direction: column;
@@ -88,20 +88,6 @@
 
 .ob-workspace :is(.ob-list-panel, .ob-bridge-panel) .panel-section__copy {
   width: 100%;
-  text-align: left;
-}
-
-.ob-workspace :is(.ob-list-panel .panel-section__title, .ob-bridge-panel .panel-section__title, .orthography-builder-panel-compact .orthography-builder-group-title) {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  width: 100%;
-  margin: 0;
-  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-secondary);
   text-align: left;
 }
 
@@ -134,7 +120,7 @@
 .ob-filter-toggle {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-row-gap, 8px);
 }
 
 .ob-filter-toggle .btn {
@@ -169,7 +155,7 @@
 
 .ob-empty-callout {
   display: grid;
-  gap: 8px;
+  gap: var(--space-row-gap, 8px);
   padding: 12px;
   border: 1px dashed color-mix(in srgb, var(--state-warning-text) 35%, transparent);
   border-radius: var(--radius-2xl);
@@ -179,7 +165,7 @@
 .ob-inline-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-row-gap, 8px);
 }
 
 /* State 已收入 .la-shell 合约层 | unified via .la-shell contract */
@@ -206,7 +192,7 @@
 }
 
 .ob-workspace .orthography-builder-panel-compact {
-  gap: 12px;
+  gap: var(--space-stack-section, 12px);
   margin-top: 0;
   padding: 0;
   border: 0;
@@ -225,20 +211,20 @@
 .ob-workspace .orthography-builder-group,
 .ob-workspace .orthography-builder-group-body {
   display: grid;
-  gap: 12px;
+  gap: var(--space-stack-section, 12px);
 }
 
 .ob-workspace .orthography-builder-inline-badges {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-row-gap, 8px);
   flex-wrap: wrap;
 }
 
 .ob-workspace .orthography-builder-checkbox {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-row-gap, 8px);
 }
 
 .ob-workspace .orthography-builder-checkbox input {
@@ -248,7 +234,7 @@
 .ob-workspace .orthography-builder-validation-list,
 .ob-workspace .orthography-builder-context-list {
   margin: 0;
-  padding-left: 18px;
+  padding-inline-start: var(--space-4);
   display: grid;
   gap: 3px;
 }
@@ -279,7 +265,7 @@
   display: grid;
   gap: var(--la-section-gap);
   margin-top: 0;
-  padding: 18px 0 0;
+  padding: var(--space-4) 0 0;
   border: 0;
   border-top: 1px solid color-mix(in srgb, var(--border-soft) 44%, transparent);
   border-radius: 0;
@@ -291,7 +277,7 @@
   align-items: start;
 }
 
-.ob-bridge-panel .ob-bridge-group { display: grid; gap: 12px; grid-column: 1 / -1; }
+.ob-bridge-panel .ob-bridge-group { display: grid; gap: var(--space-stack-section, 12px); grid-column: 1 / -1; }
 
 .ob-bridge-panel .ob-bridge-group-source,
 .ob-bridge-panel .ob-bridge-group-meta {
@@ -319,7 +305,7 @@
   gap: var(--la-section-gap);
 }
 
-.ob-bridge-panel .orthography-builder-rule-block { gap: 12px; grid-column: span 2; }
+.ob-bridge-panel .orthography-builder-rule-block { gap: var(--space-stack-section, 12px); grid-column: span 2; }
 
 .ob-bridge-panel .orthography-builder-bridge-hint-box,
 .ob-bridge-panel .orthography-builder-validation-box,
@@ -339,12 +325,12 @@
 
 .ob-bridge-panel .ob-bridge-checkbox-row { align-self: end; }
 
-.ob-bridge-panel :is(.dialog-field, .language-iso-input .dialog-field) { gap: 8px; }
-.ob-bridge-panel .orthography-builder-actions { gap: 8px; }
+.ob-bridge-panel :is(.dialog-field, .language-iso-input .dialog-field) { gap: var(--space-row-gap, 8px); }
+.ob-bridge-panel .orthography-builder-actions { gap: var(--space-row-gap, 8px); }
 
 .ob-bridge-panel .orthography-builder-preview-box,
 .ob-bridge-panel .orthography-builder-validation-box,
-.ob-bridge-panel .orthography-builder-hint { gap: 8px; padding: 10px 12px; }
+.ob-bridge-panel .orthography-builder-hint { gap: var(--space-row-gap, 8px); padding: 10px 12px; }
 
 .ob-bridge-panel .orthography-builder-preview-box,
 .ob-bridge-panel .orthography-builder-validation-box,
@@ -412,14 +398,14 @@
 
 .ob-bridge-panel .orthography-builder-toolbar-actions {
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--space-row-padding-y, 10px);
   padding-bottom: 4px;
 }
 
 .ob-bridge-panel .orthography-builder-preview-box,
 .ob-bridge-panel .orthography-builder-validation-box,
 .ob-bridge-panel .orthography-builder-hint,
-.ob-bridge-panel .orthography-builder-rule-block { border-radius: 18px; }
+.ob-bridge-panel .orthography-builder-rule-block { border-radius: var(--radius-2xl); }
 
 .ob-bridge-panel .orthography-builder-footer-actions {
   grid-column: 1 / -1;
@@ -427,7 +413,7 @@
   bottom: 0;
   z-index: var(--z-header, 20);
   justify-content: flex-end;
-  gap: 10px;
+  gap: var(--space-row-padding-y, 10px);
   margin-top: 4px;
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);

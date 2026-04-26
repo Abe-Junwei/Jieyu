@@ -7,17 +7,27 @@
   max-width: 94vw;
   height: min(80vh, 680px);
   max-height: min(80vh, 680px);
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  line-height: 1.45;
   border: 1px solid color-mix(in srgb, var(--border-soft) 94%, transparent);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface-panel) 99%, transparent);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
 .settings-modal-list {
   margin: 0.5rem 0 0;
   padding-inline-start: 1.25rem;
 }
+
+.dialog-card.pnl-settings-modal .small-text,
+.modal-panel-host.pnl-settings-modal .small-text {
+  margin-top: 0;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  line-height: 1.4;
 }
 
 /* ── 配色方案网格 | Theme grid ── */
@@ -351,15 +361,15 @@
 
 .settings-sections-stack {
   display: grid;
-  gap: 10px;
+  gap: var(--space-stack-section, 12px);
 }
 
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-title-content, 8px);
   position: relative;
-  padding: 10px 0;
+  padding: 0;
 }
 
 .settings-section-rail {
@@ -377,7 +387,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
+  gap: var(--space-row-gap, 8px);
   width: 100%;
   user-select: none;
 }
@@ -393,7 +403,11 @@
 .settings-section-body {
   padding: 0;
   display: grid;
-  gap: 2px;
+  gap: var(--space-row-gap, 8px);
+}
+
+.settings-ai-provider-fields-section {
+  gap: var(--space-row-gap, 8px);
 }
 
 .settings-icon-effect-hint {
@@ -408,15 +422,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
+  padding: var(--space-row-padding-y, 10px) 0;
   border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 24%, transparent);
-  gap: 12px;
+  gap: var(--space-stack-section, 12px);
 }
 
 .settings-inline-row {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-row-gap, 8px);
 }
 
 .settings-row:last-child {
@@ -424,8 +438,8 @@
 }
 
 .settings-row-label {
-  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
-  font-weight: 500;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  font-weight: 400;
   color: var(--text-primary);
   flex-shrink: 0;
 }
@@ -433,7 +447,7 @@
 .settings-row-control {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-row-gap, 8px);
   flex-shrink: 0;
   min-width: 0;
 }
@@ -678,13 +692,16 @@
 }
 
 .settings-select {
-  padding: 4px 8px;
+  min-height: var(--input-h-md);
+  padding: 8px 10px;
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   border: 1px solid var(--border-soft);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-panel);
   color: var(--text-primary);
   min-width: 160px;
+  line-height: 1.4;
+  box-sizing: border-box;
 }
 
 .settings-select:focus-visible {
@@ -693,13 +710,16 @@
 }
 
 .settings-input {
-  padding: 4px 8px;
+  min-height: var(--input-h-md);
+  padding: 8px 10px;
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   border: 1px solid var(--border-soft);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-panel);
   color: var(--text-primary);
   min-width: 180px;
+  line-height: 1.4;
+  box-sizing: border-box;
 }
 
 .settings-input:focus-visible {

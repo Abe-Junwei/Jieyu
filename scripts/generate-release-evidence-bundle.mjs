@@ -1841,6 +1841,7 @@ function buildActionApprovalCenterSection(input) {
     confirmed: 0,
     cancelled: 0,
     failed: 0,
+    partialFailureCount: 0,
   };
 
   if (!auditExportPath) {
@@ -1888,6 +1889,14 @@ function buildActionApprovalCenterSection(input) {
     else if (outcome === 'confirmed' || outcome === 'auto_confirmed') summary.confirmed += 1;
     else if (outcome === 'cancelled') summary.cancelled += 1;
     else if (outcome.includes('failed')) summary.failed += 1;
+    const executionProgress = metadata.executionProgress;
+    if (
+      executionProgress
+      && typeof executionProgress === 'object'
+      && executionProgress.partial === true
+    ) {
+      summary.partialFailureCount += 1;
+    }
 
     const riskTier = typeof metadata.riskTier === 'string' && metadata.riskTier.trim().length > 0
       ? metadata.riskTier.trim()
@@ -2388,7 +2397,7 @@ function buildReport(input) {
     logPath: null,
     keySummary: actionApprovalCenterSection.status === 'skipped'
       ? (actionApprovalCenterSection.skipReason ?? 'skipped')
-      : `pending=${actionApprovalCenterSection.summary.pending};blocked=${actionApprovalCenterSection.summary.blocked};confirmed=${actionApprovalCenterSection.summary.confirmed}`,
+      : `pending=${actionApprovalCenterSection.summary.pending};blocked=${actionApprovalCenterSection.summary.blocked};confirmed=${actionApprovalCenterSection.summary.confirmed};partialFailure=${actionApprovalCenterSection.summary.partialFailureCount}`,
   });
 
   evidenceIndex.push({

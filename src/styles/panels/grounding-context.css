@@ -44,7 +44,7 @@
 .voice-agent-commercial-provider-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .voice-agent-commercial-provider-select {
@@ -56,15 +56,16 @@
   inline-size: fit-content;
   max-width: 100%;
   min-width: 12ch;
-  height: auto;
-  line-height: 1.25;
-  padding: 6px 34px 6px 10px;
+  min-height: var(--input-h-md);
+  line-height: 1.4;
+  padding: 8px 34px 8px 10px;
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   border: 1px solid var(--border, var(--border-soft));
   border-radius: var(--radius-md);
   background: var(--bg-primary, var(--surface-panel));
   color: var(--text-primary);
   cursor: pointer;
+  box-sizing: border-box;
   background-image:
     linear-gradient(180deg, color-mix(in srgb, var(--text-tertiary) 26%, transparent), color-mix(in srgb, var(--text-tertiary) 12%, transparent)),
     var(--select-caret-icon);
@@ -82,14 +83,15 @@
 .voice-agent-commercial-fields {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .voice-agent-commercial-input {
   width: 100%;
-  height: 34px;
-  padding: 0 8px;
+  min-height: var(--input-h-md);
+  padding: 8px 10px;
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  line-height: 1.4;
   border: 1px solid var(--border, var(--border-soft));
   border-radius: var(--radius-md);
   background: var(--bg-primary, var(--surface-panel));
@@ -171,7 +173,7 @@
   border: 0;
   border-radius: var(--radius-md);
   background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 90%, white), color-mix(in srgb, var(--surface-elevated) 92%, var(--surface-header)) 100%);
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+  box-shadow: var(--shadow-md);
   overflow: hidden;
 }
 

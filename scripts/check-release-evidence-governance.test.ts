@@ -56,6 +56,32 @@ describe('check-release-evidence-governance script', () => {
     }
   });
 
+  it('fails when min-approval-total is not met', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 're-governance-'));
+    const reportPath = path.join(tempDir, 'report.json');
+    try {
+      writeReport(reportPath, {
+        actionApprovalCenter: {
+          summary: {
+            total: 1,
+            pending: 0,
+            blocked: 0,
+            confirmed: 1,
+            cancelled: 0,
+            failed: 0,
+          },
+          riskTiers: { high: 1, medium: 0 },
+          approvalModes: { user_confirmation: 1 },
+        },
+      });
+      const result = runCheckScript([`--report=${reportPath}`, '--min-approval-total=2']);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('below required minimum 2');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('fails when strict compare-ready is required but false', () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 're-governance-'));
     const reportPath = path.join(tempDir, 'report.json');

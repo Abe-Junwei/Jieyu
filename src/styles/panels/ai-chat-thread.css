@@ -86,7 +86,7 @@
 }
 
 .ai-chat-pinned-count {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 1px 8px;
   font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
@@ -228,10 +228,10 @@
   font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   position: relative;
   padding: 12px 16px 14px;
-  border-radius: 18px;
+  border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
   border: 1px solid color-mix(in srgb, var(--border-soft) 54%, transparent);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--shadow-color) 2%, transparent), 0 14px 34px color-mix(in srgb, var(--shadow-color) 5.5%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--shadow-color) 2%, transparent), var(--shadow-md);
   white-space: pre-wrap;
 }
 
@@ -244,7 +244,7 @@
 
 .ai-chat-message-user .ai-chat-message-surface {
   padding: 10px 14px 11px;
-  border-radius: 18px 18px 6px 18px;
+  border-radius: var(--radius-2xl) var(--radius-2xl) var(--radius-sm) var(--radius-2xl);
   background: color-mix(in srgb, var(--header-accent) 94%, var(--state-success-solid));
   border-color: color-mix(in srgb, var(--header-accent) 16%, transparent);
   box-shadow: 0 12px 28px color-mix(in srgb, var(--header-accent) 16%, transparent);
@@ -262,10 +262,10 @@
 .ai-chat-message-assistant .ai-chat-message-surface {
   font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   padding: 14px 18px 14px;
-  border-radius: 18px 18px 18px 6px;
+  border-radius: var(--radius-2xl) var(--radius-2xl) var(--radius-2xl) var(--radius-sm);
   background: color-mix(in srgb, var(--surface-header) 92%, var(--surface-panel));
   border-color: color-mix(in srgb, var(--border-soft) 24%, transparent);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--shadow-color) 1%, transparent), 0 16px 36px color-mix(in srgb, var(--shadow-color) 4.8%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--shadow-color) 1%, transparent), var(--shadow-md);
 }
 
 .ai-chat-message-content {
@@ -301,7 +301,6 @@
   background: color-mix(in srgb, var(--surface-panel) 80%, transparent);
 }
 
-.ai-chat-message-pinned-summary-text,
 .ai-chat-pinned-summary-text {
   min-width: 0;
   flex: 1 1 auto;
@@ -313,7 +312,6 @@
   text-overflow: ellipsis;
 }
 
-.ai-chat-message-pinned-summary-remove,
 .ai-chat-pinned-summary-remove {
   flex: 0 0 auto;
   border: 0;
@@ -328,7 +326,6 @@
   cursor: pointer;
 }
 
-.ai-chat-message-pinned-summary-remove:hover,
 .ai-chat-pinned-summary-remove:hover {
   color: var(--text-primary);
   background: color-mix(in srgb, var(--surface-header) 78%, transparent);
@@ -359,7 +356,7 @@
   margin-top: 6px;
   padding: 4px 8px;
   background: color-mix(in srgb, var(--text-secondary) 8%, transparent);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   line-height: 1.5;

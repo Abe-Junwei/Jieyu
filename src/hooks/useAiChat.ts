@@ -313,8 +313,11 @@ export function useAiChat(options?: UseAiChatOptions) {
     const normalizedDirectiveId = directiveId.trim();
     if (!normalizedDirectiveId) return;
     const previousMemory = sessionMemoryRef.current;
-    const hadDirective = (previousMemory.sessionDirectives ?? []).some((item) => item.id === normalizedDirectiveId);
-    if (!hadDirective) return;
+    const inSession = (previousMemory.sessionDirectives ?? []).some((item) => item.id === normalizedDirectiveId);
+    const inLedgerAccepted = (previousMemory.directiveLedger ?? []).some(
+      (e) => e.id === normalizedDirectiveId && e.action === 'accepted',
+    );
+    if (!inSession && !inLedgerAccepted) return;
     const nextMemory = deactivateSessionDirectiveFromMemory(previousMemory, normalizedDirectiveId);
     if (nextMemory === previousMemory) return;
     sessionMemoryRef.current = nextMemory;

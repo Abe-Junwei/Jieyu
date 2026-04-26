@@ -1,5 +1,5 @@
 .pnl-note-panel {
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+  box-shadow: var(--shadow-md);
 }
 
 .note-panel-header {

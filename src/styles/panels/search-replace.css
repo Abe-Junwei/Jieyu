@@ -41,6 +41,7 @@
 }
 
 .search-replace-input-compact {
+  min-height: var(--input-h-compact);
   padding-block: 6px;
   font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
 }

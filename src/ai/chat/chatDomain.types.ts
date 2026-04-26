@@ -402,6 +402,11 @@ export interface AiChatToolCall {
 export interface AiChatToolResult {
   ok: boolean;
   message: string;
+  /**
+   * Best-effort inverse for multi-step `propose_changes` commits.
+   * Invoked in reverse order when a later child fails; may be absent when no safe snapshot exists.
+   */
+  rollback?: () => Promise<void>;
 }
 
 export interface PendingAiToolCall {

@@ -76,7 +76,7 @@
   border-radius: var(--radius-xl);
   border: 1px solid color-mix(in srgb, var(--header-border) 92%, transparent);
   background: var(--wave-toolbar-flyout-surface);
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+  box-shadow: var(--shadow-md);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   overflow-y: auto;
@@ -363,7 +363,7 @@
   border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--wave-toolbar-accent) 16%, var(--border-soft));
   background: color-mix(in srgb, var(--surface-panel) 90%, var(--wave-toolbar-accent) 10%);
-  box-shadow: 0 14px 36px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  box-shadow: var(--shadow-md);
 }
 
 .waveform-view-options-dialog-title {
@@ -688,7 +688,7 @@
   border: 1px solid color-mix(in srgb, var(--header-border) 92%, transparent);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  box-shadow: var(--shadow-md);
   z-index: calc(var(--z-header) + 2);
 }
 
@@ -781,14 +781,16 @@
   width: fit-content;
   inline-size: fit-content;
   min-width: 8ch;
+  min-height: var(--input-h-compact);
   border: 1px solid color-mix(in srgb, var(--text-tertiary) 36%, transparent);
   border-radius: var(--radius-md);
   background-color: color-mix(in srgb, var(--surface-panel) 78%, transparent);
   color: var(--text-primary);
   font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 700;
-  padding: 5px 34px 5px 10px;
-  line-height: 1.15;
+  padding: var(--input-padding-compact-select);
+  line-height: var(--input-line-height-compact);
+  box-sizing: border-box;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent);
   -webkit-appearance: none;
   appearance: none;

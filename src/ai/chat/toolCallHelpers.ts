@@ -87,6 +87,16 @@ export interface ToolDecisionAuditMetadata {
   message?: string;
   reason?: string;
   durationMs?: number;
+  executionProgress?: {
+    appliedCount: number;
+    totalCount: number;
+    partial: boolean;
+  };
+  proposeRollback?: {
+    attempted: boolean;
+    ok: boolean;
+    errorCount: number;
+  };
 }
 
 export function parseToolCallFromText(rawText: string): AiChatToolCall | null {
@@ -1448,6 +1458,8 @@ export function buildToolDecisionAuditMetadata(
   message?: string,
   reason?: string,
   durationMs?: number,
+  executionProgress?: ToolDecisionAuditMetadata['executionProgress'],
+  proposeRollback?: ToolDecisionAuditMetadata['proposeRollback'],
 ): ToolDecisionAuditMetadata {
   return {
     schemaVersion: 1,
@@ -1463,6 +1475,8 @@ export function buildToolDecisionAuditMetadata(
     ...(message ? { message } : {}),
     ...(reason ? { reason } : {}),
     ...(durationMs !== undefined ? { durationMs } : {}),
+    ...(executionProgress ? { executionProgress } : {}),
+    ...(proposeRollback ? { proposeRollback } : {}),
   };
 }
 

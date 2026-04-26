@@ -13,7 +13,7 @@
 }
 
 .la-shell .dialog-body {
-  --la-section-gap: 16px;
+  --la-section-gap: var(--space-stack-page, 16px);
   display: flex;
   flex-direction: column;
   gap: var(--la-section-gap);
@@ -34,6 +34,24 @@
   z-index: var(--z-header, 20);
 }
 
+/* 嵌入壳（EmbeddedPanelShell）窄屏：横边距与 dialog 预设对齐，避免各页私有覆盖 | Narrow embedded shells share horizontal padding */
+@media (max-width: 720px) {
+  .la-shell.embedded-panel-shell .dialog-body {
+    padding-left: var(--space-3, 12px);
+    padding-right: var(--space-3, 12px);
+  }
+
+  .la-shell.embedded-panel-shell :is(.dialog-header, .dialog-footer) {
+    padding-left: var(--space-3, 12px);
+    padding-right: var(--space-3, 12px);
+  }
+
+  .la-shell.embedded-panel-shell {
+    width: 100%;
+    border-radius: var(--radius-2xl);
+  }
+}
+
 .la-panel-stack,
 .la-panel-section {
   min-width: 0;
@@ -42,14 +60,14 @@
 
 .la-panel-stack {
   display: grid;
-  gap: var(--la-section-gap, 16px);
+  gap: var(--la-section-gap, var(--space-stack-page, 16px));
   align-content: start;
 }
 
 .la-list-section .panel-section__body {
   display: flex;
   flex-direction: column;
-  gap: var(--la-list-gap, 10px);
+  gap: var(--la-list-gap, var(--space-row-gap, 8px));
   min-height: 0;
   max-height: var(--la-list-max-height, none);
   overflow: hidden;
@@ -57,7 +75,7 @@
 
 .la-list-scroll {
   display: grid;
-  gap: var(--la-list-gap, 10px);
+  gap: var(--la-list-gap, var(--space-row-gap, 8px));
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -74,11 +92,11 @@
   --la-unified-title-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   --la-field-gap: var(--space-2, 8px);
   --ws-note-size: var(--la-meta-size);
-  /* 面板外壳 | Panel shell */
+  /* 面板外壳 | Panel shell — 大圆角与间距阶梯 24px 一致（见 ADR-0023） | Large corner matches spacing scale */
   --dialog-auto-width: 100%;
   width: 100%;
   min-height: auto;
-  border-radius: 24px;
+  border-radius: var(--space-6);
   border: 1px solid color-mix(in srgb, var(--border-soft) 76%, transparent);
   /* LM/OM/OB 外壳高光与 tokens `--color-white` 对齐 | Chrome highlight anchor */
   background:
@@ -86,6 +104,7 @@
   box-shadow: var(--shadow-lg);
 }
 
+/* 壳内控制件以 control-primitives（.input / .btn）为主，并与下方 panel-button 规则对齐（拍板 C1 / ADR-0023） | Shell controls: .input/.btn as primary */
 /* ── 统一按钮样式 | Shared button styles ── */
 
 .la-shell :is(.panel-button--primary, .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active), .btn-active) {
@@ -114,7 +133,7 @@
 
 .la-shell .ws-summary-card {
   display: grid;
-  gap: 12px;
+  gap: var(--space-stack-section, 12px);
   padding: 14px 16px;
   border: none;
   border-radius: var(--radius-2xl);
@@ -126,12 +145,12 @@
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px 16px;
+  gap: var(--space-stack-section, 12px) var(--space-stack-page, 16px);
 }
 
 .la-shell .ws-summary-copy {
   display: grid;
-  gap: 4px;
+  gap: var(--space-title-content, 8px);
   min-width: 0;
 }
 
@@ -145,12 +164,12 @@
 .la-shell .ws-summary-facts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--space-row-gap, 8px);
 }
 
 .la-shell .ws-summary-fact {
   display: grid;
-  gap: 4px;
+  gap: var(--space-title-content, 8px);
   padding: 10px 12px;
   border-radius: var(--radius-xl);
   border: none;
@@ -170,16 +189,34 @@
   margin-inline: auto;
 }
 
+/* ── 语言资产页标题统一（LM/OM/OB） | Unified section heading for LM/OM/OB ── */
+
+.la-shell :is(
+  .lm-history-panel .panel-section__title,
+  .lm-subsection-header .panel-title-primary,
+  .ob-list-panel .panel-section__title,
+  .ob-bridge-panel .panel-section__title,
+  .orthography-builder-panel-compact .orthography-builder-group-title,
+  .om-browser-title,
+  .om-advanced-summary > .orthography-builder-group-title
+) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
 /* ── 统一 field 间距与 label | Unified field gap & label ── */
 
 .la-shell :is(.dialog-field, .language-iso-input .dialog-field) {
   gap: var(--la-field-gap);
-}
-
-.la-shell :is(.dialog-field label, .dialog-field > span) {
-  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
-  font-weight: 600;
-  color: var(--text-secondary);
 }
 
 /* ── 统一状态消息 | Unified state messages ── */

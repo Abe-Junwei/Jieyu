@@ -7,7 +7,7 @@
   border: 1px solid color-mix(in srgb, var(--border-muted) 82%, transparent);
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface-panel) 96%, transparent);
-  box-shadow: 0 14px 36px color-mix(in srgb, var(--shadow-color) 24%, transparent);
+  box-shadow: var(--shadow-md);
   overflow: hidden;
 }
 

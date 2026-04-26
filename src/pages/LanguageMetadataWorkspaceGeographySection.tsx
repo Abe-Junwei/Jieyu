@@ -33,13 +33,12 @@ export function LanguageMetadataWorkspaceGeographySection({
         <p className="lm-subsection-description">{t(locale, 'workspace.languageMetadata.sectionGeographyDescription')}</p>
       </summary>
 
-      <div className="lm-subgroup">
-        <div className="lm-subgroup-header">
-          <span className="panel-title-secondary lm-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoverageTitle')}</span>
-          <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoverageDescription')}</p>
-        </div>
+      <div className="panel-section__copy">
+        <span className="panel-title-secondary">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoverageTitle')}</span>
+        <p className="panel-subsection__description">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoverageDescription')}</p>
+      </div>
 
-        <div className="lm-geography-coverage-layout">
+      <div className="lm-geography-coverage-layout">
           <div className="lm-geography-panel">
             <LanguageMetadataAdministrativeDivisionPicker
               locale={locale}
@@ -63,14 +62,14 @@ export function LanguageMetadataWorkspaceGeographySection({
                   aria-label={t(locale, 'workspace.languageMetadata.countriesOfficialLabel')}
                 />
               </label>
-              <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.countriesOfficialDescription')}</p>
+              <p className="panel-subsection__description">{t(locale, 'workspace.languageMetadata.countriesOfficialDescription')}</p>
             </div>
             {(draft.baselineOfficialCountriesUi || draft.baselineOfficialCountriesEndonym) ? (
               <div className="lm-geography-baseline-official">
                 <h4 className="panel-title-secondary lm-geography-baseline-official-title">
                   {t(locale, 'workspace.languageMetadata.baselineOfficialCountriesTitle')}
                 </h4>
-                <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.baselineOfficialCountriesDescription')}</p>
+                <p className="panel-subsection__description">{t(locale, 'workspace.languageMetadata.baselineOfficialCountriesDescription')}</p>
                 {draft.baselineOfficialCountriesUi ? (
                   <div className="lm-geo-row lm-geography-baseline-row">
                     <span className="lm-geo-label">{t(locale, 'workspace.languageMetadata.baselineOfficialUiLabel')}</span>
@@ -87,15 +86,13 @@ export function LanguageMetadataWorkspaceGeographySection({
             ) : null}
           </div>
         </div>
+
+      <div className="panel-section__copy">
+        <span className="panel-title-secondary">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoordinatesTitle')}</span>
+        <p className="panel-subsection__description">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoordinatesDescription')}</p>
       </div>
 
-      <div className="lm-subgroup">
-        <div className="lm-subgroup-header">
-          <span className="panel-title-secondary lm-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoordinatesTitle')}</span>
-          <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoordinatesDescription')}</p>
-        </div>
-
-        <div className="lm-geography-coordinates-layout">
+      <div className="lm-geography-coordinates-layout">
           <div className="lm-geography-panel">
             <div className="lm-geography-panel-header">
               <span className="panel-title-eyebrow lm-geography-panel-title">{t(locale, 'workspace.languageMetadata.geographyCoordinatesEditorTitle')}</span>
@@ -261,7 +258,6 @@ export function LanguageMetadataWorkspaceGeographySection({
             </div>
           </div>
         </div>
-      </div>
     </details>
   );
 }

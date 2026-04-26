@@ -64,6 +64,80 @@ function trimOutput(value, maxChars = 5000) {
   return `${value.slice(0, maxChars)}\n...[truncated]`;
 }
 
+function parseNdjsonRows(ndjsonText) {
+  const rows = [];
+  const errors = [];
+  const lines = String(ndjsonText ?? '').split(/\r?\n/);
+  for (let i = 0; i < lines.length; i += 1) {
+    const rawLine = lines[i]?.trim();
+    if (!rawLine) continue;
+    try {
+      rows.push(JSON.parse(rawLine));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push({ line: i + 1, message });
+    }
+  }
+  return { rows, errors };
+}
+
+function normalizeMetadata(row) {
+  if (!row || typeof row !== 'object') return null;
+  const metadataRaw = row.metadata_json ?? row.metadataJson;
+  if (metadataRaw && typeof metadataRaw === 'object') return metadataRaw;
+  if (typeof metadataRaw === 'string' && metadataRaw.trim().length > 0) {
+    try {
+      return JSON.parse(metadataRaw);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function evaluateAuditTrace(ndjsonPath) {
+  const content = readFileSync(ndjsonPath, 'utf8');
+  const parsed = parseNdjsonRows(content);
+  const decisionRows = parsed.rows.filter((row) => {
+    if (!row || typeof row !== 'object') return false;
+    const collection = String(row.collection ?? '');
+    const field = String(row.field ?? '');
+    return collection === 'ai_messages' && field === 'ai_tool_call_decision';
+  });
+  const metadataDecisionRows = decisionRows.filter((row) => {
+    const metadata = normalizeMetadata(row);
+    if (!metadata || typeof metadata !== 'object') return false;
+    const phase = typeof metadata.phase === 'string' ? metadata.phase.trim() : '';
+    const outcome = typeof metadata.outcome === 'string' ? metadata.outcome.trim() : '';
+    return phase === 'decision' && outcome.length > 0;
+  });
+  const passed = parsed.errors.length === 0
+    && decisionRows.length > 0
+    && metadataDecisionRows.length > 0;
+
+  const failureReasons = [];
+  if (parsed.errors.length > 0) {
+    failureReasons.push(`ndjson_parse_error_count=${parsed.errors.length}`);
+  }
+  if (decisionRows.length === 0) {
+    failureReasons.push('missing_ai_tool_call_decision_rows');
+  }
+  if (metadataDecisionRows.length === 0) {
+    failureReasons.push('missing_decision_metadata_phase_outcome');
+  }
+
+  return {
+    enabled: true,
+    path: ndjsonPath,
+    rowCount: parsed.rows.length,
+    decisionRowCount: decisionRows.length,
+    metadataDecisionRowCount: metadataDecisionRows.length,
+    parseErrorCount: parsed.errors.length,
+    passed,
+    failureReasons,
+  };
+}
+
 function main() {
   const mode = readArg('--mode') ?? 'enforce';
   if (mode !== 'enforce' && mode !== 'shadow') {
@@ -75,6 +149,10 @@ function main() {
     readArg('--report'),
     'docs/execution/release-gates/release-evidence/agent-evals-report.json',
   );
+  const auditTracePathArg = readArg('--assert-audit-trace');
+  const auditTracePath = auditTracePathArg
+    ? resolvePathWithinRepo(auditTracePathArg, auditTracePathArg)
+    : null;
   const suite = JSON.parse(readFileSync(suitePath, 'utf8'));
   const cases = Array.isArray(suite.cases) ? suite.cases : [];
   if (cases.length === 0) {
@@ -108,10 +186,15 @@ function main() {
     ? [...new Set(suite.thresholds.requiredTrajectorySignals.filter((signal) => typeof signal === 'string' && signal.trim().length > 0).map((signal) => signal.trim()))]
     : [];
   const missingTrajectorySignals = requiredTrajectorySignals.filter((signal) => !coveredTrajectorySignals.includes(signal));
+  const auditTrace = auditTracePath ? evaluateAuditTrace(auditTracePath) : {
+    enabled: false,
+    passed: true,
+  };
   const thresholdPassed = passRate >= requiredPassRate
     && failed <= maxFailedCases
     && coveredGoldenTasks >= requiredGoldenTasksMin
-    && missingTrajectorySignals.length === 0;
+    && missingTrajectorySignals.length === 0
+    && auditTrace.passed === true;
 
   const report = {
     schemaVersion: 1,
@@ -135,10 +218,12 @@ function main() {
       coveredTrajectorySignals,
       requiredTrajectorySignals,
       missingTrajectorySignals,
+      auditTracePassed: auditTrace.passed === true,
       thresholdPassed,
       startedAt,
       endedAt,
     },
+    ...(auditTrace.enabled ? { auditTrace } : {}),
     cases: caseResults.map((item) => ({
       ...item,
       stdout: trimOutput(item.stdout),
@@ -150,8 +235,13 @@ function main() {
   writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
   process.stdout.write(`\n[agent-evals] report written: ${path.relative(repoRoot, reportPath)}\n`);
   process.stdout.write(
-    `[agent-evals] summary: passed=${passed}/${total}, passRate=${passRate}, goldenTasks=${coveredGoldenTasks}, missingTrajectorySignals=${missingTrajectorySignals.length}, thresholdPassed=${thresholdPassed}\n`,
+    `[agent-evals] summary: passed=${passed}/${total}, passRate=${passRate}, goldenTasks=${coveredGoldenTasks}, missingTrajectorySignals=${missingTrajectorySignals.length}, auditTracePassed=${auditTrace.passed === true}, thresholdPassed=${thresholdPassed}\n`,
   );
+  if (auditTrace.enabled) {
+    process.stdout.write(
+      `[agent-evals] audit-trace: decisionRows=${auditTrace.decisionRowCount}, decisionMetadataRows=${auditTrace.metadataDecisionRowCount}, parseErrors=${auditTrace.parseErrorCount}, passed=${auditTrace.passed}\n`,
+    );
+  }
 
   if (mode === 'enforce' && !thresholdPassed) {
     process.exit(1);

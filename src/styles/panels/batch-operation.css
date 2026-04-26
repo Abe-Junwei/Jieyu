@@ -37,7 +37,7 @@
   border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface-panel) 99%, var(--surface-header));
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+  box-shadow: var(--shadow-md);
 }
 
 .batch-operation-preview-toggle {

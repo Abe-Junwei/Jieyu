@@ -1,5 +1,5 @@
 import { createLogger } from '../../observability/logger';
-import type { AiSessionMemory } from './chatDomain.types';
+import type { AiSessionMemory, AiUserDirectiveLedgerEntry } from './chatDomain.types';
 import { trimTextToMax } from './historyTrim';
 
 const AI_SESSION_MEMORY_STORAGE_KEY = 'jieyu.aiChat.sessionMemory';
@@ -535,6 +535,99 @@ export function updateConversationSummaryMemory(
   });
 }
 
+/**
+ * Revert side effects in preferences that were applied for an accepted ledger line.
+ * Only removes a field (or terminology row) when the current value still matches that entry
+ * (so a superseding preference does not get wiped by mistake).
+ */
+function stripPreferencesForDeactivatedEntry(memory: AiSessionMemory, entry: AiUserDirectiveLedgerEntry): AiSessionMemory {
+  if (entry.action !== 'accepted') return memory;
+  if (entry.category === 'session') {
+    return memory;
+  }
+  if (entry.category === 'terminology' || entry.targetPath === 'terminologyPreferences') {
+    if (typeof entry.value !== 'string' || !entry.value.includes('=>')) {
+      return memory;
+    }
+    const idx = entry.value.indexOf('=>');
+    const sourceTerm = entry.value.slice(0, idx).trim();
+    const targetTerm = entry.value.slice(idx + 2).trim();
+    if (!sourceTerm || !targetTerm) {
+      return memory;
+    }
+    const prev = memory.terminologyPreferences ?? [];
+    const next = prev.filter(
+      (item) => !(item.source.toLowerCase() === sourceTerm.toLowerCase() && item.target === targetTerm),
+    );
+    if (next.length === prev.length) {
+      return memory;
+    }
+    return normalizeSessionMemory({ ...memory, terminologyPreferences: next });
+  }
+  const targetPath = entry.targetPath?.trim() ?? '';
+  if (!targetPath || !targetPath.includes('.')) {
+    return memory;
+  }
+  if (entry.value === undefined) {
+    return memory;
+  }
+
+  const matchesCurrent = (current: unknown): boolean => {
+    if (current === undefined) return false;
+    if (typeof entry.value === 'boolean' && typeof current === 'boolean') {
+      return current === entry.value;
+    }
+    if (typeof entry.value === 'string' && typeof current === 'string') {
+      return current === entry.value;
+    }
+    return String(current) === String(entry.value);
+  };
+
+  if (entry.category === 'response' || targetPath.startsWith('responsePreferences.')) {
+    const key = targetPath.replace('responsePreferences.', '') as string;
+    const current = (memory.responsePreferences as Record<string, unknown> | undefined)?.[key];
+    if (!matchesCurrent(current)) {
+      return memory;
+    }
+    const next = { ...(memory.responsePreferences ?? {}) } as Record<string, unknown>;
+    delete next[key];
+    if (Object.keys(next).length > 0) {
+      return normalizeSessionMemory({ ...memory, responsePreferences: next as NonNullable<AiSessionMemory['responsePreferences']> });
+    }
+    const { responsePreferences: _r, ...rest } = memory;
+    return normalizeSessionMemory({ ...rest });
+  }
+  if (entry.category === 'tool' || targetPath.startsWith('toolPreferences.')) {
+    const key = targetPath.replace('toolPreferences.', '') as string;
+    const current = (memory.toolPreferences as Record<string, unknown> | undefined)?.[key];
+    if (!matchesCurrent(current)) {
+      return memory;
+    }
+    const next = { ...(memory.toolPreferences ?? {}) } as Record<string, unknown>;
+    delete next[key];
+    if (Object.keys(next).length > 0) {
+      return normalizeSessionMemory({ ...memory, toolPreferences: next as NonNullable<AiSessionMemory['toolPreferences']> });
+    }
+    const { toolPreferences: _t, ...rest } = memory;
+    return normalizeSessionMemory({ ...rest });
+  }
+  if (entry.category === 'safety' || targetPath.startsWith('safetyPreferences.')) {
+    const key = targetPath.replace('safetyPreferences.', '') as string;
+    const current = (memory.safetyPreferences as Record<string, unknown> | undefined)?.[key];
+    if (!matchesCurrent(current)) {
+      return memory;
+    }
+    const next = { ...(memory.safetyPreferences ?? {}) } as Record<string, unknown>;
+    delete next[key];
+    if (Object.keys(next).length > 0) {
+      return normalizeSessionMemory({ ...memory, safetyPreferences: next as NonNullable<AiSessionMemory['safetyPreferences']> });
+    }
+    const { safetyPreferences: _s, ...rest } = memory;
+    return normalizeSessionMemory({ ...rest });
+  }
+  return memory;
+}
+
 export function setSessionMemoryMessagePinned(
   memory: AiSessionMemory,
   messageId: string,
@@ -568,22 +661,32 @@ export function setSessionMemoryMessagePinned(
 export function deactivateSessionDirective(memory: AiSessionMemory, directiveId: string): AiSessionMemory {
   const normalizedDirectiveId = directiveId.trim();
   if (!normalizedDirectiveId) return normalizeSessionMemory(memory);
-  const nextSessionDirectives = (memory.sessionDirectives ?? [])
+  const accepted = (memory.directiveLedger ?? []).find(
+    (e) => e.id === normalizedDirectiveId && e.action === 'accepted',
+  );
+  const work: AiSessionMemory = accepted
+    ? stripPreferencesForDeactivatedEntry(memory, accepted)
+    : memory;
+  const nextSessionDirectives = (work.sessionDirectives ?? [])
     .filter((item) => item.id !== normalizedDirectiveId);
-  const nextDirectiveLedger = (memory.directiveLedger ?? []).map((entry) => (
+  const nextDirectiveLedger = (work.directiveLedger ?? []).map((entry) => (
     entry.id === normalizedDirectiveId && entry.action === 'accepted'
       ? { ...entry, action: 'superseded' as const, supersededBy: `${normalizedDirectiveId}_deactivated` }
       : entry
   ));
+  const nextPinnedDirectiveRefs = (work.pinnedDirectiveRefs ?? [])
+    .filter((ref) => ref !== normalizedDirectiveId);
   const {
     sessionDirectives: _ignoredSessionDirectives,
     directiveLedger: _ignoredDirectiveLedger,
+    pinnedDirectiveRefs: _ignoredPinnedDirectiveRefs,
     ...restMemory
-  } = memory;
+  } = work;
   return normalizeSessionMemory({
     ...restMemory,
     ...(nextSessionDirectives.length > 0 ? { sessionDirectives: nextSessionDirectives } : {}),
     ...(nextDirectiveLedger.length > 0 ? { directiveLedger: nextDirectiveLedger } : {}),
+    ...(nextPinnedDirectiveRefs.length > 0 ? { pinnedDirectiveRefs: nextPinnedDirectiveRefs } : {}),
   });
 }
 

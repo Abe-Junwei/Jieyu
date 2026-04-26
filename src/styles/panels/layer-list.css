@@ -3,7 +3,7 @@
   transform: translateY(var(--transcription-side-pane-drag-offset, 0px)) scale(1.02);
   z-index: var(--z-overlay);
   will-change: transform;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--text-primary) 14%, transparent);
+  box-shadow: var(--shadow-md);
   filter: saturate(1.02);
   transition: none;
   border-radius: var(--radius-md);
@@ -594,6 +594,33 @@
   max-height: min(58vh, 430px);
 }
 
+.pnl-collaboration-cloud-modal .dialog-header {
+  flex-shrink: 0;
+  min-height: 42px;
+  padding: 8px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 82%, var(--surface-panel));
+}
+
+.collaboration-cloud-modal-title {
+  min-width: 0;
+}
+
+.collaboration-cloud-modal-body {
+  overflow: hidden;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.modal-panel-host.pnl-collaboration-cloud-modal .dialog-body.collaboration-cloud-modal-body,
+.dialog-card.pnl-collaboration-cloud-modal .dialog-body.collaboration-cloud-modal-body {
+  padding: 0;
+  gap: 0;
+}
+
 .pnl-collaboration-cloud-modal .app-side-pane-collaboration-group-settings {
   height: 100%;
   min-height: 0;
@@ -908,12 +935,15 @@
 /* — 属性列表内下拉框 | Inspector inline select — */
 .transcription-side-pane-inspector-select {
   width: 100%;
+  min-height: var(--input-h-compact);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
-  padding: 3px 6px;
+  padding: var(--input-padding-micro);
   font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   background: var(--surface-panel);
+  line-height: var(--input-line-height-compact);
+  box-sizing: border-box;
   outline: none;
 }
 
@@ -1284,7 +1314,7 @@
   border: 1px solid color-mix(in srgb, var(--header-accent) 12%, transparent);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface-panel) 98%, transparent);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--shadow-color) 18%, transparent);
+  box-shadow: var(--shadow-md);
 }
 
 .app-side-pane-segment-list-filter-compact {

@@ -26,8 +26,8 @@
   color: var(--panel-design-text-color);
 }
 
-.panel-design-match :is(.panel-input, .panel-button, .panel-chip, .panel-note, .panel-section__title, .panel-section__description, .panel-summary__supporting, input, select, textarea, button),
-.panel-design-match-content :is(.panel-input, .panel-button, .panel-chip, .panel-note, .panel-section__title, .panel-section__description, .panel-summary__supporting, input, select, textarea, button) {
+.panel-design-match :is(.panel-input, .panel-button, .panel-chip, .panel-note, .panel-section__title, .panel-section__description, .panel-subsection__description, .panel-summary__supporting, input, select, textarea, button),
+.panel-design-match-content :is(.panel-input, .panel-button, .panel-chip, .panel-note, .panel-section__title, .panel-section__description, .panel-subsection__description, .panel-summary__supporting, input, select, textarea, button) {
   font-family: inherit;
 }
 
@@ -35,7 +35,7 @@
   border-color: var(--panel-design-border-color);
   background: var(--panel-design-surface-color);
   border-radius: var(--radius-xl);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  box-shadow: var(--shadow-md);
 }
 
 .embedded-panel-shell {
@@ -44,7 +44,7 @@
   border: 1px solid var(--panel-design-border-color);
   border-radius: var(--radius-xl);
   background: var(--panel-design-surface-color);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -121,8 +121,8 @@
 
 .panel-design-match :is(.panel-section, .panel-section--emphasis),
 .panel-design-match-content :is(.panel-section, .panel-section--emphasis) {
-  gap: var(--space-2, 8px);
-  padding: var(--space-2, 8px);
+  gap: var(--space-stack-section, var(--space-3, 12px));
+  padding: var(--space-section-padding, var(--space-3, 12px));
   border: 0;
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--panel-design-surface-color) 96%, var(--surface-bg));
@@ -142,8 +142,8 @@
   font-weight: 600;
 }
 
-.panel-design-match :is(.panel-section__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note),
-.panel-design-match-content :is(.panel-section__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note) {
+.panel-design-match :is(.panel-section__description, .panel-subsection__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note),
+.panel-design-match-content :is(.panel-section__description, .panel-subsection__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note) {
   color: var(--panel-design-text-color);
   font-size: var(--panel-typography-body-size);
   line-height: 1.5;

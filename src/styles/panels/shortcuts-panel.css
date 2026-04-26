@@ -5,7 +5,7 @@
   border: 1px solid color-mix(in srgb, var(--border-soft) 94%, transparent);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface-panel) 99%, transparent);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;

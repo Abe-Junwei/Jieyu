@@ -729,7 +729,7 @@
   padding: 20px 22px;
   background: var(--surface-elevated);
   border: 1px solid var(--divider-base);
-  box-shadow: 0 12px 40px color-mix(in srgb, var(--shadow-color) 22%, transparent);
+  box-shadow: var(--shadow-lg);
 }
 
 .db-integrity-overlay-title {
@@ -781,7 +781,7 @@
   padding: 20px 22px;
   background: var(--surface-elevated);
   border: 1px solid var(--divider-base);
-  box-shadow: 0 12px 40px color-mix(in srgb, var(--shadow-color) 22%, transparent);
+  box-shadow: var(--shadow-lg);
 }
 
 .db-migration-overlay-title {

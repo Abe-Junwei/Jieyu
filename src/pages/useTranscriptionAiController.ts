@@ -195,6 +195,17 @@ export function useTranscriptionAiController(
     });
   }, [input.layers, input.selectedLayerId]);
 
+  const readSegmentLayerText = useCallback((segmentId: string, layerId: string) => {
+    const row = input.segmentContentByLayer?.get(layerId)?.get(segmentId);
+    return typeof row?.text === 'string' ? row.text : '';
+  }, [input.segmentContentByLayer]);
+
+  const readUnitLayerText = useCallback((unitId: string, layerId?: string) => {
+    const u = input.getUnitDocById(unitId) ?? segmentTargetScopeUnits.find((unit) => unit.id === unitId);
+    if (!u) return '';
+    return getUnitTextForLayer(u, layerId);
+  }, [getUnitTextForLayer, input.getUnitDocById, segmentTargetScopeUnits]);
+
   const aiToolCallHandler = useAiToolCallHandler({
     units: segmentTargetScopeUnits,
     selectedUnit: resolvedOwnerUnitForAi ?? undefined,
@@ -220,6 +231,8 @@ export function useTranscriptionAiController(
     saveUnitText: input.saveUnitText,
     saveUnitLayerText: input.saveUnitLayerText,
     saveSegmentContentForLayer: input.saveSegmentContentForLayer,
+    readSegmentLayerText,
+    readUnitLayerText,
     segmentTargets: segmentTargetDescriptors,
     updateTokenPos: input.updateTokenPos,
     batchUpdateTokenPosByForm: input.batchUpdateTokenPosByForm,

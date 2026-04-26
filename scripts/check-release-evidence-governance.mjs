@@ -38,6 +38,17 @@ function toOptionalRateArg(name) {
   return parsed;
 }
 
+/** Minimum `actionApprovalCenter.summary.total` (inclusive); strict CI uses this to reject near-empty samples. */
+function toOptionalMinApprovalTotal() {
+  const raw = readArg('--min-approval-total');
+  if (!raw) return null;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1) {
+    fail('invalid --min-approval-total: expected integer >= 1');
+  }
+  return parsed;
+}
+
 function assertNonNegativeInteger(value, keyPath) {
   if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value) || value < 0) {
     fail(`invalid ${keyPath}: expected non-negative integer`);
@@ -76,6 +87,11 @@ function validateActionApproval(payload, options) {
   const summary = section.summary;
   if (!summary || typeof summary !== 'object') fail('invalid report: missing actionApprovalCenter.summary');
   assertNonNegativeInteger(summary.total, 'actionApprovalCenter.summary.total');
+  if (options.minApprovalTotal !== null && summary.total < options.minApprovalTotal) {
+    fail(
+      `action approval gate failed: actionApprovalCenter.summary.total=${summary.total} is below required minimum ${options.minApprovalTotal}`,
+    );
+  }
   assertNonNegativeInteger(summary.pending, 'actionApprovalCenter.summary.pending');
   assertNonNegativeInteger(summary.blocked, 'actionApprovalCenter.summary.blocked');
   assertNonNegativeInteger(summary.confirmed, 'actionApprovalCenter.summary.confirmed');
@@ -118,14 +134,17 @@ function main() {
   }
   const payload = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
   const trend = validateCostGuard(payload, hasFlag('--require-cost-guard-compare-ready'));
+  const minApprovalTotal = toOptionalMinApprovalTotal();
   const summary = validateActionApproval(payload, {
     maxPendingRate: toOptionalRateArg('--max-pending-rate'),
     maxBlockedRate: toOptionalRateArg('--max-blocked-rate'),
     maxFailedRate: toOptionalRateArg('--max-failed-rate'),
     requireHighRiskSignal: hasFlag('--require-high-risk-signal'),
+    minApprovalTotal,
   });
+  const minPart = minApprovalTotal !== null ? `,minApprovalTotal>=${minApprovalTotal}` : '';
   process.stdout.write(
-    `release-evidence governance gate passed: compareReady=${trend.compareReady ? 'true' : 'false'}, pointCount=${trend.pointCount}, approval(total=${summary.total},pending=${summary.pending},blocked=${summary.blocked},confirmed=${summary.confirmed},failed=${summary.failed})\n`,
+    `release-evidence governance gate passed: compareReady=${trend.compareReady ? 'true' : 'false'}, pointCount=${trend.pointCount}, approval(total=${summary.total},pending=${summary.pending},blocked=${summary.blocked},confirmed=${summary.confirmed},failed=${summary.failed}${minPart})\n`,
   );
 }
 

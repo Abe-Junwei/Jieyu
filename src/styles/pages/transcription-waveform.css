@@ -126,7 +126,7 @@
   margin-top: 10px;
   border: 1px dashed var(--border-soft);
   border-radius: var(--radius-lg);
-  padding: 18px;
+  padding: var(--space-4);
   color: var(--text-secondary);
   font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
 }

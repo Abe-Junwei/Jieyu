@@ -295,6 +295,69 @@ export async function executeConfirmedToolCall({
 /**
  * Confirm path for `propose_changes`: run validated child tool calls in order with one assistant summary.
  */
+function buildProposeChangesFailureDetail(
+  locale: Locale,
+  failedChildName: string,
+  reasonDetail: string,
+  appliedChildCount: number,
+  totalChildCount: number,
+): string {
+  const progress = locale === 'zh-CN'
+    ? `已执行 ${appliedChildCount}/${totalChildCount} 项`
+    : `applied ${appliedChildCount}/${totalChildCount} change(s)`;
+  if (locale === 'zh-CN') {
+    return `propose_changes 在子步骤 ${failedChildName} 失败：${reasonDetail}（${progress}）`;
+  }
+  return `propose_changes failed at child step ${failedChildName}: ${reasonDetail} (${progress})`;
+}
+
+async function runProposeChangeRollbacks(
+  rollbacks: ReadonlyArray<() => Promise<void>>,
+): Promise<{ attempted: boolean; ok: boolean; errors: string[] }> {
+  if (rollbacks.length === 0) {
+    return { attempted: false, ok: true, errors: [] };
+  }
+  const errors: string[] = [];
+  for (let i = rollbacks.length - 1; i >= 0; i -= 1) {
+    try {
+      await rollbacks[i]!();
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  return { attempted: true, ok: errors.length === 0, errors };
+}
+
+function appendProposeRollbackStatus(
+  locale: Locale,
+  detail: string,
+  rb: { attempted: boolean; ok: boolean; errors: readonly string[] },
+): string {
+  if (!rb.attempted) {
+    return locale === 'zh-CN' ? `${detail}（无可自动回滚快照）` : `${detail} (no rollback snapshot available)`;
+  }
+  if (rb.ok) {
+    return locale === 'zh-CN' ? `${detail}（已回滚已应用的修改）` : `${detail} (rolled back applied changes)`;
+  }
+  const joined = rb.errors.join('; ');
+  return locale === 'zh-CN' ? `${detail}（回滚失败：${joined}）` : `${detail} (rollback failed: ${joined})`;
+}
+
+function buildProposeChangesExecutionProgress(
+  appliedChildCount: number,
+  totalChildCount: number,
+): {
+  appliedCount: number;
+  totalCount: number;
+  partial: boolean;
+} {
+  return {
+    appliedCount: Math.max(0, appliedChildCount),
+    totalCount: Math.max(0, totalChildCount),
+    partial: appliedChildCount > 0 && appliedChildCount < totalChildCount,
+  };
+}
+
 export async function executeConfirmedProposedChangeBatch({
   assistantMessageId,
   parentCall,
@@ -466,17 +529,31 @@ export async function executeConfirmedProposedChangeBatch({
 
   const TOOL_EXEC_TIMEOUT_MS = 30_000;
   const execStart = performance.now();
+  const rollbacks: Array<() => Promise<void>> = [];
 
   let appliedChildCount = 0;
+  let currentChildName = parentCall.name;
   try {
     let lastOkChildName = parentCall.name;
 
     for (let i = 0; i < childCalls.length; i += 1) {
       const child = childCalls[i]!;
+      currentChildName = child.name;
       const argsValidationError = validateToolCallArguments(child);
       if (argsValidationError) {
         const invalidArgsText = formatInvalidArgsError(argsValidationError);
-        const detail = `${child.name}: ${invalidArgsText}`;
+        const rb = await runProposeChangeRollbacks(rollbacks);
+        const detail = appendProposeRollbackStatus(
+          locale,
+          buildProposeChangesFailureDetail(
+            locale,
+            child.name,
+            invalidArgsText,
+            appliedChildCount,
+            childCalls.length,
+          ),
+          rb,
+        );
         bumpMetric('failureCount');
         await applyAssistantMessageResult(
           assistantMessageId,
@@ -500,6 +577,12 @@ export async function executeConfirmedProposedChangeBatch({
             detail,
             'invalid_child_args',
             Math.round(performance.now() - execStart),
+            buildProposeChangesExecutionProgress(appliedChildCount, childCalls.length),
+            {
+              attempted: rb.attempted,
+              ok: rb.ok,
+              errorCount: rb.errors.length,
+            },
           ),
         );
         finishIdle();
@@ -519,7 +602,18 @@ export async function executeConfirmedProposedChangeBatch({
       ]);
 
       if (!result.ok) {
-        const detail = `${child.name}: ${result.message}`;
+        const rb = await runProposeChangeRollbacks(rollbacks);
+        const detail = appendProposeRollbackStatus(
+          locale,
+          buildProposeChangesFailureDetail(
+            locale,
+            child.name,
+            result.message,
+            appliedChildCount,
+            childCalls.length,
+          ),
+          rb,
+        );
         bumpMetric('failureCount');
         await applyAssistantMessageResult(
           assistantMessageId,
@@ -543,17 +637,26 @@ export async function executeConfirmedProposedChangeBatch({
             detail,
             'child_failed',
             Math.round(performance.now() - execStart),
+            buildProposeChangesExecutionProgress(appliedChildCount, childCalls.length),
+            {
+              attempted: rb.attempted,
+              ok: rb.ok,
+              errorCount: rb.errors.length,
+            },
           ),
         );
         finishIdle();
         return;
       }
 
+      if (typeof result.rollback === 'function') {
+        rollbacks.push(result.rollback);
+      }
       lastOkChildName = child.name;
       appliedChildCount += 1;
-      markExecutedRequestId(parentCall.requestId);
     }
 
+    markExecutedRequestId(parentCall.requestId);
     bumpMetric('successCount');
     const nextSessionMemory = buildPostExecSessionMemory({
       sessionMemory,
@@ -597,12 +700,24 @@ export async function executeConfirmedProposedChangeBatch({
   } catch (error) {
     const execDurationMsErr = Math.round(performance.now() - execStart);
     const toolErrorText = error instanceof Error ? error.message : formatToolExecutionFallbackError();
+    const rb = await runProposeChangeRollbacks(rollbacks);
+    const detail = appendProposeRollbackStatus(
+      locale,
+      buildProposeChangesFailureDetail(
+        locale,
+        currentChildName,
+        toolErrorText,
+        appliedChildCount,
+        childCalls.length,
+      ),
+      rb,
+    );
     bumpMetric('failureCount');
     await applyAssistantMessageResult(
       assistantMessageId,
-      toNaturalToolFailure(locale, parentCall.name, toolErrorText, toolFeedbackStyle),
+      toNaturalToolFailure(locale, parentCall.name, detail, toolFeedbackStyle),
       'error',
-      toolErrorText,
+      detail,
     );
     await writeToolDecisionAuditLog(
       assistantMessageId,
@@ -617,9 +732,15 @@ export async function executeConfirmedProposedChangeBatch({
         'human',
         'confirm_failed',
         appliedChildCount > 0,
-        toolErrorText,
+        detail,
         'exception',
         execDurationMsErr,
+        buildProposeChangesExecutionProgress(appliedChildCount, childCalls.length),
+        {
+          attempted: rb.attempted,
+          ok: rb.ok,
+          errorCount: rb.errors.length,
+        },
       ),
     );
     finishIdle();

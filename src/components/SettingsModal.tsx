@@ -367,13 +367,15 @@ function OptionGroup<T extends string>({
 
 function SettingsSection({
   title,
+  className,
   children,
 }: {
   title: string;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="settings-section" aria-label={title}>
+    <section className={`settings-section${className ? ` ${className}` : ''}`} aria-label={title}>
       <div className="settings-section-rail" aria-hidden="true">
         <span className="settings-section-title panel-title-eyebrow">
           <span className="settings-section-title-text">{title}</span>
@@ -1274,7 +1276,7 @@ export const SettingsModal = memo(function SettingsModal({
                 <p className="settings-ai-loading">…</p>
               ) : aiSettings ? (
                 <div className="settings-sections-stack">
-                  <SettingsSection title={msg.aiProviderLabel}>
+                  <SettingsSection title={msg.aiProviderLabel} className="settings-ai-provider-selector-section">
                     <div className="settings-inline-row">
                       <select
                         className="settings-select"
@@ -1293,7 +1295,7 @@ export const SettingsModal = memo(function SettingsModal({
                     </div>
                   </SettingsSection>
                   {activeAiProviderDef.fields.length > 0 && (
-                    <SettingsSection title={activeAiProviderDef.label}>
+                    <SettingsSection title={activeAiProviderDef.label} className="settings-ai-provider-fields-section">
                       {activeAiProviderDef.fields.map((field) => (
                         <SettingRow key={field.key} label={field.label}>
                           {field.type === 'select' ? (

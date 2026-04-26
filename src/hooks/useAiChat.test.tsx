@@ -44,6 +44,13 @@ vi.mock('../ai/ChatOrchestrator', () => {
           yield { delta: '', done: true };
           return;
         }
+        if (userText.includes('__TOOL_PROPOSE_CHANGES_MULTI__')) {
+          yield {
+            delta: '{"tool_call":{"name":"propose_changes","arguments":{"description":"demo","changes":[{"tool":"set_transcription_text","arguments":{"segmentId":"u1","text":"first"}},{"tool":"set_transcription_text","arguments":{"segmentId":"u2","text":"second"}}]}}}',
+          };
+          yield { delta: '', done: true };
+          return;
+        }
         if (userText.includes('__TOOL_PROPOSE_CHANGES_INVALID__')) {
           yield {
             delta: '{"tool_call":{"name":"propose_changes","arguments":{"changes":[]}}}',
@@ -696,6 +703,56 @@ describe('useAiChat abort and recovery', () => {
     const confirmed = onToolCall.mock.calls[0]?.[0] as AiChatToolCall;
     expect(confirmed?.name).toBe('set_transcription_text');
     expect(confirmed?.arguments.segmentId).toBe('u1');
+  });
+
+  it('should surface partial execution details when propose_changes fails mid-batch', async () => {
+    const rollbackFirst = vi.fn().mockResolvedValue(undefined);
+    const onToolCall = vi.fn()
+      .mockResolvedValueOnce({ ok: true, message: 'ok-1', rollback: rollbackFirst })
+      .mockResolvedValueOnce({ ok: false, message: 'step-2-failed' });
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_PROPOSE_CHANGES_MULTI__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.confirmPendingToolCall();
+    });
+
+    await waitFor(() => {
+      expect(result.current.pendingToolCall).toBeNull();
+    });
+
+    expect(onToolCall).toHaveBeenCalledTimes(2);
+    expect(rollbackFirst).toHaveBeenCalledTimes(1);
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.content).toContain('已执行 1/2 项');
+    expect(assistant?.content).toContain('已回滚已应用的修改');
+    expect(assistant?.content).toContain('step-2-failed');
+
+    const auditRows = await db.audit_logs.toArray();
+    const decisionLog = auditRows.find((row) => row.field === 'ai_tool_call_decision' && row.newValue === 'confirm_failed:propose_changes:child_failed');
+    expect(decisionLog).toBeTruthy();
+    expect(decisionLog?.metadataJson).toContain('已执行 1/2 项');
+    const metadata = JSON.parse(decisionLog?.metadataJson ?? '{}') as {
+      executionProgress?: { appliedCount?: number; totalCount?: number; partial?: boolean };
+      proposeRollback?: { attempted?: boolean; ok?: boolean; errorCount?: number };
+    };
+    expect(metadata.executionProgress?.appliedCount).toBe(1);
+    expect(metadata.executionProgress?.totalCount).toBe(2);
+    expect(metadata.executionProgress?.partial).toBe(true);
+    expect(metadata.proposeRollback?.attempted).toBe(true);
+    expect(metadata.proposeRollback?.ok).toBe(true);
+    expect(metadata.proposeRollback?.errorCount).toBe(0);
   });
 
   it('should rewrite legacy risk narration to clarification without raw tool key', async () => {

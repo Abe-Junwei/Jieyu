@@ -23,7 +23,6 @@
   z-index: var(--z-raised);
 }
 
-.ai-chat-voice-drawer-head,
 .ai-chat-decision-panel-head,
 .ai-chat-prompt-lab-panel-head {
   display: flex;
@@ -45,22 +44,6 @@
   transition: background var(--rail-motion), border-color var(--rail-motion), color var(--rail-motion), box-shadow var(--rail-motion);
 }
 
-.ai-chat-voice-drawer-head {
-  --ai-fold-head-bg: color-mix(in srgb, var(--state-info-bg) 58%, transparent);
-  --ai-fold-head-border: color-mix(in srgb, var(--state-info-solid) 18%, transparent);
-  --ai-fold-head-shadow: 0 1px 2px color-mix(in srgb, var(--state-info-solid) 6%, transparent), inset 0 1px 0 color-mix(in srgb, white 46%, transparent);
-  --ai-fold-head-color: var(--state-info-solid);
-  --ai-fold-head-hover-bg: color-mix(in srgb, var(--state-info-bg) 68%, transparent);
-  --ai-fold-head-hover-border: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
-  --ai-fold-head-hover-shadow: 0 6px 16px color-mix(in srgb, var(--state-info-solid) 8%, transparent), inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
-  --ai-fold-head-open-bg: color-mix(in srgb, var(--state-info-bg) 72%, transparent);
-  --ai-fold-head-open-border: color-mix(in srgb, var(--state-info-solid) 34%, transparent);
-  --ai-fold-head-open-shadow: 0 8px 20px color-mix(in srgb, var(--state-info-solid) 10%, transparent), inset 0 1px 0 color-mix(in srgb, white 56%, transparent);
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.ai-chat-voice-drawer-head,
 .ai-chat-decision-panel-head,
 .ai-chat-prompt-lab-panel-head {
   border: 0;
@@ -89,17 +72,14 @@
   opacity: 1;
 }
 
-.ai-chat-voice-drawer-head:hover .ai-chat-fold-caret,
 .ai-chat-decision-panel-head:hover .ai-chat-fold-caret,
 .ai-chat-prompt-lab-panel-head:hover .ai-chat-fold-caret,
-.ai-chat-voice-drawer-head:focus-visible .ai-chat-fold-caret,
 .ai-chat-decision-panel-head:focus-visible .ai-chat-fold-caret,
 .ai-chat-prompt-lab-panel-head:focus-visible .ai-chat-fold-caret {
   opacity: 1;
   color: var(--state-info-solid);
 }
 
-.ai-chat-voice-drawer-head:hover,
 .ai-chat-decision-panel-head:hover,
 .ai-chat-prompt-lab-panel-head:hover {
   background: var(--ai-fold-head-hover-bg);
@@ -107,21 +87,11 @@
   box-shadow: var(--ai-fold-head-hover-shadow);
 }
 
-.ai-chat-voice-drawer.is-open .ai-chat-voice-drawer-head,
 .ai-chat-decision-panel.is-open .ai-chat-decision-panel-head,
 .ai-chat-prompt-lab-panel.is-open .ai-chat-prompt-lab-panel-head {
   background: var(--ai-fold-head-open-bg);
   border-color: var(--ai-fold-head-open-border);
   box-shadow: var(--ai-fold-head-open-shadow);
-}
-
-.ai-chat-voice-drawer-title {
-  display: block;
-  flex: none;
-  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
-  line-height: 1.2;
-  font-weight: 600;
-  color: var(--state-info-solid);
 }
 
 .ai-chat-voice-drawer-body {
@@ -193,7 +163,7 @@
   --ai-fold-head-hover-shadow: 0 6px 14px color-mix(in srgb, var(--state-info-solid) 7%, transparent), inset 0 1px 0 color-mix(in srgb, white 48%, transparent);
   --ai-fold-head-open-bg: color-mix(in srgb, var(--state-info-bg) 62%, transparent);
   --ai-fold-head-open-border: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
-  --ai-fold-head-open-shadow: 0 8px 18px color-mix(in srgb, var(--state-info-solid) 8%, transparent), inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
+  --ai-fold-head-open-shadow: var(--shadow-md), inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
 }
 
 .ai-chat-prompt-lab-panel {
@@ -219,7 +189,7 @@
   --ai-fold-head-hover-shadow: 0 6px 14px color-mix(in srgb, var(--shadow-color) 5%, transparent), inset 0 1px 0 color-mix(in srgb, white 48%, transparent);
   --ai-fold-head-open-bg: color-mix(in srgb, var(--surface-panel) 96%, transparent);
   --ai-fold-head-open-border: color-mix(in srgb, var(--text-tertiary) 30%, transparent);
-  --ai-fold-head-open-shadow: 0 8px 18px color-mix(in srgb, var(--shadow-color) 6%, transparent), inset 0 1px 0 color-mix(in srgb, white 54%, transparent);
+  --ai-fold-head-open-shadow: var(--shadow-md), inset 0 1px 0 color-mix(in srgb, white 54%, transparent);
 }
 
 .ai-chat-prompt-lab-panel-title {
@@ -293,7 +263,6 @@
 }
 
 @media (max-width: 640px) {
-  .ai-chat-voice-drawer-head,
   .ai-chat-decision-panel-head,
   .ai-chat-prompt-lab-panel-head {
     padding-left: 7px;
@@ -419,10 +388,6 @@
 }
 
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .ai-chat-voice-drawer-head {
-    background: color-mix(in srgb, var(--state-info-bg) 88%, transparent);
-  }
-
   .ai-chat-decision-panel-head {
     background: color-mix(in srgb, var(--state-info-bg) 82%, transparent);
   }
@@ -1029,10 +994,11 @@ select.ai-cfg-input {
 
 /* AI 配置面板：标签 | AI config panel: label */
 .ai-cfg-label {
-  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  font-weight: 400;
   color: var(--text-secondary);
   letter-spacing: 0.01em;
-  line-height: 26px;
+  line-height: 1.4;
   white-space: nowrap;
   user-select: none;
 }
@@ -1041,13 +1007,13 @@ select.ai-cfg-input {
   border-bottom: 1px dashed var(--border-soft);
   padding: 6px 10px 8px;
   display: grid;
-  gap: 6px;
+  gap: 12px;
 }
 
 .ai-chat-provider-config-row {
   display: grid;
   grid-template-columns: 72px 1fr;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -1069,14 +1035,16 @@ select.ai-cfg-input {
 
 /* AI 配置面板：输入框与选择框 | AI config panel: input & select */
 .ai-cfg-input {
-  min-height: calc(1lh + 12px);
+  min-height: var(--input-h-md);
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
-  padding: calc(6px * var(--ui-font-scale, 1)) calc(8px * var(--ui-font-scale, 1));
+  line-height: 1.4;
+  padding: 8px 10px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface-header) 88%, transparent);
   color: var(--text-primary);
   outline: none;
+  box-sizing: border-box;
   transition: border-color 0.15s;
 }
 

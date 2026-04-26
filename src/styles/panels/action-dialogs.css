@@ -60,9 +60,9 @@
 .layer-action-dialog,
 .side-pane-action-modal {
   --panel-field-label-size: var(--panel-typography-label-size, calc(12px * var(--ui-font-scale, 1)));
-  --panel-field-label-weight: 600;
-  --panel-field-stack-gap: 6px;
-  --panel-section-gap: 14px;
+  --panel-field-label-weight: 400;
+  --panel-field-stack-gap: 8px;
+  --panel-section-gap: 12px;
 }
 
 /* 新建面板（转写/翻译）扁平字段布局 | Flat field layout for create panels */
@@ -321,7 +321,7 @@
 
 .layer-action-dialog-input {
   width: 100%;
-  min-height: var(--btn-h-compact);
+  min-height: var(--input-h-md);
   box-sizing: border-box;
   border-radius: var(--radius-sm);
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildUserDirectivePrompt } from './userDirectivePrompt';
 import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, deactivateSessionDirective, loadSessionMemory, patchSessionMemoryPreferences, pruneDirectiveLedgerBySourceMessage, setSessionMemoryMessagePinned, updateConversationSummaryMemory } from './sessionMemory';
 
 describe('sessionMemory P2 helpers', () => {
@@ -259,5 +260,106 @@ describe('sessionMemory P2 helpers', () => {
     expect(next.sessionDirectives).toHaveLength(1);
     expect(next.sessionDirectives?.[0]?.id).toBe('dir-b');
     expect(next.pinnedDirectiveRefs).toEqual(['dir-b']);
+  });
+
+  it('deactivates ledger-only long_term response preference: clears preferences and prompt lines', () => {
+    const memory = {
+      responsePreferences: { style: 'concise' as const },
+      directiveLedger: [
+        {
+          id: 'dir-st',
+          category: 'response' as const,
+          scope: 'long_term' as const,
+          text: '简洁',
+          action: 'accepted' as const,
+          source: 'user_explicit' as const,
+          confidence: 0.88,
+          createdAt: '2026-04-25T00:00:00.000Z',
+          targetPath: 'responsePreferences.style',
+          value: 'concise',
+        },
+      ],
+    };
+    const next = deactivateSessionDirective(memory, 'dir-st');
+    expect(next.sessionDirectives).toBeUndefined();
+    expect(next.responsePreferences).toBeUndefined();
+    expect(next.directiveLedger?.[0]).toMatchObject({
+      id: 'dir-st',
+      action: 'superseded',
+      supersededBy: 'dir-st_deactivated',
+    });
+    const prompt = buildUserDirectivePrompt(next);
+    expect(prompt).toBe('');
+  });
+
+  it('deactivates terminology ledger entry: removes matching terminology pair', () => {
+    const memory = {
+      terminologyPreferences: [
+        { source: 'foo', target: 'bar', createdAt: '2026-04-25T00:00:00.000Z' },
+      ],
+      directiveLedger: [
+        {
+          id: 'term-1',
+          category: 'terminology' as const,
+          scope: 'long_term' as const,
+          text: '用 bar 指代 foo',
+          action: 'accepted' as const,
+          source: 'user_explicit' as const,
+          confidence: 0.9,
+          createdAt: '2026-04-25T00:00:00.000Z',
+          targetPath: 'terminologyPreferences',
+          value: 'foo=>bar',
+        },
+      ],
+    };
+    const next = deactivateSessionDirective(memory, 'term-1');
+    expect(next.terminologyPreferences).toBeUndefined();
+    expect(next.directiveLedger?.[0]?.action).toBe('superseded');
+  });
+
+  it('does not clear preference if current value was superseded by a newer value', () => {
+    const memory = {
+      responsePreferences: { language: 'zh-CN' as const },
+      directiveLedger: [
+        {
+          id: 'old-lang',
+          category: 'response' as const,
+          scope: 'long_term' as const,
+          text: '用英文',
+          action: 'accepted' as const,
+          source: 'user_explicit' as const,
+          confidence: 0.9,
+          createdAt: '2026-04-25T00:00:00.000Z',
+          targetPath: 'responsePreferences.language',
+          value: 'en',
+        },
+      ],
+    };
+    const next = deactivateSessionDirective(memory, 'old-lang');
+    expect(next.responsePreferences?.language).toBe('zh-CN');
+    expect(next.directiveLedger?.[0]?.action).toBe('superseded');
+  });
+
+  it('removes pinnedDirectiveRefs when deactivating that directive id', () => {
+    const memory = {
+      pinnedDirectiveRefs: ['dir-pinned', 'other'],
+      directiveLedger: [
+        {
+          id: 'dir-pinned',
+          category: 'response' as const,
+          scope: 'long_term' as const,
+          text: 'x',
+          action: 'accepted' as const,
+          source: 'user_explicit' as const,
+          confidence: 0.9,
+          createdAt: '2026-04-25T00:00:00.000Z',
+          targetPath: 'responsePreferences.format',
+          value: 'bullets',
+        },
+      ],
+      responsePreferences: { format: 'bullets' as const },
+    };
+    const next = deactivateSessionDirective(memory, 'dir-pinned');
+    expect(next.pinnedDirectiveRefs).toEqual(['other']);
   });
 });

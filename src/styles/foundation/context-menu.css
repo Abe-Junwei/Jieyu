@@ -6,7 +6,7 @@
   background: color-mix(in srgb, var(--surface-panel) 99%, transparent);
   border: 1px solid color-mix(in srgb, var(--border-soft) 94%, transparent);
   border-radius: var(--radius-xl);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--shadow-color) 13%, transparent);
+  box-shadow: var(--shadow-md);
   padding: 6px;
   font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   overflow-y: auto;
@@ -215,12 +215,15 @@
 .context-menu-search-input {
   width: 100%;
   min-width: 0;
-  padding: 7px 10px;
+  min-height: var(--input-h-compact);
+  padding: var(--input-padding-compact);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
   color: var(--text-primary);
+  line-height: var(--input-line-height-compact);
   font: inherit;
+  box-sizing: border-box;
   outline: none;
 }
 

@@ -147,6 +147,7 @@ interface ReleaseEvidenceReport {
       confirmed: number;
       cancelled: number;
       failed: number;
+      partialFailureCount?: number;
     };
     riskTiers: Record<string, number>;
     approvalModes: Record<string, number>;
@@ -1151,6 +1152,24 @@ describe('generate-release-evidence-bundle script', () => {
           riskTier: 'medium',
         }),
       },
+      {
+        request_id: 'approval_004',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:06.000Z',
+        new_value: 'confirm_failed:propose_changes:child_failed',
+        metadata_json: JSON.stringify({
+          phase: 'decision',
+          outcome: 'confirm_failed',
+          approvalMode: 'propose_changes',
+          riskTier: 'high',
+          executionProgress: {
+            appliedCount: 1,
+            totalCount: 2,
+            partial: true,
+          },
+        }),
+      },
     ];
 
     try {
@@ -1219,17 +1238,19 @@ describe('generate-release-evidence-bundle script', () => {
       });
       expect(report.actionApprovalCenter?.status).toBe('ready_or_partial');
       expect(report.actionApprovalCenter?.summary).toMatchObject({
-        total: 3,
+        total: 4,
         pending: 1,
         blocked: 1,
         confirmed: 1,
+        failed: 1,
+        partialFailureCount: 1,
       });
       expect(report.actionApprovalCenter?.riskTiers).toEqual({
-        high: 2,
+        high: 3,
         medium: 1,
       });
       expect(report.actionApprovalCenter?.approvalModes).toEqual({
-        propose_changes: 1,
+        propose_changes: 2,
         safety_gate: 1,
         user_preference: 1,
       });

@@ -82,7 +82,7 @@
   border-radius: var(--radius-2xl);
   border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
   background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+  box-shadow: var(--shadow-md);
 }
 
 .feature-availability-label {

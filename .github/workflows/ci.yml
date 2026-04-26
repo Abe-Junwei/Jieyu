@@ -23,6 +23,11 @@ on:
         required: false
         default: false
         type: boolean
+      run_agent_evals_audit_trace:
+        description: 'After standard agent evals, run audit NDJSON trace assertion (check:agent-evals:trace)'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -123,6 +128,10 @@ jobs:
 
       - name: Agent evals gate (enforce)
         run: npm run check:agent-evals
+
+      - name: Agent evals audit trace (optional, workflow_dispatch only)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_agent_evals_audit_trace == 'true' }}
+        run: npm run check:agent-evals:trace
 
       - name: Upload agent eval report
         if: always()
@@ -429,7 +438,7 @@ jobs:
         run: |
           if [ "${REQUIRE_COST_GUARD_TREND_READY}" = "true" ] || [ "${REQUIRE_ACTION_APPROVAL_STRICT}" = "true" ]; then
             node scripts/generate-release-evidence-bundle.mjs --profile=full --dry-run --ai-audit-export=docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson --output=docs/execution/release-gates/release-evidence/release-evidence-governance-gate-full.json && \
-            node scripts/check-release-evidence-governance.mjs --report=docs/execution/release-gates/release-evidence/release-evidence-governance-gate-full.json --require-cost-guard-compare-ready --max-pending-rate=0.70 --max-blocked-rate=0.80 --max-failed-rate=0.20 --require-high-risk-signal
+            node scripts/check-release-evidence-governance.mjs --report=docs/execution/release-gates/release-evidence/release-evidence-governance-gate-full.json --require-cost-guard-compare-ready --max-pending-rate=0.70 --max-blocked-rate=0.80 --max-failed-rate=0.20 --require-high-risk-signal --min-approval-total=2
           else
             node scripts/generate-release-evidence-bundle.mjs --profile=full --dry-run --output=docs/execution/release-gates/release-evidence/release-evidence-governance-gate-full.json && \
             node scripts/check-release-evidence-governance.mjs --report=docs/execution/release-gates/release-evidence/release-evidence-governance-gate-full.json

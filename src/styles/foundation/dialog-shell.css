@@ -34,7 +34,7 @@
   background: var(--bg-primary, var(--surface-panel));
   border-radius: var(--radius-xl);
   border: 1px solid color-mix(in srgb, var(--border-soft) 94%, transparent);
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  box-shadow: var(--shadow-md);
   width: min(var(--dialog-auto-width, 480px), 92vw);
   max-height: 85vh;
   min-height: 0;
@@ -202,7 +202,7 @@
 .dialog-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 /* 选择框 + 内联按钮横排（通用） | Select + inline button row (generic) */
@@ -232,15 +232,20 @@
 
 .dialog-field label,
 .dialog-field > span {
-  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
-  font-weight: 500;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  font-weight: 400;
   color: var(--text-secondary);
 }
 
 .dialog-field :is(input, select, textarea) {
-  padding: 7px 10px;
+  min-height: var(--input-h-md);
+  padding: 8px 10px;
   border: 1px solid var(--border-color, var(--border-soft));
   border-radius: var(--radius-sm);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  line-height: 1.4;
+  box-sizing: border-box;
 }
 
 .dialog-field select:not(.select-caret) {

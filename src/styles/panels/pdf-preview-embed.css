@@ -11,14 +11,14 @@
   background: var(--surface-panel);
   border: 1px solid var(--state-info-border);
   border-radius: var(--radius-xl);
-  box-shadow: 0 16px 42px color-mix(in srgb, var(--shadow-color) 20%, transparent);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   resize: both;
   z-index: var(--z-floating-panel);
 }
 
 .transcription-pdf-preview-panel.is-dragging {
-  box-shadow: 0 20px 54px color-mix(in srgb, var(--shadow-color) 30%, transparent);
+  box-shadow: var(--shadow-modal);
 }
 
 .transcription-pdf-preview-header {

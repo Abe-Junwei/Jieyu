@@ -314,7 +314,7 @@
 }
 
 .voice-agent-session-card.is-live {
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 20%, transparent), 0 8px 18px color-mix(in srgb, var(--shadow-color) 5%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 20%, transparent), var(--shadow-md);
 }
 
 .voice-agent-session-card.is-live::before {
@@ -722,12 +722,12 @@
 .voice-agent-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .voice-agent-field-label {
-  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
-  font-weight: 700;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  font-weight: 400;
   color: var(--text-secondary);
 }
 
@@ -945,10 +945,13 @@
   border: 1px solid var(--border-soft);
   background: var(--surface-panel);
   color: var(--text-primary);
-  padding: 6px 34px 6px 10px;
+  min-height: var(--input-h-md);
+  padding: 8px 34px 8px 10px;
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  line-height: 1.4;
   cursor: pointer;
   max-width: 100%;
+  box-sizing: border-box;
 }
 
 .voice-agent-engine-select {
@@ -959,10 +962,13 @@
   border: 1px solid var(--border-soft);
   background: var(--surface-panel);
   color: var(--text-primary);
-  padding: 6px 34px 6px 10px;
+  min-height: var(--input-h-md);
+  padding: 8px 34px 8px 10px;
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  line-height: 1.4;
   cursor: pointer;
   max-width: 100%;
+  box-sizing: border-box;
 }
 
 .voice-agent-insights-panel {

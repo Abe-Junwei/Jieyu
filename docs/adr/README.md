@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: active
 owner: repo
-last_reviewed: 2026-04-24
+last_reviewed: 2026-04-26
 source_of_truth: decision-index
 ---
 
@@ -41,6 +41,8 @@ source_of_truth: decision-index
 - [0020-unscoped-canonical-unit-transcription-lane-read-scope.md](./0020-unscoped-canonical-unit-transcription-lane-read-scope.md)（unscoped canonical unit 的转写轨读作用域：单一 resolve 入口与读写边界）
 - [0021-zod-jitless-strict-csp.md](./0021-zod-jitless-strict-csp.md)（Zod `jitless` 与严格 `script-src`：禁止 `unsafe-eval` 前提下消除 JIT 探测 CSP 噪声）
 - [0022-annotation-analysis-graph-typed-relations.md](./0022-annotation-analysis-graph-typed-relations.md)（标注 analysisGraph 与 typed relation：非线性形态、exponent/process、fixture-first 与导出 projection）
+- [0023-全局布局与样式token壳层策略.md](./0023-全局布局与样式token壳层策略.md)（圆角/间距/阴影/壳内控制件与 `.la-shell` 合约；与 execution plan 2026-04-26 配套）
+- [0024-release-evidence-core-governance-dual-gate.md](./0024-release-evidence-core-governance-dual-gate.md)（release-evidence：`gate:release-evidence:core/full` 与 `gate:release-evidence:governance` 双闸职责与 CI 顺序）
 
 ## 建议格式
 

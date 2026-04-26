@@ -356,9 +356,9 @@ export function SidePaneSidebar({
         onClose={() => setIsCollaborationPanelOpen(false)}
         title={collaborationMessages.title}
         ariaLabel={collaborationMessages.title}
-        className="pnl-settings-modal pnl-collaboration-cloud-modal"
-        bodyClassName="settings-modal-body collaboration-cloud-settings-body"
-        titleClassName="settings-modal-title"
+        className="pnl-collaboration-cloud-modal"
+        bodyClassName="collaboration-cloud-modal-body collaboration-cloud-settings-body"
+        titleClassName="collaboration-cloud-modal-title"
       >
         <CollaborationCloudPanel
           {...collaborationCloudPanelProps}

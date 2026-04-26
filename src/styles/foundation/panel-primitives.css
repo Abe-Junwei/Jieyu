@@ -1,8 +1,8 @@
 .panel-section {
   display: grid;
-  gap: var(--space-3, 12px);
+  gap: var(--space-stack-section, var(--space-3, 12px));
   min-width: 0;
-  padding: var(--space-3, 12px);
+  padding: var(--space-section-padding, var(--space-3, 12px));
   border: 0;
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-bg));
@@ -20,14 +20,14 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px 12px;
+  gap: var(--space-row-gap, 8px) var(--space-stack-section, 12px);
   flex-wrap: wrap;
 }
 
 .panel-section__copy {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: var(--space-title-content, 8px);
 }
 
 .panel-section__title {
@@ -43,7 +43,7 @@
   font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   font-weight: 700;
-  text-align: center;
+  text-align: left;
 }
 
 .panel-title-secondary {
@@ -72,18 +72,26 @@
   line-height: 1.5;
 }
 
+/* 嵌套小节标题下的说明（较 section 主说明更小一档；用于 LM 等 .panel-section__copy 栈）| Nested subsection copy under secondary title */
+.panel-subsection__description {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  line-height: 1.5;
+}
+
 .panel-section__meta,
 .panel-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-row-gap, 8px);
   flex-wrap: wrap;
 }
 
 .panel-section__body {
   min-width: 0;
   display: grid;
-  gap: 10px;
+  gap: var(--space-row-gap, 8px);
 }
 
 .panel-summary__supporting,

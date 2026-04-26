@@ -124,7 +124,7 @@
   color: color-mix(in srgb, var(--surface-header) 96%, transparent);
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.2;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-color) 22%, transparent);
+  box-shadow: var(--shadow-md);
   pointer-events: none;
   z-index: var(--z-overlay);
 }

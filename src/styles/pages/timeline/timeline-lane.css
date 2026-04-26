@@ -117,7 +117,7 @@
   transform: translateY(var(--timeline-lane-drag-offset, 0px));
   z-index: var(--z-overlay);
   will-change: transform;
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  box-shadow: var(--shadow-md);
   filter: saturate(1.02);
   transition: none;
 }
