@@ -34,6 +34,19 @@ import { WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY, WORKSPACE_VIDEO_PREVIEW_HEIGHT
 import { persistAcousticProviderRuntimeConfig, resolveAcousticProviderRuntimeConfig, type AcousticProviderRoutingStrategy, type AcousticProviderRuntimeConfig } from '../services/acoustic/acousticProviderContract';
 import { loadEmbeddingProviderConfig, saveEmbeddingProviderConfig, type EmbeddingProviderConfig } from '../pages/TranscriptionPage.helpers';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
+import {
+  VOICE_SETTINGS_UPDATED_EVENT,
+  loadCommercialSttConfig,
+  loadLocalWhisperConfig,
+  loadSttEnhancementSelection,
+  saveCommercialSttConfig,
+  saveLocalWhisperConfig,
+  saveSttEnhancementSelection,
+  type CommercialProviderKind,
+  type CommercialProviderConfig,
+  type VoiceLocalWhisperConfig,
+  type VoiceSttEnhancementConfig,
+} from '../hooks/useVoiceDock';
 import type { ExtensionCapabilityInvocationRecord, ExtensionListItem } from '../extensions/extensionRegistry';
 import {
   readBackupReminderEnabled,
@@ -77,6 +90,22 @@ const EMBEDDING_PROVIDER_OPTIONS: Array<{ value: EmbeddingProviderKind; label: s
   { value: 'local', label: 'Local' },
   { value: 'openai-compatible', label: 'OpenAI Compatible' },
   { value: 'minimax', label: 'MiniMax' },
+];
+
+const VOICE_COMMERCIAL_PROVIDER_OPTIONS: Array<{ value: CommercialProviderKind; label: string }> = [
+  { value: 'groq', label: 'Groq' },
+  { value: 'gemini', label: 'Gemini' },
+  { value: 'openai-audio', label: 'OpenAI Audio' },
+  { value: 'custom-http', label: 'Custom HTTP' },
+  { value: 'minimax', label: 'MiniMax' },
+  { value: 'volcengine', label: 'Volcengine' },
+];
+
+const VOICE_ENHANCEMENT_OPTIONS: Array<{ value: 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize'; label: string }> = [
+  { value: 'none', label: 'None' },
+  { value: 'whisperx-align', label: 'WhisperX Align' },
+  { value: 'mfa-align', label: 'MFA Align' },
+  { value: 'pyannote-diarize', label: 'Pyannote Diarize' },
 ];
 
 // 已知缓存键 | Known cache storage keys
@@ -567,6 +596,15 @@ export const SettingsModal = memo(function SettingsModal({
 
   const [embeddingProviderDefault, setEmbeddingProviderDefault] = useState<EmbeddingProviderConfig>(() => loadEmbeddingProviderConfig());
   const [acousticRuntimeDraft, setAcousticRuntimeDraft] = useState<AcousticProviderRuntimeConfig>(() => resolveAcousticProviderRuntimeConfig());
+  const [voiceCommercialConfig, setVoiceCommercialConfig] = useState<{ kind: CommercialProviderKind; config: CommercialProviderConfig }>(() => loadCommercialSttConfig());
+  const [voiceLocalWhisperConfig, setVoiceLocalWhisperConfig] = useState<VoiceLocalWhisperConfig>(() => loadLocalWhisperConfig());
+  const [voiceEnhancementSelection, setVoiceEnhancementSelection] = useState<{ kind: 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize'; config: VoiceSttEnhancementConfig }>(() => {
+    const loaded = loadSttEnhancementSelection();
+    return {
+      kind: loaded.kind as 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize',
+      config: loaded.config,
+    };
+  });
   const [acousticRuntimeSaved, setAcousticRuntimeSaved] = useState(false);
   const [acousticRuntimeError, setAcousticRuntimeError] = useState<string | null>(null);
   const [aiContextDebugEnabled, setAiContextDebugEnabled] = useState<boolean>(() => readStoredBoolean(AI_CONTEXT_DEBUG_KEY, false));
@@ -661,6 +699,54 @@ export const SettingsModal = memo(function SettingsModal({
       // ignore
     }
   };
+
+  const notifyVoiceSettingsUpdated = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent(VOICE_SETTINGS_UPDATED_EVENT));
+  }, []);
+
+  const handleVoiceCommercialKindChange = useCallback((kind: CommercialProviderKind) => {
+    const next = { kind, config: voiceCommercialConfig.config };
+    setVoiceCommercialConfig(next);
+    saveCommercialSttConfig(next.kind, next.config);
+    notifyVoiceSettingsUpdated();
+  }, [notifyVoiceSettingsUpdated, voiceCommercialConfig.config]);
+
+  const handleVoiceCommercialConfigPatch = useCallback((patch: Partial<CommercialProviderConfig>) => {
+    setVoiceCommercialConfig((prev) => {
+      const next = { kind: prev.kind, config: { ...prev.config, ...patch } };
+      saveCommercialSttConfig(next.kind, next.config);
+      notifyVoiceSettingsUpdated();
+      return next;
+    });
+  }, [notifyVoiceSettingsUpdated]);
+
+  const handleVoiceLocalWhisperPatch = useCallback((patch: Partial<VoiceLocalWhisperConfig>) => {
+    setVoiceLocalWhisperConfig((prev) => {
+      const next = { ...prev, ...patch };
+      saveLocalWhisperConfig(next);
+      notifyVoiceSettingsUpdated();
+      return next;
+    });
+  }, [notifyVoiceSettingsUpdated]);
+
+  const handleVoiceEnhancementKindChange = useCallback((kind: 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize') => {
+    setVoiceEnhancementSelection((prev) => {
+      const next = { kind, config: prev.config };
+      saveSttEnhancementSelection(next.kind, next.config);
+      notifyVoiceSettingsUpdated();
+      return next;
+    });
+  }, [notifyVoiceSettingsUpdated]);
+
+  const handleVoiceEnhancementConfigPatch = useCallback((patch: Partial<VoiceSttEnhancementConfig>) => {
+    setVoiceEnhancementSelection((prev) => {
+      const next = { kind: prev.kind, config: { ...prev.config, ...patch } };
+      saveSttEnhancementSelection(next.kind, next.config);
+      notifyVoiceSettingsUpdated();
+      return next;
+    });
+  }, [notifyVoiceSettingsUpdated]);
 
   // ── 播放偏好 | Playback preferences ──
 
@@ -849,6 +935,15 @@ export const SettingsModal = memo(function SettingsModal({
     setActiveThemeAccent(getThemeAccent());
     setEmbeddingProviderDefault(loadEmbeddingProviderConfig());
     setAcousticRuntimeDraft(resolveAcousticProviderRuntimeConfig());
+    setVoiceCommercialConfig(loadCommercialSttConfig());
+    setVoiceLocalWhisperConfig(loadLocalWhisperConfig());
+    {
+      const loadedEnhancement = loadSttEnhancementSelection();
+      setVoiceEnhancementSelection({
+        kind: loadedEnhancement.kind as 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize',
+        config: loadedEnhancement.config,
+      });
+    }
     setMapProviderDefault(readStoredMapProviderPreference());
     setAiContextDebugEnabled(readStoredBoolean(AI_CONTEXT_DEBUG_KEY, false));
   }, [isOpen]);
