@@ -131,6 +131,11 @@ export interface UseTranscriptionAiControllerInput {
   setEmbeddingProviderConfig?: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
   acousticConfigOverride?: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig> | null;
   acousticProviderPreference?: string | null;
+  /**
+   * 当一轮 AI assistant 消息流在 `useAiChat` 中结束时调用（含空正文），供语音分析写回等与 messageId 对齐。
+   * Invoked when an assistant stream finalizes in `useAiChat` (content may be empty); used to bind voice analysis writeback to the correct message id.
+   */
+  onAiAssistantMessageComplete?: (assistantMessageId: string, content: string) => void;
 }
 
 export interface UseTranscriptionAiControllerResult {
@@ -140,7 +145,7 @@ export interface UseTranscriptionAiControllerResult {
   setAiSidebarError: React.Dispatch<React.SetStateAction<string | null>>;
   embeddingProviderConfig: { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string };
   setEmbeddingProviderConfig: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
-  aiToolDecisionLogs: Array<{ id: string; toolName: string; decision: string; reason?: string; requestId?: string; timestamp: string; source?: 'human' | 'ai' | 'system'; executed?: boolean; durationMs?: number; message?: string }>;
+  aiToolDecisionLogs: Array<{ id: string; toolName: string; decision: string; reason?: string; reasonLabelEn?: string; reasonLabelZh?: string; requestId?: string; timestamp: string; source?: 'human' | 'ai' | 'system'; executed?: boolean; durationMs?: number; message?: string }>;
   aiChat: ReturnType<typeof useAiChat>;
   lexemeMatches: ReturnType<typeof useAiPanelLogic>['lexemeMatches'];
   observerResult: ReturnType<typeof useAiPanelLogic>['observerResult'];

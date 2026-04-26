@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLatest } from '../hooks/useLatest';
 import type { AiPanelMode } from '../components/AiAnalysisPanel';
 import type { AiObserverRecommendation } from '../components/transcription/toolbar/ObserverStatus';
 import { useAiChat } from '../hooks/useAiChat';
@@ -75,7 +76,7 @@ export function useTranscriptionAiController(
     }),
     [input.getUnitDocById, input.selectedTimelineSegment, input.selectionSnapshot.selectedUnit, ownerUnitCandidatesForAi],
   );
-  const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<Array<{ id: string; toolName: string; decision: string; reason?: string; requestId?: string; timestamp: string; source?: 'human' | 'ai' | 'system'; executed?: boolean; durationMs?: number; message?: string }>>([]);
+  const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<Array<{ id: string; toolName: string; decision: string; reason?: string; reasonLabelEn?: string; reasonLabelZh?: string; requestId?: string; timestamp: string; source?: 'human' | 'ai' | 'system'; executed?: boolean; durationMs?: number; message?: string }>>([]);
   const [internalAiSidebarError, setInternalAiSidebarError] = useState<string | null>(null);
   const aiSidebarError = input.aiSidebarError ?? internalAiSidebarError;
   const setAiSidebarError = input.setAiSidebarError ?? setInternalAiSidebarError;
@@ -315,6 +316,11 @@ export function useTranscriptionAiController(
     [effectiveUnitIndex.epoch],
   );
 
+  const onAiAssistantMessageCompleteRef = useLatest(input.onAiAssistantMessageComplete);
+  const handleAiAssistantMessageComplete = useCallback((assistantMessageId: string, content: string) => {
+    onAiAssistantMessageCompleteRef.current?.(assistantMessageId, content);
+  }, [onAiAssistantMessageCompleteRef]);
+
   const aiChat = useAiChat({
     onToolCall: handleAiToolCall,
     onToolRiskCheck: handleAiToolRiskCheck,
@@ -327,6 +333,7 @@ export function useTranscriptionAiController(
     // 转写页首屏关闭自动连通性探测，避免未交互时触发远程请求 | Disable auto connection probing on transcription first screen to avoid remote calls before user interaction
     autoConnectionProbeEnabled: false,
     embeddingSearchService,
+    onMessageComplete: handleAiAssistantMessageComplete,
   });
 
   useEffect(() => {

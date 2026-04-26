@@ -1,3 +1,4 @@
+import type { MutableRefObject } from 'react';
 import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
@@ -43,6 +44,7 @@ interface CreateAssistantRuntimePropsInput {
   formatSidePaneLayerLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   onRegisterToggleVoice: (handler?: () => void) => void;
+  onAiAssistantMessageBridgeRef?: MutableRefObject<((assistantMessageId: string, content: string) => void) | null>;
 }
 
 interface CreateAnalysisRuntimePropsInput {
@@ -132,6 +134,7 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
     context: voiceContext,
     actions: voiceActions,
     target: voiceTarget,
+    ...(input.onAiAssistantMessageBridgeRef !== undefined ? { onAiAssistantMessageBridgeRef: input.onAiAssistantMessageBridgeRef } : {}),
   };
 
   return {

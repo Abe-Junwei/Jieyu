@@ -177,6 +177,8 @@ function normalizeTerminologyPreferences(memory: AiSessionMemory): AiSessionMemo
 function normalizeSessionDirectives(memory: AiSessionMemory): AiSessionMemory['sessionDirectives'] {
   const directives = memory.sessionDirectives;
   if (!Array.isArray(directives) || directives.length === 0) return undefined;
+  const nowMs = Date.now();
+  const nowIsoString = new Date(nowMs).toISOString();
   const normalized = directives
     .map((item) => {
       if (!item || typeof item !== 'object') return null;
@@ -203,6 +205,13 @@ function normalizeSessionDirectives(memory: AiSessionMemory): AiSessionMemory['s
         ...(typeof item.sourceMessageId === 'string' && item.sourceMessageId.trim() ? { sourceMessageId: item.sourceMessageId.trim() } : {}),
       };
     })
+    .filter((item) => {
+      if (!item) return false;
+      if (!item.expiresAt) return true;
+      if (item.expiresAt.length >= 20 && item.expiresAt <= nowIsoString) return false;
+      const expiresMs = Date.parse(item.expiresAt);
+      return !Number.isFinite(expiresMs) || expiresMs > nowMs;
+    })
     .filter((item): item is NonNullable<typeof item> => item !== null)
     .slice(-MAX_SESSION_DIRECTIVES);
   return normalized.length > 0 ? normalized : undefined;
@@ -211,6 +220,8 @@ function normalizeSessionDirectives(memory: AiSessionMemory): AiSessionMemory['s
 function normalizeDirectiveLedger(memory: AiSessionMemory): AiSessionMemory['directiveLedger'] {
   const entries = memory.directiveLedger;
   if (!Array.isArray(entries) || entries.length === 0) return undefined;
+  const nowMs = Date.now();
+  const nowIsoString = new Date(nowMs).toISOString();
   const normalized = entries
     .map((entry) => {
       if (!entry || typeof entry !== 'object') return null;
@@ -253,6 +264,13 @@ function normalizeDirectiveLedger(memory: AiSessionMemory): AiSessionMemory['dir
         ...(typeof entry.supersededBy === 'string' && entry.supersededBy.trim() ? { supersededBy: entry.supersededBy.trim() } : {}),
         ...(typeof entry.reason === 'string' && entry.reason.trim() ? { reason: entry.reason.trim() } : {}),
       };
+    })
+    .filter((entry) => {
+      if (!entry) return false;
+      if (!entry.expiresAt) return true;
+      if (entry.expiresAt.length >= 20 && entry.expiresAt <= nowIsoString) return false;
+      const expiresMs = Date.parse(entry.expiresAt);
+      return !Number.isFinite(expiresMs) || expiresMs > nowMs;
     })
     .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
     .slice(-MAX_DIRECTIVE_LEDGER_LENGTH);
@@ -409,6 +427,19 @@ function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory {
   // authoritative values always come from mergedPreferences (lines below).
   const {
     lastLanguage: _ll, lastToolName: _lt, lastLayerId: _lli, adaptiveInputProfile: _aip,
+    summaryChain: _summaryChain,
+    pinnedMessageIds: _pinnedMessageIds,
+    pinnedMessageDigests: _pinnedMessageDigests,
+    pinnedDirectiveRefs: _pinnedDirectiveRefs,
+    responsePreferences: _responsePreferences,
+    toolPreferences: _toolPreferences,
+    safetyPreferences: _safetyPreferences,
+    terminologyPreferences: _terminologyPreferences,
+    sessionDirectives: _sessionDirectives,
+    directiveLedger: _directiveLedger,
+    localToolState: _localToolState,
+    pendingAgentLoopCheckpoint: _pendingAgentLoopCheckpoint,
+    summaryQualityWarning: _summaryQualityWarning,
     ...baseMemory
   } = memory;
 
@@ -531,6 +562,51 @@ export function setSessionMemoryMessagePinned(
   return normalizeSessionMemory({
     ...memory,
     pinnedMessageIds: Array.from(pinnedSet),
+  });
+}
+
+export function deactivateSessionDirective(memory: AiSessionMemory, directiveId: string): AiSessionMemory {
+  const normalizedDirectiveId = directiveId.trim();
+  if (!normalizedDirectiveId) return normalizeSessionMemory(memory);
+  const nextSessionDirectives = (memory.sessionDirectives ?? [])
+    .filter((item) => item.id !== normalizedDirectiveId);
+  const nextDirectiveLedger = (memory.directiveLedger ?? []).map((entry) => (
+    entry.id === normalizedDirectiveId && entry.action === 'accepted'
+      ? { ...entry, action: 'superseded' as const, supersededBy: `${normalizedDirectiveId}_deactivated` }
+      : entry
+  ));
+  const {
+    sessionDirectives: _ignoredSessionDirectives,
+    directiveLedger: _ignoredDirectiveLedger,
+    ...restMemory
+  } = memory;
+  return normalizeSessionMemory({
+    ...restMemory,
+    ...(nextSessionDirectives.length > 0 ? { sessionDirectives: nextSessionDirectives } : {}),
+    ...(nextDirectiveLedger.length > 0 ? { directiveLedger: nextDirectiveLedger } : {}),
+  });
+}
+
+export function pruneDirectiveLedgerBySourceMessage(memory: AiSessionMemory, sourceMessageId: string): AiSessionMemory {
+  const normalizedMessageId = sourceMessageId.trim();
+  if (!normalizedMessageId) return normalizeSessionMemory(memory);
+  const nextDirectiveLedger = (memory.directiveLedger ?? [])
+    .filter((entry) => entry.sourceMessageId !== normalizedMessageId);
+  const nextSessionDirectives = (memory.sessionDirectives ?? [])
+    .filter((directive) => directive.sourceMessageId !== normalizedMessageId);
+  const nextPinnedDirectiveRefs = (memory.pinnedDirectiveRefs ?? [])
+    .filter((directiveId) => nextDirectiveLedger.some((entry) => entry.id === directiveId));
+  const {
+    directiveLedger: _ignoredDirectiveLedger,
+    sessionDirectives: _ignoredSessionDirectives,
+    pinnedDirectiveRefs: _ignoredPinnedDirectiveRefs,
+    ...restMemory
+  } = memory;
+  return normalizeSessionMemory({
+    ...restMemory,
+    ...(nextDirectiveLedger.length > 0 ? { directiveLedger: nextDirectiveLedger } : {}),
+    ...(nextSessionDirectives.length > 0 ? { sessionDirectives: nextSessionDirectives } : {}),
+    ...(nextPinnedDirectiveRefs.length > 0 ? { pinnedDirectiveRefs: nextPinnedDirectiveRefs } : {}),
   });
 }
 

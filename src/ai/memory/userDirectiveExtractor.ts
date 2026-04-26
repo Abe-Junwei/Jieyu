@@ -166,6 +166,16 @@ function stripMemoryPrefix(text: string): { body: string; scope: AiUserDirective
   return { body: normalized, scope: 'session' };
 }
 
+function resolveImplicitLongTermScope(
+  scope: AiUserDirectiveScope,
+  category: ExtractedUserDirective['category'],
+): AiUserDirectiveScope {
+  if (scope !== 'session') return scope;
+  if (category === 'safety') return 'long_term';
+  if (category === 'tool') return 'long_term';
+  return scope;
+}
+
 function hasEnglishLanguagePreference(text: string): boolean {
   return /(英文|英语|English|in English|respond in English|answer in English|use English|用英文|用英语)/iu.test(text);
 }
@@ -248,22 +258,22 @@ export function extractUserDirectives(input: ExtractUserDirectivesInput): Extrac
       push({ category: 'tool', scope, text, confidence: 0.9, targetPath: 'toolPreferences.defaultScope', value: defaultScope });
     }
     if (/(执行前.*问|先问我|不要自动执行|ask me first|confirm before|before executing)/iu.test(text)) {
-      push({ category: 'tool', scope, text, confidence: 0.9, targetPath: 'toolPreferences.autoExecute', value: 'ask_first' });
+      push({ category: 'tool', scope: resolveImplicitLongTermScope(scope, 'tool'), text, confidence: 0.9, targetPath: 'toolPreferences.autoExecute', value: 'ask_first' });
     } else if (/(不要调用工具|不要执行工具|只给建议|never execute|do not execute tools|no tools)/iu.test(text)) {
-      push({ category: 'tool', scope, text, confidence: 0.9, targetPath: 'toolPreferences.autoExecute', value: 'never' });
+      push({ category: 'tool', scope: resolveImplicitLongTermScope(scope, 'tool'), text, confidence: 0.9, targetPath: 'toolPreferences.autoExecute', value: 'never' });
     }
     if (/(优先本地|先查本地|prefer local|local reads first)/iu.test(text)) {
-      push({ category: 'tool', scope, text, confidence: 0.82, targetPath: 'toolPreferences.preferLocalReads', value: true });
+      push({ category: 'tool', scope: resolveImplicitLongTermScope(scope, 'tool'), text, confidence: 0.82, targetPath: 'toolPreferences.preferLocalReads', value: true });
     }
 
     if (/(不要删除|禁止删除|别删除|do not delete|never delete)/iu.test(text)) {
-      push({ category: 'safety', scope, text, confidence: 0.95, targetPath: 'safetyPreferences.denyDestructive', value: true });
+      push({ category: 'safety', scope: resolveImplicitLongTermScope(scope, 'safety'), text, confidence: 0.95, targetPath: 'safetyPreferences.denyDestructive', value: true });
     }
     if (/(不要批量|禁止批量|别批量|no batch|do not batch)/iu.test(text)) {
-      push({ category: 'safety', scope, text, confidence: 0.9, targetPath: 'safetyPreferences.denyBatch', value: true });
+      push({ category: 'safety', scope: resolveImplicitLongTermScope(scope, 'safety'), text, confidence: 0.9, targetPath: 'safetyPreferences.denyBatch', value: true });
     }
     if (/(先解释影响|影响范围|impact preview|explain impact)/iu.test(text)) {
-      push({ category: 'safety', scope, text, confidence: 0.86, targetPath: 'safetyPreferences.requireImpactPreview', value: true });
+      push({ category: 'safety', scope: resolveImplicitLongTermScope(scope, 'safety'), text, confidence: 0.86, targetPath: 'safetyPreferences.requireImpactPreview', value: true });
     }
 
     const terminology = inferTerminology(text);

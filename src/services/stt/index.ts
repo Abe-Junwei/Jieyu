@@ -101,7 +101,8 @@ const PROVIDERS: Record<CommercialProviderKind, CommercialProviderDefinition> = 
 
 export const commercialProviderDefinitions = Object.values(PROVIDERS);
 
-function hasCommercialCredentials(config: CommercialProviderCreateConfig | undefined): boolean {
+/** True when config has enough fields to construct a commercial STT client (apiKey or appId). */
+export function hasCommercialCredentials(config: CommercialProviderCreateConfig | undefined): boolean {
   return Boolean(config?.apiKey || config?.appId);
 }
 

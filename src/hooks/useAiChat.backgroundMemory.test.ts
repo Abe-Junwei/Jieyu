@@ -47,6 +47,7 @@ describe('useAiChat.backgroundMemory', () => {
     const scheduled = runtime.extractor.schedule({
       conversationId: 'conv-1',
       assistantMessageId: 'ast-1',
+      userMessageId: 'usr-1',
       userText: '请记住：默认用中文解释',
       assistantText: '我记住了。',
       actorId: 'ai-chat',
@@ -57,7 +58,7 @@ describe('useAiChat.backgroundMemory', () => {
     expect(persisted).toHaveBeenCalledTimes(1);
     expect(memory).toMatchObject({
       responsePreferences: { language: 'zh-CN' },
-      directiveLedger: [expect.objectContaining({ action: 'accepted' })],
+      directiveLedger: [expect.objectContaining({ action: 'accepted', sourceMessageId: 'usr-1' })],
     });
     expect(insertAuditLog).toHaveBeenCalledTimes(4);
     expect(insertAuditLog.mock.calls[1]?.[0]).toMatchObject({
@@ -70,5 +71,46 @@ describe('useAiChat.backgroundMemory', () => {
     expect(insertAuditLog.mock.calls[3]?.[0]).toMatchObject({
       field: 'ai_user_directive_application',
     });
+  });
+
+  it('does not emit stale directive logs when flush is skipped', async () => {
+    let memory: AiSessionMemory = {};
+    const insertAuditLog = vi.fn<(entry: AuditLogDocType) => Promise<void>>(async () => {});
+    const runtime = createAiChatBackgroundMemoryRuntime({
+      enabled: true,
+      getSessionMemory: () => memory,
+      setSessionMemory: (next) => { memory = next; },
+      persistSessionMemory: vi.fn(),
+    });
+    runtime.extractor.schedule({
+      conversationId: 'conv-1',
+      assistantMessageId: 'ast-1',
+      userMessageId: 'usr-1',
+      userText: '请记住：默认用中文解释',
+      assistantText: '我记住了。',
+      actorId: 'ai-chat',
+    });
+    await flushBackgroundMemoryExtractor(runtime, insertAuditLog);
+    expect(insertAuditLog.mock.calls.some((call) => call[0].field === 'ai_user_directive_application')).toBe(true);
+
+    const skippedRuntime = createAiChatBackgroundMemoryRuntime({
+      enabled: false,
+      getSessionMemory: () => memory,
+      setSessionMemory: () => {},
+      persistSessionMemory: vi.fn(),
+    });
+    skippedRuntime.extractor.schedule({
+      conversationId: 'conv-1',
+      assistantMessageId: 'ast-2',
+      userMessageId: 'usr-2',
+      userText: '普通聊天',
+      assistantText: 'ok',
+      actorId: 'ai-chat',
+    });
+    await flushBackgroundMemoryExtractor(skippedRuntime, insertAuditLog);
+    const latestDirectiveLogs = insertAuditLog.mock.calls.filter((call) => (
+      call[0].field === 'ai_user_directive_application' || call[0].field === 'ai_user_directive_extraction'
+    ));
+    expect(latestDirectiveLogs).toHaveLength(2);
   });
 });

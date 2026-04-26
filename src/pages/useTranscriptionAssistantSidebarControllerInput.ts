@@ -36,6 +36,8 @@ interface UseTranscriptionAssistantSidebarControllerInputInput {
     stop: AiChatContextValue['onStopAiMessage'];
     clear: AiChatContextValue['onClearAiMessages'];
     toggleMessagePinned?: AiChatContextValue['onToggleAiMessagePin'];
+    deactivateSessionDirective?: AiChatContextValue['onDeactivateAiSessionDirective'];
+    pruneSessionDirectivesBySourceMessage?: AiChatContextValue['onPruneAiSessionDirectivesBySourceMessage'];
     confirmPendingToolCall: AiChatContextValue['onConfirmPendingToolCall'];
     cancelPendingToolCall: AiChatContextValue['onCancelPendingToolCall'];
     trackRecommendationEvent: AiChatContextValue['onTrackAiRecommendationEvent'];
@@ -100,6 +102,8 @@ export function useTranscriptionAssistantSidebarControllerInput({
     onStopAiMessage: aiChat.stop,
     onClearAiMessages: aiChat.clear,
     onToggleAiMessagePin: aiChat.toggleMessagePinned,
+    onDeactivateAiSessionDirective: aiChat.deactivateSessionDirective,
+    onPruneAiSessionDirectivesBySourceMessage: aiChat.pruneSessionDirectivesBySourceMessage,
     onConfirmPendingToolCall: aiChat.confirmPendingToolCall,
     onCancelPendingToolCall: aiChat.cancelPendingToolCall,
     onTrackAiRecommendationEvent: aiChat.trackRecommendationEvent,
@@ -124,6 +128,8 @@ export function useTranscriptionAssistantSidebarControllerInput({
     aiChat.settings,
     aiChat.stop,
     aiChat.toggleMessagePinned,
+    aiChat.deactivateSessionDirective,
+    aiChat.pruneSessionDirectivesBySourceMessage,
     aiChat.taskSession,
     aiChat.testConnection,
     aiChat.trackRecommendationEvent,

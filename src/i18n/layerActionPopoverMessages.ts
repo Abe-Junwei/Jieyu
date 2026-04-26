@@ -28,6 +28,11 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
   dialectPlaceholder: string;
   vernacularPlaceholder: string;
   aliasShortPlaceholder: string;
+  metadataCoreSectionTitle: string;
+  metadataStructureSectionTitle: string;
+  metadataInteropSectionTitle: string;
+  metadataGovernanceSectionTitle: string;
+  metadataTargetLayerLabel: string;
   constraintLegend: string;
   dependentConstraint: string;
   independentConstraint: string;
@@ -36,6 +41,11 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
   translationHostLayersLabel: string;
   /** 新建翻译层：首选宿主（多选时）| Preferred host when multiple hosts */
   translationPreferredHostLabel: string;
+  translationLinkTypeLabel: string;
+  translationLinkTypeDirect: string;
+  translationLinkTypeFree: string;
+  translationLinkTypeLiteral: string;
+  translationLinkTypePedagogical: string;
   autoLinkedParent: (label: string) => string;
   currentRestrictionTranslation: string;
   currentRestrictionTranscription: string;
@@ -54,9 +64,28 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
   languageAssetIdLabel: string;
   languageAssetIdPlaceholder: string;
   languageCodeLabel: string;
+  bridgeIdLabel: string;
+  bridgeIdPlaceholder: string;
+  participantIdLabel: string;
+  participantIdPlaceholder: string;
+  dataCategoryLabel: string;
+  dataCategoryPlaceholder: string;
+  delimiterLabel: string;
+  delimiterPlaceholder: string;
+  sortOrderLabel: string;
+  sortOrderPlaceholder: string;
+  accessRightsLabel: string;
+  accessRightsOpen: string;
+  accessRightsRestricted: string;
+  accessRightsConfidential: string;
+  isDefaultLabel: string;
   aliasHint: string;
   confirmDelete: string;
   resetForm: string;
+  metadataLanguageRequired: string;
+  translationHostLayersRequired: string;
+  transcriptionParentRequired: string;
+  sortOrderInvalid: string;
   invalidLanguageCode: string;
   invalidOrthographySelection: string;
   orthographyContextTargetLanguage: (language: string) => string;
@@ -106,12 +135,22 @@ const DEFAULT_LAYER_ACTION_POPOVER_CATALOG: LayerActionPopoverCatalog = {
   dialectPlaceholder: 'Dialect (optional)',
   vernacularPlaceholder: 'Vernacular (optional)',
   aliasShortPlaceholder: 'Alias (optional)',
+  metadataCoreSectionTitle: 'Core metadata',
+  metadataStructureSectionTitle: 'Structure metadata',
+  metadataInteropSectionTitle: 'Interop metadata',
+  metadataGovernanceSectionTitle: 'Governance metadata',
+  metadataTargetLayerLabel: 'Target layer: ',
   constraintLegend: 'Layer Constraint Type',
   dependentConstraint: 'Dependent boundary (follows the selected host transcription layer)',
   independentConstraint: 'Independent boundary (maintained independently on this layer)',
   selectParentLayer: 'Select parent transcription layer…',
   translationHostLayersLabel: 'Host transcription layers (multi-select)',
   translationPreferredHostLabel: 'Preferred host',
+  translationLinkTypeLabel: 'Translation link type',
+  translationLinkTypeDirect: 'Direct',
+  translationLinkTypeFree: 'Free',
+  translationLinkTypeLiteral: 'Literal',
+  translationLinkTypePedagogical: 'Pedagogical',
   autoLinkedParent: 'Automatically linked to "{label}".',
   currentRestrictionTranslation: 'Current restriction: cannot create translation. ',
   currentRestrictionTranscription: 'Current restriction: cannot create transcription. ',
@@ -130,9 +169,28 @@ const DEFAULT_LAYER_ACTION_POPOVER_CATALOG: LayerActionPopoverCatalog = {
   languageAssetIdLabel: 'Language ID',
   languageAssetIdPlaceholder: 'Auto-generated if left empty',
   languageCodeLabel: 'Language Code',
+  bridgeIdLabel: 'Bridge ID',
+  bridgeIdPlaceholder: 'Optional bridge identifier',
+  participantIdLabel: 'Participant ID',
+  participantIdPlaceholder: 'Optional participant identifier',
+  dataCategoryLabel: 'Data category',
+  dataCategoryPlaceholder: 'Optional data category',
+  delimiterLabel: 'Delimiter',
+  delimiterPlaceholder: 'Optional delimiter used by interop export',
+  sortOrderLabel: 'Sort order',
+  sortOrderPlaceholder: 'Optional integer order',
+  accessRightsLabel: 'Access rights',
+  accessRightsOpen: 'Open',
+  accessRightsRestricted: 'Restricted',
+  accessRightsConfidential: 'Confidential',
+  isDefaultLabel: 'Set as default layer',
   aliasHint: 'Used to distinguish layers of the same language',
   confirmDelete: 'Confirm Delete',
   resetForm: 'Reset form',
+  metadataLanguageRequired: 'Required: select a valid language before saving metadata.',
+  translationHostLayersRequired: 'Required: translation layer must keep at least one host transcription layer.',
+  transcriptionParentRequired: 'Required: select a parent transcription layer for dependent-boundary mode.',
+  sortOrderInvalid: 'Sort order must be a non-negative integer.',
   invalidLanguageCode: 'Language code must be a valid ISO 639-3 code.',
   invalidOrthographySelection: 'The selected orthography is no longer available. Please choose another one.',
   orthographyContextTargetLanguage: 'Target layer language: {language}',

@@ -12,6 +12,7 @@ const MAX_FACT_CHARS = 240;
 export interface AiChatBackgroundMemoryRuntime {
   extractor: BackgroundMemoryExtractor;
   getLastDirectiveApplication: () => UserDirectiveApplicationResult | null;
+  clearLastDirectiveApplication: () => void;
 }
 
 export interface CreateAiChatBackgroundMemoryRuntimeParams {
@@ -110,7 +111,7 @@ export function createAiChatBackgroundMemoryRuntime(params: CreateAiChatBackgrou
       const directives = extractUserDirectives({
         userText: input.userText,
         source: 'background_extracted',
-        sourceMessageId: input.assistantMessageId,
+        sourceMessageId: input.userMessageId ?? input.assistantMessageId,
       });
       lastDirectiveApplication = applyUserDirectivesToSessionMemory(params.getSessionMemory(), directives);
       const { nextMemory, writtenCount } = appendBackgroundFactsToSessionMemory(lastDirectiveApplication.nextMemory, facts);
@@ -127,6 +128,9 @@ export function createAiChatBackgroundMemoryRuntime(params: CreateAiChatBackgrou
   return {
     extractor,
     getLastDirectiveApplication: () => lastDirectiveApplication,
+    clearLastDirectiveApplication: () => {
+      lastDirectiveApplication = null;
+    },
   };
 }
 
@@ -225,7 +229,12 @@ export async function flushBackgroundMemoryExtractor(
   if (!result) return;
   const directiveApplication = runtime.getLastDirectiveApplication();
   await insertAuditLog(buildBackgroundMemoryAuditLog(result, directiveApplication));
+  if (result.status !== 'completed') {
+    runtime.clearLastDirectiveApplication();
+    return;
+  }
   for (const entry of buildUserDirectiveAuditLogs(directiveApplication, result.inputRange.conversationId)) {
     await insertAuditLog(entry);
   }
+  runtime.clearLastDirectiveApplication();
 }

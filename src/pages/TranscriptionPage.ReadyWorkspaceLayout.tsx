@@ -17,7 +17,7 @@ import { t, tf, type Locale } from '../i18n';
 import { LayerActionPopover } from '../components/LayerActionPopover';
 import { ToastController } from './TranscriptionPage.ToastController';
 import { TranscriptionPageAiPanelHandle } from './TranscriptionPage.AiPanelHandle';
-import { RecoveryBanner, TranscriptionOverlays, TranscriptionPageAiSidebar, TranscriptionPageAssistantBridge, TranscriptionPageBatchOps, TranscriptionPageDialogs, TranscriptionPagePdfRuntime, TranscriptionPageSidePane, TranscriptionPageTimelineContent, TranscriptionPageTimelineTop, TranscriptionPageToolbar } from './TranscriptionPage.ReadyWorkspace.runtime';
+import { RecoveryBanner, TranscriptionOverlays, TranscriptionPageAiSidebar, TranscriptionPageAssistantBridge, TranscriptionPageBatchOps, TranscriptionPageChatWindow, TranscriptionPageDialogs, TranscriptionPagePdfRuntime, TranscriptionPageSidePane, TranscriptionPageTimelineContent, TranscriptionPageTimelineTop, TranscriptionPageToolbar } from './TranscriptionPage.ReadyWorkspace.runtime';
 
 const OrchestratorWaveformContent = lazy(async () => {
   const mod = await import('./OrchestratorWaveformContent');
@@ -288,6 +288,12 @@ function ReadyStageContent({
               />
             </Suspense>
           </AiPanelContext.Provider>
+          <Suspense fallback={null}>
+            <TranscriptionPageChatWindow
+              locale={locale}
+              assistantRuntimeProps={aiSidebarProps.assistantRuntimeProps}
+            />
+          </Suspense>
 
           {shouldRenderDialogs ? (
             <Suspense fallback={null}>

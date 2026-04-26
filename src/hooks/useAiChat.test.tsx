@@ -2497,6 +2497,28 @@ describe('useAiChat abort and recovery', () => {
     expect(content).toContain('普通对话回复');
   });
 
+  it('should call onMessageComplete with empty content when assistant stream yields no text', async () => {
+    const onMessageComplete = vi.fn();
+    const { result } = renderHook(() => useAiChat({ onMessageComplete }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__EMPTY_REPLY__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(onMessageComplete).toHaveBeenCalledTimes(1);
+    const [assistantMessageId, content] = onMessageComplete.mock.calls[0] ?? [];
+    expect(typeof assistantMessageId).toBe('string');
+    expect(content).toBe('');
+  });
+
   it('resets interaction metrics when clearing the conversation', async () => {
     const { result } = renderHook(() => useAiChat({}));
 

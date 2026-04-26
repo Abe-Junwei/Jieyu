@@ -1,5 +1,6 @@
 import { createLogger } from '../../observability/logger';
 import { getAiChatCardUtilityMessages } from '../../i18n/messages';
+import { formatPolicyReasonLabelWithCode } from '../../ai/chat/policyReasonLabels';
 
 const log = createLogger('AiChatCardUtils');
 
@@ -53,6 +54,10 @@ export function formatToolDecision(isZh: boolean, decision: string): string {
 
 export function formatToolName(isZh: boolean, toolName: string): string {
   return getAiChatCardUtilityMessages(isZh).toolNames[toolName] ?? toolName;
+}
+
+export function formatPolicyReasonExplanation(isZh: boolean, reasonCode: string | undefined): string | undefined {
+  return formatPolicyReasonLabelWithCode(reasonCode, isZh ? 'zh-CN' : 'en-US');
 }
 
 export function compactInternalId(value: string): string {

@@ -6,6 +6,7 @@ function boolLabel(value: boolean | undefined): string {
 
 export function buildUserDirectivePrompt(memory: AiSessionMemory): string {
   const lines: string[] = [];
+  const nowMs = Date.now();
   const response = memory.responsePreferences;
   const tool = memory.toolPreferences;
   const safety = memory.safetyPreferences;
@@ -37,7 +38,11 @@ export function buildUserDirectivePrompt(memory: AiSessionMemory): string {
   for (const item of memory.terminologyPreferences?.slice(-8) ?? []) {
     lines.push(`- Terminology: use "${item.target}" for "${item.source}".`);
   }
-  for (const directive of memory.sessionDirectives?.slice(-5) ?? []) {
+  for (const directive of (memory.sessionDirectives?.slice(-5) ?? [])) {
+    if (directive.expiresAt) {
+      const expiresMs = Date.parse(directive.expiresAt);
+      if (Number.isFinite(expiresMs) && expiresMs <= nowMs) continue;
+    }
     lines.push(`- Current-session directive: ${directive.text}`);
   }
 

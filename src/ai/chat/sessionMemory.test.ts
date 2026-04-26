@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
-import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, loadSessionMemory, patchSessionMemoryPreferences, setSessionMemoryMessagePinned, updateConversationSummaryMemory } from './sessionMemory';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, deactivateSessionDirective, loadSessionMemory, patchSessionMemoryPreferences, pruneDirectiveLedgerBySourceMessage, setSessionMemoryMessagePinned, updateConversationSummaryMemory } from './sessionMemory';
 
 describe('sessionMemory P2 helpers', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-25T00:00:00.000Z'));
     window.localStorage.clear();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('patches layered preferences and keeps legacy flat aliases', () => {
@@ -127,6 +132,37 @@ describe('sessionMemory P2 helpers', () => {
     expect(chainDigest).toContain('earlierSummaries=');
   });
 
+  it('prunes expired session directives and ledger entries when loading', () => {
+    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify({
+      sessionDirectives: [
+        {
+          id: 'expired-dir',
+          text: '过期的本轮规则',
+          category: 'session',
+          createdAt: '1970-01-01T00:00:00.000Z',
+          expiresAt: '1970-01-01T00:00:00.000Z',
+          source: 'background_extracted',
+        },
+      ],
+      directiveLedger: [
+        {
+          id: 'expired-ledger',
+          category: 'session',
+          scope: 'session',
+          text: '过期的本轮规则',
+          action: 'accepted',
+          source: 'background_extracted',
+          confidence: 0.9,
+          createdAt: '1970-01-01T00:00:00.000Z',
+          expiresAt: '1970-01-01T00:00:00.000Z',
+        },
+      ],
+    }));
+    const loaded = loadSessionMemory();
+    expect(loaded.sessionDirectives).toBeUndefined();
+    expect(loaded.directiveLedger).toBeUndefined();
+  });
+
   it('toggles pinned message IDs in session memory', () => {
     const pinned = setSessionMemoryMessagePinned({}, 'msg-1', true);
     expect(pinned.pinnedMessageIds).toEqual(['msg-1']);
@@ -136,5 +172,92 @@ describe('sessionMemory P2 helpers', () => {
 
     const unpinned = setSessionMemoryMessagePinned(withSecond, 'msg-1', false);
     expect(unpinned.pinnedMessageIds).toEqual(['msg-2']);
+  });
+
+  it('deactivates a session directive and marks accepted ledger entry superseded', () => {
+    const memory = {
+      sessionDirectives: [
+        {
+          id: 'dir-1',
+          text: '本轮只审查',
+          category: 'session' as const,
+          createdAt: '2026-04-25T00:00:00.000Z',
+          source: 'user_explicit' as const,
+        },
+      ],
+      directiveLedger: [
+        {
+          id: 'dir-1',
+          category: 'session' as const,
+          scope: 'session' as const,
+          text: '本轮只审查',
+          action: 'accepted' as const,
+          source: 'user_explicit' as const,
+          confidence: 0.9,
+          createdAt: '2026-04-25T00:00:00.000Z',
+        },
+      ],
+    };
+    const next = deactivateSessionDirective(memory, 'dir-1');
+    expect(next.sessionDirectives).toBeUndefined();
+    expect(next.directiveLedger?.[0]).toMatchObject({
+      id: 'dir-1',
+      action: 'superseded',
+      supersededBy: 'dir-1_deactivated',
+    });
+  });
+
+  it('prunes directive ledger and refs by source message id', () => {
+    const memory = {
+      sessionDirectives: [
+        {
+          id: 'dir-a',
+          text: '请用英文',
+          category: 'response' as const,
+          createdAt: '2026-04-25T00:00:00.000Z',
+          source: 'pinned_message' as const,
+          sourceMessageId: 'msg-1',
+        },
+        {
+          id: 'dir-b',
+          text: '不要删除',
+          category: 'safety' as const,
+          createdAt: '2026-04-25T00:00:00.000Z',
+          source: 'user_explicit' as const,
+          sourceMessageId: 'msg-2',
+        },
+      ],
+      directiveLedger: [
+        {
+          id: 'dir-a',
+          category: 'response' as const,
+          scope: 'long_term' as const,
+          text: '请用英文',
+          action: 'accepted' as const,
+          source: 'pinned_message' as const,
+          confidence: 0.9,
+          createdAt: '2026-04-25T00:00:00.000Z',
+          sourceMessageId: 'msg-1',
+        },
+        {
+          id: 'dir-b',
+          category: 'safety' as const,
+          scope: 'long_term' as const,
+          text: '不要删除',
+          action: 'accepted' as const,
+          source: 'user_explicit' as const,
+          confidence: 0.9,
+          createdAt: '2026-04-25T00:00:00.000Z',
+          sourceMessageId: 'msg-2',
+        },
+      ],
+      pinnedDirectiveRefs: ['dir-a', 'dir-b'],
+    };
+    const next = pruneDirectiveLedgerBySourceMessage(memory, 'msg-1');
+    expect(next.directiveLedger).toHaveLength(1);
+    expect(next.directiveLedger?.[0]?.id).toBe('dir-b');
+    expect(next.sessionDirectives).toHaveLength(1);
+    expect(next.sessionDirectives?.[0]?.id).toBe('dir-b');
+    expect(next.pinnedDirectiveRefs).toEqual(['dir-b']);
   });
 });

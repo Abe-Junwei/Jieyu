@@ -524,5 +524,6 @@ export function useTranscriptionData() {
     setUnits,
     setSpeakers,
     setLayers,
+    setLayerLinks,
   };
 }

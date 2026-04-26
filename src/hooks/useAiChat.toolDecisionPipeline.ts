@@ -1,4 +1,4 @@
-import { assessToolActionIntent, buildToolAuditContext, buildToolDecisionAuditMetadata, buildToolIntentAuditMetadata, isDestructiveToolCall, toNaturalToolFailure, toNaturalToolGraySkipped, toNaturalToolPending, toNaturalToolRollbackSkipped, validateToolCallArguments } from '../ai/chat/toolCallHelpers';
+import { assessToolActionIntent, buildPreviewContract, buildToolAuditContext, buildToolDecisionAuditMetadata, buildToolIntentAuditMetadata, describeAndBuildPending, isDestructiveToolCall, toNaturalToolFailure, toNaturalToolGraySkipped, toNaturalToolPending, toNaturalToolRollbackSkipped, validateToolCallArguments } from '../ai/chat/toolCallHelpers';
 import { formatDuplicateRequestIgnoredDetail, formatDuplicateRequestIgnoredError } from '../ai/messages';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
@@ -9,16 +9,67 @@ import { resolveDestructiveGate } from './useAiChat.destructiveGate';
 import { executeAutoToolCall } from './useAiChat.autoExecute';
 import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, UiChatMessage } from './useAiChat';
 
-function isBatchToolCall(call: AiChatToolCall): boolean {
+type PolicyShapeToolCall = { name: string; arguments: Record<string, unknown> };
+
+function isBatchToolCall(call: PolicyShapeToolCall): boolean {
   return Object.values(call.arguments).some((value) => Array.isArray(value) && value.length > 1)
     || call.name === 'propose_changes'
     || call.name === 'merge_transcription_segments';
 }
 
-function isWriteLikeToolCall(call: AiChatToolCall): boolean {
-  if (isDestructiveToolCall(call.name)) return true;
+function isWriteLikeToolCall(call: PolicyShapeToolCall): boolean {
+  if (isDestructiveToolCall(call.name as AiChatToolCall['name'])) return true;
   return /^(create_|set_|split_|merge_|clear_|link_|unlink_|add_|remove_|switch_|auto_gloss_)/.test(call.name)
     || call.name === 'propose_changes';
+}
+
+type UserDirectivePolicyDecision =
+  | { action: 'allow' }
+  | {
+      action: 'block';
+      reason: 'user_directive_never_execute' | 'user_directive_deny_destructive' | 'user_directive_deny_batch';
+      message: string;
+    }
+  | {
+      action: 'confirm';
+      reason: 'user_directive_confirmation_required';
+      message: string;
+    };
+
+export function resolveUserDirectivePolicyDecision(
+  toolCall: PolicyShapeToolCall,
+  sessionMemory: AiSessionMemory,
+): UserDirectivePolicyDecision {
+  const toolPreference = sessionMemory.toolPreferences?.autoExecute;
+  const safetyPreferences = sessionMemory.safetyPreferences;
+  const policyBlocksDestructive = safetyPreferences?.denyDestructive === true && isDestructiveToolCall(toolCall.name as AiChatToolCall['name']);
+  const policyBlocksBatch = safetyPreferences?.denyBatch === true && isBatchToolCall(toolCall);
+  const policyBlocksExecution = toolPreference === 'never' || policyBlocksDestructive || policyBlocksBatch;
+  if (policyBlocksExecution) {
+    const reason = toolPreference === 'never'
+      ? 'user_directive_never_execute'
+      : policyBlocksDestructive
+        ? 'user_directive_deny_destructive'
+        : 'user_directive_deny_batch';
+    const message = reason === 'user_directive_never_execute'
+      ? 'Blocked by user directive: do not execute tools automatically.'
+      : reason === 'user_directive_deny_destructive'
+        ? 'Blocked by user directive: destructive actions are disabled.'
+        : 'Blocked by user directive: batch actions are disabled.';
+    return { action: 'block', reason, message };
+  }
+
+  const policyRequiresConfirmation = toolPreference === 'ask_first'
+    || (safetyPreferences?.requireImpactPreview === true && isWriteLikeToolCall(toolCall));
+  if (policyRequiresConfirmation) {
+    return {
+      action: 'confirm',
+      reason: 'user_directive_confirmation_required',
+      message: 'User directive requires confirmation before execution.',
+    };
+  }
+
+  return { action: 'allow' };
 }
 
 interface ResolveToolDecisionPipelineParams {
@@ -266,27 +317,13 @@ export async function resolveToolDecisionPipeline({
     };
   }
 
-  const toolPreference = sessionMemory.toolPreferences?.autoExecute;
-  const safetyPreferences = sessionMemory.safetyPreferences;
-  const policyBlocksDestructive = safetyPreferences?.denyDestructive === true && isDestructiveToolCall(toolCall.name);
-  const policyBlocksBatch = safetyPreferences?.denyBatch === true && isBatchToolCall(toolCall);
-  const policyBlocksExecution = toolPreference === 'never' || policyBlocksDestructive || policyBlocksBatch;
-  if (policyBlocksExecution) {
-    const reason = toolPreference === 'never'
-      ? 'user_directive_never_execute'
-      : policyBlocksDestructive
-        ? 'user_directive_deny_destructive'
-        : 'user_directive_deny_batch';
-    const message = reason === 'user_directive_never_execute'
-      ? 'Blocked by user directive: do not execute tools automatically.'
-      : reason === 'user_directive_deny_destructive'
-        ? 'Blocked by user directive: destructive actions are disabled.'
-        : 'Blocked by user directive: batch actions are disabled.';
-    const finalContent = toNaturalToolFailure(locale, toolCall.name, message, toolFeedbackStyle);
+  const policyDecision = resolveUserDirectivePolicyDecision(toolCall, sessionMemory);
+  if (policyDecision.action === 'block') {
+    const finalContent = toNaturalToolFailure(locale, toolCall.name, policyDecision.message, toolFeedbackStyle);
     await writeToolDecisionAuditLog(
       assistantMessageId,
       `auto:${toolCall.name}`,
-      `policy_blocked:${toolCall.name}:${reason}`,
+      `policy_blocked:${toolCall.name}:${policyDecision.reason}`,
       'system',
       toolCall.requestId,
       buildToolDecisionAuditMetadata(
@@ -296,16 +333,20 @@ export async function resolveToolDecisionPipeline({
         'system',
         'policy_blocked',
         false,
-        message,
-        reason,
+        policyDecision.message,
+        policyDecision.reason,
       ),
     );
     return { finalContent, finalStatus: 'done' };
   }
 
-  const policyRequiresConfirmation = toolPreference === 'ask_first'
-    || (safetyPreferences?.requireImpactPreview === true && isWriteLikeToolCall(toolCall));
-  if (policyRequiresConfirmation) {
+  if (policyDecision.action === 'confirm') {
+    const executionCall = preparePendingToolCall
+      ? await preparePendingToolCall(toolCall) ?? undefined
+      : undefined;
+    const previewSourceCall = executionCall ?? toolCall;
+    const impact = describeAndBuildPending(previewSourceCall, aiContext);
+    const readModelEpochCaptured = aiContext?.shortTerm?.timelineReadModelEpoch;
     setTaskSession({
       id: taskSessionId,
       status: 'waiting_confirm',
@@ -314,16 +355,23 @@ export async function resolveToolDecisionPipeline({
     });
     setPendingToolCall({
       call: toolCall,
+      ...(executionCall ? { executionCall } : {}),
       assistantMessageId,
-      riskSummary: 'User directive requires confirmation before execution.',
-      impactPreview: ['Execution is paused until you confirm this tool call.'],
+      riskSummary: impact.riskSummary,
+      impactPreview: impact.impactPreview,
+      approvalMode: 'user_preference',
+      policyReasonCode: policyDecision.reason,
+      policyReasonLabel: policyDecision.message,
+      riskTier: isDestructiveToolCall(toolCall.name) ? 'high' : 'medium',
+      previewContract: buildPreviewContract(previewSourceCall, aiContext),
       ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
       auditContext,
+      ...(readModelEpochCaptured !== undefined ? { readModelEpochCaptured } : {}),
     });
     await writeToolDecisionAuditLog(
       assistantMessageId,
       `auto:${toolCall.name}`,
-      `policy_pending:${toolCall.name}:user_directive_confirmation_required`,
+      `policy_pending:${toolCall.name}:${policyDecision.reason}`,
       'system',
       toolCall.requestId,
       buildToolDecisionAuditMetadata(
@@ -333,8 +381,8 @@ export async function resolveToolDecisionPipeline({
         'system',
         'policy_pending',
         false,
-        'User directive requires confirmation before execution.',
-        'user_directive_confirmation_required',
+        policyDecision.message,
+        policyDecision.reason,
       ),
     );
     return {

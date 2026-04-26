@@ -5,6 +5,7 @@ export const BACKGROUND_MEMORY_EXTRACTOR_SCHEMA_VERSION = 1;
 export interface BackgroundMemoryExtractionInput {
   conversationId: string;
   assistantMessageId: string;
+  userMessageId?: string;
   userText: string;
   assistantText: string;
   actorId: string;

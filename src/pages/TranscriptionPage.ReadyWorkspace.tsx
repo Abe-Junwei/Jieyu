@@ -441,6 +441,11 @@ function TranscriptionPageReadyWorkspace({
     cssVarEnabled: state.phase === 'ready',
   });
 
+  const voiceAiAssistantMessageBridgeRef = useRef<((assistantMessageId: string, content: string) => void) | null>(null);
+  const flushVoiceAiAssistantMessage = useCallback((assistantMessageId: string, content: string) => {
+    voiceAiAssistantMessageBridgeRef.current?.(assistantMessageId, content);
+  }, []);
+
   const {
     waveformHeight,
     amplitudeScale,
@@ -1287,6 +1292,7 @@ function TranscriptionPageReadyWorkspace({
       locale,
       pdfPreviewRequest,
       setPdfPreviewRequest,
+      onAiAssistantMessageBridgeRef: voiceAiAssistantMessageBridgeRef,
     },
   });
 
@@ -1388,8 +1394,10 @@ function TranscriptionPageReadyWorkspace({
 
   const { updateLayerMetadata } = useTranscriptionLayerMetadataController({
     layers,
+    layerLinks,
     setLayerCreateMessage,
     setLayers: data.setLayers,
+    setLayerLinks: data.setLayerLinks,
   });
 
   const trackEntityStateController = useTrackEntityStateController({
@@ -1830,6 +1838,7 @@ function TranscriptionPageReadyWorkspace({
     setEmbeddingProviderConfig,
     acousticConfigOverride,
     acousticProviderPreference,
+    onAiAssistantMessageComplete: flushVoiceAiAssistantMessage,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     state,
   });

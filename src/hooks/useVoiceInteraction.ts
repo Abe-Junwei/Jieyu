@@ -9,7 +9,7 @@
  * commercial engine config sync, and assistant panel expansion behavior.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type RefObject } from 'react';
 import { useVoiceAgent } from './useVoiceAgent';
 import { applyVoiceCommercialConfigChange } from '../utils/voiceCommercialConfigSync';
 import type { CommercialProviderKind, SttEngine } from '../services/VoiceInputService';
@@ -96,6 +96,8 @@ interface UseVoiceInteractionOptions {
   setCommercialProviderConfig: (config: CommercialProviderConfigLike) => void;
   featureVoiceEnabled: boolean;
   toggleVoiceRef: RefObject<(() => void) | undefined>;
+  /** When set, AI stream completion is routed via `useAiChat` `onMessageComplete` (authoritative message id + body). */
+  voiceAiAssistantMessageBridgeRef?: MutableRefObject<((assistantMessageId: string, content: string) => void) | null>;
 }
 
 interface UseVoiceInteractionReturn {
@@ -151,6 +153,7 @@ export function useVoiceInteraction({
   setCommercialProviderConfig,
   featureVoiceEnabled,
   toggleVoiceRef,
+  voiceAiAssistantMessageBridgeRef,
 }: UseVoiceInteractionOptions): UseVoiceInteractionReturn {
   const locale = useLocale();
   const messages = getVoiceInteractionMessages(locale);
@@ -359,6 +362,17 @@ export function useVoiceInteraction({
   const prevAiStreamingRef = useRef(false);
 
   useEffect(() => {
+    const ref = voiceAiAssistantMessageBridgeRef;
+    if (!ref) return;
+    ref.current = (_assistantMessageId, content) => {
+      voiceAgentRef.current?.notifyAiStreamFinished?.(content);
+    };
+    return () => {
+      ref.current = null;
+    };
+  }, [voiceAiAssistantMessageBridgeRef]);
+
+  useEffect(() => {
     const wasStreaming = prevAiStreamingRef.current;
     const isStreaming = aiIsStreaming;
 
@@ -366,13 +380,13 @@ export function useVoiceInteraction({
       voiceAgent.notifyAiStreamStarted?.();
     }
 
-    if (wasStreaming && !isStreaming) {
+    if (wasStreaming && !isStreaming && !voiceAiAssistantMessageBridgeRef) {
       const latestAssistant = aiMessages.find((m) => m.role === 'assistant' && m.status === 'done');
       voiceAgent.notifyAiStreamFinished?.(latestAssistant?.content);
     }
 
     prevAiStreamingRef.current = isStreaming;
-  }, [aiIsStreaming, aiMessages, voiceAgent]);
+  }, [aiIsStreaming, aiMessages, voiceAgent.notifyAiStreamFinished, voiceAgent.notifyAiStreamStarted, voiceAiAssistantMessageBridgeRef]);
 
   const ensureWhisperLocalReady = useCallback(async (): Promise<boolean> => {
     const result = await voiceAgent.testWhisperLocal();
@@ -382,11 +396,11 @@ export function useVoiceInteraction({
     }
     voiceAgent.setExternalError(null);
     return true;
-  }, [voiceAgent]);
+  }, [voiceAgent.setExternalError, voiceAgent.testWhisperLocal]);
 
   const handleVoiceCommercialConfigChange = useCallback((config: CommercialProviderConfigLike) => {
     applyVoiceCommercialConfigChange(config, onCommercialConfigChange, voiceAgent.setCommercialProviderConfig);
-  }, [onCommercialConfigChange, voiceAgent]);
+  }, [onCommercialConfigChange, voiceAgent.setCommercialProviderConfig]);
 
   useEffect(() => {
     setCommercialProviderKind(voiceAgent.commercialProviderKind);
@@ -412,7 +426,7 @@ export function useVoiceInteraction({
       }
       voiceAgent.toggle();
     }, 'Failed to toggle voice mode.');
-  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent]);
+  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent.engine, voiceAgent.listening, voiceAgent.toggle]);
 
   const handleVoiceSwitchEngine = useCallback((engine: SttEngine) => {
     runVoiceTask(async () => {
@@ -422,7 +436,7 @@ export function useVoiceInteraction({
       }
       voiceAgent.switchEngine(engine);
     }, 'Failed to switch voice engine.');
-  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent]);
+  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent.switchEngine]);
 
   const handleMicPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     void event;
@@ -433,7 +447,7 @@ export function useVoiceInteraction({
         await voiceAgent.startRecording();
       }, 'Failed to start recording.');
     }
-  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent]);
+  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent.engine, voiceAgent.listening, voiceAgent.startRecording]);
 
   const handleMicPointerUp = useCallback(() => {
     if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
@@ -441,7 +455,7 @@ export function useVoiceInteraction({
         await voiceAgent.stopRecording();
       }, 'Failed to stop recording.');
     }
-  }, [runVoiceTask, voiceAgent]);
+  }, [runVoiceTask, voiceAgent.engine, voiceAgent.listening, voiceAgent.stopRecording]);
 
   const handleAssistantVoicePanelToggle = useCallback(() => {
     setAssistantVoiceExpanded((value) => !value);

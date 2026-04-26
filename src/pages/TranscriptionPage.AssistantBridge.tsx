@@ -25,6 +25,8 @@ type DeferredAiChatState = {
   stop: UseTranscriptionAiControllerResult['aiChat']['stop'];
   clear: UseTranscriptionAiControllerResult['aiChat']['clear'];
   toggleMessagePinned: UseTranscriptionAiControllerResult['aiChat']['toggleMessagePinned'];
+  deactivateSessionDirective: UseTranscriptionAiControllerResult['aiChat']['deactivateSessionDirective'];
+  pruneSessionDirectivesBySourceMessage: UseTranscriptionAiControllerResult['aiChat']['pruneSessionDirectivesBySourceMessage'];
   confirmPendingToolCall: UseTranscriptionAiControllerResult['aiChat']['confirmPendingToolCall'];
   cancelPendingToolCall: UseTranscriptionAiControllerResult['aiChat']['cancelPendingToolCall'];
   trackRecommendationEvent: UseTranscriptionAiControllerResult['aiChat']['trackRecommendationEvent'];
@@ -90,6 +92,8 @@ function TranscriptionPageAssistantBridge({
       stop: aiChat.stop,
       clear: aiChat.clear,
       toggleMessagePinned: aiChat.toggleMessagePinned,
+      deactivateSessionDirective: aiChat.deactivateSessionDirective,
+      pruneSessionDirectivesBySourceMessage: aiChat.pruneSessionDirectivesBySourceMessage,
       confirmPendingToolCall: aiChat.confirmPendingToolCall,
       cancelPendingToolCall: aiChat.cancelPendingToolCall,
       trackRecommendationEvent: aiChat.trackRecommendationEvent,
@@ -133,6 +137,8 @@ function TranscriptionPageAssistantBridge({
     aiChat.settings,
     aiChat.stop,
     aiChat.toggleMessagePinned,
+    aiChat.deactivateSessionDirective,
+    aiChat.pruneSessionDirectivesBySourceMessage,
     aiChat.taskSession,
     aiChat.testConnection,
     aiChat.trackRecommendationEvent,

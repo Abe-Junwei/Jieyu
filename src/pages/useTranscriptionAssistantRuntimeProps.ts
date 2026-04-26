@@ -42,6 +42,7 @@ interface UseTranscriptionAssistantRuntimePropsInput {
   formatSidePaneLayerLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   toggleVoiceRef: MutableRefObject<(() => void) | undefined>;
+  onAiAssistantMessageBridgeRef?: MutableRefObject<((assistantMessageId: string, content: string) => void) | null>;
 }
 
 export function useTranscriptionAssistantRuntimeProps(
@@ -73,6 +74,7 @@ export function useTranscriptionAssistantRuntimeProps(
     onRegisterToggleVoice: (handler) => {
       input.toggleVoiceRef.current = handler;
     },
+    ...(input.onAiAssistantMessageBridgeRef !== undefined ? { onAiAssistantMessageBridgeRef: input.onAiAssistantMessageBridgeRef } : {}),
   }), [
     input.activeTextPrimaryLanguageId,
     input.defaultTranscriptionLayerId,
@@ -97,5 +99,6 @@ export function useTranscriptionAssistantRuntimeProps(
     input.tfB,
     input.toggleVoiceRef,
     input.translationLayers,
+    input.onAiAssistantMessageBridgeRef,
   ]);
 }

@@ -91,6 +91,30 @@ describe('resolveAiChatStreamCompletion local tools JIT context', () => {
     expect(payload._readModel.unitIndexComplete).toBe(true);
   });
 
+  it('blocks local tool execution when autoExecute is never', async () => {
+    const result = await resolveAiChatStreamCompletion(
+      baseParams({
+        assistantContent: '{"tool_call":{"name":"get_project_stats","arguments":{}}}',
+        sessionMemory: { toolPreferences: { autoExecute: 'never' } },
+      }),
+    );
+    expect(result.finalStatus).toBe('done');
+    expect(result.localToolResults).toBeUndefined();
+    expect(result.finalContent).toMatch(/阻止|blocked/i);
+  });
+
+  it('requires confirmation for local tool execution when autoExecute is ask_first', async () => {
+    const result = await resolveAiChatStreamCompletion(
+      baseParams({
+        assistantContent: '{"tool_call":{"name":"get_project_stats","arguments":{}}}',
+        sessionMemory: { toolPreferences: { autoExecute: 'ask_first' } },
+      }),
+    );
+    expect(result.finalStatus).toBe('done');
+    expect(result.localToolResults).toBeUndefined();
+    expect(result.finalContent).toMatch(/确认|confirmation/i);
+  });
+
   it('falls back to aiContext when resolveFreshAiContext is omitted', async () => {
     const stale: AiPromptContext = {
       longTerm: { projectStats: { unitCount: 7, translationLayerCount: 0, aiConfidenceAvg: null } },

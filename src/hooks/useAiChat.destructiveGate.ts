@@ -182,6 +182,10 @@ export async function resolveDestructiveGate({
       assistantMessageId,
       riskSummary: parsed.description && parsed.description.length > 0 ? parsed.description : impact.riskSummary,
       impactPreview: impact.impactPreview,
+      approvalMode: 'propose_changes',
+      policyReasonCode: 'propose_changes_requires_confirmation',
+      policyReasonLabel: 'Proposed change batch requires confirmation before execution.',
+      riskTier: 'high',
       previewContract: buildPreviewContract(toolCall, aiContext),
       ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
       auditContext,
@@ -325,6 +329,14 @@ export async function resolveDestructiveGate({
       assistantMessageId,
       riskSummary: riskCheck?.riskSummary ?? impact.riskSummary,
       impactPreview: riskCheck?.impactPreview ?? impact.impactPreview,
+      approvalMode: 'safety_gate',
+      policyReasonCode: destructiveBlocked
+        ? 'destructive_action_requires_confirmation'
+        : 'explicit_target_write_requires_confirmation',
+      policyReasonLabel: destructiveBlocked
+        ? 'Destructive action requires explicit confirmation.'
+        : 'Write action requires explicit target confirmation.',
+      riskTier: destructiveBlocked ? 'high' : 'medium',
       previewContract: impact.previewContract,
       ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
       auditContext,

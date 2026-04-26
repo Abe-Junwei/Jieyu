@@ -1,8 +1,12 @@
+import { resolvePolicyReasonLabel } from './chat/policyReasonLabels';
+
 export interface AiToolDecisionLogItem {
   id: string;
   toolName: string;
   decision: string;
   reason?: string;
+  reasonLabelEn?: string;
+  reasonLabelZh?: string;
   requestId?: string;
   timestamp: string;
   source?: 'human' | 'ai' | 'system';
@@ -85,11 +89,15 @@ function parseToolDecisionMetadata(raw: string | undefined): ParsedToolDecision 
 
 export function mapAuditRowToAiToolDecisionLog(row: AuditLogDecisionRow): AiToolDecisionLogItem {
   const parsed = parseToolDecisionMetadata(row.metadataJson) ?? parseAiToolDecision(row.newValue);
+  const reasonLabelEn = parsed.reason ? resolvePolicyReasonLabel(parsed.reason, 'en-US') : undefined;
+  const reasonLabelZh = parsed.reason ? resolvePolicyReasonLabel(parsed.reason, 'zh-CN') : undefined;
   return {
     id: row.id,
     toolName: parsed.toolName,
     decision: parsed.decision,
     ...(parsed.reason ? { reason: parsed.reason } : {}),
+    ...(reasonLabelEn ? { reasonLabelEn } : {}),
+    ...(reasonLabelZh ? { reasonLabelZh } : {}),
     ...(row.requestId ? { requestId: row.requestId } : {}),
     ...(parsed.source ? { source: parsed.source } : {}),
     ...(typeof parsed.executed === 'boolean' ? { executed: parsed.executed } : {}),

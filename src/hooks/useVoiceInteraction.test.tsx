@@ -111,6 +111,77 @@ describe('useVoiceInteraction', () => {
     expect(result.current.voiceTargetSummary).toContain('L:trc-default');
   });
 
+  it('registers voiceAiAssistantMessageBridgeRef to forward AI completion to notifyAiStreamFinished', async () => {
+    const notifyAiStreamFinished = vi.fn();
+    const bridgeRef: { current: ((assistantMessageId: string, content: string) => void) | null } = { current: null };
+
+    mockUseVoiceAgent.mockReturnValue({
+      mode: 'dictation',
+      agentState: 'idle',
+      listening: false,
+      engine: 'web-speech',
+      detectedLang: null,
+      notifyAiStreamStarted: vi.fn(),
+      notifyAiStreamFinished,
+      testWhisperLocal: vi.fn(async () => ({ available: true })),
+      setExternalError: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      toggle: vi.fn(),
+      switchEngine: vi.fn(),
+      startRecording: vi.fn(async () => undefined),
+      stopRecording: vi.fn(async () => undefined),
+      isRecording: false,
+      disambiguationOptions: [],
+      pendingConfirm: null,
+      error: null,
+    });
+
+    const { unmount } = renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: '__auto__',
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      onVoiceAnalysisResult: vi.fn(),
+      selection: {
+        activeUnitId: 'utt-1',
+        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+        selectedRowMeta: null,
+        selectedLayerId: 'trc-default',
+        selectedUnitKind: 'unit',
+        selectedTimeRangeLabel: '0.00 - 1.00',
+      },
+      defaultTranscriptionLayerId: 'trc-default',
+      translationLayers: [],
+      layers: [makeLayer('trc-default', 'transcription')],
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend: vi.fn(async () => undefined),
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+      voiceAiAssistantMessageBridgeRef: bridgeRef,
+    }));
+
+    expect(bridgeRef.current).toEqual(expect.any(Function));
+    await act(async () => {
+      bridgeRef.current?.('assistant-id-1', 'final body');
+    });
+    expect(notifyAiStreamFinished).toHaveBeenCalledWith('final body');
+
+    unmount();
+    expect(bridgeRef.current).toBe(null);
+  });
+
   it('falls back to host child translation layer instead of first translation layer when no layer is selected', () => {
     const trEn = makeLayer('tr-en', 'transcription');
     const trFr = makeLayer('tr-fr', 'transcription');

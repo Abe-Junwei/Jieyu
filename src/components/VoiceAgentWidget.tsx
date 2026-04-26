@@ -15,7 +15,7 @@ import { getConfidenceColor } from '../hooks/voiceAgentPresentation';
 import { SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { SttEngine } from '../services/VoiceInputService';
-import { getCompatibleSttEnhancements, sttProviderDefinitions, type ProviderReachability, type SttEnhancementConfig, type SttEnhancementFailureKind, type SttEnhancementReachability, type SttEnhancementSelectionKind } from '../services/stt';
+import { getCompatibleSttEnhancements, hasCommercialCredentials, sttProviderDefinitions, type ProviderReachability, type SttEnhancementConfig, type SttEnhancementFailureKind, type SttEnhancementReachability, type SttEnhancementSelectionKind } from '../services/stt';
 import { commercialProviderDefinitions } from '../services/stt/providerMetadata';
 import type { CommercialProviderKind } from '../services/VoiceInputService';
 import type { ActionIntent, VoiceIntent, VoiceSession } from '../services/IntentRouter';
@@ -753,6 +753,11 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                       <option value="commercial">{t(locale, 'transcription.voiceWidget.engine.commercial')}</option>
                     </select>
                   </label>
+                  {engine === 'commercial' && !hasCommercialCredentials(commercialProviderConfig) && (
+                    <p className="voice-agent-commercial-credentials-hint" role="status">
+                      {t(locale, 'transcription.voiceWidget.settings.commercialCredentialsHint')}
+                    </p>
+                  )}
                 </div>
 
                 <div className="voice-agent-toggle-row">

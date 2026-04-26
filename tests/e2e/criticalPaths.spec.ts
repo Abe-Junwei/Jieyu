@@ -67,8 +67,12 @@ test.describe('关键路径 | Critical paths', () => {
         cspViolations.push(msg.text());
       }
     });
-    await page.goto('/transcription');
+    const response = await page.goto('/transcription');
     await page.waitForTimeout(3000);
+    expect(response).not.toBeNull();
+    const headers = response!.headers();
+    expect(headers['content-security-policy']).toContain("frame-ancestors 'none'");
+    expect(headers['x-frame-options']).toBe('DENY');
     // 依赖先于 main 的 `zod-jitless-bootstrap` 入口（Vite rollup + `transformIndexHtml` post 注入）关闭 Zod JIT，避免 `Function` 构造器探测触发严格 CSP。
     expect(cspViolations).toHaveLength(0);
   });

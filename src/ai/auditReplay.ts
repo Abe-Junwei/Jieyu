@@ -63,6 +63,8 @@ export interface AiToolGoldenSnapshot {
   latestDecision?: {
     decision: string;
     reason?: string;
+    reasonLabelEn?: string;
+    reasonLabelZh?: string;
     executed?: boolean;
     source: AuditSource;
     timestamp: string;
@@ -71,6 +73,8 @@ export interface AiToolGoldenSnapshot {
   decisions: Array<{
     decision: string;
     reason?: string;
+    reasonLabelEn?: string;
+    reasonLabelZh?: string;
     executed?: boolean;
     source: AuditSource;
     timestamp: string;
@@ -198,6 +202,8 @@ export function buildAiToolGoldenSnapshot(bundle: AiToolReplayBundle): AiToolGol
     decisions: bundle.decisions.map((item) => ({
       decision: item.decision,
       ...(item.reason ? { reason: item.reason } : {}),
+      ...(item.reasonLabelEn ? { reasonLabelEn: item.reasonLabelEn } : {}),
+      ...(item.reasonLabelZh ? { reasonLabelZh: item.reasonLabelZh } : {}),
       ...(typeof item.executed === 'boolean' ? { executed: item.executed } : {}),
       source: item.source,
       timestamp: item.timestamp,
@@ -207,6 +213,8 @@ export function buildAiToolGoldenSnapshot(bundle: AiToolReplayBundle): AiToolGol
       latestDecision: {
         decision: bundle.latestDecision.decision,
         ...(bundle.latestDecision.reason ? { reason: bundle.latestDecision.reason } : {}),
+        ...(bundle.latestDecision.reasonLabelEn ? { reasonLabelEn: bundle.latestDecision.reasonLabelEn } : {}),
+        ...(bundle.latestDecision.reasonLabelZh ? { reasonLabelZh: bundle.latestDecision.reasonLabelZh } : {}),
         ...(typeof bundle.latestDecision.executed === 'boolean' ? { executed: bundle.latestDecision.executed } : {}),
         source: bundle.latestDecision.source,
         timestamp: bundle.latestDecision.timestamp,

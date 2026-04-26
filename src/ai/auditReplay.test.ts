@@ -201,6 +201,7 @@ describe('audit replay helpers', () => {
           executed: true,
           outcome: 'auto_confirmed',
           message: '已写入翻译。',
+          reason: 'user_directive_confirmation_required',
         }),
       },
     ]);
@@ -212,12 +213,18 @@ describe('audit replay helpers', () => {
     expect(snapshot.requestId).toBe('toolreq_export_1');
     expect(snapshot.toolName).toBe('set_translation_text');
     expect(snapshot.latestDecision?.decision).toBe('auto_confirmed');
+    expect(snapshot.latestDecision?.reasonLabelEn).toBe('User preference requires confirmation before execution.');
+    expect(snapshot.latestDecision?.reasonLabelZh).toBe('用户偏好要求先确认再执行');
+    expect(snapshot.decisions[0]?.reasonLabelEn).toBe('User preference requires confirmation before execution.');
 
     const serialized = serializeAiToolGoldenSnapshot(bundle!);
     expect(JSON.parse(serialized)).toMatchObject({
       schemaVersion: 1,
       requestId: 'toolreq_export_1',
       toolName: 'set_translation_text',
+      latestDecision: {
+        reasonLabelEn: 'User preference requires confirmation before execution.',
+      },
     });
   });
 

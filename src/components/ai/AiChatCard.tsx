@@ -10,7 +10,7 @@ import { t, useLocale } from '../../i18n';
 import { aiChatProviderDefinitions, getAiChatProviderDefinition } from '../../ai/providers/providerCatalog';
 import type { AiChatProviderKind, AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
-import { formatCitationLabel, formatToolDecision } from './aiChatCardUtils';
+import { formatCitationLabel, formatPolicyReasonExplanation, formatToolDecision } from './aiChatCardUtils';
 import { exportReplayBundleSnapshot, openReplayBundleByRequestId, parseImportedGoldenSnapshot } from './aiChatReplayUtils';
 import { AiChatAlertsPanel } from './AiChatAlertsPanel';
 import { AiChatCandidateChips } from './AiChatCandidateChips';
@@ -31,6 +31,10 @@ import { buildFollowUpSuggestions, classifyRecommendationAdoption, formatTaskTra
 
 type AiChatCardProps = {
   embedded?: boolean;
+  showHeader?: boolean;
+  showProviderConfigButton?: boolean;
+  providerConfigOpen?: boolean;
+  onProviderConfigOpenChange?: ((next: boolean) => void) | undefined;
   voiceDrawer?: ReactNode | undefined;
   voiceEntry?: {
     enabled: boolean;
@@ -41,7 +45,34 @@ type AiChatCardProps = {
   } | undefined;
 };
 
-export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChatCardProps = {}) {
+const EMPTY_STRING_ARRAY: string[] = [];
+
+function buildPinnedSummary(content: string, isZh: boolean): string {
+  const normalized = content
+    .replace(/\s+/g, ' ')
+    .replace(/^(请记住|记住|请|以后|后续|默认|请务必|请始终)[:：,\s]*/i, '')
+    .trim();
+  if (!normalized) return isZh ? '已记录本条内容' : 'Pinned content captured.';
+  const primarySegments = normalized
+    .split(/[。！？!?；;]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .slice(0, 2);
+  const extracted = (primarySegments.join(isZh ? '；' : '; ') || normalized).trim();
+  const limit = isZh ? 28 : 56;
+  const clipped = extracted.slice(0, limit);
+  return `${clipped}${extracted.length > limit ? '…' : ''}`;
+}
+
+export function AiChatCard({
+  embedded = false,
+  showHeader = true,
+  showProviderConfigButton = true,
+  providerConfigOpen,
+  onProviderConfigOpenChange,
+  voiceDrawer,
+  voiceEntry,
+}: AiChatCardProps = {}) {
   const locale = useLocale();
   const {
     currentPage,
@@ -70,6 +101,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     onStopAiMessage,
     onClearAiMessages,
     onToggleAiMessagePin,
+    onDeactivateAiSessionDirective,
+    onPruneAiSessionDirectivesBySourceMessage,
     onConfirmPendingToolCall,
     onCancelPendingToolCall,
     timelineReadModelEpoch,
@@ -81,7 +114,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const { profile } = useGlobalContext();
 
   const [chatInput, setChatInput] = useState('');
-  const [showProviderConfig, setShowProviderConfig] = useState(false);
+  const [localShowProviderConfig, setLocalShowProviderConfig] = useState(false);
   const [testConnectionPending, setTestConnectionPending] = useState(false);
   const [showPromptLab, setShowPromptLab] = useState(false);
   const [selectedReplayBundle, setSelectedReplayBundle] = useState<AiToolReplayBundle | null>(null);
@@ -97,6 +130,19 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const visibleRecommendationSignatureRef = useRef<string | null>(null);
   const exposedRecommendationRef = useRef<{ prompt: string; source: 'fallback' | 'llm'; signature: string } | null>(null);
   const [dismissedRecommendationSignature, setDismissedRecommendationSignature] = useState<string | null>(null);
+  const [optimisticUnpinnedMessageIds, setOptimisticUnpinnedMessageIds] = useState<Set<string>>(new Set());
+  const [optimisticPinnedMessageIds, setOptimisticPinnedMessageIds] = useState<Set<string>>(new Set());
+  const [directiveSourceFilter, setDirectiveSourceFilter] = useState<'all' | 'user_explicit' | 'background_extracted' | 'pinned_message'>('all');
+  const [directiveActionNotice, setDirectiveActionNotice] = useState<string | null>(null);
+  const showProviderConfig = providerConfigOpen ?? localShowProviderConfig;
+  const toggleProviderConfig = useCallback(() => {
+    const next = !showProviderConfig;
+    if (onProviderConfigOpenChange) {
+      onProviderConfigOpenChange(next);
+      return;
+    }
+    setLocalShowProviderConfig(next);
+  }, [onProviderConfigOpenChange, showProviderConfig]);
   const sessionAdaptiveInputProfile = aiSessionMemory?.preferences?.adaptiveInputProfile ?? aiSessionMemory?.adaptiveInputProfile;
   const sessionLastToolName = aiSessionMemory?.preferences?.lastToolName ?? aiSessionMemory?.lastToolName;
 
@@ -112,6 +158,23 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   );
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const hasApiKeyField = activeProviderDefinition.fields.some((field) => field.key === 'apiKey');
+  const activeDirectiveRows = useMemo(() => (
+    (aiSessionMemory?.directiveLedger ?? [])
+      .filter((entry) => entry.action === 'accepted')
+      .slice(-6)
+      .map((entry) => ({
+        id: entry.id,
+        text: entry.text,
+        category: entry.category,
+        source: entry.source,
+        sourceMessageId: entry.sourceMessageId,
+      }))
+  ), [aiSessionMemory?.directiveLedger]);
+  const filteredDirectiveRows = useMemo(() => (
+    directiveSourceFilter === 'all'
+      ? activeDirectiveRows
+      : activeDirectiveRows.filter((item) => item.source === directiveSourceFilter)
+  ), [activeDirectiveRows, directiveSourceFilter]);
 
   const promptVars = useMemo<Record<string, string>>(() => {
     const selectedText = selectedUnit?.text?.trim()
@@ -489,8 +552,38 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     }
     return sum;
   }, [aiIsStreaming, messages]);
-  const pinnedMessageIds = aiSessionMemory?.pinnedMessageIds ?? [];
-  const pinnedMessageIdSet = useMemo(() => new Set(pinnedMessageIds), [pinnedMessageIds]);
+  const pinnedMessageIds = aiSessionMemory?.pinnedMessageIds ?? EMPTY_STRING_ARRAY;
+  const pinnedMessageIdsSignature = useMemo(() => pinnedMessageIds.join('|'), [pinnedMessageIds]);
+  const pinnedMessageIdSet = useMemo(() => {
+    const base = new Set(pinnedMessageIds);
+    for (const id of optimisticUnpinnedMessageIds) base.delete(id);
+    for (const id of optimisticPinnedMessageIds) base.add(id);
+    return base;
+  }, [optimisticPinnedMessageIds, optimisticUnpinnedMessageIds, pinnedMessageIds]);
+  const pinnedMessageDigestItems = useMemo(() => {
+    const visiblePinnedMessageIds = pinnedMessageIds.filter((messageId) => !optimisticUnpinnedMessageIds.has(messageId));
+    if (visiblePinnedMessageIds.length === 0) return [];
+    const digestById = new Map((aiSessionMemory?.pinnedMessageDigests ?? []).map((item) => [item.messageId, item] as const));
+    const messageById = new Map(messages.map((item) => [item.id, item] as const));
+    return visiblePinnedMessageIds.map((messageId) => {
+      const digest = digestById.get(messageId);
+      if (digest) return digest;
+      const fallbackMessage = messageById.get(messageId);
+      if (!fallbackMessage) return null;
+      return {
+        messageId,
+        role: fallbackMessage.role,
+        content: fallbackMessage.content,
+        createdAt: '',
+      };
+    }).filter((item): item is NonNullable<typeof item> => Boolean(item));
+  }, [aiSessionMemory?.pinnedMessageDigests, messages, optimisticUnpinnedMessageIds, pinnedMessageIds]);
+  const pinnedSummaryItems = useMemo(() => (
+    pinnedMessageDigestItems.map((item) => ({
+      messageId: item.messageId,
+      summary: buildPinnedSummary(item.content, isZh),
+    }))
+  ), [isZh, pinnedMessageDigestItems]);
   const summaryChain = aiSessionMemory?.summaryChain ?? [];
   const latestConversationSummary = (aiSessionMemory?.conversationSummary ?? '').trim();
   const hasConversationSummary = latestConversationSummary.length > 0 || summaryChain.length > 0;
@@ -597,6 +690,11 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
       setShowConversationSummary(false);
     }
   }, [hasConversationSummary, showConversationSummary]);
+
+  useEffect(() => {
+    setOptimisticUnpinnedMessageIds(new Set());
+    setOptimisticPinnedMessageIds(new Set());
+  }, [pinnedMessageIdsSignature]);
 
   const resolveVoiceDrawerHeightBounds = (): { min: number; max: number; preferred: number } => {
     if (typeof window === 'undefined') {
@@ -910,72 +1008,78 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
   return (
     <div className={`transcription-ai-card ${embedded ? 'transcription-ai-card-embedded' : ''}`}>
-      {/* P0: Header — redesigned as a chat-area header */}
-      <div className="ai-chat-header">
-        <div className="ai-chat-header-left">
-          <div className="ai-chat-header-info">
-            <div className="ai-chat-header-title-row">
-              <span className="ai-chat-header-title">{chatTitle}</span>
-            </div>
-          </div>
-          <div className="ai-chat-header-tools">
-            <div className="transcription-ai-mode-switch" role="group" aria-label={cardMessages.toolFeedbackStyle}>
-              <button
-                type="button"
-                className={`transcription-ai-mode-btn ${toolFeedbackStyleResolved === 'detailed' ? 'is-active' : ''}`}
-                aria-pressed={toolFeedbackStyleResolved === 'detailed'}
-                onClick={() => {
-                  if (toolFeedbackStyleResolved === 'detailed') return;
-                  onUpdateAiChatSettings?.({ toolFeedbackStyle: 'detailed' });
-                }}
-              >
-                {cardMessages.detailed}
-              </button>
-              <button
-                type="button"
-                className={`transcription-ai-mode-btn ${toolFeedbackStyleResolved === 'concise' ? 'is-active' : ''}`}
-                aria-pressed={toolFeedbackStyleResolved === 'concise'}
-                onClick={() => {
-                  if (toolFeedbackStyleResolved === 'concise') return;
-                  onUpdateAiChatSettings?.({ toolFeedbackStyle: 'concise' });
-                }}
-              >
-                {cardMessages.concise}
-              </button>
-            </div>
-            <span
-              className={`ai-chat-provider-status-dot ai-chat-provider-status-dot-${providerStatusTone} ai-chat-provider-status-dot-inline`}
-              role="status"
-              aria-label={providerStatusLabel}
-              title={`${activeProviderDefinition.label} · ${providerStatusLabel}`}
-            />
-            <select
-              className="ai-chat-provider-select"
-              value={aiChatSettings?.providerKind ?? 'mock'}
-              onChange={(e) => onUpdateAiChatSettings?.({
-                providerKind: e.currentTarget.value as AiChatSettings['providerKind'],
-              })}
-            >
-              {providerGroups.map((group) => (
-                <optgroup key={group.label} label={group.label}>
-                  {group.items.map((provider) => (
-                    <option key={provider.kind} value={provider.kind}>{provider.label}</option>
+      {showHeader && (
+        <>
+          {/* P0: Header — redesigned as a chat-area header */}
+          <div className="ai-chat-header">
+            <div className="ai-chat-header-left">
+              <div className="ai-chat-header-info">
+                <div className="ai-chat-header-title-row">
+                  <span className="ai-chat-header-title">{chatTitle}</span>
+                </div>
+              </div>
+              <div className="ai-chat-header-tools">
+                <div className="transcription-ai-mode-switch" role="group" aria-label={cardMessages.toolFeedbackStyle}>
+                  <button
+                    type="button"
+                    className={`transcription-ai-mode-btn ${toolFeedbackStyleResolved === 'detailed' ? 'is-active' : ''}`}
+                    aria-pressed={toolFeedbackStyleResolved === 'detailed'}
+                    onClick={() => {
+                      if (toolFeedbackStyleResolved === 'detailed') return;
+                      onUpdateAiChatSettings?.({ toolFeedbackStyle: 'detailed' });
+                    }}
+                  >
+                    {cardMessages.detailed}
+                  </button>
+                  <button
+                    type="button"
+                    className={`transcription-ai-mode-btn ${toolFeedbackStyleResolved === 'concise' ? 'is-active' : ''}`}
+                    aria-pressed={toolFeedbackStyleResolved === 'concise'}
+                    onClick={() => {
+                      if (toolFeedbackStyleResolved === 'concise') return;
+                      onUpdateAiChatSettings?.({ toolFeedbackStyle: 'concise' });
+                    }}
+                  >
+                    {cardMessages.concise}
+                  </button>
+                </div>
+                <span
+                  className={`ai-chat-provider-status-dot ai-chat-provider-status-dot-${providerStatusTone} ai-chat-provider-status-dot-inline`}
+                  role="status"
+                  aria-label={providerStatusLabel}
+                  title={`${activeProviderDefinition.label} · ${providerStatusLabel}`}
+                />
+                <select
+                  className="ai-chat-provider-select"
+                  value={aiChatSettings?.providerKind ?? 'mock'}
+                  onChange={(e) => onUpdateAiChatSettings?.({
+                    providerKind: e.currentTarget.value as AiChatSettings['providerKind'],
+                  })}
+                >
+                  {providerGroups.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.items.map((provider) => (
+                        <option key={provider.kind} value={provider.kind}>{provider.label}</option>
+                      ))}
+                    </optgroup>
                   ))}
-                </optgroup>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="icon-btn ai-chat-header-config-btn"
-              aria-label={showProviderConfig ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
-              title={showProviderConfig ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
-              onClick={() => setShowProviderConfig((prev) => !prev)}
-            >
-              <MaterialSymbol name="settings" className={JIEYU_MATERIAL_INLINE} />
-            </button>
+                </select>
+                {showProviderConfigButton && (
+                  <button
+                    type="button"
+                    className="icon-btn ai-chat-header-config-btn"
+                    aria-label={showProviderConfig ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
+                    title={showProviderConfig ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
+                    onClick={toggleProviderConfig}
+                  >
+                    <MaterialSymbol name="settings" className={JIEYU_MATERIAL_INLINE} />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* P0: Provider config panel (collapsible below header) */}
       {aiChatSettings && showProviderConfig && (
@@ -1172,7 +1276,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               )}
             </section>
           )}
-
           {/* Message viewport */}
           <div ref={messageViewportRef} className="ai-chat-message-viewport">
             {messages.length === 0 ? (
@@ -1240,10 +1343,40 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                               <div className="ai-chat-message-actions">
                                 <button
                                   type="button"
-                                  className={`ai-chat-message-action-btn ${isUserPinned ? 'is-active' : ''}`}
-                                  onClick={() => onToggleAiMessagePin(userMsg.id)}
+                                  className={`ai-chat-message-action-btn ai-chat-message-pin-btn ${isUserPinned ? 'is-active' : ''}`}
+                                  onClick={() => {
+                                    if (isUserPinned) {
+                                      setOptimisticPinnedMessageIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(userMsg.id);
+                                        return next;
+                                      });
+                                      setOptimisticUnpinnedMessageIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.add(userMsg.id);
+                                        return next;
+                                      });
+                                    } else {
+                                      setOptimisticUnpinnedMessageIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(userMsg.id);
+                                        return next;
+                                      });
+                                      setOptimisticPinnedMessageIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.add(userMsg.id);
+                                        return next;
+                                      });
+                                    }
+                                    onToggleAiMessagePin(userMsg.id);
+                                  }}
+                                  aria-label={isUserPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
+                                  title={isUserPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
                                 >
-                                  {isUserPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
+                                  <MaterialSymbol
+                                    name={isUserPinned ? 'close' : 'push_pin'}
+                                    className={JIEYU_MATERIAL_INLINE_TIGHT}
+                                  />
                                 </button>
                               </div>
                             )}
@@ -1325,10 +1458,40 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                 {onToggleAiMessagePin && (
                                   <button
                                     type="button"
-                                    className={`ai-chat-message-action-btn ${isAssistantPinned ? 'is-active' : ''}`}
-                                    onClick={() => onToggleAiMessagePin(assistantMsg.id)}
+                                    className={`ai-chat-message-action-btn ai-chat-message-pin-btn ${isAssistantPinned ? 'is-active' : ''}`}
+                                    onClick={() => {
+                                      if (isAssistantPinned) {
+                                        setOptimisticPinnedMessageIds((prev) => {
+                                          const next = new Set(prev);
+                                          next.delete(assistantMsg.id);
+                                          return next;
+                                        });
+                                        setOptimisticUnpinnedMessageIds((prev) => {
+                                          const next = new Set(prev);
+                                          next.add(assistantMsg.id);
+                                          return next;
+                                        });
+                                      } else {
+                                        setOptimisticUnpinnedMessageIds((prev) => {
+                                          const next = new Set(prev);
+                                          next.delete(assistantMsg.id);
+                                          return next;
+                                        });
+                                        setOptimisticPinnedMessageIds((prev) => {
+                                          const next = new Set(prev);
+                                          next.add(assistantMsg.id);
+                                          return next;
+                                        });
+                                      }
+                                      onToggleAiMessagePin(assistantMsg.id);
+                                    }}
+                                    aria-label={isAssistantPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
+                                    title={isAssistantPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
                                   >
-                                    {isAssistantPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
+                                    <MaterialSymbol
+                                      name={isAssistantPinned ? 'close' : 'push_pin'}
+                                      className={JIEYU_MATERIAL_INLINE_TIGHT}
+                                    />
                                   </button>
                                 )}
                                 {hasCopyableAssistantContent && (
@@ -1418,6 +1581,38 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               </div>
             )}
           </div>
+          {pinnedSummaryItems.length > 0 && (
+            <section className="ai-chat-pinned-summary-panel" aria-label={cardMessages.pinnedMessagesTitle}>
+              <div className="ai-chat-pinned-summary-list">
+                {pinnedSummaryItems.map((item) => (
+                  <article key={item.messageId} className="ai-chat-pinned-summary-item">
+                    <span className="ai-chat-pinned-summary-text">{item.summary}</span>
+                    <button
+                      type="button"
+                      className="ai-chat-pinned-summary-remove"
+                      onClick={() => {
+                        setOptimisticPinnedMessageIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(item.messageId);
+                          return next;
+                        });
+                        setOptimisticUnpinnedMessageIds((prev) => {
+                          const next = new Set(prev);
+                          next.add(item.messageId);
+                          return next;
+                        });
+                        onToggleAiMessagePin?.(item.messageId);
+                      }}
+                      aria-label={cardMessages.unpinMessage}
+                      title={cardMessages.unpinMessage}
+                    >
+                      <MaterialSymbol name="close" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
 
           <AiChatAlertsPanel
             isZh={isZh}
@@ -1427,9 +1622,11 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
             debugUiShowAll={false}
             showAlertBar={showAlertBar}
             aiPendingToolCall={aiPendingToolCall}
+            aiToolDecisionLogs={aiToolDecisionLogs}
             timelineReadModelEpoch={timelineReadModelEpoch}
             onDismissErrorWarning={() => setDismissedErrorWarning(true)}
             onToggleAlertBar={() => setShowAlertBar((prev) => !prev)}
+            onOpenDecisionReplay={(requestId) => openReplayBundle(requestId)}
             onConfirmPendingToolCall={onConfirmPendingToolCall}
             onCancelPendingToolCall={onCancelPendingToolCall}
           />
@@ -1563,7 +1760,81 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               >
                 {aiIsStreaming ? cardMessages.stop : <MaterialSymbol name="arrow_upward" className={JIEYU_MATERIAL_PANEL} />}
               </button>
+              {canUseVoiceEntry && voiceEntry && (
+                <button
+                  type="button"
+                  className={`icon-btn ai-chat-composer-voice-entry-btn${voiceEntry.expanded ? ' is-active' : ''}${voiceEntry.listening ? ' is-listening' : ''}`}
+                  aria-label={voiceEntry.statusText ?? cardMessages.voiceInput}
+                  title={voiceEntry.statusText ?? cardMessages.voiceInput}
+                  onClick={voiceEntry.onTogglePanel}
+                >
+                  <MaterialSymbol
+                    name={voiceEntry.listening ? 'mic' : 'mic_none'}
+                    className={JIEYU_MATERIAL_PANEL}
+                  />
+                </button>
+              )}
             </div>
+            {activeDirectiveRows.length > 0 && (
+              <section className="ai-chat-composer-attachments" aria-label={isZh ? '指令与记忆' : 'Directives and memory'} data-testid="ai-directive-console-mvp">
+                <span className="ai-chat-composer-attachments-title">
+                  {isZh ? '指令与记忆（MVP）' : 'Directives and Memory (MVP)'}
+                  <span className="ai-chat-pinned-count">{filteredDirectiveRows.length}</span>
+                </span>
+                <div className="ai-chat-alerts-pending-row">
+                  <span>{isZh ? '来源筛选：' : 'Source filter:'}</span>
+                  <select
+                    value={directiveSourceFilter}
+                    onChange={(event) => setDirectiveSourceFilter(event.target.value as typeof directiveSourceFilter)}
+                    aria-label={isZh ? '指令来源筛选' : 'Directive source filter'}
+                  >
+                    <option value="all">{isZh ? '全部' : 'All'}</option>
+                    <option value="user_explicit">{isZh ? '用户明确指令' : 'User explicit'}</option>
+                    <option value="background_extracted">{isZh ? '后台抽取' : 'Background extracted'}</option>
+                    <option value="pinned_message">{isZh ? '钉住消息' : 'Pinned message'}</option>
+                  </select>
+                </div>
+                {directiveActionNotice && <div className="ai-chat-alerts-pending-risk">{directiveActionNotice}</div>}
+                <div className="ai-chat-composer-attachments-list">
+                  {filteredDirectiveRows.map((item) => (
+                    <article key={item.id} className="ai-chat-composer-attachment-chip">
+                      <span className="ai-chat-composer-attachment-role">[{item.category}]</span>
+                      <span className="ai-chat-composer-attachment-summary" title={`${item.text} (${item.source})`}>
+                        {item.text} ({item.source})
+                      </span>
+                      <button
+                        type="button"
+                        className="ai-chat-composer-attachment-remove"
+                        onClick={() => {
+                          onDeactivateAiSessionDirective?.(item.id);
+                          setDirectiveActionNotice(isZh ? `已停用：${item.id}` : `Deactivated: ${item.id}`);
+                        }}
+                        disabled={!onDeactivateAiSessionDirective}
+                      >
+                        {isZh ? '停用' : 'Deactivate'}
+                      </button>
+                      {item.sourceMessageId && (
+                        <button
+                          type="button"
+                          className="ai-chat-composer-attachment-remove"
+                          onClick={() => {
+                            onPruneAiSessionDirectivesBySourceMessage?.(item.sourceMessageId as string);
+                            setDirectiveActionNotice(
+                              isZh
+                                ? `已按来源消息清理：${item.sourceMessageId}`
+                                : `Pruned by source message: ${item.sourceMessageId}`,
+                            );
+                          }}
+                          disabled={!onPruneAiSessionDirectivesBySourceMessage}
+                        >
+                          {isZh ? '同源清理' : 'Prune source'}
+                        </button>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
             {(transientBlockedReason || inputBlockedReason) && (
               <p className="small-text ai-chat-composer-warning">{transientBlockedReason ?? inputBlockedReason}</p>
             )}
@@ -1609,15 +1880,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                 style={voiceDrawerInlineStyle}
               >
                 <div className="ai-chat-voice-drawer-shell">
-                  <button
-                    type="button"
-                    className="ai-chat-voice-drawer-head"
-                    onClick={voiceEntry.onTogglePanel}
-                    aria-expanded={voiceEntry.expanded}
-                  >
-                    <span className="ai-chat-voice-drawer-title">{cardMessages.voiceInput}</span>
-                    <span className="ai-chat-fold-caret" aria-hidden="true">▾</span>
-                  </button>
                   <div className="ai-chat-voice-drawer-body" aria-hidden={!voiceEntry.expanded}>
                     {voiceEntry.expanded && (
                       <div
@@ -1684,6 +1946,18 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                               <span className="ai-chat-decision-item-main">{item.toolName || cardMessages.unknownTool} · {decisionBits.join(' · ')}</span>
                               <em className="ai-chat-decision-item-time">{new Date(item.timestamp).toLocaleTimeString()}</em>
                             </div>
+                            {(item.message || item.reason || item.reasonLabelEn || item.reasonLabelZh) && (
+                              <div className="ai-chat-decision-item-note">
+                                {item.message ?? ''}
+                                {(item.reason || item.reasonLabelEn || item.reasonLabelZh) ? (
+                                  <span className="ai-chat-decision-item-reason">
+                                    {isZh
+                                      ? (item.reasonLabelZh ?? formatPolicyReasonExplanation(true, item.reason) ?? item.reason)
+                                      : (item.reasonLabelEn ?? formatPolicyReasonExplanation(false, item.reason) ?? item.reason)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            )}
                             {canReplay && (
                               <div className="ai-chat-decision-item-actions">
                                 <button

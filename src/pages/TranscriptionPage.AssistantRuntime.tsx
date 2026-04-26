@@ -162,6 +162,7 @@ function AssistantVoiceRuntime({
     setCommercialProviderConfig,
     featureVoiceEnabled: featureFlags.voiceAgentEnabled,
     toggleVoiceRef,
+    ...(voice.onAiAssistantMessageBridgeRef !== undefined ? { voiceAiAssistantMessageBridgeRef: voice.onAiAssistantMessageBridgeRef } : {}),
   });
 
   useEffect(() => {
@@ -178,7 +179,7 @@ function AssistantVoiceRuntime({
       voiceAgent.toggle();
     }
     onInitialVoiceRequestHandled();
-  }, [handleAssistantVoicePanelOpen, onInitialVoiceRequestHandled, openPanelOnMount, startListeningOnMount, voiceAgent]);
+  }, [handleAssistantVoicePanelOpen, onInitialVoiceRequestHandled, openPanelOnMount, startListeningOnMount, voiceAgent.toggle]);
 
   const voiceAgentContextValue = useVoiceAgentContextValue({
     voiceListening: voiceAgent.listening,

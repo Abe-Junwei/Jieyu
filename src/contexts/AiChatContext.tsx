@@ -42,6 +42,8 @@ export interface AiChatContextValue {
     toolName: string;
     decision: string;
     reason?: string;
+    reasonLabelEn?: string;
+    reasonLabelZh?: string;
     requestId?: string;
     timestamp: string;
     source?: 'human' | 'ai' | 'system';
@@ -66,6 +68,8 @@ export interface AiChatContextValue {
   onStopAiMessage: (() => void) | undefined;
   onClearAiMessages: (() => void) | undefined;
   onToggleAiMessagePin: ((messageId: string) => void) | undefined;
+  onDeactivateAiSessionDirective: ((directiveId: string) => void) | undefined;
+  onPruneAiSessionDirectivesBySourceMessage: ((sourceMessageId: string) => void) | undefined;
   onConfirmPendingToolCall: (() => Promise<void>) | undefined;
   onCancelPendingToolCall: (() => Promise<void>) | undefined;
   onTrackAiRecommendationEvent: ((event: AiRecommendationEvent) => void) | undefined;
@@ -108,6 +112,8 @@ export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {
   onStopAiMessage: undefined,
   onClearAiMessages: undefined,
   onToggleAiMessagePin: undefined,
+  onDeactivateAiSessionDirective: undefined,
+  onPruneAiSessionDirectivesBySourceMessage: undefined,
   onConfirmPendingToolCall: undefined,
   onCancelPendingToolCall: undefined,
   onTrackAiRecommendationEvent: undefined,

@@ -415,6 +415,14 @@ export interface PendingAiToolCall {
   previewContract?: PreviewContract;
   requestId?: string;
   auditContext?: ToolAuditContext;
+  /** Approval source category for review center messaging and telemetry. */
+  approvalMode?: 'safety_gate' | 'user_preference' | 'propose_changes';
+  /** Normalized policy code used for explainability and audit joins. */
+  policyReasonCode?: string;
+  /** Human-readable policy reason for UI rendering. */
+  policyReasonLabel?: string;
+  /** UI-facing risk tier snapshot when pending call was captured. */
+  riskTier?: 'medium' | 'high';
   /** Timeline read-model epoch when the pending destructive tool was captured (for stale confirmation guard). */
   readModelEpochCaptured?: number;
 }

@@ -27,6 +27,9 @@ describe('userDirectiveExtractor', () => {
     expect(result.nextMemory.toolPreferences?.autoExecute).toBe('never');
     expect(result.nextMemory.safetyPreferences?.denyDestructive).toBe(true);
     expect(result.nextMemory.sessionDirectives?.length).toBeGreaterThan(0);
+    expect(directives).toEqual(expect.arrayContaining([
+      expect.objectContaining({ targetPath: 'safetyPreferences.denyDestructive', scope: 'long_term' }),
+    ]));
     expect(result.acceptedCount).toBeGreaterThan(0);
   });
 });

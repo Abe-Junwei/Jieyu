@@ -133,6 +133,14 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const [commercialProviderKindState, setCommercialProviderKindState] = useState<CommercialProviderKind>(commercialProviderKind);
   const [commercialProviderConfigState, setCommercialProviderConfigState] = useState<CommercialProviderCreateConfig | undefined>(commercialProviderConfig);
   const [wakeWordEnabled, setWakeWordEnabledState] = useState(initialWakeWordEnabled);
+
+  useEffect(() => {
+    setCommercialProviderKindState(commercialProviderKind);
+  }, [commercialProviderKind]);
+
+  useEffect(() => {
+    setCommercialProviderConfigState(commercialProviderConfig);
+  }, [commercialProviderConfig]);
   const [wakeWordEnergyLevel, setWakeWordEnergyLevel] = useState(0);
   const [detectedLang, setDetectedLang] = useState<string | null>(null);
   /** Multi-agent pipeline state (Stage 1 new) */
@@ -411,6 +419,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     setError(message);
   }, []);
 
+  // 流式开始：结束「排队思考」态（queueAiThinking 在发消息前把 agentState 置为 ai-thinking）；首 token 到来前 UI 不长期卡在 thinking。
+  // On stream start: consume one queued "thinking" slot so the UI does not stay stuck in ai-thinking before tokens arrive.
   const notifyAiStreamStarted = useCallback(() => {
     consumeAiThinking();
   }, [consumeAiThinking]);
@@ -418,8 +428,10 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const notifyAiStreamFinished = useCallback((finalContent?: string) => {
     clearAiThinking();
     const cb = analysisFillCallbackRef.current;
-    if (cb && finalContent !== undefined) {
-      cb(finalContent);
+    if (cb) {
+      if (finalContent !== undefined && finalContent.trim().length > 0) {
+        cb(finalContent);
+      }
       analysisFillCallbackRef.current = null;
       analysisTargetUnitIdRef.current = null;
     }

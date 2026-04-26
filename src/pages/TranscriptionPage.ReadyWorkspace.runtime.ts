@@ -32,6 +32,8 @@ export function createInitialDeferredAiRuntimeState(): DeferredTranscriptionAiRu
       stop: undefined,
       clear: undefined,
       toggleMessagePinned: undefined,
+      deactivateSessionDirective: undefined,
+      pruneSessionDirectivesBySourceMessage: undefined,
       confirmPendingToolCall: undefined,
       cancelPendingToolCall: undefined,
       trackRecommendationEvent: undefined,
@@ -97,6 +99,10 @@ export const TranscriptionPagePdfRuntime = lazy(async () => import('./Transcript
 
 export const TranscriptionPageAssistantBridge = lazy(async () => import('./TranscriptionPage.AssistantBridge').then((module) => ({
   default: module.TranscriptionPageAssistantBridge,
+})));
+
+export const TranscriptionPageChatWindow = lazy(async () => import('./TranscriptionPage.ChatWindow').then((module) => ({
+  default: module.TranscriptionPageChatWindow,
 })));
 
 function hashRuntimeSettingValue(value: string | undefined): string {

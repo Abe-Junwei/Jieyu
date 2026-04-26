@@ -25,6 +25,7 @@ import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { useSidePaneSidebarDrag } from '../hooks/useSidePaneSidebarDrag';
 import { buildLayerBundles } from '../services/LayerOrderingService';
 import { isTranscriptionWorkspacePathname } from '../utils/transcriptionWorkspaceRoute';
+import type { LayerMetadataUpdateInput } from '../types/layerMetadata';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
 
@@ -37,7 +38,7 @@ interface SidePaneSidebarProps {
   layerLinks?: LayerLinkDocType[];
   toggleLayerLink: (transcriptionKey: string, translationId: string) => Promise<void>;
   deletableLayers: LayerDocType[];
-  updateLayerMetadata?: (layerId: string, input: { dialect?: string; vernacular?: string; alias?: string }) => Promise<boolean>;
+  updateLayerMetadata?: (layerId: string, input: LayerMetadataUpdateInput) => Promise<boolean>;
   layerCreateMessage: string;
   layerAction: LayerActionResult;
   defaultLanguageId?: string;

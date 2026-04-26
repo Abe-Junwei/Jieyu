@@ -4,7 +4,7 @@ import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_PANEL, JIEYU_MATERIAL_PANEL_CLOSE_LG, JIEYU_MATERIAL_WAVE_MD } from '../utils/jieyuMaterialIcon';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 import type { LayerConstraint, LayerDocType, LayerLinkDocType } from '../db';
-import { layerTranscriptionTreeParentId } from '../db';
+import { getDb, layerTranscriptionTreeParentId } from '../db';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { getLayerCreateGuard, listIndependentBoundaryTranscriptionLayers } from '../services/LayerConstraintService';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
@@ -23,7 +23,8 @@ import { DialogOverlay, DialogShell, FormField, PanelButton, PanelChip, PanelFee
 import { buildLanguageInputSeed, getDisplayedLanguageInputLabel, normalizeLanguageInputAssetId, normalizeLanguageInputCode } from '../utils/languageInputHostState';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { escapeRegExp } from '../utils/escapeRegExp';
-import { buildTranscriptionIdByKeyMap, getPreferredHostTranscriptionLayerIdForTranslation } from '../utils/translationHostLinkQuery';
+import { buildTranscriptionIdByKeyMap, getHostTranscriptionLayerIdsForTranslation, getPreferredHostTranscriptionLayerIdForTranslation } from '../utils/translationHostLinkQuery';
+import type { LayerMetadataUpdateInput } from '../types/layerMetadata';
 
 type LayerActionType =
   | 'create-transcription'
@@ -44,16 +45,12 @@ interface LayerActionPopoverProps {
     input: LayerCreateInput,
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
-  updateLayerMetadata?: (layerId: string, input: {
-    dialect?: string;
-    vernacular?: string;
-    alias?: string;
-  }) => Promise<boolean>;
+  updateLayerMetadata?: (layerId: string, input: LayerMetadataUpdateInput) => Promise<boolean>;
   deleteLayer: (layerId: string) => Promise<void>;
   deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;
   checkLayerHasContent?: (layerId: string) => Promise<number>;
   /** 翻译宿主 link（用于从翻译层推导「上下文独立转写根层」；不读 translation.parentLayerId） */
-  layerLinks?: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
+  layerLinks?: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred' | 'linkType'>>;
   onClose: () => void;
 }
 
@@ -135,12 +132,21 @@ export const LayerActionPopover = memo(function LayerActionPopover({
   const [alias, setAlias] = useState('');
   const [modality, setModality] = useState<'text' | 'audio' | 'mixed'>('text');
   const [constraint, setConstraint] = useState<LayerConstraint>('symbolic_association');
+  const [bridgeId, setBridgeId] = useState('');
+  const [participantId, setParticipantId] = useState('');
+  const [dataCategory, setDataCategory] = useState('');
+  const [delimiter, setDelimiter] = useState('');
+  const [sortOrderInput, setSortOrderInput] = useState('');
+  const [accessRights, setAccessRights] = useState<'open' | 'restricted' | 'confidential'>('open');
+  const [isDefaultLayer, setIsDefaultLayer] = useState(false);
   const [selectedParentLayerId, setSelectedParentLayerId] = useState('');
   const [translationHostIds, setTranslationHostIds] = useState<string[]>([]);
   const [preferredTranslationHostId, setPreferredTranslationHostId] = useState('');
+  const [translationLinkType, setTranslationLinkType] = useState<LayerLinkDocType['linkType']>('free');
   const [deleteLayerId, setDeleteLayerId] = useState(layerId ?? '');
   const [isLoading, setIsLoading] = useState(false);
   const [createFailureMessage, setCreateFailureMessage] = useState('');
+  const [editingTierSnapshot, setEditingTierSnapshot] = useState({ participantId: '', dataCategory: '', delimiter: '', sortOrderInput: '' });
   const [deleteConfirm, setDeleteConfirm] = useState<{ layerId: string; layerName: string; textCount: number } | null>(null);
   const fieldIdPrefix = useId();
   const pendingDefaultOrthographyIdRef = React.useRef(normalizedDefaultOrthographyId);
@@ -157,6 +163,12 @@ export const LayerActionPopover = memo(function LayerActionPopover({
       ? deletableLayers.find((layer) => layer.id === layerId)
       : undefined),
     [deletableLayers, isEditMetadataAction, layerId],
+  );
+  const isEditingTranslationLayer = isEditMetadataAction && editingLayer?.layerType === 'translation';
+  const isEditingTranscriptionLayer = isEditMetadataAction && editingLayer?.layerType === 'transcription';
+  const editingLanguageSeed = useMemo(
+    () => buildLanguageInputSeed(editingLayer?.languageId, locale, resolveLanguageDisplayName, resolveLanguageCode),
+    [editingLayer?.languageId, locale, resolveLanguageCode, resolveLanguageDisplayName],
   );
 
   const independentParentLayers = listIndependentBoundaryTranscriptionLayers(deletableLayers);
@@ -184,8 +196,8 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     return '';
   }, [deletableLayers, independentParentLayers, layerId, layerLinks]);
   const formInitializationKey = useMemo(
-    () => `${action}::${contextualParentLayerId}::${defaultLanguageId?.trim().toLowerCase() ?? ''}::${normalizedDefaultOrthographyId}`,
-    [action, contextualParentLayerId, defaultLanguageId, normalizedDefaultOrthographyId],
+    () => `${action}::${layerId ?? ''}::${contextualParentLayerId}::${defaultLanguageId?.trim().toLowerCase() ?? ''}::${normalizedDefaultOrthographyId}`,
+    [action, contextualParentLayerId, defaultLanguageId, layerId, normalizedDefaultOrthographyId],
   );
   const resolvedLanguageId = useMemo(() => normalizeLanguageInputAssetId(languageInput), [languageInput]);
   const displayedLanguage = useMemo(() => getDisplayedLanguageInputLabel(languageInput), [languageInput]);
@@ -210,6 +222,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
   const orthographySelectionError = orthographyId && !orthographyPicker.isCreating && !selectedOrthography
     ? actionMessages.invalidOrthographySelection
     : '';
+  const baselineLanguageSeed = isEditMetadataAction ? editingLanguageSeed : defaultLanguageSeed;
 
   useEffect(() => {
     if (lastInitializedFormKeyRef.current === formInitializationKey) {
@@ -224,10 +237,44 @@ export const LayerActionPopover = memo(function LayerActionPopover({
       return;
     }
     if (isEditMetadataAction) {
-      pendingDefaultOrthographyIdRef.current = '';
+      const transcriptionIdByKey = buildTranscriptionIdByKeyMap(deletableLayers.filter((layer) => layer.layerType === 'transcription'));
+      const editingTranslationHostIds = editingLayer?.layerType === 'translation'
+        ? getHostTranscriptionLayerIdsForTranslation(editingLayer.id, layerLinks, transcriptionIdByKey)
+        : [];
+      const editingPreferredHostId = editingLayer?.layerType === 'translation'
+        ? (getPreferredHostTranscriptionLayerIdForTranslation(editingLayer.id, layerLinks, transcriptionIdByKey) ?? editingTranslationHostIds[0] ?? '')
+        : '';
+      const editingPreferredLinkType = editingLayer?.layerType === 'translation'
+        ? (layerLinks.find((link) => link.layerId === editingLayer.id && link.isPreferred)?.linkType
+          ?? layerLinks.find((link) => link.layerId === editingLayer.id)?.linkType
+          ?? 'free')
+        : 'free';
+
+      pendingDefaultOrthographyIdRef.current = editingLayer?.orthographyId?.trim() ?? '';
+      setLanguageInput(editingLanguageSeed);
+      setOrthographyId(editingLayer?.orthographyId?.trim() ?? '');
       setDialect(editingLayer?.dialect ?? '');
       setVernacular(editingLayer?.vernacular ?? '');
       setAlias(editingLayer ? getLayerLabelParts(editingLayer, locale).alias : '');
+      setModality(editingLayer?.modality ?? 'text');
+      setConstraint(editingLayer?.constraint ?? (editingLayer?.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary'));
+      setBridgeId(editingLayer?.bridgeId ?? '');
+      setParticipantId('');
+      setDataCategory('');
+      setDelimiter('');
+      setSortOrderInput(editingLayer?.sortOrder !== undefined ? String(editingLayer.sortOrder) : '');
+      setEditingTierSnapshot({
+        participantId: '',
+        dataCategory: '',
+        delimiter: '',
+        sortOrderInput: editingLayer?.sortOrder !== undefined ? String(editingLayer.sortOrder) : '',
+      });
+      setAccessRights(editingLayer?.accessRights ?? 'open');
+      setIsDefaultLayer(Boolean(editingLayer?.isDefault));
+      setSelectedParentLayerId(editingLayer?.layerType === 'transcription' ? (layerTranscriptionTreeParentId(editingLayer) ?? '') : '');
+      setTranslationHostIds(editingTranslationHostIds);
+      setPreferredTranslationHostId(editingPreferredHostId);
+      setTranslationLinkType(editingPreferredLinkType);
       return;
     }
     pendingDefaultOrthographyIdRef.current = normalizedDefaultOrthographyId;
@@ -253,12 +300,45 @@ export const LayerActionPopover = memo(function LayerActionPopover({
       setTranslationHostIds([]);
       setPreferredTranslationHostId('');
     }
-  }, [action, contextualParentLayerId, defaultLanguageSeed, editingLayer, formInitializationKey, independentParentLayers, isEditMetadataAction, locale, normalizedDefaultOrthographyId]);
+    setBridgeId('');
+    setParticipantId('');
+    setDataCategory('');
+    setDelimiter('');
+    setSortOrderInput('');
+    setEditingTierSnapshot({ participantId: '', dataCategory: '', delimiter: '', sortOrderInput: '' });
+    setAccessRights('open');
+    setIsDefaultLayer(false);
+    setTranslationLinkType('free');
+  }, [action, contextualParentLayerId, defaultLanguageSeed, deletableLayers, editingLanguageSeed, editingLayer, formInitializationKey, independentParentLayers, isEditMetadataAction, layerLinks, locale, normalizedDefaultOrthographyId]);
+
+  useEffect(() => {
+    if (!isEditMetadataAction || !editingLayer?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const db = await getDb();
+      const tier = await db.dexie.tier_definitions.get(editingLayer.id);
+      if (cancelled) return;
+      const nextSnapshot = {
+        participantId: tier?.participantId ?? '',
+        dataCategory: tier?.dataCategory ?? '',
+        delimiter: tier?.delimiter ?? '',
+        sortOrderInput: tier?.sortOrder !== undefined ? String(tier.sortOrder) : (editingLayer.sortOrder !== undefined ? String(editingLayer.sortOrder) : ''),
+      };
+      setParticipantId(nextSnapshot.participantId);
+      setDataCategory(nextSnapshot.dataCategory);
+      setDelimiter(nextSnapshot.delimiter);
+      setSortOrderInput(nextSnapshot.sortOrderInput);
+      setEditingTierSnapshot(nextSnapshot);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editingLayer?.id, editingLayer?.sortOrder, isEditMetadataAction]);
 
   useEffect(() => {
     const pendingDefaultOrthographyId = pendingDefaultOrthographyIdRef.current.trim();
     if (!pendingDefaultOrthographyId) return;
-    if (resolvedLanguageId !== normalizeLanguageInputAssetId(defaultLanguageSeed) || orthographyPicker.isCreating) {
+    if (resolvedLanguageId !== normalizeLanguageInputAssetId(baselineLanguageSeed) || orthographyPicker.isCreating) {
       return;
     }
     if (orthographyId === pendingDefaultOrthographyId) {
@@ -274,8 +354,8 @@ export const LayerActionPopover = memo(function LayerActionPopover({
       pendingDefaultOrthographyIdRef.current = '';
     }
   }, [
-    defaultLanguageSeed.languageAssetId,
-    defaultLanguageSeed.languageCode,
+    baselineLanguageSeed.languageAssetId,
+    baselineLanguageSeed.languageCode,
     orthographyId,
     orthographyPicker.isCreating,
     orthographyPicker.orthographies,
@@ -284,25 +364,25 @@ export const LayerActionPopover = memo(function LayerActionPopover({
 
   // Keep refs synchronized with state to avoid stale closures | 保持 ref 与 state 同步，避免闭包过期
 
-  const needsTranscriptionDependentParent = action === 'create-transcription' && constraint === 'symbolic_association';
+  const needsTranscriptionDependentParent = (action === 'create-transcription' || isEditingTranscriptionLayer) && constraint === 'symbolic_association';
   const autoTranscriptionParentLayer = needsTranscriptionDependentParent && independentParentLayers.length === 1
     ? independentParentLayers[0]
     : undefined;
   const resolvedTranscriptionParentLayerId = needsTranscriptionDependentParent
     ? (autoTranscriptionParentLayer?.id ?? selectedParentLayerId)
     : '';
-  const autoTranslationHostLayer = action === 'create-translation' && independentParentLayers.length === 1
+  const autoTranslationHostLayer = (action === 'create-translation' || isEditingTranslationLayer) && independentParentLayers.length === 1
     ? independentParentLayers[0]
     : undefined;
 
   useEffect(() => {
-    if (action !== 'create-translation') return;
+    if (action !== 'create-translation' && !isEditingTranslationLayer) return;
     setPreferredTranslationHostId((pref) => {
       if (translationHostIds.length === 0) return '';
       if (pref && translationHostIds.includes(pref)) return pref;
       return translationHostIds[0]!;
     });
-  }, [action, translationHostIds]);
+  }, [action, isEditingTranslationLayer, translationHostIds]);
 
   const toggleTranslationHost = useCallback((hostId: string, checked: boolean) => {
     const order = independentParentLayers.map((layer) => layer.id);
@@ -452,13 +532,67 @@ export const LayerActionPopover = memo(function LayerActionPopover({
 
   const handleSaveMetadata = useCallback(async () => {
     if (!isEditMetadataAction || !layerId || !updateLayerMetadata) return;
+    if (!resolvedLanguageId) {
+      setCreateFailureMessage(actionMessages.metadataLanguageRequired);
+      return;
+    }
+    if (customLanguageError) {
+      setCreateFailureMessage(customLanguageError);
+      return;
+    }
+    if (orthographySelectionError) {
+      setCreateFailureMessage(orthographySelectionError);
+      return;
+    }
+    if (isEditingTranslationLayer && translationHostIds.length === 0) {
+      setCreateFailureMessage(actionMessages.translationHostLayersRequired);
+      return;
+    }
+    if (isEditingTranscriptionLayer && constraint === 'symbolic_association' && independentParentLayers.length > 1 && !resolvedTranscriptionParentLayerId) {
+      setCreateFailureMessage(actionMessages.transcriptionParentRequired);
+      return;
+    }
+
+    const parsedSortOrder = sortOrderInput.trim();
+    const normalizedSortOrder = parsedSortOrder.length > 0 ? Number(parsedSortOrder) : null;
+    if (normalizedSortOrder !== null && (!Number.isInteger(normalizedSortOrder) || normalizedSortOrder < 0)) {
+      setCreateFailureMessage(actionMessages.sortOrderInvalid);
+      return;
+    }
+
     setCreateFailureMessage('');
     setIsLoading(true);
     try {
-      const success = await updateLayerMetadata(layerId, {
+      const metadataInput: LayerMetadataUpdateInput = {
+        languageId: resolvedLanguageId,
+        orthographyId: orthographyId.trim(),
         dialect: dialect.trim(),
         vernacular: vernacular.trim(),
         alias: alias.trim(),
+        modality,
+        bridgeId: bridgeId.trim(),
+        participantId: participantId.trim(),
+        dataCategory: dataCategory.trim(),
+        delimiter: delimiter,
+        ...(normalizedSortOrder !== null ? { sortOrder: normalizedSortOrder } : {}),
+        accessRights,
+        isDefault: isDefaultLayer,
+        ...(isEditingTranscriptionLayer
+          ? {
+            constraint,
+            parentLayerId: constraint === 'symbolic_association' ? resolvedTranscriptionParentLayerId : '',
+          }
+          : {}),
+        ...(isEditingTranslationLayer
+          ? {
+            hostTranscriptionLayerIds: translationHostIds,
+            preferredHostTranscriptionLayerId: preferredTranslationHostId,
+            linkType: translationLinkType,
+          }
+          : {}),
+      };
+      const success = await updateLayerMetadata(layerId, {
+        ...metadataInput,
       });
       if (success) {
         onClose();
@@ -470,13 +604,74 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     } finally {
       setIsLoading(false);
     }
-  }, [actionMessages.genericActionFailed, alias, dialect, isEditMetadataAction, layerId, onClose, updateLayerMetadata, vernacular]);
+  }, [
+    accessRights,
+    actionMessages.genericActionFailed,
+    actionMessages.metadataLanguageRequired,
+    actionMessages.translationHostLayersRequired,
+    actionMessages.transcriptionParentRequired,
+    alias,
+    bridgeId,
+    constraint,
+    customLanguageError,
+    dataCategory,
+    delimiter,
+    dialect,
+    independentParentLayers.length,
+    isDefaultLayer,
+    isEditMetadataAction,
+    isEditingTranscriptionLayer,
+    isEditingTranslationLayer,
+    layerId,
+    modality,
+    onClose,
+    orthographyId,
+    orthographySelectionError,
+    preferredTranslationHostId,
+    participantId,
+    resolvedLanguageId,
+    resolvedTranscriptionParentLayerId,
+    sortOrderInput,
+    actionMessages.sortOrderInvalid,
+    translationHostIds,
+    translationLinkType,
+    updateLayerMetadata,
+    vernacular,
+  ]);
 
   const handleResetForm = useCallback(() => {
     if (isEditMetadataAction) {
+      const transcriptionIdByKey = buildTranscriptionIdByKeyMap(deletableLayers.filter((layer) => layer.layerType === 'transcription'));
+      const editingTranslationHostIds = editingLayer?.layerType === 'translation'
+        ? getHostTranscriptionLayerIdsForTranslation(editingLayer.id, layerLinks, transcriptionIdByKey)
+        : [];
+      const editingPreferredHostId = editingLayer?.layerType === 'translation'
+        ? (getPreferredHostTranscriptionLayerIdForTranslation(editingLayer.id, layerLinks, transcriptionIdByKey) ?? editingTranslationHostIds[0] ?? '')
+        : '';
+      const editingPreferredLinkType = editingLayer?.layerType === 'translation'
+        ? (layerLinks.find((link) => link.layerId === editingLayer.id && link.isPreferred)?.linkType
+          ?? layerLinks.find((link) => link.layerId === editingLayer.id)?.linkType
+          ?? 'free')
+        : 'free';
+      pendingDefaultOrthographyIdRef.current = editingLayer?.orthographyId?.trim() ?? '';
+      setLanguageInput(editingLanguageSeed);
+      setOrthographyId(editingLayer?.orthographyId?.trim() ?? '');
       setDialect(editingLayer?.dialect ?? '');
       setVernacular(editingLayer?.vernacular ?? '');
       setAlias(editingLayer ? getLayerLabelParts(editingLayer, locale).alias : '');
+      setModality(editingLayer?.modality ?? 'text');
+      setConstraint(editingLayer?.constraint ?? (editingLayer?.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary'));
+      setBridgeId(editingLayer?.bridgeId ?? '');
+      setParticipantId(editingTierSnapshot.participantId);
+      setDataCategory(editingTierSnapshot.dataCategory);
+      setDelimiter(editingTierSnapshot.delimiter);
+      setSortOrderInput(editingTierSnapshot.sortOrderInput);
+      setAccessRights(editingLayer?.accessRights ?? 'open');
+      setIsDefaultLayer(Boolean(editingLayer?.isDefault));
+      setSelectedParentLayerId(editingLayer?.layerType === 'transcription' ? (layerTranscriptionTreeParentId(editingLayer) ?? '') : '');
+      setTranslationHostIds(editingTranslationHostIds);
+      setPreferredTranslationHostId(editingPreferredHostId);
+      setTranslationLinkType(editingPreferredLinkType);
       setCreateFailureMessage('');
       return;
     }
@@ -488,6 +683,13 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     setAlias('');
     setModality('text');
     setConstraint('symbolic_association');
+    setBridgeId('');
+    setParticipantId('');
+    setDataCategory('');
+    setDelimiter('');
+    setSortOrderInput('');
+    setAccessRights('open');
+    setIsDefaultLayer(false);
     setSelectedParentLayerId(contextualParentLayerId);
     if (action === 'create-translation') {
       if (independentParentLayers.length === 1) {
@@ -505,8 +707,9 @@ export const LayerActionPopover = memo(function LayerActionPopover({
       setTranslationHostIds([]);
       setPreferredTranslationHostId('');
     }
+    setTranslationLinkType('free');
     setCreateFailureMessage('');
-  }, [action, contextualParentLayerId, defaultLanguageSeed, editingLayer, independentParentLayers, isEditMetadataAction, locale, normalizedDefaultOrthographyId]);
+  }, [action, contextualParentLayerId, defaultLanguageSeed, deletableLayers, editingLanguageSeed, editingLayer, editingTierSnapshot, independentParentLayers, isEditMetadataAction, layerLinks, locale, normalizedDefaultOrthographyId]);
 
   const label = action === 'create-transcription'
     ? actionMessages.createTranscriptionLayer
@@ -667,6 +870,15 @@ export const LayerActionPopover = memo(function LayerActionPopover({
   const vernacularFieldId = `${fieldIdPrefix}-vernacular`;
   const aliasFieldId = `${fieldIdPrefix}-alias`;
   const modalityFieldId = `${fieldIdPrefix}-modality`;
+  const constraintFieldId = `${fieldIdPrefix}-constraint`;
+  const accessRightsFieldId = `${fieldIdPrefix}-access-rights`;
+  const bridgeIdFieldId = `${fieldIdPrefix}-bridge-id`;
+  const participantIdFieldId = `${fieldIdPrefix}-participant-id`;
+  const dataCategoryFieldId = `${fieldIdPrefix}-data-category`;
+  const delimiterFieldId = `${fieldIdPrefix}-delimiter`;
+  const sortOrderFieldId = `${fieldIdPrefix}-sort-order`;
+  const translationLinkTypeFieldId = `${fieldIdPrefix}-translation-link-type`;
+  const isDefaultFieldId = `${fieldIdPrefix}-is-default`;
   const translationParentLayerFieldId = `${fieldIdPrefix}-translation-parent-layer`;
   const transcriptionParentLayerFieldId = `${fieldIdPrefix}-transcription-parent-layer`;
   const deleteLayerFieldId = `${fieldIdPrefix}-delete-layer`;
@@ -756,39 +968,309 @@ export const LayerActionPopover = memo(function LayerActionPopover({
           </>
         ) : isEditMetadataAction ? (
           <>
-            <PanelSummary
-              className="layer-action-dialog-summary"
-              description={editingLayer ? readAnyMultiLangLabel(editingLayer.name) ?? editingLayer.key : ''}
-            />
-            <div className="layer-action-dialog-triple-row">
-              <FormField htmlFor={dialectFieldId} label={actionMessages.dialectPlaceholder}>
-                <input
-                  id={dialectFieldId}
+            <PanelSection
+              className="layer-action-dialog-section"
+              title={actionMessages.metadataCoreSectionTitle}
+              description={editingLayer ? `${actionMessages.metadataTargetLayerLabel}${readAnyMultiLangLabel(editingLayer.name) ?? editingLayer.key}` : undefined}
+            >
+              <LanguageIsoInput
+                locale={locale}
+                value={languageInput}
+                onChange={setLanguageInput}
+                searchScope="language"
+                resolveLanguageDisplayName={resolveLanguageDisplayName}
+                nameLabel={actionMessages.languageNameLabel}
+                codeLabel={actionMessages.languageCodeLabel}
+                namePlaceholder={actionMessages.selectLanguage}
+                codePlaceholder={actionMessages.customLanguageCodePlaceholder}
+                error={customLanguageError}
+                disabled={isLoading || orthographyPicker.submitting}
+                controlInputClassName="layer-action-dialog-input"
+                languageAssetIdField={{
+                  id: `${fieldIdPrefix}-language-asset-id`,
+                  label: actionMessages.languageAssetIdLabel,
+                  value: languageInput.languageAssetId ?? '',
+                  placeholder: actionMessages.languageAssetIdPlaceholder,
+                  onChange: (value) => {
+                    setLanguageInput((prev) => ({ ...prev, languageAssetId: value }));
+                  },
+                  disabled: isLoading || orthographyPicker.submitting,
+                }}
+              />
+              {resolvedLanguageId && (
+                <div className="layer-action-dialog-field-group">
+                  <FormField htmlFor={orthographyFieldId} label={actionMessages.orthographyFieldLabel}>
+                    <div className="layer-action-dialog-select-with-btn">
+                      <select
+                        id={orthographyFieldId}
+                        className="input panel-input layer-action-dialog-input"
+                        value={orthographyId}
+                        onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
+                      >
+                        {orthographyPicker.orthographies.length === 0 && <option value="">{actionMessages.useDefaultScript}</option>}
+                        {groupedOrthographyOptions.map((group) => (
+                          <optgroup key={group.key} label={getOrthographyCatalogGroupLabel(locale, group.key)}>
+                            {group.orthographies.map((orthography) => (
+                              <option key={orthography.id} value={orthography.id}>
+                                {formatOrthographyOptionLabel(orthography, locale)}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                      <PanelButton
+                        variant="ghost"
+                        className="layer-action-dialog-inline-btn"
+                        onClick={() => orthographyPicker.handleSelectionChange(ORTHOGRAPHY_CREATE_SENTINEL)}
+                        title={actionMessages.createOrthography}
+                      >
+                        <MaterialSymbol name="add" className={JIEYU_MATERIAL_INLINE} />
+                        <span>{actionMessages.newOrthographyButton}</span>
+                      </PanelButton>
+                    </div>
+                  </FormField>
+                  {orthographyPicker.orthographies.length === 0 && (
+                    <PanelNote className="layer-action-dialog-meta-note">
+                      {actionMessages.orthographyHint}
+                    </PanelNote>
+                  )}
+                  {selectedOrthography && selectedOrthographyBadge && (
+                    <PanelNote className="layer-action-dialog-meta-note dialog-hint-inline">
+                      <span>{formatOrthographyOptionLabel(selectedOrthography, locale)}</span>
+                      <span className={selectedOrthographyBadge.className}>{selectedOrthographyBadge.label}</span>
+                    </PanelNote>
+                  )}
+                  {orthographyPicker.error && (
+                    <PanelFeedback level="error">{orthographyPicker.error}</PanelFeedback>
+                  )}
+                  {orthographySelectionError && (
+                    <PanelFeedback level="error">{orthographySelectionError}</PanelFeedback>
+                  )}
+                </div>
+              )}
+              <div className="layer-action-dialog-triple-row">
+                <FormField htmlFor={dialectFieldId} label={actionMessages.dialectPlaceholder}>
+                  <input
+                    id={dialectFieldId}
+                    className="input panel-input layer-action-dialog-input"
+                    placeholder={actionMessages.dialectPlaceholder}
+                    value={dialect}
+                    onChange={(e) => setDialect(e.target.value)}
+                  />
+                </FormField>
+                <FormField htmlFor={vernacularFieldId} label={actionMessages.vernacularPlaceholder}>
+                  <input
+                    id={vernacularFieldId}
+                    className="input panel-input layer-action-dialog-input"
+                    placeholder={actionMessages.vernacularPlaceholder}
+                    value={vernacular}
+                    onChange={(e) => setVernacular(e.target.value)}
+                  />
+                </FormField>
+                <FormField htmlFor={aliasFieldId} label={actionMessages.aliasShortPlaceholder}>
+                  <input
+                    id={aliasFieldId}
+                    className="input panel-input layer-action-dialog-input"
+                    placeholder={actionMessages.aliasHint}
+                    value={alias}
+                    onChange={(e) => setAlias(e.target.value)}
+                  />
+                </FormField>
+              </div>
+              <FormField htmlFor={modalityFieldId} label={actionMessages.modalityLabel}>
+                <select
+                  id={modalityFieldId}
                   className="input panel-input layer-action-dialog-input"
-                  placeholder={actionMessages.dialectPlaceholder}
-                  value={dialect}
-                  onChange={(e) => setDialect(e.target.value)}
+                  value={modality}
+                  onChange={(e) => setModality(e.target.value as 'text' | 'audio' | 'mixed')}
+                >
+                  <option value="text">{actionMessages.modalityText}</option>
+                  <option value="audio">{actionMessages.modalityAudio}</option>
+                  <option value="mixed">{actionMessages.modalityMixed}</option>
+                </select>
+              </FormField>
+            </PanelSection>
+
+            {isEditingTranscriptionLayer && (
+              <PanelSection className="layer-action-dialog-section" title={actionMessages.metadataStructureSectionTitle}>
+                <FormField htmlFor={constraintFieldId} label={actionMessages.constraintLegend}>
+                  <select
+                    id={constraintFieldId}
+                    className="input panel-input layer-action-dialog-input"
+                    value={constraint}
+                    onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
+                  >
+                    <option value="symbolic_association">{actionMessages.dependentConstraint}</option>
+                    <option value="independent_boundary">{actionMessages.independentConstraint}</option>
+                  </select>
+                </FormField>
+                {constraint === 'symbolic_association' && independentParentLayers.length > 1 && (
+                  <FormField htmlFor={transcriptionParentLayerFieldId} label={actionMessages.selectParentLayer}>
+                    <select
+                      id={transcriptionParentLayerFieldId}
+                      className="input panel-input layer-action-dialog-input"
+                      value={selectedParentLayerId}
+                      onChange={(e) => setSelectedParentLayerId(e.target.value)}
+                    >
+                      <option value="">{actionMessages.selectParentLayer}</option>
+                      {independentParentLayers.map((layer) => (
+                        <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
+                      ))}
+                    </select>
+                  </FormField>
+                )}
+                {constraint === 'symbolic_association' && autoTranscriptionParentLayer && (
+                  <PanelNote className="layer-action-dialog-meta-note layer-action-dialog-auto-linked-hint">
+                    {actionMessages.autoLinkedParent(formatParentLayerOptionLabel(autoTranscriptionParentLayer))}
+                  </PanelNote>
+                )}
+              </PanelSection>
+            )}
+
+            {isEditingTranslationLayer && (
+              <PanelSection className="layer-action-dialog-section" title={actionMessages.metadataStructureSectionTitle}>
+                <div className="dialog-field">
+                  <div className="dialog-field-label" id={`${translationParentLayerFieldId}-legend`}>
+                    {actionMessages.translationHostLayersLabel}
+                  </div>
+                  <div
+                    className="layer-action-dialog-translation-host-list"
+                    role="group"
+                    aria-labelledby={`${translationParentLayerFieldId}-legend`}
+                  >
+                    {independentParentLayers.map((layer) => (
+                      <label key={layer.id} className="panel-checkbox layer-action-dialog-checkbox-option">
+                        <input
+                          id={`${translationParentLayerFieldId}-${layer.id}`}
+                          type="checkbox"
+                          checked={translationHostIds.includes(layer.id)}
+                          onChange={(event) => toggleTranslationHost(layer.id, event.target.checked)}
+                        />
+                        <span>{formatParentLayerOptionLabel(layer)}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {translationHostIds.length > 1 && (
+                    <fieldset className="panel-fieldset layer-action-dialog-fieldset layer-action-dialog-translation-preferred-hosts">
+                      <legend className="layer-action-dialog-fieldset-legend">
+                        {actionMessages.translationPreferredHostLabel}
+                      </legend>
+                      {translationHostIds.map((hostId) => {
+                        const layer = independentParentLayers.find((item) => item.id === hostId);
+                        if (!layer) return null;
+                        return (
+                          <label key={hostId} className="panel-radio layer-action-dialog-radio-option">
+                            <input
+                              type="radio"
+                              name={`${fieldIdPrefix}-trl-preferred-host`}
+                              checked={preferredTranslationHostId === hostId}
+                              onChange={() => setPreferredTranslationHostId(hostId)}
+                            />
+                            <span>{formatParentLayerOptionLabel(layer)}</span>
+                          </label>
+                        );
+                      })}
+                    </fieldset>
+                  )}
+                  {autoTranslationHostLayer && (
+                    <PanelNote className="layer-action-dialog-meta-note layer-action-dialog-auto-linked-hint">
+                      {actionMessages.autoLinkedParent(formatParentLayerOptionLabel(autoTranslationHostLayer))}
+                    </PanelNote>
+                  )}
+                </div>
+                <FormField htmlFor={translationLinkTypeFieldId} label={actionMessages.translationLinkTypeLabel}>
+                  <select
+                    id={translationLinkTypeFieldId}
+                    className="input panel-input layer-action-dialog-input"
+                    value={translationLinkType}
+                    onChange={(e) => setTranslationLinkType(e.target.value as LayerLinkDocType['linkType'])}
+                  >
+                    <option value="direct">{actionMessages.translationLinkTypeDirect}</option>
+                    <option value="free">{actionMessages.translationLinkTypeFree}</option>
+                    <option value="literal">{actionMessages.translationLinkTypeLiteral}</option>
+                    <option value="pedagogical">{actionMessages.translationLinkTypePedagogical}</option>
+                  </select>
+                </FormField>
+              </PanelSection>
+            )}
+
+            <PanelSection className="layer-action-dialog-section" title={actionMessages.metadataInteropSectionTitle}>
+              <div className="layer-action-dialog-triple-row">
+                <FormField htmlFor={participantIdFieldId} label={actionMessages.participantIdLabel}>
+                  <input
+                    id={participantIdFieldId}
+                    className="input panel-input layer-action-dialog-input"
+                    placeholder={actionMessages.participantIdPlaceholder}
+                    value={participantId}
+                    onChange={(e) => setParticipantId(e.target.value)}
+                  />
+                </FormField>
+                <FormField htmlFor={dataCategoryFieldId} label={actionMessages.dataCategoryLabel}>
+                  <input
+                    id={dataCategoryFieldId}
+                    className="input panel-input layer-action-dialog-input"
+                    placeholder={actionMessages.dataCategoryPlaceholder}
+                    value={dataCategory}
+                    onChange={(e) => setDataCategory(e.target.value)}
+                  />
+                </FormField>
+                <FormField htmlFor={sortOrderFieldId} label={actionMessages.sortOrderLabel}>
+                  <input
+                    id={sortOrderFieldId}
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="input panel-input layer-action-dialog-input"
+                    placeholder={actionMessages.sortOrderPlaceholder}
+                    value={sortOrderInput}
+                    onChange={(e) => setSortOrderInput(e.target.value)}
+                  />
+                </FormField>
+              </div>
+              <FormField htmlFor={delimiterFieldId} label={actionMessages.delimiterLabel}>
+                <input
+                  id={delimiterFieldId}
+                  className="input panel-input layer-action-dialog-input"
+                  placeholder={actionMessages.delimiterPlaceholder}
+                  value={delimiter}
+                  onChange={(e) => setDelimiter(e.target.value)}
                 />
               </FormField>
-              <FormField htmlFor={vernacularFieldId} label={actionMessages.vernacularPlaceholder}>
+            </PanelSection>
+
+            <PanelSection className="layer-action-dialog-section" title={actionMessages.metadataGovernanceSectionTitle}>
+              <FormField htmlFor={bridgeIdFieldId} label={actionMessages.bridgeIdLabel}>
                 <input
-                  id={vernacularFieldId}
+                  id={bridgeIdFieldId}
                   className="input panel-input layer-action-dialog-input"
-                  placeholder={actionMessages.vernacularPlaceholder}
-                  value={vernacular}
-                  onChange={(e) => setVernacular(e.target.value)}
+                  placeholder={actionMessages.bridgeIdPlaceholder}
+                  value={bridgeId}
+                  onChange={(e) => setBridgeId(e.target.value)}
                 />
               </FormField>
-              <FormField htmlFor={aliasFieldId} label={actionMessages.aliasShortPlaceholder}>
-                <input
-                  id={aliasFieldId}
+              <FormField htmlFor={accessRightsFieldId} label={actionMessages.accessRightsLabel}>
+                <select
+                  id={accessRightsFieldId}
                   className="input panel-input layer-action-dialog-input"
-                  placeholder={actionMessages.aliasHint}
-                  value={alias}
-                  onChange={(e) => setAlias(e.target.value)}
-                />
+                  value={accessRights}
+                  onChange={(e) => setAccessRights(e.target.value as 'open' | 'restricted' | 'confidential')}
+                >
+                  <option value="open">{actionMessages.accessRightsOpen}</option>
+                  <option value="restricted">{actionMessages.accessRightsRestricted}</option>
+                  <option value="confidential">{actionMessages.accessRightsConfidential}</option>
+                </select>
               </FormField>
-            </div>
+              <label className="panel-checkbox layer-action-dialog-checkbox-option" htmlFor={isDefaultFieldId}>
+                <input
+                  id={isDefaultFieldId}
+                  type="checkbox"
+                  checked={isDefaultLayer}
+                  onChange={(e) => setIsDefaultLayer(e.target.checked)}
+                />
+                <span>{actionMessages.isDefaultLabel}</span>
+              </label>
+            </PanelSection>
+
             {createFailureMessage.trim().length > 0 ? (
               <PanelFeedback role="alert" aria-live="assertive" level="error">
                 {createFailureMessage}

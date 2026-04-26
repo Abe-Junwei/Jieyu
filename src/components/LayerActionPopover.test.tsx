@@ -9,13 +9,22 @@ import { renderWithLocale } from '../test/localeTestUtils';
 
 const NOW = '2025-01-01T00:00:00.000Z';
 
-const { mockCreateOrthography, mockCloneOrthographyToLanguage, mockCreateOrthographyBridge, mockListLanguageCatalogEntries, mockUseOrthographies } = vi.hoisted(() => ({
+const { mockCreateOrthography, mockCloneOrthographyToLanguage, mockCreateOrthographyBridge, mockListLanguageCatalogEntries, mockUseOrthographies, mockGetDb } = vi.hoisted(() => ({
   mockCreateOrthography: vi.fn(),
   mockCloneOrthographyToLanguage: vi.fn(),
   mockCreateOrthographyBridge: vi.fn(),
   mockListLanguageCatalogEntries: vi.fn(),
   mockUseOrthographies: vi.fn(),
+  mockGetDb: vi.fn(),
 }));
+
+vi.mock('../db', async () => {
+  const actual = await vi.importActual<typeof import('../db')>('../db');
+  return {
+    ...actual,
+    getDb: mockGetDb,
+  };
+});
 
 vi.mock('../services/LinguisticService.orthography', () => ({
   createOrthographyRecord: mockCreateOrthography,
@@ -42,6 +51,14 @@ describe('LayerActionPopover orthography creation', () => {
     mockListLanguageCatalogEntries.mockReset();
     mockListLanguageCatalogEntries.mockResolvedValue([]);
     mockUseOrthographies.mockReset();
+    mockGetDb.mockReset();
+    mockGetDb.mockResolvedValue({
+      dexie: {
+        tier_definitions: {
+          get: async () => undefined,
+        },
+      },
+    });
   });
 
   function makeLayer(overrides: Partial<LayerDocType> = {}): LayerDocType {
@@ -86,6 +103,125 @@ describe('LayerActionPopover orthography creation', () => {
     expect(closeButton.closest('.dialog-header')).toBeTruthy();
     expect(createButton.className).toContain('panel-button--primary');
     expect(screen.getAllByText('新建转写层').length).toBeGreaterThan(0);
+  });
+
+  it('switches metadata sections for transcription edit rows and submits advanced fields', async () => {
+    mockUseOrthographies.mockReturnValue([]);
+    const layer = makeLayer({
+      id: 'trc-edit-1',
+      key: 'trc-edit-1',
+      sortOrder: 3,
+      parentLayerId: 'trc-root',
+      constraint: 'symbolic_association',
+    });
+    const rootLayer = makeLayer({ id: 'trc-root', key: 'trc-root', name: { zho: '根层' } });
+    mockGetDb.mockResolvedValue({
+      dexie: {
+        tier_definitions: {
+          get: async () => ({
+            id: 'trc-edit-1',
+            textId: 'text-1',
+            key: 'bridge_trc-edit-1',
+            name: { zho: '默认转写' },
+            tierType: 'time-aligned',
+            contentType: 'transcription',
+            participantId: 'speaker-a',
+            dataCategory: 'speech',
+            delimiter: '|',
+            sortOrder: 3,
+            createdAt: NOW,
+            updatedAt: NOW,
+          }),
+        },
+      },
+    });
+    const updateLayerMetadata = vi.fn(async () => true);
+
+    renderWithLocale(
+      <LayerActionPopover
+        action="edit-transcription-metadata"
+        layerId="trc-edit-1"
+        deletableLayers={[rootLayer, layer]}
+        updateLayerMetadata={updateLayerMetadata}
+        createLayer={vi.fn(async () => true)}
+        deleteLayer={vi.fn(async () => undefined)}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('高级互操作元信息')).toBeTruthy();
+      expect(screen.getByLabelText('参与者 ID')).toHaveValue('speaker-a');
+    });
+    expect(screen.getByText('结构元信息')).toBeTruthy();
+    expect(screen.getByLabelText('层约束类型')).toBeTruthy();
+    expect(screen.queryByLabelText('翻译关联类型')).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('参与者 ID'), { target: { value: 'speaker-b' } });
+    fireEvent.change(screen.getByLabelText('数据类别'), { target: { value: 'narrative' } });
+    fireEvent.change(screen.getByLabelText('分隔符'), { target: { value: '/' } });
+    fireEvent.change(screen.getByLabelText('排序号'), { target: { value: '7' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(updateLayerMetadata).toHaveBeenCalledWith('trc-edit-1', expect.objectContaining({
+        participantId: 'speaker-b',
+        dataCategory: 'narrative',
+        delimiter: '/',
+        sortOrder: 7,
+      }));
+    });
+  });
+
+  it('switches metadata sections for translation edit rows', async () => {
+    mockUseOrthographies.mockReturnValue([]);
+    const host = makeLayer({ id: 'trc-host-1', key: 'trc-host-1', name: { zho: '宿主层' } });
+    const layer = makeLayer({
+      id: 'trl-edit-1',
+      key: 'trl-edit-1',
+      layerType: 'translation',
+      name: { zho: '译层' },
+      languageId: 'eng',
+    });
+    mockGetDb.mockResolvedValue({
+      dexie: {
+        tier_definitions: {
+          get: async () => ({
+            id: 'trl-edit-1',
+            textId: 'text-1',
+            key: 'bridge_trl-edit-1',
+            name: { zho: '译层' },
+            tierType: 'time-aligned',
+            contentType: 'translation',
+            participantId: 'translator-1',
+            dataCategory: 'translation',
+            delimiter: '||',
+            createdAt: NOW,
+            updatedAt: NOW,
+          }),
+        },
+      },
+    });
+
+    renderWithLocale(
+      <LayerActionPopover
+        action="edit-translation-metadata"
+        layerId="trl-edit-1"
+        deletableLayers={[host, layer]}
+        layerLinks={[{ layerId: 'trl-edit-1', transcriptionLayerKey: 'trc-host-1', hostTranscriptionLayerId: 'trc-host-1', isPreferred: true, linkType: 'free' }]}
+        updateLayerMetadata={vi.fn(async () => true)}
+        createLayer={vi.fn(async () => true)}
+        deleteLayer={vi.fn(async () => undefined)}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('高级互操作元信息')).toBeTruthy();
+      expect(screen.getByLabelText('参与者 ID')).toHaveValue('translator-1');
+    });
+    expect(screen.getByLabelText('翻译关联类型')).toBeTruthy();
+    expect(screen.queryByLabelText('层约束类型')).toBeNull();
   });
 
   it('renders delete path through DialogShell with destructive footer action', () => {

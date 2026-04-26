@@ -7,7 +7,7 @@ type TierDefinitionRecord = import('../db').TierDefinitionDocType;
 
 const TRACKED_FIELDS: Record<string, readonly string[]> = {
   tier_annotations: ['value', 'startTime', 'endTime', 'startAnchorId', 'endAnchorId', 'isVerified', 'parentAnnotationId'],
-  tier_definitions: ['parentTierId', 'tierType', 'contentType', 'name'],
+  tier_definitions: ['parentTierId', 'extraParentTierIds', 'tierType', 'contentType', 'name', 'languageId', 'orthographyId', 'bridgeId', 'participantId', 'dataCategory', 'modality', 'isDefault', 'accessRights', 'delimiter', 'sortOrder'],
   units: ['transcription', 'startTime', 'endTime'],
 };
 

@@ -75,6 +75,14 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     const changeSet = buildAiChangeSetFromPendingToolCall(pending);
     const currentEpoch = getTimelineReadModelEpochRef.current?.();
     if (!validateChangeSetEpoch(changeSet, currentEpoch)) {
+      const staleCall = pending.executionCall ?? pending.call;
+      const staleAuditContext = pending.auditContext ?? buildToolAuditContext(
+        '',
+        providerId,
+        settingsRef.current.model,
+        toolDecisionModeRef.current,
+        settingsRef.current.toolFeedbackStyle,
+      );
       const staleMessage = t(toolFeedbackLocale, 'ai.alerts.staleReadModelConfirmBlocked');
       setPendingToolCall(null);
       setTaskSession({
@@ -84,6 +92,23 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
       });
       bumpMetric('failureCount');
       await applyAssistantMessageResult(assistantMessageId, staleMessage, 'error', staleMessage);
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `pending:${staleCall.name}`,
+        `confirm_failed:${staleCall.name}:stale_read_model`,
+        'system',
+        staleCall.requestId ?? pending.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          staleCall,
+          staleAuditContext,
+          'system',
+          'confirm_failed',
+          false,
+          staleMessage,
+          'stale_read_model',
+        ),
+      );
       return;
     }
 

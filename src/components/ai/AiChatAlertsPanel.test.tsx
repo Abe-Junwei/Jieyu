@@ -59,6 +59,7 @@ describe('AiChatAlertsPanel', () => {
   beforeEach(() => {
     resolveTextDirectionFromLocaleMock.mockReset();
     resolveTextDirectionFromLocaleMock.mockReturnValue('ltr');
+    window.sessionStorage.clear();
   });
 
   it('applies resolved text direction on alert region', () => {
@@ -76,6 +77,7 @@ describe('AiChatAlertsPanel', () => {
 
   it('triggers toggle, confirm, and cancel handlers for pending tool call actions', () => {
     const onToggleAlertBar = vi.fn();
+    const onOpenDecisionReplay = vi.fn(async () => undefined);
     const onConfirmPendingToolCall = vi.fn(async () => undefined);
     const onCancelPendingToolCall = vi.fn(async () => undefined);
     const pendingToolCall: PendingAiToolCall = {
@@ -84,6 +86,9 @@ describe('AiChatAlertsPanel', () => {
         arguments: { layerId: 'layer-1' },
       },
       assistantMessageId: 'ast-1',
+      approvalMode: 'user_preference',
+      policyReasonCode: 'user_directive_confirmation_required',
+      riskTier: 'high',
       riskSummary: 'Layer delete requires confirmation',
       impactPreview: ['Will remove one layer'],
     };
@@ -92,7 +97,25 @@ describe('AiChatAlertsPanel', () => {
       alertCount: 1,
       showAlertBar: true,
       aiPendingToolCall: pendingToolCall,
+      aiToolDecisionLogs: [
+        {
+          id: 'log-1',
+          decision: 'policy_blocked',
+          reason: 'user_directive_deny_destructive',
+          reasonLabelEn: 'Blocked by user safety preference for destructive actions.',
+          message: 'Blocked by directive',
+          requestId: 'req-1',
+          timestamp: '2026-04-25T12:00:00.000Z',
+        },
+        {
+          id: 'log-2',
+          decision: 'auto_confirmed',
+          requestId: 'req-2',
+          timestamp: '2026-04-25T12:00:02.000Z',
+        },
+      ],
       onToggleAlertBar,
+      onOpenDecisionReplay,
       onConfirmPendingToolCall,
       onCancelPendingToolCall,
     });
@@ -100,14 +123,32 @@ describe('AiChatAlertsPanel', () => {
     const toggleButton = screen.getByRole('button', { name: /Hide|收起/i });
     const confirmButton = screen.getByRole('button', { name: /Delete layer|删除层|Confirm/i });
     const cancelButton = screen.getByRole('button', { name: /Cancel|取消/i });
+    const approvalCenter = screen.getByTestId('ai-approval-center-mvp');
+    const approvalHistory = screen.getByTestId('ai-approval-history-mvp');
     const region = screen.getByTestId('ai-chat-alerts-region');
     expect(region.className).toContain('panel-design-match-content');
+    expect(approvalCenter.textContent).toMatch(/Approval Center \(MVP\)|审批中心（MVP）/);
+    expect(approvalCenter.textContent).toContain('mode=user_preference');
+    expect(approvalCenter.textContent).toContain('risk=high');
+    expect(approvalCenter.textContent).toContain('policy=User preference requires confirmation before execution. (user_directive_confirmation_required)');
+    expect(approvalHistory.textContent).toMatch(/Recent approval outcomes|最近审批记录/);
+    expect(approvalHistory.textContent).toContain('policy_blocked');
+    expect(approvalHistory.textContent).toContain('Blocked by user safety preference for destructive actions.');
+    expect(approvalHistory.textContent).toContain('auto_confirmed');
+    const outcomeFilter = screen.getByRole('combobox', { name: /Approval outcome filter|审批结果筛选/i });
+    fireEvent.change(outcomeFilter, { target: { value: 'blocked' } });
+    expect(approvalHistory.textContent).toContain('policy_blocked');
+    expect(approvalHistory.textContent).not.toContain('auto_confirmed');
+    const replayButton = screen.getByRole('button', { name: /Replay|查看回放/i });
 
     fireEvent.click(toggleButton);
+    fireEvent.click(replayButton);
     fireEvent.click(confirmButton);
     fireEvent.click(cancelButton);
 
     expect(onToggleAlertBar).toHaveBeenCalledTimes(1);
+    expect(onOpenDecisionReplay).toHaveBeenCalledTimes(1);
+    expect(onOpenDecisionReplay).toHaveBeenCalledWith('req-1');
     expect(onConfirmPendingToolCall).toHaveBeenCalledTimes(1);
     expect(onCancelPendingToolCall).toHaveBeenCalledTimes(1);
   });
@@ -148,5 +189,29 @@ describe('AiChatAlertsPanel', () => {
 
     fireEvent.click(screen.getByRole('button'));
     expect(onDismissErrorWarning).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists approval outcome filter in session storage', () => {
+    window.sessionStorage.setItem('jieyu:ai-approval-history-filter', 'blocked');
+    const pendingToolCall: PendingAiToolCall = {
+      call: {
+        name: 'delete_layer',
+        arguments: { layerId: 'layer-1' },
+      },
+      assistantMessageId: 'ast-1',
+    };
+    renderPanel({
+      alertCount: 1,
+      showAlertBar: true,
+      aiPendingToolCall: pendingToolCall,
+      aiToolDecisionLogs: [
+        { id: 'log-1', decision: 'policy_blocked', timestamp: '2026-04-25T12:00:00.000Z' },
+        { id: 'log-2', decision: 'auto_confirmed', timestamp: '2026-04-25T12:00:02.000Z' },
+      ],
+    });
+    const outcomeFilter = screen.getByRole('combobox', { name: /Approval outcome filter|审批结果筛选/i }) as HTMLSelectElement;
+    expect(outcomeFilter.value).toBe('blocked');
+    fireEvent.change(outcomeFilter, { target: { value: 'executed' } });
+    expect(window.sessionStorage.getItem('jieyu:ai-approval-history-filter')).toBe('executed');
   });
 });

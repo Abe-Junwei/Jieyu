@@ -60,6 +60,17 @@ function normalizeTimeoutMs(input: number | undefined, fallback: number): number
   return Math.max(1000, Math.floor(input ?? fallback));
 }
 
+function isMissingIndexedDbApiError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const details = [
+    `${error.name}:${error.message}`,
+    error.cause instanceof Error ? `${error.cause.name}:${error.cause.message}` : '',
+  ]
+    .filter((item) => item.length > 0)
+    .join('\n');
+  return details.includes('MissingAPIError') || details.includes('IndexedDB API missing');
+}
+
 class TaskTimeoutError extends Error {
   constructor(timeoutMs: number) {
     super(`Task timed out after ${timeoutMs}ms`);
@@ -117,6 +128,7 @@ export class TaskRunner {
 
     // 最佳努力恢复：把上次崩溃遗留的 pending/running 任务标记为 failed。 | Best-effort recovery: mark pending/running tasks left from a crash as failed.
     void this.recoverStaleTasks().catch((error) => {
+      if (isMissingIndexedDbApiError(error)) return;
       console.error('[TaskRunner] recoverStaleTasks failed:', error);
     });
   }

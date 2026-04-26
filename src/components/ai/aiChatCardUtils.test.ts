@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPendingTarget } from './aiChatCardUtils';
+import { formatPendingTarget, formatPolicyReasonExplanation } from './aiChatCardUtils';
 
 describe('aiChatCardUtils', () => {
   it.each([
@@ -14,5 +14,12 @@ describe('aiChatCardUtils', () => {
     });
 
     expect(value).toBe(expectedLabel);
+  });
+
+  it('formats known policy reason code into readable explanation', () => {
+    expect(formatPolicyReasonExplanation(false, 'user_directive_confirmation_required'))
+      .toContain('requires confirmation before execution');
+    expect(formatPolicyReasonExplanation(true, 'user_directive_confirmation_required'))
+      .toContain('要求先确认再执行');
   });
 });

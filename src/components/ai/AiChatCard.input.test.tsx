@@ -180,6 +180,122 @@ describe('AiChatCard input submit', () => {
     expect(within(view.container).queryByRole('button', { name: /填入输入框|Use suggestion|忽略本条推荐|Dismiss suggestion/i })).toBeNull();
   });
 
+  it('renders pinned summary under user bubble and allows quick unpin', () => {
+    const onToggleAiMessagePin = vi.fn();
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          aiMessages: [
+            { id: 'usr-pin-1', role: 'user', content: '请记住：回答尽量简洁', status: 'done' },
+          ],
+          aiSessionMemory: {
+            pinnedMessageIds: ['usr-pin-1'],
+            pinnedMessageDigests: [{
+              messageId: 'usr-pin-1',
+              role: 'user',
+              content: '请记住：回答尽量简洁',
+              createdAt: '2026-04-25T12:00:00.000Z',
+            }],
+          },
+          onToggleAiMessagePin,
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    expect(within(view.container).queryByText(/已钉住消息|Pinned messages/i)).toBeNull();
+  const pinnedSummaryText = view.container.querySelector('.ai-chat-pinned-summary-text');
+  expect((pinnedSummaryText?.textContent ?? '').trim().length).toBeGreaterThan(0);
+    const pinnedSummaryPanel = view.container.querySelector('.ai-chat-pinned-summary-panel') as HTMLElement | null;
+    expect(pinnedSummaryPanel).toBeTruthy();
+    fireEvent.click(within(pinnedSummaryPanel as HTMLElement).getByRole('button', { name: /取消钉住|Unpin/i }));
+    expect(onToggleAiMessagePin).toHaveBeenCalledWith('usr-pin-1');
+  });
+
+  it('renders directive console MVP and allows deactivating one directive', () => {
+    const onDeactivateAiSessionDirective = vi.fn();
+    const onPruneAiSessionDirectivesBySourceMessage = vi.fn();
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          aiSessionMemory: {
+            directiveLedger: [
+              {
+                id: 'dir-1',
+                category: 'response',
+                scope: 'long_term',
+                text: '请用英文回答',
+                action: 'accepted',
+                source: 'user_explicit',
+                confidence: 0.9,
+                createdAt: '2026-04-25T12:00:00.000Z',
+              },
+              {
+                id: 'dir-2',
+                category: 'response',
+                scope: 'long_term',
+                text: '继续使用英文',
+                action: 'accepted',
+                source: 'pinned_message',
+                confidence: 0.9,
+                createdAt: '2026-04-25T12:00:00.000Z',
+                sourceMessageId: 'pin-msg-1',
+              },
+            ],
+          },
+          onDeactivateAiSessionDirective,
+          onPruneAiSessionDirectivesBySourceMessage,
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const consolePanel = within(view.container).getByTestId('ai-directive-console-mvp');
+    expect(within(consolePanel).getByText(/请用英文回答/)).toBeTruthy();
+    expect(within(consolePanel).getAllByText('[response]').length).toBeGreaterThan(0);
+    const sourceFilter = within(consolePanel).getByRole('combobox', { name: /指令来源筛选|Directive source filter/i });
+    fireEvent.change(sourceFilter, { target: { value: 'pinned_message' } });
+    expect(within(consolePanel).queryByText(/请用英文回答/)).toBeNull();
+    expect(within(consolePanel).getByText(/继续使用英文/)).toBeTruthy();
+    const pruneBtn = within(consolePanel).getByRole('button', { name: /同源清理|Prune source/i });
+    fireEvent.click(pruneBtn);
+    expect(onPruneAiSessionDirectivesBySourceMessage).toHaveBeenCalledWith('pin-msg-1');
+    const deactivateBtn = within(consolePanel).getByRole('button', { name: /停用|Deactivate/i });
+    fireEvent.click(deactivateBtn);
+    expect(onDeactivateAiSessionDirective).toHaveBeenCalledWith('dir-2');
+  });
+
+  it('shows decision explanation message and reason in decision panel', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          aiToolDecisionLogs: [
+            {
+              id: 'decision-explain-1',
+              toolName: 'delete_transcription_segment',
+              decision: 'policy_blocked',
+              reason: 'user_directive_deny_destructive',
+              reasonLabelEn: 'Blocked by user safety preference for destructive actions.',
+              message: 'User directive blocks destructive action.',
+              timestamp: '2026-04-25T12:00:00.000Z',
+            },
+          ],
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+    fireEvent.click(within(view.container).getByRole('button', { name: /AI 决策|AI Decisions/i }));
+    expect(within(view.container).getByText(/User directive blocks destructive action\./)).toBeTruthy();
+    expect(within(view.container).getByText((_, element) => Boolean(
+      element
+      && element.classList.contains('ai-chat-decision-item-reason')
+      && element.textContent === 'Blocked by user safety preference for destructive actions.'
+    ))).toBeTruthy();
+  });
+
   it('adapts in-input ghost recommendation using prior user prompts instead of only static context rules', () => {
     const view = render(
       <AiAssistantHubContext.Provider value={makeContextValue({

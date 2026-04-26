@@ -100,4 +100,25 @@ describe('tool decision log helpers', () => {
       timestamp: '2026-03-18T14:00:00.000Z',
     });
   });
+
+  it('adds bilingual labels for known policy reason codes', () => {
+    const row = {
+      id: 'audit-5',
+      metadataJson: JSON.stringify({
+        phase: 'decision',
+        toolCall: { name: 'delete_layer' },
+        outcome: 'policy_blocked',
+        reason: 'user_directive_deny_destructive',
+      }),
+      timestamp: '2026-03-18T15:00:00.000Z',
+    };
+    expect(mapAuditRowToAiToolDecisionLog(row)).toMatchObject({
+      id: 'audit-5',
+      toolName: 'delete_layer',
+      decision: 'policy_blocked',
+      reason: 'user_directive_deny_destructive',
+      reasonLabelEn: 'Blocked by user safety preference for destructive actions.',
+      reasonLabelZh: '已被用户安全偏好阻断高风险破坏性操作',
+    });
+  });
 });

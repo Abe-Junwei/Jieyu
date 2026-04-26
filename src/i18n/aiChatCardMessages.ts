@@ -188,6 +188,11 @@ export type AiChatCardMessages = {
   copy: string;
   pinMessage: string;
   unpinMessage: string;
+  pinnedMessagesTitle: string;
+  pinnedMessagesCount: (count: number) => string;
+  pinnedMessageRoleUser: string;
+  pinnedMessageRoleAssistant: string;
+  pinnedMessagesEmpty: string;
   hideReasoning: string;
   showReasoning: string;
   showConversationSummary: string;
@@ -289,6 +294,11 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       copy: '\u590d\u5236',
       pinMessage: '\u9489\u4f4f\u6d88\u606f',
       unpinMessage: '\u53d6\u6d88\u9489\u4f4f',
+      pinnedMessagesTitle: '\u5df2\u9489\u4f4f\u6d88\u606f',
+      pinnedMessagesCount: (count) => `${count} \u6761`,
+      pinnedMessageRoleUser: '\u7528\u6237',
+      pinnedMessageRoleAssistant: 'AI',
+      pinnedMessagesEmpty: '\u6682\u65e0\u53ef\u5c55\u793a\u7684\u9489\u4f4f\u6458\u8981',
       hideReasoning: '\u25b2 \u9690\u85cf\u63a8\u7406',
       showReasoning: '\u25bc \u67e5\u770b\u63a8\u7406',
       showConversationSummary: '\u67e5\u770b\u5bf9\u8bdd\u6458\u8981',
@@ -389,6 +399,11 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     copy: 'Copy',
     pinMessage: 'Pin message',
     unpinMessage: 'Unpin message',
+    pinnedMessagesTitle: 'Pinned messages',
+    pinnedMessagesCount: (count) => `${count}`,
+    pinnedMessageRoleUser: 'User',
+    pinnedMessageRoleAssistant: 'Assistant',
+    pinnedMessagesEmpty: 'No pinned digests are available.',
     hideReasoning: '\u25b2 Hide reasoning',
     showReasoning: '\u25bc Show reasoning',
     showConversationSummary: 'View summary',

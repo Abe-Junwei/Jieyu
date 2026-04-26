@@ -56,6 +56,7 @@ interface UseTranscriptionRuntimePropsInput {
   formatSidePaneLayerLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   toggleVoiceRef: MutableRefObject<(() => void) | undefined>;
+  onAiAssistantMessageBridgeRef?: MutableRefObject<((assistantMessageId: string, content: string) => void) | null>;
   unitsOnCurrentMedia: LayerUnitDocType[];
   getUnitDocById: (id: string) => LayerUnitDocType | undefined;
   getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
@@ -109,6 +110,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
     formatSidePaneLayerLabel: input.formatSidePaneLayerLabel,
     formatTime: input.formatTime,
     toggleVoiceRef: input.toggleVoiceRef,
+    ...(input.onAiAssistantMessageBridgeRef !== undefined ? { onAiAssistantMessageBridgeRef: input.onAiAssistantMessageBridgeRef } : {}),
   });
 
   const analysisRuntimeProps = useTranscriptionAnalysisRuntimeProps({

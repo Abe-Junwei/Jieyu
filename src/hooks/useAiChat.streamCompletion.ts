@@ -6,7 +6,7 @@ import { generateTraceId } from '../observability/aiTrace';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
-import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
+import { resolveToolDecisionPipeline, resolveUserDirectivePolicyDecision } from './useAiChat.toolDecisionPipeline';
 import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiTaskTraceEntry, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, ToolAuditContext, UiChatMessage } from './useAiChat.types';
 
 export interface ResolveAiChatStreamCompletionParams {
@@ -192,6 +192,18 @@ function mergeLocalToolSessionState(
   };
 }
 
+function buildLocalToolPolicyBlockedMessage(locale: Locale): string {
+  return locale === 'zh-CN'
+    ? '已按你的偏好阻止本地工具自动执行。若你希望继续，请明确授权本轮执行。'
+    : 'Local tool execution was blocked by your directive preferences. If you want to continue, explicitly authorize this turn.';
+}
+
+function buildLocalToolPolicyConfirmMessage(locale: Locale): string {
+  return locale === 'zh-CN'
+    ? '根据你的偏好，这类工具调用需要你先确认。我已暂停自动执行。'
+    : 'Your directive preferences require confirmation before this tool call. Auto-execution is paused.';
+}
+
 export async function resolveAiChatStreamCompletion({
   assistantId,
   assistantContent,
@@ -250,6 +262,25 @@ export async function resolveAiChatStreamCompletion({
       const rawCall = localToolCallsParsed[index]!;
       const { calls: stepCalls } = resolveLocalToolCalls([rawCall], userText, rollingMemory, rollingMemory.toolPreferences?.defaultScope ?? preferredScope);
       const stepCall = stepCalls[0]!;
+      const stepToolCall = {
+        name: stepCall.name,
+        arguments: stepCall.arguments,
+      };
+      const policyDecision = resolveUserDirectivePolicyDecision(stepToolCall, rollingMemory);
+      if (policyDecision.action === 'block') {
+        bumpMetric('failureCount');
+        return {
+          finalContent: buildLocalToolPolicyBlockedMessage(toolFeedbackLocale),
+          finalStatus: 'done',
+        };
+      }
+      if (policyDecision.action === 'confirm') {
+        bumpMetric('clarifyCount');
+        return {
+          finalContent: buildLocalToolPolicyConfirmMessage(toolFeedbackLocale),
+          finalStatus: 'done',
+        };
+      }
       const clarificationNeed = detectLocalToolClarificationNeed([stepCall], userText, rollingMemory);
       if (clarificationNeed.needed) {
         recordLocalToolClarificationMetric(clarificationNeed.reason, clarificationNeed.callName);
@@ -323,6 +354,25 @@ export async function resolveAiChatStreamCompletion({
     const sharedTraceId = localToolTraceOptions?.traceId ?? generateTraceId();
     const { calls: singleCalls } = resolveLocalToolCalls(localToolCallsParsed, userText, sessionMemory, preferredScope);
     const resolvedCall = singleCalls[0]!;
+    const singleToolCall = {
+      name: resolvedCall.name,
+      arguments: resolvedCall.arguments,
+    };
+    const singlePolicyDecision = resolveUserDirectivePolicyDecision(singleToolCall, sessionMemory);
+    if (singlePolicyDecision.action === 'block') {
+      bumpMetric('failureCount');
+      return {
+        finalContent: buildLocalToolPolicyBlockedMessage(toolFeedbackLocale),
+        finalStatus: 'done',
+      };
+    }
+    if (singlePolicyDecision.action === 'confirm') {
+      bumpMetric('clarifyCount');
+      return {
+        finalContent: buildLocalToolPolicyConfirmMessage(toolFeedbackLocale),
+        finalStatus: 'done',
+      };
+    }
     const clarificationNeed = detectLocalToolClarificationNeed([resolvedCall], userText, sessionMemory);
     if (clarificationNeed.needed) {
       recordLocalToolClarificationMetric(clarificationNeed.reason, clarificationNeed.callName);

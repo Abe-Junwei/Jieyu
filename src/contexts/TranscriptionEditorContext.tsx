@@ -1,6 +1,7 @@
 import { createContext, useContext, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from 'react';
 import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
+import type { LayerMetadataUpdateInput } from '../types/layerMetadata';
 
 export type TranscriptionEditorContextValue = {
   unitDrafts: Record<string, string>;
@@ -21,11 +22,7 @@ export type TranscriptionEditorContextValue = {
     input: LayerCreateInput,
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
-  updateLayerMetadata?: (layerId: string, input: {
-    dialect?: string;
-    vernacular?: string;
-    alias?: string;
-  }) => Promise<boolean>;
+  updateLayerMetadata?: (layerId: string, input: LayerMetadataUpdateInput) => Promise<boolean>;
   deleteLayer: (layerId: string, options?: { keepUnits?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm: (layerId: string) => Promise<void>;
   checkLayerHasContent: (layerId: string) => Promise<number>;

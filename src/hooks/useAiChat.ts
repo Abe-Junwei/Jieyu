@@ -6,7 +6,7 @@ import { useAiChatConnectionProbe } from './useAiChat.connectionProbe';
 import { useAiChatConversationState } from './useAiChat.conversationState';
 import { createAssistantPersistenceHelpers } from './useAiChat.assistantPersistence';
 import { DEFAULT_FIRST_CHUNK_TIMEOUT_MS, DEFAULT_OUTPUT_TOKEN_CAP, INITIAL_METRICS, estimateTokensFromText, normalizeAutoProbeIntervalMs, normalizeFirstChunkTimeoutMs, normalizeOutputTokenCap, normalizeOutputTokenRetryCap, normalizeRagContextTimeoutMs, normalizeSessionTokenBudget, normalizeStreamPersistInterval, readDevOutputTokenCap, readDevOutputTokenRetryCap, readDevAutoProbeIntervalMs, readDevRagContextTimeoutMs, readDevSessionTokenBudget, readDevStreamPersistIntervalMs } from './useAiChat.config';
-import { newMessageId, nowIso } from './useAiChat.helpers';
+import { newAuditLogId, newMessageId, nowIso } from './useAiChat.helpers';
 import { runAgentLoop } from './useAiChat.agentLoopRunner';
 import { resolveClarifyFastPathCall } from './useAiChat.clarify';
 import { buildContextDebugSnapshot, logContextDebugSnapshot } from './useAiChat.debug';
@@ -20,7 +20,7 @@ import { enrichContextWithRag } from './useAiChat.rag';
 import { buildSessionMemoryDigestSuppressionRefs, maybeAppendMemoryBrokerContext } from './useAiChat.memoryBroker';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { buildConversationSummaryFromHistory, countHistoryUserTurns, estimateSummaryCoverageSimilarity, splitHistoryByRecentRounds, trimHistoryByChars, type HistoryChatMessage } from '../ai/chat/historyTrim';
-import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, loadSessionMemory, persistSessionMemory, updateConversationSummaryMemory } from '../ai/chat/sessionMemory';
+import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, deactivateSessionDirective as deactivateSessionDirectiveFromMemory, loadSessionMemory, persistSessionMemory, pruneDirectiveLedgerBySourceMessage, updateConversationSummaryMemory } from '../ai/chat/sessionMemory';
 import { updateSessionMemoryWithPrompt } from '../ai/chat/adaptiveInputProfile';
 import { updateSessionMemoryWithRecommendationEvent } from '../ai/chat/recommendationTelemetry';
 
@@ -28,6 +28,8 @@ import { resolveLocalToolRoutingPlan } from '../ai/chat/localToolSlotResolver';
 import { resolveContextCharBudgets } from '../ai/chat/contextBudget';
 import { buildAiSystemPrompt, buildPromptContextBlock, isAiContextDebugEnabled } from '../ai/chat/promptContext';
 import { buildUserDirectivePrompt } from '../ai/chat/userDirectivePrompt';
+import { extractUserDirectives } from '../ai/memory/userDirectiveExtractor';
+import { applyUserDirectivesToSessionMemory } from '../ai/memory/userDirectiveRegistry';
 import { runAiChatClearPersistenceCleanup, type AiChatClearPersistenceRequest } from './useAiChat.persistenceCleanup';
 import { resolvePinnedMessageSessionMemory } from './useAiChat.messagePinning';
 
@@ -270,6 +272,35 @@ export function useAiChat(options?: UseAiChatOptions) {
     persistSessionMemory(sessionMemoryRef.current);
   }, []);
 
+  const writeDirectiveMutationAuditLog = useCallback((
+    mutationType: 'deactivate' | 'prune_source',
+    payload: Record<string, unknown>,
+  ) => {
+    if (!conversationId) return;
+    const timestamp = nowIso();
+    void getDb()
+      .then((db) => db.collections.audit_logs.insert({
+        id: newAuditLogId(),
+        collection: 'ai_messages',
+        documentId: conversationId,
+        action: 'update',
+        field: 'ai_user_directive_mutation',
+        newValue: mutationType,
+        source: 'human',
+        timestamp,
+        requestId: `directive_mutation_${mutationType}_${timestamp}`,
+        metadataJson: JSON.stringify({
+          schemaVersion: 1,
+          phase: 'user_directive_mutation',
+          mutationType,
+          ...payload,
+        }),
+      }))
+      .catch(() => {
+        // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
+      });
+  }, [conversationId]);
+
   const toggleMessagePinned = useCallback((messageId: string) => {
     const nextMemory = resolvePinnedMessageSessionMemory(sessionMemoryRef.current, messagesRef.current, messageId);
     if (nextMemory === sessionMemoryRef.current) return;
@@ -277,6 +308,55 @@ export function useAiChat(options?: UseAiChatOptions) {
     persistSessionMemory(sessionMemoryRef.current);
     setMessages((prev) => [...prev]);
   }, [messagesRef]);
+
+  const deactivateSessionDirective = useCallback((directiveId: string) => {
+    const normalizedDirectiveId = directiveId.trim();
+    if (!normalizedDirectiveId) return;
+    const previousMemory = sessionMemoryRef.current;
+    const hadDirective = (previousMemory.sessionDirectives ?? []).some((item) => item.id === normalizedDirectiveId);
+    if (!hadDirective) return;
+    const nextMemory = deactivateSessionDirectiveFromMemory(previousMemory, normalizedDirectiveId);
+    if (nextMemory === previousMemory) return;
+    sessionMemoryRef.current = nextMemory;
+    persistSessionMemory(sessionMemoryRef.current);
+    setMessages((prev) => [...prev]);
+    writeDirectiveMutationAuditLog('deactivate', {
+      directiveId: normalizedDirectiveId,
+      before: {
+        sessionDirectiveCount: (previousMemory.sessionDirectives ?? []).length,
+        directiveLedgerCount: (previousMemory.directiveLedger ?? []).length,
+      },
+      after: {
+        sessionDirectiveCount: (nextMemory.sessionDirectives ?? []).length,
+        directiveLedgerCount: (nextMemory.directiveLedger ?? []).length,
+      },
+    });
+  }, [writeDirectiveMutationAuditLog]);
+
+  const pruneSessionDirectivesBySourceMessage = useCallback((sourceMessageId: string) => {
+    const normalizedSourceMessageId = sourceMessageId.trim();
+    if (!normalizedSourceMessageId) return;
+    const previousMemory = sessionMemoryRef.current;
+    const matchedDirectiveCount = (previousMemory.sessionDirectives ?? []).filter((directive) => directive.sourceMessageId === normalizedSourceMessageId).length;
+    const matchedLedgerCount = (previousMemory.directiveLedger ?? []).filter((entry) => entry.sourceMessageId === normalizedSourceMessageId).length;
+    if (matchedDirectiveCount === 0 && matchedLedgerCount === 0) return;
+    const nextMemory = pruneDirectiveLedgerBySourceMessage(previousMemory, normalizedSourceMessageId);
+    if (nextMemory === previousMemory) return;
+    sessionMemoryRef.current = nextMemory;
+    persistSessionMemory(sessionMemoryRef.current);
+    setMessages((prev) => [...prev]);
+    writeDirectiveMutationAuditLog('prune_source', {
+      sourceMessageId: normalizedSourceMessageId,
+      removed: {
+        sessionDirectiveCount: matchedDirectiveCount,
+        directiveLedgerCount: matchedLedgerCount,
+      },
+      after: {
+        sessionDirectiveCount: (nextMemory.sessionDirectives ?? []).length,
+        directiveLedgerCount: (nextMemory.directiveLedger ?? []).length,
+      },
+    });
+  }, [writeDirectiveMutationAuditLog]);
 
   const applyAssistantMessageResult = useCallback(async (
     messageId: string,
@@ -467,6 +547,11 @@ export function useAiChat(options?: UseAiChatOptions) {
     };
     const agentLoopSourceUserText = resumeCheckpoint?.originalUserText ?? trimmed;
     const effectiveUserText = resumeCheckpoint?.continuationInput ?? trimmed;
+    const immediateDirectives = extractUserDirectives({ userText: effectiveUserText, source: 'user_explicit', sourceMessageId: userMsg.id });
+    if (immediateDirectives.length > 0) {
+      sessionMemoryRef.current = applyUserDirectivesToSessionMemory(sessionMemoryRef.current, immediateDirectives).nextMemory;
+      persistSessionMemory(sessionMemoryRef.current);
+    }
 
     try {
       activeConversationId = await ensureConversation();
@@ -1027,6 +1112,7 @@ export function useAiChat(options?: UseAiChatOptions) {
               scheduleAndFlushBackgroundMemory(backgroundMemoryRuntime, {
                 conversationId: activeConversationId,
                 assistantMessageId: assistantId,
+                userMessageId: userMsg.id,
                 userText: effectiveUserText,
                 assistantText: resolvedContent,
                 actorId: 'ai-chat',
@@ -1108,9 +1194,8 @@ export function useAiChat(options?: UseAiChatOptions) {
         totalOutputTokensAvailable: prev.totalOutputTokensAvailable || usageObservedThisTurn,
         currentTurnTokensAvailable: usageObservedThisTurn,
       }));
-      if (completionContent) {
-        onMessageCompleteRef.current?.(assistantId, completionContent);
-      }
+      // 始终通知一次（含空串），便于语音桥接在流结束时清理 ai-thinking / 回调，即使正文为空 | Always notify once (including empty) for voice bridge cleanup
+      onMessageCompleteRef.current?.(assistantId, completionContent);
     }
   }, [
     allowDestructiveToolCalls,
@@ -1185,5 +1270,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     cancelPendingToolCall,
     trackRecommendationEvent,
     toggleMessagePinned,
+    deactivateSessionDirective,
+    pruneSessionDirectivesBySourceMessage,
   };
 }
