@@ -1,5 +1,5 @@
-import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
-import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
 import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
 import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
 

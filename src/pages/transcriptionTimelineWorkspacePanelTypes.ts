@@ -12,7 +12,7 @@ import type {
   LayerUnitDocType,
   MediaItemDocType,
   OrthographyDocType,
-} from '../db';
+} from '../types/jieyuDbDocTypes';
 import type { TimelineResizeDragOptions } from '../hooks/useTimelineResize';
 /** 与 `TextTimeMapping` 线性段一致；本文件不 import services 以满足架构守卫 M3 */
 export type WorkspacePanelTextTimeMappingLinear = { offsetSec: number; scale: number };

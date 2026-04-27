@@ -1,5 +1,5 @@
 import { useMemo, type Dispatch, type SetStateAction } from 'react';
-import type { LayerUnitDocType } from '../db';
+import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { TranscriptionPageAnalysisRuntimeProps, TranscriptionPageEmbeddingProviderConfig } from './TranscriptionPage.runtimeContracts';
 import { createAnalysisRuntimeProps } from './TranscriptionPage.runtimeProps';
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
-import type { LayerDocType, LayerLinkDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../types/jieyuDbDocTypes';
 import { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 import { useDialogs, type TextTimeMappingSummary } from '../hooks/useDialogs';
@@ -8,7 +8,7 @@ import { usePanelToggles } from '../hooks/usePanelToggles';
 import { APP_SHELL_OPEN_SEARCH_EVENT, type AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import { buildLayerLinkConnectorLayout } from '../utils/layerLinkConnector';
 import { type TextDirection, type UiFontScaleMode } from '../utils/panelAdaptiveLayout';
-import { LinguisticService } from '../services/LinguisticService';
+import { LinguisticService } from '../utils/pageLinguisticService';
 import { createPdfPreviewOpenRequest } from './TranscriptionPage.runtimeProps';
 import type { PdfPreviewOpenRequest } from './TranscriptionPage.runtimeContracts';
 import { t, useLocale } from '../i18n';

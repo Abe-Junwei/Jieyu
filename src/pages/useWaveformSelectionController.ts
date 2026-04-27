@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { LayerDocType, LayerLinkDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../types/jieyuDbDocTypes';
 import { isSegmentTimelineUnit, isUnitTimelineUnit, type TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';

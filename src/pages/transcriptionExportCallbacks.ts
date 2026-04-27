@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 
 interface CreateTranscriptionExportCallbacksInput {
   setShowExportMenu: Dispatch<SetStateAction<boolean>>;

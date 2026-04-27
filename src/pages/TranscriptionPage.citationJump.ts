@@ -1,4 +1,5 @@
-import { db as appDb, type LayerDocType, type UserNoteDocType } from '../db';
+import type { LayerDocType, UserNoteDocType } from '../types/jieyuDbDocTypes';
+import { db as appDb } from '../utils/jieyuDbPageClient';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import { normalizeLocale, t, tf } from '../i18n';
 import { extractUnitIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';

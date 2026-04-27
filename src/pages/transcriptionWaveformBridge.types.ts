@@ -5,7 +5,7 @@ import type { useWaveSurfer } from '../hooks/useWaveSurfer';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
-import type { LayerDocType, LayerLinkDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../types/jieyuDbDocTypes';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';

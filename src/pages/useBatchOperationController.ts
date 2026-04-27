@@ -1,5 +1,5 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
-import type { LayerUnitDocType } from '../db';
+import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { t, tf, useLocale } from '../i18n';

@@ -1,8 +1,8 @@
-import type { LanguageCatalogHistoryDocType } from '../db';
+import type { LanguageCatalogHistoryDocType } from '../types/jieyuDbDocTypes';
 import { t } from '../i18n';
-import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCatalogVisibility } from '../services/LinguisticService';
+import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCatalogVisibility } from '../types/linguisticCatalogSurface.types';
 import { formatIso3166Alpha2ListEndonyms, formatIso3166Alpha2ListUi } from '../utils/iso3166CountryLabels';
-import { buildCustomFieldDraftValues, formatCustomFieldOptionsEditorValue, parseCustomFieldDraftMultiselectValue, parseCustomFieldOptionsEditorValue, serializeCustomFieldDraftValue } from '../services/LanguageMetadataCustomFields';
+import { buildCustomFieldDraftValues, formatCustomFieldOptionsEditorValue, parseCustomFieldDraftMultiselectValue, parseCustomFieldOptionsEditorValue, serializeCustomFieldDraftValue } from '../utils/pageLanguageMetadataCustomFields';
 
 export const LANGUAGE_ID_PARAM = 'languageId';
 export const NEW_LANGUAGE_ID = '__new__';

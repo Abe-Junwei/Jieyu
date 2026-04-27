@@ -2,14 +2,14 @@ import type { MutableRefObject } from 'react';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
-import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { SaveState, TimelineUnitKind } from '../hooks/transcriptionTypes';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { Locale } from '../i18n';
-import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
+import type { VoiceIntent, VoiceSession } from '../types/voiceSession.types';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
-import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
 
 export interface TranscriptionPageAssistantRuntimeFrameProps {
   saveState: SaveState;

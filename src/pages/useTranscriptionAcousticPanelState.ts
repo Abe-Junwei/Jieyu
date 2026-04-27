@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { AcousticInspectorReadout, VadCacheStatus } from '../contexts/AiPanelContext';
-import { AcousticAnalysisService } from '../services/acoustic/AcousticAnalysisService';
+import { AcousticAnalysisService } from '../utils/pageAcousticAnalysisService';
 import type { AcousticAnalysisConfig } from '../utils/acousticOverlayTypes';
 import type { DeferredTranscriptionAiRuntimeState } from './TranscriptionPage.AssistantBridge';
 import type { SpectrogramHoverReadout, WaveformHoverReadout } from './transcriptionWaveformBridge.types';

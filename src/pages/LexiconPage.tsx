@@ -7,10 +7,10 @@ import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { PanelSection } from '../components/ui/PanelSection';
 import { PanelSummary } from '../components/ui/PanelSummary';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
-import type { LexemeDocType, MultiLangString } from '../db';
+import type { LexemeDocType, MultiLangString } from '../types/jieyuDbDocTypes';
 import { useLexiconSearch } from '../hooks/useLexiconSearch';
 import { t, tf, useLocale } from '../i18n';
-import { LinguisticService } from '../services/LinguisticService';
+import { LinguisticService } from '../utils/pageLinguisticService';
 import { buildTranscriptionDeepLinkHref, buildTranscriptionWorkspaceReturnHref } from '../utils/transcriptionUrlDeepLink';
 
 const LEXICON_LIST_STATE_KEY = 'lexiconListState';

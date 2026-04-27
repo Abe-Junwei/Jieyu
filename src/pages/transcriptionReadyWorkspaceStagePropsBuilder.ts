@@ -1,7 +1,7 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { TimelineViewportProjection } from '../hooks/timelineViewportTypes';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 import {
   buildReadyWorkspaceBatchOpsSection,
   type BuildReadyWorkspaceBatchOpsSectionInput,

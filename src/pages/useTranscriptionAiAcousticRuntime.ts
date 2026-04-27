@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AcousticAnalysisService } from '../services/acoustic/AcousticAnalysisService';
+import { AcousticAnalysisService } from '../utils/pageAcousticAnalysisService';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import { buildAcousticPromptSummary, type AcousticPromptSummary } from './transcriptionAcousticSummary';
 import { buildAcousticPanelBatchBuildResult, buildAcousticPanelDetail, deriveAcousticCalibrationStatus, type AcousticBatchSelectionRange, type AcousticCalibrationStatus, type AcousticPanelBatchDetail, type AcousticPanelDetail } from '../utils/acousticPanelDetail';
 import type { AcousticAnalysisConfig, AcousticFeatureResult } from '../utils/acousticOverlayTypes';
-import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
+import type { ResolvedAcousticProviderState } from '../types/acousticProviderResolved.types';
 
 const PROGRESS_UPDATE_MIN_INTERVAL_MS = 100;
 const PROGRESS_UPDATE_MIN_RATIO_DELTA = 0.01;

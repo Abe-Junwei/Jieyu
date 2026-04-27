@@ -1,4 +1,4 @@
-import type { LayerSegmentViewDocType, LayerUnitDocType, MediaItemDocType } from '../db';
+import type { LayerSegmentViewDocType, LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
 import type { SegmentTargetDescriptor } from '../hooks/useAiToolCallHandler.segmentTargeting';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 

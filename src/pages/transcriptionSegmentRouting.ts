@@ -1,4 +1,4 @@
-import type { LayerDocType } from '../db';
+import type { LayerDocType } from '../types/jieyuDbDocTypes';
 
 export type SegmentEditMode = 'unit' | 'independent-segment' | 'time-subdivision';
 

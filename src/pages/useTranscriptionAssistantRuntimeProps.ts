@@ -1,10 +1,10 @@
 import { useMemo, type MutableRefObject } from 'react';
-import type { LayerDocType, LayerLinkDocType } from '../db';
-import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
+import type { LayerDocType, LayerLinkDocType } from '../types/jieyuDbDocTypes';
+import type { VoiceIntent, VoiceSession } from '../types/voiceSession.types';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
-import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
 import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import { createAssistantRuntimeProps } from './TranscriptionPage.runtimeProps';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';

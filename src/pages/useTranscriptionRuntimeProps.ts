@@ -1,12 +1,12 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import { unitDocForSpeakerTargetFromUnitView } from './timelineUnitViewUnitHelpers';
-import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
+import type { VoiceIntent, VoiceSession } from '../types/voiceSession.types';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { Locale } from '../i18n';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
-import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
 import type { PdfPreviewOpenRequest, TranscriptionPageAnalysisRuntimeProps, TranscriptionPageAssistantRuntimeProps, TranscriptionPageEmbeddingProviderConfig, TranscriptionPagePdfRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import { useTranscriptionAssistantRuntimeProps } from './useTranscriptionAssistantRuntimeProps';

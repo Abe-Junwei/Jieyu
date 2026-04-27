@@ -1,5 +1,5 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
-import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
+import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../types/jieyuDbDocTypes';
 import { useSpeakerActions } from '../hooks/useSpeakerActions';
 import type { LayerActionPanelKind } from '../hooks/useLayerActionPanel';
 import type { SpeakerFilterOption } from '../hooks/speakerManagement/types';

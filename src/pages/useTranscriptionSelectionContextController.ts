@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { LayerDocType, LayerLinkDocType, LayerUnitDocType, MediaItemDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { isSegmentTimelineUnit } from '../hooks/transcriptionTypes';
 import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';

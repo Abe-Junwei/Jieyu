@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { MediaItemDocType } from '../db';
+import type { MediaItemDocType } from '../types/jieyuDbDocTypes';
 import { getTranscriptionAppService } from '../app/index';
 import { useMediaImport } from '../hooks/useMediaImport';
 import { t } from '../i18n';

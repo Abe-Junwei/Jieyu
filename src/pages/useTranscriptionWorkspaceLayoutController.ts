@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
 import type { VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
-import type { LayerDocType } from '../db';
+import type { LayerDocType } from '../types/jieyuDbDocTypes';
 import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
 import { createLogger } from '../observability/logger';
 import {

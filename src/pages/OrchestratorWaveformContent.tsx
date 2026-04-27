@@ -12,7 +12,7 @@ import '../styles/pages/transcription-waveform.css';
  */
 
 import React, { useEffect, type MutableRefObject, type RefObject } from 'react';
-import type { LayerUnitDocType } from '../db';
+import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
@@ -25,7 +25,7 @@ import { VideoPreviewSection, type VideoLayoutMode } from '../components/transcr
 import { WaveformAreaSection } from '../components/transcription/TranscriptionLayoutSections';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
 import { t, tf, type Locale } from '../i18n';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 import type { AcousticStripContract } from '../hooks/timelineViewportTypes';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';

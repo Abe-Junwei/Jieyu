@@ -1,5 +1,5 @@
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 
 type ReadyWorkspaceStageProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps'];
 type ReadyWorkspaceMediaInputProps = ReadyWorkspaceStageProps['mediaInputProps'];

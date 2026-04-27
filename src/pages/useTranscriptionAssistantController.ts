@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { DEFAULT_VOICE_INTENT_RESOLVER_CONFIG } from '../ai/config/voiceIntentResolver';
 import { featureFlags } from '../ai/config/featureFlags';
-import { getDb, type LayerUnitDocType } from '../db';
-import { getUnitDocProjectionById } from '../services/LayerSegmentGraphService';
-import { LinguisticService } from '../services/LinguisticService';
+import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
+import { getDb } from '../utils/jieyuDbPageClient';
+import { getUnitDocProjectionById } from '../utils/pageLayerSegmentGraph';
+import { LinguisticService } from '../utils/pageLinguisticService';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import { isSegmentTimelineUnit } from '../hooks/transcriptionTypes';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
-import type { VoiceSession } from '../services/IntentRouter';
+import type { VoiceSession } from '../types/voiceSession.types';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';

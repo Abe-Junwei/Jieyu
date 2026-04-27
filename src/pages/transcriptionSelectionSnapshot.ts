@@ -1,4 +1,4 @@
-import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { isSegmentTimelineUnit, type TimelineUnit, type TimelineUnitKind } from '../hooks/transcriptionTypes';
 import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';

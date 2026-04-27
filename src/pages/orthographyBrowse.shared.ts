@@ -1,4 +1,4 @@
-import type { ListOrthographyRecordsSelector } from '../services/LinguisticService.orthography';
+import type { ListOrthographyRecordsSelector } from '../types/orthographyListSelector.types';
 
 /**
  * 工作台页面语言搜索的统一查询上限 | Shared search limit for workspace-level language catalog search

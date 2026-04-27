@@ -1,7 +1,7 @@
 import { startTransition, useCallback, useRef } from 'react';
-import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
+import { LayerSegmentationV2Service } from '../utils/pageLayerSegmentationV2';
 import { handleTranscriptionCitationJump } from './TranscriptionPage.citationJump';
-import { snapToZeroCrossing } from '../services/AudioAnalysisService';
+import { snapToZeroCrossing } from '../utils/pageAudioAnalysisSnap';
 import { fireAndForget } from '../utils/fireAndForget';
 import { t } from '../i18n';
 import { createLogger } from '../observability/logger';

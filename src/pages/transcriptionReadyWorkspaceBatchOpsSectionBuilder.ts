@@ -1,5 +1,5 @@
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 
 type ReadyWorkspaceBatchOpsSection = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps']['batchOpsSection'];
 type ReadyWorkspaceBatchOpsProps = ReadyWorkspaceBatchOpsSection['props'];

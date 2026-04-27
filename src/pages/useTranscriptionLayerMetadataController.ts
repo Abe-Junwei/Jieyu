@@ -1,9 +1,10 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { getLayerMetadataAppService } from '../app/LayerMetadataAppService';
-import { getDb, withTransaction, type LayerDocType, type LayerLinkDocType, stripForbiddenTranslationParentLayerId } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../types/jieyuDbDocTypes';
+import { getDb, stripForbiddenTranslationParentLayerId, withTransaction } from '../utils/jieyuDbPageClient';
 import type { LayerMetadataUpdateInput } from '../types/layerMetadata';
 import { newId } from '../utils/transcriptionFormatters';
-import { saveTierDefinition } from '../services/LinguisticService.tiers';
+import { saveTierDefinition } from '../utils/pageLinguisticTiersSave';
 
 type UseTranscriptionLayerMetadataControllerInput = {
   layers: LayerDocType[];

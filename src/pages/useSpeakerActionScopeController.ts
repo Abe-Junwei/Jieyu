@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import type { LayerDocType, LayerSegmentViewDocType, LayerUnitDocType, SpeakerDocType } from '../db';
+import type { LayerDocType, LayerSegmentViewDocType, LayerUnitDocType, SpeakerDocType } from '../types/jieyuDbDocTypes';
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';

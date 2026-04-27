@@ -1,7 +1,7 @@
 import { PanelSection } from '../components/ui/PanelSection';
 import { PanelFeedback } from '../components/ui/PanelFeedback';
 import { t, tf } from '../i18n';
-import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCatalogVisibility } from '../services/LinguisticService';
+import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCatalogVisibility } from '../types/linguisticCatalogSurface.types';
 import { buildClassificationPathDisplayLine, buildClassificationPathValue, LANGUAGE_DISPLAY_NAME_ROLE_OPTIONS, parseLineSeparatedText, readEntryKindLabel, readHistoryFieldLabel, type HistoryItem, type LanguageDisplayNameDraftRow, type LanguageDisplayNameRowChangeHandler, type LanguageMetadataDraft, type LanguageMetadataDraftChangeHandler, type WorkspaceLocale } from './languageMetadataWorkspace.shared';
 import { useLanguageMetadataMapController } from './languageMetadataWorkspace.mapController';
 import { useLanguageMetadataCustomFieldController } from './languageMetadataWorkspace.customFieldController';

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import type { LayerDisplaySettings, LayerDocType, LayerLinkDocType } from '../db';
-import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
+import type { LayerDisplaySettings, LayerDocType, LayerLinkDocType } from '../types/jieyuDbDocTypes';
+import { LayerTierUnifiedService } from '../utils/pageLayerTierUnifiedService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useLocalFonts } from '../hooks/useLocalFonts';
 import { useOrthographies } from '../hooks/useOrthographies';

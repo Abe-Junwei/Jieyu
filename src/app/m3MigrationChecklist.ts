@@ -2,12 +2,10 @@
  * M3 页面编排迁移清单 — 按域 × 优先级排序
  * M3 page orchestration migration checklist — sorted by domain × priority
  *
- * 本清单记录所有页面层直连 db / services 的文件及其迁移状态。
- * 新增功能禁止在以下文件中新增 db / services 直连，应通过 src/app/ 应用服务层接入。
- *
- * 迁移策略：绞杀者模式（Strangler Fig）
- * - M3（本阶段）：冻结基线，新增走 app 层，不强制改老代码
- * - M4（下阶段）：按优先级逐文件迁移，旧入口改为转发新应用服务
+ * 本清单为历史迁移台账（域 × 优先级）；**门禁真值**以 `scripts/architecture-guard.config.mjs` 为准。
+ * 截至 2026-04-26：`src/pages/*` 已不再直连 `../db` / `../services`（经 `src/types/*` 与 `src/utils/jieyuDb*`
+ * / `src/utils/page*` 等转发层收口，M3 豁免列表已清零）。
+ * 新增编排仍应优先走 `src/app/` 应用服务层，避免在页面文件恢复底层直连。
  */
 
 export type MigrationPriority = 'P0-critical' | 'P1-high' | 'P2-medium' | 'P3-low';

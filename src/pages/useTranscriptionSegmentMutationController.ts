@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { getTranscriptionAppService } from '../app/index';
-import type { LayerUnitDocType } from '../db';
+import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
@@ -11,7 +11,7 @@ import { dispatchTimelineUnitMutation, dispatchTimelineUnitSelectionMutation } f
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 import { useTranscriptionSegmentBatchMerge } from './useTranscriptionSegmentBatchMerge';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
-import { LayerUnitService } from '../services/LayerUnitService';
+import { LayerUnitService } from '../utils/pageLayerUnitService';
 import type { AiSegmentSplitRollbackToken } from '../hooks/useAiToolCallHandler.types';
 
 interface UseTranscriptionSegmentMutationControllerInput {

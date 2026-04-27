@@ -3,7 +3,7 @@ import { useTranscriptionAiController, type UseTranscriptionAiControllerInput, t
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import type { AcousticPromptSummary } from './TranscriptionPage.aiPromptContext';
 import type { AcousticBatchSelectionRange, AcousticCalibrationStatus, AcousticPanelBatchDetail, AcousticPanelDetail } from '../utils/acousticPanelDetail';
-import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
+import type { ResolvedAcousticProviderState } from '../types/acousticProviderResolved.types';
 
 type DeferredAiChatState = {
   enabled: UseTranscriptionAiControllerResult['aiChat']['enabled'];

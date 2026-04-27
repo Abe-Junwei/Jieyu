@@ -1,8 +1,8 @@
-import type { LayerUnitDocType, MediaItemDocType } from '../db';
+import type { LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { t, tf, type Locale } from '../i18n';
-import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
+import { LayerSegmentationV2Service } from '../utils/pageLayerSegmentationV2';
 import { formatTime, newId } from '../utils/transcriptionFormatters';
 import { readStoredNewSegmentSelectionBehavior, type NewSegmentSelectionBehavior } from '../utils/transcriptionInteractionPreferences';
 import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';

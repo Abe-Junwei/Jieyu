@@ -2,7 +2,7 @@ import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 
 type ReadyWorkspaceHistoryControlsProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps']['workspaceAreaProps']['historyControlsProps'];
 

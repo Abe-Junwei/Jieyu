@@ -1,6 +1,6 @@
 import type { AiPanelMode } from '../components/AiAnalysisPanel';
 import type { AiObserverRecommendation } from '../components/transcription/toolbar/ObserverStatus';
-import type { LayerDocType, LayerLinkDocType, LayerUnitDocType, MediaItemDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { Locale } from '../i18n';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
@@ -16,7 +16,7 @@ import type { useAiChat } from '../hooks/useAiChat';
 import type { AiSegmentSplitRollbackToken } from '../hooks/useAiToolCallHandler.types';
 import type { useAiPanelLogic } from '../hooks/useAiPanelLogic';
 import type { EditEvent } from '../hooks/useEditEventBuffer';
-import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
+import type { ResolvedAcousticProviderState } from '../types/acousticProviderResolved.types';
 
 export interface UseTranscriptionAiControllerInput {
   selectedUnitIds: Set<string>;
@@ -178,4 +178,4 @@ export interface UseTranscriptionAiControllerResult {
 }
 
 /** Re-export for page modules that must not import `../db` directly (M3 guard). */
-export type { LayerDocType } from '../db';
+export type { LayerDocType } from '../types/jieyuDbDocTypes';

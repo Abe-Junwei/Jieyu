@@ -3,14 +3,14 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { Link, useSearchParams } from 'react-router-dom';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
-import type { OrthographyDocType } from '../db';
+import type { OrthographyDocType } from '../types/jieyuDbDocTypes';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useListKeyboardNav } from '../hooks/useListKeyboardNav';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { getOrthographyBuilderMessages } from '../i18n/messages';
-import { listOrthographyRecords, updateOrthographyRecord } from '../services/LinguisticService.orthography';
+import { listOrthographyRecords, updateOrthographyRecord } from '../utils/pageOrthographyRecordsApi';
 import { OrthographyManagerPanel } from './OrthographyManagerPanel';
 import { buildOrthographyBrowseSelector, buildOrthographyBrowseState, WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';
 import { areDraftsEqual, buildOrthographyDraft, parseConversionRulesJson, parseDraftList, parseOptionalNumber, type OrthographyDraft, type NormalizationForm } from './orthographyManager.shared';
@@ -18,7 +18,8 @@ import type { LanguageIsoInputValue } from '../components/LanguageIsoInput';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import { normalizeLanguageInputAssetId } from '../utils/languageInputHostState';
 import { buildTranscriptionWorkspaceReturnHref } from '../utils/transcriptionUrlDeepLink';
-import { type LanguageCatalogSearchSuggestion, searchLanguageCatalogSuggestions } from '../services/LanguageCatalogSearchService';
+import type { LanguageCatalogSearchSuggestion } from '../types/languageCatalogSearchSuggestion.types';
+import { searchLanguageCatalogSuggestions } from '../utils/pageLanguageCatalogApi';
 
 const ORTHOGRAPHY_ID_PARAM = 'orthographyId';
 

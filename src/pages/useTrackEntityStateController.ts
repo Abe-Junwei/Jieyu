@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
-import type { TrackEntityStateMap } from '../services/TrackEntityStore';
-import { getTrackEntityState, loadTrackEntityStateMapFromDb } from '../services/TrackEntityStore';
+import type { TrackEntityStateMap } from '../types/trackEntityStateMap.types';
+import { getTrackEntityState, loadTrackEntityStateMapFromDb } from '../utils/pageTrackEntityStore';
 
 interface UseTrackEntityStateControllerInput {
   activeTextId: string | null;

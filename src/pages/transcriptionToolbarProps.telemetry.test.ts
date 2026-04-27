@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const mockRecord = vi.fn();
-vi.mock('../services/transcriptionKeyboardActionTelemetry', () => ({
+vi.mock('../utils/transcriptionKeyboardActionTelemetry', () => ({
   recordTranscriptionKeyboardAction: (...args: unknown[]) => mockRecord(...args),
 }));
 

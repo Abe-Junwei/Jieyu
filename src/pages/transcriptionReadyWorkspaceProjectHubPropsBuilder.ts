@@ -1,6 +1,6 @@
 import type { AnnotationImportBridgeStrategy } from '../hooks/useImportExport.annotationImport';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 
 type ReadyWorkspaceProjectHubProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps']['projectHubProps'];
 

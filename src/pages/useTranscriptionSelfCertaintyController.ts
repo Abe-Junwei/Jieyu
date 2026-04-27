@@ -5,7 +5,7 @@ import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import {
   brandLayerUnitWriteTarget,
   type LayerUnitWriteTarget,
-} from '../db/unitIdBrands';
+} from '../utils/jieyuDbUnitIdBrands';
 
 /**
  * ⚠️ per-layer 字段严格分治原则（self-certainty 治理 post-mortem）

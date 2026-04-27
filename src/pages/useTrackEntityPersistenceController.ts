@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
-import type { TrackEntityStateMap } from '../services/TrackEntityStore';
-import { saveTrackEntityStateToDb, upsertTrackEntityState } from '../services/TrackEntityStore';
+import type { TrackEntityStateMap } from '../types/trackEntityStateMap.types';
+import { saveTrackEntityStateToDb, upsertTrackEntityState } from '../utils/pageTrackEntityStore';
 
 interface UseTrackEntityPersistenceControllerInput {
   activeTextId: string | null;

@@ -1,5 +1,5 @@
 import { useMemo, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from 'react';
-import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType, LayerUnitContentViewDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType, LayerUnitContentViewDocType } from '../types/jieyuDbDocTypes';
 import type { TranscriptionEditorContextValue } from '../contexts/TranscriptionEditorContext';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';

@@ -6,7 +6,7 @@ import type { TranscriptionPageSidePaneProps } from './TranscriptionPage.SidePan
 import type { TranscriptionOverlaysProps } from '../components/TranscriptionOverlays';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
 import type { Locale } from '../i18n';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 export { buildReadyWorkspaceStageProps, type BuildReadyWorkspaceStagePropsInput } from './transcriptionReadyWorkspaceStagePropsBuilder';
 
 type HorizontalMediaLanesProps = TranscriptionPageTimelineHorizontalMediaLanesProps;

@@ -1,4 +1,4 @@
-import type { LayerUnitDocType } from '../db';
+import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import { BatchOperationPanel } from '../components/BatchOperationPanel';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 

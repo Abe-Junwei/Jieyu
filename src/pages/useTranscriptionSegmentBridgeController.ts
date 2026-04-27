@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { getDb, type LayerDocType, type LayerLinkDocType, type LayerUnitContentDocType, type LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
+import { getDb } from '../utils/jieyuDbPageClient';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { getLayerEditMode, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
-import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
+import { LayerSegmentationV2Service } from '../utils/pageLayerSegmentationV2';
 import { resolveTranscriptionTargetLayerId } from './transcriptionUnitTargetResolver';
 import type { SegmentTimelineRoutingResult } from './transcriptionSegmentRouting';
-import { type LayerSegmentGraphSnapshot, restoreLayerSegmentGraphSnapshot, snapshotLayerSegmentGraphByLayerIds } from '../services/LayerSegmentGraphService';
+import type { LayerSegmentGraphSnapshot } from '../types/layerSegmentGraphSnapshot.types';
+import { restoreLayerSegmentGraphSnapshot, snapshotLayerSegmentGraphByLayerIds } from '../utils/pageLayerSegmentGraph';
 import { fireAndForget } from '../utils/fireAndForget';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 

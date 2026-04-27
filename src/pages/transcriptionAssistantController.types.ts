@@ -1,12 +1,12 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { AiChatSettings } from '../hooks/useAiChat';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
-import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
-import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+import type { VoiceIntent, VoiceSession } from '../types/voiceSession.types';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
 
 interface SelectedRowMetaLike {
   rowNumber: number;

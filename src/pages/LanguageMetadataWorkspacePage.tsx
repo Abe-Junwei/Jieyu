@@ -8,10 +8,18 @@ import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, tf, useLocale } from '../i18n';
-import { buildPersistedCustomFieldValues } from '../services/LanguageMetadataCustomFields';
-import { deleteLanguageCatalogEntry, listCustomFieldDefinitions, listLanguageCatalogEntries, listLanguageCatalogHistory, upsertLanguageCatalogEntry, type LanguageCatalogEntry } from '../services/LinguisticService.languageCatalog';
-import { searchLanguageCatalogSuggestions, type LanguageCatalogSearchSuggestion } from '../services/LanguageCatalogSearchService';
-import { lookupIso639_3Seed } from '../services/languageCatalogSeedLookup';
+import { buildPersistedCustomFieldValues } from '../utils/pageLanguageMetadataCustomFields';
+import type { LanguageCatalogEntry } from '../types/linguisticCatalogSurface.types';
+import type { LanguageCatalogSearchSuggestion } from '../types/languageCatalogSearchSuggestion.types';
+import {
+  deleteLanguageCatalogEntry,
+  listCustomFieldDefinitions,
+  listLanguageCatalogEntries,
+  listLanguageCatalogHistory,
+  lookupIso639_3Seed,
+  searchLanguageCatalogSuggestions,
+  upsertLanguageCatalogEntry,
+} from '../utils/pageLanguageCatalogApi';
 import { useInvalidateLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspaceDetailColumn';

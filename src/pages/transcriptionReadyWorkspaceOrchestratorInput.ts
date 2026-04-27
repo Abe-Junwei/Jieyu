@@ -1,5 +1,5 @@
 import type { ChangeEvent, RefObject } from 'react';
-import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { TextTimeMapping } from '../types/textTimeMapping';
 import type { TimelineViewportProjection } from '../hooks/timelineViewportTypes';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';

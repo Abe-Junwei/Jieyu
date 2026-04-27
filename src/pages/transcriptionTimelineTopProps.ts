@@ -1,9 +1,9 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
-import type { OrthographyDocType, LayerUnitDocType } from '../db';
+import type { OrthographyDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import type WaveSurfer from 'wavesurfer.js';
 import type { TranscriptionPageTimelineTopProps } from './TranscriptionPage.TimelineTop';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 
 let lastTimelineSeekTelemetryMs = 0;
 const TIMELINE_SEEK_TELEMETRY_INTERVAL_MS = 280;

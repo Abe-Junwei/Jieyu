@@ -1,4 +1,4 @@
-import type { OrthographyDocType } from '../db';
+import type { OrthographyDocType } from '../types/jieyuDbDocTypes';
 import { t, useLocale } from '../i18n';
 import { listAdditionalMultiLangLabelEntries, type MultiLangLabelEntry, readAnyMultiLangLabel, readEnglishFallbackMultiLangLabel, readPrimaryMultiLangLabel } from '../utils/multiLangLabels';
 

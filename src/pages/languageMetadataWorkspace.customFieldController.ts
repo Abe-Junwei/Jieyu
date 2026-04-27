@@ -7,9 +7,9 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t, tf } from '../i18n';
-import { applyCustomFieldDraftDefaults, CUSTOM_FIELD_RENDERER_REGISTRY } from '../services/LanguageMetadataCustomFields';
-import { deleteCustomFieldDefinition, listCustomFieldDefinitions, upsertCustomFieldDefinition } from '../services/LinguisticService.languageCatalog';
-import type { CustomFieldDefinitionDocType, CustomFieldValueType } from '../db';
+import { applyCustomFieldDraftDefaults, CUSTOM_FIELD_RENDERER_REGISTRY } from '../utils/pageLanguageMetadataCustomFields';
+import { deleteCustomFieldDefinition, listCustomFieldDefinitions, upsertCustomFieldDefinition } from '../utils/pageLanguageCatalogApi';
+import type { CustomFieldDefinitionDocType, CustomFieldValueType } from '../types/jieyuDbDocTypes';
 import type { LanguageMetadataDraft, LanguageMetadataDraftChangeHandler, WorkspaceLocale } from './languageMetadataWorkspace.shared';
 
 // ─── 返回类型 | Return type ───

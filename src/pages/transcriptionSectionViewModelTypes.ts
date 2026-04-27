@@ -1,6 +1,6 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
-import type { OrthographyDocType, LayerUnitDocType } from '../db';
+import type { OrthographyDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';

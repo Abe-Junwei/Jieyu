@@ -18,7 +18,7 @@ import { t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { getTranscriptionAppService } from '../app/index';
 import { resolveTimelineAxisStatus, shouldShowLogicalAxisLengthOnAxisStrip } from '../utils/timelineAxisStatus';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 
 type AxisStatusRuntimeInput = Parameters<typeof resolveTimelineAxisStatus>[0];
 

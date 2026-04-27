@@ -1,4 +1,4 @@
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import { t, tf, type Locale } from '../i18n';
 import type { AiChatToolCall, AiChatToolName, AiToolRiskCheckResult } from '../hooks/useAiChat';
 import type { SegmentTargetDescriptor } from '../hooks/useAiToolCallHandler.segmentTargeting';
