@@ -8,7 +8,7 @@ import { usePanelToggles } from '../hooks/usePanelToggles';
 import { APP_SHELL_OPEN_SEARCH_EVENT, type AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import { buildLayerLinkConnectorLayout } from '../utils/layerLinkConnector';
 import { type TextDirection, type UiFontScaleMode } from '../utils/panelAdaptiveLayout';
-import { LinguisticService } from '../utils/pageLinguisticService';
+import { LinguisticService } from '../app/languageAssetPageAccess';
 import { createPdfPreviewOpenRequest } from './TranscriptionPage.runtimeProps';
 import type { PdfPreviewOpenRequest } from './TranscriptionPage.runtimeContracts';
 import { t, useLocale } from '../i18n';

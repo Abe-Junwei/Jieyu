@@ -2,7 +2,7 @@ import type { LanguageCatalogHistoryDocType } from '../types/jieyuDbDocTypes';
 import { t } from '../i18n';
 import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCatalogVisibility } from '../types/linguisticCatalogSurface.types';
 import { formatIso3166Alpha2ListEndonyms, formatIso3166Alpha2ListUi } from '../utils/iso3166CountryLabels';
-import { buildCustomFieldDraftValues, formatCustomFieldOptionsEditorValue, parseCustomFieldDraftMultiselectValue, parseCustomFieldOptionsEditorValue, serializeCustomFieldDraftValue } from '../utils/pageLanguageMetadataCustomFields';
+import { buildCustomFieldDraftValues, formatCustomFieldOptionsEditorValue, parseCustomFieldDraftMultiselectValue, parseCustomFieldOptionsEditorValue, serializeCustomFieldDraftValue } from '../app/languageAssetPageAccess';
 
 export const LANGUAGE_ID_PARAM = 'languageId';
 export const NEW_LANGUAGE_ID = '__new__';

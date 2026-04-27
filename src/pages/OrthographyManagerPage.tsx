@@ -10,7 +10,7 @@ import { useListKeyboardNav } from '../hooks/useListKeyboardNav';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { getOrthographyBuilderMessages } from '../i18n/messages';
-import { listOrthographyRecords, updateOrthographyRecord } from '../utils/pageOrthographyRecordsApi';
+import { listOrthographyRecords, searchLanguageCatalogSuggestions, updateOrthographyRecord } from '../app/languageAssetPageAccess';
 import { OrthographyManagerPanel } from './OrthographyManagerPanel';
 import { buildOrthographyBrowseSelector, buildOrthographyBrowseState, WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';
 import { areDraftsEqual, buildOrthographyDraft, parseConversionRulesJson, parseDraftList, parseOptionalNumber, type OrthographyDraft, type NormalizationForm } from './orthographyManager.shared';
@@ -19,7 +19,6 @@ import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import { normalizeLanguageInputAssetId } from '../utils/languageInputHostState';
 import { buildTranscriptionWorkspaceReturnHref } from '../utils/transcriptionUrlDeepLink';
 import type { LanguageCatalogSearchSuggestion } from '../types/languageCatalogSearchSuggestion.types';
-import { searchLanguageCatalogSuggestions } from '../utils/pageLanguageCatalogApi';
 
 const ORTHOGRAPHY_ID_PARAM = 'orthographyId';
 

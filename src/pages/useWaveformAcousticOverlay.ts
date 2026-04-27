@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import { AcousticAnalysisService } from '../utils/pageAcousticAnalysisService';
+import { AcousticAnalysisService } from '../app/transcriptionServicesPageAccess';
 import type { AcousticFeatureResult, AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { AcousticOverlayVisibleSummary, SpectrogramHoverReadout, WaveformHoverReadout } from './transcriptionWaveformBridge.types';

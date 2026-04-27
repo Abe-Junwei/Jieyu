@@ -8,10 +8,10 @@ import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, tf, useLocale } from '../i18n';
-import { buildPersistedCustomFieldValues } from '../utils/pageLanguageMetadataCustomFields';
 import type { LanguageCatalogEntry } from '../types/linguisticCatalogSurface.types';
 import type { LanguageCatalogSearchSuggestion } from '../types/languageCatalogSearchSuggestion.types';
 import {
+  buildPersistedCustomFieldValues,
   deleteLanguageCatalogEntry,
   listCustomFieldDefinitions,
   listLanguageCatalogEntries,
@@ -19,7 +19,7 @@ import {
   lookupIso639_3Seed,
   searchLanguageCatalogSuggestions,
   upsertLanguageCatalogEntry,
-} from '../utils/pageLanguageCatalogApi';
+} from '../app/languageAssetPageAccess';
 import { useInvalidateLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspaceDetailColumn';

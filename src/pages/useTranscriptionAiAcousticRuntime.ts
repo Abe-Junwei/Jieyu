@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AcousticAnalysisService } from '../utils/pageAcousticAnalysisService';
+import { AcousticAnalysisService } from '../app/transcriptionServicesPageAccess';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import { buildAcousticPromptSummary, type AcousticPromptSummary } from './transcriptionAcousticSummary';
 import { buildAcousticPanelBatchBuildResult, buildAcousticPanelDetail, deriveAcousticCalibrationStatus, type AcousticBatchSelectionRange, type AcousticCalibrationStatus, type AcousticPanelBatchDetail, type AcousticPanelDetail } from '../utils/acousticPanelDetail';

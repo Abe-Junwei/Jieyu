@@ -15,7 +15,7 @@ import { fireAndForget } from '../utils/fireAndForget';
 import { createTranscriptionAiToolRiskCheck } from './transcriptionAiToolRiskCheck';
 import { buildAiSegmentTargetDescriptors, resolveAiSegmentTargetScopeUnits } from './useTranscriptionAiController.segmentTargets';
 import { buildWaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
-import { vadCache } from '../utils/pageVadCache';
+import { vadCache } from '../app/transcriptionServicesPageAccess';
 import { formatRecentActions } from '../hooks/useEditEventBuffer';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import { createTranscriptionAiReadModelAccessors } from './transcriptionAiReadModelAccessors';

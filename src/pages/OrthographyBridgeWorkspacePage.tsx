@@ -16,9 +16,8 @@ import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap'
 import { useListKeyboardNav } from '../hooks/useListKeyboardNav';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
-import { listOrthographyRecords } from '../utils/pageOrthographyRecordsApi';
 import type { LanguageCatalogSearchSuggestion } from '../types/languageCatalogSearchSuggestion.types';
-import { searchLanguageCatalogSuggestions } from '../utils/pageLanguageCatalogApi';
+import { listOrthographyRecords, searchLanguageCatalogSuggestions } from '../app/languageAssetPageAccess';
 import { formatLanguageCatalogSearchSuggestion } from '../utils/langMapping';
 import { buildOrthographyBrowseSelector, buildOrthographyBrowseState, WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';
 

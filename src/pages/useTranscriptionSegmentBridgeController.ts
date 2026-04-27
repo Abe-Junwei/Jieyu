@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import { getDb } from '../utils/jieyuDbPageClient';
+import { getDb } from '../app/jieyuDbPageAccess';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { getLayerEditMode, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
-import { LayerSegmentationV2Service } from '../utils/pageLayerSegmentationV2';
+import { LayerSegmentationV2Service } from '../app/transcriptionServicesPageAccess';
 import { resolveTranscriptionTargetLayerId } from './transcriptionUnitTargetResolver';
 import type { SegmentTimelineRoutingResult } from './transcriptionSegmentRouting';
 import type { LayerSegmentGraphSnapshot } from '../types/layerSegmentGraphSnapshot.types';
-import { restoreLayerSegmentGraphSnapshot, snapshotLayerSegmentGraphByLayerIds } from '../utils/pageLayerSegmentGraph';
+import { restoreLayerSegmentGraphSnapshot, snapshotLayerSegmentGraphByLayerIds } from '../app/transcriptionServicesPageAccess';
 import { fireAndForget } from '../utils/fireAndForget';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 

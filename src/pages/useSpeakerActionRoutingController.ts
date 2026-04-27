@@ -4,7 +4,7 @@ import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { SpeakerActionDialogState, SpeakerFilterOption } from '../hooks/speakerManagement/types';
 import { applySpeakerAssignmentToUnits, getSpeakerDisplayNameByKey, upsertSpeaker } from '../hooks/speakerManagement/speakerUtils';
 import { buildMixedSelectionSpeakerSummary, buildSpeakerActionErrorOptions, formatSpeakerAssignmentResult, formatSpeakerClearResult, formatSpeakerCreateAndAssignResult, formatSpeakerExportContent, formatSpeakerExportDone, getSpeakerExportFallbackName, getSpeakerUndoLabel, type SpeakerFormat, type SpeakerTranslate } from '../hooks/speakerManagement/speakerI18n';
-import { LinguisticService } from '../utils/pageLinguisticService';
+import { LinguisticService } from '../app/languageAssetPageAccess';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';

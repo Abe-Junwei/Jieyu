@@ -2,7 +2,7 @@ import type { LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocType
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { t, tf, type Locale } from '../i18n';
-import { LayerSegmentationV2Service } from '../utils/pageLayerSegmentationV2';
+import { LayerSegmentationV2Service } from '../app/transcriptionServicesPageAccess';
 import { formatTime, newId } from '../utils/transcriptionFormatters';
 import { readStoredNewSegmentSelectionBehavior, type NewSegmentSelectionBehavior } from '../utils/transcriptionInteractionPreferences';
 import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';

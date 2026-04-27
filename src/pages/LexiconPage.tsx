@@ -10,7 +10,7 @@ import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { LexemeDocType, MultiLangString } from '../types/jieyuDbDocTypes';
 import { useLexiconSearch } from '../hooks/useLexiconSearch';
 import { t, tf, useLocale } from '../i18n';
-import { LinguisticService } from '../utils/pageLinguisticService';
+import { LinguisticService } from '../app/languageAssetPageAccess';
 import { buildTranscriptionDeepLinkHref, buildTranscriptionWorkspaceReturnHref } from '../utils/transcriptionUrlDeepLink';
 
 const LEXICON_LIST_STATE_KEY = 'lexiconListState';

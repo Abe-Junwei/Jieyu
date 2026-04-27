@@ -7,8 +7,13 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t, tf } from '../i18n';
-import { applyCustomFieldDraftDefaults, CUSTOM_FIELD_RENDERER_REGISTRY } from '../utils/pageLanguageMetadataCustomFields';
-import { deleteCustomFieldDefinition, listCustomFieldDefinitions, upsertCustomFieldDefinition } from '../utils/pageLanguageCatalogApi';
+import {
+  applyCustomFieldDraftDefaults,
+  CUSTOM_FIELD_RENDERER_REGISTRY,
+  deleteCustomFieldDefinition,
+  listCustomFieldDefinitions,
+  upsertCustomFieldDefinition,
+} from '../app/languageAssetPageAccess';
 import type { CustomFieldDefinitionDocType, CustomFieldValueType } from '../types/jieyuDbDocTypes';
 import type { LanguageMetadataDraft, LanguageMetadataDraftChangeHandler, WorkspaceLocale } from './languageMetadataWorkspace.shared';
 

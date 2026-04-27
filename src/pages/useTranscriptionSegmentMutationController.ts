@@ -11,7 +11,7 @@ import { dispatchTimelineUnitMutation, dispatchTimelineUnitSelectionMutation } f
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 import { useTranscriptionSegmentBatchMerge } from './useTranscriptionSegmentBatchMerge';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
-import { LayerUnitService } from '../utils/pageLayerUnitService';
+import { LayerUnitService } from '../app/transcriptionServicesPageAccess';
 import type { AiSegmentSplitRollbackToken } from '../hooks/useAiToolCallHandler.types';
 
 interface UseTranscriptionSegmentMutationControllerInput {
