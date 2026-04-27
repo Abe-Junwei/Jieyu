@@ -3,7 +3,8 @@
  * 勿在语音 `executeAction` 路径调用：语音侧已在 useVoiceAgent* / VoiceAgentService 中单独记 voice。
  */
 
-import { isActionId, type ActionId } from './IntentRouter';
+import type { ActionId } from '../types/intentActionId';
+import { isActionId } from './IntentRouter';
 import { userBehaviorStore } from './UserBehaviorStore';
 
 /** 与语音 sessionId 区分，便于按来源聚合 | Distinct from voice session ids for cohorting */

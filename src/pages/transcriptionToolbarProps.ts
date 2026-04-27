@@ -6,11 +6,11 @@ import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import { canDeleteCurrentAudio } from './transcriptionMediaGuards';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction, recordToolbarVolumeChangeTelemetryThrottled } from '../utils/transcriptionKeyboardActionTelemetry';
 import type { UttOpsMenuState } from './TranscriptionPage.UIState';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
 import type { TranscriptionReviewPreset } from '../utils/transcriptionReviewQueue';
-import type { ActionId } from '../services/IntentRouter';
+import type { ActionId } from '../types/intentActionId';
 
 const DISPLAY_MODE_TO_ACTION: Record<WaveformDisplayMode, ActionId> = {
   waveform: 'toolbarDisplayModeWaveform',
@@ -40,16 +40,6 @@ const REVIEW_PRESET_TO_ACTION: Record<TranscriptionReviewPreset, ActionId> = {
   manual_attention: 'toolbarReviewPresetManualAttention',
   pending_review: 'toolbarReviewPresetPendingReview',
 };
-
-let lastToolbarVolumeTelemetryMs = 0;
-const TOOLBAR_VOLUME_TELEMETRY_INTERVAL_MS = 350;
-
-function recordToolbarVolumeTelemetryThrottled(): void {
-  const now = Date.now();
-  if (now - lastToolbarVolumeTelemetryMs < TOOLBAR_VOLUME_TELEMETRY_INTERVAL_MS) return;
-  lastToolbarVolumeTelemetryMs = now;
-  recordTranscriptionKeyboardAction('toolbarVolumeChange');
-}
 
 interface CreateTranscriptionToolbarPropsInput {
   locale: string;
@@ -143,7 +133,7 @@ export function createTranscriptionToolbarProps(
     },
     volume: input.player.volume,
     onVolumeChange: (vol) => {
-      recordToolbarVolumeTelemetryThrottled();
+      recordToolbarVolumeChangeTelemetryThrottled();
       input.player.setVolume(vol);
     },
     loop: input.globalLoopPlayback,
