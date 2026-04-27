@@ -105,6 +105,7 @@ export function AiChatCard({
     onPruneAiSessionDirectivesBySourceMessage,
     onConfirmPendingToolCall,
     onCancelPendingToolCall,
+    onDismissPendingAgentLoopCheckpoint,
     timelineReadModelEpoch,
     onTrackAiRecommendationEvent,
     observerStage,
@@ -1632,9 +1633,10 @@ export function AiChatCard({
             onOpenDecisionReplay={(requestId) => openReplayBundle(requestId)}
             onResumeAgentLoop={() => {
               const checkpointContinuation = (aiSessionMemory?.pendingAgentLoopCheckpoint?.continuationInput ?? '').trim();
-              const resumeInput = checkpointContinuation || '继续';
+              const resumeInput = checkpointContinuation || t(locale, 'ai.alerts.agentLoopResumeDefaultInput');
               return onSendAiMessage?.(resumeInput);
             }}
+            onDismissAgentLoopHandoff={onDismissPendingAgentLoopCheckpoint}
             onConfirmPendingToolCall={onConfirmPendingToolCall}
             onCancelPendingToolCall={onCancelPendingToolCall}
           />

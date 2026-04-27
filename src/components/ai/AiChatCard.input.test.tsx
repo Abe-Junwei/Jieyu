@@ -10,6 +10,7 @@ import { normalizeAiChatSettings } from '../../ai/providers/providerCatalog';
 import { AiAssistantHubContext, type AiAssistantHubContextValue } from '../../contexts/AiAssistantHubContext';
 import { DEFAULT_AI_CHAT_CONTEXT_VALUE } from '../../contexts/AiChatContext';
 import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../../contexts/VoiceAgentContext';
+import { LocaleProvider } from '../../i18n';
 import { pickAiAssistantHubContextValue } from '../../hooks/useAiAssistantHubContextValue';
 import { pickAiChatContextValue } from '../../hooks/useAiChatContextValue';
 import { pickVoiceAgentContextValue } from '../../hooks/useVoiceAgentContextValue';
@@ -686,23 +687,25 @@ describe('AiChatCard input submit', () => {
   it('falls back to default resume text when checkpoint continuationInput is empty', () => {
     const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
     const view = render(
-      <AiAssistantHubContext.Provider
-        value={makeContextValue({
-          onSendAiMessage,
-          aiSessionMemory: {
-            pendingAgentLoopCheckpoint: {
-              kind: 'token_budget_warning',
-              taskId: 'task-loop-continue-2',
-              originalUserText: '继续',
-              continuationInput: '   ',
-              step: 4,
-              createdAt: '2026-04-27T12:01:00.000Z',
+      <LocaleProvider locale="zh-CN">
+        <AiAssistantHubContext.Provider
+          value={makeContextValue({
+            onSendAiMessage,
+            aiSessionMemory: {
+              pendingAgentLoopCheckpoint: {
+                kind: 'token_budget_warning',
+                taskId: 'task-loop-continue-2',
+                originalUserText: '继续',
+                continuationInput: '   ',
+                step: 4,
+                createdAt: '2026-04-27T12:01:00.000Z',
+              },
             },
-          },
-        })}
-      >
-        <AiChatCard embedded />
-      </AiAssistantHubContext.Provider>,
+          })}
+        >
+          <AiChatCard embedded />
+        </AiAssistantHubContext.Provider>
+      </LocaleProvider>,
     );
 
     const resumeButton = within(view.container).getByRole('button', { name: /Resume|继续执行/i });
@@ -739,6 +742,37 @@ describe('AiChatCard input submit', () => {
     expect(resumeButton.disabled).toBe(true);
 
     fireEvent.click(resumeButton);
+    expect(onSendAiMessage).toHaveBeenCalledTimes(0);
+  });
+
+  it('dispatches handoff cancel callback from alerts panel', () => {
+    const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
+    const onDismissPendingAgentLoopCheckpoint = vi.fn().mockResolvedValue(undefined);
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          onSendAiMessage,
+          onDismissPendingAgentLoopCheckpoint,
+          aiSessionMemory: {
+            pendingAgentLoopCheckpoint: {
+              kind: 'token_budget_warning',
+              taskId: 'task-loop-dismiss-1',
+              originalUserText: '继续任务',
+              continuationInput: '继续下一步',
+              step: 2,
+              createdAt: '2026-04-27T12:03:00.000Z',
+            },
+          },
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const cancelButton = within(view.container).getByRole('button', { name: /Cancel|取消/i });
+    fireEvent.click(cancelButton);
+
+    expect(onDismissPendingAgentLoopCheckpoint).toHaveBeenCalledTimes(1);
     expect(onSendAiMessage).toHaveBeenCalledTimes(0);
   });
 

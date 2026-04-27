@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import { buildAiChangeSetFromPendingToolCall } from '../../ai/changeset/AiChangeSetProtocol';
 import type { AiSessionMemoryPendingAgentLoopCheckpoint } from '../../ai/chat/chatDomain.types';
 import type { PendingAiToolCall } from '../../hooks/useAiChat';
-import { t, useLocale } from '../../i18n';
+import { t, tf, useLocale } from '../../i18n';
 import { formatPendingConfirmActionLabel, formatPendingTarget, formatPolicyReasonExplanation, formatToolName, normalizeImpactPreviewLines } from './aiChatCardUtils';
 import { resolveTextDirectionFromLocale } from '../../utils/panelAdaptiveLayout';
 import { PanelButton, PanelChip, PanelNote } from '../ui';
@@ -26,6 +26,7 @@ interface AiChatAlertsPanelProps {
   onToggleAlertBar: () => void;
   onOpenDecisionReplay?: ((requestId: string) => Promise<void> | void) | undefined;
   onResumeAgentLoop?: (() => Promise<void> | void) | undefined;
+  onDismissAgentLoopHandoff?: (() => Promise<void> | void) | undefined;
   onConfirmPendingToolCall?: (() => Promise<void>) | undefined;
   onCancelPendingToolCall?: (() => Promise<void>) | undefined;
 }
@@ -53,6 +54,7 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
   onToggleAlertBar,
   onOpenDecisionReplay,
   onResumeAgentLoop,
+  onDismissAgentLoopHandoff,
   onConfirmPendingToolCall,
   onCancelPendingToolCall,
 }: AiChatAlertsPanelProps) {
@@ -95,12 +97,12 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
   const summaryTitle = hasToolPending
     ? t(locale, 'ai.alerts.confirmDestructiveAction')
     : hasAgentLoopHandoffPending
-      ? (isZh ? 'Agent Loop 交接' : 'Agent Loop Handoff')
+      ? t(locale, 'ai.alerts.agentLoopHandoffTitle')
     : t(locale, 'ai.alerts.demoDetails');
   const summaryDescription = hasToolPending
     ? aiPendingToolCall?.riskSummary ?? t(locale, 'ai.alerts.pendingToolCall')
     : hasAgentLoopHandoffPending
-      ? (isZh ? '检测到可续跑检查点，可在审批面板中继续执行。' : 'A resumable checkpoint is available. Resume execution from the approval panel.')
+      ? t(locale, 'ai.alerts.agentLoopHandoffSummary')
     : t(locale, 'ai.alerts.demoModeHint');
   const approvalHistoryItems = useMemo(() => {
     const decisionLogs = aiToolDecisionLogs ?? [];
@@ -165,33 +167,33 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
                 className="ai-chat-alerts-body"
                 title={hasToolPending
                   ? t(locale, 'ai.alerts.confirmDestructiveAction')
-                  : (hasAgentLoopHandoffPending ? (isZh ? 'Agent Loop 交接' : 'Agent Loop Handoff') : t(locale, 'ai.alerts.demoDetails'))}
+                  : (hasAgentLoopHandoffPending ? t(locale, 'ai.alerts.agentLoopHandoffTitle') : t(locale, 'ai.alerts.demoDetails'))}
                 description={hasToolPending
                   ? t(locale, 'ai.alerts.pendingToolCall')
                   : (hasAgentLoopHandoffPending
-                    ? (isZh ? '等待继续执行确认。' : 'Waiting for resume confirmation.')
+                    ? t(locale, 'ai.alerts.agentLoopHandoffWaitConfirm')
                     : t(locale, 'ai.alerts.demoModeHint'))}
               >
                 {aiPendingToolCall ? (
                   <>
                     <div className="ai-chat-alerts-pending-meta" data-testid="ai-approval-center-mvp">
-                      <span>{isZh ? '\u5ba1\u6279\u4e2d\u5fc3\uff08MVP\uff09' : 'Approval Center (MVP)'}</span>
+                      <span>{t(locale, 'ai.alerts.approvalCenterMvp')}</span>
                       {approvalReasonChain.map((entry) => <span key={entry}>{entry}</span>)}
                     </div>
                     {approvalHistoryItems.length > 0 && (
                       <div className="ai-chat-alerts-pending-grid" data-testid="ai-approval-history-mvp">
-                        <div className="ai-chat-alerts-pending-row">{isZh ? '\u6700\u8fd1\u5ba1\u6279\u8bb0\u5f55' : 'Recent approval outcomes'}</div>
+                        <div className="ai-chat-alerts-pending-row">{t(locale, 'ai.alerts.recentApprovalOutcomes')}</div>
                         <div className="ai-chat-alerts-pending-row">
-                          <span>{isZh ? '\u7ed3\u679c\u7b5b\u9009\uff1a' : 'Outcome filter:'}</span>
+                          <span>{t(locale, 'ai.alerts.outcomeFilterLabel')}</span>
                           <select
                             value={approvalHistoryFilter}
                             onChange={(event) => setApprovalHistoryFilter(event.target.value as typeof approvalHistoryFilter)}
-                            aria-label={isZh ? '\u5ba1\u6279\u7ed3\u679c\u7b5b\u9009' : 'Approval outcome filter'}
+                            aria-label={t(locale, 'ai.alerts.approvalOutcomeFilterAriaLabel')}
                           >
-                            <option value="all">{isZh ? '\u5168\u90e8' : 'All'}</option>
-                            <option value="blocked">{isZh ? '\u963b\u65ad' : 'Blocked'}</option>
-                            <option value="pending">{isZh ? '\u5f85\u786e\u8ba4' : 'Pending'}</option>
-                            <option value="executed">{isZh ? '\u5df2\u6267\u884c' : 'Executed'}</option>
+                            <option value="all">{t(locale, 'ai.alerts.filterOutcomeAll')}</option>
+                            <option value="blocked">{t(locale, 'ai.alerts.filterOutcomeBlocked')}</option>
+                            <option value="pending">{t(locale, 'ai.alerts.filterOutcomePending')}</option>
+                            <option value="executed">{t(locale, 'ai.alerts.filterOutcomeExecuted')}</option>
                           </select>
                         </div>
                         {approvalHistoryItems.map((item) => (
@@ -211,7 +213,7 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
                                 onClick={() => void onOpenDecisionReplay?.(item.requestId as string)}
                                 disabled={!onOpenDecisionReplay}
                               >
-                                {isZh ? '\u67e5\u770b\u56de\u653e' : 'Replay'}
+                                {t(locale, 'ai.alerts.decisionReplay')}
                               </PanelButton>
                             )}
                           </div>
@@ -262,24 +264,24 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
                 ) : aiPendingAgentLoopCheckpoint ? (
                   <>
                     <div className="ai-chat-alerts-pending-meta" data-testid="ai-agent-loop-handoff-mvp">
-                      <span>{isZh ? '审批中心（Durable Handoff）' : 'Approval Center (Durable Handoff)'}</span>
+                      <span>{t(locale, 'ai.alerts.approvalCenterDurableHandoff')}</span>
                       <span>{`step=${aiPendingAgentLoopCheckpoint.step}`}</span>
                       {aiPendingAgentLoopCheckpoint.taskId && <span>{`task=${aiPendingAgentLoopCheckpoint.taskId}`}</span>}
                     </div>
                     <div className="ai-chat-alerts-pending-grid">
                       <div className="ai-chat-alerts-pending-row">
-                        {isZh ? '原始请求：' : 'Original prompt: '}
+                        {t(locale, 'ai.alerts.agentLoopOriginalPromptLabel')}
                         {aiPendingAgentLoopCheckpoint.originalUserText}
                       </div>
                       <div className="ai-chat-alerts-pending-row">
-                        {isZh ? '继续输入：' : 'Continuation: '}
+                        {t(locale, 'ai.alerts.agentLoopContinuationLabel')}
                         {aiPendingAgentLoopCheckpoint.continuationInput}
                       </div>
                       {aiPendingAgentLoopCheckpoint.estimatedRemainingTokens !== undefined && (
                         <div className="ai-chat-alerts-pending-row">
-                          {isZh
-                            ? `剩余 token 预估：${aiPendingAgentLoopCheckpoint.estimatedRemainingTokens}`
-                            : `Estimated remaining tokens: ${aiPendingAgentLoopCheckpoint.estimatedRemainingTokens}`}
+                          {tf(locale, 'ai.alerts.agentLoopEstimatedRemainingTokens', {
+                            count: String(aiPendingAgentLoopCheckpoint.estimatedRemainingTokens),
+                          })}
                         </div>
                       )}
                     </div>
@@ -290,7 +292,15 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
                         disabled={!onResumeAgentLoop || aiIsStreaming}
                         onClick={() => void onResumeAgentLoop?.()}
                       >
-                        {isZh ? '继续执行' : 'Resume'}
+                        {t(locale, 'ai.alerts.agentLoopResume')}
+                      </PanelButton>
+                      <PanelButton
+                        variant="ghost"
+                        className="ai-chat-alerts-action-btn"
+                        disabled={!onDismissAgentLoopHandoff}
+                        onClick={() => void onDismissAgentLoopHandoff?.()}
+                      >
+                        {t(locale, 'ai.alerts.cancel')}
                       </PanelButton>
                     </div>
                   </>

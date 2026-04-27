@@ -104,6 +104,7 @@ describe('useAiAssistantHubContextValue', () => {
       'onClearAiMessages',
       'onConfirmPendingToolCall',
       'onDeactivateAiSessionDirective',
+      'onDismissPendingAgentLoopCheckpoint',
       'onJumpToCitation',
       'onPruneAiSessionDirectivesBySourceMessage',
       'onSendAiMessage',
