@@ -7,7 +7,7 @@
 
 import { memo, useEffect, useRef, type FC, type PointerEvent as ReactPointerEvent } from 'react';
 import { t, tf, useLocale } from '../../i18n';
-import { recordTranscriptionKeyboardAction } from '../../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../../utils/transcriptionKeyboardActionTelemetry';
 
 let lastWaveformAmplitudeTelemetryMs = 0;
 const WAVEFORM_AMPLITUDE_TELEMETRY_MS = 320;

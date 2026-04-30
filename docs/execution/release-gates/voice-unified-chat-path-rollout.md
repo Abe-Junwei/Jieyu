@@ -47,12 +47,14 @@ npx vitest run src/hooks/useVoiceAgentResultHandler.test.ts
 
 `userBehaviorDB.actionRecords` 每条含 **`inputModality`**：`voice`（语音代理执行的动作）或 `text`（转写页 `useKeybindingActions` 全局/波形快捷键；`sessionId` 常为 `transcription:text-input`）。
 
-## 发布记录（模板）
+## 发布记录
 
-- 版本 / 环境：
-- 验证窗口：
-- 结论：go / no-go
+- 版本 / 环境：`d77a232` / 本地开发环境（Darwin, Node + Vitest）
+- 验证窗口：2026-04-28 19:50~19:52（UTC+8）
+- 结论：go（代码与自动化门禁通过，可继续推进）
 - 跟进项：
+  - 预发环境按手工脚本补跑 CASE 01~06，并将截图/录屏证据回填执行记录。
+  - 发布后按本页观测指标跟踪首周数据，重点关注 destructive 确认率与误触发率。
 
 ## QA 抽检用例（摘要）
 

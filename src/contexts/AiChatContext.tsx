@@ -72,6 +72,7 @@ export interface AiChatContextValue {
   onPruneAiSessionDirectivesBySourceMessage: ((sourceMessageId: string) => void) | undefined;
   onConfirmPendingToolCall: (() => Promise<void>) | undefined;
   onCancelPendingToolCall: (() => Promise<void>) | undefined;
+  onDismissPendingAgentLoopCheckpoint: (() => Promise<void>) | undefined;
   onTrackAiRecommendationEvent: ((event: AiRecommendationEvent) => void) | undefined;
   onJumpToCitation: ((
     citationType: 'unit' | 'note' | 'pdf' | 'schema',
@@ -116,6 +117,7 @@ export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {
   onPruneAiSessionDirectivesBySourceMessage: undefined,
   onConfirmPendingToolCall: undefined,
   onCancelPendingToolCall: undefined,
+  onDismissPendingAgentLoopCheckpoint: undefined,
   onTrackAiRecommendationEvent: undefined,
   onJumpToCitation: undefined,
 };

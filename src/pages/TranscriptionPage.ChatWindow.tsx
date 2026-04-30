@@ -11,6 +11,7 @@ import { pickAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContex
 import { pickVoiceAgentContextValue } from '../hooks/useVoiceAgentContextValue';
 import { MaterialSymbol } from '../components/ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE } from '../utils/jieyuMaterialIcon';
+import { OPEN_APPROVAL_CENTER_EVENT } from '../ai/tasks/taskRefreshEvents';
 
 const AiChatCard = lazy(async () => import('../components/ai/AiChatCard').then((module) => ({
   default: module.AiChatCard,
@@ -104,6 +105,17 @@ export function TranscriptionPageChatWindow({
 
   useEffect(() => {
     setIsMounted(typeof document !== 'undefined');
+  }, []);
+
+  // 审批中心深度联动：监听来自任务列表的「查看审批」事件，打开浮窗 | Deep-link from task list to approval center
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = () => {
+      setOpen(true);
+      setMinimized(false);
+    };
+    window.addEventListener(OPEN_APPROVAL_CENTER_EVENT, handler);
+    return () => window.removeEventListener(OPEN_APPROVAL_CENTER_EVENT, handler);
   }, []);
 
   useEffect(() => {

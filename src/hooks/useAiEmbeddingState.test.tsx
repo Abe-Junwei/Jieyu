@@ -2,6 +2,7 @@
 
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AI_TASKS_UPDATED_EVENT } from '../ai/tasks/taskRefreshEvents';
 import { useAiEmbeddingState } from './useAiEmbeddingState';
 
 const { aiTaskRows } = vi.hoisted(() => ({
@@ -194,5 +195,50 @@ describe('useAiEmbeddingState', () => {
     expect(updated?.resumable).toBe(true);
     expect(result.current.aiEmbeddingLastError).toBeNull();
     expect(result.current.aiEmbeddingProgressLabel).toContain('task-loop-failed');
+  });
+
+  it('refreshes task list immediately when ai task update event is dispatched', async () => {
+    const services = makeServices();
+    aiTaskRows.set('task-initial', {
+      id: 'task-initial',
+      taskType: 'embed',
+      status: 'pending',
+      updatedAt: '2026-04-28T00:00:00.000Z',
+    });
+
+    const { result } = renderHook(() => useAiEmbeddingState({
+      locale: 'zh-CN',
+      enabled: true,
+      taskRunner: services.taskRunner,
+      embeddingService: services.embeddingService,
+      embeddingSearchService: services.embeddingSearchService,
+      selectedUnit: null,
+      unitsOnCurrentMedia: [],
+      getUnitTextForLayer: () => '',
+      formatTime: (seconds: number) => String(seconds),
+    }));
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(AI_TASKS_UPDATED_EVENT));
+    });
+
+    expect(result.current.aiEmbeddingTasks.map((item) => item.id)).toContain('task-initial');
+
+    aiTaskRows.set('task-initial', {
+      id: 'task-initial',
+      taskType: 'embed',
+      status: 'failed',
+      updatedAt: '2026-04-28T00:00:01.000Z',
+      errorMessage: 'cancelled_by_user',
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(AI_TASKS_UPDATED_EVENT));
+    });
+
+    expect(result.current.aiEmbeddingTasks.find((item) => item.id === 'task-initial')).toMatchObject({
+      status: 'failed',
+      errorMessage: 'cancelled_by_user',
+    });
   });
 });

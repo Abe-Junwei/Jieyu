@@ -5,7 +5,7 @@ import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_MD, JIEYU_MATERIAL_WAVE_PLAY, 
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import { WAVEFORM_DISPLAY_MODE_OPTIONS, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 
 interface WaveformToolbarProps {
   filename: string;

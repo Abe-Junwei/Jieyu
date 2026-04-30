@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getDb, type AiTaskDoc } from '../db';
 import { buildEmbeddingFallbackWarning, readFallbackReason } from '../ai/embeddings/fallbackWarning';
+import { AI_TASKS_UPDATED_EVENT } from '../ai/tasks/taskRefreshEvents';
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { getAiEmbeddingStateMessages } from '../i18n/messages';
 
@@ -283,6 +284,19 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     return () => {
       document.removeEventListener('visibilitychange', runVisibleRefresh);
       window.clearInterval(intervalId);
+    };
+  }, [enabled, requestRefreshEmbeddingTasks]);
+
+  useEffect(() => {
+    if (!enabled || typeof window === 'undefined') return;
+
+    const handleAiTasksUpdated = () => {
+      void requestRefreshEmbeddingTasks(true);
+    };
+
+    window.addEventListener(AI_TASKS_UPDATED_EVENT, handleAiTasksUpdated);
+    return () => {
+      window.removeEventListener(AI_TASKS_UPDATED_EVENT, handleAiTasksUpdated);
     };
   }, [enabled, requestRefreshEmbeddingTasks]);
 

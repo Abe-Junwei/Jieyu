@@ -2816,6 +2816,55 @@ describe('useAiChat abort and recovery', () => {
     });
   });
 
+  it('should dismiss durable loop checkpoint and mark backing ai_task as cancelled_by_user', async () => {
+    const { result } = renderHook(() => useAiChat({
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          selectedUnitKind: 'segment',
+          activeSegmentUnitId: 'seg-current',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    const veryLongPrompt = `__LOCAL_CONTEXT_TOOL_FENCED__ ${'x'.repeat(12000)}`;
+    await act(async () => {
+      await result.current.send(veryLongPrompt);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const storedBefore = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      pendingAgentLoopCheckpoint?: { taskId?: string };
+    };
+    const taskId = storedBefore.pendingAgentLoopCheckpoint?.taskId;
+    expect(taskId).toBeTruthy();
+
+    await act(async () => {
+      await result.current.dismissPendingAgentLoopCheckpoint();
+    });
+
+    const storedAfter = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      pendingAgentLoopCheckpoint?: unknown;
+    };
+    expect(storedAfter.pendingAgentLoopCheckpoint).toBeUndefined();
+
+    await waitFor(async () => {
+      const cancelledTask = await db.ai_tasks.get(taskId!);
+      expect(cancelledTask).toMatchObject({
+        status: 'failed',
+        resumable: false,
+        errorMessage: 'cancelled_by_user',
+      });
+    });
+  });
+
   it('should track interaction metrics across tool execution lifecycle', async () => {
     const onToolCall = vi.fn<(call: { name: string; arguments: Record<string, unknown> }) => Promise<{ ok: boolean; message: string }>>()
       .mockResolvedValueOnce({ ok: false, message: '目标不存在' })

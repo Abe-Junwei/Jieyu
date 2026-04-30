@@ -159,6 +159,7 @@ interface ReleaseEvidenceReport {
       total: number;
       done: number;
       failed: number;
+      cancelledByUser: number;
       running: number;
       pending: number;
       checkpointed: number;
@@ -405,6 +406,7 @@ describe('generate-release-evidence-bundle script', () => {
             taskType: 'embed',
             status: 'failed',
             hasCheckpoint: false,
+            errorMessage: 'cancelled_by_user',
             durationMs: 400,
             updatedAt: '2026-04-27T10:02:00.000Z',
           },
@@ -427,6 +429,7 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.durableOrchestration?.summary.total).toBe(3);
       expect(report.durableOrchestration?.summary.done).toBe(1);
       expect(report.durableOrchestration?.summary.failed).toBe(1);
+      expect(report.durableOrchestration?.summary.cancelledByUser).toBe(1);
       expect(report.durableOrchestration?.summary.pending).toBe(1);
       expect(report.durableOrchestration?.summary.checkpointed).toBe(2);
       expect(report.durableOrchestration?.summary.resumable).toBe(1);

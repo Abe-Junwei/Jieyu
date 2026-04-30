@@ -9,7 +9,7 @@ import { type FC, useCallback } from 'react';
 import { MaterialSymbol } from '../../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE } from '../../../utils/jieyuMaterialIcon';
 import { t, tf, useLocale } from '../../../i18n';
-import { recordTranscriptionKeyboardAction } from '../../../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../../../utils/transcriptionKeyboardActionTelemetry';
 
 let lastZoomSliderTelemetryMs = 0;
 const ZOOM_SLIDER_TELEMETRY_MS = 350;

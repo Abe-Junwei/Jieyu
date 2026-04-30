@@ -145,3 +145,17 @@ export async function completeAgentLoopCheckpointTask(taskId: string): Promise<v
     updatedAt: timestamp,
   });
 }
+
+export async function cancelAgentLoopCheckpointTask(taskId: string): Promise<void> {
+  const normalizedTaskId = taskId.trim();
+  if (!normalizedTaskId) return;
+  const db = await getDb();
+  const timestamp = nowIso();
+  await db.collections.ai_tasks.update(normalizedTaskId, {
+    status: 'failed',
+    resumable: false,
+    errorMessage: 'cancelled_by_user',
+    completedAt: timestamp,
+    updatedAt: timestamp,
+  });
+}

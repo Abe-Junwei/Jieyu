@@ -11,7 +11,7 @@ import { getSidePaneSidebarMessages } from '../../i18n/messages';
 import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHubPreview';
-import { recordTranscriptionKeyboardAction } from '../../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../../utils/transcriptionKeyboardActionTelemetry';
 import { ModalPanel } from '../ui/ModalPanel';
 import { PanelButton } from '../ui/PanelButton';
 import { PanelChip } from '../ui/PanelChip';

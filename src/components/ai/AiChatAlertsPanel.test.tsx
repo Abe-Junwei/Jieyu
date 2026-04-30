@@ -181,6 +181,7 @@ describe('AiChatAlertsPanel', () => {
 
   it('shows durable handoff section and triggers resume callback when agent loop checkpoint exists', () => {
     const onResumeAgentLoop = vi.fn(async () => undefined);
+    const onDismissAgentLoopHandoff = vi.fn(async () => undefined);
 
     renderPanel({
       alertCount: 1,
@@ -196,6 +197,7 @@ describe('AiChatAlertsPanel', () => {
         createdAt: '2026-04-27T00:00:00.000Z',
       },
       onResumeAgentLoop,
+      onDismissAgentLoopHandoff,
     });
 
     const handoff = screen.getByTestId('ai-agent-loop-handoff-mvp');
@@ -207,6 +209,9 @@ describe('AiChatAlertsPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Resume|继续执行/i }));
     expect(onResumeAgentLoop).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /Cancel|取消/i }));
+    expect(onDismissAgentLoopHandoff).toHaveBeenCalledTimes(1);
   });
 
   it('disables durable handoff resume action while ai stream is active', () => {

@@ -160,7 +160,7 @@
       "module": "ai-runtime",
       "exitCode": 0,
       "logPath": "docs/execution/audits/ai-task-snapshots-export-v1.json",
-      "keySummary": "done=1;checkpointed=2;resumable=1;checkpointRecoveryRate=0.5"
+      "keySummary": "done=1;cancelledByUser=0;checkpointed=2;resumable=1;checkpointRecoveryRate=0.5"
     },
     {
       "conclusionId": "m0.audit-field-dictionary.v1",
@@ -421,6 +421,7 @@
       "total": 3,
       "done": 1,
       "failed": 1,
+      "cancelledByUser": 0,
       "running": 0,
       "pending": 1,
       "checkpointed": 2,

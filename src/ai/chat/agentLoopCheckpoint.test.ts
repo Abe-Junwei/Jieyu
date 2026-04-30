@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../db';
 import {
+  cancelAgentLoopCheckpointTask,
   completeAgentLoopCheckpointTask,
   fromAgentLoopTaskCheckpoint,
   loadPendingAgentLoopCheckpointFromTaskId,
@@ -86,6 +87,29 @@ describe('agentLoopCheckpoint', () => {
     expect(task).toMatchObject({
       status: 'done',
       resumable: false,
+    });
+    expect(task?.completedAt).toBeTruthy();
+  });
+
+  it('marks a dismissed checkpoint task as cancelled_by_user and non-resumable', async () => {
+    const taskId = await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-4',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'cancel this later',
+        continuationInput: 'payload',
+        step: 2,
+        createdAt: '2026-04-27T00:00:00.000Z',
+      },
+    });
+
+    await cancelAgentLoopCheckpointTask(taskId);
+
+    const task = await db.ai_tasks.get(taskId);
+    expect(task).toMatchObject({
+      status: 'failed',
+      resumable: false,
+      errorMessage: 'cancelled_by_user',
     });
     expect(task?.completedAt).toBeTruthy();
   });

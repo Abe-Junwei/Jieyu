@@ -7,7 +7,7 @@ import { useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResiz
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 import { useToast } from '../contexts/ToastContext';
 import { t, useLocale } from '../i18n';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 import type { TranscriptionVerticalPaneFocusState } from '../pages/TranscriptionPage.UIState';
 import { DEFAULT_TRANSCRIPTION_VERTICAL_PANE_FOCUS } from '../pages/TranscriptionPage.UIState';
 import { type TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';

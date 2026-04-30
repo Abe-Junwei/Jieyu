@@ -80,6 +80,7 @@ function main() {
   assertNonNegativeInteger(summary.total, 'durableOrchestration.summary.total');
   assertNonNegativeInteger(summary.done, 'durableOrchestration.summary.done');
   assertNonNegativeInteger(summary.failed, 'durableOrchestration.summary.failed');
+  assertNonNegativeInteger(summary.cancelledByUser, 'durableOrchestration.summary.cancelledByUser');
   assertNonNegativeInteger(summary.running, 'durableOrchestration.summary.running');
   assertNonNegativeInteger(summary.pending, 'durableOrchestration.summary.pending');
   assertNonNegativeInteger(summary.checkpointed, 'durableOrchestration.summary.checkpointed');
@@ -117,7 +118,7 @@ function main() {
   }
 
   process.stdout.write(
-    `durable orchestration gate passed: total=${summary.total}, checkpointed=${summary.checkpointed}, resumable=${summary.resumable}, checkpointRecoveryRate=${summary.checkpointRecoveryRate.toFixed(4)}\n`,
+    `durable orchestration gate passed: total=${summary.total}, cancelledByUser=${summary.cancelledByUser}, checkpointed=${summary.checkpointed}, resumable=${summary.resumable}, checkpointRecoveryRate=${summary.checkpointRecoveryRate.toFixed(4)}\n`,
   );
 }
 

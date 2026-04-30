@@ -5,6 +5,7 @@ import type { EmbeddingProviderKind } from '../../ai/embeddings/EmbeddingProvide
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_MICRO } from '../../utils/jieyuMaterialIcon';
 import { getAiEmbeddingCardMessages } from '../../i18n/messages';
+import { notifyOpenApprovalCenter } from '../../ai/tasks/taskRefreshEvents';
 
 function formatEmbeddingScore(score: number): string {
   return `${(Math.max(0, Math.min(1, score)) * 100).toFixed(1)}%`;
@@ -203,6 +204,7 @@ export function AiEmbeddingCard() {
               <div className="ai-card-row ai-card-row-gap-sm">
                 {(task.status === 'pending' || task.status === 'running') && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onCancelAiTask} onClick={() => void onCancelAiTask?.(task.id)}>{messages.cancel}</button>}
                 {task.status === 'failed' && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onRetryAiTask} onClick={() => void onRetryAiTask?.(task.id)}>{messages.retry}</button>}
+                {task.taskType === 'agent_loop' && !!task.handoffReason && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" onClick={notifyOpenApprovalCenter}>{messages.viewApproval}</button>}
               </div>
             </div>
           ))

@@ -30,6 +30,7 @@ export type AiEmbeddingCardMessages = {
   handoffReasonLabel: string;
   cancel: string;
   retry: string;
+  viewApproval: string;
   similarityResults: string;
   similarityHint: string;
   emptyText: string;
@@ -74,6 +75,7 @@ export function getAiEmbeddingCardMessages(isZh: boolean): AiEmbeddingCardMessag
     handoffReasonLabel: t(l, 'msg.embCard.handoffReasonLabel'),
     cancel: t(l, 'msg.embCard.cancel'),
     retry: t(l, 'msg.embCard.retry'),
+    viewApproval: t(l, 'msg.embCard.viewApproval'),
     similarityResults: t(l, 'msg.embCard.similarityResults'),
     similarityHint: t(l, 'msg.embCard.similarityHint'),
     emptyText: t(l, 'msg.embCard.emptyText'),

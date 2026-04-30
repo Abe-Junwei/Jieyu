@@ -40,6 +40,7 @@ export function pickAiChatContextValue(P: AiChatContextSource): AiChatContextVal
     onPruneAiSessionDirectivesBySourceMessage: P.onPruneAiSessionDirectivesBySourceMessage,
     onConfirmPendingToolCall: P.onConfirmPendingToolCall,
     onCancelPendingToolCall: P.onCancelPendingToolCall,
+    onDismissPendingAgentLoopCheckpoint: P.onDismissPendingAgentLoopCheckpoint,
     onTrackAiRecommendationEvent: P.onTrackAiRecommendationEvent,
     onJumpToCitation: P.onJumpToCitation,
     ...(P.timelineReadModelEpoch !== undefined ? { timelineReadModelEpoch: P.timelineReadModelEpoch } : {}),

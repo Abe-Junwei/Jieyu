@@ -3,7 +3,7 @@ import type { LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from './timelineUnitView';
 import type { TimelineUnit } from './transcriptionTypes';
 import { DEFAULT_KEYBINDINGS, getEffectiveKeymap, matchKeyEvent } from '../services/KeybindingService';
-import { recordTranscriptionKeyboardAction } from '../services/transcriptionKeyboardActionTelemetry';
+import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 import { fireAndForget } from '../utils/fireAndForget';
 
 function isEditableTarget(target: EventTarget | null): boolean {

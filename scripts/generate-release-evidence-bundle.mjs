@@ -520,6 +520,9 @@ function normalizeAiTaskSnapshotRow(rawRow) {
   const handoffReason = typeof row.handoffReason === 'string'
     ? row.handoffReason
     : (typeof row.handoff_reason === 'string' ? row.handoff_reason : '');
+  const errorMessage = typeof row.errorMessage === 'string'
+    ? row.errorMessage
+    : (typeof row.error_message === 'string' ? row.error_message : '');
   const durationMs = toFiniteNumber(row.durationMs ?? row.duration_ms);
 
   return {
@@ -531,6 +534,7 @@ function normalizeAiTaskSnapshotRow(rawRow) {
     hasCheckpoint: row.hasCheckpoint === true || row.has_checkpoint === true,
     resumable: row.resumable === true,
     handoffReason: handoffReason.trim(),
+    errorMessage: errorMessage.trim(),
   };
 }
 
@@ -2076,6 +2080,7 @@ function buildDurableOrchestrationSection(input) {
     total: 0,
     done: 0,
     failed: 0,
+    cancelledByUser: 0,
     running: 0,
     pending: 0,
     checkpointed: 0,
@@ -2124,6 +2129,8 @@ function buildDurableOrchestrationSection(input) {
     else if (row.status === 'failed') summary.failed += 1;
     else if (row.status === 'running') summary.running += 1;
     else if (row.status === 'pending') summary.pending += 1;
+
+    if (row.errorMessage === 'cancelled_by_user') summary.cancelledByUser += 1;
 
     if (row.hasCheckpoint) summary.checkpointed += 1;
     if (row.resumable) summary.resumable += 1;
@@ -2646,7 +2653,7 @@ function buildReport(input) {
     logPath: durableOrchestrationSection.snapshotExportPath ?? null,
     keySummary: durableOrchestrationSection.status === 'skipped'
       ? (durableOrchestrationSection.skipReason ?? 'skipped')
-      : `done=${durableOrchestrationSection.summary.done};checkpointed=${durableOrchestrationSection.summary.checkpointed};resumable=${durableOrchestrationSection.summary.resumable};checkpointRecoveryRate=${durableOrchestrationSection.summary.checkpointRecoveryRate}`,
+      : `done=${durableOrchestrationSection.summary.done};cancelledByUser=${durableOrchestrationSection.summary.cancelledByUser};checkpointed=${durableOrchestrationSection.summary.checkpointed};resumable=${durableOrchestrationSection.summary.resumable};checkpointRecoveryRate=${durableOrchestrationSection.summary.checkpointRecoveryRate}`,
   });
 
   evidenceIndex.push({
