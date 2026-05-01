@@ -1631,6 +1631,10 @@ function buildBackgroundMemoryExtractionSection(input) {
         failed: 0,
         writtenCount: 0,
       },
+      sandboxDecisions: {
+        actions: {},
+        reasons: {},
+      },
       skipReasons: {},
     };
   }
@@ -1653,6 +1657,10 @@ function buildBackgroundMemoryExtractionSection(input) {
         failed: 0,
         writtenCount: 0,
       },
+      sandboxDecisions: {
+        actions: {},
+        reasons: {},
+      },
       skipReasons: {},
     };
     if (readError) out.readError = readError;
@@ -1669,6 +1677,8 @@ function buildBackgroundMemoryExtractionSection(input) {
     writtenCount: 0,
   };
   const skipReasons = new Map();
+  const sandboxActionCounts = new Map();
+  const sandboxReasonCounts = new Map();
   let durationSum = 0;
   let durationSamples = 0;
   const sampleTaskIds = [];
@@ -1696,6 +1706,18 @@ function buildBackgroundMemoryExtractionSection(input) {
       skipReasons.set(skippedReason, (skipReasons.get(skippedReason) ?? 0) + 1);
     }
 
+    const sandboxDecision = metadata.sandboxDecision;
+    if (sandboxDecision && typeof sandboxDecision === 'object') {
+      const action = typeof sandboxDecision.action === 'string' ? sandboxDecision.action.trim() : '';
+      if (action) {
+        sandboxActionCounts.set(action, (sandboxActionCounts.get(action) ?? 0) + 1);
+      }
+      const reason = typeof sandboxDecision.reason === 'string' ? sandboxDecision.reason.trim() : '';
+      if (reason) {
+        sandboxReasonCounts.set(reason, (sandboxReasonCounts.get(reason) ?? 0) + 1);
+      }
+    }
+
     const taskId = typeof metadata.taskId === 'string' && metadata.taskId.trim()
       ? metadata.taskId.trim()
       : row.requestId;
@@ -1708,6 +1730,10 @@ function buildBackgroundMemoryExtractionSection(input) {
     summary: {
       ...summary,
       avgDurationMs: durationSamples > 0 ? Number((durationSum / durationSamples).toFixed(2)) : 0,
+    },
+    sandboxDecisions: {
+      actions: Object.fromEntries([...sandboxActionCounts.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+      reasons: Object.fromEntries([...sandboxReasonCounts.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
     },
     skipReasons: Object.fromEntries([...skipReasons.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
     ...(releaseProfile === 'full' ? { sampleTaskIds: [...new Set(sampleTaskIds)].slice(0, 10) } : {}),
@@ -2586,7 +2612,7 @@ function buildReport(input) {
     logPath: null,
     keySummary: backgroundMemoryExtractionSection.status === 'skipped'
       ? (backgroundMemoryExtractionSection.skipReason ?? 'skipped')
-      : `completed=${backgroundMemoryExtractionSection.summary.completed};written=${backgroundMemoryExtractionSection.summary.writtenCount}`,
+      : `completed=${backgroundMemoryExtractionSection.summary.completed};written=${backgroundMemoryExtractionSection.summary.writtenCount};allow=${backgroundMemoryExtractionSection.sandboxDecisions?.actions?.allow ?? 0};ask=${backgroundMemoryExtractionSection.sandboxDecisions?.actions?.ask ?? 0};deny=${backgroundMemoryExtractionSection.sandboxDecisions?.actions?.deny ?? 0}`,
   });
 
   evidenceIndex.push({

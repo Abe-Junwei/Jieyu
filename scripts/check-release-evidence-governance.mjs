@@ -38,6 +38,16 @@ function toOptionalRateArg(name) {
   return parsed;
 }
 
+function toOptionalMinBackgroundMemoryTotal() {
+  const raw = readArg('--min-background-memory-total');
+  if (!raw) return null;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0) {
+    fail('invalid --min-background-memory-total: expected integer >= 0');
+  }
+  return parsed;
+}
+
 /** Minimum `actionApprovalCenter.summary.total` (inclusive); strict CI uses this to reject near-empty samples. */
 function toOptionalMinApprovalTotal() {
   const raw = readArg('--min-approval-total');
@@ -127,6 +137,62 @@ function validateActionApproval(payload, options) {
   return summary;
 }
 
+function assertCountMap(value, keyPath) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    fail(`invalid ${keyPath}: expected object`);
+  }
+  for (const [key, count] of Object.entries(value)) {
+    assertNonNegativeInteger(count, `${keyPath}.${key}`);
+  }
+}
+
+function validateBackgroundMemoryExtraction(payload, options) {
+  const section = payload?.backgroundMemoryExtraction;
+  if (!section || typeof section !== 'object') {
+    fail('invalid report: missing backgroundMemoryExtraction section');
+  }
+  if (section.status !== 'ready_or_partial' && section.status !== 'ready' && section.status !== 'skipped') {
+    fail(`background memory extraction gate failed: unexpected status=${String(section.status)}`);
+  }
+
+  const summary = section.summary;
+  if (!summary || typeof summary !== 'object') {
+    fail('invalid report: missing backgroundMemoryExtraction.summary');
+  }
+  assertNonNegativeInteger(summary.total, 'backgroundMemoryExtraction.summary.total');
+  assertNonNegativeInteger(summary.scheduled, 'backgroundMemoryExtraction.summary.scheduled');
+  assertNonNegativeInteger(summary.merged, 'backgroundMemoryExtraction.summary.merged');
+  assertNonNegativeInteger(summary.completed, 'backgroundMemoryExtraction.summary.completed');
+  assertNonNegativeInteger(summary.skipped, 'backgroundMemoryExtraction.summary.skipped');
+  assertNonNegativeInteger(summary.failed, 'backgroundMemoryExtraction.summary.failed');
+  assertNonNegativeInteger(summary.writtenCount, 'backgroundMemoryExtraction.summary.writtenCount');
+
+  if (options.minBackgroundMemoryTotal !== null && summary.total < options.minBackgroundMemoryTotal) {
+    fail(
+      `background memory extraction gate failed: backgroundMemoryExtraction.summary.total=${summary.total} is below required minimum ${options.minBackgroundMemoryTotal}`,
+    );
+  }
+
+  const sandboxDecisions = section.sandboxDecisions;
+  if (!sandboxDecisions || typeof sandboxDecisions !== 'object') {
+    fail('invalid report: missing backgroundMemoryExtraction.sandboxDecisions');
+  }
+  assertCountMap(sandboxDecisions.actions, 'backgroundMemoryExtraction.sandboxDecisions.actions');
+  assertCountMap(sandboxDecisions.reasons, 'backgroundMemoryExtraction.sandboxDecisions.reasons');
+
+  const evidenceIndex = Array.isArray(payload?.evidenceIndex) ? payload.evidenceIndex : [];
+  if (!evidenceIndex.some((item) => item?.conclusionId === 'c5.background-memory-extraction.v1')) {
+    fail('background memory extraction gate failed: missing evidenceIndex c5.background-memory-extraction.v1');
+  }
+
+  return {
+    total: summary.total,
+    allow: Number.isFinite(Number(sandboxDecisions.actions.allow)) ? Number(sandboxDecisions.actions.allow) : 0,
+    ask: Number.isFinite(Number(sandboxDecisions.actions.ask)) ? Number(sandboxDecisions.actions.ask) : 0,
+    deny: Number.isFinite(Number(sandboxDecisions.actions.deny)) ? Number(sandboxDecisions.actions.deny) : 0,
+  };
+}
+
 function main() {
   const reportPath = resolveReportPath();
   if (!fs.existsSync(reportPath)) {
@@ -142,9 +208,12 @@ function main() {
     requireHighRiskSignal: hasFlag('--require-high-risk-signal'),
     minApprovalTotal,
   });
+  const backgroundMemorySummary = validateBackgroundMemoryExtraction(payload, {
+    minBackgroundMemoryTotal: toOptionalMinBackgroundMemoryTotal(),
+  });
   const minPart = minApprovalTotal !== null ? `,minApprovalTotal>=${minApprovalTotal}` : '';
   process.stdout.write(
-    `release-evidence governance gate passed: compareReady=${trend.compareReady ? 'true' : 'false'}, pointCount=${trend.pointCount}, approval(total=${summary.total},pending=${summary.pending},blocked=${summary.blocked},confirmed=${summary.confirmed},failed=${summary.failed}${minPart})\n`,
+    `release-evidence governance gate passed: compareReady=${trend.compareReady ? 'true' : 'false'}, pointCount=${trend.pointCount}, approval(total=${summary.total},pending=${summary.pending},blocked=${summary.blocked},confirmed=${summary.confirmed},failed=${summary.failed}${minPart}), backgroundMemory(total=${backgroundMemorySummary.total},allow=${backgroundMemorySummary.allow},ask=${backgroundMemorySummary.ask},deny=${backgroundMemorySummary.deny})\n`,
   );
 }
 

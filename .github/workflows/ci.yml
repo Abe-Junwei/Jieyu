@@ -358,6 +358,7 @@ jobs:
           const payload = JSON.parse(fs.readFileSync(latest.fullPath, 'utf8'));
           const trend = payload?.costGuard?.trend;
           const actionApproval = payload?.actionApprovalCenter;
+          const backgroundMemory = payload?.backgroundMemoryExtraction;
           const compareReady = trend?.compareReady === true ? 'true' : 'false';
           const pointCount = Number.isFinite(Number(trend?.pointCount)) ? String(trend.pointCount) : '0';
           const requirement = payload?.metadata?.costGuardTrendRequirement ?? 'none';
@@ -365,6 +366,16 @@ jobs:
           const blocked = Number.isFinite(Number(actionApproval?.summary?.blocked)) ? String(actionApproval.summary.blocked) : '0';
           const confirmed = Number.isFinite(Number(actionApproval?.summary?.confirmed)) ? String(actionApproval.summary.confirmed) : '0';
           const failed = Number.isFinite(Number(actionApproval?.summary?.failed)) ? String(actionApproval.summary.failed) : '0';
+          const bmTotal = Number.isFinite(Number(backgroundMemory?.summary?.total)) ? String(backgroundMemory.summary.total) : '0';
+          const bmAllow = Number.isFinite(Number(backgroundMemory?.sandboxDecisions?.actions?.allow))
+            ? String(backgroundMemory.sandboxDecisions.actions.allow)
+            : '0';
+          const bmAsk = Number.isFinite(Number(backgroundMemory?.sandboxDecisions?.actions?.ask))
+            ? String(backgroundMemory.sandboxDecisions.actions.ask)
+            : '0';
+          const bmDeny = Number.isFinite(Number(backgroundMemory?.sandboxDecisions?.actions?.deny))
+            ? String(backgroundMemory.sandboxDecisions.actions.deny)
+            : '0';
 
           fs.appendFileSync(
             summaryPath,
@@ -376,6 +387,10 @@ jobs:
               `- actionApproval.blocked: ${blocked}`,
               `- actionApproval.confirmed: ${confirmed}`,
               `- actionApproval.failed: ${failed}`,
+              `- backgroundMemory.total: ${bmTotal}`,
+              `- backgroundMemory.allow: ${bmAllow}`,
+              `- backgroundMemory.ask: ${bmAsk}`,
+              `- backgroundMemory.deny: ${bmDeny}`,
               `- compareReady: ${compareReady}`,
               `- pointCount: ${pointCount}`,
               `- requirement: ${requirement}`,
@@ -484,6 +499,7 @@ jobs:
           const payload = JSON.parse(fs.readFileSync(latest.fullPath, 'utf8'));
           const trend = payload?.costGuard?.trend;
           const actionApproval = payload?.actionApprovalCenter;
+          const backgroundMemory = payload?.backgroundMemoryExtraction;
           const compareReady = trend?.compareReady === true ? 'true' : 'false';
           const pointCount = Number.isFinite(Number(trend?.pointCount)) ? String(trend.pointCount) : '0';
           const requirement = payload?.metadata?.costGuardTrendRequirement ?? 'none';
@@ -491,6 +507,16 @@ jobs:
           const blocked = Number.isFinite(Number(actionApproval?.summary?.blocked)) ? String(actionApproval.summary.blocked) : '0';
           const confirmed = Number.isFinite(Number(actionApproval?.summary?.confirmed)) ? String(actionApproval.summary.confirmed) : '0';
           const failed = Number.isFinite(Number(actionApproval?.summary?.failed)) ? String(actionApproval.summary.failed) : '0';
+          const bmTotal = Number.isFinite(Number(backgroundMemory?.summary?.total)) ? String(backgroundMemory.summary.total) : '0';
+          const bmAllow = Number.isFinite(Number(backgroundMemory?.sandboxDecisions?.actions?.allow))
+            ? String(backgroundMemory.sandboxDecisions.actions.allow)
+            : '0';
+          const bmAsk = Number.isFinite(Number(backgroundMemory?.sandboxDecisions?.actions?.ask))
+            ? String(backgroundMemory.sandboxDecisions.actions.ask)
+            : '0';
+          const bmDeny = Number.isFinite(Number(backgroundMemory?.sandboxDecisions?.actions?.deny))
+            ? String(backgroundMemory.sandboxDecisions.actions.deny)
+            : '0';
 
           fs.appendFileSync(
             summaryPath,
@@ -502,6 +528,10 @@ jobs:
               `- actionApproval.blocked: ${blocked}`,
               `- actionApproval.confirmed: ${confirmed}`,
               `- actionApproval.failed: ${failed}`,
+              `- backgroundMemory.total: ${bmTotal}`,
+              `- backgroundMemory.allow: ${bmAllow}`,
+              `- backgroundMemory.ask: ${bmAsk}`,
+              `- backgroundMemory.deny: ${bmDeny}`,
               `- compareReady: ${compareReady}`,
               `- pointCount: ${pointCount}`,
               `- requirement: ${requirement}`,

@@ -37,6 +37,34 @@ function writeReport(reportPath: string, overrides: Record<string, unknown> = {}
       riskTiers: { high: 2, medium: 2 },
       approvalModes: { user_preference: 1, safety_gate: 1, propose_changes: 2 },
     },
+    backgroundMemoryExtraction: {
+      status: 'ready_or_partial',
+      summary: {
+        total: 2,
+        scheduled: 2,
+        merged: 0,
+        completed: 1,
+        skipped: 1,
+        failed: 0,
+        writtenCount: 1,
+      },
+      sandboxDecisions: {
+        actions: {
+          allow: 1,
+          ask: 1,
+        },
+        reasons: {
+          'restricted-write-allowed': 1,
+          'readonly-write-not-allowed': 1,
+        },
+      },
+      skipReasons: {
+        'empty-extraction': 1,
+      },
+    },
+    evidenceIndex: [
+      { conclusionId: 'c5.background-memory-extraction.v1' },
+    ],
     ...overrides,
   };
   writeFileSync(reportPath, JSON.stringify(base), 'utf8');
@@ -101,6 +129,52 @@ describe('check-release-evidence-governance script', () => {
       const result = runCheckScript([`--report=${reportPath}`, '--require-cost-guard-compare-ready']);
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('compareReady');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when C5 evidence index card is missing', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 're-governance-'));
+    const reportPath = path.join(tempDir, 'report.json');
+    try {
+      writeReport(reportPath, {
+        evidenceIndex: [],
+      });
+      const result = runCheckScript([`--report=${reportPath}`]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('c5.background-memory-extraction.v1');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when min-background-memory-total is not met', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 're-governance-'));
+    const reportPath = path.join(tempDir, 'report.json');
+    try {
+      writeReport(reportPath, {
+        backgroundMemoryExtraction: {
+          status: 'ready_or_partial',
+          summary: {
+            total: 0,
+            scheduled: 0,
+            merged: 0,
+            completed: 0,
+            skipped: 0,
+            failed: 0,
+            writtenCount: 0,
+          },
+          sandboxDecisions: {
+            actions: {},
+            reasons: {},
+          },
+          skipReasons: {},
+        },
+      });
+      const result = runCheckScript([`--report=${reportPath}`, '--min-background-memory-total=1']);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('backgroundMemoryExtraction.summary.total=0');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

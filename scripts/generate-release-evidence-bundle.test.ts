@@ -102,6 +102,10 @@ interface ReleaseEvidenceReport {
       writtenCount: number;
       avgDurationMs?: number;
     };
+    sandboxDecisions: {
+      actions: Record<string, number>;
+      reasons: Record<string, number>;
+    };
     skipReasons: Record<string, number>;
     sampleTaskIds?: string[];
   };
@@ -1102,6 +1106,10 @@ describe('generate-release-evidence-bundle script', () => {
           phase: 'background_memory_extraction',
           taskId: 'bgmem_001',
           status: 'completed',
+          sandboxDecision: {
+            action: 'allow',
+            reason: 'restricted-write-allowed',
+          },
           writtenCount: 2,
           durationMs: 12,
         }),
@@ -1116,6 +1124,10 @@ describe('generate-release-evidence-bundle script', () => {
           phase: 'background_memory_extraction',
           taskId: 'bgmem_002',
           status: 'skipped',
+          sandboxDecision: {
+            action: 'ask',
+            reason: 'readonly-write-not-allowed',
+          },
           skippedReason: 'empty-extraction',
           writtenCount: 0,
           durationMs: 8,
@@ -1296,6 +1308,16 @@ describe('generate-release-evidence-bundle script', () => {
         writtenCount: 2,
       });
       expect(report.backgroundMemoryExtraction.skipReasons).toEqual({ 'empty-extraction': 1 });
+      expect(report.backgroundMemoryExtraction.sandboxDecisions).toEqual({
+        actions: {
+          allow: 1,
+          ask: 1,
+        },
+        reasons: {
+          'readonly-write-not-allowed': 1,
+          'restricted-write-allowed': 1,
+        },
+      });
       expect(report.backgroundMemoryExtraction.sampleTaskIds).toEqual(['bgmem_001', 'bgmem_002']);
 
       expect(report.coordinationLite.status).toBe('ready_or_partial');
