@@ -13,7 +13,7 @@ import { buildContextDebugSnapshot, logContextDebugSnapshot } from './useAiChat.
 import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
-import { createAiChatBackgroundMemoryRuntime, scheduleAndFlushBackgroundMemory, type AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
+import { AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE, createAiChatBackgroundMemoryRuntime, scheduleAndFlushBackgroundMemory, type AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
 import { buildResponsePolicyAuditMetadata, resolveAiChatResponsePolicy } from './useAiChat.responsePolicy';
 import { getDb } from '../db';
 import { enrichContextWithRag } from './useAiChat.rag';
@@ -21,10 +21,9 @@ import { buildSessionMemoryDigestSuppressionRefs, maybeAppendMemoryBrokerContext
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { buildConversationSummaryFromHistory, countHistoryUserTurns, estimateSummaryCoverageSimilarity, splitHistoryByRecentRounds, trimHistoryByChars, type HistoryChatMessage } from '../ai/chat/historyTrim';
 import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, deactivateSessionDirective as deactivateSessionDirectiveFromMemory, loadSessionMemory, persistSessionMemory, pruneDirectiveLedgerBySourceMessage, updateConversationSummaryMemory } from '../ai/chat/sessionMemory';
-import { cancelAgentLoopCheckpointTask, completeAgentLoopCheckpointTask, loadPendingAgentLoopCheckpointFromTaskId, persistAgentLoopCheckpointTask } from '../ai/chat/agentLoopCheckpoint';
+import { cancelAgentLoopCheckpointTask, completeAgentLoopCheckpointTask, loadLatestPendingAgentLoopCheckpoint, loadPendingAgentLoopCheckpointFromTaskId, persistAgentLoopCheckpointTask } from '../ai/chat/agentLoopCheckpoint';
 import { updateSessionMemoryWithPrompt } from '../ai/chat/adaptiveInputProfile';
 import { updateSessionMemoryWithRecommendationEvent } from '../ai/chat/recommendationTelemetry';
-
 import { resolveLocalToolRoutingPlan } from '../ai/chat/localToolSlotResolver';
 import { resolveContextCharBudgets } from '../ai/chat/contextBudget';
 import { buildAiSystemPrompt, buildPromptContextBlock, isAiContextDebugEnabled } from '../ai/chat/promptContext';
@@ -33,7 +32,6 @@ import { extractUserDirectives } from '../ai/memory/userDirectiveExtractor';
 import { applyUserDirectivesToSessionMemory } from '../ai/memory/userDirectiveRegistry';
 import { runAiChatClearPersistenceCleanup, type AiChatClearPersistenceRequest } from './useAiChat.persistenceCleanup';
 import { resolvePinnedMessageSessionMemory } from './useAiChat.messagePinning';
-
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import { notifyAiTasksUpdated } from '../ai/tasks/taskRefreshEvents';
 import type { AiMessageCitation } from '../db';
@@ -44,6 +42,7 @@ import type { ChatTokenUsage } from '../ai/providers/LLMProvider';
 import { mergeTokenUsage } from '../ai/providers/tokenUsage';
 import { useAiChatToolAudit, genRequestId } from './useAiChat.toolAudit';
 import { useAiChatPendingToolCall } from './useAiChat.pendingToolCall';
+import { useSyncAssistantDialogueChatTool } from './useSyncAssistantDialogueChatTool';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
 import { formatAbortedMessage, formatAiChatDisabledError, formatConnectionHealthyMessage, formatFirstChunkTimeoutError, formatPendingConfirmationBlockedError, formatSessionBudgetExceededError, formatStreamingBusyError } from '../ai/messages';
 import { applyAiChatSettingsPatch, createAiChatProvider, getDefaultAiChatSettings, normalizeAiChatSettings } from '../ai/providers/providerCatalog';
@@ -57,6 +56,16 @@ function isAgentLoopResumeText(userText: string): boolean {
   if (!normalized) return false;
   return /^(继续|继续执行|接着|接着说|继续吧)$/u.test(normalized)
     || /^(continue|resume|go on)$/i.test(normalized);
+}
+const AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY = 'jieyu.aiChat.resumeAgentLoopTaskId';
+
+function consumeRequestedAgentLoopTaskIdFromSessionStorage(): string | null {
+  if (typeof window === 'undefined') return null;
+  const raw = window.sessionStorage.getItem(AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY);
+  if (!raw) return null;
+  window.sessionStorage.removeItem(AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY);
+  const normalized = raw.trim();
+  return normalized.length > 0 ? normalized : null;
 }
 export type { AiChatProviderKind, AiChatSettings } from '../ai/providers/providerCatalog';
 export type { AiChatToolCall, AiChatToolName, AiChatToolResult, AiClarifyCandidate, AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiPromptDraftSnapshot, AiPromptLayerLinkSnapshot, AiPromptLayerSnapshot, AiPromptNoteSummary, AiPromptSpeakerSnapshot, AiPromptVisibleTimelineState, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, PreviewContract, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
@@ -132,6 +141,8 @@ export function useAiChat(options?: UseAiChatOptions) {
   if (backgroundMemoryRuntimeRef.current === null) {
     backgroundMemoryRuntimeRef.current = createAiChatBackgroundMemoryRuntime({
       enabled: featureFlags.aiBackgroundMemoryExtractorEnabled,
+      sandboxEnabled: featureFlags.aiBackgroundToolSandboxEnabled,
+      sandboxProfile: AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE,
       getSessionMemory: () => sessionMemoryRef.current,
       setSessionMemory: (nextMemory) => {
         sessionMemoryRef.current = nextMemory;
@@ -169,6 +180,8 @@ export function useAiChat(options?: UseAiChatOptions) {
   const toolDecisionModeRef = useLatest(toolDecisionMode);
   const pendingToolCallRef = useLatest(pendingToolCall);
   const taskSessionRef = useLatest(taskSession);
+  useSyncAssistantDialogueChatTool(pendingToolCall);
+
   const streamPersistIntervalMsRef = useLatest(streamPersistIntervalMs);
   const ragContextTimeoutMsRef = useLatest(ragContextTimeoutMs);
 
@@ -287,10 +300,25 @@ export function useAiChat(options?: UseAiChatOptions) {
   const resolveAgentLoopResumeCheckpoint = useCallback(async (userText: string) => {
     if (!isAgentLoopResumeText(userText)) return null;
     const checkpoint = sessionMemoryRef.current.pendingAgentLoopCheckpoint ?? null;
-    if (!checkpoint?.taskId) return checkpoint;
+    if (checkpoint?.taskId) {
+      const durableCheckpoint = await loadPendingAgentLoopCheckpointFromTaskId(checkpoint.taskId);
+      if (!durableCheckpoint) return checkpoint;
 
-    const durableCheckpoint = await loadPendingAgentLoopCheckpointFromTaskId(checkpoint.taskId);
-    if (!durableCheckpoint) return checkpoint;
+      const nextMemory: AiSessionMemory = {
+        ...sessionMemoryRef.current,
+        pendingAgentLoopCheckpoint: durableCheckpoint,
+      };
+      sessionMemoryRef.current = nextMemory;
+      persistSessionMemory(nextMemory);
+      return durableCheckpoint;
+    }
+    if (checkpoint) return checkpoint;
+
+    const requestedTaskId = consumeRequestedAgentLoopTaskIdFromSessionStorage();
+    const durableCheckpoint = requestedTaskId
+      ? await loadPendingAgentLoopCheckpointFromTaskId(requestedTaskId)
+      : await loadLatestPendingAgentLoopCheckpoint();
+    if (!durableCheckpoint) return null;
 
     const nextMemory: AiSessionMemory = {
       ...sessionMemoryRef.current,
