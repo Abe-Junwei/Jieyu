@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: active
 owner: repo
-last_reviewed: 2026-04-26
+last_reviewed: 2026-04-30
 source_of_truth: decision-index
 ---
 
@@ -46,6 +46,7 @@ source_of_truth: decision-index
 - [0025-ai-propose-changes-b2-rollback-boundary.md](./0025-ai-propose-changes-b2-rollback-boundary.md)（`propose_changes` 确认批处理逆序 rollback；B2 白名单与段层 split 契约；merge/delete 扩展见 ADR-0026）
 - [0026-ai-propose-changes-canonical-cluster-rollback.md](./0026-ai-propose-changes-canonical-cluster-rollback.md)（全路径可逆：规范单元簇快照 + 混合时间轴 merge/delete/`allSegments` 回滚）
 - [0027-voice-unified-non-dictation-chat-path.md](./0027-voice-unified-non-dictation-chat-path.md)（非听写语音与文字统一 AI 聊天主链；无开关、无旧分流）
+- [0028-assistant-multimodal-orchestration-local-first.md](./0028-assistant-multimodal-orchestration-local-first.md)（助手编排统一：共用 dialogue、工具真执行、本地优先、TTS；打字不强制预路由；VoiceAgentService 收敛）
 
 ## 建议格式
 

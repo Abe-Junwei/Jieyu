@@ -3,7 +3,7 @@ title: AI 聊天工具确认与 requestId 幂等
 doc_type: architecture-spec
 status: active
 owner: repo
-last_reviewed: 2026-04-26
+last_reviewed: 2026-05-01
 source_of_truth: ai-chat-tool-audit
 ---
 
@@ -25,7 +25,7 @@ source_of_truth: ai-chat-tool-audit
 1. 先查内存 `executedRequestIds`。
 2. 再查 Dexie `audit_logs`，`[collection+field+requestId] = ['ai_messages','ai_tool_call_decision', requestId]`。
 3. 若行上存在可解析的 **`metadataJson.phase === 'decision'`**，则以 **`metadata.executed === true`** 为唯一依据（不再用 `newValue` 启发式覆盖）。
-4. **无 metadata 的旧行**：回退到 `newValue` 前缀规则（例如 `confirmed:` / 部分 `confirm_failed:` 仍视为已持久化）。旧数据上 **`confirm_failed:propose_changes:child_failed` 无 metadata 时仍可能判为已执行**——迁移或清审计前需注意；新写入应始终带结构化 metadata。
+4. **无 metadata 的行**：回退解析紧凑形态 `confirm_failed|auto_failed:<toolName>:<reason>`。`confirmed` / `auto_confirmed` 视为已提交。`confirm_failed` / `auto_failed` 仅在 **reason 不在「未提交副作用」白名单**（实现为 `NON_PERSISTED_TOOL_DECISION_REASONS`，含 `child_failed`、`invalid_child_args`、`exception`、门控类 `user_directive_*` / `stale_read_model` / `invalid_proposed_changes` 等）时视为已持久化；其余 reason 仍保守视为已提交，以免未知旧码误判为可重试。新写入应始终带结构化 `metadataJson`。
 
 ## 子工具 `requestId`
 
