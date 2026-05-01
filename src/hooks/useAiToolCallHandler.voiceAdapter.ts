@@ -2,6 +2,7 @@ import { loadRecentVoiceSessions } from '../services/VoiceSessionStore';
 import { t, tf } from '../i18n';
 import { formatVoiceHistoryActorLabel, formatVoiceLayerKinds } from './useAiToolCallHandler.helpers';
 import { glossAdapter } from './useAiToolCallHandler.annotationAdapters';
+import { segmentAdapter } from './useAiToolCallHandler.segmentAdapter';
 import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
 
 export const voiceAdapter: ToolObjectAdapter = {
@@ -120,6 +121,18 @@ export const voiceAdapter: ToolObjectAdapter = {
       return executeMappedAction('markSegment', t(locale, 'transcription.aiTool.voice.markSegmentDone'));
     }
     if (call.name === 'delete_segment') {
+      const hasExplicitTarget = call.arguments.allSegments === true
+        || typeof call.arguments.segmentId === 'string'
+        || (Array.isArray(call.arguments.segmentIds) && call.arguments.segmentIds.length > 0);
+      if (hasExplicitTarget) {
+        return segmentAdapter.execute({
+          ...ctx,
+          call: {
+            ...call,
+            name: 'delete_transcription_segment',
+          },
+        });
+      }
       return executeMappedAction('deleteSegment', t(locale, 'transcription.aiTool.voice.deleteSegmentDone'));
     }
     if (call.name === 'auto_gloss_segment') {
@@ -159,6 +172,45 @@ export const voiceAdapter: ToolObjectAdapter = {
     if (call.name === 'split_at_time') {
       const timeSeconds = Number(call.arguments.timeSeconds);
       if (!Number.isFinite(timeSeconds) || timeSeconds < 0) return { ok: false, message: t(locale, 'transcription.aiTool.voice.splitAtTimeInvalid') };
+      const targetSegment = ctx.units.find((unit) => unit.startTime <= timeSeconds && unit.endTime >= timeSeconds);
+      if (targetSegment && ctx.splitTranscriptionSegment) {
+        const start = Number(targetSegment.startTime);
+        const end = Number(targetSegment.endTime);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+          return { ok: false, message: t(locale, 'transcription.aiTool.segment.splitInvalidRange') };
+        }
+        const minSpan = 0.05;
+        if (timeSeconds <= start + minSpan || timeSeconds >= end - minSpan) {
+          return {
+            ok: false,
+            message: tf(locale, 'transcription.aiTool.segment.splitOutOfRange', {
+              minTime: (start + minSpan).toFixed(2),
+              maxTime: (end - minSpan).toFixed(2),
+            }),
+          };
+        }
+        const splitHint = await ctx.splitTranscriptionSegment(targetSegment.id, timeSeconds);
+        const token = splitHint && typeof splitHint === 'object'
+          && 'keepSegmentId' in splitHint
+          && 'removeSegmentId' in splitHint
+          && typeof splitHint.keepSegmentId === 'string'
+          && splitHint.keepSegmentId.length > 0
+          && typeof splitHint.removeSegmentId === 'string'
+          && splitHint.removeSegmentId.length > 0
+          ? splitHint
+          : null;
+        const mergeRollback = ctx.mergeAdjacentSegmentsForAiRollback;
+        const rollback = token && mergeRollback
+          ? async () => {
+              await mergeRollback(token.keepSegmentId, token.removeSegmentId);
+            }
+          : undefined;
+        return {
+          ok: true,
+          message: tf(locale, 'transcription.aiTool.voice.splitAtTimeDone', { timeSeconds: timeSeconds.toFixed(2) }),
+          ...(rollback ? { rollback } : {}),
+        };
+      }
       if (!ctx.splitAtTime) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.splitAtTimeUnsupported', { timeSeconds }) };
       const ok = ctx.splitAtTime(timeSeconds);
       if (!ok) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.splitAtTimeNoSegment', { timeSeconds: timeSeconds.toFixed(2) }) };

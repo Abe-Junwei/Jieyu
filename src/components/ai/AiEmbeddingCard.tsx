@@ -5,7 +5,7 @@ import type { EmbeddingProviderKind } from '../../ai/embeddings/EmbeddingProvide
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_MICRO } from '../../utils/jieyuMaterialIcon';
 import { getAiEmbeddingCardMessages } from '../../i18n/messages';
-import { notifyOpenApprovalCenter } from '../../ai/tasks/taskRefreshEvents';
+import { consumeRequestedEmbeddingTaskFocusTaskIdFromSessionStorage, notifyOpenApprovalCenter, REQUEST_EMBEDDING_TASK_FOCUS_EVENT, type RequestEmbeddingTaskFocusDetail } from '../../ai/tasks/taskRefreshEvents';
 
 function formatEmbeddingScore(score: number): string {
   return `${(Math.max(0, Math.min(1, score)) * 100).toFixed(1)}%`;
@@ -31,6 +31,7 @@ export function AiEmbeddingCard() {
     onFindSimilarUnits,
     onRefreshEmbeddingTasks,
     onJumpToEmbeddingMatch,
+    onResumeAiTask,
     onCancelAiTask,
     onRetryAiTask,
   } = useEmbeddingContext();
@@ -38,9 +39,13 @@ export function AiEmbeddingCard() {
   const [taskTypeFilter, setTaskTypeFilter] = useState<'all' | 'embed' | 'gloss' | 'agent_loop'>('all');
   const [embeddingAvailability, setEmbeddingAvailability] = useState<'idle' | 'testing' | 'available' | 'unavailable'>('idle');
   const [embeddingError, setEmbeddingError] = useState<string | null>(null);
+  const [requestedTaskFocusId, setRequestedTaskFocusId] = useState<string | null>(null);
+  const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
   const lastEmbeddingTestRef = useRef<{ ts: number } | null>(null);
   const embeddingTestVersionRef = useRef(0);
   const embeddingTestMountedRef = useRef(true);
+  const taskRowRefs = useRef(new Map<string, HTMLDivElement>());
+  const focusFlashTimerRef = useRef<number | null>(null);
   const CACHE_TTL_MS = 30_000;
   const providerSelectId = useId();
   const isZh = locale === 'zh-CN';
@@ -49,6 +54,10 @@ export function AiEmbeddingCard() {
   useEffect(() => () => {
     embeddingTestMountedRef.current = false;
     embeddingTestVersionRef.current += 1;
+    if (focusFlashTimerRef.current !== null && typeof window !== 'undefined') {
+      window.clearTimeout(focusFlashTimerRef.current);
+      focusFlashTimerRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
@@ -57,6 +66,26 @@ export function AiEmbeddingCard() {
     lastEmbeddingTestRef.current = null;
     embeddingTestVersionRef.current += 1;
   }, [embeddingProviderKind, onTestEmbeddingProvider]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const pendingTaskId = consumeRequestedEmbeddingTaskFocusTaskIdFromSessionStorage();
+    if (pendingTaskId) {
+      setTaskTypeFilter('agent_loop');
+      setRequestedTaskFocusId(pendingTaskId);
+    }
+    const onRequestTaskFocus = (event: Event) => {
+      const customEvent = event as CustomEvent<RequestEmbeddingTaskFocusDetail>;
+      const taskId = customEvent.detail?.taskId;
+      if (!taskId || taskId.trim().length === 0) return;
+      setTaskTypeFilter('agent_loop');
+      setRequestedTaskFocusId(taskId.trim());
+    };
+    window.addEventListener(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, onRequestTaskFocus as EventListener);
+    return () => {
+      window.removeEventListener(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, onRequestTaskFocus as EventListener);
+    };
+  }, []);
 
   const handleTestEmbedding = useCallback(async () => {
     if (!onTestEmbeddingProvider) return;
@@ -83,9 +112,36 @@ export function AiEmbeddingCard() {
 
   const visibleAiTasks = useMemo(() => {
     const list = aiEmbeddingTasks ?? [];
-    if (taskTypeFilter === 'all') return list;
-    return list.filter((task) => task.taskType === taskTypeFilter);
-  }, [aiEmbeddingTasks, taskTypeFilter]);
+    const filtered = taskTypeFilter === 'all'
+      ? list
+      : list.filter((task) => task.taskType === taskTypeFilter);
+    if (!requestedTaskFocusId) return filtered;
+    const targetIndex = filtered.findIndex((task) => task.id === requestedTaskFocusId);
+    if (targetIndex <= 0) return filtered;
+    const target = filtered[targetIndex];
+    if (!target) return filtered;
+    return [target, ...filtered.slice(0, targetIndex), ...filtered.slice(targetIndex + 1)];
+  }, [aiEmbeddingTasks, requestedTaskFocusId, taskTypeFilter]);
+
+  useEffect(() => {
+    if (!requestedTaskFocusId) return;
+    const row = taskRowRefs.current.get(requestedTaskFocusId);
+    if (!row) return;
+    row.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    row.focus();
+    setHighlightTaskId(requestedTaskFocusId);
+    setRequestedTaskFocusId(null);
+    if (focusFlashTimerRef.current !== null && typeof window !== 'undefined') {
+      window.clearTimeout(focusFlashTimerRef.current);
+    }
+    if (typeof window !== 'undefined') {
+      const currentTaskId = requestedTaskFocusId;
+      focusFlashTimerRef.current = window.setTimeout(() => {
+        setHighlightTaskId((value) => (value === currentTaskId ? null : value));
+        focusFlashTimerRef.current = null;
+      }, 2500);
+    }
+  }, [requestedTaskFocusId, visibleAiTasks]);
 
   const taskSummary = useMemo(() => {
     return (aiEmbeddingTasks ?? []).reduce((summary, task) => {
@@ -182,7 +238,19 @@ export function AiEmbeddingCard() {
           <p className="small-text">{messages.noTasks}</p>
         ) : (
           visibleAiTasks.slice(0, 6).map((task) => (
-            <div key={task.id} className="transcription-match-row ai-match-row-grid">
+            <div
+              key={task.id}
+              ref={(node) => {
+                if (node) {
+                  taskRowRefs.current.set(task.id, node);
+                  return;
+                }
+                taskRowRefs.current.delete(task.id);
+              }}
+              className={`transcription-match-row ai-match-row-grid${highlightTaskId === task.id ? ' ai-embed-task-row-focus' : ''}`}
+              tabIndex={-1}
+              data-task-id={task.id}
+            >
               <div className="ai-card-row ai-card-row-space">
                 <span className="ai-text-11">{`${task.taskType.toUpperCase()} · ${task.status.toUpperCase()}`}</span>
                 <em>{new Date(task.updatedAt).toLocaleTimeString()}</em>
@@ -202,6 +270,7 @@ export function AiEmbeddingCard() {
                 </div>
               )}
               <div className="ai-card-row ai-card-row-gap-sm">
+                {task.taskType === 'agent_loop' && (task.resumable || task.checkpointJson) && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onResumeAiTask} onClick={() => void onResumeAiTask?.(task.id)}>{messages.resume}</button>}
                 {(task.status === 'pending' || task.status === 'running') && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onCancelAiTask} onClick={() => void onCancelAiTask?.(task.id)}>{messages.cancel}</button>}
                 {task.status === 'failed' && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onRetryAiTask} onClick={() => void onRetryAiTask?.(task.id)}>{messages.retry}</button>}
                 {task.taskType === 'agent_loop' && !!task.handoffReason && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" onClick={notifyOpenApprovalCenter}>{messages.viewApproval}</button>}

@@ -6,6 +6,7 @@ import type { SaveState } from '../hooks/transcriptionTypes';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
 import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
+import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 import { createAssistantRuntimeProps } from './TranscriptionPage.runtimeProps';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 
@@ -27,6 +28,7 @@ interface UseTranscriptionAssistantRuntimePropsInput {
     mode: VoiceAgentMode;
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>;
+  executeVoiceToolCall?: VoiceAssistantToolCallHandler;
   handleVoiceDictation: (text: string) => void;
   handleVoiceAnalysisResult: (unitId: string | null, analysisText: string) => void;
   selectionSnapshot: TranscriptionSelectionSnapshot;
@@ -60,6 +62,7 @@ export function useTranscriptionAssistantRuntimeProps(
     getActiveTextPrimaryLanguageId: input.getActiveTextPrimaryLanguageId,
     executeAction: input.executeAction,
     handleResolveVoiceIntentWithLlm: input.handleResolveVoiceIntentWithLlm,
+    ...(input.executeVoiceToolCall !== undefined ? { executeVoiceToolCall: input.executeVoiceToolCall } : {}),
     handleVoiceDictation: input.handleVoiceDictation,
     handleVoiceAnalysisResult: input.handleVoiceAnalysisResult,
     selection: input.selectionSnapshot,
@@ -81,6 +84,7 @@ export function useTranscriptionAssistantRuntimeProps(
     input.dictationPipeline,
     input.dictationPreviewTextProps,
     input.executeAction,
+    input.executeVoiceToolCall,
     input.formatSidePaneLayerLabel,
     input.formatTime,
     input.getActiveTextPrimaryLanguageId,

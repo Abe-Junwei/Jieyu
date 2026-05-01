@@ -73,6 +73,72 @@ describe('useAiChat.backgroundMemory', () => {
     });
   });
 
+  it('keeps background extraction behavior when sandbox flag is disabled', async () => {
+    let memory: AiSessionMemory = {};
+    const persisted = vi.fn<(next: AiSessionMemory) => void>();
+    const insertAuditLog = vi.fn<(entry: AuditLogDocType) => Promise<void>>(async () => {});
+    const runtime = createAiChatBackgroundMemoryRuntime({
+      enabled: true,
+      sandboxEnabled: false,
+      sandboxProfile: 'deny_by_default',
+      getSessionMemory: () => memory,
+      setSessionMemory: (next) => { memory = next; },
+      persistSessionMemory: persisted,
+    });
+    runtime.extractor.schedule({
+      conversationId: 'conv-1',
+      assistantMessageId: 'ast-1',
+      userMessageId: 'usr-1',
+      userText: '请记住：默认用中文解释',
+      assistantText: '我记住了。',
+      actorId: 'ai-chat',
+    });
+    await flushBackgroundMemoryExtractor(runtime, insertAuditLog);
+
+    expect(persisted).toHaveBeenCalledTimes(1);
+    expect(memory.responsePreferences?.language).toBe('zh-CN');
+    expect(insertAuditLog.mock.calls[0]?.[0]).toMatchObject({
+      field: 'ai_background_memory_extraction',
+      newValue: 'completed',
+    });
+    const metadata = JSON.parse(String(insertAuditLog.mock.calls[0]?.[0].metadataJson ?? '{}')) as Record<string, unknown>;
+    expect(metadata.sandboxDecision).toEqual({ action: 'allow', reason: 'sandbox-disabled' });
+  });
+
+  it('skips background extraction when sandbox profile requires approval', async () => {
+    let memory: AiSessionMemory = {};
+    const persisted = vi.fn<(next: AiSessionMemory) => void>();
+    const insertAuditLog = vi.fn<(entry: AuditLogDocType) => Promise<void>>(async () => {});
+    const runtime = createAiChatBackgroundMemoryRuntime({
+      enabled: true,
+      sandboxEnabled: true,
+      sandboxProfile: 'readonly',
+      getSessionMemory: () => memory,
+      setSessionMemory: (next) => { memory = next; },
+      persistSessionMemory: persisted,
+    });
+    runtime.extractor.schedule({
+      conversationId: 'conv-1',
+      assistantMessageId: 'ast-1',
+      userMessageId: 'usr-1',
+      userText: '请记住：默认用中文解释',
+      assistantText: '我记住了。',
+      actorId: 'ai-chat',
+    });
+    await flushBackgroundMemoryExtractor(runtime, insertAuditLog);
+
+    expect(persisted).not.toHaveBeenCalled();
+    expect(memory.responsePreferences).toBeUndefined();
+    expect(insertAuditLog).toHaveBeenCalledTimes(1);
+    expect(insertAuditLog.mock.calls[0]?.[0]).toMatchObject({
+      field: 'ai_background_memory_extraction',
+      newValue: 'skipped',
+    });
+    const metadata = JSON.parse(String(insertAuditLog.mock.calls[0]?.[0].metadataJson ?? '{}')) as Record<string, unknown>;
+    expect(metadata.skippedReason).toBe('sandbox-denied');
+    expect(metadata.sandboxDecision).toEqual({ action: 'ask', reason: 'readonly-write-not-allowed' });
+  });
+
   it('does not emit stale directive logs when flush is skipped', async () => {
     let memory: AiSessionMemory = {};
     const insertAuditLog = vi.fn<(entry: AuditLogDocType) => Promise<void>>(async () => {});

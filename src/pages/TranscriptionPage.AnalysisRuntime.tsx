@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { EmbeddingProvider } from '../contexts/EmbeddingContext';
 import { useAiEmbeddingState } from '../hooks/useAiEmbeddingState';
 import { useEmbeddingContextValue } from '../hooks/useEmbeddingContextValue';
 import { getGlobalTaskRunner } from '../ai/tasks/taskRunnerSingleton';
+import { notifyOpenApprovalCenter, notifyRequestAgentLoopResume, REQUEST_EMBEDDING_TASK_FOCUS_EVENT, type RequestEmbeddingTaskFocusDetail } from '../ai/tasks/taskRefreshEvents';
 import { saveEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { AiAnalysisPanel } from '../components/AiAnalysisPanel';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -59,6 +60,21 @@ export function TranscriptionPageAnalysisRuntime({
     fireAndForget(refreshEmbeddingTasks(), { context: 'src/pages/TranscriptionPage.AnalysisRuntime.tsx:L59', policy: 'user-visible' });
   }, [panel.analysisTab, refreshEmbeddingTasks]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onRequestTaskFocus = (event: Event) => {
+      const customEvent = event as CustomEvent<RequestEmbeddingTaskFocusDetail>;
+      const taskId = customEvent.detail?.taskId;
+      if (!taskId || taskId.trim().length === 0) return;
+      panel.onAnalysisTabChange?.('embedding');
+      fireAndForget(refreshEmbeddingTasks(), { context: 'src/pages/TranscriptionPage.AnalysisRuntime.tsx:L73', policy: 'user-visible' });
+    };
+    window.addEventListener(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, onRequestTaskFocus as EventListener);
+    return () => {
+      window.removeEventListener(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, onRequestTaskFocus as EventListener);
+    };
+  }, [panel, refreshEmbeddingTasks]);
+
   const handleTestEmbeddingProvider = useMemo(
     () => async () => {
       const { testEmbeddingProvider } = await import('../ai/embeddings/EmbeddingProviderCatalog');
@@ -66,6 +82,11 @@ export function TranscriptionPageAnalysisRuntime({
     },
     [embedding.provider.config.embeddingProviderConfig],
   );
+
+  const handleResumeAiTask = useCallback((taskId: string) => {
+    notifyOpenApprovalCenter();
+    notifyRequestAgentLoopResume({ taskId });
+  }, []);
 
   const embeddingContextValue = useEmbeddingContextValue({
     selectedUnit: embedding.source.selectedUnit,
@@ -90,6 +111,7 @@ export function TranscriptionPageAnalysisRuntime({
     onRefreshEmbeddingTasks: refreshEmbeddingTasks,
     onJumpToEmbeddingMatch: embedding.navigation.onJumpToEmbeddingMatch,
     onJumpToCitation: embedding.navigation.onJumpToCitation,
+    onResumeAiTask: handleResumeAiTask,
     onCancelAiTask: handleCancelAiTask,
     onRetryAiTask: handleRetryAiTask,
   });

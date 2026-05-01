@@ -8,6 +8,7 @@ import type { Locale } from '../i18n';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
 import type { PdfPreviewOpenRequest, TranscriptionPageAnalysisRuntimeProps, TranscriptionPageAssistantRuntimeProps, TranscriptionPageEmbeddingProviderConfig, TranscriptionPagePdfRuntimeProps } from './TranscriptionPage.runtimeContracts';
+import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import { useTranscriptionAssistantRuntimeProps } from './useTranscriptionAssistantRuntimeProps';
 import { useTranscriptionAnalysisRuntimeProps } from './useTranscriptionAnalysisRuntimeProps';
@@ -41,6 +42,7 @@ interface UseTranscriptionRuntimePropsInput {
     mode: VoiceAgentMode;
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>;
+  executeVoiceToolCall?: VoiceAssistantToolCallHandler;
   handleVoiceDictation: (text: string) => void;
   handleVoiceAnalysisResult: (unitId: string | null, analysisText: string) => void;
   selectionSnapshot: TranscriptionSelectionSnapshot;
@@ -98,6 +100,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
     getActiveTextPrimaryLanguageId: input.getActiveTextPrimaryLanguageId,
     executeAction: input.executeAction,
     handleResolveVoiceIntentWithLlm: input.handleResolveVoiceIntentWithLlm,
+    ...(input.executeVoiceToolCall !== undefined ? { executeVoiceToolCall: input.executeVoiceToolCall } : {}),
     handleVoiceDictation: input.handleVoiceDictation,
     handleVoiceAnalysisResult: input.handleVoiceAnalysisResult,
     selectionSnapshot: input.selectionSnapshot,

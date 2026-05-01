@@ -20,6 +20,8 @@ import type { DictationPipelineCallbacks, QuickDictationConfig } from '../servic
 import { useLocale } from '../i18n';
 import { getVoiceInteractionMessages } from '../i18n/messages';
 import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
+import { useGlobalContext } from '../services/GlobalContextService';
+import { isAssistantWebSpeechTtsSupported, speakAssistantReplyWithWebSpeechTts, stopAssistantWebSpeechTts } from '../utils/assistantWebSpeechTts';
 
 interface VoiceMessageLike {
   role?: string;
@@ -67,6 +69,8 @@ interface UseVoiceInteractionOptions {
   voiceCorpusLangOverride: string | null;
   executeAction: Parameters<typeof useVoiceAgent>[0]['executeAction'];
   handleResolveVoiceIntentWithLlm: NonNullable<Parameters<typeof useVoiceAgent>[0]['resolveIntentWithLlm']>;
+  /** 与转写页 AI `handleAiToolCall` 同源 */
+  executeVoiceToolCall?: Parameters<typeof useVoiceAgent>[0]['executeVoiceToolCall'];
   handleVoiceDictation: NonNullable<Parameters<typeof useVoiceAgent>[0]['insertDictation']>;
   dictationPipeline?: {
     callbacks: DictationPipelineCallbacks;
@@ -114,6 +118,9 @@ interface UseVoiceInteractionReturn {
   handleMicPointerUp: () => void;
   handleAssistantVoicePanelOpen: () => void;
   handleAssistantVoicePanelToggle: () => void;
+  assistantTtsEnabled: boolean;
+  assistantTtsSupported: boolean;
+  onSetAssistantTtsEnabled: (on: boolean) => void;
 }
 
 function formatLanguageLabel(code: string): string {
@@ -130,6 +137,7 @@ export function useVoiceInteraction({
   voiceCorpusLangOverride,
   executeAction,
   handleResolveVoiceIntentWithLlm,
+  executeVoiceToolCall,
   handleVoiceDictation,
   dictationPipeline,
   onVoiceAnalysisResult,
@@ -156,6 +164,12 @@ export function useVoiceInteraction({
   voiceAiAssistantMessageBridgeRef,
 }: UseVoiceInteractionOptions): UseVoiceInteractionReturn {
   const locale = useLocale();
+  const { profile, updatePreference } = useGlobalContext();
+  const assistantTtsEnabled = profile.preferences.assistantTtsEnabled;
+  const onSetAssistantTtsEnabled = useCallback((on: boolean) => {
+    updatePreference('assistantTtsEnabled', on);
+  }, [updatePreference]);
+  const assistantTtsSupported = useMemo(() => isAssistantWebSpeechTtsSupported(), []);
   const messages = getVoiceInteractionMessages(locale);
   const [assistantVoiceExpanded, setAssistantVoiceExpanded] = useState(false);
   const [analysisWritebackFeedback, setAnalysisWritebackFeedback] = useState<{
@@ -215,6 +229,7 @@ export function useVoiceInteraction({
     },
     resolveIntentWithLlm: handleResolveVoiceIntentWithLlm,
     insertDictation: handleVoiceDictation,
+    ...(executeVoiceToolCall !== undefined ? { executeVoiceToolCall } : {}),
     ...(dictationPipeline !== undefined ? { dictationPipeline } : {}),
     ...(localWhisperConfig.baseUrl ? { whisperServerUrl: localWhisperConfig.baseUrl } : {}),
     ...(localWhisperConfig.model ? { whisperServerModel: localWhisperConfig.model } : {}),
@@ -366,17 +381,21 @@ export function useVoiceInteraction({
     if (!ref) return;
     ref.current = (_assistantMessageId, content) => {
       voiceAgentRef.current?.notifyAiStreamFinished?.(content);
+      if (featureVoiceEnabled && assistantTtsEnabled && assistantTtsSupported && content.trim().length > 0) {
+        speakAssistantReplyWithWebSpeechTts(content, locale);
+      }
     };
     return () => {
       ref.current = null;
     };
-  }, [voiceAiAssistantMessageBridgeRef]);
+  }, [assistantTtsEnabled, assistantTtsSupported, featureVoiceEnabled, locale, voiceAiAssistantMessageBridgeRef]);
 
   useEffect(() => {
     const wasStreaming = prevAiStreamingRef.current;
     const isStreaming = aiIsStreaming;
 
     if (!wasStreaming && isStreaming) {
+      stopAssistantWebSpeechTts();
       voiceAgent.notifyAiStreamStarted?.();
     }
 
@@ -493,5 +512,8 @@ export function useVoiceInteraction({
     handleMicPointerUp,
     handleAssistantVoicePanelOpen,
     handleAssistantVoicePanelToggle,
+    assistantTtsEnabled,
+    assistantTtsSupported,
+    onSetAssistantTtsEnabled,
   };
 }

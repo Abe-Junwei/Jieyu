@@ -10,6 +10,7 @@ import type { Locale } from '../i18n';
 import type { VoiceIntent, VoiceSession } from '../types/voiceSession.types';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
+import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 
 export interface TranscriptionPageAssistantRuntimeFrameProps {
   saveState: SaveState;
@@ -33,6 +34,8 @@ export interface TranscriptionPageAssistantRuntimeVoiceIntentProps {
     mode: VoiceAgentMode;
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>;
+  /** 与 AI `useAiChat.onToolCall` 同源；语音 `tool` 意图真执行 */
+  executeVoiceToolCall?: VoiceAssistantToolCallHandler;
 }
 
 export interface TranscriptionPageAssistantRuntimeVoiceWritebackProps {

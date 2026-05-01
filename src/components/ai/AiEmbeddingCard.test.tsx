@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../../i18n';
 import { EmbeddingProvider, DEFAULT_EMBEDDING_CONTEXT_VALUE, type EmbeddingContextValue } from '../../contexts/EmbeddingContext';
 import { pickEmbeddingContextValue } from '../../hooks/useEmbeddingContextValue';
+import { EMBEDDING_TASK_FOCUS_TASK_ID_STORAGE_KEY, REQUEST_EMBEDDING_TASK_FOCUS_EVENT } from '../../ai/tasks/taskRefreshEvents';
 import { AiEmbeddingCard } from './AiEmbeddingCard';
 
 function makeEmbeddingContextValue(overrides: Partial<EmbeddingContextValue> = {}): EmbeddingContextValue {
@@ -26,6 +27,7 @@ function renderCard(overrides: Partial<EmbeddingContextValue> = {}) {
 
 afterEach(() => {
   cleanup();
+  window.sessionStorage.removeItem(EMBEDDING_TASK_FOCUS_TASK_ID_STORAGE_KEY);
 });
 
 describe('AiEmbeddingCard', () => {
@@ -101,6 +103,75 @@ describe('AiEmbeddingCard', () => {
 
     expect(screen.getByText('AGENT_LOOP · FAILED')).toBeTruthy();
     expect(screen.queryByText('EMBED · DONE')).toBeNull();
+  });
+
+  it('switches to agent_loop and focuses requested task when reverse-focus event arrives', async () => {
+    renderCard({
+      aiEmbeddingTasks: [
+        { id: 'task-embed', taskType: 'embed', status: 'done', updatedAt: '2026-04-03T00:00:00.000Z' },
+        {
+          id: 'task-loop-focus',
+          taskType: 'agent_loop',
+          status: 'pending',
+          updatedAt: '2026-04-03T00:00:01.000Z',
+          resumable: true,
+          checkpointJson: '{"kind":"agent_loop_token_budget_warning"}',
+          handoffReason: 'token_budget_warning',
+        },
+      ],
+    });
+
+    fireEvent(window, new CustomEvent(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, {
+      detail: { taskId: 'task-loop-focus' },
+    }));
+
+    await waitFor(() => {
+      expect(screen.getByText('AGENT_LOOP · PENDING')).toBeTruthy();
+      expect(screen.queryByText('EMBED · DONE')).toBeNull();
+    });
+  });
+
+  it('consumes persisted reverse-focus task id when card mounts', async () => {
+    window.sessionStorage.setItem(EMBEDDING_TASK_FOCUS_TASK_ID_STORAGE_KEY, 'task-loop-storage-focus');
+
+    renderCard({
+      aiEmbeddingTasks: [
+        { id: 'task-embed', taskType: 'embed', status: 'done', updatedAt: '2026-04-03T00:00:00.000Z' },
+        {
+          id: 'task-loop-storage-focus',
+          taskType: 'agent_loop',
+          status: 'running',
+          updatedAt: '2026-04-03T00:00:01.000Z',
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('AGENT_LOOP · RUNNING')).toBeTruthy();
+      expect(screen.queryByText('EMBED · DONE')).toBeNull();
+    });
+  });
+
+  it('triggers resume callback for resumable agent_loop task', () => {
+    const onResumeAiTask = vi.fn(async () => undefined);
+    renderCard({
+      onResumeAiTask,
+      aiEmbeddingTasks: [
+        {
+          id: 'task-loop-resume',
+          taskType: 'agent_loop',
+          status: 'pending',
+          updatedAt: '2026-04-03T00:00:01.000Z',
+          resumable: true,
+          checkpointJson: '{"kind":"agent_loop_token_budget_warning"}',
+          handoffReason: 'token_budget_warning',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '恢复' }));
+    expect(onResumeAiTask).toHaveBeenCalledTimes(1);
+    expect(onResumeAiTask).toHaveBeenCalledWith('task-loop-resume');
   });
 
   it('tests provider connectivity and dispatches action callbacks', async () => {

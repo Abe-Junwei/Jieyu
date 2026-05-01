@@ -28,6 +28,7 @@ export type AiEmbeddingCardMessages = {
   resumableLabel: string;
   checkpointLabel: string;
   handoffReasonLabel: string;
+  resume: string;
   cancel: string;
   retry: string;
   viewApproval: string;
@@ -73,6 +74,7 @@ export function getAiEmbeddingCardMessages(isZh: boolean): AiEmbeddingCardMessag
     resumableLabel: t(l, 'msg.embCard.resumableLabel'),
     checkpointLabel: t(l, 'msg.embCard.checkpointLabel'),
     handoffReasonLabel: t(l, 'msg.embCard.handoffReasonLabel'),
+    resume: t(l, 'msg.embCard.resume'),
     cancel: t(l, 'msg.embCard.cancel'),
     retry: t(l, 'msg.embCard.retry'),
     viewApproval: t(l, 'msg.embCard.viewApproval'),

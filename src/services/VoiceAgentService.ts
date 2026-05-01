@@ -7,6 +7,7 @@
  * - \u4e0d\u4f9d\u8d56 React，\u4e0d\u4f7f\u7528 useState/useEffect/useCallback
  * - \u6240\u6709\u72b6\u6001\u901a\u8fc7\u4e8b\u4ef6\u6d3e\u53d1，\u5916\u90e8\u901a\u8fc7\u8ba2\u9605\u673a\u5236\u83b7\u53d6
  * - \u4e0e useVoiceAgent hook \u5171\u4eab\u5b9e\u73b0，\u4fdd\u6301\u5411\u540e\u517c\u5bb9
+ * - ADR-0028\uff1a\u751f\u4ea7\u754c\u9762\u4ee5 useVoiceAgent \u4e3a\u4e3b\u8def\u5f84\uff1bcommandBridge \u4e0e hook \u5171\u7528 assistantVoiceIntentDispatch\uff08\u542b appendTurnToVoiceSession\uff09\u4ee5\u7edf\u4e00\u56de\u5408\u8bb0\u5f55\u4e0e\u5206\u53d1\u3002
  *
  * @see \u89e3\u8bed\u8bed\u97f3\u667a\u80fd\u4f53\u67b6\u6784\u8bbe\u8ba1\u65b9\u6848 v2.5 §\u9636\u6bb51
  */
@@ -25,7 +26,7 @@ import { detectRegion } from '../utils/regionDetection';
 import * as Earcon from './EarconService';
 import { unlockAudio } from './EarconService';
 import { globalContext } from './GlobalContextService';
-import { userBehaviorStore } from './UserBehaviorStore';
+import { applyVoiceConfirmedPendingTelemetry } from './voiceConfirmedPendingTelemetry';
 import { buildVoiceAgentGroundingContext, type GroundingContextData, type VoiceAgentGroundingUiContext } from './VoiceAgentGroundingContext';
 import { createLogger } from '../observability/logger';
 import { BrowserEventEmitter } from './VoiceAgentService.eventEmitter';
@@ -91,7 +92,7 @@ export interface VoiceAgentServiceState {
   lastIntent: VoiceIntent | null;
   error: string | null;
   safeMode: boolean;
-  pendingConfirm: { actionId: ActionId; label: string; fromFuzzy?: boolean } | null;
+  pendingConfirm: { actionId: ActionId; label: string; fromFuzzy?: boolean; params?: { segmentIndex?: number } } | null;
   session: VoiceSession;
   engine: SttEngine;
   isRecording: boolean;
@@ -172,7 +173,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private _lastIntent: VoiceIntent | null = null;
   private _error: string | null = null;
   private _safeMode = false;
-  private _pendingConfirm: { actionId: ActionId; label: string; fromFuzzy?: boolean } | null = null;
+  private _pendingConfirm: { actionId: ActionId; label: string; fromFuzzy?: boolean; params?: { segmentIndex?: number } } | null = null;
   private _session: VoiceSession = createInitialSession();
   private _engine: SttEngine = 'web-speech';
   private _isRecording = false;
@@ -863,13 +864,14 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   confirmPending(): void {
     if (!this._pendingConfirm) return;
-    const actionId = this._pendingConfirm.actionId;
+    const { actionId, params } = this._pendingConfirm;
     this._setState({ pendingConfirm: null, agentState: 'executing' });
-    this._onExecuteAction?.(actionId);
-    Earcon.playSuccess();
-    // Record action
-    globalContext.markSessionStart();
-    userBehaviorStore.recordAction({ actionId, durationMs: 0, sessionId: this._session.id, inputModality: 'voice' });
+    this._onExecuteAction?.(actionId, params);
+    applyVoiceConfirmedPendingTelemetry({
+      actionId,
+      sessionId: this._session.id,
+      inputModality: 'voice',
+    });
     this._setState({ agentState: 'idle' });
   }
 
@@ -1072,14 +1074,22 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 }
 
-// ── Singleton export ────────────────────────────────────────────────────────
+// ── Singleton export（非生产主路径：转写页使用 `useVoiceAgent`；此处供单测与无 React 宿主场景）─────────────────
 
 let _instance: VoiceAgentService | null = null;
 
+/**
+ * 返回当前进程内单例（若尚未 `createVoiceAgentService` 则为 null）。
+ * 生产界面请使用 `useVoiceAgent`，勿依赖此单例。
+ */
 export function getVoiceAgentService(): VoiceAgentService | null {
   return _instance;
 }
 
+/**
+ * 创建或替换全局 `VoiceAgentService` 单例。
+ * **ADR-0028**：与 Hook 栈并行仅存此薄出口；编排与 STT→意图→分发与 `useVoiceAgentResultHandler` 共用 `assistantVoiceIntentDispatch` 等模块。
+ */
 export async function createVoiceAgentService(options: VoiceAgentServiceOptions = {}): Promise<VoiceAgentService> {
   if (_instance) {
     await _instance.dispose();

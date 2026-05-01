@@ -1283,6 +1283,7 @@ function TranscriptionPageReadyWorkspace({
       getActiveTextPrimaryLanguageId,
       executeAction: playbackKeyboardController.executeAction,
       handleResolveVoiceIntentWithLlm: assistantController.handleResolveVoiceIntentWithLlm,
+      executeVoiceToolCall: deferredAiRuntime.executeVoiceToolCall,
       handleVoiceDictation: assistantController.handleVoiceDictation,
       handleVoiceAnalysisResult: assistantController.handleVoiceAnalysisResult,
       selectionSnapshot,

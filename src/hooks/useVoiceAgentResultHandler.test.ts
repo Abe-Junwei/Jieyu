@@ -78,6 +78,10 @@ vi.mock('../services/UserBehaviorStore', () => ({
   userBehaviorStore: { recordAction: mockRecordAction },
 }));
 
+vi.mock('../services/voiceMemoryPattern', () => ({
+  detectAndRecordMemoryPattern: vi.fn(),
+}));
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function makeSession(): VoiceSession {
@@ -98,6 +102,7 @@ function makeDefaultOptions(overrides: Record<string, unknown> = {}) {
   const insertDictation = vi.fn();
   return {
     locale: 'zh-CN' as const,
+    corpusLang: 'cmn',
     handlePipelineResult: vi.fn(() => false),
     modeRef: makeRefLike<VoiceMode>(DEFAULT_VOICE_MODE),
     safeModeRef: makeRefLike(false),
@@ -110,6 +115,7 @@ function makeDefaultOptions(overrides: Record<string, unknown> = {}) {
       mode: VoiceMode;
       session: VoiceSession;
     }) => Promise<VoiceIntent | null>) | undefined),
+    executeVoiceToolCallRef: makeRefLike(undefined),
     aliasMapRef: makeRefLike<Record<string, ActionId>>({}),
     queueAiThinking: vi.fn(),
     setDetectedLang: vi.fn(),
@@ -163,7 +169,7 @@ describe('useVoiceAgentResultHandler', () => {
     });
 
     expect(mockResolveVoiceIntent).toHaveBeenCalledTimes(1);
-    expect(opts.executeActionRef.current).toHaveBeenCalledWith('play');
+    expect(opts.executeActionRef.current).toHaveBeenCalledWith('play', undefined);
     expect(opts.setAgentState).toHaveBeenCalledWith('routing');
     expect(mockPlaySuccess).toHaveBeenCalledTimes(1);
   });
@@ -194,7 +200,7 @@ describe('useVoiceAgentResultHandler', () => {
     expect(opts.setAgentState).toHaveBeenCalledWith('idle');
   });
 
-  it('routes tool intent to AI chat as command', async () => {
+  it('routes tool intent to AI chat as command when no tool executor is wired', async () => {
     const toolIntent: VoiceIntent = {
       type: 'tool',
       toolName: 'search_units',
@@ -220,7 +226,47 @@ describe('useVoiceAgentResultHandler', () => {
     expect(opts.sendToAiChatRef.current).toHaveBeenCalledWith(
       tf('zh-CN', 'transcription.voice.chatPrefix.command', { text: '搜索 test' }),
     );
-    expect(opts.queueAiThinking).toHaveBeenCalledTimes(1);
+    expect(opts.queueAiThinking).not.toHaveBeenCalled();
+    expect(mockPlaySuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it('invokes executeVoiceToolCall for tool intent when wired', async () => {
+    const toolIntent: VoiceIntent = {
+      type: 'tool',
+      toolName: 'delete_transcription_segment',
+      params: { segmentId: 'seg-1' },
+      raw: 'delete',
+    };
+    mockResolveVoiceIntent.mockResolvedValue({
+      intent: toolIntent,
+      llmFallbackFailed: false,
+      llmResolvedAction: false,
+      nextAliasMap: undefined,
+      errorMessage: null,
+    });
+
+    const executeVoiceToolCall = vi.fn(async () => ({ ok: true, message: 'gone' }));
+    const opts = makeDefaultOptions({
+      executeVoiceToolCallRef: makeRefLike(executeVoiceToolCall),
+    });
+    const { useVoiceAgentResultHandler } = await importHandler();
+    const { result } = renderHook(() => useVoiceAgentResultHandler(opts));
+
+    await act(async () => {
+      await result.current(makeFinalResult('delete'));
+    });
+
+    expect(executeVoiceToolCall).toHaveBeenCalledWith({
+      name: 'delete_transcription_segment',
+      arguments: { segmentId: 'seg-1' },
+    });
+    expect(opts.sendToAiChatRef.current).toHaveBeenCalledWith(
+      tf('zh-CN', 'transcription.voice.chatPrefix.toolSuccess', {
+        toolName: 'delete_transcription_segment',
+        message: 'gone',
+      }),
+    );
+    expect(opts.queueAiThinking).not.toHaveBeenCalled();
     expect(mockPlaySuccess).toHaveBeenCalledTimes(1);
   });
 

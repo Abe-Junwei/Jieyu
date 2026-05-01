@@ -7,6 +7,7 @@ import type { Locale } from '../i18n';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
 import type { TranscriptionPageAssistantRuntimeFrameProps, TranscriptionPageAssistantRuntimeProps, TranscriptionPageAssistantRuntimeVoiceActionProps, TranscriptionPageAssistantRuntimeVoiceContextProps, TranscriptionPageAssistantRuntimeVoiceIntentProps, TranscriptionPageAssistantRuntimeVoiceLifecycleProps, TranscriptionPageAssistantRuntimeVoiceProps, TranscriptionPageAssistantRuntimeVoiceTargetProps, TranscriptionPageAssistantRuntimeVoiceWritebackProps, TranscriptionPageAnalysisEmbeddingProps, TranscriptionPageAnalysisEmbeddingNavigationProps, TranscriptionPageAnalysisEmbeddingProviderActionProps, TranscriptionPageAnalysisEmbeddingProviderConfigProps, TranscriptionPageAnalysisEmbeddingProviderProps, TranscriptionPageAnalysisEmbeddingSourceProps, TranscriptionPageAnalysisRuntimeProps, TranscriptionPageEmbeddingProviderConfig, PdfPreviewOpenRequest, TranscriptionPagePdfRuntimeProps, TranscriptionPagePdfRuntimeRequestProps } from './TranscriptionPage.runtimeContracts';
+import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 
 type AssistantRuntimeProps = Omit<TranscriptionPageAssistantRuntimeProps, 'locale' | 'aiChatContextValue'>;
@@ -29,6 +30,7 @@ interface CreateAssistantRuntimePropsInput {
     mode: VoiceAgentMode;
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>;
+  executeVoiceToolCall?: VoiceAssistantToolCallHandler;
   handleVoiceDictation: (text: string) => void;
   handleVoiceAnalysisResult: (unitId: string | null, analysisText: string) => void;
   selection: TranscriptionSelectionSnapshot;
@@ -94,6 +96,7 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
   const voiceIntent: TranscriptionPageAssistantRuntimeVoiceIntentProps = {
     executeAction: input.executeAction,
     handleResolveVoiceIntentWithLlm: input.handleResolveVoiceIntentWithLlm,
+    ...(input.executeVoiceToolCall !== undefined ? { executeVoiceToolCall: input.executeVoiceToolCall } : {}),
   };
 
   const voiceWriteback: TranscriptionPageAssistantRuntimeVoiceWritebackProps = {

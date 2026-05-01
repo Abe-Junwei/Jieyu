@@ -123,6 +123,9 @@ function AssistantVoiceRuntime({
   const {
     voiceAgent,
     assistantVoiceExpanded,
+    assistantTtsEnabled,
+    assistantTtsSupported,
+    onSetAssistantTtsEnabled,
     voiceTargetSummary,
     voiceStatusSummary,
     voiceEnvironmentSummary,
@@ -139,6 +142,9 @@ function AssistantVoiceRuntime({
     voiceCorpusLangOverride,
     executeAction: voice.actions.intent.executeAction,
     handleResolveVoiceIntentWithLlm: voice.actions.intent.handleResolveVoiceIntentWithLlm,
+    ...(voice.actions.intent.executeVoiceToolCall !== undefined
+      ? { executeVoiceToolCall: voice.actions.intent.executeVoiceToolCall }
+      : {}),
     handleVoiceDictation: voice.actions.writeback.handleVoiceDictation,
     onVoiceAnalysisResult: voice.actions.writeback.handleVoiceAnalysisResult,
     selection: voice.target.selection,
@@ -191,6 +197,7 @@ function AssistantVoiceRuntime({
     voiceError: voiceAgent.error,
     voiceSafeMode: voiceAgent.safeMode,
     voicePendingConfirm: voiceAgent.pendingConfirm,
+    voiceDisambiguationOptions: voiceAgent.disambiguationOptions,
     voiceCorpusLang: effectiveVoiceCorpusLang,
     voiceLangOverride: voiceCorpusLangOverride,
     voiceEnabled: featureFlags.voiceAgentEnabled,
@@ -198,6 +205,8 @@ function AssistantVoiceRuntime({
     onVoiceSwitchMode: voiceAgent.switchMode,
     onVoiceConfirm: voiceAgent.confirmPending,
     onVoiceCancel: voiceAgent.cancelPending,
+    onVoiceSelectDisambiguation: voiceAgent.selectDisambiguation,
+    onVoiceDismissDisambiguation: voiceAgent.dismissDisambiguation,
     onVoiceSetSafeMode: voiceAgent.setSafeMode,
   });
 
@@ -276,6 +285,9 @@ function AssistantVoiceRuntime({
             onCancel={voiceAgent.cancelPending}
             onSetSafeMode={voiceAgent.setSafeMode}
             onSetWakeWordEnabled={voiceAgent.setWakeWordEnabled}
+            assistantTtsSupported={assistantTtsSupported}
+            assistantTtsEnabled={assistantTtsEnabled}
+            onSetAssistantTtsEnabled={onSetAssistantTtsEnabled}
             onSetLangOverride={handleVoiceSetLangOverride}
             onSetCommercialProviderKind={voiceAgent.setCommercialProviderKind}
             onCommercialConfigChange={handleVoiceCommercialConfigChange}

@@ -20,7 +20,7 @@ import { formatRecentActions } from '../hooks/useEditEventBuffer';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import { createTranscriptionAiReadModelAccessors } from './transcriptionAiReadModelAccessors';
 import { buildOwnerUnitCandidates, resolveExplicitOwnerUnitForAi, resolveOwnerUnitForAi, resolveWritableAiTargetId } from './transcriptionAiSelectionResolver';
-import type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult } from './transcriptionAiController.types';
+import type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult, VoiceAssistantToolCallHandler } from './transcriptionAiController.types';
 import { useTranscriptionAiAcousticRuntime } from './useTranscriptionAiAcousticRuntime';
 import { bridgeTextForLayerTargetWithFallback, refreshRecentAiToolDecisionLogs, toSyntheticUnitDoc } from '../utils/transcriptionAiControllerHelpers';
 import {
@@ -405,6 +405,7 @@ export function useTranscriptionAiController(
     setEmbeddingProviderConfig,
     aiToolDecisionLogs,
     aiChat,
+    executeVoiceToolCall: handleAiToolCall as VoiceAssistantToolCallHandler,
     lexemeMatches,
     observerResult,
     actionableObserverRecommendations,

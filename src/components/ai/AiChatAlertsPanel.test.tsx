@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import { LocaleProvider } from '../../i18n';
 import type { PendingAiToolCall } from '../../hooks/useAiChat';
+import { REQUEST_EMBEDDING_TASK_FOCUS_EVENT } from '../../ai/tasks/taskRefreshEvents';
 import { AiChatAlertsPanel } from './AiChatAlertsPanel';
 
 const { resolveTextDirectionFromLocaleMock } = vi.hoisted(() => ({
@@ -182,6 +183,8 @@ describe('AiChatAlertsPanel', () => {
   it('shows durable handoff section and triggers resume callback when agent loop checkpoint exists', () => {
     const onResumeAgentLoop = vi.fn(async () => undefined);
     const onDismissAgentLoopHandoff = vi.fn(async () => undefined);
+    const onEmbeddingTaskFocus = vi.fn<(event: Event) => void>();
+    window.addEventListener(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, onEmbeddingTaskFocus as EventListener);
 
     renderPanel({
       alertCount: 1,
@@ -207,11 +210,17 @@ describe('AiChatAlertsPanel', () => {
     expect(screen.getByText(/请继续生成下一步操作建议/)).toBeTruthy();
     expect(screen.getByText(/Continuation:\s*继续/)).toBeTruthy();
 
+    fireEvent.click(screen.getByRole('button', { name: /Locate Task Row|定位任务行/i }));
+    expect(onEmbeddingTaskFocus).toHaveBeenCalledTimes(1);
+    const customEvent = onEmbeddingTaskFocus.mock.calls[0]?.[0] as CustomEvent<{ taskId?: string }>;
+    expect(customEvent.detail?.taskId).toBe('task_agent_loop_1');
+
     fireEvent.click(screen.getByRole('button', { name: /Resume|继续执行/i }));
     expect(onResumeAgentLoop).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: /Cancel|取消/i }));
     expect(onDismissAgentLoopHandoff).toHaveBeenCalledTimes(1);
+    window.removeEventListener(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, onEmbeddingTaskFocus as EventListener);
   });
 
   it('disables durable handoff resume action while ai stream is active', () => {

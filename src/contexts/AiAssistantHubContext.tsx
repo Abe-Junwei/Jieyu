@@ -17,10 +17,13 @@ export type AiAssistantHubContextValue =
     | 'voiceError'
     | 'voiceSafeMode'
     | 'voicePendingConfirm'
+    | 'voiceDisambiguationOptions'
     | 'onVoiceToggle'
     | 'onVoiceSwitchMode'
     | 'onVoiceConfirm'
     | 'onVoiceCancel'
+    | 'onVoiceSelectDisambiguation'
+    | 'onVoiceDismissDisambiguation'
     | 'onVoiceSetSafeMode'
   >;
 

@@ -7,9 +7,42 @@ import { useVoiceInteraction } from './useVoiceInteraction';
 
 const mockUseVoiceAgent = vi.hoisted(() => vi.fn());
 
+const mockAssistantTtsEnabledRef = vi.hoisted(() => ({ value: false }));
+
 vi.mock('./useVoiceAgent', () => ({
   useVoiceAgent: (...args: unknown[]) => mockUseVoiceAgent(...args),
 }));
+
+vi.mock('../services/GlobalContextService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../services/GlobalContextService')>();
+  return {
+    ...actual,
+    useGlobalContext: () => {
+      const base = actual.createDefaultUserBehaviorProfile();
+      return {
+        corpus: null,
+        profile: {
+          ...base,
+          preferences: { ...base.preferences, assistantTtsEnabled: mockAssistantTtsEnabledRef.value },
+        },
+        searchCorpus: async () => [],
+        setCorpusContext: vi.fn(),
+        recordAction: vi.fn(),
+        updatePreference: vi.fn(),
+        markSessionStart: vi.fn(),
+        getPreferencesSummary: vi.fn(),
+      };
+    },
+  };
+});
+
+vi.mock('../utils/assistantWebSpeechTts', () => ({
+  isAssistantWebSpeechTtsSupported: () => true,
+  speakAssistantReplyWithWebSpeechTts: vi.fn(),
+  stopAssistantWebSpeechTts: vi.fn(),
+}));
+
+import { speakAssistantReplyWithWebSpeechTts } from '../utils/assistantWebSpeechTts';
 
 function makeLayer(
   id: string,
@@ -47,6 +80,7 @@ function makeLink(id: string, transcriptionLayerKey: string, hostTranscriptionLa
 
 describe('useVoiceInteraction', () => {
   beforeEach(() => {
+    mockAssistantTtsEnabledRef.value = false;
     mockUseVoiceAgent.mockReturnValue({
       mode: 'dictation',
       agentState: 'idle',
@@ -177,9 +211,81 @@ describe('useVoiceInteraction', () => {
       bridgeRef.current?.('assistant-id-1', 'final body');
     });
     expect(notifyAiStreamFinished).toHaveBeenCalledWith('final body');
+    expect(speakAssistantReplyWithWebSpeechTts).not.toHaveBeenCalled();
 
     unmount();
     expect(bridgeRef.current).toBe(null);
+  });
+
+  it('calls speakAssistantReplyWithWebSpeechTts when assistant TTS preference is on', async () => {
+    mockAssistantTtsEnabledRef.value = true;
+    vi.mocked(speakAssistantReplyWithWebSpeechTts).mockClear();
+
+    const notifyAiStreamFinished = vi.fn();
+    const bridgeRef: { current: ((assistantMessageId: string, content: string) => void) | null } = { current: null };
+
+    mockUseVoiceAgent.mockReturnValue({
+      mode: 'dictation',
+      agentState: 'idle',
+      listening: false,
+      engine: 'web-speech',
+      detectedLang: null,
+      notifyAiStreamStarted: vi.fn(),
+      notifyAiStreamFinished,
+      testWhisperLocal: vi.fn(async () => ({ available: true })),
+      setExternalError: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      toggle: vi.fn(),
+      switchEngine: vi.fn(),
+      startRecording: vi.fn(async () => undefined),
+      stopRecording: vi.fn(async () => undefined),
+      isRecording: false,
+      disambiguationOptions: [],
+      pendingConfirm: null,
+      error: null,
+    });
+
+    renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: '__auto__',
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      onVoiceAnalysisResult: vi.fn(),
+      selection: {
+        activeUnitId: 'utt-1',
+        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+        selectedRowMeta: null,
+        selectedLayerId: 'trc-default',
+        selectedUnitKind: 'unit',
+        selectedTimeRangeLabel: '0.00 - 1.00',
+      },
+      defaultTranscriptionLayerId: 'trc-default',
+      translationLayers: [],
+      layers: [makeLayer('trc-default', 'transcription')],
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend: vi.fn(async () => undefined),
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+      voiceAiAssistantMessageBridgeRef: bridgeRef,
+    }));
+
+    await act(async () => {
+      bridgeRef.current?.('assistant-id-2', 'hello');
+    });
+
+    expect(speakAssistantReplyWithWebSpeechTts).toHaveBeenCalledWith('hello', expect.any(String));
   });
 
   it('falls back to host child translation layer instead of first translation layer when no layer is selected', () => {

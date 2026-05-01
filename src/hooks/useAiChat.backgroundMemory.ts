@@ -1,6 +1,7 @@
 import type { BackgroundMemoryExtractionAudit, BackgroundMemoryExtractionInput, ExtractedMemoryFact } from '../ai/memory/backgroundMemoryExtractor';
 import { BackgroundMemoryExtractor } from '../ai/memory/backgroundMemoryExtractor';
 import type { AiSessionMemory } from '../ai/chat/chatDomain.types';
+import { resolveBackgroundToolSandboxDecision, type BackgroundToolSandboxProfile } from '../ai/sandbox/backgroundToolSandbox';
 import { extractUserDirectives } from '../ai/memory/userDirectiveExtractor';
 import { applyUserDirectivesToSessionMemory, summarizeDirectiveApplication, type UserDirectiveApplicationResult } from '../ai/memory/userDirectiveRegistry';
 import type { AuditLogDocType } from '../db/types';
@@ -8,6 +9,11 @@ import { newAuditLogId, nowIso } from './useAiChat.helpers';
 
 const MAX_BACKGROUND_FACTS = 24;
 const MAX_FACT_CHARS = 240;
+const AI_CHAT_SANDBOX_WORKSPACE_ROOT = '/ai-chat-runtime';
+const AI_CHAT_BACKGROUND_MEMORY_WRITE_PATH = 'session-memory/background-extraction';
+
+export const AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE: BackgroundToolSandboxProfile = 'restricted_write';
+export const AI_CHAT_BACKGROUND_MEMORY_SANDBOX_AUTHORIZED_DIRS: readonly string[] = ['session-memory'];
 
 export interface AiChatBackgroundMemoryRuntime {
   extractor: BackgroundMemoryExtractor;
@@ -17,6 +23,9 @@ export interface AiChatBackgroundMemoryRuntime {
 
 export interface CreateAiChatBackgroundMemoryRuntimeParams {
   enabled: boolean;
+  sandboxEnabled?: boolean;
+  sandboxProfile?: BackgroundToolSandboxProfile;
+  sandboxAuthorizedWriteDirs?: readonly string[];
   getSessionMemory: () => AiSessionMemory;
   setSessionMemory: (next: AiSessionMemory) => void;
   persistSessionMemory: (next: AiSessionMemory) => void;
@@ -103,9 +112,18 @@ export function appendBackgroundFactsToSessionMemory(
 
 export function createAiChatBackgroundMemoryRuntime(params: CreateAiChatBackgroundMemoryRuntimeParams): AiChatBackgroundMemoryRuntime {
   let lastDirectiveApplication: UserDirectiveApplicationResult | null = null;
+  const sandboxDecision = resolveBackgroundToolSandboxDecision({
+    enabled: params.sandboxEnabled ?? false,
+    profile: params.sandboxProfile ?? AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE,
+    kind: 'file_write',
+    workspaceRoot: AI_CHAT_SANDBOX_WORKSPACE_ROOT,
+    path: AI_CHAT_BACKGROUND_MEMORY_WRITE_PATH,
+    authorizedWriteDirs: params.sandboxAuthorizedWriteDirs ?? AI_CHAT_BACKGROUND_MEMORY_SANDBOX_AUTHORIZED_DIRS,
+  });
   const extractor = new BackgroundMemoryExtractor({
     enabled: params.enabled,
     actorId: 'ai-chat',
+    sandboxDecision,
     extractFacts: extractBackgroundMemoryFacts,
     writeFacts: (facts, input) => {
       const directives = extractUserDirectives({
@@ -171,6 +189,7 @@ export function buildBackgroundMemoryAuditLog(
       durationMs: audit.durationMs,
       ...(directiveSummary ? { directiveSummary } : {}),
       ...(audit.skippedReason ? { skippedReason: audit.skippedReason } : {}),
+      ...(audit.sandboxDecision ? { sandboxDecision: audit.sandboxDecision } : {}),
       ...(audit.errorMessage ? { errorMessage: audit.errorMessage } : {}),
     }),
   };

@@ -1636,6 +1636,79 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     expect(splitAtTime).toHaveBeenCalledWith(3.2);
   });
 
+  it('routes split_at_time through rollback-capable segment split when target segment can be resolved', async () => {
+    const segment = { ...makeUnit('seg-split-time'), startTime: 3, endTime: 4 };
+    const splitTranscriptionSegment = vi.fn(async () => ({ keepSegmentId: 'seg-split-time', removeSegmentId: 'seg-split-time-r' }));
+    const splitAtTime = vi.fn<(timeSeconds: number) => boolean>().mockReturnValue(true);
+    const mergeAdjacentSegmentsForAiRollback = vi.fn(async () => undefined);
+    const silentSegmentGraphSyncForAi = vi.fn(async () => undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          units: [segment],
+          splitTranscriptionSegment,
+          splitAtTime,
+          mergeAdjacentSegmentsForAiRollback,
+          silentSegmentGraphSyncForAi,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({ name: 'split_at_time', arguments: { timeSeconds: 3.2 } });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(splitTranscriptionSegment).toHaveBeenCalledWith('seg-split-time', 3.2);
+    expect(splitAtTime).not.toHaveBeenCalled();
+    expect(typeof response?.rollback).toBe('function');
+
+    await act(async () => {
+      await response?.rollback?.();
+    });
+
+    expect(mergeAdjacentSegmentsForAiRollback).toHaveBeenCalledWith('seg-split-time', 'seg-split-time-r');
+    expect(silentSegmentGraphSyncForAi).not.toHaveBeenCalled();
+  });
+
+  it('routes delete_segment with explicit target through segment delete rollback path', async () => {
+    installAiStructuralRollbackSnapshotSpies();
+    const target = makeUnit('seg-delete-target');
+    const deleteUnit = vi.fn(async () => undefined);
+    const silentSegmentGraphSyncForAi = vi.fn(async () => undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          units: [target],
+          selectedUnit: target,
+          deleteUnit,
+          silentSegmentGraphSyncForAi,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'delete_segment',
+        arguments: { segmentId: 'seg-delete-target' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(deleteUnit).toHaveBeenCalledWith('seg-delete-target');
+    expect(typeof response?.rollback).toBe('function');
+
+    await act(async () => {
+      await response?.rollback?.();
+    });
+
+    expect(silentSegmentGraphSyncForAi).toHaveBeenCalledTimes(1);
+  });
+
   it('honors zoomLevel when zoom_to_segment is backed by runtime callback', async () => {
     const zoomToSegment = vi.fn<(segmentId: string, zoomLevel?: number) => boolean>().mockReturnValue(true);
     const unit = makeUnit('u-zoom');

@@ -18,7 +18,7 @@ export const featureFlags = {
   aiMemoryBrokerEnabled: true,
   /** C 阶段：意图多候选与置信门控（dogfood 已启用）| C-stage intent confidence gate (dogfood enabled) */
   aiIntentConfidenceGateEnabled: true,
-  /** C 阶段：后台任务工具沙箱（默认关闭，尚未接入运行时）| C-stage background task sandbox (off; no runtime wiring yet) */
+  /** C 阶段：后台任务工具沙箱（默认关闭；当前接入后台记忆抽取路径）| C-stage background task sandbox (off by default; wired for background memory extraction) */
   aiBackgroundToolSandboxEnabled: false,
   /** C 阶段：后台记忆抽取（dogfood 已启用）| C-stage background memory extractor (dogfood enabled) */
   aiBackgroundMemoryExtractorEnabled: true,

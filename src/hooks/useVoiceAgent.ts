@@ -6,8 +6,10 @@ import type { WakeWordDetector as WakeWordDetectorType } from '../services/WakeW
 import type { ActionId, ActionIntent, VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import { toBcp47 } from '../utils/langMapping';
 import type { CommercialProviderCreateConfig, SttEnhancementConfig, SttEnhancementReachability, SttEnhancementSelectionKind } from '../services/stt';
+import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 import { useLatest } from './useLatest';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+import { publishAssistantDialogueVoiceLayer } from '../services/assistantDialogueState';
 import { useVoiceAgentDictationPipeline } from './useVoiceAgentDictationPipeline';
 import { useVoiceAgentProviderControls } from './useVoiceAgentProviderControls';
 import { useVoiceAgentResultHandler } from './useVoiceAgentResultHandler';
@@ -29,6 +31,7 @@ export interface VoicePendingConfirm {
   actionId: ActionId;
   label: string;
   fromFuzzy?: boolean;
+  params?: { segmentIndex?: number };
 }
 
 export interface VoiceAgentState {
@@ -64,7 +67,7 @@ export interface UseVoiceAgentOptions {
   /** Language override from the UI selector. '__auto__' = auto-detect, null = use corpusLang. */
   langOverride?: string | null;
   /** Execute a UI action by ActionId */
-  executeAction: (actionId: ActionId) => void;
+  executeAction: (actionId: ActionId, params?: { segmentIndex?: number }) => void;
   /** Send text to AI chat (for analysis/chat intents). The AI response is captured via setAnalysisFillCallback. */
   sendToAiChat?: (text: string) => void;
   /** Insert dictated text into the active field */
@@ -82,6 +85,11 @@ export interface UseVoiceAgentOptions {
     mode: VoiceAgentMode;
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>;
+  /**
+   * 与 AI 侧 `onToolCall` 同源的工具执行（语音 tool 意图真执行，见 ADR-0028）
+   * Shared with AI chat `onToolCall` for real tool execution on voice `tool` intents.
+   */
+  executeVoiceToolCall?: VoiceAssistantToolCallHandler;
   /** Whisper-server URL (used when engine === 'whisper-local') */
   whisperServerUrl?: string;
   /** Whisper-server model name (used when engine === 'whisper-local') */
@@ -108,6 +116,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     dictationPipeline,
     initialSafeMode = false,
     resolveIntentWithLlm,
+    executeVoiceToolCall,
     whisperServerUrl = 'http://localhost:3040',
     whisperServerModel = 'ggml-small-q5_k.bin',
     commercialProviderKind = 'groq',
@@ -138,11 +147,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
 
   useEffect(() => {
     setCommercialProviderKindState(commercialProviderKind);
-  }, [commercialProviderKind]);
-
-  useEffect(() => {
     setCommercialProviderConfigState(commercialProviderConfig);
-  }, [commercialProviderConfig]);
+  }, [commercialProviderKind, commercialProviderConfig]);
   const [wakeWordEnergyLevel, setWakeWordEnergyLevel] = useState(0);
   const [detectedLang, setDetectedLang] = useState<string | null>(null);
   /** Multi-agent pipeline state (Stage 1 new) */
@@ -150,12 +156,20 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   /** 消歧备选列表 | Low-confidence fuzzy alternatives for disambiguation */
   const [disambiguationOptions, setDisambiguationOptions] = useState<ActionIntent[]>([]);
 
+  useEffect(() => {
+    publishAssistantDialogueVoiceLayer({ pendingConfirm, disambiguationOptions });
+    return () => {
+      publishAssistantDialogueVoiceLayer({ pendingConfirm: null, disambiguationOptions: [] });
+    };
+  }, [pendingConfirm, disambiguationOptions]);
+
   const serviceRef = useRef<VoiceInputServiceType | null>(null);
   const wakeWordDetectorRef = useRef<WakeWordDetectorType | null>(null);
   const executeActionRef = useLatest(executeAction);
   const sendToAiChatRef = useLatest(sendToAiChat);
   const insertDictationRef = useLatest(insertDictation);
   const resolveIntentWithLlmRef = useLatest(resolveIntentWithLlm);
+  const executeVoiceToolCallRef = useLatest(executeVoiceToolCall);
   const modeRef = useLatest(mode);
   const safeModeRef = useLatest(safeMode);
   const sessionRef = useLatest(session);
@@ -226,6 +240,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
 
   const handleSttResult = useVoiceAgentResultHandler({
     locale,
+    corpusLang,
     handlePipelineResult,
     modeRef,
     safeModeRef,
@@ -234,6 +249,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     sendToAiChatRef,
     insertDictationRef,
     resolveIntentWithLlmRef,
+    executeVoiceToolCallRef,
     aliasMapRef,
     queueAiThinking,
     setDetectedLang,

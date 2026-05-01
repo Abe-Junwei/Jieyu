@@ -655,7 +655,7 @@ describe('AiChatCard input submit', () => {
     expect(within(view.container).getByRole('button', { name: /确认删除|Confirm Delete/i })).toBeTruthy();
   });
 
-  it('uses checkpoint continuationInput when resuming durable agent loop from alerts panel', () => {
+  it('uses default resume text when resuming durable agent loop from alerts panel', () => {
     const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
     const view = render(
       <AiAssistantHubContext.Provider
@@ -681,7 +681,7 @@ describe('AiChatCard input submit', () => {
     fireEvent.click(resumeButton);
 
     expect(onSendAiMessage).toHaveBeenCalledTimes(1);
-    expect(onSendAiMessage).toHaveBeenCalledWith('继续生成下一步并保留上下文');
+    expect(onSendAiMessage).toHaveBeenCalledWith(expect.stringMatching(/继续|Continue/));
   });
 
   it('falls back to default resume text when checkpoint continuationInput is empty', () => {

@@ -330,6 +330,7 @@ async function clearAiTables(): Promise<void> {
   await Promise.all([
     db.ai_messages.clear(),
     db.ai_conversations.clear(),
+    db.ai_tasks.clear(),
     db.audit_logs.clear(),
   ]);
 }
@@ -2807,6 +2808,87 @@ describe('useAiChat abort and recovery', () => {
     });
 
     const resumedAssistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(resumedAssistant?.content).toContain('已从持久任务检查点继续。');
+
+    await waitFor(async () => {
+      const consumedTask = await db.ai_tasks.get(taskId!);
+      expect(consumedTask?.status).toBe('done');
+      expect(consumedTask?.resumable).toBe(false);
+    });
+  });
+
+  it('should resume from latest durable loop checkpoint after full restart without session memory', async () => {
+    const firstRuntime = renderHook(() => useAiChat({
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          selectedUnitKind: 'segment',
+          activeSegmentUnitId: 'seg-current',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(firstRuntime.result.current.isBootstrapping).toBe(false);
+    });
+
+    const veryLongPrompt = `__LOCAL_CONTEXT_TOOL_FENCED__ ${'x'.repeat(12000)}`;
+    await act(async () => {
+      await firstRuntime.result.current.send(veryLongPrompt);
+    });
+
+    await waitFor(() => {
+      expect(firstRuntime.result.current.isStreaming).toBe(false);
+    });
+
+    const storedBefore = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      pendingAgentLoopCheckpoint?: { taskId?: string };
+    };
+    const taskId = storedBefore.pendingAgentLoopCheckpoint?.taskId;
+    expect(taskId).toBeTruthy();
+
+    const task = await db.ai_tasks.get(taskId!);
+    expect(task?.checkpointJson).toBeTruthy();
+    const durableCheckpoint = JSON.parse(task!.checkpointJson!) as {
+      data?: Record<string, unknown>;
+      at?: string;
+      kind?: string;
+    };
+    durableCheckpoint.data = {
+      ...(durableCheckpoint.data ?? {}),
+      continuationInput: '__DURABLE_RESUME_ONLY__',
+    };
+    await db.ai_tasks.update(taskId!, {
+      checkpointJson: JSON.stringify(durableCheckpoint),
+      updatedAt: '2026-04-30T00:00:10.000Z',
+    });
+
+    firstRuntime.unmount();
+    window.localStorage.removeItem('jieyu.aiChat.sessionMemory');
+
+    const restartedRuntime = renderHook(() => useAiChat({
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          selectedUnitKind: 'segment',
+          activeSegmentUnitId: 'seg-current',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(restartedRuntime.result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await restartedRuntime.result.current.send('继续');
+    });
+
+    await waitFor(() => {
+      expect(restartedRuntime.result.current.isStreaming).toBe(false);
+    });
+
+    const resumedAssistant = restartedRuntime.result.current.messages.find((item) => item.role === 'assistant');
     expect(resumedAssistant?.content).toContain('已从持久任务检查点继续。');
 
     await waitFor(async () => {

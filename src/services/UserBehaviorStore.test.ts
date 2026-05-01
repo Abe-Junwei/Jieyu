@@ -29,23 +29,27 @@ const { mockSetProfile, mockRecordActionCtx, mockOnProfileChange } = vi.hoisted(
   mockOnProfileChange: vi.fn<(cb: () => void) => () => void>().mockReturnValue(() => {}),
 }));
 
-vi.mock('./GlobalContextService', () => ({
-  globalContext: {
-    setBehaviorProfile: mockSetProfile,
-    getBehaviorProfile: () => ({
-      actionFrequencies: {},
-      actionDurations: {},
-      fatigue: { score: 0, speakingRateTrend: 'stable' as const, pauseFrequencyTrend: 'stable' as const, lastBreakAt: 0 },
-      preferences: { preferredMode: DEFAULT_VOICE_MODE, safeModeDefault: false, wakeWordEnabled: false, preferredEngine: 'web-speech' as const, preferredLang: null, confirmationThreshold: 'destructive' as const },
-      taskDurations: {},
-      usageTimeDistribution: Array.from<number>({ length: 24 }).fill(0),
-      totalSessions: 0,
-      lastSessionAt: 0,
-    }),
-    onProfileChange: mockOnProfileChange,
-    recordAction: mockRecordActionCtx,
-  },
-}));
+vi.mock('./GlobalContextService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./GlobalContextService')>();
+  return {
+    ...actual,
+    globalContext: {
+      setBehaviorProfile: mockSetProfile,
+      getBehaviorProfile: () => ({
+        actionFrequencies: {},
+        actionDurations: {},
+        fatigue: { score: 0, speakingRateTrend: 'stable' as const, pauseFrequencyTrend: 'stable' as const, lastBreakAt: 0 },
+        preferences: { preferredMode: DEFAULT_VOICE_MODE, safeModeDefault: false, wakeWordEnabled: false, preferredEngine: 'web-speech' as const, preferredLang: null, confirmationThreshold: 'destructive' as const, assistantTtsEnabled: false },
+        taskDurations: {},
+        usageTimeDistribution: Array.from<number>({ length: 24 }).fill(0),
+        totalSessions: 0,
+        lastSessionAt: 0,
+      }),
+      onProfileChange: mockOnProfileChange,
+      recordAction: mockRecordActionCtx,
+    },
+  };
+});
 
 // 动态导入，确保 mock 生效 | Dynamic import to ensure mocks are active
 const { userBehaviorStore } = await import('./UserBehaviorStore');
@@ -79,7 +83,7 @@ describe('UserBehaviorStore', () => {
       speakingRateTrend: 'stable' as const,
       pauseFrequencyTrend: 'stable' as const,
       lastBreakAt: 0,
-      preferences: { preferredMode: 'dictation' as const, safeModeDefault: false, wakeWordEnabled: false, preferredEngine: 'web-speech' as const, preferredLang: null, confirmationThreshold: 'destructive' as const },
+      preferences: { preferredMode: 'dictation' as const, safeModeDefault: false, wakeWordEnabled: false, preferredEngine: 'web-speech' as const, preferredLang: null, confirmationThreshold: 'destructive' as const, assistantTtsEnabled: false },
       taskDurationsMs: {},
       usageTimeDistribution: [],
       totalSessions: 5,

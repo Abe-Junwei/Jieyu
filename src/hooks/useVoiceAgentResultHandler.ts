@@ -1,14 +1,13 @@
 import { useCallback } from 'react';
-import * as Earcon from '../services/EarconService';
-import { getActionLabel } from '../services/voiceIntentUi';
-import { globalContext } from '../services/GlobalContextService';
-import { userBehaviorStore } from '../services/UserBehaviorStore';
-import { resolveVoiceIntent } from '../services/voiceIntentResolution';
-import type { ActionId, ActionIntent, VoiceIntent, VoiceSession, VoiceSessionEntry } from '../services/IntentRouter';
+import type { ActionId, ActionIntent, VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { SttResult } from '../services/VoiceInputService';
 import type { VoiceMode } from '../services/voiceMode';
+import { resolveVoiceIntent } from '../services/voiceIntentResolution';
+import { runVoiceFinalSttResolutionTail } from '../services/assistantVoiceSttOrchestrate';
+import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
+import { detectAndRecordMemoryPattern } from '../services/voiceMemoryPattern';
 import { loadIntentRouterRuntime, loadVoiceIntentRefineRuntime } from './useVoiceAgent.runtime';
-import { tf, type Locale } from '../i18n';
+import { type Locale } from '../i18n';
 
 type VoiceAgentMode = VoiceMode;
 
@@ -18,11 +17,13 @@ interface RefLike<T> {
 
 interface UseVoiceAgentResultHandlerOptions {
   locale: Locale;
+  /** ISO 639-3 corpus language for memory-pattern detection */
+  corpusLang: string;
   handlePipelineResult: (result: SttResult) => boolean;
   modeRef: RefLike<VoiceAgentMode>;
   safeModeRef: RefLike<boolean>;
   sessionRef: RefLike<VoiceSession>;
-  executeActionRef: RefLike<(actionId: ActionId) => void>;
+  executeActionRef: RefLike<(actionId: ActionId, params?: { segmentIndex?: number }) => void>;
   sendToAiChatRef: RefLike<((text: string) => void) | undefined>;
   insertDictationRef: RefLike<((text: string) => void) | undefined>;
   resolveIntentWithLlmRef: RefLike<((input: {
@@ -30,6 +31,7 @@ interface UseVoiceAgentResultHandlerOptions {
     mode: VoiceAgentMode;
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>) | undefined>;
+  executeVoiceToolCallRef: RefLike<VoiceAssistantToolCallHandler | undefined>;
   aliasMapRef: RefLike<Record<string, ActionId>>;
   queueAiThinking: () => void;
   setDetectedLang: (lang: string | null) => void;
@@ -45,17 +47,8 @@ interface UseVoiceAgentResultHandlerOptions {
     actionId: ActionId;
     label: string;
     fromFuzzy?: boolean;
+    params?: { segmentIndex?: number };
   } | null>>;
-}
-
-function appendVoiceSessionEntry(
-  setSession: React.Dispatch<React.SetStateAction<VoiceSession>>,
-  entry: VoiceSessionEntry,
-) {
-  setSession((prev) => ({
-    ...prev,
-    entries: [...prev.entries, entry],
-  }));
 }
 
 function updateDisambiguationOptions(
@@ -124,96 +117,9 @@ async function resolveVoiceIntentFromResult(options: {
   };
 }
 
-function executeVoiceIntent(options: {
-  intent: VoiceIntent;
-  intentRouter: Awaited<ReturnType<typeof loadIntentRouterRuntime>>;
-  locale: Locale;
-  safeMode: boolean;
-  sessionId: string;
-  executeAction: (actionId: ActionId) => void;
-  sendToAiChat: ((text: string) => void) | undefined;
-  insertDictation: ((text: string) => void) | undefined;
-  queueAiThinking: () => void;
-  setError: (value: string | null) => void;
-  setAgentState: (value: 'idle' | 'listening' | 'routing' | 'executing' | 'ai-thinking') => void;
-  setPendingConfirm: React.Dispatch<React.SetStateAction<{
-    actionId: ActionId;
-    label: string;
-    fromFuzzy?: boolean;
-  } | null>>;
-}) {
-  switch (options.intent.type) {
-    case 'action': {
-      const needsConfirm =
-        (options.intent.fromFuzzy && options.intentRouter.shouldConfirmFuzzyAction(options.intent.actionId))
-        || (options.safeMode && options.intentRouter.isDestructiveAction(options.intent.actionId));
-      if (needsConfirm) {
-        options.setPendingConfirm({
-          actionId: options.intent.actionId,
-          label: getActionLabel(options.intent.actionId, options.locale),
-          ...(options.intent.fromFuzzy !== undefined ? { fromFuzzy: options.intent.fromFuzzy } : {}),
-        });
-        Earcon.playTick();
-        options.setAgentState('idle');
-        return;
-      }
-      options.setError(null);
-      options.executeAction(options.intent.actionId);
-      Earcon.playSuccess();
-      globalContext.markSessionStart();
-      userBehaviorStore.recordAction({
-        actionId: options.intent.actionId,
-        durationMs: 0,
-        sessionId: options.sessionId,
-        inputModality: 'voice',
-      });
-      options.setAgentState('idle');
-      return;
-    }
-    case 'tool': {
-      if (!options.sendToAiChat) {
-        options.setAgentState('idle');
-        return;
-      }
-      options.setError(null);
-      Earcon.playSuccess();
-      options.queueAiThinking();
-      options.sendToAiChat(tf(options.locale, 'transcription.voice.chatPrefix.command', { text: options.intent.raw }));
-      return;
-    }
-    case 'dictation': {
-      options.setError(null);
-      options.insertDictation?.(options.intent.text);
-      options.setAgentState('idle');
-      return;
-    }
-    case 'slot-fill': {
-      if (!options.sendToAiChat) {
-        options.setAgentState('idle');
-        return;
-      }
-      options.setError(null);
-      options.queueAiThinking();
-      options.sendToAiChat(tf(options.locale, 'transcription.voice.chatPrefix.slotFill', {
-        slotName: options.intent.slotName,
-        value: options.intent.value,
-      }));
-      return;
-    }
-    case 'chat': {
-      if (!options.sendToAiChat) {
-        options.setAgentState('idle');
-        return;
-      }
-      options.setError(null);
-      options.queueAiThinking();
-      options.sendToAiChat(options.intent.text);
-    }
-  }
-}
-
 export function useVoiceAgentResultHandler({
   locale,
+  corpusLang,
   handlePipelineResult,
   modeRef,
   safeModeRef,
@@ -222,6 +128,7 @@ export function useVoiceAgentResultHandler({
   sendToAiChatRef,
   insertDictationRef,
   resolveIntentWithLlmRef,
+  executeVoiceToolCallRef,
   aliasMapRef,
   queueAiThinking,
   setDetectedLang,
@@ -253,6 +160,8 @@ export function useVoiceAgentResultHandler({
       return;
     }
 
+    detectAndRecordMemoryPattern(result.text, corpusLang);
+
     setError(null);
     setInterimText('');
     setFinalText(result.text);
@@ -272,44 +181,44 @@ export function useVoiceAgentResultHandler({
     if (nextAliasMap) {
       aliasMapRef.current = nextAliasMap;
     }
-    setLastIntent(intent);
-    updateDisambiguationOptions(
-      intent,
-      result.text,
-      result.confidence,
-      intentRouter,
-      setDisambiguationOptions,
-    );
 
-    appendVoiceSessionEntry(setSession, {
-      timestamp: Date.now(),
+    await runVoiceFinalSttResolutionTail({
+      baseSession: sessionRef.current,
       intent,
-      sttText: result.text,
-      confidence: result.confidence,
-    });
-
-    setAgentState(llmFallbackFailed ? 'idle' : 'executing');
-    if (llmFallbackFailed && intent.type === 'chat') {
-      return;
-    }
-
-    executeVoiceIntent({
-      intent,
-      intentRouter,
+      sttResult: result,
+      llmFallbackFailed,
+      afterIntentResolved: () => {
+        setLastIntent(intent);
+        updateDisambiguationOptions(
+          intent,
+          result.text,
+          result.confidence,
+          intentRouter,
+          setDisambiguationOptions,
+        );
+        setAgentState(llmFallbackFailed ? 'idle' : 'executing');
+      },
+      commitAppendedSession: (next) => {
+        setSession(next);
+      },
       locale,
       safeMode: safeModeRef.current,
-      sessionId: sessionRef.current.id,
+      intentRouter,
       executeAction: executeActionRef.current,
-      sendToAiChat: sendToAiChatRef.current,
-      insertDictation: insertDictationRef.current,
+      ...(sendToAiChatRef.current !== undefined ? { sendToAiChat: sendToAiChatRef.current } : {}),
+      ...(insertDictationRef.current !== undefined ? { insertDictation: insertDictationRef.current } : {}),
+      ...(executeVoiceToolCallRef.current !== undefined ? { executeVoiceToolCall: executeVoiceToolCallRef.current } : {}),
       queueAiThinking,
       setError,
       setAgentState,
       setPendingConfirm,
+      inputModality: 'voice',
     });
   }, [
     aliasMapRef,
+    corpusLang,
     executeActionRef,
+    executeVoiceToolCallRef,
     handlePipelineResult,
     insertDictationRef,
     locale,

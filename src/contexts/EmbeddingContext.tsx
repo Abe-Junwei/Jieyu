@@ -60,6 +60,7 @@ export interface EmbeddingContextValue {
     refId: string,
     citation?: { snippet?: string },
   ) => Promise<void> | void) | undefined;
+  onResumeAiTask: ((taskId: string) => Promise<void> | void) | undefined;
   onCancelAiTask: ((taskId: string) => Promise<void>) | undefined;
   onRetryAiTask: ((taskId: string) => Promise<void>) | undefined;
 }
@@ -85,6 +86,7 @@ export const DEFAULT_EMBEDDING_CONTEXT_VALUE: EmbeddingContextValue = {
   onRefreshEmbeddingTasks: undefined,
   onJumpToEmbeddingMatch: undefined,
   onJumpToCitation: undefined,
+  onResumeAiTask: undefined,
   onCancelAiTask: undefined,
   onRetryAiTask: undefined,
 };

@@ -21,6 +21,7 @@ function makeProfile(): UserBehaviorProfile {
       preferredEngine: 'web-speech',
       preferredLang: null,
       confirmationThreshold: 'destructive',
+      assistantTtsEnabled: false,
     },
     taskDurations: {},
     usageTimeDistribution: new Array(24).fill(0),

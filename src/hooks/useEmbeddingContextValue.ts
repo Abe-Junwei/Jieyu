@@ -25,6 +25,7 @@ export function pickEmbeddingContextValue(P: EmbeddingContextSource): EmbeddingC
     onRefreshEmbeddingTasks: P.onRefreshEmbeddingTasks,
     onJumpToEmbeddingMatch: P.onJumpToEmbeddingMatch,
     onJumpToCitation: P.onJumpToCitation,
+    onResumeAiTask: P.onResumeAiTask,
     onCancelAiTask: P.onCancelAiTask,
     onRetryAiTask: P.onRetryAiTask,
   } as EmbeddingContextValue;

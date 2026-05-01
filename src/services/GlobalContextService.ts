@@ -59,6 +59,8 @@ export interface UserPreferences {
   preferredEngine: 'web-speech' | 'whisper-local' | 'commercial';
   preferredLang: string | null;
   confirmationThreshold: 'always' | 'destructive' | 'never';
+  /** Read aloud assistant chat replies when a stream completes (Web Speech API). */
+  assistantTtsEnabled: boolean;
 }
 
 export interface FatigueState {
@@ -96,7 +98,7 @@ function isCnLocale(): boolean {
   return lang === 'zh-CN' || lang === 'zh';
 }
 
-function createDefaultUserBehaviorProfile(): UserBehaviorProfile {
+export function createDefaultUserBehaviorProfile(): UserBehaviorProfile {
   return {
     actionFrequencies: {},
     actionDurations: {},
@@ -113,6 +115,7 @@ function createDefaultUserBehaviorProfile(): UserBehaviorProfile {
       preferredEngine: isCnLocale() ? 'commercial' : 'web-speech',
       preferredLang: null,
       confirmationThreshold: 'destructive',
+      assistantTtsEnabled: false,
     },
     taskDurations: {},
     usageTimeDistribution: new Array(24).fill(0),

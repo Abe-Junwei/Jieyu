@@ -582,7 +582,7 @@ describe('useVoiceAgent', () => {
       await dispatchSttResult({ text: '播放', confidence: 0.95 });
 
       await waitFor(() => {
-        expect(executeAction).toHaveBeenCalledWith('playPause');
+        expect(executeAction).toHaveBeenCalledWith('playPause', undefined);
       });
     });
 
@@ -637,7 +637,7 @@ describe('useVoiceAgent', () => {
 
       await waitFor(() => {
         expect(result.current.pendingConfirm).toBeNull();
-        expect(executeAction).toHaveBeenCalledWith('playPause');
+        expect(executeAction).toHaveBeenCalledWith('playPause', undefined);
       });
     });
 
@@ -659,7 +659,7 @@ describe('useVoiceAgent', () => {
 
       await act(async () => { result.current.confirmPending(); });
 
-      expect(executeAction).toHaveBeenCalledWith('deleteSegment');
+      expect(executeAction).toHaveBeenCalledWith('deleteSegment', undefined);
       expect(result.current.pendingConfirm).toBeNull();
     });
 
@@ -703,7 +703,7 @@ describe('useVoiceAgent', () => {
 
       expect(result.current.pendingConfirm).toBeNull();
       expect(result.current.disambiguationOptions).toEqual([]);
-      expect(executeAction).toHaveBeenCalledWith('deleteSegment');
+      expect(executeAction).toHaveBeenCalledWith('deleteSegment', undefined);
     });
 
     it('cancelPending clears stale disambiguation options together with pendingConfirm', async () => {
@@ -885,7 +885,7 @@ describe('useVoiceAgent', () => {
       await dispatchSttResult({ text: '播放', confidence: 0.95 });
 
       await waitFor(() => {
-        expect(executeAction).toHaveBeenCalledWith('playPause');
+        expect(executeAction).toHaveBeenCalledWith('playPause', undefined);
         expect(resolveIntentWithLlm).not.toHaveBeenCalled();
       });
     });
@@ -924,8 +924,8 @@ describe('useVoiceAgent', () => {
       await waitFor(() => {
         expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
         expect(executeAction).toHaveBeenCalledTimes(2);
-        expect(executeAction).toHaveBeenNthCalledWith(1, 'playPause');
-        expect(executeAction).toHaveBeenNthCalledWith(2, 'playPause');
+        expect(executeAction).toHaveBeenNthCalledWith(1, 'playPause', undefined);
+        expect(executeAction).toHaveBeenNthCalledWith(2, 'playPause', undefined);
       });
     });
 

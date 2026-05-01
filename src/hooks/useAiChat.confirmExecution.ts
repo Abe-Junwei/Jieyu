@@ -7,6 +7,24 @@ import type { Locale } from '../i18n';
 import type { AiChatToolCall, AiChatToolResult, AiInteractionMetrics, AiSessionMemory, AiTaskSession } from './useAiChat';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 
+/** Promise.race 超时支路在胜出后清除 timer，避免未处理的 rejection。 */
+export async function raceWithTimeout<T>(primary: T | Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(primary),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`Tool execution timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 interface ExecuteConfirmedToolCallParams {
   assistantMessageId: string;
   call: AiChatToolCall & { requestId: string };
@@ -201,16 +219,10 @@ export async function executeConfirmedToolCall({
   const TOOL_EXEC_TIMEOUT_MS = 30_000;
   const execStart = performance.now();
   try {
-    const result = await Promise.race([
-      onToolCall(call),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Tool execution timed out after ${TOOL_EXEC_TIMEOUT_MS}ms`)), TOOL_EXEC_TIMEOUT_MS),
-      ),
-    ]);
+    const result = await raceWithTimeout(onToolCall(call), TOOL_EXEC_TIMEOUT_MS);
     const execDurationMs = Math.round(performance.now() - execStart);
 
     if (result.ok) {
-      markExecutedRequestId(call.requestId);
       bumpMetric('successCount');
       const nextSessionMemory = buildPostExecSessionMemory({
         sessionMemory,
@@ -251,6 +263,10 @@ export async function executeConfirmedToolCall({
         execDurationMs,
       ),
     );
+
+    if (result.ok) {
+      markExecutedRequestId(call.requestId);
+    }
 
     setTaskSession({
       id: taskSessionId,
@@ -594,12 +610,7 @@ export async function executeConfirmedProposedChangeBatch({
         requestId: genRequestId(child, `${assistantMessageId}:propose:${i}`),
       };
 
-      const result = await Promise.race([
-        onToolCall(childWithRequestId),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`Tool execution timed out after ${TOOL_EXEC_TIMEOUT_MS}ms`)), TOOL_EXEC_TIMEOUT_MS),
-        ),
-      ]);
+      const result = await raceWithTimeout(onToolCall(childWithRequestId), TOOL_EXEC_TIMEOUT_MS);
 
       if (!result.ok) {
         const rb = await runProposeChangeRollbacks(rollbacks);
@@ -656,7 +667,6 @@ export async function executeConfirmedProposedChangeBatch({
       appliedChildCount += 1;
     }
 
-    markExecutedRequestId(parentCall.requestId);
     bumpMetric('successCount');
     const nextSessionMemory = buildPostExecSessionMemory({
       sessionMemory,
@@ -695,6 +705,8 @@ export async function executeConfirmedProposedChangeBatch({
         Math.round(performance.now() - execStart),
       ),
     );
+
+    markExecutedRequestId(parentCall.requestId);
 
     finishIdle();
   } catch (error) {

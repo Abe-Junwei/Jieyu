@@ -11,6 +11,7 @@ import type { Locale } from '../i18n';
 import { t } from '../i18n';
 import { bindVoiceInputService } from './useVoiceAgent.serviceBindings';
 import { createVoiceSessionState } from './useVoiceAgent.runtime';
+import { stopAssistantWebSpeechTts } from '../utils/assistantWebSpeechTts';
 
 const log = createLogger('useVoiceAgentStartController');
 
@@ -182,6 +183,7 @@ export function useVoiceAgentStartController({
 
       const nextMode = targetMode ?? modeRef.current;
       const effectiveLang = resolveEffectiveLang(langOverrideRef.current, corpusLang);
+      stopAssistantWebSpeechTts();
       if (targetMode) setMode(targetMode);
       setError(null);
       clearInteractionPrompts();

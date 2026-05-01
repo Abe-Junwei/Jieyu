@@ -22,10 +22,13 @@ export function pickAiAssistantHubContextValue(
     voiceError: voice.voiceError,
     voiceSafeMode: voice.voiceSafeMode,
     voicePendingConfirm: voice.voicePendingConfirm,
+    voiceDisambiguationOptions: voice.voiceDisambiguationOptions,
     onVoiceToggle: voice.onVoiceToggle,
     onVoiceSwitchMode: voice.onVoiceSwitchMode,
     onVoiceConfirm: voice.onVoiceConfirm,
     onVoiceCancel: voice.onVoiceCancel,
+    onVoiceSelectDisambiguation: voice.onVoiceSelectDisambiguation,
+    onVoiceDismissDisambiguation: voice.onVoiceDismissDisambiguation,
     onVoiceSetSafeMode: voice.onVoiceSetSafeMode,
   };
 }

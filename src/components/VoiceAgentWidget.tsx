@@ -85,12 +85,16 @@ export interface VoiceAgentWidgetProps {
   onMicPointerUp?: () => void;
   onSwitchMode: (mode: VoiceAgentMode) => void;
   onSwitchEngine: (engine: SttEngine) => void;
-  onSelectDisambiguation: (actionId: ActionIntent['actionId']) => void;
+  onSelectDisambiguation: (intent: ActionIntent) => void;
   onDismissDisambiguation: () => void;
   onConfirm: () => void;
   onCancel: () => void;
   onSetSafeMode: (on: boolean) => void;
   onSetWakeWordEnabled: (on: boolean) => void;
+  /** When supported, read assistant chat replies aloud after each stream completes (Web Speech API). */
+  assistantTtsSupported?: boolean;
+  assistantTtsEnabled?: boolean;
+  onSetAssistantTtsEnabled?: (on: boolean) => void;
   onSetLangOverride: (lang: string | null) => void;
   onSetCommercialProviderKind: (kind: CommercialProviderKind) => void;
   onCommercialConfigChange: (config: { apiKey?: string; baseUrl?: string; model?: string; appId?: string; accessToken?: string }) => void;
@@ -231,6 +235,9 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     onCancel,
     onSetSafeMode,
     onSetWakeWordEnabled,
+    assistantTtsSupported = true,
+    assistantTtsEnabled = false,
+    onSetAssistantTtsEnabled,
     onSetLangOverride,
     onSetCommercialProviderKind,
     onCommercialConfigChange,
@@ -656,7 +663,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                     <PanelButton
                       key={option.actionId}
                       className="voice-agent-disambiguation-option"
-                      onClick={() => onSelectDisambiguation(option.actionId)}
+                      onClick={() => onSelectDisambiguation(option)}
                     >
                       <span>{getActionLabel(option.actionId, locale)}</span>
                       <span className="voice-agent-disambiguation-score">{Math.round(option.confidence * 100)}%</span>
@@ -789,6 +796,23 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                     />
                     <span className="voice-agent-wakeword-label">{t(locale, 'transcription.voiceWidget.settings.wakeWord')}</span>
                   </label>
+
+                  {onSetAssistantTtsEnabled !== undefined && (
+                    <label
+                      className="voice-agent-wakeword-toggle"
+                      title={assistantTtsSupported
+                        ? t(locale, 'transcription.voiceWidget.settings.assistantTtsTitle')
+                        : t(locale, 'transcription.voiceWidget.settings.assistantTtsUnsupported')}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={assistantTtsEnabled}
+                        disabled={!assistantTtsSupported}
+                        onChange={(e) => onSetAssistantTtsEnabled(e.target.checked)}
+                      />
+                      <span className="voice-agent-wakeword-label">{t(locale, 'transcription.voiceWidget.settings.assistantTts')}</span>
+                    </label>
+                  )}
 
                   {wakeWordEnabled && !listening && (
                     <div className="voice-agent-wakeword-energy" title={tf(locale, 'transcription.voiceWidget.signal.wakeEnergy', { percent: Math.round(wakeWordEnergyLevel * 500) })}>

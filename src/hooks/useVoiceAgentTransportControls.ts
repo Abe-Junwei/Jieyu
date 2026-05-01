@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import * as Earcon from '../services/EarconService';
 import { globalContext } from '../services/GlobalContextService';
-import { userBehaviorStore } from '../services/UserBehaviorStore';
+import { applyVoiceConfirmedPendingTelemetry } from '../services/voiceConfirmedPendingTelemetry';
 import type { ActionId, VoiceSession } from '../services/IntentRouter';
 import type { SttEngine, VoiceInputService as VoiceInputServiceType } from '../services/VoiceInputService';
 import type { VoiceMode } from '../services/voiceMode';
@@ -23,7 +23,7 @@ interface UseVoiceAgentTransportControlsOptions {
   loadVoiceSessionStoreRuntime: () => Promise<typeof import('../services/VoiceSessionStore')>;
   serviceRef: RefLike<VoiceInputServiceType | null>;
   sessionRef: RefLike<VoiceSession>;
-  executeActionRef: RefLike<(actionId: ActionId) => void>;
+  executeActionRef: RefLike<(actionId: ActionId, params?: { segmentIndex?: number }) => void>;
   pendingAiResponseCountRef: RefLike<number>;
   recordingDurationIntervalRef: RefLike<ReturnType<typeof setInterval> | null>;
   setListening: (value: boolean) => void;
@@ -177,15 +177,13 @@ export function useVoiceAgentTransportControls({
     actionId: ActionId;
     label: string;
     fromFuzzy?: boolean;
+    params?: { segmentIndex?: number };
   } | null) => {
     if (!pendingConfirm) return;
-    executeActionRef.current(pendingConfirm.actionId);
+    executeActionRef.current(pendingConfirm.actionId, pendingConfirm.params);
     clearInteractionPrompts();
-    Earcon.playSuccess();
-    globalContext.markSessionStart();
-    userBehaviorStore.recordAction({
+    applyVoiceConfirmedPendingTelemetry({
       actionId: pendingConfirm.actionId,
-      durationMs: 0,
       sessionId: sessionRef.current.id,
       inputModality: 'voice',
     });

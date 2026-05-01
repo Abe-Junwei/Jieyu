@@ -6,6 +6,7 @@ import {
   cancelAgentLoopCheckpointTask,
   completeAgentLoopCheckpointTask,
   fromAgentLoopTaskCheckpoint,
+  loadLatestPendingAgentLoopCheckpoint,
   loadPendingAgentLoopCheckpointFromTaskId,
   persistAgentLoopCheckpointTask,
 } from './agentLoopCheckpoint';
@@ -66,6 +67,57 @@ describe('agentLoopCheckpoint', () => {
       originalUserText: 'continue',
       continuationInput: 'payload',
       step: 1,
+    });
+  });
+
+  it('skips loading checkpoint when task is no longer pending resumable', async () => {
+    const taskId = await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-2b',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'continue later',
+        continuationInput: 'payload',
+        step: 1,
+        createdAt: '2026-04-27T00:00:00.000Z',
+      },
+    });
+
+    await completeAgentLoopCheckpointTask(taskId);
+
+    await expect(loadPendingAgentLoopCheckpointFromTaskId(taskId)).resolves.toBeUndefined();
+  });
+
+  it('loads the latest pending resumable checkpoint when task id is unknown', async () => {
+    const earlyTaskId = await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-early',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'first',
+        continuationInput: 'payload-first',
+        step: 1,
+        createdAt: '2026-04-27T00:00:00.000Z',
+      },
+    });
+    const latestTaskId = await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-latest',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'second',
+        continuationInput: 'payload-latest',
+        step: 2,
+        createdAt: '2026-04-27T00:00:00.000Z',
+      },
+    });
+
+    await db.ai_tasks.update(earlyTaskId, { updatedAt: '2026-04-27T00:00:01.000Z' });
+    await db.ai_tasks.update(latestTaskId, { updatedAt: '2026-04-27T00:00:02.000Z' });
+
+    const loaded = await loadLatestPendingAgentLoopCheckpoint();
+    expect(loaded).toMatchObject({
+      taskId: latestTaskId,
+      originalUserText: 'second',
+      continuationInput: 'payload-latest',
+      step: 2,
     });
   });
 

@@ -11,7 +11,7 @@ import { pickAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContex
 import { pickVoiceAgentContextValue } from '../hooks/useVoiceAgentContextValue';
 import { MaterialSymbol } from '../components/ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE } from '../utils/jieyuMaterialIcon';
-import { OPEN_APPROVAL_CENTER_EVENT } from '../ai/tasks/taskRefreshEvents';
+import { OPEN_APPROVAL_CENTER_EVENT, REQUEST_AGENT_LOOP_RESUME_EVENT } from '../ai/tasks/taskRefreshEvents';
 
 const AiChatCard = lazy(async () => import('../components/ai/AiChatCard').then((module) => ({
   default: module.AiChatCard,
@@ -28,6 +28,7 @@ const MIN_WIDTH = 360;
 const MIN_HEIGHT = 420;
 const MAX_WIDTH = 720;
 const MAX_HEIGHT = 880;
+const AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY = 'jieyu.aiChat.resumeAgentLoopTaskId';
 
 type ChatWindowLayoutState = {
   open: boolean;
@@ -117,6 +118,23 @@ export function TranscriptionPageChatWindow({
     window.addEventListener(OPEN_APPROVAL_CENTER_EVENT, handler);
     return () => window.removeEventListener(OPEN_APPROVAL_CENTER_EVENT, handler);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (event: Event) => {
+      setOpen(true);
+      setMinimized(false);
+      const detail = (event as CustomEvent<{ taskId?: string }>).detail;
+      const taskId = typeof detail?.taskId === 'string' ? detail.taskId.trim() : '';
+      if (taskId) {
+        window.sessionStorage.setItem(AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY, taskId);
+      }
+      if (aiChatState.aiIsStreaming) return;
+      void aiChatState.onSendAiMessage?.(t(uiLocale, 'ai.alerts.agentLoopResumeDefaultInput'));
+    };
+    window.addEventListener(REQUEST_AGENT_LOOP_RESUME_EVENT, handler);
+    return () => window.removeEventListener(REQUEST_AGENT_LOOP_RESUME_EVENT, handler);
+  }, [aiChatState.aiIsStreaming, aiChatState.onSendAiMessage, uiLocale]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || layoutInitialized) return;

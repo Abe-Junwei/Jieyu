@@ -87,7 +87,7 @@ describe('useAiChatToolAudit', () => {
     await expect(result.current.hasPersistedExecutionForRequest('req-parent-propose')).resolves.toBe(false);
   });
 
-  it('compact newValue without metadata still treats propose_changes child_failed as persisted (legacy)', async () => {
+  it('compact newValue without metadata treats propose_changes child_failed as not persisted (retry same parent requestId)', async () => {
     await db.audit_logs.put({
       id: 'audit-propose-legacy',
       collection: 'ai_messages',
@@ -103,6 +103,44 @@ describe('useAiChatToolAudit', () => {
 
     const { result } = renderHook(() => useAiChatToolAudit());
 
-    await expect(result.current.hasPersistedExecutionForRequest('req-legacy-compact')).resolves.toBe(true);
+    await expect(result.current.hasPersistedExecutionForRequest('req-legacy-compact')).resolves.toBe(false);
+  });
+
+  it('compact newValue without metadata treats invalid_child_args as not persisted', async () => {
+    await db.audit_logs.put({
+      id: 'audit-propose-invalid-child',
+      collection: 'ai_messages',
+      documentId: 'assistant-propose-2',
+      action: 'update',
+      field: 'ai_tool_call_decision',
+      oldValue: 'pending:propose_changes',
+      newValue: 'confirm_failed:propose_changes:invalid_child_args',
+      source: 'human',
+      timestamp: NOW,
+      requestId: 'req-compact-invalid-child',
+    });
+
+    const { result } = renderHook(() => useAiChatToolAudit());
+
+    await expect(result.current.hasPersistedExecutionForRequest('req-compact-invalid-child')).resolves.toBe(false);
+  });
+
+  it('compact auto_failed with gate reason is not persisted', async () => {
+    await db.audit_logs.put({
+      id: 'audit-auto-gate',
+      collection: 'ai_messages',
+      documentId: 'assistant-auto-1',
+      action: 'update',
+      field: 'ai_tool_call_decision',
+      oldValue: 'auto:set_transcription_text',
+      newValue: 'auto_failed:set_transcription_text:invalid_proposed_changes',
+      source: 'ai',
+      timestamp: NOW,
+      requestId: 'req-auto-gate',
+    });
+
+    const { result } = renderHook(() => useAiChatToolAudit());
+
+    await expect(result.current.hasPersistedExecutionForRequest('req-auto-gate')).resolves.toBe(false);
   });
 });

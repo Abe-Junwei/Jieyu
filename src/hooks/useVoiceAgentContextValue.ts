@@ -15,6 +15,7 @@ export function pickVoiceAgentContextValue(P: VoiceAgentContextSource): VoiceAge
     voiceError: P.voiceError ?? null,
     voiceSafeMode: P.voiceSafeMode ?? false,
     voicePendingConfirm: P.voicePendingConfirm ?? null,
+    voiceDisambiguationOptions: P.voiceDisambiguationOptions ?? [],
     voiceCorpusLang: P.voiceCorpusLang ?? 'cmn',
     voiceLangOverride: P.voiceLangOverride ?? null,
     voiceEnabled: P.voiceEnabled ?? false,
@@ -22,6 +23,8 @@ export function pickVoiceAgentContextValue(P: VoiceAgentContextSource): VoiceAge
     onVoiceSwitchMode: P.onVoiceSwitchMode,
     onVoiceConfirm: P.onVoiceConfirm,
     onVoiceCancel: P.onVoiceCancel,
+    onVoiceSelectDisambiguation: P.onVoiceSelectDisambiguation,
+    onVoiceDismissDisambiguation: P.onVoiceDismissDisambiguation,
     onVoiceSetSafeMode: P.onVoiceSetSafeMode,
     onVoiceSetLangOverride: P.onVoiceSetLangOverride,
   };

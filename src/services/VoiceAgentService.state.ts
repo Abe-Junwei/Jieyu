@@ -20,7 +20,7 @@ export interface VoiceAgentServiceStateSnapshotInput {
   lastIntent: VoiceIntent | null;
   error: string | null;
   safeMode: boolean;
-  pendingConfirm: { actionId: ActionId; label: string; fromFuzzy?: boolean } | null;
+  pendingConfirm: { actionId: ActionId; label: string; fromFuzzy?: boolean; params?: { segmentIndex?: number } } | null;
   session: VoiceSession;
   engine: SttEngine;
   isRecording: boolean;

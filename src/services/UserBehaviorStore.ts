@@ -10,7 +10,7 @@
  * @see 解语语音智能体架构设计方案 v2.0 §P0
  */
 
-import { globalContext } from './GlobalContextService';
+import { createDefaultUserBehaviorProfile, globalContext } from './GlobalContextService';
 import { loadBehaviorProfile, saveBehaviorProfile, recordActionToDB, pruneOldRecords, type UserBehaviorProfileDoc } from './userBehaviorDB';
 import type { ActionId } from './IntentRouter';
 
@@ -153,6 +153,7 @@ class UserBehaviorStore {
 // ── Mappers (Doc ↔ Domain) ───────────────────────────────────────────────────
 
 function profileFromDoc(doc: UserBehaviorProfileDoc) {
+  const defaults = createDefaultUserBehaviorProfile();
   return {
     actionFrequencies: doc.actionFrequencies,
     actionDurations: doc.actionDurationsMs,
@@ -162,7 +163,7 @@ function profileFromDoc(doc: UserBehaviorProfileDoc) {
       pauseFrequencyTrend: doc.pauseFrequencyTrend,
       lastBreakAt: doc.lastBreakAt,
     },
-    preferences: doc.preferences,
+    preferences: { ...defaults.preferences, ...doc.preferences },
     taskDurations: doc.taskDurationsMs,
     usageTimeDistribution: doc.usageTimeDistribution,
     totalSessions: doc.totalSessions,

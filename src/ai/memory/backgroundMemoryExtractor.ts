@@ -30,6 +30,7 @@ export interface BackgroundMemoryExtractionAudit {
   durationMs: number;
   schemaVersion: number;
   skippedReason?: 'disabled' | 'main-chain-memory-written' | 'schema-version-mismatch' | 'sandbox-denied' | 'empty-extraction';
+  sandboxDecision?: BackgroundToolSandboxDecision;
   errorMessage?: string;
 }
 
@@ -97,16 +98,24 @@ export class BackgroundMemoryExtractor {
     if (!task) return null;
     this.pending = null;
     const startedAt = this.options.now?.() ?? Date.now();
-    const finish = (status: BackgroundMemoryExtractionAudit['status'], skippedReason?: BackgroundMemoryExtractionAudit['skippedReason']): BackgroundMemoryExtractionAudit => ({
+    const configuredSandboxDecision = this.options.sandboxDecision;
+    const finish = (
+      status: BackgroundMemoryExtractionAudit['status'],
+      skippedReason?: BackgroundMemoryExtractionAudit['skippedReason'],
+      sandboxDecision = configuredSandboxDecision,
+    ): BackgroundMemoryExtractionAudit => ({
       ...auditBase(task, status, this.options.now?.() ?? Date.now(), startedAt),
       ...(skippedReason ? { skippedReason } : {}),
+      ...(sandboxDecision ? { sandboxDecision } : {}),
     });
     if (!this.options.enabled) return finish('skipped', 'disabled');
     if (task.input.mainChainMemoryWritten) return finish('skipped', 'main-chain-memory-written');
     if ((task.input.schemaVersion ?? BACKGROUND_MEMORY_EXTRACTOR_SCHEMA_VERSION) !== BACKGROUND_MEMORY_EXTRACTOR_SCHEMA_VERSION) {
       return finish('skipped', 'schema-version-mismatch');
     }
-    if (this.options.sandboxDecision && this.options.sandboxDecision.action !== 'allow') return finish('skipped', 'sandbox-denied');
+    if (this.options.sandboxDecision && this.options.sandboxDecision.action !== 'allow') {
+      return finish('skipped', 'sandbox-denied');
+    }
     try {
       const facts = await this.options.extractFacts(task.input);
       const writtenCount = await this.options.writeFacts(facts, task.input);

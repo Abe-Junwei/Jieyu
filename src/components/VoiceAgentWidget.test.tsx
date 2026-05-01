@@ -114,7 +114,9 @@ describe('VoiceAgentWidget', () => {
     fireEvent.click(screen.getByRole('button', { name: /删除|Delete Segment/i }));
     fireEvent.click(screen.getByRole('button', { name: /取消消歧|Cancel disambiguation/i }));
 
-    expect(onSelectDisambiguation).toHaveBeenCalledWith('deleteSegment');
+    expect(onSelectDisambiguation).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'action', actionId: 'deleteSegment' }),
+    );
     expect(onDismissDisambiguation).toHaveBeenCalledTimes(1);
   });
 

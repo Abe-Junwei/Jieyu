@@ -23,6 +23,7 @@ import { escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 import { getAiChatCardMessages } from '../../i18n/messages';
 import { AiPanelContext } from '../../contexts/AiPanelContext';
 import { useGlobalContext } from '../../services/GlobalContextService';
+import { useAssistantDialogueSnapshot } from '../../hooks/useAssistantDialogueSnapshot';
 import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles } from '../../ai/chat/adaptiveInputProfile';
 import { rankCandidateLabelsByAdaptiveProfile } from './aiChatAdaptiveRanking';
 import { useAiChatHybridRecommendations } from './useAiChatHybridRecommendations';
@@ -110,6 +111,10 @@ export function AiChatCard({
     onTrackAiRecommendationEvent,
     observerStage,
     onJumpToCitation,
+    onVoiceSelectDisambiguation,
+    onVoiceDismissDisambiguation,
+    onVoiceConfirm,
+    onVoiceCancel,
   } = useAiAssistantHubContext();
   const aiPanelContext = useContext(AiPanelContext);
   const { profile } = useGlobalContext();
@@ -647,10 +652,13 @@ export function AiChatCard({
   }, [aiIsStreaming, messages.length, streamingThreadScrollSignature]);
 
   // P0: count active alerts for the alert bar
+  const assistantDialogue = useAssistantDialogueSnapshot();
+  const hasVoiceDialogueBlocking =
+    assistantDialogue.primary === 'voice_disambiguation' || assistantDialogue.primary === 'voice_confirm';
   const hasToolPending = !!aiPendingToolCall;
   const hasAgentLoopHandoffPending = Boolean(aiSessionMemory?.pendingAgentLoopCheckpoint);
   const hasDecisionLogs = (aiToolDecisionLogs ?? []).length > 0;
-  const alertCount = (hasToolPending || hasAgentLoopHandoffPending) ? 1 : 0;
+  const alertCount = (hasToolPending || hasAgentLoopHandoffPending || hasVoiceDialogueBlocking) ? 1 : 0;
   const errorWarningText = useMemo(() => {
     const raw = (aiLastError ?? '').trim();
     if (!raw) return null;
@@ -663,8 +671,11 @@ export function AiChatCard({
     if (hasToolPending) {
       return cardMessages.highRiskPending;
     }
+    if (hasVoiceDialogueBlocking) {
+      return cardMessages.voiceDialogueBlocking;
+    }
     return null;
-  }, [hasToolPending, cardMessages]);
+  }, [hasToolPending, hasVoiceDialogueBlocking, cardMessages]);
   const [showAlertBar, setShowAlertBar] = useState(() => alertCount > 0);
   const [showDecisionPanel, setShowDecisionPanel] = useState(false);
   const [showReplayDetailPanel, setShowReplayDetailPanel] = useState(false);
@@ -937,7 +948,7 @@ export function AiChatCard({
       showTransientBlockedReason(cardMessages.previousReplyStreaming);
       return;
     }
-    if (hasToolPending) {
+    if (hasToolPending || hasVoiceDialogueBlocking) {
       setShowAlertBar(true);
       showTransientBlockedReason(inputBlockedReason ?? cardMessages.pendingActionBeforeSend);
       return;
@@ -972,7 +983,7 @@ export function AiChatCard({
       showTransientBlockedReason(cardMessages.previousReplyStreaming);
       return;
     }
-    if (hasToolPending) {
+    if (hasToolPending || hasVoiceDialogueBlocking) {
       setShowAlertBar(true);
       showTransientBlockedReason(inputBlockedReason ?? cardMessages.pendingActionBeforeSend);
       return;
@@ -1624,6 +1635,11 @@ export function AiChatCard({
             alertCount={alertCount}
             debugUiShowAll={false}
             showAlertBar={showAlertBar}
+            assistantDialogue={assistantDialogue}
+            {...(onVoiceSelectDisambiguation !== undefined ? { onVoiceSelectDisambiguation } : {})}
+            {...(onVoiceDismissDisambiguation !== undefined ? { onVoiceDismissDisambiguation } : {})}
+            {...(onVoiceConfirm !== undefined ? { onVoiceConfirmPending: onVoiceConfirm } : {})}
+            {...(onVoiceCancel !== undefined ? { onVoiceCancelPending: onVoiceCancel } : {})}
             aiPendingToolCall={aiPendingToolCall}
             aiPendingAgentLoopCheckpoint={aiSessionMemory?.pendingAgentLoopCheckpoint}
             aiToolDecisionLogs={aiToolDecisionLogs}
@@ -1632,8 +1648,7 @@ export function AiChatCard({
             onToggleAlertBar={() => setShowAlertBar((prev) => !prev)}
             onOpenDecisionReplay={(requestId) => openReplayBundle(requestId)}
             onResumeAgentLoop={() => {
-              const checkpointContinuation = (aiSessionMemory?.pendingAgentLoopCheckpoint?.continuationInput ?? '').trim();
-              const resumeInput = checkpointContinuation || t(locale, 'ai.alerts.agentLoopResumeDefaultInput');
+              const resumeInput = t(locale, 'ai.alerts.agentLoopResumeDefaultInput');
               return onSendAiMessage?.(resumeInput);
             }}
             onDismissAgentLoopHandoff={onDismissPendingAgentLoopCheckpoint}
@@ -1759,7 +1774,7 @@ export function AiChatCard({
                 type="button"
                 className={`icon-btn ai-chat-composer-send-btn${aiIsStreaming ? ' is-streaming' : ''}`}
                 aria-label={aiIsStreaming ? cardMessages.stopGenerating : t(locale, 'ai.chat.send')}
-                disabled={aiIsStreaming ? !onStopAiMessage : (!onSendAiMessage || hasToolPending)}
+                disabled={aiIsStreaming ? !onStopAiMessage : (!onSendAiMessage || hasToolPending || hasVoiceDialogueBlocking)}
                 onClick={() => {
                   if (aiIsStreaming) {
                     onStopAiMessage?.();

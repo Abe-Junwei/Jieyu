@@ -99,9 +99,6 @@ export async function executeAutoToolCall({
       : toNaturalToolFailure(locale, toolCall.name, result.message, toolFeedbackStyle);
 
     if (result.ok) {
-      if (toolCall.requestId) {
-        markExecutedRequestId(toolCall.requestId);
-      }
       bumpMetric('successCount');
       const nextSessionMemory = buildPostExecSessionMemory({
         sessionMemory,
@@ -136,6 +133,10 @@ export async function executeAutoToolCall({
         autoExecDurationMs,
       ),
     );
+
+    if (result.ok && toolCall.requestId) {
+      markExecutedRequestId(toolCall.requestId);
+    }
 
     setTaskSession({
       id: taskSessionId,

@@ -6,6 +6,7 @@
  */
 
 import { createContext, useContext } from 'react';
+import type { ActionIntent } from '../services/IntentRouter';
 import { DEFAULT_VOICE_MODE, type VoiceAgentMode, type VoicePendingConfirm } from '../hooks/useVoiceAgent';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -20,6 +21,7 @@ export interface VoiceAgentContextValue {
   voiceError: string | null;
   voiceSafeMode: boolean;
   voicePendingConfirm: VoicePendingConfirm | null;
+  voiceDisambiguationOptions: ActionIntent[];
   voiceCorpusLang: string;
   voiceLangOverride: string | null;
   voiceEnabled: boolean;
@@ -27,6 +29,8 @@ export interface VoiceAgentContextValue {
   onVoiceSwitchMode: ((mode: VoiceAgentMode) => void) | undefined;
   onVoiceConfirm: (() => void) | undefined;
   onVoiceCancel: (() => void) | undefined;
+  onVoiceSelectDisambiguation: ((intent: ActionIntent) => void) | undefined;
+  onVoiceDismissDisambiguation: (() => void) | undefined;
   onVoiceSetSafeMode: ((on: boolean) => void) | undefined;
   onVoiceSetLangOverride: ((lang: string | null) => void) | undefined;
 }
@@ -41,6 +45,7 @@ export const DEFAULT_VOICE_AGENT_CONTEXT_VALUE: VoiceAgentContextValue = {
   voiceError: null,
   voiceSafeMode: false,
   voicePendingConfirm: null,
+  voiceDisambiguationOptions: [],
   voiceCorpusLang: 'cmn',
   voiceLangOverride: null,
   voiceEnabled: false,
@@ -48,6 +53,8 @@ export const DEFAULT_VOICE_AGENT_CONTEXT_VALUE: VoiceAgentContextValue = {
   onVoiceSwitchMode: undefined,
   onVoiceConfirm: undefined,
   onVoiceCancel: undefined,
+  onVoiceSelectDisambiguation: undefined,
+  onVoiceDismissDisambiguation: undefined,
   onVoiceSetSafeMode: undefined,
   onVoiceSetLangOverride: undefined,
 };

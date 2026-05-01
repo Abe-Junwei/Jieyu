@@ -101,6 +101,7 @@ describe('BackgroundMemoryExtractor', () => {
     await expect(sandboxExtractor.flush()).resolves.toMatchObject({
       status: 'skipped',
       skippedReason: 'sandbox-denied',
+      sandboxDecision: { action: 'deny', reason: 'deny-by-default' },
     });
   });
 
@@ -120,5 +121,24 @@ describe('BackgroundMemoryExtractor', () => {
 
     expect(audit?.status).toBe('failed');
     expect(audit?.errorMessage).toBe('extract failed');
+  });
+
+  it('keeps allow sandbox decision details on completed records', async () => {
+    const extractor = new BackgroundMemoryExtractor({
+      enabled: true,
+      actorId: 'assistant',
+      sandboxDecision: { action: 'allow', reason: 'restricted-write-allowed' },
+      extractFacts: vi.fn(async () => [{ fact: 'memory fact', confidence: 0.9 }]),
+      writeFacts: vi.fn(async () => 1),
+      now: () => 1000,
+    });
+
+    extractor.schedule(baseInput());
+    const audit = await extractor.flush();
+
+    expect(audit).toMatchObject({
+      status: 'completed',
+      sandboxDecision: { action: 'allow', reason: 'restricted-write-allowed' },
+    });
   });
 });

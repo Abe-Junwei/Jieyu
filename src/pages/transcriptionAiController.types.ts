@@ -17,6 +17,9 @@ import type { AiSegmentSplitRollbackToken } from '../hooks/useAiToolCallHandler.
 import type { useAiPanelLogic } from '../hooks/useAiPanelLogic';
 import type { EditEvent } from '../hooks/useEditEventBuffer';
 import type { ResolvedAcousticProviderState } from '../types/acousticProviderResolved.types';
+import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
+
+export type { VoiceAssistantToolCallHandler };
 
 export interface UseTranscriptionAiControllerInput {
   selectedUnitIds: Set<string>;
@@ -156,6 +159,9 @@ export interface UseTranscriptionAiControllerResult {
   setEmbeddingProviderConfig: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
   aiToolDecisionLogs: Array<{ id: string; toolName: string; decision: string; reason?: string; reasonLabelEn?: string; reasonLabelZh?: string; requestId?: string; timestamp: string; source?: 'human' | 'ai' | 'system'; executed?: boolean; durationMs?: number; message?: string }>;
   aiChat: ReturnType<typeof useAiChat>;
+  /** 与 `aiChat` 内 `onToolCall` 同源，供语音 tool 意图 |
+   * Same implementation as AI chat `onToolCall`, used for voice-routed tool intents. */
+  executeVoiceToolCall: VoiceAssistantToolCallHandler;
   lexemeMatches: ReturnType<typeof useAiPanelLogic>['lexemeMatches'];
   observerResult: ReturnType<typeof useAiPanelLogic>['observerResult'];
   actionableObserverRecommendations: ReturnType<typeof useAiPanelLogic>['actionableObserverRecommendations'];

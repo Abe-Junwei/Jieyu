@@ -166,6 +166,7 @@ export type AiChatCardMessages = {
   providerStatusLabel: (kind: AiChatProviderKind, status: AiConnectionTestStatus) => string;
   layerMismatchWarning: string;
   highRiskPending: string;
+  voiceDialogueBlocking: string;
   chatNotReady: string;
   previousReplyStreaming: string;
   pendingActionBeforeSend: string;
@@ -272,6 +273,7 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       },
       layerMismatchWarning: '\u26a0 \u672a\u627e\u5230\u5339\u914d\u201c\u5f53\u524d\u201d\u7684\u8f6c\u5199\u5c42',
       highRiskPending: '\u5b58\u5728\u5f85\u786e\u8ba4\u7684\u9ad8\u98ce\u9669\u64cd\u4f5c\uff0c\u8bf7\u5148\u786e\u8ba4\u6216\u53d6\u6d88\u3002',
+      voiceDialogueBlocking: '\u8bed\u97f3\u52a9\u624b\u6b63\u5728\u7b49\u5f85\u786e\u8ba4\u6216\u9009\u62e9\u6307\u4ee4\uff0c\u8bf7\u5148\u5728\u4e0a\u65b9\u5904\u7406\u3002',
       chatNotReady: 'AI \u5bf9\u8bdd\u5c1a\u672a\u5c31\u7eea\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002',
       previousReplyStreaming: '\u4e0a\u4e00\u6761\u56de\u590d\u4ecd\u5728\u751f\u6210\u4e2d\uff0c\u505c\u6b62\u540e\u53ef\u7ee7\u7eed\u53d1\u9001\u3002',
       pendingActionBeforeSend: '\u5b58\u5728\u5f85\u786e\u8ba4\u64cd\u4f5c\uff0c\u8bf7\u5148\u5904\u7406\u540e\u518d\u53d1\u9001\u3002',
@@ -377,6 +379,7 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     },
     layerMismatchWarning: '\u26a0 No matching "current" transcription layer found',
     highRiskPending: 'A high-risk action is pending. Confirm or cancel it first.',
+    voiceDialogueBlocking: 'The voice assistant is waiting for confirmation or command selection. Resolve it above first.',
     chatNotReady: 'AI chat is not ready yet. Please try again shortly.',
     previousReplyStreaming: 'Previous reply is still streaming. Stop it before sending.',
     pendingActionBeforeSend: 'A pending action must be handled before sending.',

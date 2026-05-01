@@ -2,9 +2,13 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import { buildAiChangeSetFromPendingToolCall } from '../../ai/changeset/AiChangeSetProtocol';
 import type { AiSessionMemoryPendingAgentLoopCheckpoint } from '../../ai/chat/chatDomain.types';
 import type { PendingAiToolCall } from '../../hooks/useAiChat';
+import type { ActionIntent } from '../../services/IntentRouter';
+import type { AssistantDialogueSnapshot } from '../../services/assistantDialogueState';
+import { getActionLabel } from '../../services/voiceIntentUi';
 import { t, tf, useLocale } from '../../i18n';
 import { formatPendingConfirmActionLabel, formatPendingTarget, formatPolicyReasonExplanation, formatToolName, normalizeImpactPreviewLines } from './aiChatCardUtils';
 import { resolveTextDirectionFromLocale } from '../../utils/panelAdaptiveLayout';
+import { notifyRequestEmbeddingTaskFocus } from '../../ai/tasks/taskRefreshEvents';
 import { PanelButton, PanelChip, PanelNote } from '../ui';
 import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
@@ -29,6 +33,11 @@ interface AiChatAlertsPanelProps {
   onDismissAgentLoopHandoff?: (() => Promise<void> | void) | undefined;
   onConfirmPendingToolCall?: (() => Promise<void>) | undefined;
   onCancelPendingToolCall?: (() => Promise<void>) | undefined;
+  assistantDialogue?: AssistantDialogueSnapshot;
+  onVoiceSelectDisambiguation?: (intent: ActionIntent) => void;
+  onVoiceDismissDisambiguation?: () => void;
+  onVoiceConfirmPending?: () => void;
+  onVoiceCancelPending?: () => void;
 }
 
 const APPROVAL_HISTORY_FILTER_STORAGE_KEY = 'jieyu:ai-approval-history-filter';
@@ -57,6 +66,11 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
   onDismissAgentLoopHandoff,
   onConfirmPendingToolCall,
   onCancelPendingToolCall,
+  assistantDialogue,
+  onVoiceSelectDisambiguation,
+  onVoiceDismissDisambiguation,
+  onVoiceConfirmPending,
+  onVoiceCancelPending,
 }: AiChatAlertsPanelProps) {
   const locale = useLocale();
   const uiTextDirection = resolveTextDirectionFromLocale(locale);
@@ -66,6 +80,10 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
   });
   const hasToolPending = !!aiPendingToolCall;
   const hasAgentLoopHandoffPending = Boolean(aiPendingAgentLoopCheckpoint);
+  const voicePrimary = assistantDialogue?.primary;
+  const hasVoiceDisambiguationUi = !hasToolPending && !hasAgentLoopHandoffPending && voicePrimary === 'voice_disambiguation' && (assistantDialogue?.voiceDisambiguationOptions.length ?? 0) > 0;
+  const hasVoiceConfirmUi = !hasToolPending && !hasAgentLoopHandoffPending && voicePrimary === 'voice_confirm' && Boolean(assistantDialogue?.voicePendingConfirm);
+  const hasAnyVoiceAlert = hasVoiceDisambiguationUi || hasVoiceConfirmUi;
   const pendingChangeSet = useMemo(
     () => (aiPendingToolCall ? buildAiChangeSetFromPendingToolCall(aiPendingToolCall) : null),
     [aiPendingToolCall],
@@ -98,11 +116,19 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
     ? t(locale, 'ai.alerts.confirmDestructiveAction')
     : hasAgentLoopHandoffPending
       ? t(locale, 'ai.alerts.agentLoopHandoffTitle')
+    : hasVoiceDisambiguationUi
+      ? t(locale, 'ai.alerts.voiceDisambiguationTitle')
+    : hasVoiceConfirmUi
+      ? t(locale, 'ai.alerts.voiceConfirmTitle')
     : t(locale, 'ai.alerts.demoDetails');
   const summaryDescription = hasToolPending
     ? aiPendingToolCall?.riskSummary ?? t(locale, 'ai.alerts.pendingToolCall')
     : hasAgentLoopHandoffPending
       ? t(locale, 'ai.alerts.agentLoopHandoffSummary')
+    : hasVoiceDisambiguationUi
+      ? t(locale, 'ai.alerts.voiceDisambiguationDescription')
+    : hasVoiceConfirmUi
+      ? (assistantDialogue?.voicePendingConfirm?.label ?? t(locale, 'ai.alerts.voiceConfirmDescription'))
     : t(locale, 'ai.alerts.demoModeHint');
   const approvalHistoryItems = useMemo(() => {
     const decisionLogs = aiToolDecisionLogs ?? [];
@@ -148,7 +174,7 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
             description={summaryDescription}
             meta={(
               <div className="panel-meta ai-chat-alerts-summary-meta">
-                <PanelChip variant={(hasToolPending || hasAgentLoopHandoffPending) ? 'warning' : undefined}>{t(locale, 'ai.alerts.pendingToolCall')}</PanelChip>
+                <PanelChip variant={(hasToolPending || hasAgentLoopHandoffPending || hasAnyVoiceAlert) ? 'warning' : undefined}>{t(locale, 'ai.alerts.pendingToolCall')}</PanelChip>
                 <PanelChip>{alertCount}</PanelChip>
                 <PanelButton
                   variant="ghost"
@@ -160,19 +186,29 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
                 </PanelButton>
               </div>
             )}
-            supportingText={(hasToolPending || hasAgentLoopHandoffPending) ? t(locale, 'ai.alerts.pendingToolCall') : undefined}
+            supportingText={(hasToolPending || hasAgentLoopHandoffPending || hasAnyVoiceAlert) ? t(locale, 'ai.alerts.pendingToolCall') : undefined}
           >
             {showAlertBar && (
               <PanelSection
                 className="ai-chat-alerts-body"
                 title={hasToolPending
                   ? t(locale, 'ai.alerts.confirmDestructiveAction')
-                  : (hasAgentLoopHandoffPending ? t(locale, 'ai.alerts.agentLoopHandoffTitle') : t(locale, 'ai.alerts.demoDetails'))}
+                  : (hasAgentLoopHandoffPending
+                    ? t(locale, 'ai.alerts.agentLoopHandoffTitle')
+                    : hasVoiceDisambiguationUi
+                      ? t(locale, 'ai.alerts.voiceDisambiguationTitle')
+                      : hasVoiceConfirmUi
+                        ? t(locale, 'ai.alerts.voiceConfirmTitle')
+                        : t(locale, 'ai.alerts.demoDetails'))}
                 description={hasToolPending
                   ? t(locale, 'ai.alerts.pendingToolCall')
                   : (hasAgentLoopHandoffPending
                     ? t(locale, 'ai.alerts.agentLoopHandoffWaitConfirm')
-                    : t(locale, 'ai.alerts.demoModeHint'))}
+                    : hasVoiceDisambiguationUi
+                      ? t(locale, 'ai.alerts.voiceDisambiguationDescription')
+                      : hasVoiceConfirmUi
+                        ? t(locale, 'ai.alerts.voiceConfirmDescription')
+                        : t(locale, 'ai.alerts.demoModeHint'))}
               >
                 {aiPendingToolCall ? (
                   <>
@@ -261,6 +297,82 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
                       <PanelButton variant="ghost" className="ai-chat-alerts-action-btn" disabled={!onCancelPendingToolCall} onClick={() => void onCancelPendingToolCall?.()}>{t(locale, 'ai.alerts.cancel')}</PanelButton>
                     </div>
                   </>
+                ) : hasVoiceDisambiguationUi ? (
+                  <>
+                    <p className="ai-chat-alerts-pending-risk">{t(locale, 'ai.alerts.voiceDisambiguationDescription')}</p>
+                    <div className="ai-chat-alerts-pending-grid" role="listbox" aria-label={t(locale, 'transcription.voiceWidget.disambiguation.aria')}>
+                      {(assistantDialogue?.voiceDisambiguationOptions ?? []).map((option) => (
+                        <div className="ai-chat-alerts-pending-row" key={`${option.actionId}-${option.raw}`} role="option">
+                          <PanelButton
+                            variant="ghost"
+                            className="ai-chat-alerts-action-btn"
+                            disabled={!onVoiceSelectDisambiguation}
+                            onClick={() => onVoiceSelectDisambiguation?.(option)}
+                          >
+                            {getActionLabel(option.actionId, locale)}
+                            {' '}
+                            (
+                            {Math.round(option.confidence * 100)}
+                            %)
+                          </PanelButton>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="ai-chat-alerts-actions">
+                      <PanelButton variant="ghost" className="ai-chat-alerts-action-btn" disabled={!onVoiceDismissDisambiguation} onClick={() => onVoiceDismissDisambiguation?.()}>{t(locale, 'ai.assistantHub.cancel')}</PanelButton>
+                    </div>
+                  </>
+                ) : hasVoiceConfirmUi ? (
+                  <>
+                    <div className="ai-chat-alerts-pending-row" role="status">
+                      <span>{assistantDialogue?.voicePendingConfirm?.label}</span>
+                      {assistantDialogue?.voicePendingConfirm?.fromFuzzy ? (
+                        <span className="ai-chat-alerts-pending-meta">{t(locale, 'ai.assistantHub.fuzzyMatch')}</span>
+                      ) : null}
+                    </div>
+                    <div className="ai-chat-alerts-actions">
+                      <PanelButton variant="danger" className="ai-chat-alerts-action-btn" disabled={!onVoiceConfirmPending} onClick={() => onVoiceConfirmPending?.()}>{t(locale, 'ai.assistantHub.confirm')}</PanelButton>
+                      <PanelButton variant="ghost" className="ai-chat-alerts-action-btn" disabled={!onVoiceCancelPending} onClick={() => onVoiceCancelPending?.()}>{t(locale, 'ai.assistantHub.cancel')}</PanelButton>
+                    </div>
+                  </>
+                ) : hasVoiceDisambiguationUi ? (
+                  <>
+                    <p className="ai-chat-alerts-pending-risk">{t(locale, 'ai.alerts.voiceDisambiguationDescription')}</p>
+                    <div className="ai-chat-alerts-pending-grid" role="listbox" aria-label={t(locale, 'transcription.voiceWidget.disambiguation.aria')}>
+                      {(assistantDialogue?.voiceDisambiguationOptions ?? []).map((option) => (
+                        <div className="ai-chat-alerts-pending-row" key={`${option.actionId}-${option.raw}`} role="option">
+                          <PanelButton
+                            variant="ghost"
+                            className="ai-chat-alerts-action-btn"
+                            disabled={!onVoiceSelectDisambiguation}
+                            onClick={() => onVoiceSelectDisambiguation?.(option)}
+                          >
+                            {getActionLabel(option.actionId, locale)}
+                            {' '}
+                            (
+                            {Math.round(option.confidence * 100)}
+                            %)
+                          </PanelButton>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="ai-chat-alerts-actions">
+                      <PanelButton variant="ghost" className="ai-chat-alerts-action-btn" disabled={!onVoiceDismissDisambiguation} onClick={() => onVoiceDismissDisambiguation?.()}>{t(locale, 'ai.assistantHub.cancel')}</PanelButton>
+                    </div>
+                  </>
+                ) : hasVoiceConfirmUi ? (
+                  <>
+                    <div className="ai-chat-alerts-pending-row" role="status">
+                      <span>{assistantDialogue?.voicePendingConfirm?.label}</span>
+                      {assistantDialogue?.voicePendingConfirm?.fromFuzzy ? (
+                        <span className="ai-chat-alerts-pending-meta">{t(locale, 'ai.assistantHub.fuzzyMatch')}</span>
+                      ) : null}
+                    </div>
+                    <div className="ai-chat-alerts-actions">
+                      <PanelButton variant="danger" className="ai-chat-alerts-action-btn" disabled={!onVoiceConfirmPending} onClick={() => onVoiceConfirmPending?.()}>{t(locale, 'ai.assistantHub.confirm')}</PanelButton>
+                      <PanelButton variant="ghost" className="ai-chat-alerts-action-btn" disabled={!onVoiceCancelPending} onClick={() => onVoiceCancelPending?.()}>{t(locale, 'ai.assistantHub.cancel')}</PanelButton>
+                    </div>
+                  </>
                 ) : aiPendingAgentLoopCheckpoint ? (
                   <>
                     <div className="ai-chat-alerts-pending-meta" data-testid="ai-agent-loop-handoff-mvp">
@@ -286,6 +398,19 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
                       )}
                     </div>
                     <div className="ai-chat-alerts-actions">
+                      {aiPendingAgentLoopCheckpoint.taskId && (
+                        <PanelButton
+                          variant="ghost"
+                          className="ai-chat-alerts-action-btn"
+                          onClick={() => {
+                            const taskId = aiPendingAgentLoopCheckpoint.taskId;
+                            if (!taskId) return;
+                            notifyRequestEmbeddingTaskFocus({ taskId });
+                          }}
+                        >
+                          {t(locale, 'ai.alerts.locateTaskRow')}
+                        </PanelButton>
+                      )}
                       <PanelButton
                         variant="danger"
                         className="ai-chat-alerts-action-btn"

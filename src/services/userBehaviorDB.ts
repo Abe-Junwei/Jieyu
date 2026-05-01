@@ -52,6 +52,7 @@ export interface UserBehaviorProfileDoc {
     preferredEngine: 'web-speech' | 'whisper-local' | 'commercial';
     preferredLang: string | null;
     confirmationThreshold: 'always' | 'destructive' | 'never';
+    assistantTtsEnabled?: boolean;
   };
   taskDurationsMs: Partial<Record<string, number>>;
   usageTimeDistribution: number[];
