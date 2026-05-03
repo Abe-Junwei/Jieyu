@@ -66,7 +66,6 @@
     { "pathPrefix": "src/ai/chat/promptContext.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/hooks/useAiChat.streamCompletion.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/hooks/useAiChat.confirmExecution.ts", "reason": "runtime-template-message" },
-    { "pathPrefix": "src/services/HybridIntentResolver.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/pages/useTranscriptionLayerMetadataController.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/aiChatCardMessages.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/layerActionPopoverMessages.ts", "reason": "runtime-template-message" },
