@@ -270,9 +270,13 @@ export function AiEmbeddingCard() {
                 </div>
               )}
               <div className="ai-card-row ai-card-row-gap-sm">
-                {task.taskType === 'agent_loop' && (task.resumable || task.checkpointJson) && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onResumeAiTask} onClick={() => void onResumeAiTask?.(task.id)}>{messages.resume}</button>}
+                {task.taskType === 'agent_loop' && (task.resumable || task.checkpointJson) && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onResumeAiTask} onClick={() => void onResumeAiTask?.(task.id)}>{messages.resumeAgentLoopTaskRow}</button>}
                 {(task.status === 'pending' || task.status === 'running') && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onCancelAiTask} onClick={() => void onCancelAiTask?.(task.id)}>{messages.cancel}</button>}
-                {task.status === 'failed' && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onRetryAiTask} onClick={() => void onRetryAiTask?.(task.id)}>{messages.retry}</button>}
+                {task.status === 'failed' && (
+                  <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onRetryAiTask} onClick={() => void onRetryAiTask?.(task.id)}>
+                    {task.taskType === 'agent_loop' ? messages.retryAgentLoopTaskRow : messages.retry}
+                  </button>
+                )}
                 {task.taskType === 'agent_loop' && !!task.handoffReason && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" onClick={notifyOpenApprovalCenter}>{messages.viewApproval}</button>}
               </div>
             </div>

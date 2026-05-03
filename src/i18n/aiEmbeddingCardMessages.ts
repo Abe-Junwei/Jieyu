@@ -29,6 +29,10 @@ export type AiEmbeddingCardMessages = {
   checkpointLabel: string;
   handoffReasonLabel: string;
   resume: string;
+  /** agent_loop 行「续跑」：与聊天 composer 内 resume 提示语分流 */
+  resumeAgentLoopTaskRow: string;
+  /** agent_loop 行「重试」：与通用重试按钮分流 */
+  retryAgentLoopTaskRow: string;
   cancel: string;
   retry: string;
   viewApproval: string;
@@ -75,6 +79,8 @@ export function getAiEmbeddingCardMessages(isZh: boolean): AiEmbeddingCardMessag
     checkpointLabel: t(l, 'msg.embCard.checkpointLabel'),
     handoffReasonLabel: t(l, 'msg.embCard.handoffReasonLabel'),
     resume: t(l, 'msg.embCard.resume'),
+    resumeAgentLoopTaskRow: t(l, 'msg.embCard.resumeAgentLoopTaskRow'),
+    retryAgentLoopTaskRow: t(l, 'msg.embCard.retryAgentLoopTaskRow'),
     cancel: t(l, 'msg.embCard.cancel'),
     retry: t(l, 'msg.embCard.retry'),
     viewApproval: t(l, 'msg.embCard.viewApproval'),

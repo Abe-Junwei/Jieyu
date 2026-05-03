@@ -300,18 +300,20 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     };
   }, [enabled, requestRefreshEmbeddingTasks]);
 
-  const handleCancelAiTask = useCallback(async (taskId: string) => {
+  const handleCancelAiTask = useCallback(async (taskId: string): Promise<boolean> => {
     const runtimeCancelled = taskRunner.cancel(taskId);
     const durableCancelled = runtimeCancelled ? false : await markDurableAgentLoopTaskCancelled(taskId);
     if (!runtimeCancelled && !durableCancelled) {
       setAiEmbeddingLastError(messages.cancelUnavailable);
-    } else {
-      setAiEmbeddingLastError(null);
+      await refreshEmbeddingTasks();
+      return false;
     }
+    setAiEmbeddingLastError(null);
     await refreshEmbeddingTasks();
+    return true;
   }, [messages.cancelUnavailable, refreshEmbeddingTasks, taskRunner]);
 
-  const handleRetryAiTask = useCallback(async (taskId: string) => {
+  const handleRetryAiTask = useCallback(async (taskId: string): Promise<boolean> => {
     let nextTaskId: string | null = null;
     try {
       nextTaskId = await taskRunner.retry(taskId);
@@ -323,11 +325,13 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     }
     if (!nextTaskId) {
       setAiEmbeddingLastError(messages.retryUnavailable);
-      return;
+      await refreshEmbeddingTasks();
+      return false;
     }
     setAiEmbeddingLastError(null);
     setAiEmbeddingProgressLabel(messages.reQueued(nextTaskId));
     await refreshEmbeddingTasks();
+    return true;
   }, [messages, refreshEmbeddingTasks, taskRunner]);
 
   const handleBuildUnitEmbeddings = useCallback(async () => {

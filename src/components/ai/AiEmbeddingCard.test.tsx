@@ -169,7 +169,7 @@ describe('AiEmbeddingCard', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '恢复' }));
+    fireEvent.click(screen.getByRole('button', { name: '任务列表续跑' }));
     expect(onResumeAiTask).toHaveBeenCalledTimes(1);
     expect(onResumeAiTask).toHaveBeenCalledWith('task-loop-resume');
   });

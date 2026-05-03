@@ -24,6 +24,7 @@ import { getAiChatCardMessages } from '../../i18n/messages';
 import { AiPanelContext } from '../../contexts/AiPanelContext';
 import { useGlobalContext } from '../../services/GlobalContextService';
 import { useAssistantDialogueSnapshot } from '../../hooks/useAssistantDialogueSnapshot';
+import { isAssistantChatComposerBlocked, isVoiceDialogueBlockingPrimary } from '../../services/assistantDialogueState';
 import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles } from '../../ai/chat/adaptiveInputProfile';
 import { rankCandidateLabelsByAdaptiveProfile } from './aiChatAdaptiveRanking';
 import { useAiChatHybridRecommendations } from './useAiChatHybridRecommendations';
@@ -653,8 +654,11 @@ export function AiChatCard({
 
   // P0: count active alerts for the alert bar
   const assistantDialogue = useAssistantDialogueSnapshot();
-  const hasVoiceDialogueBlocking =
-    assistantDialogue.primary === 'voice_disambiguation' || assistantDialogue.primary === 'voice_confirm';
+  const hasVoiceDialogueBlocking = isVoiceDialogueBlockingPrimary(assistantDialogue.primary);
+  const sharedDialogueComposerBlocked = isAssistantChatComposerBlocked({
+    hasToolPending: !!aiPendingToolCall,
+    dialoguePrimary: assistantDialogue.primary,
+  });
   const hasToolPending = !!aiPendingToolCall;
   const hasAgentLoopHandoffPending = Boolean(aiSessionMemory?.pendingAgentLoopCheckpoint);
   const hasDecisionLogs = (aiToolDecisionLogs ?? []).length > 0;
@@ -948,7 +952,7 @@ export function AiChatCard({
       showTransientBlockedReason(cardMessages.previousReplyStreaming);
       return;
     }
-    if (hasToolPending || hasVoiceDialogueBlocking) {
+    if (sharedDialogueComposerBlocked) {
       setShowAlertBar(true);
       showTransientBlockedReason(inputBlockedReason ?? cardMessages.pendingActionBeforeSend);
       return;
@@ -983,7 +987,7 @@ export function AiChatCard({
       showTransientBlockedReason(cardMessages.previousReplyStreaming);
       return;
     }
-    if (hasToolPending || hasVoiceDialogueBlocking) {
+    if (sharedDialogueComposerBlocked) {
       setShowAlertBar(true);
       showTransientBlockedReason(inputBlockedReason ?? cardMessages.pendingActionBeforeSend);
       return;
@@ -1731,6 +1735,7 @@ export function AiChatCard({
               <div className="ai-chat-composer-input-wrap">
                 <input
                   ref={chatInputRef}
+                  data-testid="ai-chat-composer-input"
                   className={`ai-chat-input ai-chat-input-composer${showInlineRecommendation ? ' has-ghost-suggestion' : ''}`}
                   type="text"
                   value={chatInput}
@@ -1774,7 +1779,7 @@ export function AiChatCard({
                 type="button"
                 className={`icon-btn ai-chat-composer-send-btn${aiIsStreaming ? ' is-streaming' : ''}`}
                 aria-label={aiIsStreaming ? cardMessages.stopGenerating : t(locale, 'ai.chat.send')}
-                disabled={aiIsStreaming ? !onStopAiMessage : (!onSendAiMessage || hasToolPending || hasVoiceDialogueBlocking)}
+                disabled={aiIsStreaming ? !onStopAiMessage : (!onSendAiMessage || sharedDialogueComposerBlocked)}
                 onClick={() => {
                   if (aiIsStreaming) {
                     onStopAiMessage?.();

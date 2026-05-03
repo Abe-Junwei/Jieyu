@@ -14,6 +14,11 @@ import { LocaleProvider } from '../../i18n';
 import { pickAiAssistantHubContextValue } from '../../hooks/useAiAssistantHubContextValue';
 import { pickAiChatContextValue } from '../../hooks/useAiChatContextValue';
 import { pickVoiceAgentContextValue } from '../../hooks/useVoiceAgentContextValue';
+import {
+  publishAssistantDialogueVoiceLayer,
+  resetAssistantDialogueStateForTests,
+} from '../../services/assistantDialogueState';
+import type { ActionIntent } from '../../services/IntentRouter';
 
 const DEFAULT_HUB_VALUE = pickAiAssistantHubContextValue(
   pickAiChatContextValue(DEFAULT_AI_CHAT_CONTEXT_VALUE),
@@ -30,11 +35,13 @@ async function clearAuditLogs(): Promise<void> {
 
 describe('AiChatCard input submit', () => {
   beforeEach(async () => {
+    resetAssistantDialogueStateForTests();
     await db.open();
     await clearAuditLogs();
   });
 
   afterEach(async () => {
+    resetAssistantDialogueStateForTests();
     await clearAuditLogs();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -1380,6 +1387,76 @@ describe('AiChatCard input submit', () => {
     await waitFor(() => {
       expect(fileInput.value).toBe('');
       expect(within(view.container).getByText('AI Chat')).toBeTruthy();
+    });
+  });
+
+  describe('ADR-0028 same-session keyboard send vs assistant dialogue', () => {
+    function makeActionIntent(actionId: ActionIntent['actionId']): ActionIntent {
+      return { type: 'action', actionId, raw: 'alt', confidence: 0.55 };
+    }
+
+    it('blocks Enter submit while voice confirmation is active', () => {
+      publishAssistantDialogueVoiceLayer({
+        pendingConfirm: { actionId: 'playPause', label: 'Play' },
+        disambiguationOptions: [],
+      });
+      const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
+      const view = render(
+        <AiAssistantHubContext.Provider value={makeContextValue({ onSendAiMessage })}>
+          <AiChatCard embedded />
+        </AiAssistantHubContext.Provider>,
+      );
+      const input = within(view.container).getByRole('textbox') as HTMLInputElement;
+      fireEvent.change(input, { target: { value: 'typed reply' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+      expect(onSendAiMessage).not.toHaveBeenCalled();
+      expect(within(view.container).getByText(/voice assistant is waiting|语音助手正在等待/i)).toBeTruthy();
+    });
+
+    it('blocks Enter submit while voice disambiguation is active', () => {
+      publishAssistantDialogueVoiceLayer({
+        pendingConfirm: null,
+        disambiguationOptions: [makeActionIntent('mergeNext')],
+      });
+      const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
+      const view = render(
+        <AiAssistantHubContext.Provider value={makeContextValue({ onSendAiMessage })}>
+          <AiChatCard embedded />
+        </AiAssistantHubContext.Provider>,
+      );
+      const input = within(view.container).getByRole('textbox') as HTMLInputElement;
+      fireEvent.change(input, { target: { value: 'typed reply' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+      expect(onSendAiMessage).not.toHaveBeenCalled();
+      expect(within(view.container).getByText(/voice assistant is waiting|语音助手正在等待/i)).toBeTruthy();
+    });
+
+    it('when hub aiPendingToolCall is set, composer shows tool pending copy before voice dialogue copy (voice confirm also active)', () => {
+      publishAssistantDialogueVoiceLayer({
+        pendingConfirm: { actionId: 'playPause', label: 'Play' },
+        disambiguationOptions: [],
+      });
+      const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
+      const view = render(
+        <AiAssistantHubContext.Provider value={makeContextValue({
+          onSendAiMessage,
+          aiPendingToolCall: {
+            call: { name: 'delete_layer', arguments: { layerId: 'layer-1' }, requestId: 'r-ad28' },
+            assistantMessageId: 'ast-ad28',
+            riskSummary: 'Delete target layer',
+            impactPreview: ['rows removed'],
+          },
+        })}
+        >
+          <AiChatCard embedded />
+        </AiAssistantHubContext.Provider>,
+      );
+      const composerWarn = view.container.querySelector('.ai-chat-composer-warning');
+      expect(composerWarn?.textContent).toMatch(/high-risk action is pending|待确认的高风险操作/i);
+      const input = within(view.container).getByRole('textbox') as HTMLInputElement;
+      fireEvent.change(input, { target: { value: 'typed reply' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+      expect(onSendAiMessage).not.toHaveBeenCalled();
     });
   });
 });
