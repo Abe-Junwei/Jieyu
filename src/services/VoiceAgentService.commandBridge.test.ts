@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { detectAndRecordMemoryPattern, handleFinalSttResult, type CommandBridgeContext } from './VoiceAgentService.commandBridge';
+import {
+  buildCommandBridgeContext,
+  detectAndRecordMemoryPattern,
+  handleFinalSttResult,
+  type CommandBridgeContext,
+} from './VoiceAgentService.commandBridge';
 import type { VoiceSession } from './IntentRouter';
 import type { SttResult } from './VoiceInputService';
 import { t, tf, type Locale } from '../i18n';
@@ -111,6 +116,33 @@ afterEach(() => {
 });
 
 describe('VoiceAgentService command bridge', () => {
+  it('buildCommandBridgeContext omits optional callbacks when undefined', () => {
+    const setState = vi.fn();
+    const emitStateChange = vi.fn();
+    const ctx = buildCommandBridgeContext({
+      mode: 'command',
+      safeMode: false,
+      session: makeSession(),
+      locale: 'en-US',
+      corpusLang: 'cmn',
+      intentAliasMap: {},
+      setState,
+      emitStateChange,
+    });
+    expect(Object.keys(ctx).sort()).toEqual(
+      [
+        'corpusLang',
+        'emitStateChange',
+        'intentAliasMap',
+        'locale',
+        'mode',
+        'safeMode',
+        'session',
+        'setState',
+      ].sort(),
+    );
+  });
+
   it('reports the localized unrecognized-command error when command-mode fallback returns null', async () => {
     mockRouteIntent.mockReturnValue({
       type: 'chat',

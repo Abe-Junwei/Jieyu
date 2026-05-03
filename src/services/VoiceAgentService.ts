@@ -30,8 +30,8 @@ import { applyVoiceConfirmedPendingTelemetry } from './voiceConfirmedPendingTele
 import { buildVoiceAgentGroundingContext, type GroundingContextData, type VoiceAgentGroundingUiContext } from './VoiceAgentGroundingContext';
 import { createLogger } from '../observability/logger';
 import { BrowserEventEmitter } from './VoiceAgentService.eventEmitter';
-import { handleFinalSttResult } from './VoiceAgentService.commandBridge';
-import type { CommandBridgeContext } from './VoiceAgentService.commandBridge';
+import { buildCommandBridgeContext, handleFinalSttResult } from './VoiceAgentService.commandBridge';
+import { tryRouteFinalSttToDictationPipeline } from './voiceAgentServiceDictationSttRoute';
 import { buildVoiceAgentServiceStateSnapshot } from './VoiceAgentService.state';
 import { buildVoiceAgentStartConfig, testVoiceAgentCommercialProvider } from './VoiceAgentService.runtime';
 import { startWakeWordDetectorRuntime } from './VoiceAgentService.wakeWord';
@@ -892,36 +892,46 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       return;
     }
 
-    // Dictation pipeline routing — when active, feed results to the pipeline
-    // instead of intent routing. The pipeline handles confirmation/navigation.
-    if (this._dictationPipeline) {
-      this._setState({ interimText: '', finalText: result.text, confidence: result.confidence });
-      this._dictationPipeline.onSttResult(result);
-      this._speechQuality?.recordSegmentQuality('dictation');
-      void this._checkAndSwitchEngineIfNeeded();
+    // Dictation pipeline routing — when active, feed finals to the pipeline (no intent bridge).
+    if (
+      tryRouteFinalSttToDictationPipeline({
+        pipeline: this._dictationPipeline,
+        result,
+        commitFinalTranscript: (text, confidence) => {
+          this._setState({ interimText: '', finalText: text, confidence });
+        },
+        recordDictationQuality: () => {
+          this._speechQuality?.recordSegmentQuality('dictation');
+        },
+        scheduleEngineCheck: () => {
+          void this._checkAndSwitchEngineIfNeeded();
+        },
+      })
+    ) {
       return;
     }
 
     // Record audio quality for command-mode segments
     this._speechQuality?.recordSegmentQuality('command');
 
-    // Delegate to command bridge for intent routing + dispatch
-    const ctx: CommandBridgeContext = {
-      mode: this._mode,
-      safeMode: this._safeMode,
-      session: this._session,
-      locale: this._locale,
-      corpusLang: this._corpusLang,
-      intentAliasMap: this._intentAliasMap,
-      setState: (p) => this._setState(p),
-      emitStateChange: () => this._emitStateChange(),
-      ...(this._resolveIntentWithLlm && { resolveIntentWithLlm: this._resolveIntentWithLlm }),
-      ...(this._onExecuteAction && { onExecuteAction: this._onExecuteAction }),
-      ...(this._onInsertDictation && { onInsertDictation: this._onInsertDictation }),
-      ...(this._onSendToAiChat && { onSendToAiChat: this._onSendToAiChat }),
-      ...(this._onToolCall && { onToolCall: this._onToolCall }),
-    };
-    const mutations = await handleFinalSttResult(ctx, result);
+    const mutations = await handleFinalSttResult(
+      buildCommandBridgeContext({
+        mode: this._mode,
+        safeMode: this._safeMode,
+        session: this._session,
+        locale: this._locale,
+        corpusLang: this._corpusLang,
+        intentAliasMap: this._intentAliasMap,
+        setState: (p) => this._setState(p),
+        emitStateChange: () => this._emitStateChange(),
+        ...(this._resolveIntentWithLlm !== undefined && { resolveIntentWithLlm: this._resolveIntentWithLlm }),
+        ...(this._onExecuteAction !== undefined && { onExecuteAction: this._onExecuteAction }),
+        ...(this._onInsertDictation !== undefined && { onInsertDictation: this._onInsertDictation }),
+        ...(this._onSendToAiChat !== undefined && { onSendToAiChat: this._onSendToAiChat }),
+        ...(this._onToolCall !== undefined && { onToolCall: this._onToolCall }),
+      }),
+      result,
+    );
     this._session = mutations.session;
     this._intentAliasMap = mutations.intentAliasMap;
     this._emitStateChange();

@@ -3,9 +3,8 @@ import type { ActionId, ActionIntent, VoiceIntent, VoiceSession } from '../servi
 import type { SttResult } from '../services/VoiceInputService';
 import type { VoiceMode } from '../services/voiceMode';
 import { resolveVoiceIntent } from '../services/voiceIntentResolution';
-import { runVoiceFinalSttResolutionTail } from '../services/assistantVoiceSttOrchestrate';
+import { runVoiceFinalSttAfterIntentResolution } from '../services/assistantVoiceSttOrchestrate';
 import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
-import { detectAndRecordMemoryPattern } from '../services/voiceMemoryPattern';
 import { loadIntentRouterRuntime, loadVoiceIntentRefineRuntime } from './useVoiceAgent.runtime';
 import { type Locale } from '../i18n';
 
@@ -160,8 +159,6 @@ export function useVoiceAgentResultHandler({
       return;
     }
 
-    detectAndRecordMemoryPattern(result.text, corpusLang);
-
     setError(null);
     setInterimText('');
     setFinalText(result.text);
@@ -182,7 +179,8 @@ export function useVoiceAgentResultHandler({
       aliasMapRef.current = nextAliasMap;
     }
 
-    await runVoiceFinalSttResolutionTail({
+    await runVoiceFinalSttAfterIntentResolution({
+      corpusLang,
       baseSession: sessionRef.current,
       intent,
       sttResult: result,

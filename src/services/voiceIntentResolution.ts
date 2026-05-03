@@ -64,10 +64,10 @@ export interface VoiceIntentResolutionOutput {
  * 核心意图解析：routeIntent → LLM 回退 → 别名学习
  * Core intent resolution: routeIntent → LLM fallback → alias learning.
  *
- * 不包含记忆模式检测（由调用方在 resolve 前处理）、
+ * 不包含记忆模式检测（由 `runVoiceFinalSttAfterIntentResolution` 在意图解析之后统一处理）、
  * 也不包含 Hook 独有的消歧选项和 React 状态更新。
  * `VoiceSession` 单行追加见 `appendTurnToVoiceSession`（commandBridge 与 hook 共用）。
- * Excludes memory-pattern detection (caller runs before resolve) and Hook-only disambiguation / React updates.
+ * Excludes memory-pattern detection (handled in `runVoiceFinalSttAfterIntentResolution`) and Hook-only disambiguation / React updates.
  */
 export async function resolveVoiceIntent(
   deps: VoiceIntentResolutionDeps,

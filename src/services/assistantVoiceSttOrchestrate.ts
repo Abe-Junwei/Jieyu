@@ -5,6 +5,7 @@
 
 import type { VoiceSession } from './IntentRouter';
 import { appendTurnToVoiceSession, dispatchResolvedVoiceIntent, type DispatchResolvedVoiceIntentInput } from './assistantVoiceIntentDispatch';
+import { detectAndRecordMemoryPattern } from './voiceMemoryPattern';
 
 export type VoiceSttResolutionTailInput = Omit<DispatchResolvedVoiceIntentInput, 'sessionId'> & {
   baseSession: VoiceSession;
@@ -13,6 +14,22 @@ export type VoiceSttResolutionTailInput = Omit<DispatchResolvedVoiceIntentInput,
   /** React: setSession(next)；Service：仅 emit / 无状态脉冲（会话由调用方在 await 后写回） */
   commitAppendedSession: (nextSession: VoiceSession) => void;
 };
+
+export type VoiceSttAfterResolutionInput = VoiceSttResolutionTailInput & {
+  /** ISO 639-3 corpus language for memory-pattern detection（与 Hook / commandBridge 对齐） */
+  corpusLang: string;
+};
+
+/**
+ * 意图解析完成后：记忆模式扫描 + 回合追加 + `dispatchResolvedVoiceIntent`。
+ * Single entry after `resolveVoiceIntent` for Hook path and VoiceAgentService.commandBridge.
+ */
+export async function runVoiceFinalSttAfterIntentResolution(
+  input: VoiceSttAfterResolutionInput,
+): Promise<{ session: VoiceSession }> {
+  detectAndRecordMemoryPattern(input.sttResult.text, input.corpusLang);
+  return runVoiceFinalSttResolutionTail(input);
+}
 
 export async function runVoiceFinalSttResolutionTail(
   input: VoiceSttResolutionTailInput,

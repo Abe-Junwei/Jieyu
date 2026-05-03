@@ -20,6 +20,26 @@ export type AssistantDialoguePrimary =
   | 'voice_disambiguation'
   | 'voice_confirm';
 
+/**
+ * ADR-0028: voice confirm / disambiguation is the shared-dialogue layer that must
+ * block typed chat sends in the same session (mirrors `AiChatCard` composer gating).
+ */
+export function isVoiceDialogueBlockingPrimary(primary: AssistantDialoguePrimary): boolean {
+  return primary === 'voice_disambiguation' || primary === 'voice_confirm';
+}
+
+/**
+ * ADR-0028: high-risk pending tool or active voice dialogue blocks the chat composer.
+ * When `primary === 'chat_tool'`, voice-side fields may still be present in the snapshot
+ * but do not participate in this gate (UI read model prefers the tool layer).
+ */
+export function isAssistantChatComposerBlocked(input: {
+  hasToolPending: boolean;
+  dialoguePrimary: AssistantDialoguePrimary;
+}): boolean {
+  return input.hasToolPending || isVoiceDialogueBlockingPrimary(input.dialoguePrimary);
+}
+
 export interface AssistantDialogueSnapshot {
   primary: AssistantDialoguePrimary;
   chatTool: PendingAiToolCall | null;

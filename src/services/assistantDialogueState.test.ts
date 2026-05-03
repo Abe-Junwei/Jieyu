@@ -1,6 +1,8 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
   getAssistantDialogueSnapshot,
+  isAssistantChatComposerBlocked,
+  isVoiceDialogueBlockingPrimary,
   publishAssistantDialogueChatToolLayer,
   publishAssistantDialogueVoiceLayer,
   resetAssistantDialogueStateForTests,
@@ -67,5 +69,55 @@ describe('assistantDialogueState', () => {
     publishAssistantDialogueVoiceLayer({ pendingConfirm: null, disambiguationOptions: [] });
 
     expect(getAssistantDialogueSnapshot().primary).toBe('none');
+  });
+});
+
+describe('ADR-0028 same-session assistant dialogue + chat composer gate', () => {
+  beforeEach(() => {
+    resetAssistantDialogueStateForTests();
+  });
+
+  it('marks voice confirm / disambiguation primaries as voice-blocking', () => {
+    expect(isVoiceDialogueBlockingPrimary('voice_confirm')).toBe(true);
+    expect(isVoiceDialogueBlockingPrimary('voice_disambiguation')).toBe(true);
+    expect(isVoiceDialogueBlockingPrimary('none')).toBe(false);
+    expect(isVoiceDialogueBlockingPrimary('chat_tool')).toBe(false);
+  });
+
+  it('blocks chat composer when voice confirm is primary (typed send path)', () => {
+    publishAssistantDialogueVoiceLayer({
+      pendingConfirm: { actionId: 'playPause', label: 'Play' },
+      disambiguationOptions: [],
+    });
+    const snap = getAssistantDialogueSnapshot();
+    expect(snap.primary).toBe('voice_confirm');
+    expect(
+      isAssistantChatComposerBlocked({ hasToolPending: false, dialoguePrimary: snap.primary }),
+    ).toBe(true);
+  });
+
+  it('blocks chat composer when voice disambiguation is primary', () => {
+    publishAssistantDialogueVoiceLayer({
+      pendingConfirm: { actionId: 'playPause', label: 'Play' },
+      disambiguationOptions: [makeActionIntent('mergeNext')],
+    });
+    const snap = getAssistantDialogueSnapshot();
+    expect(snap.primary).toBe('voice_disambiguation');
+    expect(
+      isAssistantChatComposerBlocked({ hasToolPending: false, dialoguePrimary: snap.primary }),
+    ).toBe(true);
+  });
+
+  it('when chat tool wins snapshot primary, composer is blocked only via tool flag (voice data may linger)', () => {
+    publishAssistantDialogueVoiceLayer({
+      pendingConfirm: { actionId: 'playPause', label: 'Play' },
+      disambiguationOptions: [],
+    });
+    publishAssistantDialogueChatToolLayer(makeMinimalPendingToolCall());
+    const snap = getAssistantDialogueSnapshot();
+    expect(snap.primary).toBe('chat_tool');
+    expect(isVoiceDialogueBlockingPrimary(snap.primary)).toBe(false);
+    expect(isAssistantChatComposerBlocked({ hasToolPending: true, dialoguePrimary: snap.primary })).toBe(true);
+    expect(isAssistantChatComposerBlocked({ hasToolPending: false, dialoguePrimary: snap.primary })).toBe(false);
   });
 });

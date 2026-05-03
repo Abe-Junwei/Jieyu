@@ -12,9 +12,8 @@ import type { Locale } from '../i18n';
 import { routeIntent, isDestructiveAction, shouldConfirmFuzzyAction, learnVoiceIntentAlias, bumpAliasUsage, type ActionId, type VoiceIntent, type VoiceSession } from './IntentRouter';
 import { refineLlmFallbackIntent } from './voiceIntentRefine';
 import { resolveVoiceIntent } from './voiceIntentResolution';
-import { runVoiceFinalSttResolutionTail } from './assistantVoiceSttOrchestrate';
+import { runVoiceFinalSttAfterIntentResolution } from './assistantVoiceSttOrchestrate';
 import { createLogger } from '../observability/logger';
-import { detectAndRecordMemoryPattern } from './voiceMemoryPattern';
 
 export { detectAndRecordMemoryPattern } from './voiceMemoryPattern';
 
@@ -43,6 +42,41 @@ export interface CommandBridgeContext {
   onToolCall?: (call: { name: string; arguments: Record<string, unknown> }) => Promise<{ ok: boolean; message: string }>;
 }
 
+/** Fields VoiceAgentService supplies before `handleFinalSttResult` (ADR-0028 thin edge). */
+export type CommandBridgeContextFields = Pick<
+  CommandBridgeContext,
+  'mode' | 'safeMode' | 'session' | 'locale' | 'corpusLang' | 'intentAliasMap' | 'setState' | 'emitStateChange'
+> &
+  Partial<
+    Pick<
+      CommandBridgeContext,
+      | 'resolveIntentWithLlm'
+      | 'onExecuteAction'
+      | 'onInsertDictation'
+      | 'onSendToAiChat'
+      | 'onToolCall'
+    >
+  >;
+
+/** Assemble bridge context from service / test fields (construct + delegate). */
+export function buildCommandBridgeContext(input: CommandBridgeContextFields): CommandBridgeContext {
+  return {
+    mode: input.mode,
+    safeMode: input.safeMode,
+    session: input.session,
+    locale: input.locale,
+    corpusLang: input.corpusLang,
+    intentAliasMap: input.intentAliasMap,
+    setState: input.setState,
+    emitStateChange: input.emitStateChange,
+    ...(input.resolveIntentWithLlm !== undefined && { resolveIntentWithLlm: input.resolveIntentWithLlm }),
+    ...(input.onExecuteAction !== undefined && { onExecuteAction: input.onExecuteAction }),
+    ...(input.onInsertDictation !== undefined && { onInsertDictation: input.onInsertDictation }),
+    ...(input.onSendToAiChat !== undefined && { onSendToAiChat: input.onSendToAiChat }),
+    ...(input.onToolCall !== undefined && { onToolCall: input.onToolCall }),
+  };
+}
+
 /** 桥接执行后的可变状态更新 | Mutable state mutations returned to the service */
 export interface CommandBridgeMutations {
   session: VoiceSession;
@@ -59,8 +93,6 @@ export async function handleFinalSttResult(
   ctx: CommandBridgeContext,
   result: SttResult,
 ): Promise<CommandBridgeMutations> {
-  detectAndRecordMemoryPattern(result.text, ctx.corpusLang);
-
   ctx.setState({ interimText: '', finalText: result.text, confidence: result.confidence, agentState: 'routing' });
 
   const resolutionResult = await resolveVoiceIntent(
@@ -81,7 +113,8 @@ export async function handleFinalSttResult(
   }
   const intentAliasMap = nextAliasMap ?? ctx.intentAliasMap;
 
-  const { session } = await runVoiceFinalSttResolutionTail({
+  const { session } = await runVoiceFinalSttAfterIntentResolution({
+    corpusLang: ctx.corpusLang,
     baseSession: ctx.session,
     intent,
     sttResult: result,
