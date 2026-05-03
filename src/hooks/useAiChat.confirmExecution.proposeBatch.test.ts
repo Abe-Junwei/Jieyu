@@ -56,6 +56,46 @@ function makeDeps(overrides?: {
 }
 
 describe('executeConfirmedProposedChangeBatch', () => {
+  it('runs applyAssistant then confirmed audit then markExecuted (T3-c order)', async () => {
+    const seq: string[] = [];
+    const d = makeDeps({
+      onToolCall: vi.fn(async (): Promise<AiChatToolResult> => ({ ok: true, message: 'ok' })),
+    });
+    d.applyAssistantMessageResult.mockImplementation(async () => {
+      seq.push('apply');
+    });
+    d.writeToolDecisionAuditLog.mockImplementation(async (...args: unknown[]) => {
+      seq.push('audit');
+      const meta = args[5] as { executed?: boolean } | undefined;
+      expect(meta?.executed).toBe(true);
+    });
+    d.markExecutedRequestId.mockImplementation(() => {
+      seq.push('mark');
+    });
+
+    await executeConfirmedProposedChangeBatch({
+      assistantMessageId: 'asst-1',
+      parentCall: baseParentCall(),
+      childCalls: [validSetText('a', 'ta')],
+      auditContext: buildToolAuditContext('', 'p', 'm', 'enabled', 'concise'),
+      locale: TEST_LOCALE,
+      toolFeedbackStyle: 'concise',
+      hasPersistedExecutionForRequest: d.hasPersistedExecutionForRequest,
+      applyAssistantMessageResult: d.applyAssistantMessageResult,
+      onToolCall: d.onToolCall,
+      writeToolDecisionAuditLog: d.writeToolDecisionAuditLog,
+      setTaskSession: d.setTaskSession,
+      taskSessionId: 'ts-1',
+      markExecutedRequestId: d.markExecutedRequestId,
+      sessionMemory: {},
+      updateSessionMemory: d.updateSessionMemory,
+      persistSessionMemory: d.persistSessionMemory,
+      bumpMetric: d.bumpMetric,
+    });
+
+    expect(seq).toEqual(['apply', 'audit', 'mark']);
+  });
+
   it('marks parent request executed only after all children succeed and does not invoke rollbacks', async () => {
     const rb1 = vi.fn(async () => {});
     const rb2 = vi.fn(async () => {});

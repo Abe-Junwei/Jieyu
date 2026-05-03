@@ -1,4 +1,5 @@
 import { assessToolActionIntent, buildPreviewContract, buildToolAuditContext, buildToolDecisionAuditMetadata, buildToolIntentAuditMetadata, describeAndBuildPending, isDestructiveToolCall, toNaturalToolFailure, toNaturalToolGraySkipped, toNaturalToolPending, toNaturalToolRollbackSkipped, validateToolCallArguments } from '../ai/chat/toolCallHelpers';
+import { resolveUserDirectivePolicyDecision } from '../ai/policy/resolveExecutionPolicy';
 import { formatDuplicateRequestIgnoredDetail, formatDuplicateRequestIgnoredError } from '../ai/messages';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
@@ -9,68 +10,7 @@ import { resolveDestructiveGate } from './useAiChat.destructiveGate';
 import { executeAutoToolCall } from './useAiChat.autoExecute';
 import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, UiChatMessage } from './useAiChat';
 
-type PolicyShapeToolCall = { name: string; arguments: Record<string, unknown> };
-
-function isBatchToolCall(call: PolicyShapeToolCall): boolean {
-  return Object.values(call.arguments).some((value) => Array.isArray(value) && value.length > 1)
-    || call.name === 'propose_changes'
-    || call.name === 'merge_transcription_segments';
-}
-
-function isWriteLikeToolCall(call: PolicyShapeToolCall): boolean {
-  if (isDestructiveToolCall(call.name as AiChatToolCall['name'])) return true;
-  return /^(create_|set_|split_|merge_|clear_|link_|unlink_|add_|remove_|switch_|auto_gloss_)/.test(call.name)
-    || call.name === 'propose_changes';
-}
-
-type UserDirectivePolicyDecision =
-  | { action: 'allow' }
-  | {
-      action: 'block';
-      reason: 'user_directive_never_execute' | 'user_directive_deny_destructive' | 'user_directive_deny_batch';
-      message: string;
-    }
-  | {
-      action: 'confirm';
-      reason: 'user_directive_confirmation_required';
-      message: string;
-    };
-
-export function resolveUserDirectivePolicyDecision(
-  toolCall: PolicyShapeToolCall,
-  sessionMemory: AiSessionMemory,
-): UserDirectivePolicyDecision {
-  const toolPreference = sessionMemory.toolPreferences?.autoExecute;
-  const safetyPreferences = sessionMemory.safetyPreferences;
-  const policyBlocksDestructive = safetyPreferences?.denyDestructive === true && isDestructiveToolCall(toolCall.name as AiChatToolCall['name']);
-  const policyBlocksBatch = safetyPreferences?.denyBatch === true && isBatchToolCall(toolCall);
-  const policyBlocksExecution = toolPreference === 'never' || policyBlocksDestructive || policyBlocksBatch;
-  if (policyBlocksExecution) {
-    const reason = toolPreference === 'never'
-      ? 'user_directive_never_execute'
-      : policyBlocksDestructive
-        ? 'user_directive_deny_destructive'
-        : 'user_directive_deny_batch';
-    const message = reason === 'user_directive_never_execute'
-      ? 'Blocked by user directive: do not execute tools automatically.'
-      : reason === 'user_directive_deny_destructive'
-        ? 'Blocked by user directive: destructive actions are disabled.'
-        : 'Blocked by user directive: batch actions are disabled.';
-    return { action: 'block', reason, message };
-  }
-
-  const policyRequiresConfirmation = toolPreference === 'ask_first'
-    || (safetyPreferences?.requireImpactPreview === true && isWriteLikeToolCall(toolCall));
-  if (policyRequiresConfirmation) {
-    return {
-      action: 'confirm',
-      reason: 'user_directive_confirmation_required',
-      message: 'User directive requires confirmation before execution.',
-    };
-  }
-
-  return { action: 'allow' };
-}
+export { resolveUserDirectivePolicyDecision };
 
 interface ResolveToolDecisionPipelineParams {
   assistantMessageId: string;

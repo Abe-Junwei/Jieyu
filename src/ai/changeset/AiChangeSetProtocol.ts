@@ -31,7 +31,8 @@ function extractPrimaryUnitIdFromToolArgs(call: AiChatToolCall): string | null {
   return null;
 }
 
-function summarizeToolArgsForPreview(args: Record<string, unknown>): string {
+/** Shared one-line summary for preview DTOs / change-set rows (T3-a). */
+export function summarizeAiChatToolArgumentsForPreview(args: Record<string, unknown>): string {
   const text = typeof args.text === 'string' ? args.text : '';
   if (text.length > 0) {
     return text.length > 80 ? `${text.slice(0, 80)}…` : text;
@@ -61,7 +62,7 @@ export function buildAiChangeSetFromPendingToolCall(pending: PendingAiToolCall):
       unitId: extractPrimaryUnitIdFromToolArgs(child) ?? `step-${index + 1}`,
       field: child.name,
       before: '',
-      after: summarizeToolArgsForPreview(child.arguments),
+      after: summarizeAiChatToolArgumentsForPreview(child.arguments),
     }));
 
     return {
