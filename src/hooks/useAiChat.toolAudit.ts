@@ -9,27 +9,7 @@ import { newAuditLogId, nowIso } from './useAiChat.helpers';
 import { buildAiToolRequestId } from '../ai/toolRequestId';
 import type { AiChatToolCall, AiChatToolName } from './useAiChat.types';
 import type { ToolIntentAuditMetadata, ToolDecisionAuditMetadata } from '../ai/chat/toolCallHelpers';
-
-/**
- * `newValue` 紧凑形态 `confirm_failed|auto_failed:<tool>:<reason>` 中，表示**未产生可幂等的已提交副作用**、
- * 同一 `requestId` 仍应允许重试的 reason 集合（无 `metadataJson` 时的回退口径）。
- */
-const NON_PERSISTED_TOOL_DECISION_REASONS = new Set<string>([
-  'invalid_args',
-  'invalid_child_args',
-  'no_executor',
-  'duplicate_requestId',
-  'child_failed',
-  'exception',
-  'user_directive_never_execute',
-  'user_directive_deny_destructive',
-  'user_directive_deny_batch',
-  'stale_read_model',
-  'invalid_proposed_changes',
-  'ambiguous_target',
-  'unresolved_delete_segment_target',
-  'unresolved_write_target',
-]);
+import { NON_PERSISTED_TOOL_DECISION_REASONS } from '../ai/chat/toolDecisionFailureReason';
 
 // ── 幂等性指纹 | Idempotency fingerprint ────────────────────────────────────
 

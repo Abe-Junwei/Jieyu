@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { getToolDecisionFailureTriage } from './toolDecisionFailureReason.bundle.mjs';
 
 const workspaceRoot = process.cwd();
 const DEFAULT_PROFILE = 'lite';
@@ -2094,6 +2095,127 @@ function ratio(numerator, denominator) {
   return denominator > 0 ? Number((numerator / denominator).toFixed(4)) : 0;
 }
 
+const TOOL_DECISION_FAILURE_OUTCOMES = new Set([
+  'confirm_failed',
+  'auto_failed',
+  'gray_failed',
+  'policy_blocked',
+]);
+
+function extractToolDecisionOutcomeReason(row) {
+  const metadata = getMetadataObject(row);
+  const parts = String(row.newValue ?? '').split(':').map((part) => part.trim()).filter(Boolean);
+  const head = parts[0] ?? '';
+  const phaseOk = metadata && metadata.phase === 'decision';
+  const outcome = phaseOk && typeof metadata.outcome === 'string' && metadata.outcome.trim().length > 0
+    ? metadata.outcome.trim()
+    : head;
+  let reason = '';
+  if (phaseOk && typeof metadata.reason === 'string' && metadata.reason.trim().length > 0) {
+    reason = metadata.reason.trim();
+  } else if (head === 'confirm_failed' || head === 'auto_failed') {
+    reason = parts[2] ?? '';
+  }
+  return { outcome, reason, metadata };
+}
+
+function buildToolDecisionFailureSignalsSection(input) {
+  const {
+    auditExportPath,
+    auditRows,
+    readError,
+    releaseProfile,
+    durableOrchestrationSection,
+  } = input;
+
+  if (!auditExportPath) {
+    return {
+      status: 'skipped',
+      skipReason: 'no_audit_export_source',
+      failureSignals: {
+        failedDecisionRows: 0,
+        triageCounts: { retry: 0, clarify: 0, human: 0, abandon: 0 },
+        partialExecutionProgressRows: 0,
+        rollbackErrorCountBuckets: { '0': 0, '1': 0, '2+': 0 },
+      },
+      durableHandoff: {
+        status: 'skipped',
+        humanInterventionRate: null,
+        handoffReasons: {},
+      },
+    };
+  }
+
+  const decisionRows = auditRows.filter((row) => row.collection === 'ai_messages' && row.field === 'ai_tool_call_decision');
+  if (decisionRows.length === 0) {
+    const out = {
+      status: 'skipped',
+      skipReason: 'no_decision_rows',
+      auditExportPath: toRelativePath(auditExportPath),
+      failureSignals: {
+        failedDecisionRows: 0,
+        triageCounts: { retry: 0, clarify: 0, human: 0, abandon: 0 },
+        partialExecutionProgressRows: 0,
+        rollbackErrorCountBuckets: { '0': 0, '1': 0, '2+': 0 },
+      },
+      durableHandoff: {
+        status: durableOrchestrationSection?.status === 'skipped' ? 'skipped' : 'ready',
+        humanInterventionRate: durableOrchestrationSection?.summary?.humanInterventionRate ?? null,
+        handoffReasons: durableOrchestrationSection?.handoffReasons ?? {},
+      },
+    };
+    if (readError) out.readError = readError;
+    return out;
+  }
+
+  const triageCounts = { retry: 0, clarify: 0, human: 0, abandon: 0 };
+  let failedDecisionRows = 0;
+  let partialExecutionProgressRows = 0;
+  const rollbackErrorCountBuckets = { '0': 0, '1': 0, '2+': 0 };
+
+  for (const row of decisionRows) {
+    const { outcome, reason, metadata } = extractToolDecisionOutcomeReason(row);
+    if (TOOL_DECISION_FAILURE_OUTCOMES.has(outcome)) {
+      failedDecisionRows += 1;
+      const triage = getToolDecisionFailureTriage(reason);
+      triageCounts[triage] += 1;
+    }
+
+    const executionProgress = metadata?.executionProgress;
+    if (executionProgress && typeof executionProgress === 'object' && executionProgress.partial === true) {
+      partialExecutionProgressRows += 1;
+    }
+
+    const pr = metadata?.proposeRollback;
+    if (pr && typeof pr === 'object' && Number.isFinite(Number(pr.errorCount))) {
+      const ec = Math.max(0, Math.floor(Number(pr.errorCount)));
+      if (ec <= 0) rollbackErrorCountBuckets['0'] += 1;
+      else if (ec === 1) rollbackErrorCountBuckets['1'] += 1;
+      else rollbackErrorCountBuckets['2+'] += 1;
+    }
+  }
+
+  const durableReady = durableOrchestrationSection && durableOrchestrationSection.status !== 'skipped';
+  const out = {
+    status: 'ready_or_partial',
+    auditExportPath: toRelativePath(auditExportPath),
+    failureSignals: {
+      failedDecisionRows,
+      triageCounts,
+      partialExecutionProgressRows,
+      rollbackErrorCountBuckets,
+    },
+    durableHandoff: {
+      status: durableReady ? 'ready' : 'skipped',
+      humanInterventionRate: durableReady ? durableOrchestrationSection.summary.humanInterventionRate : null,
+      handoffReasons: durableReady ? durableOrchestrationSection.handoffReasons : {},
+    },
+    ...(releaseProfile === 'full' ? { sampleRequestIds: [...new Set(decisionRows.map((r) => r.requestId).filter(Boolean))].slice(0, 10) } : {}),
+  };
+  if (readError) out.readError = readError;
+  return out;
+}
+
 function buildDurableOrchestrationSection(input) {
   const {
     snapshotExportPath,
@@ -2475,6 +2597,7 @@ function buildReport(input) {
     userDirectiveGovernanceSection,
     actionApprovalCenterSection,
     durableOrchestrationSection,
+    toolDecisionFailureSignalsSection,
     auditFieldDictionarySection,
   } = input;
 
@@ -2612,7 +2735,7 @@ function buildReport(input) {
     logPath: null,
     keySummary: backgroundMemoryExtractionSection.status === 'skipped'
       ? (backgroundMemoryExtractionSection.skipReason ?? 'skipped')
-      : `completed=${backgroundMemoryExtractionSection.summary.completed};written=${backgroundMemoryExtractionSection.summary.writtenCount};allow=${backgroundMemoryExtractionSection.sandboxDecisions?.actions?.allow ?? 0};ask=${backgroundMemoryExtractionSection.sandboxDecisions?.actions?.ask ?? 0};deny=${backgroundMemoryExtractionSection.sandboxDecisions?.actions?.deny ?? 0}`,
+      : `completed=${backgroundMemoryExtractionSection.summary.completed};written=${backgroundMemoryExtractionSection.summary.writtenCount};allow=${backgroundMemoryExtractionSection.sandboxDecisions?.actions?.allow ?? 0};ask=${backgroundMemoryExtractionSection.sandboxDecisions?.actions?.ask ?? 0};deny=${backgroundMemoryExtractionSection.sandboxDecisions?.actions?.deny ?? 0};quotaSkipped=${backgroundMemoryExtractionSection.skipReasons?.['session-write-quota-exceeded'] ?? 0}`,
   });
 
   evidenceIndex.push({
@@ -2683,6 +2806,23 @@ function buildReport(input) {
   });
 
   evidenceIndex.push({
+    conclusionId: 't4.tool-decision-failure-signals.v1',
+    conclusion: toolDecisionFailureSignalsSection.status === 'skipped'
+      ? 'T4 tool decision failure signals skipped'
+      : 'T4 tool decision failure signals generated',
+    evidenceType: toolDecisionFailureSignalsSection.status === 'skipped'
+      ? 'tool_decision_failure_signals_skipped'
+      : 'tool_decision_failure_signals',
+    command: 'release_evidence:tool_decision_failure_signals',
+    module: 'ai-runtime',
+    exitCode: hasSectionReadError(toolDecisionFailureSignalsSection) ? 1 : 0,
+    logPath: toolDecisionFailureSignalsSection.auditExportPath ?? null,
+    keySummary: toolDecisionFailureSignalsSection.status === 'skipped'
+      ? (toolDecisionFailureSignalsSection.skipReason ?? 'skipped')
+      : `failedRows=${toolDecisionFailureSignalsSection.failureSignals.failedDecisionRows};triageRetry=${toolDecisionFailureSignalsSection.failureSignals.triageCounts.retry};partial=${toolDecisionFailureSignalsSection.failureSignals.partialExecutionProgressRows};rollback2+=${toolDecisionFailureSignalsSection.failureSignals.rollbackErrorCountBuckets['2+']};handoffRate=${toolDecisionFailureSignalsSection.durableHandoff.humanInterventionRate ?? 'n/a'}`,
+  });
+
+  evidenceIndex.push({
     conclusionId: 'm0.audit-field-dictionary.v1',
     conclusion: 'M0 audit field dictionary v1 generated',
     evidenceType: 'audit_field_dictionary_v1',
@@ -2731,6 +2871,7 @@ function buildReport(input) {
     || hasSectionReadError(coordinationLiteSection)
     || hasSectionReadError(userDirectiveGovernanceSection)
     || hasSectionReadError(durableOrchestrationSection)
+    || hasSectionReadError(toolDecisionFailureSignalsSection)
     || hasSectionReadError(costGuardSection);
   if (aiEvidenceFailed) {
     evidenceIndex.push({
@@ -2789,6 +2930,7 @@ function buildReport(input) {
     userDirectiveGovernance: userDirectiveGovernanceSection,
     actionApprovalCenter: actionApprovalCenterSection,
     durableOrchestration: durableOrchestrationSection,
+    toolDecisionFailureSignals: toolDecisionFailureSignalsSection,
     auditFieldDictionary: auditFieldDictionarySection,
     costGuard: costGuardSection,
     extensions: extensionCapabilityAudit,
@@ -2861,6 +3003,20 @@ async function run() {
     stepResults.push(result);
     console.log(`[release-evidence] ${result.status.toUpperCase()} ${result.script}`);
   }
+
+  const durableOrchestrationSection = buildDurableOrchestrationSection({
+    snapshotExportPath: aiTaskSnapshotsExportPath,
+    snapshotRows: aiTaskSnapshotLoad.rows,
+    readError: aiTaskSnapshotLoad.readError,
+    releaseProfile,
+  });
+  const toolDecisionFailureSignalsSection = buildToolDecisionFailureSignalsSection({
+    auditExportPath: aiAuditExportPath,
+    auditRows: auditLoad.rows,
+    readError: auditLoad.readError,
+    releaseProfile,
+    durableOrchestrationSection,
+  });
 
   const report = buildReport({
     generatedAt,
@@ -2936,12 +3092,8 @@ async function run() {
       readError: auditLoad.readError,
       releaseProfile,
     }),
-    durableOrchestrationSection: buildDurableOrchestrationSection({
-      snapshotExportPath: aiTaskSnapshotsExportPath,
-      snapshotRows: aiTaskSnapshotLoad.rows,
-      readError: aiTaskSnapshotLoad.readError,
-      releaseProfile,
-    }),
+    durableOrchestrationSection,
+    toolDecisionFailureSignalsSection,
     auditFieldDictionarySection: buildAuditFieldDictionarySection(),
   });
 

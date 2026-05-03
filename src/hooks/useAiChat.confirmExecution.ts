@@ -1,4 +1,7 @@
-import { buildToolDecisionAuditMetadata, isDestructiveToolCall, toNaturalToolFailure, toNaturalToolSuccess, validateToolCallArguments } from '../ai/chat/toolCallHelpers';
+import { featureFlags } from '../ai/config/featureFlags';
+import { dryRunToolCallForConfirm } from '../ai/chat/toolCallDryRun';
+import { shouldRetryToolCallExecutorThrow } from '../ai/chat/toolDecisionFailureReason';
+import { buildToolDecisionAuditMetadata, isDestructiveToolCall, toNaturalToolFailure, toNaturalToolSuccess } from '../ai/chat/toolCallHelpers';
 import { formatDuplicateRequestIgnoredDetail, formatDuplicateRequestIgnoredError, formatInvalidArgsError, formatNoExecutorInternalError, formatNoExecutorToolFailureDetail, formatToolExecutionFallbackError } from '../ai/messages';
 import { buildPostExecSessionMemory } from './useAiChat.postExecSessionPatch';
 import { nowIso } from './useAiChat.helpers';
@@ -56,6 +59,131 @@ interface ExecuteConfirmedToolCallParams {
   bumpMetric: (key: keyof AiInteractionMetrics) => void;
 }
 
+interface FinalizeHumanToolCallConfirmOutcomeParams {
+  assistantMessageId: string;
+  call: AiChatToolCall & { requestId: string };
+  auditContext: Parameters<typeof buildToolDecisionAuditMetadata>[2];
+  locale: Locale;
+  toolFeedbackStyle: AiToolFeedbackStyle;
+  ok: boolean;
+  message: string;
+  execDurationMs: number;
+  applyAssistantMessageResult: ExecuteConfirmedToolCallParams['applyAssistantMessageResult'];
+  writeToolDecisionAuditLog: ExecuteConfirmedToolCallParams['writeToolDecisionAuditLog'];
+  markExecutedRequestId: ExecuteConfirmedToolCallParams['markExecutedRequestId'];
+}
+
+/**
+ * T3-c / idempotency: single-tool human confirm always persists UI + decision audit before `markExecutedRequestId`
+ * (only when `ok`). See `docs/architecture/ai-chat-tool-confirm-idempotency.md`.
+ */
+async function finalizeHumanToolCallConfirmOutcome(params: FinalizeHumanToolCallConfirmOutcomeParams): Promise<void> {
+  const {
+    assistantMessageId,
+    call,
+    auditContext,
+    locale,
+    toolFeedbackStyle,
+    ok,
+    message,
+    execDurationMs,
+    applyAssistantMessageResult,
+    writeToolDecisionAuditLog,
+    markExecutedRequestId,
+  } = params;
+  await applyAssistantMessageResult(
+    assistantMessageId,
+    ok
+      ? toNaturalToolSuccess(locale, call.name, message, toolFeedbackStyle)
+      : toNaturalToolFailure(locale, call.name, message, toolFeedbackStyle),
+    ok ? 'done' : 'error',
+    ok ? undefined : message,
+  );
+  await writeToolDecisionAuditLog(
+    assistantMessageId,
+    `pending:${call.name}`,
+    `${ok ? 'confirmed' : 'confirm_failed'}:${call.name}`,
+    'human',
+    call.requestId,
+    buildToolDecisionAuditMetadata(
+      assistantMessageId,
+      call,
+      auditContext,
+      'human',
+      ok ? 'confirmed' : 'confirm_failed',
+      ok,
+      message,
+      undefined,
+      execDurationMs,
+    ),
+  );
+  if (ok) {
+    markExecutedRequestId(call.requestId);
+  }
+}
+
+interface FinalizeHumanProposeChangesParentSuccessParams {
+  assistantMessageId: string;
+  parentCall: AiChatToolCall & { requestId: string };
+  auditContext: Parameters<typeof buildToolDecisionAuditMetadata>[2];
+  locale: Locale;
+  toolFeedbackStyle: AiToolFeedbackStyle;
+  childCallsLength: number;
+  execStartMs: number;
+  applyAssistantMessageResult: ExecuteConfirmedToolCallParams['applyAssistantMessageResult'];
+  writeToolDecisionAuditLog: ExecuteConfirmedToolCallParams['writeToolDecisionAuditLog'];
+  markExecutedRequestId: ExecuteConfirmedToolCallParams['markExecutedRequestId'];
+}
+
+/**
+ * T3-c / idempotency: parent `propose_changes` is marked executed only after the `confirmed` audit row
+ * with `executed: true`. See `docs/architecture/ai-chat-tool-confirm-idempotency.md`.
+ */
+async function finalizeHumanProposeChangesParentConfirmSuccess(
+  params: FinalizeHumanProposeChangesParentSuccessParams,
+): Promise<void> {
+  const {
+    assistantMessageId,
+    parentCall,
+    auditContext,
+    locale,
+    toolFeedbackStyle,
+    childCallsLength,
+    execStartMs,
+    applyAssistantMessageResult,
+    writeToolDecisionAuditLog,
+    markExecutedRequestId,
+  } = params;
+  const successMessage = locale === 'zh-CN'
+    ? `已应用 ${childCallsLength} 项变更`
+    : `Applied ${childCallsLength} change(s)`;
+  const execDurationMs = Math.round(performance.now() - execStartMs);
+  await applyAssistantMessageResult(
+    assistantMessageId,
+    toNaturalToolSuccess(locale, parentCall.name, successMessage, toolFeedbackStyle),
+    'done',
+  );
+  await writeToolDecisionAuditLog(
+    assistantMessageId,
+    `pending:${parentCall.name}`,
+    `confirmed:${parentCall.name}`,
+    'human',
+    parentCall.requestId,
+    buildToolDecisionAuditMetadata(
+      assistantMessageId,
+      parentCall,
+      auditContext,
+      'human',
+      'confirmed',
+      true,
+      successMessage,
+      undefined,
+      execDurationMs,
+    ),
+  );
+  markExecutedRequestId(parentCall.requestId);
+}
+
 /**
  * 执行已确认的工具调用（人工确认路径） | Execute confirmed tool call in human-confirmed path
  */
@@ -109,9 +237,9 @@ export async function executeConfirmedToolCall({
     return;
   }
 
-  const argsValidationError = validateToolCallArguments(call);
-  if (argsValidationError) {
-    const invalidArgsText = formatInvalidArgsError(argsValidationError);
+  const dryRun = dryRunToolCallForConfirm(call);
+  if (!dryRun.ok) {
+    const invalidArgsText = formatInvalidArgsError(dryRun.message);
     await applyAssistantMessageResult(
       assistantMessageId,
       toNaturalToolFailure(locale, call.name, invalidArgsText, toolFeedbackStyle),
@@ -218,93 +346,92 @@ export async function executeConfirmedToolCall({
 
   const TOOL_EXEC_TIMEOUT_MS = 30_000;
   const execStart = performance.now();
-  try {
-    const result = await raceWithTimeout(onToolCall(call), TOOL_EXEC_TIMEOUT_MS);
-    const execDurationMs = Math.round(performance.now() - execStart);
+  let lastThrow: unknown;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const result = await raceWithTimeout(onToolCall(call), TOOL_EXEC_TIMEOUT_MS);
+      const execDurationMs = Math.round(performance.now() - execStart);
 
-    if (result.ok) {
-      bumpMetric('successCount');
-      const nextSessionMemory = buildPostExecSessionMemory({
-        sessionMemory,
-        toolName: call.name,
-        language: typeof call.arguments.language === 'string' ? call.arguments.language : undefined,
-        layerId: undefined,
-      });
-      updateSessionMemory(nextSessionMemory);
-      persistSessionMemory(nextSessionMemory);
-    } else {
-      bumpMetric('failureCount');
-    }
+      if (result.ok) {
+        bumpMetric('successCount');
+        const nextSessionMemory = buildPostExecSessionMemory({
+          sessionMemory,
+          toolName: call.name,
+          language: typeof call.arguments.language === 'string' ? call.arguments.language : undefined,
+          layerId: undefined,
+        });
+        updateSessionMemory(nextSessionMemory);
+        persistSessionMemory(nextSessionMemory);
+      } else {
+        bumpMetric('failureCount');
+      }
 
-    await applyAssistantMessageResult(
-      assistantMessageId,
-      result.ok
-        ? toNaturalToolSuccess(locale, call.name, result.message, toolFeedbackStyle)
-        : toNaturalToolFailure(locale, call.name, result.message, toolFeedbackStyle),
-      result.ok ? 'done' : 'error',
-      result.ok ? undefined : result.message,
-    );
-
-    await writeToolDecisionAuditLog(
-      assistantMessageId,
-      `pending:${call.name}`,
-      `${result.ok ? 'confirmed' : 'confirm_failed'}:${call.name}`,
-      'human',
-      call.requestId,
-      buildToolDecisionAuditMetadata(
+      await finalizeHumanToolCallConfirmOutcome({
         assistantMessageId,
         call,
         auditContext,
-        'human',
-        result.ok ? 'confirmed' : 'confirm_failed',
-        result.ok,
-        result.message,
-        undefined,
+        locale,
+        toolFeedbackStyle,
+        ok: result.ok,
+        message: result.message,
         execDurationMs,
-      ),
-    );
+        applyAssistantMessageResult,
+        writeToolDecisionAuditLog,
+        markExecutedRequestId,
+      });
 
-    if (result.ok) {
-      markExecutedRequestId(call.requestId);
-    }
-
-    setTaskSession({
-      id: taskSessionId,
-      status: 'idle',
-      updatedAt: nowIso(),
-    });
-  } catch (error) {
-    const execDurationMsErr = Math.round(performance.now() - execStart);
-    const toolErrorText = error instanceof Error ? error.message : formatToolExecutionFallbackError();
-    await applyAssistantMessageResult(
-      assistantMessageId,
-      toNaturalToolFailure(locale, call.name, toolErrorText, toolFeedbackStyle),
-      'error',
-      toolErrorText,
-    );
-    await writeToolDecisionAuditLog(
-      assistantMessageId,
-      `pending:${call.name}`,
-      `confirm_failed:${call.name}:exception`,
-      'human',
-      call.requestId,
-      buildToolDecisionAuditMetadata(
+      setTaskSession({
+        id: taskSessionId,
+        status: 'idle',
+        updatedAt: nowIso(),
+      });
+      return;
+    } catch (error) {
+      lastThrow = error;
+      const mayRetry = shouldRetryToolCallExecutorThrow({
+        enabled: featureFlags.aiToolCallExecutorAutoRetryEnabled,
+        attemptIndex: attempt,
+        toolName: call.name,
+        isDestructive: (name) => isDestructiveToolCall(name as (typeof call)['name']),
+      });
+      if (mayRetry) {
+        continue;
+      }
+      const execDurationMsErr = Math.round(performance.now() - execStart);
+      const toolErrorText = lastThrow instanceof Error
+        ? lastThrow.message
+        : formatToolExecutionFallbackError();
+      await applyAssistantMessageResult(
         assistantMessageId,
-        call,
-        auditContext,
-        'human',
-        'confirm_failed',
-        false,
+        toNaturalToolFailure(locale, call.name, toolErrorText, toolFeedbackStyle),
+        'error',
         toolErrorText,
-        'exception',
-        execDurationMsErr,
-      ),
-    );
-    setTaskSession({
-      id: taskSessionId,
-      status: 'idle',
-      updatedAt: nowIso(),
-    });
+      );
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `pending:${call.name}`,
+        `confirm_failed:${call.name}:exception`,
+        'human',
+        call.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          call,
+          auditContext,
+          'human',
+          'confirm_failed',
+          false,
+          toolErrorText,
+          'exception',
+          execDurationMsErr,
+        ),
+      );
+      setTaskSession({
+        id: taskSessionId,
+        status: 'idle',
+        updatedAt: nowIso(),
+      });
+      return;
+    }
   }
 }
 
@@ -555,9 +682,9 @@ export async function executeConfirmedProposedChangeBatch({
     for (let i = 0; i < childCalls.length; i += 1) {
       const child = childCalls[i]!;
       currentChildName = child.name;
-      const argsValidationError = validateToolCallArguments(child);
-      if (argsValidationError) {
-        const invalidArgsText = formatInvalidArgsError(argsValidationError);
+      const childDryRun = dryRunToolCallForConfirm(child);
+      if (!childDryRun.ok) {
+        const invalidArgsText = formatInvalidArgsError(childDryRun.message);
         const rb = await runProposeChangeRollbacks(rollbacks);
         const detail = appendProposeRollbackStatus(
           locale,
@@ -677,36 +804,18 @@ export async function executeConfirmedProposedChangeBatch({
     updateSessionMemory(nextSessionMemory);
     persistSessionMemory(nextSessionMemory);
 
-    const successMessage = locale === 'zh-CN'
-      ? `已应用 ${childCalls.length} 项变更`
-      : `Applied ${childCalls.length} change(s)`;
-
-    await applyAssistantMessageResult(
+    await finalizeHumanProposeChangesParentConfirmSuccess({
       assistantMessageId,
-      toNaturalToolSuccess(locale, parentCall.name, successMessage, toolFeedbackStyle),
-      'done',
-    );
-
-    await writeToolDecisionAuditLog(
-      assistantMessageId,
-      `pending:${parentCall.name}`,
-      `confirmed:${parentCall.name}`,
-      'human',
-      parentCall.requestId,
-      buildToolDecisionAuditMetadata(
-        assistantMessageId,
-        parentCall,
-        auditContext,
-        'human',
-        'confirmed',
-        true,
-        successMessage,
-        undefined,
-        Math.round(performance.now() - execStart),
-      ),
-    );
-
-    markExecutedRequestId(parentCall.requestId);
+      parentCall,
+      auditContext,
+      locale,
+      toolFeedbackStyle,
+      childCallsLength: childCalls.length,
+      execStartMs: execStart,
+      applyAssistantMessageResult,
+      writeToolDecisionAuditLog,
+      markExecutedRequestId,
+    });
 
     finishIdle();
   } catch (error) {

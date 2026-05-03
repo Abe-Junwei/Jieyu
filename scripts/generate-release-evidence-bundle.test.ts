@@ -178,6 +178,20 @@ interface ReleaseEvidenceReport {
     taskTypes: Record<string, number>;
     handoffReasons: Record<string, number>;
   };
+  toolDecisionFailureSignals?: {
+    status: string;
+    failureSignals: {
+      failedDecisionRows: number;
+      triageCounts: { retry: number; clarify: number; human: number; abandon: number };
+      partialExecutionProgressRows: number;
+      rollbackErrorCountBuckets: { '0': number; '1': number; '2+': number };
+    };
+    durableHandoff: {
+      status: string;
+      humanInterventionRate: number | null;
+      handoffReasons: Record<string, number>;
+    };
+  };
   auditFieldDictionary?: {
     schemaVersion: number;
     status: string;
@@ -286,6 +300,8 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.trend.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'b3.extensions.capability-audit-summary')).toBe(true);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 't4.tool-decision-failure-signals.v1')).toBe(true);
+      expect(report.toolDecisionFailureSignals?.status).toBe('ready_or_partial');
       expect(report.extensions.status).toBe('skipped');
       expect(report.progressiveDisclosure.status).toBe('ready_or_partial');
       expect(report.progressiveDisclosure.cards).toHaveLength(4);
@@ -446,6 +462,123 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.durableOrchestration?.taskTypes).toEqual({ agent_loop: 2, embed: 1 });
       expect(report.durableOrchestration?.handoffReasons).toEqual({ token_budget_warning: 2 });
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'f3.durable-orchestration.v1')).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('builds T4 tool decision failure signals (triage + partial + rollback buckets + durable handoff)', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const snapshotsPath = path.join(tempDir, 'ai-task-snapshots.json');
+    const auditExportPath = path.join(tempDir, 't4-audit.ndjson');
+
+    try {
+      writeFileSync(snapshotsPath, JSON.stringify({
+        ai_task_snapshots: [
+          {
+            taskId: 'task-handoff-1',
+            taskType: 'agent_loop',
+            status: 'done',
+            hasCheckpoint: true,
+            resumable: false,
+            handoffReason: 'token_budget_warning',
+            durationMs: 100,
+            updatedAt: '2026-04-27T10:00:00.000Z',
+          },
+        ],
+      }), 'utf8');
+
+      const metaBase = {
+        schemaVersion: 1,
+        phase: 'decision',
+        executed: false,
+        requestId: 'r-t4',
+        assistantMessageId: 'asst-t4',
+        source: 'human',
+        toolCall: { name: 'set_transcription_text', arguments: { segmentId: 's1', text: 'x' } },
+        context: {},
+      };
+
+      const rows = [
+        {
+          requestId: 'r-t4-a',
+          collection: 'ai_messages',
+          field: 'ai_tool_call_decision',
+          timestamp: '2026-04-27T11:00:00.000Z',
+          newValue: 'confirm_failed:set_transcription_text:exception',
+          metadataJson: JSON.stringify({
+            ...metaBase,
+            outcome: 'confirm_failed',
+            reason: 'exception',
+            requestId: 'r-t4-a',
+          }),
+        },
+        {
+          requestId: 'r-t4-b',
+          collection: 'ai_messages',
+          field: 'ai_tool_call_decision',
+          timestamp: '2026-04-27T11:01:00.000Z',
+          newValue: 'auto_failed:set_transcription_text:invalid_args',
+          metadataJson: JSON.stringify({
+            ...metaBase,
+            outcome: 'auto_failed',
+            reason: 'invalid_args',
+            requestId: 'r-t4-b',
+          }),
+        },
+        {
+          requestId: 'r-t4-c',
+          collection: 'ai_messages',
+          field: 'ai_tool_call_decision',
+          timestamp: '2026-04-27T11:02:00.000Z',
+          newValue: 'confirm_failed:propose_changes:child_failed',
+          metadataJson: JSON.stringify({
+            ...metaBase,
+            outcome: 'confirm_failed',
+            reason: 'child_failed',
+            requestId: 'r-t4-c',
+            executionProgress: { appliedCount: 1, totalCount: 3, partial: true },
+            proposeRollback: { attempted: true, ok: false, errorCount: 2 },
+          }),
+        },
+      ];
+      writeFileSync(auditExportPath, `${rows.map((r) => JSON.stringify(r)).join('\n')}\n`, 'utf8');
+
+      const result = runReleaseEvidenceScript([
+        '--profile=lite',
+        '--dry-run',
+        '--mode=shadow',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        `--ai-audit-export=${auditExportPath}`,
+        `--ai-task-snapshots=${snapshotsPath}`,
+      ]);
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+
+      expect(report.toolDecisionFailureSignals?.status).toBe('ready_or_partial');
+      expect(report.toolDecisionFailureSignals?.failureSignals.failedDecisionRows).toBe(3);
+      expect(report.toolDecisionFailureSignals?.failureSignals.triageCounts).toEqual({
+        retry: 1,
+        clarify: 1,
+        human: 1,
+        abandon: 0,
+      });
+      expect(report.toolDecisionFailureSignals?.failureSignals.partialExecutionProgressRows).toBe(1);
+      expect(report.toolDecisionFailureSignals?.failureSignals.rollbackErrorCountBuckets).toEqual({
+        '0': 0,
+        '1': 0,
+        '2+': 1,
+      });
+      expect(report.toolDecisionFailureSignals?.durableHandoff.status).toBe('ready');
+      expect(report.toolDecisionFailureSignals?.durableHandoff.humanInterventionRate).toBe(1);
+      expect(report.toolDecisionFailureSignals?.durableHandoff.handoffReasons).toEqual({
+        token_budget_warning: 1,
+      });
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 't4.tool-decision-failure-signals.v1')).toBe(true);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
