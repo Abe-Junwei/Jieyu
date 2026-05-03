@@ -18,7 +18,8 @@ user-invocable: true
 
 ## 严格落地流程
 1. 需求约束建模
-- 明确设计稿来源（.pen/Figma/截图）、目标页面、断点范围（桌面/移动端）。
+- 明确设计稿来源（仓库根目录 `DESIGN.md` / Google Stitch 画布或 Stitch MCP / `.pen` / Figma / 截图）、目标页面、断点范围（桌面/移动端）。
+- 若来源含 Stitch：以 `DESIGN.md` 中的「Jieyu 语义 token 映射」与 `src/styles/tokens.css` 为工程约束；Stitch 导出片段为补充说明，冲突时以 token 与既有 CSS 分层为准并记录待回写项。
 - 约定验收等级：像素级一致 或 语义级一致。
 - 形成“不可妥协项”清单（布局层级、关键间距、状态反馈、关键交互路径）。
 

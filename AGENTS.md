@@ -11,6 +11,7 @@ The same sections are mirrored in `**CLAUDE.md`** for Claude Code and other tool
 - Docs layout and governed paths: `.cursor/rules/jieyu-docs-governance.mdc`
 - Prefer `docs/architecture/` and code as current truth when docs conflict.
 - **Browser support (desktop):** `docs/architecture/桌面端浏览器支持策略.md`. New or sensitive browser APIs: check compatibility, prefer feature detection, and extend E2E if behavior differs across engines (`npm run test:e2e`; local quick loop `npm run test:e2e:chromium`).
+- **UI / Stitch handoff:** For visual work, read repo-root `DESIGN.md` (design intent + Stitch export) and `src/styles/tokens.css`. Map colors to semantic tokens (`var(--…)`); do not introduce arbitrary hex in components unless deliberately extending `tokens.css` and updating `DESIGN.md`. User-visible copy must use i18n (`dictKeys` / dictionaries), not raw text from design tools.
 
 ---
 
