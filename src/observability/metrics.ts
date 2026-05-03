@@ -157,22 +157,6 @@ export const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     description: 'Prompt context built from segment-only project state.',
   },
   {
-    id: 'ai.hybrid_intent_resolved',
-    category: 'ai',
-    module: 'hybrid-intent',
-    kind: 'counter',
-    unit: 'count',
-    description: 'Hybrid intent resolver successfully parsed a structured intent via LLM.',
-  },
-  {
-    id: 'ai.hybrid_intent_timeout',
-    category: 'ai',
-    module: 'hybrid-intent',
-    kind: 'counter',
-    unit: 'count',
-    description: 'Hybrid intent resolver timed out before receiving a complete response.',
-  },
-  {
     id: 'ai.local_tool_clarification_needed',
     category: 'ai',
     module: 'ai-chat',

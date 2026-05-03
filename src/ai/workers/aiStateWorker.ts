@@ -64,7 +64,10 @@ function consumeSlice(slice: AiStateWorkerSlice): void {
   const settingsFingerprintChanged = previousSlice != null
     && previousSlice.aiChatSettingsFingerprint !== slice.aiChatSettingsFingerprint;
 
-  if (settingsFingerprintChanged) {
+  const agentLoopFingerprintChanged = previousSlice != null
+    && previousSlice.aiChatPendingAgentLoopFingerprint !== slice.aiChatPendingAgentLoopFingerprint;
+
+  if (settingsFingerprintChanged || agentLoopFingerprintChanged) {
     emitIfFingerprintChanged(slice);
     resetPendingCounters();
     clearIdleTimer();

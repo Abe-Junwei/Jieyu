@@ -14,6 +14,8 @@ export interface AiStateWorkerSlice {
   aiChatProviderKind: string;
   aiChatModel: string;
   aiChatSettingsFingerprint: string;
+  /** 用于 T1-c：冷启动水合 `pendingAgentLoopCheckpoint` 时也要推进 deferred 快照（原指纹不含 sessionMemory）。 */
+  aiChatPendingAgentLoopFingerprint: string;
   aiChatContextChars: number;
   aiChatHistoryChars: number;
   aiToolDecisionLogCount: number;
@@ -63,6 +65,7 @@ export function buildAiStateWorkerFingerprint(slice: AiStateWorkerSlice): string
     slice.aiChatProviderKind,
     slice.aiChatModel,
     slice.aiChatSettingsFingerprint,
+    slice.aiChatPendingAgentLoopFingerprint,
     String(slice.aiChatContextChars),
     String(slice.aiChatHistoryChars),
     String(slice.aiToolDecisionLogCount),
@@ -101,6 +104,7 @@ export function computeAiStateWorkerSignalWeight(slice: AiStateWorkerSlice): num
     + slice.aiChatProviderKind.length
     + slice.aiChatModel.length
     + slice.aiChatSettingsFingerprint.length
+    + slice.aiChatPendingAgentLoopFingerprint.length
     + slice.acousticRuntimeState.length
     + slice.acousticRuntimePhase.length
     + slice.acousticCalibrationStatus.length
