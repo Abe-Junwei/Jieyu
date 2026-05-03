@@ -3,7 +3,7 @@ title: execution/plans 文档索引
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-04-24
+last_reviewed: 2026-05-01
 source_of_truth: execution-plan-index
 ---
 
@@ -20,6 +20,12 @@ source_of_truth: execution-plan-index
 - [AI治理与结构标注收口拆分方案-2026-04-25.md](./AI治理与结构标注收口拆分方案-2026-04-25.md)（提交/PR 拆分边界、文件清单、验证命令、release evidence 口径确认与 `AiChatCard` 行数 warning backlog）
 
 - [AI智能体工业级对标改进计划书-2026-04-25.md](./AI智能体工业级对标改进计划书-2026-04-25.md)（并入 `AI Agent Industrial Gap Assessment` 与行业调研结论，统一五层架构、四阶段路线图、KPI、风险矩阵与代码映射）
+
+- [AI智能体对标-落地修复计划-2026-04-26.md](./AI智能体对标-落地修复计划-2026-04-26.md)（A/B/C/D/E/F 已收口与剩余项锚点；合并前质量闸与测试路径）
+
+- [AI智能体工业级史诗-落地方案-2026-05-01.md](./AI智能体工业级史诗-落地方案-2026-05-01.md)（Phase C+ 四条轨道：T1 durable 可操作闭环、T2 执行层权限隔离、T3 变更事务化、T4 失败分流与运维信号；切片、验收、代码锚点与推荐顺序）
+
+- [F4-扩展入口-capability-isolation-epic-2026-05-01.md](./F4-扩展入口-capability-isolation-epic-2026-05-01.md)（后台入口 capability isolation 扩展批次与退出条件）
 
 - [证据化发布与AI工具治理完整方案-2026-04-20.md](./证据化发布与AI工具治理完整方案-2026-04-20.md)（发布证据 bundle、`lite/core/full` profile、AI 工具策略 SSOT、观测与成本门禁；作为发布证据与工具治理口径锚点）
 

@@ -3,7 +3,7 @@ title: execution/governance 文档索引
 doc_type: execution-governance-index
 status: active
 owner: repo
-last_reviewed: 2026-04-25
+last_reviewed: 2026-05-01
 source_of_truth: governance-index
 ---
 
@@ -30,10 +30,15 @@ source_of_truth: governance-index
 2. 做归档、迁移、批量改路径后，再跑 `npm run report:docs-link-debt`
 3. 若要把检查设为 GitHub 远端必选项，请同步更新 branch protection 的 required checks
 
+**建议节奏**：发版前、或 `docs/` 大搬迁/批量改相对路径后，额外跑一次 `npm run report:docs-link-debt`，把报告中的断链记入对应计划或 PR（该命令不阻塞合并，仅提高可见性）。
+
 ## 当前文档
 
-当前目录当前仅保留本索引；治理事实请转到以下活跃文档：
+本目录在索引之外保留下列台账与 ARCH 专文（其余治理事实仍可参见下列活跃计划与闸门文档）：
 
+- [未落地项汇总-2026-04-24.md](./未落地项汇总-2026-04-24.md)
+- [arch1-fireAndForget-2026-04-25.md](./arch1-fireAndForget-2026-04-25.md)
+- [arch2-i18n-message-modules-2026-04-25.md](./arch2-i18n-message-modules-2026-04-25.md)
 - [release-gates 文档索引](../release-gates/README.md)
 - [证据化发布与 AI 工具治理完整方案-2026-04-20.md](../plans/证据化发布与AI工具治理完整方案-2026-04-20.md)
 - [标注页与词典页开发路线图-2026-04-25.md](../plans/标注页与词典页开发路线图-2026-04-25.md)

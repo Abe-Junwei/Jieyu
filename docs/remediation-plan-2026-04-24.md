@@ -6,6 +6,8 @@
 
 **未落地/长期项一览**（从本清单与勘误表抽取、随 PR 更新）：`[docs/execution/governance/未落地项汇总-2026-04-24.md](./execution/governance/未落地项汇总-2026-04-24.md)`
 
+**治理文档索引**：`[docs/execution/governance/README.md](./execution/governance/README.md)`（含 `arch1` / `arch2` 专文入口）。**文档链接债务**：大路径迁移或批量改链后建议跑 `npm run report:docs-link-debt`（报告不阻塞 CI，与 `npm run check:docs-governance` 互补）。
+
 ## 与《工程审计勘误》对账（F-4）
 
 **代码级缺陷与迁移风险**以本文件为清单；**构建 / 离线壳 / 依赖卫生 / a11y 路线** 与勘误表 **Phase A–F** 正交，见  
