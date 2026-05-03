@@ -179,4 +179,45 @@ describe('useAiChat.backgroundMemory', () => {
     ));
     expect(latestDirectiveLogs).toHaveLength(2);
   });
+
+  it('skips background flush when session write quota is enabled and exceeded', async () => {
+    let memory: AiSessionMemory = {};
+    const persisted = vi.fn<(next: AiSessionMemory) => void>();
+    const insertAuditLog = vi.fn<(entry: AuditLogDocType) => Promise<void>>(async () => {});
+    const runtime = createAiChatBackgroundMemoryRuntime({
+      enabled: true,
+      flushQuotaEnabled: true,
+      flushQuotaMaxCompletedWriteFlushesPerConversation: 1,
+      getSessionMemory: () => memory,
+      setSessionMemory: (next) => { memory = next; },
+      persistSessionMemory: persisted,
+    });
+
+    runtime.extractor.schedule({
+      conversationId: 'conv-quota',
+      assistantMessageId: 'ast-1',
+      userMessageId: 'usr-1',
+      userText: '请记住：默认用中文解释',
+      assistantText: '我记住了。',
+      actorId: 'ai-chat',
+    });
+    await flushBackgroundMemoryExtractor(runtime, insertAuditLog);
+
+    runtime.extractor.schedule({
+      conversationId: 'conv-quota',
+      assistantMessageId: 'ast-2',
+      userMessageId: 'usr-2',
+      userText: '请记住：以后用英文',
+      assistantText: '好的。',
+      actorId: 'ai-chat',
+    });
+    await flushBackgroundMemoryExtractor(runtime, insertAuditLog);
+
+    expect(persisted).toHaveBeenCalledTimes(1);
+    const skippedMetadata = insertAuditLog.mock.calls
+      .map((c) => c[0])
+      .filter((row) => row.field === 'ai_background_memory_extraction' && row.newValue === 'skipped')
+      .map((row) => JSON.parse(String(row.metadataJson ?? '{}')) as { skippedReason?: string });
+    expect(skippedMetadata.some((m) => m.skippedReason === 'session-write-quota-exceeded')).toBe(true);
+  });
 });

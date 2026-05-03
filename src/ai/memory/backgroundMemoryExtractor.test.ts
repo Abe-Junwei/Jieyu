@@ -141,4 +141,38 @@ describe('BackgroundMemoryExtractor', () => {
       sandboxDecision: { action: 'allow', reason: 'restricted-write-allowed' },
     });
   });
+
+  it('skips before extractFacts when session write quota is exceeded', async () => {
+    const extractFacts = vi.fn(async () => [{ fact: 'x', confidence: 0.9 }]);
+    const writeFacts = vi.fn(async () => 1);
+    const counts = new Map<string, number>();
+    const flushQuotaGate = {
+      maxCompletedWriteFlushesPerConversation: 1,
+      getCompletedWriteFlushCount: (id: string) => counts.get(id) ?? 0,
+      consumeSuccessfulWriteFlush: (id: string) => {
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+      },
+    };
+    const extractor = new BackgroundMemoryExtractor({
+      enabled: true,
+      actorId: 'assistant',
+      flushQuotaGate,
+      extractFacts,
+      writeFacts,
+      now: () => 1000,
+    });
+
+    extractor.schedule(baseInput({ conversationId: 'conv-q' }));
+    const first = await extractor.flush();
+    expect(first?.status).toBe('completed');
+    expect(extractFacts).toHaveBeenCalledTimes(1);
+    expect(writeFacts).toHaveBeenCalledTimes(1);
+
+    extractor.schedule(baseInput({ conversationId: 'conv-q', assistantMessageId: 'msg-2' }));
+    const second = await extractor.flush();
+    expect(second?.status).toBe('skipped');
+    expect(second?.skippedReason).toBe('session-write-quota-exceeded');
+    expect(extractFacts).toHaveBeenCalledTimes(1);
+    expect(writeFacts).toHaveBeenCalledTimes(1);
+  });
 });

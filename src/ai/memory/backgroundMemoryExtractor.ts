@@ -29,15 +29,29 @@ export interface BackgroundMemoryExtractionAudit {
   writtenCount: number;
   durationMs: number;
   schemaVersion: number;
-  skippedReason?: 'disabled' | 'main-chain-memory-written' | 'schema-version-mismatch' | 'sandbox-denied' | 'empty-extraction';
+  skippedReason?:
+    | 'disabled'
+    | 'main-chain-memory-written'
+    | 'schema-version-mismatch'
+    | 'sandbox-denied'
+    | 'empty-extraction'
+    | 'session-write-quota-exceeded';
   sandboxDecision?: BackgroundToolSandboxDecision;
   errorMessage?: string;
+}
+
+export interface BackgroundMemoryFlushQuotaGate {
+  maxCompletedWriteFlushesPerConversation: number;
+  getCompletedWriteFlushCount: (conversationId: string) => number;
+  consumeSuccessfulWriteFlush: (conversationId: string) => void;
 }
 
 export interface BackgroundMemoryExtractorOptions {
   enabled: boolean;
   actorId: string;
   sandboxDecision?: BackgroundToolSandboxDecision;
+  /** When set, skips flush before extractFacts if the conversation has reached the cap (T2-c). */
+  flushQuotaGate?: BackgroundMemoryFlushQuotaGate;
   extractFacts: (input: BackgroundMemoryExtractionInput) => Promise<readonly ExtractedMemoryFact[]> | readonly ExtractedMemoryFact[];
   writeFacts: (facts: readonly ExtractedMemoryFact[], input: BackgroundMemoryExtractionInput) => Promise<number> | number;
   now?: () => number;
@@ -116,11 +130,21 @@ export class BackgroundMemoryExtractor {
     if (this.options.sandboxDecision && this.options.sandboxDecision.action !== 'allow') {
       return finish('skipped', 'sandbox-denied');
     }
+    const quotaGate = this.options.flushQuotaGate;
+    if (quotaGate) {
+      const { maxCompletedWriteFlushesPerConversation, getCompletedWriteFlushCount } = quotaGate;
+      if (getCompletedWriteFlushCount(task.input.conversationId) >= maxCompletedWriteFlushesPerConversation) {
+        return finish('skipped', 'session-write-quota-exceeded');
+      }
+    }
     try {
       const facts = await this.options.extractFacts(task.input);
       const writtenCount = await this.options.writeFacts(facts, task.input);
       const normalizedWrittenCount = Math.max(0, Math.floor(writtenCount));
       if (facts.length === 0 && normalizedWrittenCount === 0) return finish('skipped', 'empty-extraction');
+      if (quotaGate && normalizedWrittenCount > 0) {
+        quotaGate.consumeSuccessfulWriteFlush(task.input.conversationId);
+      }
       return { ...finish('completed'), writtenCount: normalizedWrittenCount };
     } catch (error) {
       return {
