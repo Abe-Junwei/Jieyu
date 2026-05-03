@@ -6,7 +6,8 @@ import { generateTraceId } from '../observability/aiTrace';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
-import { resolveToolDecisionPipeline, resolveUserDirectivePolicyDecision } from './useAiChat.toolDecisionPipeline';
+import { resolveUserDirectivePolicyDecision } from '../ai/policy/resolveExecutionPolicy';
+import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
 import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiTaskTraceEntry, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, ToolAuditContext, UiChatMessage } from './useAiChat.types';
 
 export interface ResolveAiChatStreamCompletionParams {

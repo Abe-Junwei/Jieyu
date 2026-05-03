@@ -3,9 +3,14 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { db } from '../db';
+import { persistAgentLoopCheckpointTask } from '../ai/chat/agentLoopCheckpoint';
 import { featureFlags } from '../ai/config/featureFlags';
 import { useAiChat, type AiChatToolCall } from './useAiChat';
 import { INITIAL_METRICS } from './useAiChat.config';
+import {
+  publishAssistantDialogueVoiceLayer,
+  resetAssistantDialogueStateForTests,
+} from '../services/assistantDialogueState';
 
 let lastSystemPrompt = '';
 const outputCapRetryAttemptByPrompt = new Map<string, number>();
@@ -1695,6 +1700,52 @@ describe('useAiChat abort and recovery', () => {
     expect(onToolCall).not.toHaveBeenCalled();
   });
 
+  it('should block send when ADR-0028 voice confirmation dialogue is primary (hook path)', async () => {
+    const { result } = renderHook(() => useAiChat());
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    publishAssistantDialogueVoiceLayer({
+      pendingConfirm: { actionId: 'playPause', label: 'Play' },
+      disambiguationOptions: [],
+    });
+
+    const before = result.current.messages.length;
+    await act(async () => {
+      await result.current.send('hello');
+    });
+
+    expect(result.current.messages.length).toBe(before);
+    expect(result.current.lastError).toContain('待确认');
+    resetAssistantDialogueStateForTests();
+  });
+
+  it('should block send when ADR-0028 voice disambiguation dialogue is primary (hook path)', async () => {
+    const { result } = renderHook(() => useAiChat());
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    publishAssistantDialogueVoiceLayer({
+      pendingConfirm: null,
+      disambiguationOptions: [
+        { type: 'action', actionId: 'undo', raw: 'u', confidence: 0.9 },
+      ],
+    });
+
+    const before = result.current.messages.length;
+    await act(async () => {
+      await result.current.send('hello');
+    });
+
+    expect(result.current.messages.length).toBe(before);
+    expect(result.current.lastError).toContain('待确认');
+    resetAssistantDialogueStateForTests();
+  });
+
   it('should block sending new message while previous reply is still streaming', async () => {
     const { result } = renderHook(() => useAiChat());
 
@@ -2898,6 +2949,81 @@ describe('useAiChat abort and recovery', () => {
     });
   });
 
+  it('hydrates sessionMemory.pendingAgentLoopCheckpoint from ai_tasks on mount when local session is empty (T1-c)', async () => {
+    const taskId = await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-hydrate-mount',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'hydrate-me',
+        continuationInput: 'c1',
+        step: 1,
+        createdAt: '2026-05-01T12:00:00.000Z',
+      },
+    });
+
+    const { result } = renderHook(() => useAiChat());
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await waitFor(() => {
+      expect(result.current.sessionMemory?.pendingAgentLoopCheckpoint?.taskId).toBe(taskId);
+      expect(result.current.sessionMemory?.pendingAgentLoopCheckpoint?.originalUserText).toBe('hydrate-me');
+    });
+
+    const stored = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      pendingAgentLoopCheckpoint?: { taskId?: string; originalUserText?: string };
+    };
+    expect(stored.pendingAgentLoopCheckpoint?.taskId).toBe(taskId);
+    expect(stored.pendingAgentLoopCheckpoint?.originalUserText).toBe('hydrate-me');
+  });
+
+  it('converging mounts: two useAiChat hooks surface the same latest durable checkpoint (T1-c)', async () => {
+    window.localStorage.removeItem('jieyu.aiChat.sessionMemory');
+    const olderId = await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-dual-old',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'older',
+        continuationInput: 'c-old',
+        step: 1,
+        createdAt: '2026-05-01T08:00:00.000Z',
+      },
+    });
+    await db.ai_tasks.update(olderId, { updatedAt: '2026-05-01T08:00:00.000Z' });
+
+    const newerId = await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-dual-new',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'newer',
+        continuationInput: 'c-new',
+        step: 1,
+        createdAt: '2026-05-01T09:00:00.000Z',
+      },
+    });
+    await db.ai_tasks.update(newerId, { updatedAt: '2026-05-01T10:00:00.000Z' });
+
+    const first = renderHook(() => useAiChat());
+    const second = renderHook(() => useAiChat());
+
+    await waitFor(() => {
+      expect(first.result.current.isBootstrapping).toBe(false);
+    });
+    await waitFor(() => {
+      expect(second.result.current.isBootstrapping).toBe(false);
+    });
+
+    await waitFor(() => {
+      expect(first.result.current.sessionMemory?.pendingAgentLoopCheckpoint?.taskId).toBe(newerId);
+      expect(second.result.current.sessionMemory?.pendingAgentLoopCheckpoint?.taskId).toBe(newerId);
+    });
+
+    first.unmount();
+    second.unmount();
+  });
+
   it('should dismiss durable loop checkpoint and mark backing ai_task as cancelled_by_user', async () => {
     const { result } = renderHook(() => useAiChat({
       getContext: () => ({
@@ -2945,6 +3071,53 @@ describe('useAiChat abort and recovery', () => {
         errorMessage: 'cancelled_by_user',
       });
     });
+  });
+
+  it('should clear pending checkpoint via clearPendingAgentLoopCheckpointIfTaskIdMatches when taskId matches', async () => {
+    const { result } = renderHook(() => useAiChat({
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          selectedUnitKind: 'segment',
+          activeSegmentUnitId: 'seg-current',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    const veryLongPrompt = `__LOCAL_CONTEXT_TOOL_FENCED__ ${'y'.repeat(12000)}`;
+    await act(async () => {
+      await result.current.send(veryLongPrompt);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const storedBefore = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      pendingAgentLoopCheckpoint?: { taskId?: string };
+    };
+    const taskId = storedBefore.pendingAgentLoopCheckpoint?.taskId;
+    expect(taskId).toBeTruthy();
+
+    act(() => {
+      result.current.clearPendingAgentLoopCheckpointIfTaskIdMatches(`${taskId}wrong`);
+    });
+    const storedNoop = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      pendingAgentLoopCheckpoint?: { taskId?: string };
+    };
+    expect(storedNoop.pendingAgentLoopCheckpoint?.taskId).toBe(taskId);
+
+    act(() => {
+      result.current.clearPendingAgentLoopCheckpointIfTaskIdMatches(taskId!);
+    });
+    const storedAfter = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      pendingAgentLoopCheckpoint?: unknown;
+    };
+    expect(storedAfter.pendingAgentLoopCheckpoint).toBeUndefined();
   });
 
   it('should track interaction metrics across tool execution lifecycle', async () => {

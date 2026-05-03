@@ -1,72 +1,35 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
 import { useLatest } from './useLatest';
-import { useLocale, useOptionalLocale } from '../i18n';
+import { useLocale, useOptionalLocale, type Locale } from '../i18n';
 import { useAiChatConnectionProbe } from './useAiChat.connectionProbe';
 import { useAiChatConversationState } from './useAiChat.conversationState';
-import { createAssistantPersistenceHelpers } from './useAiChat.assistantPersistence';
-import { DEFAULT_FIRST_CHUNK_TIMEOUT_MS, DEFAULT_OUTPUT_TOKEN_CAP, INITIAL_METRICS, estimateTokensFromText, normalizeAutoProbeIntervalMs, normalizeFirstChunkTimeoutMs, normalizeOutputTokenCap, normalizeOutputTokenRetryCap, normalizeRagContextTimeoutMs, normalizeSessionTokenBudget, normalizeStreamPersistInterval, readDevOutputTokenCap, readDevOutputTokenRetryCap, readDevAutoProbeIntervalMs, readDevRagContextTimeoutMs, readDevSessionTokenBudget, readDevStreamPersistIntervalMs } from './useAiChat.config';
-import { newAuditLogId, newMessageId, nowIso } from './useAiChat.helpers';
-import { runAgentLoop } from './useAiChat.agentLoopRunner';
-import { resolveClarifyFastPathCall } from './useAiChat.clarify';
-import { buildContextDebugSnapshot, logContextDebugSnapshot } from './useAiChat.debug';
+import { DEFAULT_OUTPUT_TOKEN_CAP, INITIAL_METRICS, normalizeAutoProbeIntervalMs, normalizeFirstChunkTimeoutMs, normalizeOutputTokenCap, normalizeOutputTokenRetryCap, normalizeRagContextTimeoutMs, normalizeSessionTokenBudget, normalizeStreamPersistInterval, readDevOutputTokenCap, readDevOutputTokenRetryCap, readDevAutoProbeIntervalMs, readDevRagContextTimeoutMs, readDevSessionTokenBudget, readDevStreamPersistIntervalMs } from './useAiChat.config';
+import { newMessageId, nowIso } from './useAiChat.helpers';
 import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
-import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
-import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
-import { AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE, createAiChatBackgroundMemoryRuntime, scheduleAndFlushBackgroundMemory, type AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
-import { buildResponsePolicyAuditMetadata, resolveAiChatResponsePolicy } from './useAiChat.responsePolicy';
-import { getDb } from '../db';
 import { enrichContextWithRag } from './useAiChat.rag';
-import { buildSessionMemoryDigestSuppressionRefs, maybeAppendMemoryBrokerContext } from './useAiChat.memoryBroker';
+import { AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE, createAiChatBackgroundMemoryRuntime, type AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
+import { resolveAiChatResponsePolicy } from './useAiChat.responsePolicy';
+import { getDb } from '../db';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
-import { buildConversationSummaryFromHistory, countHistoryUserTurns, estimateSummaryCoverageSimilarity, splitHistoryByRecentRounds, trimHistoryByChars, type HistoryChatMessage } from '../ai/chat/historyTrim';
-import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, deactivateSessionDirective as deactivateSessionDirectiveFromMemory, loadSessionMemory, persistSessionMemory, pruneDirectiveLedgerBySourceMessage, updateConversationSummaryMemory } from '../ai/chat/sessionMemory';
-import { cancelAgentLoopCheckpointTask, completeAgentLoopCheckpointTask, loadLatestPendingAgentLoopCheckpoint, loadPendingAgentLoopCheckpointFromTaskId, persistAgentLoopCheckpointTask } from '../ai/chat/agentLoopCheckpoint';
-import { updateSessionMemoryWithPrompt } from '../ai/chat/adaptiveInputProfile';
+import { clearConversationSummaryMemory, loadSessionMemory, persistSessionMemory } from '../ai/chat/sessionMemory';
+import { useAgentLoopSessionMemoryDexieReconcile } from './useAiChat.agentLoopDexieReconcile';
 import { updateSessionMemoryWithRecommendationEvent } from '../ai/chat/recommendationTelemetry';
-import { resolveLocalToolRoutingPlan } from '../ai/chat/localToolSlotResolver';
-import { resolveContextCharBudgets } from '../ai/chat/contextBudget';
-import { buildAiSystemPrompt, buildPromptContextBlock, isAiContextDebugEnabled } from '../ai/chat/promptContext';
-import { buildUserDirectivePrompt } from '../ai/chat/userDirectivePrompt';
-import { extractUserDirectives } from '../ai/memory/userDirectiveExtractor';
-import { applyUserDirectivesToSessionMemory } from '../ai/memory/userDirectiveRegistry';
 import { runAiChatClearPersistenceCleanup, type AiChatClearPersistenceRequest } from './useAiChat.persistenceCleanup';
-import { resolvePinnedMessageSessionMemory } from './useAiChat.messagePinning';
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
-import { notifyAiTasksUpdated } from '../ai/tasks/taskRefreshEvents';
-import type { AiMessageCitation } from '../db';
 import { featureFlags } from '../ai/config/featureFlags';
 import { createAssistantStream } from './useAiChat.streamFactory';
-import { normalizeAiProviderError } from '../ai/providers/errorUtils';
-import type { ChatTokenUsage } from '../ai/providers/LLMProvider';
-import { mergeTokenUsage } from '../ai/providers/tokenUsage';
-import { useAiChatToolAudit, genRequestId } from './useAiChat.toolAudit';
+import { useAiChatToolAudit } from './useAiChat.toolAudit';
 import { useAiChatPendingToolCall } from './useAiChat.pendingToolCall';
 import { useSyncAssistantDialogueChatTool } from './useSyncAssistantDialogueChatTool';
+import { useAiChatAgentLoopCheckpointControls } from './useAiChat.agentLoopCheckpointControls';
+import { useAiChatDirectiveSessionControls } from './useAiChat.directiveSessionControls';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
-import { formatAbortedMessage, formatAiChatDisabledError, formatConnectionHealthyMessage, formatFirstChunkTimeoutError, formatPendingConfirmationBlockedError, formatSessionBudgetExceededError, formatStreamingBusyError } from '../ai/messages';
+import { runAiChatSendTurn } from './useAiChat.sendTurn';
 import { applyAiChatSettingsPatch, createAiChatProvider, getDefaultAiChatSettings, normalizeAiChatSettings } from '../ai/providers/providerCatalog';
 import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/config/aiChatSettingsStorage';
-import { createMetricTags, recordDurationMetric, recordMetric } from '../observability/metrics';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
-import type { AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage, UseAiChatOptions, AiRecommendationEvent } from './useAiChat.types';
+import type { AiContextDebugSnapshot, AiInteractionMetrics, AiRecommendationEvent, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, PendingAiToolCall, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
 
-function isAgentLoopResumeText(userText: string): boolean {
-  const normalized = userText.trim();
-  if (!normalized) return false;
-  return /^(继续|继续执行|接着|接着说|继续吧)$/u.test(normalized)
-    || /^(continue|resume|go on)$/i.test(normalized);
-}
-const AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY = 'jieyu.aiChat.resumeAgentLoopTaskId';
-
-function consumeRequestedAgentLoopTaskIdFromSessionStorage(): string | null {
-  if (typeof window === 'undefined') return null;
-  const raw = window.sessionStorage.getItem(AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY);
-  if (!raw) return null;
-  window.sessionStorage.removeItem(AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY);
-  const normalized = raw.trim();
-  return normalized.length > 0 ? normalized : null;
-}
 export type { AiChatProviderKind, AiChatSettings } from '../ai/providers/providerCatalog';
 export type { AiChatToolCall, AiChatToolName, AiChatToolResult, AiClarifyCandidate, AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiPromptDraftSnapshot, AiPromptLayerLinkSnapshot, AiPromptLayerSnapshot, AiPromptNoteSummary, AiPromptSpeakerSnapshot, AiPromptVisibleTimelineState, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, PreviewContract, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
 
@@ -75,15 +38,17 @@ export function useAiChat(options?: UseAiChatOptions) {
   // Keep the explicit seam reference in the main hook for structure-invariant tests.
   void executeConfirmedToolCall;
   void resolveToolDecisionPipeline;
+  void enrichContextWithRag;
+  void createAssistantStream;
   // executeConfirmedToolCall(...) is invoked inside useAiChatPendingToolCall.
 
   const locale = useLocale();
-  const toolFeedbackLocale = useOptionalLocale() ?? 'zh-CN';
+  const toolFeedbackLocale: Locale = useOptionalLocale() ?? 'zh-CN';
   const toolFeedbackLocaleRef = useLatest(toolFeedbackLocale);
   const onToolCall = options?.onToolCall;
   const onToolRiskCheck = options?.onToolRiskCheck;
   const preparePendingToolCall = options?.preparePendingToolCall;
-  const systemPersonaKey = options?.systemPersonaKey ?? 'transcription';
+  const systemPersonaKey: AiSystemPersonaKey = options?.systemPersonaKey ?? 'transcription';
   const systemPersonaKeyRef = useLatest(systemPersonaKey);
   const getContext = options?.getContext;
   const maxContextCharsOverride = options?.maxContextChars;
@@ -137,12 +102,15 @@ export function useAiChat(options?: UseAiChatOptions) {
   const [metrics, setMetrics] = useState<AiInteractionMetrics>({ ...INITIAL_METRICS });
   const metricsRef = useLatest(metrics);
   const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());
+  useAgentLoopSessionMemoryDexieReconcile(sessionMemoryRef);
   const backgroundMemoryRuntimeRef = useRef<AiChatBackgroundMemoryRuntime | null>(null);
   if (backgroundMemoryRuntimeRef.current === null) {
     backgroundMemoryRuntimeRef.current = createAiChatBackgroundMemoryRuntime({
       enabled: featureFlags.aiBackgroundMemoryExtractorEnabled,
       sandboxEnabled: featureFlags.aiBackgroundToolSandboxEnabled,
       sandboxProfile: AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE,
+      flushQuotaEnabled: featureFlags.aiBackgroundMemorySessionWriteQuotaEnabled,
+      flushQuotaMaxCompletedWriteFlushesPerConversation: featureFlags.aiBackgroundMemorySessionWriteQuotaMax,
       getSessionMemory: () => sessionMemoryRef.current,
       setSessionMemory: (nextMemory) => {
         sessionMemoryRef.current = nextMemory;
@@ -225,6 +193,19 @@ export function useAiChat(options?: UseAiChatOptions) {
   });
 
   const {
+    clearPendingAgentLoopCheckpoint,
+    dismissPendingAgentLoopCheckpoint,
+    clearPendingAgentLoopCheckpointIfTaskIdMatches,
+    resolveAgentLoopResumeCheckpoint,
+  } = useAiChatAgentLoopCheckpointControls({ sessionMemoryRef, setMessages });
+
+  const {
+    toggleMessagePinned,
+    deactivateSessionDirective,
+    pruneSessionDirectivesBySourceMessage,
+  } = useAiChatDirectiveSessionControls({ conversationId, sessionMemoryRef, messagesRef, setMessages });
+
+  const {
     connectionTestStatus,
     connectionTestMessage,
     setConnectionTestStatus,
@@ -280,144 +261,6 @@ export function useAiChat(options?: UseAiChatOptions) {
     persistSessionMemory(sessionMemoryRef.current);
   }, []);
 
-  const clearPendingAgentLoopCheckpoint = useCallback(() => {
-    if (!sessionMemoryRef.current.pendingAgentLoopCheckpoint) return;
-    const { pendingAgentLoopCheckpoint: _ignoredCheckpoint, ...restMemory } = sessionMemoryRef.current;
-    sessionMemoryRef.current = restMemory;
-    persistSessionMemory(sessionMemoryRef.current);
-  }, []);
-
-  const dismissPendingAgentLoopCheckpoint = useCallback(async () => {
-    const checkpoint = sessionMemoryRef.current.pendingAgentLoopCheckpoint;
-    if (!checkpoint) return;
-    clearPendingAgentLoopCheckpoint();
-    if (checkpoint.taskId) {
-      await cancelAgentLoopCheckpointTask(checkpoint.taskId);
-      notifyAiTasksUpdated();
-    }
-  }, [clearPendingAgentLoopCheckpoint]);
-
-  const resolveAgentLoopResumeCheckpoint = useCallback(async (userText: string) => {
-    if (!isAgentLoopResumeText(userText)) return null;
-    const checkpoint = sessionMemoryRef.current.pendingAgentLoopCheckpoint ?? null;
-    if (checkpoint?.taskId) {
-      const durableCheckpoint = await loadPendingAgentLoopCheckpointFromTaskId(checkpoint.taskId);
-      if (!durableCheckpoint) return checkpoint;
-
-      const nextMemory: AiSessionMemory = {
-        ...sessionMemoryRef.current,
-        pendingAgentLoopCheckpoint: durableCheckpoint,
-      };
-      sessionMemoryRef.current = nextMemory;
-      persistSessionMemory(nextMemory);
-      return durableCheckpoint;
-    }
-    if (checkpoint) return checkpoint;
-
-    const requestedTaskId = consumeRequestedAgentLoopTaskIdFromSessionStorage();
-    const durableCheckpoint = requestedTaskId
-      ? await loadPendingAgentLoopCheckpointFromTaskId(requestedTaskId)
-      : await loadLatestPendingAgentLoopCheckpoint();
-    if (!durableCheckpoint) return null;
-
-    const nextMemory: AiSessionMemory = {
-      ...sessionMemoryRef.current,
-      pendingAgentLoopCheckpoint: durableCheckpoint,
-    };
-    sessionMemoryRef.current = nextMemory;
-    persistSessionMemory(nextMemory);
-    return durableCheckpoint;
-  }, []);
-
-  const writeDirectiveMutationAuditLog = useCallback((
-    mutationType: 'deactivate' | 'prune_source',
-    payload: Record<string, unknown>,
-  ) => {
-    if (!conversationId) return;
-    const timestamp = nowIso();
-    void getDb()
-      .then((db) => db.collections.audit_logs.insert({
-        id: newAuditLogId(),
-        collection: 'ai_messages',
-        documentId: conversationId,
-        action: 'update',
-        field: 'ai_user_directive_mutation',
-        newValue: mutationType,
-        source: 'human',
-        timestamp,
-        requestId: `directive_mutation_${mutationType}_${timestamp}`,
-        metadataJson: JSON.stringify({
-          schemaVersion: 1,
-          phase: 'user_directive_mutation',
-          mutationType,
-          ...payload,
-        }),
-      }))
-      .catch(() => {
-        // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
-      });
-  }, [conversationId]);
-
-  const toggleMessagePinned = useCallback((messageId: string) => {
-    const nextMemory = resolvePinnedMessageSessionMemory(sessionMemoryRef.current, messagesRef.current, messageId);
-    if (nextMemory === sessionMemoryRef.current) return;
-    sessionMemoryRef.current = nextMemory;
-    persistSessionMemory(sessionMemoryRef.current);
-    setMessages((prev) => [...prev]);
-  }, [messagesRef]);
-
-  const deactivateSessionDirective = useCallback((directiveId: string) => {
-    const normalizedDirectiveId = directiveId.trim();
-    if (!normalizedDirectiveId) return;
-    const previousMemory = sessionMemoryRef.current;
-    const inSession = (previousMemory.sessionDirectives ?? []).some((item) => item.id === normalizedDirectiveId);
-    const inLedgerAccepted = (previousMemory.directiveLedger ?? []).some(
-      (e) => e.id === normalizedDirectiveId && e.action === 'accepted',
-    );
-    if (!inSession && !inLedgerAccepted) return;
-    const nextMemory = deactivateSessionDirectiveFromMemory(previousMemory, normalizedDirectiveId);
-    if (nextMemory === previousMemory) return;
-    sessionMemoryRef.current = nextMemory;
-    persistSessionMemory(sessionMemoryRef.current);
-    setMessages((prev) => [...prev]);
-    writeDirectiveMutationAuditLog('deactivate', {
-      directiveId: normalizedDirectiveId,
-      before: {
-        sessionDirectiveCount: (previousMemory.sessionDirectives ?? []).length,
-        directiveLedgerCount: (previousMemory.directiveLedger ?? []).length,
-      },
-      after: {
-        sessionDirectiveCount: (nextMemory.sessionDirectives ?? []).length,
-        directiveLedgerCount: (nextMemory.directiveLedger ?? []).length,
-      },
-    });
-  }, [writeDirectiveMutationAuditLog]);
-
-  const pruneSessionDirectivesBySourceMessage = useCallback((sourceMessageId: string) => {
-    const normalizedSourceMessageId = sourceMessageId.trim();
-    if (!normalizedSourceMessageId) return;
-    const previousMemory = sessionMemoryRef.current;
-    const matchedDirectiveCount = (previousMemory.sessionDirectives ?? []).filter((directive) => directive.sourceMessageId === normalizedSourceMessageId).length;
-    const matchedLedgerCount = (previousMemory.directiveLedger ?? []).filter((entry) => entry.sourceMessageId === normalizedSourceMessageId).length;
-    if (matchedDirectiveCount === 0 && matchedLedgerCount === 0) return;
-    const nextMemory = pruneDirectiveLedgerBySourceMessage(previousMemory, normalizedSourceMessageId);
-    if (nextMemory === previousMemory) return;
-    sessionMemoryRef.current = nextMemory;
-    persistSessionMemory(sessionMemoryRef.current);
-    setMessages((prev) => [...prev]);
-    writeDirectiveMutationAuditLog('prune_source', {
-      sourceMessageId: normalizedSourceMessageId,
-      removed: {
-        sessionDirectiveCount: matchedDirectiveCount,
-        directiveLedgerCount: matchedLedgerCount,
-      },
-      after: {
-        sessionDirectiveCount: (nextMemory.sessionDirectives ?? []).length,
-        directiveLedgerCount: (nextMemory.directiveLedger ?? []).length,
-      },
-    });
-  }, [writeDirectiveMutationAuditLog]);
-
   const applyAssistantMessageResult = useCallback(async (
     messageId: string,
     content: string,
@@ -469,806 +312,57 @@ export function useAiChat(options?: UseAiChatOptions) {
   });
 
   const send = useCallback(async (userText: string) => {
-    if (!featureFlags.aiChatEnabled) {
-      setLastError(formatAiChatDisabledError());
-      return;
-    }
-
-    if (isStreaming) {
-      setLastError(formatStreamingBusyError());
-      return;
-    }
-
-    const trimmed = userText.trim();
-    if (trimmed.length === 0) return;
-    if (pendingToolCallRef.current) {
-      setLastError(formatPendingConfirmationBlockedError());
-      return;
-    }
-
-    const estimatedInputTokens = estimateTokensFromText(trimmed);
-    const currentSessionTokens = metricsRef.current.totalInputTokens + metricsRef.current.totalOutputTokens;
-    if (currentSessionTokens + estimatedInputTokens > sessionTokenBudget) {
-      await writeToolDecisionAuditLog(
-        newMessageId('ast'),
-        'pending:cost_guard',
-        'blocked:cost_guard:session_budget_exceeded',
-        'system',
-        genRequestId({
-          name: 'propose_changes',
-          arguments: { scope: 'cost_guard_session_budget' },
-        }),
-      );
-      bumpMetric('failureCount');
-      setLastError(formatSessionBudgetExceededError(sessionTokenBudget, currentSessionTokens, estimatedInputTokens));
-      return;
-    }
-
-    const resumeCheckpoint = await resolveAgentLoopResumeCheckpoint(trimmed);
-    if (!resumeCheckpoint && sessionMemoryRef.current.pendingAgentLoopCheckpoint) {
-      clearPendingAgentLoopCheckpoint();
-    }
-
-    setLastError(null);
-    localToolCallCountRef.current = 0;
-    sessionMemoryRef.current = updateSessionMemoryWithPrompt(sessionMemoryRef.current, trimmed);
-    persistSessionMemory(sessionMemoryRef.current);
-    bumpMetric('turnCount');
-    const shouldTrackRemoteStatus = provider.id !== 'mock' && provider.id !== 'ollama';
-    if (shouldTrackRemoteStatus) {
-      setConnectionTestStatus('testing');
-      setConnectionTestMessage(null);
-    }
-    const userMsg: UiChatMessage = {
-      id: newMessageId('usr'),
-      role: 'user',
-      content: trimmed,
-      status: 'done',
-    };
-
-    const assistantId = newMessageId('ast');
-    const assistantSeed: UiChatMessage = {
-      id: assistantId,
-      role: 'assistant',
-      content: '',
-      status: 'streaming',
-      citations: [],
-      generationSource: 'local',
-      generationModel: '',
-      reasoningContent: '',
-    };
-
-    // Keep newest messages at top in UI.
-    setMessages((prev) => [userMsg, assistantSeed, ...prev]);
-    setIsStreaming(true);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-    let dbRef: Awaited<ReturnType<typeof getDb>> | null = null;
-    let activeConversationId: string | null = null;
-    let firstChunkArrived = false;
-    let connectionMarkedSuccess = false;
-    let timedOutBeforeFirstChunk = false;
-    const sendStartedAtMs = performance.now();
-    const aiMetricTags = createMetricTags('ai-chat', {
-      provider: provider.id,
-      model: settingsRef.current.model || provider.id,
-    });
-    let firstTokenMetricRecorded = false;
-    const recordCompletionSuccessMetric = () => {
-      try {
-        recordMetric({
-          id: 'ai.chat.completion_success_count',
-          value: 1,
-          tags: aiMetricTags,
-        });
-      } catch {
-        // 忽略指标上报异常，避免影响主流程 | Ignore metric reporting errors to avoid affecting the main flow
-      }
-    };
-    // DeepSeek 和 MiniMax 思考链较长，默认首包超时延长至 60s；若调用方显式覆盖则尊重调用方配置。
-    // DeepSeek often needs longer thinking time; default timeout is extended to 60s,
-    // but explicit overrides should be honored (tests/dev tuning).
-    const effectiveTimeoutMs = provider.id === 'deepseek' || provider.id === 'minimax'
-      ? (firstChunkTimeoutMs === DEFAULT_FIRST_CHUNK_TIMEOUT_MS ? 60000 : firstChunkTimeoutMs)
-      : (provider.id === 'ollama' ? 0 : firstChunkTimeoutMs);
-    const timeoutHandle = (typeof window !== 'undefined' && effectiveTimeoutMs > 0)
-      ? window.setTimeout(() => {
-        if (firstChunkArrived || controller.signal.aborted) return;
-        timedOutBeforeFirstChunk = true;
-        controller.abort();
-      }, effectiveTimeoutMs)
-      : null;
-    const {
-      queueFlushAssistantDraft,
-      awaitQueuedPersistence,
-      finalizeAssistantMessage,
-    } = createAssistantPersistenceHelpers({
-      assistantId,
+    await runAiChatSendTurn({
+      userText,
+      featureFlags,
+      isStreaming,
+      sessionTokenBudget,
+      firstChunkTimeoutMs,
+      outputTokenCap,
+      outputTokenRetryCap,
+      allowDestructiveToolCalls,
+      maxContextCharsOverride,
+      historyCharBudgetOverride,
+      provider,
+      orchestrator,
+      ensureConversation,
+      setLastError,
       setMessages,
+      setIsStreaming,
+      setConnectionTestStatus,
+      setConnectionTestMessage,
+      setContextDebugSnapshot,
+      setMetrics,
+      setTaskSession,
+      setPendingToolCall,
+      messagesRef,
+      metricsRef,
+      pendingToolCallRef,
+      sessionMemoryRef,
+      settingsRef,
+      toolFeedbackLocaleRef,
+      systemPersonaKeyRef,
+      getContextRef,
+      embeddingSearchServiceRef,
+      ragContextTimeoutMsRef,
+      toolDecisionModeRef,
+      onToolRiskCheckRef,
+      preparePendingToolCallRef,
+      onToolCallRef,
+      taskSessionRef,
+      onMessageCompleteRef,
+      abortRef,
+      localToolCallCountRef,
       streamPersistIntervalMsRef,
-      getDbRef: () => dbRef,
-      getActiveConversationId: () => activeConversationId,
+      backgroundMemoryRuntimeRef,
+      writeToolDecisionAuditLog,
+      writeToolIntentAuditLog,
+      hasPersistedExecutionForRequest,
+      markExecutedRequestId,
+      bumpMetric,
+      resolveAgentLoopResumeCheckpoint,
+      clearPendingAgentLoopCheckpoint,
     });
-
-    let assistantContent = '';
-    let reportedInputTokens = 0;
-    let totalReportedOutputTokens = 0;
-    let primaryStreamUsage: ChatTokenUsage | undefined;
-    let usageObservedThisTurn = false;
-    let primaryUsageCommitted = false;
-    const commitPrimaryStreamUsage = () => {
-      if (primaryUsageCommitted) return;
-      primaryUsageCommitted = true;
-      reportedInputTokens += primaryStreamUsage?.inputTokens ?? 0;
-      totalReportedOutputTokens += primaryStreamUsage?.outputTokens ?? 0;
-    };
-    const agentLoopSourceUserText = resumeCheckpoint?.originalUserText ?? trimmed;
-    const effectiveUserText = resumeCheckpoint?.continuationInput ?? trimmed;
-    const immediateDirectives = extractUserDirectives({ userText: effectiveUserText, source: 'user_explicit', sourceMessageId: userMsg.id });
-    if (immediateDirectives.length > 0) {
-      sessionMemoryRef.current = applyUserDirectivesToSessionMemory(sessionMemoryRef.current, immediateDirectives).nextMemory;
-      persistSessionMemory(sessionMemoryRef.current);
-    }
-
-    try {
-      activeConversationId = await ensureConversation();
-      const db = await getDb();
-      dbRef = db;
-      const userTimestamp = nowIso();
-      await db.collections.ai_messages.insert({
-        id: userMsg.id,
-        conversationId: activeConversationId,
-        role: 'user',
-        content: userMsg.content,
-        status: 'done',
-        createdAt: userTimestamp,
-        updatedAt: userTimestamp,
-      });
-      const assistantTimestamp = nowIso();
-      await db.collections.ai_messages.insert({
-        id: assistantId,
-        conversationId: activeConversationId,
-        role: 'assistant',
-        content: '',
-        status: 'streaming',
-        ...(assistantSeed.generationSource !== undefined ? { generationSource: assistantSeed.generationSource } : {}),
-        ...(assistantSeed.generationModel !== undefined ? { generationModel: assistantSeed.generationModel } : {}),
-        createdAt: assistantTimestamp,
-        updatedAt: assistantTimestamp,
-      });
-
-      const conversation = await db.collections.ai_conversations.findOne({ selector: { id: activeConversationId } }).exec();
-      if (conversation) {
-        const row = conversation.toJSON();
-        await db.collections.ai_conversations.insert({
-          ...row,
-          providerId: provider.id,
-          model: settingsRef.current.model || provider.id,
-          updatedAt: nowIso(),
-        });
-      }
-
-      // Convert UI order (newest-first) back to chronological order for model context.
-      // 排除当前轮次的 userMsg 和空 assistantSeed，因为 assembleMessages 会独立添加 userText
-      // | Exclude current turn's userMsg and empty assistantSeed — assembleMessages adds userText separately
-      const pinnedMessageIds = new Set(sessionMemoryRef.current.pinnedMessageIds ?? []);
-      const historyRaw: HistoryChatMessage[] = [...messagesRef.current]
-        .filter((m) => m.id !== userMsg.id && m.id !== assistantId)
-        .reverse()
-        .map((m) => ({
-          role: m.role,
-          content: m.content,
-          messageId: m.id,
-          ...(pinnedMessageIds.has(m.id) ? { pinned: true } : {}),
-        }));
-      const contextCharBudgets = await resolveContextCharBudgets({
-        providerKind: settingsRef.current.providerKind,
-        model: settingsRef.current.model,
-        ...(maxContextCharsOverride !== undefined ? { maxContextCharsOverride } : {}),
-        ...(historyCharBudgetOverride !== undefined ? { historyCharBudgetOverride } : {}),
-      });
-      const historyCharBudget = contextCharBudgets.historyCharBudget;
-      const maxContextChars = contextCharBudgets.maxContextChars;
-
-      const summaryRecentRounds = 3;
-      const summaryTriggerTurns = 5;
-      const summaryCandidateHistory = historyRaw.filter((message) => !message.pinned);
-      const { olderMessages } = splitHistoryByRecentRounds(summaryCandidateHistory, summaryRecentRounds);
-      const coveredTurnTarget = countHistoryUserTurns(olderMessages);
-      const previousCoveredTurns = sessionMemoryRef.current.summaryTurnCount ?? 0;
-      if (coveredTurnTarget - previousCoveredTurns >= summaryTriggerTurns) {
-        const conversationSummary = buildConversationSummaryFromHistory(
-          olderMessages,
-          contextCharBudgets.conversationSummaryMaxChars,
-        );
-        if (conversationSummary) {
-          const similarityScore = estimateSummaryCoverageSimilarity(olderMessages, conversationSummary);
-          sessionMemoryRef.current = updateConversationSummaryMemory(
-            sessionMemoryRef.current,
-            conversationSummary,
-            coveredTurnTarget,
-            {
-              similarityScore,
-              qualityWarningThreshold: 0.85,
-            },
-          );
-          persistSessionMemory(sessionMemoryRef.current);
-        }
-      }
-
-      const history = trimHistoryByChars(
-        historyRaw,
-        historyCharBudget,
-        summaryRecentRounds,
-        sessionMemoryRef.current.conversationSummary,
-      );
-      const basePromptContext = getContextRef.current?.() ?? null;
-      const sessionMemoryDigest = buildSessionMemoryPromptDigest(
-        sessionMemoryRef.current,
-        contextCharBudgets.sessionMemoryDigestMaxChars,
-      );
-      const aiContext = sessionMemoryDigest
-        ? (basePromptContext
-          ? { ...basePromptContext, shortTerm: { ...basePromptContext.shortTerm, sessionMemoryDigest } }
-          : { shortTerm: { sessionMemoryDigest } })
-        : basePromptContext;
-      const responsePolicy = resolveAiChatResponsePolicy(
-        sessionMemoryRef.current,
-        toolFeedbackLocaleRef.current,
-        settingsRef.current.toolFeedbackStyle,
-      );
-      const routingPlan = resolveLocalToolRoutingPlan(
-        agentLoopSourceUserText,
-        sessionMemoryRef.current,
-        sessionMemoryRef.current.toolPreferences?.defaultScope,
-      );
-      let contextBlock = buildPromptContextBlock(aiContext, maxContextChars);
-      let ragCitations: AiMessageCitation[] = [];
-      let memoryRecallShape: NonNullable<ResolveAiChatStreamCompletionParams['memoryRecallShape']> | undefined;
-      if (featureFlags.aiChatRagEnabled) {
-        ({
-          contextBlock,
-          citations: ragCitations,
-          memoryRecallShape,
-        } = await enrichContextWithRag({
-          embeddingSearchService: embeddingSearchServiceRef.current,
-          userText: effectiveUserText,
-          contextBlock,
-          ragContextTimeoutMs: ragContextTimeoutMsRef.current,
-          maxContextChars,
-          promptContext: aiContext,
-        }));
-      }
-      contextBlock = await maybeAppendMemoryBrokerContext({ enabled: featureFlags.aiMemoryBrokerEnabled, query: effectiveUserText, contextBlock, tokenBudget: Math.floor(contextCharBudgets.sessionMemoryDigestMaxChars / 4), sessionMemory: sessionMemoryRef.current, maxContextChars, alreadySurfacedRefs: [...ragCitations.map((item) => item.refId), ...buildSessionMemoryDigestSuppressionRefs(sessionMemoryRef.current, sessionMemoryDigest)] });
-      const contextDebugEnabled = isAiContextDebugEnabled();
-      const nextDebugSnapshot: AiContextDebugSnapshot = buildContextDebugSnapshot({
-        enabled: contextDebugEnabled,
-        persona: systemPersonaKeyRef.current,
-        historyContentList: history.map((item) => item.content),
-        contextBlock,
-        historyCharBudget,
-        maxContextChars,
-        responsePolicyPreview: JSON.stringify({
-          response: sessionMemoryRef.current.responsePreferences ?? null,
-          tool: sessionMemoryRef.current.toolPreferences ?? null,
-          safety: sessionMemoryRef.current.safetyPreferences ?? null,
-          policy: responsePolicy,
-        }),
-      });
-      setContextDebugSnapshot(nextDebugSnapshot);
-      if (contextDebugEnabled) {
-        logContextDebugSnapshot(nextDebugSnapshot);
-      }
-      const clarifyFastPathCall = resumeCheckpoint
-        ? null
-        : resolveClarifyFastPathCall({
-            taskSession: taskSessionRef.current,
-            userText: trimmed,
-            aiContext,
-          });
-
-      const systemPrompt = buildAiSystemPrompt(
-        systemPersonaKeyRef.current,
-        contextBlock,
-        responsePolicy.style,
-        routingPlan.selectedTools,
-        buildUserDirectivePrompt(sessionMemoryRef.current),
-      );
-      void db.collections.audit_logs.insert({
-        id: newMessageId('audit'),
-        collection: 'ai_messages',
-        documentId: assistantId,
-        action: 'update',
-        field: 'ai_response_policy_resolution',
-        newValue: responsePolicy.locale,
-        source: 'ai',
-        timestamp: nowIso(),
-        requestId: `${assistantId}_response_policy`,
-        metadataJson: JSON.stringify(buildResponsePolicyAuditMetadata(responsePolicy)),
-      });
-      setMetrics((prev) => ({
-        ...prev,
-        currentTurnTokens: 0,
-        currentTurnTokensAvailable: false,
-      }));
-
-      const buildStreamCompletionEnv = (): Omit<
-        ResolveAiChatStreamCompletionParams,
-        'assistantId' | 'assistantContent' | 'userText' | 'aiContext'
-      > => ({
-        messages: messagesRef.current,
-        resolveFreshAiContext: () => getContextRef.current?.() ?? null,
-        providerId: provider.id,
-        model: settingsRef.current.model,
-        toolFeedbackLocale: responsePolicy.locale,
-        toolDecisionMode: toolDecisionModeRef.current,
-        toolFeedbackStyle: responsePolicy.style,
-        allowDestructiveToolCalls,
-        ...(onToolRiskCheckRef.current ? { onToolRiskCheck: onToolRiskCheckRef.current } : {}),
-        ...(preparePendingToolCallRef.current ? { preparePendingToolCall: preparePendingToolCallRef.current } : {}),
-        ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
-        hasPersistedExecutionForRequest,
-        writeToolDecisionAuditLog,
-        writeToolIntentAuditLog,
-        sessionMemory: sessionMemoryRef.current,
-        updateSessionMemory: (nextMemory) => {
-          sessionMemoryRef.current = nextMemory;
-        },
-        persistSessionMemory,
-        setTaskSession,
-        getTaskSession: () => taskSessionRef.current,
-        setPendingToolCall,
-        taskSessionId: taskSessionRef.current.id,
-        markExecutedRequestId,
-        bumpMetric,
-        shouldBumpRecovery: metricsRef.current.failureCount > 0 && taskSessionRef.current.status === 'executing',
-        genRequestId,
-        localToolCallCountRef,
-      });
-
-      const {
-        stream,
-        generationSource,
-        generationModel,
-      } = createAssistantStream({
-        userText: effectiveUserText,
-        clarifyFastPathCall,
-        history,
-        orchestrator,
-        systemPrompt,
-        signal: controller.signal,
-        taskSessionStatus: taskSessionRef.current.status,
-        model: settingsRef.current.model,
-        maxTokens: outputTokenCap,
-        ...(settingsRef.current.explainModel
-          ? { explainModel: settingsRef.current.explainModel }
-          : {}),
-      });
-
-      setMessages((prev) => prev.map((msg) => (
-        msg.id === assistantId
-          ? { ...msg, generationSource, generationModel }
-          : msg
-      )));
-
-      await db.collections.ai_messages.update(assistantId, {
-        generationSource,
-        generationModel,
-        updatedAt: nowIso(),
-      });
-
-      let assistantReasoningContent = '';
-      let assistantThinking = false;
-      let streamFinalized = false;
-
-      const maybeRetryAfterOutputCap = async (): Promise<void> => {
-        const initialOutputTokens = primaryStreamUsage?.outputTokens ?? 0;
-        const shouldRetry = generationSource === 'llm'
-          && outputTokenRetryCap > outputTokenCap
-          && initialOutputTokens >= outputTokenCap
-          && !controller.signal.aborted;
-        if (!shouldRetry) return;
-
-        const costGuardRequestId = genRequestId({
-          name: 'propose_changes',
-          arguments: { scope: 'cost_guard_output_cap' },
-        });
-        await writeToolDecisionAuditLog(
-          assistantId,
-          'pending:cost_guard',
-          'capped:cost_guard:output_token_cap_exceeded',
-          'system',
-          costGuardRequestId,
-        );
-        await writeToolDecisionAuditLog(
-          assistantId,
-          'capped:cost_guard:output_token_cap_exceeded',
-          'retry:cost_guard:retry_after_output_cap',
-          'system',
-          costGuardRequestId,
-        );
-
-        const {
-          stream: retryStream,
-          generationSource: retryGenerationSource,
-          generationModel: retryGenerationModel,
-        } = createAssistantStream({
-          userText: effectiveUserText,
-          clarifyFastPathCall,
-          history,
-          orchestrator,
-          systemPrompt,
-          signal: controller.signal,
-          taskSessionStatus: taskSessionRef.current.status,
-          model: settingsRef.current.model,
-          maxTokens: outputTokenRetryCap,
-          ...(settingsRef.current.explainModel
-            ? { explainModel: settingsRef.current.explainModel }
-            : {}),
-        });
-
-        let retryContent = '';
-        let retryReasoningContent = '';
-        let retryUsage: ChatTokenUsage | undefined;
-        let retryError: string | null = null;
-        for await (const retryChunk of retryStream) {
-          if (retryChunk.error) {
-            retryError = retryChunk.error;
-            break;
-          }
-          if ((retryChunk.delta ?? '').length > 0) {
-            retryContent += retryChunk.delta ?? '';
-          }
-          if (retryChunk.reasoningContent && retryChunk.reasoningContent.length > 0) {
-            retryReasoningContent += retryChunk.reasoningContent;
-          }
-          if (retryChunk.usage) {
-            retryUsage = mergeTokenUsage(retryUsage, retryChunk.usage);
-          }
-          if (retryChunk.done) {
-            break;
-          }
-        }
-
-        if (controller.signal.aborted || retryError) {
-          await writeToolDecisionAuditLog(
-            assistantId,
-            'retry:cost_guard:retry_after_output_cap',
-            'failed:cost_guard:retry_budget_upgrade_failed',
-            'system',
-            costGuardRequestId,
-          );
-          return;
-        }
-
-        if (retryUsage) {
-          usageObservedThisTurn = true;
-          reportedInputTokens += retryUsage.inputTokens ?? 0;
-          totalReportedOutputTokens += retryUsage.outputTokens ?? 0;
-        }
-
-        assistantContent = retryContent;
-        assistantReasoningContent = retryReasoningContent;
-        flushSync(() => {
-          setMessages((prev) => prev.map((msg) => (
-            msg.id === assistantId
-              ? {
-                  ...msg,
-                  content: retryContent,
-                  reasoningContent: retryReasoningContent,
-                  generationSource: retryGenerationSource,
-                  generationModel: retryGenerationModel,
-                  ...(assistantThinking ? { thinking: false } : {}),
-                }
-              : msg
-          )));
-        });
-        queueFlushAssistantDraft(assistantContent, true);
-        await awaitQueuedPersistence();
-
-        await db.collections.ai_messages.update(assistantId, {
-          generationSource: retryGenerationSource,
-          generationModel: retryGenerationModel,
-          updatedAt: nowIso(),
-        });
-
-        await writeToolDecisionAuditLog(
-          assistantId,
-          'retry:cost_guard:retry_after_output_cap',
-          'confirmed:cost_guard:retry_budget_upgrade',
-          'system',
-          costGuardRequestId,
-        );
-      };
-
-      for await (const chunk of stream) {
-        if (!firstChunkArrived) {
-          firstChunkArrived = true;
-          if (!firstTokenMetricRecorded) {
-            firstTokenMetricRecorded = true;
-            try {
-              recordDurationMetric('ai.chat.first_token_latency_ms', sendStartedAtMs, aiMetricTags);
-            } catch {
-              // 忽略指标上报异常，避免影响主流程 | Ignore metric reporting errors to avoid affecting the main flow
-            }
-          }
-          if (shouldTrackRemoteStatus && !connectionMarkedSuccess) {
-            connectionMarkedSuccess = true;
-            setConnectionTestStatus('success');
-            setConnectionTestMessage(formatConnectionHealthyMessage(provider.label));
-          }
-          if (timeoutHandle !== null && typeof window !== 'undefined') {
-            window.clearTimeout(timeoutHandle);
-          }
-        }
-
-        if (chunk.error) {
-          const errorText = chunk.error;
-          streamFinalized = true;
-          commitPrimaryStreamUsage();
-          await awaitQueuedPersistence();
-          await finalizeAssistantMessage('error', assistantContent, errorText, ragCitations, assistantReasoningContent);
-          setLastError(errorText);
-          if (shouldTrackRemoteStatus) {
-            setConnectionTestStatus('error');
-            setConnectionTestMessage(errorText);
-          }
-          break;
-        }
-
-        if ((chunk.delta ?? '').length > 0) {
-          const delta = chunk.delta ?? '';
-          assistantContent += delta;
-          flushSync(() => {
-            setMessages((prev) => prev.map((msg) => (
-              msg.id === assistantId
-                ? { ...msg, content: msg.content + delta, ...(assistantThinking ? { thinking: false } : {}) }
-                : msg
-            )));
-          });
-          queueFlushAssistantDraft(assistantContent);
-        }
-
-        // 思考中状态：非reasoning_content型provider的首包到达前显示"正在思考"
-        // Anthropic/Gemini/Ollama等provider在首个delta到达前会yield { thinking: true }
-        if (chunk.thinking && !chunk.delta) {
-          assistantThinking = true;
-          setMessages((prev) => prev.map((msg) => (
-            msg.id === assistantId
-              ? { ...msg, thinking: true }
-              : msg
-          )));
-        }
-
-        // 累加推理内容（reasoning_content），如 DeepSeek 思考过程
-        if (chunk.reasoningContent && chunk.reasoningContent.length > 0) {
-          assistantReasoningContent += chunk.reasoningContent;
-          setMessages((prev) => prev.map((msg) => (
-            msg.id === assistantId
-              ? { ...msg, reasoningContent: (msg.reasoningContent ?? '') + chunk.reasoningContent }
-              : msg
-          )));
-        }
-
-        if (chunk.usage) {
-          usageObservedThisTurn = true;
-          primaryStreamUsage = mergeTokenUsage(primaryStreamUsage, chunk.usage);
-        }
-
-        if (chunk.done) {
-          streamFinalized = true;
-          await maybeRetryAfterOutputCap();
-          queueFlushAssistantDraft(assistantContent, true);
-          await awaitQueuedPersistence();
-          commitPrimaryStreamUsage();
-          const {
-            finalContent,
-            finalStatus,
-            finalErrorMessage,
-            connectionErrorMessage,
-            localToolResults,
-          } = await finalizeAssistantStreamCompletion(
-            {
-              assistantId,
-              assistantContent,
-              userText: effectiveUserText,
-              aiContext,
-            ...(memoryRecallShape ? { memoryRecallShape } : {}),
-            },
-            buildStreamCompletionEnv(),
-          );
-
-          let resolvedContent = finalContent;
-          let resolvedStatus = finalStatus;
-          let resolvedErrorMessage = finalErrorMessage;
-          let resolvedConnectionErrorMessage = connectionErrorMessage;
-
-          // ── Agent loop（已提取至 useAiChat.agentLoopRunner） ──
-          const loopResult = await runAgentLoop(
-            {
-              assistantId,
-              agentLoopSourceUserText,
-              history,
-              historyCharBudget,
-              systemPrompt,
-              aiContext,
-              signal: controller.signal,
-              routingPlan,
-              aiChatAgentLoopEnabled: featureFlags.aiChatAgentLoopEnabled,
-              getSessionMemory: () => sessionMemoryRef.current,
-              setSessionMemory: (next) => { sessionMemoryRef.current = next; },
-              getSettings: () => settingsRef.current,
-              getLocaleIsZhCn: () => resolveAiChatResponsePolicy(
-                sessionMemoryRef.current,
-                toolFeedbackLocaleRef.current,
-                settingsRef.current.toolFeedbackStyle,
-              ).locale === 'zh-CN',
-              getAiContext: () => getContextRef.current?.() ?? null,
-              getTaskSession: () => taskSessionRef.current,
-              setTaskSession,
-              setMetrics,
-              persistSessionMemory,
-              persistAgentLoopCheckpoint: async (checkpoint) => {
-                if (!checkpoint) return undefined;
-                const taskId = await persistAgentLoopCheckpointTask({
-                  checkpoint,
-                  targetId: assistantId,
-                  modelId: settingsRef.current.model,
-                });
-                notifyAiTasksUpdated();
-                return taskId;
-              },
-              buildStreamCompletionEnv,
-              coordinationLiteEnabled: featureFlags.aiCoordinationLiteEnabled,
-              orchestrator,
-              insertAuditLog: (entry) => db.collections.audit_logs.insert(entry),
-            },
-            {
-              resolvedContent: finalContent,
-              resolvedStatus: finalStatus,
-              resolvedErrorMessage: finalErrorMessage,
-              resolvedConnectionErrorMessage: connectionErrorMessage,
-              resolvedLocalToolResults: localToolResults,
-              rawAssistantContentForLoop: assistantContent,
-              assistantReasoningContent,
-              reportedInputTokens,
-              totalOutputTokens: totalReportedOutputTokens,
-              startStep: resumeCheckpoint ? Math.max(1, resumeCheckpoint.step + 1) : 1,
-            },
-          );
-
-          resolvedContent = loopResult.resolvedContent;
-          resolvedStatus = loopResult.resolvedStatus;
-          resolvedErrorMessage = loopResult.resolvedErrorMessage;
-          resolvedConnectionErrorMessage = loopResult.resolvedConnectionErrorMessage;
-          assistantReasoningContent = loopResult.assistantReasoningContent;
-          totalReportedOutputTokens = loopResult.totalOutputTokens;
-          reportedInputTokens = loopResult.reportedInputTokens;
-
-          if (loopResult.loopExecuted) {
-            setTaskSession((prev) => {
-              if (prev.status !== 'executing') return prev;
-              return {
-                id: prev.id,
-                status: 'idle',
-                updatedAt: nowIso(),
-              };
-            });
-          }
-
-          const stillPendingCheckpoint = sessionMemoryRef.current.pendingAgentLoopCheckpoint;
-          if (
-            !stillPendingCheckpoint
-            || (
-              resumeCheckpoint
-              && stillPendingCheckpoint.createdAt === resumeCheckpoint.createdAt
-              && stillPendingCheckpoint.step === resumeCheckpoint.step
-            )
-          ) {
-            clearPendingAgentLoopCheckpoint();
-            if (resumeCheckpoint?.taskId) {
-              await completeAgentLoopCheckpointTask(resumeCheckpoint.taskId);
-              notifyAiTasksUpdated();
-            }
-          }
-          if (resolvedConnectionErrorMessage && shouldTrackRemoteStatus) {
-            setConnectionTestStatus('error');
-            setConnectionTestMessage(resolvedConnectionErrorMessage);
-          }
-          if (resolvedErrorMessage) setLastError(resolvedErrorMessage);
-          if (resolvedStatus === 'done') {
-            recordCompletionSuccessMetric();
-            const backgroundMemoryRuntime = backgroundMemoryRuntimeRef.current;
-            if (backgroundMemoryRuntime) {
-              scheduleAndFlushBackgroundMemory(backgroundMemoryRuntime, {
-                conversationId: activeConversationId,
-                assistantMessageId: assistantId,
-                userMessageId: userMsg.id,
-                userText: effectiveUserText,
-                assistantText: resolvedContent,
-                actorId: 'ai-chat',
-              }, (entry) => db.collections.audit_logs.insert(entry));
-            }
-          }
-          await finalizeAssistantMessage(resolvedStatus, resolvedContent, resolvedErrorMessage, ragCitations, assistantReasoningContent);
-          break;
-        }
-      }
-
-      if (!streamFinalized && !controller.signal.aborted) {
-        commitPrimaryStreamUsage();
-        recordCompletionSuccessMetric();
-        await awaitQueuedPersistence();
-        await finalizeAssistantMessage('done', assistantContent, undefined, ragCitations, assistantReasoningContent);
-      }
-    } catch (error) {
-      if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
-        if (timedOutBeforeFirstChunk) {
-          const isLongThinkProvider = provider.id === 'deepseek' || provider.id === 'minimax';
-          const timeoutMessage = formatFirstChunkTimeoutError(isLongThinkProvider, provider.label);
-          const timeoutContent = messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
-          await awaitQueuedPersistence();
-          await finalizeAssistantMessage('error', timeoutContent, timeoutMessage);
-          setLastError(timeoutMessage);
-          if (shouldTrackRemoteStatus) {
-            setConnectionTestStatus('error');
-            setConnectionTestMessage(timeoutMessage);
-          }
-          return;
-        }
-        if (shouldTrackRemoteStatus && !firstChunkArrived) {
-          setConnectionTestStatus('idle');
-          setConnectionTestMessage(null);
-        }
-        const abortedMsg = messagesRef.current.find((msg) => msg.id === assistantId);
-        const abortedContent = abortedMsg?.content ?? '';
-        commitPrimaryStreamUsage();
-        await awaitQueuedPersistence();
-        await finalizeAssistantMessage('aborted', abortedContent, formatAbortedMessage());
-        return;
-      }
-
-      const message = normalizeAiProviderError(error, provider.label);
-      const errorMsg = messagesRef.current.find((msg) => msg.id === assistantId);
-      const errorContent = errorMsg?.content ?? '';
-      commitPrimaryStreamUsage();
-      await awaitQueuedPersistence();
-      await finalizeAssistantMessage('error', errorContent, message);
-      setLastError(message);
-      if (shouldTrackRemoteStatus) {
-        setConnectionTestStatus('error');
-        setConnectionTestMessage(message);
-      }
-    } finally {
-      if (timeoutHandle !== null && typeof window !== 'undefined') {
-        window.clearTimeout(timeoutHandle);
-      }
-      // 仅清理当前活跃流，避免旧流覆盖新流状态 | Clean only if this stream is still the active one.
-      if (abortRef.current === controller) {
-        abortRef.current = null;
-        setIsStreaming(false);
-      }
-      // Fire onMessageComplete once per stream — prefer latest stream buffer to avoid stale ref reads.
-      const completionContent = messagesRef.current.find((m) => m.id === assistantId)?.content
-        ?? (assistantContent.trim().length > 0
-          ? assistantContent
-          : '');
-      commitPrimaryStreamUsage();
-      const inputTokens = reportedInputTokens;
-      const outputTokens = totalReportedOutputTokens;
-      setMetrics((prev) => ({
-        ...prev,
-        totalInputTokens: prev.totalInputTokens + inputTokens,
-        totalOutputTokens: prev.totalOutputTokens + outputTokens,
-        currentTurnTokens: inputTokens + outputTokens,
-        totalInputTokensAvailable: prev.totalInputTokensAvailable || usageObservedThisTurn,
-        totalOutputTokensAvailable: prev.totalOutputTokensAvailable || usageObservedThisTurn,
-        currentTurnTokensAvailable: usageObservedThisTurn,
-      }));
-      // 始终通知一次（含空串），便于语音桥接在流结束时清理 ai-thinking / 回调，即使正文为空 | Always notify once (including empty) for voice bridge cleanup
-      onMessageCompleteRef.current?.(assistantId, completionContent);
-    }
   }, [
     allowDestructiveToolCalls,
     ensureConversation,
@@ -1341,6 +435,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     confirmPendingToolCall,
     cancelPendingToolCall,
     dismissPendingAgentLoopCheckpoint,
+    clearPendingAgentLoopCheckpointIfTaskIdMatches,
     trackRecommendationEvent,
     toggleMessagePinned,
     deactivateSessionDirective,
