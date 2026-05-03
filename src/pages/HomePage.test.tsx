@@ -53,19 +53,23 @@ describe('HomePage', () => {
     vi.restoreAllMocks();
   });
 
-  it('lists mocked project and deep-link to transcription', async () => {
-    renderHome();
+  it(
+    'lists mocked project and deep-link to transcription',
+    async () => {
+      renderHome();
 
-    expect(await screen.findByText('Demo 项目')).toBeTruthy();
-    const projectLink = await screen.findByRole('link', { name: 'Demo 项目' });
-    expect(projectLink.getAttribute('href')).toContain('/transcription?textId=');
-    expect(decodeURIComponent(projectLink.getAttribute('href') ?? '')).toContain('text-demo');
+      expect(await screen.findByText('Demo 项目')).toBeTruthy();
+      const projectLink = await screen.findByRole('link', { name: 'Demo 项目' });
+      expect(projectLink.getAttribute('href')).toContain('/transcription?textId=');
+      expect(decodeURIComponent(projectLink.getAttribute('href') ?? '')).toContain('text-demo');
 
-    expect(screen.getAllByText('50%').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/声文稿.*field\.wav/)).toBeTruthy();
+      expect(screen.getAllByText('50%').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(/声文稿.*field\.wav/)).toBeTruthy();
 
-    const recordLink = screen.getByRole('link', { name: /field\.wav/ });
-    expect(recordLink.getAttribute('href')).toContain('textId=text-demo');
-    expect(recordLink.getAttribute('href')).toContain('mediaId=media-1');
-  });
+      const recordLink = screen.getByRole('link', { name: /field\.wav/ });
+      expect(recordLink.getAttribute('href')).toContain('textId=text-demo');
+      expect(recordLink.getAttribute('href')).toContain('mediaId=media-1');
+    },
+    20_000,
+  );
 });

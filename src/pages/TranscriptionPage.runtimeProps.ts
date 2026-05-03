@@ -56,6 +56,8 @@ interface CreateAnalysisRuntimePropsInput {
   formatTime: (seconds: number) => string;
   onJumpToCitation: TranscriptionPageAnalysisEmbeddingNavigationProps['onJumpToCitation'];
   onJumpToEmbeddingMatch: (unitId: string) => void;
+  onAgentLoopTaskCancelledFromTaskList?: TranscriptionPageAnalysisEmbeddingNavigationProps['onAgentLoopTaskCancelledFromTaskList'];
+  onAgentLoopTaskRetriedFromTaskList?: TranscriptionPageAnalysisEmbeddingNavigationProps['onAgentLoopTaskRetriedFromTaskList'];
   embeddingProviderConfig: TranscriptionPageEmbeddingProviderConfig;
   onEmbeddingProviderConfigChange: (config: TranscriptionPageEmbeddingProviderConfig) => void;
   externalErrorMessage: string | null;
@@ -158,6 +160,12 @@ export function createAnalysisRuntimeProps(input: CreateAnalysisRuntimePropsInpu
   const navigation: TranscriptionPageAnalysisEmbeddingNavigationProps = {
     onJumpToCitation: input.onJumpToCitation,
     onJumpToEmbeddingMatch: input.onJumpToEmbeddingMatch,
+    ...(input.onAgentLoopTaskCancelledFromTaskList !== undefined
+      ? { onAgentLoopTaskCancelledFromTaskList: input.onAgentLoopTaskCancelledFromTaskList }
+      : {}),
+    ...(input.onAgentLoopTaskRetriedFromTaskList !== undefined
+      ? { onAgentLoopTaskRetriedFromTaskList: input.onAgentLoopTaskRetriedFromTaskList }
+      : {}),
   };
 
   const providerConfig: TranscriptionPageAnalysisEmbeddingProviderConfigProps = {

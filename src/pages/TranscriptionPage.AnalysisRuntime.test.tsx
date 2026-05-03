@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n';
 import { REQUEST_EMBEDDING_TASK_FOCUS_EVENT } from '../ai/tasks/taskRefreshEvents';
@@ -128,7 +128,7 @@ describe('TranscriptionPageAnalysisRuntime resume bridge', () => {
       </LocaleProvider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '恢复' }));
+    fireEvent.click(screen.getByRole('button', { name: '任务列表续跑' }));
 
     expect(mockNotifyOpenApprovalCenter).toHaveBeenCalledTimes(1);
     expect(mockNotifyRequestAgentLoopResume).toHaveBeenCalledTimes(1);
@@ -172,5 +172,171 @@ describe('TranscriptionPageAnalysisRuntime resume bridge', () => {
     expect(onAnalysisTabChange).toHaveBeenCalledTimes(1);
     expect(onAnalysisTabChange).toHaveBeenCalledWith('embedding');
     expect(refreshEmbeddingTasks).toHaveBeenCalledTimes(1);
+  });
+
+  it('invokes onAgentLoopTaskCancelledFromTaskList when task cancel succeeds', async () => {
+    const onAgentLoopTaskCancelledFromTaskList = vi.fn();
+    const handleCancelAiTask = vi.fn(async () => true);
+    mockUseAiEmbeddingState.mockReturnValue({
+      aiEmbeddingBusy: false,
+      aiEmbeddingProgressLabel: null,
+      aiEmbeddingLastResult: null,
+      aiEmbeddingTasks: [
+        {
+          id: 'task-loop-cancel-bridge',
+          taskType: 'agent_loop',
+          status: 'pending',
+          updatedAt: '2026-04-30T00:00:00.000Z',
+          resumable: true,
+          checkpointJson: '{"kind":"agent_loop_token_budget_warning"}',
+        },
+      ],
+      aiEmbeddingMatches: [],
+      aiEmbeddingLastError: null,
+      aiEmbeddingWarning: null,
+      refreshEmbeddingTasks: async () => undefined,
+      handleCancelAiTask,
+      handleRetryAiTask: async () => undefined,
+      handleBuildUnitEmbeddings: async () => undefined,
+      handleBuildNotesEmbeddings: async () => undefined,
+      handleBuildPdfEmbeddings: async () => undefined,
+      handleFindSimilarUnits: async () => undefined,
+    });
+
+    const base = makeProps();
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionPageAnalysisRuntime
+          panel={base.panel}
+          embedding={{
+            ...base.embedding,
+            navigation: {
+              ...base.embedding.navigation,
+              onAgentLoopTaskCancelledFromTaskList,
+            },
+          }}
+        />
+      </LocaleProvider>,
+    );
+
+    const row = document.querySelector('[data-task-id="task-loop-cancel-bridge"]');
+    expect(row).toBeTruthy();
+    fireEvent.click(within(row as HTMLElement).getByRole('button', { name: '取消' }));
+
+    await waitFor(() => {
+      expect(handleCancelAiTask).toHaveBeenCalledWith('task-loop-cancel-bridge');
+    });
+    expect(onAgentLoopTaskCancelledFromTaskList).toHaveBeenCalledTimes(1);
+    expect(onAgentLoopTaskCancelledFromTaskList).toHaveBeenCalledWith('task-loop-cancel-bridge');
+  });
+
+  it('does not invoke onAgentLoopTaskCancelledFromTaskList when cancel fails', async () => {
+    const onAgentLoopTaskCancelledFromTaskList = vi.fn();
+    const handleCancelAiTask = vi.fn(async () => false);
+    mockUseAiEmbeddingState.mockReturnValue({
+      aiEmbeddingBusy: false,
+      aiEmbeddingProgressLabel: null,
+      aiEmbeddingLastResult: null,
+      aiEmbeddingTasks: [
+        {
+          id: 'task-loop-cancel-fail',
+          taskType: 'agent_loop',
+          status: 'pending',
+          updatedAt: '2026-04-30T00:00:00.000Z',
+          resumable: true,
+          checkpointJson: '{"kind":"agent_loop_token_budget_warning"}',
+        },
+      ],
+      aiEmbeddingMatches: [],
+      aiEmbeddingLastError: null,
+      aiEmbeddingWarning: null,
+      refreshEmbeddingTasks: async () => undefined,
+      handleCancelAiTask,
+      handleRetryAiTask: async () => undefined,
+      handleBuildUnitEmbeddings: async () => undefined,
+      handleBuildNotesEmbeddings: async () => undefined,
+      handleBuildPdfEmbeddings: async () => undefined,
+      handleFindSimilarUnits: async () => undefined,
+    });
+
+    const base = makeProps();
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionPageAnalysisRuntime
+          panel={base.panel}
+          embedding={{
+            ...base.embedding,
+            navigation: {
+              ...base.embedding.navigation,
+              onAgentLoopTaskCancelledFromTaskList,
+            },
+          }}
+        />
+      </LocaleProvider>,
+    );
+
+    const row = document.querySelector('[data-task-id="task-loop-cancel-fail"]');
+    expect(row).toBeTruthy();
+    fireEvent.click(within(row as HTMLElement).getByRole('button', { name: '取消' }));
+
+    await waitFor(() => {
+      expect(handleCancelAiTask).toHaveBeenCalled();
+    });
+    expect(onAgentLoopTaskCancelledFromTaskList).not.toHaveBeenCalled();
+  });
+
+  it('invokes onAgentLoopTaskRetriedFromTaskList when agent_loop retry succeeds', async () => {
+    const onAgentLoopTaskRetriedFromTaskList = vi.fn();
+    const handleRetryAiTask = vi.fn(async () => true);
+    mockUseAiEmbeddingState.mockReturnValue({
+      aiEmbeddingBusy: false,
+      aiEmbeddingProgressLabel: null,
+      aiEmbeddingLastResult: null,
+      aiEmbeddingTasks: [
+        {
+          id: 'task-loop-retry-bridge',
+          taskType: 'agent_loop',
+          status: 'failed',
+          updatedAt: '2026-04-30T00:00:00.000Z',
+          errorMessage: 'cancelled_by_user',
+        },
+      ],
+      aiEmbeddingMatches: [],
+      aiEmbeddingLastError: null,
+      aiEmbeddingWarning: null,
+      refreshEmbeddingTasks: async () => undefined,
+      handleCancelAiTask: async () => true,
+      handleRetryAiTask,
+      handleBuildUnitEmbeddings: async () => undefined,
+      handleBuildNotesEmbeddings: async () => undefined,
+      handleBuildPdfEmbeddings: async () => undefined,
+      handleFindSimilarUnits: async () => undefined,
+    });
+
+    const base = makeProps();
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionPageAnalysisRuntime
+          panel={base.panel}
+          embedding={{
+            ...base.embedding,
+            navigation: {
+              ...base.embedding.navigation,
+              onAgentLoopTaskRetriedFromTaskList,
+            },
+          }}
+        />
+      </LocaleProvider>,
+    );
+
+    const row = document.querySelector('[data-task-id="task-loop-retry-bridge"]');
+    expect(row).toBeTruthy();
+    fireEvent.click(within(row as HTMLElement).getByRole('button', { name: '任务列表重试' }));
+
+    await waitFor(() => {
+      expect(handleRetryAiTask).toHaveBeenCalledWith('task-loop-retry-bridge');
+    });
+    expect(onAgentLoopTaskRetriedFromTaskList).toHaveBeenCalledTimes(1);
+    expect(onAgentLoopTaskRetriedFromTaskList).toHaveBeenCalledWith('task-loop-retry-bridge');
   });
 });

@@ -36,6 +36,8 @@ export function createInitialDeferredAiRuntimeState(): DeferredTranscriptionAiRu
       pruneSessionDirectivesBySourceMessage: undefined,
       confirmPendingToolCall: undefined,
       cancelPendingToolCall: undefined,
+      dismissPendingAgentLoopCheckpoint: undefined,
+      clearPendingAgentLoopCheckpointIfTaskIdMatches: undefined,
       trackRecommendationEvent: undefined,
     },
     aiToolDecisionLogs: [],
@@ -134,6 +136,19 @@ function buildAiChatSettingsFingerprint(state: DeferredTranscriptionAiRuntimeSta
   ].join('::');
 }
 
+function buildPendingAgentLoopFingerprint(
+  sessionMemory: DeferredTranscriptionAiRuntimeState['aiChat']['sessionMemory'],
+): string {
+  const cp = sessionMemory?.pendingAgentLoopCheckpoint;
+  if (!cp) return '';
+  return [
+    cp.taskId ?? '',
+    String(cp.step ?? ''),
+    String(cp.originalUserText?.length ?? 0),
+    String(cp.continuationInput?.length ?? 0),
+  ].join('\u0001');
+}
+
 export function buildAiStateWorkerSlice(state: DeferredTranscriptionAiRuntimeState): AiStateWorkerSlice {
   const pendingToolCallId = state.aiChat.pendingToolCall?.requestId
     ?? state.aiChat.pendingToolCall?.call.requestId
@@ -160,6 +175,7 @@ export function buildAiStateWorkerSlice(state: DeferredTranscriptionAiRuntimeSta
     aiChatProviderKind: state.aiChat.settings?.providerKind ?? '',
     aiChatModel: state.aiChat.settings?.model ?? '',
     aiChatSettingsFingerprint: buildAiChatSettingsFingerprint(state),
+    aiChatPendingAgentLoopFingerprint: buildPendingAgentLoopFingerprint(state.aiChat.sessionMemory),
     aiChatContextChars: state.aiChat.contextDebugSnapshot?.contextChars ?? 0,
     aiChatHistoryChars: state.aiChat.contextDebugSnapshot?.historyChars ?? 0,
     aiToolDecisionLogCount: state.aiToolDecisionLogs.length,

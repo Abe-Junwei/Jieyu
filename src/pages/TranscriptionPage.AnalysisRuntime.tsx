@@ -88,6 +88,20 @@ export function TranscriptionPageAnalysisRuntime({
     notifyRequestAgentLoopResume({ taskId });
   }, []);
 
+  const handleCancelAiTaskWithSessionBridge = useCallback(async (taskId: string) => {
+    const ok = await handleCancelAiTask(taskId);
+    if (ok) {
+      embedding.navigation.onAgentLoopTaskCancelledFromTaskList?.(taskId);
+    }
+  }, [embedding.navigation, handleCancelAiTask]);
+
+  const handleRetryAiTaskWithSessionBridge = useCallback(async (taskId: string) => {
+    const ok = await handleRetryAiTask(taskId);
+    if (ok) {
+      embedding.navigation.onAgentLoopTaskRetriedFromTaskList?.(taskId);
+    }
+  }, [embedding.navigation, handleRetryAiTask]);
+
   const embeddingContextValue = useEmbeddingContextValue({
     selectedUnit: embedding.source.selectedUnit,
     aiEmbeddingBusy,
@@ -112,8 +126,8 @@ export function TranscriptionPageAnalysisRuntime({
     onJumpToEmbeddingMatch: embedding.navigation.onJumpToEmbeddingMatch,
     onJumpToCitation: embedding.navigation.onJumpToCitation,
     onResumeAiTask: handleResumeAiTask,
-    onCancelAiTask: handleCancelAiTask,
-    onRetryAiTask: handleRetryAiTask,
+    onCancelAiTask: handleCancelAiTaskWithSessionBridge,
+    onRetryAiTask: handleRetryAiTaskWithSessionBridge,
   });
 
   return (

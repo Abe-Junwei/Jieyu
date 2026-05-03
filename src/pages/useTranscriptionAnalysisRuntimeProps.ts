@@ -16,6 +16,8 @@ interface UseTranscriptionAnalysisRuntimePropsInput {
     citation?: { snippet?: string },
   ) => Promise<void>;
   handleJumpToEmbeddingMatch: (unitId: string) => void;
+  onAgentLoopTaskCancelledFromTaskList?: (taskId: string) => void;
+  onAgentLoopTaskRetriedFromTaskList?: (taskId: string) => void;
   embeddingProviderConfig: TranscriptionPageEmbeddingProviderConfig;
   setEmbeddingProviderConfig: Dispatch<SetStateAction<TranscriptionPageEmbeddingProviderConfig>>;
   aiSidebarError: string | null;
@@ -31,6 +33,12 @@ export function useTranscriptionAnalysisRuntimeProps(
     formatTime: input.formatTime,
     onJumpToCitation: input.handleJumpToCitation,
     onJumpToEmbeddingMatch: input.handleJumpToEmbeddingMatch,
+    ...(input.onAgentLoopTaskCancelledFromTaskList !== undefined
+      ? { onAgentLoopTaskCancelledFromTaskList: input.onAgentLoopTaskCancelledFromTaskList }
+      : {}),
+    ...(input.onAgentLoopTaskRetriedFromTaskList !== undefined
+      ? { onAgentLoopTaskRetriedFromTaskList: input.onAgentLoopTaskRetriedFromTaskList }
+      : {}),
     embeddingProviderConfig: input.embeddingProviderConfig,
     onEmbeddingProviderConfigChange: input.setEmbeddingProviderConfig,
     externalErrorMessage: input.aiSidebarError,
@@ -41,6 +49,8 @@ export function useTranscriptionAnalysisRuntimeProps(
     input.getUnitTextForLayer,
     input.handleJumpToCitation,
     input.handleJumpToEmbeddingMatch,
+    input.onAgentLoopTaskCancelledFromTaskList,
+    input.onAgentLoopTaskRetriedFromTaskList,
     input.selectedUnit,
     input.setEmbeddingProviderConfig,
     input.unitsOnCurrentMedia,

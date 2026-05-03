@@ -40,6 +40,7 @@ interface UseTranscriptionAssistantSidebarControllerInputInput {
     pruneSessionDirectivesBySourceMessage?: AiChatContextValue['onPruneAiSessionDirectivesBySourceMessage'];
     confirmPendingToolCall: AiChatContextValue['onConfirmPendingToolCall'];
     cancelPendingToolCall: AiChatContextValue['onCancelPendingToolCall'];
+    dismissPendingAgentLoopCheckpoint: AiChatContextValue['onDismissPendingAgentLoopCheckpoint'];
     trackRecommendationEvent: AiChatContextValue['onTrackAiRecommendationEvent'];
   };
   aiToolDecisionLogs: AiChatContextValue['aiToolDecisionLogs'];
@@ -106,12 +107,14 @@ export function useTranscriptionAssistantSidebarControllerInput({
     onPruneAiSessionDirectivesBySourceMessage: aiChat.pruneSessionDirectivesBySourceMessage,
     onConfirmPendingToolCall: aiChat.confirmPendingToolCall,
     onCancelPendingToolCall: aiChat.cancelPendingToolCall,
+    onDismissPendingAgentLoopCheckpoint: aiChat.dismissPendingAgentLoopCheckpoint,
     onTrackAiRecommendationEvent: aiChat.trackRecommendationEvent,
     onJumpToCitation,
     ...(timelineReadModelEpoch !== undefined ? { timelineReadModelEpoch } : {}),
   }), [
     aiChat.cancelPendingToolCall,
     aiChat.clear,
+    aiChat.dismissPendingAgentLoopCheckpoint,
     aiChat.confirmPendingToolCall,
     aiChat.connectionTestMessage,
     aiChat.connectionTestStatus,

@@ -68,6 +68,8 @@ interface UseTranscriptionRuntimePropsInput {
     citation?: { snippet?: string },
   ) => Promise<void>;
   handleJumpToEmbeddingMatch: (unitId: string) => void;
+  onAgentLoopTaskCancelledFromTaskList?: (taskId: string) => void;
+  onAgentLoopTaskRetriedFromTaskList?: (taskId: string) => void;
   embeddingProviderConfig: TranscriptionPageEmbeddingProviderConfig;
   setEmbeddingProviderConfig: Dispatch<SetStateAction<TranscriptionPageEmbeddingProviderConfig>>;
   aiSidebarError: string | null;
@@ -126,6 +128,12 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
     formatTime: input.formatTime,
     handleJumpToCitation: input.handleJumpToCitation,
     handleJumpToEmbeddingMatch: input.handleJumpToEmbeddingMatch,
+    ...(input.onAgentLoopTaskCancelledFromTaskList !== undefined
+      ? { onAgentLoopTaskCancelledFromTaskList: input.onAgentLoopTaskCancelledFromTaskList }
+      : {}),
+    ...(input.onAgentLoopTaskRetriedFromTaskList !== undefined
+      ? { onAgentLoopTaskRetriedFromTaskList: input.onAgentLoopTaskRetriedFromTaskList }
+      : {}),
     embeddingProviderConfig: input.embeddingProviderConfig,
     setEmbeddingProviderConfig: input.setEmbeddingProviderConfig,
     aiSidebarError: input.aiSidebarError,

@@ -1303,6 +1303,12 @@ function TranscriptionPageReadyWorkspace({
       getUnitTextForLayer,
       handleJumpToCitation,
       handleJumpToEmbeddingMatch,
+      onAgentLoopTaskCancelledFromTaskList: (taskId: string) => {
+        deferredAiRuntimeForSidebar.aiChat.clearPendingAgentLoopCheckpointIfTaskIdMatches?.(taskId);
+      },
+      onAgentLoopTaskRetriedFromTaskList: (taskId: string) => {
+        deferredAiRuntimeForSidebar.aiChat.clearPendingAgentLoopCheckpointIfTaskIdMatches?.(taskId);
+      },
       embeddingProviderConfig,
       setEmbeddingProviderConfig,
       aiSidebarError,

@@ -29,6 +29,8 @@ type DeferredAiChatState = {
   pruneSessionDirectivesBySourceMessage: UseTranscriptionAiControllerResult['aiChat']['pruneSessionDirectivesBySourceMessage'];
   confirmPendingToolCall: UseTranscriptionAiControllerResult['aiChat']['confirmPendingToolCall'];
   cancelPendingToolCall: UseTranscriptionAiControllerResult['aiChat']['cancelPendingToolCall'];
+  dismissPendingAgentLoopCheckpoint: UseTranscriptionAiControllerResult['aiChat']['dismissPendingAgentLoopCheckpoint'];
+  clearPendingAgentLoopCheckpointIfTaskIdMatches: UseTranscriptionAiControllerResult['aiChat']['clearPendingAgentLoopCheckpointIfTaskIdMatches'];
   trackRecommendationEvent: UseTranscriptionAiControllerResult['aiChat']['trackRecommendationEvent'];
 };
 
@@ -99,6 +101,8 @@ function TranscriptionPageAssistantBridge({
       pruneSessionDirectivesBySourceMessage: aiChat.pruneSessionDirectivesBySourceMessage,
       confirmPendingToolCall: aiChat.confirmPendingToolCall,
       cancelPendingToolCall: aiChat.cancelPendingToolCall,
+      dismissPendingAgentLoopCheckpoint: aiChat.dismissPendingAgentLoopCheckpoint,
+      clearPendingAgentLoopCheckpointIfTaskIdMatches: aiChat.clearPendingAgentLoopCheckpointIfTaskIdMatches,
       trackRecommendationEvent: aiChat.trackRecommendationEvent,
     },
     aiToolDecisionLogs,
@@ -125,10 +129,12 @@ function TranscriptionPageAssistantBridge({
     acousticSummary,
     aiChat.cancelPendingToolCall,
     aiChat.clear,
+    aiChat.clearPendingAgentLoopCheckpointIfTaskIdMatches,
     aiChat.confirmPendingToolCall,
     aiChat.connectionTestMessage,
     aiChat.connectionTestStatus,
     aiChat.contextDebugSnapshot,
+    aiChat.dismissPendingAgentLoopCheckpoint,
     aiChat.enabled,
     aiChat.isStreaming,
     aiChat.lastError,

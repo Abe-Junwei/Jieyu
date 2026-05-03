@@ -23,6 +23,7 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
   const latestRuntimeSliceRef = useRef<AiStateWorkerSlice>(buildAiStateWorkerSlice(deferredAiRuntime));
   const fallbackFingerprintRef = useRef<string>(buildAiStateWorkerFingerprint(latestRuntimeSliceRef.current));
   const lastAiChatSettingsFingerprintRef = useRef<string>('');
+  const lastAiChatPendingAgentLoopFingerprintRef = useRef<string>('');
 
   const recoverToMainThreadFingerprint = useCallback(() => {
     const worker = aiStateWorkerRef.current;
@@ -89,6 +90,10 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
     const settingsFingerprintChanged = lastAiChatSettingsFingerprintRef.current !== nextSettingsFp;
     lastAiChatSettingsFingerprintRef.current = nextSettingsFp;
 
+    const nextAgentLoopFp = nextSlice.aiChatPendingAgentLoopFingerprint;
+    const agentLoopFingerprintChanged = lastAiChatPendingAgentLoopFingerprintRef.current !== nextAgentLoopFp;
+    lastAiChatPendingAgentLoopFingerprintRef.current = nextAgentLoopFp;
+
     const worker = aiStateWorkerRef.current;
     if (worker) {
       const message: AiStateWorkerRequest = { type: 'state_slice', payload: nextSlice };
@@ -98,7 +103,8 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
         recoverToMainThreadFingerprint();
       }
       // 设置指纹变则立刻 setState；仅依赖 Worker 回传会晚一拍
-      if (settingsFingerprintChanged) {
+      // Agent loop checkpoint 水合（T1-c）也必须立刻推进 deferred，否则聊天 alerts 不刷新。
+      if (settingsFingerprintChanged || agentLoopFingerprintChanged) {
         setDeferredAiRuntime(runtimeState);
       }
       if (aiStateWorkerRef.current) {

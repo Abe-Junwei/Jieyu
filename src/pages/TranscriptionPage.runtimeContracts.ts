@@ -123,6 +123,10 @@ export interface TranscriptionPageAnalysisEmbeddingNavigationProps {
     refId: string,
     citation?: { snippet?: string },
   ) => Promise<void> | void;
+  /** 嵌入任务列表取消 `agent_loop` 等任务后，用于清理会话内悬挂的 durable checkpoint（与 `taskId` 对齐时）。 */
+  onAgentLoopTaskCancelledFromTaskList?: (taskId: string) => void;
+  /** 嵌入任务列表对同一 `taskId` 重试成功后：清空匹配的 `pendingAgentLoopCheckpoint`；新 checkpoint 仍由后续 agent 写入同 task 行。 */
+  onAgentLoopTaskRetriedFromTaskList?: (taskId: string) => void;
 }
 
 export interface TranscriptionPageAnalysisEmbeddingProviderConfigProps {
