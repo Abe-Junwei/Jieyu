@@ -3,7 +3,7 @@ title: ADR-0028 — 助手多模态编排（工具真执行、共用对话态、
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-30
+last_reviewed: 2026-05-01
 source_of_truth: decision
 supersedes_notes: |
   澄清并扩展 ADR-0027：0027 规定非听写语音与文字共用 AI 聊天主链；
@@ -33,7 +33,7 @@ supersedes_notes: |
 
 - **生产运行时**以当前 **Hook 栈 + `VoiceInputService` + `useVoiceAgentResultHandler`（及后续抽出的共用编排模块）** 为唯一挂载入口。
 - **`VoiceAgentService` 单例及未使用的 `createVoiceAgentService`**：**不得**再承载与 Hook 路径重复的分发逻辑；实施上分阶段：
-  1. 将 `VoiceAgentService.commandBridge` 中与产品仍相关的语义（如混合意图门控、记忆检测、与 tool 对齐的分发）**迁入**与 React 无关的共享模块，由 **单一** `finalizeUtterance` / `dispatchAssistantIntent` 类入口调用；
+  1. 将 `VoiceAgentService.commandBridge` 中与产品仍相关的语义（如记忆检测、与 tool 对齐的分发）**迁入**与 React 无关的共享模块，由 **单一** `finalizeUtterance` / `dispatchAssistantIntent` 类入口调用；
   2. 删除或收缩 `VoiceAgentService` 在生产中的并行实现，**保留**仅限单测/将来无 UI 宿主时可通过薄适配层复用同一共享模块（避免双份 `switch` 长期存活）。
 
 ### 4. 体验与基础设施取向
@@ -52,6 +52,12 @@ supersedes_notes: |
 - 测试：针对「同一会话内语音与键入」的 dialogue 与 tool **契约测试**。
 - 观测：`inputModality` 等字段继续区分来源，但 **状态机与 tool 语义** 不分叉。
 
+### 实现锚点（读模型与门闈，防再分叉）
+
+- **共用对话态读模型**：`src/services/assistantDialogueState.ts`（`getAssistantDialogueSnapshot`、`publishAssistantDialogue*`、`derive` 的 `primary`：**`chat_tool` 优先于**语音确认 / 消歧）。
+- **同会话「键入发送」门闈**：`isAssistantChatComposerBlocked` / `isVoiceDialogueBlockingPrimary` 为单一契约；**`AiChatCard`** 与 **`useAiChat.send`** 均据此拦截，避免仅 UI 层可绕过的发送入口。
+- **STT 终局编排**：`runVoiceFinalSttResolutionTail` / `runVoiceFinalSttAfterIntentResolution`（`assistantVoiceSttOrchestrate.ts`）与聊天侧 pending tool **无顺序耦合**；「工具层相对语音层优先」仅体现在 `assistantDialogueState` 的 `derive()`，**不在** STT tail 内排序。
+
 ## 被放弃的备选方案
 
 - **长期维护两条完整 dispatch 实现**（Hook + `VoiceAgentService` 全量并行）：与「成熟产品一致性」冲突。
@@ -61,3 +67,11 @@ supersedes_notes: |
 
 - TTS 缺省开关、离线包大小与 CSP/许可是否需单独 ADR。
 - 若未来要求「键入也走统一预路由」，应新增 ADR 显式 supersede 本 ADR §1 第二句。
+
+## 开放项（产品 / 规格 / 工程，非本 ADR 的实现阻塞）
+
+| 主题 | 说明 | 建议出口 |
+| --- | --- | --- |
+| **TTS** | 缺省开关、离线包体、CSP/许可与宿主（浏览器）能力边界 | 单独 ADR 或产品规格节；与桌面端策略交叉引用 |
+| **键入统一预路由** | 若产品要求键入也进入与语音相同的前置 NLU 漏斗 | **新 ADR** 显式 supersede 本 ADR §1「键入不强制预路由」 |
+| **架构热点** | `AiChatCard`、`useAiChat` 等逼近 `check:architecture-guard` 行数/声明上限 | 独立 PR 按控制器/子组件拆分；与「编排下沉」纪律一致 |

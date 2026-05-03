@@ -3,7 +3,7 @@ title: Architecture 文档索引
 doc_type: architecture-index
 status: active
 owner: repo
-last_reviewed: 2026-04-26
+last_reviewed: 2026-05-01
 source_of_truth: current-state-index
 ---
 
@@ -51,6 +51,15 @@ source_of_truth: current-state-index
 
 - [ai-chat-tool-confirm-idempotency.md](./ai-chat-tool-confirm-idempotency.md)
   - 用途：AI 聊天工具确认链路的幂等与审计契约（含 `propose_changes` 批处理、trace 与 `metadata.executed` 语义）。
+
+- [ai-chat-send-turn-pipeline.md](./ai-chat-send-turn-pipeline.md)
+  - 用途：转写侧栏 `runAiChatSendTurn` 客户端 send 管道（preflight → persist/primary stream → stream phase → completion）、可选 correlation 日志、`data-testid` 与相关单测/E2E 索引。
+
+- [ai-execution-capability-strategy-matrix-v0.md](./ai-execution-capability-strategy-matrix-v0.md)
+  - 用途：执行层 capability 策略矩阵 v0（scope / trust / quota 与 `toolPreferences` / `safetyPreferences`、主链 pipeline、后台 sandbox 的优先级与代码锚点；T2-a）。
+
+- [ai-change-transaction-preview-v1.md](./ai-change-transaction-preview-v1.md)
+  - 用途：变更事务预览 DTO v1（`AiChangeTransactionPreviewV1` / `buildAiChangeTransactionPreviewV1`）；与 `AiChangeSet` 对齐；T3-a。
 
 - [voice-unified-chat-path.md](./voice-unified-chat-path.md)
   - 用途：非听写语音（command/analysis）与文字共用 AI 聊天主链的现状、功能开关、关键文件与回滚入口（灰度见 release-gates 配套文档）。
