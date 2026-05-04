@@ -17,11 +17,19 @@ import { RecordingExecutor } from './VoiceInputService.recording';
 import { WhisperXVadService } from './vad/WhisperXVadService';
 import { recommendVadStrategy } from './SttStrategyRouter';
 import type { SttEnhancementConfig, SttEnhancementKind, SttEnhancementProvider, SttEnhancementSpeakerTurn, SttEnhancementWordTiming } from './stt/enhancementRegistry';
+import { getSpeechRecognitionCtor } from './VoiceInputService.webSpeechSupport';
+import type {
+  SpeechRecognition,
+  SpeechRecognitionErrorEvent,
+  SpeechRecognitionEvent,
+} from './VoiceInputService.webSpeechSupport';
 export {
   testOllamaWhisperAvailability,
   testWhisperServerAvailability,
 } from './VoiceInputService.probes';
 export type { OllamaWhisperAvailabilityResult } from './VoiceInputService.probes';
+export type { AecCapability } from './VoiceInputService.webSpeechSupport';
+export { isWebSpeechSupported, runAecDiagnostic } from './VoiceInputService.webSpeechSupport';
 
 const log = createLogger('VoiceInputService');
 
@@ -104,104 +112,11 @@ export type CommercialProviderKind = 'gemini' | 'openai-audio' | 'groq' | 'custo
 export type SttProviderCapability = 'browser-native' | 'local-http' | 'cloud-api';
 export type SttBillingKind = 'free' | 'metered' | 'self-hosted';
 
-export interface AecCapability {
-  echoCancellation: boolean;
-  noiseSuppression: boolean;
-  autoGainControl: boolean;
-}
-
 type VoiceInputListener = (result: SttResult) => void;
 type VoiceInputErrorListener = (error: string) => void;
 type VoiceInputStateListener = (listening: boolean) => void;
 type VoiceInputVadListener = (speaking: boolean) => void;
 type VoiceInputEnergyListener = (rms: number) => void;
-
-// ── Web Speech API type augmentation ──
-
-interface SpeechRecognitionEvent extends Event {
-  readonly results: SpeechRecognitionResultList;
-  readonly resultIndex: number;
-}
-
-interface SpeechRecognitionResultList {
-  readonly length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResult {
-  readonly length: number;
-  readonly isFinal: boolean;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-}
-
-interface SpeechRecognitionAlternative {
-  readonly transcript: string;
-  readonly confidence: number;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  readonly error: string;
-  readonly message: string;
-}
-
-interface SpeechRecognition extends EventTarget {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  start(): void;
-  stop(): void;
-  abort(): void;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-  onend: (() => void) | null;
-  onstart: (() => void) | null;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition?: new () => SpeechRecognition;
-    webkitSpeechRecognition?: new () => SpeechRecognition;
-  }
-}
-
-// ── Helpers ──
-
-function getSpeechRecognitionCtor(): (new () => SpeechRecognition) | undefined {
-  return window.SpeechRecognition ?? window.webkitSpeechRecognition;
-}
-
-export function isWebSpeechSupported(): boolean {
-  return getSpeechRecognitionCtor() !== undefined;
-}
-
-/**
- * AEC capability diagnostic — checks if browser supports hardware echo cancellation.
- * Auto-releases the microphone track after detection.
- */
-export async function runAecDiagnostic(): Promise<AecCapability> {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
-    const track = stream.getAudioTracks()[0];
-    if (!track) {
-      return { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
-    }
-    const settings = track.getSettings();
-    track.stop();
-    return {
-      echoCancellation: settings.echoCancellation === true,
-      noiseSuppression: settings.noiseSuppression === true,
-      autoGainControl: settings.autoGainControl === true,
-    };
-  } catch (err) {
-    log.warn('detectInputCapabilities failed, using defaults', { err });
-    return { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
-  }
-}
 
 // ── Service ──
 

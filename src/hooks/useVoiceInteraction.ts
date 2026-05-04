@@ -24,7 +24,7 @@ import {
   type TranscriptionVoiceSelectionSnapshot,
 } from '../services/transcriptionVoiceInteractionWiring';
 import { useLocale } from '../i18n';
-import { getVoiceInteractionMessages } from '../i18n/voiceInteractionMessages';
+import { getVoiceInteractionMessages } from '../i18n/messages';
 import { useGlobalContext } from '../services/GlobalContextService';
 import { isAssistantWebSpeechTtsSupported, speakAssistantReplyWithWebSpeechTts, stopAssistantWebSpeechTts } from '../utils/assistantWebSpeechTts';
 

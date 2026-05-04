@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType } from '../db';
-import type { VoiceInteractionMessages } from '../i18n/voiceInteractionMessages';
+import type { VoiceInteractionMessages } from '../i18n/messages';
 import {
   computeTranscriptionVoiceSelectionSummary,
   computeTranscriptionVoiceTargetSummary,

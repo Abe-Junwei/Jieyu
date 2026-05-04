@@ -4,7 +4,7 @@
  */
 
 import type { LayerDocType, LayerLinkDocType } from '../db';
-import type { VoiceInteractionMessages } from '../i18n/voiceInteractionMessages';
+import type { VoiceInteractionMessages } from '../i18n/messages';
 import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
 
 export interface TranscriptionVoiceSelectionSnapshot {
