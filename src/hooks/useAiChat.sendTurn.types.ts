@@ -102,6 +102,9 @@ export type RunAiChatSendTurnArgs = Readonly<{
   resolveAgentLoopResumeCheckpoint: (userText: string) => Promise<NonNullable<AiSessionMemory['pendingAgentLoopCheckpoint']> | null>;
   clearPendingAgentLoopCheckpoint: () => void;
 
+  /** Active conversation id when known; send-preflight sandbox audit falls back to `ensureConversation` when null. */
+  activeConversationId?: string | null;
+
   /** Unit tests: override profile for send-preflight session-directive sandbox (production omits). */
   sendPreflightSessionSidecarSandboxProfileOverride?: BackgroundToolSandboxProfile;
 }>;

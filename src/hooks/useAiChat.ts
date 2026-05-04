@@ -314,6 +314,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   const send = useCallback(async (userText: string) => {
     await runAiChatSendTurn({
       userText,
+      activeConversationId: conversationId,
       featureFlags,
       isStreaming,
       sessionTokenBudget,
@@ -365,6 +366,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     });
   }, [
     allowDestructiveToolCalls,
+    conversationId,
     ensureConversation,
     firstChunkTimeoutMs,
     historyCharBudgetOverride,

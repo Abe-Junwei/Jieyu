@@ -315,6 +315,7 @@ describe('generate-release-evidence-bundle script', () => {
         'ai_user_directive_application',
         'ai_response_policy_resolution',
         'ai_tool_call_decision',
+        'ai_session_sidecar_sandbox',
       ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

@@ -2,6 +2,14 @@
 
 import type { Dispatch, SetStateAction } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const auditInsert = vi.fn().mockResolvedValue(undefined);
+
+vi.mock('../db', () => ({
+  getDb: vi.fn(async () => ({
+    collections: { audit_logs: { insert: auditInsert } },
+  })),
+}));
 import type { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { featureFlags } from '../ai/config/featureFlags';
 import { getDefaultAiChatSettings } from '../ai/providers/providerCatalog';
@@ -96,6 +104,7 @@ function makeArgs(over: Partial<RunAiChatSendTurnArgs> = {}): RunAiChatSendTurnA
 
 describe('runAiChatSendTurnPreflight', () => {
   beforeEach(() => {
+    auditInsert.mockClear();
     vi.mocked(isAiChatSendBlockedByAssistantDialogue).mockReset();
     vi.mocked(isAiChatSendBlockedByAssistantDialogue).mockReturnValue(false);
   });
@@ -201,5 +210,33 @@ describe('runAiChatSendTurnPreflight', () => {
     const result = await runAiChatSendTurnPreflight(args);
     expect(result).not.toBeNull();
     expect(sessionMemoryRef.current.responsePreferences?.language).not.toBe('en');
+  });
+
+  it('writes session sidecar sandbox audit when send-preflight directives are blocked', async () => {
+    const ensureConversation = vi.fn(async () => 'conv-audit-1');
+    const sessionMemoryRef = { current: {} as AiSessionMemory };
+    const setMessages = vi.fn();
+    const setIsStreaming = vi.fn();
+    const args = makeArgs({
+      userText: '请记住：所有回答用英文',
+      featureFlags: { ...featureFlags, aiBackgroundToolSandboxEnabled: true } as unknown as typeof featureFlags,
+      sendPreflightSessionSidecarSandboxProfileOverride: 'readonly',
+      activeConversationId: null,
+      ensureConversation,
+      sessionMemoryRef,
+      setMessages: setMessages as unknown as Dispatch<SetStateAction<UiChatMessage[]>>,
+      setIsStreaming: setIsStreaming as unknown as Dispatch<SetStateAction<boolean>>,
+    });
+    await runAiChatSendTurnPreflight(args);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(ensureConversation).toHaveBeenCalled();
+    expect(auditInsert).toHaveBeenCalled();
+    const row = auditInsert.mock.calls.find((call) => (call[0] as { field?: string }).field === 'ai_session_sidecar_sandbox')?.[0] as
+      | { field: string; documentId: string; metadataJson: string }
+      | undefined;
+    expect(row?.documentId).toBe('conv-audit-1');
+    const meta = JSON.parse(row!.metadataJson) as { gate: string };
+    expect(meta.gate).toContain('send-preflight');
   });
 });

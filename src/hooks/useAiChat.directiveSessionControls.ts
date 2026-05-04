@@ -2,12 +2,18 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 import { getDb } from '../db';
 import { featureFlags } from '../ai/config/featureFlags';
 import { deactivateSessionDirective as deactivateSessionDirectiveFromMemory, persistSessionMemory, pruneDirectiveLedgerBySourceMessage } from '../ai/chat/sessionMemory';
+import { extractUserDirectives } from '../ai/memory/userDirectiveExtractor';
 import { newAuditLogId, nowIso } from './useAiChat.helpers';
 import {
   AI_CHAT_BACKGROUND_MEMORY_SANDBOX_AUTHORIZED_DIRS,
   AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE,
 } from './useAiChat.backgroundMemory';
+import {
+  AI_CHAT_SESSION_SIDECAR_WRITE_PATH,
+  resolveAiChatSessionSidecarSandboxPolicy,
+} from '../ai/policy/resolveExecutionPolicy';
 import { resolvePinnedMessageSessionMemory } from './useAiChat.messagePinning';
+import { scheduleSessionSidecarSandboxAudit } from './useAiChat.sessionSidecarAudit';
 import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
 
 export function useAiChatDirectiveSessionControls(options: {
@@ -55,17 +61,46 @@ export function useAiChatDirectiveSessionControls(options: {
           authorizedWriteDirs: AI_CHAT_BACKGROUND_MEMORY_SANDBOX_AUTHORIZED_DIRS,
         }
       : undefined;
+    const normalizedMessageId = messageId.trim();
+    const currentlyPinned = (sessionMemoryRef.current.pinnedMessageIds ?? []).includes(normalizedMessageId);
+    if (!currentlyPinned && conversationId && sessionSidecarSandbox?.sandboxEnabled) {
+      const message = messagesRef.current.find((item) => item.id === normalizedMessageId);
+      if (message?.role === 'user') {
+        const extracted = extractUserDirectives({
+          userText: message.content,
+          source: 'pinned_message',
+          sourceMessageId: normalizedMessageId,
+        });
+        if (extracted.length > 0) {
+          const decision = resolveAiChatSessionSidecarSandboxPolicy({
+            sandboxEnabled: true,
+            profile: sessionSidecarSandbox.profile,
+            authorizedWriteDirs: sessionSidecarSandbox.authorizedWriteDirs,
+            virtualWritePath: AI_CHAT_SESSION_SIDECAR_WRITE_PATH.pinnedMessageDirective,
+          });
+          if (decision.action !== 'allow') {
+            scheduleSessionSidecarSandboxAudit({
+              conversationId,
+              virtualWritePath: AI_CHAT_SESSION_SIDECAR_WRITE_PATH.pinnedMessageDirective,
+              sandboxAction: decision.action,
+              sandboxReason: decision.reason,
+              sourceMessageId: normalizedMessageId,
+            });
+          }
+        }
+      }
+    }
     const nextMemory = resolvePinnedMessageSessionMemory(
       sessionMemoryRef.current,
       messagesRef.current,
-      messageId,
+      normalizedMessageId,
       sessionSidecarSandbox,
     );
     if (nextMemory === sessionMemoryRef.current) return;
     sessionMemoryRef.current = nextMemory;
     persistSessionMemory(sessionMemoryRef.current);
     setMessages((prev) => [...prev]);
-  }, [messagesRef, sessionMemoryRef, setMessages]);
+  }, [conversationId, messagesRef, sessionMemoryRef, setMessages]);
 
   const deactivateSessionDirective = useCallback((directiveId: string) => {
     const normalizedDirectiveId = directiveId.trim();

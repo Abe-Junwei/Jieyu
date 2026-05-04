@@ -3,12 +3,12 @@
   "reportType": "release-evidence",
   "degraded": false,
   "metadata": {
-    "generatedAt": "2026-05-04T04:33:29.611Z",
+    "generatedAt": "2026-05-04T07:08:58.260Z",
     "releaseProfile": "core",
     "mode": "enforce",
     "environment": "local",
     "appVersion": "1.1.0",
-    "gitShortSha": "306448c",
+    "gitShortSha": "b7e6a1e",
     "nodeVersion": "v25.9.0",
     "workspaceRoot": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu",
     "stage": "A1b",
@@ -17,10 +17,10 @@
     "logsDir": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate"
   },
   "summary": {
-    "total": 20,
-    "passed": 8,
+    "total": 18,
+    "passed": 1,
     "failed": 0,
-    "skipped": 12
+    "skipped": 17
   },
   "evidenceIndex": [
     {
@@ -74,26 +74,6 @@
       "keySummary": "Dry run mode: step was not executed."
     },
     {
-      "conclusionId": "a2.toolreq_governance_seed_003",
-      "conclusion": "AI evidence card ready for toolreq_governance_seed_003",
-      "evidenceType": "audit_replay",
-      "command": "ai_card:requestId=toolreq_governance_seed_003",
-      "module": "ai-audit",
-      "exitCode": 0,
-      "logPath": null,
-      "keySummary": "update_transcription_segment:confirmed"
-    },
-    {
-      "conclusionId": "a2.toolreq_governance_seed_002",
-      "conclusion": "AI evidence card ready for toolreq_governance_seed_002",
-      "evidenceType": "audit_replay",
-      "command": "ai_card:requestId=toolreq_governance_seed_002",
-      "module": "ai-audit",
-      "exitCode": 0,
-      "logPath": null,
-      "keySummary": "delete_transcription_segment:blocked"
-    },
-    {
       "conclusionId": "a3.perf.cards",
       "conclusion": "A3 perf evidence cards skipped",
       "evidenceType": "perf_cards_skipped",
@@ -115,13 +95,13 @@
     },
     {
       "conclusionId": "p1.progressive-disclosure.v1",
-      "conclusion": "P1-ProgressiveDisclosure card generated",
-      "evidenceType": "progressive_disclosure",
+      "conclusion": "P1-ProgressiveDisclosure card skipped",
+      "evidenceType": "progressive_disclosure_skipped",
       "command": "release_evidence:progressive_disclosure",
       "module": "ai-progressive-disclosure",
       "exitCode": 0,
       "logPath": null,
-      "keySummary": "cards=4"
+      "keySummary": "no_audit_export_source"
     },
     {
       "conclusionId": "p1.rag-shape-telemetry.v1",
@@ -131,7 +111,7 @@
       "module": "ai-rag-shape",
       "exitCode": 0,
       "logPath": null,
-      "keySummary": "no_rag_shape_metadata"
+      "keySummary": "no_audit_export_source"
     },
     {
       "conclusionId": "c5.background-memory-extraction.v1",
@@ -141,7 +121,7 @@
       "module": "ai-memory",
       "exitCode": 0,
       "logPath": null,
-      "keySummary": "no_background_memory_extraction_rows"
+      "keySummary": "no_audit_export_source"
     },
     {
       "conclusionId": "c7.coordination-lite.v1",
@@ -151,7 +131,7 @@
       "module": "ai-coordination",
       "exitCode": 0,
       "logPath": null,
-      "keySummary": "no_coordination_lite_rows"
+      "keySummary": "no_audit_export_source"
     },
     {
       "conclusionId": "c8.user-directive-governance.v1",
@@ -159,18 +139,18 @@
       "evidenceType": "user_directive_governance_skipped",
       "status": "skipped",
       "exitCode": null,
-      "logPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
-      "keySummary": "no_user_directive_governance_rows"
+      "logPath": null,
+      "keySummary": "no_audit_export_source"
     },
     {
       "conclusionId": "m1.action-approval-center.v1",
-      "conclusion": "M1 action approval center card generated",
-      "evidenceType": "action_approval_center",
+      "conclusion": "M1 action approval center card skipped",
+      "evidenceType": "action_approval_center_skipped",
       "command": "release_evidence:action_approval_center",
       "module": "ai-runtime",
       "exitCode": 0,
       "logPath": null,
-      "keySummary": "pending=0;blocked=1;confirmed=1;partialFailure=0"
+      "keySummary": "no_audit_export_source"
     },
     {
       "conclusionId": "f3.durable-orchestration.v1",
@@ -184,13 +164,13 @@
     },
     {
       "conclusionId": "t4.tool-decision-failure-signals.v1",
-      "conclusion": "T4 tool decision failure signals generated",
-      "evidenceType": "tool_decision_failure_signals",
+      "conclusion": "T4 tool decision failure signals skipped",
+      "evidenceType": "tool_decision_failure_signals_skipped",
       "command": "release_evidence:tool_decision_failure_signals",
       "module": "ai-runtime",
       "exitCode": 0,
-      "logPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
-      "keySummary": "failedRows=0;triageRetry=0;partial=0;rollback2+=0;handoffRate=n/a"
+      "logPath": null,
+      "keySummary": "no_audit_export_source"
     },
     {
       "conclusionId": "m0.audit-field-dictionary.v1",
@@ -200,12 +180,12 @@
       "module": "observability",
       "exitCode": 0,
       "logPath": null,
-      "keySummary": "fields=4;namespace=ai_messages"
+      "keySummary": "fields=5;namespace=ai_messages"
     },
     {
       "conclusionId": "p1.cost-guard.v1",
-      "conclusion": "P1-CostGuard card generated",
-      "evidenceType": "cost_guard",
+      "conclusion": "P1-CostGuard card skipped",
+      "evidenceType": "cost_guard_skipped",
       "command": "release_evidence:cost_guard",
       "module": "ai-cost",
       "exitCode": 0,
@@ -214,13 +194,13 @@
     },
     {
       "conclusionId": "p1.cost-guard.trend.v1",
-      "conclusion": "P1-CostGuard trend card generated",
-      "evidenceType": "cost_guard_trend",
+      "conclusion": "P1-CostGuard trend card skipped",
+      "evidenceType": "cost_guard_trend_skipped",
       "command": "release_evidence:cost_guard_trend",
       "module": "ai-cost",
       "exitCode": 0,
       "logPath": null,
-      "keySummary": "points=2;compareReady=yes"
+      "keySummary": "no_audit_export_source"
     }
   ],
   "steps": [
@@ -287,53 +267,13 @@
   ],
   "aiToolEvidenceCards": {
     "summary": {
-      "total": 2,
-      "ready": 2,
+      "total": 0,
+      "ready": 0,
       "skipped": 0
     },
-    "status": "partial_or_ready",
-    "cards": [
-      {
-        "requestId": "toolreq_governance_seed_003",
-        "status": "ready",
-        "source": "audit_export",
-        "toolName": "update_transcription_segment",
-        "replayable": true,
-        "latestDecision": {
-          "decision": "confirmed",
-          "executed": true,
-          "message": "governance strict seed second-day decision",
-          "timestamp": "2026-04-25T10:20:00.000Z"
-        },
-        "diff": {
-          "matches": null
-        },
-        "auditLogQueryHint": "collection=ai_messages;field=ai_tool_call_decision;requestId=toolreq_governance_seed_003",
-        "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson"
-      },
-      {
-        "requestId": "toolreq_governance_seed_002",
-        "status": "ready",
-        "source": "audit_export",
-        "toolName": "delete_transcription_segment",
-        "replayable": true,
-        "latestDecision": {
-          "decision": "blocked",
-          "reason": "user_directive_deny_destructive",
-          "reasonLabelEn": "Blocked by user safety preference for destructive actions.",
-          "reasonLabelZh": "已被用户安全偏好阻断高风险破坏性操作",
-          "executed": false,
-          "message": "governance strict seed high-risk blocked",
-          "timestamp": "2026-04-24T10:15:00.000Z"
-        },
-        "diff": {
-          "matches": null
-        },
-        "auditLogQueryHint": "collection=ai_messages;field=ai_tool_call_decision;requestId=toolreq_governance_seed_002",
-        "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson"
-      }
-    ],
-    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson"
+    "status": "skipped",
+    "skipReason": "no_request_ids_provided",
+    "cards": []
   },
   "perf": {
     "status": "skipped",
@@ -417,57 +357,18 @@
     "profile": "core"
   },
   "progressiveDisclosure": {
-    "status": "ready_or_partial",
-    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
-    "cards": [
-      {
-        "id": "first_pass_resolution_rate",
-        "status": "ready_or_partial",
-        "value": 0.5,
-        "numerator": 1,
-        "denominator": 2,
-        "numeratorSource": "ai_messages.ai_tool_call_decision latestDecision in {confirmed,auto_confirmed} and clarifyCount=0",
-        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
-      },
-      {
-        "id": "clarify_then_success_rate",
-        "status": "ready_or_partial",
-        "value": 0,
-        "numerator": 0,
-        "denominator": 2,
-        "numeratorSource": "ai_messages.ai_tool_call_decision latestDecision in {confirmed,auto_confirmed} and clarifyCount=1",
-        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
-      },
-      {
-        "id": "advanced_entry_reach_rate",
-        "status": "ready_or_partial",
-        "value": 0,
-        "numerator": 0,
-        "denominator": 2,
-        "numeratorSource": "ai_messages.ai_tool_call_decision reason in advanced set OR decision in {retry,capped}",
-        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
-      },
-      {
-        "id": "clarify_loop_rate",
-        "status": "ready_or_partial",
-        "value": 0,
-        "numerator": 0,
-        "denominator": 2,
-        "numeratorSource": "ai_messages.ai_tool_call_decision clarifyCount>=2 and latestDecision not in {confirmed,auto_confirmed}",
-        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
-      }
-    ]
+    "status": "skipped",
+    "skipReason": "no_audit_export_source",
+    "cards": []
   },
   "memoryRecallShape": {
     "status": "skipped",
-    "skipReason": "no_rag_shape_metadata",
-    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "skipReason": "no_audit_export_source",
     "card": null
   },
   "backgroundMemoryExtraction": {
     "status": "skipped",
-    "skipReason": "no_background_memory_extraction_rows",
-    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "skipReason": "no_audit_export_source",
     "summary": {
       "total": 0,
       "scheduled": 0,
@@ -485,8 +386,7 @@
   },
   "coordinationLite": {
     "status": "skipped",
-    "skipReason": "no_coordination_lite_rows",
-    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "skipReason": "no_audit_export_source",
     "summary": {
       "total": 0,
       "completed": 0,
@@ -499,8 +399,7 @@
   },
   "userDirectiveGovernance": {
     "status": "skipped",
-    "skipReason": "no_user_directive_governance_rows",
-    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "skipReason": "no_audit_export_source",
     "summary": {
       "total": 0,
       "extractionCount": 0,
@@ -515,25 +414,19 @@
     "categories": {}
   },
   "actionApprovalCenter": {
-    "status": "ready_or_partial",
-    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "status": "skipped",
+    "skipReason": "no_audit_export_source",
     "summary": {
-      "total": 2,
+      "total": 0,
       "pending": 0,
-      "blocked": 1,
-      "confirmed": 1,
+      "blocked": 0,
+      "confirmed": 0,
       "cancelled": 0,
       "failed": 0,
       "partialFailureCount": 0
     },
-    "riskTiers": {
-      "high": 1,
-      "medium": 1
-    },
-    "approvalModes": {
-      "policy_blocked": 1,
-      "user_confirmation": 1
-    }
+    "riskTiers": {},
+    "approvalModes": {}
   },
   "durableOrchestration": {
     "status": "skipped",
@@ -558,8 +451,8 @@
     "handoffReasons": {}
   },
   "toolDecisionFailureSignals": {
-    "status": "ready_or_partial",
-    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "status": "skipped",
+    "skipReason": "no_audit_export_source",
     "failureSignals": {
       "failedDecisionRows": 0,
       "triageCounts": {
@@ -623,15 +516,25 @@
           "toolCall.name",
           "executed"
         ]
+      },
+      {
+        "field": "ai_session_sidecar_sandbox",
+        "phase": "session_sidecar_sandbox",
+        "requiredMetadataKeys": [
+          "phase",
+          "gate",
+          "sandboxAction",
+          "sandboxReason"
+        ]
       }
     ]
   },
   "costGuard": {
-    "status": "ready_or_partial",
+    "status": "skipped",
+    "skipReason": "no_audit_export_source",
     "estimatorVersion": "v1.provider_usage_or_unknown",
-    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
     "summary": {
-      "requestCount": 2,
+      "requestCount": 0,
       "budgetTriggerCount": 0,
       "retryTriggeredCount": 0,
       "retrySuccessCount": 0,
@@ -639,37 +542,14 @@
     },
     "trend": {
       "bucket": "day",
-      "pointCount": 2,
-      "compareReady": true,
-      "points": [
-        {
-          "date": "2026-04-24",
-          "requestCount": 1,
-          "budgetTriggerCount": 0,
-          "retryTriggeredCount": 0,
-          "retrySuccessCount": 0,
-          "outputCapTriggeredCount": 0
-        },
-        {
-          "date": "2026-04-25",
-          "requestCount": 1,
-          "budgetTriggerCount": 0,
-          "retryTriggeredCount": 0,
-          "retrySuccessCount": 0,
-          "outputCapTriggeredCount": 0
-        }
-      ]
+      "pointCount": 0,
+      "compareReady": false,
+      "points": []
     },
     "card": {
       "id": "session_cost_guard_v1",
-      "status": "ready_or_partial",
-      "sampleSource": "audit_export",
-      "counts": {
-        "budgetTriggerCount": 0,
-        "retryTriggeredCount": 0,
-        "retrySuccessCount": 0,
-        "outputCapTriggeredCount": 0
-      }
+      "status": "skipped",
+      "sampleSource": "none"
     }
   },
   "extensions": {

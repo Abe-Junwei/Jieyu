@@ -23,6 +23,7 @@ import {
   AI_CHAT_SESSION_SIDECAR_WRITE_PATH,
   resolveAiChatSessionSidecarSandboxPolicy,
 } from '../ai/policy/resolveExecutionPolicy';
+import { scheduleSessionSidecarSandboxAudit } from './useAiChat.sessionSidecarAudit';
 import type { MetricTags } from '../observability/metrics';
 import {
   createInitialSendTurnStreamPhaseState,
@@ -96,6 +97,8 @@ export async function runAiChatSendTurnPreflight(
     resolveAgentLoopResumeCheckpoint,
     clearPendingAgentLoopCheckpoint,
     sendPreflightSessionSidecarSandboxProfileOverride,
+    activeConversationId,
+    ensureConversation,
   } = args;
 
   if (!flags.aiChatEnabled) {
@@ -234,6 +237,15 @@ export async function runAiChatSendTurnPreflight(
     if (decision.action === 'allow') {
       sessionMemoryRef.current = applyUserDirectivesToSessionMemory(sessionMemoryRef.current, immediateDirectives).nextMemory;
       persistSessionMemory(sessionMemoryRef.current);
+    } else {
+      const convId = activeConversationId ?? (await ensureConversation());
+      scheduleSessionSidecarSandboxAudit({
+        conversationId: convId,
+        virtualWritePath: AI_CHAT_SESSION_SIDECAR_WRITE_PATH.sendPreflightDirective,
+        sandboxAction: decision.action,
+        sandboxReason: decision.reason,
+        sourceMessageId: userMsg.id,
+      });
     }
   }
 

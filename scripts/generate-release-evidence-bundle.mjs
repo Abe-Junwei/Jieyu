@@ -2570,6 +2570,11 @@ function buildAuditFieldDictionarySection() {
         phase: 'tool_decision',
         requiredMetadataKeys: ['phase', 'outcome', 'toolCall.name', 'executed'],
       },
+      {
+        field: 'ai_session_sidecar_sandbox',
+        phase: 'session_sidecar_sandbox',
+        requiredMetadataKeys: ['phase', 'gate', 'sandboxAction', 'sandboxReason'],
+      },
     ],
   };
 }
