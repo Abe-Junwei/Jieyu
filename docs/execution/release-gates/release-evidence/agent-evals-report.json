@@ -40,10 +40,10 @@
   "auditTrace": {
     "enabled": true,
     "path": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
-    "rowCount": 2,
-    "decisionRowCount": 2,
-    "metadataDecisionRowCount": 2,
-    "schemaV1DecisionRowCount": 2,
+    "rowCount": 1,
+    "decisionRowCount": 1,
+    "metadataDecisionRowCount": 1,
+    "schemaV1DecisionRowCount": 1,
     "t4PartialProgressDecisionRowCount": 1,
     "t4ProposeRollbackDecisionRowCount": 1,
     "parseErrorCount": 0,
@@ -82,7 +82,7 @@
       "startedAt": "2026-05-04T04:12:41.852Z",
       "endedAt": "2026-05-04T04:12:43.932Z",
       "elapsedMs": 2080,
-      "stdout": "\n RUN  v4.1.5 /Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\n\n\n Test Files  4 passed (4)\n      Tests  13 passed (13)\n   Start at  12:12:42\n   Duration  896ms (transform 944ms, setup 937ms, import 747ms, tests 29ms, environment 0ms)\n\n",
+      "stdout": "\n RUN  v4.1.5 /Users/junwei/Documents/\u767e\u5ea6\u7f51\u76d8\u540c\u6b65/Obsremote/\uff0850\uff09\u5f00\u53d1/Jieyu\n\n\n Test Files  4 passed (4)\n      Tests  13 passed (13)\n   Start at  12:12:42\n   Duration  896ms (transform 944ms, setup 937ms, import 747ms, tests 29ms, environment 0ms)\n\n",
       "stderr": ""
     },
     {
@@ -100,7 +100,7 @@
       "startedAt": "2026-05-04T04:12:43.932Z",
       "endedAt": "2026-05-04T04:12:45.883Z",
       "elapsedMs": 1951,
-      "stdout": "\n RUN  v4.1.5 /Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\n\n\n Test Files  4 passed (4)\n      Tests  40 passed (40)\n   Start at  12:12:44\n   Duration  1.05s (transform 1.67s, setup 783ms, import 2.08s, tests 34ms, environment 547ms)\n\n",
+      "stdout": "\n RUN  v4.1.5 /Users/junwei/Documents/\u767e\u5ea6\u7f51\u76d8\u540c\u6b65/Obsremote/\uff0850\uff09\u5f00\u53d1/Jieyu\n\n\n Test Files  4 passed (4)\n      Tests  40 passed (40)\n   Start at  12:12:44\n   Duration  1.05s (transform 1.67s, setup 783ms, import 2.08s, tests 34ms, environment 547ms)\n\n",
       "stderr": "(node:30500) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     },
     {
@@ -117,7 +117,7 @@
       "startedAt": "2026-05-04T04:12:45.883Z",
       "endedAt": "2026-05-04T04:12:49.112Z",
       "elapsedMs": 3229,
-      "stdout": "\n RUN  v4.1.5 /Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\n\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  12:12:46\n   Duration  2.31s (transform 146ms, setup 206ms, import 17ms, tests 2.01s, environment 0ms)\n\n",
+      "stdout": "\n RUN  v4.1.5 /Users/junwei/Documents/\u767e\u5ea6\u7f51\u76d8\u540c\u6b65/Obsremote/\uff0850\uff09\u5f00\u53d1/Jieyu\n\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  12:12:46\n   Duration  2.31s (transform 146ms, setup 206ms, import 17ms, tests 2.01s, environment 0ms)\n\n",
       "stderr": ""
     },
     {
@@ -136,7 +136,7 @@
       "startedAt": "2026-05-04T04:12:49.112Z",
       "endedAt": "2026-05-04T04:12:55.020Z",
       "elapsedMs": 5908,
-      "stdout": "\n RUN  v4.1.5 /Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\n\n\n Test Files  2 passed (2)\n      Tests  52 passed (52)\n   Start at  12:12:49\n   Duration  4.96s (transform 757ms, setup 382ms, import 934ms, tests 3.86s, environment 748ms)\n\n",
+      "stdout": "\n RUN  v4.1.5 /Users/junwei/Documents/\u767e\u5ea6\u7f51\u76d8\u540c\u6b65/Obsremote/\uff0850\uff09\u5f00\u53d1/Jieyu\n\n\n Test Files  2 passed (2)\n      Tests  52 passed (52)\n   Start at  12:12:49\n   Duration  4.96s (transform 757ms, setup 382ms, import 934ms, tests 3.86s, environment 748ms)\n\n",
       "stderr": "(node:31446) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:31446) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     },
     {
@@ -153,7 +153,7 @@
       "startedAt": "2026-05-04T04:12:55.020Z",
       "endedAt": "2026-05-04T04:13:01.527Z",
       "elapsedMs": 6507,
-      "stdout": "\n RUN  v4.1.5 /Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\n\n\n Test Files  1 passed (1)\n      Tests  17 passed (17)\n   Start at  12:12:55\n   Duration  5.59s (transform 252ms, setup 198ms, import 318ms, tests 4.66s, environment 341ms)\n\n",
+      "stdout": "\n RUN  v4.1.5 /Users/junwei/Documents/\u767e\u5ea6\u7f51\u76d8\u540c\u6b65/Obsremote/\uff0850\uff09\u5f00\u53d1/Jieyu\n\n\n Test Files  1 passed (1)\n      Tests  17 passed (17)\n   Start at  12:12:55\n   Duration  5.59s (transform 252ms, setup 198ms, import 318ms, tests 4.66s, environment 341ms)\n\n",
       "stderr": "(node:31490) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     }
   ]
