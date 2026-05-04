@@ -1,7 +1,12 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { getDb } from '../db';
+import { featureFlags } from '../ai/config/featureFlags';
 import { deactivateSessionDirective as deactivateSessionDirectiveFromMemory, persistSessionMemory, pruneDirectiveLedgerBySourceMessage } from '../ai/chat/sessionMemory';
 import { newAuditLogId, nowIso } from './useAiChat.helpers';
+import {
+  AI_CHAT_BACKGROUND_MEMORY_SANDBOX_AUTHORIZED_DIRS,
+  AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE,
+} from './useAiChat.backgroundMemory';
 import { resolvePinnedMessageSessionMemory } from './useAiChat.messagePinning';
 import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
 
@@ -43,7 +48,19 @@ export function useAiChatDirectiveSessionControls(options: {
   }, [conversationId]);
 
   const toggleMessagePinned = useCallback((messageId: string) => {
-    const nextMemory = resolvePinnedMessageSessionMemory(sessionMemoryRef.current, messagesRef.current, messageId);
+    const sessionSidecarSandbox = featureFlags.aiBackgroundToolSandboxEnabled
+      ? {
+          sandboxEnabled: true,
+          profile: AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE,
+          authorizedWriteDirs: AI_CHAT_BACKGROUND_MEMORY_SANDBOX_AUTHORIZED_DIRS,
+        }
+      : undefined;
+    const nextMemory = resolvePinnedMessageSessionMemory(
+      sessionMemoryRef.current,
+      messagesRef.current,
+      messageId,
+      sessionSidecarSandbox,
+    );
     if (nextMemory === sessionMemoryRef.current) return;
     sessionMemoryRef.current = nextMemory;
     persistSessionMemory(sessionMemoryRef.current);

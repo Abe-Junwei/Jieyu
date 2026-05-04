@@ -72,7 +72,7 @@ depends_on:
 |------|------|
 | 开关 | `featureFlags.aiBackgroundToolSandboxEnabled`（默认 `false`）；关闭时经 **`resolveAiChatBackgroundMemorySandboxPolicy`** → `resolveBackgroundToolSandboxDecision` 得 `action: 'allow', reason: 'sandbox-disabled'`（实现 `src/ai/sandbox/backgroundToolSandbox.ts`）。 |
 | Profile | `BackgroundToolSandboxProfile`：`readonly` \| `restricted_write` \| `deny_by_default`；默认 profile 常量见 `useAiChat.backgroundMemory.ts` 中 `AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE`。 |
-| 与主链关系 | **独立入口**：不经过 `resolveToolDecisionPipeline`；**T2-b** 起后台虚拟写路径与主链用户偏好层同属 **`src/ai/policy/resolveExecutionPolicy.ts`** 函数族（后台仅调用 `resolveAiChatBackgroundMemorySandboxPolicy`，会话偏好仍由主链 `resolveUserDirectivePolicyDecision` 处理工具调用）。 |
+| 与主链关系 | **独立入口**：不经过 `resolveToolDecisionPipeline`；**T2-b** 起后台虚拟写路径与主链用户偏好层同属 **`src/ai/policy/resolveExecutionPolicy.ts`** 函数族（`resolveAiChatSessionSidecarSandboxPolicy`：`background-extraction` / `pinned-message-directive` / `send-preflight-directive`；其中后台 flush 仍经 `resolveAiChatBackgroundMemorySandboxPolicy` 包装）。置顶 replay 与 send 前显式指令写 session 在 **`aiBackgroundToolSandboxEnabled`** 打开时走同一 profile / `authorizedWriteDirs`。 |
 
 ## 6. Quota 与 Trust
 
@@ -93,3 +93,4 @@ depends_on:
 | 2026-05-01 | 初版 v0：三维度定义、主链优先级、session 字段映射、后台 sandbox 锚点、quota/trust 占位。 |
 | 2026-05-01 | T2-b：`resolveUserDirectivePolicyDecision` 与 `resolveAiChatBackgroundMemorySandboxPolicy` 迁入 `src/ai/policy/resolveExecutionPolicy.ts`；更新本节锚点。 |
 | 2026-05-01 | T2-c：后台记忆 flush 每会话写次数上限（`featureFlags` + `BackgroundMemoryExtractor.flushQuotaGate`）；§6.1。 |
+| 2026-05-05 | F4：置顶用户消息 directive replay 与 send-preflight 用户指令写 session 纳入同一 session sidecar sandbox（`resolveAiChatSessionSidecarSandboxPolicy`）；§5。 |

@@ -1,6 +1,11 @@
 import { setSessionMemoryMessagePinned } from '../ai/chat/sessionMemory';
 import { applyUserDirectivesToSessionMemory } from '../ai/memory/userDirectiveRegistry';
 import { extractUserDirectives } from '../ai/memory/userDirectiveExtractor';
+import {
+  AI_CHAT_SESSION_SIDECAR_WRITE_PATH,
+  resolveAiChatSessionSidecarSandboxPolicy,
+  type AiChatSessionSidecarSandboxContext,
+} from '../ai/policy/resolveExecutionPolicy';
 import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
 import { nowIso } from './useAiChat.helpers';
 
@@ -110,10 +115,25 @@ function stripPinnedMessageDirectiveEffects(memory: AiSessionMemory): AiSessionM
   return rebuildDirectivePreferencesFromLedger(baseline);
 }
 
+function allowSessionSidecarDirectives(
+  sandbox: AiChatSessionSidecarSandboxContext | undefined,
+  virtualWritePath: (typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH)[keyof typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH],
+): boolean {
+  if (!sandbox || !sandbox.sandboxEnabled) return true;
+  const decision = resolveAiChatSessionSidecarSandboxPolicy({
+    sandboxEnabled: sandbox.sandboxEnabled,
+    profile: sandbox.profile,
+    authorizedWriteDirs: sandbox.authorizedWriteDirs,
+    virtualWritePath,
+  });
+  return decision.action === 'allow';
+}
+
 export function resolvePinnedMessageSessionMemory(
   memory: AiSessionMemory,
   messages: readonly UiChatMessage[],
   messageId: string,
+  sessionSidecarSandbox?: AiChatSessionSidecarSandboxContext,
 ): AiSessionMemory {
   const normalizedMessageId = messageId.trim();
   if (!normalizedMessageId) return memory;
@@ -130,6 +150,9 @@ export function resolvePinnedMessageSessionMemory(
       ].slice(-24),
     };
     if (message.role !== 'user') return nextMemory;
+    if (!allowSessionSidecarDirectives(sessionSidecarSandbox, AI_CHAT_SESSION_SIDECAR_WRITE_PATH.pinnedMessageDirective)) {
+      return nextMemory;
+    }
     const application = applyUserDirectivesToSessionMemory(nextMemory, extractUserDirectives({
       userText: message.content,
       source: 'pinned_message',
@@ -160,6 +183,9 @@ export function resolvePinnedMessageSessionMemory(
   }
   let rebuiltMemory = memoryWithoutPinned;
   for (const replayInput of replayInputs) {
+    if (!allowSessionSidecarDirectives(sessionSidecarSandbox, AI_CHAT_SESSION_SIDECAR_WRITE_PATH.pinnedMessageDirective)) {
+      continue;
+    }
     const application = applyUserDirectivesToSessionMemory(rebuiltMemory, extractUserDirectives({
       userText: replayInput.content,
       source: 'pinned_message',

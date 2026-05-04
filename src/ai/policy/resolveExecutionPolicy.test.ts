@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AI_CHAT_SESSION_SIDECAR_WRITE_PATH,
   resolveAiChatBackgroundMemorySandboxPolicy,
+  resolveAiChatSessionSidecarSandboxPolicy,
   resolveUserDirectivePolicyDecision,
 } from './resolveExecutionPolicy';
 
@@ -66,6 +68,24 @@ describe('resolveExecutionPolicy', () => {
           sandboxEnabled: true,
           profile: 'restricted_write',
           authorizedWriteDirs: ['session-memory'],
+        }),
+      ).toEqual({ action: 'allow', reason: 'restricted-write-allowed' });
+    });
+  });
+
+  describe('resolveAiChatSessionSidecarSandboxPolicy', () => {
+    it('treats pinned-message and send-preflight paths like background extraction under restricted_write', () => {
+      const base = { sandboxEnabled: true, profile: 'restricted_write' as const, authorizedWriteDirs: ['session-memory'] };
+      expect(
+        resolveAiChatSessionSidecarSandboxPolicy({
+          ...base,
+          virtualWritePath: AI_CHAT_SESSION_SIDECAR_WRITE_PATH.pinnedMessageDirective,
+        }),
+      ).toEqual({ action: 'allow', reason: 'restricted-write-allowed' });
+      expect(
+        resolveAiChatSessionSidecarSandboxPolicy({
+          ...base,
+          virtualWritePath: AI_CHAT_SESSION_SIDECAR_WRITE_PATH.sendPreflightDirective,
         }),
       ).toEqual({ action: 'allow', reason: 'restricted-write-allowed' });
     });

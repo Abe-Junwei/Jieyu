@@ -6,9 +6,16 @@ import {
   type BackgroundToolSandboxProfile,
 } from '../sandbox/backgroundToolSandbox';
 
-/** Virtual workspace root for AI chat background memory sandbox checks (not host OS paths). */
-const AI_CHAT_BACKGROUND_MEMORY_SANDBOX_VIRTUAL_ROOT = '/ai-chat-runtime';
-const AI_CHAT_BACKGROUND_MEMORY_SANDBOX_VIRTUAL_WRITE_PATH = 'session-memory/background-extraction';
+/** Virtual workspace root for AI chat session sidecar sandbox checks (not host OS paths). */
+const AI_CHAT_SESSION_SIDECAR_SANDBOX_VIRTUAL_ROOT = '/ai-chat-runtime';
+
+/** Virtual write paths for non–main-chain session mutations (F4 capability isolation). */
+export const AI_CHAT_SESSION_SIDECAR_WRITE_PATH = {
+  backgroundExtraction: 'session-memory/background-extraction',
+  pinnedMessageDirective: 'session-memory/pinned-message-directive',
+  sendPreflightDirective: 'session-memory/send-preflight-directive',
+} as const;
+export type AiChatSessionSidecarWritePath = (typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH)[keyof typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH];
 
 export type PolicyShapeToolCall = { name: string; arguments: Record<string, unknown> };
 
@@ -83,6 +90,30 @@ export interface ResolveAiChatBackgroundMemorySandboxPolicyParams {
   authorizedWriteDirs: readonly string[];
 }
 
+/** Shared input for F4 session sidecar gates (pinned / send-preflight / background flush). */
+export type AiChatSessionSidecarSandboxContext = ResolveAiChatBackgroundMemorySandboxPolicyParams;
+
+export type ResolveAiChatSessionSidecarSandboxPolicyParams = ResolveAiChatBackgroundMemorySandboxPolicyParams & {
+  virtualWritePath: AiChatSessionSidecarWritePath;
+};
+
+/**
+ * F4 session sidecar writes (pinned replay, send-preflight directives, background memory flush):
+ * same sandbox decision shape as other background file-write checks.
+ */
+export function resolveAiChatSessionSidecarSandboxPolicy(
+  params: ResolveAiChatSessionSidecarSandboxPolicyParams,
+): BackgroundToolSandboxDecision {
+  return resolveBackgroundToolSandboxDecision({
+    enabled: params.sandboxEnabled,
+    profile: params.profile,
+    kind: 'file_write',
+    workspaceRoot: AI_CHAT_SESSION_SIDECAR_SANDBOX_VIRTUAL_ROOT,
+    path: params.virtualWritePath,
+    authorizedWriteDirs: params.authorizedWriteDirs,
+  });
+}
+
 /**
  * F4 / background memory flush: same sandbox decision shape as file-write checks elsewhere.
  * Centralizes the virtual path pair so main-chain and background policy docs share one anchor.
@@ -90,12 +121,8 @@ export interface ResolveAiChatBackgroundMemorySandboxPolicyParams {
 export function resolveAiChatBackgroundMemorySandboxPolicy(
   params: ResolveAiChatBackgroundMemorySandboxPolicyParams,
 ): BackgroundToolSandboxDecision {
-  return resolveBackgroundToolSandboxDecision({
-    enabled: params.sandboxEnabled,
-    profile: params.profile,
-    kind: 'file_write',
-    workspaceRoot: AI_CHAT_BACKGROUND_MEMORY_SANDBOX_VIRTUAL_ROOT,
-    path: AI_CHAT_BACKGROUND_MEMORY_SANDBOX_VIRTUAL_WRITE_PATH,
-    authorizedWriteDirs: params.authorizedWriteDirs,
+  return resolveAiChatSessionSidecarSandboxPolicy({
+    ...params,
+    virtualWritePath: AI_CHAT_SESSION_SIDECAR_WRITE_PATH.backgroundExtraction,
   });
 }

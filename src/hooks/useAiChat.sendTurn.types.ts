@@ -19,6 +19,7 @@ import type {
   UiChatMessage,
   UseAiChatOptions,
 } from './useAiChat.types';
+import type { BackgroundToolSandboxProfile } from '../ai/sandbox/backgroundToolSandbox';
 import type { AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
 
 /** Tool-intent audit payload shape (mirrors useAiChat.toolAudit local type). */
@@ -100,4 +101,7 @@ export type RunAiChatSendTurnArgs = Readonly<{
 
   resolveAgentLoopResumeCheckpoint: (userText: string) => Promise<NonNullable<AiSessionMemory['pendingAgentLoopCheckpoint']> | null>;
   clearPendingAgentLoopCheckpoint: () => void;
+
+  /** Unit tests: override profile for send-preflight session-directive sandbox (production omits). */
+  sendPreflightSessionSidecarSandboxProfileOverride?: BackgroundToolSandboxProfile;
 }>;

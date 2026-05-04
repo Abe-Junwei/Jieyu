@@ -19,12 +19,17 @@ import {
 } from '../ai/messages';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import { persistSessionMemory } from '../ai/chat/sessionMemory';
+import {
+  AI_CHAT_SESSION_SIDECAR_WRITE_PATH,
+  resolveAiChatSessionSidecarSandboxPolicy,
+} from '../ai/policy/resolveExecutionPolicy';
 import type { MetricTags } from '../observability/metrics';
 import {
   createInitialSendTurnStreamPhaseState,
   type SendTurnStreamPhaseState,
 } from './useAiChat.sendTurnStreamPhase';
 import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
+import { AI_CHAT_BACKGROUND_MEMORY_SANDBOX_AUTHORIZED_DIRS, AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE } from './useAiChat.backgroundMemory';
 import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
 
 export type SendTurnDbConversationHolder = {
@@ -90,6 +95,7 @@ export async function runAiChatSendTurnPreflight(
     bumpMetric,
     resolveAgentLoopResumeCheckpoint,
     clearPendingAgentLoopCheckpoint,
+    sendPreflightSessionSidecarSandboxProfileOverride,
   } = args;
 
   if (!flags.aiChatEnabled) {
@@ -218,8 +224,17 @@ export async function runAiChatSendTurnPreflight(
   const effectiveUserText = resumeCheckpoint?.continuationInput ?? trimmed;
   const immediateDirectives = extractUserDirectives({ userText: effectiveUserText, source: 'user_explicit', sourceMessageId: userMsg.id });
   if (immediateDirectives.length > 0) {
-    sessionMemoryRef.current = applyUserDirectivesToSessionMemory(sessionMemoryRef.current, immediateDirectives).nextMemory;
-    persistSessionMemory(sessionMemoryRef.current);
+    const profile = sendPreflightSessionSidecarSandboxProfileOverride ?? AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE;
+    const decision = resolveAiChatSessionSidecarSandboxPolicy({
+      sandboxEnabled: flags.aiBackgroundToolSandboxEnabled,
+      profile,
+      authorizedWriteDirs: AI_CHAT_BACKGROUND_MEMORY_SANDBOX_AUTHORIZED_DIRS,
+      virtualWritePath: AI_CHAT_SESSION_SIDECAR_WRITE_PATH.sendPreflightDirective,
+    });
+    if (decision.action === 'allow') {
+      sessionMemoryRef.current = applyUserDirectivesToSessionMemory(sessionMemoryRef.current, immediateDirectives).nextMemory;
+      persistSessionMemory(sessionMemoryRef.current);
+    }
   }
 
   const correlationId = newMessageId('snt');

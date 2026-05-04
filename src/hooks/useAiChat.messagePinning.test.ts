@@ -37,4 +37,14 @@ describe('useAiChat.messagePinning', () => {
     expect(unpinnedNewer.pinnedMessageIds).toEqual(['usr-older']);
     expect(unpinnedNewer.responsePreferences?.language).toBe('zh-CN');
   });
+
+  it('skips pinned-message directive application when session sidecar sandbox denies writes', () => {
+    const messages: UiChatMessage[] = [
+      { id: 'usr-1', role: 'user', content: '请记住：所有回答用英文', status: 'done' },
+    ];
+    const sandbox = { sandboxEnabled: true, profile: 'readonly' as const, authorizedWriteDirs: ['session-memory'] };
+    const pinned = resolvePinnedMessageSessionMemory({}, messages, 'usr-1', sandbox);
+    expect(pinned.pinnedMessageIds).toContain('usr-1');
+    expect(pinned.responsePreferences?.language).not.toBe('en');
+  });
 });

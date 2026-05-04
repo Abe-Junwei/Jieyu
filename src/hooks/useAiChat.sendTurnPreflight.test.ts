@@ -185,4 +185,21 @@ describe('runAiChatSendTurnPreflight', () => {
     expect(setIsStreaming).toHaveBeenCalledWith(true);
     expect(setMessages).toHaveBeenCalled();
   });
+
+  it('skips send-preflight user directives when session sidecar sandbox denies writes', async () => {
+    const sessionMemoryRef = { current: {} as AiSessionMemory };
+    const setMessages = vi.fn();
+    const setIsStreaming = vi.fn();
+    const args = makeArgs({
+      userText: '请记住：所有回答用英文',
+      featureFlags: { ...featureFlags, aiBackgroundToolSandboxEnabled: true } as unknown as typeof featureFlags,
+      sendPreflightSessionSidecarSandboxProfileOverride: 'readonly',
+      sessionMemoryRef,
+      setMessages: setMessages as unknown as Dispatch<SetStateAction<UiChatMessage[]>>,
+      setIsStreaming: setIsStreaming as unknown as Dispatch<SetStateAction<boolean>>,
+    });
+    const result = await runAiChatSendTurnPreflight(args);
+    expect(result).not.toBeNull();
+    expect(sessionMemoryRef.current.responsePreferences?.language).not.toBe('en');
+  });
 });
