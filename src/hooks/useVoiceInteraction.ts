@@ -17,9 +17,14 @@ import { getActiveSttProviderMetadata } from '../services/stt/providerMetadata';
 import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../services/stt';
 import type { LayerDocType, LayerLinkDocType } from '../db';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+import {
+  computeTranscriptionVoiceSelectionSummary,
+  computeTranscriptionVoiceTargetSummary,
+  createTranscriptionVoiceSendToAiChat,
+  type TranscriptionVoiceSelectionSnapshot,
+} from '../services/transcriptionVoiceInteractionWiring';
 import { useLocale } from '../i18n';
-import { getVoiceInteractionMessages } from '../i18n/messages';
-import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
+import { getVoiceInteractionMessages } from '../i18n/voiceInteractionMessages';
 import { useGlobalContext } from '../services/GlobalContextService';
 import { isAssistantWebSpeechTtsSupported, speakAssistantReplyWithWebSpeechTts, stopAssistantWebSpeechTts } from '../utils/assistantWebSpeechTts';
 
@@ -29,27 +34,7 @@ interface VoiceMessageLike {
   content?: string;
 }
 
-interface SelectedRowMetaLike {
-  rowNumber: number;
-  start: number;
-  end: number;
-}
-
-interface SelectedUnitLike {
-  id: string;
-  layerId?: string;
-  startTime: number;
-  endTime: number;
-}
-
-interface VoiceSelectionLike {
-  activeUnitId: string | null;
-  selectedUnit: SelectedUnitLike | null;
-  selectedRowMeta: SelectedRowMetaLike | null;
-  selectedLayerId: string | null;
-  selectedUnitKind: 'unit' | 'segment' | null;
-  selectedTimeRangeLabel?: string;
-}
+interface VoiceSelectionLike extends TranscriptionVoiceSelectionSnapshot {}
 
 interface LocalWhisperConfigLike {
   baseUrl?: string;
@@ -198,35 +183,31 @@ export function useVoiceInteraction({
     });
   }, [normalizeVoiceTaskError]);
 
+  const sendToAiChat = useMemo(
+    () => createTranscriptionVoiceSendToAiChat({
+      getActiveUnitId: () => selection.activeUnitId,
+      onVoiceAnalysisResult,
+      aiChatSend,
+      messages,
+      runVoiceTask,
+      getVoiceAgentApi: () => voiceAgentRef.current,
+      setAnalysisWritebackFeedback,
+    }),
+    [
+      aiChatSend,
+      messages,
+      onVoiceAnalysisResult,
+      runVoiceTask,
+      selection.activeUnitId,
+      setAnalysisWritebackFeedback,
+    ],
+  );
+
   const voiceAgentOptions: Parameters<typeof useVoiceAgent>[0] = {
     corpusLang: effectiveVoiceCorpusLang,
     langOverride: voiceCorpusLangOverride,
     executeAction,
-    sendToAiChat: (text: string) => {
-      runVoiceTask(async () => {
-        const unitId = selection.activeUnitId;
-        voiceAgentRef.current?.setAnalysisFillCallback?.(unitId, (analysisText) => {
-          runVoiceTask(async () => {
-            const result = await onVoiceAnalysisResult(unitId, analysisText);
-            if (!result) {
-              voiceAgentRef.current?.setExternalError(null);
-              setAnalysisWritebackFeedback({ kind: 'done', message: messages.analysisWritebackDone });
-              return;
-            }
-            const ok = result.ok !== false;
-            const normalizedMessage = result.message?.trim() || (ok ? messages.analysisWritebackDone : messages.analysisWritebackFailed);
-            setAnalysisWritebackFeedback({ kind: ok ? 'done' : 'error', message: normalizedMessage });
-            voiceAgentRef.current?.setExternalError(ok ? null : normalizedMessage);
-          }, messages.analysisWritebackFailed, (message) => {
-            setAnalysisWritebackFeedback({ kind: 'error', message });
-          });
-        });
-        await aiChatSend(text);
-      }, messages.sendToAiFailed, (message) => {
-        voiceAgentRef.current?.setAnalysisFillCallback?.(null, null);
-        setAnalysisWritebackFeedback({ kind: 'error', message });
-      });
-    },
+    sendToAiChat,
     resolveIntentWithLlm: handleResolveVoiceIntentWithLlm,
     insertDictation: handleVoiceDictation,
     ...(executeVoiceToolCall !== undefined ? { executeVoiceToolCall } : {}),
@@ -243,53 +224,28 @@ export function useVoiceInteraction({
   voiceAgentRef.current = voiceAgent;
   const isNonDictationMode = voiceAgent.mode !== 'dictation';
 
-  const voiceTargetSummary = useMemo(() => {
-    const hasSelection = Boolean(selection.selectedRowMeta || selection.selectedUnit);
-    const rowLabel = selection.selectedUnitKind === 'segment'
-      ? messages.currentIndependentSegment
-      : selection.selectedRowMeta
-        ? messages.currentSentenceWithIndex(selection.selectedRowMeta.rowNumber)
-        : (selection.selectedUnit ? messages.currentUnit : messages.noUnitSelected);
-
-    if (isNonDictationMode) {
-      if (hasSelection) {
-        return `${rowLabel} / ${messages.analysisNoteSuffix}`;
-      }
-      return messages.currentPageAction;
-    }
-
-    // \u89e3\u6790\u9996\u9009\u5c42 ID：selectedLayerId \u53ef\u80fd\u662f\u7a7a\u4e32，\u9700 trim \u540e\u5224\u65ad | resolve preferred layer ID with empty-string guard
-    const normalizedSelected = selection.selectedLayerId?.trim();
-    const selectedLayer = normalizedSelected
-      ? layers.find((layer) => layer.id === normalizedSelected)
-      : undefined;
-    const defaultLayer = defaultTranscriptionLayerId?.trim()
-      ? layers.find((layer) => layer.id === defaultTranscriptionLayerId.trim())
-      : undefined;
-    const fallbackTranslationLayerId = resolveHostAwareTranslationLayerIdFromSnapshot({
-      selectedLayerId: selection.selectedLayerId,
-      selectedUnitLayerId: selection.selectedUnit?.layerId,
-      defaultTranscriptionLayerId,
+  const voiceTargetSummary = useMemo(
+    () => computeTranscriptionVoiceTargetSummary({
+      isNonDictationMode,
+      selection,
+      layers,
       translationLayers,
-      transcriptionLayers: layers.filter((layer) => layer.layerType === 'transcription'),
       ...(layerLinks !== undefined ? { layerLinks } : {}),
-    });
-    const fallbackTranslationLayer = fallbackTranslationLayerId
-      ? layers.find((layer) => layer.id === fallbackTranslationLayerId)
-      : undefined;
-    const targetLayer = selectedLayer ?? defaultLayer ?? fallbackTranslationLayer;
-    const layerLabel = targetLayer ? formatSidePaneLayerLabel(targetLayer) : messages.noLayerSelected;
-    return messages.targetSummary(layerLabel, rowLabel);
-  }, [
-    defaultTranscriptionLayerId,
-    formatSidePaneLayerLabel,
-    layers,
-    layerLinks,
-    messages,
-    selection,
-    translationLayers,
-    isNonDictationMode,
-  ]);
+      ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
+      formatSidePaneLayerLabel,
+      messages,
+    }),
+    [
+      defaultTranscriptionLayerId,
+      formatSidePaneLayerLabel,
+      layers,
+      layerLinks,
+      messages,
+      selection,
+      translationLayers,
+      isNonDictationMode,
+    ],
+  );
 
   const pushToTalkReady = useMemo(() => (
     voiceAgent.listening
@@ -361,18 +317,14 @@ export function useVoiceInteraction({
     voiceAgent.engine,
   ]);
 
-  const voiceSelectionSummary = useMemo(() => {
-    if (selection.selectedTimeRangeLabel) {
-      return selection.selectedTimeRangeLabel;
-    }
-    if (selection.selectedRowMeta) {
-      return `${formatTime(selection.selectedRowMeta.start)} - ${formatTime(selection.selectedRowMeta.end)}`;
-    }
-    if (selection.selectedUnit) {
-      return `${formatTime(selection.selectedUnit.startTime)} - ${formatTime(selection.selectedUnit.endTime)}`;
-    }
-    return messages.unknownSegment;
-  }, [formatTime, messages, selection]);
+  const voiceSelectionSummary = useMemo(
+    () => computeTranscriptionVoiceSelectionSummary({
+      selection,
+      formatTime,
+      unknownSegmentLabel: messages.unknownSegment,
+    }),
+    [formatTime, messages.unknownSegment, selection],
+  );
 
   const prevAiStreamingRef = useRef(false);
 
