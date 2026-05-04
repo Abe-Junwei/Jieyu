@@ -729,7 +729,7 @@ jobs:
 
   e2e-critical-paths:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -757,3 +757,6 @@ jobs:
 
       - name: Run E2E (Chromium + Firefox + WebKit)
         run: npm run test:e2e
+
+      - name: E2E F4 session-sidecar audit (readonly bundle, Chromium)
+        run: npm run test:e2e:session-sidecar-audit

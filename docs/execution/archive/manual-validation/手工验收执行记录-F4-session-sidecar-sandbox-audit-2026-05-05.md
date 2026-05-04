@@ -26,8 +26,8 @@ source_of_truth: manual-validation
 
 | 用例 | 结果 | 证据文件 / 备注 |
 | --- | --- | --- |
-| A send-preflight 审计行 | **通过（自动化）** | `npm run test:e2e:session-sidecar-audit`（2026-05-05 本地 / CI 可复跑） |
-| B 置顶 directive 审计行 | 待执行 / 通过 / 不通过 | 仍建议按脚本 §「用例 B」在 UI 中手点置顶后查 Dexie（或后续补第二条 Playwright） |
+| A send-preflight 审计行 | **通过（自动化）** | `npm run test:e2e:session-sidecar-audit`（`aiSessionSidecarSandboxAudit.spec.ts` 首条用例） |
+| B 置顶 directive 审计行 | **通过（自动化）** | 同上 spec 第二条：`pinned user directive block…` |
 
 ## 自动化基线（代理执行留痕）
 
