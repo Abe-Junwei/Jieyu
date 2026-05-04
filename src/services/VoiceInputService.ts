@@ -37,6 +37,7 @@ import {
 } from './VoiceInputService.webSpeechSession';
 import { syncVoiceInputVadForEngine } from './VoiceInputService.vadSync';
 import { VoiceInputEngineSwitchCoordinator } from './VoiceInputService.engineSwitchCoordinator';
+import { VoiceInputSharedAnalysisStreamHandle } from './VoiceInputService.sharedAnalysisStream';
 export {
   testOllamaWhisperAvailability,
   testWhisperServerAvailability,
@@ -177,7 +178,7 @@ export class VoiceInputService {
 
   // Recording — delegated to RecordingExecutor | 录音委托
   private recordingExecutor: RecordingExecutor;
-  private sharedAnalysisStream: MediaStream | null = null;
+  private readonly sharedAnalysisStreamHandle = new VoiceInputSharedAnalysisStreamHandle();
   /** WhisperX VAD 服务（按需惰性初始化）| WhisperX VAD service (lazily initialized) */
   private _vadService: WhisperXVadService | null = null;
 
@@ -215,33 +216,15 @@ export class VoiceInputService {
   }
 
   async ensureSharedAnalysisStream(): Promise<MediaStream | null> {
-    if (this.sharedAnalysisStream && this.sharedAnalysisStream.active) {
-      return this.sharedAnalysisStream;
-    }
-    if (!navigator.mediaDevices?.getUserMedia) return null;
-    this.sharedAnalysisStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
-    return this.sharedAnalysisStream;
+    return this.sharedAnalysisStreamHandle.ensure();
   }
 
   async createAnalysisCloneStream(): Promise<MediaStream | null> {
-    const base = await this.ensureSharedAnalysisStream();
-    const track = base?.getAudioTracks?.()[0];
-    if (!track) return null;
-    return new MediaStream([track.clone()]);
+    return this.sharedAnalysisStreamHandle.createClone();
   }
 
   releaseSharedAnalysisStream(): void {
-    if (!this.sharedAnalysisStream) return;
-    for (const track of this.sharedAnalysisStream.getTracks()) {
-      track.stop();
-    }
-    this.sharedAnalysisStream = null;
+    this.sharedAnalysisStreamHandle.release();
   }
 
   // Listeners
