@@ -23,6 +23,11 @@ import type {
   SpeechRecognitionErrorEvent,
   SpeechRecognitionEvent,
 } from './VoiceInputService.webSpeechSupport';
+import {
+  buildSttFallbackChain,
+  formatSttAllEnginesFailedMessage,
+} from './VoiceInputService.fallbackChain';
+import type { VoiceInputSttEngine } from './VoiceInputService.fallbackChain';
 export {
   testOllamaWhisperAvailability,
   testWhisperServerAvailability,
@@ -35,7 +40,7 @@ const log = createLogger('VoiceInputService');
 
 // ── Types ──
 
-export type SttEngine = 'web-speech' | 'whisper-local' | 'commercial';
+export type SttEngine = VoiceInputSttEngine;
 
 export interface SttResult {
   text: string;
@@ -303,10 +308,7 @@ export class VoiceInputService {
    * (Web Speech API / Google is unreliable in mainland China).
    */
   private get fallbackChain(): SttEngine[] {
-    if (this._config.region === 'cn') {
-      return ['commercial', 'whisper-local', 'web-speech'];
-    }
-    return ['web-speech', 'whisper-local', 'commercial'];
+    return buildSttFallbackChain(this._config.region);
   }
 
   // ── Lifecycle ──
@@ -374,25 +376,8 @@ export class VoiceInputService {
       // Engine failed — reason was recorded by _startEngine
     }
 
-    // All engines failed — build a detailed message
-    const reasons = enginesToTry
-      .map((e) => {
-        const reason = this._engineFailureReasons[e];
-        const label = this._engineLabel(e);
-        return reason ? `• ${label}\uff1a${reason}` : `• ${label}`;
-      })
-      .join('\n');
-    this.emitError(`\u6240\u6709 STT \u5f15\u64ce\u5747\u4e0d\u53ef\u7528\uff1a\n${reasons}\n\u8bf7\u68c0\u67e5\u4e0a\u8ff0\u914d\u7f6e\u548c\u7f51\u7edc\u8fde\u63a5\u3002`);
+    this.emitError(formatSttAllEnginesFailedMessage(enginesToTry, this._engineFailureReasons));
     this.setListening(false);
-  }
-
-  private _engineLabel(e: SttEngine): string {
-    switch (e) {
-      case 'web-speech': return 'Web Speech API';
-      case 'whisper-local': return 'Whisper.cpp';
-      case 'commercial': return '\u5546\u4e1a STT';
-      default: return e;
-    }
   }
 
   private _shouldUseVadForEngine(engine: SttEngine): boolean {
