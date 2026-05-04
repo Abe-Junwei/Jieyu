@@ -1,4 +1,8 @@
 // 系统功能开关 | System feature flags
+const viteAiBackgroundToolSandboxEnabled = import.meta.env.VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED;
+const aiBackgroundToolSandboxEnabledFromEnv = viteAiBackgroundToolSandboxEnabled === 'true'
+  || viteAiBackgroundToolSandboxEnabled === '1';
+
 export const featureFlags = {
   aiChatEnabled: true,
   voiceAgentEnabled: true,
@@ -19,7 +23,7 @@ export const featureFlags = {
   /** C 阶段：意图多候选与置信门控（dogfood 已启用）| C-stage intent confidence gate (dogfood enabled) */
   aiIntentConfidenceGateEnabled: true,
   /** C 阶段：后台任务工具沙箱（默认关闭；当前接入后台记忆抽取路径）| C-stage background task sandbox (off by default; wired for background memory extraction) */
-  aiBackgroundToolSandboxEnabled: false,
+  aiBackgroundToolSandboxEnabled: aiBackgroundToolSandboxEnabledFromEnv,
   /** C 阶段：后台记忆抽取（dogfood 已启用）| C-stage background memory extractor (dogfood enabled) */
   aiBackgroundMemoryExtractorEnabled: true,
   /** T2-c：每会话（每 conversationId，内存计数）后台记忆 flush 成功写入次数上限；默认关闭 | Per-conversation in-memory cap on successful background memory write flushes */

@@ -21,6 +21,10 @@ source_of_truth: arch3-architecture-hotspots
 | UI | `src/components/SettingsModal.tsx` | 行数接近上限 | 按设置 Tab 拆文件或抽 settings section 组件 |
 | 服务 | `src/services/LinguisticService.ts` | 行数接近上限 | 按领域子模块继续纵向切分（与现有 tiers/constraints 一致） |
 
+## 已交付小步（减热点文件行数）
+
+- **2026-05-05**：将 `AiChatCard` 内纯函数 `buildPinnedSummary` 与空数组常量迁至 `aiChatCardUtils.ts`（`buildPinnedSummary` / `AI_CHAT_CARD_EMPTY_STRING_ARRAY`），为后续「composer 子组件」拆分占位，**不改变运行时行为**。
+
 ## 守卫与节奏
 
 - 命令：`npm run check:architecture-guard`（CI 子集见 `check:architecture-guard:core`）。

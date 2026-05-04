@@ -194,3 +194,23 @@ export function formatCitationLabel(
   }
   return base;
 }
+
+/** Stable empty array for pinned id fallbacks (referential identity not required). */
+export const AI_CHAT_CARD_EMPTY_STRING_ARRAY: string[] = [];
+
+export function buildPinnedSummary(content: string, isZh: boolean): string {
+  const normalized = content
+    .replace(/\s+/g, ' ')
+    .replace(/^(请记住|记住|请|以后|后续|默认|请务必|请始终)[:：,\s]*/i, '')
+    .trim();
+  if (!normalized) return isZh ? '\u5df2\u8bb0\u5f55\u672c\u6761\u5185\u5bb9' : 'Pinned content captured.';
+  const primarySegments = normalized
+    .split(/[。！？!?；;]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .slice(0, 2);
+  const extracted = (primarySegments.join(isZh ? '；' : '; ') || normalized).trim();
+  const limit = isZh ? 28 : 56;
+  const clipped = extracted.slice(0, limit);
+  return `${clipped}${extracted.length > limit ? '…' : ''}`;
+}

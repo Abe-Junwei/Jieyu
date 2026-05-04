@@ -30,6 +30,10 @@ interface ImportMetaEnv {
 	readonly VITE_BAS_WEBSERVICES_BASE_URL?: string;
 	readonly VITE_SUPABASE_URL?: string;
 	readonly VITE_SUPABASE_ANON_KEY?: string;
+	/** E2E / dogfood only: enable `aiBackgroundToolSandboxEnabled` in the baked bundle. */
+	readonly VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED?: string;
+	/** E2E / dogfood only: `readonly` | `restricted_write` | `deny_by_default`; default production build omits. */
+	readonly VITE_AI_BACKGROUND_MEMORY_SANDBOX_PROFILE?: string;
 }
 
 interface ImportMeta {

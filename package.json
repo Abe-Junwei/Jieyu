@@ -8,6 +8,7 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:chromium": "playwright test --project=chromium",
+    "test:e2e:session-sidecar-audit": "cross-env VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED=true VITE_AI_BACKGROUND_MEMORY_SANDBOX_PROFILE=readonly npm run build && playwright test --project=chromium tests/e2e/aiSessionSidecarSandboxAudit.spec.ts",
     "test:e2e:headed": "playwright test --headed",
     "regression:vite-zod-csp": "npm run typecheck && npm run build && npm run test:e2e",
     "data:language-seeds": "node scripts/generate-language-orthography-seeds.mjs",

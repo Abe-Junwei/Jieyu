@@ -26,10 +26,11 @@ source_of_truth: manual-validation
 
 | 用例 | 结果 | 证据文件 / 备注 |
 | --- | --- | --- |
-| A send-preflight 审计行 | 待执行 / 通过 / 不通过 |  |
-| B 置顶 directive 审计行 | 待执行 / 通过 / 不通过 |  |
+| A send-preflight 审计行 | **通过（自动化）** | `npm run test:e2e:session-sidecar-audit`（2026-05-05 本地 / CI 可复跑） |
+| B 置顶 directive 审计行 | 待执行 / 通过 / 不通过 | 仍建议按脚本 §「用例 B」在 UI 中手点置顶后查 Dexie（或后续补第二条 Playwright） |
 
 ## 自动化基线（代理执行留痕）
 
 - `npx vitest run`（定向文件见脚本 §「自动化基线」）：在合并前应以 CI / 本地终端输出为准。
 - `npm run test:e2e:chromium -- tests/e2e/aiChatSendTurnSmoke.spec.ts`：**2026-05-05 本地通过**（1 passed；壳挂载烟测）。
+- `npm run test:e2e:session-sidecar-audit`：**2026-05-05 本地通过**（1 passed；Dexie `ai_session_sidecar_sandbox` + `gate` 含 `send-preflight`）。

@@ -11,7 +11,14 @@ import { newAuditLogId, nowIso } from './useAiChat.helpers';
 
 const MAX_BACKGROUND_FACTS = 24;
 const MAX_FACT_CHARS = 240;
-export const AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE: BackgroundToolSandboxProfile = 'restricted_write';
+
+function resolveBackgroundMemorySandboxProfileFromEnv(): BackgroundToolSandboxProfile {
+  const raw = import.meta.env.VITE_AI_BACKGROUND_MEMORY_SANDBOX_PROFILE?.trim();
+  if (raw === 'readonly' || raw === 'restricted_write' || raw === 'deny_by_default') return raw;
+  return 'restricted_write';
+}
+
+export const AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE: BackgroundToolSandboxProfile = resolveBackgroundMemorySandboxProfileFromEnv();
 export const AI_CHAT_BACKGROUND_MEMORY_SANDBOX_AUTHORIZED_DIRS: readonly string[] = ['session-memory'];
 
 export interface AiChatBackgroundMemoryRuntime {

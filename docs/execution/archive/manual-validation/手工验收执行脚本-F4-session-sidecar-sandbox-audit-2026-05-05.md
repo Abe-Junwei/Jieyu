@@ -29,6 +29,14 @@ npx vitest run src/hooks/useAiChat.sessionSidecarAudit.test.ts src/hooks/useAiCh
 npm run test:e2e:chromium -- tests/e2e/aiChatSendTurnSmoke.spec.ts
 ```
 
+### 自动化：Dexie 审计行（专用构建）
+
+以下命令会 **重新 `vite build`**（注入 `VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED` + `readonly` profile），再跑单条 Playwright，用真实 IndexedDB 断言 **`ai_session_sidecar_sandbox`**（对应用例 **A** 的 send-preflight 路径）：
+
+```bash
+npm run test:e2e:session-sidecar-audit
+```
+
 ## 用例 A：send-preflight 阻断后出现审计行
 
 1. 打开转写页 `/transcription`，展开侧栏 AI 面板，聚焦 `data-testid="ai-chat-composer-input"`。

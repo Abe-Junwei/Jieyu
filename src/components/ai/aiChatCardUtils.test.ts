@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPendingTarget, formatPolicyReasonExplanation } from './aiChatCardUtils';
+import { buildPinnedSummary, formatPendingTarget, formatPolicyReasonExplanation } from './aiChatCardUtils';
 
 describe('aiChatCardUtils', () => {
   it.each([
@@ -21,5 +21,13 @@ describe('aiChatCardUtils', () => {
       .toContain('requires confirmation before execution');
     expect(formatPolicyReasonExplanation(true, 'user_directive_confirmation_required'))
       .toContain('要求先确认再执行');
+  });
+
+  it('buildPinnedSummary clips directive-style user text', () => {
+    const zh = buildPinnedSummary('请记住：所有回答用英文', true);
+    expect(zh.length).toBeGreaterThan(0);
+    expect(zh).toContain('英文');
+    const en = buildPinnedSummary('Remember: answer in English', false);
+    expect(en.length).toBeGreaterThan(0);
   });
 });

@@ -10,7 +10,13 @@ import { t, useLocale } from '../../i18n';
 import { aiChatProviderDefinitions, getAiChatProviderDefinition } from '../../ai/providers/providerCatalog';
 import type { AiChatProviderKind, AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
-import { formatCitationLabel, formatPolicyReasonExplanation, formatToolDecision } from './aiChatCardUtils';
+import {
+  AI_CHAT_CARD_EMPTY_STRING_ARRAY,
+  buildPinnedSummary,
+  formatCitationLabel,
+  formatPolicyReasonExplanation,
+  formatToolDecision,
+} from './aiChatCardUtils';
 import { exportReplayBundleSnapshot, openReplayBundleByRequestId, parseImportedGoldenSnapshot } from './aiChatReplayUtils';
 import { AiChatAlertsPanel } from './AiChatAlertsPanel';
 import { AiChatCandidateChips } from './AiChatCandidateChips';
@@ -47,25 +53,6 @@ type AiChatCardProps = {
     onTogglePanel: () => void;
   } | undefined;
 };
-
-const EMPTY_STRING_ARRAY: string[] = [];
-
-function buildPinnedSummary(content: string, isZh: boolean): string {
-  const normalized = content
-    .replace(/\s+/g, ' ')
-    .replace(/^(请记住|记住|请|以后|后续|默认|请务必|请始终)[:：,\s]*/i, '')
-    .trim();
-  if (!normalized) return isZh ? '\u5df2\u8bb0\u5f55\u672c\u6761\u5185\u5bb9' : 'Pinned content captured.';
-  const primarySegments = normalized
-    .split(/[。！？!?；;]+/)
-    .map((segment) => segment.trim())
-    .filter(Boolean)
-    .slice(0, 2);
-  const extracted = (primarySegments.join(isZh ? '；' : '; ') || normalized).trim();
-  const limit = isZh ? 28 : 56;
-  const clipped = extracted.slice(0, limit);
-  return `${clipped}${extracted.length > limit ? '…' : ''}`;
-}
 
 export function AiChatCard({
   embedded = false,
@@ -561,7 +548,7 @@ export function AiChatCard({
     }
     return sum;
   }, [aiIsStreaming, messages]);
-  const pinnedMessageIds = aiSessionMemory?.pinnedMessageIds ?? EMPTY_STRING_ARRAY;
+  const pinnedMessageIds = aiSessionMemory?.pinnedMessageIds ?? AI_CHAT_CARD_EMPTY_STRING_ARRAY;
   const pinnedMessageIdsSignature = useMemo(() => pinnedMessageIds.join('|'), [pinnedMessageIds]);
   const pinnedMessageIdSet = useMemo(() => {
     const base = new Set(pinnedMessageIds);
