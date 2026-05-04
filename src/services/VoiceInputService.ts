@@ -36,6 +36,7 @@ import {
   wireWebSpeechOnEnd,
 } from './VoiceInputService.webSpeechSession';
 import { syncVoiceInputVadForEngine } from './VoiceInputService.vadSync';
+import { VoiceInputEngineSwitchCoordinator } from './VoiceInputService.engineSwitchCoordinator';
 export {
   testOllamaWhisperAvailability,
   testWhisperServerAvailability,
@@ -169,9 +170,7 @@ export class VoiceInputService {
   private _intentionalStop = false;
   private _speaking = false;
   private _disposed = false;
-  private _engineSwitchToken = 0;
-  private _switchingEngine = false;
-  private switchEngineTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly engineSwitchCoordinator = new VoiceInputEngineSwitchCoordinator();
 
   // VAD runtime — delegated to VadMonitorRuntime | VAD 运行时委托
   private vadMonitor: VadMonitorRuntime;
@@ -345,26 +344,25 @@ export class VoiceInputService {
       this._config = { ...this._config, ...config };
       log.debug('switchEngine updated whisperServerUrl', { whisperServerUrl: this._config.whisperServerUrl });
     }
-    if (this.switchEngineTimer) {
-      clearTimeout(this.switchEngineTimer);
-      this.switchEngineTimer = null;
-    }
-    const switchToken = ++this._engineSwitchToken;
-    this._switchingEngine = true;
+    const switchToken = this.engineSwitchCoordinator.beginSwitch();
     this._stopCurrentEngine();
     this._currentEngine = engine;
-    this.switchEngineTimer = setTimeout(() => {
-      this.switchEngineTimer = null;
-      if (this._disposed || !this._listening || !this._switchingEngine || switchToken !== this._engineSwitchToken) return;
+    this.engineSwitchCoordinator.scheduleDebounced(switchToken, () => {
+      if (
+        this._disposed
+        || !this._listening
+        || !this.engineSwitchCoordinator.isSwitchingEngine
+        || !this.engineSwitchCoordinator.tokenMatches(switchToken)
+      ) {
+        return;
+      }
       this._intentionalStop = false;
       this._attemptEngineWithFallback(engine).catch((err) => {
         log.error('switchEngine error', { err });
       }).finally(() => {
-        if (switchToken === this._engineSwitchToken) {
-          this._switchingEngine = false;
-        }
+        this.engineSwitchCoordinator.clearSwitchingIfTokenCurrent(switchToken);
       });
-    }, 300);
+    });
   }
 
   /**
@@ -479,7 +477,7 @@ export class VoiceInputService {
 
     wireWebSpeechOnEnd(rec, {
       isCurrentRecognition: () => this.recognition === rec,
-      switchingEngine: () => this._switchingEngine,
+      switchingEngine: () => this.engineSwitchCoordinator.isSwitchingEngine,
       shouldRestartContinuous: () =>
         this._listening && !this._intentionalStop && this._config.continuous,
       restartContinuous: () => {
@@ -510,12 +508,7 @@ export class VoiceInputService {
   }
 
   stop(): void {
-    if (this.switchEngineTimer) {
-      clearTimeout(this.switchEngineTimer);
-      this.switchEngineTimer = null;
-    }
-    this._engineSwitchToken += 1;
-    this._switchingEngine = false;
+    this.engineSwitchCoordinator.invalidate();
     this._intentionalStop = true;
     if (this.recognition) {
       try { this.recognition.stop(); } catch (err) { log.debug('recognition.stop() failed during stop()', { err }); }
