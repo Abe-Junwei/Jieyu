@@ -7,18 +7,43 @@ function readVoiceAgentServiceCode() {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+function readVoiceAgentServiceSttResultDispatchCode() {
+  const filePath = path.resolve(process.cwd(), 'src/services/VoiceAgentService.sttResultDispatch.ts');
+  return fs.readFileSync(filePath, 'utf8');
+}
+
 function countMatches(code: string, pattern: RegExp): number {
   return Array.from(code.matchAll(pattern)).length;
 }
 
 describe('VoiceAgentService structure invariants', () => {
-  it('keeps heavy voice runtimes behind lazy imports', () => {
+  it('Phase B: STT handling delegates to VoiceAgentService.sttResultDispatch (thin class edge)', () => {
     const code = readVoiceAgentServiceCode();
+    const dispatchCode = readVoiceAgentServiceSttResultDispatchCode();
+    expect(code.includes("from './VoiceAgentService.sttResultDispatch'")).toBe(true);
+    expect(code.includes('dispatchVoiceAgentServiceSttResult')).toBe(true);
+    expect(code.includes('tryConsumeSttThroughDictationPipeline')).toBe(false);
+    expect(code.includes('applyVoiceSttInterimIfNotFinal')).toBe(false);
+    expect(code.includes('tryRouteFinalSttToDictationPipeline')).toBe(false);
+    expect(code.includes('resolveVoiceIntent')).toBe(false);
+    expect(code.includes('routeIntent')).toBe(false);
+    expect(dispatchCode.includes('tryConsumeSttThroughDictationPipeline')).toBe(true);
+    expect(dispatchCode.includes('applyVoiceSttInterimIfNotFinal')).toBe(true);
+    expect(dispatchCode.includes('handleFinalSttResult')).toBe(true);
+  });
 
-    expect(code.includes("let voiceInputRuntimePromise: Promise<typeof import('./VoiceInputService')> | null = null;")).toBe(true);
-    expect(code.includes("let wakeWordRuntimePromise: Promise<typeof import('./WakeWordDetector')> | null = null;")).toBe(true);
-    expect(code.includes("voiceInputRuntimePromise = import('./VoiceInputService');")).toBe(true);
-    expect(code.includes("wakeWordRuntimePromise = import('./WakeWordDetector');")).toBe(true);
+  it('keeps heavy voice runtimes behind lazy imports (shared voiceRuntimeLoaders)', () => {
+    const code = readVoiceAgentServiceCode();
+    const loaderPath = path.resolve(process.cwd(), 'src/services/voiceRuntimeLoaders.ts');
+    const loaderCode = fs.readFileSync(loaderPath, 'utf8');
+
+    expect(code.includes("from './voiceRuntimeLoaders'")).toBe(true);
+    expect(code.includes('let voiceInputRuntimePromise')).toBe(false);
+
+    expect(loaderCode.includes("let voiceInputRuntimePromise: Promise<typeof import('./VoiceInputService')> | null = null;")).toBe(true);
+    expect(loaderCode.includes("let wakeWordRuntimePromise: Promise<typeof import('./WakeWordDetector')> | null = null;")).toBe(true);
+    expect(loaderCode.includes("voiceInputRuntimePromise = import('./VoiceInputService');")).toBe(true);
+    expect(loaderCode.includes("wakeWordRuntimePromise = import('./WakeWordDetector');")).toBe(true);
 
     expect(code.includes("import { VoiceInputService } from './VoiceInputService';")).toBe(false);
     expect(code.includes("import { WakeWordDetector } from './WakeWordDetector';")).toBe(false);

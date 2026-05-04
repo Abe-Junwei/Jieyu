@@ -27,19 +27,28 @@ function readUseVoiceAgentTransportControlsCode() {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+function readVoiceRuntimeLoadersCode() {
+  const filePath = path.resolve(process.cwd(), 'src/services/voiceRuntimeLoaders.ts');
+  return fs.readFileSync(filePath, 'utf8');
+}
+
 function countMatches(code: string, pattern: RegExp): number {
   return Array.from(code.matchAll(pattern)).length;
 }
 
 describe('useVoiceAgent structure invariants', () => {
-  it('keeps heavy voice runtimes behind lazy imports', () => {
+  it('keeps heavy voice runtimes behind lazy imports (shared voiceRuntimeLoaders)', () => {
     const code = readUseVoiceAgentCode();
     const runtimeCode = readUseVoiceAgentRuntimeCode();
+    const loaderCode = readVoiceRuntimeLoadersCode();
 
-    expect(runtimeCode.includes("let voiceInputRuntimePromise: Promise<typeof import('../services/VoiceInputService')> | null = null;")).toBe(true);
-    expect(runtimeCode.includes("let wakeWordRuntimePromise: Promise<typeof import('../services/WakeWordDetector')> | null = null;")).toBe(true);
-    expect(runtimeCode.includes("voiceInputRuntimePromise = import('../services/VoiceInputService');")).toBe(true);
-    expect(runtimeCode.includes("wakeWordRuntimePromise = import('../services/WakeWordDetector');")).toBe(true);
+    expect(runtimeCode.includes("from '../services/voiceRuntimeLoaders'")).toBe(true);
+    expect(runtimeCode.includes('let voiceInputRuntimePromise')).toBe(false);
+
+    expect(loaderCode.includes("let voiceInputRuntimePromise: Promise<typeof import('./VoiceInputService')> | null = null;")).toBe(true);
+    expect(loaderCode.includes("let wakeWordRuntimePromise: Promise<typeof import('./WakeWordDetector')> | null = null;")).toBe(true);
+    expect(loaderCode.includes("voiceInputRuntimePromise = import('./VoiceInputService');")).toBe(true);
+    expect(loaderCode.includes("wakeWordRuntimePromise = import('./WakeWordDetector');")).toBe(true);
     expect(code.includes('loadVoiceInputRuntime')).toBe(true);
 
     expect(code.includes("import { VoiceInputService } from '../services/VoiceInputService';")).toBe(false);

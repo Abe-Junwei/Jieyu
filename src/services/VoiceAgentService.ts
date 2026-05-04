@@ -30,51 +30,21 @@ import { applyVoiceConfirmedPendingTelemetry } from './voiceConfirmedPendingTele
 import { buildVoiceAgentGroundingContext, type GroundingContextData, type VoiceAgentGroundingUiContext } from './VoiceAgentGroundingContext';
 import { createLogger } from '../observability/logger';
 import { BrowserEventEmitter } from './VoiceAgentService.eventEmitter';
-import { buildCommandBridgeContext, handleFinalSttResult } from './VoiceAgentService.commandBridge';
-import { tryRouteFinalSttToDictationPipeline } from './voiceAgentServiceDictationSttRoute';
+import { dispatchVoiceAgentServiceSttResult } from './VoiceAgentService.sttResultDispatch';
 import { buildVoiceAgentServiceStateSnapshot } from './VoiceAgentService.state';
 import { buildVoiceAgentStartConfig, testVoiceAgentCommercialProvider } from './VoiceAgentService.runtime';
 import { startWakeWordDetectorRuntime } from './VoiceAgentService.wakeWord';
 import { startVoiceAgentRecording, stopVoiceAgentRecording } from './VoiceAgentService.recordingControls';
 import type { Locale } from '../i18n';
 import type { VoiceMode } from './voiceMode';
+import {
+  loadSttRuntime,
+  loadSttStrategyRuntime,
+  loadVoiceInputRuntime,
+  loadWakeWordRuntime,
+} from './voiceRuntimeLoaders';
 
 const log = createLogger('VoiceAgentService');
-
-// ── Lazy runtime loaders | \u8fd0\u884c\u65f6\u61d2\u52a0\u8f7d\u5668 ─────────────────────────────────────
-
-let voiceInputRuntimePromise: Promise<typeof import('./VoiceInputService')> | null = null;
-let wakeWordRuntimePromise: Promise<typeof import('./WakeWordDetector')> | null = null;
-let sttRuntimePromise: Promise<typeof import('./stt')> | null = null;
-let sttStrategyRuntimePromise: Promise<typeof import('./SttStrategyRouter')> | null = null;
-
-function loadVoiceInputRuntime() {
-  if (!voiceInputRuntimePromise) {
-    voiceInputRuntimePromise = import('./VoiceInputService');
-  }
-  return voiceInputRuntimePromise;
-}
-
-function loadWakeWordRuntime() {
-  if (!wakeWordRuntimePromise) {
-    wakeWordRuntimePromise = import('./WakeWordDetector');
-  }
-  return wakeWordRuntimePromise;
-}
-
-function loadSttRuntime() {
-  if (!sttRuntimePromise) {
-    sttRuntimePromise = import('./stt');
-  }
-  return sttRuntimePromise;
-}
-
-function loadSttStrategyRuntime() {
-  if (!sttStrategyRuntimePromise) {
-    sttStrategyRuntimePromise = import('./SttStrategyRouter');
-  }
-  return sttStrategyRuntimePromise;
-}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -883,39 +853,16 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   // ── STT Result Handler ─────────────────────────────────────────────────
 
   private async _handleSttResult(result: SttResult): Promise<void> {
-    if (result.lang) {
-      this._setState({ detectedLang: result.lang });
-    }
-
-    if (!result.isFinal) {
-      this._setState({ interimText: result.text, confidence: result.confidence });
-      return;
-    }
-
-    // Dictation pipeline routing — when active, feed finals to the pipeline (no intent bridge).
-    if (
-      tryRouteFinalSttToDictationPipeline({
-        pipeline: this._dictationPipeline,
-        result,
-        commitFinalTranscript: (text, confidence) => {
-          this._setState({ interimText: '', finalText: text, confidence });
-        },
-        recordDictationQuality: () => {
-          this._speechQuality?.recordSegmentQuality('dictation');
-        },
-        scheduleEngineCheck: () => {
-          void this._checkAndSwitchEngineIfNeeded();
-        },
-      })
-    ) {
-      return;
-    }
-
-    // Record audio quality for command-mode segments
-    this._speechQuality?.recordSegmentQuality('command');
-
-    const mutations = await handleFinalSttResult(
-      buildCommandBridgeContext({
+    const out = await dispatchVoiceAgentServiceSttResult({
+      result,
+      dictationPipeline: this._dictationPipeline,
+      speechQuality: this._speechQuality ?? undefined,
+      setState: (p) => this._setState(p),
+      onDictationPipelineFinalComplete: () => {
+        this._speechQuality?.recordSegmentQuality('dictation');
+        void this._checkAndSwitchEngineIfNeeded();
+      },
+      getBridgeFields: () => ({
         mode: this._mode,
         safeMode: this._safeMode,
         session: this._session,
@@ -930,10 +877,12 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
         ...(this._onSendToAiChat !== undefined && { onSendToAiChat: this._onSendToAiChat }),
         ...(this._onToolCall !== undefined && { onToolCall: this._onToolCall }),
       }),
-      result,
-    );
-    this._session = mutations.session;
-    this._intentAliasMap = mutations.intentAliasMap;
+    });
+    if (out.status === 'consumed') {
+      return;
+    }
+    this._session = out.session;
+    this._intentAliasMap = out.intentAliasMap;
     this._emitStateChange();
     this._checkAndSwitchEngineIfNeeded();
   }

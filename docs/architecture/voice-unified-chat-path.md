@@ -3,7 +3,7 @@ title: 语音非听写统一聊天路径（现状）
 doc_type: architecture
 status: active
 owner: repo
-last_reviewed: 2026-04-26
+last_reviewed: 2026-05-01
 source_of_truth: current-state
 ---
 
@@ -42,4 +42,5 @@ source_of_truth: current-state
 
 见 [voice-unified-chat-path-rollout.md](../execution/release-gates/voice-unified-chat-path-rollout.md)（指标与 QA 抽检、自动化命令索引；无「关 FF 回滚」路径）。  
 合入前快捷自检：`npm run check:voice-agent-pre-merge`（含 ActionId 注册契约，见 [`transcription-voice-action-id-registry-contract.md`](./transcription-voice-action-id-registry-contract.md)）。  
+Hook 与 `VoiceAgentService` 双路径维护时，同步查阅 [`voice-agent-hook-vs-service-behavior-matrix.md`](./voice-agent-hook-vs-service-behavior-matrix.md)（懒加载同源、`resolveVoiceIntent` 契约测试索引）。  
 手工留痕脚本与记录模板：[`手工验收执行脚本-非听写语音统一主链-ADR0027-2026-04-26.md`](../execution/archive/manual-validation/手工验收执行脚本-非听写语音统一主链-ADR0027-2026-04-26.md)。

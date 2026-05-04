@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { tryRouteFinalSttToDictationPipeline } from './voiceAgentServiceDictationSttRoute';
+import { tryConsumeSttThroughDictationPipeline, tryRouteFinalSttToDictationPipeline } from './voiceAgentServiceDictationSttRoute';
 import type { SttResult } from './VoiceInputService';
 
 function makeFinal(text: string): SttResult {
@@ -9,6 +9,42 @@ function makeFinal(text: string): SttResult {
     confidence: 0.9,
   } as SttResult;
 }
+
+describe('tryConsumeSttThroughDictationPipeline', () => {
+  it('returns false when pipeline is null', () => {
+    expect(
+      tryConsumeSttThroughDictationPipeline({
+        pipeline: null,
+        result: { text: 'x', isFinal: false, confidence: 0.5 } as SttResult,
+        setDetectedLang: vi.fn(),
+        setInterimText: vi.fn(),
+        setFinalText: vi.fn(),
+        setConfidence: vi.fn(),
+      }),
+    ).toBe(false);
+  });
+
+  it('feeds interim results to the pipeline and returns true', () => {
+    const onStt = vi.fn();
+    const setInterim = vi.fn();
+    const setLang = vi.fn();
+    const r = { text: 'partial', isFinal: false, confidence: 0.55, lang: 'zh-CN' } as SttResult;
+    expect(
+      tryConsumeSttThroughDictationPipeline({
+        pipeline: { onSttResult: onStt },
+        result: r,
+        setDetectedLang: setLang,
+        clearErrorOnNonEmptyInterim: vi.fn(),
+        setInterimText: setInterim,
+        setFinalText: vi.fn(),
+        setConfidence: vi.fn(),
+      }),
+    ).toBe(true);
+    expect(setLang).toHaveBeenCalledWith('zh-CN');
+    expect(onStt).toHaveBeenCalledWith(r);
+    expect(setInterim).toHaveBeenCalledWith('partial');
+  });
+});
 
 describe('voiceAgentServiceDictationSttRoute', () => {
   it('returns false when pipeline is null', () => {

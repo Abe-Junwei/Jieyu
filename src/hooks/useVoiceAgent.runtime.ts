@@ -1,44 +1,19 @@
 import type { VoiceSession } from '../services/IntentRouter';
 import { DEFAULT_VOICE_MODE } from '../services/voiceMode';
 
-let voiceInputRuntimePromise: Promise<typeof import('../services/VoiceInputService')> | null = null;
-let wakeWordRuntimePromise: Promise<typeof import('../services/WakeWordDetector')> | null = null;
-let sttRuntimePromise: Promise<typeof import('../services/stt')> | null = null;
-let sttStrategyRuntimePromise: Promise<typeof import('../services/SttStrategyRouter')> | null = null;
+export {
+  loadSttRuntime,
+  loadSttStrategyRuntime,
+  loadVoiceInputRuntime,
+  loadWakeWordRuntime,
+} from '../services/voiceRuntimeLoaders';
+
 let intentRouterRuntime: typeof import('../services/IntentRouter') | null = null;
 let intentRouterRuntimePromise: Promise<typeof import('../services/IntentRouter')> | null = null;
 let voiceIntentRefineRuntime: typeof import('../services/voiceIntentRefine') | null = null;
 let voiceIntentRefineRuntimePromise: Promise<typeof import('../services/voiceIntentRefine')> | null = null;
 let voiceSessionStoreRuntime: typeof import('../services/VoiceSessionStore') | null = null;
 let voiceSessionStoreRuntimePromise: Promise<typeof import('../services/VoiceSessionStore')> | null = null;
-
-export function loadVoiceInputRuntime() {
-  if (!voiceInputRuntimePromise) {
-    voiceInputRuntimePromise = import('../services/VoiceInputService');
-  }
-  return voiceInputRuntimePromise;
-}
-
-export function loadWakeWordRuntime() {
-  if (!wakeWordRuntimePromise) {
-    wakeWordRuntimePromise = import('../services/WakeWordDetector');
-  }
-  return wakeWordRuntimePromise;
-}
-
-export function loadSttRuntime() {
-  if (!sttRuntimePromise) {
-    sttRuntimePromise = import('../services/stt');
-  }
-  return sttRuntimePromise;
-}
-
-export function loadSttStrategyRuntime() {
-  if (!sttStrategyRuntimePromise) {
-    sttStrategyRuntimePromise = import('../services/SttStrategyRouter');
-  }
-  return sttStrategyRuntimePromise;
-}
 
 export function loadIntentRouterRuntime() {
   if (intentRouterRuntime) {

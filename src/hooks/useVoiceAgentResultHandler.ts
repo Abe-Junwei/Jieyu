@@ -4,6 +4,7 @@ import type { SttResult } from '../services/VoiceInputService';
 import type { VoiceMode } from '../services/voiceMode';
 import { resolveVoiceIntent } from '../services/voiceIntentResolution';
 import { runVoiceFinalSttAfterIntentResolution } from '../services/assistantVoiceSttOrchestrate';
+import { applyVoiceSttInterimIfNotFinal } from '../services/voiceAgentSttSurface';
 import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 import { loadIntentRouterRuntime, loadVoiceIntentRefineRuntime } from './useVoiceAgent.runtime';
 import { type Locale } from '../i18n';
@@ -150,12 +151,16 @@ export function useVoiceAgentResultHandler({
       setDetectedLang(result.lang);
     }
 
-    if (!result.isFinal) {
-      if (result.text.trim().length > 0) {
-        setError(null);
-      }
-      setInterimText(result.text);
-      setConfidence(result.confidence);
+    if (
+      applyVoiceSttInterimIfNotFinal({
+        result,
+        clearErrorOnNonEmptyInterim: () => {
+          setError(null);
+        },
+        setInterimText,
+        setConfidence,
+      })
+    ) {
       return;
     }
 

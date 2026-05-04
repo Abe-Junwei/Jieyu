@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import type { SttResult } from '../services/VoiceInputService';
+import { tryConsumeSttThroughDictationPipeline } from '../services/voiceAgentServiceDictationSttRoute';
 import { SpeechAnnotationPipeline, type DictationPipelineCallbacks, type QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 
 interface UseVoiceAgentDictationPipelineOptions {
@@ -35,29 +36,23 @@ export function useVoiceAgentDictationPipeline(options: UseVoiceAgentDictationPi
 
   const handlePipelineResult = useCallback((result: SttResult) => {
     const activeDictationPipeline = dictationPipelineRef.current;
-    if (!activeDictationPipeline) return false;
-
-    if (result.lang) {
-      options.setDetectedLang(result.lang);
-    }
-
-    if (!result.isFinal) {
-      if (result.text.trim().length > 0) {
+    return tryConsumeSttThroughDictationPipeline({
+      pipeline: activeDictationPipeline,
+      result,
+      setDetectedLang: options.setDetectedLang,
+      clearErrorOnNonEmptyInterim: () => {
         options.setError(null);
-      }
-      options.setInterimText(result.text);
-      options.setConfidence(result.confidence);
-      activeDictationPipeline.onSttResult(result);
-      return true;
-    }
-
-    options.setError(null);
-    options.setInterimText('');
-    options.setFinalText(result.text);
-    options.setConfidence(result.confidence);
-    activeDictationPipeline.onSttResult(result);
-    options.setAgentState('idle');
-    return true;
+      },
+      clearError: () => {
+        options.setError(null);
+      },
+      setInterimText: options.setInterimText,
+      setFinalText: options.setFinalText,
+      setConfidence: options.setConfidence,
+      afterFinalDictationConsumed: () => {
+        options.setAgentState('idle');
+      },
+    });
   }, [options]);
 
   return {

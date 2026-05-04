@@ -64,6 +64,9 @@ source_of_truth: current-state-index
 - [voice-unified-chat-path.md](./voice-unified-chat-path.md)
   - 用途：非听写语音（command/analysis）与文字共用 AI 聊天主链的现状、功能开关、关键文件与回滚入口（灰度见 release-gates 配套文档）。
 
+- [voice-agent-hook-vs-service-behavior-matrix.md](./voice-agent-hook-vs-service-behavior-matrix.md)
+  - 用途：`useVoiceAgent` 与 `VoiceAgentService` 并行存在期间的行为对照与懒加载单一事实源（`voiceRuntimeLoaders`）；配合 `voiceIntentResolution.serviceHookParity.test.ts` 防漂移。
+
 - [CSS治理执行记录.md](./CSS治理执行记录.md)
   - 用途：记录季度治理执行证据（预算复盘、兼容复核、视觉基线与废弃窗口推进）。
 
