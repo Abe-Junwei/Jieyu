@@ -30,6 +30,9 @@ const MAX_WIDTH = 720;
 const MAX_HEIGHT = 880;
 const AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY = 'jieyu.aiChat.resumeAgentLoopTaskId';
 
+/** Stable hub branch when the voice agent UI is dormant (avoids an extra `useMemo` for architecture guard ceilings). */
+const DORMANT_VOICE_CONTEXT_FOR_CHAT_WINDOW = pickVoiceAgentContextValue(DEFAULT_VOICE_AGENT_CONTEXT_VALUE);
+
 type ChatWindowLayoutState = {
   open: boolean;
   minimized: boolean;
@@ -62,13 +65,9 @@ export function TranscriptionPageChatWindow({
   const windowTitleId = `${dialogId}-title`;
   const title = useMemo(() => t(uiLocale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, ''), [uiLocale]);
   const aiChatState = assistantRuntimeProps.aiChatContextValue;
-  const dormantVoiceContextValue = useMemo(
-    () => pickVoiceAgentContextValue(DEFAULT_VOICE_AGENT_CONTEXT_VALUE),
-    [],
-  );
   const aiAssistantHubContextValue = useMemo(
-    () => pickAiAssistantHubContextValue(aiChatState, dormantVoiceContextValue),
-    [aiChatState, dormantVoiceContextValue],
+    () => pickAiAssistantHubContextValue(aiChatState, DORMANT_VOICE_CONTEXT_FOR_CHAT_WINDOW),
+    [aiChatState],
   );
   const providerKind = aiChatState.aiChatSettings?.providerKind ?? 'mock';
   const pinnedCount = aiChatState.aiSessionMemory?.pinnedMessageIds?.length ?? 0;
