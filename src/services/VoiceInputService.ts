@@ -15,7 +15,6 @@ import { createLogger } from '../observability/logger';
 import { VadMonitorRuntime } from './VoiceInputService.vad';
 import { RecordingExecutor } from './VoiceInputService.recording';
 import { WhisperXVadService } from './vad/WhisperXVadService';
-import { recommendVadStrategy } from './SttStrategyRouter';
 import type { SttEnhancementConfig, SttEnhancementKind, SttEnhancementProvider, SttEnhancementSpeakerTurn, SttEnhancementWordTiming } from './stt/enhancementRegistry';
 import type { SpeechRecognition } from './VoiceInputService.webSpeechSupport';
 import {
@@ -36,6 +35,7 @@ import {
   WEB_SPEECH_NOT_SUPPORTED_REASON,
   wireWebSpeechOnEnd,
 } from './VoiceInputService.webSpeechSession';
+import { syncVoiceInputVadForEngine } from './VoiceInputService.vadSync';
 export {
   testOllamaWhisperAvailability,
   testWhisperServerAvailability,
@@ -387,43 +387,14 @@ export class VoiceInputService {
     this.setListening(false);
   }
 
-  private _shouldUseVadForEngine(engine: SttEngine): boolean {
-    return recommendVadStrategy({
-      preferred: engine,
-      online: typeof navigator === 'undefined' ? true : navigator.onLine,
-      ...(this._config.vadEnabled !== undefined && { vadEnabled: this._config.vadEnabled }),
-    });
-  }
-
   private _syncVadForEngine(engine: SttEngine): void {
-    const useVad = this._shouldUseVadForEngine(engine);
-    if (useVad && !this._vadService) {
-      const vadService = new WhisperXVadService();
-      this._vadService = vadService;
-      vadService.init().then(() => {
-        if (this._disposed || this._vadService !== vadService) {
-          return;
-        }
-        log.debug('WhisperX VAD initialized');
-        this.recordingExecutor.setVadService(this._shouldUseVadForEngine(this._currentEngine) ? vadService : null);
-      }).catch((err) => {
-        if (this._vadService === vadService) {
-          this._vadService = null;
-        }
-        log.warn('WhisperX VAD init failed, proceeding without VAD', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-        this.recordingExecutor.setVadService(null);
-      });
-      return;
-    }
-
-    if (useVad && this._vadService) {
-      this.recordingExecutor.setVadService(this._vadService);
-      return;
-    }
-
-    this.recordingExecutor.setVadService(null);
+    syncVoiceInputVadForEngine(engine, this._config.vadEnabled, {
+      getVadService: () => this._vadService,
+      setVadService: (v) => { this._vadService = v; },
+      setRecordingVad: (v) => { this.recordingExecutor.setVadService(v); },
+      isDisposed: () => this._disposed,
+      getCurrentEngine: () => this._currentEngine,
+    });
   }
 
   /**
