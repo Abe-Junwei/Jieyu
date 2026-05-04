@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-26T23:09:26.513Z",
-  "aggregate": "4369987d2bc2719aeba280028f39cddf083de3665f761e29b8d19e73ba16eea6",
+  "generatedAt": "2026-05-04T04:14:18.941Z",
+  "aggregate": "ef16c5c8f5d032e85cb61f2b6a9049e5ae62dd36ea48436cad7087d664ebe8e2",
   "fileHashes": {
-    "src/styles/ai-hub.css": "34f3cafc11dfea5a12c586ae6956870c128dbd5e1cb5036f8afb19d7c33d0347",
+    "src/styles/ai-hub.css": "ba54df9b99fc33c670c719aee6e35931879ae0605e60971a4a84ba90c0f74182",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
     "src/styles/app-foundation.css": "2ea00e86c98d9c56c084b4c2c5c96973c216dfc9b3bc8c02f700045442172c66",
     "src/styles/collaboration-sync-surface.css": "9e4d83609616dbd916eecf39d5b7763d4873e901342c3e963649ffe9c0a24e2b",

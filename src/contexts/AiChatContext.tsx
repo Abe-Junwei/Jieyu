@@ -29,6 +29,8 @@ export interface AiChatContextValue {
   aiChatSettings: AiChatSettings | undefined;
   aiMessages: UiChatMessage[] | undefined;
   aiIsStreaming: boolean | undefined;
+  /** Active Dexie conversation id when loaded; null before bootstrap. */
+  aiConversationId: string | null | undefined;
   aiLastError: string | null | undefined;
   aiConnectionTestStatus: AiConnectionTestStatus;
   aiConnectionTestMessage: string | null | undefined;
@@ -96,6 +98,7 @@ export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {
   aiChatSettings: undefined,
   aiMessages: undefined,
   aiIsStreaming: undefined,
+  aiConversationId: undefined,
   aiLastError: undefined,
   aiConnectionTestStatus: 'idle',
   aiConnectionTestMessage: undefined,

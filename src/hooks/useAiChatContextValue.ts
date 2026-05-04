@@ -19,6 +19,7 @@ export function pickAiChatContextValue(P: AiChatContextSource): AiChatContextVal
     aiChatSettings: P.aiChatSettings,
     aiMessages: P.aiMessages,
     aiIsStreaming: P.aiIsStreaming,
+    aiConversationId: P.aiConversationId,
     aiLastError: P.aiLastError,
     aiConnectionTestStatus: P.aiConnectionTestStatus ?? 'idle',
     aiConnectionTestMessage: P.aiConnectionTestMessage,

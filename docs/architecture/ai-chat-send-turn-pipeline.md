@@ -41,6 +41,11 @@ When `localStorage['jieyu_debug_ai_send_turn'] === '1'`, `useAiChat.sendTurnCorr
 
 ## Follow-ups (not implemented here)
 
-- **Error UX:** persist/opening and `ai_messages.update` failures now set `lastError` to a **local storage recovery hint** via `tf(toolFeedbackLocaleRef.current, 'ai.chat.persistLayerRecoveryHint', { providerLabel })` when the thrown `Error.message` is `persist failed` or `db generation metadata failed` (see `useAiChat.sendTurn.ts`). Broader inline recovery (retry buttons, diagnostics export) is still open.
+- **Error UX:** persist/opening and `ai_messages.update` failures set `lastError` to **`tf(..., 'ai.chat.persistLayerRecoveryHint', { providerLabel })`** when the thrown `Error.message` is `persist failed` or `db generation metadata failed` (see `useAiChat.sendTurn.ts`). The AI sidebar warning bar adds **Retry last send** (replays the latest user message via `onSendAiMessage`; disabled when none or while streaming) and **Copy diagnostics** (JSON to clipboard: `lastError`, `providerLabel`, `conversationId`, `lastUserMessagePresent`, `messageCount`, `ts`, `userAgent`) when the visible error matches `isSendTurnPersistLayerRecoveryHintMessage` (`src/ai/chat/sendTurnPersistRecoveryUi.ts`).
 - **a11y:** periodic audit of send/stop controls and live regions beyond the composer label.
 - **Performance:** trace large-history turns if field reports show up; keep work evidence-driven.
+
+## Cadence (a11y / performance)
+
+- **a11y:** Before releases that touch AI send/stop or live regions, run the Playwright axe smoke (`tests/e2e/a11ySmoke.spec.ts`) and spot-check focus order in the AI sidebar.
+- **performance:** If users report slow turns with large histories, capture a Performance profile on a representative project before optimizing; record threshold or baseline changes in `docs/execution/audits/` when applicable.

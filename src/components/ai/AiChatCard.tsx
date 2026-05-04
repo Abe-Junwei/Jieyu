@@ -26,6 +26,7 @@ import { useGlobalContext } from '../../services/GlobalContextService';
 import { useAssistantDialogueSnapshot } from '../../hooks/useAssistantDialogueSnapshot';
 import { isAssistantChatComposerBlocked, isVoiceDialogueBlockingPrimary } from '../../services/assistantDialogueState';
 import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles } from '../../ai/chat/adaptiveInputProfile';
+import { isSendTurnPersistLayerRecoveryHintMessage } from '../../ai/chat/sendTurnPersistRecoveryUi';
 import { rankCandidateLabelsByAdaptiveProfile } from './aiChatAdaptiveRanking';
 import { useAiChatHybridRecommendations } from './useAiChatHybridRecommendations';
 import { detectWebLLMRuntimeStatus, warmupWebLLMModel, type WebLLMRuntimeStatus, type WebLLMWarmupProgress } from '../../ai/providers/webllmRuntime';
@@ -89,6 +90,7 @@ export function AiChatCard({
     aiChatSettings,
     aiMessages,
     aiIsStreaming,
+    aiConversationId,
     aiLastError,
     aiConnectionTestStatus,
     aiConnectionTestMessage,
@@ -671,6 +673,46 @@ export function AiChatCard({
       ? cardMessages.layerMismatchWarning
       : `⚠ ${raw}`;
   }, [aiLastError, cardMessages]);
+  const persistLayerRecoveryActions = useMemo(() => {
+    const raw = (aiLastError ?? '').trim();
+    if (!isSendTurnPersistLayerRecoveryHintMessage(raw)) return null;
+    const msgs = aiMessages ?? [];
+    let lastUserText = '';
+    for (let i = msgs.length - 1; i >= 0; i -= 1) {
+      const m = msgs[i];
+      if (m?.role === 'user') {
+        lastUserText = m.content?.trim() ?? '';
+        break;
+      }
+    }
+    const canRetryLastSend = Boolean(lastUserText);
+    return {
+      canRetryLastSend,
+      onRetry: async () => {
+        if (aiIsStreaming || !onSendAiMessage || !lastUserText) return;
+        await onSendAiMessage(lastUserText);
+      },
+      onCopyDiagnostics: async () => {
+        const payload = {
+          kind: 'jieyu_ai_chat_persist_recovery' as const,
+          v: 1,
+          lastError: raw,
+          providerLabel: activeProviderDefinition.label,
+          conversationId: aiConversationId ?? null,
+          lastUserMessagePresent: canRetryLastSend,
+          messageCount: msgs.length,
+          ts: new Date().toISOString(),
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+        };
+        if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
+        try {
+          await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+        } catch {
+          // Non-secure context, permission denied, or test env without clipboard mock
+        }
+      },
+    };
+  }, [activeProviderDefinition.label, aiConversationId, aiLastError, aiIsStreaming, aiMessages, onSendAiMessage]);
   const inputBlockedReason = useMemo(() => {
     if (hasToolPending) {
       return cardMessages.highRiskPending;
@@ -1658,6 +1700,7 @@ export function AiChatCard({
             onDismissAgentLoopHandoff={onDismissPendingAgentLoopCheckpoint}
             onConfirmPendingToolCall={onConfirmPendingToolCall}
             onCancelPendingToolCall={onCancelPendingToolCall}
+            persistLayerRecoveryActions={persistLayerRecoveryActions}
           />
 
           {/* \\u5019\\u9009\\u5feb\\u6377\\u56de\\u590d\\u6761 | Candidate quick-reply chips */}

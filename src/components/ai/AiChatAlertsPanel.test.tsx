@@ -258,8 +258,47 @@ describe('AiChatAlertsPanel', () => {
       onDismissErrorWarning,
     });
 
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: /Dismiss|清除/i }));
     expect(onDismissErrorWarning).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows persist-layer recovery actions and calls retry / copy handlers', () => {
+    const onRetry = vi.fn();
+    const onCopyDiagnostics = vi.fn();
+    renderPanel({
+      errorWarningText: '⚠ Local session save failed (test)',
+      dismissedErrorWarning: false,
+      persistLayerRecoveryActions: {
+        canRetryLastSend: true,
+        onRetry,
+        onCopyDiagnostics,
+      },
+    });
+    fireEvent.click(screen.getByTestId('ai-chat-persist-retry'));
+    fireEvent.click(screen.getByTestId('ai-chat-persist-copy-diagnostics'));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(onCopyDiagnostics).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables persist retry while streaming', () => {
+    const onRetry = vi.fn();
+    renderPanel({
+      aiIsStreaming: true,
+      errorWarningText: '⚠ Local session save failed',
+      persistLayerRecoveryActions: { canRetryLastSend: true, onRetry, onCopyDiagnostics: vi.fn() },
+    });
+    expect(screen.getByTestId('ai-chat-persist-retry')).toBeDisabled();
+  });
+
+  it('disables persist retry when there is no last user message', () => {
+    const onRetry = vi.fn();
+    renderPanel({
+      errorWarningText: '⚠ Local session save failed',
+      persistLayerRecoveryActions: { canRetryLastSend: false, onRetry, onCopyDiagnostics: vi.fn() },
+    });
+    expect(screen.getByTestId('ai-chat-persist-retry')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('ai-chat-persist-retry'));
+    expect(onRetry).not.toHaveBeenCalled();
   });
 
   it('persists approval outcome filter in session storage', () => {

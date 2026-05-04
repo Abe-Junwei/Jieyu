@@ -436,6 +436,8 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
     /* threads：单进程内跑用例，避免 forks 多进程各拉一份巨型 i18n 导致堆 OOM | Avoid per-fork duplicate heaps for large dict imports */
     pool: 'threads',
+    /* 限制 worker 数（收紧并行），降低 pool 饥饿与个别用例 flaky 超时 | Tighter cap reduces pool starvation under load */
+    maxWorkers: 2,
     setupFiles: [
       'src/zodJitlessBootstrap.ts',
       'src/test/vitestLocalStorageSetup.ts',

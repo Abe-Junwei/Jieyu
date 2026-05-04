@@ -23,6 +23,7 @@ interface UseTranscriptionAssistantSidebarControllerInputInput {
     messages: AiChatContextValue['aiMessages'];
     isStreaming: NonNullable<AiChatContextValue['aiIsStreaming']>;
     lastError: AiChatContextValue['aiLastError'];
+    conversationId: AiChatContextValue['aiConversationId'];
     connectionTestStatus: AiChatContextValue['aiConnectionTestStatus'];
     connectionTestMessage: AiChatContextValue['aiConnectionTestMessage'];
     contextDebugSnapshot: AiChatContextValue['aiContextDebugSnapshot'];
@@ -86,6 +87,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     aiChatSettings: aiChat.settings,
     aiMessages: aiChat.messages,
     aiIsStreaming: aiChat.isStreaming,
+    aiConversationId: aiChat.conversationId,
     aiLastError: aiChat.lastError,
     aiConnectionTestStatus: aiChat.connectionTestStatus,
     aiConnectionTestMessage: aiChat.connectionTestMessage,
@@ -121,6 +123,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     aiChat.contextDebugSnapshot,
     aiChat.enabled,
     aiChat.isStreaming,
+    aiChat.conversationId,
     aiChat.lastError,
     aiChat.messages,
     aiChat.metrics,

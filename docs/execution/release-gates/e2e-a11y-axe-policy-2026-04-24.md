@@ -11,7 +11,7 @@ source_of_truth: e2e-a11y-axe-policy
 
 ## 目的
 
-在 CI 的 Playwright 任务中（`npm run test:e2e:chromium` / `npm run test:e2e`）用 `@axe-core/playwright` 对**稳定、自有 UI 子树**做回归，避免整页扫描被第三方脚本或动态内容放大为 flake。
+在 CI 的 Playwright 任务 **`e2e-critical-paths`**（`npm run test:e2e`，三引擎）或本地快速循环（`npm run test:e2e:chromium`）中用 `@axe-core/playwright` 对**稳定、自有 UI 子树**做回归，避免整页扫描被第三方脚本或动态内容放大为 flake。
 
 ## 规格与严重级别
 

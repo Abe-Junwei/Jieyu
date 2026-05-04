@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { buildAiChangeSetFromPendingToolCall } from '../../ai/changeset/AiChangeSetProtocol';
 import type { AiSessionMemoryPendingAgentLoopCheckpoint } from '../../ai/chat/chatDomain.types';
 import type { PendingAiToolCall } from '../../hooks/useAiChat';
@@ -38,6 +38,12 @@ interface AiChatAlertsPanelProps {
   onVoiceDismissDisambiguation?: () => void;
   onVoiceConfirmPending?: () => void;
   onVoiceCancelPending?: () => void;
+  /** Inline recovery when `lastError` is the send-turn persist-layer hint (IndexedDB / local save). */
+  persistLayerRecoveryActions?: {
+    canRetryLastSend: boolean;
+    onRetry: () => void | Promise<void>;
+    onCopyDiagnostics: () => void | Promise<void>;
+  } | null;
 }
 
 const APPROVAL_HISTORY_FILTER_STORAGE_KEY = 'jieyu:ai-approval-history-filter';
@@ -71,6 +77,7 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
   onVoiceDismissDisambiguation,
   onVoiceConfirmPending,
   onVoiceCancelPending,
+  persistLayerRecoveryActions,
 }: AiChatAlertsPanelProps) {
   const locale = useLocale();
   const uiTextDirection = resolveTextDirectionFromLocale(locale);
@@ -151,18 +158,82 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
     window.sessionStorage.setItem(APPROVAL_HISTORY_FILTER_STORAGE_KEY, approvalHistoryFilter);
   }, [approvalHistoryFilter]);
 
+  const [persistCopyAck, setPersistCopyAck] = useState(false);
+  const persistCopyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (typeof window !== 'undefined' && persistCopyTimerRef.current !== null) {
+      window.clearTimeout(persistCopyTimerRef.current);
+    }
+  }, []);
+
+  const handlePersistCopyDiagnostics = async () => {
+    if (!persistLayerRecoveryActions) return;
+    await persistLayerRecoveryActions.onCopyDiagnostics();
+    if (typeof window === 'undefined') return;
+    setPersistCopyAck(true);
+    if (persistCopyTimerRef.current !== null) {
+      window.clearTimeout(persistCopyTimerRef.current);
+    }
+    persistCopyTimerRef.current = window.setTimeout(() => {
+      setPersistCopyAck(false);
+      persistCopyTimerRef.current = null;
+    }, 2500);
+  };
+
   return (
     <>
       {errorWarningText && !dismissedErrorWarning && (
         <div className="ai-chat-alert-warning" role="status" aria-live="polite">
-          <span className="ai-chat-alert-warning-text">{errorWarningText}</span>
-          <button
-            type="button"
-            className="icon-btn ai-chat-alert-warning-dismiss"
-            onClick={onDismissErrorWarning}
-          >
-            {t(locale, 'ai.alerts.dismiss')}
-          </button>
+          <div className="ai-chat-alert-warning-row">
+            <span className="ai-chat-alert-warning-text">{errorWarningText}</span>
+            <div className="ai-chat-alert-warning-actions">
+              {persistLayerRecoveryActions && (
+                <>
+                  <PanelButton
+                    type="button"
+                    variant="ghost"
+                    className="ai-chat-alert-warning-action"
+                    data-testid="ai-chat-persist-retry"
+                    disabled={Boolean(aiIsStreaming) || !persistLayerRecoveryActions.canRetryLastSend}
+                    title={
+                      persistLayerRecoveryActions.canRetryLastSend
+                        ? undefined
+                        : t(locale, 'ai.chat.persistLayerRetryNoLastUser')
+                    }
+                    onClick={() => {
+                      void persistLayerRecoveryActions.onRetry();
+                    }}
+                  >
+                    {t(locale, 'ai.chat.persistLayerRetryLastSend')}
+                  </PanelButton>
+                  <PanelButton
+                    type="button"
+                    variant="ghost"
+                    className="ai-chat-alert-warning-action"
+                    data-testid="ai-chat-persist-copy-diagnostics"
+                    onClick={() => {
+                      void handlePersistCopyDiagnostics();
+                    }}
+                  >
+                    {t(locale, 'ai.chat.persistLayerCopyDiagnostics')}
+                  </PanelButton>
+                </>
+              )}
+              <button
+                type="button"
+                className="icon-btn ai-chat-alert-warning-dismiss"
+                onClick={onDismissErrorWarning}
+              >
+                {t(locale, 'ai.alerts.dismiss')}
+              </button>
+            </div>
+          </div>
+          {persistCopyAck && (
+            <span className="ai-chat-alert-warning-copy-ack" aria-live="polite">
+              {t(locale, 'ai.chat.persistLayerDiagnosticsCopied')}
+            </span>
+          )}
         </div>
       )}
 

@@ -405,9 +405,9 @@
 
 .ai-chat-alert-warning {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
   padding: 6px 8px;
   border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--state-warning-border) 85%, transparent);
@@ -416,8 +416,36 @@
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
+.ai-chat-alert-warning-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .ai-chat-alert-warning-text {
+  flex: 1;
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.ai-chat-alert-warning-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.ai-chat-alert-warning-action {
+  min-height: 22px;
+  padding: 2px 6px;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
+}
+
+.ai-chat-alert-warning-copy-ack {
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
+  color: color-mix(in srgb, var(--state-warning-text) 88%, var(--text-secondary));
 }
 
 .ai-chat-alert-warning-dismiss {

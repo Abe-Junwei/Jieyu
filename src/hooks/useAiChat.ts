@@ -415,6 +415,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     messages,
     isStreaming,
     lastError,
+    conversationId,
     send,
     stop,
     clear,

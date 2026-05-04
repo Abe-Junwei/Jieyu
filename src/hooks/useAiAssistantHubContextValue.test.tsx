@@ -88,6 +88,7 @@ describe('useAiAssistantHubContextValue', () => {
       'aiConnectionTestMessage',
       'aiConnectionTestStatus',
       'aiContextDebugSnapshot',
+      'aiConversationId',
       'aiInteractionMetrics',
       'aiIsStreaming',
       'aiLastError',
