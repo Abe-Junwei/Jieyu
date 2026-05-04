@@ -50,6 +50,7 @@ describe('run-agent-evals audit trace assertion', () => {
           phase: 'decision',
           outcome: 'confirm_failed',
           executionProgress: { appliedCount: 1, totalCount: 2, partial: true },
+          proposeRollback: { attempted: true, ok: false, errorCount: 1 },
         }),
       })}\n`, 'utf8');
 
@@ -182,6 +183,62 @@ describe('run-agent-evals audit trace assertion', () => {
       expect(report.summary?.auditTracePassed).toBe(false);
       expect(report.auditTrace?.passed).toBe(false);
       expect(report.auditTrace?.failureReasons).toContain('missing_decision_metadata_phase_outcome');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails in enforce mode when schema v1 rows omit T4 partial / proposeRollback audit shape', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'run-agent-evals-t4shape-'));
+    const suitePath = path.join(tempDir, 'suite.json');
+    const reportPath = path.join(tempDir, 'report.json');
+    const auditPath = path.join(tempDir, 'audit.ndjson');
+
+    try {
+      writeFileSync(suitePath, JSON.stringify({
+        suiteId: 'tmp-suite',
+        version: 1,
+        thresholds: {
+          requiredPassRate: 1,
+          maxFailedCases: 0,
+          requiredGoldenTasksMin: 0,
+          requiredTrajectorySignals: [],
+        },
+        cases: [
+          {
+            id: 'smoke',
+            name: 'smoke',
+            command: 'node -e "process.exit(0)"',
+            category: 'smoke',
+            goldenTaskCount: 0,
+            trajectorySignals: [],
+          },
+        ],
+      }), 'utf8');
+      writeFileSync(auditPath, `${JSON.stringify({
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        newValue: 'confirmed:delete_transcription_segment',
+        metadataJson: JSON.stringify({
+          schemaVersion: 1,
+          phase: 'decision',
+          outcome: 'confirmed',
+        }),
+      })}\n`, 'utf8');
+
+      const result = runAgentEvals([
+        '--mode=enforce',
+        `--suite=${suitePath}`,
+        `--report=${reportPath}`,
+        `--assert-audit-trace=${auditPath}`,
+      ], process.cwd());
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(readFileSync(reportPath, 'utf8')) as {
+        auditTrace?: { failureReasons?: string[] };
+      };
+      expect(report.auditTrace?.failureReasons).toContain('missing_t4_audit_execution_progress_partial');
+      expect(report.auditTrace?.failureReasons).toContain('missing_t4_audit_propose_rollback_error_count');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

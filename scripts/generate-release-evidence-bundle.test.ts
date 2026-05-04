@@ -287,7 +287,7 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.perf.cards[0]?.metricObservedMs).toBeNull();
 
       expect(report.costGuard.estimatorVersion).toBe('v1.provider_usage_or_unknown');
-      expect(report.costGuard.summary.requestCount).toBe(1);
+      expect(report.costGuard.summary.requestCount).toBe(2);
       expect(report.costGuard.summary.budgetTriggerCount).toBe(0);
       expect(report.costGuard.summary.retryTriggeredCount).toBe(0);
       expect(report.costGuard.summary.retrySuccessCount).toBe(0);

@@ -115,10 +115,28 @@ function evaluateAuditTrace(ndjsonPath) {
     const metadata = normalizeMetadata(row);
     return metadata && Number(metadata.schemaVersion) === 1;
   });
+
+  let t4PartialProgressDecisionRowCount = 0;
+  let t4ProposeRollbackDecisionRowCount = 0;
+  for (const row of schemaV1DecisionRows) {
+    const metadata = normalizeMetadata(row);
+    if (!metadata || typeof metadata !== 'object') continue;
+    const ep = metadata.executionProgress;
+    if (ep && typeof ep === 'object' && ep.partial === true) {
+      t4PartialProgressDecisionRowCount += 1;
+    }
+    const pr = metadata.proposeRollback;
+    if (pr && typeof pr === 'object' && Number.isFinite(Number(pr.errorCount))) {
+      t4ProposeRollbackDecisionRowCount += 1;
+    }
+  }
+  const t4AuditShapePassed = t4PartialProgressDecisionRowCount >= 1 && t4ProposeRollbackDecisionRowCount >= 1;
+
   const passed = parsed.errors.length === 0
     && decisionRows.length > 0
     && metadataDecisionRows.length > 0
-    && schemaV1DecisionRows.length > 0;
+    && schemaV1DecisionRows.length > 0
+    && t4AuditShapePassed;
 
   const failureReasons = [];
   if (parsed.errors.length > 0) {
@@ -133,6 +151,12 @@ function evaluateAuditTrace(ndjsonPath) {
   if (schemaV1DecisionRows.length === 0) {
     failureReasons.push('missing_decision_metadata_schema_version_1');
   }
+  if (schemaV1DecisionRows.length > 0 && t4PartialProgressDecisionRowCount < 1) {
+    failureReasons.push('missing_t4_audit_execution_progress_partial');
+  }
+  if (schemaV1DecisionRows.length > 0 && t4ProposeRollbackDecisionRowCount < 1) {
+    failureReasons.push('missing_t4_audit_propose_rollback_error_count');
+  }
 
   return {
     enabled: true,
@@ -141,6 +165,8 @@ function evaluateAuditTrace(ndjsonPath) {
     decisionRowCount: decisionRows.length,
     metadataDecisionRowCount: metadataDecisionRows.length,
     schemaV1DecisionRowCount: schemaV1DecisionRows.length,
+    t4PartialProgressDecisionRowCount,
+    t4ProposeRollbackDecisionRowCount,
     parseErrorCount: parsed.errors.length,
     passed,
     failureReasons,
@@ -248,7 +274,7 @@ function main() {
   );
   if (auditTrace.enabled) {
     process.stdout.write(
-      `[agent-evals] audit-trace: decisionRows=${auditTrace.decisionRowCount}, decisionMetadataRows=${auditTrace.metadataDecisionRowCount}, schemaV1Rows=${auditTrace.schemaV1DecisionRowCount ?? 0}, parseErrors=${auditTrace.parseErrorCount}, passed=${auditTrace.passed}\n`,
+      `[agent-evals] audit-trace: decisionRows=${auditTrace.decisionRowCount}, decisionMetadataRows=${auditTrace.metadataDecisionRowCount}, schemaV1Rows=${auditTrace.schemaV1DecisionRowCount ?? 0}, t4PartialRows=${auditTrace.t4PartialProgressDecisionRowCount ?? 0}, t4RollbackRows=${auditTrace.t4ProposeRollbackDecisionRowCount ?? 0}, parseErrors=${auditTrace.parseErrorCount}, passed=${auditTrace.passed}\n`,
     );
   }
 

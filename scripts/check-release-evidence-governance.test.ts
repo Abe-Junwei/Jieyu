@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -62,8 +62,24 @@ function writeReport(reportPath: string, overrides: Record<string, unknown> = {}
         'empty-extraction': 1,
       },
     },
+    toolDecisionFailureSignals: {
+      status: 'skipped',
+      skipReason: 'no_audit_export_source',
+      failureSignals: {
+        failedDecisionRows: 0,
+        triageCounts: { retry: 0, clarify: 0, human: 0, abandon: 0 },
+        partialExecutionProgressRows: 0,
+        rollbackErrorCountBuckets: { '0': 0, '1': 0, '2+': 0 },
+      },
+      durableHandoff: {
+        status: 'skipped',
+        humanInterventionRate: null,
+        handoffReasons: {},
+      },
+    },
     evidenceIndex: [
       { conclusionId: 'c5.background-memory-extraction.v1' },
+      { conclusionId: 't4.tool-decision-failure-signals.v1' },
     ],
     ...overrides,
   };
@@ -139,11 +155,70 @@ describe('check-release-evidence-governance script', () => {
     const reportPath = path.join(tempDir, 'report.json');
     try {
       writeReport(reportPath, {
-        evidenceIndex: [],
+        evidenceIndex: [{ conclusionId: 't4.tool-decision-failure-signals.v1' }],
       });
       const result = runCheckScript([`--report=${reportPath}`]);
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('c5.background-memory-extraction.v1');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when toolDecisionFailureSignals section is missing', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 're-governance-'));
+    const reportPath = path.join(tempDir, 'report.json');
+    try {
+      writeReport(reportPath);
+      const raw = JSON.parse(readFileSync(reportPath, 'utf8')) as Record<string, unknown>;
+      delete raw.toolDecisionFailureSignals;
+      writeFileSync(reportPath, JSON.stringify(raw), 'utf8');
+      const result = runCheckScript([`--report=${reportPath}`]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('toolDecisionFailureSignals');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when T4 evidence index card is missing', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 're-governance-'));
+    const reportPath = path.join(tempDir, 'report.json');
+    try {
+      writeReport(reportPath, {
+        evidenceIndex: [{ conclusionId: 'c5.background-memory-extraction.v1' }],
+      });
+      const result = runCheckScript([`--report=${reportPath}`]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('t4.tool-decision-failure-signals.v1');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when --max-tool-decision-rollback-2plus is exceeded', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 're-governance-'));
+    const reportPath = path.join(tempDir, 'report.json');
+    try {
+      writeReport(reportPath, {
+        toolDecisionFailureSignals: {
+          status: 'ready_or_partial',
+          failureSignals: {
+            failedDecisionRows: 1,
+            triageCounts: { retry: 1, clarify: 0, human: 0, abandon: 0 },
+            partialExecutionProgressRows: 0,
+            rollbackErrorCountBuckets: { '0': 0, '1': 0, '2+': 3 },
+          },
+          durableHandoff: {
+            status: 'ready',
+            humanInterventionRate: 0,
+            handoffReasons: {},
+          },
+        },
+      });
+      const result = runCheckScript([`--report=${reportPath}`, '--max-tool-decision-rollback-2plus=2']);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('rollbackErrorCountBuckets');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

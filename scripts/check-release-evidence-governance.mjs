@@ -59,6 +59,17 @@ function toOptionalMinApprovalTotal() {
   return parsed;
 }
 
+/** Inclusive max for `failureSignals.rollbackErrorCountBuckets["2+"]` (optional regression guard). */
+function toOptionalMaxToolDecisionRollback2Plus() {
+  const raw = readArg('--max-tool-decision-rollback-2plus');
+  if (!raw) return null;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0) {
+    fail('invalid --max-tool-decision-rollback-2plus: expected integer >= 0');
+  }
+  return parsed;
+}
+
 function assertNonNegativeInteger(value, keyPath) {
   if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value) || value < 0) {
     fail(`invalid ${keyPath}: expected non-negative integer`);
@@ -193,6 +204,75 @@ function validateBackgroundMemoryExtraction(payload, options) {
   };
 }
 
+function validateToolDecisionFailureSignals(payload, options) {
+  const section = payload?.toolDecisionFailureSignals;
+  if (!section || typeof section !== 'object') {
+    fail('invalid report: missing toolDecisionFailureSignals section');
+  }
+  if (section.status !== 'ready_or_partial' && section.status !== 'ready' && section.status !== 'skipped') {
+    fail(`tool decision failure signals gate failed: unexpected status=${String(section.status)}`);
+  }
+  const fs = section.failureSignals;
+  if (!fs || typeof fs !== 'object' || Array.isArray(fs)) {
+    fail('invalid report: missing toolDecisionFailureSignals.failureSignals');
+  }
+  assertNonNegativeInteger(fs.failedDecisionRows, 'toolDecisionFailureSignals.failureSignals.failedDecisionRows');
+  const triage = fs.triageCounts;
+  if (!triage || typeof triage !== 'object' || Array.isArray(triage)) {
+    fail('invalid report: missing toolDecisionFailureSignals.failureSignals.triageCounts');
+  }
+  for (const key of ['retry', 'clarify', 'human', 'abandon']) {
+    assertNonNegativeInteger(Number(triage[key] ?? 0), `toolDecisionFailureSignals.failureSignals.triageCounts.${key}`);
+  }
+  assertNonNegativeInteger(
+    fs.partialExecutionProgressRows,
+    'toolDecisionFailureSignals.failureSignals.partialExecutionProgressRows',
+  );
+  const buckets = fs.rollbackErrorCountBuckets;
+  if (!buckets || typeof buckets !== 'object' || Array.isArray(buckets)) {
+    fail('invalid report: missing toolDecisionFailureSignals.failureSignals.rollbackErrorCountBuckets');
+  }
+  for (const key of ['0', '1', '2+']) {
+    assertNonNegativeInteger(Number(buckets[key] ?? 0), `toolDecisionFailureSignals.failureSignals.rollbackErrorCountBuckets.${key}`);
+  }
+  const handoff = section.durableHandoff;
+  if (!handoff || typeof handoff !== 'object' || Array.isArray(handoff)) {
+    fail('invalid report: missing toolDecisionFailureSignals.durableHandoff');
+  }
+  if (handoff.status !== 'ready' && handoff.status !== 'skipped') {
+    fail(`invalid toolDecisionFailureSignals.durableHandoff.status: expected ready|skipped, got ${String(handoff.status)}`);
+  }
+  if (handoff.status === 'ready') {
+    if (typeof handoff.humanInterventionRate !== 'number' || !Number.isFinite(handoff.humanInterventionRate)) {
+      fail('invalid toolDecisionFailureSignals.durableHandoff.humanInterventionRate: expected finite number when status=ready');
+    }
+    if (!handoff.handoffReasons || typeof handoff.handoffReasons !== 'object' || Array.isArray(handoff.handoffReasons)) {
+      fail('invalid report: missing toolDecisionFailureSignals.durableHandoff.handoffReasons');
+    }
+    assertCountMap(handoff.handoffReasons, 'toolDecisionFailureSignals.durableHandoff.handoffReasons');
+  } else if (handoff.humanInterventionRate !== null && typeof handoff.humanInterventionRate !== 'number') {
+    fail('invalid toolDecisionFailureSignals.durableHandoff.humanInterventionRate: expected null or number when status=skipped');
+  }
+
+  const evidenceIndex = Array.isArray(payload?.evidenceIndex) ? payload.evidenceIndex : [];
+  if (!evidenceIndex.some((item) => item?.conclusionId === 't4.tool-decision-failure-signals.v1')) {
+    fail('tool decision failure signals gate failed: missing evidenceIndex t4.tool-decision-failure-signals.v1');
+  }
+
+  const rollback2Plus = Number(buckets['2+'] ?? 0);
+  if (options.maxToolDecisionRollback2Plus !== null && rollback2Plus > options.maxToolDecisionRollback2Plus) {
+    fail(
+      `tool decision failure signals gate failed: rollbackErrorCountBuckets["2+"]=${rollback2Plus} exceeds max ${options.maxToolDecisionRollback2Plus}`,
+    );
+  }
+
+  return {
+    status: section.status,
+    rollback2Plus,
+    partialRows: fs.partialExecutionProgressRows,
+  };
+}
+
 function main() {
   const reportPath = resolveReportPath();
   if (!fs.existsSync(reportPath)) {
@@ -211,9 +291,13 @@ function main() {
   const backgroundMemorySummary = validateBackgroundMemoryExtraction(payload, {
     minBackgroundMemoryTotal: toOptionalMinBackgroundMemoryTotal(),
   });
+  const t4Summary = validateToolDecisionFailureSignals(payload, {
+    maxToolDecisionRollback2Plus: toOptionalMaxToolDecisionRollback2Plus(),
+  });
   const minPart = minApprovalTotal !== null ? `,minApprovalTotal>=${minApprovalTotal}` : '';
+  const t4RollbackPart = t4Summary.rollback2Plus !== undefined ? `,rollbackBuckets2Plus=${t4Summary.rollback2Plus}` : '';
   process.stdout.write(
-    `release-evidence governance gate passed: compareReady=${trend.compareReady ? 'true' : 'false'}, pointCount=${trend.pointCount}, approval(total=${summary.total},pending=${summary.pending},blocked=${summary.blocked},confirmed=${summary.confirmed},failed=${summary.failed}${minPart}), backgroundMemory(total=${backgroundMemorySummary.total},allow=${backgroundMemorySummary.allow},ask=${backgroundMemorySummary.ask},deny=${backgroundMemorySummary.deny})\n`,
+    `release-evidence governance gate passed: compareReady=${trend.compareReady ? 'true' : 'false'}, pointCount=${trend.pointCount}, approval(total=${summary.total},pending=${summary.pending},blocked=${summary.blocked},confirmed=${summary.confirmed},failed=${summary.failed}${minPart}), backgroundMemory(total=${backgroundMemorySummary.total},allow=${backgroundMemorySummary.allow},ask=${backgroundMemorySummary.ask},deny=${backgroundMemorySummary.deny}), toolDecisionFailureSignals(status=${t4Summary.status},partialRows=${t4Summary.partialRows}${t4RollbackPart})\n`,
   );
 }
 

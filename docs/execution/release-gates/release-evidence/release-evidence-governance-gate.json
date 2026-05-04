@@ -3,12 +3,12 @@
   "reportType": "release-evidence",
   "degraded": false,
   "metadata": {
-    "generatedAt": "2026-05-01T01:34:24.651Z",
+    "generatedAt": "2026-05-04T04:08:50.132Z",
     "releaseProfile": "core",
     "mode": "enforce",
     "environment": "local",
     "appVersion": "1.1.0",
-    "gitShortSha": "bf697b8",
+    "gitShortSha": "1a0de69",
     "nodeVersion": "v25.9.0",
     "workspaceRoot": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu",
     "stage": "A1b",
@@ -17,8 +17,8 @@
     "logsDir": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate"
   },
   "summary": {
-    "total": 19,
-    "passed": 7,
+    "total": 20,
+    "passed": 8,
     "failed": 0,
     "skipped": 12
   },
@@ -181,6 +181,16 @@
       "exitCode": 0,
       "logPath": null,
       "keySummary": "no_ai_task_snapshot_source"
+    },
+    {
+      "conclusionId": "t4.tool-decision-failure-signals.v1",
+      "conclusion": "T4 tool decision failure signals generated",
+      "evidenceType": "tool_decision_failure_signals",
+      "command": "release_evidence:tool_decision_failure_signals",
+      "module": "ai-runtime",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+      "keySummary": "failedRows=0;triageRetry=0;partial=0;rollback2+=0;handoffRate=n/a"
     },
     {
       "conclusionId": "m0.audit-field-dictionary.v1",
@@ -546,6 +556,30 @@
     },
     "taskTypes": {},
     "handoffReasons": {}
+  },
+  "toolDecisionFailureSignals": {
+    "status": "ready_or_partial",
+    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "failureSignals": {
+      "failedDecisionRows": 0,
+      "triageCounts": {
+        "retry": 0,
+        "clarify": 0,
+        "human": 0,
+        "abandon": 0
+      },
+      "partialExecutionProgressRows": 0,
+      "rollbackErrorCountBuckets": {
+        "0": 0,
+        "1": 0,
+        "2+": 0
+      }
+    },
+    "durableHandoff": {
+      "status": "skipped",
+      "humanInterventionRate": null,
+      "handoffReasons": {}
+    }
   },
   "auditFieldDictionary": {
     "schemaVersion": 1,
