@@ -182,6 +182,7 @@ export function useAiChat(options?: UseAiChatOptions) {
 
   const {
     conversationId,
+    conversationIdRef,
     isBootstrapping,
     ensureConversation,
   } = useAiChatConversationState({
@@ -203,7 +204,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     toggleMessagePinned,
     deactivateSessionDirective,
     pruneSessionDirectivesBySourceMessage,
-  } = useAiChatDirectiveSessionControls({ conversationId, sessionMemoryRef, messagesRef, setMessages });
+  } = useAiChatDirectiveSessionControls({ conversationIdRef, sessionMemoryRef, messagesRef, setMessages });
 
   const {
     connectionTestStatus,

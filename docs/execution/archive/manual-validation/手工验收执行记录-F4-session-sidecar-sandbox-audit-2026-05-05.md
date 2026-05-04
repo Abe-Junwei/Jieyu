@@ -26,7 +26,7 @@ source_of_truth: manual-validation
 
 | 用例 | 结果 | 证据文件 / 备注 |
 | --- | --- | --- |
-| A send-preflight 审计行 | **通过（自动化）** | `npm run test:e2e:session-sidecar-audit`（`aiSessionSidecarSandboxAudit.spec.ts` 首条用例） |
+| A send-preflight 审计行 | **通过（自动化）** | `npm run test:e2e:session-sidecar-audit`（`tests/e2e-sandbox/aiSessionSidecarSandboxAudit.spec.ts` 首条用例） |
 | B 置顶 directive 审计行 | **通过（自动化）** | 同上 spec 第二条：`pinned user directive block…` |
 
 ## 自动化基线（代理执行留痕）

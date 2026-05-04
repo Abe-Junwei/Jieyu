@@ -39,8 +39,9 @@ describe('useAiChatDirectiveSessionControls', () => {
     const messagesRef = { current: messages };
     const setMessages = vi.fn();
 
+    const conversationIdRef = { current: 'conv-pin' as string | null };
     const { result } = renderHook(() => useAiChatDirectiveSessionControls({
-      conversationId: 'conv-pin',
+      conversationIdRef,
       sessionMemoryRef,
       messagesRef,
       setMessages,

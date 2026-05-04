@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { t, type Locale } from '../i18n';
 import { getDb } from '../db';
 import { formatHistoryLoadFailedFallbackError, formatRecoveredInterruptedMessage } from '../ai/messages';
@@ -63,9 +63,15 @@ export function useAiChatConversationState({
 }: UseAiChatConversationStateOptions) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+  /** Same id as `conversationId` state, updated synchronously when a row is chosen/created so handlers (e.g. pin) run before the next React commit. */
+  const conversationIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
 
   const ensureConversation = useCallback(async (): Promise<string> => {
-    if (conversationId) return conversationId;
+    if (conversationIdRef.current) return conversationIdRef.current;
 
     const db = await getDb();
     const existingRows = (await db.collections.ai_conversations.find().exec())
@@ -74,6 +80,7 @@ export function useAiChatConversationState({
 
     if (existingRows.length > 0) {
       const recentId = existingRows[0]!.id;
+      conversationIdRef.current = recentId;
       setConversationId(recentId);
       return recentId;
     }
@@ -89,9 +96,10 @@ export function useAiChatConversationState({
       createdAt: timestamp,
       updatedAt: timestamp,
     });
+    conversationIdRef.current = id;
     setConversationId(id);
     return id;
-  }, [conversationId, locale, model, providerId]);
+  }, [locale, model, providerId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,6 +132,7 @@ export function useAiChatConversationState({
         }
 
         const latest = conversations[0]!;
+        conversationIdRef.current = latest.id;
         setConversationId(latest.id);
         const rows = (await db.collections.ai_messages.findByIndex('conversationId', latest.id))
           .map((doc) => doc.toJSON())
@@ -156,6 +165,7 @@ export function useAiChatConversationState({
 
   return {
     conversationId,
+    conversationIdRef,
     isBootstrapping,
     ensureConversation,
   };

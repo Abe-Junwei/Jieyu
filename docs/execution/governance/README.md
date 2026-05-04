@@ -40,6 +40,7 @@ source_of_truth: governance-index
 - [arch1-fireAndForget-2026-04-25.md](./arch1-fireAndForget-2026-04-25.md)
 - [arch2-i18n-message-modules-2026-04-25.md](./arch2-i18n-message-modules-2026-04-25.md)
 - [arch3-architecture-guard-hotspots-2026-05-05.md](./arch3-architecture-guard-hotspots-2026-05-05.md)
+- [git-stash-inventory-2026-05-05.md](./git-stash-inventory-2026-05-05.md)（本地 `git stash` 快照，**不自动清理**）
 - [release-gates 文档索引](../release-gates/README.md)
 - [证据化发布与 AI 工具治理完整方案-2026-04-20.md](../plans/证据化发布与AI工具治理完整方案-2026-04-20.md)
 - [标注页与词典页开发路线图-2026-04-25.md](../plans/标注页与词典页开发路线图-2026-04-25.md)

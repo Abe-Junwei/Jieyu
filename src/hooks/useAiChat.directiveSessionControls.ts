@@ -17,24 +17,25 @@ import { scheduleSessionSidecarSandboxAudit } from './useAiChat.sessionSidecarAu
 import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
 
 export function useAiChatDirectiveSessionControls(options: {
-  conversationId: string | null;
+  conversationIdRef: MutableRefObject<string | null>;
   sessionMemoryRef: MutableRefObject<AiSessionMemory>;
   messagesRef: MutableRefObject<UiChatMessage[]>;
   setMessages: Dispatch<SetStateAction<UiChatMessage[]>>;
 }) {
-  const { conversationId, sessionMemoryRef, messagesRef, setMessages } = options;
+  const { conversationIdRef, sessionMemoryRef, messagesRef, setMessages } = options;
 
   const writeDirectiveMutationAuditLog = useCallback((
     mutationType: 'deactivate' | 'prune_source',
     payload: Record<string, unknown>,
   ) => {
-    if (!conversationId) return;
+    const activeConversationId = conversationIdRef.current;
+    if (!activeConversationId) return;
     const timestamp = nowIso();
     void getDb()
       .then((db) => db.collections.audit_logs.insert({
         id: newAuditLogId(),
         collection: 'ai_messages',
-        documentId: conversationId,
+        documentId: activeConversationId,
         action: 'update',
         field: 'ai_user_directive_mutation',
         newValue: mutationType,
@@ -51,7 +52,7 @@ export function useAiChatDirectiveSessionControls(options: {
       .catch(() => {
         // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
       });
-  }, [conversationId]);
+  }, [conversationIdRef]);
 
   const toggleMessagePinned = useCallback((messageId: string) => {
     const sessionSidecarSandbox = featureFlags.aiBackgroundToolSandboxEnabled
@@ -62,8 +63,9 @@ export function useAiChatDirectiveSessionControls(options: {
         }
       : undefined;
     const normalizedMessageId = messageId.trim();
+    const activeConversationId = conversationIdRef.current;
     const currentlyPinned = (sessionMemoryRef.current.pinnedMessageIds ?? []).includes(normalizedMessageId);
-    if (!currentlyPinned && conversationId && sessionSidecarSandbox?.sandboxEnabled) {
+    if (!currentlyPinned && activeConversationId && sessionSidecarSandbox?.sandboxEnabled) {
       const message = messagesRef.current.find((item) => item.id === normalizedMessageId);
       if (message?.role === 'user') {
         const extracted = extractUserDirectives({
@@ -80,7 +82,7 @@ export function useAiChatDirectiveSessionControls(options: {
           });
           if (decision.action !== 'allow') {
             scheduleSessionSidecarSandboxAudit({
-              conversationId,
+              conversationId: activeConversationId,
               virtualWritePath: AI_CHAT_SESSION_SIDECAR_WRITE_PATH.pinnedMessageDirective,
               sandboxAction: decision.action,
               sandboxReason: decision.reason,
@@ -100,7 +102,7 @@ export function useAiChatDirectiveSessionControls(options: {
     sessionMemoryRef.current = nextMemory;
     persistSessionMemory(sessionMemoryRef.current);
     setMessages((prev) => [...prev]);
-  }, [conversationId, messagesRef, sessionMemoryRef, setMessages]);
+  }, [conversationIdRef, messagesRef, sessionMemoryRef, setMessages]);
 
   const deactivateSessionDirective = useCallback((directiveId: string) => {
     const normalizedDirectiveId = directiveId.trim();

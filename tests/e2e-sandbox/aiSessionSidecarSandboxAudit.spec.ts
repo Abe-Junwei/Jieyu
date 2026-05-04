@@ -2,7 +2,7 @@
  * F4：在 **仅本 spec 使用的构建**（`VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED` + readonly profile）下，
  * send-preflight / 置顶 directive 阻断时应在 Dexie `audit_logs` 出现 `ai_session_sidecar_sandbox`。
  *
- * 运行：`npm run test:e2e:session-sidecar-audit`（先专用 build 再 Chromium）。
+ * 运行：`npm run test:e2e:session-sidecar-audit`（`playwright.session-sidecar.config.ts`，Chromium only）。
  */
 import { expect, test, type Page } from '@playwright/test';
 
@@ -104,19 +104,14 @@ test.describe('F4 session sidecar sandbox audit (readonly build)', () => {
       timeout: 25_000,
     });
 
-    const afterSend = await countSessionSidecarAuditRows(page);
-    expect(afterSend).toBeGreaterThanOrEqual(0);
-
     const userBubble = page.locator('.ai-chat-message-user').filter({ hasText: directiveText });
     // Pin sits beside `.ai-chat-message-surface`; default hit-testing can be blocked by the surface overlay.
     await userBubble.locator('.ai-chat-message-pin-btn').click({ force: true });
 
-    await expect.poll(async () => countSessionSidecarAuditRows(page), {
+    await expect.poll(async () => hasSessionSidecarAuditGateContaining(page, 'pinned-message-directive'), {
       timeout: 25_000,
       intervals: [200, 400, 800, 1200],
-    }).toBeGreaterThan(afterSend);
-
-    expect(await hasSessionSidecarAuditGateContaining(page, 'pinned-message')).toBe(true);
+    }).toBe(true);
 
     await page.waitForTimeout(500);
     expect(errors).toHaveLength(0);
