@@ -18,16 +18,16 @@ import { WhisperXVadService } from './vad/WhisperXVadService';
 import { recommendVadStrategy } from './SttStrategyRouter';
 import type { SttEnhancementConfig, SttEnhancementKind, SttEnhancementProvider, SttEnhancementSpeakerTurn, SttEnhancementWordTiming } from './stt/enhancementRegistry';
 import { getSpeechRecognitionCtor } from './VoiceInputService.webSpeechSupport';
-import type {
-  SpeechRecognition,
-  SpeechRecognitionErrorEvent,
-  SpeechRecognitionEvent,
-} from './VoiceInputService.webSpeechSupport';
+import type { SpeechRecognition } from './VoiceInputService.webSpeechSupport';
 import {
   buildSttFallbackChain,
   formatSttAllEnginesFailedMessage,
 } from './VoiceInputService.fallbackChain';
 import type { VoiceInputSttEngine } from './VoiceInputService.fallbackChain';
+import {
+  resolveWebSpeechFatalError,
+  sttResultsFromWebSpeechEvent,
+} from './VoiceInputService.webSpeechEngine';
 export {
   testOllamaWhisperAvailability,
   testWhisperServerAvailability,
@@ -467,54 +467,33 @@ export class VoiceInputService {
       void this.vadMonitor.start(this._config);
     };
 
-    rec.onresult = (event: SpeechRecognitionEvent) => {
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (!result) continue;
-        const primary = result[0];
-        if (!primary) continue;
-
-        const alternatives: Array<{ text: string; confidence: number }> = [];
-        for (let j = 1; j < result.length; j++) {
-          const alt = result[j];
-          if (alt) {
-            alternatives.push({
-              text: alt.transcript,
-              confidence: typeof alt.confidence === 'number' && Number.isFinite(alt.confidence) ? alt.confidence : 0,
-            });
-          }
-        }
-
-        const sttResult: SttResult = {
-          text: primary.transcript,
-          lang: this._config.lang,
-          isFinal: result.isFinal,
-          confidence: typeof primary.confidence === 'number' && Number.isFinite(primary.confidence) ? primary.confidence : 0,
-          engine: 'web-speech',
-          ...(alternatives.length > 0 ? { alternatives } : {}),
-        };
-
+    rec.onresult = (event) => {
+      for (const sttResult of sttResultsFromWebSpeechEvent(event, this._config.lang)) {
         this.emitResult(sttResult);
       }
     };
 
     // Fatal errors trigger fallback; non-fatal are silently ignored
-    rec.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error === 'no-speech' || event.error === 'aborted') return;
-      this._engineFailureReasons['web-speech'] = `Web Speech API \u9519\u8bef: ${event.error}`;
-      // Fatal error — attempt fallback to next engine in chain
-      const chain = this.fallbackChain;
-      const nextIdx = chain.indexOf('web-speech') + 1;
-      if (nextIdx < chain.length && chain[nextIdx]) {
+    rec.onerror = (event) => {
+      const resolution = resolveWebSpeechFatalError({
+        error: event.error,
+        chain: this.fallbackChain,
+        commercialConfigured: Boolean(this._config.commercialFallback),
+      });
+      if (!resolution) return;
+
+      this._engineFailureReasons['web-speech'] = resolution.failureReason;
+
+      if (resolution.kind === 'fallback-next') {
         this._stopCurrentEngine();
-        void this._attemptEngineWithFallback(chain[nextIdx] as SttEngine);
-      } else if (this._config.commercialFallback) {
-        // All local engines failed and commercial is configured — notify caller
-        this._stopCurrentEngine();
-        this.emitError(`Web Speech \u4e0d\u53ef\u7528\uff08${event.error}\uff09\u3002\u8bf7\u5207\u6362\u5230\u5546\u4e1a STT \u5f15\u64ce\uff0c\u6216\u68c0\u67e5 Ollama \u670d\u52a1\u3002`);
-      } else {
-        this.emitError(`Web Speech \u4e0d\u53ef\u7528\uff08${event.error}\uff09\u3002`);
+        void this._attemptEngineWithFallback(resolution.nextEngine);
+        return;
       }
+
+      if (resolution.stopEngineBeforeEmit) {
+        this._stopCurrentEngine();
+      }
+      this.emitError(resolution.message);
     };
 
     rec.onend = () => {
