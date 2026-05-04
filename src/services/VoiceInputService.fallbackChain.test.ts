@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSttFallbackChain,
+  commercialSttMissingReason,
+  COMMERCIAL_STT_NOT_CONFIGURED_REASON,
   formatSttAllEnginesFailedMessage,
+  sliceSttFallbackChain,
   sttEngineUiLabel,
 } from './VoiceInputService.fallbackChain';
 
@@ -29,5 +32,22 @@ describe('VoiceInputService.fallbackChain', () => {
     expect(msg).toContain('STT');
     expect(msg).toContain('no ctor');
     expect(msg).toContain('down');
+  });
+
+  it('sliceSttFallbackChain starts at the given engine or falls back to full chain', () => {
+    const chain: Array<'web-speech' | 'whisper-local' | 'commercial'> = [
+      'web-speech',
+      'whisper-local',
+      'commercial',
+    ];
+    expect(sliceSttFallbackChain(chain, 'whisper-local')).toEqual(['whisper-local', 'commercial']);
+    expect(sliceSttFallbackChain(chain, 'web-speech')).toEqual(chain);
+    const noWebSpeech: Array<'whisper-local' | 'commercial'> = ['whisper-local', 'commercial'];
+    expect(sliceSttFallbackChain(noWebSpeech, 'web-speech')).toEqual(['whisper-local', 'commercial']);
+  });
+
+  it('commercialSttMissingReason', () => {
+    expect(commercialSttMissingReason(true)).toBeNull();
+    expect(commercialSttMissingReason(false)).toBe(COMMERCIAL_STT_NOT_CONFIGURED_REASON);
   });
 });

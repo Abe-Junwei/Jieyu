@@ -17,17 +17,25 @@ import { RecordingExecutor } from './VoiceInputService.recording';
 import { WhisperXVadService } from './vad/WhisperXVadService';
 import { recommendVadStrategy } from './SttStrategyRouter';
 import type { SttEnhancementConfig, SttEnhancementKind, SttEnhancementProvider, SttEnhancementSpeakerTurn, SttEnhancementWordTiming } from './stt/enhancementRegistry';
-import { getSpeechRecognitionCtor } from './VoiceInputService.webSpeechSupport';
 import type { SpeechRecognition } from './VoiceInputService.webSpeechSupport';
 import {
   buildSttFallbackChain,
+  commercialSttMissingReason,
   formatSttAllEnginesFailedMessage,
+  sliceSttFallbackChain,
 } from './VoiceInputService.fallbackChain';
 import type { VoiceInputSttEngine } from './VoiceInputService.fallbackChain';
 import {
   resolveWebSpeechFatalError,
   sttResultsFromWebSpeechEvent,
 } from './VoiceInputService.webSpeechEngine';
+import {
+  applyWebSpeechRecognizerOptions,
+  instantiateWebSpeechRecognition,
+  tryWebSpeechRecognitionStart,
+  WEB_SPEECH_NOT_SUPPORTED_REASON,
+  wireWebSpeechOnEnd,
+} from './VoiceInputService.webSpeechSession';
 export {
   testOllamaWhisperAvailability,
   testWhisperServerAvailability,
@@ -365,8 +373,7 @@ export class VoiceInputService {
   private async _attemptEngineWithFallback(engine: SttEngine): Promise<void> {
     this._engineFailureReasons = {};
     const chain = this.fallbackChain;
-    const startIdx = chain.indexOf(engine);
-    const enginesToTry = startIdx >= 0 ? chain.slice(startIdx) : chain;
+    const enginesToTry = sliceSttFallbackChain(chain, engine);
 
     for (const e of enginesToTry) {
       this._currentEngine = e;
@@ -432,33 +439,36 @@ export class VoiceInputService {
         this._listening = true;
         this.emitState(true);
         return true;
-      case 'commercial':
+      case 'commercial': {
         // commercial requires push-to-talk (it sends a recorded blob);
         // if no commercial provider is configured, treat as unavailable
-        if (!this._config.commercialFallback) {
-          this._engineFailureReasons['commercial'] = '\u672a\u914d\u7f6e\u5546\u4e1a STT provider';
+        const missing = commercialSttMissingReason(Boolean(this._config.commercialFallback));
+        if (missing) {
+          this._engineFailureReasons['commercial'] = missing;
           return false;
         }
         this._listening = true;
         this.emitState(true);
         return true;
+      }
       default:
         return false;
     }
   }
 
   private _startWebSpeech(): boolean {
-    const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) {
-      this._engineFailureReasons['web-speech'] = '\u6d4f\u89c8\u5668\u4e0d\u652f\u6301 Web Speech API';
+    const rec = instantiateWebSpeechRecognition();
+    if (!rec) {
+      this._engineFailureReasons['web-speech'] = WEB_SPEECH_NOT_SUPPORTED_REASON;
       return false;
     }
 
-    const rec = new Ctor();
-    rec.lang = this._config.lang;
-    rec.continuous = this._config.continuous;
-    rec.interimResults = this._config.interimResults;
-    rec.maxAlternatives = this._config.maxAlternatives ?? 3;
+    applyWebSpeechRecognizerOptions(rec, {
+      lang: this._config.lang,
+      continuous: this._config.continuous,
+      interimResults: this._config.interimResults,
+      maxAlternatives: this._config.maxAlternatives ?? 3,
+    });
 
     rec.onstart = () => {
       this._listening = true;
@@ -496,30 +506,26 @@ export class VoiceInputService {
       this.emitError(resolution.message);
     };
 
-    rec.onend = () => {
-      if (this.recognition !== rec) return;
-      if (this._switchingEngine) return;
-      if (this._listening && !this._intentionalStop && this._config.continuous) {
+    wireWebSpeechOnEnd(rec, {
+      isCurrentRecognition: () => this.recognition === rec,
+      switchingEngine: () => this._switchingEngine,
+      shouldRestartContinuous: () =>
+        this._listening && !this._intentionalStop && this._config.continuous,
+      restartContinuous: () => {
         try {
           rec.start();
         } catch (err) {
           log.warn('continuous restart failed', { err });
         }
-        return;
-      }
-      this.setListening(false);
-      this.vadMonitor.stop();
-
-    };
+      },
+      endListeningSession: () => {
+        this.setListening(false);
+        this.vadMonitor.stop();
+      },
+    });
 
     this.recognition = rec;
-    try {
-      rec.start();
-      return true;
-    } catch (err) {
-      log.warn('rec.start() failed', { err });
-      return false;
-    }
+    return tryWebSpeechRecognitionStart(rec);
   }
 
   private _stopCurrentEngine(): void {

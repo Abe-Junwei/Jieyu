@@ -18,6 +18,24 @@ export function buildSttFallbackChain(region?: Region): VoiceInputSttEngine[] {
   return ['web-speech', 'whisper-local', 'commercial'];
 }
 
+/**
+ * Engines to try starting from `startFrom` (inclusive). If `startFrom` is absent from the chain, retries full chain.
+ */
+export function sliceSttFallbackChain(
+  chain: readonly VoiceInputSttEngine[],
+  startFrom: VoiceInputSttEngine,
+): VoiceInputSttEngine[] {
+  const startIdx = chain.indexOf(startFrom);
+  return startIdx >= 0 ? chain.slice(startIdx) : [...chain];
+}
+
+/** When commercial engine is selected but no provider is configured. */
+export const COMMERCIAL_STT_NOT_CONFIGURED_REASON = '\u672a\u914d\u7f6e\u5546\u4e1a STT provider';
+
+export function commercialSttMissingReason(hasCommercialProvider: boolean): string | null {
+  return hasCommercialProvider ? null : COMMERCIAL_STT_NOT_CONFIGURED_REASON;
+}
+
 export function sttEngineUiLabel(engine: VoiceInputSttEngine): string {
   switch (engine) {
     case 'web-speech':
