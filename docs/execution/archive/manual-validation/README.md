@@ -9,6 +9,11 @@
 - [手工验收执行脚本-AI语音RAG主流程-2026-03-30.md](./手工验收执行脚本-AI语音RAG主流程-2026-03-30.md)
 - [手工验收执行记录-AI语音RAG主流程-2026-03-30.md](./手工验收执行记录-AI语音RAG主流程-2026-03-30.md)
 
+### 1a. F4 session sidecar 阻断审计（Dexie）
+
+- [手工验收执行脚本-F4-session-sidecar-sandbox-audit-2026-05-05.md](./手工验收执行脚本-F4-session-sidecar-sandbox-audit-2026-05-05.md)
+- [手工验收执行记录-F4-session-sidecar-sandbox-audit-2026-05-05.md](./手工验收执行记录-F4-session-sidecar-sandbox-audit-2026-05-05.md)
+
 ### 1b. 非听写语音统一 AI 主链（ADR-0027）
 
 - [手工验收执行脚本-非听写语音统一主链-ADR0027-2026-04-26.md](./手工验收执行脚本-非听写语音统一主链-ADR0027-2026-04-26.md)
