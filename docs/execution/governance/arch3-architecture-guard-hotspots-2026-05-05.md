@@ -11,7 +11,12 @@ source_of_truth: arch3-architecture-hotspots
 
 `npm run check:architecture-guard` 对接近 **硬上限** 的文件给出 **WARN hotspot**（典型为行数、`useMemo` / `useCallback` 声明数）。此类文件**禁止**在无拆分设计的情况下继续堆功能；回收应 **单独立迭代 / PR**，与 F4 等功能交付解耦。
 
-## 当前已登记热点（来自 2026-05-05 一次全量守卫输出；以脚本最新输出为准）
+## 最新状态（2026-05-05 复核）
+
+- 已复跑 `npm run -s check:architecture-guard`，当前输出为 `OK`，未出现 `WARN hotspot`。
+- 与计划文档 §3.2「hotspot 预警已从 6 降至 0」表述一致。
+
+## 历史登记热点（2026-05-05 快照；以脚本最新输出为准）
 
 | 区域 | 文件 | 风险摘要 | 回收方向（草案） |
 | --- | --- | --- | --- |

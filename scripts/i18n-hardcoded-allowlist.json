@@ -42,6 +42,7 @@
     { "pathPrefix": "src/services/LinguisticService.languageCatalog.ts", "reason": "data-dictionary" },
 
     { "pathPrefix": "src/ai/chat/adaptiveInputProfile.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/ai/vertical/verticalWorkflowSelection.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/utils/camDataUtils.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/utils/citationFootnoteUtils.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/utils/orthographyIdentity.ts", "reason": "validation-and-guard-message" },
