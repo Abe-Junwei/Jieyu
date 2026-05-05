@@ -524,6 +524,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     }
     this._dictationPipeline?.stop();
     this._dictationPipeline = null;
+    this._clearRecordingDurationTimer();
     this._speechQuality?.stop();
     this._voiceService?.releaseSharedAnalysisStream();
     this._voiceService?.stop();
@@ -656,6 +657,13 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
         this._recordingDurationInterval = timer;
       },
     });
+  }
+
+  private _clearRecordingDurationTimer(): void {
+    if (this._recordingDurationInterval !== null) {
+      clearInterval(this._recordingDurationInterval);
+      this._recordingDurationInterval = null;
+    }
   }
 
   // ── Engine & config ────────────────────────────────────────────────────
@@ -950,10 +958,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     this._voiceService = null;
     this._speechQuality?.stop();
     this._stopWakeWordDetector();
-    if (this._recordingDurationInterval !== null) {
-      clearInterval(this._recordingDurationInterval);
-      this._recordingDurationInterval = null;
-    }
+    this._clearRecordingDurationTimer();
     // Remove all tracked subscriptions cleanly
     // 先快照 keys 再逐个移除，避免迭代 Map 时删除元素
     // | Snapshot keys first to avoid mutating Map during iteration

@@ -343,6 +343,7 @@
 }
 
 .language-iso-input-suggestion:hover,
+.language-iso-input-suggestion:focus-visible,
 .language-iso-input-suggestion.is-active {
   background: color-mix(in srgb, var(--accent-soft, var(--state-info-bg)) 50%, transparent);
 }

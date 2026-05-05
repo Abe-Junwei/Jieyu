@@ -84,7 +84,8 @@
   color: var(--btn-primary-color, var(--btn-color, var(--state-info-solid)));
 }
 
-.btn-primary:hover {
+.btn-primary:hover,
+.btn-primary:focus-visible {
   border-color: var(--btn-primary-hover-border-color, var(--btn-primary-border-color, var(--btn-border-color, color-mix(in srgb, var(--state-info-border) 92%, transparent))));
   background: var(--btn-primary-hover-background, var(--btn-primary-background, var(--btn-background, color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel)))));
   color: var(--btn-primary-hover-color, var(--btn-primary-color, var(--btn-color, var(--state-info-solid))));

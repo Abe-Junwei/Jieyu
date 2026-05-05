@@ -85,6 +85,15 @@ describe('VoiceAgentService structure invariants', () => {
     expect(code.includes('await pendingExclusiveStart')).toBe(true);
   });
 
+  it('clears push-to-talk recording timer through stop and dispose lifecycle', () => {
+    const code = readVoiceAgentServiceCode();
+
+    expect(code.includes('private _clearRecordingDurationTimer(): void')).toBe(true);
+    expect(countMatches(code, /this\._clearRecordingDurationTimer\(\);/g)).toBe(2);
+    expect(code.includes('this._dictationPipeline = null;\n    this._clearRecordingDurationTimer();\n    this._speechQuality?.stop();')).toBe(true);
+    expect(code.includes('this._stopWakeWordDetector();\n    this._clearRecordingDurationTimer();')).toBe(true);
+  });
+
   it('keeps session restore and persistence lifecycle anchored in service boundaries', () => {
     const code = readVoiceAgentServiceCode();
 

@@ -265,7 +265,21 @@
   box-shadow: 0 2px 8px color-mix(in srgb, var(--shadow-color) 9%, transparent);
 }
 
+.transcription-wave-toolbar .icon-btn:focus-visible:not(:disabled) {
+  transform: none;
+  color: var(--wave-toolbar-on-surface);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--shadow-color) 9%, transparent);
+}
+
 .transcription-wave-toolbar .icon-btn.icon-btn-active:hover:not(:disabled) {
+  transform: none;
+  background: var(--wave-toolbar-btn-active-bg);
+  border: none;
+  color: var(--wave-toolbar-active-foreground);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
+}
+
+.transcription-wave-toolbar .icon-btn.icon-btn-active:focus-visible:not(:disabled) {
   transform: none;
   background: var(--wave-toolbar-btn-active-bg);
   border: none;

@@ -118,6 +118,12 @@
   border-color: color-mix(in srgb, var(--state-info-solid) 46%, transparent);
 }
 
+.la-shell .panel-button--primary:focus-visible,
+.la-shell .btn-active:focus-visible {
+  background: color-mix(in srgb, var(--state-info-solid) 90%, var(--shadow-color) 10%);
+  border-color: color-mix(in srgb, var(--state-info-solid) 46%, transparent);
+}
+
 .la-shell :is(.panel-button--ghost, .btn-ghost) {
   border-color: color-mix(in srgb, var(--border-soft) 88%, transparent);
   background: var(--surface-panel);
@@ -125,6 +131,12 @@
 }
 
 .la-shell :is(.panel-button--ghost, .btn-ghost):is(:hover, :focus-visible):not(:disabled) {
+  background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
+  color: var(--text-primary);
+}
+
+.la-shell .panel-button--ghost:focus-visible,
+.la-shell .btn-ghost:focus-visible {
   background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
   color: var(--text-primary);
 }
