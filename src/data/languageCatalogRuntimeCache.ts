@@ -5,7 +5,7 @@
  * LinguisticService after writes and on application boot, allowing sync
  * consumers to read the same merged catalog semantics as the Service layer.
  */
-import type { LanguageCatalogVisibility, LanguageDocType } from '../db';
+import type { LanguageCatalogVisibility, LanguageDocType } from '../db/types';
 import type { LanguageDisplayCoreEntry } from './languageNameTypes';
 import { getLanguageDisplayNameOverride } from './languageNameOverrides';
 

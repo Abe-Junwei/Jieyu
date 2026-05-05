@@ -1,4 +1,4 @@
-import type { MultiLangString } from '../db';
+import type { MultiLangString } from '../db/types';
 
 type DisplayLocale = 'zh-CN' | 'en-US';
 

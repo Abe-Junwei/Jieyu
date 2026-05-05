@@ -1,4 +1,5 @@
-import type { LayerDocType } from '../db';
+/** 类型从 `db/types` 入口，勿用 `../db` 桶（会经 engine 拉回 migration，形成环）。 */
+import type { LayerDocType } from '../db/types';
 import type { LanguageSearchLocale } from './langMapping';
 import { getLanguageCatalogEntry, getLanguageDisplayName } from './langMapping';
 import { listUniqueNonEmptyMultiLangLabels, readAnyMultiLangLabel, readLocalizedMultiLangLabel } from './multiLangLabels';
