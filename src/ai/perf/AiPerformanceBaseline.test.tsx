@@ -206,8 +206,7 @@ describe('AI performance baseline', () => {
     expect(denseWrites).toBeGreaterThan(sparseWrites);
     expect(sparseWrites).toBeLessThan(Math.floor(denseWrites * 0.6));
 
-    // eslint-disable-next-line no-console
-    console.info('[AI Perf Baseline][chat]', { denseWrites, sparseWrites });
+        globalThis['console'].info('[AI Perf Baseline][chat]', { denseWrites, sparseWrites });
   }, 30000);
 
   it('embedding baseline reports elapsed and average batch durations', async () => {
@@ -230,8 +229,7 @@ describe('AI performance baseline', () => {
     expect(result.averageBatchMs).toBeGreaterThan(0);
     expect(result.elapsedMs).toBeLessThan(8000);
 
-    // eslint-disable-next-line no-console
-    console.info('[AI Perf Baseline][embedding]', {
+        globalThis['console'].info('[AI Perf Baseline][embedding]', {
       elapsedMs: result.elapsedMs,
       averageBatchMs: result.averageBatchMs,
       generated: result.generated,

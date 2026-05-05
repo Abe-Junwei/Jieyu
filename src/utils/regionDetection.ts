@@ -5,8 +5,10 @@
  */
 
 export type Region = 'cn' | 'global';
+import { createLogger } from '../observability/logger';
 
 const REGION_STORAGE_KEY = 'jieyu.voice.region';
+const log = createLogger('regionDetection');
 
 function isMainlandLikeLocale(lang: string): boolean {
   const normalized = lang.trim().toLowerCase();
@@ -52,7 +54,7 @@ export async function detectRegion(): Promise<Region> {
   } catch (err) {
     // Network error or timeout — fall back to locale heuristic
     // Only 'zh-CN' strongly suggests mainland; zh-HK / zh-TW are global
-    console.error('[Jieyu] regionDetection: region check failed, falling back to locale heuristic', err);
+    log.error('region check failed, falling back to locale heuristic', { err });
     const lang = typeof navigator !== 'undefined' ? navigator.language : '';
     return isMainlandLikeLocale(lang) ? 'cn' : 'global';
   }

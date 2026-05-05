@@ -136,7 +136,7 @@ export async function runDexieIndexedQueryOrElse<T>(
 
 /**
  * 可选/降级路径中的 Dexie 失败（如行为库、分析缓存）：
- * 非「预期索引回退类」错误走 {@link reportUnexpectedDexieQueryError}；始终 `console.debug` 供本机过滤。
+ * 非「预期索引回退类」错误走 {@link reportUnexpectedDexieQueryError}；始终记录 debug 日志供本机过滤。
  */
 export function reportIfUnexpectedDexieDegradation(
   context: string,
@@ -148,5 +148,5 @@ export function reportIfUnexpectedDexieDegradation(
   } else {
     reportUnexpectedDexieQueryError(context, err);
   }
-  console.debug(debugMessage, err);
+  log.debug(debugMessage, { err });
 }

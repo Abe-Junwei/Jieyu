@@ -33,8 +33,9 @@ describe('useAiChat.sendTurnCorrelation', () => {
     logSendTurnPhase('snt-x', 'preflight_ok', { assistantId: 'a1' });
     expect(infoSpy).toHaveBeenCalledTimes(1);
     const firstCall = infoSpy.mock.calls[0];
-    expect(firstCall?.[0]).toBe('[jieyu][ai-chat:send-turn]');
-    expect(firstCall?.[1]).toEqual({
+    expect(firstCall?.[0]).toBe('[useAiChat.sendTurnCorrelation]');
+    expect(firstCall?.[1]).toBe('send-turn phase');
+    expect(firstCall?.[2]).toEqual({
       correlationId: 'snt-x',
       phase: 'preflight_ok',
       detail: { assistantId: 'a1' },

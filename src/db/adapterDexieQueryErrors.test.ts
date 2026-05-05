@@ -76,8 +76,8 @@ describe('reportIfUnexpectedDexieDegradation', () => {
     __resetDexieIndexedFallbackHintsForTests();
   });
 
-  it('always calls console.debug with the error', () => {
-    const dbg = vi.spyOn(console, 'debug').mockImplementation(() => {});
+  it('always emits debug log with the error', () => {
+    const dbg = vi.spyOn(globalThis['console'], 'debug').mockImplementation(() => {});
     const e = new Error('quota');
     reportIfUnexpectedDexieDegradation('t', e, 'label:');
     expect(dbg).toHaveBeenCalledWith('label:', e);
@@ -88,7 +88,7 @@ describe('reportIfUnexpectedDexieDegradation', () => {
     const dispose = addLogObserver((entry) => {
       logs.push({ level: entry.level, message: entry.message });
     });
-    const dbg = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    const dbg = vi.spyOn(globalThis['console'], 'debug').mockImplementation(() => {});
     const e = new Error('KeyPath x is not indexed');
 
     reportIfUnexpectedDexieDegradation('same-context', e, 'label:');

@@ -7,6 +7,7 @@ import { useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResiz
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 import { useToast } from '../contexts/ToastContext';
 import { t, useLocale } from '../i18n';
+import { createLogger } from '../observability/logger';
 import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 import type { TranscriptionVerticalPaneFocusState } from '../pages/TranscriptionPage.UIState';
 import { DEFAULT_TRANSCRIPTION_VERTICAL_PANE_FOCUS } from '../pages/TranscriptionPage.UIState';
@@ -59,6 +60,7 @@ type PairedReadingLayerActionType =
   Exclude<LayerOperationActionType, 'delete'>;
 
 const EMPTY_SPEAKER_VISUAL_BY_UNIT_ID = Object.freeze({}) as Record<string, { name: string; color: string }>;
+const log = createLogger('TranscriptionTimelineVerticalView');
 
 
 
@@ -378,7 +380,7 @@ export function TranscriptionTimelineVerticalView({
     } catch (err) {
       const blocked = err instanceof Error && err.message === 'PAIRED_READING_SEGMENT_PERSIST_BLOCKED';
       if (!blocked) {
-        console.error('[Jieyu] TranscriptionTimelineVerticalView: cell save failed', { cellKey, err });
+        log.error('cell save failed', { cellKey, err });
       }
       setPairedReadingCellSaveStatus(cellKey, 'error');
     }

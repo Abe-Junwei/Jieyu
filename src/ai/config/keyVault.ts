@@ -1,8 +1,10 @@
 import { normalizeAiChatSettings, type AiChatSettings } from '../providers/providerCatalog';
+import { createLogger } from '../../observability/logger';
 
 const AI_CHAT_SETTINGS_STORAGE_KEY = 'jieyu.aiChat.settings';
 const AI_CHAT_SETTINGS_SECURE_STORAGE_KEY = 'jieyu.aiChat.settings.secure';
 const AI_CHAT_SETTINGS_SECURE_VERSION = 'v1';
+const log = createLogger('ai.config.keyVault');
 
 interface AiChatSecureEnvelopeV1 {
   v: 'v1';
@@ -115,7 +117,7 @@ async function decryptAiChatSettings(rawSecurePayload: string): Promise<AiChatSe
     const text = new TextDecoder().decode(decrypted);
     return normalizeAiChatSettings(JSON.parse(text) as Partial<AiChatSettings>);
   } catch (err) {
-    console.error('[Jieyu] keyVault: failed to decrypt settings', err);
+    log.error('failed to decrypt settings', { err });
     return null;
   }
 }
@@ -139,7 +141,7 @@ export class BrowserKeyVault implements KeyVaultBackend<AiChatSettings> {
     try {
       await this.persist(normalized);
     } catch (err) {
-      console.error('[Jieyu] keyVault: failed to migrate legacy settings', err);
+      log.error('failed to migrate legacy settings', { err });
     }
     return normalized;
   }

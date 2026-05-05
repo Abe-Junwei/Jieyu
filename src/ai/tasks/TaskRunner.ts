@@ -1,4 +1,7 @@
 import { getDb, type AiTaskDoc } from '../../db';
+import { createLogger } from '../../observability/logger';
+
+const log = createLogger('TaskRunner');
 
 export interface TaskRunContext {
   taskId: string;
@@ -147,7 +150,7 @@ export class TaskRunner {
     // 最佳努力恢复：把上次崩溃遗留的 pending/running 任务标记为 failed。 | Best-effort recovery: mark pending/running tasks left from a crash as failed.
     void this.recoverStaleTasks().catch((error) => {
       if (isMissingIndexedDbApiError(error)) return;
-      console.error('[TaskRunner] recoverStaleTasks failed:', error);
+      log.error('recoverStaleTasks failed', { err: error });
     });
   }
 

@@ -1,3 +1,7 @@
+import { createLogger } from '../../observability/logger';
+
+const log = createLogger('ai.providers.errorUtils');
+
 export class AiProviderError extends Error {
   constructor(
     message: string,
@@ -97,7 +101,7 @@ export function parseProviderJson<T>(
   try {
     return JSON.parse(payload) as T;
   } catch (err) {
-    console.error('[Jieyu] parseProviderResponse: JSON parse failed', { providerLabel, formatLabel, payload, err });
+    log.error('parseProviderResponse JSON parse failed', { providerLabel, formatLabel, payload, err });
     throw new AiProviderError(
       `${providerLabel} \u8fd4\u56de\u683c\u5f0f\u65e0\u6cd5\u89e3\u6790\uff0c\u8bf7\u68c0\u67e5\u54cd\u5e94\u683c\u5f0f\u662f\u5426\u9009\u62e9\u6b63\u786e\uff08\u5f53\u524d\uff1a${formatLabel}\uff09`,
       'format',

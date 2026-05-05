@@ -2,7 +2,10 @@
  * Optional DEV-style tracing for send-turn pipeline phases (localStorage-gated).
  */
 
+import { createLogger } from '../observability/logger';
+
 const DEBUG_LS_KEY = 'jieyu_debug_ai_send_turn';
+const log = createLogger('useAiChat.sendTurnCorrelation');
 
 export function isSendTurnCorrelationDebugEnabled(): boolean {
   if (typeof window === 'undefined') return false;
@@ -19,6 +22,5 @@ export function logSendTurnPhase(
   detail?: Record<string, unknown>,
 ): void {
   if (!isSendTurnCorrelationDebugEnabled()) return;
-  // eslint-disable-next-line no-console -- intentional gated debug trace
-  console.info('[jieyu][ai-chat:send-turn]', { correlationId, phase, detail });
+  log.info('send-turn phase', { correlationId, phase, detail });
 }

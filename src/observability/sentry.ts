@@ -1,4 +1,5 @@
 import { deepScrubSensitiveObject, maskSensitiveStringKeepTail } from './sensitiveKeyPolicy';
+import { createLogger } from './logger';
 
 export interface SentryBootstrapEnv {
   PROD: boolean;
@@ -28,6 +29,7 @@ type SentryInitOptions = Parameters<typeof import('@sentry/react').init>[0];
 type SentryBeforeSend = NonNullable<SentryInitOptions['beforeSend']>;
 type SentryRuntimeModule = typeof import('@sentry/react');
 type SentryRuntimeLoader = () => Promise<SentryRuntimeModule>;
+const log = createLogger('observability.sentry');
 
 function normalizeSampleRate(rawValue: string | undefined): number {
   const parsed = Number(rawValue ?? '0');
@@ -113,6 +115,6 @@ export async function initSentryWithResolvedConfig(
     });
   } catch (error) {
     // Sentry 初始化失败不应阻塞应用启动 | Sentry initialization must not block app startup
-    console.warn('[Jieyu] Sentry bootstrap failed; error reporting disabled for this session.', error);
+    log.warn('Sentry bootstrap failed; error reporting disabled for this session.', { err: error });
   }
 }

@@ -4,6 +4,7 @@ import { useClickOutside } from './useClickOutside';
 import type { AnchorDocType, LayerUnitDocType, MediaItemDocType, LayerDocType, LayerUnitContentDocType } from '../db';
 import type { SaveState } from './useTranscriptionData';
 import { t, tf, useLocale } from '../i18n';
+import { createLogger } from '../observability/logger';
 import { recordFullProjectArchiveExportCompleted } from '../utils/backupExportReminderState';
 import { useOrthographies } from './useOrthographies';
 
@@ -11,6 +12,8 @@ type ExportSupportModules = {
   layerSegmentQueryService: typeof import('../services/LayerSegmentQueryService');
   orthographyRuntime: typeof import('../utils/orthographyRuntime');
 };
+
+const log = createLogger('useImportExport');
 
 function normalizeSpeakerLookupKey(value: string | undefined) {
   return value?.trim().toLocaleLowerCase('zh-Hans-CN') ?? '';
@@ -134,7 +137,7 @@ export function useImportExport(input: UseImportExportInput) {
     if ((segmentExportMediaId?.trim() ?? '').length > 0) return;
     if (segmentExportScopeEmptyDiagLoggedRef.current) return;
     segmentExportScopeEmptyDiagLoggedRef.current = true;
-    console.debug('[import_export] segment export media id empty while time-aligned layers exist', {
+    log.debug('segment export media id empty while time-aligned layers exist', {
       unitsOnCurrentMediaCount: unitsOnCurrentMedia.length,
     });
   }, [layers, segmentExportMediaId, unitsOnCurrentMedia.length]);

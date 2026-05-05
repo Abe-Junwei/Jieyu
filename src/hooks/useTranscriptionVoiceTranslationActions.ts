@@ -14,10 +14,12 @@ import { getCommercialSttRuntimeSnapshot } from '../services/stt/voiceCommercial
 import { toBcp47 } from '../utils/langMapping';
 import { stripSpeakerAssociationFromTranslationText } from './useTranscriptionUnitActions.helpers';
 import { fileExtensionForRecordedVoiceBlob, readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
+import { createLogger } from '../observability/logger';
 
 /** 与 `useVoiceDock` 一致，避免 action 依赖 UI hook | Mirrors useVoiceDock keys */
 const VOICE_COMMERCIAL_STT_STORAGE_KEY = 'jieyu.voiceAgent.commercialStt';
 const VOICE_LOCAL_WHISPER_STORAGE_KEY = 'jieyu.voiceAgent.localWhisper';
+const log = createLogger('useTranscriptionVoiceTranslationActions');
 
 type CommercialProviderConfig = {
   apiKey?: string;
@@ -427,7 +429,7 @@ export function useTranscriptionVoiceTranslationActions({
         return;
       }
       if (import.meta.env.DEV) {
-        console.debug('[Jieyu] transcribeVoiceTranslation: local whisper failed', e);
+        log.debug('transcribeVoiceTranslation local whisper failed', { err: e });
       }
       transcript = '';
     }

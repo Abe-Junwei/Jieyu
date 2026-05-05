@@ -1,3 +1,5 @@
+import { createLogger } from '../observability/logger';
+
 export interface SearchableItem {
   unitId: string;
   layerId?: string;
@@ -36,6 +38,8 @@ export interface SearchMatch {
   matchEnd: number;
 }
 
+const log = createLogger('searchReplaceUtils');
+
 function escapeRegex(query: string): string {
   return query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -69,7 +73,7 @@ export function analyzeSearchPattern(query: string, options: SearchReplaceOption
   try {
     return { pattern: new RegExp(body, flags) };
   } catch (err) {
-    console.error('[Jieyu] searchReplaceUtils: invalid regex pattern', { body, flags, err });
+    log.error('invalid regex pattern', { body, flags, err });
     return {
       pattern: null,
       error: '\u6b63\u5219\u8868\u8fbe\u5f0f\u65e0\u6548\uff0c\u8bf7\u68c0\u67e5\u8bed\u6cd5\u3002',

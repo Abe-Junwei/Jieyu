@@ -41,6 +41,7 @@ import { useAiChatWebllmWarmup } from './useAiChatWebllmWarmup';
 import { useAiChatVerticalWorkflowSummary } from './useAiChatVerticalWorkflowSummary';
 import { useAiChatPinnedSummaries } from './useAiChatPinnedSummaries';
 import { useAiChatProviderGroups } from './useAiChatProviderGroups';
+import { clampHeight, resolveDecisionPanelHeightBounds, resolveVoiceDrawerHeightBounds } from './aiChatCardResizerUtils';
 
 type AiChatCardProps = {
   embedded?: boolean;
@@ -601,25 +602,15 @@ export function AiChatCard({
     setOptimisticPinnedMessageIds(new Set());
   }, [pinnedMessageIdsSignature]);
 
-  const resolveVoiceDrawerHeightBounds = (): { min: number; max: number; preferred: number } => {
-    if (typeof window === 'undefined') {
-      return { min: 140, max: 380, preferred: 260 };
-    }
-    const min = Math.max(120, Math.floor(window.innerHeight * 0.2));
-    const max = Math.max(min + 80, Math.floor(window.innerHeight * 0.62));
-    const preferred = Math.min(Math.max(Math.floor(window.innerHeight * 0.36), min), max);
-    return { min, max, preferred };
-  };
-
-  const clampVoiceDrawerHeight = (value: number): number => {
-    const { min, max } = resolveVoiceDrawerHeightBounds();
-    return Math.min(Math.max(value, min), max);
-  };
+  const clampVoiceDrawerHeight = (value: number): number => clampHeight(
+    value,
+    resolveVoiceDrawerHeightBounds(typeof window === 'undefined' ? undefined : window.innerHeight),
+  );
 
   const startVoiceDrawerResize = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (!voiceEntry?.expanded || typeof window === 'undefined') return;
     event.preventDefault();
-    const { preferred } = resolveVoiceDrawerHeightBounds();
+    const { preferred } = resolveVoiceDrawerHeightBounds(window.innerHeight);
     const initial = clampVoiceDrawerHeight(voiceDrawerMaxHeight ?? preferred);
     voiceResizeStartYRef.current = event.clientY;
     voiceResizeStartHeightRef.current = initial;
@@ -627,25 +618,15 @@ export function AiChatCard({
     setIsVoiceDrawerResizing(true);
   };
 
-  const resolveDecisionPanelHeightBounds = (): { min: number; max: number; preferred: number } => {
-    if (typeof window === 'undefined') {
-      return { min: 160, max: 380, preferred: 260 };
-    }
-    const min = Math.max(132, Math.floor(window.innerHeight * 0.22));
-    const max = Math.max(min + 80, Math.floor(window.innerHeight * 0.62));
-    const preferred = Math.min(Math.max(Math.floor(window.innerHeight * 0.36), min), max);
-    return { min, max, preferred };
-  };
-
-  const clampDecisionPanelHeight = (value: number): number => {
-    const { min, max } = resolveDecisionPanelHeightBounds();
-    return Math.min(Math.max(value, min), max);
-  };
+  const clampDecisionPanelHeight = (value: number): number => clampHeight(
+    value,
+    resolveDecisionPanelHeightBounds(typeof window === 'undefined' ? undefined : window.innerHeight),
+  );
 
   const startDecisionPanelResize = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (!showDecisionPanel || typeof window === 'undefined') return;
     event.preventDefault();
-    const { preferred } = resolveDecisionPanelHeightBounds();
+    const { preferred } = resolveDecisionPanelHeightBounds(window.innerHeight);
     const measuredHeight = decisionPanelBodyRef.current?.getBoundingClientRect().height ?? 0;
     const initial = clampDecisionPanelHeight(measuredHeight > 0 ? measuredHeight : (decisionPanelMaxHeight ?? preferred));
     decisionResizeStartYRef.current = event.clientY;

@@ -1,7 +1,9 @@
 import type { DictKey, Locale } from './index';
 import { t } from './index';
+import { createLogger } from '../observability/logger';
 
 const MESSAGE_CATALOG_CACHE_GLOBAL_KEY = '__JIEYU_MESSAGE_CATALOG_CACHE__';
+const log = createLogger('i18n.messageCatalog');
 
 function getCatalogCache(): Map<string, unknown> {
   const globalValue = globalThis as typeof globalThis & {
@@ -37,7 +39,8 @@ export function readMessageCatalog<T>(locale: Locale, key: DictKey): T {
       return crossLocaleCached as T;
     }
     if (import.meta.env.DEV) {
-      console.warn(`[i18n] readMessageCatalog(): fallback to empty catalog for key "${String(key)}".`, {
+      log.warn('readMessageCatalog(): fallback to empty catalog for key', {
+        key: String(key),
         locale,
         rawCatalog,
         error: error instanceof Error ? error.message : String(error),

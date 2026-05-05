@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { VoiceAgentMode } from '../services/VoiceAgentService';
 import { isDictKey, t, useLocale, type Locale } from '../i18n';
+import { createLogger } from '../observability/logger';
 
 // ── Toast variant & item ────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ const NOOP_TOAST_CONTEXT: ToastContextValue = {
   dismiss: () => undefined,
 };
 let hasWarnedAboutMissingToastProvider = false;
+const log = createLogger('ToastContext');
 
 export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
@@ -54,7 +56,7 @@ export function useToast(): ToastContextValue {
   if (runtimeMode === 'development') {
     if (!hasWarnedAboutMissingToastProvider) {
       hasWarnedAboutMissingToastProvider = true;
-      console.warn('[toast] Missing ToastProvider during hot reload; using a no-op fallback temporarily.');
+      log.warn('Missing ToastProvider during hot reload; using a no-op fallback temporarily.');
     }
     return NOOP_TOAST_CONTEXT;
   }

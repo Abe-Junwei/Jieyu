@@ -1,7 +1,9 @@
 import { normalizeAiChatSettings, type AiChatSettings } from '../providers/providerCatalog';
 import { browserAiChatKeyVault, type KeyVaultBackend } from './keyVault';
+import { createLogger } from '../../observability/logger';
 
 let activeAiChatKeyVault: KeyVaultBackend<AiChatSettings> = browserAiChatKeyVault;
+const log = createLogger('aiChatSettingsStorage');
 
 export function configureAiChatSettingsKeyVault(vault: KeyVaultBackend<AiChatSettings>): void {
   activeAiChatKeyVault = vault;
@@ -16,7 +18,7 @@ export async function loadAiChatSettingsFromStorage(): Promise<AiChatSettings> {
     const loaded = await activeAiChatKeyVault.load();
     return loaded ?? normalizeAiChatSettings();
   } catch (err) {
-    console.error('[Jieyu] aiChatSettingsStorage: failed to load settings from storage, using defaults', err);
+    log.error('failed to load settings from storage, using defaults', { err });
     return normalizeAiChatSettings();
   }
 }

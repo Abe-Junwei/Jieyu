@@ -6,9 +6,12 @@ import { App } from './App';
 import { initOtelForReleaseStage } from './observability/otel';
 import { initSentryForReleaseStage } from './observability/sentry';
 import { initLcpMetricObserver } from './observability/webVitals';
+import { createLogger } from './observability/logger';
 import { initIconEffect } from './utils/iconEffect';
 import { initTheme } from './utils/theme';
 import './styles/app-foundation.css';
+
+const log = createLogger('main');
 
 void initOtelForReleaseStage();
 void initSentryForReleaseStage();
@@ -27,9 +30,9 @@ void (async () => {
       const baseline = await langCache.fetchLanguageCatalogBaselineRuntimeCache();
       langCache.primeLanguageCatalogRuntimeCacheForSession(baseline);
     } catch (error) {
-      console.warn(
-        '[bootstrap] Failed to load language display baseline JSON; built-in language labels may be missing until reload or network recovery',
-        error,
+      log.warn(
+        'failed to load language display baseline JSON; built-in language labels may be missing until reload or network recovery',
+        { err: error },
       );
       langCache.primeLanguageCatalogRuntimeCacheForSession({
         entries: {},
@@ -39,7 +42,7 @@ void (async () => {
       });
     }
   } catch (error) {
-    console.warn('[bootstrap] Language geodata bootstrap failed unexpectedly', error);
+    log.warn('language geodata bootstrap failed unexpectedly', { err: error });
   }
 })();
 
@@ -75,7 +78,7 @@ void (async () => {
       import('./services/vad/VadMediaBackend.browser'),
     ]);
   } catch (error) {
-    console.warn('[bootstrap] i18n preload or VAD backend failed; mounting with zh-CN / VAD fallback if applicable', error);
+    log.warn('i18n preload or VAD backend failed; mounting with zh-CN / VAD fallback if applicable', { err: error });
   }
   mountApp();
 })();

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import '../styles/pages/ai-chat-window.css';
 import { normalizeLocale, t } from '../i18n';
@@ -61,9 +61,9 @@ export function TranscriptionPageChatWindow({
   const resizeStartRef = useRef<{ pointerX: number; pointerY: number; startWidth: number; startHeight: number } | null>(null);
   const windowRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const dialogId = useMemo(() => `ai-chat-window-${Math.random().toString(36).slice(2, 9)}`, []);
+  const dialogId = useId();
   const windowTitleId = `${dialogId}-title`;
-  const title = useMemo(() => t(uiLocale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, ''), [uiLocale]);
+  const title = t(uiLocale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, '');
   const aiChatState = assistantRuntimeProps.aiChatContextValue;
   const aiAssistantHubContextValue = useMemo(
     () => pickAiAssistantHubContextValue(aiChatState, DORMANT_VOICE_CONTEXT_FOR_CHAT_WINDOW),

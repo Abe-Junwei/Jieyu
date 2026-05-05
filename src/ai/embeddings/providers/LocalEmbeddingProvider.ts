@@ -11,6 +11,9 @@ import type { EmbeddingProvider, EmbeddingProviderCreateConfig } from '../Embedd
 import type { EmbeddingRuntimeOptions } from '../EmbeddingRuntime';
 import { WorkerEmbeddingRuntime } from '../EmbeddingRuntime';
 import { DEFAULT_LOCAL_EMBEDDING_DIMENSION, DEFAULT_LOCAL_EMBEDDING_MODEL_ID, getLocalEmbeddingModelDisplayName } from '../localEmbeddingModelConfig';
+import { createLogger } from '../../../observability/logger';
+
+const log = createLogger('LocalEmbeddingProvider');
 
 export class LocalEmbeddingProvider implements EmbeddingProvider {
   readonly kind = 'local';
@@ -48,7 +51,7 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
       await this.embed(['health-check']);
       return true;
     } catch (err) {
-      console.error('[Jieyu] LocalEmbeddingProvider: health check failed', err);
+      log.error('health check failed', { err });
       return false;
     }
   }

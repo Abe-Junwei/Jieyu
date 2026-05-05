@@ -39,7 +39,7 @@ describe('SidePaneLayerContext', () => {
 
     render(<MissingProviderProbe />);
 
-    // The warning is issued via console.warn
+    // The warning is emitted via logger warn level
     expect(capturedContext).toBeTruthy();
     expect(capturedContext!.deletableLayers).toEqual([]);
     expect(typeof capturedContext!.checkLayerHasContent).toBe('function');
@@ -83,7 +83,8 @@ describe('SidePaneLayerContext', () => {
   });
 
   it('warnOnMissing=false does not log warning', () => {
-    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const entries: LogEntry[] = [];
+    const unsubscribe = addLogObserver((entry) => entries.push(entry));
 
     const TestProbe = () => {
       useSidePaneLayerContextOrFallback({ warnOnMissing: false });
@@ -92,12 +93,13 @@ describe('SidePaneLayerContext', () => {
 
     render(<TestProbe />);
 
-    expect(consoleSpy).not.toHaveBeenCalled();
-    consoleSpy.mockRestore();
+    expect(entries.filter((entry) => entry.level == 'warn')).toHaveLength(0);
+    unsubscribe();
   });
 
   it('warnOnMissing=true logs warning', () => {
-    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const entries: LogEntry[] = [];
+    const unsubscribe = addLogObserver((entry) => entries.push(entry));
 
     const TestProbe = () => {
       useSidePaneLayerContextOrFallback({ warnOnMissing: true });
@@ -106,10 +108,9 @@ describe('SidePaneLayerContext', () => {
 
     render(<TestProbe />);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('SidePaneLayerContext is missing'),
-    );
-    consoleSpy.mockRestore();
+    const warnings = entries.filter((entry) => entry.level === 'warn').map((entry) => entry.message);
+    expect(warnings.some((message) => message.includes('SidePaneLayerContext is missing'))).toBe(true);
+    unsubscribe();
   });
 
   it('checkLayerHasContent calls the provided function', async () => {

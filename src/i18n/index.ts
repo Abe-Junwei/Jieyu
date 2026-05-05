@@ -1,4 +1,5 @@
 import { createContext, createElement, useContext, type ReactNode } from 'react';
+import { createLogger } from '../observability/logger';
 
 import { DICT_KEYS, type DictKey } from './dictKeys';
 
@@ -7,6 +8,7 @@ export type Locale = 'zh-CN' | 'en-US';
 export const LOCALE_PREFERENCE_STORAGE_KEY = 'jieyu.locale';
 
 const LocaleContext = createContext<Locale | null>(null);
+const log = createLogger('i18n.index');
 
 export function LocaleProvider({ locale, children }: { locale: Locale; children: ReactNode }) {
   return createElement(LocaleContext.Provider, { value: locale }, children);
@@ -145,10 +147,7 @@ export function tf(
     const value = params[name];
     if (value === undefined) {
       if (import.meta.env.DEV) {
-        console.warn(
-          `[i18n] tf(): missing template param "{${name}}" for dict key "${String(key)}"`,
-          { locale },
-        );
+        log.warn('tf(): missing template param for dict key', { name, key: String(key), locale });
       }
       return `[i18n missing: ${name}]`;
     }

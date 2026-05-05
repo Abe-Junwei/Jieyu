@@ -12,6 +12,7 @@ import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHubPreview';
 import { recordTranscriptionKeyboardAction } from '../../utils/transcriptionKeyboardActionTelemetry';
+import { createLogger } from '../../observability/logger';
 import { ModalPanel } from '../ui/ModalPanel';
 import { PanelButton } from '../ui/PanelButton';
 import { PanelChip } from '../ui/PanelChip';
@@ -86,6 +87,8 @@ interface LeftRailProjectHubProps {
   onExportJyt: () => Promise<void>;
   onExportJym: () => Promise<void>;
 }
+
+const log = createLogger('LeftRailProjectHub');
 
 function pickInsertEstimate(
   preview: JieyuArchiveImportPreview,
@@ -262,7 +265,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       setAnnotationImportState(null);
       setIsOpen(false);
     } catch (e) {
-      console.warn('Annotation file import failed', e);
+      log.warn('annotation file import failed', { err: e });
       setAnnotationImportState((prev) => (prev ? { ...prev, importing: false } : prev));
     }
   }, [annotationImportState, onImportAnnotationFile]);

@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { t, type Locale, useLocale } from '../i18n';
+import { createLogger } from '../observability/logger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -11,6 +12,8 @@ interface ErrorBoundaryImplProps extends ErrorBoundaryProps {
   locale: Locale;
 }
 
+const log = createLogger('ErrorBoundary');
+
 class ErrorBoundaryImpl extends Component<ErrorBoundaryImplProps, { error: Error | null }> {
   override state: { error: Error | null } = { error: null };
 
@@ -19,7 +22,7 @@ class ErrorBoundaryImpl extends Component<ErrorBoundaryImplProps, { error: Error
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Uncaught error:', error, info.componentStack);
+    log.error('uncaught error', { err: error, componentStack: info.componentStack });
   }
 
   private reset = () => this.setState({ error: null });

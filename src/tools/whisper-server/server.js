@@ -51,6 +51,14 @@ const CONFIG = {
   maxBodyBytes: parseInt(cliArgs['max-body-bytes'] ?? process.env.WHISPER_MAX_BODY_BYTES ?? String(25 * 1024 * 1024), 10),
 };
 
+function logInfo(...args) {
+  process.stdout.write(`${args.map((item) => String(item)).join(' ')}\n`);
+}
+
+function logError(...args) {
+  process.stderr.write(`${args.map((item) => String(item)).join(' ')}\n`);
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
@@ -306,7 +314,7 @@ async function handleRequest(req, res) {
         res.end(JSON.stringify({ error: { message: 'Request cancelled', type: 'aborted' } }));
         return;
       }
-      console.error('[whisper-server] transcription error:', err.message);
+      logError('[whisper-server] transcription error:', err.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: { message: err.message, type: 'internal_error' } }));
     }
@@ -321,22 +329,22 @@ async function handleRequest(req, res) {
 
 // Validate model
 if (!existsSync(CONFIG.model)) {
-  console.error(`[whisper-server] Model not found: ${CONFIG.model}`);
-  console.error(`  Download a model from: https://huggingface.co/ggerganov/whisper.cpp/tree/main`);
+  logError(`[whisper-server] Model not found: ${CONFIG.model}`);
+  logError('  Download a model from: https://huggingface.co/ggerganov/whisper.cpp/tree/main');
   process.exit(1);
 }
 
 const server = createServer(handleRequest);
 server.listen(CONFIG.port, () => {
-  console.log(`[whisper-server] listening on http://localhost:${CONFIG.port}`);
-  console.log(`[whisper-server] model: ${CONFIG.model}`);
-  console.log(`[whisper-server] default language: ${CONFIG.defaultLang}`);
-  console.log(`[whisper-server] endpoints:`);
-  console.log(`  POST /v1/audio/transcriptions  (OpenAI-compatible)`);
-  console.log(`  GET  /v1/models                (health check)`);
+  logInfo(`[whisper-server] listening on http://localhost:${CONFIG.port}`);
+  logInfo(`[whisper-server] model: ${CONFIG.model}`);
+  logInfo(`[whisper-server] default language: ${CONFIG.defaultLang}`);
+  logInfo('[whisper-server] endpoints:');
+  logInfo('  POST /v1/audio/transcriptions  (OpenAI-compatible)');
+  logInfo('  GET  /v1/models                (health check)');
 });
 
 server.on('error', (err) => {
-  console.error('[whisper-server] server error:', err.message);
+  logError('[whisper-server] server error:', err.message);
   process.exit(1);
 });

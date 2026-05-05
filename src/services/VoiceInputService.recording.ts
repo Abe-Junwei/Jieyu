@@ -336,7 +336,7 @@ export class RecordingExecutor {
         });
 
         if (!resp.ok) {
-          const text = await resp.text().catch((e) => { console.warn('VoiceInput STT: failed to read error response body', e); return ''; });
+          const text = await resp.text().catch((e) => { log.warn('VoiceInput STT: failed to read error response body', { err: e }); return ''; });
           failures.push(`${endpoint} -> ${resp.status} ${text}`.trim());
           continue;
         }

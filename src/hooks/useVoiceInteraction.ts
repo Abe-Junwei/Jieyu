@@ -28,12 +28,15 @@ import { getVoiceInteractionMessages } from '../i18n/messages';
 import { useGlobalContext } from '../services/GlobalContextService';
 import { useToast } from '../contexts/ToastContext';
 import { isAssistantWebSpeechTtsSupported, speakAssistantReplyWithWebSpeechTts, stopAssistantWebSpeechTts } from '../utils/assistantWebSpeechTts';
+import { createLogger } from '../observability/logger';
 
 interface VoiceMessageLike {
   role?: string;
   status?: string;
   content?: string;
 }
+
+const log = createLogger('useVoiceInteraction');
 
 interface VoiceSelectionLike extends TranscriptionVoiceSelectionSnapshot {}
 
@@ -113,7 +116,7 @@ function formatLanguageLabel(code: string): string {
   try {
     return new Intl.DisplayNames(['zh-CN', 'en'], { type: 'language' }).of(code) || code;
   } catch (err) {
-    console.error('[Jieyu] useVoiceInteraction: formatLanguageLabel failed', { code, err });
+    log.error('formatLanguageLabel failed', { code, err });
     return code;
   }
 }

@@ -2,8 +2,10 @@ import type { JieyuDatabase, SpeakerDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { newId, parseBcp47 } from '../utils/transcriptionFormatters';
+import { createLogger } from '../observability/logger';
 
 const EAF_META_TIER_FIELD = 'tier' + 'Id';
+const log = createLogger('useImportExport.importHelpers');
 
 export function withEafKeyMeta(baseKey: string, meta?: { externalTierId?: string; langLabel?: string }): string {
   if (!meta) return baseKey;
@@ -113,7 +115,7 @@ export async function writeImportLayerNameAudit(input: {
       }),
     });
   } catch (auditErr) {
-    console.warn('[Import] Failed to write language-name audit log', auditErr);
+    log.warn('failed to write language-name audit log', { err: auditErr });
   }
 }
 

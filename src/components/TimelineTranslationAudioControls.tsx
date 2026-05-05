@@ -3,6 +3,7 @@ import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_MD } from '../utils/jieyuMaterialIcon';
 import type { MediaItemDocType } from '../db';
 import { t, useLocale } from '../i18n';
+import { createLogger } from '../observability/logger';
 import { readAudioBlobFromDetails } from '../utils/translationRecordingMediaBlob';
 
 export interface TimelineTranslationAudioControlsProps {
@@ -16,6 +17,8 @@ export interface TimelineTranslationAudioControlsProps {
   /** 混合翻译层：将当前录音转写为文本（由父级按 `layer.modality === 'mixed'` 决定是否传入） */
   onTranscribeRecording?: () => void | Promise<void>;
 }
+
+const log = createLogger('TimelineTranslationAudioControls');
 
 function resolveMediaAudioBlob(mediaItem?: MediaItemDocType): Blob | null {
   return readAudioBlobFromDetails(mediaItem?.details);
@@ -122,7 +125,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
       }
       setIsPlaying(true);
     } catch (e) {
-      console.warn('Translation audio play failed', e);
+      log.warn('translation audio play failed', { err: e });
       setIsPlaying(false);
     }
   };
@@ -140,7 +143,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
     try {
       await Promise.resolve(onTranscribeRecording());
     } catch (e) {
-      console.warn('Translation audio transcribe failed', e);
+      log.warn('translation audio transcribe failed', { err: e });
     } finally {
       setTranscribing(false);
     }

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranscriptionCollaborationBridge } from './useTranscriptionCollaborationBridge';
 import { useCloudSyncAutoSnapshot } from './useCloudSyncAutoSnapshot';
 import { generateTraceId } from '../observability/aiTrace';
+import { createLogger } from '../observability/logger';
 import { LinguisticService } from '../services/LinguisticService';
 import {
 	CollaborationPresenceService,
@@ -66,6 +67,8 @@ import {
 	type CollaborationCloudDirectoryMember,
 	type CollaborationCloudDirectoryProject,
 } from '../collaboration/cloud/collaborationSyncDerived';
+
+const log = createLogger('useTranscriptionCloudSyncActions');
 
 interface ApplyRemoteChangeOptions {
 	skipLoadSnapshot?: boolean;
@@ -199,7 +202,7 @@ export function useTranscriptionCloudSyncActions({
 		if (logs.length === 0) return;
 		setConflictOperationLogs((prev) => mergeOperationLogs([...prev, ...logs]).slice(-200));
 		void persistCollaborationOperationLogs(logs).catch((error) => {
-			console.warn('[collaboration] failed to persist conflict operation logs', error);
+			log.warn('failed to persist conflict operation logs', { err: error });
 		});
 	}, []);
 
@@ -743,7 +746,7 @@ export function useTranscriptionCloudSyncActions({
 		};
 
 		void bootstrapPresence().catch((error) => {
-			console.warn('[CloudSync] failed to connect presence:', error);
+			log.warn('failed to connect presence', { err: error });
 		});
 
 		return () => {
@@ -763,7 +766,7 @@ export function useTranscriptionCloudSyncActions({
 					await persistPresencePatch({ state: 'offline' });
 					latestPresenceStateRef.current = 'offline';
 				} catch (error) {
-					console.warn('[CloudSync] failed to mark presence offline:', error);
+					log.warn('failed to mark presence offline', { err: error });
 				} finally {
 					await current.disconnect();
 					if (presenceServiceRef.current === current) {
@@ -807,7 +810,7 @@ export function useTranscriptionCloudSyncActions({
 				latestPresenceStateRef.current = focusState;
 			})
 			.catch((error) => {
-				console.warn('[CloudSync] failed to update presence focus:', error);
+				log.warn('failed to update presence focus', { err: error });
 			});
 	}, [
 		isBridgeReady,
@@ -845,7 +848,7 @@ export function useTranscriptionCloudSyncActions({
 					latestPresenceStateRef.current = nextState;
 				})
 				.catch((error) => {
-					console.warn('[CloudSync] failed to sync visibility presence state:', error);
+					log.warn('failed to sync visibility presence state', { err: error });
 				});
 		};
 
@@ -914,7 +917,7 @@ export function useTranscriptionCloudSyncActions({
 								latestRevision = Math.max(latestRevision, latestSnapshot.changeCursor);
 							}
 						} catch (error) {
-							console.warn('[CloudSync] snapshot hydration skipped:', error);
+							log.warn('snapshot hydration skipped', { err: error });
 						}
 					}
 				}
@@ -968,7 +971,7 @@ export function useTranscriptionCloudSyncActions({
 			if (autoHydrationRunningProjectIdRef.current === collaborationProjectId) {
 				autoHydrationRunningProjectIdRef.current = null;
 			}
-			console.warn('[CloudSync] failed to hydrate from cloud snapshot/timeline:', error);
+			log.warn('failed to hydrate from cloud snapshot/timeline', { err: error });
 		});
 
 		return () => {

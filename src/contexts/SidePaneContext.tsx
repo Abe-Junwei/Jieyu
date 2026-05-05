@@ -13,6 +13,7 @@
 
 import { createContext, useContext, useMemo } from 'react';
 import type { LayerDocType } from '../db';
+import { createLogger } from '../observability/logger';
 
 // ── Context Value Type ────────────────────────────────────────────────────────
 
@@ -30,11 +31,12 @@ const SidePaneLayerContext = createContext<SidePaneLayerContextValue | null>(nul
 const MISSING_PROVIDER_MESSAGE = 'SidePaneLayerContext is missing. Use useLayerDeleteConfirmProps or wrap with SidePaneLayerProvider.';
 
 let hasLoggedMissingProvider = false;
+const log = createLogger('SidePaneContext');
 
 function reportMissingProvider(): void {
   if (hasLoggedMissingProvider) return;
   hasLoggedMissingProvider = true;
-  console.warn(MISSING_PROVIDER_MESSAGE);
+  log.warn(MISSING_PROVIDER_MESSAGE);
 }
 
 export function resetSidePaneLayerContextDiagnosticsForTests(): void {

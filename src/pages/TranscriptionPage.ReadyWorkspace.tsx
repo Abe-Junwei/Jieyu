@@ -512,13 +512,13 @@ function TranscriptionPageReadyWorkspace({
     videoRightPanelWidth,
   });
 
-  const onSelectWorkspaceHorizontalLayout = useCallback(() => {
+  const onSelectWorkspaceHorizontalLayout = () => {
     setVerticalViewEnabled(false);
-  }, [setVerticalViewEnabled]);
+  };
 
-  const onSelectWorkspaceVerticalLayout = useCallback(() => {
+  const onSelectWorkspaceVerticalLayout = () => {
     setVerticalViewEnabled(true);
-  }, [setVerticalViewEnabled]);
+  };
 
   const {
     displayStyleControl,

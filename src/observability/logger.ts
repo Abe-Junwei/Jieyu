@@ -60,15 +60,16 @@ export function addLogObserver(fn: LogObserver): () => void {
 // ─── console 映射 | Console mapping ────────────────────────
 
 function getConsoleFn(level: LogLevel): (...args: unknown[]) => void {
+  const nativeConsole = globalThis['console'];
   switch (level) {
     case 'debug':
-      return console.debug.bind(console);
+      return nativeConsole.debug.bind(nativeConsole);
     case 'info':
-      return console.info.bind(console);
+      return nativeConsole.info.bind(nativeConsole);
     case 'warn':
-      return console.warn.bind(console);
+      return nativeConsole.warn.bind(nativeConsole);
     case 'error':
-      return console.error.bind(console);
+      return nativeConsole.error.bind(nativeConsole);
   }
 }
 

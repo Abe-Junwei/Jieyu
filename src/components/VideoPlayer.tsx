@@ -4,6 +4,7 @@ import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_PLAY } from '../utils/jieyuMat
 import { useVideoPlayer } from '../hooks/useVideoPlayer';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
 import { t, useLocale } from '../i18n';
+import { createLogger } from '../observability/logger';
 
 type VideoPlayerProps = {
   mediaUrl: string | undefined;
@@ -31,6 +32,8 @@ const VIDEO_PROGRESS_BAR_RADIUS = 30;
 const VIDEO_PROGRESS_THUMB_RADIUS = 70;
 
 type VideoFitMode = 'fit' | 'fill' | 'original';
+
+const log = createLogger('VideoPlayer');
 
 function formatTime(seconds: number): string {
   if (!isFinite(seconds) || isNaN(seconds)) return '0:00';
@@ -65,7 +68,7 @@ export function VideoPlayer({
       if (stored === 'fill' || stored === 'original') return stored as VideoFitMode;
       return 'fit';
     } catch (err) {
-      console.error('[Jieyu] VideoPlayer: failed to read video fit mode from localStorage, using default', err);
+      log.error('failed to read video fit mode from localStorage, using default', { err });
       return 'fit';
     }
   });
@@ -75,7 +78,7 @@ export function VideoPlayer({
       if (typeof window === 'undefined') return;
       window.localStorage.setItem(VIDEO_FIT_MODE_STORAGE_KEY, videoFitMode);
     } catch (err) {
-      console.error('[Jieyu] VideoPlayer: failed to persist video fit mode to localStorage', err);
+      log.error('failed to persist video fit mode to localStorage', { err });
     }
   }, [videoFitMode]);
 

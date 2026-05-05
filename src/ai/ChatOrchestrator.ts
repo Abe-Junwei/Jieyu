@@ -6,6 +6,9 @@ import type {
   TraceContextHeaders,
 } from './providers/LLMProvider';
 import { generateTraceId, startAiTraceSpan, type ActiveSpan } from '../observability/aiTrace';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('ChatOrchestrator');
 
 export interface SendMessageInput {
   history: ChatMessage[];
@@ -75,12 +78,12 @@ function assembleMessages(input: SendMessageInput): ChatMessage[] {
   if (systemPrompt.length > 0) {
     nextMessages.push({ role: 'system', content: systemPrompt });
   } else if (import.meta.env.DEV && input.systemPrompt != null) {
-    console.debug('[ChatOrchestrator] systemPrompt trimmed to empty, skipped');
+    log.debug('systemPrompt trimmed to empty, skipped');
   }
 
   for (const msg of input.history) {
     if (trimMessageContent(msg.content).length === 0) {
-      if (import.meta.env.DEV) console.debug('[ChatOrchestrator] skipped empty history message', msg.role);
+      if (import.meta.env.DEV) log.debug('skipped empty history message', { role: msg.role });
       continue;
     }
     nextMessages.push(msg);

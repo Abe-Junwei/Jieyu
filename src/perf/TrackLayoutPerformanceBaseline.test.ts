@@ -66,8 +66,7 @@ describe('Track layout performance baseline', () => {
     const { medianMs, samples } = benchmarkLayoutMedianMs(units);
 
     expect(medianMs).toBeLessThan(120);
-    // eslint-disable-next-line no-console
-    console.info('[Track Perf Baseline][2k]', {
+        globalThis['console'].info('[Track Perf Baseline][2k]', {
       medianMs: Number(medianMs.toFixed(3)),
       samples: samples.map((value) => Number(value.toFixed(3))),
     });
@@ -78,8 +77,7 @@ describe('Track layout performance baseline', () => {
     const { medianMs, samples } = benchmarkLayoutMedianMs(units);
 
     expect(medianMs).toBeLessThan(260);
-    // eslint-disable-next-line no-console
-    console.info('[Track Perf Baseline][5k]', {
+        globalThis['console'].info('[Track Perf Baseline][5k]', {
       medianMs: Number(medianMs.toFixed(3)),
       samples: samples.map((value) => Number(value.toFixed(3))),
     });

@@ -7,6 +7,7 @@ import { useLocale } from '../i18n';
 import { getBatchOperationPanelMessages } from '../i18n/messages';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import { DialogOverlay, DialogShell, FormField, PanelButton, PanelChip, PanelSection, PanelSummary } from './ui';
+import { createLogger } from '../observability/logger';
 
 type BatchTab = 'offset' | 'scale' | 'split' | 'merge';
 type PreviewScope = 'selected' | 'layer-all';
@@ -31,6 +32,8 @@ type PreviewResult = {
   okCount: number;
   globalMessage: string;
 };
+
+const log = createLogger('BatchOperationPanel');
 
 interface BatchOperationPanelProps {
   selectedCount: number;
@@ -393,7 +396,7 @@ export function BatchOperationPanel({
         const normalizedFlags = [...new Set(`${regexFlags}g`.split(''))].join('');
         splitter = new RegExp(rawPattern, normalizedFlags);
       } catch (err) {
-        console.error('[Jieyu] BatchOperationPanel: invalid regex pattern', { rawPattern, regexFlags, err });
+        log.error('invalid regex pattern', { rawPattern, regexFlags, err });
         return {
           rows: [],
           blockingCount: 1,

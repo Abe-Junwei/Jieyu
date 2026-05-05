@@ -1,5 +1,6 @@
 import type { LayerDocType, LayerUnitDocType } from '../db';
 import { resolveSegmentTimelineSourceLayer, type SegmentTimelineHostLink } from '../hooks/useLayerSegments';
+import { createLogger } from '../observability/logger';
 
 export interface SegmentTimelineFallbackDiagnosticEvent {
   layerId: string;
@@ -11,12 +12,13 @@ const segmentTimelineFallbackDiagnostics = {
   total: 0,
   lastEvent: null as SegmentTimelineFallbackDiagnosticEvent | null,
 };
+const log = createLogger('timelineLaneSegmentIteration');
 
 function recordSegmentTimelineFallbackDiagnostic(event: SegmentTimelineFallbackDiagnosticEvent): void {
   segmentTimelineFallbackDiagnostics.total += 1;
   segmentTimelineFallbackDiagnostics.lastEvent = event;
   if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
-    console.debug('[timeline-segment-fallback] source layer unresolved, fallback to unit timeline', event);
+    log.debug('source layer unresolved, fallback to unit timeline', { event });
   }
 }
 

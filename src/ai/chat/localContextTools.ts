@@ -9,9 +9,12 @@ import { WorkspaceReadModelService } from '../../services/WorkspaceReadModelServ
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
 import { AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS1, AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS2, AI_AGENT_LOOP_MATCH_TRANSCRIPTION_PREVIEW_MAX_CHARS, AI_AGENT_LOOP_PAYLOAD_SHRINK_MAX_STEPS, AI_AGENT_LOOP_USER_REQUEST_MAX_CHARS, AI_LOCAL_TOOL_RESULT_CHAR_BUDGET } from '../../hooks/useAiChat.config';
 import { generateTraceId, startAiTraceSpan } from '../../observability/aiTrace';
+import { createLogger } from '../../observability/logger';
 import { createMetricTags, recordMetric } from '../../observability/metrics';
 import { buildLocalToolReadModelMeta } from './localContextToolReadModelMeta';
 import { createListUnitsSnapshot, getListUnitsSnapshot, LIST_UNITS_SNAPSHOT_ROW_THRESHOLD, type ListUnitsSnapshotRow } from './localContextListUnitsSnapshotStore';
+
+const log = createLogger('localContextTools');
 
 export type LocalContextToolName =
   | 'get_current_selection'
@@ -1211,7 +1214,7 @@ function buildListUnitsPageResult(
   const expectedTotal = resolveExpectedTotalForScope(context, scope);
   if (typeof expectedTotal === 'number' && Number.isFinite(expectedTotal) && normalized.length !== expectedTotal) {
     if (import.meta.env.DEV) {
-      console.warn('[timeline_unit_count_mismatch]', { tool: 'list_units', total: normalized.length, expectedTotal });
+      log.warn('timeline unit count mismatch', { tool: 'list_units', total: normalized.length, expectedTotal });
     }
     recordMetric({
       id: 'ai.timeline_unit_count_mismatch',

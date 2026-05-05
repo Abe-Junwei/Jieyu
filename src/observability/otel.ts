@@ -1,5 +1,6 @@
 import { createMetricTags, recordMetric } from './metrics';
 import { isSensitiveObservabilityKey, scrubSensitiveQueryParams } from './sensitiveKeyPolicy';
+import { createLogger } from './logger';
 
 export interface OtelBootstrapEnv {
   PROD: boolean;
@@ -46,6 +47,7 @@ let otelConsecutiveExportFailures = 0;
 let otelExportCircuitOpen = false;
 let otelCircuitResetTimer: ReturnType<typeof setTimeout> | null = null;
 const OTEL_CIRCUIT_RESET_COOLDOWN_MS = 30_000;
+const log = createLogger('observability.otel');
 
 function scheduleOtelCircuitHalfOpenProbe(): void {
   if (otelCircuitResetTimer !== null) {
@@ -57,7 +59,7 @@ function scheduleOtelCircuitHalfOpenProbe(): void {
     if (otelExportCircuitOpen) {
       otelExportCircuitOpen = false;
       otelConsecutiveExportFailures = 0;
-      console.info('[Jieyu] OTel exporter circuit: cooldown elapsed; re-enabling trace export attempts.');
+      log.info('OTel exporter circuit: cooldown elapsed; re-enabling trace export attempts.');
     }
   }, OTEL_CIRCUIT_RESET_COOLDOWN_MS);
 }
@@ -138,7 +140,7 @@ function createCircuitBreakerSpanExporter(
           safeRecordOtelMetric('ai.trace.otel_circuit_open_count', 1, {
             threshold: failureThreshold,
           });
-          console.warn('[Jieyu] OTel exporter circuit opened after consecutive export failures.');
+          log.warn('OTel exporter circuit opened after consecutive export failures.');
           scheduleOtelCircuitHalfOpenProbe();
         }
 
@@ -294,7 +296,7 @@ export async function initOtelWithResolvedConfig(
       safeRecordOtelMetric('ai.trace.otel_bootstrap_failure_count', 1, {
         reason: 'missing_runtime_exports',
       });
-      console.warn('[Jieyu] OTel bootstrap skipped: required SDK exports are unavailable.');
+      log.warn('OTel bootstrap skipped: required SDK exports are unavailable.');
       return;
     }
 
@@ -348,13 +350,13 @@ export async function initOtelWithResolvedConfig(
     safeRecordOtelMetric('ai.trace.otel_bootstrap_failure_count', 1, {
       reason: 'register_unavailable',
     });
-    console.warn('[Jieyu] OTel bootstrap skipped: tracer provider register() is unavailable.');
+    log.warn('OTel bootstrap skipped: tracer provider register() is unavailable.');
   } catch (error) {
     // OTel 初始化失败不应阻塞应用启动 | OTel initialization failure must not block app startup
     safeRecordOtelMetric('ai.trace.otel_bootstrap_failure_count', 1, {
       reason: 'init_exception',
     });
-    console.warn('[Jieyu] OTel bootstrap failed; tracing disabled for this session.', error);
+    log.warn('OTel bootstrap failed; tracing disabled for this session.', { err: error });
   }
 }
 

@@ -18,6 +18,7 @@ import { buildWaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOve
 import { vadCache } from '../app/transcriptionServicesPageAccess';
 import { formatRecentActions } from '../hooks/useEditEventBuffer';
 import { createMetricTags, recordMetric } from '../observability/metrics';
+import { createLogger } from '../observability/logger';
 import { createTranscriptionAiReadModelAccessors } from './transcriptionAiReadModelAccessors';
 import { buildOwnerUnitCandidates, resolveExplicitOwnerUnitForAi, resolveOwnerUnitForAi, resolveWritableAiTargetId } from './transcriptionAiSelectionResolver';
 import type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult, VoiceAssistantToolCallHandler } from './transcriptionAiController.types';
@@ -32,6 +33,8 @@ import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWo
 import { useTranscriptionAiAcousticBatchRanges } from './useTranscriptionAiAcousticBatchRanges';
 import { useTranscriptionAiAudioTimeRef } from './useTranscriptionAiAudioTimeRef';
 export type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult } from './transcriptionAiController.types';
+
+const log = createLogger('useTranscriptionAiController');
 
 export function useTranscriptionAiController(
   input: UseTranscriptionAiControllerInput,
@@ -241,7 +244,7 @@ export function useTranscriptionAiController(
     }
     if (typeof input.authoritativeUnitCount === 'number' && Number.isFinite(input.authoritativeUnitCount) && effectiveUnitIndex.totalCount !== input.authoritativeUnitCount) {
       if (import.meta.env.DEV) {
-        console.warn('[timeline_unit_count_mismatch]', {
+        log.warn('timeline unit count mismatch', {
           source: 'useTranscriptionAiController',
           indexTotalCount: effectiveUnitIndex.totalCount,
           authoritativeUnitCount: input.authoritativeUnitCount,

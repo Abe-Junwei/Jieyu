@@ -40,10 +40,11 @@ describe('ToastContext', () => {
 
   describe('useToast throws outside provider', () => {
     it('throws when useToast is called outside ToastProvider', () => {
-      const orig = console.error;
-      console.error = vi.fn();
+      const nativeConsole = globalThis['console'];
+      const orig = nativeConsole.error;
+      nativeConsole.error = vi.fn();
       expect(() => render(<TestConsumer />)).toThrow('useToast must be used within <ToastProvider>');
-      console.error = orig;
+      nativeConsole.error = orig;
     });
   });
 

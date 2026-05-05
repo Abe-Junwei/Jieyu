@@ -305,7 +305,7 @@ export function useTranscriptionLayerActions({
       return false;
     }
     if (constraint.warning) {
-      console.warn('[LayerConstraint]', constraint.warning);
+      log.warn('layer constraint warning', { warning: constraint.warning });
     }
 
     const suffix = Math.random().toString(36).slice(2, 7);

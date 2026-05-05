@@ -28,6 +28,7 @@ import {
   saveProjectLastSeenRevision,
 } from '../collaboration/cloud/CollaborationClientStateStore';
 import { getSupabaseBrowserClient, getSupabaseUserId, hasSupabaseBrowserClientConfig } from '../collaboration/cloud/collaborationSupabaseFacade';
+import { createLogger } from '../observability/logger';
 
 interface UseTranscriptionCollaborationBridgeParams {
   enabled: boolean;
@@ -66,6 +67,8 @@ export interface TranscriptionCollaborationMutationInput {
   payload?: Record<string, unknown>;
   payloadRefPath?: string;
 }
+
+const log = createLogger('useTranscriptionCollaborationBridge');
 
 function requireBridgeInstance(bridge: CollaborationSyncBridge | null): CollaborationSyncBridge {
   if (!bridge) {
@@ -200,7 +203,7 @@ export function useTranscriptionCollaborationBridge({
 
       const actorId = await getSupabaseUserId();
       if (!actorId) {
-        console.warn('[TranscriptionCollaborationBridge] skip bridge bootstrap without authenticated user');
+        log.warn('skip bridge bootstrap without authenticated user');
         return;
       }
       if (disposed) return;
@@ -209,7 +212,7 @@ export function useTranscriptionCollaborationBridge({
 
       const { guard, error: projectGuardError } = await loadProtocolGuardFromCloud(normalizedProjectId);
       if (projectGuardError) {
-        console.warn('[TranscriptionCollaborationBridge] failed to load project protocol guard:', projectGuardError);
+        log.warn('failed to load project protocol guard', { err: projectGuardError });
       }
       if (disposed) return;
       applyProtocolGuard(guard);
@@ -246,10 +249,7 @@ export function useTranscriptionCollaborationBridge({
             const detail = writeGuardRef.current.reasons.length > 0
               ? writeGuardRef.current.reasons.join('; ')
               : 'cloud-writes-disabled';
-            console.warn(
-              '[TranscriptionCollaborationBridge] suppressed project_changes insert (protocol guard):',
-              writeGuardRef.current.reasons,
-            );
+            log.warn('suppressed project_changes insert (protocol guard)', { reasons: writeGuardRef.current.reasons });
             throw new Error(`Collaboration cloud writes are disabled: ${detail}`);
           }
           const rows = changes.map(toChangeInsertRow);
@@ -257,7 +257,7 @@ export function useTranscriptionCollaborationBridge({
           if (error) throw error;
         },
         onError: (error, context) => {
-          console.warn('[CollaborationSyncBridge] runtime error:', context, error);
+          log.warn('CollaborationSyncBridge runtime error', { context, err: error });
         },
       });
 
@@ -273,7 +273,7 @@ export function useTranscriptionCollaborationBridge({
     };
 
     void startBridge().catch((error: unknown) => {
-      console.warn('[TranscriptionCollaborationBridge] failed to start bridge:', error);
+      log.warn('failed to start bridge', { err: error });
     });
 
     return () => {
@@ -335,10 +335,7 @@ export function useTranscriptionCollaborationBridge({
     const bridge = bridgeRef.current;
     if (!codec || !bridge) return;
     if (writeGuardRef.current.cloudWritesDisabled) {
-      console.warn(
-        '[TranscriptionCollaborationBridge] suppressed local collaboration mutation (protocol guard):',
-        writeGuardRef.current.reasons,
-      );
+      log.warn('suppressed local collaboration mutation (protocol guard)', { reasons: writeGuardRef.current.reasons });
       return;
     }
 

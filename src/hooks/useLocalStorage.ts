@@ -1,4 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('useLocalStorage');
 
 /**
  * useLocalStorage - Hook for syncing state with window.localStorage
@@ -17,7 +20,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
-      console.warn(`Error reading localStorage key "${key}":`, error);
+      log.warn('error reading localStorage key', { key, err: error });
       return initialValue;
     }
   });
@@ -42,7 +45,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
       }
     } catch (error) {
-      console.warn(`Error setting localStorage key "${key}":`, error);
+      log.warn('error setting localStorage key', { key, err: error });
     }
   }, [key]);
 
@@ -54,7 +57,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
         window.localStorage.removeItem(key);
       }
     } catch (error) {
-      console.warn(`Error removing localStorage key "${key}":`, error);
+      log.warn('error removing localStorage key', { key, err: error });
     }
   }, [key, initialValue]);
 

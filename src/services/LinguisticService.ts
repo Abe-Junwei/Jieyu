@@ -58,6 +58,12 @@ import {
   normalizeTextTimeMapping,
   previewTextTimeMapping as previewTextTimeMappingImpl,
 } from './LinguisticService.timeMapping';
+import {
+  loadLanguageCatalogService,
+  loadOrthographyService,
+  loadStructuralProfileService,
+  loadTierService,
+} from './linguisticServiceLazyLoaders';
 import type {
   PreviewTextTimeMappingInput,
   PreviewTextTimeMappingResult,
@@ -94,29 +100,15 @@ export type {
 
 import { resolveLanguageQuery as resolveLanguageQueryImpl, searchLanguageCatalog } from '../utils/langMapping';
 import { previewOrthographyBridge as previewOrthographyBridgeText } from '../utils/orthographyBridges';
+import { createLogger } from '../observability/logger';
 export type {
   LanguageCatalogMatch,
   LanguageCatalogMatchSource,
   LanguageSearchLocale,
 } from '../utils/langMapping';
 
-function loadTierService() {
-  return import('./LinguisticService.tiers');
-}
-
-function loadOrthographyService() {
-  return import('./LinguisticService.orthography');
-}
-
-function loadStructuralProfileService() {
-  return import('./LinguisticService.structuralProfiles');
-}
-
-function loadLanguageCatalogService() {
-  return import('./LinguisticService.languageCatalog');
-}
-
 let deferredLanguageCatalogRefreshScheduled = false;
+const log = createLogger('LinguisticService');
 
 /** 词典 → 转写深链：由 `token_lexeme_links` 解析出的可跳转时间轴单元 | Lexicon → transcription deep-link row */
 export interface LexemeTranscriptionJumpTarget {
@@ -1329,7 +1321,7 @@ export class LinguisticService {
           void loadLanguageCatalogService()
             .then((service) => service.refreshLanguageCatalogReadModel())
             .catch((error) => {
-              console.error('Failed to refresh language catalog read model from deferred wrapper:', error);
+              log.error('failed to refresh language catalog read model from deferred wrapper', { err: error });
             });
         }, 0);
       }

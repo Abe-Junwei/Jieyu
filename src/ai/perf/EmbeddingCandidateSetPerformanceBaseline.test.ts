@@ -110,8 +110,7 @@ describe('Embedding candidate-set performance baseline', () => {
     // Instrumented coverage runs inflate IndexedDB + search time; tight budget only for `npm test` / `vitest run`.
     const perfBudgetMs = coverageRelaxed ? 180_000 : 8_250;
     expect(elapsedMs).toBeLessThan(perfBudgetMs);
-    // eslint-disable-next-line no-console
-    console.info('[Embedding Candidate Perf Baseline]', {
+        globalThis['console'].info('[Embedding Candidate Perf Baseline]', {
       elapsedMs: Number(elapsedMs.toFixed(3)),
       total,
       candidates: candidateIds.length,

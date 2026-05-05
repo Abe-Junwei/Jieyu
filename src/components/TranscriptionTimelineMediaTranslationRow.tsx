@@ -9,6 +9,7 @@ import { TimelineTranslationAudioControls } from './TimelineTranslationAudioCont
 import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 import { t, useLocale } from '../i18n';
 import { useMediaTranslationLaneRowDraftAutosave } from '../hooks/useTimelineLaneTextDraftAutosave';
+import { createLogger } from '../observability/logger';
 
 interface TranscriptionTimelineMediaTranslationRowProps {
   item: TimelineUnitView;
@@ -58,6 +59,8 @@ interface TranscriptionTimelineMediaTranslationRowProps {
   ) => React.ReactNode;
 }
 
+const log = createLogger('TranscriptionTimelineMediaTranslationRow');
+
 export function TranscriptionTimelineMediaTranslationRow({
   item,
   layer,
@@ -98,7 +101,7 @@ export function TranscriptionTimelineMediaTranslationRow({
       await saveTask();
       setRowSaveStatus(undefined);
     } catch (err) {
-      console.error('[Jieyu] TranscriptionTimelineMediaTranslationRow: save failed', { cellKey: rowCellKey, err });
+      log.error('save failed', { cellKey: rowCellKey, err });
       setRowSaveStatus('error');
     }
   }, [rowCellKey, setRowSaveStatus]);

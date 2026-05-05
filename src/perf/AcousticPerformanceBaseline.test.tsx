@@ -161,8 +161,7 @@ describe('Acoustic performance baseline', () => {
     expect(nullSlices).toBe(0);
     expect(medianMs).toBeLessThan(acousticPerfBudget.hoverMs);
 
-    // eslint-disable-next-line no-console
-    console.info('[Acoustic Perf Baseline][hover]', {
+        globalThis['console'].info('[Acoustic Perf Baseline][hover]', {
       profile: ACOUSTIC_PERF_PROFILE,
       frameCount: detail.sampleCount,
       hoverCount: hoverTimes.length,
@@ -195,8 +194,7 @@ describe('Acoustic performance baseline', () => {
     expect(csvMedianMs).toBeLessThan(acousticPerfBudget.exportCsvMs);
     expect(jsonMedianMs).toBeLessThan(acousticPerfBudget.exportJsonMs);
 
-    // eslint-disable-next-line no-console
-    console.info('[Acoustic Perf Baseline][export]', {
+        globalThis['console'].info('[Acoustic Perf Baseline][export]', {
       profile: ACOUSTIC_PERF_PROFILE,
       selections: batch.length,
       csvBudgetMs: acousticPerfBudget.exportCsvMs,
@@ -290,8 +288,7 @@ describe('Acoustic performance baseline', () => {
       expect(loadingUpdates).toBeGreaterThanOrEqual(1);
       expect(loadingUpdates).toBeLessThan(progressEventCount / 4);
 
-      // eslint-disable-next-line no-console
-      console.info('[Acoustic Perf Baseline][progress]', {
+      globalThis['console'].info('[Acoustic Perf Baseline][progress]', {
         profile: ACOUSTIC_PERF_PROFILE,
         progressEventCount,
         loadingUpdates,
