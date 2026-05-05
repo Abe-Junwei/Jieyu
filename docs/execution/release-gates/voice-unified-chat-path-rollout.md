@@ -37,6 +37,33 @@ npx vitest run src/hooks/useVoiceAgentResultHandler.test.ts
 - **何时可标 release-stable**：连续 **N** 个发布周期（建议 **2**，可由 release owner 在发版记录中写明）内，未出现 **P0** 级「manifest 健康 / 引擎降级」故障（定义见 [C 阶段 AI 治理完整落地方案](../plans/C阶段AI治理完整落地方案-2026-04-25.md) 与证据归档）；不满足则不在对外材料中宣称 stable。
 - **证据形态（D2-A）**：以 **文档化采样步骤 + 人工归档** 为主（release evidence 目录/执行记录）；不强制新增专用 CI gate 脚本，除非后续单独立项。
 
+### 周期采样（Phase D2 收口口径）
+
+每个发布周期至少完成 1 次采样（建议预发 + 生产候选各 1 次），并在发布记录中附证据。
+
+1. 采样命令
+
+```bash
+npm run gate:voice-maintenance:quick
+npm run test:e2e:chromium -- --grep "voice|dictation|assistant" --pass-with-no-tests
+```
+
+2. 采样断言
+
+- manifest 可读且 provider metadata 可渲染（无空白 provider label）。
+- 当首选引擎不可用时，降级路径可达，且错误提示可见。
+- command / analysis 非听写路径继续走聊天主链（与 ADR-0027 一致）。
+- 听写路径不误触发 destructive action，pending confirm 行为不回退。
+
+3. 证据归档
+
+- 发布记录中附：本次采样 commit、执行时间、执行人、环境。
+- 至少 1 份失败场景截图或日志片段（manifest 故障或 provider 降级）。
+- 至少 1 份成功场景截图或日志片段（降级后可继续完成语音链路）。
+- 记录模板：[`voice-unified-chat-path-sampling-record-template.md`](./voice-unified-chat-path-sampling-record-template.md)
+
+> 说明：以上口径用于 release-stable 的连续周期判定，不替代代码级自动化门禁。
+
 ## 键入路由战略
 
 - **维持** ADR-0028：键入 **不强制** 经过与语音相同的前置 NLU；无流程变更。

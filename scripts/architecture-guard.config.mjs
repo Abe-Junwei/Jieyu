@@ -100,6 +100,17 @@ export const architectureGuardRules = [
     maxUseMemoDecls: 0,
     maxUseEffects: 5,
   }),
+  hookRule('useVoiceInteraction', {
+    maxLines: 560,
+    maxUseCallbackDecls: 12,
+    maxUseMemoDecls: 7,
+    maxUseEffects: 9,
+    requiredRegexes: [
+      /createTranscriptionVoiceSendToAiChat\(\{/,
+      /computeTranscriptionVoiceTargetSummary\(\{/,
+      /computeTranscriptionVoiceSelectionSummary\(\{/,
+    ],
+  }),
   hookRule('useAiChat', {
     maxLines: 1350,
     maxUseCallbackDecls: 16,
@@ -313,11 +324,23 @@ export const architectureGuardRules = [
   }),
   {
     file: 'src/services/VoiceAgentService.ts',
-    maxLines: 1250,
+    maxLines: 1100,
     requiredRegexes: [
       /export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEventMap>/,
       /export function getVoiceAgentService\(\): VoiceAgentService \| null \{/,
       /export async function createVoiceAgentService\(options: VoiceAgentServiceOptions = \{\}\): Promise<VoiceAgentService> \{/,
+      /from '\.\/VoiceAgentService\.sttResultDispatch'/,
+      /dispatchVoiceAgentServiceSttResult\(/,
+    ],
+  },
+  {
+    file: 'src/services/VoiceInputService.ts',
+    maxLines: 650,
+    requiredRegexes: [
+      /export class VoiceInputService \{/,
+      /private readonly engineSwitchCoordinator = new VoiceInputEngineSwitchCoordinator\(\);/,
+      /private get fallbackChain\(\): SttEngine\[\] \{/,
+      /return buildSttFallbackChain\(this\._config\.region\);/,
     ],
   },
   {

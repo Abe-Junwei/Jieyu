@@ -68,8 +68,9 @@ depends_on:
 1. **盘点入口清单**：受控矩阵持续维护（含 Batch B 抽样结论）— 见上矩阵链接。
 2. **统一接线模板**：矩阵 §2（决策 / 审计 / 测试 / 证据）— 已作为后续入口默认模板。
 3. **接入 Batch A（两条）**：~~置顶 + send-preflight~~ **已完成**；审计字段 `**ai_session_sidecar_sandbox`** 已登记于 `generate-release-evidence-bundle.mjs` 的 `auditFieldDictionary`。
-4. **回归与门禁**：定向 Vitest 见矩阵 §4；`npm run gate:release-evidence:governance`；`npm run check:agent-evals:trace`。
-5. **文档与验收**：本史诗 §4/§5；产品侧 Dexie 抽查步骤见 [手工验收执行脚本-F4-session-sidecar-sandbox-audit-2026-05-05.md](../archive/manual-validation/手工验收执行脚本-F4-session-sidecar-sandbox-audit-2026-05-05.md)；自动化壳烟测 `tests/e2e/aiChatSendTurnSmoke.spec.ts`。
+4. **回归与门禁**：定向 Vitest 见矩阵 §4；`npm run check:ai-session-sidecar-entrypoints`；`npm run gate:release-evidence:governance`；`npm run check:agent-evals:trace`。
+5. **Batch C 可观测基线（session sidecar）**：新增 `npm run gate:release-evidence:session-sidecar-sandbox`，输出并校验 `ai_session_sidecar_sandbox` 的 action/reason/gate 分布与 deny/ask rate 阈值（历史窗口动态阈值，样本不足回退固定上限）。
+6. **文档与验收**：本史诗 §4/§5；产品侧 Dexie 抽查步骤见 [手工验收执行脚本-F4-session-sidecar-sandbox-audit-2026-05-05.md](../archive/manual-validation/手工验收执行脚本-F4-session-sidecar-sandbox-audit-2026-05-05.md)；自动化壳烟测 `tests/e2e/aiChatSendTurnSmoke.spec.ts`。
 
 # 5. 验收与退出条件
 
