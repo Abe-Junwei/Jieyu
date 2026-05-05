@@ -2,7 +2,8 @@ import type { LayerUnitDocType } from '../db';
 import type { LayerDocType } from '../pages/transcriptionAiController.types';
 import type { Dispatch, SetStateAction } from 'react';
 import { loadOrthographyRuntime } from './loadOrthographyRuntime';
-import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
+import { listRecentAiToolDecisionLogs, listRecentAiVerticalWorkflowAuditEntries } from '../ai/auditReplay';
+import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
 
 export const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '\u5237\u65b0 AI \u5de5\u5177\u5ba1\u8ba1\u65e5\u5fd7\u5931\u8d25\uff1a';
 
@@ -72,5 +73,17 @@ export async function refreshRecentAiToolDecisionLogs(input: {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     input.setAiSidebarError(`${TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX}${message}`);
+  }
+}
+
+export async function refreshRecentAiVerticalWorkflowAuditEntries(input: {
+  setAiVerticalWorkflowAuditEntries: Dispatch<SetStateAction<ParsedVerticalWorkflowAuditEntry[]>>;
+}): Promise<void> {
+  try {
+    const entries = await listRecentAiVerticalWorkflowAuditEntries(24);
+    input.setAiVerticalWorkflowAuditEntries(entries);
+  } catch (error) {
+    console.error('[Jieyu] refreshRecentAiVerticalWorkflowAuditEntries failed', error);
+    input.setAiVerticalWorkflowAuditEntries([]);
   }
 }

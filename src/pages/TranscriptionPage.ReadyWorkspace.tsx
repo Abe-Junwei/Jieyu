@@ -1268,6 +1268,7 @@ function TranscriptionPageReadyWorkspace({
     lexemeMatches,
     aiChat: aiChatForSidebar,
     aiToolDecisionLogs: deferredAiRuntimeForSidebar.aiToolDecisionLogs,
+    aiVerticalWorkflowAuditEntries: deferredAiRuntimeForSidebar.aiVerticalWorkflowAuditEntries,
     observerStage: observerResult.stage,
     observerRecommendations: actionableObserverRecommendations,
     onJumpToCitation: handleJumpToCitation,

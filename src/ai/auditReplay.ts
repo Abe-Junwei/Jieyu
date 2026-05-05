@@ -1,5 +1,10 @@
 import { db as appDb } from '../db';
 import { mapAuditRowToAiToolDecisionLog, type AiToolDecisionLogItem } from './toolDecisionLog';
+import {
+  AI_VERTICAL_WORKFLOW_RESULT_AUDIT_FIELD,
+  parseVerticalWorkflowAuditEntry,
+  type ParsedVerticalWorkflowAuditEntry,
+} from './vertical/verticalWorkflowAudit';
 
 type AuditSource = 'human' | 'ai' | 'system';
 
@@ -125,6 +130,25 @@ export async function listRecentAiToolDecisionLogs(limit = 6): Promise<AiToolDec
     .toArray();
 
   return rows.map((item) => mapAuditRowToAiToolDecisionLog(item));
+}
+
+/**
+ * 读取最近 vertical workflow 审计记录，供 UI 消费 | Read recent vertical workflow audit rows for UI surfaces
+ */
+export async function listRecentAiVerticalWorkflowAuditEntries(limit = 16): Promise<ParsedVerticalWorkflowAuditEntry[]> {
+  const rows = await appDb.audit_logs
+    .where('[collection+field+timestamp]')
+    .between(
+      ['ai_messages', AI_VERTICAL_WORKFLOW_RESULT_AUDIT_FIELD, ''],
+      ['ai_messages', AI_VERTICAL_WORKFLOW_RESULT_AUDIT_FIELD, '\uffff'],
+    )
+    .reverse()
+    .limit(limit)
+    .toArray();
+
+  return rows
+    .map((item) => parseVerticalWorkflowAuditEntry(item))
+    .filter((item): item is ParsedVerticalWorkflowAuditEntry => item !== null);
 }
 
 /**

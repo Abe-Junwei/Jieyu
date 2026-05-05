@@ -13,6 +13,7 @@ import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
 import {
   AI_CHAT_CARD_EMPTY_STRING_ARRAY,
   buildPinnedSummary,
+  compactInternalId,
   formatCitationLabel,
   formatPolicyReasonExplanation,
   formatToolDecision,
@@ -37,6 +38,7 @@ import { rankCandidateLabelsByAdaptiveProfile } from './aiChatAdaptiveRanking';
 import { useAiChatHybridRecommendations } from './useAiChatHybridRecommendations';
 import { detectWebLLMRuntimeStatus, warmupWebLLMModel, type WebLLMRuntimeStatus, type WebLLMWarmupProgress } from '../../ai/providers/webllmRuntime';
 import { buildFollowUpSuggestions, classifyRecommendationAdoption, formatTaskTraceOutcome } from './aiChatCardFollowUps';
+import { dispatchAppGlobalToast } from '../../utils/appGlobalToast';
 
 type AiChatCardProps = {
   embedded?: boolean;
@@ -86,6 +88,7 @@ export function AiChatCard({
     aiInteractionMetrics,
     aiSessionMemory,
     aiToolDecisionLogs,
+    aiVerticalWorkflowAuditEntries,
     onUpdateAiChatSettings,
     onTestAiConnection,
     onSendAiMessage,
@@ -713,13 +716,53 @@ export function AiChatCard({
   const [showDecisionPanel, setShowDecisionPanel] = useState(false);
   const [showReplayDetailPanel, setShowReplayDetailPanel] = useState(false);
   const [showConversationSummary, setShowConversationSummary] = useState(false);
+  const [showVerticalWorkflowDetail, setShowVerticalWorkflowDetail] = useState(false);
   const [dismissedErrorWarning, setDismissedErrorWarning] = useState(false);
+  const latestVerticalWorkflowEntry = useMemo(() => {
+    const assistantId = latestAssistantMessage?.id;
+    const assistantStatus = latestAssistantMessage?.status;
+    if (!assistantId || (assistantStatus !== 'done' && assistantStatus !== 'error')) {
+      return null;
+    }
+    const latestEntry = aiVerticalWorkflowAuditEntries.find((entry) => entry.assistantMessageId === assistantId);
+    return latestEntry ?? null;
+  }, [aiVerticalWorkflowAuditEntries, latestAssistantMessage?.id, latestAssistantMessage?.status]);
+  const latestVerticalWorkflowSummary = useMemo(() => {
+    if (!latestVerticalWorkflowEntry) return null;
+    return `vertical · ${latestVerticalWorkflowEntry.metadata.workflowId} · ${latestVerticalWorkflowEntry.metadata.outputKind} · ${latestVerticalWorkflowEntry.metadata.completionStatus}`;
+  }, [latestVerticalWorkflowEntry]);
+  const latestVerticalWorkflowRequestId = useMemo(() => {
+    const normalizedRequestId = latestVerticalWorkflowEntry?.requestId?.trim();
+    return normalizedRequestId && normalizedRequestId.length > 0 ? normalizedRequestId : null;
+  }, [latestVerticalWorkflowEntry?.requestId]);
+  const latestVerticalWorkflowSelectionSummary = useMemo(() => {
+    const selection = latestVerticalWorkflowEntry?.metadata.selection;
+    if (!selection) return null;
+    return cardMessages.verticalWorkflowSelectionLabel(selection.source, selection.reasonCode);
+  }, [cardMessages, latestVerticalWorkflowEntry?.metadata.selection]);
+  const latestVerticalWorkflowSelectionKeywordSummary = useMemo(() => {
+    const matchedKeyword = latestVerticalWorkflowEntry?.metadata.selection?.matchedKeyword?.trim();
+    if (!matchedKeyword) return null;
+    return cardMessages.verticalWorkflowKeywordLabel(matchedKeyword);
+  }, [cardMessages, latestVerticalWorkflowEntry?.metadata.selection?.matchedKeyword]);
+  const latestVerticalWorkflowSelectionConfidenceSummary = useMemo(() => {
+    const confidence = latestVerticalWorkflowEntry?.metadata.selection?.confidence;
+    if (typeof confidence !== 'number' || Number.isNaN(confidence)) return null;
+    const confidencePercent = `${Math.round(confidence * 100)}%`;
+    return cardMessages.verticalWorkflowConfidenceLabel(confidencePercent);
+  }, [cardMessages, latestVerticalWorkflowEntry?.metadata.selection?.confidence]);
+  const isLatestVerticalReplayLoading = latestVerticalWorkflowRequestId !== null
+    && replayLoadingRequestId === latestVerticalWorkflowRequestId;
+  const isLatestVerticalReplaySelected = latestVerticalWorkflowRequestId !== null
+    && selectedReplayBundle?.requestId === latestVerticalWorkflowRequestId;
   const [voiceDrawerMaxHeight, setVoiceDrawerMaxHeight] = useState<number | null>(null);
   const [decisionPanelMaxHeight, setDecisionPanelMaxHeight] = useState<number | null>(null);
   const [isVoiceDrawerResizing, setIsVoiceDrawerResizing] = useState(false);
   const [isDecisionPanelResizing, setIsDecisionPanelResizing] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [copiedVerticalWorkflowRequestId, setCopiedVerticalWorkflowRequestId] = useState<string | null>(null);
   const copiedMessageTimerRef = useRef<number | null>(null);
+  const copiedVerticalRequestTimerRef = useRef<number | null>(null);
   const blockedHintTimerRef = useRef<number | null>(null);
   const exportedSnapshotTimerRef = useRef<number | null>(null);
   const decisionPanelBodyRef = useRef<HTMLDivElement | null>(null);
@@ -736,6 +779,16 @@ export function AiChatCard({
       setShowConversationSummary(false);
     }
   }, [hasConversationSummary, showConversationSummary]);
+
+  useEffect(() => {
+    if (!latestVerticalWorkflowEntry && showVerticalWorkflowDetail) {
+      setShowVerticalWorkflowDetail(false);
+    }
+  }, [latestVerticalWorkflowEntry, showVerticalWorkflowDetail]);
+
+  useEffect(() => {
+    setCopiedVerticalWorkflowRequestId(null);
+  }, [latestVerticalWorkflowRequestId]);
 
   useEffect(() => {
     setOptimisticUnpinnedMessageIds(new Set());
@@ -828,6 +881,9 @@ export function AiChatCard({
     return () => {
       if (copiedMessageTimerRef.current !== null && typeof window !== 'undefined') {
         window.clearTimeout(copiedMessageTimerRef.current);
+      }
+      if (copiedVerticalRequestTimerRef.current !== null && typeof window !== 'undefined') {
+        window.clearTimeout(copiedVerticalRequestTimerRef.current);
       }
       if (blockedHintTimerRef.current !== null && typeof window !== 'undefined') {
         window.clearTimeout(blockedHintTimerRef.current);
@@ -922,6 +978,32 @@ export function AiChatCard({
     setReplayErrorMessage(result.errorMessage);
     setSnapshotDiff(result.snapshotDiff);
     setReplayLoadingRequestId(null);
+  };
+
+  const openLatestVerticalWorkflowReplay = (): void => {
+    if (!latestVerticalWorkflowRequestId) return;
+    setShowDecisionPanel(true);
+    void openReplayBundle(latestVerticalWorkflowRequestId);
+  };
+
+  const copyLatestVerticalWorkflowRequestId = (): void => {
+    if (!latestVerticalWorkflowRequestId || typeof navigator === 'undefined' || !navigator.clipboard) return;
+    const compactRequestId = compactInternalId(latestVerticalWorkflowRequestId);
+    void navigator.clipboard.writeText(compactRequestId);
+    dispatchAppGlobalToast({
+      message: cardMessages.verticalWorkflowRequestCopied(compactRequestId),
+      variant: 'success',
+      autoDismissMs: 1400,
+    });
+    if (copiedVerticalRequestTimerRef.current !== null && typeof window !== 'undefined') {
+      window.clearTimeout(copiedVerticalRequestTimerRef.current);
+    }
+    setCopiedVerticalWorkflowRequestId(latestVerticalWorkflowRequestId);
+    if (typeof window !== 'undefined') {
+      copiedVerticalRequestTimerRef.current = window.setTimeout(() => {
+        setCopiedVerticalWorkflowRequestId((current) => (current === latestVerticalWorkflowRequestId ? null : current));
+      }, 1200);
+    }
   };
 
   const exportGoldenSnapshot = async (requestId: string): Promise<void> => {
@@ -1318,6 +1400,89 @@ export function AiChatCard({
                       <p className="ai-chat-summary-entry-content">{entry.summary}</p>
                     </article>
                   ))}
+                </div>
+              )}
+            </section>
+          )}
+          {latestVerticalWorkflowSummary && latestVerticalWorkflowEntry && (
+            <section className="ai-chat-summary-panel" aria-label={cardMessages.verticalWorkflowTitle}>
+              <div className="ai-chat-summary-header-row">
+                <p className="ai-chat-summary-title">{cardMessages.verticalWorkflowTitle}</p>
+                <button
+                  type="button"
+                  className="ai-chat-summary-toggle"
+                  onClick={() => setShowVerticalWorkflowDetail((prev) => !prev)}
+                  aria-expanded={showVerticalWorkflowDetail}
+                >
+                  {showVerticalWorkflowDetail
+                    ? cardMessages.verticalWorkflowHideDetail
+                    : cardMessages.verticalWorkflowShowDetail}
+                </button>
+              </div>
+              <div className="small-text" role="status" aria-live="polite">
+                {latestVerticalWorkflowSummary}
+              </div>
+              {showVerticalWorkflowDetail && (
+                <div className="ai-chat-summary-body">
+                  <article className="ai-chat-summary-entry">
+                    <div className="ai-chat-summary-entry-meta">
+                      <span>{latestVerticalWorkflowEntry.metadata.completionPath}</span>
+                      <span>{new Date(latestVerticalWorkflowEntry.recordedAt).toLocaleString(locale)}</span>
+                    </div>
+                    <p className="ai-chat-summary-entry-content">
+                      {latestVerticalWorkflowSummary}
+                    </p>
+                    {latestVerticalWorkflowSelectionSummary && (
+                      <p className="ai-chat-summary-entry-content">
+                        {latestVerticalWorkflowSelectionSummary}
+                      </p>
+                    )}
+                    {latestVerticalWorkflowSelectionKeywordSummary && (
+                      <p className="ai-chat-summary-entry-content">
+                        {latestVerticalWorkflowSelectionKeywordSummary}
+                      </p>
+                    )}
+                    {latestVerticalWorkflowSelectionConfidenceSummary && (
+                      <p className="ai-chat-summary-entry-content">
+                        {latestVerticalWorkflowSelectionConfidenceSummary}
+                      </p>
+                    )}
+                    <p className="ai-chat-summary-entry-content">
+                      {cardMessages.verticalWorkflowRequestLabel(compactInternalId(latestVerticalWorkflowRequestId ?? 'n/a'))}
+                    </p>
+                  </article>
+                  <div className="ai-chat-decision-item-actions">
+                    <button
+                      type="button"
+                      className="icon-btn ai-chat-decision-action-btn ai-chat-decision-action-btn-wide"
+                      disabled={!latestVerticalWorkflowRequestId || isLatestVerticalReplayLoading}
+                      onClick={openLatestVerticalWorkflowReplay}
+                      title={!latestVerticalWorkflowRequestId ? cardMessages.verticalWorkflowRequestUnavailable : undefined}
+                    >
+                      {isLatestVerticalReplayLoading
+                        ? cardMessages.loading
+                        : (isLatestVerticalReplaySelected ? cardMessages.replayOpened : cardMessages.verticalWorkflowOpenReplay)}
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn ai-chat-decision-action-btn ai-chat-decision-action-btn-mid"
+                      disabled={!latestVerticalWorkflowRequestId}
+                      onClick={copyLatestVerticalWorkflowRequestId}
+                      title={copiedVerticalWorkflowRequestId === latestVerticalWorkflowRequestId
+                        ? cardMessages.copied
+                        : cardMessages.copy}
+                      aria-label={copiedVerticalWorkflowRequestId === latestVerticalWorkflowRequestId
+                        ? cardMessages.copied
+                        : cardMessages.copy}
+                    >
+                      {copiedVerticalWorkflowRequestId === latestVerticalWorkflowRequestId
+                        ? cardMessages.copied
+                        : cardMessages.copy}
+                    </button>
+                  </div>
+                  {!latestVerticalWorkflowRequestId && (
+                    <p className="ai-chat-summary-empty">{cardMessages.verticalWorkflowRequestUnavailable}</p>
+                  )}
                 </div>
               )}
             </section>

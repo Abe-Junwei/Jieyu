@@ -3,7 +3,7 @@ title: execution/plans 文档索引
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-07
 source_of_truth: execution-plan-index
 ---
 
@@ -19,13 +19,13 @@ source_of_truth: execution-plan-index
 
 - [AI治理与结构标注收口拆分方案-2026-04-25.md](./AI治理与结构标注收口拆分方案-2026-04-25.md)（提交/PR 拆分边界、文件清单、验证命令、release evidence 口径确认与 `AiChatCard` 行数 warning backlog）
 
-- [AI智能体工业级对标改进计划书-2026-04-25.md](./AI智能体工业级对标改进计划书-2026-04-25.md)（并入 `AI Agent Industrial Gap Assessment` 与行业调研结论，统一五层架构、四阶段路线图、KPI、风险矩阵与代码映射）
-
-- [AI智能体对标-落地修复计划-2026-04-26.md](./AI智能体对标-落地修复计划-2026-04-26.md)（A/B/C/D/E/F 已收口与剩余项锚点；合并前质量闸与测试路径）
-
-- [AI智能体工业级史诗-落地方案-2026-05-01.md](./AI智能体工业级史诗-落地方案-2026-05-01.md)（Phase C+ 四条轨道：T1 durable 可操作闭环、T2 执行层权限隔离、T3 变更事务化、T4 失败分流与运维信号；切片、验收、代码锚点与推荐顺序）
-
-- [F4-扩展入口-capability-isolation-epic-2026-05-01.md](./F4-扩展入口-capability-isolation-epic-2026-05-01.md)（后台入口 capability isolation 扩展批次与退出条件）
+- **[AI智能体-战略规划与下一步-2026-05-07.md](./AI智能体-战略规划与下一步-2026-05-07.md)**（**当前真源**：文本侧 T1–T4 / F4 / ARCH；**语音侧** §2.5 进度 + §3.5 下一步；不对标项；质量闸含 `check:voice-agent-pre-merge`）
+- [AI智能体-垂直产品化架构与落地方案-2026-05-05.md](./AI智能体-垂直产品化架构与落地方案-2026-05-05.md)（证据型语言资料智能体：EvidencePacket、CorpusSourceSet、Workbench / Registry、VerticalWorkflow、AdoptionQueue、垂直 eval 与 P0-P3 落地）
+- [AI语音智能体全盘审查与架构演进方案-2026-05-01.md](./AI语音智能体全盘审查与架构演进方案-2026-05-01.md)（语音：审查范围、Phase A–D 设计、风险分级、附录文件清单；**执行清单**见战略规划 §2.5/§3.5）
+- [AI语音拍板项-TTS-发布门禁-键入路由-2026-05-02.md](./AI语音拍板项-TTS-发布门禁-键入路由-2026-05-02.md)（TTS/门禁/键入路由 → ADR-0029、rollout、战略规划 索引）
+- [F4-扩展入口-capability-isolation-epic-2026-05-01.md](./F4-扩展入口-capability-isolation-epic-2026-05-01.md)（F4 批次与退出条件；Batch A 已关，Batch B/C 活跃）
+- [F4-扩展入口-受控矩阵-2026-05-05.md](./F4-扩展入口-受控矩阵-2026-05-05.md)（入口 × 策略 × 审计运维表）
+- **已合并占位页（勿当排期正文）**：[AI智能体工业级对标改进计划书-2026-04-25.md](./AI智能体工业级对标改进计划书-2026-04-25.md) · [AI智能体对标-落地修复计划-2026-04-26.md](./AI智能体对标-落地修复计划-2026-04-26.md) · [AI智能体工业级史诗-落地方案-2026-05-01.md](./AI智能体工业级史诗-落地方案-2026-05-01.md) · [AI智能体下一阶段-OKR-草案-2026-05-05.md](./AI智能体下一阶段-OKR-草案-2026-05-05.md) · [AI智能体-工业对齐优先级与不对标项-2026-05-06.md](./AI智能体-工业对齐优先级与不对标项-2026-05-06.md) → 完整原文见 [`archive/planning-ai-agent-superseded/`](../archive/planning-ai-agent-superseded/README.md)
 
 - [证据化发布与AI工具治理完整方案-2026-04-20.md](./证据化发布与AI工具治理完整方案-2026-04-20.md)（发布证据 bundle、`lite/core/full` profile、AI 工具策略 SSOT、观测与成本门禁；作为发布证据与工具治理口径锚点）
 

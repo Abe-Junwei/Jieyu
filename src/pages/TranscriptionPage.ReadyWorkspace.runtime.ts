@@ -41,6 +41,7 @@ export function createInitialDeferredAiRuntimeState(): DeferredTranscriptionAiRu
       trackRecommendationEvent: undefined,
     },
     aiToolDecisionLogs: [],
+    aiVerticalWorkflowAuditEntries: [],
     executeVoiceToolCall: async () => ({ ok: false, message: 'AI runtime not ready' }),
     acousticRuntimeStatus: { state: 'idle' },
     acousticSummary: null,

@@ -12,7 +12,7 @@
  *  - IntentRouter 负责单轮意图分类（text → intent）
  *  - ConversationalState 负责跨轮次状态（session-level memory）
  *
- * @see 解语-语音智能体架构设计方案 v2.5 §阶段3
+ * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 附：实施路线图 v3.0 · 阶段3
  */
 
 import type { ActionId, VoiceIntent } from './IntentRouter';

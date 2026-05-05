@@ -1,15 +1,20 @@
 ---
-title: F4 扩展入口 Capability Isolation 史诗（2026-05-01）
+
+## title: F4 扩展入口 Capability Isolation 史诗（2026-05-01）
 doc_type: execution-plan
 status: active
 owner: ai-runtime
-last_reviewed: 2026-05-05
+last_reviewed: 2026-05-07
 source_of_truth: execution
----
+depends_on:
+  - ./AI智能体-战略规划与下一步-2026-05-07.md
+
+> **AI 智能体总体规划**（已完成里程碑 + 下一步路径）：《[AI智能体-战略规划与下一步-2026-05-07.md](./AI智能体-战略规划与下一步-2026-05-07.md)》
 
 # 1. 背景与目标
 
 当前 F4 已完成最小收口：
+
 - 后台记忆抽取路径已接入 sandbox 决策（allow/ask/deny）。
 - C5 release evidence 已聚合 sandbox 决策分布并接入 unified governance gate。
 
@@ -58,28 +63,31 @@ source_of_truth: execution
 
 # 4. 实施清单（可直接开工）
 
-**2026-05-05 状态对齐（Batch A 收口）**：两条旁路（**置顶用户 directive**、**send-preflight 用户指令**）已统一走 `resolveAiChatSessionSidecarSandboxPolicy`；当 sandbox 决策 **非 `allow`** 时，写入 `audit_logs.field = ai_session_sidecar_sandbox`（`metadataJson` 含 `phase`、`gate`、`sandboxAction`、`sandboxReason`；实现 `src/hooks/useAiChat.sessionSidecarAudit.ts`；接线点 `useAiChat.directiveSessionControls`、`runAiChatSendTurnPreflight`）。受控矩阵：[F4-扩展入口-受控矩阵-2026-05-05.md](./F4-扩展入口-受控矩阵-2026-05-05.md)；OKR：[AI智能体下一阶段-OKR-草案-2026-05-05.md](./AI智能体下一阶段-OKR-草案-2026-05-05.md)。
+**2026-05-05 状态对齐（Batch A 收口）**：两条旁路（**置顶用户 directive**、**send-preflight 用户指令**）已统一走 `resolveAiChatSessionSidecarSandboxPolicy`；当 sandbox 决策 **非 `allow`** 时，写入 `audit_logs.field = ai_session_sidecar_sandbox`（`metadataJson` 含 `phase`、`gate`、`sandboxAction`、`sandboxReason`；实现 `src/hooks/useAiChat.sessionSidecarAudit.ts`；接线点 `useAiChat.directiveSessionControls`、`runAiChatSendTurnPreflight`）。受控矩阵：[F4-扩展入口-受控矩阵-2026-05-05.md](./F4-扩展入口-受控矩阵-2026-05-05.md)；收口摘要见《[AI智能体-战略规划与下一步-2026-05-07.md](./AI智能体-战略规划与下一步-2026-05-07.md)》§2.2（OKR 原文已归档）。
 
 1. **盘点入口清单**：受控矩阵持续维护（含 Batch B 抽样结论）— 见上矩阵链接。
 2. **统一接线模板**：矩阵 §2（决策 / 审计 / 测试 / 证据）— 已作为后续入口默认模板。
-3. **接入 Batch A（两条）**：~~置顶 + send-preflight~~ **已完成**；审计字段 **`ai_session_sidecar_sandbox`** 已登记于 `generate-release-evidence-bundle.mjs` 的 `auditFieldDictionary`。
+3. **接入 Batch A（两条）**：~~置顶 + send-preflight~~ **已完成**；审计字段 `**ai_session_sidecar_sandbox`** 已登记于 `generate-release-evidence-bundle.mjs` 的 `auditFieldDictionary`。
 4. **回归与门禁**：定向 Vitest 见矩阵 §4；`npm run gate:release-evidence:governance`；`npm run check:agent-evals:trace`。
 5. **文档与验收**：本史诗 §4/§5；产品侧 Dexie 抽查步骤见 [手工验收执行脚本-F4-session-sidecar-sandbox-audit-2026-05-05.md](../archive/manual-validation/手工验收执行脚本-F4-session-sidecar-sandbox-audit-2026-05-05.md)；自动化壳烟测 `tests/e2e/aiChatSendTurnSmoke.spec.ts`。
 
 # 5. 验收与退出条件
 
 1. 至少 2 个新增入口完成 capability isolation。**（2026-05-05：Batch A 两条已满足。）**
-2. 新增入口在审计中可看到 sandbox **action / reason**（字段 **`ai_session_sidecar_sandbox`** 的 `metadataJson.sandboxAction` / `sandboxReason`，以及 `gate` 虚拟路径）。**（已满足。）**
+2. 新增入口在审计中可看到 sandbox **action / reason**（字段 `**ai_session_sidecar_sandbox`** 的 `metadataJson.sandboxAction` / `sandboxReason`，以及 `gate` 虚拟路径）。**（已满足。）**
 3. release evidence 报告可见新增入口统计或明确 skip 原因（`auditFieldDictionary` 已含新字段；dry-run gate 无结构回归）。**（已满足。）**
 4. `gate:release-evidence:governance` 与 `check:agent-evals:trace` 及定向 Vitest 通过。**（已满足。）**
 
 # 6. 风险与缓解
 
 1. 风险：不同入口参数结构不一致，导致统一决策函数接线碎片化。
+
 - 缓解：先落接线模板并定义最小输入契约。
 
-2. 风险：无审计源时 gate 误报失败。
+1. 风险：无审计源时 gate 误报失败。
+
 - 缓解：保持结构校验与 skipped 兼容策略并在 runbook 明确。
 
-3. 风险：入口扩展触发 architecture-guard 历史告警。
+1. 风险：入口扩展触发 architecture-guard 历史告警。
+
 - 缓解：每批次先做 changed-only 预检，再跑全量门禁。

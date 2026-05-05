@@ -191,8 +191,25 @@ describe('runAiChatSendTurnPreflight', () => {
     expect(result).not.toBeNull();
     expect(result?.correlationId.length).toBeGreaterThan(0);
     expect(result?.trimmed).toBe('ping');
+    expect(result?.verticalWorkflowSelection).toBeNull();
+    expect(result?.verticalOutputEnvelopeSeed).toBeNull();
     expect(setIsStreaming).toHaveBeenCalledWith(true);
     expect(setMessages).toHaveBeenCalled();
+  });
+
+  it('selects vertical workflow and builds envelope seed when keywords match', async () => {
+    const args = makeArgs({
+      userText: '请帮我做标注一致性 QA 检查',
+    });
+    const result = await runAiChatSendTurnPreflight(args);
+    expect(result).not.toBeNull();
+    expect(result?.verticalWorkflowSelection?.workflowId).toBe('annotation_qa');
+    expect(result?.verticalOutputEnvelopeSeed).toEqual(expect.objectContaining({
+      schemaVersion: 0,
+      workflowId: 'annotation_qa',
+      writeMode: 'propose_only',
+      outputKind: 'qa_findings',
+    }));
   });
 
   it('skips send-preflight user directives when session sidecar sandbox denies writes', async () => {

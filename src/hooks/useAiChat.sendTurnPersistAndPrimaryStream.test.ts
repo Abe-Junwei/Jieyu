@@ -67,6 +67,8 @@ function makePreflight(): SendTurnPreflightContext {
     commitPrimaryStreamUsage: vi.fn(),
     agentLoopSourceUserText: 'hello',
     effectiveUserText: 'hello',
+    verticalWorkflowSelection: null,
+    verticalOutputEnvelopeSeed: null,
   };
 }
 

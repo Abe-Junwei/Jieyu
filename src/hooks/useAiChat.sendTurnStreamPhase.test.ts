@@ -6,6 +6,7 @@ import type { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { featureFlags } from '../ai/config/featureFlags';
 import { getDefaultAiChatSettings } from '../ai/providers/providerCatalog';
 import { createMetricTags } from '../observability/metrics';
+import type { VerticalWorkflowOutputEnvelopeV0 } from '../ai/vertical/verticalWorkflowSelection';
 import type { PersistOpeningTurnAndBuildPromptContextResult } from './useAiChat.sendPersistTurnAndBuildPromptContext';
 import {
   createInitialSendTurnStreamPhaseState,
@@ -107,6 +108,8 @@ function buildBaseInput(over: Partial<RunAiChatSendTurnStreamPhaseInput> = {}): 
     effectiveUserText: 'hi',
     agentLoopSourceUserText: 'hi',
     resumeCheckpoint: null,
+    verticalWorkflowSelection: null,
+    verticalOutputEnvelopeSeed: null,
     userMsg: { id: 'usr-1', role: 'user', content: 'hi', status: 'done' },
     assistantId,
     shouldTrackRemoteStatus: false,
@@ -225,6 +228,76 @@ describe('runAiChatSendTurnStreamPhase', () => {
       '',
     );
     expect(recordCompletionSuccessMetric).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards vertical envelope seed into completion env for downstream consumers', async () => {
+    const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+    const auditInsert = vi.fn().mockResolvedValue(undefined);
+    const opening = {
+      ...buildOpening(),
+      db: {
+        collections: {
+          ai_messages: { update: vi.fn().mockResolvedValue(undefined) },
+          audit_logs: { insert: auditInsert },
+        },
+      },
+    } as unknown as PersistOpeningTurnAndBuildPromptContextResult;
+    const verticalOutputEnvelopeSeed: VerticalWorkflowOutputEnvelopeV0 = {
+      schemaVersion: 0,
+      workflowId: 'annotation_qa',
+      writeMode: 'propose_only',
+      outputKind: 'qa_findings',
+      evidencePackets: [],
+      generatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    async function* oneDone(): AsyncGenerator<AssistantStreamChunk> {
+      yield { done: true };
+    }
+    const input = buildBaseInput({
+      finalizeAssistantMessage,
+      opening,
+      stream: oneDone(),
+      verticalWorkflowSelection: {
+        workflowId: 'annotation_qa',
+        workflow: {
+          id: 'annotation_qa',
+          labelKey: 'msg.ai.vertical.workflow.annotationQa',
+          inputScope: 'selection',
+          outputKind: 'qa_findings',
+          writeMode: 'propose_only',
+          requiredCapabilities: ['read.segment'],
+        },
+        confidence: 0.84,
+        source: 'rule_v0',
+        reasonCode: 'keyword_match',
+        matchedKeyword: 'qa',
+      },
+      verticalOutputEnvelopeSeed,
+    });
+
+    await runAiChatSendTurnStreamPhase(input);
+
+    expect(finalizeAssistantStreamCompletion).toHaveBeenCalledTimes(1);
+    const env = vi.mocked(finalizeAssistantStreamCompletion).mock.calls[0]?.[1];
+    expect(env).toBeTruthy();
+    expect(env).toEqual(expect.objectContaining({
+      verticalOutputEnvelopeSeed,
+      verticalWorkflowSelection: expect.objectContaining({ workflowId: 'annotation_qa' }),
+    }));
+    expect(auditInsert).toHaveBeenCalled();
+    const payload = auditInsert.mock.calls.find((call) => (call[0] as { field?: string }).field === 'ai_vertical_workflow_result')?.[0] as
+      | { field: string; oldValue: string; newValue: string; metadataJson: string }
+      | undefined;
+    expect(payload?.oldValue).toBe('annotation_qa');
+    expect(payload?.newValue).toBe('done');
+    const meta = JSON.parse(payload!.metadataJson) as {
+      completionPath: string;
+      workflowId: string;
+      envelope: { evidencePacketCount: number };
+    };
+    expect(meta.completionPath).toBe('stream_done');
+    expect(meta.workflowId).toBe('annotation_qa');
+    expect(meta.envelope.evidencePacketCount).toBe(0);
   });
 
   it('maps stream chunk errors to assistant error + lastError', async () => {

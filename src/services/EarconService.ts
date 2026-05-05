@@ -4,7 +4,7 @@
  * 使用 Web Audio API 合成简短提示音 (earcons)，
  * 无需加载外部音频文件。
  *
- * @see 解语-语音智能体架构设计方案 §4.7
+ * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md §14.2 I8（Earcon）
  */
 
 let audioCtx: AudioContext | null = null;

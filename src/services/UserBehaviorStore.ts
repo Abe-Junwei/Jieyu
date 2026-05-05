@@ -7,7 +7,7 @@
  *  - 监听 GlobalContextService 的变化，同步持久化到 IndexedDB
  *  - 定期批量写入 action records（避免频繁 IO）
  *
- * @see 解语语音智能体架构设计方案 v2.0 §P0
+ * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 十九、版本历史（UserBehaviorStore 落地）
  */
 
 import { createDefaultUserBehaviorProfile, globalContext } from './GlobalContextService';

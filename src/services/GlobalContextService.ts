@@ -10,7 +10,7 @@
  * 其他服务通过 getCorpusContext() / getBehaviorProfile() 读取，
  * 变化时通过 onCorpusChange() / onProfileChange() 订阅。
  *
- * @see 解语语音智能体架构设计方案 v2.0 §P0
+ * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 十九、版本历史（GlobalContextService 与行为观测）
  */
 
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';

@@ -13,7 +13,7 @@
  *   svc.onWake(() => { console.debug('[WakeWordService] wake event'); });
  *   await svc.start();
  *
- * @see 解语-语音智能体架构设计方案 v2.5 §阶段5
+ * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 附：实施路线图 v3.0 · 阶段5
  */
 
 import { WakeWordDetector } from './WakeWordDetector';

@@ -8,7 +8,7 @@
  *  - 观察 action 类型和频率
  *  - 阶段切换时触发事件，供报告系统和 AI 使用
  *
- * @see 解语语音智能体架构设计方案 v2.0 §P0
+ * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 十九、版本历史（TaskPhaseDetector）
  */
 
 import type { ActionId } from './IntentRouter';

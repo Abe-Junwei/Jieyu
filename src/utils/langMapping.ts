@@ -4,7 +4,7 @@
  * 用于将语料库的 ISO 639-3 语言标签转换为 Web Speech API 所需的 BCP-47 格式。
  * 覆盖 ~30 高频田野语言学语种 + 中国少数民族语言。
  *
- * @see 解语-语音智能体架构设计方案 §4.3
+ * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md §14.2 I6（languageId → BCP-47）
  */
 
 import languageTags from 'language-tags';

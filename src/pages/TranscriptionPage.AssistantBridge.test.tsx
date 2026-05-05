@@ -35,6 +35,7 @@ describe('TranscriptionPageAssistantBridge', () => {
     const stableMetrics = { turnCount: 0 };
     const stableTaskSession = { id: 'task-1', status: 'idle' };
     const stableLogs = [{ id: 'log-1', toolName: 'noop', decision: 'allow', timestamp: '2026-04-06T00:00:00.000Z' }];
+    const stableVerticalWorkflowAuditEntries: Array<{ documentId: string; metadata: { workflowId: string; outputKind: string; completionStatus: string } }> = [];
     const stableAcousticRuntimeStatus = { state: 'ready', phase: 'done', progressRatio: 1, processedFrames: 16, totalFrames: 16 } as const;
     const stableAcousticSummary = {
       selectionStartSec: 1.2,
@@ -79,6 +80,7 @@ describe('TranscriptionPageAssistantBridge', () => {
       embeddingProviderConfig: { kind: 'local' },
       setEmbeddingProviderConfig: vi.fn(),
       aiToolDecisionLogs: stableLogs,
+      aiVerticalWorkflowAuditEntries: stableVerticalWorkflowAuditEntries,
       aiChat: {
         enabled: true,
         providerLabel: 'Mock Provider',

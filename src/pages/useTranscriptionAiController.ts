@@ -22,7 +22,13 @@ import { createTranscriptionAiReadModelAccessors } from './transcriptionAiReadMo
 import { buildOwnerUnitCandidates, resolveExplicitOwnerUnitForAi, resolveOwnerUnitForAi, resolveWritableAiTargetId } from './transcriptionAiSelectionResolver';
 import type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult, VoiceAssistantToolCallHandler } from './transcriptionAiController.types';
 import { useTranscriptionAiAcousticRuntime } from './useTranscriptionAiAcousticRuntime';
-import { bridgeTextForLayerTargetWithFallback, refreshRecentAiToolDecisionLogs, toSyntheticUnitDoc } from '../utils/transcriptionAiControllerHelpers';
+import {
+  bridgeTextForLayerTargetWithFallback,
+  refreshRecentAiToolDecisionLogs,
+  refreshRecentAiVerticalWorkflowAuditEntries,
+  toSyntheticUnitDoc,
+} from '../utils/transcriptionAiControllerHelpers';
+import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
 import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
@@ -76,6 +82,7 @@ export function useTranscriptionAiController(
     [input.getUnitDocById, input.selectedTimelineSegment, input.selectionSnapshot.selectedUnit, ownerUnitCandidatesForAi],
   );
   const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<Array<{ id: string; toolName: string; decision: string; reason?: string; reasonLabelEn?: string; reasonLabelZh?: string; requestId?: string; timestamp: string; source?: 'human' | 'ai' | 'system'; executed?: boolean; durationMs?: number; message?: string }>>([]);
+  const [aiVerticalWorkflowAuditEntries, setAiVerticalWorkflowAuditEntries] = useState<ParsedVerticalWorkflowAuditEntry[]>([]);
   const [internalAiSidebarError, setInternalAiSidebarError] = useState<string | null>(null);
   const aiSidebarError = input.aiSidebarError ?? internalAiSidebarError;
   const setAiSidebarError = input.setAiSidebarError ?? setInternalAiSidebarError;
@@ -136,6 +143,10 @@ export function useTranscriptionAiController(
   const refreshAiToolDecisionLogs = useCallback(async () => {
     await refreshRecentAiToolDecisionLogs({ setAiToolDecisionLogs, setAiSidebarError });
   }, [setAiSidebarError]);
+
+  const refreshAiVerticalWorkflowAudits = useCallback(async () => {
+    await refreshRecentAiVerticalWorkflowAuditEntries({ setAiVerticalWorkflowAuditEntries });
+  }, []);
 
   const segmentTargetScopeUnits = resolveAiSegmentTargetScopeUnits({
     units: allUnitsAsUnits,
@@ -341,9 +352,27 @@ export function useTranscriptionAiController(
     onMessageComplete: handleAiAssistantMessageComplete,
   });
 
+  const latestAssistantAuditFingerprint = useMemo(() => {
+    const sourceMessages = aiChat.messages ?? [];
+    for (let index = sourceMessages.length - 1; index >= 0; index -= 1) {
+      const item = sourceMessages[index];
+      if (item?.role === 'assistant') {
+        return `${item.id}:${item.status ?? 'unknown'}`;
+      }
+    }
+    return 'none';
+  }, [aiChat.messages]);
+
   useEffect(() => {
     fireAndForget(refreshAiToolDecisionLogs(), { context: 'src/pages/useTranscriptionAiController.ts:L337', policy: 'background-quiet' });
   }, [aiChat.pendingToolCall, refreshAiToolDecisionLogs]);
+
+  useEffect(() => {
+    fireAndForget(refreshAiVerticalWorkflowAudits(), {
+      context: 'src/pages/useTranscriptionAiController.ts:refreshAiVerticalWorkflowAudits',
+      policy: 'background-quiet',
+    });
+  }, [latestAssistantAuditFingerprint, refreshAiVerticalWorkflowAudits]);
 
   const {
     lexemeMatches,
@@ -404,6 +433,7 @@ export function useTranscriptionAiController(
     embeddingProviderConfig,
     setEmbeddingProviderConfig,
     aiToolDecisionLogs,
+    aiVerticalWorkflowAuditEntries,
     aiChat,
     executeVoiceToolCall: handleAiToolCall as VoiceAssistantToolCallHandler,
     lexemeMatches,

@@ -71,10 +71,15 @@ export async function runAiChatSendTurn(args: RunAiChatSendTurnArgs): Promise<vo
     commitPrimaryStreamUsage,
     agentLoopSourceUserText,
     effectiveUserText,
+    verticalWorkflowSelection,
+    verticalOutputEnvelopeSeed,
     correlationId,
   } = preflight;
 
-  logSendTurnPhase(correlationId, 'preflight_ok', { assistantId });
+  logSendTurnPhase(correlationId, 'preflight_ok', {
+    assistantId,
+    ...(verticalWorkflowSelection ? { verticalWorkflowId: verticalWorkflowSelection.workflowId } : {}),
+  });
 
   const completionBundle = {
     provider,
@@ -123,6 +128,8 @@ export async function runAiChatSendTurn(args: RunAiChatSendTurnArgs): Promise<vo
       effectiveUserText,
       agentLoopSourceUserText,
       resumeCheckpoint,
+      verticalWorkflowSelection,
+      verticalOutputEnvelopeSeed,
       userMsg,
       assistantId,
       shouldTrackRemoteStatus,

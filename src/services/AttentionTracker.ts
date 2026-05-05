@@ -9,7 +9,7 @@
  *  - AI 主动建议（"这段比较难，要不要跳过？"）
  *  - 项目记忆（自动记住困难模式）
  *
- * @see 解语语音智能体架构设计方案 v2.0 §P0
+ * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 十九、版本历史（AttentionTracker）
  */
 
 import { recordDifficultSegment } from './userBehaviorDB';

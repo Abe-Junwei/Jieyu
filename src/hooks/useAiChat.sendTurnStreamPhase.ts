@@ -14,7 +14,7 @@ import { mergeTokenUsage } from '../ai/providers/tokenUsage';
 import { genRequestId } from './useAiChat.toolAudit';
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
-import { nowIso } from './useAiChat.helpers';
+import { newAuditLogId, nowIso } from './useAiChat.helpers';
 import { runAgentLoop } from './useAiChat.agentLoopRunner';
 import { formatConnectionHealthyMessage } from '../ai/messages';
 import { recordDurationMetric, type MetricTags } from '../observability/metrics';
@@ -24,6 +24,7 @@ import {
   scheduleAndFlushBackgroundMemory,
   type AiChatBackgroundMemoryRuntime,
 } from './useAiChat.backgroundMemory';
+import type { VerticalWorkflowOutputEnvelopeV0, VerticalWorkflowSelectionV0 } from '../ai/vertical/verticalWorkflowSelection';
 import type { ToolDecisionAuditMetadata, ToolIntentAuditMetadata } from '../ai/chat/toolCallHelpers';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
@@ -87,6 +88,8 @@ export type RunAiChatSendTurnStreamPhaseInput = Readonly<{
   effectiveUserText: string;
   agentLoopSourceUserText: string;
   resumeCheckpoint: NonNullable<AiSessionMemory['pendingAgentLoopCheckpoint']> | null;
+  verticalWorkflowSelection: VerticalWorkflowSelectionV0 | null;
+  verticalOutputEnvelopeSeed: VerticalWorkflowOutputEnvelopeV0 | null;
   userMsg: UiChatMessage;
   assistantId: string;
   shouldTrackRemoteStatus: boolean;
@@ -163,6 +166,8 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
     effectiveUserText,
     agentLoopSourceUserText,
     resumeCheckpoint,
+    verticalWorkflowSelection,
+    verticalOutputEnvelopeSeed,
     userMsg,
     assistantId,
     shouldTrackRemoteStatus,
@@ -251,7 +256,54 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
     shouldBumpRecovery: metricsRef.current.failureCount > 0 && taskSessionRef.current.status === 'executing',
     genRequestId,
     localToolCallCountRef,
+    verticalWorkflowSelection,
+    verticalOutputEnvelopeSeed,
   });
+
+  const writeVerticalWorkflowAudit = async (
+    completionStatus: 'done' | 'error',
+    completionPath: 'stream_done' | 'stream_fallback',
+  ): Promise<void> => {
+    if (!verticalOutputEnvelopeSeed) return;
+    try {
+      await db.collections.audit_logs.insert({
+        id: newAuditLogId(),
+        collection: 'ai_messages',
+        documentId: assistantId,
+        action: 'update',
+        field: 'ai_vertical_workflow_result',
+        oldValue: verticalOutputEnvelopeSeed.workflowId,
+        newValue: completionStatus,
+        source: 'ai',
+        timestamp: nowIso(),
+        requestId: `${assistantId}_vertical_${verticalOutputEnvelopeSeed.generatedAt}`,
+        metadataJson: JSON.stringify({
+          schemaVersion: 1,
+          phase: 'stream_completion',
+          completionPath,
+          completionStatus,
+          workflowId: verticalOutputEnvelopeSeed.workflowId,
+          writeMode: verticalOutputEnvelopeSeed.writeMode,
+          outputKind: verticalOutputEnvelopeSeed.outputKind,
+          envelope: {
+            schemaVersion: verticalOutputEnvelopeSeed.schemaVersion,
+            generatedAt: verticalOutputEnvelopeSeed.generatedAt,
+            evidencePacketCount: verticalOutputEnvelopeSeed.evidencePackets.length,
+          },
+          selection: verticalWorkflowSelection
+            ? {
+                confidence: verticalWorkflowSelection.confidence,
+                source: verticalWorkflowSelection.source,
+                reasonCode: verticalWorkflowSelection.reasonCode,
+                matchedKeyword: verticalWorkflowSelection.matchedKeyword,
+              }
+            : null,
+        }),
+      });
+    } catch (error) {
+      console.error('[Jieyu] useAiChat.sendTurnStreamPhase: failed to write vertical workflow audit log', error);
+    }
+  };
 
   const maybeRetryAfterOutputCap = async (): Promise<void> => {
     const initialOutputTokens = s.primaryStreamUsage?.outputTokens ?? 0;
@@ -467,10 +519,20 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
         buildStreamCompletionEnv(),
       );
 
-      let resolvedContent = finalContent;
-      let resolvedStatus = finalStatus;
-      let resolvedErrorMessage = finalErrorMessage;
-      let resolvedConnectionErrorMessage = connectionErrorMessage;
+      const streamCompletionResult = {
+        finalContent,
+        finalStatus,
+        finalErrorMessage,
+        connectionErrorMessage,
+        localToolResults,
+        verticalWorkflowSelection,
+        verticalOutputEnvelopeSeed,
+      };
+
+      let resolvedContent = streamCompletionResult.finalContent;
+      let resolvedStatus = streamCompletionResult.finalStatus;
+      let resolvedErrorMessage = streamCompletionResult.finalErrorMessage;
+      let resolvedConnectionErrorMessage = streamCompletionResult.connectionErrorMessage;
 
       const loopResult = await runAgentLoop(
         {
@@ -512,11 +574,11 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
           insertAuditLog: (entry) => db.collections.audit_logs.insert(entry),
         },
         {
-          resolvedContent: finalContent,
-          resolvedStatus: finalStatus,
-          resolvedErrorMessage: finalErrorMessage,
-          resolvedConnectionErrorMessage: connectionErrorMessage,
-          resolvedLocalToolResults: localToolResults,
+          resolvedContent: streamCompletionResult.finalContent,
+          resolvedStatus: streamCompletionResult.finalStatus,
+          resolvedErrorMessage: streamCompletionResult.finalErrorMessage,
+          resolvedConnectionErrorMessage: streamCompletionResult.connectionErrorMessage,
+          resolvedLocalToolResults: streamCompletionResult.localToolResults,
           rawAssistantContentForLoop: s.assistantContent,
           assistantReasoningContent: s.assistantReasoningContent,
           reportedInputTokens: s.reportedInputTokens,
@@ -564,6 +626,7 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
         setConnectionTestMessage(resolvedConnectionErrorMessage);
       }
       if (resolvedErrorMessage) setLastError(resolvedErrorMessage);
+      await writeVerticalWorkflowAudit(resolvedStatus, 'stream_done');
       if (resolvedStatus === 'done') {
         recordCompletionSuccessMetric();
         const backgroundMemoryRuntime = backgroundMemoryRuntimeRef.current;
@@ -587,6 +650,7 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
     commitPrimaryStreamUsage();
     recordCompletionSuccessMetric();
     await awaitQueuedPersistence();
+    await writeVerticalWorkflowAudit('done', 'stream_fallback');
     await finalizeAssistantMessage('done', s.assistantContent, undefined, ragCitations, s.assistantReasoningContent);
   }
 }

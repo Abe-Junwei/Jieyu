@@ -6,7 +6,7 @@
  *   - 原始操作记录（每条 action 独立存储）
  *   - 聚合后的用户画像快照
  *
- * @see 解语语音智能体架构设计方案 v2.0 §P0
+ * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 十九、版本历史（UserBehaviorDB / 行为观测落地）
  */
 
 import Dexie, { type Table } from 'dexie';

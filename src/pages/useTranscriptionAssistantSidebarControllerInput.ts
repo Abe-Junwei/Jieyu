@@ -45,6 +45,7 @@ interface UseTranscriptionAssistantSidebarControllerInputInput {
     trackRecommendationEvent: AiChatContextValue['onTrackAiRecommendationEvent'];
   };
   aiToolDecisionLogs: AiChatContextValue['aiToolDecisionLogs'];
+  aiVerticalWorkflowAuditEntries: AiChatContextValue['aiVerticalWorkflowAuditEntries'];
   observerStage: AiChatContextValue['observerStage'];
   observerRecommendations: AssistantSidebarObserverRecommendationInput[];
   onJumpToCitation: AiChatContextValue['onJumpToCitation'];
@@ -67,6 +68,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
   lexemeMatches,
   aiChat,
   aiToolDecisionLogs,
+  aiVerticalWorkflowAuditEntries,
   observerStage,
   observerRecommendations,
   onJumpToCitation,
@@ -97,6 +99,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     aiInteractionMetrics: aiChat.metrics,
     aiSessionMemory: aiChat.sessionMemory,
     aiToolDecisionLogs,
+    aiVerticalWorkflowAuditEntries,
     observerStage,
     observerRecommendations,
     onUpdateAiChatSettings: aiChat.updateSettings,
@@ -141,6 +144,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     aiChat.trackRecommendationEvent,
     aiChat.updateSettings,
     aiToolDecisionLogs,
+    aiVerticalWorkflowAuditEntries,
     currentPage,
     lexemeMatches,
     observerRecommendations,

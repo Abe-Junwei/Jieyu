@@ -10,7 +10,7 @@
  *      专门处理口语化表达（"播放一下"、"撤一下"、"算了"等），
  *      减少对 LLM fallback 的依赖。
  *
- * @see 解语-语音智能体架构设计方案 §4.4
+ * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md §4.2（意图路由）
  */
 
 import { appendVoiceAliasLearningLog, clearVoiceAliasLearningLog, getActionLabel, loadVoiceAliasLearningLog } from './voiceIntentUi';

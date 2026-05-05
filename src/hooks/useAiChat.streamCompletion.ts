@@ -8,6 +8,7 @@ import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
 import { resolveUserDirectivePolicyDecision } from '../ai/policy/resolveExecutionPolicy';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
+import type { VerticalWorkflowOutputEnvelopeV0, VerticalWorkflowSelectionV0 } from '../ai/vertical/verticalWorkflowSelection';
 import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiTaskTraceEntry, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, ToolAuditContext, UiChatMessage } from './useAiChat.types';
 
 export interface ResolveAiChatStreamCompletionParams {
@@ -55,6 +56,8 @@ export interface ResolveAiChatStreamCompletionParams {
   genRequestId: (call: AiChatToolCall, scopeMessageId?: string) => string;
   localToolCallCountRef: { current: number };
   localToolTraceOptions?: LocalToolExecutionTraceOptions;
+  verticalWorkflowSelection?: VerticalWorkflowSelectionV0 | null;
+  verticalOutputEnvelopeSeed?: VerticalWorkflowOutputEnvelopeV0 | null;
   /**
    * Fresh prompt/read-model snapshot for **local** context tools (`list_units`, `get_project_stats`, …).
    * Invoked at each tool execution (including each step of a multi-tool batch) so tools see current UI state,

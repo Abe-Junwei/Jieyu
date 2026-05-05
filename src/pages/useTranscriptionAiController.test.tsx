@@ -12,6 +12,7 @@ const {
   mockBridgeTextForLayerTarget,
   mockResolveFallbackSourceOrthographyId,
   mockListRecentAiToolDecisionLogs,
+  mockListRecentAiVerticalWorkflowAuditEntries,
 } = vi.hoisted(() => ({
   mockUseAiChat: vi.fn(),
   mockUseAiPanelLogic: vi.fn(),
@@ -23,6 +24,7 @@ const {
     return layers.find((layer) => layer.layerType === 'transcription')?.orthographyId?.trim();
   }),
   mockListRecentAiToolDecisionLogs: vi.fn(async () => []),
+  mockListRecentAiVerticalWorkflowAuditEntries: vi.fn(async () => []),
 }));
 
 vi.mock('../hooks/useAiChat', () => ({
@@ -45,6 +47,7 @@ vi.mock('../utils/orthographyRuntime', () => ({
 
 vi.mock('../ai/auditReplay', () => ({
   listRecentAiToolDecisionLogs: mockListRecentAiToolDecisionLogs,
+  listRecentAiVerticalWorkflowAuditEntries: mockListRecentAiVerticalWorkflowAuditEntries,
 }));
 
 vi.mock('../ai/embeddings/DeferredEmbeddingSearchService', () => ({
@@ -258,6 +261,7 @@ describe('useTranscriptionAiController', () => {
     mockUseAiToolCallHandler.mockClear();
     mockBridgeTextForLayerTarget.mockClear();
     mockListRecentAiToolDecisionLogs.mockClear();
+    mockListRecentAiVerticalWorkflowAuditEntries.mockClear();
   });
 
   it('passes fallback source orthography when AI writes into a translation layer without selected source layer', async () => {

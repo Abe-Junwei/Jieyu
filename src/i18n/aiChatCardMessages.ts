@@ -203,6 +203,16 @@ export type AiChatCardMessages = {
   summaryCoveredTurns: (turnCount: number) => string;
   summaryQualityWarning: (similarity: number, threshold: number) => string;
   summaryEmpty: string;
+  verticalWorkflowTitle: string;
+  verticalWorkflowShowDetail: string;
+  verticalWorkflowHideDetail: string;
+  verticalWorkflowOpenReplay: string;
+  verticalWorkflowRequestLabel: (requestId: string) => string;
+  verticalWorkflowSelectionLabel: (source: string, reasonCode: string) => string;
+  verticalWorkflowKeywordLabel: (keyword: string) => string;
+  verticalWorkflowConfidenceLabel: (confidencePercent: string) => string;
+  verticalWorkflowRequestCopied: (requestId: string) => string;
+  verticalWorkflowRequestUnavailable: string;
   more: string;
   ragQuickScenarios: string;
   stopGenerating: string;
@@ -310,6 +320,16 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       summaryCoveredTurns: (turnCount) => `\u5df2\u8986\u76d6 ${turnCount} \u8f6e`,
       summaryQualityWarning: (similarity, threshold) => `\u6458\u8981\u53ef\u80fd\u9057\u6f0f\u5173\u952e\u4fe1\u606f (${Math.round(similarity * 100)}% < ${Math.round(threshold * 100)}%)`,
       summaryEmpty: '\u6682\u65e0\u6458\u8981\u8bb0\u5f55',
+      verticalWorkflowTitle: 'Vertical Workflow',
+      verticalWorkflowShowDetail: '\u67e5\u770b\u8be6\u60c5',
+      verticalWorkflowHideDetail: '\u6536\u8d77\u8be6\u60c5',
+      verticalWorkflowOpenReplay: '\u67e5\u770b\u56de\u653e/\u5bf9\u6bd4',
+      verticalWorkflowRequestLabel: (requestId) => `\u8bf7\u6c42: ${requestId}`,
+      verticalWorkflowSelectionLabel: (source, reasonCode) => `\u9009\u62e9\u4f9d\u636e: ${source} / ${reasonCode}`,
+      verticalWorkflowKeywordLabel: (keyword) => `\u5173\u952e\u8bcd: ${keyword}`,
+      verticalWorkflowConfidenceLabel: (confidencePercent) => `\u7f6e\u4fe1\u5ea6: ${confidencePercent}`,
+      verticalWorkflowRequestCopied: (requestId) => `\u5df2\u590d\u5236 Request ID: ${requestId}`,
+      verticalWorkflowRequestUnavailable: '\u7f3a\u5c11\u8bf7\u6c42 ID\uff0c\u6682\u65e0\u6cd5\u56de\u653e',
       more: '\u66f4\u591a',
       ragQuickScenarios: 'RAG \u5feb\u6377\u573a\u666f',
       stopGenerating: '\u505c\u6b62\u751f\u6210',
@@ -416,6 +436,16 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     summaryCoveredTurns: (turnCount) => `Covers ${turnCount} turns`,
     summaryQualityWarning: (similarity, threshold) => `Summary may miss key details (${Math.round(similarity * 100)}% < ${Math.round(threshold * 100)}%)`,
     summaryEmpty: 'No summary history yet',
+    verticalWorkflowTitle: 'Vertical Workflow',
+    verticalWorkflowShowDetail: 'Show detail',
+    verticalWorkflowHideDetail: 'Hide detail',
+    verticalWorkflowOpenReplay: 'Replay / Compare',
+    verticalWorkflowRequestLabel: (requestId) => `Request: ${requestId}`,
+    verticalWorkflowSelectionLabel: (source, reasonCode) => `Selection: ${source} / ${reasonCode}`,
+    verticalWorkflowKeywordLabel: (keyword) => `Keyword: ${keyword}`,
+    verticalWorkflowConfidenceLabel: (confidencePercent) => `Confidence: ${confidencePercent}`,
+    verticalWorkflowRequestCopied: (requestId) => `Request ID copied: ${requestId}`,
+    verticalWorkflowRequestUnavailable: 'Missing request ID, replay is unavailable.',
     more: 'More',
     ragQuickScenarios: 'RAG Quick Scenarios',
     stopGenerating: 'Stop generating',

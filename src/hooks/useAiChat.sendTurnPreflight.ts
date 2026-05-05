@@ -29,6 +29,12 @@ import {
   createInitialSendTurnStreamPhaseState,
   type SendTurnStreamPhaseState,
 } from './useAiChat.sendTurnStreamPhase';
+import {
+  buildVerticalWorkflowOutputEnvelopeV0,
+  selectVerticalWorkflowV0,
+  type VerticalWorkflowOutputEnvelopeV0,
+  type VerticalWorkflowSelectionV0,
+} from '../ai/vertical/verticalWorkflowSelection';
 import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
 import { AI_CHAT_BACKGROUND_MEMORY_SANDBOX_AUTHORIZED_DIRS, AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE } from './useAiChat.backgroundMemory';
 import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
@@ -65,6 +71,8 @@ export type SendTurnPreflightContext = Readonly<{
   commitPrimaryStreamUsage: () => void;
   agentLoopSourceUserText: string;
   effectiveUserText: string;
+  verticalWorkflowSelection: VerticalWorkflowSelectionV0 | null;
+  verticalOutputEnvelopeSeed: VerticalWorkflowOutputEnvelopeV0 | null;
   /** One id per user send attempt; use with `logSendTurnPhase` when localStorage debug is on. */
   correlationId: string;
 }>;
@@ -225,6 +233,10 @@ export async function runAiChatSendTurnPreflight(
 
   const agentLoopSourceUserText = resumeCheckpoint?.originalUserText ?? trimmed;
   const effectiveUserText = resumeCheckpoint?.continuationInput ?? trimmed;
+  const verticalWorkflowSelection = selectVerticalWorkflowV0(effectiveUserText);
+  const verticalOutputEnvelopeSeed = verticalWorkflowSelection
+    ? buildVerticalWorkflowOutputEnvelopeV0(verticalWorkflowSelection)
+    : null;
   const immediateDirectives = extractUserDirectives({ userText: effectiveUserText, source: 'user_explicit', sourceMessageId: userMsg.id });
   if (immediateDirectives.length > 0) {
     const profile = sendPreflightSessionSidecarSandboxProfileOverride ?? AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE;
@@ -273,5 +285,7 @@ export async function runAiChatSendTurnPreflight(
     commitPrimaryStreamUsage,
     agentLoopSourceUserText,
     effectiveUserText,
+    verticalWorkflowSelection,
+    verticalOutputEnvelopeSeed,
   };
 }

@@ -29,6 +29,7 @@ export function pickAiChatContextValue(P: AiChatContextSource): AiChatContextVal
     aiInteractionMetrics: P.aiInteractionMetrics,
     aiSessionMemory: P.aiSessionMemory,
     aiToolDecisionLogs: P.aiToolDecisionLogs ?? [],
+    aiVerticalWorkflowAuditEntries: P.aiVerticalWorkflowAuditEntries ?? [],
     observerStage: P.observerStage ?? 'collecting',
     observerRecommendations,
     onUpdateAiChatSettings: P.onUpdateAiChatSettings,

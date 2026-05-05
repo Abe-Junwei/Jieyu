@@ -7,7 +7,7 @@ last_reviewed: 2026-05-01
 source_of_truth: ai-change-transaction-preview
 depends_on:
   - ./ai-chat-tool-confirm-idempotency.md
-  - ../execution/plans/AI智能体工业级史诗-落地方案-2026-05-01.md
+  - ../execution/plans/AI智能体-战略规划与下一步-2026-05-07.md
 ---
 
 # AI 变更事务预览 DTO（v1）

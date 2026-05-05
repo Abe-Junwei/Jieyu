@@ -11,6 +11,7 @@ import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ProjectStage } from '../ai/ProjectObserver';
 import type { AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage } from '../hooks/useAiChat';
 import type { AiRecommendationEvent } from '../hooks/useAiChat.types';
+import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ export interface AiChatContextValue {
     durationMs?: number;
     message?: string;
   }>;
+  aiVerticalWorkflowAuditEntries: ParsedVerticalWorkflowAuditEntry[];
   // Observer
   observerStage: ProjectStage;
   observerRecommendations: Array<{
@@ -108,6 +110,7 @@ export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {
   aiInteractionMetrics: undefined,
   aiSessionMemory: undefined,
   aiToolDecisionLogs: [],
+  aiVerticalWorkflowAuditEntries: [],
   observerStage: 'collecting' as const,
   observerRecommendations: [],
   onUpdateAiChatSettings: undefined,

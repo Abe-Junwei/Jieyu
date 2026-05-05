@@ -3,11 +3,11 @@ title: AI 执行层 capability 策略矩阵 v0
 doc_type: architecture
 status: active
 owner: ai-governance
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-07
 source_of_truth: ai-capability-policy-v0
 depends_on:
   - ./ai-chat-tool-confirm-idempotency.md
-  - ../execution/plans/AI智能体工业级史诗-落地方案-2026-05-01.md
+  - ../execution/plans/AI智能体-战略规划与下一步-2026-05-07.md
 ---
 
 # AI 执行层 capability 策略矩阵 v0

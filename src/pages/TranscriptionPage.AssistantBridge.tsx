@@ -37,6 +37,7 @@ type DeferredAiChatState = {
 export interface DeferredTranscriptionAiRuntimeState {
   aiChat: DeferredAiChatState;
   aiToolDecisionLogs: UseTranscriptionAiControllerResult['aiToolDecisionLogs'];
+  aiVerticalWorkflowAuditEntries: UseTranscriptionAiControllerResult['aiVerticalWorkflowAuditEntries'];
   /** 与 `aiChat` 工具执行同源，供语音 `tool` 意图调用 */
   executeVoiceToolCall: UseTranscriptionAiControllerResult['executeVoiceToolCall'];
   acousticRuntimeStatus: AcousticRuntimeStatus;
@@ -63,6 +64,7 @@ function TranscriptionPageAssistantBridge({
   const {
     aiChat,
     aiToolDecisionLogs,
+    aiVerticalWorkflowAuditEntries,
     executeVoiceToolCall,
     acousticRuntimeStatus,
     acousticSummary,
@@ -106,6 +108,7 @@ function TranscriptionPageAssistantBridge({
       trackRecommendationEvent: aiChat.trackRecommendationEvent,
     },
     aiToolDecisionLogs,
+    aiVerticalWorkflowAuditEntries,
     executeVoiceToolCall,
     acousticRuntimeStatus,
     acousticSummary,
@@ -154,6 +157,7 @@ function TranscriptionPageAssistantBridge({
     aiChat.trackRecommendationEvent,
     aiChat.updateSettings,
     aiToolDecisionLogs,
+    aiVerticalWorkflowAuditEntries,
     executeVoiceToolCall,
     handleJumpToAcousticHotspot,
   ]);

@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { useState } from 'react';
 import { AiChatCard } from './AiChatCard';
 import * as replayUtils from './aiChatReplayUtils';
+import * as appGlobalToast from '../../utils/appGlobalToast';
 import { db } from '../../db';
 import { normalizeAiChatSettings } from '../../ai/providers/providerCatalog';
 import { AiAssistantHubContext, type AiAssistantHubContextValue } from '../../contexts/AiAssistantHubContext';
@@ -1169,6 +1170,149 @@ describe('AiChatCard input submit', () => {
       expect(within(view.container).getByText(/决策轨迹|Decision timeline/i)).toBeTruthy();
       expect(within(view.container).getByText(/Golden 快照预览|Golden Snapshot Preview/i)).toBeTruthy();
     }, { timeout: 3000 });
+  });
+
+  it('opens replay from latest vertical workflow detail when requestId is present', async () => {
+    const dispatchAppGlobalToastSpy = vi.spyOn(appGlobalToast, 'dispatchAppGlobalToast').mockImplementation(() => undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', {
+      clipboard: {
+        writeText,
+      },
+    });
+    const openReplayBundleByRequestIdSpy = vi.spyOn(replayUtils, 'openReplayBundleByRequestId').mockResolvedValue({
+      bundle: null,
+      errorMessage: null,
+      snapshotDiff: null,
+    });
+
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          aiMessages: [
+            {
+              id: 'assistant-vertical-1',
+              role: 'assistant',
+              content: '已执行 vertical workflow',
+              status: 'done',
+            },
+          ],
+          aiVerticalWorkflowAuditEntries: [
+            {
+              assistantMessageId: 'assistant-vertical-1',
+              requestId: 'toolreq_vertical_very_long_id_1234',
+              recordedAt: '2026-05-05T12:30:00.000Z',
+              metadata: {
+                schemaVersion: 1,
+                phase: 'stream_completion',
+                completionPath: 'stream_done',
+                completionStatus: 'done',
+                workflowId: 'translation-default',
+                writeMode: 'append',
+                outputKind: 'translation',
+                envelope: {
+                  schemaVersion: 1,
+                  generatedAt: '2026-05-05T12:29:59.000Z',
+                  evidencePacketCount: 1,
+                },
+                selection: {
+                  confidence: 0.82,
+                  source: 'keyword',
+                  reasonCode: 'exact_match',
+                  matchedKeyword: '翻译',
+                },
+              },
+            },
+          ],
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    fireEvent.click(within(view.container).getByRole('button', { name: /查看详情|Show detail/i }));
+    expect(within(view.container).getByText(/关键词:\s*翻译|Keyword:\s*翻译/i)).toBeTruthy();
+    expect(within(view.container).getByText(/置信度:\s*82%|Confidence:\s*82%/i)).toBeTruthy();
+    const verticalPanel = within(view.container).getByLabelText(/Vertical Workflow/i);
+    const copyButton = within(verticalPanel).getByRole('button', { name: /复制|Copy/i });
+    fireEvent.click(copyButton);
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith('toolre...1234');
+    }, { timeout: 3000 });
+    expect(dispatchAppGlobalToastSpy).toHaveBeenCalledWith({
+      message: expect.stringMatching(/已复制 Request ID: toolre\.\.\.1234|Request ID copied: toolre\.\.\.1234/i),
+      variant: 'success',
+      autoDismissMs: 1400,
+    });
+    await waitFor(() => {
+      expect(within(verticalPanel).getByRole('button', { name: /已复制|Copied/i })).toBeTruthy();
+    }, { timeout: 3000 });
+
+    fireEvent.click(within(view.container).getByRole('button', { name: /查看回放\s*\/\s*对比|Replay\s*\/\s*Compare/i }));
+
+    await waitFor(() => {
+      expect(openReplayBundleByRequestIdSpy).toHaveBeenCalledTimes(1);
+      expect(openReplayBundleByRequestIdSpy).toHaveBeenCalledWith('toolreq_vertical_very_long_id_1234', null, expect.any(Boolean));
+    }, { timeout: 3000 });
+
+    expect(within(view.container).getByRole('button', { name: /AI 决策|AI Decisions/i }).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('keeps vertical workflow replay action disabled when requestId is missing', async () => {
+    const openReplayBundleByRequestIdSpy = vi.spyOn(replayUtils, 'openReplayBundleByRequestId').mockResolvedValue({
+      bundle: null,
+      errorMessage: null,
+      snapshotDiff: null,
+    });
+
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          aiMessages: [
+            {
+              id: 'assistant-vertical-no-request',
+              role: 'assistant',
+              content: 'vertical done without request id',
+              status: 'done',
+            },
+          ],
+          aiVerticalWorkflowAuditEntries: [
+            {
+              assistantMessageId: 'assistant-vertical-no-request',
+              requestId: null,
+              recordedAt: '2026-05-05T12:35:00.000Z',
+              metadata: {
+                schemaVersion: 1,
+                phase: 'stream_completion',
+                completionPath: 'stream_done',
+                completionStatus: 'done',
+                workflowId: 'translation-default',
+                writeMode: 'append',
+                outputKind: 'translation',
+                envelope: {
+                  schemaVersion: 1,
+                  generatedAt: '2026-05-05T12:34:59.000Z',
+                  evidencePacketCount: 1,
+                },
+                selection: null,
+              },
+            },
+          ],
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    fireEvent.click(within(view.container).getByRole('button', { name: /查看详情|Show detail/i }));
+    const replayButton = within(view.container).getByRole('button', { name: /查看回放\s*\/\s*对比|Replay\s*\/\s*Compare/i });
+    expect(replayButton).toBeDisabled();
+    fireEvent.click(replayButton);
+
+    await waitFor(() => {
+      expect(openReplayBundleByRequestIdSpy).toHaveBeenCalledTimes(0);
+    });
+    expect(within(view.container).getByText(/缺少请求 ID|Missing request ID/i)).toBeTruthy();
   });
 
   it('keeps the AI decision panel collapsed by default', () => {
