@@ -54,7 +54,7 @@ export async function exportDatabaseAsJson(): Promise<{
   };
 }
 
-import { markBackupCompleted } from '../hooks/useBackupReminder';
+import { markBackupCompleted } from '../utils/backupExportTimestamp';
 
 export async function downloadDatabaseAsJson(filename?: string): Promise<void> {
   if (typeof window === 'undefined') {
