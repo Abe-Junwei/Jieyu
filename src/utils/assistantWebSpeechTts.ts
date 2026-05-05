@@ -1,6 +1,6 @@
 /**
  * Browser TTS for assistant replies (Web Speech API `speechSynthesis`).
- * Used when the user opts in via preferences; see ADR-0028 TTS scope.
+ * Used when the user opts in via preferences; see ADR-0029.
  */
 
 const MAX_SPEAK_CHARS = 4096;

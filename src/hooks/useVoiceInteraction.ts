@@ -23,9 +23,10 @@ import {
   createTranscriptionVoiceSendToAiChat,
   type TranscriptionVoiceSelectionSnapshot,
 } from '../services/transcriptionVoiceInteractionWiring';
-import { useLocale } from '../i18n';
+import { useLocale, t } from '../i18n';
 import { getVoiceInteractionMessages } from '../i18n/messages';
 import { useGlobalContext } from '../services/GlobalContextService';
+import { useToast } from '../contexts/ToastContext';
 import { isAssistantWebSpeechTtsSupported, speakAssistantReplyWithWebSpeechTts, stopAssistantWebSpeechTts } from '../utils/assistantWebSpeechTts';
 
 interface VoiceMessageLike {
@@ -149,13 +150,25 @@ export function useVoiceInteraction({
   voiceAiAssistantMessageBridgeRef,
 }: UseVoiceInteractionOptions): UseVoiceInteractionReturn {
   const locale = useLocale();
+  const { showToast } = useToast();
   const { profile, updatePreference } = useGlobalContext();
   const assistantTtsEnabled = profile.preferences.assistantTtsEnabled;
   const onSetAssistantTtsEnabled = useCallback((on: boolean) => {
     updatePreference('assistantTtsEnabled', on);
   }, [updatePreference]);
   const assistantTtsSupported = useMemo(() => isAssistantWebSpeechTtsSupported(), []);
+  const assistantTtsUnsupportedHintShownRef = useRef(false);
   const messages = getVoiceInteractionMessages(locale);
+
+  useEffect(() => {
+    if (!assistantTtsEnabled || assistantTtsSupported || assistantTtsUnsupportedHintShownRef.current) return;
+    assistantTtsUnsupportedHintShownRef.current = true;
+    showToast(
+      t(locale, 'transcription.voiceWidget.settings.assistantTtsUnsupported'),
+      'warning',
+      5000,
+    );
+  }, [assistantTtsEnabled, assistantTtsSupported, locale, showToast]);
   const [assistantVoiceExpanded, setAssistantVoiceExpanded] = useState(false);
   const [analysisWritebackFeedback, setAnalysisWritebackFeedback] = useState<{
     kind: 'done' | 'error';

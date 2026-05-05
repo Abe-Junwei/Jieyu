@@ -9,6 +9,19 @@ const mockUseVoiceAgent = vi.hoisted(() => vi.fn());
 
 const mockAssistantTtsEnabledRef = vi.hoisted(() => ({ value: false }));
 
+const mockShowToast = vi.hoisted(() => vi.fn());
+
+const mockIsAssistantTtsSupported = vi.hoisted(() => vi.fn(() => true));
+
+vi.mock('../contexts/ToastContext', () => ({
+  useToast: () => ({
+    showToast: mockShowToast,
+    showSaveState: vi.fn(),
+    showVoiceState: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+}));
+
 vi.mock('./useVoiceAgent', () => ({
   useVoiceAgent: (...args: unknown[]) => mockUseVoiceAgent(...args),
 }));
@@ -37,7 +50,7 @@ vi.mock('../services/GlobalContextService', async (importOriginal) => {
 });
 
 vi.mock('../utils/assistantWebSpeechTts', () => ({
-  isAssistantWebSpeechTtsSupported: () => true,
+  isAssistantWebSpeechTtsSupported: () => mockIsAssistantTtsSupported(),
   speakAssistantReplyWithWebSpeechTts: vi.fn(),
   stopAssistantWebSpeechTts: vi.fn(),
 }));
@@ -81,6 +94,8 @@ function makeLink(id: string, transcriptionLayerKey: string, hostTranscriptionLa
 describe('useVoiceInteraction', () => {
   beforeEach(() => {
     mockAssistantTtsEnabledRef.value = false;
+    mockShowToast.mockClear();
+    mockIsAssistantTtsSupported.mockReturnValue(true);
     mockUseVoiceAgent.mockReturnValue({
       mode: 'dictation',
       agentState: 'idle',
@@ -143,6 +158,47 @@ describe('useVoiceInteraction', () => {
     }));
 
     expect(result.current.voiceTargetSummary).toContain('L:trc-default');
+  });
+
+  it('shows one warning toast when assistant TTS is enabled but Web Speech synthesis is unsupported', () => {
+    mockIsAssistantTtsSupported.mockReturnValue(false);
+    mockAssistantTtsEnabledRef.value = true;
+
+    renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: '__auto__',
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      onVoiceAnalysisResult: vi.fn(),
+      selection: {
+        activeUnitId: 'utt-1',
+        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+        selectedRowMeta: null,
+        selectedLayerId: 'trc-default',
+        selectedUnitKind: 'unit',
+        selectedTimeRangeLabel: '0.00 - 1.00',
+      },
+      defaultTranscriptionLayerId: 'trc-default',
+      translationLayers: [],
+      layers: [makeLayer('trc-default', 'transcription')],
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend: vi.fn(async () => undefined),
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+    }));
+
+    expect(mockShowToast).toHaveBeenCalledTimes(1);
+    expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'warning', 5000);
   });
 
   it('registers voiceAiAssistantMessageBridgeRef to forward AI completion to notifyAiStreamFinished', async () => {

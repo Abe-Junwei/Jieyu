@@ -3,19 +3,19 @@ title: 非听写语音统一聊天路径 — 发布验证与观测
 doc_type: release-gate
 status: active
 owner: repo
-last_reviewed: 2026-04-26
+last_reviewed: 2026-05-02
 source_of_truth: runbook
 ---
 
 # 非听写语音统一聊天路径：验证与观测
 
-关联：[voice-unified-chat-path.md](../../architecture/voice-unified-chat-path.md) · [ADR-0027](../../adr/0027-voice-unified-non-dictation-chat-path.md)
+关联：[voice-unified-chat-path.md](../../architecture/voice-unified-chat-path.md) · [ADR-0027](../../adr/0027-voice-unified-non-dictation-chat-path.md) · [拍板项：TTS / 门禁 / 键入路由](../plans/AI语音拍板项-TTS-发布门禁-键入路由-2026-05-02.md)
 
 本链路**无环境开关**；发布前以构建版本与端到端验证为主，不设「一键关 FF 回滚」分支。
 
 ## 自动化回归（与 QA 摘要 1–3 对齐）
 
-发布前建议跑 **语音合入快捷命令**（含 ActionId/i18n/LLM 列表契约 + 语音助手 Vitest）：
+发布前 **须**跑 **语音合入快捷命令**（含 ActionId/i18n/LLM 列表契约 + 语音助手 Vitest）——与拍板「语音相关 E2E/自动化门禁 **必跑**」一致（E2E 见下节）：
 
 ```bash
 npm run check:voice-agent-pre-merge
@@ -26,6 +26,20 @@ npm run check:voice-agent-pre-merge
 ```bash
 npx vitest run src/hooks/useVoiceAgentResultHandler.test.ts
 ```
+
+### 端到端（阻塞发版）
+
+- **拍板**：`npm run test:e2e`（Chromium + Firefox + WebKit）在发版流水线中为 **必跑**；与 [桌面端浏览器支持策略](../../architecture/桌面端浏览器支持策略.md) 中 CI 描述一致。
+- 本地快速循环：`npm run test:e2e:chromium`。
+
+## Voice provider manifest / release-stable（拍板口径）
+
+- **何时可标 release-stable**：连续 **N** 个发布周期（建议 **2**，可由 release owner 在发版记录中写明）内，未出现 **P0** 级「manifest 健康 / 引擎降级」故障（定义见 [C 阶段 AI 治理完整落地方案](../plans/C阶段AI治理完整落地方案-2026-04-25.md) 与证据归档）；不满足则不在对外材料中宣称 stable。
+- **证据形态（D2-A）**：以 **文档化采样步骤 + 人工归档** 为主（release evidence 目录/执行记录）；不强制新增专用 CI gate 脚本，除非后续单独立项。
+
+## 键入路由战略
+
+- **维持** ADR-0028：键入 **不强制** 经过与语音相同的前置 NLU；无流程变更。
 
 ## 手工验收脚本与留痕
 

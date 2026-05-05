@@ -72,6 +72,6 @@ supersedes_notes: |
 
 | 主题 | 说明 | 建议出口 |
 | --- | --- | --- |
-| **TTS** | 缺省开关、离线包体、CSP/许可与宿主（浏览器）能力边界 | 单独 ADR 或产品规格节；与桌面端策略交叉引用 |
+| **TTS** | 缺省开关、离线包体、CSP/许可与宿主（浏览器）能力边界 | **[ADR-0029](./0029-assistant-tts-web-speech-policy.md)**（`accepted`）；与 [桌面端浏览器支持策略](../architecture/桌面端浏览器支持策略.md) 交叉引用 |
 | **键入统一预路由** | 若产品要求键入也进入与语音相同的前置 NLU 漏斗 | **新 ADR** 显式 supersede 本 ADR §1「键入不强制预路由」 |
 | **架构热点** | `AiChatCard`、`useAiChat` 等逼近 `check:architecture-guard` 行数/声明上限 | 独立 PR 按控制器/子组件拆分；与「编排下沉」纪律一致 |
