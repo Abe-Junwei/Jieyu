@@ -134,4 +134,18 @@ test.describe('关键路径 | Critical paths', () => {
     // 导出触发后菜单应关闭，证明动作已被消费 | Export action should close the menu, proving the click is consumed
     await expect(page.locator('.context-menu-submenu-export')).toBeHidden({ timeout: 10_000 });
   });
+
+  test('导出菜单包含归档导出项 | Export menu exposes archive actions', async ({ page }) => {
+    await page.goto('/transcription');
+    await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
+
+    await page.locator('.left-rail-project-hub-btn').click();
+    const exportMenuEntry = page.getByRole('menuitem', { name: /导出|Export/ });
+    await exportMenuEntry.hover();
+
+    const exportSubmenu = page.locator('.context-menu-submenu-export');
+    await expect(exportSubmenu).toBeVisible();
+    await expect(exportSubmenu.getByRole('menuitem', { name: /JYT/i })).toBeVisible();
+    await expect(exportSubmenu.getByRole('menuitem', { name: /JYM/i })).toBeVisible();
+  });
 });

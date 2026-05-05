@@ -4,10 +4,24 @@
  * JSON 格式快照的导出与导入，支持冲突策略与数据校验。
  * 导出不包含离线 `audioBlob`（仅结构化 + `details` 中 `audioExportOmitted` 标记）；导入仍接受 `audioDataUrl` 以灌回 Blob。
  */
-import { z } from 'zod';
 import type { Table } from 'dexie';
-import type { TextDocType, MediaItemDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType, ProvenanceEnvelope, JieyuCollections, ImportConflictStrategy, ImportResult } from './types';
-import { isoDateSchema, validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUnitMorphemeDoc, validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc, validateAiTaskDoc, validateEmbeddingDoc, validateAiConversationDoc, validateAiMessageDoc, validateLanguageDoc, validateLanguageDisplayNameDoc, validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc, validateCustomFieldDefinitionDoc, validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc, validateLocationDoc, validateBibliographicSourceDoc, validateGrammarDoc, validateAbbreviationDoc, validateStructuralRuleProfileAssetDoc, validatePhonemeDoc, validateTagDefinitionDoc, validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc, validateUnitRelationDoc, validateLayerLinkDoc, validateTierDefinitionDoc, validateTierAnnotationDoc, validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc, validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc, validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc, validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc } from './schemas';
+import type {
+  ImportConflictStrategy,
+  ImportResult,
+  JieyuCollections,
+  LayerDocType,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+  LexemeDocType,
+  PhonemeDocType,
+  ProvenanceEnvelope,
+  TierAnnotationDocType,
+  TokenLexemeLinkDocType,
+  UnitMorphemeDocType,
+  UnitRelationDocType,
+  UnitTokenDocType,
+  UserNoteDocType,
+} from './types';
 import { db, getDb } from './engine';
 
 /** Import/export JSON snapshots must use this exact `schemaVersion` (no older/newer formats). */
@@ -15,6 +29,15 @@ const SNAPSHOT_SCHEMA_VERSION = 4;
 const SNAPSHOT_IMPORT_MAX_JSON_BYTES = 32 * 1024 * 1024;
 const SNAPSHOT_IMPORT_MAX_JSON_DEPTH = 64;
 const SNAPSHOT_IMPORT_MAX_JSON_NODES = 500_000;
+type ValidationModule = typeof import('./ioImportValidation');
+let validationModulePromise: Promise<ValidationModule> | null = null;
+
+function loadValidationModule(): Promise<ValidationModule> {
+  if (!validationModulePromise) {
+    validationModulePromise = import('./ioImportValidation');
+  }
+  return validationModulePromise;
+}
 
 export async function exportDatabaseAsJson(): Promise<{
   schemaVersion: number;
@@ -75,13 +98,6 @@ export async function downloadDatabaseAsJson(filename?: string): Promise<void> {
   // 重置备份提醒倒计时 | Reset backup reminder countdown
   markBackupCompleted();
 }
-
-const databaseSnapshotSchema = z.object({
-  schemaVersion: z.number().int().positive(),
-  exportedAt: isoDateSchema.optional(),
-  dbName: z.string().optional(),
-  collections: z.record(z.string(), z.array(z.unknown())),
-});
 
 const knownCollectionNames = [
   'texts',
@@ -176,53 +192,6 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   language_asset_overviews: db.language_asset_overviews,
   ai_task_snapshots: db.ai_task_snapshots,
   track_entities: db.track_entities,
-};
-
-const validatorByCollection: Record<KnownCollectionName, (value: unknown) => void> = {
-  texts: (value) => validateTextDoc(value as TextDocType),
-  media_items: (value) => validateMediaItemDoc(value as MediaItemDocType),
-  unit_tokens: (value) => validateUnitTokenDoc(value as UnitTokenDocType),
-  unit_morphemes: (value) => validateUnitMorphemeDoc(value as UnitMorphemeDocType),
-  anchors: (value) => validateAnchorDoc(value as AnchorDocType),
-  lexemes: (value) => validateLexemeDoc(value as LexemeDocType),
-  token_lexeme_links: (value) => validateTokenLexemeLinkDoc(value as TokenLexemeLinkDocType),
-  ai_tasks: (value) => validateAiTaskDoc(value as AiTaskDoc),
-  embeddings: (value) => validateEmbeddingDoc(value as EmbeddingDoc),
-  ai_conversations: (value) => validateAiConversationDoc(value as AiConversationDoc),
-  ai_messages: (value) => validateAiMessageDoc(value as AiMessageDoc),
-  languages: (value) => validateLanguageDoc(value as LanguageDocType),
-  language_display_names: (value) => validateLanguageDisplayNameDoc(value as LanguageDisplayNameDocType),
-  language_aliases: (value) => validateLanguageAliasDoc(value as LanguageAliasDocType),
-  language_catalog_history: (value) => validateLanguageCatalogHistoryDoc(value as LanguageCatalogHistoryDocType),
-  custom_field_definitions: (value) => validateCustomFieldDefinitionDoc(value as CustomFieldDefinitionDocType),
-  speakers: (value) => validateSpeakerDoc(value as SpeakerDocType),
-  orthographies: (value) => validateOrthographyDoc(value as OrthographyDocType),
-  orthography_bridges: (value) => validateOrthographyBridgeDoc(value as OrthographyBridgeDocType),
-  orthography_transforms: (value) => validateOrthographyBridgeDoc(value as OrthographyBridgeDocType),
-  locations: (value) => validateLocationDoc(value as LocationDocType),
-  bibliographic_sources: (value) => validateBibliographicSourceDoc(value as BibliographicSourceDocType),
-  grammar_docs: (value) => validateGrammarDoc(value as GrammarDocDocType),
-  abbreviations: (value) => validateAbbreviationDoc(value as AbbreviationDocType),
-  structural_rule_profiles: (value) => validateStructuralRuleProfileAssetDoc(value as StructuralRuleProfileAssetDocType),
-  phonemes: (value) => validatePhonemeDoc(value as PhonemeDocType),
-  tag_definitions: (value) => validateTagDefinitionDoc(value as TagDefinitionDocType),
-  layers: (value) => validateLayerDoc(value as LayerDocType),
-  layer_units: (value) => validateLayerUnitDoc(value as LayerUnitDocType),
-  layer_unit_contents: (value) => validateLayerUnitContentDoc(value as LayerUnitContentDocType),
-  unit_relations: (value) => validateUnitRelationDoc(value as UnitRelationDocType),
-  layer_links: (value) => validateLayerLinkDoc(value as LayerLinkDocType),
-  tier_definitions: (value) => validateTierDefinitionDoc(value as TierDefinitionDocType),
-  tier_annotations: (value) => validateTierAnnotationDoc(value as TierAnnotationDocType),
-  audit_logs: (value) => validateAuditLogDoc(value as AuditLogDocType),
-  user_notes: (value) => validateUserNoteDoc(value as UserNoteDocType),
-  segment_meta: (value) => validateSegmentMetaDoc(value as SegmentMetaDocType),
-  segment_quality_snapshots: (value) => validateSegmentQualitySnapshotDoc(value as SegmentQualitySnapshotDocType),
-  scope_stats_snapshots: (value) => validateScopeStatsSnapshotDoc(value as ScopeStatsSnapshotDocType),
-  speaker_profile_snapshots: (value) => validateSpeakerProfileSnapshotDoc(value as SpeakerProfileSnapshotDocType),
-  translation_status_snapshots: (value) => validateTranslationStatusSnapshotDoc(value as TranslationStatusSnapshotDocType),
-  language_asset_overviews: (value) => validateLanguageAssetOverviewDoc(value as LanguageAssetOverviewDocType),
-  ai_task_snapshots: (value) => validateAiTaskSnapshotDoc(value as AiTaskSnapshotDocType),
-  track_entities: (value) => validateTrackEntityDoc(value as TrackEntityDocType),
 };
 
 function ensureImportProvenance<T extends { provenance?: ProvenanceEnvelope | undefined; createdAt?: string | undefined }>(
@@ -373,6 +342,7 @@ export async function importDatabaseFromJson(
   input: unknown,
   options?: { strategy?: ImportConflictStrategy },
 ): Promise<ImportResult> {
+  const validation = await loadValidationModule();
   const strategy = options?.strategy ?? 'upsert';
   let parsedRaw: unknown;
   try {
@@ -391,7 +361,7 @@ export async function importDatabaseFromJson(
     throw new Error(`Invalid JSON input: ${e instanceof Error ? e.message : 'unknown parse error'}`);
   }
   validateSnapshotJsonStructure(parsedRaw);
-  const snapshot = databaseSnapshotSchema.parse(parsedRaw);
+  const snapshot = validation.parseDatabaseSnapshot(parsedRaw);
 
   if (snapshot.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
     throw new Error(
@@ -476,7 +446,7 @@ export async function importDatabaseFromJson(
         }
       }
 
-      validatorByCollection[collectionName](doc);
+      validation.validateCollectionDoc(collectionName, doc);
     }
 
     preparedCollections.push({

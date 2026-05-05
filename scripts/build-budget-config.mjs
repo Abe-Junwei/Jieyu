@@ -1,6 +1,9 @@
 export const buildBudgets = [
   { label: 'TranscriptionPage.Orchestrator', pattern: /^TranscriptionPage\.Orchestrator-.*\.js$/, maxBytes: 860 * 1024 },
   { label: 'voice-agent-core', pattern: /^voice-agent-core-.*\.js$/, maxBytes: 760 * 1024 },
+  { label: 'TranscriptionPage.ImportExport.archive', pattern: /^TranscriptionPage\.ImportExport\.archive-.*\.js$/, maxBytes: 1400 * 1024 },
+  { label: 'db-import-export-runtime', pattern: /^db-import-export-runtime-.*\.js$/, maxBytes: 1400 * 1024 },
+  { label: 'db-import-validation-runtime', pattern: /^db-import-validation-runtime-.*\.js$/, maxBytes: 1400 * 1024 },
   { label: 'pdf-vendor', pattern: /^pdf-vendor-.*\.js$/, maxBytes: 900 * 1024 },
   { label: 'transformers', pattern: /^(transformers|transformers-vendor)-.*\.js$/, maxBytes: 860 * 1024 },
   { label: 'onnxruntime-vendor', pattern: /^onnxruntime-vendor-.*\.js$/, maxBytes: 300 * 1024 },

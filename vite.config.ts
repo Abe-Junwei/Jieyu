@@ -147,6 +147,8 @@ export default defineConfig({
     alias: {
       // 包 exports 未列出该子路径；供 index.html 与 Vitest 在 classic zod 加载前写入 jitless
       'zod/v4/core/core.js': zodCoreConfigEntry,
+      // wavesurfer spectrogram probes Node worker_threads at module scope; map to browser shim to avoid externalization warnings
+      worker_threads: resolve(repoRoot, 'src/workerThreads.browser.ts'),
     },
   },
   plugins: [
@@ -198,11 +200,9 @@ export default defineConfig({
           'assets/main-*.js',
           'assets/main-*.css',
           'assets/react-vendor-*.js',
-          'assets/zod-vendor-*.js',
           'assets/sentry-vendor-*.js',
           'assets/useQuery-*.js',
           'assets/useLatest-*.js',
-          'assets/fireAndForget-*.js',
         ],
         globIgnores: [
           '**/onnx-wasm/**',
@@ -311,7 +311,10 @@ export default defineConfig({
         if (
           warning.code === 'EVAL'
           && typeof warning.id === 'string'
-          && warning.id.includes('/onnxruntime-web/')
+          && (
+            warning.id.includes('/onnxruntime-web/')
+            || warning.id.includes('/@protobufjs/inquire/')
+          )
         ) {
           return;
         }
@@ -340,6 +343,18 @@ export default defineConfig({
             id.includes('/src/services/JymService')
           ) {
             return 'TranscriptionPage.ImportExport.archive';
+          }
+          if (
+            id.includes('/node_modules/fflate/')
+          ) {
+            return 'import-export-compression-vendor';
+          }
+          if (
+            id.includes('/src/db/ioImportValidation.ts')
+            || id.includes('/src/db/schemas.ts')
+            || id.includes('/node_modules/zod/')
+          ) {
+            return 'db-import-validation-runtime';
           }
           if (
             id.includes('/src/services/LayerSegmentationTextService.ts')

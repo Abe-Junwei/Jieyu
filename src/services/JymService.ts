@@ -1,11 +1,42 @@
 import { strToU8, unzipSync, zipSync } from 'fflate';
-import { exportDatabaseAsJson, getDb, importDatabaseFromJson, type ImportConflictStrategy, type ImportResult } from '../db';
+import type { ImportConflictStrategy, ImportResult } from '../db/types';
 
 const ARCHIVE_FORMAT_VERSION = 1;
 const MIMETYPE_JYM = 'application/x-jieyu-media';
 const MIMETYPE_JYT = 'application/x-jieyu-text';
 
 type ArchiveKind = 'jym' | 'jyt';
+type DbIoModule = typeof import('../db/io');
+type DbEngineModule = typeof import('../db/engine');
+type DatabaseSnapshot = {
+  schemaVersion: number;
+  exportedAt: string;
+  dbName: string;
+  collections: Record<string, unknown[]>;
+};
+
+let dbIoModulePromise: Promise<DbIoModule> | null = null;
+let dbEngineModulePromise: Promise<DbEngineModule> | null = null;
+
+function loadDbIoModule(): Promise<DbIoModule> {
+  if (!dbIoModulePromise) {
+    dbIoModulePromise = import('../db/io').catch((error) => {
+      dbIoModulePromise = null;
+      throw error;
+    });
+  }
+  return dbIoModulePromise;
+}
+
+function loadDbEngineModule(): Promise<DbEngineModule> {
+  if (!dbEngineModulePromise) {
+    dbEngineModulePromise = import('../db/engine').catch((error) => {
+      dbEngineModulePromise = null;
+      throw error;
+    });
+  }
+  return dbEngineModulePromise;
+}
 
 /** Web Crypto typings expect `ArrayBuffer`-backed views; copy into a dedicated `ArrayBuffer`. */
 function webCryptoBufferSource(bytes: Uint8Array): BufferSource {
@@ -333,7 +364,8 @@ async function countExistingDocIds(collectionName: string, ids: string[]): Promi
   const normalizedIds = Array.from(new Set(ids.map((id) => id.trim()).filter((id) => id.length > 0)));
   if (normalizedIds.length === 0) return 0;
 
-  const db = await getDb();
+  const dbEngine = await loadDbEngineModule();
+  const db = await dbEngine.getDb();
   const dexieTables = db.dexie as unknown as Record<string, { bulkGet?: (keys: string[]) => Promise<unknown[]> }>;
   const table = dexieTables[collectionName];
   if (!table || typeof table.bulkGet !== 'function') return 0;
@@ -411,8 +443,8 @@ function unzipWithGuard(archiveBytes: Uint8Array, policy: JieyuArchiveImportPoli
   return files;
 }
 
-function sanitizeSnapshotForJyt(snapshot: Awaited<ReturnType<typeof exportDatabaseAsJson>>): Awaited<ReturnType<typeof exportDatabaseAsJson>> {
-  const cloned = JSON.parse(JSON.stringify(snapshot)) as Awaited<ReturnType<typeof exportDatabaseAsJson>>;
+function sanitizeSnapshotForJyt(snapshot: DatabaseSnapshot): DatabaseSnapshot {
+  const cloned = JSON.parse(JSON.stringify(snapshot)) as DatabaseSnapshot;
   const mediaItems = cloned.collections['media_items'] as Array<Record<string, unknown>> | undefined;
 
   if (mediaItems) {
@@ -435,7 +467,8 @@ export async function exportToJieyuArchive(
   kind: ArchiveKind,
   options?: JieyuArchiveExportOptions,
 ): Promise<Uint8Array> {
-  const snapshot = await exportDatabaseAsJson();
+  const dbIo = await loadDbIoModule();
+  const snapshot = await dbIo.exportDatabaseAsJson();
   const payload = kind === 'jyt' ? sanitizeSnapshotForJyt(snapshot) : snapshot;
 
   const manifest: JieyuArchiveManifest = {
@@ -483,7 +516,8 @@ export async function importFromJieyuArchive(
 
   const snapshotU8 = await resolveSnapshotPayloadBytes(files, manifest, options?.password);
   const snapshot = parseJsonWithGuard<unknown>(snapshotU8, policy, 'snapshot');
-  const importResult = await importDatabaseFromJson(snapshot, {
+  const dbIo = await loadDbIoModule();
+  const importResult = await dbIo.importDatabaseFromJson(snapshot, {
     ...(options?.strategy ? { strategy: options.strategy } : {}),
   });
 
