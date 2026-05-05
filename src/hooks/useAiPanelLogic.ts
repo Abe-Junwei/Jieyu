@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
 import { LinguisticService } from '../services/LinguisticService';
 import { ProjectObserver, type Recommendation } from '../ai/ProjectObserver';
-import type { AiSystemPersonaKey } from './useAiChat';
+import type { AiSystemPersonaKey } from './useAiChat.types';
 import type { VadCacheStatus } from '../contexts/AiPanelContext';
 
 const TASK_TO_PERSONA: Record<AiPanelTask, AiSystemPersonaKey> = {

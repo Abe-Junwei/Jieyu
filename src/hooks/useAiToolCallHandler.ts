@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import type { LayerUnitDocType, LayerDocType } from '../db';
-import type { AiChatToolCall, AiChatToolResult } from './useAiChat';
+import type { AiChatToolCall, AiChatToolResult } from './useAiChat.types';
 import { useLatest } from './useLatest';
 import { tf, useLocale } from '../i18n';
 import { layerMatchesLanguage, parseLayerHintFromOpaqueId } from './useAiToolCallHandler.helpers';

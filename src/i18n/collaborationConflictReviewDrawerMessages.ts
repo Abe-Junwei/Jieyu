@@ -1,10 +1,11 @@
 import { normalizeLocale, t, tf, type Locale } from './index';
-import type { CloudSyncConflictReviewTicket } from '../hooks/useTranscriptionCloudSyncActions';
+
+type CloudSyncConflictReviewPriority = 'critical' | 'high' | 'medium' | 'low';
 
 export type CollaborationConflictReviewDrawerMessages = {
   title: string;
   badgeAriaLabel: (count: number) => string;
-  priorityLabel: (priority: CloudSyncConflictReviewTicket['priority']) => string;
+  priorityLabel: (priority: CloudSyncConflictReviewPriority) => string;
   noConflictCodeDetails: string;
   applyRemote: string;
   keepLocal: string;

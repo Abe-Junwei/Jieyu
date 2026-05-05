@@ -2,7 +2,7 @@
  * Shared STT → UI surface updates for voice agent paths (ADR-0028: Hook / VoiceAgentService parity).
  */
 
-import type { SttResult } from './VoiceInputService';
+import type { SttResult } from './VoiceInputService.types';
 
 /**
  * Non-final STT: mirror `useVoiceAgentResultHandler` interim branch when no dictation pipeline consumed the result.

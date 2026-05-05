@@ -5,7 +5,7 @@
  * Add new providers here to make them available in the UI selector.
  */
 
-import type { CommercialSttProvider, CommercialProviderKind, SttEngine } from '../VoiceInputService';
+import type { CommercialSttProvider, CommercialProviderKind, SttEngine } from '../VoiceInputService.types';
 import { LocalWhisperSttProvider } from './LocalWhisperSttProvider';
 import { GeminiSttProvider } from './GeminiSttProvider';
 import { OpenAISttProvider } from './OpenAISttProvider';

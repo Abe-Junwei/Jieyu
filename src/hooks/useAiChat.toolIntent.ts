@@ -2,7 +2,10 @@ import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import { assessToolActionIntent, buildToolAuditContext, buildToolIntentAuditMetadata, shouldAllowDeicticExecutionIntent } from '../ai/chat/toolCallHelpers';
 import { resolveIntentConfidenceGate } from '../ai/chat/intentConfidenceGate';
 import { featureFlags } from '../ai/config/featureFlags';
-import type { AiChatToolCall, AiMemoryRecallShapeTelemetry, AiPromptContext, AiToolDecisionMode, UiChatMessage } from './useAiChat';
+import type { AiChatToolCall, AiMemoryRecallShapeTelemetry, AiPromptContext, AiToolDecisionMode, UiChatMessage } from './useAiChat.types';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('useAiChat.toolIntent');
 
 interface BuildAndAuditToolIntentParams {
   assistantMessageId: string;
@@ -74,8 +77,9 @@ export async function buildAndAuditToolIntent({
     toolCall.requestId,
     buildToolIntentAuditMetadata(assistantMessageId, toolCall, auditContext),
   ).catch((error) => {
-    // eslint-disable-next-line no-console
-    console.warn('[toolIntent] audit log write failed', error instanceof Error ? error.message : error);
+    log.warn('audit log write failed', {
+      err: error instanceof Error ? error.message : String(error),
+    });
   });
 
   return {

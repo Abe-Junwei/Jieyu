@@ -2,15 +2,7 @@ import { useCallback, useMemo } from 'react';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { UseAiPanelLogicInput } from '../hooks/useAiPanelLogic';
 import { unitDocForSpeakerTargetFromUnitView } from './timelineUnitViewUnitHelpers';
-
-type RuntimeAiChatOverlay = {
-  providerLabel: unknown;
-  settings: unknown;
-  connectionTestStatus: unknown;
-  connectionTestMessage: unknown;
-  updateSettings: unknown;
-  testConnection: unknown;
-};
+import type { DeferredTranscriptionAiRuntimeState } from './TranscriptionPage.AssistantBridge';
 
 type AiPanelSelectedUnit = NonNullable<UseAiPanelLogicInput['selectedUnit']>;
 
@@ -20,10 +12,8 @@ interface UseReadyWorkspaceLayoutDerivationsInput {
   unitsCount: number;
   selectionSnapshotSelectedUnit: TimelineUnitView | null | undefined;
   getUnitDocById: (id: string) => AiPanelSelectedUnit | undefined;
-  deferredAiRuntime: {
-    aiChat: RuntimeAiChatOverlay;
-  };
-  deferredAiRuntimeForSidebar: { aiChat: any };
+  deferredAiRuntime: DeferredTranscriptionAiRuntimeState;
+  deferredAiRuntimeForSidebar: Pick<DeferredTranscriptionAiRuntimeState, 'aiChat'>;
   playerInstanceRef: { current: { getWidth?: () => number } | null };
 }
 

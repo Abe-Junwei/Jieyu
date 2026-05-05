@@ -1,6 +1,6 @@
 import { useMemo, type RefObject } from 'react';
 import type { Locale } from '../i18n';
-import type { TranscriptionPageTimelineContentProps, TranscriptionPageTimelineEmptyStateProps, TranscriptionPageTimelineHorizontalMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent';
+import type { TranscriptionPageTimelineContentProps, TranscriptionPageTimelineEmptyStateProps, TranscriptionPageTimelineHorizontalMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent.types';
 import type {
   TimelineVerticalProjectionProps,
   TranscriptionPageTimelineWorkspacePanelPropsWithoutVertical,

@@ -8,8 +8,11 @@
  * Note: Groq API key starts with 'gsk_'.
  */
 
-import type { CommercialSttProvider, SttResult } from '../VoiceInputService';
+import type { CommercialSttProvider, SttResult } from '../VoiceInputService.types';
 import { computeWhisperConfidence, tryParseVerboseResponse } from './sttConfidence';
+import { createLogger } from '../../observability/logger';
+
+const log = createLogger('GroqSttProvider');
 
 export interface GroqSttProviderConfig {
   apiKey: string;
@@ -40,7 +43,7 @@ export class GroqSttProvider implements CommercialSttProvider {
       });
       return resp.ok;
     } catch (err) {
-      console.debug('[GroqSttProvider] availability probe failed:', err);
+      log.debug('availability probe failed', { err });
       return false;
     }
   }
@@ -62,7 +65,10 @@ export class GroqSttProvider implements CommercialSttProvider {
     });
 
     if (!resp.ok) {
-      const text = await resp.text().catch((e) => { console.warn('Groq STT: failed to read error response body', e); return ''; });
+      const text = await resp.text().catch((e) => {
+        log.warn('failed to read error response body', { err: e });
+        return '';
+      });
       throw new Error(`Groq STT failed: ${resp.status} ${text}`);
     }
 

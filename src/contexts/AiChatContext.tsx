@@ -9,7 +9,7 @@ import { createContext, useContext } from 'react';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ProjectStage } from '../ai/ProjectObserver';
-import type { AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage } from '../hooks/useAiChat';
+import type { AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage } from '../hooks/useAiChat.types';
 import type { AiRecommendationEvent } from '../hooks/useAiChat.types';
 import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
 

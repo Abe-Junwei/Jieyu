@@ -1,4 +1,4 @@
-import type { AiPanelMode } from '../components/AiAnalysisPanel';
+import type { AiPanelMode } from '../components/AiAnalysisPanel.types';
 import type { AiObserverRecommendation } from '../components/transcription/toolbar/ObserverStatus';
 import type { LayerDocType, LayerLinkDocType, LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
 import type { SaveState } from '../hooks/transcriptionTypes';
@@ -12,7 +12,7 @@ import type { ActionableRecommendation } from '../hooks/useAiPanelLogic';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
 import type { AcousticBatchSelectionRange, AcousticCalibrationStatus, AcousticPanelBatchDetail, AcousticPanelDetail } from '../utils/acousticPanelDetail';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
-import type { useAiChat } from '../hooks/useAiChat';
+import type { UseAiChatReturn } from '../hooks/useAiChat.types';
 import type { AiSegmentSplitRollbackToken } from '../hooks/useAiToolCallHandler.types';
 import type { useAiPanelLogic } from '../hooks/useAiPanelLogic';
 import type { EditEvent } from '../hooks/useEditEventBuffer';
@@ -160,7 +160,7 @@ export interface UseTranscriptionAiControllerResult {
   setEmbeddingProviderConfig: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
   aiToolDecisionLogs: Array<{ id: string; toolName: string; decision: string; reason?: string; reasonLabelEn?: string; reasonLabelZh?: string; requestId?: string; timestamp: string; source?: 'human' | 'ai' | 'system'; executed?: boolean; durationMs?: number; message?: string }>;
   aiVerticalWorkflowAuditEntries: ParsedVerticalWorkflowAuditEntry[];
-  aiChat: ReturnType<typeof useAiChat>;
+  aiChat: UseAiChatReturn;
   /** 与 `aiChat` 内 `onToolCall` 同源，供语音 tool 意图 |
    * Same implementation as AI chat `onToolCall`, used for voice-routed tool intents. */
   executeVoiceToolCall: VoiceAssistantToolCallHandler;

@@ -4,7 +4,7 @@ import { parseProposedChildCallsFromArguments } from '../ai/chat/proposeChangesH
 import { isAiToolDestructive, isAiToolSegmentExecutionWithExplicitTarget } from '../ai/policy/aiToolPolicyMatrix';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import { t, type Locale } from '../i18n';
-import type { AiChatToolCall, AiPromptContext, AiTaskSession, AiToolRiskCheckResult, PendingAiToolCall } from './useAiChat';
+import type { AiChatToolCall, AiPromptContext, AiTaskSession, AiToolRiskCheckResult, PendingAiToolCall } from './useAiChat.types';
 
 function getMaterializedDeleteBatchIds(call?: AiChatToolCall | null): string[] {
   if (!call) return [];

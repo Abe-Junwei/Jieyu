@@ -1,6 +1,6 @@
 import type { LayerDocType, LayerUnitDocType } from '../db';
 import { isAiToolSegmentTargetMaterializationTool } from '../ai/policy/aiToolPolicyMatrix';
-import type { AiChatToolCall } from './useAiChat';
+import type { AiChatToolCall } from './useAiChat.types';
 import { layerMatchesLanguage, parseLayerHintFromOpaqueId } from './useAiToolCallHandler.helpers';
 
 export interface SegmentTargetDescriptor {

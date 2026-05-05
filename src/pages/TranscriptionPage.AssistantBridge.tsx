@@ -12,6 +12,7 @@ type DeferredAiChatState = {
   messages: UseTranscriptionAiControllerResult['aiChat']['messages'];
   isStreaming: UseTranscriptionAiControllerResult['aiChat']['isStreaming'];
   lastError: UseTranscriptionAiControllerResult['aiChat']['lastError'];
+  conversationId: UseTranscriptionAiControllerResult['aiChat']['conversationId'];
   connectionTestStatus: UseTranscriptionAiControllerResult['aiChat']['connectionTestStatus'];
   connectionTestMessage: UseTranscriptionAiControllerResult['aiChat']['connectionTestMessage'];
   contextDebugSnapshot: UseTranscriptionAiControllerResult['aiChat']['contextDebugSnapshot'];
@@ -86,6 +87,7 @@ function TranscriptionPageAssistantBridge({
       messages: aiChat.messages,
       isStreaming: aiChat.isStreaming,
       lastError: aiChat.lastError,
+      conversationId: aiChat.conversationId,
       connectionTestStatus: aiChat.connectionTestStatus,
       connectionTestMessage: aiChat.connectionTestMessage,
       contextDebugSnapshot: aiChat.contextDebugSnapshot,
@@ -137,6 +139,7 @@ function TranscriptionPageAssistantBridge({
     aiChat.connectionTestMessage,
     aiChat.connectionTestStatus,
     aiChat.contextDebugSnapshot,
+    aiChat.conversationId,
     aiChat.dismissPendingAgentLoopCheckpoint,
     aiChat.enabled,
     aiChat.isStreaming,

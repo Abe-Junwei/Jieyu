@@ -3,7 +3,7 @@
  * Runtime helpers for VoiceAgentService lazy-loaded dependencies.
  */
 
-import type { CommercialProviderKind, SttEngine } from './VoiceInputService';
+import type { CommercialProviderKind, SttEngine } from './VoiceInputService.types';
 import type { CommercialProviderCreateConfig, SttEnhancementConfig, SttEnhancementSelectionKind } from './stt';
 import type { Region } from '../utils/regionDetection';
 import { featureFlags } from '../ai/config/featureFlags';

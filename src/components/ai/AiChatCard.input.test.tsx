@@ -1197,6 +1197,15 @@ describe('AiChatCard input submit', () => {
               status: 'done',
             },
           ],
+          aiToolDecisionLogs: [
+            {
+              id: 'decision-vertical-target',
+              toolName: 'propose_changes',
+              decision: 'auto_confirmed',
+              requestId: 'toolreq_vertical_very_long_id_1234',
+              timestamp: '2026-05-05T12:30:01.000Z',
+            },
+          ],
           aiVerticalWorkflowAuditEntries: [
             {
               assistantMessageId: 'assistant-vertical-1',
@@ -1256,6 +1265,27 @@ describe('AiChatCard input submit', () => {
     }, { timeout: 3000 });
 
     expect(within(view.container).getByRole('button', { name: /AI 决策|AI Decisions/i }).getAttribute('aria-expanded')).toBe('true');
+    await waitFor(() => {
+      const targetDecisionItem = view.container.querySelector('[data-ai-decision-request-id="toolreq_vertical_very_long_id_1234"]');
+      expect(targetDecisionItem).toBeTruthy();
+      expect(targetDecisionItem?.classList.contains('is-replay-focus')).toBe(true);
+      expect(targetDecisionItem?.classList.contains('is-replay-located')).toBe(true);
+      expect(targetDecisionItem?.getAttribute('tabindex')).toBe('0');
+      expect(targetDecisionItem?.getAttribute('aria-current')).toBe('location');
+    }, { timeout: 3000 });
+
+    const targetDecisionItem = view.container.querySelector('[data-ai-decision-request-id="toolreq_vertical_very_long_id_1234"]') as HTMLElement | null;
+    expect(targetDecisionItem).toBeTruthy();
+    fireEvent.keyDown(targetDecisionItem as HTMLElement, { key: 'Enter', code: 'Enter' });
+    await waitFor(() => {
+      expect(openReplayBundleByRequestIdSpy).toHaveBeenCalledTimes(2);
+    }, { timeout: 3000 });
+
+    const decisionPanelToggle = within(view.container).getByRole('button', { name: /AI 决策|AI Decisions/i });
+    (targetDecisionItem as HTMLElement).focus();
+    expect(document.activeElement).toBe(targetDecisionItem);
+    fireEvent.keyDown(targetDecisionItem as HTMLElement, { key: 'Escape', code: 'Escape' });
+    expect(document.activeElement).toBe(decisionPanelToggle);
   });
 
   it('keeps vertical workflow replay action disabled when requestId is missing', async () => {

@@ -1,7 +1,7 @@
 import { buildClarifyCandidates, toNaturalActionClarify, toNaturalNonActionFallback, toNaturalTargetClarify, toNaturalToolCancelled, type ToolPlannerClarifyReason } from '../ai/chat/toolCallHelpers';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
-import type { AiChatToolName, AiInteractionMetrics, AiPromptContext, AiSessionMemory, AiTaskSession, PendingAiToolCall } from './useAiChat';
+import type { AiChatToolName, AiInteractionMetrics, AiPromptContext, AiSessionMemory, AiTaskSession, PendingAiToolCall } from './useAiChat.types';
 
 type ToolIntentAssessment = {
   decision: 'execute' | 'clarify' | 'ignore' | 'cancel';

@@ -7,8 +7,11 @@
  * Supports OpenAI, OpenRouter, Groq, and any OpenAI-compatible proxy.
  */
 
-import type { CommercialSttProvider, SttResult } from '../VoiceInputService';
+import type { CommercialSttProvider, SttResult } from '../VoiceInputService.types';
 import { computeWhisperConfidence, tryParseVerboseResponse } from './sttConfidence';
+import { createLogger } from '../../observability/logger';
+
+const log = createLogger('OpenAISttProvider');
 
 export interface OpenAISttProviderConfig {
   apiKey: string;
@@ -43,7 +46,7 @@ export class OpenAISttProvider implements CommercialSttProvider {
       });
       return resp.ok;
     } catch (err) {
-      console.debug('[OpenAISttProvider] availability probe failed:', err);
+      log.debug('availability probe failed', { err });
       return false;
     }
   }
@@ -65,7 +68,10 @@ export class OpenAISttProvider implements CommercialSttProvider {
     });
 
     if (!resp.ok) {
-      const text = await resp.text().catch((e) => { console.warn('OpenAI STT: failed to read error response body', e); return ''; });
+      const text = await resp.text().catch((e) => {
+        log.warn('failed to read error response body', { err: e });
+        return '';
+      });
       throw new Error(`OpenAI Audio STT failed: ${resp.status} ${text}`);
     }
 

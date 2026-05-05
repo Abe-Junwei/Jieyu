@@ -10,12 +10,12 @@
  * Note: Ollama on port 11434 does not expose an audio transcription API.
  */
 
-import type { Region } from '../utils/regionDetection';
 import { createLogger } from '../observability/logger';
 import { VadMonitorRuntime } from './VoiceInputService.vad';
 import { RecordingExecutor } from './VoiceInputService.recording';
 import { WhisperXVadService } from './vad/WhisperXVadService';
-import type { SttEnhancementConfig, SttEnhancementKind, SttEnhancementProvider, SttEnhancementSpeakerTurn, SttEnhancementWordTiming } from './stt/enhancementRegistry';
+import type { SttEngine, SttEnhancementConfig, SttEnhancementProvider, SttResult, VoiceInputConfig } from './VoiceInputService.types';
+export type { CommercialProviderKind, CommercialSttProvider, SttBillingKind, SttEngine, SttProviderCapability, SttResult, VoiceInputConfig } from './VoiceInputService.types';
 import type { SpeechRecognition } from './VoiceInputService.webSpeechSupport';
 import {
   buildSttFallbackChain,
@@ -23,7 +23,6 @@ import {
   formatSttAllEnginesFailedMessage,
   sliceSttFallbackChain,
 } from './VoiceInputService.fallbackChain';
-import type { VoiceInputSttEngine } from './VoiceInputService.fallbackChain';
 import {
   resolveWebSpeechFatalError,
   sttResultsFromWebSpeechEvent,
@@ -49,83 +48,6 @@ export { isWebSpeechSupported, runAecDiagnostic } from './VoiceInputService.webS
 const log = createLogger('VoiceInputService');
 
 // ── Types ──
-
-export type SttEngine = VoiceInputSttEngine;
-
-export interface SttResult {
-  text: string;
-  lang: string;
-  isFinal: boolean;
-  confidence: number;            // 0-1
-  engine: SttEngine;
-  audioBlob?: Blob;
-  wordTimings?: SttEnhancementWordTiming[];
-  speakerTurns?: SttEnhancementSpeakerTurn[];
-  enhancement?: {
-    kind: SttEnhancementKind;
-    applied: boolean;
-    error?: string;
-    wordTimingCount?: number;
-    speakerTurnCount?: number;
-  };
-  alternatives?: Array<{
-    text: string;
-    confidence: number;
-  }>;
-}
-
-export interface VoiceInputConfig {
-  lang: string;                  // BCP-47, e.g. 'zh-CN'
-  continuous: boolean;
-  interimResults: boolean;
-  preferredEngine: SttEngine;
-  /** Detected or selected region. Controls fallback chain order. */
-  region?: Region;
-  maxAlternatives?: number;      // default 3
-  vadEnabled?: boolean;
-  vadRmsThreshold?: number;
-  vadSilenceMs?: number;
-  vadFrameIntervalMs?: number;
-  /** Auto-stop after this many ms of continuous silence (VAD-triggered). Default: 30000. */
-  maxSilenceMs?: number;
-  /** Whisper-server URL for whisper-local engine (OpenAI-compatible), e.g. 'http://localhost:3040' */
-  whisperServerUrl?: string;
-  /** Whisper-server model name, e.g. 'ggml-small-q5_k.bin' */
-  whisperServerModel?: string;
-  /** Optional alignment/diarization enhancement that runs after STT returns text. */
-  sttEnhancement?: SttEnhancementProvider;
-  /** Configuration passed to the selected STT enhancement provider. */
-  sttEnhancementConfig?: SttEnhancementConfig;
-  /**
-   * Pluggable commercial STT provider.
-   * Tried automatically when all local engines (Web Speech + Whisper Local) fail.
-   * Supports any provider implementing the isAvailable() / transcribe() interface.
-   */
-  commercialFallback?: CommercialSttProvider;
-}
-
-/**
- * Pluggable interface for commercial online STT providers.
- *
- * Implement this interface to add support for any cloud STT service
- * (Gemini, OpenAI Audio, Groq, Deepgram, etc.).
- *
- * All methods must be pure functions — no internal state.
- */
-export interface CommercialSttProvider {
-  /** Human-readable label shown in the UI engine selector. */
-  readonly label: string;
-  /** Check whether the service is reachable (health ping / auth check). */
-  isAvailable(): Promise<boolean>;
-  /** Transcribe an audio blob to text. */
-  transcribe(audioBlob: Blob, lang: string, options?: { signal?: AbortSignal }): Promise<SttResult>;
-}
-
-/** Built-in commercial provider kinds for UI display. */
-export type CommercialProviderKind = 'gemini' | 'openai-audio' | 'groq' | 'custom-http' | 'minimax' | 'volcengine';
-
-export type SttProviderCapability = 'browser-native' | 'local-http' | 'cloud-api';
-export type SttBillingKind = 'free' | 'metered' | 'self-hosted';
 
 type VoiceInputListener = (result: SttResult) => void;
 type VoiceInputErrorListener = (error: string) => void;

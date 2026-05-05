@@ -3,7 +3,7 @@ import { useLatest } from '../hooks/useLatest';
 import type { AiPanelMode } from '../components/AiAnalysisPanel';
 import type { AiObserverRecommendation } from '../components/transcription/toolbar/ObserverStatus';
 import { useAiChat } from '../hooks/useAiChat';
-import { useAiPanelLogic, taskToPersona } from '../hooks/useAiPanelLogic';
+import { taskToPersona, useAiPanelLogic } from '../hooks/useAiPanelLogic';
 import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
 import { materializePendingToolCallTargets } from '../hooks/useAiToolCallHandler.segmentTargeting';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
@@ -29,10 +29,8 @@ import {
   toSyntheticUnitDoc,
 } from '../utils/transcriptionAiControllerHelpers';
 import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
-import {
-  getTranscriptionPlaybackClockSnapshot,
-  subscribeTranscriptionPlaybackClock,
-} from '../hooks/transcriptionPlaybackClock';
+import { useTranscriptionAiAcousticBatchRanges } from './useTranscriptionAiAcousticBatchRanges';
+import { useTranscriptionAiAudioTimeRef } from './useTranscriptionAiAudioTimeRef';
 export type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult } from './transcriptionAiController.types';
 
 export function useTranscriptionAiController(
@@ -52,7 +50,7 @@ export function useTranscriptionAiController(
   const aiObserverStageRef = useRef<string>('');
   const aiRecommendationRef = useRef<string[]>([]);
   const aiLexemeSummaryRef = useRef<string[]>([]);
-  const aiAudioTimeRef = useRef(0);
+  const aiAudioTimeRef = useTranscriptionAiAudioTimeRef(input.playerCurrentTime);
   const [internalEmbeddingProviderConfig, setInternalEmbeddingProviderConfig] = useState<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>(() => loadEmbeddingProviderConfig());
   const embeddingProviderConfig = input.embeddingProviderConfig ?? internalEmbeddingProviderConfig;
   const setEmbeddingProviderConfig = input.setEmbeddingProviderConfig ?? setInternalEmbeddingProviderConfig;
@@ -94,29 +92,11 @@ export function useTranscriptionAiController(
     () => effectiveUnitIndex.currentMediaUnits.map((unit) => toSyntheticUnitDoc(unit)),
     [effectiveUnitIndex.currentMediaUnits],
   );
-  const acousticBatchSelectionRanges = useMemo(() => {
-    const selectedUnits = new Map<string, (typeof effectiveUnitIndex.currentMediaUnits)[number]>();
-    const selectedMediaId = scopeMediaItemForAi?.id;
-    for (const selectedId of input.selectedUnitIds) {
-      const directHit = effectiveUnitIndex.resolveBySemanticId(selectedId);
-      if (directHit && (!selectedMediaId || directHit.mediaId === selectedMediaId)) {
-        selectedUnits.set(directHit.id, directHit);
-      }
-      for (const referringUnit of effectiveUnitIndex.getReferringUnits(selectedId)) {
-        if (!selectedMediaId || referringUnit.mediaId === selectedMediaId) {
-          selectedUnits.set(referringUnit.id, referringUnit);
-        }
-      }
-    }
-    return Array.from(selectedUnits.values())
-      .sort((left, right) => left.startTime - right.startTime)
-      .map((unit) => ({
-        selectionId: unit.id,
-        selectionLabel: unit.id,
-        selectionStartSec: unit.startTime,
-        selectionEndSec: unit.endTime,
-      }));
-  }, [effectiveUnitIndex, scopeMediaItemForAi?.id, input.selectedUnitIds]);
+  const acousticBatchSelectionRanges = useTranscriptionAiAcousticBatchRanges({
+    timelineUnitViewIndex: effectiveUnitIndex,
+    ...(scopeMediaItemForAi !== undefined ? { scopeMediaItemForAi } : {}),
+    selectedUnitIds: input.selectedUnitIds,
+  });
 
   const {
     acousticRuntimeStatus,
@@ -143,10 +123,6 @@ export function useTranscriptionAiController(
   const refreshAiToolDecisionLogs = useCallback(async () => {
     await refreshRecentAiToolDecisionLogs({ setAiToolDecisionLogs, setAiSidebarError });
   }, [setAiSidebarError]);
-
-  const refreshAiVerticalWorkflowAudits = useCallback(async () => {
-    await refreshRecentAiVerticalWorkflowAuditEntries({ setAiVerticalWorkflowAuditEntries });
-  }, []);
 
   const segmentTargetScopeUnits = resolveAiSegmentTargetScopeUnits({
     units: allUnitsAsUnits,
@@ -352,7 +328,7 @@ export function useTranscriptionAiController(
     onMessageComplete: handleAiAssistantMessageComplete,
   });
 
-  const latestAssistantAuditFingerprint = useMemo(() => {
+  const latestAssistantAuditFingerprint = (() => {
     const sourceMessages = aiChat.messages ?? [];
     for (let index = sourceMessages.length - 1; index >= 0; index -= 1) {
       const item = sourceMessages[index];
@@ -361,18 +337,18 @@ export function useTranscriptionAiController(
       }
     }
     return 'none';
-  }, [aiChat.messages]);
+  })();
 
   useEffect(() => {
     fireAndForget(refreshAiToolDecisionLogs(), { context: 'src/pages/useTranscriptionAiController.ts:L337', policy: 'background-quiet' });
   }, [aiChat.pendingToolCall, refreshAiToolDecisionLogs]);
 
   useEffect(() => {
-    fireAndForget(refreshAiVerticalWorkflowAudits(), {
-      context: 'src/pages/useTranscriptionAiController.ts:refreshAiVerticalWorkflowAudits',
+    fireAndForget(refreshRecentAiVerticalWorkflowAuditEntries({ setAiVerticalWorkflowAuditEntries }), {
+      context: 'src/pages/useTranscriptionAiController.ts:L347',
       policy: 'background-quiet',
     });
-  }, [latestAssistantAuditFingerprint, refreshAiVerticalWorkflowAudits]);
+  }, [latestAssistantAuditFingerprint]);
 
   const {
     lexemeMatches,
@@ -397,18 +373,6 @@ export function useTranscriptionAiController(
     setSaveState: input.setSaveState,
     ...(scopeMediaItemForAi?.id !== undefined ? { mediaId: scopeMediaItemForAi.id } : {}),
   });
-
-  useEffect(() => {
-    aiAudioTimeRef.current = getTranscriptionPlaybackClockSnapshot();
-    return subscribeTranscriptionPlaybackClock(() => {
-      aiAudioTimeRef.current = getTranscriptionPlaybackClockSnapshot();
-    });
-  }, []);
-
-  useEffect(() => {
-    if (input.playerCurrentTime === undefined) return;
-    aiAudioTimeRef.current = input.playerCurrentTime;
-  }, [input.playerCurrentTime]);
 
   aiObserverStageRef.current = observerResult.stage;
   aiRecommendationRef.current = actionableObserverRecommendations

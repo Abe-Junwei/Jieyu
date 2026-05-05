@@ -1,5 +1,5 @@
 import type { LayerLinkDocType, LayerUnitDocType, LayerDocType, MediaItemDocType } from '../db';
-import type { AiChatToolCall, AiChatToolResult } from './useAiChat';
+import type { AiChatToolCall, AiChatToolResult } from './useAiChat.types';
 import type { AppShellSearchScope } from '../utils/appShellEvents';
 import type { Locale } from '../i18n';
 import type { SegmentTargetDescriptor } from './useAiToolCallHandler.segmentTargeting';

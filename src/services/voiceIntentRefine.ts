@@ -1,4 +1,4 @@
-import type { SttResult } from './VoiceInputService';
+import type { SttResult } from './VoiceInputService.types';
 import type { VoiceIntent } from './IntentRouter';
 
 export function refineLlmFallbackIntent(intent: VoiceIntent, sttResult: SttResult): VoiceIntent {

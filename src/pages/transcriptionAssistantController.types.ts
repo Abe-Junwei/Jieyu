@@ -3,7 +3,7 @@ import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../types/
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
-import type { AiChatSettings } from '../hooks/useAiChat';
+import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { VoiceIntent, VoiceSession } from '../types/voiceSession.types';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';

@@ -3,7 +3,7 @@
  * Keeps browser event shaping out of VoiceInputService orchestration.
  */
 
-import type { SttResult } from './VoiceInputService';
+import type { SttResult } from './VoiceInputService.types';
 import type { SpeechRecognitionEvent } from './VoiceInputService.webSpeechSupport';
 import type { VoiceInputSttEngine } from './VoiceInputService.fallbackChain';
 

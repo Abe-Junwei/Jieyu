@@ -1,4 +1,4 @@
-import type { CommercialProviderKind, SttEngine, SttProviderCapability } from '../VoiceInputService';
+import type { CommercialProviderKind, SttEngine, SttProviderCapability } from '../VoiceInputService.types';
 import { sttProviderDefinitions, type SttProviderKind } from './providerMetadata';
 
 export type VoiceProviderLoadFunctionKey =

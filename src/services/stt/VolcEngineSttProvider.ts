@@ -14,7 +14,10 @@
  * Register at https://console.volcengine.com/
  */
 
-import type { CommercialSttProvider, SttResult } from '../VoiceInputService';
+import type { CommercialSttProvider, SttResult } from '../VoiceInputService.types';
+import { createLogger } from '../../observability/logger';
+
+const log = createLogger('VolcEngineSttProvider');
 
 export interface VolcEngineSttProviderConfig {
   appId: string;
@@ -56,7 +59,7 @@ export class VolcEngineSttProvider implements CommercialSttProvider {
       // 401/403 = 凭证无效，不应视为可用 | 401/403 = invalid credentials, should not be treated as available
       return resp.ok || resp.status === 400;
     } catch (err) {
-      console.debug('[VolcEngineSttProvider] availability probe failed:', err);
+      log.debug('availability probe failed', { err });
       return false;
     }
   }
@@ -93,7 +96,10 @@ export class VolcEngineSttProvider implements CommercialSttProvider {
     });
 
     if (!resp.ok) {
-      const text = await resp.text().catch((e) => { console.warn('VolcEngine STT: failed to read error response body', e); return ''; });
+      const text = await resp.text().catch((e) => {
+        log.warn('failed to read error response body', { err: e });
+        return '';
+      });
       throw new Error(`VolcEngine STT failed: ${resp.status} ${text}`);
     }
 

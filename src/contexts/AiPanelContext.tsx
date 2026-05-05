@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
+import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel.types';
 import type { AcousticPromptSummary } from '../pages/TranscriptionPage.aiPromptContext';
 import type { AcousticBatchSelectionRange, AcousticCalibrationStatus, AcousticPanelBatchDetail, AcousticPanelDetail } from '../utils/acousticPanelDetail';
 import type { AcousticHotspotKind } from '../utils/acousticOverlayTypes';

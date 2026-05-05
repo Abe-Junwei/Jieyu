@@ -6,7 +6,7 @@
 import type {
   TranscriptionPageTimelineHorizontalMediaLanesProps,
   TranscriptionPageTimelineTextOnlyProps,
-} from './TranscriptionPage.TimelineContent';
+} from './TranscriptionPage.TimelineContent.types';
 import type { TranscriptionTimelineWorkspacePanelProps } from './transcriptionTimelineWorkspacePanelTypes';
 
 /** 规划表中的「TimelineHostSharedProps」：与像素标尺/套索无关的 lane 共享字段（ReadyWorkspace `buildSharedLaneProps` 母集）。 */

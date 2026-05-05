@@ -1,5 +1,5 @@
 import type { CommercialProviderCreateConfig } from './index';
-import type { CommercialProviderKind } from '../VoiceInputService';
+import type { CommercialProviderKind } from '../VoiceInputService.types';
 
 export type CommercialSttRuntimeSnapshot = {
   kind: CommercialProviderKind;

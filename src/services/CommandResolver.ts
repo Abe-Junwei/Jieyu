@@ -11,7 +11,7 @@
  *   - 未命中的输入返回 null，由调用方回退到 LLM
  */
 
-import type { AiChatToolCall, AiChatToolName } from '../hooks/useAiChat';
+import type { AiChatToolCall, AiChatToolName } from '../hooks/useAiChat.types';
 import { resolveLanguageQuery } from '../utils/langMapping';
 
 function parseChineseInteger(raw: string): number | null {

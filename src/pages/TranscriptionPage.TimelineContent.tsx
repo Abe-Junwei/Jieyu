@@ -1,25 +1,12 @@
 import '../styles/transcription-timeline.css';
-import type { ComponentProps } from 'react';
-import type { TimelineAcousticState } from '../utils/mapAcousticToTimelineChrome';
-import { TranscriptionPageTimelineEmptyState } from './TranscriptionPage.TimelineEmptyState';
-import { TranscriptionTimelineWorkspaceHost, type TimelineWorkspaceHostShell } from './TranscriptionTimelineWorkspaceHost';
-import type { TranscriptionTimelineWorkspacePanelProps } from './transcriptionTimelineWorkspacePanelTypes';
-
-export type TranscriptionPageTimelineHorizontalMediaLanesProps = ComponentProps<typeof import('../components/TranscriptionTimelineHorizontalMediaLanes').TranscriptionTimelineHorizontalMediaLanes>;
-/** 纵向对读 / 编排透传；与 `TranscriptionTimelineWorkspacePanelProps` 同形 */
-export type TranscriptionPageTimelineTextOnlyProps = TranscriptionTimelineWorkspacePanelProps;
-export type TranscriptionPageTimelineEmptyStateProps = ComponentProps<typeof TranscriptionPageTimelineEmptyState>;
-
-export interface TranscriptionPageTimelineContentProps {
-  workspaceShell: TimelineWorkspaceHostShell;
-  workspaceAcousticPending: boolean;
-  /** 与 read model `acoustic.globalState` 同源，供 tier `mapAcousticToTimelineChrome`；合同态仍见 `workspaceAcousticPending`。 */
-  workspaceAcousticChromeState: TimelineAcousticState;
-  verticalComparisonEnabled: boolean;
-  mediaLanesProps: TranscriptionPageTimelineHorizontalMediaLanesProps;
-  textOnlyProps: TranscriptionPageTimelineTextOnlyProps;
-  emptyStateProps: TranscriptionPageTimelineEmptyStateProps;
-}
+import { TranscriptionTimelineWorkspaceHost } from './TranscriptionTimelineWorkspaceHost';
+import type { TranscriptionPageTimelineContentProps } from './TranscriptionPage.TimelineContent.types';
+export type {
+  TranscriptionPageTimelineContentProps,
+  TranscriptionPageTimelineEmptyStateProps,
+  TranscriptionPageTimelineHorizontalMediaLanesProps,
+  TranscriptionPageTimelineTextOnlyProps,
+} from './TranscriptionPage.TimelineContent.types';
 
 export function TranscriptionPageTimelineContent({
   workspaceShell,

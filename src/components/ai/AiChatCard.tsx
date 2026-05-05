@@ -7,12 +7,10 @@ import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_INLINE_TIGHT, JIEYU_MATERIAL_PANE
 import { diffAiToolSnapshot, type AiToolGoldenSnapshot, type AiToolReplayBundle, type AiToolSnapshotDiff } from '../../ai/auditReplay';
 import { buildCopyableAssistantPlainText, splitCitationMarkers } from '../../utils/citationFootnoteUtils';
 import { t, useLocale } from '../../i18n';
-import { aiChatProviderDefinitions, getAiChatProviderDefinition } from '../../ai/providers/providerCatalog';
-import type { AiChatProviderKind, AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
+import { getAiChatProviderDefinition } from '../../ai/providers/providerCatalog';
+import type { AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
 import {
-  AI_CHAT_CARD_EMPTY_STRING_ARRAY,
-  buildPinnedSummary,
   compactInternalId,
   formatCitationLabel,
   formatPolicyReasonExplanation,
@@ -24,6 +22,7 @@ import { AiChatCandidateChips } from './AiChatCandidateChips';
 import { AiChatMetricsBar } from './AiChatMetricsBar';
 import { AiChatPromptLabModal } from './AiChatPromptLabModal';
 import { AiChatReplayDetailPanel } from './AiChatReplayDetailPanel';
+import { AiChatDirectiveConsole } from './AiChatDirectiveConsole';
 import { StreamWordsText } from './streamAssistantWords';
 import { useAiPromptTemplates } from './useAiPromptTemplates';
 import { escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
@@ -36,9 +35,12 @@ import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles } from '../../
 import { isSendTurnPersistLayerRecoveryHintMessage } from '../../ai/chat/sendTurnPersistRecoveryUi';
 import { rankCandidateLabelsByAdaptiveProfile } from './aiChatAdaptiveRanking';
 import { useAiChatHybridRecommendations } from './useAiChatHybridRecommendations';
-import { detectWebLLMRuntimeStatus, warmupWebLLMModel, type WebLLMRuntimeStatus, type WebLLMWarmupProgress } from '../../ai/providers/webllmRuntime';
 import { buildFollowUpSuggestions, classifyRecommendationAdoption, formatTaskTraceOutcome } from './aiChatCardFollowUps';
 import { dispatchAppGlobalToast } from '../../utils/appGlobalToast';
+import { useAiChatWebllmWarmup } from './useAiChatWebllmWarmup';
+import { useAiChatVerticalWorkflowSummary } from './useAiChatVerticalWorkflowSummary';
+import { useAiChatPinnedSummaries } from './useAiChatPinnedSummaries';
+import { useAiChatProviderGroups } from './useAiChatProviderGroups';
 
 type AiChatCardProps = {
   embedded?: boolean;
@@ -166,7 +168,7 @@ export function AiChatCard({
         text: entry.text,
         category: entry.category,
         source: entry.source,
-        sourceMessageId: entry.sourceMessageId,
+        ...(entry.sourceMessageId !== undefined ? { sourceMessageId: entry.sourceMessageId } : {}),
       }))
   ), [aiSessionMemory?.directiveLedger]);
   const filteredDirectiveRows = useMemo(() => (
@@ -225,170 +227,24 @@ export function AiChatCard({
     ...(adaptiveInputProfile !== undefined ? { adaptiveInputProfile } : {}),
   });
 
-  const providerGroups = useMemo(() => {
-    const directKinds: AiChatProviderKind[] = ['deepseek', 'qwen', 'anthropic', 'gemini', 'ollama', 'minimax'];
-    const compatibleKinds: AiChatProviderKind[] = ['openai-compatible'];
-    const localKinds: AiChatProviderKind[] = ['mock', 'webllm', 'custom-http'];
-    const byKind = new Map(aiChatProviderDefinitions.map((provider) => [provider.kind, provider]));
-
-    const pick = (kinds: AiChatProviderKind[]) => kinds
-      .map((kind) => byKind.get(kind))
-      .filter((provider): provider is NonNullable<typeof provider> => Boolean(provider));
-
-    return [
-      { label: cardMessages.providerGroupOfficial, items: pick(directKinds) },
-      { label: cardMessages.providerGroupCompatible, items: pick(compatibleKinds) },
-      { label: cardMessages.providerGroupLocalCustom, items: pick(localKinds) },
-    ].filter((group) => group.items.length > 0);
-  }, [cardMessages]);
+  const providerGroups = useAiChatProviderGroups(cardMessages);
 
   const providerStatusLabel = useMemo(() => {
     const kind = aiChatSettings?.providerKind ?? 'mock';
     return cardMessages.providerStatusLabel(kind, aiConnectionTestStatus);
   }, [aiChatSettings?.providerKind, aiConnectionTestStatus, cardMessages]);
 
-  const [webllmRuntimeStatus, setWebllmRuntimeStatus] = useState<WebLLMRuntimeStatus>(() => detectWebLLMRuntimeStatus());
-  const [webllmWarmupState, setWebllmWarmupState] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
-  const [webllmWarmupProgress, setWebllmWarmupProgress] = useState<WebLLMWarmupProgress | null>(null);
-  const [webllmWarmupMessage, setWebllmWarmupMessage] = useState<string | null>(null);
-  const webllmWarmupAbortRef = useRef<AbortController | null>(null);
-  const webllmWarmupRunIdRef = useRef(0);
-
-  const webllmFallbackDefinition = useMemo(() => {
-    const fallbackKind = aiChatSettings?.fallbackProviderKind;
-    if (!fallbackKind || fallbackKind === 'webllm') {
-      return getAiChatProviderDefinition('mock');
-    }
-    return getAiChatProviderDefinition(fallbackKind);
-  }, [aiChatSettings?.fallbackProviderKind]);
-
-  const webllmSourceLabel = useMemo(() => {
-    if (webllmRuntimeStatus.source === 'injected-runtime') return cardMessages.webllmRuntimeSourceInjected;
-    if (webllmRuntimeStatus.source === 'prompt-api') return cardMessages.webllmRuntimeSourcePromptApi;
-    return cardMessages.webllmRuntimeSourceUnavailable;
-  }, [cardMessages.webllmRuntimeSourceInjected, cardMessages.webllmRuntimeSourcePromptApi, cardMessages.webllmRuntimeSourceUnavailable, webllmRuntimeStatus.source]);
-
-  const refreshWebllmRuntimeStatus = useCallback(() => {
-    setWebllmRuntimeStatus(detectWebLLMRuntimeStatus());
-  }, []);
-
-  const dispatchWebllmWarmupEvent = useCallback((status: 'success' | 'error' | 'cancelled', message: string) => {
-    if (typeof window === 'undefined') return;
-    window.dispatchEvent(new CustomEvent('ai:webllm-warmup', {
-      detail: { status, message },
-    }));
-  }, []);
-
-  const webllmWarmupPercent = useMemo(() => {
-    if (!webllmWarmupProgress) {
-      return webllmWarmupState === 'success' ? 100 : 0;
-    }
-    return Math.max(0, Math.min(100, Math.round(webllmWarmupProgress.progress * 100)));
-  }, [webllmWarmupProgress, webllmWarmupState]);
-
-  const webllmWarmupPhaseLabel = useMemo(() => {
-    if (!webllmWarmupProgress) return null;
-    if (webllmWarmupProgress.phase === 'downloading') return cardMessages.webllmWarmupPhaseDownloading;
-    if (webllmWarmupProgress.phase === 'initializing') return cardMessages.webllmWarmupPhaseInitializing;
-    if (webllmWarmupProgress.phase === 'ready') return cardMessages.webllmWarmupPhaseReady;
-    return cardMessages.webllmWarmupPhasePreparing;
-  }, [
-    cardMessages.webllmWarmupPhaseDownloading,
-    cardMessages.webllmWarmupPhaseInitializing,
-    cardMessages.webllmWarmupPhasePreparing,
-    cardMessages.webllmWarmupPhaseReady,
-    webllmWarmupProgress,
-  ]);
-
-  const webllmWarmupFailureMessage = useCallback((reason?: string | null) => {
-    const trimmed = (reason ?? '').trim();
-    if (!trimmed) return cardMessages.webllmWarmupFailed;
-    const normalized = trimmed.length > 160 ? `${trimmed.slice(0, 157)}...` : trimmed;
-    return cardMessages.webllmWarmupFailedWithReason(normalized);
-  }, [cardMessages]);
-
-  useEffect(() => {
-    if (aiChatSettings?.providerKind !== 'webllm') return;
-    refreshWebllmRuntimeStatus();
-  }, [aiChatSettings?.providerKind, showProviderConfig, refreshWebllmRuntimeStatus]);
-
-  useEffect(() => {
-    return () => {
-      webllmWarmupAbortRef.current?.abort();
-    };
-  }, []);
-
-  const handleWarmupWebllmModel = useCallback(async () => {
-    if (!aiChatSettings || aiChatSettings.providerKind !== 'webllm') return;
-    webllmWarmupAbortRef.current?.abort();
-    const runId = webllmWarmupRunIdRef.current + 1;
-    webllmWarmupRunIdRef.current = runId;
-    const abortController = new AbortController();
-    webllmWarmupAbortRef.current = abortController;
-    setWebllmWarmupState('running');
-    setWebllmWarmupProgress({ phase: 'preparing', progress: 0, message: cardMessages.webllmWarmupPreparing });
-    setWebllmWarmupMessage(null);
-    try {
-      const status = await warmupWebLLMModel(aiChatSettings.model, {
-        signal: abortController.signal,
-        onProgress: (progress) => {
-          if (runId !== webllmWarmupRunIdRef.current) return;
-          setWebllmWarmupProgress(progress);
-        },
-      });
-      if (runId !== webllmWarmupRunIdRef.current) return;
-      webllmWarmupAbortRef.current = null;
-      setWebllmRuntimeStatus(status);
-      if (status.available) {
-        setWebllmWarmupState('success');
-        setWebllmWarmupMessage(cardMessages.webllmWarmupDone);
-        setWebllmWarmupProgress({ phase: 'ready', progress: 1, message: cardMessages.webllmWarmupDone });
-        dispatchWebllmWarmupEvent('success', cardMessages.webllmWarmupDone);
-        return;
-      }
-      const failedMessage = webllmWarmupFailureMessage(status.detail);
-      setWebllmWarmupState('error');
-      setWebllmWarmupMessage(failedMessage);
-      dispatchWebllmWarmupEvent('error', failedMessage);
-    } catch (error) {
-      if (runId !== webllmWarmupRunIdRef.current) return;
-      webllmWarmupAbortRef.current = null;
-      const isAbort = typeof error === 'object' && error !== null && 'name' in error && (error as { name?: string }).name === 'AbortError';
-      if (isAbort) {
-        setWebllmWarmupState('idle');
-        setWebllmWarmupProgress(null);
-        setWebllmWarmupMessage(cardMessages.webllmWarmupCancelled);
-        dispatchWebllmWarmupEvent('cancelled', cardMessages.webllmWarmupCancelled);
-        return;
-      }
-      const failedReason = typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message?: unknown }).message === 'string'
-        ? (error as { message: string }).message
-        : null;
-      const failedMessage = webllmWarmupFailureMessage(failedReason);
-      setWebllmWarmupState('error');
-      setWebllmWarmupMessage(failedMessage);
-      dispatchWebllmWarmupEvent('error', failedMessage);
-    }
-  }, [
-    aiChatSettings,
-    cardMessages.webllmWarmupCancelled,
-    cardMessages.webllmWarmupDone,
-    cardMessages.webllmWarmupFailed,
-    cardMessages.webllmWarmupPreparing,
-    dispatchWebllmWarmupEvent,
-    webllmWarmupFailureMessage,
-  ]);
-
-  const handleCancelWebllmWarmup = useCallback(() => {
-    if (webllmWarmupState !== 'running') return;
-    webllmWarmupRunIdRef.current += 1;
-    webllmWarmupAbortRef.current?.abort();
-    webllmWarmupAbortRef.current = null;
-    setWebllmWarmupState('idle');
-    setWebllmWarmupProgress(null);
-    setWebllmWarmupMessage(cardMessages.webllmWarmupCancelled);
-    dispatchWebllmWarmupEvent('cancelled', cardMessages.webllmWarmupCancelled);
-  }, [cardMessages.webllmWarmupCancelled, dispatchWebllmWarmupEvent, webllmWarmupState]);
+  const {
+    webllmRuntimeStatus,
+    webllmWarmupState,
+    webllmWarmupMessage,
+    webllmFallbackDefinition,
+    webllmSourceLabel,
+    webllmWarmupPercent,
+    webllmWarmupPhaseLabel,
+    handleWarmupWebllmModel,
+    handleCancelWebllmWarmup,
+  } = useAiChatWebllmWarmup({ aiChatSettings, cardMessages, showProviderConfig });
 
   const showAgentLoopProgress = aiTaskSession?.status === 'executing'
     && typeof aiTaskSession.step === 'number'
@@ -551,53 +407,19 @@ export function AiChatCard({
     }
     return sum;
   }, [aiIsStreaming, messages]);
-  const pinnedMessageIds = aiSessionMemory?.pinnedMessageIds ?? AI_CHAT_CARD_EMPTY_STRING_ARRAY;
-  const pinnedMessageIdsSignature = useMemo(() => pinnedMessageIds.join('|'), [pinnedMessageIds]);
-  const pinnedMessageIdSet = useMemo(() => {
-    const base = new Set(pinnedMessageIds);
-    for (const id of optimisticUnpinnedMessageIds) base.delete(id);
-    for (const id of optimisticPinnedMessageIds) base.add(id);
-    return base;
-  }, [optimisticPinnedMessageIds, optimisticUnpinnedMessageIds, pinnedMessageIds]);
-  const pinnedMessageDigestItems = useMemo(() => {
-    const visiblePinnedMessageIds = pinnedMessageIds.filter((messageId) => !optimisticUnpinnedMessageIds.has(messageId));
-    if (visiblePinnedMessageIds.length === 0) return [];
-    const digestById = new Map((aiSessionMemory?.pinnedMessageDigests ?? []).map((item) => [item.messageId, item] as const));
-    const messageById = new Map(messages.map((item) => [item.id, item] as const));
-    return visiblePinnedMessageIds.map((messageId) => {
-      const digest = digestById.get(messageId);
-      if (digest) return digest;
-      const fallbackMessage = messageById.get(messageId);
-      if (!fallbackMessage) return null;
-      return {
-        messageId,
-        role: fallbackMessage.role,
-        content: fallbackMessage.content,
-        createdAt: '',
-      };
-    }).filter((item): item is NonNullable<typeof item> => Boolean(item));
-  }, [aiSessionMemory?.pinnedMessageDigests, messages, optimisticUnpinnedMessageIds, pinnedMessageIds]);
-  const pinnedSummaryItems = useMemo(() => (
-    pinnedMessageDigestItems.map((item) => ({
-      messageId: item.messageId,
-      summary: buildPinnedSummary(item.content, isZh),
-    }))
-  ), [isZh, pinnedMessageDigestItems]);
-  const summaryChain = aiSessionMemory?.summaryChain ?? [];
-  const latestConversationSummary = (aiSessionMemory?.conversationSummary ?? '').trim();
-  const hasConversationSummary = latestConversationSummary.length > 0 || summaryChain.length > 0;
-  const summaryEntries = useMemo(() => {
-    if (summaryChain.length > 0) {
-      return [...summaryChain].slice(-4).reverse();
-    }
-    if (!latestConversationSummary) return [];
-    return [{
-      id: 'latest-summary',
-      summary: latestConversationSummary,
-      coveredTurnCount: aiSessionMemory?.summaryTurnCount ?? 0,
-      createdAt: '',
-    }];
-  }, [aiSessionMemory?.summaryTurnCount, latestConversationSummary, summaryChain]);
+  const {
+    pinnedMessageIdsSignature,
+    pinnedMessageIdSet,
+    pinnedSummaryItems,
+    hasConversationSummary,
+    summaryEntries,
+  } = useAiChatPinnedSummaries({
+    aiSessionMemory,
+    messages,
+    optimisticPinnedMessageIds,
+    optimisticUnpinnedMessageIds,
+    isZh,
+  });
   const summaryQualityWarning = aiSessionMemory?.summaryQualityWarning ?? null;
   const turns = useMemo(() => {
     const newestTurns: Array<{ assistant?: typeof messages[number]; user?: typeof messages[number] }> = [];
@@ -718,39 +540,18 @@ export function AiChatCard({
   const [showConversationSummary, setShowConversationSummary] = useState(false);
   const [showVerticalWorkflowDetail, setShowVerticalWorkflowDetail] = useState(false);
   const [dismissedErrorWarning, setDismissedErrorWarning] = useState(false);
-  const latestVerticalWorkflowEntry = useMemo(() => {
-    const assistantId = latestAssistantMessage?.id;
-    const assistantStatus = latestAssistantMessage?.status;
-    if (!assistantId || (assistantStatus !== 'done' && assistantStatus !== 'error')) {
-      return null;
-    }
-    const latestEntry = aiVerticalWorkflowAuditEntries.find((entry) => entry.assistantMessageId === assistantId);
-    return latestEntry ?? null;
-  }, [aiVerticalWorkflowAuditEntries, latestAssistantMessage?.id, latestAssistantMessage?.status]);
-  const latestVerticalWorkflowSummary = useMemo(() => {
-    if (!latestVerticalWorkflowEntry) return null;
-    return `vertical · ${latestVerticalWorkflowEntry.metadata.workflowId} · ${latestVerticalWorkflowEntry.metadata.outputKind} · ${latestVerticalWorkflowEntry.metadata.completionStatus}`;
-  }, [latestVerticalWorkflowEntry]);
-  const latestVerticalWorkflowRequestId = useMemo(() => {
-    const normalizedRequestId = latestVerticalWorkflowEntry?.requestId?.trim();
-    return normalizedRequestId && normalizedRequestId.length > 0 ? normalizedRequestId : null;
-  }, [latestVerticalWorkflowEntry?.requestId]);
-  const latestVerticalWorkflowSelectionSummary = useMemo(() => {
-    const selection = latestVerticalWorkflowEntry?.metadata.selection;
-    if (!selection) return null;
-    return cardMessages.verticalWorkflowSelectionLabel(selection.source, selection.reasonCode);
-  }, [cardMessages, latestVerticalWorkflowEntry?.metadata.selection]);
-  const latestVerticalWorkflowSelectionKeywordSummary = useMemo(() => {
-    const matchedKeyword = latestVerticalWorkflowEntry?.metadata.selection?.matchedKeyword?.trim();
-    if (!matchedKeyword) return null;
-    return cardMessages.verticalWorkflowKeywordLabel(matchedKeyword);
-  }, [cardMessages, latestVerticalWorkflowEntry?.metadata.selection?.matchedKeyword]);
-  const latestVerticalWorkflowSelectionConfidenceSummary = useMemo(() => {
-    const confidence = latestVerticalWorkflowEntry?.metadata.selection?.confidence;
-    if (typeof confidence !== 'number' || Number.isNaN(confidence)) return null;
-    const confidencePercent = `${Math.round(confidence * 100)}%`;
-    return cardMessages.verticalWorkflowConfidenceLabel(confidencePercent);
-  }, [cardMessages, latestVerticalWorkflowEntry?.metadata.selection?.confidence]);
+  const {
+    latestVerticalWorkflowEntry,
+    latestVerticalWorkflowSummary,
+    latestVerticalWorkflowRequestId,
+    latestVerticalWorkflowSelectionSummary,
+    latestVerticalWorkflowSelectionKeywordSummary,
+    latestVerticalWorkflowSelectionConfidenceSummary,
+  } = useAiChatVerticalWorkflowSummary({
+    latestAssistantMessage,
+    aiVerticalWorkflowAuditEntries,
+    cardMessages,
+  });
   const isLatestVerticalReplayLoading = latestVerticalWorkflowRequestId !== null
     && replayLoadingRequestId === latestVerticalWorkflowRequestId;
   const isLatestVerticalReplaySelected = latestVerticalWorkflowRequestId !== null
@@ -761,11 +562,16 @@ export function AiChatCard({
   const [isDecisionPanelResizing, setIsDecisionPanelResizing] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [copiedVerticalWorkflowRequestId, setCopiedVerticalWorkflowRequestId] = useState<string | null>(null);
+  const [decisionReplayFocusRequestId, setDecisionReplayFocusRequestId] = useState<string | null>(null);
+  const [decisionReplayLocatedRequestId, setDecisionReplayLocatedRequestId] = useState<string | null>(null);
   const copiedMessageTimerRef = useRef<number | null>(null);
   const copiedVerticalRequestTimerRef = useRef<number | null>(null);
+  const decisionReplayFocusTimerRef = useRef<number | null>(null);
   const blockedHintTimerRef = useRef<number | null>(null);
   const exportedSnapshotTimerRef = useRef<number | null>(null);
   const decisionPanelBodyRef = useRef<HTMLDivElement | null>(null);
+  const decisionPanelToggleButtonRef = useRef<HTMLButtonElement | null>(null);
+  const decisionItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [transientBlockedReason, setTransientBlockedReason] = useState<string | null>(null);
   const prevAlertCountRef = useRef(alertCount);
   const canUseVoiceEntry = Boolean(voiceEntry?.enabled);
@@ -878,12 +684,29 @@ export function AiChatCard({
   }, [selectedReplayBundle?.requestId]);
 
   useEffect(() => {
+    if (!showDecisionPanel || !decisionReplayFocusRequestId || typeof window === 'undefined') return;
+    const target = decisionItemRefs.current[decisionReplayFocusRequestId];
+    if (!target) return;
+    window.requestAnimationFrame(() => {
+      if (typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      if (typeof target.focus === 'function') {
+        target.focus({ preventScroll: true });
+      }
+    });
+  }, [showDecisionPanel, decisionReplayFocusRequestId, aiToolDecisionLogs]);
+
+  useEffect(() => {
     return () => {
       if (copiedMessageTimerRef.current !== null && typeof window !== 'undefined') {
         window.clearTimeout(copiedMessageTimerRef.current);
       }
       if (copiedVerticalRequestTimerRef.current !== null && typeof window !== 'undefined') {
         window.clearTimeout(copiedVerticalRequestTimerRef.current);
+      }
+      if (decisionReplayFocusTimerRef.current !== null && typeof window !== 'undefined') {
+        window.clearTimeout(decisionReplayFocusTimerRef.current);
       }
       if (blockedHintTimerRef.current !== null && typeof window !== 'undefined') {
         window.clearTimeout(blockedHintTimerRef.current);
@@ -971,6 +794,17 @@ export function AiChatCard({
   };
 
   const openReplayBundle = async (requestId: string): Promise<void> => {
+    setDecisionReplayFocusRequestId(requestId);
+    setDecisionReplayLocatedRequestId(requestId);
+    if (decisionReplayFocusTimerRef.current !== null && typeof window !== 'undefined') {
+      window.clearTimeout(decisionReplayFocusTimerRef.current);
+    }
+    if (typeof window !== 'undefined') {
+      decisionReplayFocusTimerRef.current = window.setTimeout(() => {
+        setDecisionReplayFocusRequestId((current) => (current === requestId ? null : current));
+        decisionReplayFocusTimerRef.current = null;
+      }, 1800);
+    }
     setReplayLoadingRequestId(requestId);
     setReplayErrorMessage(null);
     const result = await openReplayBundleByRequestId(requestId, compareSnapshot, isZh);
@@ -2000,66 +1834,17 @@ export function AiChatCard({
                 </button>
               )}
             </div>
-            {activeDirectiveRows.length > 0 && (
-              <section className="ai-chat-composer-attachments" aria-label={isZh ? '\u6307\u4ee4\u4e0e\u8bb0\u5fc6' : 'Directives and memory'} data-testid="ai-directive-console-mvp">
-                <span className="ai-chat-composer-attachments-title">
-                  {isZh ? '\u6307\u4ee4\u4e0e\u8bb0\u5fc6\uff08MVP\uff09' : 'Directives and Memory (MVP)'}
-                  <span className="ai-chat-pinned-count">{filteredDirectiveRows.length}</span>
-                </span>
-                <div className="ai-chat-alerts-pending-row">
-                  <span>{isZh ? '\u6765\u6e90\u7b5b\u9009\uff1a' : 'Source filter:'}</span>
-                  <select
-                    value={directiveSourceFilter}
-                    onChange={(event) => setDirectiveSourceFilter(event.target.value as typeof directiveSourceFilter)}
-                    aria-label={isZh ? '\u6307\u4ee4\u6765\u6e90\u7b5b\u9009' : 'Directive source filter'}
-                  >
-                    <option value="all">{isZh ? '\u5168\u90e8' : 'All'}</option>
-                    <option value="user_explicit">{isZh ? '\u7528\u6237\u660e\u786e\u6307\u4ee4' : 'User explicit'}</option>
-                    <option value="background_extracted">{isZh ? '\u540e\u53f0\u62bd\u53d6' : 'Background extracted'}</option>
-                    <option value="pinned_message">{isZh ? '\u9489\u4f4f\u6d88\u606f' : 'Pinned message'}</option>
-                  </select>
-                </div>
-                {directiveActionNotice && <div className="ai-chat-alerts-pending-risk">{directiveActionNotice}</div>}
-                <div className="ai-chat-composer-attachments-list">
-                  {filteredDirectiveRows.map((item) => (
-                    <article key={item.id} className="ai-chat-composer-attachment-chip">
-                      <span className="ai-chat-composer-attachment-role">[{item.category}]</span>
-                      <span className="ai-chat-composer-attachment-summary" title={`${item.text} (${item.source})`}>
-                        {item.text} ({item.source})
-                      </span>
-                      <button
-                        type="button"
-                        className="ai-chat-composer-attachment-remove"
-                        onClick={() => {
-                          onDeactivateAiSessionDirective?.(item.id);
-                          setDirectiveActionNotice(isZh ? `\u5df2\u505c\u7528\uff1a${item.id}` : `Deactivated: ${item.id}`);
-                        }}
-                        disabled={!onDeactivateAiSessionDirective}
-                      >
-                        {isZh ? '\u505c\u7528' : 'Deactivate'}
-                      </button>
-                      {item.sourceMessageId && (
-                        <button
-                          type="button"
-                          className="ai-chat-composer-attachment-remove"
-                          onClick={() => {
-                            onPruneAiSessionDirectivesBySourceMessage?.(item.sourceMessageId as string);
-                            setDirectiveActionNotice(
-                              isZh
-                                ? `\u5df2\u6309\u6765\u6e90\u6d88\u606f\u6e05\u7406\uff1a${item.sourceMessageId}`
-                                : `Pruned by source message: ${item.sourceMessageId}`,
-                            );
-                          }}
-                          disabled={!onPruneAiSessionDirectivesBySourceMessage}
-                        >
-                          {isZh ? '\u540c\u6e90\u6e05\u7406' : 'Prune source'}
-                        </button>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              </section>
-            )}
+            <AiChatDirectiveConsole
+              isZh={isZh}
+              activeDirectiveRows={activeDirectiveRows}
+              filteredDirectiveRows={filteredDirectiveRows}
+              directiveSourceFilter={directiveSourceFilter}
+              directiveActionNotice={directiveActionNotice}
+              onDirectiveSourceFilterChange={setDirectiveSourceFilter}
+              onDirectiveActionNoticeChange={setDirectiveActionNotice}
+              {...(onDeactivateAiSessionDirective !== undefined ? { onDeactivateAiSessionDirective } : {})}
+              {...(onPruneAiSessionDirectivesBySourceMessage !== undefined ? { onPruneAiSessionDirectivesBySourceMessage } : {})}
+            />
             {(transientBlockedReason || inputBlockedReason) && (
               <p className="small-text ai-chat-composer-warning">{transientBlockedReason ?? inputBlockedReason}</p>
             )}
@@ -2126,6 +1911,7 @@ export function AiChatCard({
               style={decisionPanelInlineStyle}
             >
                 <button
+                  ref={decisionPanelToggleButtonRef}
                   type="button"
                   className="ai-chat-decision-panel-head"
                   onClick={() => setShowDecisionPanel((prev) => !prev)}
@@ -2160,13 +1946,37 @@ export function AiChatCard({
                         const canReplay = typeof item.requestId === 'string' && item.requestId.trim().length > 0;
                         const isLoading = replayLoadingRequestId === item.requestId;
                         const isSelected = selectedReplayBundle?.requestId === item.requestId;
+                        const isReplayFocus = decisionReplayFocusRequestId === item.requestId;
+                        const isReplayLocated = decisionReplayLocatedRequestId === item.requestId;
+                        const isDecisionRowKeyboardReachable = isReplayFocus || isReplayLocated || isSelected;
                         const decisionBits = [
                           formatToolDecision(isZh, item.decision),
                           item.reason,
                           typeof item.durationMs === 'number' ? `${item.durationMs}ms` : '',
                         ].filter((value) => typeof value === 'string' && value.trim().length > 0);
                         return (
-                          <div key={item.id} className="ai-chat-decision-item ai-chat-decision-item-compact">
+                          <div
+                            key={item.id}
+                            className={`ai-chat-decision-item ai-chat-decision-item-compact${isReplayFocus ? ' is-replay-focus' : ''}${isReplayLocated || isSelected ? ' is-replay-located' : ''}`}
+                            data-ai-decision-request-id={item.requestId ?? undefined}
+                            tabIndex={isDecisionRowKeyboardReachable ? 0 : -1}
+                            aria-current={isReplayLocated || isSelected ? 'location' : undefined}
+                            onKeyDown={(event) => {
+                              if (!canReplay || event.currentTarget !== event.target) return;
+                              if (event.key === 'Escape') {
+                                event.preventDefault();
+                                decisionPanelToggleButtonRef.current?.focus();
+                                return;
+                              }
+                              if (event.key !== 'Enter' && event.key !== ' ') return;
+                              event.preventDefault();
+                              void openReplayBundle(item.requestId!);
+                            }}
+                            ref={(node) => {
+                              if (!item.requestId) return;
+                              decisionItemRefs.current[item.requestId] = node;
+                            }}
+                          >
                             <div className="ai-chat-decision-item-meta">
                               <span className="ai-chat-decision-item-main">{item.toolName || cardMessages.unknownTool} · {decisionBits.join(' · ')}</span>
                               <em className="ai-chat-decision-item-time">{new Date(item.timestamp).toLocaleTimeString()}</em>

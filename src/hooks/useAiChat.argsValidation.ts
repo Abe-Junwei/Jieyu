@@ -2,7 +2,7 @@ import { buildToolDecisionAuditMetadata, toNaturalToolFailure } from '../ai/chat
 import { formatInvalidArgsError } from '../ai/messages';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
-import type { AiChatToolCall } from './useAiChat';
+import type { AiChatToolCall } from './useAiChat.types';
 
 interface HandleInvalidToolArgumentsParams {
   assistantMessageId: string;

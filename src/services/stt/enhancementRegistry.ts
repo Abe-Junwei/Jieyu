@@ -1,4 +1,4 @@
-import type { SttEngine } from '../VoiceInputService';
+import type { SttEngine } from '../VoiceInputService.types';
 
 export type SttEnhancementKind = 'whisperx-align' | 'mfa-align' | 'pyannote-diarize';
 export type SttEnhancementSelectionKind = SttEnhancementKind | 'none';

@@ -5,7 +5,7 @@ import type { TimelineViewportProjection } from '../hooks/timelineViewportTypes'
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { LayerActionPanelHandle } from '../hooks/useLayerActionPanel';
 import type { Locale } from '../i18n';
-import type { TranscriptionPageTimelineHorizontalMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent';
+import type { TranscriptionPageTimelineHorizontalMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent.types';
 import type { TimelineHorizontalProjectionLaneProps, TimelineVerticalProjectionProps } from './timelineHostProjectionTypes';
 import type { TranscriptionPageAssistantRuntimeProps, TranscriptionPageAnalysisRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionPageDialogsProps } from './TranscriptionPage.Dialogs';

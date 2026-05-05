@@ -8,7 +8,7 @@ import { resolveToolIntentOutcome } from './useAiChat.intentResolution';
 import { handleInvalidToolArguments } from './useAiChat.argsValidation';
 import { resolveDestructiveGate } from './useAiChat.destructiveGate';
 import { executeAutoToolCall } from './useAiChat.autoExecute';
-import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, UiChatMessage } from './useAiChat';
+import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, UiChatMessage } from './useAiChat.types';
 
 export { resolveUserDirectivePolicyDecision };
 

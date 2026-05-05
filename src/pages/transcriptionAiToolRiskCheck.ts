@@ -1,6 +1,6 @@
 import type { LayerDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import { t, tf, type Locale } from '../i18n';
-import type { AiChatToolCall, AiChatToolName, AiToolRiskCheckResult } from '../hooks/useAiChat';
+import type { AiChatToolCall, AiChatToolName, AiToolRiskCheckResult } from '../hooks/useAiChat.types';
 import type { SegmentTargetDescriptor } from '../hooks/useAiToolCallHandler.segmentTargeting';
 import { isAiToolDestructive, isAiToolSegmentTargetMaterializationTool } from '../ai/policy/aiToolPolicyMatrix';
 import { createMetricTags, recordMetric } from '../observability/metrics';

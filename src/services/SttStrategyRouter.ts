@@ -1,4 +1,4 @@
-import type { SttEngine } from './VoiceInputService';
+import type { SttEngine } from './VoiceInputService.types';
 import type { Region } from '../utils/regionDetection';
 
 export interface SttStrategyInput {

@@ -6,13 +6,13 @@ import type {
   AiPromptNoteSummary,
   AiPromptSpeakerSnapshot,
   AiPromptVisibleTimelineState,
-} from '../hooks/useAiChat';
+} from '../hooks/useAiChat.types';
 import type { TimelineUnitView, TimelineUnitViewIndex } from '../hooks/timelineUnitView';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import type { WaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
 import { buildWorldModelSnapshot } from '../ai/chat/worldModelSnapshot';
-import type { LayerDocType } from './transcriptionAiController.types';
+import type { LayerDocType } from '../types/jieyuDbDocTypes';
 import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 
 export type { AcousticDiagnosticKey, AcousticPromptSummary } from './transcriptionAcousticSummary';

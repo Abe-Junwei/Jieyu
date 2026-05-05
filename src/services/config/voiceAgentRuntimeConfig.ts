@@ -1,5 +1,5 @@
 import type { CommercialProviderCreateConfig, SttEnhancementConfig, SttEnhancementSelectionKind } from '../stt';
-import type { CommercialProviderKind } from '../VoiceInputService';
+import type { CommercialProviderKind } from '../VoiceInputService.types';
 
 export interface VoiceAgentRuntimeConfig {
   whisperServerUrl: string;

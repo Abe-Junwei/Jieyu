@@ -12,7 +12,8 @@
  * @see \u89e3\u8bed\u8bed\u97f3\u667a\u80fd\u4f53\u67b6\u6784\u8bbe\u8ba1\u65b9\u6848 v2.5 §\u9636\u6bb51
  */
 
-import type { VoiceInputService as VoiceInputServiceType, SttEngine, SttResult, CommercialProviderKind } from './VoiceInputService';
+import type { VoiceInputService as VoiceInputServiceType } from './VoiceInputService';
+import type { CommercialProviderKind, SttEngine, SttResult } from './VoiceInputService.types';
 import type { WakeWordDetector as WakeWordDetectorType } from './WakeWordDetector';
 import { AmbientObserver } from './AmbientObserver';
 import { SpeechQualityAnalyzer } from './SpeechQualityAnalyzer';
@@ -36,7 +37,8 @@ import { buildVoiceAgentStartConfig, testVoiceAgentCommercialProvider } from './
 import { startWakeWordDetectorRuntime } from './VoiceAgentService.wakeWord';
 import { startVoiceAgentRecording, stopVoiceAgentRecording } from './VoiceAgentService.recordingControls';
 import type { Locale } from '../i18n';
-import type { VoiceMode } from './voiceMode';
+import type { VoiceAgentMode, VoiceAgentServiceOptions, VoiceAgentServiceState } from './VoiceAgentService.types';
+export type { VoiceAgentMode, VoiceAgentServiceOptions, VoiceAgentServiceState } from './VoiceAgentService.types';
 import {
   loadSttRuntime,
   loadSttStrategyRuntime,
@@ -48,70 +50,7 @@ const log = createLogger('VoiceAgentService');
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type VoiceAgentMode = VoiceMode;
-
 export type { GroundingContextData } from './VoiceAgentGroundingContext';
-
-export interface VoiceAgentServiceState {
-  listening: boolean;
-  speechActive: boolean;
-  mode: VoiceAgentMode;
-  interimText: string;
-  finalText: string;
-  confidence: number;
-  lastIntent: VoiceIntent | null;
-  error: string | null;
-  safeMode: boolean;
-  pendingConfirm: { actionId: ActionId; label: string; fromFuzzy?: boolean; params?: { segmentIndex?: number } } | null;
-  session: VoiceSession;
-  engine: SttEngine;
-  isRecording: boolean;
-  commercialProviderKind: CommercialProviderKind;
-  commercialProviderConfig: CommercialProviderCreateConfig;
-  sttEnhancementKind: import('./stt').SttEnhancementSelectionKind;
-  sttEnhancementConfig: import('./stt').SttEnhancementConfig;
-  energyLevel: number;
-  recordingDuration: number;
-  wakeWordEnabled: boolean;
-  wakeWordEnergyLevel: number;
-  detectedLang: string | null;
-  // Multi-agent pipeline state
-  agentState: 'idle' | 'listening' | 'routing' | 'executing' | 'ai-thinking';
-  // Grounding context (Stage 2)
-  groundingContext: GroundingContextData;
-}
-
-export interface VoiceAgentServiceOptions {
-  corpusLang?: string;
-  langOverride?: string | null;
-  locale?: Locale;
-  initialSafeMode?: boolean;
-  initialWakeWordEnabled?: boolean;
-  /** Whisper-server URL for whisper-local engine (port 3040) */
-  whisperServerUrl?: string;
-  /** Whisper-server model name */
-  whisperServerModel?: string;
-  commercialProviderKind?: CommercialProviderKind;
-  commercialProviderConfig?: CommercialProviderCreateConfig;
-  sttEnhancementKind?: import('./stt').SttEnhancementSelectionKind;
-  sttEnhancementConfig?: import('./stt').SttEnhancementConfig;
-  /** Called when the user confirms a pending action */
-  onExecuteAction?: (actionId: ActionId, params?: { segmentIndex?: number }) => void;
-  /** Called for dictation text insertion */
-  onInsertDictation?: (text: string) => void;
-  /** Default transform hook for SpeechAnnotationPipeline fills */
-  onTransformDictationPipelineFill?: (input: { layer: AnnotationLayer; text: string; segmentId: string }) => Promise<string>;
-  /** Called for AI chat / analysis mode */
-  onSendToAiChat?: (text: string) => void;
-  /** Called when a VoiceActionTool intent is resolved — routes to useAiToolCallHandler */
-  onToolCall?: (call: { name: string; arguments: Record<string, unknown> }) => Promise<{ ok: boolean; message: string }>;
-  /** Optional LLM resolver for complex commands */
-  resolveIntentWithLlm?: (input: {
-    text: string;
-    mode: VoiceAgentMode;
-    session: VoiceSession;
-  }) => Promise<VoiceIntent | null>;
-}
 
 // ── Defaults ────────────────────────────────────────────────────────────────
 

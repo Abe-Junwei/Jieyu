@@ -9,7 +9,7 @@ import { applyVoiceConfirmedPendingTelemetry } from './voiceConfirmedPendingTele
 import { tf, type Locale } from '../i18n';
 import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 import type { ActionId, VoiceIntent, VoiceSession, VoiceSessionEntry } from './IntentRouter';
-import type { SttResult } from './VoiceInputService';
+import type { SttResult } from './VoiceInputService.types';
 
 export type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 

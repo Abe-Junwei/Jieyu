@@ -13,32 +13,8 @@ import { DEFAULT_ACOUSTIC_ANALYSIS_CONFIG, type AcousticAnalysisConfig, type Aco
 import { ACOUSTIC_ANALYSIS_PRESETS, type AcousticAnalysisPresetKey } from '../utils/acousticAnalysisPresets';
 import { ACOUSTIC_NUMERIC_BOUNDS, PROVIDER_PREFERENCE_AUTO, areAcousticConfigOverridesEqual, buildNormalizedPath, downloadTextPayload, findNearestFrameByTime, formatCoefficients, formatDb, formatDelta, formatHz, formatRatio, formatScalar, formatZeroCrossing, measureAcousticExportPayloadStats, pruneAcousticConfigOverride, resolveAcousticExportFilename, resolveAcousticExportMimeType, resolvePresetKeyFromOverride, serializeAcousticExportSync, serializeAcousticExportWithWorker, shouldRejectAcousticExportPayload, type AcousticConfigOverride, type AcousticExportFormat } from './ai/aiAnalysisPanelAcousticUtils';
 import { acousticProviderDefinitions, persistAcousticProviderRuntimeConfig, probeExternalAcousticProviderHealth, resolveAcousticProviderRuntimeConfig, type AcousticProviderRuntimeConfig, type ExternalAcousticProviderHealthCheckResult } from '../services/acoustic/acousticProviderContract';
-
-export type AiPanelMode = 'auto' | 'all';
-
-export type AiPanelTask =
-  | 'segmentation'
-  | 'transcription'
-  | 'translation'
-  | 'pos_tagging'
-  | 'glossing'
-  | 'risk_review'
-  | 'ai_chat_setup';
-
-export type AiPanelCardKey =
-  | 'ai_chat'
-  | 'embedding_ops'
-  | 'task_observer'
-  | 'translation_focus'
-  | 'generation_status'
-  | 'context_analysis'
-  | 'dictionary_matches'
-  | 'token_notes'
-  | 'pos_tagging'
-  | 'phoneme_consistency';
-
-/** 底部面板 tab 类型 | Bottom panel tab keys */
-export type AnalysisBottomTab = 'embedding' | 'stats' | 'acoustic';
+import type { AiPanelCardKey, AiPanelTask, AnalysisBottomTab } from './AiAnalysisPanel.types';
+export type { AiPanelCardKey, AiPanelMode, AiPanelTask, AnalysisBottomTab } from './AiAnalysisPanel.types';
 
 type ProviderConfigSaveState = 'idle' | 'saved' | 'error';
 

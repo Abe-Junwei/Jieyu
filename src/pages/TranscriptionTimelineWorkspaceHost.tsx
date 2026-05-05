@@ -1,4 +1,4 @@
-import type { TranscriptionPageTimelineEmptyStateProps, TranscriptionPageTimelineHorizontalMediaLanesProps } from './TranscriptionPage.TimelineContent';
+import type { TranscriptionPageTimelineEmptyStateProps, TranscriptionPageTimelineHorizontalMediaLanesProps, TimelineWorkspaceHostShell } from './TranscriptionPage.TimelineContent.types';
 import type {
   TranscriptionTimelineWorkspacePanelProps,
   TranscriptionTimelineVerticalViewInput,
@@ -8,8 +8,6 @@ import { TranscriptionTimelineVerticalView } from '../components/TranscriptionTi
 import { TranscriptionPageTimelineEmptyState } from './TranscriptionPage.TimelineEmptyState';
 import type { TimelineAcousticState } from '../utils/mapAcousticToTimelineChrome';
 import { mapAcousticToTimelineChrome } from '../utils/mapAcousticToTimelineChrome';
-
-export type TimelineWorkspaceHostShell = 'waveform' | 'text-only' | 'empty';
 
 export interface TranscriptionTimelineWorkspaceHostProps {
   verticalComparisonEnabled: boolean;

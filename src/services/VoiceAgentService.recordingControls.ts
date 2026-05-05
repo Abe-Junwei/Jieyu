@@ -4,7 +4,7 @@
  */
 
 import type { VoiceInputService as VoiceInputServiceType } from './VoiceInputService';
-import type { VoiceAgentServiceState } from './VoiceAgentService';
+import type { VoiceAgentServiceState } from './VoiceAgentService.types';
 
 export interface StartVoiceAgentRecordingParams {
   ensureVoiceService: () => Promise<VoiceInputServiceType>;

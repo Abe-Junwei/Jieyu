@@ -1,4 +1,4 @@
-import type { ExtensionCapability, ExtensionCapabilityAuditPayload, ExtensionManifestV1, ExtensionTrustLevel } from './extensionRuntime';
+import type { ExtensionCapability, ExtensionCapabilityAuditPayload, ExtensionManifestV1, ExtensionTrustLevel } from './extensionRuntime.types';
 
 export type ExtensionTrustDecisionReason =
   | 'governance-disabled'

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { TranscriptionPageTimelineHorizontalMediaLanesProps } from './TranscriptionPage.TimelineContent';
+import type { TranscriptionPageTimelineHorizontalMediaLanesProps } from './TranscriptionPage.TimelineContent.types';
 import type { TimelineHostSharedLaneProps } from './timelineHostProjectionTypes';
 import type { OrchestratorWaveformContentProps } from './OrchestratorWaveformContent';
 import type { TranscriptionPageSidePaneProps } from './TranscriptionPage.SidePane';

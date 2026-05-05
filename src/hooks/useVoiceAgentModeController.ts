@@ -8,7 +8,7 @@ import type { ActionId, ActionIntent } from '../services/IntentRouter';
 import { getActionLabel } from '../services/voiceIntentUi';
 import * as Earcon from '../services/EarconService';
 import { applyVoiceConfirmedPendingTelemetry } from '../services/voiceConfirmedPendingTelemetry';
-import type { VoiceAgentMode, VoiceAgentState } from './useVoiceAgent';
+import type { VoiceAgentMode, VoiceAgentState } from './useVoiceAgent.types';
 import type { loadIntentRouterRuntime as LoadIntentRouterRuntimeFn } from './useVoiceAgent.runtime';
 import type { Locale } from '../i18n';
 

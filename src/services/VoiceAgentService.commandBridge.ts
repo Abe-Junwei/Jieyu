@@ -6,8 +6,8 @@
  * Extracted from VoiceAgentService._handleSttResult to reduce file size.
  */
 
-import type { SttResult } from './VoiceInputService';
-import type { VoiceAgentMode, VoiceAgentServiceState } from './VoiceAgentService';
+import type { SttResult } from './VoiceInputService.types';
+import type { VoiceAgentMode, VoiceAgentServiceState } from './VoiceAgentService.types';
 import type { Locale } from '../i18n';
 import { routeIntent, isDestructiveAction, shouldConfirmFuzzyAction, learnVoiceIntentAlias, bumpAliasUsage, type ActionId, type VoiceIntent, type VoiceSession } from './IntentRouter';
 import { refineLlmFallbackIntent } from './voiceIntentRefine';

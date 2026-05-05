@@ -3,11 +3,11 @@
  * Keeps `VoiceAgentService` class focused on lifecycle; STT branch logic lives here next to commandBridge.
  */
 
-import type { SttResult } from './VoiceInputService';
+import type { SttResult } from './VoiceInputService.types';
 import type { SpeechAnnotationPipeline } from './SpeechAnnotationPipeline';
 import type { SpeechQualityAnalyzer } from './SpeechQualityAnalyzer';
 import type { ActionId, VoiceSession } from './IntentRouter';
-import type { VoiceAgentServiceState } from './VoiceAgentService';
+import type { VoiceAgentServiceState } from './VoiceAgentService.types';
 import {
   buildCommandBridgeContext,
   handleFinalSttResult,

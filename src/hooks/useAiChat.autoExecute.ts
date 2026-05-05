@@ -3,7 +3,7 @@ import { formatNoExecutorInternalError, formatNoExecutorToolFailureDetail, forma
 import { buildPostExecSessionMemory } from './useAiChat.postExecSessionPatch';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
-import type { AiChatToolCall, AiChatToolResult, AiInteractionMetrics, AiSessionMemory, AiTaskSession } from './useAiChat';
+import type { AiChatToolCall, AiChatToolResult, AiInteractionMetrics, AiSessionMemory, AiTaskSession } from './useAiChat.types';
 import { nowIso } from './useAiChat.helpers';
 
 interface ExecuteAutoToolCallParams {

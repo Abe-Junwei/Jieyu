@@ -12,8 +12,11 @@
  * @see src/tools/whisper-server/
  */
 
-import type { CommercialSttProvider, SttResult } from '../VoiceInputService';
+import type { CommercialSttProvider, SttResult } from '../VoiceInputService.types';
 import { computeWhisperConfidence, tryParseVerboseResponse } from './sttConfidence';
+import { createLogger } from '../../observability/logger';
+
+const log = createLogger('LocalWhisperSttProvider');
 
 export interface LocalWhisperConfig {
   baseUrl: string;   // defaults to 'http://localhost:3040'
@@ -37,7 +40,7 @@ export class LocalWhisperSttProvider implements CommercialSttProvider {
       });
       return resp.ok;
     } catch (err) {
-      console.debug('[LocalWhisperSttProvider] availability probe failed:', err);
+      log.debug('availability probe failed', { err });
       return false;
     }
   }
@@ -58,7 +61,10 @@ export class LocalWhisperSttProvider implements CommercialSttProvider {
     });
 
     if (!resp.ok) {
-      const text = await resp.text().catch((e) => { console.warn('LocalWhisper STT: failed to read error response body', e); return ''; });
+      const text = await resp.text().catch((e) => {
+        log.warn('failed to read error response body', { err: e });
+        return '';
+      });
       throw new Error(`Local Whisper failed: ${resp.status} ${text}`);
     }
 

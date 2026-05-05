@@ -7,7 +7,7 @@ import { buildPostExecSessionMemory } from './useAiChat.postExecSessionPatch';
 import { nowIso } from './useAiChat.helpers';
 import { genRequestId } from './useAiChat.toolAudit';
 import type { Locale } from '../i18n';
-import type { AiChatToolCall, AiChatToolResult, AiInteractionMetrics, AiSessionMemory, AiTaskSession } from './useAiChat';
+import type { AiChatToolCall, AiChatToolResult, AiInteractionMetrics, AiSessionMemory, AiTaskSession } from './useAiChat.types';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 
 /** Promise.race 超时支路在胜出后清除 timer，避免未处理的 rejection。 */

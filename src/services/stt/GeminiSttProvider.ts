@@ -7,7 +7,10 @@
  * Endpoint: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
  */
 
-import type { CommercialSttProvider, SttResult } from '../VoiceInputService';
+import type { CommercialSttProvider, SttResult } from '../VoiceInputService.types';
+import { createLogger } from '../../observability/logger';
+
+const log = createLogger('GeminiSttProvider');
 
 export interface GeminiSttProviderConfig {
   apiKey: string;
@@ -57,7 +60,7 @@ export class GeminiSttProvider implements CommercialSttProvider {
       );
       return resp.ok;
     } catch (err) {
-      console.debug('[GeminiSttProvider] availability probe failed:', err);
+      log.debug('availability probe failed', { err });
       return false;
     }
   }
@@ -107,7 +110,10 @@ export class GeminiSttProvider implements CommercialSttProvider {
     );
 
     if (!resp.ok) {
-      const text = await resp.text().catch((e) => { console.warn('Gemini STT: failed to read error response body', e); return ''; });
+      const text = await resp.text().catch((e) => {
+        log.warn('failed to read error response body', { err: e });
+        return '';
+      });
       throw new Error(`Gemini STT failed: ${resp.status} ${text}`);
     }
 

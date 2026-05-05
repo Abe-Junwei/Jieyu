@@ -3,7 +3,7 @@
  * `tryConsumeSttThroughDictationPipeline` is shared by Hook (`useVoiceAgentDictationPipeline`) and `VoiceAgentService`.
  */
 
-import type { SttResult } from './VoiceInputService';
+import type { SttResult } from './VoiceInputService.types';
 
 export interface DictationSttFinalRoutePipeline {
   onSttResult(result: SttResult): void;

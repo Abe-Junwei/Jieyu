@@ -5,7 +5,7 @@
  * Extracted from VoiceInputService to keep the main file focused on lifecycle and engine management.
  */
 
-import type { SttResult, SttEngine, CommercialSttProvider } from './VoiceInputService';
+import type { SttResult, SttEngine, CommercialSttProvider } from './VoiceInputService.types';
 import type { SttEnhancementConfig, SttEnhancementProvider } from './stt/enhancementRegistry';
 import { buildWhisperTranscriptionEndpoints, createTranscriptionTimeoutController } from './VoiceInputService.probes';
 import type { WhisperXVadService } from './vad/WhisperXVadService';
@@ -95,6 +95,7 @@ export class RecordingExecutor {
     sttEnhancement?: SttEnhancementProvider;
     sttEnhancementConfig?: SttEnhancementConfig;
     commercialFallback?: CommercialSttProvider;
+    mediaId?: string;
   }): Promise<void> {
     // Re-entrant guard: if a stop is already in flight, await it instead of racing
     if (this._stopRecordingPromise) {
@@ -135,6 +136,7 @@ export class RecordingExecutor {
     sttEnhancement?: SttEnhancementProvider;
     sttEnhancementConfig?: SttEnhancementConfig;
     commercialFallback?: CommercialSttProvider;
+    mediaId?: string;
   }): Promise<void> {
     const recorder = this.mediaRecorder;
     if (!recorder) return;
@@ -195,7 +197,7 @@ export class RecordingExecutor {
         // ==== VAD 缓存集成 ====
         // 优先用 mediaId，否则用音频 hash
         // 注意：hash 必须在 decodeAudioData 之前计算，因为 decode 会 detach ArrayBuffer
-        let mediaId = (config as any).mediaId as string | undefined;
+        let mediaId = config.mediaId;
         if (!mediaId) {
           // 无 mediaId 时用音频内容 hash（极简实现：前 256 字节 base64）
           const hash = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer.slice(0, 256))));

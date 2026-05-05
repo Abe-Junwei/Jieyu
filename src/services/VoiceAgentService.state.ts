@@ -4,10 +4,9 @@
  */
 
 import type { GroundingContextData } from './VoiceAgentGroundingContext';
-import type { VoiceAgentServiceState, VoiceAgentMode } from './VoiceAgentService';
+import type { VoiceAgentServiceState, VoiceAgentMode } from './VoiceAgentService.types';
 import type { VoiceIntent, VoiceSession, ActionId } from './IntentRouter';
-import type { SttEngine } from './VoiceInputService';
-import type { CommercialProviderKind } from './VoiceInputService';
+import type { CommercialProviderKind, SttEngine } from './VoiceInputService.types';
 import type { CommercialProviderCreateConfig, SttEnhancementConfig, SttEnhancementSelectionKind } from './stt';
 
 export interface VoiceAgentServiceStateSnapshotInput {

@@ -40,8 +40,8 @@ interface UseTranscriptionAssistantSidebarControllerInputInput {
     deactivateSessionDirective?: AiChatContextValue['onDeactivateAiSessionDirective'];
     pruneSessionDirectivesBySourceMessage?: AiChatContextValue['onPruneAiSessionDirectivesBySourceMessage'];
     confirmPendingToolCall: AiChatContextValue['onConfirmPendingToolCall'];
-    cancelPendingToolCall: AiChatContextValue['onCancelPendingToolCall'];
-    dismissPendingAgentLoopCheckpoint: AiChatContextValue['onDismissPendingAgentLoopCheckpoint'];
+    cancelPendingToolCall: (() => void) | (() => Promise<void>) | undefined;
+    dismissPendingAgentLoopCheckpoint: (() => void) | (() => Promise<void>) | undefined;
     trackRecommendationEvent: AiChatContextValue['onTrackAiRecommendationEvent'];
   };
   aiToolDecisionLogs: AiChatContextValue['aiToolDecisionLogs'];
@@ -111,8 +111,16 @@ export function useTranscriptionAssistantSidebarControllerInput({
     onDeactivateAiSessionDirective: aiChat.deactivateSessionDirective,
     onPruneAiSessionDirectivesBySourceMessage: aiChat.pruneSessionDirectivesBySourceMessage,
     onConfirmPendingToolCall: aiChat.confirmPendingToolCall,
-    onCancelPendingToolCall: aiChat.cancelPendingToolCall,
-    onDismissPendingAgentLoopCheckpoint: aiChat.dismissPendingAgentLoopCheckpoint,
+    onCancelPendingToolCall: aiChat.cancelPendingToolCall
+      ? async () => {
+        await aiChat.cancelPendingToolCall?.();
+      }
+      : undefined,
+    onDismissPendingAgentLoopCheckpoint: aiChat.dismissPendingAgentLoopCheckpoint
+      ? async () => {
+        await aiChat.dismissPendingAgentLoopCheckpoint?.();
+      }
+      : undefined,
     onTrackAiRecommendationEvent: aiChat.trackRecommendationEvent,
     onJumpToCitation,
     ...(timelineReadModelEpoch !== undefined ? { timelineReadModelEpoch } : {}),

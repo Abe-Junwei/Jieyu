@@ -7,7 +7,7 @@
  * Used by both the Service path (commandBridge) and the Hook path (useVoiceAgentResultHandler).
  */
 
-import type { SttResult } from './VoiceInputService';
+import type { SttResult } from './VoiceInputService.types';
 import type { ActionId, VoiceIntent, VoiceSession } from './IntentRouter';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
