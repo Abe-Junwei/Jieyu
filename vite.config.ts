@@ -433,7 +433,7 @@ export default defineConfig({
   },
   test: {
     /* Playwright 规格放在 tests/e2e，由 npm run test:e2e 执行；勿让 Vitest 收集 | E2E specs run via Playwright only */
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', 'tests/e2e-sandbox/**'],
     /* threads：单进程内跑用例，避免 forks 多进程各拉一份巨型 i18n 导致堆 OOM | Avoid per-fork duplicate heaps for large dict imports */
     pool: 'threads',
     /* 限制 worker 数（收紧并行），降低 pool 饥饿与个别用例 flaky 超时 | Tighter cap reduces pool starvation under load */

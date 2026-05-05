@@ -1,46 +1,17 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import { tf, useLocale } from '../i18n';
+import { BACKUP_LAST_EXPORT_KEY, readLastExportTimestamp } from '../utils/backupExportTimestamp';
 
-const BACKUP_LAST_EXPORT_KEY = 'jieyu.lastExportTimestamp';
+/** Re-export：历史调用方从本文件导入；实现见 `backupExportTimestamp`（供 db/io 等底层无 React 依赖）。 */
+export { markBackupCompleted } from '../utils/backupExportTimestamp';
+
 /** 连续工作超过此时间后触发提醒 | Remind after this many ms of active work */
 const BACKUP_REMINDER_THRESHOLD_MS = 4 * 60 * 60 * 1000; // 4 hours
 /** 检查间隔 | Check interval */
 const BACKUP_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 /** 首次检查延迟（给启动让路）| Delay first check to avoid boot rush */
 const BACKUP_FIRST_CHECK_DELAY_MS = 5 * 60 * 1000; // 5 minutes
-
-function readLastExportTimestamp(): number {
-  try {
-    const raw = window.localStorage.getItem(BACKUP_LAST_EXPORT_KEY);
-    if (raw) {
-      const parsed = Number(raw);
-      if (Number.isFinite(parsed) && parsed > 0) return parsed;
-    }
-  } catch {
-    // Ignore read failures
-  }
-  // 首次使用：以当前时间作为起点，避免立即弹出提醒 | First run: use now as baseline to avoid immediate popup
-  const now = Date.now();
-  try {
-    window.localStorage.setItem(BACKUP_LAST_EXPORT_KEY, String(now));
-  } catch {
-    // Ignore write failures
-  }
-  return now;
-}
-
-/**
- * 记录一次导出完成，重置提醒倒计时。
- * Record an export completion to reset the reminder countdown.
- */
-export function markBackupCompleted(): void {
-  try {
-    window.localStorage.setItem(BACKUP_LAST_EXPORT_KEY, String(Date.now()));
-  } catch {
-    // Ignore persistence failures
-  }
-}
 
 /**
  * 定期检查距上次备份的活跃工作时间，超过阈值时通过 toast 提醒用户导出。
