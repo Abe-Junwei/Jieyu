@@ -19,6 +19,7 @@ coverage/
 
 # IDE and OS
 .idea/
+.cursor/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
