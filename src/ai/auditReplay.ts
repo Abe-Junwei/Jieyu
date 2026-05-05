@@ -5,6 +5,9 @@ import {
   parseVerticalWorkflowAuditEntry,
   type ParsedVerticalWorkflowAuditEntry,
 } from './vertical/verticalWorkflowAudit';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('auditReplay');
 
 type AuditSource = 'human' | 'ai' | 'system';
 
@@ -96,7 +99,7 @@ function safeParseJson(raw: string | undefined): unknown {
   try {
     return JSON.parse(raw) as unknown;
   } catch (err) {
-    console.error('[Jieyu] auditReplay: safeParseJson failed', { raw, err });
+    log.error('safeParseJson failed', { raw, err });
     return null;
   }
 }

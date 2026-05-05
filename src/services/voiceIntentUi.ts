@@ -1,5 +1,8 @@
-import type { ActionId } from './IntentRouter';
+import type { ActionId } from '../types/intentActionId';
 import { getStoredLocalePreference, t, type DictKey, type Locale } from '../i18n';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('voiceIntentUi');
 
 const VOICE_ALIAS_LEARNING_LOG_KEY = 'jieyu.voice.intent.aliasLearningLog';
 const MAX_VOICE_ALIAS_LOG_SIZE = 50;
@@ -187,7 +190,7 @@ export function loadVoiceAliasLearningLog(): VoiceAliasLearningLogEntry[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(isVoiceAliasLearningLogEntry);
   } catch (err) {
-    console.debug('[voiceIntentUi] loadVoiceAliasLearningLog failed, using empty log:', err);
+    log.debug('loadVoiceAliasLearningLog failed, using empty log', { err });
     return [];
   }
 }

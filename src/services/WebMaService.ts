@@ -22,6 +22,9 @@
  */
 
 import type { LayerUnitDocType } from '../db';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('WebMaService');
 
 export type WebMaService = 'maus' | 'mausg2' | 'maus1';
 export type WebMaLanguage =
@@ -332,7 +335,10 @@ export class WebMaServiceClient {
     }
 
     if (!submitResp.ok) {
-      const body = await submitResp.text().catch((e) => { console.warn('WebMAUS: failed to read error response body', e); return ''; });
+      const body = await submitResp.text().catch((e) => {
+        log.warn('failed to read WebMAUS error response body', { err: e });
+        return '';
+      });
       throw new Error(`WebMAUS submission failed (${submitResp.status}): ${body}`);
     }
 

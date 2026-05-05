@@ -27,6 +27,9 @@ import { newId } from '../utils/transcriptionFormatters';
 import { validateCustomFieldDefinitionInput } from './LanguageMetadataCustomFields';
 import { lookupIso639_3Seed } from './languageCatalogSeedLookup';
 export { lookupIso639_3Seed, type Iso639_3Seed } from './languageCatalogSeedLookup';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('LinguisticService.languageCatalog');
 
 /**
  * ISO 639-3 种子数据（同步查询） | ISO 639-3 seed data (sync lookup)
@@ -840,7 +843,7 @@ function scheduleDeferredLanguageCatalogReadModelRefresh(): void {
   setTimeout(() => {
     deferredLanguageCatalogRefreshScheduled = false;
     void refreshLanguageCatalogReadModel().catch((error) => {
-      console.error('Failed to rebuild deferred language catalog runtime cache:', error);
+      log.error('failed to rebuild deferred language catalog runtime cache', { err: error });
     });
   }, 0);
 }
@@ -926,7 +929,7 @@ export async function refreshLanguageCatalogReadModel(): Promise<void> {
     rebuildLanguageCatalogRuntimeCachePromise = Dexie.waitFor(rebuildLanguageCatalogRuntimeCache())
       .catch((error) => {
         // H5: Log, then rethrow so callers observe the failure; .finally clears the promise so a later refresh can retry.
-        console.error('Failed to rebuild language catalog runtime cache:', error);
+        log.error('failed to rebuild language catalog runtime cache', { err: error });
         throw error;
       })
       .finally(() => {
@@ -1485,7 +1488,7 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
 
   // C4: 添加错误处理，避免 rebuild 失败导致缓存/DB 永久脱节 | Add error handling to prevent permanent cache/DB desync on rebuild failure
   await refreshLanguageCatalogReadModel().catch((refreshError) => {
-    console.error('Failed to refresh language catalog read model after upsert:', refreshError);
+    log.error('failed to refresh language catalog read model after upsert', { err: refreshError });
   });
 
   return (await getLanguageCatalogEntry({ languageId, locale })) as LanguageCatalogEntry;
@@ -1539,7 +1542,7 @@ export async function deleteLanguageCatalogEntry(input: {
   }, { label: 'LinguisticService.languageCatalog.deleteLanguageCatalogEntry' });
 
   await refreshLanguageCatalogReadModel().catch((refreshError) => {
-    console.error('Failed to refresh language catalog read model after delete:', refreshError);
+    log.error('failed to refresh language catalog read model after delete', { err: refreshError });
   });
 }
 
@@ -1632,6 +1635,6 @@ export async function deleteCustomFieldDefinition(id: string): Promise<void> {
   }, { label: 'LinguisticService.languageCatalog.deleteCustomFieldDefinition' });
 
   await refreshLanguageCatalogReadModel().catch((refreshError) => {
-    console.error('Failed to refresh language catalog read model after custom field definition delete:', refreshError);
+    log.error('failed to refresh language catalog read model after custom field definition delete', { err: refreshError });
   });
 }

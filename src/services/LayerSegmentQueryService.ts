@@ -1,6 +1,9 @@
 import Dexie from 'dexie';
 import type { Transaction } from 'dexie';
 import { getDb, type LayerUnitContentDocType, type LayerUnitContentViewDocType, type LayerSegmentViewDocType, type LayerUnitDocType } from '../db';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('LayerSegmentQueryService');
 
 /** Dexie `Transaction.table()` uses the full DB schema, so it cannot detect IDB scope — use `storeNames`. */
 function readTransactionStoreNames(tx: Transaction): Set<string> {
@@ -149,7 +152,10 @@ function warnDexieScopeFallback(tableNames: readonly string[], source: string): 
   const key = `${source}:${tableNames.join(',')}`;
   if (warnedDexieScopeFallbacks.has(key)) return;
   warnedDexieScopeFallbacks.add(key);
-  console.warn(`[Dexie scope fallback] ${source} executed outside declared transaction stores: ${tableNames.join(', ')}`);
+  log.warn('Dexie scope fallback executed outside declared transaction stores', {
+    source,
+    tableNames,
+  });
 }
 
 async function runQueryWithCompatibleTransaction<T>(

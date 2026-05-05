@@ -1,25 +1,30 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-05T09:37:53.178Z",
-  "status": "skipped",
-  "skipReason": "no_session_sidecar_sandbox_rows",
-  "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+  "generatedAt": "2026-05-05T09:49:12.575Z",
+  "status": "ready_or_partial",
+  "auditExportPath": "docs/execution/audits/ai-session-sidecar-audit-export-v1.ndjson",
   "summary": {
-    "total": 0,
-    "allow": 0,
+    "total": 1,
+    "allow": 1,
     "ask": 0,
     "deny": 0,
     "unknown": 0
   },
   "rates": {
-    "allowRate": 0,
+    "allowRate": 1,
     "askRate": 0,
     "denyRate": 0
   },
   "distributions": {
-    "actions": {},
-    "reasons": {},
-    "gates": {}
+    "actions": {
+      "allow": 1
+    },
+    "reasons": {
+      "within-authorized-write-dir": 1
+    },
+    "gates": {
+      "session-memory/pinned-message-directive": 1
+    }
   },
   "parseErrorCount": 0
 }

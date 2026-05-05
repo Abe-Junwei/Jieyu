@@ -16,6 +16,9 @@
 import { appendVoiceAliasLearningLog, clearVoiceAliasLearningLog, getActionLabel, loadVoiceAliasLearningLog } from './voiceIntentUi';
 import { DEFAULT_VOICE_MODE, type VoiceMode } from './voiceMode';
 import type { ActionId } from '../types/intentActionId';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('IntentRouter');
 
 export type { ActionId };
 
@@ -617,7 +620,7 @@ function loadVoiceAliasMetaMapInternal(): Record<string, VoiceAliasMeta> {
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
     return parsed;
   } catch (err) {
-    console.debug('[IntentRouter] loadVoiceAliasMetaMapInternal failed, using empty map:', err);
+    log.debug('loadVoiceAliasMetaMapInternal failed, using empty map', { err });
     return {};
   }
 }
@@ -694,7 +697,7 @@ export function loadVoiceIntentAliasMap(): Record<string, ActionId> {
     }
     return out;
   } catch (err) {
-    console.debug('[IntentRouter] loadVoiceIntentAliasMap failed, using empty map:', err);
+    log.debug('loadVoiceIntentAliasMap failed, using empty map', { err });
     return {};
   }
 }

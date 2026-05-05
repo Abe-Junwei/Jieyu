@@ -13,9 +13,8 @@
  *    paths to re-route a segment ID onto its canonical unit — that causes cross-layer
  *    contamination for per-layer fields (selfCertainty, status, provenance, etc.).
  *
- * TODO(2026Q2): 将本文件 helper 的调用方迁移到 `./segmentHostResolution` 的
- *   `resolveHostUnitCascadeMedia` 并在一切读路径上用 dispatchTimelineUnitMutation
- *   管控写路径后，标记这些 host-id helper 为 `@deprecated`。
+ * 当前状态（2026-05）：helper 内部已改为基于 `resolveHostUnitCascadeMedia`，
+ * 且对外标记为 `@deprecated` 过渡薄壳；后续新调用点不应继续依赖本文件的 host-id helper。
  */
 
 import {

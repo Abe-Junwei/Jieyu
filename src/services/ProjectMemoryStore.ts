@@ -15,6 +15,9 @@
  */
 
 import MiniSearch from 'minisearch';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('ProjectMemoryStore');
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -136,7 +139,7 @@ class ProjectMemoryStore {
       const stored = await this._loadFromDB(projectId);
       this._memory = stored ?? createEmptyMemory(projectId);
     } catch (err) {
-      console.warn('[ProjectMemoryStore] loadProject fallback to empty memory:', err);
+      log.warn('loadProject fallback to empty memory', { err });
       this._memory = createEmptyMemory(projectId);
     }
 
@@ -174,7 +177,7 @@ class ProjectMemoryStore {
       try {
         db.close();
       } catch (err) {
-        console.debug('[ProjectMemoryStore] db.close() failed during dispose:', err);
+        log.debug('db.close() failed during dispose', { err });
         // 忽略关闭失败，后续按需懒加载重建 | Ignore close failures and reopen lazily on next use.
       }
     }).catch(() => {
@@ -457,7 +460,7 @@ class ProjectMemoryStore {
     try {
       await this._saveToDB(this._memory);
     } catch (err) {
-      console.warn('[ProjectMemoryStore] persist failed, staying in-memory only:', err);
+      log.warn('persist failed, staying in-memory only', { err });
       // IndexedDB unavailable — in-memory only
     }
   }
@@ -517,7 +520,7 @@ class ProjectMemoryStore {
         getReq.onerror = () => resolve(null);
       }));
     } catch (err) {
-      console.warn('[ProjectMemoryStore] load from IndexedDB failed:', err);
+      log.warn('load from IndexedDB failed', { err });
       return null;
     }
   }

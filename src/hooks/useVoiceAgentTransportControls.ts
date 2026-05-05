@@ -7,6 +7,7 @@ import type { SttEngine, VoiceInputService as VoiceInputServiceType } from '../s
 import type { VoiceMode } from '../services/voiceMode';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
+import { createLogger } from '../observability/logger';
 
 interface RefLike<T> {
   current: T;
@@ -35,6 +36,8 @@ interface UseVoiceAgentTransportControlsOptions {
   setError: (value: string | null) => void;
   setEngine: (value: SttEngine) => void;
 }
+
+const log = createLogger('useVoiceAgentTransportControls');
 
 function clearRecordingDurationTimer(
   recordingDurationIntervalRef: RefLike<ReturnType<typeof setInterval> | null>,
@@ -97,7 +100,7 @@ export function useVoiceAgentTransportControls({
         const { saveVoiceSession } = await loadVoiceSessionStoreRuntime();
         await saveVoiceSession(currentSession);
       } catch (err) {
-        console.warn('[useVoiceAgent] saveVoiceSession failed:', err);
+        log.warn('saveVoiceSession failed', { err });
       }
     }
 

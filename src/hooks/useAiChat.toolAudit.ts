@@ -10,6 +10,9 @@ import { buildAiToolRequestId } from '../ai/toolRequestId';
 import type { AiChatToolCall, AiChatToolName } from './useAiChat.types';
 import type { ToolIntentAuditMetadata, ToolDecisionAuditMetadata } from '../ai/chat/toolCallHelpers';
 import { NON_PERSISTED_TOOL_DECISION_REASONS } from '../ai/chat/toolDecisionFailureReason';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('useAiChat.toolAudit');
 
 // ── 幂等性指纹 | Idempotency fingerprint ────────────────────────────────────
 
@@ -108,7 +111,7 @@ export function useAiChatToolAudit() {
             return parsed.executed === true;
           }
         } catch (err) {
-          console.error('[Jieyu] useAiChat: failed to parse tool decision metadata, falling back to compact parsing', err);
+          log.error('failed to parse tool decision metadata, falling back to compact parsing', { err });
         }
       }
 

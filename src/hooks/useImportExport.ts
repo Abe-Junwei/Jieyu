@@ -218,7 +218,10 @@ export function useImportExport(input: UseImportExportInput) {
   const loadSegmentExportDataForLayers = useCallback(async (
     targetLayers: LayerDocType[],
     mediaId: string | undefined,
-  ) => {
+  ): Promise<{
+    segmentsByLayer?: Map<string, LayerUnitDocType[]>;
+    segmentContents?: Map<string, Map<string, LayerUnitContentDocType>>;
+  }> => {
     if (!mediaId || targetLayers.length === 0) return {};
 
     const { layerSegmentQueryService } = await serviceLoaders.loadExportSupportModules();
@@ -259,7 +262,10 @@ export function useImportExport(input: UseImportExportInput) {
 
   /** 加载所有具有 segment 约束的层的 segment 及内容（TextGrid/FLEx/Toolbox 导出共用）
    *  Load layers with segment constraints (independent_boundary / time_subdivision) — shared by TextGrid/FLEx/Toolbox export */
-  const loadSegmentExportData = useCallback(async (mediaId: string | undefined) => {
+  const loadSegmentExportData = useCallback(async (mediaId: string | undefined): Promise<{
+    segmentsByLayer?: Map<string, LayerUnitDocType[]>;
+    segmentContents?: Map<string, Map<string, LayerUnitContentDocType>>;
+  }> => {
     const segmentLayers = layers.filter(
       (l) => l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision',
     );
@@ -422,7 +428,7 @@ export function useImportExport(input: UseImportExportInput) {
     if (unitsOnCurrentMedia.length === 0) return;
     const textGridService = await serviceLoaders.loadTextGridService();
     const userNotes = await fetchUnitNotes(unitsOnCurrentMedia.map((u) => u.id));
-    const exportData = (await loadSegmentExportData(segmentExportMediaId || undefined)) as any;
+    const exportData = await loadSegmentExportData(segmentExportMediaId || undefined);
     const segmentsByLayer = exportData?.segmentsByLayer;
     const segmentContents = exportData?.segmentContents;
     const defaultTrcLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
@@ -473,7 +479,7 @@ export function useImportExport(input: UseImportExportInput) {
     handleExportFlextext: async () => {
     if (unitsOnCurrentMedia.length === 0) return;
     const flexService = await serviceLoaders.loadFlexService();
-    const exportData2 = (await loadSegmentExportData(segmentExportMediaId || undefined)) as any;
+    const exportData2 = await loadSegmentExportData(segmentExportMediaId || undefined);
     const segmentsByLayer = exportData2?.segmentsByLayer;
     const segmentContents = exportData2?.segmentContents;
     const defaultTrcLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
@@ -501,7 +507,7 @@ export function useImportExport(input: UseImportExportInput) {
     handleExportToolbox: async () => {
     if (unitsOnCurrentMedia.length === 0) return;
     const toolboxService = await serviceLoaders.loadToolboxService();
-    const exportData3 = (await loadSegmentExportData(segmentExportMediaId || undefined)) as any;
+    const exportData3 = await loadSegmentExportData(segmentExportMediaId || undefined);
     const segmentsByLayer = exportData3?.segmentsByLayer;
     const segmentContents = exportData3?.segmentContents;
     const defaultTrcLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)

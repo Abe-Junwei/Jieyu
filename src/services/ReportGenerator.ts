@@ -11,6 +11,9 @@ import { globalContext } from './GlobalContextService';
 import { DEFAULT_VOICE_MODE } from './voiceMode';
 import type { Locale } from '../i18n';
 import { getReportGeneratorMessages } from '../i18n/messages';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('ReportGenerator');
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -178,7 +181,7 @@ export class ReportGenerator {
         const dayReport = await this._generateDaily({ ...options, startTime: dayStart, endTime: dayEnd });
         days.push(dayReport);
       } catch (err) {
-        console.debug('[ReportGenerator] skip weekly day slice:', { dayStart, dayEnd, err });
+        log.debug('skip weekly day slice', { dayStart, dayEnd, err });
       }
     }
 
@@ -233,7 +236,7 @@ export class ReportGenerator {
           durationMs: actions.reduce((sum, a) => sum + a.durationMs, 0),
         });
       } catch (err) {
-        console.debug('[ReportGenerator] daily activity query failed, using zero fallback:', { dayStart, dayEnd, err });
+        log.debug('daily activity query failed, using zero fallback', { dayStart, dayEnd, err });
         recentActivity.push({ date: new Date(dayStart).toISOString().split('T')[0] ?? '', actions: 0, durationMs: 0 });
       }
     }

@@ -13,6 +13,10 @@
  * 零网络依赖，完全在浏览器本地运行。
  */
 
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('WakeWordDetector');
+
 export interface WakeWordDetectorOptions {
   /** RMS 能量阈值 0–1，默认 0.05（灵敏） */
   energyThreshold?: number;
@@ -76,7 +80,7 @@ export class WakeWordDetector {
       this._active = true;
       this._tick();
     } catch (err) {
-      console.warn('[WakeWordDetector] start failed, microphone unavailable:', err);
+      log.warn('start failed, microphone unavailable', { err });
       this._active = false;
     }
   }

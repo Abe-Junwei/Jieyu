@@ -8,6 +8,8 @@
  *   - pipe `|` separates alternatives (matched with OR)
  */
 
+import { createLogger } from '../observability/logger';
+
 // ---- Types ----
 
 export type KeyCombo = string;
@@ -20,6 +22,8 @@ export interface KeybindingEntry {
   scope: ActionScope;
   category: 'playback' | 'editing' | 'navigation' | 'view' | 'voice';
 }
+
+const log = createLogger('KeybindingService');
 
 // ---- Default keymap ----
 
@@ -106,7 +110,7 @@ export function loadUserOverrides(): Map<string, KeyCombo> {
     const obj = JSON.parse(raw) as Record<string, string>;
     return new Map(Object.entries(obj));
   } catch (err) {
-    console.warn('[KeybindingService] loadUserOverrides failed, using empty overrides:', err);
+    log.warn('loadUserOverrides failed, using empty overrides', { err });
     return new Map();
   }
 }

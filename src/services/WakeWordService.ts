@@ -17,6 +17,7 @@
  */
 
 import { WakeWordDetector } from './WakeWordDetector';
+import { createLogger } from '../observability/logger';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,8 @@ export interface WakeWordServiceState {
   lastWakeAt: number | null;
   totalWakeCount: number;
 }
+
+const log = createLogger('WakeWordService');
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
 
@@ -188,7 +191,7 @@ export class WakeWordService {
       const raw = localStorage.getItem(CONFIG_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch (err) {
-      console.warn('[WakeWordService] load config failed, using defaults:', err);
+      log.warn('load config failed, using defaults', { err });
       return null;
     }
   }
@@ -197,7 +200,7 @@ export class WakeWordService {
     try {
       localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
     } catch (err) {
-      console.warn('[WakeWordService] save config failed:', err);
+      log.warn('save config failed', { err });
     }
   }
 }

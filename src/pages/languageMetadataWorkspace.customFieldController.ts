@@ -16,9 +16,11 @@ import {
 } from '../app/languageAssetPageAccess';
 import type { CustomFieldDefinitionDocType, CustomFieldValueType } from '../types/jieyuDbDocTypes';
 import type { LanguageMetadataDraft, LanguageMetadataDraftChangeHandler, WorkspaceLocale } from './languageMetadataWorkspace.shared';
+import { createLogger } from '../observability/logger';
 
 // ─── 返回类型 | Return type ───
 export type CustomFieldControllerState = ReturnType<typeof useLanguageMetadataCustomFieldController>;
+const log = createLogger('languageMetadataWorkspace.customFieldController');
 
 function buildCustomFieldDefinitionUpsertPayload(definition: CustomFieldDefinitionDocType) {
   return {
@@ -165,7 +167,7 @@ export function useLanguageMetadataCustomFieldController(
       });
       setFieldDefs((prev) => [...prev, saved]);
     } catch (err) {
-      console.error(t(locale, 'workspace.languageMetadata.customFieldAddLogError'), err);
+      log.error(t(locale, 'workspace.languageMetadata.customFieldAddLogError'), { err });
     }
   }, [locale]);
 
@@ -182,7 +184,7 @@ export function useLanguageMetadataCustomFieldController(
       setFieldDefs((prev) => prev.map((d) => d.id === saved.id ? saved : d));
       setEditingDefs((prev) => { const next = new Map(prev); next.delete(defId); return next; });
     } catch (err) {
-      console.error(t(locale, 'workspace.languageMetadata.customFieldPersistLogError'), err);
+      log.error(t(locale, 'workspace.languageMetadata.customFieldPersistLogError'), { err });
     }
   }, [locale]);
 
@@ -198,7 +200,7 @@ export function useLanguageMetadataCustomFieldController(
     } catch (err) {
       setFieldDefs((prev) => prev.map((d) => d.id === previous.id ? previous : d));
       setEditingDefs((prev) => new Map(prev).set(previous.id, previous));
-      console.error(t(locale, 'workspace.languageMetadata.customFieldTypeLogError'), err);
+      log.error(t(locale, 'workspace.languageMetadata.customFieldTypeLogError'), { err });
     }
   }, [locale]);
 
@@ -213,7 +215,7 @@ export function useLanguageMetadataCustomFieldController(
       delete next[def.id];
       onDraftChange('customFieldValues', next);
     } catch (err) {
-      console.error(t(locale, 'workspace.languageMetadata.customFieldDeleteLogError'), err);
+      log.error(t(locale, 'workspace.languageMetadata.customFieldDeleteLogError'), { err });
     }
   }, [locale, onDraftChange]);
 
@@ -243,7 +245,7 @@ export function useLanguageMetadataCustomFieldController(
         ...buildCustomFieldDefinitionUpsertPayload(definition),
       })));
     } catch (err) {
-      console.error(t(locale, 'workspace.languageMetadata.customFieldReorderLogError'), err);
+      log.error(t(locale, 'workspace.languageMetadata.customFieldReorderLogError'), { err });
       void listCustomFieldDefinitions().then(setFieldDefs).catch(() => {/* ignore */});
     }
   }, [locale]);

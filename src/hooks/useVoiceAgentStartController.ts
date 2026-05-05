@@ -97,7 +97,7 @@ async function loadAliasMap(
     ]);
     return intentRouter.loadVoiceIntentAliasMap();
   } catch (e) {
-    console.warn('Failed to load voice intent alias map', e);
+    log.warn('failed to load voice intent alias map', { err: e });
     return {};
   }
 }

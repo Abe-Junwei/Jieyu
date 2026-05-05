@@ -10,8 +10,11 @@ import { layerTranscriptionTreeParentId } from '../db';
 import { ingestTextFile } from '../utils/textIngestion';
 import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
+import { createLogger } from '../observability/logger';
 
 type TimelineInteropMetadata = Pick<OrthographyInteropMetadata, 'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'>;
+
+const log = createLogger('EafService');
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -113,7 +116,7 @@ function parseEafMetaFromLayerKey(layerKey?: string): { tierId?: string; langLab
       ...(typeof parsed.langLabel === 'string' && parsed.langLabel.trim().length > 0 ? { langLabel: parsed.langLabel.trim() } : {}),
     };
   } catch (err) {
-    console.error('[Jieyu] EafService: failed to parse locale info from layerKey', { layerKey, err });
+    log.error('failed to parse locale info from layerKey', { layerKey, err });
     return {};
   }
 }
@@ -796,7 +799,7 @@ export function importFromEaf(xmlString: string): EafImportResult {
       if (!tierId) return;
       if (metadata) tierMetadata.set(tierId, metadata);
     } catch (error) {
-      console.warn('[Jieyu] EafService: failed to parse tier metadata property', { name, error });
+      log.warn('failed to parse tier metadata property', { name, err: error });
     }
   });
 

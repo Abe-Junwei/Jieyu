@@ -8,8 +8,10 @@ import { buildBridgeRulesFromRuleText, evaluateOrthographyBridgeSampleCases, par
 import { buildPrimaryAndEnglishLabels, readEnglishFallbackMultiLangLabel, readLocalizedMultiLangLabel, readPrimaryMultiLangLabel } from '../utils/multiLangLabels';
 import { hasSameOrthographyIdentity } from '../utils/orthographyIdentity';
 import { useOrthographies } from './useOrthographies';
+import { createLogger } from '../observability/logger';
 
 export const ORTHOGRAPHY_CREATE_SENTINEL = '__create_new_orthography__';
+const log = createLogger('useOrthographyPicker');
 
 export type OrthographyCreateMode = 'ipa' | 'copy-current' | 'derive-other';
 
@@ -778,7 +780,7 @@ export function useOrthographyPicker(
             },
           );
         } catch (e) {
-          console.warn('Orthography identity match failed', e);
+          log.warn('orthography identity match failed', { err: e });
           return false;
         }
       });

@@ -14,6 +14,8 @@
  * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 附：实施路线图 v3.0 · 阶段6
  */
 
+import { createLogger } from '../observability/logger';
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface AudioQualityMetrics {
@@ -32,6 +34,8 @@ export interface AudioQualityMetrics {
 }
 
 export type QualityLevel = 'excellent' | 'good' | 'fair' | 'poor';
+
+const log = createLogger('SpeechQualityAnalyzer');
 
 export interface SpeechQualityAnalyzerConfig {
   /** FFT size for frequency analysis (default 1024) */
@@ -152,7 +156,7 @@ export class SpeechQualityAnalyzer {
       this._active = true;
       this._tick();
     } catch (err) {
-      console.warn('[SpeechQualityAnalyzer] start failed, microphone unavailable:', err);
+      log.warn('start failed, microphone unavailable', { err });
       this._active = false;
     }
   }

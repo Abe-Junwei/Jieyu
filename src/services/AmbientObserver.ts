@@ -14,6 +14,8 @@
  * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md 附：实施路线图 v3.0 · 阶段6
  */
 
+import { createLogger } from '../observability/logger';
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface AmbientEnvironment {
@@ -45,6 +47,8 @@ export interface AmbientEnvironment {
   /** Timestamp of last environment state change */
   lastEnvironmentChangeAt: number;
 }
+
+const log = createLogger('AmbientObserver');
 
 export type NetworkType = 'bluetooth' | 'cellular' | 'wifi' | 'wimax' | 'other' | 'unknown';
 
@@ -270,7 +274,7 @@ export class AmbientObserver {
     try {
       return await (navigator as NavigatorWithBattery).getBattery();
     } catch (err) {
-      console.debug('[AmbientObserver] getBattery unavailable:', err);
+      log.debug('getBattery unavailable', { err });
       return null;
     }
   }
@@ -286,7 +290,7 @@ export class AmbientObserver {
         this._updateEnv({ userIdle: idle });
       });
     } catch (err) {
-      console.debug('[AmbientObserver] IdleDetector unavailable or denied:', err);
+      log.debug('IdleDetector unavailable or denied', { err });
       // Idle Detection API not permitted or unavailable
       this._updateEnv({ idlePermissionGranted: false });
     }

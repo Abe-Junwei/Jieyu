@@ -633,7 +633,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       fireAndForget(
         validateLayerTierConsistency(textId).then((issues) => {
           if (issues.length > 0) {
-            console.warn('[TierBridge] Post-import consistency issues:', issues);
+            log.warn('post-import consistency issues', { issues });
           }
         }),
         { context: 'src/hooks/useImportExport.importHandlers.ts:L633', policy: 'background' },
@@ -659,7 +659,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       }
       const layerConstraintIssues = validateExistingLayerConstraints(repairedResult.layers, undefined, locale, importLayerLinks);
       if (layerConstraintIssues.length > 0) {
-        console.warn('[Import] Layer constraint validation found issues', layerConstraintIssues);
+        log.warn('layer constraint validation found issues', { layerConstraintIssues });
       }
       await loadSnapshot();
       const importDoneMessage = tierCount > 0

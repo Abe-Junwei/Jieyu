@@ -4,6 +4,9 @@ import { formatVoiceHistoryActorLabel, formatVoiceLayerKinds } from './useAiTool
 import { glossAdapter } from './useAiToolCallHandler.annotationAdapters';
 import { segmentAdapter } from './useAiToolCallHandler.segmentAdapter';
 import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('useAiToolCallHandler.voiceAdapter');
 
 export const voiceAdapter: ToolObjectAdapter = {
   handles: [
@@ -303,7 +306,7 @@ export const voiceAdapter: ToolObjectAdapter = {
         }).join('\n');
         return { ok: true, message: tf(locale, 'transcription.aiTool.voice.historyDone', { entries }) };
       } catch (err) {
-        console.error('[Jieyu] useAiToolCallHandler: failed to read voice command history', err);
+        log.error('failed to read voice command history', { err });
         return { ok: false, message: t(locale, 'transcription.aiTool.voice.historyReadFailed') };
       }
     }

@@ -1,4 +1,13 @@
-import { normalizeJsonishAssistantReply, normalizeLegacyRiskNarration, normalizeUnsupportedToolCallJson, parseLegacyNarratedToolCall, parseToolCallFromText, planToolCallTargets } from '../ai/chat/toolCallHelpers';
+import {
+  normalizeJsonishAssistantReply,
+  normalizeLegacyRiskNarration,
+  normalizeUnsupportedToolCallJson,
+  parseLegacyNarratedToolCall,
+  parseToolCallFromText,
+  planToolCallTargets,
+  type ToolDecisionAuditMetadata,
+  type ToolIntentAuditMetadata,
+} from '../ai/chat/toolCallHelpers';
 import { executeLocalContextToolCall, formatLocalContextToolBatchResultMessage, formatLocalContextToolResultMessage, type LocalContextToolCall, type LocalContextToolResult, type LocalToolExecutionTraceOptions, parseLocalContextToolCallsFromText } from '../ai/chat/localContextTools';
 import { buildLocalToolStatePatchFromCallResult, detectLocalToolClarificationNeed, resolveLocalToolCalls } from '../ai/chat/localToolSlotResolver';
 import { formatEmptyModelReply, formatEmptyModelResponseError } from '../ai/messages';
@@ -34,14 +43,14 @@ export interface ResolveAiChatStreamCompletionParams {
     newValue: string,
     source: 'human' | 'ai' | 'system',
     requestId?: string,
-    metadata?: any,
+    metadata?: ToolDecisionAuditMetadata,
   ) => Promise<void>;
   writeToolIntentAuditLog: (
     assistantMessageId: string,
     callName: AiChatToolCall['name'],
     assessment: NonNullable<ToolAuditContext['intentAssessment']>,
     requestId?: string,
-    metadata?: any,
+    metadata?: ToolIntentAuditMetadata,
   ) => Promise<void>;
   sessionMemory: AiSessionMemory;
   updateSessionMemory: (nextMemory: AiSessionMemory) => void;

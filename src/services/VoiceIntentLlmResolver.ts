@@ -2,6 +2,9 @@ import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ChatMessage } from '../ai/providers/LLMProvider';
 import { isActionId, type VoiceIntent } from './IntentRouter';
 import type { VoiceMode } from './voiceMode';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('VoiceIntentLlmResolver');
 
 export type VoiceResolverMode = VoiceMode;
 
@@ -142,7 +145,7 @@ export function parseVoiceIntentFromLlmResponseDetailed(
   try {
     parsed = JSON.parse(candidate);
   } catch (err) {
-    console.warn('[VoiceIntentLlmResolver] JSON.parse failed:', err);
+    log.warn('JSON.parse failed', { err });
     return {
       ok: false,
       errorKind: 'invalid-json',

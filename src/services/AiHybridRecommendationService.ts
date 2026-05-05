@@ -4,6 +4,9 @@ import type { Locale } from '../i18n';
 import type { AiChatHybridFallbackInput } from '../i18n/messages';
 import type { AiAdaptiveIntent, AiAdaptiveResponseStyle, AiConnectionTestStatus, AiRecommendationSource, AiRecommendationTelemetry } from '../ai/chat/chatDomain.types';
 import { AI_HYBRID_RECOMMENDATION_CONFIG, createAiHybridRecommendationConfig, type AiHybridRecommendationConfigPatch, type AiHybridRecommendationServiceConfig } from './AiHybridRecommendationConfig';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('AiHybridRecommendationService');
 
 export interface AiHybridRecommendation {
   id: string;
@@ -336,7 +339,7 @@ export class AiHybridRecommendationService {
         return prompt ? [prompt] : [];
       }).filter(Boolean);
     } catch (e) {
-      console.warn('Failed to collect recommendation prompts', e);
+      log.warn('failed to collect recommendation prompts', { err: e });
       return [];
     }
   }

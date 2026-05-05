@@ -2,8 +2,10 @@ import { useEffect, useRef } from 'react';
 import { exportDatabaseAsJson } from '../db';
 import { getSupabaseUserId, hasSupabaseBrowserClientConfig } from '../collaboration/cloud/collaborationSupabaseFacade';
 import type { CollaborationProjectSnapshotRecord } from '../collaboration/cloud/syncTypes';
+import { createLogger } from '../observability/logger';
 
 const AUTO_CLOUD_SNAPSHOT_INTERVAL_MS = 15 * 60 * 1000;
+const log = createLogger('useCloudSyncAutoSnapshot');
 
 export interface UseCloudSyncAutoSnapshotParams {
 	phase: string;
@@ -66,7 +68,7 @@ export function useCloudSyncAutoSnapshot({
 						note: 'auto-interval',
 					});
 				} catch (error) {
-					console.warn('[CloudSync] auto snapshot skipped:', error);
+					log.warn('auto snapshot skipped', { err: error });
 				} finally {
 					autoSnapshotBusyRef.current = false;
 				}

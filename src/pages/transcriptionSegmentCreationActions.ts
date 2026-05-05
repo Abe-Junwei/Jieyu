@@ -11,10 +11,13 @@ import { type ParentUnitBounds } from './timelineUnitViewUnitHelpers';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 import { assertTimelineMediaForMutation } from '../utils/assertTimelineMediaForMutation';
 import { clampIndependentSegmentInsertionRange } from '../utils/independentSegmentInsertionRange';
+import { createLogger } from '../observability/logger';
 import {
   independentSegmentInsertionUpperBoundSec,
   mediaDurationSecForTimeBounds,
 } from '../utils/timelineMediaDurationForBounds';
+
+const log = createLogger('transcriptionSegmentCreationActions');
 
 export interface CreateUnitOptions {
   speakerId?: string;
@@ -171,7 +174,7 @@ export function createTranscriptionSegmentCreationActions(
         return undefined;
       }
       if (!routing.layer || !routing.segmentSourceLayer) {
-        console.error('Missing target transcription layer');
+        log.error('missing target transcription layer');
         return undefined;
       }
 
@@ -258,7 +261,7 @@ export function createTranscriptionSegmentCreationActions(
       const rawStart = Math.max(0, Math.min(start, end));
       const rawEnd = Math.max(start, end);
       if (!routing.layer || !routing.segmentSourceLayer) {
-        console.error('Missing target transcription layer');
+        log.error('missing target transcription layer');
         return;
       }
       const siblings = resolveSegmentUnitsForLayer(routing.sourceLayerId);

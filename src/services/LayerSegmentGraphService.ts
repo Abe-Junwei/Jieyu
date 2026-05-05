@@ -16,6 +16,9 @@ import { LayerSegmentQueryService, runDexieScopedReadTask } from './LayerSegment
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { newId } from '../utils/transcriptionFormatters';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('LayerSegmentGraphService');
 
 /**
  * Canonical segment subgraph for independent-boundary layers.
@@ -40,7 +43,9 @@ function warnGraphScopeFallback(tableNames: readonly string[]): void {
   const key = tableNames.join(',');
   if (warnedGraphScopeFallbacks.has(key)) return;
   warnedGraphScopeFallbacks.add(key);
-  console.warn(`[Dexie scope fallback] LayerSegmentGraphService executed outside declared transaction stores: ${tableNames.join(', ')}`);
+  log.warn('Dexie scope fallback executed outside declared transaction stores', {
+    tableNames,
+  });
 }
 
 async function runGraphReadWithCompatibleTransaction<T>(

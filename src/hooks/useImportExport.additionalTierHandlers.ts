@@ -4,6 +4,7 @@ import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import { syncUnitTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { newId, humanizeTierName } from '../utils/transcriptionFormatters';
+import { createLogger } from '../observability/logger';
 import {
   resolvePreferredHostTranscriptionLayerIdForTranslationImport,
   withEafKeyMeta,
@@ -23,6 +24,8 @@ type InsertedUnit = {
   endTime: number;
   unit: LayerUnitDocType;
 };
+
+const log = createLogger('useImportExport.additionalTierHandlers');
 
 export async function importAdditionalTiers(input: {
   db: JieyuDatabase;
@@ -71,7 +74,7 @@ export async function importAdditionalTiers(input: {
   ];
 
   if (input.additionalTiers.size > 0 && existingTrcLayers.length === 0) {
-    console.warn('[Import] Skipped translation tier import: no transcription layer exists');
+    log.warn('skipped translation tier import: no transcription layer exists');
   }
 
   const existingTrlByName = new Map(
@@ -108,7 +111,7 @@ export async function importAdditionalTiers(input: {
       const importTextId = firstUtt?.unit.textId ?? input.textId;
       if (!importMediaId) {
         skippedIndependentTierSegmentCount += annotations.filter((annotation) => annotation.text.trim()).length;
-        console.warn('[Import] Skipped independent transcription tier import: missing media, cannot restore segments', {
+        log.warn('skipped independent transcription tier import: missing media, cannot restore segments', {
           tierName,
           layerId: indepLayerId,
           annotationCount: annotations.length,

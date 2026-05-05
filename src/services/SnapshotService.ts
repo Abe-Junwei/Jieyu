@@ -1,5 +1,8 @@
 import Dexie, { type Table } from 'dexie';
 import type { LayerUnitDocType, LayerUnitContentDocType, LayerDocType } from '../db';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('SnapshotService');
 
 // ---- Types ----
 
@@ -86,9 +89,7 @@ export async function saveRecoverySnapshot(
   const maxBytes = options?.maxSerializedUtf8Bytes ?? DEFAULT_RECOVERY_SNAPSHOT_MAX_SERIALIZED_UTF8_BYTES;
   const total = combinedSerializedUtf8Length(units, translations, layers);
   if (total > maxBytes) {
-    console.debug(
-      `[SnapshotService] saveRecoverySnapshot skipped: serialized UTF-8 size ${total} exceeds limit ${maxBytes}`,
-    );
+    log.debug('saveRecoverySnapshot skipped: serialized UTF-8 size exceeds limit', { total, maxBytes });
     // 超限时清掉旧快照，避免后续恢复到陈旧状态 | Clear any older snapshot to avoid stale crash recovery.
     await clearRecoverySnapshot(dbName);
     return;

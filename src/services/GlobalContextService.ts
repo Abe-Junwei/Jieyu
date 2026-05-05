@@ -16,6 +16,9 @@
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import type { ActionId } from './IntentRouter';
 import { DEFAULT_VOICE_MODE, type VoiceMode } from './voiceMode';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('GlobalContextService');
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -193,7 +196,7 @@ class GlobalContextService {
           };
         });
     } catch (err) {
-      console.warn('[GlobalContextService] searchCorpus failed, returning empty result:', err);
+      log.warn('searchCorpus failed, returning empty result', { err });
       return [];
     }
   }

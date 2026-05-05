@@ -4,6 +4,9 @@ import type { Dispatch, SetStateAction } from 'react';
 import { loadOrthographyRuntime } from './loadOrthographyRuntime';
 import { listRecentAiToolDecisionLogs, listRecentAiVerticalWorkflowAuditEntries } from '../ai/auditReplay';
 import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('transcriptionAiControllerHelpers');
 
 export const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '\u5237\u65b0 AI \u5de5\u5177\u5ba1\u8ba1\u65e5\u5fd7\u5931\u8d25\uff1a';
 
@@ -83,7 +86,7 @@ export async function refreshRecentAiVerticalWorkflowAuditEntries(input: {
     const entries = await listRecentAiVerticalWorkflowAuditEntries(24);
     input.setAiVerticalWorkflowAuditEntries(entries);
   } catch (error) {
-    console.error('[Jieyu] refreshRecentAiVerticalWorkflowAuditEntries failed', error);
+    log.error('refreshRecentAiVerticalWorkflowAuditEntries failed', { err: error });
     input.setAiVerticalWorkflowAuditEntries([]);
   }
 }

@@ -12,6 +12,11 @@ function readVoiceAgentServiceSttResultDispatchCode() {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+function readVoiceAgentServiceCommandBridgeCode() {
+  const filePath = path.resolve(process.cwd(), 'src/services/VoiceAgentService.commandBridge.ts');
+  return fs.readFileSync(filePath, 'utf8');
+}
+
 function countMatches(code: string, pattern: RegExp): number {
   return Array.from(code.matchAll(pattern)).length;
 }
@@ -20,6 +25,7 @@ describe('VoiceAgentService structure invariants', () => {
   it('Phase B: STT handling delegates to VoiceAgentService.sttResultDispatch (thin class edge)', () => {
     const code = readVoiceAgentServiceCode();
     const dispatchCode = readVoiceAgentServiceSttResultDispatchCode();
+    const commandBridgeCode = readVoiceAgentServiceCommandBridgeCode();
     expect(code.includes("from './VoiceAgentService.sttResultDispatch'")).toBe(true);
     expect(code.includes('dispatchVoiceAgentServiceSttResult')).toBe(true);
     expect(code.includes('tryConsumeSttThroughDictationPipeline')).toBe(false);
@@ -30,6 +36,17 @@ describe('VoiceAgentService structure invariants', () => {
     expect(dispatchCode.includes('tryConsumeSttThroughDictationPipeline')).toBe(true);
     expect(dispatchCode.includes('applyVoiceSttInterimIfNotFinal')).toBe(true);
     expect(dispatchCode.includes('handleFinalSttResult')).toBe(true);
+    expect(commandBridgeCode.includes('runVoiceFinalSttAfterIntentResolution')).toBe(true);
+    expect(commandBridgeCode.includes('resolveVoiceIntent')).toBe(true);
+  });
+
+  it('Phase B: keeps intent-resolution branching out of VoiceAgentService class body', () => {
+    const code = readVoiceAgentServiceCode();
+
+    expect(code.includes('runVoiceFinalSttAfterIntentResolution')).toBe(false);
+    expect(code.includes('resolveVoiceIntent')).toBe(false);
+    expect(code.includes('switch (intent.type)')).toBe(false);
+    expect(code.includes('if (intent.type')).toBe(false);
   });
 
   it('keeps heavy voice runtimes behind lazy imports (shared voiceRuntimeLoaders)', () => {

@@ -1,4 +1,7 @@
 import { resolvePolicyReasonLabel } from './chat/policyReasonLabels';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('toolDecisionLog');
 
 export interface AiToolDecisionLogItem {
   id: string;
@@ -82,7 +85,7 @@ function parseToolDecisionMetadata(raw: string | undefined): ParsedToolDecision 
       ...(typeof parsed.message === 'string' && parsed.message.trim().length > 0 ? { message: parsed.message.trim() } : {}),
     };
   } catch (err) {
-    console.error('[Jieyu] toolDecisionLog: failed to parse tool decision metadata', { raw, err });
+    log.error('failed to parse tool decision metadata', { raw, err });
     return null;
   }
 }

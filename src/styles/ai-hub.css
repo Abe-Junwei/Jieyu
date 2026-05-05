@@ -313,6 +313,27 @@
   border-bottom: 1px solid color-mix(in srgb, var(--text-tertiary) 18%, transparent);
 }
 
+.ai-chat-decision-item.is-replay-focus {
+  border-bottom-color: color-mix(in srgb, var(--state-info-border) 58%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg) 34%, transparent);
+  border-radius: var(--radius-sm);
+  padding-inline: 6px;
+  margin-inline: -6px;
+}
+
+.ai-chat-decision-item.is-replay-located {
+  border-bottom-color: color-mix(in srgb, var(--state-info-border) 36%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg) 16%, transparent);
+  border-radius: var(--radius-sm);
+  padding-inline: 6px;
+  margin-inline: -6px;
+}
+
+.ai-chat-decision-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--state-info-border) 72%, transparent);
+  outline-offset: 2px;
+}
+
 .ai-chat-decision-item-compact {
   display: grid;
   gap: 4px;

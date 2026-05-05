@@ -2,9 +2,11 @@ import { useCallback, useRef } from 'react';
 import { normalizeSelection } from '../utils/selectionUtils';
 import type { LayerUnitDocType } from '../db';
 import { createTimelineUnit, isSegmentTimelineUnit, resolveTimelineLayerIdFallback, type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
+import { createLogger } from '../observability/logger';
 
 // 空 Set 常量：避免每次 clear 都创建新引用触发 React 渲染 | Constant empty Set: avoid creating new reference on every clear
 const EMPTY_SET: ReadonlySet<string> = new Set<string>();
+const log = createLogger('useTranscriptionSelectionActions');
 
 function hasSameSelectionIds(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
   if (left.size !== right.size) return false;
@@ -57,7 +59,7 @@ export function useTranscriptionSelectionActions({
     if (layerId.length > 0) return layerId;
     if (!missingLayerIdLoggedSourcesRef.current.has(source)) {
       missingLayerIdLoggedSourcesRef.current.add(source);
-      console.error(`[useTranscriptionSelectionActions] Missing layerId in ${source}`);
+      log.error('missing layerId', { source });
     }
     return null;
   }, [defaultTranscriptionLayerId, fallbackLayerId, selectedLayerIdRef, selectedTimelineUnitRef]);

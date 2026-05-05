@@ -18,6 +18,7 @@ import { newAuditLogId, nowIso } from './useAiChat.helpers';
 import { runAgentLoop } from './useAiChat.agentLoopRunner';
 import { formatConnectionHealthyMessage } from '../ai/messages';
 import { recordDurationMetric, type MetricTags } from '../observability/metrics';
+import { createLogger } from '../observability/logger';
 import { notifyAiTasksUpdated } from '../ai/tasks/taskRefreshEvents';
 import { resolveAiChatResponsePolicy } from './useAiChat.responsePolicy';
 import {
@@ -43,6 +44,8 @@ import type {
 import type { AiMessageCitation } from '../db';
 import type { PersistOpeningTurnAndBuildPromptContextResult } from './useAiChat.sendPersistTurnAndBuildPromptContext';
 import type { ToolIntentAssessment } from './useAiChat.sendTurn.types';
+
+const log = createLogger('useAiChat.sendTurnStreamPhase');
 
 export type SendTurnStreamPhaseState = {
   assistantContent: string;
@@ -301,7 +304,7 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
         }),
       });
     } catch (error) {
-      console.error('[Jieyu] useAiChat.sendTurnStreamPhase: failed to write vertical workflow audit log', error);
+      log.error('failed to write vertical workflow audit log', { err: error });
     }
   };
 
