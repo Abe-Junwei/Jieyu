@@ -834,36 +834,39 @@ export async function executeConfirmedProposedChangeBatch({
       rb,
     );
     bumpMetric('failureCount');
-    await applyAssistantMessageResult(
-      assistantMessageId,
-      toNaturalToolFailure(locale, parentCall.name, detail, toolFeedbackStyle),
-      'error',
-      detail,
-    );
-    await writeToolDecisionAuditLog(
-      assistantMessageId,
-      `pending:${parentCall.name}`,
-      `confirm_failed:${parentCall.name}:exception`,
-      'human',
-      parentCall.requestId,
-      buildToolDecisionAuditMetadata(
+    try {
+      await applyAssistantMessageResult(
         assistantMessageId,
-        parentCall,
-        auditContext,
-        'human',
-        'confirm_failed',
-        false,
+        toNaturalToolFailure(locale, parentCall.name, detail, toolFeedbackStyle),
+        'error',
         detail,
-        'exception',
-        execDurationMsErr,
-        buildProposeChangesExecutionProgress(appliedChildCount, childCalls.length),
-        {
-          attempted: rb.attempted,
-          ok: rb.ok,
-          errorCount: rb.errors.length,
-        },
-      ),
-    );
-    finishIdle();
+      );
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `pending:${parentCall.name}`,
+        `confirm_failed:${parentCall.name}:exception`,
+        'human',
+        parentCall.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          parentCall,
+          auditContext,
+          'human',
+          'confirm_failed',
+          false,
+          detail,
+          'exception',
+          execDurationMsErr,
+          buildProposeChangesExecutionProgress(appliedChildCount, childCalls.length),
+          {
+            attempted: rb.attempted,
+            ok: rb.ok,
+            errorCount: rb.errors.length,
+          },
+        ),
+      );
+    } finally {
+      finishIdle();
+    }
   }
 }

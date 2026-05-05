@@ -10,7 +10,7 @@ interface AiChatCandidateChipsProps {
   aiIsStreaming: boolean;
   debugUiShowAll: boolean;
   candidates: CandidateItem[];
-  onSendAiMessage?: ((message: string) => Promise<void>) | undefined;
+  onSendAiMessage?: ((message: string) => Promise<void> | void) | undefined;
 }
 
 export function AiChatCandidateChips({

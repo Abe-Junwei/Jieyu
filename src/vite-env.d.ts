@@ -32,6 +32,10 @@ interface ImportMetaEnv {
 	readonly VITE_SUPABASE_ANON_KEY?: string;
 	/** E2E / dogfood only: enable `aiBackgroundToolSandboxEnabled` in the baked bundle. */
 	readonly VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED?: string;
+	/** Optional override for `aiBackgroundMemorySessionWriteQuotaEnabled` (true/false, 1/0). */
+	readonly VITE_AI_BACKGROUND_MEMORY_SESSION_WRITE_QUOTA_ENABLED?: string;
+	/** Optional override for `aiToolCallExecutorAutoRetryEnabled` (true/false, 1/0). */
+	readonly VITE_AI_TOOL_CALL_EXECUTOR_AUTO_RETRY_ENABLED?: string;
 	/** E2E / dogfood only: `readonly` | `restricted_write` | `deny_by_default`; default production build omits. */
 	readonly VITE_AI_BACKGROUND_MEMORY_SANDBOX_PROFILE?: string;
 }

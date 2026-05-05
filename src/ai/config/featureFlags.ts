@@ -1,7 +1,48 @@
 // 系统功能开关 | System feature flags
-const viteAiBackgroundToolSandboxEnabled = import.meta.env.VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED;
-const aiBackgroundToolSandboxEnabledFromEnv = viteAiBackgroundToolSandboxEnabled === 'true'
-  || viteAiBackgroundToolSandboxEnabled === '1';
+type FeatureFlagDeploymentEnvironment = 'local' | 'dogfood' | 'staging' | 'prod';
+
+function normalizeFeatureFlagDeploymentEnvironment(rawValue: string | undefined): FeatureFlagDeploymentEnvironment {
+  const normalized = rawValue?.trim().toLowerCase();
+  if (!normalized) return import.meta.env.DEV ? 'local' : 'prod';
+  if (normalized === 'development' || normalized === 'dev' || normalized === 'local') return 'local';
+  if (normalized === 'production' || normalized === 'prod') return 'prod';
+  if (normalized === 'dogfood') return 'dogfood';
+  if (normalized === 'staging') return 'staging';
+  return import.meta.env.DEV ? 'local' : 'prod';
+}
+
+function readOptionalBooleanFlag(rawValue: string | undefined): boolean | null {
+  const normalized = rawValue?.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === '1' || normalized === 'true') return true;
+  if (normalized === '0' || normalized === 'false') return false;
+  return null;
+}
+
+const featureFlagDeploymentEnvironment = normalizeFeatureFlagDeploymentEnvironment(
+  import.meta.env.VITE_M5_OBSERVABILITY_ENV ?? import.meta.env.MODE,
+);
+
+const aiBackgroundToolSandboxEnabledDefault = featureFlagDeploymentEnvironment === 'dogfood'
+  || featureFlagDeploymentEnvironment === 'staging';
+
+const aiBackgroundMemorySessionWriteQuotaEnabledDefault = featureFlagDeploymentEnvironment === 'dogfood'
+  || featureFlagDeploymentEnvironment === 'staging';
+
+const aiToolCallExecutorAutoRetryEnabledDefault = featureFlagDeploymentEnvironment === 'dogfood'
+  || featureFlagDeploymentEnvironment === 'staging';
+
+const aiBackgroundToolSandboxEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED,
+);
+
+const aiBackgroundMemorySessionWriteQuotaEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_BACKGROUND_MEMORY_SESSION_WRITE_QUOTA_ENABLED,
+);
+
+const aiToolCallExecutorAutoRetryEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_TOOL_CALL_EXECUTOR_AUTO_RETRY_ENABLED,
+);
 
 export const featureFlags = {
   aiChatEnabled: true,
@@ -23,11 +64,12 @@ export const featureFlags = {
   /** C 阶段：意图多候选与置信门控（dogfood 已启用）| C-stage intent confidence gate (dogfood enabled) */
   aiIntentConfidenceGateEnabled: true,
   /** C 阶段：后台任务工具沙箱（默认关闭；当前接入后台记忆抽取路径）| C-stage background task sandbox (off by default; wired for background memory extraction) */
-  aiBackgroundToolSandboxEnabled: aiBackgroundToolSandboxEnabledFromEnv,
+  aiBackgroundToolSandboxEnabled: aiBackgroundToolSandboxEnabledFromEnv ?? aiBackgroundToolSandboxEnabledDefault,
   /** C 阶段：后台记忆抽取（dogfood 已启用）| C-stage background memory extractor (dogfood enabled) */
   aiBackgroundMemoryExtractorEnabled: true,
   /** T2-c：每会话（每 conversationId，内存计数）后台记忆 flush 成功写入次数上限；默认关闭 | Per-conversation in-memory cap on successful background memory write flushes */
-  aiBackgroundMemorySessionWriteQuotaEnabled: false,
+  aiBackgroundMemorySessionWriteQuotaEnabled:
+    aiBackgroundMemorySessionWriteQuotaEnabledFromEnv ?? aiBackgroundMemorySessionWriteQuotaEnabledDefault,
   /** 与 aiBackgroundMemorySessionWriteQuotaEnabled 配套；<=0 视为不启用 | Max successful write flushes per conversation when quota flag is on */
   aiBackgroundMemorySessionWriteQuotaMax: 12,
   /** C 阶段：扩展信任、配额与健康度治理（dogfood 已启用）| C-stage extension trust governance (dogfood enabled) */
@@ -40,7 +82,8 @@ export const featureFlags = {
    * T4-c：人工确认单工具执行路径，对 **执行器抛错/超时** 允许 **一次** 重试（不重试 `ok:false`；不覆盖破坏性工具）。
    * T4-c: human-confirmed single-tool path may **once** retry **executor throws/timeouts** (not `ok:false`; never destructive tools).
    */
-  aiToolCallExecutorAutoRetryEnabled: false,
+  aiToolCallExecutorAutoRetryEnabled:
+    aiToolCallExecutorAutoRetryEnabledFromEnv ?? aiToolCallExecutorAutoRetryEnabledDefault,
   /** 语料库实验室壳开关 | Corpus library lab shell toggle */
   corpusLibraryLabEnabled: false,
 } as const;

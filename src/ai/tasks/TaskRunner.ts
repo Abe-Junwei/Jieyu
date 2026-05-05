@@ -387,10 +387,16 @@ export class TaskRunner {
       .filter((row) => now - Date.parse(row.updatedAt) >= this.staleTaskTtlMs);
 
     for (const row of staleRows) {
+      const current = await db.collections.ai_tasks.findOne({ selector: { id: row.id } }).exec();
+      if (!current) continue;
+      const currentRow = current.toJSON();
+      if (currentRow.updatedAt !== row.updatedAt || (currentRow.status !== 'running' && currentRow.status !== 'pending')) {
+        continue;
+      }
       await db.collections.ai_tasks.insert({
-        ...row,
+        ...currentRow,
         status: 'failed',
-        errorMessage: row.errorMessage ?? 'Recovered as stale task after app restart',
+        errorMessage: currentRow.errorMessage ?? 'Recovered as stale task after app restart',
         updatedAt: nowIso(),
       });
     }
