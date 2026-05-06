@@ -706,6 +706,33 @@
   color: var(--text-secondary);
 }
 
+.ai-chat-degradation-override--overridden {
+  background: color-mix(in srgb, var(--state-success-solid) 12%, var(--surface-panel));
+}
+
+.ai-chat-degradation-override--dismissed {
+  background: color-mix(in srgb, var(--text-secondary) 8%, var(--surface-panel));
+  opacity: 0.92;
+}
+
+.ai-chat-degradation-override__btn--override {
+  background: color-mix(in srgb, var(--header-accent) 18%, var(--surface-header));
+  color: var(--text-primary);
+}
+
+.ai-chat-degradation-override__btn--dismiss {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.ai-chat-feedback-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: 4px;
+  vertical-align: middle;
+}
+
 /* AI change-set preview (destructive edit confirmation) */
 .ai-changeset-preview {
   display: grid;
