@@ -185,6 +185,11 @@ export type AiChatCardMessages = {
   aborted: string;
   generatedByModel: (modelName: string) => string;
   aiGenerated: string;
+  evidenceTitle: string;
+  evidenceSourceLabel: string;
+  evidenceQuoteLabel: string;
+  evidenceConfidenceLabel: (confidencePercent: string) => string;
+  evidenceJump: string;
   reasoning: string;
   copied: string;
   copy: string;
@@ -302,6 +307,11 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       aborted: '\u23f9 \u5df2\u4e2d\u65ad',
       generatedByModel: (modelName) => `${modelName} \u751f\u6210`,
       aiGenerated: 'AI \u751f\u6210',
+      evidenceTitle: '\u8bc1\u636e\u5361\u7247',
+      evidenceSourceLabel: '\u6765\u6e90',
+      evidenceQuoteLabel: '\u5f15\u6587',
+      evidenceConfidenceLabel: (confidencePercent) => `\u7f6e\u4fe1\u5ea6 ${confidencePercent}`,
+      evidenceJump: '\u8df3\u8f6c\u5230\u6765\u6e90',
       reasoning: '\ud83d\udcad \u63a8\u7406\u8fc7\u7a0b',
       copied: '\u5df2\u590d\u5236',
       copy: '\u590d\u5236',
@@ -418,6 +428,11 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     aborted: '\u23f9 Aborted',
     generatedByModel: (modelName) => `${modelName} Generated`,
     aiGenerated: 'AI Generated',
+    evidenceTitle: 'Evidence cards',
+    evidenceSourceLabel: 'Source',
+    evidenceQuoteLabel: 'Quote',
+    evidenceConfidenceLabel: (confidencePercent) => `Confidence ${confidencePercent}`,
+    evidenceJump: 'Jump to source',
     reasoning: '\ud83d\udcad Reasoning',
     copied: 'Copied',
     copy: 'Copy',

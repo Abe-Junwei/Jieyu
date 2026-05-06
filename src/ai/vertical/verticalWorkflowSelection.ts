@@ -5,8 +5,8 @@ export interface VerticalWorkflowSelectionV0 {
   workflowId: VerticalWorkflowId;
   workflow: VerticalWorkflowV0;
   confidence: number;
-  source: 'rule_v0';
-  reasonCode: 'keyword_match';
+  source: 'rule_v0' | 'composed_v0';
+  reasonCode: 'keyword_match' | 'composed_step1' | 'composed_step2';
   matchedKeyword: string;
 }
 
@@ -17,6 +17,7 @@ export interface VerticalWorkflowOutputEnvelopeV0 {
   outputKind: VerticalWorkflowV0['outputKind'];
   evidencePackets: ReadonlyArray<EvidencePacketV0>;
   generatedAt: string;
+  status: 'ready' | 'degraded';
 }
 
 type VerticalWorkflowKeywordRule = {
@@ -67,6 +68,7 @@ export function buildVerticalWorkflowOutputEnvelopeV0(
   selection: VerticalWorkflowSelectionV0,
   evidencePackets: ReadonlyArray<EvidencePacketV0> = [],
 ): VerticalWorkflowOutputEnvelopeV0 {
+  const status = evidencePackets.length === 0 ? 'degraded' : 'ready';
   return {
     schemaVersion: 0,
     workflowId: selection.workflowId,
@@ -74,5 +76,6 @@ export function buildVerticalWorkflowOutputEnvelopeV0(
     outputKind: selection.workflow.outputKind,
     evidencePackets,
     generatedAt: new Date().toISOString(),
+    status,
   };
 }

@@ -481,6 +481,113 @@
   outline-offset: 1px;
 }
 
+.ai-chat-evidence-stack {
+  margin-top: var(--space-3, 10px);
+  display: grid;
+  gap: 8px;
+}
+
+.ai-chat-evidence-stack__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  font-weight: 600;
+}
+
+.ai-chat-evidence-stack__title .jieyu-material {
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
+}
+
+.ai-chat-evidence-list {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-chat-evidence-card {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--surface-header) 74%, var(--surface-panel));
+  border: 1px solid color-mix(in srgb, var(--border-soft) 38%, transparent);
+}
+
+.ai-chat-evidence-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.ai-chat-evidence-card__marker,
+.ai-chat-evidence-card__confidence {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
+  font-weight: 600;
+}
+
+.ai-chat-evidence-card__source {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
+
+.ai-chat-evidence-card__jump {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.ai-chat-evidence-card__jump:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface-panel) 78%, transparent);
+}
+
+.ai-chat-evidence-card__jump:disabled {
+  cursor: default;
+  opacity: 0.44;
+}
+
+.ai-chat-evidence-card__jump:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.ai-chat-evidence-card__jump .jieyu-material {
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
+}
+
+.ai-chat-evidence-card__quote {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.ai-chat-evidence-card__quote span {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .ai-chat-message-copy-btn {
   width: 16px;
   min-width: 16px;
@@ -548,6 +655,55 @@
 :root[data-theme='dark'] .ai-chat-message-action-btn:hover {
   color: var(--text-primary);
   background: transparent;
+}
+
+/* PR-17: degradation override row (inside assistant bubble — no extra container border) */
+.ai-chat-degradation-stack {
+  margin-top: var(--space-3, 10px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-chat-degradation-override {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md, 8px);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  background: color-mix(in srgb, var(--state-warning-solid) 10%, var(--surface-panel));
+}
+
+.ai-chat-degradation-override--pending .ai-chat-degradation-override__label {
+  flex: 1 1 140px;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.ai-chat-degradation-override__btn {
+  border: 0;
+  border-radius: var(--radius-sm, 6px);
+  padding: 4px 8px;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
+  font-weight: 600;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--surface-header) 78%, transparent);
+  color: var(--text-primary);
+}
+
+.ai-chat-degradation-override__btn:hover {
+  background: color-mix(in srgb, var(--surface-header) 92%, transparent);
+}
+
+.ai-chat-degradation-override__btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.ai-chat-degradation-override__status {
+  color: var(--text-secondary);
 }
 
 /* AI change-set preview (destructive edit confirmation) */

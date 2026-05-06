@@ -2535,6 +2535,19 @@ export const DICT_KEYS = [
   'msg.aiChatUtil.documentRef',
   'msg.aiChatUtil.reference',
   'msg.aiChatUtil.citationReadModelMissSuffix',
+  'msg.aiChat.degradation.ariaLabel',
+  'msg.aiChat.degradation.takeOver',
+  'msg.aiChat.degradation.dismiss',
+  'msg.aiChat.degradation.label.planDegraded',
+  'msg.aiChat.degradation.label.reflectionFlagged',
+  'msg.aiChat.degradation.label.judgeLowScore',
+  'msg.aiChat.degradation.label.costAnomaly',
+  'msg.aiChat.degradation.label.ragNoResults',
+  'msg.aiChat.degradation.description.planDegraded',
+  'msg.aiChat.degradation.description.reflectionFlagged',
+  'msg.aiChat.degradation.description.judgeLowScore',
+  'msg.aiChat.degradation.description.costAnomaly',
+  'msg.aiChat.degradation.description.ragNoResults',
 
   'msg.voice.analysisWritebackDone',
   'msg.voice.analysisWritebackFailed',
@@ -2673,6 +2686,11 @@ export const DICT_KEYS = [
   'msg.report.catalog',
   'msg.layerActionPopover.catalog',
   'msg.sidePaneSidebar.catalog',
+  'msg.ai.vertical.workflow.segmentQa',
+  'msg.ai.vertical.workflow.annotationQa',
+  'msg.ai.vertical.workflow.lexemeCandidates',
+  'msg.ai.vertical.composed.annotationQaThenLexemeCandidates',
+  'msg.ai.vertical.composed.segmentQaThenAnnotationQaThenLexemeCandidates',
 ] as const;
 
 export type DictKey = (typeof DICT_KEYS)[number];

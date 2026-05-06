@@ -8,6 +8,8 @@ import type { EmbeddingSearchService } from '../embeddings/EmbeddingSearchServic
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
 import type { VoiceActionToolName } from '../voice/VoiceActionTools';
 import type { TimelineUnitView } from '../../hooks/timelineUnitView';
+import type { ComposedWorkflowState } from '../vertical/composedWorkflowTemplates';
+import type { DegradationScenario } from './degradationManualOverride';
 
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
@@ -26,6 +28,8 @@ export interface UiChatMessage {
    * 用于非reasoning_content型provider（Anthropic/Gemini/Ollama）的UX反馈。
    * 有reasoningContent时不显示thinking状态。 */
   thinking?: boolean;
+  /** PR-17：本助手消息关联的降级接管场景（由 envelope / reflection 等推导） */
+  degradationScenarios?: DegradationScenario[];
 }
 
 export type AiConnectionTestStatus = 'idle' | 'testing' | 'success' | 'error';
@@ -325,6 +329,7 @@ export interface AiSessionMemory {
   recommendationTelemetry?: AiRecommendationTelemetry;
   localToolState?: AiSessionMemoryLocalToolState;
   pendingAgentLoopCheckpoint?: AiSessionMemoryPendingAgentLoopCheckpoint;
+  composedWorkflowState?: ComposedWorkflowState;
 }
 
 export type ToolPlannerClarifyReason =

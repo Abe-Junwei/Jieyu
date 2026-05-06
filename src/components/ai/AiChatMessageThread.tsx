@@ -3,6 +3,7 @@ import { t } from '../../i18n';
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE_TIGHT } from '../../utils/jieyuMaterialIcon';
 import { AiChatAssistantMessage } from './AiChatAssistantMessage';
+import type { DegradationScenario } from '../../ai/chat/degradationManualOverride';
 
 type UserMessage = {
   id: string;
@@ -15,10 +16,11 @@ type AssistantMessage = {
   status?: 'streaming' | 'done' | 'aborted' | 'error';
   content?: string;
   reasoningContent?: string;
-  citations?: Array<{ type: 'note' | 'unit' | 'pdf' | 'schema'; refId: string; label?: string; snippet?: string }>;
+  citations?: Array<{ type: 'note' | 'unit' | 'pdf' | 'schema'; refId: string; label?: string; snippet?: string; confidence?: number; reasonCode?: string }>;
   generationSource?: 'llm' | 'local';
   generationModel?: string;
   thinking?: boolean;
+  degradationScenarios?: DegradationScenario[];
 };
 
 export function AiChatMessageThread({
@@ -38,6 +40,8 @@ export function AiChatMessageThread({
   onToggleReasoning,
   onActivateCitation,
   onClearAiMessages,
+  feedbackRatings,
+  onFeedbackRate,
 }: {
   locale: Parameters<typeof t>[0];
   cardMessages: {
@@ -52,6 +56,11 @@ export function AiChatMessageThread({
     copy: string;
     aiGenerated: string;
     generatedByModel: (model: string) => string;
+    evidenceTitle: string;
+    evidenceSourceLabel: string;
+    evidenceQuoteLabel: string;
+    evidenceConfidenceLabel: (confidencePercent: string) => string;
+    evidenceJump: string;
     parsingToolCall: string;
     thinking: string;
   };
@@ -69,6 +78,8 @@ export function AiChatMessageThread({
   onToggleReasoning: (messageId: string) => void;
   onActivateCitation: (citation: { type: 'note' | 'unit' | 'pdf' | 'schema'; refId: string }, rawCitation?: { snippet?: string }) => void;
   onClearAiMessages: (() => void) | undefined;
+  feedbackRatings?: Record<string, 'thumbs_up' | 'thumbs_down'>;
+  onFeedbackRate?: (messageId: string, rating: 'thumbs_up' | 'thumbs_down') => void;
 }) {
   const isZh = locale === 'zh-CN';
   return (
@@ -131,6 +142,8 @@ export function AiChatMessageThread({
                       onCopyAssistantMessage={onCopyAssistantMessage}
                       onToggleReasoning={onToggleReasoning}
                       onActivateCitation={onActivateCitation}
+                      {...(feedbackRatings !== undefined ? { feedbackRatings } : {})}
+                      {...(onFeedbackRate !== undefined ? { onFeedbackRate } : {})}
                     />
                   )}
                 </div>

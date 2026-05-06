@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "workflowId": "segment_qa",
+  "baseline": {
+    "avgInputTokens": 2400,
+    "avgOutputTokens": 320,
+    "avgLatencyMs": 3500,
+    "p95LatencyMs": 8200,
+    "avgRagLatencyMs": 180,
+    "p95RagLatencyMs": 450
+  },
+  "thresholds": {
+    "deviationPercent": 50,
+    "minSampleSize": 10,
+    "measurementWindowDays": 7
+  },
+  "updatedAt": "2026-05-05T00:00:00.000Z"
+}

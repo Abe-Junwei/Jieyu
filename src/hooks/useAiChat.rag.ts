@@ -61,6 +61,8 @@ interface EnrichContextWithRagParams {
   maxContextChars?: number;
   /** Same-turn prompt context: epoch + localUnitIndex for citation grounding metadata. */
   promptContext?: AiPromptContext | null;
+  /** PR-7b: optional corpus-bound ids for hybrid search (e.g. current segment units). */
+  candidateSourceIds?: readonly string[];
 }
 
 type RagSourceRow = {
@@ -168,10 +170,15 @@ export async function enrichContextWithRag({
   ragContextTimeoutMs,
   maxContextChars,
   promptContext,
+  candidateSourceIds,
 }: EnrichContextWithRagParams): Promise<RagEnrichmentResult> {
   if (!embeddingSearchService) {
     return { contextBlock, citations: [] };
   }
+
+  const hybridOptsBase = {
+    ...(candidateSourceIds && candidateSourceIds.length > 0 ? { candidateSourceIds } : {}),
+  };
 
   // Self-RAG 反思判断：跳过闲聊/纯操作指令，避免无效检索
   // Self-RAG reflection gate: skip greetings and pure commands
@@ -193,7 +200,7 @@ export async function enrichContextWithRag({
       embeddingSearchService.searchMultiSourceHybrid(
         queryText,
         ['unit', 'note', 'pdf'],
-        { topK: searchTopK, fusionScenario: scenario },
+        { topK: searchTopK, fusionScenario: scenario, ...hybridOptsBase },
       ),
       ragContextTimeoutMs,
       `RAG context timed out after ${ragContextTimeoutMs}ms`,
@@ -205,7 +212,7 @@ export async function enrichContextWithRag({
         embeddingSearchService.searchMultiSourceHybrid(
           queryText,
           ['unit', 'note', 'pdf'],
-          { topK: searchTopK, fusionScenario: scenario, minScore: isForced ? 0.05 : 0.1 },
+          { topK: searchTopK, fusionScenario: scenario, minScore: isForced ? 0.05 : 0.1, ...hybridOptsBase },
         ),
         ragContextTimeoutMs,
         `RAG fallback timed out after ${ragContextTimeoutMs}ms`,
@@ -245,7 +252,7 @@ export async function enrichContextWithRag({
             embeddingSearchService.searchMultiSourceHybrid(
               ragQuality.refinedQuery,
               ['unit', 'note', 'pdf'],
-              { topK: 5, fusionScenario: 'queryExpansion' },
+              { topK: 5, fusionScenario: 'queryExpansion', ...hybridOptsBase },
             ),
             ragContextTimeoutMs,
             `CRAG re-search timed out after ${ragContextTimeoutMs}ms`,
