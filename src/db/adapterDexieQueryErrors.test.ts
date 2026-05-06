@@ -80,7 +80,11 @@ describe('reportIfUnexpectedDexieDegradation', () => {
     const dbg = vi.spyOn(globalThis['console'], 'debug').mockImplementation(() => {});
     const e = new Error('quota');
     reportIfUnexpectedDexieDegradation('t', e, 'label:');
-    expect(dbg).toHaveBeenCalledWith('label:', e);
+    expect(dbg).toHaveBeenCalledWith(
+      '[dbDexieQuery]',
+      'label:',
+      expect.objectContaining({ err: expect.any(Object) }),
+    );
   });
 
   it('emits dev fallback hint once per context for indexed fallback errors', () => {
