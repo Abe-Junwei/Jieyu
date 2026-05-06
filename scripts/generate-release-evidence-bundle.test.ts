@@ -287,8 +287,8 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.perf.cards[0]?.metricObservedMs).toBeNull();
 
       expect(report.costGuard.estimatorVersion).toBe('v1.provider_usage_or_unknown');
-      expect(report.costGuard.summary.requestCount).toBe(1);
-      expect(report.costGuard.summary.budgetTriggerCount).toBe(0);
+      expect(report.costGuard.summary.requestCount).toBe(3);
+      expect(report.costGuard.summary.budgetTriggerCount).toBe(1);
       expect(report.costGuard.summary.retryTriggeredCount).toBe(0);
       expect(report.costGuard.summary.retrySuccessCount).toBe(0);
       expect(report.costGuard.summary.outputCapTriggeredCount).toBe(0);
@@ -307,7 +307,7 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.progressiveDisclosure.cards).toHaveLength(4);
       expect(report.memoryRecallShape.status).toBe('skipped');
       expect(report.costGuard.trend.bucket).toBe('day');
-      expect(report.costGuard.trend.pointCount).toBe(1);
+      expect(report.costGuard.trend.pointCount).toBe(2);
       expect(report.auditFieldDictionary?.schemaVersion).toBe(1);
       expect(report.auditFieldDictionary?.status).toBe('ready');
       expect(report.auditFieldDictionary?.fields.map((item) => item.field)).toEqual([
@@ -1025,8 +1025,8 @@ describe('generate-release-evidence-bundle script', () => {
     try {
       const result = runReleaseEvidenceScript([
         '--profile=core',
-        '--dry-run',
         '--mode=enforce',
+        '--skip-pipeline-steps',
         `--output=${outputPath}`,
         `--logs-dir=${logsDir}`,
         '--ai-request-ids=missing_request',
@@ -1056,8 +1056,8 @@ describe('generate-release-evidence-bundle script', () => {
     try {
       const result = runReleaseEvidenceScript([
         '--profile=full',
-        '--dry-run',
         '--mode=enforce',
+        '--skip-pipeline-steps',
         `--output=${outputPath}`,
         `--logs-dir=${logsDir}`,
         `--perf-json-report=${missingPerfJsonPath}`,
@@ -1084,8 +1084,8 @@ describe('generate-release-evidence-bundle script', () => {
     try {
       const result = runReleaseEvidenceScript([
         '--profile=full',
-        '--dry-run',
         '--mode=enforce',
+        '--skip-pipeline-steps',
         `--output=${outputPath}`,
         `--logs-dir=${logsDir}`,
         `--extension-capability-audit-export=${missingExtensionAuditPath}`,
@@ -1540,8 +1540,8 @@ describe('generate-release-evidence-bundle script', () => {
       const result = runReleaseEvidenceScript([
         '--profile=core',
         '--mode=enforce',
+        '--skip-pipeline-steps',
         '--require-cost-guard-trend-ready',
-        '--dry-run',
         `--output=${outputPath}`,
         `--logs-dir=${logsDir}`,
         `--ai-audit-export=${auditExportPath}`,

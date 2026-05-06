@@ -1,10 +1,14 @@
 {
-  "generatedAt": "2026-04-27T21:15:56.929Z",
+  "generatedAt": "2026-05-06T10:28:40.329Z",
   "scannerVersion": 2,
-  "totalHits": 47,
+  "totalHits": 71,
   "files": {
+    "src/ai/chat/modelSelectionFeedback.ts": 3,
     "src/ai/chat/toolCallSchemas.ts": 1,
+    "src/ai/eval/userFeedback.ts": 13,
+    "src/ai/vertical/composedWorkflowTemplates.ts": 6,
     "src/components/transcription/toolbar/ObserverStatus.tsx": 1,
+    "src/hooks/useAiChat.sendTurnStreamPhase.ts": 2,
     "src/hooks/useTranscriptionTimelineVerticalChrome.ts": 8,
     "src/utils/theme.ts": 37
   }

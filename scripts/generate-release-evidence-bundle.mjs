@@ -64,8 +64,15 @@ function parseReleaseProfile() {
 }
 
 function parseMode() {
-  const mode = (parseArgValue('--mode') ?? DEFAULT_MODE).toLowerCase();
-  return mode === 'shadow' ? 'shadow' : 'enforce';
+  const mode = parseArgValue('--mode');
+  if (mode) {
+    return mode.toLowerCase() === 'shadow' ? 'shadow' : 'enforce';
+  }
+  // PR-1: --dry-run without explicit --mode defaults to shadow (report-only)
+  if (hasFlag('--dry-run')) {
+    return 'shadow';
+  }
+  return DEFAULT_MODE;
 }
 
 function resolveAiRequestIds() {
@@ -263,6 +270,8 @@ async function readAppVersion() {
 }
 
 function getPipelineSteps(profile) {
+  // Unit tests / smoke: skip spawning npm pipeline while still exercising report build + enforce/degraded paths.
+  if (hasFlag('--skip-pipeline-steps')) return [];
   const steps = PROFILE_PIPELINES[profile];
   return Array.isArray(steps) ? steps : PROFILE_PIPELINES[DEFAULT_PROFILE];
 }
@@ -2963,7 +2972,17 @@ function toErrorPayload(error) {
 async function run() {
   const releaseProfile = parseReleaseProfile();
   const mode = parseMode();
-  const dryRun = hasFlag('--dry-run');
+  let dryRun = hasFlag('--dry-run');
+
+  // PR-1: enforce 模式下禁止 dry-run；混用时报错退出
+  if (mode === 'enforce') {
+    if (dryRun) {
+      console.error('[release-evidence] FATAL: --dry-run cannot be used with --mode=enforce');
+      process.exit(1);
+    }
+    dryRun = false;
+  }
+
   const requireCostGuardTrendReady = resolveRequireCostGuardTrendReady();
   const outputPath = resolveOutputPath(releaseProfile);
   const logsDir = resolveLogsDir(outputPath);

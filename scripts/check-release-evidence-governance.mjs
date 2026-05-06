@@ -279,6 +279,21 @@ function main() {
     fail(`release-evidence report not found: ${path.relative(repoRoot, reportPath)}`);
   }
   const payload = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+
+  // PR-1: enforce 模式下禁止 dryRun 与 skipped gate_script
+  const mode = String(payload?.metadata?.mode ?? 'enforce').toLowerCase();
+  const isEnforce = mode === 'enforce';
+  if (isEnforce && payload?.metadata?.dryRun === true) {
+    fail('release-evidence governance gate failed: enforce report must not have metadata.dryRun=true');
+  }
+  if (isEnforce && Array.isArray(payload?.steps)) {
+    const skippedSteps = payload.steps.filter((s) => s?.status === 'skipped');
+    if (skippedSteps.length > 0) {
+      const ids = skippedSteps.map((s) => s.id).join(', ');
+      fail(`release-evidence governance gate failed: enforce report contains ${skippedSteps.length} skipped gate_script(s): ${ids}`);
+    }
+  }
+
   const trend = validateCostGuard(payload, hasFlag('--require-cost-guard-compare-ready'));
   const minApprovalTotal = toOptionalMinApprovalTotal();
   const summary = validateActionApproval(payload, {
