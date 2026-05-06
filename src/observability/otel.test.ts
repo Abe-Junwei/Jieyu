@@ -274,7 +274,10 @@ describe('initOtelWithResolvedConfig', () => {
       }),
     );
 
-    expect(warnSpy).toHaveBeenCalledWith('[Jieyu] OTel bootstrap skipped: required SDK exports are unavailable.');
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[observability.otel]',
+      'OTel bootstrap skipped: required SDK exports are unavailable.',
+    );
     warnSpy.mockRestore();
   });
 });

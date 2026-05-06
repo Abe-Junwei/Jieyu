@@ -1,9 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { strToU8, zipSync } from 'fflate';
 import { exportToJieyuArchive, importFromJieyuArchive } from './JymService';
-import { importDatabaseFromJson } from '../db';
+import { importDatabaseFromJson } from '../db/io';
 
-vi.mock('../db', () => ({
+/** JymService loads db I/O via dynamic import('../db/io'); mock that module, not ../db. */
+vi.mock('../db/io', () => ({
   exportDatabaseAsJson: vi.fn(async () => ({
     schemaVersion: 4,
     exportedAt: '2026-04-01T00:00:00.000Z',

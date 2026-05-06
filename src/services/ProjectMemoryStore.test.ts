@@ -266,7 +266,11 @@ describe('ProjectMemoryStore', () => {
 
       expect(store.getMemory()!.terms).toHaveLength(1);
       expect(store.getMemory()!.terms[0]!.gloss).toBe('language');
-      expect(warnSpy).toHaveBeenCalledWith('[ProjectMemoryStore] persist failed, staying in-memory only:', expect.any(DOMException));
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[ProjectMemoryStore]',
+        'persist failed, staying in-memory only',
+        expect.objectContaining({ err: expect.anything() }),
+      );
       store.dispose();
     });
   });

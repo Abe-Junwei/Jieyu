@@ -92,8 +92,10 @@ describe('resolveSentryBootstrapConfig', () => {
     )).resolves.toBeUndefined();
 
     expect(warnSpy).toHaveBeenCalledWith(
-      '[Jieyu] Sentry bootstrap failed; error reporting disabled for this session.',
-      expect.any(Error),
+      '[observability.sentry]',
+      'Sentry bootstrap failed; error reporting disabled for this session.',
+      // Logger scrubs structured context; err may serialize as {} in console spy.
+      expect.objectContaining({ err: expect.anything() }),
     );
     warnSpy.mockRestore();
   });

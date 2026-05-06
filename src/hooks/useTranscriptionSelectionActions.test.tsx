@@ -226,7 +226,11 @@ describe('useTranscriptionSelectionActions', () => {
     });
 
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
-    expect(consoleErrorSpy.mock.calls[0]?.[0]).toContain('Missing layerId in setUnitSelection');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[useTranscriptionSelectionActions]',
+      'missing layerId',
+      expect.objectContaining({ source: 'setUnitSelection' }),
+    );
     consoleErrorSpy.mockRestore();
   });
 
