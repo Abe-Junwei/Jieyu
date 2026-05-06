@@ -28,6 +28,11 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Skip CUDA extension download for onnxruntime-node in CI to avoid NuGet network timeouts.
+  ONNXRUNTIME_NODE_INSTALL: skip
+  npm_config_onnxruntime_node_install: skip
+
 jobs:
   iso6393-country-baselines:
     runs-on: ubuntu-latest
