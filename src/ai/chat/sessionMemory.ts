@@ -1,5 +1,6 @@
 import { createLogger } from '../../observability/logger';
 import type { AiSessionMemory, AiUserDirectiveLedgerEntry } from './chatDomain.types';
+import type { ComposedWorkflowState, ComposedWorkflowStatus } from '../vertical/composedWorkflowTemplates';
 import { trimTextToMax } from './historyTrim';
 
 const AI_SESSION_MEMORY_STORAGE_KEY = 'jieyu.aiChat.sessionMemory';
@@ -357,6 +358,35 @@ function normalizeLocalToolState(memory: AiSessionMemory): AiSessionMemory['loca
   };
 }
 
+function normalizeComposedWorkflowState(memory: AiSessionMemory): ComposedWorkflowState | undefined {
+  const state = memory.composedWorkflowState;
+  if (!state || typeof state !== 'object') return undefined;
+  if (typeof state.templateId !== 'string' || state.templateId.trim().length === 0) return undefined;
+  if (typeof state.currentStepIndex !== 'number' || Number.isNaN(state.currentStepIndex)) return undefined;
+  if (typeof state.status !== 'string') return undefined;
+  if (typeof state.originalUserText !== 'string') return undefined;
+
+  const validStatuses: ComposedWorkflowStatus[] = ['running', 'step1_done', 'step2_done', 'done', 'failed'];
+  if (!validStatuses.includes(state.status as ComposedWorkflowStatus)) return undefined;
+
+  const stepResults: Record<string, string> = {};
+  if (state.stepResults && typeof state.stepResults === 'object') {
+    for (const [key, value] of Object.entries(state.stepResults)) {
+      if (typeof value === 'string') {
+        stepResults[key] = value;
+      }
+    }
+  }
+
+  return {
+    templateId: state.templateId.trim(),
+    currentStepIndex: Math.max(0, Math.floor(state.currentStepIndex)),
+    status: state.status as ComposedWorkflowStatus,
+    originalUserText: state.originalUserText,
+    stepResults,
+  };
+}
+
 function normalizePendingAgentLoopCheckpoint(memory: AiSessionMemory): AiSessionMemory['pendingAgentLoopCheckpoint'] {
   const checkpoint = memory.pendingAgentLoopCheckpoint;
   if (!checkpoint || typeof checkpoint !== 'object') return undefined;
@@ -409,6 +439,7 @@ function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory {
   const normalizedDirectiveLedger = normalizeDirectiveLedger(memory);
   const normalizedLocalToolState = normalizeLocalToolState(memory);
   const normalizedPendingAgentLoopCheckpoint = normalizePendingAgentLoopCheckpoint(memory);
+  const normalizedComposedWorkflowState = normalizeComposedWorkflowState(memory);
   const normalizedSummaryQualityWarning = memory.summaryQualityWarning
     && typeof memory.summaryQualityWarning.similarity === 'number'
     && Number.isFinite(memory.summaryQualityWarning.similarity)
@@ -443,6 +474,7 @@ function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory {
     localToolState: _localToolState,
     pendingAgentLoopCheckpoint: _pendingAgentLoopCheckpoint,
     summaryQualityWarning: _summaryQualityWarning,
+    composedWorkflowState: _composedWorkflowState,
     ...baseMemory
   } = memory;
 
@@ -464,6 +496,7 @@ function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory {
     ...(normalizedLocalToolState !== undefined ? { localToolState: normalizedLocalToolState } : {}),
     ...(normalizedPendingAgentLoopCheckpoint !== undefined ? { pendingAgentLoopCheckpoint: normalizedPendingAgentLoopCheckpoint } : {}),
     ...(normalizedSummaryQualityWarning !== undefined ? { summaryQualityWarning: normalizedSummaryQualityWarning } : {}),
+    ...(normalizedComposedWorkflowState !== undefined ? { composedWorkflowState: normalizedComposedWorkflowState } : {}),
     ...(mergedPreferences.lastLanguage !== undefined ? { lastLanguage: mergedPreferences.lastLanguage } : {}),
     ...(mergedPreferences.lastToolName !== undefined ? { lastToolName: mergedPreferences.lastToolName } : {}),
     ...(mergedPreferences.lastLayerId !== undefined ? { lastLayerId: mergedPreferences.lastLayerId } : {}),

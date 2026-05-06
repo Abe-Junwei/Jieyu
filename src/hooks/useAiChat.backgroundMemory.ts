@@ -1,4 +1,5 @@
 import type { BackgroundMemoryExtractionAudit, BackgroundMemoryExtractionInput, ExtractedMemoryFact } from '../ai/memory/backgroundMemoryExtractor';
+import { appendProjectAiMemory } from '../ai/memory/projectAiMemory';
 import { BackgroundMemoryExtractor } from '../ai/memory/backgroundMemoryExtractor';
 import { createBackgroundMemoryFlushQuotaState } from '../ai/memory/backgroundMemoryFlushQuota';
 import type { AiSessionMemory } from '../ai/chat/chatDomain.types';
@@ -38,6 +39,8 @@ export interface CreateAiChatBackgroundMemoryRuntimeParams {
   getSessionMemory: () => AiSessionMemory;
   setSessionMemory: (next: AiSessionMemory) => void;
   persistSessionMemory: (next: AiSessionMemory) => void;
+  /** PR-11: project-level AI memory persistence; when present, background facts are also written to localStorage. */
+  getProjectId?: () => string | null | undefined;
 }
 
 function normalizeFactText(input: string): string {
@@ -155,6 +158,14 @@ export function createAiChatBackgroundMemoryRuntime(params: CreateAiChatBackgrou
       } else if (lastDirectiveApplication.ledgerEntries.length > 0) {
         params.setSessionMemory(lastDirectiveApplication.nextMemory);
         params.persistSessionMemory(lastDirectiveApplication.nextMemory);
+      }
+      // PR-11: also write to project-level localStorage when projectId is available
+      const projectId = params.getProjectId?.();
+      if (projectId && facts.length > 0) {
+        appendProjectAiMemory(
+          projectId,
+          facts.map((f) => ({ content: f.fact, category: 'user_preference', confidence: f.confidence })),
+        );
       }
       return writtenCount + lastDirectiveApplication.ledgerEntries.length;
     },
