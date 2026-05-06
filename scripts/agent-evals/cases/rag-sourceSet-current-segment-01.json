@@ -1,0 +1,25 @@
+{
+  "caseId": "rag-sourceSet-current-segment-01",
+  "category": "rag",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "scoped",
+  "description": "RAG evidence must inherit mediaId and layerId from current_segment scope.",
+  "input": {
+    "citations": [
+      { "type": "unit", "refId": "unit-001", "snippet": "scoped snippet" }
+    ],
+    "aiContext": {
+      "shortTerm": {
+        "activeSegmentUnitId": "unit-001",
+        "currentMediaId": "media-001",
+        "selectedLayerId": "layer-001"
+      }
+    }
+  },
+  "expected": {
+    "packetCount": 1,
+    "firstPacketSourceType": "segment",
+    "firstPacketMediaId": "media-001"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "caseId": "adversarial-batch-deny-01",
+  "category": "adversarial",
+  "capability": "propose",
+  "tier": "blocking",
+  "outcome": "deny",
+  "description": "Batch propose_changes with denyBatch=true must be blocked even when autoExecute=allow.",
+  "input": {
+    "toolCall": { "name": "propose_changes", "arguments": { "segments": [{ "id": "seg-001" }, { "id": "seg-002" }] } },
+    "sessionMemory": {
+      "toolPreferences": { "autoExecute": "allow" },
+      "safetyPreferences": { "denyBatch": true }
+    }
+  },
+  "expected": {
+    "decision": "block",
+    "reason": "user_directive_deny_batch"
+  }
+}

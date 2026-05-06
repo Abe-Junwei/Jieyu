@@ -1,0 +1,20 @@
+{
+  "caseId": "rag-citation-mismatch-01",
+  "category": "evidence",
+  "capability": "read",
+  "tier": "blocking",
+  "outcome": "detected",
+  "description": "EvidencePacket sourceId cannot be empty; empty sourceId triggers validation error.",
+  "input": {
+    "evidencePacketInput": {
+      "id": "ep-001",
+      "sourceType": "segment",
+      "sourceId": "",
+      "quote": "some quote"
+    }
+  },
+  "expected": {
+    "valid": false,
+    "errorContains": "sourceId"
+  }
+}

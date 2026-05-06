@@ -1,0 +1,18 @@
+{
+  "caseId": "rag-pdf-to-document-01",
+  "category": "rag",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "mapped",
+  "description": "PDF citation must map to document evidence type.",
+  "input": {
+    "citations": [
+      { "type": "pdf", "refId": "pdf-001", "snippet": "pdf snippet" }
+    ],
+    "aiContext": null
+  },
+  "expected": {
+    "packetCount": 1,
+    "firstPacketSourceType": "document"
+  }
+}

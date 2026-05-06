@@ -1,0 +1,14 @@
+{
+  "caseId": "i18n-mixed-lexeme-01",
+  "category": "i18n",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "match",
+  "description": "Mixed Chinese-English lexeme query must select lexeme_candidates workflow.",
+  "input": {
+    "selectWorkflowQuery": "这个词的lexeme候选"
+  },
+  "expected": {
+    "workflowId": "lexeme_candidates"
+  }
+}

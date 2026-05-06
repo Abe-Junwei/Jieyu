@@ -1,0 +1,22 @@
+{
+  "caseId": "evidence-confidence-min-01",
+  "category": "evidence",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "valid",
+  "description": "EvidencePacket with confidence=0.0 at lower boundary must be accepted.",
+  "input": {
+    "evidencePacketInput": {
+      "id": "ep-min",
+      "sourceType": "segment",
+      "sourceId": "seg-001",
+      "quote": "min confidence",
+      "confidence": 0.0,
+      "reasonCode": "boundary_min_confidence"
+    }
+  },
+  "expected": {
+    "valid": true,
+    "confidence": 0.0
+  }
+}

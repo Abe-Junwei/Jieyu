@@ -1,0 +1,19 @@
+{
+  "caseId": "adversarial-unauthorized-tool-never-01",
+  "category": "adversarial",
+  "capability": "read",
+  "tier": "blocking",
+  "outcome": "deny",
+  "description": "Unregistered tool name with autoExecute=never must be blocked by user directive regardless of tool registration status.",
+  "input": {
+    "toolCall": { "name": "malicious_unknown_tool", "arguments": { "payload": "exploit" } },
+    "sessionMemory": {
+      "toolPreferences": { "autoExecute": "never" },
+      "safetyPreferences": {}
+    }
+  },
+  "expected": {
+    "decision": "block",
+    "reason": "user_directive_never_execute"
+  }
+}

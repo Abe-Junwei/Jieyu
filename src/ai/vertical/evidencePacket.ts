@@ -50,3 +50,16 @@ export function buildEvidencePacketV0(input: BuildEvidencePacketV0Input): Eviden
     ...input,
   };
 }
+
+/** Fields that metric calculations depend on; renaming or removing these breaks P1+ quality gates.
+ *  Any schema migration must provide a backward-compatible mapping.
+ */
+export const EVIDENCE_PACKET_METRIC_DEPENDENT_FIELDS = [
+  'id',
+  'sourceType',
+  'sourceId',
+  'quote',
+  'confidence',
+  'reasonCode',
+  'timeRangeMs',
+] as const satisfies readonly (keyof EvidencePacketV0)[];

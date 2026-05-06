@@ -1,0 +1,22 @@
+{
+  "caseId": "evidence-confidence-max-01",
+  "category": "evidence",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "valid",
+  "description": "EvidencePacket with confidence=1.0 at upper boundary must be accepted.",
+  "input": {
+    "evidencePacketInput": {
+      "id": "ep-max",
+      "sourceType": "segment",
+      "sourceId": "seg-001",
+      "quote": "max confidence",
+      "confidence": 1.0,
+      "reasonCode": "boundary_max_confidence"
+    }
+  },
+  "expected": {
+    "valid": true,
+    "confidence": 1.0
+  }
+}

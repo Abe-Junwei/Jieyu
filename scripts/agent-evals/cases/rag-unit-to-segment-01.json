@@ -1,0 +1,18 @@
+{
+  "caseId": "rag-unit-to-segment-01",
+  "category": "rag",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "mapped",
+  "description": "Unit citation must map to segment evidence type.",
+  "input": {
+    "citations": [
+      { "type": "unit", "refId": "unit-001", "snippet": "unit snippet" }
+    ],
+    "aiContext": null
+  },
+  "expected": {
+    "packetCount": 1,
+    "firstPacketSourceType": "segment"
+  }
+}

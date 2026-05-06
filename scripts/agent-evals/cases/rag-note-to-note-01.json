@@ -1,0 +1,18 @@
+{
+  "caseId": "rag-note-to-note-01",
+  "category": "rag",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "mapped",
+  "description": "Note citation must map to note evidence type.",
+  "input": {
+    "citations": [
+      { "type": "note", "refId": "note-001", "snippet": "note snippet" }
+    ],
+    "aiContext": null
+  },
+  "expected": {
+    "packetCount": 1,
+    "firstPacketSourceType": "note"
+  }
+}

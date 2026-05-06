@@ -1,0 +1,19 @@
+{
+  "caseId": "adversarial-destructive-disguised-01",
+  "category": "adversarial",
+  "capability": "destructive",
+  "tier": "blocking",
+  "outcome": "deny",
+  "description": "Destructive tool call with harmless-looking arguments must still be blocked when denyDestructive=true; decision must be based on tool name, not argument content.",
+  "input": {
+    "toolCall": { "name": "delete_transcription_segment", "arguments": { "friendly": true, "reason": "cleanup" } },
+    "sessionMemory": {
+      "toolPreferences": { "autoExecute": "allow" },
+      "safetyPreferences": { "denyDestructive": true }
+    }
+  },
+  "expected": {
+    "decision": "block",
+    "reason": "user_directive_deny_destructive"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "caseId": "workflow-segment-qa-negative-01",
+  "category": "workflow",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "no_match",
+  "description": "Generic greeting must not trigger any vertical workflow selection.",
+  "input": {
+    "selectWorkflowQuery": "hello world"
+  },
+  "expected": {
+    "noMatch": true
+  }
+}

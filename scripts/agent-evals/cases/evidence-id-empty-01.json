@@ -1,0 +1,20 @@
+{
+  "caseId": "evidence-id-empty-01",
+  "category": "evidence",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "invalid",
+  "description": "EvidencePacket with empty id must throw validation error.",
+  "input": {
+    "evidencePacketInput": {
+      "id": "",
+      "sourceType": "segment",
+      "sourceId": "seg-001",
+      "quote": "empty id"
+    }
+  },
+  "expected": {
+    "valid": false,
+    "errorContains": "id"
+  }
+}

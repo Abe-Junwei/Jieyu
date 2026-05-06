@@ -1,0 +1,21 @@
+{
+  "caseId": "evidence-time-range-invalid-01",
+  "category": "evidence",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "invalid",
+  "description": "EvidencePacket with endMs < startMs must throw validation error.",
+  "input": {
+    "evidencePacketInput": {
+      "id": "ep-tr-invalid",
+      "sourceType": "segment",
+      "sourceId": "seg-001",
+      "quote": "bad range",
+      "timeRangeMs": { "startMs": 5000, "endMs": 0 }
+    }
+  },
+  "expected": {
+    "valid": false,
+    "errorContains": "timeRangeMs"
+  }
+}

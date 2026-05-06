@@ -1,0 +1,20 @@
+{
+  "caseId": "i18n-session-resume-01",
+  "category": "i18n",
+  "capability": "policy",
+  "tier": "quality",
+  "outcome": "deny",
+  "description": "After session resume, policy decision must remain consistent with stored safety preferences across language contexts.",
+  "input": {
+    "toolCall": { "name": "delete_transcription_segment", "arguments": { "segmentId": "seg-001" } },
+    "sessionMemory": {
+      "toolPreferences": { "autoExecute": "allow" },
+      "safetyPreferences": { "denyDestructive": true },
+      "locale": "zh-CN"
+    }
+  },
+  "expected": {
+    "decision": "block",
+    "reason": "user_directive_deny_destructive"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "caseId": "workflow-envelope-degraded-01",
+  "category": "workflow",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "degraded",
+  "description": "Envelope with empty evidence packets must have status=degraded.",
+  "input": {
+    "buildEnvelope": {
+      "selection": {
+        "workflowId": "segment_qa",
+        "workflow": { "id": "segment_qa", "labelKey": "ai.workflow.segment_qa", "inputScope": "current_selection", "outputKind": "qa_summary", "writeMode": "read_only" },
+        "confidence": 0.78,
+        "source": "rule_v0",
+        "reasonCode": "keyword_match",
+        "matchedKeyword": "语段"
+      },
+      "evidencePackets": []
+    }
+  },
+  "expected": {
+    "status": "degraded",
+    "evidencePacketCount": 0
+  }
+}

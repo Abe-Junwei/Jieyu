@@ -1,0 +1,23 @@
+{
+  "caseId": "evidence-time-range-valid-01",
+  "category": "evidence",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "valid",
+  "description": "EvidencePacket with valid timeRangeMs must preserve start and end values.",
+  "input": {
+    "evidencePacketInput": {
+      "id": "ep-tr",
+      "sourceType": "segment",
+      "sourceId": "seg-001",
+      "quote": "time range",
+      "confidence": 0.8,
+      "reasonCode": "time_range_fixture",
+      "timeRangeMs": { "startMs": 0, "endMs": 5000 }
+    }
+  },
+  "expected": {
+    "valid": true,
+    "timeRangeMs": { "startMs": 0, "endMs": 5000 }
+  }
+}

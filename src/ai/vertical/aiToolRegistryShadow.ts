@@ -1,4 +1,5 @@
 import type { ZodTypeAny } from 'zod';
+
 import type { AiChatToolName } from '../chat/chatDomain.types';
 import { toolArgumentSchemas } from '../chat/toolCallSchemas';
 import { AI_TOOL_POLICY_MATRIX, type AiToolPolicyEntry } from '../policy/aiToolPolicyMatrix';
@@ -70,3 +71,6 @@ export function assertAiToolRegistryShadowParity(): void {
     );
   }
 }
+
+/** MCP Tool Schema shape (subset) */
+export { toMcpToolSchema, type McpToolSchema } from './mcpCompatibility';

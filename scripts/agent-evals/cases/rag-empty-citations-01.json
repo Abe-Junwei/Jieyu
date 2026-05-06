@@ -1,0 +1,16 @@
+{
+  "caseId": "rag-empty-citations-01",
+  "category": "rag",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "empty",
+  "description": "Empty citations array must produce empty evidence packets.",
+  "input": {
+    "citations": [],
+    "aiContext": null
+  },
+  "expected": {
+    "packetCount": 0,
+    "empty": true
+  }
+}

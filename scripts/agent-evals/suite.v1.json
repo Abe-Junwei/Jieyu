@@ -57,11 +57,23 @@
       ]
     },
     {
-      "id": "approval-center-ui",
-      "name": "Approval center and directive console UI tests",
-      "command": "npx vitest run src/components/ai/AiChatAlertsPanel.test.tsx src/components/ai/AiChatCard.input.test.tsx",
+      "id": "approval-center-ui-alerts",
+      "name": "AI alerts / approval center UI tests",
+      "command": "npx vitest run src/components/ai/AiChatAlertsPanel.test.tsx",
       "category": "ui",
-      "goldenTaskCount": 10,
+      "goldenTaskCount": 5,
+      "trajectorySignals": [
+        "approval_explainability",
+        "gate_correctness",
+        "audit_traceability"
+      ]
+    },
+    {
+      "id": "approval-center-ui-composer",
+      "name": "AI chat composer / directive console UI tests",
+      "command": "npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"renders directive console MVP and allows deactivating one directive\" && npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"shows decision explanation message and reason in decision panel\" && npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"keeps the AI decision panel collapsed by default\"",
+      "category": "ui",
+      "goldenTaskCount": 5,
       "trajectorySignals": [
         "approval_explainability",
         "gate_correctness",

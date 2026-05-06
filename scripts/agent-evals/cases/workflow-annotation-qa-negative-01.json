@@ -1,0 +1,14 @@
+{
+  "caseId": "workflow-annotation-qa-negative-01",
+  "category": "workflow",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "no_match",
+  "description": "Casual Chinese chat must not trigger annotation_qa workflow.",
+  "input": {
+    "selectWorkflowQuery": "今天天气不错"
+  },
+  "expected": {
+    "noMatch": true
+  }
+}

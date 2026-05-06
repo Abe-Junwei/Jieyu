@@ -1,0 +1,19 @@
+{
+  "caseId": "policy-ask-01",
+  "category": "policy",
+  "capability": "policy",
+  "tier": "blocking",
+  "outcome": "ask",
+  "description": "User set ask_first; any write-like tool call must enter confirm state.",
+  "input": {
+    "toolCall": { "name": "propose_changes", "arguments": { "segmentId": "seg-001", "transcription": "modified text" } },
+    "sessionMemory": {
+      "toolPreferences": { "autoExecute": "ask_first" },
+      "safetyPreferences": {}
+    }
+  },
+  "expected": {
+    "decision": "confirm",
+    "reason": "user_directive_confirmation_required"
+  }
+}

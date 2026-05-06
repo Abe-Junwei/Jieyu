@@ -1,0 +1,14 @@
+{
+  "caseId": "workflow-lexeme-negative-01",
+  "category": "workflow",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "no_match",
+  "description": "Common daily phrase must not trigger lexeme_candidates workflow.",
+  "input": {
+    "selectWorkflowQuery": "吃饭了吗"
+  },
+  "expected": {
+    "noMatch": true
+  }
+}

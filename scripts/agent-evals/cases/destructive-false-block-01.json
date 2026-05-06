@@ -1,0 +1,18 @@
+{
+  "caseId": "destructive-false-block-01",
+  "category": "safety",
+  "capability": "destructive",
+  "tier": "blocking",
+  "outcome": "allow",
+  "description": "User explicitly confirmed delete_transcription_segment; policy gate must allow execution.",
+  "input": {
+    "toolCall": { "name": "delete_transcription_segment", "arguments": { "segmentId": "seg-001" } },
+    "sessionMemory": {
+      "toolPreferences": { "autoExecute": "allow" },
+      "safetyPreferences": {}
+    }
+  },
+  "expected": {
+    "decision": "allow"
+  }
+}

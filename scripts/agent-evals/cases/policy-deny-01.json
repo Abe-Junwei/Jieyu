@@ -1,0 +1,19 @@
+{
+  "caseId": "policy-deny-01",
+  "category": "policy",
+  "capability": "policy",
+  "tier": "blocking",
+  "outcome": "deny",
+  "description": "User set denyDestructive=true; any destructive tool call must be blocked regardless of autoExecute preference.",
+  "input": {
+    "toolCall": { "name": "delete_transcription_segment", "arguments": { "segmentId": "seg-001" } },
+    "sessionMemory": {
+      "toolPreferences": { "autoExecute": "allow" },
+      "safetyPreferences": { "denyDestructive": true }
+    }
+  },
+  "expected": {
+    "decision": "block",
+    "reason": "user_directive_deny_destructive"
+  }
+}

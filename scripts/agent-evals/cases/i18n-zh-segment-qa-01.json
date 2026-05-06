@@ -1,0 +1,14 @@
+{
+  "caseId": "i18n-zh-segment-qa-01",
+  "category": "i18n",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "match",
+  "description": "Chinese segment QA query must select segment_qa workflow.",
+  "input": {
+    "selectWorkflowQuery": "这句话怎么解释"
+  },
+  "expected": {
+    "workflowId": "segment_qa"
+  }
+}

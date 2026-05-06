@@ -1,0 +1,18 @@
+{
+  "caseId": "rag-schema-to-layer-text-01",
+  "category": "rag",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "mapped",
+  "description": "Schema citation must map to layer_text evidence type.",
+  "input": {
+    "citations": [
+      { "type": "schema", "refId": "schema-001", "snippet": "schema snippet" }
+    ],
+    "aiContext": null
+  },
+  "expected": {
+    "packetCount": 1,
+    "firstPacketSourceType": "layer_text"
+  }
+}

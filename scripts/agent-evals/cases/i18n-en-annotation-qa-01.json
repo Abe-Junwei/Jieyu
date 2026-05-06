@@ -1,0 +1,14 @@
+{
+  "caseId": "i18n-en-annotation-qa-01",
+  "category": "i18n",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "match",
+  "description": "English annotation QA query must select annotation_qa workflow.",
+  "input": {
+    "selectWorkflowQuery": "check annotation consistency"
+  },
+  "expected": {
+    "workflowId": "annotation_qa"
+  }
+}
