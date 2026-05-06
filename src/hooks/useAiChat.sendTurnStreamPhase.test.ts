@@ -70,6 +70,7 @@ function buildOpening(): PersistOpeningTurnAndBuildPromptContextResult {
     memoryRecallShape: undefined,
     clarifyFastPathCall: null,
     systemPrompt: 'system',
+    verticalOutputEnvelopeSeed: null,
   };
 }
 
@@ -249,6 +250,7 @@ describe('runAiChatSendTurnStreamPhase', () => {
       outputKind: 'qa_findings',
       evidencePackets: [],
       generatedAt: '2026-01-01T00:00:00.000Z',
+      status: 'degraded',
     };
     async function* oneDone(): AsyncGenerator<AssistantStreamChunk> {
       yield { done: true };

@@ -1,0 +1,15 @@
+{
+  "id": "ufb_example_001",
+  "messageId": "ast-001",
+  "conversationId": "conv-001",
+  "rating": "thumbs_up",
+  "originalContent": "The segment analysis is accurate and well-supported by evidence.",
+  "sanitizedContent": "The [SEGMENT] analysis is accurate and well-supported by evidence.",
+  "category": "other",
+  "createdAt": "2026-05-01T10:00:00Z",
+  "metadata": {
+    "workflowId": "segment_qa",
+    "providerId": "openai",
+    "model": "gpt-4o"
+  }
+}

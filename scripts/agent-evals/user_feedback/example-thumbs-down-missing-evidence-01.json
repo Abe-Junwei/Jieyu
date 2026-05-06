@@ -1,0 +1,16 @@
+{
+  "id": "ufb_example_003",
+  "messageId": "ast-003",
+  "conversationId": "conv-002",
+  "rating": "thumbs_down",
+  "originalContent": "Answer claims a source but provides no citation or evidence packet.",
+  "sanitizedContent": "Answer claims a source but provides no citation or evidence packet.",
+  "category": "missing_evidence",
+  "reason": "no evidence packet attached",
+  "createdAt": "2026-05-03T09:15:00Z",
+  "metadata": {
+    "workflowId": "annotation_qa",
+    "providerId": "openai",
+    "model": "gpt-4o-mini"
+  }
+}

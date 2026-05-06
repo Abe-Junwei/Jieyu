@@ -26,6 +26,14 @@ import {
   type AiChatBackgroundMemoryRuntime,
 } from './useAiChat.backgroundMemory';
 import type { VerticalWorkflowOutputEnvelopeV0, VerticalWorkflowSelectionV0 } from '../ai/vertical/verticalWorkflowSelection';
+import { runSegmentQaReflection } from '../ai/vertical/segmentQaReflection';
+import type { DegradationScenario } from '../ai/chat/degradationManualOverride';
+import {
+  advanceComposedWorkflowStateAfterParse,
+  ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+  parseComposedWorkflowOutput,
+  SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+} from '../ai/vertical/composedWorkflowTemplates';
 import type { ToolDecisionAuditMetadata, ToolIntentAuditMetadata } from '../ai/chat/toolCallHelpers';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
@@ -630,6 +638,121 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
       }
       if (resolvedErrorMessage) setLastError(resolvedErrorMessage);
       await writeVerticalWorkflowAudit(resolvedStatus, 'stream_done');
+
+      // PR-12 / PR-17: reflection audit + degradation scenarios for manual takeover UX
+      const degradationScenarios: DegradationScenario[] = [];
+      if (verticalOutputEnvelopeSeed?.status === 'degraded') {
+        degradationScenarios.push('rag_no_results');
+      }
+      if (verticalOutputEnvelopeSeed?.workflowId === 'segment_qa' && resolvedStatus === 'done') {
+        try {
+          const reflection = runSegmentQaReflection(resolvedContent, verticalOutputEnvelopeSeed.evidencePackets);
+          await db.collections.audit_logs.insert({
+            id: newAuditLogId(),
+            collection: 'ai_messages',
+            documentId: assistantId,
+            action: 'update',
+            field: 'ai_segment_qa_reflection',
+            oldValue: reflection.summary,
+            newValue: reflection.reflectionFlagged ? 'flagged' : 'passed',
+            source: 'ai',
+            timestamp: nowIso(),
+            requestId: `${assistantId}_reflection`,
+            metadataJson: JSON.stringify({
+              schemaVersion: 1,
+              reflectionFlagged: reflection.reflectionFlagged,
+              checkCount: reflection.checks.length,
+              failedCheckNames: reflection.checks.filter((c) => !c.passed).map((c) => c.name),
+            }),
+          });
+          if (reflection.reflectionFlagged) {
+            degradationScenarios.push('reflection_flagged');
+          }
+        } catch (reflectionError) {
+          log.error('segment_qa reflection failed', { err: reflectionError });
+        }
+      }
+      if (degradationScenarios.length > 0) {
+        const unique = Array.from(new Set(degradationScenarios));
+        flushSync(() => {
+          setMessages((prev) => prev.map((msg) => (
+            msg.id === assistantId ? { ...msg, degradationScenarios: unique } : msg
+          )));
+        });
+      }
+
+      // PR-13: Composed workflow output parsing and state advancement
+      const composedState = sessionMemoryRef.current.composedWorkflowState;
+      if (composedState && resolvedStatus === 'done') {
+        try {
+          const template = composedState.templateId === SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES.id
+            ? SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES
+            : ANNOTATION_QA_THEN_LEXEME_CANDIDATES;
+          const parseResult = parseComposedWorkflowOutput(template, resolvedContent);
+          const { nextState, step1Result, step2Result } = advanceComposedWorkflowStateAfterParse(
+            composedState,
+            parseResult,
+            resolvedContent,
+          );
+
+          sessionMemoryRef.current = {
+            ...sessionMemoryRef.current,
+            composedWorkflowState: nextState,
+          };
+          persistSessionMemory(sessionMemoryRef.current);
+
+          if (parseResult && step1Result && step2Result) {
+            const combinedContent = `## 标注审校\n\n${step1Result}\n\n---\n\n## 候选词建议\n\n${step2Result}`;
+            resolvedContent = combinedContent;
+            flushSync(() => {
+              setMessages((prev) => prev.map((msg) => (
+                msg.id === assistantId
+                  ? { ...msg, content: combinedContent }
+                  : msg
+              )));
+            });
+            queueFlushAssistantDraft(combinedContent, true);
+            await awaitQueuedPersistence();
+          } else if (step1Result) {
+            const partialContent = `## 标注审校\n\n${step1Result}\n\n---\n\n*候选词建议未能自动完成，正在尝试重试……*`;
+            resolvedContent = partialContent;
+            flushSync(() => {
+              setMessages((prev) => prev.map((msg) => (
+                msg.id === assistantId
+                  ? { ...msg, content: partialContent }
+                  : msg
+              )));
+            });
+            queueFlushAssistantDraft(partialContent, true);
+            await awaitQueuedPersistence();
+          }
+
+          await db.collections.audit_logs.insert({
+            id: newAuditLogId(),
+            collection: 'ai_messages',
+            documentId: assistantId,
+            action: 'update',
+            field: 'ai_composed_workflow_result',
+            oldValue: composedState.status,
+            newValue: nextState.status,
+            source: 'ai',
+            timestamp: nowIso(),
+            requestId: `${assistantId}_composed`,
+            metadataJson: JSON.stringify({
+              schemaVersion: 1,
+              templateId: composedState.templateId,
+              previousStatus: composedState.status,
+              currentStatus: nextState.status,
+              stepIndex: nextState.currentStepIndex,
+              hasStep1Result: step1Result !== null,
+              hasStep2Result: step2Result !== null,
+            }),
+          });
+        } catch (composedError) {
+          log.error('composed workflow parsing failed', { err: composedError });
+        }
+      }
+
       if (resolvedStatus === 'done') {
         recordCompletionSuccessMetric();
         const backgroundMemoryRuntime = backgroundMemoryRuntimeRef.current;

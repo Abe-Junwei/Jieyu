@@ -135,6 +135,30 @@ describe('TaskRunner', () => {
     expect(row?.maxAttempts).toBe(2);
   });
 
+  it('injects lastError into retry attempt context', async () => {
+    const runner = new TaskRunner(1);
+    const errors: (Error | null)[] = [];
+
+    const enqueued = await runner.enqueue({
+      taskType: 'embed',
+      targetId: 'embeddings',
+      maxAttempts: 2,
+      run: async ({ lastError }) => {
+        errors.push(lastError);
+        if (errors.length === 1) {
+          throw new Error('attempt-1-boom');
+        }
+        return 'retry-ok';
+      },
+    });
+
+    const result = await enqueued.result;
+    expect(result).toBe('retry-ok');
+    expect(errors).toHaveLength(2);
+    expect(errors[0]).toBeNull();
+    expect(errors[1]?.message).toBe('attempt-1-boom');
+  });
+
   it('queues tasks when concurrency is 1', async () => {
     const runner = new TaskRunner(1);
 

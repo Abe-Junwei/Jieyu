@@ -6,6 +6,7 @@ import type {
   AiTaskDoc,
   AiTaskSnapshotDocType,
   AnchorDocType,
+  ProjectAiMemoryDoc,
   AuditLogDocType,
   BibliographicSourceDocType,
   CustomFieldDefinitionDocType,
@@ -52,6 +53,7 @@ import {
   validateAiTaskDoc,
   validateAiTaskSnapshotDoc,
   validateAnchorDoc,
+  validateProjectAiMemoryDoc,
   validateAuditLogDoc,
   validateBibliographicSourceDoc,
   validateCustomFieldDefinitionDoc,
@@ -149,6 +151,7 @@ const validatorByCollection = {
   language_asset_overviews: (value: unknown) => validateLanguageAssetOverviewDoc(value as LanguageAssetOverviewDocType),
   ai_task_snapshots: (value: unknown) => validateAiTaskSnapshotDoc(value as AiTaskSnapshotDocType),
   track_entities: (value: unknown) => validateTrackEntityDoc(value as TrackEntityDocType),
+  project_ai_memories: (value: unknown) => validateProjectAiMemoryDoc(value as ProjectAiMemoryDoc),
 } as const satisfies Record<string, (value: unknown) => void>;
 
 export function validateCollectionDoc(collectionName: string, value: unknown): void {

@@ -95,6 +95,7 @@ function makeOpening(over: {
     memoryRecallShape: undefined,
     clarifyFastPathCall: null,
     systemPrompt: 'system',
+    verticalOutputEnvelopeSeed: null,
   };
 }
 

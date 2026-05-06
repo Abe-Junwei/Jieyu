@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { annotationAnalysisGraphFixtureSchema } from '../annotation/analysisGraph';
 import { structuralRuleProfileSchema } from '../annotation/structuralRuleProfile';
 import { UNIT_SELF_CERTAINTY_VALUES } from '../utils/unitSelfCertainty';
-import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType } from './types';
+import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, ProjectAiMemoryDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType } from './types';
 
 
 export const isoDateSchema = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
@@ -229,6 +229,17 @@ const aiMessageDocSchema = z.object({
   reasoningContent: z.string().optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
+});
+
+const projectAiMemoryDocSchema = z.object({
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  fact: z.string().min(1),
+  confidence: z.number().min(0).max(1),
+  sourceConversationId: z.string().optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+  expiresAt: isoDateSchema.optional(),
 });
 
 const languageCatalogSourceTypeSchema = z.enum(['built-in-generated', 'built-in-reviewed', 'user-override', 'user-custom']);
@@ -1045,6 +1056,10 @@ export function validateAiConversationDoc(doc: AiConversationDoc): void {
 
 export function validateAiMessageDoc(doc: AiMessageDoc): void {
   aiMessageDocSchema.parse(doc);
+}
+
+export function validateProjectAiMemoryDoc(doc: ProjectAiMemoryDoc): void {
+  projectAiMemoryDocSchema.parse(doc);
 }
 
 export function validateLanguageDoc(doc: LanguageDocType): void {

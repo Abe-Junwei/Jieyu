@@ -8,6 +8,8 @@ export interface TaskRunContext {
   signal: AbortSignal;
   attempt: number;
   maxAttempts: number;
+  /** The error from the previous attempt, if any. Useful for reflection + retry prompt injection. */
+  lastError: Error | null;
   heartbeat: (checkpoint?: TaskRunnerCheckpoint) => Promise<void>;
   checkpoint: (checkpoint: TaskRunnerCheckpoint) => Promise<void>;
 }
@@ -225,6 +227,8 @@ export class TaskRunner {
     this.retryInputs.delete(taskId);
     try {
       const enqueued = await this.enqueue(retryInput as EnqueueTaskInput<unknown>);
+      // Prevent unhandled rejection if the caller does not await the retried result.
+      enqueued.result.catch(() => {});
       return enqueued.taskId;
     } catch (error) {
       this.retryInputs.set(taskId, retryInput);
@@ -290,7 +294,7 @@ export class TaskRunner {
 
         try {
           await this.updateTaskAttempt(db, task.taskId, attempt, task.maxAttempts, task.timeoutMs);
-          const result = await this.runWithTimeout(task, attempt);
+          const result = await this.runWithTimeout(task, attempt, attempt > 1 && lastError instanceof Error ? lastError : null);
           if (task.controller.signal.aborted) {
             throw new TaskCancelledError();
           }
@@ -342,7 +346,7 @@ export class TaskRunner {
     }
   }
 
-  private async runWithTimeout<TResult>(task: InternalTask<TResult>, attempt: number): Promise<TResult> {
+  private async runWithTimeout<TResult>(task: InternalTask<TResult>, attempt: number, lastError: Error | null): Promise<TResult> {
     const timeoutMs = task.timeoutMs;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const attemptController = new AbortController();
@@ -357,17 +361,19 @@ export class TaskRunner {
       });
       task.controller.signal.addEventListener('abort', abortAttempt, { once: true });
 
-      const result = await Promise.race([
-        task.input.run({
-            taskId: task.taskId,
-            signal: attemptController.signal,
-            attempt,
-            maxAttempts: task.maxAttempts,
-            heartbeat: (checkpoint?: TaskRunnerCheckpoint) => this.heartbeat(task.taskId, checkpoint),
-            checkpoint: (checkpoint: TaskRunnerCheckpoint) => this.checkpoint(task.taskId, checkpoint),
-          }),
-        timeoutPromise,
-      ]);
+      const runPromise = task.input.run({
+        taskId: task.taskId,
+        signal: attemptController.signal,
+        attempt,
+        maxAttempts: task.maxAttempts,
+        lastError,
+        heartbeat: (checkpoint?: TaskRunnerCheckpoint) => this.heartbeat(task.taskId, checkpoint),
+        checkpoint: (checkpoint: TaskRunnerCheckpoint) => this.checkpoint(task.taskId, checkpoint),
+      });
+      // Prevent unhandled rejection when timeout wins the race and runPromise later rejects.
+      runPromise.catch(() => {});
+
+      const result = await Promise.race([runPromise, timeoutPromise]);
 
       return result as TResult;
     } finally {

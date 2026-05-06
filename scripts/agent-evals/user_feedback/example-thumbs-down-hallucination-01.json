@@ -1,0 +1,16 @@
+{
+  "id": "ufb_example_002",
+  "messageId": "ast-002",
+  "conversationId": "conv-001",
+  "rating": "thumbs_down",
+  "originalContent": "The model hallucinated a gloss that does not exist in the project lexicon.",
+  "sanitizedContent": "The model hallucinated a gloss that does not exist in the [PROJECT] lexicon.",
+  "category": "hallucination",
+  "reason": " invented lexeme not in database",
+  "createdAt": "2026-05-02T14:30:00Z",
+  "metadata": {
+    "workflowId": "lexeme_candidates",
+    "providerId": "anthropic",
+    "model": "claude-3-5-sonnet"
+  }
+}

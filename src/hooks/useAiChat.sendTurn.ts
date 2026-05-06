@@ -72,7 +72,6 @@ export async function runAiChatSendTurn(args: RunAiChatSendTurnArgs): Promise<vo
     agentLoopSourceUserText,
     effectiveUserText,
     verticalWorkflowSelection,
-    verticalOutputEnvelopeSeed,
     correlationId,
   } = preflight;
 
@@ -129,7 +128,7 @@ export async function runAiChatSendTurn(args: RunAiChatSendTurnArgs): Promise<vo
       agentLoopSourceUserText,
       resumeCheckpoint,
       verticalWorkflowSelection,
-      verticalOutputEnvelopeSeed,
+      verticalOutputEnvelopeSeed: opening.verticalOutputEnvelopeSeed ?? preflight.verticalOutputEnvelopeSeed,
       userMsg,
       assistantId,
       shouldTrackRemoteStatus,

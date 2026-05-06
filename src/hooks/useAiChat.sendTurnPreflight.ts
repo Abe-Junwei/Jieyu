@@ -35,6 +35,12 @@ import {
   type VerticalWorkflowOutputEnvelopeV0,
   type VerticalWorkflowSelectionV0,
 } from '../ai/vertical/verticalWorkflowSelection';
+import {
+  buildStep2RetryPrompt,
+  createInitialComposedWorkflowState,
+  resolveComposedStepWorkflowSelection,
+  selectComposedWorkflowTemplate,
+} from '../ai/vertical/composedWorkflowTemplates';
 import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
 import { AI_CHAT_BACKGROUND_MEMORY_SANDBOX_AUTHORIZED_DIRS, AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE } from './useAiChat.backgroundMemory';
 import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
@@ -233,7 +239,52 @@ export async function runAiChatSendTurnPreflight(
 
   const agentLoopSourceUserText = resumeCheckpoint?.originalUserText ?? trimmed;
   const effectiveUserText = resumeCheckpoint?.continuationInput ?? trimmed;
-  const verticalWorkflowSelection = selectVerticalWorkflowV0(effectiveUserText);
+
+  // ── Composed workflow state machine ───────────────────────────────────────
+  let composedUserTextOverride: string | undefined;
+  const existingComposedState = sessionMemoryRef.current.composedWorkflowState;
+
+  if (existingComposedState?.status === 'step1_done') {
+    // Step 2 retry: advance state and override user text to a short retry cue.
+    sessionMemoryRef.current = {
+      ...sessionMemoryRef.current,
+      composedWorkflowState: {
+        ...existingComposedState,
+        status: 'running',
+        currentStepIndex: 1,
+      },
+    };
+    persistSessionMemory(sessionMemoryRef.current);
+    composedUserTextOverride = buildStep2RetryPrompt();
+  }
+
+  const finalEffectiveUserText = composedUserTextOverride ?? effectiveUserText;
+
+  const composedTemplate = selectComposedWorkflowTemplate(finalEffectiveUserText);
+  let verticalWorkflowSelection: VerticalWorkflowSelectionV0 | null = null;
+
+  if (composedTemplate) {
+    // New composed workflow: seed state and resolve step 1 workflow.
+    sessionMemoryRef.current = {
+      ...sessionMemoryRef.current,
+      composedWorkflowState: createInitialComposedWorkflowState(composedTemplate, finalEffectiveUserText),
+    };
+    persistSessionMemory(sessionMemoryRef.current);
+    const stepWorkflow = resolveComposedStepWorkflowSelection(sessionMemoryRef.current.composedWorkflowState!);
+    if (stepWorkflow) {
+      verticalWorkflowSelection = {
+        workflowId: stepWorkflow.workflowId,
+        workflow: stepWorkflow.workflow,
+        confidence: 1.0,
+        source: 'composed_v0',
+        reasonCode: 'composed_step1',
+        matchedKeyword: finalEffectiveUserText,
+      };
+    }
+  } else {
+    verticalWorkflowSelection = selectVerticalWorkflowV0(finalEffectiveUserText);
+  }
+
   const verticalOutputEnvelopeSeed = verticalWorkflowSelection
     ? buildVerticalWorkflowOutputEnvelopeV0(verticalWorkflowSelection)
     : null;

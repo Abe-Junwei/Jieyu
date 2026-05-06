@@ -12,6 +12,7 @@ import { resolveAiChatResponsePolicy } from './useAiChat.responsePolicy';
 import { getDb } from '../db';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { clearConversationSummaryMemory, loadSessionMemory, persistSessionMemory } from '../ai/chat/sessionMemory';
+import { buildStep2RetryPrompt } from '../ai/vertical/composedWorkflowTemplates';
 import { useAgentLoopSessionMemoryDexieReconcile } from './useAiChat.agentLoopDexieReconcile';
 import { updateSessionMemoryWithRecommendationEvent } from '../ai/chat/recommendationTelemetry';
 import { runAiChatClearPersistenceCleanup, type AiChatClearPersistenceRequest } from './useAiChat.persistenceCleanup';
@@ -116,6 +117,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         sessionMemoryRef.current = nextMemory;
       },
       persistSessionMemory,
+      getProjectId: () => getContextRef.current?.()?.shortTerm?.workspaceTextId ?? null,
     });
   }
   const bumpMetric = useCallback((key: keyof AiInteractionMetrics, delta = 1) => {
@@ -365,6 +367,64 @@ export function useAiChat(options?: UseAiChatOptions) {
       resolveAgentLoopResumeCheckpoint,
       clearPendingAgentLoopCheckpoint,
     });
+
+    // PR-13: auto-trigger step2 when composed workflow step1 succeeded but step2 failed
+    const composedState = sessionMemoryRef.current.composedWorkflowState;
+    if (composedState?.status === 'step1_done') {
+      const step2UserText = buildStep2RetryPrompt();
+      await runAiChatSendTurn({
+        userText: step2UserText,
+        activeConversationId: conversationId,
+        featureFlags,
+        isStreaming,
+        sessionTokenBudget,
+        firstChunkTimeoutMs,
+        outputTokenCap,
+        outputTokenRetryCap,
+        allowDestructiveToolCalls,
+        maxContextCharsOverride,
+        historyCharBudgetOverride,
+        provider,
+        orchestrator,
+        ensureConversation,
+        setLastError,
+        setMessages,
+        setIsStreaming,
+        setConnectionTestStatus,
+        setConnectionTestMessage,
+        setContextDebugSnapshot,
+        setMetrics,
+        setTaskSession,
+        setPendingToolCall,
+        messagesRef,
+        metricsRef,
+        pendingToolCallRef,
+        sessionMemoryRef,
+        settingsRef,
+        toolFeedbackLocaleRef,
+        systemPersonaKeyRef,
+        getContextRef,
+        embeddingSearchServiceRef,
+        ragContextTimeoutMsRef,
+        toolDecisionModeRef,
+        onToolRiskCheckRef,
+        preparePendingToolCallRef,
+        onToolCallRef,
+        taskSessionRef,
+        onMessageCompleteRef,
+        abortRef,
+        localToolCallCountRef,
+        streamPersistIntervalMsRef,
+        backgroundMemoryRuntimeRef,
+        writeToolDecisionAuditLog,
+        writeToolIntentAuditLog,
+        hasPersistedExecutionForRequest,
+        markExecutedRequestId,
+        bumpMetric,
+        resolveAgentLoopResumeCheckpoint,
+        clearPendingAgentLoopCheckpoint,
+      });
+    }
   }, [
     allowDestructiveToolCalls,
     conversationId,

@@ -1080,6 +1080,17 @@ export interface AiTaskSnapshotDocType {
   updatedAt: string;
 }
 
+export interface ProjectAiMemoryDoc {
+  id: string;
+  projectId: string;
+  fact: string;
+  confidence: number;
+  sourceConversationId?: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt?: string;
+}
+
 export interface TrackEntityDocType {
   id: string;
   textId: string;
@@ -1154,6 +1165,7 @@ export type JieyuCollections = {
   language_asset_overviews: CollectionAdapter<LanguageAssetOverviewDocType>;
   ai_task_snapshots: CollectionAdapter<AiTaskSnapshotDocType>;
   track_entities: CollectionAdapter<TrackEntityDocType>;
+  project_ai_memories: CollectionAdapter<ProjectAiMemoryDoc>;
 };
 
 export type ImportConflictStrategy = 'upsert' | 'skip-existing' | 'replace-all';

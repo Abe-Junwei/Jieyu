@@ -22,6 +22,20 @@ import { buildResponsePolicyAuditMetadata, resolveAiChatResponsePolicy } from '.
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import { newMessageId, nowIso } from './useAiChat.helpers';
 import { normalizeLocale, type Locale } from '../i18n';
+import {
+  ragCandidateSourceIdsForSegmentQa,
+  resolveCorpusSourceSet,
+  ragCitationsToEvidencePackets,
+} from '../ai/vertical/sourceResolver';
+import {
+  buildVerticalWorkflowOutputEnvelopeV0,
+  type VerticalWorkflowOutputEnvelopeV0,
+  type VerticalWorkflowSelectionV0,
+} from '../ai/vertical/verticalWorkflowSelection';
+import {
+  ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+  buildComposedWorkflowSystemPromptAppendix,
+} from '../ai/vertical/composedWorkflowTemplates';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type {
   AiContextDebugSnapshot,
@@ -55,6 +69,7 @@ export interface PersistOpeningTurnAndBuildPromptContextInput {
   ragContextTimeoutMs: number;
   taskSession: AiTaskSession;
   setMetrics: Dispatch<SetStateAction<AiInteractionMetrics>>;
+  verticalWorkflowSelection: VerticalWorkflowSelectionV0 | null;
 }
 
 export interface PersistOpeningTurnAndBuildPromptContextResult {
@@ -71,6 +86,7 @@ export interface PersistOpeningTurnAndBuildPromptContextResult {
   memoryRecallShape: NonNullable<ResolveAiChatStreamCompletionParams['memoryRecallShape']> | undefined;
   clarifyFastPathCall: ClarifyFastPathCall | null;
   systemPrompt: string;
+  verticalOutputEnvelopeSeed: VerticalWorkflowOutputEnvelopeV0 | null;
 }
 
 export async function persistOpeningTurnAndBuildPromptContext(
@@ -188,6 +204,11 @@ export async function persistOpeningTurnAndBuildPromptContext(
   let contextBlock = buildPromptContextBlock(aiContext, maxContextChars);
   let ragCitations: AiMessageCitation[] = [];
   let memoryRecallShape: NonNullable<ResolveAiChatStreamCompletionParams['memoryRecallShape']> | undefined;
+  const corpusSourceSetResolved = resolveCorpusSourceSet(aiContext);
+  const ragCandidateSourceIds = ragCandidateSourceIdsForSegmentQa(
+    input.verticalWorkflowSelection?.workflowId,
+    corpusSourceSetResolved,
+  );
   if (featureFlags.aiChatRagEnabled) {
     ({
       contextBlock,
@@ -200,6 +221,7 @@ export async function persistOpeningTurnAndBuildPromptContext(
       ragContextTimeoutMs: input.ragContextTimeoutMs,
       maxContextChars,
       promptContext: aiContext,
+      ...(ragCandidateSourceIds ? { candidateSourceIds: ragCandidateSourceIds } : {}),
     }));
   }
   contextBlock = await maybeAppendMemoryBrokerContext({
@@ -214,6 +236,15 @@ export async function persistOpeningTurnAndBuildPromptContext(
       ...buildSessionMemoryDigestSuppressionRefs(input.sessionMemoryRef.current, sessionMemoryDigest),
     ],
   });
+
+  const verticalOutputEnvelopeSeed: VerticalWorkflowOutputEnvelopeV0 | null =
+    input.verticalWorkflowSelection
+      ? buildVerticalWorkflowOutputEnvelopeV0(
+          input.verticalWorkflowSelection,
+          ragCitationsToEvidencePackets(ragCitations, corpusSourceSetResolved),
+        )
+      : null;
+
   const contextDebugEnabled = isAiContextDebugEnabled();
   const nextDebugSnapshot: AiContextDebugSnapshot = buildContextDebugSnapshot({
     enabled: contextDebugEnabled,
@@ -241,13 +272,42 @@ export async function persistOpeningTurnAndBuildPromptContext(
         aiContext,
       });
 
-  const systemPrompt = buildAiSystemPrompt(
+  let systemPrompt = buildAiSystemPrompt(
     input.getSystemPersonaKey(),
     contextBlock,
     responsePolicy.style,
     routingPlan.selectedTools,
     buildUserDirectivePrompt(input.sessionMemoryRef.current),
   );
+
+  // PR-7b: explicit EvidencePacket list for vertical workflows (esp. segment_qa) so the model can ground [n] markers.
+  if (input.verticalWorkflowSelection && ragCitations.length > 0) {
+    const evidenceForPrompt = ragCitationsToEvidencePackets(ragCitations, corpusSourceSetResolved);
+    if (evidenceForPrompt.length > 0) {
+      const compact = evidenceForPrompt.map((p) => ({
+        id: p.id,
+        sourceType: p.sourceType,
+        sourceId: p.sourceId,
+        quote: p.quote,
+        confidence: p.confidence,
+        reasonCode: p.reasonCode,
+        ...(p.timeRangeMs ? { timeRangeMs: p.timeRangeMs } : {}),
+      }));
+      systemPrompt += `\n\n## Evidence packets (ground truth for citations)\nUse only citation markers [1]…[${compact.length}] that refer to these packets. Do not invent sources.\n${JSON.stringify(compact, null, 2)}`;
+    }
+  }
+
+  const composedState = input.sessionMemoryRef.current.composedWorkflowState;
+  if (composedState?.templateId === ANNOTATION_QA_THEN_LEXEME_CANDIDATES.id) {
+    const appendix = buildComposedWorkflowSystemPromptAppendix(
+      ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+      composedState.currentStepIndex,
+      composedState.stepResults.step1,
+    );
+    if (appendix) {
+      systemPrompt += '\n\n' + appendix;
+    }
+  }
   void db.collections.audit_logs.insert({
     id: newMessageId('audit'),
     collection: 'ai_messages',
@@ -280,5 +340,6 @@ export async function persistOpeningTurnAndBuildPromptContext(
     memoryRecallShape,
     clarifyFastPathCall,
     systemPrompt,
+    verticalOutputEnvelopeSeed,
   };
 }

@@ -86,6 +86,8 @@ export const featureFlags = {
     aiToolCallExecutorAutoRetryEnabledFromEnv ?? aiToolCallExecutorAutoRetryEnabledDefault,
   /** 语料库实验室壳开关 | Corpus library lab shell toggle */
   corpusLibraryLabEnabled: false,
+  /** P1b: MCP Server 只读工具开关（默认关闭；staging/dogfood 可手动开启） */
+  aiMcpServerEnabled: false,
 } as const;
 
 export type FeatureFlags = typeof featureFlags;
