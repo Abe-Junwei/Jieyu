@@ -68,6 +68,7 @@ describe('tool decision audit metadata', () => {
 
     expect(metadata.memoryRecallShape).toEqual(context.memoryRecallShape);
     expect(metadata.context.memoryRecallShape).toEqual(context.memoryRecallShape);
+    expect(metadata.evidenceSourceRefs).toEqual(['evidence_packet:segment:seg-1']);
   });
 });
 

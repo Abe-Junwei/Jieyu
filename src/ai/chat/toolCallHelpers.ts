@@ -9,6 +9,7 @@ import { normalizeToolCallName } from './toolCallNameNormalize';
 import { decodeEscapedUnicode, escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 import { resolveLanguageQuery } from '../../utils/langMapping';
 import { getAiToolPolicy, getAiToolSegmentExecutionToolNames, isAiToolDestructive } from '../policy/aiToolPolicyMatrix';
+import { evidenceSourceRefsFromToolCallForAudit } from '../vertical/evidenceSourceRef';
 
 interface RawToolCallEnvelope {
   name: string;
@@ -71,6 +72,8 @@ export interface ToolIntentAuditMetadata {
   assistantMessageId: string;
   toolCall: AiChatToolCall;
   context: ToolAuditContext;
+  /** P1: deduped `formatEvidenceSourceRefForAudit` keys for evidence / segment joins (see `evidenceSourceRef.ts`). */
+  evidenceSourceRefs?: string[];
 }
 
 export interface ToolDecisionAuditMetadata {
@@ -97,6 +100,8 @@ export interface ToolDecisionAuditMetadata {
     ok: boolean;
     errorCount: number;
   };
+  /** P1: deduped `formatEvidenceSourceRefForAudit` keys for evidence / segment joins (see `evidenceSourceRef.ts`). */
+  evidenceSourceRefs?: string[];
 }
 
 export function parseToolCallFromText(rawText: string): AiChatToolCall | null {
@@ -1439,6 +1444,7 @@ export function buildToolIntentAuditMetadata(
   toolCall: AiChatToolCall,
   context: ToolAuditContext,
 ): ToolIntentAuditMetadata {
+  const evidenceSourceRefs = evidenceSourceRefsFromToolCallForAudit(toolCall);
   return {
     schemaVersion: 1,
     phase: 'intent',
@@ -1446,6 +1452,7 @@ export function buildToolIntentAuditMetadata(
     assistantMessageId,
     toolCall,
     context,
+    ...(evidenceSourceRefs.length > 0 ? { evidenceSourceRefs } : {}),
   };
 }
 
@@ -1462,6 +1469,7 @@ export function buildToolDecisionAuditMetadata(
   executionProgress?: ToolDecisionAuditMetadata['executionProgress'],
   proposeRollback?: ToolDecisionAuditMetadata['proposeRollback'],
 ): ToolDecisionAuditMetadata {
+  const evidenceSourceRefs = evidenceSourceRefsFromToolCallForAudit(toolCall);
   return {
     schemaVersion: 1,
     phase: 'decision',
@@ -1478,6 +1486,7 @@ export function buildToolDecisionAuditMetadata(
     ...(durationMs !== undefined ? { durationMs } : {}),
     ...(executionProgress ? { executionProgress } : {}),
     ...(proposeRollback ? { proposeRollback } : {}),
+    ...(evidenceSourceRefs.length > 0 ? { evidenceSourceRefs } : {}),
   };
 }
 

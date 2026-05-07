@@ -10,6 +10,8 @@ import type { VoiceActionToolName } from '../voice/VoiceActionTools';
 import type { TimelineUnitView } from '../../hooks/timelineUnitView';
 import type { ComposedWorkflowState } from '../vertical/composedWorkflowTemplates';
 import type { DegradationScenario } from './degradationManualOverride';
+import type { WorkflowExplainabilityV0 } from './workflowExplainability';
+import type { AdoptionItem } from '../vertical/adoptionQueue';
 
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,31 @@ export interface UiChatMessage {
   thinking?: boolean;
   /** PR-17：本助手消息关联的降级接管场景（由 envelope / reflection 等推导） */
   degradationScenarios?: DegradationScenario[];
+  /** PR-P1-1: segment_qa 语段范围摘要（基于 evidence packets 计算） */
+  sourceScopeSummary?: {
+    evidenceCount: number;
+    sourceTypeBreakdown: Record<string, number>;
+    scopeLabel: string;
+  };
+  /** PR-P3: 可解释性摘要（由 degradation / scope / error 派生；会话内字段，未必持久化到 ai_messages） */
+  workflowExplainability?: WorkflowExplainabilityV0;
+  /** PR-P5: ELAN/FLEx compatibility report（会话内字段，由 stream completion 解析） */
+  compatibilityReport?: {
+    reportId: string;
+    findings: Array<{
+      findingId: string;
+      kind: string;
+      severity: 'info' | 'warning' | 'error';
+      title: string;
+      description: string;
+      recommendedAction: string;
+      evidenceCount: number;
+    }>;
+    summary: string;
+    exportTargets: string[];
+  };
+  /** PR-P1: reflection checks（会话内字段，由 stream completion 存储） */
+  reflectionChecks?: Array<{ name: string; passed: boolean }>;
 }
 
 export type AiConnectionTestStatus = 'idle' | 'testing' | 'success' | 'error';
@@ -330,6 +357,8 @@ export interface AiSessionMemory {
   localToolState?: AiSessionMemoryLocalToolState;
   pendingAgentLoopCheckpoint?: AiSessionMemoryPendingAgentLoopCheckpoint;
   composedWorkflowState?: ComposedWorkflowState;
+  /** PR-P5: 当前会话绑定的 active source set id */
+  activeSourceSetId?: string;
 }
 
 export type ToolPlannerClarifyReason =
@@ -682,4 +711,6 @@ export interface UseAiChatOptions {
   outputTokenCap?: number;
   /** Per-request output token cap for the single escalation retry after cap hit. */
   outputTokenRetryCap?: number;
+  /** P5: Callback when new adoption items are auto-generated from compatibility findings. */
+  onPushAdoptionItems?: (items: AdoptionItem[]) => void;
 }
