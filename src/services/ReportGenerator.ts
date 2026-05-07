@@ -627,7 +627,7 @@ export class ReportGenerator {
 
 let _instance: ReportGenerator | null = null;
 
-export function getReportGenerator(): ReportGenerator {
+function getReportGenerator(): ReportGenerator {
   if (!_instance) {
     _instance = new ReportGenerator();
   }

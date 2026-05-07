@@ -258,6 +258,15 @@ export class LayerSegmentQueryService {
     });
   }
 
+  /** Full-table id scan for existence checks (e.g. corpus source-set invalidation). Prefer indexed queries when possible. */
+  static async listAllLayerUnitIds(): Promise<string[]> {
+    return runQueryWithCompatibleTransaction(['layer_units'], async () => {
+      const db = await getDb();
+      const rows = await db.dexie.layer_units.toArray();
+      return rows.map((r) => r.id);
+    });
+  }
+
   static async listAllSegments(): Promise<LayerSegmentViewDocType[]> {
     return runQueryWithCompatibleTransaction(['layer_units'], async () => {
       const db = await getDb();

@@ -3,7 +3,7 @@
  * Boot-time DB integrity probe toggle and per-session skip flag.
  */
 
-export const DB_INTEGRITY_PROBE_ENABLED_KEY = 'jieyu.settings.dbIntegrityProbeEnabled';
+const DB_INTEGRITY_PROBE_ENABLED_KEY = 'jieyu.settings.dbIntegrityProbeEnabled';
 const DB_INTEGRITY_SESSION_SKIP_KEY = 'jieyu.dbIntegrity.sessionSkip';
 
 export function readDbIntegrityProbeEnabled(): boolean {

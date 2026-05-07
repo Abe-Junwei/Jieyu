@@ -21,6 +21,7 @@ import { resolveClarifyFastPathCall, type ClarifyFastPathCall } from './useAiCha
 import { buildResponsePolicyAuditMetadata, resolveAiChatResponsePolicy } from './useAiChat.responsePolicy';
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import { newMessageId, nowIso } from './useAiChat.helpers';
+import { persistUserMessage, persistAssistantPlaceholder } from './useAiChat.sendTurnPersistPhase';
 import { normalizeLocale, type Locale } from '../i18n';
 import {
   ragCandidateSourceIdsForSegmentQa,
@@ -97,26 +98,19 @@ export async function persistOpeningTurnAndBuildPromptContext(
   const activeConversationId = await input.ensureConversation();
   const db = await getDb();
   const userTimestamp = nowIso();
-  await db.collections.ai_messages.insert({
+  await persistUserMessage(db, {
     id: input.userMsg.id,
     conversationId: activeConversationId,
-    role: 'user',
     content: input.userMsg.content,
-    status: 'done',
-    createdAt: userTimestamp,
-    updatedAt: userTimestamp,
+    timestamp: userTimestamp,
   });
   const assistantTimestamp = nowIso();
-  await db.collections.ai_messages.insert({
+  await persistAssistantPlaceholder(db, {
     id: input.assistantId,
     conversationId: activeConversationId,
-    role: 'assistant',
-    content: '',
-    status: 'streaming',
-    ...(input.assistantSeed.generationSource !== undefined ? { generationSource: input.assistantSeed.generationSource } : {}),
-    ...(input.assistantSeed.generationModel !== undefined ? { generationModel: input.assistantSeed.generationModel } : {}),
-    createdAt: assistantTimestamp,
-    updatedAt: assistantTimestamp,
+    generationSource: input.assistantSeed.generationSource,
+    generationModel: input.assistantSeed.generationModel,
+    timestamp: assistantTimestamp,
   });
 
   const conversation = await db.collections.ai_conversations.findOne({ selector: { id: activeConversationId } }).exec();
@@ -323,17 +317,20 @@ export async function persistOpeningTurnAndBuildPromptContext(
   if (input.verticalWorkflowSelection?.workflowId === 'elan_flex_compatibility') {
     systemPrompt += '\n\n' + buildElanFlexCompatibilitySystemPrompt();
   }
-  void db.collections.audit_logs.insert({
+  db.collections.audit_logs.insert({
     id: newMessageId('audit'),
     collection: 'ai_messages',
     documentId: input.assistantId,
     action: 'update',
     field: 'ai_response_policy_resolution',
+    oldValue: '',
     newValue: responsePolicy.locale,
     source: 'ai',
     timestamp: nowIso(),
     requestId: `${input.assistantId}_response_policy`,
     metadataJson: JSON.stringify(buildResponsePolicyAuditMetadata(responsePolicy)),
+  }).catch(() => {
+    // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
   });
   input.setMetrics((prev) => ({
     ...prev,

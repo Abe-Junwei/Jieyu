@@ -10,7 +10,7 @@ function resolveEmailRedirectTo(override?: string): string | undefined {
   return `${window.location.origin}/`;
 }
 
-export async function getSupabaseSession(): Promise<Session | null> {
+async function getSupabaseSession(): Promise<Session | null> {
   const client = getSupabaseBrowserClient();
   const { data, error } = await client.auth.getSession();
   if (error) throw error;
@@ -22,7 +22,7 @@ export async function getSupabaseUserId(): Promise<string | null> {
   return session?.user?.id ?? null;
 }
 
-export async function signInWithEmailOtp(email: string, redirectTo?: string): Promise<void> {
+async function signInWithEmailOtp(email: string, redirectTo?: string): Promise<void> {
   const client = getSupabaseBrowserClient();
   const normalizedEmail = email.trim();
   if (!normalizedEmail) {
@@ -38,13 +38,13 @@ export async function signInWithEmailOtp(email: string, redirectTo?: string): Pr
   if (error) throw error;
 }
 
-export async function signOutSupabase(): Promise<void> {
+async function signOutSupabase(): Promise<void> {
   const client = getSupabaseBrowserClient();
   const { error } = await client.auth.signOut();
   if (error) throw error;
 }
 
-export function onSupabaseAuthStateChange(listener: SupabaseAuthStateListener): () => void {
+function onSupabaseAuthStateChange(listener: SupabaseAuthStateListener): () => void {
   const client = getSupabaseBrowserClient();
   const { data } = client.auth.onAuthStateChange((event, session) => {
     listener(event, session);

@@ -41,7 +41,7 @@ export function useInvalidateLanguageCatalogLabelMap() {
  * @deprecated 优先使用 useInvalidateLanguageCatalogLabelMap hook
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-function -- 向后兼容占位 | Backward-compat placeholder
-export function invalidateLanguageCatalogLabelMapCache(): void {
+function invalidateLanguageCatalogLabelMapCache(): void {
   // 在 React 树外无法访问 queryClient，作为安全占位保留 | Cannot access queryClient outside React tree; kept as safe placeholder
 }
 

@@ -217,7 +217,7 @@ export function shouldUsePayloadRef(payloadBytes: number): boolean {
 /**
  * 是否是评论专属操作 | Whether the op is comment-only
  */
-export function isCommentOnlyOperation(op: ProjectChangeOperation): boolean {
+function isCommentOnlyOperation(op: ProjectChangeOperation): boolean {
   return op === 'comment_added';
 }
 

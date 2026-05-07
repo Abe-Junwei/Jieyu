@@ -240,9 +240,11 @@ interface ReleaseEvidenceReport {
 
 function runReleaseEvidenceScript(args: string[]) {
   const scriptPath = path.join(process.cwd(), 'scripts', 'generate-release-evidence-bundle.mjs');
-  const result = spawnSync('node', [scriptPath, ...args], {
+  const result = spawnSync(process.execPath, [scriptPath, ...args], {
     cwd: process.cwd(),
     encoding: 'utf8',
+    env: { ...process.env },
+    maxBuffer: 50 * 1024 * 1024,
   });
 
   return {
@@ -250,6 +252,13 @@ function runReleaseEvidenceScript(args: string[]) {
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? '',
   };
+}
+
+function expectScriptSuccess(result: ReturnType<typeof runReleaseEvidenceScript>): void {
+  expect(
+    result.status,
+    `generate-release-evidence-bundle exited ${result.status}\n--- stderr ---\n${result.stderr}\n--- stdout ---\n${result.stdout}`,
+  ).toBe(0);
 }
 
 describe('generate-release-evidence-bundle script', () => {
@@ -276,7 +285,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--ai-audit-export=${auditExportPath}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
 
       expect(report.perf.summary.total).toBe(3);
@@ -311,7 +320,9 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.extensions.status).toBe('skipped');
       expect(report.progressiveDisclosure.status).toBe('ready_or_partial');
       expect(report.progressiveDisclosure.cards).toHaveLength(4);
-      expect(report.memoryRecallShape.status).toBe('skipped');
+      expect(report.memoryRecallShape.status).toBe('ready_or_partial');
+      expect(report.memoryRecallShape.card).toBeTruthy();
+      expect(report.memoryRecallShape.card?.sampleCount).toBeGreaterThan(0);
       expect(report.costGuard.trend.bucket).toBe('day');
       expect(report.costGuard.trend.pointCount).toBe(1);
       expect(report.auditFieldDictionary?.schemaVersion).toBe(1);
@@ -322,6 +333,12 @@ describe('generate-release-evidence-bundle script', () => {
         'ai_response_policy_resolution',
         'ai_tool_call_decision',
         'ai_session_sidecar_sandbox',
+        'ai_judge_failure',
+        'ai_adoption_item_queued',
+        'ai_adoption_outcome',
+        'ai_composed_reflection_retry',
+        'ai_source_set_mutation',
+        'ai_session_memory_reset',
       ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
@@ -380,7 +397,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--ai-audit-export=${auditExportPath}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
 
       expect(report.costGuard.estimatorVersion).toBe('v1.provider_usage_or_unknown');
@@ -449,7 +466,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--ai-task-snapshots=${snapshotsPath}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
 
       expect(report.durableOrchestration?.status).toBe('ready_or_partial');
@@ -563,7 +580,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--ai-task-snapshots=${snapshotsPath}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
 
       expect(report.toolDecisionFailureSignals?.status).toBe('ready_or_partial');
@@ -636,7 +653,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--ai-audit-export=${auditExportPath}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
 
       expect(report.costGuard.trend.bucket).toBe('day');
@@ -746,7 +763,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--ai-audit-export=${auditExportPath}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
       expect(report.progressiveDisclosure.status).toBe('ready_or_partial');
 
@@ -818,7 +835,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--ai-audit-export=${auditExportPath}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
       expect(report.costGuard.summary.retryTriggeredCount).toBe(1);
       expect(report.costGuard.summary.retrySuccessCount).toBe(1);
@@ -873,7 +890,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--ai-request-ids=${requestId}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
       const card = report.aiToolEvidenceCards.cards.find((item) => item.requestId === requestId);
       expect(card).toBeDefined();
@@ -919,7 +936,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--ai-request-ids=${requestId}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
       const card = report.aiToolEvidenceCards.cards.find((item) => item.requestId === requestId);
       expect(card).toBeDefined();
@@ -958,7 +975,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--extension-capability-audit-export=${extensionAuditPath}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
       expect(report.extensions.status).toBe('ready_or_partial');
       expect(report.extensions.capabilityAuditSummary).toEqual([
@@ -1011,7 +1028,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--perf-json-report=${perfJsonPath}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
       expect(report.perf.status).toBe('ready_or_partial');
       expect(report.perf.cards.find((card) => card.script === 'perf:track')?.metricObservedMs).toBe(201);
@@ -1126,12 +1143,16 @@ describe('generate-release-evidence-bundle script', () => {
         `--logs-dir=${logsDir}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
 
       expect(report.summary?.total).toBe(report.evidenceIndex.length);
       expect(report.summary?.skipped).toBeGreaterThan(5);
       expect(report.evidenceIndex.some((item) => item.evidenceType === 'progressive_disclosure_skipped')).toBe(true);
+      expect((report.progressiveDisclosure as { upstreamDataSource?: string }).upstreamDataSource)
+        .toContain('RELEASE_EVIDENCE_AI_AUDIT_EXPORT');
+      expect((report.extensions as { upstreamDataSource?: string }).upstreamDataSource)
+        .toContain('RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -1193,7 +1214,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--ai-audit-export=${auditExportPath}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
 
       expect(report.memoryRecallShape.status).toBe('ready_or_partial');
@@ -1436,7 +1457,7 @@ describe('generate-release-evidence-bundle script', () => {
         `--ai-audit-export=${auditExportPath}`,
       ]);
 
-      expect(result.status).toBe(0);
+      expectScriptSuccess(result);
       const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
 
       expect(report.backgroundMemoryExtraction.status).toBe('ready_or_partial');

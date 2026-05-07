@@ -53,6 +53,29 @@ function makeJsonRpcResult(id: number | string | null, result: unknown): JsonRpc
   return { jsonrpc: '2.0', id, result };
 }
 
+async function runToolHandlerWithTimeout(
+  handler: (args: Record<string, unknown>, runtimeContext: McpServerRuntimeContext) => Promise<McpToolCallResult> | McpToolCallResult,
+  args: Record<string, unknown>,
+  runtimeContext: McpServerRuntimeContext,
+): Promise<McpToolCallResult> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      Promise.resolve(handler(args, runtimeContext)),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Tool call timeout after 30s')), 30_000);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
+  }
+}
+
+export function isMcpLoopbackRemoteAddress(remoteAddress: string | undefined): boolean {
+  const remote = remoteAddress ?? '';
+  return remote === '127.0.0.1' || remote === '::1' || remote === 'localhost';
+}
+
 export class McpServer {
   private options: McpServerOptions;
   private sessions = new Map<string, McpSession>();
@@ -176,8 +199,7 @@ export class McpServer {
   }
 
   private isLoopback(req: IncomingMessage): boolean {
-    const remote = req.socket.remoteAddress ?? '';
-    return remote === '127.0.0.1' || remote === '::1' || remote === 'localhost';
+    return isMcpLoopbackRemoteAddress(req.socket.remoteAddress);
   }
 
   private async handleMessage(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -293,12 +315,7 @@ export class McpServer {
         }
 
         try {
-          const result: McpToolCallResult = await Promise.race([
-            Promise.resolve(handler(args, runtimeContext)),
-            new Promise<never>((_, reject) => {
-              setTimeout(() => reject(new Error('Tool call timeout after 30s')), 30_000);
-            }),
-          ]);
+          const result = await runToolHandlerWithTimeout(handler, args, runtimeContext);
           await persistMcpToolCallAudit({
             jsonRpcId,
             toolName: name,

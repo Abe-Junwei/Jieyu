@@ -96,7 +96,7 @@ export function hydrateIso6393SeedsFromRowsForTests(rows: readonly Iso639_3SeedR
   invalidateIso6393Derived?.();
 }
 
-export function resetIso6393SeedsCacheForTests(): void {
+function resetIso6393SeedsCacheForTests(): void {
   iso639_3SeedsCache = undefined;
   iso639_3SeedMapCache = undefined;
   iso6393LoadPromise = null;

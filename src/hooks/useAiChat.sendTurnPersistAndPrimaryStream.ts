@@ -4,7 +4,7 @@
 
 import { createAssistantStream, type AssistantStreamChunk } from './useAiChat.streamFactory';
 import { persistOpeningTurnAndBuildPromptContext } from './useAiChat.sendPersistTurnAndBuildPromptContext';
-import { nowIso } from './useAiChat.helpers';
+import { updateAssistantGenerationMeta } from './useAiChat.sendTurnPersistPhase';
 import type { PersistOpeningTurnAndBuildPromptContextResult } from './useAiChat.sendPersistTurnAndBuildPromptContext';
 import type { SendTurnDbConversationHolder, SendTurnPreflightContext } from './useAiChat.sendTurnPreflight';
 import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
@@ -108,11 +108,7 @@ export async function runAiChatSendTurnPersistAndPrimaryStream(
       : msg
   )));
 
-  await opening.db.collections.ai_messages.update(assistantId, {
-    generationSource,
-    generationModel,
-    updatedAt: nowIso(),
-  });
+  await updateAssistantGenerationMeta(opening.db, assistantId, generationSource, generationModel);
 
   return {
     opening,

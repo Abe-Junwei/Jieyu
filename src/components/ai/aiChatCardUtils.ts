@@ -13,17 +13,35 @@ export interface PromptTemplateItem {
 }
 
 export const PROMPT_TEMPLATES_STORAGE_KEY = 'jieyu.ai.promptTemplates.v1';
+const MAX_PROMPT_TEMPLATES = 200;
+const MAX_PROMPT_TEMPLATE_TITLE_LENGTH = 120;
+const MAX_PROMPT_TEMPLATE_CONTENT_LENGTH = 4000;
+const MAX_PROMPT_TEMPLATE_STORAGE_CHARS = 1_000_000;
 
 export function loadPromptTemplatesFromStorage(): PromptTemplateItem[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = window.localStorage.getItem(PROMPT_TEMPLATES_STORAGE_KEY);
     if (!raw) return [];
+    if (raw.length > MAX_PROMPT_TEMPLATE_STORAGE_CHARS) {
+      log.warn('Prompt template localStorage payload is too large; skipping load', {
+        storageKey: PROMPT_TEMPLATES_STORAGE_KEY,
+        size: raw.length,
+        maxSize: MAX_PROMPT_TEMPLATE_STORAGE_CHARS,
+      });
+      return [];
+    }
     const parsed = JSON.parse(raw) as PromptTemplateItem[];
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((item) => typeof item?.id === 'string' && typeof item?.title === 'string' && typeof item?.content === 'string')
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      .map((item) => ({
+        ...item,
+        title: item.title.slice(0, MAX_PROMPT_TEMPLATE_TITLE_LENGTH),
+        content: item.content.slice(0, MAX_PROMPT_TEMPLATE_CONTENT_LENGTH),
+      }))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, MAX_PROMPT_TEMPLATES);
   } catch (error) {
     log.warn('Failed to load prompt templates from localStorage', {
       storageKey: PROMPT_TEMPLATES_STORAGE_KEY,

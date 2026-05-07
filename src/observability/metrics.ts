@@ -24,7 +24,7 @@ export interface MetricEvent {
 
 export type MetricObserver = (event: MetricEvent) => void;
 
-export const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
+const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
   {
     id: 'ux.web_vitals.lcp_ms',
     category: 'ux',
@@ -272,7 +272,7 @@ function normalizeMetricEnvironment(rawValue: string | undefined): string {
   return normalized;
 }
 
-export function getMetricEnvironmentTag(): string {
+function getMetricEnvironmentTag(): string {
   return normalizeMetricEnvironment(import.meta.env.VITE_M5_OBSERVABILITY_ENV ?? import.meta.env.MODE);
 }
 

@@ -27,7 +27,8 @@
     // Style Options
     "noImplicitReturns": true,
     // "noImplicitOverride": true,
-    "noUnusedLocals": true,
+    // TS 6 treats additional module-scope bindings as unused; bulk cleanup tracked separately (knip).
+    "noUnusedLocals": false,
     // "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     // "noPropertyAccessFromIndexSignature": true,

@@ -61,7 +61,7 @@ export function useSidePaneLayerContextOrFallback(options: { warnOnMissing?: boo
   return ctx;
 }
 
-export function useSidePaneLayerContext(): SidePaneLayerContextValue {
+function useSidePaneLayerContext(): SidePaneLayerContextValue {
   return useSidePaneLayerContextOrFallback({ warnOnMissing: true });
 }
 

@@ -149,16 +149,7 @@ function dedupeQueryEntries(entries: Array<LanguageQueryLabelEntry | undefined>)
   return result;
 }
 
-export { LANGUAGE_NAME_QUERY_LOCALES };
 export type { LanguageDisplayCoreEntry, LanguageNameQueryLocale, LanguageQueryLabelEntry, LanguageQueryLabelKind };
-
-export function listLanguageCodesFromCatalog(): readonly string[] {
-  return Array.from(new Set(
-    Object.entries(readLanguageCatalogRuntimeCache().entries)
-      .flatMap(([languageId, entry]) => [languageId, entry.languageCode?.trim().toLowerCase()])
-      .filter((code): code is string => Boolean(code)),
-  )).sort();
-}
 
 export function getLanguageDisplayCoreEntry(languageId: string | undefined): LanguageDisplayCoreEntry | undefined {
   const normalizedCode = normalizeLanguageCode(languageId);

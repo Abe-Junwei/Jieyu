@@ -44,7 +44,7 @@ function isSegmentRow(row: Pick<LayerUnitDocType, 'unitType'>): boolean {
 }
 
 /** 从已读到的 row 安全打标：若 row 是 segment 抛错。 */
-export function brandCanonicalUnitIdFromRow(row: Pick<LayerUnitDocType, 'id' | 'unitType'>): CanonicalUnitId {
+function brandCanonicalUnitIdFromRow(row: Pick<LayerUnitDocType, 'id' | 'unitType'>): CanonicalUnitId {
   if (isSegmentRow(row)) {
     throw new Error(`[unitIdBrands] expected canonical-unit row for id="${row.id}", got unitType="segment".`);
   }
@@ -52,7 +52,7 @@ export function brandCanonicalUnitIdFromRow(row: Pick<LayerUnitDocType, 'id' | '
 }
 
 /** 从已读到的 row 安全打标：若 row 不是 segment 抛错。 */
-export function brandLayerSegmentRowIdFromRow(row: Pick<LayerUnitDocType, 'id' | 'unitType'>): LayerSegmentRowId {
+function brandLayerSegmentRowIdFromRow(row: Pick<LayerUnitDocType, 'id' | 'unitType'>): LayerSegmentRowId {
   if (!isSegmentRow(row)) {
     throw new Error(`[unitIdBrands] expected segment row for id="${row.id}", got unitType="${row.unitType ?? 'unit'}".`);
   }
@@ -73,7 +73,7 @@ export function brandLayerUnitWriteTarget(row: Pick<LayerUnitDocType, 'id' | 'un
  * Use when only a raw id string is available and caller can assert the row kind.
  * Mismatches against the provided lookup throw in development builds.
  */
-export function brandLayerUnitWriteTargetByLookup(
+function brandLayerUnitWriteTargetByLookup(
   id: string,
   declaredKind: 'unit' | 'segment',
   lookup: (rawId: string) => Pick<LayerUnitDocType, 'id' | 'unitType'> | undefined,
@@ -101,18 +101,18 @@ export function brandLayerUnitWriteTargetByLookup(
  * ⚠️ Escape hatch. Prefer the `brandLayerUnitWriteTarget*` helpers; this exists only
  *   for legacy adapters and must always be accompanied by a documented reason.
  */
-export function unsafeAsCanonicalUnitId(raw: string, reason: string): CanonicalUnitId {
+function unsafeAsCanonicalUnitId(raw: string, reason: string): CanonicalUnitId {
   void reason;
   return raw as CanonicalUnitId;
 }
 
 /** ⚠️ Escape hatch mirror of {@link unsafeAsCanonicalUnitId}. */
-export function unsafeAsLayerSegmentRowId(raw: string, reason: string): LayerSegmentRowId {
+function unsafeAsLayerSegmentRowId(raw: string, reason: string): LayerSegmentRowId {
   void reason;
   return raw as LayerSegmentRowId;
 }
 
 /** 从 tagged target 里拆出 raw string（供过渡期与仍消费 string[] 的旧 API 对接）。 */
-export function unwrapLayerUnitWriteTargetId(target: LayerUnitWriteTarget): string {
+function unwrapLayerUnitWriteTargetId(target: LayerUnitWriteTarget): string {
   return target.id;
 }

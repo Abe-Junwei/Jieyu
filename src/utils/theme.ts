@@ -213,7 +213,7 @@ function applyDataThemeAttribute(mode: 'light' | 'dark'): void {
 }
 
 /** Solarized 为暗色专用方案：强制 data-theme=dark，避免与全局浅色/跟随系统冲突 */
-export function appearanceForcesDataThemeDark(themeId: ThemeId): boolean {
+function appearanceForcesDataThemeDark(themeId: ThemeId): boolean {
   return themeId === 'solarizedDark';
 }
 
@@ -250,7 +250,7 @@ export function getTheme(): ThemeId {
 /**
  * 当前生效的明暗（解析后的值；未设置或与 App 一致时视为跟随系统）
  */
-export function getThemeMode(): 'light' | 'dark' {
+function getThemeMode(): 'light' | 'dark' {
   return resolveColorScheme(readStoredColorSchemePreference());
 }
 

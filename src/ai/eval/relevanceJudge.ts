@@ -163,7 +163,7 @@ export function judgeRelevance(input: RelevanceJudgeInput): RelevanceJudgeResult
 }
 
 /** baseline_judge provider for answer relevance */
-export const relevanceJudgeProvider: JudgeProvider<RelevanceJudgeInput, RelevanceJudgeResult> = annotateBaselineJudge({
+const relevanceJudgeProvider: JudgeProvider<RelevanceJudgeInput, RelevanceJudgeResult> = annotateBaselineJudge({
   name: 'answer_relevance_baseline',
   judge: judgeRelevance,
   judgeBatch: (inputs) => inputs.map((input) => judgeRelevance(input)),

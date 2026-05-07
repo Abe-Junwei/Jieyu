@@ -30,8 +30,152 @@ function resolveRequestId(): string {
   return first ?? DEFAULT_REQUEST_ID;
 }
 
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function newAuditLogId(): string {
+  return `audit_${nowIso()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 async function clearAuditLogs(): Promise<void> {
   await db.audit_logs.clear();
+}
+
+async function seedBackgroundMemoryAuditRows(requestId: string): Promise<void> {
+  const timestamp = nowIso();
+  await db.audit_logs.add({
+    id: newAuditLogId(),
+    collection: 'ai_messages',
+    documentId: 'assistant-release-evidence-runtime',
+    action: 'update',
+    field: 'ai_background_memory_extraction',
+    oldValue: 'scheduled',
+    newValue: 'completed',
+    source: 'ai',
+    timestamp,
+    requestId: `bgmem_${requestId}`,
+    metadataJson: JSON.stringify({
+      schemaVersion: 1,
+      phase: 'background_memory_extraction',
+      taskId: `bgmem_${requestId}`,
+      actorId: 'ai-chat',
+      status: 'completed',
+      inputRange: { conversationId: 'conv-release-evidence', startIndex: 0, endIndex: 2 },
+      writtenCount: 3,
+      durationMs: 120,
+      sandboxDecision: { action: 'allow', reason: 'within_quota' },
+    }),
+  });
+}
+
+async function seedCoordinationLiteAuditRows(requestId: string): Promise<void> {
+  const timestamp = nowIso();
+  await db.audit_logs.add({
+    id: newAuditLogId(),
+    collection: 'ai_messages',
+    documentId: 'assistant-release-evidence-runtime',
+    action: 'update',
+    field: 'ai_coordination_lite',
+    oldValue: `step:coord_${requestId}`,
+    newValue: 'completed',
+    source: 'ai',
+    timestamp,
+    requestId: `coord_${requestId}`,
+    metadataJson: JSON.stringify({
+      schemaVersion: 1,
+      phase: 'coordination_lite',
+      taskSessionId: `session_${requestId}`,
+      notification: {
+        taskId: `coord_${requestId}`,
+        status: 'completed',
+        phase: 'execute',
+        taskType: 'tool_call',
+        usage: { durationMs: 85 },
+      },
+      parallelPolicy: { canRunInParallel: true, reason: 'readonly-parallel' },
+      quarantinedCount: 0,
+    }),
+  });
+}
+
+async function seedUserDirectiveGovernanceAuditRows(requestId: string): Promise<void> {
+  const timestamp = nowIso();
+  await db.audit_logs.add({
+    id: newAuditLogId(),
+    collection: 'ai_messages',
+    documentId: 'assistant-release-evidence-runtime',
+    action: 'update',
+    field: 'ai_user_directive_extraction',
+    oldValue: '',
+    newValue: 'extracted:2',
+    source: 'ai',
+    timestamp,
+    requestId: `directive_extract_${timestamp}`,
+    metadataJson: JSON.stringify({
+      schemaVersion: 1,
+      phase: 'user_directive_extraction',
+      summary: {
+        extractedCount: 2,
+        acceptedCount: 1,
+        ignoredCount: 0,
+        downgradedCount: 1,
+        supersededCount: 0,
+        categories: { safety: 1, formatting: 1 },
+      },
+      ledgerEntries: [],
+    }),
+  });
+
+  await db.audit_logs.add({
+    id: newAuditLogId(),
+    collection: 'ai_messages',
+    documentId: 'assistant-release-evidence-runtime',
+    action: 'update',
+    field: 'ai_user_directive_application',
+    oldValue: '',
+    newValue: 'accepted:1;ignored:0;downgraded:1;superseded:0',
+    source: 'ai',
+    timestamp,
+    requestId: `directive_${timestamp}`,
+    metadataJson: JSON.stringify({
+      schemaVersion: 1,
+      phase: 'user_directive_application',
+      summary: {
+        extractedCount: 2,
+        acceptedCount: 1,
+        ignoredCount: 0,
+        downgradedCount: 1,
+        supersededCount: 0,
+        categories: { safety: 1, formatting: 1 },
+      },
+      ledgerEntries: [],
+    }),
+  });
+
+  await db.audit_logs.add({
+    id: newAuditLogId(),
+    collection: 'ai_messages',
+    documentId: 'assistant-release-evidence-runtime',
+    action: 'update',
+    field: 'ai_response_policy_resolution',
+    oldValue: '',
+    newValue: 'zh-CN',
+    source: 'ai',
+    timestamp,
+    requestId: `${requestId}_response_policy`,
+    metadataJson: JSON.stringify({
+      schemaVersion: 1,
+      phase: 'response_policy_resolution',
+      policy: {
+        language: 'zh-CN',
+        locale: 'zh-CN',
+        style: 'detailed',
+        format: 'bullets',
+        evidenceRequired: true,
+      },
+    }),
+  });
 }
 
 describe('release evidence ai audit export runtime', () => {
@@ -75,6 +219,13 @@ describe('release evidence ai audit export runtime', () => {
       executed: true,
       outcome: 'confirmed',
       message: 'runtime export seed',
+      memoryRecallShape: {
+        candidateCount: 12,
+        selectedCount: 5,
+        duplicateSuppressedCount: 2,
+        budgetSuppressedCount: 1,
+        freshnessBucket: 'recent',
+      },
     };
 
     const { result } = renderHook(() => useAiChatToolAudit());
@@ -87,12 +238,17 @@ describe('release evidence ai audit export runtime', () => {
       metadata,
     );
 
+    // Seed additional audit rows for downstream evidence cards
+    await seedBackgroundMemoryAuditRows(requestId);
+    await seedCoordinationLiteAuditRows(requestId);
+    await seedUserDirectiveGovernanceAuditRows(requestId);
+
     const rows = await db.audit_logs
-      .where('[collection+field+requestId]')
-      .equals(['ai_messages', 'ai_tool_call_decision', requestId])
+      .where('collection')
+      .equals('ai_messages')
       .toArray();
 
-    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeGreaterThanOrEqual(4);
 
     const normalizedLines = [...rows]
       .sort((left, right) => String(left.timestamp ?? '').localeCompare(String(right.timestamp ?? '')))
@@ -114,21 +270,39 @@ describe('release evidence ai audit export runtime', () => {
     await writeFile(outputPath, `${normalizedLines.join('\n')}\n`, 'utf8');
 
     const exportedText = await readFile(outputPath, 'utf8');
-    const firstLine = exportedText
+    const allParsedRows = exportedText
       .split(/\r?\n/)
       .map((line) => line.trim())
-      .find(Boolean);
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as {
+        field?: string;
+        requestId?: string;
+        newValue?: string;
+        metadataJson?: string;
+      });
 
-    expect(firstLine).toBeTruthy();
-    const exportedRow = JSON.parse(firstLine ?? '{}') as {
-      requestId?: string;
-      newValue?: string;
-      metadataJson?: string;
-    };
-    expect(exportedRow.requestId).toBe(requestId);
-    expect(typeof exportedRow.newValue).toBe('string');
-    expect((exportedRow.newValue ?? '').trim().length).toBeGreaterThan(0);
-    expect(typeof exportedRow.metadataJson).toBe('string');
-    expect((exportedRow.metadataJson ?? '').trim().length).toBeGreaterThan(0);
+    const decisionExportRow = allParsedRows.find((r) => r.field === 'ai_tool_call_decision');
+    expect(decisionExportRow).toBeTruthy();
+    expect(decisionExportRow!.requestId).toBe(requestId);
+    expect(typeof decisionExportRow!.newValue).toBe('string');
+    expect((decisionExportRow!.newValue ?? '').trim().length).toBeGreaterThan(0);
+    expect(typeof decisionExportRow!.metadataJson).toBe('string');
+    expect((decisionExportRow!.metadataJson ?? '').trim().length).toBeGreaterThan(0);
+
+    // Verify downstream evidence fields are present
+    const allRows = allParsedRows;
+
+    const fields = new Set(allRows.map((r) => r.field).filter(Boolean));
+    expect(fields.has('ai_tool_call_decision')).toBe(true);
+    expect(fields.has('ai_background_memory_extraction')).toBe(true);
+    expect(fields.has('ai_coordination_lite')).toBe(true);
+    expect(fields.has('ai_user_directive_extraction')).toBe(true);
+    expect(fields.has('ai_user_directive_application')).toBe(true);
+    expect(fields.has('ai_response_policy_resolution')).toBe(true);
+
+    const decisionRow = allRows.find((r) => r.field === 'ai_tool_call_decision');
+    expect(decisionRow).toBeTruthy();
+    const decisionMeta = JSON.parse(decisionRow?.metadataJson ?? '{}') as Record<string, unknown>;
+    expect(decisionMeta.memoryRecallShape).toBeTruthy();
   });
 });

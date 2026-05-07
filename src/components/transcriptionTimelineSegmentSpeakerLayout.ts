@@ -22,14 +22,14 @@ export function normalizeSpeakerFocusKey(value: string | undefined): string {
   return trimmed.length > 0 ? trimmed : 'unknown-speaker';
 }
 
-export function resolveSpeakerFocusKeyFromUnit(
+function resolveSpeakerFocusKeyFromUnit(
   unit?: Pick<LayerUnitDocType, 'speakerId' | 'speaker'>,
 ): string {
   if (!unit) return 'unknown-speaker';
   return normalizeSpeakerFocusKey(getUnitSpeakerKey(unit));
 }
 
-export function resolveSpeakerFocusKeyFromView(view: TimelineUnitView): string {
+function resolveSpeakerFocusKeyFromView(view: TimelineUnitView): string {
   return normalizeSpeakerFocusKey(view.speakerId);
 }
 
@@ -45,7 +45,7 @@ export function resolveSpeakerFocusKeyFromSegment(
   return resolveSpeakerFocusKeyFromUnit(ownerUnit);
 }
 
-export function toSpeakerLayoutInputFromSegments(
+function toSpeakerLayoutInputFromSegments(
   segments: LayerUnitDocType[],
   unitById: ReadonlyMap<string, LayerUnitDocType>,
 ): LayerUnitDocType[] {
@@ -64,7 +64,7 @@ export function toSpeakerLayoutInputFromSegments(
   });
 }
 
-export function buildSegmentSpeakerIdMap(
+function buildSegmentSpeakerIdMap(
   segments: LayerUnitDocType[],
   unitById: ReadonlyMap<string, LayerUnitDocType>,
 ): Map<string, string> {

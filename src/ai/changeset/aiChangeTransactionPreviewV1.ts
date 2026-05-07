@@ -1,7 +1,7 @@
 import type { PendingAiToolCall, PreviewContract } from '../chat/chatDomain.types';
 import { buildAiChangeSetFromPendingToolCall, summarizeAiChatToolArgumentsForPreview } from './AiChangeSetProtocol';
 
-export const AI_CHANGE_TRANSACTION_PREVIEW_SCHEMA_VERSION = 1 as const;
+const AI_CHANGE_TRANSACTION_PREVIEW_SCHEMA_VERSION = 1 as const;
 
 export type AiChangeTransactionPreviewKindV1 = 'propose_changes' | 'single_tool';
 

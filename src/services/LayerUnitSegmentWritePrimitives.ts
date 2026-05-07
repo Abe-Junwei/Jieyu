@@ -90,7 +90,7 @@ function normalizeUnitRelationForStorage(relation: UnitRelationDocType | UnitRel
   };
 }
 
-export async function bulkUpsertSegmentLayerUnits(db: JieyuDatabase, segments: readonly LayerUnitDocType[]): Promise<void> {
+async function bulkUpsertSegmentLayerUnits(db: JieyuDatabase, segments: readonly LayerUnitDocType[]): Promise<void> {
   if (segments.length === 0) return;
   await db.dexie.layer_units.bulkPut(segments.map(normalizeLayerUnitForStorage));
 }
@@ -129,7 +129,7 @@ export async function bulkUpsertLayerUnits(db: JieyuDatabase, units: readonly La
   await db.dexie.layer_units.bulkPut(units.map(normalizeLayerUnitForStorage));
 }
 
-export async function bulkUpsertSegmentLayerUnitContents(db: JieyuDatabase, contents: readonly LayerUnitContentDocType[]): Promise<void> {
+async function bulkUpsertSegmentLayerUnitContents(db: JieyuDatabase, contents: readonly LayerUnitContentDocType[]): Promise<void> {
   if (contents.length === 0) return;
   await db.dexie.layer_unit_contents.bulkPut(contents.map(normalizeLayerUnitContentForStorage));
 }
@@ -207,7 +207,7 @@ export async function bulkUpsertLayerSegmentGraph(db: JieyuDatabase, graph: Laye
   );
 }
 
-export async function upsertSegmentLinkUnitRelation(db: JieyuDatabase, link: UnitRelationDocType): Promise<void> {
+async function upsertSegmentLinkUnitRelation(db: JieyuDatabase, link: UnitRelationDocType): Promise<void> {
   const normalized = normalizeUnitRelationForStorage(link);
   validateUnitRelationDoc(normalized);
   await db.dexie.unit_relations.put(normalized);
@@ -223,7 +223,7 @@ export async function deleteSegmentLayerUnitCascade(db: JieyuDatabase, segmentId
   await deleteLayerUnitCascade(db, segmentIds);
 }
 
-export async function collectLayerUnitCascadeIds(
+async function collectLayerUnitCascadeIds(
   db: JieyuDatabase,
   unitIds: readonly string[],
 ): Promise<{

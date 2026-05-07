@@ -113,7 +113,7 @@ export function evaluateReplicaQuorum(
   };
 }
 
-export function createBatchRollbackPlan(
+function createBatchRollbackPlan(
   mergeResult: CrossDeviceMergeResult,
   at = Date.now(),
 ): 'none' | 'soft-rollback' | 'hard-rollback' {

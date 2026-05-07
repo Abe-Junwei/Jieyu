@@ -52,7 +52,7 @@ export function clientMeetsAppMinVersion(clientVersion: string, appMinVersion: s
   return cmp >= 0;
 }
 
-export function resolveCollaborationClientAppVersion(): string {
+function resolveCollaborationClientAppVersion(): string {
   return getMetricVersionTag();
 }
 

@@ -913,7 +913,7 @@ export interface TierAnnotationDocType {
   updatedAt: string;
 }
 
-export type AuditAction = 'create' | 'update' | 'delete';
+export type AuditAction = 'create' | 'update' | 'delete' | 'reset';
 export type AuditSource = 'human' | 'ai' | 'system';
 
 /**
@@ -933,6 +933,29 @@ export interface AuditLogDocType {
   requestId?: string;
   /** 结构化回放元数据 | Structured replay metadata */
   metadataJson?: string;
+}
+
+export type AiSourceSetScope = 'current_segment' | 'selection' | 'current_media' | 'project';
+
+export type AiSourceSetMemberType = 'segment' | 'layer' | 'note' | 'document' | 'lexeme' | 'audio_region';
+
+export interface AiSourceSetDoc {
+  id: string;
+  name: string;
+  scope: AiSourceSetScope;
+  members: Array<{
+    id: string;
+    type: AiSourceSetMemberType;
+    label?: string;
+  }>;
+  mediaId?: string;
+  layerId?: string;
+  projectId?: string;
+  status: 'active' | 'inactive' | 'invalidated';
+  boundSessionId?: string;
+  createdAt: string;
+  updatedAt: string;
+  invalidationReason?: string;
 }
 
 export type NoteTargetType =
@@ -1215,6 +1238,7 @@ export type JieyuCollections = {
   track_entities: CollectionAdapter<TrackEntityDocType>;
   project_ai_memories: CollectionAdapter<ProjectAiMemoryDoc>;
   mcp_tool_call_audits: CollectionAdapter<McpToolCallAuditDoc>;
+  ai_source_sets: CollectionAdapter<AiSourceSetDoc>;
 };
 
 export type ImportConflictStrategy = 'upsert' | 'skip-existing' | 'replace-all';

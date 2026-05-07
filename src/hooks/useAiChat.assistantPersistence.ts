@@ -4,6 +4,7 @@ import { getDb } from '../db';
 import type { AiMessageCitation } from '../db';
 import { mergeContextSnapshotWithWorkflowExplainability } from '../ai/chat/workflowExplainability';
 import type { UiChatMessage } from './useAiChat.types';
+import { flushAssistantContent, finalizeAssistantMessageInDb } from './useAiChat.sendTurnPersistPhase';
 
 interface RefLike<T> {
   current: T;
@@ -55,14 +56,7 @@ export function createAssistantPersistenceHelpers({
     const now = Date.now();
     if (!force && now - lastPersistedAt < streamPersistIntervalMsRef.current) return;
 
-    const existing = await dbRef.collections.ai_messages.findOne({ selector: { id: assistantId } }).exec();
-    if (!existing) return;
-
-    await dbRef.collections.ai_messages.insert({
-      ...existing.toJSON(),
-      content,
-      updatedAt: nowIso(),
-    });
+    await flushAssistantContent(dbRef, assistantId, content);
     lastPersistedAssistantContent = content;
     lastPersistedAt = now;
   };
@@ -86,6 +80,11 @@ export function createAssistantPersistenceHelpers({
     errorMessage?: string,
     citations?: AiMessageCitation[],
     reasoningContent?: string,
+    options?: {
+      sourceScopeSummary?: UiChatMessage['sourceScopeSummary'];
+      reflectionChecks?: UiChatMessage['reflectionChecks'];
+      compatibilityReport?: UiChatMessage['compatibilityReport'];
+    },
   ) => {
     setMessages((prev) => prev.map((msg) => {
       if (msg.id !== assistantId) return msg;
@@ -97,6 +96,9 @@ export function createAssistantPersistenceHelpers({
           ...(errorMessage ? { error: errorMessage } : {}),
           ...(citations ? { citations } : {}),
           ...(reasoningContent ? { reasoningContent } : {}),
+          ...(options?.sourceScopeSummary ? { sourceScopeSummary: options.sourceScopeSummary } : {}),
+          ...(options?.reflectionChecks ? { reflectionChecks: options.reflectionChecks } : {}),
+          ...(options?.compatibilityReport ? { compatibilityReport: options.compatibilityReport } : {}),
         };
       }
       return {
@@ -105,6 +107,9 @@ export function createAssistantPersistenceHelpers({
         status,
         ...(citations ? { citations } : {}),
         ...(reasoningContent ? { reasoningContent } : {}),
+        ...(options?.sourceScopeSummary ? { sourceScopeSummary: options.sourceScopeSummary } : {}),
+        ...(options?.reflectionChecks ? { reflectionChecks: options.reflectionChecks } : {}),
+        ...(options?.compatibilityReport ? { compatibilityReport: options.compatibilityReport } : {}),
       };
     }));
 
@@ -118,15 +123,17 @@ export function createAssistantPersistenceHelpers({
       const contextSnapshot = explainDto
         ? mergeContextSnapshotWithWorkflowExplainability(row.contextSnapshot, explainDto)
         : row.contextSnapshot;
-      await dbRef.collections.ai_messages.insert({
-        ...row,
+      await finalizeAssistantMessageInDb(dbRef, {
+        assistantId,
         content,
         status,
-        ...(errorMessage ? { errorMessage } : {}),
-        ...(citations ? { citations } : {}),
-        ...(reasoningContent ? { reasoningContent } : {}),
-        ...(contextSnapshot !== undefined ? { contextSnapshot } : {}),
-        updatedAt: nowIso(),
+        errorMessage,
+        citations,
+        reasoningContent,
+        contextSnapshot,
+        sourceScopeSummary: options?.sourceScopeSummary,
+        reflectionChecks: options?.reflectionChecks,
+        compatibilityReport: options?.compatibilityReport,
       });
     }
 

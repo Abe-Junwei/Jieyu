@@ -59,7 +59,7 @@ function compareEvictionPriority(
   return left.lastAccessedAt - right.lastAccessedAt;
 }
 
-export class AcousticAnalysisCacheDB {
+class AcousticAnalysisCacheDB {
   private db = new AcousticAnalysisDexie();
 
   async get(cacheKey: string, now: number): Promise<AcousticFeatureResult | null> {

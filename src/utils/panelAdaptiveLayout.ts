@@ -171,7 +171,7 @@ export function readPersistedUiFontScale(locale?: string, direction?: TextDirect
   return resolveEffectiveUiFontScale(preference, autoScale);
 }
 
-export function persistUiFontScale(scale: number): number {
+function persistUiFontScale(scale: number): number {
   const normalized = clamp(scale, UI_FONT_SCALE_MIN, UI_FONT_SCALE_MAX);
   const persisted = persistUiFontScalePreference({ mode: 'manual', manualScale: normalized });
   return persisted.manualScale;

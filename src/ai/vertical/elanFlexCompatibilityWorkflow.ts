@@ -15,7 +15,7 @@
  * 5. controlled_vocabulary_mismatch — 受控词表（POS/tag）不一致
  */
 
-import type { EvidencePacketV0 } from './evidencePacket';
+import { buildEvidencePacketV0, type EvidencePacketV0 } from './evidencePacket';
 
 export type CompatibilityFindingKind =
   | 'tier_mapping'
@@ -159,15 +159,16 @@ export function parseCompatibilityReport(
         const confidence = typeof ep.confidence === 'number' && !Number.isNaN(ep.confidence) ? ep.confidence : 0.8;
         const reasonCode = typeof ep.reasonCode === 'string' ? ep.reasonCode : 'compatibility_finding';
         if (sourceId.length > 0) {
-          evidencePackets.push({
-            schemaVersion: 0,
-            id: epId,
-            sourceType,
-            sourceId,
-            quote,
-            confidence,
-            reasonCode,
-          });
+          evidencePackets.push(
+            buildEvidencePacketV0({
+              id: epId,
+              sourceType,
+              sourceId,
+              quote,
+              confidence,
+              reasonCode,
+            }),
+          );
         }
       }
     }
@@ -246,7 +247,7 @@ function parseEvidenceSourceType(value: unknown): EvidencePacketV0['sourceType']
  */
 export function runElanFlexCompatibilityReflection(
   rawContent: string,
-  evidencePackets: readonly EvidencePacketV0[],
+  _evidencePackets: readonly EvidencePacketV0[],
 ): ElanFlexCompatibilityReflectionResult {
   const checks: { name: string; passed: boolean }[] = [];
 
@@ -339,7 +340,7 @@ export function buildElanFlexCompatibilityReflectionRetryPrompt(
  * Convert a CompatibilityReport to a JSON bundle.
  * Preserves corpusRef, time codes, and project metadata.
  */
-export function compatibilityReportToJsonBundle(
+function compatibilityReportToJsonBundle(
   report: CompatibilityReport,
   projectMetadata?: { projectId?: string; projectName?: string; exportedAt?: string },
 ): string {

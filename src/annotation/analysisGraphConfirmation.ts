@@ -119,12 +119,6 @@ export async function submitAnalysisGraphCandidate(
   return parseCandidateRelation(doc);
 }
 
-export async function confirmAnalysisGraphCandidate(
-  input: ConfirmAnalysisGraphCandidateInput,
-): Promise<AnalysisGraphCandidateRecord> {
-  return submitAnalysisGraphCandidate(input);
-}
-
 export async function listPendingAnalysisGraphCandidates(unitId: string): Promise<AnalysisGraphCandidateRecord[]> {
   const db = await getDb();
   const rows = await listAnalysisGraphCandidateRows(db, unitId);

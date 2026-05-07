@@ -2038,32 +2038,6 @@ export async function executeLocalContextToolCall(
   return finalized;
 }
 
-export async function executeLocalContextToolCallsBatch(
-  calls: LocalContextToolCall[],
-  context: AiPromptContext | null,
-  callCountRef: { current: number },
-  maxCalls = 20,
-  traceOptions?: LocalToolExecutionTraceOptions,
-): Promise<LocalContextToolResult[]> {
-  const results: LocalContextToolResult[] = [];
-  const traceId = traceOptions?.traceId ?? generateTraceId();
-  for (let index = 0; index < calls.length; index += 1) {
-    const call = calls[index]!;
-    const result = await executeLocalContextToolCall(
-      call,
-      context,
-      callCountRef,
-      maxCalls,
-      {
-        traceId,
-        step: traceOptions?.step !== undefined ? traceOptions.step + index : index + 1,
-      },
-    );
-    results.push(result);
-  }
-  return results;
-}
-
 /** @see AI_LOCAL_TOOL_RESULT_CHAR_BUDGET in `useAiChat.config.ts` */
 export const LOCAL_TOOL_RESULT_CHAR_BUDGET = AI_LOCAL_TOOL_RESULT_CHAR_BUDGET;
 

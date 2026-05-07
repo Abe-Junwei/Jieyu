@@ -30,6 +30,13 @@ export interface ExtensionListItem {
   entryActivate: string;
 }
 
+export type ExtensionRegistrySnapshot = {
+  manifest: ExtensionManifestV1;
+  source: ExtensionSource;
+  state: ExtensionLifecycleState;
+  loadReason: string;
+};
+
 export interface ExtensionRegistry {
   getHostVersion: () => string;
   list: () => ExtensionListItem[];
@@ -37,6 +44,8 @@ export interface ExtensionRegistry {
   registerOfficial: (manifest: ExtensionManifestV1, hooks: ExtensionHooks) => Promise<ExtensionLoadResult>;
   unregister: (id: string) => Promise<void>;
   invokeCapability: (extensionId: string, capability: ExtensionCapability, payload: unknown) => Promise<unknown>;
+  exportSnapshots: () => ExtensionRegistrySnapshot[];
+  importSnapshots: (snapshots: ExtensionRegistrySnapshot[]) => void;
 }
 
 const DEFAULT_AUDIT_CAP = 200;
@@ -156,6 +165,31 @@ export function createExtensionRegistry(input: {
         throw new Error(`Unknown extension: ${extensionId}`);
       }
       return h.invokeCapability(capability, payload);
+    },
+
+    exportSnapshots: (): ExtensionRegistrySnapshot[] => {
+      const out: ExtensionRegistrySnapshot[] = [];
+      for (const [, snapshot] of snapshots) {
+        out.push({
+          manifest: snapshot.manifest,
+          source: snapshot.source,
+          state: snapshot.state,
+          loadReason: snapshot.loadReason,
+        });
+      }
+      return out;
+    },
+
+    importSnapshots: (incoming: ExtensionRegistrySnapshot[]): void => {
+      for (const item of incoming) {
+        const id = item.manifest.id;
+        snapshots.set(id, {
+          manifest: item.manifest,
+          source: item.source,
+          state: item.state,
+          loadReason: item.loadReason,
+        });
+      }
     },
   };
 }

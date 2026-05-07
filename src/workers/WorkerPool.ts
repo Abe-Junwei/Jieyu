@@ -236,7 +236,7 @@ export function getWorkerPool(): WorkerPoolImpl {
 }
 
 /** 仅测试用：销毁并重置单例 | Test-only: destroy and reset singleton */
-export function resetWorkerPoolForTest(): void {
+function resetWorkerPoolForTest(): void {
   instance?.destroy();
   instance = null;
 }

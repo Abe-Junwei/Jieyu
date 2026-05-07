@@ -26,7 +26,7 @@ export const UNIT_SELF_CERTAINTY_VALUES = ['not_understood', 'uncertain', 'certa
 
 export type UnitSelfCertainty = (typeof UNIT_SELF_CERTAINTY_VALUES)[number];
 
-export function isUnitSelfCertainty(value: string): value is UnitSelfCertainty {
+function isUnitSelfCertainty(value: string): value is UnitSelfCertainty {
   return (UNIT_SELF_CERTAINTY_VALUES as readonly string[]).includes(value);
 }
 

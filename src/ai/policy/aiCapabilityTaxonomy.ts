@@ -44,7 +44,7 @@ export function resolveToolCapabilityCategory(toolName: AiChatToolName): AiCapab
 }
 
 /** All registered tool names from the policy matrix. */
-export const REGISTERED_TOOL_NAMES = Object.keys(AI_TOOL_POLICY_MATRIX) as AiChatToolName[];
+const REGISTERED_TOOL_NAMES = Object.keys(AI_TOOL_POLICY_MATRIX) as AiChatToolName[];
 
 /** All tool names from the schema registry. */
 export const SCHEMA_TOOL_NAMES = Object.keys(toolArgumentSchemas) as AiChatToolName[];

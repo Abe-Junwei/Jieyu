@@ -52,7 +52,7 @@ export async function withTransaction<T>(
   }
 }
 
-export async function withReadTransaction<T>(
+async function withReadTransaction<T>(
   db: JieyuDatabase,
   stores: readonly DexieStore[],
   scope: () => Promise<T>,
@@ -61,7 +61,7 @@ export async function withReadTransaction<T>(
   return withTransaction(db, 'r', stores, scope, options);
 }
 
-export async function withWriteTransaction<T>(
+async function withWriteTransaction<T>(
   db: JieyuDatabase,
   stores: readonly DexieStore[],
   scope: () => Promise<T>,

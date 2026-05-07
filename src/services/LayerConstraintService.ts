@@ -659,7 +659,7 @@ export function getLayerCreateGuard(
 }
 
 /** Shared translation-create guard (UI + backend). */
-export function getTranslationCreateGuard(
+function getTranslationCreateGuard(
   layers: LayerDocType[],
   input: {
     languageId?: string;

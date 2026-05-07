@@ -139,7 +139,7 @@ export function judgeCitationAccuracyBatch(
 }
 
 /** baseline_judge provider for citation accuracy */
-export const citationJudgeProvider: JudgeProvider<CitationJudgeInput, CitationJudgeResult> = annotateBaselineJudge({
+const citationJudgeProvider: JudgeProvider<CitationJudgeInput, CitationJudgeResult> = annotateBaselineJudge({
   name: 'citation_accuracy_baseline',
   judge: judgeCitationAccuracy,
   judgeBatch: (inputs) => judgeCitationAccuracyBatch(inputs).results,

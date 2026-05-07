@@ -168,7 +168,7 @@ export async function loadAiToolReplayBundle(requestId: string): Promise<AiToolR
   if (rows.length === 0) return null;
 
   const intentRow = rows
-    .filter((row) => row.field === 'ai_tool_call_intent_assessment')
+    .filter((row) => row.field === 'ai_tool_call_intent')
     .slice(-1)[0];
   const intentMetadata = parseIntentMetadata(intentRow?.metadataJson);
   const intentAssessment = safeParseJson(intentRow?.newValue);

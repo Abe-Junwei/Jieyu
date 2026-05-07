@@ -3,9 +3,6 @@ import { useToast } from '../contexts/ToastContext';
 import { tf, useLocale } from '../i18n';
 import { BACKUP_LAST_EXPORT_KEY, readLastExportTimestamp } from '../utils/backupExportTimestamp';
 
-/** Re-export：历史调用方从本文件导入；实现见 `backupExportTimestamp`（供 db/io 等底层无 React 依赖）。 */
-export { markBackupCompleted } from '../utils/backupExportTimestamp';
-
 /** 连续工作超过此时间后触发提醒 | Remind after this many ms of active work */
 const BACKUP_REMINDER_THRESHOLD_MS = 4 * 60 * 60 * 1000; // 4 hours
 /** 检查间隔 | Check interval */

@@ -30,7 +30,7 @@ export function newAuditLogId(): string {
  * 从文本中提取平衡的 JSON 对象数组
  * 用于解析 tool_call JSON 块
  */
-export function extractBalancedJsonObjects(rawText: string): string[] {
+function extractBalancedJsonObjects(rawText: string): string[] {
   const results: string[] = [];
   let depth = 0;
   let start = -1;
@@ -61,7 +61,7 @@ export function extractBalancedJsonObjects(rawText: string): string[] {
 
 // ── Base64 Encoding ─────────────────────────────────────────────────────────────
 
-export function byteArrayToBase64(bytes: Uint8Array): string {
+function byteArrayToBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.length; i += 1) {
     binary += String.fromCharCode(bytes[i]!);
@@ -69,7 +69,7 @@ export function byteArrayToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-export function base64ToByteArray(base64: string): Uint8Array {
+function base64ToByteArray(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) {
@@ -80,12 +80,12 @@ export function base64ToByteArray(base64: string): Uint8Array {
 
 // ── Text Processing ────────────────────────────────────────────────────────────
 
-export function trimTextToMax(input: string, maxChars: number): string {
+function trimTextToMax(input: string, maxChars: number): string {
   if (input.length <= maxChars) return input;
   return input.slice(0, Math.max(0, maxChars - 3)) + '...';
 }
 
-export function compressMessageContent(content: string, maxLen: number): string {
+function compressMessageContent(content: string, maxLen: number): string {
   if (content.length <= maxLen) return content;
 
   // Try to find a good break point
@@ -104,7 +104,7 @@ export function compressMessageContent(content: string, maxLen: number): string 
 
 // ── Destructive Tool Detection ─────────────────────────────────────────────────
 
-export function isDestructiveToolCall(name: string): boolean {
+function isDestructiveToolCall(name: string): boolean {
   const normalized = name.trim() as AiChatToolName;
   if (!Object.prototype.hasOwnProperty.call(AI_TOOL_POLICY_MATRIX, normalized)) {
     return false;

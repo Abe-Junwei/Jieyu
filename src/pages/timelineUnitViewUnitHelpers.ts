@@ -49,13 +49,6 @@ export function resolveHostUnitIdForTimelineView(
   return view.parentUnitId?.trim() || undefined;
 }
 
-/**
- * @deprecated 名字会产生「只跟 speaker 相关」的误导，请改用
- *   {@link resolveHostUnitIdForTimelineView}。保留别名避免一次性大规模改动；
- *   新代码禁止引用该别名（architecture-guard 覆盖）。
- */
-export const resolveSpeakerTargetUnitIdFromUnitId = resolveHostUnitIdForTimelineView;
-
 export type ParentUnitBounds = {
   id: string;
   startTime: number;

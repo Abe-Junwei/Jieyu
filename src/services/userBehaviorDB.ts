@@ -114,14 +114,14 @@ class UserBehaviorDexie extends Dexie {
 
 let _instance: UserBehaviorDexie | null = null;
 
-export function getUserBehaviorDB(): UserBehaviorDexie {
+function getUserBehaviorDB(): UserBehaviorDexie {
   if (!_instance) {
     _instance = new UserBehaviorDexie();
   }
   return _instance;
 }
 
-export const userBehaviorDB = getUserBehaviorDB();
+const userBehaviorDB = getUserBehaviorDB();
 
 // ── Convenience helpers ────────────────────────────────────────────────────
 
@@ -230,7 +230,7 @@ export async function getActionRecordsInRange(
 /**
  * Record a task phase completion.
  */
-export async function recordTaskPhase(record: Omit<TaskPhaseRecordDoc, 'id'>): Promise<void> {
+async function recordTaskPhase(record: Omit<TaskPhaseRecordDoc, 'id'>): Promise<void> {
   try {
     await userBehaviorDB.taskPhaseRecords.add(record as TaskPhaseRecordDoc);
   } catch (err) {
@@ -245,7 +245,7 @@ export async function recordTaskPhase(record: Omit<TaskPhaseRecordDoc, 'id'>): P
 /**
  * Record a difficult segment.
  */
-export async function recordDifficultSegment(record: Omit<DifficultSegmentDoc, 'id'>): Promise<void> {
+async function recordDifficultSegment(record: Omit<DifficultSegmentDoc, 'id'>): Promise<void> {
   try {
     await userBehaviorDB.difficultSegments.add(record as DifficultSegmentDoc);
   } catch (err) {

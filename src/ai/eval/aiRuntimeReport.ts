@@ -11,6 +11,10 @@ import {
   collectWorkflowExplainabilitySnapshots,
   type WorkflowExplainabilityV0,
 } from '../chat/workflowExplainability';
+import type {
+  ReflectionFailedCheckRecord,
+  ToolDecisionRecord,
+} from './aiRuntimeReportDimensionalAudit';
 
 export interface JudgeTrendEntry {
   timestamp: string;
@@ -58,6 +62,12 @@ export interface AiRuntimeReport {
   workflowExplainabilityRollup?: WorkflowExplainabilityRollup;
   /** PR-P4-3: AdoptionQueue outcome counts（由 `ai_adoption_outcome` audit metadataJson 聚合） */
   adoptionOutcomeRollup?: AdoptionOutcomeRollup;
+  /** PR-P2: Reflection failed checks rollup */
+  reflectionFailedCheckRollup?: ReflectionFailedCheckRollup;
+  /** PR-P2: Tool decision records rollup */
+  toolDecisionRollup?: ToolDecisionRollup;
+  /** PR-P2: Raw audit field occurrence counts (covers write-only fields) */
+  rawAuditCounts?: Record<string, number>;
 }
 
 export interface AdoptionOutcomeRollup {
@@ -65,6 +75,22 @@ export interface AdoptionOutcomeRollup {
   accepted: number;
   ignored: number;
   copied: number;
+}
+
+export interface ReflectionFailedCheckRollup {
+  schemaVersion: 1;
+  total: number;
+  byWorkflow: Record<string, number>;
+  byCheckName: Record<string, number>;
+  recentRecords: Array<{ workflowId: string; checkName: string; requestId: string; timestamp: string }>;
+}
+
+export interface ToolDecisionRollup {
+  schemaVersion: 1;
+  denied: number;
+  confirmRequired: number;
+  byToolName: Record<string, number>;
+  recentRecords: Array<{ requestId: string; decision: string; toolName: string; timestamp: string }>;
 }
 
 function average(scores: number[]): number {
@@ -85,7 +111,7 @@ function flagCount(scores: number[], threshold = 3): number {
   return scores.filter((s) => s < threshold).length;
 }
 
-export function rollupWorkflowExplainability(
+function rollupWorkflowExplainability(
   snapshots: WorkflowExplainabilityV0[],
 ): WorkflowExplainabilityRollup | undefined {
   if (snapshots.length === 0) return undefined;
@@ -285,6 +311,9 @@ export function buildAiRuntimeReportWithContext(
   options?: {
     workflowExplainabilitySnapshots?: WorkflowExplainabilityV0[];
     adoptionOutcomeMetadataJsons?: ReadonlyArray<string | undefined | null>;
+    reflectionFailedChecks?: ReflectionFailedCheckRecord[];
+    toolDecisionRecords?: ToolDecisionRecord[];
+    rawAuditCounts?: Record<string, number>;
   },
 ): AiRuntimeReport {
   const base = buildAiRuntimeReport(
@@ -307,6 +336,12 @@ export function buildAiRuntimeReportWithContext(
   const adoptionOutcomeRollup = rollupAdoptionOutcomesFromAuditMetadataJsons(
     options?.adoptionOutcomeMetadataJsons ?? [],
   );
+  const reflectionFailedCheckRollup = rollupReflectionFailedChecks(
+    options?.reflectionFailedChecks ?? [],
+  );
+  const toolDecisionRollup = rollupToolDecisions(
+    options?.toolDecisionRecords ?? [],
+  );
 
   return {
     ...base,
@@ -318,5 +353,50 @@ export function buildAiRuntimeReportWithContext(
     sampleRequestIds: [...new Set(sampleRequestIds)],
     ...(workflowExplainabilityRollup ? { workflowExplainabilityRollup } : {}),
     ...(adoptionOutcomeRollup ? { adoptionOutcomeRollup } : {}),
+    ...(reflectionFailedCheckRollup ? { reflectionFailedCheckRollup } : {}),
+    ...(toolDecisionRollup ? { toolDecisionRollup } : {}),
+    ...(options?.rawAuditCounts && Object.keys(options.rawAuditCounts).length > 0
+      ? { rawAuditCounts: options.rawAuditCounts }
+      : {}),
+  };
+}
+
+function rollupReflectionFailedChecks(
+  records: ReflectionFailedCheckRecord[],
+): ReflectionFailedCheckRollup | undefined {
+  if (records.length === 0) return undefined;
+  const byWorkflow: Record<string, number> = {};
+  const byCheckName: Record<string, number> = {};
+  for (const r of records) {
+    byWorkflow[r.workflowId] = (byWorkflow[r.workflowId] ?? 0) + 1;
+    byCheckName[r.checkName] = (byCheckName[r.checkName] ?? 0) + 1;
+  }
+  return {
+    schemaVersion: 1,
+    total: records.length,
+    byWorkflow,
+    byCheckName,
+    recentRecords: records.slice(-20),
+  };
+}
+
+function rollupToolDecisions(
+  records: ToolDecisionRecord[],
+): ToolDecisionRollup | undefined {
+  if (records.length === 0) return undefined;
+  const byToolName: Record<string, number> = {};
+  let denied = 0;
+  let confirmRequired = 0;
+  for (const r of records) {
+    byToolName[r.toolName] = (byToolName[r.toolName] ?? 0) + 1;
+    if (r.decision === 'denied') denied += 1;
+    else if (r.decision === 'confirm_required') confirmRequired += 1;
+  }
+  return {
+    schemaVersion: 1,
+    denied,
+    confirmRequired,
+    byToolName,
+    recentRecords: records.slice(-20),
   };
 }

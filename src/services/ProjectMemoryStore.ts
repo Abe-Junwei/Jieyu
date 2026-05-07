@@ -536,9 +536,6 @@ class ProjectMemoryStore {
   }
 }
 
-export { ProjectMemoryStore };
-
-
 // ── Singleton export ──────────────────────────────────────────────────────────
 
 export const projectMemoryStore = ProjectMemoryStore.getInstance();

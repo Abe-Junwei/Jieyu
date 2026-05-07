@@ -7,7 +7,7 @@ export interface SupabaseBrowserClientConfig {
 
 let cachedClient: SupabaseClient | null = null;
 
-export function resolveSupabaseBrowserClientConfig(
+function resolveSupabaseBrowserClientConfig(
   env: ImportMetaEnv = import.meta.env,
 ): SupabaseBrowserClientConfig | null {
   const url = env.VITE_SUPABASE_URL?.trim();
@@ -38,12 +38,12 @@ export function getSupabaseBrowserClient(): SupabaseClient {
   return cachedClient;
 }
 
-export function resetSupabaseBrowserClientForTest(): void {
+function resetSupabaseBrowserClientForTest(): void {
   cachedClient = null;
 }
 
 /** 与 `resetSupabaseBrowserClientForTest` 相同；测试名对齐 ARCH-4。 */
-export function resetSupabaseBrowserClientForTests(): void {
+function resetSupabaseBrowserClientForTests(): void {
   resetSupabaseBrowserClientForTest();
 }
 

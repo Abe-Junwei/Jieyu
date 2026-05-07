@@ -19,7 +19,7 @@ import { resolveHostAwareTranslationLayerIdFromSnapshot } from './translationLay
 export type VerticalReadingHostLink = TranslationHostLink;
 
 /** 无 parent 的翻译层在多转写项目中的回落宿主（默认转写或列表首层） | Orphan fallback host for translation layers */
-export function resolveOrphanTranslationAttachTranscriptionLayerId(
+function resolveOrphanTranslationAttachTranscriptionLayerId(
   transcriptionLayers: readonly LayerDocType[],
   defaultTranscriptionLayerId: string | undefined,
 ): string | undefined {
@@ -28,7 +28,7 @@ export function resolveOrphanTranslationAttachTranscriptionLayerId(
   return transcriptionLayers[0]?.id;
 }
 
-export function buildVerticalReadingHostLinkMaps(
+function buildVerticalReadingHostLinkMaps(
   transcriptionLayers: readonly LayerDocType[],
   layerLinks: readonly VerticalReadingHostLink[],
 ): {
@@ -78,7 +78,7 @@ function expandTranscriptionSourceIdsWithTreeParents(
   return expanded;
 }
 
-export function translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
+function translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
   tl: LayerDocType,
   sourceTranscriptionIds: ReadonlySet<string>,
   transcriptionLayerCount: number,
@@ -108,7 +108,7 @@ export function translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
   return sourceTranscriptionIds.has(orphanAttachLayerId);
 }
 
-export function collectVerticalReadingGroupSourceTranscriptionLayerIds(
+function collectVerticalReadingGroupSourceTranscriptionLayerIds(
   group: VerticalReadingGroup,
   transcriptionLayers?: readonly LayerDocType[],
 ): Set<string> {
@@ -236,7 +236,7 @@ export function resolveVerticalReadingGroupEmptyReason(
   return sourceIds.has(orphanAttachLayerId) ? 'no-child' : 'orphan-needs-repair';
 }
 
-export function pickTranslationLayerForVerticalReadingUnit(
+function pickTranslationLayerForVerticalReadingUnit(
   unit: { layerId?: string | undefined; id: string },
   allTranslationLayers: readonly LayerDocType[],
   preferred: LayerDocType | undefined,

@@ -102,7 +102,7 @@ export function getToolDecisionFailureTriage(reason: string | undefined | null):
 }
 
 /** T4-c：单工具确认路径执行器抛错/超时时的最大调用次数（含首次）。 */
-export const TOOL_CALL_EXECUTOR_AUTO_RETRY_MAX_ATTEMPTS = 2 as const;
+const TOOL_CALL_EXECUTOR_AUTO_RETRY_MAX_ATTEMPTS = 2 as const;
 
 /**
  * T4-c：是否在本次抛错后再试一次 `onToolCall`（仅 catch 支路使用；不重试业务 `ok:false`）。

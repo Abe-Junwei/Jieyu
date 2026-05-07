@@ -242,7 +242,7 @@ export function parseVoiceIntentFromLlmResponseDetailed(
   };
 }
 
-export async function resolveVoiceIntentWithLlm(input: ResolveVoiceIntentWithLlmInput): Promise<VoiceIntent | null> {
+async function resolveVoiceIntentWithLlm(input: ResolveVoiceIntentWithLlmInput): Promise<VoiceIntent | null> {
   const resolved = await resolveVoiceIntentWithLlmUsingConfig(input, {});
   return resolved.ok ? resolved.intent : null;
 }

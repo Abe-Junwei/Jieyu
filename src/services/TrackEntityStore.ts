@@ -11,7 +11,7 @@ export type TrackEntityState = {
 
 export type TrackEntityStateMap = Record<string, TrackEntityState>;
 
-export const TRACK_ENTITY_STORAGE_KEY = 'jieyu:track-entity-state:v1';
+const TRACK_ENTITY_STORAGE_KEY = 'jieyu:track-entity-state:v1';
 
 function sanitizeLaneLockMap(input: unknown): Record<string, number> {
   if (!input || typeof input !== 'object') return {};
@@ -126,7 +126,7 @@ export async function saveTrackEntityStateToDb(
  * Bulk-persist a full state map to DB.
  * Replaces all entries for the given textId.
  */
-export async function saveTrackEntityStateMapToDb(
+async function saveTrackEntityStateMapToDb(
   textId: string,
   stateMap: TrackEntityStateMap,
 ): Promise<void> {

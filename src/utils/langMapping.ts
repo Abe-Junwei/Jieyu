@@ -154,7 +154,7 @@ export const SUPPORTED_VOICE_LANGS: {
 ];
 
 /** 扁平的所有语言代码列表（不含 __auto__）。 */
-export const ALL_VOICE_LANG_CODES: readonly string[] =
+const ALL_VOICE_LANG_CODES: readonly string[] =
   SUPPORTED_VOICE_LANGS.flatMap((g) => g.langs)
     .filter((l) => l.code !== '__auto__')
     .map((l) => l.code);
@@ -1022,7 +1022,7 @@ export function getLanguageDisplayName(languageId: string | undefined, locale: L
   return getLocaleDisplayName(entry, locale);
 }
 
-export function getNativeLanguageDisplayName(languageId: string | undefined): string | undefined {
+function getNativeLanguageDisplayName(languageId: string | undefined): string | undefined {
   const entry = getLanguageCatalogEntry(languageId);
   if (!entry) {
     return undefined;

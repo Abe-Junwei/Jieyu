@@ -28,7 +28,7 @@ function buildPreviewInputForFullDocumentAxis(
  * 纯文本壳层：轨道 X → 文献秒（主存坐标）。无映射或默认 1:1 时与线性 `x/w*L` 一致。
  * Text-only shell: track X → document seconds (canonical). Matches linear x/w*L when mapping is identity.
  */
-export function trackXFromDocumentTime(
+function trackXFromDocumentTime(
   documentTime: number,
   trackWidthPx: number,
   logicalDurationSec: number,

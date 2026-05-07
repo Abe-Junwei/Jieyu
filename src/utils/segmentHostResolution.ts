@@ -22,7 +22,7 @@
 
 import { createMetricTags, recordMetric } from '../observability/metrics';
 
-export const HOST_RESOLUTION_EPS = 0.01;
+const HOST_RESOLUTION_EPS = 0.01;
 
 export type SegmentHostCandidate = {
   id: string;
@@ -42,7 +42,7 @@ export type SegmentHostLocation = {
  * Pure core: within a single candidate group, pick the best host by containment first,
  * then by overlap length, tie-breaking on center distance.
  */
-export function selectBestHostByTimeOverlap<T extends SegmentHostCandidate>(
+function selectBestHostByTimeOverlap<T extends SegmentHostCandidate>(
   candidates: ReadonlyArray<T>,
   segment: SegmentHostLocation,
 ): { resolved: T | undefined; overlapCount: number } {

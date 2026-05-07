@@ -66,7 +66,7 @@ export function buildEvidencePacketV0(input: BuildEvidencePacketV0Input): Eviden
 /** Fields that metric calculations depend on; renaming or removing these breaks P1+ quality gates.
  *  Any schema migration must provide a backward-compatible mapping.
  */
-export const EVIDENCE_PACKET_METRIC_DEPENDENT_FIELDS = [
+const EVIDENCE_PACKET_METRIC_DEPENDENT_FIELDS = [
   'id',
   'sourceType',
   'sourceId',
@@ -77,7 +77,7 @@ export const EVIDENCE_PACKET_METRIC_DEPENDENT_FIELDS = [
 ] as const satisfies readonly (keyof EvidencePacketV0)[];
 
 /** Fields for P1+ source scope traceability; renaming breaks scope audit. */
-export const EVIDENCE_PACKET_SCOPE_DEPENDENT_FIELDS = [
+const EVIDENCE_PACKET_SCOPE_DEPENDENT_FIELDS = [
   'sourceSetId',
   'sourceSetSnapshot',
 ] as const satisfies readonly (keyof EvidencePacketV0)[];

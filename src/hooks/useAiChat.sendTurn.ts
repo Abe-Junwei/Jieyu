@@ -7,6 +7,12 @@ import type { SendTurnCompletionBundle } from './useAiChat.sendTurnCompletion';
 import { logSendTurnPhase } from './useAiChat.sendTurnCorrelation';
 import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
 
+// ARCHITECTURE-NOTE(P1-6): ai_messages 持久化已统一至 useAiChat.sendTurnPersistPhase.ts。
+// 先前分散在 sendPersistTurnAndBuildPromptContext、sendTurnPersistAndPrimaryStream、
+// assistantPersistence、sendTurnStreamPhase 四个文件中的 insert/update 操作，
+// 现已通过 persistUserMessage / persistAssistantPlaceholder / updateAssistantGenerationMeta /
+// flushAssistantContent / finalizeAssistantMessageInDb / updateAssistantRetryMeta 集中管理。
+
 export type { RunAiChatSendTurnArgs, ToolIntentAssessment } from './useAiChat.sendTurn.types';
 
 /** Full send-turn pipeline: guards, persistence opening, streaming, agent loop, metrics. */

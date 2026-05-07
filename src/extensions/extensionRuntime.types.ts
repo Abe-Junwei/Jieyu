@@ -1,4 +1,4 @@
-export const EXTENSION_MANIFEST_SCHEMA_VERSION = '1.0.0' as const;
+const EXTENSION_MANIFEST_SCHEMA_VERSION = '1.0.0' as const;
 
 export type ExtensionCapability =
   | 'read.transcription'

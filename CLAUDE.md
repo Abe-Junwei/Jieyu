@@ -65,6 +65,21 @@ Transform tasks into verifiable goals:
 - "Add validation" → "Write tests for invalid inputs, then make them pass"
 - "Fix the bug" → "Write a test that reproduces it, then make it pass"
 - "Refactor X" → "Ensure tests pass before and after"
+- For code reviews, trace function call chains and end-to-end data flow (input → transform → persistence → readback). File-level review or existence-only checks are not sufficient.
+- For persistence-related paths, require concrete verification evidence (targeted tests, repro scripts, or runtime traces), not just schema/field presence checks.
+
+### Code Review Hard Rules
+
+When asked for a code review, always perform the review as a behavior and data-flow audit, not a file-level scan:
+
+- Trace the reachable entry points: UI actions, routes, commands, workers, event emitters, scheduled jobs, scripts, and service APIs.
+- Follow the full call chain from entry point to state transition, side effect, persistence, cache update, audit/log output, and readback path.
+- Treat "still referenced" as insufficient evidence of usefulness. Code can be dead or invalid when it is called but its result no longer affects state, persistence, UI, downstream behavior, logs, or tests.
+- Separate production, test-only, dev-only, fixture, story/demo, migration, and script usage before deciding whether code is dead.
+- Check hard-to-see risks: stale callbacks, un-awaited async calls, swallowed errors, feature flags that make branches unreachable, orphaned event listeners, duplicate subscriptions, stale cache writes, missing cleanup, migration gaps, old enum/value compatibility, permission/feature-flag fallback paths, and build/runtime environment differences.
+- For persistence, require write → reload/requery → readback verification. Schema fields, object properties, or write calls alone do not prove the feature works.
+- For tests, verify that tests exercise real user or service entry points and assert business outcomes, not only mock calls, snapshots, or implementation details.
+- When reporting findings, include the broken path, why existing checks would miss it, and the concrete verification needed to prove the fix.
 
 For multi-step tasks, state a brief plan:
 

@@ -86,7 +86,7 @@ const DEFAULT_CONFIG: Required<WebMaConfig> = {
 const BAS_WEBSERVICES_DEFAULT = 'https://webservice.bas.uni-muenchen.de';
 
 /** BAS Web Services host (no trailing slash). Override with `VITE_BAS_WEBSERVICES_BASE_URL` (CRITICAL-6). */
-export function getBasWebServicesBaseUrl(): string {
+function getBasWebServicesBaseUrl(): string {
   const raw = import.meta.env?.VITE_BAS_WEBSERVICES_BASE_URL;
   if (typeof raw === 'string' && raw.trim().length > 0) {
     return raw.replace(/\/$/, '');
@@ -104,7 +104,7 @@ function basSubmitEndpoint(): string {
  * Convert a WebM/Opus audio blob to a WAV blob.
  * MediaRecorder produces WebM; WebMAUS requires WAV.
  */
-export async function audioBlobToWav(blob: Blob): Promise<Blob> {
+async function audioBlobToWav(blob: Blob): Promise<Blob> {
   const arrayBuffer = await blob.arrayBuffer();
   const audioContext = new AudioContext();
   try {
@@ -279,7 +279,7 @@ function buildSubmitFormData(
   return formData;
 }
 
-export class WebMaServiceClient {
+class WebMaServiceClient {
   private readonly config: Required<WebMaConfig>;
 
   constructor(config: WebMaConfig = {}) {

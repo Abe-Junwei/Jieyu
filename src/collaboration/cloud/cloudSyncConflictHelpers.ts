@@ -43,7 +43,7 @@ export function toTimestampMs(isoMaybe: string): number {
 	return Number.isFinite(parsed) && parsed > 0 ? parsed : Date.now();
 }
 
-export function toFieldValueOrUndefined(value: unknown): FieldValue | undefined {
+function toFieldValueOrUndefined(value: unknown): FieldValue | undefined {
 	if (value === null) return null;
 	if (typeof value === 'string') return value;
 	if (typeof value === 'boolean') return value;
@@ -58,7 +58,7 @@ export function pushFieldIfPrimitive(fields: Record<string, FieldValue>, key: st
 	}
 }
 
-export function collectPrimitivePayloadFields(payload: Record<string, unknown> | null): Record<string, FieldValue> {
+function collectPrimitivePayloadFields(payload: Record<string, unknown> | null): Record<string, FieldValue> {
 	if (!payload) return {};
 	const fields: Record<string, FieldValue> = {};
 	for (const [key, value] of Object.entries(payload)) {

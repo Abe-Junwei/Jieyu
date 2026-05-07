@@ -1,7 +1,7 @@
 import { DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC } from '../utils/timelineExtent';
 
 /** 与 `resolveTimelineExtentSec` 默认画布一致 */
-export const DEFAULT_DOCUMENT_LOGICAL_TIMELINE_FALLBACK_SEC = DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC;
+const DEFAULT_DOCUMENT_LOGICAL_TIMELINE_FALLBACK_SEC = DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC;
 
 export type ComputeLogicalTimelineDurationForZoomOptions = {
   /**

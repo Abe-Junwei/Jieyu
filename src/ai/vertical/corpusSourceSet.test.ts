@@ -15,7 +15,7 @@ import {
   deleteSavedSourceSet,
   type SavedCorpusSourceSet,
 } from './corpusSourceSet';
-import type { CorpusSourceSet } from './sourceResolver';
+import type { CorpusSourceSet } from './corpusScopeTypes';
 
 const fixedTimestamp = '2026-05-06T12:00:00.000Z';
 

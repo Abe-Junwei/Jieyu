@@ -50,7 +50,7 @@ function mcpSegmentReadScopeRequiredError(): McpToolCallResult {
   };
 }
 
-export const JIEYU_LIST_SEGMENTS_TOOL: McpToolDefinition = {
+const JIEYU_LIST_SEGMENTS_TOOL: McpToolDefinition = {
   name: 'jieyu_list_segments',
   description:
     'List segment summaries in the current project. Returns id, startTime, endTime, and a preview of source text. Requires McpServerRuntimeContext with at least one of textId, currentMediaId, or currentLayerId.',
@@ -63,7 +63,7 @@ export const JIEYU_LIST_SEGMENTS_TOOL: McpToolDefinition = {
   },
 };
 
-export const JIEYU_GET_SEGMENT_DETAIL_TOOL: McpToolDefinition = {
+const JIEYU_GET_SEGMENT_DETAIL_TOOL: McpToolDefinition = {
   name: 'jieyu_get_segment_detail',
   description:
     'Get full detail of a single segment including layers, annotations, and translations. Requires McpServerRuntimeContext with at least one of textId, currentMediaId, or currentLayerId.',
@@ -76,7 +76,7 @@ export const JIEYU_GET_SEGMENT_DETAIL_TOOL: McpToolDefinition = {
   },
 };
 
-export const JIEYU_DIAGNOSE_QUALITY_TOOL: McpToolDefinition = {
+const JIEYU_DIAGNOSE_QUALITY_TOOL: McpToolDefinition = {
   name: 'jieyu_diagnose_quality',
   description:
     'Diagnose project data quality: coverage gaps, missing speakers, untranscribed segments, etc. Requires McpServerRuntimeContext with at least one of textId, currentMediaId, or currentLayerId. Note: default scope `project` does not narrow by currentMediaId (only `scope: current_media` adds mediaId from runtime); project-wide diagnosis still needs textId or layerId when media-only context would otherwise be empty.',

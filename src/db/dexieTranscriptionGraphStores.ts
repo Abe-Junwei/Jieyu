@@ -5,7 +5,7 @@
 import type { JieyuDatabase } from './engine';
 
 /** Read scope aligned with `getUnitDocProjectionById` (units + primary content + speaker name). */
-export function dexieStoresForUnitDocProjectionRead(db: JieyuDatabase) {
+function dexieStoresForUnitDocProjectionRead(db: JieyuDatabase) {
   return [db.dexie.layer_units, db.dexie.layer_unit_contents, db.dexie.speakers] as const;
 }
 
@@ -117,7 +117,7 @@ export function dexieStoresForTrackEntitiesRw(db: JieyuDatabase) {
 }
 
 /** Read: `readLanguageCatalogProjection` — languages + display names + aliases. */
-export function dexieStoresForLanguageCatalogProjectionRead(db: JieyuDatabase) {
+function dexieStoresForLanguageCatalogProjectionRead(db: JieyuDatabase) {
   return [db.dexie.languages, db.dexie.language_display_names, db.dexie.language_aliases] as const;
 }
 

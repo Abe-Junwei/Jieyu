@@ -3,8 +3,8 @@ import {
   assertAiToolRegistryShadowParity,
   getAiToolRegistryShadowParityReport,
   listAiToolRegistryShadowEntries,
-  toMcpToolSchema,
 } from './aiToolRegistryShadow';
+import { toMcpToolSchema } from './mcpCompatibility';
 
 describe('aiToolRegistryShadow', () => {
   it('parity report has no orphan tools (policy vs schema)', () => {

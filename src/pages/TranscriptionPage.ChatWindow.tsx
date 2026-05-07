@@ -42,12 +42,52 @@ type ChatWindowLayoutState = {
   height: number;
 };
 
+function clampChatWindowSize(width: number, height: number, viewportWidth: number, viewportHeight: number): { width: number; height: number } {
+  const maxW = Math.min(MAX_WIDTH, viewportWidth - 28);
+  const maxH = Math.min(MAX_HEIGHT, viewportHeight - 28);
+  return {
+    width: Math.min(maxW, Math.max(MIN_WIDTH, width)),
+    height: Math.min(maxH, Math.max(MIN_HEIGHT, height)),
+  };
+}
+
+function clampChatWindowPosition(
+  x: number,
+  y: number,
+  panelSize: { width: number; height: number },
+  minimized: boolean,
+  viewportWidth: number,
+  viewportHeight: number,
+): { x: number; y: number } {
+  const panelHeight = minimized ? 44 : panelSize.height;
+  const maxX = Math.max(14, viewportWidth - panelSize.width - 14);
+  const maxY = Math.max(14, viewportHeight - panelHeight - 14);
+  return {
+    x: Math.min(Math.max(14, x), maxX),
+    y: Math.min(Math.max(14, y), maxY),
+  };
+}
+
+function getDefaultChatWindowLayout(viewportWidth: number, viewportHeight: number): { position: { x: number; y: number }; size: { width: number; height: number } } {
+  const width = Math.min(480, viewportWidth - 28);
+  const height = Math.min(Math.floor(viewportHeight * 0.72), 760);
+  const size = clampChatWindowSize(width, height, viewportWidth, viewportHeight);
+  return {
+    size,
+    position: {
+      x: Math.max(14, viewportWidth - size.width - 16),
+      y: Math.max(14, viewportHeight - size.height - 16),
+    },
+  };
+}
+
 export function TranscriptionPageChatWindow({
   locale,
   assistantRuntimeProps,
 }: TranscriptionPageChatWindowProps) {
   const uiLocale = normalizeLocale(locale) ?? 'zh-CN';
   const isZh = uiLocale === 'zh-CN';
+  const aiChatState = assistantRuntimeProps.aiChatContextValue;
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -59,12 +99,16 @@ export function TranscriptionPageChatWindow({
   const [providerConfigOpen, setProviderConfigOpen] = useState(false);
   const dragStartRef = useRef<{ pointerX: number; pointerY: number; startX: number; startY: number } | null>(null);
   const resizeStartRef = useRef<{ pointerX: number; pointerY: number; startWidth: number; startHeight: number } | null>(null);
+  const openRef = useRef(open);
+  const minimizedRef = useRef(minimized);
+  const aiIsStreamingRef = useRef(aiChatState.aiIsStreaming);
+  const onSendAiMessageRef = useRef(aiChatState.onSendAiMessage);
+  const uiLocaleRef = useRef(uiLocale);
   const windowRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const dialogId = useId();
   const windowTitleId = `${dialogId}-title`;
   const title = t(uiLocale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, '');
-  const aiChatState = assistantRuntimeProps.aiChatContextValue;
   const aiAssistantHubContextValue = useMemo(
     () => pickAiAssistantHubContextValue(aiChatState, DORMANT_VOICE_CONTEXT_FOR_CHAT_WINDOW),
     [aiChatState],
@@ -103,54 +147,58 @@ export function TranscriptionPageChatWindow({
     ].filter((group) => group.items.length > 0);
   }, [cardMessages]);
 
+  openRef.current = open;
+  minimizedRef.current = minimized;
+  aiIsStreamingRef.current = aiChatState.aiIsStreaming;
+  onSendAiMessageRef.current = aiChatState.onSendAiMessage;
+  uiLocaleRef.current = uiLocale;
+
+  // 挂载标记 + 审批中心 / Agent loop 恢复：合并为单 effect，降低 useEffect 计数（architecture-guard）
   useEffect(() => {
     setIsMounted(typeof document !== 'undefined');
-  }, []);
-
-  // 审批中心深度联动：监听来自任务列表的「查看审批」事件，打开浮窗 | Deep-link from task list to approval center
-  useEffect(() => {
     if (typeof window === 'undefined') return;
-    const handler = () => {
+    const openHub = () => {
       setOpen(true);
       setMinimized(false);
     };
-    window.addEventListener(OPEN_APPROVAL_CENTER_EVENT, handler);
-    return () => window.removeEventListener(OPEN_APPROVAL_CENTER_EVENT, handler);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handler = (event: Event) => {
-      setOpen(true);
-      setMinimized(false);
+    const onApprovalCenter = () => {
+      openHub();
+    };
+    const onAgentLoopResume = (event: Event) => {
+      openHub();
       const detail = (event as CustomEvent<{ taskId?: string }>).detail;
       const taskId = typeof detail?.taskId === 'string' ? detail.taskId.trim() : '';
       if (taskId) {
         window.sessionStorage.setItem(AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY, taskId);
       }
-      if (aiChatState.aiIsStreaming) return;
-      void aiChatState.onSendAiMessage?.(t(uiLocale, 'ai.alerts.agentLoopResumeDefaultInput'));
+      if (aiIsStreamingRef.current) return;
+      void onSendAiMessageRef.current?.(t(uiLocaleRef.current, 'ai.alerts.agentLoopResumeDefaultInput'));
     };
-    window.addEventListener(REQUEST_AGENT_LOOP_RESUME_EVENT, handler);
-    return () => window.removeEventListener(REQUEST_AGENT_LOOP_RESUME_EVENT, handler);
-  }, [aiChatState.aiIsStreaming, aiChatState.onSendAiMessage, uiLocale]);
+    window.addEventListener(OPEN_APPROVAL_CENTER_EVENT, onApprovalCenter);
+    window.addEventListener(REQUEST_AGENT_LOOP_RESUME_EVENT, onAgentLoopResume);
+    return () => {
+      window.removeEventListener(OPEN_APPROVAL_CENTER_EVENT, onApprovalCenter);
+      window.removeEventListener(REQUEST_AGENT_LOOP_RESUME_EVENT, onAgentLoopResume);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || layoutInitialized) return;
+    const defaultLayout = getDefaultChatWindowLayout(window.innerWidth, window.innerHeight);
     const raw = window.localStorage.getItem(CHAT_WINDOW_STORAGE_KEY);
     if (raw) {
       try {
         const parsed = JSON.parse(raw) as Partial<ChatWindowLayoutState>;
+        const nextMinimized = typeof parsed.minimized === 'boolean' ? parsed.minimized : false;
         if (typeof parsed.open === 'boolean') setOpen(parsed.open);
         if (typeof parsed.minimized === 'boolean') setMinimized(parsed.minimized);
+        let nextSize = defaultLayout.size;
         if (typeof parsed.width === 'number' && typeof parsed.height === 'number') {
-          setSize({
-            width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, parsed.width)),
-            height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, parsed.height)),
-          });
+          nextSize = clampChatWindowSize(parsed.width, parsed.height, window.innerWidth, window.innerHeight);
         }
+        setSize(nextSize);
         if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-          setPosition({ x: parsed.x, y: parsed.y });
+          setPosition(clampChatWindowPosition(parsed.x, parsed.y, nextSize, nextMinimized, window.innerWidth, window.innerHeight));
           setLayoutInitialized(true);
           return;
         }
@@ -158,13 +206,8 @@ export function TranscriptionPageChatWindow({
         // ignore malformed cache
       }
     }
-    const width = Math.min(480, window.innerWidth - 28);
-    const height = Math.min(Math.floor(window.innerHeight * 0.72), 760);
-    setPosition({
-      x: Math.max(14, window.innerWidth - width - 16),
-      y: Math.max(14, window.innerHeight - height - 16),
-    });
-    setSize({ width, height });
+    setPosition(defaultLayout.position);
+    setSize(defaultLayout.size);
     setLayoutInitialized(true);
   }, [layoutInitialized]);
 
@@ -182,19 +225,17 @@ export function TranscriptionPageChatWindow({
   }, [layoutInitialized, minimized, open, position.x, position.y, size.height, size.width]);
 
   useEffect(() => {
-    if (!open || minimized || typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return;
     const timer = window.setTimeout(() => {
-      const input = windowRef.current?.querySelector<HTMLInputElement>('.ai-chat-input.ai-chat-input-composer');
-      input?.focus();
+      if (open && !minimized) {
+        const input = windowRef.current?.querySelector<HTMLInputElement>('.ai-chat-input.ai-chat-input-composer');
+        input?.focus();
+      } else if (!open) {
+        triggerRef.current?.focus();
+      }
     }, 0);
     return () => window.clearTimeout(timer);
   }, [open, minimized]);
-
-  useEffect(() => {
-    if (open || typeof window === 'undefined') return;
-    const timer = window.setTimeout(() => triggerRef.current?.focus(), 0);
-    return () => window.clearTimeout(timer);
-  }, [open]);
 
   useEffect(() => {
     if (!isMounted || typeof window === 'undefined') return;
@@ -202,48 +243,56 @@ export function TranscriptionPageChatWindow({
       const isToggle = (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'j';
       if (isToggle) {
         event.preventDefault();
-        if (!open) {
+        if (!openRef.current) {
           setOpen(true);
           setMinimized(false);
-        } else if (minimized) {
+        } else if (minimizedRef.current) {
           setMinimized(false);
         } else {
           setMinimized(true);
         }
         return;
       }
-      if (event.key === 'Escape' && open && !minimized) {
+      if (event.key === 'Escape' && openRef.current && !minimizedRef.current) {
         event.preventDefault();
         setMinimized(true);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isMounted, minimized, open]);
+  }, [isMounted]);
 
   const clampPosition = (x: number, y: number): { x: number; y: number } => {
     if (typeof window === 'undefined') return { x, y };
-    const panelWidth = size.width;
-    const panelHeight = minimized ? 44 : size.height;
-    const maxX = Math.max(14, window.innerWidth - panelWidth - 14);
-    const maxY = Math.max(14, window.innerHeight - panelHeight - 14);
-    return {
-      x: Math.min(Math.max(14, x), maxX),
-      y: Math.min(Math.max(14, y), maxY),
-    };
+    return clampChatWindowPosition(x, y, size, minimized, window.innerWidth, window.innerHeight);
   };
 
   const clampSize = (width: number, height: number): { width: number; height: number } => {
     if (typeof window === 'undefined') {
       return { width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width)), height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, height)) };
     }
-    const maxW = Math.min(MAX_WIDTH, window.innerWidth - 28);
-    const maxH = Math.min(MAX_HEIGHT, window.innerHeight - 28);
-    return {
-      width: Math.min(maxW, Math.max(MIN_WIDTH, width)),
-      height: Math.min(maxH, Math.max(MIN_HEIGHT, height)),
-    };
+    return clampChatWindowSize(width, height, window.innerWidth, window.innerHeight);
   };
+
+  useEffect(() => {
+    if (!layoutInitialized || typeof window === 'undefined') return;
+    const handleResize = () => {
+      setSize((prevSize) => {
+        const nextSize = clampChatWindowSize(prevSize.width, prevSize.height, window.innerWidth, window.innerHeight);
+        setPosition((prevPosition) => clampChatWindowPosition(
+          prevPosition.x,
+          prevPosition.y,
+          nextSize,
+          minimizedRef.current,
+          window.innerWidth,
+          window.innerHeight,
+        ));
+        return nextSize;
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [layoutInitialized]);
 
   const applyEdgeSnap = () => {
     if (typeof window === 'undefined') return;

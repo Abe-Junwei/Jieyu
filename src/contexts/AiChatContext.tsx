@@ -136,7 +136,7 @@ export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {
 
 const AiChatContext = createContext<AiChatContextValue | null>(null);
 
-export function useAiChatContext(): AiChatContextValue {
+function useAiChatContext(): AiChatContextValue {
   const ctx = useContext(AiChatContext);
   if (!ctx) {
     throw new Error('useAiChatContext must be used within <AiChatProvider>');
@@ -149,7 +149,7 @@ interface AiChatProviderProps {
   value: AiChatContextValue;
 }
 
-export function AiChatProvider({ children, value }: AiChatProviderProps) {
+function AiChatProvider({ children, value }: AiChatProviderProps) {
   return (
     <AiChatContext.Provider value={value}>
       {children}

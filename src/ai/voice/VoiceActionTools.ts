@@ -135,7 +135,7 @@ export interface VoiceActionToolDef {
  * IMPORTANT: These are NOT the actual implementations — they are ONLY schemas.
  * Implementations are dispatched via VoiceAgentService.executeTool().
  */
-export const VOICE_ACTION_TOOL_DEFINITIONS: VoiceActionToolDef[] = [
+const VOICE_ACTION_TOOL_DEFINITIONS: VoiceActionToolDef[] = [
   // ── Navigation ─────────────────────────────────────────────────────────────
   {
     name: 'nav_to_segment',
@@ -286,7 +286,7 @@ export const VOICE_ACTION_TOOL_DEFINITIONS: VoiceActionToolDef[] = [
  * Maps VoiceActionToolNames to UI ActionIds where applicable.
  * Tools that don't map directly to ActionIds (AI assistance / context query) return null.
  */
-export function toolToActionId(toolName: VoiceActionToolName, params: VoiceActionToolParams): ActionId | null {
+function toolToActionId(toolName: VoiceActionToolName, params: VoiceActionToolParams): ActionId | null {
   switch (toolName) {
     case 'play_pause': return 'playPause';
     case 'mark_segment': return 'markSegment';
@@ -311,7 +311,7 @@ export function toolToActionId(toolName: VoiceActionToolName, params: VoiceActio
  * Returns true if the tool requires AI-side processing
  * (i.e., it cannot be handled by simple executeAction and needs the AI provider).
  */
-export function isAiTool(toolName: VoiceActionToolName): boolean {
+function isAiTool(toolName: VoiceActionToolName): boolean {
   switch (toolName) {
     case 'auto_gloss_segment':
     case 'get_current_segment':

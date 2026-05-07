@@ -146,7 +146,7 @@ export function getEffectiveKeymap(): Map<string, KeyCombo> {
 }
 
 /** Resolve all keybinding entries with effective combos. */
-export function getResolvedKeybindings(): Array<KeybindingEntry & { effectiveKey: KeyCombo }> {
+function getResolvedKeybindings(): Array<KeybindingEntry & { effectiveKey: KeyCombo }> {
   const overrides = loadUserOverrides();
   return DEFAULT_KEYBINDINGS.map((entry) => ({
     ...entry,

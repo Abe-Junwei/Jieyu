@@ -11,7 +11,7 @@ type UsePanelAutoCollapseParams = {
   ignoreInteractiveElements?: boolean;
 };
 const DEFAULT_INTERACTIVE_SELECTOR = 'button, input, textarea, select, a, [role="button"]';
-export const APP_SIDE_PANE_INTERACTION_SELECTOR = [
+const APP_SIDE_PANE_INTERACTION_SELECTOR = [
   '[data-layer-pane-interactive="true"]',
   '#app-side-pane-body-slot',
   '.app-side-pane',

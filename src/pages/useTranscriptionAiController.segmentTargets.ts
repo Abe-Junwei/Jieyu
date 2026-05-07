@@ -94,39 +94,3 @@ export function buildAiSegmentTargetDescriptors(input: {
     unitId: unit.id,
   }));
 }
-
-export function useTranscriptionAiControllerSegmentTargets(input: {
-  units: LayerUnitDocType[];
-  unitsOnCurrentMedia: LayerUnitDocType[];
-  selectedTimelineMedia?: MediaItemDocType;
-  selectedLayerId: string;
-  activeLayerIdForEdits?: string;
-  segmentsByLayer?: ReadonlyMap<string, LayerUnitDocType[]>;
-  segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, { text?: string }>>;
-  resolveSegmentRoutingForLayer?: (layerId?: string) => SegmentRoutingResult;
-  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
-}): {
-  unitTargets: LayerUnitDocType[];
-  segmentTargets: SegmentTargetDescriptor[];
-} {
-  const unitTargets = resolveAiSegmentTargetScopeUnits({
-    units: input.units,
-    unitsOnCurrentMedia: input.unitsOnCurrentMedia,
-    ...(input.selectedTimelineMedia ? { selectedTimelineMedia: input.selectedTimelineMedia } : {}),
-  });
-
-  const segmentTargets = buildAiSegmentTargetDescriptors({
-    unitTargets,
-    selectedLayerId: input.selectedLayerId,
-    ...(input.activeLayerIdForEdits ? { activeLayerIdForEdits: input.activeLayerIdForEdits } : {}),
-    ...(input.segmentsByLayer ? { segmentsByLayer: input.segmentsByLayer } : {}),
-    ...(input.segmentContentByLayer ? { segmentContentByLayer: input.segmentContentByLayer } : {}),
-    ...(input.resolveSegmentRoutingForLayer ? { resolveSegmentRoutingForLayer: input.resolveSegmentRoutingForLayer } : {}),
-    getUnitTextForLayer: input.getUnitTextForLayer,
-  });
-
-  return {
-    unitTargets,
-    segmentTargets,
-  };
-}

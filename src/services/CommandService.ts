@@ -111,7 +111,7 @@ export class CommandHistory {
  * This bridges the existing useTranscriptionData snapshot approach
  * with the Command pattern.
  */
-export class SnapshotCommand<S> implements ReversibleCommand {
+class SnapshotCommand<S> implements ReversibleCommand {
   readonly label: string;
   private readonly before: S;
   private readonly after: S;
@@ -141,7 +141,7 @@ export class SnapshotCommand<S> implements ReversibleCommand {
 // ── Batch Command ───────────────────────────────────────────
 
 /** Combine multiple reversible commands into one atomic undo entry. */
-export class BatchCommand implements ReversibleCommand {
+class BatchCommand implements ReversibleCommand {
   readonly label: string;
   private readonly commands: ReversibleCommand[];
 

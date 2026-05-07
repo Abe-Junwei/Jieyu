@@ -7,7 +7,7 @@ export type IntentContract = {
   requiredSlots: readonly string[];
 };
 
-export const LOCAL_TOOL_INTENT_CONTRACTS: readonly IntentContract[] = [
+const LOCAL_TOOL_INTENT_CONTRACTS: readonly IntentContract[] = [
   {
     intent: 'unit.list',
     toolName: 'list_units',

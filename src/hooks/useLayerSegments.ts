@@ -107,7 +107,7 @@ export function resolveSegmentTimelineSourceLayer(
 /**
  * 判断层是否在时间轴上使用 segment 边界 | Check whether a layer uses segment-backed timeline boundaries
  */
-export function layerUsesSegmentTimeline(
+function layerUsesSegmentTimeline(
   layer: LayerDocType | undefined,
   layerById: ReadonlyMap<string, LayerDocType>,
   defaultTranscriptionLayerId?: string,

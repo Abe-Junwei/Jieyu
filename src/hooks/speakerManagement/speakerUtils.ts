@@ -110,7 +110,7 @@ export function getSpeakerDisplayNameByKey(
   return speakerById.get(normalizedKey)?.name ?? normalizedKey;
 }
 
-export function getSpeakerDisplayName(
+function getSpeakerDisplayName(
   unit: Pick<LayerUnitDocType, 'speakerId' | 'speaker'>,
   speakerById: ReadonlyMap<string, SpeakerDocType>,
   labels?: Partial<SpeakerDisplayLabels>,

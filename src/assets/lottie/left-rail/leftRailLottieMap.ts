@@ -19,7 +19,7 @@ import translate from './icons/translate.json';
 /** @deprecated 使用 LeftRailNavIconName */
 export type LeftRailLottieMaterialName = LeftRailNavIconName;
 
-export const LEFT_RAIL_LOTTIE_BY_MATERIAL_NAME: Record<LeftRailNavIconName, object> = {
+const LEFT_RAIL_LOTTIE_BY_MATERIAL_NAME: Record<LeftRailNavIconName, object> = {
   speech_to_text,
   draw,
   psychology,

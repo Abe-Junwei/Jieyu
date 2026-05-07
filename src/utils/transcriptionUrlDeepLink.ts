@@ -1,5 +1,5 @@
 /** Query keys consumed by TranscriptionPage deep-link handling (phase-2+). */
-export const TRANSCRIPTION_DEEP_LINK_PARAM_KEYS = [
+const TRANSCRIPTION_DEEP_LINK_PARAM_KEYS = [
   'textId',
   'mediaId',
   'layerId',

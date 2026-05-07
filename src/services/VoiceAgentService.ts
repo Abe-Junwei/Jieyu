@@ -935,4 +935,4 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 }
 
-export { getVoiceAgentService, createVoiceAgentService } from './VoiceAgentService.singleton';
+// ADR-0028: `getVoiceAgentService` / `createVoiceAgentService` live in VoiceAgentService.singleton.ts (not barrel-re-exported here; avoids VoiceAgentService <-> singleton import cycle).

@@ -72,5 +72,3 @@ export function assertAiToolRegistryShadowParity(): void {
   }
 }
 
-/** MCP Tool Schema shape (subset) */
-export { toMcpToolSchema, type McpToolSchema } from './mcpCompatibility';

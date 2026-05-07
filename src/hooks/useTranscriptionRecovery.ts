@@ -40,6 +40,6 @@ export function useTranscriptionRecoverySnapshotScheduler({
   };
 }
 
-export function useTranscriptionRecovery(params: Params) {
+function useTranscriptionRecovery(params: Params) {
   return useTranscriptionRecoverySnapshotScheduler(params);
 }

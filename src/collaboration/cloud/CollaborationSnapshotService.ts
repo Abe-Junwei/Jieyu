@@ -73,7 +73,7 @@ function hashString(input: string): string {
 }
 
 /** 旧版短指纹（与历史 project_snapshots.checksum 兼容）| Legacy 8-hex fingerprint for existing rows */
-export function calculateSnapshotChecksum(payloadJson: string): string {
+function calculateSnapshotChecksum(payloadJson: string): string {
   return hashString(payloadJson);
 }
 
