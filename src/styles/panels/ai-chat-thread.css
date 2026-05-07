@@ -652,15 +652,6 @@
   margin-top: 8px;
 }
 
-.ai-chat-reflection-panel__header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-primary);
-  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
-  font-weight: 600;
-}
-
 .ai-chat-reflection-panel__list {
   margin: 0;
   padding: 0;

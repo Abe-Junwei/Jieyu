@@ -43,6 +43,9 @@ export const AiAdoptionQueuePanel = memo(function AiAdoptionQueuePanel({
               )}
             </div>
             <div className="ai-adoption-queue-panel__title">{item.title ?? item.summary}</div>
+            {item.summary && item.title && (
+              <div className="ai-adoption-queue-panel__summary">{item.summary}</div>
+            )}
             {item.recommendedAction && (
               <div className="ai-adoption-queue-panel__recommendation">
                 {t(locale, 'msg.aiChat.adoptionQueue.recommendedAction')}: {item.recommendedAction}
