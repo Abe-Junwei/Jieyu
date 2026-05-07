@@ -12,12 +12,22 @@ test.describe('AI chat send-turn shell smoke', () => {
     await page.goto('/transcription');
     await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
     await expect(page.locator('.transcription-ai-panel')).toBeAttached({ timeout: 25_000 });
-    // Default shell keeps the AI panel collapsed; hover opens it (same as handle-cluster mouseenter).
+    // Default shell keeps the AI panel collapsed; hover or click opens it.
     const hoverZone = page.locator('.transcription-ai-panel-hover-zone');
+    const expandButton = page.getByRole('button', { name: /Expand AI panel|展开/i });
     if (await hoverZone.count()) {
+      await hoverZone.waitFor({ state: 'visible', timeout: 10_000 });
       await hoverZone.hover({ force: true });
-    } else {
-      await page.getByRole('button', { name: /Expand AI panel|展开/i }).click({ force: true });
+      // Wait for panel to expand; fallback to click if hover did not trigger in webkit.
+      try {
+        await expect(page.locator('.transcription-ai-panel-handle-cluster.transcription-ai-panel-handle-collapsed')).toBeHidden({ timeout: 5_000 });
+      } catch {
+        if (await expandButton.count()) {
+          await expandButton.click({ force: true });
+        }
+      }
+    } else if (await expandButton.count()) {
+      await expandButton.click({ force: true });
     }
     // Sidebar assistant frame (stable test id on composer input).
     await expect(page.getByTestId('ai-chat-composer-input')).toBeAttached({ timeout: 60_000 });
