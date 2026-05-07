@@ -10,6 +10,8 @@
  * 规则引擎版满足 P1b 约束：<500ms、<1k token（无 LLM 调用）。
  */
 
+import { annotateBaselineJudge, type JudgeProvider } from './JudgeProvider';
+
 export interface CitationJudgeInput {
   id: string;
   sourceType: string;
@@ -135,3 +137,10 @@ export function judgeCitationAccuracyBatch(
         ) / 10;
   return { averageScore, results };
 }
+
+/** baseline_judge provider for citation accuracy */
+export const citationJudgeProvider: JudgeProvider<CitationJudgeInput, CitationJudgeResult> = annotateBaselineJudge({
+  name: 'citation_accuracy_baseline',
+  judge: judgeCitationAccuracy,
+  judgeBatch: (inputs) => judgeCitationAccuracyBatch(inputs).results,
+});

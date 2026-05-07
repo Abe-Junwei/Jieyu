@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildAiRuntimeReport } from './aiRuntimeReport';
+import {
+  attachAdoptionOutcomeRollupFromAuditMetadataJsons,
+  attachWorkflowExplainabilityRollupFromChat,
+  buildAiRuntimeReport,
+  buildAiRuntimeReportWithContext,
+  rollupAdoptionOutcomesFromAuditMetadataJsons,
+} from './aiRuntimeReport';
 import type { CitationJudgeResult } from './citationJudge';
 import type { RelevanceJudgeResult } from './relevanceJudge';
 
@@ -88,5 +94,138 @@ describe('buildAiRuntimeReport', () => {
   it('includes generatedAt timestamp', () => {
     const report = buildAiRuntimeReport([], []);
     expect(new Date(report.generatedAt).getTime()).not.toBeNaN();
+  });
+
+  it('has empty dimensions and sampleRequestIds for legacy call', () => {
+    const report = buildAiRuntimeReport([makeCitation(4)], [makeRelevance(3)]);
+    expect(report.dimensions.byWorkflow).toEqual({});
+    expect(report.dimensions.byProvider).toEqual({});
+    expect(report.dimensions.bySourceScope).toEqual({});
+    expect(report.sampleRequestIds).toEqual([]);
+  });
+
+  describe('buildAiRuntimeReportWithContext', () => {
+    it('aggregates by workflow dimension', () => {
+      const report = buildAiRuntimeReportWithContext(
+        [
+          { result: makeCitation(5), context: { requestId: 'r1', workflowId: 'segment_qa' } },
+          { result: makeCitation(3), context: { requestId: 'r2', workflowId: 'segment_qa' } },
+          { result: makeCitation(4), context: { requestId: 'r3', workflowId: 'annotation_qa' } },
+        ],
+        [
+          { result: makeRelevance(4), context: { requestId: 'r1', workflowId: 'segment_qa' } },
+        ],
+      );
+
+      expect(report.dimensions.byWorkflow.segment_qa).toBeDefined();
+      expect(report.dimensions.byWorkflow.segment_qa!.sampleCount).toBe(2);
+      expect(report.dimensions.byWorkflow.annotation_qa).toBeDefined();
+      expect(report.sampleRequestIds).toContain('r1');
+      expect(report.sampleRequestIds).toContain('r2');
+      expect(report.sampleRequestIds).toContain('r3');
+    });
+
+    it('aggregates by provider dimension', () => {
+      const report = buildAiRuntimeReportWithContext(
+        [
+          { result: makeCitation(5), context: { requestId: 'r1', providerId: 'openai' } },
+          { result: makeCitation(4), context: { requestId: 'r2', providerId: 'anthropic' } },
+        ],
+        [],
+      );
+
+      expect(report.dimensions.byProvider.openai).toBeDefined();
+      expect(report.dimensions.byProvider.anthropic).toBeDefined();
+    });
+
+    it('deduplicates sampleRequestIds', () => {
+      const report = buildAiRuntimeReportWithContext(
+        [
+          { result: makeCitation(5), context: { requestId: 'r1', workflowId: 'segment_qa' } },
+          { result: makeCitation(4), context: { requestId: 'r1', workflowId: 'segment_qa' } },
+        ],
+        [],
+      );
+      expect(report.sampleRequestIds.filter((id) => id === 'r1')).toHaveLength(1);
+    });
+
+    it('merges workflow explainability rollup when snapshots provided', () => {
+      const report = buildAiRuntimeReportWithContext([], [], 50, {
+        workflowExplainabilitySnapshots: [
+          {
+            headlineKey: 'degraded_response',
+            detailSignals: ['degradation:reflection_flagged'],
+            tone: 'info',
+            hasDegradation: true,
+            hasSourceScopeSummary: false,
+          },
+          {
+            headlineKey: 'scope_summary_only',
+            detailSignals: ['source_scope:segment'],
+            tone: 'neutral',
+            hasDegradation: false,
+            hasSourceScopeSummary: true,
+          },
+        ],
+      });
+      expect(report.workflowExplainabilityRollup?.schemaVersion).toBe(1);
+      expect(report.workflowExplainabilityRollup?.byHeadline.degraded_response).toBe(1);
+      expect(report.workflowExplainabilityRollup?.byHeadline.scope_summary_only).toBe(1);
+      expect(report.workflowExplainabilityRollup?.recentSignals.length).toBeGreaterThan(0);
+    });
+
+    it('attachWorkflowExplainabilityRollupFromChat derives rollup from chat messages', () => {
+      const base = buildAiRuntimeReport([], []);
+      const merged = attachWorkflowExplainabilityRollupFromChat(base, [
+        { role: 'assistant', workflowExplainability: {
+          headlineKey: 'degraded_response',
+          detailSignals: ['degradation:judge_low_score'],
+          tone: 'info',
+          hasDegradation: true,
+          hasSourceScopeSummary: false,
+        } },
+      ]);
+      expect(merged.workflowExplainabilityRollup?.byHeadline.degraded_response).toBe(1);
+    });
+
+    it('merges adoption outcome rollup when adoptionOutcomeMetadataJsons provided', () => {
+      const ignoreMeta = JSON.stringify({
+        schemaVersion: 1,
+        phase: 'adoption_outcome',
+        action: 'ignore',
+        fromStatus: 'pending',
+        toStatus: 'ignored',
+        itemId: 'i1',
+        workflowId: 'segment_qa',
+        requestId: 'r1',
+      });
+      const report = buildAiRuntimeReportWithContext([], [], 50, {
+        adoptionOutcomeMetadataJsons: [ignoreMeta, ignoreMeta],
+      });
+      expect(report.adoptionOutcomeRollup?.ignored).toBe(2);
+      expect(report.adoptionOutcomeRollup?.accepted).toBe(0);
+    });
+  });
+});
+
+describe('rollupAdoptionOutcomesFromAuditMetadataJsons', () => {
+  it('returns undefined for empty or invalid inputs', () => {
+    expect(rollupAdoptionOutcomesFromAuditMetadataJsons([])).toBeUndefined();
+    expect(rollupAdoptionOutcomesFromAuditMetadataJsons(['not-json'])).toBeUndefined();
+  });
+
+  it('counts accept / ignore / copy by action', () => {
+    const accept = JSON.stringify({ phase: 'adoption_outcome', action: 'accept' });
+    const copy = JSON.stringify({ phase: 'adoption_outcome', action: 'copy' });
+    const rollup = rollupAdoptionOutcomesFromAuditMetadataJsons([accept, copy]);
+    expect(rollup?.accepted).toBe(1);
+    expect(rollup?.copied).toBe(1);
+  });
+
+  it('attachAdoptionOutcomeRollupFromAuditMetadataJsons merges into report', () => {
+    const base = buildAiRuntimeReport([], []);
+    const meta = JSON.stringify({ phase: 'adoption_outcome', action: 'accept' });
+    const merged = attachAdoptionOutcomeRollupFromAuditMetadataJsons(base, [meta]);
+    expect(merged.adoptionOutcomeRollup?.accepted).toBe(1);
   });
 });

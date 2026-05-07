@@ -7,11 +7,28 @@
 
 import type { CitationJudgeResult } from './citationJudge';
 import type { RelevanceJudgeResult } from './relevanceJudge';
+import {
+  collectWorkflowExplainabilitySnapshots,
+  type WorkflowExplainabilityV0,
+} from '../chat/workflowExplainability';
 
 export interface JudgeTrendEntry {
   timestamp: string;
   citationOverall: number;
   relevanceOverall: number;
+}
+
+export interface AiRuntimeReportDimensionSlice {
+  citationAvg: number;
+  relevanceAvg: number;
+  sampleCount: number;
+  sampleRequestIds: string[];
+}
+
+export interface WorkflowExplainabilityRollup {
+  schemaVersion: 1;
+  byHeadline: Record<string, number>;
+  recentSignals: string[];
 }
 
 export interface AiRuntimeReport {
@@ -29,6 +46,25 @@ export interface AiRuntimeReport {
   };
   dualTrackTrend: JudgeTrendEntry[];
   anomalies: string[];
+  /** PR-P3-3: 维度聚合 | Dimensional breakdown */
+  dimensions: {
+    byWorkflow: Record<string, AiRuntimeReportDimensionSlice>;
+    byProvider: Record<string, AiRuntimeReportDimensionSlice>;
+    bySourceScope: Record<string, AiRuntimeReportDimensionSlice>;
+  };
+  /** PR-P3-3: 可追溯到具体请求的样本 id */
+  sampleRequestIds: string[];
+  /** PR-P3: 可选，由助手 explainability 快照聚合（与 judge 维度独立） */
+  workflowExplainabilityRollup?: WorkflowExplainabilityRollup;
+  /** PR-P4-3: AdoptionQueue outcome counts（由 `ai_adoption_outcome` audit metadataJson 聚合） */
+  adoptionOutcomeRollup?: AdoptionOutcomeRollup;
+}
+
+export interface AdoptionOutcomeRollup {
+  schemaVersion: 1;
+  accepted: number;
+  ignored: number;
+  copied: number;
 }
 
 function average(scores: number[]): number {
@@ -47,6 +83,122 @@ function distribution(scores: number[]): Record<number, number> {
 
 function flagCount(scores: number[], threshold = 3): number {
   return scores.filter((s) => s < threshold).length;
+}
+
+export function rollupWorkflowExplainability(
+  snapshots: WorkflowExplainabilityV0[],
+): WorkflowExplainabilityRollup | undefined {
+  if (snapshots.length === 0) return undefined;
+  const byHeadline: Record<string, number> = {};
+  const recentSignals: string[] = [];
+  for (const s of snapshots) {
+    byHeadline[s.headlineKey] = (byHeadline[s.headlineKey] ?? 0) + 1;
+    for (const sig of s.detailSignals) {
+      if (recentSignals.length < 50) recentSignals.push(sig);
+    }
+  }
+  return { schemaVersion: 1, byHeadline, recentSignals };
+}
+
+/** Merge explainability rollup derived from chat UI messages into an existing runtime report. */
+export function attachWorkflowExplainabilityRollupFromChat(
+  report: AiRuntimeReport,
+  chatMessages: ReadonlyArray<{ role: string; workflowExplainability?: WorkflowExplainabilityV0 }>,
+): AiRuntimeReport {
+  const rollup = rollupWorkflowExplainability(collectWorkflowExplainabilitySnapshots(chatMessages));
+  if (!rollup) return report;
+  return { ...report, workflowExplainabilityRollup: rollup };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/** Aggregate AdoptionQueue outcomes from persisted audit `metadataJson` strings (best-effort parse). */
+export function rollupAdoptionOutcomesFromAuditMetadataJsons(
+  metadataJsons: ReadonlyArray<string | undefined | null>,
+): AdoptionOutcomeRollup | undefined {
+  let accepted = 0;
+  let ignored = 0;
+  let copied = 0;
+  for (const raw of metadataJsons) {
+    if (typeof raw !== 'string' || raw.trim().length === 0) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+    if (!isRecord(parsed)) continue;
+    if (parsed.phase !== 'adoption_outcome') continue;
+    const action = parsed.action;
+    if (action === 'accept') accepted += 1;
+    else if (action === 'ignore') ignored += 1;
+    else if (action === 'copy') copied += 1;
+  }
+  if (accepted === 0 && ignored === 0 && copied === 0) return undefined;
+  return { schemaVersion: 1, accepted, ignored, copied };
+}
+
+export function attachAdoptionOutcomeRollupFromAuditMetadataJsons(
+  report: AiRuntimeReport,
+  metadataJsons: ReadonlyArray<string | undefined | null>,
+): AiRuntimeReport {
+  const adoptionOutcomeRollup = rollupAdoptionOutcomesFromAuditMetadataJsons(metadataJsons);
+  if (!adoptionOutcomeRollup) return report;
+  return { ...report, adoptionOutcomeRollup };
+}
+
+export interface JudgeResultContext {
+  requestId: string;
+  workflowId?: string;
+  providerId?: string;
+  sourceScope?: string;
+  fallbackReason?: string;
+  reflectionStatus?: 'passed' | 'flagged';
+}
+
+export interface ContextualCitationResult {
+  result: CitationJudgeResult;
+  context: JudgeResultContext;
+}
+
+export interface ContextualRelevanceResult {
+  result: RelevanceJudgeResult;
+  context: JudgeResultContext;
+}
+
+function aggregateByDimension(
+  citationResults: ContextualCitationResult[],
+  relevanceResults: ContextualRelevanceResult[],
+  dimensionKey: keyof JudgeResultContext,
+): Record<string, AiRuntimeReportDimensionSlice> {
+  const map = new Map<string, { citation: { score: number; requestId: string }[]; relevance: { score: number; requestId: string }[] }>();
+
+  for (const entry of citationResults) {
+    const key = String(entry.context[dimensionKey] ?? 'unknown');
+    if (!map.has(key)) map.set(key, { citation: [], relevance: [] });
+    map.get(key)!.citation.push({ score: entry.result.overallScore, requestId: entry.context.requestId });
+  }
+
+  for (const entry of relevanceResults) {
+    const key = String(entry.context[dimensionKey] ?? 'unknown');
+    if (!map.has(key)) map.set(key, { citation: [], relevance: [] });
+    map.get(key)!.relevance.push({ score: entry.result.overallScore, requestId: entry.context.requestId });
+  }
+
+  const result: Record<string, AiRuntimeReportDimensionSlice> = {};
+  for (const [key, val] of map) {
+    const cScores = val.citation.map((e) => e.score);
+    const rScores = val.relevance.map((e) => e.score);
+    result[key] = {
+      citationAvg: average(cScores),
+      relevanceAvg: average(rScores),
+      sampleCount: Math.max(val.citation.length, val.relevance.length),
+      sampleRequestIds: [...val.citation.map((e) => e.requestId), ...val.relevance.map((e) => e.requestId)].slice(0, 100),
+    };
+  }
+  return result;
 }
 
 /**
@@ -113,5 +265,58 @@ export function buildAiRuntimeReport(
     },
     dualTrackTrend,
     anomalies,
+    dimensions: {
+      byWorkflow: {},
+      byProvider: {},
+      bySourceScope: {},
+    },
+    sampleRequestIds: [],
+  };
+}
+
+/**
+ * PR-P3-3: Build an AI runtime report with contextual breakdown.
+ * Enables dimensional aggregation (workflow, provider, sourceScope) and sample traceability.
+ */
+export function buildAiRuntimeReportWithContext(
+  citationResults: ContextualCitationResult[],
+  relevanceResults: ContextualRelevanceResult[],
+  windowSize = 50,
+  options?: {
+    workflowExplainabilitySnapshots?: WorkflowExplainabilityV0[];
+    adoptionOutcomeMetadataJsons?: ReadonlyArray<string | undefined | null>;
+  },
+): AiRuntimeReport {
+  const base = buildAiRuntimeReport(
+    citationResults.map((c) => c.result).slice(-windowSize),
+    relevanceResults.map((r) => r.result).slice(-windowSize),
+    windowSize,
+  );
+
+  const cWindow = citationResults.slice(-windowSize);
+  const rWindow = relevanceResults.slice(-windowSize);
+
+  const sampleRequestIds = [
+    ...cWindow.map((c) => c.context.requestId),
+    ...rWindow.map((r) => r.context.requestId),
+  ].slice(0, 200);
+
+  const workflowExplainabilityRollup = rollupWorkflowExplainability(
+    options?.workflowExplainabilitySnapshots ?? [],
+  );
+  const adoptionOutcomeRollup = rollupAdoptionOutcomesFromAuditMetadataJsons(
+    options?.adoptionOutcomeMetadataJsons ?? [],
+  );
+
+  return {
+    ...base,
+    dimensions: {
+      byWorkflow: aggregateByDimension(cWindow, rWindow, 'workflowId'),
+      byProvider: aggregateByDimension(cWindow, rWindow, 'providerId'),
+      bySourceScope: aggregateByDimension(cWindow, rWindow, 'sourceScope'),
+    },
+    sampleRequestIds: [...new Set(sampleRequestIds)],
+    ...(workflowExplainabilityRollup ? { workflowExplainabilityRollup } : {}),
+    ...(adoptionOutcomeRollup ? { adoptionOutcomeRollup } : {}),
   };
 }
