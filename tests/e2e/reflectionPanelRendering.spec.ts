@@ -85,7 +85,7 @@ test.describe('reflection panel rendering (fixture)', () => {
     await cleanupReflectionFixture(page);
   });
 
-  test('reflection panel shows passed and failed checks', async ({ page }) => {
+  test('reflection panel lists only failed checks (passed checks stay silent)', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (err) => errors.push(err.message));
 
@@ -104,16 +104,13 @@ test.describe('reflection panel rendering (fixture)', () => {
     await expect(panel).toBeVisible({ timeout: 20_000 });
 
     const checkItems = panel.locator('.ai-chat-reflection-panel__item');
-    await expect(checkItems).toHaveCount(3);
+    await expect(checkItems).toHaveCount(1);
 
-    const passedCount = await page
-      .locator('.ai-chat-reflection-panel__item.is-passed')
-      .count();
-    const failedCount = await page
-      .locator('.ai-chat-reflection-panel__item.is-failed')
-      .count();
-    expect(passedCount).toBe(2);
+    const passedCount = await page.locator('.ai-chat-reflection-panel__item.is-passed').count();
+    const failedCount = await page.locator('.ai-chat-reflection-panel__item.is-failed').count();
+    expect(passedCount).toBe(0);
     expect(failedCount).toBe(1);
+    await expect(panel.locator('.ai-chat-reflection-panel__failed-count')).toContainText('(1)');
 
     await page.waitForTimeout(300);
     expect(errors).toHaveLength(0);
