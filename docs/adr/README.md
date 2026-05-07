@@ -48,6 +48,8 @@ source_of_truth: decision-index
 - [0027-voice-unified-non-dictation-chat-path.md](./0027-voice-unified-non-dictation-chat-path.md)（非听写语音与文字统一 AI 聊天主链；无开关、无旧分流）
 - [0028-assistant-multimodal-orchestration-local-first.md](./0028-assistant-multimodal-orchestration-local-first.md)（助手编排统一：共用 dialogue、工具真执行、本地优先、TTS；打字不强制预路由；VoiceAgentService 收敛）
 - [0029-assistant-tts-web-speech-policy.md](./0029-assistant-tts-web-speech-policy.md)（助手 TTS：`speechSynthesis` 边界、默认关、不支持时弱提示、与流式互斥；`accepted`）
+- [0022-ai-evaluation-judge-provider-contract.md](./0022-ai-evaluation-judge-provider-contract.md)（AI 评测 JudgeProvider 契约：`JudgeProvider` / baseline vs LLM judge；`accepted`）
+- [0030-vertical-workflow-template-contract.md](./0030-vertical-workflow-template-contract.md)（垂直工作流模板：`sourceScopeSummary` 命名、MCP 空 scope 硬失败、eval 分阶段、release evidence `skipTaxonomyRollup`、dogfood 指标非门禁、`VoiceAgentService` &lt;950 行；`accepted`）
 
 ## 建议格式
 

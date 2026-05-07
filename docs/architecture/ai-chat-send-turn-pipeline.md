@@ -39,6 +39,35 @@ When `localStorage['jieyu_debug_ai_send_turn'] === '1'`, `useAiChat.sendTurnCorr
 
 - Composer `<input>` in `AiChatCard` exposes `data-testid="ai-chat-composer-input"` for E2E and diagnostics (it already carries an `aria-label` from i18n).
 
+## Post-stream completions (P1–P5 verticals)
+
+`useAiChat.sendTurnStreamPhase.ts` performs the following after the primary stream finishes:
+
+1. **Agent loop** (`runAgentLoop` from `src/ai/chat/agentLoopRunner.ts`) — multi-step tool execution continuation.
+2. **Reflection checks** — rule-based self-check per workflow (`segment_qa`, `annotation_qa`, `lexeme_candidates`, `elan_flex_compatibility`). Results are stored on the assistant message as `reflectionChecks` for the UI quality panel.
+3. **Composed workflow state advancement** — parses `<step1>`/`<step2>`/`<step3>` tags and updates `sessionMemory.composedWorkflowState`. If reflection flags a step and retry budget remains (`stepReflectionRetryCounts[step] < 1`), the state is rolled back with `pendingReflectionRetryStepIndex`; `useAiChat.ts` detects this after `send` completes and auto-triggers the retry turn.
+4. **Compatibility report parsing** (when `workflowId === 'elan_flex_compatibility'`) — parses JSON from the model output, attaches a structured `compatibilityReport` to the assistant message, and auto-pushes findings that carry `adoptionCandidateId` into the AdoptionQueue via `onPushAdoptionItemsRef`.
+5. **Source set scope binding** — evidence packets produced by `ragCitationsToEvidencePackets` carry `sourceSetId` and `sourceSetSnapshot` for audit-grade traceability. The active source set is selected via `AiSourceSetBar` and synced into `sessionMemoryRef.current.activeSourceSetId` through `setActiveSourceSetId`.
+
+### AdoptionQueue push boundary
+
+`onPushAdoptionItemsRef` is a callback ref passed from `AiChatCard` into `useAiChat`. After stream completion, `sendTurnStreamPhase.ts` iterates over `compatibilityReport.findings`; for each finding with `adoptionCandidateId`, it constructs an `AdoptionItem` (status `pending`) and calls `onPushAdoptionItemsRef.current(items)`. `AiChatCard` accumulates these in local React state (`adoptionItems`) and renders `AiAdoptionQueuePanel`. This decouples the stream-phase from the UI: the hook only emits items; the card owns presentation and action handlers (accept/ignore/copy/jump).
+
+### Source set → RAG scope data flow
+
+1. User selects a source set in `AiSourceSetBar` → `handleSelectSourceSet(id)` → `setActiveSourceSetId(id)` writes `sessionMemoryRef.current.activeSourceSetId`.
+2. On the next `send`, `sendPersistTurnAndBuildPromptContext.ts` reads `sessionMemoryRef.current.activeSourceSetId` and resolves the corresponding `SavedCorpusSourceSet` → `toRuntimeCorpusSourceSet`.
+3. RAG retrieval uses the runtime source set scope instead of the default corpus scope.
+4. `ragCitationsToEvidencePackets` injects `sourceSetId` and `sourceSetSnapshot` into each `EvidencePacketV0`, establishing bidirectional traceability between citations and the source set that produced them.
+
+## E2E anchors
+
+- `tests/e2e/aiChatSendTurnSmoke.spec.ts` — composer shell mounting (no model).
+- `tests/e2e/segmentQaEvidenceJump.spec.ts` — evidence card citation jump (fixture-based, no model).
+- `tests/e2e/compatibilityReportRendering.spec.ts` — compatibility report card rendering (fixture-based, no model).
+- `tests/e2e/sourceSetBarSmoke.spec.ts` — source set bar mounts with project-scope label in empty state (fixture-based, no model).
+- `tests/e2e/reflectionPanelRendering.spec.ts` — reflection quality panel renders passed/failed checks (fixture-based, no model).
+
 ## Follow-ups (not implemented here)
 
 - **Error UX:** persist/opening and `ai_messages.update` failures set `lastError` to **`tf(..., 'ai.chat.persistLayerRecoveryHint', { providerLabel })`** when the thrown `Error.message` is `persist failed` or `db generation metadata failed` (see `useAiChat.sendTurn.ts`). The AI sidebar warning bar adds **Retry last send** (replays the latest user message via `onSendAiMessage`; disabled when none or while streaming) and **Copy diagnostics** (JSON to clipboard: `lastError`, `providerLabel`, `conversationId`, `lastUserMessagePresent`, `messageCount`, `ts`, `userAgent`) when the visible error matches `isSendTurnPersistLayerRecoveryHintMessage` (`src/ai/chat/sendTurnPersistRecoveryUi.ts`).

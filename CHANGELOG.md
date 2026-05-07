@@ -8,6 +8,28 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ## [Unreleased]
 
+### Added
+
+- **AdoptionQueue MVP** (`AiAdoptionQueuePanel`, `adoptionQueue.ts`): `AdoptionItem` extended with
+  `outputKind`, `title`, `recommendedAction`, `writeMode` to align with `AdoptionCandidateV0` spec.
+- **Eval suite expansion**: 12 new JSON semantic cases for `annotation_qa` and `lexeme_candidates`
+  workflow selection + envelope building (parity with `segment_qa`).
+- **Reflection checks**: `confidence_in_bounds` and `quote_nonempty` added to
+  `annotationQaReflection` and `lexemeCandidatesReflection` (matching `segmentQaReflection`).
+- **Judge production integration**: `judgeCitationAccuracyBatch` and `judgeRelevance` wired into
+  `useAiChat.sendTurnStreamPhase.ts`; results persisted to `audit_logs` (`ai_citation_judge`,
+  `ai_relevance_judge`).
+- **AiRuntimeReport generator** (`aiRuntimeReportGenerator.ts`, `aiRuntimeReportDimensionalAudit.ts`):
+  reads adoption outcomes, citation/relevance judge results, reflection failed checks, and tool
+  decisions from Dexie `audit_logs` to build dimensional runtime reports.
+
+### Fixed
+
+- **E2E flaky** (`aiChatSendTurnSmoke.spec.ts`): webkit hover reliability improved with
+  visibility wait + collapsed-state assertion + click fallback.
+- **Architecture guard** (`useAiChat.ts`): merged two `useMemo` declarations into one to satisfy
+  `maxUseMemoDecls: 3` ceiling.
+
 ## [1.1.0] - 2026-04-24
 
 ### Changed
