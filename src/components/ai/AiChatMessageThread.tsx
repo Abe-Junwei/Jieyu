@@ -4,6 +4,7 @@ import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE_TIGHT } from '../../utils/jieyuMaterialIcon';
 import { AiChatAssistantMessage } from './AiChatAssistantMessage';
 import type { DegradationScenario } from '../../ai/chat/degradationManualOverride';
+import type { WorkflowExplainabilityV0 } from '../../ai/chat/workflowExplainability';
 
 type UserMessage = {
   id: string;
@@ -21,6 +22,27 @@ type AssistantMessage = {
   generationModel?: string;
   thinking?: boolean;
   degradationScenarios?: DegradationScenario[];
+  sourceScopeSummary?: {
+    evidenceCount: number;
+    sourceTypeBreakdown: Record<string, number>;
+    scopeLabel: string;
+  };
+  workflowExplainability?: WorkflowExplainabilityV0;
+  reflectionChecks?: Array<{ name: string; passed: boolean }>;
+  compatibilityReport?: {
+    reportId: string;
+    findings: Array<{
+      findingId: string;
+      kind: string;
+      severity: 'info' | 'warning' | 'error';
+      title: string;
+      description: string;
+      recommendedAction: string;
+      evidenceCount: number;
+    }>;
+    summary: string;
+    exportTargets: string[];
+  };
 };
 
 export function AiChatMessageThread({
@@ -61,6 +83,11 @@ export function AiChatMessageThread({
     evidenceQuoteLabel: string;
     evidenceConfidenceLabel: (confidencePercent: string) => string;
     evidenceJump: string;
+    sourceScopeSummary: (count: number, scopeLabel: string) => string;
+    workflowExplainabilitySrOnly: (
+      headlineKey: 'assistant_error' | 'degraded_response' | 'scope_summary_only',
+      detailsJoined: string,
+    ) => string;
     parsingToolCall: string;
     thinking: string;
   };

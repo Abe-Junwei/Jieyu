@@ -1,9 +1,23 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import '../../styles/ai-hub.css';
 import '../../styles/panels/ai-chat-composer.css';
 import '../../styles/panels/ai-chat-thread.css';
 import { type AiToolGoldenSnapshot, type AiToolReplayBundle, type AiToolSnapshotDiff } from '../../ai/auditReplay';
 import { t, useLocale } from '../../i18n';
+import type { AdoptionItem } from '../../ai/vertical/adoptionQueue';
+import {
+  buildVerticalAdoptionEvidencePacketIds,
+  canAcceptAdoptionItem,
+  createAdoptionItem,
+  pruneExpiredItems,
+  transitionAdoptionItem,
+  type AdoptionAction,
+} from '../../ai/vertical/adoptionQueue';
+import { buildAdoptionAcceptProposeChangesUserPrompt } from '../../ai/vertical/adoptionProposeChangesUserPrompt';
+import { scheduleAdoptionOutcomeAuditLog } from '../../ai/vertical/adoptionOutcomeAuditPersist';
+import type { SavedCorpusSourceSet } from '../../ai/vertical/corpusSourceSet';
+import { createSavedSourceSet, switchActiveSourceSet } from '../../ai/vertical/corpusSourceSet';
 import { getAiChatProviderDefinition } from '../../ai/providers/providerCatalog';
 import type { AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
@@ -32,6 +46,7 @@ import { useAiChatAutoScrollController } from './useAiChatAutoScrollController';
 import { AiChatDecisionPanel } from './AiChatDecisionPanel';
 import { AiChatComposerPanel } from './AiChatComposerPanel';
 import { AiChatInteractionShell } from './AiChatInteractionShell';
+import { AiAdoptionQueuePanel } from './AiAdoptionQueuePanel';
 import { useAiChatRecommendationController } from './useAiChatRecommendationController';
 import { useAiChatAlertBarState } from './useAiChatAlertBarState';
 import { useAiChatComposerGuardState } from './useAiChatComposerGuardState';
@@ -97,7 +112,9 @@ export function AiChatCard({
     onCancelPendingToolCall,
     onDismissPendingAgentLoopCheckpoint,
     timelineReadModelEpoch,
+    adoptionItemsPushSinkRef,
     onTrackAiRecommendationEvent,
+    onSetActiveSourceSetId,
     observerStage,
     onJumpToCitation,
     onVoiceSelectDisambiguation,
@@ -125,6 +142,32 @@ export function AiChatCard({
   const [dismissedRecommendationSignature, setDismissedRecommendationSignature] = useState<string | null>(null);
   const [directiveSourceFilter, setDirectiveSourceFilter] = useState<'all' | 'user_explicit' | 'background_extracted' | 'pinned_message'>('all');
   const [directiveActionNotice, setDirectiveActionNotice] = useState<string | null>(null);
+  const [adoptionItems, setAdoptionItems] = useState<AdoptionItem[]>([]);
+  const pendingPostStreamAdoptionPromptsRef = useRef<string[]>([]);
+  const [savedSourceSets, setSavedSourceSets] = useState<SavedCorpusSourceSet[]>([]);
+  const [activeSourceSetId, setActiveSourceSetId] = useState<string | null>(null);
+
+  // P5: Source set management
+  const handleCreateSourceSet = useCallback(() => {
+    const newSet = createSavedSourceSet({
+      name: `Source Set ${savedSourceSets.length + 1}`,
+      scope: 'selection',
+      members: [],
+    });
+    setSavedSourceSets((prev) => [...prev, newSet]);
+    setActiveSourceSetId(newSet.id);
+    onSetActiveSourceSetId?.(newSet.id);
+  }, [savedSourceSets.length, onSetActiveSourceSetId]);
+
+  const handleSelectSourceSet = useCallback((id: string) => {
+    const nextId = id || null;
+    setActiveSourceSetId(nextId);
+    onSetActiveSourceSetId?.(nextId);
+    if (id) {
+      setSavedSourceSets((prev) => switchActiveSourceSet(prev, id));
+    }
+  }, [onSetActiveSourceSetId]);
+
   const showProviderConfig = providerConfigOpen ?? localShowProviderConfig;
   const toggleProviderConfig = useCallback(() => {
     const next = !showProviderConfig;
@@ -371,6 +414,127 @@ export function AiChatCard({
 
   const chatTitle = useMemo(() => t(locale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, ''), [locale]);
   const messages = aiMessages ?? [];
+
+  // PR-P4-3: Derive adoption items from vertical workflow audit entries（证据占位与助手 citations / envelope 对齐）
+  useEffect(() => {
+    const list = aiMessages ?? [];
+    if (aiVerticalWorkflowAuditEntries.length === 0) return;
+    const latestEntry = aiVerticalWorkflowAuditEntries[aiVerticalWorkflowAuditEntries.length - 1];
+    if (!latestEntry) return;
+    const workflowId = latestEntry.metadata.workflowId;
+    if (!workflowId || latestEntry.metadata.completionStatus !== 'done') return;
+    const assistantMessageId = latestEntry.assistantMessageId;
+    const assistantMsg = list.find((m) => m.id === assistantMessageId && m.role === 'assistant');
+    const evidencePacketIds = buildVerticalAdoptionEvidencePacketIds({
+      assistantMessageId,
+      metadata: latestEntry.metadata,
+      citations: assistantMsg?.citations,
+    });
+    const requestKey = latestEntry.requestId ?? latestEntry.assistantMessageId;
+    setAdoptionItems((prev) => {
+      const pendingIdx = prev.findIndex(
+        (item) => item.requestId === requestKey && item.status === 'pending',
+      );
+      if (pendingIdx >= 0) {
+        const cur = prev[pendingIdx]!;
+        if (
+          evidencePacketIds.length > cur.evidencePacketIds.length
+          || (assistantMsg?.content !== undefined && assistantMsg.content !== cur.rawContent)
+        ) {
+          const next = [...prev];
+          next[pendingIdx] = {
+            ...cur,
+            evidencePacketIds: evidencePacketIds.length > 0 ? evidencePacketIds : cur.evidencePacketIds,
+            ...(assistantMsg?.content !== undefined ? { rawContent: assistantMsg.content } : {}),
+          };
+          return next;
+        }
+        return prev;
+      }
+      const alreadyExists = prev.some((item) => item.requestId === requestKey);
+      if (alreadyExists) return prev;
+      const newItem = createAdoptionItem({
+        workflowId,
+        requestId: requestKey,
+        summary: `${workflowId} output`,
+        evidencePacketIds,
+        sourceAssistantMessageId: assistantMessageId,
+        ...(assistantMsg?.content !== undefined ? { rawContent: assistantMsg.content } : {}),
+      });
+      return [...prev, newItem];
+    });
+  }, [aiVerticalWorkflowAuditEntries, aiMessages]);
+
+  useEffect(() => {
+    const sink = adoptionItemsPushSinkRef;
+    if (!sink) return;
+    sink.current = (incoming) => {
+      setAdoptionItems((prev) => {
+        const seen = new Set(prev.map((i) => i.requestId));
+        const next = [...prev];
+        for (const item of incoming) {
+          if (seen.has(item.requestId)) continue;
+          seen.add(item.requestId);
+          next.push(item);
+        }
+        return next;
+      });
+    };
+    return () => {
+      sink.current = null;
+    };
+  }, [adoptionItemsPushSinkRef]);
+
+  // P4: auto-prune expired adoption items on mount and when items change
+  useEffect(() => {
+    setAdoptionItems((prev) => {
+      if (prev.length === 0) return prev;
+      const pruned = pruneExpiredItems({ items: prev }, Date.now());
+      return pruned.items;
+    });
+  }, []);
+
+  // P4: rehydrate adoption items from persisted compatibility reports on mount
+  useEffect(() => {
+    const messages = aiMessages ?? [];
+    if (messages.length === 0) return;
+    setAdoptionItems((prev) => {
+      const seen = new Set(prev.map((i) => i.requestId));
+      const next = [...prev];
+      for (const msg of messages) {
+        if (msg.role !== 'assistant' || !msg.compatibilityReport) continue;
+        const report = msg.compatibilityReport;
+        for (const finding of report.findings) {
+          const requestId = `${report.reportId}:${finding.findingId}`;
+          if (seen.has(requestId)) continue;
+          seen.add(requestId);
+          next.push(
+            createAdoptionItem({
+              workflowId: 'elan_flex_compatibility',
+              requestId,
+              sourceAssistantMessageId: msg.id,
+              summary: finding.title,
+              evidencePacketIds: [],
+              rawContent: finding.description,
+              actionLabel: finding.recommendedAction,
+            }),
+          );
+        }
+      }
+      return next;
+    });
+  }, [aiMessages]);
+
+  useEffect(() => {
+    if (aiIsStreaming) return;
+    const pending = pendingPostStreamAdoptionPromptsRef.current;
+    if (pending.length === 0) return;
+    pendingPostStreamAdoptionPromptsRef.current = [];
+    for (const prompt of pending) {
+      void onSendAiMessage?.(prompt);
+    }
+  }, [aiIsStreaming, onSendAiMessage]);
+
   /** 流式阶段正文+推理长度；用于贴底滚动依赖，避免仅 messages.length 变化时才滚动 | Scroll anchor during token stream */
   const streamingThreadScrollSignature = useMemo(() => {
     if (!aiIsStreaming) return 0;
@@ -395,6 +559,75 @@ export function AiChatCard({
     onToggleAiMessagePin,
     onJumpToCitation,
   });
+
+  const handleAdoptionQueueItemAction = useCallback((itemId: string, action: AdoptionAction, options?: { reasonCode?: string }) => {
+    if (action === 'accept') {
+      const item = adoptionItems.find((i) => i.id === itemId);
+      if (!item || !canAcceptAdoptionItem(item)) return;
+      const applyAccept = () => {
+        setAdoptionItems((prev) => {
+          const row = prev.find((i) => i.id === itemId);
+          if (!row) return prev;
+          scheduleAdoptionOutcomeAuditLog({ conversationId: aiConversationId, item: row, action: 'accept' });
+          try {
+            return prev.map((r) => (r.id === itemId ? transitionAdoptionItem(r, 'accept', options) : r));
+          } catch {
+            return prev;
+          }
+        });
+      };
+      if (onSendAiMessage && aiIsStreaming) {
+        const head = t(locale, 'msg.aiChat.adoptionQueue.proposeChangesHead');
+        const prompt = buildAdoptionAcceptProposeChangesUserPrompt(item, head);
+        pendingPostStreamAdoptionPromptsRef.current.push(prompt);
+        flushSync(applyAccept);
+        return;
+      }
+      if (onSendAiMessage && !aiIsStreaming) {
+        const head = t(locale, 'msg.aiChat.adoptionQueue.proposeChangesHead');
+        const prompt = buildAdoptionAcceptProposeChangesUserPrompt(item, head);
+        flushSync(applyAccept);
+        void onSendAiMessage(prompt);
+      } else {
+        applyAccept();
+      }
+      return;
+    }
+
+    setAdoptionItems((prev) => {
+      const item = prev.find((i) => i.id === itemId);
+      if (!item) return prev;
+      if (action !== 'jump_to_evidence') {
+        scheduleAdoptionOutcomeAuditLog({ conversationId: aiConversationId, item, action });
+      }
+      try {
+        return prev.map((row) => {
+          if (row.id !== itemId) return row;
+          return transitionAdoptionItem(row, action, options);
+        });
+      } catch {
+        return prev;
+      }
+    });
+  }, [adoptionItems, aiConversationId, aiIsStreaming, locale, onSendAiMessage]);
+
+  const handleJumpAdoptionEvidence = useCallback((packetIds: string[]) => {
+    const first = packetIds[0];
+    if (!first) return;
+    const matched = /^vertical_evidence:([^:]+):(\d+)$/.exec(first);
+    if (!matched) return;
+    const messageId = matched[1];
+    const index = Number.parseInt(matched[2] ?? '0', 10);
+    const msg = messages.find((x) => x.id === messageId && x.role === 'assistant');
+    const citations = msg?.citations ?? [];
+    const citation = citations[index] ?? citations[0];
+    if (!citation) return;
+    activateCitation(
+      { type: citation.type, refId: citation.refId },
+      citation.snippet !== undefined ? { snippet: citation.snippet } : undefined,
+    );
+  }, [messages, activateCitation]);
+
   const {
     pinnedMessageIdsSignature,
     pinnedMessageIdSet,
@@ -714,6 +947,17 @@ export function AiChatCard({
             persistLayerRecoveryActions={persistLayerRecoveryActions}
             aiTaskSession={aiTaskSession}
             rankedClarifyCandidates={rankedClarifyCandidates}
+            savedSourceSets={savedSourceSets}
+            activeSourceSetId={activeSourceSetId}
+            onSelectSourceSet={handleSelectSourceSet}
+            onCreateSourceSet={handleCreateSourceSet}
+          />
+
+          <AiAdoptionQueuePanel
+            items={adoptionItems}
+            locale={locale}
+            onItemAction={handleAdoptionQueueItemAction}
+            {...(onJumpToCitation ? { onJumpToEvidence: handleJumpAdoptionEvidence } : {})}
           />
 
           <AiChatComposerPanel

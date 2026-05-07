@@ -5,6 +5,8 @@ import { AiChatSummaryPanels } from './AiChatSummaryPanels';
 import { AiChatMessageThread } from './AiChatMessageThread';
 import { AiChatAlertsPanel } from './AiChatAlertsPanel';
 import { AiChatCandidateChips } from './AiChatCandidateChips';
+import { AiSourceSetBar } from './AiSourceSetBar';
+import type { SavedCorpusSourceSet } from '../../ai/vertical/corpusSourceSet';
 
 type SummaryPanelProps = ComponentProps<typeof AiChatSummaryPanels>;
 type MessageThreadProps = ComponentProps<typeof AiChatMessageThread>;
@@ -61,6 +63,10 @@ type AiChatInteractionShellProps =
     aiSessionMemory: AiSessionMemory | null | undefined;
     aiTaskSession: AiTaskSession | null | undefined;
     rankedClarifyCandidates: CandidateChipsProps['candidates'];
+    savedSourceSets?: readonly SavedCorpusSourceSet[];
+    activeSourceSetId?: string | null;
+    onSelectSourceSet?: (id: string) => void;
+    onCreateSourceSet?: () => void;
   };
 
 export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
@@ -124,10 +130,23 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
     persistLayerRecoveryActions,
     aiTaskSession,
     rankedClarifyCandidates,
+    savedSourceSets,
+    activeSourceSetId,
+    onSelectSourceSet,
+    onCreateSourceSet,
   } = props;
 
   return (
     <>
+      {savedSourceSets !== undefined && (
+        <AiSourceSetBar
+          sourceSets={savedSourceSets}
+          activeSourceSetId={activeSourceSetId ?? null}
+          locale={locale}
+          onSelectSourceSet={onSelectSourceSet}
+          onCreateSourceSet={onCreateSourceSet}
+        />
+      )}
       <AiChatSummaryPanels
         locale={locale}
         cardMessages={cardMessages}

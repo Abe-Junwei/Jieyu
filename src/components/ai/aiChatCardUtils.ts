@@ -1,5 +1,5 @@
 import { createLogger } from '../../observability/logger';
-import { getAiChatCardUtilityMessages } from '../../i18n/messages';
+import { getAiChatCardUtilityMessages } from '../../i18n/aiChatCardUtilityMessages';
 import { formatPolicyReasonLabelWithCode } from '../../ai/chat/policyReasonLabels';
 
 const log = createLogger('AiChatCardUtils');

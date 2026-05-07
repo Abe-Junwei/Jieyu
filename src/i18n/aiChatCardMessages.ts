@@ -190,6 +190,11 @@ export type AiChatCardMessages = {
   evidenceQuoteLabel: string;
   evidenceConfidenceLabel: (confidencePercent: string) => string;
   evidenceJump: string;
+  sourceScopeSummary: (count: number, scopeLabel: string) => string;
+  workflowExplainabilitySrOnly: (
+    headlineKey: 'assistant_error' | 'degraded_response' | 'scope_summary_only',
+    detailsJoined: string,
+  ) => string;
   reasoning: string;
   copied: string;
   copy: string;
@@ -312,6 +317,13 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       evidenceQuoteLabel: '\u5f15\u6587',
       evidenceConfidenceLabel: (confidencePercent) => `\u7f6e\u4fe1\u5ea6 ${confidencePercent}`,
       evidenceJump: '\u8df3\u8f6c\u5230\u6765\u6e90',
+      sourceScopeSummary: (count, scopeLabel) => `\u57fa\u4e8e ${count} \u6761${scopeLabel === 'segment' ? '\u8bed\u6bb5' : scopeLabel === 'mixed' ? '\u6df7\u5408\u6765\u6e90' : '\u6765\u6e90'}`,
+      workflowExplainabilitySrOnly: (headlineKey, detailsJoined) => {
+        const tail = detailsJoined.trim().length > 0 ? `\uff1a${detailsJoined}` : '';
+        if (headlineKey === 'assistant_error') return `\u52a9\u624b\u56de\u590d\u5f02\u5e38${tail}`;
+        if (headlineKey === 'degraded_response') return `\u6b64\u6761\u56de\u590d\u5305\u542b\u9700\u6ce8\u610f\u7684\u964d\u7ea7\u6216\u5ba1\u67e5\u573a\u666f${tail}`;
+        return `\u8bfb\u53d6\u8303\u56f4\u6458\u8981${tail}`;
+      },
       reasoning: '\ud83d\udcad \u63a8\u7406\u8fc7\u7a0b',
       copied: '\u5df2\u590d\u5236',
       copy: '\u590d\u5236',
@@ -433,6 +445,13 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     evidenceQuoteLabel: 'Quote',
     evidenceConfidenceLabel: (confidencePercent) => `Confidence ${confidencePercent}`,
     evidenceJump: 'Jump to source',
+    sourceScopeSummary: (count, scopeLabel) => `Based on ${count} ${scopeLabel === 'segment' ? 'segment' : scopeLabel === 'mixed' ? 'mixed sources' : 'source'}${count > 1 ? 's' : ''}`,
+    workflowExplainabilitySrOnly: (headlineKey, detailsJoined) => {
+      const tail = detailsJoined.trim().length > 0 ? `: ${detailsJoined}` : '';
+      if (headlineKey === 'assistant_error') return `Assistant reply error${tail}`;
+      if (headlineKey === 'degraded_response') return `This reply includes a degraded or flagged review scenario${tail}`;
+      return `Read scope summary${tail}`;
+    },
     reasoning: '\ud83d\udcad Reasoning',
     copied: 'Copied',
     copy: 'Copy',

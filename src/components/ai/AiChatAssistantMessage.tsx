@@ -6,8 +6,9 @@ import { formatCitationLabel } from './aiChatCardUtils';
 import { StreamWordsText } from './streamAssistantWords';
 import { AiChatFeedbackButtons } from './AiChatFeedbackButtons';
 import { AiChatDegradationOverride, useDegradationOverrides } from './AiChatDegradationOverride';
-import { t, type Locale } from '../../i18n';
+import { t, tf, type Locale } from '../../i18n';
 import type { DegradationScenario } from '../../ai/chat/degradationManualOverride';
+import type { WorkflowExplainabilityV0 } from '../../ai/chat/workflowExplainability';
 
 type Citation = {
   type: 'note' | 'unit' | 'pdf' | 'schema';
@@ -27,6 +28,27 @@ type AssistantMessage = {
   generationModel?: string;
   thinking?: boolean;
   degradationScenarios?: DegradationScenario[];
+  sourceScopeSummary?: {
+    evidenceCount: number;
+    sourceTypeBreakdown: Record<string, number>;
+    scopeLabel: string;
+  };
+  workflowExplainability?: WorkflowExplainabilityV0;
+  compatibilityReport?: {
+    reportId: string;
+    findings: Array<{
+      findingId: string;
+      kind: string;
+      severity: 'info' | 'warning' | 'error';
+      title: string;
+      description: string;
+      recommendedAction: string;
+      evidenceCount: number;
+    }>;
+    summary: string;
+    exportTargets: string[];
+  };
+  reflectionChecks?: Array<{ name: string; passed: boolean }>;
 };
 
 export function AiChatAssistantMessage({
@@ -67,6 +89,11 @@ export function AiChatAssistantMessage({
     evidenceQuoteLabel: string;
     evidenceConfidenceLabel: (confidencePercent: string) => string;
     evidenceJump: string;
+    sourceScopeSummary: (count: number, scopeLabel: string) => string;
+    workflowExplainabilitySrOnly: (
+      headlineKey: 'assistant_error' | 'degraded_response' | 'scope_summary_only',
+      detailsJoined: string,
+    ) => string;
   };
   expandedReasoningIds: Set<string>;
   copiedMessageId: string | null;
@@ -115,6 +142,13 @@ export function AiChatAssistantMessage({
   const isAssistantPinned = pinnedMessageIdSet.has(assistantMsg.id);
   const evidenceCitations = orderedCitations.filter((citation) => citation.refId.trim().length > 0);
   const degradationScenarios = assistantMsg.degradationScenarios ?? [];
+  const failedReflectionChecks = (assistantMsg.reflectionChecks ?? []).filter((check) => !check.passed);
+  const showNoEvidenceFallback = assistantMsg.status === 'done'
+    && evidenceCitations.length === 0
+    && (
+      assistantMsg.sourceScopeSummary !== undefined
+      || degradationScenarios.includes('rag_no_results')
+    );
   const { states: degradationStates, setState: setDegradationStates } = useDegradationOverrides(
     degradationScenarios,
     assistantMsg.id,
@@ -123,6 +157,27 @@ export function AiChatAssistantMessage({
   return (
     <div className="ai-chat-message-bubble ai-chat-message-assistant">
       <div className="ai-chat-message-surface">
+        {assistantMsg.workflowExplainability && assistantMsg.workflowExplainability.headlineKey !== 'ok' && (
+          <span className="ai-chat-sr-only">
+            {cardMessages.workflowExplainabilitySrOnly(
+              assistantMsg.workflowExplainability.headlineKey,
+              assistantMsg.workflowExplainability.detailSignals.join(
+                locale === 'zh-CN' ? '\u3001' : '; ',
+              ),
+            )}
+          </span>
+        )}
+        {assistantMsg.sourceScopeSummary && assistantMsg.status === 'done' && (
+          <div className="ai-chat-source-scope-summary">
+            <MaterialSymbol name="library_books" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+            <span>
+              {cardMessages.sourceScopeSummary(
+                assistantMsg.sourceScopeSummary.evidenceCount,
+                assistantMsg.sourceScopeSummary.scopeLabel,
+              )}
+            </span>
+          </div>
+        )}
         <span className="ai-chat-message-content">
           {hasInlineMarkers
             ? splitCitationMarkers(assistantContent, rawCitations.length).map((seg, i) => (
@@ -202,11 +257,12 @@ export function AiChatAssistantMessage({
                   ? Math.max(0, Math.min(1, citation.confidence))
                   : 0.8;
                 const confidencePercent = `${Math.round(confidence * 100)}%`;
+                const confidenceTier = confidence >= 0.8 ? 'high' : confidence >= 0.5 ? 'medium' : 'low';
                 const quote = (citation.snippet ?? '').trim();
                 return (
                   <article
                     key={`${assistantMsg.id}-evidence-${citation.type}-${citation.refId}-${index}`}
-                    className="ai-chat-evidence-card"
+                    className={`ai-chat-evidence-card is-confidence-${confidenceTier}`}
                   >
                     <div className="ai-chat-evidence-card__meta">
                       <span className="ai-chat-evidence-card__marker">[{index + 1}]</span>
@@ -219,6 +275,7 @@ export function AiChatAssistantMessage({
                       <button
                         type="button"
                         className="ai-chat-evidence-card__jump"
+                        data-testid={`ai-chat-evidence-jump-${index}`}
                         disabled={!canActivateCitation}
                         aria-label={cardMessages.evidenceJump}
                         title={cardMessages.evidenceJump}
@@ -238,6 +295,33 @@ export function AiChatAssistantMessage({
             </div>
           </div>
         )}
+        {/* P1: low-confidence evidence warning */}
+        {evidenceCitations.length > 0 && evidenceCitations.some((c) => (typeof c.confidence === 'number' ? c.confidence : 0.8) < 0.5) && (
+          <div className="ai-chat-low-confidence-banner" role="alert">
+            <MaterialSymbol name="warning" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+            <span>{t(locale, 'msg.aiChat.lowConfidenceWarning')}</span>
+          </div>
+        )}
+        {/* P1: no-evidence fallback with actionable next step (scope summary and/or RAG empty) */}
+        {showNoEvidenceFallback && (
+          <div className="ai-chat-no-evidence-fallback" role="note">
+            <MaterialSymbol name="search_off" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+            <div>
+              <p>{t(locale, 'msg.aiChat.noEvidenceFallback.title')}</p>
+              <p className="ai-chat-no-evidence-fallback__hint">
+                {t(locale, 'msg.aiChat.noEvidenceFallback.hint')}
+              </p>
+              {assistantMsg.sourceScopeSummary && (
+                <p className="ai-chat-no-evidence-fallback__scope">
+                  {cardMessages.sourceScopeSummary(
+                    assistantMsg.sourceScopeSummary.evidenceCount,
+                    assistantMsg.sourceScopeSummary.scopeLabel,
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
         {degradationStates.length > 0 && (
           <div className="ai-chat-degradation-stack" role="region" aria-label={t(locale, 'msg.aiChat.degradation.ariaLabel')}>
             {degradationStates.map((state) => (
@@ -252,6 +336,70 @@ export function AiChatAssistantMessage({
                 }}
               />
             ))}
+          </div>
+        )}
+        {/* P1: reflection — collapsible panel, failed checks only (passes stay silent) */}
+        {failedReflectionChecks.length > 0 && assistantMsg.status === 'done' && (
+          <details className="ai-chat-reflection-panel" open data-testid="ai-chat-reflection-panel">
+            <summary className="ai-chat-reflection-panel__summary" aria-label={t(locale, 'msg.aiChat.reflectionPanel.ariaLabel')}>
+              <MaterialSymbol name="fact_check" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+              <span>{t(locale, 'msg.aiChat.reflectionPanel.title')}</span>
+              <span className="ai-chat-reflection-panel__failed-count">({failedReflectionChecks.length})</span>
+            </summary>
+            <ul className="ai-chat-reflection-panel__list">
+              {failedReflectionChecks.map((check) => (
+                <li
+                  key={`${assistantMsg.id}-${check.name}`}
+                  className="ai-chat-reflection-panel__item is-failed"
+                >
+                  <MaterialSymbol name="error" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                  <span>{check.name}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        {assistantMsg.compatibilityReport && assistantMsg.status === 'done' && (
+          <div className="ai-chat-compatibility-report" role="region" aria-label={t(locale, 'msg.aiChat.compatibilityReport.ariaLabel')}>
+            <div className="ai-chat-compatibility-report__header">
+              <MaterialSymbol name="sync_alt" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+              <span>{t(locale, 'msg.aiChat.compatibilityReport.title')}</span>
+              <span className="ai-chat-compatibility-report__count">
+                {assistantMsg.compatibilityReport.findings.length}
+              </span>
+            </div>
+            <div className="ai-chat-compatibility-report__summary">
+              {assistantMsg.compatibilityReport.summary}
+            </div>
+            {assistantMsg.compatibilityReport.findings.length > 0 && (
+              <div className="ai-chat-compatibility-report__findings">
+                {assistantMsg.compatibilityReport.findings.map((finding) => {
+                  const severityIcon = finding.severity === 'error' ? 'error' : finding.severity === 'warning' ? 'warning' : 'info';
+                  return (
+                    <div
+                      key={`${assistantMsg.id}-${finding.findingId}`}
+                      className={`ai-chat-compatibility-report__finding is-severity-${finding.severity}`}
+                    >
+                      <div className="ai-chat-compatibility-report__finding-title">
+                        <MaterialSymbol name={severityIcon} className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                        <span>{finding.title}</span>
+                        <span className="ai-chat-compatibility-report__finding-kind">({finding.kind})</span>
+                      </div>
+                      <div className="ai-chat-compatibility-report__finding-desc">{finding.description}</div>
+                      <div className="ai-chat-compatibility-report__finding-action">
+                        <strong>{t(locale, 'msg.aiChat.compatibilityReport.recommendedAction')}:</strong>{' '}
+                        {finding.recommendedAction}
+                      </div>
+                      {finding.evidenceCount > 0 && (
+                        <div className="ai-chat-compatibility-report__finding-evidence">
+                          {tf(locale, 'msg.aiChat.compatibilityReport.evidenceCount', { count: finding.evidenceCount })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
         <div className="ai-chat-message-actions">
