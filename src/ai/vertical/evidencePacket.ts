@@ -13,6 +13,15 @@ export interface EvidencePacketTimeRangeMs {
   endMs: number;
 }
 
+export interface EvidencePacketSourceSetSnapshot {
+  sourceSetId: string;
+  scope: string;
+  memberCount: number;
+  mediaId?: string;
+  layerId?: string;
+  projectId?: string;
+}
+
 export interface EvidencePacketV0 {
   schemaVersion: typeof EVIDENCE_PACKET_V0_SCHEMA_VERSION;
   id: string;
@@ -27,6 +36,9 @@ export interface EvidencePacketV0 {
   summary?: string;
   confidence?: number;
   reasonCode?: string;
+  /** PR-P1: EvidencePacket ↔ SourceSet 绑定契约 */
+  sourceSetId?: string;
+  sourceSetSnapshot?: EvidencePacketSourceSetSnapshot;
 }
 
 export type BuildEvidencePacketV0Input = Omit<EvidencePacketV0, 'schemaVersion'>;
@@ -62,4 +74,10 @@ export const EVIDENCE_PACKET_METRIC_DEPENDENT_FIELDS = [
   'confidence',
   'reasonCode',
   'timeRangeMs',
+] as const satisfies readonly (keyof EvidencePacketV0)[];
+
+/** Fields for P1+ source scope traceability; renaming breaks scope audit. */
+export const EVIDENCE_PACKET_SCOPE_DEPENDENT_FIELDS = [
+  'sourceSetId',
+  'sourceSetSnapshot',
 ] as const satisfies readonly (keyof EvidencePacketV0)[];

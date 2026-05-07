@@ -26,12 +26,14 @@ describe('vertical p0 foundation', () => {
 
   it('exposes default vertical workflows with write-mode boundaries', () => {
     const workflows = listVerticalWorkflowsV0();
-    expect(workflows).toHaveLength(3);
+    expect(workflows).toHaveLength(4);
     expect(getVerticalWorkflowV0('segment_qa').writeMode).toBe('read_only');
     expect(getVerticalWorkflowV0('annotation_qa').writeMode).toBe('propose_only');
     expect(getVerticalWorkflowV0('lexeme_candidates').writeMode).toBe('propose_only');
+    expect(getVerticalWorkflowV0('elan_flex_compatibility').writeMode).toBe('read_only');
     expect(Object.keys(VERTICAL_WORKFLOW_REGISTRY_V0).sort()).toEqual([
       'annotation_qa',
+      'elan_flex_compatibility',
       'lexeme_candidates',
       'segment_qa',
     ]);

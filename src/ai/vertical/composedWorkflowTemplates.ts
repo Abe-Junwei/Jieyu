@@ -1,4 +1,12 @@
 import { getVerticalWorkflowV0, type VerticalWorkflowId, type VerticalWorkflowV0 } from './verticalWorkflowRegistry';
+import type { AnnotationQaReflectionResult } from './annotationQaReflection';
+import { buildAnnotationQaReflectionRetryPrompt } from './annotationQaReflection';
+import type { LexemeCandidatesReflectionResult } from './lexemeCandidatesReflection';
+import { buildLexemeCandidatesReflectionRetryPrompt } from './lexemeCandidatesReflection';
+import type { SegmentQaReflectionResult } from './segmentQaReflection';
+import { buildReflectionRetryPrompt as buildSegmentQaReflectionRetryPrompt } from './segmentQaReflection';
+import type { ElanFlexCompatibilityReflectionResult } from './elanFlexCompatibilityWorkflow';
+import { buildElanFlexCompatibilityReflectionRetryPrompt } from './elanFlexCompatibilityWorkflow';
 
 export type ComposedWorkflowStepId = 'segment_qa' | 'annotation_qa' | 'lexeme_candidates';
 
@@ -11,12 +19,43 @@ export interface ComposedWorkflowTemplate {
 
 export type ComposedWorkflowStatus = 'running' | 'step1_done' | 'step2_done' | 'done' | 'failed';
 
+export type ComposedReflectionRetryBlob =
+  | { kind: 'segment_qa'; result: SegmentQaReflectionResult }
+  | { kind: 'annotation_qa'; result: AnnotationQaReflectionResult }
+  | { kind: 'lexeme_candidates'; result: LexemeCandidatesReflectionResult }
+  | { kind: 'elan_flex_compatibility'; result: ElanFlexCompatibilityReflectionResult };
+
 export interface ComposedWorkflowState {
   templateId: string;
   currentStepIndex: number;
   stepResults: Record<string, string>;
   status: ComposedWorkflowStatus;
   originalUserText: string;
+  /** P4: Track reflection retry counts per step (max 1 retry) */
+  stepReflectionRetryCounts?: Record<number, number>;
+  /** P4: When reflection flags a step, this holds the step index to retry */
+  pendingReflectionRetryStepIndex?: number;
+  /** Full reflection payload for one retry userText appendix (cleared after retry send). */
+  pendingReflectionRetryDetail?: ComposedReflectionRetryBlob;
+}
+
+/** Drop pending reflection retry markers so a successful parse does not carry stale blobs. */
+export function stripComposedPendingReflectionRetry(state: ComposedWorkflowState): ComposedWorkflowState {
+  const { pendingReflectionRetryStepIndex: _a, pendingReflectionRetryDetail: _b, ...rest } = state;
+  return rest;
+}
+
+export function buildComposedReflectionRetryPromptAppendix(detail: ComposedReflectionRetryBlob): string {
+  switch (detail.kind) {
+    case 'segment_qa':
+      return buildSegmentQaReflectionRetryPrompt(detail.result);
+    case 'annotation_qa':
+      return buildAnnotationQaReflectionRetryPrompt(detail.result);
+    case 'lexeme_candidates':
+      return buildLexemeCandidatesReflectionRetryPrompt(detail.result);
+    case 'elan_flex_compatibility':
+      return buildElanFlexCompatibilityReflectionRetryPrompt(detail.result);
+  }
 }
 
 export const ANNOTATION_QA_THEN_LEXEME_CANDIDATES: ComposedWorkflowTemplate = {
@@ -289,10 +328,11 @@ export interface AdvanceComposedWorkflowResult {
  *   - If neither present               → status 'failed'.
  */
 export function advanceComposedWorkflowStateAfterParse(
-  state: ComposedWorkflowState,
+  stateInput: ComposedWorkflowState,
   parseResult: { step1: string; step2: string; step3?: string } | null,
   rawContent: string,
 ): AdvanceComposedWorkflowResult {
+  const state = stripComposedPendingReflectionRetry(stateInput);
   const isThreeStep = state.templateId === 'segment_qa_then_annotation_qa_then_lexeme_candidates';
 
   if (parseResult) {

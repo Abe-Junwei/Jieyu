@@ -42,6 +42,11 @@ const VERTICAL_WORKFLOW_KEYWORD_RULES: ReadonlyArray<VerticalWorkflowKeywordRule
     confidence: 0.78,
     keywords: ['语段', '这句', '这段', '解释', '含义', '问答', 'segment', 'question'],
   },
+  {
+    workflowId: 'elan_flex_compatibility',
+    confidence: 0.82,
+    keywords: ['elan', 'flex', '互通', '兼容', 'compatibility', 'export', 'eaf', 'flextext', 'tier', '往返'],
+  },
 ];
 
 export function selectVerticalWorkflowV0(userText: string): VerticalWorkflowSelectionV0 | null {

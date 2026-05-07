@@ -22,6 +22,7 @@ const VALID_OUTPUT_KINDS: readonly VerticalWorkflowOutputKind[] = [
   'lexeme_candidates',
   'export_plan',
   'fieldwork_note',
+  'compatibility_report',
 ];
 
 const VALID_WRITE_MODES: readonly VerticalWorkflowWriteMode[] = [

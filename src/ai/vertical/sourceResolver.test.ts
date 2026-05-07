@@ -142,4 +142,38 @@ describe('ragCitationsToEvidencePackets', () => {
     expect(packets[0]!.id).toBe('unit-1_0');
     expect(packets[1]!.id).toBe('unit-1_1');
   });
+
+  it('attaches sourceSetId and sourceSetSnapshot when sourceSet has sourceIds', () => {
+    const citations: AiMessageCitation[] = [
+      { type: 'unit', refId: 'unit-1', snippet: 'hello' },
+    ];
+    const sourceSet: CorpusSourceSet = {
+      scope: 'selection',
+      sourceIds: ['unit-1', 'unit-2'],
+      mediaId: 'media-1',
+      layerId: 'layer-1',
+    };
+    const packets = ragCitationsToEvidencePackets(citations, sourceSet);
+    expect(packets[0]!.sourceSetId).toBe('unit-1_unit-2');
+    expect(packets[0]!.sourceSetSnapshot).toEqual({
+      sourceSetId: 'unit-1_unit-2',
+      scope: 'selection',
+      memberCount: 2,
+      mediaId: 'media-1',
+      layerId: 'layer-1',
+    });
+  });
+
+  it('uses project_wide as fallback sourceSetId when sourceIds empty', () => {
+    const citations: AiMessageCitation[] = [
+      { type: 'unit', refId: 'unit-1', snippet: 'hello' },
+    ];
+    const sourceSet: CorpusSourceSet = {
+      scope: 'project',
+      sourceIds: [],
+    };
+    const packets = ragCitationsToEvidencePackets(citations, sourceSet);
+    expect(packets[0]!.sourceSetId).toBe('project_wide');
+    expect(packets[0]!.sourceSetSnapshot!.memberCount).toBe(0);
+  });
 });

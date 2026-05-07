@@ -1,5 +1,5 @@
 export type VerticalWorkflowInputScope = 'current_segment' | 'selection' | 'corpus_source_set' | 'project';
-export type VerticalWorkflowOutputKind = 'answer' | 'qa_findings' | 'lexeme_candidates' | 'export_plan' | 'fieldwork_note';
+export type VerticalWorkflowOutputKind = 'answer' | 'qa_findings' | 'lexeme_candidates' | 'export_plan' | 'fieldwork_note' | 'compatibility_report';
 export type VerticalWorkflowWriteMode = 'read_only' | 'propose_only' | 'confirm_required';
 
 export interface VerticalWorkflowV0 {
@@ -12,7 +12,7 @@ export interface VerticalWorkflowV0 {
   evalSuiteId?: string;
 }
 
-export type VerticalWorkflowId = 'segment_qa' | 'annotation_qa' | 'lexeme_candidates';
+export type VerticalWorkflowId = 'segment_qa' | 'annotation_qa' | 'lexeme_candidates' | 'elan_flex_compatibility';
 
 export const VERTICAL_WORKFLOW_REGISTRY_V0: Record<VerticalWorkflowId, VerticalWorkflowV0> = {
   segment_qa: {
@@ -41,6 +41,15 @@ export const VERTICAL_WORKFLOW_REGISTRY_V0: Record<VerticalWorkflowId, VerticalW
     writeMode: 'propose_only',
     requiredCapabilities: ['read.lexeme', 'read.segment', 'read.rag', 'policy.confirmation'],
     evalSuiteId: 'vertical.lexeme_candidates.v0',
+  },
+  elan_flex_compatibility: {
+    id: 'elan_flex_compatibility',
+    labelKey: 'msg.ai.vertical.workflow.elanFlexCompatibility',
+    inputScope: 'project',
+    outputKind: 'compatibility_report',
+    writeMode: 'read_only',
+    requiredCapabilities: ['read.segment', 'read.layers', 'read.lexeme', 'read.annotation'],
+    evalSuiteId: 'vertical.elan_flex_compatibility.v0',
   },
 };
 

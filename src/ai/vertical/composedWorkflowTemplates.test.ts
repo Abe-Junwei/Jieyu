@@ -3,6 +3,7 @@ import {
   ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
   SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
   advanceComposedWorkflowStateAfterParse,
+  buildComposedReflectionRetryPromptAppendix,
   buildComposedWorkflowSystemPromptAppendix,
   buildStep2RetryPrompt,
   buildStep3RetryPrompt,
@@ -10,6 +11,7 @@ import {
   parseComposedWorkflowOutput,
   resolveComposedStepWorkflowSelection,
   selectComposedWorkflowTemplate,
+  stripComposedPendingReflectionRetry,
 } from './composedWorkflowTemplates';
 import { getVerticalWorkflowV0 } from './verticalWorkflowRegistry';
 
@@ -161,6 +163,42 @@ describe('parseComposedWorkflowOutput', () => {
   });
 });
 
+describe('stripComposedPendingReflectionRetry', () => {
+  it('removes pending reflection retry markers', () => {
+    const s = {
+      ...createInitialComposedWorkflowState(ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 'q'),
+      pendingReflectionRetryStepIndex: 0,
+      pendingReflectionRetryDetail: {
+        kind: 'segment_qa' as const,
+        result: {
+          reflectionFlagged: true,
+          checks: [{ name: 'citation_count_match', passed: false, detail: 'd' }],
+          summary: 'x',
+        },
+      },
+    };
+    const stripped = stripComposedPendingReflectionRetry(s);
+    expect(stripped.pendingReflectionRetryStepIndex).toBeUndefined();
+    expect(stripped.pendingReflectionRetryDetail).toBeUndefined();
+    expect(stripped.templateId).toBe(s.templateId);
+  });
+});
+
+describe('buildComposedReflectionRetryPromptAppendix', () => {
+  it('returns guidance for flagged segment_qa reflection', () => {
+    const appendix = buildComposedReflectionRetryPromptAppendix({
+      kind: 'segment_qa',
+      result: {
+        reflectionFlagged: true,
+        checks: [{ name: 'citation_count_match', passed: false, detail: 'mismatch' }],
+        summary: 'flagged',
+      },
+    });
+    expect(appendix.length).toBeGreaterThan(0);
+    expect(appendix).toMatch(/citation|Citation/i);
+  });
+});
+
 describe('buildStep2RetryPrompt', () => {
   it('returns a short Chinese retry cue', () => {
     const prompt = buildStep2RetryPrompt();
@@ -200,6 +238,25 @@ describe('advanceComposedWorkflowStateAfterParse', () => {
     expect(nextState.currentStepIndex).toBe(2);
     expect(step1Result).toBe('Findings');
     expect(step2Result).toBe('Candidates');
+  });
+
+  it('clears pending reflection retry markers on successful parse', () => {
+    const stateWithPending = {
+      ...baseState,
+      pendingReflectionRetryStepIndex: 0,
+      pendingReflectionRetryDetail: {
+        kind: 'annotation_qa' as const,
+        result: {
+          reflectionFlagged: true,
+          checks: [{ name: 'citation_count_match', passed: false, detail: 'd' }],
+          summary: 's',
+        },
+      },
+    };
+    const parseResult = { step1: 'Findings', step2: 'Candidates' };
+    const { nextState } = advanceComposedWorkflowStateAfterParse(stateWithPending, parseResult, 'raw');
+    expect(nextState.pendingReflectionRetryStepIndex).toBeUndefined();
+    expect(nextState.pendingReflectionRetryDetail).toBeUndefined();
   });
 
   it('advances to step1_done when only step1 is present', () => {
