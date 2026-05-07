@@ -68,9 +68,11 @@ describe('VoiceAgentService structure invariants', () => {
 
   it('keeps runtime service instantiation centralized to one entry per service', () => {
     const code = readVoiceAgentServiceCode();
+    const wakeBindingsPath = path.resolve(process.cwd(), 'src/services/VoiceAgentService.wakeWordBindings.ts');
+    const wakeBindingsCode = fs.readFileSync(wakeBindingsPath, 'utf8');
 
     expect(countMatches(code, /new VoiceInputService\(/g)).toBe(1);
-    expect(countMatches(code, /new WakeWordDetector\(/g)).toBe(1);
+    expect(countMatches(code, /new WakeWordDetector\(/g) + countMatches(wakeBindingsCode, /new WakeWordDetector\(/g)).toBe(1);
     expect(code.includes('private _voiceService: VoiceInputServiceType | null = null;')).toBe(true);
     expect(code.includes('private _wakeWordDetector: WakeWordDetectorType | null = null;')).toBe(true);
   });
@@ -105,6 +107,8 @@ describe('VoiceAgentService structure invariants', () => {
 
   it('keeps cleanup and singleton replacement centralized', () => {
     const code = readVoiceAgentServiceCode();
+    const singletonPath = path.resolve(process.cwd(), 'src/services/VoiceAgentService.singleton.ts');
+    const singletonCode = fs.readFileSync(singletonPath, 'utf8');
 
     expect(code.includes("document.removeEventListener('visibilitychange', this._handleVisibilityChange);")).toBe(true);
     expect(code.includes('this._ambientUnsubscribe?.();')).toBe(true);
@@ -112,8 +116,9 @@ describe('VoiceAgentService structure invariants', () => {
     expect(code.includes('this._voiceService?.releaseSharedAnalysisStream();')).toBe(true);
     expect(code.includes('this._stopWakeWordDetector();')).toBe(true);
     expect(code.includes('this.removeAllListeners();')).toBe(true);
-    expect(code.includes('if (_instance) {')).toBe(true);
-    expect(code.includes('await _instance.dispose();')).toBe(true);
-    expect(code.includes('_instance = new VoiceAgentService(options);')).toBe(true);
+    expect(singletonCode.includes('if (_instance) {')).toBe(true);
+    expect(singletonCode.includes('await _instance.dispose();')).toBe(true);
+    expect(singletonCode.includes('_instance = new VoiceAgentService(options);')).toBe(true);
+    expect(code.includes("export { getVoiceAgentService, createVoiceAgentService } from './VoiceAgentService.singleton'")).toBe(true);
   });
 });

@@ -112,7 +112,7 @@ export const architectureGuardRules = [
     ],
   }),
   hookRule('useAiChat', {
-    maxLines: 1350,
+    maxLines: 1100,
     maxUseCallbackDecls: 16,
     maxUseMemoDecls: 3,
     maxUseEffects: 4,
@@ -324,13 +324,20 @@ export const architectureGuardRules = [
   }),
   {
     file: 'src/services/VoiceAgentService.ts',
-    maxLines: 1100,
+    maxLines: 950,
     requiredRegexes: [
       /export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEventMap>/,
-      /export function getVoiceAgentService\(\): VoiceAgentService \| null \{/,
-      /export async function createVoiceAgentService\(options: VoiceAgentServiceOptions = \{\}\): Promise<VoiceAgentService> \{/,
+      /export \{ getVoiceAgentService, createVoiceAgentService \} from '\.\/VoiceAgentService\.singleton'/,
       /from '\.\/VoiceAgentService\.sttResultDispatch'/,
       /dispatchVoiceAgentServiceSttResult\(/,
+    ],
+  },
+  {
+    file: 'src/services/VoiceAgentService.singleton.ts',
+    maxLines: 80,
+    requiredRegexes: [
+      /export function getVoiceAgentService\(\): VoiceAgentService \| null \{/,
+      /export async function createVoiceAgentService\(options: VoiceAgentServiceOptions = \{\}\): Promise<VoiceAgentService> \{/,
     ],
   },
   {

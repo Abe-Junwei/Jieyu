@@ -34,8 +34,11 @@ import { BrowserEventEmitter } from './VoiceAgentService.eventEmitter';
 import { dispatchVoiceAgentServiceSttResult } from './VoiceAgentService.sttResultDispatch';
 import { buildVoiceAgentServiceStateSnapshot } from './VoiceAgentService.state';
 import { buildVoiceAgentStartConfig, testVoiceAgentCommercialProvider } from './VoiceAgentService.runtime';
-import { startWakeWordDetectorRuntime } from './VoiceAgentService.wakeWord';
+import { bindVoiceAgentWakeWordStart } from './VoiceAgentService.wakeWordBindings';
 import { startVoiceAgentRecording, stopVoiceAgentRecording } from './VoiceAgentService.recordingControls';
+import { scheduleSyncVoiceServiceSttEnhancement } from './VoiceAgentService.sttEnhancementSync';
+import { applyAdaptiveSttEngineRecommendation } from './VoiceAgentService.adaptiveEngineSwitch';
+import { resolveVoiceAgentEffectiveLang, scheduleVoiceAgentBatteryLevelRefresh } from './VoiceAgentService.langAndBattery';
 import type { Locale } from '../i18n';
 import type { VoiceAgentMode, VoiceAgentServiceOptions, VoiceAgentServiceState } from './VoiceAgentService.types';
 export type { VoiceAgentMode, VoiceAgentServiceOptions, VoiceAgentServiceState } from './VoiceAgentService.types';
@@ -43,7 +46,6 @@ import {
   loadSttRuntime,
   loadSttStrategyRuntime,
   loadVoiceInputRuntime,
-  loadWakeWordRuntime,
 } from './voiceRuntimeLoaders';
 
 const log = createLogger('VoiceAgentService');
@@ -133,7 +135,6 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private _engineSwitchCounter = 0;
   private _intentAliasMap: Record<string, ActionId> = {};
   private _stateCache: VoiceAgentServiceState | null = null;
-  private static readonly _ENGINE_SWITCH_THRESHOLD = 3; // require N consecutive recommendations before switching
   /** Bumped on each `stop()` and at the start of each `start()`; in-flight start tails compare to drop stale work after rapid toggle-off. */
   private _voiceActivateToken = 0;
   /** Coalesces concurrent `start()` calls; cleared in `stop()` so a new start is not blocked on a stale in-flight promise (CRITICAL-3). */
@@ -332,21 +333,18 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 
   private _getEffectiveLang(): string {
-    const override = this._langOverride;
-    if (override === '__auto__') return ''; // empty = browser auto-detect
-    if (override) return toBcp47(override) ?? this._corpusLang;
-    return toBcp47(this._corpusLang) ?? this._corpusLang;
+    return resolveVoiceAgentEffectiveLang({
+      langOverride: this._langOverride,
+      corpusLang: this._corpusLang,
+    });
   }
 
   /** Asynchronously refresh the cached battery level (fire-and-forget).
    * \u5f02\u6b65\u66f4\u65b0\u7535\u91cf\u7f13\u5b58，\u4e0b\u6b21 chooseSttEngine \u65f6\u751f\u6548。 */
   private _refreshBatteryLevel(): void {
-    if (typeof navigator === 'undefined' || !('getBattery' in navigator)) return;
-    type BatteryManager = { level: number };
-    (navigator as unknown as { getBattery(): Promise<BatteryManager> })
-      .getBattery()
-      .then((b) => { this._batteryLevel = b.level; })
-      .catch((err) => { log.error('failed to get battery level', { err }); });
+    scheduleVoiceAgentBatteryLevelRefresh((level) => {
+      this._batteryLevel = level;
+    });
   }
 
   private async _ensureVoiceService(): Promise<VoiceInputServiceType> {
@@ -747,33 +745,10 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 
   private _syncVoiceServiceEnhancementConfig(): void {
-    if (!this._voiceService) {
-      return;
-    }
-
-    if (this._sttEnhancementKind === 'none') {
-      this._voiceService.setSttEnhancement(undefined, undefined);
-      return;
-    }
-
-    void loadSttRuntime().then(({ createSttEnhancementProvider }) => {
-      if (!this._voiceService) {
-        return;
-      }
-
-      if (this._sttEnhancementKind === 'none') {
-        this._voiceService.setSttEnhancement(undefined, undefined);
-        return;
-      }
-
-      this._voiceService.setSttEnhancement(
-        createSttEnhancementProvider(this._sttEnhancementKind),
-        this._sttEnhancementConfig,
-      );
-    }).catch((error) => {
-      log.warn('failed to sync STT enhancement config to VoiceInputService', {
-        error: error instanceof Error ? error.message : String(error),
-      });
+    scheduleSyncVoiceServiceSttEnhancement({
+      getVoiceService: () => this._voiceService,
+      enhancementKind: this._sttEnhancementKind,
+      enhancementConfig: this._sttEnhancementConfig,
     });
   }
 
@@ -837,22 +812,16 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   // ── Wake-word detector ─────────────────────────────────────────────────
 
   private _startWakeWordDetector(): void {
-    startWakeWordDetectorRuntime({
-      hasDetector: () => Boolean(this._wakeWordDetector),
-      loadWakeWordRuntime,
-      instantiateDetector: (WakeWordDetector) => new WakeWordDetector({
-        energyThreshold: 0.05,
-        speechMs: 400,
-        cooldownMs: 3000,
-        onWake: () => {
-          void this.start('command');
-        },
-        onEnergy: (rms) => {
-          this._setState({ wakeWordEnergyLevel: rms });
-        },
-      }),
+    bindVoiceAgentWakeWordStart({
+      getHasDetector: () => Boolean(this._wakeWordDetector),
       setDetector: (detector) => {
         this._wakeWordDetector = detector;
+      },
+      onWake: () => {
+        void this.start('command');
+      },
+      onWakeEnergy: (rms) => {
+        this._setState({ wakeWordEnergyLevel: rms });
       },
       onStartFailed: (err) => {
         log.warn('wake-word detector start failed, disabling', { err });
@@ -882,24 +851,13 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
    * Called asynchronously after each final STT result.
    */
   private _checkAndSwitchEngineIfNeeded(): void {
-    const sq = this._speechQuality;
-    if (!sq || !this._listening) return;
-
-    const recommended = sq.recommendSttEngine();
-    // Map 'whisper-local' | 'commercial' | 'web-speech' → 'whisper-local' | 'commercial' | 'web-speech'
-    const targetEngine: SttEngine = recommended;
-
-    if (targetEngine === this._engine) {
-      // Already using the recommended engine — reset counter
-      this._engineSwitchCounter = 0;
-      return;
-    }
-
-    this._engineSwitchCounter += 1;
-    if (this._engineSwitchCounter >= VoiceAgentService._ENGINE_SWITCH_THRESHOLD) {
-      this.switchEngine(targetEngine);
-      this._engineSwitchCounter = 0;
-    }
+    this._engineSwitchCounter = applyAdaptiveSttEngineRecommendation({
+      listening: this._listening,
+      currentEngine: this._engine,
+      engineSwitchCounter: this._engineSwitchCounter,
+      speechQuality: this._speechQuality,
+      switchEngine: (engine) => this.switchEngine(engine),
+    });
   }
 
   // ── Grounding Context (Stage 2) ─────────────────────────────────────────
@@ -977,26 +935,4 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 }
 
-// ── Singleton export（非生产主路径：转写页使用 `useVoiceAgent`；此处供单测与无 React 宿主场景）─────────────────
-
-let _instance: VoiceAgentService | null = null;
-
-/**
- * 返回当前进程内单例（若尚未 `createVoiceAgentService` 则为 null）。
- * 生产界面请使用 `useVoiceAgent`，勿依赖此单例。
- */
-export function getVoiceAgentService(): VoiceAgentService | null {
-  return _instance;
-}
-
-/**
- * 创建或替换全局 `VoiceAgentService` 单例。
- * **ADR-0028**：与 Hook 栈并行仅存此薄出口；编排与 STT→意图→分发与 `useVoiceAgentResultHandler` 共用 `assistantVoiceIntentDispatch` 等模块。
- */
-export async function createVoiceAgentService(options: VoiceAgentServiceOptions = {}): Promise<VoiceAgentService> {
-  if (_instance) {
-    await _instance.dispose();
-  }
-  _instance = new VoiceAgentService(options);
-  return _instance;
-}
+export { getVoiceAgentService, createVoiceAgentService } from './VoiceAgentService.singleton';
