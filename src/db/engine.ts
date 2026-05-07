@@ -6,8 +6,8 @@
  * Instance: 单例管理与 JieyuDatabase 工厂
  */
 import Dexie, { type Table, type Transaction } from 'dexie';
-import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, ProjectAiMemoryDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType, SegmentationV2BackfillRows, V28BackfillPlan, JieyuCollections } from './types';
-import { validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUnitMorphemeDoc, validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc, validateAiTaskDoc, validateEmbeddingDoc, validateAiConversationDoc, validateAiMessageDoc, validateProjectAiMemoryDoc, validateLanguageDoc, validateLanguageDisplayNameDoc, validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc, validateCustomFieldDefinitionDoc, validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc, validateLocationDoc, validateBibliographicSourceDoc, validateGrammarDoc, validateAbbreviationDoc, validateStructuralRuleProfileAssetDoc, validatePhonemeDoc, validateTagDefinitionDoc, validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc, validateUnitRelationDoc, validateLayerLinkDoc, validateTierDefinitionDoc, validateTierAnnotationDoc, validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc, validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc, validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc, validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc } from './schemas';
+import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, ProjectAiMemoryDoc, McpToolCallAuditDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType, SegmentationV2BackfillRows, V28BackfillPlan, JieyuCollections } from './types';
+import { validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUnitMorphemeDoc, validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc, validateAiTaskDoc, validateEmbeddingDoc, validateAiConversationDoc, validateAiMessageDoc, validateProjectAiMemoryDoc, validateMcpToolCallAuditDoc, validateLanguageDoc, validateLanguageDisplayNameDoc, validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc, validateCustomFieldDefinitionDoc, validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc, validateLocationDoc, validateBibliographicSourceDoc, validateGrammarDoc, validateAbbreviationDoc, validateStructuralRuleProfileAssetDoc, validatePhonemeDoc, validateTagDefinitionDoc, validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc, validateUnitRelationDoc, validateLayerLinkDoc, validateTierDefinitionDoc, validateTierAnnotationDoc, validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc, validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc, validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc, validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc } from './schemas';
 import { DexieCollectionAdapter, TierBackedLayerCollectionAdapter, resolveBridgeId, BRIDGE_TIER_PREFIX } from './adapter';
 import { upgradeM18LinguisticUnitCutover } from './migrations/m18LinguisticUnitCutover';
 import { upgradeM41SelfCertaintyHostDepollute } from './migrations/m41SelfCertaintyHostDepollute';
@@ -31,7 +31,7 @@ export const JIEYU_DEXIE_DB_NAME = 'jieyudb_v2' as const;
  * 须与 `JieyuDexie` 构造器内**最高**的 `this.version(…)` 号一致，供健康检查 / 迁移回放测试（ARCH-5）。
  * Must match the highest `this.version(…)` in `JieyuDexie` — health + migration-replay (ARCH-5).
  */
-export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 47;
+export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 48;
 
 export function buildSegmentationV2BackfillRows(input: {
   units: LayerUnitDocType[];
@@ -279,6 +279,7 @@ export class JieyuDexie extends Dexie {
   ai_conversations!: Table<AiConversationDoc, string>;
   ai_messages!: Table<AiMessageDoc, string>;
   project_ai_memories!: Table<ProjectAiMemoryDoc, string>;
+  mcp_tool_call_audits!: Table<McpToolCallAuditDoc, string>;
   languages!: Table<LanguageDocType, string>;
   language_display_names!: Table<LanguageDisplayNameDocType, string>;
   language_aliases!: Table<LanguageAliasDocType, string>;
@@ -1236,6 +1237,11 @@ export class JieyuDexie extends Dexie {
     this.version(47).stores({
       project_ai_memories: 'id, projectId, [projectId+updatedAt], createdAt, updatedAt',
     });
+
+    // v48: MCP tools/call 独立审计表（与 audit_logs 分流）。
+    this.version(48).stores({
+      mcp_tool_call_audits: 'id, timestamp, toolName, outcome, [toolName+timestamp]',
+    });
   }
 }
 
@@ -1406,6 +1412,7 @@ async function _createDb(): Promise<JieyuDatabase> {
     ),
     ai_messages: new DexieCollectionAdapter(dexie.ai_messages, validateAiMessageDoc),
     project_ai_memories: new DexieCollectionAdapter(dexie.project_ai_memories, validateProjectAiMemoryDoc),
+    mcp_tool_call_audits: new DexieCollectionAdapter(dexie.mcp_tool_call_audits, validateMcpToolCallAuditDoc),
     languages: new DexieCollectionAdapter(dexie.languages, validateLanguageDoc),
     language_display_names: new DexieCollectionAdapter(dexie.language_display_names, validateLanguageDisplayNameDoc),
     language_aliases: new DexieCollectionAdapter(dexie.language_aliases, validateLanguageAliasDoc),

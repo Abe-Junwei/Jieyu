@@ -288,6 +288,26 @@ export interface AiMessageDoc {
   citations?: AiMessageCitation[];
   errorMessage?: string;
   reasoningContent?: string;
+  reflectionChecks?: Array<{ name: string; passed: boolean }>;
+  compatibilityReport?: {
+    reportId: string;
+    findings: Array<{
+      findingId: string;
+      kind: string;
+      severity: 'info' | 'warning' | 'error';
+      title: string;
+      description: string;
+      recommendedAction: string;
+      evidenceCount: number;
+    }>;
+    summary: string;
+    exportTargets: string[];
+  };
+  sourceScopeSummary?: {
+    evidenceCount: number;
+    sourceTypeBreakdown: Record<string, number>;
+    scopeLabel: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -1091,6 +1111,34 @@ export interface ProjectAiMemoryDoc {
   expiresAt?: string;
 }
 
+/** MCP `tools/call` 持久化审计（独立表，与 `audit_logs` 分流）。 */
+export type McpToolCallAuditOutcome =
+  | 'success'
+  | 'validation_error'
+  | 'tool_not_found'
+  | 'execution_error'
+  | 'timeout'
+  | 'not_supported';
+
+export interface McpToolCallAuditDoc {
+  id: string;
+  schemaVersion: 1;
+  timestamp: string;
+  jsonRpcId: string | number | null;
+  toolName: string;
+  /** `JSON.stringify(arguments)` 全量保留。 */
+  argumentsJson: string;
+  /** `JSON.stringify(McpServerRuntimeContext)`。 */
+  runtimeContextJson: string;
+  outcome: McpToolCallAuditOutcome;
+  durationMs: number;
+  /** 成功时 `JSON.stringify(McpToolCallResult)`；体积过大时截断并追加标记。 */
+  toolResultJson?: string;
+  errorCode?: number;
+  errorMessage?: string;
+  errorDataJson?: string;
+}
+
 export interface TrackEntityDocType {
   id: string;
   textId: string;
@@ -1166,6 +1214,7 @@ export type JieyuCollections = {
   ai_task_snapshots: CollectionAdapter<AiTaskSnapshotDocType>;
   track_entities: CollectionAdapter<TrackEntityDocType>;
   project_ai_memories: CollectionAdapter<ProjectAiMemoryDoc>;
+  mcp_tool_call_audits: CollectionAdapter<McpToolCallAuditDoc>;
 };
 
 export type ImportConflictStrategy = 'upsert' | 'skip-existing' | 'replace-all';

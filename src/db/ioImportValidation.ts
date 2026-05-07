@@ -7,6 +7,7 @@ import type {
   AiTaskSnapshotDocType,
   AnchorDocType,
   ProjectAiMemoryDoc,
+  McpToolCallAuditDoc,
   AuditLogDocType,
   BibliographicSourceDocType,
   CustomFieldDefinitionDocType,
@@ -54,6 +55,7 @@ import {
   validateAiTaskSnapshotDoc,
   validateAnchorDoc,
   validateProjectAiMemoryDoc,
+  validateMcpToolCallAuditDoc,
   validateAuditLogDoc,
   validateBibliographicSourceDoc,
   validateCustomFieldDefinitionDoc,
@@ -152,6 +154,7 @@ const validatorByCollection = {
   ai_task_snapshots: (value: unknown) => validateAiTaskSnapshotDoc(value as AiTaskSnapshotDocType),
   track_entities: (value: unknown) => validateTrackEntityDoc(value as TrackEntityDocType),
   project_ai_memories: (value: unknown) => validateProjectAiMemoryDoc(value as ProjectAiMemoryDoc),
+  mcp_tool_call_audits: (value: unknown) => validateMcpToolCallAuditDoc(value as McpToolCallAuditDoc),
 } as const satisfies Record<string, (value: unknown) => void>;
 
 export function validateCollectionDoc(collectionName: string, value: unknown): void {

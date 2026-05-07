@@ -145,6 +145,7 @@ const knownCollectionNames = [
   'ai_task_snapshots',
   'track_entities',
   'project_ai_memories',
+  'mcp_tool_call_audits',
 ] as const;
 
 type KnownCollectionName = (typeof knownCollectionNames)[number];
@@ -194,6 +195,7 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   ai_task_snapshots: db.ai_task_snapshots,
   track_entities: db.track_entities,
   project_ai_memories: db.project_ai_memories,
+  mcp_tool_call_audits: db.mcp_tool_call_audits,
 };
 
 function ensureImportProvenance<T extends { provenance?: ProvenanceEnvelope | undefined; createdAt?: string | undefined }>(

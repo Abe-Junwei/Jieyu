@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { annotationAnalysisGraphFixtureSchema } from '../annotation/analysisGraph';
 import { structuralRuleProfileSchema } from '../annotation/structuralRuleProfile';
 import { UNIT_SELF_CERTAINTY_VALUES } from '../utils/unitSelfCertainty';
-import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, ProjectAiMemoryDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType } from './types';
+import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, ProjectAiMemoryDoc, McpToolCallAuditDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType } from './types';
 
 
 export const isoDateSchema = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
@@ -215,6 +215,34 @@ const aiMessageCitationSchema = z.object({
   snippet: z.string().optional(),
 });
 
+const aiMessageReflectionCheckSchema = z.object({
+  name: z.string().min(1),
+  passed: z.boolean(),
+});
+
+const aiMessageCompatibilityFindingSchema = z.object({
+  findingId: z.string().min(1),
+  kind: z.string().min(1),
+  severity: z.enum(['info', 'warning', 'error']),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  recommendedAction: z.string().min(1),
+  evidenceCount: z.number().int().min(0),
+});
+
+const aiMessageCompatibilityReportSchema = z.object({
+  reportId: z.string().min(1),
+  findings: z.array(aiMessageCompatibilityFindingSchema),
+  summary: z.string().min(1),
+  exportTargets: z.array(z.string().min(1)),
+});
+
+const aiMessageSourceScopeSummarySchema = z.object({
+  evidenceCount: z.number().int().min(0),
+  sourceTypeBreakdown: z.record(z.string(), z.number().int().min(0)),
+  scopeLabel: z.string().min(1),
+});
+
 const aiMessageDocSchema = z.object({
   id: z.string().min(1),
   conversationId: z.string().min(1),
@@ -227,6 +255,9 @@ const aiMessageDocSchema = z.object({
   citations: z.array(aiMessageCitationSchema).optional(),
   errorMessage: z.string().optional(),
   reasoningContent: z.string().optional(),
+  reflectionChecks: z.array(aiMessageReflectionCheckSchema).optional(),
+  compatibilityReport: aiMessageCompatibilityReportSchema.optional(),
+  sourceScopeSummary: aiMessageSourceScopeSummarySchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
@@ -240,6 +271,31 @@ const projectAiMemoryDocSchema = z.object({
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
   expiresAt: isoDateSchema.optional(),
+});
+
+const mcpToolCallAuditOutcomeSchema = z.enum([
+  'success',
+  'validation_error',
+  'tool_not_found',
+  'execution_error',
+  'timeout',
+  'not_supported',
+]);
+
+const mcpToolCallAuditDocSchema = z.object({
+  id: z.string().min(1),
+  schemaVersion: z.literal(1),
+  timestamp: isoDateSchema,
+  jsonRpcId: z.union([z.string(), z.number()]).nullable(),
+  toolName: z.string(),
+  argumentsJson: z.string(),
+  runtimeContextJson: z.string(),
+  outcome: mcpToolCallAuditOutcomeSchema,
+  durationMs: z.number().finite().nonnegative(),
+  toolResultJson: z.string().optional(),
+  errorCode: z.number().int().optional(),
+  errorMessage: z.string().optional(),
+  errorDataJson: z.string().optional(),
 });
 
 const languageCatalogSourceTypeSchema = z.enum(['built-in-generated', 'built-in-reviewed', 'user-override', 'user-custom']);
@@ -1060,6 +1116,10 @@ export function validateAiMessageDoc(doc: AiMessageDoc): void {
 
 export function validateProjectAiMemoryDoc(doc: ProjectAiMemoryDoc): void {
   projectAiMemoryDocSchema.parse(doc);
+}
+
+export function validateMcpToolCallAuditDoc(doc: McpToolCallAuditDoc): void {
+  mcpToolCallAuditDocSchema.parse(doc);
 }
 
 export function validateLanguageDoc(doc: LanguageDocType): void {
