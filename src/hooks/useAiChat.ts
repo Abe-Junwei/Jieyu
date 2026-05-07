@@ -4,18 +4,26 @@ import { useLocale, useOptionalLocale, type Locale } from '../i18n';
 import { useAiChatConnectionProbe } from './useAiChat.connectionProbe';
 import { useAiChatConversationState } from './useAiChat.conversationState';
 import { DEFAULT_OUTPUT_TOKEN_CAP, INITIAL_METRICS, normalizeAutoProbeIntervalMs, normalizeFirstChunkTimeoutMs, normalizeOutputTokenCap, normalizeOutputTokenRetryCap, normalizeRagContextTimeoutMs, normalizeSessionTokenBudget, normalizeStreamPersistInterval, readDevOutputTokenCap, readDevOutputTokenRetryCap, readDevAutoProbeIntervalMs, readDevRagContextTimeoutMs, readDevSessionTokenBudget, readDevStreamPersistIntervalMs } from './useAiChat.config';
-import { newMessageId, nowIso } from './useAiChat.helpers';
+import { nowIso } from './useAiChat.helpers';
 import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
 import { enrichContextWithRag } from './useAiChat.rag';
-import { AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE, createAiChatBackgroundMemoryRuntime, type AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
+import type { AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
 import { resolveAiChatResponsePolicy } from './useAiChat.responsePolicy';
-import { getDb } from '../db';
+
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
-import { clearConversationSummaryMemory, loadSessionMemory, persistSessionMemory } from '../ai/chat/sessionMemory';
+import { loadSessionMemory, persistSessionMemory } from '../ai/chat/sessionMemory';
+import { resetSessionMemoryForClear } from '../ai/chat/resetSessionMemoryForClear';
+import { resolveComposedWorkflowReflectionRetry } from '../ai/chat/composedWorkflowRetry';
 import { buildStep2RetryPrompt } from '../ai/vertical/composedWorkflowTemplates';
 import { useAgentLoopSessionMemoryDexieReconcile } from './useAiChat.agentLoopDexieReconcile';
-import { updateSessionMemoryWithRecommendationEvent } from '../ai/chat/recommendationTelemetry';
+import {
+  abortAiChatStream,
+  createApplyAssistantMessageResultWrapper,
+  setActiveSourceSetIdInSessionMemory,
+  trackRecommendationEventInSessionMemory,
+} from '../ai/chat/useAiChatPureHelpers';
 import { runAiChatClearPersistenceCleanup, type AiChatClearPersistenceRequest } from './useAiChat.persistenceCleanup';
+import { scheduleClearPersistenceCleanup } from '../ai/chat/scheduleClearPersistenceCleanup';
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import { featureFlags } from '../ai/config/featureFlags';
 import { createAssistantStream } from './useAiChat.streamFactory';
@@ -25,8 +33,14 @@ import { useSyncAssistantDialogueChatTool } from './useSyncAssistantDialogueChat
 import { useAiChatAgentLoopCheckpointControls } from './useAiChat.agentLoopCheckpointControls';
 import { useAiChatDirectiveSessionControls } from './useAiChat.directiveSessionControls';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
-import { runAiChatSendTurn } from './useAiChat.sendTurn';
-import { applyAiChatSettingsPatch, createAiChatProvider, getDefaultAiChatSettings, normalizeAiChatSettings } from '../ai/providers/providerCatalog';
+import { runAiChatSendTurn, type RunAiChatSendTurnArgs } from './useAiChat.sendTurn';
+import { applyAiChatSettingsPatch, createAiChatProvider, normalizeAiChatSettings } from '../ai/providers/providerCatalog';
+import { createFallbackAiChatProvider } from '../ai/chat/createFallbackAiChatProvider';
+import { shouldResetConnectionForSettingsPatch } from '../ai/chat/settingsConnectionReset';
+import { bumpMetricValue } from '../ai/chat/metricBump';
+
+import { createIdleTaskSession } from '../ai/chat/createIdleTaskSession';
+import { createBackgroundMemoryRuntime } from '../ai/chat/backgroundMemoryRuntimeFactory';
 import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/config/aiChatSettingsStorage';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { AiContextDebugSnapshot, AiInteractionMetrics, AiRecommendationEvent, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, PendingAiToolCall, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
@@ -41,6 +55,9 @@ export function useAiChat(options?: UseAiChatOptions) {
   void resolveToolDecisionPipeline;
   void enrichContextWithRag;
   void createAssistantStream;
+  void nowIso;
+  const sessionMemorySeam = { persistSessionMemory, };
+  void sessionMemorySeam;
   // executeConfirmedToolCall(...) is invoked inside useAiChatPendingToolCall.
 
   const locale = useLocale();
@@ -70,6 +87,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   const preparePendingToolCallRef = useLatest(preparePendingToolCall);
   const getTimelineReadModelEpochRef = useLatest(options?.getTimelineReadModelEpoch);
   const onMessageCompleteRef = useLatest(options?.onMessageComplete);
+  const onPushAdoptionItemsRef = useLatest(options?.onPushAdoptionItems);
   const toolDecisionMode = resolveAiToolDecisionMode();
   const settingsHydratedRef = useRef(false);
   // 用户是否在水合完成前手动改过设置 | Whether user patched settings before hydration finished
@@ -95,52 +113,11 @@ export function useAiChat(options?: UseAiChatOptions) {
   );
   const [contextDebugSnapshot, setContextDebugSnapshot] = useState<AiContextDebugSnapshot | null>(null);
   const [pendingToolCall, setPendingToolCall] = useState<PendingAiToolCall | null>(null);
-  const [taskSession, setTaskSession] = useState<AiTaskSession>(() => ({
-    id: newMessageId('task'),
-    status: 'idle',
-    updatedAt: nowIso(),
-  }));
+  const [taskSession, setTaskSession] = useState<AiTaskSession>(() => createIdleTaskSession());
   const [metrics, setMetrics] = useState<AiInteractionMetrics>({ ...INITIAL_METRICS });
   const metricsRef = useLatest(metrics);
   const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());
   useAgentLoopSessionMemoryDexieReconcile(sessionMemoryRef);
-  const backgroundMemoryRuntimeRef = useRef<AiChatBackgroundMemoryRuntime | null>(null);
-  if (backgroundMemoryRuntimeRef.current === null) {
-    backgroundMemoryRuntimeRef.current = createAiChatBackgroundMemoryRuntime({
-      enabled: featureFlags.aiBackgroundMemoryExtractorEnabled,
-      sandboxEnabled: featureFlags.aiBackgroundToolSandboxEnabled,
-      sandboxProfile: AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE,
-      flushQuotaEnabled: featureFlags.aiBackgroundMemorySessionWriteQuotaEnabled,
-      flushQuotaMaxCompletedWriteFlushesPerConversation: featureFlags.aiBackgroundMemorySessionWriteQuotaMax,
-      getSessionMemory: () => sessionMemoryRef.current,
-      setSessionMemory: (nextMemory) => {
-        sessionMemoryRef.current = nextMemory;
-      },
-      persistSessionMemory,
-      getProjectId: () => getContextRef.current?.()?.shortTerm?.workspaceTextId ?? null,
-    });
-  }
-  const bumpMetric = useCallback((key: keyof AiInteractionMetrics, delta = 1) => {
-    setMetrics((prev) => {
-      const currentValue = prev[key];
-      if (typeof currentValue !== 'number') {
-        return prev;
-      }
-      return { ...prev, [key]: currentValue + delta };
-    });
-  }, []);
-  const abortRef = useRef<AbortController | null>(null);
-  const localToolCallCountRef = useRef(0);
-
-  const provider = useMemo(() => createAiChatProvider(settings), [settings]);
-  // 备用 provider：主模型限速/不可用时自动降级 | Fallback provider for auto-degradation
-  const fallbackProvider = useMemo(() => {
-    if (!settings.fallbackProviderKind || settings.fallbackProviderKind === settings.providerKind) return null;
-    const fallbackApiKey = settings.apiKeysByProvider[settings.fallbackProviderKind] ?? '';
-    const fallbackSettings = getDefaultAiChatSettings(settings.fallbackProviderKind);
-    return createAiChatProvider({ ...fallbackSettings, apiKey: fallbackApiKey });
-  }, [settings]);
-  const orchestrator = useMemo(() => new ChatOrchestrator(provider, fallbackProvider), [provider, fallbackProvider]);
 
   // 用 useLatest 包装 send 内部读取的频繁变更值，减少 send 的依赖数组长度，
   // 避免长依赖数组导致的闭包重建风险（如 settings.model 变更时全量重建）。
@@ -150,6 +127,22 @@ export function useAiChat(options?: UseAiChatOptions) {
   const toolDecisionModeRef = useLatest(toolDecisionMode);
   const pendingToolCallRef = useLatest(pendingToolCall);
   const taskSessionRef = useLatest(taskSession);
+
+  const backgroundMemoryRuntimeRef = useRef<AiChatBackgroundMemoryRuntime | null>(null);
+  if (backgroundMemoryRuntimeRef.current === null) {
+    backgroundMemoryRuntimeRef.current = createBackgroundMemoryRuntime(sessionMemoryRef, getContextRef);
+  }
+  const bumpMetric = useCallback((key: keyof AiInteractionMetrics, delta = 1) => {
+    setMetrics((prev) => bumpMetricValue(prev, key, delta));
+  }, []);
+  const abortRef = useRef<AbortController | null>(null);
+  const localToolCallCountRef = useRef(0);
+
+  const { provider, fallbackProvider } = useMemo(() => ({
+    provider: createAiChatProvider(settings),
+    fallbackProvider: createFallbackAiChatProvider(settings),
+  }), [settings]);
+  const orchestrator = useMemo(() => new ChatOrchestrator(provider, fallbackProvider), [provider, fallbackProvider]);
   useSyncAssistantDialogueChatTool(pendingToolCall);
 
   const streamPersistIntervalMsRef = useLatest(streamPersistIntervalMs);
@@ -231,15 +224,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     userDirtyRef.current = true;
     setSettings((current) => applyAiChatSettingsPatch(current, patch));
     
-    // 只在影响连接的设置变更时才重置连接探测
-    const shouldResetConnection = (
-      patch.providerKind !== undefined ||
-      patch.baseUrl !== undefined ||
-      patch.model !== undefined ||
-      patch.apiKey !== undefined
-    );
-    
-    if (shouldResetConnection) {
+    if (shouldResetConnectionForSettingsPatch(patch)) {
       abortRef.current?.abort();
       invalidateConnectionProbe();
       resetConnectionProbe();
@@ -247,12 +232,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   }, [invalidateConnectionProbe, resetConnectionProbe]);
 
   const stop = useCallback(() => {
-    const controller = abortRef.current;
-    if (!controller) return;
-    controller.abort();
-    abortRef.current = null;
-    // 用户点停止后应立即解除发送拦截 | Immediately unblock sending after user requests stop.
-    setIsStreaming(false);
+    abortAiChatStream(abortRef, setIsStreaming);
   }, []);
 
   const runClearPersistenceCleanup = useCallback(() => {
@@ -260,33 +240,18 @@ export function useAiChat(options?: UseAiChatOptions) {
   }, []);
 
   const trackRecommendationEvent = useCallback((event: AiRecommendationEvent) => {
-    sessionMemoryRef.current = updateSessionMemoryWithRecommendationEvent(sessionMemoryRef.current, event);
+    sessionMemoryRef.current = trackRecommendationEventInSessionMemory(sessionMemoryRef.current, event);
+  }, []);
+
+  const setActiveSourceSetId = useCallback((id: string | null) => {
+    sessionMemoryRef.current = setActiveSourceSetIdInSessionMemory(sessionMemoryRef.current, id);
     persistSessionMemory(sessionMemoryRef.current);
   }, []);
 
-  const applyAssistantMessageResult = useCallback(async (
-    messageId: string,
-    content: string,
-    status: 'done' | 'error' = 'done',
-    errorMessage?: string,
-  ) => {
-    setMessages((prev) => prev.map((msg) => {
-      if (msg.id !== messageId) return msg;
-      if (status === 'error') {
-        return { ...msg, content, status, ...(errorMessage ? { error: errorMessage } : {}) };
-      }
-      const { error: _ignoredError, ...rest } = msg;
-      return { ...rest, content, status: 'done' };
-    }));
-
-    const db = await getDb();
-    await db.collections.ai_messages.update(messageId, {
-      content,
-      status,
-      ...(errorMessage ? { errorMessage } : {}),
-      updatedAt: nowIso(),
-    });
-  }, []);
+  const applyAssistantMessageResultWrapper = useMemo(
+    () => createApplyAssistantMessageResultWrapper(setMessages),
+    [],
+  );
 
   const {
     markExecutedRequestId,
@@ -304,7 +269,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     sessionMemoryRef,
     toolFeedbackLocale: resolveAiChatResponsePolicy(sessionMemoryRef.current, toolFeedbackLocale, settings.toolFeedbackStyle).locale,
     ...(onToolCallRef.current != null && { onToolCall: onToolCallRef.current }),
-    applyAssistantMessageResult,
+    applyAssistantMessageResult: applyAssistantMessageResultWrapper,
     hasPersistedExecutionForRequest,
     writeToolDecisionAuditLog,
     markExecutedRequestId,
@@ -315,8 +280,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   });
 
   const send = useCallback(async (userText: string) => {
-    await runAiChatSendTurn({
-      userText,
+    const sharedSendTurnArgs = {
       activeConversationId: conversationId,
       featureFlags,
       isStreaming,
@@ -355,6 +319,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       onToolCallRef,
       taskSessionRef,
       onMessageCompleteRef,
+      onPushAdoptionItemsRef,
       abortRef,
       localToolCallCountRef,
       streamPersistIntervalMsRef,
@@ -366,63 +331,32 @@ export function useAiChat(options?: UseAiChatOptions) {
       bumpMetric,
       resolveAgentLoopResumeCheckpoint,
       clearPendingAgentLoopCheckpoint,
+    } satisfies Omit<RunAiChatSendTurnArgs, 'userText'>;
+
+    await runAiChatSendTurn({
+      ...sharedSendTurnArgs,
+      userText,
     });
 
     // PR-13: auto-trigger step2 when composed workflow step1 succeeded but step2 failed
-    const composedState = sessionMemoryRef.current.composedWorkflowState;
+    let composedState = sessionMemoryRef.current.composedWorkflowState;
     if (composedState?.status === 'step1_done') {
       const step2UserText = buildStep2RetryPrompt();
       await runAiChatSendTurn({
+        ...sharedSendTurnArgs,
         userText: step2UserText,
-        activeConversationId: conversationId,
-        featureFlags,
-        isStreaming,
-        sessionTokenBudget,
-        firstChunkTimeoutMs,
-        outputTokenCap,
-        outputTokenRetryCap,
-        allowDestructiveToolCalls,
-        maxContextCharsOverride,
-        historyCharBudgetOverride,
-        provider,
-        orchestrator,
-        ensureConversation,
-        setLastError,
-        setMessages,
-        setIsStreaming,
-        setConnectionTestStatus,
-        setConnectionTestMessage,
-        setContextDebugSnapshot,
-        setMetrics,
-        setTaskSession,
-        setPendingToolCall,
-        messagesRef,
-        metricsRef,
-        pendingToolCallRef,
-        sessionMemoryRef,
-        settingsRef,
-        toolFeedbackLocaleRef,
-        systemPersonaKeyRef,
-        getContextRef,
-        embeddingSearchServiceRef,
-        ragContextTimeoutMsRef,
-        toolDecisionModeRef,
-        onToolRiskCheckRef,
-        preparePendingToolCallRef,
-        onToolCallRef,
-        taskSessionRef,
-        onMessageCompleteRef,
-        abortRef,
-        localToolCallCountRef,
-        streamPersistIntervalMsRef,
-        backgroundMemoryRuntimeRef,
-        writeToolDecisionAuditLog,
-        writeToolIntentAuditLog,
-        hasPersistedExecutionForRequest,
-        markExecutedRequestId,
-        bumpMetric,
-        resolveAgentLoopResumeCheckpoint,
-        clearPendingAgentLoopCheckpoint,
+      });
+      // 第二次 send 会更新 sessionMemory；后续 reflection 重试判断必须用最新快照 | Refresh snapshot after nested send.
+      composedState = sessionMemoryRef.current.composedWorkflowState;
+    }
+
+    // P4: auto-trigger reflection retry for composed workflow (max 1 retry per step).
+    const retryResult = resolveComposedWorkflowReflectionRetry(sessionMemoryRef.current);
+    if (retryResult.retryUserText) {
+      sessionMemoryRef.current = retryResult.nextSessionMemory;
+      await runAiChatSendTurn({
+        ...sharedSendTurnArgs,
+        userText: retryResult.retryUserText,
       });
     }
   }, [
@@ -450,28 +384,15 @@ export function useAiChat(options?: UseAiChatOptions) {
   const clear = useCallback(() => {
     if (clearInFlightRef.current) return;
     clearInFlightRef.current = true;
-    sessionMemoryRef.current = clearConversationSummaryMemory(sessionMemoryRef.current);
-    if (sessionMemoryRef.current.pendingAgentLoopCheckpoint) {
-      const { pendingAgentLoopCheckpoint: _ignoredCheckpoint, ...restMemory } = sessionMemoryRef.current;
-      sessionMemoryRef.current = restMemory;
-    }
-    persistSessionMemory(sessionMemoryRef.current);
+    sessionMemoryRef.current = resetSessionMemoryForClear(sessionMemoryRef.current);
     setMessages([]);
     setLastError(null);
     setPendingToolCall(null);
     setMetrics({ ...INITIAL_METRICS });
-    setTaskSession({
-      id: newMessageId('task'),
-      status: 'idle',
-      updatedAt: nowIso(),
-    });
+    setTaskSession(createIdleTaskSession());
     clearInFlightRef.current = false;
 
-    // 异步清理持久层，避免 IndexedDB 删除阻塞 UI 清空体感 | Cleanup persistence asynchronously to avoid IndexedDB deletion blocking clear UX.
-    clearPersistRequestRef.current = {
-      conversationId: conversationId ?? null,
-    };
-    runClearPersistenceCleanup();
+    scheduleClearPersistenceCleanup(clearPersistRequestRef, conversationId ?? null, runClearPersistenceCleanup);
   }, [conversationId, runClearPersistenceCleanup]);
 
   return {
@@ -501,6 +422,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     dismissPendingAgentLoopCheckpoint,
     clearPendingAgentLoopCheckpointIfTaskIdMatches,
     trackRecommendationEvent,
+    setActiveSourceSetId,
     toggleMessagePinned,
     deactivateSessionDirective,
     pruneSessionDirectivesBySourceMessage,

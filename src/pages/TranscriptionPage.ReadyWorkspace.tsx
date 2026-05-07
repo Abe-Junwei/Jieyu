@@ -91,6 +91,7 @@ import {
   computeVerticalComparisonEnabled,
   resolveActiveTextLogicalDurationSecForBridge,
 } from './readyWorkspaceDerivedValues';
+import type { AdoptionItem } from '../ai/vertical/adoptionQueue';
 
 void preserveReadyWorkspaceStructureMarkers;
 interface TranscriptionPageReadyWorkspaceProps {
@@ -442,6 +443,7 @@ function TranscriptionPageReadyWorkspace({
   });
 
   const voiceAiAssistantMessageBridgeRef = useRef<((assistantMessageId: string, content: string) => void) | null>(null);
+  const adoptionItemsPushSinkRef = useRef<((items: AdoptionItem[]) => void) | null>(null);
   const flushVoiceAiAssistantMessage = useCallback((assistantMessageId: string, content: string) => {
     voiceAiAssistantMessageBridgeRef.current?.(assistantMessageId, content);
   }, []);
@@ -1272,6 +1274,7 @@ function TranscriptionPageReadyWorkspace({
     observerStage: observerResult.stage,
     observerRecommendations: actionableObserverRecommendations,
     onJumpToCitation: handleJumpToCitation,
+    adoptionItemsPushSinkRef,
     runtimePropsInput: {
       saveState,
       recording,
@@ -1866,6 +1869,7 @@ function TranscriptionPageReadyWorkspace({
     acousticConfigOverride,
     acousticProviderPreference,
     onAiAssistantMessageComplete: flushVoiceAiAssistantMessage,
+    onPushAdoptionItemsSinkRef: adoptionItemsPushSinkRef,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     state,
   });

@@ -75,6 +75,7 @@ export type RunAiChatSendTurnArgs = Readonly<{
   onToolCallRef: MutableRefObject<UseAiChatOptions['onToolCall']>;
   taskSessionRef: MutableRefObject<AiTaskSession>;
   onMessageCompleteRef: MutableRefObject<UseAiChatOptions['onMessageComplete']>;
+  onPushAdoptionItemsRef?: MutableRefObject<UseAiChatOptions['onPushAdoptionItems']>;
   abortRef: MutableRefObject<AbortController | null>;
   localToolCallCountRef: MutableRefObject<number>;
   streamPersistIntervalMsRef: MutableRefObject<number>;

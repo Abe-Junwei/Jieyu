@@ -51,6 +51,8 @@ interface UseTranscriptionAssistantSidebarControllerInputInput {
   onJumpToCitation: AiChatContextValue['onJumpToCitation'];
   /** Timeline read-model epoch for pending destructive tool stale UX. */
   timelineReadModelEpoch?: number;
+  /** Ref whose `current` receives stream-phase adoption items (wired from ReadyWorkspace + `useTranscriptionAiController`). */
+  adoptionItemsPushSinkRef?: AiChatContextValue['adoptionItemsPushSinkRef'];
   runtimePropsInput: UseTranscriptionRuntimePropsInput;
 }
 
@@ -73,6 +75,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
   observerRecommendations,
   onJumpToCitation,
   timelineReadModelEpoch,
+  adoptionItemsPushSinkRef,
   runtimePropsInput,
 }: UseTranscriptionAssistantSidebarControllerInputInput): UseTranscriptionAssistantSidebarControllerInput {
   const aiChatContextInput = useMemo(() => ({
@@ -124,6 +127,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     onTrackAiRecommendationEvent: aiChat.trackRecommendationEvent,
     onJumpToCitation,
     ...(timelineReadModelEpoch !== undefined ? { timelineReadModelEpoch } : {}),
+    ...(adoptionItemsPushSinkRef !== undefined ? { adoptionItemsPushSinkRef } : {}),
   }), [
     aiChat.cancelPendingToolCall,
     aiChat.clear,
@@ -157,6 +161,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     lexemeMatches,
     observerRecommendations,
     observerStage,
+    adoptionItemsPushSinkRef,
     onJumpToCitation,
     selectedLayerType,
     selectedRowMeta,

@@ -46,6 +46,7 @@ export function pickAiChatContextValue(P: AiChatContextSource): AiChatContextVal
     onTrackAiRecommendationEvent: P.onTrackAiRecommendationEvent,
     onJumpToCitation: P.onJumpToCitation,
     ...(P.timelineReadModelEpoch !== undefined ? { timelineReadModelEpoch: P.timelineReadModelEpoch } : {}),
+    ...(P.adoptionItemsPushSinkRef !== undefined ? { adoptionItemsPushSinkRef: P.adoptionItemsPushSinkRef } : {}),
   };
 }
 

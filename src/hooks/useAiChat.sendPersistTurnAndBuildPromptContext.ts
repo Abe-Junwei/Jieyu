@@ -36,6 +36,7 @@ import {
   ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
   buildComposedWorkflowSystemPromptAppendix,
 } from '../ai/vertical/composedWorkflowTemplates';
+import { buildElanFlexCompatibilitySystemPrompt } from '../ai/vertical/elanFlexCompatibilityWorkflow';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type {
   AiContextDebugSnapshot,
@@ -237,11 +238,20 @@ export async function persistOpeningTurnAndBuildPromptContext(
     ],
   });
 
+  // P5: inject active source set id into evidence packets for traceability
+  const activeSourceSetId = input.sessionMemoryRef.current.activeSourceSetId;
+  const evidencePacketsWithSourceSet = ragCitationsToEvidencePackets(ragCitations, corpusSourceSetResolved);
+  if (activeSourceSetId && evidencePacketsWithSourceSet.length > 0) {
+    for (const packet of evidencePacketsWithSourceSet) {
+      packet.sourceSetId = activeSourceSetId;
+    }
+  }
+
   const verticalOutputEnvelopeSeed: VerticalWorkflowOutputEnvelopeV0 | null =
     input.verticalWorkflowSelection
       ? buildVerticalWorkflowOutputEnvelopeV0(
           input.verticalWorkflowSelection,
-          ragCitationsToEvidencePackets(ragCitations, corpusSourceSetResolved),
+          evidencePacketsWithSourceSet,
         )
       : null;
 
@@ -307,6 +317,11 @@ export async function persistOpeningTurnAndBuildPromptContext(
     if (appendix) {
       systemPrompt += '\n\n' + appendix;
     }
+  }
+
+  // P5: elan_flex_compatibility workflow system prompt appendix
+  if (input.verticalWorkflowSelection?.workflowId === 'elan_flex_compatibility') {
+    systemPrompt += '\n\n' + buildElanFlexCompatibilitySystemPrompt();
   }
   void db.collections.audit_logs.insert({
     id: newMessageId('audit'),

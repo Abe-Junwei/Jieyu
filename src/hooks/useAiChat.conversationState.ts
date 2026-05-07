@@ -4,6 +4,7 @@ import { getDb } from '../db';
 import { formatHistoryLoadFailedFallbackError, formatRecoveredInterruptedMessage } from '../ai/messages';
 import { newMessageId, nowIso } from './useAiChat.helpers';
 import type { UiChatMessage } from './useAiChat.types';
+import { parseWorkflowExplainabilityFromContextSnapshot } from '../ai/chat/workflowExplainability';
 
 interface UseAiChatConversationStateOptions {
   locale: Locale;
@@ -24,6 +25,10 @@ function mapHistoryRowsToUiMessages(
     errorMessage?: string;
     citations?: UiChatMessage['citations'];
     reasoningContent?: unknown;
+    contextSnapshot?: Record<string, unknown>;
+    reflectionChecks?: Array<{ name: string; passed: boolean }>;
+    compatibilityReport?: UiChatMessage['compatibilityReport'];
+    sourceScopeSummary?: UiChatMessage['sourceScopeSummary'];
   }>,
 ): UiChatMessage[] {
   return rows.map((row) => {
@@ -49,6 +54,21 @@ function mapHistoryRowsToUiMessages(
     }
     if (typeof row.reasoningContent === 'string' && row.reasoningContent.length > 0) {
       message.reasoningContent = row.reasoningContent;
+    }
+    if (row.reflectionChecks) {
+      message.reflectionChecks = row.reflectionChecks;
+    }
+    if (row.compatibilityReport) {
+      message.compatibilityReport = row.compatibilityReport;
+    }
+    if (row.sourceScopeSummary) {
+      message.sourceScopeSummary = row.sourceScopeSummary;
+    }
+    if (message.role === 'assistant') {
+      const fromSnap = parseWorkflowExplainabilityFromContextSnapshot(row.contextSnapshot);
+      if (fromSnap) {
+        message.workflowExplainability = fromSnap;
+      }
     }
     return message;
   });

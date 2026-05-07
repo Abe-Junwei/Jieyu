@@ -27,10 +27,19 @@ import {
 } from './useAiChat.backgroundMemory';
 import type { VerticalWorkflowOutputEnvelopeV0, VerticalWorkflowSelectionV0 } from '../ai/vertical/verticalWorkflowSelection';
 import { runSegmentQaReflection } from '../ai/vertical/segmentQaReflection';
+import { runAnnotationQaReflection } from '../ai/vertical/annotationQaReflection';
+import { runLexemeCandidatesReflection } from '../ai/vertical/lexemeCandidatesReflection';
+import { parseCompatibilityReport, runElanFlexCompatibilityReflection } from '../ai/vertical/elanFlexCompatibilityWorkflow';
+import { createAdoptionItem } from '../ai/vertical/adoptionQueue';
+import { judgeCitationAccuracyBatch } from '../ai/eval/citationJudge';
+import { judgeRelevance } from '../ai/eval/relevanceJudge';
+import { buildSourceScopeSummaryFromEvidencePackets } from '../ai/vertical/sourceScopeSummary';
+import { buildWorkflowExplainabilityFromAssistantMessage } from '../ai/chat/workflowExplainability';
 import type { DegradationScenario } from '../ai/chat/degradationManualOverride';
 import {
   advanceComposedWorkflowStateAfterParse,
   ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+  type ComposedReflectionRetryBlob,
   parseComposedWorkflowOutput,
   SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
 } from '../ai/vertical/composedWorkflowTemplates';
@@ -142,6 +151,7 @@ export type RunAiChatSendTurnStreamPhaseInput = Readonly<{
   onToolCallRef: MutableRefObject<UseAiChatOptions['onToolCall']>;
   taskSessionRef: MutableRefObject<AiTaskSession>;
   backgroundMemoryRuntimeRef: MutableRefObject<AiChatBackgroundMemoryRuntime | null>;
+  onPushAdoptionItemsRef?: MutableRefObject<((items: import('../ai/vertical/adoptionQueue').AdoptionItem[]) => void) | undefined>;
   allowDestructiveToolCalls: boolean;
   hasPersistedExecutionForRequest: (requestId: string) => Promise<boolean>;
   writeToolDecisionAuditLog: (
@@ -213,6 +223,7 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
     onToolCallRef,
     taskSessionRef,
     backgroundMemoryRuntimeRef,
+    onPushAdoptionItemsRef,
     allowDestructiveToolCalls,
     hasPersistedExecutionForRequest,
     writeToolDecisionAuditLog,
@@ -644,41 +655,257 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
       if (verticalOutputEnvelopeSeed?.status === 'degraded') {
         degradationScenarios.push('rag_no_results');
       }
-      if (verticalOutputEnvelopeSeed?.workflowId === 'segment_qa' && resolvedStatus === 'done') {
+      // PR-P4: reflection for all vertical workflows
+      let reflectionResult: { reflectionFlagged: boolean; checks: { name: string; passed: boolean }[]; summary: string } | null = null;
+      let composedReflectionRetryBlob: ComposedReflectionRetryBlob | undefined;
+      if (resolvedStatus === 'done' && verticalOutputEnvelopeSeed) {
         try {
-          const reflection = runSegmentQaReflection(resolvedContent, verticalOutputEnvelopeSeed.evidencePackets);
+          let reflection: { reflectionFlagged: boolean; checks: { name: string; passed: boolean }[]; summary: string } | null = null;
+          let reflectionField: string | null = null;
+
+          if (verticalOutputEnvelopeSeed.workflowId === 'segment_qa') {
+            const r = runSegmentQaReflection(resolvedContent, verticalOutputEnvelopeSeed.evidencePackets);
+            reflection = r;
+            reflectionField = 'ai_segment_qa_reflection';
+            if (r.reflectionFlagged) {
+              composedReflectionRetryBlob = { kind: 'segment_qa', result: r };
+            }
+          } else if (verticalOutputEnvelopeSeed.workflowId === 'annotation_qa') {
+            const r = runAnnotationQaReflection(resolvedContent, verticalOutputEnvelopeSeed.evidencePackets);
+            reflection = r;
+            reflectionField = 'ai_annotation_qa_reflection';
+            if (r.reflectionFlagged) {
+              composedReflectionRetryBlob = { kind: 'annotation_qa', result: r };
+            }
+          } else if (verticalOutputEnvelopeSeed.workflowId === 'lexeme_candidates') {
+            const r = runLexemeCandidatesReflection(resolvedContent, verticalOutputEnvelopeSeed.evidencePackets);
+            reflection = r;
+            reflectionField = 'ai_lexeme_candidates_reflection';
+            if (r.reflectionFlagged) {
+              composedReflectionRetryBlob = { kind: 'lexeme_candidates', result: r };
+            }
+          } else if (verticalOutputEnvelopeSeed.workflowId === 'elan_flex_compatibility') {
+            const r = runElanFlexCompatibilityReflection(resolvedContent, verticalOutputEnvelopeSeed.evidencePackets);
+            reflection = r;
+            reflectionField = 'ai_elan_flex_compatibility_reflection';
+            if (r.reflectionFlagged) {
+              composedReflectionRetryBlob = { kind: 'elan_flex_compatibility', result: r };
+            }
+          }
+
+          if (reflection && reflectionField) {
+            reflectionResult = reflection;
+            await db.collections.audit_logs.insert({
+              id: newAuditLogId(),
+              collection: 'ai_messages',
+              documentId: assistantId,
+              action: 'update',
+              field: reflectionField,
+              oldValue: reflection.summary,
+              newValue: reflection.reflectionFlagged ? 'flagged' : 'passed',
+              source: 'ai',
+              timestamp: nowIso(),
+              requestId: `${assistantId}_reflection`,
+              metadataJson: JSON.stringify({
+                schemaVersion: 1,
+                workflowId: verticalOutputEnvelopeSeed.workflowId,
+                reflectionFlagged: reflection.reflectionFlagged,
+                checkCount: reflection.checks.length,
+                failedCheckNames: reflection.checks.filter((c) => !c.passed).map((c) => c.name),
+              }),
+            });
+            if (reflection.reflectionFlagged) {
+              degradationScenarios.push('reflection_flagged');
+            }
+          }
+        } catch (reflectionError) {
+          log.error(`${verticalOutputEnvelopeSeed?.workflowId ?? 'unknown'} reflection failed`, { err: reflectionError });
+        }
+      }
+
+      // PR-14/19: LLM-as-Judge — run citation and relevance judges on completed output
+      if (resolvedStatus === 'done' && verticalOutputEnvelopeSeed) {
+        try {
+          const citationInputs = verticalOutputEnvelopeSeed.evidencePackets.map((ep) => ({
+            id: ep.id,
+            sourceType: ep.sourceType,
+            sourceId: ep.sourceId,
+            quote: ep.quote ?? '',
+            confidence: ep.confidence ?? 0,
+          }));
+          const citationResult = judgeCitationAccuracyBatch(citationInputs);
+          const relevanceResult = judgeRelevance({
+            question: effectiveUserText,
+            answer: resolvedContent,
+          });
           await db.collections.audit_logs.insert({
             id: newAuditLogId(),
             collection: 'ai_messages',
             documentId: assistantId,
             action: 'update',
-            field: 'ai_segment_qa_reflection',
-            oldValue: reflection.summary,
-            newValue: reflection.reflectionFlagged ? 'flagged' : 'passed',
+            field: 'ai_citation_judge',
+            oldValue: '',
+            newValue: String(citationResult.averageScore),
             source: 'ai',
             timestamp: nowIso(),
-            requestId: `${assistantId}_reflection`,
+            requestId: `${assistantId}_citation_judge`,
             metadataJson: JSON.stringify({
               schemaVersion: 1,
-              reflectionFlagged: reflection.reflectionFlagged,
-              checkCount: reflection.checks.length,
-              failedCheckNames: reflection.checks.filter((c) => !c.passed).map((c) => c.name),
+              workflowId: verticalOutputEnvelopeSeed.workflowId,
+              providerId: provider.id,
+              averageScore: citationResult.averageScore,
+              resultCount: citationResult.results.length,
             }),
           });
-          if (reflection.reflectionFlagged) {
-            degradationScenarios.push('reflection_flagged');
-          }
-        } catch (reflectionError) {
-          log.error('segment_qa reflection failed', { err: reflectionError });
+          await db.collections.audit_logs.insert({
+            id: newAuditLogId(),
+            collection: 'ai_messages',
+            documentId: assistantId,
+            action: 'update',
+            field: 'ai_relevance_judge',
+            oldValue: '',
+            newValue: String(relevanceResult.overallScore),
+            source: 'ai',
+            timestamp: nowIso(),
+            requestId: `${assistantId}_relevance_judge`,
+            metadataJson: JSON.stringify({
+              schemaVersion: 1,
+              workflowId: verticalOutputEnvelopeSeed.workflowId,
+              providerId: provider.id,
+              overallScore: relevanceResult.overallScore,
+            }),
+          });
+        } catch (judgeError) {
+          log.error('judge evaluation failed', { err: judgeError });
         }
       }
-      if (degradationScenarios.length > 0) {
-        const unique = Array.from(new Set(degradationScenarios));
+
+      let sourceScopeSummary: UiChatMessage['sourceScopeSummary'] | undefined;
+      if (resolvedStatus === 'done' && verticalOutputEnvelopeSeed) {
+        sourceScopeSummary = buildSourceScopeSummaryFromEvidencePackets(verticalOutputEnvelopeSeed.evidencePackets);
+      }
+
+      // P1: store reflection checks for UI quality panel
+      let reflectionChecks: UiChatMessage['reflectionChecks'] | undefined;
+      if (resolvedStatus === 'done' && verticalOutputEnvelopeSeed && reflectionResult) {
+        reflectionChecks = reflectionResult.checks;
+      }
+
+      const uniqueDegradation = Array.from(new Set(degradationScenarios));
+      let workflowExplainability: UiChatMessage['workflowExplainability'] | undefined;
+      if (resolvedStatus === 'done' && verticalOutputEnvelopeSeed) {
+        const dto = buildWorkflowExplainabilityFromAssistantMessage({
+          degradationScenarios: uniqueDegradation,
+          ...(sourceScopeSummary !== undefined ? { sourceScopeSummary } : {}),
+          status: 'done',
+        });
+        const trivialOk = dto.headlineKey === 'ok' && !dto.hasDegradation && !dto.hasSourceScopeSummary;
+        if (!trivialOk) {
+          workflowExplainability = dto;
+        }
+      }
+
+      // P5: parse compatibility report for elan_flex_compatibility workflow
+      let compatibilityReport: UiChatMessage['compatibilityReport'] | undefined;
+      const adoptionItemsToPush: import('../ai/vertical/adoptionQueue').AdoptionItem[] = [];
+      if (resolvedStatus === 'done' && verticalOutputEnvelopeSeed?.workflowId === 'elan_flex_compatibility') {
+        const parsed = parseCompatibilityReport(resolvedContent);
+        if (parsed) {
+          compatibilityReport = {
+            reportId: parsed.reportId,
+            findings: parsed.findings.map((f) => ({
+              findingId: f.findingId,
+              kind: f.kind,
+              severity: f.severity,
+              title: f.title,
+              description: f.description,
+              recommendedAction: f.recommendedAction,
+              evidenceCount: f.evidencePackets.length,
+            })),
+            summary: parsed.summary,
+            exportTargets: parsed.exportTargets,
+          };
+          // Auto-push findings with adoptionCandidateId to AdoptionQueue
+          for (const f of parsed.findings) {
+            if (f.adoptionCandidateId) {
+              adoptionItemsToPush.push(
+                createAdoptionItem({
+                  workflowId: 'elan_flex_compatibility',
+                  requestId: f.adoptionCandidateId,
+                  sourceAssistantMessageId: assistantId,
+                  outputKind: 'compatibility_finding',
+                  title: f.title,
+                  summary: f.title,
+                  evidencePacketIds: f.evidencePackets.map((ep) => ep.id),
+                  recommendedAction: f.recommendedAction,
+                  writeMode: 'propose_changes',
+                  rawContent: f.description,
+                  actionLabel: f.recommendedAction,
+                }),
+              );
+            }
+          }
+        }
+      }
+
+      // P4: push annotation_qa / lexeme_candidates outputs to AdoptionQueue
+      if (
+        resolvedStatus === 'done'
+        && verticalOutputEnvelopeSeed
+        && (verticalOutputEnvelopeSeed.workflowId === 'annotation_qa'
+          || verticalOutputEnvelopeSeed.workflowId === 'lexeme_candidates')
+      ) {
+        const evidencePacketIds = verticalOutputEnvelopeSeed.evidencePackets.map((ep) => ep.id);
+        const titlePrefix = verticalOutputEnvelopeSeed.workflowId === 'annotation_qa'
+          ? 'Annotation QA'
+          : 'Lexeme Candidates';
+        adoptionItemsToPush.push(
+          createAdoptionItem({
+            workflowId: verticalOutputEnvelopeSeed.workflowId,
+            requestId: `${assistantId}:${verticalOutputEnvelopeSeed.workflowId}`,
+            sourceAssistantMessageId: assistantId,
+            outputKind: verticalOutputEnvelopeSeed.workflowId,
+            title: `${titlePrefix} result`,
+            summary: resolvedContent.slice(0, 200),
+            evidencePacketIds,
+            recommendedAction: 'review_output',
+            writeMode: 'append',
+            rawContent: resolvedContent,
+            actionLabel: 'review_output',
+          }),
+        );
+      }
+
+      if (
+        uniqueDegradation.length > 0
+        || sourceScopeSummary !== undefined
+        || workflowExplainability !== undefined
+        || compatibilityReport !== undefined
+        || reflectionChecks !== undefined
+      ) {
         flushSync(() => {
           setMessages((prev) => prev.map((msg) => (
-            msg.id === assistantId ? { ...msg, degradationScenarios: unique } : msg
+            msg.id === assistantId
+              ? {
+                  ...msg,
+                  ...(uniqueDegradation.length > 0 ? { degradationScenarios: uniqueDegradation } : {}),
+                  ...(sourceScopeSummary !== undefined ? { sourceScopeSummary } : {}),
+                  ...(workflowExplainability !== undefined ? { workflowExplainability } : {}),
+                  ...(compatibilityReport !== undefined ? { compatibilityReport } : {}),
+                  ...(reflectionChecks !== undefined ? { reflectionChecks } : {}),
+                }
+              : msg
           )));
         });
+      }
+
+      // Push auto-generated adoption items to queue (best-effort, non-blocking)
+      if (adoptionItemsToPush.length > 0 && onPushAdoptionItemsRef?.current) {
+        try {
+          onPushAdoptionItemsRef.current(adoptionItemsToPush);
+        } catch {
+          // Queue push failure must not block stream completion.
+        }
       }
 
       // PR-13: Composed workflow output parsing and state advancement
@@ -695,9 +922,27 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
             resolvedContent,
           );
 
+          // P4: reflection retry — if reflection flagged and within retry budget, mark for retry
+          let effectiveNextState = nextState;
+          if (reflectionResult?.reflectionFlagged) {
+            const retryCounts = composedState.stepReflectionRetryCounts ?? {};
+            const currentRetryCount = retryCounts[composedState.currentStepIndex] ?? 0;
+            if (currentRetryCount < 1) {
+              effectiveNextState = {
+                ...composedState,
+                stepReflectionRetryCounts: {
+                  ...retryCounts,
+                  [composedState.currentStepIndex]: currentRetryCount + 1,
+                },
+                pendingReflectionRetryStepIndex: composedState.currentStepIndex,
+                ...(composedReflectionRetryBlob ? { pendingReflectionRetryDetail: composedReflectionRetryBlob } : {}),
+              };
+            }
+          }
+
           sessionMemoryRef.current = {
             ...sessionMemoryRef.current,
-            composedWorkflowState: nextState,
+            composedWorkflowState: effectiveNextState,
           };
           persistSessionMemory(sessionMemoryRef.current);
 

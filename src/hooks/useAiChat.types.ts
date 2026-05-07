@@ -42,6 +42,7 @@ export interface UseAiChatReturn {
 	dismissPendingAgentLoopCheckpoint: () => Promise<void>;
 	clearPendingAgentLoopCheckpointIfTaskIdMatches: (taskId: string) => void;
 	trackRecommendationEvent: (event: import('../ai/chat/chatDomain.types').AiRecommendationEvent) => void;
+	setActiveSourceSetId: (id: string | null) => void;
 	toggleMessagePinned: (messageId: string) => void;
 	deactivateSessionDirective: (directiveId: string) => void;
 	pruneSessionDirectivesBySourceMessage: (sourceMessageId: string) => void;

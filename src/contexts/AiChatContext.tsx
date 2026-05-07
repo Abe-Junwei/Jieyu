@@ -5,13 +5,14 @@
  * 消费者: AiAssistantHubContext (chat/lexeme/observer 字段部分)
  */
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, type MutableRefObject } from 'react';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ProjectStage } from '../ai/ProjectObserver';
 import type { AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage } from '../hooks/useAiChat.types';
 import type { AiRecommendationEvent } from '../hooks/useAiChat.types';
 import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
+import type { AdoptionItem } from '../ai/vertical/adoptionQueue';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,7 @@ export interface AiChatContextValue {
   onCancelPendingToolCall: (() => Promise<void>) | undefined;
   onDismissPendingAgentLoopCheckpoint: (() => Promise<void>) | undefined;
   onTrackAiRecommendationEvent: ((event: AiRecommendationEvent) => void) | undefined;
+  onSetActiveSourceSetId?: ((id: string | null) => void) | undefined;
   onJumpToCitation: ((
     citationType: 'unit' | 'note' | 'pdf' | 'schema',
     refId: string,
@@ -85,6 +87,8 @@ export interface AiChatContextValue {
   ) => Promise<void> | void) | undefined;
   /** Current timeline read-model epoch (transcription workspace); for pending destructive tool UX. */
   timelineReadModelEpoch?: number;
+  /** When set, stream-phase adoption pushes merge into the sidebar Adoption queue (`AiChatCard` assigns `current`). */
+  adoptionItemsPushSinkRef?: MutableRefObject<((items: AdoptionItem[]) => void) | null>;
 }
 
 export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {

@@ -18,6 +18,7 @@ import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionP
 import { runAgentLoop, type AgentLoopRunnerResult } from './useAiChat.agentLoopRunner';
 import { createAssistantStream, type AssistantStreamChunk } from './useAiChat.streamFactory';
 
+
 vi.mock('react-dom', () => ({
   flushSync: (fn: () => void) => {
     fn();
@@ -35,6 +36,8 @@ vi.mock('./useAiChat.agentLoopRunner', () => ({
 vi.mock('./useAiChat.streamFactory', () => ({
   createAssistantStream: vi.fn(),
 }));
+
+
 
 const zeroMetrics: AiInteractionMetrics = {
   turnCount: 0,
@@ -152,6 +155,7 @@ function buildBaseInput(over: Partial<RunAiChatSendTurnStreamPhaseInput> = {}): 
     markExecutedRequestId: noop,
     bumpMetric: noop,
     localToolCallCountRef: { current: 0 },
+    onPushAdoptionItemsRef: { current: undefined },
     ...over,
   };
 }
@@ -428,5 +432,128 @@ describe('runAiChatSendTurnStreamPhase', () => {
     expect(joined).toContain('failed:cost_guard:retry_budget_upgrade_failed');
     expect(finalizeAssistantStreamCompletion).toHaveBeenCalledTimes(1);
     expect(finalizeAssistantMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('pushes adoption items when elan_flex_compatibility report has adoptionCandidateIds', async () => {
+    const reportJson = JSON.stringify({
+      reportId: 'rpt-1',
+      findings: [
+        {
+          findingId: 'f001',
+          kind: 'tier_mapping',
+          severity: 'warning',
+          title: 'Tier mapping issue',
+          description: 'desc',
+          recommendedAction: 'fix it',
+          adoptionCandidateId: 'adopt-1',
+          evidencePackets: [
+            { schemaVersion: 0, id: 'ep-1', sourceType: 'segment', sourceId: 'seg-1', quote: 'q', confidence: 0.8, reasonCode: 'rc' },
+          ],
+        },
+        {
+          findingId: 'f002',
+          kind: 'time_gap',
+          severity: 'info',
+          title: 'No adoption',
+          description: 'desc2',
+          recommendedAction: 'ignore',
+          evidencePackets: [],
+        },
+      ],
+      summary: 'Two findings',
+      exportTargets: ['elan', 'flex'],
+    });
+    vi.mocked(runAgentLoop).mockResolvedValue({
+      resolvedContent: reportJson,
+      resolvedStatus: 'done',
+      resolvedErrorMessage: undefined,
+      resolvedConnectionErrorMessage: undefined,
+      resolvedLocalToolResults: undefined,
+      loopExecuted: false,
+      assistantReasoningContent: '',
+      totalOutputTokens: 0,
+      reportedInputTokens: 0,
+    } as AgentLoopRunnerResult);
+    const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+    const onPushAdoptionItems = vi.fn();
+    async function* oneDone(): AsyncGenerator<AssistantStreamChunk> {
+      yield { done: true };
+    }
+    const verticalOutputEnvelopeSeed: VerticalWorkflowOutputEnvelopeV0 = {
+      schemaVersion: 0,
+      workflowId: 'elan_flex_compatibility',
+      writeMode: 'propose_only',
+      outputKind: 'compatibility_report',
+      evidencePackets: [],
+      generatedAt: '2026-01-01T00:00:00.000Z',
+      status: 'ready',
+    };
+    const input = buildBaseInput({
+      finalizeAssistantMessage,
+      stream: oneDone(),
+      verticalOutputEnvelopeSeed,
+      onPushAdoptionItemsRef: { current: onPushAdoptionItems },
+    });
+
+    await runAiChatSendTurnStreamPhase(input);
+
+    expect(onPushAdoptionItems).toHaveBeenCalledTimes(1);
+    const items = onPushAdoptionItems.mock.calls[0]![0];
+    expect(items).toHaveLength(1);
+    expect(items[0].workflowId).toBe('elan_flex_compatibility');
+    expect(items[0].requestId).toBe('adopt-1');
+    expect(items[0].evidencePacketIds).toEqual(['ep-1']);
+  });
+
+  it('marks composed workflow for reflection retry when reflection is flagged', async () => {
+    vi.mocked(runAgentLoop).mockResolvedValue({
+      resolvedContent: 'finding [1] [2]',
+      resolvedStatus: 'done',
+      resolvedErrorMessage: undefined,
+      resolvedConnectionErrorMessage: undefined,
+      resolvedLocalToolResults: undefined,
+      loopExecuted: false,
+      assistantReasoningContent: '',
+      totalOutputTokens: 0,
+      reportedInputTokens: 0,
+    } as AgentLoopRunnerResult);
+    const finalizeAssistantMessage = vi.fn().mockResolvedValue(undefined);
+    async function* oneDone(): AsyncGenerator<AssistantStreamChunk> {
+      yield { done: true };
+    }
+    const sessionMemory: AiSessionMemory = {
+      composedWorkflowState: {
+        templateId: 'annotation_qa_then_lexeme_candidates',
+        currentStepIndex: 0,
+        stepResults: {},
+        status: 'running',
+        originalUserText: 'test',
+      },
+    };
+    const verticalOutputEnvelopeSeed: VerticalWorkflowOutputEnvelopeV0 = {
+      schemaVersion: 0,
+      workflowId: 'annotation_qa',
+      writeMode: 'propose_only',
+      outputKind: 'qa_findings',
+      evidencePackets: [
+        { schemaVersion: 0, id: 'ep-1', sourceType: 'segment', sourceId: 'seg-1', quote: 'q', confidence: 0.8, reasonCode: 'rc' },
+      ],
+      generatedAt: '2026-01-01T00:00:00.000Z',
+      status: 'ready',
+    };
+    const input = buildBaseInput({
+      finalizeAssistantMessage,
+      stream: oneDone(),
+      verticalOutputEnvelopeSeed,
+      sessionMemoryRef: { current: sessionMemory },
+    });
+
+    await runAiChatSendTurnStreamPhase(input);
+
+    expect(vi.mocked(runAgentLoop)).toHaveBeenCalledTimes(1);
+    // sessionMemoryRef.current is reassigned, so inspect the ref, not the original variable
+    const updatedComposed = input.sessionMemoryRef.current.composedWorkflowState;
+    expect(updatedComposed!.pendingReflectionRetryStepIndex).toBe(0);
+    expect(updatedComposed!.stepReflectionRetryCounts).toEqual({ 0: 1 });
   });
 });

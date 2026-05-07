@@ -312,9 +312,6 @@ export function useTranscriptionAiController(
   );
 
   const onAiAssistantMessageCompleteRef = useLatest(input.onAiAssistantMessageComplete);
-  const handleAiAssistantMessageComplete = useCallback((assistantMessageId: string, content: string) => {
-    onAiAssistantMessageCompleteRef.current?.(assistantMessageId, content);
-  }, [onAiAssistantMessageCompleteRef]);
 
   const aiChat = useAiChat({
     onToolCall: handleAiToolCall,
@@ -328,7 +325,10 @@ export function useTranscriptionAiController(
     // 转写页首屏关闭自动连通性探测，避免未交互时触发远程请求 | Disable auto connection probing on transcription first screen to avoid remote calls before user interaction
     autoConnectionProbeEnabled: false,
     embeddingSearchService,
-    onMessageComplete: handleAiAssistantMessageComplete,
+    onMessageComplete: (assistantMessageId, content) => {
+      onAiAssistantMessageCompleteRef.current?.(assistantMessageId, content);
+    },
+    ...(input.onPushAdoptionItemsSinkRef ? { onPushAdoptionItems: (items) => { input.onPushAdoptionItemsSinkRef!.current?.(items); } } : {}),
   });
 
   const latestAssistantAuditFingerprint = (() => {

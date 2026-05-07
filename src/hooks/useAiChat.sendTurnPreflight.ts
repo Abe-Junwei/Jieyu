@@ -105,6 +105,7 @@ export async function runAiChatSendTurnPreflight(
     settingsRef,
     streamPersistIntervalMsRef,
     abortRef,
+    messagesRef,
     localToolCallCountRef,
     writeToolDecisionAuditLog,
     bumpMetric,
@@ -225,6 +226,7 @@ export async function runAiChatSendTurnPreflight(
   } = createAssistantPersistenceHelpers({
     assistantId,
     setMessages,
+    messagesRef,
     streamPersistIntervalMsRef,
     getDbRef: () => dbConversation.dbRef,
     getActiveConversationId: () => dbConversation.activeConversationId,

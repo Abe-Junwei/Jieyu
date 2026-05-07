@@ -1,7 +1,8 @@
-import type { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { nowIso } from './useAiChat.helpers';
 import { getDb } from '../db';
 import type { AiMessageCitation } from '../db';
+import { mergeContextSnapshotWithWorkflowExplainability } from '../ai/chat/workflowExplainability';
 import type { UiChatMessage } from './useAiChat.types';
 
 interface RefLike<T> {
@@ -13,6 +14,7 @@ type AiChatDb = Awaited<ReturnType<typeof getDb>>;
 interface CreateAssistantPersistenceHelpersOptions {
   assistantId: string;
   setMessages: Dispatch<SetStateAction<UiChatMessage[]>>;
+  messagesRef: MutableRefObject<UiChatMessage[]>;
   streamPersistIntervalMsRef: RefLike<number>;
   getDbRef: () => AiChatDb | null;
   getActiveConversationId: () => string | null;
@@ -21,6 +23,7 @@ interface CreateAssistantPersistenceHelpersOptions {
 export function createAssistantPersistenceHelpers({
   assistantId,
   setMessages,
+  messagesRef,
   streamPersistIntervalMsRef,
   getDbRef,
   getActiveConversationId,
@@ -110,13 +113,19 @@ export function createAssistantPersistenceHelpers({
 
     const existing = await dbRef.collections.ai_messages.findOne({ selector: { id: assistantId } }).exec();
     if (existing) {
+      const row = existing.toJSON();
+      const explainDto = messagesRef.current.find((m) => m.id === assistantId)?.workflowExplainability;
+      const contextSnapshot = explainDto
+        ? mergeContextSnapshotWithWorkflowExplainability(row.contextSnapshot, explainDto)
+        : row.contextSnapshot;
       await dbRef.collections.ai_messages.insert({
-        ...existing.toJSON(),
+        ...row,
         content,
         status,
         ...(errorMessage ? { errorMessage } : {}),
         ...(citations ? { citations } : {}),
         ...(reasoningContent ? { reasoningContent } : {}),
+        ...(contextSnapshot !== undefined ? { contextSnapshot } : {}),
         updatedAt: nowIso(),
       });
     }

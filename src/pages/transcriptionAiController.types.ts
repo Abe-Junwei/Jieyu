@@ -19,6 +19,7 @@ import type { EditEvent } from '../hooks/useEditEventBuffer';
 import type { ResolvedAcousticProviderState } from '../types/acousticProviderResolved.types';
 import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
+import type { AdoptionItem } from '../ai/vertical/adoptionQueue';
 
 export type { VoiceAssistantToolCallHandler };
 
@@ -149,6 +150,10 @@ export interface UseTranscriptionAiControllerInput {
    * Invoked when an assistant stream finalizes in `useAiChat` (content may be empty); used to bind voice analysis writeback to the correct message id.
    */
   onAiAssistantMessageComplete?: (assistantMessageId: string, content: string) => void;
+  /**
+   * When set, `useAiChat` stream-phase adoption pushes call `ref.current` (e.g. `AiChatCard` registers the handler on this ref).
+   */
+  onPushAdoptionItemsSinkRef?: React.MutableRefObject<((items: AdoptionItem[]) => void) | null>;
 }
 
 export interface UseTranscriptionAiControllerResult {
