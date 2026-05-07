@@ -1,0 +1,19 @@
+{
+  "caseId": "compatibility-lexeme-conflict-01",
+  "category": "compatibility",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "valid",
+  "description": "Lexeme conflict finding must be parsed with evidence packets.",
+  "input": {
+    "compatibilityReportRaw": "{ \"findings\": [{ \"findingId\": \"f002\", \"kind\": \"lexeme_conflict\", \"severity\": \"error\", \"title\": \"Duplicate lexeme form\", \"description\": \"Lexeme 'abc' has conflicting glosses between entries lex-1 and lex-2\", \"evidencePackets\": [{ \"id\": \"ep1\", \"sourceType\": \"lexeme\", \"sourceId\": \"lex-1\", \"quote\": \"abc (n.) greeting\", \"confidence\": 0.95, \"reasonCode\": \"duplicate_form\" }, { \"id\": \"ep2\", \"sourceType\": \"lexeme\", \"sourceId\": \"lex-2\", \"quote\": \"abc (v.) to greet\", \"confidence\": 0.95, \"reasonCode\": \"duplicate_form\" }], \"recommendedAction\": \"Merge or disambiguate entries\", \"adoptionCandidateId\": \"adopt-merge-abc\" }], \"summary\": \"One lexeme conflict blocks clean FLEx export.\", \"exportTargets\": [\"flex\"] }"
+  },
+  "expected": {
+    "parsed": true,
+    "findingCount": 1,
+    "firstFindingKind": "lexeme_conflict",
+    "firstFindingSeverity": "error",
+    "evidencePacketCount": 2,
+    "hasAdoptionCandidateId": true
+  }
+}

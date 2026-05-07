@@ -1,0 +1,14 @@
+{
+  "caseId": "workflow-segment-qa-select-zheduan-01",
+  "category": "workflow",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "match",
+  "description": "Chinese query with 这段 selects segment_qa.",
+  "input": {
+    "selectWorkflowQuery": "这段录音整体在讲什么"
+  },
+  "expected": {
+    "workflowId": "segment_qa"
+  }
+}

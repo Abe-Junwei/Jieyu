@@ -1,0 +1,17 @@
+{
+  "caseId": "compatibility-gloss-pos-mismatch-01",
+  "category": "compatibility",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "valid",
+  "description": "Gloss/POS mismatch finding must be parsed.",
+  "input": {
+    "compatibilityReportRaw": "{ \"findings\": [{ \"findingId\": \"f004\", \"kind\": \"gloss_pos_mismatch\", \"severity\": \"warning\", \"title\": \"POS missing for glossed token\", \"description\": \"Token tok-3 has gloss 'fish' but no POS tag; FLEx export will show unclassified\", \"evidencePackets\": [{ \"id\": \"ep1\", \"sourceType\": \"segment\", \"sourceId\": \"tok-3\", \"quote\": \"fish (no POS)\", \"confidence\": 0.85, \"reasonCode\": \"missing_pos\" }], \"recommendedAction\": \"Add POS tag to token\" }], \"summary\": \"One gloss/POS mismatch found.\", \"exportTargets\": [\"flex\"] }"
+  },
+  "expected": {
+    "parsed": true,
+    "findingCount": 1,
+    "firstFindingKind": "gloss_pos_mismatch",
+    "firstFindingSeverity": "warning"
+  }
+}

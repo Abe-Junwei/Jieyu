@@ -1,0 +1,14 @@
+{
+  "caseId": "workflow-segment-qa-select-zheduan-hanyi-01",
+  "category": "workflow",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "match",
+  "description": "Chinese query with 这段 and 含义 selects segment_qa.",
+  "input": {
+    "selectWorkflowQuery": "这段材料里关键词的含义是什么"
+  },
+  "expected": {
+    "workflowId": "segment_qa"
+  }
+}

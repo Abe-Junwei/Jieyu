@@ -1,0 +1,14 @@
+{
+  "caseId": "workflow-elan-flex-compatibility-01",
+  "category": "workflow",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "match",
+  "description": "ELAN/FLEx compatibility query must select elan_flex_compatibility workflow.",
+  "input": {
+    "selectWorkflowQuery": "检查 ELAN 和 FLEx 互通问题"
+  },
+  "expected": {
+    "workflowId": "elan_flex_compatibility"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "caseId": "compatibility-controlled-vocab-01",
+  "category": "compatibility",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "valid",
+  "description": "Controlled vocabulary mismatch finding must be parsed.",
+  "input": {
+    "compatibilityReportRaw": "{ \"findings\": [{ \"findingId\": \"f005\", \"kind\": \"controlled_vocabulary_mismatch\", \"severity\": \"warning\", \"title\": \"Unknown POS tag\", \"description\": \"POS tag 'advphr' is not in the project-controlled vocabulary {n, v, adj, adv}\", \"evidencePackets\": [{ \"id\": \"ep1\", \"sourceType\": \"layer_text\", \"sourceId\": \"pos-layer\", \"quote\": \"advphr\", \"confidence\": 0.9, \"reasonCode\": \"unknown_pos_tag\" }], \"recommendedAction\": \"Add 'advphr' to controlled vocabulary or normalize to 'adv'\" }], \"summary\": \"One controlled vocabulary mismatch found.\", \"exportTargets\": [\"elan\", \"flex\", \"toolbox\"] }"
+  },
+  "expected": {
+    "parsed": true,
+    "findingCount": 1,
+    "firstFindingKind": "controlled_vocabulary_mismatch",
+    "firstFindingSeverity": "warning",
+    "exportTargetCount": 3
+  }
+}

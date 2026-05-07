@@ -1,0 +1,14 @@
+{
+    "caseId": "workflow-annotation-qa-select-shenjiao-01",
+    "category": "workflow",
+    "capability": "read",
+    "tier": "quality",
+    "outcome": "match",
+    "description": "Chinese query with 审校 selects annotation_qa workflow.",
+    "input": {
+        "selectWorkflowQuery": "审校这段标注"
+    },
+    "expected": {
+        "workflowId": "annotation_qa"
+    }
+}

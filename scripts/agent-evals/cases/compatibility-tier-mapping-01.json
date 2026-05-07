@@ -1,0 +1,18 @@
+{
+  "caseId": "compatibility-tier-mapping-01",
+  "category": "compatibility",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "valid",
+  "description": "Tier mapping finding must be parsed with correct kind and severity.",
+  "input": {
+    "compatibilityReportRaw": "{ \"findings\": [{ \"findingId\": \"f001\", \"kind\": \"tier_mapping\", \"severity\": \"warning\", \"title\": \"Tier name mismatch\", \"description\": \"Layer translation maps to EAF tier Translation-Gloss\", \"evidencePackets\": [{ \"id\": \"ep1\", \"sourceType\": \"layer_text\", \"sourceId\": \"layer-1\", \"quote\": \"translation\", \"confidence\": 0.9, \"reasonCode\": \"tier_name_mismatch\" }], \"recommendedAction\": \"Standardize tier name\" }], \"summary\": \"One tier mapping issue found.\", \"exportTargets\": [\"elan\", \"flex\"] }"
+  },
+  "expected": {
+    "parsed": true,
+    "findingCount": 1,
+    "firstFindingKind": "tier_mapping",
+    "firstFindingSeverity": "warning",
+    "exportTargets": ["elan", "flex"]
+  }
+}

@@ -1,0 +1,40 @@
+{
+    "caseId": "workflow-envelope-annotation-qa-ready-01",
+    "category": "workflow",
+    "capability": "read",
+    "tier": "quality",
+    "outcome": "ready",
+    "description": "Envelope with non-empty evidence packets for annotation_qa must have status=ready.",
+    "input": {
+        "buildEnvelope": {
+            "selection": {
+                "workflowId": "annotation_qa",
+                "workflow": {
+                    "id": "annotation_qa",
+                    "labelKey": "msg.ai.vertical.workflow.annotationQa",
+                    "inputScope": "selection",
+                    "outputKind": "qa_findings",
+                    "writeMode": "propose_only"
+                },
+                "confidence": 0.84,
+                "source": "rule_v0",
+                "reasonCode": "keyword_match",
+                "matchedKeyword": "标注"
+            },
+            "evidencePackets": [
+                {
+                    "id": "ep-annotation-001",
+                    "sourceType": "segment",
+                    "sourceId": "seg-001",
+                    "quote": "标注示例",
+                    "confidence": 0.85,
+                    "reasonCode": "workflow_envelope_fixture"
+                }
+            ]
+        }
+    },
+    "expected": {
+        "status": "ready",
+        "evidencePacketCount": 1
+    }
+}

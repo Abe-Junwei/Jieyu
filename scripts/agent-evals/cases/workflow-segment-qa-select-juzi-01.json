@@ -1,0 +1,14 @@
+{
+  "caseId": "workflow-segment-qa-select-juzi-01",
+  "category": "workflow",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "match",
+  "description": "Chinese query with 这句 and 解释 selects segment_qa.",
+  "input": {
+    "selectWorkflowQuery": "用一句话解释这句台词"
+  },
+  "expected": {
+    "workflowId": "segment_qa"
+  }
+}

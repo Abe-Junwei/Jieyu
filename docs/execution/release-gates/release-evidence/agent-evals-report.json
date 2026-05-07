@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-06T10:29:55.672Z",
+  "generatedAt": "2026-05-07T05:33:22.670Z",
   "mode": "enforce",
   "suite": {
     "suiteId": "jieyu-agent-evals-v1",
@@ -9,13 +9,13 @@
     "suitePath": "scripts/agent-evals/suite.v1.json"
   },
   "summary": {
-    "total": 7,
-    "passed": 7,
+    "total": 14,
+    "passed": 14,
     "failed": 0,
     "passRate": 1,
     "requiredPassRate": 0.9,
     "maxFailedCases": 0,
-    "coveredGoldenTasks": 40,
+    "coveredGoldenTasks": 81,
     "requiredGoldenTasksMin": 30,
     "coveredTrajectorySignals": [
       "tool_selection",
@@ -34,8 +34,8 @@
     "missingTrajectorySignals": [],
     "auditTracePassed": true,
     "thresholdPassed": true,
-    "startedAt": "2026-05-06T10:29:10.230Z",
-    "endedAt": "2026-05-06T10:29:55.672Z"
+    "startedAt": "2026-05-07T05:32:40.853Z",
+    "endedAt": "2026-05-07T05:33:22.670Z"
   },
   "cases": [
     {
@@ -47,10 +47,10 @@
       "command": "npm run typecheck",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-06T10:29:10.235Z",
-      "endedAt": "2026-05-06T10:29:29.706Z",
-      "elapsedMs": 19471,
-      "stdout": "\n> jieyu@1.1.0 typecheck\n> tsc --noEmit\n\n",
+      "startedAt": "2026-05-07T05:32:40.856Z",
+      "endedAt": "2026-05-07T05:32:52.896Z",
+      "elapsedMs": 12040,
+      "stdout": "",
       "stderr": ""
     },
     {
@@ -66,10 +66,10 @@
       "command": "npx vitest run src/ai/memory/userDirectiveExtractor.test.ts src/hooks/useAiChat.responsePolicy.test.ts src/hooks/useAiChat.backgroundMemory.test.ts src/hooks/useAiChat.toolDecisionPipeline.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-06T10:29:29.706Z",
-      "endedAt": "2026-05-06T10:29:31.815Z",
-      "elapsedMs": 2109,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.backgroundMemory.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/memory/userDirectiveExtractor.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.responsePolicy.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.toolDecisionPipeline.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:29:30\n\u001b[2m   Duration \u001b[22m 916ms\u001b[2m (transform 721ms, setup 604ms, import 778ms, tests 30ms, environment 0ms)\u001b[22m\n\n",
+      "startedAt": "2026-05-07T05:32:52.896Z",
+      "endedAt": "2026-05-07T05:32:54.458Z",
+      "elapsedMs": 1562,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/memory/userDirectiveExtractor.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.backgroundMemory.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.responsePolicy.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.toolDecisionPipeline.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:32:53\n\u001b[2m   Duration \u001b[22m 788ms\u001b[2m (transform 508ms, setup 462ms, import 545ms, tests 24ms, environment 0ms)\u001b[22m\n\n",
       "stderr": ""
     },
     {
@@ -84,11 +84,11 @@
       "command": "npx vitest run src/ai/chat/sessionMemory.test.ts src/ai/chat/promptContext.tiered.test.ts src/hooks/useAiChat.streamCompletion.test.ts src/hooks/useAiChat.agentLoopRunner.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-06T10:29:31.815Z",
-      "endedAt": "2026-05-06T10:29:34.389Z",
-      "elapsedMs": 2574,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/chat/sessionMemory.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.streamCompletion.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 15\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.agentLoopRunner.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/chat/promptContext.tiered.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m40 passed\u001b[39m\u001b[22m\u001b[90m (40)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:29:32\n\u001b[2m   Duration \u001b[22m 1.59s\u001b[2m (transform 1.02s, setup 668ms, import 1.53s, tests 38ms, environment 384ms)\u001b[22m\n\n",
-      "stderr": "(node:5782) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+      "startedAt": "2026-05-07T05:32:54.458Z",
+      "endedAt": "2026-05-07T05:32:56.397Z",
+      "elapsedMs": 1939,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/chat/sessionMemory.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.streamCompletion.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.agentLoopRunner.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/chat/promptContext.tiered.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m40 passed\u001b[39m\u001b[22m\u001b[90m (40)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:32:54\n\u001b[2m   Duration \u001b[22m 1.19s\u001b[2m (transform 685ms, setup 475ms, import 1.14s, tests 29ms, environment 317ms)\u001b[22m\n\n",
+      "stderr": "(node:82964) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     },
     {
       "id": "release-evidence",
@@ -101,10 +101,10 @@
       "command": "npx vitest run scripts/generate-release-evidence-bundle.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-06T10:29:34.389Z",
-      "endedAt": "2026-05-06T10:29:37.848Z",
-      "elapsedMs": 3459,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m scripts/generate-release-evidence-bundle.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2056\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:29:35\n\u001b[2m   Duration \u001b[22m 2.42s\u001b[2m (transform 160ms, setup 251ms, import 21ms, tests 2.06s, environment 0ms)\u001b[22m\n\n",
+      "startedAt": "2026-05-07T05:32:56.397Z",
+      "endedAt": "2026-05-07T05:32:58.966Z",
+      "elapsedMs": 2569,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m scripts/generate-release-evidence-bundle.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1602\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:32:56\n\u001b[2m   Duration \u001b[22m 1.84s\u001b[2m (transform 116ms, setup 161ms, import 14ms, tests 1.60s, environment 0ms)\u001b[22m\n\n",
       "stderr": ""
     },
     {
@@ -120,11 +120,11 @@
       "command": "npx vitest run src/components/ai/AiChatAlertsPanel.test.tsx",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-06T10:29:37.848Z",
-      "endedAt": "2026-05-06T10:29:39.931Z",
-      "elapsedMs": 2083,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatAlertsPanel.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 190\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m10 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:29:38\n\u001b[2m   Duration \u001b[22m 1.15s\u001b[2m (transform 279ms, setup 240ms, import 209ms, tests 190ms, environment 420ms)\u001b[22m\n\n",
-      "stderr": "(node:6782) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+      "startedAt": "2026-05-07T05:32:58.966Z",
+      "endedAt": "2026-05-07T05:33:00.506Z",
+      "elapsedMs": 1540,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatAlertsPanel.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 148\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m10 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:32:59\n\u001b[2m   Duration \u001b[22m 807ms\u001b[2m (transform 176ms, setup 181ms, import 96ms, tests 148ms, environment 319ms)\u001b[22m\n\n",
+      "stderr": "(node:84076) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     },
     {
       "id": "approval-center-ui-composer",
@@ -139,11 +139,11 @@
       "command": "npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"renders directive console MVP and allows deactivating one directive\" && npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"shows decision explanation message and reason in decision panel\" && npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"keeps the AI decision panel collapsed by default\"",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-06T10:29:39.931Z",
-      "endedAt": "2026-05-06T10:29:48.432Z",
-      "elapsedMs": 8501,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatCard.input.test.tsx \u001b[2m(\u001b[22m\u001b[2m45 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[2m)\u001b[22m\u001b[32m 146\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[90m (45)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:29:40\n\u001b[2m   Duration \u001b[22m 1.73s\u001b[2m (transform 680ms, setup 220ms, import 892ms, tests 146ms, environment 386ms)\u001b[22m\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatCard.input.test.tsx \u001b[2m(\u001b[22m\u001b[2m45 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[2m)\u001b[22m\u001b[32m 198\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[90m (45)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:29:43\n\u001b[2m   Duration \u001b[22m 1.82s\u001b[2m (transform 643ms, setup 231ms, import 831ms, tests 198ms, environment 469ms)\u001b[22m\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatCard.input.test.tsx \u001b[2m(\u001b[22m\u001b[2m45 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[2m)\u001b[22m\u001b[32m 179\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[90m (45)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:29:46\n\u001b[2m   Duration \u001b[22m 1.74s\u001b[2m (transform 646ms, setup 223ms, import 888ms, tests 179ms, environment 366ms)\u001b[22m\n\n",
-      "stderr": "(node:6838) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:6885) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:7044) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+      "startedAt": "2026-05-07T05:33:00.506Z",
+      "endedAt": "2026-05-07T05:33:06.924Z",
+      "elapsedMs": 6418,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatCard.input.test.tsx \u001b[2m(\u001b[22m\u001b[2m45 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[2m)\u001b[22m\u001b[32m 116\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[90m (45)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:33:01\n\u001b[2m   Duration \u001b[22m 1.35s\u001b[2m (transform 559ms, setup 168ms, import 718ms, tests 116ms, environment 283ms)\u001b[22m\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatCard.input.test.tsx \u001b[2m(\u001b[22m\u001b[2m45 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[2m)\u001b[22m\u001b[32m 113\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[90m (45)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:33:03\n\u001b[2m   Duration \u001b[22m 1.27s\u001b[2m (transform 502ms, setup 165ms, import 653ms, tests 113ms, environment 274ms)\u001b[22m\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatCard.input.test.tsx \u001b[2m(\u001b[22m\u001b[2m45 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[2m)\u001b[22m\u001b[32m 130\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m44 skipped\u001b[39m\u001b[90m (45)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:33:05\n\u001b[2m   Duration \u001b[22m 1.31s\u001b[2m (transform 512ms, setup 170ms, import 677ms, tests 130ms, environment 272ms)\u001b[22m\n\n",
+      "stderr": "(node:84146) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:84222) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:84288) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     },
     {
       "id": "taskrunner-recovery",
@@ -156,11 +156,136 @@
       "command": "npx vitest run src/ai/tasks/TaskRunner.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-06T10:29:48.432Z",
-      "endedAt": "2026-05-06T10:29:55.672Z",
-      "elapsedMs": 7240,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/tasks/TaskRunner.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 5142\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m retries when handler fails and then succeeds \u001b[33m 505\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m injects lastError into retry attempt context \u001b[33m 506\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m fails task on timeout and stores timeout message \u001b[33m 1004\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m retries after a per-attempt timeout when maxAttempts allows it \u001b[33m 1508\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m applies backoff delay between retry attempts \u001b[33m 1507\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:29:49\n\u001b[2m   Duration \u001b[22m 6.24s\u001b[2m (transform 291ms, setup 232ms, import 373ms, tests 5.14s, environment 403ms)\u001b[22m\n\n",
-      "stderr": "(node:7109) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+      "startedAt": "2026-05-07T05:33:06.924Z",
+      "endedAt": "2026-05-07T05:33:13.698Z",
+      "elapsedMs": 6774,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/tasks/TaskRunner.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 5127\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m retries when handler fails and then succeeds \u001b[33m 521\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m injects lastError into retry attempt context \u001b[33m 505\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m fails task on timeout and stores timeout message \u001b[33m 1003\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m retries after a per-attempt timeout when maxAttempts allows it \u001b[33m 1504\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m applies backoff delay between retry attempts \u001b[33m 1505\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:33:07\n\u001b[2m   Duration \u001b[22m 5.95s\u001b[2m (transform 244ms, setup 207ms, import 270ms, tests 5.13s, environment 280ms)\u001b[22m\n\n",
+      "stderr": "(node:84366) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "id": "vertical-workflow-reflections",
+      "name": "Vertical workflow reflection tests (segment_qa + annotation_qa + lexeme_candidates + elan_flex)",
+      "category": "workflow",
+      "goldenTaskCount": 8,
+      "trajectorySignals": [
+        "gate_correctness",
+        "audit_traceability"
+      ],
+      "command": "npx vitest run src/ai/vertical/segmentQaReflection.test.ts src/ai/vertical/annotationQaReflection.test.ts src/ai/vertical/lexemeCandidatesReflection.test.ts src/ai/vertical/elanFlexCompatibilityWorkflow.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-05-07T05:33:13.698Z",
+      "endedAt": "2026-05-07T05:33:15.556Z",
+      "elapsedMs": 1858,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/vertical/elanFlexCompatibilityWorkflow.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/segmentQaReflection.test.ts \u001b[2m(\u001b[22m\u001b[2m20 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/annotationQaReflection.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/lexemeCandidatesReflection.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m63 passed\u001b[39m\u001b[22m\u001b[90m (63)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:33:14\n\u001b[2m   Duration \u001b[22m 976ms\u001b[2m (transform 245ms, setup 477ms, import 29ms, tests 17ms, environment 925ms)\u001b[22m\n\n",
+      "stderr": "(node:84503) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:84503) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:84503) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "id": "vertical-workflow-adoption-queue",
+      "name": "AdoptionQueue state machine and UI tests",
+      "category": "workflow",
+      "goldenTaskCount": 5,
+      "trajectorySignals": [
+        "approval_explainability",
+        "audit_traceability"
+      ],
+      "command": "npx vitest run src/ai/vertical/adoptionQueue.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-05-07T05:33:15.556Z",
+      "endedAt": "2026-05-07T05:33:17.041Z",
+      "elapsedMs": 1485,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/vertical/adoptionQueue.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (15)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:33:16\n\u001b[2m   Duration \u001b[22m 569ms\u001b[2m (transform 149ms, setup 210ms, import 6ms, tests 4ms, environment 286ms)\u001b[22m\n\n",
+      "stderr": "(node:84569) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "id": "vertical-workflow-source-set",
+      "name": "CorpusSourceSet lifecycle tests",
+      "category": "workflow",
+      "goldenTaskCount": 5,
+      "trajectorySignals": [
+        "tool_selection",
+        "audit_traceability"
+      ],
+      "command": "npx vitest run src/ai/vertical/corpusSourceSet.test.ts src/ai/vertical/sourceResolver.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-05-07T05:33:17.041Z",
+      "endedAt": "2026-05-07T05:33:18.140Z",
+      "elapsedMs": 1099,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/vertical/sourceResolver.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/corpusSourceSet.test.ts \u001b[2m(\u001b[22m\u001b[2m27 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (2)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m42 passed\u001b[39m\u001b[22m\u001b[90m (42)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:33:17\n\u001b[2m   Duration \u001b[22m 288ms\u001b[2m (transform 239ms, setup 346ms, import 22ms, tests 8ms, environment 0ms)\u001b[22m\n\n",
+      "stderr": ""
+    },
+    {
+      "id": "vertical-workflow-registry",
+      "name": "Vertical workflow registry drift guard",
+      "category": "workflow",
+      "goldenTaskCount": 4,
+      "trajectorySignals": [
+        "gate_correctness",
+        "audit_traceability"
+      ],
+      "command": "npx vitest run src/ai/vertical/verticalWorkflowRegistry.test.ts src/ai/vertical/verticalP0.test.ts src/ai/vertical/verticalWorkflowSelection.test.ts src/ai/vertical/verticalWorkflowAudit.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-05-07T05:33:18.140Z",
+      "endedAt": "2026-05-07T05:33:19.420Z",
+      "elapsedMs": 1280,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/vertical/verticalWorkflowRegistry.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/verticalP0.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/verticalWorkflowAudit.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/verticalWorkflowSelection.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:33:18\n\u001b[2m   Duration \u001b[22m 500ms\u001b[2m (transform 318ms, setup 467ms, import 156ms, tests 10ms, environment 0ms)\u001b[22m\n\n",
+      "stderr": ""
+    },
+    {
+      "id": "agent-evals-semantic-cases",
+      "name": "Agent eval JSON semantic cases (workflow, evidence, policy, rag, i18n)",
+      "category": "workflow",
+      "goldenTaskCount": 12,
+      "trajectorySignals": [
+        "gate_correctness",
+        "audit_traceability"
+      ],
+      "command": "npx vitest run scripts/agent-evals/cases/semantic-cases.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-05-07T05:33:19.420Z",
+      "endedAt": "2026-05-07T05:33:20.534Z",
+      "elapsedMs": 1114,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m scripts/agent-evals/cases/semantic-cases.test.ts \u001b[2m(\u001b[22m\u001b[2m59 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m59 passed\u001b[39m\u001b[22m\u001b[90m (59)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:33:19\n\u001b[2m   Duration \u001b[22m 348ms\u001b[2m (transform 179ms, setup 166ms, import 114ms, tests 5ms, environment 0ms)\u001b[22m\n\n",
+      "stderr": ""
+    },
+    {
+      "id": "vertical-evidence-contracts",
+      "name": "EvidencePacket + EvidenceSourceRef contract tests",
+      "category": "workflow",
+      "goldenTaskCount": 3,
+      "trajectorySignals": [
+        "audit_traceability"
+      ],
+      "command": "npx vitest run src/ai/vertical/evidencePacket.test.ts src/ai/vertical/evidenceSourceRef.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-05-07T05:33:20.534Z",
+      "endedAt": "2026-05-07T05:33:21.601Z",
+      "elapsedMs": 1067,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/vertical/evidencePacket.test.ts \u001b[2m(\u001b[22m\u001b[2m1 test\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/evidenceSourceRef.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (2)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:33:21\n\u001b[2m   Duration \u001b[22m 246ms\u001b[2m (transform 228ms, setup 345ms, import 10ms, tests 4ms, environment 0ms)\u001b[22m\n\n",
+      "stderr": ""
+    },
+    {
+      "id": "segment-qa-assistant-message-p1",
+      "name": "Assistant message P1 UX (reflection + no-evidence fallback)",
+      "category": "ui",
+      "goldenTaskCount": 4,
+      "trajectorySignals": [
+        "approval_explainability",
+        "gate_correctness"
+      ],
+      "command": "npx vitest run src/components/ai/AiChatAssistantMessage.test.tsx",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-05-07T05:33:21.601Z",
+      "endedAt": "2026-05-07T05:33:22.670Z",
+      "elapsedMs": 1069,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatAssistantMessage.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:33:22\n\u001b[2m   Duration \u001b[22m 279ms\u001b[2m (transform 137ms, setup 167ms, import 43ms, tests 7ms, environment 0ms)\u001b[22m\n\n",
+      "stderr": ""
     }
   ]
 }

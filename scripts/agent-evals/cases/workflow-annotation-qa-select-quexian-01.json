@@ -1,0 +1,14 @@
+{
+    "caseId": "workflow-annotation-qa-select-quexian-01",
+    "category": "workflow",
+    "capability": "read",
+    "tier": "quality",
+    "outcome": "match",
+    "description": "Chinese query with 缺失 selects annotation_qa workflow.",
+    "input": {
+        "selectWorkflowQuery": "缺失标注检查"
+    },
+    "expected": {
+        "workflowId": "annotation_qa"
+    }
+}

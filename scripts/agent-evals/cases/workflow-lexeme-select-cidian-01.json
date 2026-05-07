@@ -1,0 +1,14 @@
+{
+    "caseId": "workflow-lexeme-select-cidian-01",
+    "category": "workflow",
+    "capability": "read",
+    "tier": "quality",
+    "outcome": "match",
+    "description": "Chinese query with 词典 selects lexeme_candidates workflow.",
+    "input": {
+        "selectWorkflowQuery": "词典候选词提取"
+    },
+    "expected": {
+        "workflowId": "lexeme_candidates"
+    }
+}

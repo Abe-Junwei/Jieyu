@@ -107,7 +107,12 @@ interface ReleaseEvidenceReport {
       reasons: Record<string, number>;
     };
     skipReasons: Record<string, number>;
+    skipTaxonomy?: string;
     sampleTaskIds?: string[];
+  };
+  skipTaxonomyRollup: {
+    schemaVersion: number;
+    byTaxonomy: Record<string, number>;
   };
   coordinationLite: {
     status: string;
@@ -287,8 +292,9 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.perf.cards[0]?.metricObservedMs).toBeNull();
 
       expect(report.costGuard.estimatorVersion).toBe('v1.provider_usage_or_unknown');
-      expect(report.costGuard.summary.requestCount).toBe(3);
-      expect(report.costGuard.summary.budgetTriggerCount).toBe(1);
+      // `ai-tool-decision-audit-export-v1.ndjson` 现为单条 decision 行：按唯一 requestId 聚合后 requestCount=1，且无 cost_guard budget 信号。
+      expect(report.costGuard.summary.requestCount).toBe(1);
+      expect(report.costGuard.summary.budgetTriggerCount).toBe(0);
       expect(report.costGuard.summary.retryTriggeredCount).toBe(0);
       expect(report.costGuard.summary.retrySuccessCount).toBe(0);
       expect(report.costGuard.summary.outputCapTriggeredCount).toBe(0);
@@ -307,7 +313,7 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.progressiveDisclosure.cards).toHaveLength(4);
       expect(report.memoryRecallShape.status).toBe('skipped');
       expect(report.costGuard.trend.bucket).toBe('day');
-      expect(report.costGuard.trend.pointCount).toBe(2);
+      expect(report.costGuard.trend.pointCount).toBe(1);
       expect(report.auditFieldDictionary?.schemaVersion).toBe(1);
       expect(report.auditFieldDictionary?.status).toBe('ready');
       expect(report.auditFieldDictionary?.fields.map((item) => item.field)).toEqual([
@@ -1510,6 +1516,13 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'c7.coordination-lite.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'c8.user-directive-governance.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'm1.action-approval-center.v1')).toBe(true);
+
+      // P3: skipTaxonomyRollup and per-node skipTaxonomy assertions
+      expect(report.skipTaxonomyRollup).toBeDefined();
+      expect(report.skipTaxonomyRollup.schemaVersion).toBe(1);
+      expect(typeof report.skipTaxonomyRollup.byTaxonomy).toBe('object');
+      expect(report.skipTaxonomyRollup.byTaxonomy['other']).toBeGreaterThanOrEqual(1);
+      expect(report.backgroundMemoryExtraction.skipReasons).toHaveProperty('empty-extraction');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

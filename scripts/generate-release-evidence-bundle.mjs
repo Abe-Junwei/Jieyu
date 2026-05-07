@@ -2553,6 +2553,85 @@ function buildEvidenceSummary(evidenceIndex) {
   };
 }
 
+/**
+ * P3: machine-readable skip taxonomy for release-evidence bundles (analytics / dogfood).
+ * Defect-class counts are goal metrics only — not a merge gate (roadmap 2026-05-07).
+ * @param {string | undefined} skipReason
+ * @returns {'missing_upstream_inputs' | 'missing_audit_rows' | 'profile_constraint' | 'generator_fallback' | 'other' | 'unknown'}
+ */
+function classifyReleaseEvidenceSkipTaxonomy(skipReason) {
+  if (!skipReason || typeof skipReason !== 'string') return 'unknown';
+  const s = skipReason.trim();
+  if (!s) return 'unknown';
+  if (
+    s === 'no_audit_export_source'
+    || s === 'no_request_ids_provided'
+    || s === 'no_rag_shape_metadata'
+  ) {
+    return 'missing_upstream_inputs';
+  }
+  if (s.startsWith('no_') && (s.includes('_rows') || s.endsWith('_rows'))) {
+    return 'missing_audit_rows';
+  }
+  if (s === 'profile_without_performance_steps') {
+    return 'profile_constraint';
+  }
+  if (s.startsWith('fallback_')) {
+    return 'generator_fallback';
+  }
+  return 'other';
+}
+
+/**
+ * P3: attach machine-readable `skipTaxonomy` on each skipped node that already has `skipReason`
+ * (per-card / per-section analytics; rollup still derived from `skipReason`).
+ * @param {Record<string, unknown> | unknown[] | null | undefined} reportLike
+ * @param {number} depth
+ */
+function injectSkipTaxonomyFields(reportLike, depth) {
+  if (!reportLike || depth > 24) return;
+  if (typeof reportLike !== 'object') return;
+  if (Array.isArray(reportLike)) {
+    for (const item of reportLike) injectSkipTaxonomyFields(item, depth + 1);
+    return;
+  }
+  if (typeof reportLike.skipReason === 'string' && reportLike.status === 'skipped') {
+    reportLike.skipTaxonomy = classifyReleaseEvidenceSkipTaxonomy(reportLike.skipReason);
+  }
+  for (const v of Object.values(reportLike)) {
+    if (v && typeof v === 'object') injectSkipTaxonomyFields(v, depth + 1);
+  }
+}
+
+/**
+ * Walk a report-like object and count skipped nodes that carry `skipReason`.
+ * @param {Record<string, unknown>} reportLike
+ */
+function buildSkipTaxonomyRollup(reportLike) {
+  const byTaxonomy = {};
+  const walk = (obj, depth) => {
+    if (!obj || depth > 24) return;
+    if (typeof obj !== 'object') return;
+    if (Array.isArray(obj)) {
+      for (const item of obj) walk(item, depth + 1);
+      return;
+    }
+    if (typeof obj.skipReason === 'string' && obj.status === 'skipped') {
+      const t = classifyReleaseEvidenceSkipTaxonomy(obj.skipReason);
+      byTaxonomy[t] = (byTaxonomy[t] ?? 0) + 1;
+    }
+    for (const v of Object.values(obj)) {
+      walk(v, depth + 1);
+    }
+  };
+  walk(reportLike, 0);
+  return {
+    schemaVersion: 1,
+    byTaxonomy,
+    note: 'Rollup for analytics; defect-class skip zero is a goal metric only, not a merge gate.',
+  };
+}
+
 function buildAuditFieldDictionarySection() {
   return {
     schemaVersion: 1,
@@ -2914,7 +2993,7 @@ function buildReport(input) {
 
   const summary = buildEvidenceSummary(evidenceIndex);
 
-  return {
+  const report = {
     schemaVersion: 1,
     reportType: 'release-evidence',
     degraded: failed > 0 || aiEvidenceFailed || evidenceReadError,
@@ -2949,6 +3028,9 @@ function buildReport(input) {
     costGuard: costGuardSection,
     extensions: extensionCapabilityAudit,
   };
+  injectSkipTaxonomyFields(report, 0);
+  report.skipTaxonomyRollup = buildSkipTaxonomyRollup(report);
+  return report;
 }
 
 async function writeReport(report, outputPath) {
@@ -3296,6 +3378,8 @@ run().catch(async (error) => {
       },
     ],
   };
+  injectSkipTaxonomyFields(degradedFallback, 0);
+  degradedFallback.skipTaxonomyRollup = buildSkipTaxonomyRollup(degradedFallback);
 
   try {
     await writeReport(degradedFallback, outputPath);

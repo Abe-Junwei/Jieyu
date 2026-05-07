@@ -1,0 +1,14 @@
+{
+  "caseId": "workflow-segment-qa-select-yuduan-01",
+  "category": "workflow",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "match",
+  "description": "Chinese query with 语段 selects segment_qa (no annotation/lexeme keyword collision).",
+  "input": {
+    "selectWorkflowQuery": "语段边界怎么理解"
+  },
+  "expected": {
+    "workflowId": "segment_qa"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "caseId": "compatibility-time-gap-01",
+  "category": "compatibility",
+  "capability": "read",
+  "tier": "quality",
+  "outcome": "valid",
+  "description": "Time gap finding must be parsed with segment evidence.",
+  "input": {
+    "compatibilityReportRaw": "{ \"findings\": [{ \"findingId\": \"f003\", \"kind\": \"time_gap\", \"severity\": \"error\", \"title\": \"Gap between segments\", \"description\": \"Segment seg-2 starts at 3500ms but seg-1 ends at 3200ms, leaving 300ms gap\", \"evidencePackets\": [{ \"id\": \"ep1\", \"sourceType\": \"segment\", \"sourceId\": \"seg-1\", \"quote\": \"0-3200ms\", \"confidence\": 1.0, \"reasonCode\": \"time_gap\" }, { \"id\": \"ep2\", \"sourceType\": \"segment\", \"sourceId\": \"seg-2\", \"quote\": \"3500-5000ms\", \"confidence\": 1.0, \"reasonCode\": \"time_gap\" }], \"recommendedAction\": \"Adjust segment boundaries or insert filler annotation\" }], \"summary\": \"One time gap affects ELAN export fidelity.\", \"exportTargets\": [\"elan\"] }"
+  },
+  "expected": {
+    "parsed": true,
+    "findingCount": 1,
+    "firstFindingKind": "time_gap",
+    "firstFindingSeverity": "error"
+  }
+}

@@ -1,0 +1,31 @@
+{
+    "caseId": "workflow-envelope-lexeme-degraded-01",
+    "category": "workflow",
+    "capability": "read",
+    "tier": "quality",
+    "outcome": "degraded",
+    "description": "Envelope with empty evidence packets for lexeme_candidates must have status=degraded.",
+    "input": {
+        "buildEnvelope": {
+            "selection": {
+                "workflowId": "lexeme_candidates",
+                "workflow": {
+                    "id": "lexeme_candidates",
+                    "labelKey": "msg.ai.vertical.workflow.lexemeCandidates",
+                    "inputScope": "corpus_source_set",
+                    "outputKind": "lexeme_candidates",
+                    "writeMode": "propose_only"
+                },
+                "confidence": 0.86,
+                "source": "rule_v0",
+                "reasonCode": "keyword_match",
+                "matchedKeyword": "词典"
+            },
+            "evidencePackets": []
+        }
+    },
+    "expected": {
+        "status": "degraded",
+        "evidencePacketCount": 0
+    }
+}

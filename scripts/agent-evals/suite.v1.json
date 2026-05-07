@@ -89,6 +89,82 @@
       "trajectorySignals": [
         "recovery_path"
       ]
+    },
+    {
+      "id": "vertical-workflow-reflections",
+      "name": "Vertical workflow reflection tests (segment_qa + annotation_qa + lexeme_candidates + elan_flex)",
+      "command": "npx vitest run src/ai/vertical/segmentQaReflection.test.ts src/ai/vertical/annotationQaReflection.test.ts src/ai/vertical/lexemeCandidatesReflection.test.ts src/ai/vertical/elanFlexCompatibilityWorkflow.test.ts",
+      "category": "workflow",
+      "goldenTaskCount": 8,
+      "trajectorySignals": [
+        "gate_correctness",
+        "audit_traceability"
+      ]
+    },
+    {
+      "id": "vertical-workflow-adoption-queue",
+      "name": "AdoptionQueue state machine and UI tests",
+      "command": "npx vitest run src/ai/vertical/adoptionQueue.test.ts",
+      "category": "workflow",
+      "goldenTaskCount": 5,
+      "trajectorySignals": [
+        "approval_explainability",
+        "audit_traceability"
+      ]
+    },
+    {
+      "id": "vertical-workflow-source-set",
+      "name": "CorpusSourceSet lifecycle tests",
+      "command": "npx vitest run src/ai/vertical/corpusSourceSet.test.ts src/ai/vertical/sourceResolver.test.ts",
+      "category": "workflow",
+      "goldenTaskCount": 5,
+      "trajectorySignals": [
+        "tool_selection",
+        "audit_traceability"
+      ]
+    },
+    {
+      "id": "vertical-workflow-registry",
+      "name": "Vertical workflow registry drift guard",
+      "command": "npx vitest run src/ai/vertical/verticalWorkflowRegistry.test.ts src/ai/vertical/verticalP0.test.ts src/ai/vertical/verticalWorkflowSelection.test.ts src/ai/vertical/verticalWorkflowAudit.test.ts",
+      "category": "workflow",
+      "goldenTaskCount": 4,
+      "trajectorySignals": [
+        "gate_correctness",
+        "audit_traceability"
+      ]
+    },
+    {
+      "id": "agent-evals-semantic-cases",
+      "name": "Agent eval JSON semantic cases (workflow, evidence, policy, rag, i18n)",
+      "command": "npx vitest run scripts/agent-evals/cases/semantic-cases.test.ts",
+      "category": "workflow",
+      "goldenTaskCount": 12,
+      "trajectorySignals": [
+        "gate_correctness",
+        "audit_traceability"
+      ]
+    },
+    {
+      "id": "vertical-evidence-contracts",
+      "name": "EvidencePacket + EvidenceSourceRef contract tests",
+      "command": "npx vitest run src/ai/vertical/evidencePacket.test.ts src/ai/vertical/evidenceSourceRef.test.ts",
+      "category": "workflow",
+      "goldenTaskCount": 3,
+      "trajectorySignals": [
+        "audit_traceability"
+      ]
+    },
+    {
+      "id": "segment-qa-assistant-message-p1",
+      "name": "Assistant message P1 UX (reflection + no-evidence fallback)",
+      "command": "npx vitest run src/components/ai/AiChatAssistantMessage.test.tsx",
+      "category": "ui",
+      "goldenTaskCount": 4,
+      "trajectorySignals": [
+        "approval_explainability",
+        "gate_correctness"
+      ]
     }
   ]
 }
