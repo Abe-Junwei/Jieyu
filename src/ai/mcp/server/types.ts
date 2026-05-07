@@ -36,11 +36,22 @@ export interface McpToolCallResult {
 
 export type McpToolHandler = (
   args: Record<string, unknown>,
+  runtimeContext?: McpServerRuntimeContext,
 ) => Promise<McpToolCallResult> | McpToolCallResult;
+
+export interface McpServerRuntimeContext {
+  /** Identifies the project for the host; does **not** satisfy segment-read scope on its own (tools still require textId / currentMediaId / currentLayerId per ADR-0030). */
+  projectId?: string;
+  textId?: string;
+  currentMediaId?: string;
+  currentLayerId?: string;
+}
 
 export interface McpServerOptions {
   /** 项目级只读 token，客户端需在 Authorization header 中携带 Bearer <token> */
   token: string;
   /** 可选：限制来源 host，默认不限制 */
   allowedOrigin?: string;
+  /** 运行时上下文（project/media/layer scope） */
+  runtimeContext?: McpServerRuntimeContext;
 }

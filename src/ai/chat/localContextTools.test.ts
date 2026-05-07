@@ -13,6 +13,9 @@ const mockSegmentMetaRebuildForLayerMedia = vi.fn();
 const mockWorkspaceReadModelRebuildForText = vi.fn();
 const mockWorkspaceReadModelGetScopeStats = vi.fn();
 const mockWorkspaceReadModelSummarizeQuality = vi.fn();
+const mockSegmentReadListSummaries = vi.fn();
+const mockSegmentReadGetDetail = vi.fn();
+const mockSegmentReadDiagnose = vi.fn();
 vi.mock('../../db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../db')>();
   return {
@@ -38,6 +41,11 @@ vi.mock('../../services/WorkspaceReadModelService', () => ({
     getScopeStats: (...args: unknown[]) => mockWorkspaceReadModelGetScopeStats(...args),
     summarizeQuality: (...args: unknown[]) => mockWorkspaceReadModelSummarizeQuality(...args),
   },
+}));
+vi.mock('../queries/segmentReadQueries', () => ({
+  listSegmentSummaries: (...args: unknown[]) => mockSegmentReadListSummaries(...args),
+  getSegmentDetail: (...args: unknown[]) => mockSegmentReadGetDetail(...args),
+  diagnoseProjectQuality: (...args: unknown[]) => mockSegmentReadDiagnose(...args),
 }));
 
 import { executeLocalContextToolCall, formatLocalContextToolBatchResultMessage, formatLocalContextToolResultMessage, LOCAL_TOOL_RESULT_CHAR_BUDGET, parseLocalContextToolCallFromText, parseLocalContextToolCallsFromText } from './localContextTools';
@@ -168,6 +176,9 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     mockWorkspaceReadModelRebuildForText.mockReset();
     mockWorkspaceReadModelGetScopeStats.mockReset();
     mockWorkspaceReadModelSummarizeQuality.mockReset();
+    mockSegmentReadListSummaries.mockReset();
+    mockSegmentReadGetDetail.mockReset();
+    mockSegmentReadDiagnose.mockReset();
     mockGetDb.mockRejectedValue(new Error('getDb must not run when localUnitIndex supplies rows'));
     mockSegmentMetaListByLayerMedia.mockResolvedValue([]);
     mockSegmentMetaListByMediaId.mockResolvedValue([]);
@@ -193,6 +204,9 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       totalUnitsInScope: 0,
       completionRate: 1,
     });
+    mockSegmentReadListSummaries.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
+    mockSegmentReadGetDetail.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
+    mockSegmentReadDiagnose.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
   });
 
   it('list_units reads localUnitIndex without touching the database', async () => {
@@ -1357,6 +1371,12 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
   beforeEach(() => {
     mockGetDb.mockReset();
     mockListUnitTextsByUnit.mockReset();
+    mockSegmentReadListSummaries.mockReset();
+    mockSegmentReadGetDetail.mockReset();
+    mockSegmentReadDiagnose.mockReset();
+    mockSegmentReadListSummaries.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
+    mockSegmentReadGetDetail.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
+    mockSegmentReadDiagnose.mockRejectedValue(new Error('segmentReadQueries not configured in this test'));
   });
 
   it('loads sentence translations, token/morpheme annotations and notes by unitId', async () => {

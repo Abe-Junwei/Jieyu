@@ -1,5 +1,5 @@
 /**
- * PR-15: MCP Server 只读工具定义（初版 mock 实现）
+ * PR-15 + PR-P0-2: MCP Server 只读工具定义
  *
  * 三个工具：
  * 1. jieyu_list_segments   — 列出语段摘要
@@ -7,13 +7,53 @@
  * 3. jieyu_diagnose_quality — 项目质量诊断
  *
  * 均为只读；任何写请求在 server 层直接返回 not_supported。
+ * 工具 handler 消费 segmentReadQueries 门面，查询真实 Dexie 数据。
  */
 
-import type { McpToolDefinition, McpToolHandler } from './types';
+import type { McpToolDefinition, McpToolHandler, McpServerRuntimeContext, McpToolCallResult } from './types';
+import {
+  listSegmentSummaries,
+  getSegmentDetail,
+  diagnoseProjectQuality,
+  type SegmentReadQueryScope,
+} from '../../queries/segmentReadQueries';
+
+function buildSegmentReadScopeFromMcpRuntime(runtimeContext?: McpServerRuntimeContext): SegmentReadQueryScope {
+  return {
+    ...(runtimeContext?.textId?.trim() ? { textId: runtimeContext.textId.trim() } : {}),
+    ...(runtimeContext?.currentMediaId?.trim() ? { mediaId: runtimeContext.currentMediaId.trim() } : {}),
+    ...(runtimeContext?.currentLayerId?.trim() ? { layerId: runtimeContext.currentLayerId.trim() } : {}),
+  };
+}
+
+function hasNonEmptySegmentReadScope(scope: SegmentReadQueryScope): boolean {
+  return Boolean(scope.textId?.trim() || scope.mediaId?.trim() || scope.layerId?.trim());
+}
+
+function mcpSegmentReadScopeRequiredError(): McpToolCallResult {
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(
+          {
+            error: 'SEGMENT_READ_SCOPE_REQUIRED',
+            message:
+              'Jieyu MCP tools require runtime scope: set at least one of textId (workspace text), currentMediaId, or currentLayerId in McpServerRuntimeContext before calling read tools. Empty scope is rejected to avoid unbounded database reads.',
+          },
+          null,
+          2,
+        ),
+      },
+    ],
+    isError: true,
+  };
+}
 
 export const JIEYU_LIST_SEGMENTS_TOOL: McpToolDefinition = {
   name: 'jieyu_list_segments',
-  description: 'List segment summaries in the current project. Returns id, startTime, endTime, and a preview of source text.',
+  description:
+    'List segment summaries in the current project. Returns id, startTime, endTime, and a preview of source text. Requires McpServerRuntimeContext with at least one of textId, currentMediaId, or currentLayerId.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -25,7 +65,8 @@ export const JIEYU_LIST_SEGMENTS_TOOL: McpToolDefinition = {
 
 export const JIEYU_GET_SEGMENT_DETAIL_TOOL: McpToolDefinition = {
   name: 'jieyu_get_segment_detail',
-  description: 'Get full detail of a single segment including layers, annotations, and translations.',
+  description:
+    'Get full detail of a single segment including layers, annotations, and translations. Requires McpServerRuntimeContext with at least one of textId, currentMediaId, or currentLayerId.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -37,14 +78,16 @@ export const JIEYU_GET_SEGMENT_DETAIL_TOOL: McpToolDefinition = {
 
 export const JIEYU_DIAGNOSE_QUALITY_TOOL: McpToolDefinition = {
   name: 'jieyu_diagnose_quality',
-  description: 'Diagnose project data quality: coverage gaps, missing speakers, untranscribed segments, etc.',
+  description:
+    'Diagnose project data quality: coverage gaps, missing speakers, untranscribed segments, etc. Requires McpServerRuntimeContext with at least one of textId, currentMediaId, or currentLayerId. Note: default scope `project` does not narrow by currentMediaId (only `scope: current_media` adds mediaId from runtime); project-wide diagnosis still needs textId or layerId when media-only context would otherwise be empty.',
   inputSchema: {
     type: 'object',
     properties: {
       scope: {
         type: 'string',
         enum: ['project', 'current_media'],
-        description: 'Scope of the diagnosis (default: project)',
+        description:
+          'Diagnosis breadth: `project` uses textId/layerId from runtime only (not currentMediaId). Use `current_media` to include currentMediaId in the segment-read scope.',
       },
     },
   },
@@ -56,27 +99,26 @@ export const READ_ONLY_TOOLS: McpToolDefinition[] = [
   JIEYU_DIAGNOSE_QUALITY_TOOL,
 ];
 
-// ── Mock handlers (P1b: wired to static fixtures; P2+ can integrate Dexie queries) ──
+// ── Real query handlers (via segmentReadQueries facade) ──
 
-const listSegmentsHandler: McpToolHandler = (args) => {
+const listSegmentsHandler: McpToolHandler = async (args, runtimeContext) => {
   const limit = Math.min(100, Math.max(1, typeof args.limit === 'number' ? args.limit : 20));
   const offset = Math.max(0, typeof args.offset === 'number' ? args.offset : 0);
 
-  const mockSegments = Array.from({ length: limit }, (_, i) => ({
-    id: `seg-${String(offset + i + 1).padStart(3, '0')}`,
-    startTime: `${(offset + i) * 5}.000`,
-    endTime: `${(offset + i) * 5 + 4.999}`,
-    sourceTextPreview: `Sample source text for segment ${offset + i + 1}`,
-  }));
+  const scope = buildSegmentReadScopeFromMcpRuntime(runtimeContext);
+  if (!hasNonEmptySegmentReadScope(scope)) {
+    return mcpSegmentReadScopeRequiredError();
+  }
+  const result = await listSegmentSummaries(scope, limit, offset);
 
   return {
     content: [
-      { type: 'text', text: JSON.stringify({ segments: mockSegments, total: 1000 }, null, 2) },
+      { type: 'text', text: JSON.stringify(result, null, 2) },
     ],
   };
 };
 
-const getSegmentDetailHandler: McpToolHandler = (args) => {
+const getSegmentDetailHandler: McpToolHandler = async (args, runtimeContext) => {
   const segmentId = String(args.segmentId ?? '');
   if (!segmentId) {
     return {
@@ -85,43 +127,44 @@ const getSegmentDetailHandler: McpToolHandler = (args) => {
     };
   }
 
-  const detail = {
-    id: segmentId,
-    startTime: '0.000',
-    endTime: '4.999',
-    sourceText: 'Sample source text content.',
-    layers: [
-      { layerId: 'layer-gloss', type: 'gloss', text: 'sample gloss' },
-      { layerId: 'layer-trans', type: 'translation', text: 'sample translation' },
-    ],
-    annotations: [
-      { category: 'pos', value: 'noun', start: 0, end: 6 },
-    ],
-  };
+  const scope = buildSegmentReadScopeFromMcpRuntime(runtimeContext);
+  if (!hasNonEmptySegmentReadScope(scope)) {
+    return mcpSegmentReadScopeRequiredError();
+  }
+  const detail = await getSegmentDetail(segmentId, scope);
+
+  if (!detail) {
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ error: `Segment not found: ${segmentId}` }, null, 2) }],
+      isError: true,
+    };
+  }
 
   return {
     content: [{ type: 'text', text: JSON.stringify(detail, null, 2) }],
   };
 };
 
-const diagnoseQualityHandler: McpToolHandler = (args) => {
-  const scope = args.scope === 'current_media' ? 'current_media' : 'project';
-
-  const diagnosis = {
-    scope,
-    summary: {
-      totalSegments: 1000,
-      transcribedSegments: 980,
-      untranscribedSegments: 20,
-      segmentsWithSpeaker: 950,
-      segmentsMissingSpeaker: 50,
-      translationLayers: 3,
-    },
-    recommendations: [
-      '20 segments remain untranscribed; consider batch transcription.',
-      '50 segments are missing speaker labels; review speaker assignment.',
-    ],
+const diagnoseQualityHandler: McpToolHandler = async (args, runtimeContext) => {
+  // Match segmentReadQueries expectations: mediaId only when explicitly scoped to current_media.
+  const scope: SegmentReadQueryScope = {
+    ...(runtimeContext?.textId?.trim() ? { textId: runtimeContext.textId.trim() } : {}),
+    ...(runtimeContext?.currentLayerId?.trim() ? { layerId: runtimeContext.currentLayerId.trim() } : {}),
+    ...(args.scope === 'current_media' && runtimeContext?.currentMediaId?.trim()
+      ? { mediaId: runtimeContext.currentMediaId.trim() }
+      : {}),
   };
+  if (!hasNonEmptySegmentReadScope(scope)) {
+    return mcpSegmentReadScopeRequiredError();
+  }
+  const diagnosis = await diagnoseProjectQuality(scope);
+
+  if (!diagnosis) {
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ error: 'Quality diagnosis unavailable' }, null, 2) }],
+      isError: true,
+    };
+  }
 
   return {
     content: [{ type: 'text', text: JSON.stringify(diagnosis, null, 2) }],

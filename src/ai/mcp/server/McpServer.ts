@@ -12,9 +12,10 @@
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import type { JsonRpcRequest, JsonRpcResponse, McpServerOptions, McpToolCallResult } from './types';
+import type { JsonRpcRequest, JsonRpcResponse, McpServerOptions, McpServerRuntimeContext, McpToolCallResult } from './types';
 import { isAuthorized, sendUnauthorized } from './auth';
 import { READ_ONLY_TOOLS, TOOL_HANDLERS } from './tools';
+import { persistMcpToolCallAudit } from './mcpToolCallAudit';
 
 interface McpSession {
   id: string;
@@ -174,9 +175,19 @@ export class McpServer {
     });
   }
 
+  private isLoopback(req: IncomingMessage): boolean {
+    const remote = req.socket.remoteAddress ?? '';
+    return remote === '127.0.0.1' || remote === '::1' || remote === 'localhost';
+  }
+
   private async handleMessage(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (!isAuthorized(req, this.options.token)) {
       sendUnauthorized(res);
+      return;
+    }
+
+    if (!this.isLoopback(req)) {
+      sendJson(res, 403, makeJsonRpcError(null, -32003, 'Forbidden: MCP server only accepts loopback connections'));
       return;
     }
 
@@ -220,23 +231,102 @@ export class McpServer {
       }
 
       case 'tools/call': {
-        const name = String((params as Record<string, unknown> | undefined)?.name ?? '');
+        const startedAtMs = Date.now();
+        const jsonRpcId = id ?? null;
         const args = (params as Record<string, unknown> | undefined)?.arguments as Record<string, unknown> ?? {};
+        const runtimeContext: McpServerRuntimeContext = this.options.runtimeContext ?? {};
+        const name = String((params as Record<string, unknown> | undefined)?.name ?? '');
 
-        if (!name) {
+        if (!name.trim()) {
+          await persistMcpToolCallAudit({
+            jsonRpcId,
+            toolName: '',
+            arguments: args,
+            runtimeContext,
+            startedAtMs,
+            outcome: 'validation_error',
+            error: { code: -32602, message: 'Invalid params: missing name' },
+          });
           return makeJsonRpcError(id ?? null, -32602, 'Invalid params: missing name');
         }
 
         const handler = TOOL_HANDLERS[name];
         if (!handler) {
+          await persistMcpToolCallAudit({
+            jsonRpcId,
+            toolName: name,
+            arguments: args,
+            runtimeContext,
+            startedAtMs,
+            outcome: 'tool_not_found',
+            error: { code: -32601, message: `Tool not found: ${name}` },
+          });
           return makeJsonRpcError(id ?? null, -32601, `Tool not found: ${name}`);
         }
 
+        // Validate limit / offset bounds before execution
+        const limit = typeof args.limit === 'number' ? args.limit : undefined;
+        const offset = typeof args.offset === 'number' ? args.offset : undefined;
+        if (limit !== undefined && limit > 100) {
+          await persistMcpToolCallAudit({
+            jsonRpcId,
+            toolName: name,
+            arguments: args,
+            runtimeContext,
+            startedAtMs,
+            outcome: 'validation_error',
+            error: { code: -32602, message: 'Invalid params: limit exceeds maximum of 100' },
+          });
+          return makeJsonRpcError(id ?? null, -32602, 'Invalid params: limit exceeds maximum of 100');
+        }
+        if (offset !== undefined && offset > 1000) {
+          await persistMcpToolCallAudit({
+            jsonRpcId,
+            toolName: name,
+            arguments: args,
+            runtimeContext,
+            startedAtMs,
+            outcome: 'validation_error',
+            error: { code: -32602, message: 'Invalid params: offset exceeds maximum of 1000' },
+          });
+          return makeJsonRpcError(id ?? null, -32602, 'Invalid params: offset exceeds maximum of 1000');
+        }
+
         try {
-          const result: McpToolCallResult = await Promise.resolve(handler(args));
+          const result: McpToolCallResult = await Promise.race([
+            Promise.resolve(handler(args, runtimeContext)),
+            new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new Error('Tool call timeout after 30s')), 30_000);
+            }),
+          ]);
+          await persistMcpToolCallAudit({
+            jsonRpcId,
+            toolName: name,
+            arguments: args,
+            runtimeContext,
+            startedAtMs,
+            outcome: 'success',
+            toolResult: result,
+          });
           return makeJsonRpcResult(id ?? null, result);
         } catch (err) {
-          return makeJsonRpcError(id ?? null, -32603, `Tool execution error: ${err instanceof Error ? err.message : String(err)}`);
+          const message = err instanceof Error ? err.message : String(err);
+          const isTimeout = message.includes('timeout');
+          await persistMcpToolCallAudit({
+            jsonRpcId,
+            toolName: name,
+            arguments: args,
+            runtimeContext,
+            startedAtMs,
+            outcome: isTimeout ? 'timeout' : 'execution_error',
+            error: isTimeout
+              ? { code: -32001, message: `Tool call timeout: ${message}` }
+              : { code: -32603, message: `Tool execution error: ${message}` },
+          });
+          if (isTimeout) {
+            return makeJsonRpcError(id ?? null, -32001, `Tool call timeout: ${message}`);
+          }
+          return makeJsonRpcError(id ?? null, -32603, `Tool execution error: ${message}`);
         }
       }
 

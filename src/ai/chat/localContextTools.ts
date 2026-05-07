@@ -6,6 +6,7 @@ import { dexieStoresForGetUnitLinguisticMemoryRead, getDb, type LayerUnitStatus,
 import { listUnitTextsByUnit } from '../../services/LayerSegmentationTextService';
 import { SegmentMetaService } from '../../services/SegmentMetaService';
 import { WorkspaceReadModelService } from '../../services/WorkspaceReadModelService';
+import { diagnoseProjectQuality, getSegmentDetail, listSegmentSummaries, type SegmentReadQueryScope, type SegmentSummary } from '../queries/segmentReadQueries';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
 import { AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS1, AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS2, AI_AGENT_LOOP_MATCH_TRANSCRIPTION_PREVIEW_MAX_CHARS, AI_AGENT_LOOP_PAYLOAD_SHRINK_MAX_STEPS, AI_AGENT_LOOP_USER_REQUEST_MAX_CHARS, AI_LOCAL_TOOL_RESULT_CHAR_BUDGET } from '../../hooks/useAiChat.config';
 import { generateTraceId, startAiTraceSpan } from '../../observability/aiTrace';
@@ -672,10 +673,82 @@ function mapSegmentMetaRows(rows: readonly SegmentMetaDocType[]): NormalizedUnit
   }));
 }
 
+function resolveSegmentReadQueryScope(
+  context: AiPromptContext,
+  scope: LocalUnitScope,
+): SegmentReadQueryScope | null {
+  const base = resolveSegmentMetaScopeParams(context, scope);
+  if (!base) return null;
+  const textId = resolveContextTextId(context);
+  if (base.kind === 'layer_media') {
+    return {
+      ...(textId ? { textId } : {}),
+      mediaId: base.mediaId,
+      layerId: base.layerId,
+    };
+  }
+  if (base.kind === 'media') {
+    return {
+      ...(textId ? { textId } : {}),
+      mediaId: base.mediaId,
+    };
+  }
+  return {
+    ...(textId ? { textId } : {}),
+  };
+}
+
+function mapSegmentSummariesToRows(rows: readonly SegmentSummary[]): SegmentMetaDocType[] {
+  return rows.map((row) => ({
+    id: `${row.layerId}::${row.id}`,
+    segmentId: row.id,
+    unitKind: row.kind as Exclude<SegmentMetaDocType['unitKind'], undefined>,
+    textId: row.textId ?? '',
+    mediaId: row.mediaId ?? '',
+    layerId: row.layerId,
+    startTime: row.startTime,
+    endTime: row.endTime,
+    text: row.transcription,
+    normalizedText: row.transcription.toLowerCase(),
+    hasText: row.transcription.trim().length > 0,
+    ...(row.speakerId ? { effectiveSpeakerId: row.speakerId } : {}),
+    ...(row.annotationStatus ? { annotationStatus: row.annotationStatus as Exclude<SegmentMetaDocType['annotationStatus'], undefined> } : {}),
+    createdAt: '',
+    updatedAt: '',
+  }));
+}
+
+async function listAllSegmentSummariesForScope(scope: SegmentReadQueryScope): Promise<SegmentSummary[]> {
+  const pageSize = 100;
+  let offset = 0;
+  let total = Number.POSITIVE_INFINITY;
+  const rows: SegmentSummary[] = [];
+
+  while (offset < total) {
+    const page = await listSegmentSummaries(scope, pageSize, offset);
+    total = page.total;
+    if (page.segments.length === 0) break;
+    rows.push(...page.segments);
+    offset += page.segments.length;
+  }
+
+  return rows;
+}
+
 async function loadScopedSegmentMetaRows(
   context: AiPromptContext,
   scope: LocalUnitScope,
 ): Promise<SegmentMetaDocType[] | null> {
+  const queryScope = resolveSegmentReadQueryScope(context, scope);
+  if (queryScope) {
+    try {
+      const summaries = await listAllSegmentSummariesForScope(queryScope);
+      return mapSegmentSummariesToRows(summaries);
+    } catch {
+      // fall through to legacy SegmentMetaService path
+    }
+  }
+
   const resolution = resolveSegmentMetaScopeParams(context, scope);
   if (!resolution) return null;
   try {
@@ -1030,10 +1103,14 @@ async function diagnoseQualityWithSnapshots(
   try {
     await WorkspaceReadModelService.rebuildForText(textId);
     const summary = await WorkspaceReadModelService.summarizeQuality(snapshotScope.qualityFilters);
+    const facadeDiagnosis = await diagnoseProjectQuality(resolveSegmentReadQueryScope(context, scope) ?? { textId })
+      .catch(() => null);
     const wa = context.longTerm?.waveformAnalysis;
+    const translationLayerCount = facadeDiagnosis?.summary.translationLayers ?? 0;
     const breakdown = {
       emptyTextCount: summary.breakdown.emptyTextCount,
       missingSpeakerCount: summary.breakdown.missingSpeakerCount,
+      translationLayerCount,
       currentMediaGapCount: wa?.gapCount ?? 0,
       waveformOverlapCount: wa?.overlapCount ?? 0,
       lowConfidenceRegionCount: wa?.lowConfidenceCount ?? 0,
@@ -1052,7 +1129,7 @@ async function diagnoseQualityWithSnapshots(
         items: summary.items,
         suggestion: summary.count > 0
           ? 'Use find_incomplete_units to inspect concrete targets before editing.'
-          : 'No obvious quality issues detected.',
+          : (facadeDiagnosis?.recommendations[0] ?? 'No obvious quality issues detected.'),
         meta: {
           scope,
           ...(requestedMetric ? { requestedMetric } : {}),
@@ -1324,6 +1401,38 @@ async function getUnitDetail(args: Record<string, unknown>, context: AiPromptCon
       result: null,
       error: 'unitId is required',
     };
+  }
+
+  const queryScope = resolveSegmentReadQueryScope(context, scope);
+  if (queryScope) {
+    try {
+      const detail = await getSegmentDetail(unitId, queryScope);
+      if (detail) {
+        return {
+          ok: true,
+          name: 'get_unit_detail',
+          result: {
+            scope,
+            id: detail.id,
+            kind: detail.kind,
+            layerId: detail.layerId,
+            ...(detail.textId ? { textId: detail.textId } : {}),
+            ...(detail.mediaId ? { mediaId: detail.mediaId } : {}),
+            startTime: detail.startTime,
+            endTime: detail.endTime,
+            ...(detail.speakerId ? { speakerId: detail.speakerId } : {}),
+            ...(detail.annotationStatus ? { annotationStatus: detail.annotationStatus } : {}),
+            transcription: detail.transcription,
+            ...(detail.layers ? { layers: detail.layers } : {}),
+            ...(detail.annotations ? { annotations: detail.annotations } : {}),
+            ...(detail.translations ? { translations: detail.translations } : {}),
+            _readModel: buildReadModelMetaWithSource(context, 'segment_meta'),
+          },
+        };
+      }
+    } catch {
+      // fall through to legacy local/query paths
+    }
   }
 
   const scopedSegmentMetaRows = await loadScopedSegmentMetaRows(context, scope);

@@ -1,7 +1,30 @@
-import { describe, expect, it, afterEach } from 'vitest';
+import { describe, expect, it, afterEach, beforeEach, vi } from 'vitest';
+
+const { persistMcpMock } = vi.hoisted(() => ({
+  persistMcpMock: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('./mcpToolCallAudit', () => ({
+  persistMcpToolCallAudit: persistMcpMock,
+}));
+
 import { McpServer } from './McpServer';
+import type { PersistMcpToolCallAuditInput } from './mcpToolCallAudit';
+import * as segmentReadQueries from '../../queries/segmentReadQueries';
+
+vi.mock('../../queries/segmentReadQueries', () => ({
+  listSegmentSummaries: vi.fn(),
+  getSegmentDetail: vi.fn(),
+  diagnoseProjectQuality: vi.fn(),
+}));
+
+const mockedList = vi.mocked(segmentReadQueries.listSegmentSummaries);
+const mockedDetail = vi.mocked(segmentReadQueries.getSegmentDetail);
+const mockedDiagnose = vi.mocked(segmentReadQueries.diagnoseProjectQuality);
 
 const TEST_TOKEN = 'jieyu-readonly-test-token-12345';
+/** MCP read tools require non-empty runtime scope (textId / currentMediaId / currentLayerId). */
+const MCP_TEST_RUNTIME_CONTEXT = { textId: 'mcp-integration-test-text' };
 
 async function fetchSse(server: McpServer): Promise<{ sessionId: string; response: Response; reader: ReadableStreamDefaultReader<Uint8Array> }> {
   const res = await fetch(`http://localhost:${server.listenPort}/sse`, {
@@ -48,6 +71,10 @@ async function postMessage(
 
 describe('McpServer', () => {
   let server: McpServer;
+
+  beforeEach(() => {
+    persistMcpMock.mockClear();
+  });
 
   afterEach(async () => {
     if (server) {
@@ -124,7 +151,15 @@ describe('McpServer', () => {
   });
 
   it('calls jieyu_list_segments and returns segments', async () => {
-    server = new McpServer({ token: TEST_TOKEN });
+    mockedList.mockResolvedValue({
+      segments: [
+        { id: 'seg-001', kind: 'segment', layerId: 'layer-1', startTime: 0, endTime: 4.999, transcription: 'hello' },
+        { id: 'seg-002', kind: 'segment', layerId: 'layer-1', startTime: 5, endTime: 9.999, transcription: 'world' },
+      ],
+      total: 2,
+    });
+
+    server = new McpServer({ token: TEST_TOKEN, runtimeContext: MCP_TEST_RUNTIME_CONTEXT });
     await server.start();
     const { sessionId, reader } = await fetchSse(server);
 
@@ -157,16 +192,77 @@ describe('McpServer', () => {
             const text = msg.result.content[0].text;
             const parsed = JSON.parse(text);
             expect(parsed.segments).toHaveLength(2);
-            expect(parsed.total).toBe(1000);
+            expect(parsed.total).toBe(2);
           }
         }
       }
     }
     expect(foundResult).toBe(true);
+    expect(persistMcpMock).toHaveBeenCalled();
+    const listAudit = persistMcpMock.mock.calls
+      .map((c) => c[0] as PersistMcpToolCallAuditInput)
+      .find((a) => a.toolName === 'jieyu_list_segments' && a.outcome === 'success');
+    expect(listAudit).toBeDefined();
+    expect(listAudit!.arguments).toEqual(expect.objectContaining({ limit: 2 }));
+    expect(listAudit!.runtimeContext).toEqual(
+      expect.objectContaining({ textId: MCP_TEST_RUNTIME_CONTEXT.textId }),
+    );
+  });
+
+  it('persists tool_not_found audit for unknown tools/call name', async () => {
+    server = new McpServer({ token: TEST_TOKEN, runtimeContext: MCP_TEST_RUNTIME_CONTEXT });
+    await server.start();
+    const { sessionId, reader } = await fetchSse(server);
+
+    const postRes = await postMessage(server, sessionId, {
+      jsonrpc: '2.0',
+      id: 91,
+      method: 'tools/call',
+      params: { name: 'jieyu_nonexistent_tool', arguments: { k: 'v' } },
+    });
+    expect(postRes.status).toBe(202);
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let foundError = false;
+    const timeoutMs = 3000;
+    const start = Date.now();
+
+    while (!foundError && Date.now() - start < timeoutMs) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() ?? '';
+      for (const block of lines) {
+        const dataMatch = block.match(/event: message\ndata: (.+)/s);
+        if (dataMatch) {
+          const msg = JSON.parse(dataMatch[1]!);
+          if (msg.error) {
+            foundError = true;
+            expect(msg.error.code).toBe(-32601);
+          }
+        }
+      }
+    }
+    expect(foundError).toBe(true);
+    expect(persistMcpMock).toHaveBeenCalledWith(expect.objectContaining({
+      outcome: 'tool_not_found',
+      toolName: 'jieyu_nonexistent_tool',
+    }));
   });
 
   it('calls jieyu_get_segment_detail and returns detail', async () => {
-    server = new McpServer({ token: TEST_TOKEN });
+    mockedDetail.mockResolvedValue({
+      id: 'seg-001',
+      kind: 'segment',
+      layerId: 'layer-1',
+      startTime: 0,
+      endTime: 4.999,
+      transcription: 'hello',
+    });
+
+    server = new McpServer({ token: TEST_TOKEN, runtimeContext: MCP_TEST_RUNTIME_CONTEXT });
     await server.start();
     const { sessionId, reader } = await fetchSse(server);
 
@@ -199,7 +295,7 @@ describe('McpServer', () => {
             const text = msg.result.content[0].text;
             const parsed = JSON.parse(text);
             expect(parsed.id).toBe('seg-001');
-            expect(parsed.layers).toBeInstanceOf(Array);
+            expect(parsed.transcription).toBe('hello');
           }
         }
       }
@@ -208,7 +304,20 @@ describe('McpServer', () => {
   });
 
   it('calls jieyu_diagnose_quality and returns diagnosis', async () => {
-    server = new McpServer({ token: TEST_TOKEN });
+    mockedDiagnose.mockResolvedValue({
+      scope: 'project',
+      summary: {
+        totalSegments: 100,
+        transcribedSegments: 95,
+        untranscribedSegments: 5,
+        segmentsWithSpeaker: 90,
+        segmentsMissingSpeaker: 10,
+        translationLayers: 2,
+      },
+      recommendations: ['5 segments remain untranscribed.'],
+    });
+
+    server = new McpServer({ token: TEST_TOKEN, runtimeContext: MCP_TEST_RUNTIME_CONTEXT });
     await server.start();
     const { sessionId, reader } = await fetchSse(server);
 
@@ -241,7 +350,7 @@ describe('McpServer', () => {
             const text = msg.result.content[0].text;
             const parsed = JSON.parse(text);
             expect(parsed.scope).toBe('project');
-            expect(parsed.summary.totalSegments).toBe(1000);
+            expect(parsed.summary.totalSegments).toBe(100);
           }
         }
       }
