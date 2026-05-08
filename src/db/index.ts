@@ -41,7 +41,6 @@ export {
   dexieStoresForGetUnitLinguisticMemoryRead,
   dexieStoresForLanguageAssetOverviewRw,
   dexieStoresForLanguageCatalogMutateRw,
-  dexieStoresForLanguageCatalogProjectionRead,
   dexieStoresForLayerSegmentGraphRw,
   dexieStoresForLayerUnitsAndContentsRw,
   dexieStoresForLayerUnitsAndUnitRelationsRw,
@@ -55,8 +54,6 @@ export {
   dexieStoresForStructuralRuleProfilesRw,
   dexieStoresForTierAnnotationAtomicRw,
   dexieStoresForTierDefinitionAtomicRw,
-  dexieStoresForTrackEntitiesRw,
-  dexieStoresForUnitDocProjectionRead,
   dexieStoresForWorkspaceSnapshotRebuildRw,
 } from './dexieTranscriptionGraphStores';
 
@@ -69,11 +66,8 @@ export {
 
 // ── 事务门面 | Transaction facade ──
 export {
-  withReadTransaction,
   withTransaction,
-  withWriteTransaction,
 } from './withTransaction';
 
 // ── 库完整性 / 单例健康（F-2, ARCH-4）| DB integrity & singleton health ──
 export { jieyuDatabaseSingletonHealthCheck, probeJieyuDatabaseIntegrity } from './dbIntegrityProbe';
-export type { DbIntegrityProbeResult } from './dbIntegrityProbe';

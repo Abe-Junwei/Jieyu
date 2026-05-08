@@ -9,7 +9,7 @@
  *   INCORRECT — maxScore < 0.35 或 matches 为空     → 跳过注入
  */
 
-export type RagQualityVerdict = 'correct' | 'ambiguous' | 'incorrect';
+type RagQualityVerdict = 'correct' | 'ambiguous' | 'incorrect';
 
 export interface RagQualityResult {
   verdict: RagQualityVerdict;

@@ -10,8 +10,6 @@ import { resolveDestructiveGate } from '../../hooks/useAiChat.destructiveGate';
 import { executeAutoToolCall } from '../../hooks/useAiChat.autoExecute';
 import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, UiChatMessage } from '../../hooks/useAiChat.types';
 
-export { resolveUserDirectivePolicyDecision };
-
 export interface ResolveToolDecisionPipelineParams {
   assistantMessageId: string;
   toolCall: AiChatToolCall;

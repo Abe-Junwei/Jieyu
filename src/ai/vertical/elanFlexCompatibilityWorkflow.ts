@@ -15,18 +15,18 @@
  * 5. controlled_vocabulary_mismatch — 受控词表（POS/tag）不一致
  */
 
-import type { EvidencePacketV0 } from './evidencePacket';
+import { buildEvidencePacketV0, type EvidencePacketV0 } from './evidencePacket';
 
-export type CompatibilityFindingKind =
+type CompatibilityFindingKind =
   | 'tier_mapping'
   | 'lexeme_conflict'
   | 'time_gap'
   | 'gloss_pos_mismatch'
   | 'controlled_vocabulary_mismatch';
 
-export type CompatibilityFindingSeverity = 'info' | 'warning' | 'error';
+type CompatibilityFindingSeverity = 'info' | 'warning' | 'error';
 
-export interface CompatibilityFinding {
+interface CompatibilityFinding {
   findingId: string;
   kind: CompatibilityFindingKind;
   severity: CompatibilityFindingSeverity;
@@ -159,15 +159,16 @@ export function parseCompatibilityReport(
         const confidence = typeof ep.confidence === 'number' && !Number.isNaN(ep.confidence) ? ep.confidence : 0.8;
         const reasonCode = typeof ep.reasonCode === 'string' ? ep.reasonCode : 'compatibility_finding';
         if (sourceId.length > 0) {
-          evidencePackets.push({
-            schemaVersion: 0,
-            id: epId,
-            sourceType,
-            sourceId,
-            quote,
-            confidence,
-            reasonCode,
-          });
+          evidencePackets.push(
+            buildEvidencePacketV0({
+              id: epId,
+              sourceType,
+              sourceId,
+              quote,
+              confidence,
+              reasonCode,
+            }),
+          );
         }
       }
     }
@@ -246,7 +247,7 @@ function parseEvidenceSourceType(value: unknown): EvidencePacketV0['sourceType']
  */
 export function runElanFlexCompatibilityReflection(
   rawContent: string,
-  evidencePackets: readonly EvidencePacketV0[],
+  _evidencePackets: readonly EvidencePacketV0[],
 ): ElanFlexCompatibilityReflectionResult {
   const checks: { name: string; passed: boolean }[] = [];
 
@@ -333,47 +334,6 @@ export function buildElanFlexCompatibilityReflectionRetryPrompt(
     '',
     'Return only the JSON object, no markdown fences.',
   ].join('\n');
-}
-
-/**
- * Convert a CompatibilityReport to a JSON bundle.
- * Preserves corpusRef, time codes, and project metadata.
- */
-export function compatibilityReportToJsonBundle(
-  report: CompatibilityReport,
-  projectMetadata?: { projectId?: string; projectName?: string; exportedAt?: string },
-): string {
-  const bundle = {
-    schemaVersion: '0.1.0',
-    kind: 'compatibility_report_bundle',
-    ...(projectMetadata ?? {}),
-    report: {
-      reportId: report.reportId,
-      sourceSetId: report.sourceSetId,
-      summary: report.summary,
-      exportTargets: report.exportTargets,
-      generatedAt: report.generatedAt,
-      workflowVersion: report.workflowVersion,
-      findings: report.findings.map((f) => ({
-        findingId: f.findingId,
-        kind: f.kind,
-        severity: f.severity,
-        title: f.title,
-        description: f.description,
-        recommendedAction: f.recommendedAction,
-        adoptionCandidateId: f.adoptionCandidateId,
-        evidence: f.evidencePackets.map((ep) => ({
-          sourceType: ep.sourceType,
-          sourceId: ep.sourceId,
-          quote: ep.quote,
-          confidence: ep.confidence,
-          timeRangeMs: ep.timeRangeMs,
-          sourceSetId: ep.sourceSetId,
-        })),
-      })),
-    },
-  };
-  return JSON.stringify(bundle, null, 2);
 }
 
 /**

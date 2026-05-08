@@ -13,7 +13,7 @@ export const AI_ADOPTION_OUTCOME_AUDIT_FIELD = 'ai_adoption_outcome' as const;
 
 export type AdoptionStatus = 'pending' | 'accepted' | 'ignored' | 'copied' | 'expired';
 
-export type AdoptionAction = 'accept' | 'ignore' | 'copy' | 'jump_to_evidence';
+export type AdoptionAction = 'accept' | 'ignore' | 'copy' | 'jump_to_evidence' | 'expire';
 
 export interface AdoptionItem {
   id: string;
@@ -136,6 +136,10 @@ export function transitionAdoptionItem(
     case 'jump_to_evidence':
       // jump_to_evidence 不改变状态，只触发导航 | jump_to_evidence is a navigation action
       return item;
+    case 'expire':
+      return item.status === 'pending'
+        ? { ...item, status: 'expired', reasonCode: options?.reasonCode ?? 'auto_expired' }
+        : item;
     default:
       throw new Error(`Unknown adoption action: ${action}`);
   }
@@ -145,15 +149,22 @@ export function pruneExpiredItems(
   state: AdoptionQueueState,
   nowMs = Date.now(),
   expiryMs = DEFAULT_EXPIRY_MS,
+  auditCallback?: (expiredItems: AdoptionItem[]) => void,
 ): AdoptionQueueState {
+  const newlyExpiredItems: AdoptionItem[] = [];
   const pruned = state.items.map((item) => {
     if (item.status !== 'pending') return item;
     const createdMs = new Date(item.createdAt).getTime();
     if (nowMs - createdMs > expiryMs) {
-      return { ...item, status: 'expired' as const, reasonCode: 'auto_expired' };
+      const expiredItem = { ...item, status: 'expired' as const, reasonCode: 'auto_expired' };
+      newlyExpiredItems.push(expiredItem);
+      return expiredItem;
     }
     return item;
   });
+  if (newlyExpiredItems.length > 0 && auditCallback) {
+    auditCallback(newlyExpiredItems);
+  }
   return {
     items: pruned,
     lastPrunedAt: new Date().toISOString(),
@@ -185,7 +196,8 @@ export function buildAdoptionOutcomeAuditMetadata(
   const toStatus: AdoptionStatus =
     action === 'accept' ? 'accepted' :
     action === 'ignore' ? 'ignored' :
-    action === 'copy' ? 'copied' : item.status;
+    action === 'copy' ? 'copied' :
+    action === 'expire' ? 'expired' : item.status;
 
   const meta: {
     schemaVersion: number;

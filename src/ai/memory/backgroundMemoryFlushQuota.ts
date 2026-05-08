@@ -14,5 +14,3 @@ export function createBackgroundMemoryFlushQuotaState() {
     },
   };
 }
-
-export type BackgroundMemoryFlushQuotaState = ReturnType<typeof createBackgroundMemoryFlushQuotaState>;

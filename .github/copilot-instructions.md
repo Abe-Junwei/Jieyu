@@ -22,6 +22,10 @@ This repository uses the Karpathy-inspired agent rules from forrestchang/andrej-
 - Define success criteria before making changes.
 - For bugs and refactors, prefer a focused repro or targeted verification first.
 - Do not claim completion without fresh verification evidence.
+- During code review, trace function call chains and end-to-end data flow (input -> transform -> persistence -> readback); file-level or existence-only checks are insufficient.
+- For persistence paths, require concrete verification evidence (targeted tests, repro scripts, or runtime traces), not only schema/field presence.
+- Every code review must check hard-to-see risks: dead or invalid calls whose results are no longer consumed, test-only/dev-only references, stale callbacks, un-awaited async calls, swallowed errors, unreachable feature-flag branches, orphaned listeners/subscriptions, stale cache writes, cleanup leaks, migration gaps, fallback/permission paths, and build/runtime environment differences.
+- Review findings should name the broken path, why existing checks could miss it, and the verification needed to prove the fix.
 
 ## Repository-specific reminders
 

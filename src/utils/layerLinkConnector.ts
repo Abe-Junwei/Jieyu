@@ -3,7 +3,7 @@ import { buildLayerBundles } from '../services/LayerOrderingService';
 
 type ConnectorHostLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
 
-export interface LayerLinkConnectorSegment {
+interface LayerLinkConnectorSegment {
   column: number;
   colorIndex: number;
   role: 'bundle-root' | 'bundle-child-middle' | 'bundle-child-end';

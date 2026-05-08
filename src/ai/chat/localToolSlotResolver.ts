@@ -16,7 +16,7 @@ export type ResolveLocalToolCallsOutput = {
   calls: LocalContextToolCall[];
 };
 
-export type LocalToolQueryFamily = 'count' | 'search' | 'detail' | 'list' | 'selection' | 'quality' | 'unknown';
+type LocalToolQueryFamily = 'count' | 'search' | 'detail' | 'list' | 'selection' | 'quality' | 'unknown';
 
 export interface LocalToolRoutingPlan {
   queryFamily: LocalToolQueryFamily;

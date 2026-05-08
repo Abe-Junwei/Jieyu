@@ -4,7 +4,7 @@ import type { CustomFieldDefinitionDocType, CustomFieldValueType, LanguageDocTyp
 
 export type CustomFieldStoredValue = NonNullable<LanguageDocType['customFields']>[string];
 
-export const CUSTOM_FIELD_VALUE_TYPES = ['text', 'number', 'boolean', 'select', 'multiselect', 'url'] as const satisfies readonly CustomFieldValueType[];
+const CUSTOM_FIELD_VALUE_TYPES = ['text', 'number', 'boolean', 'select', 'multiselect', 'url'] as const satisfies readonly CustomFieldValueType[];
 
 export const CUSTOM_FIELD_RENDERER_REGISTRY: Record<CustomFieldValueType, {
   htmlInputType: 'text' | 'number' | 'checkbox' | 'select' | 'url';
@@ -25,7 +25,7 @@ export const CUSTOM_FIELD_RENDERER_REGISTRY: Record<CustomFieldValueType, {
 const multiLangStringSchema = z.record(z.string(), z.string());
 const storedValueSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.array(z.string())]);
 
-export const customFieldDefinitionInputSchema = z.object({
+const customFieldDefinitionInputSchema = z.object({
   id: z.string().trim().min(1).optional(),
   name: multiLangStringSchema,
   fieldType: z.enum(CUSTOM_FIELD_VALUE_TYPES),
@@ -363,7 +363,7 @@ export function validateCustomFieldDraftValue(
   }
 }
 
-export function parseCustomFieldDraftValue(
+function parseCustomFieldDraftValue(
   definition: CustomFieldDefinitionDocType,
   rawValue: string,
 ): CustomFieldStoredValue | undefined {

@@ -5,7 +5,7 @@
  * fallback seed, so callers no longer merge generated modules directly here.
  */
 import { normalizeLanguageCatalogRuntimeLookupKey, readLanguageCatalogRuntimeCache, type LanguageCatalogRuntimeEntry } from './languageCatalogRuntimeCache';
-import { LANGUAGE_NAME_QUERY_LOCALES, type LanguageDisplayCoreEntry, type LanguageNameQueryLocale, type LanguageQueryLabelEntry, type LanguageQueryLabelKind } from './languageNameTypes';
+import type { LanguageDisplayCoreEntry, LanguageNameQueryLocale, LanguageQueryLabelEntry } from './languageNameTypes';
 
 function normalizeLanguageCode(languageId: string | undefined): string {
   return languageId?.trim().toLowerCase() ?? '';
@@ -149,16 +149,7 @@ function dedupeQueryEntries(entries: Array<LanguageQueryLabelEntry | undefined>)
   return result;
 }
 
-export { LANGUAGE_NAME_QUERY_LOCALES };
-export type { LanguageDisplayCoreEntry, LanguageNameQueryLocale, LanguageQueryLabelEntry, LanguageQueryLabelKind };
-
-export function listLanguageCodesFromCatalog(): readonly string[] {
-  return Array.from(new Set(
-    Object.entries(readLanguageCatalogRuntimeCache().entries)
-      .flatMap(([languageId, entry]) => [languageId, entry.languageCode?.trim().toLowerCase()])
-      .filter((code): code is string => Boolean(code)),
-  )).sort();
-}
+export type { LanguageDisplayCoreEntry, LanguageNameQueryLocale, LanguageQueryLabelEntry };
 
 export function getLanguageDisplayCoreEntry(languageId: string | undefined): LanguageDisplayCoreEntry | undefined {
   const normalizedCode = normalizeLanguageCode(languageId);

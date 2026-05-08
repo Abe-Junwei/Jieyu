@@ -51,21 +51,3 @@ export async function withTransaction<T>(
     throw error;
   }
 }
-
-export async function withReadTransaction<T>(
-  db: JieyuDatabase,
-  stores: readonly DexieStore[],
-  scope: () => Promise<T>,
-  options?: { label?: string },
-): Promise<T> {
-  return withTransaction(db, 'r', stores, scope, options);
-}
-
-export async function withWriteTransaction<T>(
-  db: JieyuDatabase,
-  stores: readonly DexieStore[],
-  scope: () => Promise<T>,
-  options?: { label?: string },
-): Promise<T> {
-  return withTransaction(db, 'rw', stores, scope, options);
-}

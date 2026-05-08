@@ -5,7 +5,7 @@ import { upgradeM18LinguisticUnitCutover } from './m18LinguisticUnitCutover';
 /**
  * Must match `JieyuDexie` v36/v37 `stores({ ... })` for these tables — update when engine changes.
  */
-export const M18_PRE37_STORES = {
+const M18_PRE37_STORES = {
   tier_definitions: 'id, textId, key, parentTierId, tierType, contentType',
   units:
     'id, textId, mediaId, [textId+mediaId], [mediaId+startTime], [textId+startTime], startTime, updatedAt, speakerId',
@@ -17,7 +17,7 @@ export const M18_PRE37_STORES = {
     'id, textId, unitId, layerId, contentRole, [unitId+contentRole], [contentRole+updatedAt], sourceType, [layerId+updatedAt], updatedAt',
 } as const;
 
-export const M18_V37_TOKEN_MORPH_STORES = {
+const M18_V37_TOKEN_MORPH_STORES = {
   units: null,
   unit_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
   unit_morphemes: 'id, textId, unitId, tokenId, [tokenId+morphemeIndex], lexemeId',

@@ -15,11 +15,11 @@ export const AI_CHAT_SESSION_SIDECAR_WRITE_PATH = {
   pinnedMessageDirective: 'session-memory/pinned-message-directive',
   sendPreflightDirective: 'session-memory/send-preflight-directive',
 } as const;
-export type AiChatSessionSidecarWritePath = (typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH)[keyof typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH];
+type AiChatSessionSidecarWritePath = (typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH)[keyof typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH];
 
 export type PolicyShapeToolCall = { name: string; arguments: Record<string, unknown> };
 
-export function isBatchToolCall(call: PolicyShapeToolCall): boolean {
+function isBatchToolCall(call: PolicyShapeToolCall): boolean {
   return Object.values(call.arguments).some((value) => Array.isArray(value) && value.length > 1)
     || call.name === 'propose_changes'
     || call.name === 'merge_transcription_segments';

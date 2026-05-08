@@ -31,7 +31,6 @@ export const JIEYU_MATERIAL_WAVE_PLAY = 'jieyu-material--wave-play';
 export const JIEYU_MATERIAL_WAVE_MD = 'jieyu-material--wave-md';
 
 export const JIEYU_MATERIAL_WAVE_TRIGGER = 'jieyu-material--wave-trigger';
-export const JIEYU_MATERIAL_WAVE_TRIGGER_CHEVRON = 'jieyu-material--wave-trigger-chevron';
 
 /** 时间轴撤销芯片（13px） */
 export const JIEYU_MATERIAL_UNDO_CHIP = 'jieyu-material--undo-chip';

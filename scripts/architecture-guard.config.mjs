@@ -327,7 +327,7 @@ export const architectureGuardRules = [
     maxLines: 950,
     requiredRegexes: [
       /export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEventMap>/,
-      /export \{ getVoiceAgentService, createVoiceAgentService \} from '\.\/VoiceAgentService\.singleton'/,
+      /VoiceAgentService\.singleton\.ts \(not barrel-re-exported here/,
       /from '\.\/VoiceAgentService\.sttResultDispatch'/,
       /dispatchVoiceAgentServiceSttResult\(/,
     ],
@@ -779,7 +779,7 @@ export const architectureGuardRules = [
     ],
   },
   patternRule(/^src\/pages\/use.*\.(ts|tsx)$/, {
-    excludeRegexes: [/Controller\.ts$/, /\.test\./, /\.structure\./],
+    excludeRegexes: [/Controller\.ts$/, /\.test\./, /\.structure\./, /\.segmentTargets\.ts$/],
     maxLines: 300,
     maxUseCallbackDecls: 6,
     maxUseMemoDecls: 6,

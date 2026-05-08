@@ -7,7 +7,7 @@ import type { SpeakerDisplayLabels, SpeakerSelectionSummaryLabels } from './spea
 export type SpeakerTranslate = (key: string) => string;
 export type SpeakerFormat = (key: string, params?: Record<string, string | number>) => string;
 
-export const SPEAKER_ACTION_ERROR_LABELS = {
+const SPEAKER_ACTION_ERROR_LABELS = {
   assign: 'transcription.speakerAction.label.assign',
   create: 'transcription.speakerAction.label.create',
   cleanupUnused: 'transcription.speakerAction.label.cleanupUnused',

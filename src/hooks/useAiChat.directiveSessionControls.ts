@@ -38,6 +38,7 @@ export function useAiChatDirectiveSessionControls(options: {
         documentId: activeConversationId,
         action: 'update',
         field: 'ai_user_directive_mutation',
+        oldValue: '',
         newValue: mutationType,
         source: 'human',
         timestamp,

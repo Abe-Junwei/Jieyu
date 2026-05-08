@@ -4,7 +4,7 @@ import type { LanguageSearchLocale } from './langMapping';
 import { getLanguageCatalogEntry, getLanguageDisplayName } from './langMapping';
 import { listUniqueNonEmptyMultiLangLabels, readAnyMultiLangLabel, readLocalizedMultiLangLabel } from './multiLangLabels';
 
-export const LANGUAGE_NAME_MAP: Record<string, string> = {
+const LANGUAGE_NAME_MAP: Record<string, string> = {
   cmn: '\u666e\u901a\u8bdd',
   zho: '\u4e2d\u6587',
   yue: '\u7ca4\u8bed',
@@ -96,7 +96,7 @@ export function parseBcp47(tag: string): {
  * \u4f8b: "mvm-fonipa-x-emc" → "mvm (IPA, x-emc)"
  * \u4f8b: "cmn" → "\u666e\u901a\u8bdd cmn"
  */
-export function formatBcp47Label(tag: string, locale: LanguageSearchLocale = 'zh-CN'): string {
+function formatBcp47Label(tag: string, locale: LanguageSearchLocale = 'zh-CN'): string {
   const parsed = parseBcp47(tag);
   if (!parsed.primary) {
     return locale === 'zh-CN' ? '\u672a\u8bbe\u7f6e\u8bed\u8a00' : 'Language not set';
@@ -152,26 +152,6 @@ export function formatTime(seconds: number): string {
 
 export function normalizeSingleLine(value: string): string {
   return value.replace(/\r\n|\r|\n/g, ' ');
-}
-
-export function formatLanguageLabel(code?: string): string {
-  const normalized = (code ?? '').trim();
-  if (!normalized) {
-    return '\u672a\u8bbe\u7f6e\u8bed\u8a00';
-  }
-  return formatBcp47Label(normalized);
-}
-
-export function formatLayerLanguageLabel(layer: LayerDocType): string {
-  const preferredName = readAnyMultiLangLabel(layer.name);
-  const code = (layer.languageId ?? '').trim().toLowerCase();
-  if (!preferredName) {
-    return formatLanguageLabel(code);
-  }
-  if (!code) {
-    return preferredName;
-  }
-  return `${preferredName} (${code})`;
 }
 
 export function formatSidePaneLayerLabel(layer: LayerDocType): string {
@@ -287,7 +267,7 @@ export function getLayerLabelParts(layer: LayerDocType, locale: LanguageSearchLo
   return { type: typeLabel, lang: langLabel, alias };
 }
 
-export const COMMON_LANGUAGES = [
+const COMMON_LANGUAGES = [
   { code: 'cmn', label: '\u666e\u901a\u8bdd' },
   { code: 'zho', label: '\u4e2d\u6587' },
   { code: 'yue', label: '\u7ca4\u8bed' },

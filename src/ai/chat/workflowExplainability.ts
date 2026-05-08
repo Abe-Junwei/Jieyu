@@ -5,7 +5,7 @@
 
 import type { DegradationScenario } from './degradationManualOverride';
 
-export type WorkflowExplainabilityTone = 'neutral' | 'info' | 'warning';
+type WorkflowExplainabilityTone = 'neutral' | 'info' | 'warning';
 
 export interface WorkflowExplainabilityV0 {
   /** Stable machine key for dashboards (not end-user copy). */
@@ -76,11 +76,6 @@ export function collectWorkflowExplainabilitySnapshots(
 }
 
 const WORKFLOW_EXPLAINABILITY_SNAPSHOT_KEY = 'workflowExplainability' as const;
-
-/** Shape stored under `AiMessageDoc.contextSnapshot` for persistence / hydrate. */
-export type WorkflowExplainabilityContextSnapshot = {
-  [WORKFLOW_EXPLAINABILITY_SNAPSHOT_KEY]: WorkflowExplainabilityV0;
-};
 
 export function parseWorkflowExplainabilityFromContextSnapshot(
   contextSnapshot: unknown,

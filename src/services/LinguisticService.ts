@@ -70,18 +70,13 @@ import type {
   TextTimeMapping,
   UpdateTextTimeMappingInput,
 } from './LinguisticService.timeMapping';
-export type { Iso639_3Seed } from './languageCatalogSeedLookup';
 
 export {
-  type ConstraintSeverity,
-  type ConstraintViolation,
   type ImportQualityReport,
-  type TierSaveResult,
   validateTierConstraints,
 } from './LinguisticService.constraints';
 
 export type {
-  MultiLangString,
   OrthographyDocType,
   OrthographyBridgeDocType,
   LanguageCatalogVisibility,
@@ -102,9 +97,6 @@ import { resolveLanguageQuery as resolveLanguageQueryImpl, searchLanguageCatalog
 import { previewOrthographyBridge as previewOrthographyBridgeText } from '../utils/orthographyBridges';
 import { createLogger } from '../observability/logger';
 export type {
-  LanguageCatalogMatch,
-  LanguageCatalogMatchSource,
-  LanguageSearchLocale,
 } from '../utils/langMapping';
 
 let deferredLanguageCatalogRefreshScheduled = false;

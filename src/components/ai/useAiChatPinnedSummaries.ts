@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { AiSessionMemorySummaryEntry } from '../../ai/chat/chatDomain.types';
 import type { AiSessionMemory, UiChatMessage } from '../../hooks/useAiChat';
 import { AI_CHAT_CARD_EMPTY_STRING_ARRAY, buildPinnedSummary } from './aiChatCardUtils';
 
@@ -8,7 +9,13 @@ export function useAiChatPinnedSummaries(input: {
   optimisticPinnedMessageIds: Set<string>;
   optimisticUnpinnedMessageIds: Set<string>;
   isZh: boolean;
-}) {
+}): {
+  pinnedMessageIdsSignature: string;
+  pinnedMessageIdSet: Set<string>;
+  pinnedSummaryItems: Array<{ messageId: string; summary: string }>;
+  hasConversationSummary: boolean;
+  summaryEntries: AiSessionMemorySummaryEntry[];
+} {
   const { aiSessionMemory, messages, optimisticPinnedMessageIds, optimisticUnpinnedMessageIds, isZh } = input;
   const pinnedMessageIds = aiSessionMemory?.pinnedMessageIds ?? AI_CHAT_CARD_EMPTY_STRING_ARRAY;
   const pinnedMessageIdsSignature = useMemo(() => pinnedMessageIds.join('|'), [pinnedMessageIds]);

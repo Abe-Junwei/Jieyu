@@ -6,16 +6,12 @@
 
 // ── Storage Keys ───────────────────────────────────────────────────────────────
 
-export const AI_CHAT_SETTINGS_STORAGE_KEY = 'jieyu.aiChat.settings';
-export const AI_CHAT_SETTINGS_SECURE_STORAGE_KEY = 'jieyu.aiChat.settings.secure';
-export const AI_CHAT_SETTINGS_SECURE_VERSION = 'v1';
-export const AI_CHAT_STREAM_PERSIST_INTERVAL_STORAGE_KEY = 'jieyu.aiChat.streamPersistIntervalMs';
-export const AI_CHAT_AUTO_PROBE_INTERVAL_STORAGE_KEY = 'jieyu.aiChat.autoProbeIntervalMs';
-export const AI_CHAT_RAG_CONTEXT_TIMEOUT_STORAGE_KEY = 'jieyu.aiChat.ragContextTimeoutMs';
-export const AI_CHAT_SESSION_TOKEN_BUDGET_STORAGE_KEY = 'jieyu.aiChat.sessionTokenBudget';
-export const AI_CHAT_OUTPUT_TOKEN_CAP_STORAGE_KEY = 'jieyu.aiChat.outputTokenCap';
-export const AI_CHAT_OUTPUT_TOKEN_RETRY_CAP_STORAGE_KEY = 'jieyu.aiChat.outputTokenRetryCap';
-export const AI_SESSION_MEMORY_STORAGE_KEY = 'jieyu.aiChat.sessionMemory';
+const AI_CHAT_STREAM_PERSIST_INTERVAL_STORAGE_KEY = 'jieyu.aiChat.streamPersistIntervalMs';
+const AI_CHAT_AUTO_PROBE_INTERVAL_STORAGE_KEY = 'jieyu.aiChat.autoProbeIntervalMs';
+const AI_CHAT_RAG_CONTEXT_TIMEOUT_STORAGE_KEY = 'jieyu.aiChat.ragContextTimeoutMs';
+const AI_CHAT_SESSION_TOKEN_BUDGET_STORAGE_KEY = 'jieyu.aiChat.sessionTokenBudget';
+const AI_CHAT_OUTPUT_TOKEN_CAP_STORAGE_KEY = 'jieyu.aiChat.outputTokenCap';
+const AI_CHAT_OUTPUT_TOKEN_RETRY_CAP_STORAGE_KEY = 'jieyu.aiChat.outputTokenRetryCap';
 
 // ── Defaults ───────────────────────────────────────────────────────────────────
 
@@ -37,9 +33,9 @@ export const INITIAL_METRICS: AiInteractionMetrics = {
 
 export const DEFAULT_FIRST_CHUNK_TIMEOUT_MS = 25000;
 
-export const DEFAULT_SESSION_TOKEN_BUDGET = 12_000;
+const DEFAULT_SESSION_TOKEN_BUDGET = 12_000;
 export const DEFAULT_OUTPUT_TOKEN_CAP = 480;
-export const DEFAULT_OUTPUT_TOKEN_RETRY_CAP = 960;
+const DEFAULT_OUTPUT_TOKEN_RETRY_CAP = 960;
 
 // ── Local tool channel & agent loop continuation budgets ───────────────────────
 // Single source of truth for Phase C / agent-loop payload shaping (see localContextTools).

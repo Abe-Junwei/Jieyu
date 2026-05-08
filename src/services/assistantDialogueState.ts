@@ -124,5 +124,6 @@ export function resetAssistantDialogueStateForTests(): void {
   chatTool = null;
   voicePendingConfirm = null;
   voiceDisambiguationOptions = [];
-  emit();
+  listeners.clear();
+  cachedSnapshot = derive();
 }

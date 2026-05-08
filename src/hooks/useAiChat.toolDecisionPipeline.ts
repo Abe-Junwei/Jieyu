@@ -5,8 +5,4 @@
 
 export {
   resolveToolDecisionPipeline,
-  type ResolveToolDecisionPipelineParams,
-  type ResolveToolDecisionPipelineResult,
 } from '../ai/chat/toolDecisionPipeline';
-
-export { resolveUserDirectivePolicyDecision } from '../ai/chat/toolDecisionPipeline';

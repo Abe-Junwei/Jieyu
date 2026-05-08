@@ -4,7 +4,8 @@ import { useLocale, useOptionalLocale, type Locale } from '../i18n';
 import { useAiChatConnectionProbe } from './useAiChat.connectionProbe';
 import { useAiChatConversationState } from './useAiChat.conversationState';
 import { DEFAULT_OUTPUT_TOKEN_CAP, INITIAL_METRICS, normalizeAutoProbeIntervalMs, normalizeFirstChunkTimeoutMs, normalizeOutputTokenCap, normalizeOutputTokenRetryCap, normalizeRagContextTimeoutMs, normalizeSessionTokenBudget, normalizeStreamPersistInterval, readDevOutputTokenCap, readDevOutputTokenRetryCap, readDevAutoProbeIntervalMs, readDevRagContextTimeoutMs, readDevSessionTokenBudget, readDevStreamPersistIntervalMs } from './useAiChat.config';
-import { nowIso } from './useAiChat.helpers';
+import { newAuditLogId, nowIso } from './useAiChat.helpers';
+import { getDb } from '../db';
 import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
 import { enrichContextWithRag } from './useAiChat.rag';
 import type { AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
@@ -45,8 +46,8 @@ import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/conf
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { AiContextDebugSnapshot, AiInteractionMetrics, AiRecommendationEvent, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, PendingAiToolCall, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
 
-export type { AiChatProviderKind, AiChatSettings } from '../ai/providers/providerCatalog';
-export type { AiChatToolCall, AiChatToolName, AiChatToolResult, AiClarifyCandidate, AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiPromptDraftSnapshot, AiPromptLayerLinkSnapshot, AiPromptLayerSnapshot, AiPromptNoteSummary, AiPromptSpeakerSnapshot, AiPromptVisibleTimelineState, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, PreviewContract, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
+export type { AiChatSettings } from '../ai/providers/providerCatalog';
+export type { AiChatToolCall, AiChatToolResult, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, PendingAiToolCall, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
 
 export function useAiChat(options?: UseAiChatOptions) {
   // 保留主 hook 对确认执行 seam 的显式依赖，结构测试据此验证拆分边界 |
@@ -244,8 +245,29 @@ export function useAiChat(options?: UseAiChatOptions) {
   }, []);
 
   const setActiveSourceSetId = useCallback((id: string | null) => {
+    const previousId = sessionMemoryRef.current.activeSourceSetId ?? null;
     sessionMemoryRef.current = setActiveSourceSetIdInSessionMemory(sessionMemoryRef.current, id);
     persistSessionMemory(sessionMemoryRef.current);
+    void (async () => {
+      try {
+        const db = await getDb();
+        await db.collections.audit_logs.insert({
+          id: newAuditLogId(),
+          collection: 'ai_messages',
+          documentId: 'session_memory',
+          action: 'update',
+          field: 'ai_source_set_mutation',
+          oldValue: previousId ?? '',
+          newValue: id ?? '',
+          source: 'human',
+          timestamp: nowIso(),
+          requestId: `source_set_${Date.now()}`,
+          metadataJson: JSON.stringify({ schemaVersion: 1, phase: 'active_source_set_change' }),
+        });
+      } catch {
+        // Audit write failure is best-effort
+      }
+    })();
   }, []);
 
   const applyAssistantMessageResultWrapper = useMemo(
@@ -385,6 +407,26 @@ export function useAiChat(options?: UseAiChatOptions) {
     if (clearInFlightRef.current) return;
     clearInFlightRef.current = true;
     sessionMemoryRef.current = resetSessionMemoryForClear(sessionMemoryRef.current);
+    void (async () => {
+      try {
+        const db = await getDb();
+        await db.collections.audit_logs.insert({
+          id: newAuditLogId(),
+          collection: 'ai_messages',
+          documentId: 'session_memory',
+          action: 'reset',
+          field: 'ai_session_memory_reset',
+          oldValue: '',
+          newValue: 'cleared',
+          source: 'human',
+          timestamp: nowIso(),
+          requestId: `session_reset_${Date.now()}`,
+          metadataJson: JSON.stringify({ schemaVersion: 1 }),
+        });
+      } catch {
+        // Audit write failure is best-effort
+      }
+    })();
     setMessages([]);
     setLastError(null);
     setPendingToolCall(null);

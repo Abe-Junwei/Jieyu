@@ -22,7 +22,7 @@ const log = createLogger('GlobalContextService');
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export interface SegmentSummary {
+interface SegmentSummary {
   id: string;
   text: string;
   translation: string | null;
@@ -32,7 +32,7 @@ export interface SegmentSummary {
   updatedAt: number;
 }
 
-export interface DocumentSummary {
+interface DocumentSummary {
   id: string;
   name: string;
   textSnippet: string;
@@ -40,7 +40,7 @@ export interface DocumentSummary {
   addedAt: number;
 }
 
-export interface ProjectMeta {
+interface ProjectMeta {
   name: string;
   createdAt: number;
   lastEditedAt: number;
@@ -66,7 +66,7 @@ export interface UserPreferences {
   assistantTtsEnabled: boolean;
 }
 
-export interface FatigueState {
+interface FatigueState {
   score: number; // 0-1, computed综合疲劳指数
   speakingRateTrend: 'accelerating' | 'stable' | 'decelerating';
   pauseFrequencyTrend: 'increasing' | 'stable' | 'decreasing';
@@ -84,7 +84,7 @@ export interface UserBehaviorProfile {
   lastSessionAt: number;
 }
 
-export interface CorpusSearchResult {
+interface CorpusSearchResult {
   segmentId: string;
   text: string;
   translation: string | null;

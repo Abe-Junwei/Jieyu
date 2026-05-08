@@ -19,6 +19,7 @@ export function scheduleSessionSidecarSandboxAudit(options: {
       documentId: conversationId,
       action: 'update',
       field: 'ai_session_sidecar_sandbox',
+      oldValue: '',
       newValue: sandboxAction,
       source: 'system',
       timestamp,

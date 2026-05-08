@@ -4,7 +4,7 @@
  */
 
 export const LIST_UNITS_SNAPSHOT_TTL_MS = 15 * 60 * 1000;
-export const LIST_UNITS_SNAPSHOT_MAX_ENTRIES = 20;
+const LIST_UNITS_SNAPSHOT_MAX_ENTRIES = 20;
 /** When `localUnitIndex` row count exceeds this, first `list_units` response uses a `resultHandle` for paging. */
 export const LIST_UNITS_SNAPSHOT_ROW_THRESHOLD = 50;
 

@@ -105,18 +105,6 @@ export function resolveSegmentTimelineSourceLayer(
 }
 
 /**
- * 判断层是否在时间轴上使用 segment 边界 | Check whether a layer uses segment-backed timeline boundaries
- */
-export function layerUsesSegmentTimeline(
-  layer: LayerDocType | undefined,
-  layerById: ReadonlyMap<string, LayerDocType>,
-  defaultTranscriptionLayerId?: string,
-  layerLinks: ReadonlyArray<SegmentTimelineHostLink> = [],
-): boolean {
-  return Boolean(resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId, layerLinks));
-}
-
-/**
  * 为多个独立边界层批量加载 segments | Batch-load segments for multiple independent-boundary layers
  *
  * 返回 Map<layerId, LayerUnitDocType[]>，每个数组按 startTime 升序排列。

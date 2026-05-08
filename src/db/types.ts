@@ -86,7 +86,7 @@ export interface MediaItemDocType {
  * A single morpheme within a word.
  * Maps to FLEx morpheme entries and Toolbox \mb/\ge markers.
  */
-export interface Morpheme {
+interface Morpheme {
   id?: string;
   /** Surface form of this morpheme, keyed by orthography (e.g. 'default', 'ipa') */
   form: Transcription;
@@ -104,7 +104,7 @@ export interface Morpheme {
  * A single word token within an unit.
  * Contains optional morpheme decomposition for interlinear glossing.
  */
-export interface UnitWord {
+interface UnitWord {
   id?: string;
   /** Surface form of this word, keyed by orthography */
   form: Transcription;
@@ -161,14 +161,14 @@ export interface AnchorDocType {
   createdAt: string;
 }
 
-export interface Sense {
+interface Sense {
   gloss: MultiLangString;
   definition?: MultiLangString;
   category?: string;
   [key: string]: unknown;
 }
 
-export interface Form {
+interface Form {
   transcription: Transcription;
   [key: string]: unknown;
 }
@@ -208,8 +208,8 @@ export interface TokenLexemeLinkDocType {
   updatedAt: string;
 }
 
-export type AiTaskStatus = 'pending' | 'running' | 'done' | 'failed';
-export type AiTaskType = 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language' | 'agent_loop';
+type AiTaskStatus = 'pending' | 'running' | 'done' | 'failed';
+type AiTaskType = 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language' | 'agent_loop';
 
 export interface AiTaskDoc {
   id: string;
@@ -245,7 +245,7 @@ export interface EmbeddingDoc {
   createdAt: string;
 }
 
-export type AiConversationMode = 'assistant' | 'analysis' | 'review';
+type AiConversationMode = 'assistant' | 'analysis' | 'review';
 
 export interface AiConversationDoc {
   id: string;
@@ -259,8 +259,8 @@ export interface AiConversationDoc {
   updatedAt: string;
 }
 
-export type AiMessageRole = 'system' | 'user' | 'assistant' | 'tool';
-export type AiMessageStatus = 'streaming' | 'done' | 'error' | 'aborted';
+type AiMessageRole = 'system' | 'user' | 'assistant' | 'tool';
+type AiMessageStatus = 'streaming' | 'done' | 'error' | 'aborted';
 
 export interface AiMessageCitation {
   type: 'unit' | 'note' | 'pdf' | 'schema';
@@ -316,7 +316,7 @@ export type LanguageCatalogSourceType = 'built-in-generated' | 'built-in-reviewe
 export type LanguageCatalogReviewStatus = 'needs-review' | 'verified';
 export type LanguageCatalogVisibility = 'visible' | 'hidden';
 export type LanguageDisplayNameRole = 'preferred' | 'autonym' | 'exonym' | 'historical' | 'menu' | 'academic' | 'search';
-export type LanguageAliasType = 'search' | 'display' | 'legacy' | 'short' | 'variant';
+type LanguageAliasType = 'search' | 'display' | 'legacy' | 'short' | 'variant';
 export type LanguageCatalogHistoryAction = 'create' | 'update' | 'delete';
 
 export interface LanguageDocType {
@@ -528,7 +528,7 @@ export interface OrthographyDocType {
   updatedAt?: string;
 }
 
-export type OrthographyBridgeEngine = 'table-map' | 'icu-rule' | 'manual';
+type OrthographyBridgeEngine = 'table-map' | 'icu-rule' | 'manual';
 
 export interface OrthographyBridgeDocType {
   id: string;
@@ -659,7 +659,7 @@ export interface LayerDisplaySettings {
 }
 
 /** 层文档公共字段（不含树父；树父仅属于转写层）| Shared layer fields (no tree parent). */
-export interface LayerDocBase {
+interface LayerDocBase {
   id: string;
   textId: string;
   key: string;
@@ -714,10 +714,10 @@ export function stripForbiddenTranslationParentLayerId(layer: LayerDocType): Lay
   return rest as TranslationLayerDocType;
 }
 
-export type LayerUnitType = 'unit' | 'segment';
+type LayerUnitType = 'unit' | 'segment';
 export type LayerUnitStatus = 'raw' | 'transcribed' | 'translated' | 'glossed' | 'verified';
 export type LayerContentRole = 'primary_text' | 'translation' | 'gloss' | 'note' | 'audio_ref';
-export type UnitRelationType = 'aligned_to' | 'derived_from' | 'linked_reference' | 'analysis_graph_candidate';
+type UnitRelationType = 'aligned_to' | 'derived_from' | 'linked_reference' | 'analysis_graph_candidate';
 export type UnitRelationLinkType = 'equivalent' | 'projection' | 'bridge' | 'time_subdivision';
 
 /**
@@ -853,7 +853,7 @@ export interface LayerLinkDocType {
 }
 
 export type TierType = 'time-aligned' | 'time-subdivision' | 'symbolic-subdivision' | 'symbolic-association';
-export type TierContentType = 'transcription' | 'translation' | 'gloss' | 'pos' | 'note' | 'custom';
+type TierContentType = 'transcription' | 'translation' | 'gloss' | 'pos' | 'note' | 'custom';
 
 export interface TierDefinitionDocType {
   id: string;
@@ -881,7 +881,7 @@ export interface TierDefinitionDocType {
 }
 
 /** A single annotation hypothesis with confidence score */
-export interface AnnotationHypothesis {
+interface AnnotationHypothesis {
   value: string;
   confidence: number;
   source: string;
@@ -913,7 +913,7 @@ export interface TierAnnotationDocType {
   updatedAt: string;
 }
 
-export type AuditAction = 'create' | 'update' | 'delete';
+type AuditAction = 'create' | 'update' | 'delete' | 'reset';
 export type AuditSource = 'human' | 'ai' | 'system';
 
 /**
@@ -933,6 +933,29 @@ export interface AuditLogDocType {
   requestId?: string;
   /** 结构化回放元数据 | Structured replay metadata */
   metadataJson?: string;
+}
+
+type AiSourceSetScope = 'current_segment' | 'selection' | 'current_media' | 'project';
+
+type AiSourceSetMemberType = 'segment' | 'layer' | 'note' | 'document' | 'lexeme' | 'audio_region';
+
+export interface AiSourceSetDoc {
+  id: string;
+  name: string;
+  scope: AiSourceSetScope;
+  members: Array<{
+    id: string;
+    type: AiSourceSetMemberType;
+    label?: string;
+  }>;
+  mediaId?: string;
+  layerId?: string;
+  projectId?: string;
+  status: 'active' | 'inactive' | 'invalidated';
+  boundSessionId?: string;
+  createdAt: string;
+  updatedAt: string;
+  invalidationReason?: string;
 }
 
 export type NoteTargetType =
@@ -1215,11 +1238,12 @@ export type JieyuCollections = {
   track_entities: CollectionAdapter<TrackEntityDocType>;
   project_ai_memories: CollectionAdapter<ProjectAiMemoryDoc>;
   mcp_tool_call_audits: CollectionAdapter<McpToolCallAuditDoc>;
+  ai_source_sets: CollectionAdapter<AiSourceSetDoc>;
 };
 
 export type ImportConflictStrategy = 'upsert' | 'skip-existing' | 'replace-all';
 
-export type ImportCollectionResult = {
+type ImportCollectionResult = {
   received: number;
   written: number;
   skipped: number;

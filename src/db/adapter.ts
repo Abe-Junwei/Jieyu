@@ -23,7 +23,7 @@ import type {
 } from './types';
 import { layerTranscriptionTreeParentId } from './types';
 
-export function wrapDoc<T extends { id: string }>(value: T): JieyuDoc<T> {
+function wrapDoc<T extends { id: string }>(value: T): JieyuDoc<T> {
   return {
     ...value,
     primary: value.id,
@@ -169,13 +169,13 @@ export function resolveBridgeId(value: { bridgeId?: unknown } | null | undefined
   return undefined;
 }
 
-export function isBridgeLayerTier(tier: TierDefinitionDocType): boolean {
+function isBridgeLayerTier(tier: TierDefinitionDocType): boolean {
   return tier.key.startsWith(BRIDGE_TIER_PREFIX)
     && (tier.contentType === 'transcription' || tier.contentType === 'translation');
 }
 
 /** tier.tierType → LayerConstraint 映射 | Map TierType to LayerConstraint */
-export function tierTypeToConstraint(tierType: TierType): LayerConstraint | undefined {
+function tierTypeToConstraint(tierType: TierType): LayerConstraint | undefined {
   switch (tierType) {
     case 'symbolic-association': return 'symbolic_association';
     case 'time-subdivision': return 'time_subdivision';
@@ -185,7 +185,7 @@ export function tierTypeToConstraint(tierType: TierType): LayerConstraint | unde
 }
 
 /** LayerConstraint → TierType 映射 | Map LayerConstraint to TierType */
-export function constraintToTierType(constraint: LayerConstraint | undefined): TierType {
+function constraintToTierType(constraint: LayerConstraint | undefined): TierType {
   switch (constraint) {
     case 'independent_boundary': return 'time-aligned';
     case 'time_subdivision': return 'time-subdivision';
@@ -194,7 +194,7 @@ export function constraintToTierType(constraint: LayerConstraint | undefined): T
   }
 }
 
-export function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | null {
+function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | null {
   if (!isBridgeLayerTier(tier)) return null;
   const constraint = tierTypeToConstraint(tier.tierType);
   const bridgeId = resolveBridgeId(tier);
@@ -219,7 +219,7 @@ export function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | n
   };
 }
 
-export function layerToBridgeTier(layer: LayerDocType): TierDefinitionDocType {
+function layerToBridgeTier(layer: LayerDocType): TierDefinitionDocType {
   const bridgeId = resolveBridgeId(layer);
   const treeParent = layerTranscriptionTreeParentId(layer);
   const tier: TierDefinitionDocType = {

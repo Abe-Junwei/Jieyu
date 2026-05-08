@@ -152,9 +152,9 @@ const translationLayerHostLinkArgsSchema = z.object({
 export const linkTranslationLayerSchema = translationLayerHostLinkArgsSchema;
 export const unlinkTranslationLayerSchema = translationLayerHostLinkArgsSchema;
 
-export const addHostSchema = linkTranslationLayerSchema;
-export const removeHostSchema = unlinkTranslationLayerSchema;
-export const switchPreferredHostSchema = linkTranslationLayerSchema;
+const addHostSchema = linkTranslationLayerSchema;
+const removeHostSchema = unlinkTranslationLayerSchema;
+const switchPreferredHostSchema = linkTranslationLayerSchema;
 
 export const autoGlossUnitSchema = z.object(SegmentTargetShape).superRefine(refineSegmentTarget);
 

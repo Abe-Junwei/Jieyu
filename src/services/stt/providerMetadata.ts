@@ -1,6 +1,6 @@
 import type { CommercialProviderKind, SttBillingKind, SttEngine, SttProviderCapability } from '../VoiceInputService.types';
 
-export type BuiltinSttProviderKind = Extract<SttEngine, 'web-speech' | 'whisper-local'>;
+type BuiltinSttProviderKind = Extract<SttEngine, 'web-speech' | 'whisper-local'>;
 export type SttProviderKind = BuiltinSttProviderKind | CommercialProviderKind;
 
 export interface SttProviderMetadata {

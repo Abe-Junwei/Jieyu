@@ -26,10 +26,6 @@ export const UNIT_SELF_CERTAINTY_VALUES = ['not_understood', 'uncertain', 'certa
 
 export type UnitSelfCertainty = (typeof UNIT_SELF_CERTAINTY_VALUES)[number];
 
-export function isUnitSelfCertainty(value: string): value is UnitSelfCertainty {
-  return (UNIT_SELF_CERTAINTY_VALUES as readonly string[]).includes(value);
-}
-
 /**
  * @deprecated 请优先直接组装 `SegmentHostLocation` 并调用
  *   `resolveHostUnitCascadeMedia` / `resolveHostUnitStrictMedia`（位于 `./segmentHostResolution`）；

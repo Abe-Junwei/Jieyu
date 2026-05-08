@@ -1,10 +1,10 @@
 import type { AiSessionMemory } from '../chat/chatDomain.types';
 import { trimTextToMax } from '../chat/historyTrim';
 
-export type MemoryChunkSource = 'session' | 'project';
-export type MemorySuppressionReason = 'duplicate' | 'budget';
+type MemoryChunkSource = 'session' | 'project';
+type MemorySuppressionReason = 'duplicate' | 'budget';
 
-export interface ProjectMemoryCandidate {
+interface ProjectMemoryCandidate {
   refId: string;
   text: string;
   score: number;

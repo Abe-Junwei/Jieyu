@@ -153,12 +153,6 @@ export const SUPPORTED_VOICE_LANGS: {
   },
 ];
 
-/** 扁平的所有语言代码列表（不含 __auto__）。 */
-export const ALL_VOICE_LANG_CODES: readonly string[] =
-  SUPPORTED_VOICE_LANGS.flatMap((g) => g.langs)
-    .filter((l) => l.code !== '__auto__')
-    .map((l) => l.code);
-
 // ── ISO 639-3 数据库索引（B-3：种子 JSON 异步加载后再物化）| Materialize after async ISO seed hydration
 
 type Iso6393SeedIndexes = {
@@ -1020,14 +1014,6 @@ export function getLanguageDisplayName(languageId: string | undefined, locale: L
     return (languageId ?? '').trim() || (locale === 'zh-CN' ? '未设置语言' : 'Language not set');
   }
   return getLocaleDisplayName(entry, locale);
-}
-
-export function getNativeLanguageDisplayName(languageId: string | undefined): string | undefined {
-  const entry = getLanguageCatalogEntry(languageId);
-  if (!entry) {
-    return undefined;
-  }
-  return getNativeDisplayName(entry);
 }
 
 export function getLanguageDisplayNames(

@@ -1,12 +1,12 @@
 import type { CommercialProviderKind, SttEngine, SttProviderCapability } from '../VoiceInputService.types';
 import { sttProviderDefinitions, type SttProviderKind } from './providerMetadata';
 
-export type VoiceProviderLoadFunctionKey =
+type VoiceProviderLoadFunctionKey =
   | 'browserSpeechRecognition'
   | 'whisperLocalHttp'
   | 'createCommercialProvider';
 
-export type VoiceProviderHealthCheckKey =
+type VoiceProviderHealthCheckKey =
   | 'speechRecognitionApi'
   | 'whisperServerProbe'
   | 'commercialProviderAvailability';

@@ -104,12 +104,3 @@ export function FolderOpenIcon({ className, style, title, ariaLabel }: IconProps
   );
 }
 
-/* ── 实心圆点 ● | Dot ──────────────────────── */
-export function DotIcon({ className, style, title, ariaLabel }: IconProps) {
-  return (
-    <svg className={className} style={style} aria-label={ariaLabel} {...common}>
-      {title ? <title>{title}</title> : null}
-      <circle cx="8" cy="8" r="3" fill="currentColor" />
-    </svg>
-  );
-}

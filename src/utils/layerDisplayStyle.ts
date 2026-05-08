@@ -8,7 +8,7 @@ import type { LayerDisplaySettings, OrthographyDocType } from '../db';
 
 // ── Types | 类型 ────────────────────────────────────────────
 
-export interface FontPreset {
+interface FontPreset {
   key: string;
   css: string;
   ipaSupport: boolean;
@@ -33,7 +33,7 @@ export interface FontCoverageVerification {
   source: 'cache' | 'runtime' | 'none';
 }
 
-export interface OrthographyCoverageSummary {
+interface OrthographyCoverageSummary {
   confidence: 'script-only' | 'sample-backed';
   exemplarCharacterCount: number;
   exemplarSample: string;
@@ -206,7 +206,7 @@ export function clearFontCoverageVerificationCache(): void {
   window.localStorage.removeItem(FONT_COVERAGE_CACHE_STORAGE_KEY);
 }
 
-export function buildFontCoverageProbeText(renderPolicy: OrthographyRenderPolicy): string {
+function buildFontCoverageProbeText(renderPolicy: OrthographyRenderPolicy): string {
   const exemplarText = collectOrthographyExemplarCharacters(renderPolicy.orthography).join(' ');
   const strictScriptProbe = renderPolicy.ipaMode
     ? SCRIPT_FONT_PROBE_TEXT.Latn
@@ -233,7 +233,7 @@ function resolveFontCoverageStatus(
   return 'verified';
 }
 
-export function getFontCoverageVerificationCacheKey(
+function getFontCoverageVerificationCacheKey(
   fontFamily: string,
   renderPolicy: OrthographyRenderPolicy,
 ): string {
@@ -477,7 +477,7 @@ export function resolveScriptForLanguage(
   return LANG_DEFAULT_SCRIPT[languageId] ?? 'Latn';
 }
 
-export function resolveOrthographyForLanguage(
+function resolveOrthographyForLanguage(
   languageId: string,
   orthographies?: OrthographyDocType[],
   preferredOrthographyId?: string,
@@ -512,7 +512,7 @@ export function resolveDirectionForLanguage(
 /**
  * 获取脚本适用字体列表 | Get font presets for script
  */
-export function getFontPresetsForScript(
+function getFontPresetsForScript(
   scriptTag: string,
   ipaMode = false,
 ): FontPreset[] {
@@ -926,7 +926,7 @@ export function buildOrthographyPreviewTextProps(
 // ── Lane height ↔ font size coupling | 行高↔字号联动 ─────────
 
 export const BASE_FONT_SIZE = 13;
-export const BASE_LANE_HEIGHT = 54;
+const BASE_LANE_HEIGHT = 54;
 export const MIN_LAYER_FONT_SIZE = 8;
 export const MAX_LAYER_FONT_SIZE = 36;
 export const LAYER_FONT_SIZE_STEP = 1;
@@ -946,31 +946,6 @@ const SCRIPT_LINE_HEIGHT_FACTOR: Record<string, number> = {
 
 function getScriptLineHeightFactor(scriptTag: string): number {
   return SCRIPT_LINE_HEIGHT_FACTOR[scriptTag] ?? 1.0;
-}
-
-/**
- * 字号→推荐行高 | Compute lane height from font size
- */
-export function computeLaneHeightFromFontSize(
-  fontSize: number,
-  scriptTag: string,
-  clamp: (h: number) => number = (h) => Math.max(42, Math.min(180, h)),
-): number {
-  const factor = getScriptLineHeightFactor(scriptTag);
-  const raw = BASE_LANE_HEIGHT * (fontSize / BASE_FONT_SIZE) * factor;
-  return clamp(Math.round(raw));
-}
-
-/**
- * 行高→反推字号 | Compute font size from lane height
- */
-export function computeFontSizeFromLaneHeight(
-  laneHeight: number,
-  scriptTag: string,
-): number {
-  const factor = getScriptLineHeightFactor(scriptTag);
-  const raw = BASE_FONT_SIZE * (laneHeight / BASE_LANE_HEIGHT) / factor;
-  return Math.max(MIN_LAYER_FONT_SIZE, Math.min(MAX_LAYER_FONT_SIZE, Math.round(raw * 4) / 4));
 }
 
 export function computeLaneHeightFromRenderPolicy(
@@ -1021,8 +996,4 @@ export async function queryLocalFontFamilies(): Promise<LocalFontEntry[]> {
     }))
     .sort((a, b) => a.family.localeCompare(b.family));
   return cachedLocalFonts;
-}
-
-export function clearLocalFontCache(): void {
-  cachedLocalFonts = null;
 }

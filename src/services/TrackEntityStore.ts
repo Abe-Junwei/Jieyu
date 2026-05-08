@@ -1,5 +1,5 @@
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
-import { dexieStoresForTrackEntitiesRw, getDb, withTransaction, type TrackEntityDocType } from '../db';
+import { getDb, type TrackEntityDocType } from '../db';
 import { trackEntityDocumentId } from '../db/trackEntityIds';
 
 export type TrackEntityState = {
@@ -11,7 +11,7 @@ export type TrackEntityState = {
 
 export type TrackEntityStateMap = Record<string, TrackEntityState>;
 
-export const TRACK_ENTITY_STORAGE_KEY = 'jieyu:track-entity-state:v1';
+const TRACK_ENTITY_STORAGE_KEY = 'jieyu:track-entity-state:v1';
 
 function sanitizeLaneLockMap(input: unknown): Record<string, number> {
   if (!input || typeof input !== 'object') return {};
@@ -120,34 +120,4 @@ export async function saveTrackEntityStateToDb(
     updatedAt: state.updatedAt,
   };
   await db.dexie.track_entities.put(doc);
-}
-
-/**
- * Bulk-persist a full state map to DB.
- * Replaces all entries for the given textId.
- */
-export async function saveTrackEntityStateMapToDb(
-  textId: string,
-  stateMap: TrackEntityStateMap,
-): Promise<void> {
-  const db = await getDb();
-  const now = new Date().toISOString();
-  const docs: TrackEntityDocType[] = Object.entries(stateMap).map(([trackKey, state]) => ({
-    id: trackEntityDocumentId(textId, trackKey),
-    textId,
-    mediaId: trackKey,
-    mode: sanitizeMode(state.mode),
-    laneLockMap: sanitizeLaneLockMap(state.laneLockMap),
-    updatedAt: state.updatedAt || now,
-  }));
-  await withTransaction(db, 'rw', [...dexieStoresForTrackEntitiesRw(db)], async () => {
-    // Delete all existing entries for this textId, then insert new ones
-    const existing = await db.dexie.track_entities.where('textId').equals(textId).primaryKeys();
-    if (existing.length > 0) {
-      await db.dexie.track_entities.bulkDelete(existing);
-    }
-    if (docs.length > 0) {
-      await db.dexie.track_entities.bulkPut(docs);
-    }
-  }, { label: 'TrackEntityStore.saveTrackEntityStateMapToDb' });
 }

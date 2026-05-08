@@ -2,8 +2,8 @@
  * 独立转写层拖选建段：与 `transcriptionSegmentCreationActions` 相同的间隙钳制，
  * 供套索预览与写库共用，避免预览区间与最终落库区间不一致。
  */
-export const INDEPENDENT_SEGMENT_INSERT_MIN_SPAN_SEC = 0.05;
-export const INDEPENDENT_SEGMENT_INSERT_GAP_SEC = 0.02;
+const INDEPENDENT_SEGMENT_INSERT_MIN_SPAN_SEC = 0.05;
+const INDEPENDENT_SEGMENT_INSERT_GAP_SEC = 0.02;
 
 export type IndependentSegmentInsertionSpan = { startTime: number; endTime: number };
 

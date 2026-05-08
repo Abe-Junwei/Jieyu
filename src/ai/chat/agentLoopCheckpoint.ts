@@ -47,7 +47,7 @@ function isPendingResumableAgentLoopTask(
     && task.handoffReason === 'token_budget_warning';
 }
 
-export function toAgentLoopTaskCheckpoint(
+function toAgentLoopTaskCheckpoint(
   checkpoint: AiSessionMemoryPendingAgentLoopCheckpoint,
 ): TaskRunnerCheckpoint {
   return {

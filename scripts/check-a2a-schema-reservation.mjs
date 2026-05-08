@@ -4,7 +4,7 @@
  *
  * 验证项：
  * - project_ai_memories Dexie 表存在且 CRUD 正常
- * - schema version ≥ 48
+ * - schema version ≥ 49（含 v48 MCP 审计表、v49 ai_source_sets）
  * - MCP Client 类型预留存在
  * - A2A 数据结构预留存在且校验通过
  */
@@ -81,9 +81,14 @@ check(
   'Missing v48 migration for mcp_tool_call_audits',
 );
 check(
-  engineSrc.includes('JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 48'),
-  'Target schema version is 48',
-  'Schema version not bumped to 48',
+  engineSrc.includes("this.version(49)") && engineSrc.includes('ai_source_sets'),
+  'v49 schema migration includes ai_source_sets',
+  'Missing v49 migration for ai_source_sets',
+);
+check(
+  engineSrc.includes('JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 49'),
+  'Target schema version is 49',
+  'Schema version not bumped to 49',
 );
 
 // MCP Client 预留

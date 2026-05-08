@@ -4,7 +4,7 @@ import { validateToolCallArguments } from './toolCallHelpers';
 /**
  * Phases of confirm-path dry-run failure (extend for read-model / policy checks without touching DB).
  */
-export type ToolCallDryRunFailurePhase = 'args_schema';
+type ToolCallDryRunFailurePhase = 'args_schema';
 
 export type ToolCallDryRunResult =
   | { ok: true }

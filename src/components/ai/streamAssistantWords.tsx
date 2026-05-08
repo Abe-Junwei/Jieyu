@@ -8,7 +8,7 @@ export type StreamTextSlice = {
 };
 
 /** 仅对末尾这么多「词」做逐段 span，更早内容合并为纯文本，控制极长回复的 DOM 规模 */
-export const DEFAULT_STREAM_WORD_TAIL_WORDS = 80;
+const DEFAULT_STREAM_WORD_TAIL_WORDS = 80;
 
 /**
  * 返回 `slices` 中「尾部最多 maxTailWords 个词」的起始下标；此前片段应合并为纯文本。

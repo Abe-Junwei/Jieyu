@@ -5,15 +5,15 @@ import { z } from 'zod';
 import { annotationAnalysisGraphFixtureSchema } from '../annotation/analysisGraph';
 import { structuralRuleProfileSchema } from '../annotation/structuralRuleProfile';
 import { UNIT_SELF_CERTAINTY_VALUES } from '../utils/unitSelfCertainty';
-import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, ProjectAiMemoryDoc, McpToolCallAuditDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType } from './types';
+import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, ProjectAiMemoryDoc, McpToolCallAuditDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType, AiSourceSetDoc } from './types';
 
 
 export const isoDateSchema = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
   message: 'Expected ISO date-time string',
 });
-export const accessRightsSchema = z.enum(['open', 'restricted', 'confidential']);
-export const multiLangStringSchema = z.record(z.string(), z.string());
-export const transcriptionSchema = z.record(z.string(), z.string());
+const accessRightsSchema = z.enum(['open', 'restricted', 'confidential']);
+const multiLangStringSchema = z.record(z.string(), z.string());
+const transcriptionSchema = z.record(z.string(), z.string());
 const aiMetadataSchema = z
   .object({
     confidence: z.number().min(0).max(1),
@@ -36,7 +36,7 @@ const creationMethodSchema = z.enum([
   'split',
   'migration',
 ]);
-export const provenanceSchema = z.object({
+const provenanceSchema = z.object({
   actorType: actorTypeSchema,
   actorId: z.string().optional(),
   method: creationMethodSchema,
@@ -884,7 +884,7 @@ const tierAnnotationDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
-const auditActionSchema = z.enum(['create', 'update', 'delete']);
+const auditActionSchema = z.enum(['create', 'update', 'delete', 'reset']);
 const auditSourceSchema = z.enum(['human', 'ai', 'system']);
 
 const auditLogDocSchema = z.object({
@@ -1259,5 +1259,32 @@ const trackEntityDocSchema = z.object({
 
 export function validateTrackEntityDoc(doc: TrackEntityDocType): void {
   trackEntityDocSchema.parse(doc);
+}
+
+// ─── AI source set doc ────────────────────────────────────────────────────────
+
+const aiSourceSetDocSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  scope: z.enum(['current_segment', 'selection', 'current_media', 'project']),
+  members: z.array(
+    z.object({
+      id: z.string().min(1),
+      type: z.enum(['segment', 'layer', 'note', 'document', 'lexeme', 'audio_region']),
+      label: z.string().optional(),
+    }),
+  ),
+  mediaId: z.string().optional(),
+  layerId: z.string().optional(),
+  projectId: z.string().optional(),
+  status: z.enum(['active', 'inactive', 'invalidated']),
+  boundSessionId: z.string().optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+  invalidationReason: z.string().optional(),
+});
+
+export function validateAiSourceSetDoc(doc: AiSourceSetDoc): void {
+  aiSourceSetDocSchema.parse(doc);
 }
 

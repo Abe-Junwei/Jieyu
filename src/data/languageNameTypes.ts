@@ -2,7 +2,7 @@ export const LANGUAGE_NAME_QUERY_LOCALES = ['zh-CN', 'en-US', 'fr-FR', 'es-ES', 
 
 export type LanguageNameQueryLocale = (typeof LANGUAGE_NAME_QUERY_LOCALES)[number];
 
-export type LanguageQueryLabelKind = 'local' | 'native' | 'english' | 'alias';
+type LanguageQueryLabelKind = 'local' | 'native' | 'english' | 'alias';
 
 export type LanguageQueryLabelEntry = {
   label: string;

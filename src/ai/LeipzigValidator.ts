@@ -79,7 +79,7 @@ const CATEGORY_MAP: Readonly<Record<string, readonly string[]>> = {
 
 // Validation result interfaces.
 
-export type LeipzigWarningSeverity = 'info' | 'warning';
+type LeipzigWarningSeverity = 'info' | 'warning';
 
 export interface LeipzigWarning {
   /** Warning type. */

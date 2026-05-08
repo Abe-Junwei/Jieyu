@@ -6,7 +6,7 @@ export const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, 'src');
 const BASELINE_PATH = path.join(ROOT, 'scripts', 'css-inline-style-baseline.json');
 const WHITELIST_PATH = path.join(ROOT, 'scripts', 'css-inline-style-whitelist.json');
-const INLINE_STYLE_PATTERN = /style\s*=\s*\{\{/g;
+const INLINE_STYLE_PATTERN = /style\s*=\s*\{/g;
 
 function walkFiles(dirPath, matcher) {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });

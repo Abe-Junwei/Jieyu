@@ -73,6 +73,11 @@ export type SendTurnPreflightContext = Readonly<{
     errorMessage?: string,
     citations?: import('../db').AiMessageCitation[],
     reasoningContent?: string,
+    options?: {
+      sourceScopeSummary?: UiChatMessage['sourceScopeSummary'];
+      reflectionChecks?: UiChatMessage['reflectionChecks'];
+      compatibilityReport?: UiChatMessage['compatibilityReport'];
+    },
   ) => Promise<void>;
   commitPrimaryStreamUsage: () => void;
   agentLoopSourceUserText: string;

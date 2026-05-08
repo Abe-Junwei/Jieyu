@@ -18,7 +18,7 @@ export interface AcousticFrame {
   formantReliability?: number | null;
 }
 
-export const ACOUSTIC_HOTSPOT_KINDS = ['pitch_peak', 'pitch_break', 'intensity_peak', 'unstable_span'] as const;
+const ACOUSTIC_HOTSPOT_KINDS = ['pitch_peak', 'pitch_break', 'intensity_peak', 'unstable_span'] as const;
 
 export type AcousticHotspotKind = (typeof ACOUSTIC_HOTSPOT_KINDS)[number];
 

@@ -1,4 +1,4 @@
-export const EXTENSION_MANIFEST_SCHEMA_VERSION = '1.0.0' as const;
+const EXTENSION_MANIFEST_SCHEMA_VERSION = '1.0.0' as const;
 
 export type ExtensionCapability =
   | 'read.transcription'
@@ -30,48 +30,6 @@ export interface ExtensionManifestV1 {
   };
 }
 
-export type ExtensionLifecycleState =
-  | 'idle'
-  | 'loaded'
-  | 'active'
-  | 'disabled'
-  | 'unloaded'
-  | 'error';
-
-export interface ManifestValidationResult {
-  ok: boolean;
-  errors: string[];
-  manifest?: ExtensionManifestV1;
-}
-
-export interface CompatibilityResult {
-  compatible: boolean;
-  reason: string;
-}
-
-export interface ExtensionActivationContext {
-  hostVersion: string;
-  manifest: ExtensionManifestV1;
-}
-
-export interface ExtensionInvocationContext {
-  hostVersion: string;
-  manifest: ExtensionManifestV1;
-}
-
-export interface ExtensionHooks {
-  activate: (context: ExtensionActivationContext) => Promise<void> | void;
-  deactivate?: (context: ExtensionActivationContext) => Promise<void> | void;
-}
-
-export interface ExtensionLoadResult {
-  ok: boolean;
-  degraded: boolean;
-  reason: string;
-}
-
-export type CapabilityHandler = (payload: unknown, context: ExtensionInvocationContext) => Promise<unknown> | unknown;
-
 export type ExtensionCapabilityAuditPayload = {
   extensionId: string;
   capability: ExtensionCapability;
@@ -81,12 +39,3 @@ export type ExtensionCapabilityAuditPayload = {
   trustLevel?: ExtensionTrustLevel;
   denyReason?: string;
 };
-
-export interface ExtensionHostOptions {
-  hostVersion: string;
-  capabilityHandlers: Partial<Record<ExtensionCapability, CapabilityHandler>>;
-  activationTimeoutMs?: number;
-  /** 单次能力调用超时（ms）；≤0 或未设置则不套超时 | Per-invocation timeout; omit or ≤0 to disable */
-  capabilityInvocationTimeoutMs?: number;
-  onCapabilityAudit?: (payload: ExtensionCapabilityAuditPayload) => void;
-}

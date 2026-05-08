@@ -2,7 +2,7 @@ import { formatLanguageDisplayName, getLanguageCatalogEntry, resolveLanguageCode
 import { resolveLanguageDisplayNameWithFallback, type ResolveLanguageDisplayName } from './languageDisplayNameResolver';
 import type { LanguageInputDisplayMode, LanguageInputAssistState, LanguageInputAssistMessages, LanguageIsoInputValue } from './languageInputTypes';
 
-export type LanguageInputStatus =
+type LanguageInputStatus =
   | 'idle'
   | 'editing-name'
   | 'editing-code'
@@ -11,7 +11,7 @@ export type LanguageInputStatus =
   | 'invalid'
   | 'deferred-code';
 
-export type LanguageInputChangeSource =
+type LanguageInputChangeSource =
   | 'user-name-input'
   | 'user-code-input'
   | 'suggestion-click'
@@ -20,7 +20,7 @@ export type LanguageInputChangeSource =
   | 'external-sync'
   | 'reset';
 
-export type LanguageInputDraft = {
+type LanguageInputDraft = {
   nameInput: string;
   codeInput: string;
   activeField: 'name' | 'code' | null;

@@ -1,40 +1,6 @@
 import type { LocalContextToolCall } from './localContextTools';
 import type { LocalToolIntent } from './chatDomain.types';
 
-export type IntentContract = {
-  intent: LocalToolIntent;
-  toolName: LocalContextToolCall['name'];
-  requiredSlots: readonly string[];
-};
-
-export const LOCAL_TOOL_INTENT_CONTRACTS: readonly IntentContract[] = [
-  {
-    intent: 'unit.list',
-    toolName: 'list_units',
-    requiredSlots: [],
-  },
-  {
-    intent: 'unit.search',
-    toolName: 'search_units',
-    requiredSlots: ['query'],
-  },
-  {
-    intent: 'unit.detail',
-    toolName: 'get_unit_detail',
-    requiredSlots: ['unitId'],
-  },
-  {
-    intent: 'unit.detail',
-    toolName: 'get_unit_linguistic_memory',
-    requiredSlots: ['unitId'],
-  },
-  {
-    intent: 'stats.get',
-    toolName: 'get_project_stats',
-    requiredSlots: [],
-  },
-] as const;
-
 const LIST_INTENT_PATTERNS = [
   /列出/u,
   /全部/u,

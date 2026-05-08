@@ -46,11 +46,10 @@ export const structuralRuleProfileSchema = z.object({
   }
 });
 
-export type StructuralRuleProfileScope = z.infer<typeof structuralRuleProfileScopeSchema>;
-export type StructuralParseWarningSeverity = z.infer<typeof structuralParseWarningSeveritySchema>;
+type StructuralParseWarningSeverity = z.infer<typeof structuralParseWarningSeveritySchema>;
 export type StructuralRuleProfile = z.infer<typeof structuralRuleProfileSchema>;
 
-export type StructuralBoundaryType =
+type StructuralBoundaryType =
   | 'morpheme'
   | 'feature'
   | 'clitic'
@@ -58,7 +57,7 @@ export type StructuralBoundaryType =
   | 'supplied'
   | 'alternation';
 
-export type StructuralSegmentKind = 'lexical' | 'feature' | 'zero' | 'reduplication' | 'infix' | 'supplied';
+type StructuralSegmentKind = 'lexical' | 'feature' | 'zero' | 'reduplication' | 'infix' | 'supplied';
 
 export type StructuralParsedSegment = {
   id: string;
@@ -69,19 +68,19 @@ export type StructuralParsedSegment = {
   endOffset: number;
 };
 
-export type StructuralBoundary = {
+type StructuralBoundary = {
   type: StructuralBoundaryType;
   marker: string;
   offset: number;
   wordIndex: number;
 };
 
-export type StructuralParsedFeature = {
+type StructuralParsedFeature = {
   segmentId: string;
   label: string;
 };
 
-export type StructuralParseWarning = {
+type StructuralParseWarning = {
   type: 'empty_segment' | 'unmatched_wrapper' | 'alternation_marker';
   text: string;
   message: string;

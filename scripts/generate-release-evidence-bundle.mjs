@@ -19,6 +19,8 @@ const PROFILE_PIPELINES = {
     { id: 'report.m5-trend', script: 'report:m5-trend', module: 'observability' },
     { id: 'gate.m6-release', script: 'gate:m6-release', module: 'release' },
     { id: 'check.m7-extension-foundation', script: 'check:m7-extension-foundation', module: 'extension' },
+    { id: 'perf.track', script: 'perf:track', module: 'performance' },
+    { id: 'perf.ai', script: 'perf:ai', module: 'performance' },
   ],
   'collab-cloud': [
     { id: 'check.docs-governance', script: 'check:docs-governance', module: 'docs' },
@@ -2583,6 +2585,36 @@ function classifyReleaseEvidenceSkipTaxonomy(skipReason) {
 }
 
 /**
+ * P3: map skip reasons to the primary upstream source hint required to unblock skipped cards.
+ * @param {string | undefined} skipReason
+ * @returns {string | null}
+ */
+function resolveReleaseEvidenceUpstreamDataSource(skipReason) {
+  if (!skipReason || typeof skipReason !== 'string') return null;
+  const s = skipReason.trim();
+  if (!s) return null;
+  if (s === 'no_audit_export_source') {
+    return 'ai_audit_export(--ai-audit-export | RELEASE_EVIDENCE_AI_AUDIT_EXPORT)';
+  }
+  if (s === 'no_ai_task_snapshot_source') {
+    return 'ai_task_snapshot_export(--ai-task-snapshot-export | RELEASE_EVIDENCE_AI_TASK_SNAPSHOT_EXPORT)';
+  }
+  if (s === 'no_extension_capability_audit_source') {
+    return 'extension_capability_audit_export(--extension-capability-audit-export | RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT)';
+  }
+  if (s === 'no_fixture_source') {
+    return 'ai_card_fixture(--ai-card-fixture | --fixture)';
+  }
+  if (s === 'no_request_ids_provided') {
+    return 'ai_request_ids(--ai-request-ids | RELEASE_EVIDENCE_AI_REQUEST_IDS)';
+  }
+  if (s === 'no_rag_shape_metadata') {
+    return 'ai_messages.ai_tool_call_decision.metadata.ragShape/memoryRecallShape';
+  }
+  return null;
+}
+
+/**
  * P3: attach machine-readable `skipTaxonomy` on each skipped node that already has `skipReason`
  * (per-card / per-section analytics; rollup still derived from `skipReason`).
  * @param {Record<string, unknown> | unknown[] | null | undefined} reportLike
@@ -2597,6 +2629,12 @@ function injectSkipTaxonomyFields(reportLike, depth) {
   }
   if (typeof reportLike.skipReason === 'string' && reportLike.status === 'skipped') {
     reportLike.skipTaxonomy = classifyReleaseEvidenceSkipTaxonomy(reportLike.skipReason);
+    if (typeof reportLike.upstreamDataSource !== 'string') {
+      const upstreamDataSource = resolveReleaseEvidenceUpstreamDataSource(reportLike.skipReason);
+      if (upstreamDataSource) {
+        reportLike.upstreamDataSource = upstreamDataSource;
+      }
+    }
   }
   for (const v of Object.values(reportLike)) {
     if (v && typeof v === 'object') injectSkipTaxonomyFields(v, depth + 1);
@@ -2662,6 +2700,36 @@ function buildAuditFieldDictionarySection() {
         field: 'ai_session_sidecar_sandbox',
         phase: 'session_sidecar_sandbox',
         requiredMetadataKeys: ['phase', 'gate', 'sandboxAction', 'sandboxReason'],
+      },
+      {
+        field: 'ai_judge_failure',
+        phase: 'vertical_workflow_judge',
+        requiredMetadataKeys: ['schemaVersion', 'workflowId', 'providerId', 'error'],
+      },
+      {
+        field: 'ai_adoption_item_queued',
+        phase: 'adoption_queue',
+        requiredMetadataKeys: ['schemaVersion', 'workflowId', 'outputKind', 'writeMode'],
+      },
+      {
+        field: 'ai_adoption_outcome',
+        phase: 'adoption_outcome',
+        requiredMetadataKeys: ['phase', 'action', 'itemId', 'workflowId', 'toStatus'],
+      },
+      {
+        field: 'ai_composed_reflection_retry',
+        phase: 'composed_workflow_reflection_retry',
+        requiredMetadataKeys: ['schemaVersion', 'templateId', 'stepIndex', 'retryCount'],
+      },
+      {
+        field: 'ai_source_set_mutation',
+        phase: 'active_source_set_change',
+        requiredMetadataKeys: ['schemaVersion', 'phase'],
+      },
+      {
+        field: 'ai_session_memory_reset',
+        phase: 'session_memory_reset',
+        requiredMetadataKeys: ['schemaVersion'],
       },
     ],
   };
@@ -2857,7 +2925,7 @@ function buildReport(input) {
       ? 'user_directive_governance_skipped'
       : 'user_directive_governance_ready_or_partial',
     status: userDirectiveGovernanceSection.status === 'skipped' ? 'skipped' : 'passed',
-    exitCode: null,
+    exitCode: userDirectiveGovernanceSection.status === 'skipped' ? null : 0,
     logPath: userDirectiveGovernanceSection.auditExportPath ?? null,
     keySummary: userDirectiveGovernanceSection.status === 'skipped'
       ? userDirectiveGovernanceSection.skipReason
@@ -3005,7 +3073,7 @@ function buildReport(input) {
       appVersion,
       gitShortSha,
       nodeVersion: process.version,
-      workspaceRoot,
+      workspaceRoot: '.',
       stage: 'A1b',
       dryRun,
       outputPath: toRelativePath(outputPath),
@@ -3277,7 +3345,7 @@ run().catch(async (error) => {
       appVersion: '0.0.0-dev',
       gitShortSha: 'unknown',
       nodeVersion: process.version,
-      workspaceRoot,
+      workspaceRoot: '.',
       stage: 'A1b',
       dryRun,
       outputPath: toRelativePath(outputPath),

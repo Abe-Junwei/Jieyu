@@ -5,6 +5,7 @@ import viteCompression from 'vite-plugin-compression';
 import { VitePWA } from 'vite-plugin-pwa';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { copyFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import os from 'node:os';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +26,25 @@ const appVersion = typeof packageJson.version === 'string' && packageJson.versio
 
 const FRAME_ANCESTORS_CSP_HEADER = "frame-ancestors 'none'";
 const X_FRAME_OPTIONS_HEADER = 'DENY';
+
+/** Vitest worker 数：默认取 CPU−1（上限 4）；OOM 时设 `VITEST_MAX_WORKERS=1` | Tune via env for speed vs RAM */
+function resolveVitestMaxWorkers(): number {
+  const raw = process.env.VITEST_MAX_WORKERS?.trim();
+  if (raw !== undefined && raw !== '') {
+    const n = Number.parseInt(raw, 10);
+    if (!Number.isNaN(n) && n >= 1) return Math.min(8, n);
+  }
+  const ap = typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length;
+  return Math.min(4, Math.max(1, ap - 1));
+}
+
+/** 本地长跑可加 `VITEST_REPORTER=dot`；CI 自动附加 github-actions 注解 | See Vitest reporter docs */
+function resolveVitestReporters(): string | string[] {
+  const r = process.env.VITEST_REPORTER?.trim();
+  if (r === 'dot' || r === 'verbose' || r === 'basic' || r === 'tap') return r;
+  if (process.env.GITHUB_ACTIONS === 'true') return ['default', 'github-actions'];
+  return 'default';
+}
 
 /**
  * 将 onnxruntime-web WASM 文件复制到构建输出，并在开发服务器中正确伺服。
@@ -271,6 +291,7 @@ export default defineConfig({
     viteCompression({
       algorithm: 'brotliCompress',
       ext: '.br',
+      verbose: false,
       threshold: 2048,
       filter: /\.(js|css|html|json|svg|txt|xml|webmanifest)$/,
     }),
@@ -451,8 +472,9 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', 'tests/e2e-sandbox/**'],
     /* threads：单进程内跑用例，避免 forks 多进程各拉一份巨型 i18n 导致堆 OOM | Avoid per-fork duplicate heaps for large dict imports */
     pool: 'threads',
-    /* 限制 worker 数（收紧并行），降低 pool 饥饿与个别用例 flaky 超时 | Tighter cap reduces pool starvation under load */
-    maxWorkers: 2,
+    maxWorkers: resolveVitestMaxWorkers(),
+    reporters: resolveVitestReporters(),
+    slowTestThreshold: 10_000,
     setupFiles: [
       'src/zodJitlessBootstrap.ts',
       'src/test/vitestLocalStorageSetup.ts',

@@ -15,6 +15,7 @@ import { genRequestId } from './useAiChat.toolAudit';
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
 import { newAuditLogId, nowIso } from './useAiChat.helpers';
+import { updateAssistantRetryMeta } from './useAiChat.sendTurnPersistPhase';
 import { runAgentLoop } from './useAiChat.agentLoopRunner';
 import { formatConnectionHealthyMessage } from '../ai/messages';
 import { recordDurationMetric, type MetricTags } from '../observability/metrics';
@@ -125,6 +126,11 @@ export type RunAiChatSendTurnStreamPhaseInput = Readonly<{
     errorMessage?: string,
     citations?: AiMessageCitation[],
     reasoningContent?: string,
+    options?: {
+      sourceScopeSummary?: UiChatMessage['sourceScopeSummary'];
+      reflectionChecks?: UiChatMessage['reflectionChecks'];
+      compatibilityReport?: UiChatMessage['compatibilityReport'];
+    },
   ) => Promise<void>;
   provider: { id: string; label: string };
   flags: typeof featureFlags;
@@ -432,11 +438,7 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
     queueFlushAssistantDraft(s.assistantContent, true);
     await awaitQueuedPersistence();
 
-    await db.collections.ai_messages.update(assistantId, {
-      generationSource: retryGenerationSource,
-      generationModel: retryGenerationModel,
-      updatedAt: nowIso(),
-    });
+    await updateAssistantRetryMeta(db, assistantId, retryGenerationSource, retryGenerationModel);
 
     await writeToolDecisionAuditLog(
       assistantId,
@@ -777,6 +779,28 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
           });
         } catch (judgeError) {
           log.error('judge evaluation failed', { err: judgeError });
+          try {
+            await db.collections.audit_logs.insert({
+              id: newAuditLogId(),
+              collection: 'ai_messages',
+              documentId: assistantId,
+              action: 'update',
+              field: 'ai_judge_failure',
+              oldValue: '',
+              newValue: 'failed',
+              source: 'ai',
+              timestamp: nowIso(),
+              requestId: `${assistantId}_judge_failure`,
+              metadataJson: JSON.stringify({
+                schemaVersion: 1,
+                workflowId: verticalOutputEnvelopeSeed?.workflowId ?? 'unknown',
+                providerId: provider.id,
+                error: String(judgeError),
+              }),
+            });
+          } catch {
+            // Audit write failure must not block stream completion
+          }
         }
       }
 
@@ -908,6 +932,34 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
         }
       }
 
+      // Audit log adoption item creation
+      if (adoptionItemsToPush.length > 0) {
+        try {
+          for (const item of adoptionItemsToPush) {
+            await db.collections.audit_logs.insert({
+              id: newAuditLogId(),
+              collection: 'ai_messages',
+              documentId: assistantId,
+              action: 'create',
+              field: 'ai_adoption_item_queued',
+              oldValue: '',
+              newValue: item.status,
+              source: 'ai',
+              timestamp: nowIso(),
+              requestId: item.requestId,
+              metadataJson: JSON.stringify({
+                schemaVersion: 1,
+                workflowId: item.workflowId,
+                outputKind: item.outputKind,
+                writeMode: item.writeMode,
+              }),
+            });
+          }
+        } catch {
+          // Audit write failure must not block stream completion
+        }
+      }
+
       // PR-13: Composed workflow output parsing and state advancement
       const composedState = sessionMemoryRef.current.composedWorkflowState;
       if (composedState && resolvedStatus === 'done') {
@@ -924,10 +976,12 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
 
           // P4: reflection retry — if reflection flagged and within retry budget, mark for retry
           let effectiveNextState = nextState;
+          let reflectionRetryScheduled = false;
           if (reflectionResult?.reflectionFlagged) {
             const retryCounts = composedState.stepReflectionRetryCounts ?? {};
             const currentRetryCount = retryCounts[composedState.currentStepIndex] ?? 0;
             if (currentRetryCount < 1) {
+              reflectionRetryScheduled = true;
               effectiveNextState = {
                 ...composedState,
                 stepReflectionRetryCounts: {
@@ -937,6 +991,31 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
                 pendingReflectionRetryStepIndex: composedState.currentStepIndex,
                 ...(composedReflectionRetryBlob ? { pendingReflectionRetryDetail: composedReflectionRetryBlob } : {}),
               };
+            }
+          }
+
+          if (reflectionRetryScheduled) {
+            try {
+              await db.collections.audit_logs.insert({
+                id: newAuditLogId(),
+                collection: 'ai_messages',
+                documentId: assistantId,
+                action: 'update',
+                field: 'ai_composed_reflection_retry',
+                oldValue: '',
+                newValue: String(composedState.currentStepIndex),
+                source: 'ai',
+                timestamp: nowIso(),
+                requestId: `${assistantId}_composed_retry`,
+                metadataJson: JSON.stringify({
+                  schemaVersion: 1,
+                  templateId: composedState.templateId,
+                  stepIndex: composedState.currentStepIndex,
+                  retryCount: (composedState.stepReflectionRetryCounts?.[composedState.currentStepIndex] ?? 0) + 1,
+                }),
+              });
+            } catch {
+              // Audit write failure must not block stream completion
             }
           }
 
@@ -1012,7 +1091,31 @@ export async function runAiChatSendTurnStreamPhase(input: RunAiChatSendTurnStrea
           }, (entry) => db.collections.audit_logs.insert(entry));
         }
       }
-      await finalizeAssistantMessage(resolvedStatus, resolvedContent, resolvedErrorMessage, ragCitations, s.assistantReasoningContent);
+      const hasExtraFields = sourceScopeSummary !== undefined
+        || reflectionChecks !== undefined
+        || compatibilityReport !== undefined;
+      if (hasExtraFields) {
+        await finalizeAssistantMessage(
+          resolvedStatus,
+          resolvedContent,
+          resolvedErrorMessage,
+          ragCitations,
+          s.assistantReasoningContent,
+          {
+            ...(sourceScopeSummary !== undefined ? { sourceScopeSummary } : {}),
+            ...(reflectionChecks !== undefined ? { reflectionChecks } : {}),
+            ...(compatibilityReport !== undefined ? { compatibilityReport } : {}),
+          },
+        );
+      } else {
+        await finalizeAssistantMessage(
+          resolvedStatus,
+          resolvedContent,
+          resolvedErrorMessage,
+          ragCitations,
+          s.assistantReasoningContent,
+        );
+      }
       break;
     }
   }

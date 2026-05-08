@@ -114,14 +114,14 @@ class UserBehaviorDexie extends Dexie {
 
 let _instance: UserBehaviorDexie | null = null;
 
-export function getUserBehaviorDB(): UserBehaviorDexie {
+function getUserBehaviorDB(): UserBehaviorDexie {
   if (!_instance) {
     _instance = new UserBehaviorDexie();
   }
   return _instance;
 }
 
-export const userBehaviorDB = getUserBehaviorDB();
+const userBehaviorDB = getUserBehaviorDB();
 
 // ── Convenience helpers ────────────────────────────────────────────────────
 
@@ -224,36 +224,6 @@ export async function getActionRecordsInRange(
       '[UserBehaviorDB] getActionRecordsInRange failed, returning empty:',
     );
     return [];
-  }
-}
-
-/**
- * Record a task phase completion.
- */
-export async function recordTaskPhase(record: Omit<TaskPhaseRecordDoc, 'id'>): Promise<void> {
-  try {
-    await userBehaviorDB.taskPhaseRecords.add(record as TaskPhaseRecordDoc);
-  } catch (err) {
-    reportIfUnexpectedDexieDegradation(
-      'userBehaviorDB.recordTaskPhase',
-      err,
-      '[UserBehaviorDB] recordTaskPhase failed, skipped:',
-    );
-  }
-}
-
-/**
- * Record a difficult segment.
- */
-export async function recordDifficultSegment(record: Omit<DifficultSegmentDoc, 'id'>): Promise<void> {
-  try {
-    await userBehaviorDB.difficultSegments.add(record as DifficultSegmentDoc);
-  } catch (err) {
-    reportIfUnexpectedDexieDegradation(
-      'userBehaviorDB.recordDifficultSegment',
-      err,
-      '[UserBehaviorDB] recordDifficultSegment failed, skipped:',
-    );
   }
 }
 

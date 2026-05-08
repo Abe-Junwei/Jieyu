@@ -185,8 +185,12 @@ export function scheduleAndFlushBackgroundMemory(
   insertAuditLog: (entry: AuditLogDocType) => Promise<unknown>,
 ): void {
   const scheduleAudit = runtime.extractor.schedule(input);
-  void insertAuditLog(buildBackgroundMemoryAuditLog(scheduleAudit));
-  void flushBackgroundMemoryExtractor(runtime, insertAuditLog);
+  insertAuditLog(buildBackgroundMemoryAuditLog(scheduleAudit)).catch(() => {
+    // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
+  });
+  flushBackgroundMemoryExtractor(runtime, insertAuditLog).catch(() => {
+    // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
+  });
 }
 
 export function buildBackgroundMemoryAuditLog(
@@ -200,11 +204,11 @@ export function buildBackgroundMemoryAuditLog(
     documentId: audit.inputRange.conversationId,
     action: 'update',
     field: 'ai_background_memory_extraction',
+    oldValue: audit.status === 'completed' ? 'scheduled' : '',
     newValue: audit.status,
     source: 'ai',
     timestamp: nowIso(),
     requestId: audit.taskId,
-    ...(audit.status === 'completed' ? { oldValue: 'scheduled' } : {}),
     metadataJson: JSON.stringify({
       schemaVersion: audit.schemaVersion,
       phase: 'background_memory_extraction',
@@ -222,7 +226,7 @@ export function buildBackgroundMemoryAuditLog(
   };
 }
 
-export function buildUserDirectiveAuditLogs(
+function buildUserDirectiveAuditLogs(
   directiveApplication: UserDirectiveApplicationResult | null,
   documentId: string,
 ): AuditLogDocType[] {
@@ -236,6 +240,7 @@ export function buildUserDirectiveAuditLogs(
       documentId,
       action: 'update',
       field: 'ai_user_directive_extraction',
+      oldValue: '',
       newValue: `extracted:${summary.extractedCount}`,
       source: 'ai',
       timestamp,
@@ -253,6 +258,7 @@ export function buildUserDirectiveAuditLogs(
       documentId,
       action: 'update',
       field: 'ai_user_directive_application',
+      oldValue: '',
       newValue: `accepted:${summary.acceptedCount};ignored:${summary.ignoredCount};downgraded:${summary.downgradedCount};superseded:${summary.supersededCount}`,
       source: 'ai',
       timestamp,

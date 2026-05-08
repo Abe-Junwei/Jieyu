@@ -12,7 +12,6 @@ export {
   formatActionClarify,
   formatEmptyModelReply,
   formatFirstChunkTimeoutError,
-  formatInlineCancelReply,
   formatNonActionFallback,
   formatPendingConfirmationBlockedError,
   formatSessionBudgetExceededError,

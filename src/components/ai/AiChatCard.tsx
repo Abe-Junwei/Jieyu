@@ -17,7 +17,7 @@ import {
 import { buildAdoptionAcceptProposeChangesUserPrompt } from '../../ai/vertical/adoptionProposeChangesUserPrompt';
 import { scheduleAdoptionOutcomeAuditLog } from '../../ai/vertical/adoptionOutcomeAuditPersist';
 import type { SavedCorpusSourceSet } from '../../ai/vertical/corpusSourceSet';
-import { createSavedSourceSet, switchActiveSourceSet } from '../../ai/vertical/corpusSourceSet';
+import { createSavedSourceSet, switchActiveSourceSet, pruneInvalidatedSourceSets, type SourceSetMemberType } from '../../ai/vertical/corpusSourceSet';
 import { getAiChatProviderDefinition } from '../../ai/providers/providerCatalog';
 import type { AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
@@ -25,6 +25,8 @@ import { useAiPromptTemplates } from './useAiPromptTemplates';
 import { getAiChatCardMessages } from '../../i18n/messages';
 import { AiPanelContext } from '../../contexts/AiPanelContext';
 import { useGlobalContext } from '../../services/GlobalContextService';
+import { getDb } from '../../db';
+import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
 import { useAssistantDialogueSnapshot } from '../../hooks/useAssistantDialogueSnapshot';
 import { isAssistantChatComposerBlocked, isVoiceDialogueBlockingPrimary } from '../../services/assistantDialogueState';
 import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles } from '../../ai/chat/adaptiveInputProfile';
@@ -146,6 +148,81 @@ export function AiChatCard({
   const pendingPostStreamAdoptionPromptsRef = useRef<string[]>([]);
   const [savedSourceSets, setSavedSourceSets] = useState<SavedCorpusSourceSet[]>([]);
   const [activeSourceSetId, setActiveSourceSetId] = useState<string | null>(null);
+  const persistQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  // P5: Source set hydration from Dexie + invalidation pruning (mount-only by design;
+  // continuous invalidation would require subscribing to all related tables)
+  useEffect(() => {
+    let cancelled = false;
+    getDb()
+      .then(async (db) => {
+        const rows = await db.collections.ai_source_sets.find().exec();
+        if (cancelled) return;
+        let sets = rows.map((r) => r.toJSON());
+
+        // P1-3: Runtime invalidation detection
+        if (sets.length > 0) {
+          const [layerUnitIdsList, texts, lexemes, userNotes, mediaItems, layerLinks] = await Promise.all([
+            LayerSegmentQueryService.listAllLayerUnitIds().catch(() => [] as string[]),
+            db.collections.texts.find().exec().catch(() => []),
+            db.collections.lexemes.find().exec().catch(() => []),
+            db.collections.user_notes.find().exec().catch(() => []),
+            db.collections.media_items.find().exec().catch(() => []),
+            db.collections.layer_links.find().exec().catch(() => []),
+          ]);
+          const layerUnitIds = new Set(layerUnitIdsList);
+          const textIds = new Set(texts.map((t) => t.id));
+          const lexemeIds = new Set(lexemes.map((l) => l.id));
+          const noteIds = new Set(userNotes.map((n) => n.id));
+          const mediaIds = new Set(mediaItems.map((m) => m.id));
+          const layerLinkIds = new Set(layerLinks.map((l) => l.id));
+
+          const { updated, invalidatedIds } = pruneInvalidatedSourceSets(
+            sets,
+            (id, type) => {
+              switch (type) {
+                case 'segment': return layerUnitIds.has(id);
+                case 'document': return textIds.has(id);
+                case 'lexeme': return lexemeIds.has(id);
+                case 'note': return noteIds.has(id);
+                case 'layer': return layerLinkIds.has(id);
+                case 'audio_region': return mediaIds.has(id);
+                default: return false;
+              }
+            },
+            (mediaId) => mediaIds.has(mediaId),
+            (layerId) => layerLinkIds.has(layerId),
+          );
+
+          if (invalidatedIds.length > 0) {
+            sets = updated;
+            await Promise.all(sets.map((set) => db.collections.ai_source_sets.update(set.id, set)));
+          }
+        }
+
+        if (!cancelled) {
+          setSavedSourceSets(sets);
+        }
+      })
+      .catch((err) => { console.error('[AiChatCard] source set hydration/prune failed', err); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // P5: Persist source sets to Dexie (serialized via Promise queue to avoid races)
+  const persistSourceSets = useCallback((sets: SavedCorpusSourceSet[]) => {
+    persistQueueRef.current = persistQueueRef.current
+      .then(async () => {
+        const db = await getDb();
+        const existing = await db.collections.ai_source_sets.find().exec();
+        const existingIds = new Set(existing.map((r) => r.id));
+        await Promise.all(sets.map((set) =>
+          existingIds.has(set.id)
+            ? db.collections.ai_source_sets.update(set.id, set)
+            : db.collections.ai_source_sets.insert(set),
+        ));
+      })
+      .catch((err) => { console.error('[AiChatCard] persistSourceSets failed', err); });
+  }, []);
 
   // P5: Source set management
   const handleCreateSourceSet = useCallback(() => {
@@ -154,19 +231,53 @@ export function AiChatCard({
       scope: 'selection',
       members: [],
     });
-    setSavedSourceSets((prev) => [...prev, newSet]);
+    const nextSets = [...savedSourceSets, newSet];
+    setSavedSourceSets(nextSets);
     setActiveSourceSetId(newSet.id);
     onSetActiveSourceSetId?.(newSet.id);
-  }, [savedSourceSets.length, onSetActiveSourceSetId]);
+    persistSourceSets(nextSets);
+  }, [savedSourceSets, onSetActiveSourceSetId, persistSourceSets]);
 
   const handleSelectSourceSet = useCallback((id: string) => {
     const nextId = id || null;
     setActiveSourceSetId(nextId);
     onSetActiveSourceSetId?.(nextId);
     if (id) {
-      setSavedSourceSets((prev) => switchActiveSourceSet(prev, id));
+      const nextSets = switchActiveSourceSet(savedSourceSets, id);
+      setSavedSourceSets(nextSets);
+      persistSourceSets(nextSets);
     }
-  }, [onSetActiveSourceSetId]);
+  }, [savedSourceSets, onSetActiveSourceSetId, persistSourceSets]);
+
+  // P5: Source set member management
+  const handleAddSourceSetMember = useCallback((setId: string, member: { id: string; type: SourceSetMemberType; label?: string }) => {
+    setSavedSourceSets((prev) => {
+      const next = prev.map((s) => {
+        if (s.id !== setId) return s;
+        const newMember = {
+          id: member.id,
+          type: member.type,
+          ...(member.label !== undefined ? { label: member.label } : {}),
+        };
+        const members = [...s.members, newMember];
+        return { ...s, members, updatedAt: new Date().toISOString() };
+      });
+      persistSourceSets(next);
+      return next;
+    });
+  }, [persistSourceSets]);
+
+  const handleRemoveSourceSetMember = useCallback((setId: string, memberId: string) => {
+    setSavedSourceSets((prev) => {
+      const next = prev.map((s) => {
+        if (s.id !== setId) return s;
+        const members = s.members.filter((m) => m.id !== memberId);
+        return { ...s, members, updatedAt: new Date().toISOString() };
+      });
+      persistSourceSets(next);
+      return next;
+    });
+  }, [persistSourceSets]);
 
   const showProviderConfig = providerConfigOpen ?? localShowProviderConfig;
   const toggleProviderConfig = useCallback(() => {
@@ -489,10 +600,14 @@ export function AiChatCard({
   useEffect(() => {
     setAdoptionItems((prev) => {
       if (prev.length === 0) return prev;
-      const pruned = pruneExpiredItems({ items: prev }, Date.now());
+      const pruned = pruneExpiredItems({ items: prev }, Date.now(), undefined, (expiredItems) => {
+        for (const item of expiredItems) {
+          scheduleAdoptionOutcomeAuditLog({ conversationId: aiConversationId, item, action: 'expire' });
+        }
+      });
       return pruned.items;
     });
-  }, []);
+  }, [aiConversationId]);
 
   // P4: rehydrate adoption items from persisted compatibility reports on mount
   useEffect(() => {
@@ -951,6 +1066,8 @@ export function AiChatCard({
             activeSourceSetId={activeSourceSetId}
             onSelectSourceSet={handleSelectSourceSet}
             onCreateSourceSet={handleCreateSourceSet}
+            onAddSourceSetMember={handleAddSourceSetMember}
+            onRemoveSourceSetMember={handleRemoveSourceSetMember}
           />
 
           <AiAdoptionQueuePanel

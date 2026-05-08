@@ -21,9 +21,9 @@ export type VoiceLocalWhisperConfig = {
 
 export type VoiceSttEnhancementConfig = SttEnhancementConfig;
 
-export const VOICE_COMMERCIAL_STT_STORAGE_KEY = 'jieyu.voiceAgent.commercialStt';
-export const VOICE_LOCAL_WHISPER_STORAGE_KEY = 'jieyu.voiceAgent.localWhisper';
-export const VOICE_STT_ENHANCEMENT_STORAGE_KEY = 'jieyu.voiceAgent.sttEnhancement';
+const VOICE_COMMERCIAL_STT_STORAGE_KEY = 'jieyu.voiceAgent.commercialStt';
+const VOICE_LOCAL_WHISPER_STORAGE_KEY = 'jieyu.voiceAgent.localWhisper';
+const VOICE_STT_ENHANCEMENT_STORAGE_KEY = 'jieyu.voiceAgent.sttEnhancement';
 export const VOICE_SETTINGS_UPDATED_EVENT = 'jieyu:voice-settings-storage-updated';
 const log = createLogger('useVoiceDock');
 

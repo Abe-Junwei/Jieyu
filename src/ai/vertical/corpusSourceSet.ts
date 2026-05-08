@@ -8,7 +8,7 @@
  * - 不直接操作 DB；DB 读写由调用方负责
  */
 
-import type { CorpusSourceSet } from './sourceResolver';
+import type { CorpusSourceSet } from './corpusScopeTypes';
 
 export type SourceSetMemberType =
   | 'segment'
@@ -24,7 +24,7 @@ export interface SourceSetMember {
   label?: string;
 }
 
-export type SavedCorpusSourceSetStatus = 'active' | 'inactive' | 'invalidated';
+type SavedCorpusSourceSetStatus = 'active' | 'inactive' | 'invalidated';
 
 export interface SavedCorpusSourceSet {
   /** 全局唯一标识（由调用方生成，如 crypto.randomUUID） */
@@ -253,6 +253,7 @@ export function deleteSavedSourceSet(
 /**
  * 批量检查并标记失效 source set。
  * 返回更新后的列表 + 被标记失效的 id 列表。
+ * TODO(P1-3): 当前未接入 UI 运行时失效检测；待 Source Set 持久化完成后接线。
  */
 export function pruneInvalidatedSourceSets(
   sourceSets: readonly SavedCorpusSourceSet[],
@@ -293,6 +294,7 @@ export function pruneInvalidatedSourceSets(
 /**
  * 将 SavedCorpusSourceSet 转换为运行时 CorpusSourceSet。
  * 用于将保存的 source set 喂给 sourceResolver / RAG 流程。
+ * TODO(P1-4): 当前未被调用；待 Source Set 持久化 + 列表 UI 完成后接线。
  */
 export function toRuntimeCorpusSourceSet(saved: SavedCorpusSourceSet): CorpusSourceSet {
   const sourceIds = saved.members.map((m) => m.id);
@@ -308,6 +310,7 @@ export function toRuntimeCorpusSourceSet(saved: SavedCorpusSourceSet): CorpusSou
 
 /**
  * 从运行时 CorpusSourceSet + 成员详情构建 SavedCorpusSourceSet。
+ * TODO(P1-4): 当前未被调用；待 Source Set 持久化 + 列表 UI 完成后接线。
  */
 export function fromRuntimeCorpusSourceSet(
   runtime: CorpusSourceSet,

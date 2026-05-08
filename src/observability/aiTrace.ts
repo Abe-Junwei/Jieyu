@@ -10,10 +10,10 @@ import { recordMetric, type MetricTags } from './metrics';
 
 // ─── span 类型 | Span types ──────────────────────────────────────────────
 
-export type AiTraceSpanKind = 'llm-request' | 'tool-execution' | 'agent-loop-step';
+type AiTraceSpanKind = 'llm-request' | 'tool-execution' | 'agent-loop-step';
 
-export type AiTraceStatusCode = 'OK' | 'ERROR';
-export type AiTraceAttributeValue = string | number | boolean;
+type AiTraceStatusCode = 'OK' | 'ERROR';
+type AiTraceAttributeValue = string | number | boolean;
 
 export interface AiTraceSpan {
   kind: AiTraceSpanKind;

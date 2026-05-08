@@ -120,7 +120,7 @@ export function findSearchMatches(
   return matches;
 }
 
-export function replaceAllInItems(
+function replaceAllInItems(
   items: SearchableItem[],
   query: string,
   replaceText: string,

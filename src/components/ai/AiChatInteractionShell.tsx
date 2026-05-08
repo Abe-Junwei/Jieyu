@@ -6,7 +6,7 @@ import { AiChatMessageThread } from './AiChatMessageThread';
 import { AiChatAlertsPanel } from './AiChatAlertsPanel';
 import { AiChatCandidateChips } from './AiChatCandidateChips';
 import { AiSourceSetBar } from './AiSourceSetBar';
-import type { SavedCorpusSourceSet } from '../../ai/vertical/corpusSourceSet';
+import type { SavedCorpusSourceSet, SourceSetMemberType } from '../../ai/vertical/corpusSourceSet';
 
 type SummaryPanelProps = ComponentProps<typeof AiChatSummaryPanels>;
 type MessageThreadProps = ComponentProps<typeof AiChatMessageThread>;
@@ -67,6 +67,8 @@ type AiChatInteractionShellProps =
     activeSourceSetId?: string | null;
     onSelectSourceSet?: (id: string) => void;
     onCreateSourceSet?: () => void;
+    onAddSourceSetMember?: (setId: string, member: { id: string; type: SourceSetMemberType; label?: string }) => void;
+    onRemoveSourceSetMember?: (setId: string, memberId: string) => void;
   };
 
 export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
@@ -134,6 +136,8 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
     activeSourceSetId,
     onSelectSourceSet,
     onCreateSourceSet,
+    onAddSourceSetMember,
+    onRemoveSourceSetMember,
   } = props;
 
   return (
@@ -145,6 +149,8 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
           locale={locale}
           onSelectSourceSet={onSelectSourceSet}
           onCreateSourceSet={onCreateSourceSet}
+          onAddMember={onAddSourceSetMember}
+          onRemoveMember={onRemoveSourceSetMember}
         />
       )}
       <AiChatSummaryPanels

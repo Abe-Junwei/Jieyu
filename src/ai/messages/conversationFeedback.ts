@@ -93,10 +93,6 @@ export function formatTargetClarify(
   );
 }
 
-export function formatInlineCancelReply(): string {
-  return '\u597d\u7684，\u5df2\u53d6\u6d88。';
-}
-
 export function formatEmptyModelReply(): string {
   return '\u8fd9\u6b21\u6ca1\u6709\u6536\u5230\u6a21\u578b\u7684\u6709\u6548\u56de\u590d，\u8bf7\u91cd\u8bd5\u4e00\u6b21；\u5982\u679c\u4ecd\u4e3a\u7a7a，\u8bf7\u5207\u6362\u6a21\u578b\u6216\u68c0\u67e5\u4e0a\u6e38\u670d\u52a1\u72b6\u6001。';
 }

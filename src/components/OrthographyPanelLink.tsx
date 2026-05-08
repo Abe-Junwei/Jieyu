@@ -7,7 +7,7 @@ type OrthographyPanelLinkProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, '
   children?: ReactNode;
 };
 
-export function buildOrthographyPanelPath({
+function buildOrthographyPanelPath({
   orthographyId,
   fromLayerId,
 }: {

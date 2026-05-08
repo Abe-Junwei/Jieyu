@@ -4,7 +4,7 @@ import { joinClassNames } from './classNames';
 /**
  * 反馈消息级别 | Feedback message severity level
  */
-export type PanelFeedbackLevel = 'error' | 'warn' | 'info';
+type PanelFeedbackLevel = 'error' | 'warn' | 'info';
 
 interface PanelFeedbackProps extends HTMLAttributes<HTMLParagraphElement> {
   level: PanelFeedbackLevel;

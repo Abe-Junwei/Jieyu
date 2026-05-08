@@ -8,7 +8,7 @@ import { buildReflectionRetryPrompt as buildSegmentQaReflectionRetryPrompt } fro
 import type { ElanFlexCompatibilityReflectionResult } from './elanFlexCompatibilityWorkflow';
 import { buildElanFlexCompatibilityReflectionRetryPrompt } from './elanFlexCompatibilityWorkflow';
 
-export type ComposedWorkflowStepId = 'segment_qa' | 'annotation_qa' | 'lexeme_candidates';
+type ComposedWorkflowStepId = 'segment_qa' | 'annotation_qa' | 'lexeme_candidates';
 
 export interface ComposedWorkflowTemplate {
   id: string;

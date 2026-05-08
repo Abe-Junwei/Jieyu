@@ -1,4 +1,4 @@
-export type ErrorCategory = 'validation' | 'action' | 'conflict';
+type ErrorCategory = 'validation' | 'action' | 'conflict';
 
 export type StructuredErrorMeta = {
   category: ErrorCategory;

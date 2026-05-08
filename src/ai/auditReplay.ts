@@ -168,7 +168,7 @@ export async function loadAiToolReplayBundle(requestId: string): Promise<AiToolR
   if (rows.length === 0) return null;
 
   const intentRow = rows
-    .filter((row) => row.field === 'ai_tool_call_intent_assessment')
+    .filter((row) => row.field === 'ai_tool_call_intent')
     .slice(-1)[0];
   const intentMetadata = parseIntentMetadata(intentRow?.metadataJson);
   const intentAssessment = safeParseJson(intentRow?.newValue);
@@ -263,7 +263,7 @@ export function serializeAiToolGoldenSnapshot(bundle: AiToolReplayBundle): strin
 /**
  * 单字段对比结果 | Single-field comparison result
  */
-export interface AiToolSnapshotField {
+interface AiToolSnapshotField {
   label: string;
   baseline: string;
   live: string;

@@ -15,7 +15,7 @@ const UNAUTHORIZED_RESPONSE = JSON.stringify({
   error: { code: -32001, message: 'Unauthorized: invalid or missing Bearer token' },
 });
 
-export function extractBearerToken(req: IncomingMessage): string | null {
+function extractBearerToken(req: IncomingMessage): string | null {
   const auth = req.headers.authorization ?? '';
   const parts = auth.split(' ');
   if (parts.length === 2 && parts[0]!.toLowerCase() === 'bearer') {

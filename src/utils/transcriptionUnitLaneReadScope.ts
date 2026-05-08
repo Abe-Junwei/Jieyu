@@ -63,7 +63,7 @@ export function resolvePrimaryUnscopedTranscriptionHostId(
  * How a canonical timeline unit is attributed to a transcription lane row for **read / display**
  * (paired-reading source walk, lane-scoped UI). Not for persistence or write routing.
  */
-export type TranscriptionLaneCanonicalRowResolution =
+type TranscriptionLaneCanonicalRowResolution =
   | 'explicit_unit_layer'
   | 'explicit_tree_parent_layer'
   | 'unscoped_default_host'

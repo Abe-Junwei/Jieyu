@@ -164,7 +164,7 @@ export function assessClockDrift(
   };
 }
 
-export function computeCrossDeviceDigest(replica: CrossDeviceReplica): string {
+function computeCrossDeviceDigest(replica: CrossDeviceReplica): string {
   return hashString(stableStringify(canonicalReplica(replica)));
 }
 

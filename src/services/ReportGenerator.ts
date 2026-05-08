@@ -17,7 +17,7 @@ const log = createLogger('ReportGenerator');
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type ReportType = 'daily' | 'weekly' | 'project' | 'custom';
+type ReportType = 'daily' | 'weekly' | 'project' | 'custom';
 
 export interface ReportOptions {
   type: ReportType;
@@ -621,15 +621,4 @@ export class ReportGenerator {
     ];
     return lines.filter(Boolean).join('\n');
   }
-}
-
-// ── Singleton export ──────────────────────────────────────────────────────────
-
-let _instance: ReportGenerator | null = null;
-
-export function getReportGenerator(): ReportGenerator {
-  if (!_instance) {
-    _instance = new ReportGenerator();
-  }
-  return _instance;
 }

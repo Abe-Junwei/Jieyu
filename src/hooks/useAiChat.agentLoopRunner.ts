@@ -5,7 +5,5 @@
 
 export {
   runAgentLoop,
-  type AgentLoopInitialState,
   type AgentLoopRunnerResult,
-  type AgentLoopRunnerDeps,
 } from '../ai/chat/agentLoopRunner';

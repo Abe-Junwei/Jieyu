@@ -61,10 +61,6 @@ export function useSidePaneLayerContextOrFallback(options: { warnOnMissing?: boo
   return ctx;
 }
 
-export function useSidePaneLayerContext(): SidePaneLayerContextValue {
-  return useSidePaneLayerContextOrFallback({ warnOnMissing: true });
-}
-
 // ── Provider Props ────────────────────────────────────────────────────────────
 
 interface SidePaneLayerProviderProps {

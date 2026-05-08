@@ -6,7 +6,7 @@ export type AcousticCalibrationStatus = 'exploratory' | 'calibrated';
 
 export const ACOUSTIC_CALIBRATION_VERSION = 'acoustic-calibration-fixed-v1-2026-04-09';
 
-export interface AcousticPanelFramePoint {
+interface AcousticPanelFramePoint {
   timeSec: number;
   relativeTimeSec: number;
   timeRatio: number;
@@ -26,7 +26,7 @@ export interface AcousticPanelFramePoint {
   normalizedIntensity: number | null;
 }
 
-export interface AcousticPanelToneBin {
+interface AcousticPanelToneBin {
   index: number;
   timeSec: number;
   timeRatio: number;

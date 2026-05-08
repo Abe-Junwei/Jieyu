@@ -1,17 +1,9 @@
 import type { AiPromptContext } from '../chat/chatDomain.types';
 import type { AiMessageCitation } from '../../db';
 import { buildEvidencePacketV0, type EvidencePacketV0, type EvidencePacketSourceSetSnapshot } from './evidencePacket';
-import type { SavedCorpusSourceSet } from './corpusSourceSet';
+import type { CorpusSourceSet } from './corpusScopeTypes';
 
-export type CorpusScope = 'current_segment' | 'selection' | 'current_media' | 'project';
-
-export interface CorpusSourceSet {
-  scope: CorpusScope;
-  sourceIds: readonly string[];
-  mediaId?: string;
-  projectId?: string;
-  layerId?: string;
-}
+export type { CorpusSourceSet } from './corpusScopeTypes';
 
 /**
  * Resolve the available corpus source set from the current prompt context.
@@ -86,7 +78,7 @@ function citationTypeToEvidenceSourceType(citationType: AiMessageCitation['type'
   }
 }
 
-export function buildSourceSetSnapshot(sourceSet: CorpusSourceSet | null): EvidencePacketSourceSetSnapshot | undefined {
+function buildSourceSetSnapshot(sourceSet: CorpusSourceSet | null): EvidencePacketSourceSetSnapshot | undefined {
   if (!sourceSet) return undefined;
   const snapshot: EvidencePacketSourceSetSnapshot = {
     sourceSetId: sourceSet.sourceIds.join('_') || 'project_wide',
@@ -127,22 +119,4 @@ export function ragCitationsToEvidencePackets(
     }
     return buildEvidencePacketV0(packetInput);
   });
-}
-
-/**
- * Build a runtime CorpusSourceSet from a SavedCorpusSourceSet.
- * Used when the user has explicitly selected a saved source set.
- */
-export function resolveCorpusSourceSetFromSaved(
-  saved: SavedCorpusSourceSet | null | undefined,
-): CorpusSourceSet | null {
-  if (!saved) return null;
-  const result: CorpusSourceSet = {
-    scope: saved.scope,
-    sourceIds: saved.members.map((m) => m.id),
-  };
-  if (saved.mediaId !== undefined) result.mediaId = saved.mediaId;
-  if (saved.layerId !== undefined) result.layerId = saved.layerId;
-  if (saved.projectId !== undefined) result.projectId = saved.projectId;
-  return result;
 }

@@ -12,7 +12,7 @@ export interface LexemeCandidatesReflectionResult {
   summary: string;
 }
 
-export interface LexemeCandidatesReflectionCheck {
+interface LexemeCandidatesReflectionCheck {
   name: string;
   passed: boolean;
   detail: string;
@@ -99,7 +99,7 @@ export function runLexemeCandidatesReflection(
       : 'no candidate structure markers (lexeme/gloss/pos/candidate/form)',
   });
 
-  // Check 5: inline [n] markers must be within 1..evidenceCount when evidence exists
+  // Check 6: inline [n] markers must be within 1..evidenceCount when evidence exists
   const markerIndices = [...assistantContent.matchAll(/\[(\d+)\]/g)]
     .map((m) => Number(m[1]))
     .filter((n) => Number.isFinite(n));

@@ -5,7 +5,7 @@ import type { TextDocType, LayerUnitDocType } from '../db';
 type DialogUnit = Pick<LayerUnitDocType, 'textId'>;
 export type TextTimelineMode = 'document' | 'media';
 
-export type TextTimeMappingSummaryItem = {
+type TextTimeMappingSummaryItem = {
   offsetSec: number;
   scale: number;
   revision: number;

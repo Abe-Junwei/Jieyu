@@ -6,7 +6,7 @@ import { ISO3166_COUNTRIES } from '../data/iso3166CountriesData';
 const COUNTRY_BY_ISO = new Map(ISO3166_COUNTRIES.map((c) => [c.isoCode, c] as const));
 
 /** Territories with multiple official languages: ordered BCP47 list for endonym-style region names */
-export const ISO2_ENDONYM_LOCALE_LISTS: Readonly<Record<string, readonly string[]>> = {
+const ISO2_ENDONYM_LOCALE_LISTS: Readonly<Record<string, readonly string[]>> = {
   BE: ['nl-BE', 'fr-BE', 'de-BE'],
   CH: ['de-CH', 'fr-CH', 'it-CH', 'rm-CH'],
   CA: ['en-CA', 'fr-CA'],

@@ -18,35 +18,35 @@ export type WorkspaceEventName =
   | typeof WORKSPACE_LEXEME_DELETED_EVENT
   | typeof WORKSPACE_CONTEXT_SYNC_EVENT;
 
-export interface WorkspaceEventBaseDetail {
+interface WorkspaceEventBaseDetail {
   eventId: string;
   occurredAt: string;
   idempotencyKey: string;
 }
 
-export interface WorkspaceUnitUpdatedDetail extends WorkspaceEventBaseDetail {
+interface WorkspaceUnitUpdatedDetail extends WorkspaceEventBaseDetail {
   unitId: string;
   layerId: string;
   revision: number | string;
 }
 
-export interface WorkspaceLexemeUpdatedDetail extends WorkspaceEventBaseDetail {
+interface WorkspaceLexemeUpdatedDetail extends WorkspaceEventBaseDetail {
   lexemeId: string;
   revision: number | string;
   textId?: string;
 }
 
-export type WorkspaceLexemeDeletionMode = 'soft' | 'hard';
+type WorkspaceLexemeDeletionMode = 'soft' | 'hard';
 
-export interface WorkspaceLexemeDeletedDetail extends WorkspaceEventBaseDetail {
+interface WorkspaceLexemeDeletedDetail extends WorkspaceEventBaseDetail {
   lexemeId: string;
   deletionMode: WorkspaceLexemeDeletionMode;
   textId?: string;
 }
 
-export type WorkspaceContextSyncPage = 'transcription' | 'annotation' | 'lexicon' | 'corpus' | 'analysis';
+type WorkspaceContextSyncPage = 'transcription' | 'annotation' | 'lexicon' | 'corpus' | 'analysis';
 
-export interface WorkspaceContextSyncDetail extends WorkspaceEventBaseDetail {
+interface WorkspaceContextSyncDetail extends WorkspaceEventBaseDetail {
   sourcePage: WorkspaceContextSyncPage;
   targetPage: WorkspaceContextSyncPage;
   contextKeys: string[];

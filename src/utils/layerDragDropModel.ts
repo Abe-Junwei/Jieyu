@@ -1,10 +1,10 @@
-export interface LayerBundleRange {
+interface LayerBundleRange {
   rootId: string;
   start: number;
   end: number;
 }
 
-export type LayerDragKind = 'root-bundle' | 'dependent';
+type LayerDragKind = 'root-bundle' | 'dependent';
 
 export interface LayerDropIntent {
   draggedId: string;

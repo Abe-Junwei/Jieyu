@@ -28,7 +28,7 @@ export const DEGRADATION_SCENARIOS: readonly DegradationScenario[] = [
   'rag_no_results',
 ];
 
-export type DegradationOverrideStatus = 'pending' | 'overridden' | 'dismissed';
+type DegradationOverrideStatus = 'pending' | 'overridden' | 'dismissed';
 
 export interface DegradationOverrideState {
   scenario: DegradationScenario;

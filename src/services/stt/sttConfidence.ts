@@ -10,7 +10,7 @@
 
 // ── Whisper verbose_json 类型 | Whisper verbose_json types ──────────────────
 
-export interface WhisperVerboseSegment {
+interface WhisperVerboseSegment {
   /** 语段起始秒 | Segment start in seconds */
   start: number;
   /** 语段结束秒 | Segment end in seconds */

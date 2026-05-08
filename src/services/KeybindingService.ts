@@ -13,7 +13,7 @@ import { createLogger } from '../observability/logger';
 // ---- Types ----
 
 export type KeyCombo = string;
-export type ActionScope = 'global' | 'waveform';
+type ActionScope = 'global' | 'waveform';
 
 export interface KeybindingEntry {
   id: string;
@@ -143,15 +143,6 @@ export function getEffectiveKeymap(): Map<string, KeyCombo> {
     map.set(entry.id, overrides.get(entry.id) ?? entry.defaultKey);
   }
   return map;
-}
-
-/** Resolve all keybinding entries with effective combos. */
-export function getResolvedKeybindings(): Array<KeybindingEntry & { effectiveKey: KeyCombo }> {
-  const overrides = loadUserOverrides();
-  return DEFAULT_KEYBINDINGS.map((entry) => ({
-    ...entry,
-    effectiveKey: overrides.get(entry.id) ?? entry.defaultKey,
-  }));
 }
 
 /** Format keyboard combo for display. */

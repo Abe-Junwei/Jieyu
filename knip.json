@@ -1,0 +1,55 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "index.html",
+    "src/workerThreads.browser.ts",
+    "src/test/vitest*Setup.ts",
+    "scripts/**/*.{mjs,cjs,js}",
+    "tests/**/*.{ts,tsx}"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "scripts/**/*.{mjs,cjs,js,ts}",
+    "tests/**/*.{ts,tsx}",
+    "*.{ts,mjs,cjs,js}"
+  ],
+  "ignore": [
+    "src/ai/embeddings/embeddingSmokeTest.ts",
+    "src/ai/mcp/client/mcpClientTypes.ts",
+    "src/ai/perf/embeddingModelDecision.ts",
+    "src/assets/lottie/left-rail/leftRailLottieMap.ts",
+    "src/data/generated/iso6393Seed.generated.ts",
+    "src/data/generated/languageNameCatalog.generated.ts",
+    "src/pages/annotation/annotationLaneReadScope.ts",
+    "src/services/VoiceAgentService.singleton.ts"
+  ],
+  "ignoreDependencies": [
+    "country-state-city"
+  ],
+  "ignoreBinaries": [
+    "knip"
+  ],
+  "ignoreIssues": {
+    "src/ai/chat/toolCallSchemas.ts": [
+      "exports"
+    ],
+    "src/annotation/analysisGraph.ts": [
+      "exports"
+    ],
+    "src/annotation/structuralRuleProfile.ts": [
+      "exports"
+    ],
+    "src/data/languageCatalogRuntimeCache.ts": [
+      "exports"
+    ],
+    "src/data/languageNameTypes.ts": [
+      "types"
+    ],
+    "src/db/index.ts": [
+      "exports"
+    ],
+    "src/utils/transcriptionUnitLaneReadScope.ts": [
+      "types"
+    ]
+  }
+}

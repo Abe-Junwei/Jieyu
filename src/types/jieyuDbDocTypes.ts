@@ -18,6 +18,5 @@ export type {
   MultiLangString,
   OrthographyDocType,
   SpeakerDocType,
-  TranscriptionLayerDocType,
   UserNoteDocType,
 } from '../db';

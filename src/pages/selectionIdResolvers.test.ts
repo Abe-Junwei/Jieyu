@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { hasSelectionSourceForUnitMapping, resolveMappedUnitIds, resolveMappedUnitIdsFromSelection, resolveSegmentActionIds, resolveSegmentActionIdsFromSelection, resolveSegmentOnlyIds, resolveSegmentOnlyIdsFromSelection, resolveUnitSelectionMapping } from './selectionIdResolvers';
+import { hasSelectionSourceForUnitMapping, resolveMappedUnitIds, resolveMappedUnitIdsFromSelection, resolveSegmentOnlyIds, resolveSegmentOnlyIdsFromSelection, resolveUnitSelectionMapping } from './selectionIdResolvers';
 
 function utt(id: string): TimelineUnitView {
   return { id, kind: 'unit', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: '' };
@@ -80,28 +80,6 @@ describe('selectionIdResolvers', () => {
     const result = resolveSegmentOnlyIds(['utt-1', 'seg-a', 'seg-b', 'seg-a'], unitViewById);
 
     expect(result.sort()).toEqual(['seg-a', 'seg-b']);
-  });
-
-  it('exposes resolveSegmentActionIds as an alias of resolveSegmentOnlyIds', () => {
-    const unitViewById = new Map<string, TimelineUnitView>([
-      ['utt-1', utt('utt-1')],
-      ['seg-a', seg('seg-a', 'utt-2')],
-    ]);
-
-    expect(resolveSegmentActionIds(['utt-1', 'seg-a'], unitViewById).sort())
-      .toEqual(resolveSegmentOnlyIds(['utt-1', 'seg-a'], unitViewById).sort());
-
-    const fromAlias = resolveSegmentActionIdsFromSelection({
-      selectedUnitIds: new Set(['seg-a']),
-      selectedTimelineUnit: null,
-      unitViewById,
-    });
-    const fromPrimary = resolveSegmentOnlyIdsFromSelection({
-      selectedUnitIds: new Set(['seg-a']),
-      selectedTimelineUnit: null,
-      unitViewById,
-    });
-    expect(Array.from(fromAlias)).toEqual(Array.from(fromPrimary));
   });
 
   it('resolves segment-only ids from selection source without parent fallback', () => {

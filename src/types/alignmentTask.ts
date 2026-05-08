@@ -1,20 +1,11 @@
-export type AlignmentProviderKind = 'webmaus' | 'whisperx' | 'mfa' | (string & {});
+type AlignmentProviderKind = 'webmaus' | 'whisperx' | 'mfa' | (string & {});
 
-export type AlignmentTaskStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+type AlignmentTaskStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 
 export interface AlignmentInterval {
   text: string;
   startTime: number;
   endTime: number;
-}
-
-export interface AlignmentTaskRequest {
-  provider: AlignmentProviderKind;
-  mediaId?: string;
-  textId?: string;
-  language?: string;
-  transcriptText: string;
-  unitIds?: string[];
 }
 
 export interface AlignmentTaskResult {

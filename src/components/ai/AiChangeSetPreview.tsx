@@ -45,4 +45,3 @@ export function AiChangeSetPreview({
   );
 }
 
-export default AiChangeSetPreview;

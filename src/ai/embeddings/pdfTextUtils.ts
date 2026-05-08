@@ -11,7 +11,7 @@ export type PdfChunk = {
   chunk: number;
 };
 
-export type PdfParsePage = {
+type PdfParsePage = {
   page: number;
   text: string;
 };

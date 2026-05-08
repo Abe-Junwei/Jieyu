@@ -37,7 +37,7 @@ export function scheduleAdoptionOutcomeAuditLog(options: {
       field: AI_ADOPTION_OUTCOME_AUDIT_FIELD,
       oldValue: item.workflowId,
       newValue: meta.toStatus,
-      source: 'human',
+      source: action === 'expire' ? 'system' : 'human',
       timestamp,
       requestId: `${item.id}_${action}_${timestamp}`,
       metadataJson: JSON.stringify(meta),

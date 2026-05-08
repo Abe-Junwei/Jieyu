@@ -1,6 +1,5 @@
 import type { LayerDocType, LayerLinkDocType, LayerSegmentViewDocType, LayerUnitDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { getUnitSpeakerKey } from '../hooks/speakerManagement/speakerUtils';
 import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
@@ -22,15 +21,11 @@ export function normalizeSpeakerFocusKey(value: string | undefined): string {
   return trimmed.length > 0 ? trimmed : 'unknown-speaker';
 }
 
-export function resolveSpeakerFocusKeyFromUnit(
+function resolveSpeakerFocusKeyFromUnit(
   unit?: Pick<LayerUnitDocType, 'speakerId' | 'speaker'>,
 ): string {
   if (!unit) return 'unknown-speaker';
   return normalizeSpeakerFocusKey(getUnitSpeakerKey(unit));
-}
-
-export function resolveSpeakerFocusKeyFromView(view: TimelineUnitView): string {
-  return normalizeSpeakerFocusKey(view.speakerId);
 }
 
 export function resolveSpeakerFocusKeyFromSegment(
@@ -45,7 +40,7 @@ export function resolveSpeakerFocusKeyFromSegment(
   return resolveSpeakerFocusKeyFromUnit(ownerUnit);
 }
 
-export function toSpeakerLayoutInputFromSegments(
+function toSpeakerLayoutInputFromSegments(
   segments: LayerUnitDocType[],
   unitById: ReadonlyMap<string, LayerUnitDocType>,
 ): LayerUnitDocType[] {
@@ -64,7 +59,7 @@ export function toSpeakerLayoutInputFromSegments(
   });
 }
 
-export function buildSegmentSpeakerIdMap(
+function buildSegmentSpeakerIdMap(
   segments: LayerUnitDocType[],
   unitById: ReadonlyMap<string, LayerUnitDocType>,
 ): Map<string, string> {

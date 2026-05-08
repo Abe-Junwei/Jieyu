@@ -73,7 +73,9 @@ describe('useAiChat structure invariants', () => {
     const sessionMemoryImportMatch = code.match(/import\s*\{([\s\S]*?)\}\s*from\s*'\.\.\/ai\/chat\/sessionMemory';/);
     const sessionMemoryImportMembers = sessionMemoryImportMatch?.[1] ?? '';
 
-    expect(code.includes('const provider = useMemo(() => createAiChatProvider(settings), [settings]);')).toBe(true);
+    expect(code.includes('provider: createAiChatProvider(settings)')).toBe(true);
+    expect(code.includes('fallbackProvider: createFallbackAiChatProvider(settings)')).toBe(true);
+    expect(code.includes('const { provider, fallbackProvider } = useMemo(')).toBe(true);
     expect(code.includes('const orchestrator = useMemo(() => new ChatOrchestrator(provider, fallbackProvider), [provider, fallbackProvider]);')).toBe(true);
     expect(code.includes('const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());')).toBe(true);
     expect(sessionMemoryImportMembers.includes('loadSessionMemory')).toBe(true);

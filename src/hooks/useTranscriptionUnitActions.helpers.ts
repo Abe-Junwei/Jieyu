@@ -1,7 +1,7 @@
 import { layerTranscriptionTreeParentId, type LayerDocType, type LayerUnitContentDocType } from '../db';
 import { t, tf, type Locale } from '../i18n';
 
-export const UNDO_LABEL_KEYS = {
+const UNDO_LABEL_KEYS = {
   editUnitText: 'transcription.unitAction.undo.editText',
   updateTiming: 'transcription.unitAction.undo.updateTiming',
   clearTranslationText: 'transcription.unitAction.undo.clearTranslation',

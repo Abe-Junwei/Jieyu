@@ -7,9 +7,6 @@
  * collaboration so the field model is stable before implementation.
  */
 
-export type CollaborationRole = 'owner' | 'editor' | 'commenter' | 'viewer';
-export type ProjectVisibility = 'private' | 'team' | 'public_read';
-
 /**
  * 实体类型 | Entity types that participate in sync
  */
@@ -42,42 +39,6 @@ export type ProjectChangeOperation =
 export type ProjectChangeSourceKind = 'user' | 'sync' | 'migration';
 
 /**
- * 协议守卫 | Protocol guard information stored on project root
- */
-export interface ProjectProtocolGuard {
-  protocolVersion: number;
-  schemaVersion: number;
-  appMinVersion: string;
-}
-
-/**
- * 项目根记录 | Root collaboration project record
- */
-export interface CollaborationProjectRecord extends ProjectProtocolGuard {
-  id: string;
-  name: string;
-  ownerId: string;
-  visibility: ProjectVisibility;
-  latestSnapshotId?: string;
-  latestRevision: number;
-  createdAt: string;
-  updatedAt: string;
-  archivedAt?: string;
-}
-
-/**
- * 项目成员记录 | Project member record
- */
-export interface CollaborationProjectMemberRecord {
-  projectId: string;
-  userId: string;
-  role: CollaborationRole;
-  invitedBy?: string;
-  joinedAt: string;
-  disabledAt?: string;
-}
-
-/**
  * 快照元数据 | Snapshot metadata only, body lives in object storage
  */
 export interface CollaborationProjectSnapshotRecord {
@@ -103,7 +64,7 @@ export type ProjectVectorClock = Record<string, number>;
 /**
  * 基础 payload 结构 | Base payload shape for change events
  */
-export interface BaseProjectChangePayload {
+interface BaseProjectChangePayload {
   [key: string]: unknown;
   /** 轻量 patch 内容 | Lightweight patch content */
   patch?: Record<string, unknown>;
@@ -116,7 +77,7 @@ export interface BaseProjectChangePayload {
 /**
  * 删除 payload | Delete operation payload
  */
-export interface DeleteEntityPayload extends BaseProjectChangePayload {
+interface DeleteEntityPayload extends BaseProjectChangePayload {
   reason?: string;
   deleted: true;
 }
@@ -124,7 +85,7 @@ export interface DeleteEntityPayload extends BaseProjectChangePayload {
 /**
  * 资源引用 payload | Asset reference payload
  */
-export interface AssetAttachedPayload extends BaseProjectChangePayload {
+interface AssetAttachedPayload extends BaseProjectChangePayload {
   assetId: string;
   storageBucket: string;
   storagePath: string;
@@ -135,7 +96,7 @@ export interface AssetAttachedPayload extends BaseProjectChangePayload {
 /**
  * 评论 payload | Comment payload
  */
-export interface CommentAddedPayload extends BaseProjectChangePayload {
+interface CommentAddedPayload extends BaseProjectChangePayload {
   commentId: string;
   content: string;
 }
@@ -212,13 +173,6 @@ export const CHANGE_PAYLOAD_SOFT_LIMIT_BYTES = 32 * 1024;
  */
 export function shouldUsePayloadRef(payloadBytes: number): boolean {
   return Number.isFinite(payloadBytes) && payloadBytes > CHANGE_PAYLOAD_SOFT_LIMIT_BYTES;
-}
-
-/**
- * 是否是评论专属操作 | Whether the op is comment-only
- */
-export function isCommentOnlyOperation(op: ProjectChangeOperation): boolean {
-  return op === 'comment_added';
 }
 
 /**

@@ -3,6 +3,8 @@ import { createExtensionRegistry, type ExtensionRegistry } from './extensionRegi
 import type { ExtensionCapability, CapabilityHandler } from './extensionRuntime';
 import { builtinHostContractsHooks, builtinHostContractsManifest, BUILTIN_HOST_CONTRACTS_EXTENSION_ID } from './builtinHostContractsExtension';
 
+const REGISTRY_STORAGE_KEY = 'jieyu.extensionRegistry.snapshots';
+
 function createStubCapabilityHandlers(): Partial<Record<ExtensionCapability, CapabilityHandler>> {
   return {
     'read.transcription': async () => ({ stub: true }),
@@ -23,8 +25,47 @@ export function getExtensionRegistry(): ExtensionRegistry {
       activationTimeoutMs: 10_000,
       capabilityInvocationTimeoutMs: 30_000,
     });
+    try {
+      const raw = localStorage.getItem(REGISTRY_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          registrySingleton.importSnapshots(parsed);
+        }
+      }
+    } catch {
+      // 持久化恢复失败不阻断注册表创建
+    }
   }
   return registrySingleton;
+}
+
+function persistRegistrySnapshots(): void {
+  if (!registrySingleton) return;
+  try {
+    const snapshots = registrySingleton.exportSnapshots();
+    localStorage.setItem(REGISTRY_STORAGE_KEY, JSON.stringify(snapshots));
+  } catch {
+    // 持久化写入失败静默处理
+  }
+}
+
+/** 注册官方扩展并触发持久化 | Register official extension with auto-persistence */
+export async function registerOfficialExtension(
+  manifest: Parameters<ExtensionRegistry['registerOfficial']>[0],
+  hooks: Parameters<ExtensionRegistry['registerOfficial']>[1],
+): Promise<ReturnType<ExtensionRegistry['registerOfficial']>> {
+  const reg = getExtensionRegistry();
+  const result = await reg.registerOfficial(manifest, hooks);
+  persistRegistrySnapshots();
+  return result;
+}
+
+/** 卸载扩展并触发持久化 | Unregister extension with auto-persistence */
+export async function unregisterExtension(id: string): Promise<void> {
+  const reg = getExtensionRegistry();
+  await reg.unregister(id);
+  persistRegistrySnapshots();
 }
 
 /** 首次打开设置「扩展」页时调用：注册内置探针（幂等） | Idempotent built-in probe registration */
@@ -35,7 +76,27 @@ export async function ensureBuiltinExtensionsLoaded(): Promise<void> {
     return;
   }
   const result = await reg.registerOfficial(builtinHostContractsManifest, builtinHostContractsHooks);
+  if (result.ok) {
+    persistRegistrySnapshots();
+  }
   if (!result.ok) {
     throw new Error(result.reason);
   }
+}
+
+/** 一键安全模式：禁用全部非内置扩展 | Safe mode: unload all non-built-in extensions */
+export async function enableExtensionSafeMode(): Promise<void> {
+  const reg = getExtensionRegistry();
+  const items = reg.list();
+  for (const item of items) {
+    if (item.id !== BUILTIN_HOST_CONTRACTS_EXTENSION_ID) {
+      await reg.unregister(item.id);
+    }
+  }
+  persistRegistrySnapshots();
+}
+
+/** 恢复安全模式：重新注册内置探针 | Recover from safe mode */
+export async function recoverFromExtensionSafeMode(): Promise<void> {
+  await ensureBuiltinExtensionsLoaded();
 }

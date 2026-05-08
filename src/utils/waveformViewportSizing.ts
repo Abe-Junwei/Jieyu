@@ -3,7 +3,7 @@ import type { MutableRefObject, RefObject } from 'react';
 export const DEFAULT_WAVE_CANVAS_WIDTH = 800;
 export const MIN_TIER_PX_FOR_FIT = 200;
 
-export function readTimelineTimeStripGutterPx(tierScrollEl: HTMLElement | null): number {
+function readTimelineTimeStripGutterPx(tierScrollEl: HTMLElement | null): number {
   if (!tierScrollEl) return 0;
   const content = tierScrollEl.querySelector<HTMLElement>('.timeline-content');
   if (!content) return 0;

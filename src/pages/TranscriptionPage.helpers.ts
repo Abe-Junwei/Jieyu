@@ -10,7 +10,7 @@ const log = createLogger('TranscriptionPage');
 
 // ── Storage keys ───────────────────────────────────────────────────────────────
 
-export const EMBEDDING_PROVIDER_STORAGE_KEY = 'jieyu.embeddingProvider';
+const EMBEDDING_PROVIDER_STORAGE_KEY = 'jieyu.embeddingProvider';
 
 export interface EmbeddingProviderConfig {
   kind: EmbeddingProviderKind;

@@ -90,11 +90,6 @@ function normalizeUnitRelationForStorage(relation: UnitRelationDocType | UnitRel
   };
 }
 
-export async function bulkUpsertSegmentLayerUnits(db: JieyuDatabase, segments: readonly LayerUnitDocType[]): Promise<void> {
-  if (segments.length === 0) return;
-  await db.dexie.layer_units.bulkPut(segments.map(normalizeLayerUnitForStorage));
-}
-
 export async function putLayerUnit(db: JieyuDatabase, unit: LayerUnitDocType): Promise<void> {
   await db.dexie.layer_units.put(normalizeLayerUnitForStorage(unit));
 }
@@ -127,11 +122,6 @@ export async function listLayerUnitsByLayerMedia(
 export async function bulkUpsertLayerUnits(db: JieyuDatabase, units: readonly LayerUnitDocType[]): Promise<void> {
   if (units.length === 0) return;
   await db.dexie.layer_units.bulkPut(units.map(normalizeLayerUnitForStorage));
-}
-
-export async function bulkUpsertSegmentLayerUnitContents(db: JieyuDatabase, contents: readonly LayerUnitContentDocType[]): Promise<void> {
-  if (contents.length === 0) return;
-  await db.dexie.layer_unit_contents.bulkPut(contents.map(normalizeLayerUnitContentForStorage));
 }
 
 export async function putLayerUnitContent(db: JieyuDatabase, content: LayerUnitContentDocType): Promise<void> {
@@ -207,12 +197,6 @@ export async function bulkUpsertLayerSegmentGraph(db: JieyuDatabase, graph: Laye
   );
 }
 
-export async function upsertSegmentLinkUnitRelation(db: JieyuDatabase, link: UnitRelationDocType): Promise<void> {
-  const normalized = normalizeUnitRelationForStorage(link);
-  validateUnitRelationDoc(normalized);
-  await db.dexie.unit_relations.put(normalized);
-}
-
 export async function bulkDeleteLayerUnitContentsByIds(db: JieyuDatabase, contentIds: readonly string[]): Promise<void> {
   const ids = [...new Set(contentIds.filter((id) => id.trim().length > 0))];
   if (ids.length === 0) return;
@@ -223,7 +207,7 @@ export async function deleteSegmentLayerUnitCascade(db: JieyuDatabase, segmentId
   await deleteLayerUnitCascade(db, segmentIds);
 }
 
-export async function collectLayerUnitCascadeIds(
+async function collectLayerUnitCascadeIds(
   db: JieyuDatabase,
   unitIds: readonly string[],
 ): Promise<{

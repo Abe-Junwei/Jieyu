@@ -12,7 +12,7 @@ export interface SegmentQaReflectionResult {
   summary: string;
 }
 
-export interface SegmentQaReflectionCheck {
+interface SegmentQaReflectionCheck {
   name: string;
   passed: boolean;
   detail: string;

@@ -10,7 +10,7 @@ export type ExtensionCapability =
   | 'write.language-assets'
   | 'invoke.ai';
 
-export type ExtensionTrustLevel = 'official' | 'trusted' | 'community' | 'untrusted';
+type ExtensionTrustLevel = 'official' | 'trusted' | 'community' | 'untrusted';
 
 export interface ExtensionManifestV1 {
   schemaVersion: typeof EXTENSION_MANIFEST_SCHEMA_VERSION;
@@ -52,12 +52,12 @@ export interface CompatibilityResult {
   reason: string;
 }
 
-export interface ExtensionActivationContext {
+interface ExtensionActivationContext {
   hostVersion: string;
   manifest: ExtensionManifestV1;
 }
 
-export interface ExtensionInvocationContext {
+interface ExtensionInvocationContext {
   hostVersion: string;
   manifest: ExtensionManifestV1;
 }

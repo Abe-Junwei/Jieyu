@@ -1,6 +1,6 @@
 import type { LayerDocType } from '../types/jieyuDbDocTypes';
 
-export type SegmentEditMode = 'unit' | 'independent-segment' | 'time-subdivision';
+type SegmentEditMode = 'unit' | 'independent-segment' | 'time-subdivision';
 
 export interface SegmentRoutingResult {
   layer: LayerDocType | undefined;

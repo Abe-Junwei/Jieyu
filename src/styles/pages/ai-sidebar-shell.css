@@ -300,6 +300,11 @@
     pointer-events: auto;
   }
 
+  .transcription-ai-panel.transcription-ai-panel-collapsed {
+    display: none;
+    pointer-events: none;
+  }
+
   .transcription-ai-panel::before {
     display: none;
   }

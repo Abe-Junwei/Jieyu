@@ -119,6 +119,8 @@ describe('VoiceAgentService structure invariants', () => {
     expect(singletonCode.includes('if (_instance) {')).toBe(true);
     expect(singletonCode.includes('await _instance.dispose();')).toBe(true);
     expect(singletonCode.includes('_instance = new VoiceAgentService(options);')).toBe(true);
-    expect(code.includes("export { getVoiceAgentService, createVoiceAgentService } from './VoiceAgentService.singleton'")).toBe(true);
+    expect(code.includes("from './VoiceAgentService.singleton'")).toBe(false);
+    expect(singletonCode.includes('export async function createVoiceAgentService')).toBe(true);
+    expect(singletonCode.includes('export function getVoiceAgentService')).toBe(true);
   });
 });

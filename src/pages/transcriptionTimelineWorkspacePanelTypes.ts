@@ -15,7 +15,7 @@ import type {
 } from '../types/jieyuDbDocTypes';
 import type { TimelineResizeDragOptions } from '../hooks/useTimelineResize';
 /** 与 `TextTimeMapping` 线性段一致；本文件不 import services 以满足架构守卫 M3 */
-export type WorkspacePanelTextTimeMappingLinear = { offsetSec: number; scale: number };
+type WorkspacePanelTextTimeMappingLinear = { offsetSec: number; scale: number };
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';

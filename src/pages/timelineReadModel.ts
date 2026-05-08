@@ -8,7 +8,7 @@ import {
 } from '../utils/timelineShellMode';
 import { resolveTimelineExtentSec } from '../utils/timelineExtent';
 
-export type TimelineReadModelAcousticState = 'no_media' | 'pending_decode' | 'playable';
+type TimelineReadModelAcousticState = 'no_media' | 'pending_decode' | 'playable';
 
 export interface TimelineReadModel {
   epoch: number;

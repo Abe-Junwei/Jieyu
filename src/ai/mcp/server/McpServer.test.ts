@@ -8,8 +8,9 @@ vi.mock('./mcpToolCallAudit', () => ({
   persistMcpToolCallAudit: persistMcpMock,
 }));
 
-import { McpServer } from './McpServer';
+import { isMcpLoopbackRemoteAddress, McpServer } from './McpServer';
 import type { PersistMcpToolCallAuditInput } from './mcpToolCallAudit';
+import { TOOL_HANDLERS } from './tools';
 import * as segmentReadQueries from '../../queries/segmentReadQueries';
 
 vi.mock('../../queries/segmentReadQueries', () => ({
@@ -25,6 +26,13 @@ const mockedDiagnose = vi.mocked(segmentReadQueries.diagnoseProjectQuality);
 const TEST_TOKEN = 'jieyu-readonly-test-token-12345';
 /** MCP read tools require non-empty runtime scope (textId / currentMediaId / currentLayerId). */
 const MCP_TEST_RUNTIME_CONTEXT = { textId: 'mcp-integration-test-text' };
+
+type RouteMethodRequest = { jsonrpc: '2.0'; id: number; method: string; params?: unknown };
+type RouteMethodResponse = { error?: { code: number; message: string }; result?: unknown };
+
+function routeServerMethod(server: McpServer, request: RouteMethodRequest): Promise<RouteMethodResponse> {
+  return (server as unknown as { routeMethod(req: RouteMethodRequest): Promise<RouteMethodResponse> }).routeMethod(request);
+}
 
 async function fetchSse(server: McpServer): Promise<{ sessionId: string; response: Response; reader: ReadableStreamDefaultReader<Uint8Array> }> {
   const res = await fetch(`http://localhost:${server.listenPort}/sse`, {
@@ -73,7 +81,7 @@ describe('McpServer', () => {
   let server: McpServer;
 
   beforeEach(() => {
-    persistMcpMock.mockClear();
+    vi.clearAllMocks();
   });
 
   afterEach(async () => {
@@ -104,6 +112,13 @@ describe('McpServer', () => {
       headers: { Authorization: 'Bearer wrong-token' },
     });
     expect(res.status).toBe(401);
+  });
+
+  it('treats non-loopback remote addresses as forbidden for messages', () => {
+    expect(isMcpLoopbackRemoteAddress('127.0.0.1')).toBe(true);
+    expect(isMcpLoopbackRemoteAddress('::1')).toBe(true);
+    expect(isMcpLoopbackRemoteAddress('192.168.1.20')).toBe(false);
+    expect(isMcpLoopbackRemoteAddress(undefined)).toBe(false);
   });
 
   it('returns tools/list via SSE', async () => {
@@ -250,6 +265,71 @@ describe('McpServer', () => {
       outcome: 'tool_not_found',
       toolName: 'jieyu_nonexistent_tool',
     }));
+  });
+
+  it('rejects tools/call limit above maximum before execution', async () => {
+    server = new McpServer({ token: TEST_TOKEN, runtimeContext: MCP_TEST_RUNTIME_CONTEXT });
+
+    const response = await routeServerMethod(server, {
+      jsonrpc: '2.0',
+      id: 92,
+      method: 'tools/call',
+      params: { name: 'jieyu_list_segments', arguments: { limit: 101 } },
+    });
+
+    expect(response.error?.code).toBe(-32602);
+    expect(response.error?.message).toContain('limit exceeds maximum of 100');
+    expect(mockedList).not.toHaveBeenCalled();
+    expect(persistMcpMock).toHaveBeenCalledWith(expect.objectContaining({
+      outcome: 'validation_error',
+      toolName: 'jieyu_list_segments',
+    }));
+  });
+
+  it('rejects tools/call offset above maximum before execution', async () => {
+    server = new McpServer({ token: TEST_TOKEN, runtimeContext: MCP_TEST_RUNTIME_CONTEXT });
+
+    const response = await routeServerMethod(server, {
+      jsonrpc: '2.0',
+      id: 93,
+      method: 'tools/call',
+      params: { name: 'jieyu_list_segments', arguments: { offset: 1001 } },
+    });
+
+    expect(response.error?.code).toBe(-32602);
+    expect(response.error?.message).toContain('offset exceeds maximum of 1000');
+    expect(mockedList).not.toHaveBeenCalled();
+    expect(persistMcpMock).toHaveBeenCalledWith(expect.objectContaining({
+      outcome: 'validation_error',
+      toolName: 'jieyu_list_segments',
+    }));
+  });
+
+  it('returns timeout error and audit outcome when a tool call exceeds 30s', async () => {
+    vi.useFakeTimers();
+    TOOL_HANDLERS.jieyu_timeout_probe = () => new Promise(() => undefined);
+    server = new McpServer({ token: TEST_TOKEN, runtimeContext: MCP_TEST_RUNTIME_CONTEXT });
+
+    try {
+      const pending = routeServerMethod(server, {
+        jsonrpc: '2.0',
+        id: 94,
+        method: 'tools/call',
+        params: { name: 'jieyu_timeout_probe', arguments: {} },
+      });
+      await vi.advanceTimersByTimeAsync(30_000);
+      const response = await pending;
+
+      expect(response.error?.code).toBe(-32001);
+      expect(response.error?.message).toContain('Tool call timeout');
+      expect(persistMcpMock).toHaveBeenCalledWith(expect.objectContaining({
+        outcome: 'timeout',
+        toolName: 'jieyu_timeout_probe',
+      }));
+    } finally {
+      delete TOOL_HANDLERS.jieyu_timeout_probe;
+      vi.useRealTimers();
+    }
   });
 
   it('calls jieyu_get_segment_detail and returns detail', async () => {

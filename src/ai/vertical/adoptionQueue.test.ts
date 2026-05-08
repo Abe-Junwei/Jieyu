@@ -133,6 +133,20 @@ describe('pruneExpiredItems', () => {
     const state = pruneExpiredItems({ items: [recentItem] }, Date.now());
     expect(state.items[0]!.status).toBe('pending');
   });
+
+  it('reports only newly expired items to the audit callback', () => {
+    const now = Date.now();
+    const oldItem = makeItem({ requestId: 'req-new' });
+    oldItem.createdAt = new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const alreadyExpired = { ...makeItem({ requestId: 'req-old' }), status: 'expired' as const, reasonCode: 'auto_expired' };
+    const reported: string[] = [];
+
+    pruneExpiredItems({ items: [oldItem, alreadyExpired] }, now, undefined, (items) => {
+      reported.push(...items.map((item) => item.requestId));
+    });
+
+    expect(reported).toEqual(['req-new']);
+  });
 });
 
 describe('filterAdoptionItemsByStatus', () => {
@@ -154,5 +168,12 @@ describe('buildAdoptionOutcomeAuditMetadata', () => {
     expect(meta.phase).toBe('adoption_outcome');
     expect(meta.action).toBe('accept');
     expect(meta.toStatus).toBe('accepted');
+  });
+
+  it('builds metadata for auto-expire action', () => {
+    const item = makeItem();
+    const meta = buildAdoptionOutcomeAuditMetadata(item, 'expire');
+    expect(meta.action).toBe('expire');
+    expect(meta.toStatus).toBe('expired');
   });
 });

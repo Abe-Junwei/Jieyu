@@ -4,7 +4,7 @@ import { joinClassNames } from './classNames';
 /**
  * 面板提示/备注变体 | Panel note visual variant
  */
-export type PanelNoteVariant = 'default' | 'danger';
+type PanelNoteVariant = 'default' | 'danger';
 
 interface PanelNoteProps extends HTMLAttributes<HTMLParagraphElement> {
   variant?: PanelNoteVariant;

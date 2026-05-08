@@ -5,7 +5,7 @@
 
 export type IconEffect = 'material' | 'motion';
 
-export const ICON_EFFECT_STORAGE_KEY = 'jieyu-icon-effect';
+const ICON_EFFECT_STORAGE_KEY = 'jieyu-icon-effect';
 
 const ATTR = 'data-icon-effect';
 
@@ -33,7 +33,7 @@ export function setIconEffect(effect: IconEffect): void {
   applyIconEffectToDocument(effect);
 }
 
-export function applyIconEffectToDocument(effect: IconEffect): void {
+function applyIconEffectToDocument(effect: IconEffect): void {
   document.documentElement.setAttribute(ATTR, effect);
 }
 

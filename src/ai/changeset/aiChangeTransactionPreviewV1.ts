@@ -1,15 +1,15 @@
 import type { PendingAiToolCall, PreviewContract } from '../chat/chatDomain.types';
 import { buildAiChangeSetFromPendingToolCall, summarizeAiChatToolArgumentsForPreview } from './AiChangeSetProtocol';
 
-export const AI_CHANGE_TRANSACTION_PREVIEW_SCHEMA_VERSION = 1 as const;
+const AI_CHANGE_TRANSACTION_PREVIEW_SCHEMA_VERSION = 1 as const;
 
-export type AiChangeTransactionPreviewKindV1 = 'propose_changes' | 'single_tool';
+type AiChangeTransactionPreviewKindV1 = 'propose_changes' | 'single_tool';
 
 /**
  * One child step in a pending change transaction (propose batch row or single-tool scope row).
  * Aligns with `AiChangeSetItem` / `AiChangeSetPreview` data produced from the same `PendingAiToolCall`.
  */
-export interface AiChangeTransactionPreviewChildStepV1 {
+interface AiChangeTransactionPreviewChildStepV1 {
   index: number;
   toolName: string;
   targetId: string;

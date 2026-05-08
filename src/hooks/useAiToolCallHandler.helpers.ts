@@ -3,11 +3,11 @@ import { t, type Locale } from '../i18n';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import { listUniqueNonEmptyMultiLangLabels } from '../utils/multiLangLabels';
 
-export function normalizeAiToolCallText(value: string): string {
+function normalizeAiToolCallText(value: string): string {
   return value.trim().toLowerCase();
 }
 
-export function buildAiToolLanguageTokens(query: string): string[] {
+function buildAiToolLanguageTokens(query: string): string[] {
   const normalizedQuery = normalizeAiToolCallText(query);
   const tokens = new Set<string>([normalizedQuery]);
   const code = resolveLanguageQuery(query);

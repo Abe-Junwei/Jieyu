@@ -20,11 +20,11 @@ export function buildAcousticPath(segments: Array<{ x: number; y: number | null 
   return path ? path.trim() : null;
 }
 
-export function hzToMel(hz: number): number {
+function hzToMel(hz: number): number {
   return 2595 * Math.log10(1 + (hz / 700));
 }
 
-export function melToHz(mel: number): number {
+function melToHz(mel: number): number {
   return 700 * ((10 ** (mel / 2595)) - 1);
 }
 
@@ -50,7 +50,7 @@ export function resolveNearestAcousticFrame(result: AcousticFeatureResult | null
   return nearestFrame;
 }
 
-export function resolveNearestIntensityDb(result: AcousticFeatureResult | null, timeSec: number): number | null {
+function resolveNearestIntensityDb(result: AcousticFeatureResult | null, timeSec: number): number | null {
   const nearestFrame = resolveNearestAcousticFrame(result, timeSec);
   return nearestFrame ? nearestFrame.intensityDb : null;
 }

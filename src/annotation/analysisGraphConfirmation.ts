@@ -27,7 +27,7 @@ export type AnalysisGraphCandidateRecord = UnitRelationDocType & {
   analysisGraphStatus: 'pending' | 'accepted' | 'rejected';
 };
 
-export type ConfirmAnalysisGraphCandidateInput = SubmitAnalysisGraphCandidateInput & {
+type ConfirmAnalysisGraphCandidateInput = SubmitAnalysisGraphCandidateInput & {
   /** @deprecated Use actor instead. */
   actorId?: string;
 };
@@ -117,12 +117,6 @@ export async function submitAnalysisGraphCandidate(
   }, { label: 'submitAnalysisGraphCandidate' });
 
   return parseCandidateRelation(doc);
-}
-
-export async function confirmAnalysisGraphCandidate(
-  input: ConfirmAnalysisGraphCandidateInput,
-): Promise<AnalysisGraphCandidateRecord> {
-  return submitAnalysisGraphCandidate(input);
 }
 
 export async function listPendingAnalysisGraphCandidates(unitId: string): Promise<AnalysisGraphCandidateRecord[]> {

@@ -11,15 +11,6 @@ type UsePanelAutoCollapseParams = {
   ignoreInteractiveElements?: boolean;
 };
 const DEFAULT_INTERACTIVE_SELECTOR = 'button, input, textarea, select, a, [role="button"]';
-export const APP_SIDE_PANE_INTERACTION_SELECTOR = [
-  '[data-layer-pane-interactive="true"]',
-  '#app-side-pane-body-slot',
-  '.app-side-pane',
-  '.app-side-pane-handle-cluster',
-  '.app-side-pane-hover-zone',
-  '.app-side-pane-resizer',
-  '.app-side-pane-collapse-toggle',
-].join(', ');
 
 function matchesClosestSelector(target: Element, selectors: Array<string | undefined>): boolean {
   return selectors.some((selector) => {

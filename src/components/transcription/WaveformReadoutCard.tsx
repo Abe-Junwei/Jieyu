@@ -1,7 +1,7 @@
 import type { FC } from 'react';
 import { t, useLocale } from '../../i18n';
 
-export interface WaveformReadoutCardData {
+interface WaveformReadoutCardData {
   source: 'waveform' | 'spectrogram';
   timeSec: number;
   frequencyHz?: number | null;

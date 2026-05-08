@@ -343,7 +343,7 @@ export function resolvePairedReadingSyncedTargetCellId(input: {
 }
 
 /** 对照组锚定到的原文层 id（用于对齐横向 buildLayerBundles 根块） | Source layer id for horizontal bundle mapping */
-export function resolveVerticalReadingGroupSourceAnchorLayerId(
+function resolveVerticalReadingGroupSourceAnchorLayerId(
   group: VerticalReadingGroup,
   fallbackSourceLayerId: string | undefined,
 ): string | undefined {
@@ -940,5 +940,3 @@ export function resolvePairedReadingLayerLabel(layer: LayerDocType | undefined, 
 export function resolvePairedReadingEditorRows(value: string): number {
   return Math.min(6, Math.max(1, normalizePairedReadingPlainText(value).split('\n').length));
 }
-
-export type PairedReadingLayerLink = LayerLinkDocType;

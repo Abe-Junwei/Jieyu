@@ -1,8 +1,8 @@
-export type MetricCategory = 'ux' | 'business' | 'ai';
-export type MetricKind = 'histogram' | 'counter' | 'ratio';
-export type MetricUnit = 'ms' | 'count' | 'ratio';
+type MetricCategory = 'ux' | 'business' | 'ai';
+type MetricKind = 'histogram' | 'counter' | 'ratio';
+type MetricUnit = 'ms' | 'count' | 'ratio';
 
-export interface MetricDefinition {
+interface MetricDefinition {
   id: string;
   category: MetricCategory;
   module: string;
@@ -12,7 +12,7 @@ export interface MetricDefinition {
   targetP95?: number;
 }
 
-export type MetricTagValue = string | number | boolean;
+type MetricTagValue = string | number | boolean;
 export type MetricTags = Record<string, MetricTagValue>;
 
 export interface MetricEvent {
@@ -24,7 +24,7 @@ export interface MetricEvent {
 
 export type MetricObserver = (event: MetricEvent) => void;
 
-export const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
+const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
   {
     id: 'ux.web_vitals.lcp_ms',
     category: 'ux',
@@ -272,7 +272,7 @@ function normalizeMetricEnvironment(rawValue: string | undefined): string {
   return normalized;
 }
 
-export function getMetricEnvironmentTag(): string {
+function getMetricEnvironmentTag(): string {
   return normalizeMetricEnvironment(import.meta.env.VITE_M5_OBSERVABILITY_ENV ?? import.meta.env.MODE);
 }
 

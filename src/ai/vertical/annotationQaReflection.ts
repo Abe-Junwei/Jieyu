@@ -12,7 +12,7 @@ export interface AnnotationQaReflectionResult {
   summary: string;
 }
 
-export interface AnnotationQaReflectionCheck {
+interface AnnotationQaReflectionCheck {
   name: string;
   passed: boolean;
   detail: string;
@@ -99,7 +99,7 @@ export function runAnnotationQaReflection(
       : 'no findings structure markers (finding/issue/problem/inconsistency/missing/error)',
   });
 
-  // Check 5: inline [n] markers must be within 1..evidenceCount when evidence exists
+  // Check 6: inline [n] markers must be within 1..evidenceCount when evidence exists
   const markerIndices = [...assistantContent.matchAll(/\[(\d+)\]/g)]
     .map((m) => Number(m[1]))
     .filter((n) => Number.isFinite(n));

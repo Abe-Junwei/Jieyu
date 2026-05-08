@@ -6,11 +6,9 @@
 
 import {
   recordTranscriptionKeyboardAction as recordTranscriptionKeyboardActionFromService,
-  TRANSCRIPTION_TEXT_INPUT_BEHAVIOR_SESSION_ID,
 } from '../services/transcriptionKeyboardActionTelemetry';
 
 export const recordTranscriptionKeyboardAction = recordTranscriptionKeyboardActionFromService;
-export { TRANSCRIPTION_TEXT_INPUT_BEHAVIOR_SESSION_ID };
 
 let lastToolbarVolumeTelemetryMs = 0;
 const TOOLBAR_VOLUME_TELEMETRY_INTERVAL_MS = 350;

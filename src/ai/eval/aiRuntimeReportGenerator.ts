@@ -10,6 +10,10 @@ import {
   type ContextualCitationResult,
   type ContextualRelevanceResult,
 } from './aiRuntimeReport';
+import {
+  collectReflectionFailedChecks,
+  collectToolDecisionRecords,
+} from './aiRuntimeReportDimensionalAudit';
 
 /**
  * Collect adoption outcome metadataJson strings from Dexie audit_logs.
@@ -31,7 +35,7 @@ export async function collectAdoptionOutcomeMetadataJsons(): Promise<string[]> {
 /**
  * Collect citation judge results from Dexie audit_logs (ai_citation_judge field).
  */
-export async function collectCitationJudgeResults(): Promise<ContextualCitationResult[]> {
+async function collectCitationJudgeResults(): Promise<ContextualCitationResult[]> {
   try {
     const db = await getDb();
     const rows = await db.collections.audit_logs.findByIndex('collection', 'ai_messages' as string);
@@ -74,7 +78,7 @@ export async function collectCitationJudgeResults(): Promise<ContextualCitationR
 /**
  * Collect relevance judge results from Dexie audit_logs (ai_relevance_judge field).
  */
-export async function collectRelevanceJudgeResults(): Promise<ContextualRelevanceResult[]> {
+async function collectRelevanceJudgeResults(): Promise<ContextualRelevanceResult[]> {
   try {
     const db = await getDb();
     const rows = await db.collections.audit_logs.findByIndex('collection', 'ai_messages' as string);
@@ -118,13 +122,46 @@ export async function collectRelevanceJudgeResults(): Promise<ContextualRelevanc
  * Generate an AiRuntimeReport from available audit data.
  * Reads citation / relevance judge results and adoption outcomes from audit_logs.
  */
+/**
+ * Collect raw occurrence counts for all audit log fields in the ai_messages collection.
+ * Best-effort; returns empty record on read failure.
+ */
+async function collectAuditFieldCounts(): Promise<Record<string, number>> {
+  try {
+    const db = await getDb();
+    const rows = await db.collections.audit_logs.findByIndex('collection', 'ai_messages' as string);
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      if (typeof row.field === 'string') {
+        counts[row.field] = (counts[row.field] ?? 0) + 1;
+      }
+    }
+    return counts;
+  } catch {
+    return {};
+  }
+}
+
 export async function generateAiRuntimeReportFromAudit(): Promise<AiRuntimeReport> {
-  const [adoptionOutcomeMetadataJsons, citationResults, relevanceResults] = await Promise.all([
+  const [
+    adoptionOutcomeMetadataJsons,
+    citationResults,
+    relevanceResults,
+    reflectionFailedChecks,
+    toolDecisionRecords,
+    rawAuditCounts,
+  ] = await Promise.all([
     collectAdoptionOutcomeMetadataJsons(),
     collectCitationJudgeResults(),
     collectRelevanceJudgeResults(),
+    collectReflectionFailedChecks(),
+    collectToolDecisionRecords(),
+    collectAuditFieldCounts(),
   ]);
   return buildAiRuntimeReportWithContext(citationResults, relevanceResults, 50, {
     adoptionOutcomeMetadataJsons,
+    reflectionFailedChecks,
+    toolDecisionRecords,
+    rawAuditCounts,
   });
 }

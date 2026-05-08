@@ -1,3 +1,3 @@
-import type { LayerDocType, LayerUnitDocType, MediaItemDocType } from '../db';
+import type { LayerUnitDocType, MediaItemDocType } from '../db';
 
-export type { LayerDocType, LayerUnitDocType, MediaItemDocType };
+export type { LayerUnitDocType, MediaItemDocType };

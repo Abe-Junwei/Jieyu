@@ -1,13 +1,13 @@
-import type { AcousticAnalysisConfig, AcousticFeatureResult } from '../../utils/acousticOverlayTypes';
+import type { AcousticAnalysisConfig } from '../../utils/acousticOverlayTypes';
 
 /**
  * Acoustic analysis provider kind.
  * 'local' is the built-in Web Worker YIN + spectral descriptor chain.
  * Additional kinds can be added for external backends.
  */
-export type AcousticProviderKind = 'local' | 'external';
+type AcousticProviderKind = 'local' | 'external';
 
-export interface AcousticProviderCapability {
+interface AcousticProviderCapability {
   f0: boolean;
   intensity: boolean;
   spectralDescriptors: boolean;
@@ -24,7 +24,7 @@ export interface AcousticProviderDefinition {
   experimental: boolean;
 }
 
-export interface AcousticProviderReachability {
+interface AcousticProviderReachability {
   id: string;
   available: boolean;
   error?: string;
@@ -48,12 +48,6 @@ export interface AcousticProviderAnalyzeInput {
   onProgress?: (processedFrames: number, totalFrames: number) => void;
 }
 
-export interface AcousticProvider {
-  readonly definition: AcousticProviderDefinition;
-  checkReachability(): Promise<AcousticProviderReachability>;
-  analyze(input: AcousticProviderAnalyzeInput): Promise<AcousticFeatureResult>;
-}
-
 export type AcousticProviderRoutingStrategy = 'local-first' | 'prefer-external';
 
 export interface ExternalAcousticProviderConfig {
@@ -68,7 +62,7 @@ export interface AcousticProviderRuntimeConfig {
   externalProvider: ExternalAcousticProviderConfig;
 }
 
-export type ExternalAcousticProviderHealthState =
+type ExternalAcousticProviderHealthState =
   | 'available'
   | 'disabled'
   | 'unconfigured'
@@ -99,12 +93,12 @@ export interface ResolveAcousticProviderStateOptions {
   runtimeConfig?: AcousticProviderRuntimeConfig;
 }
 
-export const DEFAULT_EXTERNAL_ACOUSTIC_PROVIDER_CONFIG: ExternalAcousticProviderConfig = {
+const DEFAULT_EXTERNAL_ACOUSTIC_PROVIDER_CONFIG: ExternalAcousticProviderConfig = {
   enabled: false,
   timeoutMs: 10_000,
 };
 
-export const DEFAULT_ACOUSTIC_PROVIDER_RUNTIME_CONFIG: AcousticProviderRuntimeConfig = {
+const DEFAULT_ACOUSTIC_PROVIDER_RUNTIME_CONFIG: AcousticProviderRuntimeConfig = {
   routingStrategy: 'local-first',
   externalProvider: DEFAULT_EXTERNAL_ACOUSTIC_PROVIDER_CONFIG,
 };
@@ -175,7 +169,7 @@ export const LOCAL_ACOUSTIC_PROVIDER_DEFINITION: AcousticProviderDefinition = {
   experimental: false,
 };
 
-export const ENHANCED_ACOUSTIC_PROVIDER_DEFINITION: AcousticProviderDefinition = {
+const ENHANCED_ACOUSTIC_PROVIDER_DEFINITION: AcousticProviderDefinition = {
   kind: 'external',
   id: 'enhanced-provider',
   label: 'Enhanced Provider (External)',
@@ -249,7 +243,7 @@ function normalizeExternalAcousticProviderConfig(
   };
 }
 
-export function normalizeAcousticProviderRuntimeConfig(
+function normalizeAcousticProviderRuntimeConfig(
   config?: Partial<AcousticProviderRuntimeConfig> | null,
 ): AcousticProviderRuntimeConfig {
   const routingStrategy: AcousticProviderRoutingStrategy = config?.routingStrategy === 'prefer-external'
@@ -491,7 +485,7 @@ export async function probeExternalAcousticProviderHealth(
  * Currently always returns the local provider.
  * Future: can route based on user settings or provider availability.
  */
-export function resolveAcousticProvider(
+function resolveAcousticProvider(
   _preferredId?: string,
 ): AcousticProviderDefinition {
   if (!_preferredId) return LOCAL_ACOUSTIC_PROVIDER_DEFINITION;
@@ -499,7 +493,7 @@ export function resolveAcousticProvider(
     ?? LOCAL_ACOUSTIC_PROVIDER_DEFINITION;
 }
 
-export function resolveAcousticProviderReachability(
+function resolveAcousticProviderReachability(
   providerId: string,
   runtimeConfig: AcousticProviderRuntimeConfig = DEFAULT_ACOUSTIC_PROVIDER_RUNTIME_CONFIG,
 ): AcousticProviderReachability {

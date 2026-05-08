@@ -3,7 +3,7 @@ import { createManagedBrowserWorker } from '../../observability/managedBrowserWo
 import { getWorkerPool } from '../../workers/WorkerPool';
 import { PendingWorkerRequestStore } from '../../services/PendingWorkerRequestStore';
 
-export type EmbeddingProgressStage = 'loading' | 'embedding' | 'ready';
+type EmbeddingProgressStage = 'loading' | 'embedding' | 'ready';
 
 export interface EmbeddingRuntimeProgress {
   stage: EmbeddingProgressStage;
@@ -24,7 +24,7 @@ export interface EmbeddingRuntimeOptions {
   onProgress?: (progress: EmbeddingRuntimeProgress) => void;
 }
 
-export interface EmbeddingRuntime {
+interface EmbeddingRuntime {
   preload(options: EmbeddingRuntimeOptions): Promise<void>;
   embed(texts: string[], options: EmbeddingRuntimeOptions): Promise<number[][]>;
   terminate(): void;

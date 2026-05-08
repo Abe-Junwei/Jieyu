@@ -14,25 +14,25 @@ export interface SpeechRecognitionEvent extends Event {
   readonly resultIndex: number;
 }
 
-export interface SpeechRecognitionResultList {
+interface SpeechRecognitionResultList {
   readonly length: number;
   item(index: number): SpeechRecognitionResult;
   [index: number]: SpeechRecognitionResult;
 }
 
-export interface SpeechRecognitionResult {
+interface SpeechRecognitionResult {
   readonly length: number;
   readonly isFinal: boolean;
   item(index: number): SpeechRecognitionAlternative;
   [index: number]: SpeechRecognitionAlternative;
 }
 
-export interface SpeechRecognitionAlternative {
+interface SpeechRecognitionAlternative {
   readonly transcript: string;
   readonly confidence: number;
 }
 
-export interface SpeechRecognitionErrorEvent extends Event {
+interface SpeechRecognitionErrorEvent extends Event {
   readonly error: string;
   readonly message: string;
 }

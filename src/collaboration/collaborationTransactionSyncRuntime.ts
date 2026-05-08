@@ -9,7 +9,7 @@ import type { CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
 
 const collaborationTxLog = createLogger('collaborationTransactionSync');
 
-export interface TransactionEntitySyncInput {
+interface TransactionEntitySyncInput {
   entityId: string;
   replicas: CrossDeviceReplica[];
   quorum: number;
@@ -139,7 +139,7 @@ export function evaluateTransactionAtomicity(
  * 合并未全部达成仲裁时的**建议**清理档位；不执行任何存储回滚（CRITICAL-4）。 |
  * Advisory cleanup tier when merge did not fully commit — does not run storage rollback.
  */
-export function createBestEffortCleanupPlan(
+function createBestEffortCleanupPlan(
   atomicity: TransactionAtomicityResult,
 ): 'none' | 'soft-rollback' | 'hard-rollback' {
   if (atomicity.allCommitted) {
@@ -150,9 +150,6 @@ export function createBestEffortCleanupPlan(
   }
   return 'soft-rollback';
 }
-
-/** @deprecated Use {@link createBestEffortCleanupPlan} — legacy name; still not a DB rollback. */
-export const createTransactionalRollbackPlan = createBestEffortCleanupPlan;
 
 export function executeTransactionalReplicaSync(input: TransactionSyncInput): TransactionSyncResult {
   const outcomes: TransactionEntityOutcome[] = [];

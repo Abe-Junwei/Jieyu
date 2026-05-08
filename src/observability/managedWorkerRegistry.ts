@@ -2,7 +2,7 @@
  * 浏览器 `Worker` 轻量登记（ARCH-8）。供调试/遥测/健康快照；不替代各业务内的 onerror/terminate。
  * Light registry for `Worker` instances (ARCH-8) — debugging / telemetry; does not replace per-service error handling.
  */
-export type ManagedWorkerState = 'live' | 'terminated';
+type ManagedWorkerState = 'live' | 'terminated';
 
 export interface ManagedWorkerRegistryEntry {
   id: string;

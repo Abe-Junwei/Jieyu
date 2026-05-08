@@ -4,7 +4,7 @@ import { JIEYU_MATERIAL_NAV } from '../utils/jieyuMaterialIcon';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { t, type Locale } from '../i18n';
 
-export type LeftRailResourceItem = {
+type LeftRailResourceItem = {
   to: string;
   label: string;
 };

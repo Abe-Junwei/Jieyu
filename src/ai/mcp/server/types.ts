@@ -17,7 +17,7 @@ export interface JsonRpcResponse {
   error?: JsonRpcError;
 }
 
-export interface JsonRpcError {
+interface JsonRpcError {
   code: number;
   message: string;
   data?: unknown;

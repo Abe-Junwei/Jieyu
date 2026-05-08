@@ -87,6 +87,10 @@ export function useDegradationOverrides(
     () => Array.from(new Set(scenarios)),
     [scenarios],
   );
+  const scenariosSignature = React.useMemo(
+    () => uniqueScenarios.join('|'),
+    [uniqueScenarios],
+  );
 
   const [states, setState] = React.useState<DegradationOverrideState[]>(() =>
     uniqueScenarios.map((s) => ({
@@ -97,17 +101,23 @@ export function useDegradationOverrides(
     })),
   );
 
-  // messageId 或场景列表变化时重置状态
   React.useEffect(() => {
-    setState(
-      uniqueScenarios.map((s) => ({
+    setState((prev) => {
+      const next = uniqueScenarios.map((s) => ({
         scenario: s,
         messageId,
-        status: 'pending',
+        status: 'pending' as const,
         createdAt: new Date().toISOString(),
-      })),
-    );
-  }, [messageId, uniqueScenarios]);
+      }));
+      if (
+        prev.length === next.length
+        && prev.every((item, index) => item.scenario === next[index]?.scenario && item.messageId === messageId && item.status === 'pending')
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [messageId, scenariosSignature, uniqueScenarios]);
 
   return { states, setState };
 }

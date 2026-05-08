@@ -36,15 +36,6 @@ export function useInvalidateLanguageCatalogLabelMap() {
   }, [queryClient]);
 }
 
-/**
- * 兼容旧调用方（非 React 上下文中也可使用的全局失效） | Compat for non-React callers
- * @deprecated 优先使用 useInvalidateLanguageCatalogLabelMap hook
- */
-// eslint-disable-next-line @typescript-eslint/no-empty-function -- 向后兼容占位 | Backward-compat placeholder
-export function invalidateLanguageCatalogLabelMapCache(): void {
-  // 在 React 树外无法访问 queryClient，作为安全占位保留 | Cannot access queryClient outside React tree; kept as safe placeholder
-}
-
 type UseLanguageCatalogLabelMapOptions = {
   languageIds?: readonly string[];
 };

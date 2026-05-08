@@ -1,4 +1,4 @@
-export type TimelineAcousticShell = 'waveform' | 'text-only' | 'empty';
+type TimelineAcousticShell = 'waveform' | 'text-only' | 'empty';
 export type TimelineAcousticState = 'no_media' | 'pending_decode' | 'playable';
 
 export interface TimelineAcousticChromeInput {

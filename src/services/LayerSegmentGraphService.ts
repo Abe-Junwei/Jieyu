@@ -266,7 +266,7 @@ export async function findOrphanSegmentIds(
   });
 }
 
-export async function deleteSegmentLinksBySegmentIds(
+async function deleteSegmentLinksBySegmentIds(
   db: JieyuDatabase,
   segmentIds: readonly string[],
 ): Promise<string[]> {

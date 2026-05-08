@@ -66,7 +66,7 @@ export function createTimelineUnit(
   return { layerId, unitId, kind };
 }
 
-export function isTimelineUnitKind<K extends TimelineUnitKind>(
+function isTimelineUnitKind<K extends TimelineUnitKind>(
   unit: TimelineUnit | null | undefined,
   kind: K,
 ): unit is TimelineUnit & { kind: K } {

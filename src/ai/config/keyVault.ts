@@ -122,7 +122,7 @@ async function decryptAiChatSettings(rawSecurePayload: string): Promise<AiChatSe
   }
 }
 
-export class BrowserKeyVault implements KeyVaultBackend<AiChatSettings> {
+class BrowserKeyVault implements KeyVaultBackend<AiChatSettings> {
   readonly kind = 'browser-local-encrypted';
 
   async load(): Promise<AiChatSettings | null> {

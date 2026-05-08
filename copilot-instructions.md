@@ -12,6 +12,18 @@
 2. Simplicity First：只写完成目标所需的最小代码，不做额外抽象、配置化或教程式扩展。
 3. Surgical Changes：只改与当前需求直接相关的代码；不顺手重构、不改无关注释与格式。
 4. Goal-Driven Execution：先定义可验证目标，再通过 typecheck / test / build / UI 复验形成闭环。
+  代码审查必须覆盖函数调用链与端到端数据流（输入→转换→持久化→回读），不得以文件级审查或“字段/文件存在性”检查替代；涉及持久化路径时，必须提供可复验证据（定向测试、复现脚本或运行轨迹）。
+
+代码审查硬规则（每次 review 必须执行）：
+
+- 审查必须从真实入口开始追踪：UI 动作、路由、命令、worker message、事件 emit/listen、定时任务、脚本与 service API。
+- 必须追完整链路：入口 → 状态转换 → 副作用 → 持久化/cache/audit/log → 重新查询/回读 → UI 或下游行为。
+- “仍被引用”不等于“仍有效”。若调用结果不再影响状态、持久化、UI、下游行为、日志或测试，应标记为死代码、无效调用或遗留链路候选。
+- 判断死代码前，必须区分 production、test-only、dev-only、fixture、story/demo、migration、script 使用场景。
+- 必查隐蔽风险：陈旧 callback、未 await 的 async、吞错、feature flag 导致不可达分支、孤立 listener/subscription、重复订阅、陈旧 cache 写入、资源 cleanup 泄漏、迁移缺口、旧 enum/value 兼容、权限/降级路径、构建与运行环境差异。
+- 涉及持久化时，必须验证“写入 → reload/requery → 回读 → 可见行为”；schema 字段、对象属性或写函数被调用都不能单独证明功能成立。
+- 审查测试时，必须确认测试走真实用户入口或 service 入口，并断言业务结果；不得只依赖 mock 调用次数、snapshot 或实现细节。
+- 输出审查结论时，必须说明断裂路径、为什么现有检查可能漏掉、以及需要什么验证来证明修复。
 
 默认执行要求：
 
