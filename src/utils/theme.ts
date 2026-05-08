@@ -247,13 +247,6 @@ export function getTheme(): ThemeId {
   return 'default';
 }
 
-/**
- * 当前生效的明暗（解析后的值；未设置或与 App 一致时视为跟随系统）
- */
-function getThemeMode(): 'light' | 'dark' {
-  return resolveColorScheme(readStoredColorSchemePreference());
-}
-
 export function getThemeAccent(): ThemeAccentId {
   try {
     const stored = localStorage.getItem(THEME_ACCENT_KEY);

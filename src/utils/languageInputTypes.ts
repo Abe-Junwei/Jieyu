@@ -28,9 +28,3 @@ export interface LanguageInputAssistMessages {
   ambiguityHint: string;
   invalidLanguageCode: string;
 };
-
-export type LanguageCodeEditResult = {
-  nextValue: LanguageIsoInputValue;
-  nextCodeDraft: string | null;
-  committedLanguageCode: string;
-};

@@ -27,7 +27,7 @@ const log = createLogger('fireAndForget');
  * - `background`：不弹 Toast，error 级日志，默认上报 Sentry
  * - `background-quiet`：不弹 Toast，warn 级日志，**默认不上报 Sentry**（非关键/高噪后台；可 `reportToSentry: true` 单点抬高）
  */
-export type FireAndForgetPolicy = 'user-visible' | 'background' | 'background-quiet';
+type FireAndForgetPolicy = 'user-visible' | 'background' | 'background-quiet';
 
 export interface FireAndForgetErrorDetail {
   context: string;

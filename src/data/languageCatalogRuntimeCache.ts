@@ -382,11 +382,6 @@ export function writeLanguageCatalogRuntimeCache(cache: LanguageCatalogRuntimeCa
 type LanguageCatalogCacheListener = () => void;
 const cacheListeners = new Set<LanguageCatalogCacheListener>();
 
-function subscribeLanguageCatalogCacheChange(listener: LanguageCatalogCacheListener): () => void {
-  cacheListeners.add(listener);
-  return () => { cacheListeners.delete(listener); };
-}
-
 function notifyLanguageCatalogCacheListeners(): void {
   cacheListeners.forEach((listener) => {
     try { listener(); } catch { /* 忽略监听器错误 | Ignore listener errors */ }

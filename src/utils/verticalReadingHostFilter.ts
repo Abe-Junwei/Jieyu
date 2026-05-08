@@ -14,7 +14,6 @@ import {
   resolveLayerLinkHostTranscriptionLayerId,
   type TranslationHostLink,
 } from './translationHostLinkQuery';
-import { resolveHostAwareTranslationLayerIdFromSnapshot } from './translationLayerTargetResolver';
 
 export type VerticalReadingHostLink = TranslationHostLink;
 
@@ -234,53 +233,4 @@ export function resolveVerticalReadingGroupEmptyReason(
   }
   if (sourceIds.size === 0) return 'no-child';
   return sourceIds.has(orphanAttachLayerId) ? 'no-child' : 'orphan-needs-repair';
-}
-
-function pickTranslationLayerForVerticalReadingUnit(
-  unit: { layerId?: string | undefined; id: string },
-  allTranslationLayers: readonly LayerDocType[],
-  preferred: LayerDocType | undefined,
-  transcriptionLayers: readonly LayerDocType[],
-  defaultTranscriptionLayerId: string | undefined,
-  layerLinks: readonly VerticalReadingHostLink[] = [],
-): LayerDocType | undefined {
-  if (allTranslationLayers.length === 0) return undefined;
-  const transcriptionLayerCount = transcriptionLayers.length;
-  const { transcriptionIdByKey, linksByTranslationLayerId } = buildVerticalReadingHostLinkMaps(
-    transcriptionLayers,
-    layerLinks,
-  );
-  const unitSourceId = typeof unit.layerId === 'string' ? unit.layerId.trim() : '';
-  if (!unitSourceId && transcriptionLayerCount > 1) {
-    return preferred ?? allTranslationLayers[0];
-  }
-  const orphanAttach = resolveOrphanTranslationAttachTranscriptionLayerId(
-    transcriptionLayers,
-    defaultTranscriptionLayerId,
-  );
-  const sourceIds = new Set(unitSourceId ? [unitSourceId] : []);
-  const candidates = allTranslationLayers.filter((tl) => translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
-    tl,
-    sourceIds,
-    transcriptionLayerCount,
-    orphanAttach,
-    linksByTranslationLayerId,
-    transcriptionIdByKey,
-  ));
-  if (candidates.length === 0) {
-    if (transcriptionLayerCount <= 1) return preferred ?? allTranslationLayers[0];
-    if (!unitSourceId) return preferred ?? allTranslationLayers[0];
-    return undefined;
-  }
-  const preferredTranslationId = preferred?.layerType === 'translation' ? preferred.id : undefined;
-  const resolvedId = resolveHostAwareTranslationLayerIdFromSnapshot({
-    selectedLayerId: preferredTranslationId,
-    selectedUnitLayerId: unitSourceId || null,
-    defaultTranscriptionLayerId: defaultTranscriptionLayerId ?? null,
-    translationLayers: candidates,
-    transcriptionLayers,
-    layerLinks,
-  });
-  if (!resolvedId) return candidates[0];
-  return candidates.find((c) => c.id === resolvedId) ?? candidates[0];
 }

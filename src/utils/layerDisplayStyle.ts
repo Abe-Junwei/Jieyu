@@ -8,7 +8,7 @@ import type { LayerDisplaySettings, OrthographyDocType } from '../db';
 
 // ── Types | 类型 ────────────────────────────────────────────
 
-export interface FontPreset {
+interface FontPreset {
   key: string;
   css: string;
   ipaSupport: boolean;
@@ -33,7 +33,7 @@ export interface FontCoverageVerification {
   source: 'cache' | 'runtime' | 'none';
 }
 
-export interface OrthographyCoverageSummary {
+interface OrthographyCoverageSummary {
   confidence: 'script-only' | 'sample-backed';
   exemplarCharacterCount: number;
   exemplarSample: string;
@@ -948,31 +948,6 @@ function getScriptLineHeightFactor(scriptTag: string): number {
   return SCRIPT_LINE_HEIGHT_FACTOR[scriptTag] ?? 1.0;
 }
 
-/**
- * 字号→推荐行高 | Compute lane height from font size
- */
-function computeLaneHeightFromFontSize(
-  fontSize: number,
-  scriptTag: string,
-  clamp: (h: number) => number = (h) => Math.max(42, Math.min(180, h)),
-): number {
-  const factor = getScriptLineHeightFactor(scriptTag);
-  const raw = BASE_LANE_HEIGHT * (fontSize / BASE_FONT_SIZE) * factor;
-  return clamp(Math.round(raw));
-}
-
-/**
- * 行高→反推字号 | Compute font size from lane height
- */
-function computeFontSizeFromLaneHeight(
-  laneHeight: number,
-  scriptTag: string,
-): number {
-  const factor = getScriptLineHeightFactor(scriptTag);
-  const raw = BASE_FONT_SIZE * (laneHeight / BASE_LANE_HEIGHT) / factor;
-  return Math.max(MIN_LAYER_FONT_SIZE, Math.min(MAX_LAYER_FONT_SIZE, Math.round(raw * 4) / 4));
-}
-
 export function computeLaneHeightFromRenderPolicy(
   fontSize: number,
   renderPolicy: OrthographyRenderPolicy,
@@ -1021,8 +996,4 @@ export async function queryLocalFontFamilies(): Promise<LocalFontEntry[]> {
     }))
     .sort((a, b) => a.family.localeCompare(b.family));
   return cachedLocalFonts;
-}
-
-function clearLocalFontCache(): void {
-  cachedLocalFonts = null;
 }

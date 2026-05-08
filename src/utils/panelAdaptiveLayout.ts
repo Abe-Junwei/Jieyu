@@ -171,12 +171,6 @@ export function readPersistedUiFontScale(locale?: string, direction?: TextDirect
   return resolveEffectiveUiFontScale(preference, autoScale);
 }
 
-function persistUiFontScale(scale: number): number {
-  const normalized = clamp(scale, UI_FONT_SCALE_MIN, UI_FONT_SCALE_MAX);
-  const persisted = persistUiFontScalePreference({ mode: 'manual', manualScale: normalized });
-  return persisted.manualScale;
-}
-
 export function computeAdaptivePanelWidth(input: {
   baseWidth: number;
   locale: string;

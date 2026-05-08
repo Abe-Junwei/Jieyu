@@ -154,26 +154,6 @@ export function normalizeSingleLine(value: string): string {
   return value.replace(/\r\n|\r|\n/g, ' ');
 }
 
-function formatLanguageLabel(code?: string): string {
-  const normalized = (code ?? '').trim();
-  if (!normalized) {
-    return '\u672a\u8bbe\u7f6e\u8bed\u8a00';
-  }
-  return formatBcp47Label(normalized);
-}
-
-function formatLayerLanguageLabel(layer: LayerDocType): string {
-  const preferredName = readAnyMultiLangLabel(layer.name);
-  const code = (layer.languageId ?? '').trim().toLowerCase();
-  if (!preferredName) {
-    return formatLanguageLabel(code);
-  }
-  if (!code) {
-    return preferredName;
-  }
-  return `${preferredName} (${code})`;
-}
-
 export function formatSidePaneLayerLabel(layer: LayerDocType): string {
   const { type, lang } = getLayerLabelParts(layer);
   return lang ? `${type} · ${lang}` : type;

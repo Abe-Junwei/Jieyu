@@ -1,7 +1,7 @@
 import { createLogger } from '../observability/logger';
 
-export type Iso639_3SeedScope = 'individual' | 'macrolanguage' | 'collection' | 'special' | 'private-use';
-export type Iso639_3SeedType = 'living' | 'historical' | 'extinct' | 'ancient' | 'constructed' | 'special';
+type Iso639_3SeedScope = 'individual' | 'macrolanguage' | 'collection' | 'special' | 'private-use';
+type Iso639_3SeedType = 'living' | 'historical' | 'extinct' | 'ancient' | 'constructed' | 'special';
 
 const log = createLogger('iso6393Seed');
 
@@ -93,13 +93,6 @@ export async function ensureIso6393SeedsLoaded(): Promise<void> {
 export function hydrateIso6393SeedsFromRowsForTests(rows: readonly Iso639_3SeedRow[]): void {
   iso639_3SeedsCache = rows.map(materializeIso639_3Seed);
   iso639_3SeedMapCache = new Map(iso639_3SeedsCache.map((entry) => [entry.iso6393, entry] as const));
-  invalidateIso6393Derived?.();
-}
-
-function resetIso6393SeedsCacheForTests(): void {
-  iso639_3SeedsCache = undefined;
-  iso639_3SeedMapCache = undefined;
-  iso6393LoadPromise = null;
   invalidateIso6393Derived?.();
 }
 

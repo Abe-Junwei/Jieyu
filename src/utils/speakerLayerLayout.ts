@@ -1,7 +1,7 @@
 import type { LayerUnitDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 
-export type SpeakerLayerPlacement = {
+type SpeakerLayerPlacement = {
   unitId: string;
   subTrackIndex: number;
   overlapGroupId: string;
@@ -17,7 +17,7 @@ export type SpeakerLayerLayoutResult = {
   lockConflictSpeakerIds: string[];
 };
 
-export type SpeakerOverlapGroupSummary = {
+type SpeakerOverlapGroupSummary = {
   id: string;
   startTime: number;
   endTime: number;

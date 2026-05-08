@@ -124,7 +124,7 @@ type VerticalReadingGroupBuild = Omit<VerticalReadingGroup, 'isMultiAnchorGroup'
   speakerLabels: string[];
 };
 
-export type VerticalReadingGroupLayerLink = Pick<
+type VerticalReadingGroupLayerLink = Pick<
   LayerLinkDocType,
   'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
 >;

@@ -7,7 +7,7 @@
 
 import type { TimelineAcousticState } from './mapAcousticToTimelineChrome';
 
-export type TimelineShellKind = 'waveform' | 'text-only' | 'empty';
+type TimelineShellKind = 'waveform' | 'text-only' | 'empty';
 
 /**
  * 与 `useTranscriptionTimelineContentViewModel` 中 `effectiveLayersCount` 同构，保证 read model 与 timeline content 壳判定输入一致。

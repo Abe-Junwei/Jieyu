@@ -8,21 +8,21 @@ type TimeBoundUnitLike = {
   tags?: Record<string, boolean> | undefined;
 };
 
-export interface WaveformLowConfidenceBand {
+interface WaveformLowConfidenceBand {
   id: string;
   startTime: number;
   endTime: number;
   confidence: number;
 }
 
-export interface WaveformOverlapBand {
+interface WaveformOverlapBand {
   id: string;
   startTime: number;
   endTime: number;
   concurrentCount: number;
 }
 
-export interface WaveformGapBand {
+interface WaveformGapBand {
   id: string;
   startTime: number;
   endTime: number;
