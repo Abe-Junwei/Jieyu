@@ -7,6 +7,7 @@
  * sized via external CSS width/height.
  */
 import type { CSSProperties } from 'react';
+import type { ReactNode } from 'react';
 
 interface IconProps {
   className?: string;
@@ -22,85 +23,117 @@ const common = {
   role: 'img' as const,
 };
 
-/* ── 关闭 ✕ | Close ────────────────────────── */
-export function CloseIcon({ className, style, title, ariaLabel }: IconProps) {
+interface IconBaseProps extends IconProps {
+  children: ReactNode;
+}
+
+function buildIconProps({
+  className,
+  style,
+  title,
+  ariaLabel,
+}: {
+  className: string | undefined;
+  style: CSSProperties | undefined;
+  title: string | undefined;
+  ariaLabel: string | undefined;
+}): IconProps {
+  return {
+    ...(className !== undefined && { className }),
+    ...(style !== undefined && { style }),
+    ...(title !== undefined && { title }),
+    ...(ariaLabel !== undefined && { ariaLabel }),
+  };
+}
+
+function IconBase({ className, style, title, ariaLabel, children }: IconBaseProps) {
   return (
     <svg className={className} style={style} aria-label={ariaLabel} {...common}>
       {title ? <title>{title}</title> : null}
-      <path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" />
+      {children}
     </svg>
+  );
+}
+
+/* ── 关闭 ✕ | Close ────────────────────────── */
+export function CloseIcon({ className, style, title, ariaLabel }: IconProps) {
+  const iconProps = buildIconProps({ className, style, title, ariaLabel });
+  return (
+    <IconBase {...iconProps}>
+      <path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" />
+    </IconBase>
   );
 }
 
 /* ── 上箭头 ▲ | Chevron Up ─────────────────── */
 export function ChevronUpIcon({ className, style, title, ariaLabel }: IconProps) {
+  const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
-    <svg className={className} style={style} aria-label={ariaLabel} {...common}>
-      {title ? <title>{title}</title> : null}
+    <IconBase {...iconProps}>
       <path d="M4 10 8 6 12 10" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    </IconBase>
   );
 }
 
 /* ── 下箭头 ▼ | Chevron Down ───────────────── */
 export function ChevronDownIcon({ className, style, title, ariaLabel }: IconProps) {
+  const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
-    <svg className={className} style={style} aria-label={ariaLabel} {...common}>
-      {title ? <title>{title}</title> : null}
+    <IconBase {...iconProps}>
       <path d="M4 6 8 10 12 6" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    </IconBase>
   );
 }
 
 /* ── 替换切换 ⇄ | Swap / Toggle Replace ───── */
 export function SwapIcon({ className, style, title, ariaLabel }: IconProps) {
+  const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
-    <svg className={className} style={style} aria-label={ariaLabel} {...common}>
-      {title ? <title>{title}</title> : null}
+    <IconBase {...iconProps}>
       <path d="M3 5.5h10M10.5 3 13 5.5 10.5 8" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M13 10.5H3M5.5 8 3 10.5 5.5 13" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    </IconBase>
   );
 }
 
 /* ── 对勾 ✓ | Check ────────────────────────── */
 export function CheckIcon({ className, style, title, ariaLabel }: IconProps) {
+  const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
-    <svg className={className} style={style} aria-label={ariaLabel} {...common}>
-      {title ? <title>{title}</title> : null}
+    <IconBase {...iconProps}>
       <path d="M4 8.5 7 11.5 12 5" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    </IconBase>
   );
 }
 
 /* ── 叉号 ✗ | Cross / Failure ──────────────── */
 export function CrossIcon({ className, style, title, ariaLabel }: IconProps) {
+  const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
-    <svg className={className} style={style} aria-label={ariaLabel} {...common}>
-      {title ? <title>{title}</title> : null}
+    <IconBase {...iconProps}>
       <path d="M5 5 11 11M11 5 5 11" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" />
-    </svg>
+    </IconBase>
   );
 }
 
 /* ── 扳手 🔧 | Wrench ──────────────────────── */
 export function WrenchIcon({ className, style, title, ariaLabel }: IconProps) {
+  const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
-    <svg className={className} style={style} aria-label={ariaLabel} {...common}>
-      {title ? <title>{title}</title> : null}
+    <IconBase {...iconProps}>
       <path d="M10.3 2.7a3.5 3.5 0 0 0-4.1 5.5L3.5 10.8a1.2 1.2 0 0 0 1.7 1.7l2.6-2.7a3.5 3.5 0 0 0 5.5-4.1L11.5 7.5 10 8l-.5-1.5L11.3 4.7Z" stroke="currentColor" strokeWidth="1.28" strokeLinejoin="round" />
-    </svg>
+    </IconBase>
   );
 }
 
 /* ── 文件夹 📂 | Folder Open ───────────────── */
 export function FolderOpenIcon({ className, style, title, ariaLabel }: IconProps) {
+  const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
-    <svg className={className} style={style} aria-label={ariaLabel} {...common}>
-      {title ? <title>{title}</title> : null}
+    <IconBase {...iconProps}>
       <path d="M2 4.5V12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1H8.2L6.8 4H3a1 1 0 0 0-1 .5Z" stroke="currentColor" strokeWidth="1.28" strokeLinejoin="round" />
       <path d="M2 7h12" stroke="currentColor" strokeWidth="1.02" />
-    </svg>
+    </IconBase>
   );
 }
 
