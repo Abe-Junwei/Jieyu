@@ -6,7 +6,7 @@ import { createLogger } from '../observability/logger';
 
 const log = createLogger('VoiceIntentLlmResolver');
 
-export type VoiceResolverMode = VoiceMode;
+type VoiceResolverMode = VoiceMode;
 
 export interface VoiceIntentLlmSchemaConfig {
   typeField: string;
@@ -40,7 +40,7 @@ export interface ResolveVoiceIntentWithLlmInput {
   signal?: AbortSignal;
 }
 
-export type VoiceIntentLlmErrorKind =
+type VoiceIntentLlmErrorKind =
   | 'empty-input'
   | 'missing-json'
   | 'invalid-json'
@@ -240,11 +240,6 @@ export function parseVoiceIntentFromLlmResponseDetailed(
     message: 'LLM \u8fd4\u56de\u7684 JSON \u7f3a\u5c11\u53ef\u8bc6\u522b\u7684 type \u6216 tool_call \u7ed3\u6784\u3002',
     rawResponse: responseText,
   };
-}
-
-async function resolveVoiceIntentWithLlm(input: ResolveVoiceIntentWithLlmInput): Promise<VoiceIntent | null> {
-  const resolved = await resolveVoiceIntentWithLlmUsingConfig(input, {});
-  return resolved.ok ? resolved.intent : null;
 }
 
 export async function resolveVoiceIntentWithLlmUsingConfig(

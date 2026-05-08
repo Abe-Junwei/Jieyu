@@ -1,13 +1,13 @@
-import type { AcousticAnalysisConfig, AcousticFeatureResult } from '../../utils/acousticOverlayTypes';
+import type { AcousticAnalysisConfig } from '../../utils/acousticOverlayTypes';
 
 /**
  * Acoustic analysis provider kind.
  * 'local' is the built-in Web Worker YIN + spectral descriptor chain.
  * Additional kinds can be added for external backends.
  */
-export type AcousticProviderKind = 'local' | 'external';
+type AcousticProviderKind = 'local' | 'external';
 
-export interface AcousticProviderCapability {
+interface AcousticProviderCapability {
   f0: boolean;
   intensity: boolean;
   spectralDescriptors: boolean;
@@ -24,7 +24,7 @@ export interface AcousticProviderDefinition {
   experimental: boolean;
 }
 
-export interface AcousticProviderReachability {
+interface AcousticProviderReachability {
   id: string;
   available: boolean;
   error?: string;
@@ -48,12 +48,6 @@ export interface AcousticProviderAnalyzeInput {
   onProgress?: (processedFrames: number, totalFrames: number) => void;
 }
 
-export interface AcousticProvider {
-  readonly definition: AcousticProviderDefinition;
-  checkReachability(): Promise<AcousticProviderReachability>;
-  analyze(input: AcousticProviderAnalyzeInput): Promise<AcousticFeatureResult>;
-}
-
 export type AcousticProviderRoutingStrategy = 'local-first' | 'prefer-external';
 
 export interface ExternalAcousticProviderConfig {
@@ -68,7 +62,7 @@ export interface AcousticProviderRuntimeConfig {
   externalProvider: ExternalAcousticProviderConfig;
 }
 
-export type ExternalAcousticProviderHealthState =
+type ExternalAcousticProviderHealthState =
   | 'available'
   | 'disabled'
   | 'unconfigured'

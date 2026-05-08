@@ -1,10 +1,5 @@
 import type { WebMaAlignmentResult } from '../WebMaService';
-import type { AlignmentTaskRequest, AlignmentTaskResult } from '../../types/alignmentTask';
-
-export interface AlignmentTaskRuntime<TConfig = unknown> {
-  provider: AlignmentTaskRequest['provider'];
-  run: (request: AlignmentTaskRequest, config?: TConfig) => Promise<AlignmentTaskResult>;
-}
+import type { AlignmentTaskResult } from '../../types/alignmentTask';
 
 export function createAlignmentTaskResult(input: AlignmentTaskResult): AlignmentTaskResult {
   return {

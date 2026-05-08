@@ -228,36 +228,6 @@ export async function getActionRecordsInRange(
 }
 
 /**
- * Record a task phase completion.
- */
-async function recordTaskPhase(record: Omit<TaskPhaseRecordDoc, 'id'>): Promise<void> {
-  try {
-    await userBehaviorDB.taskPhaseRecords.add(record as TaskPhaseRecordDoc);
-  } catch (err) {
-    reportIfUnexpectedDexieDegradation(
-      'userBehaviorDB.recordTaskPhase',
-      err,
-      '[UserBehaviorDB] recordTaskPhase failed, skipped:',
-    );
-  }
-}
-
-/**
- * Record a difficult segment.
- */
-async function recordDifficultSegment(record: Omit<DifficultSegmentDoc, 'id'>): Promise<void> {
-  try {
-    await userBehaviorDB.difficultSegments.add(record as DifficultSegmentDoc);
-  } catch (err) {
-    reportIfUnexpectedDexieDegradation(
-      'userBehaviorDB.recordDifficultSegment',
-      err,
-      '[UserBehaviorDB] recordDifficultSegment failed, skipped:',
-    );
-  }
-}
-
-/**
  * Get task phase records for a time range.
  */
 export async function getTaskPhaseRecordsInRange(

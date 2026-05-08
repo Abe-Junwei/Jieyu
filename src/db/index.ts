@@ -54,7 +54,6 @@ export {
   dexieStoresForStructuralRuleProfilesRw,
   dexieStoresForTierAnnotationAtomicRw,
   dexieStoresForTierDefinitionAtomicRw,
-  dexieStoresForTrackEntitiesRw,
   dexieStoresForWorkspaceSnapshotRebuildRw,
 } from './dexieTranscriptionGraphStores';
 
@@ -72,4 +71,3 @@ export {
 
 // ── 库完整性 / 单例健康（F-2, ARCH-4）| DB integrity & singleton health ──
 export { jieyuDatabaseSingletonHealthCheck, probeJieyuDatabaseIntegrity } from './dbIntegrityProbe';
-export type { DbIntegrityProbeResult } from './dbIntegrityProbe';

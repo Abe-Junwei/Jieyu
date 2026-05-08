@@ -44,7 +44,7 @@ export interface CanDeleteResult {
   relinkTargetKey?: string;
 }
 
-export type ExistingLayerConstraintIssueCode =
+type ExistingLayerConstraintIssueCode =
   | 'invalid-root-transcription-constraint'
   | 'missing-parent-layer'
   | 'parent-layer-not-found'
@@ -64,7 +64,7 @@ export interface ExistingLayerConstraintRepair {
   message: string;
 }
 
-export type TranslationCreateBlockReason =
+type TranslationCreateBlockReason =
   | 'missing-transcription'
   | 'duplicate-same-type-without-alias'
   | 'cross-type-same-language'
@@ -656,21 +656,6 @@ export function getLayerCreateGuard(
   }
 
   return { allowed: true };
-}
-
-/** Shared translation-create guard (UI + backend). */
-function getTranslationCreateGuard(
-  layers: LayerDocType[],
-  input: {
-    languageId?: string;
-    alias?: string;
-    modality?: LayerDocType['modality'];
-    hostTranscriptionLayerIds?: string[];
-    preferredHostTranscriptionLayerId?: string;
-  },
-  locale: Locale = DEFAULT_LOCALE,
-): TranslationCreateGuardResult {
-  return getLayerCreateGuard(layers, 'translation', input, locale);
 }
 
 // Create constraints

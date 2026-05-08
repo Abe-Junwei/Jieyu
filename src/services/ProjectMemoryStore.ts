@@ -21,7 +21,7 @@ const log = createLogger('ProjectMemoryStore');
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export interface TermEntry {
+interface TermEntry {
   term: string;
   gloss: string;
   lang: string; // ISO 639-3
@@ -30,7 +30,7 @@ export interface TermEntry {
   lastUsedAt: number;
 }
 
-export interface PhrasePattern {
+interface PhrasePattern {
   pattern: string;
   translation: string;
   context: string; // e.g. "greeting", "farewell", "question"
@@ -38,7 +38,7 @@ export interface PhrasePattern {
   lastSeenAt: number;
 }
 
-export interface SpeakerProfile {
+interface SpeakerProfile {
   speakerId: string;
   /** Typical speaking rate (words per minute estimate) */
   speakingRateWpm: number | null;
@@ -52,14 +52,14 @@ export interface SpeakerProfile {
   sessionCount: number;
 }
 
-export interface DomainVocabulary {
+interface DomainVocabulary {
   domain: string; // e.g. "medical", "legal", "agricultural"
   terms: string[];
   addedAt: number;
   source: 'auto-detected' | 'user-added' | 'document';
 }
 
-export interface ProjectMemory {
+interface ProjectMemory {
   projectId: string;
   /** Confirmed term glossary */
   terms: TermEntry[];
@@ -73,7 +73,7 @@ export interface ProjectMemory {
   updatedAt: number;
 }
 
-export interface RAGContextMatch {
+interface RAGContextMatch {
   /** One of 'term' | 'phrase' | 'domain' */
   kind: 'term' | 'phrase' | 'domain';
   /** The matched text (term, phrase, or domain name) */
@@ -84,7 +84,7 @@ export interface RAGContextMatch {
   annotation: string | null;
 }
 
-export interface GetRagContextVectorOptions {
+interface GetRagContextVectorOptions {
   /** Maximum number of results to return (default 10) */
   topK?: number;
   /** Minimum score threshold 0–1 (default 0.2) */

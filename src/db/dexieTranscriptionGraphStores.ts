@@ -4,11 +4,6 @@
  */
 import type { JieyuDatabase } from './engine';
 
-/** Read scope aligned with `getUnitDocProjectionById` (units + primary content + speaker name). */
-function dexieStoresForUnitDocProjectionRead(db: JieyuDatabase) {
-  return [db.dexie.layer_units, db.dexie.layer_unit_contents, db.dexie.speakers] as const;
-}
-
 /**
  * Read scope for AI `get_unit_linguistic_memory`: canonical unit row, `listUnitTextsByUnit` (layer graph),
  * lexical rows, note rows, and layer/tier metadata needed to label translations.
@@ -110,16 +105,6 @@ export function dexieStoresForTierDefinitionAtomicRw(db: JieyuDatabase) {
 }
 
 // ── P3+: track UI state, language catalog, orthography, project/unit cascade deletes ──
-
-/** RW: `track_entities` only (`TrackEntityStore.saveTrackEntityStateMapToDb`). */
-export function dexieStoresForTrackEntitiesRw(db: JieyuDatabase) {
-  return [db.dexie.track_entities] as const;
-}
-
-/** Read: `readLanguageCatalogProjection` — languages + display names + aliases. */
-function dexieStoresForLanguageCatalogProjectionRead(db: JieyuDatabase) {
-  return [db.dexie.languages, db.dexie.language_display_names, db.dexie.language_aliases] as const;
-}
 
 /** RW: language catalog upsert/delete + history row (`LinguisticService.languageCatalog`). */
 export function dexieStoresForLanguageCatalogMutateRw(db: JieyuDatabase) {

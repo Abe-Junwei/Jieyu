@@ -4,9 +4,9 @@ import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { buildTranscriptionIdByKeyMap, getPreferredHostTranscriptionLayerIdForTranslation } from '../utils/translationHostLinkQuery';
 
-export type LayerOrderingMessageLevel = 'info' | 'warning' | 'error';
+type LayerOrderingMessageLevel = 'info' | 'warning' | 'error';
 
-export type LayerOrderIssueCode = 'non-canonical-sort-order';
+type LayerOrderIssueCode = 'non-canonical-sort-order';
 
 export interface LayerOrderIssue {
   layerId: string;
@@ -30,7 +30,7 @@ export interface LayerBundle {
 }
 
 /** 拖拽重排后需写入的 link 变更 | Link update produced by resolveLayerDrop */
-export interface LayerDropLinkUpdate {
+interface LayerDropLinkUpdate {
   layerId: string;
   hostTranscriptionLayerId: string;
   transcriptionLayerKey: string;

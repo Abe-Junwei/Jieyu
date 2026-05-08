@@ -46,7 +46,7 @@ export interface VadMediaBackendResult {
 
 // ── 进度回调 | Progress callback ─────────────────────────────────────────────
 
-export interface VadMediaBackendProgress {
+interface VadMediaBackendProgress {
   engine?: 'silero' | 'energy';
   processedFrames: number;
   totalFrames: number;

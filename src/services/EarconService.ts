@@ -70,21 +70,6 @@ function playTone(
 }
 
 /**
- * Release WebAudio resources explicitly (for tests / app teardown).
- * 显式释放 WebAudio 资源（用于测试或应用退出阶段）
- */
-function disposeEarconAudio(): void {
-  if (!audioCtx) return;
-  if (audioCtx.state !== 'closed') {
-    void audioCtx.close().catch(() => {
-      // best-effort cleanup
-    });
-  }
-  audioCtx = null;
-  audioUnlocked = false;
-}
-
-/**
  * Two-tone ascending chime — voice agent activated.
  */
 export function playActivate(): void {

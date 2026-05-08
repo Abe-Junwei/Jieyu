@@ -1,4 +1,4 @@
-export type AiHybridRecommendationSignificanceReason =
+type AiHybridRecommendationSignificanceReason =
   | 'locale'
   | 'page'
   | 'observerStage'
@@ -18,7 +18,7 @@ export type AiHybridRecommendationSignificanceReason =
   | 'model'
   | 'lastAcceptedPrompt';
 
-export interface AiHybridRecommendationSignificanceConfig {
+interface AiHybridRecommendationSignificanceConfig {
   rowBucketSize: number;
   selectedTextMaxLength: number;
   adaptiveKeywordLimit: number;
@@ -26,7 +26,7 @@ export interface AiHybridRecommendationSignificanceConfig {
   trackedReasons: Record<AiHybridRecommendationSignificanceReason, boolean>;
 }
 
-export interface AiHybridRecommendationSuppressionConfig {
+interface AiHybridRecommendationSuppressionConfig {
   telemetryWindowMs: number;
   repeatPenalty: number;
   repeatedIgnorePenalty: number;

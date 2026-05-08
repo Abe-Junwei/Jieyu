@@ -4,7 +4,7 @@ import type { TranscriptionCtxMenuLayerType, TranscriptionCtxMenuSurface } from 
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { SnapGuide } from '../hooks/useTranscriptionData';
 
-export type ContextMenuUnitKind = 'segment' | 'unit';
+type ContextMenuUnitKind = 'segment' | 'unit';
 
 export interface WaveformTimelineItemLike {
   id: string;
@@ -15,21 +15,21 @@ export interface WaveformTimelineItemLike {
   layerId?: string;
 }
 
-export interface WaveSurferInstanceLike {
+interface WaveSurferInstanceLike {
   getCurrentTime: () => number;
   getWrapper: () => HTMLElement;
   getDuration: () => number;
   getDecodedData?: () => AudioBuffer | null;
 }
 
-export interface PlayerLike {
+interface PlayerLike {
   isPlaying: boolean;
   stop: () => void;
   seekTo: (timeSeconds: number) => void;
   instanceRef: MutableRefObject<WaveSurferInstanceLike | null>;
 }
 
-export interface ContextMenuStateLike {
+interface ContextMenuStateLike {
   x: number;
   y: number;
   unitId: string;
@@ -41,7 +41,7 @@ export interface ContextMenuStateLike {
   layerType: TranscriptionCtxMenuLayerType;
 }
 
-export interface PdfPreviewOpenRequestInput {
+interface PdfPreviewOpenRequestInput {
   title: string;
   page: number | null;
   sourceUrl?: string;
@@ -50,7 +50,7 @@ export interface PdfPreviewOpenRequestInput {
   searchSnippet?: string;
 }
 
-export interface SubSelectDragLike {
+interface SubSelectDragLike {
   active: boolean;
   regionId: string;
   anchorTime: number;

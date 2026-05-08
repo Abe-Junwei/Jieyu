@@ -1,7 +1,7 @@
 import type { Region } from '../utils/regionDetection';
 
 export type SttEngine = 'web-speech' | 'whisper-local' | 'commercial';
-export type SttEnhancementKind = 'whisperx-align' | 'mfa-align' | 'pyannote-diarize';
+type SttEnhancementKind = 'whisperx-align' | 'mfa-align' | 'pyannote-diarize';
 
 export interface SttEnhancementConfig {
   endpointUrl?: string;
@@ -10,20 +10,20 @@ export interface SttEnhancementConfig {
   [key: string]: string | number | boolean | undefined;
 }
 
-export interface SttEnhancementWordTiming {
+interface SttEnhancementWordTiming {
   word: string;
   start: number;
   end: number;
   confidence?: number;
 }
 
-export interface SttEnhancementSpeakerTurn {
+interface SttEnhancementSpeakerTurn {
   speaker: string;
   start: number;
   end: number;
 }
 
-export interface SttEnhancementInput {
+interface SttEnhancementInput {
   transcriptText: string;
   lang: string;
   audioBlob?: Blob;
@@ -34,7 +34,7 @@ export interface SttEnhancementInput {
   }>;
 }
 
-export interface SttEnhancementOutput {
+interface SttEnhancementOutput {
   wordTimings?: SttEnhancementWordTiming[];
   speakerTurns?: SttEnhancementSpeakerTurn[];
   debug?: Record<string, unknown>;

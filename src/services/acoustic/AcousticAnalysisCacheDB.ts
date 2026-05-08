@@ -8,7 +8,7 @@ const MAX_MEDIA_ENTRIES = 6;
 const MAX_TOTAL_BYTES = 32 * 1024 * 1024;
 const MAX_MEDIA_BYTES = 8 * 1024 * 1024;
 
-export type AcousticCacheStatus = 'fresh' | 'stale';
+type AcousticCacheStatus = 'fresh' | 'stale';
 
 interface AcousticAnalysisCacheRow {
   cacheKey: string;
@@ -20,7 +20,7 @@ interface AcousticAnalysisCacheRow {
   lastAccessedAt: number;
 }
 
-export interface AcousticAnalysisCacheEntrySummary {
+interface AcousticAnalysisCacheEntrySummary {
   cacheKey: string;
   mediaKey: string;
   status: AcousticCacheStatus;
