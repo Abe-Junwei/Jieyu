@@ -151,8 +151,8 @@ function createBestEffortCleanupPlan(
   return 'soft-rollback';
 }
 
-/** M13 合约名：语义同 {@link createBestEffortCleanupPlan}（仅内存标签，无 Dexie 回滚）。 */
-export function createTransactionalRollbackPlan(
+/** M13 合约名（片段门禁扫描）：语义同 createBestEffortCleanupPlan；仅内存标签，无 Dexie 回滚。 */
+function createTransactionalRollbackPlan(
   atomicity: TransactionAtomicityResult,
 ): 'none' | 'soft-rollback' | 'hard-rollback' {
   return createBestEffortCleanupPlan(atomicity);
