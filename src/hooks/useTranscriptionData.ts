@@ -21,8 +21,8 @@ import { useTranscriptionCloudSyncActions } from './useTranscriptionCloudSyncAct
 import { buildCollaborationPresenceFocus } from './useTranscriptionDataCollaborationFocus';
 import { useTranscriptionDataPhaseCountsEffect } from './useTranscriptionDataPhaseCountsEffect';
 import { useTranscriptionDataTextTimeMapping } from './useTranscriptionDataTextTimeMapping';
-import { isSegmentTimelineUnit, isUnitTimelineUnit, type DbState, type LayerCreateInput, type SaveState, type SnapGuide } from './transcriptionTypes';
-export type { DbState, LayerCreateInput, SaveState, SnapGuide };
+import { isSegmentTimelineUnit, isUnitTimelineUnit, type SaveState, type SnapGuide } from './transcriptionTypes';
+export type { SaveState, SnapGuide };
 
 export function useTranscriptionData() {
   const {

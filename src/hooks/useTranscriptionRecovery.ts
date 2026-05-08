@@ -39,7 +39,3 @@ export function useTranscriptionRecoverySnapshotScheduler({
     scheduleRecoverySave,
   };
 }
-
-function useTranscriptionRecovery(params: Params) {
-  return useTranscriptionRecoverySnapshotScheduler(params);
-}

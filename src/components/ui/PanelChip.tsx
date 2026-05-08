@@ -4,7 +4,7 @@ import { joinClassNames } from './classNames';
 /**
  * 面板徽章/芯片变体 | Panel chip visual variant
  */
-export type PanelChipVariant = 'default' | 'warning' | 'danger' | 'success';
+type PanelChipVariant = 'default' | 'warning' | 'danger' | 'success';
 
 interface PanelChipProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: PanelChipVariant | undefined;

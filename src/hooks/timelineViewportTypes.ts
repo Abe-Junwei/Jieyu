@@ -5,13 +5,13 @@ import type { TimelineReadModel } from '../pages/timelineReadModel';
  * Visible [start, end] window on the primary ruler (seconds in player time,
  * or logical timeline span in text-only shell). Matches `useZoom` `rulerView` state shape.
  */
-export interface TimelineRulerViewWindow {
+interface TimelineRulerViewWindow {
   start: number;
   end: number;
 }
 
 /** Authoritative zoom scalars (today split between orchestrator input and `useZoom` input; phase C collapses to one writer). */
-export interface TimelineViewportScalars {
+interface TimelineViewportScalars {
   zoomPxPerSec: number;
   documentSpanSec: number;
   zoomPercent: number;
@@ -19,7 +19,7 @@ export interface TimelineViewportScalars {
   fitPxPerSec: number;
 }
 
-export interface TimelineViewportFrame {
+interface TimelineViewportFrame {
   scrollLeftPx: number;
   pxPerDocSec: number;
   visibleStartSec: number;
@@ -52,10 +52,10 @@ export type TimelineViewportZoomBridge = TimelineViewportZoomControls & {
 };
 
 /** Acoustic slice of `TimelineReadModel` — single alias so strip contracts track read model drift. */
-export type AcousticStripSnapshot = TimelineReadModel['acoustic'];
+type AcousticStripSnapshot = TimelineReadModel['acoustic'];
 
 /** DOM ref slots for strip plugins (`useRef` is MutableRefObject; some callers use RefObject). */
-export type StripDomRef<T extends HTMLElement> = RefObject<T | null> | MutableRefObject<T | null>;
+type StripDomRef<T extends HTMLElement> = RefObject<T | null> | MutableRefObject<T | null>;
 
 /**
  * Narrow contract for the waveform strip / `OrchestratorWaveformContent` boundary (phase B props shrink target).

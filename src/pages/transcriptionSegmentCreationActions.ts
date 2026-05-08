@@ -19,7 +19,7 @@ import {
 
 const log = createLogger('transcriptionSegmentCreationActions');
 
-export interface CreateUnitOptions {
+interface CreateUnitOptions {
   speakerId?: string;
   focusedLayerId?: string;
   selectionBehavior?: NewSegmentSelectionBehavior;

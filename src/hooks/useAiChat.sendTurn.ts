@@ -13,7 +13,7 @@ import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
 // 现已通过 persistUserMessage / persistAssistantPlaceholder / updateAssistantGenerationMeta /
 // flushAssistantContent / finalizeAssistantMessageInDb / updateAssistantRetryMeta 集中管理。
 
-export type { RunAiChatSendTurnArgs, ToolIntentAssessment } from './useAiChat.sendTurn.types';
+export type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
 
 /** Full send-turn pipeline: guards, persistence opening, streaming, agent loop, metrics. */
 export async function runAiChatSendTurn(args: RunAiChatSendTurnArgs): Promise<void> {

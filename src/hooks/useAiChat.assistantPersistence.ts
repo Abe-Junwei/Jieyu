@@ -123,8 +123,7 @@ export function createAssistantPersistenceHelpers({
       const contextSnapshot = explainDto
         ? mergeContextSnapshotWithWorkflowExplainability(row.contextSnapshot, explainDto)
         : row.contextSnapshot;
-      await finalizeAssistantMessageInDb(dbRef, {
-        assistantId,
+      await finalizeAssistantMessageInDb(dbRef, row, {
         content,
         status,
         errorMessage,

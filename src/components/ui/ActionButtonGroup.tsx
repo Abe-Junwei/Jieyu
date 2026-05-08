@@ -4,7 +4,7 @@ import { joinClassNames } from './classNames';
 /**
  * 操作按钮组对齐方式 | Action button group alignment
  */
-export type ActionButtonGroupAlign = 'start' | 'end' | 'center' | 'space-between';
+type ActionButtonGroupAlign = 'start' | 'end' | 'center' | 'space-between';
 
 interface ActionButtonGroupProps extends HTMLAttributes<HTMLDivElement> {
   /** 对齐方式 | Alignment */

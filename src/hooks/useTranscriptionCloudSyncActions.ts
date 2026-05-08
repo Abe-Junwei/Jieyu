@@ -91,7 +91,7 @@ export interface CloudSyncConflictReviewTicket {
 
 // ─── 参数类型 | Input parameter types ───
 
-export interface CloudSyncRawActions {
+interface CloudSyncRawActions {
 	saveUnitText: (unitId: string, value: string, layerId?: string) => Promise<void>;
 	saveUnitSelfCertainty: (unitIds: Iterable<string>, value: UnitSelfCertainty | undefined) => Promise<void>;
 	saveUnitLayerFields: (unitIds: Iterable<string>, patch: PerLayerRowFieldPatch) => Promise<void>;
@@ -102,7 +102,7 @@ export interface CloudSyncRawActions {
 	toggleLayerLink: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
 }
 
-export interface CloudSyncWrappedActions {
+interface CloudSyncWrappedActions {
 	saveUnitText: (unitId: string, value: string, layerId?: string) => Promise<void>;
 	saveUnitSelfCertainty: (unitIds: Iterable<string>, value: UnitSelfCertainty | undefined) => Promise<void>;
 	saveUnitLayerFields: (unitIds: Iterable<string>, patch: PerLayerRowFieldPatch) => Promise<void>;

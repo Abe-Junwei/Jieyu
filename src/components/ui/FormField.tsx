@@ -4,7 +4,7 @@ import { joinClassNames } from './classNames';
 /**
  * 表单字段容器宽度 | Form field width modifier
  */
-export type FormFieldSpan = 'full' | 'half' | 'third';
+type FormFieldSpan = 'full' | 'half' | 'third';
 
 interface FormFieldProps extends HTMLAttributes<HTMLElement> {
   /** 字段标签 | Field label text */

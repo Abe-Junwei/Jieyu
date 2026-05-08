@@ -1,7 +1,7 @@
 import type { MapProviderConfig } from './languageMapEmbed.shared';
 import { buildMapProxyUrl, readMapProxyBaseUrl } from './mapProxyConfig';
 
-export type GeocoderProviderKind = 'nominatim' | 'maptiler';
+type GeocoderProviderKind = 'nominatim' | 'maptiler';
 
 export interface GeocoderCapabilities {
   supportsForwardGeocode: boolean;
@@ -11,13 +11,13 @@ export interface GeocoderCapabilities {
   supportsStructuredQuery: boolean;
 }
 
-export interface GeocodeQueryBias {
+interface GeocodeQueryBias {
   latitude: number;
   longitude: number;
   radiusKm?: number;
 }
 
-export interface GeocodeAdministrativeHierarchy {
+interface GeocodeAdministrativeHierarchy {
   country?: string;
   countryCode?: string;
   province?: string;

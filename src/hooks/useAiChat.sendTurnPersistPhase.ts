@@ -11,10 +11,10 @@
  */
 
 import type { AiMessageCitation, AiMessageDoc } from '../db';
-import { getDb } from '../db';
+import type { JieyuDatabase } from '../db/engine';
 import { nowIso } from './useAiChat.helpers';
 
-type AiChatDb = Awaited<ReturnType<typeof getDb>>;
+type AiChatDb = JieyuDatabase;
 
 interface PersistUserMessageInput {
   id: string;
@@ -87,7 +87,7 @@ export async function flushAssistantContent(
     ...existing.toJSON(),
     content,
     updatedAt: nowIso(),
-  } as AiMessageDoc);
+  });
 }
 
 interface FinalizeAssistantMessageInput {
@@ -105,12 +105,9 @@ interface FinalizeAssistantMessageInput {
 
 export async function finalizeAssistantMessageInDb(
   db: AiChatDb,
-  input: FinalizeAssistantMessageInput,
+  row: AiMessageDoc,
+  input: Omit<FinalizeAssistantMessageInput, 'assistantId'>,
 ): Promise<void> {
-  const existing = await db.collections.ai_messages.findOne({ selector: { id: input.assistantId } }).exec();
-  if (!existing) return;
-
-  const row = existing.toJSON();
   await db.collections.ai_messages.insert({
     ...row,
     content: input.content,

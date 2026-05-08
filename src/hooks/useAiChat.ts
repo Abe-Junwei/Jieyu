@@ -46,8 +46,8 @@ import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/conf
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { AiContextDebugSnapshot, AiInteractionMetrics, AiRecommendationEvent, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, PendingAiToolCall, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
 
-export type { AiChatProviderKind, AiChatSettings } from '../ai/providers/providerCatalog';
-export type { AiChatToolCall, AiChatToolName, AiChatToolResult, AiClarifyCandidate, AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiPromptDraftSnapshot, AiPromptLayerLinkSnapshot, AiPromptLayerSnapshot, AiPromptNoteSummary, AiPromptSpeakerSnapshot, AiPromptVisibleTimelineState, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, PreviewContract, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
+export type { AiChatSettings } from '../ai/providers/providerCatalog';
+export type { AiChatToolCall, AiChatToolResult, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, PendingAiToolCall, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
 
 export function useAiChat(options?: UseAiChatOptions) {
   // 保留主 hook 对确认执行 seam 的显式依赖，结构测试据此验证拆分边界 |

@@ -27,7 +27,7 @@ function makeSet(overrides: Partial<SavedCorpusSourceSet> = {}): SavedCorpusSour
 describe('AiSourceSetBar', () => {
   it('renders empty state when no sets', () => {
     const onCreate = vi.fn();
-    const { container } = render(
+    const view = render(
       <AiSourceSetBar
         sourceSets={[]}
         activeSourceSetId={null}
@@ -37,9 +37,8 @@ describe('AiSourceSetBar', () => {
     );
 
     expect(screen.getByText('Project Scope')).toBeTruthy();
-    const addBtn = container.querySelector('.ai-source-set-bar__action') as HTMLButtonElement;
+    const addBtn = view.container.querySelector('.ai-source-set-bar__action') as HTMLButtonElement;
     expect(addBtn).toBeTruthy();
-    expect(container).toBeTruthy();
   });
 
   it('renders active set name and member count', () => {
@@ -115,7 +114,7 @@ describe('AiSourceSetBar', () => {
 
   it('adds a member via input + type select + add button', () => {
     const onAdd = vi.fn();
-    const { container } = render(
+    const view = render(
       <AiSourceSetBar
         sourceSets={[makeSet({ members: [] })]}
         activeSourceSetId="set_001"
@@ -130,10 +129,10 @@ describe('AiSourceSetBar', () => {
     const input = screen.getByPlaceholderText('Member ID');
     fireEvent.change(input, { target: { value: 'new_seg' } });
 
-    const typeSelect = container.querySelector('.ai-source-set-bar__member-type-select') as HTMLSelectElement;
+    const typeSelect = view.container.querySelector('.ai-source-set-bar__member-type-select') as HTMLSelectElement;
     fireEvent.change(typeSelect, { target: { value: 'document' } });
 
-    const addBtn = container.querySelector('.ai-source-set-bar__member-add-btn') as HTMLButtonElement;
+    const addBtn = view.container.querySelector('.ai-source-set-bar__member-add-btn') as HTMLButtonElement;
     fireEvent.click(addBtn);
 
     expect(onAdd).toHaveBeenCalledWith('set_001', { id: 'new_seg', type: 'document' });
@@ -161,7 +160,7 @@ describe('AiSourceSetBar', () => {
   });
 
   it('disables add button when input is empty', () => {
-    const { container } = render(
+    const view = render(
       <AiSourceSetBar
         sourceSets={[makeSet({ members: [] })]}
         activeSourceSetId="set_001"
@@ -172,7 +171,7 @@ describe('AiSourceSetBar', () => {
     );
 
     fireEvent.click(screen.getByTitle('Show members'));
-    const addBtn = container.querySelector('.ai-source-set-bar__member-add-btn') as HTMLButtonElement;
+    const addBtn = view.container.querySelector('.ai-source-set-bar__member-add-btn') as HTMLButtonElement;
     expect(addBtn.disabled).toBe(true);
   });
 
@@ -194,7 +193,7 @@ describe('AiSourceSetBar', () => {
 
   it('fires onCreateSourceSet when + button clicked', () => {
     const onCreate = vi.fn();
-    const { container } = render(
+    const view = render(
       <AiSourceSetBar
         sourceSets={[]}
         activeSourceSetId={null}
@@ -203,7 +202,7 @@ describe('AiSourceSetBar', () => {
       />,
     );
 
-    const addBtn = container.querySelector('.ai-source-set-bar__action') as HTMLButtonElement;
+    const addBtn = view.container.querySelector('.ai-source-set-bar__action') as HTMLButtonElement;
     fireEvent.click(addBtn);
     expect(onCreate).toHaveBeenCalledTimes(1);
   });

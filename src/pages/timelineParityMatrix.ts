@@ -32,10 +32,10 @@ import { timelineParityMatrixRowsZh } from '../i18n/messages';
 
 export const TIMELINE_PARITY_MATRIX_VERSION = 18 as const;
 
-export type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
+type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
 
 /** 与 §5.7「统一宿主目标」列一致的粗粒度状态 */
-export type TimelineParityLevel = 'full' | 'partial' | 'none';
+type TimelineParityLevel = 'full' | 'partial' | 'none';
 
 export interface TimelineParityRow {
   /** 稳定机器 id，供测试与 CI 引用 */

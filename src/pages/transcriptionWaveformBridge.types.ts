@@ -11,7 +11,7 @@ import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
 import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
 
-export interface TimeRangeLike {
+interface TimeRangeLike {
   startTime: number;
   endTime: number;
 }

@@ -17,7 +17,7 @@ import {
 import { buildAdoptionAcceptProposeChangesUserPrompt } from '../../ai/vertical/adoptionProposeChangesUserPrompt';
 import { scheduleAdoptionOutcomeAuditLog } from '../../ai/vertical/adoptionOutcomeAuditPersist';
 import type { SavedCorpusSourceSet } from '../../ai/vertical/corpusSourceSet';
-import { createSavedSourceSet, switchActiveSourceSet, pruneInvalidatedSourceSets } from '../../ai/vertical/corpusSourceSet';
+import { createSavedSourceSet, switchActiveSourceSet, pruneInvalidatedSourceSets, type SourceSetMemberType } from '../../ai/vertical/corpusSourceSet';
 import { getAiChatProviderDefinition } from '../../ai/providers/providerCatalog';
 import type { AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
@@ -148,8 +148,10 @@ export function AiChatCard({
   const pendingPostStreamAdoptionPromptsRef = useRef<string[]>([]);
   const [savedSourceSets, setSavedSourceSets] = useState<SavedCorpusSourceSet[]>([]);
   const [activeSourceSetId, setActiveSourceSetId] = useState<string | null>(null);
+  const persistQueueRef = useRef<Promise<void>>(Promise.resolve());
 
-  // P5: Source set hydration from Dexie + invalidation pruning
+  // P5: Source set hydration from Dexie + invalidation pruning (mount-only by design;
+  // continuous invalidation would require subscribing to all related tables)
   useEffect(() => {
     let cancelled = false;
     getDb()
@@ -161,7 +163,7 @@ export function AiChatCard({
         // P1-3: Runtime invalidation detection
         if (sets.length > 0) {
           const [layerUnitIdsList, texts, lexemes, userNotes, mediaItems, layerLinks] = await Promise.all([
-            LayerSegmentQueryService.listAllLayerUnitIds().catch(() => []),
+            LayerSegmentQueryService.listAllLayerUnitIds().catch(() => [] as string[]),
             db.collections.texts.find().exec().catch(() => []),
             db.collections.lexemes.find().exec().catch(() => []),
             db.collections.user_notes.find().exec().catch(() => []),
@@ -194,9 +196,7 @@ export function AiChatCard({
 
           if (invalidatedIds.length > 0) {
             sets = updated;
-            for (const set of sets) {
-              await db.collections.ai_source_sets.update(set.id, set);
-            }
+            await Promise.all(sets.map((set) => db.collections.ai_source_sets.update(set.id, set)));
           }
         }
 
@@ -204,25 +204,24 @@ export function AiChatCard({
           setSavedSourceSets(sets);
         }
       })
-      .catch(() => {});
+      .catch((err) => { console.error('[AiChatCard] source set hydration/prune failed', err); });
     return () => { cancelled = true; };
   }, []);
 
-  // P5: Persist source sets to Dexie
+  // P5: Persist source sets to Dexie (serialized via Promise queue to avoid races)
   const persistSourceSets = useCallback((sets: SavedCorpusSourceSet[]) => {
-    getDb()
-      .then(async (db) => {
+    persistQueueRef.current = persistQueueRef.current
+      .then(async () => {
+        const db = await getDb();
         const existing = await db.collections.ai_source_sets.find().exec();
         const existingIds = new Set(existing.map((r) => r.id));
-        for (const set of sets) {
-          if (existingIds.has(set.id)) {
-            await db.collections.ai_source_sets.update(set.id, set);
-          } else {
-            await db.collections.ai_source_sets.insert(set);
-          }
-        }
+        await Promise.all(sets.map((set) =>
+          existingIds.has(set.id)
+            ? db.collections.ai_source_sets.update(set.id, set)
+            : db.collections.ai_source_sets.insert(set),
+        ));
       })
-      .catch(() => {});
+      .catch((err) => { console.error('[AiChatCard] persistSourceSets failed', err); });
   }, []);
 
   // P5: Source set management
@@ -251,13 +250,13 @@ export function AiChatCard({
   }, [savedSourceSets, onSetActiveSourceSetId, persistSourceSets]);
 
   // P5: Source set member management
-  const handleAddSourceSetMember = useCallback((setId: string, member: { id: string; type: string; label?: string }) => {
+  const handleAddSourceSetMember = useCallback((setId: string, member: { id: string; type: SourceSetMemberType; label?: string }) => {
     setSavedSourceSets((prev) => {
       const next = prev.map((s) => {
         if (s.id !== setId) return s;
         const newMember = {
           id: member.id,
-          type: member.type as SavedCorpusSourceSet['members'][number]['type'],
+          type: member.type,
           ...(member.label !== undefined ? { label: member.label } : {}),
         };
         const members = [...s.members, newMember];

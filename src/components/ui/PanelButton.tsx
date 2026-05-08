@@ -4,12 +4,12 @@ import { joinClassNames } from './classNames';
 /**
  * 面板按钮变体 | Panel button visual variant
  */
-export type PanelButtonVariant = 'default' | 'primary' | 'ghost' | 'danger' | 'success';
+type PanelButtonVariant = 'default' | 'primary' | 'ghost' | 'danger' | 'success';
 
 /**
  * 面板按钮尺寸 | Panel button size
  */
-export type PanelButtonSize = 'default' | 'sm' | 'compact';
+type PanelButtonSize = 'default' | 'sm' | 'compact';
 
 interface PanelButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: PanelButtonVariant;

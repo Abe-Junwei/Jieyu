@@ -13,7 +13,7 @@ function activeUnitIdFromPrimaryView(
   return parent ? parent : (ownerFallback?.id ?? null);
 }
 
-export interface TranscriptionSelectionRowMeta {
+interface TranscriptionSelectionRowMeta {
   rowNumber: number;
   start: number;
   end: number;

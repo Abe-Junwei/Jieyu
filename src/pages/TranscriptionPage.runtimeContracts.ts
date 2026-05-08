@@ -53,7 +53,7 @@ export interface TranscriptionPageAssistantRuntimeVoiceActionProps {
   lifecycle: TranscriptionPageAssistantRuntimeVoiceLifecycleProps;
 }
 
-export interface TranscriptionPageAssistantRuntimeSelection {
+interface TranscriptionPageAssistantRuntimeSelection {
   activeUnitId: string | null;
   selectedUnit: TimelineUnitView | null;
   selectedRowMeta: { rowNumber: number; start: number; end: number } | null;

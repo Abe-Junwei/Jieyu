@@ -11,7 +11,7 @@ import type { TimelineReadModel } from './timelineReadModel';
 
 type Raw = Omit<TranscriptionReadyWorkspaceOrchestratorRawInput, 'sharedLaneProps'>;
 
-export type ReadyWorkspaceOrchestratorRawHeadSlice = Pick<
+type ReadyWorkspaceOrchestratorRawHeadSlice = Pick<
   Raw,
   | 'selectedMediaUrl'
   | 'player'
@@ -22,7 +22,7 @@ export type ReadyWorkspaceOrchestratorRawHeadSlice = Pick<
   | 'timelineViewportProjection'
 >;
 
-export type ReadyWorkspaceOrchestratorRawWorkspaceTailFields = Pick<
+type ReadyWorkspaceOrchestratorRawWorkspaceTailFields = Pick<
   Raw,
   | 'selectedTimelineMedia'
   | 'waveformDisplayMode'

@@ -6,7 +6,7 @@ type ReadyWorkspaceTimelineInteractionInput = Omit<
   'onRevealSchemaLayer'
 >;
 
-export type BuildReadyWorkspaceTimelineInteractionReadInput = Pick<
+type BuildReadyWorkspaceTimelineInteractionReadInput = Pick<
   ReadyWorkspaceTimelineInteractionInput,
   | 'layers'
   | 'units'
@@ -31,7 +31,7 @@ export type BuildReadyWorkspaceTimelineInteractionReadInput = Pick<
   | 'markingModeRef'
 >;
 
-export type BuildReadyWorkspaceTimelineInteractionWriteInput = Omit<
+type BuildReadyWorkspaceTimelineInteractionWriteInput = Omit<
   ReadyWorkspaceTimelineInteractionInput,
   keyof BuildReadyWorkspaceTimelineInteractionReadInput
 >;

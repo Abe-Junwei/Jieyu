@@ -77,12 +77,6 @@ export function resolveSegmentOnlyIdsFromSelection(input: {
   return new Set(resolveSegmentOnlyIds(sourceUnitIds, input.unitViewById, input.resolveUnitViewById));
 }
 
-/** 与治理方案文档中的命名对齐；语义同 {@link resolveSegmentOnlyIds}。 | Doc-aligned alias for parent-unit governance plan. */
-export const resolveSegmentActionIds = resolveSegmentOnlyIds;
-
-/** 语义同 {@link resolveSegmentOnlyIdsFromSelection}。 | Doc-aligned alias. */
-export const resolveSegmentActionIdsFromSelection = resolveSegmentOnlyIdsFromSelection;
-
 export function hasSelectionSourceForUnitMapping(input: SelectionMappingInput): boolean {
   return resolveSelectionSourceUnitIds(input).length > 0;
 }

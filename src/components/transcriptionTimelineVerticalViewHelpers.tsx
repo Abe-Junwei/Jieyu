@@ -940,5 +940,3 @@ export function resolvePairedReadingLayerLabel(layer: LayerDocType | undefined, 
 export function resolvePairedReadingEditorRows(value: string): number {
   return Math.min(6, Math.max(1, normalizePairedReadingPlainText(value).split('\n').length));
 }
-
-export type PairedReadingLayerLink = LayerLinkDocType;
