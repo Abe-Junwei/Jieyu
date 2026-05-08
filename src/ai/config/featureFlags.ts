@@ -93,5 +93,3 @@ export const featureFlags = {
   /** P1b: MCP Server 只读工具开关（默认关闭；staging/dogfood 可手动开启） */
   aiMcpServerEnabled: aiMcpServerEnabledFromEnv ?? false,
 } as const;
-
-export type FeatureFlags = typeof featureFlags;

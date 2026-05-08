@@ -254,7 +254,7 @@ interface AiPinnedMessageDigest {
   createdAt: string;
 }
 
-interface AiSessionMemorySummaryEntry {
+export interface AiSessionMemorySummaryEntry {
   id: string;
   summary: string;
   coveredTurnCount: number;

@@ -19,7 +19,7 @@ export interface EmbeddingProviderDefinition {
   create(config: EmbeddingProviderCreateConfig): EmbeddingProvider;
 }
 
-export interface EmbeddingProviderFieldDefinition {
+interface EmbeddingProviderFieldDefinition {
   key: string;
   label: string;
   type: 'text' | 'password' | 'select';

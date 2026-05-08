@@ -25,7 +25,7 @@ const MATCH_CONFIDENCE: Record<MatchType, number> = {
   gloss_candidate: 0.5,
 };
 
-export interface AutoGlossMatch {
+interface AutoGlossMatch {
   tokenId: string;
   tokenForm: Transcription;
   lexemeId: string;
@@ -39,7 +39,7 @@ export interface AutoGlossMatch {
 }
 
 /** Leipzig 规则提示（每个已赋 gloss 的 token） | Leipzig hint per glossed token */
-export interface AutoGlossLeipzigHint {
+interface AutoGlossLeipzigHint {
   tokenId: string;
   glossText: string;
   warnings: LzWarning[];

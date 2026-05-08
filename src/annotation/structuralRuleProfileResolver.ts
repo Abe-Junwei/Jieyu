@@ -11,7 +11,7 @@ export type StructuralRuleProfileResolutionContext = {
   userOverrideProfile?: StructuralRuleProfile;
 };
 
-export type StructuralRuleProfileResolverDiagnostic = {
+type StructuralRuleProfileResolverDiagnostic = {
   type: 'skipped_disabled' | 'skipped_scope_mismatch' | 'invalid_profile' | 'applied_profile';
   assetId?: string;
   scope?: StructuralRuleProfileAssetDocType['scope'];

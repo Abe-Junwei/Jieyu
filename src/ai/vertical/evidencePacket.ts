@@ -8,7 +8,7 @@ export type EvidencePacketSourceType =
   | 'document'
   | 'audio_region';
 
-export interface EvidencePacketTimeRangeMs {
+interface EvidencePacketTimeRangeMs {
   startMs: number;
   endMs: number;
 }
@@ -63,21 +63,5 @@ export function buildEvidencePacketV0(input: BuildEvidencePacketV0Input): Eviden
   };
 }
 
-/** Fields that metric calculations depend on; renaming or removing these breaks P1+ quality gates.
- *  Any schema migration must provide a backward-compatible mapping.
- */
-const EVIDENCE_PACKET_METRIC_DEPENDENT_FIELDS = [
-  'id',
-  'sourceType',
-  'sourceId',
-  'quote',
-  'confidence',
-  'reasonCode',
-  'timeRangeMs',
-] as const satisfies readonly (keyof EvidencePacketV0)[];
-
-/** Fields for P1+ source scope traceability; renaming breaks scope audit. */
-const EVIDENCE_PACKET_SCOPE_DEPENDENT_FIELDS = [
-  'sourceSetId',
-  'sourceSetSnapshot',
-] as const satisfies readonly (keyof EvidencePacketV0)[];
+/** Metric-dependent packet keys (id, sourceType, sourceId, quote, confidence, reasonCode, timeRangeMs).
+ * Scope keys: sourceSetId, sourceSetSnapshot — keep migrations backward-compatible. */

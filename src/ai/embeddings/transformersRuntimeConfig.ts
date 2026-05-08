@@ -2,7 +2,7 @@ export type TransformersEmbeddingDevice = 'webgpu' | 'wasm' | 'cpu';
 
 type RequestAdapterLike = () => Promise<unknown>;
 
-export interface NavigatorGpuLike {
+interface NavigatorGpuLike {
   requestAdapter: RequestAdapterLike;
 }
 
@@ -10,7 +10,7 @@ export interface NavigatorLike {
   gpu?: NavigatorGpuLike;
 }
 
-export interface TransformersModuleLike {
+interface TransformersModuleLike {
   env?: Record<string, unknown>;
   pipeline?: (
     task: 'feature-extraction',
@@ -23,14 +23,14 @@ export interface TransformersModuleLike {
   ) => Promise<TransformersFeatureExtractionPipeline>;
 }
 
-export interface TransformersPipelineProgressEvent {
+interface TransformersPipelineProgressEvent {
   progress?: number;
   loaded?: number;
   total?: number;
   status?: string;
 }
 
-export interface TransformersFeatureExtractionResult {
+interface TransformersFeatureExtractionResult {
   data?: unknown;
 }
 

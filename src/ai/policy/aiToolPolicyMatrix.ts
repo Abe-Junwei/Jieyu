@@ -1,8 +1,8 @@
 import type { AiChatToolName } from '../chat/chatDomain.types';
 
-export type AiToolRiskTier = 'low' | 'medium' | 'high';
-export type AiToolConfirmationMode = 'none' | 'pending_propose_changes' | 'host_modal';
-export type AiToolTargetKind = 'none' | 'segment' | 'layer' | 'layer_link' | 'navigation' | 'project';
+type AiToolRiskTier = 'low' | 'medium' | 'high';
+type AiToolConfirmationMode = 'none' | 'pending_propose_changes' | 'host_modal';
+type AiToolTargetKind = 'none' | 'segment' | 'layer' | 'layer_link' | 'navigation' | 'project';
 export type AiToolLayerLinkActionKind = 'add_host' | 'remove_host' | 'switch_preferred_host';
 
 export interface AiToolPolicyEntry {

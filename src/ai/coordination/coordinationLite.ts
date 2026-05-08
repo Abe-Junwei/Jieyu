@@ -1,5 +1,5 @@
 export type CoordinationPhase = 'research' | 'synthesis' | 'implementation' | 'verification';
-export type CoordinationTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+type CoordinationTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface CoordinationNotification {
   taskId: string;

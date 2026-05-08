@@ -15,7 +15,7 @@ export const AI_CHAT_SESSION_SIDECAR_WRITE_PATH = {
   pinnedMessageDirective: 'session-memory/pinned-message-directive',
   sendPreflightDirective: 'session-memory/send-preflight-directive',
 } as const;
-export type AiChatSessionSidecarWritePath = (typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH)[keyof typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH];
+type AiChatSessionSidecarWritePath = (typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH)[keyof typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH];
 
 export type PolicyShapeToolCall = { name: string; arguments: Record<string, unknown> };
 

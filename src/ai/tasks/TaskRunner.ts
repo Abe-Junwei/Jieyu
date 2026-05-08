@@ -3,7 +3,7 @@ import { createLogger } from '../../observability/logger';
 
 const log = createLogger('TaskRunner');
 
-export interface TaskRunContext {
+interface TaskRunContext {
   taskId: string;
   signal: AbortSignal;
   attempt: number;

@@ -1,6 +1,6 @@
 import type { AiChatToolCall, PendingAiToolCall } from '../chat/chatDomain.types';
 
-export interface AiChangeSetItem {
+interface AiChangeSetItem {
   unitId: string;
   field: string;
   before: string;

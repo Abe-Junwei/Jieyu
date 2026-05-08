@@ -12,7 +12,7 @@ export interface AnnotationQaReflectionResult {
   summary: string;
 }
 
-export interface AnnotationQaReflectionCheck {
+interface AnnotationQaReflectionCheck {
   name: string;
   passed: boolean;
   detail: string;

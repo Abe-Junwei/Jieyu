@@ -5,7 +5,7 @@
  * 用于未来评估 Supabase 协作云与 A2A 任务生命周期的映射可行性。
  */
 
-export interface A2aAgentRole {
+interface A2aAgentRole {
   roleId: string;
   displayName: string;
   capabilities: readonly string[];
@@ -13,7 +13,7 @@ export interface A2aAgentRole {
   outputSchema: Record<string, unknown>;
 }
 
-export interface A2aTaskReservation {
+interface A2aTaskReservation {
   taskId: string;
   agentRoleId: string;
   status: 'pending' | 'assigned' | 'running' | 'completed' | 'failed';

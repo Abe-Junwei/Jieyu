@@ -5,7 +5,7 @@ import { toolArgumentSchemas } from '../chat/toolCallSchemas';
 import { AI_TOOL_POLICY_MATRIX, type AiToolPolicyEntry } from '../policy/aiToolPolicyMatrix';
 import { isWriteLikeToolCall } from '../policy/resolveExecutionPolicy';
 
-export type AiToolShadowWriteMode = 'read_only' | 'write_like' | 'propose_only';
+type AiToolShadowWriteMode = 'read_only' | 'write_like' | 'propose_only';
 
 export interface AiToolRegistryShadowEntry {
   toolName: AiChatToolName;

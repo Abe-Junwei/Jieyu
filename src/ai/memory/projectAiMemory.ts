@@ -5,7 +5,7 @@
  * Cap: 500 entries per project, evicted by confidence + recency.
  */
 
-export type ProjectAiMemoryCategory = 'user_preference' | 'workflow_pattern' | 'rejected_suggestion';
+type ProjectAiMemoryCategory = 'user_preference' | 'workflow_pattern' | 'rejected_suggestion';
 
 export interface ProjectAiMemoryEntry {
   id: string;

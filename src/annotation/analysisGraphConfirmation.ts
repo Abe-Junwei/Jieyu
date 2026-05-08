@@ -27,7 +27,7 @@ export type AnalysisGraphCandidateRecord = UnitRelationDocType & {
   analysisGraphStatus: 'pending' | 'accepted' | 'rejected';
 };
 
-export type ConfirmAnalysisGraphCandidateInput = SubmitAnalysisGraphCandidateInput & {
+type ConfirmAnalysisGraphCandidateInput = SubmitAnalysisGraphCandidateInput & {
   /** @deprecated Use actor instead. */
   actorId?: string;
 };

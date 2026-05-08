@@ -12,7 +12,7 @@ import {
   type ExtensionManifestV1,
 } from './extensionRuntime';
 
-export type ExtensionSource = 'official';
+type ExtensionSource = 'official';
 
 export type ExtensionCapabilityInvocationRecord = ExtensionCapabilityAuditPayload & { at: number };
 
@@ -30,7 +30,7 @@ export interface ExtensionListItem {
   entryActivate: string;
 }
 
-export type ExtensionRegistrySnapshot = {
+type ExtensionRegistrySnapshot = {
   manifest: ExtensionManifestV1;
   source: ExtensionSource;
   state: ExtensionLifecycleState;

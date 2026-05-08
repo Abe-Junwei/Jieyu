@@ -17,7 +17,7 @@ import { createListUnitsSnapshot, getListUnitsSnapshot, LIST_UNITS_SNAPSHOT_ROW_
 
 const log = createLogger('localContextTools');
 
-export type LocalContextToolName =
+type LocalContextToolName =
   | 'get_current_selection'
   | 'list_layers'
   | 'list_layer_links'

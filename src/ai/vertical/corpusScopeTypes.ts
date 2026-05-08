@@ -3,7 +3,7 @@
  * Kept separate from sourceResolver + corpusSourceSet to avoid import cycles.
  */
 
-export type CorpusScope = 'current_segment' | 'selection' | 'current_media' | 'project';
+type CorpusScope = 'current_segment' | 'selection' | 'current_media' | 'project';
 
 export interface CorpusSourceSet {
   scope: CorpusScope;

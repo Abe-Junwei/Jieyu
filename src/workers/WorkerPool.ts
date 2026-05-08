@@ -11,10 +11,10 @@ const log = createLogger('WorkerPool');
 // ── Types ──
 
 /** Worker 生命周期状态 */
-export type WorkerLifecycleState = 'idle' | 'busy' | 'crashed' | 'terminated';
+type WorkerLifecycleState = 'idle' | 'busy' | 'crashed' | 'terminated';
 
 /** 单个 Worker 的元信息 */
-export interface WorkerPoolEntry {
+interface WorkerPoolEntry {
   readonly id: string;
   readonly label: string;
   readonly worker: Worker;
@@ -235,10 +235,3 @@ export function getWorkerPool(): WorkerPoolImpl {
   return instance;
 }
 
-/** 仅测试用：销毁并重置单例 | Test-only: destroy and reset singleton */
-function resetWorkerPoolForTest(): void {
-  instance?.destroy();
-  instance = null;
-}
-
-export type WorkerPool = WorkerPoolImpl;

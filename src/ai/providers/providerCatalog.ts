@@ -22,9 +22,9 @@ export type AiChatProviderKind =
   | 'custom-http'
   | 'minimax';
 
-export type AiChatProviderApiKeyMap = Partial<Record<AiChatProviderKind, string>>;
-export type AiChatProviderModelMap = Partial<Record<AiChatProviderKind, string>>;
-export type AiChatProviderBaseUrlMap = Partial<Record<AiChatProviderKind, string>>;
+type AiChatProviderApiKeyMap = Partial<Record<AiChatProviderKind, string>>;
+type AiChatProviderModelMap = Partial<Record<AiChatProviderKind, string>>;
+type AiChatProviderBaseUrlMap = Partial<Record<AiChatProviderKind, string>>;
 export type AiToolFeedbackStyle = 'concise' | 'detailed';
 
 export interface AiChatSettings {
@@ -65,7 +65,7 @@ function normalizeOptionalNumber(raw: unknown, fallback: number): number {
 // This works with exactOptionalPropertyTypes: missing fields are simply absent,
 // never passed as explicit undefined.
 
-export interface AiChatProviderCreateConfig {
+interface AiChatProviderCreateConfig {
   kind: AiChatProviderKind;
   baseUrl?: string;
   apiKey?: string;
@@ -76,7 +76,7 @@ export interface AiChatProviderCreateConfig {
   responseFormat?: CustomHttpResponseFormat;
 }
 
-export interface AiChatFieldDefinition {
+interface AiChatFieldDefinition {
   key: keyof AiChatSettings;
   label: string;
   type: 'text' | 'password' | 'select';

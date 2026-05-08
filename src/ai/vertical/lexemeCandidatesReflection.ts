@@ -12,7 +12,7 @@ export interface LexemeCandidatesReflectionResult {
   summary: string;
 }
 
-export interface LexemeCandidatesReflectionCheck {
+interface LexemeCandidatesReflectionCheck {
   name: string;
   passed: boolean;
   detail: string;

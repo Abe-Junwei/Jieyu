@@ -1,4 +1,4 @@
-export type WebLLMRuntimeSource = 'injected-runtime' | 'prompt-api' | 'unavailable';
+type WebLLMRuntimeSource = 'injected-runtime' | 'prompt-api' | 'unavailable';
 
 export interface WebLLMRuntimeStatus {
   available: boolean;

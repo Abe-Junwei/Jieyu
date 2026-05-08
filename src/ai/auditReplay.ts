@@ -263,7 +263,7 @@ export function serializeAiToolGoldenSnapshot(bundle: AiToolReplayBundle): strin
 /**
  * 单字段对比结果 | Single-field comparison result
  */
-export interface AiToolSnapshotField {
+interface AiToolSnapshotField {
   label: string;
   baseline: string;
   live: string;

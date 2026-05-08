@@ -29,7 +29,7 @@ const ADDITIONAL_METADATA_REASON_ORDERED = [
   'destructive_action_requires_confirmation',
 ] as const;
 
-export type NonPersistedToolDecisionReason = (typeof NON_PERSISTED_ORDERED)[number];
+type NonPersistedToolDecisionReason = (typeof NON_PERSISTED_ORDERED)[number];
 
 export type ToolDecisionMetadataReasonCode =
   | NonPersistedToolDecisionReason

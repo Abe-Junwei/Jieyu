@@ -160,11 +160,8 @@ export const annotationAnalysisGraphFixtureSchema = z.object({
   }
 });
 
-export type AnalysisGraphNodeType = z.infer<typeof analysisGraphNodeTypeSchema>;
-export type AnalysisGraphRelationType = z.infer<typeof analysisGraphRelationTypeSchema>;
 export type AnalysisGraphProjectionTarget = z.infer<typeof analysisGraphProjectionTargetSchema>;
-export type AnalysisGraphProjectionStatus = z.infer<typeof analysisGraphProjectionStatusSchema>;
-export type AnalysisGraphSurfacePart = z.infer<typeof analysisGraphSurfacePartSchema>;
+type AnalysisGraphProjectionStatus = z.infer<typeof analysisGraphProjectionStatusSchema>;
 export type AnalysisGraphNode = z.infer<typeof analysisGraphNodeSchema>;
 export type AnalysisGraphRelation = z.infer<typeof analysisGraphRelationSchema>;
 export type ProjectionDiagnosticSubject = z.infer<typeof projectionDiagnosticSubjectSchema>;

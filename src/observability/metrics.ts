@@ -1,8 +1,8 @@
-export type MetricCategory = 'ux' | 'business' | 'ai';
-export type MetricKind = 'histogram' | 'counter' | 'ratio';
-export type MetricUnit = 'ms' | 'count' | 'ratio';
+type MetricCategory = 'ux' | 'business' | 'ai';
+type MetricKind = 'histogram' | 'counter' | 'ratio';
+type MetricUnit = 'ms' | 'count' | 'ratio';
 
-export interface MetricDefinition {
+interface MetricDefinition {
   id: string;
   category: MetricCategory;
   module: string;
@@ -12,7 +12,7 @@ export interface MetricDefinition {
   targetP95?: number;
 }
 
-export type MetricTagValue = string | number | boolean;
+type MetricTagValue = string | number | boolean;
 export type MetricTags = Record<string, MetricTagValue>;
 
 export interface MetricEvent {

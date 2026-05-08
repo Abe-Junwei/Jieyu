@@ -5,7 +5,7 @@
  * 不调用 LLM；纯状态计算。
  */
 
-export type ModelSelectionAdvice = 'keep_current' | 'downgrade_model' | 'suggest_switch';
+type ModelSelectionAdvice = 'keep_current' | 'downgrade_model' | 'suggest_switch';
 
 export interface FeedbackWindow {
   thumbsUpCount: number;

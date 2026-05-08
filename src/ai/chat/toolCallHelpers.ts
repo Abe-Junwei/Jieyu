@@ -24,7 +24,7 @@ export type ToolPlannerClarifyReason =
   | 'missing-layer-target'
   | 'missing-language-target';
 
-export type ToolPlannerDecision = 'resolved' | 'clarify';
+type ToolPlannerDecision = 'resolved' | 'clarify';
 
 export interface ToolPlannerResult {
   decision: ToolPlannerDecision;

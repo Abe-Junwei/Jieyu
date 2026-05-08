@@ -3,7 +3,7 @@ import type { AiMessageCitation } from '../../db';
 import { buildEvidencePacketV0, type EvidencePacketV0, type EvidencePacketSourceSetSnapshot } from './evidencePacket';
 import type { CorpusSourceSet } from './corpusScopeTypes';
 
-export type { CorpusScope, CorpusSourceSet } from './corpusScopeTypes';
+export type { CorpusSourceSet } from './corpusScopeTypes';
 
 /**
  * Resolve the available corpus source set from the current prompt context.

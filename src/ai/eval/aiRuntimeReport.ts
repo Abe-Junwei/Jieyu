@@ -16,20 +16,20 @@ import type {
   ToolDecisionRecord,
 } from './aiRuntimeReportDimensionalAudit';
 
-export interface JudgeTrendEntry {
+interface JudgeTrendEntry {
   timestamp: string;
   citationOverall: number;
   relevanceOverall: number;
 }
 
-export interface AiRuntimeReportDimensionSlice {
+interface AiRuntimeReportDimensionSlice {
   citationAvg: number;
   relevanceAvg: number;
   sampleCount: number;
   sampleRequestIds: string[];
 }
 
-export interface WorkflowExplainabilityRollup {
+interface WorkflowExplainabilityRollup {
   schemaVersion: 1;
   byHeadline: Record<string, number>;
   recentSignals: string[];
@@ -77,7 +77,7 @@ export interface AdoptionOutcomeRollup {
   copied: number;
 }
 
-export interface ReflectionFailedCheckRollup {
+interface ReflectionFailedCheckRollup {
   schemaVersion: 1;
   total: number;
   byWorkflow: Record<string, number>;
@@ -85,7 +85,7 @@ export interface ReflectionFailedCheckRollup {
   recentRecords: Array<{ workflowId: string; checkName: string; requestId: string; timestamp: string }>;
 }
 
-export interface ToolDecisionRollup {
+interface ToolDecisionRollup {
   schemaVersion: 1;
   denied: number;
   confirmRequired: number;
@@ -175,7 +175,7 @@ export function attachAdoptionOutcomeRollupFromAuditMetadataJsons(
   return { ...report, adoptionOutcomeRollup };
 }
 
-export interface JudgeResultContext {
+interface JudgeResultContext {
   requestId: string;
   workflowId?: string;
   providerId?: string;

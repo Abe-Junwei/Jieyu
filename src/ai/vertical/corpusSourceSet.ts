@@ -24,7 +24,7 @@ export interface SourceSetMember {
   label?: string;
 }
 
-export type SavedCorpusSourceSetStatus = 'active' | 'inactive' | 'invalidated';
+type SavedCorpusSourceSetStatus = 'active' | 'inactive' | 'invalidated';
 
 export interface SavedCorpusSourceSet {
   /** 全局唯一标识（由调用方生成，如 crypto.randomUUID） */

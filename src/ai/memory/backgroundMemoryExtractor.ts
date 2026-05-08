@@ -40,7 +40,7 @@ export interface BackgroundMemoryExtractionAudit {
   errorMessage?: string;
 }
 
-export interface BackgroundMemoryFlushQuotaGate {
+interface BackgroundMemoryFlushQuotaGate {
   maxCompletedWriteFlushesPerConversation: number;
   getCompletedWriteFlushCount: (conversationId: string) => number;
   consumeSuccessfulWriteFlush: (conversationId: string) => void;
