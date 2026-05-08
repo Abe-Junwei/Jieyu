@@ -3,7 +3,7 @@ title: execution/plans 文档索引
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-05-07
+last_reviewed: 2026-05-08
 source_of_truth: execution-plan-index
 ---
 
@@ -12,6 +12,8 @@ source_of_truth: execution-plan-index
 这里保存某个专题如何推进、如何验收、如何判断开放条件的执行方案。
 
 ## 当前文档
+
+- [技术债修复方案-2026-05-08.md](./技术债修复方案-2026-05-08.md)（台账与审查口径对齐、Source Set TODO 接线、ARCH-7 编排减厚、Knip/depcheck/TS 严格度、文档链接与 audit 节奏；分阶段验收命令）
 
 - [工程审计勘误与全面修复计划-2026-04-24.md](../audits/工程审计勘误与全面修复计划-2026-04-24.md)（纠正「无 CI / 恢复快照仅存 localStorage」等不实表述；依赖 · 构建 · PWA · DX · A11y · 数据韧性分阶段路线图；与根目录 [`remediation-plan-2026-04-24.md`](../../remediation-plan-2026-04-24.md) 正交）
 
