@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DeferredTranscriptionAiRuntimeState } from './TranscriptionPage.AssistantBridge';
-import { buildAiStateWorkerFingerprint, type AiStateWorkerRequest, type AiStateWorkerResponse, type AiStateWorkerSlice } from '../ai/workers/aiStateWorkerProtocol';
+import { buildAiStateWorkerFingerprint } from '../ai/workers/aiStateWorkerProtocol';
+import type { AiStateWorkerRequest, AiStateWorkerResponse, AiStateWorkerSlice } from '../ai/workers/aiStateWorkerProtocol';
 import { buildAiStateWorkerSlice, createInitialDeferredAiRuntimeState } from './TranscriptionPage.ReadyWorkspace.runtime';
 import { createManagedBrowserWorker } from '../observability/managedBrowserWorkerFactory';
 
@@ -10,6 +11,21 @@ export interface DeferredAiRuntimeBridgeResult {
   setDeferredAiRuntime: React.Dispatch<React.SetStateAction<DeferredTranscriptionAiRuntimeState>>;
   handleDeferredAiRuntimeChange: (runtimeState: DeferredTranscriptionAiRuntimeState) => void;
   flushDeferredAiRuntime: () => void;
+}
+
+function shouldUseAiStateWorker(): boolean {
+  if (typeof Worker === 'undefined') {
+    return false;
+  }
+  if (typeof navigator === 'undefined') {
+    return true;
+  }
+  const ua = navigator.userAgent;
+  const isWebKit = /AppleWebKit/i.test(ua) && !/(Chrome|Chromium|Edg|OPR)\//i.test(ua);
+  if (isWebKit) {
+    return false;
+  }
+  return true;
 }
 
 export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
@@ -42,7 +58,7 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
   }, []);
 
   useEffect(() => {
-    if (typeof Worker === 'undefined') {
+    if (!shouldUseAiStateWorker()) {
       return;
     }
     const spawned = createManagedBrowserWorker({
