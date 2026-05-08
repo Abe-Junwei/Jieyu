@@ -112,6 +112,8 @@ export function ModalPanel({
   const actions = headerActions
     ? <>{headerActions}{closeButton}</>
     : closeButton;
+  const hostLayoutStyle = layoutStyle ?? style;
+  const hostLayoutStyleProps = hostLayoutStyle !== undefined ? { style: hostLayoutStyle } : {};
 
   if (!renderShell) {
     return createPortal(
@@ -130,7 +132,7 @@ export function ModalPanel({
             wide && 'dialog-card-wide',
             className,
           )}
-          style={layoutStyle ?? style}
+          {...hostLayoutStyleProps}
           {...(dir !== undefined && { dir })}
           {...(ariaLabel !== undefined && { 'aria-label': ariaLabel })}
           {...(ariaLabelledBy !== undefined && { 'aria-labelledby': ariaLabelledBy })}

@@ -152,7 +152,7 @@ export const NotePopover = memo(function NotePopover({
           <MaterialSymbol name="close" className={JIEYU_MATERIAL_INLINE} />
         </button>
       )}
-      style={isDialogMode ? undefined : { left: pos.left, top: pos.top }}
+      {...(!isDialogMode ? { style: { left: pos.left, top: pos.top } } : {})}
       {...(isDialogMode ? { role: 'dialog', 'aria-modal': true } : {})}
     >
       <PanelSection

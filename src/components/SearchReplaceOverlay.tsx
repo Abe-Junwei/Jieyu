@@ -123,6 +123,9 @@ export function SearchReplaceOverlay({
     () => buildOrthographyPreviewTextProps(currentMatchRenderPolicy),
     [currentMatchRenderPolicy],
   );
+  const currentMatchPreviewStyleProps = currentMatchPreviewProps.style !== undefined
+    ? { style: currentMatchPreviewProps.style }
+    : {};
 
   // Navigate to current match
   useEffect(() => {
@@ -261,7 +264,7 @@ export function SearchReplaceOverlay({
           className="search-replace-preview"
           data-testid="search-replace-preview"
           dir={currentMatchPreviewProps.dir}
-          style={currentMatchPreviewProps.style}
+          {...currentMatchPreviewStyleProps}
         >
           {(() => {
             const contextSize = 16;

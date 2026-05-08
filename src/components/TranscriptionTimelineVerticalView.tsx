@@ -814,6 +814,7 @@ export function TranscriptionTimelineVerticalView({
     '--timeline-paired-reading-right-grow': String(100 - pairedReadingColumnLeftGrow),
     '--timeline-paired-reading-editor-min-height': `${defaultPairedReadingEditorMinHeight}px`,
   }) as CSSProperties, [pairedReadingColumnLeftGrow, defaultPairedReadingEditorMinHeight]);
+  const pairedReadingShellStyleProps = { style: pairedReadingShellStyle };
 
   const pairedReadingDualGridStyle = useMemo((): CSSProperties | undefined => {
     if (compactMode !== 'both' || isNarrowPairedReadingLayout) return undefined;
@@ -949,7 +950,7 @@ export function TranscriptionTimelineVerticalView({
       className={`timeline-paired-reading-view${isPairedReadingColumnSplitDragging ? ' timeline-paired-reading-view-column-split-active' : ''}${isPairedReadingEditorResizing ? ' timeline-paired-reading-view-resizing' : ''}`}
       data-testid="timeline-paired-reading-view"
       data-compact-mode={compactMode}
-      style={pairedReadingShellStyle}
+      {...pairedReadingShellStyleProps}
     >
       <div className="timeline-paired-reading-workspace">
         <div className="timeline-paired-reading-toolbar">

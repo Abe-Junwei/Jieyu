@@ -15,10 +15,12 @@ export function WaveformAreaSection({
   children,
   ...divProps
 }: WaveformAreaSectionProps) {
+  const waveformAreaStyleProps = layoutStyle !== undefined ? { style: layoutStyle } : {};
+
   return (
     <div
       ref={containerRef}
-      style={layoutStyle}
+      {...waveformAreaStyleProps}
       {...divProps}
     >
       {children}

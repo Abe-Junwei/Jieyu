@@ -254,6 +254,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
   const confidenceStyle: CSSProperties | undefined = confidenceColor
     ? { borderColor: confidenceColor, '--voice-agent-confidence-color': confidenceColor } as CSSProperties
     : undefined;
+  const confidenceStyleProps = confidenceStyle !== undefined ? { style: confidenceStyle } : {};
 
   const [showSettings, setShowSettings] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
@@ -556,7 +557,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
           </div>
         </div>
 
-        <div className={`voice-agent-session-card voice-agent-session-card-${mode} ${listening ? 'is-live' : 'is-idle'} ${isSessionEmpty ? 'is-empty' : 'has-content'}`} style={confidenceStyle}>
+        <div className={`voice-agent-session-card voice-agent-session-card-${mode} ${listening ? 'is-live' : 'is-idle'} ${isSessionEmpty ? 'is-empty' : 'has-content'}`} {...confidenceStyleProps}>
           <div className="voice-agent-session-heading">
             <span className="voice-agent-session-kicker">{workspaceLabel}</span>
             <span className="voice-agent-session-note">{listening ? sessionHint : processSummary}</span>
