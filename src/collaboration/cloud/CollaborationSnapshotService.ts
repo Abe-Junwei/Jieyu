@@ -72,11 +72,6 @@ function hashString(input: string): string {
   return hash.toString(16).padStart(8, '0');
 }
 
-/** 旧版短指纹（与历史 project_snapshots.checksum 兼容）| Legacy 8-hex fingerprint for existing rows */
-function calculateSnapshotChecksum(payloadJson: string): string {
-  return hashString(payloadJson);
-}
-
 /** 新快照优先 SHA-256 hex（64 字符）；无 WebCrypto 时回退 legacy | Prefer SHA-256 for new snapshots */
 export async function computeSnapshotChecksum(payloadJson: string): Promise<string> {
   if (typeof crypto !== 'undefined' && crypto.subtle?.digest) {

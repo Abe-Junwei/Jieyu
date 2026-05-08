@@ -7,4 +7,3 @@ export {
   hasSupabaseBrowserClientConfig,
 } from '../../integrations/supabase/client';
 export { getSupabaseUserId } from '../../integrations/supabase/auth';
-export type { SupabaseBrowserClientHealth } from '../../integrations/supabase/client';

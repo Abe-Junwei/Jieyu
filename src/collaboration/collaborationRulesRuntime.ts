@@ -9,10 +9,9 @@ export {
   mergeOperationLogs,
   persistCollaborationOperationLogs,
   type CollaborationOperationLog,
-  type CollaborationOperationType,
 } from './collaborationOpLog';
 
-export type ConflictPriority = 'critical' | 'high' | 'medium' | 'low';
+type ConflictPriority = 'critical' | 'high' | 'medium' | 'low';
 
 export interface PrioritizedConflict {
   conflict: ConflictDescriptor;
@@ -21,7 +20,7 @@ export interface PrioritizedConflict {
   signature: string;
 }
 
-export interface ArbitrationDecision {
+interface ArbitrationDecision {
   accepted: boolean;
   selectedStrategy: ConflictResolutionStrategy;
   reason: string;

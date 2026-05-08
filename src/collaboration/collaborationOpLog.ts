@@ -1,6 +1,6 @@
 import { getDb } from '../db';
 
-export type CollaborationOperationType =
+type CollaborationOperationType =
   | 'arbitration_requested'
   | 'arbitration_decided'
   | 'reconnect_validated'

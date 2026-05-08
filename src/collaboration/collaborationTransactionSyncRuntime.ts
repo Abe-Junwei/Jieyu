@@ -9,7 +9,7 @@ import type { CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
 
 const collaborationTxLog = createLogger('collaborationTransactionSync');
 
-export interface TransactionEntitySyncInput {
+interface TransactionEntitySyncInput {
   entityId: string;
   replicas: CrossDeviceReplica[];
   quorum: number;
@@ -150,9 +150,6 @@ function createBestEffortCleanupPlan(
   }
   return 'soft-rollback';
 }
-
-/** @deprecated Use {@link createBestEffortCleanupPlan} — legacy name; still not a DB rollback. */
-const createTransactionalRollbackPlan = createBestEffortCleanupPlan;
 
 export function executeTransactionalReplicaSync(input: TransactionSyncInput): TransactionSyncResult {
   const outcomes: TransactionEntityOutcome[] = [];

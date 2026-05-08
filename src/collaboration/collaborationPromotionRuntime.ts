@@ -1,5 +1,5 @@
-export type CollaborationPhaseId = 'm10' | 'm11' | 'm12' | 'm13';
-export type CollaborationGateDecision = 'go' | 'go-with-gray' | 'no-go';
+type CollaborationPhaseId = 'm10' | 'm11' | 'm12' | 'm13';
+type CollaborationGateDecision = 'go' | 'go-with-gray' | 'no-go';
 
 export interface CollaborationPhaseGateStatus {
   phaseId: CollaborationPhaseId;

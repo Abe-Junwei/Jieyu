@@ -17,8 +17,6 @@ import type { UseSpeakerActionsReturn } from '../hooks/useSpeakerActions';
 
 // ── Context Value Type ────────────────────────────────────────────────────────
 
-export type { SpeakerFilterOption, SpeakerActionDialogState };
-
 export interface SpeakerRailContextValue {
   // Data
   speakerOptions: SpeakerDocType[];

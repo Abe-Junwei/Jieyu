@@ -2,9 +2,9 @@ import { generateTraceId } from '../observability/aiTrace';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import { createCollaborationOperationLog, type CollaborationOperationLog } from './collaborationOpLog';
 
-export type CollaborationStage = 'async' | 'same-device-realtime' | 'cross-device';
+type CollaborationStage = 'async' | 'same-device-realtime' | 'cross-device';
 
-export type ConflictScope = 'field' | 'entity' | 'session';
+type ConflictScope = 'field' | 'entity' | 'session';
 
 export type FieldValue = string | number | boolean | null;
 

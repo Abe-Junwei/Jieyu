@@ -5,7 +5,7 @@
  * 消费者: AiAssistantHubContext (chat/lexeme/observer 字段部分)
  */
 
-import { createContext, useContext, type MutableRefObject } from 'react';
+import type { MutableRefObject } from 'react';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ProjectStage } from '../ai/ProjectObserver';
@@ -131,28 +131,3 @@ export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {
   onTrackAiRecommendationEvent: undefined,
   onJumpToCitation: undefined,
 };
-
-// ── Context ───────────────────────────────────────────────────────────────────
-
-const AiChatContext = createContext<AiChatContextValue | null>(null);
-
-function useAiChatContext(): AiChatContextValue {
-  const ctx = useContext(AiChatContext);
-  if (!ctx) {
-    throw new Error('useAiChatContext must be used within <AiChatProvider>');
-  }
-  return ctx;
-}
-
-interface AiChatProviderProps {
-  children: React.ReactNode;
-  value: AiChatContextValue;
-}
-
-function AiChatProvider({ children, value }: AiChatProviderProps) {
-  return (
-    <AiChatContext.Provider value={value}>
-      {children}
-    </AiChatContext.Provider>
-  );
-}

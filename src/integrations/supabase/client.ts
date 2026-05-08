@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-export interface SupabaseBrowserClientConfig {
+interface SupabaseBrowserClientConfig {
   url: string;
   anonKey: string;
 }
@@ -36,15 +36,6 @@ export function getSupabaseBrowserClient(): SupabaseClient {
     },
   });
   return cachedClient;
-}
-
-function resetSupabaseBrowserClientForTest(): void {
-  cachedClient = null;
-}
-
-/** 与 `resetSupabaseBrowserClientForTest` 相同；测试名对齐 ARCH-4。 */
-function resetSupabaseBrowserClientForTests(): void {
-  resetSupabaseBrowserClientForTest();
 }
 
 export type SupabaseBrowserClientHealth =
