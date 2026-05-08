@@ -9,14 +9,12 @@
  * 规则引擎版满足约束：<500ms、<1k token（无 LLM 调用）。
  */
 
-import { annotateBaselineJudge, type JudgeProvider } from './JudgeProvider';
-
 export interface RelevanceJudgeInput {
   question: string;
   answer: string;
 }
 
-export interface RelevanceJudgeDimension {
+interface RelevanceJudgeDimension {
   score: number;
   reasoning: string;
 }
@@ -162,9 +160,3 @@ export function judgeRelevance(input: RelevanceJudgeInput): RelevanceJudgeResult
   };
 }
 
-/** baseline_judge provider for answer relevance */
-const relevanceJudgeProvider: JudgeProvider<RelevanceJudgeInput, RelevanceJudgeResult> = annotateBaselineJudge({
-  name: 'answer_relevance_baseline',
-  judge: judgeRelevance,
-  judgeBatch: (inputs) => inputs.map((input) => judgeRelevance(input)),
-});

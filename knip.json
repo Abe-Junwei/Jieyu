@@ -2,10 +2,8 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "entry": [
     "index.html",
-    "src/zodJitlessBootstrap.ts",
     "src/workerThreads.browser.ts",
     "src/test/vitest*Setup.ts",
-    "playwright.session-sidecar.config.ts",
     "scripts/**/*.{mjs,cjs,js}",
     "tests/**/*.{ts,tsx}"
   ],
@@ -19,6 +17,7 @@
     "src/ai/embeddings/embeddingSmokeTest.ts",
     "src/ai/mcp/client/mcpClientTypes.ts",
     "src/ai/perf/embeddingModelDecision.ts",
+    "src/assets/lottie/left-rail/leftRailLottieMap.ts",
     "src/data/generated/iso6393Seed.generated.ts",
     "src/data/generated/languageNameCatalog.generated.ts",
     "src/pages/annotation/annotationLaneReadScope.ts",
@@ -26,6 +25,9 @@
   ],
   "ignoreDependencies": [
     "country-state-city"
+  ],
+  "ignoreBinaries": [
+    "knip"
   ],
   "ignoreIssues": {
     "src/ai/chat/toolCallSchemas.ts": [
@@ -40,8 +42,14 @@
     "src/data/languageCatalogRuntimeCache.ts": [
       "exports"
     ],
+    "src/data/languageNameTypes.ts": [
+      "types"
+    ],
     "src/db/index.ts": [
       "exports"
+    ],
+    "src/utils/transcriptionUnitLaneReadScope.ts": [
+      "types"
     ]
   }
 }

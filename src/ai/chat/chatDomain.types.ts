@@ -75,9 +75,9 @@ export type LocalToolClarificationReason =
   | 'target_ambiguous'
   | 'action_ambiguous';
 
-export type AiTaskClarifyReason = ToolPlannerClarifyReason | LocalToolClarificationReason;
+type AiTaskClarifyReason = ToolPlannerClarifyReason | LocalToolClarificationReason;
 
-export type AiTaskTracePhase = 'clarify' | 'local_tool' | 'tool_decision' | 'answer';
+type AiTaskTracePhase = 'clarify' | 'local_tool' | 'tool_decision' | 'answer';
 
 export interface AiTaskTraceEntry {
   phase: AiTaskTracePhase;
@@ -150,7 +150,7 @@ export interface AiAdaptiveInputProfile {
 }
 
 export type AiRecommendationSource = 'fallback' | 'llm';
-export type AiRecommendationEventType = 'shown' | 'accepted_exact' | 'accepted_edited';
+type AiRecommendationEventType = 'shown' | 'accepted_exact' | 'accepted_edited';
 
 export interface AiRecommendationEvent {
   type: AiRecommendationEventType;
@@ -173,13 +173,13 @@ export interface AiRecommendationTelemetry {
   recentEvents?: AiRecommendationEvent[];
 }
 
-export interface AiSessionMemoryProjectFact {
+interface AiSessionMemoryProjectFact {
   fact: string;
   source: 'user' | 'inferred' | 'background-extracted';
   createdAt: string;
 }
 
-export interface AiSessionMemoryPreferences {
+interface AiSessionMemoryPreferences {
   lastLanguage?: string;
   lastToolName?: AiChatToolName;
   lastLayerId?: string;
@@ -193,28 +193,28 @@ export type AiToolAutoExecutePreference = 'allow' | 'ask_first' | 'never';
 export type AiUserDirectiveCategory = 'response' | 'tool' | 'safety' | 'terminology' | 'session';
 export type AiUserDirectiveScope = 'session' | 'long_term';
 export type AiUserDirectiveSource = 'user_explicit' | 'background_extracted' | 'pinned_message';
-export type AiUserDirectiveApplicationAction = 'accepted' | 'ignored' | 'downgraded' | 'superseded';
+type AiUserDirectiveApplicationAction = 'accepted' | 'ignored' | 'downgraded' | 'superseded';
 
-export interface AiSessionMemoryResponsePreferences {
+interface AiSessionMemoryResponsePreferences {
   language?: AiResponsePreferenceLanguage;
   style?: 'concise' | 'detailed';
   format?: AiResponsePreferenceFormat;
   evidenceRequired?: boolean;
 }
 
-export interface AiSessionMemoryToolPreferences {
+interface AiSessionMemoryToolPreferences {
   defaultScope?: LocalUnitScope;
   autoExecute?: AiToolAutoExecutePreference;
   preferLocalReads?: boolean;
 }
 
-export interface AiSessionMemorySafetyPreferences {
+interface AiSessionMemorySafetyPreferences {
   denyDestructive?: boolean;
   denyBatch?: boolean;
   requireImpactPreview?: boolean;
 }
 
-export interface AiSessionMemoryTerminologyPreference {
+interface AiSessionMemoryTerminologyPreference {
   source: string;
   target: string;
   createdAt: string;
@@ -247,14 +247,14 @@ export interface AiUserDirectiveLedgerEntry {
   reason?: string;
 }
 
-export interface AiPinnedMessageDigest {
+interface AiPinnedMessageDigest {
   messageId: string;
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
 }
 
-export interface AiSessionMemorySummaryEntry {
+interface AiSessionMemorySummaryEntry {
   id: string;
   summary: string;
   coveredTurnCount: number;
@@ -263,7 +263,7 @@ export interface AiSessionMemorySummaryEntry {
   qualityWarning?: boolean;
 }
 
-export interface AiSessionMemorySummaryQualityWarning {
+interface AiSessionMemorySummaryQualityWarning {
   similarity: number;
   threshold: number;
   generatedAt: string;
@@ -299,17 +299,17 @@ export type LocalToolMetric =
   | 'untranscribed_count'
   | 'missing_speaker_count';
 
-export type LocalToolMetricCategory =
+type LocalToolMetricCategory =
   | 'total'
   | 'gap';
 
-export type LocalToolQuestionKind =
+type LocalToolQuestionKind =
   | 'count'
   | 'list'
   | 'search'
   | 'detail';
 
-export type LocalToolDomain =
+type LocalToolDomain =
   | 'units'
   | 'project_stats';
 
@@ -324,7 +324,7 @@ export interface AiSessionMemoryLocalSemanticFrame {
   updatedAt: string;
 }
 
-export interface AiSessionMemoryLocalToolState {
+interface AiSessionMemoryLocalToolState {
   lastIntent?: LocalToolIntent;
   lastQuery?: string;
   lastResultUnitIds?: string[];
@@ -361,7 +361,7 @@ export interface AiSessionMemory {
   activeSourceSetId?: string;
 }
 
-export type ToolPlannerClarifyReason =
+type ToolPlannerClarifyReason =
   | 'missing-unit-target'
   | 'missing-split-position'
   | 'missing-translation-layer-target'
@@ -554,7 +554,7 @@ export interface AiPromptVisibleTimelineState {
   activeSpeakerFilterKey?: string;
 }
 
-export interface AiShortTermContext {
+interface AiShortTermContext {
   locale?: string;
   page?: string;
   activeUnitId?: string;
@@ -620,7 +620,7 @@ export interface AiShortTermContext {
   sessionMemoryDigest?: string;
 }
 
-export interface AiLongTermContext {
+interface AiLongTermContext {
   projectStats?: {
     unitCount?: number;
     speakerCount?: number;
