@@ -127,7 +127,7 @@ export type TranscriptionTimelineWorkspacePanelProps = {
   timingDragPreview?: { id: string; start: number; end: number } | null;
 };
 
-const TRANSCRIPTION_TIMELINE_VERTICAL_VIEW_REQUIRED_KEYS = [
+export const TRANSCRIPTION_TIMELINE_VERTICAL_VIEW_REQUIRED_KEYS = [
   'transcriptionLayers',
   'translationLayers',
   'unitsOnCurrentMedia',

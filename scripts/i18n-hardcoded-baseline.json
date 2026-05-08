@@ -1,8 +1,10 @@
 {
-  "generatedAt": "2026-05-06T10:28:40.329Z",
+  "generatedAt": "2026-05-08T06:03:15.588Z",
   "scannerVersion": 2,
-  "totalHits": 71,
+  "totalHits": 216,
   "files": {
+    "src/ai/chat/localContextToolExecutors.ts": 1,
+    "src/ai/chat/localContextToolFormatters.ts": 144,
     "src/ai/chat/modelSelectionFeedback.ts": 3,
     "src/ai/chat/toolCallSchemas.ts": 1,
     "src/ai/eval/userFeedback.ts": 13,

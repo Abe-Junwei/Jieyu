@@ -96,7 +96,7 @@ export interface UseSpeakerActionsReturn {
 }
 
 export function useSpeakerActions({
-  units,
+  units: _units,
   setUnits,
   speakers,
   setSpeakers,

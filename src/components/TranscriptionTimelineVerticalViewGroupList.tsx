@@ -215,7 +215,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
   persistGroupTranslation,
   persistPairedReadingTargetTranslation,
   persistSourceText,
-  getUnitTextForLayer,
+  getUnitTextForLayer: _getUnitTextForLayer,
   segmentContentByLayer,
   segmentsByLayer,
   resolveNoteIndicatorTarget,
@@ -225,7 +225,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
   handleAnnotationClick,
   handleAnnotationContextMenu,
   navigateUnitFromInput,
-  speakerVisualByUnitId,
+  speakerVisualByUnitId: _speakerVisualByUnitId,
 }: TranscriptionTimelineVerticalViewGroupListProps) {
   return (
     <>

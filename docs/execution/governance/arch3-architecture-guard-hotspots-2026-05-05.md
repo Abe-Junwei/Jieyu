@@ -3,7 +3,7 @@ title: ARCH-3 architecture-guard 热点文件回收计划（2026-05-05）
 doc_type: execution-governance-arch-decision
 status: active
 owner: repo
-last_reviewed: 2026-05-05
+last_reviewed: 2026-05-08
 source_of_truth: arch3-architecture-hotspots
 ---
 
@@ -11,10 +11,10 @@ source_of_truth: arch3-architecture-hotspots
 
 `npm run check:architecture-guard` 对接近 **硬上限** 的文件给出 **WARN hotspot**（典型为行数、`useMemo` / `useCallback` 声明数）。此类文件**禁止**在无拆分设计的情况下继续堆功能；回收应 **单独立迭代 / PR**，与 F4 等功能交付解耦。
 
-## 最新状态（2026-05-05 复核）
+## 最新状态（2026-05-08 复核）
 
 - 已复跑 `npm run -s check:architecture-guard`，当前输出为 `OK`，未出现 `WARN hotspot`。
-- 与计划文档 §3.2「hotspot 预警已从 6 降至 0」表述一致。
+- 与计划文档 §3.2「hotspot 预警已从 6 降至 0」表述一致；下方「历史登记热点」表为 **2026-05-05 行数快照**，演进中以 **guard 输出** 与 `wc -l` 为准。
 
 ## 历史登记热点（2026-05-05 快照；以脚本最新输出为准）
 

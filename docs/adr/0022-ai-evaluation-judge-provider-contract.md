@@ -27,7 +27,7 @@ We need a provider contract so that:
 
 ## Decision
 
-Introduce `JudgeProvider<Input, Result>` interface in `src/ai/eval/JudgeProvider.ts`.
+Introduce `JudgeProvider<Input, Result>` interface in `src/ai/eval/citationJudge.ts`.
 
 ### Contract
 

@@ -98,18 +98,18 @@
 
 .timeline-paired-reading-mode-btn:hover {
   color: var(--text-primary);
-  border-color: color-mix(in srgb, var(--border-soft) 72%, var(--accent-primary, #4f7cff));
+  border-color: color-mix(in srgb, var(--border-soft) 72%, var(--accent-primary));
 }
 
 .timeline-paired-reading-mode-btn:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent-primary, #4f7cff) 30%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
   outline-offset: 1px;
 }
 
 .timeline-paired-reading-mode-btn.is-active {
   color: var(--text-primary);
-  border-color: var(--accent-primary, #4f7cff);
-  background: color-mix(in srgb, var(--surface-elevated) 82%, var(--accent-primary, #4f7cff) 18%);
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--surface-elevated) 82%, var(--accent-primary) 18%);
 }
 
 .timeline-paired-reading-layer-style-btn {
@@ -339,7 +339,7 @@
 
 .timeline-paired-reading-chip-multi-anchor {
   color: var(--text-secondary);
-  border: 1px dashed color-mix(in srgb, var(--border-soft) 80%, var(--accent-primary, #4f7cff));
+  border: 1px dashed color-mix(in srgb, var(--border-soft) 80%, var(--accent-primary));
 }
 
 /* 紧凑列：任意视口下尊重 data-compact-mode（原规则仅在 max-width:960px 内，宽屏切换无效） */
@@ -354,7 +354,7 @@
 }
 
 .timeline-paired-reading-group-active {
-  --timeline-paired-reading-ring: color-mix(in srgb, var(--accent-primary, #4f7cff) 30%, transparent);
+  --timeline-paired-reading-ring: color-mix(in srgb, var(--accent-primary) 30%, transparent);
   /* 活跃组不再额外铺背景高亮，保持与普通段块一致 | Active group uses the same fill as regular blocks */
   background: color-mix(in srgb, var(--surface-panel) 42%, transparent);
 }

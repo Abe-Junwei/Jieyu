@@ -26,6 +26,7 @@ import { getAiChatCardMessages } from '../../i18n/messages';
 import { AiPanelContext } from '../../contexts/AiPanelContext';
 import { useGlobalContext } from '../../services/GlobalContextService';
 import { getDb } from '../../db';
+import { fireAndForget } from '../../utils/fireAndForget';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
 import { useAssistantDialogueSnapshot } from '../../hooks/useAssistantDialogueSnapshot';
 import { isAssistantChatComposerBlocked, isVoiceDialogueBlockingPrimary } from '../../services/assistantDialogueState';
@@ -154,7 +155,7 @@ export function AiChatCard({
   // continuous invalidation would require subscribing to all related tables)
   useEffect(() => {
     let cancelled = false;
-    getDb()
+    const promise = getDb()
       .then(async (db) => {
         const rows = await db.collections.ai_source_sets.find().exec();
         if (cancelled) return;
@@ -203,25 +204,24 @@ export function AiChatCard({
         if (!cancelled) {
           setSavedSourceSets(sets);
         }
-      })
-      .catch((err) => { console.error('[AiChatCard] source set hydration/prune failed', err); });
+      });
+    fireAndForget(promise, { context: 'src/components/ai/AiChatCard.tsx:L208', policy: 'user-visible' });
     return () => { cancelled = true; };
   }, []);
 
   // P5: Persist source sets to Dexie (serialized via Promise queue to avoid races)
   const persistSourceSets = useCallback((sets: SavedCorpusSourceSet[]) => {
-    persistQueueRef.current = persistQueueRef.current
-      .then(async () => {
-        const db = await getDb();
-        const existing = await db.collections.ai_source_sets.find().exec();
-        const existingIds = new Set(existing.map((r) => r.id));
-        await Promise.all(sets.map((set) =>
-          existingIds.has(set.id)
-            ? db.collections.ai_source_sets.update(set.id, set)
-            : db.collections.ai_source_sets.insert(set),
-        ));
-      })
-      .catch((err) => { console.error('[AiChatCard] persistSourceSets failed', err); });
+    persistQueueRef.current = persistQueueRef.current.then(async () => {
+      const db = await getDb();
+      const existing = await db.collections.ai_source_sets.find().exec();
+      const existingIds = new Set(existing.map((r) => r.id));
+      await Promise.all(sets.map((set) =>
+        existingIds.has(set.id)
+          ? db.collections.ai_source_sets.update(set.id, set)
+          : db.collections.ai_source_sets.insert(set),
+      ));
+    });
+    fireAndForget(persistQueueRef.current, { context: 'src/components/ai/AiChatCard.tsx:L224', policy: 'user-visible' });
   }, []);
 
   // P5: Source set management

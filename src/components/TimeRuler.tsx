@@ -95,8 +95,6 @@ export function TimeRuler({
   const { start, end } = rulerView;
   const windowSec = end - start;
 
-  if (windowSec <= 0) return null;
-
   const { majorStep, minorStep, fmtLabel } = useMemo(() => {
     const approxPxPerSec = Math.max(zoomPxPerSec, 1);
     const nextMajorStep = NICE_STEPS.find((s) => s * approxPxPerSec >= 120) ?? 600;
@@ -176,6 +174,10 @@ export function TimeRuler({
 
   const overviewViewportLeft = `${(Math.max(0, start) / dur) * 100}%`;
   const overviewViewportWidth = `${Math.max(0.8, ((Math.min(dur, end) - Math.max(0, start)) / dur) * 100)}%`;
+
+  if (windowSec <= 0) {
+    return <div className="time-ruler" />;
+  }
 
   return (
     <div className="time-ruler">

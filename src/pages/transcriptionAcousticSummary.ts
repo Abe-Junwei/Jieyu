@@ -1,6 +1,6 @@
 import type { AcousticFeatureResult } from '../utils/acousticOverlayTypes';
 
-const ACOUSTIC_DIAGNOSTIC_KEYS = [
+export const ACOUSTIC_DIAGNOSTIC_KEYS = [
   'low_reliability',
   'low_voicing',
   'wide_pitch_range',

@@ -22,17 +22,13 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
 }: SpeakerActionDialogProps) {
   const locale = useLocale();
 
-  if (!state) {
-    return <ModalPanel isOpen={false} onClose={onClose} title="">{null}</ModalPanel>;
-  }
-
-  const isRename = state.mode === 'rename';
-  const isMerge = state.mode === 'merge';
-  const isClear = state.mode === 'clear';
-  const isDelete = state.mode === 'delete';
+  const isRename = state?.mode === 'rename';
+  const isMerge = state?.mode === 'merge';
+  const isClear = state?.mode === 'clear';
+  const isDelete = state?.mode === 'delete';
   const confirmDisabled = busy
-    || (isRename && state.draftName.trim().length === 0)
-    || (isMerge && state.targetSpeakerKey.trim().length === 0);
+    || (isRename && state?.draftName.trim().length === 0)
+    || (isMerge && state?.targetSpeakerKey.trim().length === 0);
 
   const dialogTitle = isRename
     ? t(locale, 'transcription.speakerDialog.renameTitle')
@@ -43,6 +39,7 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
         : t(locale, 'transcription.speakerDialog.clearTagTitle');
 
   const summaryCopy = useMemo(() => {
+    if (!state) return '';
     if (isMerge) {
       return tf(locale, 'transcription.speakerDialog.mergeHint', { sourceSpeakerName: state.sourceSpeakerName });
     }
@@ -62,6 +59,7 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
   }, [isClear, isDelete, isMerge, locale, state]);
 
   const summaryMeta = useMemo(() => {
+    if (!state) return [];
     if (isRename) {
       return [state.speakerName];
     }
@@ -73,6 +71,10 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
     }
     return [state.sourceSpeakerName, String(state.affectedCount), String(state.candidates.length)];
   }, [isClear, isDelete, isMerge, isRename, state]);
+
+  if (!state) {
+    return <ModalPanel isOpen={false} onClose={onClose} title="">{null}</ModalPanel>;
+  }
 
   const riskCopy = isDelete
     ? t(locale, 'transcription.speakerDialog.deleteEntityRisk')

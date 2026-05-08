@@ -22,7 +22,6 @@ afterEach(() => {
 const searchLexemesMock = vi.mocked(LinguisticService.searchLexemes);
 
 // Minimal unit stub – only the fields useAiPanelLogic actually reads.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const utt = (id: string, extra: Record<string, unknown> = {}): any => ({
   id,
   startTime: 0,

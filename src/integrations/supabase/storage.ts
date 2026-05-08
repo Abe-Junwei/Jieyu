@@ -1,6 +1,6 @@
 import { getSupabaseBrowserClient } from './client';
 
-const COLLABORATION_STORAGE_BUCKETS = [
+export const COLLABORATION_STORAGE_BUCKETS = [
   'project-audio',
   'project-exports',
   'project-attachments',

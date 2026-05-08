@@ -3,7 +3,7 @@ title: AI 聊天 send-turn 管道（现状）
 doc_type: architecture
 status: active
 owner: repo
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-08
 source_of_truth: current-state
 ---
 
@@ -47,18 +47,19 @@ When `localStorage['jieyu_debug_ai_send_turn'] === '1'`, `useAiChat.sendTurnCorr
 2. **Reflection checks** — rule-based self-check per workflow (`segment_qa`, `annotation_qa`, `lexeme_candidates`, `elan_flex_compatibility`). Results are stored on the assistant message as `reflectionChecks` for the UI quality panel.
 3. **Composed workflow state advancement** — parses `<step1>`/`<step2>`/`<step3>` tags and updates `sessionMemory.composedWorkflowState`. If reflection flags a step and retry budget remains (`stepReflectionRetryCounts[step] < 1`), the state is rolled back with `pendingReflectionRetryStepIndex`; `useAiChat.ts` detects this after `send` completes and auto-triggers the retry turn.
 4. **Compatibility report parsing** (when `workflowId === 'elan_flex_compatibility'`) — parses JSON from the model output, attaches a structured `compatibilityReport` to the assistant message, and auto-pushes findings that carry `adoptionCandidateId` into the AdoptionQueue via `onPushAdoptionItemsRef`.
-5. **Source set scope binding** — evidence packets produced by `ragCitationsToEvidencePackets` carry `sourceSetId` and `sourceSetSnapshot` for audit-grade traceability. The active source set is selected via `AiSourceSetBar` and synced into `sessionMemoryRef.current.activeSourceSetId` through `setActiveSourceSetId`.
+5. **Source set traceability binding** — evidence packets produced by `ragCitationsToEvidencePackets` carry `sourceSetId` and `sourceSetSnapshot` for audit-grade traceability. The active source set is selected via `AiSourceSetBar` and synced into `sessionMemoryRef.current.activeSourceSetId` through `setActiveSourceSetId`.
 
 ### AdoptionQueue push boundary
 
 `onPushAdoptionItemsRef` is a callback ref passed from `AiChatCard` into `useAiChat`. After stream completion, `sendTurnStreamPhase.ts` iterates over `compatibilityReport.findings`; for each finding with `adoptionCandidateId`, it constructs an `AdoptionItem` (status `pending`) and calls `onPushAdoptionItemsRef.current(items)`. `AiChatCard` accumulates these in local React state (`adoptionItems`) and renders `AiAdoptionQueuePanel`. This decouples the stream-phase from the UI: the hook only emits items; the card owns presentation and action handlers (accept/ignore/copy/jump).
 
-### Source set → RAG scope data flow
+### Source set traceability data flow (current state)
 
 1. User selects a source set in `AiSourceSetBar` → `handleSelectSourceSet(id)` → `setActiveSourceSetId(id)` writes `sessionMemoryRef.current.activeSourceSetId`.
-2. On the next `send`, `sendPersistTurnAndBuildPromptContext.ts` reads `sessionMemoryRef.current.activeSourceSetId` and resolves the corresponding `SavedCorpusSourceSet` → `toRuntimeCorpusSourceSet`.
-3. RAG retrieval uses the runtime source set scope instead of the default corpus scope.
-4. `ragCitationsToEvidencePackets` injects `sourceSetId` and `sourceSetSnapshot` into each `EvidencePacketV0`, establishing bidirectional traceability between citations and the source set that produced them.
+2. On the next `send`, `sendPersistTurnAndBuildPromptContext.ts` resolves corpus scope via `resolveCorpusSourceSet(aiContext)` (segment/selection/current_media/project rules).
+3. `sessionMemoryRef.current.activeSourceSetId` is currently used for evidence traceability tagging, not for RAG scope resolution.
+4. `ragCitationsToEvidencePackets` injects `sourceSetSnapshot`, and then `activeSourceSetId` is written into each packet as `sourceSetId` when available, establishing traceability between citations and the user-selected source set.
+5. ~~`toRuntimeCorpusSourceSet` / `fromRuntimeCorpusSourceSet`~~ → Removed. `resolveCorpusSourceSet(aiContext)` directly constructs the runtime `CorpusSourceSet` from live UI state; no persisted→runtime conversion path is currently needed.
 
 ## E2E anchors
 

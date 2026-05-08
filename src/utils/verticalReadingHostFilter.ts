@@ -170,7 +170,7 @@ export function filterTranslationLayersForVerticalReadingGroup(
   translationLayers: readonly LayerDocType[],
   transcriptionLayers: readonly LayerDocType[],
   defaultTranscriptionLayerId: string | undefined,
-  fallbackFocusedTranscriptionLayerId: string | undefined,
+  _fallbackFocusedTranscriptionLayerId: string | undefined,
   layerLinks: readonly VerticalReadingHostLink[] = [],
 ): LayerDocType[] {
   const transcriptionLayerCount = transcriptionLayers.length;

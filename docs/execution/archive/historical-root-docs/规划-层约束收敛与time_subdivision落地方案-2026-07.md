@@ -248,7 +248,7 @@ await LayerSegmentationV2Service.createSegmentLink({
 | `src/hooks/useLayerSegments.ts` | 新增 `LayerEditMode` 类型 + `getLayerEditMode()` 函数 |
 | `src/pages/TranscriptionPage.Orchestrator.tsx` | 10 处 `isIndependentBoundaryLayer` → `getLayerEditMode` switch |
 | `src/components/TranscriptionTimelineHorizontalMediaLanes.tsx` | 2 处换用 |
-| `src/components/TranscriptionTimelineTextOnly.tsx` | 2 处换用 |
+| `src/pages/TranscriptionPage.TimelineContent.tsx` | 2 处换用 |
 | `src/services/EafConstraintParsing.test.ts` | 新增 `getLayerEditMode` 单测 |
 
 ### Phase B

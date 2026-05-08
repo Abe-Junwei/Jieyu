@@ -8,14 +8,11 @@ import {
   validateSourceSetMembers,
   invalidateSourceSet,
   pruneInvalidatedSourceSets,
-  toRuntimeCorpusSourceSet,
-  fromRuntimeCorpusSourceSet,
   exportReferenceSummary,
   buildSourceSetFallbackReason,
   deleteSavedSourceSet,
   type SavedCorpusSourceSet,
 } from './corpusSourceSet';
-import type { CorpusSourceSet } from './corpusScopeTypes';
 
 const fixedTimestamp = '2026-05-06T12:00:00.000Z';
 
@@ -232,65 +229,6 @@ describe('pruneInvalidatedSourceSets', () => {
     const { updated, invalidatedIds } = pruneInvalidatedSourceSets(sets, () => false);
     expect(invalidatedIds).toEqual([]);
     expect(updated[0]!.invalidationReason).toBe('old');
-  });
-});
-
-describe('toRuntimeCorpusSourceSet', () => {
-  it('converts saved to runtime', () => {
-    const saved = makeSourceSet({
-      scope: 'selection',
-      members: [
-        { id: 'u1', type: 'segment' },
-        { id: 'u2', type: 'segment' },
-      ],
-      mediaId: 'm1',
-      layerId: 'l1',
-      projectId: 'p1',
-    });
-    const runtime = toRuntimeCorpusSourceSet(saved);
-    expect(runtime).toEqual({
-      scope: 'selection',
-      sourceIds: ['u1', 'u2'],
-      mediaId: 'm1',
-      layerId: 'l1',
-      projectId: 'p1',
-    } as CorpusSourceSet);
-  });
-
-  it('omits undefined fields', () => {
-    const saved = { ...makeSourceSet() };
-    delete saved.mediaId;
-    delete saved.layerId;
-    delete saved.projectId;
-    const runtime = toRuntimeCorpusSourceSet(saved);
-    expect(runtime.mediaId).toBeUndefined();
-    expect(runtime.layerId).toBeUndefined();
-    expect(runtime.projectId).toBeUndefined();
-  });
-});
-
-describe('fromRuntimeCorpusSourceSet', () => {
-  it('converts runtime to saved', () => {
-    const runtime: CorpusSourceSet = {
-      scope: 'current_media',
-      sourceIds: ['u1', 'u2'],
-      mediaId: 'm1',
-    };
-    const saved = fromRuntimeCorpusSourceSet(
-      runtime,
-      [
-        { id: 'u1', type: 'segment' },
-        { id: 'u2', type: 'segment' },
-      ],
-      'My Set',
-      { id: 'css_001', boundSessionId: 'sess-1', timestamp: fixedTimestamp },
-    );
-    expect(saved.id).toBe('css_001');
-    expect(saved.name).toBe('My Set');
-    expect(saved.scope).toBe('current_media');
-    expect(saved.members).toHaveLength(2);
-    expect(saved.boundSessionId).toBe('sess-1');
-    expect(saved.mediaId).toBe('m1');
   });
 });
 

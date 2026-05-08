@@ -719,6 +719,56 @@
   color: var(--state-warning-text, var(--state-warning-solid));
 }
 
+.voice-agent-commercial-config {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.voice-agent-commercial-provider-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-agent-commercial-provider-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.voice-agent-commercial-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-agent-commercial-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.voice-agent-config-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-agent-config-ok {
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  color: var(--state-success-text, var(--state-success-solid));
+}
+
+.voice-agent-config-error {
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  color: var(--state-danger-text, var(--state-danger-solid));
+}
+
+.voice-agent-test-btn {
+  flex-shrink: 0;
+}
+
 .voice-agent-field {
   display: flex;
   flex-direction: column;

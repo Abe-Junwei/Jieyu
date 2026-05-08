@@ -441,9 +441,7 @@ export class JieyuDexie extends Dexie {
       const allLinks = (await linksTable.toArray()) as Array<{ id: string; unitId: string; lexemeId: string; annotationId: string; wordIndex?: number }>;
       if (allLinks.length === 0) return;
       const updated = allLinks.map((link) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { wordIndex: _wordIndex, ...rest } = link;
-        void _wordIndex;
         return rest;
       });
       await linksTable.bulkPut(updated);

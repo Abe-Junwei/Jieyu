@@ -18,7 +18,7 @@
     "src/ai/mcp/client/mcpClientTypes.ts",
     "src/ai/perf/embeddingModelDecision.ts",
     "src/assets/lottie/left-rail/leftRailLottieMap.ts",
-    "src/data/generated/iso6393Seed.generated.ts",
+
     "src/data/generated/languageNameCatalog.generated.ts",
     "src/pages/annotation/annotationLaneReadScope.ts",
     "src/services/VoiceAgentService.singleton.ts"
@@ -50,6 +50,18 @@
     ],
     "src/utils/transcriptionUnitLaneReadScope.ts": [
       "types"
+    ],
+    "src/workerThreads.browser.ts": [
+      "exports"
+    ],
+    "src/integrations/supabase/storage.ts": [
+      "exports"
+    ],
+    "src/pages/transcriptionAcousticSummary.ts": [
+      "exports"
+    ],
+    "src/pages/transcriptionTimelineWorkspacePanelTypes.ts": [
+      "exports"
     ]
   }
 }

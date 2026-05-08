@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-07T23:50:22.622Z",
-  "aggregate": "e7aabb1343ec10c34225562263599cd83c35f0f827437df9cc6297445af0097c",
+  "generatedAt": "2026-05-08T06:02:42.632Z",
+  "aggregate": "5ac140b396aac038313540c984c1982b07c88ebbdde4e2cc708d6bcf3f89187e",
   "fileHashes": {
     "src/styles/ai-hub.css": "223bbbed149c6d0aa0ea25d0ecae6c171d27eed665695c75f8ba6287029aae10",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -12,7 +12,6 @@
     "src/styles/foundation/dialog-shell.css": "b2b0357fc8fd6062b5355a37b819d6bc1823ff32b8b99521c5e0a7183fbb60fc",
     "src/styles/foundation/icon-effect-motion.css": "a0a98780e62e6264e164993635eee1dc3494907226293f69e1c96f6596047575",
     "src/styles/foundation/language-asset-section-contract.css": "d8d9e0ddfa314562c6453f01ea38d5e61b4d355301e86d1cf7eee499e4ca19ab",
-    "src/styles/foundation/lucide-jieyu.css": "e1c62171aca361cc27931dec7032d105b285b9a78d4b0cc1c7812e17a13988d7",
     "src/styles/foundation/material-jieyu.css": "07eb4b3015ecb3279a4ff0767fb15dfcfdfd45058bcbe2cf2b0085318cf3f053",
     "src/styles/foundation/media-controls.css": "b02373b1d053080492a5c88cbdb2290d4111768b7c46d61b41553b308823f048",
     "src/styles/foundation/panel-design-presets.css": "fe38e65040cfd8059527f555db9f1bcb4564417f2ff593dd2c23a2a93a387105",
@@ -37,7 +36,7 @@
     "src/styles/pages/timeline/timeline-lane.css": "dba7068589c7256c1b0e9ac1034ddf86dc229cf4069a9e3f11bb68a7b054ad11",
     "src/styles/pages/timeline/timeline-layout.css": "fc28bff5dee8d927eb6b723593abe7ff268732ae5447cbb3a83dc01eb46d2451",
     "src/styles/pages/timeline/timeline-overview.css": "621a064366cdfbca36bf50d5e98b960aafa4e0fc1d129df4efb82076ae4b8540",
-    "src/styles/pages/timeline/timeline-paired-reading.css": "5453f3c7d67851a2fdbe8c041036cfca575f9f728b6d7142c6d9591752dcca95",
+    "src/styles/pages/timeline/timeline-paired-reading.css": "63506d5fb4a33a423f31d3abdcb2cedbdca785fdca9b41c137e0bc048835489a",
     "src/styles/pages/timeline/timeline-segment-narrow.css": "16da99a7fe61c770d8a13b2c37c81a821af544300c851a2af204e2a567b79b27",
     "src/styles/pages/timeline/timeline-text-item.css": "11c72235f20ddc9ba6ed2e9190fb515073c159bbd386fda2922901f5bd68129a",
     "src/styles/pages/timeline/timeline-translation-audio.css": "077453a23737ff562b2cd8ad808feefe17ec83d863676418c5a7189db26cf105",
@@ -54,7 +53,6 @@
     "src/styles/panels/batch-operation.css": "10f7a120c1a4835d9f2c845ab4188269139f488aafb5dfc14817538190292d93",
     "src/styles/panels/collaboration-conflict-drawer.css": "ceb439b95cdb23c2bb00bf9bc8a1c99e784a1f983afc8d536f7dd049ee6d6d6d",
     "src/styles/panels/dev-error-aggregation.css": "673baa1939dae808b740dfe6a6be90bada1f120d936d4b6a7b29c3fec130103e",
-    "src/styles/panels/grounding-context.css": "92a448f721ad33af9490e999d0ada8082bb3e4aa044da4e210431432e847900e",
     "src/styles/panels/layer-list.css": "0c37c6df51b39e5925de54febf43d16c85f4a1839835f58524f7fa11272c3219",
     "src/styles/panels/left-rail-project-hub.css": "a751274f6b5821b41b91497dcfeb4873c5733b8b635a4da14b0f4ec34e183810",
     "src/styles/panels/note-panel.css": "17a8ae407e178113445486e80219be0deb00ec3a38487a8767c3090308e92272",
@@ -67,7 +65,7 @@
     "src/styles/panels/settings-modal.css": "b9185daf9cf44efc4520a8f73eb7ddf27c78d0faea84636054bc152b5a65d2b7",
     "src/styles/panels/shortcuts-panel.css": "13cd4a3d624e76c22c91596cef3f4e9fe5f8cc986a0f30831a39a9fe92545671",
     "src/styles/panels/undo-history.css": "6649f307ffd35d5bbbda45272e15b73a0b6168fbf2fab8ca59045574a32a5a8d",
-    "src/styles/panels/voice-agent.css": "148027a943b52d7fd5d1a04837edc195c1e1140db6f6e8ad475d329fed47206e",
+    "src/styles/panels/voice-agent.css": "b9723e45279581ac2e3fa755dfc86855961ed8b1fadf674df600db20b47e588b",
     "src/styles/tokens.css": "51bff8ed22c6a65e2e74587d5fc92f3006f1850103bc4565cac3952495c1142f",
     "src/styles/transcription-entry.css": "58cb5cf806e8359ee550ed1bb4e6da9a334391e19c43dcd81184924d75c5003b",
     "src/styles/transcription-timeline.css": "15b57584ca039026d664457c51b69a6e5449bd6e75a6b6c9a7fcdffa0c9eae9e"

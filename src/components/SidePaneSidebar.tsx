@@ -69,7 +69,7 @@ export function SidePaneSidebar({
   onFocusLayer,
   transcriptionLayers,
   layerLinks,
-  toggleLayerLink,
+  toggleLayerLink: _toggleLayerLink,
   deletableLayers,
   updateLayerMetadata,
   layerCreateMessage,

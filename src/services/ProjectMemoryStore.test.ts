@@ -17,7 +17,7 @@ function createFakeIdb(options?: {
 }) {
   const store = new Map<string, unknown>();
 
-  const fakeObjectStore = (mode: string) => ({
+  const fakeObjectStore = (_mode: string) => ({
     put(value: { projectId: string }) {
       store.set(value.projectId, structuredClone(value));
     },
@@ -115,7 +115,6 @@ vi.stubGlobal('indexedDB', {
   },
 });
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 type PMS = typeof import('./ProjectMemoryStore');
 
 async function freshModule() {

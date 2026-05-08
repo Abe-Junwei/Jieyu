@@ -7,7 +7,15 @@
  * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md §14.2 I6（languageId → BCP-47）
  */
 
-import languageTags from 'language-tags';
+import languageTagMappingsRaw from '../../public/data/language-support/language-tag-mappings.json';
+
+const languageTagMappings = languageTagMappingsRaw as {
+  version: string;
+  builtAt: string;
+  macroLanguageMembers: Record<string, string[]>;
+  preferredSubtag: Record<string, string>;
+  subtagDetails: Record<string, { descriptions?: string[]; deprecated?: boolean; suppressScript?: string }>;
+};
 import { listIso639_3Seeds, registerIso6393DerivedInvalidator } from '../data/iso6393Seed';
 import { getLanguageAliasCodeFromCatalog, getLanguageAliasesForCodeFromCatalog, getLanguageEnglishDisplayNameFromCatalog, getLanguageLocalDisplayNameFromCatalog, getLanguageNativeDisplayNameFromCatalog, getLanguageQueryEntriesFromCatalog } from '../data/languageNameCatalog';
 import { normalizeLanguageCatalogRuntimeLookupKey, readLanguageCatalogRuntimeCache } from '../data/languageCatalogRuntimeCache';
@@ -420,18 +428,13 @@ function getIso639IsoMaps(): Iso639IsoMaps {
     }
     const macroByCode: Record<string, string> = {};
     for (const entry of seeds) {
-      const subtag = languageTags.language(entry.iso6393) ?? languageTags.type(entry.iso6393, 'extlang');
-      if (!subtag || subtag.scope() !== 'macrolanguage') continue;
       const macroCode = entry.iso6393.toLowerCase();
-      try {
-        for (const member of languageTags.languages(macroCode)) {
-          const memberCode = member.format().toLowerCase();
-          if (!(memberCode in macroByCode)) {
-            macroByCode[memberCode] = macroCode;
-          }
+      const members = languageTagMappings.macroLanguageMembers[macroCode];
+      if (!members) continue;
+      for (const memberCode of members) {
+        if (!(memberCode in macroByCode)) {
+          macroByCode[memberCode] = macroCode;
         }
-      } catch {
-        // noop
       }
     }
     iso639IsoMaps = { iso1To3, iso2To3, macroByCode };
@@ -455,8 +458,7 @@ function getLanguageCatalogByCode(): Readonly<Record<string, LanguageCatalogEntr
   for (const entry of listIso639_3Seeds()) {
     const code = entry.iso6393.toLowerCase();
     if (!code) continue;
-    const subtag = languageTags.language(code) ?? languageTags.type(code, 'extlang');
-    const preferred = subtag?.preferred()?.format().toLowerCase();
+    const preferred = languageTagMappings.preferredSubtag[code];
     const maps = getIso639IsoMaps();
     const preferredIso6393 = preferred
       ? (maps.iso1To3[preferred] ?? maps.iso2To3[preferred] ?? (isKnownIso639_3Code(preferred) ? preferred : undefined))
@@ -471,16 +473,16 @@ function getLanguageCatalogByCode(): Readonly<Record<string, LanguageCatalogEntr
       ...(entry.invertedName ? { invertedName: entry.invertedName } : {}),
       ...(() => { const zh = getLanguageLocalDisplayNameFromCatalog(code, 'zh-CN'); return zh ? { displayNameZh: zh } : {}; })(),
       aliases: [...getLanguageAliasesForCodeFromCatalog(code)],
-      scope: ((subtag?.scope() ?? entry.scope ?? 'individual') as LanguageCatalogEntry['scope']),
+      scope: ((entry.scope ?? 'individual') as LanguageCatalogEntry['scope']),
       type: (entry.type as LanguageCatalogEntry['type']),
       descriptions: Array.from(new Set([
         entry.name,
         entry.invertedName,
-        ...(subtag?.descriptions() ?? []),
+        ...(languageTagMappings.subtagDetails[code]?.descriptions ?? []),
       ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0))),
-      deprecated: subtag?.deprecated() !== null,
+      deprecated: languageTagMappings.subtagDetails[code]?.deprecated ?? false,
       ...(preferredIso6393 && preferredIso6393 !== code ? { preferredIso6393 } : {}),
-      ...(subtag?.script() ? { suppressScript: subtag.script()!.format() } : {}),
+      ...(languageTagMappings.subtagDetails[code]?.suppressScript ? { suppressScript: languageTagMappings.subtagDetails[code].suppressScript } : {}),
       ...(maps.macroByCode[code] ? { macrolanguage: maps.macroByCode[code] } : {}),
     };
   }
@@ -1157,7 +1159,7 @@ export function searchLanguageCatalog(
 
   if (!normalized) {
     const defaultMatches = COMMON_LANGUAGE_INPUT_CODES
-      .map((code, index) => catalogByCode[code])
+      .map((code, _index) => catalogByCode[code])
       .filter((entry): entry is LanguageCatalogEntry => Boolean(entry))
       .map((entry, index) => ({
         entry,
@@ -1175,7 +1177,7 @@ export function searchLanguageCatalog(
   const preset = AMBIGUOUS_QUERY_PRESETS[normalized];
   if (preset) {
     const presetMatches = preset
-      .map((code, index) => catalogByCode[code])
+      .map((code, _index) => catalogByCode[code])
       .filter((entry): entry is LanguageCatalogEntry => Boolean(entry))
       .map((entry, index) => ({
         entry,
