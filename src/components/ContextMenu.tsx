@@ -298,7 +298,7 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose, anc
 
   const node = (
     <>
-      <div ref={ref} className="context-menu" style={style} role="menu" onScroll={requestLayoutRecalc}>
+      <div ref={ref} className="context-menu" {...(style !== undefined ? { style } : {})} role="menu" onScroll={requestLayoutRecalc}>
         {renderMenuItems(items, 0)}
       </div>
 

@@ -394,6 +394,14 @@ export function TranscriptionTimelineVerticalViewGroupList({
         const isTargetHeaderActive = pairedReadingTargetSide === 'target'
           || (pairedReadingTargetSide == null && translationLayers.some((l) => l.id === focusedLayerRowId));
         const isSourceHeaderActive = !isTargetHeaderActive;
+        const pairedReadingGroupStyleProps = {
+          style: {
+            ...(pairedReadingDualGridStyle ?? {}),
+            ...(pairedReadingEditorGroupKey in pairedReadingEditorHeightByGroup
+              ? { '--timeline-paired-reading-editor-min-height': `${pairedReadingEditorHeight}px` }
+              : {}),
+          } as CSSProperties,
+        };
 
         return (
           <div
@@ -401,12 +409,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
             data-paired-reading-group-id={group.id}
             data-paired-reading-layout={pairedReadingLayoutMode}
             className={`timeline-paired-reading-group${isGroupActive ? ' timeline-paired-reading-group-active' : ''}${startsNewBundle ? ' timeline-paired-reading-group-bundle-start' : ''}`}
-            style={{
-              ...(pairedReadingDualGridStyle ?? {}),
-              ...(pairedReadingEditorGroupKey in pairedReadingEditorHeightByGroup
-                ? { '--timeline-paired-reading-editor-min-height': `${pairedReadingEditorHeight}px` }
-                : {}),
-            } as CSSProperties}
+            {...pairedReadingGroupStyleProps}
           >
             <div className="timeline-paired-reading-group-meta">
               <div className="timeline-paired-reading-group-meta-left">

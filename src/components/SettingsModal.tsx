@@ -977,6 +977,7 @@ export const SettingsModal = memo(function SettingsModal({
                     const label = locale === 'zh-CN' ? accent.labelZh : accent.labelEn;
                     const isActive = activeThemeAccent === accent.id;
                     const swatchColor = resolvedMode === 'dark' ? accent.swatchDark : accent.swatchLight;
+                    const swatchStyleProps = { style: { ['--theme-accent-chip-color' as string]: swatchColor } };
                     return (
                       <button
                         key={accent.id}
@@ -989,7 +990,7 @@ export const SettingsModal = memo(function SettingsModal({
                       >
                         <span
                           className={`theme-accent-chip-swatch${accent.id === 'default' ? ' theme-accent-chip-swatch-default' : ''}`}
-                          style={{ ['--theme-accent-chip-color' as string]: swatchColor }}
+                          {...swatchStyleProps}
                           aria-hidden="true"
                         />
                         <span className="theme-accent-chip-label">{label}</span>

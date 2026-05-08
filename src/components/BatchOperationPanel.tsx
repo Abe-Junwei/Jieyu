@@ -767,7 +767,7 @@ export function BatchOperationPanel({
                           {((activeUnitTextById[row.id] ?? '').trim() || '-') === '-'
                             ? '-'
                             : (
-                              <span dir={activePreviewTextProps?.dir} style={activePreviewTextProps?.style}>
+                              <span dir={activePreviewTextProps?.dir} {...(activePreviewTextProps?.style ? { style: activePreviewTextProps.style } : {})}>
                                 {(activeUnitTextById[row.id] ?? '').trim()}
                               </span>
                             )}

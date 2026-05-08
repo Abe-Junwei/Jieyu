@@ -53,7 +53,7 @@ export const WaveformHoverTooltip: FC<WaveformHoverTooltipProps> = ({
     <div className="waveform-hover-tooltip" style={{ left: x, top: y }}>
       {formatTime(time)}
       {textPreview && (
-        <span className="waveform-hover-tooltip-text" dir={previewDir} style={previewStyle}>
+        <span className="waveform-hover-tooltip-text" dir={previewDir} {...(previewStyle !== undefined ? { style: previewStyle } : {})}>
           {textPreview}
         </span>
       )}
