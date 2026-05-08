@@ -37,6 +37,8 @@ export function AiAssistantHubCard() {
   const transcript = (voiceInterimText?.trim() || voiceFinalText?.trim() || '');
   const confidence = voiceConfidence ?? 0;
   const confidenceColor = confidence > 0 ? getConfidenceColor(confidence) : undefined;
+  const transcriptToneProps = confidenceColor ? { style: { borderColor: confidenceColor } } : {};
+  const confidenceToneProps = confidenceColor ? { style: { color: confidenceColor } } : {};
   const nonDictationMode = voiceMode === 'analysis' ? 'analysis' : 'command';
   const selectedMode: 'chat' | 'dictation' = voiceMode === 'dictation' ? 'dictation' : 'chat';
 
@@ -107,11 +109,11 @@ export function AiAssistantHubCard() {
             {transcript && (
               <div
                 className="transcription-ai-assistant-transcript"
-                style={confidenceColor ? { borderColor: confidenceColor } : undefined}
+                {...transcriptToneProps}
               >
                 <p>{transcript}</p>
                 {confidence > 0 && (
-                  <span style={confidenceColor ? { color: confidenceColor } : undefined}>
+                  <span {...confidenceToneProps}>
                     {Math.round(confidence * 100)}%
                   </span>
                 )}
