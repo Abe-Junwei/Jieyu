@@ -128,6 +128,8 @@ export function AiChatComposerPanel({
   voiceDrawer: ReactNode | undefined;
   locale: Parameters<typeof t>[0];
 }) {
+  const voiceDrawerStyleProps = voiceDrawerInlineStyle !== undefined ? { style: voiceDrawerInlineStyle } : {};
+
   return (
     <div className="ai-chat-composer">
       {showAgentLoopProgress && (
@@ -294,7 +296,7 @@ export function AiChatComposerPanel({
       {canUseVoiceEntry && voiceEntry && (
         <div
           className={`ai-chat-voice-drawer ${voiceEntry.expanded ? 'is-open' : 'is-closed'}${isVoiceDrawerResizing ? ' is-resizing' : ''}`}
-          style={voiceDrawerInlineStyle}
+          {...voiceDrawerStyleProps}
         >
           <div className="ai-chat-voice-drawer-shell">
             <div className="ai-chat-voice-drawer-body" aria-hidden={!voiceEntry.expanded}>

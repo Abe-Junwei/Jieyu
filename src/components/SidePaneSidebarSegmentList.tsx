@@ -3,7 +3,7 @@
  */
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { liveQuery } from 'dexie';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { LayerDocType, LayerLinkDocType, LayerSegmentViewDocType, LayerUnitContentViewDocType, LayerUnitDocType, LayerUnitStatus, NoteCategory, SegmentMetaDocType, SpeakerDocType } from '../db';
 import { createTimelineUnit, type TimelineUnit } from '../hooks/transcriptionTypes';
 import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
@@ -816,6 +816,12 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     overscan: 10,
     getItemKey: (index) => filtered[index]?.key ?? String(index),
   });
+  const segmentVirtualListStyleProps: { style: CSSProperties } = {
+    style: {
+      height: `${segmentVirtualizer.getTotalSize()}px`,
+      position: 'relative',
+    },
+  };
 
   const segmentVirtualizerRef = useRef(segmentVirtualizer);
   segmentVirtualizerRef.current = segmentVirtualizer;
@@ -1075,28 +1081,28 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
         ) : useSegmentVirtualization ? (
           <ul
             className="app-side-pane-segment-list app-side-pane-segment-list--virtual"
-            style={{
-              height: `${segmentVirtualizer.getTotalSize()}px`,
-              position: 'relative',
-            }}
+            {...segmentVirtualListStyleProps}
           >
             {segmentVirtualizer.getVirtualItems().map((virtualRow) => {
               const item = filtered[virtualRow.index];
               if (!item) return null;
               const index = virtualRow.index;
+              const segmentVirtualRowStyleProps: { style: CSSProperties } = {
+                style: {
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualRow.start}px)`,
+                },
+              };
               return (
                 <li
                   key={item.key}
                   data-index={virtualRow.index}
                   ref={segmentVirtualizer.measureElement}
                   className={`app-side-pane-segment-list-item${item.empty ? ' app-side-pane-segment-list-item-empty' : ''}${index === reviewCursor && activeReviewPreset ? ' is-active-review-target' : ''}`}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
+                  {...segmentVirtualRowStyleProps}
                 >
                   <button
                     type="button"

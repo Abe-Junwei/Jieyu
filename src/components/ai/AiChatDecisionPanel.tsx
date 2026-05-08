@@ -78,10 +78,12 @@ export function AiChatDecisionPanel({
   exportedSnapshotRequestId: string | null;
   onTogglePanel: () => void;
 }) {
+  const decisionPanelStyleProps = decisionPanelInlineStyle !== undefined ? { style: decisionPanelInlineStyle } : {};
+
   return (
     <div
       className={`ai-chat-decision-panel ${showDecisionPanel ? 'is-open' : 'is-closed'}${hasDecisionLogs ? '' : ' is-empty'}${isDecisionPanelResizing ? ' is-resizing' : ''}`}
-      style={decisionPanelInlineStyle}
+      {...decisionPanelStyleProps}
     >
       <button
         ref={decisionPanelToggleButtonRef}

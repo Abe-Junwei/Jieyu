@@ -559,6 +559,7 @@ export function App() {
   const shellStyle = useMemo(() => ({
     ['--side-pane-width' as '--side-pane-width']: isSidePaneCollapsed ? '0px' : `${sidePaneWidth}px`,
   } as CSSProperties), [isSidePaneCollapsed, sidePaneWidth]);
+  const shellStyleProps = { style: shellStyle };
 
   // 仅保留“点击空白区域收起”，禁用 hover/贴边自动展开
   // Keep click-outside collapse only; disable hover/edge auto-expand.
@@ -592,7 +593,7 @@ export function App() {
         <AppSidePaneProvider>
           <div
             className={`app-shell ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
-            style={shellStyle}
+            {...shellStyleProps}
           >
             <div ref={shellBodyRef} className="app-shell-body">
             <aside className="app-left-rail" aria-label={t(locale, 'app.leftRail.aria.navigation')}>
