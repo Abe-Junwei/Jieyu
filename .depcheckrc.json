@@ -1,0 +1,4 @@
+{
+  "ignores": ["cross-env", "lint-staged"],
+  "ignore-patterns": ["scripts/build-iso3166-countries-snapshot.mjs"]
+}

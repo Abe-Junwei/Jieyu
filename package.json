@@ -27,6 +27,7 @@
     "verify:iso6393-country-baselines": "node scripts/verify-iso6393-country-baselines.mjs",
     "acoustic:calibrate": "node scripts/evaluate-acoustic-calibration.mjs",
     "typecheck": "tsc --noEmit",
+    "check:depcheck": "npx --yes depcheck",
     "check:css": "node scripts/check-css.cjs",
     "check:css-class-contract": "node scripts/check-css-class-contract.mjs",
     "check:css-class-contract:write-baseline": "node scripts/check-css-class-contract.mjs --write-baseline",
