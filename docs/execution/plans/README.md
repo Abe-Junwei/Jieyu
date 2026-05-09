@@ -13,6 +13,8 @@ source_of_truth: execution-plan-index
 
 ## 当前文档
 
+- **[TranscriptionTimelineVerticalView-测试OOM根治计划-2026-05-08.md](./TranscriptionTimelineVerticalView-测试OOM根治计划-2026-05-08.md)**（**当前**：纵向对照视图单文件 Vitest worker OOM；分阶段量化、测试层/产品层/拆文件与 CI 防回归、DoD 与验证命令）
+- **[exhaustive-deps收口计划-2026-05-08.md](./exhaustive-deps收口计划-2026-05-08.md)**（**当前**：剩余 `react-hooks/exhaustive-deps` 29 条分批收口，含批次清单、定向验证与最终 DoD）
 - **[技术债滚动-2026-05-08.md](./技术债滚动-2026-05-08.md)**（**当前**：ARCH-7 / G4 / G3 / 文档链接与 i18n 硬编码滚动；承接已 **superseded** 的里程碑方案）
 - [技术债修复方案-2026-05-08.md](./技术债修复方案-2026-05-08.md)（**superseded**：2026-05-08 审查修订快照；关闭条件已满足；正文保留作历史证据）
 
