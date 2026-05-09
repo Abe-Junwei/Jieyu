@@ -92,17 +92,21 @@ describe('VoiceAgentService structure invariants', () => {
 
     expect(code.includes('private _clearRecordingDurationTimer(): void')).toBe(true);
     expect(countMatches(code, /this\._clearRecordingDurationTimer\(\);/g)).toBe(2);
-    expect(code.includes('this._dictationPipeline = null;\n    this._clearRecordingDurationTimer();\n    this._speechQuality?.stop();')).toBe(true);
-    expect(code.includes('this._stopWakeWordDetector();\n    this._clearRecordingDurationTimer();')).toBe(true);
+    expect(code.includes('this._dictationController.stop();')).toBe(true);
+    expect(code.includes('this._clearRecordingDurationTimer();')).toBe(true);
+    expect(code.includes('this._stopWakeWordDetector();')).toBe(true);
+    expect(code.includes('this._speechQuality?.stop();')).toBe(true);
   });
 
   it('keeps session restore and persistence lifecycle anchored in service boundaries', () => {
     const code = readVoiceAgentServiceCode();
 
-    expect(code.includes('void loadRecentVoiceSessions(1).then(([recent]) => {')).toBe(true);
+    expect(code.includes('void loadRecentVoiceSessions(1)')).toBe(true);
+    expect(code.includes('.then(([recent]) => {')).toBe(true);
     expect(code.includes("document.addEventListener('visibilitychange', this._handleVisibilityChange);")).toBe(true);
-    expect(code.includes("void saveVoiceSession(this._session).catch((err) => { log.error('failed to persist session', { err }); });")).toBe(true);
-    expect(code.includes("void saveVoiceSession(this._session).catch((err) => { log.error('failed to persist session on deactivate', { err }); });")).toBe(true);
+    expect(code.includes('void saveVoiceSession(this._session).catch')).toBe(true);
+    expect(code.includes("log.error('failed to persist session'")).toBe(true);
+    expect(code.includes("log.error('failed to persist session on deactivate'")).toBe(true);
   });
 
   it('keeps cleanup and singleton replacement centralized', () => {

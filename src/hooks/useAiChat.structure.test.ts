@@ -76,11 +76,14 @@ describe('useAiChat structure invariants', () => {
     expect(code.includes('provider: createAiChatProvider(settings)')).toBe(true);
     expect(code.includes('fallbackProvider: createFallbackAiChatProvider(settings)')).toBe(true);
     expect(code.includes('const { provider, fallbackProvider } = useMemo(')).toBe(true);
-    expect(code.includes('const orchestrator = useMemo(() => new ChatOrchestrator(provider, fallbackProvider), [provider, fallbackProvider]);')).toBe(true);
+    expect(code.includes('const orchestrator = useMemo(')).toBe(true);
+    expect(code.includes('() => new ChatOrchestrator(provider, fallbackProvider)')).toBe(true);
+    expect(code.includes('[provider, fallbackProvider]')).toBe(true);
     expect(code.includes('const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());')).toBe(true);
     expect(sessionMemoryImportMembers.includes('loadSessionMemory')).toBe(true);
     expect(sessionMemoryImportMembers.includes('persistSessionMemory')).toBe(true);
     expect(code.includes('sessionMemory: sessionMemoryRef.current,')).toBe(true);
-    expect(code.includes('persistSessionMemory,')).toBe(true);
+    expect(code.includes('const sessionMemorySeam = { persistSessionMemory };')).toBe(true);
+    expect(code.includes('void sessionMemorySeam;')).toBe(true);
   });
 });
