@@ -101,6 +101,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: ESLint (exhaustive-deps are errors; other rules mostly warn)
+        run: npm run lint
+
       - name: Knip cleanup gate
         run: npx knip --no-progress
 
