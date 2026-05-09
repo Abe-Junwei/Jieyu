@@ -3,7 +3,7 @@
   "scannerVersion": 2,
   "totalHits": 216,
   "files": {
-    "src/ai/chat/executors/toolPayload.ts": 1,
+    "src/ai/chat/localContextToolExecutors.ts": 1,
     "src/ai/chat/localContextToolFormatters.ts": 144,
     "src/ai/chat/modelSelectionFeedback.ts": 3,
     "src/ai/chat/toolCallSchemas.ts": 1,

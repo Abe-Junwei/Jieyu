@@ -101,6 +101,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: ESLint (react-hooks exhaustive-deps 为 error；其余多为 warn)
+        run: npm run lint
+
       - name: Knip cleanup gate
         run: npx knip --no-progress
 
