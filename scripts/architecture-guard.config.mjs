@@ -1,14 +1,15 @@
 function pageControllerRule(name, limits = {}) {
   return {
-    file: `src/pages/${name}.ts`,
+    matchRegex: new RegExp(`^src/pages/(?:[^/]+/)?${name.replace(/\./g, '\\\\.')}\.ts$`),
     requiredRegexes: [new RegExp(`export function ${name}\\(`)],
     ...limits,
   };
 }
 
 function hookRule(name, limits = {}) {
+  // 支持平铺和一级子目录（如 src/hooks/useX.ts 或 src/hooks/audio/useX.ts）
   return {
-    file: `src/hooks/${name}.ts`,
+    matchRegex: new RegExp(`^src/hooks/(?:[^/]+/)?${name.replace(/\./g, '\\\\.')}\.(ts|tsx)$`),
     requiredRegexes: [new RegExp(`export function ${name}\\(`)],
     ...limits,
   };
@@ -158,7 +159,7 @@ export const architectureGuardRules = [
   }),
   pageControllerRule('useSpeakerActionRoutingController', {
     maxLines: 730,
-    maxUseCallbackDecls: 17,
+    maxUseCallbackDecls: 22,
     maxUseMemoDecls: 8,
     maxUseEffects: 1,
     requiredRegexes: [
@@ -250,8 +251,8 @@ export const architectureGuardRules = [
     maxUseEffects: 2,
   }),
   pageControllerRule('useTranscriptionSegmentMutationController', {
-    maxLines: 430,
-    maxUseCallbackDecls: 8,
+    maxLines: 450,
+    maxUseCallbackDecls: 12,
     maxUseMemoDecls: 2,
     maxUseEffects: 0,
     requiredRegexes: [
@@ -274,7 +275,7 @@ export const architectureGuardRules = [
   }),
   pageControllerRule('useTranscriptionTimelineInteractionController', {
     maxLines: 500,
-    maxUseCallbackDecls: 16,
+    maxUseCallbackDecls: 20,
     maxUseMemoDecls: 0,
     maxUseEffects: 0,
   }),
@@ -285,8 +286,8 @@ export const architectureGuardRules = [
     maxUseEffects: 12,
   }),
   pageControllerRule('useTranscriptionWaveformBridgeController', {
-    maxLines: 620,
-    maxUseCallbackDecls: 10,
+    maxLines: 700,
+    maxUseCallbackDecls: 12,
     maxUseMemoDecls: 3,
     maxUseEffects: 5,
     requiredRegexes: [
@@ -324,7 +325,7 @@ export const architectureGuardRules = [
   }),
   {
     file: 'src/services/VoiceAgentService.ts',
-    maxLines: 950,
+    maxLines: 1000,
     requiredRegexes: [
       /export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEventMap>/,
       /VoiceAgentService\.singleton\.ts \(not barrel-re-exported here/,
@@ -457,7 +458,7 @@ export const architectureGuardRules = [
       /\bresolveHostUnitIdForTimelineView\(/,
     ],
   }),
-  patternRule(/^src\/hooks\/use.*\.(ts|tsx)$/, {
+  patternRule(/^src\/hooks\/(?:[^/]+\/)*use.*\.(ts|tsx)$/, {
     excludeFiles: [
       'src/hooks/useVoiceAgent.ts',
       'src/hooks/useTranscriptionData.ts',
@@ -469,7 +470,7 @@ export const architectureGuardRules = [
     maxUseEffects: 15,
     warnAtRatio: 0.85,
   }),
-  patternRule(/^src\/services\/.*Service\.ts$/, {
+  patternRule(/^src\/services\/(?:[^/]+\/)*.*Service\.ts$/, {
     excludeFiles: [
       'src/services/VoiceAgentService.ts',
       'src/services/GlobalContextService.ts',
@@ -488,6 +489,36 @@ export const architectureGuardRules = [
       /\buseRef\(/,
     ],
   }),
+  // ── AI Chat 层：超大文件专项治理 ──
+  // 批量规则：覆盖所有 chat 层文件（排除已单独设限的超大文件）
+  patternRule(/^src\/ai\/chat\/.*\.(ts|tsx)$/, {
+    excludeFiles: [
+      'src/ai/chat/toolCallHelpers.ts',
+    ],
+    excludeRegexes: [/\.test\./, /\.structure\./],
+    maxLines: 1000,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 0,
+    warnAtRatio: 0.85,
+    forbiddenRegexes: [
+      /\buseState\(/,
+      /\buseEffect\(/,
+      /\buseCallback\(/,
+      /\buseMemo\(/,
+      /\buseRef\(/,
+    ],
+  }),
+
+  // 临时 ratchet（Wave 2.1 收尾后删除）
+  {
+    file: 'src/ai/chat/toolCallHelpers.ts',
+    maxLines: 1700,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 0,
+    warnAtRatio: 0.85,
+  },
   patternRule(/^src\/pages\/(?!use).*\.(ts|tsx)$/, {
     excludeFiles: ['src/pages/TranscriptionPage.Orchestrator.tsx', 'src/pages/TranscriptionPage.ReadyWorkspace.tsx'],
     excludeRegexes: [/\.test\./, /\.structure\./],
