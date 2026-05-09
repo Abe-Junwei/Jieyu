@@ -55,6 +55,8 @@
     "test:vertical-view:content-vm-batch": "npm run test:vertical-view && npm run test:vertical-view:content-vm-only",
     "test:vertical-view:content-vm-only": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vitest run src/pages/useTranscriptionTimelineContentViewModel.test.tsx --maxWorkers=1",
     "test:vertical-view:heap": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vitest run src/components/TranscriptionTimelineVerticalView.suite-a.test.tsx --maxWorkers=1 --logHeapUsage && cross-env NODE_OPTIONS=--max-old-space-size=8192 vitest run src/components/TranscriptionTimelineVerticalView.suite-b.test.tsx --maxWorkers=1 --logHeapUsage && cross-env NODE_OPTIONS=--max-old-space-size=12288 vitest run src/components/TranscriptionTimelineVerticalView.suite-c.test.tsx --maxWorkers=1 --pool=forks --logHeapUsage && cross-env NODE_OPTIONS=--max-old-space-size=8192 vitest run src/components/TranscriptionTimelineVerticalView.suite-d.test.tsx --maxWorkers=1 --logHeapUsage",
+    "stress:suite-c": "node scripts/stress-transcription-vertical-view-suite-c.mjs",
+    "stress:suite-c:per-test": "node scripts/stress-transcription-vertical-view-suite-c.mjs --per-test --log-heap --heap-mb=8192 --pool=threads",
     "// === Data & Seeds ===": "",
     "data:language-seeds": "node scripts/generate-language-orthography-seeds.mjs",
     "data:language-seeds:expand": "node scripts/expand-language-orthography-seeds.mjs",

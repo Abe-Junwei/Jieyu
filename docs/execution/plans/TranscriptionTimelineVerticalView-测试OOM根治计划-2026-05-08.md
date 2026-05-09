@@ -3,7 +3,7 @@ title: TranscriptionTimelineVerticalView 单文件 Vitest OOM 根治计划（202
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-05-08
+last_reviewed: 2026-05-09
 source_of_truth: vertical-view-test-oom-remediation-2026-05-08
 depends_on:
   - ../../../package.json
@@ -51,7 +51,7 @@ depends_on:
 |------|------|------|
 | A.1 | **推荐**：`npm run test:vertical-view`（a/b/d 为 8192MB，**`suite-c` 为 12288MB + `--pool=forks`**，四段顺序 vitest）。**备选**：单 suite 手动跑时 `suite-c` 须与 script 同口径（堆 + forks）；仍紧则用 `test:vertical-view:large-heap` | 可稳定复现或确认仅在低配失败 |
 | A.2 | 开启 heap 观测：`npx vitest … --logHeapUsage`（Vitest 4.x CLI 已支持）或 Node `--heapsnapshot-near-heap-limit` 在崩溃时落盘 | **结案前至少保留 1 份** 表格化 heap 日志或快照索引（路径写入 §10 执行记录或 `docs/execution/audits/` 短附录） |
-| A.3 | 用 `vitest -t` 或按 `describe` / 行号区间 **二分** 拆跑，标出内存/耗时异常段 | **结案前至少 1 份** 书面记录：哪一段前后 heap/耗时台阶式上升 |
+| A.3 | 用 `vitest -t` 或按 `describe` / 行号区间 **二分** 拆跑，标出内存/耗时异常段；仓库提供 **`npm run stress:suite-c`**（默认 **10×** 全文件、`12288MB`+`forks`）与 **`npm run stress:suite-c:per-test`**（逐条 `-t` + `--logHeapUsage`、`8192MB`+`threads`，用于复现 threads 池问题时做单测二分） | **结案前至少 1 份** 书面记录：哪一段前后 heap/耗时台阶式上升 |
 
 **产出**：A.2 / A.3 为 **DoD 必填最小证据**；可附在 `docs/execution/audits/` 或本计划 §10，篇幅不限于长文。
 
@@ -166,3 +166,4 @@ npx cross-env NODE_OPTIONS=--max-old-space-size=8192 npx vitest run src/componen
 - **2026-05-08**：`npm run test:vertical-view` 与 `npm run test:vertical-view:content-vm-batch` 在默认 **8192MB** 堆、`suite-a`→`b`→`c`→`d` 四段 vitest 下已通过（本机单次）。`suite-d` 仅断言层头菜单至「层操作」下编辑/删除项可用，**不在 jsdom 内点击「编辑」打开 `LayerActionPopover`**（该路径曾导致进程长时间挂起；完整弹层交互建议走 E2E）。
 - **2026-05-08（DoD 稳定性 + A.2 heap，本机）**：连续 **10 次** `npm run test:vertical-view` 与连续 **10 次** `npm run test:vertical-view:content-vm-batch` 均全绿（总耗时约 **3.2 min** 量级，视机器浮动）。`npm run test:vertical-view:heap`（`--logHeapUsage`）观测：`suite-a` **187 MB**、`suite-b` **183 MB**、`suite-c` **150 MB**、`suite-d` **150 MB**（各段为独立 vitest 进程末行 heap 摘要）。
 - **2026-05-08（E2E）**：`tests/e2e/transcriptionVerticalReadingLayerMetadata.spec.ts` — 横向时间轴 **`.timeline-lane-header`** 上下文菜单打开「编辑该层元信息」`LayerActionPopover`，经 **Chromium / Firefox / WebKit** 全绿；关闭采用弹层标题栏 **`.layer-action-dialog-header .icon-btn` 最后一个**（避免与底部 `Cancel` 幽灵按钮产生 strict 双匹配）。
+- **2026-05-09（A.3 压测 + 单测二分，本机）**：**15×** 全文件 `suite-c`（**12288MB + `--pool=forks`**）全绿，单次约 **1.6–1.8s**。**5×** 全文件（**8192MB + 默认 threads**，与历史问题配置接近）亦全绿、单次约 **1.4s**。逐条 `vitest -t`（8192MB threads + `--logHeapUsage`）13 条均通过；末条「vertical row rail context menu」单跑末行 heap 约 **141 MB**。结论：当前 HEAD 上 **未复现** 历史「suite-c 同进程长时间 GC / worker OOM」；若 CI 或他机再出现，优先用 **`npm run stress:suite-c:per-test`** 对照脚本内 `TEST_NAME_SUBSTRINGS` 改 `--pool`/`--heap-mb` 做半套二分（前半 6 条 / 后半 7 条可用两个 `-t` 正则合并跑）。
