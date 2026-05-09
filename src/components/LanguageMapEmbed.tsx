@@ -6,14 +6,23 @@
  * Supports OSM (free), Tianditu (free token), MapTiler (API key).
  */
 import { useEffect, useRef, useCallback } from 'react';
-import type { Map as MLMap, Marker as MLMarker, Popup as MLPopup, StyleSpecification } from 'maplibre-gl';
+import type {
+  Map as MLMap,
+  Marker as MLMarker,
+  Popup as MLPopup,
+  StyleSpecification,
+} from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { buildMapStyle, type MapProviderConfig } from './languageMapEmbed.shared';
 import type { GeocodeSuggestion } from './languageGeocoder';
 
 // ─── HTML 转义（防止 XSS）| HTML escape (prevent XSS) ───
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function buildPopupHtml(label: string, latitude: number, longitude: number): string {
@@ -111,13 +120,18 @@ export function LanguageMapEmbed({
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
       // 标记 + 气泡 | Marker + popup
-      const marker = new maplibregl.Marker({ color: '#4f46e5', draggable: Boolean(onCoordinateDragEndRef.current) })
-        .setLngLat([currentLongitude, currentLatitude]);
+      const marker = new maplibregl.Marker({
+        color: '#4f46e5',
+        draggable: Boolean(onCoordinateDragEndRef.current),
+      }).setLngLat([currentLongitude, currentLatitude]);
 
       const label = languageLabelRef.current;
       if (label) {
-        const popup = new maplibregl.Popup({ offset: 25, closeButton: false, maxWidth: '220px' })
-          .setHTML(buildPopupHtml(label, currentLatitude, currentLongitude));
+        const popup = new maplibregl.Popup({
+          offset: 25,
+          closeButton: false,
+          maxWidth: '220px',
+        }).setHTML(buildPopupHtml(label, currentLatitude, currentLongitude));
         marker.setPopup(popup);
         popupRef.current = popup;
       } else {
@@ -131,7 +145,10 @@ export function LanguageMapEmbed({
           return;
         }
         const lngLat = marker.getLngLat();
-        onCoordinateDragEndRef.current(Number(lngLat.lat.toFixed(6)), Number(lngLat.lng.toFixed(6)));
+        onCoordinateDragEndRef.current(
+          Number(lngLat.lat.toFixed(6)),
+          Number(lngLat.lng.toFixed(6)),
+        );
       });
 
       // 点击地图设置坐标 | Click map to set coordinates
@@ -163,7 +180,7 @@ export function LanguageMapEmbed({
       mapRef.current = null;
       maplibreglRef.current = null;
     };
-  }, [locale, providerConfig.kind, providerConfig.apiKey, providerConfig.styleId]);
+  }, [locale, providerConfig]);
 
   // 坐标变化时仅同步 marker/center，不重建地图 | Sync marker/center on coordinate change without rebuilding map
   useEffect(() => {
@@ -191,8 +208,11 @@ export function LanguageMapEmbed({
     }
 
     if (!popupRef.current) {
-      const popup = new maplibregl.Popup({ offset: 25, closeButton: false, maxWidth: '220px' })
-        .setHTML(buildPopupHtml(languageLabel, latitude, longitude));
+      const popup = new maplibregl.Popup({
+        offset: 25,
+        closeButton: false,
+        maxWidth: '220px',
+      }).setHTML(buildPopupHtml(languageLabel, latitude, longitude));
       marker.setPopup(popup);
       popupRef.current = popup;
       return;
@@ -262,11 +282,12 @@ export function LanguageMapEmbed({
     window.addEventListener('resize', handleWindowResize);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
-    const resizeObserver = typeof ResizeObserver === 'undefined'
-      ? null
-      : new ResizeObserver(() => {
-          resizeMap();
-        });
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => {
+            resizeMap();
+          });
 
     resizeObserver?.observe(wrapper);
 

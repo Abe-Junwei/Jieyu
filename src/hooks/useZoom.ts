@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import type { TimelineViewportZoomBridge } from './timelineViewportTypes';
-import { getTranscriptionPlaybackClockSnapshot, subscribeTranscriptionPlaybackClock } from './transcriptionPlaybackClock';
+import {
+  getTranscriptionPlaybackClockSnapshot,
+  subscribeTranscriptionPlaybackClock,
+} from './transcriptionPlaybackClock';
 import { useLatest } from './useLatest';
 
 /** 文献秒轴 > 已解码媒体时长时：tier 为横向主滚动，把 WaveSurfer 像素滚动钳在有效波形范围内 */
@@ -31,7 +34,11 @@ function syncWaveScrollToTier(
  */
 export function shouldBypassTimelineWheel(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
-  if (target.closest('textarea, input, select, [contenteditable="true"], [data-allow-native-scroll="true"]')) {
+  if (
+    target.closest(
+      'textarea, input, select, [contenteditable="true"], [data-allow-native-scroll="true"]',
+    )
+  ) {
     return true;
   }
 
@@ -39,7 +46,10 @@ export function shouldBypassTimelineWheel(target: EventTarget | null): boolean {
   while (node) {
     const style = window.getComputedStyle(node);
     const overflowY = style.overflowY;
-    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight + 1) {
+    if (
+      (overflowY === 'auto' || overflowY === 'scroll') &&
+      node.scrollHeight > node.clientHeight + 1
+    ) {
       return true;
     }
     node = node.parentElement;
@@ -87,11 +97,17 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
     waveCanvasRef,
     waveformWheelCaptureRootRef,
     tierContainerRef,
-    playerInstanceRef, playerIsReady, playerDuration,
+    playerInstanceRef,
+    playerIsReady,
+    playerDuration,
     playerIsPlaying,
     selectedMediaUrl,
-    zoomPercent, setZoomPercent, setZoomMode,
-    fitPxPerSec, maxZoomPercent, zoomPxPerSec,
+    zoomPercent,
+    setZoomPercent,
+    setZoomMode,
+    fitPxPerSec,
+    maxZoomPercent,
+    zoomPxPerSec,
     documentSpanSec: documentSpanIn,
     onLogicalTimelineScrollSync,
     onBatchedRulerFrameScrollLeft,
@@ -99,186 +115,200 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
 
   const [rulerView, setRulerView] = useState<{ start: number; end: number } | null>(null);
 
-  const docSpanSec = typeof documentSpanIn === 'number' && Number.isFinite(documentSpanIn)
-    ? Math.max(0, documentSpanIn)
-    : 0;
+  const docSpanSec =
+    typeof documentSpanIn === 'number' && Number.isFinite(documentSpanIn)
+      ? Math.max(0, documentSpanIn)
+      : 0;
 
   // 避免 wheel listener 重绑 | Ref to avoid wheel listener rebinding on every zoom change
   const zoomPercentRef = useLatest(zoomPercent);
 
   // ---- 缩放（锚点保持）—— 接受百分比 ----
-  const zoomToPercent = useCallback((
-    newPercent: number,
-    anchorFraction?: number,
-    nextMode: 'fit-all' | 'fit-selection' | 'custom' = 'custom',
-  ) => {
-    const ws = playerInstanceRef.current;
-    const tier = tierContainerRef.current;
-    const canvas = waveCanvasRef.current;
-    const clamped = Math.max(100, Math.min(maxZoomPercent, Math.round(newPercent)));
-    const newPxPerSec = Math.max(1, fitPxPerSec * (clamped / 100));
-    const frac = anchorFraction ?? 0.5;
-    const mediaDur = playerDuration || 0;
+  const zoomToPercent = useCallback(
+    (
+      newPercent: number,
+      anchorFraction?: number,
+      nextMode: 'fit-all' | 'fit-selection' | 'custom' = 'custom',
+    ) => {
+      const ws = playerInstanceRef.current;
+      const tier = tierContainerRef.current;
+      const canvas = waveCanvasRef.current;
+      const clamped = Math.max(100, Math.min(maxZoomPercent, Math.round(newPercent)));
+      const newPxPerSec = Math.max(1, fitPxPerSec * (clamped / 100));
+      const frac = anchorFraction ?? 0.5;
+      const mediaDur = playerDuration || 0;
 
-    if (ws && playerIsReady) {
-      if (mediaDur > 0 && docSpanSec > mediaDur && tier && canvas) {
-        const width = Math.max(1, canvas.clientWidth);
-        const scrollLeft = tier.scrollLeft;
+      if (ws && playerIsReady) {
+        if (mediaDur > 0 && docSpanSec > mediaDur && tier && canvas) {
+          const width = Math.max(1, canvas.clientWidth);
+          const scrollLeft = tier.scrollLeft;
+          const anchorTime = (scrollLeft + width * frac) / zoomPxPerSec;
+          setZoomPercent(clamped);
+          setZoomMode(nextMode);
+          requestAnimationFrame(() => {
+            const t2 = tierContainerRef.current;
+            const c2 = waveCanvasRef.current;
+            const ws2 = playerInstanceRef.current;
+            if (!t2 || !c2 || !ws2) return;
+            const w = Math.max(1, c2.clientWidth);
+            const target = Math.max(0, anchorTime * newPxPerSec - w * frac);
+            const maxScroll = Math.max(0, t2.scrollWidth - t2.clientWidth);
+            t2.scrollLeft = Math.min(maxScroll, target);
+            onLogicalTimelineScrollSync?.(t2.scrollLeft);
+            syncWaveScrollToTier(ws2, t2.scrollLeft, newPxPerSec, mediaDur);
+          });
+          return;
+        }
+        const scrollLeft = ws.getScroll();
+        const width = ws.getWidth();
         const anchorTime = (scrollLeft + width * frac) / zoomPxPerSec;
         setZoomPercent(clamped);
         setZoomMode(nextMode);
         requestAnimationFrame(() => {
-          const t2 = tierContainerRef.current;
-          const c2 = waveCanvasRef.current;
           const ws2 = playerInstanceRef.current;
-          if (!t2 || !c2 || !ws2) return;
-          const w = Math.max(1, c2.clientWidth);
-          const target = Math.max(0, anchorTime * newPxPerSec - w * frac);
-          const maxScroll = Math.max(0, t2.scrollWidth - t2.clientWidth);
-          t2.scrollLeft = Math.min(maxScroll, target);
-          onLogicalTimelineScrollSync?.(t2.scrollLeft);
-          syncWaveScrollToTier(ws2, t2.scrollLeft, newPxPerSec, mediaDur);
+          if (!ws2) return;
+          const target = anchorTime * newPxPerSec - width * frac;
+          ws2.setScroll(target);
+          if (tierContainerRef.current) tierContainerRef.current.scrollLeft = target;
         });
         return;
       }
-      const scrollLeft = ws.getScroll();
-      const width = ws.getWidth();
+
+      const widthEl = canvas ?? tier;
+      if (!tier || !widthEl || !(docSpanSec > 0)) return;
+      const width = Math.max(1, widthEl.clientWidth);
+      const scrollLeft = tier.scrollLeft;
       const anchorTime = (scrollLeft + width * frac) / zoomPxPerSec;
       setZoomPercent(clamped);
       setZoomMode(nextMode);
       requestAnimationFrame(() => {
-        const ws2 = playerInstanceRef.current;
-        if (!ws2) return;
-        const target = anchorTime * newPxPerSec - width * frac;
-        ws2.setScroll(target);
-        if (tierContainerRef.current) tierContainerRef.current.scrollLeft = target;
+        const t = tierContainerRef.current;
+        const c = waveCanvasRef.current;
+        if (!t || !c || !(docSpanSec > 0)) return;
+        const w = Math.max(1, c.clientWidth);
+        const target = Math.max(0, anchorTime * newPxPerSec - w * frac);
+        const maxScroll = Math.max(0, t.scrollWidth - t.clientWidth);
+        t.scrollLeft = Math.min(maxScroll, target);
+        onLogicalTimelineScrollSync?.(t.scrollLeft);
       });
-      return;
-    }
-
-    const widthEl = canvas ?? tier;
-    if (!tier || !widthEl || !(docSpanSec > 0)) return;
-    const width = Math.max(1, widthEl.clientWidth);
-    const scrollLeft = tier.scrollLeft;
-    const anchorTime = (scrollLeft + width * frac) / zoomPxPerSec;
-    setZoomPercent(clamped);
-    setZoomMode(nextMode);
-    requestAnimationFrame(() => {
-      const t = tierContainerRef.current;
-      const c = waveCanvasRef.current;
-      if (!t || !c || !(docSpanSec > 0)) return;
-      const w = Math.max(1, c.clientWidth);
-      const target = Math.max(0, anchorTime * newPxPerSec - w * frac);
-      const maxScroll = Math.max(0, t.scrollWidth - t.clientWidth);
-      t.scrollLeft = Math.min(maxScroll, target);
-      onLogicalTimelineScrollSync?.(t.scrollLeft);
-    });
-  }, [
-    docSpanSec,
-    zoomPxPerSec,
-    fitPxPerSec,
-    maxZoomPercent,
-    playerIsReady,
-    playerDuration,
-    playerInstanceRef,
-    setZoomPercent,
-    setZoomMode,
-    tierContainerRef,
-    waveCanvasRef,
-    onLogicalTimelineScrollSync,
-  ]);
+    },
+    [
+      docSpanSec,
+      zoomPxPerSec,
+      fitPxPerSec,
+      maxZoomPercent,
+      playerIsReady,
+      playerDuration,
+      playerInstanceRef,
+      setZoomPercent,
+      setZoomMode,
+      tierContainerRef,
+      waveCanvasRef,
+      onLogicalTimelineScrollSync,
+    ],
+  );
 
   const zoomToPercentRef = useLatest(zoomToPercent);
 
   // ---- 双击句段：缩放并居中 ----
-  const zoomToUnit = useCallback((startTime: number, endTime: number) => {
-    const ws = playerInstanceRef.current;
-    const uttDur = endTime - startTime;
-    if (uttDur <= 0) return;
-    const mediaDur = playerDuration || 0;
+  const zoomToUnit = useCallback(
+    (startTime: number, endTime: number) => {
+      const ws = playerInstanceRef.current;
+      const uttDur = endTime - startTime;
+      if (uttDur <= 0) return;
+      const mediaDur = playerDuration || 0;
 
-    if (ws && playerIsReady) {
-      if (mediaDur > 0 && docSpanSec > mediaDur && waveCanvasRef.current && tierContainerRef.current) {
-        const width = Math.max(1, waveCanvasRef.current.clientWidth);
+      if (ws && playerIsReady) {
+        if (
+          mediaDur > 0 &&
+          docSpanSec > mediaDur &&
+          waveCanvasRef.current &&
+          tierContainerRef.current
+        ) {
+          const width = Math.max(1, waveCanvasRef.current.clientWidth);
+          const targetPxPerSec = (width * 0.7) / uttDur;
+          const targetPercent = Math.round((targetPxPerSec / fitPxPerSec) * 100);
+          const clamped = Math.max(100, Math.min(maxZoomPercent, targetPercent));
+          const newPxPerSec = Math.max(1, fitPxPerSec * (clamped / 100));
+          const midTime = (startTime + endTime) / 2;
+          const scrollTarget = Math.max(0, midTime * newPxPerSec - width / 2);
+          setZoomMode('fit-selection');
+          const run = () => {
+            const t = tierContainerRef.current;
+            const w = playerInstanceRef.current;
+            if (!t || !w) return;
+            const maxScroll = Math.max(0, t.scrollWidth - t.clientWidth);
+            t.scrollLeft = Math.min(maxScroll, scrollTarget);
+            onLogicalTimelineScrollSync?.(t.scrollLeft);
+            syncWaveScrollToTier(w, t.scrollLeft, newPxPerSec, mediaDur);
+          };
+          if (clamped === zoomPercent) {
+            run();
+          } else {
+            setZoomPercent(clamped);
+            ws.once('zoom', () => {
+              requestAnimationFrame(run);
+            });
+          }
+          return;
+        }
+        const width = ws.getWidth();
         const targetPxPerSec = (width * 0.7) / uttDur;
         const targetPercent = Math.round((targetPxPerSec / fitPxPerSec) * 100);
         const clamped = Math.max(100, Math.min(maxZoomPercent, targetPercent));
         const newPxPerSec = Math.max(1, fitPxPerSec * (clamped / 100));
         const midTime = (startTime + endTime) / 2;
         const scrollTarget = Math.max(0, midTime * newPxPerSec - width / 2);
-        setZoomMode('fit-selection');
-        const run = () => {
-          const t = tierContainerRef.current;
-          const w = playerInstanceRef.current;
-          if (!t || !w) return;
-          const maxScroll = Math.max(0, t.scrollWidth - t.clientWidth);
-          t.scrollLeft = Math.min(maxScroll, scrollTarget);
-          onLogicalTimelineScrollSync?.(t.scrollLeft);
-          syncWaveScrollToTier(w, t.scrollLeft, newPxPerSec, mediaDur);
+        const applyScroll = () => {
+          ws.setScroll(scrollTarget);
+          if (tierContainerRef.current) tierContainerRef.current.scrollLeft = scrollTarget;
         };
+        setZoomMode('fit-selection');
         if (clamped === zoomPercent) {
-          run();
+          applyScroll();
         } else {
+          ws.once('zoom', applyScroll);
           setZoomPercent(clamped);
-          ws.once('zoom', () => { requestAnimationFrame(run); });
         }
         return;
       }
-      const width = ws.getWidth();
+
+      const tier = tierContainerRef.current;
+      const canvas = waveCanvasRef.current;
+      const widthEl = canvas ?? tier;
+      if (!tier || !widthEl || !(docSpanSec > 0)) return;
+      const width = Math.max(1, widthEl.clientWidth);
       const targetPxPerSec = (width * 0.7) / uttDur;
       const targetPercent = Math.round((targetPxPerSec / fitPxPerSec) * 100);
       const clamped = Math.max(100, Math.min(maxZoomPercent, targetPercent));
       const newPxPerSec = Math.max(1, fitPxPerSec * (clamped / 100));
       const midTime = (startTime + endTime) / 2;
       const scrollTarget = Math.max(0, midTime * newPxPerSec - width / 2);
-      const applyScroll = () => {
-        ws.setScroll(scrollTarget);
-        if (tierContainerRef.current) tierContainerRef.current.scrollLeft = scrollTarget;
-      };
       setZoomMode('fit-selection');
-      if (clamped === zoomPercent) {
-        applyScroll();
-      } else {
-        ws.once('zoom', applyScroll);
-        setZoomPercent(clamped);
-      }
-      return;
-    }
-
-    const tier = tierContainerRef.current;
-    const canvas = waveCanvasRef.current;
-    const widthEl = canvas ?? tier;
-    if (!tier || !widthEl || !(docSpanSec > 0)) return;
-    const width = Math.max(1, widthEl.clientWidth);
-    const targetPxPerSec = (width * 0.7) / uttDur;
-    const targetPercent = Math.round((targetPxPerSec / fitPxPerSec) * 100);
-    const clamped = Math.max(100, Math.min(maxZoomPercent, targetPercent));
-    const newPxPerSec = Math.max(1, fitPxPerSec * (clamped / 100));
-    const midTime = (startTime + endTime) / 2;
-    const scrollTarget = Math.max(0, midTime * newPxPerSec - width / 2);
-    setZoomMode('fit-selection');
-    setZoomPercent(clamped);
-    requestAnimationFrame(() => {
-      const t = tierContainerRef.current;
-      if (!t) return;
-      const maxScroll = Math.max(0, t.scrollWidth - t.clientWidth);
-      t.scrollLeft = Math.min(maxScroll, scrollTarget);
-      onLogicalTimelineScrollSync?.(t.scrollLeft);
-    });
-  }, [
-    docSpanSec,
-    fitPxPerSec,
-    maxZoomPercent,
-    zoomPercent,
-    playerIsReady,
-    playerDuration,
-    playerInstanceRef,
-    setZoomPercent,
-    setZoomMode,
-    tierContainerRef,
-    waveCanvasRef,
-    onLogicalTimelineScrollSync,
-  ]);
+      setZoomPercent(clamped);
+      requestAnimationFrame(() => {
+        const t = tierContainerRef.current;
+        if (!t) return;
+        const maxScroll = Math.max(0, t.scrollWidth - t.clientWidth);
+        t.scrollLeft = Math.min(maxScroll, scrollTarget);
+        onLogicalTimelineScrollSync?.(t.scrollLeft);
+      });
+    },
+    [
+      docSpanSec,
+      fitPxPerSec,
+      maxZoomPercent,
+      zoomPercent,
+      playerIsReady,
+      playerDuration,
+      playerInstanceRef,
+      setZoomPercent,
+      setZoomMode,
+      tierContainerRef,
+      waveCanvasRef,
+      onLogicalTimelineScrollSync,
+    ],
+  );
 
   // ---- WaveSurfer scroll/zoom → 同步刻度尺；纯文本壳层则用 tier + 逻辑时长 ----
   useEffect(() => {
@@ -381,7 +411,9 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         if (tierContainerRef.current) tierContainerRef.current.scrollLeft = sl;
       });
       const unsubZoom = ws.on('zoom', () => {
-        requestAnimationFrame(() => { syncFromDom('rAF'); });
+        requestAnimationFrame(() => {
+          syncFromDom('rAF');
+        });
       });
 
       syncFromDom('immediate');
@@ -405,10 +437,13 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
       const scrollLeft = tier.scrollLeft;
       const clientWidth = Math.max(1, widthEl.clientWidth);
       const totalWidth = Math.max(clientWidth, Math.ceil(docSpanSec * zoomPxPerSec));
-      scheduleRulerView({
-        start: (scrollLeft / totalWidth) * docSpanSec,
-        end: Math.min(docSpanSec, ((scrollLeft + clientWidth) / totalWidth) * docSpanSec),
-      }, scrollLeft);
+      scheduleRulerView(
+        {
+          start: (scrollLeft / totalWidth) * docSpanSec,
+          end: Math.min(docSpanSec, ((scrollLeft + clientWidth) / totalWidth) * docSpanSec),
+        },
+        scrollLeft,
+      );
     };
 
     {
@@ -515,7 +550,9 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
     waveformWheelCaptureRootRef,
     tierContainerRef,
     docSpanSec,
+    zoomPercentRef,
     zoomPxPerSec,
+    zoomToPercentRef,
     onLogicalTimelineScrollSync,
   ]);
 
@@ -587,7 +624,9 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
     playerInstanceRef,
     tierContainerRef,
     docSpanSec,
+    zoomPercentRef,
     zoomPxPerSec,
+    zoomToPercentRef,
     onLogicalTimelineScrollSync,
   ]);
 

@@ -8,7 +8,11 @@ import type { AiTaskTraceEntry } from '../../ai/chat/chatDomain.types';
 import { formatTaskTraceOutcome } from './aiChatCardFollowUps';
 import type { PromptTemplateItem } from './aiChatCardUtils';
 import { AiChatMetricsBar } from './AiChatMetricsBar';
-import { AiChatDirectiveConsole, type DirectiveRow, type DirectiveSourceFilter } from './AiChatDirectiveConsole';
+import {
+  AiChatDirectiveConsole,
+  type DirectiveRow,
+  type DirectiveSourceFilter,
+} from './AiChatDirectiveConsole';
 import { AiChatPromptLabModal } from './AiChatPromptLabModal';
 
 type VoiceEntry = {
@@ -128,7 +132,20 @@ export function AiChatComposerPanel({
   voiceDrawer: ReactNode | undefined;
   locale: Parameters<typeof t>[0];
 }) {
-  const voiceDrawerStyleProps = voiceDrawerInlineStyle !== undefined ? { style: voiceDrawerInlineStyle } : {};
+  const voiceDrawerStyleProps =
+    voiceDrawerInlineStyle !== undefined ? { style: voiceDrawerInlineStyle } : {};
+  const handleDeactivateAiSessionDirective =
+    onDeactivateAiSessionDirective !== undefined
+      ? (id: string) => {
+          void onDeactivateAiSessionDirective(id);
+        }
+      : undefined;
+  const handlePruneAiSessionDirectivesBySourceMessage =
+    onPruneAiSessionDirectivesBySourceMessage !== undefined
+      ? (id: string) => {
+          void onPruneAiSessionDirectivesBySourceMessage(id);
+        }
+      : undefined;
 
   return (
     <div className="ai-chat-composer">
@@ -142,11 +159,20 @@ export function AiChatComposerPanel({
           <div className="ai-chat-task-trace-title">{cardMessages.taskTraceTitle}</div>
           <div className="ai-chat-task-trace-list">
             {recentTaskTrace.map((entry) => (
-              <div key={`${entry.requestId ?? entry.toolName ?? entry.phase}-${entry.stepNumber}`} className="ai-chat-task-trace-chip">
-                <span className="ai-chat-task-trace-step">{cardMessages.taskTraceStepLabel(entry.stepNumber)}</span>
+              <div
+                key={`${entry.requestId ?? entry.toolName ?? entry.phase}-${entry.stepNumber}`}
+                className="ai-chat-task-trace-chip"
+              >
+                <span className="ai-chat-task-trace-step">
+                  {cardMessages.taskTraceStepLabel(entry.stepNumber)}
+                </span>
                 <span className="ai-chat-task-trace-tool">{entry.toolName ?? entry.phase}</span>
-                <span className="ai-chat-task-trace-status">{formatTaskTraceOutcome(entry, isZh)}</span>
-                {typeof entry.durationMs === 'number' ? <span className="ai-chat-task-trace-duration">{`${entry.durationMs}ms`}</span> : null}
+                <span className="ai-chat-task-trace-status">
+                  {formatTaskTraceOutcome(entry, isZh)}
+                </span>
+                {typeof entry.durationMs === 'number' ? (
+                  <span className="ai-chat-task-trace-duration">{`${entry.durationMs}ms`}</span>
+                ) : null}
               </div>
             ))}
           </div>
@@ -204,10 +230,7 @@ export function AiChatComposerPanel({
             onKeyDown={handleComposerKeyDown}
           />
           {showInlineRecommendation && (
-            <div
-              className="ai-chat-input-ghost-suggestion"
-              aria-hidden="true"
-            >
+            <div className="ai-chat-input-ghost-suggestion" aria-hidden="true">
               <span className="ai-chat-input-ghost-prefix">{cardMessages.recommendationTitle}</span>
               <span className="ai-chat-input-ghost-text">{hybridInputSuggestion}</span>
             </div>
@@ -217,7 +240,9 @@ export function AiChatComposerPanel({
           type="button"
           className={`icon-btn ai-chat-composer-send-btn${aiIsStreaming ? ' is-streaming' : ''}`}
           aria-label={aiIsStreaming ? cardMessages.stopGenerating : t(locale, 'ai.chat.send')}
-          disabled={aiIsStreaming ? !onStopAiMessage : (!onSendAiMessage || sharedDialogueComposerBlocked)}
+          disabled={
+            aiIsStreaming ? !onStopAiMessage : !onSendAiMessage || sharedDialogueComposerBlocked
+          }
           onClick={() => {
             if (aiIsStreaming) {
               onStopAiMessage?.();
@@ -226,7 +251,11 @@ export function AiChatComposerPanel({
             submitChatInput();
           }}
         >
-          {aiIsStreaming ? cardMessages.stop : <MaterialSymbol name="arrow_upward" className={JIEYU_MATERIAL_PANEL} />}
+          {aiIsStreaming ? (
+            cardMessages.stop
+          ) : (
+            <MaterialSymbol name="arrow_upward" className={JIEYU_MATERIAL_PANEL} />
+          )}
         </button>
         {canUseVoiceEntry && voiceEntry && (
           <button
@@ -251,14 +280,25 @@ export function AiChatComposerPanel({
         directiveActionNotice={directiveActionNotice}
         onDirectiveSourceFilterChange={setDirectiveSourceFilter}
         onDirectiveActionNoticeChange={setDirectiveActionNotice}
-        {...(onDeactivateAiSessionDirective !== undefined ? { onDeactivateAiSessionDirective } : {})}
-        {...(onPruneAiSessionDirectivesBySourceMessage !== undefined ? { onPruneAiSessionDirectivesBySourceMessage } : {})}
+        {...(handleDeactivateAiSessionDirective !== undefined
+          ? { onDeactivateAiSessionDirective: handleDeactivateAiSessionDirective }
+          : {})}
+        {...(handlePruneAiSessionDirectivesBySourceMessage !== undefined
+          ? {
+              onPruneAiSessionDirectivesBySourceMessage:
+                handlePruneAiSessionDirectivesBySourceMessage,
+            }
+          : {})}
       />
       {(transientBlockedReason || inputBlockedReason) && (
-        <p className="small-text ai-chat-composer-warning">{transientBlockedReason ?? inputBlockedReason}</p>
+        <p className="small-text ai-chat-composer-warning">
+          {transientBlockedReason ?? inputBlockedReason}
+        </p>
       )}
 
-      <div className={`ai-chat-prompt-lab-panel ${showPromptLab ? 'is-open' : 'is-closed'}${promptTemplates.length === 0 ? ' is-empty' : ''}`}>
+      <div
+        className={`ai-chat-prompt-lab-panel ${showPromptLab ? 'is-open' : 'is-closed'}${promptTemplates.length === 0 ? ' is-empty' : ''}`}
+      >
         <button
           type="button"
           className="ai-chat-prompt-lab-panel-head"
@@ -268,9 +308,14 @@ export function AiChatComposerPanel({
           <span className="ai-chat-prompt-lab-panel-title">
             {cardMessages.promptLab}
             <span className="ai-chat-decision-panel-bracket"> · </span>
-            <span className="ai-chat-decision-panel-count">{promptTemplates.length}{cardMessages.promptTemplateCountSuffix}</span>
+            <span className="ai-chat-decision-panel-count">
+              {promptTemplates.length}
+              {cardMessages.promptTemplateCountSuffix}
+            </span>
           </span>
-          <span className="ai-chat-fold-caret" aria-hidden="true">▾</span>
+          <span className="ai-chat-fold-caret" aria-hidden="true">
+            ▾
+          </span>
         </button>
         <div className="ai-chat-prompt-lab-panel-body" aria-hidden={!showPromptLab}>
           <AiChatPromptLabModal
@@ -309,7 +354,9 @@ export function AiChatComposerPanel({
                   onPointerDown={startVoiceDrawerResize}
                 />
               )}
-              {voiceDrawer ?? <p className="ai-chat-fold-empty">{cardMessages.voicePanelUnavailable}</p>}
+              {voiceDrawer ?? (
+                <p className="ai-chat-fold-empty">{cardMessages.voicePanelUnavailable}</p>
+              )}
             </div>
           </div>
         </div>

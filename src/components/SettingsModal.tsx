@@ -6,9 +6,25 @@
  */
 import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
 import { ModalPanel } from './ui';
-import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay, loadUserOverrides, saveUserOverride, removeUserOverride, resetUserOverrides, type KeyCombo } from '../services/KeybindingService';
-import { aiChatProviderDefinitions, normalizeAiChatSettings, type AiChatSettings, type AiChatProviderKind } from '../ai/providers/providerCatalog';
-import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/config/aiChatSettingsStorage';
+import {
+  DEFAULT_KEYBINDINGS,
+  formatKeyComboForDisplay,
+  loadUserOverrides,
+  saveUserOverride,
+  removeUserOverride,
+  resetUserOverrides,
+  type KeyCombo,
+} from '../services/KeybindingService';
+import {
+  aiChatProviderDefinitions,
+  normalizeAiChatSettings,
+  type AiChatSettings,
+  type AiChatProviderKind,
+} from '../ai/providers/providerCatalog';
+import {
+  loadAiChatSettingsFromStorage,
+  persistAiChatSettings,
+} from '../ai/config/aiChatSettingsStorage';
 import { getAppDataResilienceMessages } from '../i18n/messages';
 import { getSettingsModalMessages } from '../i18n/messages';
 import { getShortcutsPanelMessages } from '../i18n/messages';
@@ -25,14 +41,53 @@ import {
   type ThemeId,
 } from '../utils/theme';
 import { type IconEffect } from '../utils/iconEffect';
-import { ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, WAVEFORM_DISPLAY_MODE_STORAGE_KEY, WAVEFORM_HEIGHT_STORAGE_KEY, WAVEFORM_VISUAL_STYLE_STORAGE_KEY, emitWaveformRuntimePreferenceChanged, readStoredAcousticOverlayModePreference, readStoredWaveformAmplitudeScalePreference, readStoredWaveformDisplayModePreference, readStoredWaveformHeightPreference, readStoredWaveformVisualStylePreference } from '../utils/waveformRuntimePreferenceSync';
-import { NEW_SEGMENT_SELECTION_BEHAVIOR_KEY, WAVEFORM_DOUBLE_CLICK_ACTION_KEY, readStoredNewSegmentSelectionBehavior, readStoredWaveformDoubleClickAction, type NewSegmentSelectionBehavior, type WaveformDoubleClickAction } from '../utils/transcriptionInteractionPreferences';
+import {
+  ACOUSTIC_OVERLAY_MODE_STORAGE_KEY,
+  WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY,
+  WAVEFORM_DISPLAY_MODE_STORAGE_KEY,
+  WAVEFORM_HEIGHT_STORAGE_KEY,
+  WAVEFORM_VISUAL_STYLE_STORAGE_KEY,
+  emitWaveformRuntimePreferenceChanged,
+  readStoredAcousticOverlayModePreference,
+  readStoredWaveformAmplitudeScalePreference,
+  readStoredWaveformDisplayModePreference,
+  readStoredWaveformHeightPreference,
+  readStoredWaveformVisualStylePreference,
+} from '../utils/waveformRuntimePreferenceSync';
+import {
+  NEW_SEGMENT_SELECTION_BEHAVIOR_KEY,
+  WAVEFORM_DOUBLE_CLICK_ACTION_KEY,
+  readStoredNewSegmentSelectionBehavior,
+  readStoredWaveformDoubleClickAction,
+  type NewSegmentSelectionBehavior,
+  type WaveformDoubleClickAction,
+} from '../utils/transcriptionInteractionPreferences';
 import { ACOUSTIC_OVERLAY_MODES, type AcousticOverlayMode } from '../utils/acousticOverlayTypes';
-import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
+import {
+  WAVEFORM_VISUAL_STYLE_OPTIONS,
+  type WaveformVisualStyle,
+} from '../utils/waveformVisualStyle';
 import { type UiFontScaleMode, resolveTextDirectionFromLocale } from '../utils/panelAdaptiveLayout';
-import { WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY, WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY, WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY, emitWorkspaceLayoutPreferenceChanged, readStoredVideoLayoutModePreference, readStoredVideoPreviewHeightPreference, readStoredVideoRightPanelWidthPreference } from '../utils/workspaceLayoutPreferenceSync';
-import { persistAcousticProviderRuntimeConfig, resolveAcousticProviderRuntimeConfig, type AcousticProviderRoutingStrategy, type AcousticProviderRuntimeConfig } from '../services/acoustic/acousticProviderContract';
-import { loadEmbeddingProviderConfig, saveEmbeddingProviderConfig, type EmbeddingProviderConfig } from '../pages/TranscriptionPage.helpers';
+import {
+  WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY,
+  WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY,
+  WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY,
+  emitWorkspaceLayoutPreferenceChanged,
+  readStoredVideoLayoutModePreference,
+  readStoredVideoPreviewHeightPreference,
+  readStoredVideoRightPanelWidthPreference,
+} from '../utils/workspaceLayoutPreferenceSync';
+import {
+  persistAcousticProviderRuntimeConfig,
+  resolveAcousticProviderRuntimeConfig,
+  type AcousticProviderRoutingStrategy,
+  type AcousticProviderRuntimeConfig,
+} from '../services/acoustic/acousticProviderContract';
+import {
+  loadEmbeddingProviderConfig,
+  saveEmbeddingProviderConfig,
+  type EmbeddingProviderConfig,
+} from '../pages/TranscriptionPage.helpers';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import {
   VOICE_SETTINGS_UPDATED_EVENT,
@@ -47,13 +102,19 @@ import {
   type VoiceLocalWhisperConfig,
   type VoiceSttEnhancementConfig,
 } from '../hooks/useVoiceDock';
-import type { ExtensionCapabilityInvocationRecord, ExtensionListItem } from '../extensions/extensionRegistry';
+import type {
+  ExtensionCapabilityInvocationRecord,
+  ExtensionListItem,
+} from '../extensions/extensionRegistry';
 import {
   readBackupReminderEnabled,
   snoozeBackupReminder,
   writeBackupReminderEnabled,
 } from '../utils/backupExportReminderState';
-import { readDbIntegrityProbeEnabled, writeDbIntegrityProbeEnabled } from '../utils/dbIntegrityPreference';
+import {
+  readDbIntegrityProbeEnabled,
+  writeDbIntegrityProbeEnabled,
+} from '../utils/dbIntegrityPreference';
 import {
   ExtensionsAuditList,
   ExtensionsItemsTable,
@@ -109,7 +170,10 @@ const VOICE_COMMERCIAL_PROVIDER_OPTIONS: Array<{ value: CommercialProviderKind; 
   { value: 'volcengine', label: 'Volcengine' },
 ];
 
-const VOICE_ENHANCEMENT_OPTIONS: Array<{ value: 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize'; label: string }> = [
+const VOICE_ENHANCEMENT_OPTIONS: Array<{
+  value: 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize';
+  label: string;
+}> = [
   { value: 'none', label: 'None' },
   { value: 'whisperx-align', label: 'WhisperX Align' },
   { value: 'mfa-align', label: 'MFA Align' },
@@ -118,10 +182,22 @@ const VOICE_ENHANCEMENT_OPTIONS: Array<{ value: 'none' | 'whisperx-align' | 'mfa
 
 // 已知缓存键 | Known cache storage keys
 const CACHE_ENTRIES = [
-  { id: 'font-coverage', key: 'jieyu:font-coverage-cache:v2', msgKey: 'dataCacheFontCoverage' as const },
+  {
+    id: 'font-coverage',
+    key: 'jieyu:font-coverage-cache:v2',
+    msgKey: 'dataCacheFontCoverage' as const,
+  },
   { id: 'vad', key: 'jieyu:vad-cache', msgKey: 'dataCacheVad' as const },
-  { id: 'language-catalog', key: 'jieyu.language-catalog.runtime-cache.v1', msgKey: 'dataCacheLanguageCatalog' as const },
-  { id: 'embedding-provider', key: 'jieyu.embeddingProvider', msgKey: 'dataCacheEmbeddingProvider' as const },
+  {
+    id: 'language-catalog',
+    key: 'jieyu.language-catalog.runtime-cache.v1',
+    msgKey: 'dataCacheLanguageCatalog' as const,
+  },
+  {
+    id: 'embedding-provider',
+    key: 'jieyu.embeddingProvider',
+    msgKey: 'dataCacheEmbeddingProvider' as const,
+  },
 ] as const;
 
 export interface SettingsModalProps {
@@ -149,13 +225,32 @@ export interface SettingsModalProps {
   version?: string;
 }
 
-type SettingsTab = 'appearance' | 'language' | 'shortcuts' | 'ai' | 'playback' | 'data' | 'extensions' | 'about';
+type SettingsTab =
+  | 'appearance'
+  | 'language'
+  | 'shortcuts'
+  | 'ai'
+  | 'playback'
+  | 'data'
+  | 'extensions'
+  | 'about';
 
 type ExtensionsPanelState =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  | { kind: 'ready'; hostVersion: string; items: ExtensionListItem[]; audit: ExtensionCapabilityInvocationRecord[] }
-  | { kind: 'error'; hostVersion: string; message: string; items: ExtensionListItem[]; audit: ExtensionCapabilityInvocationRecord[] };
+  | {
+      kind: 'ready';
+      hostVersion: string;
+      items: ExtensionListItem[];
+      audit: ExtensionCapabilityInvocationRecord[];
+    }
+  | {
+      kind: 'error';
+      hostVersion: string;
+      message: string;
+      items: ExtensionListItem[];
+      audit: ExtensionCapabilityInvocationRecord[];
+    };
 
 // ── 辅助函数 | Helpers ──────────────────────────────────────
 
@@ -185,7 +280,9 @@ function readDefaultPlaybackRate(): number {
     const n = Number(stored);
     if (Number.isNaN(n)) return 1;
     return (PLAYBACK_RATES as readonly number[]).includes(n) ? n : 1;
-  } catch { return 1; }
+  } catch {
+    return 1;
+  }
 }
 
 function readStoredBoolean(key: string, fallback: boolean): boolean {
@@ -253,9 +350,10 @@ function readStoredMapProviderPreference(): MapProviderPreference {
     const parsed = JSON.parse(raw) as Partial<MapProviderPreference>;
     const kind = parsed.kind === 'tianditu' || parsed.kind === 'maptiler' ? parsed.kind : 'osm';
     const styleOptions = getMapStyleOptions(kind);
-    const styleId = typeof parsed.styleId === 'string' && styleOptions.some((opt) => opt.value === parsed.styleId)
-      ? parsed.styleId
-      : getDefaultMapStyleId(kind);
+    const styleId =
+      typeof parsed.styleId === 'string' && styleOptions.some((opt) => opt.value === parsed.styleId)
+        ? parsed.styleId
+        : getDefaultMapStyleId(kind);
     return { kind, styleId };
   } catch {
     return { kind: 'osm', styleId: 'standard' };
@@ -295,7 +393,9 @@ function estimateLocalStorageUsage(): string {
     // UTF-16 每字符 2 字节 | UTF-16: 2 bytes per char
     const kb = (total * 2) / 1024;
     return kb < 1024 ? `${kb.toFixed(1)} KB` : `${(kb / 1024).toFixed(2)} MB`;
-  } catch { return '—'; }
+  } catch {
+    return '—';
+  }
 }
 
 // ── 子组件 | Sub-components ─────────────────────────────────
@@ -322,8 +422,12 @@ export const SettingsModal = memo(function SettingsModal({
   const msg = getSettingsModalMessages(locale);
   const shortcutsMsg = getShortcutsPanelMessages(locale);
   const resilienceMsg = useMemo(() => getAppDataResilienceMessages(locale), [locale]);
-  const [backupReminderEnabled, setBackupReminderEnabled] = useState(() => readBackupReminderEnabled());
-  const [dbIntegrityProbeEnabled, setDbIntegrityProbeEnabled] = useState(() => readDbIntegrityProbeEnabled());
+  const [backupReminderEnabled, setBackupReminderEnabled] = useState(() =>
+    readBackupReminderEnabled(),
+  );
+  const [dbIntegrityProbeEnabled, setDbIntegrityProbeEnabled] = useState(() =>
+    readDbIntegrityProbeEnabled(),
+  );
   const settingsShellTextDirection = useMemo(
     () => resolveTextDirectionFromLocale(locale),
     [locale],
@@ -350,14 +454,22 @@ export const SettingsModal = memo(function SettingsModal({
   }, []);
 
   // 解析实际明暗模式（system → 查媒体查询）| Resolve actual light/dark from tri-state mode
-  const resolvedMode: 'light' | 'dark' = themeMode === 'dark' ? 'dark'
-    : themeMode === 'light' ? 'light'
-    : (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const resolvedMode: 'light' | 'dark' =
+    themeMode === 'dark'
+      ? 'dark'
+      : themeMode === 'light'
+        ? 'light'
+        : typeof window !== 'undefined' &&
+            window.matchMedia?.('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
 
   // ── 快捷键编辑 | Shortcut editing ──
 
   const [editingKeybindingId, setEditingKeybindingId] = useState<string | null>(null);
-  const [userOverrides, setUserOverrides] = useState<Map<string, KeyCombo>>(() => loadUserOverrides());
+  const [userOverrides, setUserOverrides] = useState<Map<string, KeyCombo>>(() =>
+    loadUserOverrides(),
+  );
   const editingIdRef = useRef(editingKeybindingId);
   editingIdRef.current = editingKeybindingId;
 
@@ -367,7 +479,10 @@ export const SettingsModal = memo(function SettingsModal({
     const handler = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (e.key === 'Escape') { setEditingKeybindingId(null); return; }
+      if (e.key === 'Escape') {
+        setEditingKeybindingId(null);
+        return;
+      }
       const combo = keyEventToCombo(e);
       if (!combo || !editingIdRef.current) return;
       saveUserOverride(editingIdRef.current, combo);
@@ -428,7 +543,14 @@ export const SettingsModal = memo(function SettingsModal({
   }, [aiSettings?.providerKind]);
 
   const aiProviderGroups = useMemo(() => {
-    const directKinds: AiChatProviderKind[] = ['deepseek', 'qwen', 'anthropic', 'gemini', 'ollama', 'minimax'];
+    const directKinds: AiChatProviderKind[] = [
+      'deepseek',
+      'qwen',
+      'anthropic',
+      'gemini',
+      'ollama',
+      'minimax',
+    ];
     const compatKinds: AiChatProviderKind[] = ['openai-compatible'];
     const localKinds: AiChatProviderKind[] = ['mock', 'webllm', 'custom-http'];
     const byKind = new Map(aiChatProviderDefinitions.map((p) => [p.kind, p]));
@@ -440,13 +562,25 @@ export const SettingsModal = memo(function SettingsModal({
       { label: labels.compat, items: pick(compatKinds) },
       { label: labels.local, items: pick(localKinds) },
     ].filter((g) => g.items.length > 0);
-  }, [locale]);
+  }, []);
 
-  const [embeddingProviderDefault, setEmbeddingProviderDefault] = useState<EmbeddingProviderConfig>(() => loadEmbeddingProviderConfig());
-  const [acousticRuntimeDraft, setAcousticRuntimeDraft] = useState<AcousticProviderRuntimeConfig>(() => resolveAcousticProviderRuntimeConfig());
-  const [voiceCommercialConfig, setVoiceCommercialConfig] = useState<{ kind: CommercialProviderKind; config: CommercialProviderConfig }>(() => loadCommercialSttConfig());
-  const [voiceLocalWhisperConfig, setVoiceLocalWhisperConfig] = useState<VoiceLocalWhisperConfig>(() => loadLocalWhisperConfig());
-  const [voiceEnhancementSelection, setVoiceEnhancementSelection] = useState<{ kind: 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize'; config: VoiceSttEnhancementConfig }>(() => {
+  const [embeddingProviderDefault, setEmbeddingProviderDefault] = useState<EmbeddingProviderConfig>(
+    () => loadEmbeddingProviderConfig(),
+  );
+  const [acousticRuntimeDraft, setAcousticRuntimeDraft] = useState<AcousticProviderRuntimeConfig>(
+    () => resolveAcousticProviderRuntimeConfig(),
+  );
+  const [voiceCommercialConfig, setVoiceCommercialConfig] = useState<{
+    kind: CommercialProviderKind;
+    config: CommercialProviderConfig;
+  }>(() => loadCommercialSttConfig());
+  const [voiceLocalWhisperConfig, setVoiceLocalWhisperConfig] = useState<VoiceLocalWhisperConfig>(
+    () => loadLocalWhisperConfig(),
+  );
+  const [voiceEnhancementSelection, setVoiceEnhancementSelection] = useState<{
+    kind: 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize';
+    config: VoiceSttEnhancementConfig;
+  }>(() => {
     const loaded = loadSttEnhancementSelection();
     return {
       kind: loaded.kind as 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize',
@@ -455,7 +589,9 @@ export const SettingsModal = memo(function SettingsModal({
   });
   const [acousticRuntimeSaved, setAcousticRuntimeSaved] = useState(false);
   const [acousticRuntimeError, setAcousticRuntimeError] = useState<string | null>(null);
-  const [aiContextDebugEnabled, setAiContextDebugEnabled] = useState<boolean>(() => readStoredBoolean(AI_CONTEXT_DEBUG_KEY, false));
+  const [aiContextDebugEnabled, setAiContextDebugEnabled] = useState<boolean>(() =>
+    readStoredBoolean(AI_CONTEXT_DEBUG_KEY, false),
+  );
 
   const persistEmbeddingProviderDefault = (config: EmbeddingProviderConfig) => {
     const normalized = normalizeEmbeddingProviderConfig(config);
@@ -553,161 +689,270 @@ export const SettingsModal = memo(function SettingsModal({
     window.dispatchEvent(new CustomEvent(VOICE_SETTINGS_UPDATED_EVENT));
   }, []);
 
-  const handleVoiceCommercialKindChange = useCallback((kind: CommercialProviderKind) => {
-    const next = { kind, config: voiceCommercialConfig.config };
-    setVoiceCommercialConfig(next);
-    saveCommercialSttConfig(next.kind, next.config);
-    notifyVoiceSettingsUpdated();
-  }, [notifyVoiceSettingsUpdated, voiceCommercialConfig.config]);
-
-  const handleVoiceCommercialConfigPatch = useCallback((patch: Partial<CommercialProviderConfig>) => {
-    setVoiceCommercialConfig((prev) => {
-      const next = { kind: prev.kind, config: { ...prev.config, ...patch } };
+  const handleVoiceCommercialKindChange = useCallback(
+    (kind: CommercialProviderKind) => {
+      const next = { kind, config: voiceCommercialConfig.config };
+      setVoiceCommercialConfig(next);
       saveCommercialSttConfig(next.kind, next.config);
       notifyVoiceSettingsUpdated();
-      return next;
-    });
-  }, [notifyVoiceSettingsUpdated]);
+    },
+    [notifyVoiceSettingsUpdated, voiceCommercialConfig.config],
+  );
 
-  const handleVoiceLocalWhisperPatch = useCallback((patch: Partial<VoiceLocalWhisperConfig>) => {
-    setVoiceLocalWhisperConfig((prev) => {
-      const next = { ...prev, ...patch };
-      saveLocalWhisperConfig(next);
-      notifyVoiceSettingsUpdated();
-      return next;
-    });
-  }, [notifyVoiceSettingsUpdated]);
+  const handleVoiceCommercialConfigPatch = useCallback(
+    (patch: Partial<CommercialProviderConfig>) => {
+      setVoiceCommercialConfig((prev) => {
+        const next = { kind: prev.kind, config: { ...prev.config, ...patch } };
+        saveCommercialSttConfig(next.kind, next.config);
+        notifyVoiceSettingsUpdated();
+        return next;
+      });
+    },
+    [notifyVoiceSettingsUpdated],
+  );
 
-  const handleVoiceEnhancementKindChange = useCallback((kind: 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize') => {
-    setVoiceEnhancementSelection((prev) => {
-      const next = { kind, config: prev.config };
-      saveSttEnhancementSelection(next.kind, next.config);
-      notifyVoiceSettingsUpdated();
-      return next;
-    });
-  }, [notifyVoiceSettingsUpdated]);
+  const handleVoiceLocalWhisperPatch = useCallback(
+    (patch: Partial<VoiceLocalWhisperConfig>) => {
+      setVoiceLocalWhisperConfig((prev) => {
+        const next = { ...prev, ...patch };
+        saveLocalWhisperConfig(next);
+        notifyVoiceSettingsUpdated();
+        return next;
+      });
+    },
+    [notifyVoiceSettingsUpdated],
+  );
 
-  const handleVoiceEnhancementConfigPatch = useCallback((patch: Partial<VoiceSttEnhancementConfig>) => {
-    setVoiceEnhancementSelection((prev) => {
-      const next = { kind: prev.kind, config: { ...prev.config, ...patch } };
-      saveSttEnhancementSelection(next.kind, next.config);
-      notifyVoiceSettingsUpdated();
-      return next;
-    });
-  }, [notifyVoiceSettingsUpdated]);
+  const handleVoiceEnhancementKindChange = useCallback(
+    (kind: 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize') => {
+      setVoiceEnhancementSelection((prev) => {
+        const next = { kind, config: prev.config };
+        saveSttEnhancementSelection(next.kind, next.config);
+        notifyVoiceSettingsUpdated();
+        return next;
+      });
+    },
+    [notifyVoiceSettingsUpdated],
+  );
+
+  const handleVoiceEnhancementConfigPatch = useCallback(
+    (patch: Partial<VoiceSttEnhancementConfig>) => {
+      setVoiceEnhancementSelection((prev) => {
+        const next = { kind: prev.kind, config: { ...prev.config, ...patch } };
+        saveSttEnhancementSelection(next.kind, next.config);
+        notifyVoiceSettingsUpdated();
+        return next;
+      });
+    },
+    [notifyVoiceSettingsUpdated],
+  );
 
   // ── 播放偏好 | Playback preferences ──
 
   const [defaultPlaybackRate, setDefaultPlaybackRate] = useState(readDefaultPlaybackRate);
-  const [workspaceAutoScrollDefault, setWorkspaceAutoScrollDefault] = useState<boolean>(() => readStoredBoolean(WORKSPACE_AUTO_SCROLL_KEY, true));
-  const [workspaceSnapDefault, setWorkspaceSnapDefault] = useState<boolean>(() => readStoredBoolean(WORKSPACE_SNAP_KEY, false));
-  const [workspaceZoomModeDefault, setWorkspaceZoomModeDefault] = useState<WorkspaceZoomMode>(readStoredWorkspaceZoomMode);
-  const [waveformDoubleClickActionDefault, setWaveformDoubleClickActionDefault] = useState<WaveformDoubleClickAction>(readStoredWaveformDoubleClickAction);
-  const [newSegmentSelectionBehaviorDefault, setNewSegmentSelectionBehaviorDefault] = useState<NewSegmentSelectionBehavior>(readStoredNewSegmentSelectionBehavior);
-  const [waveformDisplayDefault, setWaveformDisplayDefault] = useState<WaveformDisplayPreference>(readStoredWaveformDisplayMode);
-  const [waveformDefaultHeight, setWaveformDefaultHeight] = useState<number>(readStoredWaveformHeightPreference);
-  const [waveformAmplitudeDefault, setWaveformAmplitudeDefault] = useState<number>(readStoredWaveformAmplitudeScalePreference);
-  const [waveformVisualStyleDefault, setWaveformVisualStyleDefault] = useState<WaveformVisualStyle>(readStoredWaveformVisualStylePreference);
-  const [waveformOverlayDefault, setWaveformOverlayDefault] = useState<AcousticOverlayMode>(readStoredAcousticOverlayModePreference);
-  const [videoLayoutDefault, setVideoLayoutDefault] = useState<VideoLayoutPreference>(readStoredVideoLayoutModePreference);
-  const [videoPreviewHeightDefault, setVideoPreviewHeightDefault] = useState<number>(readStoredVideoPreviewHeightPreference);
-  const [videoRightPanelWidthDefault, setVideoRightPanelWidthDefault] = useState<number>(readStoredVideoRightPanelWidthPreference);
-  const [reducedMotionEnabled, setReducedMotionEnabled] = useState<boolean>(() => readStoredBoolean(ACCESSIBILITY_REDUCED_MOTION_KEY, false));
-  const [highContrastEnabled, setHighContrastEnabled] = useState<boolean>(() => readStoredBoolean(ACCESSIBILITY_HIGH_CONTRAST_KEY, false));
+  const [workspaceAutoScrollDefault, setWorkspaceAutoScrollDefault] = useState<boolean>(() =>
+    readStoredBoolean(WORKSPACE_AUTO_SCROLL_KEY, true),
+  );
+  const [workspaceSnapDefault, setWorkspaceSnapDefault] = useState<boolean>(() =>
+    readStoredBoolean(WORKSPACE_SNAP_KEY, false),
+  );
+  const [workspaceZoomModeDefault, setWorkspaceZoomModeDefault] = useState<WorkspaceZoomMode>(
+    readStoredWorkspaceZoomMode,
+  );
+  const [waveformDoubleClickActionDefault, setWaveformDoubleClickActionDefault] =
+    useState<WaveformDoubleClickAction>(readStoredWaveformDoubleClickAction);
+  const [newSegmentSelectionBehaviorDefault, setNewSegmentSelectionBehaviorDefault] =
+    useState<NewSegmentSelectionBehavior>(readStoredNewSegmentSelectionBehavior);
+  const [waveformDisplayDefault, setWaveformDisplayDefault] = useState<WaveformDisplayPreference>(
+    readStoredWaveformDisplayMode,
+  );
+  const [waveformDefaultHeight, setWaveformDefaultHeight] = useState<number>(
+    readStoredWaveformHeightPreference,
+  );
+  const [waveformAmplitudeDefault, setWaveformAmplitudeDefault] = useState<number>(
+    readStoredWaveformAmplitudeScalePreference,
+  );
+  const [waveformVisualStyleDefault, setWaveformVisualStyleDefault] = useState<WaveformVisualStyle>(
+    readStoredWaveformVisualStylePreference,
+  );
+  const [waveformOverlayDefault, setWaveformOverlayDefault] = useState<AcousticOverlayMode>(
+    readStoredAcousticOverlayModePreference,
+  );
+  const [videoLayoutDefault, setVideoLayoutDefault] = useState<VideoLayoutPreference>(
+    readStoredVideoLayoutModePreference,
+  );
+  const [videoPreviewHeightDefault, setVideoPreviewHeightDefault] = useState<number>(
+    readStoredVideoPreviewHeightPreference,
+  );
+  const [videoRightPanelWidthDefault, setVideoRightPanelWidthDefault] = useState<number>(
+    readStoredVideoRightPanelWidthPreference,
+  );
+  const [reducedMotionEnabled, setReducedMotionEnabled] = useState<boolean>(() =>
+    readStoredBoolean(ACCESSIBILITY_REDUCED_MOTION_KEY, false),
+  );
+  const [highContrastEnabled, setHighContrastEnabled] = useState<boolean>(() =>
+    readStoredBoolean(ACCESSIBILITY_HIGH_CONTRAST_KEY, false),
+  );
 
-  const [mapProviderDefault, setMapProviderDefault] = useState<MapProviderPreference>(readStoredMapProviderPreference);
+  const [mapProviderDefault, setMapProviderDefault] = useState<MapProviderPreference>(
+    readStoredMapProviderPreference,
+  );
   const [voiceDockPositionResetAt, setVoiceDockPositionResetAt] = useState<number | null>(null);
 
   const handlePlaybackRateChange = (rate: number) => {
     setDefaultPlaybackRate(rate);
-    try { localStorage.setItem(DEFAULT_PLAYBACK_RATE_KEY, String(rate)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(DEFAULT_PLAYBACK_RATE_KEY, String(rate));
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleWorkspaceAutoScrollChange = (enabled: boolean) => {
     setWorkspaceAutoScrollDefault(enabled);
-    try { localStorage.setItem(WORKSPACE_AUTO_SCROLL_KEY, enabled ? '1' : '0'); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WORKSPACE_AUTO_SCROLL_KEY, enabled ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleWorkspaceSnapChange = (enabled: boolean) => {
     setWorkspaceSnapDefault(enabled);
-    try { localStorage.setItem(WORKSPACE_SNAP_KEY, enabled ? '1' : '0'); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WORKSPACE_SNAP_KEY, enabled ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleWorkspaceZoomModeChange = (mode: WorkspaceZoomMode) => {
     setWorkspaceZoomModeDefault(mode);
-    try { localStorage.setItem(WORKSPACE_DEFAULT_ZOOM_MODE_KEY, mode); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WORKSPACE_DEFAULT_ZOOM_MODE_KEY, mode);
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleVideoLayoutDefaultChange = useCallback((mode: VideoLayoutPreference) => {
     setVideoLayoutDefault(mode);
-    try { localStorage.setItem(WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY, mode); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY, mode);
+    } catch {
+      /* ignore */
+    }
     emitWorkspaceLayoutPreferenceChanged();
   }, []);
 
   const handleVideoPreviewHeightDefaultChange = useCallback((nextHeight: number) => {
     const normalized = Math.min(600, Math.max(120, Math.round(nextHeight)));
     setVideoPreviewHeightDefault(normalized);
-    try { localStorage.setItem(WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY, String(normalized)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY, String(normalized));
+    } catch {
+      /* ignore */
+    }
     emitWorkspaceLayoutPreferenceChanged();
   }, []);
 
   const handleVideoRightPanelWidthDefaultChange = useCallback((nextWidth: number) => {
     const normalized = Math.min(720, Math.max(260, Math.round(nextWidth)));
     setVideoRightPanelWidthDefault(normalized);
-    try { localStorage.setItem(WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY, String(normalized)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY, String(normalized));
+    } catch {
+      /* ignore */
+    }
     emitWorkspaceLayoutPreferenceChanged();
   }, []);
 
   const handleWaveformDoubleClickActionChange = (mode: WaveformDoubleClickAction) => {
     setWaveformDoubleClickActionDefault(mode);
-    try { localStorage.setItem(WAVEFORM_DOUBLE_CLICK_ACTION_KEY, mode); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WAVEFORM_DOUBLE_CLICK_ACTION_KEY, mode);
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleNewSegmentSelectionBehaviorChange = (mode: NewSegmentSelectionBehavior) => {
     setNewSegmentSelectionBehaviorDefault(mode);
-    try { localStorage.setItem(NEW_SEGMENT_SELECTION_BEHAVIOR_KEY, mode); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(NEW_SEGMENT_SELECTION_BEHAVIOR_KEY, mode);
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleWaveformDisplayDefaultChange = useCallback((mode: WaveformDisplayPreference) => {
     setWaveformDisplayDefault(mode);
-    try { localStorage.setItem(WAVEFORM_DISPLAY_MODE_STORAGE_KEY, mode); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WAVEFORM_DISPLAY_MODE_STORAGE_KEY, mode);
+    } catch {
+      /* ignore */
+    }
     emitWaveformRuntimePreferenceChanged();
   }, []);
 
   const handleWaveformHeightDefaultChange = useCallback((nextHeight: number) => {
     const normalized = Math.min(400, Math.max(80, Math.round(nextHeight)));
     setWaveformDefaultHeight(normalized);
-    try { localStorage.setItem(WAVEFORM_HEIGHT_STORAGE_KEY, String(normalized)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WAVEFORM_HEIGHT_STORAGE_KEY, String(normalized));
+    } catch {
+      /* ignore */
+    }
     emitWaveformRuntimePreferenceChanged();
   }, []);
 
   const handleWaveformAmplitudeDefaultChange = useCallback((nextAmplitude: number) => {
     const normalized = Math.min(4, Math.max(0.25, Number(nextAmplitude.toFixed(2))));
     setWaveformAmplitudeDefault(normalized);
-    try { localStorage.setItem(WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, String(normalized)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, String(normalized));
+    } catch {
+      /* ignore */
+    }
     emitWaveformRuntimePreferenceChanged();
   }, []);
 
   const handleWaveformVisualStyleDefaultChange = useCallback((style: WaveformVisualStyle) => {
     setWaveformVisualStyleDefault(style);
-    try { localStorage.setItem(WAVEFORM_VISUAL_STYLE_STORAGE_KEY, style); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WAVEFORM_VISUAL_STYLE_STORAGE_KEY, style);
+    } catch {
+      /* ignore */
+    }
     emitWaveformRuntimePreferenceChanged();
   }, []);
 
   const handleWaveformOverlayDefaultChange = useCallback((mode: AcousticOverlayMode) => {
     setWaveformOverlayDefault(mode);
-    try { localStorage.setItem(ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, mode); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, mode);
+    } catch {
+      /* ignore */
+    }
     emitWaveformRuntimePreferenceChanged();
   }, []);
 
   const handleReducedMotionChange = (enabled: boolean) => {
     setReducedMotionEnabled(enabled);
-    try { localStorage.setItem(ACCESSIBILITY_REDUCED_MOTION_KEY, enabled ? '1' : '0'); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(ACCESSIBILITY_REDUCED_MOTION_KEY, enabled ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleHighContrastChange = (enabled: boolean) => {
     setHighContrastEnabled(enabled);
-    try { localStorage.setItem(ACCESSIBILITY_HIGH_CONTRAST_KEY, enabled ? '1' : '0'); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(ACCESSIBILITY_HIGH_CONTRAST_KEY, enabled ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
   };
 
   useEffect(() => {
@@ -722,8 +967,12 @@ export const SettingsModal = memo(function SettingsModal({
 
   const [clearedCaches, setClearedCaches] = useState<Set<string>>(new Set());
 
-  const handleClearCache = (entry: typeof CACHE_ENTRIES[number]) => {
-    try { localStorage.removeItem(entry.key); } catch { /* ignore */ }
+  const handleClearCache = (entry: (typeof CACHE_ENTRIES)[number]) => {
+    try {
+      localStorage.removeItem(entry.key);
+    } catch {
+      /* ignore */
+    }
     setClearedCaches((prev) => new Set(prev).add(entry.id));
   };
 
@@ -736,7 +985,9 @@ export const SettingsModal = memo(function SettingsModal({
         if (key && key.startsWith('jieyu')) keysToRemove.push(key);
       }
       keysToRemove.forEach((k) => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [msg.dataResetConfirm]);
 
   const handleMapProviderKindChange = (kind: MapProviderKind) => {
@@ -748,14 +999,17 @@ export const SettingsModal = memo(function SettingsModal({
     persistMapProviderPreference(next);
   };
 
-  const handleMapProviderStyleChange = useCallback((styleId: string) => {
-    const next = {
-      ...mapProviderDefault,
-      styleId,
-    };
-    setMapProviderDefault(next);
-    persistMapProviderPreference(next);
-  }, [mapProviderDefault]);
+  const handleMapProviderStyleChange = useCallback(
+    (styleId: string) => {
+      const next = {
+        ...mapProviderDefault,
+        styleId,
+      };
+      setMapProviderDefault(next);
+      persistMapProviderPreference(next);
+    },
+    [mapProviderDefault],
+  );
 
   const handleResetVoiceDockPosition = () => {
     try {
@@ -788,7 +1042,11 @@ export const SettingsModal = memo(function SettingsModal({
     {
       const loadedEnhancement = loadSttEnhancementSelection();
       setVoiceEnhancementSelection({
-        kind: loadedEnhancement.kind as 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize',
+        kind: loadedEnhancement.kind as
+          | 'none'
+          | 'whisperx-align'
+          | 'mfa-align'
+          | 'pyannote-diarize',
         config: loadedEnhancement.config,
       });
     }
@@ -802,7 +1060,11 @@ export const SettingsModal = memo(function SettingsModal({
     let cancelled = false;
     const setError = (
       reason: unknown,
-      snapshot?: { hostVersion: string; items: ExtensionListItem[]; audit: ExtensionCapabilityInvocationRecord[] },
+      snapshot?: {
+        hostVersion: string;
+        items: ExtensionListItem[];
+        audit: ExtensionCapabilityInvocationRecord[];
+      },
     ) => {
       if (cancelled) return;
       const errorText = reason instanceof Error ? reason.message : String(reason);
@@ -845,62 +1107,144 @@ export const SettingsModal = memo(function SettingsModal({
 
   // ── Memos ──
 
-  const tabs = useMemo(() => ([
-    { id: 'appearance' as const, label: msg.tabAppearance }, { id: 'language' as const, label: msg.tabLanguage },
-    { id: 'shortcuts' as const, label: msg.tabShortcuts }, { id: 'ai' as const, label: msg.tabAi },
-    { id: 'playback' as const, label: msg.tabPlayback }, { id: 'data' as const, label: msg.tabData },
-    { id: 'extensions' as const, label: msg.tabExtensions }, { id: 'about' as const, label: msg.tabAbout },
-  ]), [msg]);
+  const tabs = useMemo(
+    () => [
+      { id: 'appearance' as const, label: msg.tabAppearance },
+      { id: 'language' as const, label: msg.tabLanguage },
+      { id: 'shortcuts' as const, label: msg.tabShortcuts },
+      { id: 'ai' as const, label: msg.tabAi },
+      { id: 'playback' as const, label: msg.tabPlayback },
+      { id: 'data' as const, label: msg.tabData },
+      { id: 'extensions' as const, label: msg.tabExtensions },
+      { id: 'about' as const, label: msg.tabAbout },
+    ],
+    [msg],
+  );
 
-  const themeOptions = useMemo(() => ([{ value: 'light' as const, label: msg.themeLight }, { value: 'dark' as const, label: msg.themeDark }, { value: 'system' as const, label: msg.themeSystem }]), [msg]);
-  const localeOptions = useMemo(() => ([{ value: 'zh-CN' as const, label: msg.localeChinese }, { value: 'en-US' as const, label: msg.localeEnglish }]), [msg]);
-  const fontScaleModeOptions = useMemo(() => ([{ value: 'auto' as const, label: msg.fontScaleModeAuto }, { value: 'manual' as const, label: msg.fontScaleModeManual }]), [msg]);
-  const iconEffectOptions = useMemo(() => ([{ value: 'material' as const, label: msg.iconEffectMaterial }, { value: 'motion' as const, label: msg.iconEffectMotion }]), [msg]);
-  const toggleOptions = useMemo(() => ([{ value: 'off' as const, label: msg.toggleOff }, { value: 'on' as const, label: msg.toggleOn }]), [msg]);
-  const workspaceZoomModeOptions = useMemo(() => ([{ value: 'fit-all' as const, label: msg.zoomModeFitAll }, { value: 'fit-selection' as const, label: msg.zoomModeFitSelection }, { value: 'custom' as const, label: msg.zoomModeCustom }]), [msg]);
-  const waveformDoubleClickActionOptions = useMemo(() => ([{ value: 'zoom-selection' as const, label: msg.doubleClickActionZoom }, { value: 'create-segment' as const, label: msg.doubleClickActionCreateSegment }]), [msg]);
-  const newSegmentSelectionBehaviorOptions = useMemo(() => ([{ value: 'select-created' as const, label: msg.newSegmentSelectionSelectCreated }, { value: 'keep-current' as const, label: msg.newSegmentSelectionKeepCurrent }]), [msg]);
-  const waveformDisplayOptions = useMemo(() => ([{ value: 'waveform' as const, label: msg.waveformDisplayWaveform }, { value: 'spectrogram' as const, label: msg.waveformDisplaySpectrogram }, { value: 'split' as const, label: msg.waveformDisplaySplit }]), [msg]);
+  const themeOptions = useMemo(
+    () => [
+      { value: 'light' as const, label: msg.themeLight },
+      { value: 'dark' as const, label: msg.themeDark },
+      { value: 'system' as const, label: msg.themeSystem },
+    ],
+    [msg],
+  );
+  const localeOptions = useMemo(
+    () => [
+      { value: 'zh-CN' as const, label: msg.localeChinese },
+      { value: 'en-US' as const, label: msg.localeEnglish },
+    ],
+    [msg],
+  );
+  const fontScaleModeOptions = useMemo(
+    () => [
+      { value: 'auto' as const, label: msg.fontScaleModeAuto },
+      { value: 'manual' as const, label: msg.fontScaleModeManual },
+    ],
+    [msg],
+  );
+  const iconEffectOptions = useMemo(
+    () => [
+      { value: 'material' as const, label: msg.iconEffectMaterial },
+      { value: 'motion' as const, label: msg.iconEffectMotion },
+    ],
+    [msg],
+  );
+  const toggleOptions = useMemo(
+    () => [
+      { value: 'off' as const, label: msg.toggleOff },
+      { value: 'on' as const, label: msg.toggleOn },
+    ],
+    [msg],
+  );
+  const workspaceZoomModeOptions = useMemo(
+    () => [
+      { value: 'fit-all' as const, label: msg.zoomModeFitAll },
+      { value: 'fit-selection' as const, label: msg.zoomModeFitSelection },
+      { value: 'custom' as const, label: msg.zoomModeCustom },
+    ],
+    [msg],
+  );
+  const waveformDoubleClickActionOptions = useMemo(
+    () => [
+      { value: 'zoom-selection' as const, label: msg.doubleClickActionZoom },
+      { value: 'create-segment' as const, label: msg.doubleClickActionCreateSegment },
+    ],
+    [msg],
+  );
+  const newSegmentSelectionBehaviorOptions = useMemo(
+    () => [
+      { value: 'select-created' as const, label: msg.newSegmentSelectionSelectCreated },
+      { value: 'keep-current' as const, label: msg.newSegmentSelectionKeepCurrent },
+    ],
+    [msg],
+  );
+  const waveformDisplayOptions = useMemo(
+    () => [
+      { value: 'waveform' as const, label: msg.waveformDisplayWaveform },
+      { value: 'spectrogram' as const, label: msg.waveformDisplaySpectrogram },
+      { value: 'split' as const, label: msg.waveformDisplaySplit },
+    ],
+    [msg],
+  );
 
   const waveformVisualStyleOptions = useMemo(
-    () => WAVEFORM_VISUAL_STYLE_OPTIONS.map((style) => {
-      const labelMap: Record<WaveformVisualStyle, string> = {
-        balanced: msg.waveformVisualStyleBalanced,
-        dense: msg.waveformVisualStyleDense,
-        contrast: msg.waveformVisualStyleContrast,
-        line: msg.waveformVisualStyleLine,
-      };
-      return {
-        value: style,
-        label: labelMap[style],
-      };
-    }),
+    () =>
+      WAVEFORM_VISUAL_STYLE_OPTIONS.map((style) => {
+        const labelMap: Record<WaveformVisualStyle, string> = {
+          balanced: msg.waveformVisualStyleBalanced,
+          dense: msg.waveformVisualStyleDense,
+          contrast: msg.waveformVisualStyleContrast,
+          line: msg.waveformVisualStyleLine,
+        };
+        return {
+          value: style,
+          label: labelMap[style],
+        };
+      }),
     [msg],
   );
 
   const waveformOverlayOptions = useMemo(
-    () => ACOUSTIC_OVERLAY_MODES.map((mode) => {
-      const labelMap: Record<AcousticOverlayMode, string> = {
-        none: msg.waveformOverlayNone,
-        f0: msg.waveformOverlayF0,
-        intensity: msg.waveformOverlayIntensity,
-        both: msg.waveformOverlayBoth,
-      };
-      return {
-        value: mode,
-        label: labelMap[mode],
-      };
-    }),
+    () =>
+      ACOUSTIC_OVERLAY_MODES.map((mode) => {
+        const labelMap: Record<AcousticOverlayMode, string> = {
+          none: msg.waveformOverlayNone,
+          f0: msg.waveformOverlayF0,
+          intensity: msg.waveformOverlayIntensity,
+          both: msg.waveformOverlayBoth,
+        };
+        return {
+          value: mode,
+          label: labelMap[mode],
+        };
+      }),
     [msg],
   );
 
-  const videoLayoutModeOptions = useMemo(() => ([{ value: 'top' as const, label: msg.videoLayoutTop }, { value: 'left' as const, label: msg.videoLayoutLeft }, { value: 'right' as const, label: msg.videoLayoutRight }]), [msg]);
-  const acousticRoutingOptions = useMemo(() => ([{ value: 'local-first' as const, label: msg.aiAcousticRoutingLocalFirst }, { value: 'prefer-external' as const, label: msg.aiAcousticRoutingPreferExternal }]), [msg]);
+  const videoLayoutModeOptions = useMemo(
+    () => [
+      { value: 'top' as const, label: msg.videoLayoutTop },
+      { value: 'left' as const, label: msg.videoLayoutLeft },
+      { value: 'right' as const, label: msg.videoLayoutRight },
+    ],
+    [msg],
+  );
+  const acousticRoutingOptions = useMemo(
+    () => [
+      { value: 'local-first' as const, label: msg.aiAcousticRoutingLocalFirst },
+      { value: 'prefer-external' as const, label: msg.aiAcousticRoutingPreferExternal },
+    ],
+    [msg],
+  );
 
-  const handleFontScaleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onFontScaleModeChange('manual');
-    onFontScaleChange(Number(e.target.value));
-  }, [onFontScaleChange, onFontScaleModeChange]);
+  const handleFontScaleInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      onFontScaleModeChange('manual');
+      onFontScaleChange(Number(e.target.value));
+    },
+    [onFontScaleChange, onFontScaleModeChange],
+  );
 
   const handleFontScaleReset = useCallback(() => {
     onFontScaleModeChange('auto');
@@ -958,7 +1302,9 @@ export const SettingsModal = memo(function SettingsModal({
                       className={`theme-card${activeTheme === theme.id ? ' theme-card-active' : ''}`}
                       onClick={() => handleThemeChange(theme.id)}
                     >
-                      <div className={`theme-card-preview theme-card-preview-mode-${resolvedMode} theme-card-preview-theme-${themeIdToPreviewClassSlug(theme.id)}`}>
+                      <div
+                        className={`theme-card-preview theme-card-preview-mode-${resolvedMode} theme-card-preview-theme-${themeIdToPreviewClassSlug(theme.id)}`}
+                      >
                         <span className="theme-card-swatch-accent" />
                         <span className="theme-card-swatch-bg" />
                       </div>
@@ -972,12 +1318,19 @@ export const SettingsModal = memo(function SettingsModal({
               </SettingsSection>
 
               <SettingsSection title={msg.themeAccentLabel}>
-                <div className="theme-accent-grid" role="radiogroup" aria-label={msg.themeAccentLabel}>
+                <div
+                  className="theme-accent-grid"
+                  role="radiogroup"
+                  aria-label={msg.themeAccentLabel}
+                >
                   {THEME_ACCENTS.map((accent) => {
                     const label = locale === 'zh-CN' ? accent.labelZh : accent.labelEn;
                     const isActive = activeThemeAccent === accent.id;
-                    const swatchColor = resolvedMode === 'dark' ? accent.swatchDark : accent.swatchLight;
-                    const swatchStyleProps = { style: { ['--theme-accent-chip-color' as string]: swatchColor } };
+                    const swatchColor =
+                      resolvedMode === 'dark' ? accent.swatchDark : accent.swatchLight;
+                    const swatchStyleProps = {
+                      style: { ['--theme-accent-chip-color' as string]: swatchColor },
+                    };
                     return (
                       <button
                         key={accent.id}
@@ -1034,7 +1387,11 @@ export const SettingsModal = memo(function SettingsModal({
               </SettingsSection>
 
               <SettingsSection title={msg.iconEffectTitle}>
-                <OptionGroup value={iconEffect} options={iconEffectOptions} onChange={onIconEffectChange} />
+                <OptionGroup
+                  value={iconEffect}
+                  options={iconEffectOptions}
+                  onChange={onIconEffectChange}
+                />
                 <p className="small-text settings-icon-effect-hint">{msg.iconEffectHint}</p>
               </SettingsSection>
             </div>
@@ -1053,7 +1410,11 @@ export const SettingsModal = memo(function SettingsModal({
             <div className="settings-sections-stack">
               {hasAnyOverride && (
                 <div className="settings-shortcuts-toolbar">
-                  <button type="button" className="settings-link-btn" onClick={handleResetAllKeybindings}>
+                  <button
+                    type="button"
+                    className="settings-link-btn"
+                    onClick={handleResetAllKeybindings}
+                  >
                     {msg.shortcutResetAll}
                   </button>
                 </div>
@@ -1072,7 +1433,9 @@ export const SettingsModal = memo(function SettingsModal({
                               {isEditing ? (
                                 <span className="shortcuts-recording-indicator">
                                   {msg.shortcutRecording}
-                                  <span className="shortcuts-esc-hint">{msg.shortcutEscCancel}</span>
+                                  <span className="shortcuts-esc-hint">
+                                    {msg.shortcutEscCancel}
+                                  </span>
                                 </span>
                               ) : (
                                 <kbd
@@ -1081,7 +1444,9 @@ export const SettingsModal = memo(function SettingsModal({
                                   tabIndex={0}
                                   title={msg.shortcutClickToEdit}
                                   onClick={() => setEditingKeybindingId(entry.id)}
-                                  onKeyDown={(e) => { if (e.key === 'Enter') setEditingKeybindingId(entry.id); }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') setEditingKeybindingId(entry.id);
+                                  }}
                                 >
                                   {formatKeyComboForDisplay(effective)}
                                 </kbd>
@@ -1090,7 +1455,9 @@ export const SettingsModal = memo(function SettingsModal({
                             <td className="shortcuts-panel-desc">
                               {entry.label}
                               {isOverridden && !isEditing && (
-                                <span className="shortcuts-customized-badge">{msg.shortcutCustomized}</span>
+                                <span className="shortcuts-customized-badge">
+                                  {msg.shortcutCustomized}
+                                </span>
                               )}
                             </td>
                             <td className="shortcuts-panel-scope">
@@ -1102,8 +1469,10 @@ export const SettingsModal = memo(function SettingsModal({
                                 >
                                   {msg.shortcutReset}
                                 </button>
+                              ) : entry.scope === 'waveform' ? (
+                                shortcutsMsg.scopeWaveform
                               ) : (
-                                entry.scope === 'waveform' ? shortcutsMsg.scopeWaveform : shortcutsMsg.scopeGlobal
+                                shortcutsMsg.scopeGlobal
                               )}
                             </td>
                           </tr>
@@ -1123,17 +1492,26 @@ export const SettingsModal = memo(function SettingsModal({
                 <p className="settings-ai-loading">…</p>
               ) : aiSettings ? (
                 <div className="settings-sections-stack">
-                  <SettingsSection title={msg.aiProviderLabel} className="settings-ai-provider-selector-section">
+                  <SettingsSection
+                    title={msg.aiProviderLabel}
+                    className="settings-ai-provider-selector-section"
+                  >
                     <div className="settings-inline-row">
                       <select
                         className="settings-select"
                         value={aiSettings.providerKind}
-                        onChange={(e) => handleAiSettingsChange({ providerKind: e.currentTarget.value as AiChatProviderKind })}
+                        onChange={(e) =>
+                          handleAiSettingsChange({
+                            providerKind: e.currentTarget.value as AiChatProviderKind,
+                          })
+                        }
                       >
                         {aiProviderGroups.map((group) => (
                           <optgroup key={group.label} label={group.label}>
                             {group.items.map((provider) => (
-                              <option key={provider.kind} value={provider.kind}>{provider.label}</option>
+                              <option key={provider.kind} value={provider.kind}>
+                                {provider.label}
+                              </option>
                             ))}
                           </optgroup>
                         ))}
@@ -1142,17 +1520,26 @@ export const SettingsModal = memo(function SettingsModal({
                     </div>
                   </SettingsSection>
                   {activeAiProviderDef.fields.length > 0 && (
-                    <SettingsSection title={activeAiProviderDef.label} className="settings-ai-provider-fields-section">
+                    <SettingsSection
+                      title={activeAiProviderDef.label}
+                      className="settings-ai-provider-fields-section"
+                    >
                       {activeAiProviderDef.fields.map((field) => (
                         <SettingRow key={field.key} label={field.label}>
                           {field.type === 'select' ? (
                             <select
                               className="settings-select"
                               value={String(aiSettings[field.key] ?? '')}
-                              onChange={(e) => handleAiSettingsChange({ [field.key]: e.currentTarget.value } as Partial<AiChatSettings>)}
+                              onChange={(e) =>
+                                handleAiSettingsChange({
+                                  [field.key]: e.currentTarget.value,
+                                } as Partial<AiChatSettings>)
+                              }
                             >
                               {(field.options ?? []).map((opt) => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
                               ))}
                             </select>
                           ) : (
@@ -1161,7 +1548,11 @@ export const SettingsModal = memo(function SettingsModal({
                               type={field.type}
                               value={String(aiSettings[field.key] ?? '')}
                               placeholder={field.placeholder}
-                              onChange={(e) => handleAiSettingsChange({ [field.key]: e.currentTarget.value } as Partial<AiChatSettings>)}
+                              onChange={(e) =>
+                                handleAiSettingsChange({
+                                  [field.key]: e.currentTarget.value,
+                                } as Partial<AiChatSettings>)
+                              }
                             />
                           )}
                         </SettingRow>
@@ -1172,7 +1563,10 @@ export const SettingsModal = memo(function SettingsModal({
                     <SettingRow label={msg.aiEmbeddingProviderLabel}>
                       <OptionGroup
                         value={embeddingProviderDefault.kind}
-                        options={EMBEDDING_PROVIDER_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+                        options={EMBEDDING_PROVIDER_OPTIONS.map((option) => ({
+                          value: option.value,
+                          label: option.label,
+                        }))}
                         onChange={handleEmbeddingProviderKindChange}
                       />
                     </SettingRow>
@@ -1189,7 +1583,9 @@ export const SettingsModal = memo(function SettingsModal({
                         className="settings-input"
                         value={embeddingProviderDefault.baseUrl ?? ''}
                         placeholder={msg.aiEmbeddingBaseUrlPlaceholder}
-                        onChange={(e) => handleEmbeddingProviderBaseUrlChange(e.currentTarget.value)}
+                        onChange={(e) =>
+                          handleEmbeddingProviderBaseUrlChange(e.currentTarget.value)
+                        }
                       />
                     </SettingRow>
                     <SettingRow label={msg.aiEmbeddingApiKeyLabel}>
@@ -1215,7 +1611,9 @@ export const SettingsModal = memo(function SettingsModal({
                       <OptionGroup
                         value={acousticRuntimeDraft.externalProvider.enabled ? 'on' : 'off'}
                         options={toggleOptions}
-                        onChange={(value) => handleAcousticRuntimeExternalEnabledChange(value === 'on')}
+                        onChange={(value) =>
+                          handleAcousticRuntimeExternalEnabledChange(value === 'on')
+                        }
                       />
                     </SettingRow>
                     <SettingRow label={msg.aiAcousticEndpointLabel}>
@@ -1235,18 +1633,28 @@ export const SettingsModal = memo(function SettingsModal({
                           max={120000}
                           step={100}
                           value={acousticRuntimeDraft.externalProvider.timeoutMs}
-                          onChange={(e) => handleAcousticRuntimeTimeoutChange(Number(e.currentTarget.value))}
+                          onChange={(e) =>
+                            handleAcousticRuntimeTimeoutChange(Number(e.currentTarget.value))
+                          }
                         />
                         <span className="settings-range-value">ms</span>
                       </div>
                     </SettingRow>
                     <div className="settings-inline-row">
-                      <button type="button" className="settings-link-btn" onClick={handleAcousticRuntimeSave}>
+                      <button
+                        type="button"
+                        className="settings-link-btn"
+                        onClick={handleAcousticRuntimeSave}
+                      >
                         {msg.aiAcousticSaveButton}
                       </button>
-                      {acousticRuntimeSaved ? <span className="settings-save-flash">{msg.aiSaved}</span> : null}
+                      {acousticRuntimeSaved ? (
+                        <span className="settings-save-flash">{msg.aiSaved}</span>
+                      ) : null}
                     </div>
-                    {acousticRuntimeError ? <p className="settings-ai-note">{acousticRuntimeError}</p> : null}
+                    {acousticRuntimeError ? (
+                      <p className="settings-ai-note">{acousticRuntimeError}</p>
+                    ) : null}
                   </SettingsSection>
 
                   <SettingsSection title={msg.aiVoiceDefaultsTitle}>
@@ -1254,10 +1662,16 @@ export const SettingsModal = memo(function SettingsModal({
                       <select
                         className="settings-select"
                         value={voiceCommercialConfig.kind}
-                        onChange={(e) => handleVoiceCommercialKindChange(e.currentTarget.value as CommercialProviderKind)}
+                        onChange={(e) =>
+                          handleVoiceCommercialKindChange(
+                            e.currentTarget.value as CommercialProviderKind,
+                          )
+                        }
                       >
                         {VOICE_COMMERCIAL_PROVIDER_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
                         ))}
                       </select>
                     </SettingRow>
@@ -1267,7 +1681,9 @@ export const SettingsModal = memo(function SettingsModal({
                         type="password"
                         value={voiceCommercialConfig.config.apiKey ?? ''}
                         placeholder={msg.aiVoiceApiKeyPlaceholder}
-                        onChange={(e) => handleVoiceCommercialConfigPatch({ apiKey: e.currentTarget.value })}
+                        onChange={(e) =>
+                          handleVoiceCommercialConfigPatch({ apiKey: e.currentTarget.value })
+                        }
                       />
                     </SettingRow>
                     <SettingRow label={msg.aiVoiceBaseUrlLabel}>
@@ -1275,7 +1691,9 @@ export const SettingsModal = memo(function SettingsModal({
                         className="settings-input"
                         value={voiceCommercialConfig.config.baseUrl ?? ''}
                         placeholder={msg.aiVoiceBaseUrlPlaceholder}
-                        onChange={(e) => handleVoiceCommercialConfigPatch({ baseUrl: e.currentTarget.value })}
+                        onChange={(e) =>
+                          handleVoiceCommercialConfigPatch({ baseUrl: e.currentTarget.value })
+                        }
                       />
                     </SettingRow>
                     <SettingRow label={msg.aiVoiceModelLabel}>
@@ -1283,14 +1701,18 @@ export const SettingsModal = memo(function SettingsModal({
                         className="settings-input"
                         value={voiceCommercialConfig.config.model ?? ''}
                         placeholder={msg.aiVoiceModelPlaceholder}
-                        onChange={(e) => handleVoiceCommercialConfigPatch({ model: e.currentTarget.value })}
+                        onChange={(e) =>
+                          handleVoiceCommercialConfigPatch({ model: e.currentTarget.value })
+                        }
                       />
                     </SettingRow>
                     <SettingRow label={msg.aiVoiceAppIdLabel}>
                       <input
                         className="settings-input"
                         value={voiceCommercialConfig.config.appId ?? ''}
-                        onChange={(e) => handleVoiceCommercialConfigPatch({ appId: e.currentTarget.value })}
+                        onChange={(e) =>
+                          handleVoiceCommercialConfigPatch({ appId: e.currentTarget.value })
+                        }
                       />
                     </SettingRow>
                     <SettingRow label={msg.aiVoiceAccessTokenLabel}>
@@ -1298,33 +1720,47 @@ export const SettingsModal = memo(function SettingsModal({
                         className="settings-input"
                         type="password"
                         value={voiceCommercialConfig.config.accessToken ?? ''}
-                        onChange={(e) => handleVoiceCommercialConfigPatch({ accessToken: e.currentTarget.value })}
+                        onChange={(e) =>
+                          handleVoiceCommercialConfigPatch({ accessToken: e.currentTarget.value })
+                        }
                       />
                     </SettingRow>
                     <SettingRow label={msg.aiVoiceWhisperBaseUrlLabel}>
                       <input
                         className="settings-input"
                         value={voiceLocalWhisperConfig.baseUrl ?? ''}
-                        onChange={(e) => handleVoiceLocalWhisperPatch({ baseUrl: e.currentTarget.value })}
+                        onChange={(e) =>
+                          handleVoiceLocalWhisperPatch({ baseUrl: e.currentTarget.value })
+                        }
                       />
                     </SettingRow>
                     <SettingRow label={msg.aiVoiceWhisperModelLabel}>
                       <input
                         className="settings-input"
                         value={voiceLocalWhisperConfig.model ?? ''}
-                        onChange={(e) => handleVoiceLocalWhisperPatch({ model: e.currentTarget.value })}
+                        onChange={(e) =>
+                          handleVoiceLocalWhisperPatch({ model: e.currentTarget.value })
+                        }
                       />
                     </SettingRow>
                     <SettingRow label={msg.aiVoiceEnhancementKindLabel}>
                       <select
                         className="settings-select"
                         value={voiceEnhancementSelection.kind}
-                        onChange={(e) => handleVoiceEnhancementKindChange(
-                          e.currentTarget.value as 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize',
-                        )}
+                        onChange={(e) =>
+                          handleVoiceEnhancementKindChange(
+                            e.currentTarget.value as
+                              | 'none'
+                              | 'whisperx-align'
+                              | 'mfa-align'
+                              | 'pyannote-diarize',
+                          )
+                        }
                       >
                         {VOICE_ENHANCEMENT_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
                         ))}
                       </select>
                     </SettingRow>
@@ -1332,21 +1768,27 @@ export const SettingsModal = memo(function SettingsModal({
                       <input
                         className="settings-input"
                         value={voiceEnhancementSelection.config.endpointUrl ?? ''}
-                        onChange={(e) => handleVoiceEnhancementConfigPatch({ endpointUrl: e.currentTarget.value })}
+                        onChange={(e) =>
+                          handleVoiceEnhancementConfigPatch({ endpointUrl: e.currentTarget.value })
+                        }
                       />
                     </SettingRow>
                     <SettingRow label={msg.aiVoiceEnhancementModelLabel}>
                       <input
                         className="settings-input"
                         value={voiceEnhancementSelection.config.model ?? ''}
-                        onChange={(e) => handleVoiceEnhancementConfigPatch({ model: e.currentTarget.value })}
+                        onChange={(e) =>
+                          handleVoiceEnhancementConfigPatch({ model: e.currentTarget.value })
+                        }
                       />
                     </SettingRow>
                     <SettingRow label={msg.aiVoiceEnhancementLanguageLabel}>
                       <input
                         className="settings-input"
                         value={voiceEnhancementSelection.config.language ?? ''}
-                        onChange={(e) => handleVoiceEnhancementConfigPatch({ language: e.currentTarget.value })}
+                        onChange={(e) =>
+                          handleVoiceEnhancementConfigPatch({ language: e.currentTarget.value })
+                        }
                       />
                     </SettingRow>
                     <p className="settings-ai-note">{msg.aiVoiceApplyHint}</p>
@@ -1423,7 +1865,9 @@ export const SettingsModal = memo(function SettingsModal({
                       max={600}
                       step={10}
                       value={videoPreviewHeightDefault}
-                      onChange={(e) => handleVideoPreviewHeightDefaultChange(Number(e.target.value))}
+                      onChange={(e) =>
+                        handleVideoPreviewHeightDefaultChange(Number(e.target.value))
+                      }
                     />
                     <span className="settings-range-value">{videoPreviewHeightDefault}px</span>
                   </div>
@@ -1438,7 +1882,9 @@ export const SettingsModal = memo(function SettingsModal({
                       max={720}
                       step={10}
                       value={videoRightPanelWidthDefault}
-                      onChange={(e) => handleVideoRightPanelWidthDefaultChange(Number(e.target.value))}
+                      onChange={(e) =>
+                        handleVideoRightPanelWidthDefaultChange(Number(e.target.value))
+                      }
                     />
                     <span className="settings-range-value">{videoRightPanelWidthDefault}px</span>
                   </div>
@@ -1497,7 +1943,9 @@ export const SettingsModal = memo(function SettingsModal({
                       value={waveformAmplitudeDefault}
                       onChange={(e) => handleWaveformAmplitudeDefaultChange(Number(e.target.value))}
                     />
-                    <span className="settings-range-value">{waveformAmplitudeDefault.toFixed(2)}x</span>
+                    <span className="settings-range-value">
+                      {waveformAmplitudeDefault.toFixed(2)}x
+                    </span>
                   </div>
                 </SettingRow>
                 <SettingRow label={msg.waveformVisualStyleLabel}>
@@ -1553,17 +2001,25 @@ export const SettingsModal = memo(function SettingsModal({
                     onChange={(e) => handleMapProviderStyleChange(e.currentTarget.value)}
                   >
                     {getMapStyleOptions(mapProviderDefault.kind).map((style) => (
-                      <option key={style.value} value={style.value}>{style.label}</option>
+                      <option key={style.value} value={style.value}>
+                        {style.label}
+                      </option>
                     ))}
                   </select>
                 </SettingRow>
                 <div className="settings-data-row">
                   <span className="settings-data-label">{msg.dataVoiceDockPositionLabel}</span>
-                  <button type="button" className="settings-link-btn" onClick={handleResetVoiceDockPosition}>
+                  <button
+                    type="button"
+                    className="settings-link-btn"
+                    onClick={handleResetVoiceDockPosition}
+                  >
                     {msg.dataVoiceDockResetBtn}
                   </button>
                 </div>
-                {voiceDockPositionResetAt ? <div className="settings-data-cleared">{msg.dataCleared}</div> : null}
+                {voiceDockPositionResetAt ? (
+                  <div className="settings-data-cleared">{msg.dataCleared}</div>
+                ) : null}
               </SettingsSection>
 
               <SettingsSection title={msg.dataResilienceSectionTitle}>
@@ -1579,7 +2035,9 @@ export const SettingsModal = memo(function SettingsModal({
                     aria-label={resilienceMsg.settingsBackupReminderLabel}
                   />
                 </SettingRow>
-                <p className="small-text settings-icon-effect-hint">{resilienceMsg.settingsBackupReminderHint}</p>
+                <p className="small-text settings-icon-effect-hint">
+                  {resilienceMsg.settingsBackupReminderHint}
+                </p>
                 <SettingRow label={resilienceMsg.settingsDbIntegrityProbeLabel}>
                   <input
                     type="checkbox"
@@ -1592,7 +2050,9 @@ export const SettingsModal = memo(function SettingsModal({
                     aria-label={resilienceMsg.settingsDbIntegrityProbeLabel}
                   />
                 </SettingRow>
-                <p className="small-text settings-icon-effect-hint">{resilienceMsg.settingsDbIntegrityProbeHint}</p>
+                <p className="small-text settings-icon-effect-hint">
+                  {resilienceMsg.settingsDbIntegrityProbeHint}
+                </p>
                 <div className="settings-data-row">
                   <button
                     type="button"
@@ -1646,7 +2106,11 @@ export const SettingsModal = memo(function SettingsModal({
               <SettingsSection title={msg.extensionsHostTitle}>
                 <div className="settings-about-row">
                   <strong>{msg.extensionsHostVersionLabel}</strong>
-                  <span>{extensionsPanel.kind === 'ready' || extensionsPanel.kind === 'error' ? extensionsPanel.hostVersion : (version ?? '—')}</span>
+                  <span>
+                    {extensionsPanel.kind === 'ready' || extensionsPanel.kind === 'error'
+                      ? extensionsPanel.hostVersion
+                      : (version ?? '—')}
+                  </span>
                 </div>
                 <p className="small-text settings-icon-effect-hint">{msg.extensionsBlurb}</p>
               </SettingsSection>
@@ -1656,7 +2120,10 @@ export const SettingsModal = memo(function SettingsModal({
                   <p className="small-text">{msg.extensionsLoading}</p>
                 ) : extensionsPanel.kind === 'error' ? (
                   <>
-                    <p className="small-text">{msg.extensionsLoadFailed}{extensionsPanel.message ? `: ${extensionsPanel.message}` : ''}</p>
+                    <p className="small-text">
+                      {msg.extensionsLoadFailed}
+                      {extensionsPanel.message ? `: ${extensionsPanel.message}` : ''}
+                    </p>
                     {extensionsPanel.items.length === 0 ? (
                       <p className="small-text">{msg.extensionsNone}</p>
                     ) : (
@@ -1675,7 +2142,10 @@ export const SettingsModal = memo(function SettingsModal({
               <SettingsSection title={msg.extensionsAuditTitle}>
                 {extensionsPanel.kind === 'error' ? (
                   <>
-                    <p className="small-text">{msg.extensionsLoadFailed}{extensionsPanel.message ? `: ${extensionsPanel.message}` : ''}</p>
+                    <p className="small-text">
+                      {msg.extensionsLoadFailed}
+                      {extensionsPanel.message ? `: ${extensionsPanel.message}` : ''}
+                    </p>
                     {extensionsPanel.audit.length === 0 ? (
                       <p className="small-text">{msg.extensionsAuditEmpty}</p>
                     ) : (
@@ -1708,8 +2178,12 @@ export const SettingsModal = memo(function SettingsModal({
                     </div>
                   )}
                   <div className="settings-about-browser-support">
-                    <strong className="settings-about-browser-support-title">{msg.aboutBrowserSupportTitle}</strong>
-                    <p className="settings-about-desc settings-about-browser-support-body">{msg.aboutBrowserSupportBody}</p>
+                    <strong className="settings-about-browser-support-title">
+                      {msg.aboutBrowserSupportTitle}
+                    </strong>
+                    <p className="settings-about-desc settings-about-browser-support-body">
+                      {msg.aboutBrowserSupportBody}
+                    </p>
                   </div>
                 </div>
               </SettingsSection>

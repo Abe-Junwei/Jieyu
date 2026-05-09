@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getDb, type AiTaskDoc } from '../db';
-import { buildEmbeddingFallbackWarning, readFallbackReason } from '../ai/embeddings/fallbackWarning';
+import {
+  buildEmbeddingFallbackWarning,
+  readFallbackReason,
+} from '../ai/embeddings/fallbackWarning';
 import { AI_TASKS_UPDATED_EVENT } from '../ai/tasks/taskRefreshEvents';
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { getAiEmbeddingStateMessages } from '../i18n/messages';
@@ -10,7 +13,10 @@ type TaskRunnerLike = {
   retry: (taskId: string) => Promise<string | null>;
 };
 
-type AiTaskRuntimeRow = Pick<AiTaskDoc, 'id' | 'taskType' | 'status' | 'resumable' | 'checkpointJson'>;
+type AiTaskRuntimeRow = Pick<
+  AiTaskDoc,
+  'id' | 'taskType' | 'status' | 'resumable' | 'checkpointJson'
+>;
 
 async function readAiTaskRuntimeRow(taskId: string): Promise<AiTaskRuntimeRow | null> {
   const db = await getDb();
@@ -69,7 +75,14 @@ type EmbeddingServiceLike = {
   terminate: () => void;
   buildEmbeddings: (
     sources: Array<{ sourceType: 'unit'; sourceId: string; text: string }>,
-    options: { onProgress: (progress: { stage: string; processed: number; total: number; runtime?: unknown }) => void },
+    options: {
+      onProgress: (progress: {
+        stage: string;
+        processed: number;
+        total: number;
+        runtime?: unknown;
+      }) => void;
+    },
   ) => Promise<{
     taskId: string;
     total: number;
@@ -80,9 +93,14 @@ type EmbeddingServiceLike = {
     elapsedMs?: number;
     averageBatchMs?: number;
   }>;
-  buildNotesEmbeddings: (
-    options: { onProgress: (progress: { stage: string; processed: number; total: number; runtime?: unknown }) => void },
-  ) => Promise<{
+  buildNotesEmbeddings: (options: {
+    onProgress: (progress: {
+      stage: string;
+      processed: number;
+      total: number;
+      runtime?: unknown;
+    }) => void;
+  }) => Promise<{
     taskId: string;
     total: number;
     generated: number;
@@ -92,9 +110,14 @@ type EmbeddingServiceLike = {
     elapsedMs?: number;
     averageBatchMs?: number;
   }>;
-  buildPdfEmbeddings: (
-    options: { onProgress: (progress: { stage: string; processed: number; total: number; runtime?: unknown }) => void },
-  ) => Promise<{
+  buildPdfEmbeddings: (options: {
+    onProgress: (progress: {
+      stage: string;
+      processed: number;
+      total: number;
+      runtime?: unknown;
+    }) => void;
+  }) => Promise<{
     taskId: string;
     total: number;
     generated: number;
@@ -117,7 +140,18 @@ type UnitLike = {
   endTime: number;
 };
 
-type AiEmbeddingTaskRow = Pick<AiTaskDoc, 'id' | 'taskType' | 'status' | 'updatedAt' | 'modelId' | 'errorMessage' | 'resumable' | 'handoffReason' | 'checkpointJson'>;
+type AiEmbeddingTaskRow = Pick<
+  AiTaskDoc,
+  | 'id'
+  | 'taskType'
+  | 'status'
+  | 'updatedAt'
+  | 'modelId'
+  | 'errorMessage'
+  | 'resumable'
+  | 'handoffReason'
+  | 'checkpointJson'
+>;
 
 type UseAiEmbeddingStateParams = {
   locale: string;
@@ -141,7 +175,10 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
   unitsOnCurrentMedia,
   getUnitTextForLayer,
   formatTime,
-}: Omit<UseAiEmbeddingStateParams, 'selectedUnit' | 'unitsOnCurrentMedia' | 'getUnitTextForLayer'> & {
+}: Omit<
+  UseAiEmbeddingStateParams,
+  'selectedUnit' | 'unitsOnCurrentMedia' | 'getUnitTextForLayer'
+> & {
   selectedUnit: TUnit | null | undefined;
   unitsOnCurrentMedia: TUnit[];
   getUnitTextForLayer: (unit: TUnit, layerId?: string) => string;
@@ -160,12 +197,14 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     averageBatchMs?: number;
   } | null>(null);
   const [aiEmbeddingTasks, setAiEmbeddingTasks] = useState<AiEmbeddingTaskRow[]>([]);
-  const [aiEmbeddingMatches, setAiEmbeddingMatches] = useState<Array<{
-    unitId: string;
-    score: number;
-    label: string;
-    text: string;
-  }>>([]);
+  const [aiEmbeddingMatches, setAiEmbeddingMatches] = useState<
+    Array<{
+      unitId: string;
+      score: number;
+      label: string;
+      text: string;
+    }>
+  >([]);
   const [aiEmbeddingLastError, setAiEmbeddingLastError] = useState<string | null>(null);
   const [aiEmbeddingWarning, setAiEmbeddingWarning] = useState<string | null>(null);
   const messages = getAiEmbeddingStateMessages(locale);
@@ -194,9 +233,8 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     return activeRequestIdRef.current;
   };
 
-  const isRequestActive = (requestId: number): boolean => (
-    isMountedRef.current && activeRequestIdRef.current === requestId
-  );
+  const isRequestActive = (requestId: number): boolean =>
+    isMountedRef.current && activeRequestIdRef.current === requestId;
 
   const refreshEmbeddingTasksNow = useCallback(async () => {
     const db = await getDb();
@@ -220,43 +258,46 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     setAiEmbeddingTasks(normalized);
   }, []);
 
-  const requestRefreshEmbeddingTasks = useCallback(async (force = false) => {
-    const THROTTLE_MS = 800;
-    const now = Date.now();
-    const elapsed = now - lastRefreshAtRef.current;
+  const requestRefreshEmbeddingTasks = useCallback(
+    async (force = false) => {
+      const THROTTLE_MS = 800;
+      const now = Date.now();
+      const elapsed = now - lastRefreshAtRef.current;
 
-    if (!force && elapsed < THROTTLE_MS) {
-      if (refreshTimerRef.current === null) {
-        const waitMs = THROTTLE_MS - elapsed;
-        refreshTimerRef.current = window.setTimeout(() => {
-          refreshTimerRef.current = null;
-          void requestRefreshEmbeddingTasks(true);
-        }, waitMs);
-      }
-      return;
-    }
-
-    if (refreshInFlightRef.current) {
-      refreshQueuedRef.current = true;
-      return;
-    }
-
-    const task = (async () => {
-      try {
-        await refreshEmbeddingTasksNow();
-      } finally {
-        lastRefreshAtRef.current = Date.now();
-        refreshInFlightRef.current = null;
-        if (refreshQueuedRef.current) {
-          refreshQueuedRef.current = false;
-          void requestRefreshEmbeddingTasks(true);
+      if (!force && elapsed < THROTTLE_MS) {
+        if (refreshTimerRef.current === null) {
+          const waitMs = THROTTLE_MS - elapsed;
+          refreshTimerRef.current = window.setTimeout(() => {
+            refreshTimerRef.current = null;
+            void requestRefreshEmbeddingTasks(true);
+          }, waitMs);
         }
+        return;
       }
-    })();
 
-    refreshInFlightRef.current = task;
-    await task;
-  }, [refreshEmbeddingTasksNow]);
+      if (refreshInFlightRef.current) {
+        refreshQueuedRef.current = true;
+        return;
+      }
+
+      const task = (async () => {
+        try {
+          await refreshEmbeddingTasksNow();
+        } finally {
+          lastRefreshAtRef.current = Date.now();
+          refreshInFlightRef.current = null;
+          if (refreshQueuedRef.current) {
+            refreshQueuedRef.current = false;
+            void requestRefreshEmbeddingTasks(true);
+          }
+        }
+      })();
+
+      refreshInFlightRef.current = task;
+      await task;
+    },
+    [refreshEmbeddingTasksNow],
+  );
 
   const refreshEmbeddingTasks = useCallback(async () => {
     await requestRefreshEmbeddingTasks(false);
@@ -300,39 +341,47 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
     };
   }, [enabled, requestRefreshEmbeddingTasks]);
 
-  const handleCancelAiTask = useCallback(async (taskId: string): Promise<boolean> => {
-    const runtimeCancelled = taskRunner.cancel(taskId);
-    const durableCancelled = runtimeCancelled ? false : await markDurableAgentLoopTaskCancelled(taskId);
-    if (!runtimeCancelled && !durableCancelled) {
-      setAiEmbeddingLastError(messages.cancelUnavailable);
+  const handleCancelAiTask = useCallback(
+    async (taskId: string): Promise<boolean> => {
+      const runtimeCancelled = taskRunner.cancel(taskId);
+      const durableCancelled = runtimeCancelled
+        ? false
+        : await markDurableAgentLoopTaskCancelled(taskId);
+      if (!runtimeCancelled && !durableCancelled) {
+        setAiEmbeddingLastError(messages.cancelUnavailable);
+        await refreshEmbeddingTasks();
+        return false;
+      }
+      setAiEmbeddingLastError(null);
       await refreshEmbeddingTasks();
-      return false;
-    }
-    setAiEmbeddingLastError(null);
-    await refreshEmbeddingTasks();
-    return true;
-  }, [messages.cancelUnavailable, refreshEmbeddingTasks, taskRunner]);
+      return true;
+    },
+    [messages.cancelUnavailable, refreshEmbeddingTasks, taskRunner],
+  );
 
-  const handleRetryAiTask = useCallback(async (taskId: string): Promise<boolean> => {
-    let nextTaskId: string | null = null;
-    try {
-      nextTaskId = await taskRunner.retry(taskId);
-    } catch {
-      nextTaskId = null;
-    }
-    if (!nextTaskId) {
-      nextTaskId = await retryDurableAgentLoopTask(taskId);
-    }
-    if (!nextTaskId) {
-      setAiEmbeddingLastError(messages.retryUnavailable);
+  const handleRetryAiTask = useCallback(
+    async (taskId: string): Promise<boolean> => {
+      let nextTaskId: string | null = null;
+      try {
+        nextTaskId = await taskRunner.retry(taskId);
+      } catch {
+        nextTaskId = null;
+      }
+      if (!nextTaskId) {
+        nextTaskId = await retryDurableAgentLoopTask(taskId);
+      }
+      if (!nextTaskId) {
+        setAiEmbeddingLastError(messages.retryUnavailable);
+        await refreshEmbeddingTasks();
+        return false;
+      }
+      setAiEmbeddingLastError(null);
+      setAiEmbeddingProgressLabel(messages.reQueued(nextTaskId));
       await refreshEmbeddingTasks();
-      return false;
-    }
-    setAiEmbeddingLastError(null);
-    setAiEmbeddingProgressLabel(messages.reQueued(nextTaskId));
-    await refreshEmbeddingTasks();
-    return true;
-  }, [messages, refreshEmbeddingTasks, taskRunner]);
+      return true;
+    },
+    [messages, refreshEmbeddingTasks, taskRunner],
+  );
 
   const handleBuildUnitEmbeddings = useCallback(async () => {
     const requestId = beginRequest();
@@ -361,7 +410,9 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
       const result = await embeddingService.buildEmbeddings(sources, {
         onProgress: (progress) => {
           if (!isRequestActive(requestId)) return;
-          const fallbackReason = readFallbackReason(progress.runtime as Parameters<typeof readFallbackReason>[0]);
+          const fallbackReason = readFallbackReason(
+            progress.runtime as Parameters<typeof readFallbackReason>[0],
+          );
           if (fallbackReason !== null) {
             setAiEmbeddingWarning(buildEmbeddingFallbackWarning(locale, fallbackReason));
           }
@@ -390,7 +441,14 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
         setAiEmbeddingBusy(false);
       }
     }
-  }, [embeddingService, getUnitTextForLayer, locale, messages, refreshEmbeddingTasks, unitsOnCurrentMedia]);
+  }, [
+    embeddingService,
+    getUnitTextForLayer,
+    locale,
+    messages,
+    refreshEmbeddingTasks,
+    unitsOnCurrentMedia,
+  ]);
 
   const handleBuildNotesEmbeddings = useCallback(async () => {
     const requestId = beginRequest();
@@ -404,7 +462,9 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
       const result = await embeddingService.buildNotesEmbeddings({
         onProgress: (progress) => {
           if (!isRequestActive(requestId)) return;
-          const fallbackReason = readFallbackReason(progress.runtime as Parameters<typeof readFallbackReason>[0]);
+          const fallbackReason = readFallbackReason(
+            progress.runtime as Parameters<typeof readFallbackReason>[0],
+          );
           if (fallbackReason !== null) {
             setAiEmbeddingWarning(buildEmbeddingFallbackWarning(locale, fallbackReason));
           }
@@ -430,7 +490,7 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
         setAiEmbeddingBusy(false);
       }
     }
-  }, [embeddingService, messages, refreshEmbeddingTasks]);
+  }, [embeddingService, locale, messages, refreshEmbeddingTasks]);
 
   const handleBuildPdfEmbeddings = useCallback(async () => {
     const requestId = beginRequest();
@@ -444,7 +504,9 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
       const result = await embeddingService.buildPdfEmbeddings({
         onProgress: (progress) => {
           if (!isRequestActive(requestId)) return;
-          const fallbackReason = readFallbackReason(progress.runtime as Parameters<typeof readFallbackReason>[0]);
+          const fallbackReason = readFallbackReason(
+            progress.runtime as Parameters<typeof readFallbackReason>[0],
+          );
           if (fallbackReason !== null) {
             setAiEmbeddingWarning(buildEmbeddingFallbackWarning(locale, fallbackReason));
           }
@@ -470,7 +532,7 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
         setAiEmbeddingBusy(false);
       }
     }
-  }, [embeddingService, messages, refreshEmbeddingTasks]);
+  }, [embeddingService, locale, messages, refreshEmbeddingTasks]);
 
   const handleFindSimilarUnits = useCallback(async () => {
     const requestId = beginRequest();
@@ -540,7 +602,14 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
         setAiEmbeddingBusy(false);
       }
     }
-  }, [embeddingSearchService, formatTime, getUnitTextForLayer, messages, selectedUnit, unitsOnCurrentMedia]);
+  }, [
+    embeddingSearchService,
+    formatTime,
+    getUnitTextForLayer,
+    messages,
+    selectedUnit,
+    unitsOnCurrentMedia,
+  ]);
 
   return {
     aiEmbeddingBusy,

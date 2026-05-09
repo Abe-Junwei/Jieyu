@@ -30,7 +30,7 @@ export function useDebouncedCallback<T extends (...args: never[]) => void>(
         argsRef.current = null;
       }
     }
-  }, []);
+  }, [callbackRef]);
 
   const run = useCallback(
     (...args: Parameters<T>) => {
@@ -42,7 +42,7 @@ export function useDebouncedCallback<T extends (...args: never[]) => void>(
         callbackRef.current(...args);
       }, delayMs);
     },
-    [delayMs],
+    [callbackRef, delayMs],
   );
 
   // Cleanup on unmount

@@ -77,11 +77,19 @@ export interface DictationPipelineCallbacks {
   /** 获取当前选中的句段 ID */
   getCurrentSegmentId: () => string | null;
   /** 写回前按目标层做文本变换 | Transform text for target layer before fill */
-  transformTextForFill?: (input: { layer: AnnotationLayer; text: string; segmentId: string }) => Promise<string>;
+  transformTextForFill?: (input: {
+    layer: AnnotationLayer;
+    text: string;
+    segmentId: string;
+  }) => Promise<string>;
   /** 填充文本到句段 */
   fillSegment: (segmentId: string, layer: AnnotationLayer, text: string) => Promise<void>;
   /** 恢复句段文本（用于撤销） */
-  restoreSegment: (segmentId: string, layer: AnnotationLayer, previousText: string | null) => Promise<void>;
+  restoreSegment: (
+    segmentId: string,
+    layer: AnnotationLayer,
+    previousText: string | null,
+  ) => Promise<void>;
   /** 导航到指定句段（支持同步或异步实现）| Navigate to segment (sync or async impl) */
   navigateTo: (segmentId: string) => Promise<void> | void;
   /** 导航到下一个未标注句段 */
@@ -101,7 +109,11 @@ export class SpeechAnnotationPipeline {
   private _silenceTimer: ReturnType<typeof setTimeout> | null = null;
   private _maxDurationTimer: ReturnType<typeof setTimeout> | null = null;
   private _lastFinalText = '';
-  private _filledHistory: Array<{ segmentId: string; layer: AnnotationLayer; previousText: string | null }> = [];
+  private _filledHistory: Array<{
+    segmentId: string;
+    layer: AnnotationLayer;
+    previousText: string | null;
+  }> = [];
 
   constructor(callbacks: DictationPipelineCallbacks, config: QuickDictationConfig = {}) {
     this._callbacks = callbacks;
@@ -259,7 +271,7 @@ export class SpeechAnnotationPipeline {
       this._currentSegmentIndex = restoredIdx;
       const segment = this._segments[restoredIdx] ?? null;
       this._state = { ...this._state, currentSegment: segment };
-      if (segment) this._callbacks.navigateTo(segment.segmentId);
+      if (segment) await this._callbacks.navigateTo(segment.segmentId);
     }
   }
 
@@ -286,7 +298,7 @@ export class SpeechAnnotationPipeline {
       this._currentSegmentIndex = 0;
       const segment = this._segments[0] ?? null;
       this._state = { ...this._state, currentSegment: segment };
-      if (segment) this._callbacks.navigateTo(segment.segmentId);
+      if (segment) await this._callbacks.navigateTo(segment.segmentId);
     }
     return count;
   }
@@ -297,19 +309,26 @@ export class SpeechAnnotationPipeline {
     const segment = this._state.currentSegment;
     if (!segment) return;
 
-    const previousText = this._config.targetLayer === 'transcription'
-      ? segment.existingText
-      : (this._config.targetLayer === 'translation' ? segment.existingTranslation : null);
+    const previousText =
+      this._config.targetLayer === 'transcription'
+        ? segment.existingText
+        : this._config.targetLayer === 'translation'
+          ? segment.existingTranslation
+          : null;
 
     try {
       const transformedText = this._callbacks.transformTextForFill
         ? await this._callbacks.transformTextForFill({
-          layer: this._config.targetLayer,
-          text,
-          segmentId: segment.segmentId,
-        })
+            layer: this._config.targetLayer,
+            text,
+            segmentId: segment.segmentId,
+          })
         : text;
-      await this._callbacks.fillSegment(segment.segmentId, this._config.targetLayer, transformedText);
+      await this._callbacks.fillSegment(
+        segment.segmentId,
+        this._config.targetLayer,
+        transformedText,
+      );
       this._filledHistory.push({
         segmentId: segment.segmentId,
         layer: this._config.targetLayer,
@@ -335,7 +354,7 @@ export class SpeechAnnotationPipeline {
       if (this._config.autoAdvance) {
         // Small delay so user sees the result before advancing
         await new Promise<void>((resolve) => setTimeout(resolve, 400));
-        this._advanceToNext();
+        await this._advanceToNext();
       } else if (this._config.autoStopOnComplete) {
         this.stop();
       }

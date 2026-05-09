@@ -29,24 +29,24 @@ export function useReadyWorkspaceRenderController(input: UseReadyWorkspaceRender
     }
     setHasActivatedAiSidebar(true);
     input.flushDeferredAiRuntime();
-  }, [input.flushDeferredAiRuntime, input.isAiPanelCollapsed]);
+  }, [input, input.flushDeferredAiRuntime, input.isAiPanelCollapsed]);
 
   useEffect(() => {
     if (!input.aiPendingToolCall) return;
     input.setHubSidebarTab('assistant');
     setHasActivatedAiSidebar(true);
     input.setIsAiPanelCollapsed(false);
-  }, [input.aiPendingToolCall, input.setHubSidebarTab, input.setIsAiPanelCollapsed]);
+  }, [input, input.aiPendingToolCall, input.setHubSidebarTab, input.setIsAiPanelCollapsed]);
 
   return {
     shouldRenderAiSidebar: hasActivatedAiSidebar || !input.isAiPanelCollapsed,
     shouldRenderDialogs: Boolean(
-      input.showProjectSetup
-        || input.showAudioImport
-        || input.audioDeleteConfirm
-        || input.projectDeleteConfirm
-        || input.showShortcuts
-        || input.isFocusMode,
+      input.showProjectSetup ||
+      input.showAudioImport ||
+      input.audioDeleteConfirm ||
+      input.projectDeleteConfirm ||
+      input.showShortcuts ||
+      input.isFocusMode,
     ),
     shouldRenderPdfRuntime: input.pdfPreviewRequest !== null,
     shouldRenderBatchOps: input.showBatchOperationPanel,

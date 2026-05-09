@@ -4,21 +4,53 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { liveQuery } from 'dexie';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type { LayerDocType, LayerLinkDocType, LayerSegmentViewDocType, LayerUnitContentViewDocType, LayerUnitDocType, LayerUnitStatus, NoteCategory, SegmentMetaDocType, SpeakerDocType } from '../db';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerSegmentViewDocType,
+  LayerUnitContentViewDocType,
+  LayerUnitDocType,
+  LayerUnitStatus,
+  NoteCategory,
+  SegmentMetaDocType,
+  SpeakerDocType,
+} from '../db';
 import { createTimelineUnit, type TimelineUnit } from '../hooks/transcriptionTypes';
 import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { formatTime } from '../utils/transcriptionFormatters';
 import { type UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import { resolveHostUnitStrictMedia } from '../utils/segmentHostResolution';
-import { ANNOTATION_STATUS_ORDER as SEGMENT_ANNOTATION_STATUS_ORDER, CERTAINTY_ORDER as SEGMENT_CERTAINTY_ORDER, NOTE_CATEGORY_ORDER as SEGMENT_NOTE_CATEGORY_ORDER, SOURCE_TYPE_ORDER as SEGMENT_SOURCE_TYPE_ORDER, computeSegmentReviewIssueFlags, getAnnotationStatusLabel as getSegmentAnnotationStatusLabel, getCertaintyLabel as getSegmentCertaintyLabel, getContentStateLabel as getSegmentContentStateLabel, getNoteCategoryLabel as getSegmentNoteCategoryLabel, getReviewPresetLabel as getSegmentReviewPresetLabel, getSourceTypeLabel as getSegmentSourceTypeLabel, matchesReviewPreset, resolveSpeakerLabel as resolveSegmentSpeakerLabel, type SegmentContentStateFilter, type SegmentReviewIssueFlags, type SegmentReviewPreset } from './sidePaneSegmentListViewModel';
+import {
+  ANNOTATION_STATUS_ORDER as SEGMENT_ANNOTATION_STATUS_ORDER,
+  CERTAINTY_ORDER as SEGMENT_CERTAINTY_ORDER,
+  NOTE_CATEGORY_ORDER as SEGMENT_NOTE_CATEGORY_ORDER,
+  SOURCE_TYPE_ORDER as SEGMENT_SOURCE_TYPE_ORDER,
+  computeSegmentReviewIssueFlags,
+  getAnnotationStatusLabel as getSegmentAnnotationStatusLabel,
+  getCertaintyLabel as getSegmentCertaintyLabel,
+  getContentStateLabel as getSegmentContentStateLabel,
+  getNoteCategoryLabel as getSegmentNoteCategoryLabel,
+  getReviewPresetLabel as getSegmentReviewPresetLabel,
+  getSourceTypeLabel as getSegmentSourceTypeLabel,
+  matchesReviewPreset,
+  resolveSpeakerLabel as resolveSegmentSpeakerLabel,
+  type SegmentContentStateFilter,
+  type SegmentReviewIssueFlags,
+  type SegmentReviewPreset,
+} from './sidePaneSegmentListViewModel';
 import { SegmentMetaService } from '../services/SegmentMetaService';
 
 interface SidePaneSidebarSegmentListProps {
   focusedLayerRowId: string;
   messages: SidePaneSidebarMessages;
   layers?: LayerDocType[];
-  layerLinks?: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
+  layerLinks?: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >;
   defaultTranscriptionLayerId?: string;
   segmentsByLayer?: ReadonlyMap<string, LayerSegmentViewDocType[]>;
   segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentViewDocType>>;
@@ -57,7 +89,13 @@ type FacetOption = {
   count: number;
 };
 
-type FacetCategoryKey = 'contentState' | 'annotationStatus' | 'sourceType' | 'speaker' | 'noteCategory' | 'certainty';
+type FacetCategoryKey =
+  | 'contentState'
+  | 'annotationStatus'
+  | 'sourceType'
+  | 'speaker'
+  | 'noteCategory'
+  | 'certainty';
 
 type ReviewPresetOption = {
   value: SegmentReviewPreset | 'all';
@@ -95,14 +133,16 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   const [sourceTypeFilters, setSourceTypeFilters] = useState<SegmentSourceType[]>([]);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [activeFacetCategory, setActiveFacetCategory] = useState<FacetCategoryKey | ''>('');
-  const [activeReviewPreset, setActiveReviewPreset] = useState<SegmentReviewPreset | 'all' | ''>('');
+  const [activeReviewPreset, setActiveReviewPreset] = useState<SegmentReviewPreset | 'all' | ''>(
+    '',
+  );
   const [reviewCursor, setReviewCursor] = useState(0);
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
   const segmentScrollRef = useRef<HTMLDivElement | null>(null);
   const [segmentMetaRows, setSegmentMetaRows] = useState<SegmentMetaDocType[]>([]);
   const [segmentMetaLoading, setSegmentMetaLoading] = useState(false);
   const [segmentMetaHydrated, setSegmentMetaHydrated] = useState(false);
-  const mediaUnits = unitsOnCurrentMedia ?? [];
+  const mediaUnits = useMemo(() => unitsOnCurrentMedia ?? [], [unitsOnCurrentMedia]);
 
   const speakerById = useMemo(
     () => new Map(speakers.map((speaker) => [speaker.id, speaker] as const)),
@@ -117,17 +157,32 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     [focusedLayerRowId, layerById],
   );
   const sourceLayer = useMemo(
-    () => (focusedLayer ? resolveSegmentTimelineSourceLayer(focusedLayer, layerById, defaultTranscriptionLayerId, layerLinks) : undefined),
+    () =>
+      focusedLayer
+        ? resolveSegmentTimelineSourceLayer(
+            focusedLayer,
+            layerById,
+            defaultTranscriptionLayerId,
+            layerLinks,
+          )
+        : undefined,
     [defaultTranscriptionLayerId, focusedLayer, layerById, layerLinks],
   );
 
   const activeMediaId = useMemo(() => {
-    const unitMediaId = mediaUnits.find((unit) => (unit.mediaId?.trim() ?? '').length > 0)?.mediaId?.trim();
+    const unitMediaId = mediaUnits
+      .find((unit) => (unit.mediaId?.trim() ?? '').length > 0)
+      ?.mediaId?.trim();
     if (unitMediaId) return unitMediaId;
 
     const sourceLayerId = sourceLayer?.id ?? focusedLayer?.id;
     if (!sourceLayerId) return '';
-    return segmentsByLayer?.get(sourceLayerId)?.find((segment) => (segment.mediaId?.trim() ?? '').length > 0)?.mediaId?.trim() ?? '';
+    return (
+      segmentsByLayer
+        ?.get(sourceLayerId)
+        ?.find((segment) => (segment.mediaId?.trim() ?? '').length > 0)
+        ?.mediaId?.trim() ?? ''
+    );
   }, [focusedLayer, mediaUnits, segmentsByLayer, sourceLayer]);
 
   const sourceLayerId = sourceLayer?.id ?? focusedLayer?.id ?? '';
@@ -155,9 +210,17 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   const segmentListLoading = useMemo(() => {
     const hasFocusedLayer = focusedLayerRowId.trim().length > 0;
     const hasSourceLayerHint = Boolean(sourceLayer?.id ?? focusedLayer?.id);
-    const waitingScopeHydration = unitsOnCurrentMedia === undefined || segmentsByLayer === undefined;
+    const waitingScopeHydration =
+      unitsOnCurrentMedia === undefined || segmentsByLayer === undefined;
     return hasFocusedLayer && hasSourceLayerHint && !activeMediaId.trim() && waitingScopeHydration;
-  }, [activeMediaId, focusedLayer, focusedLayerRowId, segmentsByLayer, sourceLayer, unitsOnCurrentMedia]);
+  }, [
+    activeMediaId,
+    focusedLayer,
+    focusedLayerRowId,
+    segmentsByLayer,
+    sourceLayer,
+    unitsOnCurrentMedia,
+  ]);
 
   useEffect(() => {
     const layerId = segmentMetaScopeLayerId;
@@ -172,7 +235,9 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     setSegmentMetaLoading(true);
     setSegmentMetaHydrated(false);
     let cancelled = false;
-    const subscription = liveQuery(() => SegmentMetaService.listByLayerMedia(layerId, mediaId)).subscribe({
+    const subscription = liveQuery(() =>
+      SegmentMetaService.listByLayerMedia(layerId, mediaId),
+    ).subscribe({
       next: (rows) => {
         if (cancelled) return;
         setSegmentMetaRows(rows);
@@ -197,18 +262,37 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   useEffect(() => {
     const layerId = segmentMetaScopeLayerId;
     const mediaId = activeMediaId.trim();
-    const hasRawItems = sourceSegments.length > 0
-      || mediaUnits.some((unit) => (unit.mediaId?.trim() ?? '') === mediaId);
-    if (!segmentMetaHydrated || segmentMetaLoading || !layerId || !mediaId || !hasRawItems || segmentMetaRows.length > 0) {
+    const hasRawItems =
+      sourceSegments.length > 0 ||
+      mediaUnits.some((unit) => (unit.mediaId?.trim() ?? '') === mediaId);
+    if (
+      !segmentMetaHydrated ||
+      segmentMetaLoading ||
+      !layerId ||
+      !mediaId ||
+      !hasRawItems ||
+      segmentMetaRows.length > 0
+    ) {
       return () => undefined;
     }
 
     void SegmentMetaService.rebuildForLayerMedia(layerId, mediaId).catch(() => undefined);
     return () => undefined;
-  }, [activeMediaId, mediaUnits, segmentMetaHydrated, segmentMetaLoading, segmentMetaRows.length, segmentMetaScopeLayerId, sourceSegments.length]);
+  }, [
+    activeMediaId,
+    mediaUnits,
+    segmentMetaHydrated,
+    segmentMetaLoading,
+    segmentMetaRows.length,
+    segmentMetaScopeLayerId,
+    sourceSegments.length,
+  ]);
 
   const fallbackItems = useMemo<SegmentListItem[]>(() => {
-    const resolveLiveText = (unit: LayerUnitDocType | undefined, layerId?: string): {
+    const resolveLiveText = (
+      unit: LayerUnitDocType | undefined,
+      layerId?: string,
+    ): {
       text: string;
       source: SegmentListItem['textSource'];
     } => {
@@ -240,9 +324,11 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
 
       const exactTimingMatch = mediaUnits.find((unit) => {
         const sameMedia = (unit.mediaId?.trim() ?? '') === (segment.mediaId?.trim() ?? '');
-        return sameMedia
-          && Math.abs(unit.startTime - segment.startTime) < 0.05
-          && Math.abs(unit.endTime - segment.endTime) < 0.05;
+        return (
+          sameMedia &&
+          Math.abs(unit.startTime - segment.startTime) < 0.05 &&
+          Math.abs(unit.endTime - segment.endTime) < 0.05
+        );
       });
       if (exactTimingMatch) return exactTimingMatch;
 
@@ -261,13 +347,23 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     if (sourceSegments.length > 0) {
       return sourceSegments.map((segment): SegmentListItem => {
         const linkedUnit = resolveLinkedUnit(segment);
-        const segmentTextLayerIds = [...new Set([focusedLayerRowId, sourceLayerId].filter((value): value is string => value.trim().length > 0))];
-        const directSegmentText = segmentTextLayerIds
-          .map((layerId) => segmentContentByLayer?.get(layerId)?.get(segment.id)?.text?.trim() ?? '')
-          .find((value) => value.length > 0) ?? '';
-        const liveText = directSegmentText.length > 0
-          ? { text: directSegmentText, source: 'live-layer' as const }
-          : resolveLiveText(linkedUnit, focusedLayerRowId || sourceLayerId || undefined);
+        const segmentTextLayerIds = [
+          ...new Set(
+            [focusedLayerRowId, sourceLayerId].filter(
+              (value): value is string => value.trim().length > 0,
+            ),
+          ),
+        ];
+        const directSegmentText =
+          segmentTextLayerIds
+            .map(
+              (layerId) => segmentContentByLayer?.get(layerId)?.get(segment.id)?.text?.trim() ?? '',
+            )
+            .find((value) => value.length > 0) ?? '';
+        const liveText =
+          directSegmentText.length > 0
+            ? { text: directSegmentText, source: 'live-layer' as const }
+            : resolveLiveText(linkedUnit, focusedLayerRowId || sourceLayerId || undefined);
         const text = liveText.text;
         // speakerId 是 unit-intrinsic 字段（跨层共享语义正确），可以向宿主回退。
         // speakerId is unit-intrinsic; falling back to the host unit is semantically correct.
@@ -284,7 +380,11 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
 
         return {
           key: `${focusedLayerRowId}::fallback::${segment.id}`,
-          unit: createTimelineUnit(displayLayerId || sourceLayerId || focusedLayerRowId, segment.id, 'segment'),
+          unit: createTimelineUnit(
+            displayLayerId || sourceLayerId || focusedLayerRowId,
+            segment.id,
+            'segment',
+          ),
           startTime: segment.startTime,
           endTime: segment.endTime,
           text,
@@ -303,7 +403,9 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     }
 
     return mediaUnits
-      .filter((unit) => !activeMediaId.trim() || (unit.mediaId?.trim() ?? '') === activeMediaId.trim())
+      .filter(
+        (unit) => !activeMediaId.trim() || (unit.mediaId?.trim() ?? '') === activeMediaId.trim(),
+      )
       .map((unit): SegmentListItem => {
         const liveText = resolveLiveText(unit, focusedLayerRowId || undefined);
         const text = liveText.text;
@@ -332,25 +434,38 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
           skipProcessing: unit.tags?.skipProcessing === true,
         };
       });
-  }, [activeMediaId, displayLayerId, focusedLayerRowId, getUnitTextForLayer, mediaUnits, messages, segmentContentByLayer, sourceLayerId, sourceSegments, speakerById, unitById]);
+  }, [
+    activeMediaId,
+    displayLayerId,
+    focusedLayerRowId,
+    getUnitTextForLayer,
+    mediaUnits,
+    segmentContentByLayer,
+    sourceLayerId,
+    sourceSegments,
+    speakerById,
+    unitById,
+  ]);
 
   const rawItems = useMemo<SegmentListItem[]>(() => {
     const metaItems: SegmentListItem[] = segmentMetaRows.map((row): SegmentListItem => {
-    const text = row.text.trim();
-    const speakerKey = row.effectiveSpeakerId?.trim() ?? '';
-    const fallbackSpeakerLabel = speakerKey ? resolveSegmentSpeakerLabel(speakerKey, speakerById) : '';
-    const speakerLabel = row.effectiveSpeakerName?.trim() || fallbackSpeakerLabel;
-    const speakerKeys = speakerKey ? [speakerKey] : [];
-    const speakerLabels = speakerLabel ? [speakerLabel] : [];
-    const rowMatchesFocusedLayer = row.unitKind !== 'segment'
-      || (row.layerId?.trim() ?? '') === displayLayerId;
-    const noteCategories = rowMatchesFocusedLayer ? (row.noteCategoryKeys ?? []) : [];
-    const certainty = rowMatchesFocusedLayer ? row.effectiveSelfCertainty : undefined;
-    const annotationStatus = rowMatchesFocusedLayer ? row.annotationStatus : undefined;
-    const sourceType = rowMatchesFocusedLayer ? row.sourceType : undefined;
-    const timelineLayerId = displayLayerId || row.layerId;
-    const empty = !row.hasText;
-    const searchIndex = text.toLowerCase();
+      const text = row.text.trim();
+      const speakerKey = row.effectiveSpeakerId?.trim() ?? '';
+      const fallbackSpeakerLabel = speakerKey
+        ? resolveSegmentSpeakerLabel(speakerKey, speakerById)
+        : '';
+      const speakerLabel = row.effectiveSpeakerName?.trim() || fallbackSpeakerLabel;
+      const speakerKeys = speakerKey ? [speakerKey] : [];
+      const speakerLabels = speakerLabel ? [speakerLabel] : [];
+      const rowMatchesFocusedLayer =
+        row.unitKind !== 'segment' || (row.layerId?.trim() ?? '') === displayLayerId;
+      const noteCategories = rowMatchesFocusedLayer ? (row.noteCategoryKeys ?? []) : [];
+      const certainty = rowMatchesFocusedLayer ? row.effectiveSelfCertainty : undefined;
+      const annotationStatus = rowMatchesFocusedLayer ? row.annotationStatus : undefined;
+      const sourceType = rowMatchesFocusedLayer ? row.sourceType : undefined;
+      const timelineLayerId = displayLayerId || row.layerId;
+      const empty = !row.hasText;
+      const searchIndex = text.toLowerCase();
 
       return {
         key: row.id,
@@ -392,16 +507,24 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
         continue;
       }
 
-      const mergedText = item.unit.kind === 'unit'
-        ? (liveItem.hasText ? liveItem.text : item.text)
-        : (liveItem.textSource === 'live-layer'
+      const mergedText =
+        item.unit.kind === 'unit'
+          ? liveItem.hasText
             ? liveItem.text
-            : (item.hasText ? item.text : liveItem.text));
+            : item.text
+          : liveItem.textSource === 'live-layer'
+            ? liveItem.text
+            : item.hasText
+              ? item.text
+              : liveItem.text;
       const mergedHasText = liveItem.hasText || item.hasText;
       const mergedEmpty = !mergedHasText;
-      const mergedSpeakerKeys = liveItem.speakerKeys.length > 0 ? liveItem.speakerKeys : item.speakerKeys;
-      const mergedSpeakerLabels = liveItem.speakerLabels.length > 0 ? liveItem.speakerLabels : item.speakerLabels;
-      const mergedNoteCategories = item.noteCategories.length > 0 ? item.noteCategories : liveItem.noteCategories;
+      const mergedSpeakerKeys =
+        liveItem.speakerKeys.length > 0 ? liveItem.speakerKeys : item.speakerKeys;
+      const mergedSpeakerLabels =
+        liveItem.speakerLabels.length > 0 ? liveItem.speakerLabels : item.speakerLabels;
+      const mergedNoteCategories =
+        item.noteCategories.length > 0 ? item.noteCategories : liveItem.noteCategories;
       const mergedCertainty = liveItem.certainty ?? item.certainty;
       const mergedAnnotationStatus = liveItem.annotationStatus ?? item.annotationStatus;
       const mergedSourceType = item.sourceType ?? liveItem.sourceType;
@@ -430,37 +553,48 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
       if (left.endTime !== right.endTime) return left.endTime - right.endTime;
       return left.key.localeCompare(right.key);
     });
-  }, [displayLayerId, fallbackItems, messages, segmentMetaRows, speakerById]);
+  }, [displayLayerId, fallbackItems, segmentMetaRows, speakerById]);
 
   const speakerConsistencyEnabled = useMemo(() => {
     if (focusedLayer?.layerType !== 'transcription') return false;
     const reviewableItems = rawItems.filter((item) => item.skipProcessing !== true);
     const assignedCount = reviewableItems.filter((item) => item.speakerKeys.length > 0).length;
-    return reviewableItems.length > 0 && assignedCount > 0 && assignedCount < reviewableItems.length;
+    return (
+      reviewableItems.length > 0 && assignedCount > 0 && assignedCount < reviewableItems.length
+    );
   }, [focusedLayer?.layerType, rawItems]);
 
-  const items = useMemo<SegmentListItem[]>(() => rawItems.map((item, index, rows) => {
-    const previousItem = rows[index - 1];
-    const issueFlags = computeSegmentReviewIssueFlags({
-      empty: item.empty,
-      ...(item.certainty !== undefined ? { certainty: item.certainty } : {}),
-      noteCategories: item.noteCategories,
-      ...(item.annotationStatus !== undefined ? { annotationStatus: item.annotationStatus } : {}),
-      speakerKeys: item.speakerKeys,
-      startTime: item.startTime,
-      endTime: item.endTime,
-      ...(item.skipProcessing === true ? { skipProcessing: true } : {}),
-    }, {
-      isTranscriptionLayer: focusedLayer?.layerType === 'transcription',
-      allowSpeakerPending: speakerConsistencyEnabled,
-      ...(previousItem !== undefined ? { previousEndTime: previousItem.endTime } : {}),
-    });
+  const items = useMemo<SegmentListItem[]>(
+    () =>
+      rawItems.map((item, index, rows) => {
+        const previousItem = rows[index - 1];
+        const issueFlags = computeSegmentReviewIssueFlags(
+          {
+            empty: item.empty,
+            ...(item.certainty !== undefined ? { certainty: item.certainty } : {}),
+            noteCategories: item.noteCategories,
+            ...(item.annotationStatus !== undefined
+              ? { annotationStatus: item.annotationStatus }
+              : {}),
+            speakerKeys: item.speakerKeys,
+            startTime: item.startTime,
+            endTime: item.endTime,
+            ...(item.skipProcessing === true ? { skipProcessing: true } : {}),
+          },
+          {
+            isTranscriptionLayer: focusedLayer?.layerType === 'transcription',
+            allowSpeakerPending: speakerConsistencyEnabled,
+            ...(previousItem !== undefined ? { previousEndTime: previousItem.endTime } : {}),
+          },
+        );
 
-    return {
-      ...item,
-      issueFlags,
-    };
-  }), [focusedLayer?.layerType, rawItems, speakerConsistencyEnabled]);
+        return {
+          ...item,
+          issueFlags,
+        };
+      }),
+    [focusedLayer?.layerType, rawItems, speakerConsistencyEnabled],
+  );
 
   const reviewPresetOptions = useMemo<ReviewPresetOption[]>(() => {
     const total = items.filter((item) => Object.values(item.issueFlags ?? {}).some(Boolean)).length;
@@ -468,24 +602,45 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
 
     const timeCount = items.filter((item) => item.issueFlags?.time).length;
     const contentConcernCount = items.filter((item) => item.issueFlags?.contentConcern).length;
-    const contentMissingCount = items.filter((item) => matchesReviewPreset(item.issueFlags ?? {
-      time: false,
-      contentConcern: false,
-      contentMissing: false,
-      manualAttention: false,
-      pendingReview: false,
-      speakerPending: false,
-    }, 'content_missing')).length;
+    const contentMissingCount = items.filter((item) =>
+      matchesReviewPreset(
+        item.issueFlags ?? {
+          time: false,
+          contentConcern: false,
+          contentMissing: false,
+          manualAttention: false,
+          pendingReview: false,
+          speakerPending: false,
+        },
+        'content_missing',
+      ),
+    ).length;
     const manualAttentionCount = items.filter((item) => item.issueFlags?.manualAttention).length;
     const pendingReviewCount = items.filter((item) => item.issueFlags?.pendingReview).length;
 
     return [
       { value: 'all', label: getSegmentReviewPresetLabel('all', messages), count: total },
       { value: 'time', label: getSegmentReviewPresetLabel('time', messages), count: timeCount },
-      { value: 'content_concern', label: getSegmentReviewPresetLabel('content_concern', messages), count: contentConcernCount },
-      { value: 'content_missing', label: getSegmentReviewPresetLabel('content_missing', messages), count: contentMissingCount },
-      { value: 'manual_attention', label: getSegmentReviewPresetLabel('manual_attention', messages), count: manualAttentionCount },
-      { value: 'pending_review', label: getSegmentReviewPresetLabel('pending_review', messages), count: pendingReviewCount },
+      {
+        value: 'content_concern',
+        label: getSegmentReviewPresetLabel('content_concern', messages),
+        count: contentConcernCount,
+      },
+      {
+        value: 'content_missing',
+        label: getSegmentReviewPresetLabel('content_missing', messages),
+        count: contentMissingCount,
+      },
+      {
+        value: 'manual_attention',
+        label: getSegmentReviewPresetLabel('manual_attention', messages),
+        count: manualAttentionCount,
+      },
+      {
+        value: 'pending_review',
+        label: getSegmentReviewPresetLabel('pending_review', messages),
+        count: pendingReviewCount,
+      },
     ];
   }, [items, messages]);
 
@@ -526,36 +681,54 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
         });
       }
     }
-    return [...counter.values()].sort((left, right) => left.label.localeCompare(right.label, 'zh-Hans-CN'));
+    return [...counter.values()].sort((left, right) =>
+      left.label.localeCompare(right.label, 'zh-Hans-CN'),
+    );
   }, [items, speakerById]);
 
-  const noteCategoryOptions = useMemo<FacetOption[]>(() => SEGMENT_NOTE_CATEGORY_ORDER.flatMap((category) => {
-    const count = items.filter((item) => item.noteCategories.includes(category)).length;
-    return count > 0
-      ? [{ value: category, label: getSegmentNoteCategoryLabel(category, messages), count }]
-      : [];
-  }), [items, messages]);
+  const noteCategoryOptions = useMemo<FacetOption[]>(
+    () =>
+      SEGMENT_NOTE_CATEGORY_ORDER.flatMap((category) => {
+        const count = items.filter((item) => item.noteCategories.includes(category)).length;
+        return count > 0
+          ? [{ value: category, label: getSegmentNoteCategoryLabel(category, messages), count }]
+          : [];
+      }),
+    [items, messages],
+  );
 
-  const certaintyOptions = useMemo<FacetOption[]>(() => SEGMENT_CERTAINTY_ORDER.flatMap((certainty) => {
-    const count = items.filter((item) => item.certainty === certainty).length;
-    return count > 0
-      ? [{ value: certainty, label: getSegmentCertaintyLabel(certainty, messages), count }]
-      : [];
-  }), [items, messages]);
+  const certaintyOptions = useMemo<FacetOption[]>(
+    () =>
+      SEGMENT_CERTAINTY_ORDER.flatMap((certainty) => {
+        const count = items.filter((item) => item.certainty === certainty).length;
+        return count > 0
+          ? [{ value: certainty, label: getSegmentCertaintyLabel(certainty, messages), count }]
+          : [];
+      }),
+    [items, messages],
+  );
 
-  const annotationStatusOptions = useMemo<FacetOption[]>(() => SEGMENT_ANNOTATION_STATUS_ORDER.flatMap((status) => {
-    const count = items.filter((item) => item.annotationStatus === status).length;
-    return count > 0
-      ? [{ value: status, label: getSegmentAnnotationStatusLabel(status, messages), count }]
-      : [];
-  }), [items, messages]);
+  const annotationStatusOptions = useMemo<FacetOption[]>(
+    () =>
+      SEGMENT_ANNOTATION_STATUS_ORDER.flatMap((status) => {
+        const count = items.filter((item) => item.annotationStatus === status).length;
+        return count > 0
+          ? [{ value: status, label: getSegmentAnnotationStatusLabel(status, messages), count }]
+          : [];
+      }),
+    [items, messages],
+  );
 
-  const sourceTypeOptions = useMemo<FacetOption[]>(() => SEGMENT_SOURCE_TYPE_ORDER.flatMap((sourceType) => {
-    const count = items.filter((item) => item.sourceType === sourceType).length;
-    return count > 0
-      ? [{ value: sourceType, label: getSegmentSourceTypeLabel(sourceType, messages), count }]
-      : [];
-  }), [items, messages]);
+  const sourceTypeOptions = useMemo<FacetOption[]>(
+    () =>
+      SEGMENT_SOURCE_TYPE_ORDER.flatMap((sourceType) => {
+        const count = items.filter((item) => item.sourceType === sourceType).length;
+        return count > 0
+          ? [{ value: sourceType, label: getSegmentSourceTypeLabel(sourceType, messages), count }]
+          : [];
+      }),
+    [items, messages],
+  );
 
   const pruneSelectedValues = <T extends string>(prev: T[], validValues: Set<T>): T[] => {
     const next = prev.filter((value) => validValues.has(value));
@@ -566,7 +739,9 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   };
 
   useEffect(() => {
-    const validValues = new Set(contentStateOptions.map((option) => option.value as SegmentContentStateFilter));
+    const validValues = new Set(
+      contentStateOptions.map((option) => option.value as SegmentContentStateFilter),
+    );
     setContentStateFilters((prev) => pruneSelectedValues(prev, validValues));
   }, [contentStateOptions]);
 
@@ -581,81 +756,95 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   }, [noteCategoryOptions]);
 
   useEffect(() => {
-    const validValues = new Set(certaintyOptions.map((option) => option.value as UnitSelfCertainty));
+    const validValues = new Set(
+      certaintyOptions.map((option) => option.value as UnitSelfCertainty),
+    );
     setCertaintyFilters((prev) => pruneSelectedValues(prev, validValues));
   }, [certaintyOptions]);
 
   useEffect(() => {
-    const validValues = new Set(annotationStatusOptions.map((option) => option.value as LayerUnitStatus));
+    const validValues = new Set(
+      annotationStatusOptions.map((option) => option.value as LayerUnitStatus),
+    );
     setAnnotationStatusFilters((prev) => pruneSelectedValues(prev, validValues));
   }, [annotationStatusOptions]);
 
   useEffect(() => {
-    const validValues = new Set(sourceTypeOptions.map((option) => option.value as SegmentSourceType));
+    const validValues = new Set(
+      sourceTypeOptions.map((option) => option.value as SegmentSourceType),
+    );
     setSourceTypeFilters((prev) => pruneSelectedValues(prev, validValues));
   }, [sourceTypeOptions]);
 
-  const toggleFacetValue = <T extends string>(setter: (updater: (prev: T[]) => T[]) => void, value: T) => {
-    setter((prev) => (prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]));
+  const toggleFacetValue = <T extends string>(
+    setter: (updater: (prev: T[]) => T[]) => void,
+    value: T,
+  ) => {
+    setter((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value],
+    );
   };
 
-  const facetCategories = useMemo(() => ([
-    {
-      key: 'contentState' as const,
-      label: messages.segmentListContentFilterLabel,
-      options: contentStateOptions,
-      selectedValues: contentStateFilters,
-    },
-    {
-      key: 'annotationStatus' as const,
-      label: messages.segmentListAnnotationStatusFilterLabel,
-      options: annotationStatusOptions,
-      selectedValues: annotationStatusFilters,
-    },
-    {
-      key: 'sourceType' as const,
-      label: messages.segmentListSourceTypeFilterLabel,
-      options: sourceTypeOptions,
-      selectedValues: sourceTypeFilters,
-    },
-    {
-      key: 'speaker' as const,
-      label: messages.segmentListSpeakerFilterLabel,
-      options: speakerOptions,
-      selectedValues: speakerFilters,
-    },
-    {
-      key: 'noteCategory' as const,
-      label: messages.segmentListNoteCategoryFilterLabel,
-      options: noteCategoryOptions,
-      selectedValues: noteCategoryFilters,
-    },
-    {
-      key: 'certainty' as const,
-      label: messages.segmentListCertaintyFilterLabel,
-      options: certaintyOptions,
-      selectedValues: certaintyFilters,
-    },
-  ]), [
-    annotationStatusFilters,
-    annotationStatusOptions,
-    certaintyFilters,
-    certaintyOptions,
-    contentStateFilters,
-    contentStateOptions,
-    messages.segmentListAnnotationStatusFilterLabel,
-    messages.segmentListCertaintyFilterLabel,
-    messages.segmentListContentFilterLabel,
-    messages.segmentListNoteCategoryFilterLabel,
-    messages.segmentListSourceTypeFilterLabel,
-    messages.segmentListSpeakerFilterLabel,
-    noteCategoryFilters,
-    noteCategoryOptions,
-    sourceTypeFilters,
-    sourceTypeOptions,
-    speakerFilters,
-    speakerOptions,
-  ]);
+  const facetCategories = useMemo(
+    () => [
+      {
+        key: 'contentState' as const,
+        label: messages.segmentListContentFilterLabel,
+        options: contentStateOptions,
+        selectedValues: contentStateFilters,
+      },
+      {
+        key: 'annotationStatus' as const,
+        label: messages.segmentListAnnotationStatusFilterLabel,
+        options: annotationStatusOptions,
+        selectedValues: annotationStatusFilters,
+      },
+      {
+        key: 'sourceType' as const,
+        label: messages.segmentListSourceTypeFilterLabel,
+        options: sourceTypeOptions,
+        selectedValues: sourceTypeFilters,
+      },
+      {
+        key: 'speaker' as const,
+        label: messages.segmentListSpeakerFilterLabel,
+        options: speakerOptions,
+        selectedValues: speakerFilters,
+      },
+      {
+        key: 'noteCategory' as const,
+        label: messages.segmentListNoteCategoryFilterLabel,
+        options: noteCategoryOptions,
+        selectedValues: noteCategoryFilters,
+      },
+      {
+        key: 'certainty' as const,
+        label: messages.segmentListCertaintyFilterLabel,
+        options: certaintyOptions,
+        selectedValues: certaintyFilters,
+      },
+    ],
+    [
+      annotationStatusFilters,
+      annotationStatusOptions,
+      certaintyFilters,
+      certaintyOptions,
+      contentStateFilters,
+      contentStateOptions,
+      messages.segmentListAnnotationStatusFilterLabel,
+      messages.segmentListCertaintyFilterLabel,
+      messages.segmentListContentFilterLabel,
+      messages.segmentListNoteCategoryFilterLabel,
+      messages.segmentListSourceTypeFilterLabel,
+      messages.segmentListSpeakerFilterLabel,
+      noteCategoryFilters,
+      noteCategoryOptions,
+      sourceTypeFilters,
+      sourceTypeOptions,
+      speakerFilters,
+      speakerOptions,
+    ],
+  );
 
   const availableFacetCategories = useMemo(
     () => facetCategories.filter((category) => category.options.length > 0),
@@ -678,7 +867,10 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   const toggleFacetOption = (categoryKey: FacetCategoryKey, value: string) => {
     switch (categoryKey) {
       case 'contentState':
-        toggleFacetValue<SegmentContentStateFilter>(setContentStateFilters, value as SegmentContentStateFilter);
+        toggleFacetValue<SegmentContentStateFilter>(
+          setContentStateFilters,
+          value as SegmentContentStateFilter,
+        );
         return;
       case 'annotationStatus':
         toggleFacetValue<LayerUnitStatus>(setAnnotationStatusFilters, value as LayerUnitStatus);
@@ -701,8 +893,10 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   };
 
   const activeFilterTags = useMemo(() => {
-    const tags: Array<{ id: string; categoryKey: FacetCategoryKey; value: string; label: string }> = [];
-    const optionLabel = (options: FacetOption[], value: string) => options.find((option) => option.value === value)?.label ?? value;
+    const tags: Array<{ id: string; categoryKey: FacetCategoryKey; value: string; label: string }> =
+      [];
+    const optionLabel = (options: FacetOption[], value: string) =>
+      options.find((option) => option.value === value)?.label ?? value;
 
     for (const value of contentStateFilters) {
       tags.push({
@@ -783,29 +977,67 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   const filtered = useMemo(() => {
     const keyword = filterText.trim().toLowerCase();
     return items.filter((item) => {
-      if (activeReviewPreset && !matchesReviewPreset(item.issueFlags ?? {
-        time: false,
-        contentConcern: false,
-        contentMissing: false,
-        manualAttention: false,
-        pendingReview: false,
-        speakerPending: false,
-      }, activeReviewPreset)) {
+      if (
+        activeReviewPreset &&
+        !matchesReviewPreset(
+          item.issueFlags ?? {
+            time: false,
+            contentConcern: false,
+            contentMissing: false,
+            manualAttention: false,
+            pendingReview: false,
+            speakerPending: false,
+          },
+          activeReviewPreset,
+        )
+      ) {
         return false;
       }
       if (keyword && !item.searchIndex.includes(keyword)) return false;
       if (contentStateFilters.length > 0) {
-        const matchedContentState = contentStateFilters.some((filter) => (filter === 'has_text' ? item.hasText : !item.hasText));
+        const matchedContentState = contentStateFilters.some((filter) =>
+          filter === 'has_text' ? item.hasText : !item.hasText,
+        );
         if (!matchedContentState) return false;
       }
-      if (speakerFilters.length > 0 && !speakerFilters.some((filter) => item.speakerKeys.includes(filter))) return false;
-      if (noteCategoryFilters.length > 0 && !noteCategoryFilters.some((filter) => item.noteCategories.includes(filter))) return false;
-      if (certaintyFilters.length > 0 && !certaintyFilters.includes(item.certainty as UnitSelfCertainty)) return false;
-      if (annotationStatusFilters.length > 0 && !annotationStatusFilters.includes(item.annotationStatus as LayerUnitStatus)) return false;
-      if (sourceTypeFilters.length > 0 && !sourceTypeFilters.includes(item.sourceType as SegmentSourceType)) return false;
+      if (
+        speakerFilters.length > 0 &&
+        !speakerFilters.some((filter) => item.speakerKeys.includes(filter))
+      )
+        return false;
+      if (
+        noteCategoryFilters.length > 0 &&
+        !noteCategoryFilters.some((filter) => item.noteCategories.includes(filter))
+      )
+        return false;
+      if (
+        certaintyFilters.length > 0 &&
+        !certaintyFilters.includes(item.certainty as UnitSelfCertainty)
+      )
+        return false;
+      if (
+        annotationStatusFilters.length > 0 &&
+        !annotationStatusFilters.includes(item.annotationStatus as LayerUnitStatus)
+      )
+        return false;
+      if (
+        sourceTypeFilters.length > 0 &&
+        !sourceTypeFilters.includes(item.sourceType as SegmentSourceType)
+      )
+        return false;
       return true;
     });
-  }, [activeReviewPreset, annotationStatusFilters, certaintyFilters, contentStateFilters, filterText, items, noteCategoryFilters, sourceTypeFilters, speakerFilters]);
+  }, [
+    activeReviewPreset,
+    annotationStatusFilters,
+    certaintyFilters,
+    contentStateFilters,
+    filterText,
+    items,
+    noteCategoryFilters,
+    sourceTypeFilters,
+    speakerFilters,
+  ]);
 
   const useSegmentVirtualization = filtered.length >= SEGMENT_LIST_VIRTUAL_THRESHOLD;
 
@@ -851,26 +1083,29 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     onSelectTimelineUnit?.(row.unit);
   };
 
-  const hasActiveFilters = activeReviewPreset !== ''
-    || filterText.trim().length > 0
-    || contentStateFilters.length > 0
-    || speakerFilters.length > 0
-    || noteCategoryFilters.length > 0
-    || certaintyFilters.length > 0
-    || annotationStatusFilters.length > 0
-    || sourceTypeFilters.length > 0;
-  const hasFacetFilters = contentStateOptions.length > 0
-    || speakerOptions.length > 0
-    || noteCategoryOptions.length > 0
-    || certaintyOptions.length > 0
-    || annotationStatusOptions.length > 0
-    || sourceTypeOptions.length > 0;
-  const activeFacetCount = contentStateFilters.length
-    + speakerFilters.length
-    + noteCategoryFilters.length
-    + certaintyFilters.length
-    + annotationStatusFilters.length
-    + sourceTypeFilters.length;
+  const hasActiveFilters =
+    activeReviewPreset !== '' ||
+    filterText.trim().length > 0 ||
+    contentStateFilters.length > 0 ||
+    speakerFilters.length > 0 ||
+    noteCategoryFilters.length > 0 ||
+    certaintyFilters.length > 0 ||
+    annotationStatusFilters.length > 0 ||
+    sourceTypeFilters.length > 0;
+  const hasFacetFilters =
+    contentStateOptions.length > 0 ||
+    speakerOptions.length > 0 ||
+    noteCategoryOptions.length > 0 ||
+    certaintyOptions.length > 0 ||
+    annotationStatusOptions.length > 0 ||
+    sourceTypeOptions.length > 0;
+  const activeFacetCount =
+    contentStateFilters.length +
+    speakerFilters.length +
+    noteCategoryFilters.length +
+    certaintyFilters.length +
+    annotationStatusFilters.length +
+    sourceTypeFilters.length;
 
   useEffect(() => {
     if (!isFilterMenuOpen) return;
@@ -903,10 +1138,17 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   }, [hasFacetFilters, isFilterMenuOpen]);
 
   return (
-    <section className="app-side-pane-group app-side-pane-segment-list-group" aria-label={messages.segmentListAria}>
+    <section
+      className="app-side-pane-group app-side-pane-segment-list-group"
+      aria-label={messages.segmentListAria}
+    >
       <div className="app-side-pane-segment-list-filter">
         {showReviewPresets && reviewPresetOptions.length > 0 ? (
-          <div className="app-side-pane-segment-list-review-presets" role="group" aria-label={messages.segmentListTitle}>
+          <div
+            className="app-side-pane-segment-list-review-presets"
+            role="group"
+            aria-label={messages.segmentListTitle}
+          >
             {reviewPresetOptions.map((option) => {
               const selected = activeReviewPreset === option.value;
               return (
@@ -922,15 +1164,23 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                     setActiveReviewPreset((prev) => (prev === option.value ? '' : option.value));
                   }}
                 >
-                  <span className="app-side-pane-segment-list-review-preset-label">{option.label}</span>
-                  <span className="app-side-pane-segment-list-review-preset-count">{option.count}</span>
+                  <span className="app-side-pane-segment-list-review-preset-label">
+                    {option.label}
+                  </span>
+                  <span className="app-side-pane-segment-list-review-preset-count">
+                    {option.count}
+                  </span>
                 </button>
               );
             })}
           </div>
         ) : null}
         {showReviewPresets && activeReviewPreset && filtered.length > 0 ? (
-          <div className="app-side-pane-segment-list-review-presets" role="group" aria-label={messages.segmentListReviewPresetPendingReview}>
+          <div
+            className="app-side-pane-segment-list-review-presets"
+            role="group"
+            aria-label={messages.segmentListReviewPresetPendingReview}
+          >
             <button
               type="button"
               className="app-side-pane-segment-list-review-preset"
@@ -939,7 +1189,9 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
             >
               ←
             </button>
-            <span className="app-side-pane-segment-list-review-preset-count">{reviewCursor + 1}/{filtered.length}</span>
+            <span className="app-side-pane-segment-list-review-preset-count">
+              {reviewCursor + 1}/{filtered.length}
+            </span>
             <button
               type="button"
               className="app-side-pane-segment-list-review-preset"
@@ -952,9 +1204,26 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
         ) : null}
         <div className="app-side-pane-segment-list-search-shell">
           <span className="app-side-pane-segment-list-search-icon" aria-hidden="true">
-            <svg viewBox="0 0 20 20" className="app-side-pane-segment-list-search-icon-svg" focusable="false">
-              <circle cx="8.5" cy="8.5" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.8" />
-              <path d="M12 12l4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <svg
+              viewBox="0 0 20 20"
+              className="app-side-pane-segment-list-search-icon-svg"
+              focusable="false"
+            >
+              <circle
+                cx="8.5"
+                cy="8.5"
+                r="4.75"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              />
+              <path
+                d="M12 12l4 4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
             </svg>
           </span>
           <div className="app-side-pane-segment-list-search-content">
@@ -968,20 +1237,27 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                 onClick={() => toggleFacetOption(tag.categoryKey, tag.value)}
               >
                 <span className="app-side-pane-segment-list-search-tag-label">{tag.label}</span>
-                <span className="app-side-pane-segment-list-search-tag-remove" aria-hidden="true">×</span>
+                <span className="app-side-pane-segment-list-search-tag-remove" aria-hidden="true">
+                  ×
+                </span>
               </button>
             ))}
             <input
               type="text"
               className="app-side-pane-segment-list-filter-input"
-              placeholder={activeFilterTags.length === 0 ? messages.segmentListFilterPlaceholder : ''}
+              placeholder={
+                activeFilterTags.length === 0 ? messages.segmentListFilterPlaceholder : ''
+              }
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
               aria-label={messages.segmentListFilterPlaceholder}
             />
           </div>
           {hasFacetFilters ? (
-            <div ref={filterMenuRef} className={`app-side-pane-segment-list-filter-box${isFilterMenuOpen ? ' is-open' : ''}`}>
+            <div
+              ref={filterMenuRef}
+              className={`app-side-pane-segment-list-filter-box${isFilterMenuOpen ? ' is-open' : ''}`}
+            >
               <button
                 type="button"
                 className="app-side-pane-segment-list-filter-trigger"
@@ -989,14 +1265,27 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                 aria-haspopup="dialog"
                 onClick={() => setIsFilterMenuOpen((value) => !value)}
               >
-                <span className="app-side-pane-segment-list-filter-trigger-label">{messages.segmentListFilterButton}</span>
+                <span className="app-side-pane-segment-list-filter-trigger-label">
+                  {messages.segmentListFilterButton}
+                </span>
                 {activeFacetCount > 0 ? (
-                  <span className="app-side-pane-segment-list-filter-trigger-count">{activeFacetCount}</span>
+                  <span className="app-side-pane-segment-list-filter-trigger-count">
+                    {activeFacetCount}
+                  </span>
                 ) : null}
-                <span className="app-side-pane-segment-list-filter-trigger-caret" aria-hidden="true">▾</span>
+                <span
+                  className="app-side-pane-segment-list-filter-trigger-caret"
+                  aria-hidden="true"
+                >
+                  ▾
+                </span>
               </button>
               {isFilterMenuOpen ? (
-                <div className="app-side-pane-segment-list-filter-panel" role="dialog" aria-label={messages.segmentListFilterButton}>
+                <div
+                  className="app-side-pane-segment-list-filter-panel"
+                  role="dialog"
+                  aria-label={messages.segmentListFilterButton}
+                >
                   {availableFacetCategories.length > 0 ? (
                     <div className="app-side-pane-segment-list-filter-compact">
                       {availableFacetCategories.map((category) => {
@@ -1009,14 +1298,24 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                               aria-pressed={category.key === activeFacetCategory}
                               onClick={() => setActiveFacetCategory(category.key)}
                             >
-                              <span className="app-side-pane-segment-list-filter-category-item-label">{categoryMenuLabel}</span>
+                              <span className="app-side-pane-segment-list-filter-category-item-label">
+                                {categoryMenuLabel}
+                              </span>
                               {category.selectedValues.length > 0 ? (
-                                <span className="app-side-pane-segment-list-filter-category-item-count">{category.selectedValues.length}</span>
+                                <span className="app-side-pane-segment-list-filter-category-item-count">
+                                  {category.selectedValues.length}
+                                </span>
                               ) : null}
                             </button>
-                            <div className="app-side-pane-segment-list-filter-option-list" role="menu" aria-label={categoryMenuLabel}>
+                            <div
+                              className="app-side-pane-segment-list-filter-option-list"
+                              role="menu"
+                              aria-label={categoryMenuLabel}
+                            >
                               {category.options.map((option) => {
-                                const selected = (category.selectedValues as string[]).includes(option.value);
+                                const selected = (category.selectedValues as string[]).includes(
+                                  option.value,
+                                );
                                 return (
                                   <button
                                     key={`${category.key}:${option.value}`}
@@ -1025,14 +1324,25 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                                     aria-pressed={selected}
                                     onClick={() => toggleFacetOption(category.key, option.value)}
                                   >
-                                    <span className="app-side-pane-segment-list-filter-option-marker" aria-hidden="true">{selected ? '✓' : ''}</span>
-                                    <span className="app-side-pane-segment-list-filter-option-label">{option.label}</span>
-                                    <span className="app-side-pane-segment-list-filter-option-count">{option.count}</span>
+                                    <span
+                                      className="app-side-pane-segment-list-filter-option-marker"
+                                      aria-hidden="true"
+                                    >
+                                      {selected ? '✓' : ''}
+                                    </span>
+                                    <span className="app-side-pane-segment-list-filter-option-label">
+                                      {option.label}
+                                    </span>
+                                    <span className="app-side-pane-segment-list-filter-option-count">
+                                      {option.count}
+                                    </span>
                                   </button>
                                 );
                               })}
                               {category.options.length === 0 ? (
-                                <p className="app-side-pane-segment-list-filter-panel-empty">{messages.segmentListFilterNoOptions}</p>
+                                <p className="app-side-pane-segment-list-filter-panel-empty">
+                                  {messages.segmentListFilterNoOptions}
+                                </p>
                               ) : null}
                             </div>
                           </div>
@@ -1040,7 +1350,9 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                       })}
                     </div>
                   ) : (
-                    <p className="app-side-pane-segment-list-filter-panel-empty">{messages.segmentListFilterNoOptions}</p>
+                    <p className="app-side-pane-segment-list-filter-panel-empty">
+                      {messages.segmentListFilterNoOptions}
+                    </p>
                   )}
                   <div className="app-side-pane-segment-list-filter-actions">
                     {hasActiveFilters ? (
@@ -1113,15 +1425,31 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                     }}
                   >
                     <span className="app-side-pane-segment-list-item-time">
-                      {messages.segmentListTimeRange(formatTime(item.startTime), formatTime(item.endTime))}
+                      {messages.segmentListTimeRange(
+                        formatTime(item.startTime),
+                        formatTime(item.endTime),
+                      )}
                     </span>
-                    {item.empty
-                      ? <span className="app-side-pane-segment-list-item-text app-side-pane-segment-list-item-text-empty">{messages.segmentListEmpty}</span>
-                      : <span className="app-side-pane-segment-list-item-text">{item.text}</span>}
-                    {(item.speakerLabels.length > 0 || item.noteCategories.length > 0 || item.certainty || item.annotationStatus || item.sourceType) ? (
+                    {item.empty ? (
+                      <span className="app-side-pane-segment-list-item-text app-side-pane-segment-list-item-text-empty">
+                        {messages.segmentListEmpty}
+                      </span>
+                    ) : (
+                      <span className="app-side-pane-segment-list-item-text">{item.text}</span>
+                    )}
+                    {item.speakerLabels.length > 0 ||
+                    item.noteCategories.length > 0 ||
+                    item.certainty ||
+                    item.annotationStatus ||
+                    item.sourceType ? (
                       <span className="app-side-pane-segment-list-item-meta">
                         {item.speakerLabels.map((label) => (
-                          <span key={`${item.key}-speaker-${label}`} className="app-side-pane-segment-list-chip">{label}</span>
+                          <span
+                            key={`${item.key}-speaker-${label}`}
+                            className="app-side-pane-segment-list-chip"
+                          >
+                            {label}
+                          </span>
                         ))}
                         {item.issueFlags?.speakerPending ? (
                           <span className="app-side-pane-segment-list-chip app-side-pane-segment-list-chip-note">
@@ -1144,7 +1472,10 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                           </span>
                         ) : null}
                         {item.noteCategories.map((category) => (
-                          <span key={`${item.key}-note-${category}`} className="app-side-pane-segment-list-chip app-side-pane-segment-list-chip-note">
+                          <span
+                            key={`${item.key}-note-${category}`}
+                            className="app-side-pane-segment-list-chip app-side-pane-segment-list-chip-note"
+                          >
                             {getSegmentNoteCategoryLabel(category, messages)}
                           </span>
                         ))}
@@ -1158,7 +1489,10 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
         ) : (
           <ul className="app-side-pane-segment-list">
             {filtered.map((item, index) => (
-              <li key={item.key} className={`app-side-pane-segment-list-item${item.empty ? ' app-side-pane-segment-list-item-empty' : ''}${index === reviewCursor && activeReviewPreset ? ' is-active-review-target' : ''}`}>
+              <li
+                key={item.key}
+                className={`app-side-pane-segment-list-item${item.empty ? ' app-side-pane-segment-list-item-empty' : ''}${index === reviewCursor && activeReviewPreset ? ' is-active-review-target' : ''}`}
+              >
                 <button
                   type="button"
                   className="app-side-pane-segment-list-item-btn"
@@ -1168,15 +1502,31 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                   }}
                 >
                   <span className="app-side-pane-segment-list-item-time">
-                    {messages.segmentListTimeRange(formatTime(item.startTime), formatTime(item.endTime))}
+                    {messages.segmentListTimeRange(
+                      formatTime(item.startTime),
+                      formatTime(item.endTime),
+                    )}
                   </span>
-                  {item.empty
-                    ? <span className="app-side-pane-segment-list-item-text app-side-pane-segment-list-item-text-empty">{messages.segmentListEmpty}</span>
-                    : <span className="app-side-pane-segment-list-item-text">{item.text}</span>}
-                  {(item.speakerLabels.length > 0 || item.noteCategories.length > 0 || item.certainty || item.annotationStatus || item.sourceType) ? (
+                  {item.empty ? (
+                    <span className="app-side-pane-segment-list-item-text app-side-pane-segment-list-item-text-empty">
+                      {messages.segmentListEmpty}
+                    </span>
+                  ) : (
+                    <span className="app-side-pane-segment-list-item-text">{item.text}</span>
+                  )}
+                  {item.speakerLabels.length > 0 ||
+                  item.noteCategories.length > 0 ||
+                  item.certainty ||
+                  item.annotationStatus ||
+                  item.sourceType ? (
                     <span className="app-side-pane-segment-list-item-meta">
                       {item.speakerLabels.map((label) => (
-                        <span key={`${item.key}-speaker-${label}`} className="app-side-pane-segment-list-chip">{label}</span>
+                        <span
+                          key={`${item.key}-speaker-${label}`}
+                          className="app-side-pane-segment-list-chip"
+                        >
+                          {label}
+                        </span>
                       ))}
                       {item.issueFlags?.speakerPending ? (
                         <span className="app-side-pane-segment-list-chip app-side-pane-segment-list-chip-note">
@@ -1199,7 +1549,10 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                         </span>
                       ) : null}
                       {item.noteCategories.map((category) => (
-                        <span key={`${item.key}-note-${category}`} className="app-side-pane-segment-list-chip app-side-pane-segment-list-chip-note">
+                        <span
+                          key={`${item.key}-note-${category}`}
+                          className="app-side-pane-segment-list-chip app-side-pane-segment-list-chip-note"
+                        >
                           {getSegmentNoteCategoryLabel(category, messages)}
                         </span>
                       ))}

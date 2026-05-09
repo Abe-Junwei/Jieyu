@@ -17,7 +17,10 @@ interface NotePanelProps {
   targetLabel: string;
   onClose: () => void;
   onAdd: (content: MultiLangString, category?: NoteCategory) => Promise<void>;
-  onUpdate: (id: string, updates: { content?: MultiLangString; category?: NoteCategory }) => Promise<void>;
+  onUpdate: (
+    id: string,
+    updates: { content?: MultiLangString; category?: NoteCategory },
+  ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
 
@@ -34,16 +37,17 @@ export const NotePanel = memo(function NotePanel({
   const { uiTextDirection, uiFontScale } = useUiFontScaleRuntime(locale);
   const viewportWidth = useViewportWidth();
   const panelWidth = useMemo(
-    () => computeAdaptivePanelWidth({
-      baseWidth: 380,
-      locale,
-      direction: uiTextDirection,
-      uiFontScale,
-      density: 'standard',
-      minWidth: 300,
-      maxWidth: 640,
-      ...(viewportWidth !== undefined ? { viewportWidth } : {}),
-    }),
+    () =>
+      computeAdaptivePanelWidth({
+        baseWidth: 380,
+        locale,
+        direction: uiTextDirection,
+        uiFontScale,
+        density: 'standard',
+        minWidth: 300,
+        maxWidth: 640,
+        ...(viewportWidth !== undefined ? { viewportWidth } : {}),
+      }),
     [locale, uiFontScale, uiTextDirection, viewportWidth],
   );
   const messages = getNotePanelMessages(locale);
@@ -69,7 +73,7 @@ export const NotePanel = memo(function NotePanel({
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        handleAdd();
+        void handleAdd();
       }
     },
     [handleAdd],
@@ -95,7 +99,7 @@ export const NotePanel = memo(function NotePanel({
     (e: KeyboardEvent<HTMLTextAreaElement>, id: string) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        handleEditSave(id);
+        void handleEditSave(id);
       }
       if (e.key === 'Escape') {
         setEditingId(null);
@@ -113,17 +117,20 @@ export const NotePanel = memo(function NotePanel({
       bodyClassName="note-panel-body"
       title={messages.panelTitle(targetLabel)}
       titleClassName="note-panel-title"
-      actions={(
-        <button type="button" className="note-panel-close icon-btn" onClick={onClose} aria-label={messages.closePanel}>
+      actions={
+        <button
+          type="button"
+          className="note-panel-close icon-btn"
+          onClick={onClose}
+          aria-label={messages.closePanel}
+        >
           <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL} />
         </button>
-      )}
+      }
       dir={uiTextDirection}
-        layoutStyle={{ width: `min(${panelWidth}px, 100%)`, fontSize: `calc(1rem * ${uiFontScale})` }}
+      layoutStyle={{ width: `min(${panelWidth}px, 100%)`, fontSize: `calc(1rem * ${uiFontScale})` }}
     >
-      <PanelSection
-        className="note-panel-list-surface"
-      >
+      <PanelSection className="note-panel-list-surface">
         <div className="note-panel-list">
           {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
           {notes.map((note) => (
@@ -138,16 +145,26 @@ export const NotePanel = memo(function NotePanel({
                   <textarea
                     className="panel-input note-panel-textarea"
                     value={editContent}
-                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditContent(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                      setEditContent(e.target.value)
+                    }
                     onKeyDown={(e) => handleEditKeyDown(e, note.id)}
                     aria-label={messages.editNoteContentLabel}
                     autoFocus
                   />
                   <div className="note-panel-edit-actions">
-                    <PanelButton variant="success" className="note-panel-btn note-panel-btn-save" onClick={() => handleEditSave(note.id)}>
+                    <PanelButton
+                      variant="success"
+                      className="note-panel-btn note-panel-btn-save"
+                      onClick={() => handleEditSave(note.id)}
+                    >
                       {messages.save}
                     </PanelButton>
-                    <PanelButton variant="ghost" className="note-panel-btn note-panel-btn-cancel" onClick={() => setEditingId(null)}>
+                    <PanelButton
+                      variant="ghost"
+                      className="note-panel-btn note-panel-btn-cancel"
+                      onClick={() => setEditingId(null)}
+                    >
                       {messages.cancel}
                     </PanelButton>
                   </div>
@@ -182,9 +199,7 @@ export const NotePanel = memo(function NotePanel({
         </div>
       </PanelSection>
 
-      <PanelSection
-        className="note-panel-add"
-      >
+      <PanelSection className="note-panel-add">
         <textarea
           className="panel-input note-panel-textarea"
           placeholder={messages.newNotePlaceholder}
@@ -208,7 +223,12 @@ export const NotePanel = memo(function NotePanel({
               </button>
             ))}
           </div>
-          <PanelButton variant="primary" className="note-panel-btn note-panel-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
+          <PanelButton
+            variant="primary"
+            className="note-panel-btn note-panel-btn-add"
+            onClick={handleAdd}
+            disabled={!newContent.trim()}
+          >
             {messages.add}
           </PanelButton>
         </div>

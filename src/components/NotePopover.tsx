@@ -1,4 +1,14 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_MICRO_XS } from '../utils/jieyuMaterialIcon';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
@@ -14,12 +24,23 @@ interface NotePopoverProps {
   displayMode?: 'anchored' | 'dialog';
   onClose: () => void;
   onAdd: (content: MultiLangString, category?: NoteCategory) => Promise<void>;
-  onUpdate: (id: string, updates: { content?: MultiLangString; category?: NoteCategory }) => Promise<void>;
+  onUpdate: (
+    id: string,
+    updates: { content?: MultiLangString; category?: NoteCategory },
+  ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
 
 export const NotePopover = memo(function NotePopover({
-  x, y, notes, targetLabel, displayMode = 'anchored', onClose, onAdd, onUpdate, onDelete,
+  x,
+  y,
+  notes,
+  targetLabel,
+  displayMode = 'anchored',
+  onClose,
+  onAdd,
+  onUpdate,
+  onDelete,
 }: NotePopoverProps) {
   const isDialogMode = displayMode === 'dialog';
   const locale = useOptionalLocale() ?? 'zh-CN';
@@ -86,7 +107,7 @@ export const NotePopover = memo(function NotePopover({
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        handleAdd();
+        void handleAdd();
       }
       if (e.key === 'Escape') onClose();
     },
@@ -113,7 +134,7 @@ export const NotePopover = memo(function NotePopover({
     (e: KeyboardEvent<HTMLTextAreaElement>, id: string) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        handleEditSave(id);
+        void handleEditSave(id);
       }
       if (e.key === 'Escape') {
         setEditingId(null);
@@ -129,7 +150,7 @@ export const NotePopover = memo(function NotePopover({
       compact
       headerClassName="note-popover-header"
       bodyClassName="note-popover-body"
-      title={(
+      title={
         <>
           <span>{messages.panelTitlePrefix}</span>
           {targetLabel ? (
@@ -139,9 +160,9 @@ export const NotePopover = memo(function NotePopover({
             </>
           ) : null}
         </>
-      )}
+      }
       titleClassName="note-popover-title"
-      actions={(
+      actions={
         <button
           type="button"
           className="note-popover-close icon-btn"
@@ -151,13 +172,11 @@ export const NotePopover = memo(function NotePopover({
         >
           <MaterialSymbol name="close" className={JIEYU_MATERIAL_INLINE} />
         </button>
-      )}
+      }
       {...(!isDialogMode ? { style: { left: pos.left, top: pos.top } } : {})}
       {...(isDialogMode ? { role: 'dialog', 'aria-modal': true } : {})}
     >
-      <PanelSection
-        className="note-popover-list-surface"
-      >
+      <PanelSection className="note-popover-list-surface">
         <div className="note-popover-list">
           {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
           {notes.map((note) => (
@@ -173,13 +192,27 @@ export const NotePopover = memo(function NotePopover({
                     className="panel-input note-popover-textarea"
                     aria-label={messages.editNoteContentLabel}
                     value={editContent}
-                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditContent(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                      setEditContent(e.target.value)
+                    }
                     onKeyDown={(e) => handleEditKeyDown(e, note.id)}
                     autoFocus
                   />
                   <div className="note-popover-edit-actions">
-                    <PanelButton variant="success" className="note-popover-btn note-popover-btn-save" onClick={() => handleEditSave(note.id)}>{messages.save}</PanelButton>
-                    <PanelButton variant="ghost" className="note-popover-btn note-popover-btn-cancel" onClick={() => setEditingId(null)}>{messages.cancel}</PanelButton>
+                    <PanelButton
+                      variant="success"
+                      className="note-popover-btn note-popover-btn-save"
+                      onClick={() => handleEditSave(note.id)}
+                    >
+                      {messages.save}
+                    </PanelButton>
+                    <PanelButton
+                      variant="ghost"
+                      className="note-popover-btn note-popover-btn-cancel"
+                      onClick={() => setEditingId(null)}
+                    >
+                      {messages.cancel}
+                    </PanelButton>
                   </div>
                 </div>
               ) : (
@@ -212,9 +245,7 @@ export const NotePopover = memo(function NotePopover({
         </div>
       </PanelSection>
 
-      <PanelSection
-        className="note-popover-add"
-      >
+      <PanelSection className="note-popover-add">
         <textarea
           className="panel-input note-popover-textarea"
           aria-label={messages.newNoteContentLabel}
@@ -239,7 +270,12 @@ export const NotePopover = memo(function NotePopover({
               </button>
             ))}
           </div>
-          <PanelButton variant="primary" className="note-popover-btn note-popover-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
+          <PanelButton
+            variant="primary"
+            className="note-popover-btn note-popover-btn-add"
+            onClick={handleAdd}
+            disabled={!newContent.trim()}
+          >
             {messages.add}
           </PanelButton>
         </div>

@@ -1,10 +1,19 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+  SpeakerDocType,
+} from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
-import { formatSidePaneLayerLabel, getLayerHeaderLanguageName } from '../utils/transcriptionFormatters';
+import {
+  formatSidePaneLayerLabel,
+  getLayerHeaderLanguageName,
+} from '../utils/transcriptionFormatters';
 import { ContextMenu } from './ContextMenu';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { LayerActionPopover } from './LayerActionPopover';
@@ -111,9 +120,13 @@ export function SidePaneSidebar({
   const speakerCtx = useSpeakerRailContext();
 
   const {
-    layerActionPanel, setLayerActionPanel, layerActionRootRef,
-    quickDeleteLayerId, setQuickDeleteLayerId,
-    quickDeleteKeepUnits, setQuickDeleteKeepUnits,
+    layerActionPanel,
+    setLayerActionPanel,
+    layerActionRootRef,
+    quickDeleteLayerId,
+    setQuickDeleteLayerId,
+    quickDeleteKeepUnits,
+    setQuickDeleteKeepUnits,
     createLayer,
     deleteLayer,
     deleteLayerWithoutConfirm,
@@ -121,9 +134,15 @@ export function SidePaneSidebar({
   } = layerAction;
 
   // ── Context menu state ──
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(
+    null,
+  );
   const [createLayerPopoverAction, setCreateLayerPopoverAction] = useState<{
-    action: 'create-transcription' | 'create-translation' | 'edit-transcription-metadata' | 'edit-translation-metadata';
+    action:
+      | 'create-transcription'
+      | 'create-translation'
+      | 'edit-transcription-metadata'
+      | 'edit-translation-metadata';
     layerId?: string;
   } | null>(null);
 
@@ -153,17 +172,23 @@ export function SidePaneSidebar({
     deleteLayerWithoutConfirm,
   });
 
-  const handleLayerContextMenu = (e: React.MouseEvent, layerId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY, layerId });
-    onFocusLayer(layerId);
-  };
+  const handleLayerContextMenu = useCallback(
+    (e: React.MouseEvent, layerId: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setContextMenu({ x: e.clientX, y: e.clientY, layerId });
+      onFocusLayer(layerId);
+    },
+    [onFocusLayer],
+  );
 
-  const openCreateLayerPopover = useCallback((action: 'create-transcription' | 'create-translation', layerId?: string) => {
-    setLayerActionPanel(null);
-    setCreateLayerPopoverAction({ action, ...(layerId ? { layerId } : {}) });
-  }, [setLayerActionPanel]);
+  const openCreateLayerPopover = useCallback(
+    (action: 'create-transcription' | 'create-translation', layerId?: string) => {
+      setLayerActionPanel(null);
+      setCreateLayerPopoverAction({ action, ...(layerId ? { layerId } : {}) });
+    },
+    [setLayerActionPanel],
+  );
 
   const sidePaneHost = useAppSidePaneHostOptional();
   const hasSidePaneHost = sidePaneHost !== null;
@@ -204,11 +229,15 @@ export function SidePaneSidebar({
   });
   const disableCreateTranslationEntry = transcriptionLayers.length === 0;
   const layerLabelById = useMemo(
-    () => new Map(sidePaneRows.map((layer) => [layer.id, formatSidePaneLayerLabel(layer)] as const)),
+    () =>
+      new Map(sidePaneRows.map((layer) => [layer.id, formatSidePaneLayerLabel(layer)] as const)),
     [sidePaneRows],
   );
   const layerLanguageNameById = useMemo(
-    () => new Map(sidePaneRows.map((layer) => [layer.id, getLayerHeaderLanguageName(layer, locale)] as const)),
+    () =>
+      new Map(
+        sidePaneRows.map((layer) => [layer.id, getLayerHeaderLanguageName(layer, locale)] as const),
+      ),
     [locale, sidePaneRows],
   );
   const {
@@ -227,171 +256,198 @@ export function SidePaneSidebar({
     locale,
   });
 
-  const contextMenuItems = useMemo(() => buildSidePaneSidebarContextMenuItems({
-    layerId: contextMenu?.layerId ?? null,
-    messages,
-    deletableLayers,
-    requestDeleteLayer,
-  }), [
-    contextMenu?.layerId,
-    deletableLayers,
-    messages,
-    requestDeleteLayer,
-  ]);
+  const contextMenuItems = useMemo(
+    () =>
+      buildSidePaneSidebarContextMenuItems({
+        layerId: contextMenu?.layerId ?? null,
+        messages,
+        deletableLayers,
+        requestDeleteLayer,
+      }),
+    [contextMenu?.layerId, deletableLayers, messages, requestDeleteLayer],
+  );
 
   // 键盘拖拽：Arrow Up/Down 直接提交重排 | Keyboard reorder: commit on each arrow press
-  const handleKeyboardReorder = useCallback((layerId: string, currentIndex: number, direction: 'up' | 'down') => {
-    if (dragState) return; // 鼠标拖拽进行中时忽略键盘 | Ignore while mouse drag is active
-    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex < 0 || targetIndex >= sidePaneRows.length) return;
-    fireAndForget(onReorderLayers(layerId, targetIndex), { context: 'src/components/SidePaneSidebar.tsx:L246', policy: 'user-visible' });
-  }, [dragState, sidePaneRows.length, onReorderLayers]);
+  const handleKeyboardReorder = useCallback(
+    (layerId: string, currentIndex: number, direction: 'up' | 'down') => {
+      if (dragState) return; // 鼠标拖拽进行中时忽略键盘 | Ignore while mouse drag is active
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= sidePaneRows.length) return;
+      fireAndForget(onReorderLayers(layerId, targetIndex), {
+        context: 'src/components/SidePaneSidebar.tsx:L246',
+        policy: 'user-visible',
+      });
+    },
+    [dragState, sidePaneRows.length, onReorderLayers],
+  );
 
-  const sidePaneOverviewNode = useMemo(() => (
-    <SidePaneSidebarOverview
-      sidePaneOverviewRef={sidePaneOverviewRef}
-      hasSidePaneHost={hasSidePaneHost}
-      messages={messages}
-      sidePaneRows={sidePaneRows}
-      dragState={dragState}
-      dropTargetIndex={dropTargetIndex}
-      focusedLayerRowId={focusedLayerRowId}
-      flashLayerRowId={flashLayerRowId}
-      bundleRootIds={bundleRootIds}
-      bundleBoundaryIndexes={bundleBoundaryIndexes}
-      layerLanguageNameById={layerLanguageNameById}
-      {...(layerLinks !== undefined ? { layerLinks } : {})}
-      resolveTargetBundleRange={resolveTargetBundleRange}
-      {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
-      {...(segmentsByLayer !== undefined ? { segmentsByLayer } : {})}
-      {...(segmentContentByLayer !== undefined ? { segmentContentByLayer } : {})}
-      {...(unitsOnCurrentMedia !== undefined ? { unitsOnCurrentMedia } : {})}
-      {...(speakers !== undefined ? { speakers } : {})}
-      {...(getUnitTextForLayer !== undefined ? { getUnitTextForLayer } : {})}
-      {...(onSelectTimelineUnit !== undefined ? { onSelectTimelineUnit } : {})}
-      onFocusLayer={onFocusLayer}
-      onContextMenu={handleLayerContextMenu}
-      onMouseDown={handleDragStart}
-      onKeyboardReorder={handleKeyboardReorder}
-    />
-  ), [
-    sidePaneOverviewRef,
-    hasSidePaneHost,
-    messages,
-    sidePaneRows,
-    dragState,
-    dropTargetIndex,
-    focusedLayerRowId,
-    flashLayerRowId,
-    bundleRootIds,
-    bundleBoundaryIndexes,
-    layerLanguageNameById,
-    layerLinks,
-    resolveTargetBundleRange,
-    defaultTranscriptionLayerId,
-    segmentsByLayer,
-    segmentContentByLayer,
-    unitsOnCurrentMedia,
-    speakers,
-    getUnitTextForLayer,
-    onSelectTimelineUnit,
-    onFocusLayer,
-    handleLayerContextMenu,
-    handleDragStart,
-    handleKeyboardReorder,
-  ]);
+  const sidePaneOverviewNode = useMemo(
+    () => (
+      <SidePaneSidebarOverview
+        sidePaneOverviewRef={sidePaneOverviewRef}
+        hasSidePaneHost={hasSidePaneHost}
+        messages={messages}
+        sidePaneRows={sidePaneRows}
+        dragState={dragState}
+        dropTargetIndex={dropTargetIndex}
+        focusedLayerRowId={focusedLayerRowId}
+        flashLayerRowId={flashLayerRowId}
+        bundleRootIds={bundleRootIds}
+        bundleBoundaryIndexes={bundleBoundaryIndexes}
+        layerLanguageNameById={layerLanguageNameById}
+        {...(layerLinks !== undefined ? { layerLinks } : {})}
+        resolveTargetBundleRange={resolveTargetBundleRange}
+        {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
+        {...(segmentsByLayer !== undefined ? { segmentsByLayer } : {})}
+        {...(segmentContentByLayer !== undefined ? { segmentContentByLayer } : {})}
+        {...(unitsOnCurrentMedia !== undefined ? { unitsOnCurrentMedia } : {})}
+        {...(speakers !== undefined ? { speakers } : {})}
+        {...(getUnitTextForLayer !== undefined ? { getUnitTextForLayer } : {})}
+        {...(onSelectTimelineUnit !== undefined ? { onSelectTimelineUnit } : {})}
+        onFocusLayer={onFocusLayer}
+        onContextMenu={handleLayerContextMenu}
+        onMouseDown={handleDragStart}
+        onKeyboardReorder={handleKeyboardReorder}
+      />
+    ),
+    [
+      sidePaneOverviewRef,
+      hasSidePaneHost,
+      messages,
+      sidePaneRows,
+      dragState,
+      dropTargetIndex,
+      focusedLayerRowId,
+      flashLayerRowId,
+      bundleRootIds,
+      bundleBoundaryIndexes,
+      layerLanguageNameById,
+      layerLinks,
+      resolveTargetBundleRange,
+      defaultTranscriptionLayerId,
+      segmentsByLayer,
+      segmentContentByLayer,
+      unitsOnCurrentMedia,
+      speakers,
+      getUnitTextForLayer,
+      onSelectTimelineUnit,
+      onFocusLayer,
+      handleLayerContextMenu,
+      handleDragStart,
+      handleKeyboardReorder,
+    ],
+  );
 
-  const sidePaneActionsNode = useMemo(() => (
-    <SidePaneSidebarActions
-      hasSidePaneHost={hasSidePaneHost}
-      messages={messages}
-      layerActionRootRef={layerActionRootRef}
-      constraintRepairBusy={constraintRepairBusy}
-      sidePaneRowsLength={sidePaneRows.length}
-      layerActionPanel={layerActionPanel}
-      quickDeleteLayerId={quickDeleteLayerId}
-      quickDeleteKeepUnits={quickDeleteKeepUnits}
-      deletableLayers={deletableLayers}
-      layerCreateMessage={layerCreateMessage}
-      constraintRepairMessage={constraintRepairMessage}
-      constraintRepairDetails={constraintRepairDetails}
-      constraintRepairDetailsCollapsed={constraintRepairDetailsCollapsed}
-      groupedConstraintRepairDetails={groupedConstraintRepairDetails}
-      speakerCtx={speakerCtx}
-      onRunRepair={handleRepairLayerConstraints}
-      setLayerActionPanel={setLayerActionPanel}
-      setQuickDeleteLayerId={setQuickDeleteLayerId}
-      setQuickDeleteKeepUnits={setQuickDeleteKeepUnits}
-      requestDeleteLayer={requestDeleteLayer}
-      setConstraintRepairDetailsCollapsed={setConstraintRepairDetailsCollapsed}
-    />
-  ), [
-    hasSidePaneHost,
-    messages,
-    layerActionRootRef,
-    constraintRepairBusy,
-    sidePaneRows.length,
-    layerActionPanel,
-    quickDeleteLayerId,
-    quickDeleteKeepUnits,
-    deletableLayers,
-    layerCreateMessage,
-    constraintRepairMessage,
-    constraintRepairDetails,
-    constraintRepairDetailsCollapsed,
-    groupedConstraintRepairDetails,
-    speakerCtx,
-    handleRepairLayerConstraints,
-    setLayerActionPanel,
-    setQuickDeleteLayerId,
-    setQuickDeleteKeepUnits,
-    requestDeleteLayer,
-    setConstraintRepairDetailsCollapsed,
-  ]);
+  const sidePaneActionsNode = useMemo(
+    () => (
+      <SidePaneSidebarActions
+        hasSidePaneHost={hasSidePaneHost}
+        messages={messages}
+        layerActionRootRef={layerActionRootRef}
+        constraintRepairBusy={constraintRepairBusy}
+        sidePaneRowsLength={sidePaneRows.length}
+        layerActionPanel={layerActionPanel}
+        quickDeleteLayerId={quickDeleteLayerId}
+        quickDeleteKeepUnits={quickDeleteKeepUnits}
+        deletableLayers={deletableLayers}
+        layerCreateMessage={layerCreateMessage}
+        constraintRepairMessage={constraintRepairMessage}
+        constraintRepairDetails={constraintRepairDetails}
+        constraintRepairDetailsCollapsed={constraintRepairDetailsCollapsed}
+        groupedConstraintRepairDetails={groupedConstraintRepairDetails}
+        speakerCtx={speakerCtx}
+        onRunRepair={handleRepairLayerConstraints}
+        setLayerActionPanel={setLayerActionPanel}
+        setQuickDeleteLayerId={setQuickDeleteLayerId}
+        setQuickDeleteKeepUnits={setQuickDeleteKeepUnits}
+        requestDeleteLayer={requestDeleteLayer}
+        setConstraintRepairDetailsCollapsed={setConstraintRepairDetailsCollapsed}
+      />
+    ),
+    [
+      hasSidePaneHost,
+      messages,
+      layerActionRootRef,
+      constraintRepairBusy,
+      sidePaneRows.length,
+      layerActionPanel,
+      quickDeleteLayerId,
+      quickDeleteKeepUnits,
+      deletableLayers,
+      layerCreateMessage,
+      constraintRepairMessage,
+      constraintRepairDetails,
+      constraintRepairDetailsCollapsed,
+      groupedConstraintRepairDetails,
+      speakerCtx,
+      handleRepairLayerConstraints,
+      setLayerActionPanel,
+      setQuickDeleteLayerId,
+      setQuickDeleteKeepUnits,
+      requestDeleteLayer,
+      setConstraintRepairDetailsCollapsed,
+    ],
+  );
 
-  const collaborationCloudModalNode = useMemo(() => (
-    collaborationCloudPanelProps ? (
-      <ModalPanel
-        isOpen={isCollaborationPanelOpen}
-        onClose={() => setIsCollaborationPanelOpen(false)}
-        title={collaborationMessages.title}
-        ariaLabel={collaborationMessages.title}
-        className="pnl-collaboration-cloud-modal"
-        bodyClassName="collaboration-cloud-modal-body collaboration-cloud-settings-body"
-        titleClassName="collaboration-cloud-modal-title"
+  const collaborationCloudModalNode = useMemo(
+    () =>
+      collaborationCloudPanelProps ? (
+        <ModalPanel
+          isOpen={isCollaborationPanelOpen}
+          onClose={() => setIsCollaborationPanelOpen(false)}
+          title={collaborationMessages.title}
+          ariaLabel={collaborationMessages.title}
+          className="pnl-collaboration-cloud-modal"
+          bodyClassName="collaboration-cloud-modal-body collaboration-cloud-settings-body"
+          titleClassName="collaboration-cloud-modal-title"
+        >
+          <CollaborationCloudPanel {...collaborationCloudPanelProps} hideHeader />
+        </ModalPanel>
+      ) : null,
+    [collaborationCloudPanelProps, collaborationMessages.title, isCollaborationPanelOpen],
+  );
+
+  const sidePanePortaledNode = useMemo(
+    () => (
+      <div className="transcription-side-pane-portaled-stack" data-layer-pane-interactive="true">
+        {sidePaneOverviewNode}
+        <section
+          className="app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group"
+          aria-label={messages.quickActionsCardAria}
+        >
+          <div
+            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
+            role="presentation"
+          >
+            <span className="app-side-pane-section-title">{messages.quickActionsCardTitle}</span>
+          </div>
+          <div className="app-side-pane-nav app-side-pane-layer-actions-wrap">
+            {sidePaneActionsNode}
+          </div>
+        </section>
+      </div>
+    ),
+    [
+      messages.quickActionsCardAria,
+      messages.quickActionsCardTitle,
+      sidePaneActionsNode,
+      sidePaneOverviewNode,
+    ],
+  );
+
+  const sidePaneInlineFallbackNode = useMemo(
+    () => (
+      <div
+        className="transcription-side-pane"
+        aria-label={messages.inlinePaneAria}
+        data-layer-pane-interactive="true"
       >
-        <CollaborationCloudPanel
-          {...collaborationCloudPanelProps}
-          hideHeader
-        />
-      </ModalPanel>
-    ) : null
-  ), [collaborationCloudPanelProps, collaborationMessages.title, isCollaborationPanelOpen]);
-
-  const sidePanePortaledNode = useMemo(() => (
-    <div className="transcription-side-pane-portaled-stack" data-layer-pane-interactive="true">
-      {sidePaneOverviewNode}
-      <section className="app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group" aria-label={messages.quickActionsCardAria}>
-        <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-          <span className="app-side-pane-section-title">{messages.quickActionsCardTitle}</span>
-        </div>
-        <div className="app-side-pane-nav app-side-pane-layer-actions-wrap">
-          {sidePaneActionsNode}
-        </div>
-      </section>
-    </div>
-  ), [messages.quickActionsCardAria, messages.quickActionsCardTitle, sidePaneActionsNode, sidePaneOverviewNode]);
-
-  const sidePaneInlineFallbackNode = useMemo(() => (
-    <div
-      className="transcription-side-pane"
-      aria-label={messages.inlinePaneAria}
-      data-layer-pane-interactive="true"
-    >
-      {sidePaneOverviewNode}
-      {sidePaneActionsNode}
-    </div>
-  ), [messages.inlinePaneAria, sidePaneActionsNode, sidePaneOverviewNode]);
+        {sidePaneOverviewNode}
+        {sidePaneActionsNode}
+      </div>
+    ),
+    [messages.inlinePaneAria, sidePaneActionsNode, sidePaneOverviewNode],
+  );
 
   useRegisterAppSidePane({
     title: messages.paneTitle,
@@ -401,7 +457,12 @@ export function SidePaneSidebar({
   });
 
   return (
-    <SidePaneLayerProvider deletableLayers={deletableLayers} checkLayerHasContent={checkLayerHasContent} deleteLayer={deleteLayer} deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}>
+    <SidePaneLayerProvider
+      deletableLayers={deletableLayers}
+      checkLayerHasContent={checkLayerHasContent}
+      deleteLayer={deleteLayer}
+      deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}
+    >
       {showLeftRailLayerActions ? (
         <TranscriptionLeftRailLayerActions
           messages={messages}
@@ -431,21 +492,31 @@ export function SidePaneSidebar({
           deletableLayers={deletableLayers}
           {...(layerLinks !== undefined ? { layerLinks } : {})}
           layerCreateMessage={layerCreateMessage}
-          createLayer={async (layerType, input, modality) => createLayer(layerType, {
-            languageId: input.languageId,
-            ...(input.orthographyId !== undefined ? { orthographyId: input.orthographyId } : {}),
-            ...(input.dialect !== undefined ? { dialect: input.dialect } : {}),
-            ...(input.vernacular !== undefined ? { vernacular: input.vernacular } : {}),
-            ...(input.alias !== undefined ? { alias: input.alias } : {}),
-            ...(input.constraint !== undefined ? { constraint: input.constraint } : {}),
-            ...(input.parentLayerId !== undefined ? { parentLayerId: input.parentLayerId } : {}),
-            ...(input.hostTranscriptionLayerIds !== undefined
-              ? { hostTranscriptionLayerIds: input.hostTranscriptionLayerIds }
-              : {}),
-            ...(input.preferredHostTranscriptionLayerId !== undefined
-              ? { preferredHostTranscriptionLayerId: input.preferredHostTranscriptionLayerId }
-              : {}),
-          }, modality)}
+          createLayer={async (layerType, input, modality) =>
+            createLayer(
+              layerType,
+              {
+                languageId: input.languageId,
+                ...(input.orthographyId !== undefined
+                  ? { orthographyId: input.orthographyId }
+                  : {}),
+                ...(input.dialect !== undefined ? { dialect: input.dialect } : {}),
+                ...(input.vernacular !== undefined ? { vernacular: input.vernacular } : {}),
+                ...(input.alias !== undefined ? { alias: input.alias } : {}),
+                ...(input.constraint !== undefined ? { constraint: input.constraint } : {}),
+                ...(input.parentLayerId !== undefined
+                  ? { parentLayerId: input.parentLayerId }
+                  : {}),
+                ...(input.hostTranscriptionLayerIds !== undefined
+                  ? { hostTranscriptionLayerIds: input.hostTranscriptionLayerIds }
+                  : {}),
+                ...(input.preferredHostTranscriptionLayerId !== undefined
+                  ? { preferredHostTranscriptionLayerId: input.preferredHostTranscriptionLayerId }
+                  : {}),
+              },
+              modality,
+            )
+          }
           {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
           {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
           {...(updateLayerMetadata ? { updateLayerMetadata } : {})}
@@ -468,7 +539,12 @@ export function SidePaneSidebar({
         keepUnits={deleteConfirmKeepUnits}
         onKeepUnitsChange={setDeleteConfirmKeepUnits}
         onCancel={cancelDeleteLayerConfirm}
-        onConfirm={() => { fireAndForget(confirmDeleteLayer(), { context: 'src/components/SidePaneSidebar.tsx:L470', policy: 'user-visible' }); }}
+        onConfirm={() => {
+          fireAndForget(confirmDeleteLayer(), {
+            context: 'src/components/SidePaneSidebar.tsx:L470',
+            policy: 'user-visible',
+          });
+        }}
       />
     </SidePaneLayerProvider>
   );

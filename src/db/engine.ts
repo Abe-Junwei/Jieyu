@@ -6,9 +6,111 @@
  * Instance: 单例管理与 JieyuDatabase 工厂
  */
 import Dexie, { type Table, type Transaction } from 'dexie';
-import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, ProjectAiMemoryDoc, McpToolCallAuditDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType, AiSourceSetDoc, SegmentationV2BackfillRows, V28BackfillPlan, JieyuCollections } from './types';
-import { validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUnitMorphemeDoc, validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc, validateAiTaskDoc, validateEmbeddingDoc, validateAiConversationDoc, validateAiMessageDoc, validateProjectAiMemoryDoc, validateMcpToolCallAuditDoc, validateLanguageDoc, validateLanguageDisplayNameDoc, validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc, validateCustomFieldDefinitionDoc, validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc, validateLocationDoc, validateBibliographicSourceDoc, validateGrammarDoc, validateAbbreviationDoc, validateStructuralRuleProfileAssetDoc, validatePhonemeDoc, validateTagDefinitionDoc, validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc, validateUnitRelationDoc, validateLayerLinkDoc, validateTierDefinitionDoc, validateTierAnnotationDoc, validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc, validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc, validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc, validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc, validateAiSourceSetDoc } from './schemas';
-import { DexieCollectionAdapter, TierBackedLayerCollectionAdapter, resolveBridgeId, BRIDGE_TIER_PREFIX } from './adapter';
+import type {
+  TextDocType,
+  MediaItemDocType,
+  LayerUnitDocType,
+  UnitTokenDocType,
+  UnitMorphemeDocType,
+  AnchorDocType,
+  LexemeDocType,
+  TokenLexemeLinkDocType,
+  AiTaskDoc,
+  EmbeddingDoc,
+  AiConversationDoc,
+  AiMessageDoc,
+  ProjectAiMemoryDoc,
+  McpToolCallAuditDoc,
+  LanguageDocType,
+  LanguageDisplayNameDocType,
+  LanguageAliasDocType,
+  LanguageCatalogHistoryDocType,
+  CustomFieldDefinitionDocType,
+  SpeakerDocType,
+  OrthographyDocType,
+  OrthographyBridgeDocType,
+  LocationDocType,
+  BibliographicSourceDocType,
+  GrammarDocDocType,
+  AbbreviationDocType,
+  StructuralRuleProfileAssetDocType,
+  PhonemeDocType,
+  TagDefinitionDocType,
+  LayerDocType,
+  LayerUnitContentDocType,
+  UnitRelationDocType,
+  LayerLinkDocType,
+  TierDefinitionDocType,
+  TierAnnotationDocType,
+  AuditLogDocType,
+  UserNoteDocType,
+  SegmentMetaDocType,
+  SegmentQualitySnapshotDocType,
+  ScopeStatsSnapshotDocType,
+  SpeakerProfileSnapshotDocType,
+  TranslationStatusSnapshotDocType,
+  LanguageAssetOverviewDocType,
+  AiTaskSnapshotDocType,
+  TrackEntityDocType,
+  AiSourceSetDoc,
+  SegmentationV2BackfillRows,
+  V28BackfillPlan,
+  JieyuCollections,
+} from './types';
+import {
+  validateTextDoc,
+  validateMediaItemDoc,
+  validateUnitTokenDoc,
+  validateUnitMorphemeDoc,
+  validateAnchorDoc,
+  validateLexemeDoc,
+  validateTokenLexemeLinkDoc,
+  validateAiTaskDoc,
+  validateEmbeddingDoc,
+  validateAiConversationDoc,
+  validateAiMessageDoc,
+  validateProjectAiMemoryDoc,
+  validateMcpToolCallAuditDoc,
+  validateLanguageDoc,
+  validateLanguageDisplayNameDoc,
+  validateLanguageAliasDoc,
+  validateLanguageCatalogHistoryDoc,
+  validateCustomFieldDefinitionDoc,
+  validateSpeakerDoc,
+  validateOrthographyDoc,
+  validateOrthographyBridgeDoc,
+  validateLocationDoc,
+  validateBibliographicSourceDoc,
+  validateGrammarDoc,
+  validateAbbreviationDoc,
+  validateStructuralRuleProfileAssetDoc,
+  validatePhonemeDoc,
+  validateTagDefinitionDoc,
+  validateLayerDoc,
+  validateLayerUnitDoc,
+  validateLayerUnitContentDoc,
+  validateUnitRelationDoc,
+  validateLayerLinkDoc,
+  validateTierDefinitionDoc,
+  validateTierAnnotationDoc,
+  validateAuditLogDoc,
+  validateUserNoteDoc,
+  validateSegmentMetaDoc,
+  validateSegmentQualitySnapshotDoc,
+  validateScopeStatsSnapshotDoc,
+  validateSpeakerProfileSnapshotDoc,
+  validateTranslationStatusSnapshotDoc,
+  validateLanguageAssetOverviewDoc,
+  validateAiTaskSnapshotDoc,
+  validateTrackEntityDoc,
+  validateAiSourceSetDoc,
+} from './schemas';
+import {
+  DexieCollectionAdapter,
+  TierBackedLayerCollectionAdapter,
+  resolveBridgeId,
+  BRIDGE_TIER_PREFIX,
+} from './adapter';
 import { upgradeM18LinguisticUnitCutover } from './migrations/m18LinguisticUnitCutover';
 import { upgradeM41SelfCertaintyHostDepollute } from './migrations/m41SelfCertaintyHostDepollute';
 import { upgradeM42TrackEntityDocumentIds } from './migrations/m42TrackEntityDocumentIds';
@@ -81,10 +183,7 @@ export function buildSegmentationV2BackfillRows(input: {
   const linkById = new Map<string, UnitRelationDocType>();
   const unitById = new Map(units.map((item) => [item.id, item]));
 
-  const ensureSegment = (
-    unit: LayerUnitDocType,
-    layerId: string,
-  ): LayerUnitDocType => {
+  const ensureSegment = (unit: LayerUnitDocType, layerId: string): LayerUnitDocType => {
     const segmentId = buildSegmentId(layerId, unit.id);
     const existing = segmentById.get(segmentId);
     if (existing) return existing;
@@ -121,7 +220,11 @@ export function buildSegmentationV2BackfillRows(input: {
 
   // v22 迁移数据可能仍含 tierId 而非 layerId | v22 migration data may still have tierId instead of layerId
   const getRowLayerId = (row: LayerUnitContentDocType): string =>
-    (((row as unknown as Record<string, unknown>).tierId as string | undefined) ?? row.layerId ?? '').trim();
+    (
+      ((row as unknown as Record<string, unknown>).tierId as string | undefined) ??
+      row.layerId ??
+      ''
+    ).trim();
 
   for (const row of unitTexts) {
     const unitId = row.unitId?.trim();
@@ -142,7 +245,9 @@ export function buildSegmentationV2BackfillRows(input: {
       contentRole: 'primary_text',
       modality: row.modality ?? 'text',
       ...(row.text !== undefined ? { text: row.text } : {}),
-      ...(row.translationAudioMediaId ? { translationAudioMediaId: row.translationAudioMediaId } : {}),
+      ...(row.translationAudioMediaId
+        ? { translationAudioMediaId: row.translationAudioMediaId }
+        : {}),
       sourceType: row.sourceType ?? 'human',
       ...(row.ai_metadata ? { ai_metadata: row.ai_metadata } : {}),
       ...(row.provenance ? { provenance: row.provenance } : {}),
@@ -233,7 +338,9 @@ export function buildV28BackfillPlanForText(input: {
     contentRole: 'primary_text',
     modality: text.modality ?? 'text',
     ...(text.text !== undefined ? { text: text.text } : {}),
-    ...(text.translationAudioMediaId ? { translationAudioMediaId: text.translationAudioMediaId } : {}),
+    ...(text.translationAudioMediaId
+      ? { translationAudioMediaId: text.translationAudioMediaId }
+      : {}),
     sourceType: text.sourceType ?? 'human',
     ...(text.ai_metadata ? { ai_metadata: text.ai_metadata } : {}),
     ...(text.provenance ? { provenance: text.provenance } : {}),
@@ -370,7 +477,8 @@ export class JieyuDexie extends Dexie {
     this.version(3).stores({
       texts: 'id, updatedAt, languageCode',
       media_items: 'id, textId, createdAt',
-      units: 'id, textId, mediaId, [textId+mediaId], [mediaId+startTime], [textId+startTime], startTime, updatedAt',
+      units:
+        'id, textId, mediaId, [textId+mediaId], [mediaId+startTime], [textId+startTime], startTime, updatedAt',
       lexemes: 'id, updatedAt',
       annotations: 'id, textId, createdAt',
       corpus_lexicon_links: 'id, unitId, lexemeId',
@@ -400,55 +508,66 @@ export class JieyuDexie extends Dexie {
       user_notes: 'id, [targetType+targetId], [targetId+targetIndex], updatedAt',
     });
 
-    this.version(6).stores({
-      anchors: 'id, mediaId, [mediaId+time], time',
-    }).upgrade(async (tx: Transaction) => {
-      const unitsTable = tx.table('units');
-      const anchorsTable = tx.table('anchors');
-      const allUnits: LayerUnitDocType[] = await unitsTable.toArray();
+    this.version(6)
+      .stores({
+        anchors: 'id, mediaId, [mediaId+time], time',
+      })
+      .upgrade(async (tx: Transaction) => {
+        const unitsTable = tx.table('units');
+        const anchorsTable = tx.table('anchors');
+        const allUnits: LayerUnitDocType[] = await unitsTable.toArray();
 
-      if (allUnits.length === 0) return;
+        if (allUnits.length === 0) return;
 
-      const now = new Date().toISOString();
-      let anchorCounter = 0;
+        const now = new Date().toISOString();
+        let anchorCounter = 0;
 
-      const anchorsToInsert: AnchorDocType[] = [];
-      const unitsToUpdate: LayerUnitDocType[] = [];
+        const anchorsToInsert: AnchorDocType[] = [];
+        const unitsToUpdate: LayerUnitDocType[] = [];
 
-      for (const u of allUnits) {
-        const mediaId = u.mediaId ?? '';
-        const startAnchorId = `anc_${Date.now()}_${++anchorCounter}`;
-        const endAnchorId = `anc_${Date.now()}_${++anchorCounter}`;
-        anchorsToInsert.push(
-          { id: startAnchorId, mediaId, time: u.startTime, createdAt: now },
-          { id: endAnchorId, mediaId, time: u.endTime, createdAt: now },
-        );
-        unitsToUpdate.push({
-          ...u,
-          startAnchorId,
-          endAnchorId,
-        });
-      }
+        for (const u of allUnits) {
+          const mediaId = u.mediaId ?? '';
+          const startAnchorId = `anc_${Date.now()}_${++anchorCounter}`;
+          const endAnchorId = `anc_${Date.now()}_${++anchorCounter}`;
+          anchorsToInsert.push(
+            { id: startAnchorId, mediaId, time: u.startTime, createdAt: now },
+            { id: endAnchorId, mediaId, time: u.endTime, createdAt: now },
+          );
+          unitsToUpdate.push({
+            ...u,
+            startAnchorId,
+            endAnchorId,
+          });
+        }
 
-      await anchorsTable.bulkPut(anchorsToInsert);
-      await unitsTable.bulkPut(unitsToUpdate);
-    });
-
-    this.version(7).stores({
-      corpus_lexicon_links: 'id, unitId, lexemeId, annotationId',
-    }).upgrade(async (tx: Transaction) => {
-      const linksTable = tx.table('corpus_lexicon_links');
-      const allLinks = (await linksTable.toArray()) as Array<{ id: string; unitId: string; lexemeId: string; annotationId: string; wordIndex?: number }>;
-      if (allLinks.length === 0) return;
-      const updated = allLinks.map((link) => {
-        const { wordIndex: _wordIndex, ...rest } = link;
-        return rest;
+        await anchorsTable.bulkPut(anchorsToInsert);
+        await unitsTable.bulkPut(unitsToUpdate);
       });
-      await linksTable.bulkPut(updated);
-    });
+
+    this.version(7)
+      .stores({
+        corpus_lexicon_links: 'id, unitId, lexemeId, annotationId',
+      })
+      .upgrade(async (tx: Transaction) => {
+        const linksTable = tx.table('corpus_lexicon_links');
+        const allLinks = (await linksTable.toArray()) as Array<{
+          id: string;
+          unitId: string;
+          lexemeId: string;
+          annotationId: string;
+          wordIndex?: number;
+        }>;
+        if (allLinks.length === 0) return;
+        const updated = allLinks.map((link) => {
+          const { wordIndex: _wordIndex, ...rest } = link;
+          return rest;
+        });
+        await linksTable.bulkPut(updated);
+      });
 
     this.version(8).stores({
-      tier_annotations: 'id, tierId, parentAnnotationId, [tierId+startTime], startTime, endTime, startAnchorId, endAnchorId',
+      tier_annotations:
+        'id, tierId, parentAnnotationId, [tierId+startTime], startTime, endTime, startAnchorId, endAnchorId',
     });
 
     this.version(9).stores({
@@ -456,176 +575,197 @@ export class JieyuDexie extends Dexie {
     });
 
     // v10: Rename unit_translations → unit_texts + strip deprecated transcription cache
-    this.version(10).stores({
-      unit_translations: null,
-      unit_texts: 'id, unitId, translationLayerId, [unitId+translationLayerId], updatedAt',
-    }).upgrade(async (tx: Transaction) => {
-      // 1. Copy all rows from old table to new table
-      const oldTable = tx.table('unit_translations');
-      const newTable = tx.table('unit_texts');
-      const allRows = await oldTable.toArray();
-      if (allRows.length > 0) {
-        await newTable.bulkPut(allRows);
-      }
-
-      // 2. Migrate unit.transcription.default → unit_texts if not yet present
-      const unitsTable = tx.table('units');
-      const allUnits: LayerUnitDocType[] = await unitsTable.toArray();
-
-      for (const utt of allUnits) {
-        const defaultText = utt.transcription?.['default'];
-        if (!defaultText) continue;
-
-        // Check if there's already an unit_text for the default transcription layer
-        const existing = await newTable.where('[unitId+translationLayerId]').equals([utt.id, 'default']).first();
-        if (!existing) {
-          const now = new Date().toISOString();
-          await newTable.put({
-            id: `ut_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            unitId: utt.id,
-            translationLayerId: 'default',
-            modality: 'text',
-            text: defaultText,
-            sourceType: 'human',
-            createdAt: now,
-            updatedAt: now,
-          });
+    this.version(10)
+      .stores({
+        unit_translations: null,
+        unit_texts: 'id, unitId, translationLayerId, [unitId+translationLayerId], updatedAt',
+      })
+      .upgrade(async (tx: Transaction) => {
+        // 1. Copy all rows from old table to new table
+        const oldTable = tx.table('unit_translations');
+        const newTable = tx.table('unit_texts');
+        const allRows = await oldTable.toArray();
+        if (allRows.length > 0) {
+          await newTable.bulkPut(allRows);
         }
-      }
 
-      // 3. Strip transcription field from units
-      const cleaned = allUnits.map(({ transcription, ...rest }) => rest);
-      if (cleaned.length > 0) {
-        await unitsTable.bulkPut(cleaned);
-      }
-    });
+        // 2. Migrate unit.transcription.default → unit_texts if not yet present
+        const unitsTable = tx.table('units');
+        const allUnits: LayerUnitDocType[] = await unitsTable.toArray();
+
+        for (const utt of allUnits) {
+          const defaultText = utt.transcription?.['default'];
+          if (!defaultText) continue;
+
+          // Check if there's already an unit_text for the default transcription layer
+          const existing = await newTable
+            .where('[unitId+translationLayerId]')
+            .equals([utt.id, 'default'])
+            .first();
+          if (!existing) {
+            const now = new Date().toISOString();
+            await newTable.put({
+              id: `ut_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+              unitId: utt.id,
+              translationLayerId: 'default',
+              modality: 'text',
+              text: defaultText,
+              sourceType: 'human',
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+        }
+
+        // 3. Strip transcription field from units
+        const cleaned = allUnits.map(({ transcription: _transcription, ...rest }) => rest);
+        if (cleaned.length > 0) {
+          await unitsTable.bulkPut(cleaned);
+        }
+      });
 
     // v11: Add textId to translation_layers (scope layers per text)
-    this.version(11).stores({
-      translation_layers: 'id, textId, key, languageId, updatedAt, layerType',
-    }).upgrade(async (tx: Transaction) => {
-      const layersTable = tx.table('translation_layers');
-      const allLayers = (await layersTable.toArray()) as LayerDocType[];
-      if (allLayers.length === 0) return;
+    this.version(11)
+      .stores({
+        translation_layers: 'id, textId, key, languageId, updatedAt, layerType',
+      })
+      .upgrade(async (tx: Transaction) => {
+        const layersTable = tx.table('translation_layers');
+        const allLayers = (await layersTable.toArray()) as LayerDocType[];
+        if (allLayers.length === 0) return;
 
-      const unitsTable = tx.table('units');
-      const textsTable = tx.table('texts');
-      const unitTextsTable = tx.table('unit_texts');
-      const allUnits = (await unitsTable.toArray()) as LayerUnitDocType[];
-      const distinctTextIds = [
-        ...new Set(
-          allUnits
-            .map((u) => u.textId)
-            .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
-        ),
-      ];
-      const firstText = (await textsTable.toCollection().first()) as { id: string } | undefined;
-      const fallbackTextId = distinctTextIds[0] ?? firstText?.id;
-      if (!fallbackTextId) return; // No text in DB — layers will need manual fix
+        const unitsTable = tx.table('units');
+        const textsTable = tx.table('texts');
+        const unitTextsTable = tx.table('unit_texts');
+        const allUnits = (await unitsTable.toArray()) as LayerUnitDocType[];
+        const distinctTextIds = [
+          ...new Set(
+            allUnits
+              .map((u) => u.textId)
+              .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+          ),
+        ];
+        const firstText = (await textsTable.toCollection().first()) as { id: string } | undefined;
+        const fallbackTextId = distinctTextIds[0] ?? firstText?.id;
+        if (!fallbackTextId) return; // No text in DB — layers will need manual fix
 
-      type UnitTextRow = { unitId?: string; translationLayerId?: string };
-      const resolveTextIdForLayer = async (layer: LayerDocType): Promise<string> => {
-        if (distinctTextIds.length <= 1) {
-          return fallbackTextId;
-        }
-        try {
-          const rows = (await unitTextsTable
-            .filter((row: UnitTextRow) => row.translationLayerId === layer.key)
-            .toArray()) as UnitTextRow[];
-          const counts = new Map<string, number>();
-          for (const row of rows) {
-            const unit = allUnits.find((u) => u.id === row.unitId);
-            const tid = unit?.textId;
-            if (typeof tid === 'string' && tid.trim().length > 0) {
-              counts.set(tid, (counts.get(tid) ?? 0) + 1);
+        type UnitTextRow = { unitId?: string; translationLayerId?: string };
+        const resolveTextIdForLayer = async (layer: LayerDocType): Promise<string> => {
+          if (distinctTextIds.length <= 1) {
+            return fallbackTextId;
+          }
+          try {
+            const rows = (await unitTextsTable
+              .filter((row: UnitTextRow) => row.translationLayerId === layer.key)
+              .toArray()) as UnitTextRow[];
+            const counts = new Map<string, number>();
+            for (const row of rows) {
+              const unit = allUnits.find((u) => u.id === row.unitId);
+              const tid = unit?.textId;
+              if (typeof tid === 'string' && tid.trim().length > 0) {
+                counts.set(tid, (counts.get(tid) ?? 0) + 1);
+              }
             }
+            const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+            if (ranked.length > 0) return ranked[0]![0];
+          } catch (err) {
+            if (isDexieIndexedQueryFallbackError(err)) {
+              reportDexieIndexedQueryFallback(
+                'migrations:v11:resolveTextIdForLayer:unit_texts',
+                err,
+              );
+            } else {
+              reportUnexpectedDexieQueryError(
+                'migrations:v11:resolveTextIdForLayer:unit_texts',
+                err,
+              );
+            }
+            // unit_texts 读失败时仍退回单值 textId，保证迁移能完成 | Fall back so migration can finish
           }
-          const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-          if (ranked.length > 0) return ranked[0]![0];
-        } catch (err) {
-          if (isDexieIndexedQueryFallbackError(err)) {
-            reportDexieIndexedQueryFallback('migrations:v11:resolveTextIdForLayer:unit_texts', err);
-          } else {
-            reportUnexpectedDexieQueryError('migrations:v11:resolveTextIdForLayer:unit_texts', err);
-          }
-          // unit_texts 读失败时仍退回单值 textId，保证迁移能完成 | Fall back so migration can finish
-        }
-        return fallbackTextId;
-      };
-
-      const updated: LayerDocType[] = [];
-      for (const layer of allLayers) {
-        const textId = await resolveTextIdForLayer(layer);
-        updated.push({ ...layer, textId });
-      }
-      await layersTable.bulkPut(updated);
-    });
-
-    // v12: Fully merge layer system into tier_definitions and remove translation_layers table
-    this.version(12).stores({
-      translation_layers: null,
-      tier_definitions: 'id, textId, key, parentTierId, tierType, contentType',
-    }).upgrade(async (tx: Transaction) => {
-      const layersTable = tx.table('translation_layers');
-      const tiersTable = tx.table('tier_definitions');
-      const annotationsTable = tx.table('tier_annotations');
-
-      const layers: LayerDocType[] = await layersTable.toArray();
-      if (layers.length === 0) return;
-
-      for (const layer of layers) {
-        const bridgeId = resolveBridgeId(layer);
-        const bridgeKey = `${BRIDGE_TIER_PREFIX}${layer.key}`;
-        const existingTier = await tiersTable
-          .filter((t: TierDefinitionDocType) => t.textId === layer.textId && t.key === bridgeKey)
-          .first();
-
-        const mergedTier: TierDefinitionDocType = {
-          ...(existingTier ?? {
-            tierType: 'time-aligned',
-            contentType: layer.layerType,
-            createdAt: layer.createdAt,
-          }),
-          id: layer.id,
-          textId: layer.textId,
-          key: bridgeKey,
-          name: layer.name,
-          languageId: layer.languageId,
-          ...(layer.orthographyId !== undefined && { orthographyId: layer.orthographyId }),
-          ...(bridgeId !== undefined && { bridgeId }),
-          contentType: layer.layerType,
-          modality: layer.modality,
-          acceptsAudio: layer.acceptsAudio,
-          isDefault: layer.isDefault,
-          accessRights: layer.accessRights,
-          sortOrder: layer.sortOrder,
-          createdAt: existingTier?.createdAt ?? layer.createdAt,
-          updatedAt: layer.updatedAt,
+          return fallbackTextId;
         };
 
-        await tiersTable.put(mergedTier);
-
-        if (existingTier && existingTier.id !== layer.id) {
-          const oldTierId = existingTier.id;
-
-          const tierAnnotations = await annotationsTable.where('tierId').equals(oldTierId).toArray();
-          if (tierAnnotations.length > 0) {
-            await annotationsTable.bulkPut(
-              tierAnnotations.map((ann: TierAnnotationDocType) => ({ ...ann, tierId: layer.id })),
-            );
-          }
-
-          const childTiers = await tiersTable.where('parentTierId').equals(oldTierId).toArray();
-          if (childTiers.length > 0) {
-            await tiersTable.bulkPut(
-              childTiers.map((tier: TierDefinitionDocType) => ({ ...tier, parentTierId: layer.id })),
-            );
-          }
-
-          await tiersTable.delete(oldTierId);
+        const updated: LayerDocType[] = [];
+        for (const layer of allLayers) {
+          const textId = await resolveTextIdForLayer(layer);
+          updated.push({ ...layer, textId });
         }
-      }
-    });
+        await layersTable.bulkPut(updated);
+      });
+
+    // v12: Fully merge layer system into tier_definitions and remove translation_layers table
+    this.version(12)
+      .stores({
+        translation_layers: null,
+        tier_definitions: 'id, textId, key, parentTierId, tierType, contentType',
+      })
+      .upgrade(async (tx: Transaction) => {
+        const layersTable = tx.table('translation_layers');
+        const tiersTable = tx.table('tier_definitions');
+        const annotationsTable = tx.table('tier_annotations');
+
+        const layers: LayerDocType[] = await layersTable.toArray();
+        if (layers.length === 0) return;
+
+        for (const layer of layers) {
+          const bridgeId = resolveBridgeId(layer);
+          const bridgeKey = `${BRIDGE_TIER_PREFIX}${layer.key}`;
+          const existingTier = await tiersTable
+            .filter((t: TierDefinitionDocType) => t.textId === layer.textId && t.key === bridgeKey)
+            .first();
+
+          const mergedTier: TierDefinitionDocType = {
+            ...(existingTier ?? {
+              tierType: 'time-aligned',
+              contentType: layer.layerType,
+              createdAt: layer.createdAt,
+            }),
+            id: layer.id,
+            textId: layer.textId,
+            key: bridgeKey,
+            name: layer.name,
+            languageId: layer.languageId,
+            ...(layer.orthographyId !== undefined && { orthographyId: layer.orthographyId }),
+            ...(bridgeId !== undefined && { bridgeId }),
+            contentType: layer.layerType,
+            modality: layer.modality,
+            acceptsAudio: layer.acceptsAudio,
+            isDefault: layer.isDefault,
+            accessRights: layer.accessRights,
+            sortOrder: layer.sortOrder,
+            createdAt: existingTier?.createdAt ?? layer.createdAt,
+            updatedAt: layer.updatedAt,
+          };
+
+          await tiersTable.put(mergedTier);
+
+          if (existingTier && existingTier.id !== layer.id) {
+            const oldTierId = existingTier.id;
+
+            const tierAnnotations = await annotationsTable
+              .where('tierId')
+              .equals(oldTierId)
+              .toArray();
+            if (tierAnnotations.length > 0) {
+              await annotationsTable.bulkPut(
+                tierAnnotations.map((ann: TierAnnotationDocType) => ({ ...ann, tierId: layer.id })),
+              );
+            }
+
+            const childTiers = await tiersTable.where('parentTierId').equals(oldTierId).toArray();
+            if (childTiers.length > 0) {
+              await tiersTable.bulkPut(
+                childTiers.map((tier: TierDefinitionDocType) => ({
+                  ...tier,
+                  parentTierId: layer.id,
+                })),
+              );
+            }
+
+            await tiersTable.delete(oldTierId);
+          }
+        }
+      });
 
     // v13: CAM-Lite morpheme-level data model.
     // Adds optional fields to units (no index change except speakerId):
@@ -647,128 +787,134 @@ export class JieyuDexie extends Dexie {
     this.version(14).stores({});
 
     // v15: Phase A/B foundation — provenance envelope + stable word/morpheme ids.
-    this.version(15).stores({}).upgrade(async (tx: Transaction) => {
-      const unitsTable = tx.table('units');
-      const allUnits: LayerUnitDocType[] = await unitsTable.toArray();
-      if (allUnits.length === 0) return;
+    this.version(15)
+      .stores({})
+      .upgrade(async (tx: Transaction) => {
+        const unitsTable = tx.table('units');
+        const allUnits: LayerUnitDocType[] = await unitsTable.toArray();
+        if (allUnits.length === 0) return;
 
-      let changed = false;
-      let wordCounter = 0;
-      let morphCounter = 0;
-      const nowPart = Date.now();
+        let changed = false;
+        let wordCounter = 0;
+        let morphCounter = 0;
+        const nowPart = Date.now();
 
-      const updatedUnits = allUnits.map((unit) => {
-        if (!Array.isArray(unit.words) || unit.words.length === 0) return unit;
+        const updatedUnits = allUnits.map((unit) => {
+          if (!Array.isArray(unit.words) || unit.words.length === 0) return unit;
 
-        let unitChanged = false;
-        const nextWords = unit.words.map((word) => {
-          const nextWordId = typeof word.id === 'string' && word.id.length > 0
-            ? word.id
-            : `tok_${nowPart}_${++wordCounter}`;
-          if (nextWordId !== word.id) unitChanged = true;
+          let unitChanged = false;
+          const nextWords = unit.words.map((word) => {
+            const nextWordId =
+              typeof word.id === 'string' && word.id.length > 0
+                ? word.id
+                : `tok_${nowPart}_${++wordCounter}`;
+            if (nextWordId !== word.id) unitChanged = true;
 
-          const nextMorphemes = Array.isArray(word.morphemes)
-            ? word.morphemes.map((morpheme) => {
-              const nextMorphId = typeof morpheme.id === 'string' && morpheme.id.length > 0
-                ? morpheme.id
-                : `morph_${nowPart}_${++morphCounter}`;
-              if (nextMorphId !== morpheme.id) unitChanged = true;
-              return {
-                ...morpheme,
-                id: nextMorphId,
-              };
-            })
-            : word.morphemes;
+            const nextMorphemes = Array.isArray(word.morphemes)
+              ? word.morphemes.map((morpheme) => {
+                  const nextMorphId =
+                    typeof morpheme.id === 'string' && morpheme.id.length > 0
+                      ? morpheme.id
+                      : `morph_${nowPart}_${++morphCounter}`;
+                  if (nextMorphId !== morpheme.id) unitChanged = true;
+                  return {
+                    ...morpheme,
+                    id: nextMorphId,
+                  };
+                })
+              : word.morphemes;
 
+            return {
+              ...word,
+              id: nextWordId,
+              ...(Array.isArray(nextMorphemes) ? { morphemes: nextMorphemes } : {}),
+            };
+          });
+
+          if (!unitChanged) return unit;
+          changed = true;
           return {
-            ...word,
-            id: nextWordId,
-            ...(Array.isArray(nextMorphemes) ? { morphemes: nextMorphemes } : {}),
+            ...unit,
+            words: nextWords,
           };
         });
 
-        if (!unitChanged) return unit;
-        changed = true;
-        return {
-          ...unit,
-          words: nextWords,
-        };
+        if (changed) {
+          await unitsTable.bulkPut(updatedUnits);
+        }
       });
 
-      if (changed) {
-        await unitsTable.bulkPut(updatedUnits);
-      }
-    });
-
     // v16: canonical token/morpheme entities for stable word-level operations.
-    this.version(16).stores({
-      unit_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
-      unit_morphemes: 'id, textId, unitId, tokenId, [tokenId+morphemeIndex], lexemeId',
-    }).upgrade(async (tx: Transaction) => {
-      const unitsTable = tx.table('units');
-      const tokensTable = tx.table('unit_tokens');
-      const morphemesTable = tx.table('unit_morphemes');
-      const allUnits: LayerUnitDocType[] = await unitsTable.toArray();
-      if (allUnits.length === 0) return;
+    this.version(16)
+      .stores({
+        unit_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
+        unit_morphemes: 'id, textId, unitId, tokenId, [tokenId+morphemeIndex], lexemeId',
+      })
+      .upgrade(async (tx: Transaction) => {
+        const unitsTable = tx.table('units');
+        const tokensTable = tx.table('unit_tokens');
+        const morphemesTable = tx.table('unit_morphemes');
+        const allUnits: LayerUnitDocType[] = await unitsTable.toArray();
+        if (allUnits.length === 0) return;
 
-      const nextTokens: unknown[] = [];
-      const nextMorphemes: unknown[] = [];
-      let tokenCounter = 0;
-      let morphemeCounter = 0;
-      const nowSeed = Date.now();
+        const nextTokens: unknown[] = [];
+        const nextMorphemes: unknown[] = [];
+        let tokenCounter = 0;
+        let morphemeCounter = 0;
+        const nowSeed = Date.now();
 
-      for (const unit of allUnits) {
-        if (!Array.isArray(unit.words) || unit.words.length === 0) continue;
-        const createdAt = unit.createdAt;
-        const updatedAt = unit.updatedAt;
+        for (const unit of allUnits) {
+          if (!Array.isArray(unit.words) || unit.words.length === 0) continue;
+          const createdAt = unit.createdAt;
+          const updatedAt = unit.updatedAt;
 
-        for (let wi = 0; wi < unit.words.length; wi++) {
-          const word = unit.words[wi]!;
-          const tokenId = `tokv16_${nowSeed}_${++tokenCounter}`;
+          for (let wi = 0; wi < unit.words.length; wi++) {
+            const word = unit.words[wi]!;
+            const tokenId = `tokv16_${nowSeed}_${++tokenCounter}`;
 
-          nextTokens.push({
-            id: tokenId,
-            textId: unit.textId,
-            unitId: unit.id,
-            form: word.form,
-            ...(word.gloss ? { gloss: word.gloss } : {}),
-            ...(word.pos ? { pos: word.pos } : {}),
-            ...(word.lexemeId ? { lexemeId: word.lexemeId } : {}),
-            tokenIndex: wi,
-            ...(word.provenance ? { provenance: word.provenance } : {}),
-            createdAt,
-            updatedAt,
-          });
-
-          if (!Array.isArray(word.morphemes) || word.morphemes.length === 0) continue;
-          for (let mi = 0; mi < word.morphemes.length; mi++) {
-            const morpheme = word.morphemes[mi]!;
-            const morphemeId = `morphv16_${nowSeed}_${++morphemeCounter}`;
-            nextMorphemes.push({
-              id: morphemeId,
+            nextTokens.push({
+              id: tokenId,
               textId: unit.textId,
               unitId: unit.id,
-              tokenId,
-              form: morpheme.form,
-              ...(morpheme.gloss ? { gloss: morpheme.gloss } : {}),
-              ...(morpheme.pos ? { pos: morpheme.pos } : {}),
-              ...(morpheme.lexemeId ? { lexemeId: morpheme.lexemeId } : {}),
-              morphemeIndex: mi,
-              ...(morpheme.provenance ? { provenance: morpheme.provenance } : {}),
+              form: word.form,
+              ...(word.gloss ? { gloss: word.gloss } : {}),
+              ...(word.pos ? { pos: word.pos } : {}),
+              ...(word.lexemeId ? { lexemeId: word.lexemeId } : {}),
+              tokenIndex: wi,
+              ...(word.provenance ? { provenance: word.provenance } : {}),
               createdAt,
               updatedAt,
             });
+
+            if (!Array.isArray(word.morphemes) || word.morphemes.length === 0) continue;
+            for (let mi = 0; mi < word.morphemes.length; mi++) {
+              const morpheme = word.morphemes[mi]!;
+              const morphemeId = `morphv16_${nowSeed}_${++morphemeCounter}`;
+              nextMorphemes.push({
+                id: morphemeId,
+                textId: unit.textId,
+                unitId: unit.id,
+                tokenId,
+                form: morpheme.form,
+                ...(morpheme.gloss ? { gloss: morpheme.gloss } : {}),
+                ...(morpheme.pos ? { pos: morpheme.pos } : {}),
+                ...(morpheme.lexemeId ? { lexemeId: morpheme.lexemeId } : {}),
+                morphemeIndex: mi,
+                ...(morpheme.provenance ? { provenance: morpheme.provenance } : {}),
+                createdAt,
+                updatedAt,
+              });
+            }
           }
         }
-      }
 
-      if (nextTokens.length > 0) {
-        await tokensTable.bulkPut(nextTokens as unknown as UnitTokenDocType[]);
-      }
-      if (nextMorphemes.length > 0) {
-        await morphemesTable.bulkPut(nextMorphemes as unknown as UnitMorphemeDocType[]);
-      }
-    });
+        if (nextTokens.length > 0) {
+          await tokensTable.bulkPut(nextTokens as unknown as UnitTokenDocType[]);
+        }
+        if (nextMorphemes.length > 0) {
+          await morphemesTable.bulkPut(nextMorphemes as unknown as UnitMorphemeDocType[]);
+        }
+      });
 
     // v17: CAM-v2 naming + token-level links + ai/embedding foundational tables.
     this.version(17).stores({
@@ -790,12 +936,14 @@ export class JieyuDexie extends Dexie {
 
     // v19: index optimization for recent AI tool decision logs.
     this.version(19).stores({
-      audit_logs: 'id, collection, documentId, [collection+action], action, timestamp, [collection+field+timestamp]',
+      audit_logs:
+        'id, collection, documentId, [collection+action], action, timestamp, [collection+field+timestamp]',
     });
 
     // v20: requestId index for replay/dedup queries.
     this.version(20).stores({
-      audit_logs: 'id, collection, documentId, [collection+action], action, timestamp, [collection+field+timestamp], requestId, [collection+field+requestId]',
+      audit_logs:
+        'id, collection, documentId, [collection+action], action, timestamp, [collection+field+timestamp], requestId, [collection+field+requestId]',
     });
 
     // v21: compound index for efficient embedding queries by (sourceType, model).
@@ -805,93 +953,104 @@ export class JieyuDexie extends Dexie {
     });
 
     // v22: segmentation-v2 foundation tables (independent per-layer boundaries).
-    this.version(22).stores({
-      layer_segments: 'id, textId, mediaId, layerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId]',
-      layer_segment_contents: 'id, textId, segmentId, layerId, [segmentId+layerId], [layerId+updatedAt], sourceType, updatedAt',
-      segment_links: 'id, textId, sourceSegmentId, targetSegmentId, [sourceSegmentId+targetSegmentId], linkType, unitId',
-    }).upgrade(async (tx: Transaction) => {
-      const unitsTable = tx.table('units');
-      const unitTextsTable = tx.table('unit_texts');
-      const tierDefinitionsTable = tx.table('tier_definitions');
-      const layerSegmentsTable = tx.table('layer_segments');
-      const layerSegmentContentsTable = tx.table('layer_segment_contents');
-      const segmentLinksTable = tx.table('segment_links');
+    this.version(22)
+      .stores({
+        layer_segments:
+          'id, textId, mediaId, layerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId]',
+        layer_segment_contents:
+          'id, textId, segmentId, layerId, [segmentId+layerId], [layerId+updatedAt], sourceType, updatedAt',
+        segment_links:
+          'id, textId, sourceSegmentId, targetSegmentId, [sourceSegmentId+targetSegmentId], linkType, unitId',
+      })
+      .upgrade(async (tx: Transaction) => {
+        const unitsTable = tx.table('units');
+        const unitTextsTable = tx.table('unit_texts');
+        const tierDefinitionsTable = tx.table('tier_definitions');
+        const layerSegmentsTable = tx.table('layer_segments');
+        const layerSegmentContentsTable = tx.table('layer_segment_contents');
+        const segmentLinksTable = tx.table('segment_links');
 
-      const units: LayerUnitDocType[] = await unitsTable.toArray();
-      if (units.length === 0) return;
+        const units: LayerUnitDocType[] = await unitsTable.toArray();
+        if (units.length === 0) return;
 
-      const unitTexts: LayerUnitContentDocType[] = await unitTextsTable.toArray();
-      const tiers: TierDefinitionDocType[] = await tierDefinitionsTable.toArray();
+        const unitTexts: LayerUnitContentDocType[] = await unitTextsTable.toArray();
+        const tiers: TierDefinitionDocType[] = await tierDefinitionsTable.toArray();
 
-      const rows = buildSegmentationV2BackfillRows({
-        units,
-        unitTexts,
-        tiers,
+        const rows = buildSegmentationV2BackfillRows({
+          units,
+          unitTexts,
+          tiers,
+        });
+
+        if (rows.segments.length > 0) {
+          await layerSegmentsTable.bulkPut(rows.segments);
+        }
+        if (rows.contents.length > 0) {
+          await layerSegmentContentsTable.bulkPut(rows.contents);
+        }
+        if (rows.links.length > 0) {
+          await segmentLinksTable.bulkPut(rows.links);
+        }
       });
-
-      if (rows.segments.length > 0) {
-        await layerSegmentsTable.bulkPut(rows.segments);
-      }
-      if (rows.contents.length > 0) {
-        await layerSegmentContentsTable.bulkPut(rows.contents);
-      }
-      if (rows.links.length > 0) {
-        await segmentLinksTable.bulkPut(rows.links);
-      }
-    });
 
     // v23: add layer-level indexes for segment link cleanup and audits.
     this.version(23).stores({
-      segment_links: 'id, textId, sourceSegmentId, targetSegmentId, sourceLayerId, targetLayerId, [sourceSegmentId+targetSegmentId], linkType, unitId',
+      segment_links:
+        'id, textId, sourceSegmentId, targetSegmentId, sourceLayerId, targetLayerId, [sourceSegmentId+targetSegmentId], linkType, unitId',
     });
 
     // v24: rename unit_texts.tierId → layerId, layer_links.tierId → layerId
     // 统一字段命名为 layerId，消除历史 tier/layer 混用 | Unify field naming to layerId, eliminating legacy tier/layer ambiguity
-    this.version(24).stores({
-      unit_texts: 'id, unitId, layerId, [unitId+layerId], updatedAt',
-      layer_links: 'id, transcriptionLayerKey, layerId',
-    }).upgrade(async (tx: Transaction) => {
-      const unitTextsTable = tx.table('unit_texts');
-      await unitTextsTable.toCollection().modify((row: Record<string, unknown>) => {
-        if ('tierId' in row) {
-          row.layerId = row.tierId;
-          delete row.tierId;
-        }
-      });
+    this.version(24)
+      .stores({
+        unit_texts: 'id, unitId, layerId, [unitId+layerId], updatedAt',
+        layer_links: 'id, transcriptionLayerKey, layerId',
+      })
+      .upgrade(async (tx: Transaction) => {
+        const unitTextsTable = tx.table('unit_texts');
+        await unitTextsTable.toCollection().modify((row: Record<string, unknown>) => {
+          if ('tierId' in row) {
+            row.layerId = row.tierId;
+            delete row.tierId;
+          }
+        });
 
-      const layerLinksTable = tx.table('layer_links');
-      await layerLinksTable.toCollection().modify((row: Record<string, unknown>) => {
-        if ('tierId' in row) {
-          row.layerId = row.tierId;
-          delete row.tierId;
-        }
+        const layerLinksTable = tx.table('layer_links');
+        await layerLinksTable.toCollection().modify((row: Record<string, unknown>) => {
+          if ('tierId' in row) {
+            row.layerId = row.tierId;
+            delete row.tierId;
+          }
+        });
       });
-    });
 
     // v25: 为 layer_segments 添加 unitId 索引，消除 removeUnitCascade 全表扫描
     // Add unitId index to layer_segments, eliminating full table scan in removeUnitCascade
-    this.version(25).stores({
-      layer_segments: 'id, textId, mediaId, layerId, unitId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId]',
-    }).upgrade(async (tx: Transaction) => {
-      const layerSegmentsTable = tx.table('layer_segments');
+    this.version(25)
+      .stores({
+        layer_segments:
+          'id, textId, mediaId, layerId, unitId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId]',
+      })
+      .upgrade(async (tx: Transaction) => {
+        const layerSegmentsTable = tx.table('layer_segments');
 
-      const prefixes = ['segv2_', 'segv22_'];
-      await layerSegmentsTable.toCollection().modify((row: Record<string, unknown>) => {
-        if (row.unitId) return; // 已有则跳过 | Skip if already present
-        const segmentId = row.id as string;
-        const layerId = row.layerId as string;
-        for (const prefix of prefixes) {
-          const expected = `${prefix}${layerId}_`;
-          if (segmentId.startsWith(expected)) {
-            const value = segmentId.slice(expected.length).trim();
-            if (value.length > 0) {
-              row.unitId = value;
-              return;
+        const prefixes = ['segv2_', 'segv22_'];
+        await layerSegmentsTable.toCollection().modify((row: Record<string, unknown>) => {
+          if (row.unitId) return; // 已有则跳过 | Skip if already present
+          const segmentId = row.id as string;
+          const layerId = row.layerId as string;
+          for (const prefix of prefixes) {
+            const expected = `${prefix}${layerId}_`;
+            if (segmentId.startsWith(expected)) {
+              const value = segmentId.slice(expected.length).trim();
+              if (value.length > 0) {
+                row.unitId = value;
+                return;
+              }
             }
           }
-        }
+        });
       });
-    });
 
     // v26: track_entities — per-media track display state persisted to DB.
     // Intentional no-op: legacy LocalStorage (`jieyu:track-entity-state:v1`) → Dexie import removed (greenfield; ADR 0008).
@@ -901,178 +1060,183 @@ export class JieyuDexie extends Dexie {
 
     // v27: Plan B foundation — unified per-layer timeline units.
     // 统一时间单元基座：先回填默认转写层与独立段层，后续逐步替换业务读写。
-    this.version(27).stores({
-      layer_units: 'id, textId, mediaId, layerId, sourceKind, sourceId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId], [layerId+sourceKind+sourceId]',
-    }).upgrade(async (tx: Transaction) => {
-      const unitsTable = tx.table('units');
-      const tiersTable = tx.table('tier_definitions');
-      const layerSegmentsTable = tx.table('layer_segments');
-      const layerUnitsTable = tx.table('layer_units');
+    this.version(27)
+      .stores({
+        layer_units:
+          'id, textId, mediaId, layerId, sourceKind, sourceId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId], [layerId+sourceKind+sourceId]',
+      })
+      .upgrade(async (tx: Transaction) => {
+        const unitsTable = tx.table('units');
+        const tiersTable = tx.table('tier_definitions');
+        const layerSegmentsTable = tx.table('layer_segments');
+        const layerUnitsTable = tx.table('layer_units');
 
-      const [units, tiers, segments] = await Promise.all([
-        unitsTable.toArray() as Promise<LayerUnitDocType[]>,
-        tiersTable.toArray() as Promise<TierDefinitionDocType[]>,
-        layerSegmentsTable.toArray() as Promise<LayerUnitDocType[]>,
-      ]);
+        const [units, tiers, segments] = await Promise.all([
+          unitsTable.toArray() as Promise<LayerUnitDocType[]>,
+          tiersTable.toArray() as Promise<TierDefinitionDocType[]>,
+          layerSegmentsTable.toArray() as Promise<LayerUnitDocType[]>,
+        ]);
 
-      if (units.length === 0 && segments.length === 0) return;
+        if (units.length === 0 && segments.length === 0) return;
 
-      const defaultTrcByText = new Map<string, TierDefinitionDocType>();
-      const trcByText = new Map<string, TierDefinitionDocType[]>();
-      for (const tier of tiers) {
-        if (tier.contentType !== 'transcription') continue;
-        const bucket = trcByText.get(tier.textId);
-        if (bucket) bucket.push(tier);
-        else trcByText.set(tier.textId, [tier]);
-      }
-      for (const [textId, bucket] of trcByText.entries()) {
-        const sorted = [...bucket].sort((a, b) => {
-          const defaultCmp = Number(Boolean(b.isDefault)) - Number(Boolean(a.isDefault));
-          if (defaultCmp !== 0) return defaultCmp;
-          const sortA = typeof a.sortOrder === 'number' ? a.sortOrder : Number.MAX_SAFE_INTEGER;
-          const sortB = typeof b.sortOrder === 'number' ? b.sortOrder : Number.MAX_SAFE_INTEGER;
-          if (sortA !== sortB) return sortA - sortB;
-          return a.id.localeCompare(b.id);
-        });
-        const picked = sorted[0];
-        if (picked) defaultTrcByText.set(textId, picked);
-      }
+        const defaultTrcByText = new Map<string, TierDefinitionDocType>();
+        const trcByText = new Map<string, TierDefinitionDocType[]>();
+        for (const tier of tiers) {
+          if (tier.contentType !== 'transcription') continue;
+          const bucket = trcByText.get(tier.textId);
+          if (bucket) bucket.push(tier);
+          else trcByText.set(tier.textId, [tier]);
+        }
+        for (const [textId, bucket] of trcByText.entries()) {
+          const sorted = [...bucket].sort((a, b) => {
+            const defaultCmp = Number(Boolean(b.isDefault)) - Number(Boolean(a.isDefault));
+            if (defaultCmp !== 0) return defaultCmp;
+            const sortA = typeof a.sortOrder === 'number' ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+            const sortB = typeof b.sortOrder === 'number' ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+            if (sortA !== sortB) return sortA - sortB;
+            return a.id.localeCompare(b.id);
+          });
+          const picked = sorted[0];
+          if (picked) defaultTrcByText.set(textId, picked);
+        }
 
-      type LayerUnitMigrationRow = {
-        id: string;
-        textId: string;
-        mediaId: string;
-        layerId: string;
-        sourceKind: 'unit' | 'segment';
-        sourceId: string;
-        startTime: number;
-        endTime: number;
-        speakerId?: string;
-        startAnchorId?: string;
-        endAnchorId?: string;
-        ordinal?: number;
-        createdAt: string;
-        updatedAt: string;
-      };
+        type LayerUnitMigrationRow = {
+          id: string;
+          textId: string;
+          mediaId: string;
+          layerId: string;
+          sourceKind: 'unit' | 'segment';
+          sourceId: string;
+          startTime: number;
+          endTime: number;
+          speakerId?: string;
+          startAnchorId?: string;
+          endAnchorId?: string;
+          ordinal?: number;
+          createdAt: string;
+          updatedAt: string;
+        };
 
-      const rowsById = new Map<string, LayerUnitMigrationRow>();
-      for (const utt of units) {
-        const defaultTrc = defaultTrcByText.get(utt.textId);
-        if (!defaultTrc || !utt.mediaId) continue;
-        const id = `lu_${defaultTrc.id}_utt_${utt.id}`;
-        rowsById.set(id, {
-          id,
-          textId: utt.textId,
-          mediaId: utt.mediaId,
-          layerId: defaultTrc.id,
-          sourceKind: 'unit',
-          sourceId: utt.id,
-          startTime: utt.startTime,
-          endTime: utt.endTime,
-          ...(utt.speakerId ? { speakerId: utt.speakerId } : {}),
-          ...(utt.startAnchorId ? { startAnchorId: utt.startAnchorId } : {}),
-          ...(utt.endAnchorId ? { endAnchorId: utt.endAnchorId } : {}),
-          ...(typeof utt.ordinal === 'number' ? { ordinal: utt.ordinal } : {}),
-          createdAt: utt.createdAt,
-          updatedAt: utt.updatedAt,
-        });
-      }
+        const rowsById = new Map<string, LayerUnitMigrationRow>();
+        for (const utt of units) {
+          const defaultTrc = defaultTrcByText.get(utt.textId);
+          if (!defaultTrc || !utt.mediaId) continue;
+          const id = `lu_${defaultTrc.id}_utt_${utt.id}`;
+          rowsById.set(id, {
+            id,
+            textId: utt.textId,
+            mediaId: utt.mediaId,
+            layerId: defaultTrc.id,
+            sourceKind: 'unit',
+            sourceId: utt.id,
+            startTime: utt.startTime,
+            endTime: utt.endTime,
+            ...(utt.speakerId ? { speakerId: utt.speakerId } : {}),
+            ...(utt.startAnchorId ? { startAnchorId: utt.startAnchorId } : {}),
+            ...(utt.endAnchorId ? { endAnchorId: utt.endAnchorId } : {}),
+            ...(typeof utt.ordinal === 'number' ? { ordinal: utt.ordinal } : {}),
+            createdAt: utt.createdAt,
+            updatedAt: utt.updatedAt,
+          });
+        }
 
-      for (const seg of segments) {
-        const layerId = seg.layerId ?? '';
-        const mediaId = seg.mediaId ?? '';
-        const id = `lu_${layerId}_seg_${seg.id}`;
-        rowsById.set(id, {
-          id,
-          textId: seg.textId,
-          mediaId,
-          layerId,
-          sourceKind: 'segment',
-          sourceId: seg.id,
-          startTime: seg.startTime,
-          endTime: seg.endTime,
-          ...(seg.speakerId ? { speakerId: seg.speakerId } : {}),
-          ...(seg.startAnchorId ? { startAnchorId: seg.startAnchorId } : {}),
-          ...(seg.endAnchorId ? { endAnchorId: seg.endAnchorId } : {}),
-          ...(typeof seg.ordinal === 'number' ? { ordinal: seg.ordinal } : {}),
-          createdAt: seg.createdAt,
-          updatedAt: seg.updatedAt,
-        });
-      }
+        for (const seg of segments) {
+          const layerId = seg.layerId ?? '';
+          const mediaId = seg.mediaId ?? '';
+          const id = `lu_${layerId}_seg_${seg.id}`;
+          rowsById.set(id, {
+            id,
+            textId: seg.textId,
+            mediaId,
+            layerId,
+            sourceKind: 'segment',
+            sourceId: seg.id,
+            startTime: seg.startTime,
+            endTime: seg.endTime,
+            ...(seg.speakerId ? { speakerId: seg.speakerId } : {}),
+            ...(seg.startAnchorId ? { startAnchorId: seg.startAnchorId } : {}),
+            ...(seg.endAnchorId ? { endAnchorId: seg.endAnchorId } : {}),
+            ...(typeof seg.ordinal === 'number' ? { ordinal: seg.ordinal } : {}),
+            createdAt: seg.createdAt,
+            updatedAt: seg.updatedAt,
+          });
+        }
 
-      const rows = [...rowsById.values()];
-      if (rows.length > 0) {
-        await layerUnitsTable.bulkPut(rows);
-      }
-    });
+        const rows = [...rowsById.values()];
+        if (rows.length > 0) {
+          await layerUnitsTable.bulkPut(rows);
+        }
+      });
 
     // v28: Backfill unit_texts → layer_segment_contents（Phase 0 去双写安全网）
     // 确保每一条 unit_texts 行都有对应 V2 条目；v22 迁移的条目用 segv22_ 前缀，
     // 后续 BridgeService 写入的用 segv2_ 前缀，此处按 content ID 幂等补全。
     // Ensure every unit_texts row has a corresponding V2 entry. Idempotent by content ID.
-    this.version(28).stores({}).upgrade(async (tx: Transaction) => {
-      const unitTextsTable = tx.table('unit_texts');
-      const unitsTable     = tx.table('units');
-      const layerSegmentsTable  = tx.table('layer_segments');
-      const layerSegmentContentsTable = tx.table('layer_segment_contents');
+    this.version(28)
+      .stores({})
+      .upgrade(async (tx: Transaction) => {
+        const unitTextsTable = tx.table('unit_texts');
+        const unitsTable = tx.table('units');
+        const layerSegmentsTable = tx.table('layer_segments');
+        const layerSegmentContentsTable = tx.table('layer_segment_contents');
 
-      const [allTexts, allUnits, existingContents, existingSegmentIds] = await Promise.all([
-        unitTextsTable.toArray() as Promise<LayerUnitContentDocType[]>,
-        unitsTable.toArray()     as Promise<LayerUnitDocType[]>,
-        layerSegmentContentsTable.toArray() as Promise<LayerUnitContentDocType[]>,
-        (layerSegmentsTable.toCollection().primaryKeys()) as Promise<string[]>,
-      ]);
+        const [allTexts, allUnits, existingContents, existingSegmentIds] = await Promise.all([
+          unitTextsTable.toArray() as Promise<LayerUnitContentDocType[]>,
+          unitsTable.toArray() as Promise<LayerUnitDocType[]>,
+          layerSegmentContentsTable.toArray() as Promise<LayerUnitContentDocType[]>,
+          layerSegmentsTable.toCollection().primaryKeys() as Promise<string[]>,
+        ]);
 
-      if (allTexts.length === 0) return;
+        if (allTexts.length === 0) return;
 
-      const unitById = new Map(allUnits.map((u: LayerUnitDocType) => [u.id, u]));
-      const existingContentById = new Map(existingContents.map((c: LayerUnitContentDocType) => [c.id, c]));
-      const existingSegmentIdSet = new Set(existingSegmentIds);
-      const now = new Date().toISOString();
+        const unitById = new Map(allUnits.map((u: LayerUnitDocType) => [u.id, u]));
+        const existingContentById = new Map(
+          existingContents.map((c: LayerUnitContentDocType) => [c.id, c]),
+        );
+        const existingSegmentIdSet = new Set(existingSegmentIds);
+        const now = new Date().toISOString();
 
-      const BATCH_SIZE = 200;
-      const segmentBatch: LayerUnitDocType[] = [];
-      const contentBatch: LayerUnitContentDocType[] = [];
+        const BATCH_SIZE = 200;
+        const segmentBatch: LayerUnitDocType[] = [];
+        const contentBatch: LayerUnitContentDocType[] = [];
 
-      for (const text of allTexts) {
-        const unitId = text.unitId?.trim();
-        if (!unitId) continue;
-        const utt = unitById.get(unitId);
-        if (!utt) continue; // 孤立 text，跳过 | orphan text, skip
-        const existingContent = existingContentById.get(text.id);
+        for (const text of allTexts) {
+          const unitId = text.unitId?.trim();
+          if (!unitId) continue;
+          const utt = unitById.get(unitId);
+          if (!utt) continue; // 孤立 text，跳过 | orphan text, skip
+          const existingContent = existingContentById.get(text.id);
 
-        // 修复分支：若 content 存在但 segment 丢失，重建 canonical segment 并回指 | Repair branch: rebuild canonical segment when content exists but segment is missing
-        const plan = buildV28BackfillPlanForText({
-          text,
-          unit: utt,
-          nowIso: now,
-          ...(existingContent !== undefined
-            ? { existingContent }
-            : {}),
-          segmentExists: (segmentId) => existingSegmentIdSet.has(segmentId),
-        });
-        if (!plan) continue;
+          // 修复分支：若 content 存在但 segment 丢失，重建 canonical segment 并回指 | Repair branch: rebuild canonical segment when content exists but segment is missing
+          const plan = buildV28BackfillPlanForText({
+            text,
+            unit: utt,
+            nowIso: now,
+            ...(existingContent !== undefined ? { existingContent } : {}),
+            segmentExists: (segmentId) => existingSegmentIdSet.has(segmentId),
+          });
+          if (!plan) continue;
 
-        segmentBatch.push(plan.segment);
-        contentBatch.push(plan.content);
-        existingSegmentIdSet.add(plan.segment.id);
-        existingContentById.set(plan.content.id, plan.content);
+          segmentBatch.push(plan.segment);
+          contentBatch.push(plan.content);
+          existingSegmentIdSet.add(plan.segment.id);
+          existingContentById.set(plan.content.id, plan.content);
 
-        // 分批写入避免 IndexedDB 单事务过大 | Batch write to avoid oversized transactions
-        if (segmentBatch.length >= BATCH_SIZE) {
+          // 分批写入避免 IndexedDB 单事务过大 | Batch write to avoid oversized transactions
+          if (segmentBatch.length >= BATCH_SIZE) {
+            await layerSegmentsTable.bulkPut(segmentBatch);
+            await layerSegmentContentsTable.bulkPut(contentBatch);
+            segmentBatch.length = 0;
+            contentBatch.length = 0;
+          }
+        }
+
+        // 写入剩余 | Flush remaining
+        if (segmentBatch.length > 0) {
           await layerSegmentsTable.bulkPut(segmentBatch);
           await layerSegmentContentsTable.bulkPut(contentBatch);
-          segmentBatch.length = 0;
-          contentBatch.length = 0;
         }
-      }
-
-      // 写入剩余 | Flush remaining
-      if (segmentBatch.length > 0) {
-        await layerSegmentsTable.bulkPut(segmentBatch);
-        await layerSegmentContentsTable.bulkPut(contentBatch);
-      }
-    });
+      });
 
     // v29: V2 single-source-of-truth cutoff — drop legacy unit_texts table.
     this.version(29).stores({
@@ -1090,9 +1254,12 @@ export class JieyuDexie extends Dexie {
     // v30: unified layer unit foundation tables.
     // 统一层单元基座表：为单实体多轴模型提供正式 schema，暂不回填旧数据。
     this.version(30).stores({
-      layer_units: 'id, textId, mediaId, layerId, unitType, parentUnitId, rootUnitId, speakerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [parentUnitId+startTime], [layerId+unitType], [textId+layerId]',
-      layer_unit_contents: 'id, textId, unitId, layerId, contentRole, [unitId+contentRole], [contentRole+updatedAt], sourceType, [layerId+updatedAt], updatedAt',
-      unit_relations: 'id, textId, sourceUnitId, targetUnitId, relationType, [sourceUnitId+relationType], [targetUnitId+relationType]',
+      layer_units:
+        'id, textId, mediaId, layerId, unitType, parentUnitId, rootUnitId, speakerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [parentUnitId+startTime], [layerId+unitType], [textId+layerId]',
+      layer_unit_contents:
+        'id, textId, unitId, layerId, contentRole, [unitId+contentRole], [contentRole+updatedAt], sourceType, [layerId+updatedAt], updatedAt',
+      unit_relations:
+        'id, textId, sourceUnitId, targetUnitId, relationType, [sourceUnitId+relationType], [targetUnitId+relationType]',
     });
 
     // v31: retire legacy segmentation tables after LayerUnit convergence.
@@ -1111,15 +1278,19 @@ export class JieyuDexie extends Dexie {
     // v33: orthography bridge registry.
     // 正字法转换注册表：为 source->target 转换规则、样例与状态提供独立存储。
     this.version(33).stores({
-      orthography_transforms: 'id, sourceOrthographyId, targetOrthographyId, [sourceOrthographyId+targetOrthographyId], engine, status, updatedAt',
+      orthography_transforms:
+        'id, sourceOrthographyId, targetOrthographyId, [sourceOrthographyId+targetOrthographyId], engine, status, updatedAt',
     });
 
     // v34: language asset catalog tables.
     // 语言资产目录底座：语言主表 + 名称矩阵 + 别名 + 审计历史。
     this.version(34).stores({
-      languages: 'id, languageCode, canonicalTag, iso6393, sourceType, reviewStatus, visibility, family, macrolanguage, updatedAt',
-      language_display_names: 'id, languageId, locale, role, [languageId+locale], [languageId+role], [languageId+locale+role], [locale+value], updatedAt',
-      language_aliases: 'id, languageId, normalizedAlias, aliasType, locale, [languageId+normalizedAlias], [normalizedAlias+languageId], [languageId+aliasType], updatedAt',
+      languages:
+        'id, languageCode, canonicalTag, iso6393, sourceType, reviewStatus, visibility, family, macrolanguage, updatedAt',
+      language_display_names:
+        'id, languageId, locale, role, [languageId+locale], [languageId+role], [languageId+locale+role], [locale+value], updatedAt',
+      language_aliases:
+        'id, languageId, normalizedAlias, aliasType, locale, [languageId+normalizedAlias], [normalizedAlias+languageId], [languageId+aliasType], updatedAt',
       language_catalog_history: 'id, languageId, action, createdAt, [languageId+createdAt]',
     });
 
@@ -1132,36 +1303,45 @@ export class JieyuDexie extends Dexie {
     // v36: 恢复 units 的 mediaId 单字段索引（v13 重声明时意外丢失）
     // Restore standalone mediaId index on units (accidentally dropped by v13 redeclaration)
     this.version(36).stores({
-      units: 'id, textId, mediaId, [textId+mediaId], [mediaId+startTime], [textId+startTime], startTime, updatedAt, speakerId',
+      units:
+        'id, textId, mediaId, [textId+mediaId], [mediaId+startTime], [textId+startTime], startTime, updatedAt, speakerId',
     });
 
     // v37: M18 — units → layer_units; token/morpheme unitId → unitId; drop units store.
-    this.version(37).stores({
-      units: null,
-      unit_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
-      unit_morphemes: 'id, textId, unitId, tokenId, [tokenId+morphemeIndex], lexemeId',
-    }).upgrade(async (tx: Transaction) => {
-      await upgradeM18LinguisticUnitCutover(tx);
-    });
+    this.version(37)
+      .stores({
+        units: null,
+        unit_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
+        unit_morphemes: 'id, textId, unitId, tokenId, [tokenId+morphemeIndex], lexemeId',
+      })
+      .upgrade(async (tx: Transaction) => {
+        await upgradeM18LinguisticUnitCutover(tx);
+      });
 
     // v38: unified SegmentMeta read model for sidebar filters and future AI metadata prefiltering.
     this.version(38).stores({
-      segment_meta: 'id, segmentId, unitKind, textId, mediaId, layerId, hostUnitId, effectiveSpeakerId, effectiveSelfCertainty, annotationStatus, *noteCategoryKeys, [layerId+mediaId], [textId+layerId], [layerId+updatedAt], updatedAt',
+      segment_meta:
+        'id, segmentId, unitKind, textId, mediaId, layerId, hostUnitId, effectiveSpeakerId, effectiveSelfCertainty, annotationStatus, *noteCategoryKeys, [layerId+mediaId], [textId+layerId], [layerId+updatedAt], updatedAt',
     });
 
     // v39: project-wide read-model snapshots for quality, scope stats, speakers, translation, language assets, and AI task dashboards.
     this.version(39).stores({
-      segment_quality_snapshots: 'id, segmentId, textId, mediaId, layerId, severity, [layerId+mediaId], [textId+layerId], [layerId+severity], updatedAt',
-      scope_stats_snapshots: 'id, scopeType, scopeKey, textId, mediaId, layerId, speakerId, [scopeType+scopeKey], [textId+scopeType], updatedAt',
+      segment_quality_snapshots:
+        'id, segmentId, textId, mediaId, layerId, severity, [layerId+mediaId], [textId+layerId], [layerId+severity], updatedAt',
+      scope_stats_snapshots:
+        'id, scopeType, scopeKey, textId, mediaId, layerId, speakerId, [scopeType+scopeKey], [textId+scopeType], updatedAt',
       speaker_profile_snapshots: 'id, textId, speakerId, [textId+speakerId], updatedAt',
-      translation_status_snapshots: 'id, unitId, textId, mediaId, layerId, status, [layerId+mediaId], [textId+layerId], updatedAt',
-      language_asset_overviews: 'id, languageId, displayName, aliasCount, orthographyCount, bridgeCount, updatedAt',
+      translation_status_snapshots:
+        'id, unitId, textId, mediaId, layerId, status, [layerId+mediaId], [textId+layerId], updatedAt',
+      language_asset_overviews:
+        'id, languageId, displayName, aliasCount, orthographyCount, bridgeCount, updatedAt',
       ai_task_snapshots: 'id, taskId, taskType, status, targetId, updatedAt',
     });
 
     // v40: restore layer_units store (see v30–v40 historical note above).
     this.version(40).stores({
-      layer_units: 'id, textId, mediaId, layerId, unitType, parentUnitId, rootUnitId, speakerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [parentUnitId+startTime], [layerId+unitType], [textId+layerId]',
+      layer_units:
+        'id, textId, mediaId, layerId, unitType, parentUnitId, rootUnitId, speakerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [parentUnitId+startTime], [layerId+unitType], [textId+layerId]',
     });
 
     /*
@@ -1175,46 +1355,57 @@ export class JieyuDexie extends Dexie {
      *   controller flip. See the migration file for detailed rules; never overwrites existing
      *   segment values and never clears host fields.
      */
-    this.version(41).stores({}).upgrade(async (tx) => {
-      await upgradeM41SelfCertaintyHostDepollute(tx);
-    });
+    this.version(41)
+      .stores({})
+      .upgrade(async (tx) => {
+        await upgradeM41SelfCertaintyHostDepollute(tx);
+      });
 
     // v42: track_entities — stable id `te:${textId}:${trackKey}` (replaces legacy `track_${...}` collisions).
-    this.version(42).stores({}).upgrade(async (tx) => {
-      await upgradeM42TrackEntityDocumentIds(tx);
-    });
+    this.version(42)
+      .stores({})
+      .upgrade(async (tx) => {
+        await upgradeM42TrackEntityDocumentIds(tx);
+      });
 
     // v43: layer_links host id bridge index + one-shot backfill from transcriptionLayerKey.
     // New schema bump: 同步更新本文件 `JIEYU_DEXIE_TARGET_SCHEMA_VERSION` 与 `src/db/migrations/jieyuDexieOpenReplay.test.ts`。
-    this.version(43).stores({
-      layer_links: 'id, transcriptionLayerKey, hostTranscriptionLayerId, layerId, [layerId+hostTranscriptionLayerId]',
-    }).upgrade(async (tx) => {
-      const layerLinksTable = tx.table('layer_links');
-      const tiersTable = tx.table('tier_definitions');
-      const tiers = await tiersTable.toArray();
-      const transcriptionKeyToId = new Map<string, string>();
+    this.version(43)
+      .stores({
+        layer_links:
+          'id, transcriptionLayerKey, hostTranscriptionLayerId, layerId, [layerId+hostTranscriptionLayerId]',
+      })
+      .upgrade(async (tx) => {
+        const layerLinksTable = tx.table('layer_links');
+        const tiersTable = tx.table('tier_definitions');
+        const tiers = await tiersTable.toArray();
+        const transcriptionKeyToId = new Map<string, string>();
 
-      for (const tier of tiers as Array<Record<string, unknown>>) {
-        const key = typeof tier.key === 'string' ? tier.key.trim() : '';
-        const id = typeof tier.id === 'string' ? tier.id.trim() : '';
-        const contentType = typeof tier.contentType === 'string' ? tier.contentType : '';
-        if (!key || !id || contentType !== 'transcription') continue;
-        if (!transcriptionKeyToId.has(key)) {
-          transcriptionKeyToId.set(key, id);
+        for (const tier of tiers as Array<Record<string, unknown>>) {
+          const key = typeof tier.key === 'string' ? tier.key.trim() : '';
+          const id = typeof tier.id === 'string' ? tier.id.trim() : '';
+          const contentType = typeof tier.contentType === 'string' ? tier.contentType : '';
+          if (!key || !id || contentType !== 'transcription') continue;
+          if (!transcriptionKeyToId.has(key)) {
+            transcriptionKeyToId.set(key, id);
+          }
         }
-      }
 
-      await layerLinksTable.toCollection().modify((row: Record<string, unknown>) => {
-        if (typeof row.hostTranscriptionLayerId === 'string' && row.hostTranscriptionLayerId.trim().length > 0) {
-          return;
-        }
-        const key = typeof row.transcriptionLayerKey === 'string' ? row.transcriptionLayerKey.trim() : '';
-        if (!key) return;
-        const hostId = transcriptionKeyToId.get(key);
-        if (!hostId) return;
-        row.hostTranscriptionLayerId = hostId;
+        await layerLinksTable.toCollection().modify((row: Record<string, unknown>) => {
+          if (
+            typeof row.hostTranscriptionLayerId === 'string' &&
+            row.hostTranscriptionLayerId.trim().length > 0
+          ) {
+            return;
+          }
+          const key =
+            typeof row.transcriptionLayerKey === 'string' ? row.transcriptionLayerKey.trim() : '';
+          if (!key) return;
+          const hostId = transcriptionKeyToId.get(key);
+          if (!hostId) return;
+          row.hostTranscriptionLayerId = hostId;
+        });
       });
-    });
 
     // v44: structural rule profile language assets for configurable Leipzig-like parsing.
     this.version(44).stores({
@@ -1223,13 +1414,15 @@ export class JieyuDexie extends Dexie {
 
     // v45: indexed lookup for per-unit analysisGraph candidates.
     this.version(45).stores({
-      unit_relations: 'id, textId, sourceUnitId, targetUnitId, relationType, unitId, [unitId+relationType], [sourceUnitId+relationType], [targetUnitId+relationType]',
+      unit_relations:
+        'id, textId, sourceUnitId, targetUnitId, relationType, unitId, [unitId+relationType], [sourceUnitId+relationType], [targetUnitId+relationType]',
     });
 
     // v46: schema bump paired with `ensureSystemLeipzigStructuralProfileSeeded` (post-open; see v44 note).
     this.version(46).stores({
       structural_rule_profiles: 'id, scope, languageId, projectId, enabled, priority, updatedAt',
-      unit_relations: 'id, textId, sourceUnitId, targetUnitId, relationType, unitId, [unitId+relationType], [sourceUnitId+relationType], [targetUnitId+relationType]',
+      unit_relations:
+        'id, textId, sourceUnitId, targetUnitId, relationType, unitId, [unitId+relationType], [sourceUnitId+relationType], [targetUnitId+relationType]',
     });
 
     // v47: project-level AI memory table (PR-20).
@@ -1262,8 +1455,6 @@ function getOrCreateDexie(): JieyuDexie {
   return globalWithDb.__jieyuDexie__;
 }
 
-
-
 export type JieyuDatabase = {
   name: string;
   dexie: JieyuDexie;
@@ -1271,7 +1462,11 @@ export type JieyuDatabase = {
   close: () => Promise<void>;
 };
 
-const BACKUP_REMINDER_HOOK_TABLES = ['layer_units', 'layer_unit_contents', 'tier_annotations'] as const;
+const BACKUP_REMINDER_HOOK_TABLES = [
+  'layer_units',
+  'layer_unit_contents',
+  'tier_annotations',
+] as const;
 
 function registerIndexedDbMutationBackupHooks(dexie: JieyuDexie): void {
   const tagged = dexie as unknown as { __jieyuBackupHooksRegistered?: boolean };
@@ -1320,7 +1515,10 @@ function dispatchDatabaseOpenFailureEvent(reason: JieyuDatabaseOpenError): void 
 async function readCurrentIdbVersion(dbName: string): Promise<number> {
   try {
     if (typeof indexedDB === 'undefined') return 0;
-    if (typeof (indexedDB as { databases?: () => Promise<IDBDatabaseInfo[]> }).databases === 'function') {
+    if (
+      typeof (indexedDB as { databases?: () => Promise<IDBDatabaseInfo[]> }).databases ===
+      'function'
+    ) {
       const dbs = await (indexedDB as { databases: () => Promise<IDBDatabaseInfo[]> }).databases();
       return dbs.find((d) => d.name === dbName)?.version ?? 0;
     }
@@ -1335,7 +1533,9 @@ function dispatchDbMigrationStartEvent(detail: { from: number; to: number }): vo
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('jieyu:db-migrating', { detail }));
     }
-  } catch { /* silent */ }
+  } catch {
+    /* silent */
+  }
 }
 
 function dispatchDbMigrationDoneEvent(): void {
@@ -1343,7 +1543,9 @@ function dispatchDbMigrationDoneEvent(): void {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('jieyu:db-migration-done'));
     }
-  } catch { /* silent */ }
+  } catch {
+    /* silent */
+  }
 }
 
 async function _createDb(): Promise<JieyuDatabase> {
@@ -1369,7 +1571,8 @@ async function _createDb(): Promise<JieyuDatabase> {
     if (err instanceof DOMException) {
       if (err.name === 'AbortError' || err.name === 'UnknownError') {
         recoveryHint = 'corrupted';
-        message = 'The database file may be corrupted or unsupported by this browser version. Export a backup before resetting.';
+        message =
+          'The database file may be corrupted or unsupported by this browser version. Export a backup before resetting.';
       }
     } else if (err instanceof Error) {
       if (err.message.includes('blocked')) {
@@ -1409,21 +1612,36 @@ async function _createDb(): Promise<JieyuDatabase> {
     ),
     ai_tasks: new DexieCollectionAdapter(dexie.ai_tasks, validateAiTaskDoc),
     embeddings: new DexieCollectionAdapter(dexie.embeddings, validateEmbeddingDoc),
-    ai_conversations: new DexieCollectionAdapter(
-      dexie.ai_conversations,
-      validateAiConversationDoc,
-    ),
+    ai_conversations: new DexieCollectionAdapter(dexie.ai_conversations, validateAiConversationDoc),
     ai_messages: new DexieCollectionAdapter(dexie.ai_messages, validateAiMessageDoc),
-    project_ai_memories: new DexieCollectionAdapter(dexie.project_ai_memories, validateProjectAiMemoryDoc),
-    mcp_tool_call_audits: new DexieCollectionAdapter(dexie.mcp_tool_call_audits, validateMcpToolCallAuditDoc),
+    project_ai_memories: new DexieCollectionAdapter(
+      dexie.project_ai_memories,
+      validateProjectAiMemoryDoc,
+    ),
+    mcp_tool_call_audits: new DexieCollectionAdapter(
+      dexie.mcp_tool_call_audits,
+      validateMcpToolCallAuditDoc,
+    ),
     languages: new DexieCollectionAdapter(dexie.languages, validateLanguageDoc),
-    language_display_names: new DexieCollectionAdapter(dexie.language_display_names, validateLanguageDisplayNameDoc),
+    language_display_names: new DexieCollectionAdapter(
+      dexie.language_display_names,
+      validateLanguageDisplayNameDoc,
+    ),
     language_aliases: new DexieCollectionAdapter(dexie.language_aliases, validateLanguageAliasDoc),
-    language_catalog_history: new DexieCollectionAdapter(dexie.language_catalog_history, validateLanguageCatalogHistoryDoc),
-    custom_field_definitions: new DexieCollectionAdapter(dexie.custom_field_definitions, validateCustomFieldDefinitionDoc),
+    language_catalog_history: new DexieCollectionAdapter(
+      dexie.language_catalog_history,
+      validateLanguageCatalogHistoryDoc,
+    ),
+    custom_field_definitions: new DexieCollectionAdapter(
+      dexie.custom_field_definitions,
+      validateCustomFieldDefinitionDoc,
+    ),
     speakers: new DexieCollectionAdapter(dexie.speakers, validateSpeakerDoc),
     orthographies: new DexieCollectionAdapter(dexie.orthographies, validateOrthographyDoc),
-    orthography_bridges: new DexieCollectionAdapter(dexie.orthography_bridges, validateOrthographyBridgeDoc),
+    orthography_bridges: new DexieCollectionAdapter(
+      dexie.orthography_bridges,
+      validateOrthographyBridgeDoc,
+    ),
     locations: new DexieCollectionAdapter(dexie.locations, validateLocationDoc),
     bibliographic_sources: new DexieCollectionAdapter(
       dexie.bibliographic_sources,
@@ -1431,40 +1649,49 @@ async function _createDb(): Promise<JieyuDatabase> {
     ),
     grammar_docs: new DexieCollectionAdapter(dexie.grammar_docs, validateGrammarDoc),
     abbreviations: new DexieCollectionAdapter(dexie.abbreviations, validateAbbreviationDoc),
-    structural_rule_profiles: new DexieCollectionAdapter(dexie.structural_rule_profiles, validateStructuralRuleProfileAssetDoc),
+    structural_rule_profiles: new DexieCollectionAdapter(
+      dexie.structural_rule_profiles,
+      validateStructuralRuleProfileAssetDoc,
+    ),
     phonemes: new DexieCollectionAdapter(dexie.phonemes, validatePhonemeDoc),
-    tag_definitions: new DexieCollectionAdapter(
-      dexie.tag_definitions,
-      validateTagDefinitionDoc,
-    ),
-    layers: new TierBackedLayerCollectionAdapter(
-      dexie.tier_definitions,
-      validateLayerDoc,
-    ),
-    layer_units: new DexieCollectionAdapter(
-      dexie.layer_units,
-      validateLayerUnitDoc,
-    ),
+    tag_definitions: new DexieCollectionAdapter(dexie.tag_definitions, validateTagDefinitionDoc),
+    layers: new TierBackedLayerCollectionAdapter(dexie.tier_definitions, validateLayerDoc),
+    layer_units: new DexieCollectionAdapter(dexie.layer_units, validateLayerUnitDoc),
     layer_unit_contents: new DexieCollectionAdapter(
       dexie.layer_unit_contents,
       validateLayerUnitContentDoc,
     ),
-    unit_relations: new DexieCollectionAdapter(
-      dexie.unit_relations,
-      validateUnitRelationDoc,
-    ),
+    unit_relations: new DexieCollectionAdapter(dexie.unit_relations, validateUnitRelationDoc),
     layer_links: new DexieCollectionAdapter(dexie.layer_links, validateLayerLinkDoc),
     tier_definitions: new DexieCollectionAdapter(dexie.tier_definitions, validateTierDefinitionDoc),
     tier_annotations: new DexieCollectionAdapter(dexie.tier_annotations, validateTierAnnotationDoc),
     audit_logs: new DexieCollectionAdapter(dexie.audit_logs, validateAuditLogDoc),
     user_notes: new DexieCollectionAdapter(dexie.user_notes, validateUserNoteDoc),
     segment_meta: new DexieCollectionAdapter(dexie.segment_meta, validateSegmentMetaDoc),
-    segment_quality_snapshots: new DexieCollectionAdapter(dexie.segment_quality_snapshots, validateSegmentQualitySnapshotDoc),
-    scope_stats_snapshots: new DexieCollectionAdapter(dexie.scope_stats_snapshots, validateScopeStatsSnapshotDoc),
-    speaker_profile_snapshots: new DexieCollectionAdapter(dexie.speaker_profile_snapshots, validateSpeakerProfileSnapshotDoc),
-    translation_status_snapshots: new DexieCollectionAdapter(dexie.translation_status_snapshots, validateTranslationStatusSnapshotDoc),
-    language_asset_overviews: new DexieCollectionAdapter(dexie.language_asset_overviews, validateLanguageAssetOverviewDoc),
-    ai_task_snapshots: new DexieCollectionAdapter(dexie.ai_task_snapshots, validateAiTaskSnapshotDoc),
+    segment_quality_snapshots: new DexieCollectionAdapter(
+      dexie.segment_quality_snapshots,
+      validateSegmentQualitySnapshotDoc,
+    ),
+    scope_stats_snapshots: new DexieCollectionAdapter(
+      dexie.scope_stats_snapshots,
+      validateScopeStatsSnapshotDoc,
+    ),
+    speaker_profile_snapshots: new DexieCollectionAdapter(
+      dexie.speaker_profile_snapshots,
+      validateSpeakerProfileSnapshotDoc,
+    ),
+    translation_status_snapshots: new DexieCollectionAdapter(
+      dexie.translation_status_snapshots,
+      validateTranslationStatusSnapshotDoc,
+    ),
+    language_asset_overviews: new DexieCollectionAdapter(
+      dexie.language_asset_overviews,
+      validateLanguageAssetOverviewDoc,
+    ),
+    ai_task_snapshots: new DexieCollectionAdapter(
+      dexie.ai_task_snapshots,
+      validateAiTaskSnapshotDoc,
+    ),
     track_entities: new DexieCollectionAdapter(dexie.track_entities, validateTrackEntityDoc),
     ai_source_sets: new DexieCollectionAdapter(dexie.ai_source_sets, validateAiSourceSetDoc),
   };
@@ -1478,7 +1705,6 @@ async function _createDb(): Promise<JieyuDatabase> {
     },
   };
 }
-
 
 export function getDb(): Promise<JieyuDatabase> {
   if (!globalWithDb.__jieyuDbPromise__) {

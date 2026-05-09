@@ -29,8 +29,9 @@ export function useNotes(target: NoteTarget | null) {
       }
 
       if (typeof input.targetIndex === 'number') {
-        const unitCandidates = [input.parentTargetId, input.targetId]
-          .filter((value): value is string => typeof value === 'string' && value.length > 0);
+        const unitCandidates = [input.parentTargetId, input.targetId].filter(
+          (value): value is string => typeof value === 'string' && value.length > 0,
+        );
 
         for (const unitId of unitCandidates) {
           const tokenByIndex = await dexieDb.unit_tokens
@@ -49,12 +50,17 @@ export function useNotes(target: NoteTarget | null) {
     if (input.targetType === 'morpheme') {
       const existingMorpheme = await dexieDb.unit_morphemes.get(input.targetId);
       if (existingMorpheme) {
-        return { targetType: 'morpheme', targetId: existingMorpheme.id, parentTargetId: existingMorpheme.tokenId };
+        return {
+          targetType: 'morpheme',
+          targetId: existingMorpheme.id,
+          parentTargetId: existingMorpheme.tokenId,
+        };
       }
 
       if (typeof input.targetIndex === 'number') {
-        const tokenCandidates = [input.parentTargetId, input.targetId]
-          .filter((value): value is string => typeof value === 'string' && value.length > 0);
+        const tokenCandidates = [input.parentTargetId, input.targetId].filter(
+          (value): value is string => typeof value === 'string' && value.length > 0,
+        );
 
         for (const tokenId of tokenCandidates) {
           const morphByIndex = await dexieDb.unit_morphemes
@@ -103,7 +109,7 @@ export function useNotes(target: NoteTarget | null) {
   }, [resolveCanonicalTarget, target]);
 
   useEffect(() => {
-    fetchNotes();
+    void fetchNotes();
   }, [fetchNotes]);
 
   const addNote = useCallback(
@@ -117,7 +123,9 @@ export function useNotes(target: NoteTarget | null) {
         id: newId('note'),
         targetType: resolvedTarget.targetType,
         targetId: resolvedTarget.targetId,
-        ...(!isCanonicalWordTarget && !isCanonicalMorphemeTarget && resolvedTarget.targetIndex != null
+        ...(!isCanonicalWordTarget &&
+        !isCanonicalMorphemeTarget &&
+        resolvedTarget.targetIndex != null
           ? { targetIndex: resolvedTarget.targetIndex }
           : {}),
         ...(resolvedTarget.parentTargetId ? { parentTargetId: resolvedTarget.parentTargetId } : {}),
@@ -134,7 +142,7 @@ export function useNotes(target: NoteTarget | null) {
         // SegmentMeta 为统一读模型，笔记同步失败不应阻塞主流程 | SegmentMeta is a shared read model; note-sync failures must not block the primary flow.
       });
       await fetchNotes();
-      setVersion(v => v + 1);
+      setVersion((v) => v + 1);
     },
     [target, resolveCanonicalTarget, fetchNotes],
   );
@@ -152,9 +160,9 @@ export function useNotes(target: NoteTarget | null) {
         });
       }
       await fetchNotes();
-      setVersion(v => v + 1);
+      setVersion((v) => v + 1);
     },
-    [fetchNotes],
+    [fetchNotes, resolveCanonicalTarget, target],
   );
 
   const deleteNote = useCallback(
@@ -170,9 +178,9 @@ export function useNotes(target: NoteTarget | null) {
         });
       }
       await fetchNotes();
-      setVersion(v => v + 1);
+      setVersion((v) => v + 1);
     },
-    [fetchNotes],
+    [fetchNotes, resolveCanonicalTarget, target],
   );
 
   return { notes, isLoading, addNote, updateNote, deleteNote, refreshNotes: fetchNotes, version };
@@ -181,7 +189,10 @@ export function useNotes(target: NoteTarget | null) {
 export function useNoteCounts(targetType: NoteTargetType, targetIds: string[], refreshKey = 0) {
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
   const idsKey = targetIds.join(',');
-  const stableTargetIds = useMemo(() => targetIds, [idsKey]);
+  const stableTargetIds = useMemo(() => {
+    void idsKey;
+    return targetIds;
+  }, [idsKey, targetIds]);
 
   useEffect(() => {
     if (stableTargetIds.length === 0) {

@@ -85,16 +85,19 @@ const SAVE_STATE_VARIANT: Record<SaveState['kind'], ToastVariant> = {
   error: 'error',
 };
 
-function normalizeErrorToast(locale: Locale, state: Extract<SaveState, { kind: 'error' }>): {
+function normalizeErrorToast(
+  locale: Locale,
+  state: Extract<SaveState, { kind: 'error' }>,
+): {
   message: string;
   variant: ToastVariant;
 } {
-  const translatedMessage = (
+  const translatedMessage =
     state.errorMeta?.i18nKey !== undefined && isDictKey(state.errorMeta.i18nKey)
       ? t(locale, state.errorMeta.i18nKey)
-      : undefined
-  );
-  const rawMessage = translatedMessage || state.message || t(locale, 'transcription.toast.saveFailed');
+      : undefined;
+  const rawMessage =
+    translatedMessage || state.message || t(locale, 'transcription.toast.saveFailed');
   const category = state.errorMeta?.category;
 
   if (category === 'validation') {
@@ -109,9 +112,10 @@ function normalizeErrorToast(locale: Locale, state: Extract<SaveState, { kind: '
     const normalizedRaw = rawMessage.toLowerCase().replace(/\s+/g, '');
     const normalizedHint = refreshHint.toLowerCase().replace(/\s+/g, '');
     const relaxedHint = normalizedHint.length > 2 ? normalizedHint.slice(2) : normalizedHint;
-    const hasRefreshHint = normalizedRaw.includes(normalizedHint)
-      || normalizedRaw.includes('refresh')
-      || normalizedRaw.includes(relaxedHint);
+    const hasRefreshHint =
+      normalizedRaw.includes(normalizedHint) ||
+      normalizedRaw.includes('refresh') ||
+      normalizedRaw.includes(relaxedHint);
     const suffix = locale === 'zh-CN' ? `（${refreshHint}）` : ` (${refreshHint})`;
     const withHint = hasRefreshHint ? rawMessage : `${rawMessage}${suffix}`;
     return {
@@ -134,7 +138,11 @@ const VOICE_MODE_VARIANT: Record<Exclude<VoiceAgentMode, 'idle'>, ToastVariant> 
   analysis: 'listening',
 };
 
-function getVoiceToastMessage(locale: Locale, mode: Exclude<VoiceAgentMode, 'idle'>, isListening: boolean): string {
+function getVoiceToastMessage(
+  locale: Locale,
+  mode: Exclude<VoiceAgentMode, 'idle'>,
+  isListening: boolean,
+): string {
   const key = isListening
     ? (`transcription.toast.voice.${mode}Listening` as const)
     : (`transcription.toast.voice.${mode}Waiting` as const);
@@ -142,10 +150,12 @@ function getVoiceToastMessage(locale: Locale, mode: Exclude<VoiceAgentMode, 'idl
 }
 
 function isVoiceToastVariant(variant: ToastVariant): boolean {
-  return variant === 'listening'
-    || variant === 'routing'
-    || variant === 'executing'
-    || variant === 'ai-thinking';
+  return (
+    variant === 'listening' ||
+    variant === 'routing' ||
+    variant === 'executing' ||
+    variant === 'ai-thinking'
+  );
 }
 
 // ── ToastProvider ─────────────────────────────────────────────────────────────
@@ -160,7 +170,9 @@ export function ToastProvider({ children }: Props) {
   const currentRef = useRef<ToastItem | null>(null);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const removeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastToastRef = useRef<{ message: string; variant: ToastVariant; timestamp: number } | null>(null);
+  const lastToastRef = useRef<{ message: string; variant: ToastVariant; timestamp: number } | null>(
+    null,
+  );
   const lastSaveDoneToastAtRef = useRef<number>(0);
 
   useEffect(() => {
@@ -187,88 +199,102 @@ export function ToastProvider({ children }: Props) {
     }, DISMISS_FADE_OUT_MS);
   }, [clearTimers]);
 
-  const showToast = useCallback((
-    message: string,
-    variant: ToastVariant = 'info',
-    autoDismissMs: number | undefined = undefined,
-  ) => {
-    const now = Date.now();
-    const previousToast = lastToastRef.current;
-    if (
-      previousToast
-      && previousToast.message === message
-      && previousToast.variant === variant
-      && now - previousToast.timestamp < TOAST_DEDUP_WINDOW_MS
-    ) {
-      return;
-    }
-
-    clearTimers();
-
-    // Auto-dismiss defaults
-    const totalDelay = autoDismissMs ?? (
-      variant === 'error' ? DISMISS_ERROR_MS :
-      variant === 'recording' || variant === 'listening' || variant === 'routing' ||
-        variant === 'executing' || variant === 'ai-thinking'
-        ? 0  // persist until explicitly dismissed
-        : DISMISS_DELAY_MS
-    );
-
-    const item: ToastItem = { id: nextId(), message, variant, exiting: false };
-    lastToastRef.current = { message, variant, timestamp: now };
-    setCurrent(item);
-
-    if (totalDelay > 0) {
-      dismissTimerRef.current = setTimeout(dismiss, Math.max(totalDelay - DISMISS_FADE_OUT_MS, 0));
-    }
-  }, [clearTimers, dismiss]);
-
-  const showSaveState = useCallback((state: SaveState) => {
-    if (state.kind === 'idle') {
-      dismiss();
-      return;
-    }
-
-    if (state.kind === 'done') {
+  const showToast = useCallback(
+    (
+      message: string,
+      variant: ToastVariant = 'info',
+      autoDismissMs: number | undefined = undefined,
+    ) => {
       const now = Date.now();
-      if (now - lastSaveDoneToastAtRef.current < SAVE_DONE_TOAST_COOLDOWN_MS) {
+      const previousToast = lastToastRef.current;
+      if (
+        previousToast &&
+        previousToast.message === message &&
+        previousToast.variant === variant &&
+        now - previousToast.timestamp < TOAST_DEDUP_WINDOW_MS
+      ) {
         return;
       }
-      lastSaveDoneToastAtRef.current = now;
-    }
 
-    const defaultVariant = SAVE_STATE_VARIANT[state.kind];
-    const message = state.kind === 'done'
-      ? (state.message || t(locale, 'transcription.toast.saved'))
-      : state.kind === 'error'
-        ? (state.message || t(locale, 'transcription.toast.saveFailed'))
-        : t(locale, 'transcription.toast.saving');
+      clearTimers();
 
-    if (state.kind === 'error') {
-      const normalized = normalizeErrorToast(locale, state);
-      showToast(normalized.message, normalized.variant);
-      return;
-    }
+      // Auto-dismiss defaults
+      const totalDelay =
+        autoDismissMs ??
+        (variant === 'error'
+          ? DISMISS_ERROR_MS
+          : variant === 'recording' ||
+              variant === 'listening' ||
+              variant === 'routing' ||
+              variant === 'executing' ||
+              variant === 'ai-thinking'
+            ? 0 // persist until explicitly dismissed
+            : DISMISS_DELAY_MS);
 
-    showToast(message, defaultVariant);
-  }, [dismiss, showToast]);
+      const item: ToastItem = { id: nextId(), message, variant, exiting: false };
+      lastToastRef.current = { message, variant, timestamp: now };
+      setCurrent(item);
 
-  const showVoiceState = useCallback((
-    mode: VoiceAgentMode | null,
-    isListening = false,
-  ) => {
-    if (mode === null) {
-      const active = currentRef.current;
-      if (!active || !isVoiceToastVariant(active.variant)) {
+      if (totalDelay > 0) {
+        dismissTimerRef.current = setTimeout(
+          dismiss,
+          Math.max(totalDelay - DISMISS_FADE_OUT_MS, 0),
+        );
+      }
+    },
+    [clearTimers, dismiss],
+  );
+
+  const showSaveState = useCallback(
+    (state: SaveState) => {
+      if (state.kind === 'idle') {
+        dismiss();
         return;
       }
-      dismiss();
-      return;
-    }
-    const variant = VOICE_MODE_VARIANT[mode];
-    const message = getVoiceToastMessage(locale, mode, isListening);
-    showToast(message, variant, 0); // persist while in voice mode
-  }, [dismiss, locale, showToast]);
+
+      if (state.kind === 'done') {
+        const now = Date.now();
+        if (now - lastSaveDoneToastAtRef.current < SAVE_DONE_TOAST_COOLDOWN_MS) {
+          return;
+        }
+        lastSaveDoneToastAtRef.current = now;
+      }
+
+      const defaultVariant = SAVE_STATE_VARIANT[state.kind];
+      const message =
+        state.kind === 'done'
+          ? state.message || t(locale, 'transcription.toast.saved')
+          : state.kind === 'error'
+            ? state.message || t(locale, 'transcription.toast.saveFailed')
+            : t(locale, 'transcription.toast.saving');
+
+      if (state.kind === 'error') {
+        const normalized = normalizeErrorToast(locale, state);
+        showToast(normalized.message, normalized.variant);
+        return;
+      }
+
+      showToast(message, defaultVariant);
+    },
+    [dismiss, locale, showToast],
+  );
+
+  const showVoiceState = useCallback(
+    (mode: VoiceAgentMode | null, isListening = false) => {
+      if (mode === null) {
+        const active = currentRef.current;
+        if (!active || !isVoiceToastVariant(active.variant)) {
+          return;
+        }
+        dismiss();
+        return;
+      }
+      const variant = VOICE_MODE_VARIANT[mode];
+      const message = getVoiceToastMessage(locale, mode, isListening);
+      showToast(message, variant, 0); // persist while in voice mode
+    },
+    [dismiss, locale, showToast],
+  );
 
   const value: ToastContextValue = { showToast, showSaveState, showVoiceState, dismiss };
 

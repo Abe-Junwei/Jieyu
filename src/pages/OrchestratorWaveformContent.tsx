@@ -21,7 +21,10 @@ import { WaveformOverlayDecorations } from '../components/transcription/Waveform
 import { WaveformRegionActionLayer } from '../components/transcription/WaveformRegionActionLayer';
 import { WaveformShellOverlay } from '../components/transcription/WaveformShellOverlay';
 import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
-import { VideoPreviewSection, type VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
+import {
+  VideoPreviewSection,
+  type VideoLayoutMode,
+} from '../components/transcription/TranscriptionTimelineSections';
 import { WaveformAreaSection } from '../components/transcription/TranscriptionLayoutSections';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
 import { t, tf, type Locale } from '../i18n';
@@ -55,7 +58,6 @@ interface WaveformOverlapOverlay {
   widthPx: number;
   concurrentCount: number;
 }
-
 
 interface AcousticOverlayVisibleSummary {
   f0MeanHz: number | null;
@@ -166,7 +168,13 @@ export interface OrchestratorWaveformContentProps {
   rulerView: { start: number; end: number } | null;
 
   // Region action overlay
-  selectedWaveformTimelineItem: { id?: string; layerId?: string; startTime: number; endTime: number; tags?: Record<string, boolean> } | null;
+  selectedWaveformTimelineItem: {
+    id?: string;
+    layerId?: string;
+    startTime: number;
+    endTime: number;
+    tags?: Record<string, boolean>;
+  } | null;
   playerIsReady: boolean;
   playerIsPlaying: boolean;
   playerInstanceGetWidth: () => number;
@@ -185,10 +193,11 @@ export interface OrchestratorWaveformContentProps {
    * When omitted, `waveCanvasRef` above is the sole canvas ref; a11y shell attrs stay unset.
    */
   acousticStrip?: AcousticStripContract;
-
 }
 
-export const OrchestratorWaveformContent = React.memo(function OrchestratorWaveformContent(props: OrchestratorWaveformContentProps) {
+export const OrchestratorWaveformContent = React.memo(function OrchestratorWaveformContent(
+  props: OrchestratorWaveformContentProps,
+) {
   const {
     locale,
     waveformAreaRef,
@@ -273,16 +282,18 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     acousticStrip,
   } = props;
 
-  const waveLassoOverlay = waveLassoOverlayFromSegmentRangeGesturePreview(segmentRangeGesturePreviewReadModel);
+  const waveLassoOverlay = waveLassoOverlayFromSegmentRangeGesturePreview(
+    segmentRangeGesturePreviewReadModel,
+  );
 
   const effectiveWaveCanvasRef = acousticStrip?.waveCanvasRef ?? waveCanvasRef;
   const acousticReadModelSlice = acousticStrip?.acoustic;
   /** 页顶波形区 chrome：`shell` 仍用宿主合同；`state` 用全局可播事实，避免纵向下合同态 `no_media` 盖住解码中 `aria-busy` 等反馈。 */
   const acousticChrome = acousticReadModelSlice
     ? mapAcousticToTimelineChrome({
-      shell: acousticReadModelSlice.shell,
-      state: acousticReadModelSlice.globalState,
-    })
+        shell: acousticReadModelSlice.shell,
+        state: acousticReadModelSlice.globalState,
+      })
     : null;
 
   // 稳定引用，避免 WaveformLeftStatusStrip 不必要重渲染 | Stable ref to prevent WaveformLeftStatusStrip re-renders
@@ -333,8 +344,12 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
         units={unitsOnCurrentMedia}
         getUnitTextForLayer={getUnitTextForLayer}
         formatTime={formatTime}
-        {...(waveformHoverPreviewProps.dir !== undefined ? { previewDir: waveformHoverPreviewProps.dir } : {})}
-        {...(waveformHoverPreviewProps.style !== undefined ? { previewStyle: waveformHoverPreviewProps.style } : {})}
+        {...(waveformHoverPreviewProps.dir !== undefined
+          ? { previewDir: waveformHoverPreviewProps.dir }
+          : {})}
+        {...(waveformHoverPreviewProps.style !== undefined
+          ? { previewStyle: waveformHoverPreviewProps.style }
+          : {})}
       />
     );
   }, [
@@ -345,25 +360,30 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     waveformHoverPreviewProps.style,
   ]);
 
-  const activeReadout = spectrogramHoverReadout
-    ? {
-        source: 'spectrogram' as const,
-        timeSec: spectrogramHoverReadout.timeSec,
-        frequencyHz: spectrogramHoverReadout.frequencyHz,
-        f0Hz: spectrogramHoverReadout.f0Hz,
-        intensityDb: spectrogramHoverReadout.intensityDb,
-      }
-    : waveformHoverReadout
-      ? {
-          source: 'waveform' as const,
-          timeSec: waveformHoverReadout.timeSec,
-          f0Hz: waveformHoverReadout.f0Hz,
-          intensityDb: waveformHoverReadout.intensityDb,
-        }
+  const activeReadout = React.useMemo(
+    () =>
+      spectrogramHoverReadout
+        ? {
+            source: 'spectrogram' as const,
+            timeSec: spectrogramHoverReadout.timeSec,
+            frequencyHz: spectrogramHoverReadout.frequencyHz,
+            f0Hz: spectrogramHoverReadout.f0Hz,
+            intensityDb: spectrogramHoverReadout.intensityDb,
+          }
+        : waveformHoverReadout
+          ? {
+              source: 'waveform' as const,
+              timeSec: waveformHoverReadout.timeSec,
+              f0Hz: waveformHoverReadout.f0Hz,
+              intensityDb: waveformHoverReadout.intensityDb,
+            }
+          : null,
+    [spectrogramHoverReadout, waveformHoverReadout],
+  );
+  const selectedHotspotLeftPx =
+    typeof selectedHotspotTimeSec === 'number'
+      ? selectedHotspotTimeSec * zoomPxPerSec - waveformScrollLeft
       : null;
-  const selectedHotspotLeftPx = typeof selectedHotspotTimeSec === 'number'
-    ? (selectedHotspotTimeSec * zoomPxPerSec) - waveformScrollLeft
-    : null;
   const waveformOverlayTranslateX = -waveformScrollLeft;
   const waveformGuideOverlayWidth = Math.max(1, acousticOverlayViewportWidth);
   const waveformGuideOverlayHeight = Math.max(1, waveformHeight);
@@ -373,101 +393,133 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     waveformGuideHotspotTopY,
     waveformGuideOverlayHeight - waveformGuideHotspotTopY,
   );
-  const shouldRenderSelectedHotspot = waveformDisplayMode === 'waveform'
-    && selectedHotspotLeftPx != null
-    && Number.isFinite(selectedHotspotLeftPx)
-    && selectedHotspotLeftPx >= -6
-    && selectedHotspotLeftPx <= acousticOverlayViewportWidth + 6;
-  const snapGuideWindowSec = snapEnabled && snapGuideVisible && playerDuration > 0 && rulerView
-    ? rulerView.end - rulerView.start
-    : null;
-  const snapGuideLeftPx = snapGuideWindowSec && snapGuideWindowSec > 0
-    ? (((snapGuideLeft ?? 0) - (rulerView?.start ?? 0)) / snapGuideWindowSec) * waveformGuideOverlayWidth
-    : null;
-  const snapGuideRightPx = snapGuideWindowSec && snapGuideWindowSec > 0 && typeof snapGuideRight === 'number'
-    ? ((snapGuideRight - (rulerView?.start ?? 0)) / snapGuideWindowSec) * waveformGuideOverlayWidth
-    : null;
-  const waveformAnalysisBandNodes = React.useMemo(() => (
-    <WaveformAnalysisBands
-      locale={locale}
-      waveformLowConfidenceOverlays={waveformLowConfidenceOverlays}
-      waveformOverlapOverlays={waveformOverlapOverlays}
-    />
-  ), [locale, waveformLowConfidenceOverlays, waveformOverlapOverlays]);
+  const shouldRenderSelectedHotspot =
+    waveformDisplayMode === 'waveform' &&
+    selectedHotspotLeftPx != null &&
+    Number.isFinite(selectedHotspotLeftPx) &&
+    selectedHotspotLeftPx >= -6 &&
+    selectedHotspotLeftPx <= acousticOverlayViewportWidth + 6;
+  const snapGuideWindowSec =
+    snapEnabled && snapGuideVisible && playerDuration > 0 && rulerView
+      ? rulerView.end - rulerView.start
+      : null;
+  const snapGuideLeftPx =
+    snapGuideWindowSec && snapGuideWindowSec > 0
+      ? (((snapGuideLeft ?? 0) - (rulerView?.start ?? 0)) / snapGuideWindowSec) *
+        waveformGuideOverlayWidth
+      : null;
+  const snapGuideRightPx =
+    snapGuideWindowSec && snapGuideWindowSec > 0 && typeof snapGuideRight === 'number'
+      ? ((snapGuideRight - (rulerView?.start ?? 0)) / snapGuideWindowSec) *
+        waveformGuideOverlayWidth
+      : null;
+  const waveformAnalysisBandNodes = React.useMemo(
+    () => (
+      <WaveformAnalysisBands
+        locale={locale}
+        waveformLowConfidenceOverlays={waveformLowConfidenceOverlays}
+        waveformOverlapOverlays={waveformOverlapOverlays}
+      />
+    ),
+    [locale, waveformLowConfidenceOverlays, waveformOverlapOverlays],
+  );
 
-  const handleWaveformNotePopoverOpen = React.useCallback((input: { x: number; y: number; uttId: string; layerId?: string }) => {
-    setNotePopover({ x: input.x, y: input.y, uttId: input.uttId, ...(input.layerId ? { layerId: input.layerId } : {}), scope: 'waveform' });
-  }, [setNotePopover]);
+  const handleWaveformNotePopoverOpen = React.useCallback(
+    (input: { x: number; y: number; uttId: string; layerId?: string }) => {
+      setNotePopover({
+        x: input.x,
+        y: input.y,
+        uttId: input.uttId,
+        ...(input.layerId ? { layerId: input.layerId } : {}),
+        scope: 'waveform',
+      });
+    },
+    [setNotePopover],
+  );
 
-  const spectrogramOverlayNode = React.useMemo(() => (
-    <div
-      className="transcription-wave-spectrogram-overlay"
-      onMouseMove={handleSpectrogramMouseMove}
-      onMouseLeave={handleSpectrogramMouseLeave}
-      onClick={handleSpectrogramClick}
-      role="presentation"
-    />
-  ), [handleSpectrogramClick, handleSpectrogramMouseLeave, handleSpectrogramMouseMove]);
+  const spectrogramOverlayNode = React.useMemo(
+    () => (
+      <div
+        className="transcription-wave-spectrogram-overlay"
+        onMouseMove={handleSpectrogramMouseMove}
+        onMouseLeave={handleSpectrogramMouseLeave}
+        onClick={handleSpectrogramClick}
+        role="presentation"
+      />
+    ),
+    [handleSpectrogramClick, handleSpectrogramMouseLeave, handleSpectrogramMouseMove],
+  );
 
-  const waveformShellOverlayNode = React.useMemo(() => (
-    <WaveformShellOverlay
-      waveformGuideOverlayWidth={waveformGuideOverlayWidth}
-      waveformOverlayTranslateX={waveformOverlayTranslateX}
-      waveformAnalysisBandNodes={waveformAnalysisBandNodes}
-      activeReadout={activeReadout}
-      formatTime={formatTime}
-    />
-  ), [activeReadout, waveformAnalysisBandNodes, waveformGuideOverlayWidth, waveformOverlayTranslateX]);
+  const waveformShellOverlayNode = React.useMemo(
+    () => (
+      <WaveformShellOverlay
+        waveformGuideOverlayWidth={waveformGuideOverlayWidth}
+        waveformOverlayTranslateX={waveformOverlayTranslateX}
+        waveformAnalysisBandNodes={waveformAnalysisBandNodes}
+        activeReadout={activeReadout}
+        formatTime={formatTime}
+      />
+    ),
+    [
+      activeReadout,
+      waveformAnalysisBandNodes,
+      waveformGuideOverlayWidth,
+      waveformOverlayTranslateX,
+    ],
+  );
 
-  const waveformOverlayNode = React.useMemo(() => (
-    <WaveformOverlayDecorations
-      locale={locale}
-      waveformGuideOverlayWidth={waveformGuideOverlayWidth}
-      waveformGuideOverlayHeight={waveformGuideOverlayHeight}
-      waveformGuideLabelY={waveformGuideLabelY}
-      waveformGuideHotspotTopY={waveformGuideHotspotTopY}
-      waveformGuideHotspotBottomY={waveformGuideHotspotBottomY}
-      shouldRenderSelectedHotspot={shouldRenderSelectedHotspot}
-      selectedHotspotLeftPx={selectedHotspotLeftPx}
-      snapGuideLeftPx={snapGuideLeftPx}
-      snapGuideRightPx={snapGuideRightPx}
-      snapGuideNearSideValue={snapGuideNearSideValue}
-      acousticOverlayMode={acousticOverlayMode}
-      acousticOverlayViewportWidth={acousticOverlayViewportWidth}
-      acousticOverlayF0Path={acousticOverlayF0Path}
-      acousticOverlayIntensityPath={acousticOverlayIntensityPath}
-      acousticOverlayVisibleSummary={acousticOverlayVisibleSummary}
-      acousticOverlayLoading={acousticOverlayLoading}
-      hasActiveReadout={activeReadout != null}
-      waveLassoOverlay={waveLassoOverlay}
-      waveformOverlayTranslateX={waveformOverlayTranslateX}
-      waveformNoteIndicators={waveformNoteIndicators}
-      onOpenWaveformNotePopover={handleWaveformNotePopoverOpen}
-    />
-  ), [
-    acousticOverlayF0Path,
-    acousticOverlayIntensityPath,
-    acousticOverlayLoading,
-    acousticOverlayMode,
-    acousticOverlayViewportWidth,
-    acousticOverlayVisibleSummary,
-    activeReadout,
-    locale,
-    selectedHotspotLeftPx,
-    shouldRenderSelectedHotspot,
-    snapGuideLeftPx,
-    snapGuideNearSideValue,
-    snapGuideRightPx,
-    waveformGuideHotspotBottomY,
-    waveformGuideHotspotTopY,
-    waveformGuideLabelY,
-    waveformGuideOverlayHeight,
-    waveformGuideOverlayWidth,
-    waveformNoteIndicators,
-    handleWaveformNotePopoverOpen,
-    waveformOverlayTranslateX,
-    waveLassoOverlay,
-  ]);
+  const waveformOverlayNode = React.useMemo(
+    () => (
+      <WaveformOverlayDecorations
+        locale={locale}
+        waveformGuideOverlayWidth={waveformGuideOverlayWidth}
+        waveformGuideOverlayHeight={waveformGuideOverlayHeight}
+        waveformGuideLabelY={waveformGuideLabelY}
+        waveformGuideHotspotTopY={waveformGuideHotspotTopY}
+        waveformGuideHotspotBottomY={waveformGuideHotspotBottomY}
+        shouldRenderSelectedHotspot={shouldRenderSelectedHotspot}
+        selectedHotspotLeftPx={selectedHotspotLeftPx}
+        snapGuideLeftPx={snapGuideLeftPx}
+        snapGuideRightPx={snapGuideRightPx}
+        snapGuideNearSideValue={snapGuideNearSideValue}
+        acousticOverlayMode={acousticOverlayMode}
+        acousticOverlayViewportWidth={acousticOverlayViewportWidth}
+        acousticOverlayF0Path={acousticOverlayF0Path}
+        acousticOverlayIntensityPath={acousticOverlayIntensityPath}
+        acousticOverlayVisibleSummary={acousticOverlayVisibleSummary}
+        acousticOverlayLoading={acousticOverlayLoading}
+        hasActiveReadout={activeReadout != null}
+        waveLassoOverlay={waveLassoOverlay}
+        waveformOverlayTranslateX={waveformOverlayTranslateX}
+        waveformNoteIndicators={waveformNoteIndicators}
+        onOpenWaveformNotePopover={handleWaveformNotePopoverOpen}
+      />
+    ),
+    [
+      acousticOverlayF0Path,
+      acousticOverlayIntensityPath,
+      acousticOverlayLoading,
+      acousticOverlayMode,
+      acousticOverlayViewportWidth,
+      acousticOverlayVisibleSummary,
+      activeReadout,
+      locale,
+      selectedHotspotLeftPx,
+      shouldRenderSelectedHotspot,
+      snapGuideLeftPx,
+      snapGuideNearSideValue,
+      snapGuideRightPx,
+      waveformGuideHotspotBottomY,
+      waveformGuideHotspotTopY,
+      waveformGuideLabelY,
+      waveformGuideOverlayHeight,
+      waveformGuideOverlayWidth,
+      waveformNoteIndicators,
+      handleWaveformNotePopoverOpen,
+      waveformOverlayTranslateX,
+      waveLassoOverlay,
+    ],
+  );
 
   const segMarkStatusNode = React.useMemo(() => {
     if (segMarkStart === null) return null;
@@ -572,10 +624,19 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                     className="transcription-import-media-btn"
                     onClick={() => mediaFileInputRef.current?.click()}
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="17 8 12 3 7 8"/>
-                      <line x1="12" y1="3" x2="12" y2="15"/>
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
                     {t(locale, 'transcription.wave.emptyImportMedia')}
                   </button>
