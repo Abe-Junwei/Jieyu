@@ -18,7 +18,7 @@ depends_on:
 
 - **2026-05-08（计划起草）**：`npx eslint src/ -f json --max-warnings=9999`：TOTAL **840**、EXHAUSTIVE **29**、STRICT **804**。
 - **2026-05-09（Batch A 验收后）**：同命令：TOTAL **807**、EXHAUSTIVE **0**、STRICT **800**（其余 **7** 条为其它 rule，以本机 `eslint` 输出为准）。`react-hooks/exhaustive-deps` 已全仓清零，后续以 **`npm run lint` / CI 防回潮** 为主；本文件 **Batch B–E** 仍可按文件做回归与 `strict-boolean` 收口。
-- **2026-05-09（Batch B 文件级验收）**：Batch B 所列 **9** 文件 `npx eslint … -f json`：**EXHAUSTIVE = 0**、**STRICT = 0**；§3.4 定向 **vitest** 全绿。`.github/workflows/ci.yml` 的 **`quality`** job 已增加 **`npm run lint`**（与 `eslint.config.js` 中 `exhaustive-deps: error` 对齐）。
+- **2026-05-09（Batch B 文件级验收）**：Batch B 所列 **9** 文件 `npx eslint … -f json`：**EXHAUSTIVE = 0**、**STRICT = 0**；§3.4 定向 **vitest** 全绿。**说明**：当前分支 **提交态** 上全仓 `npm run lint` 仍有 **`react-hooks/exhaustive-deps` error**（与未提交本地收口不同步），故 **`quality` 暂未加入 `npm run lint`**；待提交态与「EXHAUSTIVE=0」一致后再把 `npm run lint` 并入 CI，以免误红。
 - `npm run lint -- --quiet`：通过（exit code 0）
 
 ### 1.2 本计划只处理
@@ -94,7 +94,7 @@ depends_on:
 - `src/pages/useTranscriptionLayerMetadataController.ts`
 - `src/pages/useTranscriptionSectionViewModels.ts`
 
-**执行说明（2026-05-09）**：对上述 9 文件 `npx eslint … -f json` 统计 **`react-hooks/exhaustive-deps` = 0**、**`strict-boolean` = 0**；§3.4 所列 **vitest** 已全绿。CI **`quality`** job 已增加 **`npm run lint`**，与本地 `eslint.config.js`（`exhaustive-deps: error`）对齐防回潮。
+**执行说明（2026-05-09）**：对上述 9 文件 `npx eslint … -f json` 统计 **`react-hooks/exhaustive-deps` = 0**、**`strict-boolean` = 0**；§3.4 所列 **vitest** 已全绿。CI **`quality`** 中 **`npm run lint`** 暂缓至提交态全仓 exhaustive-deps 与本地一致后再启用（见 §1.1 追加说明）。
 
 ### 3.4 验收命令
 
@@ -226,4 +226,4 @@ depends_on:
 
 | 日期 | 内容 |
 |------|------|
-| 2026-05-09 | Batch B 标记完成；`quality` CI 增加 `npm run lint`；`i18n-hardcoded-baseline` 修正（`localContextToolExecutors` 与误指向的 `executors/toolPayload` 不一致问题，解除 `quality` 内 `npm test` 门禁误报）。 |
+| 2026-05-09 | Batch B 标记完成；`i18n-hardcoded-baseline` 修正（`localContextToolExecutors` vs 误列的 `executors/toolPayload`）；`quality` 暂缓加 `npm run lint`（提交态仍有 exhaustive-deps error，与未提交收口不同步）。 |
