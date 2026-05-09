@@ -10,13 +10,15 @@ describe('Transcription layout guard', () => {
     const foundationCode = fs.readFileSync(foundationPath, 'utf8');
 
     expect(appCode).toContain("location.pathname.startsWith('/transcription')");
-    expect(appCode).toContain("app-shell-transcription");
-    expect(appCode).toContain("app-shell-body");
-    expect(appCode).toContain("app-main-transcription");
+    expect(appCode).toContain('app-shell-transcription');
+    expect(appCode).toContain('app-shell-body');
+    expect(appCode).toContain('app-main-transcription');
     expect(appCode).toContain('id="app-side-pane-body-slot"');
     expect(appCode).toContain('app-side-pane-handle-cluster');
     expect(appCode).not.toContain('className="app-side-pane-hover-zone"');
-    expect(appCode).toContain("isSidePaneCollapsed ? '0px' : `${sidePaneWidth}px`");
+    expect(appCode).toMatch(
+      /isSidePaneCollapsed[\s\S]{0,200}\?[\s\S]{0,40}'0px'[\s\S]{0,200}:\s*`\$\{sidePaneWidth\}px`/,
+    );
     expect(foundationCode).toContain("@import './pages/app-shell-layout.css';");
   });
 
@@ -157,8 +159,13 @@ describe('Transcription layout guard', () => {
     expect(entryCode).not.toContain("@import './pages/transcription-waveform.css';");
     expect(entryCode).toContain("@import './pages/transcription-waveform-shell.css';");
     const toolbarPagePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Toolbar.tsx');
-    expect(fs.readFileSync(toolbarPagePath, 'utf8')).toContain("import '../styles/pages/transcription-toolbar.css';");
-    const waveformContentPath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
+    expect(fs.readFileSync(toolbarPagePath, 'utf8')).toContain(
+      "import '../styles/pages/transcription-toolbar.css';",
+    );
+    const waveformContentPath = path.resolve(
+      process.cwd(),
+      'src/pages/OrchestratorWaveformContent.tsx',
+    );
     const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
     expect(waveformContentCode).toContain("import '../styles/foundation/waveform-display.css';");
     expect(waveformContentCode).toContain("import '../styles/pages/transcription-waveform.css';");
@@ -175,16 +182,22 @@ describe('Transcription layout guard', () => {
     expect(toolbarBlock).toContain('display: flex;');
     expect(toolbarBlock).toContain('justify-content: space-between;');
 
-    const floatingSelector = '.transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right {';
+    const floatingSelector =
+      '.transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right {';
     const floatingStart = cssCode.indexOf(floatingSelector);
     expect(floatingStart).toBeGreaterThanOrEqual(0);
     const floatingEnd = cssCode.indexOf('}', floatingStart);
     expect(floatingEnd).toBeGreaterThan(floatingStart);
     const floatingBlock = cssCode.slice(floatingStart, floatingEnd + 1);
     expect(floatingBlock).toContain('position: fixed;');
-    expect(floatingBlock).toContain('width: clamp(240px, calc(var(--side-pane-width) + var(--side-pane-gap)), 340px);');
+    expect(floatingBlock).toContain(
+      'width: clamp(240px, calc(var(--side-pane-width) + var(--side-pane-gap)), 340px);',
+    );
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
+    const legacyCssPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/transcription-waveform.css',
+    );
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(floatingSelector);
   });
@@ -215,7 +228,10 @@ describe('Transcription layout guard', () => {
     const barSelector = '.transcription-ai-observer-status-bar {';
     expect(cssCode.indexOf(barSelector)).toBeGreaterThanOrEqual(0);
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
+    const legacyCssPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/transcription-waveform.css',
+    );
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(observerSelector);
   });
@@ -225,21 +241,40 @@ describe('Transcription layout guard', () => {
     const entryCode = fs.readFileSync(entryPath, 'utf8');
     expect(entryCode).not.toContain("@import './pages/transcription-timeline.css';");
 
-    const timelineChunkHubPath = path.resolve(process.cwd(), 'src/styles/transcription-timeline.css');
+    const timelineChunkHubPath = path.resolve(
+      process.cwd(),
+      'src/styles/transcription-timeline.css',
+    );
     const timelineChunkHubCode = fs.readFileSync(timelineChunkHubPath, 'utf8');
     expect(timelineChunkHubCode).toContain("@import './pages/transcription-timeline.css';");
 
-    const timelineTopPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.TimelineTop.tsx');
-    const timelineContentPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.TimelineContent.tsx');
-    expect(fs.readFileSync(timelineTopPath, 'utf8')).toContain("import '../styles/transcription-timeline.css'");
-    expect(fs.readFileSync(timelineContentPath, 'utf8')).toContain("import '../styles/transcription-timeline.css'");
+    const timelineTopPath = path.resolve(
+      process.cwd(),
+      'src/pages/TranscriptionPage.TimelineTop.tsx',
+    );
+    const timelineContentPath = path.resolve(
+      process.cwd(),
+      'src/pages/TranscriptionPage.TimelineContent.tsx',
+    );
+    expect(fs.readFileSync(timelineTopPath, 'utf8')).toContain(
+      "import '../styles/transcription-timeline.css'",
+    );
+    expect(fs.readFileSync(timelineContentPath, 'utf8')).toContain(
+      "import '../styles/transcription-timeline.css'",
+    );
 
-    const timelineHubPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-timeline.css');
+    const timelineHubPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/transcription-timeline.css',
+    );
     const timelineHubCode = fs.readFileSync(timelineHubPath, 'utf8');
     expect(timelineHubCode).toContain("@import './timeline/timeline-layout.css';");
     expect(timelineHubCode).toContain("@import './timeline/timeline-lane.css';");
 
-    const layoutCssPath = path.resolve(process.cwd(), 'src/styles/pages/timeline/timeline-layout.css');
+    const layoutCssPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/timeline/timeline-layout.css',
+    );
     const layoutCssCode = fs.readFileSync(layoutCssPath, 'utf8');
 
     const scrollSelector = '.timeline-scroll {';
@@ -257,14 +292,20 @@ describe('Transcription layout guard', () => {
     const laneStart = laneCssCode.indexOf(laneSelector);
     expect(laneStart).toBeGreaterThanOrEqual(0);
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
+    const legacyCssPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/transcription-waveform.css',
+    );
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(scrollSelector);
     expect(legacyCssCode).not.toContain(laneSelector);
   });
 
   it('keeps lane-link and waveform-overview infra styles in timeline css', () => {
-    const timelineCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-timeline.css');
+    const timelineCssPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/transcription-timeline.css',
+    );
     const timelineCssCode = fs.readFileSync(timelineCssPath, 'utf8');
 
     const laneLinkSelector = '.lane-link-stack {';
@@ -280,7 +321,10 @@ describe('Transcription layout guard', () => {
   });
 
   it('keeps timeline lane label and focused styles in timeline css', () => {
-    const timelineCssPath = path.resolve(process.cwd(), 'src/styles/pages/timeline/timeline-lane-label.css');
+    const timelineCssPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/timeline/timeline-lane-label.css',
+    );
     const timelineCssCode = fs.readFileSync(timelineCssPath, 'utf8');
 
     const laneLabelRegex = /^\.timeline-lane-label\s*\{/m;
@@ -289,7 +333,10 @@ describe('Transcription layout guard', () => {
     const laneFocusedRegex = /^\.timeline-lane-header:focus-visible\s*\{/m;
     expect(laneFocusedRegex.test(timelineCssCode)).toBe(true);
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
+    const legacyCssPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/transcription-waveform.css',
+    );
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(laneLabelRegex.test(legacyCssCode)).toBe(false);
     expect(laneFocusedRegex.test(legacyCssCode)).toBe(false);
@@ -325,7 +372,10 @@ describe('Transcription layout guard', () => {
   });
 
   it('keeps lane-label resize handle interactive styles in timeline css', () => {
-    const cssPath = path.resolve(process.cwd(), 'src/styles/pages/timeline/timeline-lane-label.css');
+    const cssPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/timeline/timeline-lane-label.css',
+    );
     const cssCode = fs.readFileSync(cssPath, 'utf8');
 
     const selector = '.lane-label-resize-handle {';
@@ -343,7 +393,10 @@ describe('Transcription layout guard', () => {
     expect(block).toContain('cursor: ew-resize;');
     expect(block).toContain('pointer-events: auto;');
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
+    const legacyCssPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/transcription-waveform.css',
+    );
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(selector);
   });
@@ -360,11 +413,17 @@ describe('Transcription layout guard', () => {
     const subtrackBlock = laneCssCode.slice(subtrackStart, subtrackEnd + 1);
     expect(subtrackBlock).toContain('pointer-events: none;');
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
+    const legacyCssPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/transcription-waveform.css',
+    );
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(subtrackSelector);
 
-    const annotationCssPath = path.resolve(process.cwd(), 'src/styles/pages/timeline/timeline-annotation.css');
+    const annotationCssPath = path.resolve(
+      process.cwd(),
+      'src/styles/pages/timeline/timeline-annotation.css',
+    );
     const annotationCssCode = fs.readFileSync(annotationCssPath, 'utf8');
     const annotationSelector = '.timeline-annotation {';
     const annotationStart = annotationCssCode.indexOf(annotationSelector);

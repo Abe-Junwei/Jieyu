@@ -59,19 +59,6 @@ import {
   validateLinkLayerArgs,
   validateArgId,
 } from './toolCallValidation';
-export {
-  validateArgId,
-  validateArgIdList,
-  validateDeleteSegmentArgs,
-  validateSegmentTargetArgs,
-  validateOptionalSegmentTargetArgs,
-  validateArgNumeric,
-  validateArgText,
-  validateSplitSegmentArgs,
-  validateArgLayerCreate,
-  validateDeleteLayerArgs,
-  validateLinkLayerArgs,
-} from './toolCallValidation';
 
 // Re-export types extracted to satellite file
 import type {
@@ -93,12 +80,6 @@ export type {
   ToolIntentAuditMetadata,
   ToolDecisionAuditMetadata,
 } from './toolCallHelpers.types';
-
-export {
-  parseChineseInteger,
-  parseEnglishOrdinal,
-  extractSegmentSelectorFromUserText,
-} from './segmentTextParsers';
 
 interface RawToolCallEnvelope {
   name: string;

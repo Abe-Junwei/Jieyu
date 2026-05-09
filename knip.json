@@ -30,6 +30,28 @@
     "knip"
   ],
   "ignoreIssues": {
+    "src/ai/chat/executors/**/*.ts": [
+      "exports"
+    ],
+    "src/ai/chat/formatters/**/*.ts": [
+      "exports"
+    ],
+    "src/ai/chat/resolvers/**/*.ts": [
+      "exports"
+    ],
+    "src/ai/chat/segmentTextParsers.ts": [
+      "exports"
+    ],
+    "src/ai/chat/toolCallValidation.ts": [
+      "exports"
+    ],
+    "src/ai/chat/localToolSlotResolver.ts": [
+      "exports",
+      "types"
+    ],
+    "src/ai/chat/localToolSlotTypes.ts": [
+      "types"
+    ],
     "src/ai/chat/toolCallSchemas.ts": [
       "exports"
     ],
