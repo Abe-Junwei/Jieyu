@@ -17,7 +17,7 @@ export function evaluateSegmentTimeUpdateGuard(
   guard: SegmentSeekGuard | null,
   epsilon = 0.01,
 ): { ignore: boolean; nextGuard: SegmentSeekGuard | null } {
-  if (!bounds || !guard?.pending) {
+  if (bounds == null || guard?.pending !== true) {
     return { ignore: false, nextGuard: guard };
   }
 

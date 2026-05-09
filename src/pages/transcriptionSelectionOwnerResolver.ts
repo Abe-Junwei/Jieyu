@@ -49,7 +49,7 @@ export function resolveSegmentOwnerUnit<T extends TimelineOwnerCandidate>(
   units: ReadonlyArray<T>,
 ): T | undefined {
   const explicitOwnerId = segment.unitId?.trim();
-  if (explicitOwnerId) {
+  if (explicitOwnerId !== undefined && explicitOwnerId.length > 0) {
     const explicit = units.find((item) => item.id === explicitOwnerId);
     if (explicit) return explicit;
   }

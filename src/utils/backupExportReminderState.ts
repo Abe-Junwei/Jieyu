@@ -82,7 +82,10 @@ function readBackupDirtySinceLastExport(): boolean {
 export function snoozeBackupReminder(): void {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(BACKUP_REMINDER_SNOOZE_UNTIL_KEY, String(Date.now() + BACKUP_REMINDER_SNOOZE_MS));
+    window.localStorage.setItem(
+      BACKUP_REMINDER_SNOOZE_UNTIL_KEY,
+      String(Date.now() + BACKUP_REMINDER_SNOOZE_MS),
+    );
   } catch {
     // ignore
   }
@@ -100,7 +103,8 @@ export function recordBackupReminderToastShown(): void {
 function ensureFirstAppOpenRecorded(): void {
   if (typeof window === 'undefined') return;
   try {
-    if (!window.localStorage.getItem(BACKUP_FIRST_APP_OPEN_AT_KEY)) {
+    const firstOpen = window.localStorage.getItem(BACKUP_FIRST_APP_OPEN_AT_KEY);
+    if (firstOpen == null || firstOpen.length === 0) {
       window.localStorage.setItem(BACKUP_FIRST_APP_OPEN_AT_KEY, String(Date.now()));
     }
   } catch {
@@ -116,12 +120,18 @@ export function shouldFireBackupReminder(now = Date.now()): boolean {
   if (!readBackupReminderEnabled()) return false;
   ensureFirstAppOpenRecorded();
   try {
-    const snoozeUntil = Number(window.localStorage.getItem(BACKUP_REMINDER_SNOOZE_UNTIL_KEY) ?? '0');
+    const snoozeUntil = Number(
+      window.localStorage.getItem(BACKUP_REMINDER_SNOOZE_UNTIL_KEY) ?? '0',
+    );
     if (Number.isFinite(snoozeUntil) && snoozeUntil > now) {
       return false;
     }
     const lastToast = Number(window.localStorage.getItem(BACKUP_LAST_REMINDER_TOAST_AT_KEY) ?? '0');
-    if (Number.isFinite(lastToast) && lastToast > 0 && now - lastToast < BACKUP_REMINDER_TOAST_COOLDOWN_MS) {
+    if (
+      Number.isFinite(lastToast) &&
+      lastToast > 0 &&
+      now - lastToast < BACKUP_REMINDER_TOAST_COOLDOWN_MS
+    ) {
       return false;
     }
     const lastExport = Number(window.localStorage.getItem(BACKUP_LAST_FULL_EXPORT_AT_KEY) ?? '0');

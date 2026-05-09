@@ -10,14 +10,21 @@ function stableSortValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     const normalized = value.map((item) => stableSortValue(item));
     return normalized.sort((left, right) => {
-      const leftId = typeof left === 'object' && left !== null ? String((left as { id?: unknown }).id ?? '') : '';
-      const rightId = typeof right === 'object' && right !== null ? String((right as { id?: unknown }).id ?? '') : '';
-      if (leftId && rightId && leftId !== rightId) return leftId.localeCompare(rightId);
+      const leftId =
+        typeof left === 'object' && left !== null
+          ? String((left as { id?: unknown }).id ?? '')
+          : '';
+      const rightId =
+        typeof right === 'object' && right !== null
+          ? String((right as { id?: unknown }).id ?? '')
+          : '';
+      if (leftId.length > 0 && rightId.length > 0 && leftId !== rightId)
+        return leftId.localeCompare(rightId);
       return JSON.stringify(left).localeCompare(JSON.stringify(right));
     });
   }
 
-  if (value && typeof value === 'object') {
+  if (value !== null && value !== undefined && typeof value === 'object') {
     const entries = Object.entries(value as Record<string, unknown>)
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([key, entryValue]) => [key, stableSortValue(entryValue)]);
@@ -79,7 +86,10 @@ describe('import/export round-trip idempotency', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    const { unit: uttUnit, content: uttContent } = mapUnitToLayerUnit(uttRoundtrip, 'trc_roundtrip');
+    const { unit: uttUnit, content: uttContent } = mapUnitToLayerUnit(
+      uttRoundtrip,
+      'trc_roundtrip',
+    );
     await db.layer_units.put(uttUnit);
     await db.layer_unit_contents.put(uttContent);
 
@@ -175,12 +185,12 @@ describe('import/export round-trip idempotency', () => {
       },
     };
 
-    await expect(importDatabaseFromJson(invalidSnapshot, { strategy: 'replace-all' })).rejects.toThrow(
-      'Invalid doc in layer_unit_contents: missing non-empty id',
-    );
-    await expect(importDatabaseFromJson(invalidSnapshot, { strategy: 'replace-all' })).rejects.toThrow(
-      'Invalid doc in layer_unit_contents: missing non-empty id',
-    );
+    await expect(
+      importDatabaseFromJson(invalidSnapshot, { strategy: 'replace-all' }),
+    ).rejects.toThrow('Invalid doc in layer_unit_contents: missing non-empty id');
+    await expect(
+      importDatabaseFromJson(invalidSnapshot, { strategy: 'replace-all' }),
+    ).rejects.toThrow('Invalid doc in layer_unit_contents: missing non-empty id');
 
     const texts = await db.texts.toArray();
     expect(texts.map((item) => item.id)).toEqual(['text_existing']);

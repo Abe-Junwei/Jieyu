@@ -3,7 +3,23 @@ import { useLatest } from './useLatest';
 import { useLocale, useOptionalLocale, type Locale } from '../i18n';
 import { useAiChatConnectionProbe } from './useAiChat.connectionProbe';
 import { useAiChatConversationState } from './useAiChat.conversationState';
-import { DEFAULT_OUTPUT_TOKEN_CAP, INITIAL_METRICS, normalizeAutoProbeIntervalMs, normalizeFirstChunkTimeoutMs, normalizeOutputTokenCap, normalizeOutputTokenRetryCap, normalizeRagContextTimeoutMs, normalizeSessionTokenBudget, normalizeStreamPersistInterval, readDevOutputTokenCap, readDevOutputTokenRetryCap, readDevAutoProbeIntervalMs, readDevRagContextTimeoutMs, readDevSessionTokenBudget, readDevStreamPersistIntervalMs } from './useAiChat.config';
+import {
+  DEFAULT_OUTPUT_TOKEN_CAP,
+  INITIAL_METRICS,
+  normalizeAutoProbeIntervalMs,
+  normalizeFirstChunkTimeoutMs,
+  normalizeOutputTokenCap,
+  normalizeOutputTokenRetryCap,
+  normalizeRagContextTimeoutMs,
+  normalizeSessionTokenBudget,
+  normalizeStreamPersistInterval,
+  readDevOutputTokenCap,
+  readDevOutputTokenRetryCap,
+  readDevAutoProbeIntervalMs,
+  readDevRagContextTimeoutMs,
+  readDevSessionTokenBudget,
+  readDevStreamPersistIntervalMs,
+} from './useAiChat.config';
 import { newAuditLogId, nowIso } from './useAiChat.helpers';
 import { getDb } from '../db';
 import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
@@ -23,7 +39,10 @@ import {
   setActiveSourceSetIdInSessionMemory,
   trackRecommendationEventInSessionMemory,
 } from '../ai/chat/useAiChatPureHelpers';
-import { runAiChatClearPersistenceCleanup, type AiChatClearPersistenceRequest } from './useAiChat.persistenceCleanup';
+import {
+  runAiChatClearPersistenceCleanup,
+  type AiChatClearPersistenceRequest,
+} from './useAiChat.persistenceCleanup';
 import { scheduleClearPersistenceCleanup } from '../ai/chat/scheduleClearPersistenceCleanup';
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import { featureFlags } from '../ai/config/featureFlags';
@@ -35,19 +54,47 @@ import { useAiChatAgentLoopCheckpointControls } from './useAiChat.agentLoopCheck
 import { useAiChatDirectiveSessionControls } from './useAiChat.directiveSessionControls';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
 import { runAiChatSendTurn, type RunAiChatSendTurnArgs } from './useAiChat.sendTurn';
-import { applyAiChatSettingsPatch, createAiChatProvider, normalizeAiChatSettings } from '../ai/providers/providerCatalog';
+import {
+  applyAiChatSettingsPatch,
+  createAiChatProvider,
+  normalizeAiChatSettings,
+} from '../ai/providers/providerCatalog';
 import { createFallbackAiChatProvider } from '../ai/chat/createFallbackAiChatProvider';
 import { shouldResetConnectionForSettingsPatch } from '../ai/chat/settingsConnectionReset';
 import { bumpMetricValue } from '../ai/chat/metricBump';
 
 import { createIdleTaskSession } from '../ai/chat/createIdleTaskSession';
 import { createBackgroundMemoryRuntime } from '../ai/chat/backgroundMemoryRuntimeFactory';
-import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/config/aiChatSettingsStorage';
+import {
+  loadAiChatSettingsFromStorage,
+  persistAiChatSettings,
+} from '../ai/config/aiChatSettingsStorage';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
-import type { AiContextDebugSnapshot, AiInteractionMetrics, AiRecommendationEvent, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, PendingAiToolCall, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
+import type {
+  AiContextDebugSnapshot,
+  AiInteractionMetrics,
+  AiRecommendationEvent,
+  AiSessionMemory,
+  AiSystemPersonaKey,
+  AiTaskSession,
+  PendingAiToolCall,
+  UiChatMessage,
+  UseAiChatOptions,
+} from './useAiChat.types';
 
 export type { AiChatSettings } from '../ai/providers/providerCatalog';
-export type { AiChatToolCall, AiChatToolResult, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiSystemPersonaKey, AiTaskSession, PendingAiToolCall, UiChatMessage, UseAiChatOptions } from './useAiChat.types';
+export type {
+  AiChatToolCall,
+  AiChatToolResult,
+  AiContextDebugSnapshot,
+  AiInteractionMetrics,
+  AiSessionMemory,
+  AiSystemPersonaKey,
+  AiTaskSession,
+  PendingAiToolCall,
+  UiChatMessage,
+  UseAiChatOptions,
+} from './useAiChat.types';
 
 export function useAiChat(options?: UseAiChatOptions) {
   // 保留主 hook 对确认执行 seam 的显式依赖，结构测试据此验证拆分边界 |
@@ -57,7 +104,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   void enrichContextWithRag;
   void createAssistantStream;
   void nowIso;
-  const sessionMemorySeam = { persistSessionMemory, };
+  const sessionMemorySeam = { persistSessionMemory };
   void sessionMemorySeam;
   // executeConfirmedToolCall(...) is invoked inside useAiChatPendingToolCall.
 
@@ -112,7 +159,9 @@ export function useAiChat(options?: UseAiChatOptions) {
     options?.outputTokenRetryCap ?? settings.outputTokenRetryCap ?? readDevOutputTokenRetryCap(),
     outputTokenCap,
   );
-  const [contextDebugSnapshot, setContextDebugSnapshot] = useState<AiContextDebugSnapshot | null>(null);
+  const [contextDebugSnapshot, setContextDebugSnapshot] = useState<AiContextDebugSnapshot | null>(
+    null,
+  );
   const [pendingToolCall, setPendingToolCall] = useState<PendingAiToolCall | null>(null);
   const [taskSession, setTaskSession] = useState<AiTaskSession>(() => createIdleTaskSession());
   const [metrics, setMetrics] = useState<AiInteractionMetrics>({ ...INITIAL_METRICS });
@@ -131,7 +180,10 @@ export function useAiChat(options?: UseAiChatOptions) {
 
   const backgroundMemoryRuntimeRef = useRef<AiChatBackgroundMemoryRuntime | null>(null);
   if (backgroundMemoryRuntimeRef.current === null) {
-    backgroundMemoryRuntimeRef.current = createBackgroundMemoryRuntime(sessionMemoryRef, getContextRef);
+    backgroundMemoryRuntimeRef.current = createBackgroundMemoryRuntime(
+      sessionMemoryRef,
+      getContextRef,
+    );
   }
   const bumpMetric = useCallback((key: keyof AiInteractionMetrics, delta = 1) => {
     setMetrics((prev) => bumpMetricValue(prev, key, delta));
@@ -139,11 +191,17 @@ export function useAiChat(options?: UseAiChatOptions) {
   const abortRef = useRef<AbortController | null>(null);
   const localToolCallCountRef = useRef(0);
 
-  const { provider, fallbackProvider } = useMemo(() => ({
-    provider: createAiChatProvider(settings),
-    fallbackProvider: createFallbackAiChatProvider(settings),
-  }), [settings]);
-  const orchestrator = useMemo(() => new ChatOrchestrator(provider, fallbackProvider), [provider, fallbackProvider]);
+  const { provider, fallbackProvider } = useMemo(
+    () => ({
+      provider: createAiChatProvider(settings),
+      fallbackProvider: createFallbackAiChatProvider(settings),
+    }),
+    [settings],
+  );
+  const orchestrator = useMemo(
+    () => new ChatOrchestrator(provider, fallbackProvider),
+    [provider, fallbackProvider],
+  );
   useSyncAssistantDialogueChatTool(pendingToolCall);
 
   const streamPersistIntervalMsRef = useLatest(streamPersistIntervalMs);
@@ -176,18 +234,14 @@ export function useAiChat(options?: UseAiChatOptions) {
     };
   }, [settings]);
 
-  const {
-    conversationId,
-    conversationIdRef,
-    isBootstrapping,
-    ensureConversation,
-  } = useAiChatConversationState({
-    locale,
-    providerId: provider.id,
-    model: settings.model,
-    onHistoryLoaded: setMessages,
-    onHistoryLoadError: setLastError,
-  });
+  const { conversationId, conversationIdRef, isBootstrapping, ensureConversation } =
+    useAiChatConversationState({
+      locale,
+      providerId: provider.id,
+      model: settings.model,
+      onHistoryLoaded: setMessages,
+      onHistoryLoadError: setLastError,
+    });
 
   const {
     clearPendingAgentLoopCheckpoint,
@@ -196,11 +250,13 @@ export function useAiChat(options?: UseAiChatOptions) {
     resolveAgentLoopResumeCheckpoint,
   } = useAiChatAgentLoopCheckpointControls({ sessionMemoryRef, setMessages });
 
-  const {
-    toggleMessagePinned,
-    deactivateSessionDirective,
-    pruneSessionDirectivesBySourceMessage,
-  } = useAiChatDirectiveSessionControls({ conversationIdRef, sessionMemoryRef, messagesRef, setMessages });
+  const { toggleMessagePinned, deactivateSessionDirective, pruneSessionDirectivesBySourceMessage } =
+    useAiChatDirectiveSessionControls({
+      conversationIdRef,
+      sessionMemoryRef,
+      messagesRef,
+      setMessages,
+    });
 
   const {
     connectionTestStatus,
@@ -221,16 +277,19 @@ export function useAiChat(options?: UseAiChatOptions) {
     autoConnectionProbeEnabled,
   });
 
-  const updateSettings = useCallback((patch: Partial<AiChatSettings>) => {
-    userDirtyRef.current = true;
-    setSettings((current) => applyAiChatSettingsPatch(current, patch));
-    
-    if (shouldResetConnectionForSettingsPatch(patch)) {
-      abortRef.current?.abort();
-      invalidateConnectionProbe();
-      resetConnectionProbe();
-    }
-  }, [invalidateConnectionProbe, resetConnectionProbe]);
+  const updateSettings = useCallback(
+    (patch: Partial<AiChatSettings>) => {
+      userDirtyRef.current = true;
+      setSettings((current) => applyAiChatSettingsPatch(current, patch));
+
+      if (shouldResetConnectionForSettingsPatch(patch)) {
+        abortRef.current?.abort();
+        invalidateConnectionProbe();
+        resetConnectionProbe();
+      }
+    },
+    [invalidateConnectionProbe, resetConnectionProbe],
+  );
 
   const stop = useCallback(() => {
     abortAiChatStream(abortRef, setIsStreaming);
@@ -241,7 +300,10 @@ export function useAiChat(options?: UseAiChatOptions) {
   }, []);
 
   const trackRecommendationEvent = useCallback((event: AiRecommendationEvent) => {
-    sessionMemoryRef.current = trackRecommendationEventInSessionMemory(sessionMemoryRef.current, event);
+    sessionMemoryRef.current = trackRecommendationEventInSessionMemory(
+      sessionMemoryRef.current,
+      event,
+    );
   }, []);
 
   const setActiveSourceSetId = useCallback((id: string | null) => {
@@ -289,7 +351,11 @@ export function useAiChat(options?: UseAiChatOptions) {
     pendingToolCallRef,
     taskSessionRef,
     sessionMemoryRef,
-    toolFeedbackLocale: resolveAiChatResponsePolicy(sessionMemoryRef.current, toolFeedbackLocale, settings.toolFeedbackStyle).locale,
+    toolFeedbackLocale: resolveAiChatResponsePolicy(
+      sessionMemoryRef.current,
+      toolFeedbackLocale,
+      settings.toolFeedbackStyle,
+    ).locale,
     ...(onToolCallRef.current != null && { onToolCall: onToolCallRef.current }),
     applyAssistantMessageResult: applyAssistantMessageResultWrapper,
     hasPersistedExecutionForRequest,
@@ -301,107 +367,129 @@ export function useAiChat(options?: UseAiChatOptions) {
     getTimelineReadModelEpoch: () => getTimelineReadModelEpochRef.current?.(),
   });
 
-  const send = useCallback(async (userText: string) => {
-    const sharedSendTurnArgs = {
-      activeConversationId: conversationId,
-      featureFlags,
-      isStreaming,
-      sessionTokenBudget,
-      firstChunkTimeoutMs,
-      outputTokenCap,
-      outputTokenRetryCap,
+  const send = useCallback(
+    async (userText: string) => {
+      const sharedSendTurnArgs = {
+        activeConversationId: conversationId,
+        featureFlags,
+        isStreaming,
+        sessionTokenBudget,
+        firstChunkTimeoutMs,
+        outputTokenCap,
+        outputTokenRetryCap,
+        allowDestructiveToolCalls,
+        maxContextCharsOverride,
+        historyCharBudgetOverride,
+        provider,
+        orchestrator,
+        ensureConversation,
+        setLastError,
+        setMessages,
+        setIsStreaming,
+        setConnectionTestStatus,
+        setConnectionTestMessage,
+        setContextDebugSnapshot,
+        setMetrics,
+        setTaskSession,
+        setPendingToolCall,
+        messagesRef,
+        metricsRef,
+        pendingToolCallRef,
+        sessionMemoryRef,
+        settingsRef,
+        toolFeedbackLocaleRef,
+        systemPersonaKeyRef,
+        getContextRef,
+        embeddingSearchServiceRef,
+        ragContextTimeoutMsRef,
+        toolDecisionModeRef,
+        onToolRiskCheckRef,
+        preparePendingToolCallRef,
+        onToolCallRef,
+        taskSessionRef,
+        onMessageCompleteRef,
+        onPushAdoptionItemsRef,
+        abortRef,
+        localToolCallCountRef,
+        streamPersistIntervalMsRef,
+        backgroundMemoryRuntimeRef,
+        writeToolDecisionAuditLog,
+        writeToolIntentAuditLog,
+        hasPersistedExecutionForRequest,
+        markExecutedRequestId,
+        bumpMetric,
+        resolveAgentLoopResumeCheckpoint,
+        clearPendingAgentLoopCheckpoint,
+      } satisfies Omit<RunAiChatSendTurnArgs, 'userText'>;
+
+      await runAiChatSendTurn({
+        ...sharedSendTurnArgs,
+        userText,
+      });
+
+      // PR-13: auto-trigger step2 when composed workflow step1 succeeded but step2 failed
+      let composedState = sessionMemoryRef.current.composedWorkflowState;
+      if (composedState?.status === 'step1_done') {
+        const step2UserText = buildStep2RetryPrompt();
+        await runAiChatSendTurn({
+          ...sharedSendTurnArgs,
+          userText: step2UserText,
+        });
+        // 第二次 send 会更新 sessionMemory；后续 reflection 重试判断必须用最新快照 | Refresh snapshot after nested send.
+        composedState = sessionMemoryRef.current.composedWorkflowState;
+      }
+
+      // P4: auto-trigger reflection retry for composed workflow (max 1 retry per step).
+      const retryResult = resolveComposedWorkflowReflectionRetry(sessionMemoryRef.current);
+      if (retryResult.retryUserText) {
+        sessionMemoryRef.current = retryResult.nextSessionMemory;
+        await runAiChatSendTurn({
+          ...sharedSendTurnArgs,
+          userText: retryResult.retryUserText,
+        });
+      }
+    },
+    [
       allowDestructiveToolCalls,
-      maxContextCharsOverride,
-      historyCharBudgetOverride,
-      provider,
-      orchestrator,
+      bumpMetric,
+      clearPendingAgentLoopCheckpoint,
+      conversationId,
+      embeddingSearchServiceRef,
       ensureConversation,
-      setLastError,
-      setMessages,
-      setIsStreaming,
-      setConnectionTestStatus,
-      setConnectionTestMessage,
-      setContextDebugSnapshot,
-      setMetrics,
-      setTaskSession,
-      setPendingToolCall,
+      firstChunkTimeoutMs,
+      getContextRef,
+      hasPersistedExecutionForRequest,
+      historyCharBudgetOverride,
+      isStreaming,
+      markExecutedRequestId,
+      maxContextCharsOverride,
       messagesRef,
       metricsRef,
-      pendingToolCallRef,
-      sessionMemoryRef,
-      settingsRef,
-      toolFeedbackLocaleRef,
-      systemPersonaKeyRef,
-      getContextRef,
-      embeddingSearchServiceRef,
-      ragContextTimeoutMsRef,
-      toolDecisionModeRef,
-      onToolRiskCheckRef,
-      preparePendingToolCallRef,
-      onToolCallRef,
-      taskSessionRef,
       onMessageCompleteRef,
       onPushAdoptionItemsRef,
-      abortRef,
-      localToolCallCountRef,
+      onToolCallRef,
+      onToolRiskCheckRef,
+      orchestrator,
+      outputTokenCap,
+      outputTokenRetryCap,
+      pendingToolCallRef,
+      preparePendingToolCallRef,
+      provider,
+      ragContextTimeoutMsRef,
+      resolveAgentLoopResumeCheckpoint,
+      sessionTokenBudget,
+      setConnectionTestMessage,
+      setConnectionTestStatus,
+      settingsRef,
       streamPersistIntervalMsRef,
-      backgroundMemoryRuntimeRef,
+      systemPersonaKeyRef,
+      taskSessionRef,
+      toolDecisionModeRef,
+      toolFeedbackLocaleRef,
       writeToolDecisionAuditLog,
       writeToolIntentAuditLog,
-      hasPersistedExecutionForRequest,
-      markExecutedRequestId,
-      bumpMetric,
-      resolveAgentLoopResumeCheckpoint,
-      clearPendingAgentLoopCheckpoint,
-    } satisfies Omit<RunAiChatSendTurnArgs, 'userText'>;
-
-    await runAiChatSendTurn({
-      ...sharedSendTurnArgs,
-      userText,
-    });
-
-    // PR-13: auto-trigger step2 when composed workflow step1 succeeded but step2 failed
-    let composedState = sessionMemoryRef.current.composedWorkflowState;
-    if (composedState?.status === 'step1_done') {
-      const step2UserText = buildStep2RetryPrompt();
-      await runAiChatSendTurn({
-        ...sharedSendTurnArgs,
-        userText: step2UserText,
-      });
-      // 第二次 send 会更新 sessionMemory；后续 reflection 重试判断必须用最新快照 | Refresh snapshot after nested send.
-      composedState = sessionMemoryRef.current.composedWorkflowState;
-    }
-
-    // P4: auto-trigger reflection retry for composed workflow (max 1 retry per step).
-    const retryResult = resolveComposedWorkflowReflectionRetry(sessionMemoryRef.current);
-    if (retryResult.retryUserText) {
-      sessionMemoryRef.current = retryResult.nextSessionMemory;
-      await runAiChatSendTurn({
-        ...sharedSendTurnArgs,
-        userText: retryResult.retryUserText,
-      });
-    }
-  }, [
-    allowDestructiveToolCalls,
-    conversationId,
-    ensureConversation,
-    firstChunkTimeoutMs,
-    historyCharBudgetOverride,
-    isStreaming,
-    maxContextCharsOverride,
-    onMessageCompleteRef,
-    onToolCallRef,
-    onToolRiskCheckRef,
-    orchestrator,
-    outputTokenCap,
-    outputTokenRetryCap,
-    provider.id,
-    provider.label,
-    sessionTokenBudget,
-    taskSessionRef,
-    writeToolDecisionAuditLog,
-    writeToolIntentAuditLog,
-  ]);
+    ],
+  );
 
   const clear = useCallback(() => {
     if (clearInFlightRef.current) return;
@@ -434,7 +522,11 @@ export function useAiChat(options?: UseAiChatOptions) {
     setTaskSession(createIdleTaskSession());
     clearInFlightRef.current = false;
 
-    scheduleClearPersistenceCleanup(clearPersistRequestRef, conversationId ?? null, runClearPersistenceCleanup);
+    scheduleClearPersistenceCleanup(
+      clearPersistRequestRef,
+      conversationId ?? null,
+      runClearPersistenceCleanup,
+    );
   }, [conversationId, runClearPersistenceCleanup]);
 
   return {

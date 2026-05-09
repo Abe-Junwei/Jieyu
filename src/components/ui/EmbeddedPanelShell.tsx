@@ -30,6 +30,7 @@ export function EmbeddedPanelShell({
   ...divProps
 }: EmbeddedPanelShellProps) {
   const hasHeader = title !== undefined || actions !== undefined;
+  const embeddedPanelLayoutStyleProps = layoutStyle !== undefined ? { style: layoutStyle } : {};
 
   return (
     <div
@@ -39,17 +40,23 @@ export function EmbeddedPanelShell({
         'panel-design-match-dialog',
         className,
       )}
-      style={layoutStyle}
+      {...embeddedPanelLayoutStyleProps}
       {...divProps}
     >
       {hasHeader ? (
         <div className={joinClassNames('dialog-header', headerClassName)} {...headerProps}>
-          {title !== undefined ? <h3 className={joinClassNames('dialog-shell__title', titleClassName)}>{title}</h3> : <span />}
+          {title !== undefined ? (
+            <h3 className={joinClassNames('dialog-shell__title', titleClassName)}>{title}</h3>
+          ) : (
+            <span />
+          )}
           {actions ? <div className="dialog-header-actions">{actions}</div> : null}
         </div>
       ) : null}
       <div className={joinClassNames('dialog-body', bodyClassName)}>{children}</div>
-      {footer ? <div className={joinClassNames('dialog-footer', footerClassName)}>{footer}</div> : null}
+      {footer ? (
+        <div className={joinClassNames('dialog-footer', footerClassName)}>{footer}</div>
+      ) : null}
     </div>
   );
 }

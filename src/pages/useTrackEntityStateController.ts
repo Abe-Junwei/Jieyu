@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import type { TrackEntityStateMap } from '../types/trackEntityStateMap.types';
-import { getTrackEntityState, loadTrackEntityStateMapFromDb } from '../app/transcriptionServicesPageAccess';
+import {
+  getTrackEntityState,
+  loadTrackEntityStateMapFromDb,
+} from '../app/transcriptionServicesPageAccess';
 
 interface UseTrackEntityStateControllerInput {
   activeTextId: string | null;
@@ -9,7 +12,7 @@ interface UseTrackEntityStateControllerInput {
   setTranscriptionTrackMode: React.Dispatch<React.SetStateAction<TranscriptionTrackDisplayMode>>;
 }
 
-interface UseTrackEntityStateControllerResult {
+export interface UseTrackEntityStateControllerResult {
   laneLockMap: Record<string, number>;
   setLaneLockMap: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   persistenceContext: {
@@ -29,13 +32,15 @@ export function useTrackEntityStateController(
   const { activeTextId, selectedTimelineMediaId, setTranscriptionTrackMode } = input;
 
   const trackEntityProjectKey = activeTextId?.trim() || '__no-project__';
-  const trackEntityScopedKey = selectedTimelineMediaId ? `${trackEntityProjectKey}::${selectedTimelineMediaId}` : null;
+  const trackEntityScopedKey = selectedTimelineMediaId
+    ? `${trackEntityProjectKey}::${selectedTimelineMediaId}`
+    : null;
 
   useEffect(() => {
     if (!activeTextId) return;
     let cancelled = false;
 
-    loadTrackEntityStateMapFromDb(activeTextId).then((dbStateMap) => {
+    void loadTrackEntityStateMapFromDb(activeTextId).then((dbStateMap) => {
       if (cancelled) return;
       trackEntityStateByMediaRef.current = dbStateMap;
       if (trackEntityScopedKey) {

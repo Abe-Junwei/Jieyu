@@ -2,9 +2,11 @@ type TimeBoundUnitLike = {
   id: string;
   startTime: number;
   endTime: number;
-  ai_metadata?: {
-    confidence?: number;
-  } | undefined;
+  ai_metadata?:
+    | {
+        confidence?: number;
+      }
+    | undefined;
   tags?: Record<string, boolean> | undefined;
 };
 
@@ -96,7 +98,12 @@ function minOfNumbers(values: number[]): number {
 function toSortedUnits(input: TimeBoundUnitLike[]): TimeBoundUnitLike[] {
   return input
     .filter((item) => item.tags?.skipProcessing !== true)
-    .filter((item) => Number.isFinite(item.startTime) && Number.isFinite(item.endTime) && item.endTime > item.startTime)
+    .filter(
+      (item) =>
+        Number.isFinite(item.startTime) &&
+        Number.isFinite(item.endTime) &&
+        item.endTime > item.startTime,
+    )
     .sort((left, right) => {
       if (left.startTime !== right.startTime) return left.startTime - right.startTime;
       if (left.endTime !== right.endTime) return left.endTime - right.endTime;
@@ -126,7 +133,11 @@ export function buildWaveformAnalysisOverlaySummary(
   const sorted = toSortedUnits(units);
 
   const lowConfidenceBands: WaveformLowConfidenceBand[] = sorted
-    .filter((unit) => typeof unit.ai_metadata?.confidence === 'number' && unit.ai_metadata.confidence < lowConfidenceThreshold)
+    .filter(
+      (unit) =>
+        typeof unit.ai_metadata?.confidence === 'number' &&
+        unit.ai_metadata.confidence < lowConfidenceThreshold,
+    )
     .map((unit) => ({
       id: unit.id,
       startTime: unit.startTime,
@@ -145,10 +156,10 @@ export function buildWaveformAnalysisOverlaySummary(
       const gapEnd = current.startTime;
       const containsSpeech = vadSegs
         ? vadSegs.some((seg) => {
-          const overlapStart = Math.max(seg.start, gapStart);
-          const overlapEnd = Math.min(seg.end, gapEnd);
-          return overlapEnd - overlapStart >= VAD_OVERLAP_TOLERANCE_SEC;
-        })
+            const overlapStart = Math.max(seg.start, gapStart);
+            const overlapEnd = Math.min(seg.end, gapEnd);
+            return overlapEnd - overlapStart >= VAD_OVERLAP_TOLERANCE_SEC;
+          })
         : undefined;
       gapBands.push({
         id: `gap:${previous.id}:${current.id}`,
@@ -160,18 +171,26 @@ export function buildWaveformAnalysisOverlaySummary(
     }
   }
 
-  const boundaries = Array.from(new Set(sorted.flatMap((unit) => [unit.startTime, unit.endTime]))).sort((a, b) => a - b);
+  const boundaries = Array.from(
+    new Set(sorted.flatMap((unit) => [unit.startTime, unit.endTime])),
+  ).sort((a, b) => a - b);
   const overlapBands: WaveformOverlapBand[] = [];
 
   for (let index = 1; index < boundaries.length; index += 1) {
     const startTime = boundaries[index - 1]!;
     const endTime = boundaries[index]!;
     if (endTime <= startTime) continue;
-    const concurrentCount = sorted.filter((unit) => unit.startTime < endTime && unit.endTime > startTime).length;
+    const concurrentCount = sorted.filter(
+      (unit) => unit.startTime < endTime && unit.endTime > startTime,
+    ).length;
     if (concurrentCount < 2) continue;
 
     const previous = overlapBands[overlapBands.length - 1];
-    if (previous && Math.abs(previous.endTime - startTime) < 0.0005 && previous.concurrentCount === concurrentCount) {
+    if (
+      previous &&
+      Math.abs(previous.endTime - startTime) < 0.0005 &&
+      previous.concurrentCount === concurrentCount
+    ) {
       previous.endTime = endTime;
       continue;
     }
@@ -191,7 +210,12 @@ export function buildWaveformAnalysisOverlaySummary(
   };
 }
 
-function intersectsWindow(startTime: number, endTime: number, windowStart: number, windowEnd: number): boolean {
+function intersectsWindow(
+  startTime: number,
+  endTime: number,
+  windowStart: number,
+  windowEnd: number,
+): boolean {
   return startTime < windowEnd && endTime > windowStart;
 }
 
@@ -262,7 +286,10 @@ export function buildRiskHotZones(
         gap: cluster.filter((s) => s.type === 'gap').length,
       };
       const totalWeight = cluster.reduce((sum, s) => sum + s.weight, 0);
-      const severity = Math.min(1, totalWeight / cluster.length * (1 + Math.log2(cluster.length)) * 0.5);
+      const severity = Math.min(
+        1,
+        (totalWeight / cluster.length) * (1 + Math.log2(cluster.length)) * 0.5,
+      );
       return { startTime: start, endTime: end, signalCount: cluster.length, breakdown, severity };
     })
     .sort((a, b) => b.severity - a.severity)
@@ -295,7 +322,12 @@ function buildTemporalDistribution(
   }
   return {
     durationSec,
-    quartileRatios: quartileCounts.map((c) => Math.round((c / total) * 100) / 100) as [number, number, number, number],
+    quartileRatios: quartileCounts.map((c) => Math.round((c / total) * 100) / 100) as [
+      number,
+      number,
+      number,
+      number,
+    ],
   };
 }
 
@@ -314,68 +346,100 @@ export function buildWaveformAnalysisPromptSummary(
   },
 ): WaveformAnalysisPromptSummary {
   const summary = buildWaveformAnalysisOverlaySummary(units, {
-    ...(options?.lowConfidenceThreshold !== undefined ? { lowConfidenceThreshold: options.lowConfidenceThreshold } : {}),
-    ...(options?.gapThresholdSeconds !== undefined ? { gapThresholdSeconds: options.gapThresholdSeconds } : {}),
+    ...(options?.lowConfidenceThreshold !== undefined
+      ? { lowConfidenceThreshold: options.lowConfidenceThreshold }
+      : {}),
+    ...(options?.gapThresholdSeconds !== undefined
+      ? { gapThresholdSeconds: options.gapThresholdSeconds }
+      : {}),
     ...(options?.vadSegments !== undefined ? { vadSegments: options.vadSegments } : {}),
   });
-  const maxGapSeconds = summary.gapBands.reduce((maxSeconds, band) => Math.max(maxSeconds, band.gapSeconds), 0);
+  const maxGapSeconds = summary.gapBands.reduce(
+    (maxSeconds, band) => Math.max(maxSeconds, band.gapSeconds),
+    0,
+  );
 
-  const hasSelectionWindow = typeof options?.selectionStartTime === 'number'
-    && typeof options?.selectionEndTime === 'number'
-    && options.selectionEndTime > options.selectionStartTime;
+  const hasSelectionWindow =
+    typeof options?.selectionStartTime === 'number' &&
+    typeof options?.selectionEndTime === 'number' &&
+    options.selectionEndTime > options.selectionStartTime;
 
   const selectionLowConfidenceCount = hasSelectionWindow
-    ? summary.lowConfidenceBands.filter((band) => intersectsWindow(
-      band.startTime,
-      band.endTime,
-      options.selectionStartTime as number,
-      options.selectionEndTime as number,
-    )).length
+    ? summary.lowConfidenceBands.filter((band) =>
+        intersectsWindow(
+          band.startTime,
+          band.endTime,
+          options.selectionStartTime as number,
+          options.selectionEndTime as number,
+        ),
+      ).length
     : undefined;
 
   const selectionOverlapCount = hasSelectionWindow
-    ? summary.overlapBands.filter((band) => intersectsWindow(
-      band.startTime,
-      band.endTime,
-      options.selectionStartTime as number,
-      options.selectionEndTime as number,
-      )).length
+    ? summary.overlapBands.filter((band) =>
+        intersectsWindow(
+          band.startTime,
+          band.endTime,
+          options.selectionStartTime as number,
+          options.selectionEndTime as number,
+        ),
+      ).length
     : undefined;
 
   const selectionGapCount = hasSelectionWindow
-    ? summary.gapBands.filter((band) => intersectsWindow(
-      band.startTime,
-      band.endTime,
-      options.selectionStartTime as number,
-      options.selectionEndTime as number,
-    )).length
+    ? summary.gapBands.filter((band) =>
+        intersectsWindow(
+          band.startTime,
+          band.endTime,
+          options.selectionStartTime as number,
+          options.selectionEndTime as number,
+        ),
+      ).length
     : undefined;
 
-  const activeSignals = typeof options?.audioTimeSec === 'number'
-    ? [
-      ...summary.lowConfidenceBands
-        .filter((band) => band.startTime <= options.audioTimeSec! && band.endTime >= options.audioTimeSec!)
-        .slice(0, 2)
-        .map((band) => `low_confidence:${Math.round(band.confidence * 100)}%@${band.startTime.toFixed(1)}-${band.endTime.toFixed(1)}`),
-      ...summary.overlapBands
-        .filter((band) => band.startTime <= options.audioTimeSec! && band.endTime >= options.audioTimeSec!)
-        .slice(0, 2)
-        .map((band) => `overlap:x${band.concurrentCount}@${band.startTime.toFixed(1)}-${band.endTime.toFixed(1)}`),
-      ...summary.gapBands
-        .filter((band) => band.startTime <= options.audioTimeSec! && band.endTime >= options.audioTimeSec!)
-        .slice(0, 2)
-        .map((band) => `gap:${band.gapSeconds.toFixed(1)}s@${band.startTime.toFixed(1)}-${band.endTime.toFixed(1)}`),
-    ]
-    : undefined;
+  const activeSignals =
+    typeof options?.audioTimeSec === 'number'
+      ? [
+          ...summary.lowConfidenceBands
+            .filter(
+              (band) =>
+                band.startTime <= options.audioTimeSec! && band.endTime >= options.audioTimeSec!,
+            )
+            .slice(0, 2)
+            .map(
+              (band) =>
+                `low_confidence:${Math.round(band.confidence * 100)}%@${band.startTime.toFixed(1)}-${band.endTime.toFixed(1)}`,
+            ),
+          ...summary.overlapBands
+            .filter(
+              (band) =>
+                band.startTime <= options.audioTimeSec! && band.endTime >= options.audioTimeSec!,
+            )
+            .slice(0, 2)
+            .map(
+              (band) =>
+                `overlap:x${band.concurrentCount}@${band.startTime.toFixed(1)}-${band.endTime.toFixed(1)}`,
+            ),
+          ...summary.gapBands
+            .filter(
+              (band) =>
+                band.startTime <= options.audioTimeSec! && band.endTime >= options.audioTimeSec!,
+            )
+            .slice(0, 2)
+            .map(
+              (band) =>
+                `gap:${band.gapSeconds.toFixed(1)}s@${band.startTime.toFixed(1)}-${band.endTime.toFixed(1)}`,
+            ),
+        ]
+      : undefined;
 
   // 风险热区聚类 | Risk hot-zone clustering
   const hotZones = buildRiskHotZones(summary);
 
   // 时间四分位分布 | Temporal quartile distribution
-  const durationSec = options?.audioDurationSec
-    ?? (units.length > 0
-      ? maxOfNumbers(units.map((u) => u.endTime).filter(Number.isFinite))
-      : 0);
+  const durationSec =
+    options?.audioDurationSec ??
+    (units.length > 0 ? maxOfNumbers(units.map((u) => u.endTime).filter(Number.isFinite)) : 0);
   const temporalDistribution = buildTemporalDistribution(summary, durationSec);
 
   return {
@@ -388,9 +452,12 @@ export function buildWaveformAnalysisPromptSummary(
     ...(selectionLowConfidenceCount !== undefined ? { selectionLowConfidenceCount } : {}),
     ...(selectionOverlapCount !== undefined ? { selectionOverlapCount } : {}),
     ...(selectionGapCount !== undefined ? { selectionGapCount } : {}),
-    ...(activeSignals && activeSignals.length > 0 ? { activeSignals } : {}),
+    ...(Array.isArray(activeSignals) && activeSignals.length > 0 ? { activeSignals } : {}),
     ...(summary.gapBands.some((g) => g.containsSpeech !== undefined)
-      ? { untranscribedSpeechGapCount: summary.gapBands.filter((g) => g.containsSpeech).length }
+      ? {
+          untranscribedSpeechGapCount: summary.gapBands.filter((g) => g.containsSpeech === true)
+            .length,
+        }
       : {}),
   };
 }

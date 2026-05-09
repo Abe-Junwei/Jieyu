@@ -26,7 +26,7 @@ export function unitDocForSpeakerTargetFromUnitView<T extends { id: string }>(
   if (!view) return null;
   if (view.kind === 'unit') return getUnitDocById(view.id) ?? null;
   const pid = view.parentUnitId?.trim();
-  return pid ? getUnitDocById(pid) ?? null : null;
+  return pid !== undefined && pid.length > 0 ? (getUnitDocById(pid) ?? null) : null;
 }
 
 /**
@@ -46,7 +46,10 @@ export function resolveHostUnitIdForTimelineView(
   const view = resolveUnitViewById?.(unitId) ?? unitViewById.get(unitId);
   if (!view) return undefined;
   if (view.kind === 'unit') return view.id;
-  return view.parentUnitId?.trim() || undefined;
+  const trimmedParentUnitId = view.parentUnitId?.trim();
+  return trimmedParentUnitId !== undefined && trimmedParentUnitId.length > 0
+    ? trimmedParentUnitId
+    : undefined;
 }
 
 export type ParentUnitBounds = {
@@ -55,4 +58,3 @@ export type ParentUnitBounds = {
   endTime: number;
   speakerId?: string | undefined;
 };
-

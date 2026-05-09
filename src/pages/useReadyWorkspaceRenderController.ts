@@ -23,33 +23,50 @@ type UseReadyWorkspaceRenderControllerInput = {
 export function useReadyWorkspaceRenderController(input: UseReadyWorkspaceRenderControllerInput) {
   const [hasActivatedAiSidebar, setHasActivatedAiSidebar] = useState(false);
 
+  const {
+    isAiPanelCollapsed,
+    flushDeferredAiRuntime,
+    aiPendingToolCall,
+    setHubSidebarTab,
+    setIsAiPanelCollapsed,
+    showProjectSetup,
+    showAudioImport,
+    audioDeleteConfirm,
+    projectDeleteConfirm,
+    showShortcuts,
+    isFocusMode,
+    pdfPreviewRequest,
+    showBatchOperationPanel,
+    recoveryAvailable,
+  } = input;
+
   useEffect(() => {
-    if (input.isAiPanelCollapsed) {
+    if (isAiPanelCollapsed) {
       return;
     }
     setHasActivatedAiSidebar(true);
-    input.flushDeferredAiRuntime();
-  }, [input.flushDeferredAiRuntime, input.isAiPanelCollapsed]);
+    flushDeferredAiRuntime();
+  }, [isAiPanelCollapsed, flushDeferredAiRuntime]);
 
   useEffect(() => {
-    if (!input.aiPendingToolCall) return;
-    input.setHubSidebarTab('assistant');
+    if (aiPendingToolCall === null || aiPendingToolCall === undefined) return;
+    setHubSidebarTab('assistant');
     setHasActivatedAiSidebar(true);
-    input.setIsAiPanelCollapsed(false);
-  }, [input.aiPendingToolCall, input.setHubSidebarTab, input.setIsAiPanelCollapsed]);
+    setIsAiPanelCollapsed(false);
+  }, [aiPendingToolCall, setHubSidebarTab, setIsAiPanelCollapsed]);
 
   return {
-    shouldRenderAiSidebar: hasActivatedAiSidebar || !input.isAiPanelCollapsed,
+    shouldRenderAiSidebar: hasActivatedAiSidebar || !isAiPanelCollapsed,
     shouldRenderDialogs: Boolean(
-      input.showProjectSetup
-        || input.showAudioImport
-        || input.audioDeleteConfirm
-        || input.projectDeleteConfirm
-        || input.showShortcuts
-        || input.isFocusMode,
+      showProjectSetup ||
+      showAudioImport ||
+      (audioDeleteConfirm !== null && audioDeleteConfirm !== undefined) ||
+      (projectDeleteConfirm !== null && projectDeleteConfirm !== undefined) ||
+      showShortcuts ||
+      isFocusMode,
     ),
-    shouldRenderPdfRuntime: input.pdfPreviewRequest !== null,
-    shouldRenderBatchOps: input.showBatchOperationPanel,
-    shouldRenderRecoveryBanner: input.recoveryAvailable,
+    shouldRenderPdfRuntime: pdfPreviewRequest !== null,
+    shouldRenderBatchOps: showBatchOperationPanel,
+    shouldRenderRecoveryBanner: recoveryAvailable,
   };
 }

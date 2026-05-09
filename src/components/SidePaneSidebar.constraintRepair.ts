@@ -9,7 +9,12 @@ import {
   validateExistingLayerConstraints,
 } from '../services/LayerConstraintService';
 import type { Locale } from '../i18n';
-import { type LayerOrderIssue, type LayerOrderRepair, repairLayerOrder, validateLayerOrder } from '../services/LayerOrderingService';
+import {
+  type LayerOrderIssue,
+  type LayerOrderRepair,
+  repairLayerOrder,
+  validateLayerOrder,
+} from '../services/LayerOrderingService';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 
 export interface SidePaneSidebarConstraintRepairDetails {
@@ -45,7 +50,8 @@ export function useSidePaneSidebarConstraintRepair({
 }: UseSidePaneSidebarConstraintRepairOptions) {
   const [constraintRepairBusy, setConstraintRepairBusy] = useState(false);
   const [constraintRepairMessage, setConstraintRepairMessage] = useState('');
-  const [constraintRepairDetails, setConstraintRepairDetails] = useState<SidePaneSidebarConstraintRepairDetails | null>(null);
+  const [constraintRepairDetails, setConstraintRepairDetails] =
+    useState<SidePaneSidebarConstraintRepairDetails | null>(null);
   const [constraintRepairDetailsCollapsed, setConstraintRepairDetailsCollapsed] = useState(false);
 
   const groupedConstraintRepairDetails = useMemo(() => {
@@ -80,7 +86,9 @@ export function useSidePaneSidebarConstraintRepair({
       ensureGroup(issue.layerId).orderIssues.push(issue);
     }
 
-    return Array.from(grouped.values()).sort((left, right) => left.label.localeCompare(right.label, 'zh-Hans-CN'));
+    return Array.from(grouped.values()).sort((left, right) =>
+      left.label.localeCompare(right.label, 'zh-Hans-CN'),
+    );
   }, [constraintRepairDetails, layerLabelById]);
 
   const handleRepairLayerConstraints = useCallback(async () => {
@@ -90,7 +98,12 @@ export function useSidePaneSidebarConstraintRepair({
     setConstraintRepairDetailsCollapsed(false);
 
     try {
-      const constraintRepaired = repairExistingLayerConstraints(sidePaneRows, undefined, locale, layerLinks);
+      const constraintRepaired = repairExistingLayerConstraints(
+        sidePaneRows,
+        undefined,
+        locale,
+        layerLinks,
+      );
       const orderRepaired = repairLayerOrder(constraintRepaired.layers);
       const layerById = new Map(sidePaneRows.map((layer) => [layer.id, layer] as const));
       const changedLayers = orderRepaired.layers.filter((layer) => {
@@ -106,16 +119,29 @@ export function useSidePaneSidebarConstraintRepair({
 
       if (changedLayers.length > 0) {
         const now = new Date().toISOString();
-        await Promise.all(changedLayers.map((layer) => LayerTierUnifiedService.updateLayer({
-          ...layer,
-          updatedAt: now,
-        })));
+        await Promise.all(
+          changedLayers.map((layer) =>
+            LayerTierUnifiedService.updateLayer({
+              ...layer,
+              updatedAt: now,
+            }),
+          ),
+        );
       }
       if (changedSortLayers.length > 0) {
-        await Promise.all(changedSortLayers.map((layer) => LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0)));
+        await Promise.all(
+          changedSortLayers.map((layer) =>
+            LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0),
+          ),
+        );
       }
 
-      const remainingIssues = validateExistingLayerConstraints(orderRepaired.layers, undefined, locale, layerLinks);
+      const remainingIssues = validateExistingLayerConstraints(
+        orderRepaired.layers,
+        undefined,
+        locale,
+        layerLinks,
+      );
       const remainingOrderIssues = validateLayerOrder(orderRepaired.layers);
       setConstraintRepairDetails({
         repairs: constraintRepaired.repairs,
@@ -124,22 +150,33 @@ export function useSidePaneSidebarConstraintRepair({
         orderIssues: remainingOrderIssues,
       });
 
-      if (changedLayers.length === 0 && changedSortLayers.length === 0 && remainingIssues.length === 0 && remainingOrderIssues.length === 0) {
+      if (
+        changedLayers.length === 0 &&
+        changedSortLayers.length === 0 &&
+        remainingIssues.length === 0 &&
+        remainingOrderIssues.length === 0
+      ) {
         setConstraintRepairMessage(messages.repairNoNeed);
         return;
       }
 
       setConstraintRepairMessage(
-        (remainingIssues.length > 0 || remainingOrderIssues.length > 0)
-          ? messages.repairSummary(changedLayers.length, changedSortLayers.length, remainingIssues.length + remainingOrderIssues.length)
+        remainingIssues.length > 0 || remainingOrderIssues.length > 0
+          ? messages.repairSummary(
+              changedLayers.length,
+              changedSortLayers.length,
+              remainingIssues.length + remainingOrderIssues.length,
+            )
           : messages.repairSummaryDone(changedLayers.length, changedSortLayers.length),
       );
     } catch (error) {
-      setConstraintRepairMessage(`${messages.repairFailedPrefix}${error instanceof Error ? error.message : String(error)}`);
+      setConstraintRepairMessage(
+        `${messages.repairFailedPrefix}${error instanceof Error ? error.message : String(error)}`,
+      );
     } finally {
       setConstraintRepairBusy(false);
     }
-  }, [layerLabelById, layerLinks, locale, messages, sidePaneRows]);
+  }, [layerLinks, locale, messages, sidePaneRows]);
 
   return {
     constraintRepairBusy,

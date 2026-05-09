@@ -47,9 +47,7 @@ function splitLongSegmentAtSilence(
       }
     }
 
-    const splitSec = bestFrame >= 0
-      ? bestFrame * frameDuration
-      : cursor + MAX_DURATION_SEC;
+    const splitSec = bestFrame >= 0 ? bestFrame * frameDuration : cursor + MAX_DURATION_SEC;
 
     const chunkEnd = Math.min(splitSec, seg.end);
     if (chunkEnd - cursor >= MIN_DURATION_SEC) {
@@ -77,7 +75,7 @@ export function frameProbsToSegments(
   let segProbs: number[] = [];
 
   for (let i = 0; i <= isSpeech.length; i++) {
-    const speaking = i < isSpeech.length ? isSpeech[i] : false;
+    const speaking = i < isSpeech.length ? isSpeech[i] === true : false;
     if (!inSpeech && speaking) {
       inSpeech = true;
       segStart = i;
@@ -126,11 +124,7 @@ export function frameProbsToSegments(
 }
 
 /** 简单线性插值重采样（如降采样到 16kHz）。 */
-export function resampleLinear(
-  pcm: Float32Array,
-  fromSr: number,
-  toSr: number,
-): Float32Array {
+export function resampleLinear(pcm: Float32Array, fromSr: number, toSr: number): Float32Array {
   if (fromSr === toSr) return pcm;
   const ratio = fromSr / toSr;
   const outputLen = Math.floor(pcm.length / ratio);
@@ -140,7 +134,7 @@ export function resampleLinear(
     const lo = Math.floor(src);
     const hi = Math.min(lo + 1, pcm.length - 1);
     const frac = src - lo;
-    output[i] = (pcm[lo]! * (1 - frac)) + (pcm[hi]! * frac);
+    output[i] = pcm[lo]! * (1 - frac) + pcm[hi]! * frac;
   }
   return output;
 }

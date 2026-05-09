@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
 import type { TranscriptionPageTimelineTopProps } from './TranscriptionPage.TimelineTop';
-import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
 import { useTranscriptionSidebarSectionsViewModel } from './useTranscriptionSidebarSectionsViewModel';
 import { createTranscriptionExportCallbacks } from './transcriptionExportCallbacks';
 import { createTranscriptionTimelineTopProps } from './transcriptionTimelineTopProps';
-import { createTranscriptionToolbarProps } from './transcriptionToolbarProps';
-import type { UseTranscriptionSectionViewModelsInput, UseTranscriptionSectionViewModelsResult } from './transcriptionSectionViewModelTypes';
+import type {
+  UseTranscriptionSectionViewModelsInput,
+  UseTranscriptionSectionViewModelsResult,
+} from './transcriptionSectionViewModelTypes';
 import { useTranscriptionReviewSectionViewModel } from './useTranscriptionReviewSectionViewModel';
+import { useTranscriptionToolbarProps } from './useTranscriptionToolbarProps';
 
 interface UseTranscriptionSectionViewModelsResolvedResult extends UseTranscriptionSectionViewModelsResult {
   aiSidebarProps: ReturnType<typeof useTranscriptionSidebarSectionsViewModel>['aiSidebarProps'];
@@ -17,41 +19,8 @@ export function useTranscriptionSectionViewModels(
   input: UseTranscriptionSectionViewModelsInput,
 ): UseTranscriptionSectionViewModelsResolvedResult {
   const {
-    locale,
-    selectedTimelineMediaFilename,
     player,
-    waveformDisplayMode,
-    setWaveformDisplayMode,
-    waveformVisualStyle,
-    setWaveformVisualStyle,
-    acousticOverlayMode,
-    setAcousticOverlayMode,
-    globalLoopPlayback,
-    setGlobalLoopPlayback,
-    handleGlobalPlayPauseAction,
-    canUndo,
-    canRedo,
-    undoLabel,
-    hasSelectedTimelineMedia,
-    hasActiveTextId,
     selectedTimelineUnit,
-    notePopoverOpen,
-    showExportMenu,
-    importFileRef,
-    exportMenuRef,
-    loadSnapshot,
-    undo,
-    redo,
-    setShowProjectSetup,
-    setShowAudioImport,
-    handleDeleteCurrentAudio,
-    handleDeleteCurrentProject,
-    toggleNotes,
-    setUttOpsMenu,
-    selectedMediaUrl,
-    playableAcoustic,
-    handleAutoSegment,
-    autoSegmentBusy,
     setShowExportMenu,
     handleExportEaf,
     handleExportTextGrid,
@@ -83,14 +52,7 @@ export function useTranscriptionSectionViewModels(
     sidebarSectionsInput,
   } = input;
 
-  const {
-    lowConfidenceCount,
-    reviewPresetCounts,
-    activeReviewPreset,
-    handleSelectReviewPreset,
-    handleOpenReviewIssues,
-    handleStepReviewIssue,
-  } = useTranscriptionReviewSectionViewModel({
+  const reviewVM = useTranscriptionReviewSectionViewModel({
     unitsOnCurrentMedia,
     selectedTimelineUnit,
     manualSelectTsRef,
@@ -98,119 +60,97 @@ export function useTranscriptionSectionViewModels(
     player,
   });
 
-  const exportCallbacks = useMemo(() => createTranscriptionExportCallbacks({
-    setShowExportMenu,
-    handleExportEaf,
-    handleExportTextGrid,
-    handleExportTrs,
-    handleExportFlextext,
-    handleExportToolbox,
-    handleExportJyt,
-    handleExportJym,
-    handleImportFile,
-  }), [handleExportEaf, handleExportFlextext, handleExportJym, handleExportJyt, handleExportTextGrid, handleExportToolbox, handleExportTrs, handleImportFile, setShowExportMenu]);
+  const exportCallbacks = useMemo(
+    () =>
+      createTranscriptionExportCallbacks({
+        setShowExportMenu,
+        handleExportEaf,
+        handleExportTextGrid,
+        handleExportTrs,
+        handleExportFlextext,
+        handleExportToolbox,
+        handleExportJyt,
+        handleExportJym,
+        handleImportFile,
+      }),
+    [
+      handleExportEaf,
+      handleExportFlextext,
+      handleExportJym,
+      handleExportJyt,
+      handleExportTextGrid,
+      handleExportToolbox,
+      handleExportTrs,
+      handleImportFile,
+      setShowExportMenu,
+    ],
+  );
 
-  const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => createTranscriptionToolbarProps({
-    locale,
-    selectedTimelineMediaFilename,
-    player,
-    waveformDisplayMode,
-    setWaveformDisplayMode,
-    waveformVisualStyle,
-    setWaveformVisualStyle,
-    acousticOverlayMode,
-    setAcousticOverlayMode,
-    globalLoopPlayback,
-    setGlobalLoopPlayback,
-    handleGlobalPlayPauseAction,
-    canUndo,
-    canRedo,
-    undoLabel,
-    hasSelectedTimelineMedia,
-    hasActiveTextId,
-    selectedTimelineUnit,
-    notePopoverOpen,
-    showExportMenu,
-    importFileRef,
-    exportMenuRef,
-    loadSnapshot,
-    undo,
-    redo,
-    setShowProjectSetup,
-    setShowAudioImport,
-    handleDeleteCurrentAudio,
-    handleDeleteCurrentProject,
+  const toolbarProps = useTranscriptionToolbarProps({
+    ...input,
     exportCallbacks,
-    toggleNotes,
-    setUttOpsMenu,
-    lowConfidenceCount,
-    reviewIssueCount: reviewPresetCounts.all,
-    reviewPresetCounts,
-    activeReviewPreset,
-    onSelectReviewPreset: handleSelectReviewPreset,
-    onOpenReviewIssues: handleOpenReviewIssues,
-    onReviewPrev: () => handleStepReviewIssue(-1),
-    onReviewNext: () => handleStepReviewIssue(1),
-    selectedMediaUrl,
-    playableAcoustic,
-    handleAutoSegment,
-    autoSegmentBusy,
-  }), [
-    activeReviewPreset, autoSegmentBusy, canRedo, canUndo, exportCallbacks, exportMenuRef, globalLoopPlayback,
-    handleAutoSegment, handleDeleteCurrentAudio, handleDeleteCurrentProject, handleOpenReviewIssues, handleSelectReviewPreset, handleStepReviewIssue, hasActiveTextId,
-    hasSelectedTimelineMedia, importFileRef, loadSnapshot, locale, lowConfidenceCount,
-    notePopoverOpen, player, playableAcoustic, redo, reviewPresetCounts, selectedMediaUrl, selectedTimelineMediaFilename,
-    selectedTimelineUnit, setGlobalLoopPlayback, setShowAudioImport, setShowProjectSetup,
-    setWaveformDisplayMode,
-    setUttOpsMenu, setWaveformVisualStyle, setAcousticOverlayMode, showExportMenu, toggleNotes, undo, undoLabel,
-    acousticOverlayMode,
-    waveformDisplayMode,
-    waveformVisualStyle,
-  ]);
+    lowConfidenceCount: reviewVM.lowConfidenceCount,
+    reviewIssueCount: reviewVM.reviewPresetCounts.all,
+    reviewPresetCounts: reviewVM.reviewPresetCounts,
+    activeReviewPreset: reviewVM.activeReviewPreset,
+    onSelectReviewPreset: reviewVM.handleSelectReviewPreset,
+    onOpenReviewIssues: reviewVM.handleOpenReviewIssues,
+    onReviewPrev: () => {
+      reviewVM.handleStepReviewIssue(-1);
+    },
+    onReviewNext: () => {
+      reviewVM.handleStepReviewIssue(1);
+    },
+  });
 
-  const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => createTranscriptionTimelineTopProps({
-    player,
-    unitsOnCurrentMedia,
-    rulerView,
-    zoomPxPerSec,
-    isTimelineLaneHeaderCollapsed,
-    toggleTimelineLaneHeader,
-    waveCanvasRef,
-    tierContainerRef,
-    showSearch,
-    searchableItems,
-    orthographies,
-    activeLayerIdForEdits,
-    activeTimelineUnitId,
-    searchOverlayRequest,
-    manualSelectTsRef,
-    selectUnit,
-    handleSearchReplace,
-    setShowSearch,
-    setSearchOverlayRequest,
-  }), [
-    activeLayerIdForEdits,
-    handleSearchReplace,
-    isTimelineLaneHeaderCollapsed,
-    manualSelectTsRef,
-    player,
-    rulerView,
-    searchOverlayRequest,
-    searchableItems,
-    orthographies,
-    selectUnit,
-    activeTimelineUnitId,
-    setSearchOverlayRequest,
-    setShowSearch,
-    showSearch,
-    tierContainerRef,
-    toggleTimelineLaneHeader,
-    unitsOnCurrentMedia,
-    waveCanvasRef,
-    zoomPxPerSec,
-  ]);
+  const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(
+    () =>
+      createTranscriptionTimelineTopProps({
+        player,
+        unitsOnCurrentMedia,
+        rulerView,
+        zoomPxPerSec,
+        isTimelineLaneHeaderCollapsed,
+        toggleTimelineLaneHeader,
+        waveCanvasRef,
+        tierContainerRef,
+        showSearch,
+        searchableItems,
+        orthographies,
+        activeLayerIdForEdits,
+        activeTimelineUnitId,
+        searchOverlayRequest,
+        manualSelectTsRef,
+        selectUnit,
+        handleSearchReplace,
+        setShowSearch,
+        setSearchOverlayRequest,
+      }),
+    [
+      activeLayerIdForEdits,
+      handleSearchReplace,
+      isTimelineLaneHeaderCollapsed,
+      manualSelectTsRef,
+      player,
+      rulerView,
+      searchOverlayRequest,
+      searchableItems,
+      orthographies,
+      selectUnit,
+      activeTimelineUnitId,
+      setSearchOverlayRequest,
+      setShowSearch,
+      showSearch,
+      tierContainerRef,
+      toggleTimelineLaneHeader,
+      unitsOnCurrentMedia,
+      waveCanvasRef,
+      zoomPxPerSec,
+    ],
+  );
 
-  const { aiSidebarProps, dialogsProps } = useTranscriptionSidebarSectionsViewModel(sidebarSectionsInput);
+  const { aiSidebarProps, dialogsProps } =
+    useTranscriptionSidebarSectionsViewModel(sidebarSectionsInput);
 
   return {
     toolbarProps,

@@ -30,13 +30,13 @@ interface BomResult {
  * 检测字节序标记 | Detect Byte Order Mark
  */
 function detectBom(bytes: Uint8Array): BomResult | null {
-  if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
     return { encoding: 'utf-8', offset: 3 };
   }
-  if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
     return { encoding: 'utf-16le', offset: 2 };
   }
-  if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
     return { encoding: 'utf-16be', offset: 2 };
   }
   return null;
@@ -50,7 +50,9 @@ function detectBom(bytes: Uint8Array): BomResult | null {
  */
 function detectXmlEncoding(bytes: Uint8Array): string | null {
   // 先用 ASCII 安全的方式读取前 512 字节 | Read first 512 bytes as ASCII-safe text
-  const head = new TextDecoder('ascii', { fatal: false }).decode(bytes.slice(0, Math.min(512, bytes.length)));
+  const head = new TextDecoder('ascii', { fatal: false }).decode(
+    bytes.slice(0, Math.min(512, bytes.length)),
+  );
   const match = head.match(/<\?xml[^?]*\bencoding\s*=\s*["']([^"']+)["']/i);
   return match?.[1]?.trim().toLowerCase() ?? null;
 }
@@ -101,12 +103,10 @@ export async function ingestTextFile(
   },
 ): Promise<TextIngestionResult> {
   // 将 File 转为 Uint8Array | Convert File to Uint8Array
-  const bytes = input instanceof Uint8Array
-    ? input
-    : new Uint8Array(await input.arrayBuffer());
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(await input.arrayBuffer());
 
   // 1. 强制编码 | Forced encoding
-  if (options?.forceEncoding) {
+  if (options?.forceEncoding !== undefined && options.forceEncoding.length > 0) {
     const text = tryDecode(bytes, options.forceEncoding, false);
     if (text !== null) {
       return {
@@ -128,9 +128,9 @@ export async function ingestTextFile(
   }
 
   // 3. XML 声明 (仅 xmlMode) | XML declaration (xmlMode only)
-  if (options?.xmlMode) {
+  if (options?.xmlMode === true) {
     const xmlEnc = detectXmlEncoding(bytes);
-    if (xmlEnc && xmlEnc !== 'utf-8') {
+    if (xmlEnc !== null && xmlEnc.length > 0 && xmlEnc !== 'utf-8') {
       const text = tryDecode(bytes, xmlEnc, false);
       if (text !== null && !containsReplacementChar(text)) {
         return { text, detectedEncoding: xmlEnc, confidence: 'high' };

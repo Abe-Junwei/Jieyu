@@ -17,14 +17,17 @@ export function parseCountriesText(value: string): string[] {
   return value
     .split(',')
     .map((item) => item.trim())
-    .filter(Boolean);
+    .filter((item) => item.length > 0);
 }
 
 export function normalizeCountryToken(value: string): string {
   return value.normalize('NFKC').trim().toLowerCase();
 }
 
-export function buildCountryAliasTokens(locale: WorkspaceLocale, country: { isoCode: string; name: string }): string[] {
+export function buildCountryAliasTokens(
+  locale: WorkspaceLocale,
+  country: { isoCode: string; name: string },
+): string[] {
   const aliasSet = new Set<string>([
     normalizeCountryToken(country.isoCode),
     normalizeCountryToken(country.name),
@@ -33,8 +36,10 @@ export function buildCountryAliasTokens(locale: WorkspaceLocale, country: { isoC
   if (typeof Intl.DisplayNames === 'function') {
     const locales = Array.from(new Set([locale, ...COUNTRY_ALIAS_LOCALES]));
     locales.forEach((displayLocale) => {
-      const displayName = new Intl.DisplayNames([displayLocale], { type: 'region' }).of(country.isoCode);
-      if (displayName) {
+      const displayName = new Intl.DisplayNames([displayLocale], { type: 'region' }).of(
+        country.isoCode,
+      );
+      if (displayName !== undefined && displayName.length > 0) {
         aliasSet.add(normalizeCountryToken(displayName));
       }
     });
@@ -49,9 +54,10 @@ export function getCountryOptions(locale: WorkspaceLocale): CountryOption[] {
     return cached;
   }
 
-  const displayNames = typeof Intl.DisplayNames === 'function'
-    ? new Intl.DisplayNames([locale], { type: 'region' })
-    : null;
+  const displayNames =
+    typeof Intl.DisplayNames === 'function'
+      ? new Intl.DisplayNames([locale], { type: 'region' })
+      : null;
 
   const options = COUNTRIES.map((country) => ({
     value: country.isoCode,
@@ -68,7 +74,7 @@ export function resolveCountryCodes(tokens: string[], options: CountryOption[]):
   const matched = new Set<string>();
   tokens.forEach((token) => {
     const normalizedToken = normalizeCountryToken(token);
-    if (!normalizedToken) {
+    if (normalizedToken.length === 0) {
       return;
     }
     const match = options.find((option) => option.aliasTokens.includes(normalizedToken));
@@ -79,13 +85,18 @@ export function resolveCountryCodes(tokens: string[], options: CountryOption[]):
   return [...matched];
 }
 
-export function resolveCountryByToken(locale: WorkspaceLocale, token: string): { isoCode: string; name: string } | null {
+export function resolveCountryByToken(
+  locale: WorkspaceLocale,
+  token: string,
+): { isoCode: string; name: string } | null {
   const normalizedToken = normalizeCountryToken(token);
-  if (!normalizedToken) {
+  if (normalizedToken.length === 0) {
     return null;
   }
 
-  const match = getCountryOptions(locale).find((option) => option.aliasTokens.includes(normalizedToken));
+  const match = getCountryOptions(locale).find((option) =>
+    option.aliasTokens.includes(normalizedToken),
+  );
   if (!match) {
     return null;
   }
@@ -97,9 +108,11 @@ export function resolveCountryByToken(locale: WorkspaceLocale, token: string): {
 }
 
 export function normalizeCountryCodesForGeocoder(countryCodes: string[]): string[] {
-  return Array.from(new Set(
-    countryCodes
-      .map((code) => code.trim().toLowerCase())
-      .filter((code) => /^[a-z]{2}$/.test(code)),
-  ));
+  return Array.from(
+    new Set(
+      countryCodes
+        .map((code) => code.trim().toLowerCase())
+        .filter((code) => /^[a-z]{2}$/.test(code)),
+    ),
+  );
 }

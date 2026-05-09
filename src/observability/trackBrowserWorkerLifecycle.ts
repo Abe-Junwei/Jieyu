@@ -1,4 +1,8 @@
-import { markManagedWorkerTerminated, recordManagedWorkerError, registerManagedWorker } from './managedWorkerRegistry';
+import {
+  markManagedWorkerTerminated,
+  recordManagedWorkerError,
+  registerManagedWorker,
+} from './managedWorkerRegistry';
 
 export interface TrackedBrowserWorkerSpec {
   /** 全局唯一，建议 `nextPhysicalWorkerId` 或固定名（单例 hook）。 */
@@ -17,8 +21,9 @@ export function trackBrowserWorkerLifecycle(
 ): () => void {
   registerManagedWorker(spec.id, spec.source);
 
-  const supportsEventTargetApi = typeof worker.addEventListener === 'function'
-    && typeof worker.removeEventListener === 'function';
+  const supportsEventTargetApi =
+    typeof worker.addEventListener === 'function' &&
+    typeof worker.removeEventListener === 'function';
   if (!supportsEventTargetApi) {
     return () => {
       markManagedWorkerTerminated(spec.id);
@@ -26,10 +31,11 @@ export function trackBrowserWorkerLifecycle(
   }
 
   const onError = (event: ErrorEvent) => {
+    const trimmedMessage = (event as ErrorEvent & { message?: string }).message?.trim();
     recordManagedWorkerError(
       spec.id,
       'error',
-      (event as ErrorEvent & { message?: string }).message?.trim() || 'worker error',
+      trimmedMessage !== undefined && trimmedMessage.length > 0 ? trimmedMessage : 'worker error',
     );
   };
   const onMessageError = () => {

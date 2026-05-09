@@ -6,7 +6,10 @@ import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { useToast } from '../../contexts/ToastContext';
 import type { ImportConflictStrategy } from '../../db';
 import { t, tf, useLocale } from '../../i18n';
-import { DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY, type AnnotationImportBridgeStrategy } from '../../hooks/useImportExport.annotationImport';
+import {
+  DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
+  type AnnotationImportBridgeStrategy,
+} from '../../hooks/useImportExport.annotationImport';
 import { getSidePaneSidebarMessages } from '../../i18n/messages';
 import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
@@ -135,8 +138,11 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState({ top: 88, left: 88 });
   const [projectImportState, setProjectImportState] = useState<ProjectImportState | null>(null);
-  const [annotationImportState, setAnnotationImportState] = useState<AnnotationImportState | null>(null);
-  const [timeMappingDialogState, setTimeMappingDialogState] = useState<TimeMappingDialogState | null>(null);
+  const [annotationImportState, setAnnotationImportState] = useState<AnnotationImportState | null>(
+    null,
+  );
+  const [timeMappingDialogState, setTimeMappingDialogState] =
+    useState<TimeMappingDialogState | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
 
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -214,24 +220,31 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     setIsOpen(false);
   }, []);
 
-  const handleProjectArchivePicked = useCallback(async (file: File) => {
-    setPreviewBusy(true);
-    try {
-      const preview = await onPreviewProjectArchiveImport(file);
-      setProjectImportState({
-        file,
-        preview,
-        strategy: 'upsert',
-        importing: false,
-      });
-      setIsOpen(false);
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      showToast(tf(locale, 'transcription.projectHub.previewFailed', { message: detail }), 'error', 0);
-    } finally {
-      setPreviewBusy(false);
-    }
-  }, [locale, onPreviewProjectArchiveImport, showToast]);
+  const handleProjectArchivePicked = useCallback(
+    async (file: File) => {
+      setPreviewBusy(true);
+      try {
+        const preview = await onPreviewProjectArchiveImport(file);
+        setProjectImportState({
+          file,
+          preview,
+          strategy: 'upsert',
+          importing: false,
+        });
+        setIsOpen(false);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        showToast(
+          tf(locale, 'transcription.projectHub.previewFailed', { message: detail }),
+          'error',
+          0,
+        );
+      } finally {
+        setPreviewBusy(false);
+      }
+    },
+    [locale, onPreviewProjectArchiveImport, showToast],
+  );
 
   const handleConfirmProjectImport = useCallback(async () => {
     setProjectImportState((prev) => (prev ? { ...prev, importing: true } : null));
@@ -283,7 +296,8 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     const { docStart, docEnd, realStart, realEnd } = computeSemanticTimelineMappingPreview({
       offsetSec,
       scale,
-      ...(activeTextTimeMapping?.logicalDurationSec !== undefined && activeTextTimeMapping.logicalDurationSec !== null
+      ...(activeTextTimeMapping?.logicalDurationSec !== undefined &&
+      activeTextTimeMapping.logicalDurationSec !== null
         ? { logicalDurationSec: activeTextTimeMapping.logicalDurationSec }
         : {}),
     });
@@ -324,7 +338,8 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     const { docStart, docEnd, realStart, realEnd } = computeSemanticTimelineMappingPreview({
       offsetSec,
       scale,
-      ...(activeTextTimeMapping?.logicalDurationSec !== undefined && activeTextTimeMapping.logicalDurationSec !== null
+      ...(activeTextTimeMapping?.logicalDurationSec !== undefined &&
+      activeTextTimeMapping.logicalDurationSec !== null
         ? { logicalDurationSec: activeTextTimeMapping.logicalDurationSec }
         : {}),
     });
@@ -343,19 +358,24 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       return [] as Array<{ key: string; label: string; offsetSec: number; scale: number }>;
     }
 
-    const items = [{
-      key: `current-${activeTextTimeMapping.revision}`,
-      label: tf(locale, 'transcription.projectHub.timeMappingHistoryCurrent', {
-        revision: String(activeTextTimeMapping.revision),
-        offset: activeTextTimeMapping.offsetSec.toFixed(1),
-        scale: activeTextTimeMapping.scale.toFixed(2),
-      }),
-      offsetSec: activeTextTimeMapping.offsetSec,
-      scale: activeTextTimeMapping.scale,
-    }];
+    const items = [
+      {
+        key: `current-${activeTextTimeMapping.revision}`,
+        label: tf(locale, 'transcription.projectHub.timeMappingHistoryCurrent', {
+          revision: String(activeTextTimeMapping.revision),
+          offset: activeTextTimeMapping.offsetSec.toFixed(1),
+          scale: activeTextTimeMapping.scale.toFixed(2),
+        }),
+        offsetSec: activeTextTimeMapping.offsetSec,
+        scale: activeTextTimeMapping.scale,
+      },
+    ];
     const seenRevisions = new Set<number>([activeTextTimeMapping.revision]);
 
-    if (activeTextTimeMapping.rollback && !seenRevisions.has(activeTextTimeMapping.rollback.revision)) {
+    if (
+      activeTextTimeMapping.rollback &&
+      !seenRevisions.has(activeTextTimeMapping.rollback.revision)
+    ) {
       seenRevisions.add(activeTextTimeMapping.rollback.revision);
       items.push({
         key: `rollback-${activeTextTimeMapping.rollback.revision}`,
@@ -414,7 +434,11 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       setTimeMappingDialogState((prev) => (prev ? { ...prev, saving: false } : prev));
-      showToast(tf(locale, 'transcription.projectHub.timeMappingDialogSaveFailed', { message: detail }), 'error', 0);
+      showToast(
+        tf(locale, 'transcription.projectHub.timeMappingDialogSaveFailed', { message: detail }),
+        'error',
+        0,
+      );
     }
   }, [locale, onApplyTextTimeMapping, showToast, timeMappingDialogState]);
 
@@ -430,7 +454,11 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       showToast(t(locale, 'transcription.projectHub.timeMappingRollbackSucceeded'), 'success');
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      showToast(tf(locale, 'transcription.projectHub.timeMappingDialogSaveFailed', { message: detail }), 'error', 0);
+      showToast(
+        tf(locale, 'transcription.projectHub.timeMappingDialogSaveFailed', { message: detail }),
+        'error',
+        0,
+      );
     }
   }, [activeTextTimeMapping, locale, onApplyTextTimeMapping, showToast]);
 
@@ -442,14 +470,20 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       showToast(t(locale, 'transcription.projectHub.timeMappingDialogSaved'), 'success');
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      showToast(tf(locale, 'transcription.projectHub.timeMappingDialogSaveFailed', { message: detail }), 'error', 0);
+      showToast(
+        tf(locale, 'transcription.projectHub.timeMappingDialogSaveFailed', { message: detail }),
+        'error',
+        0,
+      );
     }
   }, [locale, onApplyTextTimeMapping, showToast]);
 
   const menuItems = useMemo<ContextMenuItem[]>(() => {
     const importItems: ContextMenuItem[] = [
       {
-        label: previewBusy ? t(locale, 'transcription.projectHub.previewing') : t(locale, 'transcription.projectHub.importProject'),
+        label: previewBusy
+          ? t(locale, 'transcription.projectHub.previewing')
+          : t(locale, 'transcription.projectHub.importProject'),
         disabled: previewBusy,
         onClick: openProjectArchivePicker,
       },
@@ -478,7 +512,12 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                 {
                   label: t(locale, 'transcription.projectHub.timeMappingResetIdentity'),
                   disabled: !onApplyTextTimeMapping,
-                  onClick: () => { fireAndForget(handleResetIdentityTimeMapping(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L473', policy: 'user-visible' }); },
+                  onClick: () => {
+                    fireAndForget(handleResetIdentityTimeMapping(), {
+                      context: 'src/components/transcription/LeftRailProjectHub.tsx:L473',
+                      policy: 'user-visible',
+                    });
+                  },
                 },
               ]
             : []),
@@ -494,7 +533,12 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           {
             label: t(locale, 'transcription.projectHub.exchange.rollbackTimeMapping'),
             disabled: !onApplyTextTimeMapping || !activeTextTimeMapping?.rollback,
-            onClick: () => { fireAndForget(handleRollbackTimeMapping(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L489', policy: 'user-visible' }); },
+            onClick: () => {
+              fireAndForget(handleRollbackTimeMapping(), {
+                context: 'src/components/transcription/LeftRailProjectHub.tsx:L489',
+                policy: 'user-visible',
+              });
+            },
           },
         ]
       : [];
@@ -510,8 +554,25 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       { label: t(locale, 'transcription.toolbar.export.trs'), onClick: onExportTrs },
       { label: t(locale, 'transcription.toolbar.export.flextext'), onClick: onExportFlextext },
       { label: t(locale, 'transcription.toolbar.export.toolbox'), onClick: onExportToolbox },
-      { label: t(locale, 'transcription.toolbar.export.jyt'), separatorBefore: true, onClick: () => { fireAndForget(onExportJyt(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L505', policy: 'user-visible' }); } },
-      { label: t(locale, 'transcription.toolbar.export.jym'), onClick: () => { fireAndForget(onExportJym(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L506', policy: 'user-visible' }); } },
+      {
+        label: t(locale, 'transcription.toolbar.export.jyt'),
+        separatorBefore: true,
+        onClick: () => {
+          fireAndForget(onExportJyt(), {
+            context: 'src/components/transcription/LeftRailProjectHub.tsx:L505',
+            policy: 'user-visible',
+          });
+        },
+      },
+      {
+        label: t(locale, 'transcription.toolbar.export.jym'),
+        onClick: () => {
+          fireAndForget(onExportJym(), {
+            context: 'src/components/transcription/LeftRailProjectHub.tsx:L506',
+            policy: 'user-visible',
+          });
+        },
+      },
     ];
 
     return [
@@ -587,7 +648,6 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     hasTimeMappingSourceMismatch,
     handleRollbackTimeMapping,
     handleResetIdentityTimeMapping,
-    handleSelectTimeMappingHistoryItem,
     openAnnotationImportPicker,
     openProjectArchivePicker,
     openTimeMappingDialog,
@@ -643,7 +703,10 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) {
-            fireAndForget(handleProjectArchivePicked(file), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L634', policy: 'user-visible' });
+            fireAndForget(handleProjectArchivePicked(file), {
+              context: 'src/components/transcription/LeftRailProjectHub.tsx:L634',
+              policy: 'user-visible',
+            });
           }
           event.target.value = '';
         }}
@@ -685,100 +748,131 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       closeLabel={`${t(locale, 'transcription.projectHub.importDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
       closeDisabled={projectImportState?.importing}
       footerClassName="left-rail-project-import-actions"
-      footer={projectImportState ? (
-        <>
-          <PanelButton
-            variant="ghost"
-            disabled={projectImportState.importing}
-            onClick={() => setProjectImportState(null)}
-          >
-            {t(locale, 'transcription.dialog.cancel')}
-          </PanelButton>
-          <PanelButton
-            variant="primary"
-            disabled={projectImportState.importing}
-            onClick={() => {
-              fireAndForget(handleConfirmProjectImport(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L689', policy: 'user-visible' });
-            }}
-          >
-            {projectImportState.importing
-              ? t(locale, 'transcription.projectHub.importing')
-              : t(locale, 'transcription.projectHub.confirmImport')}
-          </PanelButton>
-        </>
-      ) : undefined}
+      footer={
+        projectImportState ? (
+          <>
+            <PanelButton
+              variant="ghost"
+              disabled={projectImportState.importing}
+              onClick={() => setProjectImportState(null)}
+            >
+              {t(locale, 'transcription.dialog.cancel')}
+            </PanelButton>
+            <PanelButton
+              variant="primary"
+              disabled={projectImportState.importing}
+              onClick={() => {
+                fireAndForget(handleConfirmProjectImport(), {
+                  context: 'src/components/transcription/LeftRailProjectHub.tsx:L689',
+                  policy: 'user-visible',
+                });
+              }}
+            >
+              {projectImportState.importing
+                ? t(locale, 'transcription.projectHub.importing')
+                : t(locale, 'transcription.projectHub.confirmImport')}
+            </PanelButton>
+          </>
+        ) : undefined
+      }
     >
       {projectImportState && (
         <>
           <PanelSummary
             className="left-rail-project-import-summary"
             title={projectImportState.file.name}
-            description={tf(locale, 'transcription.projectHub.importDialogKind', { kind: projectImportState.preview.kind.toUpperCase() })}
-            meta={(
+            description={tf(locale, 'transcription.projectHub.importDialogKind', {
+              kind: projectImportState.preview.kind.toUpperCase(),
+            })}
+            meta={
               <div className="panel-meta">
-                <PanelChip>{tf(locale, 'transcription.projectHub.importDialogExportedAt', { at: projectImportState.preview.manifest.exportedAt })}</PanelChip>
-                <PanelChip variant={projectImportState.preview.totalConflicts > 0 ? 'warning' : 'default'}>{tf(locale, 'transcription.projectHub.importDialogStats', {
-                  incoming: projectImportState.preview.totalIncoming,
-                  conflicts: projectImportState.preview.totalConflicts,
-                  insertable: previewInsertEstimate,
-                })}</PanelChip>
+                <PanelChip>
+                  {tf(locale, 'transcription.projectHub.importDialogExportedAt', {
+                    at: projectImportState.preview.manifest.exportedAt,
+                  })}
+                </PanelChip>
+                <PanelChip
+                  variant={projectImportState.preview.totalConflicts > 0 ? 'warning' : 'default'}
+                >
+                  {tf(locale, 'transcription.projectHub.importDialogStats', {
+                    incoming: projectImportState.preview.totalIncoming,
+                    conflicts: projectImportState.preview.totalConflicts,
+                    insertable: previewInsertEstimate,
+                  })}
+                </PanelChip>
               </div>
-            )}
+            }
           />
 
-          <PanelSection className="left-rail-project-import-strategy-section" title={t(locale, 'transcription.projectHub.importDialogStrategy')}>
+          <PanelSection
+            className="left-rail-project-import-strategy-section"
+            title={t(locale, 'transcription.projectHub.importDialogStrategy')}
+          >
             <fieldset className="left-rail-project-import-strategy">
-            <label>
-              <input
-                type="radio"
-                name="project-import-strategy"
-                checked={projectImportState.strategy === 'upsert'}
-                onChange={() => setProjectImportState((prev) => (prev ? { ...prev, strategy: 'upsert' } : prev))}
-              />
-              <span>{t(locale, 'transcription.projectHub.strategy.upsert')}</span>
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="project-import-strategy"
-                checked={projectImportState.strategy === 'skip-existing'}
-                onChange={() => setProjectImportState((prev) => (prev ? { ...prev, strategy: 'skip-existing' } : prev))}
-              />
-              <span>{t(locale, 'transcription.projectHub.strategy.skipExisting')}</span>
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="project-import-strategy"
-                checked={projectImportState.strategy === 'replace-all'}
-                onChange={() => setProjectImportState((prev) => (prev ? { ...prev, strategy: 'replace-all' } : prev))}
-              />
-              <span>{t(locale, 'transcription.projectHub.strategy.replaceAll')}</span>
-            </label>
+              <label>
+                <input
+                  type="radio"
+                  name="project-import-strategy"
+                  checked={projectImportState.strategy === 'upsert'}
+                  onChange={() =>
+                    setProjectImportState((prev) => (prev ? { ...prev, strategy: 'upsert' } : prev))
+                  }
+                />
+                <span>{t(locale, 'transcription.projectHub.strategy.upsert')}</span>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="project-import-strategy"
+                  checked={projectImportState.strategy === 'skip-existing'}
+                  onChange={() =>
+                    setProjectImportState((prev) =>
+                      prev ? { ...prev, strategy: 'skip-existing' } : prev,
+                    )
+                  }
+                />
+                <span>{t(locale, 'transcription.projectHub.strategy.skipExisting')}</span>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="project-import-strategy"
+                  checked={projectImportState.strategy === 'replace-all'}
+                  onChange={() =>
+                    setProjectImportState((prev) =>
+                      prev ? { ...prev, strategy: 'replace-all' } : prev,
+                    )
+                  }
+                />
+                <span>{t(locale, 'transcription.projectHub.strategy.replaceAll')}</span>
+              </label>
             </fieldset>
           </PanelSection>
 
-          <PanelSection className="left-rail-project-import-table-section" title={t(locale, 'transcription.projectHub.importDialogTableCollection')}>
-          <div className="left-rail-project-import-table-wrap">
-            <table className="left-rail-project-import-table">
-              <thead>
-                <tr>
-                  <th>{t(locale, 'transcription.projectHub.importDialogTableCollection')}</th>
-                  <th>{t(locale, 'transcription.projectHub.importDialogTableIncoming')}</th>
-                  <th>{t(locale, 'transcription.projectHub.importDialogTableConflict')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projectImportState.preview.collections.map((row) => (
-                  <tr key={row.name}>
-                    <td>{row.name}</td>
-                    <td>{row.incoming}</td>
-                    <td>{row.conflicts}</td>
+          <PanelSection
+            className="left-rail-project-import-table-section"
+            title={t(locale, 'transcription.projectHub.importDialogTableCollection')}
+          >
+            <div className="left-rail-project-import-table-wrap">
+              <table className="left-rail-project-import-table">
+                <thead>
+                  <tr>
+                    <th>{t(locale, 'transcription.projectHub.importDialogTableCollection')}</th>
+                    <th>{t(locale, 'transcription.projectHub.importDialogTableIncoming')}</th>
+                    <th>{t(locale, 'transcription.projectHub.importDialogTableConflict')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {projectImportState.preview.collections.map((row) => (
+                    <tr key={row.name}>
+                      <td>{row.name}</td>
+                      <td>{row.incoming}</td>
+                      <td>{row.conflicts}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </PanelSection>
         </>
       )}
@@ -795,26 +889,31 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       title={t(locale, 'transcription.projectHub.timeMappingDialogTitle')}
       closeLabel={`${t(locale, 'transcription.projectHub.timeMappingDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
       closeDisabled={timeMappingDialogState?.saving}
-      footer={timeMappingDialogState ? (
-        <>
-          <PanelButton
-            variant="ghost"
-            disabled={timeMappingDialogState.saving}
-            onClick={handleCloseTimeMappingDialog}
-          >
-            {t(locale, 'transcription.dialog.cancel')}
-          </PanelButton>
-          <PanelButton
-            variant="primary"
-            disabled={timeMappingDialogState.saving}
-            onClick={() => {
-              fireAndForget(handleConfirmTimeMapping(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L799', policy: 'user-visible' });
-            }}
-          >
-            {t(locale, 'transcription.projectHub.timeMappingDialogApply')}
-          </PanelButton>
-        </>
-      ) : undefined}
+      footer={
+        timeMappingDialogState ? (
+          <>
+            <PanelButton
+              variant="ghost"
+              disabled={timeMappingDialogState.saving}
+              onClick={handleCloseTimeMappingDialog}
+            >
+              {t(locale, 'transcription.dialog.cancel')}
+            </PanelButton>
+            <PanelButton
+              variant="primary"
+              disabled={timeMappingDialogState.saving}
+              onClick={() => {
+                fireAndForget(handleConfirmTimeMapping(), {
+                  context: 'src/components/transcription/LeftRailProjectHub.tsx:L799',
+                  policy: 'user-visible',
+                });
+              }}
+            >
+              {t(locale, 'transcription.projectHub.timeMappingDialogApply')}
+            </PanelButton>
+          </>
+        ) : undefined
+      }
     >
       {timeMappingDialogState ? (
         <>
@@ -823,7 +922,10 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             title={t(locale, 'transcription.projectHub.timeMappingDialogTitle')}
             description={timeMappingDialogPreview ?? ''}
           />
-          <PanelSection className="left-rail-project-import-strategy-section" title={t(locale, 'transcription.projectHub.importDialogStrategy')}>
+          <PanelSection
+            className="left-rail-project-import-strategy-section"
+            title={t(locale, 'transcription.projectHub.importDialogStrategy')}
+          >
             <div className="left-rail-project-time-mapping-form">
               <label className="left-rail-project-time-mapping-field">
                 <span>{t(locale, 'transcription.projectHub.timeMappingDialogOffset')}</span>
@@ -833,7 +935,11 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                   step="0.1"
                   min="0"
                   value={timeMappingDialogState.offsetSecText}
-                  onChange={(event) => setTimeMappingDialogState((prev) => (prev ? { ...prev, offsetSecText: event.target.value } : prev))}
+                  onChange={(event) =>
+                    setTimeMappingDialogState((prev) =>
+                      prev ? { ...prev, offsetSecText: event.target.value } : prev,
+                    )
+                  }
                 />
               </label>
               <label className="left-rail-project-time-mapping-field">
@@ -844,13 +950,20 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                   step="0.01"
                   min="0.01"
                   value={timeMappingDialogState.scaleText}
-                  onChange={(event) => setTimeMappingDialogState((prev) => (prev ? { ...prev, scaleText: event.target.value } : prev))}
+                  onChange={(event) =>
+                    setTimeMappingDialogState((prev) =>
+                      prev ? { ...prev, scaleText: event.target.value } : prev,
+                    )
+                  }
                 />
               </label>
             </div>
           </PanelSection>
 
-          <PanelSection className="left-rail-project-import-table-section" title={t(locale, 'transcription.projectHub.timeMappingHistoryTitle')}>
+          <PanelSection
+            className="left-rail-project-import-table-section"
+            title={t(locale, 'transcription.projectHub.timeMappingHistoryTitle')}
+          >
             <div className="left-rail-project-time-mapping-history">
               {timeMappingHistoryItems.map((item) => (
                 <button
@@ -881,71 +994,104 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       title={t(locale, 'transcription.projectHub.annotationImportDialogTitle')}
       closeLabel={`${t(locale, 'transcription.projectHub.annotationImportDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
       closeDisabled={annotationImportState?.importing}
-      footer={annotationImportState ? (
-        <>
-          <PanelButton
-            variant="ghost"
-            disabled={annotationImportState.importing}
-            onClick={() => setAnnotationImportState(null)}
-          >
-            {t(locale, 'transcription.dialog.cancel')}
-          </PanelButton>
-          <PanelButton
-            variant="primary"
-            disabled={annotationImportState.importing}
-            onClick={() => {
-              fireAndForget(handleConfirmAnnotationImport(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L885', policy: 'user-visible' });
-            }}
-          >
-            {annotationImportState.importing
-              ? t(locale, 'transcription.projectHub.importing')
-              : t(locale, 'transcription.projectHub.confirmAnnotationImport')}
-          </PanelButton>
-        </>
-      ) : undefined}
+      footer={
+        annotationImportState ? (
+          <>
+            <PanelButton
+              variant="ghost"
+              disabled={annotationImportState.importing}
+              onClick={() => setAnnotationImportState(null)}
+            >
+              {t(locale, 'transcription.dialog.cancel')}
+            </PanelButton>
+            <PanelButton
+              variant="primary"
+              disabled={annotationImportState.importing}
+              onClick={() => {
+                fireAndForget(handleConfirmAnnotationImport(), {
+                  context: 'src/components/transcription/LeftRailProjectHub.tsx:L885',
+                  policy: 'user-visible',
+                });
+              }}
+            >
+              {annotationImportState.importing
+                ? t(locale, 'transcription.projectHub.importing')
+                : t(locale, 'transcription.projectHub.confirmAnnotationImport')}
+            </PanelButton>
+          </>
+        ) : undefined
+      }
     >
       {annotationImportState && (
         <>
-        <PanelSummary
-          className="left-rail-project-import-summary"
-          title={annotationImportState.file.name}
-          description={t(locale, 'transcription.projectHub.annotationImportDialogSummary')}
-        />
+          <PanelSummary
+            className="left-rail-project-import-summary"
+            title={annotationImportState.file.name}
+            description={t(locale, 'transcription.projectHub.annotationImportDialogSummary')}
+          />
 
-        <PanelSection className="left-rail-project-import-strategy-section" title={t(locale, 'transcription.projectHub.annotationImportDialogStrategy')}>
-          <fieldset className="left-rail-project-import-strategy">
-            <label>
-              <input
-                type="radio"
-                name="annotation-import-strategy"
-                checked={annotationImportState.strategy === 'preserve-source'}
-                onChange={() => setAnnotationImportState((prev) => (prev ? { ...prev, strategy: 'preserve-source' } : prev))}
-              />
-              <span>{t(locale, 'transcription.projectHub.annotationStrategy.preserveSource')}</span>
-              <span className="small-text">{t(locale, 'transcription.projectHub.annotationStrategy.preserveSourceHint')}</span>
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="annotation-import-strategy"
-                checked={annotationImportState.strategy === 'bridge-target'}
-                onChange={() => setAnnotationImportState((prev) => (prev ? { ...prev, strategy: 'bridge-target' } : prev))}
-              />
-              <span>{t(locale, 'transcription.projectHub.annotationStrategy.bridgeTarget')}</span>
-              <span className="small-text">{t(locale, 'transcription.projectHub.annotationStrategy.bridgeTargetHint')}</span>
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="annotation-import-strategy"
-                checked={annotationImportState.strategy === 'preserve-source-and-bridge'}
-                onChange={() => setAnnotationImportState((prev) => (prev ? { ...prev, strategy: 'preserve-source-and-bridge' } : prev))}
-              />
-              <span>{t(locale, 'transcription.projectHub.annotationStrategy.preserveSourceAndBridge')}</span>
-              <span className="small-text">{t(locale, 'transcription.projectHub.annotationStrategy.preserveSourceAndBridgeHint')}</span>
-            </label>
-          </fieldset>
-        </PanelSection>
+          <PanelSection
+            className="left-rail-project-import-strategy-section"
+            title={t(locale, 'transcription.projectHub.annotationImportDialogStrategy')}
+          >
+            <fieldset className="left-rail-project-import-strategy">
+              <label>
+                <input
+                  type="radio"
+                  name="annotation-import-strategy"
+                  checked={annotationImportState.strategy === 'preserve-source'}
+                  onChange={() =>
+                    setAnnotationImportState((prev) =>
+                      prev ? { ...prev, strategy: 'preserve-source' } : prev,
+                    )
+                  }
+                />
+                <span>
+                  {t(locale, 'transcription.projectHub.annotationStrategy.preserveSource')}
+                </span>
+                <span className="small-text">
+                  {t(locale, 'transcription.projectHub.annotationStrategy.preserveSourceHint')}
+                </span>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="annotation-import-strategy"
+                  checked={annotationImportState.strategy === 'bridge-target'}
+                  onChange={() =>
+                    setAnnotationImportState((prev) =>
+                      prev ? { ...prev, strategy: 'bridge-target' } : prev,
+                    )
+                  }
+                />
+                <span>{t(locale, 'transcription.projectHub.annotationStrategy.bridgeTarget')}</span>
+                <span className="small-text">
+                  {t(locale, 'transcription.projectHub.annotationStrategy.bridgeTargetHint')}
+                </span>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="annotation-import-strategy"
+                  checked={annotationImportState.strategy === 'preserve-source-and-bridge'}
+                  onChange={() =>
+                    setAnnotationImportState((prev) =>
+                      prev ? { ...prev, strategy: 'preserve-source-and-bridge' } : prev,
+                    )
+                  }
+                />
+                <span>
+                  {t(locale, 'transcription.projectHub.annotationStrategy.preserveSourceAndBridge')}
+                </span>
+                <span className="small-text">
+                  {t(
+                    locale,
+                    'transcription.projectHub.annotationStrategy.preserveSourceAndBridgeHint',
+                  )}
+                </span>
+              </label>
+            </fieldset>
+          </PanelSection>
         </>
       )}
     </ModalPanel>

@@ -5,12 +5,24 @@ import type { TimelineViewportProjection } from '../hooks/timelineViewportTypes'
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { LayerActionPanelHandle } from '../hooks/useLayerActionPanel';
 import type { Locale } from '../i18n';
-import type { TranscriptionPageTimelineHorizontalMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent.types';
-import type { TimelineHorizontalProjectionLaneProps, TimelineVerticalProjectionProps } from './timelineHostProjectionTypes';
-import type { TranscriptionPageAssistantRuntimeProps, TranscriptionPageAnalysisRuntimeProps } from './TranscriptionPage.runtimeContracts';
+import type {
+  TranscriptionPageTimelineHorizontalMediaLanesProps,
+  TranscriptionPageTimelineTextOnlyProps,
+} from './TranscriptionPage.TimelineContent.types';
+import type {
+  TimelineHorizontalProjectionLaneProps,
+  TimelineVerticalProjectionProps,
+} from './timelineHostProjectionTypes';
+import type {
+  TranscriptionPageAssistantRuntimeProps,
+  TranscriptionPageAnalysisRuntimeProps,
+} from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionPageDialogsProps } from './TranscriptionPage.Dialogs';
 import type { UseTranscriptionSectionViewModelsInput } from './transcriptionSectionViewModelTypes';
-import { dropUndefinedKeys, type BuiltSharedLaneProps } from './transcriptionReadyWorkspacePropsBuilders';
+import {
+  dropUndefinedKeys,
+  type BuiltSharedLaneProps,
+} from './transcriptionReadyWorkspacePropsBuilders';
 import type { UseOrchestratorViewModelsInput } from './useOrchestratorViewModels';
 import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
 import {
@@ -102,7 +114,9 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   waveCanvasRef: UseTranscriptionSectionViewModelsInput['waveCanvasRef'];
   showSearch: UseTranscriptionSectionViewModelsInput['showSearch'];
   searchableItems: UseTranscriptionSectionViewModelsInput['searchableItems'];
-  displayStyleControl: NonNullable<TranscriptionPageTimelineHorizontalMediaLanesProps['displayStyleControl']>;
+  displayStyleControl: NonNullable<
+    TranscriptionPageTimelineHorizontalMediaLanesProps['displayStyleControl']
+  >;
   activeLayerIdForEdits: UseTranscriptionSectionViewModelsInput['activeLayerIdForEdits'];
   activeTimelineUnitId: UseTranscriptionSectionViewModelsInput['activeTimelineUnitId'];
   searchOverlayRequest: UseTranscriptionSectionViewModelsInput['searchOverlayRequest'];
@@ -126,7 +140,12 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   updateSpeakerDialogDraftNameRouted: (name: string) => void;
   updateSpeakerDialogTargetKeyRouted: (key: string) => void;
   showProjectSetup: boolean;
-  handleProjectSetupSubmit: (input: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
+  handleProjectSetupSubmit: (input: {
+    primaryTitle: string;
+    englishFallbackTitle: string;
+    primaryLanguageId: string;
+    primaryOrthographyId?: string;
+  }) => Promise<void>;
   showAudioImport: boolean;
   handleAudioImport: TranscriptionPageDialogsProps['onImportAudio'];
   audioImportDisposition: TranscriptionPageDialogsProps['audioImportDisposition'];
@@ -267,8 +286,12 @@ export function buildOrchestratorViewModelsInput(
 
   const zoomPxPerSec = timelineViewportProjection.zoomPxPerSec;
   const rulerView = timelineViewportProjection.rulerView;
-  const tierLassoRect = tierLassoRectFromSegmentRangeGesturePreview(segmentRangeGesturePreviewReadModel);
-  const timingDragPreview = timeRangeDragPreviewFromSegmentRangeGesturePreview(segmentRangeGesturePreviewReadModel);
+  const tierLassoRect = tierLassoRectFromSegmentRangeGesturePreview(
+    segmentRangeGesturePreviewReadModel,
+  );
+  const timingDragPreview = timeRangeDragPreviewFromSegmentRangeGesturePreview(
+    segmentRangeGesturePreviewReadModel,
+  );
 
   return {
     selectedMediaUrl: selectedMediaUrl ?? null,
@@ -279,7 +302,8 @@ export function buildOrchestratorViewModelsInput(
     layersCount: layers.length,
     locale,
     importFileRef,
-    layerActionSetCreateTranscription: () => layerAction.setLayerActionPanel('create-transcription'),
+    layerActionSetCreateTranscription: () =>
+      layerAction.setLayerActionPanel('create-transcription'),
     mediaLanesPropsInput: dropUndefinedKeys({
       ...sharedLaneProps,
       zoomPxPerSec,
@@ -294,15 +318,21 @@ export function buildOrchestratorViewModelsInput(
       unitsOnCurrentMedia: filteredUnitsOnCurrentMedia,
       segmentParentUnitLookup: unitsOnCurrentMedia,
       defaultTranscriptionLayerId: defaultTranscriptionLayerId ?? '',
-      ...(textOnlyLogicalDurationSec !== undefined ? { logicalDurationSec: textOnlyLogicalDurationSec } : {}),
+      ...(textOnlyLogicalDurationSec !== undefined
+        ? { logicalDurationSec: textOnlyLogicalDurationSec }
+        : {}),
       ...(textOnlyTimeMapping ? { textOnlyTimeMapping } : {}),
-      ...(createUnitFromSelectionRouted ? { createUnitFromSelection: createUnitFromSelectionRouted } : {}),
+      ...(createUnitFromSelectionRouted
+        ? { createUnitFromSelection: createUnitFromSelectionRouted }
+        : {}),
       scrollContainerRef: tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
       ...(handleNoteClick ? { handleNoteClick } : {}),
       ...(resolveNoteIndicatorTarget ? { resolveNoteIndicatorTarget } : {}),
-      ...(input.startTimelineResizeDrag ? { startTimelineResizeDrag: input.startTimelineResizeDrag } : {}),
+      ...(input.startTimelineResizeDrag
+        ? { startTimelineResizeDrag: input.startTimelineResizeDrag }
+        : {}),
       ...(timingDragPreview != null ? { timingDragPreview } : {}),
       navigateUnitFromInput,
       speakerVisualByUnitId: speakerVisualByTimelineUnitId,
@@ -310,7 +340,7 @@ export function buildOrchestratorViewModelsInput(
       resolveSelfCertaintyAmbiguityForUnit,
     }) as UseOrchestratorViewModelsInput['textOnlyPropsInput'],
     verticalProjection: dropUndefinedKeys({
-      ...(verticalViewEnabled ? { verticalViewEnabled: true } : {}),
+      ...(verticalViewEnabled === true ? { verticalViewEnabled: true } : {}),
       ...(verticalPaneFocus ? { verticalPaneFocus } : {}),
       ...(updateVerticalPaneFocus ? { updateVerticalPaneFocus } : {}),
     }) as TimelineVerticalProjectionProps,

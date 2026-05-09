@@ -1,9 +1,17 @@
 import { useCallback, useMemo } from 'react';
-import type { LayerDocType, LayerSegmentViewDocType, LayerUnitDocType, SpeakerDocType } from '../types/jieyuDbDocTypes';
+import type {
+  LayerDocType,
+  LayerSegmentViewDocType,
+  LayerUnitDocType,
+  SpeakerDocType,
+} from '../types/jieyuDbDocTypes';
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { buildSpeakerFilterOptionsFromKeys, buildSpeakerVisualMapFromKeys } from '../hooks/speakerManagement/speakerUtils';
+import {
+  buildSpeakerFilterOptionsFromKeys,
+  buildSpeakerVisualMapFromKeys,
+} from '../hooks/speakerManagement/speakerUtils';
 import { resolveMappedUnitIds, resolveSegmentOnlyIdsFromSelection } from './selectionIdResolvers';
 
 type SpeakerAssignmentLike = {
@@ -27,14 +35,19 @@ interface UseSpeakerActionScopeControllerInput {
   getUnitSpeakerKey: (unit: LayerUnitDocType) => string;
 }
 
-interface UseSpeakerActionScopeControllerResult {
+export interface UseSpeakerActionScopeControllerResult {
   segmentByIdForSpeakerActions: Map<string, LayerSegmentViewDocType>;
   resolveSpeakerKeyForSegment: (segment: LayerSegmentViewDocType) => string;
   resolveExplicitSpeakerKeyForSegment: (segment: LayerSegmentViewDocType) => string;
   segmentSpeakerAssignmentsOnCurrentMedia: SpeakerAssignmentLike[];
   speakerVisualByTimelineUnitId: Record<string, { name: string; color: string }>;
   activeSpeakerManagementLayer: LayerDocType | null;
-  speakerFilterOptionsForActions: Array<{ key: string; name: string; count: number; color?: string }>;
+  speakerFilterOptionsForActions: Array<{
+    key: string;
+    name: string;
+    count: number;
+    color?: string;
+  }>;
   selectedUnitIdsForSpeakerActions: string[];
   selectedSegmentIdsForSpeakerActions: string[];
   selectedBatchSegmentsForSpeakerActions: LayerSegmentViewDocType[];
@@ -82,30 +95,38 @@ export function useSpeakerActionScopeController({
     return map;
   }, [segmentsByLayer]);
 
-  const resolveSpeakerAssignmentKeyForSegment = useCallback((segment: LayerSegmentViewDocType) => {
-    const explicitSpeakerId = segment.speakerId?.trim();
-    if (explicitSpeakerId) return explicitSpeakerId;
-    const ownerUnitId = segment.parentUnitId ?? segment.unitId;
-    const ownerUnit = ownerUnitId ? unitDocByIdOnCurrentMedia.get(ownerUnitId) : undefined;
-    return ownerUnit ? getUnitSpeakerKey(ownerUnit) : '';
-  }, [getUnitSpeakerKey, unitDocByIdOnCurrentMedia]);
+  const resolveSpeakerAssignmentKeyForSegment = useCallback(
+    (segment: LayerSegmentViewDocType) => {
+      const explicitSpeakerId = segment.speakerId?.trim();
+      if (explicitSpeakerId) return explicitSpeakerId;
+      const ownerUnitId = segment.parentUnitId ?? segment.unitId;
+      const ownerUnit = ownerUnitId ? unitDocByIdOnCurrentMedia.get(ownerUnitId) : undefined;
+      return ownerUnit ? getUnitSpeakerKey(ownerUnit) : '';
+    },
+    [getUnitSpeakerKey, unitDocByIdOnCurrentMedia],
+  );
 
-  const resolveSpeakerKeyForSegment = useCallback((segment: LayerSegmentViewDocType) => {
-    const speakerKey = resolveSpeakerAssignmentKeyForSegment(segment);
-    return speakerKey || 'unknown-speaker';
-  }, [resolveSpeakerAssignmentKeyForSegment]);
+  const resolveSpeakerKeyForSegment = useCallback(
+    (segment: LayerSegmentViewDocType) => {
+      const speakerKey = resolveSpeakerAssignmentKeyForSegment(segment);
+      return speakerKey || 'unknown-speaker';
+    },
+    [resolveSpeakerAssignmentKeyForSegment],
+  );
 
   const resolveExplicitSpeakerKeyForSegment = useCallback(
     (segment: LayerSegmentViewDocType) => segment.speakerId?.trim() ?? '',
     [],
   );
 
-  const unitSpeakerAssignmentsOnCurrentMedia = useMemo(() => (
-    unitDocsOnCurrentMedia.map((unit) => ({
-      unitId: unit.id,
-      speakerKey: getUnitSpeakerKey(unit),
-    }))
-  ), [getUnitSpeakerKey, unitDocsOnCurrentMedia]);
+  const unitSpeakerAssignmentsOnCurrentMedia = useMemo(
+    () =>
+      unitDocsOnCurrentMedia.map((unit) => ({
+        unitId: unit.id,
+        speakerKey: getUnitSpeakerKey(unit),
+      })),
+    [getUnitSpeakerKey, unitDocsOnCurrentMedia],
+  );
 
   const segmentSpeakerAssignmentsOnCurrentMedia = useMemo(() => {
     const next: SpeakerAssignmentLike[] = [];
@@ -119,10 +140,13 @@ export function useSpeakerActionScopeController({
     return next;
   }, [resolveExplicitSpeakerKeyForSegment, segmentsByLayer]);
 
-  const speakerVisualByTimelineUnitId = useMemo(() => ({
-    ...buildSpeakerVisualMapFromKeys(unitSpeakerAssignmentsOnCurrentMedia, speakers),
-    ...buildSpeakerVisualMapFromKeys(segmentSpeakerAssignmentsOnCurrentMedia, speakers),
-  }), [segmentSpeakerAssignmentsOnCurrentMedia, speakers, unitSpeakerAssignmentsOnCurrentMedia]);
+  const speakerVisualByTimelineUnitId = useMemo(
+    () => ({
+      ...buildSpeakerVisualMapFromKeys(unitSpeakerAssignmentsOnCurrentMedia, speakers),
+      ...buildSpeakerVisualMapFromKeys(segmentSpeakerAssignmentsOnCurrentMedia, speakers),
+    }),
+    [segmentSpeakerAssignmentsOnCurrentMedia, speakers, unitSpeakerAssignmentsOnCurrentMedia],
+  );
 
   const activeSpeakerManagementLayer = useMemo(() => {
     if (!selectedLayerId) return null;
@@ -142,16 +166,27 @@ export function useSpeakerActionScopeController({
     }
 
     return unitSpeakerAssignmentsOnCurrentMedia.filter((item) => item.speakerKey.length > 0);
-  }, [activeSpeakerManagementLayer, resolveExplicitSpeakerKeyForSegment, segmentsByLayer, unitSpeakerAssignmentsOnCurrentMedia]);
+  }, [
+    activeSpeakerManagementLayer,
+    resolveExplicitSpeakerKeyForSegment,
+    segmentsByLayer,
+    unitSpeakerAssignmentsOnCurrentMedia,
+  ]);
 
   const speakerFilterOptionsForActions = useMemo(
-    () => buildSpeakerFilterOptionsFromKeys(speakerAssignmentsForActions, speakerVisualByTimelineUnitId),
+    () =>
+      buildSpeakerFilterOptionsFromKeys(
+        speakerAssignmentsForActions,
+        speakerVisualByTimelineUnitId,
+      ),
     [speakerAssignmentsForActions, speakerVisualByTimelineUnitId],
   );
 
   const selectedUnitIdsForSpeakerActions = useMemo(() => {
     if (selectedUnitIds.size > 0) {
-      return Array.from(selectedUnitIds).map((id) => id.trim()).filter((id) => id.length > 0);
+      return Array.from(selectedUnitIds)
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0);
     }
     if (selectedTimelineUnit?.unitId) {
       return selectedTimelineUnit.unitId.trim().length > 0 ? [selectedTimelineUnit.unitId] : [];
@@ -167,18 +202,25 @@ export function useSpeakerActionScopeController({
       ...(resolveUnitViewById ? { resolveUnitViewById } : {}),
     });
     return Array.from(selectedSegmentIds).filter((id) => segmentByIdForSpeakerActions.has(id));
-  }, [resolveUnitViewById, segmentByIdForSpeakerActions, selectedTimelineUnit, selectedUnitIds, unitViewById]);
+  }, [
+    resolveUnitViewById,
+    segmentByIdForSpeakerActions,
+    selectedTimelineUnit,
+    selectedUnitIds,
+    unitViewById,
+  ]);
 
   const selectedBatchSegmentsForSpeakerActions = useMemo(
-    () => selectedSegmentIdsForSpeakerActions
-      .map((id) => segmentByIdForSpeakerActions.get(id))
-      .filter((segment): segment is LayerSegmentViewDocType => Boolean(segment))
-      .sort((a, b) => a.startTime - b.startTime),
+    () =>
+      selectedSegmentIdsForSpeakerActions
+        .map((id) => segmentByIdForSpeakerActions.get(id))
+        .filter((segment): segment is LayerSegmentViewDocType => Boolean(segment))
+        .sort((a, b) => a.startTime - b.startTime),
     [segmentByIdForSpeakerActions, selectedSegmentIdsForSpeakerActions],
   );
 
-  const fallbackUnitLayerId = (selectedLayerId?.trim() ?? '')
-    || (defaultTranscriptionLayerId?.trim() ?? '');
+  const fallbackUnitLayerId =
+    (selectedLayerId?.trim() ?? '') || (defaultTranscriptionLayerId?.trim() ?? '');
   const selectedBatchUnits = useMemo(() => {
     const units: TimelineUnitView[] = [];
     for (const unitId of selectedUnitIdsForSpeakerActions) {
@@ -214,11 +256,19 @@ export function useSpeakerActionScopeController({
       });
     }
     return units.sort((left, right) => left.startTime - right.startTime);
-  }, [fallbackUnitLayerId, segmentByIdForSpeakerActions, selectedUnitIdsForSpeakerActions, unitDocByIdOnCurrentMedia]);
+  }, [
+    fallbackUnitLayerId,
+    segmentByIdForSpeakerActions,
+    selectedUnitIdsForSpeakerActions,
+    unitDocByIdOnCurrentMedia,
+  ]);
 
-  const resolveSpeakerActionUnitIds = useCallback((ids: Iterable<string>) => {
-    return resolveMappedUnitIds(ids, unitViewById, resolveUnitViewById);
-  }, [resolveUnitViewById, unitViewById]);
+  const resolveSpeakerActionUnitIds = useCallback(
+    (ids: Iterable<string>) => {
+      return resolveMappedUnitIds(ids, unitViewById, resolveUnitViewById);
+    },
+    [resolveUnitViewById, unitViewById],
+  );
 
   const selectedSpeakerUnitIdsForActionsSet = useMemo(
     () => new Set(selectedUnitIdsForSpeakerActions),

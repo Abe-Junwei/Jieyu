@@ -1,4 +1,12 @@
-import { createTimelineUnit, isSegmentTimelineUnit, isUnitTimelineUnit, resolveTimelineLayerIdFallback, type TimelineLayerFallbackInput, type TimelineUnit, type TimelineUnitKind } from '../hooks/transcriptionTypes';
+import {
+  createTimelineUnit,
+  isSegmentTimelineUnit,
+  isUnitTimelineUnit,
+  resolveTimelineLayerIdFallback,
+  type TimelineLayerFallbackInput,
+  type TimelineUnit,
+  type TimelineUnitKind,
+} from '../hooks/transcriptionTypes';
 
 interface ResolveTranscriptionUnitKindInput {
   layerId: string;
@@ -20,22 +28,24 @@ export function resolveTranscriptionTargetLayerId(input: TimelineLayerFallbackIn
   return resolveTimelineLayerIdFallback(input);
 }
 
-export function resolveTranscriptionUnitKind(input: ResolveTranscriptionUnitKindInput): TimelineUnitKind {
-  if (input.independentLayerIds?.has(input.layerId)) {
+export function resolveTranscriptionUnitKind(
+  input: ResolveTranscriptionUnitKindInput,
+): TimelineUnitKind {
+  if (input.independentLayerIds?.has(input.layerId) === true) {
     return 'segment';
   }
   return input.preferredKind;
 }
 
-export function resolveTranscriptionUnitTarget(input: ResolveTranscriptionUnitTargetInput): TimelineUnit {
-  return createTimelineUnit(
-    input.layerId,
-    input.unitId,
-    resolveTranscriptionUnitKind(input),
-  );
+export function resolveTranscriptionUnitTarget(
+  input: ResolveTranscriptionUnitTargetInput,
+): TimelineUnit {
+  return createTimelineUnit(input.layerId, input.unitId, resolveTranscriptionUnitKind(input));
 }
 
-export function resolveTranscriptionSelectionAnchor(input: ResolveTranscriptionSelectionAnchorInput): string {
+export function resolveTranscriptionSelectionAnchor(
+  input: ResolveTranscriptionSelectionAnchorInput,
+): string {
   if (input.expectedKind === 'segment') {
     return isSegmentTimelineUnit(input.selectedTimelineUnit)
       ? input.selectedTimelineUnit.unitId

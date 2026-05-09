@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-07T03:47:14.799Z",
+  "generatedAt": "2026-05-08T02:06:38.706Z",
   "sourceSeed": "top500-language-orthography-seeds.json",
   "sourceAliasSeed": "language-name-aliases.json",
   "queryLocales": [
@@ -1043,6 +1043,7 @@
     },
     "bak": {
       "english": "Bashkir",
+      "native": "башҡорт",
       "byLocale": {
         "zh-CN": "巴什基尔语",
         "en-US": "Bashkir",
@@ -1283,7 +1284,7 @@
     },
     "chv": {
       "english": "Chuvash",
-      "native": "чӑваш",
+      "native": "чӑваш чӗлхи",
       "byLocale": {
         "zh-CN": "楚瓦什语",
         "en-US": "Chuvash",
@@ -1672,6 +1673,7 @@
     },
     "scn": {
       "english": "Sicilian",
+      "native": "sicilianu",
       "byLocale": {
         "zh-CN": "西西里语",
         "en-US": "Sicilian",
@@ -1922,6 +1924,7 @@
     },
     "tyv": {
       "english": "Tuvan",
+      "native": "Тыва",
       "byLocale": {
         "zh-CN": "图瓦语",
         "en-US": "Tuvinian",
@@ -1992,6 +1995,7 @@
     },
     "pms": {
       "english": "Piedmontese",
+      "native": "piemontèis",
       "byLocale": {
         "en-US": "Piedmontese",
         "fr-FR": "piémontais",
@@ -2330,6 +2334,7 @@
     },
     "bua": {
       "english": "Buryat",
+      "native": "буряад",
       "byLocale": {
         "zh-CN": "布里亚特语",
         "en-US": "Buriat",
@@ -4298,13 +4303,6 @@
     },
     "mnk": {
       "english": "Mandinka",
-      "byLocale": {
-        "zh-CN": "曼丁哥语",
-        "en-US": "Mandingo",
-        "fr-FR": "mandingue",
-        "es-ES": "mandingo",
-        "de-DE": "Malinke"
-      },
       "latitude": 12.8165233333,
       "longitude": -15.6539466667
     },
@@ -4636,6 +4634,7 @@
     },
     "shn": {
       "english": "Shan",
+      "native": "တႆး",
       "byLocale": {
         "zh-CN": "掸语",
         "en-US": "Shan",

@@ -22,7 +22,12 @@ function makeLayer(id: string): LayerDocType {
   } as LayerDocType;
 }
 
-function makeUnit(id: string, startTime: number, endTime: number, mediaId = 'media-1'): LayerUnitDocType {
+function makeUnit(
+  id: string,
+  startTime: number,
+  endTime: number,
+  mediaId = 'media-1',
+): LayerUnitDocType {
   const now = new Date().toISOString();
   return {
     id,
@@ -35,7 +40,13 @@ function makeUnit(id: string, startTime: number, endTime: number, mediaId = 'med
   } as LayerUnitDocType;
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number, unitId?: string): LayerUnitDocType {
+function makeSegment(
+  id: string,
+  layerId: string,
+  startTime: number,
+  endTime: number,
+  unitId?: string,
+): LayerUnitDocType {
   const now = new Date().toISOString();
   return {
     id,
@@ -46,7 +57,7 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
     endTime,
     createdAt: now,
     updatedAt: now,
-    ...(unitId ? { unitId } : {}),
+    ...(typeof unitId === 'string' && unitId.length > 0 ? { unitId } : {}),
   } as LayerUnitDocType;
 }
 
@@ -57,16 +68,18 @@ describe('useTranscriptionSelectionContextController', () => {
     const fallbackOwner = makeUnit('utt-fallback', 1, 2);
     const segment = makeSegment('seg-1', layer.id, 1.2, 1.8, explicitOwner.id);
 
-    const { result } = renderHook(() => useTranscriptionSelectionContextController({
-      layers: [layer],
-      layerLinks: [],
-      mediaItems: [],
-      units: [fallbackOwner, explicitOwner],
-      unitsOnCurrentMedia: [fallbackOwner, explicitOwner],
-      selectedUnit: null,
-      selectedTimelineUnit: createTimelineUnit(layer.id, segment.id, 'segment'),
-      segmentsByLayer: new Map([[layer.id, [segment]]]),
-    }));
+    const { result } = renderHook(() =>
+      useTranscriptionSelectionContextController({
+        layers: [layer],
+        layerLinks: [],
+        mediaItems: [],
+        units: [fallbackOwner, explicitOwner],
+        unitsOnCurrentMedia: [fallbackOwner, explicitOwner],
+        selectedUnit: null,
+        selectedTimelineUnit: createTimelineUnit(layer.id, segment.id, 'segment'),
+        segmentsByLayer: new Map([[layer.id, [segment]]]),
+      }),
+    );
 
     expect(result.current.selectedTimelineOwnerUnit?.id).toBe(explicitOwner.id);
   });
@@ -80,29 +93,33 @@ describe('useTranscriptionSelectionContextController', () => {
     const segmentNarrow = makeSegment('seg-narrow', layer.id, 10, 12);
     const segmentCenterTie = makeSegment('seg-center', layer.id, 20, 22);
 
-    const { result: narrowResult } = renderHook(() => useTranscriptionSelectionContextController({
-      layers: [layer],
-      layerLinks: [],
-      mediaItems: [],
-      units: [wideContaining, narrowContaining],
-      unitsOnCurrentMedia: [wideContaining, narrowContaining],
-      selectedUnit: null,
-      selectedTimelineUnit: createTimelineUnit(layer.id, segmentNarrow.id, 'segment'),
-      segmentsByLayer: new Map([[layer.id, [segmentNarrow]]]),
-    }));
+    const { result: narrowResult } = renderHook(() =>
+      useTranscriptionSelectionContextController({
+        layers: [layer],
+        layerLinks: [],
+        mediaItems: [],
+        units: [wideContaining, narrowContaining],
+        unitsOnCurrentMedia: [wideContaining, narrowContaining],
+        selectedUnit: null,
+        selectedTimelineUnit: createTimelineUnit(layer.id, segmentNarrow.id, 'segment'),
+        segmentsByLayer: new Map([[layer.id, [segmentNarrow]]]),
+      }),
+    );
 
     expect(narrowResult.current.selectedTimelineOwnerUnit?.id).toBe(narrowContaining.id);
 
-    const { result: centerTieResult } = renderHook(() => useTranscriptionSelectionContextController({
-      layers: [layer],
-      layerLinks: [],
-      mediaItems: [],
-      units: [equalSpanFartherCenter, equalSpanCloserCenter],
-      unitsOnCurrentMedia: [equalSpanFartherCenter, equalSpanCloserCenter],
-      selectedUnit: null,
-      selectedTimelineUnit: createTimelineUnit(layer.id, segmentCenterTie.id, 'segment'),
-      segmentsByLayer: new Map([[layer.id, [segmentCenterTie]]]),
-    }));
+    const { result: centerTieResult } = renderHook(() =>
+      useTranscriptionSelectionContextController({
+        layers: [layer],
+        layerLinks: [],
+        mediaItems: [],
+        units: [equalSpanFartherCenter, equalSpanCloserCenter],
+        unitsOnCurrentMedia: [equalSpanFartherCenter, equalSpanCloserCenter],
+        selectedUnit: null,
+        selectedTimelineUnit: createTimelineUnit(layer.id, segmentCenterTie.id, 'segment'),
+        segmentsByLayer: new Map([[layer.id, [segmentCenterTie]]]),
+      }),
+    );
 
     expect(centerTieResult.current.selectedTimelineOwnerUnit?.id).toBe(equalSpanCloserCenter.id);
   });
@@ -113,16 +130,18 @@ describe('useTranscriptionSelectionContextController', () => {
     const correctMediaContaining = makeUnit('utt-correct-media', 9, 13, 'media-1');
     const segment = makeSegment('seg-media', layer.id, 10, 12);
 
-    const { result } = renderHook(() => useTranscriptionSelectionContextController({
-      layers: [layer],
-      layerLinks: [],
-      mediaItems: [],
-      units: [wrongMediaContaining, correctMediaContaining],
-      unitsOnCurrentMedia: [wrongMediaContaining, correctMediaContaining],
-      selectedUnit: null,
-      selectedTimelineUnit: createTimelineUnit(layer.id, segment.id, 'segment'),
-      segmentsByLayer: new Map([[layer.id, [segment]]]),
-    }));
+    const { result } = renderHook(() =>
+      useTranscriptionSelectionContextController({
+        layers: [layer],
+        layerLinks: [],
+        mediaItems: [],
+        units: [wrongMediaContaining, correctMediaContaining],
+        unitsOnCurrentMedia: [wrongMediaContaining, correctMediaContaining],
+        selectedUnit: null,
+        selectedTimelineUnit: createTimelineUnit(layer.id, segment.id, 'segment'),
+        segmentsByLayer: new Map([[layer.id, [segment]]]),
+      }),
+    );
 
     expect(result.current.selectedTimelineOwnerUnit?.id).toBe(correctMediaContaining.id);
   });
@@ -133,16 +152,18 @@ describe('useTranscriptionSelectionContextController', () => {
     const closerCenter = makeUnit('utt-overlap-close', 11, 11.8);
     const segment = makeSegment('seg-overlap-only', layer.id, 10, 12);
 
-    const { result } = renderHook(() => useTranscriptionSelectionContextController({
-      layers: [layer],
-      layerLinks: [],
-      mediaItems: [],
-      units: [fartherCenter, closerCenter],
-      unitsOnCurrentMedia: [fartherCenter, closerCenter],
-      selectedUnit: null,
-      selectedTimelineUnit: createTimelineUnit(layer.id, segment.id, 'segment'),
-      segmentsByLayer: new Map([[layer.id, [segment]]]),
-    }));
+    const { result } = renderHook(() =>
+      useTranscriptionSelectionContextController({
+        layers: [layer],
+        layerLinks: [],
+        mediaItems: [],
+        units: [fartherCenter, closerCenter],
+        unitsOnCurrentMedia: [fartherCenter, closerCenter],
+        selectedUnit: null,
+        selectedTimelineUnit: createTimelineUnit(layer.id, segment.id, 'segment'),
+        segmentsByLayer: new Map([[layer.id, [segment]]]),
+      }),
+    );
 
     expect(result.current.selectedTimelineOwnerUnit?.id).toBe(closerCenter.id);
   });
@@ -152,16 +173,18 @@ describe('useTranscriptionSelectionContextController', () => {
     const nonOverlapping = makeUnit('utt-non-overlap', 20, 22);
     const segment = makeSegment('seg-no-owner', layer.id, 10, 12);
 
-    const { result } = renderHook(() => useTranscriptionSelectionContextController({
-      layers: [layer],
-      layerLinks: [],
-      mediaItems: [],
-      units: [nonOverlapping],
-      unitsOnCurrentMedia: [nonOverlapping],
-      selectedUnit: null,
-      selectedTimelineUnit: createTimelineUnit(layer.id, segment.id, 'segment'),
-      segmentsByLayer: new Map([[layer.id, [segment]]]),
-    }));
+    const { result } = renderHook(() =>
+      useTranscriptionSelectionContextController({
+        layers: [layer],
+        layerLinks: [],
+        mediaItems: [],
+        units: [nonOverlapping],
+        unitsOnCurrentMedia: [nonOverlapping],
+        selectedUnit: null,
+        selectedTimelineUnit: createTimelineUnit(layer.id, segment.id, 'segment'),
+        segmentsByLayer: new Map([[layer.id, [segment]]]),
+      }),
+    );
 
     expect(result.current.selectedTimelineOwnerUnit).toBeNull();
   });

@@ -5,7 +5,10 @@ import { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 import { useDialogs, type TextTimeMappingSummary } from '../hooks/useDialogs';
 import { usePanelToggles } from '../hooks/usePanelToggles';
-import { APP_SHELL_OPEN_SEARCH_EVENT, type AppShellOpenSearchDetail } from '../utils/appShellEvents';
+import {
+  APP_SHELL_OPEN_SEARCH_EVENT,
+  type AppShellOpenSearchDetail,
+} from '../utils/appShellEvents';
 import { buildLayerLinkConnectorLayout } from '../utils/layerLinkConnector';
 import { type TextDirection, type UiFontScaleMode } from '../utils/panelAdaptiveLayout';
 import { LinguisticService } from '../app/languageAssetPageAccess';
@@ -119,25 +122,30 @@ export function useTranscriptionShellController(
     [input.layerLinks, input.orderedLayers],
   );
 
-  const openPdfPreviewRequest = useCallback((nextInput: {
-    title: string;
-    page: number | null;
-    sourceUrl?: string;
-    sourceBlob?: Blob;
-    hashSuffix?: string;
-    searchSnippet?: string;
-  }) => {
-    pdfPreviewRequestNonceRef.current += 1;
-    setPdfPreviewRequest(createPdfPreviewOpenRequest({
-      nonce: pdfPreviewRequestNonceRef.current,
-      title: nextInput.title,
-      page: nextInput.page,
-      ...(nextInput.sourceUrl ? { sourceUrl: nextInput.sourceUrl } : {}),
-      ...(nextInput.sourceBlob ? { sourceBlob: nextInput.sourceBlob } : {}),
-      ...(nextInput.hashSuffix ? { hashSuffix: nextInput.hashSuffix } : {}),
-      ...(nextInput.searchSnippet ? { searchSnippet: nextInput.searchSnippet } : {}),
-    }));
-  }, []);
+  const openPdfPreviewRequest = useCallback(
+    (nextInput: {
+      title: string;
+      page: number | null;
+      sourceUrl?: string;
+      sourceBlob?: Blob;
+      hashSuffix?: string;
+      searchSnippet?: string;
+    }) => {
+      pdfPreviewRequestNonceRef.current += 1;
+      setPdfPreviewRequest(
+        createPdfPreviewOpenRequest({
+          nonce: pdfPreviewRequestNonceRef.current,
+          title: nextInput.title,
+          page: nextInput.page,
+          ...(nextInput.sourceUrl ? { sourceUrl: nextInput.sourceUrl } : {}),
+          ...(nextInput.sourceBlob ? { sourceBlob: nextInput.sourceBlob } : {}),
+          ...(nextInput.hashSuffix ? { hashSuffix: nextInput.hashSuffix } : {}),
+          ...(nextInput.searchSnippet ? { searchSnippet: nextInput.searchSnippet } : {}),
+        }),
+      );
+    },
+    [],
+  );
 
   const handleFocusLayerRow = (id: string) => {
     setFocusedLayerRowId(id);
@@ -206,18 +214,23 @@ export function useTranscriptionShellController(
     getActiveTextPrimaryLanguageId,
     getActiveTextTimelineMode,
   } = useDialogs(input.units);
-  const [searchOverlayRequest, setSearchOverlayRequest] = useState<AppShellOpenSearchDetail | null>(null);
+  const [searchOverlayRequest, setSearchOverlayRequest] = useState<AppShellOpenSearchDetail | null>(
+    null,
+  );
 
-  const openSearchFromRequest = useCallback((detail: AppShellOpenSearchDetail = {}) => {
-    setSearchOverlayRequest(detail);
-    setShowSearch(true);
-  }, [setShowSearch]);
+  const openSearchFromRequest = useCallback(
+    (detail: AppShellOpenSearchDetail = {}) => {
+      setSearchOverlayRequest(detail);
+      setShowSearch(true);
+    },
+    [setShowSearch],
+  );
 
   useEffect(() => {
     if (!input.appSearchRequest) return;
     openSearchFromRequest(input.appSearchRequest);
     input.onConsumeAppSearchRequest?.();
-  }, [input.appSearchRequest, input.onConsumeAppSearchRequest, openSearchFromRequest]);
+  }, [input, openSearchFromRequest]);
 
   useEffect(() => {
     const handleOpenSearch = (event: Event) => {
@@ -225,35 +238,47 @@ export function useTranscriptionShellController(
       openSearchFromRequest(detail);
     };
     window.addEventListener(APP_SHELL_OPEN_SEARCH_EVENT, handleOpenSearch as EventListener);
-    return () => window.removeEventListener(APP_SHELL_OPEN_SEARCH_EVENT, handleOpenSearch as EventListener);
+    return () =>
+      window.removeEventListener(APP_SHELL_OPEN_SEARCH_EVENT, handleOpenSearch as EventListener);
   }, [openSearchFromRequest]);
 
-  const createLayerWithActiveContext = useCallback<UseTranscriptionShellControllerInput['createLayer']>(async (...args) => {
-    const [layerType, config, modality] = args;
-    let resolvedTextId = config.textId?.trim() || activeTextId || (await getActiveTextId()) || '';
-    if (!resolvedTextId) {
-      const result = await LinguisticService.createProject({
-        primaryTitle: t('zh-CN', 'transcription.project.untitledZh'),
-        englishFallbackTitle: t('en-US', 'transcription.project.untitledEn'),
-        primaryLanguageId: config.languageId?.trim() || 'und',
-        ...(config.orthographyId?.trim() ? { primaryOrthographyId: config.orthographyId.trim() } : {}),
-      });
-      resolvedTextId = result.textId;
-      setActiveTextId(resolvedTextId);
-    }
-
-    if (resolvedTextId) {
-      const mediaItems = await LinguisticService.getMediaItemsByTextId(resolvedTextId);
-      if (mediaItems.length === 0) {
-        await LinguisticService.ensureDocumentTimeline({ textId: resolvedTextId });
+  const createLayerWithActiveContext = useCallback<
+    UseTranscriptionShellControllerInput['createLayer']
+  >(
+    async (...args) => {
+      const [layerType, config, modality] = args;
+      let resolvedTextId = config.textId?.trim() || activeTextId || (await getActiveTextId()) || '';
+      if (!resolvedTextId) {
+        const result = await LinguisticService.createProject({
+          primaryTitle: t('zh-CN', 'transcription.project.untitledZh'),
+          englishFallbackTitle: t('en-US', 'transcription.project.untitledEn'),
+          primaryLanguageId: config.languageId?.trim() || 'und',
+          ...(config.orthographyId?.trim()
+            ? { primaryOrthographyId: config.orthographyId.trim() }
+            : {}),
+        });
+        resolvedTextId = result.textId;
+        setActiveTextId(resolvedTextId);
       }
-    }
 
-    return createLayer(layerType, {
-      ...config,
-      ...(resolvedTextId ? { textId: resolvedTextId } : {}),
-    }, modality);
-  }, [activeTextId, createLayer, getActiveTextId, setActiveTextId]);
+      if (resolvedTextId) {
+        const mediaItems = await LinguisticService.getMediaItemsByTextId(resolvedTextId);
+        if (mediaItems.length === 0) {
+          await LinguisticService.ensureDocumentTimeline({ textId: resolvedTextId });
+        }
+      }
+
+      return createLayer(
+        layerType,
+        {
+          ...config,
+          ...(resolvedTextId ? { textId: resolvedTextId } : {}),
+        },
+        modality,
+      );
+    },
+    [activeTextId, createLayer, getActiveTextId, setActiveTextId],
+  );
 
   const layerAction = useLayerActionPanel({
     createLayer: createLayerWithActiveContext,
@@ -274,15 +299,22 @@ export function useTranscriptionShellController(
 
     const exists = input.orderedLayers.some((item) => item.id === focusedLayerRowId);
     if (!exists) {
-      const fallback = input.orderedLayers.find((item) => item.id === input.selectedLayerId)?.id
-        ?? input.orderedLayers[0]?.id
-        ?? '';
+      const fallback =
+        input.orderedLayers.find((item) => item.id === input.selectedLayerId)?.id ??
+        input.orderedLayers[0]?.id ??
+        '';
       setFocusedLayerRowId(fallback);
     }
   }, [focusedLayerRowId, input.orderedLayers, input.selectedLayerId]);
 
   useEffect(() => {
-    if (!input.layerCreateMessage.startsWith(t('zh-CN', 'transcription.layer.messageCreatedPrefix')) || input.orderedLayers.length === 0) return;
+    if (
+      !input.layerCreateMessage.startsWith(
+        t('zh-CN', 'transcription.layer.messageCreatedPrefix'),
+      ) ||
+      input.orderedLayers.length === 0
+    )
+      return;
     if (handledLayerCreateMessageRef.current === input.layerCreateMessage) return;
     const latestCreatedLayer = [...input.orderedLayers].sort((a, b) => {
       const at = Date.parse(a.updatedAt || a.createdAt || '');

@@ -1,7 +1,16 @@
-import { jieyuDatabaseSingletonHealthCheck, type DbIntegrityProbeResult } from '../db/dbIntegrityProbe';
-import { getSupabaseBrowserClientHealth, type SupabaseBrowserClientHealth } from '../integrations/supabase/client';
+import {
+  jieyuDatabaseSingletonHealthCheck,
+  type DbIntegrityProbeResult,
+} from '../db/dbIntegrityProbe';
+import {
+  getSupabaseBrowserClientHealth,
+  type SupabaseBrowserClientHealth,
+} from '../integrations/supabase/client';
 import { AcousticAnalysisService } from '../services/acoustic/AcousticAnalysisService';
-import { getManagedWorkerRegistrySnapshot, type ManagedWorkerRegistryEntry } from './managedWorkerRegistry';
+import {
+  getManagedWorkerRegistrySnapshot,
+  type ManagedWorkerRegistryEntry,
+} from './managedWorkerRegistry';
 import { getWorkerPool, type WorkerPoolStats } from '../workers/WorkerPool';
 
 export interface RuntimeSingletonHealthSnapshot {
@@ -39,7 +48,9 @@ function defaultDeps(): RuntimeSingletonHealthDeps {
   };
 }
 
-function summarizeManagedWorkers(entries: readonly ManagedWorkerRegistryEntry[]): RuntimeSingletonHealthSnapshot['managedWorkers'] {
+function summarizeManagedWorkers(
+  entries: readonly ManagedWorkerRegistryEntry[],
+): RuntimeSingletonHealthSnapshot['managedWorkers'] {
   const total = entries.length;
   let live = 0;
   let terminated = 0;
@@ -50,7 +61,7 @@ function summarizeManagedWorkers(entries: readonly ManagedWorkerRegistryEntry[])
     } else {
       terminated += 1;
     }
-    if ((entry.errorEventCount + entry.messageErrorEventCount) > 0) {
+    if (entry.errorEventCount + entry.messageErrorEventCount > 0) {
       withErrors += 1;
     }
   }
@@ -71,9 +82,10 @@ export async function collectRuntimeSingletonHealthSnapshot(
   } catch (error) {
     dbResult = {
       ok: false,
-      reason: error instanceof Error && error.message.trim()
-        ? error.message.trim()
-        : 'unknown-error',
+      reason:
+        error instanceof Error && error.message.trim().length > 0
+          ? error.message.trim()
+          : 'unknown-error',
     };
   }
 

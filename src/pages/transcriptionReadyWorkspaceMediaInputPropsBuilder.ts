@@ -16,7 +16,7 @@ export function buildReadyWorkspaceMediaInputProps(
   return {
     ref: input.mediaFileInputRef,
     onChange: (event) => {
-      if (event.target.files?.length) {
+      if ((event.target.files?.length ?? 0) > 0) {
         recordTranscriptionKeyboardAction('workspaceDirectMediaImportSelect');
       }
       input.onDirectMediaImport(event);

@@ -25,7 +25,7 @@ export function TranscriptionPagePdfRuntime({
 
   const cleanupManagedObjectUrl = useCallback(() => {
     const current = managedObjectUrlRef.current;
-    if (!current) return;
+    if (current === null || current.length === 0) return;
     URL.revokeObjectURL(current);
     managedObjectUrlRef.current = null;
   }, []);
@@ -50,7 +50,7 @@ export function TranscriptionPagePdfRuntime({
       cleanupManagedObjectUrl();
     }
 
-    if (!resolvedSourceUrl) return;
+    if (resolvedSourceUrl.length === 0) return;
     openPdfPreview(
       resolvedSourceUrl,
       request.title,
@@ -60,9 +60,12 @@ export function TranscriptionPagePdfRuntime({
     );
   }, [cleanupManagedObjectUrl, openPdfPreview, request]);
 
-  useEffect(() => () => {
-    cleanupManagedObjectUrl();
-  }, [cleanupManagedObjectUrl]);
+  useEffect(
+    () => () => {
+      cleanupManagedObjectUrl();
+    },
+    [cleanupManagedObjectUrl],
+  );
 
   return (
     <PdfPreviewSection

@@ -49,20 +49,25 @@ function hasHighRiskRegexShape(query: string): boolean {
   return /\((?:[^()]|\([^)]*\))*[+*][^)]*\)[+*]/.test(query);
 }
 
-export function analyzeSearchPattern(query: string, options: SearchReplaceOptions): PatternAnalysis {
-  if (!query) return { pattern: null };
+export function analyzeSearchPattern(
+  query: string,
+  options: SearchReplaceOptions,
+): PatternAnalysis {
+  if (query.length === 0) return { pattern: null };
 
   if (options.regexMode && query.length > 120) {
     return {
       pattern: null,
-      warning: '\u6b63\u5219\u8868\u8fbe\u5f0f\u8fc7\u957f\uff0c\u5df2\u8df3\u8fc7\u6267\u884c\u4ee5\u907f\u514d\u5361\u987f\u3002',
+      warning:
+        '\u6b63\u5219\u8868\u8fbe\u5f0f\u8fc7\u957f\uff0c\u5df2\u8df3\u8fc7\u6267\u884c\u4ee5\u907f\u514d\u5361\u987f\u3002',
     };
   }
 
   if (options.regexMode && hasHighRiskRegexShape(query)) {
     return {
       pattern: null,
-      warning: '\u68c0\u6d4b\u5230\u9ad8\u98ce\u9669\u6b63\u5219\uff08\u5d4c\u5957\u91cf\u8bcd\uff09\uff0c\u5df2\u8df3\u8fc7\u6267\u884c\u3002',
+      warning:
+        '\u68c0\u6d4b\u5230\u9ad8\u98ce\u9669\u6b63\u5219\uff08\u5d4c\u5957\u91cf\u8bcd\uff09\uff0c\u5df2\u8df3\u8fc7\u6267\u884c\u3002',
     };
   }
 
@@ -106,8 +111,12 @@ export function findSearchMatches(
         matches.push({
           unitId: item.unitId,
           layerId: item.layerId ?? undefined,
-          ...(item.languageId ? { languageId: item.languageId } : {}),
-          ...(item.orthographyId ? { orthographyId: item.orthographyId } : {}),
+          ...(item.languageId !== undefined && item.languageId.length > 0
+            ? { languageId: item.languageId }
+            : {}),
+          ...(item.orthographyId !== undefined && item.orthographyId.length > 0
+            ? { orthographyId: item.orthographyId }
+            : {}),
           text: source,
           matchStart: found.index,
           matchEnd: found.index + full.length,

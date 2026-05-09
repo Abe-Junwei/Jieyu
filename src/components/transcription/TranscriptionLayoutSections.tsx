@@ -3,7 +3,10 @@ import ZoomControls, { type ZoomControlsProps } from './toolbar/ZoomControls';
 import ObserverStatus, { type ObserverStatusProps } from './toolbar/ObserverStatus';
 import UndoHistory, { type UndoHistoryProps } from './toolbar/UndoHistory';
 
-type WaveformAreaSectionProps = Omit<ComponentPropsWithoutRef<'div'>, 'children' | 'ref' | 'style'> & {
+type WaveformAreaSectionProps = Omit<
+  ComponentPropsWithoutRef<'div'>,
+  'children' | 'ref' | 'style'
+> & {
   containerRef?: Ref<HTMLDivElement>;
   layoutStyle?: CSSProperties;
   children: ReactNode;
@@ -15,12 +18,10 @@ export function WaveformAreaSection({
   children,
   ...divProps
 }: WaveformAreaSectionProps) {
+  const waveformAreaStyleProps = layoutStyle !== undefined ? { style: layoutStyle } : {};
+
   return (
-    <div
-      ref={containerRef}
-      style={layoutStyle}
-      {...divProps}
-    >
+    <div ref={containerRef} {...waveformAreaStyleProps} {...divProps}>
       {children}
     </div>
   );
@@ -31,7 +32,11 @@ type TimelineMainSectionProps = Omit<ComponentPropsWithoutRef<'div'>, 'children'
   children: ReactNode;
 };
 
-export function TimelineMainSection({ containerRef, children, ...divProps }: TimelineMainSectionProps) {
+export function TimelineMainSection({
+  containerRef,
+  children,
+  ...divProps
+}: TimelineMainSectionProps) {
   return (
     <div ref={containerRef} {...divProps}>
       {children}
@@ -44,7 +49,11 @@ type BottomToolbarSectionProps = {
 };
 
 export function BottomToolbarSection({ children }: BottomToolbarSectionProps) {
-  return <div className="transcription-list-toolbar transcription-list-toolbar-zoom-only">{children}</div>;
+  return (
+    <div className="transcription-list-toolbar transcription-list-toolbar-zoom-only">
+      {children}
+    </div>
+  );
 }
 
 type ToolbarLeftSectionProps = {

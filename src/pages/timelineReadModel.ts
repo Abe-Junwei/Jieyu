@@ -81,7 +81,9 @@ export function buildTimelineReadModel(input: BuildTimelineReadModelInput): Time
     playerIsReady: input.playerIsReady,
     playerDuration: input.playerDuration,
     layersCount: timelineShellLayersCount,
-    ...(input.verticalViewEnabled !== undefined ? { verticalViewEnabled: input.verticalViewEnabled } : {}),
+    ...(input.verticalViewEnabled !== undefined
+      ? { verticalViewEnabled: input.verticalViewEnabled }
+      : {}),
   });
   /** 与合同壳一致，但忽略纵向视图开关，避免把「宿主不挂波形轨」误读成「全页媒体不可播」。 */
   const globalShellMode = resolveTimelineShellMode({
@@ -94,9 +96,7 @@ export function buildTimelineReadModel(input: BuildTimelineReadModelInput): Time
     selectedMediaUrl: input.selectedMediaUrl ?? null,
     globalPlaybackReady: globalShellMode.playableAcoustic,
     playerDuration: input.playerDuration,
-    ...(input.documentSpanSec !== undefined
-      ? { documentSpanSec: input.documentSpanSec }
-      : {}),
+    ...(input.documentSpanSec !== undefined ? { documentSpanSec: input.documentSpanSec } : {}),
   });
 
   return {
@@ -105,17 +105,23 @@ export function buildTimelineReadModel(input: BuildTimelineReadModelInput): Time
     layers: {
       transcriptionLayerIds: input.transcriptionLayerIds,
       translationLayerIds: input.translationLayerIds,
-      ...(input.activeTextTimelineMode !== undefined ? { activeTextTimelineMode: input.activeTextTimelineMode } : {}),
+      ...(input.activeTextTimelineMode !== undefined
+        ? { activeTextTimelineMode: input.activeTextTimelineMode }
+        : {}),
     },
     selection: {
       selectedTimelineUnit: input.selectedTimelineUnit,
       selectedUnitIds: input.selectedUnitIds,
-      ...(input.activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits: input.activeLayerIdForEdits } : {}),
+      ...(input.activeLayerIdForEdits !== undefined
+        ? { activeLayerIdForEdits: input.activeLayerIdForEdits }
+        : {}),
     },
     zoom: {
       ...(input.zoomPxPerSec !== undefined ? { zoomPxPerSec: input.zoomPxPerSec } : {}),
       ...(input.fitPxPerSec !== undefined ? { fitPxPerSec: input.fitPxPerSec } : {}),
-      ...(input.waveformScrollLeft !== undefined ? { waveformScrollLeft: input.waveformScrollLeft } : {}),
+      ...(input.waveformScrollLeft !== undefined
+        ? { waveformScrollLeft: input.waveformScrollLeft }
+        : {}),
       ...(input.documentSpanSec !== undefined ? { documentSpanSec: input.documentSpanSec } : {}),
     },
     timeline: {
@@ -134,26 +140,5 @@ export function buildTimelineReadModel(input: BuildTimelineReadModelInput): Time
 }
 
 export function useTimelineReadModel(input: BuildTimelineReadModelInput): TimelineReadModel {
-  return useMemo(
-    () => buildTimelineReadModel(input),
-    [
-      input.unitIndex,
-      input.transcriptionLayerIds,
-      input.translationLayerIds,
-      input.selectedTimelineUnit,
-      input.selectedUnitIds,
-      input.activeLayerIdForEdits,
-      input.activeTextTimelineMode,
-      input.documentSpanSec,
-      input.zoomPxPerSec,
-      input.fitPxPerSec,
-      input.waveformScrollLeft,
-      input.selectedMediaId,
-      input.selectedMediaUrl,
-      input.playerIsReady,
-      input.playerDuration,
-      input.verticalViewEnabled,
-      input.orchestratorLayersCount,
-    ],
-  );
+  return useMemo(() => buildTimelineReadModel(input), [input]);
 }

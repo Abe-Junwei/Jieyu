@@ -2,7 +2,10 @@ import type {
   CollaborationCloudDirectoryMember,
   CollaborationCloudDirectoryProject,
 } from './collaborationSyncDerived';
-import { getSupabaseBrowserClient, hasSupabaseBrowserClientConfig } from './collaborationSupabaseFacade';
+import {
+  getSupabaseBrowserClient,
+  hasSupabaseBrowserClientConfig,
+} from './collaborationSupabaseFacade';
 
 export async function listAccessibleCloudProjects(): Promise<CollaborationCloudDirectoryProject[]> {
   if (!hasSupabaseBrowserClientConfig()) return [];
@@ -18,13 +21,17 @@ export async function listAccessibleCloudProjects(): Promise<CollaborationCloudD
     name: String(row.name ?? ''),
     visibility: String(row.visibility ?? ''),
     updatedAt: String(row.updated_at ?? ''),
-    latestRevision: typeof row.latest_revision === 'number'
-      ? row.latest_revision
-      : Number(row.latest_revision) || 0,
+    latestRevision: (() => {
+      const parsed =
+        typeof row.latest_revision === 'number' ? row.latest_revision : Number(row.latest_revision);
+      return Number.isFinite(parsed) ? parsed : 0;
+    })(),
   }));
 }
 
-export async function listCloudProjectMembers(projectId: string): Promise<CollaborationCloudDirectoryMember[]> {
+export async function listCloudProjectMembers(
+  projectId: string,
+): Promise<CollaborationCloudDirectoryMember[]> {
   if (!hasSupabaseBrowserClientConfig()) return [];
   const client = getSupabaseBrowserClient();
   const { data, error } = await client

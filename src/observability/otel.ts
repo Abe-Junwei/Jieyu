@@ -99,7 +99,11 @@ function normalizePositiveInteger(rawValue: string | undefined, fallback: number
   return parsed;
 }
 
-function safeRecordOtelMetric(id: string, value: number, tags?: Record<string, string | number | boolean>): void {
+function safeRecordOtelMetric(
+  id: string,
+  value: number,
+  tags?: Record<string, string | number | boolean>,
+): void {
   try {
     recordMetric({
       id,
@@ -158,8 +162,8 @@ function createCircuitBreakerSpanExporter(
 
 function resolveServiceVersion(rawValue: string | undefined): string {
   const trimmed = rawValue?.trim();
-  if (trimmed) return trimmed;
-  if (typeof __APP_VERSION__ === 'string' && __APP_VERSION__.trim()) {
+  if (trimmed !== undefined && trimmed.length > 0) return trimmed;
+  if (typeof __APP_VERSION__ === 'string' && __APP_VERSION__.trim().length > 0) {
     return __APP_VERSION__.trim();
   }
   return OTEL_DEFAULT_SERVICE_VERSION;
@@ -189,7 +193,7 @@ function scrubOtelAttributeValue(key: string, value: unknown): unknown {
 }
 
 export function scrubOtelSpanAttributes(attributes: Record<string, unknown> | undefined): void {
-  if (!attributes) return;
+  if (attributes === undefined) return;
   for (const [key, value] of Object.entries(attributes)) {
     attributes[key] = scrubOtelAttributeValue(key, value);
   }
@@ -214,7 +218,7 @@ function createScrubbingBatchSpanProcessor(delegate: SpanProcessorDelegate): Spa
     },
     onEnd(span) {
       const attrs = span.attributes;
-      if (attrs && typeof attrs === 'object') {
+      if (attrs !== undefined && typeof attrs === 'object') {
         scrubOtelSpanAttributes(attrs as Record<string, unknown>);
       }
       delegate.onEnd(span);
@@ -226,22 +230,43 @@ function createScrubbingBatchSpanProcessor(delegate: SpanProcessorDelegate): Spa
 
 export function resolveOtelBootstrapConfig(env: OtelBootstrapEnv): ResolvedOtelBootstrapConfig {
   const endpoint = env.VITE_OTEL_EXPORTER_OTLP_ENDPOINT?.trim();
-  const serviceName = env.VITE_OTEL_SERVICE_NAME?.trim() || OTEL_DEFAULT_SERVICE_NAME;
-  const environment = env.VITE_OTEL_ENVIRONMENT?.trim() || env.MODE;
-  const exportEnabledFlag = (env.VITE_OTEL_EXPORT_ENABLED ?? env.VITE_ENABLE_OTEL)?.trim().toLowerCase() === 'true';
-  const enabled = env.PROD && exportEnabledFlag && Boolean(endpoint);
+  const trimmedServiceName = env.VITE_OTEL_SERVICE_NAME?.trim();
+  const trimmedEnvironment = env.VITE_OTEL_ENVIRONMENT?.trim();
+  const serviceName =
+    trimmedServiceName !== undefined && trimmedServiceName.length > 0
+      ? trimmedServiceName
+      : OTEL_DEFAULT_SERVICE_NAME;
+  const environment =
+    trimmedEnvironment !== undefined && trimmedEnvironment.length > 0
+      ? trimmedEnvironment
+      : env.MODE;
+  const exportEnabledFlag =
+    (env.VITE_OTEL_EXPORT_ENABLED ?? env.VITE_ENABLE_OTEL)?.trim().toLowerCase() === 'true';
+  const enabled = env.PROD && exportEnabledFlag && endpoint !== undefined && endpoint.length > 0;
 
   return {
     enabled,
-    ...(endpoint ? { endpoint } : {}),
+    ...(endpoint !== undefined && endpoint.length > 0 ? { endpoint } : {}),
     serviceName,
     serviceVersion: resolveServiceVersion(env.VITE_APP_VERSION),
     environment,
     tracesSampleRate: normalizeSampleRate(env.VITE_OTEL_TRACES_SAMPLE_RATE),
-    exportTimeoutMillis: normalizePositiveInteger(env.VITE_OTEL_EXPORT_TIMEOUT_MS, OTEL_DEFAULT_EXPORT_TIMEOUT_MILLIS),
-    scheduledDelayMillis: normalizePositiveInteger(env.VITE_OTEL_BSP_SCHEDULE_DELAY_MS, OTEL_DEFAULT_SCHEDULE_DELAY_MILLIS),
-    maxQueueSize: normalizePositiveInteger(env.VITE_OTEL_BSP_MAX_QUEUE_SIZE, OTEL_DEFAULT_MAX_QUEUE_SIZE),
-    maxExportBatchSize: normalizePositiveInteger(env.VITE_OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_DEFAULT_MAX_EXPORT_BATCH_SIZE),
+    exportTimeoutMillis: normalizePositiveInteger(
+      env.VITE_OTEL_EXPORT_TIMEOUT_MS,
+      OTEL_DEFAULT_EXPORT_TIMEOUT_MILLIS,
+    ),
+    scheduledDelayMillis: normalizePositiveInteger(
+      env.VITE_OTEL_BSP_SCHEDULE_DELAY_MS,
+      OTEL_DEFAULT_SCHEDULE_DELAY_MILLIS,
+    ),
+    maxQueueSize: normalizePositiveInteger(
+      env.VITE_OTEL_BSP_MAX_QUEUE_SIZE,
+      OTEL_DEFAULT_MAX_QUEUE_SIZE,
+    ),
+    maxExportBatchSize: normalizePositiveInteger(
+      env.VITE_OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
+      OTEL_DEFAULT_MAX_EXPORT_BATCH_SIZE,
+    ),
     circuitBreakerFailureThreshold: normalizePositiveInteger(
       env.VITE_OTEL_CIRCUIT_BREAKER_FAILURE_THRESHOLD,
       OTEL_DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD,
@@ -250,13 +275,14 @@ export function resolveOtelBootstrapConfig(env: OtelBootstrapEnv): ResolvedOtelB
 }
 
 async function loadOtelRuntimeModules(): Promise<OtelRuntimeModules> {
-  const [sdkWebModule, sdkBaseModule, exporterModule, resourcesModule, semanticModule] = await Promise.all([
-    import('@opentelemetry/sdk-trace-web'),
-    import('@opentelemetry/sdk-trace-base'),
-    import('@opentelemetry/exporter-trace-otlp-http'),
-    import('@opentelemetry/resources'),
-    import('@opentelemetry/semantic-conventions'),
-  ]);
+  const [sdkWebModule, sdkBaseModule, exporterModule, resourcesModule, semanticModule] =
+    await Promise.all([
+      import('@opentelemetry/sdk-trace-web'),
+      import('@opentelemetry/sdk-trace-base'),
+      import('@opentelemetry/exporter-trace-otlp-http'),
+      import('@opentelemetry/resources'),
+      import('@opentelemetry/semantic-conventions'),
+    ]);
 
   return {
     sdkWeb: sdkWebModule as Record<string, unknown>,
@@ -271,7 +297,7 @@ export async function initOtelWithResolvedConfig(
   config: ResolvedOtelBootstrapConfig,
   moduleLoader: OtelRuntimeModuleLoader = loadOtelRuntimeModules,
 ): Promise<void> {
-  if (!config.enabled || !config.endpoint) {
+  if (!config.enabled || config.endpoint === undefined || config.endpoint.length === 0) {
     return;
   }
 
@@ -281,18 +307,39 @@ export async function initOtelWithResolvedConfig(
     const scheduledDelayMillis = config.scheduledDelayMillis ?? OTEL_DEFAULT_SCHEDULE_DELAY_MILLIS;
     const maxQueueSize = config.maxQueueSize ?? OTEL_DEFAULT_MAX_QUEUE_SIZE;
     const maxExportBatchSize = config.maxExportBatchSize ?? OTEL_DEFAULT_MAX_EXPORT_BATCH_SIZE;
-    const circuitBreakerFailureThreshold = config.circuitBreakerFailureThreshold
-      ?? OTEL_DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD;
-    const serviceVersion = config.serviceVersion || resolveServiceVersion(undefined);
+    const circuitBreakerFailureThreshold =
+      config.circuitBreakerFailureThreshold ?? OTEL_DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD;
+    const serviceVersion =
+      config.serviceVersion !== undefined && config.serviceVersion.length > 0
+        ? config.serviceVersion
+        : resolveServiceVersion(undefined);
 
-    const WebTracerProvider = sdkWeb.WebTracerProvider as (new (config?: unknown) => unknown) | undefined;
-    const BatchSpanProcessor = sdkBase.BatchSpanProcessor as (new (exporter: unknown, config?: unknown) => unknown) | undefined;
-    const ParentBasedSampler = sdkBase.ParentBasedSampler as (new (config: { root: unknown }) => unknown) | undefined;
-    const TraceIdRatioBasedSampler = sdkBase.TraceIdRatioBasedSampler as (new (ratio: number) => unknown) | undefined;
-    const OTLPTraceExporter = otlp.OTLPTraceExporter as (new (config?: unknown) => unknown) | undefined;
-    const resourceFromAttributes = resources.resourceFromAttributes as ((attributes: Record<string, unknown>) => unknown) | undefined;
+    const WebTracerProvider = sdkWeb.WebTracerProvider as
+      | (new (config?: unknown) => unknown)
+      | undefined;
+    const BatchSpanProcessor = sdkBase.BatchSpanProcessor as
+      | (new (exporter: unknown, config?: unknown) => unknown)
+      | undefined;
+    const ParentBasedSampler = sdkBase.ParentBasedSampler as
+      | (new (config: { root: unknown }) => unknown)
+      | undefined;
+    const TraceIdRatioBasedSampler = sdkBase.TraceIdRatioBasedSampler as
+      | (new (ratio: number) => unknown)
+      | undefined;
+    const OTLPTraceExporter = otlp.OTLPTraceExporter as
+      | (new (config?: unknown) => unknown)
+      | undefined;
+    const resourceFromAttributes = resources.resourceFromAttributes as
+      | ((attributes: Record<string, unknown>) => unknown)
+      | undefined;
 
-    if (!WebTracerProvider || !BatchSpanProcessor || !OTLPTraceExporter || !ParentBasedSampler || !TraceIdRatioBasedSampler) {
+    if (
+      !WebTracerProvider ||
+      !BatchSpanProcessor ||
+      !OTLPTraceExporter ||
+      !ParentBasedSampler ||
+      !TraceIdRatioBasedSampler
+    ) {
       safeRecordOtelMetric('ai.trace.otel_bootstrap_failure_count', 1, {
         reason: 'missing_runtime_exports',
       });
@@ -300,15 +347,18 @@ export async function initOtelWithResolvedConfig(
       return;
     }
 
-    const serviceNameAttr = typeof semantics.ATTR_SERVICE_NAME === 'string'
-      ? semantics.ATTR_SERVICE_NAME
-      : 'service.name';
-    const deploymentEnvAttr = typeof semantics.ATTR_DEPLOYMENT_ENVIRONMENT_NAME === 'string'
-      ? semantics.ATTR_DEPLOYMENT_ENVIRONMENT_NAME
-      : 'deployment.environment.name';
-    const serviceVersionAttr = typeof semantics.ATTR_SERVICE_VERSION === 'string'
-      ? semantics.ATTR_SERVICE_VERSION
-      : 'service.version';
+    const serviceNameAttr =
+      typeof semantics.ATTR_SERVICE_NAME === 'string'
+        ? semantics.ATTR_SERVICE_NAME
+        : 'service.name';
+    const deploymentEnvAttr =
+      typeof semantics.ATTR_DEPLOYMENT_ENVIRONMENT_NAME === 'string'
+        ? semantics.ATTR_DEPLOYMENT_ENVIRONMENT_NAME
+        : 'deployment.environment.name';
+    const serviceVersionAttr =
+      typeof semantics.ATTR_SERVICE_VERSION === 'string'
+        ? semantics.ATTR_SERVICE_VERSION
+        : 'service.version';
 
     const resource = resourceFromAttributes
       ? resourceFromAttributes({
@@ -322,7 +372,10 @@ export async function initOtelWithResolvedConfig(
       url: config.endpoint,
       timeoutMillis: exportTimeoutMillis,
     }) as OtelSpanExporterLike;
-    const exporterWithCircuitBreaker = createCircuitBreakerSpanExporter(exporter, circuitBreakerFailureThreshold);
+    const exporterWithCircuitBreaker = createCircuitBreakerSpanExporter(
+      exporter,
+      circuitBreakerFailureThreshold,
+    );
     const spanProcessor = new BatchSpanProcessor(exporterWithCircuitBreaker, {
       maxQueueSize,
       maxExportBatchSize: Math.min(maxExportBatchSize, maxQueueSize),
@@ -335,7 +388,7 @@ export async function initOtelWithResolvedConfig(
         root: new TraceIdRatioBasedSampler(config.tracesSampleRate),
       }),
       spanProcessors: [createScrubbingBatchSpanProcessor(spanProcessor)],
-      ...(resource ? { resource } : {}),
+      ...(resource !== undefined ? { resource } : {}),
     };
 
     const provider = new WebTracerProvider(providerConfig) as {

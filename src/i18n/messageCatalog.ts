@@ -23,7 +23,7 @@ const catalogCache = getCatalogCache();
 export function readMessageCatalog<T>(locale: Locale, key: DictKey): T {
   const cacheKey = `${locale}:${key}`;
   const cached = catalogCache.get(cacheKey);
-  if (cached) {
+  if (catalogCache.has(cacheKey)) {
     return cached as T;
   }
   const rawCatalog = t(locale, key);
@@ -34,7 +34,7 @@ export function readMessageCatalog<T>(locale: Locale, key: DictKey): T {
     return parsed;
   } catch (error) {
     const crossLocaleCached = catalogCache.get(`*:${key}`);
-    if (crossLocaleCached) {
+    if (catalogCache.has(`*:${key}`)) {
       catalogCache.set(cacheKey, crossLocaleCached);
       return crossLocaleCached as T;
     }

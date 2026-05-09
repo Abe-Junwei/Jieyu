@@ -27,7 +27,9 @@ interface TimelineDraftEditorSurfaceProps {
   rows?: number;
   saveStatus?: TimelineDraftSaveStatus;
   onRetry?: (() => void) | undefined;
-  onResizeHandlePointerDown?: ((event: ReactPointerEvent<HTMLDivElement>, edge: SurfaceResizeEdge) => void) | undefined;
+  onResizeHandlePointerDown?:
+    | ((event: ReactPointerEvent<HTMLDivElement>, edge: SurfaceResizeEdge) => void)
+    | undefined;
   overlay?: ReactNode;
   tools?: ReactNode;
   toolsClassName?: string;
@@ -77,6 +79,7 @@ export function TimelineDraftEditorSurface({
   inputStyle,
 }: TimelineDraftEditorSurfaceProps) {
   const locale = useLocale();
+  const inputStyleProps = inputStyle !== undefined ? { style: inputStyle } : {};
 
   const surfaceClassName = [
     'timeline-draft-editor-surface',
@@ -84,7 +87,9 @@ export function TimelineDraftEditorSurface({
     tools ? 'timeline-draft-editor-surface-has-tools' : '',
     onResizeHandlePointerDown ? 'timeline-draft-editor-surface-resizable' : '',
     wrapperClassName ?? '',
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div className={surfaceClassName}>
@@ -102,9 +107,11 @@ export function TimelineDraftEditorSurface({
       ) : saveStatus ? (
         <span
           className={`timeline-text-item-status-dot timeline-text-item-status-dot-${saveStatus}`}
-          title={saveStatus === 'saving'
-            ? t(locale, 'transcription.timeline.save.saving')
-            : t(locale, 'transcription.timeline.save.unsaved')}
+          title={
+            saveStatus === 'saving'
+              ? t(locale, 'transcription.timeline.save.saving')
+              : t(locale, 'transcription.timeline.save.unsaved')
+          }
         />
       ) : null}
 
@@ -134,7 +141,7 @@ export function TimelineDraftEditorSurface({
             disabled={disabled}
             autoFocus={autoFocus}
             dir={dir}
-            style={inputStyle}
+            {...inputStyleProps}
             onFocus={onFocus as FocusEventHandler<HTMLTextAreaElement> | undefined}
             onChange={onChange as ChangeEventHandler<HTMLTextAreaElement>}
             onBlur={onBlur as FocusEventHandler<HTMLTextAreaElement>}
@@ -156,7 +163,7 @@ export function TimelineDraftEditorSurface({
           disabled={disabled}
           autoFocus={autoFocus}
           dir={dir}
-          style={inputStyle}
+          {...inputStyleProps}
           onFocus={onFocus as FocusEventHandler<HTMLInputElement> | undefined}
           onChange={onChange as ChangeEventHandler<HTMLInputElement>}
           onBlur={onBlur as FocusEventHandler<HTMLInputElement>}
@@ -168,16 +175,10 @@ export function TimelineDraftEditorSurface({
         />
       )}
 
-      {overlay ? (
-        <div className="timeline-draft-editor-surface-overlay">
-          {overlay}
-        </div>
-      ) : null}
+      {overlay ? <div className="timeline-draft-editor-surface-overlay">{overlay}</div> : null}
 
       {tools ? (
-        <div className={toolsClassName ?? 'timeline-draft-editor-surface-tools'}>
-          {tools}
-        </div>
+        <div className={toolsClassName ?? 'timeline-draft-editor-surface-tools'}>{tools}</div>
       ) : null}
     </div>
   );

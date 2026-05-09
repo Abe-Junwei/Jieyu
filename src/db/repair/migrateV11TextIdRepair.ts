@@ -9,7 +9,9 @@ import type { LayerUnitContentDocType, LayerUnitDocType, TierDefinitionDocType }
 
 export interface MigrateV11TextIdRepairTables {
   tier_definitions: {
-    filter(fn: (t: TierDefinitionDocType) => boolean): { toArray(): Promise<TierDefinitionDocType[]> };
+    filter(fn: (t: TierDefinitionDocType) => boolean): {
+      toArray(): Promise<TierDefinitionDocType[]>;
+    };
     put(row: TierDefinitionDocType): Promise<unknown>;
   };
   layer_units: { toArray(): Promise<LayerUnitDocType[]> };
@@ -29,11 +31,18 @@ function resolveContentTextId(
   if (typeof row.textId === 'string' && row.textId.trim().length > 0) {
     return row.textId.trim();
   }
-  const uid = typeof row.unitId === 'string' && row.unitId.trim().length > 0 ? row.unitId.trim() : undefined;
-  if (!uid) return undefined;
+  const uid =
+    typeof row.unitId === 'string' && row.unitId.trim().length > 0 ? row.unitId.trim() : undefined;
+  if (uid === undefined || uid.length === 0) return undefined;
   let lu = unitsById.get(uid);
   let guard = 0;
-  while (lu && lu.unitType !== 'unit' && typeof lu.parentUnitId === 'string' && lu.parentUnitId.length > 0 && guard < 32) {
+  while (
+    lu &&
+    lu.unitType !== 'unit' &&
+    typeof lu.parentUnitId === 'string' &&
+    lu.parentUnitId.length > 0 &&
+    guard < 32
+  ) {
     lu = unitsById.get(lu.parentUnitId);
     guard += 1;
   }
@@ -73,14 +82,14 @@ export async function repairTranslationTierTextIdsFromLayerContents(
     const counts = new Map<string, number>();
     for (const r of rows) {
       const tid = resolveContentTextId(r, unitsById);
-      if (!tid) continue;
+      if (tid === undefined || tid.length === 0) continue;
       counts.set(tid, (counts.get(tid) ?? 0) + 1);
     }
     if (counts.size === 0) continue;
 
     const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
     const best = ranked[0]![0];
-    if (best && best !== tier.textId) {
+    if (best.length > 0 && best !== tier.textId) {
       tiersUpdated += 1;
       changes.push({ tierId: tier.id, from: tier.textId, to: best });
       const now = new Date().toISOString();

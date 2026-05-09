@@ -7,10 +7,15 @@ import type { TranscriptionOverlaysProps } from '../components/TranscriptionOver
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
 import type { Locale } from '../i18n';
 import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
-export { buildReadyWorkspaceStageProps, type BuildReadyWorkspaceStagePropsInput } from './transcriptionReadyWorkspaceStagePropsBuilder';
+export {
+  buildReadyWorkspaceStageProps,
+  type BuildReadyWorkspaceStagePropsInput,
+} from './transcriptionReadyWorkspaceStagePropsBuilder';
 
 type HorizontalMediaLanesProps = TranscriptionPageTimelineHorizontalMediaLanesProps;
-type ReadyWorkspaceConflictReviewDrawerProps = NonNullable<TranscriptionPageReadyWorkspaceLayoutProps['conflictReviewDrawerProps']>;
+type ReadyWorkspaceConflictReviewDrawerProps = NonNullable<
+  TranscriptionPageReadyWorkspaceLayoutProps['conflictReviewDrawerProps']
+>;
 
 /**
  * ReadyWorkspace 侧字段名与 TranscriptionTimelineHorizontalMediaLanes props 的对应关系
@@ -66,7 +71,9 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
     translationLayers: input.translationLayers,
     activeTextTimelineMode: input.activeTextTimelineMode ?? null,
     timelineUnitViewIndex: input.timelineUnitViewIndex,
-    ...(input.segmentParentUnitLookup !== undefined ? { segmentParentUnitLookup: input.segmentParentUnitLookup } : {}),
+    ...(input.segmentParentUnitLookup !== undefined
+      ? { segmentParentUnitLookup: input.segmentParentUnitLookup }
+      : {}),
     segmentsByLayer: input.segmentsByLayer,
     segmentContentByLayer: input.segmentContentByLayer,
     saveSegmentContentForLayer: input.saveSegmentContentForLayer,
@@ -224,13 +231,19 @@ export function buildReadyWorkspaceSidePaneProps(
       updateLayerMetadata: input.updateLayerMetadata,
       layerCreateMessage: input.layerCreateMessage,
       layerAction: input.layerAction,
-      ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
+      ...(input.defaultTranscriptionLayerId !== undefined
+        ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId }
+        : {}),
       segmentsByLayer: input.segmentsByLayer,
       segmentContentByLayer: input.segmentContentByLayer,
       unitsOnCurrentMedia: input.unitsOnCurrentMedia,
       speakers: input.speakers,
-      ...(input.collaborationCloudPanelProps !== undefined ? { collaborationCloudPanelProps: input.collaborationCloudPanelProps } : {}),
-      ...(input.getUnitTextForLayer !== undefined ? { getUnitTextForLayer: input.getUnitTextForLayer } : {}),
+      ...(input.collaborationCloudPanelProps !== undefined
+        ? { collaborationCloudPanelProps: input.collaborationCloudPanelProps }
+        : {}),
+      ...(input.getUnitTextForLayer !== undefined
+        ? { getUnitTextForLayer: input.getUnitTextForLayer }
+        : {}),
       onSelectTimelineUnit: input.onSelectTimelineUnit,
       onReorderLayers: input.onReorderLayers,
       workspaceTimelineLayout: {
@@ -250,7 +263,10 @@ export function buildReadyWorkspaceSidePaneProps(
   };
 }
 
-export type BuildReadyWorkspaceOverlaysPropsInput = Omit<TranscriptionOverlaysProps, 'onOpenNoteFromMenu'> & {
+export type BuildReadyWorkspaceOverlaysPropsInput = Omit<
+  TranscriptionOverlaysProps,
+  'onOpenNoteFromMenu'
+> & {
   setNotePopover: (next: TranscriptionOverlaysProps['notePopover']) => void;
 };
 
@@ -326,7 +342,7 @@ export function buildReadyWorkspaceOverlaysProps(
       scope?: 'timeline' | 'waveform',
     ) => {
       recordTranscriptionKeyboardAction('overlayOpenNoteFromMenu');
-      if (layerId) {
+      if (layerId !== undefined && layerId.length > 0) {
         input.setNotePopover({ x, y, uttId, layerId, scope: scope ?? 'timeline' });
         return;
       }
@@ -365,56 +381,60 @@ export function buildReadyWorkspaceOverlaysProps(
     getUnitTextForLayer: input.getUnitTextForLayer,
     transcriptionLayers: input.transcriptionLayers,
     translationLayers: input.translationLayers,
-    ...(input.resolveSelfCertaintyUnitIds ? { resolveSelfCertaintyUnitIds: input.resolveSelfCertaintyUnitIds } : {}),
+    ...(input.resolveSelfCertaintyUnitIds
+      ? { resolveSelfCertaintyUnitIds: input.resolveSelfCertaintyUnitIds }
+      : {}),
     ...(input.speakerOptions ? { speakerOptions: input.speakerOptions } : {}),
     ...(input.speakerFilterOptions ? { speakerFilterOptions: input.speakerFilterOptions } : {}),
     ...(input.onAssignSpeakerFromMenu
       ? {
-        onAssignSpeakerFromMenu: (unitIds, kind, speakerId) => {
-          recordTranscriptionKeyboardAction('overlayAssignSpeaker');
-          input.onAssignSpeakerFromMenu!(unitIds, kind, speakerId);
-        },
-      }
+          onAssignSpeakerFromMenu: (unitIds, kind, speakerId) => {
+            recordTranscriptionKeyboardAction('overlayAssignSpeaker');
+            input.onAssignSpeakerFromMenu!(unitIds, kind, speakerId);
+          },
+        }
       : {}),
     ...(input.onSetUnitSelfCertaintyFromMenu
       ? {
-        onSetUnitSelfCertaintyFromMenu: (unitIds, kind, value, layerId) => {
-          recordTranscriptionKeyboardAction('overlaySetSelfCertainty');
-          input.onSetUnitSelfCertaintyFromMenu!(unitIds, kind, value, layerId);
-        },
-      }
+          onSetUnitSelfCertaintyFromMenu: (unitIds, kind, value, layerId) => {
+            recordTranscriptionKeyboardAction('overlaySetSelfCertainty');
+            input.onSetUnitSelfCertaintyFromMenu!(unitIds, kind, value, layerId);
+          },
+        }
       : {}),
     ...(input.onToggleSkipProcessingFromMenu
       ? {
-        onToggleSkipProcessingFromMenu: (unitId, kind, layerId) => {
-          recordTranscriptionKeyboardAction('overlayToggleSkipProcessing');
-          input.onToggleSkipProcessingFromMenu!(unitId, kind, layerId);
-        },
-      }
+          onToggleSkipProcessingFromMenu: (unitId, kind, layerId) => {
+            recordTranscriptionKeyboardAction('overlayToggleSkipProcessing');
+            input.onToggleSkipProcessingFromMenu!(unitId, kind, layerId);
+          },
+        }
       : {}),
-    ...(input.resolveSkipProcessingState ? { resolveSkipProcessingState: input.resolveSkipProcessingState } : {}),
+    ...(input.resolveSkipProcessingState
+      ? { resolveSkipProcessingState: input.resolveSkipProcessingState }
+      : {}),
     ...(input.onOpenSpeakerManagementPanelFromMenu
       ? {
-        onOpenSpeakerManagementPanelFromMenu: () => {
-          recordTranscriptionKeyboardAction('toolbarOpenSpeakerManagementPanel');
-          input.onOpenSpeakerManagementPanelFromMenu!();
-        },
-      }
+          onOpenSpeakerManagementPanelFromMenu: () => {
+            recordTranscriptionKeyboardAction('toolbarOpenSpeakerManagementPanel');
+            input.onOpenSpeakerManagementPanelFromMenu!();
+          },
+        }
       : {}),
     ...(input.displayStyleControl
       ? {
-        displayStyleControl: {
-          ...input.displayStyleControl,
-          onUpdate: (layerId, patch) => {
-            recordTranscriptionKeyboardAction('overlayLayerDisplayUpdate');
-            input.displayStyleControl!.onUpdate(layerId, patch);
+          displayStyleControl: {
+            ...input.displayStyleControl,
+            onUpdate: (layerId, patch) => {
+              recordTranscriptionKeyboardAction('overlayLayerDisplayUpdate');
+              input.displayStyleControl!.onUpdate(layerId, patch);
+            },
+            onReset: (layerId) => {
+              recordTranscriptionKeyboardAction('overlayLayerDisplayReset');
+              input.displayStyleControl!.onReset(layerId);
+            },
           },
-          onReset: (layerId) => {
-            recordTranscriptionKeyboardAction('overlayLayerDisplayReset');
-            input.displayStyleControl!.onReset(layerId);
-          },
-        },
-      }
+        }
       : {}),
   };
 }
@@ -445,9 +465,13 @@ export function buildReadyWorkspaceLayoutStyle(
     '--transcription-ai-width': `${input.aiPanelWidth}px`,
     '--transcription-ai-visible-width': `${input.isAiPanelCollapsed ? 0 : input.aiPanelWidth}px`,
     '--lane-label-width': input.isTimelineLaneHeaderCollapsed ? '0px' : `${input.laneLabelWidth}px`,
-    '--video-left-panel-width': input.selectedMediaUrl && input.selectedMediaIsVideo && input.videoLayoutMode === 'left'
-      ? `${input.videoRightPanelWidth + 8}px`
-      : '0px',
+    '--video-left-panel-width':
+      input.selectedMediaUrl != null &&
+      input.selectedMediaUrl.length > 0 &&
+      input.selectedMediaIsVideo &&
+      input.videoLayoutMode === 'left'
+        ? `${input.videoRightPanelWidth + 8}px`
+        : '0px',
   } as CSSProperties;
 }
 

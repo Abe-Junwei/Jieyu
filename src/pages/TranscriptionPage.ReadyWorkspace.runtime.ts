@@ -61,56 +61,80 @@ export function createInitialDeferredAiRuntimeState(): DeferredTranscriptionAiRu
   } as unknown as DeferredTranscriptionAiRuntimeState;
 }
 
-export const TranscriptionPageAiSidebar = lazy(async () => import('./TranscriptionPage.AiSidebar').then((module) => ({
-  default: module.TranscriptionPageAiSidebar,
-})));
+export const TranscriptionPageAiSidebar = lazy(async () =>
+  import('./TranscriptionPage.AiSidebar').then((module) => ({
+    default: module.TranscriptionPageAiSidebar,
+  })),
+);
 
-export const TranscriptionPageToolbar = lazy(async () => import('./TranscriptionPage.Toolbar').then((module) => ({
-  default: module.TranscriptionPageToolbar,
-})));
+export const TranscriptionPageToolbar = lazy(async () =>
+  import('./TranscriptionPage.Toolbar').then((module) => ({
+    default: module.TranscriptionPageToolbar,
+  })),
+);
 
-export const TranscriptionPageBatchOps = lazy(async () => import('./TranscriptionPage.BatchOps').then((module) => ({
-  default: module.TranscriptionPageBatchOps,
-})));
+export const TranscriptionPageBatchOps = lazy(async () =>
+  import('./TranscriptionPage.BatchOps').then((module) => ({
+    default: module.TranscriptionPageBatchOps,
+  })),
+);
 
-export const TranscriptionPageDialogs = lazy(async () => import('./TranscriptionPage.Dialogs').then((module) => ({
-  default: module.TranscriptionPageDialogs,
-})));
+export const TranscriptionPageDialogs = lazy(async () =>
+  import('./TranscriptionPage.Dialogs').then((module) => ({
+    default: module.TranscriptionPageDialogs,
+  })),
+);
 
-export const TranscriptionPageTimelineContent = lazy(async () => import('./TranscriptionPage.TimelineContent').then((module) => ({
-  default: module.TranscriptionPageTimelineContent,
-})));
+export const TranscriptionPageTimelineContent = lazy(async () =>
+  import('./TranscriptionPage.TimelineContent').then((module) => ({
+    default: module.TranscriptionPageTimelineContent,
+  })),
+);
 
-export const TranscriptionPageTimelineTop = lazy(async () => import('./TranscriptionPage.TimelineTop').then((module) => ({
-  default: module.TranscriptionPageTimelineTop,
-})));
+export const TranscriptionPageTimelineTop = lazy(async () =>
+  import('./TranscriptionPage.TimelineTop').then((module) => ({
+    default: module.TranscriptionPageTimelineTop,
+  })),
+);
 
-export const TranscriptionPageSidePane = lazy(async () => import('./TranscriptionPage.SidePane').then((module) => ({
-  default: module.TranscriptionPageSidePane,
-})));
+export const TranscriptionPageSidePane = lazy(async () =>
+  import('./TranscriptionPage.SidePane').then((module) => ({
+    default: module.TranscriptionPageSidePane,
+  })),
+);
 
-export const TranscriptionOverlays = lazy(async () => import('../components/TranscriptionOverlays').then((module) => ({
-  default: module.TranscriptionOverlays,
-})));
+export const TranscriptionOverlays = lazy(async () =>
+  import('../components/TranscriptionOverlays').then((module) => ({
+    default: module.TranscriptionOverlays,
+  })),
+);
 
-export const RecoveryBanner = lazy(async () => import('../components/RecoveryBanner').then((module) => ({
-  default: module.RecoveryBanner,
-})));
+export const RecoveryBanner = lazy(async () =>
+  import('../components/RecoveryBanner').then((module) => ({
+    default: module.RecoveryBanner,
+  })),
+);
 
-export const TranscriptionPagePdfRuntime = lazy(async () => import('./TranscriptionPage.PdfRuntime').then((module) => ({
-  default: module.TranscriptionPagePdfRuntime,
-})));
+export const TranscriptionPagePdfRuntime = lazy(async () =>
+  import('./TranscriptionPage.PdfRuntime').then((module) => ({
+    default: module.TranscriptionPagePdfRuntime,
+  })),
+);
 
-export const TranscriptionPageAssistantBridge = lazy(async () => import('./TranscriptionPage.AssistantBridge').then((module) => ({
-  default: module.TranscriptionPageAssistantBridge,
-})));
+export const TranscriptionPageAssistantBridge = lazy(async () =>
+  import('./TranscriptionPage.AssistantBridge').then((module) => ({
+    default: module.TranscriptionPageAssistantBridge,
+  })),
+);
 
-export const TranscriptionPageChatWindow = lazy(async () => import('./TranscriptionPage.ChatWindow').then((module) => ({
-  default: module.TranscriptionPageChatWindow,
-})));
+export const TranscriptionPageChatWindow = lazy(async () =>
+  import('./TranscriptionPage.ChatWindow').then((module) => ({
+    default: module.TranscriptionPageChatWindow,
+  })),
+);
 
 function hashRuntimeSettingValue(value: string | undefined): string {
-  if (!value) return '';
+  if (value === undefined || value.length === 0) return '';
   let hash = 0x811c9dc5;
   for (let index = 0; index < value.length; index += 1) {
     hash ^= value.charCodeAt(index);
@@ -121,7 +145,7 @@ function hashRuntimeSettingValue(value: string | undefined): string {
 
 function buildAiChatSettingsFingerprint(state: DeferredTranscriptionAiRuntimeState): string {
   const settings = state.aiChat.settings;
-  if (!settings) return '';
+  if (settings === undefined) return '';
   return [
     settings.providerKind,
     hashRuntimeSettingValue(settings.apiKey),
@@ -150,11 +174,14 @@ function buildPendingAgentLoopFingerprint(
   ].join('\u0001');
 }
 
-export function buildAiStateWorkerSlice(state: DeferredTranscriptionAiRuntimeState): AiStateWorkerSlice {
-  const pendingToolCallId = state.aiChat.pendingToolCall?.requestId
-    ?? state.aiChat.pendingToolCall?.call.requestId
-    ?? state.aiChat.pendingToolCall?.assistantMessageId
-    ?? '';
+export function buildAiStateWorkerSlice(
+  state: DeferredTranscriptionAiRuntimeState,
+): AiStateWorkerSlice {
+  const pendingToolCallId =
+    state.aiChat.pendingToolCall?.requestId ??
+    state.aiChat.pendingToolCall?.call.requestId ??
+    state.aiChat.pendingToolCall?.assistantMessageId ??
+    '';
   const streamingMsg = state.aiChat.isStreaming
     ? state.aiChat.messages.find((m) => m.status === 'streaming')
     : undefined;

@@ -15,7 +15,7 @@ const log = createLogger('projectChangeRowParse');
 
 function rowPreview(row: unknown): string {
   try {
-    if (row && typeof row === 'object') return JSON.stringify(row).slice(0, 400);
+    if (row !== null && typeof row === 'object') return JSON.stringify(row).slice(0, 400);
     return String(row).slice(0, 200);
   } catch {
     return '[unserializable]';
@@ -34,7 +34,9 @@ function invalidRow(reason: string, row: unknown): null {
           extra: { reason, rowPreview: preview },
         });
       })
-      .catch(() => { /* Sentry 未安装或 DSN 关闭 | Sentry absent */ });
+      .catch(() => {
+        /* Sentry 未安装或 DSN 关闭 | Sentry absent */
+      });
   }
   return null;
 }
@@ -53,24 +55,40 @@ function toNumberValue(value: unknown): number | null {
 }
 
 const VALID_ENTITY_TYPES: ReadonlySet<string> = new Set<ProjectEntityType>([
-  'text', 'layer', 'layer_unit', 'layer_unit_content',
-  'unit_relation', 'asset', 'comment',
+  'text',
+  'layer',
+  'layer_unit',
+  'layer_unit_content',
+  'unit_relation',
+  'asset',
+  'comment',
 ]);
 const VALID_OP_TYPES: ReadonlySet<string> = new Set<ProjectChangeOperation>([
-  'upsert_text', 'upsert_layer', 'upsert_unit', 'upsert_unit_content',
-  'upsert_relation', 'delete_entity', 'batch_patch',
-  'asset_attached', 'comment_added',
+  'upsert_text',
+  'upsert_layer',
+  'upsert_unit',
+  'upsert_unit_content',
+  'upsert_relation',
+  'delete_entity',
+  'batch_patch',
+  'asset_attached',
+  'comment_added',
 ]);
 const VALID_SOURCE_KINDS: ReadonlySet<string> = new Set<ProjectChangeSourceKind>([
-  'user', 'sync', 'migration',
+  'user',
+  'sync',
+  'migration',
 ]);
 
 /**
  * Parse a `project_changes` row (snake_case keys). Returns null if required fields
  * or enum values are invalid — callers should skip invalid rows instead of casting.
  */
-export function parsePostgresProjectChangeRow(row: unknown): CollaborationProjectChangeRecord | null {
-  if (!row || typeof row !== 'object') return invalidRow('not-a-record', row);
+export function parsePostgresProjectChangeRow(
+  row: unknown,
+): CollaborationProjectChangeRecord | null {
+  if (row === null || row === undefined || typeof row !== 'object')
+    return invalidRow('not-a-record', row);
   const source = row as Record<string, unknown>;
 
   const id = toStringValue(source.id);
@@ -88,19 +106,19 @@ export function parsePostgresProjectChangeRow(row: unknown): CollaborationProjec
   const createdAt = toStringValue(source.created_at);
 
   if (
-    !id
-    || !projectId
-    || !actorId
-    || !clientId
-    || !clientOpId
-    || protocolVersion === null
-    || projectRevision === null
-    || baseRevision === null
-    || !entityType
-    || !entityId
-    || !opType
-    || !sourceKind
-    || !createdAt
+    id === null ||
+    projectId === null ||
+    actorId === null ||
+    clientId === null ||
+    clientOpId === null ||
+    protocolVersion === null ||
+    projectRevision === null ||
+    baseRevision === null ||
+    entityType === null ||
+    entityId === null ||
+    opType === null ||
+    sourceKind === null ||
+    createdAt === null
   ) {
     return invalidRow('missing-or-invalid-required-field', row);
   }
@@ -118,7 +136,7 @@ export function parsePostgresProjectChangeRow(row: unknown): CollaborationProjec
     actorId,
     clientId,
     clientOpId,
-    ...(sessionId ? { sessionId } : {}),
+    ...(sessionId !== null ? { sessionId } : {}),
     protocolVersion,
     projectRevision,
     baseRevision,
@@ -128,8 +146,10 @@ export function parsePostgresProjectChangeRow(row: unknown): CollaborationProjec
     ...(source.payload !== undefined && source.payload !== null
       ? { payload: source.payload as ProjectChangePayload }
       : {}),
-    ...(payloadRefPath ? { payloadRefPath } : {}),
-    ...(source.vector_clock && typeof source.vector_clock === 'object'
+    ...(payloadRefPath !== null ? { payloadRefPath } : {}),
+    ...(source.vector_clock !== null &&
+    source.vector_clock !== undefined &&
+    typeof source.vector_clock === 'object'
       ? { vectorClock: source.vector_clock as Record<string, number> }
       : {}),
     sourceKind: sourceKind as ProjectChangeSourceKind,

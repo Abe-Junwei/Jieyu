@@ -5,7 +5,10 @@ import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
 import { getConfidenceColor } from '../../hooks/voiceAgentPresentation';
 import { AiChatCard } from './AiChatCard';
 
-const MODE_LABEL_KEYS: Record<'chat' | 'dictation', 'ai.assistantHub.mode.chat' | 'ai.assistantHub.mode.dictation'> = {
+const MODE_LABEL_KEYS: Record<
+  'chat' | 'dictation',
+  'ai.assistantHub.mode.chat' | 'ai.assistantHub.mode.dictation'
+> = {
   chat: 'ai.assistantHub.mode.chat',
   dictation: 'ai.assistantHub.mode.dictation',
 };
@@ -34,9 +37,11 @@ export function AiAssistantHubCard() {
     onVoiceSetSafeMode,
   } = useAiAssistantHubContext();
 
-  const transcript = (voiceInterimText?.trim() || voiceFinalText?.trim() || '');
+  const transcript = voiceInterimText?.trim() || voiceFinalText?.trim() || '';
   const confidence = voiceConfidence ?? 0;
   const confidenceColor = confidence > 0 ? getConfidenceColor(confidence) : undefined;
+  const transcriptToneProps = confidenceColor ? { style: { borderColor: confidenceColor } } : {};
+  const confidenceToneProps = confidenceColor ? { style: { color: confidenceColor } } : {};
   const nonDictationMode = voiceMode === 'analysis' ? 'analysis' : 'command';
   const selectedMode: 'chat' | 'dictation' = voiceMode === 'dictation' ? 'dictation' : 'chat';
 
@@ -53,8 +58,12 @@ export function AiAssistantHubCard() {
       <div className="transcription-ai-assistant-head">
         <div className="transcription-ai-card-head transcription-ai-card-head-compact">
           <span>{t(locale, 'ai.assistantHub.title')}</span>
-          <span className={`transcription-ai-tag ${voiceListening ? 'transcription-ai-assistant-tag-active' : ''}`}>
-            {voiceListening ? t(locale, 'ai.assistantHub.voiceLive') : t(locale, 'ai.assistantHub.voiceIdle')}
+          <span
+            className={`transcription-ai-tag ${voiceListening ? 'transcription-ai-assistant-tag-active' : ''}`}
+          >
+            {voiceListening
+              ? t(locale, 'ai.assistantHub.voiceLive')
+              : t(locale, 'ai.assistantHub.voiceIdle')}
           </span>
         </div>
       </div>
@@ -71,14 +80,30 @@ export function AiAssistantHubCard() {
                 type="button"
                 className={`transcription-ai-assistant-mic ${voiceListening ? 'is-active' : ''}`}
                 onClick={() => onVoiceToggle?.()}
-                aria-label={voiceListening ? t(locale, 'ai.assistantHub.stopVoice') : t(locale, 'ai.assistantHub.startVoice')}
+                aria-label={
+                  voiceListening
+                    ? t(locale, 'ai.assistantHub.stopVoice')
+                    : t(locale, 'ai.assistantHub.startVoice')
+                }
               >
-                {voiceListening ? <MaterialSymbol name="mic" className={JIEYU_MATERIAL_WAVE_MD} /> : <MaterialSymbol name="mic_off" className={JIEYU_MATERIAL_WAVE_MD} />}
-                <span>{voiceListening ? t(locale, 'ai.assistantHub.listening') : t(locale, 'ai.assistantHub.startVoiceButton')}</span>
+                {voiceListening ? (
+                  <MaterialSymbol name="mic" className={JIEYU_MATERIAL_WAVE_MD} />
+                ) : (
+                  <MaterialSymbol name="mic_off" className={JIEYU_MATERIAL_WAVE_MD} />
+                )}
+                <span>
+                  {voiceListening
+                    ? t(locale, 'ai.assistantHub.listening')
+                    : t(locale, 'ai.assistantHub.startVoiceButton')}
+                </span>
               </button>
 
               {voiceListening && voiceMode && (
-                <div className="transcription-ai-assistant-mode" role="radiogroup" aria-label={t(locale, 'ai.assistantHub.voiceMode')}>
+                <div
+                  className="transcription-ai-assistant-mode"
+                  role="radiogroup"
+                  aria-label={t(locale, 'ai.assistantHub.voiceMode')}
+                >
                   {MODE_ORDER.map((mode) => (
                     <button
                       key={mode}
@@ -105,15 +130,10 @@ export function AiAssistantHubCard() {
             </div>
 
             {transcript && (
-              <div
-                className="transcription-ai-assistant-transcript"
-                style={confidenceColor ? { borderColor: confidenceColor } : undefined}
-              >
+              <div className="transcription-ai-assistant-transcript" {...transcriptToneProps}>
                 <p>{transcript}</p>
                 {confidence > 0 && (
-                  <span style={confidenceColor ? { color: confidenceColor } : undefined}>
-                    {Math.round(confidence * 100)}%
-                  </span>
+                  <span {...confidenceToneProps}>{Math.round(confidence * 100)}%</span>
                 )}
               </div>
             )}
@@ -122,7 +142,9 @@ export function AiAssistantHubCard() {
               <button
                 type="button"
                 className="icon-btn"
-                disabled={!aiChatEnabled || !onSendAiMessage || !transcript || Boolean(aiIsStreaming)}
+                disabled={
+                  !aiChatEnabled || !onSendAiMessage || !transcript || Boolean(aiIsStreaming)
+                }
                 onClick={() => {
                   if (!onSendAiMessage || !transcript) return;
                   void onSendAiMessage(`[${t(locale, 'ai.assistantHub.voiceTag')}] ${transcript}`);
@@ -135,14 +157,26 @@ export function AiAssistantHubCard() {
 
             {voicePendingConfirm && (
               <div className="transcription-ai-assistant-confirm" role="status" aria-live="polite">
-                <span>{t(locale, 'ai.assistantHub.pending')} {voicePendingConfirm.label}</span>
+                <span>
+                  {t(locale, 'ai.assistantHub.pending')} {voicePendingConfirm.label}
+                </span>
                 {voicePendingConfirm.fromFuzzy && (
                   <span>{t(locale, 'ai.assistantHub.fuzzyMatch')}</span>
                 )}
-                <button type="button" className="icon-btn" onClick={() => onVoiceConfirm?.()} aria-label={t(locale, 'ai.assistantHub.confirm')}>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => onVoiceConfirm?.()}
+                  aria-label={t(locale, 'ai.assistantHub.confirm')}
+                >
                   <MaterialSymbol name="check" className={JIEYU_MATERIAL_INLINE_TIGHT} />
                 </button>
-                <button type="button" className="icon-btn" onClick={() => onVoiceCancel?.()} aria-label={t(locale, 'ai.assistantHub.cancel')}>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => onVoiceCancel?.()}
+                  aria-label={t(locale, 'ai.assistantHub.cancel')}
+                >
                   <MaterialSymbol name="close" className={JIEYU_MATERIAL_INLINE_TIGHT} />
                 </button>
               </div>

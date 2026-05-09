@@ -22,7 +22,6 @@ afterEach(() => {
 const searchLexemesMock = vi.mocked(LinguisticService.searchLexemes);
 
 // Minimal unit stub – only the fields useAiPanelLogic actually reads.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const utt = (id: string, extra: Record<string, unknown> = {}): any => ({
   id,
   startTime: 0,
@@ -67,61 +66,75 @@ describe('selectedTranslationGapCount', () => {
 
   it('returns 0 when there are no translation layers', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        selectedUnit: utt('u1'),
-        translationLayers: [],
-      }))
+      useAiPanelLogic(
+        makeInput({
+          selectedUnit: utt('u1'),
+          translationLayers: [],
+        }),
+      ),
     );
     expect(result.current.selectedTranslationGapCount).toBe(0);
   });
 
   it('counts each layer that is missing translation text', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        selectedUnit: utt('u1'),
-        translationLayers: [{ id: 'l1', key: 'en' }, { id: 'l2', key: 'fr' }],
-        translationTextByLayer: new Map([
-          ['l1', new Map([['u1', { text: 'Hello' }]])],
-          // l2 has no entry for u1 → gap
-        ]),
-      }))
+      useAiPanelLogic(
+        makeInput({
+          selectedUnit: utt('u1'),
+          translationLayers: [
+            { id: 'l1', key: 'en' },
+            { id: 'l2', key: 'fr' },
+          ],
+          translationTextByLayer: new Map([
+            ['l1', new Map([['u1', { text: 'Hello' }]])],
+            // l2 has no entry for u1 → gap
+          ]),
+        }),
+      ),
     );
     expect(result.current.selectedTranslationGapCount).toBe(1);
   });
 
   it('counts 0 when all layers have persisted text', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        selectedUnit: utt('u1'),
-        translationLayers: [{ id: 'l1', key: 'en' }],
-        translationTextByLayer: new Map([
-          ['l1', new Map([['u1', { text: 'filled' }]])],
-        ]),
-      }))
+      useAiPanelLogic(
+        makeInput({
+          selectedUnit: utt('u1'),
+          translationLayers: [{ id: 'l1', key: 'en' }],
+          translationTextByLayer: new Map([['l1', new Map([['u1', { text: 'filled' }]])]]),
+        }),
+      ),
     );
     expect(result.current.selectedTranslationGapCount).toBe(0);
   });
 
   it('treats a non-empty draft as filling the gap', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        selectedUnit: utt('u1'),
-        translationLayers: [{ id: 'l1', key: 'en' }],
-        // no persisted text
-        translationDrafts: { 'l1-u1': 'draft text' },
-      }))
+      useAiPanelLogic(
+        makeInput({
+          selectedUnit: utt('u1'),
+          translationLayers: [{ id: 'l1', key: 'en' }],
+          // no persisted text
+          translationDrafts: { 'l1-u1': 'draft text' },
+        }),
+      ),
     );
     expect(result.current.selectedTranslationGapCount).toBe(0);
   });
 
   it('counts 2 when two layers both lack text', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        selectedUnit: utt('u1'),
-        translationLayers: [{ id: 'l1', key: 'en' }, { id: 'l2', key: 'fr' }],
-        // no entries for u1 in either layer
-        translationTextByLayer: new Map(),
-      }))
+      useAiPanelLogic(
+        makeInput({
+          selectedUnit: utt('u1'),
+          translationLayers: [
+            { id: 'l1', key: 'en' },
+            { id: 'l2', key: 'fr' },
+          ],
+          // no entries for u1 in either layer
+          translationTextByLayer: new Map(),
+        }),
+      ),
     );
     expect(result.current.selectedTranslationGapCount).toBe(2);
   });
@@ -133,47 +146,57 @@ describe('selectedTranslationGapCount', () => {
 
 describe('nextTranslationGapUnitId', () => {
   it('returns undefined when there are no translation layers', () => {
-    const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({ units: [utt('u1')] }))
-    );
+    const { result } = renderHook(() => useAiPanelLogic(makeInput({ units: [utt('u1')] })));
     expect(result.current.nextTranslationGapUnitId).toBeUndefined();
   });
 
   it('returns undefined when all units have translations', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        units: [utt('u1'), utt('u2')],
-        translationLayers: [{ id: 'l1', key: 'en' }],
-        translationTextByLayer: new Map([
-          ['l1', new Map([['u1', { text: 'a' }], ['u2', { text: 'b' }]])],
-        ]),
-      }))
+      useAiPanelLogic(
+        makeInput({
+          units: [utt('u1'), utt('u2')],
+          translationLayers: [{ id: 'l1', key: 'en' }],
+          translationTextByLayer: new Map([
+            [
+              'l1',
+              new Map([
+                ['u1', { text: 'a' }],
+                ['u2', { text: 'b' }],
+              ]),
+            ],
+          ]),
+        }),
+      ),
     );
     expect(result.current.nextTranslationGapUnitId).toBeUndefined();
   });
 
   it('returns the first unit id that has a gap', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        units: [utt('u1'), utt('u2')],
-        translationLayers: [{ id: 'l1', key: 'en' }],
-        translationTextByLayer: new Map([
-          ['l1', new Map([['u1', { text: 'filled' }]])],
-          // u2 has no entry
-        ]),
-      }))
+      useAiPanelLogic(
+        makeInput({
+          units: [utt('u1'), utt('u2')],
+          translationLayers: [{ id: 'l1', key: 'en' }],
+          translationTextByLayer: new Map([
+            ['l1', new Map([['u1', { text: 'filled' }]])],
+            // u2 has no entry
+          ]),
+        }),
+      ),
     );
     expect(result.current.nextTranslationGapUnitId).toBe('u2');
   });
 
   it('skips units whose gap is covered by a draft', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        units: [utt('u1'), utt('u2')],
-        translationLayers: [{ id: 'l1', key: 'en' }],
-        // no persisted text for either unit
-        translationDrafts: { 'l1-u1': 'draft covers u1' },
-      }))
+      useAiPanelLogic(
+        makeInput({
+          units: [utt('u1'), utt('u2')],
+          translationLayers: [{ id: 'l1', key: 'en' }],
+          // no persisted text for either unit
+          translationDrafts: { 'l1-u1': 'draft covers u1' },
+        }),
+      ),
     );
     // u1's gap is covered by draft, so u2 is the first real gap
     expect(result.current.nextTranslationGapUnitId).toBe('u2');
@@ -189,19 +212,23 @@ describe('handleJumpToTranslationGap', () => {
     const selectUnit = vi.fn();
     const setSaveState = vi.fn();
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        units: [utt('u1'), utt('u2')],
-        translationLayers: [{ id: 'l1', key: 'en' }],
-        translationTextByLayer: new Map([
-          ['l1', new Map([['u1', { text: 'filled' }]])],
-          // u2 has no entry
-        ]),
-        selectUnit,
-        setSaveState,
-      }))
+      useAiPanelLogic(
+        makeInput({
+          units: [utt('u1'), utt('u2')],
+          translationLayers: [{ id: 'l1', key: 'en' }],
+          translationTextByLayer: new Map([
+            ['l1', new Map([['u1', { text: 'filled' }]])],
+            // u2 has no entry
+          ]),
+          selectUnit,
+          setSaveState,
+        }),
+      ),
     );
 
-    await act(async () => { result.current.handleJumpToTranslationGap(); });
+    await act(async () => {
+      result.current.handleJumpToTranslationGap();
+    });
 
     expect(selectUnit).toHaveBeenCalledOnce();
     expect(selectUnit).toHaveBeenCalledWith('u2');
@@ -211,17 +238,19 @@ describe('handleJumpToTranslationGap', () => {
   it('sets an error save-state when no gap unit exists', async () => {
     const setSaveState = vi.fn();
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        units: [utt('u1')],
-        translationLayers: [{ id: 'l1', key: 'en' }],
-        translationTextByLayer: new Map([
-          ['l1', new Map([['u1', { text: 'done' }]])],
-        ]),
-        setSaveState,
-      }))
+      useAiPanelLogic(
+        makeInput({
+          units: [utt('u1')],
+          translationLayers: [{ id: 'l1', key: 'en' }],
+          translationTextByLayer: new Map([['l1', new Map([['u1', { text: 'done' }]])]]),
+          setSaveState,
+        }),
+      ),
     );
 
-    await act(async () => { result.current.handleJumpToTranslationGap(); });
+    await act(async () => {
+      result.current.handleJumpToTranslationGap();
+    });
 
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
   });
@@ -229,13 +258,17 @@ describe('handleJumpToTranslationGap', () => {
   it('sets an error save-state when there are no translation layers at all', async () => {
     const setSaveState = vi.fn();
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        units: [utt('u1')],
-        setSaveState,
-      }))
+      useAiPanelLogic(
+        makeInput({
+          units: [utt('u1')],
+          setSaveState,
+        }),
+      ),
     );
 
-    await act(async () => { result.current.handleJumpToTranslationGap(); });
+    await act(async () => {
+      result.current.handleJumpToTranslationGap();
+    });
 
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
   });
@@ -248,18 +281,20 @@ describe('handleJumpToTranslationGap', () => {
 describe('aiCurrentTask', () => {
   it('returns ai_chat_setup when connection status is error', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({ aiChatConnectionTestStatus: 'error' }))
+      useAiPanelLogic(makeInput({ aiChatConnectionTestStatus: 'error' })),
     );
     expect(result.current.aiCurrentTask).toBe('ai_chat_setup');
   });
 
   it('returns translation when the selected unit has a translation gap', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        selectedUnit: utt('u1'),
-        translationLayers: [{ id: 'l1', key: 'en' }],
-        // no text → gap → translation task
-      }))
+      useAiPanelLogic(
+        makeInput({
+          selectedUnit: utt('u1'),
+          translationLayers: [{ id: 'l1', key: 'en' }],
+          // no text → gap → translation task
+        }),
+      ),
     );
     expect(result.current.aiCurrentTask).toBe('translation');
   });
@@ -268,20 +303,22 @@ describe('aiCurrentTask', () => {
     // selectedUnitText must be ≤ 1 char so selectedAiWarning stays false
     // (selectedAiWarning = true would short-circuit to risk_review first).
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        selectedUnit: utt('u1', {
-          words: [{ form: { default: 'w' }, pos: '' }],
+      useAiPanelLogic(
+        makeInput({
+          selectedUnit: utt('u1', {
+            words: [{ form: { default: 'w' }, pos: '' }],
+          }),
+          translationLayers: [],
+          selectedUnitText: 'w', // length === 1 → selectedAiWarning === false
         }),
-        translationLayers: [],
-        selectedUnitText: 'w', // length === 1 → selectedAiWarning === false
-      }))
+      ),
     );
     expect(result.current.aiCurrentTask).toBe('pos_tagging');
   });
 
   it('does not return ai_chat_setup when connection is idle', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({ aiChatConnectionTestStatus: 'idle' }))
+      useAiPanelLogic(makeInput({ aiChatConnectionTestStatus: 'idle' })),
     );
     expect(result.current.aiCurrentTask).not.toBe('ai_chat_setup');
   });
@@ -294,15 +331,17 @@ describe('aiCurrentTask', () => {
     });
 
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        units: [
-          utt('u-anchor', { startTime: 0, endTime: 1.5, transcription: { default: 'done' } }),
-          overlappingSelectedUnit,
-          utt('u-gap', { startTime: 3.5, endTime: 4.1 }),
-        ],
-        selectedUnit: overlappingSelectedUnit,
-        selectedUnitText: 'a',
-      }))
+      useAiPanelLogic(
+        makeInput({
+          units: [
+            utt('u-anchor', { startTime: 0, endTime: 1.5, transcription: { default: 'done' } }),
+            overlappingSelectedUnit,
+            utt('u-gap', { startTime: 3.5, endTime: 4.1 }),
+          ],
+          selectedUnit: overlappingSelectedUnit,
+          selectedUnitText: 'a',
+        }),
+      ),
     );
 
     expect(result.current.aiCurrentTask).toBe('risk_review');
@@ -315,16 +354,12 @@ describe('aiCurrentTask', () => {
 
 describe('selectedAiWarning', () => {
   it('is false when selectedUnitText is empty', () => {
-    const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({ selectedUnitText: '' }))
-    );
+    const { result } = renderHook(() => useAiPanelLogic(makeInput({ selectedUnitText: '' })));
     expect(result.current.selectedAiWarning).toBe(false);
   });
 
   it('is false when selectedUnitText is a single character', () => {
-    const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({ selectedUnitText: 'a' }))
-    );
+    const { result } = renderHook(() => useAiPanelLogic(makeInput({ selectedUnitText: 'a' })));
     expect(result.current.selectedAiWarning).toBe(false);
   });
 });
@@ -336,8 +371,18 @@ describe('lexemeMatches', () => {
     let resolveSecond: ((value: LexemeDocType[]) => void) | undefined;
     searchLexemesMock.mockReset();
     searchLexemesMock
-      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }))
-      .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve; }));
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
 
     const { result, rerender } = renderHook(
       ({ selectedUnitText }) => useAiPanelLogic(makeInput({ selectedUnitText })),
@@ -373,22 +418,26 @@ describe('lexemeMatches', () => {
 describe('actionableObserverRecommendations', () => {
   it('prepends waveform risk review during transcribing stage when waveform risk signals exist', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        units: [
-          utt('u1', { startTime: 0, endTime: 1.5, transcription: { default: 'done' } }),
-          utt('u2', { startTime: 1.2, endTime: 2.4, ai_metadata: { confidence: 0.61 } }),
-          utt('u3', { startTime: 3.5, endTime: 4.2 }),
-        ],
-      }))
+      useAiPanelLogic(
+        makeInput({
+          units: [
+            utt('u1', { startTime: 0, endTime: 1.5, transcription: { default: 'done' } }),
+            utt('u2', { startTime: 1.2, endTime: 2.4, ai_metadata: { confidence: 0.61 } }),
+            utt('u3', { startTime: 3.5, endTime: 4.2 }),
+          ],
+        }),
+      ),
     );
 
     expect(result.current.observerResult.stage).toBe('transcribing');
-    expect(result.current.actionableObserverRecommendations[0]).toEqual(expect.objectContaining({
-      id: 'transcribing-risk-review',
-      actionType: 'risk_review',
-      targetUnitId: 'u2',
-      targetConfidence: 0.61,
-    }));
+    expect(result.current.actionableObserverRecommendations[0]).toEqual(
+      expect.objectContaining({
+        id: 'transcribing-risk-review',
+        actionType: 'risk_review',
+        targetUnitId: 'u2',
+        targetConfidence: 0.61,
+      }),
+    );
   });
 });
 
@@ -399,7 +448,7 @@ describe('actionableObserverRecommendations', () => {
 describe('taskToPersona (F31d dynamic persona auto-switch)', () => {
   it('defaults to transcription when ai_chat_setup is inferred', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({ aiChatConnectionTestStatus: 'error' }))
+      useAiPanelLogic(makeInput({ aiChatConnectionTestStatus: 'error' })),
     );
     // connection error → ai_chat_setup → transcription persona
     expect(taskToPersona(result.current.aiCurrentTask)).toBe('transcription');
@@ -407,27 +456,31 @@ describe('taskToPersona (F31d dynamic persona auto-switch)', () => {
 
   it('returns glossing persona when pos_tagging task is inferred', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        selectedUnit: utt('u1', { ai_metadata: { confidence: 0.6 } }),
-        selectedUnitText: 'test text',
-        translationLayers: [{ id: 'l1', key: 'en' }],
-        translationTextByLayer: new Map([
-          ['l1', new Map([['u1', { text: 'filled' }]])],
-        ]),
-      }))
+      useAiPanelLogic(
+        makeInput({
+          selectedUnit: utt('u1', { ai_metadata: { confidence: 0.6 } }),
+          selectedUnitText: 'test text',
+          translationLayers: [{ id: 'l1', key: 'en' }],
+          translationTextByLayer: new Map([['l1', new Map([['u1', { text: 'filled' }]])]]),
+        }),
+      ),
     );
     // With text, no translation gap, no warning → falls through to stage-based
-    expect(['transcription', 'glossing', 'review']).toContain(taskToPersona(result.current.aiCurrentTask));
+    expect(['transcription', 'glossing', 'review']).toContain(
+      taskToPersona(result.current.aiCurrentTask),
+    );
   });
 
   it('returns review persona when risk_review task is active', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({
-        selectedUnit: utt('u1', {
-          ai_metadata: { confidence: 0.3, model: 'test' },
+      useAiPanelLogic(
+        makeInput({
+          selectedUnit: utt('u1', {
+            ai_metadata: { confidence: 0.3, model: 'test' },
+          }),
+          selectedUnitText: 'risky text',
         }),
-        selectedUnitText: 'risky text',
-      }))
+      ),
     );
     // Low confidence → selectedAiWarning true → risk_review → review persona
     expect(result.current.aiCurrentTask).toBe('risk_review');

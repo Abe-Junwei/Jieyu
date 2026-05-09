@@ -13,7 +13,6 @@ vi.mock('../ai/embeddings/EmbeddingSearchService', () => ({
   EmbeddingSearchService: vi.fn(),
 }));
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 type GCS = typeof import('./GlobalContextService');
 
 // 每次重新导入保证单例不跨测试污染 | Re-import to prevent singleton leaking between tests
@@ -125,14 +124,27 @@ describe('GlobalContextService', () => {
       globalContext.setEmbeddingSearchService(makeFakeEmbeddingService());
       const results = await globalContext.searchCorpus('hello', 5);
       expect(results).toHaveLength(2);
-      expect(results[0]).toMatchObject({ segmentId: 's1', text: 'hello world', score: 0.9, source: 'transcription' });
-      expect(results[1]).toMatchObject({ segmentId: 's2', text: 'second', score: 0.5, source: 'document' });
+      expect(results[0]).toMatchObject({
+        segmentId: 's1',
+        text: 'hello world',
+        score: 0.9,
+        source: 'transcription',
+      });
+      expect(results[1]).toMatchObject({
+        segmentId: 's2',
+        text: 'second',
+        score: 0.5,
+        source: 'document',
+      });
       globalContext.dispose();
     });
 
     it('无 corpusContext 时返回空 | returns [] when no corpus', async () => {
       const { globalContext } = await freshModule();
-      mockSearchSimilarUnits.mockResolvedValueOnce({ query: 'q', matches: [{ sourceId: 'x', sourceType: 'unit', score: 0.5 }] });
+      mockSearchSimilarUnits.mockResolvedValueOnce({
+        query: 'q',
+        matches: [{ sourceId: 'x', sourceType: 'unit', score: 0.5 }],
+      });
       globalContext.setEmbeddingSearchService(makeFakeEmbeddingService());
       const results = await globalContext.searchCorpus('q');
       expect(results).toEqual([]);

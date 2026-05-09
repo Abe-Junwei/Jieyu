@@ -3,7 +3,7 @@ import { getDb, type JieyuDatabase } from './engine';
 export type DbIntegrityProbeResult = { ok: true } | { ok: false; reason: string };
 
 function toReason(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) {
+  if (error instanceof Error && error.message.trim().length > 0) {
     return error.message.trim();
   }
   return 'unknown-error';
@@ -13,7 +13,9 @@ function toReason(error: unknown): string {
  * 轻量探测关键表是否可读（F-2）。失败不修改数据库。
  * Lightweight read probe for critical tables (F-2). Does not mutate the database.
  */
-export async function probeJieyuDatabaseIntegrity(database: JieyuDatabase): Promise<DbIntegrityProbeResult> {
+export async function probeJieyuDatabaseIntegrity(
+  database: JieyuDatabase,
+): Promise<DbIntegrityProbeResult> {
   try {
     await database.dexie.transaction(
       'r',

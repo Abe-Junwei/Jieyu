@@ -8,14 +8,11 @@ import {
   validateSourceSetMembers,
   invalidateSourceSet,
   pruneInvalidatedSourceSets,
-  toRuntimeCorpusSourceSet,
-  fromRuntimeCorpusSourceSet,
   exportReferenceSummary,
   buildSourceSetFallbackReason,
   deleteSavedSourceSet,
   type SavedCorpusSourceSet,
 } from './corpusSourceSet';
-import type { CorpusSourceSet } from './corpusScopeTypes';
 
 const fixedTimestamp = '2026-05-06T12:00:00.000Z';
 
@@ -88,7 +85,9 @@ describe('createSavedSourceSet', () => {
 describe('renameSavedSourceSet', () => {
   it('renames and updates timestamp', () => {
     const original = makeSourceSet();
-    const renamed = renameSavedSourceSet(original, 'New Name', { timestamp: '2026-05-07T00:00:00.000Z' });
+    const renamed = renameSavedSourceSet(original, 'New Name', {
+      timestamp: '2026-05-07T00:00:00.000Z',
+    });
     expect(renamed.name).toBe('New Name');
     expect(renamed.updatedAt).toBe('2026-05-07T00:00:00.000Z');
     expect(renamed.id).toBe(original.id);
@@ -98,7 +97,9 @@ describe('renameSavedSourceSet', () => {
 describe('bindSourceSetToSession', () => {
   it('binds to session', () => {
     const original = makeSourceSet();
-    const bound = bindSourceSetToSession(original, 'sess-42', { timestamp: '2026-05-07T00:00:00.000Z' });
+    const bound = bindSourceSetToSession(original, 'sess-42', {
+      timestamp: '2026-05-07T00:00:00.000Z',
+    });
     expect(bound.boundSessionId).toBe('sess-42');
     expect(bound.updatedAt).toBe('2026-05-07T00:00:00.000Z');
   });
@@ -150,10 +151,7 @@ describe('validateSourceSetMembers', () => {
 
   it('detects missing members', () => {
     const set = makeSourceSet();
-    const result = validateSourceSetMembers(
-      set,
-      (id) => id !== 'seg-1',
-    );
+    const result = validateSourceSetMembers(set, (id) => id !== 'seg-1');
     expect(result.valid).toBe(false);
     expect(result.missingMemberIds).toEqual(['seg-1']);
   });
@@ -183,10 +181,7 @@ describe('validateSourceSetMembers', () => {
 
   it('detects zero source count', () => {
     const set = makeSourceSet({ members: [{ id: 'seg-1', type: 'segment' }] });
-    const result = validateSourceSetMembers(
-      set,
-      () => false,
-    );
+    const result = validateSourceSetMembers(set, () => false);
     expect(result.valid).toBe(false);
     expect(result.zeroSourceCount).toBe(true);
   });
@@ -203,7 +198,9 @@ describe('validateSourceSetMembers', () => {
 describe('invalidateSourceSet', () => {
   it('marks as invalidated with reason', () => {
     const set = makeSourceSet();
-    const invalidated = invalidateSourceSet(set, 'media removed', { timestamp: '2026-05-07T00:00:00.000Z' });
+    const invalidated = invalidateSourceSet(set, 'media removed', {
+      timestamp: '2026-05-07T00:00:00.000Z',
+    });
     expect(invalidated.status).toBe('invalidated');
     expect(invalidated.invalidationReason).toBe('media removed');
     expect(invalidated.updatedAt).toBe('2026-05-07T00:00:00.000Z');
@@ -216,81 +213,17 @@ describe('pruneInvalidatedSourceSets', () => {
       makeSourceSet({ id: 'a', members: [{ id: 'gone', type: 'segment' }] }),
       makeSourceSet({ id: 'b', members: [{ id: 'ok', type: 'segment' }] }),
     ];
-    const { updated, invalidatedIds } = pruneInvalidatedSourceSets(
-      sets,
-      (id) => id === 'ok',
-    );
+    const { updated, invalidatedIds } = pruneInvalidatedSourceSets(sets, (id) => id === 'ok');
     expect(invalidatedIds).toEqual(['a']);
     expect(updated.find((s) => s.id === 'a')!.status).toBe('invalidated');
     expect(updated.find((s) => s.id === 'b')!.status).toBe('active');
   });
 
   it('does not re-invalidate already invalidated sets', () => {
-    const sets = [
-      makeSourceSet({ id: 'a', status: 'invalidated', invalidationReason: 'old' }),
-    ];
+    const sets = [makeSourceSet({ id: 'a', status: 'invalidated', invalidationReason: 'old' })];
     const { updated, invalidatedIds } = pruneInvalidatedSourceSets(sets, () => false);
     expect(invalidatedIds).toEqual([]);
     expect(updated[0]!.invalidationReason).toBe('old');
-  });
-});
-
-describe('toRuntimeCorpusSourceSet', () => {
-  it('converts saved to runtime', () => {
-    const saved = makeSourceSet({
-      scope: 'selection',
-      members: [
-        { id: 'u1', type: 'segment' },
-        { id: 'u2', type: 'segment' },
-      ],
-      mediaId: 'm1',
-      layerId: 'l1',
-      projectId: 'p1',
-    });
-    const runtime = toRuntimeCorpusSourceSet(saved);
-    expect(runtime).toEqual({
-      scope: 'selection',
-      sourceIds: ['u1', 'u2'],
-      mediaId: 'm1',
-      layerId: 'l1',
-      projectId: 'p1',
-    } as CorpusSourceSet);
-  });
-
-  it('omits undefined fields', () => {
-    const saved = { ...makeSourceSet() };
-    delete saved.mediaId;
-    delete saved.layerId;
-    delete saved.projectId;
-    const runtime = toRuntimeCorpusSourceSet(saved);
-    expect(runtime.mediaId).toBeUndefined();
-    expect(runtime.layerId).toBeUndefined();
-    expect(runtime.projectId).toBeUndefined();
-  });
-});
-
-describe('fromRuntimeCorpusSourceSet', () => {
-  it('converts runtime to saved', () => {
-    const runtime: CorpusSourceSet = {
-      scope: 'current_media',
-      sourceIds: ['u1', 'u2'],
-      mediaId: 'm1',
-    };
-    const saved = fromRuntimeCorpusSourceSet(
-      runtime,
-      [
-        { id: 'u1', type: 'segment' },
-        { id: 'u2', type: 'segment' },
-      ],
-      'My Set',
-      { id: 'css_001', boundSessionId: 'sess-1', timestamp: fixedTimestamp },
-    );
-    expect(saved.id).toBe('css_001');
-    expect(saved.name).toBe('My Set');
-    expect(saved.scope).toBe('current_media');
-    expect(saved.members).toHaveLength(2);
-    expect(saved.boundSessionId).toBe('sess-1');
-    expect(saved.mediaId).toBe('m1');
   });
 });
 

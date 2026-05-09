@@ -11,10 +11,7 @@ import { StructuralProfileWorkspacePage } from './StructuralProfileWorkspacePage
 
 const PROJECT_LANGUAGE_IDS = ['eng'] as const;
 
-const {
-  mockListLanguageCatalogEntries,
-  mockPreviewStructuralRuleProfile,
-} = vi.hoisted(() => ({
+const { mockListLanguageCatalogEntries, mockPreviewStructuralRuleProfile } = vi.hoisted(() => ({
   mockListLanguageCatalogEntries: vi.fn(),
   mockPreviewStructuralRuleProfile: vi.fn(),
 }));
@@ -54,14 +51,20 @@ function createEntry(overrides: Partial<LanguageCatalogEntry> = {}): LanguageCat
 
 let currentEntries: LanguageCatalogEntry[] = [];
 
-function renderWorkspace(initialPath = '/assets/structural-profiles?languageId=eng', locale: 'zh-CN' | 'en-US' = 'en-US') {
+function renderWorkspace(
+  initialPath = '/assets/structural-profiles?languageId=eng',
+  locale: 'zh-CN' | 'en-US' = 'en-US',
+) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[initialPath]}>
         <LocaleProvider locale={locale}>
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/structural-profiles" element={<StructuralProfileWorkspacePage />} />
+              <Route
+                path="/assets/structural-profiles"
+                element={<StructuralProfileWorkspacePage />}
+              />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -76,30 +79,36 @@ describe('StructuralProfileWorkspacePage', () => {
     mockListLanguageCatalogEntries.mockReset();
     mockPreviewStructuralRuleProfile.mockReset();
 
-    mockListLanguageCatalogEntries.mockImplementation(async (input: {
-      searchText?: string;
-      languageIds?: readonly string[];
-    }) => {
-      const normalizedSearchText = input.searchText?.trim().toLowerCase() ?? '';
-      const requestedIds = input.languageIds?.map((languageId) => languageId.trim().toLowerCase()).filter(Boolean);
-      const baseEntries = requestedIds && requestedIds.length > 0
-        ? currentEntries.filter((entry) => requestedIds.includes(entry.id.toLowerCase()))
-        : currentEntries;
+    mockListLanguageCatalogEntries.mockImplementation(
+      async (input: { searchText?: string; languageIds?: readonly string[] }) => {
+        const normalizedSearchText = input.searchText?.trim().toLowerCase() ?? '';
+        const requestedIds = input.languageIds
+          ?.map((languageId) => languageId.trim().toLowerCase())
+          .filter(Boolean);
+        const baseEntries =
+          requestedIds && requestedIds.length > 0
+            ? currentEntries.filter((entry) => requestedIds.includes(entry.id.toLowerCase()))
+            : currentEntries;
 
-      if (!normalizedSearchText) {
-        return baseEntries;
-      }
+        if (normalizedSearchText.length === 0) {
+          return baseEntries;
+        }
 
-      return currentEntries.filter((entry) => [
-        entry.id,
-        entry.languageCode,
-        entry.localName,
-        entry.englishName,
-        ...(entry.aliases ?? []),
-      ]
-        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-        .some((value) => value.toLowerCase().includes(normalizedSearchText)));
-    });
+        return currentEntries.filter((entry) =>
+          [
+            entry.id,
+            entry.languageCode,
+            entry.localName,
+            entry.englishName,
+            ...(entry.aliases ?? []),
+          ]
+            .filter(
+              (value): value is string => typeof value === 'string' && value.trim().length > 0,
+            )
+            .some((value) => value.toLowerCase().includes(normalizedSearchText)),
+        );
+      },
+    );
 
     mockPreviewStructuralRuleProfile.mockResolvedValue({
       resolution: {

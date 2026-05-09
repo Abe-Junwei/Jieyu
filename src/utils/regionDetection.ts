@@ -12,7 +12,7 @@ const log = createLogger('regionDetection');
 
 function isMainlandLikeLocale(lang: string): boolean {
   const normalized = lang.trim().toLowerCase();
-  if (!normalized) return false;
+  if (normalized.length === 0) return false;
   if (normalized === 'zh-cn' || normalized === 'zh') return true;
   // 新马中文用户通常不应默认归为大陆 | zh-SG/zh-MY should not be mapped to CN by default
   if (normalized === 'zh-sg' || normalized === 'zh-my') return false;
@@ -30,9 +30,8 @@ function isMainlandLikeLocale(lang: string): boolean {
  */
 export async function detectRegion(): Promise<Region> {
   // 1. Use cached preference
-  const cached = typeof localStorage !== 'undefined'
-    ? localStorage.getItem(REGION_STORAGE_KEY)
-    : null;
+  const cached =
+    typeof localStorage !== 'undefined' ? localStorage.getItem(REGION_STORAGE_KEY) : null;
   if (cached === 'cn' || cached === 'global') return cached;
 
   // 2. Google reachability probe (most accurate for CN detection)

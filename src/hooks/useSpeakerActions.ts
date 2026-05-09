@@ -8,14 +8,53 @@
  * using materialized speakerId as the single source of truth.
  */
 
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import type { LayerUnitDocType, SpeakerDocType } from '../db';
 import type { SaveState } from './transcriptionTypes';
 import { LinguisticService } from '../services/LinguisticService';
 import { fireAndForget } from '../utils/fireAndForget';
-import { EMPTY_SPEAKER_REFERENCE_STATS, type SpeakerActionDialogState, type SpeakerFilterOption, type SpeakerReferenceStats, type SpeakerScope, type SpeakerVisual } from './speakerManagement/types';
-import { applySpeakerAssignmentToUnits, getUnitSpeakerKey, renameSpeakerInUnits, sortSpeakersByName, upsertSpeaker } from './speakerManagement/speakerUtils';
-import { buildSpeakerActionErrorOptions, buildSpeakerDisplayLabels, buildUnitSpeakerSummaryLabels, formatSpeakerAssignmentResult, formatSpeakerCleanupResult, formatSpeakerClearResult, formatSpeakerCreateAndAssignResult, formatSpeakerCreateOnlyResult, formatSpeakerDeleteAndClearResult, formatSpeakerDeleteAndMigrateResult, formatSpeakerExportContent, formatSpeakerExportDone, formatSpeakerMergeResult, formatSpeakerRenameResult, getSpeakerExportFallbackName, getSpeakerUndoLabel, type SpeakerFormat, type SpeakerTranslate } from './speakerManagement/speakerI18n';
+import {
+  EMPTY_SPEAKER_REFERENCE_STATS,
+  type SpeakerActionDialogState,
+  type SpeakerFilterOption,
+  type SpeakerReferenceStats,
+  type SpeakerScope,
+  type SpeakerVisual,
+} from './speakerManagement/types';
+import {
+  applySpeakerAssignmentToUnits,
+  getUnitSpeakerKey,
+  renameSpeakerInUnits,
+  sortSpeakersByName,
+  upsertSpeaker,
+} from './speakerManagement/speakerUtils';
+import {
+  buildSpeakerActionErrorOptions,
+  buildSpeakerDisplayLabels,
+  buildUnitSpeakerSummaryLabels,
+  formatSpeakerAssignmentResult,
+  formatSpeakerCleanupResult,
+  formatSpeakerClearResult,
+  formatSpeakerCreateAndAssignResult,
+  formatSpeakerCreateOnlyResult,
+  formatSpeakerDeleteAndClearResult,
+  formatSpeakerDeleteAndMigrateResult,
+  formatSpeakerExportContent,
+  formatSpeakerExportDone,
+  formatSpeakerMergeResult,
+  formatSpeakerRenameResult,
+  getSpeakerExportFallbackName,
+  getSpeakerUndoLabel,
+  type SpeakerFormat,
+  type SpeakerTranslate,
+} from './speakerManagement/speakerI18n';
 import { useSpeakerDerivedState } from './speakerManagement/useSpeakerDerivedState';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
@@ -96,7 +135,7 @@ export interface UseSpeakerActionsReturn {
 }
 
 export function useSpeakerActions({
-  units,
+  units: _units,
   setUnits,
   speakers,
   setSpeakers,
@@ -121,21 +160,21 @@ export function useSpeakerActions({
   const [batchSpeakerId, setBatchSpeakerId] = useState('');
   const [speakerSaving, setSpeakerSaving] = useState(false);
   const [activeSpeakerFilterKey, setActiveSpeakerFilterKey] = useState('all');
-  const [speakerDialogState, setSpeakerDialogState] = useState<SpeakerActionDialogState | null>(null);
-  const [speakerReferenceStats, setSpeakerReferenceStats] = useState<Record<string, SpeakerReferenceStats>>({});
-  const [speakerReferenceUnassignedStats, setSpeakerReferenceUnassignedStats] = useState<SpeakerReferenceStats>(
-    EMPTY_SPEAKER_REFERENCE_STATS,
+  const [speakerDialogState, setSpeakerDialogState] = useState<SpeakerActionDialogState | null>(
+    null,
   );
+  const [speakerReferenceStats, setSpeakerReferenceStats] = useState<
+    Record<string, SpeakerReferenceStats>
+  >({});
+  const [speakerReferenceUnassignedStats, setSpeakerReferenceUnassignedStats] =
+    useState<SpeakerReferenceStats>(EMPTY_SPEAKER_REFERENCE_STATS);
   const [speakerReferenceStatsReady, setSpeakerReferenceStatsReady] = useState(false);
 
   const speakerReferenceStatsMediaScoped = Boolean(speakerReferenceStatsMediaId?.trim());
 
   const speakerOptions = speakers;
   const speakerDisplayLabels = useMemo(() => buildSpeakerDisplayLabels(t), [t]);
-  const unitSpeakerSummaryLabels = useMemo(
-    () => buildUnitSpeakerSummaryLabels(t, tf),
-    [t, tf],
-  );
+  const unitSpeakerSummaryLabels = useMemo(() => buildUnitSpeakerSummaryLabels(t, tf), [t, tf]);
   const speakerById = useMemo(
     () => new Map(speakerOptions.map((speaker) => [speaker.id, speaker] as const)),
     [speakerOptions],
@@ -145,22 +184,30 @@ export function useSpeakerActions({
     speakerVisualByUnitId: derivedSpeakerVisualByUnitId,
     speakerFilterOptions: derivedSpeakerFilterOptions,
     selectedSpeakerSummary: derivedSelectedSpeakerSummary,
-  } = useSpeakerDerivedState(
-    unitsOnCurrentMedia,
-    selectedBatchUnits,
-    speakerOptions,
-    {
-      displayLabels: speakerDisplayLabels,
-      summaryLabels: unitSpeakerSummaryLabels,
-    },
-  );
+  } = useSpeakerDerivedState(unitsOnCurrentMedia, selectedBatchUnits, speakerOptions, {
+    displayLabels: speakerDisplayLabels,
+    summaryLabels: unitSpeakerSummaryLabels,
+  });
 
-  const speakerVisualByUnitId = speakerScopeOverride?.speakerVisualByUnitId ?? derivedSpeakerVisualByUnitId;
-  const speakerFilterOptions = speakerScopeOverride?.speakerFilterOptions ?? speakerFilterOptionsOverride ?? derivedSpeakerFilterOptions;
-  const selectedSpeakerSummary = speakerScopeOverride?.selectedSpeakerSummary ?? derivedSelectedSpeakerSummary;
-  const unusedSpeakerIds = useMemo(() => speakerOptions
-    .filter((speaker) => speakerReferenceStatsReady && (speakerReferenceStats[speaker.id]?.totalCount ?? 0) === 0)
-    .map((speaker) => speaker.id), [speakerOptions, speakerReferenceStats, speakerReferenceStatsReady]);
+  const speakerVisualByUnitId =
+    speakerScopeOverride?.speakerVisualByUnitId ?? derivedSpeakerVisualByUnitId;
+  const speakerFilterOptions =
+    speakerScopeOverride?.speakerFilterOptions ??
+    speakerFilterOptionsOverride ??
+    derivedSpeakerFilterOptions;
+  const selectedSpeakerSummary =
+    speakerScopeOverride?.selectedSpeakerSummary ?? derivedSelectedSpeakerSummary;
+  const unusedSpeakerIds = useMemo(
+    () =>
+      speakerOptions
+        .filter(
+          (speaker) =>
+            speakerReferenceStatsReady &&
+            (speakerReferenceStats[speaker.id]?.totalCount ?? 0) === 0,
+        )
+        .map((speaker) => speaker.id),
+    [speakerOptions, speakerReferenceStats, speakerReferenceStatsReady],
+  );
 
   const refreshSpeakers = useCallback(async () => {
     const nextSpeakers = await LinguisticService.getSpeakers();
@@ -177,26 +224,42 @@ export function useSpeakerActions({
     setSpeakerReferenceStatsReady(true);
   }, [speakerReferenceStatsMediaId]);
 
-  const findExistingSpeakerByName = useCallback((rawName: string) => {
-    const normalizedName = normalizeSpeakerLookupName(rawName);
-    if (!normalizedName) return undefined;
-    return speakerOptions.find((speaker) => normalizeSpeakerLookupName(speaker.name) === normalizedName);
-  }, [speakerOptions]);
+  const findExistingSpeakerByName = useCallback(
+    (rawName: string) => {
+      const normalizedName = normalizeSpeakerLookupName(rawName);
+      if (!normalizedName) return undefined;
+      return speakerOptions.find(
+        (speaker) => normalizeSpeakerLookupName(speaker.name) === normalizedName,
+      );
+    },
+    [speakerOptions],
+  );
 
-  const getUnitIdsForSpeakerKey = useCallback((speakerKey: string) => (
-    unitsOnCurrentMedia
-      .filter((unit) => getUnitSpeakerKey(unit) === speakerKey)
-      .map((unit) => unit.id)
-  ), [unitsOnCurrentMedia]);
+  const getUnitIdsForSpeakerKey = useCallback(
+    (speakerKey: string) =>
+      unitsOnCurrentMedia
+        .filter((unit) => getUnitSpeakerKey(unit) === speakerKey)
+        .map((unit) => unit.id),
+    [unitsOnCurrentMedia],
+  );
 
-  const applySpeakerLocally = useCallback((unitIds: Iterable<string>, speaker?: Pick<SpeakerDocType, 'id' | 'name'>) => {
-    setUnits((prev) => applySpeakerAssignmentToUnits(prev, unitIds, speaker));
-  }, [setUnits]);
+  const applySpeakerLocally = useCallback(
+    (unitIds: Iterable<string>, speaker?: Pick<SpeakerDocType, 'id' | 'name'>) => {
+      setUnits((prev) => applySpeakerAssignmentToUnits(prev, unitIds, speaker));
+    },
+    [setUnits],
+  );
 
   useEffect(() => {
     if (!isReady) return;
-    fireAndForget(refreshSpeakers(), { context: 'src/hooks/useSpeakerActions.ts:L198', policy: 'background-quiet' });
-    fireAndForget(refreshSpeakerReferenceStats(), { context: 'src/hooks/useSpeakerActions.ts:L199', policy: 'background-quiet' });
+    fireAndForget(refreshSpeakers(), {
+      context: 'src/hooks/useSpeakerActions.ts:L198',
+      policy: 'background-quiet',
+    });
+    fireAndForget(refreshSpeakerReferenceStats(), {
+      context: 'src/hooks/useSpeakerActions.ts:L199',
+      policy: 'background-quiet',
+    });
   }, [isReady, refreshSpeakerReferenceStats, refreshSpeakers, speakerReferenceStatsMediaId]);
 
   useEffect(() => {
@@ -220,153 +283,192 @@ export function useSpeakerActions({
     setBatchSpeakerId(allSame ? firstSpeakerId : '');
   }, [selectedBatchUnits, syncBatchSpeakerId]);
 
-  const handleSelectSpeakerUnits = useCallback((speakerKey: string) => {
-    const ids = getUnitIdsForSpeakerKey(speakerKey);
-    if (ids.length === 0) {
-      setUnitSelection('', []);
-      return;
-    }
-    const primary = ids.includes(activeUnitId ?? '') ? (activeUnitId ?? ids[0]!) : ids[0]!;
-    setUnitSelection(primary, ids);
-    setActiveSpeakerFilterKey(speakerKey);
-  }, [activeUnitId, getUnitIdsForSpeakerKey, setUnitSelection]);
+  const handleSelectSpeakerUnits = useCallback(
+    (speakerKey: string) => {
+      const ids = getUnitIdsForSpeakerKey(speakerKey);
+      if (ids.length === 0) {
+        setUnitSelection('', []);
+        return;
+      }
+      const primary = ids.includes(activeUnitId ?? '') ? (activeUnitId ?? ids[0]!) : ids[0]!;
+      setUnitSelection(primary, ids);
+      setActiveSpeakerFilterKey(speakerKey);
+    },
+    [activeUnitId, getUnitIdsForSpeakerKey, setUnitSelection],
+  );
 
-  const handleClearSpeakerAssignments = useCallback((speakerKey: string) => {
-    const target = speakerFilterOptions.find((option) => option.key === speakerKey);
-    const ids = getUnitIdsForSpeakerKey(speakerKey);
-    if (ids.length === 0) {
-      reportValidationError({
-        message: t('transcription.error.validation.clearSpeakerNoTarget'),
-        i18nKey: 'transcription.error.validation.clearSpeakerNoTarget',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+  const handleClearSpeakerAssignments = useCallback(
+    (speakerKey: string) => {
+      const target = speakerFilterOptions.find((option) => option.key === speakerKey);
+      const ids = getUnitIdsForSpeakerKey(speakerKey);
+      if (ids.length === 0) {
+        reportValidationError({
+          message: t('transcription.error.validation.clearSpeakerNoTarget'),
+          i18nKey: 'transcription.error.validation.clearSpeakerNoTarget',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+        return;
+      }
+      setSpeakerDialogState({
+        mode: 'clear',
+        speakerKey,
+        speakerName: target?.name ?? speakerDisplayLabels.unnamedSpeaker,
+        affectedCount: ids.length,
       });
-      return;
-    }
-    setSpeakerDialogState({
-      mode: 'clear',
-      speakerKey,
-      speakerName: target?.name ?? speakerDisplayLabels.unnamedSpeaker,
-      affectedCount: ids.length,
-    });
-  }, [getUnitIdsForSpeakerKey, setSaveState, speakerDisplayLabels.unnamedSpeaker, speakerFilterOptions, t]);
+    },
+    [
+      getUnitIdsForSpeakerKey,
+      setSaveState,
+      speakerDisplayLabels.unnamedSpeaker,
+      speakerFilterOptions,
+      t,
+    ],
+  );
 
-  const handleExportSpeakerSegments = useCallback((speakerKey: string) => {
-    const target = speakerFilterOptions.find((item) => item.key === speakerKey);
-    const speakerName = target?.name ?? getSpeakerExportFallbackName(t);
-    const rows = unitsOnCurrentMedia
-      .filter((unit) => getUnitSpeakerKey(unit) === speakerKey)
-      .sort((left, right) => left.startTime - right.startTime)
-      .map((unit, index) => {
-        const text = getUnitTextForLayer(unit) || '';
-        return `${index + 1}. [${formatTime(unit.startTime)} - ${formatTime(unit.endTime)}] ${text}`;
-      });
+  const handleExportSpeakerSegments = useCallback(
+    (speakerKey: string) => {
+      const target = speakerFilterOptions.find((item) => item.key === speakerKey);
+      const speakerName = target?.name ?? getSpeakerExportFallbackName(t);
+      const rows = unitsOnCurrentMedia
+        .filter((unit) => getUnitSpeakerKey(unit) === speakerKey)
+        .sort((left, right) => left.startTime - right.startTime)
+        .map((unit, index) => {
+          const text = getUnitTextForLayer(unit) || '';
+          return `${index + 1}. [${formatTime(unit.startTime)} - ${formatTime(unit.endTime)}] ${text}`;
+        });
 
-    if (rows.length === 0) {
-      reportValidationError({
-        message: t('transcription.error.validation.exportSpeakerNoSegments'),
-        i18nKey: 'transcription.error.validation.exportSpeakerNoSegments',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-      });
-      return;
-    }
+      if (rows.length === 0) {
+        reportValidationError({
+          message: t('transcription.error.validation.exportSpeakerNoSegments'),
+          i18nKey: 'transcription.error.validation.exportSpeakerNoSegments',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+        return;
+      }
 
-    if (typeof window === 'undefined') {
-      reportValidationError({
-        message: t('transcription.error.validation.exportSpeakerUnsupportedEnv'),
-        i18nKey: 'transcription.error.validation.exportSpeakerUnsupportedEnv',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-      });
-      return;
-    }
+      if (typeof window === 'undefined') {
+        reportValidationError({
+          message: t('transcription.error.validation.exportSpeakerUnsupportedEnv'),
+          i18nKey: 'transcription.error.validation.exportSpeakerUnsupportedEnv',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+        return;
+      }
 
-    const content = formatSpeakerExportContent('units', speakerName, rows, t, tf);
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `speaker-${speakerName.replace(/\s+/g, '-')}-${Date.now()}.txt`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-    setSaveState({ kind: 'done', message: formatSpeakerExportDone('units', rows.length, t, tf) });
-  }, [formatTime, getUnitTextForLayer, setSaveState, speakerFilterOptions, t, tf, unitsOnCurrentMedia]);
+      const content = formatSpeakerExportContent('units', speakerName, rows, t, tf);
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `speaker-${speakerName.replace(/\s+/g, '-')}-${Date.now()}.txt`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setSaveState({ kind: 'done', message: formatSpeakerExportDone('units', rows.length, t, tf) });
+    },
+    [
+      formatTime,
+      getUnitTextForLayer,
+      setSaveState,
+      speakerFilterOptions,
+      t,
+      tf,
+      unitsOnCurrentMedia,
+    ],
+  );
 
-  const handleRenameSpeaker = useCallback((speakerKey: string) => {
+  const handleRenameSpeaker = useCallback(
+    (speakerKey: string) => {
       const normalizedKey = speakerKey.trim();
       const current = normalizedKey ? speakerById.get(normalizedKey) : undefined;
-    if (!current) {
-      reportValidationError({
-        message: t('transcription.error.validation.renameSpeakerNotFound'),
-        i18nKey: 'transcription.error.validation.renameSpeakerNotFound',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      if (!current) {
+        reportValidationError({
+          message: t('transcription.error.validation.renameSpeakerNotFound'),
+          i18nKey: 'transcription.error.validation.renameSpeakerNotFound',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+        return;
+      }
+      setSpeakerDialogState({
+        mode: 'rename',
+        speakerKey: normalizedKey,
+        speakerName: current.name,
+        draftName: current.name,
       });
-      return;
-    }
-    setSpeakerDialogState({
-      mode: 'rename',
-      speakerKey: normalizedKey,
-      speakerName: current.name,
-      draftName: current.name,
-    });
-  }, [setSaveState, speakerById, t]);
+    },
+    [setSaveState, speakerById, t],
+  );
 
-  const handleMergeSpeaker = useCallback((sourceSpeakerKey: string) => {
-    const normalizedKey = sourceSpeakerKey.trim();
-    const source = normalizedKey ? speakerById.get(normalizedKey) : undefined;
-    if (!source) {
-      reportValidationError({
-        message: t('transcription.error.validation.renameSpeakerNotFound'),
-        i18nKey: 'transcription.error.validation.renameSpeakerNotFound',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+  const handleMergeSpeaker = useCallback(
+    (sourceSpeakerKey: string) => {
+      const normalizedKey = sourceSpeakerKey.trim();
+      const source = normalizedKey ? speakerById.get(normalizedKey) : undefined;
+      if (!source) {
+        reportValidationError({
+          message: t('transcription.error.validation.renameSpeakerNotFound'),
+          i18nKey: 'transcription.error.validation.renameSpeakerNotFound',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+        return;
+      }
+      const candidates = speakerOptions
+        .filter((speaker) => speaker.id !== normalizedKey)
+        .map((speaker) => ({ key: speaker.id, name: speaker.name }));
+      if (candidates.length === 0) {
+        reportValidationError({
+          message: t('transcription.error.validation.mergeSpeakerNoTarget'),
+          i18nKey: 'transcription.error.validation.mergeSpeakerNoTarget',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+        return;
+      }
+      setSpeakerDialogState({
+        mode: 'merge',
+        sourceSpeakerKey: normalizedKey,
+        sourceSpeakerName: source.name,
+        targetSpeakerKey: candidates[0]!.key,
+        candidates,
       });
-      return;
-    }
-    const candidates = speakerOptions
-      .filter((speaker) => speaker.id !== normalizedKey)
-      .map((speaker) => ({ key: speaker.id, name: speaker.name }));
-    if (candidates.length === 0) {
-      reportValidationError({
-        message: t('transcription.error.validation.mergeSpeakerNoTarget'),
-        i18nKey: 'transcription.error.validation.mergeSpeakerNoTarget',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+    },
+    [setSaveState, speakerById, speakerOptions, t],
+  );
+
+  const handleDeleteSpeaker = useCallback(
+    (sourceSpeakerKey: string) => {
+      const normalizedKey = sourceSpeakerKey.trim();
+      const source = normalizedKey ? speakerById.get(normalizedKey) : undefined;
+      if (!source) {
+        reportValidationError({
+          message: t('transcription.error.validation.deleteSpeakerEntityNotFound'),
+          i18nKey: 'transcription.error.validation.deleteSpeakerEntityNotFound',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+        return;
+      }
+
+      const candidates = speakerOptions
+        .filter((speaker) => speaker.id !== normalizedKey)
+        .map((speaker) => ({ key: speaker.id, name: speaker.name }));
+
+      setSpeakerDialogState({
+        mode: 'delete',
+        sourceSpeakerKey: normalizedKey,
+        sourceSpeakerName: source.name,
+        replacementSpeakerKey: candidates[0]?.key ?? '',
+        candidates,
+        affectedCount: speakerReferenceStats[normalizedKey]?.totalCount ?? 0,
       });
-      return;
-    }
-    setSpeakerDialogState({
-      mode: 'merge',
-      sourceSpeakerKey: normalizedKey,
-      sourceSpeakerName: source.name,
-      targetSpeakerKey: candidates[0]!.key,
-      candidates,
-    });
-  }, [setSaveState, speakerById, speakerOptions, t]);
-
-  const handleDeleteSpeaker = useCallback((sourceSpeakerKey: string) => {
-    const normalizedKey = sourceSpeakerKey.trim();
-    const source = normalizedKey ? speakerById.get(normalizedKey) : undefined;
-    if (!source) {
-      reportValidationError({
-        message: t('transcription.error.validation.deleteSpeakerEntityNotFound'),
-        i18nKey: 'transcription.error.validation.deleteSpeakerEntityNotFound',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-      });
-      return;
-    }
-
-    const candidates = speakerOptions
-      .filter((speaker) => speaker.id !== normalizedKey)
-      .map((speaker) => ({ key: speaker.id, name: speaker.name }));
-
-    setSpeakerDialogState({
-      mode: 'delete',
-      sourceSpeakerKey: normalizedKey,
-      sourceSpeakerName: source.name,
-      replacementSpeakerKey: candidates[0]?.key ?? '',
-      candidates,
-      affectedCount: speakerReferenceStats[normalizedKey]?.totalCount ?? 0,
-    });
-  }, [setSaveState, speakerById, speakerOptions, speakerReferenceStats, t]);
+    },
+    [setSaveState, speakerById, speakerOptions, speakerReferenceStats, t],
+  );
 
   const handleAssignSpeakerToSelected = useCallback(async () => {
     if (selectedUnitIds.size === 0 && !activeUnitId) return;
@@ -375,10 +477,9 @@ export function useSpeakerActions({
     try {
       data.pushUndo(getSpeakerUndoLabel('assign', t));
       const speaker = batchSpeakerId ? speakerById.get(batchSpeakerId) : undefined;
-      const targetIds = selectedUnitIds.size > 0
-        ? Array.from(selectedUnitIds) 
-        : (activeUnitId ? [activeUnitId] : []);
-      
+      const targetIds =
+        selectedUnitIds.size > 0 ? Array.from(selectedUnitIds) : activeUnitId ? [activeUnitId] : [];
+
       const updated = await LinguisticService.assignSpeakerToUnits(
         targetIds,
         batchSpeakerId || undefined,
@@ -396,43 +497,71 @@ export function useSpeakerActions({
         ...buildSpeakerActionErrorOptions('assign', error, t, tf),
         conflictI18nKey: 'transcription.error.conflict.assignSpeaker',
         fallbackI18nKey: 'transcription.error.action.assignSpeakerFailed',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        setErrorState: ({ message, meta }) =>
+          setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     } finally {
       setSpeakerSaving(false);
     }
-  }, [activeUnitId, applySpeakerLocally, batchSpeakerId, data, refreshSpeakerReferenceStats, selectedUnitIds, setBatchSpeakerId, setSaveState, speakerById, speakerSaving, t, tf]);
+  }, [
+    activeUnitId,
+    applySpeakerLocally,
+    batchSpeakerId,
+    data,
+    refreshSpeakerReferenceStats,
+    selectedUnitIds,
+    setBatchSpeakerId,
+    setSaveState,
+    speakerById,
+    speakerSaving,
+    t,
+    tf,
+  ]);
 
-  const handleAssignSpeakerToUnits = useCallback(async (unitIds: Iterable<string>, speakerId?: string) => {
-    const targetIds = Array.from(new Set(unitIds)).filter((id) => id.trim().length > 0);
-    if (targetIds.length === 0 || speakerSaving) return;
+  const handleAssignSpeakerToUnits = useCallback(
+    async (unitIds: Iterable<string>, speakerId?: string) => {
+      const targetIds = Array.from(new Set(unitIds)).filter((id) => id.trim().length > 0);
+      if (targetIds.length === 0 || speakerSaving) return;
 
-    setSpeakerSaving(true);
-    try {
-      data.pushUndo(getSpeakerUndoLabel('assign', t));
-      const speaker = speakerId ? speakerById.get(speakerId) : undefined;
-      const updated = await LinguisticService.assignSpeakerToUnits(targetIds, speakerId);
-      applySpeakerLocally(targetIds, speaker);
-      if (speakerId) {
-        setBatchSpeakerId(speakerId);
+      setSpeakerSaving(true);
+      try {
+        data.pushUndo(getSpeakerUndoLabel('assign', t));
+        const speaker = speakerId ? speakerById.get(speakerId) : undefined;
+        const updated = await LinguisticService.assignSpeakerToUnits(targetIds, speakerId);
+        applySpeakerLocally(targetIds, speaker);
+        if (speakerId) {
+          setBatchSpeakerId(speakerId);
+        }
+        await refreshSpeakerReferenceStats();
+        setSaveState({
+          kind: 'done',
+          message: formatSpeakerAssignmentResult('units', updated, t, tf),
+        });
+      } catch (error) {
+        reportActionError({
+          error,
+          ...buildSpeakerActionErrorOptions('assign', error, t, tf),
+          conflictI18nKey: 'transcription.error.conflict.assignSpeaker',
+          fallbackI18nKey: 'transcription.error.action.assignSpeakerFailed',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+      } finally {
+        setSpeakerSaving(false);
       }
-      await refreshSpeakerReferenceStats();
-      setSaveState({
-        kind: 'done',
-        message: formatSpeakerAssignmentResult('units', updated, t, tf),
-      });
-    } catch (error) {
-      reportActionError({
-        error,
-        ...buildSpeakerActionErrorOptions('assign', error, t, tf),
-        conflictI18nKey: 'transcription.error.conflict.assignSpeaker',
-        fallbackI18nKey: 'transcription.error.action.assignSpeakerFailed',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-      });
-    } finally {
-      setSpeakerSaving(false);
-    }
-  }, [applySpeakerLocally, data, refreshSpeakerReferenceStats, setSaveState, speakerById, speakerSaving, setBatchSpeakerId, t, tf]);
+    },
+    [
+      applySpeakerLocally,
+      data,
+      refreshSpeakerReferenceStats,
+      setSaveState,
+      speakerById,
+      speakerSaving,
+      setBatchSpeakerId,
+      t,
+      tf,
+    ],
+  );
 
   const handleCreateSpeakerAndAssign = useCallback(async () => {
     const name = speakerDraftName.trim();
@@ -445,11 +574,10 @@ export function useSpeakerActions({
       const existing = findExistingSpeakerByName(name);
       data.pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
       undoPushed = true;
-      const targetIds = selectedUnitIds.size > 0
-        ? Array.from(selectedUnitIds) 
-        : (activeUnitId ? [activeUnitId] : []);
+      const targetIds =
+        selectedUnitIds.size > 0 ? Array.from(selectedUnitIds) : activeUnitId ? [activeUnitId] : [];
 
-      const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name });
+      const targetSpeaker = existing ?? (await LinguisticService.createSpeaker({ name }));
       const updated = await LinguisticService.assignSpeakerToUnits(targetIds, targetSpeaker.id);
       if (!existing) {
         setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
@@ -460,7 +588,14 @@ export function useSpeakerActions({
       await refreshSpeakerReferenceStats();
       setSaveState({
         kind: 'done',
-        message: formatSpeakerCreateAndAssignResult('units', targetSpeaker.name, updated, Boolean(existing), t, tf),
+        message: formatSpeakerCreateAndAssignResult(
+          'units',
+          targetSpeaker.name,
+          updated,
+          Boolean(existing),
+          t,
+          tf,
+        ),
       });
     } catch (error) {
       if (undoPushed) await data.undo();
@@ -469,49 +604,86 @@ export function useSpeakerActions({
         ...buildSpeakerActionErrorOptions('create', error, t, tf),
         conflictI18nKey: 'transcription.error.conflict.createSpeaker',
         fallbackI18nKey: 'transcription.error.action.createSpeakerFailed',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        setErrorState: ({ message, meta }) =>
+          setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     } finally {
       setSpeakerSaving(false);
     }
-  }, [activeUnitId, applySpeakerLocally, data, findExistingSpeakerByName, refreshSpeakerReferenceStats, selectedUnitIds, setSaveState, setSpeakers, speakerDraftName, speakerSaving, t, tf]);
+  }, [
+    activeUnitId,
+    applySpeakerLocally,
+    data,
+    findExistingSpeakerByName,
+    refreshSpeakerReferenceStats,
+    selectedUnitIds,
+    setSaveState,
+    setSpeakers,
+    speakerDraftName,
+    speakerSaving,
+    t,
+    tf,
+  ]);
 
-  const handleCreateSpeakerAndAssignToUnits = useCallback(async (name: string, unitIds: Iterable<string>) => {
-    const targetIds = Array.from(new Set(unitIds)).filter((id) => id.trim().length > 0);
-    const trimmedName = name.trim();
-    if (!trimmedName || targetIds.length === 0 || speakerSaving) return;
+  const handleCreateSpeakerAndAssignToUnits = useCallback(
+    async (name: string, unitIds: Iterable<string>) => {
+      const targetIds = Array.from(new Set(unitIds)).filter((id) => id.trim().length > 0);
+      const trimmedName = name.trim();
+      if (!trimmedName || targetIds.length === 0 || speakerSaving) return;
 
-    setSpeakerSaving(true);
-    let undoPushed = false;
-    try {
-      const existing = findExistingSpeakerByName(trimmedName);
-      data.pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
-      undoPushed = true;
-      const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name: trimmedName });
-      const updated = await LinguisticService.assignSpeakerToUnits(targetIds, targetSpeaker.id);
-      if (!existing) {
-        setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
+      setSpeakerSaving(true);
+      let undoPushed = false;
+      try {
+        const existing = findExistingSpeakerByName(trimmedName);
+        data.pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
+        undoPushed = true;
+        const targetSpeaker =
+          existing ?? (await LinguisticService.createSpeaker({ name: trimmedName }));
+        const updated = await LinguisticService.assignSpeakerToUnits(targetIds, targetSpeaker.id);
+        if (!existing) {
+          setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
+        }
+        applySpeakerLocally(targetIds, targetSpeaker);
+        setBatchSpeakerId(targetSpeaker.id);
+        await refreshSpeakerReferenceStats();
+        setSaveState({
+          kind: 'done',
+          message: formatSpeakerCreateAndAssignResult(
+            'units',
+            targetSpeaker.name,
+            updated,
+            Boolean(existing),
+            t,
+            tf,
+          ),
+        });
+      } catch (error) {
+        if (undoPushed) await data.undo();
+        reportActionError({
+          error,
+          ...buildSpeakerActionErrorOptions('create', error, t, tf),
+          conflictI18nKey: 'transcription.error.conflict.createSpeaker',
+          fallbackI18nKey: 'transcription.error.action.createSpeakerFailed',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+      } finally {
+        setSpeakerSaving(false);
       }
-      applySpeakerLocally(targetIds, targetSpeaker);
-      setBatchSpeakerId(targetSpeaker.id);
-      await refreshSpeakerReferenceStats();
-      setSaveState({
-        kind: 'done',
-        message: formatSpeakerCreateAndAssignResult('units', targetSpeaker.name, updated, Boolean(existing), t, tf),
-      });
-    } catch (error) {
-      if (undoPushed) await data.undo();
-      reportActionError({
-        error,
-        ...buildSpeakerActionErrorOptions('create', error, t, tf),
-        conflictI18nKey: 'transcription.error.conflict.createSpeaker',
-        fallbackI18nKey: 'transcription.error.action.createSpeakerFailed',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-      });
-    } finally {
-      setSpeakerSaving(false);
-    }
-  }, [applySpeakerLocally, data, findExistingSpeakerByName, refreshSpeakerReferenceStats, setBatchSpeakerId, setSaveState, setSpeakers, speakerSaving, t, tf]);
+    },
+    [
+      applySpeakerLocally,
+      data,
+      findExistingSpeakerByName,
+      refreshSpeakerReferenceStats,
+      setBatchSpeakerId,
+      setSaveState,
+      setSpeakers,
+      speakerSaving,
+      t,
+      tf,
+    ],
+  );
 
   const handleCreateSpeakerOnly = useCallback(async () => {
     const name = speakerDraftName.trim();
@@ -522,26 +694,44 @@ export function useSpeakerActions({
       if (existing) {
         setSpeakerDraftName('');
         setBatchSpeakerId(existing.id);
-        setSaveState({ kind: 'done', message: formatSpeakerCreateOnlyResult(existing.name, true, tf) });
+        setSaveState({
+          kind: 'done',
+          message: formatSpeakerCreateOnlyResult(existing.name, true, tf),
+        });
         return;
       }
       const created = await LinguisticService.createSpeaker({ name });
       setSpeakers((prev) => upsertSpeaker(prev, created));
       setSpeakerDraftName('');
       await refreshSpeakerReferenceStats();
-      setSaveState({ kind: 'done', message: formatSpeakerCreateOnlyResult(created.name, false, tf) });
+      setSaveState({
+        kind: 'done',
+        message: formatSpeakerCreateOnlyResult(created.name, false, tf),
+      });
     } catch (error) {
       reportActionError({
         error,
         ...buildSpeakerActionErrorOptions('create', error, t, tf),
         conflictI18nKey: 'transcription.error.conflict.createSpeaker',
         fallbackI18nKey: 'transcription.error.action.createSpeakerFailed',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        setErrorState: ({ message, meta }) =>
+          setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     } finally {
       setSpeakerSaving(false);
     }
-  }, [findExistingSpeakerByName, refreshSpeakerReferenceStats, setBatchSpeakerId, setSaveState, setSpeakerDraftName, setSpeakers, speakerDraftName, speakerSaving, t, tf]);
+  }, [
+    findExistingSpeakerByName,
+    refreshSpeakerReferenceStats,
+    setBatchSpeakerId,
+    setSaveState,
+    setSpeakerDraftName,
+    setSpeakers,
+    speakerDraftName,
+    speakerSaving,
+    t,
+    tf,
+  ]);
 
   const handleDeleteUnusedSpeakers = useCallback(async () => {
     if (unusedSpeakerIds.length === 0 || speakerSaving) return;
@@ -551,13 +741,20 @@ export function useSpeakerActions({
     try {
       data.pushUndo(getSpeakerUndoLabel('cleanupUnused', t));
       undoPushed = true;
-      await Promise.all(unusedSpeakerIds.map((speakerId) => LinguisticService.deleteSpeaker(speakerId)));
-      setSpeakers((prev) => sortSpeakersByName(prev.filter((speaker) => !unusedSpeakerIds.includes(speaker.id))));
+      await Promise.all(
+        unusedSpeakerIds.map((speakerId) => LinguisticService.deleteSpeaker(speakerId)),
+      );
+      setSpeakers((prev) =>
+        sortSpeakersByName(prev.filter((speaker) => !unusedSpeakerIds.includes(speaker.id))),
+      );
       if (unusedSpeakerIds.includes(activeSpeakerFilterKey)) {
         setActiveSpeakerFilterKey('all');
       }
       await refreshSpeakerReferenceStats();
-      setSaveState({ kind: 'done', message: formatSpeakerCleanupResult(unusedSpeakerIds.length, tf) });
+      setSaveState({
+        kind: 'done',
+        message: formatSpeakerCleanupResult(unusedSpeakerIds.length, tf),
+      });
     } catch (error) {
       if (undoPushed) await data.undo();
       reportActionError({
@@ -565,12 +762,23 @@ export function useSpeakerActions({
         ...buildSpeakerActionErrorOptions('cleanupUnused', error, t, tf),
         conflictI18nKey: 'transcription.error.conflict.cleanupUnusedSpeaker',
         fallbackI18nKey: 'transcription.error.action.cleanupUnusedSpeakerFailed',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        setErrorState: ({ message, meta }) =>
+          setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     } finally {
       setSpeakerSaving(false);
     }
-  }, [activeSpeakerFilterKey, data, refreshSpeakerReferenceStats, setSaveState, setSpeakers, speakerSaving, t, tf, unusedSpeakerIds]);
+  }, [
+    activeSpeakerFilterKey,
+    data,
+    refreshSpeakerReferenceStats,
+    setSaveState,
+    setSpeakers,
+    speakerSaving,
+    t,
+    tf,
+    unusedSpeakerIds,
+  ]);
 
   const closeSpeakerDialog = useCallback(() => {
     if (speakerSaving) return;
@@ -578,21 +786,19 @@ export function useSpeakerActions({
   }, [speakerSaving]);
 
   const updateSpeakerDialogDraftName = useCallback((value: string) => {
-    setSpeakerDialogState((prev) => (
-      prev?.mode === 'rename'
-        ? { ...prev, draftName: value }
-        : prev
-    ));
+    setSpeakerDialogState((prev) =>
+      prev?.mode === 'rename' ? { ...prev, draftName: value } : prev,
+    );
   }, []);
 
   const updateSpeakerDialogTargetKey = useCallback((speakerKey: string) => {
-    setSpeakerDialogState((prev) => (
+    setSpeakerDialogState((prev) =>
       prev?.mode === 'merge'
         ? { ...prev, targetSpeakerKey: speakerKey }
         : prev?.mode === 'delete'
           ? { ...prev, replacementSpeakerKey: speakerKey }
-          : prev
-    ));
+          : prev,
+    );
   }, []);
 
   const confirmSpeakerDialog = useCallback(async () => {
@@ -606,7 +812,8 @@ export function useSpeakerActions({
           reportValidationError({
             message: t('transcription.error.validation.clearSpeakerNoTarget'),
             i18nKey: 'transcription.error.validation.clearSpeakerNoTarget',
-            setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+            setErrorState: ({ message, meta }) =>
+              setSaveState({ kind: 'error', message, errorMeta: meta }),
           });
           setSpeakerDialogState(null);
           return;
@@ -626,13 +833,17 @@ export function useSpeakerActions({
           reportValidationError({
             message: t('transcription.error.validation.renameSpeakerEmptyName'),
             i18nKey: 'transcription.error.validation.renameSpeakerEmptyName',
-            setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+            setErrorState: ({ message, meta }) =>
+              setSaveState({ kind: 'error', message, errorMeta: meta }),
           });
           return;
         }
         data.pushUndo(getSpeakerUndoLabel('rename', t));
         undoPushed = true;
-        const updated = await LinguisticService.renameSpeaker(speakerDialogState.speakerKey, nextName);
+        const updated = await LinguisticService.renameSpeaker(
+          speakerDialogState.speakerKey,
+          nextName,
+        );
         setSpeakers((prev) => upsertSpeaker(prev, updated));
         setUnits((prev) => renameSpeakerInUnits(prev, updated.id, updated.name));
         setSaveState({ kind: 'done', message: formatSpeakerRenameResult(updated.name, tf) });
@@ -644,7 +855,8 @@ export function useSpeakerActions({
           reportValidationError({
             message: t('transcription.error.validation.mergeSpeakerTargetMissing'),
             i18nKey: 'transcription.error.validation.mergeSpeakerTargetMissing',
-            setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+            setErrorState: ({ message, meta }) =>
+              setSaveState({ kind: 'error', message, errorMeta: meta }),
           });
           return;
         }
@@ -654,15 +866,24 @@ export function useSpeakerActions({
           speakerDialogState.sourceSpeakerKey,
           speakerDialogState.targetSpeakerKey,
         );
-        setSpeakers((prev) => sortSpeakersByName(prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey)));
-        setUnits((prev) => prev.map((unit) => (
-          unit.speakerId === speakerDialogState.sourceSpeakerKey
-            ? { ...unit, speakerId: targetSpeaker.id, speaker: targetSpeaker.name }
-            : unit
-        )));
+        setSpeakers((prev) =>
+          sortSpeakersByName(
+            prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey),
+          ),
+        );
+        setUnits((prev) =>
+          prev.map((unit) =>
+            unit.speakerId === speakerDialogState.sourceSpeakerKey
+              ? { ...unit, speakerId: targetSpeaker.id, speaker: targetSpeaker.name }
+              : unit,
+          ),
+        );
         await refreshSpeakerReferenceStats();
         setActiveSpeakerFilterKey(targetSpeaker.id);
-        setSaveState({ kind: 'done', message: formatSpeakerMergeResult(moved, targetSpeaker.name, tf) });
+        setSaveState({
+          kind: 'done',
+          message: formatSpeakerMergeResult(moved, targetSpeaker.name, tf),
+        });
       }
 
       if (speakerDialogState.mode === 'delete') {
@@ -673,7 +894,8 @@ export function useSpeakerActions({
             reportValidationError({
               message: t('transcription.error.validation.deleteSpeakerEntityTargetMissing'),
               i18nKey: 'transcription.error.validation.deleteSpeakerEntityTargetMissing',
-              setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+              setErrorState: ({ message, meta }) =>
+                setSaveState({ kind: 'error', message, errorMeta: meta }),
             });
             return;
           }
@@ -684,27 +906,45 @@ export function useSpeakerActions({
             strategy: 'merge',
             targetSpeakerId: replacementSpeaker.id,
           });
-          setSpeakers((prev) => sortSpeakersByName(prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey)));
-          setUnits((prev) => prev.map((unit) => (
-            unit.speakerId === speakerDialogState.sourceSpeakerKey
-              ? { ...unit, speakerId: replacementSpeaker.id, speaker: replacementSpeaker.name }
-              : unit
-          )));
+          setSpeakers((prev) =>
+            sortSpeakersByName(
+              prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey),
+            ),
+          );
+          setUnits((prev) =>
+            prev.map((unit) =>
+              unit.speakerId === speakerDialogState.sourceSpeakerKey
+                ? { ...unit, speakerId: replacementSpeaker.id, speaker: replacementSpeaker.name }
+                : unit,
+            ),
+          );
           await refreshSpeakerReferenceStats();
           setActiveSpeakerFilterKey(replacementSpeaker.id);
-          setSaveState({ kind: 'done', message: formatSpeakerDeleteAndMigrateResult(moved, replacementSpeaker.name, tf) });
+          setSaveState({
+            kind: 'done',
+            message: formatSpeakerDeleteAndMigrateResult(moved, replacementSpeaker.name, tf),
+          });
         } else {
           data.pushUndo(getSpeakerUndoLabel('deleteEntity', t));
           undoPushed = true;
-          const cleared = await LinguisticService.deleteSpeaker(speakerDialogState.sourceSpeakerKey, {
-            strategy: 'clear',
-          });
-          setSpeakers((prev) => sortSpeakersByName(prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey)));
-          setUnits((prev) => prev.map((unit) => {
-            if (unit.speakerId !== speakerDialogState.sourceSpeakerKey) return unit;
-            const { speaker: _speaker, speakerId: _speakerId, ...rest } = unit;
-            return rest;
-          }));
+          const cleared = await LinguisticService.deleteSpeaker(
+            speakerDialogState.sourceSpeakerKey,
+            {
+              strategy: 'clear',
+            },
+          );
+          setSpeakers((prev) =>
+            sortSpeakersByName(
+              prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey),
+            ),
+          );
+          setUnits((prev) =>
+            prev.map((unit) => {
+              if (unit.speakerId !== speakerDialogState.sourceSpeakerKey) return unit;
+              const { speaker: _speaker, speakerId: _speakerId, ...rest } = unit;
+              return rest;
+            }),
+          );
           await refreshSpeakerReferenceStats();
           if (activeSpeakerFilterKey === speakerDialogState.sourceSpeakerKey) {
             setActiveSpeakerFilterKey('all');
@@ -721,81 +961,100 @@ export function useSpeakerActions({
         ...buildSpeakerActionErrorOptions('dialogOperation', error, t, tf),
         conflictI18nKey: 'transcription.error.conflict.speakerDialogOperation',
         fallbackI18nKey: 'transcription.error.action.speakerDialogOperationFailed',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        setErrorState: ({ message, meta }) =>
+          setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     } finally {
       setSpeakerSaving(false);
     }
-  }, [activeSpeakerFilterKey, applySpeakerLocally, data, getUnitIdsForSpeakerKey, refreshSpeakerReferenceStats, setSaveState, setSpeakers, setUnits, speakerById, speakerDialogState, speakerSaving, t, tf]);
-
-  return useMemo((): UseSpeakerActionsReturn => ({
-    speakerOptions,
-    speakerDraftName,
-    setSpeakerDraftName,
-    batchSpeakerId,
-    setBatchSpeakerId,
-    speakerSaving,
+  }, [
     activeSpeakerFilterKey,
-    setActiveSpeakerFilterKey,
-    speakerDialogState,
-    speakerVisualByUnitId,
-    speakerFilterOptions,
-    speakerReferenceStats,
-    speakerReferenceUnassignedStats,
-    speakerReferenceStatsMediaScoped,
-    speakerReferenceStatsReady,
-    selectedSpeakerSummary,
-    refreshSpeakers,
+    applySpeakerLocally,
+    data,
+    getUnitIdsForSpeakerKey,
     refreshSpeakerReferenceStats,
-    handleSelectSpeakerUnits,
-    handleClearSpeakerAssignments,
-    handleExportSpeakerSegments,
-    handleRenameSpeaker,
-    handleMergeSpeaker,
-    handleDeleteSpeaker,
-    handleDeleteUnusedSpeakers,
-    handleAssignSpeakerToUnits,
-    handleCreateSpeakerAndAssignToUnits,
-    handleAssignSpeakerToSelected,
-    handleCreateSpeakerAndAssign,
-    handleCreateSpeakerOnly,
-    closeSpeakerDialog,
-    updateSpeakerDialogDraftName,
-    updateSpeakerDialogTargetKey,
-    confirmSpeakerDialog,
-  }), [
-    activeSpeakerFilterKey,
-    batchSpeakerId,
-    closeSpeakerDialog,
-    confirmSpeakerDialog,
-    handleAssignSpeakerToSelected,
-    handleAssignSpeakerToUnits,
-    handleClearSpeakerAssignments,
-    handleCreateSpeakerAndAssign,
-    handleCreateSpeakerAndAssignToUnits,
-    handleCreateSpeakerOnly,
-    handleDeleteSpeaker,
-    handleDeleteUnusedSpeakers,
-    handleExportSpeakerSegments,
-    handleMergeSpeaker,
-    handleRenameSpeaker,
-    handleSelectSpeakerUnits,
-    refreshSpeakerReferenceStats,
-    refreshSpeakers,
-    selectedSpeakerSummary,
-    setActiveSpeakerFilterKey,
-    setBatchSpeakerId,
-    setSpeakerDraftName,
+    setSaveState,
+    setSpeakers,
+    setUnits,
+    speakerById,
     speakerDialogState,
-    speakerFilterOptions,
-    speakerOptions,
-    speakerReferenceStats,
-    speakerReferenceStatsMediaScoped,
-    speakerReferenceStatsReady,
-    speakerReferenceUnassignedStats,
     speakerSaving,
-    speakerVisualByUnitId,
-    updateSpeakerDialogDraftName,
-    updateSpeakerDialogTargetKey,
+    t,
+    tf,
   ]);
+
+  return useMemo(
+    (): UseSpeakerActionsReturn => ({
+      speakerOptions,
+      speakerDraftName,
+      setSpeakerDraftName,
+      batchSpeakerId,
+      setBatchSpeakerId,
+      speakerSaving,
+      activeSpeakerFilterKey,
+      setActiveSpeakerFilterKey,
+      speakerDialogState,
+      speakerVisualByUnitId,
+      speakerFilterOptions,
+      speakerReferenceStats,
+      speakerReferenceUnassignedStats,
+      speakerReferenceStatsMediaScoped,
+      speakerReferenceStatsReady,
+      selectedSpeakerSummary,
+      refreshSpeakers,
+      refreshSpeakerReferenceStats,
+      handleSelectSpeakerUnits,
+      handleClearSpeakerAssignments,
+      handleExportSpeakerSegments,
+      handleRenameSpeaker,
+      handleMergeSpeaker,
+      handleDeleteSpeaker,
+      handleDeleteUnusedSpeakers,
+      handleAssignSpeakerToUnits,
+      handleCreateSpeakerAndAssignToUnits,
+      handleAssignSpeakerToSelected,
+      handleCreateSpeakerAndAssign,
+      handleCreateSpeakerOnly,
+      closeSpeakerDialog,
+      updateSpeakerDialogDraftName,
+      updateSpeakerDialogTargetKey,
+      confirmSpeakerDialog,
+    }),
+    [
+      activeSpeakerFilterKey,
+      batchSpeakerId,
+      speakerDraftName,
+      closeSpeakerDialog,
+      confirmSpeakerDialog,
+      handleAssignSpeakerToSelected,
+      handleAssignSpeakerToUnits,
+      handleClearSpeakerAssignments,
+      handleCreateSpeakerAndAssign,
+      handleCreateSpeakerAndAssignToUnits,
+      handleCreateSpeakerOnly,
+      handleDeleteSpeaker,
+      handleDeleteUnusedSpeakers,
+      handleExportSpeakerSegments,
+      handleMergeSpeaker,
+      handleRenameSpeaker,
+      handleSelectSpeakerUnits,
+      refreshSpeakerReferenceStats,
+      refreshSpeakers,
+      selectedSpeakerSummary,
+      setActiveSpeakerFilterKey,
+      setBatchSpeakerId,
+      setSpeakerDraftName,
+      speakerDialogState,
+      speakerFilterOptions,
+      speakerOptions,
+      speakerReferenceStats,
+      speakerReferenceStatsMediaScoped,
+      speakerReferenceStatsReady,
+      speakerReferenceUnassignedStats,
+      speakerSaving,
+      speakerVisualByUnitId,
+      updateSpeakerDialogDraftName,
+      updateSpeakerDialogTargetKey,
+    ],
+  );
 }

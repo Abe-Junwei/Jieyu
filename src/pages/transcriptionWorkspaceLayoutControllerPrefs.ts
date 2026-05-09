@@ -10,10 +10,15 @@ export const WORKSPACE_SNAP_KEY = 'jieyu:workspace-snap-enabled';
 /** Removed with Greenfield: `jieyu:workspace-layout-contract-version` (no migration). */
 const LEGACY_WORKSPACE_LAYOUT_CONTRACT_STORAGE_KEY = 'jieyu:workspace-layout-contract-version';
 
-export function readStoredClampedNumber(key: string, min: number, max: number, fallback: number): number {
+export function readStoredClampedNumber(
+  key: string,
+  min: number,
+  max: number,
+  fallback: number,
+): number {
   try {
     const stored = localStorage.getItem(key);
-    if (!stored) return fallback;
+    if (stored === null || stored.length === 0) return fallback;
     const parsed = Number(stored);
     if (Number.isNaN(parsed)) return fallback;
     return Math.min(Math.max(parsed, min), max);
@@ -29,9 +34,14 @@ export function readStoredClampedNumber(key: string, min: number, max: number, f
 export function readStoredLaneHeights(): Record<string, number> {
   try {
     const stored = localStorage.getItem('jieyu:lane-heights');
-    if (!stored) return {};
+    if (stored === null || stored.length === 0) return {};
     const parsed: unknown = JSON.parse(stored);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    if (
+      parsed !== null &&
+      parsed !== undefined &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed)
+    ) {
       return parsed as Record<string, number>;
     }
   } catch (error) {

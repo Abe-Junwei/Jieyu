@@ -33,7 +33,9 @@ export function SidePaneSidebarSpeakerManagement({
   messages,
   onClose,
 }: SidePaneSidebarSpeakerManagementProps) {
-  const [collapsedSpeakerGroupKeys, setCollapsedSpeakerGroupKeys] = useState<Set<string>>(new Set());
+  const [collapsedSpeakerGroupKeys, setCollapsedSpeakerGroupKeys] = useState<Set<string>>(
+    new Set(),
+  );
   const fieldIdPrefix = useId();
 
   const speakerFilterOptionByKey = useMemo(
@@ -41,32 +43,39 @@ export function SidePaneSidebarSpeakerManagement({
     [speakerCtx.speakerFilterOptions],
   );
 
-  const speakerManagementRows = useMemo<SpeakerManagementRow[]>(() => (
-    speakerCtx.speakerOptions.map((speaker) => {
-      const activeOption = speakerFilterOptionByKey.get(speaker.id);
-      const projectStats = speakerCtx.speakerReferenceStatsReady
-        ? (speakerCtx.speakerReferenceStats[speaker.id] ?? {
-          transcriptionUnitCount: 0,
-          segmentCount: 0,
-          totalCount: 0,
-        })
-        : {
-          transcriptionUnitCount: 0,
-          segmentCount: 0,
-          totalCount: 0,
+  const speakerManagementRows = useMemo<SpeakerManagementRow[]>(
+    () =>
+      speakerCtx.speakerOptions.map((speaker) => {
+        const activeOption = speakerFilterOptionByKey.get(speaker.id);
+        const projectStats = speakerCtx.speakerReferenceStatsReady
+          ? (speakerCtx.speakerReferenceStats[speaker.id] ?? {
+              transcriptionUnitCount: 0,
+              segmentCount: 0,
+              totalCount: 0,
+            })
+          : {
+              transcriptionUnitCount: 0,
+              segmentCount: 0,
+              totalCount: 0,
+            };
+        return {
+          key: speaker.id,
+          name: speaker.name,
+          count: activeOption?.count ?? 0,
+          projectCount: projectStats.totalCount,
+          transcriptionUnitCount: projectStats.transcriptionUnitCount,
+          segmentCount: projectStats.segmentCount,
+          isUnused: speakerCtx.speakerReferenceStatsReady && projectStats.totalCount === 0,
+          ...(activeOption?.color ? { color: activeOption.color } : {}),
         };
-      return {
-        key: speaker.id,
-        name: speaker.name,
-        count: activeOption?.count ?? 0,
-        projectCount: projectStats.totalCount,
-        transcriptionUnitCount: projectStats.transcriptionUnitCount,
-        segmentCount: projectStats.segmentCount,
-        isUnused: speakerCtx.speakerReferenceStatsReady && projectStats.totalCount === 0,
-        ...(activeOption?.color ? { color: activeOption.color } : {}),
-      };
-    })
-  ), [speakerCtx.speakerOptions, speakerCtx.speakerReferenceStats, speakerCtx.speakerReferenceStatsReady, speakerFilterOptionByKey]);
+      }),
+    [
+      speakerCtx.speakerOptions,
+      speakerCtx.speakerReferenceStats,
+      speakerCtx.speakerReferenceStatsReady,
+      speakerFilterOptionByKey,
+    ],
+  );
 
   const unusedSpeakerCount = useMemo(
     () => speakerManagementRows.filter((row) => row.isUnused).length,
@@ -116,10 +125,16 @@ export function SidePaneSidebarSpeakerManagement({
   };
 
   const runSpeakerPanelActionAndClose = (action: () => void | Promise<void>) => {
-    fireAndForget((async () => {
-      await action();
-      onClose();
-    })(), { context: 'src/components/SidePaneSidebarSpeakerManagement.tsx:L119', policy: 'user-visible' });
+    fireAndForget(
+      (async () => {
+        await action();
+        onClose();
+      })(),
+      {
+        context: 'src/components/SidePaneSidebarSpeakerManagement.tsx:L119',
+        policy: 'user-visible',
+      },
+    );
   };
 
   return (
@@ -128,41 +143,50 @@ export function SidePaneSidebarSpeakerManagement({
       closeLabel={messages.cancelButton}
       onClose={onClose}
       className="side-pane-dialog-speaker"
-      footer={(
+      footer={
         <div className="speaker-management-footer-actions">
-          <PanelButton
-            variant="ghost"
-            onClick={onClose}
-          >
+          <PanelButton variant="ghost" onClick={onClose}>
             {messages.cancelButton}
           </PanelButton>
-          <PanelButton
-            variant="primary"
-            onClick={onClose}
-          >
+          <PanelButton variant="primary" onClick={onClose}>
             {messages.closeButton}
           </PanelButton>
         </div>
-      )}
+      }
     >
       <PanelSummary
         className="speaker-management-panel-card transcription-side-pane-speaker-panel-section transcription-side-pane-speaker-panel-summary"
         description={speakerCtx.selectedSpeakerSummary}
-        meta={(
+        meta={
           <div className="transcription-side-pane-speaker-panel-meta panel-meta">
             <PanelChip>{messages.speakerEntityCount(speakerCtx.speakerOptions.length)}</PanelChip>
-            <PanelChip>{messages.speakerReferencedInScope(speakerCtx.speakerFilterOptions.length)}</PanelChip>
+            <PanelChip>
+              {messages.speakerReferencedInScope(speakerCtx.speakerFilterOptions.length)}
+            </PanelChip>
             {speakerCtx.speakerReferenceStatsReady ? (
-              <PanelChip>{messages.speakerStatsScopeLabel(speakerCtx.speakerReferenceStatsMediaScoped)}</PanelChip>
+              <PanelChip>
+                {messages.speakerStatsScopeLabel(speakerCtx.speakerReferenceStatsMediaScoped)}
+              </PanelChip>
             ) : null}
-            <PanelChip>{speakerCtx.speakerReferenceStatsReady ? messages.speakerReferencedProject(projectReferencedSpeakerCount) : messages.speakerReferencedProjectPending}</PanelChip>
-            <PanelChip>{speakerCtx.speakerReferenceStatsReady ? messages.speakerUnusedCount(unusedSpeakerCount) : messages.speakerUnusedCountPending}</PanelChip>
+            <PanelChip>
+              {speakerCtx.speakerReferenceStatsReady
+                ? messages.speakerReferencedProject(projectReferencedSpeakerCount)
+                : messages.speakerReferencedProjectPending}
+            </PanelChip>
+            <PanelChip>
+              {speakerCtx.speakerReferenceStatsReady
+                ? messages.speakerUnusedCount(unusedSpeakerCount)
+                : messages.speakerUnusedCountPending}
+            </PanelChip>
             <PanelChip>{messages.speakerDuplicateGroupCount(duplicateSpeakerGroupCount)}</PanelChip>
-            <PanelChip>{messages.speakerSelectedUnitCount(speakerCtx.selectedUnitIds.size)}</PanelChip>
+            <PanelChip>
+              {messages.speakerSelectedUnitCount(speakerCtx.selectedUnitIds.size)}
+            </PanelChip>
           </div>
-        )}
+        }
       >
-        {speakerCtx.speakerReferenceStatsReady && speakerCtx.speakerReferenceUnassignedStats.totalCount > 0 ? (
+        {speakerCtx.speakerReferenceStatsReady &&
+        speakerCtx.speakerReferenceUnassignedStats.totalCount > 0 ? (
           <div className="speaker-management-unassigned-hint transcription-side-pane-speaker-panel-section">
             {messages.speakerUnassignedAxisStats(
               speakerCtx.speakerReferenceUnassignedStats.transcriptionUnitCount,
@@ -174,7 +198,9 @@ export function SidePaneSidebarSpeakerManagement({
           <ActionButtonGroup className="speaker-management-dialog-actions speaker-management-dialog-actions-fill">
             <PanelButton
               disabled={speakerCtx.speakerSaving}
-              onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleDeleteUnusedSpeakers); }}
+              onClick={() => {
+                runSpeakerPanelActionAndClose(speakerCtx.handleDeleteUnusedSpeakers);
+              }}
               title={messages.speakerCleanupUnusedTitle}
             >
               {messages.speakerCleanupUnusedButton(unusedSpeakerCount)}
@@ -183,9 +209,15 @@ export function SidePaneSidebarSpeakerManagement({
         )}
       </PanelSummary>
 
-      <PanelSection className="speaker-management-panel-card transcription-side-pane-speaker-panel-section" title={messages.speakerBatchAssignTitle}>
+      <PanelSection
+        className="speaker-management-panel-card transcription-side-pane-speaker-panel-section"
+        title={messages.speakerBatchAssignTitle}
+      >
         <div className="speaker-management-panel-grid">
-          <FormField htmlFor={`${fieldIdPrefix}-batch-speaker`} label={messages.speakerTargetPlaceholder}>
+          <FormField
+            htmlFor={`${fieldIdPrefix}-batch-speaker`}
+            label={messages.speakerTargetPlaceholder}
+          >
             <select
               id={`${fieldIdPrefix}-batch-speaker`}
               className="input layer-action-dialog-input speaker-management-control"
@@ -195,21 +227,31 @@ export function SidePaneSidebarSpeakerManagement({
             >
               <option value="">{messages.speakerTargetPlaceholder}</option>
               {speakerCtx.speakerOptions.map((speaker) => (
-                <option key={speaker.id} value={speaker.id}>{speaker.name}</option>
+                <option key={speaker.id} value={speaker.id}>
+                  {speaker.name}
+                </option>
               ))}
             </select>
           </FormField>
           <ActionButtonGroup className="speaker-management-dialog-actions speaker-management-dialog-actions-fill">
             <PanelButton
               variant="primary"
-              disabled={speakerCtx.speakerSaving || speakerCtx.selectedUnitIds.size === 0 || speakerCtx.batchSpeakerId.trim().length === 0}
-              onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleAssignSpeakerToSelectedRouted); }}
+              disabled={
+                speakerCtx.speakerSaving ||
+                speakerCtx.selectedUnitIds.size === 0 ||
+                speakerCtx.batchSpeakerId.trim().length === 0
+              }
+              onClick={() => {
+                runSpeakerPanelActionAndClose(speakerCtx.handleAssignSpeakerToSelectedRouted);
+              }}
             >
               {messages.speakerApplyButton}
             </PanelButton>
             <PanelButton
               disabled={speakerCtx.speakerSaving || speakerCtx.selectedUnitIds.size === 0}
-              onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleClearSpeakerOnSelectedRouted); }}
+              onClick={() => {
+                runSpeakerPanelActionAndClose(speakerCtx.handleClearSpeakerOnSelectedRouted);
+              }}
               title={messages.speakerClearTitle}
             >
               {messages.speakerClearButton}
@@ -217,7 +259,10 @@ export function SidePaneSidebarSpeakerManagement({
           </ActionButtonGroup>
         </div>
         <div className="speaker-management-panel-grid speaker-management-panel-grid-secondary">
-          <FormField htmlFor={`${fieldIdPrefix}-speaker-draft`} label={messages.speakerDraftPlaceholder}>
+          <FormField
+            htmlFor={`${fieldIdPrefix}-speaker-draft`}
+            label={messages.speakerDraftPlaceholder}
+          >
             <input
               id={`${fieldIdPrefix}-speaker-draft`}
               className="input layer-action-dialog-input speaker-management-control"
@@ -230,15 +275,23 @@ export function SidePaneSidebarSpeakerManagement({
           <ActionButtonGroup className="speaker-management-dialog-actions speaker-management-dialog-actions-fill">
             <PanelButton
               disabled={speakerCtx.speakerSaving || speakerCtx.speakerDraftName.trim().length === 0}
-              onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleCreateSpeakerOnly); }}
+              onClick={() => {
+                runSpeakerPanelActionAndClose(speakerCtx.handleCreateSpeakerOnly);
+              }}
               title={messages.speakerCreateOnlyTitle}
             >
               {messages.speakerCreateOnlyButton}
             </PanelButton>
             <PanelButton
               variant="primary"
-              disabled={speakerCtx.speakerSaving || speakerCtx.selectedUnitIds.size === 0 || speakerCtx.speakerDraftName.trim().length === 0}
-              onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleCreateSpeakerAndAssign); }}
+              disabled={
+                speakerCtx.speakerSaving ||
+                speakerCtx.selectedUnitIds.size === 0 ||
+                speakerCtx.speakerDraftName.trim().length === 0
+              }
+              onClick={() => {
+                runSpeakerPanelActionAndClose(speakerCtx.handleCreateSpeakerAndAssign);
+              }}
               title={messages.speakerCreateAssignTitle}
             >
               {messages.speakerCreateAssignButton}
@@ -247,8 +300,14 @@ export function SidePaneSidebarSpeakerManagement({
         </div>
       </PanelSection>
 
-      <PanelSection className="speaker-management-panel-card transcription-side-pane-speaker-panel-section" title={messages.speakerFilterAria}>
-        <div className="transcription-side-pane-speaker-filter" aria-label={messages.speakerFilterAria}>
+      <PanelSection
+        className="speaker-management-panel-card transcription-side-pane-speaker-panel-section"
+        title={messages.speakerFilterAria}
+      >
+        <div
+          className="transcription-side-pane-speaker-filter"
+          aria-label={messages.speakerFilterAria}
+        >
           <button
             type="button"
             className={`transcription-side-pane-speaker-chip ${speakerCtx.activeSpeakerFilterKey === 'all' ? 'transcription-side-pane-speaker-chip-active' : ''}`}
@@ -257,20 +316,28 @@ export function SidePaneSidebarSpeakerManagement({
           >
             {messages.speakerFilterAllLabel}
           </button>
-          {speakerCtx.speakerFilterOptions.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              className={`transcription-side-pane-speaker-chip ${speakerCtx.activeSpeakerFilterKey === option.key ? 'transcription-side-pane-speaker-chip-active' : ''}`}
-              onClick={() => speakerCtx.setActiveSpeakerFilterKey(option.key)}
-              title={`${option.name}（${option.count}）`}
-              style={option.color ? ({ '--speaker-color': option.color } as CSSProperties) : undefined}
-            >
-              <span className="transcription-side-pane-speaker-dot" />
-              <span className="transcription-side-pane-speaker-name">{option.name}</span>
-              <span className="transcription-side-pane-speaker-count">{option.count}</span>
-            </button>
-          ))}
+          {speakerCtx.speakerFilterOptions.map((option) =>
+            (() => {
+              const speakerToneStyle = option.color
+                ? ({ '--speaker-color': option.color } as CSSProperties)
+                : undefined;
+              const speakerToneProps = speakerToneStyle ? { style: speakerToneStyle } : {};
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  className={`transcription-side-pane-speaker-chip ${speakerCtx.activeSpeakerFilterKey === option.key ? 'transcription-side-pane-speaker-chip-active' : ''}`}
+                  onClick={() => speakerCtx.setActiveSpeakerFilterKey(option.key)}
+                  title={`${option.name}（${option.count}）`}
+                  {...speakerToneProps}
+                >
+                  <span className="transcription-side-pane-speaker-dot" />
+                  <span className="transcription-side-pane-speaker-name">{option.name}</span>
+                  <span className="transcription-side-pane-speaker-count">{option.count}</span>
+                </button>
+              );
+            })(),
+          )}
         </div>
       </PanelSection>
 
@@ -286,13 +353,20 @@ export function SidePaneSidebarSpeakerManagement({
             const duplicateCount = duplicateSpeakerCountById.get(option.key) ?? 0;
             return (
               <div key={`group-${option.key}`} className="transcription-side-pane-speaker-group">
-                <div className="transcription-side-pane-speaker-group-head" style={option.color ? ({ '--speaker-color': option.color } as CSSProperties) : undefined}>
+                <div
+                  className="transcription-side-pane-speaker-group-head"
+                  {...(option.color
+                    ? { style: { '--speaker-color': option.color } as CSSProperties }
+                    : {})}
+                >
                   <button
                     type="button"
                     className="transcription-side-pane-speaker-group-toggle"
                     onClick={() => toggleSpeakerGroupCollapsed(option.key)}
                     aria-expanded={!isCollapsedGroup}
-                    title={isCollapsedGroup ? messages.speakerGroupExpand : messages.speakerGroupCollapse}
+                    title={
+                      isCollapsedGroup ? messages.speakerGroupExpand : messages.speakerGroupCollapse
+                    }
                   >
                     <span className="transcription-side-pane-speaker-dot" />
                     <span className="transcription-side-pane-speaker-name">{option.name}</span>
@@ -302,7 +376,10 @@ export function SidePaneSidebarSpeakerManagement({
                     <button
                       type="button"
                       className={`transcription-side-pane-speaker-mini-btn ${speakerCtx.activeSpeakerFilterKey === option.key ? 'transcription-side-pane-speaker-mini-btn-active' : ''}`}
-                      onClick={() => { speakerCtx.setActiveSpeakerFilterKey(option.key); onClose(); }}
+                      onClick={() => {
+                        speakerCtx.setActiveSpeakerFilterKey(option.key);
+                        onClose();
+                      }}
                       title={messages.speakerFocusTitle}
                       disabled={!hasAssignmentsInScope}
                     >
@@ -311,7 +388,10 @@ export function SidePaneSidebarSpeakerManagement({
                     <button
                       type="button"
                       className="transcription-side-pane-speaker-mini-btn"
-                      onClick={() => { speakerCtx.handleSelectSpeakerUnits(option.key); onClose(); }}
+                      onClick={() => {
+                        speakerCtx.handleSelectSpeakerUnits(option.key);
+                        onClose();
+                      }}
                       title={messages.speakerSelectAllTitle}
                       disabled={!hasAssignmentsInScope}
                     >
@@ -320,7 +400,10 @@ export function SidePaneSidebarSpeakerManagement({
                     <button
                       type="button"
                       className="transcription-side-pane-speaker-mini-btn"
-                      onClick={() => { speakerCtx.handleClearSpeakerAssignments(option.key); onClose(); }}
+                      onClick={() => {
+                        speakerCtx.handleClearSpeakerAssignments(option.key);
+                        onClose();
+                      }}
                       title={messages.speakerDeleteTagTitle}
                       disabled={!hasAssignmentsInScope}
                     >
@@ -329,7 +412,10 @@ export function SidePaneSidebarSpeakerManagement({
                     <button
                       type="button"
                       className="transcription-side-pane-speaker-mini-btn"
-                      onClick={() => { speakerCtx.handleExportSpeakerSegments(option.key); onClose(); }}
+                      onClick={() => {
+                        speakerCtx.handleExportSpeakerSegments(option.key);
+                        onClose();
+                      }}
                       title={messages.speakerExportTitle}
                       disabled={!hasAssignmentsInScope}
                     >
@@ -338,7 +424,10 @@ export function SidePaneSidebarSpeakerManagement({
                     <button
                       type="button"
                       className="transcription-side-pane-speaker-mini-btn"
-                      onClick={() => { speakerCtx.handleRenameSpeaker(option.key); onClose(); }}
+                      onClick={() => {
+                        speakerCtx.handleRenameSpeaker(option.key);
+                        onClose();
+                      }}
                       title={messages.speakerRenameTitle}
                     >
                       {messages.speakerRenameButton}
@@ -346,7 +435,10 @@ export function SidePaneSidebarSpeakerManagement({
                     <button
                       type="button"
                       className="transcription-side-pane-speaker-mini-btn"
-                      onClick={() => { speakerCtx.handleMergeSpeaker(option.key); onClose(); }}
+                      onClick={() => {
+                        speakerCtx.handleMergeSpeaker(option.key);
+                        onClose();
+                      }}
                       title={messages.speakerMergeTitle}
                     >
                       {messages.speakerMergeButton}
@@ -354,7 +446,10 @@ export function SidePaneSidebarSpeakerManagement({
                     <button
                       type="button"
                       className="transcription-side-pane-speaker-mini-btn transcription-side-pane-speaker-mini-btn-danger"
-                      onClick={() => { speakerCtx.handleDeleteSpeaker(option.key); onClose(); }}
+                      onClick={() => {
+                        speakerCtx.handleDeleteSpeaker(option.key);
+                        onClose();
+                      }}
                       title={messages.speakerDeleteEntityTitle}
                     >
                       {messages.speakerDeleteEntityButton}
@@ -363,11 +458,28 @@ export function SidePaneSidebarSpeakerManagement({
                 </div>
                 {!isCollapsedGroup && (
                   <div className="transcription-side-pane-speaker-group-body">
-                    <div>{hasAssignmentsInScope ? messages.speakerCurrentScopeCount(option.count) : messages.speakerCurrentScopeNone}</div>
-                    <div>{speakerCtx.speakerReferenceStatsReady ? messages.speakerProjectRefCount(option.projectCount) : messages.speakerProjectRefPending}</div>
-                    <div>{speakerCtx.speakerReferenceStatsReady ? messages.speakerAxisStats(option.transcriptionUnitCount, option.segmentCount) : messages.speakerAxisStatsPending}</div>
+                    <div>
+                      {hasAssignmentsInScope
+                        ? messages.speakerCurrentScopeCount(option.count)
+                        : messages.speakerCurrentScopeNone}
+                    </div>
+                    <div>
+                      {speakerCtx.speakerReferenceStatsReady
+                        ? messages.speakerProjectRefCount(option.projectCount)
+                        : messages.speakerProjectRefPending}
+                    </div>
+                    <div>
+                      {speakerCtx.speakerReferenceStatsReady
+                        ? messages.speakerAxisStats(
+                            option.transcriptionUnitCount,
+                            option.segmentCount,
+                          )
+                        : messages.speakerAxisStatsPending}
+                    </div>
                     {option.isUnused && <div>{messages.speakerUnusedEntityHint}</div>}
-                    {duplicateCount > 1 && <div>{messages.speakerDuplicateEntityHint(duplicateCount)}</div>}
+                    {duplicateCount > 1 && (
+                      <div>{messages.speakerDuplicateEntityHint(duplicateCount)}</div>
+                    )}
                   </div>
                 )}
               </div>

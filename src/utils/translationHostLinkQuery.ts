@@ -40,16 +40,18 @@ export function resolveLayerLinkHostTranscriptionLayerId(
     const candidate = raw.trim();
     if (candidate.length === 0) return '';
     const mapped = transcriptionIdByKey.get(candidate);
-    if (mapped) return mapped;
+    if (mapped != null && mapped.length > 0) return mapped;
     for (const id of transcriptionIdByKey.values()) {
       if (id === candidate) return id;
     }
     return '';
   };
 
-  const hostId = typeof link.hostTranscriptionLayerId === 'string' ? link.hostTranscriptionLayerId.trim() : '';
+  const hostId =
+    typeof link.hostTranscriptionLayerId === 'string' ? link.hostTranscriptionLayerId.trim() : '';
   if (hostId.length === 0) {
-    const legacyKey = typeof link.transcriptionLayerKey === 'string' ? link.transcriptionLayerKey : '';
+    const legacyKey =
+      typeof link.transcriptionLayerKey === 'string' ? link.transcriptionLayerKey : '';
     return resolveCandidate(legacyKey);
   }
 

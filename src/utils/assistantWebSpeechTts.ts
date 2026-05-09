@@ -9,7 +9,7 @@ let speakGeneration = 0;
 
 /** Strip common markdown / tool-artifact noise for listenable speech. Exported for unit tests. */
 export function plainTextForAssistantTts(raw: string): string {
-  if (!raw) return '';
+  if (raw.length === 0) return '';
   let s = raw.replace(/\r\n/g, '\n');
 
   // fenced code blocks
@@ -44,14 +44,19 @@ export function stopAssistantWebSpeechTts(): void {
   window.speechSynthesis?.cancel();
 }
 
-function pickVoice(voices: SpeechSynthesisVoice[], langTag: string): SpeechSynthesisVoice | undefined {
+function pickVoice(
+  voices: SpeechSynthesisVoice[],
+  langTag: string,
+): SpeechSynthesisVoice | undefined {
   if (voices.length === 0) return undefined;
   const exact = voices.find((v) => v.lang === langTag);
   if (exact) return exact;
   const primary = langTag.split('-')[0]?.toLowerCase();
-  if (!primary) return undefined;
-  return voices.find((v) => v.lang.toLowerCase().startsWith(`${primary}-`))
-    ?? voices.find((v) => v.lang.toLowerCase().startsWith(primary));
+  if (primary === undefined || primary.length === 0) return undefined;
+  return (
+    voices.find((v) => v.lang.toLowerCase().startsWith(`${primary}-`)) ??
+    voices.find((v) => v.lang.toLowerCase().startsWith(primary))
+  );
 }
 
 /**
@@ -61,7 +66,7 @@ function pickVoice(voices: SpeechSynthesisVoice[], langTag: string): SpeechSynth
 export function speakAssistantReplyWithWebSpeechTts(text: string, uiLocale: string): void {
   if (!isAssistantWebSpeechTtsSupported()) return;
   const plain = plainTextForAssistantTts(text);
-  if (!plain) return;
+  if (plain.length === 0) return;
 
   const syn = window.speechSynthesis;
   speakGeneration += 1;

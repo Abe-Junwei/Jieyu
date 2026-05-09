@@ -3,7 +3,12 @@ import { EmbeddingProvider } from '../contexts/EmbeddingContext';
 import { useAiEmbeddingState } from '../hooks/useAiEmbeddingState';
 import { useEmbeddingContextValue } from '../hooks/useEmbeddingContextValue';
 import { getGlobalTaskRunner } from '../ai/tasks/taskRunnerSingleton';
-import { notifyOpenApprovalCenter, notifyRequestAgentLoopResume, REQUEST_EMBEDDING_TASK_FOCUS_EVENT, type RequestEmbeddingTaskFocusDetail } from '../ai/tasks/taskRefreshEvents';
+import {
+  notifyOpenApprovalCenter,
+  notifyRequestAgentLoopResume,
+  REQUEST_EMBEDDING_TASK_FOCUS_EVENT,
+  type RequestEmbeddingTaskFocusDetail,
+} from '../ai/tasks/taskRefreshEvents';
 import { saveEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { AiAnalysisPanel } from '../components/AiAnalysisPanel';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -17,7 +22,11 @@ export function TranscriptionPageAnalysisRuntime({
   const embeddingTasksHydratedRef = useRef(false);
   const taskRunner = useMemo(() => getGlobalTaskRunner(), []);
   const deferredEmbeddingRuntime = useMemo(
-    () => createDeferredEmbeddingRuntime(() => embedding.provider.config.embeddingProviderConfig, taskRunner),
+    () =>
+      createDeferredEmbeddingRuntime(
+        () => embedding.provider.config.embeddingProviderConfig,
+        taskRunner,
+      ),
     [embedding.provider.config.embeddingProviderConfig, taskRunner],
   );
 
@@ -57,7 +66,10 @@ export function TranscriptionPageAnalysisRuntime({
       return;
     }
     embeddingTasksHydratedRef.current = true;
-    fireAndForget(refreshEmbeddingTasks(), { context: 'src/pages/TranscriptionPage.AnalysisRuntime.tsx:L59', policy: 'user-visible' });
+    fireAndForget(refreshEmbeddingTasks(), {
+      context: 'src/pages/TranscriptionPage.AnalysisRuntime.tsx:L59',
+      policy: 'user-visible',
+    });
   }, [panel.analysisTab, refreshEmbeddingTasks]);
 
   useEffect(() => {
@@ -65,13 +77,22 @@ export function TranscriptionPageAnalysisRuntime({
     const onRequestTaskFocus = (event: Event) => {
       const customEvent = event as CustomEvent<RequestEmbeddingTaskFocusDetail>;
       const taskId = customEvent.detail?.taskId;
-      if (!taskId || taskId.trim().length === 0) return;
+      if (taskId === undefined || taskId.trim().length === 0) return;
       panel.onAnalysisTabChange?.('embedding');
-      fireAndForget(refreshEmbeddingTasks(), { context: 'src/pages/TranscriptionPage.AnalysisRuntime.tsx:L73', policy: 'user-visible' });
+      fireAndForget(refreshEmbeddingTasks(), {
+        context: 'src/pages/TranscriptionPage.AnalysisRuntime.tsx:L73',
+        policy: 'user-visible',
+      });
     };
-    window.addEventListener(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, onRequestTaskFocus as EventListener);
+    window.addEventListener(
+      REQUEST_EMBEDDING_TASK_FOCUS_EVENT,
+      onRequestTaskFocus as EventListener,
+    );
     return () => {
-      window.removeEventListener(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, onRequestTaskFocus as EventListener);
+      window.removeEventListener(
+        REQUEST_EMBEDDING_TASK_FOCUS_EVENT,
+        onRequestTaskFocus as EventListener,
+      );
     };
   }, [panel, refreshEmbeddingTasks]);
 
@@ -88,19 +109,25 @@ export function TranscriptionPageAnalysisRuntime({
     notifyRequestAgentLoopResume({ taskId });
   }, []);
 
-  const handleCancelAiTaskWithSessionBridge = useCallback(async (taskId: string) => {
-    const ok = await handleCancelAiTask(taskId);
-    if (ok) {
-      embedding.navigation.onAgentLoopTaskCancelledFromTaskList?.(taskId);
-    }
-  }, [embedding.navigation, handleCancelAiTask]);
+  const handleCancelAiTaskWithSessionBridge = useCallback(
+    async (taskId: string) => {
+      const ok = await handleCancelAiTask(taskId);
+      if (ok) {
+        embedding.navigation.onAgentLoopTaskCancelledFromTaskList?.(taskId);
+      }
+    },
+    [embedding.navigation, handleCancelAiTask],
+  );
 
-  const handleRetryAiTaskWithSessionBridge = useCallback(async (taskId: string) => {
-    const ok = await handleRetryAiTask(taskId);
-    if (ok) {
-      embedding.navigation.onAgentLoopTaskRetriedFromTaskList?.(taskId);
-    }
-  }, [embedding.navigation, handleRetryAiTask]);
+  const handleRetryAiTaskWithSessionBridge = useCallback(
+    async (taskId: string) => {
+      const ok = await handleRetryAiTask(taskId);
+      if (ok) {
+        embedding.navigation.onAgentLoopTaskRetriedFromTaskList?.(taskId);
+      }
+    },
+    [embedding.navigation, handleRetryAiTask],
+  );
 
   const embeddingContextValue = useEmbeddingContextValue({
     selectedUnit: embedding.source.selectedUnit,
@@ -115,7 +142,10 @@ export function TranscriptionPageAnalysisRuntime({
     embeddingProviderKind: embedding.provider.config.embeddingProviderConfig.kind,
     embeddingProviderConfig: embedding.provider.config.embeddingProviderConfig,
     onSetEmbeddingProviderKind: (kind) => {
-      embedding.provider.actions.onEmbeddingProviderConfigChange({ ...embedding.provider.config.embeddingProviderConfig, kind });
+      embedding.provider.actions.onEmbeddingProviderConfigChange({
+        ...embedding.provider.config.embeddingProviderConfig,
+        kind,
+      });
     },
     onTestEmbeddingProvider: handleTestEmbeddingProvider,
     onBuildUnitEmbeddings: handleBuildUnitEmbeddings,
@@ -133,7 +163,11 @@ export function TranscriptionPageAnalysisRuntime({
   return (
     <div className="transcription-hub-sidebar-panel-body">
       <EmbeddingProvider value={embeddingContextValue}>
-        <AiAnalysisPanel isCollapsed={false} activeTab={panel.analysisTab} onChangeActiveTab={panel.onAnalysisTabChange} />
+        <AiAnalysisPanel
+          isCollapsed={false}
+          activeTab={panel.analysisTab}
+          onChangeActiveTab={panel.onAnalysisTabChange}
+        />
       </EmbeddingProvider>
     </div>
   );

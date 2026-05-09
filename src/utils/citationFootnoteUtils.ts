@@ -96,18 +96,18 @@ export function extractCitationIndices(text: string): number[] {
  * buildSourceListFooter(citations, 'zh')
  * // => "\n\n---\n来源:\n[1] 句段参考: The dog ran...\n[2] 笔记参考: Leipzig..."
  */
-export function buildSourceListFooter(
-  citations: AiMessageCitation[],
-  locale: string,
-): string {
+export function buildSourceListFooter(citations: AiMessageCitation[], locale: string): string {
   if (citations.length === 0) return '';
   const header = getSourceListHeader(locale);
   const lines = citations.map((c, i) => {
     const label = c.label ?? c.type;
     const snippet = normalizeCitationSnippetPlainText(c.snippet ?? '').slice(0, 100);
-    const stale = c.readModelIndexHit === false
-      ? (locale.startsWith('zh') ? ' [当前时间线索引未命中]' : ' [not in current timeline index]')
-      : '';
+    const stale =
+      c.readModelIndexHit === false
+        ? locale.startsWith('zh')
+          ? ' [当前时间线索引未命中]'
+          : ' [not in current timeline index]'
+        : '';
     return `[${i + 1}] ${label}${stale}: ${snippet}${snippet.length >= 100 ? '…' : ''}`;
   });
   return `\n\n---\n${header}:\n${lines.join('\n')}`;
@@ -147,8 +147,8 @@ export function splitCitationMarkers(
   text: string,
   maxCitationIndex: number,
 ): CitationTextSegment[] {
-  if (!text || maxCitationIndex <= 0) {
-    return text ? [{ type: 'text', value: text }] : [];
+  if (text.length === 0 || maxCitationIndex <= 0) {
+    return text.length > 0 ? [{ type: 'text', value: text }] : [];
   }
   const segments: CitationTextSegment[] = [];
   const re = new RegExp(CITATION_MARKER_RE.source, 'g');

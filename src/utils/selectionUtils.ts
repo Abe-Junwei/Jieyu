@@ -14,7 +14,7 @@ export function normalizeSelection(primaryId: string, ids: Iterable<string>): Se
     return { primaryId: '', ids: nextIds };
   }
 
-  if (primaryId && nextIds.has(primaryId)) {
+  if (primaryId.length > 0 && nextIds.has(primaryId)) {
     return { primaryId, ids: nextIds };
   }
 
@@ -28,9 +28,7 @@ export function shouldPushTimingUndo(
   nowMs: number,
   windowMs = 500,
 ): { shouldPush: boolean; next: TimingUndoState } {
-  const shouldPush = !previous
-    || previous.unitId !== unitId
-    || nowMs - previous.atMs > windowMs;
+  const shouldPush = !previous || previous.unitId !== unitId || nowMs - previous.atMs > windowMs;
 
   return {
     shouldPush,

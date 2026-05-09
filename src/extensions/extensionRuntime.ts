@@ -1,5 +1,8 @@
 import { featureFlags } from '../ai/config/featureFlags';
-import { resolveExtensionTrustDecision, type ExtensionInvocationRecord } from './extensionTrustGovernance';
+import {
+  resolveExtensionTrustDecision,
+  type ExtensionInvocationRecord,
+} from './extensionTrustGovernance';
 
 export const EXTENSION_MANIFEST_SCHEMA_VERSION = '1.0.0' as const;
 
@@ -73,7 +76,10 @@ export interface ExtensionLoadResult {
   reason: string;
 }
 
-export type CapabilityHandler = (payload: unknown, context: ExtensionInvocationContext) => Promise<unknown> | unknown;
+export type CapabilityHandler = (
+  payload: unknown,
+  context: ExtensionInvocationContext,
+) => Promise<unknown> | unknown;
 
 export type ExtensionCapabilityAuditPayload = {
   extensionId: string;
@@ -200,8 +206,8 @@ export function validateExtensionManifest(input: unknown): ManifestValidationRes
       errors.push('engine.minHostVersion must be a valid semver string.');
     }
     if (
-      'maxHostVersion' in engine
-      && (!isNonEmptyString(engine.maxHostVersion) || !parseSemver(engine.maxHostVersion))
+      'maxHostVersion' in engine &&
+      (!isNonEmptyString(engine.maxHostVersion) || !parseSemver(engine.maxHostVersion))
     ) {
       errors.push('engine.maxHostVersion must be a valid semver string when provided.');
     }
@@ -239,7 +245,10 @@ export function validateExtensionManifest(input: unknown): ManifestValidationRes
   if ('trustLevel' in input && !isKnownTrustLevel(input.trustLevel)) {
     errors.push('trustLevel must be one of official, trusted, community, untrusted when provided.');
   }
-  if ('declaredCapabilitiesVersion' in input && !isNonEmptyString(input.declaredCapabilitiesVersion)) {
+  if (
+    'declaredCapabilitiesVersion' in input &&
+    !isNonEmptyString(input.declaredCapabilitiesVersion)
+  ) {
     errors.push('declaredCapabilitiesVersion must be a non-empty string when provided.');
   }
   if ('quotaProfile' in input) {
@@ -247,8 +256,14 @@ export function validateExtensionManifest(input: unknown): ManifestValidationRes
       errors.push('quotaProfile must be an object when provided.');
     } else if ('maxCallsPerMinute' in input.quotaProfile) {
       const maxCallsPerMinute = input.quotaProfile.maxCallsPerMinute;
-      if (typeof maxCallsPerMinute !== 'number' || !Number.isFinite(maxCallsPerMinute) || maxCallsPerMinute < 0) {
-        errors.push('quotaProfile.maxCallsPerMinute must be a non-negative finite number when provided.');
+      if (
+        typeof maxCallsPerMinute !== 'number' ||
+        !Number.isFinite(maxCallsPerMinute) ||
+        maxCallsPerMinute < 0
+      ) {
+        errors.push(
+          'quotaProfile.maxCallsPerMinute must be a non-negative finite number when provided.',
+        );
       }
     }
   }
@@ -270,15 +285,17 @@ export function validateExtensionManifest(input: unknown): ManifestValidationRes
     },
     capabilities: (input.capabilities as string[]).slice() as ExtensionCapability[],
     ...(isKnownTrustLevel(input.trustLevel) ? { trustLevel: input.trustLevel } : {}),
-    ...(isNonEmptyString(input.declaredCapabilitiesVersion) ? { declaredCapabilitiesVersion: input.declaredCapabilitiesVersion } : {}),
+    ...(isNonEmptyString(input.declaredCapabilitiesVersion)
+      ? { declaredCapabilitiesVersion: input.declaredCapabilitiesVersion }
+      : {}),
     ...(isRecord(input.quotaProfile)
       ? {
-        quotaProfile: {
-          ...(typeof input.quotaProfile.maxCallsPerMinute === 'number'
-            ? { maxCallsPerMinute: input.quotaProfile.maxCallsPerMinute }
-            : {}),
-        },
-      }
+          quotaProfile: {
+            ...(typeof input.quotaProfile.maxCallsPerMinute === 'number'
+              ? { maxCallsPerMinute: input.quotaProfile.maxCallsPerMinute }
+              : {}),
+          },
+        }
       : {}),
     entry: {
       activate: String((input.entry as Record<string, unknown>).activate),
@@ -308,7 +325,11 @@ export function negotiateManifestCompatibility(
       reason: `hostVersion ${hostVersion} is lower than minHostVersion ${manifest.engine.minHostVersion}`,
     };
   }
-  if (manifest.engine.maxHostVersion && compareSemver(hostVersion, manifest.engine.maxHostVersion) > 0) {
+  if (
+    manifest.engine.maxHostVersion !== undefined &&
+    manifest.engine.maxHostVersion.length > 0 &&
+    compareSemver(hostVersion, manifest.engine.maxHostVersion) > 0
+  ) {
     return {
       compatible: false,
       reason: `hostVersion ${hostVersion} is higher than maxHostVersion ${manifest.engine.maxHostVersion}`,
@@ -416,12 +437,17 @@ export function createExtensionHost(options: ExtensionHostOptions): ExtensionHos
     }
   };
 
-  const invokeCapability = async (capability: ExtensionCapability, payload: unknown): Promise<unknown> => {
+  const invokeCapability = async (
+    capability: ExtensionCapability,
+    payload: unknown,
+  ): Promise<unknown> => {
     if (!manifest || !hooks || state !== 'active') {
       throw new ExtensionCapabilityDeniedError('Extension is not active.');
     }
     if (!manifest.capabilities.includes(capability)) {
-      throw new ExtensionCapabilityDeniedError(`Capability not declared in manifest: ${capability}`);
+      throw new ExtensionCapabilityDeniedError(
+        `Capability not declared in manifest: ${capability}`,
+      );
     }
     const handler = options.capabilityHandlers[capability];
     if (!handler) {
@@ -429,27 +455,37 @@ export function createExtensionHost(options: ExtensionHostOptions): ExtensionHos
     }
     const activeManifest = manifest;
     const extensionId = activeManifest.id;
-    const started = typeof performance !== 'undefined' && typeof performance.now === 'function'
-      ? performance.now()
-      : Date.now();
-    const emitAudit = (ok: boolean, errorMessage?: string, denyReason?: string): void => {
-      const end = typeof performance !== 'undefined' && typeof performance.now === 'function'
+    const started =
+      typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
         : Date.now();
+    const emitAudit = (ok: boolean, errorMessage?: string, denyReason?: string): void => {
+      const end =
+        typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now();
       const durationMs = Math.round(end - started);
       options.onCapabilityAudit?.({
         extensionId,
         capability,
         ok,
         durationMs,
-        ...(activeManifest.trustLevel ? { trustLevel: activeManifest.trustLevel } : {}),
-        ...(denyReason ? { denyReason } : {}),
+        ...(activeManifest.trustLevel !== undefined
+          ? { trustLevel: activeManifest.trustLevel }
+          : {}),
+        ...(denyReason !== undefined && denyReason.length > 0 ? { denyReason } : {}),
         ...(typeof errorMessage === 'string' && errorMessage.length > 0 ? { errorMessage } : {}),
       });
       recentInvocations.push({ extensionId, capability, timestampMs: Date.now(), ok });
-      if (recentInvocations.length > 500) recentInvocations.splice(0, recentInvocations.length - 500);
+      if (recentInvocations.length > 500)
+        recentInvocations.splice(0, recentInvocations.length - 500);
     };
-    const trustDecision = resolveExtensionTrustDecision({ enabled: featureFlags.aiExtensionTrustGovernanceEnabled, manifest: activeManifest, capability, recentInvocations });
+    const trustDecision = resolveExtensionTrustDecision({
+      enabled: featureFlags.aiExtensionTrustGovernanceEnabled,
+      manifest: activeManifest,
+      capability,
+      recentInvocations,
+    });
     if (trustDecision.action === 'deny') {
       const message = `Extension capability denied by trust governance: ${trustDecision.reason}`;
       emitAudit(false, message, trustDecision.reason);

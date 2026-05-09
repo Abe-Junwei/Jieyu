@@ -17,12 +17,16 @@ interface UseBatchOperationControllerInput {
   getUnitDocById: (id: string) => LayerUnitDocType | undefined;
   setSaveState: Dispatch<SetStateAction<SaveState>>;
   offsetSelectedTimes: (targetIds: Set<string>, deltaSec: number) => Promise<void>;
-  scaleSelectedTimes: (targetIds: Set<string>, factor: number, anchorTime?: number) => Promise<void>;
+  scaleSelectedTimes: (
+    targetIds: Set<string>,
+    factor: number,
+    anchorTime?: number,
+  ) => Promise<void>;
   splitByRegex: (targetIds: Set<string>, pattern: string, flags?: string) => Promise<void>;
   mergeSelectedUnits: BatchOperationSelectionAction;
 }
 
-interface UseBatchOperationControllerResult {
+export interface UseBatchOperationControllerResult {
   selectedBatchUnitIdsSet: Set<string>;
   selectedBatchUnits: LayerUnitDocType[];
   handleBatchOffset: (deltaSec: number) => Promise<void>;
@@ -84,40 +88,74 @@ export function useBatchOperationController({
       message: t(locale, 'transcription.batchOperation.mappingUnavailable'),
     });
     return null;
-  }, [batchUnitSelectionMapping.unmappedSourceCount, hasBatchSelectionSource, locale, selectedBatchUnitIdsSet, setSaveState]);
-  const runMappedBatchAction = useCallback(async (
-    actionLabelKey: Parameters<typeof t>[1],
-    i18nKey: Parameters<typeof t>[1],
-    action: BatchOperationSelectionAction,
-  ) => {
-    const targetIds = resolveBatchUnitTargetIds();
-    if (!targetIds) return;
-    try {
-      await action(targetIds);
-    } catch (error) {
-      const { message, meta } = reportActionError({
-        actionLabel: t(locale, actionLabelKey),
-        error,
-        i18nKey: i18nKey,
-      });
-      setSaveState({
-        kind: 'error',
-        message,
-        ...(meta ? { errorMeta: meta } : {}),
-      });
-    }
-  }, [locale, resolveBatchUnitTargetIds, setSaveState]);
-  const handleBatchOffset = useCallback(async (deltaSec: number) => {
-    await runMappedBatchAction('transcription.unitAction.undo.offsetSelection', 'transcription.error.action.offsetBatchFailed', (targetIds) => offsetSelectedTimes(targetIds, deltaSec));
-  }, [offsetSelectedTimes, runMappedBatchAction]);
-  const handleBatchScale = useCallback(async (factor: number, anchorTime?: number) => {
-    await runMappedBatchAction('transcription.unitAction.undo.scaleSelection', 'transcription.error.action.scaleBatchFailed', (targetIds) => scaleSelectedTimes(targetIds, factor, anchorTime));
-  }, [runMappedBatchAction, scaleSelectedTimes]);
-  const handleBatchSplitByRegex = useCallback(async (pattern: string, flags?: string) => {
-    await runMappedBatchAction('transcription.unitAction.undo.regexSplitSelection', 'transcription.error.action.regexSplitBatchFailed', (targetIds) => splitByRegex(targetIds, pattern, flags));
-  }, [runMappedBatchAction, splitByRegex]);
+  }, [
+    batchUnitSelectionMapping.unmappedSourceCount,
+    hasBatchSelectionSource,
+    locale,
+    selectedBatchUnitIdsSet,
+    setSaveState,
+  ]);
+  const runMappedBatchAction = useCallback(
+    async (
+      actionLabelKey: Parameters<typeof t>[1],
+      i18nKey: Parameters<typeof t>[1],
+      action: BatchOperationSelectionAction,
+    ) => {
+      const targetIds = resolveBatchUnitTargetIds();
+      if (!targetIds) return;
+      try {
+        await action(targetIds);
+      } catch (error) {
+        const { message, meta } = reportActionError({
+          actionLabel: t(locale, actionLabelKey),
+          error,
+          i18nKey: i18nKey,
+        });
+        setSaveState({
+          kind: 'error',
+          message,
+          ...(meta !== undefined ? { errorMeta: meta } : {}),
+        });
+      }
+    },
+    [locale, resolveBatchUnitTargetIds, setSaveState],
+  );
+  const handleBatchOffset = useCallback(
+    async (deltaSec: number) => {
+      await runMappedBatchAction(
+        'transcription.unitAction.undo.offsetSelection',
+        'transcription.error.action.offsetBatchFailed',
+        (targetIds) => offsetSelectedTimes(targetIds, deltaSec),
+      );
+    },
+    [offsetSelectedTimes, runMappedBatchAction],
+  );
+  const handleBatchScale = useCallback(
+    async (factor: number, anchorTime?: number) => {
+      await runMappedBatchAction(
+        'transcription.unitAction.undo.scaleSelection',
+        'transcription.error.action.scaleBatchFailed',
+        (targetIds) => scaleSelectedTimes(targetIds, factor, anchorTime),
+      );
+    },
+    [runMappedBatchAction, scaleSelectedTimes],
+  );
+  const handleBatchSplitByRegex = useCallback(
+    async (pattern: string, flags?: string) => {
+      await runMappedBatchAction(
+        'transcription.unitAction.undo.regexSplitSelection',
+        'transcription.error.action.regexSplitBatchFailed',
+        (targetIds) => splitByRegex(targetIds, pattern, flags),
+      );
+    },
+    [runMappedBatchAction, splitByRegex],
+  );
   const handleBatchMerge = useCallback(async () => {
-    await runMappedBatchAction('transcription.unitAction.undo.mergeSelection', 'transcription.error.action.mergeSelectionFailed', (targetIds) => mergeSelectedUnits(targetIds));
+    await runMappedBatchAction(
+      'transcription.unitAction.undo.mergeSelection',
+      'transcription.error.action.mergeSelectionFailed',
+      (targetIds) => mergeSelectedUnits(targetIds),
+    );
   }, [mergeSelectedUnits, runMappedBatchAction]);
   return {
     selectedBatchUnitIdsSet,

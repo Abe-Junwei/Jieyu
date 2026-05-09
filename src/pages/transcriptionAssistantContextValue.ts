@@ -52,9 +52,11 @@ interface BuildTranscriptionAssistantContextValueInput {
   acousticProviderState?: AiPanelContextValue['acousticProviderState'];
 }
 
-export function buildTranscriptionAssistantContextValue(input: BuildTranscriptionAssistantContextValueInput): AiPanelContextValue {
+export function buildTranscriptionAssistantContextValue(
+  input: BuildTranscriptionAssistantContextValueInput,
+): AiPanelContextValue {
   return {
-    dbName: input.state.phase === 'ready' ? input.state.dbName ?? '' : '',
+    dbName: input.state.phase === 'ready' ? (input.state.dbName ?? '') : '',
     unitCount: input.unitsLength,
     translationLayerCount: input.translationLayersLength,
     aiConfidenceAvg: input.aiConfidenceAvg,
@@ -65,35 +67,73 @@ export function buildTranscriptionAssistantContextValue(input: BuildTranscriptio
     aiPanelMode: input.aiPanelMode,
     selectedTranslationGapCount: input.selectedTranslationGapCount,
     ...(input.vadCacheStatus !== undefined ? { vadCacheStatus: input.vadCacheStatus } : {}),
-    ...(input.acousticRuntimeStatus !== undefined ? { acousticRuntimeStatus: input.acousticRuntimeStatus } : {}),
+    ...(input.acousticRuntimeStatus !== undefined
+      ? { acousticRuntimeStatus: input.acousticRuntimeStatus }
+      : {}),
     ...(input.acousticSummary !== undefined ? { acousticSummary: input.acousticSummary } : {}),
-    ...(input.acousticInspector !== undefined ? { acousticInspector: input.acousticInspector } : {}),
+    ...(input.acousticInspector !== undefined
+      ? { acousticInspector: input.acousticInspector }
+      : {}),
     ...(input.pinnedInspector !== undefined ? { pinnedInspector: input.pinnedInspector } : {}),
-    ...(input.selectedHotspotTimeSec !== undefined ? { selectedHotspotTimeSec: input.selectedHotspotTimeSec } : {}),
+    ...(input.selectedHotspotTimeSec !== undefined
+      ? { selectedHotspotTimeSec: input.selectedHotspotTimeSec }
+      : {}),
     ...(input.acousticDetail !== undefined ? { acousticDetail: input.acousticDetail } : {}),
-    ...(input.acousticDetailFullMedia !== undefined ? { acousticDetailFullMedia: input.acousticDetailFullMedia } : {}),
-    ...(input.acousticBatchDetails !== undefined ? { acousticBatchDetails: input.acousticBatchDetails } : {}),
-    ...(input.acousticBatchSelectionCount !== undefined ? { acousticBatchSelectionCount: input.acousticBatchSelectionCount } : {}),
-    ...(input.acousticBatchDroppedSelectionRanges !== undefined ? { acousticBatchDroppedSelectionRanges: input.acousticBatchDroppedSelectionRanges } : {}),
-    ...(input.acousticCalibrationStatus !== undefined ? { acousticCalibrationStatus: input.acousticCalibrationStatus } : {}),
-    ...(input.acousticConfigOverride !== undefined ? { acousticConfigOverride: input.acousticConfigOverride } : {}),
-    ...(input.acousticProviderPreference !== undefined ? { acousticProviderPreference: input.acousticProviderPreference } : {}),
-    ...(input.acousticProviderState !== undefined ? { acousticProviderState: input.acousticProviderState } : {}),
+    ...(input.acousticDetailFullMedia !== undefined
+      ? { acousticDetailFullMedia: input.acousticDetailFullMedia }
+      : {}),
+    ...(input.acousticBatchDetails !== undefined
+      ? { acousticBatchDetails: input.acousticBatchDetails }
+      : {}),
+    ...(input.acousticBatchSelectionCount !== undefined
+      ? { acousticBatchSelectionCount: input.acousticBatchSelectionCount }
+      : {}),
+    ...(input.acousticBatchDroppedSelectionRanges !== undefined
+      ? { acousticBatchDroppedSelectionRanges: input.acousticBatchDroppedSelectionRanges }
+      : {}),
+    ...(input.acousticCalibrationStatus !== undefined
+      ? { acousticCalibrationStatus: input.acousticCalibrationStatus }
+      : {}),
+    ...(input.acousticConfigOverride !== undefined
+      ? { acousticConfigOverride: input.acousticConfigOverride }
+      : {}),
+    ...(input.acousticProviderPreference !== undefined
+      ? { acousticProviderPreference: input.acousticProviderPreference }
+      : {}),
+    ...(input.acousticProviderState !== undefined
+      ? { acousticProviderState: input.acousticProviderState }
+      : {}),
     onJumpToTranslationGap: input.handleJumpToTranslationGap,
-    ...(input.handleJumpToAcousticHotspot ? { onJumpToAcousticHotspot: input.handleJumpToAcousticHotspot } : {}),
+    ...(input.handleJumpToAcousticHotspot
+      ? { onJumpToAcousticHotspot: input.handleJumpToAcousticHotspot }
+      : {}),
     ...(input.handlePinInspector ? { onPinInspector: input.handlePinInspector } : {}),
-    ...(input.handleClearPinnedInspector ? { onClearPinnedInspector: input.handleClearPinnedInspector } : {}),
+    ...(input.handleClearPinnedInspector
+      ? { onClearPinnedInspector: input.handleClearPinnedInspector }
+      : {}),
     ...(input.handleSelectHotspot ? { onSelectHotspot: input.handleSelectHotspot } : {}),
-    ...(input.handleChangeAcousticConfig ? { onChangeAcousticConfig: input.handleChangeAcousticConfig } : {}),
-    ...(input.handleResetAcousticConfig ? { onResetAcousticConfig: input.handleResetAcousticConfig } : {}),
-    ...(input.handleChangeAcousticProvider ? { onChangeAcousticProvider: input.handleChangeAcousticProvider } : {}),
-    ...(input.handleRefreshAcousticProviderState ? { onRefreshAcousticProviderState: input.handleRefreshAcousticProviderState } : {}),
+    ...(input.handleChangeAcousticConfig
+      ? { onChangeAcousticConfig: input.handleChangeAcousticConfig }
+      : {}),
+    ...(input.handleResetAcousticConfig
+      ? { onResetAcousticConfig: input.handleResetAcousticConfig }
+      : {}),
+    ...(input.handleChangeAcousticProvider
+      ? { onChangeAcousticProvider: input.handleChangeAcousticProvider }
+      : {}),
+    ...(input.handleRefreshAcousticProviderState
+      ? { onRefreshAcousticProviderState: input.handleRefreshAcousticProviderState }
+      : {}),
     onChangeAiPanelMode: input.setAiPanelMode,
     ...(input.handleOpenWordNote ? { onOpenWordNote: input.handleOpenWordNote } : {}),
     ...(input.handleOpenMorphemeNote ? { onOpenMorphemeNote: input.handleOpenMorphemeNote } : {}),
     ...(input.handleUpdateTokenPos ? { onUpdateTokenPos: input.handleUpdateTokenPos } : {}),
-    ...(input.handleBatchUpdateTokenPosByForm ? { onBatchUpdateTokenPosByForm: input.handleBatchUpdateTokenPosByForm } : {}),
-    ...(input.aiCurrentTask ? { aiCurrentTask: input.aiCurrentTask } : {}),
-    ...(input.aiVisibleCards ? { aiVisibleCards: input.aiVisibleCards } : {}),
+    ...(input.handleBatchUpdateTokenPosByForm
+      ? { onBatchUpdateTokenPosByForm: input.handleBatchUpdateTokenPosByForm }
+      : {}),
+    ...(input.aiCurrentTask !== null && input.aiCurrentTask !== undefined
+      ? { aiCurrentTask: input.aiCurrentTask }
+      : {}),
+    ...(input.aiVisibleCards !== undefined ? { aiVisibleCards: input.aiVisibleCards } : {}),
   };
 }

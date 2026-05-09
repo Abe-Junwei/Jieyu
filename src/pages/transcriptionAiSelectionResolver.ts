@@ -43,10 +43,12 @@ export function resolveExplicitOwnerUnitForAi(input: {
   if (direct) return direct;
 
   const explicitOwnerId = input.selectedTimelineSegment?.unitId?.trim();
-  if (!explicitOwnerId) return undefined;
+  if (explicitOwnerId === undefined || explicitOwnerId.length === 0) return undefined;
 
-  return input.ownerCandidates.find((item) => item.id === explicitOwnerId)
-    ?? input.getUnitDocById(explicitOwnerId);
+  return (
+    input.ownerCandidates.find((item) => item.id === explicitOwnerId) ??
+    input.getUnitDocById(explicitOwnerId)
+  );
 }
 
 export function resolveWritableAiTargetId(input: {

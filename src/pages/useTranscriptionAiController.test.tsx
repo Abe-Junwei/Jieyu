@@ -18,11 +18,20 @@ const {
   mockUseAiPanelLogic: vi.fn(),
   mockUseAiToolCallHandler: vi.fn(),
   mockBridgeTextForLayerTarget: vi.fn(async ({ text }: { text: string }) => text),
-  mockResolveFallbackSourceOrthographyId: vi.fn(({ layers, selectedLayerId }: { layers: Array<{ layerType: string; orthographyId?: string }>; selectedLayerId?: string | null }) => {
-    const normalizedSelectedLayerId = selectedLayerId?.trim();
-    if (normalizedSelectedLayerId) return undefined;
-    return layers.find((layer) => layer.layerType === 'transcription')?.orthographyId?.trim();
-  }),
+  mockResolveFallbackSourceOrthographyId: vi.fn(
+    ({
+      layers,
+      selectedLayerId,
+    }: {
+      layers: Array<{ layerType: string; orthographyId?: string }>;
+      selectedLayerId?: string | null;
+    }) => {
+      const normalizedSelectedLayerId = selectedLayerId?.trim();
+      if (normalizedSelectedLayerId != null && normalizedSelectedLayerId.length > 0)
+        return undefined;
+      return layers.find((layer) => layer.layerType === 'transcription')?.orthographyId?.trim();
+    },
+  ),
   mockListRecentAiToolDecisionLogs: vi.fn(async () => []),
   mockListRecentAiVerticalWorkflowAuditEntries: vi.fn(async () => []),
 }));
@@ -58,7 +67,9 @@ vi.mock('./TranscriptionPage.helpers', () => ({
   loadEmbeddingProviderConfig: vi.fn(() => ({ kind: 'openai' })),
 }));
 
-function makeLayer(overrides: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'key' | 'layerType' | 'languageId'>): LayerDocType {
+function makeLayer(
+  overrides: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'key' | 'layerType' | 'languageId'>,
+): LayerDocType {
   const { id, key, layerType, languageId, ...restOverrides } = overrides;
   return {
     id,
@@ -99,7 +110,12 @@ function makeUnitWithId(id: string, mediaId: string): LayerUnitDocType {
   } as LayerUnitDocType;
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerUnitDocType {
+function makeSegment(
+  id: string,
+  layerId: string,
+  startTime: number,
+  endTime: number,
+): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
@@ -142,18 +158,24 @@ function renderIndependentSegmentTimelineController(overrides?: {
   const units = [makeUnitWithId('utt-1', 'media-1')];
   const unitsOnCurrentMedia = [makeUnitWithId('utt-1', 'media-1')];
   const segmentsByLayer = new Map([
-    ['layer-independent', [
-      makeSegment('seg-1', 'layer-independent', 0, 1),
-      makeSegment('seg-2', 'layer-independent', 2, 3),
-      makeSegment('seg-3', 'layer-independent', 4, 5),
-    ]],
+    [
+      'layer-independent',
+      [
+        makeSegment('seg-1', 'layer-independent', 0, 1),
+        makeSegment('seg-2', 'layer-independent', 2, 3),
+        makeSegment('seg-3', 'layer-independent', 4, 5),
+      ],
+    ],
   ]);
   const segmentContentByLayer = new Map([
-    ['layer-independent', new Map([
-      ['seg-1', { text: '第一段' }],
-      ['seg-2', { text: overrides?.selectedSegmentText ?? '第二段' }],
-      ['seg-3', { text: '第三段' }],
-    ])],
+    [
+      'layer-independent',
+      new Map([
+        ['seg-1', { text: '第一段' }],
+        ['seg-2', { text: overrides?.selectedSegmentText ?? '第二段' }],
+        ['seg-3', { text: '第三段' }],
+      ]),
+    ],
   ]);
 
   const selectedSegmentId = overrides?.selectedSegmentId ?? 'seg-2';
@@ -165,69 +187,71 @@ function renderIndependentSegmentTimelineController(overrides?: {
     currentMediaId: 'media-1',
   });
 
-  renderHook(() => useTranscriptionAiController({
-    selectedUnitIds: new Set([selectedSegmentId]),
-    selectedUnit: null,
-    getUnitDocById: (id) => units.find((item) => item.id === id),
-    selectedTimelineSegment: makeSegment(selectedSegmentId, 'layer-independent', 2, 3),
-    selectedLayerId: 'layer-independent',
-    activeLayerIdForEdits: 'layer-independent',
-    resolveSegmentRoutingForLayer: () => ({
-      layer: undefined,
-      segmentSourceLayer: undefined,
-      sourceLayerId: 'layer-independent',
-      editMode: 'independent-segment',
-    }),
-    segmentsByLayer,
-    segmentContentByLayer,
-    selectionSnapshot: {
-      timelineUnit: { layerId: 'layer-independent', unitId: selectedSegmentId, kind: 'segment' },
-      selectedUnitKind: 'segment',
-      activeUnitId: null,
-      selectedUnit: timelineUnitViewIndex.byId.get(selectedSegmentId) ?? null,
-      selectedRowMeta: null,
+  renderHook(() =>
+    useTranscriptionAiController({
+      selectedUnitIds: new Set([selectedSegmentId]),
+      selectedUnit: null,
+      getUnitDocById: (id) => units.find((item) => item.id === id),
+      selectedTimelineSegment: makeSegment(selectedSegmentId, 'layer-independent', 2, 3),
       selectedLayerId: 'layer-independent',
-      selectedText: overrides?.selectedSegmentText ?? '第二段',
-    },
-    layers: [],
-    transcriptionLayers: [],
-    translationLayers: [],
-    layerLinks: [],
-    getUnitTextForLayer: () => '',
-    formatTime: (seconds) => `${seconds}`,
-    timelineUnitViewIndex,
-    translationLayerCount: 0,
-    aiConfidenceAvg: null,
-    recentTimelineEditEvents: [],
-    createLayerWithActiveContext: vi.fn(async () => true),
-    createTranscriptionSegment: vi.fn(async () => undefined),
-    splitTranscriptionSegment: vi.fn(async () => undefined),
-    ...(overrides?.mergeWithPrevious ? { mergeWithPrevious: overrides.mergeWithPrevious } : {}),
-    ...(overrides?.mergeWithNext ? { mergeWithNext: overrides.mergeWithNext } : {}),
-    mergeSelectedUnits: vi.fn(async () => undefined),
-    deleteUnit: vi.fn(async () => undefined),
-    deleteSelectedUnits: vi.fn(async () => undefined),
-    deleteLayer: vi.fn(async () => undefined),
-    toggleLayerLink: vi.fn(async () => undefined),
-    saveUnitText: vi.fn(async () => undefined),
-    saveUnitLayerText: vi.fn(async () => undefined),
-    saveSegmentContentForLayer: vi.fn(async () => undefined),
-    updateTokenPos: vi.fn(),
-    batchUpdateTokenPosByForm: vi.fn(async () => 0),
-    updateTokenGloss: vi.fn(),
-    selectUnit: vi.fn(),
-    setSaveState: vi.fn(),
-    translationDrafts: {},
-    translationTextByLayer: new Map(),
-    locale: 'zh-CN',
-    playerCurrentTime: 0,
-    executeActionRef: { current: undefined },
-    openSearchRef: { current: undefined },
-    seekToTimeRef: { current: undefined },
-    splitAtTimeRef: { current: undefined },
-    zoomToSegmentRef: { current: undefined },
-    handleExecuteRecommendation: vi.fn(),
-  }));
+      activeLayerIdForEdits: 'layer-independent',
+      resolveSegmentRoutingForLayer: () => ({
+        layer: undefined,
+        segmentSourceLayer: undefined,
+        sourceLayerId: 'layer-independent',
+        editMode: 'independent-segment',
+      }),
+      segmentsByLayer,
+      segmentContentByLayer,
+      selectionSnapshot: {
+        timelineUnit: { layerId: 'layer-independent', unitId: selectedSegmentId, kind: 'segment' },
+        selectedUnitKind: 'segment',
+        activeUnitId: null,
+        selectedUnit: timelineUnitViewIndex.byId.get(selectedSegmentId) ?? null,
+        selectedRowMeta: null,
+        selectedLayerId: 'layer-independent',
+        selectedText: overrides?.selectedSegmentText ?? '第二段',
+      },
+      layers: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      layerLinks: [],
+      getUnitTextForLayer: () => '',
+      formatTime: (seconds) => `${seconds}`,
+      timelineUnitViewIndex,
+      translationLayerCount: 0,
+      aiConfidenceAvg: null,
+      recentTimelineEditEvents: [],
+      createLayerWithActiveContext: vi.fn(async () => true),
+      createTranscriptionSegment: vi.fn(async () => undefined),
+      splitTranscriptionSegment: vi.fn(async () => undefined),
+      ...(overrides?.mergeWithPrevious ? { mergeWithPrevious: overrides.mergeWithPrevious } : {}),
+      ...(overrides?.mergeWithNext ? { mergeWithNext: overrides.mergeWithNext } : {}),
+      mergeSelectedUnits: vi.fn(async () => undefined),
+      deleteUnit: vi.fn(async () => undefined),
+      deleteSelectedUnits: vi.fn(async () => undefined),
+      deleteLayer: vi.fn(async () => undefined),
+      toggleLayerLink: vi.fn(async () => undefined),
+      saveUnitText: vi.fn(async () => undefined),
+      saveUnitLayerText: vi.fn(async () => undefined),
+      saveSegmentContentForLayer: vi.fn(async () => undefined),
+      updateTokenPos: vi.fn(),
+      batchUpdateTokenPosByForm: vi.fn(async () => 0),
+      updateTokenGloss: vi.fn(),
+      selectUnit: vi.fn(),
+      setSaveState: vi.fn(),
+      translationDrafts: {},
+      translationTextByLayer: new Map(),
+      locale: 'zh-CN',
+      playerCurrentTime: 0,
+      executeActionRef: { current: undefined },
+      openSearchRef: { current: undefined },
+      seekToTimeRef: { current: undefined },
+      splitAtTimeRef: { current: undefined },
+      zoomToSegmentRef: { current: undefined },
+      handleExecuteRecommendation: vi.fn(),
+    }),
+  );
 
   const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
   return {
@@ -286,57 +310,59 @@ describe('useTranscriptionAiController', () => {
       currentMediaId: 'media-1',
     });
 
-    renderHook(() => useTranscriptionAiController({
-      selectedUnitIds: new Set([unit.id]),
-      selectedUnit: unit,
-      getUnitDocById: (id) => (id === unit.id ? unit : undefined),
-      selectedLayerId: '',
-      selectionSnapshot: {
-        timelineUnit: null,
-        selectedUnitKind: null,
-        activeUnitId: unit.id,
-        selectedUnit: timelineUnitViewIndex.byId.get(unit.id) ?? null,
-        selectedRowMeta: null,
-        selectedLayerId: null,
-        selectedText: '',
-      },
-      layers: [transcriptionLayer, translationLayer],
-      transcriptionLayers: [transcriptionLayer],
-      translationLayers: [translationLayer],
-      layerLinks: [],
-      getUnitTextForLayer: () => '',
-      formatTime: (seconds) => `${seconds}`,
-      timelineUnitViewIndex,
-      translationLayerCount: 1,
-      aiConfidenceAvg: null,
-      recentTimelineEditEvents: [],
-      createLayerWithActiveContext: vi.fn(async () => true),
-      createTranscriptionSegment: vi.fn(async () => undefined),
-      splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-      deleteUnit: vi.fn(async () => undefined),
-      deleteSelectedUnits: vi.fn(async () => undefined),
-      deleteLayer: vi.fn(async () => undefined),
-      toggleLayerLink: vi.fn(async () => undefined),
-      saveUnitText: vi.fn(async () => undefined),
-      saveUnitLayerText: vi.fn(async () => undefined),
-      saveSegmentContentForLayer: vi.fn(async () => undefined),
-      updateTokenPos: vi.fn(),
-      batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      updateTokenGloss: vi.fn(),
-      selectUnit: vi.fn(),
-      setSaveState: vi.fn(),
-      translationDrafts: {},
-      translationTextByLayer: new Map(),
-      locale: 'zh-CN',
-      playerCurrentTime: 0,
-      executeActionRef: { current: undefined },
-      openSearchRef: { current: undefined },
-      seekToTimeRef: { current: undefined },
-      splitAtTimeRef: { current: undefined },
-      zoomToSegmentRef: { current: undefined },
-      handleExecuteRecommendation: vi.fn(),
-    }));
+    renderHook(() =>
+      useTranscriptionAiController({
+        selectedUnitIds: new Set([unit.id]),
+        selectedUnit: unit,
+        getUnitDocById: (id) => (id === unit.id ? unit : undefined),
+        selectedLayerId: '',
+        selectionSnapshot: {
+          timelineUnit: null,
+          selectedUnitKind: null,
+          activeUnitId: unit.id,
+          selectedUnit: timelineUnitViewIndex.byId.get(unit.id) ?? null,
+          selectedRowMeta: null,
+          selectedLayerId: null,
+          selectedText: '',
+        },
+        layers: [transcriptionLayer, translationLayer],
+        transcriptionLayers: [transcriptionLayer],
+        translationLayers: [translationLayer],
+        layerLinks: [],
+        getUnitTextForLayer: () => '',
+        formatTime: (seconds) => `${seconds}`,
+        timelineUnitViewIndex,
+        translationLayerCount: 1,
+        aiConfidenceAvg: null,
+        recentTimelineEditEvents: [],
+        createLayerWithActiveContext: vi.fn(async () => true),
+        createTranscriptionSegment: vi.fn(async () => undefined),
+        splitTranscriptionSegment: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+        deleteUnit: vi.fn(async () => undefined),
+        deleteSelectedUnits: vi.fn(async () => undefined),
+        deleteLayer: vi.fn(async () => undefined),
+        toggleLayerLink: vi.fn(async () => undefined),
+        saveUnitText: vi.fn(async () => undefined),
+        saveUnitLayerText: vi.fn(async () => undefined),
+        saveSegmentContentForLayer: vi.fn(async () => undefined),
+        updateTokenPos: vi.fn(),
+        batchUpdateTokenPosByForm: vi.fn(async () => 0),
+        updateTokenGloss: vi.fn(),
+        selectUnit: vi.fn(),
+        setSaveState: vi.fn(),
+        translationDrafts: {},
+        translationTextByLayer: new Map(),
+        locale: 'zh-CN',
+        playerCurrentTime: 0,
+        executeActionRef: { current: undefined },
+        openSearchRef: { current: undefined },
+        seekToTimeRef: { current: undefined },
+        splitAtTimeRef: { current: undefined },
+        zoomToSegmentRef: { current: undefined },
+        handleExecuteRecommendation: vi.fn(),
+      }),
+    );
 
     const toolHandlerInput = mockUseAiToolCallHandler.mock.calls[0]?.[0];
     expect(toolHandlerInput).toBeTruthy();
@@ -365,71 +391,81 @@ describe('useTranscriptionAiController', () => {
       currentMediaId: 'media-1',
     });
 
-    renderHook(() => useTranscriptionAiController({
-      selectedUnitIds: new Set([currentMediaUnit.id]),
-      selectedUnit: currentMediaUnit,
-      getUnitDocById: (id) => ([currentMediaUnit, otherMediaUnit].find((item) => item.id === id)),
-      selectedLayerId: '',
-      selectionSnapshot: {
-        timelineUnit: null,
-        selectedUnitKind: null,
-        activeUnitId: currentMediaUnit.id,
-        selectedUnit: timelineUnitViewIndex.byId.get(currentMediaUnit.id) ?? null,
-        selectedRowMeta: null,
-        selectedLayerId: null,
-        selectedText: '',
-      },
-      layers: [],
-      transcriptionLayers: [],
-      translationLayers: [],
-      layerLinks: [],
-      getUnitTextForLayer: (unit) => unit.id === 'utt-1' ? '当前页句段' : '其他页句段',
-      formatTime: (seconds) => `${seconds}`,
-      timelineUnitViewIndex: makeTimelineUnitViewIndex({
-        units: [currentMediaUnit, otherMediaUnit],
-        unitsOnCurrentMedia: [currentMediaUnit],
-        currentMediaId: 'media-1',
+    renderHook(() =>
+      useTranscriptionAiController({
+        selectedUnitIds: new Set([currentMediaUnit.id]),
+        selectedUnit: currentMediaUnit,
+        getUnitDocById: (id) => [currentMediaUnit, otherMediaUnit].find((item) => item.id === id),
+        selectedLayerId: '',
+        selectionSnapshot: {
+          timelineUnit: null,
+          selectedUnitKind: null,
+          activeUnitId: currentMediaUnit.id,
+          selectedUnit: timelineUnitViewIndex.byId.get(currentMediaUnit.id) ?? null,
+          selectedRowMeta: null,
+          selectedLayerId: null,
+          selectedText: '',
+        },
+        layers: [],
+        transcriptionLayers: [],
+        translationLayers: [],
+        layerLinks: [],
+        getUnitTextForLayer: (unit) => (unit.id === 'utt-1' ? '当前页句段' : '其他页句段'),
+        formatTime: (seconds) => `${seconds}`,
+        timelineUnitViewIndex: makeTimelineUnitViewIndex({
+          units: [currentMediaUnit, otherMediaUnit],
+          unitsOnCurrentMedia: [currentMediaUnit],
+          currentMediaId: 'media-1',
+        }),
+        translationLayerCount: 1,
+        aiConfidenceAvg: null,
+        recentTimelineEditEvents: [],
+        createLayerWithActiveContext: vi.fn(async () => true),
+        createTranscriptionSegment: vi.fn(async () => undefined),
+        splitTranscriptionSegment: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+        deleteUnit: vi.fn(async () => undefined),
+        deleteSelectedUnits: vi.fn(async () => undefined),
+        deleteLayer: vi.fn(async () => undefined),
+        toggleLayerLink: vi.fn(async () => undefined),
+        saveUnitText: vi.fn(async () => undefined),
+        saveUnitLayerText: vi.fn(async () => undefined),
+        saveSegmentContentForLayer: vi.fn(async () => undefined),
+        updateTokenPos: vi.fn(),
+        batchUpdateTokenPosByForm: vi.fn(async () => 0),
+        updateTokenGloss: vi.fn(),
+        selectUnit: vi.fn(),
+        setSaveState: vi.fn(),
+        translationDrafts: {},
+        translationTextByLayer: new Map([
+          [
+            'layer-1',
+            new Map([
+              ['utt-1', { text: '保留当前页翻译' }],
+              ['utt-2', { text: '不应计入预演' }],
+            ]),
+          ],
+        ]),
+        locale: 'zh-CN',
+        playerCurrentTime: 0,
+        executeActionRef: { current: undefined },
+        openSearchRef: { current: undefined },
+        seekToTimeRef: { current: undefined },
+        splitAtTimeRef: { current: undefined },
+        zoomToSegmentRef: { current: undefined },
+        handleExecuteRecommendation: vi.fn(),
       }),
-      translationLayerCount: 1,
-      aiConfidenceAvg: null,
-      recentTimelineEditEvents: [],
-      createLayerWithActiveContext: vi.fn(async () => true),
-      createTranscriptionSegment: vi.fn(async () => undefined),
-      splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-      deleteUnit: vi.fn(async () => undefined),
-      deleteSelectedUnits: vi.fn(async () => undefined),
-      deleteLayer: vi.fn(async () => undefined),
-      toggleLayerLink: vi.fn(async () => undefined),
-      saveUnitText: vi.fn(async () => undefined),
-      saveUnitLayerText: vi.fn(async () => undefined),
-      saveSegmentContentForLayer: vi.fn(async () => undefined),
-      updateTokenPos: vi.fn(),
-      batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      updateTokenGloss: vi.fn(),
-      selectUnit: vi.fn(),
-      setSaveState: vi.fn(),
-      translationDrafts: {},
-      translationTextByLayer: new Map([
-        ['layer-1', new Map([
-          ['utt-1', { text: '保留当前页翻译' }],
-          ['utt-2', { text: '不应计入预演' }],
-        ])],
-      ]),
-      locale: 'zh-CN',
-      playerCurrentTime: 0,
-      executeActionRef: { current: undefined },
-      openSearchRef: { current: undefined },
-      seekToTimeRef: { current: undefined },
-      splitAtTimeRef: { current: undefined },
-      zoomToSegmentRef: { current: undefined },
-      handleExecuteRecommendation: vi.fn(),
-    }));
+    );
 
-    const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
+    const latestToolCallHandlerCall =
+      mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
     const toolHandlerInput = latestToolCallHandlerCall?.[0];
-    expect(toolHandlerInput?.units?.map((unit: LayerUnitDocType) => unit.id)).toEqual([currentMediaUnit.id]);
-    expect(toolHandlerInput?.getSegments().map((unit: LayerUnitDocType) => unit.id)).toEqual([currentMediaUnit.id]);
+    expect(toolHandlerInput?.units?.map((unit: LayerUnitDocType) => unit.id)).toEqual([
+      currentMediaUnit.id,
+    ]);
+    expect(toolHandlerInput?.getSegments().map((unit: LayerUnitDocType) => unit.id)).toEqual([
+      currentMediaUnit.id,
+    ]);
 
     const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
     const aiChatOptions = latestAiChatCall?.[0];
@@ -458,61 +494,66 @@ describe('useTranscriptionAiController', () => {
       currentMediaId: 'media-1',
     });
 
-    renderHook(() => useTranscriptionAiController({
-      selectedUnitIds: new Set(),
-      selectedUnit: null,
-      getUnitDocById: (id) => ([currentMediaUnit, otherMediaUnit].find((item) => item.id === id)),
-      selectedLayerId: '',
-      selectionSnapshot: {
-        timelineUnit: null,
-        selectedUnitKind: null,
-        activeUnitId: null,
+    renderHook(() =>
+      useTranscriptionAiController({
+        selectedUnitIds: new Set(),
         selectedUnit: null,
-        selectedRowMeta: null,
-        selectedLayerId: null,
-        selectedText: '',
-      },
-      layers: [],
-      transcriptionLayers: [],
-      translationLayers: [],
-      layerLinks: [],
-      getUnitTextForLayer: (unit) => unit.id === 'utt-1' ? '当前页句段' : '其他页句段',
-      formatTime: (seconds) => `${seconds}`,
-      timelineUnitViewIndex,
-      translationLayerCount: 1,
-      aiConfidenceAvg: null,
-      recentTimelineEditEvents: [],
-      createLayerWithActiveContext: vi.fn(async () => true),
-      createTranscriptionSegment: vi.fn(async () => undefined),
-      splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-      deleteUnit: vi.fn(async () => undefined),
-      deleteSelectedUnits: vi.fn(async () => undefined),
-      deleteLayer: vi.fn(async () => undefined),
-      toggleLayerLink: vi.fn(async () => undefined),
-      saveUnitText: vi.fn(async () => undefined),
-      saveUnitLayerText: vi.fn(async () => undefined),
-      saveSegmentContentForLayer: vi.fn(async () => undefined),
-      updateTokenPos: vi.fn(),
-      batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      updateTokenGloss: vi.fn(),
-      selectUnit: vi.fn(),
-      setSaveState: vi.fn(),
-      translationDrafts: {},
-      translationTextByLayer: new Map(),
-      locale: 'zh-CN',
-      playerCurrentTime: 0,
-      executeActionRef: { current: undefined },
-      openSearchRef: { current: undefined },
-      seekToTimeRef: { current: undefined },
-      splitAtTimeRef: { current: undefined },
-      zoomToSegmentRef: { current: undefined },
-      handleExecuteRecommendation: vi.fn(),
-    }));
+        getUnitDocById: (id) => [currentMediaUnit, otherMediaUnit].find((item) => item.id === id),
+        selectedLayerId: '',
+        selectionSnapshot: {
+          timelineUnit: null,
+          selectedUnitKind: null,
+          activeUnitId: null,
+          selectedUnit: null,
+          selectedRowMeta: null,
+          selectedLayerId: null,
+          selectedText: '',
+        },
+        layers: [],
+        transcriptionLayers: [],
+        translationLayers: [],
+        layerLinks: [],
+        getUnitTextForLayer: (unit) => (unit.id === 'utt-1' ? '当前页句段' : '其他页句段'),
+        formatTime: (seconds) => `${seconds}`,
+        timelineUnitViewIndex,
+        translationLayerCount: 1,
+        aiConfidenceAvg: null,
+        recentTimelineEditEvents: [],
+        createLayerWithActiveContext: vi.fn(async () => true),
+        createTranscriptionSegment: vi.fn(async () => undefined),
+        splitTranscriptionSegment: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+        deleteUnit: vi.fn(async () => undefined),
+        deleteSelectedUnits: vi.fn(async () => undefined),
+        deleteLayer: vi.fn(async () => undefined),
+        toggleLayerLink: vi.fn(async () => undefined),
+        saveUnitText: vi.fn(async () => undefined),
+        saveUnitLayerText: vi.fn(async () => undefined),
+        saveSegmentContentForLayer: vi.fn(async () => undefined),
+        updateTokenPos: vi.fn(),
+        batchUpdateTokenPosByForm: vi.fn(async () => 0),
+        updateTokenGloss: vi.fn(),
+        selectUnit: vi.fn(),
+        setSaveState: vi.fn(),
+        translationDrafts: {},
+        translationTextByLayer: new Map(),
+        locale: 'zh-CN',
+        playerCurrentTime: 0,
+        executeActionRef: { current: undefined },
+        openSearchRef: { current: undefined },
+        seekToTimeRef: { current: undefined },
+        splitAtTimeRef: { current: undefined },
+        zoomToSegmentRef: { current: undefined },
+        handleExecuteRecommendation: vi.fn(),
+      }),
+    );
 
-    const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
+    const latestToolCallHandlerCall =
+      mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
     const toolHandlerInput = latestToolCallHandlerCall?.[0];
-    expect(toolHandlerInput?.units?.map((unit: LayerUnitDocType) => unit.id)).toEqual([currentMediaUnit.id]);
+    expect(toolHandlerInput?.units?.map((unit: LayerUnitDocType) => unit.id)).toEqual([
+      currentMediaUnit.id,
+    ]);
     expect(toolHandlerInput?.selectedUnit).toBeUndefined();
 
     const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
@@ -542,60 +583,67 @@ describe('useTranscriptionAiController', () => {
       currentMediaId: 'media-1',
     });
 
-    renderHook(() => useTranscriptionAiController({
-      selectedUnitIds: new Set([selectedTimelineSegment.id]),
-      selectedUnit: null,
-      getUnitDocById: (id) => (id === unit.id ? unit : undefined),
-      selectedTimelineSegment,
-      selectedLayerId: 'layer-independent',
-      selectionSnapshot: {
-        timelineUnit: { layerId: 'layer-independent', unitId: selectedTimelineSegment.id, kind: 'segment' },
-        selectedUnitKind: 'segment',
-        activeUnitId: null,
+    renderHook(() =>
+      useTranscriptionAiController({
+        selectedUnitIds: new Set([selectedTimelineSegment.id]),
         selectedUnit: null,
-        selectedRowMeta: null,
+        getUnitDocById: (id) => (id === unit.id ? unit : undefined),
+        selectedTimelineSegment,
         selectedLayerId: 'layer-independent',
-        selectedText: '',
-      },
-      layers: [],
-      transcriptionLayers: [],
-      translationLayers: [],
-      layerLinks: [],
-      getUnitTextForLayer: () => '',
-      formatTime: (seconds) => `${seconds}`,
-      timelineUnitViewIndex,
-      translationLayerCount: 0,
-      aiConfidenceAvg: null,
-      recentTimelineEditEvents: [],
-      createLayerWithActiveContext: vi.fn(async () => true),
-      createTranscriptionSegment: vi.fn(async () => undefined),
-      splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-      deleteUnit: vi.fn(async () => undefined),
-      deleteSelectedUnits: vi.fn(async () => undefined),
-      deleteLayer: vi.fn(async () => undefined),
-      toggleLayerLink: vi.fn(async () => undefined),
-      saveUnitText: vi.fn(async () => undefined),
-      saveUnitLayerText: vi.fn(async () => undefined),
-      saveSegmentContentForLayer: vi.fn(async () => undefined),
-      updateTokenPos: vi.fn(),
-      batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      updateTokenGloss: vi.fn(),
-      selectUnit: vi.fn(),
-      setSaveState: vi.fn(),
-      translationDrafts: {},
-      translationTextByLayer: new Map(),
-      locale: 'zh-CN',
-      playerCurrentTime: 0,
-      executeActionRef: { current: undefined },
-      openSearchRef: { current: undefined },
-      seekToTimeRef: { current: undefined },
-      splitAtTimeRef: { current: undefined },
-      zoomToSegmentRef: { current: undefined },
-      handleExecuteRecommendation: vi.fn(),
-    }));
+        selectionSnapshot: {
+          timelineUnit: {
+            layerId: 'layer-independent',
+            unitId: selectedTimelineSegment.id,
+            kind: 'segment',
+          },
+          selectedUnitKind: 'segment',
+          activeUnitId: null,
+          selectedUnit: null,
+          selectedRowMeta: null,
+          selectedLayerId: 'layer-independent',
+          selectedText: '',
+        },
+        layers: [],
+        transcriptionLayers: [],
+        translationLayers: [],
+        layerLinks: [],
+        getUnitTextForLayer: () => '',
+        formatTime: (seconds) => `${seconds}`,
+        timelineUnitViewIndex,
+        translationLayerCount: 0,
+        aiConfidenceAvg: null,
+        recentTimelineEditEvents: [],
+        createLayerWithActiveContext: vi.fn(async () => true),
+        createTranscriptionSegment: vi.fn(async () => undefined),
+        splitTranscriptionSegment: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+        deleteUnit: vi.fn(async () => undefined),
+        deleteSelectedUnits: vi.fn(async () => undefined),
+        deleteLayer: vi.fn(async () => undefined),
+        toggleLayerLink: vi.fn(async () => undefined),
+        saveUnitText: vi.fn(async () => undefined),
+        saveUnitLayerText: vi.fn(async () => undefined),
+        saveSegmentContentForLayer: vi.fn(async () => undefined),
+        updateTokenPos: vi.fn(),
+        batchUpdateTokenPosByForm: vi.fn(async () => 0),
+        updateTokenGloss: vi.fn(),
+        selectUnit: vi.fn(),
+        setSaveState: vi.fn(),
+        translationDrafts: {},
+        translationTextByLayer: new Map(),
+        locale: 'zh-CN',
+        playerCurrentTime: 0,
+        executeActionRef: { current: undefined },
+        openSearchRef: { current: undefined },
+        seekToTimeRef: { current: undefined },
+        splitAtTimeRef: { current: undefined },
+        zoomToSegmentRef: { current: undefined },
+        handleExecuteRecommendation: vi.fn(),
+      }),
+    );
 
-    const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
+    const latestToolCallHandlerCall =
+      mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
     const toolHandlerInput = latestToolCallHandlerCall?.[0];
     expect(toolHandlerInput?.selectedUnit?.id).toBe(unit.id);
   });
@@ -608,65 +656,71 @@ describe('useTranscriptionAiController', () => {
       endTime: 3,
     } as LayerUnitDocType;
 
-    renderHook(() => useTranscriptionAiController({
-      selectedUnitIds: new Set(),
-      selectedUnit: null,
-      getUnitDocById: (id) => ([unit1, unit2].find((item) => item.id === id)),
-      selectedLayerId: '',
-      selectionSnapshot: {
-        timelineUnit: null,
-        selectedUnitKind: null,
-        activeUnitId: null,
+    renderHook(() =>
+      useTranscriptionAiController({
+        selectedUnitIds: new Set(),
         selectedUnit: null,
-        selectedRowMeta: null,
-        selectedLayerId: null,
-        selectedText: '',
-      },
-      layers: [],
-      transcriptionLayers: [],
-      translationLayers: [],
-      layerLinks: [],
-      getUnitTextForLayer: (unit) => unit.id,
-      formatTime: (seconds) => `${seconds}`,
-      timelineUnitViewIndex: makeTimelineUnitViewIndex({
-        units: [unit1, unit2],
-        unitsOnCurrentMedia: [],
-        currentMediaId: 'media-1',
+        getUnitDocById: (id) => [unit1, unit2].find((item) => item.id === id),
+        selectedLayerId: '',
+        selectionSnapshot: {
+          timelineUnit: null,
+          selectedUnitKind: null,
+          activeUnitId: null,
+          selectedUnit: null,
+          selectedRowMeta: null,
+          selectedLayerId: null,
+          selectedText: '',
+        },
+        layers: [],
+        transcriptionLayers: [],
+        translationLayers: [],
+        layerLinks: [],
+        getUnitTextForLayer: (unit) => unit.id,
+        formatTime: (seconds) => `${seconds}`,
+        timelineUnitViewIndex: makeTimelineUnitViewIndex({
+          units: [unit1, unit2],
+          unitsOnCurrentMedia: [],
+          currentMediaId: 'media-1',
+        }),
+        translationLayerCount: 0,
+        aiConfidenceAvg: null,
+        recentTimelineEditEvents: [],
+        createLayerWithActiveContext: vi.fn(async () => true),
+        createTranscriptionSegment: vi.fn(async () => undefined),
+        splitTranscriptionSegment: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+        deleteUnit: vi.fn(async () => undefined),
+        deleteSelectedUnits: vi.fn(async () => undefined),
+        deleteLayer: vi.fn(async () => undefined),
+        toggleLayerLink: vi.fn(async () => undefined),
+        saveUnitText: vi.fn(async () => undefined),
+        saveUnitLayerText: vi.fn(async () => undefined),
+        saveSegmentContentForLayer: vi.fn(async () => undefined),
+        updateTokenPos: vi.fn(),
+        batchUpdateTokenPosByForm: vi.fn(async () => 0),
+        updateTokenGloss: vi.fn(),
+        selectUnit: vi.fn(),
+        setSaveState: vi.fn(),
+        translationDrafts: {},
+        translationTextByLayer: new Map(),
+        locale: 'zh-CN',
+        playerCurrentTime: 0,
+        executeActionRef: { current: undefined },
+        openSearchRef: { current: undefined },
+        seekToTimeRef: { current: undefined },
+        splitAtTimeRef: { current: undefined },
+        zoomToSegmentRef: { current: undefined },
+        handleExecuteRecommendation: vi.fn(),
       }),
-      translationLayerCount: 0,
-      aiConfidenceAvg: null,
-      recentTimelineEditEvents: [],
-      createLayerWithActiveContext: vi.fn(async () => true),
-      createTranscriptionSegment: vi.fn(async () => undefined),
-      splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-      deleteUnit: vi.fn(async () => undefined),
-      deleteSelectedUnits: vi.fn(async () => undefined),
-      deleteLayer: vi.fn(async () => undefined),
-      toggleLayerLink: vi.fn(async () => undefined),
-      saveUnitText: vi.fn(async () => undefined),
-      saveUnitLayerText: vi.fn(async () => undefined),
-      saveSegmentContentForLayer: vi.fn(async () => undefined),
-      updateTokenPos: vi.fn(),
-      batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      updateTokenGloss: vi.fn(),
-      selectUnit: vi.fn(),
-      setSaveState: vi.fn(),
-      translationDrafts: {},
-      translationTextByLayer: new Map(),
-      locale: 'zh-CN',
-      playerCurrentTime: 0,
-      executeActionRef: { current: undefined },
-      openSearchRef: { current: undefined },
-      seekToTimeRef: { current: undefined },
-      splitAtTimeRef: { current: undefined },
-      zoomToSegmentRef: { current: undefined },
-      handleExecuteRecommendation: vi.fn(),
-    }));
+    );
 
-    const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
+    const latestToolCallHandlerCall =
+      mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
     const toolHandlerInput = latestToolCallHandlerCall?.[0];
-    expect(toolHandlerInput?.units?.map((unit: LayerUnitDocType) => unit.id)).toEqual([unit1.id, unit2.id]);
+    expect(toolHandlerInput?.units?.map((unit: LayerUnitDocType) => unit.id)).toEqual([
+      unit1.id,
+      unit2.id,
+    ]);
 
     const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
     const aiChatOptions = latestAiChatCall?.[0];
@@ -709,72 +763,77 @@ describe('useTranscriptionAiController', () => {
       currentMediaId: 'media-1',
     });
 
-    renderHook(() => useTranscriptionAiController({
-      selectedUnitIds: new Set(['utt-2']),
-      selectedUnit: lowConfidenceUnit,
-      getUnitDocById: (id) => ([overlapUnit, lowConfidenceUnit, gapTargetUnit].find((item) => item.id === id)),
-      selectedLayerId: '',
-      selectionSnapshot: {
-        timelineUnit: null,
-        selectedUnitKind: 'unit',
-        activeUnitId: lowConfidenceUnit.id,
-        selectedUnit: timelineUnitViewIndex.byId.get(lowConfidenceUnit.id) ?? null,
-        selectedRowMeta: null,
-        selectedLayerId: null,
-        selectedText: '低置信句段',
-        selectedUnitStartSec: 1,
-        selectedUnitEndSec: 2.5,
-      },
-      layers: [],
-      transcriptionLayers: [],
-      translationLayers: [],
-      layerLinks: [],
-      getUnitTextForLayer: (unit) => unit.id,
-      formatTime: (seconds) => `${seconds}`,
-      timelineUnitViewIndex,
-      translationLayerCount: 0,
-      aiConfidenceAvg: 0.8,
-      recentTimelineEditEvents: [],
-      createLayerWithActiveContext: vi.fn(async () => true),
-      createTranscriptionSegment: vi.fn(async () => undefined),
-      splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-      deleteUnit: vi.fn(async () => undefined),
-      deleteSelectedUnits: vi.fn(async () => undefined),
-      deleteLayer: vi.fn(async () => undefined),
-      toggleLayerLink: vi.fn(async () => undefined),
-      saveUnitText: vi.fn(async () => undefined),
-      saveUnitLayerText: vi.fn(async () => undefined),
-      saveSegmentContentForLayer: vi.fn(async () => undefined),
-      updateTokenPos: vi.fn(),
-      batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      updateTokenGloss: vi.fn(),
-      selectUnit: vi.fn(),
-      setSaveState: vi.fn(),
-      translationDrafts: {},
-      translationTextByLayer: new Map(),
-      locale: 'zh-CN',
-      playerCurrentTime: 1.3,
-      executeActionRef: { current: undefined },
-      openSearchRef: { current: undefined },
-      seekToTimeRef: { current: undefined },
-      splitAtTimeRef: { current: undefined },
-      zoomToSegmentRef: { current: undefined },
-      handleExecuteRecommendation: vi.fn(),
-    }));
+    renderHook(() =>
+      useTranscriptionAiController({
+        selectedUnitIds: new Set(['utt-2']),
+        selectedUnit: lowConfidenceUnit,
+        getUnitDocById: (id) =>
+          [overlapUnit, lowConfidenceUnit, gapTargetUnit].find((item) => item.id === id),
+        selectedLayerId: '',
+        selectionSnapshot: {
+          timelineUnit: null,
+          selectedUnitKind: 'unit',
+          activeUnitId: lowConfidenceUnit.id,
+          selectedUnit: timelineUnitViewIndex.byId.get(lowConfidenceUnit.id) ?? null,
+          selectedRowMeta: null,
+          selectedLayerId: null,
+          selectedText: '低置信句段',
+          selectedUnitStartSec: 1,
+          selectedUnitEndSec: 2.5,
+        },
+        layers: [],
+        transcriptionLayers: [],
+        translationLayers: [],
+        layerLinks: [],
+        getUnitTextForLayer: (unit) => unit.id,
+        formatTime: (seconds) => `${seconds}`,
+        timelineUnitViewIndex,
+        translationLayerCount: 0,
+        aiConfidenceAvg: 0.8,
+        recentTimelineEditEvents: [],
+        createLayerWithActiveContext: vi.fn(async () => true),
+        createTranscriptionSegment: vi.fn(async () => undefined),
+        splitTranscriptionSegment: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+        deleteUnit: vi.fn(async () => undefined),
+        deleteSelectedUnits: vi.fn(async () => undefined),
+        deleteLayer: vi.fn(async () => undefined),
+        toggleLayerLink: vi.fn(async () => undefined),
+        saveUnitText: vi.fn(async () => undefined),
+        saveUnitLayerText: vi.fn(async () => undefined),
+        saveSegmentContentForLayer: vi.fn(async () => undefined),
+        updateTokenPos: vi.fn(),
+        batchUpdateTokenPosByForm: vi.fn(async () => 0),
+        updateTokenGloss: vi.fn(),
+        selectUnit: vi.fn(),
+        setSaveState: vi.fn(),
+        translationDrafts: {},
+        translationTextByLayer: new Map(),
+        locale: 'zh-CN',
+        playerCurrentTime: 1.3,
+        executeActionRef: { current: undefined },
+        openSearchRef: { current: undefined },
+        seekToTimeRef: { current: undefined },
+        splitAtTimeRef: { current: undefined },
+        zoomToSegmentRef: { current: undefined },
+        handleExecuteRecommendation: vi.fn(),
+      }),
+    );
 
     const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
     const aiChatOptions = latestAiChatCall?.[0];
     const context = aiChatOptions?.getContext?.();
 
-    expect(context?.longTerm?.waveformAnalysis).toEqual(expect.objectContaining({
-      lowConfidenceCount: 1,
-      overlapCount: 1,
-      gapCount: 1,
-      selectionLowConfidenceCount: 1,
-      selectionOverlapCount: 1,
-      selectionGapCount: 1,
-    }));
+    expect(context?.longTerm?.waveformAnalysis).toEqual(
+      expect.objectContaining({
+        lowConfidenceCount: 1,
+        overlapCount: 1,
+        gapCount: 1,
+        selectionLowConfidenceCount: 1,
+        selectionOverlapCount: 1,
+        selectionGapCount: 1,
+      }),
+    );
   });
 
   it('materializes and previews delete selectors against independent layer segments on the current timeline', async () => {
@@ -921,7 +980,11 @@ describe('useTranscriptionAiController', () => {
     });
 
     expect(preparedSetTranscription.arguments).toEqual({ segmentId: 'seg-2', text: '改写后文本' });
-    expect(preparedSetTranslation.arguments).toEqual({ segmentId: 'seg-2', layerId: 'trl-1', text: '译文' });
+    expect(preparedSetTranslation.arguments).toEqual({
+      segmentId: 'seg-2',
+      layerId: 'trl-1',
+      text: '译文',
+    });
     expect(preparedClearTranslation.arguments).toEqual({ segmentId: 'seg-2', layerId: 'trl-1' });
 
     await aiChatOptions.onToolCall({
@@ -960,7 +1023,8 @@ describe('useTranscriptionAiController', () => {
       mergeWithNext,
     });
 
-    const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
+    const latestToolCallHandlerCall =
+      mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
     const toolHandlerInput = latestToolCallHandlerCall?.[0];
     expect(toolHandlerInput?.mergeWithPrevious).toBe(mergeWithPrevious);
     expect(toolHandlerInput?.mergeWithNext).toBe(mergeWithNext);
@@ -968,15 +1032,19 @@ describe('useTranscriptionAiController', () => {
 
   it('forwards useAiChat onMessageComplete to onAiAssistantMessageComplete when configured', () => {
     const onAiAssistantMessageComplete = vi.fn();
-    let capturedOnMessageComplete: ((assistantMessageId: string, content: string) => void) | undefined;
+    let capturedOnMessageComplete:
+      | ((assistantMessageId: string, content: string) => void)
+      | undefined;
 
-    mockUseAiChat.mockImplementation((options: { onMessageComplete?: (assistantMessageId: string, content: string) => void }) => {
-      capturedOnMessageComplete = options.onMessageComplete;
-      return {
-        connectionTestStatus: 'idle',
-        pendingToolCall: null,
-      };
-    });
+    mockUseAiChat.mockImplementation(
+      (options: { onMessageComplete?: (assistantMessageId: string, content: string) => void }) => {
+        capturedOnMessageComplete = options.onMessageComplete;
+        return {
+          connectionTestStatus: 'idle',
+          pendingToolCall: null,
+        };
+      },
+    );
 
     const currentMediaUnit = makeUnitWithId('utt-1', 'media-1');
     const otherMediaUnit = makeUnitWithId('utt-2', 'media-2');
@@ -986,58 +1054,60 @@ describe('useTranscriptionAiController', () => {
       currentMediaId: 'media-1',
     });
 
-    renderHook(() => useTranscriptionAiController({
-      selectedUnitIds: new Set([currentMediaUnit.id]),
-      selectedUnit: currentMediaUnit,
-      getUnitDocById: (id) => ([currentMediaUnit, otherMediaUnit].find((item) => item.id === id)),
-      selectedLayerId: '',
-      selectionSnapshot: {
-        timelineUnit: null,
-        selectedUnitKind: null,
-        activeUnitId: currentMediaUnit.id,
-        selectedUnit: timelineUnitViewIndex.byId.get(currentMediaUnit.id) ?? null,
-        selectedRowMeta: null,
-        selectedLayerId: null,
-        selectedText: '',
-      },
-      layers: [],
-      transcriptionLayers: [],
-      translationLayers: [],
-      layerLinks: [],
-      getUnitTextForLayer: () => '',
-      formatTime: (seconds) => `${seconds}`,
-      timelineUnitViewIndex,
-      translationLayerCount: 1,
-      aiConfidenceAvg: null,
-      recentTimelineEditEvents: [],
-      createLayerWithActiveContext: vi.fn(async () => true),
-      createTranscriptionSegment: vi.fn(async () => undefined),
-      splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-      deleteUnit: vi.fn(async () => undefined),
-      deleteSelectedUnits: vi.fn(async () => undefined),
-      deleteLayer: vi.fn(async () => undefined),
-      toggleLayerLink: vi.fn(async () => undefined),
-      saveUnitText: vi.fn(async () => undefined),
-      saveUnitLayerText: vi.fn(async () => undefined),
-      saveSegmentContentForLayer: vi.fn(async () => undefined),
-      updateTokenPos: vi.fn(),
-      batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      updateTokenGloss: vi.fn(),
-      selectUnit: vi.fn(),
-      setSaveState: vi.fn(),
-      translationDrafts: {},
-      translationTextByLayer: new Map(),
-      locale: 'zh-CN',
-      playerCurrentTime: 0,
-      executeActionRef: { current: undefined },
-      openSearchRef: { current: undefined },
-      seekToTimeRef: { current: undefined },
-      splitAtTimeRef: { current: undefined },
-      zoomToSegmentRef: { current: undefined },
-      handleExecuteRecommendation: vi.fn(),
-      onAiAssistantMessageComplete,
-    }));
+    renderHook(() =>
+      useTranscriptionAiController({
+        selectedUnitIds: new Set([currentMediaUnit.id]),
+        selectedUnit: currentMediaUnit,
+        getUnitDocById: (id) => [currentMediaUnit, otherMediaUnit].find((item) => item.id === id),
+        selectedLayerId: '',
+        selectionSnapshot: {
+          timelineUnit: null,
+          selectedUnitKind: null,
+          activeUnitId: currentMediaUnit.id,
+          selectedUnit: timelineUnitViewIndex.byId.get(currentMediaUnit.id) ?? null,
+          selectedRowMeta: null,
+          selectedLayerId: null,
+          selectedText: '',
+        },
+        layers: [],
+        transcriptionLayers: [],
+        translationLayers: [],
+        layerLinks: [],
+        getUnitTextForLayer: () => '',
+        formatTime: (seconds) => `${seconds}`,
+        timelineUnitViewIndex,
+        translationLayerCount: 1,
+        aiConfidenceAvg: null,
+        recentTimelineEditEvents: [],
+        createLayerWithActiveContext: vi.fn(async () => true),
+        createTranscriptionSegment: vi.fn(async () => undefined),
+        splitTranscriptionSegment: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+        deleteUnit: vi.fn(async () => undefined),
+        deleteSelectedUnits: vi.fn(async () => undefined),
+        deleteLayer: vi.fn(async () => undefined),
+        toggleLayerLink: vi.fn(async () => undefined),
+        saveUnitText: vi.fn(async () => undefined),
+        saveUnitLayerText: vi.fn(async () => undefined),
+        saveSegmentContentForLayer: vi.fn(async () => undefined),
+        updateTokenPos: vi.fn(),
+        batchUpdateTokenPosByForm: vi.fn(async () => 0),
+        updateTokenGloss: vi.fn(),
+        selectUnit: vi.fn(),
+        setSaveState: vi.fn(),
+        translationDrafts: {},
+        translationTextByLayer: new Map(),
+        locale: 'zh-CN',
+        playerCurrentTime: 0,
+        executeActionRef: { current: undefined },
+        openSearchRef: { current: undefined },
+        seekToTimeRef: { current: undefined },
+        splitAtTimeRef: { current: undefined },
+        zoomToSegmentRef: { current: undefined },
+        handleExecuteRecommendation: vi.fn(),
+        onAiAssistantMessageComplete,
+      }),
+    );
 
     expect(capturedOnMessageComplete).toEqual(expect.any(Function));
     capturedOnMessageComplete!('assistant-msg-1', 'stream done');
@@ -1045,15 +1115,19 @@ describe('useTranscriptionAiController', () => {
   });
 
   it('passes onMessageComplete to useAiChat that no-ops safely when onAiAssistantMessageComplete is omitted', () => {
-    let capturedOnMessageComplete: ((assistantMessageId: string, content: string) => void) | undefined;
+    let capturedOnMessageComplete:
+      | ((assistantMessageId: string, content: string) => void)
+      | undefined;
 
-    mockUseAiChat.mockImplementation((options: { onMessageComplete?: (assistantMessageId: string, content: string) => void }) => {
-      capturedOnMessageComplete = options.onMessageComplete;
-      return {
-        connectionTestStatus: 'idle',
-        pendingToolCall: null,
-      };
-    });
+    mockUseAiChat.mockImplementation(
+      (options: { onMessageComplete?: (assistantMessageId: string, content: string) => void }) => {
+        capturedOnMessageComplete = options.onMessageComplete;
+        return {
+          connectionTestStatus: 'idle',
+          pendingToolCall: null,
+        };
+      },
+    );
 
     const currentMediaUnit = makeUnitWithId('utt-1', 'media-1');
     const otherMediaUnit = makeUnitWithId('utt-2', 'media-2');
@@ -1063,57 +1137,59 @@ describe('useTranscriptionAiController', () => {
       currentMediaId: 'media-1',
     });
 
-    renderHook(() => useTranscriptionAiController({
-      selectedUnitIds: new Set([currentMediaUnit.id]),
-      selectedUnit: currentMediaUnit,
-      getUnitDocById: (id) => ([currentMediaUnit, otherMediaUnit].find((item) => item.id === id)),
-      selectedLayerId: '',
-      selectionSnapshot: {
-        timelineUnit: null,
-        selectedUnitKind: null,
-        activeUnitId: currentMediaUnit.id,
-        selectedUnit: timelineUnitViewIndex.byId.get(currentMediaUnit.id) ?? null,
-        selectedRowMeta: null,
-        selectedLayerId: null,
-        selectedText: '',
-      },
-      layers: [],
-      transcriptionLayers: [],
-      translationLayers: [],
-      layerLinks: [],
-      getUnitTextForLayer: () => '',
-      formatTime: (seconds) => `${seconds}`,
-      timelineUnitViewIndex,
-      translationLayerCount: 1,
-      aiConfidenceAvg: null,
-      recentTimelineEditEvents: [],
-      createLayerWithActiveContext: vi.fn(async () => true),
-      createTranscriptionSegment: vi.fn(async () => undefined),
-      splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-      deleteUnit: vi.fn(async () => undefined),
-      deleteSelectedUnits: vi.fn(async () => undefined),
-      deleteLayer: vi.fn(async () => undefined),
-      toggleLayerLink: vi.fn(async () => undefined),
-      saveUnitText: vi.fn(async () => undefined),
-      saveUnitLayerText: vi.fn(async () => undefined),
-      saveSegmentContentForLayer: vi.fn(async () => undefined),
-      updateTokenPos: vi.fn(),
-      batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      updateTokenGloss: vi.fn(),
-      selectUnit: vi.fn(),
-      setSaveState: vi.fn(),
-      translationDrafts: {},
-      translationTextByLayer: new Map(),
-      locale: 'zh-CN',
-      playerCurrentTime: 0,
-      executeActionRef: { current: undefined },
-      openSearchRef: { current: undefined },
-      seekToTimeRef: { current: undefined },
-      splitAtTimeRef: { current: undefined },
-      zoomToSegmentRef: { current: undefined },
-      handleExecuteRecommendation: vi.fn(),
-    }));
+    renderHook(() =>
+      useTranscriptionAiController({
+        selectedUnitIds: new Set([currentMediaUnit.id]),
+        selectedUnit: currentMediaUnit,
+        getUnitDocById: (id) => [currentMediaUnit, otherMediaUnit].find((item) => item.id === id),
+        selectedLayerId: '',
+        selectionSnapshot: {
+          timelineUnit: null,
+          selectedUnitKind: null,
+          activeUnitId: currentMediaUnit.id,
+          selectedUnit: timelineUnitViewIndex.byId.get(currentMediaUnit.id) ?? null,
+          selectedRowMeta: null,
+          selectedLayerId: null,
+          selectedText: '',
+        },
+        layers: [],
+        transcriptionLayers: [],
+        translationLayers: [],
+        layerLinks: [],
+        getUnitTextForLayer: () => '',
+        formatTime: (seconds) => `${seconds}`,
+        timelineUnitViewIndex,
+        translationLayerCount: 1,
+        aiConfidenceAvg: null,
+        recentTimelineEditEvents: [],
+        createLayerWithActiveContext: vi.fn(async () => true),
+        createTranscriptionSegment: vi.fn(async () => undefined),
+        splitTranscriptionSegment: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+        deleteUnit: vi.fn(async () => undefined),
+        deleteSelectedUnits: vi.fn(async () => undefined),
+        deleteLayer: vi.fn(async () => undefined),
+        toggleLayerLink: vi.fn(async () => undefined),
+        saveUnitText: vi.fn(async () => undefined),
+        saveUnitLayerText: vi.fn(async () => undefined),
+        saveSegmentContentForLayer: vi.fn(async () => undefined),
+        updateTokenPos: vi.fn(),
+        batchUpdateTokenPosByForm: vi.fn(async () => 0),
+        updateTokenGloss: vi.fn(),
+        selectUnit: vi.fn(),
+        setSaveState: vi.fn(),
+        translationDrafts: {},
+        translationTextByLayer: new Map(),
+        locale: 'zh-CN',
+        playerCurrentTime: 0,
+        executeActionRef: { current: undefined },
+        openSearchRef: { current: undefined },
+        seekToTimeRef: { current: undefined },
+        splitAtTimeRef: { current: undefined },
+        zoomToSegmentRef: { current: undefined },
+        handleExecuteRecommendation: vi.fn(),
+      }),
+    );
 
     expect(capturedOnMessageComplete).toEqual(expect.any(Function));
     expect(() => {

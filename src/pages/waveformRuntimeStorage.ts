@@ -22,10 +22,15 @@ export interface UseWaveformRuntimeControllerResult {
   handleWaveformResizeStart: (event: React.PointerEvent<HTMLDivElement>) => void;
 }
 
-export function readStoredClampedNumber(key: string, min: number, max: number, fallback: number): number {
+export function readStoredClampedNumber(
+  key: string,
+  min: number,
+  max: number,
+  fallback: number,
+): number {
   try {
     const stored = localStorage.getItem(key);
-    if (!stored) return fallback;
+    if (stored == null || stored.length === 0) return fallback;
     const parsed = Number(stored);
     if (Number.isNaN(parsed)) return fallback;
     return Math.min(Math.max(parsed, min), max);

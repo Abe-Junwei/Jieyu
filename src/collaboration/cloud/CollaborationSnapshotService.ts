@@ -74,15 +74,20 @@ function hashString(input: string): string {
 
 /** 新快照优先 SHA-256 hex（64 字符）；无 WebCrypto 时回退 legacy | Prefer SHA-256 for new snapshots */
 export async function computeSnapshotChecksum(payloadJson: string): Promise<string> {
-  if (typeof crypto !== 'undefined' && crypto.subtle?.digest) {
+  if (typeof crypto !== 'undefined' && typeof crypto.subtle?.digest === 'function') {
     const bytes = new TextEncoder().encode(payloadJson);
     const digest = await crypto.subtle.digest('SHA-256', bytes);
-    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
   }
   return hashString(payloadJson);
 }
 
-async function snapshotChecksumMatchesPayload(payloadJson: string, storedChecksum: string): Promise<boolean> {
+async function snapshotChecksumMatchesPayload(
+  payloadJson: string,
+  storedChecksum: string,
+): Promise<boolean> {
   if (/^[a-f0-9]{64}$/i.test(storedChecksum)) {
     const next = await computeSnapshotChecksum(payloadJson);
     return next.toLowerCase() === storedChecksum.toLowerCase();
@@ -124,7 +129,9 @@ export class CollaborationSnapshotService {
    * 一步创建快照版本：上传正文 + 注册元数据。
    * Oneshot snapshot creation: upload body + register metadata.
    */
-  async createSnapshotVersion(input: CreateSnapshotVersionInput): Promise<CollaborationProjectSnapshotRecord> {
+  async createSnapshotVersion(
+    input: CreateSnapshotVersionInput,
+  ): Promise<CollaborationProjectSnapshotRecord> {
     const storage = await this.uploadSnapshot({
       projectId: input.projectId,
       version: input.version,
@@ -165,7 +172,9 @@ export class CollaborationSnapshotService {
    * 注册快照元数据到 project_snapshots 表
    * Register snapshot metadata into project_snapshots table
    */
-  async registerSnapshot(input: RegisterSnapshotInput): Promise<CollaborationProjectSnapshotRecord> {
+  async registerSnapshot(
+    input: RegisterSnapshotInput,
+  ): Promise<CollaborationProjectSnapshotRecord> {
     const client = getSupabaseBrowserClient();
     const row = {
       project_id: input.projectId,
@@ -180,11 +189,7 @@ export class CollaborationSnapshotService {
       note: input.note ?? null,
     };
 
-    const { data, error } = await client
-      .from('project_snapshots')
-      .insert(row)
-      .select()
-      .single();
+    const { data, error } = await client.from('project_snapshots').insert(row).select().single();
 
     if (error) throw error;
     return mapSnapshotRow(data);
@@ -214,7 +219,9 @@ export class CollaborationSnapshotService {
    * 下载指定快照并返回 JSON 文本，供本地恢复使用
    * Download a specific snapshot and return JSON text for local restoration
    */
-  async downloadSnapshotById(snapshotId: string): Promise<{ record: CollaborationProjectSnapshotRecord; payloadJson: string }> {
+  async downloadSnapshotById(
+    snapshotId: string,
+  ): Promise<{ record: CollaborationProjectSnapshotRecord; payloadJson: string }> {
     const client = getSupabaseBrowserClient();
     const { data: row, error } = await client
       .from('project_snapshots')

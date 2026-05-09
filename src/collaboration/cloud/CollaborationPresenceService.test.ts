@@ -8,7 +8,9 @@ const {
   presenceHandlers,
   snapshotRef,
 } = vi.hoisted(() => {
-  const mockChannelTrack = vi.fn<(payload: unknown) => Promise<void>>().mockResolvedValue(undefined);
+  const mockChannelTrack = vi
+    .fn<(payload: unknown) => Promise<void>>()
+    .mockResolvedValue(undefined);
   const mockChannelSubscribe = vi.fn<(callback: (status: string) => void) => void>((callback) => {
     callback('SUBSCRIBED');
   });
@@ -17,7 +19,7 @@ const {
 
   const channel = {
     on: vi.fn((event: string, filter: { event?: string }, callback: () => void) => {
-      if (event === 'presence' && filter.event) {
+      if (event === 'presence' && typeof filter.event === 'string' && filter.event.length > 0) {
         presenceHandlers[filter.event] = callback;
       }
       return channel;
@@ -88,11 +90,14 @@ describe('CollaborationPresenceService', () => {
     const service = new CollaborationPresenceService();
     const onMembersChanged = vi.fn<(members: unknown[]) => void>();
 
-    await service.connect({
-      projectId: 'project-1',
-      userId: 'user-self',
-      displayName: 'Self',
-    }, onMembersChanged);
+    await service.connect(
+      {
+        projectId: 'project-1',
+        userId: 'user-self',
+        displayName: 'Self',
+      },
+      onMembersChanged,
+    );
 
     expect(mockChannelFactory).toHaveBeenCalledWith('project:project-1:presence', {
       config: {
@@ -101,21 +106,27 @@ describe('CollaborationPresenceService', () => {
         },
       },
     });
-    expect(mockChannelTrack).toHaveBeenCalledWith(expect.objectContaining({
-      userId: 'user-self',
-      displayName: 'Self',
-      state: 'online',
-    }));
+    expect(mockChannelTrack).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-self',
+        displayName: 'Self',
+        state: 'online',
+      }),
+    );
 
     const members = service.getMembers();
     expect(members).toHaveLength(2);
-    expect(members[0]).toEqual(expect.objectContaining({
-      userId: 'user-b',
-      state: 'online',
-      focusedEntityType: 'text',
-      focusedEntityId: 'text-1',
-    }));
-    expect(members[1]).toEqual(expect.objectContaining({ userId: 'user-a', state: 'idle', focusedEntityId: 'seg-1' }));
+    expect(members[0]).toEqual(
+      expect.objectContaining({
+        userId: 'user-b',
+        state: 'online',
+        focusedEntityType: 'text',
+        focusedEntityId: 'text-1',
+      }),
+    );
+    expect(members[1]).toEqual(
+      expect.objectContaining({ userId: 'user-a', state: 'idle', focusedEntityId: 'seg-1' }),
+    );
 
     snapshotRef.current = {
       'user-a': [
@@ -152,14 +163,16 @@ describe('CollaborationPresenceService', () => {
       focusedEntityId: 'seg-9',
     });
 
-    expect(persisted).toEqual(expect.objectContaining({
-      projectId: 'project-9',
-      userId: 'user-9',
-      displayName: 'Nine',
-      state: 'idle',
-      focusedEntityType: 'layer_unit',
-      focusedEntityId: 'seg-9',
-    }));
+    expect(persisted).toEqual(
+      expect.objectContaining({
+        projectId: 'project-9',
+        userId: 'user-9',
+        displayName: 'Nine',
+        state: 'idle',
+        focusedEntityType: 'layer_unit',
+        focusedEntityId: 'seg-9',
+      }),
+    );
 
     await service.disconnect();
   });

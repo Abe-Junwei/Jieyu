@@ -1,7 +1,10 @@
 import type { LayerDocType, LayerLinkDocType } from '../db';
 import { buildLayerBundles } from '../services/LayerOrderingService';
 
-type ConnectorHostLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
+type ConnectorHostLink = Pick<
+  LayerLinkDocType,
+  'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+>;
 
 interface LayerLinkConnectorSegment {
   column: number;
@@ -20,7 +23,14 @@ function pushSegment(
   segment: LayerLinkConnectorSegment,
 ): void {
   const existing = segmentsByLayerId[layerId] ?? [];
-  if (existing.some((item) => item.column === segment.column && item.role === segment.role && item.colorIndex === segment.colorIndex)) {
+  if (
+    existing.some(
+      (item) =>
+        item.column === segment.column &&
+        item.role === segment.role &&
+        item.colorIndex === segment.colorIndex,
+    )
+  ) {
     return;
   }
   existing.push(segment);
@@ -55,7 +65,10 @@ const CONNECTOR_COLOR_PALETTE = [
 ] as const;
 
 export function getLayerLinkConnectorColors(colorIndex: number): { base: string; active: string } {
-  return CONNECTOR_COLOR_PALETTE[colorIndex % CONNECTOR_COLOR_PALETTE.length] ?? CONNECTOR_COLOR_PALETTE[0];
+  return (
+    CONNECTOR_COLOR_PALETTE[colorIndex % CONNECTOR_COLOR_PALETTE.length] ??
+    CONNECTOR_COLOR_PALETTE[0]
+  );
 }
 
 export function buildLayerLinkConnectorLayout(
@@ -68,7 +81,7 @@ export function buildLayerLinkConnectorLayout(
 
   const segmentsByLayerId: Record<string, LayerLinkConnectorSegment[]> = {};
   const orderedBundles = buildLayerBundles(allLayers, layerLinks)
-    .filter((bundle) => !bundle.detached)
+    .filter((bundle) => bundle.detached !== true)
     .map((bundle) => ({
       root: bundle.root,
       dependents: [...bundle.transcriptionDependents, ...bundle.translationDependents],
@@ -87,9 +100,10 @@ export function buildLayerLinkConnectorLayout(
       pushSegment(segmentsByLayerId, layer.id, {
         column,
         colorIndex,
-        role: dependentIndex === bundle.dependents.length - 1
-          ? 'bundle-child-end'
-          : 'bundle-child-middle',
+        role:
+          dependentIndex === bundle.dependents.length - 1
+            ? 'bundle-child-end'
+            : 'bundle-child-middle',
       });
     });
   });

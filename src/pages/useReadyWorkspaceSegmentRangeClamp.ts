@@ -34,26 +34,34 @@ export function useReadyWorkspaceSegmentRangeClamp(input: UseReadyWorkspaceSegme
     getDocumentSpanSec,
   } = input;
 
-  return useCallback((rawStart: number, rawEnd: number) => {
-    const routing = resolveSegmentRoutingForLayer(activeLayerIdForEdits);
-    if (routing.editMode !== 'independent-segment') return null;
-    if (!routing.sourceLayerId) return null;
-    const siblings = currentMediaUnits
-      .filter((u) => u.kind === 'segment' && u.layerId === routing.sourceLayerId)
-      .map((u) => ({ startTime: u.startTime, endTime: u.endTime }));
-    const mediaDuration = independentSegmentInsertionUpperBoundSec(
-      segmentScopeMediaItem ?? selectedTimelineMedia,
-      getDocumentSpanSec(),
-    );
-    const r = clampIndependentSegmentInsertionRange(rawStart, rawEnd, siblings, mediaDuration);
-    if (!r.ok) return null;
-    return { start: r.start, end: r.end };
-  }, [
-    activeLayerIdForEdits,
-    currentMediaUnits,
-    getDocumentSpanSec,
-    resolveSegmentRoutingForLayer,
-    segmentScopeMediaItem,
-    selectedTimelineMedia,
-  ]);
+  return useCallback(
+    (rawStart: number, rawEnd: number) => {
+      const routing = resolveSegmentRoutingForLayer(activeLayerIdForEdits);
+      if (routing.editMode !== 'independent-segment') return null;
+      if (
+        routing.sourceLayerId === undefined ||
+        routing.sourceLayerId === null ||
+        routing.sourceLayerId.length === 0
+      )
+        return null;
+      const siblings = currentMediaUnits
+        .filter((u) => u.kind === 'segment' && u.layerId === routing.sourceLayerId)
+        .map((u) => ({ startTime: u.startTime, endTime: u.endTime }));
+      const mediaDuration = independentSegmentInsertionUpperBoundSec(
+        segmentScopeMediaItem ?? selectedTimelineMedia,
+        getDocumentSpanSec(),
+      );
+      const r = clampIndependentSegmentInsertionRange(rawStart, rawEnd, siblings, mediaDuration);
+      if (!r.ok) return null;
+      return { start: r.start, end: r.end };
+    },
+    [
+      activeLayerIdForEdits,
+      currentMediaUnits,
+      getDocumentSpanSec,
+      resolveSegmentRoutingForLayer,
+      segmentScopeMediaItem,
+      selectedTimelineMedia,
+    ],
+  );
 }

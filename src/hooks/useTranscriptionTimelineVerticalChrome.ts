@@ -2,10 +2,16 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { t, tf, type Locale } from '../i18n';
 import type { LayerDisplaySettings, LayerDocType, OrthographyDocType } from '../db';
 import type { VerticalReadingGroup } from '../utils/transcriptionVerticalReadingGroups';
-import { filterTranslationLayersForVerticalReadingGroup, type VerticalReadingHostLink } from '../utils/verticalReadingHostFilter';
+import {
+  filterTranslationLayersForVerticalReadingGroup,
+  type VerticalReadingHostLink,
+} from '../utils/verticalReadingHostFilter';
 import { buildLaneHeaderInlineDotSeparatedLabel } from '../utils/transcriptionFormatters';
 import { buildLayerStyleMenuItems } from '../components/LayerStyleSubmenu';
-import { buildLayerOperationMenuItems, type LayerOperationActionType } from '../components/layerOperationMenuItems';
+import {
+  buildLayerOperationMenuItems,
+  type LayerOperationActionType,
+} from '../components/layerOperationMenuItems';
 import { type ContextMenuItem } from '../components/ContextMenu';
 import {
   pairedReadingMenuText,
@@ -18,6 +24,8 @@ import {
   type PairedReadingCompactMode,
   type PairedReadingLayerRole,
 } from './useTimelineVisibilityState';
+
+const EMPTY_HEADER_ORTHOGRAPHIES: OrthographyDocType[] = [];
 
 interface PairedReadingDisplayStyleControl {
   orthographies: OrthographyDocType[];
@@ -56,7 +64,10 @@ export interface UseTranscriptionTimelineVerticalChromeInput {
   effectiveDeletableLayers: LayerDocType[];
   canOpenTranslationCreate: boolean;
   requestDeleteLayer: (layerId: string) => Promise<void> | void;
-  onLayerAction: (action: Exclude<LayerOperationActionType, 'delete'>, layerId: string | undefined) => void;
+  onLayerAction: (
+    action: Exclude<LayerOperationActionType, 'delete'>,
+    layerId: string | undefined,
+  ) => void;
   setLayerContextMenu: React.Dispatch<React.SetStateAction<LayerContextMenuState | null>>;
 }
 
@@ -68,13 +79,25 @@ export interface UseTranscriptionTimelineVerticalChromeResult {
   bundleFilterButtonTitle: string;
   sourceHeaderContent: string;
   pairedReadingHeaderOrthographies: OrthographyDocType[];
-  resolvePairedReadingHeaderContentForLayer: (layer: LayerDocType | undefined, fallbackLabel: string) => string;
+  resolvePairedReadingHeaderContentForLayer: (
+    layer: LayerDocType | undefined,
+    fallbackLabel: string,
+  ) => string;
   headerTargetLayers: LayerDocType[];
   pairedReadingLayerStyleMenuItems: ContextMenuItem[];
-  buildPairedReadingLayerHeaderMenuItems: (layer: LayerDocType | undefined, headerLabel: string) => ContextMenuItem[];
+  buildPairedReadingLayerHeaderMenuItems: (
+    layer: LayerDocType | undefined,
+    headerLabel: string,
+  ) => ContextMenuItem[];
   pairedReadingHeaderMenuItems: { source: ContextMenuItem[] };
-  openPairedReadingMenuAtPointer: (event: React.MouseEvent<HTMLElement>, items: ContextMenuItem[]) => void;
-  togglePairedReadingMenuFromButton: (event: React.MouseEvent<HTMLElement>, items: ContextMenuItem[]) => void;
+  openPairedReadingMenuAtPointer: (
+    event: React.MouseEvent<HTMLElement>,
+    items: ContextMenuItem[],
+  ) => void;
+  togglePairedReadingMenuFromButton: (
+    event: React.MouseEvent<HTMLElement>,
+    items: ContextMenuItem[],
+  ) => void;
 }
 
 export function useTranscriptionTimelineVerticalChrome(
@@ -110,13 +133,21 @@ export function useTranscriptionTimelineVerticalChrome(
   const verticalReadingGroupHorizontalBundleKeysPresent = useMemo(() => {
     const present = new Set<string>();
     for (const g of groups) {
-      present.add(resolvePairedReadingHorizontalBundleKey(g, layerIdToHorizontalBundleRootId, sourceLayer?.id));
+      present.add(
+        resolvePairedReadingHorizontalBundleKey(
+          g,
+          layerIdToHorizontalBundleRootId,
+          sourceLayer?.id,
+        ),
+      );
     }
     return present;
   }, [groups, layerIdToHorizontalBundleRootId, sourceLayer?.id]);
 
   const orderedDistinctBundleKeys = useMemo(() => {
-    const ordered = horizontalBundleRootIdsOrdered.filter((id) => verticalReadingGroupHorizontalBundleKeysPresent.has(id));
+    const ordered = horizontalBundleRootIdsOrdered.filter((id) =>
+      verticalReadingGroupHorizontalBundleKeysPresent.has(id),
+    );
     const orphan = [...verticalReadingGroupHorizontalBundleKeysPresent]
       .filter((k) => k.startsWith('__cmp_group:'))
       .filter((k) => !ordered.includes(k))
@@ -137,8 +168,12 @@ export function useTranscriptionTimelineVerticalChrome(
   const visibleGroups = useMemo(() => {
     if (pairedReadingBundleFilterRootId == null) return groups;
     return groups.filter(
-      (g) => resolvePairedReadingHorizontalBundleKey(g, layerIdToHorizontalBundleRootId, sourceLayer?.id)
-        === pairedReadingBundleFilterRootId,
+      (g) =>
+        resolvePairedReadingHorizontalBundleKey(
+          g,
+          layerIdToHorizontalBundleRootId,
+          sourceLayer?.id,
+        ) === pairedReadingBundleFilterRootId,
     );
   }, [pairedReadingBundleFilterRootId, groups, layerIdToHorizontalBundleRootId, sourceLayer?.id]);
 
@@ -147,10 +182,17 @@ export function useTranscriptionTimelineVerticalChrome(
       setPairedReadingBundleFilterRootId(null);
       return;
     }
-    if (pairedReadingBundleFilterRootId != null && !orderedDistinctBundleKeys.includes(pairedReadingBundleFilterRootId)) {
+    if (
+      pairedReadingBundleFilterRootId != null &&
+      !orderedDistinctBundleKeys.includes(pairedReadingBundleFilterRootId)
+    ) {
       setPairedReadingBundleFilterRootId(null);
     }
-  }, [pairedReadingBundleFilterRootId, orderedDistinctBundleKeys, setPairedReadingBundleFilterRootId]);
+  }, [
+    pairedReadingBundleFilterRootId,
+    orderedDistinctBundleKeys,
+    setPairedReadingBundleFilterRootId,
+  ]);
 
   const bundleFilterMenuItems = useMemo((): ContextMenuItem[] => {
     if (orderedDistinctBundleKeys.length <= 1) return [];
@@ -179,7 +221,14 @@ export function useTranscriptionTimelineVerticalChrome(
       });
     }
     return items;
-  }, [bundleOrdinalByKey, pairedReadingBundleFilterRootId, effectiveAllLayersOrdered, locale, orderedDistinctBundleKeys, setPairedReadingBundleFilterRootId]);
+  }, [
+    bundleOrdinalByKey,
+    pairedReadingBundleFilterRootId,
+    effectiveAllLayersOrdered,
+    locale,
+    orderedDistinctBundleKeys,
+    setPairedReadingBundleFilterRootId,
+  ]);
 
   const bundleFilterButtonTitle = useMemo(() => {
     if (orderedDistinctBundleKeys.length <= 1) return '';
@@ -191,24 +240,47 @@ export function useTranscriptionTimelineVerticalChrome(
       ? undefined
       : effectiveAllLayersOrdered.find((l) => l.id === pairedReadingBundleFilterRootId);
     const name = rootLayer
-      ? resolvePairedReadingLayerLabel(rootLayer, locale, `${t(locale, 'transcription.pairedReading.bundleLabel')} ${ord}`)
+      ? resolvePairedReadingLayerLabel(
+          rootLayer,
+          locale,
+          `${t(locale, 'transcription.pairedReading.bundleLabel')} ${ord}`,
+        )
       : tf(locale, 'transcription.pairedReading.bundleFilterFallbackItem', { ordinal: ord });
     return tf(locale, 'transcription.pairedReading.bundleFilterTitleOne', { name });
-  }, [bundleOrdinalByKey, pairedReadingBundleFilterRootId, effectiveAllLayersOrdered, locale, orderedDistinctBundleKeys]);
+  }, [
+    bundleOrdinalByKey,
+    pairedReadingBundleFilterRootId,
+    effectiveAllLayersOrdered,
+    locale,
+    orderedDistinctBundleKeys,
+  ]);
 
   const sourceHeaderLabel = useMemo(
-    () => resolvePairedReadingLayerLabel(sourceLayer, locale, t(locale, 'transcription.pairedReading.sourceHeader')),
+    () =>
+      resolvePairedReadingLayerLabel(
+        sourceLayer,
+        locale,
+        t(locale, 'transcription.pairedReading.sourceHeader'),
+      ),
     [locale, sourceLayer],
   );
 
-  const pairedReadingHeaderOrthographies = displayStyleControl?.orthographies ?? [];
+  const pairedReadingHeaderOrthographies =
+    displayStyleControl?.orthographies ?? EMPTY_HEADER_ORTHOGRAPHIES;
 
-  const resolvePairedReadingHeaderContentForLayer = useCallback((layer: LayerDocType | undefined, fallbackLabel: string): string => {
-    if (!layer) return fallbackLabel;
-    const inline = buildLaneHeaderInlineDotSeparatedLabel(layer, locale, pairedReadingHeaderOrthographies);
-    const trimmed = inline.trim();
-    return trimmed.length > 0 ? trimmed : fallbackLabel;
-  }, [pairedReadingHeaderOrthographies, locale]);
+  const resolvePairedReadingHeaderContentForLayer = useCallback(
+    (layer: LayerDocType | undefined, fallbackLabel: string): string => {
+      if (!layer) return fallbackLabel;
+      const inline = buildLaneHeaderInlineDotSeparatedLabel(
+        layer,
+        locale,
+        pairedReadingHeaderOrthographies,
+      );
+      const trimmed = inline.trim();
+      return trimmed.length > 0 ? trimmed : fallbackLabel;
+    },
+    [pairedReadingHeaderOrthographies, locale],
+  );
 
   const sourceHeaderContent = useMemo(
     () => resolvePairedReadingHeaderContentForLayer(sourceLayer, sourceHeaderLabel),
@@ -222,10 +294,11 @@ export function useTranscriptionTimelineVerticalChrome(
       if (exact) return exact;
     }
     if (activeUnitId) {
-      const byUnit = groups.find((g) => (
-        g.sourceItems.some((item) => item.unitId === activeUnitId)
-        || g.targetItems.some((item) => item.anchorUnitIds.includes(activeUnitId))
-      ));
+      const byUnit = groups.find(
+        (g) =>
+          g.sourceItems.some((item) => item.unitId === activeUnitId) ||
+          g.targetItems.some((item) => item.anchorUnitIds.includes(activeUnitId)),
+      );
       if (byUnit) return byUnit;
     }
     return groups[0];
@@ -244,9 +317,14 @@ export function useTranscriptionTimelineVerticalChrome(
         )
       : [];
     if (activeVerticalReadingGroupForHeader && fromGroup.length === 0) return [];
-    const resolved = fromGroup.length > 0
-      ? fromGroup
-      : (targetLayer ? [targetLayer] : (translationLayers[0] ? [translationLayers[0]] : []));
+    const resolved =
+      fromGroup.length > 0
+        ? fromGroup
+        : targetLayer
+          ? [targetLayer]
+          : translationLayers[0]
+            ? [translationLayers[0]]
+            : [];
     if (!targetLayer) return resolved;
     const preferred = resolved.find((l) => l.id === targetLayer.id);
     if (!preferred) return resolved;
@@ -278,7 +356,11 @@ export function useTranscriptionTimelineVerticalChrome(
       { label: sourceHeaderLabel, variant: 'category', children: sourceItems },
     ];
     for (const tl of headerTargetLayers) {
-      const tlLabel = resolvePairedReadingLayerLabel(tl, locale, t(locale, 'transcription.pairedReading.translationHeader'));
+      const tlLabel = resolvePairedReadingLayerLabel(
+        tl,
+        locale,
+        t(locale, 'transcription.pairedReading.translationHeader'),
+      );
       const tlMenu = buildLayerStyleMenuItems(
         tl.displaySettings,
         tl.id,
@@ -295,153 +377,179 @@ export function useTranscriptionTimelineVerticalChrome(
     return categories;
   }, [displayStyleControl, headerTargetLayers, locale, sourceHeaderLabel, sourceLayer]);
 
-  const buildPairedReadingLayerHeaderMenuItems = useCallback((layer: LayerDocType | undefined, headerLabel: string): ContextMenuItem[] => {
-    const isSourceHeaderLayer = layer?.id != null && layer.id === sourceLayer?.id;
-    const layerRole: PairedReadingLayerRole = isSourceHeaderLayer ? 'source' : 'target';
-    const isLayerCollapsed = isPairedReadingLayerCollapsed(compactMode, layerRole);
-    const toggleLayerCollapsed = () => {
-      if (!layer?.id) return;
-      setCompactMode((prev) => togglePairedReadingCompactModeForLayer(prev, layerRole));
-    };
-
-    const items: ContextMenuItem[] = [
-      {
-        label: tf(locale, 'transcription.pairedReading.rowRailFocusLayer', { layer: headerLabel }),
-        disabled: !layer?.id,
-        onClick: () => {
-          if (layer?.id) onFocusLayer(layer.id);
-        },
-      },
-      {
-        label: pairedReadingMenuText(locale, '视图', 'View'),
-        variant: 'category',
-        separatorBefore: true,
-        children: [
-          {
-            label: t(locale, 'transcription.pairedReading.allColumns'),
-            selectionState: compactMode === 'both' ? 'selected' : 'unselected',
-            selectionVariant: 'check',
-            onClick: () => setCompactMode('both'),
-          },
-          {
-            label: t(locale, 'transcription.pairedReading.sourceOnly'),
-            selectionState: compactMode === 'source' ? 'selected' : 'unselected',
-            selectionVariant: 'check',
-            onClick: () => setCompactMode('source'),
-          },
-          {
-            label: t(locale, 'transcription.pairedReading.translationOnly'),
-            selectionState: compactMode === 'target' ? 'selected' : 'unselected',
-            selectionVariant: 'check',
-            onClick: () => setCompactMode('target'),
-          },
-          {
-            label: pairedReadingMenuText(
-              locale,
-              isLayerCollapsed ? '展开该层' : '折叠该层',
-              isLayerCollapsed ? 'Expand layer' : 'Collapse layer',
-            ),
-            separatorBefore: true,
-            disabled: !layer?.id,
-            onClick: toggleLayerCollapsed,
-          },
-        ],
-      },
-    ];
-
-    if (displayStyleControl && layer) {
-      items.push({
-        label: t(locale, 'transcription.pairedReading.layerDisplayStyles'),
-        variant: 'category',
-        children: buildLayerStyleMenuItems(
-          layer.displaySettings,
-          layer.id,
-          layer.languageId,
-          layer.orthographyId,
-          displayStyleControl.orthographies,
-          (patch) => displayStyleControl.onUpdate(layer.id, patch),
-          () => displayStyleControl.onReset(layer.id),
-          displayStyleControl.localFonts,
-          locale,
-        ),
-      });
-    }
-
-    items.push({
-      label: pairedReadingMenuText(locale, '层操作', 'Layer operations'),
-      variant: 'category',
-      children: buildLayerOperationMenuItems({
-        layer,
-        deletableLayers: effectiveDeletableLayers,
-        canOpenTranslationCreate,
-        labels: {
-          editLayerMetadata: pairedReadingMenuText(locale, '编辑该层元信息', 'Edit layer metadata'),
-          createTranscription: pairedReadingMenuText(locale, '新建转写层', 'Create transcription layer'),
-          createTranslation: pairedReadingMenuText(locale, '新建翻译层', 'Create translation layer'),
-          deleteCurrentLayer: pairedReadingMenuText(locale, '删除当前层', 'Delete current layer'),
-        },
-        onAction: (action, layerId) => {
-          if (action === 'delete') {
-            if (!layerId) return;
-            void requestDeleteLayer(layerId);
-            return;
-          }
-          onLayerAction(action, layerId);
-        },
-      }),
-    });
-
-    return items;
-  }, [
-    canOpenTranslationCreate,
-    compactMode,
-    displayStyleControl,
-    effectiveDeletableLayers,
-    locale,
-    onFocusLayer,
-    onLayerAction,
-    requestDeleteLayer,
-    setCompactMode,
-    sourceLayer?.id,
-  ]);
-
-  const pairedReadingHeaderMenuItems = useMemo(() => ({
-    source: buildPairedReadingLayerHeaderMenuItems(sourceLayer, sourceHeaderContent),
-  }), [buildPairedReadingLayerHeaderMenuItems, sourceHeaderContent, sourceLayer]);
-
-  const openPairedReadingMenuAtPointer = useCallback((event: React.MouseEvent<HTMLElement>, items: ContextMenuItem[]) => {
-    if (items.length === 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    setLayerContextMenu({
-      x: event.clientX,
-      y: event.clientY,
-      items,
-      anchorOrigin: 'top-left',
-    });
-  }, [setLayerContextMenu]);
-
-  const togglePairedReadingMenuFromButton = useCallback((event: React.MouseEvent<HTMLElement>, items: ContextMenuItem[]) => {
-    if (items.length === 0) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    setLayerContextMenu((prev) => {
-      const next = {
-        x: rect.left,
-        y: rect.bottom + 4,
-        items,
-        anchorOrigin: 'bottom-left' as const,
+  const buildPairedReadingLayerHeaderMenuItems = useCallback(
+    (layer: LayerDocType | undefined, headerLabel: string): ContextMenuItem[] => {
+      const isSourceHeaderLayer = layer?.id != null && layer.id === sourceLayer?.id;
+      const layerRole: PairedReadingLayerRole = isSourceHeaderLayer ? 'source' : 'target';
+      const isLayerCollapsed = isPairedReadingLayerCollapsed(compactMode, layerRole);
+      const toggleLayerCollapsed = () => {
+        if (!layer?.id) return;
+        setCompactMode((prev) => togglePairedReadingCompactModeForLayer(prev, layerRole));
       };
-      if (
-        prev
-        && prev.items === items
-        && Math.abs(prev.x - next.x) < 6
-        && Math.abs(prev.y - next.y) < 6
-      ) {
-        return null;
+
+      const items: ContextMenuItem[] = [
+        {
+          label: tf(locale, 'transcription.pairedReading.rowRailFocusLayer', {
+            layer: headerLabel,
+          }),
+          disabled: !layer?.id,
+          onClick: () => {
+            if (layer?.id) onFocusLayer(layer.id);
+          },
+        },
+        {
+          label: pairedReadingMenuText(locale, '视图', 'View'),
+          variant: 'category',
+          separatorBefore: true,
+          children: [
+            {
+              label: t(locale, 'transcription.pairedReading.allColumns'),
+              selectionState: compactMode === 'both' ? 'selected' : 'unselected',
+              selectionVariant: 'check',
+              onClick: () => setCompactMode('both'),
+            },
+            {
+              label: t(locale, 'transcription.pairedReading.sourceOnly'),
+              selectionState: compactMode === 'source' ? 'selected' : 'unselected',
+              selectionVariant: 'check',
+              onClick: () => setCompactMode('source'),
+            },
+            {
+              label: t(locale, 'transcription.pairedReading.translationOnly'),
+              selectionState: compactMode === 'target' ? 'selected' : 'unselected',
+              selectionVariant: 'check',
+              onClick: () => setCompactMode('target'),
+            },
+            {
+              label: pairedReadingMenuText(
+                locale,
+                isLayerCollapsed ? '展开该层' : '折叠该层',
+                isLayerCollapsed ? 'Expand layer' : 'Collapse layer',
+              ),
+              separatorBefore: true,
+              disabled: !layer?.id,
+              onClick: toggleLayerCollapsed,
+            },
+          ],
+        },
+      ];
+
+      if (displayStyleControl && layer) {
+        items.push({
+          label: t(locale, 'transcription.pairedReading.layerDisplayStyles'),
+          variant: 'category',
+          children: buildLayerStyleMenuItems(
+            layer.displaySettings,
+            layer.id,
+            layer.languageId,
+            layer.orthographyId,
+            displayStyleControl.orthographies,
+            (patch) => displayStyleControl.onUpdate(layer.id, patch),
+            () => displayStyleControl.onReset(layer.id),
+            displayStyleControl.localFonts,
+            locale,
+          ),
+        });
       }
-      return next;
-    });
-  }, [setLayerContextMenu]);
+
+      items.push({
+        label: pairedReadingMenuText(locale, '层操作', 'Layer operations'),
+        variant: 'category',
+        children: buildLayerOperationMenuItems({
+          layer,
+          deletableLayers: effectiveDeletableLayers,
+          canOpenTranslationCreate,
+          labels: {
+            editLayerMetadata: pairedReadingMenuText(
+              locale,
+              '编辑该层元信息',
+              'Edit layer metadata',
+            ),
+            createTranscription: pairedReadingMenuText(
+              locale,
+              '新建转写层',
+              'Create transcription layer',
+            ),
+            createTranslation: pairedReadingMenuText(
+              locale,
+              '新建翻译层',
+              'Create translation layer',
+            ),
+            deleteCurrentLayer: pairedReadingMenuText(locale, '删除当前层', 'Delete current layer'),
+          },
+          onAction: (action, layerId) => {
+            if (action === 'delete') {
+              if (!layerId) return;
+              void requestDeleteLayer(layerId);
+              return;
+            }
+            onLayerAction(action, layerId);
+          },
+        }),
+      });
+
+      return items;
+    },
+    [
+      canOpenTranslationCreate,
+      compactMode,
+      displayStyleControl,
+      effectiveDeletableLayers,
+      locale,
+      onFocusLayer,
+      onLayerAction,
+      requestDeleteLayer,
+      setCompactMode,
+      sourceLayer?.id,
+    ],
+  );
+
+  const pairedReadingHeaderMenuItems = useMemo(
+    () => ({
+      source: buildPairedReadingLayerHeaderMenuItems(sourceLayer, sourceHeaderContent),
+    }),
+    [buildPairedReadingLayerHeaderMenuItems, sourceHeaderContent, sourceLayer],
+  );
+
+  const openPairedReadingMenuAtPointer = useCallback(
+    (event: React.MouseEvent<HTMLElement>, items: ContextMenuItem[]) => {
+      if (items.length === 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setLayerContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        items,
+        anchorOrigin: 'top-left',
+      });
+    },
+    [setLayerContextMenu],
+  );
+
+  const togglePairedReadingMenuFromButton = useCallback(
+    (event: React.MouseEvent<HTMLElement>, items: ContextMenuItem[]) => {
+      if (items.length === 0) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      setLayerContextMenu((prev) => {
+        const next = {
+          x: rect.left,
+          y: rect.bottom + 4,
+          items,
+          anchorOrigin: 'bottom-left' as const,
+        };
+        if (
+          prev &&
+          prev.items === items &&
+          Math.abs(prev.x - next.x) < 6 &&
+          Math.abs(prev.y - next.y) < 6
+        ) {
+          return null;
+        }
+        return next;
+      });
+    },
+    [setLayerContextMenu],
+  );
 
   return {
     visibleGroups,

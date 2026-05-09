@@ -15,38 +15,76 @@
 import type { VoiceInputService as VoiceInputServiceType } from './VoiceInputService';
 import type { CommercialProviderKind, SttEngine, SttResult } from './VoiceInputService.types';
 import type { WakeWordDetector as WakeWordDetectorType } from './WakeWordDetector';
-import { AmbientObserver } from './AmbientObserver';
 import { SpeechQualityAnalyzer } from './SpeechQualityAnalyzer';
 import { saveVoiceSession, loadRecentVoiceSessions } from './VoiceSessionStore';
-import { SpeechAnnotationPipeline, type AnnotationLayer, type QuickDictationConfig, type DictationPipelineCallbacks } from './SpeechAnnotationPipeline';
-import { createVoiceSession, loadVoiceIntentAliasMap, type ActionId, type VoiceIntent, type VoiceSession } from './IntentRouter';
-import { toBcp47 } from '../utils/langMapping';
+import type { QuickDictationConfig, DictationPipelineCallbacks } from './SpeechAnnotationPipeline';
+import {
+  createVoiceSession,
+  loadVoiceIntentAliasMap,
+  type ActionId,
+  type VoiceIntent,
+  type VoiceSession,
+} from './IntentRouter';
 import type { CommercialProviderCreateConfig } from './stt';
 import { resolveVoiceAgentRuntimeConfig } from './config/voiceAgentRuntimeConfig';
-import { detectRegion } from '../utils/regionDetection';
 import * as Earcon from './EarconService';
 import { unlockAudio } from './EarconService';
-import { globalContext } from './GlobalContextService';
-import { applyVoiceConfirmedPendingTelemetry } from './voiceConfirmedPendingTelemetry';
-import { buildVoiceAgentGroundingContext, type GroundingContextData, type VoiceAgentGroundingUiContext } from './VoiceAgentGroundingContext';
+import {
+  type GroundingContextData,
+  type VoiceAgentGroundingUiContext,
+} from './VoiceAgentGroundingContext';
 import { createLogger } from '../observability/logger';
 import { BrowserEventEmitter } from './VoiceAgentService.eventEmitter';
 import { dispatchVoiceAgentServiceSttResult } from './VoiceAgentService.sttResultDispatch';
+import { runVoiceAgentServiceSttResultFlow } from './VoiceAgentService.sttResultFlow';
+import { VoiceAgentDictationController } from './VoiceAgentDictationController';
 import { buildVoiceAgentServiceStateSnapshot } from './VoiceAgentService.state';
-import { buildVoiceAgentStartConfig, testVoiceAgentCommercialProvider } from './VoiceAgentService.runtime';
-import { bindVoiceAgentWakeWordStart } from './VoiceAgentService.wakeWordBindings';
-import { startVoiceAgentRecording, stopVoiceAgentRecording } from './VoiceAgentService.recordingControls';
+import { testVoiceAgentCommercialProvider } from './VoiceAgentService.runtime';
+import {
+  startVoiceAgentRecording,
+  stopVoiceAgentRecording,
+} from './VoiceAgentService.recordingControls';
 import { scheduleSyncVoiceServiceSttEnhancement } from './VoiceAgentService.sttEnhancementSync';
 import { applyAdaptiveSttEngineRecommendation } from './VoiceAgentService.adaptiveEngineSwitch';
-import { resolveVoiceAgentEffectiveLang, scheduleVoiceAgentBatteryLevelRefresh } from './VoiceAgentService.langAndBattery';
-import type { Locale } from '../i18n';
-import type { VoiceAgentMode, VoiceAgentServiceOptions, VoiceAgentServiceState } from './VoiceAgentService.types';
-export type { VoiceAgentMode, VoiceAgentServiceOptions, VoiceAgentServiceState } from './VoiceAgentService.types';
+import { runVoiceAgentExclusiveStart } from './VoiceAgentService.startFlow';
 import {
-  loadSttRuntime,
-  loadSttStrategyRuntime,
-  loadVoiceInputRuntime,
-} from './voiceRuntimeLoaders';
+  cancelVoiceAgentExclusiveStart,
+  restoreVoiceAgentRecentSession,
+  runVoiceAgentDisposeFlow,
+  runVoiceAgentStopFlow,
+} from './VoiceAgentService.lifecycle';
+import { ensureVoiceAgentServiceBoundInstance } from './VoiceAgentService.voiceServiceLifecycle';
+import {
+  applyVoiceAgentLangOverrideControl,
+  cancelVoiceAgentPendingAction,
+  confirmVoiceAgentPendingAction,
+  switchVoiceAgentEngineControl,
+} from './VoiceAgentService.controlPlane';
+import {
+  startVoiceAgentWakeWordLifecycle,
+  stopVoiceAgentWakeWordLifecycle,
+} from './VoiceAgentService.wakeWordLifecycle';
+import {
+  applyVoiceAgentGroundingUiContext,
+  buildVoiceAgentServiceGroundingContext,
+} from './VoiceAgentService.grounding';
+import {
+  buildVoiceAgentDictationControllerOptions,
+  buildVoiceAgentRuntimeConfigInput,
+  subscribeVoiceAgentAmbientEnvironment,
+} from './VoiceAgentService.constructorSetup';
+import type { Locale } from '../i18n';
+import type {
+  VoiceAgentMode,
+  VoiceAgentServiceOptions,
+  VoiceAgentServiceState,
+} from './VoiceAgentService.types';
+export type {
+  VoiceAgentMode,
+  VoiceAgentServiceOptions,
+  VoiceAgentServiceState,
+} from './VoiceAgentService.types';
+import { loadSttRuntime, loadVoiceInputRuntime } from './voiceRuntimeLoaders';
 
 const log = createLogger('VoiceAgentService');
 
@@ -84,7 +122,12 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private _lastIntent: VoiceIntent | null = null;
   private _error: string | null = null;
   private _safeMode = false;
-  private _pendingConfirm: { actionId: ActionId; label: string; fromFuzzy?: boolean; params?: { segmentIndex?: number } } | null = null;
+  private _pendingConfirm: {
+    actionId: ActionId;
+    label: string;
+    fromFuzzy?: boolean;
+    params?: { segmentIndex?: number };
+  } | null = null;
   private _session: VoiceSession = createInitialSession();
   private _engine: SttEngine = 'web-speech';
   private _isRecording = false;
@@ -107,16 +150,25 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private readonly _whisperServerModel: string;
   private _sttEnhancementKind: import('./stt').SttEnhancementSelectionKind;
   private _sttEnhancementConfig: import('./stt').SttEnhancementConfig;
-  private readonly _onExecuteAction: ((actionId: ActionId, params?: { segmentIndex?: number }) => void) | undefined;
+  private readonly _onExecuteAction:
+    | ((actionId: ActionId, params?: { segmentIndex?: number }) => void)
+    | undefined;
   private readonly _onInsertDictation: ((text: string) => void) | undefined;
-  private readonly _onTransformDictationPipelineFill: ((input: { layer: AnnotationLayer; text: string; segmentId: string }) => Promise<string>) | undefined;
+
   private readonly _onSendToAiChat: ((text: string) => void) | undefined;
-  private readonly _onToolCall: ((call: { name: string; arguments: Record<string, unknown> }) => Promise<{ ok: boolean; message: string }>) | undefined;
-  private readonly _resolveIntentWithLlm: ((input: {
-    text: string;
-    mode: VoiceAgentMode;
-    session: VoiceSession;
-  }) => Promise<VoiceIntent | null>) | undefined;
+  private readonly _onToolCall:
+    | ((call: {
+        name: string;
+        arguments: Record<string, unknown>;
+      }) => Promise<{ ok: boolean; message: string }>)
+    | undefined;
+  private readonly _resolveIntentWithLlm:
+    | ((input: {
+        text: string;
+        mode: VoiceAgentMode;
+        session: VoiceSession;
+      }) => Promise<VoiceIntent | null>)
+    | undefined;
 
   // ── Internal refs ────────────────────────────────────────────────────────
 
@@ -127,7 +179,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private _wakeWordDetector: WakeWordDetectorType | null = null;
   private _recordingDurationInterval: ReturnType<typeof setInterval> | null = null;
   // ── Dictation pipeline (SpeechAnnotationPipeline) ───────────────────────
-  private _dictationPipeline: SpeechAnnotationPipeline | null = null;
+  private readonly _dictationController: VoiceAgentDictationController;
 
   // ── Environment & quality observers ─────────────────────────────────────
   private _ambientUnsubscribe: (() => void) | null = null;
@@ -149,7 +201,9 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   // \u9875\u9762\u9690\u85cf / \u5173\u95ed\u65f6\u6301\u4e45\u5316\u4f1a\u8bdd | Persist session on page hide / close
   private readonly _handleVisibilityChange = (): void => {
     if (document.visibilityState === 'hidden' && this._session.entries.length > 0) {
-      void saveVoiceSession(this._session).catch((err) => { log.error('failed to persist session', { err }); });
+      void saveVoiceSession(this._session).catch((err) => {
+        log.error('failed to persist session', { err });
+      });
     }
   };
 
@@ -157,14 +211,9 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   constructor(options: VoiceAgentServiceOptions = {}) {
     super();
-    const runtimeConfig = resolveVoiceAgentRuntimeConfig({
-      ...(options.whisperServerUrl !== undefined && { whisperServerUrl: options.whisperServerUrl }),
-      ...(options.whisperServerModel !== undefined && { whisperServerModel: options.whisperServerModel }),
-      ...(options.commercialProviderKind !== undefined && { commercialProviderKind: options.commercialProviderKind }),
-      ...(options.commercialProviderConfig !== undefined && { commercialProviderConfig: options.commercialProviderConfig }),
-      ...(options.sttEnhancementKind !== undefined && { sttEnhancementKind: options.sttEnhancementKind }),
-      ...(options.sttEnhancementConfig !== undefined && { sttEnhancementConfig: options.sttEnhancementConfig }),
-    });
+    const runtimeConfig = resolveVoiceAgentRuntimeConfig(
+      buildVoiceAgentRuntimeConfigInput(options),
+    );
     this._corpusLang = options.corpusLang ?? 'cmn';
     this._langOverride = options.langOverride ?? null;
     this._locale = options.locale ?? 'zh-CN';
@@ -179,18 +228,24 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     this._intentAliasMap = loadVoiceIntentAliasMap();
     this._onExecuteAction = options.onExecuteAction;
     this._onInsertDictation = options.onInsertDictation;
-    this._onTransformDictationPipelineFill = options.onTransformDictationPipelineFill;
+    this._dictationController = new VoiceAgentDictationController(
+      buildVoiceAgentDictationControllerOptions(options),
+    );
     this._onSendToAiChat = options.onSendToAiChat;
     this._onToolCall = options.onToolCall;
     this._resolveIntentWithLlm = options.resolveIntentWithLlm;
 
     // Load most recent session from IndexedDB
-    void loadRecentVoiceSessions(1).then(([recent]) => {
-      if (recent && recent.entries.length > 0) {
-        this._session = recent;
+    restoreVoiceAgentRecentSession({
+      loadRecentVoiceSessions,
+      onSessionRestored: (session) => {
+        this._session = session;
         this._emitStateChange();
-      }
-    }).catch((err) => { log.error('failed to restore session from IndexedDB', { err }); });
+      },
+      onRestoreError: (err) => {
+        log.error('failed to restore session from IndexedDB', { err });
+      },
+    });
 
     // Start wake-word detector if enabled
     if (this._wakeWordEnabled) {
@@ -198,13 +253,10 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     }
 
     // Subscribe to ambient environment changes — adapt STT engine when offline
-    this._ambientUnsubscribe = AmbientObserver.getInstance().onEnvironmentChange((env) => {
-      if (!env.online && this._listening) {
-        // Network offline: prefer local engines, switch away from commercial
-        if (this._engine === 'commercial') {
-          this.switchEngine('whisper-local');
-        }
-      }
+    this._ambientUnsubscribe = subscribeVoiceAgentAmbientEnvironment({
+      isListening: () => this._listening,
+      getEngine: () => this._engine,
+      switchEngine: (engine) => this.switchEngine(engine),
     });
 
     // Initialize speech quality analyzer for adaptive STT engine recommendation
@@ -216,10 +268,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   // ── Public getters (read-only state) ───────────────────────────────────
 
-  get state(): VoiceAgentServiceState {
-    // Return cached state if already built by _emitStateChange; otherwise build once.
-    // This prevents expensive _buildGroundingContext() from running on every .state access.
-    if (this._stateCache) return this._stateCache;
+  private _buildStateSnapshot(): VoiceAgentServiceState {
     return buildVoiceAgentServiceStateSnapshot({
       listening: this._listening,
       speechActive: this._speechActive,
@@ -248,11 +297,28 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     });
   }
 
-  get listening() { return this._listening; }
-  get mode() { return this._mode; }
-  get agentState() { return this._agentState; }
-  get engine() { return this._engine; }
-  get detectedLang() { return this._detectedLang; }
+  get state(): VoiceAgentServiceState {
+    // Return cached state if already built by _emitStateChange; otherwise build once.
+    // This prevents expensive _buildGroundingContext() from running on every .state access.
+    if (this._stateCache) return this._stateCache;
+    return this._buildStateSnapshot();
+  }
+
+  get listening() {
+    return this._listening;
+  }
+  get mode() {
+    return this._mode;
+  }
+  get agentState() {
+    return this._agentState;
+  }
+  get engine() {
+    return this._engine;
+  }
+  get detectedLang() {
+    return this._detectedLang;
+  }
 
   // ── State setters with event emission ───────────────────────────────────
 
@@ -273,44 +339,23 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     if (partial.session !== undefined) this._session = partial.session;
     if (partial.engine !== undefined) this._engine = partial.engine;
     if (partial.isRecording !== undefined) this._isRecording = partial.isRecording;
-    if (partial.commercialProviderKind !== undefined) this._commercialProviderKind = partial.commercialProviderKind;
-    if (partial.commercialProviderConfig !== undefined) this._commercialProviderConfig = partial.commercialProviderConfig;
+    if (partial.commercialProviderKind !== undefined)
+      this._commercialProviderKind = partial.commercialProviderKind;
+    if (partial.commercialProviderConfig !== undefined)
+      this._commercialProviderConfig = partial.commercialProviderConfig;
     if (partial.energyLevel !== undefined) this._energyLevel = partial.energyLevel;
-    if (partial.recordingDuration !== undefined) this._recordingDuration = partial.recordingDuration;
+    if (partial.recordingDuration !== undefined)
+      this._recordingDuration = partial.recordingDuration;
     if (partial.wakeWordEnabled !== undefined) this._wakeWordEnabled = partial.wakeWordEnabled;
-    if (partial.wakeWordEnergyLevel !== undefined) this._wakeWordEnergyLevel = partial.wakeWordEnergyLevel;
+    if (partial.wakeWordEnergyLevel !== undefined)
+      this._wakeWordEnergyLevel = partial.wakeWordEnergyLevel;
     if (partial.detectedLang !== undefined) this._detectedLang = partial.detectedLang;
     if (partial.agentState !== undefined) this._agentState = partial.agentState;
     this._emitStateChange();
   }
 
   private _emitStateChange(): void {
-    this._stateCache = buildVoiceAgentServiceStateSnapshot({
-      listening: this._listening,
-      speechActive: this._speechActive,
-      mode: this._mode,
-      interimText: this._interimText,
-      finalText: this._finalText,
-      confidence: this._confidence,
-      lastIntent: this._lastIntent,
-      error: this._error,
-      safeMode: this._safeMode,
-      pendingConfirm: this._pendingConfirm,
-      session: this._session,
-      engine: this._engine,
-      isRecording: this._isRecording,
-      commercialProviderKind: this._commercialProviderKind,
-      commercialProviderConfig: this._commercialProviderConfig,
-      sttEnhancementKind: this._sttEnhancementKind,
-      sttEnhancementConfig: this._sttEnhancementConfig,
-      energyLevel: this._energyLevel,
-      recordingDuration: this._recordingDuration,
-      wakeWordEnabled: this._wakeWordEnabled,
-      wakeWordEnergyLevel: this._wakeWordEnergyLevel,
-      detectedLang: this._detectedLang,
-      agentState: this._agentState,
-      groundingContext: this._buildGroundingContext(),
-    });
+    this._stateCache = this._buildStateSnapshot();
     this.emit('stateChange', this._stateCache);
   }
 
@@ -332,45 +377,16 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     }
   }
 
-  private _getEffectiveLang(): string {
-    return resolveVoiceAgentEffectiveLang({
-      langOverride: this._langOverride,
-      corpusLang: this._corpusLang,
-    });
-  }
-
-  /** Asynchronously refresh the cached battery level (fire-and-forget).
-   * \u5f02\u6b65\u66f4\u65b0\u7535\u91cf\u7f13\u5b58，\u4e0b\u6b21 chooseSttEngine \u65f6\u751f\u6548。 */
-  private _refreshBatteryLevel(): void {
-    scheduleVoiceAgentBatteryLevelRefresh((level) => {
-      this._batteryLevel = level;
-    });
-  }
-
   private async _ensureVoiceService(): Promise<VoiceInputServiceType> {
-    if (!this._voiceService) {
-      const { VoiceInputService } = await loadVoiceInputRuntime();
-      this._voiceService = new VoiceInputService();
-      this._voiceService.onResult((result) => this._handleSttResult(result));
-      this._voiceService.onError((err) => {
-        this._setState({ error: err, agentState: 'idle' });
-        Earcon.playError();
-      });
-      this._voiceService.onStateChange((listening) => {
-        this._setState({ listening, agentState: listening ? 'listening' : 'idle' });
-      });
-      if ('onVadStateChange' in this._voiceService && typeof this._voiceService.onVadStateChange === 'function') {
-        (this._voiceService as VoiceInputServiceType & { onVadStateChange: (fn: (active: boolean) => void) => void }).onVadStateChange((active) => {
-          this._setState({ speechActive: active });
-        });
-      }
-      if ('onEnergyLevel' in this._voiceService && typeof this._voiceService.onEnergyLevel === 'function') {
-        (this._voiceService as VoiceInputServiceType & { onEnergyLevel: (fn: (rms: number) => void) => void }).onEnergyLevel((rms) => {
-          this._setState({ energyLevel: rms });
-        });
-      }
-    }
-
+    this._voiceService = await ensureVoiceAgentServiceBoundInstance({
+      currentVoiceService: this._voiceService,
+      loadVoiceInputRuntime,
+      onResult: (result) => {
+        void this._handleSttResult(result);
+      },
+      setState: (partial) => this._setState(partial),
+      playError: () => Earcon.playError(),
+    });
     return this._voiceService;
   }
 
@@ -393,152 +409,73 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   private async _runExclusiveStart(targetMode?: VoiceAgentMode): Promise<void> {
     const activateToken = ++this._voiceActivateToken;
-
-    if (targetMode) this._setState({ mode: targetMode });
-    this._setState({ error: null, pendingConfirm: null, agentState: 'listening' });
-    this._session = createInitialSession();
-
-    const svc = await this._ensureVoiceService();
-    if (activateToken !== this._voiceActivateToken) {
-      try {
-        svc.stop();
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
-    const lang = this._getEffectiveLang();
-
-    // Refresh battery level for next call; use cached value now | \u5f02\u6b65\u5237\u65b0\u7535\u91cf，\u5f53\u524d\u7528\u7f13\u5b58\u503c
-    this._refreshBatteryLevel();
-    const region = await detectRegion();
-    if (activateToken !== this._voiceActivateToken) {
-      try {
-        svc.stop();
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
-    const { chooseSttEngine } = await loadSttStrategyRuntime();
-    const runtimeEngine = chooseSttEngine({
-      preferred: this._engine,
-      online: typeof navigator !== 'undefined' ? navigator.onLine : true,
-      noiseLevel: this._energyLevel,
-      ...(this._batteryLevel !== undefined && { batteryLevel: this._batteryLevel }),
-      regionHint: region,
-    });
-
-    const startConfig = await buildVoiceAgentStartConfig({
-      lang,
-      runtimeEngine,
-      region,
+    await runVoiceAgentExclusiveStart({
+      ...(targetMode !== undefined ? { targetMode } : {}),
+      activateToken,
+      ensureVoiceService: () => this._ensureVoiceService(),
+      isStartTokenCurrent: (token) => token === this._voiceActivateToken,
+      setState: (partial) => this._setState(partial),
+      resetSession: () => {
+        this._session = createInitialSession();
+      },
+      getLangOverride: () => this._langOverride,
+      getCorpusLang: () => this._corpusLang,
+      getPreferredEngine: () => this._engine,
+      getEnergyLevel: () => this._energyLevel,
+      getBatteryLevel: () => this._batteryLevel,
+      setBatteryLevel: (level) => {
+        this._batteryLevel = level;
+      },
       whisperServerUrl: this._whisperServerUrl,
       whisperServerModel: this._whisperServerModel,
-      commercialProviderKind: this._commercialProviderKind,
-      commercialProviderConfig: this._commercialProviderConfig,
-      sttEnhancementKind: this._sttEnhancementKind,
-      sttEnhancementConfig: this._sttEnhancementConfig,
-      loadSttRuntime,
+      getCommercialProviderKind: () => this._commercialProviderKind,
+      getCommercialProviderConfig: () => this._commercialProviderConfig,
+      getSttEnhancementKind: () => this._sttEnhancementKind,
+      getSttEnhancementConfig: () => this._sttEnhancementConfig,
+      getSpeechQuality: () => this._speechQuality,
+      onStartFailed: (message) => {
+        this._setState({
+          listening: false,
+          speechActive: false,
+          error: message,
+          agentState: 'idle',
+        });
+        Earcon.playError();
+      },
+      onActivated: () => {
+        void unlockAudio();
+        Earcon.playActivate();
+      },
     });
-    if (activateToken !== this._voiceActivateToken) {
-      try {
-        svc.stop();
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
-    try {
-      await svc.start(startConfig);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '\u8bed\u97f3\u670d\u52a1\u542f\u52a8\u5931\u8d25 | Failed to start voice service';
-      this._setState({
-        listening: false,
-        speechActive: false,
-        error: message,
-        agentState: 'idle',
-      });
-      Earcon.playError();
-      return;
-    }
+  }
 
-    if (activateToken !== this._voiceActivateToken) {
-      try {
-        svc.stop();
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
-
-    // Start speech quality analyzer after the voice service has a live MediaStream.
-    // This must happen AFTER svc.start() so that createAnalysisCloneStream()
-    // can successfully clone the shared microphone stream.
-    if (this._speechQuality && !this._speechQuality.isActive) {
-      const stream = await this._voiceService!.createAnalysisCloneStream();
-      if (activateToken !== this._voiceActivateToken) {
-        try {
-          svc.stop();
-        } catch {
-          /* ignore */
-        }
-        this._speechQuality.stop();
-        return;
-      }
-      if (stream) {
-        this._speechQuality.start(stream);
-      } else {
-        // Fallback: let SpeechQualityAnalyzer request its own getUserMedia.
-        // This may prompt the browser for microphone permission a second time.
-        void this._speechQuality.start();
-      }
-    }
-
-    if (activateToken !== this._voiceActivateToken) {
-      try {
-        svc.stop();
-      } catch {
-        /* ignore */
-      }
-      this._speechQuality?.stop();
-      return;
-    }
-
-    void unlockAudio();
-    Earcon.playActivate();
+  private async _cancelAndWaitExclusiveStart(): Promise<void> {
+    await cancelVoiceAgentExclusiveStart({
+      bumpActivateToken: () => {
+        this._voiceActivateToken += 1;
+      },
+      getExclusiveStartPromise: () => this._exclusiveStartPromise,
+      clearExclusiveStartPromise: () => {
+        this._exclusiveStartPromise = null;
+      },
+    });
   }
 
   async stop(): Promise<void> {
-    this._voiceActivateToken += 1;
-    const pendingExclusiveStart = this._exclusiveStartPromise;
-    this._exclusiveStartPromise = null;
-    if (pendingExclusiveStart) {
-      try {
-        await pendingExclusiveStart;
-      } catch {
-        /* _runExclusiveStart may reject; continue to release the mic */
-      }
-    }
-    this._dictationPipeline?.stop();
-    this._dictationPipeline = null;
-    this._clearRecordingDurationTimer();
-    this._speechQuality?.stop();
-    this._voiceService?.releaseSharedAnalysisStream();
-    this._voiceService?.stop();
-    this._setState({
-      listening: false,
-      speechActive: false,
-      interimText: '',
-      pendingConfirm: null,
-      agentState: 'idle',
+    await runVoiceAgentStopFlow({
+      cancelAndWaitExclusiveStart: () => this._cancelAndWaitExclusiveStart(),
+      dictationController: this._dictationController,
+      clearRecordingDurationTimer: () => this._clearRecordingDurationTimer(),
+      speechQuality: this._speechQuality,
+      voiceService: this._voiceService,
+      setState: (partial) => this._setState(partial),
+      session: this._session,
+      saveSession: saveVoiceSession,
+      onPersistError: (err) => {
+        log.error('failed to persist session on deactivate', { err });
+      },
+      playDeactivate: () => Earcon.playDeactivate(),
     });
-
-    if (this._session.entries.length > 0) {
-      void saveVoiceSession(this._session).catch((err) => { log.error('failed to persist session on deactivate', { err }); });
-    }
-
-    Earcon.playDeactivate();
   }
 
   async toggle(targetMode?: VoiceAgentMode): Promise<void> {
@@ -551,77 +488,31 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   // ── Dictation pipeline (Stage 4 — SpeechAnnotationPipeline) ─────────────
 
-  /**
-   * Start the SpeechAnnotationPipeline — continuous dictation → auto-fill → auto-advance.
-   *
-   * This method wires the pipeline to the VoiceInputService STT stream so that every
-   * final transcript is automatically routed to `onSttResult()`.
-   *
-   * @param callbacks  Segment management callbacks from the page (getSegments, fillSegment, navigateTo, …)
-   * @param config     Optional pipeline configuration (autoAdvance, silenceConfirmDelayMs, …)
-   */
-  startDictationPipeline(callbacks: DictationPipelineCallbacks, config?: QuickDictationConfig): void {
-    if (this._dictationPipeline) {
-      this._dictationPipeline.stop();
-    }
-
-    const effectiveCallbacks = callbacks.transformTextForFill || !this._onTransformDictationPipelineFill
-      ? callbacks
-      : {
-          ...callbacks,
-          transformTextForFill: this._onTransformDictationPipelineFill,
-        };
-
-    this._dictationPipeline = new SpeechAnnotationPipeline(effectiveCallbacks, {
-      ...config,
-      autoAdvance: config?.autoAdvance ?? true,
-      silenceConfirmDelayMs: config?.silenceConfirmDelayMs ?? 600,
-      maxUnitDurationSec: config?.maxUnitDurationSec ?? 60,
-      skipAlreadyAnnotated: config?.skipAlreadyAnnotated ?? true,
-    });
-
-    this._dictationPipeline.start();
-
-    // Subscribe to pipeline state changes and reflect agentState
-    // (SpeechAnnotationPipeline does not expose a public state-change event,
-    // so we drive the pipeline by feeding it from VoiceInputService)
+  startDictationPipeline(
+    callbacks: DictationPipelineCallbacks,
+    config?: QuickDictationConfig,
+  ): void {
+    this._dictationController.start(callbacks, config);
   }
 
-  /**
-   * Feed an STT result into the active dictation pipeline.
-   * Call this from the page's VoiceInputService `onResult` handler.
-   */
   feedDictationSttResult(result: SttResult): void {
-    this._dictationPipeline?.onSttResult(result);
+    this._dictationController.feedSttResult(result);
   }
 
-  /**
-   * Get the current dictation pipeline state.
-   */
   getDictationState() {
-    return this._dictationPipeline?.state ?? null;
+    return this._dictationController.getState();
   }
 
-  /**
-   * Skip the current segment and advance to the next unannotated one.
-   */
   skipDictationSegment(): void {
-    this._dictationPipeline?.skipCurrent();
+    this._dictationController.skip();
   }
 
-  /**
-   * Undo the last dictation fill.
-   */
   async undoDictationFill(): Promise<void> {
-    await this._dictationPipeline?.undoLast();
+    await this._dictationController.undo();
   }
 
-  /**
-   * Stop the dictation pipeline.
-   */
   stopDictationPipeline(): void {
-    this._dictationPipeline?.stop();
-    this._dictationPipeline = null;
+    this._dictationController.stop();
   }
 
   // ── Push-to-talk ────────────────────────────────────────────────────────
@@ -667,21 +558,17 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   // ── Engine & config ────────────────────────────────────────────────────
 
   switchEngine(newEngine: SttEngine): void {
-    this._engineSwitchCounter = 0;
-    this._setState({ engine: newEngine });
-    // \u6301\u4e45\u5316\u5f15\u64ce\u504f\u597d | Persist engine preference
-    globalContext.updatePreference('preferredEngine', newEngine);
-    if (this._listening) {
-      // When switching to whisper-local, we need to pass the config again
-      if (newEngine === 'whisper-local') {
-        this._voiceService?.switchEngine(newEngine, {
-          whisperServerUrl: this._whisperServerUrl,
-          whisperServerModel: this._whisperServerModel,
-        });
-      } else {
-        this._voiceService?.switchEngine(newEngine);
-      }
-    }
+    switchVoiceAgentEngineControl({
+      newEngine,
+      listening: this._listening,
+      voiceService: this._voiceService,
+      whisperServerUrl: this._whisperServerUrl,
+      whisperServerModel: this._whisperServerModel,
+      setEngine: (engine) => this._setState({ engine }),
+      resetEngineSwitchCounter: () => {
+        this._engineSwitchCounter = 0;
+      },
+    });
   }
 
   setCommercialProviderKind(kind: CommercialProviderKind): void {
@@ -735,13 +622,14 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 
   setLangOverride(lang: string | null): void {
-    this._langOverride = lang;
-    // \u540c\u6b65\u66f4\u65b0\u6b63\u5728\u8fd0\u884c\u7684 VoiceInputService | Sync to running VoiceInputService
-    if (this._voiceService && lang) {
-      const bcp47 = lang === '__auto__' ? '' : (toBcp47(lang) ?? lang);
-      this._voiceService.setLang(bcp47);
-    }
-    this._emitStateChange();
+    applyVoiceAgentLangOverrideControl({
+      lang,
+      voiceService: this._voiceService,
+      setLangOverride: (next) => {
+        this._langOverride = next;
+      },
+      emitStateChange: () => this._emitStateChange(),
+    });
   }
 
   private _syncVoiceServiceEnhancementConfig(): void {
@@ -755,64 +643,71 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   // ── Confirmation ──────────────────────────────────────────────────────
 
   confirmPending(): void {
-    if (!this._pendingConfirm) return;
-    const { actionId, params } = this._pendingConfirm;
-    this._setState({ pendingConfirm: null, agentState: 'executing' });
-    this._onExecuteAction?.(actionId, params);
-    applyVoiceConfirmedPendingTelemetry({
-      actionId,
-      sessionId: this._session.id,
-      inputModality: 'voice',
+    confirmVoiceAgentPendingAction({
+      pendingConfirm: this._pendingConfirm,
+      session: this._session,
+      setPendingExecutionState: () => {
+        this._setState({ pendingConfirm: null, agentState: 'executing' });
+      },
+      ...(this._onExecuteAction !== undefined && { onExecuteAction: this._onExecuteAction }),
+      setIdleState: () => {
+        this._setState({ agentState: 'idle' });
+      },
     });
-    this._setState({ agentState: 'idle' });
   }
 
   cancelPending(): void {
-    this._setState({ pendingConfirm: null });
-    Earcon.playTick();
+    cancelVoiceAgentPendingAction({
+      clearPendingConfirm: () => {
+        this._setState({ pendingConfirm: null });
+      },
+    });
   }
 
   // ── STT Result Handler ─────────────────────────────────────────────────
 
+  private _dispatchSttResult(...params: Parameters<typeof dispatchVoiceAgentServiceSttResult>) {
+    return dispatchVoiceAgentServiceSttResult(params[0]);
+  }
+
   private async _handleSttResult(result: SttResult): Promise<void> {
-    const out = await dispatchVoiceAgentServiceSttResult({
+    await runVoiceAgentServiceSttResultFlow({
+      dispatchSttResult: (...params) => this._dispatchSttResult(...params),
       result,
-      dictationPipeline: this._dictationPipeline,
+      dictationPipeline: this._dictationController.getPipeline(),
       speechQuality: this._speechQuality ?? undefined,
+      mode: this._mode,
+      safeMode: this._safeMode,
+      session: this._session,
+      locale: this._locale,
+      corpusLang: this._corpusLang,
+      intentAliasMap: this._intentAliasMap,
       setState: (p) => this._setState(p),
+      emitStateChange: () => this._emitStateChange(),
+      ...(this._resolveIntentWithLlm !== undefined && {
+        resolveIntentWithLlm: this._resolveIntentWithLlm,
+      }),
+      ...(this._onExecuteAction !== undefined && { onExecuteAction: this._onExecuteAction }),
+      ...(this._onInsertDictation !== undefined && { onInsertDictation: this._onInsertDictation }),
+      ...(this._onSendToAiChat !== undefined && { onSendToAiChat: this._onSendToAiChat }),
+      ...(this._onToolCall !== undefined && { onToolCall: this._onToolCall }),
       onDictationPipelineFinalComplete: () => {
         this._speechQuality?.recordSegmentQuality('dictation');
         void this._checkAndSwitchEngineIfNeeded();
       },
-      getBridgeFields: () => ({
-        mode: this._mode,
-        safeMode: this._safeMode,
-        session: this._session,
-        locale: this._locale,
-        corpusLang: this._corpusLang,
-        intentAliasMap: this._intentAliasMap,
-        setState: (p) => this._setState(p),
-        emitStateChange: () => this._emitStateChange(),
-        ...(this._resolveIntentWithLlm !== undefined && { resolveIntentWithLlm: this._resolveIntentWithLlm }),
-        ...(this._onExecuteAction !== undefined && { onExecuteAction: this._onExecuteAction }),
-        ...(this._onInsertDictation !== undefined && { onInsertDictation: this._onInsertDictation }),
-        ...(this._onSendToAiChat !== undefined && { onSendToAiChat: this._onSendToAiChat }),
-        ...(this._onToolCall !== undefined && { onToolCall: this._onToolCall }),
-      }),
+      onBridgeApplied: (next) => {
+        this._session = next.session;
+        this._intentAliasMap = next.intentAliasMap;
+        this._emitStateChange();
+        this._checkAndSwitchEngineIfNeeded();
+      },
     });
-    if (out.status === 'consumed') {
-      return;
-    }
-    this._session = out.session;
-    this._intentAliasMap = out.intentAliasMap;
-    this._emitStateChange();
-    this._checkAndSwitchEngineIfNeeded();
   }
 
   // ── Wake-word detector ─────────────────────────────────────────────────
 
   private _startWakeWordDetector(): void {
-    bindVoiceAgentWakeWordStart({
+    startVoiceAgentWakeWordLifecycle({
       getHasDetector: () => Boolean(this._wakeWordDetector),
       setDetector: (detector) => {
         this._wakeWordDetector = detector;
@@ -820,29 +715,17 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       onWake: () => {
         void this.start('command');
       },
-      onWakeEnergy: (rms) => {
+      setWakeWordEnergyLevel: (rms) => {
         this._setState({ wakeWordEnergyLevel: rms });
       },
-      onStartFailed: (err) => {
-        log.warn('wake-word detector start failed, disabling', { err });
-        this._setState({
-          wakeWordEnabled: false,
-          error: '\u8bed\u97f3\u5524\u9192\u542f\u52a8\u5931\u8d25，\u5df2\u81ea\u52a8\u5173\u95ed。\u8bf7\u68c0\u67e5\u9ea6\u514b\u98ce\u6743\u9650\u540e\u91cd\u8bd5。',
-        });
-      },
-      onSetupFailed: (err) => {
-        log.warn('wake-word detector setup failed, disabling', { err });
-        this._setState({
-          wakeWordEnabled: false,
-          error: '\u8bed\u97f3\u5524\u9192\u521d\u59cb\u5316\u5931\u8d25，\u5df2\u81ea\u52a8\u5173\u95ed。\u8bf7\u7a0d\u540e\u91cd\u8bd5。',
-        });
+      setState: (partial) => {
+        this._setState(partial);
       },
     });
   }
 
   private _stopWakeWordDetector(): void {
-    this._wakeWordDetector?.stop();
-    this._wakeWordDetector = null;
+    this._wakeWordDetector = stopVoiceAgentWakeWordLifecycle(this._wakeWordDetector);
   }
 
   /**
@@ -867,10 +750,19 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
    * Call this whenever the active segment or selection changes.
    */
   setUiContext(context: Partial<VoiceAgentGroundingUiContext>): void {
-    if (context.currentSegmentId !== undefined) this._currentSegmentId = context.currentSegmentId ?? null;
-    if (context.selectedSegmentIds !== undefined) this._selectedSegmentIds = context.selectedSegmentIds;
-    if (context.currentPhase !== undefined) this._currentPhase = context.currentPhase;
-    if (context.attentionHotspots !== undefined) this._attentionHotspots = context.attentionHotspots;
+    const next = applyVoiceAgentGroundingUiContext(
+      {
+        currentSegmentId: this._currentSegmentId,
+        selectedSegmentIds: this._selectedSegmentIds,
+        currentPhase: this._currentPhase,
+        attentionHotspots: this._attentionHotspots,
+      },
+      context,
+    );
+    this._currentSegmentId = next.currentSegmentId;
+    this._selectedSegmentIds = next.selectedSegmentIds;
+    this._currentPhase = next.currentPhase;
+    this._attentionHotspots = next.attentionHotspots;
     this._emitStateChange();
   }
 
@@ -880,12 +772,10 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 
   private _buildGroundingContext(): GroundingContextData {
-    return buildVoiceAgentGroundingContext({
-      corpus: globalContext.getCorpusContext(),
-      profile: globalContext.getBehaviorProfile(),
+    return buildVoiceAgentServiceGroundingContext({
       session: this._session,
       locale: this._locale,
-      uiContext: {
+      uiState: {
         currentSegmentId: this._currentSegmentId,
         selectedSegmentIds: this._selectedSegmentIds,
         currentPhase: this._currentPhase,
@@ -897,35 +787,24 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   // ── Cleanup ────────────────────────────────────────────────────────────
 
   async dispose(): Promise<void> {
-    this._voiceActivateToken += 1;
-    const pendingExclusiveStart = this._exclusiveStartPromise;
-    this._exclusiveStartPromise = null;
-    if (pendingExclusiveStart) {
-      try {
-        await pendingExclusiveStart;
-      } catch {
-        /* ignore */
-      }
-    }
-    document.removeEventListener('visibilitychange', this._handleVisibilityChange);
-    this._ambientUnsubscribe?.();
-    this._dictationPipeline?.stop();
-    this._dictationPipeline = null;
-    this._voiceService?.dispose();
-    this._voiceService?.releaseSharedAnalysisStream();
-    this._voiceService = null;
-    this._speechQuality?.stop();
-    this._stopWakeWordDetector();
-    this._clearRecordingDurationTimer();
-    // Remove all tracked subscriptions cleanly
-    // 先快照 keys 再逐个移除，避免迭代 Map 时删除元素
-    // | Snapshot keys first to avoid mutating Map during iteration
-    const handlers = Array.from(this._subscriptions.keys());
-    for (const handler of handlers) {
-      this.removeStateListener(handler);
-    }
-    this._subscriptions.clear();
-    this.removeAllListeners();
+    await runVoiceAgentDisposeFlow({
+      cancelAndWaitExclusiveStart: () => this._cancelAndWaitExclusiveStart(),
+      removeVisibilityListener: () => {
+        document.removeEventListener('visibilitychange', this._handleVisibilityChange);
+      },
+      ambientUnsubscribe: this._ambientUnsubscribe,
+      dictationController: this._dictationController,
+      voiceService: this._voiceService,
+      clearVoiceServiceRef: () => {
+        this._voiceService = null;
+      },
+      speechQuality: this._speechQuality,
+      stopWakeWordDetector: () => this._stopWakeWordDetector(),
+      clearRecordingDurationTimer: () => this._clearRecordingDurationTimer(),
+      subscriptions: this._subscriptions,
+      removeStateListener: (handler) => this.removeStateListener(handler),
+      removeAllListeners: () => this.removeAllListeners(),
+    });
   }
 
   // ── Session ────────────────────────────────────────────────────────────

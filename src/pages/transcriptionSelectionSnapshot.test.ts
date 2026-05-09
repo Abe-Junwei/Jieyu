@@ -25,7 +25,7 @@ function segmentView(id: string, layerId: string, parentUnitId?: string): Timeli
     startTime: 1.2,
     endTime: 1.8,
     text: '',
-    ...(parentUnitId ? { parentUnitId } : {}),
+    ...(typeof parentUnitId === 'string' && parentUnitId.length > 0 ? { parentUnitId } : {}),
   };
 }
 
@@ -89,7 +89,8 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       layers: [makeLayer('layer-main'), translationLayer],
       layerLinks: [],
       segmentContentByLayer: new Map(),
-      getUnitTextForLayer: (_target, layerId) => (layerId === 'layer-tr' ? 'translated text' : '默认转写'),
+      getUnitTextForLayer: (_target, layerId) =>
+        layerId === 'layer-tr' ? 'translated text' : '默认转写',
       formatTime: (seconds) => seconds.toFixed(1),
     });
 
@@ -101,7 +102,11 @@ describe('buildTranscriptionSelectionSnapshot', () => {
 
   it('keeps segment selection time and content aligned', () => {
     const segment = makeSegment('seg-1');
-    const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' };
+    const selectedTimelineUnit: TimelineUnit = {
+      layerId: 'layer-seg',
+      unitId: 'seg-1',
+      kind: 'segment',
+    };
 
     const snapshot = buildTranscriptionSelectionSnapshot({
       selectedTimelineUnit,
@@ -162,9 +167,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedLayerId: 'layer-seg',
       layers: [makeLayer('layer-seg')],
       layerLinks: [],
-      segmentContentByLayer: new Map([
-        ['layer-seg', new Map([['seg-1', { text: 'seg text' }]])],
-      ]),
+      segmentContentByLayer: new Map([['layer-seg', new Map([['seg-1', { text: 'seg text' }]])]]),
       getUnitTextForLayer: () => '',
       formatTime: (seconds) => seconds.toFixed(1),
     });
@@ -202,10 +205,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       primaryUnitView: unitView('utt-1', 'layer-main'),
       selectedTimelineRowMeta: { rowNumber: 1, start: 0, end: 2 },
       selectedLayerId: 'layer-main',
-      layers: [
-        makeLayer('layer-main', 'transcription'),
-        makeLayer('layer-tr-en', 'translation'),
-      ],
+      layers: [makeLayer('layer-main', 'transcription'), makeLayer('layer-tr-en', 'translation')],
       layerLinks: [
         {
           id: 'link-1',

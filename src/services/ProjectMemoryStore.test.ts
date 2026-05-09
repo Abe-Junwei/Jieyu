@@ -11,18 +11,19 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // 提供一个极简的 IDB stub，仅覆盖 ProjectMemoryStore 用到的 API 子集
 // Minimal IDB stub covering only the API subset used by ProjectMemoryStore
 
-function createFakeIdb(options?: {
-  hasObjectStore?: boolean;
-  failWrites?: boolean;
-}) {
+function createFakeIdb(options?: { hasObjectStore?: boolean; failWrites?: boolean }) {
   const store = new Map<string, unknown>();
 
-  const fakeObjectStore = (mode: string) => ({
+  const fakeObjectStore = (_mode: string) => ({
     put(value: { projectId: string }) {
       store.set(value.projectId, structuredClone(value));
     },
     get(key: string) {
-      const req = { result: store.get(key) ?? null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
+      const req = {
+        result: store.get(key) ?? null,
+        onsuccess: null as (() => void) | null,
+        onerror: null as (() => void) | null,
+      };
       queueMicrotask(() => req.onsuccess?.());
       return req;
     },
@@ -115,7 +116,6 @@ vi.stubGlobal('indexedDB', {
   },
 });
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 type PMS = typeof import('./ProjectMemoryStore');
 
 async function freshModule() {
@@ -168,13 +168,16 @@ describe('ProjectMemoryStore', () => {
       const { projectMemoryStore: store } = await freshModule();
       await store.loadProject('proj-schema');
 
-      expect(fakeIdb.fakeDb.createObjectStore).toHaveBeenCalledWith('projectMemory', { keyPath: 'projectId' });
+      expect(fakeIdb.fakeDb.createObjectStore).toHaveBeenCalledWith('projectMemory', {
+        keyPath: 'projectId',
+      });
       store.dispose();
     });
 
     it('open 失败时回退为空记忆 | falls back to empty memory when IndexedDB open fails', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-      indexedDbOpenImpl = () => createOpenErrorRequest(new DOMException('open failed', 'InvalidStateError'));
+      indexedDbOpenImpl = () =>
+        createOpenErrorRequest(new DOMException('open failed', 'InvalidStateError'));
 
       const { projectMemoryStore: store } = await freshModule();
       const memory = await store.loadProject('proj-open-fail');
@@ -195,7 +198,12 @@ describe('ProjectMemoryStore', () => {
       await store.confirmTerm('toki', 'language', 'tok');
       const mem = store.getMemory()!;
       expect(mem.terms).toHaveLength(1);
-      expect(mem.terms[0]).toMatchObject({ term: 'toki', gloss: 'language', lang: 'tok', useCount: 1 });
+      expect(mem.terms[0]).toMatchObject({
+        term: 'toki',
+        gloss: 'language',
+        lang: 'tok',
+        useCount: 1,
+      });
       store.dispose();
     });
 

@@ -1,4 +1,9 @@
-import type { ExtensionCapability, ExtensionCapabilityAuditPayload, ExtensionManifestV1, ExtensionTrustLevel } from './extensionRuntime.types';
+import type {
+  ExtensionCapability,
+  ExtensionCapabilityAuditPayload,
+  ExtensionManifestV1,
+  ExtensionTrustLevel,
+} from './extensionRuntime.types';
 
 type ExtensionTrustDecisionReason =
   | 'governance-disabled'
@@ -29,7 +34,10 @@ function resolveTrustLevel(manifest: ExtensionManifestV1): ExtensionTrustLevel {
   return manifest.trustLevel ?? 'official';
 }
 
-function trustAllowsCapability(trustLevel: ExtensionTrustLevel, capability: ExtensionCapability): boolean {
+function trustAllowsCapability(
+  trustLevel: ExtensionTrustLevel,
+  capability: ExtensionCapability,
+): boolean {
   if (!HIGH_RISK_CAPABILITIES.has(capability)) return true;
   return trustLevel === 'official' || trustLevel === 'trusted';
 }
@@ -47,12 +55,17 @@ export function resolveExtensionTrustDecision(input: {
     return { action: 'deny', reason: 'trust-level-insufficient', trustLevel };
   }
   const maxCallsPerMinute = input.manifest.quotaProfile?.maxCallsPerMinute;
-  if (typeof maxCallsPerMinute === 'number' && Number.isFinite(maxCallsPerMinute) && maxCallsPerMinute >= 0) {
+  if (
+    typeof maxCallsPerMinute === 'number' &&
+    Number.isFinite(maxCallsPerMinute) &&
+    maxCallsPerMinute >= 0
+  ) {
     const nowMs = input.nowMs ?? Date.now();
-    const recentCount = (input.recentInvocations ?? []).filter((row) =>
-      row.extensionId === input.manifest.id
-      && row.capability === input.capability
-      && nowMs - row.timestampMs < 60_000,
+    const recentCount = (input.recentInvocations ?? []).filter(
+      (row) =>
+        row.extensionId === input.manifest.id &&
+        row.capability === input.capability &&
+        nowMs - row.timestampMs < 60_000,
     ).length;
     if (recentCount >= Math.floor(maxCallsPerMinute)) {
       return { action: 'deny', reason: 'quota-exceeded', trustLevel };
@@ -77,29 +90,40 @@ function percentile(values: number[], p: number): number {
   return sorted[index] ?? 0;
 }
 
-export function buildExtensionHealthSummary(rows: readonly ExtensionCapabilityAuditPayload[]): ExtensionHealthSummary[] {
+export function buildExtensionHealthSummary(
+  rows: readonly ExtensionCapabilityAuditPayload[],
+): ExtensionHealthSummary[] {
   const grouped = new Map<string, ExtensionCapabilityAuditPayload[]>();
   for (const row of rows) {
     const bucket = grouped.get(row.extensionId) ?? [];
     bucket.push(row);
     grouped.set(row.extensionId, bucket);
   }
-  return Array.from(grouped.entries()).map(([extensionId, bucket]) => {
-    const totalCount = bucket.length;
-    const successCount = bucket.filter((row) => row.ok).length;
-    const denyReasonDistribution: Record<string, number> = {};
-    for (const row of bucket) {
-      const reason = row.denyReason ?? (!row.ok && row.errorMessage ? row.errorMessage : '');
-      if (!reason) continue;
-      denyReasonDistribution[reason] = (denyReasonDistribution[reason] ?? 0) + 1;
-    }
-    return {
-      extensionId,
-      totalCount,
-      successRate: totalCount > 0 ? successCount / totalCount : 0,
-      failureRate: totalCount > 0 ? (totalCount - successCount) / totalCount : 0,
-      p95DurationMs: percentile(bucket.map((row) => row.durationMs), 0.95),
-      denyReasonDistribution,
-    };
-  }).sort((a, b) => a.extensionId.localeCompare(b.extensionId));
+  return Array.from(grouped.entries())
+    .map(([extensionId, bucket]) => {
+      const totalCount = bucket.length;
+      const successCount = bucket.filter((row) => row.ok).length;
+      const denyReasonDistribution: Record<string, number> = {};
+      for (const row of bucket) {
+        const reason =
+          row.denyReason ??
+          (!row.ok && row.errorMessage !== undefined && row.errorMessage.length > 0
+            ? row.errorMessage
+            : '');
+        if (reason.length === 0) continue;
+        denyReasonDistribution[reason] = (denyReasonDistribution[reason] ?? 0) + 1;
+      }
+      return {
+        extensionId,
+        totalCount,
+        successRate: totalCount > 0 ? successCount / totalCount : 0,
+        failureRate: totalCount > 0 ? (totalCount - successCount) / totalCount : 0,
+        p95DurationMs: percentile(
+          bucket.map((row) => row.durationMs),
+          0.95,
+        ),
+        denyReasonDistribution,
+      };
+    })
+    .sort((a, b) => a.extensionId.localeCompare(b.extensionId));
 }

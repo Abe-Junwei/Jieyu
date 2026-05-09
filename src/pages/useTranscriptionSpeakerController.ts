@@ -1,5 +1,10 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
-import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../types/jieyuDbDocTypes';
+import type {
+  LayerDocType,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+  SpeakerDocType,
+} from '../types/jieyuDbDocTypes';
 import { useSpeakerActions } from '../hooks/useSpeakerActions';
 import type { LayerActionPanelKind } from '../hooks/useLayerActionPanel';
 import type { SpeakerFilterOption } from '../hooks/speakerManagement/types';
@@ -68,23 +73,21 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
       if (doc) docs.push(doc);
     }
     return docs;
-  }, [input.getUnitDocById, input.unitsOnCurrentMedia]);
+  }, [input]);
   const locale = useLocale();
   const t = useCallback((key: string) => (isDictKey(key) ? translate(locale, key) : key), [locale]);
   const tf = useCallback(
-    (key: string, params?: Record<string, string | number>) => (
-      isDictKey(key)
-        ? formatMessage(locale, key, params ?? {})
-        : key
-    ),
+    (key: string, params?: Record<string, string | number>) =>
+      isDictKey(key) ? formatMessage(locale, key, params ?? {}) : key,
     [locale],
   );
   const selectedBatchUnits = useMemo(
-    () => input.selectedBatchUnits
-      .filter((unit) => unit.kind === 'unit')
-      .map((unit) => input.getUnitDocById(unit.id))
-      .filter((unit): unit is LayerUnitDocType => Boolean(unit)),
-    [input.getUnitDocById, input.selectedBatchUnits],
+    () =>
+      input.selectedBatchUnits
+        .filter((unit) => unit.kind === 'unit')
+        .map((unit) => input.getUnitDocById(unit.id))
+        .filter((unit): unit is LayerUnitDocType => Boolean(unit)),
+    [input],
   );
   const {
     speakerOptions,
@@ -231,27 +234,42 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     openSpeakerManagementPanel: handleOpenSpeakerManagementPanel,
   });
 
-  const handleAssignSpeakerFromMenu = useCallback((unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => {
-    const ids = Array.from(unitIds);
-    const head = ids[0];
-    const pushEdit = input.recordTimelineEdit;
-    if (head && pushEdit) {
-      const detailParts: string[] = [];
-      if (speakerId) detailParts.push(`speakerId=${speakerId}`);
-      if (ids.length > 1) detailParts.push(`count=${ids.length}`);
-      pushEdit({
-        action: 'assign_speaker',
-        unitId: head,
-        unitKind: kind,
-        ...(detailParts.length > 0 ? { detail: detailParts.join(';') } : {}),
+  const handleAssignSpeakerFromMenu = useCallback(
+    (unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => {
+      const ids = Array.from(unitIds);
+      const head = ids[0];
+      const pushEdit = input.recordTimelineEdit;
+      if (head !== undefined && head.length > 0 && pushEdit !== undefined) {
+        const detailParts: string[] = [];
+        if (speakerId !== undefined && speakerId.length > 0)
+          detailParts.push(`speakerId=${speakerId}`);
+        if (ids.length > 1) detailParts.push(`count=${ids.length}`);
+        pushEdit({
+          action: 'assign_speaker',
+          unitId: head,
+          unitKind: kind,
+          ...(detailParts.length > 0 ? { detail: detailParts.join(';') } : {}),
+        });
+      }
+      if (kind === 'segment') {
+        fireAndForget(handleAssignSpeakerToSegments(ids, speakerId), {
+          context: 'src/pages/useTranscriptionSpeakerController.ts:L250',
+          policy: 'user-visible',
+        });
+        return;
+      }
+      fireAndForget(handleAssignSpeakerToUnits(resolveSpeakerActionUnitIds(ids), speakerId), {
+        context: 'src/pages/useTranscriptionSpeakerController.ts:L253',
+        policy: 'user-visible',
       });
-    }
-    if (kind === 'segment') {
-      fireAndForget(handleAssignSpeakerToSegments(ids, speakerId), { context: 'src/pages/useTranscriptionSpeakerController.ts:L250', policy: 'user-visible' });
-      return;
-    }
-    fireAndForget(handleAssignSpeakerToUnits(resolveSpeakerActionUnitIds(ids), speakerId), { context: 'src/pages/useTranscriptionSpeakerController.ts:L253', policy: 'user-visible' });
-  }, [handleAssignSpeakerToSegments, handleAssignSpeakerToUnits, input.recordTimelineEdit, resolveSpeakerActionUnitIds]);
+    },
+    [
+      handleAssignSpeakerToSegments,
+      handleAssignSpeakerToUnits,
+      input.recordTimelineEdit,
+      resolveSpeakerActionUnitIds,
+    ],
+  );
 
   return {
     speakerOptions,

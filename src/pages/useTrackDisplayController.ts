@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, type Dispatch, type SetStateAction } f
 import type { LayerDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { buildSpeakerLayerLayoutWithOptions, buildStableSpeakerLaneMap, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
+import {
+  buildSpeakerLayerLayoutWithOptions,
+  buildStableSpeakerLaneMap,
+  type SpeakerLayerLayoutResult,
+} from '../utils/speakerLayerLayout';
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 
 function isTimelineUnitView(item: TimelineUnitView | LayerUnitDocType): item is TimelineUnitView {
@@ -39,7 +43,7 @@ interface UseTrackDisplayControllerInput {
   getUnitSpeakerKey: (unit: LayerUnitDocType) => string;
 }
 
-interface UseTrackDisplayControllerResult {
+export interface UseTrackDisplayControllerResult {
   speakerSortKeyById: Record<string, number>;
   effectiveLaneLockMap: Record<string, number>;
   speakerLayerLayout: SpeakerLayerLayoutResult;
@@ -89,36 +93,43 @@ export function useTrackDisplayController({
   setLockConflictToast,
   getUnitSpeakerKey,
 }: UseTrackDisplayControllerInput): UseTrackDisplayControllerResult {
-  const unitUnitsOnCurrentMedia = useMemo(() => (
-    timelineUnitsOnCurrentMedia?.filter((unit) => unit.kind === 'unit') ?? []
-  ), [timelineUnitsOnCurrentMedia]);
+  const unitUnitsOnCurrentMedia = useMemo(
+    () => timelineUnitsOnCurrentMedia?.filter((unit) => unit.kind === 'unit') ?? [],
+    [timelineUnitsOnCurrentMedia],
+  );
 
   const hasOverlappingUnitsOnCurrentMedia = useMemo(
-    () => hasOverlaps(
-      unitUnitsOnCurrentMedia.length > 0
-        ? unitUnitsOnCurrentMedia
-        : unitsOnCurrentMedia,
-    ),
+    () =>
+      hasOverlaps(
+        unitUnitsOnCurrentMedia.length > 0 ? unitUnitsOnCurrentMedia : unitsOnCurrentMedia,
+      ),
     [unitUnitsOnCurrentMedia, unitsOnCurrentMedia],
   );
 
   const hasOverlappingSegmentsOnActiveLayer = useMemo(() => {
     const activeLayer = layers.find((item) => item.id === activeLayerIdForEdits);
-    if (!activeLayer || !layerUsesOwnSegments(activeLayer, defaultTranscriptionLayerId)) return false;
+    if (!activeLayer || !layerUsesOwnSegments(activeLayer, defaultTranscriptionLayerId))
+      return false;
     return hasOverlaps(segmentsByLayer.get(activeLayer.id) ?? []);
   }, [activeLayerIdForEdits, defaultTranscriptionLayerId, layers, segmentsByLayer]);
 
   useEffect(() => {
-    if (transcriptionTrackMode === 'single' && (hasOverlappingUnitsOnCurrentMedia || hasOverlappingSegmentsOnActiveLayer)) {
+    if (
+      transcriptionTrackMode === 'single' &&
+      (hasOverlappingUnitsOnCurrentMedia || hasOverlappingSegmentsOnActiveLayer)
+    ) {
       setTranscriptionTrackMode('multi-auto');
     }
-  }, [hasOverlappingSegmentsOnActiveLayer, hasOverlappingUnitsOnCurrentMedia, setTranscriptionTrackMode, transcriptionTrackMode]);
+  }, [
+    hasOverlappingSegmentsOnActiveLayer,
+    hasOverlappingUnitsOnCurrentMedia,
+    setTranscriptionTrackMode,
+    transcriptionTrackMode,
+  ]);
 
   const speakerSortKeyById = useMemo(() => {
     const sorted = [
-      ...(unitUnitsOnCurrentMedia.length > 0
-        ? unitUnitsOnCurrentMedia
-        : unitsOnCurrentMedia),
+      ...(unitUnitsOnCurrentMedia.length > 0 ? unitUnitsOnCurrentMedia : unitsOnCurrentMedia),
     ].sort((a, b) => {
       if (a.startTime !== b.startTime) return a.startTime - b.startTime;
       if (a.endTime !== b.endTime) return a.endTime - b.endTime;
@@ -139,9 +150,8 @@ export function useTrackDisplayController({
 
   const currentSpeakerIdsForTrackMode = useMemo(() => {
     const next = new Set<string>();
-    const source = unitUnitsOnCurrentMedia.length > 0
-      ? unitUnitsOnCurrentMedia
-      : unitsOnCurrentMedia;
+    const source =
+      unitUnitsOnCurrentMedia.length > 0 ? unitUnitsOnCurrentMedia : unitsOnCurrentMedia;
     for (const unit of source) {
       const speakerKey = isTimelineUnitView(unit)
         ? (unit.speakerId ?? 'unknown-speaker')
@@ -155,32 +165,51 @@ export function useTrackDisplayController({
       next.add(speakerKey);
     }
     return Array.from(next);
-  }, [getUnitSpeakerKey, segmentSpeakerAssignmentsOnCurrentMedia, unitUnitsOnCurrentMedia, unitsOnCurrentMedia]);
+  }, [
+    getUnitSpeakerKey,
+    segmentSpeakerAssignmentsOnCurrentMedia,
+    unitUnitsOnCurrentMedia,
+    unitsOnCurrentMedia,
+  ]);
 
   const effectiveLaneLockMap = useMemo(() => {
     if (transcriptionTrackMode !== 'multi-speaker-fixed') return laneLockMap;
-    return buildStableSpeakerLaneMap(currentSpeakerIdsForTrackMode, laneLockMap, speakerSortKeyById);
+    return buildStableSpeakerLaneMap(
+      currentSpeakerIdsForTrackMode,
+      laneLockMap,
+      speakerSortKeyById,
+    );
   }, [currentSpeakerIdsForTrackMode, laneLockMap, speakerSortKeyById, transcriptionTrackMode]);
 
   useEffect(() => {
     if (transcriptionTrackMode !== 'multi-speaker-fixed') return;
     const prevKeys = Object.keys(laneLockMap);
     const nextKeys = Object.keys(effectiveLaneLockMap);
-    if (prevKeys.length === nextKeys.length && prevKeys.every((key) => laneLockMap[key] === effectiveLaneLockMap[key])) {
+    if (
+      prevKeys.length === nextKeys.length &&
+      prevKeys.every((key) => laneLockMap[key] === effectiveLaneLockMap[key])
+    ) {
       return;
     }
     setLaneLockMap(effectiveLaneLockMap);
   }, [effectiveLaneLockMap, laneLockMap, setLaneLockMap, transcriptionTrackMode]);
 
-  const speakerLayerLayout = useMemo(() => buildSpeakerLayerLayoutWithOptions(timelineRenderUnits, {
-    trackMode: transcriptionTrackMode,
-    ...(effectiveLaneLockMap ? { laneLockMap: effectiveLaneLockMap } : {}),
-    ...(speakerSortKeyById ? { speakerSortKeyById } : {}),
-  }), [effectiveLaneLockMap, speakerSortKeyById, timelineRenderUnits, transcriptionTrackMode]);
+  const speakerLayerLayout = useMemo(
+    () =>
+      buildSpeakerLayerLayoutWithOptions(timelineRenderUnits, {
+        trackMode: transcriptionTrackMode,
+        ...(effectiveLaneLockMap ? { laneLockMap: effectiveLaneLockMap } : {}),
+        ...(speakerSortKeyById ? { speakerSortKeyById } : {}),
+      }),
+    [effectiveLaneLockMap, speakerSortKeyById, timelineRenderUnits, transcriptionTrackMode],
+  );
 
-  const setTrackDisplayMode = useCallback((mode: TranscriptionTrackDisplayMode) => {
-    setTranscriptionTrackMode(mode);
-  }, [setTranscriptionTrackMode]);
+  const setTrackDisplayMode = useCallback(
+    (mode: TranscriptionTrackDisplayMode) => {
+      setTranscriptionTrackMode(mode);
+    },
+    [setTranscriptionTrackMode],
+  );
 
   const handleToggleTrackDisplayMode = useCallback(() => {
     setTranscriptionTrackMode((prev) => {
@@ -189,18 +218,21 @@ export function useTrackDisplayController({
     });
   }, [setTranscriptionTrackMode]);
 
-  const handleLockSelectedSpeakersToLane = useCallback((laneIndex: number) => {
-    if (!Number.isInteger(laneIndex) || laneIndex < 0) return;
-    if (selectedSpeakerIdsForTrackLock.length === 0) return;
-    setLaneLockMap((prev) => {
-      const next = { ...prev };
-      for (const speakerId of selectedSpeakerIdsForTrackLock) {
-        next[speakerId] = laneIndex;
-      }
-      return next;
-    });
-    setTranscriptionTrackMode('multi-locked');
-  }, [selectedSpeakerIdsForTrackLock, setLaneLockMap, setTranscriptionTrackMode]);
+  const handleLockSelectedSpeakersToLane = useCallback(
+    (laneIndex: number) => {
+      if (!Number.isInteger(laneIndex) || laneIndex < 0) return;
+      if (selectedSpeakerIdsForTrackLock.length === 0) return;
+      setLaneLockMap((prev) => {
+        const next = { ...prev };
+        for (const speakerId of selectedSpeakerIdsForTrackLock) {
+          next[speakerId] = laneIndex;
+        }
+        return next;
+      });
+      setTranscriptionTrackMode('multi-locked');
+    },
+    [selectedSpeakerIdsForTrackLock, setLaneLockMap, setTranscriptionTrackMode],
+  );
 
   const handleUnlockSelectedSpeakers = useCallback(() => {
     if (selectedSpeakerIdsForTrackLock.length === 0) return;
@@ -218,7 +250,9 @@ export function useTrackDisplayController({
 
   const handleResetTrackAutoLayout = useCallback(() => {
     const hadConflict = speakerLayerLayout.lockConflictCount > 0;
-    const conflictSpeakers = speakerLayerLayout.lockConflictSpeakerIds.map((id) => speakerNameById[id] ?? id);
+    const conflictSpeakers = speakerLayerLayout.lockConflictSpeakerIds.map(
+      (id) => speakerNameById[id] ?? id,
+    );
     setLaneLockMap({});
     setTranscriptionTrackMode('multi-auto');
     if (hadConflict) {
@@ -228,7 +262,14 @@ export function useTrackDisplayController({
         nonce: Date.now(),
       });
     }
-  }, [setLaneLockMap, setLockConflictToast, setTranscriptionTrackMode, speakerLayerLayout.lockConflictCount, speakerLayerLayout.lockConflictSpeakerIds, speakerNameById]);
+  }, [
+    setLaneLockMap,
+    setLockConflictToast,
+    setTranscriptionTrackMode,
+    speakerLayerLayout.lockConflictCount,
+    speakerLayerLayout.lockConflictSpeakerIds,
+    speakerNameById,
+  ]);
 
   return {
     speakerSortKeyById,

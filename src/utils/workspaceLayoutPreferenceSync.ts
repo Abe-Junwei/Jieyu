@@ -22,7 +22,7 @@ export function readStoredVideoLayoutModePreference(): VideoLayoutMode {
 export function readStoredVideoPreviewHeightPreference(): number {
   try {
     const stored = localStorage.getItem(WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY);
-    if (!stored) return 220;
+    if (stored === null || stored.length === 0) return 220;
     const parsed = Number(stored);
     if (Number.isNaN(parsed)) return 220;
     return Math.min(600, Math.max(120, Math.round(parsed)));
@@ -34,7 +34,7 @@ export function readStoredVideoPreviewHeightPreference(): number {
 export function readStoredVideoRightPanelWidthPreference(): number {
   try {
     const stored = localStorage.getItem(WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY);
-    if (!stored) return 360;
+    if (stored === null || stored.length === 0) return 360;
     const parsed = Number(stored);
     if (Number.isNaN(parsed)) return 360;
     return Math.min(720, Math.max(260, Math.round(parsed)));
@@ -57,13 +57,13 @@ export function subscribeWorkspaceLayoutPreferenceChanged(listener: () => void):
 
   const handleStorage = (event: StorageEvent) => {
     if (
-      event.key === WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY
-      || event.key === WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY
-      || event.key === WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY
-      || event.key === WORKSPACE_DEFAULT_ZOOM_MODE_STORAGE_KEY
-      || event.key === WORKSPACE_AUTO_SCROLL_STORAGE_KEY
-      || event.key === WORKSPACE_SNAP_STORAGE_KEY
-      || event.key === WORKSPACE_VERTICAL_VIEW_STORAGE_KEY
+      event.key === WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY ||
+      event.key === WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY ||
+      event.key === WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY ||
+      event.key === WORKSPACE_DEFAULT_ZOOM_MODE_STORAGE_KEY ||
+      event.key === WORKSPACE_AUTO_SCROLL_STORAGE_KEY ||
+      event.key === WORKSPACE_SNAP_STORAGE_KEY ||
+      event.key === WORKSPACE_VERTICAL_VIEW_STORAGE_KEY
     ) {
       listener();
     }
@@ -72,7 +72,10 @@ export function subscribeWorkspaceLayoutPreferenceChanged(listener: () => void):
   window.addEventListener(WORKSPACE_LAYOUT_PREFERENCE_CHANGED_EVENT, listener as EventListener);
   window.addEventListener('storage', handleStorage);
   return () => {
-    window.removeEventListener(WORKSPACE_LAYOUT_PREFERENCE_CHANGED_EVENT, listener as EventListener);
+    window.removeEventListener(
+      WORKSPACE_LAYOUT_PREFERENCE_CHANGED_EVENT,
+      listener as EventListener,
+    );
     window.removeEventListener('storage', handleStorage);
   };
 }

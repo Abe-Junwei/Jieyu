@@ -6,7 +6,10 @@ import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import { canDeleteCurrentAudio } from './transcriptionMediaGuards';
-import { recordTranscriptionKeyboardAction, recordToolbarVolumeChangeTelemetryThrottled } from '../utils/transcriptionKeyboardActionTelemetry';
+import {
+  recordTranscriptionKeyboardAction,
+  recordToolbarVolumeChangeTelemetryThrottled,
+} from '../utils/transcriptionKeyboardActionTelemetry';
 import type { UttOpsMenuState } from './TranscriptionPage.UIState';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
 import type { TranscriptionReviewPreset } from '../utils/transcriptionReviewQueue';
@@ -101,11 +104,16 @@ export function createTranscriptionToolbarProps(
 ): TranscriptionPageToolbarProps {
   const locale = input.locale as Locale;
   const rawFilename = input.selectedTimelineMediaFilename;
-  const toolbarFilename = rawFilename == null
-    ? t(locale, 'transcription.media.unbound')
-    : rawFilename === DOCUMENT_PLACEHOLDER_TRACK_FILENAME
-      ? t(locale, 'transcription.timelineAxisStatus.placeholderAxis')
-      : rawFilename;
+  const toolbarFilename =
+    rawFilename == null
+      ? t(locale, 'transcription.media.unbound')
+      : rawFilename === DOCUMENT_PLACEHOLDER_TRACK_FILENAME
+        ? t(locale, 'transcription.timelineAxisStatus.placeholderAxis')
+        : rawFilename;
+  const canToggleNotesFromSelectedUnit =
+    input.selectedTimelineUnit?.kind === 'unit' &&
+    input.selectedTimelineUnit.unitId !== undefined &&
+    input.selectedTimelineUnit.unitId.length > 0;
 
   return {
     filename: toolbarFilename,
@@ -157,7 +165,7 @@ export function createTranscriptionToolbarProps(
       selectedMediaUrl: input.selectedMediaUrl,
     }),
     canDeleteProject: input.hasActiveTextId,
-    canToggleNotes: Boolean((input.selectedTimelineUnit?.kind === 'unit' && input.selectedTimelineUnit.unitId) || input.notePopoverOpen),
+    canToggleNotes: canToggleNotesFromSelectedUnit || input.notePopoverOpen,
     canOpenUttOpsMenu: Boolean(input.selectedTimelineUnit?.unitId),
     notePopoverOpen: input.notePopoverOpen,
     showExportMenu: input.showExportMenu,
@@ -217,12 +225,14 @@ export function createTranscriptionToolbarProps(
       recordTranscriptionKeyboardAction('reviewNext');
       input.onReviewNext();
     },
-    ...(input.playableAcoustic ? {
-      onAutoSegment: () => {
-        recordTranscriptionKeyboardAction('autoSegmentRun');
-        input.handleAutoSegment();
-      },
-    } : {}),
+    ...(input.playableAcoustic
+      ? {
+          onAutoSegment: () => {
+            recordTranscriptionKeyboardAction('autoSegmentRun');
+            input.handleAutoSegment();
+          },
+        }
+      : {}),
     autoSegmentBusy: input.autoSegmentBusy,
   };
 }

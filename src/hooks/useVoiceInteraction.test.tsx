@@ -36,7 +36,10 @@ vi.mock('../services/GlobalContextService', async (importOriginal) => {
         corpus: null,
         profile: {
           ...base,
-          preferences: { ...base.preferences, assistantTtsEnabled: mockAssistantTtsEnabledRef.value },
+          preferences: {
+            ...base.preferences,
+            assistantTtsEnabled: mockAssistantTtsEnabledRef.value,
+          },
         },
         searchCorpus: async () => [],
         setCorpusContext: vi.fn(),
@@ -78,7 +81,12 @@ function makeLayer(
   } as LayerDocType;
 }
 
-function makeLink(id: string, transcriptionLayerKey: string, hostTranscriptionLayerId: string, layerId: string): LayerLinkDocType {
+function makeLink(
+  id: string,
+  transcriptionLayerKey: string,
+  hostTranscriptionLayerId: string,
+  layerId: string,
+): LayerLinkDocType {
   const now = '2026-03-26T00:00:00.000Z';
   return {
     id,
@@ -124,38 +132,40 @@ describe('useVoiceInteraction', () => {
     const trcDefault = makeLayer('trc-default', 'transcription');
     const trl = makeLayer('trl-1', 'translation');
 
-    const { result } = renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
-        selectedRowMeta: null,
-        selectedLayerId: '',
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '0.00 - 1.00',
-      },
-      defaultTranscriptionLayerId: trcDefault.id,
-      translationLayers: [trl],
-      layers: [trcDefault, trl],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend: vi.fn(async () => undefined),
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-    }));
+    const { result } = renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+          selectedRowMeta: null,
+          selectedLayerId: '',
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '0.00 - 1.00',
+        },
+        defaultTranscriptionLayerId: trcDefault.id,
+        translationLayers: [trl],
+        layers: [trcDefault, trl],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
 
     expect(result.current.voiceTargetSummary).toContain('L:trc-default');
   });
@@ -164,38 +174,40 @@ describe('useVoiceInteraction', () => {
     mockIsAssistantTtsSupported.mockReturnValue(false);
     mockAssistantTtsEnabledRef.value = true;
 
-    renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
-        selectedRowMeta: null,
-        selectedLayerId: 'trc-default',
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '0.00 - 1.00',
-      },
-      defaultTranscriptionLayerId: 'trc-default',
-      translationLayers: [],
-      layers: [makeLayer('trc-default', 'transcription')],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend: vi.fn(async () => undefined),
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-    }));
+    renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+          selectedRowMeta: null,
+          selectedLayerId: 'trc-default',
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '0.00 - 1.00',
+        },
+        defaultTranscriptionLayerId: 'trc-default',
+        translationLayers: [],
+        layers: [makeLayer('trc-default', 'transcription')],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
 
     expect(mockShowToast).toHaveBeenCalledTimes(1);
     expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'warning', 5000);
@@ -203,7 +215,9 @@ describe('useVoiceInteraction', () => {
 
   it('registers voiceAiAssistantMessageBridgeRef to forward AI completion to notifyAiStreamFinished', async () => {
     const notifyAiStreamFinished = vi.fn();
-    const bridgeRef: { current: ((assistantMessageId: string, content: string) => void) | null } = { current: null };
+    const bridgeRef: { current: ((assistantMessageId: string, content: string) => void) | null } = {
+      current: null,
+    };
 
     mockUseVoiceAgent.mockReturnValue({
       mode: 'dictation',
@@ -228,39 +242,41 @@ describe('useVoiceInteraction', () => {
       error: null,
     });
 
-    const { unmount } = renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
-        selectedRowMeta: null,
-        selectedLayerId: 'trc-default',
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '0.00 - 1.00',
-      },
-      defaultTranscriptionLayerId: 'trc-default',
-      translationLayers: [],
-      layers: [makeLayer('trc-default', 'transcription')],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend: vi.fn(async () => undefined),
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-      voiceAiAssistantMessageBridgeRef: bridgeRef,
-    }));
+    const { unmount } = renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+          selectedRowMeta: null,
+          selectedLayerId: 'trc-default',
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '0.00 - 1.00',
+        },
+        defaultTranscriptionLayerId: 'trc-default',
+        translationLayers: [],
+        layers: [makeLayer('trc-default', 'transcription')],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+        voiceAiAssistantMessageBridgeRef: bridgeRef,
+      }),
+    );
 
     expect(bridgeRef.current).toEqual(expect.any(Function));
     await act(async () => {
@@ -278,7 +294,9 @@ describe('useVoiceInteraction', () => {
     vi.mocked(speakAssistantReplyWithWebSpeechTts).mockClear();
 
     const notifyAiStreamFinished = vi.fn();
-    const bridgeRef: { current: ((assistantMessageId: string, content: string) => void) | null } = { current: null };
+    const bridgeRef: { current: ((assistantMessageId: string, content: string) => void) | null } = {
+      current: null,
+    };
 
     mockUseVoiceAgent.mockReturnValue({
       mode: 'dictation',
@@ -303,39 +321,41 @@ describe('useVoiceInteraction', () => {
       error: null,
     });
 
-    renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
-        selectedRowMeta: null,
-        selectedLayerId: 'trc-default',
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '0.00 - 1.00',
-      },
-      defaultTranscriptionLayerId: 'trc-default',
-      translationLayers: [],
-      layers: [makeLayer('trc-default', 'transcription')],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend: vi.fn(async () => undefined),
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-      voiceAiAssistantMessageBridgeRef: bridgeRef,
-    }));
+    renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+          selectedRowMeta: null,
+          selectedLayerId: 'trc-default',
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '0.00 - 1.00',
+        },
+        defaultTranscriptionLayerId: 'trc-default',
+        translationLayers: [],
+        layers: [makeLayer('trc-default', 'transcription')],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+        voiceAiAssistantMessageBridgeRef: bridgeRef,
+      }),
+    );
 
     await act(async () => {
       bridgeRef.current?.('assistant-id-2', 'hello');
@@ -354,38 +374,40 @@ describe('useVoiceInteraction', () => {
       makeLink('link-fr-fr', 'tr-fr', 'tr-fr', 'tl-fr'),
     ];
 
-    const { result } = renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: { id: 'utt-1', layerId: 'tr-fr', startTime: 0, endTime: 1 },
-        selectedRowMeta: null,
-        selectedLayerId: '',
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '0.00 - 1.00',
-      },
-      translationLayers: [tlZh, tlFr],
-      layers: [trEn, trFr, tlZh, tlFr],
-      layerLinks,
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend: vi.fn(async () => undefined),
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-    }));
+    const { result } = renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', layerId: 'tr-fr', startTime: 0, endTime: 1 },
+          selectedRowMeta: null,
+          selectedLayerId: '',
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '0.00 - 1.00',
+        },
+        translationLayers: [tlZh, tlFr],
+        layers: [trEn, trFr, tlZh, tlFr],
+        layerLinks,
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
 
     expect(result.current.voiceTargetSummary).toContain('L:tl-fr');
   });
@@ -407,39 +429,41 @@ describe('useVoiceInteraction', () => {
       },
     };
 
-    renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      dictationPipeline,
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
-        selectedRowMeta: null,
-        selectedLayerId: trcDefault.id,
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '0.00 - 1.00',
-      },
-      defaultTranscriptionLayerId: trcDefault.id,
-      translationLayers: [],
-      layers: [trcDefault],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend: vi.fn(async () => undefined),
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-    }));
+    renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        dictationPipeline,
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+          selectedRowMeta: null,
+          selectedLayerId: trcDefault.id,
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '0.00 - 1.00',
+        },
+        defaultTranscriptionLayerId: trcDefault.id,
+        translationLayers: [],
+        layers: [trcDefault],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
 
     const latestCall = mockUseVoiceAgent.mock.calls[mockUseVoiceAgent.mock.calls.length - 1];
     expect(latestCall?.[0]).toEqual(expect.objectContaining({ dictationPipeline }));
@@ -471,40 +495,44 @@ describe('useVoiceInteraction', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: null,
-        selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
-        selectedLayerId: trcDefault.id,
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '12.00 - 15.00',
-      },
-      defaultTranscriptionLayerId: trcDefault.id,
-      translationLayers: [],
-      layers: [trcDefault],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend: vi.fn(async () => undefined),
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-    }));
+    const { result } = renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: null,
+          selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
+          selectedLayerId: trcDefault.id,
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '12.00 - 15.00',
+        },
+        defaultTranscriptionLayerId: trcDefault.id,
+        translationLayers: [],
+        layers: [trcDefault],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
 
-    expect(result.current.voiceTargetSummary).toMatch(/第 3 句 \/ AI 分析备注|Sentence 3 \/ AI analysis note/);
+    expect(result.current.voiceTargetSummary).toMatch(
+      /第 3 句 \/ AI 分析备注|Sentence 3 \/ AI analysis note/,
+    );
     expect(result.current.voiceSelectionSummary).toBe('12.00 - 15.00');
   });
 
@@ -534,40 +562,44 @@ describe('useVoiceInteraction', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: null,
-        selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
-        selectedLayerId: trcDefault.id,
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '12.00 - 15.00',
-      },
-      defaultTranscriptionLayerId: trcDefault.id,
-      translationLayers: [],
-      layers: [trcDefault],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend: vi.fn(async () => undefined),
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-    }));
+    const { result } = renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: null,
+          selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
+          selectedLayerId: trcDefault.id,
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '12.00 - 15.00',
+        },
+        defaultTranscriptionLayerId: trcDefault.id,
+        translationLayers: [],
+        layers: [trcDefault],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
 
-    expect(result.current.voiceTargetSummary).toMatch(/第 3 句 \/ AI 分析备注|Sentence 3 \/ AI analysis note/);
+    expect(result.current.voiceTargetSummary).toMatch(
+      /第 3 句 \/ AI 分析备注|Sentence 3 \/ AI analysis note/,
+    );
     expect(result.current.voiceSelectionSummary).toBe('12.00 - 15.00');
   });
 
@@ -596,48 +628,52 @@ describe('useVoiceInteraction', () => {
     });
 
     const trcDefault = makeLayer('trc-default', 'transcription');
-    const { result } = renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: null,
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
-        selectedRowMeta: null,
-        selectedLayerId: trcDefault.id,
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '0.00 - 1.00',
-      },
-      defaultTranscriptionLayerId: trcDefault.id,
-      translationLayers: [],
-      layers: [trcDefault],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend: vi.fn(async () => undefined),
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'groq',
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-    }));
+    const { result } = renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: null,
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+          selectedRowMeta: null,
+          selectedLayerId: trcDefault.id,
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '0.00 - 1.00',
+        },
+        defaultTranscriptionLayerId: trcDefault.id,
+        translationLayers: [],
+        layers: [trcDefault],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'groq',
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
 
     expect(result.current.voiceEnvironmentSummary).toContain('Distil-Whisper');
   });
 
   it('surfaces analysis writeback failure in voice status and external error', async () => {
     const setExternalError = vi.fn();
-    const setAnalysisFillCallback = vi.fn((unitId: string | null, callback: (content: string) => void) => {
-      expect(unitId).toBe('utt-1');
-      callback('分析结果文本');
-    });
+    const setAnalysisFillCallback = vi.fn(
+      (unitId: string | null, callback: (content: string) => void) => {
+        expect(unitId).toBe('utt-1');
+        callback('分析结果文本');
+      },
+    );
 
     mockUseVoiceAgent.mockReturnValue({
       mode: 'analysis',
@@ -663,41 +699,46 @@ describe('useVoiceInteraction', () => {
       error: null,
     });
 
-    const onVoiceAnalysisResult = vi.fn(async () => ({ ok: false, message: '分析写回失败：目标不可用' }));
+    const onVoiceAnalysisResult = vi.fn(async () => ({
+      ok: false,
+      message: '分析写回失败：目标不可用',
+    }));
     const aiChatSend = vi.fn(async () => undefined);
 
-    const { result } = renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult,
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: { id: 'utt-1', startTime: 12, endTime: 15 },
-        selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
-        selectedLayerId: 'trc-default',
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '12.00 - 15.00',
-      },
-      defaultTranscriptionLayerId: 'trc-default',
-      translationLayers: [],
-      layers: [makeLayer('trc-default', 'transcription')],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend,
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-    }));
+    const { result } = renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult,
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', startTime: 12, endTime: 15 },
+          selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
+          selectedLayerId: 'trc-default',
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '12.00 - 15.00',
+        },
+        defaultTranscriptionLayerId: 'trc-default',
+        translationLayers: [],
+        layers: [makeLayer('trc-default', 'transcription')],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend,
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
 
     const latestCall = mockUseVoiceAgent.mock.calls[mockUseVoiceAgent.mock.calls.length - 1];
     const useVoiceAgentOptions = latestCall?.[0] as {
@@ -748,38 +789,40 @@ describe('useVoiceInteraction', () => {
       throw new Error('AI 请求失败');
     });
 
-    renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: { id: 'utt-1', startTime: 12, endTime: 15 },
-        selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
-        selectedLayerId: 'trc-default',
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '12.00 - 15.00',
-      },
-      defaultTranscriptionLayerId: 'trc-default',
-      translationLayers: [],
-      layers: [makeLayer('trc-default', 'transcription')],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend,
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-    }));
+    renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', startTime: 12, endTime: 15 },
+          selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
+          selectedLayerId: 'trc-default',
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '12.00 - 15.00',
+        },
+        defaultTranscriptionLayerId: 'trc-default',
+        translationLayers: [],
+        layers: [makeLayer('trc-default', 'transcription')],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend,
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
 
     const latestCall = mockUseVoiceAgent.mock.calls[mockUseVoiceAgent.mock.calls.length - 1];
     const useVoiceAgentOptions = latestCall?.[0] as {
@@ -827,38 +870,40 @@ describe('useVoiceInteraction', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
-        selectedRowMeta: null,
-        selectedLayerId: 'trc-default',
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '0.00 - 1.00',
-      },
-      defaultTranscriptionLayerId: 'trc-default',
-      translationLayers: [],
-      layers: [makeLayer('trc-default', 'transcription')],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend: vi.fn(async () => undefined),
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-    }));
+    const { result } = renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+          selectedRowMeta: null,
+          selectedLayerId: 'trc-default',
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '0.00 - 1.00',
+        },
+        defaultTranscriptionLayerId: 'trc-default',
+        translationLayers: [],
+        layers: [makeLayer('trc-default', 'transcription')],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
 
     await act(async () => {
       result.current.handleMicPointerUp();
@@ -893,39 +938,43 @@ describe('useVoiceInteraction', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useVoiceInteraction({
-      effectiveVoiceCorpusLang: 'zho',
-      voiceCorpusLangOverride: '__auto__',
-      executeAction: vi.fn(async () => undefined),
-      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
-      handleVoiceDictation: vi.fn(),
-      onVoiceAnalysisResult: vi.fn(),
-      selection: {
-        activeUnitId: 'utt-1',
-        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
-        selectedRowMeta: null,
-        selectedLayerId: 'trc-default',
-        selectedUnitKind: 'unit',
-        selectedTimeRangeLabel: '0.00 - 1.00',
-      },
-      defaultTranscriptionLayerId: 'trc-default',
-      translationLayers: [],
-      layers: [makeLayer('trc-default', 'transcription')],
-      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
-      formatTime: (seconds) => seconds.toFixed(2),
-      aiChatSend: vi.fn(async () => undefined),
-      aiIsStreaming: false,
-      aiMessages: [],
-      localWhisperConfig: {},
-      commercialProviderKind: 'openai' as any,
-      commercialProviderConfig: {},
-      onCommercialConfigChange: vi.fn(),
-      setCommercialProviderKind: vi.fn(),
-      setCommercialProviderConfig: vi.fn(),
-      featureVoiceEnabled: true,
-      toggleVoiceRef: { current: undefined },
-    }));
+    const { result } = renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+          selectedRowMeta: null,
+          selectedLayerId: 'trc-default',
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '0.00 - 1.00',
+        },
+        defaultTranscriptionLayerId: 'trc-default',
+        translationLayers: [],
+        layers: [makeLayer('trc-default', 'transcription')],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
 
-    expect(result.current.voiceStatusSummary).toMatch(/按住麦克风开始录音|Hold the mic to start recording/);
+    expect(result.current.voiceStatusSummary).toMatch(
+      /按住麦克风开始录音|Hold the mic to start recording/,
+    );
   });
 });

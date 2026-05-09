@@ -40,7 +40,7 @@
 | 组件 | 硬编码字符串数量 | 位置 |
 |------|-----------------|------|
 | ToastContext | ~15 | [ToastContext.tsx](src/contexts/ToastContext.tsx) |
-| TranscriptionToolbarActions | ~13 | [TranscriptionToolbarActions.tsx](src/components/TranscriptionToolbarActions.tsx) |
+| TranscriptionToolbarActions | ~13 | [TranscriptionToolbarActions.tsx](src/pages/TranscriptionPage.ReadyWorkspace.tsx) |
 | WaveformLeftStatusStrip | ~20 | [WaveformLeftStatusStrip.tsx](src/components/transcription/WaveformLeftStatusStrip.tsx) |
 | SpeakerActionDialog | 全部(无i18n) | [SpeakerActionDialog.tsx](src/components/transcription/SpeakerActionDialog.tsx) |
 | AiChatCard | 多处 | [AiChatCard.tsx](src/components/ai/AiChatCard.tsx) |
@@ -122,7 +122,7 @@
 #### 11. Race Condition 风险
 
 **问题 11.1: Segment undo snapshot 的异步模式脆弱**
-- **位置**: [useTranscriptionSegmentBridgeController.ts:77-90](src/hooks/useTranscriptionSegmentBridgeController.ts#L77-L90)
+- **位置**: [useTranscriptionSegmentBridgeController.ts:77-90](src/pages/useTranscriptionSegmentBridgeController.ts#L77-L90)
 - 使用 requestId 的 race guard，但如果调用方不正确 await 或 effect 被取消，可能导致状态不一致。
 
 #### 12. EmbeddingContext Fallback 模式
@@ -212,7 +212,7 @@ const confirmDeleteLayer = useCallback(async () => {
 - **问题**: effect 更新 `selectedParentLayerId` 但也在依赖数组中，如果 `independentParentLayers` 每次渲染是新数组引用，会创建反馈循环
 
 **2.2: TranscriptionTimelineMediaLanes.tsx - Map 中内联回调 (lines 657-724)**
-- **位置**: [TranscriptionTimelineMediaLanes.tsx:657-724](src/components/transcription/TranscriptionTimelineMediaLanes.tsx#L657-L724)
+- **位置**: [TranscriptionTimelineMediaLanes.tsx:657-724](src/components/TranscriptionTimelineHorizontalMediaLanes.tsx#L657-L724)
 - **问题**: 每个渲染为每个 utterance 创建新的 `onChange`、`onBlur` 等回调函数，应该用 `useCallback` 或提取为子组件
 
 **2.3: AiChatCard.tsx - 未 memoized 的 map 回调 (lines 650-831)**
@@ -222,7 +222,7 @@ const confirmDeleteLayer = useCallback(async () => {
 #### Medium Severity
 
 **2.4: TranscriptionTimelineMediaLanes.tsx - 深层嵌套三元表达式 (lines 575-584)**
-- **位置**: [TranscriptionTimelineMediaLanes.tsx:575-584](src/components/transcription/TranscriptionTimelineMediaLanes.tsx#L575-L584)
+- **位置**: [TranscriptionTimelineMediaLanes.tsx:575-584](src/components/TranscriptionTimelineHorizontalMediaLanes.tsx#L575-L584)
 - **问题**: 深层嵌套三元无法被 React memoization 优化，每次渲染重新计算所有分支
 
 **2.5: AiChatCard.tsx - 不安全的非空断言 (lines 721-727, 1078)**

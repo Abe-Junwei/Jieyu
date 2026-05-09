@@ -39,7 +39,12 @@ interface CreateTranscriptionTimelineTopPropsInput {
   searchOverlayRequest: AppShellOpenSearchDetail | null;
   manualSelectTsRef: MutableRefObject<number>;
   selectUnit: (id: string) => void;
-  handleSearchReplace: (unitId: string, layerId: string | undefined, oldText: string, newText: string) => void;
+  handleSearchReplace: (
+    unitId: string,
+    layerId: string | undefined,
+    oldText: string,
+    newText: string,
+  ) => void;
   setShowSearch: (value: boolean) => void;
   setSearchOverlayRequest: Dispatch<SetStateAction<AppShellOpenSearchDetail | null>>;
 }
@@ -71,11 +76,18 @@ export function createTranscriptionTimelineTopProps(
     searchProps: {
       items: input.searchableItems,
       orthographies: input.orthographies,
-      currentLayerId: input.activeLayerIdForEdits || undefined,
-      currentUnitId: input.activeTimelineUnitId || undefined,
-      ...(input.searchOverlayRequest?.query !== undefined && { initialQuery: input.searchOverlayRequest.query }),
-      ...(input.searchOverlayRequest?.scope !== undefined && { initialScope: input.searchOverlayRequest.scope }),
-      ...(input.searchOverlayRequest?.layerKinds !== undefined && { initialLayerKinds: input.searchOverlayRequest.layerKinds }),
+      currentLayerId:
+        input.activeLayerIdForEdits.length > 0 ? input.activeLayerIdForEdits : undefined,
+      currentUnitId: input.activeTimelineUnitId.length > 0 ? input.activeTimelineUnitId : undefined,
+      ...(input.searchOverlayRequest?.query !== undefined && {
+        initialQuery: input.searchOverlayRequest.query,
+      }),
+      ...(input.searchOverlayRequest?.scope !== undefined && {
+        initialScope: input.searchOverlayRequest.scope,
+      }),
+      ...(input.searchOverlayRequest?.layerKinds !== undefined && {
+        initialLayerKinds: input.searchOverlayRequest.layerKinds,
+      }),
       onNavigate: (id) => {
         recordTranscriptionKeyboardAction('timelineSearchNavigateToUnit');
         input.manualSelectTsRef.current = Date.now();

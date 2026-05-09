@@ -9,15 +9,27 @@ export function useTranscriptionAiAcousticBatchRanges(input: {
 }) {
   const { timelineUnitViewIndex, scopeMediaItemForAi, selectedUnitIds } = input;
   return useMemo(() => {
-    const selectedUnits = new Map<string, (typeof timelineUnitViewIndex.currentMediaUnits)[number]>();
+    const selectedUnits = new Map<
+      string,
+      (typeof timelineUnitViewIndex.currentMediaUnits)[number]
+    >();
     const selectedMediaId = scopeMediaItemForAi?.id;
     for (const selectedId of selectedUnitIds) {
       const directHit = timelineUnitViewIndex.resolveBySemanticId(selectedId);
-      if (directHit && (!selectedMediaId || directHit.mediaId === selectedMediaId)) {
+      if (
+        directHit &&
+        (selectedMediaId === undefined ||
+          selectedMediaId.length === 0 ||
+          directHit.mediaId === selectedMediaId)
+      ) {
         selectedUnits.set(directHit.id, directHit);
       }
       for (const referringUnit of timelineUnitViewIndex.getReferringUnits(selectedId)) {
-        if (!selectedMediaId || referringUnit.mediaId === selectedMediaId) {
+        if (
+          selectedMediaId === undefined ||
+          selectedMediaId.length === 0 ||
+          referringUnit.mediaId === selectedMediaId
+        ) {
           selectedUnits.set(referringUnit.id, referringUnit);
         }
       }

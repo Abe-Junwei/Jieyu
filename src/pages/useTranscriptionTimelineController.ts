@@ -1,5 +1,16 @@
-import { useMemo, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from 'react';
-import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType, LayerUnitContentViewDocType } from '../types/jieyuDbDocTypes';
+import {
+  useMemo,
+  type Dispatch,
+  type MutableRefObject,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
+import type {
+  LayerDocType,
+  LayerUnitDocType,
+  LayerUnitContentDocType,
+  LayerUnitContentViewDocType,
+} from '../types/jieyuDbDocTypes';
 import type { TranscriptionEditorContextValue } from '../contexts/TranscriptionEditorContext';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';
@@ -25,7 +36,9 @@ interface UseTranscriptionTimelineControllerInput {
   unitDrafts: TranscriptionEditorContextValue['unitDrafts'];
   setUnitDrafts: Dispatch<SetStateAction<TranscriptionEditorContextValue['unitDrafts']>>;
   translationDrafts: TranscriptionEditorContextValue['translationDrafts'];
-  setTranslationDrafts: Dispatch<SetStateAction<TranscriptionEditorContextValue['translationDrafts']>>;
+  setTranslationDrafts: Dispatch<
+    SetStateAction<TranscriptionEditorContextValue['translationDrafts']>
+  >;
   translationTextByLayer: TranscriptionEditorContextValue['translationTextByLayer'];
   focusedTranslationDraftKeyRef: MutableRefObject<string | null>;
   scheduleAutoSave: TranscriptionEditorContextValue['scheduleAutoSave'];
@@ -44,7 +57,7 @@ interface UseTranscriptionTimelineControllerInput {
   checkLayerHasContent: TranscriptionEditorContextValue['checkLayerHasContent'];
 }
 
-interface UseTranscriptionTimelineControllerResult {
+export interface UseTranscriptionTimelineControllerResult {
   filteredUnitsOnCurrentMedia: LayerUnitDocType[];
   timelineRenderUnits: LayerUnitDocType[];
   translationAudioByLayer: Map<string, Map<string, LayerUnitContentDocType>>;
@@ -63,7 +76,7 @@ export function useTranscriptionTimelineController(
     return input.unitsOnCurrentMedia.filter(
       (unit) => input.getUnitSpeakerKey(unit) === input.activeSpeakerFilterKey,
     );
-  }, [input.activeSpeakerFilterKey, input.getUnitSpeakerKey, input.unitsOnCurrentMedia]);
+  }, [input]);
 
   /** 视窗裁剪：减少轨上单元数量；长列表 DOM 级虚拟化见 `@tanstack/react-virtual` 路线图（TranscriptionTimelineHorizontalMediaLanes）。 */
   const timelineRenderUnits = useMemo(() => {
@@ -83,7 +96,11 @@ export function useTranscriptionTimelineController(
     const outer = new Map<string, Map<string, LayerUnitContentDocType>>();
 
     input.translations
-      .filter((item) => typeof item.translationAudioMediaId === 'string' && item.translationAudioMediaId.trim().length > 0)
+      .filter(
+        (item) =>
+          typeof item.translationAudioMediaId === 'string' &&
+          item.translationAudioMediaId.trim().length > 0,
+      )
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .forEach((item) => {
         const layerId = item.layerId?.trim();
@@ -107,13 +124,14 @@ export function useTranscriptionTimelineController(
       next[unit.id] = input.getUnitTextForLayer(unit) || '';
     }
     return next;
-  }, [input.getUnitTextForLayer, input.selectedBatchUnits]);
+  }, [input]);
 
   const batchPreviewLayerOptions = useMemo(
-    () => input.transcriptionLayers.map((layer) => ({
-      id: layer.id,
-      label: formatSidePaneLayerLabel(layer),
-    })),
+    () =>
+      input.transcriptionLayers.map((layer) => ({
+        id: layer.id,
+        label: formatSidePaneLayerLabel(layer),
+      })),
     [input.transcriptionLayers],
   );
 
@@ -127,7 +145,7 @@ export function useTranscriptionTimelineController(
       next[layer.id] = layerMap;
     }
     return next;
-  }, [input.getUnitTextForLayer, input.transcriptionLayers, input.unitsOnCurrentMedia]);
+  }, [input]);
 
   const defaultBatchPreviewLayerId = useMemo(() => {
     if (input.transcriptionLayers.some((layer) => layer.id === input.selectedLayerId)) {
@@ -136,43 +154,46 @@ export function useTranscriptionTimelineController(
     return input.transcriptionLayers[0]?.id;
   }, [input.selectedLayerId, input.transcriptionLayers]);
 
-  const editorContextValue = useMemo<TranscriptionEditorContextValue>(() => ({
-    unitDrafts: input.unitDrafts,
-    setUnitDrafts: input.setUnitDrafts,
-    translationDrafts: input.translationDrafts,
-    setTranslationDrafts: input.setTranslationDrafts,
-    translationTextByLayer: input.translationTextByLayer,
-    focusedTranslationDraftKeyRef: input.focusedTranslationDraftKeyRef,
-    scheduleAutoSave: input.scheduleAutoSave,
-    clearAutoSaveTimer: input.clearAutoSaveTimer,
-    saveUnitText: input.saveUnitText,
-    saveUnitLayerText: input.saveUnitLayerText,
-    getUnitTextForLayer: input.getUnitTextForLayer,
-    renderLaneLabel: input.renderLaneLabel,
-    createLayer: input.createLayer,
-    ...(input.updateLayerMetadata ? { updateLayerMetadata: input.updateLayerMetadata } : {}),
-    deleteLayer: input.deleteLayer,
-    deleteLayerWithoutConfirm: input.deleteLayerWithoutConfirm,
-    checkLayerHasContent: input.checkLayerHasContent,
-  }), [
-    input.checkLayerHasContent,
-    input.clearAutoSaveTimer,
-    input.createLayer,
-    input.deleteLayer,
-    input.deleteLayerWithoutConfirm,
-    input.focusedTranslationDraftKeyRef,
-    input.getUnitTextForLayer,
-    input.renderLaneLabel,
-    input.updateLayerMetadata,
-    input.saveUnitLayerText,
-    input.saveUnitText,
-    input.scheduleAutoSave,
-    input.setTranslationDrafts,
-    input.setUnitDrafts,
-    input.translationDrafts,
-    input.translationTextByLayer,
-    input.unitDrafts,
-  ]);
+  const editorContextValue = useMemo<TranscriptionEditorContextValue>(
+    () => ({
+      unitDrafts: input.unitDrafts,
+      setUnitDrafts: input.setUnitDrafts,
+      translationDrafts: input.translationDrafts,
+      setTranslationDrafts: input.setTranslationDrafts,
+      translationTextByLayer: input.translationTextByLayer,
+      focusedTranslationDraftKeyRef: input.focusedTranslationDraftKeyRef,
+      scheduleAutoSave: input.scheduleAutoSave,
+      clearAutoSaveTimer: input.clearAutoSaveTimer,
+      saveUnitText: input.saveUnitText,
+      saveUnitLayerText: input.saveUnitLayerText,
+      getUnitTextForLayer: input.getUnitTextForLayer,
+      renderLaneLabel: input.renderLaneLabel,
+      createLayer: input.createLayer,
+      ...(input.updateLayerMetadata ? { updateLayerMetadata: input.updateLayerMetadata } : {}),
+      deleteLayer: input.deleteLayer,
+      deleteLayerWithoutConfirm: input.deleteLayerWithoutConfirm,
+      checkLayerHasContent: input.checkLayerHasContent,
+    }),
+    [
+      input.checkLayerHasContent,
+      input.clearAutoSaveTimer,
+      input.createLayer,
+      input.deleteLayer,
+      input.deleteLayerWithoutConfirm,
+      input.focusedTranslationDraftKeyRef,
+      input.getUnitTextForLayer,
+      input.renderLaneLabel,
+      input.updateLayerMetadata,
+      input.saveUnitLayerText,
+      input.saveUnitText,
+      input.scheduleAutoSave,
+      input.setTranslationDrafts,
+      input.setUnitDrafts,
+      input.translationDrafts,
+      input.translationTextByLayer,
+      input.unitDrafts,
+    ],
+  );
 
   return {
     filteredUnitsOnCurrentMedia,

@@ -76,7 +76,7 @@ export const dictionaries: Record<Locale, Record<DictKey, string>> = {
 
 export function normalizeLocale(input: string | null | undefined): Locale | null {
   const normalized = input?.trim().toLowerCase();
-  if (!normalized) return null;
+  if (normalized === undefined || normalized.length === 0) return null;
   if (normalized.startsWith('zh')) return 'zh-CN';
   if (normalized.startsWith('en')) return 'en-US';
   return null;
@@ -114,7 +114,7 @@ export function clearStoredLocalePreference(): void {
 
 export function detectLocale(): Locale {
   const stored = getStoredLocalePreference();
-  if (stored) return stored;
+  if (stored !== null) return stored;
 
   if (typeof navigator === 'undefined') return 'zh-CN';
 
@@ -137,11 +137,7 @@ export function isDictKey(value: string): value is DictKey {
   return (DICT_KEYS as readonly string[]).includes(value);
 }
 
-export function tf(
-  locale: Locale,
-  key: DictKey,
-  params: Record<string, string | number>,
-): string {
+export function tf(locale: Locale, key: DictKey, params: Record<string, string | number>): string {
   const template = t(locale, key);
   return template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, name: string) => {
     const value = params[name];

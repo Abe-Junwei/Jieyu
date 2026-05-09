@@ -1,4 +1,12 @@
-import type { LayerLinkDocType, LayerDocType, LayerDisplaySettings, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType, OrthographyDocType } from '../db';
+import type {
+  LayerLinkDocType,
+  LayerDocType,
+  LayerDisplaySettings,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+  MediaItemDocType,
+  OrthographyDocType,
+} from '../db';
 import { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
@@ -8,18 +16,35 @@ import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { LayerActionPopover } from './LayerActionPopover';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
-import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
+import {
+  DEFAULT_TIMELINE_LANE_HEIGHT,
+  useTimelineLaneHeightResize,
+} from '../hooks/useTimelineLaneHeightResize';
 import { t, useLocale } from '../i18n';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
-import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
+import {
+  buildSpeakerLayerLayoutWithOptions,
+  type SpeakerLayerLayoutResult,
+} from '../utils/speakerLayerLayout';
 import { recordingScopeUnitId } from '../utils/recordingScopeUnitId';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import { unitToView, segmentToView, scopeTimelineUnitViewToLayer, type TimelineUnitView } from '../hooks/timelineUnitView';
+import {
+  unitToView,
+  segmentToView,
+  scopeTimelineUnitViewToLayer,
+  type TimelineUnitView,
+} from '../hooks/timelineUnitView';
 import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
 import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelineMediaTranslationRow';
 import { TranscriptionTimelineMediaTranscriptionLane } from './TranscriptionTimelineMediaTranscriptionLane';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
-import { buildSegmentSpeakerLayoutMaps, EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID, EMPTY_SPEAKER_LAYOUT, normalizeSpeakerFocusKey, resolveSpeakerFocusKeyFromSegment } from './transcriptionTimelineSegmentSpeakerLayout';
+import {
+  buildSegmentSpeakerLayoutMaps,
+  EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID,
+  EMPTY_SPEAKER_LAYOUT,
+  normalizeSpeakerFocusKey,
+  resolveSpeakerFocusKeyFromSegment,
+} from './transcriptionTimelineSegmentSpeakerLayout';
 import type { LayerOperationActionType } from './layerOperationMenuItems';
 import { useCollapsedLayerIds } from '../hooks/useTimelineVisibilityState';
 import { listSegmentTimelineUnitsForLayer } from '../utils/timelineLaneSegmentIteration';
@@ -107,9 +132,8 @@ type TranscriptionTimelineHorizontalMediaLanesProps = {
     utt: TimelineUnitView,
     layer: LayerDocType,
     draft: string,
-    extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
-      & Partial<Pick<TimelineAnnotationItemProps, 'onFocus' | 'placeholder'>>
-      & {
+    extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'> &
+      Partial<Pick<TimelineAnnotationItemProps, 'onFocus' | 'placeholder'>> & {
         showSpeaker?: boolean;
         overlapCycleItems?: Array<{ id: string; startTime: number }>;
         overlapCycleStatus?: { index: number; total: number };
@@ -180,603 +204,674 @@ type TranscriptionTimelineHorizontalMediaLanesProps = {
   };
 };
 
-export const TranscriptionTimelineHorizontalMediaLanes = memo(function TranscriptionTimelineHorizontalMediaLanes({
-  acousticShellPending = false,
-  timelineChromeClassNames = [],
-  activeTextTimelineMode,
-  playerDuration,
-  timelineExtentSec,
-  zoomPxPerSec,
-  timelineContentGutterPx,
-  lassoRect,
-  transcriptionLayers,
-  translationLayers,
-  timelineUnitViewIndex: _timelineUnitViewIndex,
-  timelineRenderUnits,
-  segmentParentUnitLookup,
-  flashLayerRowId,
-  focusedLayerRowId,
-  activeUnitId,
-  selectedTimelineUnit,
-  defaultTranscriptionLayerId,
-  renderAnnotationItem,
-  allLayersOrdered,
-  onReorderLayers,
-  deletableLayers,
-  defaultLanguageId,
-  defaultOrthographyId,
-  onFocusLayer,
-  layerLinks = [],
-  showConnectors = true,
-  onToggleConnectors,
-  laneHeights,
-  onLaneHeightChange,
-  trackDisplayMode = 'single',
-  onToggleTrackDisplayMode,
-  onSetTrackDisplayMode,
-  laneLockMap,
-  onLockSelectedSpeakersToLane,
-  onUnlockSelectedSpeakers,
-  onResetTrackAutoLayout,
-  selectedSpeakerNamesForLock,
-  speakerSortKeyById,
-  speakerLayerLayout: incomingSpeakerLayerLayout,
-  activeSpeakerFilterKey = 'all',
-  speakerQuickActions,
-  onLaneLabelWidthResize,
-  segmentsByLayer,
-  segmentContentByLayer,
-  saveSegmentContentForLayer,
-  translationAudioByLayer,
-  mediaItems = [],
-  recording = false,
-  recordingUnitId = null,
-  recordingLayerId = null,
-  startRecordingForUnit,
-  stopRecording,
-  deleteVoiceTranslation,
-  transcribeVoiceTranslation,
-  displayStyleControl,
-}: Omit<TranscriptionTimelineHorizontalMediaLanesProps, 'allLayersOrdered'> & {
-  allLayersOrdered: LayerDocType[];
-  deletableLayers: LayerDocType[];
-  onFocusLayer: (layerId: string) => void;
-  layerLinks?: LayerLinkDocType[];
-}) {
-  const locale = useLocale();
-  const laneHeightResizeLabel = t(locale, 'transcription.timeline.resizeLaneHeight');
-  const [layerAction, setLayerAction] = useState<{ action: LayerOperationActionType; layerId?: string } | null>(null);
-  const { collapsedLayerIds, toggleLayerCollapsed: toggleLayerCollapsedState } = useCollapsedLayerIds();
-  const [tempExpandedGroupByLayer, setTempExpandedGroupByLayer] = useState<Record<string, string>>({});
-  const tempExpandTimersRef = useRef<Map<string, number>>(new Map());
-
-  const { previewFontSizeByLayerId, handleResizePreview, handleResizeEnd } = useTimelineLaneDisplayStyleResizePreview(
+export const TranscriptionTimelineHorizontalMediaLanes = memo(
+  function TranscriptionTimelineHorizontalMediaLanes({
+    acousticShellPending = false,
+    timelineChromeClassNames = [],
+    activeTextTimelineMode,
+    playerDuration,
+    timelineExtentSec,
+    zoomPxPerSec,
+    timelineContentGutterPx,
+    lassoRect,
+    transcriptionLayers,
+    translationLayers: _translationLayers,
+    timelineUnitViewIndex: _timelineUnitViewIndex,
+    timelineRenderUnits,
+    segmentParentUnitLookup,
+    flashLayerRowId,
+    focusedLayerRowId,
+    activeUnitId,
+    selectedTimelineUnit,
+    defaultTranscriptionLayerId,
+    renderAnnotationItem,
     allLayersOrdered,
-    displayStyleControl,
-  );
-
-  const { resizingLayerId, startLaneHeightResize } = useTimelineLaneHeightResize(
-    onLaneHeightChange,
-    handleResizeEnd,
-    handleResizePreview,
-  );
-  const localSpeakerLayerLayout = useMemo(
-    () => buildSpeakerLayerLayoutWithOptions(timelineRenderUnits, {
-      trackMode: trackDisplayMode,
-      ...(laneLockMap ? { laneLockMap } : {}),
-      ...(speakerSortKeyById ? { speakerSortKeyById } : {}),
-    }),
-    [laneLockMap, speakerSortKeyById, timelineRenderUnits, trackDisplayMode],
-  );
-  const speakerLayerLayout = incomingSpeakerLayerLayout ?? localSpeakerLayerLayout;
-  const unitById = useMemo(() => {
-    const next = new Map(timelineRenderUnits.map((item) => [item.id, item] as const));
-    const extra = segmentParentUnitLookup ?? [];
-    for (const u of extra) {
-      if (!next.has(u.id)) next.set(u.id, u);
-    }
-    return next;
-  }, [timelineRenderUnits, segmentParentUnitLookup]);
-  const segmentById = useMemo(() => {
-    const next = new Map<string, LayerUnitDocType>();
-    if (!segmentsByLayer) return next;
-    for (const list of segmentsByLayer.values()) {
-      for (const s of list) {
-        if (!next.has(s.id)) next.set(s.id, s);
-      }
-    }
-    return next;
-  }, [segmentsByLayer]);
-  const layerById = useMemo(
-    () => new Map(allLayersOrdered.map((layer) => [layer.id, layer] as const)),
-    [allLayersOrdered],
-  );
-  const mediaItemById = useMemo(
-    () => new Map(mediaItems.map((item) => [item.id, item] as const)),
-    [mediaItems],
-  );
-  const {
-    segmentSpeakerLayoutByLayer,
-    segmentSpeakerIdByLayer,
-  } = useMemo(() => buildSegmentSpeakerLayoutMaps({
-    transcriptionLayers,
-    layerById,
-    layerLinks,
-    unitById,
-    segmentsByLayer,
-    defaultTranscriptionLayerId,
-    activeSpeakerFilterKey,
-    trackDisplayMode,
-    laneLockMap,
-    speakerSortKeyById,
-  }), [
-    activeSpeakerFilterKey,
-    defaultTranscriptionLayerId,
-    layerLinks,
-    laneLockMap,
-    layerById,
-    segmentsByLayer,
-    speakerSortKeyById,
-    trackDisplayMode,
-    transcriptionLayers,
-    unitById,
-  ]);
-
-  const visibleSegmentsBySourceLayer = useMemo(() => {
-    const next = new Map<string, LayerUnitDocType[]>();
-    const normalizedSpeakerFilterKey = normalizeSpeakerFocusKey(activeSpeakerFilterKey);
-    for (const layer of transcriptionLayers) {
-      const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId, layerLinks);
-      if (!sourceLayer || next.has(sourceLayer.id)) continue;
-      const sourceSegments = segmentsByLayer?.get(sourceLayer.id) ?? [];
-      if (activeSpeakerFilterKey === 'all') {
-        next.set(sourceLayer.id, sourceSegments);
-        continue;
-      }
-      next.set(sourceLayer.id, sourceSegments.filter((segment) => (
-        resolveSpeakerFocusKeyFromSegment(segment, unitById) === normalizedSpeakerFilterKey
-      )));
-    }
-    return next;
-  }, [
-    activeSpeakerFilterKey,
-    defaultTranscriptionLayerId,
-    layerLinks,
-    layerById,
-    segmentsByLayer,
-    transcriptionLayers,
-    unitById,
-  ]);
-
-  const segmentItemsByOverlapGroupByLayer = useMemo(() => {
-    const next = new Map<string, Map<string, LayerUnitDocType[]>>();
-    for (const [sourceLayerId, visibleSegments] of visibleSegmentsBySourceLayer.entries()) {
-      const layout = segmentSpeakerLayoutByLayer.get(sourceLayerId);
-      if (!layout) continue;
-      next.set(sourceLayerId, buildSegmentsByOverlapGroup(visibleSegments, layout));
-    }
-    return next;
-  }, [segmentSpeakerLayoutByLayer, visibleSegmentsBySourceLayer]);
-  const unitsByOverlapGroupId = useMemo(() => {
-    const next = new Map<string, LayerUnitDocType[]>();
-    for (const utt of timelineRenderUnits) {
-      const groupId = speakerLayerLayout.placements.get(utt.id)?.overlapGroupId;
-      if (!groupId) continue;
-      const bucket = next.get(groupId);
-      if (bucket) {
-        bucket.push(utt);
-      } else {
-        next.set(groupId, [utt]);
-      }
-    }
-    return next;
-  }, [speakerLayerLayout.placements, timelineRenderUnits]);
-  const overlapCycleItemsByGroupId = useMemo(() => {
-    const selectedOverlapUnitId = selectedTimelineUnit?.unitId ?? activeUnitId;
-    const next = new Map<string, Map<string, Array<{ id: string; startTime: number }>>>();
-    for (const [groupId, itemsByUnit] of speakerLayerLayout.overlapCycleItemsByGroupId.entries()) {
-      next.set(groupId, prioritizeOverlapCycleItems(itemsByUnit, selectedOverlapUnitId));
-    }
-    return next;
-  }, [activeUnitId, selectedTimelineUnit, speakerLayerLayout.overlapCycleItemsByGroupId]);
-
-  const toggleLayerCollapsed = useCallback((layerId: string) => {
-    toggleLayerCollapsedState(layerId);
-    setTempExpandedGroupByLayer((prev) => {
-      if (!(layerId in prev)) return prev;
-      const { [layerId]: _, ...rest } = prev;
-      return rest;
-    });
-    const timerId = tempExpandTimersRef.current.get(layerId);
-    if (timerId !== undefined) {
-      window.clearTimeout(timerId);
-      tempExpandTimersRef.current.delete(layerId);
-    }
-  }, [toggleLayerCollapsedState]);
-
-  useEffect(() => () => {
-    for (const timerId of tempExpandTimersRef.current.values()) {
-      window.clearTimeout(timerId);
-    }
-    tempExpandTimersRef.current.clear();
-  }, []);
-
-  const activateTemporaryExpand = useCallback((layerId: string, overlapGroupId: string) => {
-    setTempExpandedGroupByLayer((prev) => ({ ...prev, [layerId]: overlapGroupId }));
-    const oldTimer = tempExpandTimersRef.current.get(layerId);
-    if (oldTimer !== undefined) {
-      window.clearTimeout(oldTimer);
-    }
-    const timerId = window.setTimeout(() => {
-      setTempExpandedGroupByLayer((prev) => {
-        if (!(layerId in prev)) return prev;
-        const { [layerId]: _, ...rest } = prev;
-        return rest;
-      });
-      tempExpandTimersRef.current.delete(layerId);
-    }, 8000);
-    tempExpandTimersRef.current.set(layerId, timerId);
-  }, []);
-
-  const {
-    unitDrafts,
-    setUnitDrafts,
-    translationDrafts,
-    setTranslationDrafts,
-    translationTextByLayer,
-    focusedTranslationDraftKeyRef,
-    renderLaneLabel,
-    getUnitTextForLayer,
-    scheduleAutoSave,
-    clearAutoSaveTimer,
-    saveUnitLayerText: saveUnitLayerText,
-    createLayer,
-    updateLayerMetadata,
-    deleteLayer,
-    deleteLayerWithoutConfirm,
-    checkLayerHasContent,
-  } = useTranscriptionEditorContext();
-
-  const {
-    deleteLayerConfirm,
-    deleteConfirmKeepUnits,
-    setDeleteConfirmKeepUnits,
-    requestDeleteLayer,
-    cancelDeleteLayerConfirm,
-    confirmDeleteLayer,
-  } = useLayerDeleteConfirm({
+    onReorderLayers,
     deletableLayers,
-    checkLayerHasContent,
-    deleteLayer,
-    deleteLayerWithoutConfirm,
-  });
+    defaultLanguageId,
+    defaultOrthographyId,
+    onFocusLayer,
+    layerLinks = [],
+    showConnectors = true,
+    onToggleConnectors,
+    laneHeights,
+    onLaneHeightChange,
+    trackDisplayMode = 'single',
+    onToggleTrackDisplayMode,
+    onSetTrackDisplayMode,
+    laneLockMap,
+    onLockSelectedSpeakersToLane,
+    onUnlockSelectedSpeakers,
+    onResetTrackAutoLayout,
+    selectedSpeakerNamesForLock,
+    speakerSortKeyById,
+    speakerLayerLayout: incomingSpeakerLayerLayout,
+    activeSpeakerFilterKey = 'all',
+    speakerQuickActions,
+    onLaneLabelWidthResize,
+    segmentsByLayer,
+    segmentContentByLayer,
+    saveSegmentContentForLayer,
+    translationAudioByLayer,
+    mediaItems = [],
+    recording = false,
+    recordingUnitId = null,
+    recordingLayerId = null,
+    startRecordingForUnit,
+    stopRecording,
+    deleteVoiceTranslation,
+    transcribeVoiceTranslation,
+    displayStyleControl,
+  }: Omit<TranscriptionTimelineHorizontalMediaLanesProps, 'allLayersOrdered'> & {
+    allLayersOrdered: LayerDocType[];
+    deletableLayers: LayerDocType[];
+    onFocusLayer: (layerId: string) => void;
+    layerLinks?: LayerLinkDocType[];
+  }) {
+    const locale = useLocale();
+    const laneHeightResizeLabel = t(locale, 'transcription.timeline.resizeLaneHeight');
+    const [layerAction, setLayerAction] = useState<{
+      action: LayerOperationActionType;
+      layerId?: string;
+    } | null>(null);
+    const { collapsedLayerIds, toggleLayerCollapsed: toggleLayerCollapsedState } =
+      useCollapsedLayerIds();
+    const [tempExpandedGroupByLayer, setTempExpandedGroupByLayer] = useState<
+      Record<string, string>
+    >({});
+    const tempExpandTimersRef = useRef<Map<string, number>>(new Map());
 
-  // Stable callback for layer actions - avoids creating new function per layer per render
-  const handleLayerAction = useCallback((action: LayerOperationActionType, layerId?: string) => {
-    if (action === 'delete' && layerId) {
-      fireAndForget(requestDeleteLayer(layerId), { context: 'src/components/TranscriptionTimelineHorizontalMediaLanes.tsx:L457', policy: 'user-visible' });
-      return;
-    }
-    setLayerAction({ action, ...(layerId ? { layerId } : {}) });
-  }, [requestDeleteLayer]);
+    const { previewFontSizeByLayerId, handleResizePreview, handleResizeEnd } =
+      useTimelineLaneDisplayStyleResizePreview(allLayersOrdered, displayStyleControl);
 
-  // Stable callback for lane pointer down - avoids creating new function per layer per render
-  const handleLanePointerDown = useCallback((layerId: string, isCollapsed: boolean, e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isCollapsed) return;
-    toggleLayerCollapsed(layerId);
-    e.preventDefault();
-    e.stopPropagation();
-  }, [toggleLayerCollapsed]);
-
-  const timelineContentClassName = [
-    'timeline-content',
-    ...(timelineChromeClassNames.length > 0
-      ? timelineChromeClassNames
-      : (acousticShellPending ? ['timeline-content-text-only', 'timeline-content-acoustic-pending'] : [])),
-  ].join(' ');
-
-  const timeStripPx = Math.max(0, (timelineExtentSec ?? playerDuration) * zoomPxPerSec);
-  const gutterPx = Math.max(0, timelineContentGutterPx);
-  /** 纯像素 `width`：Safari 对 `calc`+自定义属性链仍可能算错；与 `timeline-layout` 中 padding-left 同源 | Numeric width for WebKit */
-  const timelineContentWidthPx = timeStripPx + gutterPx;
-
-  return (
-    <TimelineStyledContainer
-      className={timelineContentClassName}
-      layoutStyle={{
-        width: timelineContentWidthPx,
-        /**
-         * 禁止 `minWidth: 100%`：当 `zoomPxPerSec` 首帧/异常偏小时，calc 出几十 px 但 min 仍撑满视口，
-         * 语段绝对定位用 `time×zoom` 会挤在左缘细条，形成「全宽行 + 左侧竖线束」| Do not min-fill past time-mapped width
-         */
-        minWidth: 0,
-      }}
-    >
-      {lassoRect && (
-        <svg className="timeline-lasso-overlay" aria-hidden="true">
-          <rect
-            className="timeline-lasso-rect"
-            x={lassoRect.x}
-            y={lassoRect.y}
-            width={lassoRect.w}
-            height={lassoRect.h}
-            rx={2}
-            ry={2}
-          />
-        </svg>
-      )}
-      {allLayersOrdered.map((layer, idx) => {
-        if (layer.layerType === 'transcription') {
-        const segmentSourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId, layerLinks);
-        const usesSegmentTimeline = Boolean(segmentSourceLayer);
-        const segmentSourceLayerId = segmentSourceLayer?.id ?? '';
-        const activeLayerLayout = usesSegmentTimeline
-          ? (segmentSpeakerLayoutByLayer.get(segmentSourceLayerId) ?? EMPTY_SPEAKER_LAYOUT)
-          : speakerLayerLayout;
-        const isMultiTrackMode = trackDisplayMode !== 'single';
-        const isCollapsed = collapsedLayerIds.has(layer.id);
-        const activeOverlapGroupId = tempExpandedGroupByLayer[layer.id];
-        const isTemporarilyExpanded = typeof activeOverlapGroupId === 'string';
-        const effectiveCollapsed = isCollapsed && !(isMultiTrackMode && isTemporarilyExpanded);
-        const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
-        const expandedGroupMeta = activeOverlapGroupId
-          ? activeLayerLayout.overlapGroups.find((group) => group.id === activeOverlapGroupId)
-          : undefined;
-        const activeSubTrackCount = isMultiTrackMode
-          ? (expandedGroupMeta?.subTrackCount ?? activeLayerLayout.subTrackCount)
-          : 1;
-        const visibleLaneHeight = effectiveCollapsed ? 14 : baseLaneHeight * activeSubTrackCount;
-        const previewFontSize = previewFontSizeByLayerId[layer.id];
-        const layerForDisplay = previewFontSize == null
-          ? layer
-          : {
-              ...layer,
-              displaySettings: {
-                ...layer.displaySettings,
-                fontSize: previewFontSize,
-              },
-            };
-        const collapsedOverlapMarkers = isMultiTrackMode
-          ? activeLayerLayout.overlapGroups.filter((group) => group.speakerCount > 1)
-          : [];
-        const rawVisibleSegments: LayerUnitDocType[] = usesSegmentTimeline
-          ? (isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
-              ? (segmentItemsByOverlapGroupByLayer.get(segmentSourceLayerId)?.get(activeOverlapGroupId) ?? [])
-              : (visibleSegmentsBySourceLayer.get(segmentSourceLayerId) ?? []))
-          : [];
-        const rawVisibleUnits: LayerUnitDocType[] = usesSegmentTimeline
-          ? []
-          : (isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
-              ? (unitsByOverlapGroupId.get(activeOverlapGroupId) ?? [])
-              : timelineRenderUnits);
-        const visibleUnits: TimelineUnitView[] = usesSegmentTimeline
-          ? rawVisibleSegments.map((s) => scopeTimelineUnitViewToLayer(segmentToView(s, () => ''), layer.id))
-          : rawVisibleUnits.map((u) => unitToView(u, layer.id));
-        const overlapCycleItemsByUnitId = isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
-          ? ((usesSegmentTimeline
-              ? activeLayerLayout.overlapCycleItemsByGroupId.get(activeOverlapGroupId)
-              : overlapCycleItemsByGroupId.get(activeOverlapGroupId))
-            ?? EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID)
-          : ((usesSegmentTimeline
-              ? activeLayerLayout.overlapCycleItemsByGroupId.get('__all__')
-              : overlapCycleItemsByGroupId.get('__all__'))
-            ?? EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID);
-        return (
-          <TranscriptionTimelineMediaTranscriptionLane
-            key={`tl-${layer.id}`}
-            layer={layer}
-            layerIndex={idx}
-            zoomPxPerSec={zoomPxPerSec}
-            flashLayerRowId={flashLayerRowId}
-            focusedLayerRowId={focusedLayerRowId}
-            {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
-            {...(activeUnitId !== undefined ? { activeUnitId } : {})}
-            allLayersOrdered={allLayersOrdered}
-            onReorderLayers={onReorderLayers}
-            deletableLayers={deletableLayers}
-            onFocusLayer={onFocusLayer}
-            layerLinks={layerLinks}
-            showConnectors={showConnectors}
-            onToggleConnectors={onToggleConnectors ?? noopToggleConnectors}
-            trackDisplayMode={trackDisplayMode}
-            {...(onToggleTrackDisplayMode ? { onToggleTrackDisplayMode } : {})}
-            {...(onSetTrackDisplayMode ? { onSetTrackDisplayMode } : {})}
-            {...(onLockSelectedSpeakersToLane ? { onLockSelectedSpeakersToLane } : {})}
-            {...(onUnlockSelectedSpeakers ? { onUnlockSelectedSpeakers } : {})}
-            {...(onResetTrackAutoLayout ? { onResetTrackAutoLayout } : {})}
-            {...(selectedSpeakerNamesForLock ? { selectedSpeakerNamesForLock } : {})}
-            {...(laneLockMap ? { laneLockMap } : {})}
-            {...(speakerQuickActions ? { speakerQuickActions } : {})}
-            {...(onLaneLabelWidthResize ? { onLaneLabelWidthResize } : {})}
-            {...(displayStyleControl ? { displayStyleControl } : {})}
-            isCollapsed={isCollapsed}
-            effectiveCollapsed={effectiveCollapsed}
-            baseLaneHeight={baseLaneHeight}
-            visibleLaneHeight={visibleLaneHeight}
-            activeSubTrackCount={activeSubTrackCount}
-            isMultiTrackMode={isMultiTrackMode}
-            resizingLayerId={resizingLayerId}
-            {...(previewFontSize != null ? { previewFontSize } : {})}
-            layerForDisplay={layerForDisplay}
-            activeLayerLayout={activeLayerLayout}
-            collapsedOverlapMarkers={collapsedOverlapMarkers}
-            visibleUnits={visibleUnits}
-            overlapCycleItemsByUnitId={overlapCycleItemsByUnitId}
-            segmentSourceLayerId={segmentSourceLayerId}
-            segmentSpeakerIdByLayer={segmentSpeakerIdByLayer}
-            {...(segmentContentByLayer ? { segmentContentByLayer } : {})}
-            unitById={unitById}
-            segmentById={segmentById}
-            {...(activeOverlapGroupId ? { activeOverlapGroupId } : {})}
-            unitDrafts={unitDrafts}
-            getUnitTextForLayer={getUnitTextForLayer}
-            {...(saveSegmentContentForLayer ? { saveSegmentContentForLayer } : {})}
-            scheduleAutoSave={scheduleAutoSave}
-            clearAutoSaveTimer={clearAutoSaveTimer}
-            saveUnitLayerText={saveUnitLayerText}
-            focusedTranslationDraftKeyRef={focusedTranslationDraftKeyRef}
-            {...(translationAudioByLayer !== undefined ? { translationAudioByLayer } : {})}
-            mediaItemById={mediaItemById}
-            recording={recording}
-            recordingUnitId={recordingUnitId}
-            recordingLayerId={recordingLayerId}
-            {...(startRecordingForUnit ? { startRecordingForUnit } : {})}
-            {...(stopRecording ? { stopRecording } : {})}
-            {...(deleteVoiceTranslation ? { deleteVoiceTranslation } : {})}
-            setUnitDrafts={setUnitDrafts}
-            renderAnnotationItem={renderAnnotationItem}
-            renderLaneLabel={renderLaneLabel}
-            startLaneHeightResize={startLaneHeightResize}
-            handleLayerAction={handleLayerAction}
-            onToggleCollapsed={toggleLayerCollapsed}
-            onActivateTemporaryExpand={activateTemporaryExpand}
-            onLanePointerDown={handleLanePointerDown}
-          />
-      );
+    const { resizingLayerId, startLaneHeightResize } = useTimelineLaneHeightResize(
+      onLaneHeightChange,
+      handleResizeEnd,
+      handleResizePreview,
+    );
+    const localSpeakerLayerLayout = useMemo(
+      () =>
+        buildSpeakerLayerLayoutWithOptions(timelineRenderUnits, {
+          trackMode: trackDisplayMode,
+          ...(laneLockMap ? { laneLockMap } : {}),
+          ...(speakerSortKeyById ? { speakerSortKeyById } : {}),
+        }),
+      [laneLockMap, speakerSortKeyById, timelineRenderUnits, trackDisplayMode],
+    );
+    const speakerLayerLayout = incomingSpeakerLayerLayout ?? localSpeakerLayerLayout;
+    const unitById = useMemo(() => {
+      const next = new Map(timelineRenderUnits.map((item) => [item.id, item] as const));
+      const extra = segmentParentUnitLookup ?? [];
+      for (const u of extra) {
+        if (!next.has(u.id)) next.set(u.id, u);
+      }
+      return next;
+    }, [timelineRenderUnits, segmentParentUnitLookup]);
+    const segmentById = useMemo(() => {
+      const next = new Map<string, LayerUnitDocType>();
+      if (!segmentsByLayer) return next;
+      for (const list of segmentsByLayer.values()) {
+        for (const s of list) {
+          if (!next.has(s.id)) next.set(s.id, s);
         }
+      }
+      return next;
+    }, [segmentsByLayer]);
+    const layerById = useMemo(
+      () => new Map(allLayersOrdered.map((layer) => [layer.id, layer] as const)),
+      [allLayersOrdered],
+    );
+    const mediaItemById = useMemo(
+      () => new Map(mediaItems.map((item) => [item.id, item] as const)),
+      [mediaItems],
+    );
+    const { segmentSpeakerLayoutByLayer, segmentSpeakerIdByLayer } = useMemo(
+      () =>
+        buildSegmentSpeakerLayoutMaps({
+          transcriptionLayers,
+          layerById,
+          layerLinks,
+          unitById,
+          segmentsByLayer,
+          defaultTranscriptionLayerId,
+          activeSpeakerFilterKey,
+          trackDisplayMode,
+          laneLockMap,
+          speakerSortKeyById,
+        }),
+      [
+        activeSpeakerFilterKey,
+        defaultTranscriptionLayerId,
+        layerLinks,
+        laneLockMap,
+        layerById,
+        segmentsByLayer,
+        speakerSortKeyById,
+        trackDisplayMode,
+        transcriptionLayers,
+        unitById,
+      ],
+    );
 
-        const isCollapsed = collapsedLayerIds.has(layer.id);
-        const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
-        const visibleLaneHeight = isCollapsed ? 14 : baseLaneHeight;
-        // 独立边界层使用按 layer 聚合的 canonical segment graph，否则继承 unit 边界
-        // Independent-boundary layers use the canonical per-layer segment graph; other layers inherit unit boundaries.
-        const usesOwnSegments = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
-        const previewFontSize = previewFontSizeByLayerId[layer.id];
-        const layerForDisplay = previewFontSize == null
-          ? layer
-          : {
-              ...layer,
-              displaySettings: {
-                ...layer.displaySettings,
-                fontSize: previewFontSize,
-              },
-            };
-        const iterationSource = listSegmentTimelineUnitsForLayer(
+    const visibleSegmentsBySourceLayer = useMemo(() => {
+      const next = new Map<string, LayerUnitDocType[]>();
+      const normalizedSpeakerFilterKey = normalizeSpeakerFocusKey(activeSpeakerFilterKey);
+      for (const layer of transcriptionLayers) {
+        const sourceLayer = resolveSegmentTimelineSourceLayer(
           layer,
           layerById,
-          segmentsByLayer,
-          timelineRenderUnits,
           defaultTranscriptionLayerId,
           layerLinks,
         );
-        const iterationUnits: TimelineUnitView[] = iterationSource.map((item) => (
-          item.unitType === 'segment'
-            ? scopeTimelineUnitViewToLayer(segmentToView(item, () => ''), layer.id)
-            : unitToView(item, layer.id)
-        ));
-        return (
-        <TimelineStyledContainer
-          key={`tl-${layer.id}`}
-          className={`timeline-lane timeline-lane-translation ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''}`}
-          layoutStyle={{
-            '--timeline-lane-height': `${visibleLaneHeight}px`,
-          } as React.CSSProperties}
-          onPointerDown={(e) => handleLanePointerDown(layer.id, isCollapsed, e)}
-        >
-          <TimelineLaneHeader
-            layer={layer}
-            layerIndex={idx}
-            activeTextTimelineMode={activeTextTimelineMode ?? null}
-            allLayers={allLayersOrdered}
-            onReorderLayers={onReorderLayers}
-            deletableLayers={deletableLayers}
-            onFocusLayer={onFocusLayer}
-            renderLaneLabel={renderLaneLabel}
-            onLayerAction={handleLayerAction}
-            layerLinks={layerLinks}
-            showConnectors={showConnectors}
-            onToggleConnectors={onToggleConnectors ?? noopToggleConnectors}
-            headerMenuPreset="layer-chrome"
-            isCollapsed={isCollapsed}
-            onToggleCollapsed={toggleLayerCollapsed}
-            {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
-            {...(displayStyleControl && { displayStyleControl })}
-          />
-          {!isCollapsed && iterationUnits.map((item) => {
-            const text = usesOwnSegments
-              ? (segmentContentByLayer?.get(layer.id)?.get(item.id)?.text ?? '')
-              : (translationTextByLayer.get(layer.id)?.get(item.id)?.text ?? '');
-            const audioScopeId = recordingScopeUnitId(item);
-            const translationAudioEntries = translationAudioByLayer?.get(layer.id);
-            const audioTranslation = translationAudioEntries?.get(audioScopeId)
-              ?? (audioScopeId !== item.id ? translationAudioEntries?.get(item.id) : undefined);
-            const audioMedia = audioTranslation?.translationAudioMediaId
-              ? mediaItemById.get(audioTranslation.translationAudioMediaId)
+        if (!sourceLayer || next.has(sourceLayer.id)) continue;
+        const sourceSegments = segmentsByLayer?.get(sourceLayer.id) ?? [];
+        if (activeSpeakerFilterKey === 'all') {
+          next.set(sourceLayer.id, sourceSegments);
+          continue;
+        }
+        next.set(
+          sourceLayer.id,
+          sourceSegments.filter(
+            (segment) =>
+              resolveSpeakerFocusKeyFromSegment(segment, unitById) === normalizedSpeakerFilterKey,
+          ),
+        );
+      }
+      return next;
+    }, [
+      activeSpeakerFilterKey,
+      defaultTranscriptionLayerId,
+      layerLinks,
+      layerById,
+      segmentsByLayer,
+      transcriptionLayers,
+      unitById,
+    ]);
+
+    const segmentItemsByOverlapGroupByLayer = useMemo(() => {
+      const next = new Map<string, Map<string, LayerUnitDocType[]>>();
+      for (const [sourceLayerId, visibleSegments] of visibleSegmentsBySourceLayer.entries()) {
+        const layout = segmentSpeakerLayoutByLayer.get(sourceLayerId);
+        if (!layout) continue;
+        next.set(sourceLayerId, buildSegmentsByOverlapGroup(visibleSegments, layout));
+      }
+      return next;
+    }, [segmentSpeakerLayoutByLayer, visibleSegmentsBySourceLayer]);
+    const unitsByOverlapGroupId = useMemo(() => {
+      const next = new Map<string, LayerUnitDocType[]>();
+      for (const utt of timelineRenderUnits) {
+        const groupId = speakerLayerLayout.placements.get(utt.id)?.overlapGroupId;
+        if (!groupId) continue;
+        const bucket = next.get(groupId);
+        if (bucket) {
+          bucket.push(utt);
+        } else {
+          next.set(groupId, [utt]);
+        }
+      }
+      return next;
+    }, [speakerLayerLayout.placements, timelineRenderUnits]);
+    const overlapCycleItemsByGroupId = useMemo(() => {
+      const selectedOverlapUnitId = selectedTimelineUnit?.unitId ?? activeUnitId;
+      const next = new Map<string, Map<string, Array<{ id: string; startTime: number }>>>();
+      for (const [
+        groupId,
+        itemsByUnit,
+      ] of speakerLayerLayout.overlapCycleItemsByGroupId.entries()) {
+        next.set(groupId, prioritizeOverlapCycleItems(itemsByUnit, selectedOverlapUnitId));
+      }
+      return next;
+    }, [activeUnitId, selectedTimelineUnit, speakerLayerLayout.overlapCycleItemsByGroupId]);
+
+    const toggleLayerCollapsed = useCallback(
+      (layerId: string) => {
+        toggleLayerCollapsedState(layerId);
+        setTempExpandedGroupByLayer((prev) => {
+          if (!(layerId in prev)) return prev;
+          const { [layerId]: _, ...rest } = prev;
+          return rest;
+        });
+        const timerId = tempExpandTimersRef.current.get(layerId);
+        if (timerId !== undefined) {
+          window.clearTimeout(timerId);
+          tempExpandTimersRef.current.delete(layerId);
+        }
+      },
+      [toggleLayerCollapsedState],
+    );
+
+    useEffect(
+      () => () => {
+        for (const timerId of tempExpandTimersRef.current.values()) {
+          window.clearTimeout(timerId);
+        }
+        tempExpandTimersRef.current.clear();
+      },
+      [],
+    );
+
+    const activateTemporaryExpand = useCallback((layerId: string, overlapGroupId: string) => {
+      setTempExpandedGroupByLayer((prev) => ({ ...prev, [layerId]: overlapGroupId }));
+      const oldTimer = tempExpandTimersRef.current.get(layerId);
+      if (oldTimer !== undefined) {
+        window.clearTimeout(oldTimer);
+      }
+      const timerId = window.setTimeout(() => {
+        setTempExpandedGroupByLayer((prev) => {
+          if (!(layerId in prev)) return prev;
+          const { [layerId]: _, ...rest } = prev;
+          return rest;
+        });
+        tempExpandTimersRef.current.delete(layerId);
+      }, 8000);
+      tempExpandTimersRef.current.set(layerId, timerId);
+    }, []);
+
+    const {
+      unitDrafts,
+      setUnitDrafts,
+      translationDrafts,
+      setTranslationDrafts,
+      translationTextByLayer,
+      focusedTranslationDraftKeyRef,
+      renderLaneLabel,
+      getUnitTextForLayer,
+      scheduleAutoSave,
+      clearAutoSaveTimer,
+      saveUnitLayerText: saveUnitLayerText,
+      createLayer,
+      updateLayerMetadata,
+      deleteLayer,
+      deleteLayerWithoutConfirm,
+      checkLayerHasContent,
+    } = useTranscriptionEditorContext();
+
+    const {
+      deleteLayerConfirm,
+      deleteConfirmKeepUnits,
+      setDeleteConfirmKeepUnits,
+      requestDeleteLayer,
+      cancelDeleteLayerConfirm,
+      confirmDeleteLayer,
+    } = useLayerDeleteConfirm({
+      deletableLayers,
+      checkLayerHasContent,
+      deleteLayer,
+      deleteLayerWithoutConfirm,
+    });
+
+    // Stable callback for layer actions - avoids creating new function per layer per render
+    const handleLayerAction = useCallback(
+      (action: LayerOperationActionType, layerId?: string) => {
+        if (action === 'delete' && layerId) {
+          fireAndForget(requestDeleteLayer(layerId), {
+            context: 'src/components/TranscriptionTimelineHorizontalMediaLanes.tsx:L457',
+            policy: 'user-visible',
+          });
+          return;
+        }
+        setLayerAction({ action, ...(layerId ? { layerId } : {}) });
+      },
+      [requestDeleteLayer],
+    );
+
+    // Stable callback for lane pointer down - avoids creating new function per layer per render
+    const handleLanePointerDown = useCallback(
+      (layerId: string, isCollapsed: boolean, e: React.PointerEvent<HTMLDivElement>) => {
+        if (!isCollapsed) return;
+        toggleLayerCollapsed(layerId);
+        e.preventDefault();
+        e.stopPropagation();
+      },
+      [toggleLayerCollapsed],
+    );
+
+    const timelineContentClassName = [
+      'timeline-content',
+      ...(timelineChromeClassNames.length > 0
+        ? timelineChromeClassNames
+        : acousticShellPending
+          ? ['timeline-content-text-only', 'timeline-content-acoustic-pending']
+          : []),
+    ].join(' ');
+
+    const timeStripPx = Math.max(0, (timelineExtentSec ?? playerDuration) * zoomPxPerSec);
+    const gutterPx = Math.max(0, timelineContentGutterPx);
+    /** 纯像素 `width`：Safari 对 `calc`+自定义属性链仍可能算错；与 `timeline-layout` 中 padding-left 同源 | Numeric width for WebKit */
+    const timelineContentWidthPx = timeStripPx + gutterPx;
+
+    return (
+      <TimelineStyledContainer
+        className={timelineContentClassName}
+        layoutStyle={{
+          width: timelineContentWidthPx,
+          /**
+           * 禁止 `minWidth: 100%`：当 `zoomPxPerSec` 首帧/异常偏小时，calc 出几十 px 但 min 仍撑满视口，
+           * 语段绝对定位用 `time×zoom` 会挤在左缘细条，形成「全宽行 + 左侧竖线束」| Do not min-fill past time-mapped width
+           */
+          minWidth: 0,
+        }}
+      >
+        {lassoRect && (
+          <svg className="timeline-lasso-overlay" aria-hidden="true">
+            <rect
+              className="timeline-lasso-rect"
+              x={lassoRect.x}
+              y={lassoRect.y}
+              width={lassoRect.w}
+              height={lassoRect.h}
+              rx={2}
+              ry={2}
+            />
+          </svg>
+        )}
+        {allLayersOrdered.map((layer, idx) => {
+          if (layer.layerType === 'transcription') {
+            const segmentSourceLayer = resolveSegmentTimelineSourceLayer(
+              layer,
+              layerById,
+              defaultTranscriptionLayerId,
+              layerLinks,
+            );
+            const usesSegmentTimeline = Boolean(segmentSourceLayer);
+            const segmentSourceLayerId = segmentSourceLayer?.id ?? '';
+            const activeLayerLayout = usesSegmentTimeline
+              ? (segmentSpeakerLayoutByLayer.get(segmentSourceLayerId) ?? EMPTY_SPEAKER_LAYOUT)
+              : speakerLayerLayout;
+            const isMultiTrackMode = trackDisplayMode !== 'single';
+            const isCollapsed = collapsedLayerIds.has(layer.id);
+            const activeOverlapGroupId = tempExpandedGroupByLayer[layer.id];
+            const isTemporarilyExpanded = typeof activeOverlapGroupId === 'string';
+            const effectiveCollapsed = isCollapsed && !(isMultiTrackMode && isTemporarilyExpanded);
+            const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
+            const expandedGroupMeta = activeOverlapGroupId
+              ? activeLayerLayout.overlapGroups.find((group) => group.id === activeOverlapGroupId)
               : undefined;
-            const draftKey = `${layer.id}-${item.id}`;
-            const draft = translationDrafts[draftKey] ?? text;
+            const activeSubTrackCount = isMultiTrackMode
+              ? (expandedGroupMeta?.subTrackCount ?? activeLayerLayout.subTrackCount)
+              : 1;
+            const visibleLaneHeight = effectiveCollapsed
+              ? 14
+              : baseLaneHeight * activeSubTrackCount;
+            const previewFontSize = previewFontSizeByLayerId[layer.id];
+            const layerForDisplay =
+              previewFontSize == null
+                ? layer
+                : {
+                    ...layer,
+                    displaySettings: {
+                      ...layer.displaySettings,
+                      fontSize: previewFontSize,
+                    },
+                  };
+            const collapsedOverlapMarkers = isMultiTrackMode
+              ? activeLayerLayout.overlapGroups.filter((group) => group.speakerCount > 1)
+              : [];
+            const rawVisibleSegments: LayerUnitDocType[] = usesSegmentTimeline
+              ? isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
+                ? (segmentItemsByOverlapGroupByLayer
+                    .get(segmentSourceLayerId)
+                    ?.get(activeOverlapGroupId) ?? [])
+                : (visibleSegmentsBySourceLayer.get(segmentSourceLayerId) ?? [])
+              : [];
+            const rawVisibleUnits: LayerUnitDocType[] = usesSegmentTimeline
+              ? []
+              : isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
+                ? (unitsByOverlapGroupId.get(activeOverlapGroupId) ?? [])
+                : timelineRenderUnits;
+            const visibleUnits: TimelineUnitView[] = usesSegmentTimeline
+              ? rawVisibleSegments.map((s) =>
+                  scopeTimelineUnitViewToLayer(
+                    segmentToView(s, () => ''),
+                    layer.id,
+                  ),
+                )
+              : rawVisibleUnits.map((u) => unitToView(u, layer.id));
+            const overlapCycleItemsByUnitId =
+              isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
+                ? ((usesSegmentTimeline
+                    ? activeLayerLayout.overlapCycleItemsByGroupId.get(activeOverlapGroupId)
+                    : overlapCycleItemsByGroupId.get(activeOverlapGroupId)) ??
+                  EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID)
+                : ((usesSegmentTimeline
+                    ? activeLayerLayout.overlapCycleItemsByGroupId.get('__all__')
+                    : overlapCycleItemsByGroupId.get('__all__')) ??
+                  EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID);
             return (
-              <TranscriptionTimelineMediaTranslationRow
-                key={`tr-sub-${layer.id}-${item.id}`}
-                item={item}
+              <TranscriptionTimelineMediaTranscriptionLane
+                key={`tl-${layer.id}`}
                 layer={layer}
-                layerForDisplay={layerForDisplay}
+                layerIndex={idx}
+                zoomPxPerSec={zoomPxPerSec}
+                flashLayerRowId={flashLayerRowId}
+                focusedLayerRowId={focusedLayerRowId}
+                {...(defaultTranscriptionLayerId !== undefined
+                  ? { defaultTranscriptionLayerId }
+                  : {})}
+                {...(activeUnitId !== undefined ? { activeUnitId } : {})}
+                allLayersOrdered={allLayersOrdered}
+                onReorderLayers={onReorderLayers}
+                deletableLayers={deletableLayers}
+                onFocusLayer={onFocusLayer}
+                layerLinks={layerLinks}
+                showConnectors={showConnectors}
+                onToggleConnectors={onToggleConnectors ?? noopToggleConnectors}
+                trackDisplayMode={trackDisplayMode}
+                {...(onToggleTrackDisplayMode ? { onToggleTrackDisplayMode } : {})}
+                {...(onSetTrackDisplayMode ? { onSetTrackDisplayMode } : {})}
+                {...(onLockSelectedSpeakersToLane ? { onLockSelectedSpeakersToLane } : {})}
+                {...(onUnlockSelectedSpeakers ? { onUnlockSelectedSpeakers } : {})}
+                {...(onResetTrackAutoLayout ? { onResetTrackAutoLayout } : {})}
+                {...(selectedSpeakerNamesForLock ? { selectedSpeakerNamesForLock } : {})}
+                {...(laneLockMap ? { laneLockMap } : {})}
+                {...(speakerQuickActions ? { speakerQuickActions } : {})}
+                {...(onLaneLabelWidthResize ? { onLaneLabelWidthResize } : {})}
+                {...(displayStyleControl ? { displayStyleControl } : {})}
+                isCollapsed={isCollapsed}
+                effectiveCollapsed={effectiveCollapsed}
                 baseLaneHeight={baseLaneHeight}
-                usesOwnSegments={usesOwnSegments}
+                visibleLaneHeight={visibleLaneHeight}
+                activeSubTrackCount={activeSubTrackCount}
+                isMultiTrackMode={isMultiTrackMode}
+                resizingLayerId={resizingLayerId}
+                {...(previewFontSize != null ? { previewFontSize } : {})}
+                layerForDisplay={layerForDisplay}
+                activeLayerLayout={activeLayerLayout}
+                collapsedOverlapMarkers={collapsedOverlapMarkers}
+                visibleUnits={visibleUnits}
+                overlapCycleItemsByUnitId={overlapCycleItemsByUnitId}
+                segmentSourceLayerId={segmentSourceLayerId}
+                segmentSpeakerIdByLayer={segmentSpeakerIdByLayer}
+                {...(segmentContentByLayer ? { segmentContentByLayer } : {})}
                 unitById={unitById}
                 segmentById={segmentById}
-                text={text}
-                draft={draft}
-                draftKey={draftKey}
-                audioMedia={audioMedia}
+                {...(activeOverlapGroupId ? { activeOverlapGroupId } : {})}
+                unitDrafts={unitDrafts}
+                getUnitTextForLayer={getUnitTextForLayer}
+                {...(saveSegmentContentForLayer ? { saveSegmentContentForLayer } : {})}
+                scheduleAutoSave={scheduleAutoSave}
+                clearAutoSaveTimer={clearAutoSaveTimer}
+                saveUnitLayerText={saveUnitLayerText}
+                focusedTranslationDraftKeyRef={focusedTranslationDraftKeyRef}
+                {...(translationAudioByLayer !== undefined ? { translationAudioByLayer } : {})}
+                mediaItemById={mediaItemById}
                 recording={recording}
                 recordingUnitId={recordingUnitId}
                 recordingLayerId={recordingLayerId}
-                startRecordingForUnit={startRecordingForUnit}
-                stopRecording={stopRecording}
-                deleteVoiceTranslation={deleteVoiceTranslation}
-                {...(transcribeVoiceTranslation ? { transcribeVoiceTranslation } : {})}
-                saveSegmentContentForLayer={saveSegmentContentForLayer}
-                saveUnitLayerText={saveUnitLayerText}
-                scheduleAutoSave={scheduleAutoSave}
-                clearAutoSaveTimer={clearAutoSaveTimer}
-                setTranslationDrafts={setTranslationDrafts}
-                focusedTranslationDraftKeyRef={focusedTranslationDraftKeyRef}
+                {...(startRecordingForUnit ? { startRecordingForUnit } : {})}
+                {...(stopRecording ? { stopRecording } : {})}
+                {...(deleteVoiceTranslation ? { deleteVoiceTranslation } : {})}
+                setUnitDrafts={setUnitDrafts}
                 renderAnnotationItem={renderAnnotationItem}
+                renderLaneLabel={renderLaneLabel}
+                startLaneHeightResize={startLaneHeightResize}
+                handleLayerAction={handleLayerAction}
+                onToggleCollapsed={toggleLayerCollapsed}
+                onActivateTemporaryExpand={activateTemporaryExpand}
+                onLanePointerDown={handleLanePointerDown}
               />
             );
-          })}
-          {!isCollapsed && (
-            <div
-              className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom timeline-lane-layer-splitter"
-              onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight, 'bottom')}
-              role="separator"
-              aria-orientation="horizontal"
-              aria-label={laneHeightResizeLabel}
-            />
-          )}
-        </TimelineStyledContainer>
-      );})}
+          }
 
-      {layerAction && (
-        <LayerActionPopover
-          action={layerAction.action}
-          layerId={layerAction.layerId}
-          deletableLayers={deletableLayers}
-          layerLinks={layerLinks}
-          {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
-          {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
-          createLayer={createLayer}
-          {...(updateLayerMetadata ? { updateLayerMetadata } : {})}
-          deleteLayer={deleteLayer}
-          deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}
-          checkLayerHasContent={checkLayerHasContent}
-          onClose={() => setLayerAction(null)}
+          const isCollapsed = collapsedLayerIds.has(layer.id);
+          const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
+          const visibleLaneHeight = isCollapsed ? 14 : baseLaneHeight;
+          // 独立边界层使用按 layer 聚合的 canonical segment graph，否则继承 unit 边界
+          // Independent-boundary layers use the canonical per-layer segment graph; other layers inherit unit boundaries.
+          const usesOwnSegments = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
+          const previewFontSize = previewFontSizeByLayerId[layer.id];
+          const layerForDisplay =
+            previewFontSize == null
+              ? layer
+              : {
+                  ...layer,
+                  displaySettings: {
+                    ...layer.displaySettings,
+                    fontSize: previewFontSize,
+                  },
+                };
+          const iterationSource = listSegmentTimelineUnitsForLayer(
+            layer,
+            layerById,
+            segmentsByLayer,
+            timelineRenderUnits,
+            defaultTranscriptionLayerId,
+            layerLinks,
+          );
+          const iterationUnits: TimelineUnitView[] = iterationSource.map((item) =>
+            item.unitType === 'segment'
+              ? scopeTimelineUnitViewToLayer(
+                  segmentToView(item, () => ''),
+                  layer.id,
+                )
+              : unitToView(item, layer.id),
+          );
+          return (
+            <TimelineStyledContainer
+              key={`tl-${layer.id}`}
+              className={`timeline-lane timeline-lane-translation ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''}`}
+              layoutStyle={
+                {
+                  '--timeline-lane-height': `${visibleLaneHeight}px`,
+                } as React.CSSProperties
+              }
+              onPointerDown={(e) => handleLanePointerDown(layer.id, isCollapsed, e)}
+            >
+              <TimelineLaneHeader
+                layer={layer}
+                layerIndex={idx}
+                activeTextTimelineMode={activeTextTimelineMode ?? null}
+                allLayers={allLayersOrdered}
+                onReorderLayers={onReorderLayers}
+                deletableLayers={deletableLayers}
+                onFocusLayer={onFocusLayer}
+                renderLaneLabel={renderLaneLabel}
+                onLayerAction={handleLayerAction}
+                layerLinks={layerLinks}
+                showConnectors={showConnectors}
+                onToggleConnectors={onToggleConnectors ?? noopToggleConnectors}
+                headerMenuPreset="layer-chrome"
+                isCollapsed={isCollapsed}
+                onToggleCollapsed={toggleLayerCollapsed}
+                {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
+                {...(displayStyleControl && { displayStyleControl })}
+              />
+              {!isCollapsed &&
+                iterationUnits.map((item) => {
+                  const text = usesOwnSegments
+                    ? (segmentContentByLayer?.get(layer.id)?.get(item.id)?.text ?? '')
+                    : (translationTextByLayer.get(layer.id)?.get(item.id)?.text ?? '');
+                  const audioScopeId = recordingScopeUnitId(item);
+                  const translationAudioEntries = translationAudioByLayer?.get(layer.id);
+                  const audioTranslation =
+                    translationAudioEntries?.get(audioScopeId) ??
+                    (audioScopeId !== item.id ? translationAudioEntries?.get(item.id) : undefined);
+                  const audioMedia = audioTranslation?.translationAudioMediaId
+                    ? mediaItemById.get(audioTranslation.translationAudioMediaId)
+                    : undefined;
+                  const draftKey = `${layer.id}-${item.id}`;
+                  const draft = translationDrafts[draftKey] ?? text;
+                  return (
+                    <TranscriptionTimelineMediaTranslationRow
+                      key={`tr-sub-${layer.id}-${item.id}`}
+                      item={item}
+                      layer={layer}
+                      layerForDisplay={layerForDisplay}
+                      baseLaneHeight={baseLaneHeight}
+                      usesOwnSegments={usesOwnSegments}
+                      unitById={unitById}
+                      segmentById={segmentById}
+                      text={text}
+                      draft={draft}
+                      draftKey={draftKey}
+                      audioMedia={audioMedia}
+                      recording={recording}
+                      recordingUnitId={recordingUnitId}
+                      recordingLayerId={recordingLayerId}
+                      startRecordingForUnit={startRecordingForUnit}
+                      stopRecording={stopRecording}
+                      deleteVoiceTranslation={deleteVoiceTranslation}
+                      {...(transcribeVoiceTranslation ? { transcribeVoiceTranslation } : {})}
+                      saveSegmentContentForLayer={saveSegmentContentForLayer}
+                      saveUnitLayerText={saveUnitLayerText}
+                      scheduleAutoSave={scheduleAutoSave}
+                      clearAutoSaveTimer={clearAutoSaveTimer}
+                      setTranslationDrafts={setTranslationDrafts}
+                      focusedTranslationDraftKeyRef={focusedTranslationDraftKeyRef}
+                      renderAnnotationItem={renderAnnotationItem}
+                    />
+                  );
+                })}
+              {!isCollapsed && (
+                <div
+                  className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom timeline-lane-layer-splitter"
+                  onPointerDown={(event) =>
+                    startLaneHeightResize(event, layer.id, baseLaneHeight, 'bottom')
+                  }
+                  role="separator"
+                  aria-orientation="horizontal"
+                  aria-label={laneHeightResizeLabel}
+                />
+              )}
+            </TimelineStyledContainer>
+          );
+        })}
+
+        {layerAction && (
+          <LayerActionPopover
+            action={layerAction.action}
+            layerId={layerAction.layerId}
+            deletableLayers={deletableLayers}
+            layerLinks={layerLinks}
+            {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
+            {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
+            createLayer={createLayer}
+            {...(updateLayerMetadata ? { updateLayerMetadata } : {})}
+            deleteLayer={deleteLayer}
+            deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}
+            checkLayerHasContent={checkLayerHasContent}
+            onClose={() => setLayerAction(null)}
+          />
+        )}
+
+        <DeleteLayerConfirmDialog
+          open={deleteLayerConfirm !== null}
+          layerName={deleteLayerConfirm?.layerName ?? ''}
+          layerType={deleteLayerConfirm?.layerType ?? 'transcription'}
+          textCount={deleteLayerConfirm?.textCount ?? 0}
+          keepUnits={deleteConfirmKeepUnits}
+          onKeepUnitsChange={setDeleteConfirmKeepUnits}
+          onCancel={cancelDeleteLayerConfirm}
+          onConfirm={() => {
+            fireAndForget(confirmDeleteLayer(), {
+              context: 'src/components/TranscriptionTimelineHorizontalMediaLanes.tsx:L776',
+              policy: 'user-visible',
+            });
+          }}
         />
-      )}
-
-      <DeleteLayerConfirmDialog
-        open={deleteLayerConfirm !== null}
-        layerName={deleteLayerConfirm?.layerName ?? ''}
-        layerType={deleteLayerConfirm?.layerType ?? 'transcription'}
-        textCount={deleteLayerConfirm?.textCount ?? 0}
-        keepUnits={deleteConfirmKeepUnits}
-        onKeepUnitsChange={setDeleteConfirmKeepUnits}
-        onCancel={cancelDeleteLayerConfirm}
-        onConfirm={() => { fireAndForget(confirmDeleteLayer(), { context: 'src/components/TranscriptionTimelineHorizontalMediaLanes.tsx:L776', policy: 'user-visible' }); }}
-      />
-    </TimelineStyledContainer>
-  );
-});
+      </TimelineStyledContainer>
+    );
+  },
+);
 
 TranscriptionTimelineHorizontalMediaLanes.displayName = 'TranscriptionTimelineHorizontalMediaLanes';

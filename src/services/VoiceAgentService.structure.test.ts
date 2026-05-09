@@ -8,12 +8,28 @@ function readVoiceAgentServiceCode() {
 }
 
 function readVoiceAgentServiceSttResultDispatchCode() {
-  const filePath = path.resolve(process.cwd(), 'src/services/VoiceAgentService.sttResultDispatch.ts');
+  const filePath = path.resolve(
+    process.cwd(),
+    'src/services/VoiceAgentService.sttResultDispatch.ts',
+  );
   return fs.readFileSync(filePath, 'utf8');
 }
 
 function readVoiceAgentServiceCommandBridgeCode() {
   const filePath = path.resolve(process.cwd(), 'src/services/VoiceAgentService.commandBridge.ts');
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+function readVoiceAgentServiceLifecycleCode() {
+  const filePath = path.resolve(process.cwd(), 'src/services/VoiceAgentService.lifecycle.ts');
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+function readVoiceAgentServiceVoiceServiceLifecycleCode() {
+  const filePath = path.resolve(
+    process.cwd(),
+    'src/services/VoiceAgentService.voiceServiceLifecycle.ts',
+  );
   return fs.readFileSync(filePath, 'utf8');
 }
 
@@ -57,10 +73,22 @@ describe('VoiceAgentService structure invariants', () => {
     expect(code.includes("from './voiceRuntimeLoaders'")).toBe(true);
     expect(code.includes('let voiceInputRuntimePromise')).toBe(false);
 
-    expect(loaderCode.includes("let voiceInputRuntimePromise: Promise<typeof import('./VoiceInputService')> | null = null;")).toBe(true);
-    expect(loaderCode.includes("let wakeWordRuntimePromise: Promise<typeof import('./WakeWordDetector')> | null = null;")).toBe(true);
-    expect(loaderCode.includes("voiceInputRuntimePromise = import('./VoiceInputService');")).toBe(true);
-    expect(loaderCode.includes("wakeWordRuntimePromise = import('./WakeWordDetector');")).toBe(true);
+    expect(
+      loaderCode.includes(
+        "let voiceInputRuntimePromise: Promise<typeof import('./VoiceInputService')> | null = null;",
+      ),
+    ).toBe(true);
+    expect(
+      loaderCode.includes(
+        "let wakeWordRuntimePromise: Promise<typeof import('./WakeWordDetector')> | null = null;",
+      ),
+    ).toBe(true);
+    expect(loaderCode.includes("voiceInputRuntimePromise = import('./VoiceInputService');")).toBe(
+      true,
+    );
+    expect(loaderCode.includes("wakeWordRuntimePromise = import('./WakeWordDetector');")).toBe(
+      true,
+    );
 
     expect(code.includes("import { VoiceInputService } from './VoiceInputService';")).toBe(false);
     expect(code.includes("import { WakeWordDetector } from './WakeWordDetector';")).toBe(false);
@@ -68,54 +96,88 @@ describe('VoiceAgentService structure invariants', () => {
 
   it('keeps runtime service instantiation centralized to one entry per service', () => {
     const code = readVoiceAgentServiceCode();
-    const wakeBindingsPath = path.resolve(process.cwd(), 'src/services/VoiceAgentService.wakeWordBindings.ts');
+    const wakeBindingsPath = path.resolve(
+      process.cwd(),
+      'src/services/VoiceAgentService.wakeWordBindings.ts',
+    );
     const wakeBindingsCode = fs.readFileSync(wakeBindingsPath, 'utf8');
+    const voiceServiceLifecycleCode = readVoiceAgentServiceVoiceServiceLifecycleCode();
 
-    expect(countMatches(code, /new VoiceInputService\(/g)).toBe(1);
-    expect(countMatches(code, /new WakeWordDetector\(/g) + countMatches(wakeBindingsCode, /new WakeWordDetector\(/g)).toBe(1);
+    expect(
+      countMatches(code, /new VoiceInputService\(/g) +
+        countMatches(voiceServiceLifecycleCode, /new VoiceInputService\(/g),
+    ).toBe(1);
+    expect(
+      countMatches(code, /new WakeWordDetector\(/g) +
+        countMatches(wakeBindingsCode, /new WakeWordDetector\(/g),
+    ).toBe(1);
     expect(code.includes('private _voiceService: VoiceInputServiceType | null = null;')).toBe(true);
-    expect(code.includes('private _wakeWordDetector: WakeWordDetectorType | null = null;')).toBe(true);
+    expect(code.includes('private _wakeWordDetector: WakeWordDetectorType | null = null;')).toBe(
+      true,
+    );
   });
 
   it('serializes async mic start and clears in-flight promise on stop (CRITICAL-3)', () => {
     const code = readVoiceAgentServiceCode();
+    const lifecycleCode = readVoiceAgentServiceLifecycleCode();
 
-    expect(code.includes('private _exclusiveStartPromise: Promise<void> | null = null;')).toBe(true);
-    expect(code.includes('private async _runExclusiveStart(targetMode?: VoiceAgentMode): Promise<void>')).toBe(true);
+    expect(code.includes('private _exclusiveStartPromise: Promise<void> | null = null;')).toBe(
+      true,
+    );
+    expect(
+      code.includes('private async _runExclusiveStart(targetMode?: VoiceAgentMode): Promise<void>'),
+    ).toBe(true);
     expect(code.includes('if (this._exclusiveStartPromise)')).toBe(true);
     expect(code.includes('this._exclusiveStartPromise = null;')).toBe(true);
-    expect(code.includes('await pendingExclusiveStart')).toBe(true);
+    expect(code.includes('await cancelVoiceAgentExclusiveStart({')).toBe(true);
+    expect(lifecycleCode.includes('await pendingExclusiveStart')).toBe(true);
   });
 
   it('clears push-to-talk recording timer through stop and dispose lifecycle', () => {
     const code = readVoiceAgentServiceCode();
+    const lifecycleCode = readVoiceAgentServiceLifecycleCode();
 
     expect(code.includes('private _clearRecordingDurationTimer(): void')).toBe(true);
-    expect(countMatches(code, /this\._clearRecordingDurationTimer\(\);/g)).toBe(2);
-    expect(code.includes('this._dictationPipeline = null;\n    this._clearRecordingDurationTimer();\n    this._speechQuality?.stop();')).toBe(true);
-    expect(code.includes('this._stopWakeWordDetector();\n    this._clearRecordingDurationTimer();')).toBe(true);
+    expect(code.includes('await runVoiceAgentStopFlow({')).toBe(true);
+    expect(code.includes('await runVoiceAgentDisposeFlow({')).toBe(true);
+    expect(countMatches(lifecycleCode, /input\.clearRecordingDurationTimer\(\);/g)).toBe(2);
+    expect(lifecycleCode.includes('input.dictationController.stop();')).toBe(true);
+    expect(lifecycleCode.includes('input.stopWakeWordDetector();')).toBe(true);
+    expect(lifecycleCode.includes('input.speechQuality?.stop();')).toBe(true);
   });
 
   it('keeps session restore and persistence lifecycle anchored in service boundaries', () => {
     const code = readVoiceAgentServiceCode();
+    const lifecycleCode = readVoiceAgentServiceLifecycleCode();
 
-    expect(code.includes('void loadRecentVoiceSessions(1).then(([recent]) => {')).toBe(true);
-    expect(code.includes("document.addEventListener('visibilitychange', this._handleVisibilityChange);")).toBe(true);
-    expect(code.includes("void saveVoiceSession(this._session).catch((err) => { log.error('failed to persist session', { err }); });")).toBe(true);
-    expect(code.includes("void saveVoiceSession(this._session).catch((err) => { log.error('failed to persist session on deactivate', { err }); });")).toBe(true);
+    expect(code.includes('restoreVoiceAgentRecentSession({')).toBe(true);
+    expect(lifecycleCode.includes('loadRecentVoiceSessions(1)')).toBe(true);
+    expect(lifecycleCode.includes('.then(([recent]) => {')).toBe(true);
+    expect(
+      code.includes("document.addEventListener('visibilitychange', this._handleVisibilityChange);"),
+    ).toBe(true);
+    expect(code.includes('void saveVoiceSession(this._session).catch')).toBe(true);
+    expect(code.includes("log.error('failed to persist session'")).toBe(true);
+    expect(code.includes("log.error('failed to persist session on deactivate'")).toBe(true);
   });
 
   it('keeps cleanup and singleton replacement centralized', () => {
     const code = readVoiceAgentServiceCode();
-    const singletonPath = path.resolve(process.cwd(), 'src/services/VoiceAgentService.singleton.ts');
+    const lifecycleCode = readVoiceAgentServiceLifecycleCode();
+    const singletonPath = path.resolve(
+      process.cwd(),
+      'src/services/VoiceAgentService.singleton.ts',
+    );
     const singletonCode = fs.readFileSync(singletonPath, 'utf8');
 
-    expect(code.includes("document.removeEventListener('visibilitychange', this._handleVisibilityChange);")).toBe(true);
-    expect(code.includes('this._ambientUnsubscribe?.();')).toBe(true);
-    expect(code.includes('this._voiceService?.dispose();')).toBe(true);
-    expect(code.includes('this._voiceService?.releaseSharedAnalysisStream();')).toBe(true);
-    expect(code.includes('this._stopWakeWordDetector();')).toBe(true);
-    expect(code.includes('this.removeAllListeners();')).toBe(true);
+    expect(code.includes('await runVoiceAgentDisposeFlow({')).toBe(true);
+    expect(code.includes('await runVoiceAgentStopFlow({')).toBe(true);
+    expect(lifecycleCode.includes('input.removeVisibilityListener();')).toBe(true);
+    expect(lifecycleCode.includes('input.ambientUnsubscribe?.();')).toBe(true);
+    expect(lifecycleCode.includes('input.voiceService?.dispose();')).toBe(true);
+    expect(lifecycleCode.includes('input.voiceService?.releaseSharedAnalysisStream();')).toBe(true);
+    expect(lifecycleCode.includes('input.stopWakeWordDetector();')).toBe(true);
+    expect(lifecycleCode.includes('input.removeAllListeners();')).toBe(true);
     expect(singletonCode.includes('if (_instance) {')).toBe(true);
     expect(singletonCode.includes('await _instance.dispose();')).toBe(true);
     expect(singletonCode.includes('_instance = new VoiceAgentService(options);')).toBe(true);

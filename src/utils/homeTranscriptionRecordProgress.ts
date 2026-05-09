@@ -1,5 +1,10 @@
 import type { Locale } from '../i18n';
-import type { MediaItemDocType, SegmentMetaDocType, TextDocType, TranslationStatusSnapshotDocType } from '../db/types';
+import type {
+  MediaItemDocType,
+  SegmentMetaDocType,
+  TextDocType,
+  TranslationStatusSnapshotDocType,
+} from '../db/types';
 import { getDb } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import { resolveDefaultTranscriptionLayerId } from '../services/LayerSegmentGraphService';
@@ -38,9 +43,10 @@ export interface HomeProjectProgressBundle {
 
 export function pickTextTitle(text: TextDocType, locale: Locale): string {
   const title = text.title ?? {};
-  const prefer = locale === 'zh-CN'
-    ? ['zh-CN', 'zho', 'cmn', 'und', 'eng', 'en-US']
-    : ['en-US', 'eng', 'und', 'zh-CN', 'zho', 'cmn'];
+  const prefer =
+    locale === 'zh-CN'
+      ? ['zh-CN', 'zho', 'cmn', 'und', 'eng', 'en-US']
+      : ['en-US', 'eng', 'und', 'zh-CN', 'zho', 'cmn'];
   for (const key of prefer) {
     const v = title[key as keyof typeof title];
     if (typeof v === 'string' && v.trim().length > 0) return v.trim();
@@ -51,7 +57,9 @@ export function pickTextTitle(text: TextDocType, locale: Locale): string {
   return text.id;
 }
 
-export function computeTranslationProgressRate(rows: TranslationStatusSnapshotDocType[]): ProgressRate {
+export function computeTranslationProgressRate(
+  rows: TranslationStatusSnapshotDocType[],
+): ProgressRate {
   if (rows.length === 0) return null;
   let done = 0;
   for (const row of rows) {
@@ -76,7 +84,10 @@ export function computeAnnotationProgressRate(metaRows: SegmentMetaDocType[]): P
   return done / withText.length;
 }
 
-function resolveTranscriptionRateFromQuality(totalUnits: number, completionRate: number): ProgressRate {
+function resolveTranscriptionRateFromQuality(
+  totalUnits: number,
+  completionRate: number,
+): ProgressRate {
   if (totalUnits <= 0) return null;
   return Math.max(0, Math.min(1, completionRate));
 }
@@ -88,9 +99,11 @@ async function loadRecordRow(
   hasTranslationLayers: boolean,
 ): Promise<TranscriptionRecordProgressRow> {
   const mediaId = media.id;
-  const filename = media.filename?.trim() || mediaId;
+  const trimmedFilename = media.filename?.trim();
+  const filename =
+    trimmedFilename !== undefined && trimmedFilename.length > 0 ? trimmedFilename : mediaId;
 
-  if (!defaultTxLayerId) {
+  if (defaultTxLayerId === undefined || defaultTxLayerId.length === 0) {
     return {
       kind: 'transcription_record',
       mediaId,
@@ -115,9 +128,7 @@ async function loadRecordRow(
       : Promise.resolve([] as TranslationStatusSnapshotDocType[]),
   ]);
 
-  const trRows = hasTranslationLayers
-    ? trAll.filter((row) => row.textId === textId)
-    : [];
+  const trRows = hasTranslationLayers ? trAll.filter((row) => row.textId === textId) : [];
 
   const transcriptionRate = resolveTranscriptionRateFromQuality(
     quality.totalUnitsInScope,
@@ -191,29 +202,43 @@ export async function loadHomeProjectProgressBundle(
     (m) => !isMediaItemPlaceholderRow(m) && !isAuxiliaryRecordingMediaRow(m),
   );
   let records: TranscriptionRecordProgressRow[] = await Promise.all(
-    mediaItems.map((media) => loadRecordRow(text.id, media, defaultTranscriptionLayerId, hasTranslationLayers)),
+    mediaItems.map((media) =>
+      loadRecordRow(text.id, media, defaultTranscriptionLayerId, hasTranslationLayers),
+    ),
   );
 
-  if (records.length === 0 && defaultTranscriptionLayerId) {
-    records = [await loadTextRecordOnlyRow(text.id, defaultTranscriptionLayerId, hasTranslationLayers)];
+  if (
+    records.length === 0 &&
+    defaultTranscriptionLayerId !== undefined &&
+    defaultTranscriptionLayerId.length > 0
+  ) {
+    records = [
+      await loadTextRecordOnlyRow(text.id, defaultTranscriptionLayerId, hasTranslationLayers),
+    ];
   }
 
   return {
     textId: text.id,
     titleLabel: pickTextTitle(text, locale),
     updatedAt: text.updatedAt,
-    ...(text.languageCode !== undefined && text.languageCode !== '' ? { languageCode: text.languageCode } : {}),
+    ...(text.languageCode !== undefined && text.languageCode !== ''
+      ? { languageCode: text.languageCode }
+      : {}),
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     hasTranslationLayers,
     records,
   };
 }
 
-export async function loadAllHomeProjectProgressBundles(locale: Locale): Promise<HomeProjectProgressBundle[]> {
+export async function loadAllHomeProjectProgressBundles(
+  locale: Locale,
+): Promise<HomeProjectProgressBundle[]> {
   const texts = await LinguisticService.getAllTexts();
   const sorted = [...texts].sort((a, b) => {
-    const ta = Date.parse(a.updatedAt) || 0;
-    const tb = Date.parse(b.updatedAt) || 0;
+    const parsedA = Date.parse(a.updatedAt);
+    const parsedB = Date.parse(b.updatedAt);
+    const ta = Number.isFinite(parsedA) ? parsedA : 0;
+    const tb = Number.isFinite(parsedB) ? parsedB : 0;
     return tb - ta;
   });
   return Promise.all(sorted.map((text) => loadHomeProjectProgressBundle(text, locale)));
@@ -245,7 +270,9 @@ function weightedRate(
 }
 
 /** 项目内各声文稿行的加权概览（用于首页项目卡片抬头） */
-export function aggregateProjectProgressRates(records: TranscriptionRecordProgressRow[]): HomeProjectAggregateRates {
+export function aggregateProjectProgressRates(
+  records: TranscriptionRecordProgressRow[],
+): HomeProjectAggregateRates {
   return {
     transcription: weightedRate(
       records,

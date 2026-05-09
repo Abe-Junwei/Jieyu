@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerUnitDocType } from '../db';
-import { buildSpeakerLayerLayout, buildSpeakerLayerLayoutWithOptions, buildStableSpeakerLaneMap } from './speakerLayerLayout';
+import {
+  buildSpeakerLayerLayout,
+  buildSpeakerLayerLayoutWithOptions,
+  buildStableSpeakerLaneMap,
+} from './speakerLayerLayout';
 
 const NOW = '2026-03-24T00:00:00.000Z';
 
@@ -12,7 +16,7 @@ function makeUnit(id: string, start: number, end: number, speakerId?: string): L
     endTime: end,
     createdAt: NOW,
     updatedAt: NOW,
-    ...(speakerId ? { speakerId } : {}),
+    ...(typeof speakerId === 'string' && speakerId.length > 0 ? { speakerId } : {}),
   };
 }
 
@@ -119,7 +123,11 @@ describe('buildSpeakerLayerLayout', () => {
   });
 
   it('builds a stable contiguous speaker lane map for fixed speaker lanes', () => {
-    const laneMap = buildStableSpeakerLaneMap(['spk-b', 'spk-a', 'spk-c'], { 'spk-c': 5, 'spk-a': 2 }, { 'spk-b': 0, 'spk-a': 1, 'spk-c': 2 });
+    const laneMap = buildStableSpeakerLaneMap(
+      ['spk-b', 'spk-a', 'spk-c'],
+      { 'spk-c': 5, 'spk-a': 2 },
+      { 'spk-b': 0, 'spk-a': 1, 'spk-c': 2 },
+    );
 
     expect(laneMap).toEqual({ 'spk-a': 0, 'spk-c': 1, 'spk-b': 2 });
   });

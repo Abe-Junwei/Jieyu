@@ -1,9 +1,25 @@
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import type { AcousticInspectorReadout, VadCacheStatus } from '../contexts/AiPanelContext';
 import { AcousticAnalysisService } from '../app/transcriptionServicesPageAccess';
 import type { AcousticAnalysisConfig } from '../utils/acousticOverlayTypes';
 import type { DeferredTranscriptionAiRuntimeState } from './TranscriptionPage.AssistantBridge';
-import type { SpectrogramHoverReadout, WaveformHoverReadout } from './transcriptionWaveformBridge.types';
+import type {
+  SpectrogramHoverReadout,
+  WaveformHoverReadout,
+} from './transcriptionWaveformBridge.types';
+
+type AcousticHotspotRow = NonNullable<
+  NonNullable<DeferredTranscriptionAiRuntimeState['acousticSummary']>['hotspots']
+>[number];
+
+const EMPTY_ACOUSTIC_HOTSPOTS: AcousticHotspotRow[] = [];
 
 type UseTranscriptionAcousticPanelStateInput = {
   deferredAiRuntime: DeferredTranscriptionAiRuntimeState;
@@ -28,17 +44,18 @@ export function useTranscriptionAcousticPanelState({
   acousticProviderPreference,
   vadCacheStatus,
 }: UseTranscriptionAcousticPanelStateInput) {
-  const waveformAcousticRuntimeStatus = deferredAiRuntime.acousticRuntimeStatus?.state === 'loading'
-    ? deferredAiRuntime.acousticRuntimeStatus
-    : undefined;
-  const waveformVadCacheStatus = vadCacheStatus?.state === 'warming'
-    ? vadCacheStatus
-    : undefined;
+  const waveformAcousticRuntimeStatus =
+    deferredAiRuntime.acousticRuntimeStatus?.state === 'loading'
+      ? deferredAiRuntime.acousticRuntimeStatus
+      : undefined;
+  const waveformVadCacheStatus = vadCacheStatus?.state === 'warming' ? vadCacheStatus : undefined;
 
   const [pinnedInspector, setPinnedInspector] = useState<AcousticInspectorReadout | null>(null);
   const [selectedHotspotTimeSec, setSelectedHotspotTimeSec] = useState<number | null>(null);
-  const [acousticConfigOverride, setAcousticConfigOverride] = useState<Partial<AcousticAnalysisConfig> | null>(null);
-  const activeAcousticHotspots = deferredAiRuntime.acousticSummary?.hotspots ?? [];
+  const [acousticConfigOverride, setAcousticConfigOverride] =
+    useState<Partial<AcousticAnalysisConfig> | null>(null);
+  const activeAcousticHotspots =
+    deferredAiRuntime.acousticSummary?.hotspots ?? EMPTY_ACOUSTIC_HOTSPOTS;
 
   useEffect(() => {
     setSelectedHotspotTimeSec(null);
@@ -54,11 +71,18 @@ export function useTranscriptionAcousticPanelState({
       setSelectedHotspotTimeSec(null);
       return;
     }
-    const stillExists = activeAcousticHotspots.some((hotspot) => Math.abs(hotspot.timeSec - selectedHotspotTimeSec) <= 0.01);
+    const stillExists = activeAcousticHotspots.some(
+      (hotspot) => Math.abs(hotspot.timeSec - selectedHotspotTimeSec) <= 0.01,
+    );
     if (!stillExists) {
       setSelectedHotspotTimeSec(null);
     }
-  }, [activeAcousticHotspots, deferredAiRuntime.acousticRuntimeStatus?.state, deferredAiRuntime.acousticSummary, selectedHotspotTimeSec]);
+  }, [
+    activeAcousticHotspots,
+    deferredAiRuntime.acousticRuntimeStatus?.state,
+    deferredAiRuntime.acousticSummary,
+    selectedHotspotTimeSec,
+  ]);
 
   const acousticInspector = useMemo<AcousticInspectorReadout | null>(() => {
     const activeReadout = spectrogramHoverReadout
@@ -84,21 +108,28 @@ export function useTranscriptionAcousticPanelState({
     const nearestHotspot = hotspots
       .map((hotspot) => ({ hotspot, distance: Math.abs(hotspot.timeSec - activeReadout.timeSec) }))
       .sort((left, right) => left.distance - right.distance)[0];
-    const matchedHotspot = nearestHotspot && nearestHotspot.distance <= 0.2 ? nearestHotspot.hotspot : null;
+    const matchedHotspot =
+      nearestHotspot && nearestHotspot.distance <= 0.2 ? nearestHotspot.hotspot : null;
     const selectionStart = deferredAiRuntime.acousticSummary?.selectionStartSec;
     const selectionEnd = deferredAiRuntime.acousticSummary?.selectionEndSec;
     const selectionDuration = deferredAiRuntime.acousticSummary?.durationSec;
-    const isTerminalSelection = selectionEnd !== undefined
-      && selectionDuration !== undefined
-      && Math.abs(selectionEnd - selectionDuration) <= 1e-6;
+    const isTerminalSelection =
+      selectionEnd !== undefined &&
+      selectionDuration !== undefined &&
+      Math.abs(selectionEnd - selectionDuration) <= 1e-6;
 
     return {
       ...activeReadout,
-      ...(matchedHotspot ? { matchedHotspotKind: matchedHotspot.kind, matchedHotspotTimeSec: matchedHotspot.timeSec } : {}),
+      ...(matchedHotspot
+        ? { matchedHotspotKind: matchedHotspot.kind, matchedHotspotTimeSec: matchedHotspot.timeSec }
+        : {}),
       ...(selectionStart !== undefined && selectionEnd !== undefined
         ? {
-            inSelection: activeReadout.timeSec >= selectionStart
-              && (isTerminalSelection ? activeReadout.timeSec <= selectionEnd : activeReadout.timeSec < selectionEnd),
+            inSelection:
+              activeReadout.timeSec >= selectionStart &&
+              (isTerminalSelection
+                ? activeReadout.timeSec <= selectionEnd
+                : activeReadout.timeSec < selectionEnd),
           }
         : {}),
     };
@@ -116,25 +147,28 @@ export function useTranscriptionAcousticPanelState({
     setSelectedHotspotTimeSec(timeSec);
   };
 
-  const handleChangeAcousticConfig = useCallback((
-    config: Partial<AcousticAnalysisConfig>,
-    options?: { replace?: boolean },
-  ) => {
-    setAcousticConfigOverride((prev) => {
-      if (options?.replace) {
-        return { ...config };
-      }
-      return { ...(prev ?? {}), ...config };
-    });
-  }, []);
+  const handleChangeAcousticConfig = useCallback(
+    (config: Partial<AcousticAnalysisConfig>, options?: { replace?: boolean }) => {
+      setAcousticConfigOverride((prev) => {
+        if (options?.replace === true) {
+          return { ...config };
+        }
+        return { ...(prev ?? {}), ...config };
+      });
+    },
+    [],
+  );
 
   const handleResetAcousticConfig = useCallback(() => {
     setAcousticConfigOverride(null);
   }, []);
 
-  const handleChangeAcousticProvider = useCallback((providerId: string | null) => {
-    setAcousticProviderPreference(providerId);
-  }, [setAcousticProviderPreference]);
+  const handleChangeAcousticProvider = useCallback(
+    (providerId: string | null) => {
+      setAcousticProviderPreference(providerId);
+    },
+    [setAcousticProviderPreference],
+  );
 
   const handleRefreshAcousticProviderState = useCallback(() => {
     const service = AcousticAnalysisService.getInstance();

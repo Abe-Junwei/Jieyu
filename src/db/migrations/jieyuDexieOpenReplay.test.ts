@@ -10,7 +10,7 @@ const REPLAY_DB_NAME = 'jieyudb_v2_open_replay_ci';
 
 describe('JieyuDexie migration open replay (ARCH-5)', () => {
   afterEach(async () => {
-    if (Dexie.dependencies.indexedDB && (await Dexie.exists(REPLAY_DB_NAME))) {
+    if (Dexie.dependencies.indexedDB != null && (await Dexie.exists(REPLAY_DB_NAME))) {
       await Dexie.delete(REPLAY_DB_NAME);
     }
   });

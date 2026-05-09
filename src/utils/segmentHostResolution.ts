@@ -53,21 +53,23 @@ function selectBestHostByTimeOverlap<T extends SegmentHostCandidate>(
 
   for (const unit of candidates) {
     if (
-      unit.startTime > segment.endTime - HOST_RESOLUTION_EPS
-      || unit.endTime < segment.startTime + HOST_RESOLUTION_EPS
-    ) continue;
+      unit.startTime > segment.endTime - HOST_RESOLUTION_EPS ||
+      unit.endTime < segment.startTime + HOST_RESOLUTION_EPS
+    )
+      continue;
     overlapCount += 1;
 
-    const centerDistance = Math.abs(((unit.startTime + unit.endTime) / 2) - segmentCenter);
-    const contains = unit.startTime <= segment.startTime + HOST_RESOLUTION_EPS
-      && unit.endTime >= segment.endTime - HOST_RESOLUTION_EPS;
+    const centerDistance = Math.abs((unit.startTime + unit.endTime) / 2 - segmentCenter);
+    const contains =
+      unit.startTime <= segment.startTime + HOST_RESOLUTION_EPS &&
+      unit.endTime >= segment.endTime - HOST_RESOLUTION_EPS;
 
     if (contains) {
       const span = unit.endTime - unit.startTime;
       if (
-        !bestContaining
-        || span < bestContaining.span
-        || (span === bestContaining.span && centerDistance < bestContaining.centerDistance)
+        !bestContaining ||
+        span < bestContaining.span ||
+        (span === bestContaining.span && centerDistance < bestContaining.centerDistance)
       ) {
         bestContaining = { unit, span, centerDistance };
       }
@@ -78,9 +80,9 @@ function selectBestHostByTimeOverlap<T extends SegmentHostCandidate>(
     const overlapEnd = Math.min(segment.endTime, unit.endTime);
     const overlap = Math.max(0, overlapEnd - overlapStart);
     if (
-      !bestOverlap
-      || overlap > bestOverlap.overlap
-      || (overlap === bestOverlap.overlap && centerDistance < bestOverlap.centerDistance)
+      !bestOverlap ||
+      overlap > bestOverlap.overlap ||
+      (overlap === bestOverlap.overlap && centerDistance < bestOverlap.centerDistance)
     ) {
       bestOverlap = { unit, overlap, centerDistance };
     }
@@ -106,9 +108,10 @@ export function resolveHostUnitStrictMedia<T extends SegmentHostCandidate>(
   units: ReadonlyArray<T>,
   metrics?: HostMetricsConfig,
 ): T | undefined {
-  const candidates = segment.mediaId
-    ? units.filter((u) => u.mediaId === segment.mediaId)
-    : units;
+  const candidates =
+    segment.mediaId !== undefined && segment.mediaId.length > 0
+      ? units.filter((u) => u.mediaId === segment.mediaId)
+      : units;
   const { resolved, overlapCount } = selectBestHostByTimeOverlap(candidates, segment);
   emitFallbackMetrics(resolved, overlapCount, metrics?.metricsSource);
   return resolved;
@@ -126,7 +129,7 @@ export function resolveHostUnitCascadeMedia<T extends SegmentHostCandidate>(
   metrics?: HostMetricsConfig,
 ): T | undefined {
   const normalizedMediaId = segment.mediaId?.trim() ?? '';
-  if (!normalizedMediaId) {
+  if (normalizedMediaId.length === 0) {
     const { resolved, overlapCount } = selectBestHostByTimeOverlap(units, segment);
     emitFallbackMetrics(resolved, overlapCount, metrics?.metricsSource);
     return resolved;
@@ -151,7 +154,7 @@ function emitFallbackMetrics(
   overlapCount: number,
   metricsSource: string | undefined,
 ): void {
-  if (!metricsSource) return;
+  if (metricsSource === undefined || metricsSource.length === 0) return;
   try {
     recordMetric({
       id: 'parent_fallback_attempt_total',

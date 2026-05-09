@@ -46,8 +46,12 @@ export function TranscriptionPageBatchOps({
       unitTextById={selectedBatchUnitTextById}
       previewLayerOptions={batchPreviewLayerOptions}
       {...(batchPreviewTextByLayerId ? { previewTextByLayerId: batchPreviewTextByLayerId } : {})}
-      {...(batchPreviewTextPropsByLayerId ? { previewTextPropsByLayerId: batchPreviewTextPropsByLayerId } : {})}
-      {...(defaultBatchPreviewLayerId ? { defaultPreviewLayerId: defaultBatchPreviewLayerId } : {})}
+      {...(batchPreviewTextPropsByLayerId
+        ? { previewTextPropsByLayerId: batchPreviewTextPropsByLayerId }
+        : {})}
+      {...(defaultBatchPreviewLayerId !== undefined && defaultBatchPreviewLayerId.length > 0
+        ? { defaultPreviewLayerId: defaultBatchPreviewLayerId }
+        : {})}
       onClose={onBatchClose}
       onOffset={onBatchOffset}
       onScale={onBatchScale}

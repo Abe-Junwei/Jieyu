@@ -3,7 +3,7 @@ title: Architecture 文档索引
 doc_type: architecture-index
 status: active
 owner: repo
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-09
 source_of_truth: current-state-index
 ---
 
@@ -66,6 +66,16 @@ source_of_truth: current-state-index
 
 - [voice-agent-hook-vs-service-behavior-matrix.md](./voice-agent-hook-vs-service-behavior-matrix.md)
   - 用途：`useVoiceAgent` 与 `VoiceAgentService` 并行存在期间的行为对照与懒加载单一事实源（`voiceRuntimeLoaders`）；配合 `voiceIntentResolution.serviceHookParity.test.ts` 防漂移。
+
+- [self-evolving-agents-survey-analysis.md](./self-evolving-agents-survey-analysis.md)
+  - 用途：自演化 AI Agent 综述（arXiv:2508.07407）的核心框架、对 Jieyu 各子组件（Prompt/Memory/Tool/Workflow）的启示、以及分阶段落地建议；作为远期架构备选方向，非当前执行项。
+
+- [code-scale-maintenance-assessment.md](./code-scale-maintenance-assessment.md)
+  - 用途：全仓代码规模（1,719 文件 / ~39.5 万行）与维护成本的定量评估，含 LinguisticService 拆分、hooks 重组、scripts 分组的方案比较与执行顺序建议。
+
+- [code-governance-plan-2026-05-06.md](./code-governance-plan-2026-05-06.md)
+  - 用途：代码规模与结构治理的完整执行方案，含七波次拆分/重组计划（紧急阈值释放 → 服务层拆分 → AI 层重组 → 类型外迁 → Hooks 分组 → 组件瘦身 → 基础设施评估）、时间表、验收标准与风险矩阵。
+  - 2026-05-09 更新：`localContextToolExecutors.ts` 深拆分状态回填；AI Chat guard 口径收敛为单一 1000 ceiling（移除 `localContextToolFormatters.ts` / `localToolSlotResolver.ts` 的 1100 临时 ratchet）；新增 `toolCallHelpers.ts` 1700 ratchet 删除执行条目（拆分边界 + 验收命令）。
 
 - [CSS治理执行记录.md](./CSS治理执行记录.md)
   - 用途：记录季度治理执行证据（预算复盘、兼容复核、视觉基线与废弃窗口推进）。

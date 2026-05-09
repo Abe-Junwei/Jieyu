@@ -31,11 +31,13 @@ function diagnosticsFromParse(parseResult: StructuralParseResult): ProjectionDia
   if (parseResult.projectionDiagnostics.length > 0) {
     return parseResult.projectionDiagnostics;
   }
-  return DEFAULT_LEIPZIG_STRUCTURAL_PROFILE.projectionTargets.map((target) => projectionDiagnosticSchema.parse({
-    target,
-    status: 'unsupported',
-    message: 'Structural parse did not provide projection diagnostics for this target.',
-  }));
+  return DEFAULT_LEIPZIG_STRUCTURAL_PROFILE.projectionTargets.map((target) =>
+    projectionDiagnosticSchema.parse({
+      target,
+      status: 'unsupported',
+      message: 'Structural parse did not provide projection diagnostics for this target.',
+    }),
+  );
 }
 
 function findAnalysisSegmentBefore(
@@ -45,12 +47,16 @@ function findAnalysisSegmentBefore(
   wordIndex: number,
 ): StructuralParsedSegment | undefined {
   return segments
-    .filter((segment) => (
-      segment.wordIndex === wordIndex
-      && segment.endOffset <= offset
-      && segmentNodeIds.has(segment.id)
-      && (segment.kind === 'lexical' || segment.kind === 'infix' || segment.kind === 'zero' || segment.kind === 'reduplication')
-    ))
+    .filter(
+      (segment) =>
+        segment.wordIndex === wordIndex &&
+        segment.endOffset <= offset &&
+        segmentNodeIds.has(segment.id) &&
+        (segment.kind === 'lexical' ||
+          segment.kind === 'infix' ||
+          segment.kind === 'zero' ||
+          segment.kind === 'reduplication'),
+    )
     .at(-1);
 }
 
@@ -60,12 +66,16 @@ function findAnalysisSegmentAfter(
   offset: number,
   wordIndex: number,
 ): StructuralParsedSegment | undefined {
-  return segments.find((segment) => (
-    segment.wordIndex === wordIndex
-    && segment.startOffset >= offset
-    && segmentNodeIds.has(segment.id)
-    && (segment.kind === 'lexical' || segment.kind === 'infix' || segment.kind === 'zero' || segment.kind === 'reduplication')
-  ));
+  return segments.find(
+    (segment) =>
+      segment.wordIndex === wordIndex &&
+      segment.startOffset >= offset &&
+      segmentNodeIds.has(segment.id) &&
+      (segment.kind === 'lexical' ||
+        segment.kind === 'infix' ||
+        segment.kind === 'zero' ||
+        segment.kind === 'reduplication'),
+  );
 }
 
 /** Gloss segments adjacent to a boundary (any kind), for clitic / diagnostics without analysis-node gating. */
@@ -112,24 +122,33 @@ export function projectStructuralParseToAnalysisGraph(
   const defaultProjectionTargets = DEFAULT_LEIPZIG_STRUCTURAL_PROFILE.projectionTargets;
   const needsReviewKeys = new Set<string>();
   const addNeedsReviewDiagnostic = (message: string, subject?: ProjectionDiagnosticSubject) => {
-    const targets = parseResult.projectionDiagnostics.length > 0
-      ? Array.from(new Set(parseResult.projectionDiagnostics.map((diagnostic) => diagnostic.target)))
-      : defaultProjectionTargets;
+    const targets =
+      parseResult.projectionDiagnostics.length > 0
+        ? Array.from(
+            new Set(parseResult.projectionDiagnostics.map((diagnostic) => diagnostic.target)),
+          )
+        : defaultProjectionTargets;
     for (const target of targets) {
       const key = `${target}\0${message}\0${JSON.stringify(subject ?? null)}`;
       if (needsReviewKeys.has(key)) continue;
       needsReviewKeys.add(key);
-      projectionDiagnostics.push(projectionDiagnosticSchema.parse({
-        target,
-        status: 'needsReview',
-        message,
-        ...(subject ? { subject } : {}),
-      }));
+      projectionDiagnostics.push(
+        projectionDiagnosticSchema.parse({
+          target,
+          status: 'needsReview',
+          message,
+          ...(subject ? { subject } : {}),
+        }),
+      );
     }
   };
 
   for (const [index, segment] of parseResult.segments.entries()) {
-    if (segment.kind === 'lexical' || segment.kind === 'infix' || segment.kind === 'reduplication') {
+    if (
+      segment.kind === 'lexical' ||
+      segment.kind === 'infix' ||
+      segment.kind === 'reduplication'
+    ) {
       const id = nodeId('morph', index);
       segmentNodeIds.set(segment.id, id);
       const node: AnalysisGraphNode = {
@@ -169,7 +188,12 @@ export function projectStructuralParseToAnalysisGraph(
       segmentNodeIds.set(segment.id, zeroId);
       nodes.push(
         { id: zeroId, type: 'zero', label: segment.text },
-        { id: featureId, type: 'featureBundle', label: segment.text, features: { label: segment.text } },
+        {
+          id: featureId,
+          type: 'featureBundle',
+          label: segment.text,
+          features: { label: segment.text },
+        },
       );
       addRelation({ type: 'realizesFeature', sourceId: zeroId, targetId: featureId });
       continue;
@@ -181,19 +205,32 @@ export function projectStructuralParseToAnalysisGraph(
       segmentNodeIds.set(segment.id, glossId);
       nodes.push(
         { id: glossId, type: 'gloss', label: segment.text, features: { label: segment.text } },
-        { id: featureId, type: 'featureBundle', label: segment.text, features: { label: segment.text } },
+        {
+          id: featureId,
+          type: 'featureBundle',
+          label: segment.text,
+          features: { label: segment.text },
+        },
       );
       addRelation({ type: 'realizesFeature', sourceId: glossId, targetId: featureId });
 
-      const previousSegment = findAnalysisSegmentBefore(parseResult.segments, segmentNodeIds, segment.startOffset, segment.wordIndex);
+      const previousSegment = findAnalysisSegmentBefore(
+        parseResult.segments,
+        segmentNodeIds,
+        segment.startOffset,
+        segment.wordIndex,
+      );
       const previousNodeId = previousSegment ? segmentNodeIds.get(previousSegment.id) : undefined;
-      if (previousNodeId) {
+      if (previousNodeId !== undefined) {
         addRelation({ type: 'glosses', sourceId: glossId, targetId: previousNodeId });
       } else {
-        addNeedsReviewDiagnostic(`Feature "${segment.text}" has no preceding analysis node to gloss.`, {
-          kind: 'segment',
-          segmentId: segment.id,
-        });
+        addNeedsReviewDiagnostic(
+          `Feature "${segment.text}" has no preceding analysis node to gloss.`,
+          {
+            kind: 'segment',
+            segmentId: segment.id,
+          },
+        );
       }
       continue;
     }
@@ -204,42 +241,79 @@ export function projectStructuralParseToAnalysisGraph(
       id: noteId,
       type: 'note',
       label: segment.text,
-      features: { supplied: true, glossStartOffset: segment.startOffset, glossEndOffset: segment.endOffset },
+      features: {
+        supplied: true,
+        glossStartOffset: segment.startOffset,
+        glossEndOffset: segment.endOffset,
+      },
     });
     addRelation({ type: 'contains', sourceId: 'token-1', targetId: noteId, role: 'supplied' });
   }
 
   for (const boundary of parseResult.boundaries) {
     if (boundary.type !== 'clitic') continue;
-    const hostSegment = findAnalysisSegmentBefore(parseResult.segments, segmentNodeIds, boundary.offset, boundary.wordIndex);
-    const cliticSegment = findAnalysisSegmentAfter(parseResult.segments, segmentNodeIds, boundary.offset, boundary.wordIndex);
+    const hostSegment = findAnalysisSegmentBefore(
+      parseResult.segments,
+      segmentNodeIds,
+      boundary.offset,
+      boundary.wordIndex,
+    );
+    const cliticSegment = findAnalysisSegmentAfter(
+      parseResult.segments,
+      segmentNodeIds,
+      boundary.offset,
+      boundary.wordIndex,
+    );
     const hostNodeId = hostSegment ? segmentNodeIds.get(hostSegment.id) : undefined;
     const cliticNodeId = cliticSegment ? segmentNodeIds.get(cliticSegment.id) : undefined;
-    if (hostNodeId && cliticNodeId) {
+    if (hostNodeId !== undefined && cliticNodeId !== undefined) {
       addRelation({ type: 'cliticizesTo', sourceId: cliticNodeId, targetId: hostNodeId });
     } else {
-      const beforeSeg = findGlossSegmentBeforeOffset(parseResult.segments, boundary.wordIndex, boundary.offset);
-      const afterSeg = findGlossSegmentAfterOffset(parseResult.segments, boundary.wordIndex, boundary.offset);
+      const beforeSeg = findGlossSegmentBeforeOffset(
+        parseResult.segments,
+        boundary.wordIndex,
+        boundary.offset,
+      );
+      const afterSeg = findGlossSegmentAfterOffset(
+        parseResult.segments,
+        boundary.wordIndex,
+        boundary.offset,
+      );
       const bothFeature = beforeSeg?.kind === 'feature' && afterSeg?.kind === 'feature';
       const message = bothFeature
         ? `Clitic boundary at offset ${boundary.offset}: cliticizesTo skipped — both sides are gloss/feature segments (not analysable morpheme hosts).`
         : `Clitic boundary at offset ${boundary.offset} has no valid analysis host and clitic target.`;
-      addNeedsReviewDiagnostic(message, { kind: 'cliticBoundary', boundaryOffset: boundary.offset });
+      addNeedsReviewDiagnostic(message, {
+        kind: 'cliticBoundary',
+        boundaryOffset: boundary.offset,
+      });
     }
   }
 
   for (const segment of parseResult.segments) {
     if (segment.kind !== 'reduplication') continue;
     const reduplicantNodeId = segmentNodeIds.get(segment.id);
-    const baseSegment = findAnalysisSegmentAfter(parseResult.segments, segmentNodeIds, segment.endOffset, segment.wordIndex);
+    const baseSegment = findAnalysisSegmentAfter(
+      parseResult.segments,
+      segmentNodeIds,
+      segment.endOffset,
+      segment.wordIndex,
+    );
     const baseNodeId = baseSegment ? segmentNodeIds.get(baseSegment.id) : undefined;
-    if (reduplicantNodeId && baseNodeId && baseNodeId !== reduplicantNodeId) {
+    if (
+      reduplicantNodeId !== undefined &&
+      baseNodeId !== undefined &&
+      baseNodeId !== reduplicantNodeId
+    ) {
       addRelation({ type: 'reduplicates', sourceId: reduplicantNodeId, targetId: baseNodeId });
     } else {
-      addNeedsReviewDiagnostic(`Reduplication marker "${segment.text}" has no following base segment.`, {
-        kind: 'segment',
-        segmentId: segment.id,
-      });
+      addNeedsReviewDiagnostic(
+        `Reduplication marker "${segment.text}" has no following base segment.`,
+        {
+          kind: 'segment',
+          segmentId: segment.id,
+        },
+      );
     }
   }
 

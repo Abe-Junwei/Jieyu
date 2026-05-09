@@ -7,6 +7,6 @@ export function resolveHostVersion(): string {
     return __APP_VERSION__.trim();
   }
   const fromEnv = import.meta.env.VITE_APP_VERSION?.trim();
-  if (fromEnv) return fromEnv;
+  if (fromEnv !== undefined && fromEnv.length > 0) return fromEnv;
   return '0.0.0';
 }

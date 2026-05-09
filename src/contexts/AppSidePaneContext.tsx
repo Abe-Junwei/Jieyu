@@ -1,4 +1,13 @@
-import { createContext, useContext, useEffect, useId, useMemo, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 
 export interface AppSidePaneRegistration {
   ownerId: string;
@@ -9,7 +18,10 @@ export interface AppSidePaneRegistration {
 
 export interface AppSidePaneHostValue {
   mountRegistration: (registration: AppSidePaneRegistration) => void;
-  updateRegistrationContent: (ownerId: string, patch: { title?: string; subtitle?: string; content: ReactNode }) => void;
+  updateRegistrationContent: (
+    ownerId: string,
+    patch: { title?: string; subtitle?: string; content: ReactNode },
+  ) => void;
   unmountRegistration: (ownerId: string) => void;
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => AppSidePaneRegistration | null;
@@ -17,23 +29,31 @@ export interface AppSidePaneHostValue {
 
 const AppSidePaneContext = createContext<AppSidePaneHostValue | null>(null);
 
-export function AppSidePaneProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+/** Stable fallbacks for `useSyncExternalStore` when no host (identity must not change per render). */
+function emptySidePaneSubscribe(_listener: () => void): () => void {
+  return () => {};
+}
+
+function nullSidePaneSnapshot(): AppSidePaneRegistration | null {
+  return null;
+}
+
+export function AppSidePaneProvider({ children }: { children: ReactNode }) {
   const registrationRef = useRef<AppSidePaneRegistration | null>(null);
   const listenersRef = useRef(new Set<() => void>());
   const pendingNotifyRef = useRef(false);
   const notifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => () => {
-    if (notifyTimerRef.current !== null) {
-      clearTimeout(notifyTimerRef.current);
-      notifyTimerRef.current = null;
-    }
-    pendingNotifyRef.current = false;
-  }, []);
+  useEffect(
+    () => () => {
+      if (notifyTimerRef.current !== null) {
+        clearTimeout(notifyTimerRef.current);
+        notifyTimerRef.current = null;
+      }
+      pendingNotifyRef.current = false;
+    },
+    [],
+  );
 
   const value = useMemo<AppSidePaneHostValue>(() => {
     const scheduleNotify = () => {
@@ -56,9 +76,9 @@ export function AppSidePaneProvider({
         if (registrationRef.current?.ownerId !== ownerId) return;
         const currentRegistration = registrationRef.current;
         if (
-          currentRegistration.title === patch.title
-          && currentRegistration.subtitle === patch.subtitle
-          && currentRegistration.content === patch.content
+          currentRegistration.title === patch.title &&
+          currentRegistration.subtitle === patch.subtitle &&
+          currentRegistration.content === patch.content
         ) {
           return;
         }
@@ -83,11 +103,7 @@ export function AppSidePaneProvider({
     };
   }, []);
 
-  return (
-    <AppSidePaneContext.Provider value={value}>
-      {children}
-    </AppSidePaneContext.Provider>
-  );
+  return <AppSidePaneContext.Provider value={value}>{children}</AppSidePaneContext.Provider>;
 }
 
 export function useAppSidePaneHostOptional() {
@@ -98,9 +114,9 @@ export function useAppSidePaneRegistrationSnapshot() {
   const host = useAppSidePaneHostOptional();
 
   return useSyncExternalStore(
-    host?.subscribe ?? (() => () => {}),
-    host?.getSnapshot ?? (() => null),
-    () => null,
+    host?.subscribe ?? emptySidePaneSubscribe,
+    host?.getSnapshot ?? nullSidePaneSnapshot,
+    nullSidePaneSnapshot,
   );
 }
 
@@ -134,27 +150,34 @@ export function useRegisterAppSidePane({
 
     host.mountRegistration({
       ownerId,
-      ...(titleRef.current ? { title: titleRef.current } : {}),
-      ...(subtitleRef.current ? { subtitle: subtitleRef.current } : {}),
+      ...(titleRef.current !== undefined && titleRef.current.length > 0
+        ? { title: titleRef.current }
+        : {}),
+      ...(subtitleRef.current !== undefined && subtitleRef.current.length > 0
+        ? { subtitle: subtitleRef.current }
+        : {}),
       content: contentRef.current,
     });
 
     return () => {
       host.unmountRegistration(ownerId);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- content/title/subtitle 由 updateRegistrationContent 处理
   }, [enabled, host, ownerId]);
 
-  // 内容更新 — 每次渲染推送最新 content/title/subtitle（延迟通知，不阻塞 commit）
-  // Content update — pushes latest values on each render with deferred notification
+  // 每次提交后从 ref 推送快照；不把 `content`/ReactNode 放进依赖，否则新 element 引用会每帧触发 effect → 通知 → 极端情况下与同步 store 形成更新风暴
+  // After each commit, push from refs; omitting ReactNode deps avoids per-frame effect + notify churn with useSyncExternalStore
   useEffect(() => {
     if (!host || !enabled) return;
     host.updateRegistrationContent(ownerId, {
-      ...(title ? { title } : {}),
-      ...(subtitle ? { subtitle } : {}),
-      content,
+      ...(titleRef.current !== undefined && titleRef.current.length > 0
+        ? { title: titleRef.current }
+        : {}),
+      ...(subtitleRef.current !== undefined && subtitleRef.current.length > 0
+        ? { subtitle: subtitleRef.current }
+        : {}),
+      content: contentRef.current,
     });
-  }, [content, enabled, host, ownerId, subtitle, title]);
+  });
 
   return host !== null && enabled;
 }

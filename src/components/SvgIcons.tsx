@@ -47,8 +47,9 @@ function buildIconProps({
 }
 
 function IconBase({ className, style, title, ariaLabel, children }: IconBaseProps) {
+  const iconStyleProps = style !== undefined ? { style } : {};
   return (
-    <svg className={className} style={style} aria-label={ariaLabel} {...common}>
+    <svg className={className} {...iconStyleProps} aria-label={ariaLabel} {...common}>
       {title ? <title>{title}</title> : null}
       {children}
     </svg>
@@ -60,7 +61,12 @@ export function CloseIcon({ className, style, title, ariaLabel }: IconProps) {
   const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
     <IconBase {...iconProps}>
-      <path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" />
+      <path
+        d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5"
+        stroke="currentColor"
+        strokeWidth="1.28"
+        strokeLinecap="round"
+      />
     </IconBase>
   );
 }
@@ -70,7 +76,13 @@ export function ChevronUpIcon({ className, style, title, ariaLabel }: IconProps)
   const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
     <IconBase {...iconProps}>
-      <path d="M4 10 8 6 12 10" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M4 10 8 6 12 10"
+        stroke="currentColor"
+        strokeWidth="1.28"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </IconBase>
   );
 }
@@ -80,7 +92,13 @@ export function ChevronDownIcon({ className, style, title, ariaLabel }: IconProp
   const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
     <IconBase {...iconProps}>
-      <path d="M4 6 8 10 12 6" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M4 6 8 10 12 6"
+        stroke="currentColor"
+        strokeWidth="1.28"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </IconBase>
   );
 }
@@ -90,8 +108,20 @@ export function SwapIcon({ className, style, title, ariaLabel }: IconProps) {
   const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
     <IconBase {...iconProps}>
-      <path d="M3 5.5h10M10.5 3 13 5.5 10.5 8" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M13 10.5H3M5.5 8 3 10.5 5.5 13" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M3 5.5h10M10.5 3 13 5.5 10.5 8"
+        stroke="currentColor"
+        strokeWidth="1.28"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M13 10.5H3M5.5 8 3 10.5 5.5 13"
+        stroke="currentColor"
+        strokeWidth="1.28"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </IconBase>
   );
 }
@@ -101,7 +131,13 @@ export function CheckIcon({ className, style, title, ariaLabel }: IconProps) {
   const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
     <IconBase {...iconProps}>
-      <path d="M4 8.5 7 11.5 12 5" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M4 8.5 7 11.5 12 5"
+        stroke="currentColor"
+        strokeWidth="1.28"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </IconBase>
   );
 }
@@ -111,7 +147,12 @@ export function CrossIcon({ className, style, title, ariaLabel }: IconProps) {
   const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
     <IconBase {...iconProps}>
-      <path d="M5 5 11 11M11 5 5 11" stroke="currentColor" strokeWidth="1.28" strokeLinecap="round" />
+      <path
+        d="M5 5 11 11M11 5 5 11"
+        stroke="currentColor"
+        strokeWidth="1.28"
+        strokeLinecap="round"
+      />
     </IconBase>
   );
 }
@@ -121,7 +162,12 @@ export function WrenchIcon({ className, style, title, ariaLabel }: IconProps) {
   const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
     <IconBase {...iconProps}>
-      <path d="M10.3 2.7a3.5 3.5 0 0 0-4.1 5.5L3.5 10.8a1.2 1.2 0 0 0 1.7 1.7l2.6-2.7a3.5 3.5 0 0 0 5.5-4.1L11.5 7.5 10 8l-.5-1.5L11.3 4.7Z" stroke="currentColor" strokeWidth="1.28" strokeLinejoin="round" />
+      <path
+        d="M10.3 2.7a3.5 3.5 0 0 0-4.1 5.5L3.5 10.8a1.2 1.2 0 0 0 1.7 1.7l2.6-2.7a3.5 3.5 0 0 0 5.5-4.1L11.5 7.5 10 8l-.5-1.5L11.3 4.7Z"
+        stroke="currentColor"
+        strokeWidth="1.28"
+        strokeLinejoin="round"
+      />
     </IconBase>
   );
 }
@@ -131,9 +177,13 @@ export function FolderOpenIcon({ className, style, title, ariaLabel }: IconProps
   const iconProps = buildIconProps({ className, style, title, ariaLabel });
   return (
     <IconBase {...iconProps}>
-      <path d="M2 4.5V12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1H8.2L6.8 4H3a1 1 0 0 0-1 .5Z" stroke="currentColor" strokeWidth="1.28" strokeLinejoin="round" />
+      <path
+        d="M2 4.5V12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1H8.2L6.8 4H3a1 1 0 0 0-1 .5Z"
+        stroke="currentColor"
+        strokeWidth="1.28"
+        strokeLinejoin="round"
+      />
       <path d="M2 7h12" stroke="currentColor" strokeWidth="1.02" />
     </IconBase>
   );
 }
-

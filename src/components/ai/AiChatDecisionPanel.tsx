@@ -1,5 +1,16 @@
-import type { CSSProperties, Dispatch, MutableRefObject, PointerEvent, RefObject, SetStateAction } from 'react';
-import type { AiToolGoldenSnapshot, AiToolReplayBundle, AiToolSnapshotDiff } from '../../ai/auditReplay';
+import type {
+  CSSProperties,
+  Dispatch,
+  MutableRefObject,
+  PointerEvent,
+  RefObject,
+  SetStateAction,
+} from 'react';
+import type {
+  AiToolGoldenSnapshot,
+  AiToolReplayBundle,
+  AiToolSnapshotDiff,
+} from '../../ai/auditReplay';
 import type { getAiChatCardMessages } from '../../i18n/messages';
 import { AiChatReplayDetailPanel } from './AiChatReplayDetailPanel';
 import { AiChatDecisionListItem } from './AiChatDecisionListItem';
@@ -78,10 +89,13 @@ export function AiChatDecisionPanel({
   exportedSnapshotRequestId: string | null;
   onTogglePanel: () => void;
 }) {
+  const decisionPanelStyleProps =
+    decisionPanelInlineStyle !== undefined ? { style: decisionPanelInlineStyle } : {};
+
   return (
     <div
       className={`ai-chat-decision-panel ${showDecisionPanel ? 'is-open' : 'is-closed'}${hasDecisionLogs ? '' : ' is-empty'}${isDecisionPanelResizing ? ' is-resizing' : ''}`}
-      style={decisionPanelInlineStyle}
+      {...decisionPanelStyleProps}
     >
       <button
         ref={decisionPanelToggleButtonRef}
@@ -93,9 +107,14 @@ export function AiChatDecisionPanel({
         <span className="ai-chat-decision-panel-title">
           {cardMessages.aiDecisions}
           <span className="ai-chat-decision-panel-bracket"> · </span>
-          <span className="ai-chat-decision-panel-count">{aiToolDecisionLogs?.length ?? 0}{cardMessages.decisionCountSuffix}</span>
+          <span className="ai-chat-decision-panel-count">
+            {aiToolDecisionLogs?.length ?? 0}
+            {cardMessages.decisionCountSuffix}
+          </span>
         </span>
-        <span className="ai-chat-fold-caret" aria-hidden="true">▾</span>
+        <span className="ai-chat-fold-caret" aria-hidden="true">
+          ▾
+        </span>
       </button>
       <div
         ref={decisionPanelBodyRef}
@@ -111,9 +130,7 @@ export function AiChatDecisionPanel({
             onPointerDown={startDecisionPanelResize}
           />
         )}
-        {!hasDecisionLogs && (
-          <p className="ai-chat-fold-empty">{cardMessages.noDecisionsYet}</p>
-        )}
+        {!hasDecisionLogs && <p className="ai-chat-fold-empty">{cardMessages.noDecisionsYet}</p>}
         <div className="ai-chat-decision-list">
           {(aiToolDecisionLogs ?? []).map((item) => (
             <AiChatDecisionListItem
@@ -126,16 +143,21 @@ export function AiChatDecisionPanel({
                 replayOpened: cardMessages.replayOpened,
                 replayCompare: cardMessages.replayCompare,
                 snapshotExported: cardMessages.snapshotExported,
-                exportSnapshot: exportedSnapshotRequestId === item.requestId
-                  ? cardMessages.snapshotExported
-                  : cardMessages.exportSnapshot,
+                exportSnapshot:
+                  exportedSnapshotRequestId === item.requestId
+                    ? cardMessages.snapshotExported
+                    : cardMessages.exportSnapshot,
               }}
               isLoading={replayLoadingRequestId === item.requestId}
               isSelected={selectedReplayBundle?.requestId === item.requestId}
               isReplayFocus={decisionReplayFocusRequestId === item.requestId}
               isReplayLocated={decisionReplayLocatedRequestId === item.requestId}
-              onReplay={(requestId) => { void openReplayBundle(requestId); }}
-              onExportSnapshot={(requestId) => { void exportGoldenSnapshot(requestId); }}
+              onReplay={(requestId) => {
+                void openReplayBundle(requestId);
+              }}
+              onExportSnapshot={(requestId) => {
+                void exportGoldenSnapshot(requestId);
+              }}
               onRequestRef={(requestId, node) => {
                 if (!requestId) return;
                 decisionItemRefs.current[requestId] = node;
@@ -143,9 +165,7 @@ export function AiChatDecisionPanel({
               onEscapeToHeader={() => decisionPanelToggleButtonRef.current?.focus()}
             />
           ))}
-          {replayErrorMessage && (
-            <div className="ai-chat-decision-error">{replayErrorMessage}</div>
-          )}
+          {replayErrorMessage && <div className="ai-chat-decision-error">{replayErrorMessage}</div>}
           {selectedReplayBundle && (
             <AiChatReplayDetailPanel
               isZh={isZh}

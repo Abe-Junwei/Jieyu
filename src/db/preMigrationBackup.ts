@@ -77,10 +77,12 @@ function openIndexedDb(
       return;
     }
 
-    const request = version ? indexedDB.open(dbName, version) : indexedDB.open(dbName);
+    const request = Number.isFinite(version)
+      ? indexedDB.open(dbName, version)
+      : indexedDB.open(dbName);
 
     request.onupgradeneeded = () => {
-      if (!request.result) {
+      if (request.result === undefined) {
         reject(new Error(`onupgradeneeded without result: ${dbName}`));
         return;
       }

@@ -20,7 +20,7 @@ function dedupeStores(stores: readonly DexieStore[]): DexieStore[] {
 }
 
 function withTransactionErrorPrefix(message: string, label?: string): string {
-  if (!label) return message;
+  if (label === undefined || label.length === 0) return message;
   return `[db.transaction:${label}] ${message}`;
 }
 

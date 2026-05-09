@@ -13,15 +13,27 @@ import { timelineUnitsToWaveformAnalysisRows } from '../hooks/timelineUnitView';
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { fireAndForget } from '../utils/fireAndForget';
 import { createTranscriptionAiToolRiskCheck } from './transcriptionAiToolRiskCheck';
-import { buildAiSegmentTargetDescriptors, resolveAiSegmentTargetScopeUnits } from './useTranscriptionAiController.segmentTargets';
+import {
+  buildAiSegmentTargetDescriptors,
+  resolveAiSegmentTargetScopeUnits,
+} from './useTranscriptionAiController.segmentTargets';
 import { buildWaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import { vadCache } from '../app/transcriptionServicesPageAccess';
 import { formatRecentActions } from '../hooks/useEditEventBuffer';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import { createLogger } from '../observability/logger';
 import { createTranscriptionAiReadModelAccessors } from './transcriptionAiReadModelAccessors';
-import { buildOwnerUnitCandidates, resolveExplicitOwnerUnitForAi, resolveOwnerUnitForAi, resolveWritableAiTargetId } from './transcriptionAiSelectionResolver';
-import type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult, VoiceAssistantToolCallHandler } from './transcriptionAiController.types';
+import {
+  buildOwnerUnitCandidates,
+  resolveExplicitOwnerUnitForAi,
+  resolveOwnerUnitForAi,
+  resolveWritableAiTargetId,
+} from './transcriptionAiSelectionResolver';
+import type {
+  UseTranscriptionAiControllerInput,
+  UseTranscriptionAiControllerResult,
+  VoiceAssistantToolCallHandler,
+} from './transcriptionAiController.types';
 import { useTranscriptionAiAcousticRuntime } from './useTranscriptionAiAcousticRuntime';
 import {
   bridgeTextForLayerTargetWithFallback,
@@ -32,7 +44,10 @@ import {
 import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
 import { useTranscriptionAiAcousticBatchRanges } from './useTranscriptionAiAcousticBatchRanges';
 import { useTranscriptionAiAudioTimeRef } from './useTranscriptionAiAudioTimeRef';
-export type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult } from './transcriptionAiController.types';
+export type {
+  UseTranscriptionAiControllerInput,
+  UseTranscriptionAiControllerResult,
+} from './transcriptionAiController.types';
 
 const log = createLogger('useTranscriptionAiController');
 
@@ -49,14 +64,22 @@ export function useTranscriptionAiController(
     handleExecuteRecommendation,
   } = input;
   const [aiPanelMode, setAiPanelMode] = useState<AiPanelMode>('auto');
-  const [aiDerivedPersona, setAiDerivedPersona] = useState<'transcription' | 'glossing' | 'review'>('transcription');
+  const [aiDerivedPersona, setAiDerivedPersona] = useState<'transcription' | 'glossing' | 'review'>(
+    'transcription',
+  );
   const aiObserverStageRef = useRef<string>('');
   const aiRecommendationRef = useRef<string[]>([]);
   const aiLexemeSummaryRef = useRef<string[]>([]);
   const aiAudioTimeRef = useTranscriptionAiAudioTimeRef(input.playerCurrentTime);
-  const [internalEmbeddingProviderConfig, setInternalEmbeddingProviderConfig] = useState<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>(() => loadEmbeddingProviderConfig());
+  const [internalEmbeddingProviderConfig, setInternalEmbeddingProviderConfig] = useState<{
+    kind: EmbeddingProviderKind;
+    baseUrl?: string;
+    apiKey?: string;
+    model?: string;
+  }>(() => loadEmbeddingProviderConfig());
   const embeddingProviderConfig = input.embeddingProviderConfig ?? internalEmbeddingProviderConfig;
-  const setEmbeddingProviderConfig = input.setEmbeddingProviderConfig ?? setInternalEmbeddingProviderConfig;
+  const setEmbeddingProviderConfig =
+    input.setEmbeddingProviderConfig ?? setInternalEmbeddingProviderConfig;
   const embeddingSearchService = useMemo(
     () => createDeferredEmbeddingSearchService(() => embeddingProviderConfig),
     [embeddingProviderConfig],
@@ -64,7 +87,12 @@ export function useTranscriptionAiController(
   const effectiveUnitIndex = input.timelineUnitViewIndex;
   const scopeMediaItemForAi = input.scopeMediaItemForAi ?? input.selectedTimelineMedia;
   const ownerUnitCandidatesForAi = useMemo(
-    () => buildOwnerUnitCandidates(effectiveUnitIndex.allUnits, input.getUnitDocById, toSyntheticUnitDoc),
+    () =>
+      buildOwnerUnitCandidates(
+        effectiveUnitIndex.allUnits,
+        input.getUnitDocById,
+        toSyntheticUnitDoc,
+      ),
     [effectiveUnitIndex.allUnits, input.getUnitDocById],
   );
   const explicitOwnerUnitForAi = resolveExplicitOwnerUnitForAi({
@@ -74,16 +102,39 @@ export function useTranscriptionAiController(
     ownerCandidates: ownerUnitCandidatesForAi,
   });
   const resolvedOwnerUnitForAi = useMemo(
-    () => resolveOwnerUnitForAi({
-      selectedUnit: input.selectionSnapshot.selectedUnit,
-      getUnitDocById: input.getUnitDocById,
-      selectedTimelineSegment: input.selectedTimelineSegment,
-      ownerCandidates: ownerUnitCandidatesForAi,
-    }),
-    [input.getUnitDocById, input.selectedTimelineSegment, input.selectionSnapshot.selectedUnit, ownerUnitCandidatesForAi],
+    () =>
+      resolveOwnerUnitForAi({
+        selectedUnit: input.selectionSnapshot.selectedUnit,
+        getUnitDocById: input.getUnitDocById,
+        selectedTimelineSegment: input.selectedTimelineSegment,
+        ownerCandidates: ownerUnitCandidatesForAi,
+      }),
+    [
+      input.getUnitDocById,
+      input.selectedTimelineSegment,
+      input.selectionSnapshot.selectedUnit,
+      ownerUnitCandidatesForAi,
+    ],
   );
-  const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<Array<{ id: string; toolName: string; decision: string; reason?: string; reasonLabelEn?: string; reasonLabelZh?: string; requestId?: string; timestamp: string; source?: 'human' | 'ai' | 'system'; executed?: boolean; durationMs?: number; message?: string }>>([]);
-  const [aiVerticalWorkflowAuditEntries, setAiVerticalWorkflowAuditEntries] = useState<ParsedVerticalWorkflowAuditEntry[]>([]);
+  const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<
+    Array<{
+      id: string;
+      toolName: string;
+      decision: string;
+      reason?: string;
+      reasonLabelEn?: string;
+      reasonLabelZh?: string;
+      requestId?: string;
+      timestamp: string;
+      source?: 'human' | 'ai' | 'system';
+      executed?: boolean;
+      durationMs?: number;
+      message?: string;
+    }>
+  >([]);
+  const [aiVerticalWorkflowAuditEntries, setAiVerticalWorkflowAuditEntries] = useState<
+    ParsedVerticalWorkflowAuditEntry[]
+  >([]);
   const [internalAiSidebarError, setInternalAiSidebarError] = useState<string | null>(null);
   const aiSidebarError = input.aiSidebarError ?? internalAiSidebarError;
   const setAiSidebarError = input.setAiSidebarError ?? setInternalAiSidebarError;
@@ -115,12 +166,22 @@ export function useTranscriptionAiController(
   } = useTranscriptionAiAcousticRuntime({
     batchSelectionRanges: acousticBatchSelectionRanges,
     ...(input.selectedMediaUrl !== undefined ? { selectedMediaUrl: input.selectedMediaUrl } : {}),
-    ...(scopeMediaItemForAi?.id !== undefined ? { selectedTimelineMediaId: scopeMediaItemForAi.id } : {}),
-    ...(input.selectionSnapshot.selectedUnitStartSec !== undefined ? { selectionStartSec: input.selectionSnapshot.selectedUnitStartSec } : {}),
-    ...(input.selectionSnapshot.selectedUnitEndSec !== undefined ? { selectionEndSec: input.selectionSnapshot.selectedUnitEndSec } : {}),
+    ...(scopeMediaItemForAi?.id !== undefined
+      ? { selectedTimelineMediaId: scopeMediaItemForAi.id }
+      : {}),
+    ...(input.selectionSnapshot.selectedUnitStartSec !== undefined
+      ? { selectionStartSec: input.selectionSnapshot.selectedUnitStartSec }
+      : {}),
+    ...(input.selectionSnapshot.selectedUnitEndSec !== undefined
+      ? { selectionEndSec: input.selectionSnapshot.selectedUnitEndSec }
+      : {}),
     seekToTimeRef: input.seekToTimeRef,
-    ...(input.acousticConfigOverride !== undefined ? { configOverride: input.acousticConfigOverride } : {}),
-    ...(input.acousticProviderPreference !== undefined ? { providerPreference: input.acousticProviderPreference } : {}),
+    ...(input.acousticConfigOverride !== undefined
+      ? { configOverride: input.acousticConfigOverride }
+      : {}),
+    ...(input.acousticProviderPreference !== undefined
+      ? { providerPreference: input.acousticProviderPreference }
+      : {}),
   });
 
   const refreshAiToolDecisionLogs = useCallback(async () => {
@@ -136,10 +197,16 @@ export function useTranscriptionAiController(
   const segmentTargetDescriptors = buildAiSegmentTargetDescriptors({
     unitTargets: segmentTargetScopeUnits,
     selectedLayerId: input.selectedLayerId,
-    ...(input.activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits: input.activeLayerIdForEdits } : {}),
+    ...(input.activeLayerIdForEdits !== undefined
+      ? { activeLayerIdForEdits: input.activeLayerIdForEdits }
+      : {}),
     ...(input.segmentsByLayer !== undefined ? { segmentsByLayer: input.segmentsByLayer } : {}),
-    ...(input.segmentContentByLayer !== undefined ? { segmentContentByLayer: input.segmentContentByLayer } : {}),
-    ...(input.resolveSegmentRoutingForLayer !== undefined ? { resolveSegmentRoutingForLayer: input.resolveSegmentRoutingForLayer } : {}),
+    ...(input.segmentContentByLayer !== undefined
+      ? { segmentContentByLayer: input.segmentContentByLayer }
+      : {}),
+    ...(input.resolveSegmentRoutingForLayer !== undefined
+      ? { resolveSegmentRoutingForLayer: input.resolveSegmentRoutingForLayer }
+      : {}),
     getUnitTextForLayer,
   });
   const selectedSegmentTargetId = resolveWritableAiTargetId({
@@ -149,37 +216,57 @@ export function useTranscriptionAiController(
     explicitOwnerUnitId: explicitOwnerUnitForAi?.id,
   });
 
-  const materializeAiToolCall = useCallback((call: Parameters<typeof materializePendingToolCallTargets>[0]) => materializePendingToolCallTargets(call, {
-    units: segmentTargetScopeUnits,
-    transcriptionLayers: input.transcriptionLayers,
-    translationLayers: input.translationLayers,
-    segmentTargets: segmentTargetDescriptors,
-    ...(selectedSegmentTargetId ? { selectedSegmentTargetId } : {}),
-  }), [input.transcriptionLayers, input.translationLayers, segmentTargetDescriptors, segmentTargetScopeUnits, selectedSegmentTargetId]);
+  const materializeAiToolCall = useCallback(
+    (call: Parameters<typeof materializePendingToolCallTargets>[0]) =>
+      materializePendingToolCallTargets(call, {
+        units: segmentTargetScopeUnits,
+        transcriptionLayers: input.transcriptionLayers,
+        translationLayers: input.translationLayers,
+        segmentTargets: segmentTargetDescriptors,
+        ...(selectedSegmentTargetId ? { selectedSegmentTargetId } : {}),
+      }),
+    [
+      input.transcriptionLayers,
+      input.translationLayers,
+      segmentTargetDescriptors,
+      segmentTargetScopeUnits,
+      selectedSegmentTargetId,
+    ],
+  );
 
-  const bridgeTextForLayerWrite = useCallback(async ({ text, targetLayerId, selectedLayerId }: {
-    text: string;
-    targetLayerId?: string;
-    selectedLayerId?: string;
-  }) => {
-    const effectiveSelectedLayerId = (selectedLayerId ?? input.selectedLayerId).trim();
-    return bridgeTextForLayerTargetWithFallback({
+  const bridgeTextForLayerWrite = useCallback(
+    async ({
       text,
-      layers: input.layers,
-      ...(targetLayerId !== undefined ? { targetLayerId } : {}),
-      selectedLayerId: effectiveSelectedLayerId,
-    });
-  }, [input.layers, input.selectedLayerId]);
+      targetLayerId,
+      selectedLayerId,
+    }: {
+      text: string;
+      targetLayerId?: string;
+      selectedLayerId?: string;
+    }) => {
+      const effectiveSelectedLayerId = (selectedLayerId ?? input.selectedLayerId).trim();
+      return bridgeTextForLayerTargetWithFallback({
+        text,
+        layers: input.layers,
+        ...(targetLayerId !== undefined ? { targetLayerId } : {}),
+        selectedLayerId: effectiveSelectedLayerId,
+      });
+    },
+    [input.layers, input.selectedLayerId],
+  );
 
   const { readSegmentLayerText, readUnitLayerText, readTokenPos, readTokenGloss } = useMemo(
-    () => createTranscriptionAiReadModelAccessors<NonNullable<ReturnType<typeof input.getUnitDocById>>>({
-      segmentContentByLayer: input.segmentContentByLayer,
-      getUnitDocById: input.getUnitDocById,
-      segmentTargetScopeUnits,
-      getUnitTextForLayer,
-      allUnitRows: effectiveUnitIndex.allUnits,
-    }),
-    [effectiveUnitIndex.allUnits, getUnitTextForLayer, input.getUnitDocById, input.segmentContentByLayer, segmentTargetScopeUnits],
+    () =>
+      createTranscriptionAiReadModelAccessors<NonNullable<ReturnType<typeof input.getUnitDocById>>>(
+        {
+          segmentContentByLayer: input.segmentContentByLayer,
+          getUnitDocById: input.getUnitDocById,
+          segmentTargetScopeUnits,
+          getUnitTextForLayer,
+          allUnitRows: effectiveUnitIndex.allUnits,
+        },
+      ),
+    [effectiveUnitIndex.allUnits, getUnitTextForLayer, input, segmentTargetScopeUnits],
   );
 
   const aiToolCallHandler = useAiToolCallHandler({
@@ -198,7 +285,9 @@ export function useTranscriptionAiController(
     ...(input.mergeAdjacentSegmentsForAiRollback
       ? { mergeAdjacentSegmentsForAiRollback: input.mergeAdjacentSegmentsForAiRollback }
       : {}),
-    ...(input.silentSegmentGraphSyncForAi ? { silentSegmentGraphSyncForAi: input.silentSegmentGraphSyncForAi } : {}),
+    ...(input.silentSegmentGraphSyncForAi
+      ? { silentSegmentGraphSyncForAi: input.silentSegmentGraphSyncForAi }
+      : {}),
     ...(input.mergeWithPrevious ? { mergeWithPrevious: input.mergeWithPrevious } : {}),
     ...(input.mergeWithNext ? { mergeWithNext: input.mergeWithNext } : {}),
     mergeSelectedUnits: input.mergeSelectedUnits,
@@ -207,7 +296,9 @@ export function useTranscriptionAiController(
     deleteSelectedUnits: input.deleteSelectedUnits,
     deleteLayer: input.deleteLayer,
     toggleLayerLink: input.toggleLayerLink,
-    ...(input.rebindTranslationLayerHost ? { rebindTranslationLayerHost: input.rebindTranslationLayerHost } : {}),
+    ...(input.rebindTranslationLayerHost
+      ? { rebindTranslationLayerHost: input.rebindTranslationLayerHost }
+      : {}),
     saveUnitText: input.saveUnitText,
     saveUnitLayerText: input.saveUnitLayerText,
     saveSegmentContentForLayer: input.saveSegmentContentForLayer,
@@ -225,24 +316,43 @@ export function useTranscriptionAiController(
     openSearch: (detail) => input.openSearchRef.current?.(detail),
     seekToTime: (timeSeconds) => input.seekToTimeRef.current?.(timeSeconds),
     splitAtTime: (timeSeconds) => input.splitAtTimeRef.current?.(timeSeconds) ?? false,
-    zoomToSegment: (segmentId, zoomLevel) => input.zoomToSegmentRef.current?.(segmentId, zoomLevel) ?? false,
+    zoomToSegment: (segmentId, zoomLevel) =>
+      input.zoomToSegmentRef.current?.(segmentId, zoomLevel) ?? false,
     bridgeTextForLayerWrite,
   });
 
-  const handleAiToolCall = useCallback(async (call: Parameters<typeof aiToolCallHandler>[0]) =>
-    aiToolCallHandler(materializeAiToolCall(call)), [aiToolCallHandler, materializeAiToolCall]);
+  const handleAiToolCall = useCallback(
+    async (call: Parameters<typeof aiToolCallHandler>[0]) =>
+      aiToolCallHandler(materializeAiToolCall(call)),
+    [aiToolCallHandler, materializeAiToolCall],
+  );
 
   const buildAiPromptContext = useCallback(() => {
     const currentMediaId = scopeMediaItemForAi?.id;
     const cachedVad = currentMediaId ? vadCache.get(currentMediaId) : null;
     const waveformRows = timelineUnitsToWaveformAnalysisRows(effectiveUnitIndex.currentMediaUnits);
-    const projectUnitsForTools = effectiveUnitIndex.isComplete || effectiveUnitIndex.allUnits.length > 0
-      ? effectiveUnitIndex.allUnits
-      : undefined;
-    if (projectUnitsForTools && !projectUnitsForTools.some((unit) => unit.kind === 'unit') && projectUnitsForTools.some((unit) => unit.kind === 'segment')) {
-      recordMetric({ id: 'ai.segment_only_project_context_build', value: 1, tags: createMetricTags('useTranscriptionAiController', { currentMediaId: currentMediaId ?? 'unknown' }) });
+    const projectUnitsForTools =
+      effectiveUnitIndex.isComplete || effectiveUnitIndex.allUnits.length > 0
+        ? effectiveUnitIndex.allUnits
+        : undefined;
+    if (
+      projectUnitsForTools &&
+      !projectUnitsForTools.some((unit) => unit.kind === 'unit') &&
+      projectUnitsForTools.some((unit) => unit.kind === 'segment')
+    ) {
+      recordMetric({
+        id: 'ai.segment_only_project_context_build',
+        value: 1,
+        tags: createMetricTags('useTranscriptionAiController', {
+          currentMediaId: currentMediaId ?? 'unknown',
+        }),
+      });
     }
-    if (typeof input.authoritativeUnitCount === 'number' && Number.isFinite(input.authoritativeUnitCount) && effectiveUnitIndex.totalCount !== input.authoritativeUnitCount) {
+    if (
+      typeof input.authoritativeUnitCount === 'number' &&
+      Number.isFinite(input.authoritativeUnitCount) &&
+      effectiveUnitIndex.totalCount !== input.authoritativeUnitCount
+    ) {
       if (import.meta.env.DEV) {
         log.warn('timeline unit count mismatch', {
           source: 'useTranscriptionAiController',
@@ -250,7 +360,14 @@ export function useTranscriptionAiController(
           authoritativeUnitCount: input.authoritativeUnitCount,
         });
       }
-      recordMetric({ id: 'ai.timeline_unit_count_mismatch', value: 1, tags: createMetricTags('useTranscriptionAiController', { indexTotalCount: effectiveUnitIndex.totalCount, authoritativeUnitCount: input.authoritativeUnitCount }) });
+      recordMetric({
+        id: 'ai.timeline_unit_count_mismatch',
+        value: 1,
+        tags: createMetricTags('useTranscriptionAiController', {
+          indexTotalCount: effectiveUnitIndex.totalCount,
+          authoritativeUnitCount: input.authoritativeUnitCount,
+        }),
+      });
     }
     return buildTranscriptionAiPromptContext({
       locale,
@@ -259,8 +376,12 @@ export function useTranscriptionAiController(
       timelineUnitViewIndex: { byLayer: effectiveUnitIndex.byLayer },
       unitIndexComplete: effectiveUnitIndex.isComplete,
       waveformAnalysis: buildWaveformAnalysisPromptSummary(waveformRows, {
-        ...(input.selectionSnapshot.selectedUnitStartSec !== undefined ? { selectionStartTime: input.selectionSnapshot.selectedUnitStartSec } : {}),
-        ...(input.selectionSnapshot.selectedUnitEndSec !== undefined ? { selectionEndTime: input.selectionSnapshot.selectedUnitEndSec } : {}),
+        ...(input.selectionSnapshot.selectedUnitStartSec !== undefined
+          ? { selectionStartTime: input.selectionSnapshot.selectedUnitStartSec }
+          : {}),
+        ...(input.selectionSnapshot.selectedUnitEndSec !== undefined
+          ? { selectionEndTime: input.selectionSnapshot.selectedUnitEndSec }
+          : {}),
         audioTimeSec: aiAudioTimeRef.current,
         ...(cachedVad ? { vadSegments: cachedVad.segments } : {}),
       }),
@@ -284,15 +405,45 @@ export function useTranscriptionAiController(
       ...(input.speakers ? { speakers: input.speakers } : {}),
       ...(input.noteSummary ? { noteSummary: input.noteSummary } : {}),
       ...(input.visibleTimelineState ? { visibleTimelineState: input.visibleTimelineState } : {}),
-      ...(typeof input.activeTextId === 'string' && input.activeTextId.trim().length > 0 ? { activeTextId: input.activeTextId.trim() } : {}),
-      ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
+      ...(typeof input.activeTextId === 'string' && input.activeTextId.trim().length > 0
+        ? { activeTextId: input.activeTextId.trim() }
+        : {}),
+      ...(input.defaultTranscriptionLayerId !== undefined
+        ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId }
+        : {}),
       ...(scopeMediaItemForAi ? { mediaItems: [scopeMediaItemForAi] } : {}),
       ...(currentMediaId !== undefined ? { currentMediaId } : {}),
-      ...(input.activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits: input.activeLayerIdForEdits } : {}),
+      ...(input.activeLayerIdForEdits !== undefined
+        ? { activeLayerIdForEdits: input.activeLayerIdForEdits }
+        : {}),
       recentActions: formatRecentActions(input.recentTimelineEditEvents),
       timelineReadModelEpoch: effectiveUnitIndex.epoch,
     });
-  }, [acousticSummary, effectiveUnitIndex, input.activeLayerIdForEdits, input.activeTextId, input.aiConfidenceAvg, input.authoritativeUnitCount, input.defaultTranscriptionLayerId, input.layerLinks, input.layers, input.noteSummary, input.recentTimelineEditEvents, input.speakers, input.visibleTimelineState, scopeMediaItemForAi, input.selectedUnitIds, input.selectionSnapshot, input.translationDrafts, input.translationLayerCount, input.unitDrafts]);
+  }, [
+    acousticSummary,
+    aiAudioTimeRef,
+    effectiveUnitIndex,
+    input.activeLayerIdForEdits,
+    input.activeTextId,
+    input.aiConfidenceAvg,
+    input.authoritativeUnitCount,
+    input.defaultTranscriptionLayerId,
+    input.focusedTranslationDraftKeyRef,
+    input.layerLinks,
+    input.layers,
+    input.noteSummary,
+    input.recentTimelineEditEvents,
+    input.selectedUnitIds,
+    input.selectionSnapshot,
+    input.speakers,
+    input.translationDrafts,
+    input.translationLayerCount,
+    input.unitDrafts,
+    input.visibleTimelineState,
+    locale,
+    scopeMediaItemForAi,
+    segmentTargetDescriptors.length,
+  ]);
 
   const handleAiToolRiskCheck = createTranscriptionAiToolRiskCheck({
     locale,
@@ -328,7 +479,13 @@ export function useTranscriptionAiController(
     onMessageComplete: (assistantMessageId, content) => {
       onAiAssistantMessageCompleteRef.current?.(assistantMessageId, content);
     },
-    ...(input.onPushAdoptionItemsSinkRef ? { onPushAdoptionItems: (items) => { input.onPushAdoptionItemsSinkRef!.current?.(items); } } : {}),
+    ...(input.onPushAdoptionItemsSinkRef
+      ? {
+          onPushAdoptionItems: (items) => {
+            input.onPushAdoptionItemsSinkRef!.current?.(items);
+          },
+        }
+      : {}),
   });
 
   const latestAssistantAuditFingerprint = (() => {
@@ -343,14 +500,20 @@ export function useTranscriptionAiController(
   })();
 
   useEffect(() => {
-    fireAndForget(refreshAiToolDecisionLogs(), { context: 'src/pages/useTranscriptionAiController.ts:L337', policy: 'background-quiet' });
+    fireAndForget(refreshAiToolDecisionLogs(), {
+      context: 'src/pages/useTranscriptionAiController.ts:L337',
+      policy: 'background-quiet',
+    });
   }, [aiChat.pendingToolCall, refreshAiToolDecisionLogs]);
 
   useEffect(() => {
-    fireAndForget(refreshRecentAiVerticalWorkflowAuditEntries({ setAiVerticalWorkflowAuditEntries }), {
-      context: 'src/pages/useTranscriptionAiController.ts:L347',
-      policy: 'background-quiet',
-    });
+    fireAndForget(
+      refreshRecentAiVerticalWorkflowAuditEntries({ setAiVerticalWorkflowAuditEntries }),
+      {
+        context: 'src/pages/useTranscriptionAiController.ts:L347',
+        policy: 'background-quiet',
+      },
+    );
   }, [latestAssistantAuditFingerprint]);
 
   const {
@@ -385,12 +548,22 @@ export function useTranscriptionAiController(
     .slice(0, 6)
     .map((item) => Object.values(item.lemma)[0] ?? item.id);
 
-  useEffect(() => { const nextPersona = taskToPersona(aiCurrentTask); setAiDerivedPersona((prev) => (prev === nextPersona ? prev : nextPersona)); }, [aiCurrentTask]);
+  useEffect(() => {
+    const nextPersona = taskToPersona(aiCurrentTask);
+    setAiDerivedPersona((prev) => (prev === nextPersona ? prev : nextPersona));
+  }, [aiCurrentTask]);
 
-  const handleExecuteObserverRecommendation = useCallback((item: AiObserverRecommendation) => {
-    const match = actionableObserverRecommendations.find((candidate) => candidate.id === item.id);
-    if (match) fireAndForget(Promise.resolve(handleExecuteRecommendation(match)), { context: 'src/pages/useTranscriptionAiController.ts:L387', policy: 'user-visible' });
-  }, [actionableObserverRecommendations, handleExecuteRecommendation]);
+  const handleExecuteObserverRecommendation = useCallback(
+    (item: AiObserverRecommendation) => {
+      const match = actionableObserverRecommendations.find((candidate) => candidate.id === item.id);
+      if (match)
+        fireAndForget(Promise.resolve(handleExecuteRecommendation(match)), {
+          context: 'src/pages/useTranscriptionAiController.ts:L387',
+          policy: 'user-visible',
+        });
+    },
+    [actionableObserverRecommendations, handleExecuteRecommendation],
+  );
 
   return {
     aiPanelMode,

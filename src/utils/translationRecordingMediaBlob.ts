@@ -5,7 +5,7 @@ import type { MediaItemDocType } from '../db';
  * Safari 常见 `audio/mp4` → 使用 `.m4a` 以与导入侧约定一致。
  */
 export function fileExtensionForRecordedVoiceBlob(blob: Blob): string {
-  const t = (blob.type || '').toLowerCase();
+  const t = (blob.type ?? '').toLowerCase();
   if (t.includes('webm')) return 'webm';
   if (t.includes('mp4')) return 'm4a';
   if (t.includes('ogg')) return 'ogg';
@@ -15,7 +15,7 @@ export function fileExtensionForRecordedVoiceBlob(blob: Blob): string {
 
 /** 从 `media_items.details` 读取录音 Blob（可为空大小；用于播放/物化 key） */
 export function readAudioBlobFromDetails(details: unknown): Blob | null {
-  if (!details || typeof details !== 'object') {
+  if (details === null || typeof details !== 'object') {
     return null;
   }
   const candidate = (details as { audioBlob?: unknown }).audioBlob;

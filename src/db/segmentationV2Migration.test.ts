@@ -1,6 +1,16 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import { buildV28BackfillPlanForText, buildSegmentationV2BackfillRows, db, exportDatabaseAsJson, getDb, importDatabaseFromJson, type TierDefinitionDocType, type LayerUnitDocType, type LayerUnitContentDocType } from './index';
+import {
+  buildV28BackfillPlanForText,
+  buildSegmentationV2BackfillRows,
+  db,
+  exportDatabaseAsJson,
+  getDb,
+  importDatabaseFromJson,
+  type TierDefinitionDocType,
+  type LayerUnitDocType,
+  type LayerUnitContentDocType,
+} from './index';
 import { mapUnitToLayerUnit } from './migrations/timelineUnitMapping';
 
 const NOW = '2026-03-25T00:00:00.000Z';
@@ -317,16 +327,21 @@ describe('buildSegmentationV2BackfillRows', () => {
         'unit_relations',
       ];
       const stripVolatileFields = (row: unknown): unknown => {
-        if (!row || typeof row !== 'object') return row;
+        if (row == null || typeof row !== 'object') return row;
         const { provenance: _provenance, ...rest } = row as Record<string, unknown>;
         return rest;
       };
-      const normalize = (rows: unknown[]) => [...rows].sort((a, b) => {
-        const left = (a as { id?: string }).id ?? '';
-        const right = (b as { id?: string }).id ?? '';
-        return left.localeCompare(right);
-      }).map(stripVolatileFields);
-      return Object.fromEntries(keys.map((key) => [key, normalize(snapshot.collections[key] ?? [])]));
+      const normalize = (rows: unknown[]) =>
+        [...rows]
+          .sort((a, b) => {
+            const left = (a as { id?: string }).id ?? '';
+            const right = (b as { id?: string }).id ?? '';
+            return left.localeCompare(right);
+          })
+          .map(stripVolatileFields);
+      return Object.fromEntries(
+        keys.map((key) => [key, normalize(snapshot.collections[key] ?? [])]),
+      );
     };
 
     const before = pickCollections(await exportDatabaseAsJson());
@@ -339,18 +354,21 @@ describe('buildSegmentationV2BackfillRows', () => {
       db.unit_relations.clear(),
     ]);
 
-    await importDatabaseFromJson({
-      schemaVersion: 4,
-      exportedAt: NOW,
-      dbName: database.name,
-      collections: {
-        texts: before.texts,
-        tier_definitions: before.tier_definitions,
-        layer_units: before.layer_units,
-        layer_unit_contents: before.layer_unit_contents,
-        unit_relations: before.unit_relations,
+    await importDatabaseFromJson(
+      {
+        schemaVersion: 4,
+        exportedAt: NOW,
+        dbName: database.name,
+        collections: {
+          texts: before.texts,
+          tier_definitions: before.tier_definitions,
+          layer_units: before.layer_units,
+          layer_unit_contents: before.layer_unit_contents,
+          unit_relations: before.unit_relations,
+        },
       },
-    }, { strategy: 'replace-all' });
+      { strategy: 'replace-all' },
+    );
 
     const after = pickCollections(await exportDatabaseAsJson());
     expect(after).toEqual(before);

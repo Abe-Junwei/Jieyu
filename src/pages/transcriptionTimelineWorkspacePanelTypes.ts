@@ -68,7 +68,10 @@ export type TranscriptionTimelineWorkspacePanelProps = {
   defaultLanguageId?: string;
   defaultOrthographyId?: string;
   onFocusLayer: (layerId: string) => void;
-  navigateUnitFromInput: (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, direction: -1 | 1) => void;
+  navigateUnitFromInput: (
+    e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+    direction: -1 | 1,
+  ) => void;
   layerLinks?: LayerLinkDocType[];
   showConnectors?: boolean;
   onToggleConnectors?: () => void;
@@ -111,7 +114,9 @@ export type TranscriptionTimelineWorkspacePanelProps = {
     orthographies: OrthographyDocType[];
     onUpdate: (layerId: string, patch: Partial<LayerDisplaySettings>) => void;
     onReset: (layerId: string) => void;
-    localFonts?: Parameters<typeof import('../components/LayerStyleSubmenu').buildLayerStyleMenuItems>[7];
+    localFonts?: Parameters<
+      typeof import('../components/LayerStyleSubmenu').buildLayerStyleMenuItems
+    >[7];
   };
   resolveSelfCertaintyForUnit?: (unitId: string, layerId?: string) => UnitSelfCertainty | undefined;
   resolveSelfCertaintyAmbiguityForUnit?: (unitId: string, layerId?: string) => boolean;
@@ -127,7 +132,7 @@ export type TranscriptionTimelineWorkspacePanelProps = {
   timingDragPreview?: { id: string; start: number; end: number } | null;
 };
 
-const TRANSCRIPTION_TIMELINE_VERTICAL_VIEW_REQUIRED_KEYS = [
+export const TRANSCRIPTION_TIMELINE_VERTICAL_VIEW_REQUIRED_KEYS = [
   'transcriptionLayers',
   'translationLayers',
   'unitsOnCurrentMedia',
@@ -144,6 +149,10 @@ type TranscriptionTimelineVerticalViewOptionalKeys = Exclude<
 /**
  * 纵向对读壳入参：核心字段必填，其余与 panel 对齐但可选（单测可最小装配；编排仍传完整 `textOnlyProps`）。
  */
-export type TranscriptionTimelineVerticalViewInput =
-  Pick<TranscriptionTimelineWorkspacePanelProps, (typeof TRANSCRIPTION_TIMELINE_VERTICAL_VIEW_REQUIRED_KEYS)[number]> &
-  Partial<Pick<TranscriptionTimelineWorkspacePanelProps, TranscriptionTimelineVerticalViewOptionalKeys>>;
+export type TranscriptionTimelineVerticalViewInput = Pick<
+  TranscriptionTimelineWorkspacePanelProps,
+  (typeof TRANSCRIPTION_TIMELINE_VERTICAL_VIEW_REQUIRED_KEYS)[number]
+> &
+  Partial<
+    Pick<TranscriptionTimelineWorkspacePanelProps, TranscriptionTimelineVerticalViewOptionalKeys>
+  >;

@@ -6,18 +6,32 @@ import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useLocale } from '../i18n';
 import { getProjectSetupDialogMessages } from '../i18n/messages';
-import { formatOrthographyOptionLabel, groupOrthographiesForSelect, ORTHOGRAPHY_CREATE_SENTINEL, useOrthographyPicker } from '../hooks/useOrthographyPicker';
+import {
+  formatOrthographyOptionLabel,
+  groupOrthographiesForSelect,
+  ORTHOGRAPHY_CREATE_SENTINEL,
+  useOrthographyPicker,
+} from '../hooks/useOrthographyPicker';
 import { getOrthographyCatalogGroupLabel, getOrthographyBuilderMessages } from '../i18n/messages';
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 import { FormField, ModalPanel, PanelButton, PanelFeedback } from './ui';
 import { isKnownIso639_3Code } from '../utils/langMapping';
-import { buildLanguageInputSeed, getDisplayedLanguageInputLabel, normalizeLanguageInputCode } from '../utils/languageInputHostState';
+import {
+  buildLanguageInputSeed,
+  getDisplayedLanguageInputLabel,
+  normalizeLanguageInputCode,
+} from '../utils/languageInputHostState';
 import { focusFirstInvalidLanguageCodeInput } from '../utils/focusInvalidLanguageInput';
 
 type ProjectSetupDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (input: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
+  onSubmit: (input: {
+    primaryTitle: string;
+    englishFallbackTitle: string;
+    primaryLanguageId: string;
+    primaryOrthographyId?: string;
+  }) => Promise<void>;
 };
 
 export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDialogProps) {
@@ -41,15 +55,19 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   const displayedLanguage = getDisplayedLanguageInputLabel(languageInput);
   const orthographyPicker = useOrthographyPicker(effectiveLang, orthographyId, setOrthographyId);
   const groupedOrthographyOptions = groupOrthographiesForSelect(orthographyPicker.orthographies);
-  const selectedOrthography = orthographyPicker.orthographies.find((item) => item.id === orthographyId);
-  const selectedOrthographyBadge = selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null;
-  const customLanguageError = effectiveLang && !isKnownIso639_3Code(effectiveLang)
-    ? messages.invalidLanguageCode
-    : '';
+  const selectedOrthography = orthographyPicker.orthographies.find(
+    (item) => item.id === orthographyId,
+  );
+  const selectedOrthographyBadge = selectedOrthography
+    ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography)
+    : null;
+  const customLanguageError =
+    effectiveLang && !isKnownIso639_3Code(effectiveLang) ? messages.invalidLanguageCode : '';
   const resolvedLanguageError = customLanguageError || languageInputError;
-  const orthographySelectionError = orthographyId && !orthographyPicker.isCreating && !selectedOrthography
-    ? messages.invalidOrthographySelection
-    : '';
+  const orthographySelectionError =
+    orthographyId && !orthographyPicker.isCreating && !selectedOrthography
+      ? messages.invalidOrthographySelection
+      : '';
 
   const reset = () => {
     setPrimaryTitle('');
@@ -104,7 +122,12 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   const builderMessages = getOrthographyBuilderMessages(locale);
   const builderBreadcrumbTitle = (
     <span className="dialog-breadcrumb-title">
-      <button type="button" className="dialog-breadcrumb-back" onClick={orthographyPicker.cancelCreate} aria-label={messages.title}>
+      <button
+        type="button"
+        className="dialog-breadcrumb-back"
+        onClick={orthographyPicker.cancelCreate}
+        aria-label={messages.title}
+      >
         <MaterialSymbol name="chevron_left" className={JIEYU_MATERIAL_PANEL} />
         <span>{messages.title}</span>
       </button>
@@ -124,7 +147,9 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
       <PanelButton
         variant="primary"
         disabled={orthographyPicker.submitting}
-        onClick={() => { void orthographyPicker.createOrthography(); }}
+        onClick={() => {
+          void orthographyPicker.createOrthography();
+        }}
       >
         {orthographyPicker.submitting
           ? builderMessages.creating
@@ -140,41 +165,54 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
       isOpen={isOpen}
       onClose={handleClose}
       className={`project-setup-dialog${orthographyPicker.isCreating ? ' orthography-builder-dialog-host' : ''}`}
-      style={orthographyPicker.isCreating ? { '--dialog-auto-width': '540px' } as React.CSSProperties : undefined}
+      {...(orthographyPicker.isCreating
+        ? { style: { '--dialog-auto-width': '540px' } as React.CSSProperties }
+        : {})}
       ariaLabel={messages.title}
       title={orthographyPicker.isCreating ? builderBreadcrumbTitle : messages.title}
       closeLabel={messages.close}
-      footer={orthographyPicker.isCreating ? builderFooter : (
-        <>
-          <PanelButton variant="ghost" onClick={handleClose} disabled={submitting}>
-            {messages.cancel}
-          </PanelButton>
-          <PanelButton
-            variant="primary"
-            disabled={submitting}
-            onClick={() => {
-              void handleSubmit();
-            }}
-          >
-            {submitting ? messages.creating : messages.createProject}
-          </PanelButton>
-        </>
-      )}
-    >
-        {orthographyPicker.isCreating ? (
-          <OrthographyBuilderPanel
-            picker={orthographyPicker}
-            languageOptions={languageOptions}
-            compact
-            hideActions
-            contextLines={[
-              messages.title,
-              messages.orthographyContextPrimaryLanguage(displayedLanguage),
-            ]}
-          />
+      footer={
+        orthographyPicker.isCreating ? (
+          builderFooter
         ) : (
           <>
-          <FormField label={<>{messages.titleZhLabel}<em>*</em></>}>
+            <PanelButton variant="ghost" onClick={handleClose} disabled={submitting}>
+              {messages.cancel}
+            </PanelButton>
+            <PanelButton
+              variant="primary"
+              disabled={submitting}
+              onClick={() => {
+                void handleSubmit();
+              }}
+            >
+              {submitting ? messages.creating : messages.createProject}
+            </PanelButton>
+          </>
+        )
+      }
+    >
+      {orthographyPicker.isCreating ? (
+        <OrthographyBuilderPanel
+          picker={orthographyPicker}
+          languageOptions={languageOptions}
+          compact
+          hideActions
+          contextLines={[
+            messages.title,
+            messages.orthographyContextPrimaryLanguage(displayedLanguage),
+          ]}
+        />
+      ) : (
+        <>
+          <FormField
+            label={
+              <>
+                {messages.titleZhLabel}
+                <em>*</em>
+              </>
+            }
+          >
             <input
               className="input panel-input"
               type="text"
@@ -218,7 +256,10 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
           </FormField>
 
           {effectiveLang && (
-            <FormField htmlFor={`${fieldIdPrefix}-orthography`} label={<span>{messages.orthographyLabel}</span>}>
+            <FormField
+              htmlFor={`${fieldIdPrefix}-orthography`}
+              label={<span>{messages.orthographyLabel}</span>}
+            >
               <div className="dialog-field-select-with-btn">
                 <select
                   id={`${fieldIdPrefix}-orthography`}
@@ -226,9 +267,14 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
                   value={orthographyId}
                   onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
                 >
-                  {orthographyPicker.orthographies.length === 0 && <option value="">{messages.orthographyDefaultInference}</option>}
+                  {orthographyPicker.orthographies.length === 0 && (
+                    <option value="">{messages.orthographyDefaultInference}</option>
+                  )}
                   {groupedOrthographyOptions.map((group) => (
-                    <optgroup key={group.key} label={getOrthographyCatalogGroupLabel(locale, group.key)}>
+                    <optgroup
+                      key={group.key}
+                      label={getOrthographyCatalogGroupLabel(locale, group.key)}
+                    >
                       {group.orthographies.map((orthography) => (
                         <option key={orthography.id} value={orthography.id}>
                           {formatOrthographyOptionLabel(orthography, locale)}
@@ -240,7 +286,9 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
                 <PanelButton
                   variant="ghost"
                   className="dialog-field-inline-btn"
-                  onClick={() => orthographyPicker.handleSelectionChange(ORTHOGRAPHY_CREATE_SENTINEL)}
+                  onClick={() =>
+                    orthographyPicker.handleSelectionChange(ORTHOGRAPHY_CREATE_SENTINEL)
+                  }
                   title={messages.createOrthography}
                 >
                   <MaterialSymbol name="add" className={JIEYU_MATERIAL_INLINE} />
@@ -255,7 +303,9 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
               {selectedOrthography && selectedOrthographyBadge && (
                 <p className="dialog-hint dialog-hint-inline">
                   <span>{formatOrthographyOptionLabel(selectedOrthography, locale)}</span>
-                  <span className={selectedOrthographyBadge.className}>{selectedOrthographyBadge.label}</span>
+                  <span className={selectedOrthographyBadge.className}>
+                    {selectedOrthographyBadge.label}
+                  </span>
                 </p>
               )}
 
@@ -269,8 +319,8 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
           )}
 
           {error && <PanelFeedback level="error">{error}</PanelFeedback>}
-          </>
-        )}
+        </>
+      )}
     </ModalPanel>
   );
 }

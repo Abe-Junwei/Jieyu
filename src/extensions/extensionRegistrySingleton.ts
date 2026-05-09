@@ -1,7 +1,11 @@
 import { resolveHostVersion } from '../config/hostVersion';
 import { createExtensionRegistry, type ExtensionRegistry } from './extensionRegistry';
 import type { ExtensionCapability, CapabilityHandler } from './extensionRuntime';
-import { builtinHostContractsHooks, builtinHostContractsManifest, BUILTIN_HOST_CONTRACTS_EXTENSION_ID } from './builtinHostContractsExtension';
+import {
+  builtinHostContractsHooks,
+  builtinHostContractsManifest,
+  BUILTIN_HOST_CONTRACTS_EXTENSION_ID,
+} from './builtinHostContractsExtension';
 
 const REGISTRY_STORAGE_KEY = 'jieyu.extensionRegistry.snapshots';
 
@@ -27,7 +31,7 @@ export function getExtensionRegistry(): ExtensionRegistry {
     });
     try {
       const raw = localStorage.getItem(REGISTRY_STORAGE_KEY);
-      if (raw) {
+      if (raw !== null && raw.length > 0) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           registrySingleton.importSnapshots(parsed);
@@ -75,7 +79,10 @@ export async function ensureBuiltinExtensionsLoaded(): Promise<void> {
   if (existing?.state === 'active') {
     return;
   }
-  const result = await reg.registerOfficial(builtinHostContractsManifest, builtinHostContractsHooks);
+  const result = await reg.registerOfficial(
+    builtinHostContractsManifest,
+    builtinHostContractsHooks,
+  );
   if (result.ok) {
     persistRegistrySnapshots();
   }

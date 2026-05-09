@@ -1,4 +1,4 @@
-const EXTENSION_MANIFEST_SCHEMA_VERSION = '1.0.0' as const;
+type ExtensionManifestSchemaVersion = '1.0.0';
 
 export type ExtensionCapability =
   | 'read.transcription'
@@ -10,7 +10,7 @@ export type ExtensionCapability =
 export type ExtensionTrustLevel = 'official' | 'trusted' | 'community' | 'untrusted';
 
 export interface ExtensionManifestV1 {
-  schemaVersion: typeof EXTENSION_MANIFEST_SCHEMA_VERSION;
+  schemaVersion: ExtensionManifestSchemaVersion;
   id: string;
   name: string;
   version: string;

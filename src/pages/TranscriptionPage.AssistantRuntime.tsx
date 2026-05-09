@@ -1,25 +1,48 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import '../styles/pages/ai-sidebar-shell.css';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
 import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../contexts/VoiceAgentContext';
 import { type AiChatContextValue } from '../contexts/AiChatContext';
-import { pickAiAssistantHubContextValue, useAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContextValue';
+import {
+  pickAiAssistantHubContextValue,
+  useAiAssistantHubContextValue,
+} from '../hooks/useAiAssistantHubContextValue';
 import { useVoiceDock } from '../hooks/useVoiceDock';
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
-import { pickVoiceAgentContextValue, useVoiceAgentContextValue } from '../hooks/useVoiceAgentContextValue';
+import {
+  pickVoiceAgentContextValue,
+  useVoiceAgentContextValue,
+} from '../hooks/useVoiceAgentContextValue';
 import { ToastController } from './TranscriptionPage.ToastController';
 import { featureFlags } from '../ai/config/featureFlags';
 import { normalizeLocale, t } from '../i18n';
-import type { TranscriptionPageAssistantRuntimeFrameProps, TranscriptionPageAssistantRuntimeProps, TranscriptionPageAssistantRuntimeVoiceProps } from './TranscriptionPage.runtimeContracts';
+import type {
+  TranscriptionPageAssistantRuntimeFrameProps,
+  TranscriptionPageAssistantRuntimeProps,
+  TranscriptionPageAssistantRuntimeVoiceProps,
+} from './TranscriptionPage.runtimeContracts';
 
-const VoiceAgentWidget = lazy(async () => import('../components/VoiceAgentWidget').then((module) => ({
-  default: module.VoiceAgentWidget,
-})));
+const VoiceAgentWidget = lazy(async () =>
+  import('../components/VoiceAgentWidget').then((module) => ({
+    default: module.VoiceAgentWidget,
+  })),
+);
 
-const AiChatCard = lazy(async () => import('../components/ai/AiChatCard').then((module) => ({
-  default: module.AiChatCard,
-})));
+const AiChatCard = lazy(async () =>
+  import('../components/ai/AiChatCard').then((module) => ({
+    default: module.AiChatCard,
+  })),
+);
 
 interface AssistantVoiceRuntimeProps {
   locale: string;
@@ -42,13 +65,15 @@ interface AssistantRuntimeHostProps {
     error?: string | null;
   };
   voiceDrawer?: ReactNode;
-  voiceEntry?: {
-    enabled: boolean;
-    expanded: boolean;
-    listening: boolean;
-    statusText?: string;
-    onTogglePanel: () => void;
-  } | undefined;
+  voiceEntry?:
+    | {
+        enabled: boolean;
+        expanded: boolean;
+        listening: boolean;
+        statusText?: string;
+        onTogglePanel: () => void;
+      }
+    | undefined;
 }
 
 function AssistantRuntimeFrame({
@@ -67,19 +92,19 @@ function AssistantRuntimeFrame({
         recording={frame.recording}
         recordingUnitId={frame.recordingUnitId}
         recordingError={frame.recordingError}
-        {...(frame.overlapCycleToast !== undefined ? { overlapCycleToast: frame.overlapCycleToast } : {})}
-        {...(frame.lockConflictToast !== undefined ? { lockConflictToast: frame.lockConflictToast } : {})}
+        {...(frame.overlapCycleToast !== undefined
+          ? { overlapCycleToast: frame.overlapCycleToast }
+          : {})}
+        {...(frame.lockConflictToast !== undefined
+          ? { lockConflictToast: frame.lockConflictToast }
+          : {})}
         tf={frame.tf}
       />
       <div className="transcription-hub-assistant-panel">
         <div className="transcription-hub-assistant-chat-section">
           <ErrorBoundary>
             <Suspense fallback={null}>
-              <AiChatCard
-                embedded
-                voiceDrawer={voiceDrawer}
-                voiceEntry={voiceEntry}
-              />
+              <AiChatCard embedded voiceDrawer={voiceDrawer} voiceEntry={voiceEntry} />
             </Suspense>
           </ErrorBoundary>
         </div>
@@ -115,7 +140,9 @@ function AssistantVoiceRuntime({
     handleSttEnhancementKindChange,
     handleSttEnhancementConfigChange,
   } = useVoiceDock({
-    ...(voice.context.activeTextPrimaryLanguageId !== undefined ? { activeTextPrimaryLanguageId: voice.context.activeTextPrimaryLanguageId } : {}),
+    ...(voice.context.activeTextPrimaryLanguageId !== undefined
+      ? { activeTextPrimaryLanguageId: voice.context.activeTextPrimaryLanguageId }
+      : {}),
     getActiveTextPrimaryLanguageId: voice.context.getActiveTextPrimaryLanguageId,
   });
 
@@ -148,11 +175,15 @@ function AssistantVoiceRuntime({
     handleVoiceDictation: voice.actions.writeback.handleVoiceDictation,
     onVoiceAnalysisResult: voice.actions.writeback.handleVoiceAnalysisResult,
     selection: voice.target.selection,
-    ...(voice.target.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: voice.target.defaultTranscriptionLayerId } : {}),
+    ...(voice.target.defaultTranscriptionLayerId !== undefined
+      ? { defaultTranscriptionLayerId: voice.target.defaultTranscriptionLayerId }
+      : {}),
     translationLayers: voice.target.translationLayers,
     layers: voice.target.layers,
     ...(voice.target.layerLinks !== undefined ? { layerLinks: voice.target.layerLinks } : {}),
-    ...(voice.target.dictationPipeline !== undefined ? { dictationPipeline: voice.target.dictationPipeline } : {}),
+    ...(voice.target.dictationPipeline !== undefined
+      ? { dictationPipeline: voice.target.dictationPipeline }
+      : {}),
     formatSidePaneLayerLabel: voice.target.formatSidePaneLayerLabel,
     formatTime: voice.target.formatTime,
     aiChatSend: async (text: string) => aiChatContextValue.onSendAiMessage?.(text),
@@ -168,11 +199,15 @@ function AssistantVoiceRuntime({
     setCommercialProviderConfig,
     featureVoiceEnabled: featureFlags.voiceAgentEnabled,
     toggleVoiceRef,
-    ...(voice.onAiAssistantMessageBridgeRef !== undefined ? { voiceAiAssistantMessageBridgeRef: voice.onAiAssistantMessageBridgeRef } : {}),
+    ...(voice.onAiAssistantMessageBridgeRef !== undefined
+      ? { voiceAiAssistantMessageBridgeRef: voice.onAiAssistantMessageBridgeRef }
+      : {}),
   });
 
   useEffect(() => {
-    voice.actions.lifecycle.onRegisterToggleVoice(featureFlags.voiceAgentEnabled ? voiceAgent.toggle : undefined);
+    voice.actions.lifecycle.onRegisterToggleVoice(
+      featureFlags.voiceAgentEnabled ? voiceAgent.toggle : undefined,
+    );
     return () => voice.actions.lifecycle.onRegisterToggleVoice(undefined);
   }, [voice.actions.lifecycle, voiceAgent.toggle]);
 
@@ -185,7 +220,13 @@ function AssistantVoiceRuntime({
       voiceAgent.toggle();
     }
     onInitialVoiceRequestHandled();
-  }, [handleAssistantVoicePanelOpen, onInitialVoiceRequestHandled, openPanelOnMount, startListeningOnMount, voiceAgent.toggle]);
+  }, [
+    handleAssistantVoicePanelOpen,
+    onInitialVoiceRequestHandled,
+    openPanelOnMount,
+    startListeningOnMount,
+    voiceAgent,
+  ]);
 
   const voiceAgentContextValue = useVoiceAgentContextValue({
     voiceListening: voiceAgent.listening,
@@ -210,14 +251,18 @@ function AssistantVoiceRuntime({
     onVoiceSetSafeMode: voiceAgent.setSafeMode,
   });
 
-  const aiAssistantHubContextValue = useAiAssistantHubContextValue(aiChatContextValue, voiceAgentContextValue);
+  const aiAssistantHubContextValue = useAiAssistantHubContextValue(
+    aiChatContextValue,
+    voiceAgentContextValue,
+  );
 
   const voiceEntry = useMemo(() => {
     if (!featureFlags.voiceAgentEnabled) return undefined;
-    const pushToTalkReady = voiceAgent.listening
-      && !voiceAgent.isRecording
-      && voiceAgent.agentState === 'idle'
-      && (voiceAgent.engine === 'whisper-local' || voiceAgent.engine === 'commercial');
+    const pushToTalkReady =
+      voiceAgent.listening &&
+      !voiceAgent.isRecording &&
+      voiceAgent.agentState === 'idle' &&
+      (voiceAgent.engine === 'whisper-local' || voiceAgent.engine === 'commercial');
     return {
       enabled: true,
       expanded: assistantVoiceExpanded,
@@ -226,76 +271,85 @@ function AssistantVoiceRuntime({
         ? t(uiLocale, 'transcription.voice.status.readyToRecord')
         : voiceAgent.listening
           ? t(uiLocale, 'transcription.voice.status.listening')
-        : t(uiLocale, 'transcription.voice.status.standby'),
+          : t(uiLocale, 'transcription.voice.status.standby'),
       onTogglePanel: handleAssistantVoicePanelToggle,
     };
-  }, [assistantVoiceExpanded, handleAssistantVoicePanelToggle, uiLocale, voiceAgent.agentState, voiceAgent.engine, voiceAgent.isRecording, voiceAgent.listening]);
+  }, [
+    assistantVoiceExpanded,
+    handleAssistantVoicePanelToggle,
+    uiLocale,
+    voiceAgent.agentState,
+    voiceAgent.engine,
+    voiceAgent.isRecording,
+    voiceAgent.listening,
+  ]);
 
-  const voiceDrawer = featureFlags.voiceAgentEnabled && assistantVoiceExpanded
-    ? (
-        <Suspense fallback={null}>
-          <VoiceAgentWidget
-            compact
-            listening={voiceAgent.listening}
-            speechActive={voiceAgent.speechActive}
-            mode={voiceAgent.mode}
-            interimText={voiceAgent.interimText}
-            finalText={voiceAgent.finalText}
-            confidence={voiceAgent.confidence}
-            error={voiceAgent.error}
-            lastIntent={voiceAgent.lastIntent}
-            pendingConfirm={voiceAgent.pendingConfirm}
-            disambiguationOptions={voiceAgent.disambiguationOptions}
-            safeMode={voiceAgent.safeMode}
-            wakeWordEnabled={voiceAgent.wakeWordEnabled}
-            wakeWordEnergyLevel={voiceAgent.wakeWordEnergyLevel}
-            corpusLang={effectiveVoiceCorpusLang}
-            langOverride={voiceCorpusLangOverride}
-            detectedLang={voiceAgent.detectedLang}
-            engine={voiceAgent.engine}
-            isRecording={voiceAgent.isRecording}
-            energyLevel={voiceAgent.energyLevel}
-            agentState={voiceAgent.agentState}
-            recordingDuration={voiceAgent.recordingDuration}
-            session={voiceAgent.session}
-            commercialProviderKind={voiceAgent.commercialProviderKind}
-            commercialProviderConfig={voiceAgent.commercialProviderConfig}
-            providerStatusMap={voiceAgent.providerStatusMap}
-            enhancementStatus={voiceAgent.enhancementStatus}
-            onRefreshProviderStatus={voiceAgent.refreshProviderStatus}
-            localWhisperConfig={localWhisperConfig}
-            onLocalWhisperConfigChange={handleLocalWhisperConfigChange}
-            sttEnhancementKind={sttEnhancementKind}
-            sttEnhancementConfig={sttEnhancementConfig}
-            onSttEnhancementKindChange={handleSttEnhancementKindChange}
-            onSttEnhancementConfigChange={handleSttEnhancementConfigChange}
-            {...(voice.target.dictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: voice.target.dictationPreviewTextProps } : {})}
-            targetSummary={voiceTargetSummary}
-            statusSummary={voiceStatusSummary}
-            environmentSummary={voiceEnvironmentSummary}
-            selectionSummary={voiceSelectionSummary}
-            onToggle={handleVoiceAssistantIconClick}
-            onMicPointerDown={handleMicPointerDown}
-            onMicPointerUp={handleMicPointerUp}
-            onSwitchMode={voiceAgent.switchMode}
-            onSwitchEngine={handleVoiceSwitchEngine}
-            onSelectDisambiguation={voiceAgent.selectDisambiguation}
-            onDismissDisambiguation={voiceAgent.dismissDisambiguation}
-            onConfirm={voiceAgent.confirmPending}
-            onCancel={voiceAgent.cancelPending}
-            onSetSafeMode={voiceAgent.setSafeMode}
-            onSetWakeWordEnabled={voiceAgent.setWakeWordEnabled}
-            assistantTtsSupported={assistantTtsSupported}
-            assistantTtsEnabled={assistantTtsEnabled}
-            onSetAssistantTtsEnabled={onSetAssistantTtsEnabled}
-            onSetLangOverride={handleVoiceSetLangOverride}
-            onSetCommercialProviderKind={voiceAgent.setCommercialProviderKind}
-            onCommercialConfigChange={handleVoiceCommercialConfigChange}
-            onTestCommercialProvider={voiceAgent.testCommercialProvider}
-          />
-        </Suspense>
-      )
-    : undefined;
+  const voiceDrawer =
+    featureFlags.voiceAgentEnabled && assistantVoiceExpanded ? (
+      <Suspense fallback={null}>
+        <VoiceAgentWidget
+          compact
+          listening={voiceAgent.listening}
+          speechActive={voiceAgent.speechActive}
+          mode={voiceAgent.mode}
+          interimText={voiceAgent.interimText}
+          finalText={voiceAgent.finalText}
+          confidence={voiceAgent.confidence}
+          error={voiceAgent.error}
+          lastIntent={voiceAgent.lastIntent}
+          pendingConfirm={voiceAgent.pendingConfirm}
+          disambiguationOptions={voiceAgent.disambiguationOptions}
+          safeMode={voiceAgent.safeMode}
+          wakeWordEnabled={voiceAgent.wakeWordEnabled}
+          wakeWordEnergyLevel={voiceAgent.wakeWordEnergyLevel}
+          corpusLang={effectiveVoiceCorpusLang}
+          langOverride={voiceCorpusLangOverride}
+          detectedLang={voiceAgent.detectedLang}
+          engine={voiceAgent.engine}
+          isRecording={voiceAgent.isRecording}
+          energyLevel={voiceAgent.energyLevel}
+          agentState={voiceAgent.agentState}
+          recordingDuration={voiceAgent.recordingDuration}
+          session={voiceAgent.session}
+          commercialProviderKind={voiceAgent.commercialProviderKind}
+          commercialProviderConfig={voiceAgent.commercialProviderConfig}
+          providerStatusMap={voiceAgent.providerStatusMap}
+          enhancementStatus={voiceAgent.enhancementStatus}
+          onRefreshProviderStatus={voiceAgent.refreshProviderStatus}
+          localWhisperConfig={localWhisperConfig}
+          onLocalWhisperConfigChange={handleLocalWhisperConfigChange}
+          sttEnhancementKind={sttEnhancementKind}
+          sttEnhancementConfig={sttEnhancementConfig}
+          onSttEnhancementKindChange={handleSttEnhancementKindChange}
+          onSttEnhancementConfigChange={handleSttEnhancementConfigChange}
+          {...(voice.target.dictationPreviewTextProps !== undefined
+            ? { dictationPreviewTextProps: voice.target.dictationPreviewTextProps }
+            : {})}
+          targetSummary={voiceTargetSummary}
+          statusSummary={voiceStatusSummary}
+          environmentSummary={voiceEnvironmentSummary}
+          selectionSummary={voiceSelectionSummary}
+          onToggle={handleVoiceAssistantIconClick}
+          onMicPointerDown={handleMicPointerDown}
+          onMicPointerUp={handleMicPointerUp}
+          onSwitchMode={voiceAgent.switchMode}
+          onSwitchEngine={handleVoiceSwitchEngine}
+          onSelectDisambiguation={voiceAgent.selectDisambiguation}
+          onDismissDisambiguation={voiceAgent.dismissDisambiguation}
+          onConfirm={voiceAgent.confirmPending}
+          onCancel={voiceAgent.cancelPending}
+          onSetSafeMode={voiceAgent.setSafeMode}
+          onSetWakeWordEnabled={voiceAgent.setWakeWordEnabled}
+          assistantTtsSupported={assistantTtsSupported}
+          assistantTtsEnabled={assistantTtsEnabled}
+          onSetAssistantTtsEnabled={onSetAssistantTtsEnabled}
+          onSetLangOverride={handleVoiceSetLangOverride}
+          onSetCommercialProviderKind={voiceAgent.setCommercialProviderKind}
+          onCommercialConfigChange={handleVoiceCommercialConfigChange}
+          onTestCommercialProvider={voiceAgent.testCommercialProvider}
+        />
+      </Suspense>
+    ) : undefined;
 
   return (
     <AssistantRuntimeFrame
@@ -330,15 +384,21 @@ export function TranscriptionPageAssistantRuntime({
   }, []);
 
   useEffect(() => {
-    voice.actions.lifecycle.onRegisterToggleVoice(featureFlags.voiceAgentEnabled ? handleActivateVoiceListening : undefined);
+    voice.actions.lifecycle.onRegisterToggleVoice(
+      featureFlags.voiceAgentEnabled ? handleActivateVoiceListening : undefined,
+    );
     return () => voice.actions.lifecycle.onRegisterToggleVoice(undefined);
   }, [handleActivateVoiceListening, voice.actions.lifecycle]);
 
-  const dormantVoiceAgentContextValue = useMemo(() => pickVoiceAgentContextValue({
-    ...DEFAULT_VOICE_AGENT_CONTEXT_VALUE,
-    voiceEnabled: featureFlags.voiceAgentEnabled,
-    onVoiceToggle: featureFlags.voiceAgentEnabled ? handleActivateVoiceListening : undefined,
-  }), [handleActivateVoiceListening]);
+  const dormantVoiceAgentContextValue = useMemo(
+    () =>
+      pickVoiceAgentContextValue({
+        ...DEFAULT_VOICE_AGENT_CONTEXT_VALUE,
+        voiceEnabled: featureFlags.voiceAgentEnabled,
+        onVoiceToggle: featureFlags.voiceAgentEnabled ? handleActivateVoiceListening : undefined,
+      }),
+    [handleActivateVoiceListening],
+  );
 
   const dormantAssistantHubContextValue = useMemo(
     () => pickAiAssistantHubContextValue(aiChatContextValue, dormantVoiceAgentContextValue),

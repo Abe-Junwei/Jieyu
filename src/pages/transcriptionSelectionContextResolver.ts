@@ -17,7 +17,7 @@ export function resolveSelectedTimelineMedia(
 ): MediaItemDocType | undefined {
   if (selectedUnitMedia) return selectedUnitMedia;
   const mediaId = selectedTimelineSegment?.mediaId ?? selectedTimelineOwnerUnit?.mediaId ?? '';
-  return mediaId ? mediaItemById.get(mediaId) : undefined;
+  return mediaId.length > 0 ? mediaItemById.get(mediaId) : undefined;
 }
 
 export function resolveSelectedTimelineRowMeta(
@@ -27,7 +27,9 @@ export function resolveSelectedTimelineRowMeta(
 ): SelectedTimelineRowMeta | null {
   if (!selectedTimelineOwnerUnit) return null;
 
-  const rowIndex = unitsOnCurrentMedia.findIndex((item) => item.id === selectedTimelineOwnerUnit.id);
+  const rowIndex = unitsOnCurrentMedia.findIndex(
+    (item) => item.id === selectedTimelineOwnerUnit.id,
+  );
   if (rowIndex >= 0) {
     const row = unitsOnCurrentMedia[rowIndex];
     if (!row) return null;

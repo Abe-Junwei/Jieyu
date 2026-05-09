@@ -6,13 +6,31 @@
 import { useCallback } from 'react';
 import { useLatest } from './useLatest';
 import { nowIso } from './useAiChat.helpers';
-import { executeConfirmedProposedChangeBatch, executeConfirmedToolCall } from './useAiChat.confirmExecution';
-import { buildAiChangeSetFromPendingToolCall, validateChangeSetEpoch } from '../ai/changeset/AiChangeSetProtocol';
+import {
+  executeConfirmedProposedChangeBatch,
+  executeConfirmedToolCall,
+} from './useAiChat.confirmExecution';
+import {
+  buildAiChangeSetFromPendingToolCall,
+  validateChangeSetEpoch,
+} from '../ai/changeset/AiChangeSetProtocol';
 import { persistSessionMemory } from '../ai/chat/sessionMemory';
-import { buildToolAuditContext, buildToolDecisionAuditMetadata, toNaturalToolCancelled } from '../ai/chat/toolCallHelpers';
+import {
+  buildToolAuditContext,
+  buildToolDecisionAuditMetadata,
+  toNaturalToolCancelled,
+} from '../ai/chat/toolCallHelpers';
 import { genRequestId } from './useAiChat.toolAudit';
 import { t, type Locale } from '../i18n';
-import type { AiChatToolCall, AiChatToolResult, AiInteractionMetrics, AiSessionMemory, AiTaskSession, AiToolDecisionMode, PendingAiToolCall } from './useAiChat.types';
+import type {
+  AiChatToolCall,
+  AiChatToolResult,
+  AiInteractionMetrics,
+  AiSessionMemory,
+  AiTaskSession,
+  AiToolDecisionMode,
+  PendingAiToolCall,
+} from './useAiChat.types';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 
 interface UseAiChatPendingToolCallOptions {
@@ -76,13 +94,15 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     const currentEpoch = getTimelineReadModelEpochRef.current?.();
     if (!validateChangeSetEpoch(changeSet, currentEpoch)) {
       const staleCall = pending.executionCall ?? pending.call;
-      const staleAuditContext = pending.auditContext ?? buildToolAuditContext(
-        '',
-        providerId,
-        settingsRef.current.model,
-        toolDecisionModeRef.current,
-        settingsRef.current.toolFeedbackStyle,
-      );
+      const staleAuditContext =
+        pending.auditContext ??
+        buildToolAuditContext(
+          '',
+          providerId,
+          settingsRef.current.model,
+          toolDecisionModeRef.current,
+          settingsRef.current.toolFeedbackStyle,
+        );
       const staleMessage = t(toolFeedbackLocale, 'ai.alerts.staleReadModelConfirmBlocked');
       setPendingToolCall(null);
       setTaskSession({
@@ -120,13 +140,15 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
       toolName: call.name,
       updatedAt: nowIso(),
     });
-    const auditContext = pending.auditContext ?? buildToolAuditContext(
-      '',
-      providerId,
-      settingsRef.current.model,
-      toolDecisionModeRef.current,
-      settingsRef.current.toolFeedbackStyle,
-    );
+    const auditContext =
+      pending.auditContext ??
+      buildToolAuditContext(
+        '',
+        providerId,
+        settingsRef.current.model,
+        toolDecisionModeRef.current,
+        settingsRef.current.toolFeedbackStyle,
+      );
 
     // 注入 requestId | Inject requestId
     const callWithRequestId: AiChatToolCall & { requestId: string } = {
@@ -184,25 +206,32 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     bumpMetric,
     getTimelineReadModelEpochRef,
     hasPersistedExecutionForRequest,
+    markExecutedRequestId,
     onToolCallRef,
+    pendingToolCallRef,
     providerId,
+    sessionMemoryRef,
     setPendingToolCall,
+    settingsRef,
     setTaskSession,
     taskSessionRef,
     toolFeedbackLocale,
+    toolDecisionModeRef,
     writeToolDecisionAuditLog,
   ]);
 
   const cancelPendingToolCall = useCallback(async () => {
     const pending = pendingToolCallRef.current;
     if (!pending) return;
-    const auditContext = pending.auditContext ?? buildToolAuditContext(
-      '',
-      providerId,
-      settingsRef.current.model,
-      toolDecisionModeRef.current,
-      settingsRef.current.toolFeedbackStyle,
-    );
+    const auditContext =
+      pending.auditContext ??
+      buildToolAuditContext(
+        '',
+        providerId,
+        settingsRef.current.model,
+        toolDecisionModeRef.current,
+        settingsRef.current.toolFeedbackStyle,
+      );
 
     setPendingToolCall(null);
     bumpMetric('cancelCount');
@@ -213,7 +242,11 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     });
     await applyAssistantMessageResult(
       pending.assistantMessageId,
-      toNaturalToolCancelled(toolFeedbackLocale, pending.call.name, settingsRef.current.toolFeedbackStyle),
+      toNaturalToolCancelled(
+        toolFeedbackLocale,
+        pending.call.name,
+        settingsRef.current.toolFeedbackStyle,
+      ),
     );
 
     await writeToolDecisionAuditLog(
@@ -231,7 +264,19 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         false,
       ),
     );
-  }, [applyAssistantMessageResult, providerId, taskSessionRef, writeToolDecisionAuditLog]);
+  }, [
+    applyAssistantMessageResult,
+    bumpMetric,
+    pendingToolCallRef,
+    providerId,
+    setPendingToolCall,
+    settingsRef,
+    setTaskSession,
+    taskSessionRef,
+    toolDecisionModeRef,
+    toolFeedbackLocale,
+    writeToolDecisionAuditLog,
+  ]);
 
   return { confirmPendingToolCall, cancelPendingToolCall };
 }

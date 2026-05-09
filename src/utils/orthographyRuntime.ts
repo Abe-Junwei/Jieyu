@@ -6,14 +6,16 @@ type TranscriptionLayerRef = Pick<LayerDocType, 'layerType' | 'orthographyId'>;
 
 function normalizeOrthographyId(value: string | null | undefined): string | undefined {
   const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed !== undefined && trimmed.length > 0 ? trimmed : undefined;
 }
 
 export function resolveFallbackSourceOrthographyId(input: {
   layers: ReadonlyArray<TranscriptionLayerRef>;
   selectedLayerId?: string | null;
 }): string | undefined {
-  return normalizeOrthographyId(input.layers.find((layer) => layer.layerType === 'transcription')?.orthographyId);
+  return normalizeOrthographyId(
+    input.layers.find((layer) => layer.layerType === 'transcription')?.orthographyId,
+  );
 }
 
 export async function applyOrthographyBridgeIfNeeded(input: {
@@ -24,7 +26,14 @@ export async function applyOrthographyBridgeIfNeeded(input: {
 }): Promise<{ text: string; bridgeId?: string }> {
   const sourceOrthographyId = normalizeOrthographyId(input.sourceOrthographyId);
   const targetOrthographyId = normalizeOrthographyId(input.targetOrthographyId);
-  if (!input.text || !sourceOrthographyId || !targetOrthographyId || sourceOrthographyId === targetOrthographyId) {
+  if (
+    input.text.length === 0 ||
+    sourceOrthographyId === undefined ||
+    sourceOrthographyId.length === 0 ||
+    targetOrthographyId === undefined ||
+    targetOrthographyId.length === 0 ||
+    sourceOrthographyId === targetOrthographyId
+  ) {
     return { text: input.text };
   }
   const bridgeId = input.bridgeId?.trim();
@@ -32,7 +41,7 @@ export async function applyOrthographyBridgeIfNeeded(input: {
     text: input.text,
     sourceOrthographyId,
     targetOrthographyId,
-    ...(bridgeId ? { bridgeId } : {}),
+    ...(bridgeId !== undefined && bridgeId.length > 0 ? { bridgeId } : {}),
   });
 }
 
@@ -44,23 +53,28 @@ export async function bridgeTextForLayerTarget(input: {
   fallbackSourceOrthographyId?: string | null;
 }): Promise<string> {
   const targetLayerId = input.targetLayerId?.trim();
-  if (!targetLayerId || !input.text) return input.text;
+  if (targetLayerId === undefined || targetLayerId.length === 0 || input.text.length === 0)
+    return input.text;
 
   const targetLayer = input.layers.find((layer) => layer.id === targetLayerId);
   const targetOrthographyId = normalizeOrthographyId(targetLayer?.orthographyId);
-  if (!targetOrthographyId) return input.text;
+  if (targetOrthographyId === undefined || targetOrthographyId.length === 0) return input.text;
 
   const selectedLayerId = input.selectedLayerId?.trim();
-  const selectedLayer = selectedLayerId
-    ? input.layers.find((layer) => layer.id === selectedLayerId)
-    : undefined;
-  const sourceOrthographyId = normalizeOrthographyId(selectedLayer?.orthographyId)
-    ?? normalizeOrthographyId(input.fallbackSourceOrthographyId);
+  const selectedLayer =
+    selectedLayerId !== undefined && selectedLayerId.length > 0
+      ? input.layers.find((layer) => layer.id === selectedLayerId)
+      : undefined;
+  const sourceOrthographyId =
+    normalizeOrthographyId(selectedLayer?.orthographyId) ??
+    normalizeOrthographyId(input.fallbackSourceOrthographyId);
 
-  return (await applyOrthographyBridgeIfNeeded({
-    text: input.text,
-    ...(sourceOrthographyId !== undefined && { sourceOrthographyId }),
-    targetOrthographyId,
-    ...(targetLayer?.bridgeId !== undefined ? { bridgeId: targetLayer.bridgeId } : {}),
-  })).text;
+  return (
+    await applyOrthographyBridgeIfNeeded({
+      text: input.text,
+      ...(sourceOrthographyId !== undefined && { sourceOrthographyId }),
+      targetOrthographyId,
+      ...(targetLayer?.bridgeId !== undefined ? { bridgeId: targetLayer.bridgeId } : {}),
+    })
+  ).text;
 }

@@ -6,7 +6,11 @@ import {
   transcriptionLaneAcceptsUnscopedCanonicalUnits,
 } from './transcriptionUnitLaneReadScope';
 
-function tr(id: string, constraint: LayerDocType['constraint'], parentLayerId?: string): LayerDocType {
+function tr(
+  id: string,
+  constraint: LayerDocType['constraint'],
+  parentLayerId?: string,
+): LayerDocType {
   const now = '2026-04-23T00:00:00.000Z';
   return {
     id,
@@ -19,7 +23,7 @@ function tr(id: string, constraint: LayerDocType['constraint'], parentLayerId?: 
     updatedAt: now,
     layerType: 'transcription',
     constraint,
-    ...(parentLayerId ? { parentLayerId } : {}),
+    ...(typeof parentLayerId === 'string' && parentLayerId.length > 0 ? { parentLayerId } : {}),
   } as LayerDocType;
 }
 
@@ -85,12 +89,14 @@ describe('transcriptionLaneAcceptsUnscopedCanonicalUnits', () => {
       ['tr-dep', dep],
     ]);
     const transcriptionLaneIds = new Set(['tr-parent', 'tr-dep']);
-    const layerLinks = [{
-      layerId: 'tr-dep',
-      transcriptionLayerKey: 'tr-parent',
-      hostTranscriptionLayerId: 'tr-parent',
-      isPreferred: true,
-    }];
+    const layerLinks = [
+      {
+        layerId: 'tr-dep',
+        transcriptionLayerKey: 'tr-parent',
+        hostTranscriptionLayerId: 'tr-parent',
+        isPreferred: true,
+      },
+    ];
     expect(
       transcriptionLaneAcceptsUnscopedCanonicalUnits({
         laneLayer: dep,
@@ -193,12 +199,14 @@ describe('resolveCanonicalUnitForTranscriptionLaneRow', () => {
       ['tr-dep', dep],
     ]);
     const u = unit('u1', '');
-    const layerLinks = [{
-      layerId: 'tr-dep',
-      transcriptionLayerKey: 'tr-parent',
-      hostTranscriptionLayerId: 'tr-parent',
-      isPreferred: true,
-    }];
+    const layerLinks = [
+      {
+        layerId: 'tr-dep',
+        transcriptionLayerKey: 'tr-parent',
+        hostTranscriptionLayerId: 'tr-parent',
+        isPreferred: true,
+      },
+    ];
     const r = resolveCanonicalUnitForTranscriptionLaneRow({
       unit: u,
       laneLayer: dep,

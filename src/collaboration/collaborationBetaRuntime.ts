@@ -1,5 +1,19 @@
-import { createConflictResolutionLog, type CollaborationRecord, type ConflictDescriptor, type FieldValue } from './collaborationConflictRuntime';
-import { appendOperationLog, createReconnectValidationLog, mergeOperationLogs, openArbitrationTicket, toArbitrationOperationLogs, validateReconnectConsistency, type ArbitrationTicket, type CollaborationOperationLog } from './collaborationRulesRuntime';
+import {
+  createConflictResolutionLog,
+  type CollaborationRecord,
+  type ConflictDescriptor,
+  type FieldValue,
+} from './collaborationConflictRuntime';
+import {
+  appendOperationLog,
+  createReconnectValidationLog,
+  mergeOperationLogs,
+  openArbitrationTicket,
+  toArbitrationOperationLogs,
+  validateReconnectConsistency,
+  type ArbitrationTicket,
+  type CollaborationOperationLog,
+} from './collaborationRulesRuntime';
 
 export interface LayerObjectState {
   layerId: string;
@@ -28,7 +42,9 @@ export interface MultiLayerBatchApplyResult {
   appliedCount: number;
 }
 
-export type CollaborationOperationLogWriter = (logs: CollaborationOperationLog[]) => void | Promise<void>;
+export type CollaborationOperationLogWriter = (
+  logs: CollaborationOperationLog[],
+) => void | Promise<void>;
 
 export interface MultiLayerBatchPersistResult extends MultiLayerBatchApplyResult {
   persistedLogCount: number;
@@ -104,7 +120,10 @@ function toCollaborationRecord(state: LayerObjectState): CollaborationRecord {
   };
 }
 
-function detectOperationConflicts(current: LayerObjectState, operation: LayerEditOperation): ConflictDescriptor[] {
+function detectOperationConflicts(
+  current: LayerObjectState,
+  operation: LayerEditOperation,
+): ConflictDescriptor[] {
   const conflicts: ConflictDescriptor[] = [];
 
   if (operation.baseVersion < current.version) {
@@ -125,8 +144,8 @@ function detectOperationConflicts(current: LayerObjectState, operation: LayerEdi
 
   const overlapWindowMs = 2_000;
   if (
-    current.lastSessionId !== operation.sessionId
-    && Math.abs(operation.editedAt - current.updatedAt) <= overlapWindowMs
+    current.lastSessionId !== operation.sessionId &&
+    Math.abs(operation.editedAt - current.updatedAt) <= overlapWindowMs
   ) {
     conflicts.push({
       scope: 'session',
@@ -290,7 +309,10 @@ export function buildCollaboratorHints(
   operations: LayerEditOperation[],
   now = Date.now(),
 ): CollaboratorHint[] {
-  const grouped = new Map<string, { objectIds: Set<string>; lastEditedAt: number; actorId: string; layerId: string }>();
+  const grouped = new Map<
+    string,
+    { objectIds: Set<string>; lastEditedAt: number; actorId: string; layerId: string }
+  >();
 
   for (const operation of operations) {
     const key = `${operation.actorId}::${operation.layerId}`;
@@ -325,9 +347,6 @@ export function buildCollaboratorHints(
 function isRecordArrayValid(records: CollaborationRecord[]): boolean {
   const seenEntityIds = new Set<string>();
   for (const record of records) {
-    if (!record || typeof record !== 'object') {
-      return false;
-    }
     if (typeof record.entityId !== 'string' || typeof record.sessionId !== 'string') {
       return false;
     }
@@ -374,10 +393,9 @@ export function evaluateContinuousEditingStability(
         continue;
       }
 
-      const consistency = validateReconnectConsistency(
-        baseline,
-        [normalizeReplicaForStability(baseline, replica)],
-      );
+      const consistency = validateReconnectConsistency(baseline, [
+        normalizeReplicaForStability(baseline, replica),
+      ]);
       if (consistency.hasStructuralDamage) {
         structuralDamageCount += 1;
       }

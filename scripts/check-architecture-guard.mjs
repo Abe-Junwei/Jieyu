@@ -53,6 +53,17 @@ function ruleMatchesFile(rule, relativePath) {
   return true;
 }
 
+function getRuleEnforcementLevel(rule, relativePath) {
+  // allowlist: 命中 matchRegex 但不在 allowlist → 仅 warn，不硬失败
+  if (!Array.isArray(rule.allowlist) || rule.allowlist.length === 0) return 'enforce';
+  const inAllowlist = rule.allowlist.some((pattern) => {
+    if (typeof pattern === 'string') return relativePath === pattern;
+    if (pattern instanceof RegExp) return regexMatches(relativePath, pattern);
+    return false;
+  });
+  return inAllowlist ? 'enforce' : 'warn-only';
+}
+
 function getRuleTargets(rule, workspaceFiles) {
   if (typeof rule.file === 'string') {
     return [rule.file];
@@ -84,35 +95,44 @@ for (const rule of architectureGuardRules) {
   }
 
   for (const target of targets) {
+    const enforcement = getRuleEnforcementLevel(rule, target);
+    function reportViolation(message) {
+      if (enforcement === 'warn-only') {
+        warnings.push(`[allowlist] ${message}`);
+      } else {
+        failures.push(message);
+      }
+    }
+
     const fullPath = path.join(workspaceRoot, target);
     if (!fs.existsSync(fullPath)) {
-      failures.push(`Missing guarded file: ${target}`);
+      reportViolation(`Missing guarded file: ${target}`);
       continue;
     }
     const source = fs.readFileSync(fullPath, 'utf8');
     const metrics = measureFile(source);
 
     if (typeof rule.maxLines === 'number' && metrics.lines > rule.maxLines) {
-      failures.push(`${target}: line count ${metrics.lines} exceeds ceiling ${rule.maxLines}`);
+      reportViolation(`${target}: line count ${metrics.lines} exceeds ceiling ${rule.maxLines}`);
     }
     maybeWarnNumeric(target, 'line count', metrics.lines, rule.maxLines, rule.warnAtRatio);
     if (typeof rule.maxUseCallbackDecls === 'number' && metrics.useCallbackDecls > rule.maxUseCallbackDecls) {
-      failures.push(`${target}: useCallback declarations ${metrics.useCallbackDecls} exceed ceiling ${rule.maxUseCallbackDecls}`);
+      reportViolation(`${target}: useCallback declarations ${metrics.useCallbackDecls} exceed ceiling ${rule.maxUseCallbackDecls}`);
     }
     maybeWarnNumeric(target, 'useCallback declarations', metrics.useCallbackDecls, rule.maxUseCallbackDecls, rule.warnAtRatio);
     if (typeof rule.maxUseMemoDecls === 'number' && metrics.useMemoDecls > rule.maxUseMemoDecls) {
-      failures.push(`${target}: useMemo declarations ${metrics.useMemoDecls} exceed ceiling ${rule.maxUseMemoDecls}`);
+      reportViolation(`${target}: useMemo declarations ${metrics.useMemoDecls} exceed ceiling ${rule.maxUseMemoDecls}`);
     }
     maybeWarnNumeric(target, 'useMemo declarations', metrics.useMemoDecls, rule.maxUseMemoDecls, rule.warnAtRatio);
     if (typeof rule.maxUseEffects === 'number' && metrics.useEffects > rule.maxUseEffects) {
-      failures.push(`${target}: useEffect count ${metrics.useEffects} exceeds ceiling ${rule.maxUseEffects}`);
+      reportViolation(`${target}: useEffect count ${metrics.useEffects} exceeds ceiling ${rule.maxUseEffects}`);
     }
     maybeWarnNumeric(target, 'useEffect count', metrics.useEffects, rule.maxUseEffects, rule.warnAtRatio);
     if (Array.isArray(rule.maxRegexMatchCounts)) {
       for (const metric of rule.maxRegexMatchCounts) {
         const count = countRegexMatches(source, metric.pattern);
         if (count > metric.max) {
-          failures.push(`${target}: ${metric.label} count ${count} exceeds ceiling ${metric.max}`);
+          reportViolation(`${target}: ${metric.label} count ${count} exceeds ceiling ${metric.max}`);
         }
         maybeWarnNumeric(target, metric.label, count, metric.max, rule.warnAtRatio);
       }
@@ -120,28 +140,28 @@ for (const rule of architectureGuardRules) {
     if (Array.isArray(rule.requiredLiterals)) {
       for (const literal of rule.requiredLiterals) {
         if (!source.includes(literal)) {
-          failures.push(`${target}: required architecture literal missing: ${literal}`);
+          reportViolation(`${target}: required architecture literal missing: ${literal}`);
         }
       }
     }
     if (Array.isArray(rule.forbiddenLiterals)) {
       for (const literal of rule.forbiddenLiterals) {
         if (source.includes(literal)) {
-          failures.push(`${target}: forbidden architecture literal found: ${literal}`);
+          reportViolation(`${target}: forbidden architecture literal found: ${literal}`);
         }
       }
     }
     if (Array.isArray(rule.requiredRegexes)) {
       for (const pattern of rule.requiredRegexes) {
         if (!regexMatches(source, pattern)) {
-          failures.push(`${target}: required architecture pattern missing: ${pattern}`);
+          reportViolation(`${target}: required architecture pattern missing: ${pattern}`);
         }
       }
     }
     if (Array.isArray(rule.forbiddenRegexes)) {
       for (const pattern of rule.forbiddenRegexes) {
         if (regexMatches(source, pattern)) {
-          failures.push(`${target}: forbidden architecture pattern found: ${pattern}`);
+          reportViolation(`${target}: forbidden architecture pattern found: ${pattern}`);
         }
       }
     }

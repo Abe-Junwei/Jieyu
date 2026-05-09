@@ -1,6 +1,11 @@
 import { useMemo, type RefObject } from 'react';
 import type { Locale } from '../i18n';
-import type { TranscriptionPageTimelineContentProps, TranscriptionPageTimelineEmptyStateProps, TranscriptionPageTimelineHorizontalMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent.types';
+import type {
+  TranscriptionPageTimelineContentProps,
+  TranscriptionPageTimelineEmptyStateProps,
+  TranscriptionPageTimelineHorizontalMediaLanesProps,
+  TranscriptionPageTimelineTextOnlyProps,
+} from './TranscriptionPage.TimelineContent.types';
 import type {
   TimelineVerticalProjectionProps,
   TranscriptionPageTimelineWorkspacePanelPropsWithoutVertical,
@@ -23,7 +28,10 @@ interface UseTranscriptionTimelineContentViewModelInput {
   locale: Locale;
   importFileRef: RefObject<HTMLInputElement | null>;
   layerActionSetCreateTranscription: () => void;
-  mediaLanesPropsInput: Omit<TranscriptionPageTimelineHorizontalMediaLanesProps, 'playerDuration' | 'timelineExtentSec'>;
+  mediaLanesPropsInput: Omit<
+    TranscriptionPageTimelineHorizontalMediaLanesProps,
+    'playerDuration' | 'timelineExtentSec'
+  >;
   /** 工作区 panel 合同，不含纵向投影字段（见 `verticalProjection`）。 */
   textOnlyPropsInput: TranscriptionPageTimelineWorkspacePanelPropsWithoutVertical;
   /** 纵向布局投影；与 panel 其余字段并列进入 view-model 后再合并为宿主 `textOnlyProps`。 */
@@ -33,19 +41,26 @@ interface UseTranscriptionTimelineContentViewModelInput {
 export function useTranscriptionTimelineContentViewModel(
   input: UseTranscriptionTimelineContentViewModelInput,
 ): TranscriptionPageTimelineContentProps {
-  const mediaLanesProps = useMemo<TranscriptionPageTimelineHorizontalMediaLanesProps>(() => ({
-    playerDuration: input.playerDuration,
-    timelineExtentSec: input.timelineExtentSec,
-    ...input.mediaLanesPropsInput,
-  }), [input.mediaLanesPropsInput, input.playerDuration, input.timelineExtentSec]);
+  const mediaLanesProps = useMemo<TranscriptionPageTimelineHorizontalMediaLanesProps>(
+    () => ({
+      playerDuration: input.playerDuration,
+      timelineExtentSec: input.timelineExtentSec,
+      ...input.mediaLanesPropsInput,
+    }),
+    [input.mediaLanesPropsInput, input.playerDuration, input.timelineExtentSec],
+  );
 
   const verticalProjection = input.verticalProjection ?? FALLBACK_VERTICAL_PROJECTION;
 
   const textOnlyProps = useMemo<TranscriptionPageTimelineTextOnlyProps>(
-    () => dropUndefinedKeys({
-      ...input.textOnlyPropsInput,
-      ...verticalProjection,
-    }) as TranscriptionPageTimelineTextOnlyProps,
+    () =>
+      dropUndefinedKeys({
+        ...input.textOnlyPropsInput,
+        ...verticalProjection,
+      }) as TranscriptionPageTimelineTextOnlyProps,
+    // Hosts may reuse `verticalProjection` and mutate fields in place without replacing the object
+    // (see `useTranscriptionTimelineContentViewModel.test.tsx`); shallow keys keep memo in sync.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       input.textOnlyPropsInput,
       verticalProjection.verticalViewEnabled,
@@ -60,9 +75,8 @@ export function useTranscriptionTimelineContentViewModel(
     translationLayerCount: input.textOnlyPropsInput.translationLayers?.length ?? 0,
   });
 
-  const verticalComparisonEnabled = Boolean(
-    verticalProjection.verticalViewEnabled && effectiveLayersCount > 0,
-  );
+  const verticalComparisonEnabled =
+    verticalProjection.verticalViewEnabled === true && effectiveLayersCount > 0;
 
   const contractShellMode = resolveTimelineShellMode({
     selectedMediaUrl: input.selectedMediaUrl,
@@ -84,29 +98,41 @@ export function useTranscriptionTimelineContentViewModel(
   const { shell: workspaceShell, acousticPending: workspaceAcousticPending } = contractShellMode;
   const workspaceAcousticChromeState = timelineShellModeResultToAcousticState(globalShellMode);
 
-  const emptyStateProps = useMemo<TranscriptionPageTimelineEmptyStateProps>(() => ({
-    locale: input.locale,
-    layersCount: input.layersCount,
-    hasSelectedMedia: Boolean(input.selectedMediaUrl),
-    onCreateTranscriptionLayer: input.layerActionSetCreateTranscription,
-    onOpenImportFile: () => input.importFileRef.current?.click(),
-  }), [input.importFileRef, input.layerActionSetCreateTranscription, input.layersCount, input.locale, input.selectedMediaUrl]);
+  const emptyStateProps = useMemo<TranscriptionPageTimelineEmptyStateProps>(
+    () => ({
+      locale: input.locale,
+      layersCount: input.layersCount,
+      hasSelectedMedia: Boolean(input.selectedMediaUrl),
+      onCreateTranscriptionLayer: input.layerActionSetCreateTranscription,
+      onOpenImportFile: () => input.importFileRef.current?.click(),
+    }),
+    [
+      input.importFileRef,
+      input.layerActionSetCreateTranscription,
+      input.layersCount,
+      input.locale,
+      input.selectedMediaUrl,
+    ],
+  );
 
-  return useMemo<TranscriptionPageTimelineContentProps>(() => ({
-    workspaceShell,
-    workspaceAcousticPending,
-    workspaceAcousticChromeState,
-    verticalComparisonEnabled,
-    mediaLanesProps,
-    textOnlyProps,
-    emptyStateProps,
-  }), [
-    emptyStateProps,
-    mediaLanesProps,
-    textOnlyProps,
-    verticalComparisonEnabled,
-    workspaceAcousticChromeState,
-    workspaceAcousticPending,
-    workspaceShell,
-  ]);
+  return useMemo<TranscriptionPageTimelineContentProps>(
+    () => ({
+      workspaceShell,
+      workspaceAcousticPending,
+      workspaceAcousticChromeState,
+      verticalComparisonEnabled,
+      mediaLanesProps,
+      textOnlyProps,
+      emptyStateProps,
+    }),
+    [
+      emptyStateProps,
+      mediaLanesProps,
+      textOnlyProps,
+      verticalComparisonEnabled,
+      workspaceAcousticChromeState,
+      workspaceAcousticPending,
+      workspaceShell,
+    ],
+  );
 }

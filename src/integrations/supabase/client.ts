@@ -12,7 +12,8 @@ function resolveSupabaseBrowserClientConfig(
 ): SupabaseBrowserClientConfig | null {
   const url = env.VITE_SUPABASE_URL?.trim();
   const anonKey = env.VITE_SUPABASE_ANON_KEY?.trim();
-  if (!url || !anonKey) return null;
+  if (url === undefined || url.length === 0 || anonKey === undefined || anonKey.length === 0)
+    return null;
   return { url, anonKey };
 }
 

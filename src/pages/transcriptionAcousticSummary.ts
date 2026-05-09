@@ -1,6 +1,6 @@
 import type { AcousticFeatureResult } from '../utils/acousticOverlayTypes';
 
-const ACOUSTIC_DIAGNOSTIC_KEYS = [
+export const ACOUSTIC_DIAGNOSTIC_KEYS = [
   'low_reliability',
   'low_voicing',
   'wide_pitch_range',
@@ -81,20 +81,24 @@ function collectAcousticDiagnostics(summary: AcousticPromptSummary): AcousticDia
     diagnostics.push('low_voicing');
   }
   if (
-    typeof summary.f0MinHz === 'number'
-    && typeof summary.f0MaxHz === 'number'
-    && (summary.f0MaxHz - summary.f0MinHz) >= 180
+    typeof summary.f0MinHz === 'number' &&
+    typeof summary.f0MaxHz === 'number' &&
+    summary.f0MaxHz - summary.f0MinHz >= 180
   ) {
     diagnostics.push('wide_pitch_range');
   }
   if (
-    typeof summary.intensityMinDb === 'number'
-    && typeof summary.intensityPeakDb === 'number'
-    && (summary.intensityPeakDb - summary.intensityMinDb) >= 12
+    typeof summary.intensityMinDb === 'number' &&
+    typeof summary.intensityPeakDb === 'number' &&
+    summary.intensityPeakDb - summary.intensityMinDb >= 12
   ) {
     diagnostics.push('high_energy_contrast');
   }
-  if (summary.hotspots?.some((hotspot) => hotspot.kind === 'unstable_span' && hotspot.score >= 0.35)) {
+  if (
+    summary.hotspots?.some(
+      (hotspot) => hotspot.kind === 'unstable_span' && hotspot.score >= 0.35,
+    ) === true
+  ) {
     diagnostics.push('unstable_focus');
   }
 
@@ -106,21 +110,31 @@ export function buildAcousticPromptSummary(
   selectionStartSec?: number,
   selectionEndSec?: number,
 ): AcousticPromptSummary | null {
-  if (!analysis || selectionStartSec === undefined || selectionEndSec === undefined || selectionEndSec <= selectionStartSec) {
+  if (
+    !analysis ||
+    selectionStartSec === undefined ||
+    selectionEndSec === undefined ||
+    selectionEndSec <= selectionStartSec
+  ) {
     return null;
   }
 
   const isTerminalSelection = Math.abs(selectionEndSec - analysis.durationSec) <= 1e-6;
-  const frames = analysis.frames.filter((frame) => (
-    frame.timeSec >= selectionStartSec
-    && (isTerminalSelection ? frame.timeSec <= selectionEndSec : frame.timeSec < selectionEndSec)
-  ));
+  const frames = analysis.frames.filter(
+    (frame) =>
+      frame.timeSec >= selectionStartSec &&
+      (isTerminalSelection ? frame.timeSec <= selectionEndSec : frame.timeSec < selectionEndSec),
+  );
   if (frames.length === 0) return null;
 
   const voicedFrames = frames.filter((frame) => frame.f0Hz != null);
   const f0Values = voicedFrames.map((frame) => frame.f0Hz ?? 0);
-  const intensities = frames.map((frame) => frame.intensityDb).filter((value) => Number.isFinite(value));
-  const reliabilities = frames.map((frame) => frame.reliability).filter((value) => Number.isFinite(value));
+  const intensities = frames
+    .map((frame) => frame.intensityDb)
+    .filter((value) => Number.isFinite(value));
+  const reliabilities = frames
+    .map((frame) => frame.reliability)
+    .filter((value) => Number.isFinite(value));
   const spectralCentroids = frames
     .map((frame) => frame.spectralCentroidHz)
     .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
@@ -140,17 +154,25 @@ export function buildAcousticPromptSummary(
     .map((frame) => frame.mfccCoefficients)
     .filter((value): value is number[] => Array.isArray(value) && value.length > 0);
   const formantPairs = frames
-    .filter((frame) => typeof frame.formantF1Hz === 'number' && Number.isFinite(frame.formantF1Hz)
-      && typeof frame.formantF2Hz === 'number' && Number.isFinite(frame.formantF2Hz))
+    .filter(
+      (frame) =>
+        typeof frame.formantF1Hz === 'number' &&
+        Number.isFinite(frame.formantF1Hz) &&
+        typeof frame.formantF2Hz === 'number' &&
+        Number.isFinite(frame.formantF2Hz),
+    )
     .map((frame) => ({
       f1Hz: frame.formantF1Hz as number,
       f2Hz: frame.formantF2Hz as number,
     }));
   const hotspots = analysis.hotspots
-    .filter((hotspot) => (
-      hotspot.timeSec >= selectionStartSec
-      && (isTerminalSelection ? hotspot.timeSec <= selectionEndSec : hotspot.timeSec < selectionEndSec)
-    ))
+    .filter(
+      (hotspot) =>
+        hotspot.timeSec >= selectionStartSec &&
+        (isTerminalSelection
+          ? hotspot.timeSec <= selectionEndSec
+          : hotspot.timeSec < selectionEndSec),
+    )
     .sort((left, right) => right.score - left.score)
     .slice(0, 4)
     .map((hotspot) => ({
@@ -169,40 +191,83 @@ export function buildAcousticPromptSummary(
     selectionEndSec,
     f0MinHz: f0Values.length > 0 ? minOf(f0Values) : null,
     f0MaxHz: f0Values.length > 0 ? maxOf(f0Values) : null,
-    f0MeanHz: f0Values.length > 0 ? f0Values.reduce((sum, value) => sum + value, 0) / f0Values.length : null,
+    f0MeanHz:
+      f0Values.length > 0
+        ? f0Values.reduce((sum, value) => sum + value, 0) / f0Values.length
+        : null,
     intensityPeakDb: intensities.length > 0 ? maxOf(intensities) : null,
-    reliabilityMean: reliabilities.length > 0 ? reliabilities.reduce((sum, value) => sum + value, 0) / reliabilities.length : null,
+    reliabilityMean:
+      reliabilities.length > 0
+        ? reliabilities.reduce((sum, value) => sum + value, 0) / reliabilities.length
+        : null,
     voicedFrameCount: voicedFrames.length,
     frameCount: frames.length,
     durationSec: selectionEndSec - selectionStartSec,
     intensityMinDb: intensities.length > 0 ? minOf(intensities) : null,
     voicedRatio: frames.length > 0 ? voicedFrames.length / frames.length : null,
-    spectralCentroidMeanHz: spectralCentroids.length > 0 ? spectralCentroids.reduce((sum, value) => sum + value, 0) / spectralCentroids.length : null,
-    spectralRolloffMeanHz: spectralRolloffs.length > 0 ? spectralRolloffs.reduce((sum, value) => sum + value, 0) / spectralRolloffs.length : null,
-    zeroCrossingRateMean: zeroCrossingRates.length > 0 ? zeroCrossingRates.reduce((sum, value) => sum + value, 0) / zeroCrossingRates.length : null,
-    spectralFlatnessMean: spectralFlatnessValues.length > 0 ? spectralFlatnessValues.reduce((sum, value) => sum + value, 0) / spectralFlatnessValues.length : null,
-    loudnessMeanDb: loudnessValues.length > 0 ? loudnessValues.reduce((sum, value) => sum + value, 0) / loudnessValues.length : null,
-    mfccMeanCoefficients: mfccVectors.length > 0
-      ? Array.from({ length: mfccVectors[0]?.length ?? 0 }, (_, coefficientIndex) => (
-        mfccVectors.reduce((sum, vector) => sum + (vector[coefficientIndex] ?? 0), 0) / mfccVectors.length
-      ))
-      : null,
-    formantF1MeanHz: formantPairs.length > 0 ? formantPairs.reduce((sum, pair) => sum + pair.f1Hz, 0) / formantPairs.length : null,
-    formantF2MeanHz: formantPairs.length > 0 ? formantPairs.reduce((sum, pair) => sum + pair.f2Hz, 0) / formantPairs.length : null,
+    spectralCentroidMeanHz:
+      spectralCentroids.length > 0
+        ? spectralCentroids.reduce((sum, value) => sum + value, 0) / spectralCentroids.length
+        : null,
+    spectralRolloffMeanHz:
+      spectralRolloffs.length > 0
+        ? spectralRolloffs.reduce((sum, value) => sum + value, 0) / spectralRolloffs.length
+        : null,
+    zeroCrossingRateMean:
+      zeroCrossingRates.length > 0
+        ? zeroCrossingRates.reduce((sum, value) => sum + value, 0) / zeroCrossingRates.length
+        : null,
+    spectralFlatnessMean:
+      spectralFlatnessValues.length > 0
+        ? spectralFlatnessValues.reduce((sum, value) => sum + value, 0) /
+          spectralFlatnessValues.length
+        : null,
+    loudnessMeanDb:
+      loudnessValues.length > 0
+        ? loudnessValues.reduce((sum, value) => sum + value, 0) / loudnessValues.length
+        : null,
+    mfccMeanCoefficients:
+      mfccVectors.length > 0
+        ? Array.from(
+            { length: mfccVectors[0]?.length ?? 0 },
+            (_, coefficientIndex) =>
+              mfccVectors.reduce((sum, vector) => sum + (vector[coefficientIndex] ?? 0), 0) /
+              mfccVectors.length,
+          )
+        : null,
+    formantF1MeanHz:
+      formantPairs.length > 0
+        ? formantPairs.reduce((sum, pair) => sum + pair.f1Hz, 0) / formantPairs.length
+        : null,
+    formantF2MeanHz:
+      formantPairs.length > 0
+        ? formantPairs.reduce((sum, pair) => sum + pair.f2Hz, 0) / formantPairs.length
+        : null,
     formantFrameCount: formantPairs.length,
-    vowelSpaceCentroidF1Hz: formantPairs.length > 0 ? formantPairs.reduce((sum, pair) => sum + pair.f1Hz, 0) / formantPairs.length : null,
-    vowelSpaceCentroidF2Hz: formantPairs.length > 0 ? formantPairs.reduce((sum, pair) => sum + pair.f2Hz, 0) / formantPairs.length : null,
-    vowelSpaceSpread: formantPairs.length > 1
-      ? (() => {
-        const centroidF1 = formantPairs.reduce((sum, pair) => sum + pair.f1Hz, 0) / formantPairs.length;
-        const centroidF2 = formantPairs.reduce((sum, pair) => sum + pair.f2Hz, 0) / formantPairs.length;
-        return formantPairs.reduce((sum, pair) => {
-          const deltaF1 = pair.f1Hz - centroidF1;
-          const deltaF2 = pair.f2Hz - centroidF2;
-          return sum + Math.sqrt((deltaF1 * deltaF1) + (deltaF2 * deltaF2));
-        }, 0) / formantPairs.length;
-      })()
-      : null,
+    vowelSpaceCentroidF1Hz:
+      formantPairs.length > 0
+        ? formantPairs.reduce((sum, pair) => sum + pair.f1Hz, 0) / formantPairs.length
+        : null,
+    vowelSpaceCentroidF2Hz:
+      formantPairs.length > 0
+        ? formantPairs.reduce((sum, pair) => sum + pair.f2Hz, 0) / formantPairs.length
+        : null,
+    vowelSpaceSpread:
+      formantPairs.length > 1
+        ? (() => {
+            const centroidF1 =
+              formantPairs.reduce((sum, pair) => sum + pair.f1Hz, 0) / formantPairs.length;
+            const centroidF2 =
+              formantPairs.reduce((sum, pair) => sum + pair.f2Hz, 0) / formantPairs.length;
+            return (
+              formantPairs.reduce((sum, pair) => {
+                const deltaF1 = pair.f1Hz - centroidF1;
+                const deltaF2 = pair.f2Hz - centroidF2;
+                return sum + Math.sqrt(deltaF1 * deltaF1 + deltaF2 * deltaF2);
+              }, 0) / formantPairs.length
+            );
+          })()
+        : null,
     sampleRateHz: analysis.sampleRate,
     algorithmVersion: analysis.config.algorithmVersion,
     analysisWindowSec: analysis.config.analysisWindowSec,

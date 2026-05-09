@@ -62,11 +62,16 @@ function normalizeOffset(offset: number | undefined): number {
 
 // ── Bucket 路由 | Bucket routing ──
 
-function resolveBucket(assetType: CollaborationAssetRecord['assetType']): CollaborationStorageBucket {
+function resolveBucket(
+  assetType: CollaborationAssetRecord['assetType'],
+): CollaborationStorageBucket {
   switch (assetType) {
-    case 'audio': return 'project-audio';
-    case 'export': return 'project-exports';
-    case 'attachment': return 'project-attachments';
+    case 'audio':
+      return 'project-audio';
+    case 'export':
+      return 'project-exports';
+    case 'attachment':
+      return 'project-attachments';
   }
 }
 
@@ -112,11 +117,7 @@ export class CollaborationAssetService {
       uploaded_by: input.uploadedBy,
     };
 
-    const { data, error } = await client
-      .from('project_assets')
-      .insert(row)
-      .select()
-      .single();
+    const { data, error } = await client.from('project_assets').insert(row).select().single();
 
     if (error) {
       // 元数据失败时回滚已上传对象，降低孤儿文件概率。
@@ -145,7 +146,7 @@ export class CollaborationAssetService {
       .eq('project_id', input.projectId)
       .order('created_at', { ascending: false });
 
-    if (input.assetType) {
+    if (input.assetType !== undefined) {
       query = query.eq('asset_type', input.assetType);
     }
     query = query.range(offset, offset + limit - 1);
@@ -187,10 +188,7 @@ export class CollaborationAssetService {
     const resolvedRow = row as unknown as ProjectAssetRow;
 
     // 2. 删除元数据行 | Delete metadata row
-    const { error: deleteError } = await client
-      .from('project_assets')
-      .delete()
-      .eq('id', assetId);
+    const { error: deleteError } = await client.from('project_assets').delete().eq('id', assetId);
 
     if (deleteError) throw deleteError;
 

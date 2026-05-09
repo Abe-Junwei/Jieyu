@@ -4,7 +4,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { VOICE_PRESETS, DEFAULT_CN_PRESET, DEFAULT_GLOBAL_PRESET, type VoicePreset } from './voicePresets';
+import {
+  VOICE_PRESETS,
+  DEFAULT_CN_PRESET,
+  DEFAULT_GLOBAL_PRESET,
+  type VoicePreset,
+} from './voicePresets';
 
 describe('voicePresets', () => {
   it('应有 5 个预设', () => {
@@ -48,9 +53,10 @@ describe('voicePresets', () => {
   });
 
   it('所有 commercialKind 应互不重复', () => {
-    const kinds = VOICE_PRESETS
-      .filter((p): p is VoicePreset & { commercialKind: string } => !!p.commercialKind)
-      .map((p) => p.commercialKind);
+    const kinds = VOICE_PRESETS.filter(
+      (p): p is VoicePreset & { commercialKind: string } =>
+        typeof p.commercialKind === 'string' && p.commercialKind.length > 0,
+    ).map((p) => p.commercialKind);
     expect(new Set(kinds).size).toBe(kinds.length);
   });
 });

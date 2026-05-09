@@ -154,7 +154,8 @@ export const THEMES: ThemeInfo[] = [
     id: 'solarizedDark',
     name: 'Solarized Dark',
     subtitle: 'Ethan Schoonover',
-    description: 'Ethan Schoonover Solarized：base03 底、base0 字，强调色含 blue #268bd2 等（与官网表一致）。',
+    description:
+      'Ethan Schoonover Solarized：base03 底、base0 字，强调色含 blue #268bd2 等（与官网表一致）。',
     swatchLight: '#268bd2',
     swatchDark: '#839496',
     bgLight: '#002b36',
@@ -173,15 +174,39 @@ export const THEMES: ThemeInfo[] = [
 ];
 
 export const THEME_ACCENTS: ThemeAccentInfo[] = [
-  { id: 'default', labelZh: '跟随配色方案', labelEn: 'Follow appearance', swatchLight: '#9E9E9E', swatchDark: '#BDBDBD' },
+  {
+    id: 'default',
+    labelZh: '跟随配色方案',
+    labelEn: 'Follow appearance',
+    swatchLight: '#9E9E9E',
+    swatchDark: '#BDBDBD',
+  },
   { id: 'blue', labelZh: '蓝色', labelEn: 'Blue', swatchLight: '#0078D4', swatchDark: '#74BCFF' },
-  { id: 'orange', labelZh: '橙色', labelEn: 'Orange', swatchLight: '#DA3B01', swatchDark: '#FFB074' },
+  {
+    id: 'orange',
+    labelZh: '橙色',
+    labelEn: 'Orange',
+    swatchLight: '#DA3B01',
+    swatchDark: '#FFB074',
+  },
   { id: 'green', labelZh: '绿色', labelEn: 'Green', swatchLight: '#107C10', swatchDark: '#7AD77A' },
   { id: 'red', labelZh: '红色', labelEn: 'Red', swatchLight: '#D13438', swatchDark: '#FF9AA2' },
-  { id: 'purple', labelZh: '紫色', labelEn: 'Purple', swatchLight: '#5C2D91', swatchDark: '#CDB0F3' },
+  {
+    id: 'purple',
+    labelZh: '紫色',
+    labelEn: 'Purple',
+    swatchLight: '#5C2D91',
+    swatchDark: '#CDB0F3',
+  },
   { id: 'pink', labelZh: '粉色', labelEn: 'Pink', swatchLight: '#E3008C', swatchDark: '#FF9ADE' },
   { id: 'teal', labelZh: '青色', labelEn: 'Teal', swatchLight: '#038387', swatchDark: '#7BEDE6' },
-  { id: 'graphite', labelZh: '石墨灰', labelEn: 'Graphite', swatchLight: '#4C4A48', swatchDark: '#D0CECC' },
+  {
+    id: 'graphite',
+    labelZh: '石墨灰',
+    labelEn: 'Graphite',
+    swatchLight: '#4C4A48',
+    swatchDark: '#D0CECC',
+  },
 ];
 
 const APPEARANCE_KEY = 'jieyu-appearance';
@@ -200,7 +225,10 @@ function readStoredColorSchemePreference(): 'light' | 'dark' | 'system' {
 
 function resolveColorScheme(preference: 'light' | 'dark' | 'system'): 'light' | 'dark' {
   if (preference === 'light' || preference === 'dark') return preference;
-  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light';
 }
 
 /** 仅更新 DOM，不读写 localStorage（与 App 内「跟随系统」一致） */
@@ -238,7 +266,7 @@ export function syncDocumentDataTheme(): void {
 export function getTheme(): ThemeId {
   try {
     const stored = localStorage.getItem(APPEARANCE_KEY);
-    if (stored && THEMES.some((t) => t.id === stored)) {
+    if (stored !== null && stored.length > 0 && THEMES.some((t) => t.id === stored)) {
       return stored as ThemeId;
     }
   } catch {
@@ -250,7 +278,11 @@ export function getTheme(): ThemeId {
 export function getThemeAccent(): ThemeAccentId {
   try {
     const stored = localStorage.getItem(THEME_ACCENT_KEY);
-    if (stored && THEME_ACCENTS.some((accent) => accent.id === stored)) {
+    if (
+      stored !== null &&
+      stored.length > 0 &&
+      THEME_ACCENTS.some((accent) => accent.id === stored)
+    ) {
       return stored as ThemeAccentId;
     }
   } catch {

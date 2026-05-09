@@ -11,8 +11,11 @@ export function focusFirstInvalidLanguageCodeInput(options?: {
   const fallbackSelector = '[data-language-iso-code-input="true"]';
 
   const invalidNode = root.querySelector<HTMLInputElement>(invalidSelector);
-  const target = invalidNode
-    ?? (options?.allowFallback ? root.querySelector<HTMLInputElement>(fallbackSelector) : null);
+  const target =
+    invalidNode ??
+    (options?.allowFallback === true
+      ? root.querySelector<HTMLInputElement>(fallbackSelector)
+      : null);
   if (!target) {
     return false;
   }

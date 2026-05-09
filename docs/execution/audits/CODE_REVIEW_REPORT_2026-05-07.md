@@ -3,7 +3,7 @@
 **审查日期**：2026-05-07  
 **审查范围**：`src/`（与 CI `quality` 及扩展门禁对齐）+ 与 [CODE_REVIEW_REPORT_2026-05-04.md](./CODE_REVIEW_REPORT_2026-05-04.md) 可对账维度  
 **对照基线**：2026-05-04 报告 + [ARCH-3 architecture-guard 热点台账](../governance/arch3-architecture-guard-hotspots-2026-05-05.md)  
-**执行摘要**：架构门禁、文档治理、分层与 DB 事务封装等**硬门禁全部通过**。**2026-05-08 复验**：`npm test`、`npm run gate:panel-phase1`、`npm run validate` 本机退出码 0；CSS 侧补齐 token/a11y、未使用选择器 baseline、债务阈值与 visual-css 快照。**2026-05-07 后续修复**：`madge` 循环依赖已清零（见 `corpusScopeTypes.ts`、singleton 去 barrel、`toMcpToolSchema` 仅从 `mcpCompatibility` 导出）；Vitest 默认 worker 上限与 `NODE_OPTIONS` 堆配置见 `vite.config.ts` / `package.json`；`McpServer.ts` 中误写 `McpRuntimeContext` 已改为 `McpServerRuntimeContext`。
+**执行摘要**：架构门禁、文档治理、分层与 DB 事务封装等**硬门禁全部通过**。**2026-05-08 复验**：`npm test`、`npm run gate:panel-phase1`、`npm run validate` 本机退出码 0；CSS 侧补齐 token/a11y、未使用选择器 baseline、债务阈值与 visual-css 快照。**2026-05-07 后续修复**：大规模 `madge` 环已拆除（见 `corpusScopeTypes.ts`、singleton 去 barrel、`toMcpToolSchema` 仅从 `mcpCompatibility` 导出）。**2026-05-08 末**：`localContext` 链上 **2** 条小环已通过 **`localContextToolTypes.ts`**（工具调用/结果类型）+ **`localContextToolScopeNormalize.ts`**（`normalizeUnitScope` / `normalizeProjectMetric`）+ **字符预算从 `useAiChat.config` 直连** 消除；`npx madge --circular --extensions ts,tsx src` → **0**。Vitest 默认 worker 上限与 `NODE_OPTIONS` 堆配置见 `vite.config.ts` / `package.json`；`McpServer.ts` 中误写 `McpRuntimeContext` 已改为 `McpServerRuntimeContext`。
 
 ---
 
@@ -11,10 +11,10 @@
 
 | 维度 | 状态 | 说明 |
 |------|------|------|
-| TypeScript | ✅ 通过 | `npm run typecheck`，0 错误（`tsconfig.json`：`noUnusedLocals` 暂关以规避 TS 6 下大量历史 TS6133；后续可用 knip/专项 PR 回收） |
+| TypeScript | ✅ 通过 | `npm run typecheck`，0 错误（`tsconfig.json`：**`noUnusedLocals` / `noUnusedParameters` 均已开启**；历史 TS6133 已通过专项 PR 回收） |
 | 架构门禁 | ✅ 通过 | `npm run check:architecture-guard`（含 doc-symbol-parity、timeline 单宿主、telemetry、fire-and-forget） |
 | Architecture 热点 | ✅ 通过 | `npm run report:architecture-hotspots` 无 WARN（与 ARCH-3「当前 0 预警」一致） |
-| 循环依赖 | ✅ 已清零 | `npx madge --circular --extensions ts,tsx src` → **0**（2026-05-07 修复后复验） |
+| 循环依赖 | ✅ 已清零 | `npx madge --circular --extensions ts,tsx src` → **0**（2026-05-08：`localContext` 类型与 scope 归一化拆边后复验） |
 | 分层 / tierId | ✅ 通过 | `npm run check:tierid-diffusion`（offBoundary=0）；`check:architecture-guard` 内 tier 相关子项通过 |
 | DB 事务门面 | ✅ 通过 | `npm run check:db-transaction-facade` |
 | 文档治理 | ✅ 通过 | `npm run check:docs-governance` |
@@ -22,7 +22,7 @@
 | Acceptance-1 | ✅ 通过 | `npm run check:acceptance-1` |
 | 时间轴门禁 | ✅ 通过 | `npm run gate:timeline-phase1`（含 `test:timeline-regression` 44 用例 + `npm run build`） |
 | 面板 phase1 | ✅ 通过 | **`npm run gate:panel-phase1`**（2026-05-08：foundation + `check:css-architecture` + `test:panel-regression`） |
-| 全量 Vitest / `npm test` | ✅ 通过 | **2026-05-08** 本机 `npm test` 退出码 0（含 CSS/visual-css 全套守卫 + Vitest 全量） |
+| 全量 Vitest / `npm test` | ✅ 通过 | **2026-05-08** 本机 `npm test` 退出码 0（含 CSS/visual-css 全套守卫 + Vitest 全量）；**Node 22.22**（Homebrew `node@22`）上同命令复验通过（与 `.nvmrc` 对齐） |
 | `npm run validate` | ✅ 通过 | **2026-05-08** `typecheck` + `gate:acoustic` + `npm test` + `build:guard`，退出码 0 |
 
 ---
@@ -31,7 +31,7 @@
 
 | 项 | 2026-05-04 | 2026-05-07（本轮） |
 |----|------------|-------------------|
-| madge 循环链 | 32 → 05-07 初稿 3 | **0**（05-07 末稿拆环后） |
+| madge 循环链 | 32 → 05-07 初稿 3 → 05-07 末稿大规模 **0** → 05-08 曾回弹 **2**（`localContext` 拆分三角） | **0**（2026-05-08 末：`types` + `scopeNormalize` + config 直连拆环） |
 | architecture-guard 热点 WARN | 7 | **0** |
 | 全量单元测试 | 541/544 等口径 | 本机 **OOM 未结**，曾修复 `useAiChat.structure` 与 provider 解构不一致导致的结构测试失败 |
 
@@ -52,13 +52,16 @@
 ### 1.3 循环依赖（madge）
 
 **命令**：`npx madge --circular --extensions ts,tsx src`  
-**结果（修复后）**：`✔ No circular dependency found!`，**退出码 0**。
 
-**已做拆环**：
+**结果（2026-05-08 末）**：`✔ No circular dependency found!`，**退出码 0**。
+
+**已做拆环（05-07 大规模清零）**：
 
 1. **VoiceAgentService**：去掉主文件对 `VoiceAgentService.singleton` 的 barrel 再导出；单例 API 仅从 [`VoiceAgentService.singleton.ts`](../../../src/services/VoiceAgentService.singleton.ts) 引用；主文件尾部保留 ADR-0028 说明注释；[`architecture-guard.config.mjs`](../../../scripts/architecture-guard.config.mjs) 同步更新 `requiredRegexes`。  
 2. **corpus / sourceResolver**：新增 [`corpusScopeTypes.ts`](../../../src/ai/vertical/corpusScopeTypes.ts) 承载 `CorpusScope` / `CorpusSourceSet`；[`sourceResolver.ts`](../../../src/ai/vertical/sourceResolver.ts) 再导出类型；[`corpusSourceSet.ts`](../../../src/ai/vertical/corpusSourceSet.ts) 改从该文件引用。  
 3. **aiToolRegistryShadow / mcpCompatibility**：移除 shadow 对 `toMcpToolSchema` 的再导出；测试与调用方从 [`mcpCompatibility.ts`](../../../src/ai/vertical/mcpCompatibility.ts) 直接导入。
+
+**localContext 小环（05-08 曾出现 2 条，已消除）**：将 `LocalContextToolCall` / `LocalContextToolResult` / `LocalToolExecutionTraceOptions` 下沉至 [`localContextToolTypes.ts`](../../../src/ai/chat/localContextToolTypes.ts)；将 `normalizeUnitScope` / `normalizeProjectMetric` 下沉至 [`localContextToolScopeNormalize.ts`](../../../src/ai/chat/localContextToolScopeNormalize.ts)；`localContextTools.ts` 内工具指南字符串改用 **`AI_LOCAL_TOOL_RESULT_CHAR_BUDGET`**（[`useAiChat.config.ts`](../../../src/hooks/useAiChat.config.ts)），避免经 [`localContextToolFormatters.ts`](../../../src/ai/chat/localContextToolFormatters.ts) 回边；`localContextToolFormatters.ts` 中 `LOCAL_TOOL_RESULT_CHAR_BUDGET` 改为文件内常量（仍等于 config 值）。
 
 ### 1.4 面板基础（可选深门禁子集）
 
@@ -185,5 +188,5 @@ npm test
 ## 后续建议（优先级）
 
 1. **P0**：在 **CI** 确认 `npm test` 全绿；若本机需调试 Vitest OOM，尝试更大 `max-old-space-size`、或关闭部分 perf 用例的本地 profile。  
-2. **P1**：消解 **3** 条 madge 环（从 `VoiceAgentService` singleton 与 `ai/vertical` 工具链入手）。  
+2. **P1**：维持 `madge` 零环回归（发版前随 `localContext*` 改动复跑）；历史 singleton / vertical / localContext 链上环已清。  
 3. **P2**：择期跑 `npm run gate:panel-phase1`、`npm run validate` 作为发布前深跑，并把结果并入下一轮审查仪表盘。

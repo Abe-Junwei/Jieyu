@@ -12,7 +12,7 @@ export function recordingScopeUnitId(
 ): string {
   if (utt.kind === 'segment') {
     const p = utt.parentUnitId?.trim();
-    if (p) return p;
+    if (p !== undefined && p.length > 0) return p;
   }
   return utt.id;
 }
@@ -31,7 +31,7 @@ export function resolveVoiceRecordingSourceUnit(
     return unitById.get(utt.id);
   }
   const parent = utt.parentUnitId?.trim();
-  if (parent) {
+  if (parent !== undefined && parent.length > 0) {
     return unitById.get(parent) ?? segmentById.get(parent);
   }
   return segmentById.get(utt.id);

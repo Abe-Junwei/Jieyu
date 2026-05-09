@@ -68,22 +68,22 @@ export class CollaborationAuditLogService {
       .eq('project_id', input.projectId)
       .order('project_revision', { ascending: false });
 
-    if (input.entityType) {
+    if (input.entityType !== undefined) {
       query = query.eq('entity_type', input.entityType);
     }
-    if (input.opType) {
+    if (input.opType !== undefined) {
       query = query.eq('op_type', input.opType);
     }
-    if (input.actorId) {
+    if (input.actorId !== undefined && input.actorId.length > 0) {
       query = query.eq('actor_id', input.actorId);
     }
-    if (input.entityId) {
+    if (input.entityId !== undefined && input.entityId.length > 0) {
       query = query.eq('entity_id', input.entityId);
     }
-    if (input.since) {
+    if (input.since !== undefined && input.since.length > 0) {
       query = query.gte('created_at', input.since);
     }
-    if (input.until) {
+    if (input.until !== undefined && input.until.length > 0) {
       query = query.lte('created_at', input.until);
     }
     if (input.sinceRevision !== undefined) {

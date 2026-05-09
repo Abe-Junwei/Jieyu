@@ -18,7 +18,10 @@ interface UseTranscriptionSegmentBatchMergeInput {
   createSegmentTarget: (unitId: string, layerIdOverride?: string) => TimelineUnit | null;
   unitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
   getUnitDocById: (id: string) => { id: string; startTime: number; endTime: number } | undefined;
-  findUnitDocContainingRange: (start: number, end: number) => { id: string; startTime: number; endTime: number } | undefined;
+  findUnitDocContainingRange: (
+    start: number,
+    end: number,
+  ) => { id: string; startTime: number; endTime: number } | undefined;
   setSaveState: (state: SaveState) => void;
   mergeSelectedUnits: (ids: Set<string>) => Promise<void>;
   recordTimelineEdit?: (event: PushTimelineEditInput) => void;
@@ -31,8 +34,16 @@ function setSegmentBatchMergeError(
   actionLabel: string,
   error: unknown,
 ): void {
-  const { message, meta } = reportActionError({ actionLabel, error, i18nKey: 'transcription.error.action.segmentMergeFailed' });
-  setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) });
+  const { message, meta } = reportActionError({
+    actionLabel,
+    error,
+    i18nKey: 'transcription.error.action.segmentMergeFailed',
+  });
+  setSaveState({
+    kind: 'error',
+    message,
+    ...(meta !== undefined && meta !== null ? { errorMeta: meta } : {}),
+  });
 }
 
 function recordBatchMergeLatency(status: 'success' | 'error', startedAtMs: number): void {
@@ -62,112 +73,159 @@ export function useTranscriptionSegmentBatchMerge({
   mergeSelectedUnits,
   recordTimelineEdit,
   segmentMutationReloadGenRef,
-}: UseTranscriptionSegmentBatchMergeInput): (ids: Set<string>, layerIdOverride?: string) => Promise<void> {
+}: UseTranscriptionSegmentBatchMergeInput): (
+  ids: Set<string>,
+  layerIdOverride?: string,
+) => Promise<void> {
   const locale = useLocale();
 
-  return useCallback(async (ids: Set<string>, layerIdOverride?: string) => {
-    const startedAtMs = performance.now();
-    if (ids.size > 0 && Array.from(ids).every((id) => unitsOnCurrentMedia.find((unit) => unit.id === id)?.kind === 'unit')) {
+  return useCallback(
+    async (ids: Set<string>, layerIdOverride?: string) => {
+      const startedAtMs = performance.now();
+      if (
+        ids.size > 0 &&
+        Array.from(ids).every(
+          (id) => unitsOnCurrentMedia.find((unit) => unit.id === id)?.kind === 'unit',
+        )
+      ) {
+        try {
+          await mergeSelectedUnits(ids);
+          const firstId = [...ids][0];
+          if (firstId !== undefined && firstId.length > 0) {
+            recordTimelineEdit?.({
+              action: 'merge',
+              unitId: firstId,
+              unitKind: 'unit',
+              ...(ids.size > 1 ? { detail: `batch=${ids.size}` } : {}),
+            });
+          }
+          recordBatchMergeLatency('success', startedAtMs);
+        } catch (error) {
+          recordBatchMergeLatency('error', startedAtMs);
+          throw error;
+        }
+        return;
+      }
+      const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
+      const routing = resolveSegmentRoutingForLayer(targetLayerId);
+      switch (routing.editMode) {
+        case 'independent-segment':
+        case 'time-subdivision': {
+          if (!routing.segmentSourceLayer) return;
+          const segments = unitsOnCurrentMedia
+            .filter((unit) => unit.kind === 'segment' && unit.layerId === routing.sourceLayerId)
+            .sort((left, right) => left.startTime - right.startTime);
+          const selectedIndexes = segments
+            .map((segment, index) => (ids.has(segment.id) ? index : -1))
+            .filter((index) => index >= 0);
+          if (selectedIndexes.length < 2) {
+            const message = t(
+              locale,
+              'transcription.error.validation.mergeSelectionRequireAtLeastTwo',
+            );
+            setSaveState({ kind: 'error', message });
+            recordBatchMergeLatency('error', startedAtMs);
+            throw new Error(message);
+          }
+          const hasGap = selectedIndexes.some(
+            (index, currentIndex) =>
+              currentIndex > 0 && index !== selectedIndexes[currentIndex - 1]! + 1,
+          );
+          if (hasGap) {
+            const message = t(
+              locale,
+              'transcription.error.validation.segmentMergeRequireAdjacentSelection',
+            );
+            setSaveState({ kind: 'error', message });
+            recordBatchMergeLatency('error', startedAtMs);
+            throw new Error(message);
+          }
+
+          const orderedSegments = selectedIndexes.map((index) => segments[index]!);
+          const firstSegment = orderedSegments[0]!;
+          const lastSegment = orderedSegments[orderedSegments.length - 1]!;
+          if (routing.editMode === 'time-subdivision') {
+            const hasSameExplicitParent =
+              firstSegment.parentUnitId !== undefined &&
+              firstSegment.parentUnitId.length > 0 &&
+              firstSegment.parentUnitId === lastSegment.parentUnitId;
+            const parentUtt = hasSameExplicitParent
+              ? getUnitDocById(firstSegment.parentUnitId!)
+              : findUnitDocContainingRange(firstSegment.startTime, lastSegment.endTime);
+            if (!parentUtt) {
+              const message = t(
+                locale,
+                'transcription.error.validation.segmentMergeOutOfParentRange',
+              );
+              setSaveState({ kind: 'error', message });
+              recordBatchMergeLatency('error', startedAtMs);
+              throw new Error(message);
+            }
+          }
+
+          pushUndo(t(locale, 'transcription.unitAction.undo.mergeSelection'));
+          try {
+            segmentMutationReloadGenRef.current += 1;
+            const postReloadToken = segmentMutationReloadGenRef.current;
+            const appService = getTranscriptionAppService();
+            for (let index = 1; index < orderedSegments.length; index += 1) {
+              await appService.mergeAdjacentSegments(firstSegment.id, orderedSegments[index]!.id);
+            }
+            await reloadSegments();
+            if (segmentMutationReloadGenRef.current !== postReloadToken) {
+              recordBatchMergeLatency('success', startedAtMs);
+              return;
+            }
+            await refreshSegmentUndoSnapshot();
+            selectTimelineUnit(createSegmentTarget(firstSegment.id, targetLayerId));
+            recordTimelineEdit?.({
+              action: 'merge',
+              unitId: firstSegment.id,
+              unitKind: 'segment',
+              ...(orderedSegments.length > 2 ? { detail: `merged=${orderedSegments.length}` } : {}),
+            });
+            recordBatchMergeLatency('success', startedAtMs);
+          } catch (error) {
+            setSegmentBatchMergeError(
+              setSaveState,
+              t(locale, 'transcription.unitAction.undo.mergeSelection'),
+              error,
+            );
+            recordBatchMergeLatency('error', startedAtMs);
+            throw error instanceof Error ? error : new Error(String(error));
+          }
+          return;
+        }
+        case 'unit': {
+          break;
+        }
+      }
+
       try {
         await mergeSelectedUnits(ids);
-        const firstId = [...ids][0];
-        if (firstId) {
-          recordTimelineEdit?.({
-            action: 'merge',
-            unitId: firstId,
-            unitKind: 'unit',
-            ...(ids.size > 1 ? { detail: `batch=${ids.size}` } : {}),
-          });
-        }
         recordBatchMergeLatency('success', startedAtMs);
       } catch (error) {
         recordBatchMergeLatency('error', startedAtMs);
         throw error;
       }
       return;
-    }
-    const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
-    const routing = resolveSegmentRoutingForLayer(targetLayerId);
-    switch (routing.editMode) {
-      case 'independent-segment':
-      case 'time-subdivision': {
-        if (!routing.segmentSourceLayer) return;
-        const segments = unitsOnCurrentMedia
-          .filter((unit) => unit.kind === 'segment' && unit.layerId === routing.sourceLayerId)
-          .sort((left, right) => left.startTime - right.startTime);
-        const selectedIndexes = segments
-          .map((segment, index) => (ids.has(segment.id) ? index : -1))
-          .filter((index) => index >= 0);
-        if (selectedIndexes.length < 2) {
-          const message = t(locale, 'transcription.error.validation.mergeSelectionRequireAtLeastTwo');
-          setSaveState({ kind: 'error', message });
-          recordBatchMergeLatency('error', startedAtMs);
-          throw new Error(message);
-        }
-        const hasGap = selectedIndexes.some((index, currentIndex) => currentIndex > 0 && index !== selectedIndexes[currentIndex - 1]! + 1);
-        if (hasGap) {
-          const message = t(locale, 'transcription.error.validation.segmentMergeRequireAdjacentSelection');
-          setSaveState({ kind: 'error', message });
-          recordBatchMergeLatency('error', startedAtMs);
-          throw new Error(message);
-        }
-
-        const orderedSegments = selectedIndexes.map((index) => segments[index]!);
-        const firstSegment = orderedSegments[0]!;
-        const lastSegment = orderedSegments[orderedSegments.length - 1]!;
-        if (routing.editMode === 'time-subdivision') {
-          const parentUtt = (firstSegment.parentUnitId && firstSegment.parentUnitId === lastSegment.parentUnitId)
-            ? getUnitDocById(firstSegment.parentUnitId)
-            : findUnitDocContainingRange(firstSegment.startTime, lastSegment.endTime);
-          if (!parentUtt) {
-            const message = t(locale, 'transcription.error.validation.segmentMergeOutOfParentRange');
-            setSaveState({ kind: 'error', message });
-            recordBatchMergeLatency('error', startedAtMs);
-            throw new Error(message);
-          }
-        }
-
-        pushUndo(t(locale, 'transcription.unitAction.undo.mergeSelection'));
-        try {
-          segmentMutationReloadGenRef.current += 1;
-          const postReloadToken = segmentMutationReloadGenRef.current;
-          const appService = getTranscriptionAppService();
-          for (let index = 1; index < orderedSegments.length; index += 1) {
-            await appService.mergeAdjacentSegments(firstSegment.id, orderedSegments[index]!.id);
-          }
-          await reloadSegments();
-          if (segmentMutationReloadGenRef.current !== postReloadToken) {
-            recordBatchMergeLatency('success', startedAtMs);
-            return;
-          }
-          await refreshSegmentUndoSnapshot();
-          selectTimelineUnit(createSegmentTarget(firstSegment.id, targetLayerId));
-          recordTimelineEdit?.({
-            action: 'merge',
-            unitId: firstSegment.id,
-            unitKind: 'segment',
-            ...(orderedSegments.length > 2 ? { detail: `merged=${orderedSegments.length}` } : {}),
-          });
-          recordBatchMergeLatency('success', startedAtMs);
-        } catch (error) {
-          setSegmentBatchMergeError(setSaveState, t(locale, 'transcription.unitAction.undo.mergeSelection'), error);
-          recordBatchMergeLatency('error', startedAtMs);
-          throw error instanceof Error ? error : new Error(String(error));
-        }
-        return;
-      }
-      case 'unit': {
-        break;
-      }
-    }
-
-    try {
-      await mergeSelectedUnits(ids);
-      recordBatchMergeLatency('success', startedAtMs);
-    } catch (error) {
-      recordBatchMergeLatency('error', startedAtMs);
-      throw error;
-    }
-    return;
-  }, [activeLayerIdForEdits, createSegmentTarget, findUnitDocContainingRange, getUnitDocById, locale, mergeSelectedUnits, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, segmentMutationReloadGenRef, selectTimelineUnit, setSaveState, unitsOnCurrentMedia]);
+    },
+    [
+      activeLayerIdForEdits,
+      createSegmentTarget,
+      findUnitDocContainingRange,
+      getUnitDocById,
+      locale,
+      mergeSelectedUnits,
+      pushUndo,
+      recordTimelineEdit,
+      refreshSegmentUndoSnapshot,
+      reloadSegments,
+      resolveSegmentRoutingForLayer,
+      segmentMutationReloadGenRef,
+      selectTimelineUnit,
+      setSaveState,
+      unitsOnCurrentMedia,
+    ],
+  );
 }

@@ -47,8 +47,8 @@ export function DialogShell({
   } = divProps;
 
   /** E-2 / 勘误表：默认可聚焦对话框语义；无标题时由调用方传 `aria-label` 或 `aria-labelledby`。 */
-  const ariaLabelledBy =
-    ariaLabelledByProp ?? (title !== undefined ? titleHeadingId : undefined);
+  const ariaLabelledBy = ariaLabelledByProp ?? (title !== undefined ? titleHeadingId : undefined);
+  const dialogLayoutStyleProps = layoutStyle !== undefined ? { style: layoutStyle } : {};
 
   return (
     <div
@@ -61,7 +61,7 @@ export function DialogShell({
         wide && 'dialog-card-wide',
         className,
       )}
-      style={layoutStyle}
+      {...dialogLayoutStyleProps}
       role={roleProp ?? 'dialog'}
       aria-modal={ariaModalProp ?? 'true'}
       {...(ariaLabelProp !== undefined ? { 'aria-label': ariaLabelProp } : {})}
@@ -71,7 +71,10 @@ export function DialogShell({
       {hasHeader ? (
         <div className={joinClassNames('dialog-header', headerClassName)} {...headerProps}>
           {title !== undefined ? (
-            <h3 id={titleHeadingId} className={joinClassNames('dialog-shell__title', titleClassName)}>
+            <h3
+              id={titleHeadingId}
+              className={joinClassNames('dialog-shell__title', titleClassName)}
+            >
               {title}
             </h3>
           ) : (
@@ -81,7 +84,9 @@ export function DialogShell({
         </div>
       ) : null}
       <div className={joinClassNames('dialog-body', bodyClassName)}>{children}</div>
-      {footer ? <div className={joinClassNames('dialog-footer', footerClassName)}>{footer}</div> : null}
+      {footer ? (
+        <div className={joinClassNames('dialog-footer', footerClassName)}>{footer}</div>
+      ) : null}
     </div>
   );
 }

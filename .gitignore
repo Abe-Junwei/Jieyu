@@ -38,3 +38,7 @@ coverage/
 # Local agent / temp build output
 .qwen/
 .tmp/
+
+# Code-scale baseline JSON (regenerate with npm run report:code-scale:archive)
+reports/code-scale/baseline-*.json
+reports/code-scale/latest.json

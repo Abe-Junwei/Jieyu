@@ -49,7 +49,7 @@ export function recordManagedWorkerError(
   } else {
     e.messageErrorEventCount += 1;
   }
-  if (message && message.length > 0) {
+  if (message !== undefined && message.length > 0) {
     e.lastErrorMessage = message.slice(0, 200);
   }
 }

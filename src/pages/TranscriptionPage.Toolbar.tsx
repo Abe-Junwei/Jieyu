@@ -1,5 +1,13 @@
 import '../styles/pages/transcription-toolbar.css';
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { WaveformToolbar } from '../components/WaveformToolbar';
 import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';
 import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';
@@ -104,27 +112,8 @@ export function TranscriptionPageToolbar({
   onLoopChange,
   onTogglePlayback,
   onSeek,
-  canUndo,
-  canRedo,
-  undoLabel,
   canDeleteAudio,
-  canDeleteProject,
-  canToggleNotes,
-  canOpenUttOpsMenu,
-  notePopoverOpen,
-  showExportMenu,
-  importFileRef,
-  exportMenuRef,
-  exportCallbacks,
-  onRefresh,
-  onUndo,
-  onRedo,
-  onOpenProjectSetup,
-  onOpenAudioImport,
   onDeleteCurrentAudio,
-  onDeleteCurrentProject,
-  onToggleNotes,
-  onOpenUttOpsMenu,
   lowConfidenceCount,
   reviewIssueCount,
   reviewPresetCounts,
@@ -143,65 +132,82 @@ export function TranscriptionPageToolbar({
   const reviewMessages = getSidePaneSidebarMessages(locale);
   const reviewMenuRef = useRef<HTMLDivElement | null>(null);
   const [isReviewMenuOpen, setIsReviewMenuOpen] = useState(false);
-  const showToolbarAiProgress = acousticRuntimeStatus?.state === 'loading'
-    || acousticRuntimeStatus?.state === 'ready'
-    || acousticRuntimeStatus?.state === 'error'
-    || vadCacheStatus?.state === 'warming'
-    || vadCacheStatus?.state === 'ready';
+  const showToolbarAiProgress =
+    acousticRuntimeStatus?.state === 'loading' ||
+    acousticRuntimeStatus?.state === 'ready' ||
+    acousticRuntimeStatus?.state === 'error' ||
+    vadCacheStatus?.state === 'warming' ||
+    vadCacheStatus?.state === 'ready';
 
-  const getReviewPresetLabel = (preset: TranscriptionReviewPreset): string => {
-    switch (preset) {
-      case 'all':
-        return reviewMessages.segmentListReviewPresetAll;
-      case 'time':
-        return reviewMessages.segmentListReviewPresetTime;
-      case 'content_concern':
-        return reviewMessages.segmentListReviewPresetContentConcern;
-      case 'content_missing':
-        return reviewMessages.segmentListReviewPresetContentMissing;
-      case 'manual_attention':
-        return reviewMessages.segmentListReviewPresetManualAttention;
-      case 'pending_review':
-        return reviewMessages.segmentListReviewPresetPendingReview;
-      default:
-        return reviewMessages.segmentListReviewPresetAll;
-    }
-  };
+  const getReviewPresetLabel = useCallback(
+    (preset: TranscriptionReviewPreset): string => {
+      switch (preset) {
+        case 'all':
+          return reviewMessages.segmentListReviewPresetAll;
+        case 'time':
+          return reviewMessages.segmentListReviewPresetTime;
+        case 'content_concern':
+          return reviewMessages.segmentListReviewPresetContentConcern;
+        case 'content_missing':
+          return reviewMessages.segmentListReviewPresetContentMissing;
+        case 'manual_attention':
+          return reviewMessages.segmentListReviewPresetManualAttention;
+        case 'pending_review':
+          return reviewMessages.segmentListReviewPresetPendingReview;
+        default:
+          return reviewMessages.segmentListReviewPresetAll;
+      }
+    },
+    [reviewMessages],
+  );
 
-  const effectiveReviewPresetCounts = useMemo(() => ({
-    all: reviewIssueCount ?? 0,
-    time: 0,
-    content_concern: 0,
-    content_missing: 0,
-    manual_attention: 0,
-    pending_review: 0,
-    ...reviewPresetCounts,
-  }), [reviewIssueCount, reviewPresetCounts]);
+  const effectiveReviewPresetCounts = useMemo(
+    () => ({
+      all: reviewIssueCount ?? 0,
+      time: 0,
+      content_concern: 0,
+      content_missing: 0,
+      manual_attention: 0,
+      pending_review: 0,
+      ...reviewPresetCounts,
+    }),
+    [reviewIssueCount, reviewPresetCounts],
+  );
 
   const resolvedActiveReviewPreset = activeReviewPreset ?? 'all';
-  const reviewPresetOptions = useMemo(() => ([
-    'all',
-    'time',
-    'content_concern',
-    'content_missing',
-    'manual_attention',
-    'pending_review',
-  ] as const).map((preset) => ({
-    value: preset,
-    label: getReviewPresetLabel(preset),
-    count: effectiveReviewPresetCounts[preset] ?? 0,
-  })), [effectiveReviewPresetCounts]);
+  const reviewPresetOptions = useMemo(
+    () =>
+      (
+        [
+          'all',
+          'time',
+          'content_concern',
+          'content_missing',
+          'manual_attention',
+          'pending_review',
+        ] as const
+      ).map((preset) => ({
+        value: preset,
+        label: getReviewPresetLabel(preset),
+        count: effectiveReviewPresetCounts[preset] ?? 0,
+      })),
+    [effectiveReviewPresetCounts, getReviewPresetLabel],
+  );
 
-  const activeReviewOption = reviewPresetOptions.find((option) => option.value === resolvedActiveReviewPreset)
-    ?? reviewPresetOptions[0];
-  const reviewSummaryLabel = activeReviewOption ? `${activeReviewOption.label} ${activeReviewOption.count}` : reviewMessages.segmentListReviewPresetAll;
+  const activeReviewOption =
+    reviewPresetOptions.find((option) => option.value === resolvedActiveReviewPreset) ??
+    reviewPresetOptions[0];
+  const reviewSummaryLabel = activeReviewOption
+    ? `${activeReviewOption.label} ${activeReviewOption.count}`
+    : reviewMessages.segmentListReviewPresetAll;
   const hasReviewNavigation = (activeReviewOption?.count ?? 0) > 0;
-  const showReviewEntry = reviewIssueCount != null
-    || reviewPresetCounts != null
-    || onSelectReviewPreset != null
-    || onOpenReviewIssues != null
-    || onReviewPrev != null
-    || onReviewNext != null;
+  const showReviewEntry =
+    reviewIssueCount != null ||
+    reviewPresetCounts != null ||
+    onSelectReviewPreset != null ||
+    onOpenReviewIssues != null ||
+    onReviewPrev != null ||
+    onReviewNext != null;
 
   useEffect(() => {
     if (!isReviewMenuOpen) return;
@@ -209,7 +215,8 @@ export function TranscriptionPageToolbar({
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (reviewMenuRef.current?.contains(target)) return;
+      const menuEl = reviewMenuRef.current;
+      if (menuEl != null && menuEl.contains(target)) return;
       setIsReviewMenuOpen(false);
     };
 
@@ -228,7 +235,11 @@ export function TranscriptionPageToolbar({
   }, [isReviewMenuOpen]);
 
   const reviewToolbarExtras = showReviewEntry ? (
-    <div className="toolbar-review-nav" role="group" aria-label={reviewMessages.segmentListReviewPresetAll}>
+    <div
+      className="toolbar-review-nav"
+      role="group"
+      aria-label={reviewMessages.segmentListReviewPresetAll}
+    >
       <button
         type="button"
         className="toolbar-confidence-badge toolbar-confidence-badge-button"
@@ -255,8 +266,16 @@ export function TranscriptionPageToolbar({
           {reviewSummaryLabel}
         </button>
         {isReviewMenuOpen ? (
-          <div className="toolbar-review-nav-popover" role="dialog" aria-label={reviewMessages.segmentListTitle}>
-            <div className="app-side-pane-segment-list-review-presets toolbar-review-nav-popover-list" role="group" aria-label={reviewMessages.segmentListTitle}>
+          <div
+            className="toolbar-review-nav-popover"
+            role="dialog"
+            aria-label={reviewMessages.segmentListTitle}
+          >
+            <div
+              className="app-side-pane-segment-list-review-presets toolbar-review-nav-popover-list"
+              role="group"
+              aria-label={reviewMessages.segmentListTitle}
+            >
               {reviewPresetOptions.map((option) => {
                 const selected = option.value === resolvedActiveReviewPreset;
                 return (
@@ -273,8 +292,12 @@ export function TranscriptionPageToolbar({
                       setIsReviewMenuOpen(false);
                     }}
                   >
-                    <span className="app-side-pane-segment-list-review-preset-label">{option.label}</span>
-                    <span className="app-side-pane-segment-list-review-preset-count">{option.count}</span>
+                    <span className="app-side-pane-segment-list-review-preset-label">
+                      {option.label}
+                    </span>
+                    <span className="app-side-pane-segment-list-review-preset-count">
+                      {option.count}
+                    </span>
                   </button>
                 );
               })}
@@ -295,30 +318,44 @@ export function TranscriptionPageToolbar({
     </div>
   ) : null;
 
-  const lowConfidenceBadge = lowConfidenceCount != null && lowConfidenceCount > 0 ? (
-    <span
-      className="toolbar-confidence-badge"
-      title={tf(locale, 'transcription.toolbar.lowConfidenceBadgeTitle', { count: lowConfidenceCount })}
-    >
-      ⚠ {lowConfidenceCount}
-    </span>
-  ) : null;
+  const lowConfidenceBadge =
+    lowConfidenceCount != null && lowConfidenceCount > 0 ? (
+      <span
+        className="toolbar-confidence-badge"
+        title={tf(locale, 'transcription.toolbar.lowConfidenceBadgeTitle', {
+          count: lowConfidenceCount,
+        })}
+      >
+        ⚠ {lowConfidenceCount}
+      </span>
+    ) : null;
 
   const combinedLeftToolbarExtras = (
     <>
       {leftToolbarExtras}
-      {leftToolbarExtras && (reviewToolbarExtras || lowConfidenceBadge) ? (
-        <span className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep" aria-hidden="true" />
+      {leftToolbarExtras != null && (reviewToolbarExtras != null || lowConfidenceBadge != null) ? (
+        <span
+          className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep"
+          aria-hidden="true"
+        />
       ) : null}
       {reviewToolbarExtras}
-      {reviewToolbarExtras && lowConfidenceBadge ? (
-        <span className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep" aria-hidden="true" />
+      {reviewToolbarExtras != null && lowConfidenceBadge != null ? (
+        <span
+          className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep"
+          aria-hidden="true"
+        />
       ) : null}
       {lowConfidenceBadge}
       {showToolbarAiProgress ? (
         <>
-          {leftToolbarExtras || reviewToolbarExtras || lowConfidenceBadge ? (
-            <span className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep" aria-hidden="true" />
+          {leftToolbarExtras != null ||
+          reviewToolbarExtras != null ||
+          lowConfidenceBadge != null ? (
+            <span
+              className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep"
+              aria-hidden="true"
+            />
           ) : null}
           <ToolbarAiProgress
             acousticRuntimeStatus={acousticRuntimeStatus}

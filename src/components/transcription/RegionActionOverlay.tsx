@@ -49,22 +49,20 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
   const leftPx = unitStartTime * zoomPxPerSec - scrollLeft;
   const widthPx = (unitEndTime - unitStartTime) * zoomPxPerSec;
 
+  const locale = useLocale();
+
   // 区域滚出视野时不渲染 | Don't render when region is out of view
   if (leftPx + widthPx < 0 || leftPx > waveAreaWidth) return null;
 
   const showSpeedSlider = widthPx >= 160;
   const showLoopBtn = widthPx >= 72;
-  const locale = useLocale();
 
   if (skipProcessing) {
     return null;
   }
 
   return (
-    <div
-      className="region-action-overlay"
-      style={{ left: Math.max(0, leftPx) }}
-    >
+    <div className="region-action-overlay" style={{ left: Math.max(0, leftPx) }}>
       {showSpeedSlider && (
         <div className="segment-speed-control" onPointerDown={(e) => e.stopPropagation()}>
           <input
@@ -75,32 +73,58 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
             step={0.05}
             value={segmentPlaybackRate}
             onChange={(e) => onPlaybackRateChange(Number(e.target.value))}
-            title={tf(locale, 'transcription.wave.segmentSpeed', { rate: segmentPlaybackRate.toFixed(2) })}
+            title={tf(locale, 'transcription.wave.segmentSpeed', {
+              rate: segmentPlaybackRate.toFixed(2),
+            })}
           />
           <span
             className={`segment-speed-label${segmentPlaybackRate !== 1 ? ' segment-speed-label-reset' : ''}`}
-            title={segmentPlaybackRate !== 1 ? t(locale, 'transcription.wave.segmentSpeedReset') : t(locale, 'transcription.wave.segmentSpeedNormal')}
+            title={
+              segmentPlaybackRate !== 1
+                ? t(locale, 'transcription.wave.segmentSpeedReset')
+                : t(locale, 'transcription.wave.segmentSpeedNormal')
+            }
             onClick={() => onPlaybackRateChange(1)}
-          >{segmentPlaybackRate === 1 ? '1x' : `${segmentPlaybackRate.toFixed(segmentPlaybackRate % 0.25 === 0 ? 1 : 2)}x`}</span>
+          >
+            {segmentPlaybackRate === 1
+              ? '1x'
+              : `${segmentPlaybackRate.toFixed(segmentPlaybackRate % 0.25 === 0 ? 1 : 2)}x`}
+          </span>
         </div>
       )}
       {showLoopBtn && (
         <button
           className={`region-action-btn ${segmentLoopPlayback ? 'region-action-btn-active' : ''}`}
-          title={segmentLoopPlayback ? t(locale, 'transcription.wave.loopOn') : t(locale, 'transcription.wave.loopOff')}
+          title={
+            segmentLoopPlayback
+              ? t(locale, 'transcription.wave.loopOn')
+              : t(locale, 'transcription.wave.loopOff')
+          }
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); onToggleLoop(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleLoop();
+          }}
         >
           <MaterialSymbol name="repeat" className={JIEYU_MATERIAL_INLINE_TIGHT} />
         </button>
       )}
       <button
         className="region-action-btn"
-        title={isPlaying ? t(locale, 'transcription.wave.stop') : t(locale, 'transcription.wave.play')}
+        title={
+          isPlaying ? t(locale, 'transcription.wave.stop') : t(locale, 'transcription.wave.play')
+        }
         onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => { e.stopPropagation(); onTogglePlay(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onTogglePlay();
+        }}
       >
-        {isPlaying ? <MaterialSymbol name="stop" className={JIEYU_MATERIAL_INLINE_TIGHT} /> : <MaterialSymbol name="play_arrow" className={JIEYU_MATERIAL_INLINE_TIGHT} />}
+        {isPlaying ? (
+          <MaterialSymbol name="stop" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+        ) : (
+          <MaterialSymbol name="play_arrow" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+        )}
       </button>
     </div>
   );

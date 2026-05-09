@@ -158,7 +158,9 @@ class GlobalContextService {
 
   onCorpusChange(callback: (c: CorpusContext) => void): () => void {
     this._corpusListeners.add(callback);
-    return () => { this._corpusListeners.delete(callback); };
+    return () => {
+      this._corpusListeners.delete(callback);
+    };
   }
 
   // ── RAG Search ───────────────────────────────────────────────────────────
@@ -192,7 +194,9 @@ class GlobalContextService {
             text: segment?.text ?? '',
             translation: segment?.translation ?? null,
             score: m.score,
-            source: (m.sourceType === 'unit' ? 'transcription' : m.sourceType) as CorpusSearchResult['source'],
+            source: (m.sourceType === 'unit'
+              ? 'transcription'
+              : m.sourceType) as CorpusSearchResult['source'],
           };
         });
     } catch (err) {
@@ -217,7 +221,9 @@ class GlobalContextService {
 
   onProfileChange(callback: (p: UserBehaviorProfile) => void): () => void {
     this._behaviorListeners.add(callback);
-    return () => { this._behaviorListeners.delete(callback); };
+    return () => {
+      this._behaviorListeners.delete(callback);
+    };
   }
 
   /**
@@ -228,7 +234,7 @@ class GlobalContextService {
    * @param durationMs - How long the action took (for navigation actions)
    * @param sessionId - Which session this belongs to
    */
-  recordAction(actionId: ActionId, durationMs: number, sessionId: string): void {
+  recordAction(actionId: ActionId, durationMs: number, _sessionId: string): void {
     const profile = this._behaviorProfile;
 
     // Update frequency

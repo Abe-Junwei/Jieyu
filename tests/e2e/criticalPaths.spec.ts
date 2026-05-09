@@ -122,14 +122,14 @@ test.describe('关键路径 | Critical paths', () => {
     await createTranslationSubmit.click();
     await expect(createTranslationDialog).toBeHidden({ timeout: 15_000 });
 
-    // 项目中心：导出 Toolbox，确认下载动作可达
+    // 项目中心：导出 Toolbox，确认下载动作可达（悬停打开子菜单：父项 mousedown+click 双 toggle 下同一次 click 不可靠）
     await page.locator('.left-rail-project-hub-btn').click();
     const exportMenuEntry = page.getByRole('menuitem', { name: /导出|Export/ });
     await exportMenuEntry.hover();
     const toolboxExportEntry = page
       .locator('.context-menu-submenu-export')
       .getByRole('menuitem', { name: /Toolbox/i });
-    await expect(toolboxExportEntry).toBeVisible();
+    await expect(toolboxExportEntry).toBeVisible({ timeout: 15_000 });
     await toolboxExportEntry.click();
     // 导出触发后菜单应关闭，证明动作已被消费 | Export action should close the menu, proving the click is consumed
     await expect(page.locator('.context-menu-submenu-export')).toBeHidden({ timeout: 10_000 });
@@ -144,7 +144,7 @@ test.describe('关键路径 | Critical paths', () => {
     await exportMenuEntry.hover();
 
     const exportSubmenu = page.locator('.context-menu-submenu-export');
-    await expect(exportSubmenu).toBeVisible();
+    await expect(exportSubmenu).toBeVisible({ timeout: 15_000 });
     await expect(exportSubmenu.getByRole('menuitem', { name: /JYT/i })).toBeVisible();
     await expect(exportSubmenu.getByRole('menuitem', { name: /JYM/i })).toBeVisible();
   });

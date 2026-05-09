@@ -43,7 +43,7 @@ export function useReadyWorkspaceTimelineSyncController(
     setSnapGuide: input.interactionInput.setSnapGuide,
     setDragPreview: input.interactionInput.setDragPreview,
     saveUnitTiming: interactionController.saveTimingRouted,
-    ...(input.interactionInput.segmentsByLayer
+    ...(input.interactionInput.segmentsByLayer !== undefined
       ? { segmentsByLayer: new Map(input.interactionInput.segmentsByLayer) }
       : {}),
   });

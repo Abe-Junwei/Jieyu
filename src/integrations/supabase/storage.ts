@@ -1,6 +1,6 @@
 import { getSupabaseBrowserClient } from './client';
 
-const COLLABORATION_STORAGE_BUCKETS = [
+export const COLLABORATION_STORAGE_BUCKETS = [
   'project-audio',
   'project-exports',
   'project-attachments',
@@ -28,24 +28,32 @@ function sanitizePathSegment(value: string): string {
   return trimmed;
 }
 
-export function buildProjectAssetPath(projectId: string, assetId: string, fileName: string): string {
+export function buildProjectAssetPath(
+  projectId: string,
+  assetId: string,
+  fileName: string,
+): string {
   const safeProjectId = sanitizePathSegment(projectId);
   const safeAssetId = sanitizePathSegment(assetId);
   const safeFileName = sanitizePathSegment(fileName);
   return `${safeProjectId}/${safeAssetId}/${safeFileName}`;
 }
 
-export async function uploadProjectAsset(input: UploadProjectAssetInput): Promise<{ path: string }> {
+export async function uploadProjectAsset(
+  input: UploadProjectAssetInput,
+): Promise<{ path: string }> {
   const client = getSupabaseBrowserClient();
   const path = buildProjectAssetPath(input.projectId, input.assetId, input.fileName);
 
-  const { error } = await client.storage
-    .from(input.bucket)
-    .upload(path, input.data, {
-      ...(input.contentType ? { contentType: input.contentType } : {}),
-      ...(input.cacheControl ? { cacheControl: input.cacheControl } : {}),
-      ...(input.upsert !== undefined ? { upsert: input.upsert } : {}),
-    });
+  const { error } = await client.storage.from(input.bucket).upload(path, input.data, {
+    ...(input.contentType !== undefined && input.contentType.length > 0
+      ? { contentType: input.contentType }
+      : {}),
+    ...(input.cacheControl !== undefined && input.cacheControl.length > 0
+      ? { cacheControl: input.cacheControl }
+      : {}),
+    ...(input.upsert !== undefined ? { upsert: input.upsert } : {}),
+  });
 
   if (error) throw error;
   return { path };
@@ -57,9 +65,7 @@ export async function createSignedProjectAssetUrl(
   expiresInSeconds = 30 * 60,
 ): Promise<string> {
   const client = getSupabaseBrowserClient();
-  const { data, error } = await client.storage
-    .from(bucket)
-    .createSignedUrl(path, expiresInSeconds);
+  const { data, error } = await client.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
 
   if (error) throw error;
   return data.signedUrl;

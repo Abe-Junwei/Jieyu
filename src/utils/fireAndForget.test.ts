@@ -53,7 +53,9 @@ describe('fireAndForget', () => {
 
   it('uses warn log and does not dispatch toast event for background-quiet rejection', async () => {
     const received: string[] = [];
-    const onEvt = () => { received.push('evt'); };
+    const onEvt = () => {
+      received.push('evt');
+    };
     window.addEventListener(FIRE_AND_FORGET_ERROR_EVENT, onEvt);
     const p = Promise.reject(new Error('quiet-fail'));
     fireAndForget(p, { context: 'test.bq', policy: 'background-quiet' });
@@ -113,7 +115,7 @@ describe('fireAndForget', () => {
     const received: string[] = [];
     const onEvt = (e: Event) => {
       const d = (e as CustomEvent<{ context: string }>).detail;
-      if (d?.context) received.push(d.context);
+      if (typeof d?.context === 'string' && d.context.length > 0) received.push(d.context);
     };
     window.addEventListener(FIRE_AND_FORGET_ERROR_EVENT, onEvt);
     const p = Promise.reject(new Error('x'));

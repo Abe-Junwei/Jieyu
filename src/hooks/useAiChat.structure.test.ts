@@ -63,24 +63,33 @@ describe('useAiChat structure invariants', () => {
     expect(sendTurn.includes("from './useAiChat.sendTurnCorrelation'")).toBe(true);
     expect(sendTurn.includes('logSendTurnPhase')).toBe(true);
     expect(sendTurn.includes("from '../i18n'")).toBe(true);
-    expect(sendTurn.includes("tf(toolFeedbackLocaleRef.current, 'ai.chat.persistLayerRecoveryHint'")).toBe(true);
+    expect(
+      sendTurn.includes("tf(toolFeedbackLocaleRef.current, 'ai.chat.persistLayerRecoveryHint'"),
+    ).toBe(true);
     const preflight = fs.readFileSync(path.join(HOOKS, 'useAiChat.sendTurnPreflight.ts'), 'utf8');
     expect(preflight.includes('correlationId')).toBe(true);
   });
 
   it('keeps provider orchestration and session memory anchored in hook boundaries', () => {
     const code = readUseAiChatCode();
-    const sessionMemoryImportMatch = code.match(/import\s*\{([\s\S]*?)\}\s*from\s*'\.\.\/ai\/chat\/sessionMemory';/);
+    const sessionMemoryImportMatch = code.match(
+      /import\s*\{([\s\S]*?)\}\s*from\s*'\.\.\/ai\/chat\/sessionMemory';/,
+    );
     const sessionMemoryImportMembers = sessionMemoryImportMatch?.[1] ?? '';
 
     expect(code.includes('provider: createAiChatProvider(settings)')).toBe(true);
     expect(code.includes('fallbackProvider: createFallbackAiChatProvider(settings)')).toBe(true);
     expect(code.includes('const { provider, fallbackProvider } = useMemo(')).toBe(true);
-    expect(code.includes('const orchestrator = useMemo(() => new ChatOrchestrator(provider, fallbackProvider), [provider, fallbackProvider]);')).toBe(true);
-    expect(code.includes('const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());')).toBe(true);
+    expect(code.includes('const orchestrator = useMemo(')).toBe(true);
+    expect(code.includes('() => new ChatOrchestrator(provider, fallbackProvider)')).toBe(true);
+    expect(code.includes('[provider, fallbackProvider]')).toBe(true);
+    expect(
+      code.includes('const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());'),
+    ).toBe(true);
     expect(sessionMemoryImportMembers.includes('loadSessionMemory')).toBe(true);
     expect(sessionMemoryImportMembers.includes('persistSessionMemory')).toBe(true);
     expect(code.includes('sessionMemory: sessionMemoryRef.current,')).toBe(true);
-    expect(code.includes('persistSessionMemory,')).toBe(true);
+    expect(code.includes('const sessionMemorySeam = { persistSessionMemory };')).toBe(true);
+    expect(code.includes('void sessionMemorySeam;')).toBe(true);
   });
 });

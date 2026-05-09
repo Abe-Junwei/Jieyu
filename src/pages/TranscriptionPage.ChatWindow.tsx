@@ -1,9 +1,23 @@
-import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import '../styles/pages/ai-chat-window.css';
 import { normalizeLocale, t } from '../i18n';
 import { getAiChatCardMessages } from '../i18n/messages';
-import { aiChatProviderDefinitions, getAiChatProviderDefinition, type AiChatProviderKind, type AiChatSettings } from '../ai/providers/providerCatalog';
+import {
+  aiChatProviderDefinitions,
+  getAiChatProviderDefinition,
+  type AiChatProviderKind,
+  type AiChatSettings,
+} from '../ai/providers/providerCatalog';
 import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
 import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../contexts/VoiceAgentContext';
@@ -11,11 +25,16 @@ import { pickAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContex
 import { pickVoiceAgentContextValue } from '../hooks/useVoiceAgentContextValue';
 import { MaterialSymbol } from '../components/ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE } from '../utils/jieyuMaterialIcon';
-import { OPEN_APPROVAL_CENTER_EVENT, REQUEST_AGENT_LOOP_RESUME_EVENT } from '../ai/tasks/taskRefreshEvents';
+import {
+  OPEN_APPROVAL_CENTER_EVENT,
+  REQUEST_AGENT_LOOP_RESUME_EVENT,
+} from '../ai/tasks/taskRefreshEvents';
 
-const AiChatCard = lazy(async () => import('../components/ai/AiChatCard').then((module) => ({
-  default: module.AiChatCard,
-})));
+const AiChatCard = lazy(async () =>
+  import('../components/ai/AiChatCard').then((module) => ({
+    default: module.AiChatCard,
+  })),
+);
 
 export interface TranscriptionPageChatWindowProps {
   locale: string;
@@ -31,7 +50,9 @@ const MAX_HEIGHT = 880;
 const AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY = 'jieyu.aiChat.resumeAgentLoopTaskId';
 
 /** Stable hub branch when the voice agent UI is dormant (avoids an extra `useMemo` for architecture guard ceilings). */
-const DORMANT_VOICE_CONTEXT_FOR_CHAT_WINDOW = pickVoiceAgentContextValue(DEFAULT_VOICE_AGENT_CONTEXT_VALUE);
+const DORMANT_VOICE_CONTEXT_FOR_CHAT_WINDOW = pickVoiceAgentContextValue(
+  DEFAULT_VOICE_AGENT_CONTEXT_VALUE,
+);
 
 type ChatWindowLayoutState = {
   open: boolean;
@@ -42,7 +63,12 @@ type ChatWindowLayoutState = {
   height: number;
 };
 
-function clampChatWindowSize(width: number, height: number, viewportWidth: number, viewportHeight: number): { width: number; height: number } {
+function clampChatWindowSize(
+  width: number,
+  height: number,
+  viewportWidth: number,
+  viewportHeight: number,
+): { width: number; height: number } {
   const maxW = Math.min(MAX_WIDTH, viewportWidth - 28);
   const maxH = Math.min(MAX_HEIGHT, viewportHeight - 28);
   return {
@@ -68,7 +94,10 @@ function clampChatWindowPosition(
   };
 }
 
-function getDefaultChatWindowLayout(viewportWidth: number, viewportHeight: number): { position: { x: number; y: number }; size: { width: number; height: number } } {
+function getDefaultChatWindowLayout(
+  viewportWidth: number,
+  viewportHeight: number,
+): { position: { x: number; y: number }; size: { width: number; height: number } } {
   const width = Math.min(480, viewportWidth - 28);
   const height = Math.min(Math.floor(viewportHeight * 0.72), 760);
   const size = clampChatWindowSize(width, height, viewportWidth, viewportHeight);
@@ -92,13 +121,26 @@ export function TranscriptionPageChatWindow({
   const [minimized, setMinimized] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number }>(() => ({ x: 0, y: 0 }));
-  const [size, setSize] = useState<{ width: number; height: number }>(() => ({ width: 480, height: 640 }));
+  const [size, setSize] = useState<{ width: number; height: number }>(() => ({
+    width: 480,
+    height: 640,
+  }));
   const [layoutInitialized, setLayoutInitialized] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [providerConfigOpen, setProviderConfigOpen] = useState(false);
-  const dragStartRef = useRef<{ pointerX: number; pointerY: number; startX: number; startY: number } | null>(null);
-  const resizeStartRef = useRef<{ pointerX: number; pointerY: number; startWidth: number; startHeight: number } | null>(null);
+  const dragStartRef = useRef<{
+    pointerX: number;
+    pointerY: number;
+    startX: number;
+    startY: number;
+  } | null>(null);
+  const resizeStartRef = useRef<{
+    pointerX: number;
+    pointerY: number;
+    startWidth: number;
+    startHeight: number;
+  } | null>(null);
   const openRef = useRef(open);
   const minimizedRef = useRef(minimized);
   const aiIsStreamingRef = useRef(aiChatState.aiIsStreaming);
@@ -117,7 +159,8 @@ export function TranscriptionPageChatWindow({
   const pinnedCount = aiChatState.aiSessionMemory?.pinnedMessageIds?.length ?? 0;
   const connectionStatus = aiChatState.aiConnectionTestStatus ?? 'idle';
   const cardMessages = useMemo(() => getAiChatCardMessages(isZh), [isZh]);
-  const toolFeedbackStyleResolved = aiChatState.aiChatSettings?.toolFeedbackStyle === 'concise' ? 'concise' : 'detailed';
+  const toolFeedbackStyleResolved =
+    aiChatState.aiChatSettings?.toolFeedbackStyle === 'concise' ? 'concise' : 'detailed';
   const activeProviderDefinition = aiChatState.aiChatSettings
     ? getAiChatProviderDefinition(aiChatState.aiChatSettings.providerKind)
     : getAiChatProviderDefinition('mock');
@@ -133,13 +176,21 @@ export function TranscriptionPageChatWindow({
     return 'idle';
   }, [aiChatState.aiChatSettings?.providerKind, aiChatState.aiConnectionTestStatus]);
   const providerGroups = useMemo(() => {
-    const directKinds: AiChatProviderKind[] = ['deepseek', 'qwen', 'anthropic', 'gemini', 'ollama', 'minimax'];
+    const directKinds: AiChatProviderKind[] = [
+      'deepseek',
+      'qwen',
+      'anthropic',
+      'gemini',
+      'ollama',
+      'minimax',
+    ];
     const compatibleKinds: AiChatProviderKind[] = ['openai-compatible'];
     const localKinds: AiChatProviderKind[] = ['mock', 'webllm', 'custom-http'];
     const byKind = new Map(aiChatProviderDefinitions.map((provider) => [provider.kind, provider]));
-    const pick = (kinds: AiChatProviderKind[]) => kinds
-      .map((kind) => byKind.get(kind))
-      .filter((provider): provider is NonNullable<typeof provider> => Boolean(provider));
+    const pick = (kinds: AiChatProviderKind[]) =>
+      kinds
+        .map((kind) => byKind.get(kind))
+        .filter((provider): provider is NonNullable<typeof provider> => Boolean(provider));
     return [
       { label: cardMessages.providerGroupOfficial, items: pick(directKinds) },
       { label: cardMessages.providerGroupCompatible, items: pick(compatibleKinds) },
@@ -168,11 +219,13 @@ export function TranscriptionPageChatWindow({
       openHub();
       const detail = (event as CustomEvent<{ taskId?: string }>).detail;
       const taskId = typeof detail?.taskId === 'string' ? detail.taskId.trim() : '';
-      if (taskId) {
+      if (taskId.length > 0) {
         window.sessionStorage.setItem(AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY, taskId);
       }
-      if (aiIsStreamingRef.current) return;
-      void onSendAiMessageRef.current?.(t(uiLocaleRef.current, 'ai.alerts.agentLoopResumeDefaultInput'));
+      if (aiIsStreamingRef.current === true) return;
+      void onSendAiMessageRef.current?.(
+        t(uiLocaleRef.current, 'ai.alerts.agentLoopResumeDefaultInput'),
+      );
     };
     window.addEventListener(OPEN_APPROVAL_CENTER_EVENT, onApprovalCenter);
     window.addEventListener(REQUEST_AGENT_LOOP_RESUME_EVENT, onAgentLoopResume);
@@ -186,7 +239,7 @@ export function TranscriptionPageChatWindow({
     if (typeof window === 'undefined' || layoutInitialized) return;
     const defaultLayout = getDefaultChatWindowLayout(window.innerWidth, window.innerHeight);
     const raw = window.localStorage.getItem(CHAT_WINDOW_STORAGE_KEY);
-    if (raw) {
+    if (raw !== null && raw.length > 0) {
       try {
         const parsed = JSON.parse(raw) as Partial<ChatWindowLayoutState>;
         const nextMinimized = typeof parsed.minimized === 'boolean' ? parsed.minimized : false;
@@ -194,11 +247,25 @@ export function TranscriptionPageChatWindow({
         if (typeof parsed.minimized === 'boolean') setMinimized(parsed.minimized);
         let nextSize = defaultLayout.size;
         if (typeof parsed.width === 'number' && typeof parsed.height === 'number') {
-          nextSize = clampChatWindowSize(parsed.width, parsed.height, window.innerWidth, window.innerHeight);
+          nextSize = clampChatWindowSize(
+            parsed.width,
+            parsed.height,
+            window.innerWidth,
+            window.innerHeight,
+          );
         }
         setSize(nextSize);
         if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-          setPosition(clampChatWindowPosition(parsed.x, parsed.y, nextSize, nextMinimized, window.innerWidth, window.innerHeight));
+          setPosition(
+            clampChatWindowPosition(
+              parsed.x,
+              parsed.y,
+              nextSize,
+              nextMinimized,
+              window.innerWidth,
+              window.innerHeight,
+            ),
+          );
           setLayoutInitialized(true);
           return;
         }
@@ -228,7 +295,9 @@ export function TranscriptionPageChatWindow({
     if (typeof window === 'undefined') return;
     const timer = window.setTimeout(() => {
       if (open && !minimized) {
-        const input = windowRef.current?.querySelector<HTMLInputElement>('.ai-chat-input.ai-chat-input-composer');
+        const input = windowRef.current?.querySelector<HTMLInputElement>(
+          '.ai-chat-input.ai-chat-input-composer',
+        );
         input?.focus();
       } else if (!open) {
         triggerRef.current?.focus();
@@ -240,7 +309,8 @@ export function TranscriptionPageChatWindow({
   useEffect(() => {
     if (!isMounted || typeof window === 'undefined') return;
     const onKeyDown = (event: KeyboardEvent) => {
-      const isToggle = (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'j';
+      const isToggle =
+        (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'j';
       if (isToggle) {
         event.preventDefault();
         if (!openRef.current) {
@@ -269,7 +339,10 @@ export function TranscriptionPageChatWindow({
 
   const clampSize = (width: number, height: number): { width: number; height: number } => {
     if (typeof window === 'undefined') {
-      return { width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width)), height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, height)) };
+      return {
+        width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width)),
+        height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, height)),
+      };
     }
     return clampChatWindowSize(width, height, window.innerWidth, window.innerHeight);
   };
@@ -278,15 +351,22 @@ export function TranscriptionPageChatWindow({
     if (!layoutInitialized || typeof window === 'undefined') return;
     const handleResize = () => {
       setSize((prevSize) => {
-        const nextSize = clampChatWindowSize(prevSize.width, prevSize.height, window.innerWidth, window.innerHeight);
-        setPosition((prevPosition) => clampChatWindowPosition(
-          prevPosition.x,
-          prevPosition.y,
-          nextSize,
-          minimizedRef.current,
+        const nextSize = clampChatWindowSize(
+          prevSize.width,
+          prevSize.height,
           window.innerWidth,
           window.innerHeight,
-        ));
+        );
+        setPosition((prevPosition) =>
+          clampChatWindowPosition(
+            prevPosition.x,
+            prevPosition.y,
+            nextSize,
+            minimizedRef.current,
+            window.innerWidth,
+            window.innerHeight,
+          ),
+        );
         return nextSize;
       });
     };
@@ -325,7 +405,9 @@ export function TranscriptionPageChatWindow({
     if (!dragStartRef.current) return;
     const deltaX = event.clientX - dragStartRef.current.pointerX;
     const deltaY = event.clientY - dragStartRef.current.pointerY;
-    setPosition(clampPosition(dragStartRef.current.startX + deltaX, dragStartRef.current.startY + deltaY));
+    setPosition(
+      clampPosition(dragStartRef.current.startX + deltaX, dragStartRef.current.startY + deltaY),
+    );
   };
 
   const stopDragging = () => {
@@ -383,13 +465,20 @@ export function TranscriptionPageChatWindow({
       </button>
       {open && (
         <section
-          ref={(node) => { windowRef.current = node; }}
+          ref={(node) => {
+            windowRef.current = node;
+          }}
           className={`transcription-chat-window ${dragging ? 'is-dragging' : ''} ${resizing ? 'is-resizing' : ''} ${minimized ? 'is-minimized' : ''}`}
           role="dialog"
           aria-modal="false"
           aria-labelledby={windowTitleId}
           aria-label={title}
-          style={{ left: `${position.x}px`, top: `${position.y}px`, width: `${size.width}px`, height: minimized ? '44px' : `${size.height}px` }}
+          style={{
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            width: `${size.width}px`,
+            height: minimized ? '44px' : `${size.height}px`,
+          }}
         >
           <header
             className="transcription-chat-window-header"
@@ -399,15 +488,25 @@ export function TranscriptionPageChatWindow({
             onPointerCancel={stopDragging}
           >
             <div className="transcription-chat-window-header-meta">
-              <div id={windowTitleId} className="transcription-chat-window-title">{title}</div>
+              <div id={windowTitleId} className="transcription-chat-window-title">
+                {title}
+              </div>
               <div className="transcription-chat-window-subtitle">
-                {providerKind} · {connectionStatus} · {isZh ? `\u9489\u4f4f ${pinnedCount}` : `Pinned ${pinnedCount}`}
+                {providerKind} · {connectionStatus} ·{' '}
+                {isZh ? `\u9489\u4f4f ${pinnedCount}` : `Pinned ${pinnedCount}`}
               </div>
             </div>
-            <div className="transcription-chat-window-header-controls" onPointerDown={(event) => event.stopPropagation()}>
+            <div
+              className="transcription-chat-window-header-controls"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
               {!minimized && (
                 <div className="transcription-chat-window-toolbar">
-                  <div className="transcription-ai-mode-switch" role="group" aria-label={cardMessages.toolFeedbackStyle}>
+                  <div
+                    className="transcription-ai-mode-switch"
+                    role="group"
+                    aria-label={cardMessages.toolFeedbackStyle}
+                  >
                     <button
                       type="button"
                       className={`transcription-ai-mode-btn ${toolFeedbackStyleResolved === 'detailed' ? 'is-active' : ''}`}
@@ -440,14 +539,18 @@ export function TranscriptionPageChatWindow({
                   <select
                     className="ai-chat-provider-select"
                     value={aiChatState.aiChatSettings?.providerKind ?? 'mock'}
-                    onChange={(event) => aiChatState.onUpdateAiChatSettings?.({
-                      providerKind: event.currentTarget.value as AiChatSettings['providerKind'],
-                    })}
+                    onChange={(event) =>
+                      aiChatState.onUpdateAiChatSettings?.({
+                        providerKind: event.currentTarget.value as AiChatSettings['providerKind'],
+                      })
+                    }
                   >
                     {providerGroups.map((group) => (
                       <optgroup key={group.label} label={group.label}>
                         {group.items.map((provider) => (
-                          <option key={provider.kind} value={provider.kind}>{provider.label}</option>
+                          <option key={provider.kind} value={provider.kind}>
+                            {provider.label}
+                          </option>
                         ))}
                       </optgroup>
                     ))}
@@ -459,8 +562,16 @@ export function TranscriptionPageChatWindow({
                   type="button"
                   className="transcription-chat-window-head-btn transcription-chat-window-config-btn"
                   onClick={() => setProviderConfigOpen((prev) => !prev)}
-                  aria-label={providerConfigOpen ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
-                  title={providerConfigOpen ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
+                  aria-label={
+                    providerConfigOpen
+                      ? cardMessages.hideProviderConfig
+                      : cardMessages.openProviderConfig
+                  }
+                  title={
+                    providerConfigOpen
+                      ? cardMessages.hideProviderConfig
+                      : cardMessages.openProviderConfig
+                  }
                 >
                   <MaterialSymbol name="settings" className={JIEYU_MATERIAL_INLINE} />
                 </button>
@@ -477,8 +588,24 @@ export function TranscriptionPageChatWindow({
                   type="button"
                   className="transcription-chat-window-head-btn"
                   onClick={() => setMinimized((prev) => !prev)}
-                  aria-label={minimized ? (isZh ? '\u5c55\u5f00\u7a97\u53e3' : 'Expand') : (isZh ? '\u6536\u8d77\u7a97\u53e3' : 'Minimize')}
-                  title={minimized ? (isZh ? '\u5c55\u5f00\u7a97\u53e3' : 'Expand') : (isZh ? '\u6536\u8d77\u7a97\u53e3' : 'Minimize')}
+                  aria-label={
+                    minimized
+                      ? isZh
+                        ? '\u5c55\u5f00\u7a97\u53e3'
+                        : 'Expand'
+                      : isZh
+                        ? '\u6536\u8d77\u7a97\u53e3'
+                        : 'Minimize'
+                  }
+                  title={
+                    minimized
+                      ? isZh
+                        ? '\u5c55\u5f00\u7a97\u53e3'
+                        : 'Expand'
+                      : isZh
+                        ? '\u6536\u8d77\u7a97\u53e3'
+                        : 'Minimize'
+                  }
                 >
                   {minimized ? '▢' : '—'}
                 </button>

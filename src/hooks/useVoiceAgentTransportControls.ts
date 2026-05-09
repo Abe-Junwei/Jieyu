@@ -3,7 +3,10 @@ import * as Earcon from '../services/EarconService';
 import { globalContext } from '../services/GlobalContextService';
 import { applyVoiceConfirmedPendingTelemetry } from '../services/voiceConfirmedPendingTelemetry';
 import type { ActionId, VoiceSession } from '../services/IntentRouter';
-import type { SttEngine, VoiceInputService as VoiceInputServiceType } from '../services/VoiceInputService';
+import type {
+  SttEngine,
+  VoiceInputService as VoiceInputServiceType,
+} from '../services/VoiceInputService';
 import type { VoiceMode } from '../services/voiceMode';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
@@ -110,6 +113,7 @@ export function useVoiceAgentTransportControls({
     exclusiveStartPromiseRef,
     loadVoiceSessionStoreRuntime,
     pendingAiResponseCountRef,
+    recordingDurationIntervalRef,
     serviceRef,
     sessionRef,
     setAgentState,
@@ -138,7 +142,11 @@ export function useVoiceAgentTransportControls({
       setIsRecording(false);
       setAgentState('idle');
       Earcon.playError();
-      setError(err instanceof Error ? err.message : t(locale, 'transcription.voice.error.recordingStartFailed'));
+      setError(
+        err instanceof Error
+          ? err.message
+          : t(locale, 'transcription.voice.error.recordingStartFailed'),
+      );
     }
   }, [
     locale,
@@ -159,38 +167,49 @@ export function useVoiceAgentTransportControls({
     await svc.stopRecording();
   }, [recordingDurationIntervalRef, serviceRef, setAgentState, setIsRecording]);
 
-  const switchEngine = useCallback((newEngine: SttEngine) => {
-    setEngine(newEngine);
-    globalContext.updatePreference('preferredEngine', newEngine);
-    if (listening) {
-      serviceRef.current?.switchEngine(newEngine);
-      setAgentState(newEngine === 'web-speech' ? 'listening' : 'idle');
-    }
-  }, [listening, serviceRef, setAgentState, setEngine]);
+  const switchEngine = useCallback(
+    (newEngine: SttEngine) => {
+      setEngine(newEngine);
+      globalContext.updatePreference('preferredEngine', newEngine);
+      if (listening) {
+        serviceRef.current?.switchEngine(newEngine);
+        setAgentState(newEngine === 'web-speech' ? 'listening' : 'idle');
+      }
+    },
+    [listening, serviceRef, setAgentState, setEngine],
+  );
 
-  const toggle = useCallback((targetMode?: VoiceMode) => {
-    if (listening) {
-      void stop();
-    } else {
-      void start(targetMode);
-    }
-  }, [listening, start, stop]);
+  const toggle = useCallback(
+    (targetMode?: VoiceMode) => {
+      if (listening) {
+        void stop();
+      } else {
+        void start(targetMode);
+      }
+    },
+    [listening, start, stop],
+  );
 
-  const confirmPendingAction = useCallback((pendingConfirm: {
-    actionId: ActionId;
-    label: string;
-    fromFuzzy?: boolean;
-    params?: { segmentIndex?: number };
-  } | null) => {
-    if (!pendingConfirm) return;
-    executeActionRef.current(pendingConfirm.actionId, pendingConfirm.params);
-    clearInteractionPrompts();
-    applyVoiceConfirmedPendingTelemetry({
-      actionId: pendingConfirm.actionId,
-      sessionId: sessionRef.current.id,
-      inputModality: 'voice',
-    });
-  }, [clearInteractionPrompts, executeActionRef, sessionRef]);
+  const confirmPendingAction = useCallback(
+    (
+      pendingConfirm: {
+        actionId: ActionId;
+        label: string;
+        fromFuzzy?: boolean;
+        params?: { segmentIndex?: number };
+      } | null,
+    ) => {
+      if (!pendingConfirm) return;
+      executeActionRef.current(pendingConfirm.actionId, pendingConfirm.params);
+      clearInteractionPrompts();
+      applyVoiceConfirmedPendingTelemetry({
+        actionId: pendingConfirm.actionId,
+        sessionId: sessionRef.current.id,
+        inputModality: 'voice',
+      });
+    },
+    [clearInteractionPrompts, executeActionRef, sessionRef],
+  );
 
   return {
     stop,

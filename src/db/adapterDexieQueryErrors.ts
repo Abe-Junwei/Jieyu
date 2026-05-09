@@ -37,10 +37,15 @@ export function isDexieIndexedQueryFallbackError(err: unknown): boolean {
   }
 
   const name = errorNameOf(err);
-  if (!name) return false;
+  if (name.length === 0) return false;
   if (name === Dexie.errnames.Schema || name === 'SchemaError') {
     const m = msg.toLowerCase();
-    if (m.includes('keypath') || m.includes('index') || m.includes('invalid') || m.includes('key ')) {
+    if (
+      m.includes('keypath') ||
+      m.includes('index') ||
+      m.includes('invalid') ||
+      m.includes('key ')
+    ) {
       return true;
     }
   }
@@ -52,7 +57,10 @@ export function isDexieIndexedQueryFallbackError(err: unknown): boolean {
   }
   if (name === Dexie.errnames.InvalidAccess || name === 'InvalidAccessError') {
     const m = msg.toLowerCase();
-    if (m.length > 0 && (m.includes('key') || m.includes('index') || m.includes('path') || m.includes('query'))) {
+    if (
+      m.length > 0 &&
+      (m.includes('key') || m.includes('index') || m.includes('path') || m.includes('query'))
+    ) {
       return true;
     }
   }
@@ -87,7 +95,9 @@ export function reportUnexpectedDexieQueryError(context: string, err: unknown): 
           extra: data,
         });
       })
-      .catch(() => { /* Sentry 未安装或 DSN 关闭 */ });
+      .catch(() => {
+        /* Sentry 未安装或 DSN 关闭 */
+      });
   }
 }
 
@@ -99,7 +109,7 @@ export function reportDexieIndexedQueryFallback(context: string, err: unknown): 
   if (!import.meta.env.DEV) return;
 
   const key = context.trim().slice(0, 200);
-  if (!key || warnedDexieIndexedFallbackContexts.has(key)) return;
+  if (key.length === 0 || warnedDexieIndexedFallbackContexts.has(key)) return;
   warnedDexieIndexedFallbackContexts.add(key);
 
   log.info('Dexie indexed query fell back to degraded path', {

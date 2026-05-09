@@ -11,7 +11,7 @@ export type DeletePlan =
  */
 export function resolveDeletePlan(primaryId: string, ids: Iterable<string>): DeletePlan {
   const rawIds = Array.from(ids);
-  if (rawIds.length === 0 && primaryId) {
+  if (rawIds.length === 0 && primaryId.length > 0) {
     return { kind: 'single', id: primaryId };
   }
 

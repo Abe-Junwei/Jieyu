@@ -2,10 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
-import {
-  brandLayerUnitWriteTarget,
-  type LayerUnitWriteTarget,
-} from '../app/jieyuDbPageAccess';
+import { brandLayerUnitWriteTarget, type LayerUnitWriteTarget } from '../app/jieyuDbPageAccess';
 
 /**
  * ⚠️ per-layer 字段严格分治原则（self-certainty 治理 post-mortem）
@@ -151,7 +148,8 @@ export function useTranscriptionSelfCertaintyController(
   }, [input.units]);
 
   const segmentRowLayerIndex = useMemo(
-    () => buildSegmentRowLayerIndex(input.segmentsByLayer, input.currentMediaUnits, canonicalUnitIds),
+    () =>
+      buildSegmentRowLayerIndex(input.segmentsByLayer, input.currentMediaUnits, canonicalUnitIds),
     [input.currentMediaUnits, input.segmentsByLayer, canonicalUnitIds],
   );
 
@@ -199,33 +197,49 @@ export function useTranscriptionSelfCertaintyController(
     return out;
   }, [input.units]);
 
-  const [localSelfCertaintyByScopedUnitId, setLocalSelfCertaintyByScopedUnitId] = useState<Map<string, UnitSelfCertainty | null>>(() => new Map());
+  const [localSelfCertaintyByScopedUnitId, setLocalSelfCertaintyByScopedUnitId] = useState<
+    Map<string, UnitSelfCertainty | null>
+  >(() => new Map());
 
-  const resolveSelfCertaintyForUnit = useCallback((unitId: string, layerId?: string): UnitSelfCertainty | undefined => {
-    const normalizedUnitId = unitId.trim();
-    if (!normalizedUnitId) return undefined;
+  const resolveSelfCertaintyForUnit = useCallback(
+    (unitId: string, layerId?: string): UnitSelfCertainty | undefined => {
+      const normalizedUnitId = unitId.trim();
+      if (!normalizedUnitId) return undefined;
 
-    const normalizedLayerId = layerId?.trim() ?? '';
-    const lookupLayerId = canonicalUnitIds.has(normalizedUnitId)
-      ? normalizedLayerId
-      : scopedLayerIdForSegmentRead(normalizedUnitId, normalizedLayerId, canonicalUnitIds, segmentRowLayerIndex);
+      const normalizedLayerId = layerId?.trim() ?? '';
+      const lookupLayerId = canonicalUnitIds.has(normalizedUnitId)
+        ? normalizedLayerId
+        : scopedLayerIdForSegmentRead(
+            normalizedUnitId,
+            normalizedLayerId,
+            canonicalUnitIds,
+            segmentRowLayerIndex,
+          );
 
-    const localScopedKey = scopedKey(lookupLayerId, normalizedUnitId);
-    if (localSelfCertaintyByScopedUnitId.has(localScopedKey)) {
-      return localSelfCertaintyByScopedUnitId.get(localScopedKey) ?? undefined;
-    }
+      const localScopedKey = scopedKey(lookupLayerId, normalizedUnitId);
+      if (localSelfCertaintyByScopedUnitId.has(localScopedKey)) {
+        return localSelfCertaintyByScopedUnitId.get(localScopedKey) ?? undefined;
+      }
 
-    if (lookupLayerId) {
-      const scopedValue = selfCertaintyByScopedUnitId.get(localScopedKey);
-      if (scopedValue) return scopedValue;
-      // ⚠️ 刻意在此 return undefined —— 不向 canonical host 回退读值。
-      //   段行若没自己的 selfCertainty，就是没有；不得把宿主或他层值投影到这里。
-      return undefined;
-    }
+      if (lookupLayerId) {
+        const scopedValue = selfCertaintyByScopedUnitId.get(localScopedKey);
+        if (scopedValue) return scopedValue;
+        // ⚠️ 刻意在此 return undefined —— 不向 canonical host 回退读值。
+        //   段行若没自己的 selfCertainty，就是没有；不得把宿主或他层值投影到这里。
+        return undefined;
+      }
 
-    // 无 layer 上下文的读：仅支持真正的 canonical unit 行（unit-intrinsic 语义）。
-    return selfCertaintyByUnitId.get(normalizedUnitId);
-  }, [canonicalUnitIds, localSelfCertaintyByScopedUnitId, segmentRowLayerIndex, selfCertaintyByScopedUnitId, selfCertaintyByUnitId]);
+      // 无 layer 上下文的读：仅支持真正的 canonical unit 行（unit-intrinsic 语义）。
+      return selfCertaintyByUnitId.get(normalizedUnitId);
+    },
+    [
+      canonicalUnitIds,
+      localSelfCertaintyByScopedUnitId,
+      segmentRowLayerIndex,
+      selfCertaintyByScopedUnitId,
+      selfCertaintyByUnitId,
+    ],
+  );
 
   /**
    * Ambiguity 从定义消失：
@@ -250,69 +264,84 @@ export function useTranscriptionSelfCertaintyController(
    * segment ids directly (see TranscriptionOverlays.tsx:184-187); this helper is only
    * used for the unit-kind branch to validate ids.
    */
-  const resolveSelfCertaintyUnitIds = useCallback((ids: readonly string[], _layerId?: string) => {
-    const out: string[] = [];
-    for (const rawId of ids) {
-      const id = rawId.trim();
-      if (!id) continue;
-      if (canonicalUnitIds.has(id)) out.push(id);
-    }
-    return out;
-  }, [canonicalUnitIds]);
+  const resolveSelfCertaintyUnitIds = useCallback(
+    (ids: readonly string[], _layerId?: string) => {
+      const out: string[] = [];
+      for (const rawId of ids) {
+        const id = rawId.trim();
+        if (!id) continue;
+        if (canonicalUnitIds.has(id)) out.push(id);
+      }
+      return out;
+    },
+    [canonicalUnitIds],
+  );
 
-  const handleSetUnitSelfCertaintyFromMenu = useCallback((
-    unitIds: Iterable<string>,
-    kind: TimelineUnitKind,
-    value: UnitSelfCertainty | undefined,
-    layerId?: string,
-  ) => {
-    const normalizedUnitIds = [...unitIds].map((id) => id.trim()).filter((id) => id.length > 0);
-    if (normalizedUnitIds.length === 0) return;
-    const normalizedLayerId = layerId?.trim() ?? '';
+  const handleSetUnitSelfCertaintyFromMenu = useCallback(
+    (
+      unitIds: Iterable<string>,
+      kind: TimelineUnitKind,
+      value: UnitSelfCertainty | undefined,
+      layerId?: string,
+    ) => {
+      const normalizedUnitIds = [...unitIds].map((id) => id.trim()).filter((id) => id.length > 0);
+      if (normalizedUnitIds.length === 0) return;
+      const normalizedLayerId = layerId?.trim() ?? '';
 
-    /*
-     * Strict kind partitioning — see the top-of-file post-mortem comment.
-     *   segment → 段行自己（layer-private），绝不回退到宿主 unit。
-     *   unit    → canonical unit 行自己。
-     * 以前的 "segment → parent unit" 解析是串层污染根因；整条 host-resolution 链路已删除。
-     */
-    const targets: LayerUnitWriteTarget[] = [];
-    for (const rawId of normalizedUnitIds) {
-      if (kind === 'segment') {
-        targets.push(brandLayerUnitWriteTarget({ id: rawId, unitType: 'segment' }));
-      } else {
-        // kind === 'unit'：只接受实际存在于 canonical 集里的 id；
-        // 其它（不认识的 id）静默丢弃，避免把野 id 写成 canonical unit。
-        // kind === 'unit': accept only ids present in the canonical set to avoid accidentally
-        // creating/overwriting canonical rows from a stale/unknown id.
-        if (canonicalUnitIds.has(rawId)) {
-          targets.push(brandLayerUnitWriteTarget({ id: rawId, unitType: 'unit' }));
+      /*
+       * Strict kind partitioning — see the top-of-file post-mortem comment.
+       *   segment → 段行自己（layer-private），绝不回退到宿主 unit。
+       *   unit    → canonical unit 行自己。
+       * 以前的 "segment → parent unit" 解析是串层污染根因；整条 host-resolution 链路已删除。
+       */
+      const targets: LayerUnitWriteTarget[] = [];
+      for (const rawId of normalizedUnitIds) {
+        if (kind === 'segment') {
+          targets.push(brandLayerUnitWriteTarget({ id: rawId, unitType: 'segment' }));
+        } else {
+          // kind === 'unit'：只接受实际存在于 canonical 集里的 id；
+          // 其它（不认识的 id）静默丢弃，避免把野 id 写成 canonical unit。
+          // kind === 'unit': accept only ids present in the canonical set to avoid accidentally
+          // creating/overwriting canonical rows from a stale/unknown id.
+          if (canonicalUnitIds.has(rawId)) {
+            targets.push(brandLayerUnitWriteTarget({ id: rawId, unitType: 'unit' }));
+          }
         }
       }
-    }
-    if (targets.length === 0) return;
+      if (targets.length === 0) return;
 
-    // Optimistic 本地压值 — 只压被点击的 scopedKey；不再向"共享同一 host 的 sibling scope"广播，
-    // 因为新语义下写入根本不会跨层落到 sibling。
-    // Optimistic override: only the clicked (layerId, unitId). No sibling-scope broadcast — under
-    // the new semantics writes never leak to siblings, so there is nothing to mirror.
-    //
-    // Segment rows are keyed in Dexie by their storage layerId. Context menus pass the *timeline lane*
-    // id (e.g. symbolic dependent layer). Without remapping, optimistic keys miss reads that use the
-    // segment row's layerId — badges appear only after refresh.
-    setLocalSelfCertaintyByScopedUnitId((prev) => {
-      const next = new Map(prev);
-      for (const rawId of normalizedUnitIds) {
-        const optLayerId = kind === 'segment'
-          ? scopedLayerIdForSegmentWrite(rawId, normalizedLayerId, canonicalUnitIds, segmentRowLayerIndex)
-          : normalizedLayerId;
-        next.set(scopedKey(optLayerId, rawId), value ?? null);
-      }
-      return next;
-    });
+      // Optimistic 本地压值 — 只压被点击的 scopedKey；不再向"共享同一 host 的 sibling scope"广播，
+      // 因为新语义下写入根本不会跨层落到 sibling。
+      // Optimistic override: only the clicked (layerId, unitId). No sibling-scope broadcast — under
+      // the new semantics writes never leak to siblings, so there is nothing to mirror.
+      //
+      // Segment rows are keyed in Dexie by their storage layerId. Context menus pass the *timeline lane*
+      // id (e.g. symbolic dependent layer). Without remapping, optimistic keys miss reads that use the
+      // segment row's layerId — badges appear only after refresh.
+      setLocalSelfCertaintyByScopedUnitId((prev) => {
+        const next = new Map(prev);
+        for (const rawId of normalizedUnitIds) {
+          const optLayerId =
+            kind === 'segment'
+              ? scopedLayerIdForSegmentWrite(
+                  rawId,
+                  normalizedLayerId,
+                  canonicalUnitIds,
+                  segmentRowLayerIndex,
+                )
+              : normalizedLayerId;
+          next.set(scopedKey(optLayerId, rawId), value ?? null);
+        }
+        return next;
+      });
 
-    fireAndForget(Promise.resolve(input.saveUnitSelfCertainty(targets, value)), { context: 'src/pages/useTranscriptionSelfCertaintyController.ts:L314', policy: 'user-visible' });
-  }, [canonicalUnitIds, input.saveUnitSelfCertainty, segmentRowLayerIndex]);
+      fireAndForget(Promise.resolve(input.saveUnitSelfCertainty(targets, value)), {
+        context: 'src/pages/useTranscriptionSelfCertaintyController.ts:L314',
+        policy: 'user-visible',
+      });
+    },
+    [canonicalUnitIds, input, segmentRowLayerIndex],
+  );
 
   return {
     resolveSelfCertaintyUnitIds,

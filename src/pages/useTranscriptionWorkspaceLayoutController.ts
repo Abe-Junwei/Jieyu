@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type MutableRefObject,
+  type PointerEvent as ReactPointerEvent,
+  type SetStateAction,
+} from 'react';
 import type { VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
 import type { LayerDocType } from '../types/jieyuDbDocTypes';
 import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
@@ -63,101 +72,134 @@ type UseTranscriptionWorkspaceLayoutControllerResult = {
 export function useTranscriptionWorkspaceLayoutController(
   input: UseTranscriptionWorkspaceLayoutControllerInput,
 ): UseTranscriptionWorkspaceLayoutControllerResult {
-  const [zoomMode, setZoomMode] = useState<'fit-all' | 'fit-selection' | 'custom'>(() => readStoredWorkspaceZoomMode());
+  const [zoomMode, setZoomMode] = useState<'fit-all' | 'fit-selection' | 'custom'>(() =>
+    readStoredWorkspaceZoomMode(),
+  );
   const [isTimelineLaneHeaderCollapsed, setIsTimelineLaneHeaderCollapsed] = useState(false);
-  const [laneLabelWidth, setLaneLabelWidth] = useState<number>(() => readStoredClampedNumber('jieyu:lane-label-width', 40, 180, 64));
+  const [laneLabelWidth, setLaneLabelWidth] = useState<number>(() =>
+    readStoredClampedNumber('jieyu:lane-label-width', 40, 180, 64),
+  );
   const laneLabelWidthRef = useRef<number>(laneLabelWidth);
-  const [timelineLaneHeights, setTimelineLaneHeights] = useState<Record<string, number>>(() => readStoredLaneHeights());
-  const [videoPreviewHeight, setVideoPreviewHeight] = useState<number>(readStoredVideoPreviewHeightPreference);
+  const [timelineLaneHeights, setTimelineLaneHeights] = useState<Record<string, number>>(() =>
+    readStoredLaneHeights(),
+  );
+  const [videoPreviewHeight, setVideoPreviewHeight] = useState<number>(
+    readStoredVideoPreviewHeightPreference,
+  );
   const videoPreviewResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const [isResizingVideoPreview, setIsResizingVideoPreview] = useState(false);
-  const [videoRightPanelWidth, setVideoRightPanelWidth] = useState<number>(readStoredVideoRightPanelWidthPreference);
-  const videoRightPanelResizeRef = useRef<{ startX: number; startWidth: number; factor: number } | null>(null);
+  const [videoRightPanelWidth, setVideoRightPanelWidth] = useState<number>(
+    readStoredVideoRightPanelWidthPreference,
+  );
+  const videoRightPanelResizeRef = useRef<{
+    startX: number;
+    startWidth: number;
+    factor: number;
+  } | null>(null);
   const [isResizingVideoRightPanel, setIsResizingVideoRightPanel] = useState(false);
-  const [videoLayoutMode, setVideoLayoutMode] = useState<VideoLayoutMode>(readStoredVideoLayoutModePreference);
-  const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(() => readStoredBoolean(WORKSPACE_AUTO_SCROLL_KEY, true));
+  const [videoLayoutMode, setVideoLayoutMode] = useState<VideoLayoutMode>(
+    readStoredVideoLayoutModePreference,
+  );
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(() =>
+    readStoredBoolean(WORKSPACE_AUTO_SCROLL_KEY, true),
+  );
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [snapEnabled, setSnapEnabled] = useState<boolean>(() => readStoredBoolean(WORKSPACE_SNAP_KEY, false));
-  const [verticalViewEnabled, setVerticalViewEnabled] = useState<boolean>(() => readStoredVerticalViewEnabled());
+  const [snapEnabled, setSnapEnabled] = useState<boolean>(() =>
+    readStoredBoolean(WORKSPACE_SNAP_KEY, false),
+  );
+  const [verticalViewEnabled, setVerticalViewEnabled] = useState<boolean>(() =>
+    readStoredVerticalViewEnabled(),
+  );
 
   useEffect(() => {
     laneLabelWidthRef.current = laneLabelWidth;
   }, [laneLabelWidth]);
 
-  useEffect(() => subscribeWorkspaceLayoutPreferenceChanged(() => {
-    setVideoPreviewHeight((prev) => {
-      const next = readStoredVideoPreviewHeightPreference();
-      return prev === next ? prev : next;
-    });
-    setVideoRightPanelWidth((prev) => {
-      const next = readStoredVideoRightPanelWidthPreference();
-      return prev === next ? prev : next;
-    });
-    setVideoLayoutMode((prev) => {
-      const next = readStoredVideoLayoutModePreference();
-      return prev === next ? prev : next;
-    });
-    setZoomMode((prev) => {
-      const next = readStoredWorkspaceZoomMode();
-      return prev === next ? prev : next;
-    });
-    setAutoScrollEnabled((prev) => {
-      const next = readStoredBoolean(WORKSPACE_AUTO_SCROLL_KEY, true);
-      return prev === next ? prev : next;
-    });
-    setSnapEnabled((prev) => {
-      const next = readStoredBoolean(WORKSPACE_SNAP_KEY, false);
-      return prev === next ? prev : next;
-    });
-    setVerticalViewEnabled((prev) => {
-      const next = readStoredVerticalViewEnabled();
-      return prev === next ? prev : next;
-    });
-  }), []);
+  useEffect(
+    () =>
+      subscribeWorkspaceLayoutPreferenceChanged(() => {
+        setVideoPreviewHeight((prev) => {
+          const next = readStoredVideoPreviewHeightPreference();
+          return prev === next ? prev : next;
+        });
+        setVideoRightPanelWidth((prev) => {
+          const next = readStoredVideoRightPanelWidthPreference();
+          return prev === next ? prev : next;
+        });
+        setVideoLayoutMode((prev) => {
+          const next = readStoredVideoLayoutModePreference();
+          return prev === next ? prev : next;
+        });
+        setZoomMode((prev) => {
+          const next = readStoredWorkspaceZoomMode();
+          return prev === next ? prev : next;
+        });
+        setAutoScrollEnabled((prev) => {
+          const next = readStoredBoolean(WORKSPACE_AUTO_SCROLL_KEY, true);
+          return prev === next ? prev : next;
+        });
+        setSnapEnabled((prev) => {
+          const next = readStoredBoolean(WORKSPACE_SNAP_KEY, false);
+          return prev === next ? prev : next;
+        });
+        setVerticalViewEnabled((prev) => {
+          const next = readStoredVerticalViewEnabled();
+          return prev === next ? prev : next;
+        });
+      }),
+    [],
+  );
 
   const toggleTimelineLaneHeader = useCallback(() => {
     setIsTimelineLaneHeaderCollapsed((prev) => !prev);
   }, []);
 
-  const handleLaneLabelWidthResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (isTimelineLaneHeaderCollapsed) return;
+  const handleLaneLabelWidthResizeStart = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (isTimelineLaneHeaderCollapsed) return;
 
-    const startX = event.clientX;
-    const startWidth = laneLabelWidth;
+      const startX = event.clientX;
+      const startWidth = laneLabelWidth;
 
-    // 拖拽期间禁用 lane-label 相关 transition，避免上下区域动画不同步 | Disable lane-label transitions during drag to keep waveform and timeline in sync
-    document.documentElement.classList.add('lane-label-resizing');
+      // 拖拽期间禁用 lane-label 相关 transition，避免上下区域动画不同步 | Disable lane-label transitions during drag to keep waveform and timeline in sync
+      document.documentElement.classList.add('lane-label-resizing');
 
-    const onMove = (nextEvent: PointerEvent) => {
-      const next = Math.max(40, Math.min(180, startWidth + (nextEvent.clientX - startX)));
-      laneLabelWidthRef.current = next;
-      setLaneLabelWidth(next);
-    };
+      const onMove = (nextEvent: PointerEvent) => {
+        const next = Math.max(40, Math.min(180, startWidth + (nextEvent.clientX - startX)));
+        laneLabelWidthRef.current = next;
+        setLaneLabelWidth(next);
+      };
 
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      document.documentElement.classList.remove('lane-label-resizing');
-      try {
-        localStorage.setItem('jieyu:lane-label-width', String(laneLabelWidthRef.current));
-      } catch (error) {
-        log.warn('Failed to persist lane label width to localStorage', {
-          storageKey: 'jieyu:lane-label-width',
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    };
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        document.documentElement.classList.remove('lane-label-resizing');
+        try {
+          localStorage.setItem('jieyu:lane-label-width', String(laneLabelWidthRef.current));
+        } catch (error) {
+          log.warn('Failed to persist lane label width to localStorage', {
+            storageKey: 'jieyu:lane-label-width',
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      };
 
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  }, [isTimelineLaneHeaderCollapsed, laneLabelWidth]);
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    },
+    [isTimelineLaneHeaderCollapsed, laneLabelWidth],
+  );
 
   useEffect(() => {
     if (!autoScrollEnabled) return;
-    if (!input.selectedTimelineOwnerUnitId) return;
+    if (
+      input.selectedTimelineOwnerUnitId === undefined ||
+      input.selectedTimelineOwnerUnitId.length === 0
+    )
+      return;
     const row = input.unitRowRef.current[input.selectedTimelineOwnerUnitId];
     row?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [autoScrollEnabled, input.selectedTimelineOwnerUnitId, input.unitRowRef]);
@@ -183,7 +225,10 @@ export function useTranscriptionWorkspaceLayoutController(
 
       if (event.key === '?' && !event.ctrlKey && !event.metaKey) {
         const target = event.target as HTMLElement | null;
-        if (!target || (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable)) {
+        if (
+          !target ||
+          (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable)
+        ) {
           event.preventDefault();
           setShowShortcuts((prev) => !prev);
         }
@@ -197,7 +242,9 @@ export function useTranscriptionWorkspaceLayoutController(
   useEffect(() => {
     const layerIds = new Set(input.layers.map((layer) => layer.id));
     setTimelineLaneHeights((prev) => {
-      const next = Object.fromEntries(Object.entries(prev).filter(([layerId]) => layerIds.has(layerId)));
+      const next = Object.fromEntries(
+        Object.entries(prev).filter(([layerId]) => layerIds.has(layerId)),
+      );
       return Object.keys(next).length === Object.keys(prev).length ? prev : next;
     });
   }, [input.layers]);
@@ -230,12 +277,15 @@ export function useTranscriptionWorkspaceLayoutController(
     }
   }, [timelineLaneHeights]);
 
-  const handleVideoPreviewResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    videoPreviewResizeRef.current = { startY: event.clientY, startHeight: videoPreviewHeight };
-    setIsResizingVideoPreview(true);
-  }, [videoPreviewHeight]);
+  const handleVideoPreviewResizeStart = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      videoPreviewResizeRef.current = { startY: event.clientY, startHeight: videoPreviewHeight };
+      setIsResizingVideoPreview(true);
+    },
+    [videoPreviewHeight],
+  );
 
   useEffect(() => {
     if (!isResizingVideoPreview) return;
@@ -243,7 +293,10 @@ export function useTranscriptionWorkspaceLayoutController(
     const handleMove = (event: PointerEvent): void => {
       const drag = videoPreviewResizeRef.current;
       if (!drag) return;
-      const next = Math.min(Math.max(Math.round(drag.startHeight + event.clientY - drag.startY), 120), 600);
+      const next = Math.min(
+        Math.max(Math.round(drag.startHeight + event.clientY - drag.startY), 120),
+        600,
+      );
       setVideoPreviewHeight(next);
     };
 
@@ -266,16 +319,19 @@ export function useTranscriptionWorkspaceLayoutController(
     };
   }, [isResizingVideoPreview]);
 
-  const handleVideoRightPanelResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    videoRightPanelResizeRef.current = {
-      startX: event.clientX,
-      startWidth: videoRightPanelWidth,
-      factor: videoLayoutMode === 'left' ? -1 : 1,
-    };
-    setIsResizingVideoRightPanel(true);
-  }, [videoLayoutMode, videoRightPanelWidth]);
+  const handleVideoRightPanelResizeStart = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      videoRightPanelResizeRef.current = {
+        startX: event.clientX,
+        startWidth: videoRightPanelWidth,
+        factor: videoLayoutMode === 'left' ? -1 : 1,
+      };
+      setIsResizingVideoRightPanel(true);
+    },
+    [videoLayoutMode, videoRightPanelWidth],
+  );
 
   useEffect(() => {
     if (!isResizingVideoRightPanel) return;
@@ -283,7 +339,10 @@ export function useTranscriptionWorkspaceLayoutController(
     const handleMove = (event: PointerEvent): void => {
       const drag = videoRightPanelResizeRef.current;
       if (!drag) return;
-      const next = Math.min(Math.max(Math.round(drag.startWidth + drag.factor * (drag.startX - event.clientX)), 260), 720);
+      const next = Math.min(
+        Math.max(Math.round(drag.startWidth + drag.factor * (drag.startX - event.clientX)), 260),
+        720,
+      );
       setVideoRightPanelWidth(next);
     };
 
@@ -306,11 +365,14 @@ export function useTranscriptionWorkspaceLayoutController(
     };
   }, [isResizingVideoRightPanel]);
 
-  useEffect(() => () => {
-    videoPreviewResizeRef.current = null;
-    videoRightPanelResizeRef.current = null;
-    resetDocumentResizeStyles();
-  }, []);
+  useEffect(
+    () => () => {
+      videoPreviewResizeRef.current = null;
+      videoRightPanelResizeRef.current = null;
+      resetDocumentResizeStyles();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (videoLayoutMode === 'right' || videoLayoutMode === 'left') return;

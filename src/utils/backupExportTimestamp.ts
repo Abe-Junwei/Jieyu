@@ -8,7 +8,7 @@ export const BACKUP_LAST_EXPORT_KEY = 'jieyu.lastExportTimestamp';
 export function readLastExportTimestamp(): number {
   try {
     const raw = window.localStorage.getItem(BACKUP_LAST_EXPORT_KEY);
-    if (raw) {
+    if (raw != null && raw.length > 0) {
       const parsed = Number(raw);
       if (Number.isFinite(parsed) && parsed > 0) return parsed;
     }

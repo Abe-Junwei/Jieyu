@@ -54,10 +54,14 @@ export interface MergeCrossDeviceOptions {
 }
 
 function resolveCollaborationSurfaceLocale(options: MergeCrossDeviceOptions | undefined): Locale {
-  if (options?.surfaceLocale) {
+  if (options?.surfaceLocale !== undefined) {
     return options.surfaceLocale;
   }
-  if (typeof document !== 'undefined' && document.documentElement?.lang) {
+  if (
+    typeof document !== 'undefined' &&
+    document.documentElement?.lang !== undefined &&
+    document.documentElement.lang.length > 0
+  ) {
     return normalizeLocale(document.documentElement.lang) ?? 'en-US';
   }
   return 'en-US';
@@ -88,10 +92,14 @@ function hashString(input: string): string {
 function canonicalReplica(replica: CrossDeviceReplica): Record<string, unknown> {
   return {
     entityId: replica.entityId,
-    vectorClock: Object.fromEntries(Object.entries(replica.vectorClock).sort(([a], [b]) => a.localeCompare(b))),
+    vectorClock: Object.fromEntries(
+      Object.entries(replica.vectorClock).sort(([a], [b]) => a.localeCompare(b)),
+    ),
     updatedAt: replica.updatedAt,
     deleted: replica.deleted === true,
-    fields: Object.fromEntries(Object.entries(replica.fields).sort(([a], [b]) => a.localeCompare(b))),
+    fields: Object.fromEntries(
+      Object.entries(replica.fields).sort(([a], [b]) => a.localeCompare(b)),
+    ),
   };
 }
 
@@ -119,7 +127,11 @@ function cloneReplica(replica: CrossDeviceReplica): CrossDeviceReplica {
   };
 }
 
-function chooseWinner(local: CrossDeviceReplica, remote: CrossDeviceReplica, relation: VectorClockRelation): CrossDeviceReplica {
+function chooseWinner(
+  local: CrossDeviceReplica,
+  remote: CrossDeviceReplica,
+  relation: VectorClockRelation,
+): CrossDeviceReplica {
   if (relation === 'local-dominates') return local;
   if (relation === 'remote-dominates') return remote;
   if (relation === 'equal') {
@@ -214,12 +226,15 @@ export function mergeCrossDeviceReplicas(
       if (stableStringify(winner.fields[key]) !== stableStringify(loser.fields[key])) {
         concurrentFieldLoserDiscarded += 1;
         supersededFieldKeys.push(key);
-        crossDeviceLog.warn('mergeCrossDeviceReplicas: same-key field value differs; kept winner, discarded loser', {
-          entityId: local.entityId,
-          key,
-          winnerDeviceId: winner.deviceId,
-          loserDeviceId: loser.deviceId,
-        });
+        crossDeviceLog.warn(
+          'mergeCrossDeviceReplicas: same-key field value differs; kept winner, discarded loser',
+          {
+            entityId: local.entityId,
+            key,
+            winnerDeviceId: winner.deviceId,
+            loserDeviceId: loser.deviceId,
+          },
+        );
       }
     }
   }
@@ -253,7 +268,9 @@ export function mergeCrossDeviceReplicas(
             },
           });
         })
-        .catch(() => { /* Sentry 未安装或 DSN 关闭 | Sentry absent */ });
+        .catch(() => {
+          /* Sentry 未安装或 DSN 关闭 | Sentry absent */
+        });
     }
   }
 
@@ -264,13 +281,14 @@ export function mergeCrossDeviceReplicas(
     vectorClock: mergeVectorClock(local.vectorClock, remote.vectorClock),
     updatedAt: Math.max(local.updatedAt, remote.updatedAt),
     fields: mergedFields,
-    ...((winner.deleted === true || loser.deleted === true) ? { deleted: true } : {}),
+    ...(winner.deleted === true || loser.deleted === true ? { deleted: true } : {}),
   };
 
   const hasDeleteUpdateConflict = conflicts.includes('delete-update');
   const hasConcurrentClockConflict = conflicts.includes('concurrent-vector-clock');
   const requiresManualReview = hasDeleteUpdateConflict || hasConcurrentClockConflict;
-  const requiresRollback = requiresManualReview || drift.exceedsBudget || conflicts.includes('entity-id-mismatch');
+  const requiresRollback =
+    requiresManualReview || drift.exceedsBudget || conflicts.includes('entity-id-mismatch');
 
   return {
     merged,
@@ -282,7 +300,10 @@ export function mergeCrossDeviceReplicas(
   };
 }
 
-function normalizeReplicaForConsistency(base: CrossDeviceReplica, replica: CrossDeviceReplica): CrossDeviceReplica {
+function normalizeReplicaForConsistency(
+  base: CrossDeviceReplica,
+  replica: CrossDeviceReplica,
+): CrossDeviceReplica {
   return {
     ...replica,
     deviceId: base.deviceId,

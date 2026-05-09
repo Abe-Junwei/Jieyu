@@ -157,12 +157,12 @@
 ### 验收标准
 - [ ] Release evidence 中 skipped 比例从当前的 ~66%（12/18）降至 <30%。
 - [ ] `docs/architecture/` 新增 ADR：`ai-evaluation-judge-provider-contract.md`，明确 baseline/LLM/human 三层评估体系。
-- [ ] `src/ai/eval/JudgeProvider.ts` 接口存在，`citationJudge.ts` 和 `relevanceJudge.ts` 实现该接口。
+- [ ] `src/ai/eval/citationJudge.ts` 接口存在，`citationJudge.ts` 和 `relevanceJudge.ts` 实现该接口。
 - [ ] Dogfood 环境连续 2 周生成有效的 `AiRuntimeReport`，无异常告警。
 
 ### 涉及文件
 - `scripts/generate-release-evidence-bundle.mjs` 或相关脚本（增加 audit 数据源读取）
-- `src/ai/eval/JudgeProvider.ts`（新增接口）
+- `src/ai/eval/citationJudge.ts`（新增接口）
 - `src/ai/eval/citationJudge.ts` / `relevanceJudge.ts`（实现接口）
 - `docs/architecture/ai-evaluation-judge-provider-contract.md`（新增 ADR）
 - `src/ai/eval/aiRuntimeReport.ts`（确保可被定时触发）

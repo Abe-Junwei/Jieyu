@@ -1,4 +1,12 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { CheckIcon } from './SvgIcons';
 
@@ -40,31 +48,44 @@ interface ContextMenuProps {
   anchorOrigin?: 'top-left' | 'bottom-left';
 }
 
-export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose, anchorOrigin = 'top-left' }: ContextMenuProps) {
+export const ContextMenu = memo(function ContextMenu({
+  x,
+  y,
+  items,
+  onClose,
+  anchorOrigin = 'top-left',
+}: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const submenuRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [position, setPosition] = useState(() => ({ left: x, top: y }));
   const [submenus, setSubmenus] = useState<OpenSubmenu[]>([]);
-  const [layoutVersion, setLayoutVersion] = useState(0);
+  /** 主菜单定位 `useLayoutEffect` 依赖此 tick；勿再用于子菜单「测宽后二次 setSubmenus」循环（曾触发 #185） */
+  const [layoutTick, setLayoutTick] = useState(0);
 
   const requestLayoutRecalc = () => {
-    setLayoutVersion((prev) => prev + 1);
+    setLayoutTick((prev) => prev + 1);
   };
 
-  const getItemAtPath = (path: number[]): ContextMenuItem | undefined => {
-    let currentItems = items;
-    let currentItem: ContextMenuItem | undefined;
-    for (const index of path) {
-      currentItem = currentItems[index];
-      if (!currentItem) return undefined;
-      currentItems = currentItem.children ?? [];
-    }
-    return currentItem;
-  };
+  const getItemAtPath = useCallback(
+    (path: number[]): ContextMenuItem | undefined => {
+      let currentItems = items;
+      let currentItem: ContextMenuItem | undefined;
+      for (const index of path) {
+        currentItem = currentItems[index];
+        if (!currentItem) return undefined;
+        currentItems = currentItem.children ?? [];
+      }
+      return currentItem;
+    },
+    [items],
+  );
 
-  const getChildrenAtPath = (path: number[]): ContextMenuItem[] => {
-    return getItemAtPath(path)?.children ?? [];
-  };
+  const getChildrenAtPath = useCallback(
+    (path: number[]): ContextMenuItem[] => {
+      return getItemAtPath(path)?.children ?? [];
+    },
+    [getItemAtPath],
+  );
 
   useEffect(() => {
     setSubmenus([]);
@@ -75,8 +96,8 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose, anc
       const next = prev.filter((submenu) => getChildrenAtPath(submenu.path).length > 0);
       return next.length === prev.length ? prev : next;
     });
-    requestLayoutRecalc();
-  }, [items]);
+    // 不在此 effect 无条件 `requestLayoutRecalc`：会和 `items` / `getChildrenAtPath` 抖动叠加成连环 setState。
+  }, [getChildrenAtPath]);
 
   useEffect(() => {
     const handleWindowChange = () => {
@@ -106,7 +127,7 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose, anc
       left: Math.min(Math.max(margin, x), maxLeft),
       top: Math.min(Math.max(margin, anchoredTop), maxTop),
     });
-  }, [anchorOrigin, x, y, items.length]);
+  }, [anchorOrigin, x, y, items.length, layoutTick]);
 
   const computeSubmenuPosition = (anchorEl: HTMLElement, panel: HTMLDivElement | null) => {
     const margin = 8;
@@ -129,31 +150,11 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose, anc
     const maxTop = window.innerHeight - measuredHeight - margin;
     const top = Math.min(Math.max(margin, preferTop), Math.max(margin, maxTop));
 
-    return { left, top };
+    return { left: Math.round(left), top: Math.round(top) };
   };
 
-  useLayoutEffect(() => {
-    if (submenus.length === 0) return;
-    setSubmenus((prev) => {
-      let changed = false;
-      const next: OpenSubmenu[] = [];
-      prev.forEach((submenu, index) => {
-        if (getChildrenAtPath(submenu.path).length === 0) {
-          changed = true;
-          return;
-        }
-        const panel = submenuRefs.current[index] ?? null;
-        const position = computeSubmenuPosition(submenu.anchorEl, panel);
-        if (position.left !== submenu.left || position.top !== submenu.top) {
-          changed = true;
-          next.push({ ...submenu, ...position });
-          return;
-        }
-        next.push(submenu);
-      });
-      return changed ? next : prev;
-    });
-  }, [layoutVersion, submenus.length, items]);
+  // 子菜单不再做「panel 实测尺寸后二次 setSubmenus」的 layout 环：首开时 ref 由 0→实测宽会触发
+  // React #185。位置以 `computeSubmenuPosition(anchorEl, panel)` 初算为准（panel 空时用 fallback 尺寸）。
 
   const openSubmenuForItem = (itemPath: number[], target: HTMLElement, depth: number) => {
     const children = getChildrenAtPath(itemPath);
@@ -177,7 +178,11 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose, anc
   const toggleSubmenuForItem = (itemPath: number[], target: HTMLElement, depth: number) => {
     if (getChildrenAtPath(itemPath).length === 0) return;
     const openedPath = submenus[depth]?.path;
-    if (openedPath && openedPath.length === itemPath.length && openedPath.every((value, index) => value === itemPath[index])) {
+    if (
+      openedPath &&
+      openedPath.length === itemPath.length &&
+      openedPath.every((value, index) => value === itemPath[index])
+    ) {
       setSubmenus((prev) => prev.slice(0, depth));
       return;
     }
@@ -186,7 +191,10 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose, anc
 
   useEffect(() => {
     const handler = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent && e.key === 'Escape') { onClose(); return; }
+      if (e instanceof KeyboardEvent && e.key === 'Escape') {
+        onClose();
+        return;
+      }
       if (e instanceof MouseEvent) {
         const targetNode = e.target as Node;
         const inMain = ref.current?.contains(targetNode) ?? false;
@@ -209,96 +217,131 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose, anc
     zIndex: 9999,
   };
 
-  const renderMenuItems = (menuItems: ContextMenuItem[], depth: number, parentPath: number[] = []) => menuItems.map((item, index) => {
-    const itemPath = [...parentPath, index];
-    if (item.searchField) {
+  const renderMenuItems = (
+    menuItems: ContextMenuItem[],
+    depth: number,
+    parentPath: number[] = [],
+  ) =>
+    menuItems.map((item, index) => {
+      const itemPath = [...parentPath, index];
+      if (item.searchField) {
+        return (
+          <div
+            key={item.id ?? `${item.label}-${index}`}
+            className={[
+              'context-menu-search',
+              item.separatorBefore ? 'context-menu-item-separator-before' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            role="none"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <label className="context-menu-search-label">
+              <span className="context-menu-search-title">{item.label}</span>
+              <input
+                type="search"
+                className="context-menu-search-input"
+                value={item.searchField.value}
+                placeholder={item.searchField.placeholder}
+                onChange={(e) => item.searchField?.onChange(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+            </label>
+          </div>
+        );
+      }
+
       return (
-        <div
+        <button
           key={item.id ?? `${item.label}-${index}`}
           className={[
-            'context-menu-search',
+            'context-menu-item',
+            item.danger ? 'context-menu-danger' : '',
+            item.variant === 'category' ? 'context-menu-item-category' : '',
             item.separatorBefore ? 'context-menu-item-separator-before' : '',
-          ].filter(Boolean).join(' ')}
-          role="none"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          disabled={item.disabled}
+          role="menuitem"
+          aria-haspopup={item.children && item.children.length > 0 ? 'menu' : undefined}
+          aria-expanded={
+            item.children && item.children.length > 0
+              ? Boolean(
+                  submenus[depth]?.path &&
+                  submenus[depth]?.path.length === itemPath.length &&
+                  submenus[depth]?.path.every((value, pathIndex) => value === itemPath[pathIndex]),
+                )
+              : undefined
+          }
+          onMouseEnter={(e) => openSubmenuForItem(itemPath, e.currentTarget, depth)}
+          onFocus={(e) => openSubmenuForItem(itemPath, e.currentTarget, depth)}
+          onClick={(e) => {
+            if (item.children && item.children.length > 0) {
+              toggleSubmenuForItem(itemPath, e.currentTarget, depth);
+              return;
+            }
+            item.onClick?.();
+            if (!item.keepOpen) {
+              onClose();
+            }
+            requestLayoutRecalc();
+          }}
+          onMouseDown={(e) => {
+            if (item.children && item.children.length > 0) {
+              e.preventDefault();
+              toggleSubmenuForItem(itemPath, e.currentTarget, depth);
+            }
+          }}
         >
-          <label className="context-menu-search-label">
-            <span className="context-menu-search-title">{item.label}</span>
-            <input
-              type="search"
-              className="context-menu-search-input"
-              value={item.searchField.value}
-              placeholder={item.searchField.placeholder}
-              onChange={(e) => item.searchField?.onChange(e.target.value)}
-              onKeyDown={(e) => e.stopPropagation()}
-            />
-          </label>
-        </div>
+          <span className="context-menu-item-main">
+            {item.selectionState ? (
+              <span
+                className={[
+                  'context-menu-item-selection',
+                  item.selectionVariant === 'check'
+                    ? 'context-menu-item-selection-check'
+                    : 'context-menu-item-selection-dot',
+                  item.selectionState === 'selected' ? 'context-menu-item-selection-selected' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-hidden="true"
+              >
+                {item.selectionVariant === 'check' && (
+                  <CheckIcon className="context-menu-item-selection-check-icon" />
+                )}
+              </span>
+            ) : item.icon ? (
+              <span className="context-menu-item-icon" aria-hidden="true">
+                {item.icon}
+              </span>
+            ) : null}
+            <span>{item.label}</span>
+          </span>
+          <span className="context-menu-item-trailing">
+            {item.meta ? <span className="context-menu-item-meta">{item.meta}</span> : null}
+            {item.children && item.children.length > 0 ? (
+              <span className="context-menu-caret">›</span>
+            ) : (
+              item.shortcut && <span className="context-menu-shortcut">{item.shortcut}</span>
+            )}
+          </span>
+        </button>
       );
-    }
-
-    return (
-      <button
-        key={item.id ?? `${item.label}-${index}`}
-        className={[
-          'context-menu-item',
-          item.danger ? 'context-menu-danger' : '',
-          item.variant === 'category' ? 'context-menu-item-category' : '',
-          item.separatorBefore ? 'context-menu-item-separator-before' : '',
-        ].filter(Boolean).join(' ')}
-        disabled={item.disabled}
-        role="menuitem"
-        aria-haspopup={item.children && item.children.length > 0 ? 'menu' : undefined}
-        aria-expanded={item.children && item.children.length > 0 ? Boolean(submenus[depth]?.path && submenus[depth]?.path.length === itemPath.length && submenus[depth]?.path.every((value, pathIndex) => value === itemPath[pathIndex])) : undefined}
-        onMouseEnter={(e) => openSubmenuForItem(itemPath, e.currentTarget, depth)}
-        onFocus={(e) => openSubmenuForItem(itemPath, e.currentTarget, depth)}
-        onClick={(e) => {
-          if (item.children && item.children.length > 0) {
-            toggleSubmenuForItem(itemPath, e.currentTarget, depth);
-            return;
-          }
-          item.onClick?.();
-          if (!item.keepOpen) {
-            onClose();
-          }
-          requestLayoutRecalc();
-        }}
-        onMouseDown={(e) => {
-          if (item.children && item.children.length > 0) {
-            e.preventDefault();
-            toggleSubmenuForItem(itemPath, e.currentTarget, depth);
-          }
-        }}
-      >
-        <span className="context-menu-item-main">
-          {item.selectionState ? (
-            <span
-              className={[
-                'context-menu-item-selection',
-                item.selectionVariant === 'check' ? 'context-menu-item-selection-check' : 'context-menu-item-selection-dot',
-                item.selectionState === 'selected' ? 'context-menu-item-selection-selected' : '',
-              ].filter(Boolean).join(' ')}
-              aria-hidden="true"
-            >
-              {item.selectionVariant === 'check' && <CheckIcon className="context-menu-item-selection-check-icon" />}
-            </span>
-          ) : item.icon ? <span className="context-menu-item-icon" aria-hidden="true">{item.icon}</span> : null}
-          <span>{item.label}</span>
-        </span>
-        <span className="context-menu-item-trailing">
-          {item.meta ? <span className="context-menu-item-meta">{item.meta}</span> : null}
-          {item.children && item.children.length > 0
-            ? <span className="context-menu-caret">›</span>
-            : item.shortcut && <span className="context-menu-shortcut">{item.shortcut}</span>}
-        </span>
-      </button>
-    );
-  });
+    });
 
   const node = (
     <>
-      <div ref={ref} className="context-menu" style={style} role="menu" onScroll={requestLayoutRecalc}>
+      <div
+        ref={ref}
+        className="context-menu"
+        {...(style !== undefined ? { style } : {})}
+        role="menu"
+        onScroll={requestLayoutRecalc}
+      >
         {renderMenuItems(items, 0)}
       </div>
 
@@ -316,7 +359,9 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose, anc
               'context-menu',
               'context-menu-submenu',
               submenuOwner?.submenuClassName ?? '',
-            ].filter(Boolean).join(' ')}
+            ]
+              .filter(Boolean)
+              .join(' ')}
             style={{
               position: 'fixed',
               left: submenu.left,

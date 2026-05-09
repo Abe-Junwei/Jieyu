@@ -8,13 +8,61 @@ import { PanelChip } from './ui';
 import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';
 import type { AcousticDiagnosticKey } from '../pages/TranscriptionPage.aiPromptContext';
-import { buildAcousticBatchExportFileStem, buildAcousticExportFileStem, buildAcousticInspectorSlice, type AcousticPanelTrend } from '../utils/acousticPanelDetail';
-import { DEFAULT_ACOUSTIC_ANALYSIS_CONFIG, type AcousticAnalysisConfig, type AcousticHotspotKind } from '../utils/acousticOverlayTypes';
-import { ACOUSTIC_ANALYSIS_PRESETS, type AcousticAnalysisPresetKey } from '../utils/acousticAnalysisPresets';
-import { ACOUSTIC_NUMERIC_BOUNDS, PROVIDER_PREFERENCE_AUTO, areAcousticConfigOverridesEqual, buildNormalizedPath, downloadTextPayload, findNearestFrameByTime, formatCoefficients, formatDb, formatDelta, formatHz, formatRatio, formatScalar, formatZeroCrossing, measureAcousticExportPayloadStats, pruneAcousticConfigOverride, resolveAcousticExportFilename, resolveAcousticExportMimeType, resolvePresetKeyFromOverride, serializeAcousticExportSync, serializeAcousticExportWithWorker, shouldRejectAcousticExportPayload, type AcousticConfigOverride, type AcousticExportFormat } from './ai/aiAnalysisPanelAcousticUtils';
-import { acousticProviderDefinitions, persistAcousticProviderRuntimeConfig, probeExternalAcousticProviderHealth, resolveAcousticProviderRuntimeConfig, type AcousticProviderRuntimeConfig, type ExternalAcousticProviderHealthCheckResult } from '../services/acoustic/acousticProviderContract';
+import {
+  buildAcousticBatchExportFileStem,
+  buildAcousticExportFileStem,
+  buildAcousticInspectorSlice,
+  type AcousticPanelTrend,
+} from '../utils/acousticPanelDetail';
+import {
+  DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
+  type AcousticAnalysisConfig,
+  type AcousticHotspotKind,
+} from '../utils/acousticOverlayTypes';
+import {
+  ACOUSTIC_ANALYSIS_PRESETS,
+  type AcousticAnalysisPresetKey,
+} from '../utils/acousticAnalysisPresets';
+import {
+  ACOUSTIC_NUMERIC_BOUNDS,
+  PROVIDER_PREFERENCE_AUTO,
+  areAcousticConfigOverridesEqual,
+  buildNormalizedPath,
+  downloadTextPayload,
+  findNearestFrameByTime,
+  formatCoefficients,
+  formatDb,
+  formatDelta,
+  formatHz,
+  formatRatio,
+  formatScalar,
+  formatZeroCrossing,
+  measureAcousticExportPayloadStats,
+  pruneAcousticConfigOverride,
+  resolveAcousticExportFilename,
+  resolveAcousticExportMimeType,
+  resolvePresetKeyFromOverride,
+  serializeAcousticExportSync,
+  serializeAcousticExportWithWorker,
+  shouldRejectAcousticExportPayload,
+  type AcousticConfigOverride,
+  type AcousticExportFormat,
+} from './ai/aiAnalysisPanelAcousticUtils';
+import {
+  acousticProviderDefinitions,
+  persistAcousticProviderRuntimeConfig,
+  probeExternalAcousticProviderHealth,
+  resolveAcousticProviderRuntimeConfig,
+  type AcousticProviderRuntimeConfig,
+  type ExternalAcousticProviderHealthCheckResult,
+} from '../services/acoustic/acousticProviderContract';
 import type { AiPanelCardKey, AiPanelTask, AnalysisBottomTab } from './AiAnalysisPanel.types';
-export type { AiPanelCardKey, AiPanelMode, AiPanelTask, AnalysisBottomTab } from './AiAnalysisPanel.types';
+export type {
+  AiPanelCardKey,
+  AiPanelMode,
+  AiPanelTask,
+  AnalysisBottomTab,
+} from './AiAnalysisPanel.types';
 
 type ProviderConfigSaveState = 'idle' | 'saved' | 'error';
 
@@ -67,22 +115,31 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
   } = useAiPanelContext();
 
   const [activePreset, setActivePreset] = useState<AcousticAnalysisPresetKey>('default');
-  const [draftAcousticConfigOverride, setDraftAcousticConfigOverride] = useState<AcousticConfigOverride>(() => acousticConfigOverride ?? null);
-  const [exportScope, setExportScope] = useState<'selection' | 'full_media' | 'batch_selection'>('selection');
-  const [providerRuntimeConfig, setProviderRuntimeConfig] = useState<AcousticProviderRuntimeConfig>(() => resolveAcousticProviderRuntimeConfig());
+  const [draftAcousticConfigOverride, setDraftAcousticConfigOverride] =
+    useState<AcousticConfigOverride>(() => acousticConfigOverride ?? null);
+  const [exportScope, setExportScope] = useState<'selection' | 'full_media' | 'batch_selection'>(
+    'selection',
+  );
+  const [providerRuntimeConfig, setProviderRuntimeConfig] = useState<AcousticProviderRuntimeConfig>(
+    () => resolveAcousticProviderRuntimeConfig(),
+  );
   const [providerSaveState, setProviderSaveState] = useState<ProviderConfigSaveState>('idle');
   const [providerSaveError, setProviderSaveError] = useState<string | null>(null);
   const [providerHealthChecking, setProviderHealthChecking] = useState(false);
-  const [providerHealthResult, setProviderHealthResult] = useState<ExternalAcousticProviderHealthCheckResult | null>(null);
+  const [providerHealthResult, setProviderHealthResult] =
+    useState<ExternalAcousticProviderHealthCheckResult | null>(null);
   const [acousticExporting, setAcousticExporting] = useState(false);
   const [acousticExportError, setAcousticExportError] = useState<string | null>(null);
   const providerHealthAbortRef = useRef<AbortController | null>(null);
   const providerHealthRequestSeqRef = useRef(0);
 
-  const effectiveDraftAcousticConfig = useMemo<AcousticAnalysisConfig>(() => ({
-    ...DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
-    ...(draftAcousticConfigOverride ?? {}),
-  }), [draftAcousticConfigOverride]);
+  const effectiveDraftAcousticConfig = useMemo<AcousticAnalysisConfig>(
+    () => ({
+      ...DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
+      ...(draftAcousticConfigOverride ?? {}),
+    }),
+    [draftAcousticConfigOverride],
+  );
   const hasPendingAcousticConfigChanges = !areAcousticConfigOverridesEqual(
     draftAcousticConfigOverride,
     acousticConfigOverride ?? null,
@@ -110,25 +167,36 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     }
   }, []);
 
-  const handleNumericConfigChange = useCallback((key: keyof Pick<AcousticAnalysisConfig, 'pitchFloorHz' | 'pitchCeilingHz' | 'analysisWindowSec' | 'frameStepSec' | 'silenceRmsThreshold'>) => (
-    event: ChangeEvent<HTMLInputElement>,
-  ) => {
-    const raw = event.target.value.trim();
-    if (raw.length === 0) return;
+  const handleNumericConfigChange = useCallback(
+    (
+      key: keyof Pick<
+        AcousticAnalysisConfig,
+        | 'pitchFloorHz'
+        | 'pitchCeilingHz'
+        | 'analysisWindowSec'
+        | 'frameStepSec'
+        | 'silenceRmsThreshold'
+      >,
+    ) =>
+      (event: ChangeEvent<HTMLInputElement>) => {
+        const raw = event.target.value.trim();
+        if (raw.length === 0) return;
 
-    const value = Number(raw);
-    if (!Number.isFinite(value)) return;
+        const value = Number(raw);
+        if (!Number.isFinite(value)) return;
 
-    const bounds = ACOUSTIC_NUMERIC_BOUNDS[key];
-    const clampedValue = Math.min(bounds.max, Math.max(bounds.min, value));
-    if (clampedValue === effectiveDraftAcousticConfig[key]) return;
+        const bounds = ACOUSTIC_NUMERIC_BOUNDS[key];
+        const clampedValue = Math.min(bounds.max, Math.max(bounds.min, value));
+        if (clampedValue === effectiveDraftAcousticConfig[key]) return;
 
-    setActivePreset('custom');
-    setDraftAcousticConfigOverride((previous) => ({
-      ...(previous ?? {}),
-      [key]: clampedValue,
-    }));
-  }, [effectiveDraftAcousticConfig]);
+        setActivePreset('custom');
+        setDraftAcousticConfigOverride((previous) => ({
+          ...(previous ?? {}),
+          [key]: clampedValue,
+        }));
+      },
+    [effectiveDraftAcousticConfig],
+  );
 
   const handleResetAcousticConfigDraft = useCallback(() => {
     setActivePreset('default');
@@ -143,30 +211,42 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
       return;
     }
     onChangeAcousticConfig?.(normalizedDraft, { replace: true });
-  }, [draftAcousticConfigOverride, hasPendingAcousticConfigChanges, onChangeAcousticConfig, onResetAcousticConfig]);
+  }, [
+    draftAcousticConfigOverride,
+    hasPendingAcousticConfigChanges,
+    onChangeAcousticConfig,
+    onResetAcousticConfig,
+  ]);
 
-  const handleProviderRoutingStrategyChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    const nextStrategy = event.target.value === 'prefer-external' ? 'prefer-external' : 'local-first';
-    setProviderRuntimeConfig((previous) => ({
-      ...previous,
-      routingStrategy: nextStrategy,
-    }));
-    setProviderSaveState('idle');
-    setProviderSaveError(null);
-  }, []);
+  const handleProviderRoutingStrategyChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const nextStrategy =
+        event.target.value === 'prefer-external' ? 'prefer-external' : 'local-first';
+      setProviderRuntimeConfig((previous) => ({
+        ...previous,
+        routingStrategy: nextStrategy,
+      }));
+      setProviderSaveState('idle');
+      setProviderSaveError(null);
+    },
+    [],
+  );
 
-  const handleProviderExternalEnabledChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const checked = event.target.checked;
-    setProviderRuntimeConfig((previous) => ({
-      ...previous,
-      externalProvider: {
-        ...previous.externalProvider,
-        enabled: checked,
-      },
-    }));
-    setProviderSaveState('idle');
-    setProviderSaveError(null);
-  }, []);
+  const handleProviderExternalEnabledChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const checked = event.target.checked;
+      setProviderRuntimeConfig((previous) => ({
+        ...previous,
+        externalProvider: {
+          ...previous.externalProvider,
+          enabled: checked,
+        },
+      }));
+      setProviderSaveState('idle');
+      setProviderSaveError(null);
+    },
+    [],
+  );
 
   const handleProviderEndpointChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const endpoint = event.target.value;
@@ -259,9 +339,12 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     }
   }, [providerRuntimeConfig]);
 
-  useEffect(() => () => {
-    providerHealthAbortRef.current?.abort();
-  }, []);
+  useEffect(
+    () => () => {
+      providerHealthAbortRef.current?.abort();
+    },
+    [],
+  );
 
   const shouldShow = (card: AiPanelCardKey): boolean => {
     if (!aiVisibleCards) return true;
@@ -278,41 +361,41 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     ai_chat_setup: t(locale, 'ai.task.aiChatSetup'),
   };
 
-  if (isCollapsed) return null;
-
-  const currentTaskLabel = aiCurrentTask ? taskLabel[aiCurrentTask] : t(locale, 'ai.header.taskUnknown');
-  const vadCacheLabel = vadCacheStatus?.state === 'ready'
-    ? tf(locale, 'ai.stats.vadCacheHit', {
-      engine: vadCacheStatus.engine ?? 'unknown',
-      segmentCount: vadCacheStatus.segmentCount ?? 0,
-    })
-    : vadCacheStatus?.state === 'warming'
-      ? tf(locale, 'ai.stats.vadCacheWarming', {
-        engine: vadCacheStatus.engine ?? 'unknown',
-        progress: Math.round((vadCacheStatus.progressRatio ?? 0) * 100),
-        processedFrames: vadCacheStatus.processedFrames ?? 0,
-        totalFrames: vadCacheStatus.totalFrames ?? 0,
-      })
-    : vadCacheStatus?.state === 'missing'
-      ? t(locale, 'ai.stats.vadCacheMiss')
-      : t(locale, 'ai.stats.vadCacheUnavailable');
-  const acousticRuntimeLabel = acousticRuntimeStatus?.state === 'loading'
-    ? tf(locale, 'ai.acoustic.runtimeProgressLoading', {
-      progress: Math.round((acousticRuntimeStatus.progressRatio ?? 0) * 100),
-      processedFrames: acousticRuntimeStatus.processedFrames ?? 0,
-      totalFrames: acousticRuntimeStatus.totalFrames ?? 0,
-    })
-    : acousticRuntimeStatus?.state === 'ready'
-      ? t(locale, 'ai.acoustic.runtimeProgressReady')
-      : acousticRuntimeStatus?.state === 'error'
-        ? t(locale, 'ai.acoustic.runtimeProgressFailed')
-        : t(locale, 'ai.stats.acousticUnavailable');
-  const acousticRuntimeErrorMessage = acousticRuntimeStatus?.state === 'error'
-    ? acousticRuntimeStatus.errorMessage ?? null
-    : null;
-  const acousticRuntimeErrorSummary = acousticRuntimeStatus?.state === 'error'
-    ? t(locale, 'ai.acoustic.runtimeErrorHint')
-    : null;
+  const currentTaskLabel = aiCurrentTask
+    ? taskLabel[aiCurrentTask]
+    : t(locale, 'ai.header.taskUnknown');
+  const vadCacheLabel =
+    vadCacheStatus?.state === 'ready'
+      ? tf(locale, 'ai.stats.vadCacheHit', {
+          engine: vadCacheStatus.engine ?? 'unknown',
+          segmentCount: vadCacheStatus.segmentCount ?? 0,
+        })
+      : vadCacheStatus?.state === 'warming'
+        ? tf(locale, 'ai.stats.vadCacheWarming', {
+            engine: vadCacheStatus.engine ?? 'unknown',
+            progress: Math.round((vadCacheStatus.progressRatio ?? 0) * 100),
+            processedFrames: vadCacheStatus.processedFrames ?? 0,
+            totalFrames: vadCacheStatus.totalFrames ?? 0,
+          })
+        : vadCacheStatus?.state === 'missing'
+          ? t(locale, 'ai.stats.vadCacheMiss')
+          : t(locale, 'ai.stats.vadCacheUnavailable');
+  const acousticRuntimeLabel =
+    acousticRuntimeStatus?.state === 'loading'
+      ? tf(locale, 'ai.acoustic.runtimeProgressLoading', {
+          progress: Math.round((acousticRuntimeStatus.progressRatio ?? 0) * 100),
+          processedFrames: acousticRuntimeStatus.processedFrames ?? 0,
+          totalFrames: acousticRuntimeStatus.totalFrames ?? 0,
+        })
+      : acousticRuntimeStatus?.state === 'ready'
+        ? t(locale, 'ai.acoustic.runtimeProgressReady')
+        : acousticRuntimeStatus?.state === 'error'
+          ? t(locale, 'ai.acoustic.runtimeProgressFailed')
+          : t(locale, 'ai.stats.acousticUnavailable');
+  const acousticRuntimeErrorMessage =
+    acousticRuntimeStatus?.state === 'error' ? (acousticRuntimeStatus.errorMessage ?? null) : null;
+  const acousticRuntimeErrorSummary =
+    acousticRuntimeStatus?.state === 'error' ? t(locale, 'ai.acoustic.runtimeErrorHint') : null;
   const hotspotKindLabel: Record<AcousticHotspotKind, string> = {
     pitch_peak: t(locale, 'ai.stats.acousticHotspot.pitchPeak'),
     pitch_break: t(locale, 'ai.stats.acousticHotspot.pitchBreak'),
@@ -332,25 +415,30 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     high_energy_contrast: t(locale, 'ai.acoustic.diagnostic.highEnergyContrast'),
     unstable_focus: t(locale, 'ai.acoustic.diagnostic.unstableFocus'),
   };
-  const activeTabLabel = activeTab === 'embedding'
-    ? t(locale, 'ai.header.embeddingTab')
-    : activeTab === 'acoustic'
-      ? t(locale, 'ai.header.acousticTab')
-      : t(locale, 'ai.header.statsTab');
-  const activeTabDescription = activeTab === 'embedding'
-    ? t(locale, 'ai.header.focusModeDesc')
-    : activeTab === 'acoustic'
-      ? t(locale, 'ai.header.acousticTabDesc')
-      : t(locale, 'ai.header.allModeDesc');
-  const acousticDurationSec = acousticSummary?.durationSec ?? (
-    acousticSummary ? Math.max(acousticSummary.selectionEndSec - acousticSummary.selectionStartSec, 0) : null
-  );
-  const acousticVoicedRatio = acousticSummary?.voicedRatio ?? (
-    acousticSummary && acousticSummary.frameCount > 0
+  const activeTabLabel =
+    activeTab === 'embedding'
+      ? t(locale, 'ai.header.embeddingTab')
+      : activeTab === 'acoustic'
+        ? t(locale, 'ai.header.acousticTab')
+        : t(locale, 'ai.header.statsTab');
+  const activeTabDescription =
+    activeTab === 'embedding'
+      ? t(locale, 'ai.header.focusModeDesc')
+      : activeTab === 'acoustic'
+        ? t(locale, 'ai.header.acousticTabDesc')
+        : t(locale, 'ai.header.allModeDesc');
+  const acousticDurationSec =
+    acousticSummary?.durationSec ??
+    (acousticSummary
+      ? Math.max(acousticSummary.selectionEndSec - acousticSummary.selectionStartSec, 0)
+      : null);
+  const acousticVoicedRatio =
+    acousticSummary?.voicedRatio ??
+    (acousticSummary && acousticSummary.frameCount > 0
       ? acousticSummary.voicedFrameCount / acousticSummary.frameCount
-      : null
-  );
-  const acousticHotspotCount = acousticSummary?.hotspotCount ?? acousticSummary?.hotspots?.length ?? 0;
+      : null);
+  const acousticHotspotCount =
+    acousticSummary?.hotspotCount ?? acousticSummary?.hotspots?.length ?? 0;
   const topHotspot = acousticSummary?.hotspots?.[0] ?? null;
   const acousticSlice = useMemo(
     () => buildAcousticInspectorSlice(acousticDetail ?? null, acousticInspector?.timeSec),
@@ -369,8 +457,13 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     if (!acousticDetail) return [] as Array<{ x: number; y: number; f1Hz: number; f2Hz: number }>;
 
     const points = acousticDetail.frames
-      .filter((frame) => typeof frame.formantF1Hz === 'number' && Number.isFinite(frame.formantF1Hz)
-        && typeof frame.formantF2Hz === 'number' && Number.isFinite(frame.formantF2Hz))
+      .filter(
+        (frame) =>
+          typeof frame.formantF1Hz === 'number' &&
+          Number.isFinite(frame.formantF1Hz) &&
+          typeof frame.formantF2Hz === 'number' &&
+          Number.isFinite(frame.formantF2Hz),
+      )
       .map((frame) => ({
         f1Hz: frame.formantF1Hz as number,
         f2Hz: frame.formantF2Hz as number,
@@ -404,11 +497,12 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     mixed: t(locale, 'ai.acoustic.trend.mixed'),
   };
 
-  const exportTargetDetail = exportScope === 'full_media'
-    ? (acousticDetailFullMedia ?? acousticDetail)
-    : exportScope === 'selection'
-      ? acousticDetail
-      : null;
+  const exportTargetDetail =
+    exportScope === 'full_media'
+      ? (acousticDetailFullMedia ?? acousticDetail)
+      : exportScope === 'selection'
+        ? acousticDetail
+        : null;
   const exportBatchDetails = acousticBatchDetails ?? [];
   const batchSelectionCount = acousticBatchSelectionCount ?? exportBatchDetails.length;
   const droppedBatchRanges = acousticBatchDroppedSelectionRanges ?? [];
@@ -419,35 +513,40 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
   const droppedBatchLabelText = droppedBatchLabels.join(', ');
   const isBatchExportScope = exportScope === 'batch_selection';
   const canExportBatch = exportBatchDetails.length > 1;
-  const providerSaveMessage = providerSaveState === 'saved'
-    ? t(locale, 'ai.acoustic.providerSaved')
-    : providerSaveState === 'error'
-      ? (providerSaveError ?? t(locale, 'ai.acoustic.providerSaveFailed'))
-      : null;
-  const providerHealthLabelMap: Record<ExternalAcousticProviderHealthCheckResult['state'], string> = {
-    available: t(locale, 'ai.acoustic.providerHealthAvailable'),
-    disabled: t(locale, 'ai.acoustic.providerHealthDisabled'),
-    unconfigured: t(locale, 'ai.acoustic.providerHealthUnconfigured'),
-    aborted: t(locale, 'ai.acoustic.providerHealthAborted'),
-    unauthorized: t(locale, 'ai.acoustic.providerHealthUnauthorized'),
-    forbidden: t(locale, 'ai.acoustic.providerHealthForbidden'),
-    timeout: t(locale, 'ai.acoustic.providerHealthTimeout'),
-    'network-error': t(locale, 'ai.acoustic.providerHealthNetworkError'),
-    'http-error': t(locale, 'ai.acoustic.providerHealthHttpError'),
-    'unknown-error': t(locale, 'ai.acoustic.providerHealthUnknownError'),
-  };
+  const providerSaveMessage =
+    providerSaveState === 'saved'
+      ? t(locale, 'ai.acoustic.providerSaved')
+      : providerSaveState === 'error'
+        ? (providerSaveError ?? t(locale, 'ai.acoustic.providerSaveFailed'))
+        : null;
+  const providerHealthLabelMap: Record<ExternalAcousticProviderHealthCheckResult['state'], string> =
+    {
+      available: t(locale, 'ai.acoustic.providerHealthAvailable'),
+      disabled: t(locale, 'ai.acoustic.providerHealthDisabled'),
+      unconfigured: t(locale, 'ai.acoustic.providerHealthUnconfigured'),
+      aborted: t(locale, 'ai.acoustic.providerHealthAborted'),
+      unauthorized: t(locale, 'ai.acoustic.providerHealthUnauthorized'),
+      forbidden: t(locale, 'ai.acoustic.providerHealthForbidden'),
+      timeout: t(locale, 'ai.acoustic.providerHealthTimeout'),
+      'network-error': t(locale, 'ai.acoustic.providerHealthNetworkError'),
+      'http-error': t(locale, 'ai.acoustic.providerHealthHttpError'),
+      'unknown-error': t(locale, 'ai.acoustic.providerHealthUnknownError'),
+    };
   const providerHealthLabel = providerHealthChecking
     ? t(locale, 'ai.acoustic.providerHealthChecking')
     : providerHealthResult
       ? providerHealthLabelMap[providerHealthResult.state]
       : t(locale, 'ai.acoustic.providerHealthIdle');
-  const providerHealthLatencyLabel = providerHealthResult?.latencyMs != null
-    ? tf(locale, 'ai.acoustic.providerHealthLatency', { latencyMs: String(providerHealthResult.latencyMs) })
-    : null;
+  const providerHealthLatencyLabel =
+    providerHealthResult?.latencyMs != null
+      ? tf(locale, 'ai.acoustic.providerHealthLatency', {
+          latencyMs: String(providerHealthResult.latencyMs),
+        })
+      : null;
   const providerHealthMeta = providerHealthResult
     ? providerHealthResult.state === 'available'
       ? providerHealthLatencyLabel
-      : providerHealthResult.message ?? providerHealthLatencyLabel
+      : (providerHealthResult.message ?? providerHealthLatencyLabel)
     : null;
   const providerConfigured = acousticProviderState?.reachability.available ?? false;
 
@@ -467,22 +566,23 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
       return;
     }
 
-    const payload = scope === 'batch'
-      ? exportBatchDetails
-      : exportTargetDetail;
+    const payload = scope === 'batch' ? exportBatchDetails : exportTargetDetail;
     if (!payload) return;
 
     const payloadStats = measureAcousticExportPayloadStats(scope, payload);
     const rejectedPayload = shouldRejectAcousticExportPayload(payloadStats);
     if (rejectedPayload) {
       const estimatedMiB = Math.max(1, Math.round(rejectedPayload.estimatedBytes / (1024 * 1024)));
-      setAcousticExportError(`Export payload is too large (~${estimatedMiB} MB / ${rejectedPayload.frameCount} frames). Narrow the export scope and retry.`);
+      setAcousticExportError(
+        `Export payload is too large (~${estimatedMiB} MB / ${rejectedPayload.frameCount} frames). Narrow the export scope and retry.`,
+      );
       return;
     }
 
-    const stem = scope === 'batch'
-      ? buildAcousticBatchExportFileStem(exportBatchDetails)
-      : buildAcousticExportFileStem(exportTargetDetail!);
+    const stem =
+      scope === 'batch'
+        ? buildAcousticBatchExportFileStem(exportBatchDetails)
+        : buildAcousticExportFileStem(exportTargetDetail!);
 
     setAcousticExporting(true);
     setAcousticExportError(null);
@@ -507,14 +607,24 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     }
   };
 
+  if (isCollapsed) {
+    return null;
+  }
+
   return (
     <div className="pnl-analysis-panel panel-design-match-content" data-ai-analysis-panel="true">
       <div className="transcription-analysis-panel-header">
         <div className="transcription-ai-header-title">
           <MaterialSymbol name="smart_toy" aria-hidden className={JIEYU_MATERIAL_AI_PANEL} />
-          <span className="transcription-analysis-toolbar-title">{t(locale, 'ai.header.title')}</span>
+          <span className="transcription-analysis-toolbar-title">
+            {t(locale, 'ai.header.title')}
+          </span>
         </div>
-        <div className="transcription-ai-mode-switch" role="group" aria-label={t(locale, 'ai.header.modeSwitch')}>
+        <div
+          className="transcription-ai-mode-switch"
+          role="group"
+          aria-label={t(locale, 'ai.header.modeSwitch')}
+        >
           <button
             type="button"
             className={`transcription-ai-mode-btn ${aiPanelMode === 'auto' ? 'is-active' : ''}`}
@@ -545,19 +655,29 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
           className="transcription-analysis-panel-summary"
           title={activeTabLabel}
           description={`${t(locale, 'ai.header.currentTask')}${currentTaskLabel}`}
-          meta={(
+          meta={
             <div className="panel-meta">
               <PanelChip>{tf(locale, 'ai.stats.database', { dbName })}</PanelChip>
               <PanelChip>{tf(locale, 'ai.stats.unit', { unitCount })}</PanelChip>
-              <PanelChip>{tf(locale, 'ai.stats.translationLayer', { translationLayerCount })}</PanelChip>
+              <PanelChip>
+                {tf(locale, 'ai.stats.translationLayer', { translationLayerCount })}
+              </PanelChip>
               {activeTab === 'acoustic' && acousticSummary ? (
                 <>
-                  {acousticDurationSec != null ? <PanelChip>{tf(locale, 'ai.acoustic.duration', { durationSec: acousticDurationSec.toFixed(2) })}</PanelChip> : null}
-                  <PanelChip>{tf(locale, 'ai.acoustic.hotspotCount', { count: acousticHotspotCount })}</PanelChip>
+                  {acousticDurationSec != null ? (
+                    <PanelChip>
+                      {tf(locale, 'ai.acoustic.duration', {
+                        durationSec: acousticDurationSec.toFixed(2),
+                      })}
+                    </PanelChip>
+                  ) : null}
+                  <PanelChip>
+                    {tf(locale, 'ai.acoustic.hotspotCount', { count: acousticHotspotCount })}
+                  </PanelChip>
                 </>
               ) : null}
             </div>
-          )}
+          }
           supportingText={activeTabDescription}
         />
 
@@ -571,20 +691,34 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
             >
               <div className="transcription-ai-stats-panel">
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.header.currentTask')}</span>
-                  <span className="transcription-analysis-stats-value" aria-live="polite">{currentTaskLabel}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.header.currentTask')}
+                  </span>
+                  <span className="transcription-analysis-stats-value" aria-live="polite">
+                    {currentTaskLabel}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row transcription-analysis-stats-row-accent">
                   <span className="transcription-analysis-stats-label transcription-analysis-stats-label-accent">
-                    <MaterialSymbol name="auto_fix_high" aria-hidden className={JIEYU_MATERIAL_AI_PANEL_SM} />
+                    <MaterialSymbol
+                      name="auto_fix_high"
+                      aria-hidden
+                      className={JIEYU_MATERIAL_AI_PANEL_SM}
+                    />
                     <span>{currentTaskLabel}</span>
                   </span>
                   <span className="transcription-analysis-stats-value">
-                    {aiConfidenceAvg === null ? t(locale, 'ai.stats.aiConfidenceNone') : tf(locale, 'ai.stats.aiConfidence', { confidence: (aiConfidenceAvg * 100).toFixed(1) })}
+                    {aiConfidenceAvg === null
+                      ? t(locale, 'ai.stats.aiConfidenceNone')
+                      : tf(locale, 'ai.stats.aiConfidence', {
+                          confidence: (aiConfidenceAvg * 100).toFixed(1),
+                        })}
                   </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.stats.vadCacheLabel')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.stats.vadCacheLabel')}
+                  </span>
                   <span className="transcription-analysis-stats-value">{vadCacheLabel}</span>
                 </div>
               </div>
@@ -600,34 +734,58 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                 <div className="transcription-analysis-acoustic-panel">
                   <div className="transcription-analysis-acoustic-hero">
                     <div className="transcription-analysis-acoustic-hero-card">
-                      <span className="transcription-analysis-acoustic-hero-label">{t(locale, 'ai.acoustic.durationLabel')}</span>
-                      <strong className="transcription-analysis-acoustic-hero-value">{acousticDurationSec != null ? `${acousticDurationSec.toFixed(2)}s` : t(locale, 'ai.stats.acousticUnavailable')}</strong>
+                      <span className="transcription-analysis-acoustic-hero-label">
+                        {t(locale, 'ai.acoustic.durationLabel')}
+                      </span>
+                      <strong className="transcription-analysis-acoustic-hero-value">
+                        {acousticDurationSec != null
+                          ? `${acousticDurationSec.toFixed(2)}s`
+                          : t(locale, 'ai.stats.acousticUnavailable')}
+                      </strong>
                     </div>
                     <div className="transcription-analysis-acoustic-hero-card">
-                      <span className="transcription-analysis-acoustic-hero-label">{t(locale, 'ai.acoustic.voicedRatio')}</span>
-                      <strong className="transcription-analysis-acoustic-hero-value">{formatRatio(acousticVoicedRatio) ?? t(locale, 'ai.stats.acousticUnavailable')}</strong>
+                      <span className="transcription-analysis-acoustic-hero-label">
+                        {t(locale, 'ai.acoustic.voicedRatio')}
+                      </span>
+                      <strong className="transcription-analysis-acoustic-hero-value">
+                        {formatRatio(acousticVoicedRatio) ??
+                          t(locale, 'ai.stats.acousticUnavailable')}
+                      </strong>
                     </div>
                     <div className="transcription-analysis-acoustic-hero-card">
-                      <span className="transcription-analysis-acoustic-hero-label">{t(locale, 'ai.stats.acousticHotspots')}</span>
-                      <strong className="transcription-analysis-acoustic-hero-value">{acousticHotspotCount}</strong>
+                      <span className="transcription-analysis-acoustic-hero-label">
+                        {t(locale, 'ai.stats.acousticHotspots')}
+                      </span>
+                      <strong className="transcription-analysis-acoustic-hero-value">
+                        {acousticHotspotCount}
+                      </strong>
                     </div>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.stats.acousticSelection')}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.stats.acousticSelection')}
+                    </span>
                     <span className="transcription-analysis-stats-value">
-                      {acousticSummary.selectionStartSec.toFixed(2)}-{acousticSummary.selectionEndSec.toFixed(2)}s
+                      {acousticSummary.selectionStartSec.toFixed(2)}-
+                      {acousticSummary.selectionEndSec.toFixed(2)}s
                     </span>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.stats.acousticF0')}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.stats.acousticF0')}
+                    </span>
                     <span className="transcription-analysis-stats-value">
-                      {typeof acousticSummary.f0MinHz === 'number' && typeof acousticSummary.f0MeanHz === 'number' && typeof acousticSummary.f0MaxHz === 'number'
+                      {typeof acousticSummary.f0MinHz === 'number' &&
+                      typeof acousticSummary.f0MeanHz === 'number' &&
+                      typeof acousticSummary.f0MaxHz === 'number'
                         ? `${Math.round(acousticSummary.f0MinHz)} / ${Math.round(acousticSummary.f0MeanHz)} / ${Math.round(acousticSummary.f0MaxHz)} Hz`
                         : t(locale, 'ai.stats.acousticUnavailable')}
                     </span>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.stats.acousticIntensityPeak')}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.stats.acousticIntensityPeak')}
+                    </span>
                     <span className="transcription-analysis-stats-value">
                       {typeof acousticSummary.intensityPeakDb === 'number'
                         ? `${acousticSummary.intensityPeakDb.toFixed(1)} dB`
@@ -635,15 +793,20 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                     </span>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.intensityRange')}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.acoustic.intensityRange')}
+                    </span>
                     <span className="transcription-analysis-stats-value">
-                      {formatDb(acousticSummary.intensityMinDb) && formatDb(acousticSummary.intensityPeakDb)
+                      {formatDb(acousticSummary.intensityMinDb) &&
+                      formatDb(acousticSummary.intensityPeakDb)
                         ? `${formatDb(acousticSummary.intensityMinDb)} / ${formatDb(acousticSummary.intensityPeakDb)}`
                         : t(locale, 'ai.stats.acousticUnavailable')}
                     </span>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.stats.acousticReliability')}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.stats.acousticReliability')}
+                    </span>
                     <span className="transcription-analysis-stats-value">
                       {typeof acousticSummary.reliabilityMean === 'number'
                         ? `${acousticSummary.reliabilityMean.toFixed(2)} · ${tf(locale, 'ai.stats.acousticVoicedFrames', { voiced: acousticSummary.voicedFrameCount, total: acousticSummary.frameCount })}`
@@ -660,7 +823,11 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               )}
             </PanelSection>
           )}
-          {activeTab === 'acoustic' && (acousticDetail || acousticRuntimeStatus?.state === 'loading' || acousticRuntimeStatus?.state === 'ready' || acousticRuntimeStatus?.state === 'error') ? (
+          {activeTab === 'acoustic' &&
+          (acousticDetail ||
+            acousticRuntimeStatus?.state === 'loading' ||
+            acousticRuntimeStatus?.state === 'ready' ||
+            acousticRuntimeStatus?.state === 'error') ? (
             <PanelSection
               className="transcription-analysis-acoustic-section transcription-analysis-acoustic-runtime-section"
               title={t(locale, 'ai.acoustic.runtimeTitle')}
@@ -668,60 +835,106 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
             >
               <div className="transcription-analysis-acoustic-panel">
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.runtimeAlgorithm')}</span>
-                  <span className="transcription-analysis-stats-value">{acousticDetail?.algorithmVersion ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.runtimeAlgorithm')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {acousticDetail?.algorithmVersion ?? t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.runtimeSampleRate')}</span>
-                  <span className="transcription-analysis-stats-value">{typeof acousticDetail?.sampleRate === 'number' ? `${acousticDetail.sampleRate} Hz` : t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.runtimeSampleRate')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {typeof acousticDetail?.sampleRate === 'number'
+                      ? `${acousticDetail.sampleRate} Hz`
+                      : t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.runtimeWindow')}</span>
-                  <span className="transcription-analysis-stats-value">{typeof acousticDetail?.analysisWindowSec === 'number' && typeof acousticDetail?.frameStepSec === 'number' ? `${acousticDetail.analysisWindowSec.toFixed(3)}s / ${acousticDetail.frameStepSec.toFixed(3)}s` : t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.runtimeWindow')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {typeof acousticDetail?.analysisWindowSec === 'number' &&
+                    typeof acousticDetail?.frameStepSec === 'number'
+                      ? `${acousticDetail.analysisWindowSec.toFixed(3)}s / ${acousticDetail.frameStepSec.toFixed(3)}s`
+                      : t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.runtimeThreshold')}</span>
-                  <span className="transcription-analysis-stats-value">{typeof acousticDetail?.yinThreshold === 'number' && typeof acousticDetail?.silenceRmsThreshold === 'number' ? `YIN ${acousticDetail.yinThreshold.toFixed(2)} · RMS ${acousticDetail.silenceRmsThreshold.toFixed(3)}` : t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.runtimeThreshold')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {typeof acousticDetail?.yinThreshold === 'number' &&
+                    typeof acousticDetail?.silenceRmsThreshold === 'number'
+                      ? `YIN ${acousticDetail.yinThreshold.toFixed(2)} · RMS ${acousticDetail.silenceRmsThreshold.toFixed(3)}`
+                      : t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.runtimeProgress')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.runtimeProgress')}
+                  </span>
                   <span className="transcription-analysis-stats-value">{acousticRuntimeLabel}</span>
                 </div>
                 {acousticRuntimeErrorSummary ? (
-                  <p className="transcription-analysis-acoustic-export-note">{acousticRuntimeErrorSummary}</p>
+                  <p className="transcription-analysis-acoustic-export-note">
+                    {acousticRuntimeErrorSummary}
+                  </p>
                 ) : null}
                 {acousticRuntimeErrorMessage ? (
                   <details className="transcription-analysis-acoustic-export-note">
                     <summary>{t(locale, 'ai.acoustic.runtimeErrorDetails')}</summary>
-                    <p className="transcription-analysis-acoustic-export-note">{acousticRuntimeErrorMessage}</p>
+                    <p className="transcription-analysis-acoustic-export-note">
+                      {acousticRuntimeErrorMessage}
+                    </p>
                   </details>
                 ) : null}
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.runtimeVad')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.runtimeVad')}
+                  </span>
                   <span className="transcription-analysis-stats-value">{vadCacheLabel}</span>
                 </div>
                 {/* ── Wave B: Parameter presets ── */}
                 {onChangeAcousticConfig ? (
                   <div className="transcription-analysis-acoustic-param-presets">
                     <div className="transcription-analysis-stats-row">
-                      <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.paramPreset')}</span>
+                      <span className="transcription-analysis-stats-label">
+                        {t(locale, 'ai.acoustic.paramPreset')}
+                      </span>
                       <span className="transcription-analysis-stats-value">
                         <select
                           className="transcription-analysis-acoustic-preset-select"
                           value={activePreset}
-                          onChange={(event) => handlePresetChange(event.target.value as AcousticAnalysisPresetKey)}
+                          onChange={(event) =>
+                            handlePresetChange(event.target.value as AcousticAnalysisPresetKey)
+                          }
                         >
                           {ACOUSTIC_ANALYSIS_PRESETS.map((preset) => (
-                            <option key={preset.key} value={preset.key} disabled={preset.key === 'custom'}>{preset.label}</option>
+                            <option
+                              key={preset.key}
+                              value={preset.key}
+                              disabled={preset.key === 'custom'}
+                            >
+                              {preset.label}
+                            </option>
                           ))}
                         </select>
                       </span>
                     </div>
                     {activePreset === 'custom' ? (
                       <div className="transcription-analysis-stats-row">
-                        <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.paramOverride')}</span>
+                        <span className="transcription-analysis-stats-label">
+                          {t(locale, 'ai.acoustic.paramOverride')}
+                        </span>
                         <span className="transcription-analysis-stats-value">
-                          <PanelChip variant="warning">{t(locale, 'ai.acoustic.paramCustomActive')}</PanelChip>
+                          <PanelChip variant="warning">
+                            {t(locale, 'ai.acoustic.paramCustomActive')}
+                          </PanelChip>
                         </span>
                       </div>
                     ) : null}
@@ -801,9 +1014,9 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                           className="transcription-analysis-acoustic-nav-btn"
                           onClick={handleApplyAcousticConfig}
                           disabled={
-                            !hasPendingAcousticConfigChanges
-                            || (!draftAcousticConfigOverride && !onResetAcousticConfig)
-                            || (Boolean(draftAcousticConfigOverride) && !onChangeAcousticConfig)
+                            !hasPendingAcousticConfigChanges ||
+                            (!draftAcousticConfigOverride && !onResetAcousticConfig) ||
+                            (Boolean(draftAcousticConfigOverride) && !onChangeAcousticConfig)
                           }
                         >
                           {t(locale, 'ai.acoustic.paramApply')}
@@ -827,7 +1040,9 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                   {acousticInspector ? (
                     <>
                       <div className="transcription-analysis-stats-row">
-                        <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.inspectorSource')}</span>
+                        <span className="transcription-analysis-stats-label">
+                          {t(locale, 'ai.acoustic.inspectorSource')}
+                        </span>
                         <span className="transcription-analysis-stats-value">
                           {acousticInspector.source === 'spectrogram'
                             ? t(locale, 'ai.acoustic.inspectorSource.spectrogram')
@@ -835,11 +1050,17 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                         </span>
                       </div>
                       <div className="transcription-analysis-stats-row">
-                        <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.inspectorTime')}</span>
-                        <span className="transcription-analysis-stats-value">{acousticInspector.timeSec.toFixed(2)}s</span>
+                        <span className="transcription-analysis-stats-label">
+                          {t(locale, 'ai.acoustic.inspectorTime')}
+                        </span>
+                        <span className="transcription-analysis-stats-value">
+                          {acousticInspector.timeSec.toFixed(2)}s
+                        </span>
                       </div>
                       <div className="transcription-analysis-stats-row">
-                        <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.inspectorFrequency')}</span>
+                        <span className="transcription-analysis-stats-label">
+                          {t(locale, 'ai.acoustic.inspectorFrequency')}
+                        </span>
                         <span className="transcription-analysis-stats-value">
                           {typeof acousticInspector.frequencyHz === 'number'
                             ? `${Math.round(acousticInspector.frequencyHz)} Hz`
@@ -847,12 +1068,22 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                         </span>
                       </div>
                       <div className="transcription-analysis-stats-row">
-                        <span className="transcription-analysis-stats-label">{t(locale, 'ai.stats.acousticF0')}</span>
-                        <span className="transcription-analysis-stats-value">{formatHz(acousticInspector.f0Hz) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                        <span className="transcription-analysis-stats-label">
+                          {t(locale, 'ai.stats.acousticF0')}
+                        </span>
+                        <span className="transcription-analysis-stats-value">
+                          {formatHz(acousticInspector.f0Hz) ??
+                            t(locale, 'ai.stats.acousticUnavailable')}
+                        </span>
                       </div>
                       <div className="transcription-analysis-stats-row">
-                        <span className="transcription-analysis-stats-label">{t(locale, 'ai.stats.acousticIntensityPeak')}</span>
-                        <span className="transcription-analysis-stats-value">{formatDb(acousticInspector.intensityDb) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                        <span className="transcription-analysis-stats-label">
+                          {t(locale, 'ai.stats.acousticIntensityPeak')}
+                        </span>
+                        <span className="transcription-analysis-stats-value">
+                          {formatDb(acousticInspector.intensityDb) ??
+                            t(locale, 'ai.stats.acousticUnavailable')}
+                        </span>
                       </div>
                     </>
                   ) : null}
@@ -864,7 +1095,9 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                         className="transcription-analysis-acoustic-nav-btn"
                         onClick={onPinInspector}
                       >
-                        {pinnedInspector ? t(locale, 'ai.acoustic.inspectorUpdatePin') : t(locale, 'ai.acoustic.inspectorPin')}
+                        {pinnedInspector
+                          ? t(locale, 'ai.acoustic.inspectorUpdatePin')
+                          : t(locale, 'ai.acoustic.inspectorPin')}
                       </button>
                     ) : null}
                     {onClearPinnedInspector && pinnedInspector ? (
@@ -884,65 +1117,111 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                         <span className="transcription-analysis-stats-label transcription-analysis-stats-label-accent">
                           {t(locale, 'ai.acoustic.pinnedLabel')}
                         </span>
-                        <span className="transcription-analysis-stats-value">{pinnedInspector.timeSec.toFixed(2)}s</span>
+                        <span className="transcription-analysis-stats-value">
+                          {pinnedInspector.timeSec.toFixed(2)}s
+                        </span>
                       </div>
                       <div className="transcription-analysis-stats-row">
-                        <span className="transcription-analysis-stats-label">{t(locale, 'ai.stats.acousticF0')}</span>
-                        <span className="transcription-analysis-stats-value">{formatHz(pinnedInspector.f0Hz) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                        <span className="transcription-analysis-stats-label">
+                          {t(locale, 'ai.stats.acousticF0')}
+                        </span>
+                        <span className="transcription-analysis-stats-value">
+                          {formatHz(pinnedInspector.f0Hz) ??
+                            t(locale, 'ai.stats.acousticUnavailable')}
+                        </span>
                       </div>
                       <div className="transcription-analysis-stats-row">
-                        <span className="transcription-analysis-stats-label">{t(locale, 'ai.stats.acousticIntensityPeak')}</span>
-                        <span className="transcription-analysis-stats-value">{formatDb(pinnedInspector.intensityDb) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                        <span className="transcription-analysis-stats-label">
+                          {t(locale, 'ai.stats.acousticIntensityPeak')}
+                        </span>
+                        <span className="transcription-analysis-stats-value">
+                          {formatDb(pinnedInspector.intensityDb) ??
+                            t(locale, 'ai.stats.acousticUnavailable')}
+                        </span>
                       </div>
                       {/* ── Dual-point comparison (live vs pinned) ── */}
                       {acousticInspector ? (
                         <div className="transcription-analysis-acoustic-comparison">
                           <div className="transcription-analysis-stats-row">
-                            <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.comparisonDeltaTime')}</span>
-                            <span className="transcription-analysis-stats-value">{(acousticInspector.timeSec - pinnedInspector.timeSec).toFixed(3)}s</span>
+                            <span className="transcription-analysis-stats-label">
+                              {t(locale, 'ai.acoustic.comparisonDeltaTime')}
+                            </span>
+                            <span className="transcription-analysis-stats-value">
+                              {(acousticInspector.timeSec - pinnedInspector.timeSec).toFixed(3)}s
+                            </span>
                           </div>
                           <div className="transcription-analysis-stats-row">
-                            <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.comparisonDeltaF0')}</span>
+                            <span className="transcription-analysis-stats-label">
+                              {t(locale, 'ai.acoustic.comparisonDeltaF0')}
+                            </span>
                             <span className="transcription-analysis-stats-value">
-                              {typeof acousticInspector.f0Hz === 'number' && typeof pinnedInspector.f0Hz === 'number'
+                              {typeof acousticInspector.f0Hz === 'number' &&
+                              typeof pinnedInspector.f0Hz === 'number'
                                 ? `${(acousticInspector.f0Hz - pinnedInspector.f0Hz).toFixed(1)} Hz`
                                 : t(locale, 'ai.stats.acousticUnavailable')}
                             </span>
                           </div>
                           <div className="transcription-analysis-stats-row">
-                            <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.comparisonDeltaIntensity')}</span>
+                            <span className="transcription-analysis-stats-label">
+                              {t(locale, 'ai.acoustic.comparisonDeltaIntensity')}
+                            </span>
                             <span className="transcription-analysis-stats-value">
-                              {typeof acousticInspector.intensityDb === 'number' && typeof pinnedInspector.intensityDb === 'number'
+                              {typeof acousticInspector.intensityDb === 'number' &&
+                              typeof pinnedInspector.intensityDb === 'number'
                                 ? `${(acousticInspector.intensityDb - pinnedInspector.intensityDb).toFixed(1)} dB`
                                 : t(locale, 'ai.stats.acousticUnavailable')}
                             </span>
                           </div>
                           <div className="transcription-analysis-stats-row">
-                            <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.comparisonDeltaSpectralCentroid')}</span>
+                            <span className="transcription-analysis-stats-label">
+                              {t(locale, 'ai.acoustic.comparisonDeltaSpectralCentroid')}
+                            </span>
                             <span className="transcription-analysis-stats-value">
-                              {formatDelta(acousticDescriptorFrame?.spectralCentroidHz, pinnedDescriptorFrame?.spectralCentroidHz, 'Hz', 0)
-                                ?? t(locale, 'ai.stats.acousticUnavailable')}
+                              {formatDelta(
+                                acousticDescriptorFrame?.spectralCentroidHz,
+                                pinnedDescriptorFrame?.spectralCentroidHz,
+                                'Hz',
+                                0,
+                              ) ?? t(locale, 'ai.stats.acousticUnavailable')}
                             </span>
                           </div>
                           <div className="transcription-analysis-stats-row">
-                            <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.comparisonDeltaSpectralRolloff')}</span>
+                            <span className="transcription-analysis-stats-label">
+                              {t(locale, 'ai.acoustic.comparisonDeltaSpectralRolloff')}
+                            </span>
                             <span className="transcription-analysis-stats-value">
-                              {formatDelta(acousticDescriptorFrame?.spectralRolloffHz, pinnedDescriptorFrame?.spectralRolloffHz, 'Hz', 0)
-                                ?? t(locale, 'ai.stats.acousticUnavailable')}
+                              {formatDelta(
+                                acousticDescriptorFrame?.spectralRolloffHz,
+                                pinnedDescriptorFrame?.spectralRolloffHz,
+                                'Hz',
+                                0,
+                              ) ?? t(locale, 'ai.stats.acousticUnavailable')}
                             </span>
                           </div>
                           <div className="transcription-analysis-stats-row">
-                            <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.comparisonDeltaFormantF1')}</span>
+                            <span className="transcription-analysis-stats-label">
+                              {t(locale, 'ai.acoustic.comparisonDeltaFormantF1')}
+                            </span>
                             <span className="transcription-analysis-stats-value">
-                              {formatDelta(acousticDescriptorFrame?.formantF1Hz, pinnedDescriptorFrame?.formantF1Hz, 'Hz', 0)
-                                ?? t(locale, 'ai.stats.acousticUnavailable')}
+                              {formatDelta(
+                                acousticDescriptorFrame?.formantF1Hz,
+                                pinnedDescriptorFrame?.formantF1Hz,
+                                'Hz',
+                                0,
+                              ) ?? t(locale, 'ai.stats.acousticUnavailable')}
                             </span>
                           </div>
                           <div className="transcription-analysis-stats-row">
-                            <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.comparisonDeltaFormantF2')}</span>
+                            <span className="transcription-analysis-stats-label">
+                              {t(locale, 'ai.acoustic.comparisonDeltaFormantF2')}
+                            </span>
                             <span className="transcription-analysis-stats-value">
-                              {formatDelta(acousticDescriptorFrame?.formantF2Hz, pinnedDescriptorFrame?.formantF2Hz, 'Hz', 0)
-                                ?? t(locale, 'ai.stats.acousticUnavailable')}
+                              {formatDelta(
+                                acousticDescriptorFrame?.formantF2Hz,
+                                pinnedDescriptorFrame?.formantF2Hz,
+                                'Hz',
+                                0,
+                              ) ?? t(locale, 'ai.stats.acousticUnavailable')}
                             </span>
                           </div>
                         </div>
@@ -953,7 +1232,9 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                   {acousticInspector ? (
                     <>
                       <div className="transcription-analysis-stats-row">
-                        <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.inspectorSelectionState')}</span>
+                        <span className="transcription-analysis-stats-label">
+                          {t(locale, 'ai.acoustic.inspectorSelectionState')}
+                        </span>
                         <span className="transcription-analysis-stats-value">
                           {acousticInspector.inSelection === false
                             ? t(locale, 'ai.acoustic.inspectorSelectionState.outside')
@@ -961,21 +1242,26 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                         </span>
                       </div>
                       <div className="transcription-analysis-stats-row">
-                        <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.inspectorNearestHotspot')}</span>
+                        <span className="transcription-analysis-stats-label">
+                          {t(locale, 'ai.acoustic.inspectorNearestHotspot')}
+                        </span>
                         <span className="transcription-analysis-stats-value">
                           {acousticInspector.matchedHotspotKind
                             ? `${hotspotKindLabel[acousticInspector.matchedHotspotKind]} · ${(acousticInspector.matchedHotspotTimeSec ?? acousticInspector.timeSec).toFixed(2)}s`
                             : t(locale, 'ai.acoustic.topHotspotNone')}
                         </span>
                       </div>
-                      {acousticInspector.matchedHotspotTimeSec != null && onJumpToAcousticHotspot ? (
+                      {acousticInspector.matchedHotspotTimeSec != null &&
+                      onJumpToAcousticHotspot ? (
                         <div className="transcription-analysis-acoustic-inspector-actions">
                           <button
                             type="button"
                             className="transcription-analysis-acoustic-nav-btn"
                             onClick={() => {
                               onSelectHotspot?.(acousticInspector.matchedHotspotTimeSec as number);
-                              onJumpToAcousticHotspot(acousticInspector.matchedHotspotTimeSec as number);
+                              onJumpToAcousticHotspot(
+                                acousticInspector.matchedHotspotTimeSec as number,
+                              );
                             }}
                           >
                             {t(locale, 'ai.acoustic.inspectorJumpHotspot')}
@@ -986,7 +1272,9 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                   ) : null}
                 </div>
               ) : (
-                <div className="transcription-analysis-acoustic-empty">{t(locale, 'ai.acoustic.inspectorHint')}</div>
+                <div className="transcription-analysis-acoustic-empty">
+                  {t(locale, 'ai.acoustic.inspectorHint')}
+                </div>
               )}
             </PanelSection>
           )}
@@ -999,13 +1287,18 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               {acousticSummary.diagnostics && acousticSummary.diagnostics.length > 0 ? (
                 <div className="transcription-analysis-acoustic-diagnostics-list">
                   {acousticSummary.diagnostics.map((diagnostic) => (
-                    <div key={diagnostic} className="transcription-analysis-acoustic-diagnostic-item">
+                    <div
+                      key={diagnostic}
+                      className="transcription-analysis-acoustic-diagnostic-item"
+                    >
                       <PanelChip variant="warning">{diagnosticLabel[diagnostic]}</PanelChip>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="transcription-analysis-acoustic-empty">{t(locale, 'ai.acoustic.diagnosticsEmpty')}</div>
+                <div className="transcription-analysis-acoustic-empty">
+                  {t(locale, 'ai.acoustic.diagnosticsEmpty')}
+                </div>
               )}
             </PanelSection>
           ) : null}
@@ -1017,52 +1310,112 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
             >
               <div className="transcription-analysis-acoustic-panel">
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorCentroidMean')}</span>
-                  <span className="transcription-analysis-stats-value">{formatHz(acousticSummary?.spectralCentroidMeanHz) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorCentroidMean')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatHz(acousticSummary?.spectralCentroidMeanHz) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorRolloffMean')}</span>
-                  <span className="transcription-analysis-stats-value">{formatHz(acousticSummary?.spectralRolloffMeanHz) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorRolloffMean')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatHz(acousticSummary?.spectralRolloffMeanHz) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorZeroCrossingMean')}</span>
-                  <span className="transcription-analysis-stats-value">{formatZeroCrossing(acousticSummary?.zeroCrossingRateMean) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorZeroCrossingMean')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatZeroCrossing(acousticSummary?.zeroCrossingRateMean) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorFlatnessMean')}</span>
-                  <span className="transcription-analysis-stats-value">{formatScalar(acousticSummary?.spectralFlatnessMean) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorFlatnessMean')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatScalar(acousticSummary?.spectralFlatnessMean) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorLoudnessMean')}</span>
-                  <span className="transcription-analysis-stats-value">{formatDb(acousticSummary?.loudnessMeanDb) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorLoudnessMean')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatDb(acousticSummary?.loudnessMeanDb) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorMfccMean')}</span>
-                  <span className="transcription-analysis-stats-value">{formatCoefficients(acousticSummary?.mfccMeanCoefficients) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorMfccMean')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatCoefficients(acousticSummary?.mfccMeanCoefficients) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorCentroidCurrent')}</span>
-                  <span className="transcription-analysis-stats-value">{formatHz(acousticDescriptorFrame?.spectralCentroidHz) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorCentroidCurrent')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatHz(acousticDescriptorFrame?.spectralCentroidHz) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorRolloffCurrent')}</span>
-                  <span className="transcription-analysis-stats-value">{formatHz(acousticDescriptorFrame?.spectralRolloffHz) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorRolloffCurrent')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatHz(acousticDescriptorFrame?.spectralRolloffHz) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorZeroCrossingCurrent')}</span>
-                  <span className="transcription-analysis-stats-value">{formatZeroCrossing(acousticDescriptorFrame?.zeroCrossingRate) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorZeroCrossingCurrent')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatZeroCrossing(acousticDescriptorFrame?.zeroCrossingRate) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorFlatnessCurrent')}</span>
-                  <span className="transcription-analysis-stats-value">{formatScalar(acousticDescriptorFrame?.spectralFlatness) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorFlatnessCurrent')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatScalar(acousticDescriptorFrame?.spectralFlatness) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorLoudnessCurrent')}</span>
-                  <span className="transcription-analysis-stats-value">{formatDb(acousticDescriptorFrame?.loudnessDb) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorLoudnessCurrent')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatDb(acousticDescriptorFrame?.loudnessDb) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.descriptorMfccCurrent')}</span>
-                  <span className="transcription-analysis-stats-value">{formatCoefficients(acousticDescriptorFrame?.mfccCoefficients) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.descriptorMfccCurrent')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatCoefficients(acousticDescriptorFrame?.mfccCoefficients) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
               </div>
             </PanelSection>
@@ -1076,19 +1429,33 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               {acousticSlice ? (
                 <div className="transcription-analysis-acoustic-panel">
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.sliceWindow')}</span>
-                    <span className="transcription-analysis-stats-value">{acousticSlice.startSec.toFixed(2)}-{acousticSlice.endSec.toFixed(2)}s</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.acoustic.sliceWindow')}
+                    </span>
+                    <span className="transcription-analysis-stats-value">
+                      {acousticSlice.startSec.toFixed(2)}-{acousticSlice.endSec.toFixed(2)}s
+                    </span>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.sliceSampleCount')}</span>
-                    <span className="transcription-analysis-stats-value">{acousticSlice.sampleCount}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.acoustic.sliceSampleCount')}
+                    </span>
+                    <span className="transcription-analysis-stats-value">
+                      {acousticSlice.sampleCount}
+                    </span>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.sliceVoicedCount')}</span>
-                    <span className="transcription-analysis-stats-value">{acousticSlice.voicedSampleCount}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.acoustic.sliceVoicedCount')}
+                    </span>
+                    <span className="transcription-analysis-stats-value">
+                      {acousticSlice.voicedSampleCount}
+                    </span>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.slicePitchRange')}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.acoustic.slicePitchRange')}
+                    </span>
                     <span className="transcription-analysis-stats-value">
                       {formatHz(acousticSlice.pitchMinHz) && formatHz(acousticSlice.pitchMaxHz)
                         ? `${formatHz(acousticSlice.pitchMinHz)} / ${formatHz(acousticSlice.pitchMaxHz)}`
@@ -1096,28 +1463,47 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                     </span>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.sliceIntensityRange')}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.acoustic.sliceIntensityRange')}
+                    </span>
                     <span className="transcription-analysis-stats-value">
-                      {formatDb(acousticSlice.intensityMinDb) && formatDb(acousticSlice.intensityMaxDb)
+                      {formatDb(acousticSlice.intensityMinDb) &&
+                      formatDb(acousticSlice.intensityMaxDb)
                         ? `${formatDb(acousticSlice.intensityMinDb)} / ${formatDb(acousticSlice.intensityMaxDb)}`
                         : t(locale, 'ai.stats.acousticUnavailable')}
                     </span>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.sliceReliability')}</span>
-                    <span className="transcription-analysis-stats-value">{acousticSlice.reliabilityMean != null ? acousticSlice.reliabilityMean.toFixed(2) : t(locale, 'ai.stats.acousticUnavailable')}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.acoustic.sliceReliability')}
+                    </span>
+                    <span className="transcription-analysis-stats-value">
+                      {acousticSlice.reliabilityMean != null
+                        ? acousticSlice.reliabilityMean.toFixed(2)
+                        : t(locale, 'ai.stats.acousticUnavailable')}
+                    </span>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.slicePitchTrend')}</span>
-                    <span className="transcription-analysis-stats-value">{trendLabel[acousticSlice.pitchTrend]}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.acoustic.slicePitchTrend')}
+                    </span>
+                    <span className="transcription-analysis-stats-value">
+                      {trendLabel[acousticSlice.pitchTrend]}
+                    </span>
                   </div>
                   <div className="transcription-analysis-stats-row">
-                    <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.sliceIntensityTrend')}</span>
-                    <span className="transcription-analysis-stats-value">{trendLabel[acousticSlice.intensityTrend]}</span>
+                    <span className="transcription-analysis-stats-label">
+                      {t(locale, 'ai.acoustic.sliceIntensityTrend')}
+                    </span>
+                    <span className="transcription-analysis-stats-value">
+                      {trendLabel[acousticSlice.intensityTrend]}
+                    </span>
                   </div>
                 </div>
               ) : (
-                <div className="transcription-analysis-acoustic-empty">{t(locale, 'ai.acoustic.inspectorHint')}</div>
+                <div className="transcription-analysis-acoustic-empty">
+                  {t(locale, 'ai.acoustic.inspectorHint')}
+                </div>
               )}
             </PanelSection>
           ) : null}
@@ -1126,39 +1512,80 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               className="transcription-analysis-acoustic-section transcription-analysis-acoustic-formant-section"
               title={t(locale, 'ai.acoustic.formantTitle')}
               description={t(locale, 'ai.acoustic.formantDescription')}
-              meta={acousticCalibrationStatus === 'calibrated'
-                ? <PanelChip>{t(locale, 'ai.acoustic.formantCalibrated')}</PanelChip>
-                : <PanelChip variant="warning">{t(locale, 'ai.acoustic.formantExploratory')}</PanelChip>}
+              meta={
+                acousticCalibrationStatus === 'calibrated' ? (
+                  <PanelChip>{t(locale, 'ai.acoustic.formantCalibrated')}</PanelChip>
+                ) : (
+                  <PanelChip variant="warning">
+                    {t(locale, 'ai.acoustic.formantExploratory')}
+                  </PanelChip>
+                )
+              }
             >
               <div className="transcription-analysis-acoustic-panel">
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.formantF1Mean')}</span>
-                  <span className="transcription-analysis-stats-value">{formatHz(acousticSummary?.formantF1MeanHz) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.formantF1Mean')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatHz(acousticSummary?.formantF1MeanHz) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.formantF2Mean')}</span>
-                  <span className="transcription-analysis-stats-value">{formatHz(acousticSummary?.formantF2MeanHz) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.formantF2Mean')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatHz(acousticSummary?.formantF2MeanHz) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.formantF1Current')}</span>
-                  <span className="transcription-analysis-stats-value">{formatHz(acousticDescriptorFrame?.formantF1Hz) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.formantF1Current')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatHz(acousticDescriptorFrame?.formantF1Hz) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.formantF2Current')}</span>
-                  <span className="transcription-analysis-stats-value">{formatHz(acousticDescriptorFrame?.formantF2Hz) ?? t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.formantF2Current')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {formatHz(acousticDescriptorFrame?.formantF2Hz) ??
+                      t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.vowelSpread')}</span>
-                  <span className="transcription-analysis-stats-value">{typeof acousticSummary?.vowelSpaceSpread === 'number' ? `${Math.round(acousticSummary.vowelSpaceSpread)} Hz` : t(locale, 'ai.stats.acousticUnavailable')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.vowelSpread')}
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {typeof acousticSummary?.vowelSpaceSpread === 'number'
+                      ? `${Math.round(acousticSummary.vowelSpaceSpread)} Hz`
+                      : t(locale, 'ai.stats.acousticUnavailable')}
+                  </span>
                 </div>
                 {vowelSpacePoints.length > 0 ? (
                   <div className="transcription-analysis-acoustic-tone-card">
                     <div className="transcription-analysis-acoustic-tone-legend">
-                      <span className="transcription-analysis-acoustic-tone-legend-item transcription-analysis-acoustic-tone-legend-item-f0">{t(locale, 'ai.acoustic.vowelSpaceLegend')}</span>
+                      <span className="transcription-analysis-acoustic-tone-legend-item transcription-analysis-acoustic-tone-legend-item-f0">
+                        {t(locale, 'ai.acoustic.vowelSpaceLegend')}
+                      </span>
                     </div>
-                    <div className="transcription-analysis-acoustic-tone-chart" role="img" aria-label={t(locale, 'ai.acoustic.vowelSpaceTitle')}>
+                    <div
+                      className="transcription-analysis-acoustic-tone-chart"
+                      role="img"
+                      aria-label={t(locale, 'ai.acoustic.vowelSpaceTitle')}
+                    >
                       <svg viewBox="0 0 120 52" preserveAspectRatio="none" aria-hidden="true">
-                        <path className="transcription-analysis-acoustic-tone-grid" d="M6 6 H114 V46 H6 Z" />
+                        <path
+                          className="transcription-analysis-acoustic-tone-grid"
+                          d="M6 6 H114 V46 H6 Z"
+                        />
                         {vowelSpacePoints.map((point, index) => (
                           <circle
                             key={`vowel-${index}-${point.f1Hz.toFixed(1)}-${point.f2Hz.toFixed(1)}`}
@@ -1172,7 +1599,9 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                     </div>
                   </div>
                 ) : (
-                  <div className="transcription-analysis-acoustic-empty">{t(locale, 'ai.acoustic.vowelSpaceEmpty')}</div>
+                  <div className="transcription-analysis-acoustic-empty">
+                    {t(locale, 'ai.acoustic.vowelSpaceEmpty')}
+                  </div>
                 )}
               </div>
             </PanelSection>
@@ -1182,19 +1611,46 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               className="transcription-analysis-acoustic-section transcription-analysis-acoustic-tone-section"
               title={t(locale, 'ai.acoustic.toneTitle')}
               description={t(locale, 'ai.acoustic.toneDescription')}
-              meta={<PanelChip>{tf(locale, 'ai.acoustic.exportSampleCount', { count: acousticDetail.sampleCount })}</PanelChip>}
+              meta={
+                <PanelChip>
+                  {tf(locale, 'ai.acoustic.exportSampleCount', {
+                    count: acousticDetail.sampleCount,
+                  })}
+                </PanelChip>
+              }
             >
               {acousticDetail.toneBins.length > 0 ? (
                 <div className="transcription-analysis-acoustic-tone-card">
                   <div className="transcription-analysis-acoustic-tone-legend">
-                    <span className="transcription-analysis-acoustic-tone-legend-item transcription-analysis-acoustic-tone-legend-item-f0">{t(locale, 'ai.acoustic.toneLegendF0')}</span>
-                    <span className="transcription-analysis-acoustic-tone-legend-item transcription-analysis-acoustic-tone-legend-item-intensity">{t(locale, 'ai.acoustic.toneLegendIntensity')}</span>
+                    <span className="transcription-analysis-acoustic-tone-legend-item transcription-analysis-acoustic-tone-legend-item-f0">
+                      {t(locale, 'ai.acoustic.toneLegendF0')}
+                    </span>
+                    <span className="transcription-analysis-acoustic-tone-legend-item transcription-analysis-acoustic-tone-legend-item-intensity">
+                      {t(locale, 'ai.acoustic.toneLegendIntensity')}
+                    </span>
                   </div>
-                  <div className="transcription-analysis-acoustic-tone-chart" role="img" aria-label={t(locale, 'ai.acoustic.toneTitle')}>
+                  <div
+                    className="transcription-analysis-acoustic-tone-chart"
+                    role="img"
+                    aria-label={t(locale, 'ai.acoustic.toneTitle')}
+                  >
                     <svg viewBox="0 0 120 42" preserveAspectRatio="none" aria-hidden="true">
-                      <path className="transcription-analysis-acoustic-tone-grid" d="M2 8 H118 M2 21 H118 M2 34 H118" />
-                      {toneIntensityPath ? <path className="transcription-analysis-acoustic-tone-line transcription-analysis-acoustic-tone-line-intensity" d={toneIntensityPath} /> : null}
-                      {toneF0Path ? <path className="transcription-analysis-acoustic-tone-line transcription-analysis-acoustic-tone-line-f0" d={toneF0Path} /> : null}
+                      <path
+                        className="transcription-analysis-acoustic-tone-grid"
+                        d="M2 8 H118 M2 21 H118 M2 34 H118"
+                      />
+                      {toneIntensityPath ? (
+                        <path
+                          className="transcription-analysis-acoustic-tone-line transcription-analysis-acoustic-tone-line-intensity"
+                          d={toneIntensityPath}
+                        />
+                      ) : null}
+                      {toneF0Path ? (
+                        <path
+                          className="transcription-analysis-acoustic-tone-line transcription-analysis-acoustic-tone-line-f0"
+                          d={toneF0Path}
+                        />
+                      ) : null}
                     </svg>
                   </div>
                   <div className="transcription-analysis-acoustic-tone-footer">
@@ -1203,7 +1659,9 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                   </div>
                 </div>
               ) : (
-                <div className="transcription-analysis-acoustic-empty">{t(locale, 'ai.acoustic.toneEmpty')}</div>
+                <div className="transcription-analysis-acoustic-empty">
+                  {t(locale, 'ai.acoustic.toneEmpty')}
+                </div>
               )}
             </PanelSection>
           ) : null}
@@ -1217,14 +1675,16 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               {acousticSummary.hotspots && acousticSummary.hotspots.length > 0 ? (
                 <div className="transcription-analysis-acoustic-hotspots-list">
                   {acousticSummary.hotspots.map((hotspot) => {
-                    const hotspotRange = typeof hotspot.startSec === 'number' && typeof hotspot.endSec === 'number'
-                      ? `${hotspot.startSec.toFixed(2)}-${hotspot.endSec.toFixed(2)}s`
-                      : `${hotspot.timeSec.toFixed(2)}s`;
+                    const hotspotRange =
+                      typeof hotspot.startSec === 'number' && typeof hotspot.endSec === 'number'
+                        ? `${hotspot.startSec.toFixed(2)}-${hotspot.endSec.toFixed(2)}s`
+                        : `${hotspot.timeSec.toFixed(2)}s`;
                     const hotspotF0 = formatHz(hotspot.f0Hz);
                     const hotspotIntensity = formatDb(hotspot.intensityDb);
                     const hotspotReliability = formatRatio(hotspot.reliability);
-                    const isSelectedHotspot = selectedHotspotTimeSec != null
-                      && Math.abs(selectedHotspotTimeSec - hotspot.timeSec) <= 0.01;
+                    const isSelectedHotspot =
+                      selectedHotspotTimeSec != null &&
+                      Math.abs(selectedHotspotTimeSec - hotspot.timeSec) <= 0.01;
 
                     return (
                       <button
@@ -1235,28 +1695,61 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                           onSelectHotspot?.(hotspot.timeSec);
                           onJumpToAcousticHotspot?.(hotspot.timeSec);
                         }}
-                        title={tf(locale, 'ai.stats.acousticHotspotJump', { kind: hotspotKindLabel[hotspot.kind], timeSec: hotspot.timeSec.toFixed(2) })}
+                        title={tf(locale, 'ai.stats.acousticHotspotJump', {
+                          kind: hotspotKindLabel[hotspot.kind],
+                          timeSec: hotspot.timeSec.toFixed(2),
+                        })}
                         aria-pressed={isSelectedHotspot}
                         disabled={!onJumpToAcousticHotspot}
                       >
                         <div className="transcription-analysis-acoustic-hotspot-head">
-                          <span className="transcription-analysis-acoustic-hotspot-kind">{hotspotKindLabel[hotspot.kind]}</span>
-                          <span className="transcription-analysis-acoustic-hotspot-time">{hotspot.timeSec.toFixed(2)}s</span>
+                          <span className="transcription-analysis-acoustic-hotspot-kind">
+                            {hotspotKindLabel[hotspot.kind]}
+                          </span>
+                          <span className="transcription-analysis-acoustic-hotspot-time">
+                            {hotspot.timeSec.toFixed(2)}s
+                          </span>
                         </div>
-                        <p className="transcription-analysis-acoustic-hotspot-description">{hotspotExplanation[hotspot.kind]}</p>
+                        <p className="transcription-analysis-acoustic-hotspot-description">
+                          {hotspotExplanation[hotspot.kind]}
+                        </p>
                         <div className="transcription-analysis-acoustic-hotspot-meta">
-                          <PanelChip>{tf(locale, 'ai.acoustic.hotspotScore', { score: Math.round(hotspot.score * 100) })}</PanelChip>
-                          <PanelChip>{tf(locale, 'ai.acoustic.hotspotWindow', { window: hotspotRange })}</PanelChip>
-                          {hotspotF0 ? <PanelChip>{tf(locale, 'ai.acoustic.hotspotF0', { value: hotspotF0 })}</PanelChip> : null}
-                          {hotspotIntensity ? <PanelChip>{tf(locale, 'ai.acoustic.hotspotIntensity', { value: hotspotIntensity })}</PanelChip> : null}
-                          {hotspotReliability ? <PanelChip>{tf(locale, 'ai.acoustic.hotspotReliability', { value: hotspotReliability })}</PanelChip> : null}
+                          <PanelChip>
+                            {tf(locale, 'ai.acoustic.hotspotScore', {
+                              score: Math.round(hotspot.score * 100),
+                            })}
+                          </PanelChip>
+                          <PanelChip>
+                            {tf(locale, 'ai.acoustic.hotspotWindow', { window: hotspotRange })}
+                          </PanelChip>
+                          {hotspotF0 ? (
+                            <PanelChip>
+                              {tf(locale, 'ai.acoustic.hotspotF0', { value: hotspotF0 })}
+                            </PanelChip>
+                          ) : null}
+                          {hotspotIntensity ? (
+                            <PanelChip>
+                              {tf(locale, 'ai.acoustic.hotspotIntensity', {
+                                value: hotspotIntensity,
+                              })}
+                            </PanelChip>
+                          ) : null}
+                          {hotspotReliability ? (
+                            <PanelChip>
+                              {tf(locale, 'ai.acoustic.hotspotReliability', {
+                                value: hotspotReliability,
+                              })}
+                            </PanelChip>
+                          ) : null}
                         </div>
                       </button>
                     );
                   })}
                 </div>
               ) : (
-                <div className="transcription-analysis-acoustic-empty">{t(locale, 'ai.acoustic.topHotspotNone')}</div>
+                <div className="transcription-analysis-acoustic-empty">
+                  {t(locale, 'ai.acoustic.topHotspotNone')}
+                </div>
               )}
             </PanelSection>
           ) : null}
@@ -1304,7 +1797,8 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               </div>
             </PanelSection>
           ) : null}
-          {activeTab === 'acoustic' && (acousticDetail || acousticDetailFullMedia || canExportBatch) ? (
+          {activeTab === 'acoustic' &&
+          (acousticDetail || acousticDetailFullMedia || canExportBatch) ? (
             <PanelSection
               className="transcription-analysis-acoustic-section transcription-analysis-acoustic-export-section"
               title={t(locale, 'ai.acoustic.exportTitle')}
@@ -1343,7 +1837,10 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                   onClick={() => {
                     void handleExportAcoustic('csv');
                   }}
-                  disabled={acousticExporting || (isBatchExportScope ? !canExportBatch : !exportTargetDetail)}
+                  disabled={
+                    acousticExporting ||
+                    (isBatchExportScope ? !canExportBatch : !exportTargetDetail)
+                  }
                 >
                   {t(locale, 'ai.acoustic.exportCsv')}
                 </button>
@@ -1353,7 +1850,10 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                   onClick={() => {
                     void handleExportAcoustic('json');
                   }}
-                  disabled={acousticExporting || (isBatchExportScope ? !canExportBatch : !exportTargetDetail)}
+                  disabled={
+                    acousticExporting ||
+                    (isBatchExportScope ? !canExportBatch : !exportTargetDetail)
+                  }
                 >
                   {t(locale, 'ai.acoustic.exportJson')}
                 </button>
@@ -1373,45 +1873,56 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                   onClick={() => {
                     void handleExportAcoustic('json_research');
                   }}
-                  disabled={acousticExporting || (isBatchExportScope ? !canExportBatch : !exportTargetDetail)}
+                  disabled={
+                    acousticExporting ||
+                    (isBatchExportScope ? !canExportBatch : !exportTargetDetail)
+                  }
                 >
                   {t(locale, 'ai.acoustic.exportJsonResearch')}
                 </button>
               </div>
-                {isBatchExportScope ? (
+              {isBatchExportScope ? (
                 <p className="transcription-analysis-acoustic-export-note">
-                  {tf(locale, 'ai.acoustic.exportBatchSelectionCount', { count: exportBatchDetails.length })}
+                  {tf(locale, 'ai.acoustic.exportBatchSelectionCount', {
+                    count: exportBatchDetails.length,
+                  })}
                 </p>
               ) : exportTargetDetail ? (
                 <p className="transcription-analysis-acoustic-export-note">
-                  {tf(locale, 'ai.acoustic.exportSampleCount', { count: exportTargetDetail.sampleCount })}
+                  {tf(locale, 'ai.acoustic.exportSampleCount', {
+                    count: exportTargetDetail.sampleCount,
+                  })}
                 </p>
               ) : null}
               {isBatchExportScope ? (
-                <p className="transcription-analysis-acoustic-export-note">{t(locale, 'ai.acoustic.exportPitchTierBatchNote')}</p>
+                <p className="transcription-analysis-acoustic-export-note">
+                  {t(locale, 'ai.acoustic.exportPitchTierBatchNote')}
+                </p>
               ) : null}
-                {batchSkippedCount > 0 ? (
-                  <p className="transcription-analysis-acoustic-export-note">
-                    {tf(locale, 'ai.acoustic.exportBatchSelectionSummary', {
-                      selected: String(batchSelectionCount),
-                      exported: String(exportBatchDetails.length),
-                      skipped: String(batchSkippedCount),
-                    })}
-                  </p>
-                ) : null}
-                {batchSkippedCount > 0 && droppedBatchLabelText ? (
-                  <p className="transcription-analysis-acoustic-export-note">
-                    {tf(locale, 'ai.acoustic.exportBatchSelectionDropped', {
-                      ids: droppedBatchLabelText,
-                    })}
-                  </p>
-                ) : null}
+              {batchSkippedCount > 0 ? (
+                <p className="transcription-analysis-acoustic-export-note">
+                  {tf(locale, 'ai.acoustic.exportBatchSelectionSummary', {
+                    selected: String(batchSelectionCount),
+                    exported: String(exportBatchDetails.length),
+                    skipped: String(batchSkippedCount),
+                  })}
+                </p>
+              ) : null}
+              {batchSkippedCount > 0 && droppedBatchLabelText ? (
+                <p className="transcription-analysis-acoustic-export-note">
+                  {tf(locale, 'ai.acoustic.exportBatchSelectionDropped', {
+                    ids: droppedBatchLabelText,
+                  })}
+                </p>
+              ) : null}
               {acousticExportError ? (
                 <p className="transcription-analysis-acoustic-export-note" role="status">
                   {acousticExportError}
                 </p>
               ) : null}
-              <p className="transcription-analysis-acoustic-export-note">{t(locale, 'ai.acoustic.exportBackendNote')}</p>
+              <p className="transcription-analysis-acoustic-export-note">
+                {t(locale, 'ai.acoustic.exportBackendNote')}
+              </p>
             </PanelSection>
           ) : null}
           {/* ── Wave E: Provider extension section ── */}
@@ -1423,38 +1934,62 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
             >
               <div className="transcription-analysis-acoustic-panel">
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.providerDefault')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.providerDefault')}
+                  </span>
                   <span className="transcription-analysis-stats-value">
-                    <PanelChip>{acousticProviderState?.effectiveProviderId ?? 'local-yin-spectral'}</PanelChip>
+                    <PanelChip>
+                      {acousticProviderState?.effectiveProviderId ?? 'local-yin-spectral'}
+                    </PanelChip>
                   </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.providerEnhanced')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.providerEnhanced')}
+                  </span>
                   <span className="transcription-analysis-stats-value">
                     {onChangeAcousticProvider ? (
                       <select
                         className="transcription-analysis-acoustic-preset-select"
                         value={acousticProviderPreference ?? PROVIDER_PREFERENCE_AUTO}
-                        onChange={(event) => onChangeAcousticProvider(event.target.value === PROVIDER_PREFERENCE_AUTO ? null : event.target.value)}
+                        onChange={(event) =>
+                          onChangeAcousticProvider(
+                            event.target.value === PROVIDER_PREFERENCE_AUTO
+                              ? null
+                              : event.target.value,
+                          )
+                        }
                       >
-                        <option value={PROVIDER_PREFERENCE_AUTO}>{t(locale, 'ai.acoustic.providerAuto')}</option>
+                        <option value={PROVIDER_PREFERENCE_AUTO}>
+                          {t(locale, 'ai.acoustic.providerAuto')}
+                        </option>
                         {acousticProviderDefinitions.map((provider) => (
-                          <option key={provider.id} value={provider.id}>{provider.label}</option>
+                          <option key={provider.id} value={provider.id}>
+                            {provider.label}
+                          </option>
                         ))}
                       </select>
-                    ) : t(locale, 'ai.acoustic.providerNoneConfigured')}
+                    ) : (
+                      t(locale, 'ai.acoustic.providerNoneConfigured')
+                    )}
                   </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.providerRoutingStrategy')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.providerRoutingStrategy')}
+                  </span>
                   <span className="transcription-analysis-stats-value">
                     <select
                       className="transcription-analysis-acoustic-preset-select"
                       value={providerRuntimeConfig.routingStrategy}
                       onChange={handleProviderRoutingStrategyChange}
                     >
-                      <option value="local-first">{t(locale, 'ai.acoustic.providerRoutingLocalFirst')}</option>
-                      <option value="prefer-external">{t(locale, 'ai.acoustic.providerRoutingPreferExternal')}</option>
+                      <option value="local-first">
+                        {t(locale, 'ai.acoustic.providerRoutingLocalFirst')}
+                      </option>
+                      <option value="prefer-external">
+                        {t(locale, 'ai.acoustic.providerRoutingPreferExternal')}
+                      </option>
                     </select>
                   </span>
                 </div>
@@ -1520,14 +2055,18 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                   <button
                     type="button"
                     className="transcription-analysis-acoustic-nav-btn"
-                    onClick={() => { void handleCheckProviderHealth(); }}
+                    onClick={() => {
+                      void handleCheckProviderHealth();
+                    }}
                     disabled={providerHealthChecking}
                   >
                     {t(locale, 'ai.acoustic.providerCheckHealth')}
                   </button>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.providerStatus')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.providerStatus')}
+                  </span>
                   <span className="transcription-analysis-stats-value">
                     {providerConfigured
                       ? t(locale, 'ai.acoustic.providerStatusAvailable')
@@ -1535,24 +2074,35 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                   </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
-                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.providerHealthLabel')}</span>
+                  <span className="transcription-analysis-stats-label">
+                    {t(locale, 'ai.acoustic.providerHealthLabel')}
+                  </span>
                   <span className="transcription-analysis-stats-value">{providerHealthLabel}</span>
                 </div>
                 {providerHealthMeta ? (
-                  <p className="transcription-analysis-acoustic-export-note">{providerHealthMeta}</p>
+                  <p className="transcription-analysis-acoustic-export-note">
+                    {providerHealthMeta}
+                  </p>
                 ) : null}
                 {acousticProviderState?.fellBackToLocal ? (
                   <p className="transcription-analysis-acoustic-export-note">
                     {acousticProviderState.fallbackReason ?? t(locale, 'ai.acoustic.providerNote')}
                   </p>
                 ) : null}
-                {providerHealthResult?.state === 'unauthorized' || providerHealthResult?.state === 'forbidden' ? (
-                  <p className="transcription-analysis-acoustic-export-note">{t(locale, 'ai.acoustic.providerAuthHint')}</p>
+                {providerHealthResult?.state === 'unauthorized' ||
+                providerHealthResult?.state === 'forbidden' ? (
+                  <p className="transcription-analysis-acoustic-export-note">
+                    {t(locale, 'ai.acoustic.providerAuthHint')}
+                  </p>
                 ) : null}
                 {providerSaveMessage ? (
-                  <p className="transcription-analysis-acoustic-export-note">{providerSaveMessage}</p>
+                  <p className="transcription-analysis-acoustic-export-note">
+                    {providerSaveMessage}
+                  </p>
                 ) : null}
-                <p className="transcription-analysis-acoustic-export-note">{t(locale, 'ai.acoustic.providerNote')}</p>
+                <p className="transcription-analysis-acoustic-export-note">
+                  {t(locale, 'ai.acoustic.providerNote')}
+                </p>
               </div>
             </PanelSection>
           ) : null}

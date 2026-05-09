@@ -1,4 +1,12 @@
-import { AI_STATE_WORKER_DEFAULT_THRESHOLDS, buildAiStateWorkerFingerprint, computeAiStateWorkerSignalWeight, type AiStateWorkerRequest, type AiStateWorkerResponse, type AiStateWorkerSlice } from './aiStateWorkerProtocol';
+import {
+  AI_STATE_WORKER_DEFAULT_THRESHOLDS,
+  buildAiStateWorkerFingerprint,
+  computeAiStateWorkerSignalWeight,
+} from './aiStateWorkerProtocol';
+
+type AiStateWorkerRequest = import('./aiStateWorkerProtocol').AiStateWorkerRequest;
+type AiStateWorkerResponse = import('./aiStateWorkerProtocol').AiStateWorkerResponse;
+type AiStateWorkerSlice = import('./aiStateWorkerProtocol').AiStateWorkerSlice;
 
 type AiStateWorkerScope = {
   onmessage: ((event: MessageEvent<AiStateWorkerRequest>) => void) | null;
@@ -61,11 +69,13 @@ function consumeSlice(slice: AiStateWorkerSlice): void {
   lastSignalWeight = currentSignalWeight;
   pendingOpCount += 1;
 
-  const settingsFingerprintChanged = previousSlice != null
-    && previousSlice.aiChatSettingsFingerprint !== slice.aiChatSettingsFingerprint;
+  const settingsFingerprintChanged =
+    previousSlice != null &&
+    previousSlice.aiChatSettingsFingerprint !== slice.aiChatSettingsFingerprint;
 
-  const agentLoopFingerprintChanged = previousSlice != null
-    && previousSlice.aiChatPendingAgentLoopFingerprint !== slice.aiChatPendingAgentLoopFingerprint;
+  const agentLoopFingerprintChanged =
+    previousSlice != null &&
+    previousSlice.aiChatPendingAgentLoopFingerprint !== slice.aiChatPendingAgentLoopFingerprint;
 
   if (settingsFingerprintChanged || agentLoopFingerprintChanged) {
     emitIfFingerprintChanged(slice);
@@ -74,8 +84,9 @@ function consumeSlice(slice: AiStateWorkerSlice): void {
     return;
   }
 
-  const reachedThreshold = pendingCharDelta >= AI_STATE_WORKER_DEFAULT_THRESHOLDS.charDelta
-    || pendingOpCount >= AI_STATE_WORKER_DEFAULT_THRESHOLDS.opCount;
+  const reachedThreshold =
+    pendingCharDelta >= AI_STATE_WORKER_DEFAULT_THRESHOLDS.charDelta ||
+    pendingOpCount >= AI_STATE_WORKER_DEFAULT_THRESHOLDS.opCount;
 
   if (reachedThreshold) {
     emitIfFingerprintChanged(slice);

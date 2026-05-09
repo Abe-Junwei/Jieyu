@@ -30,15 +30,21 @@ export const WaveformHoverTooltip: FC<WaveformHoverTooltipProps> = ({
   previewStyle,
 }) => {
   // 二分查找当前时间命中的语段 | Binary search for unit at hover time
-  let lo = 0, hi = units.length - 1;
-  let hit: typeof units[0] | undefined;
+  let lo = 0,
+    hi = units.length - 1;
+  let hit: (typeof units)[0] | undefined;
   while (lo <= hi) {
     const mid = (lo + hi) >>> 1;
     const m = units[mid];
     if (!m) break;
-    if (time < m.startTime) { hi = mid - 1; }
-    else if (time > m.endTime) { lo = mid + 1; }
-    else { hit = m; break; }
+    if (time < m.startTime) {
+      hi = mid - 1;
+    } else if (time > m.endTime) {
+      lo = mid + 1;
+    } else {
+      hit = m;
+      break;
+    }
   }
 
   let textPreview: string | null = null;
@@ -53,7 +59,11 @@ export const WaveformHoverTooltip: FC<WaveformHoverTooltipProps> = ({
     <div className="waveform-hover-tooltip" style={{ left: x, top: y }}>
       {formatTime(time)}
       {textPreview && (
-        <span className="waveform-hover-tooltip-text" dir={previewDir} style={previewStyle}>
+        <span
+          className="waveform-hover-tooltip-text"
+          dir={previewDir}
+          {...(previewStyle !== undefined ? { style: previewStyle } : {})}
+        >
           {textPreview}
         </span>
       )}

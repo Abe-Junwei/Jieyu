@@ -82,7 +82,7 @@ export function ToastController({
   // Recording error → error toast (auto-dismiss like other errors; do not pass 0)
   useEffect(() => {
     if (!shouldSyncCore) return;
-    if (!recordingError) {
+    if (recordingError === null || recordingError.length === 0) {
       recordingErrorToastShownForRef.current = null;
       return;
     }
@@ -97,7 +97,11 @@ export function ToastController({
   // Voice agent error (including wake-word startup failures) → error toast
   useEffect(() => {
     if (!shouldSyncVoice) return;
-    if (voiceAgent.error) {
+    if (
+      voiceAgent.error !== undefined &&
+      voiceAgent.error !== null &&
+      voiceAgent.error.length > 0
+    ) {
       showToast(voiceAgent.error, 'error', 0);
     }
   }, [shouldSyncVoice, showToast, voiceAgent.error]);
@@ -119,10 +123,14 @@ export function ToastController({
   useEffect(() => {
     if (!shouldSyncCore) return;
     if (!overlapCycleToast) return;
-    showToast(tf('transcription.toast.overlapCandidates', {
-      index: overlapCycleToast.index,
-      total: overlapCycleToast.total,
-    }), 'info', 2000);
+    showToast(
+      tf('transcription.toast.overlapCandidates', {
+        index: overlapCycleToast.index,
+        total: overlapCycleToast.total,
+      }),
+      'info',
+      2000,
+    );
   }, [overlapCycleToast, shouldSyncCore, showToast, tf]);
 
   useEffect(() => {
@@ -136,15 +144,22 @@ export function ToastController({
     if (!shouldSyncVoice) return;
     const toastMode = resolveVoiceToastMode(voiceAgent.mode);
 
-    if (toastMode && (voiceAgent.listening || voiceAgent.isRecording || voiceAgent.agentState !== 'idle')) {
-      showVoiceState(
-        toastMode,
-        voiceAgent.agentState === 'listening' || voiceAgent.isRecording,
-      );
+    if (
+      toastMode !== null &&
+      (voiceAgent.listening || voiceAgent.isRecording || voiceAgent.agentState !== 'idle')
+    ) {
+      showVoiceState(toastMode, voiceAgent.agentState === 'listening' || voiceAgent.isRecording);
     } else {
       showVoiceState(null);
     }
-  }, [shouldSyncVoice, voiceAgent.agentState, voiceAgent.isRecording, voiceAgent.listening, voiceAgent.mode, showVoiceState]);
+  }, [
+    shouldSyncVoice,
+    voiceAgent.agentState,
+    voiceAgent.isRecording,
+    voiceAgent.listening,
+    voiceAgent.mode,
+    showVoiceState,
+  ]);
 
   useToastControllerWindowEvents({
     enabled: shouldSyncCore,

@@ -1,4 +1,8 @@
-import type { LayerSegmentViewDocType, LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
+import type {
+  LayerSegmentViewDocType,
+  LayerUnitDocType,
+  MediaItemDocType,
+} from '../types/jieyuDbDocTypes';
 import type { SegmentTargetDescriptor } from '../hooks/useAiToolCallHandler.segmentTargeting';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 
@@ -26,21 +30,26 @@ export function resolveAiSegmentTargetScopeUnits(input: {
     return [];
   }
 
-  const selectedTimelineMediaId = typeof input.selectedTimelineMedia?.id === 'string'
-    ? input.selectedTimelineMedia.id.trim()
-    : '';
+  const selectedTimelineMediaId =
+    typeof input.selectedTimelineMedia?.id === 'string'
+      ? input.selectedTimelineMedia.id.trim()
+      : '';
   if (selectedTimelineMediaId.length > 0) {
-    const onSelectedTimelineMedia = orderedUnits.filter((unit) => unit.mediaId === selectedTimelineMediaId);
+    const onSelectedTimelineMedia = orderedUnits.filter(
+      (unit) => unit.mediaId === selectedTimelineMediaId,
+    );
     if (onSelectedTimelineMedia.length > 0) {
       return onSelectedTimelineMedia;
     }
   }
 
-  const distinctMediaIds = Array.from(new Set(
-    orderedUnits
-      .map((unit) => (typeof unit.mediaId === 'string' ? unit.mediaId.trim() : ''))
-      .filter((mediaId) => mediaId.length > 0),
-  ));
+  const distinctMediaIds = Array.from(
+    new Set(
+      orderedUnits
+        .map((unit) => (typeof unit.mediaId === 'string' ? unit.mediaId.trim() : ''))
+        .filter((mediaId) => mediaId.length > 0),
+    ),
+  );
 
   if (distinctMediaIds.length === 0 || distinctMediaIds.length === 1) {
     return orderedUnits;
@@ -59,9 +68,10 @@ export function buildAiSegmentTargetDescriptors(input: {
   getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
 }): SegmentTargetDescriptor[] {
   const activeLayerId = input.activeLayerIdForEdits?.trim() ?? input.selectedLayerId.trim();
-  const routing = activeLayerId && input.resolveSegmentRoutingForLayer
-    ? input.resolveSegmentRoutingForLayer(activeLayerId)
-    : undefined;
+  const routing =
+    activeLayerId.length > 0 && input.resolveSegmentRoutingForLayer
+      ? input.resolveSegmentRoutingForLayer(activeLayerId)
+      : undefined;
   if (routing && routing.editMode !== 'unit') {
     const scopedSegments = input.segmentsByLayer?.get(routing.sourceLayerId) ?? [];
     if (scopedSegments.length > 0) {
@@ -69,9 +79,10 @@ export function buildAiSegmentTargetDescriptors(input: {
         .filter((value, index, array) => value.length > 0 && array.indexOf(value) === index)
         .map((layerId) => input.segmentContentByLayer?.get(layerId));
       return scopedSegments.map((segment) => {
-        const text = contentCandidates
-          .map((contentMap) => contentMap?.get(segment.id)?.text?.trim() ?? '')
-          .find((value) => value.length > 0) ?? '';
+        const text =
+          contentCandidates
+            .map((contentMap) => contentMap?.get(segment.id)?.text?.trim() ?? '')
+            .find((value) => value.length > 0) ?? '';
         const ownerUnitId = (segment.parentUnitId ?? segment.unitId)?.trim() ?? '';
         return {
           id: segment.id,
@@ -79,7 +90,7 @@ export function buildAiSegmentTargetDescriptors(input: {
           startTime: segment.startTime,
           endTime: segment.endTime,
           text,
-          ...(ownerUnitId ? { unitId: ownerUnitId } : {}),
+          ...(ownerUnitId.length > 0 ? { unitId: ownerUnitId } : {}),
         } satisfies SegmentTargetDescriptor;
       });
     }

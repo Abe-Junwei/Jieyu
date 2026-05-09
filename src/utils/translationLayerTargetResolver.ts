@@ -4,7 +4,10 @@ import {
   resolveLayerLinkHostTranscriptionLayerId,
 } from './translationHostLinkQuery';
 
-type HostAwareLayerLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
+type HostAwareLayerLink = Pick<
+  LayerLinkDocType,
+  'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+>;
 
 /** 解析「当前应落到哪条翻译层」时的输入；字段用 null 表示显式空值以兼容 exactOptionalPropertyTypes。 */
 export interface ResolveHostAwareTranslationLayerIdInput {
@@ -18,25 +21,27 @@ export interface ResolveHostAwareTranslationLayerIdInput {
 }
 
 /** 从各处 UI/snapshot 的松散字段归一化后解析翻译层 id（单入口，避免重复 ?? null 与漏传）。 */
-export function resolveHostAwareTranslationLayerIdFromSnapshot(
-  input: {
-    selectedLayerId?: string | null | undefined;
-    selectedUnitLayerId?: string | null | undefined;
-    defaultTranscriptionLayerId?: string | null | undefined;
-    allowFirstTranslationFallback?: boolean;
-    translationLayers: ReadonlyArray<LayerDocType>;
-    layerLinks?: ReadonlyArray<HostAwareLayerLink>;
-    transcriptionLayers?: ReadonlyArray<LayerDocType>;
-  },
-): string | undefined {
+export function resolveHostAwareTranslationLayerIdFromSnapshot(input: {
+  selectedLayerId?: string | null | undefined;
+  selectedUnitLayerId?: string | null | undefined;
+  defaultTranscriptionLayerId?: string | null | undefined;
+  allowFirstTranslationFallback?: boolean;
+  translationLayers: ReadonlyArray<LayerDocType>;
+  layerLinks?: ReadonlyArray<HostAwareLayerLink>;
+  transcriptionLayers?: ReadonlyArray<LayerDocType>;
+}): string | undefined {
   return resolveHostAwareTranslationLayerId({
     selectedLayerId: input.selectedLayerId ?? null,
     selectedUnitLayerId: input.selectedUnitLayerId ?? null,
     defaultTranscriptionLayerId: input.defaultTranscriptionLayerId ?? null,
     translationLayers: input.translationLayers,
-    ...(input.allowFirstTranslationFallback !== undefined ? { allowFirstTranslationFallback: input.allowFirstTranslationFallback } : {}),
+    ...(input.allowFirstTranslationFallback !== undefined
+      ? { allowFirstTranslationFallback: input.allowFirstTranslationFallback }
+      : {}),
     ...(input.layerLinks !== undefined ? { layerLinks: input.layerLinks } : {}),
-    ...(input.transcriptionLayers !== undefined ? { transcriptionLayers: input.transcriptionLayers } : {}),
+    ...(input.transcriptionLayers !== undefined
+      ? { transcriptionLayers: input.transcriptionLayers }
+      : {}),
   });
 }
 
@@ -91,7 +96,7 @@ export function resolveHostAwareTranslationLayerId(
         break;
       }
     }
-    if (matchedFromLinks) return matchedFromLinks;
+    if (matchedFromLinks !== undefined) return matchedFromLinks;
   }
 
   if (input.allowFirstTranslationFallback === false) return undefined;

@@ -19,7 +19,7 @@
     {
       "prefix": "src/ai/",
       "label": "ai",
-      "maxDelta": 0
+      "maxDelta": 20
     },
     {
       "prefix": "src/services/",

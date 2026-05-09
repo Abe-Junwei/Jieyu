@@ -20,7 +20,7 @@ isProject: false
 # AiChatCard 第二轮拆分计划
 
 ## 本轮目标
-- 继续降低 [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatCard.tsx`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatCard.tsx) 的编排复杂度（当前约 1584 行）。
+- 继续降低 [`src/components/ai/AiChatCard.tsx`](src/components/ai/AiChatCard.tsx) 的编排复杂度（当前约 1584 行）。
 - 保持用户行为不变，优先做“纯渲染搬迁 + 现有回调透传”。
 - 同步补齐拆分后最关键的 hook 单测，避免只靠大集成测试兜底。
 
@@ -32,9 +32,9 @@ isProject: false
 ## Phase 1（低风险降体积）
 - **目标**：先拆纯展示块，快速压缩主组件 JSX。
 - **改动文件**：
-  - 新增 [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatHeaderBar.tsx`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatHeaderBar.tsx)
-  - 新增 [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatProviderConfigPanel.tsx`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatProviderConfigPanel.tsx)
-  - 更新 [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatCard.tsx`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatCard.tsx)
+  - 新增 [`src/components/ai/AiChatHeaderBar.tsx`](src/components/ai/AiChatHeaderBar.tsx)
+  - 新增 [`src/components/ai/AiChatProviderConfigPanel.tsx`](src/components/ai/AiChatProviderConfigPanel.tsx)
+  - 更新 [`src/components/ai/AiChatCard.tsx`](src/components/ai/AiChatCard.tsx)
 - **风险**：低到中（仅搬 JSX + 事件透传）。
 - **验证**：
   - `npm run typecheck`
@@ -43,10 +43,10 @@ isProject: false
 ## Phase 2（核心热点：消息线程）
 - **目标**：把 turn 渲染和 assistant 行为块下沉，处理最大复杂区。
 - **改动文件**：
-  - 新增 [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatMessageThread.tsx`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatMessageThread.tsx)
-  - 新增 [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatAssistantMessage.tsx`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatAssistantMessage.tsx)
-  - 新增 [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/useAiChatAutoScrollController.ts`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/useAiChatAutoScrollController.ts)
-  - 更新 [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatCard.tsx`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatCard.tsx)
+  - 新增 [`src/components/ai/AiChatMessageThread.tsx`](src/components/ai/AiChatMessageThread.tsx)
+  - 新增 [`src/components/ai/AiChatAssistantMessage.tsx`](src/components/ai/AiChatAssistantMessage.tsx)
+  - 新增 [`src/components/ai/useAiChatAutoScrollController.ts`](src/components/ai/useAiChatAutoScrollController.ts)
+  - 更新 [`src/components/ai/AiChatCard.tsx`](src/components/ai/AiChatCard.tsx)
 - **风险**：中到高（消息渲染分支多，易出现细节回归）。
 - **验证**：
   - `npm run typecheck`
@@ -55,9 +55,9 @@ isProject: false
 ## Phase 3（Decision/Replay 面板收口）
 - **目标**：把 decision 面板渲染从 `AiChatCard` 继续下沉，主组件仅保留状态与数据接线。
 - **改动文件**：
-  - 新增 [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatDecisionPanel.tsx`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatDecisionPanel.tsx)
-  - 新增 [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatDecisionListItem.tsx`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatDecisionListItem.tsx)
-  - 更新 [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatCard.tsx`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/AiChatCard.tsx)
+  - 新增 [`src/components/ai/AiChatDecisionPanel.tsx`](src/components/ai/AiChatDecisionPanel.tsx)
+  - 新增 [`src/components/ai/AiChatDecisionListItem.tsx`](src/components/ai/AiChatDecisionListItem.tsx)
+  - 更新 [`src/components/ai/AiChatCard.tsx`](src/components/ai/AiChatCard.tsx)
 - **风险**：中（键盘焦点与 replay 定位状态）。
 - **验证**：
   - `npm run typecheck`
@@ -65,9 +65,9 @@ isProject: false
 
 ## 测试补强（与拆分并行）
 - 新增/补充以下测试：
-  - [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/useAiChatMessageInteractionController.test.ts`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/useAiChatMessageInteractionController.test.ts)
-  - [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/useAiChatReplayController.test.ts`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/useAiChatReplayController.test.ts)
-  - [`/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/useAiChatPanelResizer.test.ts`](/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/components/ai/useAiChatPanelResizer.test.ts)
+  - [`src/components/ai/useAiChatMessageInteractionController.test.ts`](src/components/ai/useAiChatMessageInteractionController.test.ts)
+  - [`src/components/ai/useAiChatReplayController.test.ts`](src/components/ai/useAiChatReplayController.test.ts)
+  - [`src/components/ai/useAiChatPanelResizer.test.ts`](src/components/ai/useAiChatPanelResizer.test.ts)
 - 重点覆盖：timer 清理、失败分支、键盘可达性、拖拽 clamp 与解绑。
 
 ## 阶段收口标准

@@ -2,8 +2,17 @@
 import { useEffect } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { buildAcousticInspectorSlice, buildAcousticPanelBatchBuildResult, buildAcousticPanelDetail, serializeAcousticPanelBatchDetailCsv, serializeAcousticPanelBatchDetailJson } from '../utils/acousticPanelDetail';
-import { DEFAULT_ACOUSTIC_ANALYSIS_CONFIG, type AcousticFeatureResult } from '../utils/acousticOverlayTypes';
+import {
+  buildAcousticInspectorSlice,
+  buildAcousticPanelBatchBuildResult,
+  buildAcousticPanelDetail,
+  serializeAcousticPanelBatchDetailCsv,
+  serializeAcousticPanelBatchDetailJson,
+} from '../utils/acousticPanelDetail';
+import {
+  DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
+  type AcousticFeatureResult,
+} from '../utils/acousticOverlayTypes';
 import { useTranscriptionAiAcousticRuntime } from '../pages/useTranscriptionAiAcousticRuntime';
 
 type AcousticPerfProfile = 'local' | 'ci';
@@ -15,11 +24,14 @@ function resolveAcousticPerfProfile(): AcousticPerfProfile {
 
 const ACOUSTIC_PERF_PROFILE = resolveAcousticPerfProfile();
 
-const ACOUSTIC_PERF_BUDGETS: Record<AcousticPerfProfile, {
-  hoverMs: number;
-  exportCsvMs: number;
-  exportJsonMs: number;
-}> = {
+const ACOUSTIC_PERF_BUDGETS: Record<
+  AcousticPerfProfile,
+  {
+    hoverMs: number;
+    exportCsvMs: number;
+    exportJsonMs: number;
+  }
+> = {
   local: {
     hoverMs: 420,
     exportCsvMs: 800,
@@ -40,7 +52,10 @@ function computeMedian(values: number[]): number {
   return sorted[middle] ?? values[0] ?? 0;
 }
 
-function runMeasured<T>(runs: number, callback: () => T): { value: T; samplesMs: number[]; medianMs: number } {
+function runMeasured<T>(
+  runs: number,
+  callback: () => T,
+): { value: T; samplesMs: number[]; medianMs: number } {
   let value: T | null = null;
   const samplesMs = Array.from({ length: runs }, () => {
     const startedAtMs = performance.now();
@@ -56,22 +71,26 @@ function runMeasured<T>(runs: number, callback: () => T): { value: T; samplesMs:
 
 const { mockAnalyzeMedia, mockResolveProviderState, mockAcousticService } = vi.hoisted(() => ({
   mockAnalyzeMedia: vi.fn<(...args: unknown[]) => Promise<AcousticFeatureResult>>(),
-  mockResolveProviderState: vi.fn<(preferredProviderId?: string | null) => {
-    requestedProviderId: string;
-    effectiveProviderId: string;
-    reachability: { id: string; available: boolean; latencyMs?: number; error?: string };
-    fellBackToLocal: boolean;
-    fallbackReason?: string;
-  }>(),
-  mockAcousticService: {
-    analyzeMedia: vi.fn<(...args: unknown[]) => Promise<AcousticFeatureResult>>(),
-    resolveProviderState: vi.fn<(preferredProviderId?: string | null) => {
+  mockResolveProviderState: vi.fn<
+    (preferredProviderId?: string | null) => {
       requestedProviderId: string;
       effectiveProviderId: string;
       reachability: { id: string; available: boolean; latencyMs?: number; error?: string };
       fellBackToLocal: boolean;
       fallbackReason?: string;
-    }>(),
+    }
+  >(),
+  mockAcousticService: {
+    analyzeMedia: vi.fn<(...args: unknown[]) => Promise<AcousticFeatureResult>>(),
+    resolveProviderState: vi.fn<
+      (preferredProviderId?: string | null) => {
+        requestedProviderId: string;
+        effectiveProviderId: string;
+        reachability: { id: string; available: boolean; latencyMs?: number; error?: string };
+        fellBackToLocal: boolean;
+        fallbackReason?: string;
+      }
+    >(),
   },
 }));
 
@@ -105,12 +124,12 @@ function makeLargeAnalysis(frameCount: number, frameStepSec: number): AcousticFe
       timeSec,
       f0Hz: 110 + ((index * 3) % 220),
       intensityDb: -36 + ((index * 7) % 18),
-      reliability: 0.62 + ((index % 8) * 0.04),
+      reliability: 0.62 + (index % 8) * 0.04,
       spectralCentroidHz: 900 + ((index * 13) % 1800),
       spectralRolloffHz: 1800 + ((index * 17) % 2800),
       formantF1Hz: 450 + ((index * 5) % 380),
       formantF2Hz: 1200 + ((index * 11) % 1400),
-      formantReliability: 0.55 + ((index % 6) * 0.06),
+      formantReliability: 0.55 + (index % 6) * 0.06,
     };
   });
 
@@ -143,11 +162,18 @@ describe('Acoustic performance baseline', () => {
     expect(detail).not.toBeNull();
     if (!detail) return;
 
-    const hoverTimes = Array.from({ length: 3200 }, (_, index) => (index / 3200) * analysis.durationSec);
+    const hoverTimes = Array.from(
+      { length: 3200 },
+      (_, index) => (index / 3200) * analysis.durationSec,
+    );
 
     buildAcousticInspectorSlice(detail, hoverTimes[0]);
 
-    const { value: nullSlices, samplesMs, medianMs } = runMeasured(5, () => {
+    const {
+      value: nullSlices,
+      samplesMs,
+      medianMs,
+    } = runMeasured(5, () => {
       let count = 0;
       for (const timeSec of hoverTimes) {
         const slice = buildAcousticInspectorSlice(detail, timeSec);
@@ -161,7 +187,7 @@ describe('Acoustic performance baseline', () => {
     expect(nullSlices).toBe(0);
     expect(medianMs).toBeLessThan(acousticPerfBudget.hoverMs);
 
-        globalThis['console'].info('[Acoustic Perf Baseline][hover]', {
+    globalThis['console'].info('[Acoustic Perf Baseline][hover]', {
       profile: ACOUSTIC_PERF_PROFILE,
       frameCount: detail.sampleCount,
       hoverCount: hoverTimes.length,
@@ -186,15 +212,23 @@ describe('Acoustic performance baseline', () => {
     const batch = buildAcousticPanelBatchBuildResult(analysis, ranges).details;
     expect(batch.length).toBeGreaterThan(40);
 
-    const { value: csv, samplesMs: csvSamplesMs, medianMs: csvMedianMs } = runMeasured(5, () => serializeAcousticPanelBatchDetailCsv(batch));
-    const { value: json, samplesMs: jsonSamplesMs, medianMs: jsonMedianMs } = runMeasured(5, () => serializeAcousticPanelBatchDetailJson(batch));
+    const {
+      value: csv,
+      samplesMs: csvSamplesMs,
+      medianMs: csvMedianMs,
+    } = runMeasured(5, () => serializeAcousticPanelBatchDetailCsv(batch));
+    const {
+      value: json,
+      samplesMs: jsonSamplesMs,
+      medianMs: jsonMedianMs,
+    } = runMeasured(5, () => serializeAcousticPanelBatchDetailJson(batch));
 
     expect(csv.length).toBeGreaterThan(2000);
     expect(json.length).toBeGreaterThan(2000);
     expect(csvMedianMs).toBeLessThan(acousticPerfBudget.exportCsvMs);
     expect(jsonMedianMs).toBeLessThan(acousticPerfBudget.exportJsonMs);
 
-        globalThis['console'].info('[Acoustic Perf Baseline][export]', {
+    globalThis['console'].info('[Acoustic Perf Baseline][export]', {
       profile: ACOUSTIC_PERF_PROFILE,
       selections: batch.length,
       csvBudgetMs: acousticPerfBudget.exportCsvMs,
@@ -230,7 +264,7 @@ describe('Acoustic performance baseline', () => {
         };
 
         for (let index = 1; index <= 200; index += 1) {
-          if (request.signal?.aborted) break;
+          if (request.signal?.aborted === true) break;
           nowMs += 5;
           progressEventCount += 1;
           request.onProgress?.({
@@ -257,26 +291,29 @@ describe('Acoustic performance baseline', () => {
       const seekToTimeRef = { current: vi.fn() };
       const statusHistory: string[] = [];
 
-      const { result } = renderHook((props: Parameters<typeof useTranscriptionAiAcousticRuntime>[0]) => {
-        const runtime = useTranscriptionAiAcousticRuntime(props);
-        useEffect(() => {
-          if (runtime.acousticRuntimeStatus.state === 'loading') {
-            const processed = runtime.acousticRuntimeStatus.processedFrames ?? 0;
-            statusHistory.push(`loading:${processed}`);
-            return;
-          }
-          statusHistory.push(runtime.acousticRuntimeStatus.state);
-        }, [runtime.acousticRuntimeStatus]);
-        return runtime;
-      }, {
-        initialProps: {
-          selectedMediaUrl: '/media/perf.wav',
-          selectedTimelineMediaId: 'perf-media',
-          selectionStartSec: 0,
-          selectionEndSec: 4,
-          seekToTimeRef,
+      const { result } = renderHook(
+        (props: Parameters<typeof useTranscriptionAiAcousticRuntime>[0]) => {
+          const runtime = useTranscriptionAiAcousticRuntime(props);
+          useEffect(() => {
+            if (runtime.acousticRuntimeStatus.state === 'loading') {
+              const processed = runtime.acousticRuntimeStatus.processedFrames ?? 0;
+              statusHistory.push(`loading:${processed}`);
+              return;
+            }
+            statusHistory.push(runtime.acousticRuntimeStatus.state);
+          }, [runtime.acousticRuntimeStatus]);
+          return runtime;
         },
-      });
+        {
+          initialProps: {
+            selectedMediaUrl: '/media/perf.wav',
+            selectedTimelineMediaId: 'perf-media',
+            selectionStartSec: 0,
+            selectionEndSec: 4,
+            seekToTimeRef,
+          },
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.acousticRuntimeStatus.state).toBe('ready');

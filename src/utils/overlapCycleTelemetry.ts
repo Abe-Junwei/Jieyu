@@ -24,18 +24,22 @@ export function updateOverlapCycleTelemetry(
   prev: OverlapCycleTelemetryState,
   payload: { unitId: string; index: number; total: number },
 ): OverlapCycleTelemetryState {
-  const normalizedTotal = Number.isFinite(payload.total) && payload.total > 0 ? Math.floor(payload.total) : 1;
+  const normalizedTotal =
+    Number.isFinite(payload.total) && payload.total > 0 ? Math.floor(payload.total) : 1;
   const normalizedIndex = Number.isFinite(payload.index)
     ? Math.max(1, Math.min(normalizedTotal, Math.floor(payload.index)))
     : 1;
 
   const isSameSeries =
-    prev.lastUnitId === payload.unitId
-    && prev.lastTotal === normalizedTotal
-    && prev.lastIndex != null;
+    prev.lastUnitId === payload.unitId &&
+    prev.lastTotal === normalizedTotal &&
+    prev.lastIndex != null;
 
   const step = isSameSeries
-    ? ((normalizedIndex - prev.lastIndex! + normalizedTotal) % normalizedTotal) || normalizedTotal
+    ? (() => {
+        const remainder = (normalizedIndex - prev.lastIndex! + normalizedTotal) % normalizedTotal;
+        return remainder === 0 ? normalizedTotal : remainder;
+      })()
     : 1;
 
   const cycleCount = prev.cycleCount + 1;

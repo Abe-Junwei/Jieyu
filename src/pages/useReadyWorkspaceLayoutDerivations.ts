@@ -28,32 +28,37 @@ export function useReadyWorkspaceLayoutDerivations({
   playerInstanceRef,
 }: UseReadyWorkspaceLayoutDerivationsInput) {
   const hiddenByMediaFilterCount = useMemo(() => {
-    if (!selectedTimelineMediaId) return 0;
+    if (selectedTimelineMediaId === undefined || selectedTimelineMediaId.length === 0) return 0;
     return Math.max(0, unitsCount - unitsOnCurrentMedia.length);
   }, [selectedTimelineMediaId, unitsCount, unitsOnCurrentMedia.length]);
 
   const selectedUnitForAiPanelLogic = useMemo(
-    () => unitDocForSpeakerTargetFromUnitView(selectionSnapshotSelectedUnit, getUnitDocById) ?? undefined,
+    () =>
+      unitDocForSpeakerTargetFromUnitView(selectionSnapshotSelectedUnit, getUnitDocById) ??
+      undefined,
     [getUnitDocById, selectionSnapshotSelectedUnit],
   );
 
-  const aiChatForSidebar = useMemo(() => ({
-    ...deferredAiRuntimeForSidebar.aiChat,
-    providerLabel: deferredAiRuntime.aiChat.providerLabel,
-    settings: deferredAiRuntime.aiChat.settings,
-    connectionTestStatus: deferredAiRuntime.aiChat.connectionTestStatus,
-    connectionTestMessage: deferredAiRuntime.aiChat.connectionTestMessage,
-    updateSettings: deferredAiRuntime.aiChat.updateSettings,
-    testConnection: deferredAiRuntime.aiChat.testConnection,
-  }), [
-    deferredAiRuntime.aiChat.connectionTestMessage,
-    deferredAiRuntime.aiChat.connectionTestStatus,
-    deferredAiRuntime.aiChat.providerLabel,
-    deferredAiRuntime.aiChat.settings,
-    deferredAiRuntime.aiChat.testConnection,
-    deferredAiRuntime.aiChat.updateSettings,
-    deferredAiRuntimeForSidebar.aiChat,
-  ]);
+  const aiChatForSidebar = useMemo(
+    () => ({
+      ...deferredAiRuntimeForSidebar.aiChat,
+      providerLabel: deferredAiRuntime.aiChat.providerLabel,
+      settings: deferredAiRuntime.aiChat.settings,
+      connectionTestStatus: deferredAiRuntime.aiChat.connectionTestStatus,
+      connectionTestMessage: deferredAiRuntime.aiChat.connectionTestMessage,
+      updateSettings: deferredAiRuntime.aiChat.updateSettings,
+      testConnection: deferredAiRuntime.aiChat.testConnection,
+    }),
+    [
+      deferredAiRuntime.aiChat.connectionTestMessage,
+      deferredAiRuntime.aiChat.connectionTestStatus,
+      deferredAiRuntime.aiChat.providerLabel,
+      deferredAiRuntime.aiChat.settings,
+      deferredAiRuntime.aiChat.testConnection,
+      deferredAiRuntime.aiChat.updateSettings,
+      deferredAiRuntimeForSidebar.aiChat,
+    ],
+  );
 
   const playerInstanceGetWidth = useCallback(
     () => playerInstanceRef.current?.getWidth?.() ?? 9999,

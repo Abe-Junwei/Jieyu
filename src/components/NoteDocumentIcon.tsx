@@ -15,6 +15,7 @@ export function NoteDocumentIcon({
   style,
   onClick,
 }: NoteDocumentIconProps) {
+  const noteIconStyleProps = style !== undefined ? { style } : {};
   return (
     <svg
       className={className}
@@ -24,11 +25,21 @@ export function NoteDocumentIcon({
       xmlns="http://www.w3.org/2000/svg"
       role="img"
       aria-label={ariaLabel}
-      style={style}
+      {...noteIconStyleProps}
     >
       {title ? <title>{title}</title> : null}
-      <path d="M3 1.5h5.8l3.2 3.2v7.8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.28" strokeLinejoin="round" />
-      <path d="M5.5 6.8h4M5.5 9.4h4" stroke="currentColor" strokeWidth="1.02" strokeLinecap="round" />
+      <path
+        d="M3 1.5h5.8l3.2 3.2v7.8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z"
+        stroke="currentColor"
+        strokeWidth="1.28"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5.5 6.8h4M5.5 9.4h4"
+        stroke="currentColor"
+        strokeWidth="1.02"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

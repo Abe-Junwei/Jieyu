@@ -45,7 +45,9 @@ function normalizeSpeakerId(value: string | undefined): string {
   return trimmed.length > 0 ? trimmed : 'unknown-speaker';
 }
 
-function toReadonlyMap(input?: SpeakerLaneLockMapInput | SpeakerSortKeyMapInput): ReadonlyMap<string, number> {
+function toReadonlyMap(
+  input?: SpeakerLaneLockMapInput | SpeakerSortKeyMapInput,
+): ReadonlyMap<string, number> {
   if (!input) return new Map();
   if (input instanceof Map) return input;
   return new Map(Object.entries(input));
@@ -78,17 +80,20 @@ export function buildStableSpeakerLaneMap(
 ): Record<string, number> {
   const laneLockMap = toReadonlyMap(laneLockMapInput);
   const speakerSortKeyById = toReadonlyMap(speakerSortKeyInput);
-  const normalizedSpeakerIds = Array.from(new Set(
-    Array.from(speakerIds)
-      .map((speakerId) => normalizeSpeakerId(speakerId))
-      .filter((speakerId) => speakerId !== 'unknown-speaker'),
-  )).sort((left, right) => compareSpeakerIds(left, right, laneLockMap, speakerSortKeyById));
+  const normalizedSpeakerIds = Array.from(
+    new Set(
+      Array.from(speakerIds)
+        .map((speakerId) => normalizeSpeakerId(speakerId))
+        .filter((speakerId) => speakerId !== 'unknown-speaker'),
+    ),
+  ).sort((left, right) => compareSpeakerIds(left, right, laneLockMap, speakerSortKeyById));
 
   const preliminary = new Map<string, number>();
   const occupied = new Set<number>();
   for (const speakerId of normalizedSpeakerIds) {
     const preferredLane = laneLockMap.get(speakerId);
-    if (typeof preferredLane !== 'number' || preferredLane < 0 || occupied.has(preferredLane)) continue;
+    if (typeof preferredLane !== 'number' || preferredLane < 0 || occupied.has(preferredLane))
+      continue;
     preliminary.set(speakerId, preferredLane);
     occupied.add(preferredLane);
   }
@@ -102,7 +107,12 @@ export function buildStableSpeakerLaneMap(
   }
 
   const compacted = Array.from(preliminary.entries())
-    .sort((left, right) => left[1] - right[1] || compareSpeakerIds(left[0], right[0], laneLockMap, speakerSortKeyById))
+    .sort((left, right) => {
+      const laneDelta = left[1] - right[1];
+      return laneDelta !== 0
+        ? laneDelta
+        : compareSpeakerIds(left[0], right[0], laneLockMap, speakerSortKeyById);
+    })
     .map(([speakerId], index) => [speakerId, index] as const);
 
   return Object.fromEntries(compacted);
@@ -208,7 +218,9 @@ function assignSubTracksForGroup(
 
   const sorted = [...group.items].sort((a, b) => {
     if (a.startTime !== b.startTime) return a.startTime - b.startTime;
-    const speakerCmp = getSpeakerSortKey(normalizeSpeakerId(a.speakerId)) - getSpeakerSortKey(normalizeSpeakerId(b.speakerId));
+    const speakerCmp =
+      getSpeakerSortKey(normalizeSpeakerId(a.speakerId)) -
+      getSpeakerSortKey(normalizeSpeakerId(b.speakerId));
     if (speakerCmp !== 0) return speakerCmp;
     if (a.endTime !== b.endTime) return a.endTime - b.endTime;
     return a.id.localeCompare(b.id);
@@ -284,17 +296,19 @@ function assignSubTracksForGroup(
 }
 
 function buildMaxConcurrentSpeakerCount(units: LayerUnitDocType[]): number {
-  const events = units.flatMap((utt) => {
-    const speakerId = normalizeSpeakerId(utt.speakerId);
-    return [
-      { time: utt.startTime, type: 'start' as const, speakerId },
-      { time: utt.endTime, type: 'end' as const, speakerId },
-    ];
-  }).sort((a, b) => {
-    if (a.time !== b.time) return a.time - b.time;
-    if (a.type !== b.type) return a.type === 'end' ? -1 : 1;
-    return a.speakerId.localeCompare(b.speakerId);
-  });
+  const events = units
+    .flatMap((utt) => {
+      const speakerId = normalizeSpeakerId(utt.speakerId);
+      return [
+        { time: utt.startTime, type: 'start' as const, speakerId },
+        { time: utt.endTime, type: 'end' as const, speakerId },
+      ];
+    })
+    .sort((a, b) => {
+      if (a.time !== b.time) return a.time - b.time;
+      if (a.type !== b.type) return a.type === 'end' ? -1 : 1;
+      return a.speakerId.localeCompare(b.speakerId);
+    });
 
   const activeBySpeaker = new Map<string, number>();
   let maxConcurrentSpeakerCount = 1;
@@ -320,7 +334,10 @@ function buildGroupedSpeakerLayerLayout(
   const groups = buildOverlapGroups(units);
   const placements = new Map<string, SpeakerLayerPlacement>();
   const overlapGroups: SpeakerOverlapGroupSummary[] = [];
-  const overlapCycleItemsByGroupId = new Map<string, Map<string, Array<{ id: string; startTime: number }>>>();
+  const overlapCycleItemsByGroupId = new Map<
+    string,
+    Map<string, Array<{ id: string; startTime: number }>>
+  >();
   let maxTrack = 1;
   const lockConflictSpeakerIds = new Set<string>();
 
@@ -340,7 +357,8 @@ function buildGroupedSpeakerLayerLayout(
 
     const startTime = Math.min(...group.items.map((item) => item.startTime));
     const endTime = Math.max(...group.items.map((item) => item.endTime));
-    const speakerCount = new Set(group.items.map((item) => normalizeSpeakerId(item.speakerId))).size;
+    const speakerCount = new Set(group.items.map((item) => normalizeSpeakerId(item.speakerId)))
+      .size;
     overlapGroups.push({
       id: group.id,
       startTime,
@@ -353,7 +371,10 @@ function buildGroupedSpeakerLayerLayout(
     overlapCycleItemsByGroupId.set(group.id, buildOverlapCycleItemsByUnitIdFromSorted(group.items));
   }
 
-  overlapCycleItemsByGroupId.set('__all__', buildOverlapCycleItemsByUnitIdFromSorted(groups.flatMap((group) => group.items)));
+  overlapCycleItemsByGroupId.set(
+    '__all__',
+    buildOverlapCycleItemsByUnitIdFromSorted(groups.flatMap((group) => group.items)),
+  );
 
   return {
     placements,
@@ -379,11 +400,15 @@ function buildSpeakerFixedLayout(
     }
   }
 
-  const speakerLaneMap = new Map(Object.entries(buildStableSpeakerLaneMap(
-    units.map((unit) => unit.speakerId ?? ''),
-    laneLockMap,
-    speakerSortKeyById,
-  )));
+  const speakerLaneMap = new Map(
+    Object.entries(
+      buildStableSpeakerLaneMap(
+        units.map((unit) => unit.speakerId ?? ''),
+        laneLockMap,
+        speakerSortKeyById,
+      ),
+    ),
+  );
   const placements = new Map<string, SpeakerLayerPlacement>();
   const conflictSpeakerIds = new Set<string>();
   const namedSpeakerLastEnd = new Map<string, number>();
@@ -421,7 +446,11 @@ function buildSpeakerFixedLayout(
       ...unit,
       speakerId: `__unknown__:${unit.id}`,
     }));
-    const unknownLayout = buildGroupedSpeakerLayerLayout(syntheticUnknownUnits, new Map(), new Map());
+    const unknownLayout = buildGroupedSpeakerLayerLayout(
+      syntheticUnknownUnits,
+      new Map(),
+      new Map(),
+    );
     unknownLaneCount = unknownLayout.subTrackCount;
     for (const unit of unknownUnits) {
       const placement = unknownLayout.placements.get(unit.id);
@@ -438,7 +467,8 @@ function buildSpeakerFixedLayout(
       1,
       ...group.items.map((item) => (placements.get(item.id)?.subTrackIndex ?? 0) + 1),
     );
-    const speakerCount = new Set(group.items.map((item) => normalizeSpeakerId(item.speakerId))).size;
+    const speakerCount = new Set(group.items.map((item) => normalizeSpeakerId(item.speakerId)))
+      .size;
     const startTime = Math.min(...group.items.map((item) => item.startTime));
     const endTime = Math.max(...group.items.map((item) => item.endTime));
     return {
@@ -451,11 +481,17 @@ function buildSpeakerFixedLayout(
     };
   });
 
-  const overlapCycleItemsByGroupId = new Map<string, Map<string, Array<{ id: string; startTime: number }>>>();
+  const overlapCycleItemsByGroupId = new Map<
+    string,
+    Map<string, Array<{ id: string; startTime: number }>>
+  >();
   for (const group of groups) {
     overlapCycleItemsByGroupId.set(group.id, buildOverlapCycleItemsByUnitIdFromSorted(group.items));
   }
-  overlapCycleItemsByGroupId.set('__all__', buildOverlapCycleItemsByUnitIdFromSorted(groups.flatMap((group) => group.items)));
+  overlapCycleItemsByGroupId.set(
+    '__all__',
+    buildOverlapCycleItemsByUnitIdFromSorted(groups.flatMap((group) => group.items)),
+  );
 
   return {
     placements,

@@ -41,9 +41,16 @@ export interface ExtensionRegistry {
   getHostVersion: () => string;
   list: () => ExtensionListItem[];
   getCapabilityAuditTail: (max?: number) => ExtensionCapabilityInvocationRecord[];
-  registerOfficial: (manifest: ExtensionManifestV1, hooks: ExtensionHooks) => Promise<ExtensionLoadResult>;
+  registerOfficial: (
+    manifest: ExtensionManifestV1,
+    hooks: ExtensionHooks,
+  ) => Promise<ExtensionLoadResult>;
   unregister: (id: string) => Promise<void>;
-  invokeCapability: (extensionId: string, capability: ExtensionCapability, payload: unknown) => Promise<unknown>;
+  invokeCapability: (
+    extensionId: string,
+    capability: ExtensionCapability,
+    payload: unknown,
+  ) => Promise<unknown>;
   exportSnapshots: () => ExtensionRegistrySnapshot[];
   importSnapshots: (snapshots: ExtensionRegistrySnapshot[]) => void;
 }
@@ -74,13 +81,18 @@ export function createExtensionRegistry(input: {
     }
   };
 
-  const buildHost = (): ExtensionHost => createExtensionHost({
-    hostVersion: input.hostVersion,
-    capabilityHandlers: input.capabilityHandlers,
-    ...(input.activationTimeoutMs !== undefined ? { activationTimeoutMs: input.activationTimeoutMs } : {}),
-    ...(input.capabilityInvocationTimeoutMs !== undefined ? { capabilityInvocationTimeoutMs: input.capabilityInvocationTimeoutMs } : {}),
-    onCapabilityAudit: pushAudit,
-  });
+  const buildHost = (): ExtensionHost =>
+    createExtensionHost({
+      hostVersion: input.hostVersion,
+      capabilityHandlers: input.capabilityHandlers,
+      ...(input.activationTimeoutMs !== undefined
+        ? { activationTimeoutMs: input.activationTimeoutMs }
+        : {}),
+      ...(input.capabilityInvocationTimeoutMs !== undefined
+        ? { capabilityInvocationTimeoutMs: input.capabilityInvocationTimeoutMs }
+        : {}),
+      onCapabilityAudit: pushAudit,
+    });
 
   return {
     getHostVersion: () => input.hostVersion,
@@ -116,10 +128,15 @@ export function createExtensionRegistry(input: {
       return auditLog.slice(-max);
     },
 
-    registerOfficial: async (manifest: ExtensionManifestV1, hooks: ExtensionHooks): Promise<ExtensionLoadResult> => {
+    registerOfficial: async (
+      manifest: ExtensionManifestV1,
+      hooks: ExtensionHooks,
+    ): Promise<ExtensionLoadResult> => {
       const validated = validateExtensionManifest(manifest);
       if (!validated.ok || !validated.manifest) {
-        const fallbackId = manifest.id?.trim() || '__invalid_manifest__';
+        const manifestId = manifest.id?.trim();
+        const fallbackId =
+          manifestId !== undefined && manifestId.length > 0 ? manifestId : '__invalid_manifest__';
         snapshots.set(fallbackId, {
           manifest,
           source: 'official',
@@ -159,7 +176,11 @@ export function createExtensionRegistry(input: {
       snapshots.delete(id);
     },
 
-    invokeCapability: async (extensionId: string, capability: ExtensionCapability, payload: unknown) => {
+    invokeCapability: async (
+      extensionId: string,
+      capability: ExtensionCapability,
+      payload: unknown,
+    ) => {
       const h = hosts.get(extensionId);
       if (!h) {
         throw new Error(`Unknown extension: ${extensionId}`);

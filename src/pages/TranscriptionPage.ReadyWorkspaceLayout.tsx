@@ -6,8 +6,18 @@
 
 import { Suspense, lazy } from 'react';
 import type { CSSProperties, ContextType, ReactNode, RefObject } from 'react';
-import { TimelineRailSection, TimelineScrollSection } from '../components/transcription/TranscriptionTimelineSections';
-import { BottomToolbarSection, ObserverStatusSection, TimelineMainSection, ToolbarLeftSection, ToolbarRightSection, ZoomControlsSection } from '../components/transcription/TranscriptionLayoutSections';
+import {
+  TimelineRailSection,
+  TimelineScrollSection,
+} from '../components/transcription/TranscriptionTimelineSections';
+import {
+  BottomToolbarSection,
+  ObserverStatusSection,
+  TimelineMainSection,
+  ToolbarLeftSection,
+  ToolbarRightSection,
+  ZoomControlsSection,
+} from '../components/transcription/TranscriptionLayoutSections';
 import { TimelineStyledSection } from '../components/transcription/TimelineStyledContainer';
 import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectHub';
 import { CollaborationConflictReviewDrawer } from '../components/transcription/CollaborationConflictReviewDrawer';
@@ -17,7 +27,20 @@ import { t, tf, type Locale } from '../i18n';
 import { LayerActionPopover } from '../components/LayerActionPopover';
 import { ToastController } from './TranscriptionPage.ToastController';
 import { TranscriptionPageAiPanelHandle } from './TranscriptionPage.AiPanelHandle';
-import { RecoveryBanner, TranscriptionOverlays, TranscriptionPageAiSidebar, TranscriptionPageAssistantBridge, TranscriptionPageBatchOps, TranscriptionPageChatWindow, TranscriptionPageDialogs, TranscriptionPagePdfRuntime, TranscriptionPageSidePane, TranscriptionPageTimelineContent, TranscriptionPageTimelineTop, TranscriptionPageToolbar } from './TranscriptionPage.ReadyWorkspace.runtime';
+import {
+  RecoveryBanner,
+  TranscriptionOverlays,
+  TranscriptionPageAiSidebar,
+  TranscriptionPageAssistantBridge,
+  TranscriptionPageBatchOps,
+  TranscriptionPageChatWindow,
+  TranscriptionPageDialogs,
+  TranscriptionPagePdfRuntime,
+  TranscriptionPageSidePane,
+  TranscriptionPageTimelineContent,
+  TranscriptionPageTimelineTop,
+  TranscriptionPageToolbar,
+} from './TranscriptionPage.ReadyWorkspace.runtime';
 
 const OrchestratorWaveformContent = lazy(async () => {
   const mod = await import('./OrchestratorWaveformContent');
@@ -49,7 +72,9 @@ interface BatchOpsSectionProps {
 
 interface AssistantBridgeSectionProps {
   controllerInput: React.ComponentProps<typeof TranscriptionPageAssistantBridge>['controllerInput'];
-  onRuntimeStateChange: React.ComponentProps<typeof TranscriptionPageAssistantBridge>['onRuntimeStateChange'];
+  onRuntimeStateChange: React.ComponentProps<
+    typeof TranscriptionPageAssistantBridge
+  >['onRuntimeStateChange'];
 }
 
 interface MediaInputProps {
@@ -96,7 +121,9 @@ interface ReadyStageProps {
   collaborationCloudStatusSlot?: ReactNode;
   toolbarProps: React.ComponentProps<typeof TranscriptionPageToolbar>;
   observerProps: React.ComponentProps<typeof ObserverStatusSection>;
-  acousticRuntimeStatus: React.ComponentProps<typeof TranscriptionPageToolbar>['acousticRuntimeStatus'];
+  acousticRuntimeStatus: React.ComponentProps<
+    typeof TranscriptionPageToolbar
+  >['acousticRuntimeStatus'];
   vadCacheStatus: React.ComponentProps<typeof TranscriptionPageToolbar>['vadCacheStatus'];
   projectHubProps: React.ComponentProps<typeof LeftRailProjectHub>;
   mediaInputProps: MediaInputProps;
@@ -161,151 +188,169 @@ function ReadyStageContent({
 
   return (
     <>
-        <ToastController {...toastProps} />
-        {recoveryBannerProps.shouldRender ? (
+      <ToastController {...toastProps} />
+      {recoveryBannerProps.shouldRender ? (
+        <Suspense fallback={null}>
+          <RecoveryBanner
+            locale={locale}
+            recoveryAvailable={recoveryBannerProps.recoveryAvailable}
+            recoveryDiffSummary={recoveryBannerProps.recoveryDiffSummary}
+            onApply={recoveryBannerProps.onApply}
+            onDismiss={recoveryBannerProps.onDismiss}
+          />
+        </Suspense>
+      ) : null}
+
+      {collaborationCloudStatusSlot}
+
+      <section className="transcription-waveform" ref={waveformSectionRef}>
+        <Suspense fallback={null}>
+          <TranscriptionPageToolbar
+            {...toolbarProps}
+            leftToolbarExtras={
+              <>
+                <ObserverStatusSection {...observerProps} />
+                {toolbarProps.leftToolbarExtras != null ? (
+                  <>
+                    <span
+                      className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep"
+                      aria-hidden="true"
+                    />
+                    {toolbarProps.leftToolbarExtras}
+                  </>
+                ) : null}
+              </>
+            }
+            {...(acousticRuntimeStatus ? { acousticRuntimeStatus } : {})}
+            {...(vadCacheStatus ? { vadCacheStatus } : {})}
+          />
+        </Suspense>
+      </section>
+
+      <LeftRailProjectHub {...projectHubProps} />
+
+      <input
+        ref={mediaInputProps.ref}
+        type="file"
+        className="transcription-media-file-input"
+        accept=".mp3,.wav,.ogg,.webm,.m4a,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv"
+        aria-label={t(locale, 'transcription.importDialog.selectMedia')}
+        onChange={mediaInputProps.onChange}
+      />
+
+      <section
+        ref={workspaceRef}
+        className={`transcription-workspace ${isAiPanelCollapsed ? 'transcription-workspace-ai-collapsed' : ''}`}
+      >
+        <section
+          className={`transcription-list-panel ${isTimelineLaneHeaderCollapsed ? 'transcription-list-panel-lane-header-collapsed' : ''}`}
+        >
+          <Suspense
+            fallback={
+              <div className="transcription-waveform-area-suspense-fallback" aria-hidden="true" />
+            }
+          >
+            <OrchestratorWaveformContent {...readyWorkspaceWaveformContentProps} />
+          </Suspense>
+          <Suspense
+            fallback={
+              <div className="transcription-timeline-top-suspense-fallback" aria-hidden="true" />
+            }
+          >
+            <TranscriptionPageTimelineTop {...timelineTopProps} />
+          </Suspense>
+          <TimelineMainSection
+            containerRef={listMainRef}
+            className={`transcription-list-main ${isTimelineLaneHeaderCollapsed ? 'transcription-list-main-lane-header-collapsed' : ''}`}
+          >
+            <TimelineRailSection>
+              <Suspense
+                fallback={
+                  <div
+                    className="transcription-side-pane transcription-side-pane-placeholder"
+                    aria-hidden="true"
+                  />
+                }
+              >
+                <TranscriptionPageSidePane {...readyWorkspaceSidePaneProps} />
+              </Suspense>
+            </TimelineRailSection>
+
+            <TimelineScrollSection
+              containerRef={tierContainerRef}
+              onPointerDownCapture={lassoHandlers.onPointerDownCapture}
+              onPointerMove={lassoHandlers.onPointerMove}
+              onPointerUp={lassoHandlers.onPointerUp}
+              onScroll={lassoHandlers.onScroll}
+            >
+              <TranscriptionEditorContext.Provider value={editorContextValue}>
+                <Suspense
+                  fallback={
+                    <div className="timeline-scroll-suspense-fallback" aria-hidden="true">
+                      <div className="timeline-scroll-suspense-fallback-row" />
+                      <div className="timeline-scroll-suspense-fallback-row" />
+                      <div className="timeline-scroll-suspense-fallback-row" />
+                    </div>
+                  }
+                >
+                  <TranscriptionPageTimelineContent {...timelineContentProps} />
+                </Suspense>
+              </TranscriptionEditorContext.Provider>
+            </TimelineScrollSection>
+          </TimelineMainSection>
+
+          {timelineResizeTooltip ? (
+            <div
+              className="timeline-resize-tooltip"
+              style={{ left: timelineResizeTooltip.x, top: timelineResizeTooltip.y - 16 }}
+            >
+              {formatTime(timelineResizeTooltip.start)} - {formatTime(timelineResizeTooltip.end)}
+            </div>
+          ) : null}
+
+          <BottomToolbarSection>
+            <ToolbarLeftSection>
+              <ZoomControlsSection {...zoomControlsProps} />
+            </ToolbarLeftSection>
+            <ToolbarRightSection {...historyControlsProps} />
+          </BottomToolbarSection>
+        </section>
+
+        <TranscriptionPageAiPanelHandle {...aiPanelHandleProps} />
+
+        <Suspense fallback={null}>
+          <TranscriptionPageAssistantBridge
+            controllerInput={assistantBridge.controllerInput}
+            onRuntimeStateChange={assistantBridge.onRuntimeStateChange}
+          />
+        </Suspense>
+
+        <AiPanelContext.Provider value={aiPanelContextValue}>
           <Suspense fallback={null}>
-            <RecoveryBanner
-              locale={locale}
-              recoveryAvailable={recoveryBannerProps.recoveryAvailable}
-              recoveryDiffSummary={recoveryBannerProps.recoveryDiffSummary}
-              onApply={recoveryBannerProps.onApply}
-              onDismiss={recoveryBannerProps.onDismiss}
+            <TranscriptionPageAiSidebar
+              {...aiSidebarProps}
+              shouldRenderRuntime={shouldRenderAiSidebar}
             />
+          </Suspense>
+        </AiPanelContext.Provider>
+        <Suspense fallback={null}>
+          <TranscriptionPageChatWindow
+            locale={locale}
+            assistantRuntimeProps={aiSidebarProps.assistantRuntimeProps}
+          />
+        </Suspense>
+
+        {shouldRenderDialogs ? (
+          <Suspense fallback={null}>
+            <TranscriptionPageDialogs {...dialogsProps} />
           </Suspense>
         ) : null}
-
-        {collaborationCloudStatusSlot}
-
-        <section className="transcription-waveform" ref={waveformSectionRef}>
+        {shouldRenderPdfRuntime ? (
           <Suspense fallback={null}>
-            <TranscriptionPageToolbar
-              {...toolbarProps}
-              leftToolbarExtras={(
-                <>
-                  <ObserverStatusSection {...observerProps} />
-                  {toolbarProps.leftToolbarExtras ? (
-                    <>
-                      <span className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep" aria-hidden="true" />
-                      {toolbarProps.leftToolbarExtras}
-                    </>
-                  ) : null}
-                </>
-              )}
-              {...(acousticRuntimeStatus ? { acousticRuntimeStatus } : {})}
-              {...(vadCacheStatus ? { vadCacheStatus } : {})}
-            />
+            <TranscriptionPagePdfRuntime {...pdfRuntimeProps} />
           </Suspense>
-        </section>
-
-        <LeftRailProjectHub {...projectHubProps} />
-
-        <input
-          ref={mediaInputProps.ref}
-          type="file"
-          className="transcription-media-file-input"
-          accept=".mp3,.wav,.ogg,.webm,.m4a,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv"
-          aria-label={t(locale, 'transcription.importDialog.selectMedia')}
-          onChange={mediaInputProps.onChange}
-        />
-
-        <section
-          ref={workspaceRef}
-          className={`transcription-workspace ${isAiPanelCollapsed ? 'transcription-workspace-ai-collapsed' : ''}`}
-        >
-          <section
-            className={`transcription-list-panel ${isTimelineLaneHeaderCollapsed ? 'transcription-list-panel-lane-header-collapsed' : ''}`}
-          >
-            <Suspense fallback={<div className="transcription-waveform-area-suspense-fallback" aria-hidden="true" />}>
-              <OrchestratorWaveformContent {...readyWorkspaceWaveformContentProps} />
-            </Suspense>
-            <Suspense fallback={<div className="transcription-timeline-top-suspense-fallback" aria-hidden="true" />}>
-              <TranscriptionPageTimelineTop {...timelineTopProps} />
-            </Suspense>
-            <TimelineMainSection
-              containerRef={listMainRef}
-              className={`transcription-list-main ${isTimelineLaneHeaderCollapsed ? 'transcription-list-main-lane-header-collapsed' : ''}`}
-            >
-              <TimelineRailSection>
-                <Suspense fallback={<div className="transcription-side-pane transcription-side-pane-placeholder" aria-hidden="true" />}>
-                  <TranscriptionPageSidePane {...readyWorkspaceSidePaneProps} />
-                </Suspense>
-              </TimelineRailSection>
-
-              <TimelineScrollSection
-                containerRef={tierContainerRef}
-                onPointerDownCapture={lassoHandlers.onPointerDownCapture}
-                onPointerMove={lassoHandlers.onPointerMove}
-                onPointerUp={lassoHandlers.onPointerUp}
-                onScroll={lassoHandlers.onScroll}
-              >
-                <TranscriptionEditorContext.Provider value={editorContextValue}>
-                  <Suspense
-                    fallback={(
-                      <div className="timeline-scroll-suspense-fallback" aria-hidden="true">
-                        <div className="timeline-scroll-suspense-fallback-row" />
-                        <div className="timeline-scroll-suspense-fallback-row" />
-                        <div className="timeline-scroll-suspense-fallback-row" />
-                      </div>
-                    )}
-                  >
-                    <TranscriptionPageTimelineContent {...timelineContentProps} />
-                  </Suspense>
-                </TranscriptionEditorContext.Provider>
-              </TimelineScrollSection>
-            </TimelineMainSection>
-
-            {timelineResizeTooltip ? (
-              <div
-                className="timeline-resize-tooltip"
-                style={{ left: timelineResizeTooltip.x, top: timelineResizeTooltip.y - 16 }}
-              >
-                {formatTime(timelineResizeTooltip.start)} - {formatTime(timelineResizeTooltip.end)}
-              </div>
-            ) : null}
-
-            <BottomToolbarSection>
-              <ToolbarLeftSection>
-                <ZoomControlsSection {...zoomControlsProps} />
-              </ToolbarLeftSection>
-              <ToolbarRightSection {...historyControlsProps} />
-            </BottomToolbarSection>
-          </section>
-
-          <TranscriptionPageAiPanelHandle {...aiPanelHandleProps} />
-
-          <Suspense fallback={null}>
-            <TranscriptionPageAssistantBridge
-              controllerInput={assistantBridge.controllerInput}
-              onRuntimeStateChange={assistantBridge.onRuntimeStateChange}
-            />
-          </Suspense>
-
-          <AiPanelContext.Provider value={aiPanelContextValue}>
-            <Suspense fallback={null}>
-              <TranscriptionPageAiSidebar
-                {...aiSidebarProps}
-                shouldRenderRuntime={shouldRenderAiSidebar}
-              />
-            </Suspense>
-          </AiPanelContext.Provider>
-          <Suspense fallback={null}>
-            <TranscriptionPageChatWindow
-              locale={locale}
-              assistantRuntimeProps={aiSidebarProps.assistantRuntimeProps}
-            />
-          </Suspense>
-
-          {shouldRenderDialogs ? (
-            <Suspense fallback={null}>
-              <TranscriptionPageDialogs {...dialogsProps} />
-            </Suspense>
-          ) : null}
-          {shouldRenderPdfRuntime ? (
-            <Suspense fallback={null}>
-              <TranscriptionPagePdfRuntime {...pdfRuntimeProps} />
-            </Suspense>
-          ) : null}
-        </section>
+        ) : null}
+      </section>
 
       {batchOpsSection.shouldRender ? (
         <Suspense fallback={null}>
@@ -336,10 +381,18 @@ export function TranscriptionPageReadyWorkspaceLayout({
       dir={dir}
       layoutStyle={layoutStyle}
     >
-      {phase === 'loading' ? <p className="hint">{t(locale, 'transcription.status.loading')}</p> : null}
-      {phase === 'error' ? <p className="error">{tf(locale, 'transcription.status.dbError', { message: errorMessage ?? '' })}</p> : null}
+      {phase === 'loading' ? (
+        <p className="hint">{t(locale, 'transcription.status.loading')}</p>
+      ) : null}
+      {phase === 'error' ? (
+        <p className="error">
+          {tf(locale, 'transcription.status.dbError', { message: errorMessage ?? '' })}
+        </p>
+      ) : null}
       {phase === 'ready' ? <ReadyStageContent locale={locale} {...readyStageProps} /> : null}
-      {phase === 'ready' && conflictReviewDrawerProps ? <CollaborationConflictReviewDrawer {...conflictReviewDrawerProps} /> : null}
+      {phase === 'ready' && conflictReviewDrawerProps ? (
+        <CollaborationConflictReviewDrawer {...conflictReviewDrawerProps} />
+      ) : null}
 
       <Suspense fallback={null}>
         <TranscriptionOverlays {...overlaysProps} />

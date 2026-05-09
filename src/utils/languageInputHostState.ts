@@ -1,6 +1,9 @@
 import type { LanguageSearchLocale } from './langMapping';
 import { isDeferredLanguageCodeDraft } from './langMapping';
-import { resolveLanguageDisplayNameWithFallback, type ResolveLanguageDisplayName } from './languageDisplayNameResolver';
+import {
+  resolveLanguageDisplayNameWithFallback,
+  type ResolveLanguageDisplayName,
+} from './languageDisplayNameResolver';
 import type { LanguageIsoInputValue } from './languageInputTypes';
 
 type LanguageOptionLike = {
@@ -12,12 +15,16 @@ export function normalizeLanguageInputCode(value: LanguageIsoInputValue): string
 }
 
 export function normalizeLanguageInputAssetId(value: LanguageIsoInputValue): string {
-  return value.languageAssetId?.trim().toLowerCase() || normalizeLanguageInputCode(value);
+  const normalizedAssetId = value.languageAssetId?.trim().toLowerCase();
+  return normalizedAssetId !== undefined && normalizedAssetId.length > 0
+    ? normalizedAssetId
+    : normalizeLanguageInputCode(value);
 }
 
 export function getDisplayedLanguageInputLabel(value: LanguageIsoInputValue): string {
   const normalizedCode = normalizeLanguageInputCode(value);
-  return value.languageName.trim() || normalizedCode.toUpperCase();
+  const normalizedName = value.languageName.trim();
+  return normalizedName.length > 0 ? normalizedName : normalizedCode.toUpperCase();
 }
 
 export function buildLanguageInputSeed(
@@ -27,12 +34,18 @@ export function buildLanguageInputSeed(
   resolveLanguageCode?: (languageId: string | undefined) => string,
 ): LanguageIsoInputValue {
   const normalizedAssetId = languageId?.trim().toLowerCase() ?? '';
-  if (!normalizedAssetId) {
+  if (normalizedAssetId.length === 0) {
     return { languageName: '', languageCode: '' };
   }
-  const normalizedCode = resolveLanguageCode?.(normalizedAssetId)?.trim().toLowerCase() || normalizedAssetId;
+  const resolvedCode = resolveLanguageCode?.(normalizedAssetId)?.trim().toLowerCase();
+  const normalizedCode =
+    resolvedCode !== undefined && resolvedCode.length > 0 ? resolvedCode : normalizedAssetId;
   return {
-    languageName: resolveLanguageDisplayNameWithFallback(normalizedAssetId, locale, resolveLanguageDisplayName),
+    languageName: resolveLanguageDisplayNameWithFallback(
+      normalizedAssetId,
+      locale,
+      resolveLanguageDisplayName,
+    ),
     languageCode: normalizedCode,
     languageAssetId: normalizedAssetId,
   };
@@ -46,15 +59,22 @@ export function syncLanguageInputWithExternalCode(
   resolveLanguageCode?: (languageId: string | undefined) => string,
 ): LanguageIsoInputValue {
   const normalizedAssetId = resolvedLanguageCode.trim().toLowerCase();
-  const normalizedCode = resolveLanguageCode?.(normalizedAssetId)?.trim().toLowerCase() || normalizedAssetId;
+  const resolvedCode = resolveLanguageCode?.(normalizedAssetId)?.trim().toLowerCase();
+  const normalizedCode =
+    resolvedCode !== undefined && resolvedCode.length > 0 ? resolvedCode : normalizedAssetId;
   return {
-    languageName: normalizedAssetId
-      ? (isDeferredLanguageCodeDraft(normalizedCode)
-        ? previousValue.languageName
-        : resolveLanguageDisplayNameWithFallback(normalizedAssetId, locale, resolveLanguageDisplayName))
-      : '',
+    languageName:
+      normalizedAssetId.length > 0
+        ? isDeferredLanguageCodeDraft(normalizedCode)
+          ? previousValue.languageName
+          : resolveLanguageDisplayNameWithFallback(
+              normalizedAssetId,
+              locale,
+              resolveLanguageDisplayName,
+            )
+        : '',
     languageCode: normalizedCode,
-    ...(normalizedAssetId ? { languageAssetId: normalizedAssetId } : {}),
+    ...(normalizedAssetId.length > 0 ? { languageAssetId: normalizedAssetId } : {}),
   };
 }
 
@@ -63,7 +83,7 @@ export function resolveLanguageHostSelection(
   languageOptions: readonly LanguageOptionLike[],
 ): { languageId: string; customLanguageId: string } {
   const normalizedCode = languageCode.trim().toLowerCase();
-  if (!normalizedCode) {
+  if (normalizedCode.length === 0) {
     return { languageId: '', customLanguageId: '' };
   }
   if (normalizedCode.startsWith('user:')) {

@@ -3,7 +3,12 @@
  * unitId → unitId, then drop units store (Dexie v37).
  */
 import type { Transaction } from 'dexie';
-import type { LayerUnitDocType, TierDefinitionDocType, UnitMorphemeDocType, UnitTokenDocType } from '../types';
+import type {
+  LayerUnitDocType,
+  TierDefinitionDocType,
+  UnitMorphemeDocType,
+  UnitTokenDocType,
+} from '../types';
 import { mapUnitToLayerUnit } from './timelineUnitMapping';
 
 function pickDefaultTranscriptionTierId(
@@ -22,7 +27,8 @@ function pickDefaultTranscriptionTierId(
 
 /** Host id for a token/morpheme row: canonical `unitId`, or legacy `segmentId` before M18. */
 function linguisticSubgraphHostIdFromRow(row: Record<string, unknown>): string | undefined {
-  const pick = (v: unknown) => (typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined);
+  const pick = (v: unknown) =>
+    typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined;
   return pick(row.unitId) ?? pick(row.segmentId);
 }
 
@@ -37,11 +43,11 @@ export function collectM18SubgraphReferencedUnitIds(
   const refs = new Set<string>();
   for (const raw of tokenRows) {
     const id = linguisticSubgraphHostIdFromRow(raw as Record<string, unknown>);
-    if (id) refs.add(id);
+    if (id !== undefined && id.length > 0) refs.add(id);
   }
   for (const raw of morphRows) {
     const id = linguisticSubgraphHostIdFromRow(raw as Record<string, unknown>);
-    if (id) refs.add(id);
+    if (id !== undefined && id.length > 0) refs.add(id);
   }
   return refs;
 }
@@ -63,10 +69,10 @@ export function assertM18SubgraphHostsResolveToUnitLayerUnits(input: {
   for (const id of input.subgraphReferencedUnitIds) {
     if (!allowed.has(id)) {
       throw new Error(
-        `M18 migration: unit_tokens / unit_morphemes reference host unit "${id}", `
-        + 'but no unit-type layer_units row exists for it after merging legacy units '
-        + '(missing default transcription tier for that text, or stale token/morpheme rows). '
-        + 'Fix tiers or remove orphan linguistic rows, then retry the upgrade.',
+        `M18 migration: unit_tokens / unit_morphemes reference host unit "${id}", ` +
+          'but no unit-type layer_units row exists for it after merging legacy units ' +
+          '(missing default transcription tier for that text, or stale token/morpheme rows). ' +
+          'Fix tiers or remove orphan linguistic rows, then retry the upgrade.',
       );
     }
   }
@@ -94,7 +100,7 @@ export async function upgradeM18LinguisticUnitCutover(tx: Transaction): Promise<
   const migratedUnitIdsFromLegacyTable = new Set<string>();
   for (const u of units) {
     const layerId = pickDefaultTranscriptionTierId(tiers, u.textId);
-    if (!layerId) continue;
+    if (layerId === undefined || layerId.length === 0) continue;
     const { unit, content } = mapUnitToLayerUnit(u, layerId);
     await layerUnitsTable.put(unit);
     await layerContentsTable.put(content);
@@ -110,7 +116,7 @@ export async function upgradeM18LinguisticUnitCutover(tx: Transaction): Promise<
   for (const raw of tokenRows) {
     const row = raw as Record<string, unknown>;
     const legacyId = linguisticSubgraphHostIdFromRow(row);
-    if (!legacyId) continue;
+    if (legacyId === undefined || legacyId.length === 0) continue;
     const { unitId: _u, segmentId: _s, ...rest } = row;
     const next = { ...rest, unitId: legacyId } as UnitTokenDocType;
     await tokensTable.put(next);
@@ -119,7 +125,7 @@ export async function upgradeM18LinguisticUnitCutover(tx: Transaction): Promise<
   for (const raw of morphRows) {
     const row = raw as Record<string, unknown>;
     const legacyId = linguisticSubgraphHostIdFromRow(row);
-    if (!legacyId) continue;
+    if (legacyId === undefined || legacyId.length === 0) continue;
     const { unitId: _u, segmentId: _s, ...rest } = row;
     const next = { ...rest, unitId: legacyId } as UnitMorphemeDocType;
     await morphemesTable.put(next);

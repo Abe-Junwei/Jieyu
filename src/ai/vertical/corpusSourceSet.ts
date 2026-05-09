@@ -18,7 +18,7 @@ export type SourceSetMemberType =
   | 'lexeme'
   | 'audio_region';
 
-export interface SourceSetMember {
+interface SourceSetMember {
   id: string;
   type: SourceSetMemberType;
   label?: string;
@@ -253,7 +253,9 @@ export function deleteSavedSourceSet(
 /**
  * 批量检查并标记失效 source set。
  * 返回更新后的列表 + 被标记失效的 id 列表。
- * TODO(P1-3): 当前未接入 UI 运行时失效检测；待 Source Set 持久化完成后接线。
+ *
+ * ARCHITECTURE-NOTE: 运行时失效检测已在 AiChatCard.tsx mount effect 中接入。
+ * 本函数由 pruneInvalidatedSourceSets 调用，用于标记单个 source set 为失效状态。
  */
 export function pruneInvalidatedSourceSets(
   sourceSets: readonly SavedCorpusSourceSet[],
@@ -268,7 +270,12 @@ export function pruneInvalidatedSourceSets(
   const timestamp = options?.timestamp ?? nowIso();
   const invalidatedIds: string[] = [];
   const updated = sourceSets.map((s) => {
-    const validation = validateSourceSetMembers(s, existsChecker, mediaExistsChecker, layerExistsChecker);
+    const validation = validateSourceSetMembers(
+      s,
+      existsChecker,
+      mediaExistsChecker,
+      layerExistsChecker,
+    );
     if (!validation.valid && s.status !== 'invalidated') {
       const reasons: string[] = [];
       if (validation.missingMemberIds.length > 0) {
@@ -292,57 +299,6 @@ export function pruneInvalidatedSourceSets(
 }
 
 /**
- * 将 SavedCorpusSourceSet 转换为运行时 CorpusSourceSet。
- * 用于将保存的 source set 喂给 sourceResolver / RAG 流程。
- * TODO(P1-4): 当前未被调用；待 Source Set 持久化 + 列表 UI 完成后接线。
- */
-export function toRuntimeCorpusSourceSet(saved: SavedCorpusSourceSet): CorpusSourceSet {
-  const sourceIds = saved.members.map((m) => m.id);
-  const result: CorpusSourceSet = {
-    scope: saved.scope,
-    sourceIds,
-  };
-  if (saved.mediaId !== undefined) result.mediaId = saved.mediaId;
-  if (saved.layerId !== undefined) result.layerId = saved.layerId;
-  if (saved.projectId !== undefined) result.projectId = saved.projectId;
-  return result;
-}
-
-/**
- * 从运行时 CorpusSourceSet + 成员详情构建 SavedCorpusSourceSet。
- * TODO(P1-4): 当前未被调用；待 Source Set 持久化 + 列表 UI 完成后接线。
- */
-export function fromRuntimeCorpusSourceSet(
-  runtime: CorpusSourceSet,
-  members: SourceSetMember[],
-  name: string,
-  options?: { id?: string; boundSessionId?: string; timestamp?: string },
-): SavedCorpusSourceSet {
-  let meta: { id?: string; timestamp?: string } | undefined;
-  if (options?.id !== undefined || options?.timestamp !== undefined) {
-    meta = {};
-    if (options.id !== undefined) {
-      meta.id = options.id;
-    }
-    if (options.timestamp !== undefined) {
-      meta.timestamp = options.timestamp;
-    }
-  }
-  return createSavedSourceSet(
-    {
-      name,
-      scope: runtime.scope,
-      members,
-      ...(runtime.mediaId !== undefined ? { mediaId: runtime.mediaId } : {}),
-      ...(runtime.layerId !== undefined ? { layerId: runtime.layerId } : {}),
-      ...(runtime.projectId !== undefined ? { projectId: runtime.projectId } : {}),
-      ...(options?.boundSessionId !== undefined ? { boundSessionId: options.boundSessionId } : {}),
-    },
-    meta,
-  );
-}
-
-/**
  * 导出 source set 引用摘要（用于 markdown / JSON bundle 导出）。
  */
 export interface SourceSetReferenceSummary {
@@ -359,9 +315,7 @@ export interface SourceSetReferenceSummary {
   updatedAt: string;
 }
 
-export function exportReferenceSummary(
-  sourceSet: SavedCorpusSourceSet,
-): SourceSetReferenceSummary {
+export function exportReferenceSummary(sourceSet: SavedCorpusSourceSet): SourceSetReferenceSummary {
   const memberTypes: Record<string, number> = {};
   for (const member of sourceSet.members) {
     memberTypes[member.type] = (memberTypes[member.type] ?? 0) + 1;
@@ -386,9 +340,7 @@ export function exportReferenceSummary(
  * 构建 source set 的 fallback 原因文本。
  * 当 source set 失效时，AI run 必须进入可解释 fallback，不允许静默退回全项目检索。
  */
-export function buildSourceSetFallbackReason(
-  sourceSet: SavedCorpusSourceSet,
-): string | null {
+export function buildSourceSetFallbackReason(sourceSet: SavedCorpusSourceSet): string | null {
   if (sourceSet.status !== 'invalidated') return null;
   const base = `Source set "${sourceSet.name}" (${sourceSet.id}) is invalidated`;
   const reason = sourceSet.invalidationReason ?? 'unknown reason';

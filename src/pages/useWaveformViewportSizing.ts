@@ -12,7 +12,7 @@ export const DEFAULT_PLAYBACK_RATE_KEY = 'jieyu:default-playback-rate';
 export function readDefaultPlaybackRate(): number {
   try {
     const stored = localStorage.getItem(DEFAULT_PLAYBACK_RATE_KEY);
-    if (!stored) return 1;
+    if (stored === null || stored.length === 0) return 1;
     const parsed = Number(stored);
     if (Number.isNaN(parsed)) return 1;
     return [0.5, 0.75, 1, 1.25, 1.5, 2].includes(parsed) ? parsed : 1;
@@ -87,7 +87,12 @@ export function useWaveformViewportSizing(
 
   useLayoutEffect(() => {
     remeasureWaveCanvasLayoutRef.current?.();
-  }, [input.documentSpanSec, input.timelineUnitViewEpoch, input.playerIsReady, input.playerDuration]);
+  }, [
+    input.documentSpanSec,
+    input.timelineUnitViewEpoch,
+    input.playerIsReady,
+    input.playerDuration,
+  ]);
 
   return {
     containerWidth,

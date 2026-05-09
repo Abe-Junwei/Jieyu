@@ -2,7 +2,10 @@ import { useMemo } from 'react';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
 import type { UseTranscriptionRuntimePropsInput } from './useTranscriptionRuntimeProps';
-import type { AssistantSidebarObserverRecommendationInput, UseTranscriptionAssistantSidebarControllerInput } from './useTranscriptionAssistantSidebarController';
+import type {
+  AssistantSidebarObserverRecommendationInput,
+  UseTranscriptionAssistantSidebarControllerInput,
+} from './useTranscriptionAssistantSidebarController';
 
 interface UseTranscriptionAssistantSidebarControllerInputInput {
   locale: string;
@@ -78,105 +81,86 @@ export function useTranscriptionAssistantSidebarControllerInput({
   adoptionItemsPushSinkRef,
   runtimePropsInput,
 }: UseTranscriptionAssistantSidebarControllerInputInput): UseTranscriptionAssistantSidebarControllerInput {
-  const aiChatContextInput = useMemo(() => ({
-    currentPage: currentPage ?? 'transcription',
-    selectedUnit,
-    selectedRowMeta,
-    selectedUnitKind: selectedUnitKind ?? null,
-    selectedText: selectedText ?? '',
-    ...(selectedLayerType !== undefined ? { selectedLayerType } : {}),
-    ...(selectedTimeRangeLabel !== undefined ? { selectedTimeRangeLabel } : {}),
-    lexemeMatches,
-    aiChatEnabled: aiChat.enabled,
-    aiProviderLabel: aiChat.providerLabel,
-    aiChatSettings: aiChat.settings,
-    aiMessages: aiChat.messages,
-    aiIsStreaming: aiChat.isStreaming,
-    aiConversationId: aiChat.conversationId,
-    aiLastError: aiChat.lastError,
-    aiConnectionTestStatus: aiChat.connectionTestStatus,
-    aiConnectionTestMessage: aiChat.connectionTestMessage,
-    aiContextDebugSnapshot: aiChat.contextDebugSnapshot,
-    aiPendingToolCall: aiChat.pendingToolCall,
-    aiTaskSession: aiChat.taskSession,
-    aiInteractionMetrics: aiChat.metrics,
-    aiSessionMemory: aiChat.sessionMemory,
-    aiToolDecisionLogs,
-    aiVerticalWorkflowAuditEntries,
-    observerStage,
-    observerRecommendations,
-    onUpdateAiChatSettings: aiChat.updateSettings,
-    onTestAiConnection: aiChat.testConnection,
-    onSendAiMessage: aiChat.send,
-    onStopAiMessage: aiChat.stop,
-    onClearAiMessages: aiChat.clear,
-    onToggleAiMessagePin: aiChat.toggleMessagePinned,
-    onDeactivateAiSessionDirective: aiChat.deactivateSessionDirective,
-    onPruneAiSessionDirectivesBySourceMessage: aiChat.pruneSessionDirectivesBySourceMessage,
-    onConfirmPendingToolCall: aiChat.confirmPendingToolCall,
-    onCancelPendingToolCall: aiChat.cancelPendingToolCall
-      ? async () => {
-        await aiChat.cancelPendingToolCall?.();
-      }
-      : undefined,
-    onDismissPendingAgentLoopCheckpoint: aiChat.dismissPendingAgentLoopCheckpoint
-      ? async () => {
-        await aiChat.dismissPendingAgentLoopCheckpoint?.();
-      }
-      : undefined,
-    onTrackAiRecommendationEvent: aiChat.trackRecommendationEvent,
-    onJumpToCitation,
-    ...(timelineReadModelEpoch !== undefined ? { timelineReadModelEpoch } : {}),
-    ...(adoptionItemsPushSinkRef !== undefined ? { adoptionItemsPushSinkRef } : {}),
-  }), [
-    aiChat.cancelPendingToolCall,
-    aiChat.clear,
-    aiChat.dismissPendingAgentLoopCheckpoint,
-    aiChat.confirmPendingToolCall,
-    aiChat.connectionTestMessage,
-    aiChat.connectionTestStatus,
-    aiChat.contextDebugSnapshot,
-    aiChat.enabled,
-    aiChat.isStreaming,
-    aiChat.conversationId,
-    aiChat.lastError,
-    aiChat.messages,
-    aiChat.metrics,
-    aiChat.pendingToolCall,
-    aiChat.providerLabel,
-    aiChat.send,
-    aiChat.sessionMemory,
-    aiChat.settings,
-    aiChat.stop,
-    aiChat.toggleMessagePinned,
-    aiChat.deactivateSessionDirective,
-    aiChat.pruneSessionDirectivesBySourceMessage,
-    aiChat.taskSession,
-    aiChat.testConnection,
-    aiChat.trackRecommendationEvent,
-    aiChat.updateSettings,
-    aiToolDecisionLogs,
-    aiVerticalWorkflowAuditEntries,
-    currentPage,
-    lexemeMatches,
-    observerRecommendations,
-    observerStage,
-    adoptionItemsPushSinkRef,
-    onJumpToCitation,
-    selectedLayerType,
-    selectedRowMeta,
-    selectedText,
-    selectedTimeRangeLabel,
-    selectedUnitKind,
-    selectedUnit,
-    timelineReadModelEpoch,
-  ]);
+  const aiChatContextInput = useMemo(
+    () => ({
+      currentPage: currentPage ?? 'transcription',
+      selectedUnit,
+      selectedRowMeta,
+      selectedUnitKind: selectedUnitKind ?? null,
+      selectedText: selectedText ?? '',
+      ...(selectedLayerType !== undefined ? { selectedLayerType } : {}),
+      ...(selectedTimeRangeLabel !== undefined ? { selectedTimeRangeLabel } : {}),
+      lexemeMatches,
+      aiChatEnabled: aiChat.enabled,
+      aiProviderLabel: aiChat.providerLabel,
+      aiChatSettings: aiChat.settings,
+      aiMessages: aiChat.messages,
+      aiIsStreaming: aiChat.isStreaming,
+      aiConversationId: aiChat.conversationId,
+      aiLastError: aiChat.lastError,
+      aiConnectionTestStatus: aiChat.connectionTestStatus,
+      aiConnectionTestMessage: aiChat.connectionTestMessage,
+      aiContextDebugSnapshot: aiChat.contextDebugSnapshot,
+      aiPendingToolCall: aiChat.pendingToolCall,
+      aiTaskSession: aiChat.taskSession,
+      aiInteractionMetrics: aiChat.metrics,
+      aiSessionMemory: aiChat.sessionMemory,
+      aiToolDecisionLogs,
+      aiVerticalWorkflowAuditEntries,
+      observerStage,
+      observerRecommendations,
+      onUpdateAiChatSettings: aiChat.updateSettings,
+      onTestAiConnection: aiChat.testConnection,
+      onSendAiMessage: aiChat.send,
+      onStopAiMessage: aiChat.stop,
+      onClearAiMessages: aiChat.clear,
+      onToggleAiMessagePin: aiChat.toggleMessagePinned,
+      onDeactivateAiSessionDirective: aiChat.deactivateSessionDirective,
+      onPruneAiSessionDirectivesBySourceMessage: aiChat.pruneSessionDirectivesBySourceMessage,
+      onConfirmPendingToolCall: aiChat.confirmPendingToolCall,
+      onCancelPendingToolCall: aiChat.cancelPendingToolCall
+        ? async () => {
+            await aiChat.cancelPendingToolCall?.();
+          }
+        : undefined,
+      onDismissPendingAgentLoopCheckpoint: aiChat.dismissPendingAgentLoopCheckpoint
+        ? async () => {
+            await aiChat.dismissPendingAgentLoopCheckpoint?.();
+          }
+        : undefined,
+      onTrackAiRecommendationEvent: aiChat.trackRecommendationEvent,
+      onJumpToCitation,
+      ...(timelineReadModelEpoch !== undefined ? { timelineReadModelEpoch } : {}),
+      ...(adoptionItemsPushSinkRef !== undefined ? { adoptionItemsPushSinkRef } : {}),
+    }),
+    [
+      aiChat,
+      aiToolDecisionLogs,
+      aiVerticalWorkflowAuditEntries,
+      currentPage,
+      lexemeMatches,
+      observerRecommendations,
+      observerStage,
+      adoptionItemsPushSinkRef,
+      onJumpToCitation,
+      selectedLayerType,
+      selectedRowMeta,
+      selectedText,
+      selectedTimeRangeLabel,
+      selectedUnitKind,
+      selectedUnit,
+      timelineReadModelEpoch,
+    ],
+  );
 
-  return useMemo<UseTranscriptionAssistantSidebarControllerInput>(() => ({
-    locale,
-    analysisTab,
-    onAnalysisTabChange,
-    aiChatContextInput,
-    runtimePropsInput,
-  }), [aiChatContextInput, analysisTab, locale, onAnalysisTabChange, runtimePropsInput]);
+  return useMemo<UseTranscriptionAssistantSidebarControllerInput>(
+    () => ({
+      locale,
+      analysisTab,
+      onAnalysisTabChange,
+      aiChatContextInput,
+      runtimePropsInput,
+    }),
+    [aiChatContextInput, analysisTab, locale, onAnalysisTabChange, runtimePropsInput],
+  );
 }

@@ -1,5 +1,13 @@
 import type { ReactNode } from 'react';
-import type { NoteCategory, MultiLangString, LayerDocType, LayerDisplaySettings, OrthographyDocType, UserNoteDocType, LayerUnitDocType } from '../db';
+import type {
+  NoteCategory,
+  MultiLangString,
+  LayerDocType,
+  LayerDisplaySettings,
+  OrthographyDocType,
+  UserNoteDocType,
+  LayerUnitDocType,
+} from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { SpeakerFilterOption } from '../hooks/useSpeakerActions';
 import type { TimelineUnit, TimelineUnitKind } from '../hooks/transcriptionTypes';
@@ -13,7 +21,11 @@ import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { NotePopover } from './NotePopover';
 import { buildTranscriptionUnitContextMenuItems } from './transcription/buildTranscriptionUnitContextMenuItems';
 import { buildUttOpsToolbarMenuItems } from './transcription/buildUttOpsToolbarContextMenuItems';
-import { buildOrthographyPreviewTextProps, resolveOrthographyRenderPolicy, type LocalFontEntry } from '../utils/layerDisplayStyle';
+import {
+  buildOrthographyPreviewTextProps,
+  resolveOrthographyRenderPolicy,
+  type LocalFontEntry,
+} from '../utils/layerDisplayStyle';
 
 export interface TranscriptionOverlaysProps {
   ctxMenu: ContextMenuState | null;
@@ -22,16 +34,36 @@ export interface TranscriptionOverlaysProps {
   onCloseUttOpsMenu: () => void;
   selectedTimelineUnit?: TimelineUnit | null;
   selectedUnitIds: Set<string>;
-  runDeleteSelection: (anchorId: string, selectedIds: Set<string>, unitKind: TimelineUnitKind, layerId: string) => void;
-  runMergeSelection: (selectedIds: Set<string>, unitKind: TimelineUnitKind, layerId: string) => void;
+  runDeleteSelection: (
+    anchorId: string,
+    selectedIds: Set<string>,
+    unitKind: TimelineUnitKind,
+    layerId: string,
+  ) => void;
+  runMergeSelection: (
+    selectedIds: Set<string>,
+    unitKind: TimelineUnitKind,
+    layerId: string,
+  ) => void;
   runSelectBefore: (id: string) => void;
   runSelectAfter: (id: string) => void;
   runDeleteOne: (id: string, unitKind: TimelineUnitKind, layerId: string) => void;
   runMergePrev: (id: string, unitKind: TimelineUnitKind, layerId: string) => void;
   runMergeNext: (id: string, unitKind: TimelineUnitKind, layerId: string) => void;
-  runSplitAtTime: (id: string, splitTime: number, unitKind: TimelineUnitKind, layerId: string) => void;
+  runSplitAtTime: (
+    id: string,
+    splitTime: number,
+    unitKind: TimelineUnitKind,
+    layerId: string,
+  ) => void;
   getCurrentTime: () => number;
-  onOpenNoteFromMenu: (x: number, y: number, uttId: string, layerId?: string, scope?: 'timeline' | 'waveform') => void;
+  onOpenNoteFromMenu: (
+    x: number,
+    y: number,
+    uttId: string,
+    layerId?: string,
+    scope?: 'timeline' | 'waveform',
+  ) => void;
   deleteConfirmState: { totalCount: number; textCount: number; emptyCount: number } | null;
   muteDeleteConfirmInSession: boolean;
   setMuteDeleteConfirmInSession: (value: boolean) => void;
@@ -41,7 +73,10 @@ export interface TranscriptionOverlaysProps {
   currentNotes: UserNoteDocType[];
   onCloseNotePopover: () => void;
   addNote: (content: MultiLangString, category?: NoteCategory) => Promise<void>;
-  updateNote: (id: string, updates: { content?: MultiLangString; category?: NoteCategory }) => Promise<void>;
+  updateNote: (
+    id: string,
+    updates: { content?: MultiLangString; category?: NoteCategory },
+  ) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
   units: LayerUnitDocType[];
   /** 将右键 target id（含指代型 segment id）解析为可持久化 selfCertainty 的 unit id */
@@ -51,7 +86,11 @@ export interface TranscriptionOverlaysProps {
   translationLayers: LayerDocType[];
   speakerOptions?: Array<{ id: string; name: string }>;
   speakerFilterOptions?: SpeakerFilterOption[];
-  onAssignSpeakerFromMenu?: (unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => void;
+  onAssignSpeakerFromMenu?: (
+    unitIds: Iterable<string>,
+    kind: TimelineUnitKind,
+    speakerId?: string,
+  ) => void;
   /** 句段自我确信度（仅 unit）| Unit self-certainty (unit units only) */
   onSetUnitSelfCertaintyFromMenu?: (
     unitIds: Iterable<string>,
@@ -59,7 +98,11 @@ export interface TranscriptionOverlaysProps {
     value: UnitSelfCertainty | undefined,
     layerId?: string,
   ) => void;
-  onToggleSkipProcessingFromMenu?: (unitId: string, kind: TimelineUnitKind, layerId: string) => void;
+  onToggleSkipProcessingFromMenu?: (
+    unitId: string,
+    kind: TimelineUnitKind,
+    layerId: string,
+  ) => void;
   resolveSkipProcessingState?: (unitId: string, layerId: string, kind: TimelineUnitKind) => boolean;
   onOpenSpeakerManagementPanelFromMenu?: () => void;
   /** 层显示样式控制 | Layer display style control for context menu */
@@ -122,7 +165,8 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
   } = props;
 
   const allTextLayers = [...transcriptionLayers, ...translationLayers];
-  const defaultPreviewLayer = transcriptionLayers.find((layer) => layer.isDefault) ?? transcriptionLayers[0];
+  const defaultPreviewLayer =
+    transcriptionLayers.find((layer) => layer.isDefault) ?? transcriptionLayers[0];
 
   const buildNotePopoverTargetLabel = (): ReactNode => {
     if (!notePopover) return messages.segment;
@@ -153,12 +197,17 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
       displayStyleControl.orthographies,
       previewLayer.orthographyId,
     );
-    const previewTextProps = buildOrthographyPreviewTextProps(renderPolicy, previewLayer.displaySettings);
+    const previewTextProps = buildOrthographyPreviewTextProps(
+      renderPolicy,
+      previewLayer.displaySettings,
+    );
+    const previewTextStyleProps =
+      previewTextProps.style !== undefined ? { style: previewTextProps.style } : {};
 
     return (
       <>
         {prefix ? <span>{prefix} — </span> : null}
-        <span dir={previewTextProps.dir} style={previewTextProps.style}>
+        <span dir={previewTextProps.dir} {...previewTextStyleProps}>
           {uttText}
         </span>
       </>

@@ -1,6 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LEIPZIG_STRUCTURAL_PROFILE } from '../annotation/structuralRuleProfile';
-import { validateLayerDoc, validateLayerUnitContentDoc, validateLayerUnitDoc, validateMediaItemDoc, validateStructuralRuleProfileAssetDoc, validateTextDoc, validateTokenLexemeLinkDoc, validateTrackEntityDoc, validateTierDefinitionDoc, validateUnitRelationDoc, validateUserNoteDoc, validateUnitMorphemeDoc, validateUnitTokenDoc, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type MediaItemDocType, type StructuralRuleProfileAssetDocType, type TextDocType, type TokenLexemeLinkDocType, type TrackEntityDocType, type TierDefinitionDocType, type UnitRelationDocType, type UserNoteDocType, type UnitMorphemeDocType, type UnitTokenDocType } from './index';
+import {
+  validateLayerDoc,
+  validateLayerUnitContentDoc,
+  validateLayerUnitDoc,
+  validateMediaItemDoc,
+  validateStructuralRuleProfileAssetDoc,
+  validateTextDoc,
+  validateTokenLexemeLinkDoc,
+  validateTrackEntityDoc,
+  validateTierDefinitionDoc,
+  validateUnitRelationDoc,
+  validateUserNoteDoc,
+  validateUnitMorphemeDoc,
+  validateUnitTokenDoc,
+  type LayerDocType,
+  type LayerUnitContentDocType,
+  type LayerUnitDocType,
+  type MediaItemDocType,
+  type StructuralRuleProfileAssetDocType,
+  type TextDocType,
+  type TokenLexemeLinkDocType,
+  type TrackEntityDocType,
+  type TierDefinitionDocType,
+  type UnitRelationDocType,
+  type UserNoteDocType,
+  type UnitMorphemeDocType,
+  type UnitTokenDocType,
+} from './index';
 
 type InvalidMutation<T> = {
   name: string;
@@ -29,7 +56,10 @@ function runInvariantSuite<T>(suite: InvariantSuite<T>): void {
       it(`rejects invalid case: ${invalidCase.name}`, () => {
         const mutated = invalidCase.mutate(cloneDoc(suite.createValid()));
         const invoke = () => suite.validate(mutated as T);
-        if (invalidCase.messageIncludes) {
+        if (
+          typeof invalidCase.messageIncludes === 'string' &&
+          invalidCase.messageIncludes.length > 0
+        ) {
           expect(invoke).toThrow(invalidCase.messageIncludes);
           return;
         }
@@ -240,8 +270,20 @@ const unitRelationSuite: InvariantSuite<UnitRelationDocType> = {
         ...doc,
         relationType: 'analysis_graph_candidate',
         analysisGraphStatus: 'pending',
-        analysisGraphCandidate: { schemaVersion: 1, nodes: [], relations: [], projectionDiagnostics: [{ code: 'ok', severity: 'info', status: 'supported', message: 'ok' }] },
-        provenance: { actorType: 'system', method: 'projection', reviewStatus: 'suggested', createdAt: NOW },
+        analysisGraphCandidate: {
+          schemaVersion: 1,
+          nodes: [],
+          relations: [],
+          projectionDiagnostics: [
+            { code: 'ok', severity: 'info', status: 'supported', message: 'ok' },
+          ],
+        },
+        provenance: {
+          actorType: 'system',
+          method: 'projection',
+          reviewStatus: 'suggested',
+          createdAt: NOW,
+        },
       }),
     },
     {
@@ -252,8 +294,20 @@ const unitRelationSuite: InvariantSuite<UnitRelationDocType> = {
         sourceUnitId: 'lu_other',
         relationType: 'analysis_graph_candidate',
         analysisGraphStatus: 'pending',
-        analysisGraphCandidate: { schemaVersion: 1, nodes: [], relations: [], projectionDiagnostics: [{ code: 'ok', severity: 'info', status: 'supported', message: 'ok' }] },
-        provenance: { actorType: 'system', method: 'projection', reviewStatus: 'suggested', createdAt: NOW },
+        analysisGraphCandidate: {
+          schemaVersion: 1,
+          nodes: [],
+          relations: [],
+          projectionDiagnostics: [
+            { code: 'ok', severity: 'info', status: 'supported', message: 'ok' },
+          ],
+        },
+        provenance: {
+          actorType: 'system',
+          method: 'projection',
+          reviewStatus: 'suggested',
+          createdAt: NOW,
+        },
       }),
     },
   ],

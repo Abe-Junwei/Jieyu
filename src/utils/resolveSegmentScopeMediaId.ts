@@ -31,11 +31,13 @@ export function resolveSegmentScopeMediaId(
  */
 export function resolveSegmentMediaIdFromSegmentGraph(
   selectedTimelineUnit: TimelineUnit | null,
-  segmentsByLayer: ReadonlyMap<string, ReadonlyArray<Pick<LayerUnitDocType, 'id' | 'mediaId'>>> | undefined,
+  segmentsByLayer:
+    | ReadonlyMap<string, ReadonlyArray<Pick<LayerUnitDocType, 'id' | 'mediaId'>>>
+    | undefined,
 ): string | undefined {
   if (!selectedTimelineUnit || !isSegmentTimelineUnit(selectedTimelineUnit)) return undefined;
   const layerId = selectedTimelineUnit.layerId?.trim() ?? '';
-  if (!layerId) return undefined;
+  if (layerId.length === 0) return undefined;
   const list = segmentsByLayer?.get(layerId);
   const seg = list?.find((s) => s.id === selectedTimelineUnit.unitId);
   const mid = seg?.mediaId?.trim() ?? '';

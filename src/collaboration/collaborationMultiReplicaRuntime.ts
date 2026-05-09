@@ -1,4 +1,9 @@
-import { createCrossDeviceRollbackPlan, mergeCrossDeviceReplicas, type CrossDeviceMergeResult, type CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
+import {
+  createCrossDeviceRollbackPlan,
+  mergeCrossDeviceReplicas,
+  type CrossDeviceMergeResult,
+  type CrossDeviceReplica,
+} from './collaborationCrossDeviceRuntime';
 
 export interface ReplicaSyncChunkPlan {
   chunkSize: number;
@@ -79,13 +84,15 @@ function toMergeSeed(entityId: string): CrossDeviceMergeResult {
   };
 }
 
-export function planReplicaSyncChunks(replicaCount: number, maxChunkSize: number): ReplicaSyncChunkPlan {
+export function planReplicaSyncChunks(
+  replicaCount: number,
+  maxChunkSize: number,
+): ReplicaSyncChunkPlan {
   const safeReplicaCount = Math.max(0, Math.floor(replicaCount));
   const safeChunkSize = Math.max(1, Math.floor(maxChunkSize));
   const chunkCount = Math.ceil(safeReplicaCount / safeChunkSize);
-  const lastChunkSize = safeReplicaCount === 0
-    ? 0
-    : (safeReplicaCount % safeChunkSize || safeChunkSize);
+  const remainder = safeReplicaCount % safeChunkSize;
+  const lastChunkSize = safeReplicaCount === 0 ? 0 : remainder === 0 ? safeChunkSize : remainder;
 
   return {
     chunkSize: safeChunkSize,
@@ -208,13 +215,13 @@ export function mergeReplicaBatch(input: ReplicaBatchMergeInput): ReplicaBatchMe
 
   const acknowledgedCount = resolved
     ? normalized.filter((replica) => {
-      const merged = mergeCrossDeviceReplicas(
-        resolved,
-        replica,
-        ...(input.driftBudgetMs !== undefined ? [{ driftBudgetMs: input.driftBudgetMs }] : []),
-      );
-      return !merged.requiresRollback && !merged.requiresManualReview;
-    }).length
+        const merged = mergeCrossDeviceReplicas(
+          resolved,
+          replica,
+          ...(input.driftBudgetMs !== undefined ? [{ driftBudgetMs: input.driftBudgetMs }] : []),
+        );
+        return !merged.requiresRollback && !merged.requiresManualReview;
+      }).length
     : 0;
 
   const quorum = evaluateReplicaQuorum(participantCount, acknowledgedCount, input.quorum);
@@ -224,7 +231,9 @@ export function mergeReplicaBatch(input: ReplicaBatchMergeInput): ReplicaBatchMe
 
   const requiresRollback = mergeState.requiresRollback || !quorum.satisfied || !resolved;
   const digest = resolved
-    ? hashString(`${mergeState.digest}:${participantCount}:${successfulMerges}:${quorum.ratio.toFixed(4)}`)
+    ? hashString(
+        `${mergeState.digest}:${participantCount}:${successfulMerges}:${quorum.ratio.toFixed(4)}`,
+      )
     : '';
 
   const rollbackAction = createBatchRollbackPlan(

@@ -104,14 +104,28 @@ export function ModalPanel({
   if (!isOpen) return null;
 
   const closeButton = hideCloseButton ? null : (
-    <button type="button" className="icon-btn" onClick={onClose} aria-label={closeLabel} title={closeLabel} {...(closeDisabled !== undefined && { disabled: closeDisabled })}>
+    <button
+      type="button"
+      className="icon-btn"
+      onClick={onClose}
+      aria-label={closeLabel}
+      title={closeLabel}
+      {...(closeDisabled !== undefined && { disabled: closeDisabled })}
+    >
       <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL} />
     </button>
   );
 
-  const actions = headerActions
-    ? <>{headerActions}{closeButton}</>
-    : closeButton;
+  const actions = headerActions ? (
+    <>
+      {headerActions}
+      {closeButton}
+    </>
+  ) : (
+    closeButton
+  );
+  const hostLayoutStyle = layoutStyle ?? style;
+  const hostLayoutStyleProps = hostLayoutStyle !== undefined ? { style: hostLayoutStyle } : {};
 
   if (!renderShell) {
     return createPortal(
@@ -130,7 +144,7 @@ export function ModalPanel({
             wide && 'dialog-card-wide',
             className,
           )}
-          style={layoutStyle ?? style}
+          {...hostLayoutStyleProps}
           {...(dir !== undefined && { dir })}
           {...(ariaLabel !== undefined && { 'aria-label': ariaLabel })}
           {...(ariaLabelledBy !== undefined && { 'aria-labelledby': ariaLabelledBy })}

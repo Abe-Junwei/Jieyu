@@ -1,4 +1,9 @@
-import { layerTranscriptionTreeParentId, type LayerDocType, type LayerLinkDocType, type LayerUnitDocType } from '../db';
+import {
+  layerTranscriptionTreeParentId,
+  type LayerDocType,
+  type LayerLinkDocType,
+  type LayerUnitDocType,
+} from '../db';
 import { listInboundTranscriptionHostIdsForTranscriptionLane } from './transcriptionUnitLaneReadScope';
 import { normalizeSingleLine } from './transcriptionFormatters';
 
@@ -41,10 +46,13 @@ export function listSegmentsOverlappingTimeRange(
   rangeStart: number,
   rangeEnd: number,
 ): LayerUnitDocType[] {
-  if (!segments?.length) return [];
+  if (segments === undefined || segments.length === 0) return [];
   return segments
     .filter((s) => s.startTime < rangeEnd && s.endTime > rangeStart)
-    .sort((a, b) => a.startTime - b.startTime || a.id.localeCompare(b.id));
+    .sort((a, b) => {
+      const dt = a.startTime - b.startTime;
+      return dt !== 0 ? dt : a.id.localeCompare(b.id);
+    });
 }
 
 /**
@@ -56,10 +64,10 @@ export function listTranslationSegmentsForVerticalReadingSourceUnit(
   translationSegments: readonly LayerUnitDocType[] | undefined,
   unitById: ReadonlyMap<string, LayerUnitDocType>,
 ): LayerUnitDocType[] {
-  if (!translationSegments?.length) return [];
+  if (translationSegments === undefined || translationSegments.length === 0) return [];
   const parentId = typeof unit.parentUnitId === 'string' ? unit.parentUnitId.trim() : '';
-  const parent = parentId ? unitById.get(parentId) : undefined;
-  if (parent) {
+  const parent = parentId.length > 0 ? unitById.get(parentId) : undefined;
+  if (parent !== undefined) {
     const byParentField = translationSegments.filter((s) => {
       const sid = typeof s.parentUnitId === 'string' ? s.parentUnitId.trim() : '';
       return sid.length > 0 && sid === parent.id;
@@ -78,19 +86,14 @@ export function listTranslationSegmentsForVerticalReadingSourceUnit(
     for (const s of byParentField) mergedById.set(s.id, s);
     for (const s of overlapOnParentWindow) mergedById.set(s.id, s);
     if (mergedById.size > 0) {
-      return [...mergedById.values()].sort((a, b) => a.startTime - b.startTime || a.id.localeCompare(b.id));
+      return [...mergedById.values()].sort((a, b) => {
+        const dt = a.startTime - b.startTime;
+        return dt !== 0 ? dt : a.id.localeCompare(b.id);
+      });
     }
-    return listSegmentsOverlappingTimeRange(
-      translationSegments,
-      unit.startTime,
-      unit.endTime,
-    );
+    return listSegmentsOverlappingTimeRange(translationSegments, unit.startTime, unit.endTime);
   }
-  return listSegmentsOverlappingTimeRange(
-    translationSegments,
-    unit.startTime,
-    unit.endTime,
-  );
+  return listSegmentsOverlappingTimeRange(translationSegments, unit.startTime, unit.endTime);
 }
 
 /**
@@ -157,9 +160,10 @@ interface BuildVerticalReadingGroupsInput {
 }
 
 function resolvePairedReadingBundleRootId(unit: LayerUnitDocType): string | undefined {
-  const bundleRootId = typeof unit.rootUnitId === 'string' && unit.rootUnitId.trim().length > 0
-    ? unit.rootUnitId.trim()
-    : undefined;
+  const bundleRootId =
+    typeof unit.rootUnitId === 'string' && unit.rootUnitId.trim().length > 0
+      ? unit.rootUnitId.trim()
+      : undefined;
   return bundleRootId;
 }
 
@@ -167,7 +171,9 @@ function resolvePairedReadingSpeakerLabel(unit: LayerUnitDocType, preferredLabel
   const normalizedPreferred = normalizeSingleLine(preferredLabel ?? '');
   if (normalizedPreferred.length > 0) return normalizedPreferred;
 
-  const normalizedSpeaker = normalizeSingleLine(typeof unit.speaker === 'string' ? unit.speaker.trim() : '');
+  const normalizedSpeaker = normalizeSingleLine(
+    typeof unit.speaker === 'string' ? unit.speaker.trim() : '',
+  );
   if (normalizedSpeaker.length > 0 && normalizedSpeaker !== unit.speakerId?.trim()) {
     return normalizedSpeaker;
   }
@@ -187,11 +193,17 @@ function buildPairedReadingSpeakerSummary(labels: string[]): string {
 }
 
 /** 与 buildVerticalReadingGroups 内联逻辑一致：供纵向对读壳内按层从纯文本拆出多条译文编辑项 */
-export function buildVerticalReadingTargetItemsFromRawText(unitId: string, rawText: string): PairedReadingTargetItem[] {
+export function buildVerticalReadingTargetItemsFromRawText(
+  unitId: string,
+  rawText: string,
+): PairedReadingTargetItem[] {
   return buildPairedReadingTargetItemsFromRawTextLines(unitId, rawText);
 }
 
-function buildPairedReadingTargetItemsFromRawTextLines(unitId: string, rawText: string): PairedReadingTargetItem[] {
+function buildPairedReadingTargetItemsFromRawTextLines(
+  unitId: string,
+  rawText: string,
+): PairedReadingTargetItem[] {
   const normalizedLines = rawText
     .replace(/\r\n/g, '\n')
     .split('\n')
@@ -207,9 +219,7 @@ function buildPairedReadingTargetItemsFromRawTextLines(unitId: string, rawText: 
 }
 
 function buildPairedReadingTargetSignature(targetItems: PairedReadingTargetItem[]): string {
-  return targetItems
-    .map((item) => item.text.trim().toLocaleLowerCase())
-    .join('\n');
+  return targetItems.map((item) => item.text.trim().toLocaleLowerCase()).join('\n');
 }
 
 function isBlankPairedReadingTargetSignature(sig: string): boolean {
@@ -233,7 +243,7 @@ function transcriptionDependentLaneMergesIntoSourceGroup(
   layerLinks: readonly VerticalReadingGroupLayerLink[],
 ): boolean {
   const uid = typeof unit.layerId === 'string' ? unit.layerId.trim() : '';
-  if (!uid || !walkLaneIds.has(uid)) return false;
+  if (uid.length === 0 || !walkLaneIds.has(uid)) return false;
   const hostLayerIds = new Set(
     previousSourceItems
       .map((s) => (typeof s.layerId === 'string' ? s.layerId.trim() : ''))
@@ -243,7 +253,7 @@ function transcriptionDependentLaneMergesIntoSourceGroup(
   if (hostLayerIds.has(uid)) return false;
   let cur: LayerDocType | undefined = walkLayerById.get(uid);
   const guard = new Set<string>();
-  for (let i = 0; i < 64 && cur; i += 1) {
+  for (let i = 0; i < 64 && cur !== undefined; i += 1) {
     if (guard.has(cur.id)) break;
     guard.add(cur.id);
     const p = layerTranscriptionTreeParentId(cur)?.trim() ?? '';
@@ -253,7 +263,12 @@ function transcriptionDependentLaneMergesIntoSourceGroup(
       continue;
     }
     if (layerLinks.length > 0) {
-      const hosts = listInboundTranscriptionHostIdsForTranscriptionLane(cur.id, layerLinks, walkLayerById, walkLaneIds);
+      const hosts = listInboundTranscriptionHostIdsForTranscriptionLane(
+        cur.id,
+        layerLinks,
+        walkLayerById,
+        walkLaneIds,
+      );
       let stepped = false;
       for (const hid of hosts) {
         if (hostLayerIds.has(hid)) return true;
@@ -277,15 +292,15 @@ function transcriptionLaneDepthAmongOrderedLanes(
   laneIds: ReadonlySet<string>,
 ): number {
   const layer = layerById.get(laneId);
-  if (!layer || layer.layerType !== 'transcription') return 0;
+  if (layer === undefined || layer.layerType !== 'transcription') return 0;
   let depth = 0;
   let cur: LayerDocType | undefined = layer;
   const guard = new Set<string>();
-  for (let i = 0; i < 64 && cur; i += 1) {
+  for (let i = 0; i < 64 && cur !== undefined; i += 1) {
     if (guard.has(cur.id)) break;
     guard.add(cur.id);
     const p = layerTranscriptionTreeParentId(cur)?.trim() ?? '';
-    if (!p || !laneIds.has(p)) break;
+    if (p.length === 0 || !laneIds.has(p)) break;
     depth += 1;
     cur = layerById.get(p);
   }
@@ -295,7 +310,9 @@ function transcriptionLaneDepthAmongOrderedLanes(
 /**
  * 构建纵向对读分组 | Build lightweight paired-reading column groups
  */
-export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInput): VerticalReadingGroup[] {
+export function buildVerticalReadingGroups(
+  input: BuildVerticalReadingGroupsInput,
+): VerticalReadingGroup[] {
   const maxMergeGapSec = typeof input.maxMergeGapSec === 'number' ? input.maxMergeGapSec : 0.12;
   const layerLinks = input.layerLinks ?? [];
   const sourceLayerIdSet = new Set(
@@ -326,8 +343,9 @@ export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInpu
       const ll = typeof left.layerId === 'string' ? left.layerId.trim() : '';
       const rl = typeof right.layerId === 'string' ? right.layerId.trim() : '';
       if (walkOrderLayers.length > 0) {
-        const depthDiff = transcriptionLaneDepthAmongOrderedLanes(ll, walkLayerById, walkLaneIds)
-          - transcriptionLaneDepthAmongOrderedLanes(rl, walkLayerById, walkLaneIds);
+        const depthDiff =
+          transcriptionLaneDepthAmongOrderedLanes(ll, walkLayerById, walkLaneIds) -
+          transcriptionLaneDepthAmongOrderedLanes(rl, walkLayerById, walkLaneIds);
         if (depthDiff !== 0) return depthDiff;
         const li = walkOrderLayers.findIndex((l) => l.id === ll);
         const ri = walkOrderLayers.findIndex((l) => l.id === rl);
@@ -343,9 +361,10 @@ export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInpu
   for (const unit of orderedUnits) {
     const sourceText = normalizeSingleLine(input.getSourceText(unit) ?? '');
     const explicitTargetItems = input.getTargetItems?.(unit);
-    const targetItems = explicitTargetItems != null && explicitTargetItems.length > 0
-      ? explicitTargetItems
-      : buildPairedReadingTargetItemsFromRawTextLines(unit.id, input.getTargetText(unit) ?? '');
+    const targetItems =
+      explicitTargetItems != null && explicitTargetItems.length > 0
+        ? explicitTargetItems
+        : buildPairedReadingTargetItemsFromRawTextLines(unit.id, input.getTargetText(unit) ?? '');
     const targetSignature = buildPairedReadingTargetSignature(targetItems);
     const speakerLabel = resolvePairedReadingSpeakerLabel(unit, input.getSpeakerLabel?.(unit));
     const bundleRootId = resolvePairedReadingBundleRootId(unit);
@@ -353,15 +372,13 @@ export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInpu
     const sameBundle = previous?.bundleRootId === bundleRootId;
     const sameResolvedTarget = previous?.targetSignature === targetSignature;
     const canMergeDependentTranscriptionLane = Boolean(
-      previous
-      && walkOrderLayers.length > 0
-      && rangesOverlap1D(previous.startTime, previous.endTime, unit.startTime, unit.endTime)
-      && (
-        sameResolvedTarget
-        || (isBlankPairedReadingTargetSignature(previous.targetSignature)
-          && isBlankPairedReadingTargetSignature(targetSignature))
-      )
-      && transcriptionDependentLaneMergesIntoSourceGroup(
+      previous &&
+      walkOrderLayers.length > 0 &&
+      rangesOverlap1D(previous.startTime, previous.endTime, unit.startTime, unit.endTime) &&
+      (sameResolvedTarget ||
+        (isBlankPairedReadingTargetSignature(previous.targetSignature) &&
+          isBlankPairedReadingTargetSignature(targetSignature))) &&
+      transcriptionDependentLaneMergesIntoSourceGroup(
         previous.sourceItems,
         unit,
         walkLayerById,
@@ -370,17 +387,14 @@ export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInpu
       ),
     );
     const canMerge = Boolean(
-      previous
-      && (
-        (
-          unit.startTime - previous.endTime <= maxMergeGapSec
-          && (
-            (sameResolvedTarget && targetSignature.length > 0)
-            || (sameBundle && bundleRootId !== undefined && targetSignature.length === 0 && previous.targetSignature.length === 0)
-          )
-        )
-        || canMergeDependentTranscriptionLane
-      ),
+      previous &&
+      ((unit.startTime - previous.endTime <= maxMergeGapSec &&
+        ((sameResolvedTarget && targetSignature.length > 0) ||
+          (sameBundle &&
+            bundleRootId !== undefined &&
+            targetSignature.length === 0 &&
+            previous.targetSignature.length === 0))) ||
+        canMergeDependentTranscriptionLane),
     );
 
     if (canMerge && previous) {
@@ -390,7 +404,9 @@ export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInpu
         text: sourceText,
         startTime: unit.startTime,
         endTime: unit.endTime,
-        ...(typeof unit.layerId === 'string' && unit.layerId.length > 0 ? { layerId: unit.layerId } : {}),
+        ...(typeof unit.layerId === 'string' && unit.layerId.length > 0
+          ? { layerId: unit.layerId }
+          : {}),
       });
       if (speakerLabel.length > 0 && !previous.speakerLabels.includes(speakerLabel)) {
         previous.speakerLabels.push(speakerLabel);
@@ -402,33 +418,48 @@ export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInpu
       continue;
     }
 
-    const sourceLaneKey = (typeof unit.layerId === 'string' && unit.layerId.trim().length > 0)
-      ? unit.layerId.trim()
-      : '__na__';
+    const sourceLaneKey =
+      typeof unit.layerId === 'string' && unit.layerId.trim().length > 0
+        ? unit.layerId.trim()
+        : '__na__';
     groups.push({
       id: `pr-${unit.id}-src-${sourceLaneKey}`,
       startTime: unit.startTime,
       endTime: unit.endTime,
-      sourceItems: [{
-        unitId: unit.id,
-        text: sourceText,
-        startTime: unit.startTime,
-        endTime: unit.endTime,
-        ...(typeof unit.layerId === 'string' && unit.layerId.length > 0 ? { layerId: unit.layerId } : {}),
-      }],
+      sourceItems: [
+        {
+          unitId: unit.id,
+          text: sourceText,
+          startTime: unit.startTime,
+          endTime: unit.endTime,
+          ...(typeof unit.layerId === 'string' && unit.layerId.length > 0
+            ? { layerId: unit.layerId }
+            : {}),
+        },
+      ],
       targetItems,
       ...(bundleRootId !== undefined ? { bundleRootId } : {}),
-      speakerSummary: buildPairedReadingSpeakerSummary(speakerLabel.length > 0 ? [speakerLabel] : []),
+      speakerSummary: buildPairedReadingSpeakerSummary(
+        speakerLabel.length > 0 ? [speakerLabel] : [],
+      ),
       primaryAnchorUnitId: unit.id,
-      ...(typeof unit.layerId === 'string' && unit.layerId.length > 0 ? { primaryAnchorLayerId: unit.layerId } : {}),
+      ...(typeof unit.layerId === 'string' && unit.layerId.length > 0
+        ? { primaryAnchorLayerId: unit.layerId }
+        : {}),
       editingTargetPolicy: targetItems.length > 1 ? 'multi-target-items' : 'group-target',
       targetSignature,
       speakerLabels: speakerLabel.length > 0 ? [speakerLabel] : [],
     });
   }
 
-  return groups.map(({ targetSignature: _targetSignature, speakerLabels: _speakerLabels, ...group }): VerticalReadingGroup => ({
-    ...group,
-    isMultiAnchorGroup: group.sourceItems.length > 1,
-  }));
+  return groups.map(
+    ({
+      targetSignature: _targetSignature,
+      speakerLabels: _speakerLabels,
+      ...group
+    }): VerticalReadingGroup => ({
+      ...group,
+      isMultiAnchorGroup: group.sourceItems.length > 1,
+    }),
+  );
 }

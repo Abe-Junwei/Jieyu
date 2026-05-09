@@ -7,12 +7,20 @@
  * for timeline rendering. Returns segments sorted by startTime.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { layerTranscriptionTreeParentId, type LayerDocType, type LayerLinkDocType, type LayerUnitDocType } from '../db';
+import {
+  layerTranscriptionTreeParentId,
+  type LayerDocType,
+  type LayerLinkDocType,
+  type LayerUnitDocType,
+} from '../db';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { resolveLayerLinkHostTranscriptionLayerId } from '../utils/translationHostLinkQuery';
 import { useLatest } from './useLatest';
 
-export type SegmentTimelineHostLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
+export type SegmentTimelineHostLink = Pick<
+  LayerLinkDocType,
+  'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+>;
 
 /** 层编辑模式 | Layer edit mode
  * unit: 继承主层 unit 边界 | Inherits main-layer unit boundaries
@@ -39,12 +47,18 @@ export function getLayerEditMode(
  * constraint === 'independent_boundary' → independent boundary layer
  * @deprecated 请使用 getLayerEditMode() 代替 | Use getLayerEditMode() instead
  */
-export function isIndependentBoundaryLayer(layer: LayerDocType, _defaultTranscriptionLayerId?: string): boolean {
+export function isIndependentBoundaryLayer(
+  layer: LayerDocType,
+  _defaultTranscriptionLayerId?: string,
+): boolean {
   return layer.constraint === 'independent_boundary';
 }
 
 /** 判断层是否使用自有 segment 数据（独立边界或时间细分）| Check if a layer uses its own segment data */
-export function layerUsesOwnSegments(layer: LayerDocType, defaultTranscriptionLayerId?: string): boolean {
+export function layerUsesOwnSegments(
+  layer: LayerDocType,
+  defaultTranscriptionLayerId?: string,
+): boolean {
   const mode = getLayerEditMode(layer, defaultTranscriptionLayerId);
   return mode === 'independent-segment' || mode === 'time-subdivision';
 }
@@ -99,9 +113,7 @@ export function resolveSegmentTimelineSourceLayer(
   const parentLayer = layerById.get(parentLayerId);
   if (!parentLayer) return undefined;
 
-  return layerUsesOwnSegments(parentLayer, defaultTranscriptionLayerId)
-    ? parentLayer
-    : undefined;
+  return layerUsesOwnSegments(parentLayer, defaultTranscriptionLayerId) ? parentLayer : undefined;
 }
 
 /**
@@ -144,8 +156,8 @@ export function useLayerSegments(
       return;
     }
 
-    const independentLayers = layersRef.current.filter(
-      (l) => layerUsesOwnSegments(l, defaultLayerIdRef.current),
+    const independentLayers = layersRef.current.filter((l) =>
+      layerUsesOwnSegments(l, defaultLayerIdRef.current),
     );
 
     if (independentLayers.length === 0) {
@@ -155,42 +167,56 @@ export function useLayerSegments(
       return;
     }
 
-    const entries = await Promise.all(independentLayers.map(async (layer): Promise<[string, LayerUnitDocType[]]> => {
-      const segments = await LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId);
-      return [layer.id, segments];
-    }));
+    const entries = await Promise.all(
+      independentLayers.map(async (layer): Promise<[string, LayerUnitDocType[]]> => {
+        const segments = await LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId);
+        return [layer.id, segments];
+      }),
+    );
 
     if (loadSequenceRef.current !== loadSequence) return;
     setSegmentsByLayer(new Map(entries));
     setSegmentsLoadComplete(true);
-  }, [mediaId]);
+  }, [defaultLayerIdRef, layersRef, mediaId]);
 
   useEffect(() => {
     void loadSegments();
   }, [loadSegments, layers, defaultTranscriptionLayerId]);
 
-  const updateSegmentsLocally = useCallback((segmentIds: Iterable<string>, updater: (segment: LayerUnitDocType) => LayerUnitDocType) => {
-    const targetIds = new Set(Array.from(segmentIds).map((id) => id.trim()).filter((id) => id.length > 0));
-    if (targetIds.size === 0) return;
+  const updateSegmentsLocally = useCallback(
+    (segmentIds: Iterable<string>, updater: (segment: LayerUnitDocType) => LayerUnitDocType) => {
+      const targetIds = new Set(
+        Array.from(segmentIds)
+          .map((id) => id.trim())
+          .filter((id) => id.length > 0),
+      );
+      if (targetIds.size === 0) return;
 
-    setSegmentsByLayer((prev) => {
-      let changed = false;
-      const next = new Map(prev);
-      for (const [layerId, segments] of prev) {
-        let layerChanged = false;
-        const nextSegments = segments.map((segment) => {
-          if (!targetIds.has(segment.id)) return segment;
-          const updated = updater(segment);
-          if (updated !== segment) layerChanged = true;
-          return updated;
-        });
-        if (!layerChanged) continue;
-        changed = true;
-        next.set(layerId, nextSegments);
-      }
-      return changed ? next : prev;
-    });
-  }, []);
+      setSegmentsByLayer((prev) => {
+        let changed = false;
+        const next = new Map(prev);
+        for (const [layerId, segments] of prev) {
+          let layerChanged = false;
+          const nextSegments = segments.map((segment) => {
+            if (!targetIds.has(segment.id)) return segment;
+            const updated = updater(segment);
+            if (updated !== segment) layerChanged = true;
+            return updated;
+          });
+          if (!layerChanged) continue;
+          changed = true;
+          next.set(layerId, nextSegments);
+        }
+        return changed ? next : prev;
+      });
+    },
+    [],
+  );
 
-  return { segmentsByLayer, segmentsLoadComplete, reloadSegments: loadSegments, updateSegmentsLocally };
+  return {
+    segmentsByLayer,
+    segmentsLoadComplete,
+    reloadSegments: loadSegments,
+    updateSegmentsLocally,
+  };
 }

@@ -1,4 +1,10 @@
-import { computeCollaborationDigest, evaluateResolutionConsistency, type CollaborationRecord, type ConflictDescriptor, type ConflictResolutionStrategy } from './collaborationConflictRuntime';
+import {
+  computeCollaborationDigest,
+  evaluateResolutionConsistency,
+  type CollaborationRecord,
+  type ConflictDescriptor,
+  type ConflictResolutionStrategy,
+} from './collaborationConflictRuntime';
 import {
   createCollaborationOperationLog,
   type CollaborationOperationLog,
@@ -48,7 +54,6 @@ export interface ArbitrationTicket {
   decision: ArbitrationDecision;
   note?: string;
 }
-
 
 export interface ReconnectConsistencyResult {
   consistent: boolean;
@@ -105,9 +110,6 @@ function isFieldValueValid(value: unknown): boolean {
 }
 
 function isRecordStructurallyValid(record: CollaborationRecord): boolean {
-  if (!record || typeof record !== 'object') {
-    return false;
-  }
   if (typeof record.entityId !== 'string' || record.entityId.trim().length === 0) {
     return false;
   }
@@ -120,7 +122,7 @@ function isRecordStructurallyValid(record: CollaborationRecord): boolean {
   if (!Number.isFinite(record.updatedAt) || record.updatedAt < 0) {
     return false;
   }
-  if (!record.fields || typeof record.fields !== 'object' || Array.isArray(record.fields)) {
+  if (typeof record.fields !== 'object' || Array.isArray(record.fields)) {
     return false;
   }
 
@@ -160,7 +162,9 @@ export function openArbitrationTicket(input: OpenArbitrationTicketInput): Arbitr
   const prioritizedConflicts = prioritizeConflicts(input.conflicts);
   const hasCritical = prioritizedConflicts.some((item) => item.priority === 'critical');
 
-  const selectedStrategy: ConflictResolutionStrategy = hasCritical ? 'manual-review' : input.preferredStrategy;
+  const selectedStrategy: ConflictResolutionStrategy = hasCritical
+    ? 'manual-review'
+    : input.preferredStrategy;
   const accepted = selectedStrategy === input.preferredStrategy;
   const reason = accepted
     ? 'Preferred strategy accepted by collaboration rules.'

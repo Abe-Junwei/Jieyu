@@ -18,7 +18,7 @@ const OUTPUT_DIR = path.resolve(process.cwd(), 'public/data/language-support');
 const OUTPUT_CORE_JSON = path.join(OUTPUT_DIR, 'language-display-names.core.json');
 const OUTPUT_ALIAS_JSON = path.join(OUTPUT_DIR, 'language-query-aliases.json');
 const OUTPUT_TS = path.resolve(process.cwd(), 'src/data/generated/languageNameCatalog.generated.ts');
-const OUTPUT_ISO_SEED_TS = path.resolve(process.cwd(), 'src/data/generated/iso6393Seed.generated.ts');
+const OUTPUT_ISO_SEED_JSON = path.join(OUTPUT_DIR, 'iso6393-seed-rows.json');
 
 const QUERY_LOCALES = [
   { locale: 'zh-CN', cldr: 'zh' },
@@ -431,7 +431,7 @@ function toTsModule(core, queryIndexes, aliasToCode, aliasesByCode) {
   ].join('\n');
 }
 
-function toIsoSeedTsModule() {
+function toIsoSeedJson() {
   const rows = iso6393
     .filter((entry) => entry.iso6393.trim().length > 0)
     .map((entry) => ([
@@ -447,13 +447,7 @@ function toIsoSeedTsModule() {
       entry.type,
     ]));
 
-  return [
-    "import type { Iso639_3SeedRow } from '../iso6393Seed';",
-    '',
-    'export const GENERATED_ISO6393_SEED_ROWS: readonly Iso639_3SeedRow[] = ',
-    `${JSON.stringify(rows, null, 2)} as const;`,
-    '',
-  ].join('\n');
+  return `${JSON.stringify(rows)}\n`;
 }
 
 async function main() {
@@ -498,12 +492,12 @@ async function main() {
   );
 
   await writeFile(OUTPUT_TS, toTsModule(core, queryIndexes, aliasToCode, aliasesByCode), 'utf8');
-  await writeFile(OUTPUT_ISO_SEED_TS, toIsoSeedTsModule(), 'utf8');
+  await writeFile(OUTPUT_ISO_SEED_JSON, toIsoSeedJson(), 'utf8');
 
   console.log(`Generated language name core: ${OUTPUT_CORE_JSON}`);
   console.log(`Generated language alias index: ${OUTPUT_ALIAS_JSON}`);
   console.log(`Generated runtime module: ${OUTPUT_TS}`);
-  console.log(`Generated ISO seed runtime module: ${OUTPUT_ISO_SEED_TS}`);
+  console.log(`Generated ISO seed JSON: ${OUTPUT_ISO_SEED_JSON}`);
 }
 
 main().catch((error) => {

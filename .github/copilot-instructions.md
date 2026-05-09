@@ -1,5 +1,14 @@
 # GitHub Copilot Workspace Instructions
 
+## Where the full rules live (single source of truth)
+
+- **Universal agent baseline** (Karpathy-style sections + code-review data-flow rules): repo-root **`AGENTS.md`** (same content mirrored in **`CLAUDE.md`** for other tools).
+- **Jieyu project-level engineering constraints** (orchestration vs controllers, directory layout, complexity thresholds, `check:architecture-guard`, panel CSS two-layer border rule, etc.): repo-root **`copilot-instructions.md`** — **canonical full text**; follow it in full for this codebase.
+
+This file is a **short workspace entry** for Copilot; it does not replace the documents above.
+
+---
+
 This repository uses the Karpathy-inspired agent rules from forrestchang/andrej-karpathy-skills as always-on guidance for every non-trivial task.
 
 ## Always apply these four rules
@@ -8,6 +17,7 @@ This repository uses the Karpathy-inspired agent rules from forrestchang/andrej-
 - State assumptions explicitly.
 - If the request is ambiguous, clarify instead of guessing.
 - Surface simpler options and tradeoffs before implementing.
+- Before designing a new feature or architecture, research mature/common implementations and existing repo patterns; reuse or adapt proven solutions when suitable, and only design custom architecture after explaining why reuse does not fit.
 
 2. Simplicity First
 - Write the minimum code that solves the request.
@@ -30,6 +40,7 @@ This repository uses the Karpathy-inspired agent rules from forrestchang/andrej-
 ## Repository-specific reminders
 
 - Prefer the codebase and docs/architecture as the current source of truth when historical docs conflict.
+- Mature solution first: for new product features, interaction patterns, algorithms, protocols, storage flows, or architecture, first check established libraries/specs/framework patterns and the repository's existing implementations; document what can be reused, what needs adaptation, and what must be custom-built.
 - Keep orchestration layers thin; move heavy business logic into the appropriate controller, service, or utility.
 - For medium or larger tasks, decide the landing file first, then implement.
-- Follow the fuller project rules in the root instruction files already present in this repo.
+- Follow the full project rules in **`copilot-instructions.md`** and the universal baseline in **`AGENTS.md`** / **`CLAUDE.md`** as described at the top of this file.

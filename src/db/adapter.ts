@@ -53,7 +53,10 @@ export class DexieCollectionAdapter<T extends { id: string }> {
         if (entries.length === 1) {
           const [key, expected] = entries[0]!;
           try {
-            const indexed = await this.table.where(String(key)).equals(expected as string | number).first();
+            const indexed = await this.table
+              .where(String(key))
+              .equals(expected as string | number)
+              .first();
             return indexed ? wrapDoc(indexed) : null;
           } catch (err) {
             if (isDexieIndexedQueryFallbackError(err)) {
@@ -77,8 +80,14 @@ export class DexieCollectionAdapter<T extends { id: string }> {
     return rows.map((row) => wrapDoc(row));
   }
 
-  async findByIndexAnyOf(indexName: string, values: readonly (string | number)[]): Promise<Array<JieyuDoc<T>>> {
-    const rows = await this.table.where(indexName).anyOf([...values]).toArray();
+  async findByIndexAnyOf(
+    indexName: string,
+    values: readonly (string | number)[],
+  ): Promise<Array<JieyuDoc<T>>> {
+    const rows = await this.table
+      .where(indexName)
+      .anyOf([...values])
+      .toArray();
     return rows.map((row) => wrapDoc(row));
   }
 
@@ -109,7 +118,10 @@ export class DexieCollectionAdapter<T extends { id: string }> {
     const firstIndexedEntry = entries.find(([rawKey, rawExpected]) => {
       const key = String(rawKey);
       const expected = rawExpected;
-      const isPrimitive = typeof expected === 'string' || typeof expected === 'number' || typeof expected === 'boolean';
+      const isPrimitive =
+        typeof expected === 'string' ||
+        typeof expected === 'number' ||
+        typeof expected === 'boolean';
       const hasIndex = key === 'id' || key in this.table.schema.idxByName;
       return isPrimitive && hasIndex;
     });
@@ -119,14 +131,19 @@ export class DexieCollectionAdapter<T extends { id: string }> {
       const key = String(rawKey);
       const expected = rawExpected as string | number;
       try {
-        const indexedKeys = (await this.table.where(key).equals(expected).primaryKeys()) as string[];
+        const indexedKeys = (await this.table
+          .where(key)
+          .equals(expected)
+          .primaryKeys()) as string[];
         if (entries.length === 1) {
           keys = indexedKeys;
         } else if (indexedKeys.length > 0) {
           const indexedRows = await this.table.bulkGet(indexedKeys);
           keys = indexedRows
             .filter((row): row is T => Boolean(row))
-            .filter((row) => entries.every(([entryKey, entryExpected]) => row[entryKey] === entryExpected))
+            .filter((row) =>
+              entries.every(([entryKey, entryExpected]) => row[entryKey] === entryExpected),
+            )
             .map((row) => row.id);
         }
       } catch (err) {
@@ -154,43 +171,59 @@ export class DexieCollectionAdapter<T extends { id: string }> {
   }
 
   async update(id: string, changes: Partial<T>): Promise<void> {
-    await this.table.where(':id').equals(id).modify((row) => {
-      Object.assign(row, changes);
-    });
+    await this.table
+      .where(':id')
+      .equals(id)
+      .modify((row) => {
+        Object.assign(row, changes);
+      });
   }
 }
 
 export const BRIDGE_TIER_PREFIX = 'bridge_';
 const TREE_PARENT_LAYER_INDEX = 'parentLayerId';
 
-export function resolveBridgeId(value: { bridgeId?: unknown } | null | undefined): string | undefined {
-  if (!value) return undefined;
-  if (typeof value.bridgeId === 'string' && value.bridgeId.trim()) return value.bridgeId.trim();
+export function resolveBridgeId(
+  value: { bridgeId?: unknown } | null | undefined,
+): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value.bridgeId === 'string' && value.bridgeId.trim().length > 0)
+    return value.bridgeId.trim();
   return undefined;
 }
 
 function isBridgeLayerTier(tier: TierDefinitionDocType): boolean {
-  return tier.key.startsWith(BRIDGE_TIER_PREFIX)
-    && (tier.contentType === 'transcription' || tier.contentType === 'translation');
+  return (
+    tier.key.startsWith(BRIDGE_TIER_PREFIX) &&
+    (tier.contentType === 'transcription' || tier.contentType === 'translation')
+  );
 }
 
 /** tier.tierType → LayerConstraint 映射 | Map TierType to LayerConstraint */
 function tierTypeToConstraint(tierType: TierType): LayerConstraint | undefined {
   switch (tierType) {
-    case 'symbolic-association': return 'symbolic_association';
-    case 'time-subdivision': return 'time_subdivision';
-    case 'time-aligned': return 'independent_boundary';
-    default: return undefined;
+    case 'symbolic-association':
+      return 'symbolic_association';
+    case 'time-subdivision':
+      return 'time_subdivision';
+    case 'time-aligned':
+      return 'independent_boundary';
+    default:
+      return undefined;
   }
 }
 
 /** LayerConstraint → TierType 映射 | Map LayerConstraint to TierType */
 function constraintToTierType(constraint: LayerConstraint | undefined): TierType {
   switch (constraint) {
-    case 'independent_boundary': return 'time-aligned';
-    case 'time_subdivision': return 'time-subdivision';
-    case 'symbolic_association': return 'symbolic-association';
-    default: return 'time-aligned';
+    case 'independent_boundary':
+      return 'time-aligned';
+    case 'time_subdivision':
+      return 'time-subdivision';
+    case 'symbolic_association':
+      return 'symbolic-association';
+    default:
+      return 'time-aligned';
   }
 }
 
@@ -212,7 +245,9 @@ function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | null {
     ...(tier.isDefault !== undefined && { isDefault: tier.isDefault }),
     ...(tier.sortOrder !== undefined && { sortOrder: tier.sortOrder }),
     ...(constraint !== undefined && { constraint }),
-    ...(tier.parentTierId !== undefined && tier.contentType === 'transcription' ? { parentLayerId: tier.parentTierId } : {}),
+    ...(tier.parentTierId !== undefined && tier.contentType === 'transcription'
+      ? { parentLayerId: tier.parentTierId }
+      : {}),
     ...(tier.accessRights !== undefined && { accessRights: tier.accessRights }),
     createdAt: tier.createdAt,
     updatedAt: tier.updatedAt,
@@ -279,23 +314,38 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
     };
   }
 
-  async findByIndex(indexName: string, value: string | number): Promise<Array<JieyuDoc<LayerDocType>>> {
+  async findByIndex(
+    indexName: string,
+    value: string | number,
+  ): Promise<Array<JieyuDoc<LayerDocType>>> {
     const mapRows = (raw: TierDefinitionDocType[]) =>
       raw
         .map((row) => bridgeTierToLayer(row))
         .filter((row): row is LayerDocType => Boolean(row))
         .map((row) => wrapDoc(row));
 
-    if (indexName === 'textId' || indexName === 'key' || indexName === TREE_PARENT_LAYER_INDEX || indexName === 'layerType') {
+    if (
+      indexName === 'textId' ||
+      indexName === 'key' ||
+      indexName === TREE_PARENT_LAYER_INDEX ||
+      indexName === 'layerType'
+    ) {
       try {
         if (indexName === 'textId') {
           return mapRows(await this.tierTable.where('textId').equals(String(value)).toArray());
         }
         if (indexName === 'key') {
-          return mapRows(await this.tierTable.where('key').equals(`${BRIDGE_TIER_PREFIX}${String(value)}`).toArray());
+          return mapRows(
+            await this.tierTable
+              .where('key')
+              .equals(`${BRIDGE_TIER_PREFIX}${String(value)}`)
+              .toArray(),
+          );
         }
         if (indexName === TREE_PARENT_LAYER_INDEX) {
-          return mapRows(await this.tierTable.where('parentTierId').equals(String(value)).toArray());
+          return mapRows(
+            await this.tierTable.where('parentTierId').equals(String(value)).toArray(),
+          );
         }
         return mapRows(await this.tierTable.where('contentType').equals(String(value)).toArray());
       } catch (err) {
@@ -313,7 +363,10 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
       .map((row) => wrapDoc(row));
   }
 
-  async findByIndexAnyOf(indexName: string, values: readonly (string | number)[]): Promise<Array<JieyuDoc<LayerDocType>>> {
+  async findByIndexAnyOf(
+    indexName: string,
+    values: readonly (string | number)[],
+  ): Promise<Array<JieyuDoc<LayerDocType>>> {
     const collected: LayerDocType[] = [];
     for (const value of values) {
       const docs = await this.findByIndex(indexName, value);
@@ -367,10 +420,15 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
       ...(changes.isDefault !== undefined ? { isDefault: changes.isDefault } : {}),
       ...(changes.sortOrder !== undefined ? { sortOrder: changes.sortOrder } : {}),
       ...(changes.accessRights !== undefined ? { accessRights: changes.accessRights } : {}),
-      ...(changes.constraint !== undefined ? { tierType: constraintToTierType(changes.constraint) } : {}),
+      ...(changes.constraint !== undefined
+        ? { tierType: constraintToTierType(changes.constraint) }
+        : {}),
       updatedAt: new Date().toISOString(),
     };
-    if (existingTier.contentType === 'transcription' && 'parentLayerId' in (changes as Partial<TranscriptionLayerDocType>)) {
+    if (
+      existingTier.contentType === 'transcription' &&
+      'parentLayerId' in (changes as Partial<TranscriptionLayerDocType>)
+    ) {
       const pid = (changes as Partial<TranscriptionLayerDocType>).parentLayerId;
       if (pid === undefined) {
         delete updatedTier.parentTierId;
@@ -381,4 +439,3 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
     await this.tierTable.put(updatedTier);
   }
 }
-

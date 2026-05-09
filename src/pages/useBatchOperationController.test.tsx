@@ -34,7 +34,12 @@ function segmentView(
   };
 }
 
-function makeUnit(id: string, startTime: number, endTime: number, speakerId?: string): LayerUnitDocType {
+function makeUnit(
+  id: string,
+  startTime: number,
+  endTime: number,
+  speakerId?: string,
+): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -43,7 +48,7 @@ function makeUnit(id: string, startTime: number, endTime: number, speakerId?: st
     endTime,
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
-    ...(speakerId ? { speakerId } : {}),
+    ...(typeof speakerId === 'string' && speakerId.length > 0 ? { speakerId } : {}),
   } as LayerUnitDocType;
 }
 
@@ -65,18 +70,20 @@ describe('useBatchOperationController', () => {
       ['seg-b', segmentView('seg-b', 'utt-1', 'layer-default', 'media-1')],
       ['seg-a', segmentView('seg-a', 'utt-2', 'layer-default', 'media-1')],
     ]);
-    const { result } = renderHook(() => useBatchOperationController({
-      selectedUnitIds: new Set(['seg-b', 'seg-a']),
-      selectedTimelineUnit: null,
-      unitViewById,
-      unitsOnCurrentMedia,
-      getUnitDocById,
-      setSaveState: vi.fn(),
-      offsetSelectedTimes: vi.fn(async () => undefined),
-      scaleSelectedTimes: vi.fn(async () => undefined),
-      splitByRegex: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-    }));
+    const { result } = renderHook(() =>
+      useBatchOperationController({
+        selectedUnitIds: new Set(['seg-b', 'seg-a']),
+        selectedTimelineUnit: null,
+        unitViewById,
+        unitsOnCurrentMedia,
+        getUnitDocById,
+        setSaveState: vi.fn(),
+        offsetSelectedTimes: vi.fn(async () => undefined),
+        scaleSelectedTimes: vi.fn(async () => undefined),
+        splitByRegex: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+      }),
+    );
 
     expect(Array.from(result.current.selectedBatchUnitIdsSet).sort()).toEqual(['utt-1', 'utt-2']);
     expect(result.current.selectedBatchUnits.map((item) => item.id)).toEqual(['utt-1', 'utt-2']);
@@ -91,27 +98,31 @@ describe('useBatchOperationController', () => {
       ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
       ['seg-a', segmentView('seg-a', 'utt-1', 'layer-default', 'media-1')],
     ]);
-    const { result } = renderHook(() => useBatchOperationController({
-      selectedUnitIds: new Set(['seg-a', 'missing']),
-      selectedTimelineUnit: null,
-      unitViewById,
-      unitsOnCurrentMedia,
-      getUnitDocById,
-      setSaveState,
-      offsetSelectedTimes,
-      scaleSelectedTimes: vi.fn(async () => undefined),
-      splitByRegex: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-    }));
+    const { result } = renderHook(() =>
+      useBatchOperationController({
+        selectedUnitIds: new Set(['seg-a', 'missing']),
+        selectedTimelineUnit: null,
+        unitViewById,
+        unitsOnCurrentMedia,
+        getUnitDocById,
+        setSaveState,
+        offsetSelectedTimes,
+        scaleSelectedTimes: vi.fn(async () => undefined),
+        splitByRegex: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+      }),
+    );
 
     await act(async () => {
       await result.current.handleBatchOffset(1.5);
     });
 
-    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'done',
-      message: expect.stringContaining('已忽略 1 个不可映射选中项'),
-    }));
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'done',
+        message: expect.stringContaining('已忽略 1 个不可映射选中项'),
+      }),
+    );
     expect(offsetSelectedTimes).toHaveBeenCalledWith(result.current.selectedBatchUnitIdsSet, 1.5);
   });
 
@@ -126,54 +137,64 @@ describe('useBatchOperationController', () => {
       ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
       ['seg-a', segmentView('seg-a', 'utt-1', 'layer-default', 'media-1')],
     ]);
-    const { result } = renderHook(() => useBatchOperationController({
-      selectedUnitIds: new Set(['seg-a', 'missing']),
-      selectedTimelineUnit: null,
-      unitViewById,
-      unitsOnCurrentMedia,
-      getUnitDocById,
-      setSaveState,
-      offsetSelectedTimes,
-      scaleSelectedTimes: vi.fn(async () => undefined),
-      splitByRegex: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-    }));
+    const { result } = renderHook(() =>
+      useBatchOperationController({
+        selectedUnitIds: new Set(['seg-a', 'missing']),
+        selectedTimelineUnit: null,
+        unitViewById,
+        unitsOnCurrentMedia,
+        getUnitDocById,
+        setSaveState,
+        offsetSelectedTimes,
+        scaleSelectedTimes: vi.fn(async () => undefined),
+        splitByRegex: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+      }),
+    );
 
     await act(async () => {
       await expect(result.current.handleBatchOffset(1.5)).resolves.toBeUndefined();
     });
 
-    expect(setSaveState).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      kind: 'done',
-      message: expect.stringContaining('已忽略 1 个不可映射选中项'),
-    }));
-    expect(setSaveState).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      kind: 'error',
-      message: '批量时间偏移失败：disk full',
-      errorMeta: expect.objectContaining({
-        category: 'action',
-        action: '批量时间偏移',
-        detail: 'disk full',
+    expect(setSaveState).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        kind: 'done',
+        message: expect.stringContaining('已忽略 1 个不可映射选中项'),
       }),
-    }));
+    );
+    expect(setSaveState).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        kind: 'error',
+        message: '批量时间偏移失败：disk full',
+        errorMeta: expect.objectContaining({
+          category: 'action',
+          action: '批量时间偏移',
+          detail: 'disk full',
+        }),
+      }),
+    );
   });
 
   it('surfaces explicit error when selection exists but maps to no editable units', async () => {
     const setSaveState = vi.fn();
     const mergeSelectedUnits = vi.fn(async () => undefined);
 
-    const { result } = renderHook(() => useBatchOperationController({
-      selectedUnitIds: new Set(['seg-missing']),
-      selectedTimelineUnit: null,
-      unitViewById: new Map<string, TimelineUnitView>(),
-      unitsOnCurrentMedia: [],
-      getUnitDocById: () => undefined,
-      setSaveState,
-      offsetSelectedTimes: vi.fn(async () => undefined),
-      scaleSelectedTimes: vi.fn(async () => undefined),
-      splitByRegex: vi.fn(async () => undefined),
-      mergeSelectedUnits,
-    }));
+    const { result } = renderHook(() =>
+      useBatchOperationController({
+        selectedUnitIds: new Set(['seg-missing']),
+        selectedTimelineUnit: null,
+        unitViewById: new Map<string, TimelineUnitView>(),
+        unitsOnCurrentMedia: [],
+        getUnitDocById: () => undefined,
+        setSaveState,
+        offsetSelectedTimes: vi.fn(async () => undefined),
+        scaleSelectedTimes: vi.fn(async () => undefined),
+        splitByRegex: vi.fn(async () => undefined),
+        mergeSelectedUnits,
+      }),
+    );
 
     await act(async () => {
       await result.current.handleBatchMerge();
@@ -189,26 +210,28 @@ describe('useBatchOperationController', () => {
   it('maps single selected timeline unit through segment-to-unit fallback for batch actions', async () => {
     const scaleSelectedTimes = vi.fn(async () => undefined);
 
-    const { unitsOnCurrentMedia, getUnitDocById } = unitsWithResolver([
-      makeUnit('utt-1', 1, 2),
-      makeUnit('utt-2', 3, 4),
-    ], 'layer-seg');
+    const { unitsOnCurrentMedia, getUnitDocById } = unitsWithResolver(
+      [makeUnit('utt-1', 1, 2), makeUnit('utt-2', 3, 4)],
+      'layer-seg',
+    );
     const unitViewById = new Map<string, TimelineUnitView>([
       ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
       ['seg-a', segmentView('seg-a', 'utt-2', 'layer-seg', 'media-1')],
     ]);
-    const { result } = renderHook(() => useBatchOperationController({
-      selectedUnitIds: new Set(),
-      selectedTimelineUnit: { layerId: 'layer-seg', unitId: 'seg-a', kind: 'segment' },
-      unitViewById,
-      unitsOnCurrentMedia,
-      getUnitDocById,
-      setSaveState: vi.fn(),
-      offsetSelectedTimes: vi.fn(async () => undefined),
-      scaleSelectedTimes,
-      splitByRegex: vi.fn(async () => undefined),
-      mergeSelectedUnits: vi.fn(async () => undefined),
-    }));
+    const { result } = renderHook(() =>
+      useBatchOperationController({
+        selectedUnitIds: new Set(),
+        selectedTimelineUnit: { layerId: 'layer-seg', unitId: 'seg-a', kind: 'segment' },
+        unitViewById,
+        unitsOnCurrentMedia,
+        getUnitDocById,
+        setSaveState: vi.fn(),
+        offsetSelectedTimes: vi.fn(async () => undefined),
+        scaleSelectedTimes,
+        splitByRegex: vi.fn(async () => undefined),
+        mergeSelectedUnits: vi.fn(async () => undefined),
+      }),
+    );
 
     expect(Array.from(result.current.selectedBatchUnitIdsSet)).toEqual(['utt-2']);
     expect(result.current.selectedBatchUnits.map((item) => item.id)).toEqual(['utt-2']);

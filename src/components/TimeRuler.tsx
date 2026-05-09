@@ -68,7 +68,11 @@ export function TimeRuler({
   isResizingWaveform,
 }: TimeRulerProps) {
   const locale = useLocale();
-  const rulerDragRef = useRef<{ dragging: boolean; startX: number; startScroll: number }>({ dragging: false, startX: 0, startScroll: 0 });
+  const rulerDragRef = useRef<{ dragging: boolean; startX: number; startScroll: number }>({
+    dragging: false,
+    startX: 0,
+    startScroll: 0,
+  });
   const overviewDragRef = useRef(false);
   const clearDragFlagTimerRef = useRef<number | null>(null);
   const moveListenerRef = useRef<((ev: MouseEvent) => void) | null>(null);
@@ -95,8 +99,6 @@ export function TimeRuler({
   const { start, end } = rulerView;
   const windowSec = end - start;
 
-  if (windowSec <= 0) return null;
-
   const { majorStep, minorStep, fmtLabel } = useMemo(() => {
     const approxPxPerSec = Math.max(zoomPxPerSec, 1);
     const nextMajorStep = NICE_STEPS.find((s) => s * approxPxPerSec >= 120) ?? 600;
@@ -115,12 +117,16 @@ export function TimeRuler({
       let sInt = Math.round(sRaw);
       let mAdj = m;
       let hAdj = h;
-      if (sInt >= 60) { sInt = 0; mAdj += 1; }
-      if (mAdj >= 60) { mAdj = 0; hAdj += 1; }
+      if (sInt >= 60) {
+        sInt = 0;
+        mAdj += 1;
+      }
+      if (mAdj >= 60) {
+        mAdj = 0;
+        hAdj += 1;
+      }
       const ss = String(sInt).padStart(2, '0');
-      return showHour
-        ? `${hAdj}:${String(mAdj).padStart(2, '0')}:${ss}`
-        : `${mAdj}:${ss}`;
+      return showHour ? `${hAdj}:${String(mAdj).padStart(2, '0')}:${ss}` : `${mAdj}:${ss}`;
     };
     return {
       majorStep: nextMajorStep,
@@ -142,40 +148,46 @@ export function TimeRuler({
     return nextTicks;
   }, [dur, end, majorStep, minorStep, start]);
 
-  const tickMarks = useMemo(() => ticks.map((tk) => {
-    const leftPct = ((tk.time - start) / windowSec) * 100;
-    const left = `${leftPct}%`;
-    return (
-      <g key={`tk-${tk.time}`}>
-        <line
-          className={`time-ruler-tick-line ${tk.kind === 'major' ? 'time-ruler-tick-line-major' : ''}`}
-          x1={left}
-          x2={left}
-          y1={0}
-          y2={tk.kind === 'major' ? RULER_MAJOR_TICK_Y2_PX : RULER_MINOR_TICK_Y2_PX}
-        />
-        {tk.kind === 'major' ? (
-          <text
-            className="time-ruler-label-text"
-            x={left}
-            y={RULER_LABEL_Y_PX}
-            dx={2}
-          >
-            {fmtLabel(tk.time)}
-          </text>
-        ) : null}
-      </g>
-    );
-  }), [fmtLabel, start, ticks, windowSec]);
+  const tickMarks = useMemo(
+    () =>
+      ticks.map((tk) => {
+        const leftPct = ((tk.time - start) / windowSec) * 100;
+        const left = `${leftPct}%`;
+        return (
+          <g key={`tk-${tk.time}`}>
+            <line
+              className={`time-ruler-tick-line ${tk.kind === 'major' ? 'time-ruler-tick-line-major' : ''}`}
+              x1={left}
+              x2={left}
+              y1={0}
+              y2={tk.kind === 'major' ? RULER_MAJOR_TICK_Y2_PX : RULER_MINOR_TICK_Y2_PX}
+            />
+            {tk.kind === 'major' ? (
+              <text className="time-ruler-label-text" x={left} y={RULER_LABEL_Y_PX} dx={2}>
+                {fmtLabel(tk.time)}
+              </text>
+            ) : null}
+          </g>
+        );
+      }),
+    [fmtLabel, start, ticks, windowSec],
+  );
 
-  const seekFromOverview = useCallback((clientX: number, element: HTMLDivElement) => {
-    const rect = element.getBoundingClientRect();
-    const ratio = (clientX - rect.left) / rect.width;
-    seekTo(Math.max(0, Math.min(dur, ratio * dur)));
-  }, [dur, seekTo]);
+  const seekFromOverview = useCallback(
+    (clientX: number, element: HTMLDivElement) => {
+      const rect = element.getBoundingClientRect();
+      const ratio = (clientX - rect.left) / rect.width;
+      seekTo(Math.max(0, Math.min(dur, ratio * dur)));
+    },
+    [dur, seekTo],
+  );
 
   const overviewViewportLeft = `${(Math.max(0, start) / dur) * 100}%`;
   const overviewViewportWidth = `${Math.max(0.8, ((Math.min(dur, end) - Math.max(0, start)) / dur) * 100)}%`;
+
+  if (windowSec <= 0) {
+    return <div className="time-ruler" />;
+  }
 
   return (
     <div className="time-ruler">
@@ -184,8 +196,16 @@ export function TimeRuler({
         className="time-ruler-lane-toggle"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={onToggleLaneHeader}
-        aria-label={isLaneHeaderCollapsed ? t(locale, 'transcription.timeRuler.expandLaneHeader') : t(locale, 'transcription.timeRuler.collapseLaneHeader')}
-        title={isLaneHeaderCollapsed ? t(locale, 'transcription.timeRuler.expandLaneHeader') : t(locale, 'transcription.timeRuler.collapseLaneHeader')}
+        aria-label={
+          isLaneHeaderCollapsed
+            ? t(locale, 'transcription.timeRuler.expandLaneHeader')
+            : t(locale, 'transcription.timeRuler.collapseLaneHeader')
+        }
+        title={
+          isLaneHeaderCollapsed
+            ? t(locale, 'transcription.timeRuler.expandLaneHeader')
+            : t(locale, 'transcription.timeRuler.collapseLaneHeader')
+        }
       >
         <span
           className={`time-ruler-lane-toggle-triangle ${isLaneHeaderCollapsed ? 'time-ruler-lane-toggle-triangle-right' : 'time-ruler-lane-toggle-triangle-left'}`}
@@ -204,7 +224,11 @@ export function TimeRuler({
           const el = waveCanvasRef.current;
           if (!el) return;
           const ws = instanceRef.current;
-          rulerDragRef.current = { dragging: false, startX: e.clientX, startScroll: ws ? ws.getScroll() : 0 };
+          rulerDragRef.current = {
+            dragging: false,
+            startX: e.clientX,
+            startScroll: ws ? ws.getScroll() : 0,
+          };
           const onMove = (ev: MouseEvent) => {
             const dx = ev.clientX - rulerDragRef.current.startX;
             if (Math.abs(dx) > 3) rulerDragRef.current.dragging = true;

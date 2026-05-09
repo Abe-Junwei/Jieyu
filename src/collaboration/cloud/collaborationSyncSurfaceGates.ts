@@ -14,21 +14,27 @@ export interface CollaborationSyncSurfaceInput {
   browserOnline: boolean;
 }
 
-function hasProjectContext(input: Pick<CollaborationSyncSurfaceInput, 'supabaseConfigured' | 'collaborationProjectId'>): boolean {
-  return input.supabaseConfigured && Boolean(input.collaborationProjectId);
+function hasProjectContext(
+  input: Pick<CollaborationSyncSurfaceInput, 'supabaseConfigured' | 'collaborationProjectId'>,
+): boolean {
+  return input.supabaseConfigured && input.collaborationProjectId.length > 0;
 }
 
-function normalizedPending(input: Pick<CollaborationSyncSurfaceInput, 'pendingOutboundCount'>): number {
+function normalizedPending(
+  input: Pick<CollaborationSyncSurfaceInput, 'pendingOutboundCount'>,
+): number {
   return Math.max(0, Math.floor(input.pendingOutboundCount));
 }
 
 export function collaborationSyncSurfaceIsIdle(
   input: Pick<CollaborationSyncSurfaceInput, 'supabaseConfigured' | 'collaborationProjectId'>,
 ): boolean {
-  return !input.supabaseConfigured || !input.collaborationProjectId;
+  return !input.supabaseConfigured || input.collaborationProjectId.length === 0;
 }
 
-export function collaborationSyncSurfaceIsConnecting(input: CollaborationSyncSurfaceInput): boolean {
+export function collaborationSyncSurfaceIsConnecting(
+  input: CollaborationSyncSurfaceInput,
+): boolean {
   return hasProjectContext(input) && !input.isBridgeReady;
 }
 
@@ -45,7 +51,9 @@ export function collaborationSyncSurfaceIsConflict(input: CollaborationSyncSurfa
   );
 }
 
-export function collaborationSyncSurfaceIsOfflineQueue(input: CollaborationSyncSurfaceInput): boolean {
+export function collaborationSyncSurfaceIsOfflineQueue(
+  input: CollaborationSyncSurfaceInput,
+): boolean {
   const pending = normalizedPending(input);
   return (
     hasProjectContext(input) &&
@@ -73,7 +81,9 @@ export function collaborationSyncSurfaceIsSyncing(input: CollaborationSyncSurfac
  * `deriveCollaborationSyncBadge` 在通过冲突门控后、又非 offline_queue / syncing 时的「与云端一致且队列为空」态（含离线+空队列=synced）。 |
  * “Synced” tail state: has context, bridge up, writes allowed, no conflicts, empty queue.
  */
-export function collaborationSyncSurfaceIsFullySynced(input: CollaborationSyncSurfaceInput): boolean {
+export function collaborationSyncSurfaceIsFullySynced(
+  input: CollaborationSyncSurfaceInput,
+): boolean {
   const pending = normalizedPending(input);
   return (
     hasProjectContext(input) &&

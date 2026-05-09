@@ -35,7 +35,9 @@ export function createTranscriptionAiReadModelAccessors<TUnit extends UnitDocLit
   };
 
   const readUnitLayerText = (unitId: string, layerId?: string): string => {
-    const unit = input.getUnitDocById(unitId) ?? input.segmentTargetScopeUnits.find((row) => row.id === unitId);
+    const unit =
+      input.getUnitDocById(unitId) ??
+      input.segmentTargetScopeUnits.find((row) => row.id === unitId);
     if (!unit) return '';
     return input.getUnitTextForLayer(unit, layerId);
   };
@@ -44,7 +46,7 @@ export function createTranscriptionAiReadModelAccessors<TUnit extends UnitDocLit
     for (const row of input.allUnitRows) {
       const doc = input.getUnitDocById(row.id);
       const words = doc?.words;
-      if (!words?.length) continue;
+      if (words === undefined || words.length === 0) continue;
       const token = words.find((word) => word.id === tokenId);
       if (!token) continue;
       if (token.pos === undefined || token.pos === null) return null;
@@ -55,13 +57,15 @@ export function createTranscriptionAiReadModelAccessors<TUnit extends UnitDocLit
   };
 
   const readTokenGloss = (tokenId: string, lang?: string): string | null => {
-    const language = (lang ?? 'eng').trim() || 'eng';
+    const normalizedLang = lang?.trim();
+    const language =
+      normalizedLang !== undefined && normalizedLang.length > 0 ? normalizedLang : 'eng';
     for (const row of input.allUnitRows) {
       const doc = input.getUnitDocById(row.id);
       const words = doc?.words;
-      if (!words?.length) continue;
+      if (words === undefined || words.length === 0) continue;
       const token = words.find((word) => word.id === tokenId);
-      if (!token?.gloss) return null;
+      if (token?.gloss === undefined || token.gloss === null) return null;
       const gloss = token.gloss[language];
       if (gloss === undefined || gloss === null) return null;
       const normalized = String(gloss).trim();

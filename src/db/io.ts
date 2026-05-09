@@ -200,10 +200,9 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   ai_source_sets: db.ai_source_sets,
 };
 
-function ensureImportProvenance<T extends { provenance?: ProvenanceEnvelope | undefined; createdAt?: string | undefined }>(
-  doc: T,
-  fallbackCreatedAt: string,
-): T {
+function ensureImportProvenance<
+  T extends { provenance?: ProvenanceEnvelope | undefined; createdAt?: string | undefined },
+>(doc: T, fallbackCreatedAt: string): T {
   if (doc.provenance) return doc;
   return {
     ...doc,
@@ -218,9 +217,7 @@ function ensureImportProvenance<T extends { provenance?: ProvenanceEnvelope | un
 function ensureSnapshotJsonSizeWithinLimit(raw: string): void {
   const sizeBytes = new TextEncoder().encode(raw).byteLength;
   if (sizeBytes > SNAPSHOT_IMPORT_MAX_JSON_BYTES) {
-    throw new Error(
-      `Snapshot JSON size exceeds limit (${SNAPSHOT_IMPORT_MAX_JSON_BYTES} bytes).`,
-    );
+    throw new Error(`Snapshot JSON size exceeds limit (${SNAPSHOT_IMPORT_MAX_JSON_BYTES} bytes).`);
   }
 }
 
@@ -240,7 +237,9 @@ function validateSnapshotJsonStructure(value: unknown): void {
 
     nodeCount += 1;
     if (nodeCount > SNAPSHOT_IMPORT_MAX_JSON_NODES) {
-      throw new Error(`Snapshot JSON node count exceeds limit (${SNAPSHOT_IMPORT_MAX_JSON_NODES}).`);
+      throw new Error(
+        `Snapshot JSON node count exceeds limit (${SNAPSHOT_IMPORT_MAX_JSON_NODES}).`,
+      );
     }
 
     if (Array.isArray(node)) {
@@ -257,8 +256,12 @@ function validateSnapshotJsonStructure(value: unknown): void {
   }
 }
 
-function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown, fallbackCreatedAt: string): unknown {
-  if (!doc || typeof doc !== 'object') return doc;
+function normalizeImportedDoc(
+  collectionName: KnownCollectionName,
+  doc: unknown,
+  fallbackCreatedAt: string,
+): unknown {
+  if (doc === null || doc === undefined || typeof doc !== 'object') return doc;
 
   switch (collectionName) {
     case 'unit_tokens':
@@ -309,32 +312,66 @@ async function pruneOrphanUserNotes(): Promise<number> {
     if (note.targetType === 'unit') unitIds.add(note.targetId);
     if (note.targetType === 'text') textIds.add(note.targetId);
     if (note.targetType === 'lexeme') lexemeIds.add(note.targetId);
-    if (note.targetType === 'tier_annotation' && !note.targetId.includes('::')) annotationIds.add(note.targetId);
+    if (note.targetType === 'tier_annotation' && !note.targetId.includes('::'))
+      annotationIds.add(note.targetId);
     if (note.targetType === 'token') tokenIds.add(note.targetId);
     if (note.targetType === 'morpheme') morphemeIds.add(note.targetId);
   }
 
   const existingUnitIds = new Set(
-    (await db.layer_units.bulkGet([...unitIds])).flatMap((d) => (
-      d && d.unitType === 'unit' && d.id ? [d.id] : []
-    )),
+    (await db.layer_units.bulkGet([...unitIds])).flatMap((d) =>
+      d !== undefined &&
+      d !== null &&
+      d.unitType === 'unit' &&
+      typeof d.id === 'string' &&
+      d.id.length > 0
+        ? [d.id]
+        : [],
+    ),
   );
-  const existingTextIds = new Set((await db.texts.bulkGet([...textIds])).flatMap((d) => (d?.id ? [d.id] : [])));
-  const existingLexemeIds = new Set((await db.lexemes.bulkGet([...lexemeIds])).flatMap((d) => (d?.id ? [d.id] : [])));
-  const existingAnnotationIds = new Set((await db.tier_annotations.bulkGet([...annotationIds])).flatMap((d) => (d?.id ? [d.id] : [])));
-  const existingTokenIds = new Set((await db.unit_tokens.bulkGet([...tokenIds])).flatMap((d) => (d?.id ? [d.id] : [])));
-  const existingMorphemeIds = new Set((await db.unit_morphemes.bulkGet([...morphemeIds])).flatMap((d) => (d?.id ? [d.id] : [])));
+  const existingTextIds = new Set(
+    (await db.texts.bulkGet([...textIds])).flatMap((d) =>
+      d?.id !== undefined && d.id.length > 0 ? [d.id] : [],
+    ),
+  );
+  const existingLexemeIds = new Set(
+    (await db.lexemes.bulkGet([...lexemeIds])).flatMap((d) =>
+      d?.id !== undefined && d.id.length > 0 ? [d.id] : [],
+    ),
+  );
+  const existingAnnotationIds = new Set(
+    (await db.tier_annotations.bulkGet([...annotationIds])).flatMap((d) =>
+      d?.id !== undefined && d.id.length > 0 ? [d.id] : [],
+    ),
+  );
+  const existingTokenIds = new Set(
+    (await db.unit_tokens.bulkGet([...tokenIds])).flatMap((d) =>
+      d?.id !== undefined && d.id.length > 0 ? [d.id] : [],
+    ),
+  );
+  const existingMorphemeIds = new Set(
+    (await db.unit_morphemes.bulkGet([...morphemeIds])).flatMap((d) =>
+      d?.id !== undefined && d.id.length > 0 ? [d.id] : [],
+    ),
+  );
 
   const orphanIds: string[] = [];
   for (const note of notes) {
     if (note.targetType === 'unit' && !existingUnitIds.has(note.targetId)) orphanIds.push(note.id);
     if (note.targetType === 'text' && !existingTextIds.has(note.targetId)) orphanIds.push(note.id);
-    if (note.targetType === 'lexeme' && !existingLexemeIds.has(note.targetId)) orphanIds.push(note.id);
-    if (note.targetType === 'tier_annotation' && !note.targetId.includes('::') && !existingAnnotationIds.has(note.targetId)) {
+    if (note.targetType === 'lexeme' && !existingLexemeIds.has(note.targetId))
+      orphanIds.push(note.id);
+    if (
+      note.targetType === 'tier_annotation' &&
+      !note.targetId.includes('::') &&
+      !existingAnnotationIds.has(note.targetId)
+    ) {
       orphanIds.push(note.id);
     }
-    if (note.targetType === 'token' && !existingTokenIds.has(note.targetId)) orphanIds.push(note.id);
-    if (note.targetType === 'morpheme' && !existingMorphemeIds.has(note.targetId)) orphanIds.push(note.id);
+    if (note.targetType === 'token' && !existingTokenIds.has(note.targetId))
+      orphanIds.push(note.id);
+    if (note.targetType === 'morpheme' && !existingMorphemeIds.has(note.targetId))
+      orphanIds.push(note.id);
   }
 
   if (orphanIds.length > 0) {
@@ -361,10 +398,15 @@ export async function importDatabaseFromJson(
       parsedRaw = input;
     }
   } catch (e) {
-    if (e instanceof Error && /Snapshot JSON (size|depth|node count) exceeds limit/i.test(e.message)) {
+    if (
+      e instanceof Error &&
+      /Snapshot JSON (size|depth|node count) exceeds limit/i.test(e.message)
+    ) {
       throw e;
     }
-    throw new Error(`Invalid JSON input: ${e instanceof Error ? e.message : 'unknown parse error'}`);
+    throw new Error(
+      `Invalid JSON input: ${e instanceof Error ? e.message : 'unknown parse error'}`,
+    );
   }
   validateSnapshotJsonStructure(parsedRaw);
   const snapshot = validation.parseDatabaseSnapshot(parsedRaw);
@@ -376,7 +418,9 @@ export async function importDatabaseFromJson(
   }
 
   if ('unit_texts' in snapshot.collections) {
-    throw new Error('Legacy collection "unit_texts" is no longer supported; import a LayerUnit snapshot.');
+    throw new Error(
+      'Legacy collection "unit_texts" is no longer supported; import a LayerUnit snapshot.',
+    );
   }
 
   const result: ImportResult = {
@@ -405,7 +449,10 @@ export async function importDatabaseFromJson(
 
   // 合并遗留 orthography_transforms 到 orthography_bridges，避免双映射写入冲突
   // Merge legacy orthography_transforms into orthography_bridges to avoid dual-mapping write conflicts
-  if ('orthography_transforms' in snapshot.collections && 'orthography_bridges' in snapshot.collections) {
+  if (
+    'orthography_transforms' in snapshot.collections &&
+    'orthography_bridges' in snapshot.collections
+  ) {
     const bridgeDocs = snapshot.collections['orthography_bridges'] as Array<{ id?: string }>;
     const transformDocs = snapshot.collections['orthography_transforms'] as Array<{ id?: string }>;
     const bridgeIds = new Set(bridgeDocs.map((d) => d.id));
@@ -430,7 +477,9 @@ export async function importDatabaseFromJson(
     }
 
     const collectionName = name as KnownCollectionName;
-    const normalizedDocs = docs.map((doc) => normalizeImportedDoc(collectionName, doc, importStartedAt));
+    const normalizedDocs = docs.map((doc) =>
+      normalizeImportedDoc(collectionName, doc, importStartedAt),
+    );
 
     for (const doc of normalizedDocs) {
       const candidate = doc as { id?: unknown };
@@ -439,12 +488,16 @@ export async function importDatabaseFromJson(
       }
 
       if (collectionName === 'media_items') {
-        const details = (doc as Record<string, unknown>)['details'] as Record<string, unknown> | undefined;
+        const details = (doc as Record<string, unknown>)['details'] as
+          | Record<string, unknown>
+          | undefined;
         const audioDataUrl = details?.['audioDataUrl'];
         if (details && typeof audioDataUrl === 'string') {
           const trimmedAudioDataUrl = audioDataUrl.trim();
           if (!/^data:/i.test(trimmedAudioDataUrl)) {
-            throw new Error(`Invalid media_items.details.audioDataUrl in ${collectionName}: only data URLs are supported during import`);
+            throw new Error(
+              `Invalid media_items.details.audioDataUrl in ${collectionName}: only data URLs are supported during import`,
+            );
           }
           const resp = await fetch(trimmedAudioDataUrl);
           details['audioBlob'] = await resp.blob();
@@ -474,40 +527,81 @@ export async function importDatabaseFromJson(
   const txTablesTuple = txTables as [Table<any, any>, ...Table<any, any>[]];
   const transactionAny = dbInstance.dexie.transaction as (...args: any[]) => Promise<void>;
 
-  await transactionAny.apply(dbInstance.dexie, ['rw', ...txTablesTuple, async () => {
-    for (const prepared of preparedCollections) {
-      const { collectionName, normalizedDocs, received } = prepared;
-      const resultCollectionName = (
-        collectionName === 'orthography_transforms' ? 'orthography_bridges' : collectionName
-      ) as keyof JieyuCollections;
+  await transactionAny.apply(dbInstance.dexie, [
+    'rw',
+    ...txTablesTuple,
+    async () => {
+      for (const prepared of preparedCollections) {
+        const { collectionName, normalizedDocs, received } = prepared;
+        const resultCollectionName = (
+          collectionName === 'orthography_transforms' ? 'orthography_bridges' : collectionName
+        ) as keyof JieyuCollections;
 
-      if (collectionName === 'layers') {
-        const collection = dbInstance.collections.layers;
+        if (collectionName === 'layers') {
+          const collection = dbInstance.collections.layers;
+          let written = 0;
+          let skipped = 0;
+
+          if (strategy === 'replace-all') {
+            const existing = await collection.find().exec();
+            for (const row of existing) {
+              await collection.remove(row.primary);
+            }
+          }
+
+          if (strategy === 'skip-existing') {
+            for (const doc of normalizedDocs as LayerDocType[]) {
+              const existing = await collection.findOne({ selector: { id: doc.id } }).exec();
+              if (existing) {
+                skipped += 1;
+                continue;
+              }
+              await collection.insert(doc);
+              written += 1;
+            }
+          } else {
+            for (const doc of normalizedDocs as LayerDocType[]) {
+              await collection.insert(doc);
+              written += 1;
+            }
+          }
+
+          result.collections[resultCollectionName] = {
+            received,
+            written,
+            skipped,
+          };
+          continue;
+        }
+
+        const table = tableByCollection[collectionName];
+        if (!table) {
+          result.ignoredCollections.push(collectionName);
+          continue;
+        }
+
         let written = 0;
         let skipped = 0;
 
         if (strategy === 'replace-all') {
-          const existing = await collection.find().exec();
-          for (const row of existing) {
-            await collection.remove(row.primary);
-          }
+          await table.clear();
         }
 
         if (strategy === 'skip-existing') {
-          for (const doc of normalizedDocs as LayerDocType[]) {
-            const existing = await collection.findOne({ selector: { id: doc.id } }).exec();
-            if (existing) {
-              skipped += 1;
-              continue;
-            }
-            await collection.insert(doc);
-            written += 1;
+          const existingDocs = await table.bulkGet(
+            normalizedDocs.map((doc) => (doc as { id: string }).id),
+          );
+          const toInsert = normalizedDocs.filter((_, index) => !existingDocs[index]);
+          skipped = normalizedDocs.length - toInsert.length;
+          if (toInsert.length > 0) {
+            await table.bulkPut(toInsert as Array<{ id: string }>);
           }
+          written = toInsert.length;
         } else {
-          for (const doc of normalizedDocs as LayerDocType[]) {
-            await collection.insert(doc);
-            written += 1;
+          if (normalizedDocs.length > 0) {
+            await table.bulkPut(normalizedDocs as Array<{ id: string }>);
           }
+          written = normalizedDocs.length;
         }
 
         result.collections[resultCollectionName] = {
@@ -515,47 +609,11 @@ export async function importDatabaseFromJson(
           written,
           skipped,
         };
-        continue;
       }
 
-      const table = tableByCollection[collectionName];
-      if (!table) {
-        result.ignoredCollections.push(collectionName);
-        continue;
-      }
-
-      let written = 0;
-      let skipped = 0;
-
-      if (strategy === 'replace-all') {
-        await table.clear();
-      }
-
-      if (strategy === 'skip-existing') {
-        const existingDocs = await table.bulkGet(normalizedDocs.map((doc) => (doc as { id: string }).id));
-        const toInsert = normalizedDocs.filter((_, index) => !existingDocs[index]);
-        skipped = normalizedDocs.length - toInsert.length;
-        if (toInsert.length > 0) {
-          await table.bulkPut(toInsert as Array<{ id: string }>);
-        }
-        written = toInsert.length;
-      } else {
-        if (normalizedDocs.length > 0) {
-          await table.bulkPut(normalizedDocs as Array<{ id: string }>);
-        }
-        written = normalizedDocs.length;
-      }
-
-      result.collections[resultCollectionName] = {
-        received,
-        written,
-        skipped,
-      };
-    }
-
-    await pruneOrphanUserNotes();
-  }]);
+      await pruneOrphanUserNotes();
+    },
+  ]);
 
   return result;
 }
-

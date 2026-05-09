@@ -1,4 +1,10 @@
-import { forwardRef, type ComponentProps, type ComponentPropsWithoutRef, type CSSProperties, type ReactNode } from 'react';
+import {
+  forwardRef,
+  type ComponentProps,
+  type ComponentPropsWithoutRef,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 
 type TimelineStyledContainerProps = Omit<ComponentPropsWithoutRef<'div'>, 'children' | 'style'> & {
   layoutStyle: CSSProperties;
@@ -17,8 +23,9 @@ type TimelineStyledSectionProps = Omit<ComponentProps<'section'>, 'children' | '
 
 export const TimelineStyledContainer = forwardRef<HTMLDivElement, TimelineStyledContainerProps>(
   function TimelineStyledContainer({ layoutStyle, children, ...divProps }, ref) {
+    const layoutProps = { style: layoutStyle };
     return (
-      <div {...divProps} ref={ref} style={layoutStyle}>
+      <div {...divProps} {...layoutProps} ref={ref}>
         {children}
       </div>
     );
@@ -30,8 +37,9 @@ export function TimelineStyledButton({
   children,
   ...buttonProps
 }: TimelineStyledButtonProps) {
+  const layoutProps = { style: layoutStyle };
   return (
-    <button {...buttonProps} style={layoutStyle}>
+    <button {...buttonProps} {...layoutProps}>
       {children}
     </button>
   );
@@ -42,8 +50,9 @@ export function TimelineStyledSection({
   children,
   ...sectionProps
 }: TimelineStyledSectionProps) {
+  const layoutProps = { style: layoutStyle };
   return (
-    <section {...sectionProps} style={layoutStyle}>
+    <section {...sectionProps} {...layoutProps}>
       {children}
     </section>
   );

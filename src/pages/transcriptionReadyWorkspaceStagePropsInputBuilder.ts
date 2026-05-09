@@ -90,7 +90,9 @@ export function buildReadyWorkspaceStagePropsInput(
     onApplyTextTimeMapping: async (mappingInput) => {
       await applyTextTimeMapping({
         ...mappingInput,
-        ...(segmentScopeMediaId ? { sourceMediaId: segmentScopeMediaId } : {}),
+        ...(segmentScopeMediaId !== undefined && segmentScopeMediaId.length > 0
+          ? { sourceMediaId: segmentScopeMediaId }
+          : {}),
       });
     },
     onExportEaf: importExportController.handleExportEaf,
@@ -102,6 +104,9 @@ export function buildReadyWorkspaceStagePropsInput(
     onExportJym: importExportController.handleExportJym,
     mediaFileInputRef: projectMediaController.mediaFileInputRef,
     onDirectMediaImport: projectMediaController.handleDirectMediaImport,
-    activeWaveformUnitId: activeWaveformRegionId || null,
+    activeWaveformUnitId:
+      activeWaveformRegionId != null && activeWaveformRegionId.length > 0
+        ? activeWaveformRegionId
+        : null,
   };
 }

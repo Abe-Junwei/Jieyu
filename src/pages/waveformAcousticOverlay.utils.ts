@@ -17,28 +17,40 @@ export function buildAcousticPath(segments: Array<{ x: number; y: number | null 
     path += `${segmentStarted ? ' L ' : 'M '}${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
     segmentStarted = true;
   }
-  return path ? path.trim() : null;
+  return path.length > 0 ? path.trim() : null;
 }
 
 function hzToMel(hz: number): number {
-  return 2595 * Math.log10(1 + (hz / 700));
+  return 2595 * Math.log10(1 + hz / 700);
 }
 
 function melToHz(mel: number): number {
-  return 700 * ((10 ** (mel / 2595)) - 1);
+  return 700 * (10 ** (mel / 2595) - 1);
 }
 
-export function resolveNearestAcousticFrame(result: AcousticFeatureResult | null, timeSec: number): AcousticFrame | null {
+export function resolveNearestAcousticFrame(
+  result: AcousticFeatureResult | null,
+  timeSec: number,
+): AcousticFrame | null {
   if (!result || result.frames.length === 0) return null;
   const frameStepSec = result.config.frameStepSec;
   const analysisWindowHalfSec = result.config.analysisWindowSec / 2;
   const approximateIndex = Math.max(
     0,
-    Math.min(result.frames.length - 1, Math.round((timeSec - analysisWindowHalfSec) / frameStepSec)),
+    Math.min(
+      result.frames.length - 1,
+      Math.round((timeSec - analysisWindowHalfSec) / frameStepSec),
+    ),
   );
   let nearestFrame = result.frames[approximateIndex] ?? null;
-  let bestDistance = nearestFrame ? Math.abs(nearestFrame.timeSec - timeSec) : Number.POSITIVE_INFINITY;
-  for (let index = Math.max(0, approximateIndex - 3); index <= Math.min(result.frames.length - 1, approximateIndex + 3); index += 1) {
+  let bestDistance = nearestFrame
+    ? Math.abs(nearestFrame.timeSec - timeSec)
+    : Number.POSITIVE_INFINITY;
+  for (
+    let index = Math.max(0, approximateIndex - 3);
+    index <= Math.min(result.frames.length - 1, approximateIndex + 3);
+    index += 1
+  ) {
     const candidate = result.frames[index];
     if (!candidate) continue;
     const distance = Math.abs(candidate.timeSec - timeSec);
@@ -50,7 +62,10 @@ export function resolveNearestAcousticFrame(result: AcousticFeatureResult | null
   return nearestFrame;
 }
 
-function resolveNearestIntensityDb(result: AcousticFeatureResult | null, timeSec: number): number | null {
+function resolveNearestIntensityDb(
+  result: AcousticFeatureResult | null,
+  timeSec: number,
+): number | null {
   const nearestFrame = resolveNearestAcousticFrame(result, timeSec);
   return nearestFrame ? nearestFrame.intensityDb : null;
 }
@@ -63,7 +78,11 @@ export function buildSpectrogramHoverReadout(input: {
   waveformScrollLeft: number;
   acousticAnalysis: AcousticFeatureResult | null;
 }): SpectrogramHoverReadout | null {
-  if (input.waveformDisplayMode === 'waveform' || input.zoomPxPerSec <= 0 || input.playerDuration <= 0) {
+  if (
+    input.waveformDisplayMode === 'waveform' ||
+    input.zoomPxPerSec <= 0 ||
+    input.playerDuration <= 0
+  ) {
     return null;
   }
 
@@ -74,11 +93,14 @@ export function buildSpectrogramHoverReadout(input: {
 
   const offsetX = clampAcousticValue(input.event.clientX - rect.left, 0, rect.width);
   const offsetY = clampAcousticValue(input.event.clientY - rect.top, 0, rect.height);
-  const timeSec = Math.max(0, Math.min(input.playerDuration, (input.waveformScrollLeft + offsetX) / input.zoomPxPerSec));
+  const timeSec = Math.max(
+    0,
+    Math.min(input.playerDuration, (input.waveformScrollLeft + offsetX) / input.zoomPxPerSec),
+  );
   const sampleRate = input.acousticAnalysis?.sampleRate ?? 16000;
   const maxFrequencyHz = sampleRate / 2;
   const melMax = hzToMel(maxFrequencyHz);
-  const melValue = (1 - (offsetY / rect.height)) * melMax;
+  const melValue = (1 - offsetY / rect.height) * melMax;
   const frequencyHz = clampAcousticValue(melToHz(melValue), 0, maxFrequencyHz);
 
   return {

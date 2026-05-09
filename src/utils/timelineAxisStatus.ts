@@ -41,7 +41,9 @@ export interface ResolveTimelineAxisStatusInput {
 /**
  * 时间轴顶栏：媒体可播性 / 解码中 / 语段超出声学时长（ADR-0004 阶段 7A）。
  */
-export function resolveTimelineAxisStatus(input: ResolveTimelineAxisStatusInput): TimelineAxisMediaHint {
+export function resolveTimelineAxisStatus(
+  input: ResolveTimelineAxisStatusInput,
+): TimelineAxisMediaHint {
   if (input.layersCount <= 0) return { kind: 'hidden' };
 
   const derived = resolveTimelineShellMode({
@@ -50,12 +52,14 @@ export function resolveTimelineAxisStatus(input: ResolveTimelineAxisStatusInput)
     playerDuration: input.playerDuration,
     layersCount: input.layersCount,
   });
-  const acousticPending = input.acousticState
-    ? input.acousticState === 'pending_decode'
-    : derived.acousticPending;
-  const playableAcoustic = input.acousticState
-    ? input.acousticState === 'playable'
-    : derived.playableAcoustic;
+  const acousticPending =
+    input.acousticState !== undefined
+      ? input.acousticState === 'pending_decode'
+      : derived.acousticPending;
+  const playableAcoustic =
+    input.acousticState !== undefined
+      ? input.acousticState === 'playable'
+      : derived.playableAcoustic;
 
   if (acousticPending) return { kind: 'acoustic_decoding' };
 

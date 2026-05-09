@@ -1,11 +1,23 @@
 import type { OrthographyDocType } from '../types/jieyuDbDocTypes';
 import { t, useLocale } from '../i18n';
-import { listAdditionalMultiLangLabelEntries, type MultiLangLabelEntry, readAnyMultiLangLabel, readEnglishFallbackMultiLangLabel, readPrimaryMultiLangLabel } from '../utils/multiLangLabels';
+import {
+  listAdditionalMultiLangLabelEntries,
+  type MultiLangLabelEntry,
+  readAnyMultiLangLabel,
+  readEnglishFallbackMultiLangLabel,
+  readPrimaryMultiLangLabel,
+} from '../utils/multiLangLabels';
 
 export type NormalizationForm = 'NFC' | 'NFD' | 'NFKC' | 'NFKD';
-export type OrthographyCatalogReviewStatus = NonNullable<NonNullable<OrthographyDocType['catalogMetadata']>['reviewStatus']>;
-export type OrthographyCatalogPriority = NonNullable<NonNullable<OrthographyDocType['catalogMetadata']>['priority']>;
-export type OrthographyCatalogSource = NonNullable<NonNullable<OrthographyDocType['catalogMetadata']>['catalogSource']>;
+export type OrthographyCatalogReviewStatus = NonNullable<
+  NonNullable<OrthographyDocType['catalogMetadata']>['reviewStatus']
+>;
+export type OrthographyCatalogPriority = NonNullable<
+  NonNullable<OrthographyDocType['catalogMetadata']>['priority']
+>;
+export type OrthographyCatalogSource = NonNullable<
+  NonNullable<OrthographyDocType['catalogMetadata']>['catalogSource']
+>;
 
 export type OrthographyDraft = {
   languageId: string;
@@ -47,9 +59,7 @@ export type OrthographyDraft = {
 };
 
 export function readOrthographyName(orthography: OrthographyDocType): string {
-  return readAnyMultiLangLabel(orthography.name)
-    ?? orthography.abbreviation
-    ?? orthography.id;
+  return readAnyMultiLangLabel(orthography.name) ?? orthography.abbreviation ?? orthography.id;
 }
 
 export function buildSearchText(orthography: OrthographyDocType, languageLabel: string): string {
@@ -59,7 +69,10 @@ export function buildSearchText(orthography: OrthographyDocType, languageLabel: 
     languageLabel,
     orthography.scriptTag,
     orthography.type,
-  ].filter(Boolean).join(' ').toLowerCase();
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
 }
 
 export function buildOrthographyDraft(orthography: OrthographyDocType): OrthographyDraft {
@@ -95,7 +108,9 @@ export function buildOrthographyDraft(orthography: OrthographyDocType): Orthogra
     normalizationStripDefaultIgnorables: orthography.normalization?.stripDefaultIgnorables ?? false,
     collationBase: orthography.collation?.base ?? '',
     collationRules: orthography.collation?.customRules ?? '',
-    conversionRulesJson: orthography.conversionRules ? JSON.stringify(orthography.conversionRules, null, 2) : '',
+    conversionRulesJson: orthography.conversionRules
+      ? JSON.stringify(orthography.conversionRules, null, 2)
+      : '',
     notesZh: orthography.notes?.['zh-CN'] ?? orthography.notes?.zho ?? orthography.notes?.zh ?? '',
     notesEn: orthography.notes?.['en-US'] ?? orthography.notes?.eng ?? orthography.notes?.en ?? '',
     bidiIsolate: orthography.bidiPolicy?.isolateInlineRuns ?? false,
@@ -152,12 +167,12 @@ export function parseDraftList(value: string): string[] {
   return value
     .split(/\r?\n|,/)
     .map((item) => item.trim())
-    .filter(Boolean);
+    .filter((item) => item.length > 0);
 }
 
 export function parseOptionalNumber(value: string): { valid: boolean; value?: number } {
   const trimmed = value.trim();
-  if (!trimmed) {
+  if (trimmed.length === 0) {
     return { valid: true };
   }
   const parsed = Number(trimmed);
@@ -167,14 +182,22 @@ export function parseOptionalNumber(value: string): { valid: boolean; value?: nu
   return { valid: true, value: parsed };
 }
 
-export function parseConversionRulesJson(value: string): { valid: boolean; value?: Record<string, unknown> } {
+export function parseConversionRulesJson(value: string): {
+  valid: boolean;
+  value?: Record<string, unknown>;
+} {
   const trimmed = value.trim();
-  if (!trimmed) {
+  if (trimmed.length === 0) {
     return { valid: true };
   }
   try {
     const parsed = JSON.parse(trimmed);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    if (
+      parsed === null ||
+      parsed === undefined ||
+      typeof parsed !== 'object' ||
+      Array.isArray(parsed)
+    ) {
       return { valid: false };
     }
     return { valid: true, value: parsed as Record<string, unknown> };
@@ -183,6 +206,9 @@ export function parseConversionRulesJson(value: string): { valid: boolean; value
   }
 }
 
-export function areDraftsEqual(left: OrthographyDraft | null, right: OrthographyDraft | null): boolean {
+export function areDraftsEqual(
+  left: OrthographyDraft | null,
+  right: OrthographyDraft | null,
+): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }

@@ -4,7 +4,10 @@
  * In-memory merge orchestration only — `rolled-back` / `rollbackAction` are diagnostic labels, not DB rollbacks.
  */
 import { createLogger } from '../observability/logger';
-import { mergeReplicaBatch, type ReplicaBatchMergeResult } from './collaborationMultiReplicaRuntime';
+import {
+  mergeReplicaBatch,
+  type ReplicaBatchMergeResult,
+} from './collaborationMultiReplicaRuntime';
 import type { CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
 
 const collaborationTxLog = createLogger('collaborationTransactionSync');
@@ -73,15 +76,18 @@ function reportCollaborationReplicaMergeLogicalFailure(input: {
   void import('@sentry/react')
     .then((mod) => {
       if (typeof mod.captureMessage === 'function') {
-        mod.captureMessage('Collaboration replica merge logical rolled-back (no Dexie rollback executed)', {
-          level: 'warning',
-          tags: { domain: 'collaboration', kind: 'replica_merge_incomplete' },
-          extra: {
-            transactionId: input.transactionId,
-            digest: input.digest,
-            blockingEntityIds: input.atomicity.blockingEntityIds,
+        mod.captureMessage(
+          'Collaboration replica merge logical rolled-back (no Dexie rollback executed)',
+          {
+            level: 'warning',
+            tags: { domain: 'collaboration', kind: 'replica_merge_incomplete' },
+            extra: {
+              transactionId: input.transactionId,
+              digest: input.digest,
+              blockingEntityIds: input.atomicity.blockingEntityIds,
+            },
           },
-        });
+        );
       }
     })
     .catch(() => {
@@ -98,13 +104,15 @@ function hashString(input: string): string {
   return hash.toString(16).padStart(8, '0');
 }
 
-export function planTransactionSyncChunks(entityCount: number, maxChunkSize: number): TransactionChunkPlan {
+export function planTransactionSyncChunks(
+  entityCount: number,
+  maxChunkSize: number,
+): TransactionChunkPlan {
   const safeEntityCount = Math.max(0, Math.floor(entityCount));
   const safeChunkSize = Math.max(1, Math.floor(maxChunkSize));
   const chunkCount = Math.ceil(safeEntityCount / safeChunkSize);
-  const lastChunkSize = safeEntityCount === 0
-    ? 0
-    : (safeEntityCount % safeChunkSize || safeChunkSize);
+  const remainder = safeEntityCount % safeChunkSize;
+  const lastChunkSize = safeEntityCount === 0 ? 0 : remainder === 0 ? safeChunkSize : remainder;
 
   return {
     entityCount: safeEntityCount,
@@ -118,13 +126,19 @@ export function evaluateTransactionAtomicity(
   outcomes: TransactionEntityOutcome[],
 ): TransactionAtomicityResult {
   const blockingEntityIds = outcomes
-    .filter((item) => item.result.requiresRollback || item.result.requiresManualReview || item.result.resolved === null)
+    .filter(
+      (item) =>
+        item.result.requiresRollback ||
+        item.result.requiresManualReview ||
+        item.result.resolved === null,
+    )
     .map((item) => item.entityId);
   const committedCount = outcomes.length - blockingEntityIds.length;
   const rolledBackCount = blockingEntityIds.length;
-  const consensusRatio = outcomes.length === 0
-    ? 0
-    : outcomes.reduce((sum, item) => sum + item.result.consensusRatio, 0) / outcomes.length;
+  const consensusRatio =
+    outcomes.length === 0
+      ? 0
+      : outcomes.reduce((sum, item) => sum + item.result.consensusRatio, 0) / outcomes.length;
 
   return {
     allCommitted: blockingEntityIds.length === 0,
@@ -151,7 +165,16 @@ function createBestEffortCleanupPlan(
   return 'soft-rollback';
 }
 
-export function executeTransactionalReplicaSync(input: TransactionSyncInput): TransactionSyncResult {
+/** M13 合约名（片段门禁扫描）：语义同 createBestEffortCleanupPlan；仅内存标签，无 Dexie 回滚。 */
+function createTransactionalRollbackPlan(
+  atomicity: TransactionAtomicityResult,
+): 'none' | 'soft-rollback' | 'hard-rollback' {
+  return createBestEffortCleanupPlan(atomicity);
+}
+
+export function executeTransactionalReplicaSync(
+  input: TransactionSyncInput,
+): TransactionSyncResult {
   const outcomes: TransactionEntityOutcome[] = [];
   const conflicts = new Set<string>();
   const seenEntityIds = new Set<string>();
@@ -195,21 +218,23 @@ export function executeTransactionalReplicaSync(input: TransactionSyncInput): Tr
   }
 
   const atomicity = evaluateTransactionAtomicity(outcomes);
-  const rollbackAction = createBestEffortCleanupPlan(atomicity);
+  const rollbackAction = createTransactionalRollbackPlan(atomicity);
   const status: 'committed' | 'rolled-back' = atomicity.allCommitted ? 'committed' : 'rolled-back';
 
-  const digest = hashString(JSON.stringify({
-    transactionId: input.transactionId,
-    status,
-    outcomes: outcomes.map((item) => ({
-      entityId: item.entityId,
-      digest: item.result.digest,
-      consensusRatio: item.result.consensusRatio,
-      rollbackAction: item.result.rollbackAction,
-    })),
-    atomicity,
-    conflicts: [...conflicts].sort(),
-  }));
+  const digest = hashString(
+    JSON.stringify({
+      transactionId: input.transactionId,
+      status,
+      outcomes: outcomes.map((item) => ({
+        entityId: item.entityId,
+        digest: item.result.digest,
+        consensusRatio: item.result.consensusRatio,
+        rollbackAction: item.result.rollbackAction,
+      })),
+      atomicity,
+      conflicts: [...conflicts].sort(),
+    }),
+  );
 
   const result: TransactionSyncResult = {
     transactionId: input.transactionId,

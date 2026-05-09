@@ -22,7 +22,7 @@ export interface EmbeddingProviderConfig {
 export function loadEmbeddingProviderConfig(): EmbeddingProviderConfig {
   try {
     const raw = window.localStorage.getItem(EMBEDDING_PROVIDER_STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as EmbeddingProviderConfig;
+    if (raw !== null && raw.length > 0) return JSON.parse(raw) as EmbeddingProviderConfig;
   } catch (error) {
     log.warn('Failed to load embedding provider config, fallback to local', {
       storageKey: EMBEDDING_PROVIDER_STORAGE_KEY,

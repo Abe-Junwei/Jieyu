@@ -3,7 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLayerSegmentContents } from '../hooks/useLayerSegmentContents';
 import { useLayerSegments } from '../hooks/useLayerSegments';
 import { isSegmentTimelineUnit, isUnitTimelineUnit } from '../hooks/transcriptionTypes';
-import { resolveSegmentMediaIdFromSegmentGraph, resolveSegmentScopeMediaId } from '../utils/resolveSegmentScopeMediaId';
+import {
+  resolveSegmentMediaIdFromSegmentGraph,
+  resolveSegmentScopeMediaId,
+} from '../utils/resolveSegmentScopeMediaId';
 
 interface UseReadyWorkspaceSegmentScopeInput {
   selectedUnitMedia: Parameters<typeof resolveSegmentScopeMediaId>[0];
@@ -26,29 +29,28 @@ export function useReadyWorkspaceSegmentScope(input: UseReadyWorkspaceSegmentSco
     layerLinks,
   } = input;
 
-  const activeTimelineUnitId = selectedTimelineUnit != null
-    && (isUnitTimelineUnit(selectedTimelineUnit) || isSegmentTimelineUnit(selectedTimelineUnit))
-    ? selectedTimelineUnit.unitId
-    : '';
+  const activeTimelineUnitId =
+    selectedTimelineUnit != null &&
+    (isUnitTimelineUnit(selectedTimelineUnit) || isSegmentTimelineUnit(selectedTimelineUnit))
+      ? selectedTimelineUnit.unitId
+      : '';
 
   const segmentScopeMediaIdBase = useMemo(
     () => resolveSegmentScopeMediaId(selectedUnitMedia, selectedTimelineUnit, units, mediaItems),
     [selectedUnitMedia, selectedTimelineUnit, units, mediaItems],
   );
 
-  const [segmentScopeMediaOverride, setSegmentScopeMediaOverride] = useState<string | undefined>(undefined);
+  const [segmentScopeMediaOverride, setSegmentScopeMediaOverride] = useState<string | undefined>(
+    undefined,
+  );
   useEffect(() => {
     setSegmentScopeMediaOverride(undefined);
   }, [segmentScopeMediaIdBase]);
 
   const segmentScopeMediaId = segmentScopeMediaOverride ?? segmentScopeMediaIdBase;
 
-  const {
-    segmentsByLayer,
-    segmentsLoadComplete,
-    reloadSegments,
-    updateSegmentsLocally,
-  } = useLayerSegments(layers, segmentScopeMediaId, defaultTranscriptionLayerId, layerLinks);
+  const { segmentsByLayer, segmentsLoadComplete, reloadSegments, updateSegmentsLocally } =
+    useLayerSegments(layers, segmentScopeMediaId, defaultTranscriptionLayerId, layerLinks);
 
   const { segmentContentByLayer, reloadSegmentContents } = useLayerSegmentContents(
     layers,
@@ -60,7 +62,7 @@ export function useReadyWorkspaceSegmentScope(input: UseReadyWorkspaceSegmentSco
 
   useEffect(() => {
     const fromGraph = resolveSegmentMediaIdFromSegmentGraph(selectedTimelineUnit, segmentsByLayer);
-    if (!fromGraph) return;
+    if (fromGraph === undefined || fromGraph.length === 0) return;
     const current = segmentScopeMediaOverride ?? segmentScopeMediaIdBase;
     if (fromGraph !== current) {
       setSegmentScopeMediaOverride(fromGraph);

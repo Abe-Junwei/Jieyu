@@ -3,9 +3,15 @@ import { getDb, type OrthographyDocType } from '../db';
 import { listBuiltInOrthographies } from '../data/builtInOrthographies';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 
-type OrthographyCatalogSource = NonNullable<NonNullable<OrthographyDocType['catalogMetadata']>['catalogSource']>;
-type OrthographyReviewStatus = NonNullable<NonNullable<OrthographyDocType['catalogMetadata']>['reviewStatus']>;
-type OrthographyCatalogPriority = NonNullable<NonNullable<OrthographyDocType['catalogMetadata']>['priority']>;
+type OrthographyCatalogSource = NonNullable<
+  NonNullable<OrthographyDocType['catalogMetadata']>['catalogSource']
+>;
+type OrthographyReviewStatus = NonNullable<
+  NonNullable<OrthographyDocType['catalogMetadata']>['reviewStatus']
+>;
+type OrthographyCatalogPriority = NonNullable<
+  NonNullable<OrthographyDocType['catalogMetadata']>['priority']
+>;
 
 const ORTHOGRAPHY_LANGUAGE_FALLBACKS: Readonly<Record<string, readonly string[]>> = {
   cmn: ['zho'],
@@ -13,11 +19,7 @@ const ORTHOGRAPHY_LANGUAGE_FALLBACKS: Readonly<Record<string, readonly string[]>
 
 function normalizeLanguageIds(languageIds: readonly string[]): string[] {
   return Array.from(
-    new Set(
-      languageIds
-        .map((value) => value.trim().toLocaleLowerCase())
-        .filter(Boolean),
-    ),
+    new Set(languageIds.map((value) => value.trim().toLocaleLowerCase()).filter(Boolean)),
   ).sort();
 }
 
@@ -35,22 +37,33 @@ function expandOrthographyLanguageIds(languageIds: readonly string[]): string[] 
 
 function getReviewStatusRank(status: OrthographyReviewStatus | undefined): number {
   switch (status) {
-    case 'verified-primary': return 0;
-    case 'verified-secondary': return 1;
-    case 'needs-review': return 2;
-    case 'historical': return 3;
-    case 'legacy': return 4;
-    case 'experimental': return 5;
-    default: return 6;
+    case 'verified-primary':
+      return 0;
+    case 'verified-secondary':
+      return 1;
+    case 'needs-review':
+      return 2;
+    case 'historical':
+      return 3;
+    case 'legacy':
+      return 4;
+    case 'experimental':
+      return 5;
+    default:
+      return 6;
   }
 }
 
 function getCatalogSourceRank(source: OrthographyCatalogSource | undefined): number {
   switch (source) {
-    case 'user': return 0;
-    case 'built-in-reviewed': return 1;
-    case 'built-in-generated': return 2;
-    default: return 0;
+    case 'user':
+      return 0;
+    case 'built-in-reviewed':
+      return 1;
+    case 'built-in-generated':
+      return 2;
+    default:
+      return 0;
   }
 }
 
@@ -59,30 +72,40 @@ function getPriorityRank(priority: OrthographyCatalogPriority | undefined): numb
 }
 
 function resolveOrthographyDisplayName(orthography: OrthographyDocType): string {
-  return readAnyMultiLangLabel(orthography.name)
-    ?? orthography.abbreviation
-    ?? orthography.id;
+  return readAnyMultiLangLabel(orthography.name) ?? orthography.abbreviation ?? orthography.id;
 }
 
 function sortOrthographyRows(items: OrthographyDocType[]): OrthographyDocType[] {
   return [...items].sort((left, right) => {
-    const sourceRankDelta = getCatalogSourceRank(left.catalogMetadata?.catalogSource) - getCatalogSourceRank(right.catalogMetadata?.catalogSource);
+    const sourceRankDelta =
+      getCatalogSourceRank(left.catalogMetadata?.catalogSource) -
+      getCatalogSourceRank(right.catalogMetadata?.catalogSource);
     if (sourceRankDelta !== 0) return sourceRankDelta;
 
-    const reviewRankDelta = getReviewStatusRank(left.catalogMetadata?.reviewStatus) - getReviewStatusRank(right.catalogMetadata?.reviewStatus);
+    const reviewRankDelta =
+      getReviewStatusRank(left.catalogMetadata?.reviewStatus) -
+      getReviewStatusRank(right.catalogMetadata?.reviewStatus);
     if (reviewRankDelta !== 0) return reviewRankDelta;
 
-    const priorityRankDelta = getPriorityRank(left.catalogMetadata?.priority) - getPriorityRank(right.catalogMetadata?.priority);
+    const priorityRankDelta =
+      getPriorityRank(left.catalogMetadata?.priority) -
+      getPriorityRank(right.catalogMetadata?.priority);
     if (priorityRankDelta !== 0) return priorityRankDelta;
 
-    const nameDelta = resolveOrthographyDisplayName(left).localeCompare(resolveOrthographyDisplayName(right), 'en');
+    const nameDelta = resolveOrthographyDisplayName(left).localeCompare(
+      resolveOrthographyDisplayName(right),
+      'en',
+    );
     if (nameDelta !== 0) return nameDelta;
 
     return left.id.localeCompare(right.id, 'en');
   });
 }
 
-function mergeOrthographyRows(builtInRows: OrthographyDocType[], dbRows: OrthographyDocType[]): OrthographyDocType[] {
+function mergeOrthographyRows(
+  builtInRows: OrthographyDocType[],
+  dbRows: OrthographyDocType[],
+): OrthographyDocType[] {
   const deduped = new Map<string, OrthographyDocType>();
   [...builtInRows, ...dbRows].forEach((orthography) => {
     deduped.set(orthography.id, orthography);
@@ -95,9 +118,10 @@ function mergeOrthographyRows(builtInRows: OrthographyDocType[], dbRows: Orthogr
  */
 export function useOrthographies(languageIds: readonly string[]): OrthographyDocType[] {
   const [orthographies, setOrthographies] = useState<OrthographyDocType[]>([]);
+  const languageIdsKey = useMemo(() => languageIds.join('\u0000'), [languageIds]);
   const normalizedLanguageIds = useMemo(
-    () => normalizeLanguageIds(languageIds),
-    [languageIds.join('\u0000')],
+    () => normalizeLanguageIds(languageIdsKey.length > 0 ? languageIdsKey.split('\u0000') : []),
+    [languageIdsKey],
   );
   const resolvedLanguageIds = useMemo(
     () => expandOrthographyLanguageIds(normalizedLanguageIds),

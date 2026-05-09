@@ -13,7 +13,7 @@ export function wrapPlainTextWithBidiIsolation(
   text: string,
   renderPolicy?: Pick<OrthographyRenderPolicy, 'textDirection' | 'isolateInlineRuns'>,
 ): string {
-  if (!text || !renderPolicy?.isolateInlineRuns) return text;
+  if (text.length === 0 || renderPolicy?.isolateInlineRuns !== true) return text;
 
   const prefix = renderPolicy.textDirection === 'rtl' ? RTL_ISOLATE : LTR_ISOLATE;
   if (text.startsWith(prefix) && text.endsWith(POP_DIRECTIONAL_ISOLATE)) {

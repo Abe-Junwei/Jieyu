@@ -12,7 +12,10 @@ import {
   type ProgressRate,
   type TranscriptionRecordProgressRow,
 } from '../utils/homeTranscriptionRecordProgress';
-import { buildTranscriptionDeepLinkHref, buildTranscriptionWorkspaceReturnHref } from '../utils/transcriptionUrlDeepLink';
+import {
+  buildTranscriptionDeepLinkHref,
+  buildTranscriptionWorkspaceReturnHref,
+} from '../utils/transcriptionUrlDeepLink';
 
 function formatDurationSec(sec: number): string {
   if (!Number.isFinite(sec) || sec < 0) return '';
@@ -22,13 +25,16 @@ function formatDurationSec(sec: number): string {
   return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
 }
 
-function formatRecordHeading(locale: ReturnType<typeof useLocale>, row: TranscriptionRecordProgressRow): string {
+function formatRecordHeading(
+  locale: ReturnType<typeof useLocale>,
+  row: TranscriptionRecordProgressRow,
+): string {
   if (row.kind === 'text_record') {
     return t(locale, 'app.glossary.textRecord');
   }
   const dur = row.durationSec !== undefined ? formatDurationSec(row.durationSec) : '';
   const base = `${t(locale, 'app.glossary.transcriptionRecord')}: ${row.filename}`;
-  return dur ? `${base} · ${dur}` : base;
+  return dur.length > 0 ? `${base} · ${dur}` : base;
 }
 
 function formatPercent(locale: ReturnType<typeof useLocale>, rate: ProgressRate): string {
@@ -38,17 +44,21 @@ function formatPercent(locale: ReturnType<typeof useLocale>, rate: ProgressRate)
 
 function ProgressRow(props: {
   locale: ReturnType<typeof useLocale>;
-  labelKey: 'app.home.progress.transcription' | 'app.home.progress.translation' | 'app.home.progress.annotation';
+  labelKey:
+    | 'app.home.progress.transcription'
+    | 'app.home.progress.translation'
+    | 'app.home.progress.annotation';
   rate: ProgressRate;
   variant: 'transcription' | 'translation' | 'annotation';
 }) {
   const { locale, labelKey, rate, variant } = props;
   const pct = rate === null ? 0 : Math.round(Math.max(0, Math.min(1, rate)) * 100);
-  const fillClass = variant === 'translation'
-    ? 'home-progress-fill home-progress-fill--translation'
-    : variant === 'annotation'
-      ? 'home-progress-fill home-progress-fill--annotation'
-      : 'home-progress-fill';
+  const fillClass =
+    variant === 'translation'
+      ? 'home-progress-fill home-progress-fill--translation'
+      : variant === 'annotation'
+        ? 'home-progress-fill home-progress-fill--annotation'
+        : 'home-progress-fill';
 
   return (
     <div className="home-triple-row" role="group" aria-label={t(locale, labelKey)}>
@@ -76,14 +86,32 @@ function TripleBlock(props: {
   const { locale, transcription, translation, annotation } = props;
   return (
     <div className="home-triple">
-      <ProgressRow locale={locale} labelKey="app.home.progress.transcription" rate={transcription} variant="transcription" />
-      <ProgressRow locale={locale} labelKey="app.home.progress.translation" rate={translation} variant="translation" />
-      <ProgressRow locale={locale} labelKey="app.home.progress.annotation" rate={annotation} variant="annotation" />
+      <ProgressRow
+        locale={locale}
+        labelKey="app.home.progress.transcription"
+        rate={transcription}
+        variant="transcription"
+      />
+      <ProgressRow
+        locale={locale}
+        labelKey="app.home.progress.translation"
+        rate={translation}
+        variant="translation"
+      />
+      <ProgressRow
+        locale={locale}
+        labelKey="app.home.progress.annotation"
+        rate={annotation}
+        variant="annotation"
+      />
     </div>
   );
 }
 
-function ProjectCard(props: { locale: ReturnType<typeof useLocale>; bundle: HomeProjectProgressBundle }) {
+function ProjectCard(props: {
+  locale: ReturnType<typeof useLocale>;
+  bundle: HomeProjectProgressBundle;
+}) {
   const { locale, bundle } = props;
   const agg = useMemo(() => aggregateProjectProgressRates(bundle.records), [bundle.records]);
   const updatedLabel = useMemo(() => {
@@ -109,11 +137,20 @@ function ProjectCard(props: { locale: ReturnType<typeof useLocale>; bundle: Home
         </h2>
         <span className="home-project-card-meta">
           {tf(locale, 'app.home.projectMetaUpdated', { date: updatedLabel })}
-          {bundle.languageCode ? ` · ${bundle.languageCode}` : ''}
+          {bundle.languageCode != null && bundle.languageCode.length > 0
+            ? ` · ${bundle.languageCode}`
+            : ''}
         </span>
       </div>
-      <p className="home-record-title home-record-title-overview">{t(locale, 'app.home.projectOverview')}</p>
-      <TripleBlock locale={locale} transcription={agg.transcription} translation={agg.translation} annotation={agg.annotation} />
+      <p className="home-record-title home-record-title-overview">
+        {t(locale, 'app.home.projectOverview')}
+      </p>
+      <TripleBlock
+        locale={locale}
+        transcription={agg.transcription}
+        translation={agg.translation}
+        annotation={agg.annotation}
+      />
 
       {bundle.records.length > 0 ? (
         bundle.records.map((row) => (
@@ -121,7 +158,10 @@ function ProjectCard(props: { locale: ReturnType<typeof useLocale>; bundle: Home
             <div className="home-record-title">
               {row.kind === 'transcription_record' ? (
                 <Link
-                  to={buildTranscriptionDeepLinkHref({ textId: bundle.textId, mediaId: row.mediaId })}
+                  to={buildTranscriptionDeepLinkHref({
+                    textId: bundle.textId,
+                    mediaId: row.mediaId,
+                  })}
                   className="home-project-title-link"
                   title={t(locale, 'app.home.openTranscriptionRecord')}
                 >
@@ -152,7 +192,14 @@ export function HomePage() {
   const locale = useLocale();
   const version = useMemo(() => resolveHostVersion(), []);
 
-  const { data: bundles = [], isLoading, isError, error, refetch, isFetching } = useQuery({
+  const {
+    data: bundles = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: ['homeProjectProgress', locale],
     queryFn: () => loadAllHomeProjectProgressBundles(locale),
     staleTime: 45_000,
@@ -169,7 +216,12 @@ export function HomePage() {
           <Link className="home-page-link-btn" to={buildTranscriptionWorkspaceReturnHref()}>
             {t(locale, 'app.home.openTranscription')}
           </Link>
-          <button type="button" className="home-page-link-btn" onClick={() => void refetch()} disabled={isFetching}>
+          <button
+            type="button"
+            className="home-page-link-btn"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+          >
             {t(locale, 'app.home.refresh')}
           </button>
         </div>
@@ -178,8 +230,15 @@ export function HomePage() {
         </p>
       </header>
 
-      <PanelSection title={t(locale, 'app.home.sectionProjects')} description={t(locale, 'app.home.sectionProjectsDesc')}>
-        {isLoading ? <div className="home-page-loading" aria-busy="true">{t(locale, 'app.home.loading')}</div> : null}
+      <PanelSection
+        title={t(locale, 'app.home.sectionProjects')}
+        description={t(locale, 'app.home.sectionProjectsDesc')}
+      >
+        {isLoading ? (
+          <div className="home-page-loading" aria-busy="true">
+            {t(locale, 'app.home.loading')}
+          </div>
+        ) : null}
         {isError ? (
           <div className="home-page-error" role="alert">
             {t(locale, 'app.home.errorPrefix')}
@@ -189,9 +248,11 @@ export function HomePage() {
         {!isLoading && !isError && bundles.length === 0 ? (
           <div className="home-page-empty">{t(locale, 'app.home.noProjects')}</div>
         ) : null}
-        {!isLoading && !isError && bundles.map((bundle) => (
-          <ProjectCard key={bundle.textId} locale={locale} bundle={bundle} />
-        ))}
+        {!isLoading &&
+          !isError &&
+          bundles.map((bundle) => (
+            <ProjectCard key={bundle.textId} locale={locale} bundle={bundle} />
+          ))}
       </PanelSection>
     </div>
   );

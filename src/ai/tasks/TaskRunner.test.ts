@@ -8,7 +8,10 @@ async function clearTables(): Promise<void> {
   await db.ai_tasks.clear();
 }
 
-async function waitForTaskStatus(taskId: string, status: 'pending' | 'running' | 'done' | 'failed'): Promise<void> {
+async function waitForTaskStatus(
+  taskId: string,
+  status: 'pending' | 'running' | 'done' | 'failed',
+): Promise<void> {
   for (let i = 0; i < 40; i += 1) {
     const row = await db.ai_tasks.get(taskId);
     if (row?.status === status) return;
@@ -162,13 +165,14 @@ describe('TaskRunner', () => {
   it('queues tasks when concurrency is 1', async () => {
     const runner = new TaskRunner(1);
 
-    let releaseFirst: (() => void) = () => {};
+    let releaseFirst: () => void = () => {};
     const first = await runner.enqueue({
       taskType: 'embed',
       targetId: 'embeddings',
-      run: async () => new Promise<string>((resolve) => {
-        releaseFirst = () => resolve('first-ok');
-      }),
+      run: async () =>
+        new Promise<string>((resolve) => {
+          releaseFirst = () => resolve('first-ok');
+        }),
     });
 
     await waitForTaskStatus(first.taskId, 'running');
@@ -196,9 +200,10 @@ describe('TaskRunner', () => {
     const running = await runner.enqueue({
       taskType: 'embed',
       targetId: 'embeddings',
-      run: async ({ signal }) => new Promise<string>((resolve, reject) => {
-        signal.addEventListener('abort', () => reject(new Error('aborted')));
-      }),
+      run: async ({ signal }) =>
+        new Promise<string>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new Error('aborted')));
+        }),
     });
 
     const cancelled = runner.cancel(running.taskId);
@@ -252,9 +257,10 @@ describe('TaskRunner', () => {
     const enqueued = await runner.enqueue({
       taskType: 'embed',
       targetId: 'embeddings',
-      run: async ({ signal }) => new Promise<string>((_resolve, reject) => {
-        signal.addEventListener('abort', () => reject(new Error('aborted')));
-      }),
+      run: async ({ signal }) =>
+        new Promise<string>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new Error('aborted')));
+        }),
     });
 
     await expect(enqueued.result).rejects.toBeTruthy();
@@ -275,7 +281,9 @@ describe('TaskRunner', () => {
         attempts += 1;
         if (attempts === 1) {
           return new Promise<string>((_resolve, reject) => {
-            signal.addEventListener('abort', () => reject(new Error('attempt aborted')), { once: true });
+            signal.addEventListener('abort', () => reject(new Error('attempt aborted')), {
+              once: true,
+            });
           });
         }
         return 'retry-after-timeout-ok';

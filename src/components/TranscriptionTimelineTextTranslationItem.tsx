@@ -1,6 +1,9 @@
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from '../utils/recordingScopeUnitId';
+import {
+  recordingScopeUnitId,
+  resolveVoiceRecordingSourceUnit,
+} from '../utils/recordingScopeUnitId';
 import { useTranslationSidebarTextDraftAutosave } from '../hooks/useTimelineLaneTextDraftAutosave';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
@@ -32,15 +35,21 @@ interface TranscriptionTimelineTextTranslationItemProps {
   recording: boolean;
   recordingUnitId: string | null | undefined;
   recordingLayerId: string | null | undefined;
-  startRecordingForUnit: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
+  startRecordingForUnit:
+    | ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>)
+    | undefined;
   stopRecording: (() => void) | undefined;
-  deleteVoiceTranslation: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
+  deleteVoiceTranslation:
+    | ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>)
+    | undefined;
   transcribeVoiceTranslation?: (
     unit: LayerUnitDocType,
     layer: LayerDocType,
     options?: { signal?: AbortSignal; audioBlob?: Blob },
   ) => Promise<void>;
-  saveSegmentContentForLayer: ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
+  saveSegmentContentForLayer:
+    | ((segmentId: string, layerId: string, value: string) => Promise<void>)
+    | undefined;
   saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;
@@ -50,19 +59,19 @@ interface TranscriptionTimelineTextTranslationItemProps {
   runSaveWithStatus: (cellKey: string, saveTask: () => Promise<void>) => Promise<void>;
   focusedTranslationDraftKeyRef: React.MutableRefObject<string | null>;
   onFocusLayer: (layerId: string) => void;
-  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, direction: -1 | 1) => void;
+  navigateUnitFromInput: (
+    e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+    direction: -1 | 1,
+  ) => void;
   handleAnnotationClick: (
     uttId: string,
     uttStartTime: number,
     layerId: string,
     e: React.MouseEvent,
   ) => void;
-  handleAnnotationContextMenu: ((
-    uttId: string,
-    utt: TimelineUnitView,
-    layerId: string,
-    e: React.MouseEvent,
-  ) => void) | undefined;
+  handleAnnotationContextMenu:
+    | ((uttId: string, utt: TimelineUnitView, layerId: string, e: React.MouseEvent) => void)
+    | undefined;
   /** 来自宿主 unit 的确信角标（segment 翻译行经父组件解析） */
   selfCertainty?: UnitSelfCertainty;
   selfCertaintyTitle?: string;
@@ -113,55 +122,69 @@ export function TranscriptionTimelineTextTranslationItem({
   selfCertaintyAmbiguousTitle,
 }: TranscriptionTimelineTextTranslationItemProps) {
   const locale = useLocale();
-  const { handleDraftChange, handleDraftBlur, clearDraftDebounce } = useTranslationSidebarTextDraftAutosave({
-    usesOwnSegments,
-    layerId: layer.id,
-    unitId: utt.id,
-    draftKey,
-    cellKey,
-    text,
-    setTranslationDrafts,
-    setCellSaveStatus,
-    scheduleAutoSave,
-    clearAutoSaveTimer,
-    runSaveWithStatus,
-    saveSegmentContentForLayer,
-    saveUnitLayerText,
-  });
-  const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
+  const { handleDraftChange, handleDraftBlur, clearDraftDebounce } =
+    useTranslationSidebarTextDraftAutosave({
+      usesOwnSegments,
+      layerId: layer.id,
+      unitId: utt.id,
+      draftKey,
+      cellKey,
+      text,
+      setTranslationDrafts,
+      setCellSaveStatus,
+      scheduleAutoSave,
+      clearAutoSaveTimer,
+      runSaveWithStatus,
+      saveSegmentContentForLayer,
+      saveUnitLayerText,
+    });
+  const layerSupportsAudio =
+    layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
   const sourceUnit = resolveVoiceRecordingSourceUnit(utt, unitById, segmentById);
   const recordingScopeIds = (() => {
-    const ids = [recordingScopeUnitId(utt), sourceUnit?.id, utt.id].filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+    const ids = [recordingScopeUnitId(utt), sourceUnit?.id, utt.id].filter(
+      (id): id is string => typeof id === 'string' && id.trim().length > 0,
+    );
     return Array.from(new Set(ids));
   })();
-  const isCurrentRecording = recording
-    && recordingLayerId === layer.id
-    && recordingScopeIds.includes((recordingUnitId ?? '').trim());
+  const isCurrentRecording =
+    recording &&
+    recordingLayerId === layer.id &&
+    recordingScopeIds.includes((recordingUnitId ?? '').trim());
   const audioActionDisabled = recording && !isCurrentRecording;
-  const audioControls = layerSupportsAudio && sourceUnit ? (
-    <TimelineTranslationAudioControls
-      isRecording={isCurrentRecording}
-      disabled={audioActionDisabled}
-      compact={!isAudioOnlyLayer}
-      {...(audioMedia ? { mediaItem: audioMedia } : {})}
-      onStartRecording={() => {
-        void startRecordingForUnit?.(sourceUnit, layer);
-      }}
-      {...(stopRecording ? { onStopRecording: stopRecording } : {})}
-      {...(audioMedia && deleteVoiceTranslation && sourceUnit
-        ? { onDeleteRecording: () => deleteVoiceTranslation(sourceUnit, layer) }
-        : {})}
-      {...(layer.modality === 'mixed' && transcribeVoiceTranslation && sourceUnit && audioMedia
-        ? {
-          onTranscribeRecording: () => {
-            const b = readNonEmptyAudioBlobFromMediaItem(audioMedia);
-            return transcribeVoiceTranslation(sourceUnit, layer, b ? { audioBlob: b } : undefined);
-          },
-        }
-        : {})}
-    />
-  ) : undefined;
+  const audioControls =
+    layerSupportsAudio && sourceUnit ? (
+      <TimelineTranslationAudioControls
+        isRecording={isCurrentRecording}
+        disabled={audioActionDisabled}
+        compact={!isAudioOnlyLayer}
+        {...(audioMedia ? { mediaItem: audioMedia } : {})}
+        onStartRecording={() => {
+          void startRecordingForUnit?.(sourceUnit, layer);
+        }}
+        {...(stopRecording ? { onStopRecording: stopRecording } : {})}
+        {...(audioMedia && deleteVoiceTranslation && sourceUnit
+          ? {
+              onDeleteRecording: () => {
+                void deleteVoiceTranslation(sourceUnit, layer);
+              },
+            }
+          : {})}
+        {...(layer.modality === 'mixed' && transcribeVoiceTranslation && sourceUnit && audioMedia
+          ? {
+              onTranscribeRecording: () => {
+                const b = readNonEmptyAudioBlobFromMediaItem(audioMedia);
+                void transcribeVoiceTranslation(
+                  sourceUnit,
+                  layer,
+                  b ? { audioBlob: b } : undefined,
+                );
+              },
+            }
+          : {})}
+      />
+    ) : undefined;
   const showAudioTools = Boolean(audioControls) && !isAudioOnlyLayer;
 
   const retrySave = () => {
@@ -193,7 +216,9 @@ export function TranscriptionTimelineTextTranslationItem({
       onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
     >
       {isAudioOnlyLayer && audioControls ? (
-        <div className="timeline-translation-audio-card timeline-translation-audio-card-text">{audioControls}</div>
+        <div className="timeline-translation-audio-card timeline-translation-audio-card-text">
+          {audioControls}
+        </div>
       ) : (
         <TimelineLaneDraftEditorCell
           bubbleClick
@@ -204,7 +229,11 @@ export function TranscriptionTimelineTextTranslationItem({
           onRetry={retrySave}
           {...(showAudioTools && audioControls ? { tools: audioControls } : {})}
           toolsClassName="timeline-text-item-tools"
-          placeholder={usesOwnSegments ? t(locale, 'transcription.timeline.placeholder.segment') : t(locale, 'transcription.timeline.placeholder.translation')}
+          placeholder={
+            usesOwnSegments
+              ? t(locale, 'transcription.timeline.placeholder.segment')
+              : t(locale, 'transcription.timeline.placeholder.translation')
+          }
           onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
           onFocus={() => {
             focusedTranslationDraftKeyRef.current = draftKey;

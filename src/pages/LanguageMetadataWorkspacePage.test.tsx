@@ -4,7 +4,10 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from '../contexts/AppSidePaneContext';
+import {
+  AppSidePaneProvider,
+  useAppSidePaneRegistrationSnapshot,
+} from '../contexts/AppSidePaneContext';
 import { LocaleProvider } from '../i18n';
 import type { CustomFieldDefinitionDocType } from '../db';
 import type { LanguageCatalogEntry } from '../services/LinguisticService.languageCatalog';
@@ -78,9 +81,15 @@ vi.mock('../components/LanguageMapEmbed', () => ({
     onCoordinateDragEnd?: (lat: number, lng: number) => void;
   }) => (
     <div data-testid="mock-language-map">
-      <span data-testid="mock-language-map-coords">{latitude},{longitude}</span>
-      <button type="button" onClick={() => onCoordinateClick?.(31.23, 121.47)}>模拟地图点选</button>
-      <button type="button" onClick={() => onCoordinateDragEnd?.(30.67, 104.06)}>模拟地图拖拽</button>
+      <span data-testid="mock-language-map-coords">
+        {latitude},{longitude}
+      </span>
+      <button type="button" onClick={() => onCoordinateClick?.(31.23, 121.47)}>
+        模拟地图点选
+      </button>
+      <button type="button" onClick={() => onCoordinateDragEnd?.(30.67, 104.06)}>
+        模拟地图拖拽
+      </button>
     </div>
   ),
 }));
@@ -128,19 +137,22 @@ function createEntry(overrides: Partial<LanguageCatalogEntry> = {}): LanguageCat
   };
 }
 
-function renderWorkspace(initialPath = '/assets/language-metadata?languageId=eng', locale: 'zh-CN' | 'en-US' = 'zh-CN') {
+function renderWorkspace(
+  initialPath = '/assets/language-metadata?languageId=eng',
+  locale: 'zh-CN' | 'en-US' = 'zh-CN',
+) {
   return render(
     <QueryClientProvider client={queryClient}>
-    <MemoryRouter initialEntries={[initialPath]}>
-      <LocaleProvider locale={locale}>
-        <AppSidePaneProvider>
-          <SidePaneSnapshot />
-          <Routes>
-            <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
-          </Routes>
-        </AppSidePaneProvider>
-      </LocaleProvider>
-    </MemoryRouter>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <LocaleProvider locale={locale}>
+          <AppSidePaneProvider>
+            <SidePaneSnapshot />
+            <Routes>
+              <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -212,74 +224,88 @@ describe('LanguageMetadataWorkspacePage', () => {
     mockReverseGeocode.mockReset();
     mockSearchLanguageCatalogSuggestions.mockReset();
 
-    mockSearchLanguageCatalogSuggestions.mockImplementation(async ({ query }: { query: string; locale: string }) => {
-      const normalizedQuery = query.trim().toLowerCase();
-      if (!normalizedQuery) return [];
-      return currentEntries
-        .filter((entry) => [
-          entry.id,
-          entry.languageCode,
-          entry.localName,
-          entry.englishName,
-          ...(entry.aliases ?? []),
-        ]
-          .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
-          .some((v) => v.toLowerCase().includes(normalizedQuery)))
-        .map((entry) => ({
-          id: entry.id,
-          languageCode: entry.languageCode,
-          primaryLabel: entry.localName,
-          matchedLabel: entry.localName,
-          matchSource: 'localName' as const,
-          rank: 0,
-        }));
-    });
+    mockSearchLanguageCatalogSuggestions.mockImplementation(
+      async ({ query }: { query: string; locale: string }) => {
+        const normalizedQuery = query.trim().toLowerCase();
+        if (normalizedQuery.length === 0) return [];
+        return currentEntries
+          .filter((entry) =>
+            [
+              entry.id,
+              entry.languageCode,
+              entry.localName,
+              entry.englishName,
+              ...(entry.aliases ?? []),
+            ]
+              .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+              .some((v) => v.toLowerCase().includes(normalizedQuery)),
+          )
+          .map((entry) => ({
+            id: entry.id,
+            languageCode: entry.languageCode,
+            primaryLabel: entry.localName,
+            matchedLabel: entry.localName,
+            matchSource: 'localName' as const,
+            rank: 0,
+          }));
+      },
+    );
 
-    mockListLanguageCatalogEntries.mockImplementation(async (input: {
-      searchText?: string;
-      languageIds?: readonly string[];
-    }) => {
-      const normalizedSearchText = input.searchText?.trim().toLowerCase() ?? '';
-      const requestedIds = input.languageIds?.map((languageId) => languageId.trim().toLowerCase()).filter(Boolean);
-      const baseEntries = requestedIds && requestedIds.length > 0
-        ? currentEntries.filter((entry) => requestedIds.includes(entry.id.toLowerCase()))
-        : currentEntries;
+    mockListLanguageCatalogEntries.mockImplementation(
+      async (input: { searchText?: string; languageIds?: readonly string[] }) => {
+        const normalizedSearchText = input.searchText?.trim().toLowerCase() ?? '';
+        const requestedIds = input.languageIds
+          ?.map((languageId) => languageId.trim().toLowerCase())
+          .filter(Boolean);
+        const baseEntries =
+          requestedIds && requestedIds.length > 0
+            ? currentEntries.filter((entry) => requestedIds.includes(entry.id.toLowerCase()))
+            : currentEntries;
 
-      if (!normalizedSearchText) {
-        return baseEntries;
-      }
+        if (normalizedSearchText.length === 0) {
+          return baseEntries;
+        }
 
-      return currentEntries.filter((entry) => [
-        entry.id,
-        entry.languageCode,
-        entry.localName,
-        entry.englishName,
-        ...(entry.aliases ?? []),
-      ]
-        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-        .some((value) => value.toLowerCase().includes(normalizedSearchText)));
-    });
-    mockListLanguageCatalogHistory.mockImplementation(async (languageId: string) => currentHistory.filter((item) => item.languageId === languageId));
+        return currentEntries.filter((entry) =>
+          [
+            entry.id,
+            entry.languageCode,
+            entry.localName,
+            entry.englishName,
+            ...(entry.aliases ?? []),
+          ]
+            .filter(
+              (value): value is string => typeof value === 'string' && value.trim().length > 0,
+            )
+            .some((value) => value.toLowerCase().includes(normalizedSearchText)),
+        );
+      },
+    );
+    mockListLanguageCatalogHistory.mockImplementation(async (languageId: string) =>
+      currentHistory.filter((item) => item.languageId === languageId),
+    );
     mockListCustomFieldDefinitions.mockImplementation(async () => currentFieldDefinitions);
     mockLookupIso639_3Seed.mockReturnValue(undefined);
     mockForwardGeocode.mockResolvedValue([]);
-    mockUpsertCustomFieldDefinition.mockImplementation(async (input: Partial<CustomFieldDefinitionDocType>) => ({
-      id: String(input.id ?? 'custom-field'),
-      name: input.name ?? { 'zh-CN': '新字段' },
-      fieldType: input.fieldType ?? 'text',
-      sortOrder: input.sortOrder ?? 0,
-      createdAt: '2026-04-07T00:00:00.000Z',
-      updatedAt: '2026-04-07T00:00:00.000Z',
-      ...(input.required !== undefined ? { required: input.required } : {}),
-      ...(input.options !== undefined ? { options: input.options } : {}),
-      ...(input.defaultValue !== undefined ? { defaultValue: input.defaultValue } : {}),
-      ...(input.minValue !== undefined ? { minValue: input.minValue } : {}),
-      ...(input.maxValue !== undefined ? { maxValue: input.maxValue } : {}),
-      ...(input.pattern !== undefined ? { pattern: input.pattern } : {}),
-      ...(input.description !== undefined ? { description: input.description } : {}),
-      ...(input.placeholder !== undefined ? { placeholder: input.placeholder } : {}),
-      ...(input.helpText !== undefined ? { helpText: input.helpText } : {}),
-    }));
+    mockUpsertCustomFieldDefinition.mockImplementation(
+      async (input: Partial<CustomFieldDefinitionDocType>) => ({
+        id: String(input.id ?? 'custom-field'),
+        name: input.name ?? { 'zh-CN': '新字段' },
+        fieldType: input.fieldType ?? 'text',
+        sortOrder: input.sortOrder ?? 0,
+        createdAt: '2026-04-07T00:00:00.000Z',
+        updatedAt: '2026-04-07T00:00:00.000Z',
+        ...(input.required !== undefined ? { required: input.required } : {}),
+        ...(input.options !== undefined ? { options: input.options } : {}),
+        ...(input.defaultValue !== undefined ? { defaultValue: input.defaultValue } : {}),
+        ...(input.minValue !== undefined ? { minValue: input.minValue } : {}),
+        ...(input.maxValue !== undefined ? { maxValue: input.maxValue } : {}),
+        ...(input.pattern !== undefined ? { pattern: input.pattern } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.placeholder !== undefined ? { placeholder: input.placeholder } : {}),
+        ...(input.helpText !== undefined ? { helpText: input.helpText } : {}),
+      }),
+    );
     mockDeleteLanguageCatalogEntry.mockResolvedValue(undefined);
     mockReverseGeocode.mockResolvedValue(null);
     window.localStorage.clear();
@@ -297,17 +323,25 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(screen.getByDisplayValue('英语')).toBeTruthy();
     });
 
-    expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith(expect.objectContaining({
-      locale: 'zh-CN',
-      includeHidden: true,
-      languageIds: ['eng'],
-    }));
+    expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locale: 'zh-CN',
+        includeHidden: true,
+        languageIds: ['eng'],
+      }),
+    );
 
     expect(screen.getByTestId('side-pane-title').textContent).toBe('语言元数据工作台');
 
-    fireEvent.change(screen.getByRole('textbox', { name: '当前语言显示名' }), { target: { value: '英语（覆盖）' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '英文名' }), { target: { value: 'English Override' } });
-    fireEvent.change(screen.getByPlaceholderText('建议说明为何修改、来源依据或兼容性背景。'), { target: { value: '修正工作台展示名' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '当前语言显示名' }), {
+      target: { value: '英语（覆盖）' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: '英文名' }), {
+      target: { value: 'English Override' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('建议说明为何修改、来源依据或兼容性背景。'), {
+      target: { value: '修正工作台展示名' },
+    });
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
 
     await waitFor(() => {
@@ -336,8 +370,12 @@ describe('LanguageMetadataWorkspacePage', () => {
     const newRow = matrixRows[matrixRows.length - 1] as HTMLElement;
     const newRowQueries = within(newRow);
 
-    fireEvent.change(newRowQueries.getByRole('textbox', { name: '显示值' }), { target: { value: 'inglés alternativo' } });
-    fireEvent.change(newRowQueries.getByRole('combobox', { name: '角色' }), { target: { value: 'menu' } });
+    fireEvent.change(newRowQueries.getByRole('textbox', { name: '显示值' }), {
+      target: { value: 'inglés alternativo' },
+    });
+    fireEvent.change(newRowQueries.getByRole('combobox', { name: '角色' }), {
+      target: { value: 'menu' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
 
@@ -366,17 +404,23 @@ describe('LanguageMetadataWorkspacePage', () => {
     fireEvent.change(englishNameInput, { target: { value: 'Unsaved Override' } });
     expect(englishNameInput.value).toBe('Unsaved Override');
 
-    fireEvent.change(screen.getByRole('searchbox', { name: '按名称、别名、代码或标准标识定位' }), { target: { value: '示例' } });
-
-    await waitFor(() => {
-      expect(mockSearchLanguageCatalogSuggestions).toHaveBeenCalledWith(expect.objectContaining({
-        query: '示例',
-        locale: 'zh-CN',
-        catalogScope: 'language',
-      }));
+    fireEvent.change(screen.getByRole('searchbox', { name: '按名称、别名、代码或标准标识定位' }), {
+      target: { value: '示例' },
     });
 
-    expect((screen.getByRole('textbox', { name: '英文名' }) as HTMLInputElement).value).toBe('Unsaved Override');
+    await waitFor(() => {
+      expect(mockSearchLanguageCatalogSuggestions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          query: '示例',
+          locale: 'zh-CN',
+          catalogScope: 'language',
+        }),
+      );
+    });
+
+    expect((screen.getByRole('textbox', { name: '英文名' }) as HTMLInputElement).value).toBe(
+      'Unsaved Override',
+    );
   });
 
   it('can switch to custom creation mode and request deletion for persisted custom entries', async () => {
@@ -386,13 +430,22 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
     });
 
-    expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith(expect.objectContaining({
-      locale: 'zh-CN',
-      includeHidden: true,
-      languageIds: expect.arrayContaining(['eng', 'user:demo-language']),
-    }));
+    expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locale: 'zh-CN',
+        includeHidden: true,
+        languageIds: expect.arrayContaining(['eng', 'user:demo-language']),
+      }),
+    );
 
-    expect(await screen.findByText((content) => content.includes('变更字段：') && content.includes('英文名') && content.includes('别名 / 检索标签'))).toBeTruthy();
+    expect(
+      await screen.findByText(
+        (content) =>
+          content.includes('变更字段：') &&
+          content.includes('英文名') &&
+          content.includes('别名 / 检索标签'),
+      ),
+    ).toBeTruthy();
     expect(screen.getByText('根据术语表修正英文名与检索别名。')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '删除自定义条目' }));
@@ -424,8 +477,12 @@ describe('LanguageMetadataWorkspacePage', () => {
 
     fireEvent.change(assetIdInput, { target: { value: 'user:field-language' } });
     fireEvent.change(languageCodeInput, { target: { value: 'fld' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '当前语言显示名' }), { target: { value: '田野语言' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '英文名' }), { target: { value: 'Field Language' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '当前语言显示名' }), {
+      target: { value: '田野语言' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: '英文名' }), {
+      target: { value: 'Field Language' },
+    });
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
 
     await waitFor(() => {
@@ -433,7 +490,11 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
 
     const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
-    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+    expect(
+      lastCallIndex >= 0
+        ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0]
+        : undefined,
+    ).toMatchObject({
       id: 'user:field-language',
       languageCode: 'fld',
       localName: '田野语言',
@@ -480,7 +541,11 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
 
     const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
-    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+    expect(
+      lastCallIndex >= 0
+        ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0]
+        : undefined,
+    ).toMatchObject({
       id: 'eng',
       customFields: {
         vitalityScore: 3,
@@ -495,13 +560,25 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByRole('textbox', { name: '语系' }), { target: { value: '汉藏语系' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '语族' }), { target: { value: '藏缅语族' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '语支' }), { target: { value: '缅语支' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '方言' }), { target: { value: '阿昌话、梁河话' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '土语' }), { target: { value: '户撒土语' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '语系' }), {
+      target: { value: '汉藏语系' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: '语族' }), {
+      target: { value: '藏缅语族' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: '语支' }), {
+      target: { value: '缅语支' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: '方言' }), {
+      target: { value: '阿昌话、梁河话' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: '土语' }), {
+      target: { value: '户撒土语' },
+    });
 
-    expect((screen.getByRole('textbox', { name: '谱系路径' }) as HTMLInputElement).value).toBe('语系: 汉藏语系 / 语族: 藏缅语族 / 语支: 缅语支 / 方言: 阿昌话、梁河话 / 土语: 户撒土语');
+    expect((screen.getByRole('textbox', { name: '谱系路径' }) as HTMLInputElement).value).toBe(
+      '语系: 汉藏语系 / 语族: 藏缅语族 / 语支: 缅语支 / 方言: 阿昌话、梁河话 / 土语: 户撒土语',
+    );
 
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
 
@@ -510,7 +587,11 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
 
     const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
-    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+    expect(
+      lastCallIndex >= 0
+        ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0]
+        : undefined,
+    ).toMatchObject({
       id: 'user:demo-language',
       classificationPath: '汉藏语系 / 藏缅语族 / 缅语支 / 阿昌话、梁河话 / 户撒土语',
       dialects: ['阿昌话', '梁河话'],
@@ -539,14 +620,18 @@ describe('LanguageMetadataWorkspacePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '模拟地图拖拽' }));
 
     await waitFor(() => {
-      expect(mockReverseGeocode).toHaveBeenCalledWith(expect.objectContaining({
-        latitude: 30.67,
-        longitude: 104.06,
-        locale: 'zh-CN',
-      }));
+      expect(mockReverseGeocode).toHaveBeenCalledWith(
+        expect.objectContaining({
+          latitude: 30.67,
+          longitude: 104.06,
+          locale: 'zh-CN',
+        }),
+      );
     });
 
-    expect(await screen.findByText((content) => content.includes('当前位置：成都，中国'))).toBeTruthy();
+    expect(
+      await screen.findByText((content) => content.includes('当前位置：成都，中国')),
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
 
@@ -555,7 +640,11 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
 
     const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
-    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+    expect(
+      lastCallIndex >= 0
+        ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0]
+        : undefined,
+    ).toMatchObject({
       id: 'eng',
       latitude: 30.67,
       longitude: 104.06,
@@ -569,8 +658,12 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByRole('textbox', { name: '纬度' }), { target: { value: '35.8617' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '经度' }), { target: { value: '104.1954' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '纬度' }), {
+      target: { value: '35.8617' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: '经度' }), {
+      target: { value: '104.1954' },
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-language-map')).toBeTruthy();
@@ -607,7 +700,9 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByRole('textbox', { name: '检索地点并补全行政区' }), { target: { value: '昆明市' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '检索地点并补全行政区' }), {
+      target: { value: '昆明市' },
+    });
     fireEvent.click(screen.getByRole('button', { name: '检索' }));
     await waitFor(() => {
       expect(mockForwardGeocode).toHaveBeenCalled();
@@ -615,10 +710,16 @@ describe('LanguageMetadataWorkspacePage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /昆明市/ }));
     fireEvent.click(screen.getByRole('button', { name: '加入列表' }));
 
-    expect((screen.getByRole('textbox', { name: '已选行政区条目' }) as HTMLTextAreaElement).value).toContain('国家: 中国 / 省州: 云南省 / 城市: 昆明市 / 县区: 五华区 / 乡镇: 普吉街道 / 村: 篆塘社区');
+    expect(
+      (screen.getByRole('textbox', { name: '已选行政区条目' }) as HTMLTextAreaElement).value,
+    ).toContain(
+      '国家: 中国 / 省州: 云南省 / 城市: 昆明市 / 县区: 五华区 / 乡镇: 普吉街道 / 村: 篆塘社区',
+    );
     expect(await screen.findByTestId('mock-language-map')).toBeTruthy();
     expect(screen.getByTestId('mock-language-map-coords').textContent).toBe('25.0438,102.71');
-    expect(screen.getByText((content) => content.includes('当前位置：昆明市, 云南省, 中国'))).toBeTruthy();
+    expect(
+      screen.getByText((content) => content.includes('当前位置：昆明市, 云南省, 中国')),
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
 
@@ -627,7 +728,11 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
 
     const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
-    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+    expect(
+      lastCallIndex >= 0
+        ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0]
+        : undefined,
+    ).toMatchObject({
       id: 'user:demo-language',
       countries: ['CN'],
       administrativeDivisions: [
@@ -644,24 +749,28 @@ describe('LanguageMetadataWorkspacePage', () => {
   });
 
   it('keeps latest administrative search results when an earlier request resolves later', async () => {
-    const firstSearch = createDeferred<Array<{
-      id: string;
-      displayName: string;
-      primaryText: string;
-      secondaryText?: string;
-      lat: number;
-      lng: number;
-      provider: 'nominatim';
-    }>>();
-    const secondSearch = createDeferred<Array<{
-      id: string;
-      displayName: string;
-      primaryText: string;
-      secondaryText?: string;
-      lat: number;
-      lng: number;
-      provider: 'nominatim';
-    }>>();
+    const firstSearch = createDeferred<
+      Array<{
+        id: string;
+        displayName: string;
+        primaryText: string;
+        secondaryText?: string;
+        lat: number;
+        lng: number;
+        provider: 'nominatim';
+      }>
+    >();
+    const secondSearch = createDeferred<
+      Array<{
+        id: string;
+        displayName: string;
+        primaryText: string;
+        secondaryText?: string;
+        lat: number;
+        lng: number;
+        provider: 'nominatim';
+      }>
+    >();
 
     mockForwardGeocode
       .mockImplementationOnce(async () => firstSearch.promise)
@@ -748,28 +857,44 @@ describe('LanguageMetadataWorkspacePage', () => {
     expect(screen.queryByTestId('mock-language-map')).toBeNull();
 
     fireEvent.change(screen.getByRole('textbox', { name: '国家' }), { target: { value: '中国' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '省 / 州' }), { target: { value: '云南省' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '城市' }), { target: { value: '大理白族自治州' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '县 / 区' }), { target: { value: '鹤庆县' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '省 / 州' }), {
+      target: { value: '云南省' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: '城市' }), {
+      target: { value: '大理白族自治州' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: '县 / 区' }), {
+      target: { value: '鹤庆县' },
+    });
 
     await waitFor(() => {
-      expect((screen.getByRole('button', { name: '加入列表' }) as HTMLButtonElement).disabled).toBe(false);
+      expect((screen.getByRole('button', { name: '加入列表' }) as HTMLButtonElement).disabled).toBe(
+        false,
+      );
     });
 
     fireEvent.click(screen.getByRole('button', { name: '加入列表' }));
 
     await waitFor(() => {
-      expect(mockForwardGeocode).toHaveBeenCalledWith(expect.objectContaining({
-        query: '鹤庆县, 大理白族自治州, 云南省, 中国',
-        structuredAddress: true,
-        limit: 1,
-      }));
+      expect(mockForwardGeocode).toHaveBeenCalledWith(
+        expect.objectContaining({
+          query: '鹤庆县, 大理白族自治州, 云南省, 中国',
+          structuredAddress: true,
+          limit: 1,
+        }),
+      );
     });
 
     expect(await screen.findByTestId('mock-language-map')).toBeTruthy();
     expect(screen.getByTestId('mock-language-map-coords').textContent).toBe('26.5606,100.1766');
-    expect(screen.getByText((content) => content.includes('当前位置：鹤庆县, 大理白族自治州, 云南省, 中国'))).toBeTruthy();
-    expect((screen.getByRole('textbox', { name: '已选行政区条目' }) as HTMLTextAreaElement).value).toContain('国家: 中国 / 省州: 云南省 / 城市: 大理白族自治州 / 县区: 鹤庆县');
+    expect(
+      screen.getByText((content) =>
+        content.includes('当前位置：鹤庆县, 大理白族自治州, 云南省, 中国'),
+      ),
+    ).toBeTruthy();
+    expect(
+      (screen.getByRole('textbox', { name: '已选行政区条目' }) as HTMLTextAreaElement).value,
+    ).toContain('国家: 中国 / 省州: 云南省 / 城市: 大理白族自治州 / 县区: 鹤庆县');
 
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
 
@@ -778,7 +903,11 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
 
     const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
-    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+    expect(
+      lastCallIndex >= 0
+        ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0]
+        : undefined,
+    ).toMatchObject({
       countries: ['中国'],
       administrativeDivisions: [
         {
@@ -815,14 +944,19 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(screen.getByDisplayValue('Demo Language')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Search a place and complete the hierarchy' }), { target: { value: 'Kunming' } });
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Search a place and complete the hierarchy' }),
+      { target: { value: 'Kunming' } },
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     await waitFor(() => {
-      expect(mockForwardGeocode).toHaveBeenCalledWith(expect.objectContaining({
-        query: 'Kunming',
-        countryCodes: ['cn'],
-      }));
+      expect(mockForwardGeocode).toHaveBeenCalledWith(
+        expect.objectContaining({
+          query: 'Kunming',
+          countryCodes: ['cn'],
+        }),
+      );
     });
   });
 
@@ -854,12 +988,15 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
     });
 
-    const divisionsInput = await screen.findByRole('textbox', { name: '已选行政区条目' }) as HTMLTextAreaElement;
+    const divisionsInput = (await screen.findByRole('textbox', {
+      name: '已选行政区条目',
+    })) as HTMLTextAreaElement;
     expect(divisionsInput.value).toContain('国家: 中国 / 省州: 云南省 / 城市: 昆明市');
 
     fireEvent.change(divisionsInput, {
       target: {
-        value: '国家: 中国 / 省州: 云南省 / 城市: 昆明市\nCountry: Nepal / State: Bagmati / City: Kathmandu',
+        value:
+          '国家: 中国 / 省州: 云南省 / 城市: 昆明市\nCountry: Nepal / State: Bagmati / City: Kathmandu',
       },
     });
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
@@ -869,7 +1006,11 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
 
     const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
-    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+    expect(
+      lastCallIndex >= 0
+        ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0]
+        : undefined,
+    ).toMatchObject({
       administrativeDivisions: [
         {
           country: '中国',
@@ -925,7 +1066,9 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByRole('textbox', { name: '检索地点并补全行政区' }), { target: { value: '昆明市' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '检索地点并补全行政区' }), {
+      target: { value: '昆明市' },
+    });
     fireEvent.click(screen.getByRole('button', { name: '检索' }));
     fireEvent.click(await screen.findByRole('button', { name: /昆明市/ }));
     fireEvent.click(screen.getByRole('button', { name: '加入列表' }));
@@ -936,7 +1079,11 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
 
     const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
-    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+    expect(
+      lastCallIndex >= 0
+        ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0]
+        : undefined,
+    ).toMatchObject({
       id: 'user:demo-language',
       countries: ['China'],
       administrativeDivisions: [
@@ -974,7 +1121,9 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
 
     fireEvent.change(screen.getByRole('textbox', { name: '国家' }), { target: { value: '中国' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '城市' }), { target: { value: '昆明市' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '城市' }), {
+      target: { value: '昆明市' },
+    });
     fireEvent.click(screen.getByRole('button', { name: '加入列表' }));
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
 
@@ -983,7 +1132,11 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
 
     const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
-    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+    expect(
+      lastCallIndex >= 0
+        ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0]
+        : undefined,
+    ).toMatchObject({
       id: 'user:demo-language',
       countries: ['CN'],
     });

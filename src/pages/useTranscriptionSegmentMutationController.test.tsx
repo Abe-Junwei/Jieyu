@@ -15,20 +15,32 @@ const {
   mockDeleteSegmentsBatch,
   mockUpdateUnit,
 } = vi.hoisted(() => ({
-  mockSplitSegment: vi.fn<(segmentId: string, splitTime: number) => Promise<{ first: { id: string }; second: { id: string } }>>(async (segmentId) => ({
+  mockSplitSegment: vi.fn<
+    (
+      segmentId: string,
+      splitTime: number,
+    ) => Promise<{ first: { id: string }; second: { id: string } }>
+  >(async (segmentId) => ({
     first: { id: segmentId },
     second: { id: 'seg-right' },
   })),
-  mockMergeAdjacentSegments: vi.fn<(leftId: string, rightId: string) => Promise<void>>(async () => undefined),
+  mockMergeAdjacentSegments: vi.fn<(leftId: string, rightId: string) => Promise<void>>(
+    async () => undefined,
+  ),
   mockDeleteSegment: vi.fn<(segmentId: string) => Promise<void>>(async () => undefined),
-  mockDeleteSegmentsBatch: vi.fn<(segmentIds: readonly string[]) => Promise<void>>(async () => undefined),
-  mockUpdateUnit: vi.fn<(id: string, changes: Partial<LayerUnitDocType>) => Promise<void>>(async () => undefined),
+  mockDeleteSegmentsBatch: vi.fn<(segmentIds: readonly string[]) => Promise<void>>(
+    async () => undefined,
+  ),
+  mockUpdateUnit: vi.fn<(id: string, changes: Partial<LayerUnitDocType>) => Promise<void>>(
+    async () => undefined,
+  ),
 }));
 
 vi.mock('../services/LayerSegmentationV2Service', () => ({
   LayerSegmentationV2Service: {
     splitSegment: (segmentId: string, splitTime: number) => mockSplitSegment(segmentId, splitTime),
-    mergeAdjacentSegments: (leftId: string, rightId: string) => mockMergeAdjacentSegments(leftId, rightId),
+    mergeAdjacentSegments: (leftId: string, rightId: string) =>
+      mockMergeAdjacentSegments(leftId, rightId),
     deleteSegment: (segmentId: string) => mockDeleteSegment(segmentId),
     deleteSegmentsBatch: (segmentIds: readonly string[]) => mockDeleteSegmentsBatch(segmentIds),
   },
@@ -49,13 +61,18 @@ function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDo
     layerType: 'transcription',
     languageId: 'zh-CN',
     modality: 'text',
-    ...(constraint ? { constraint } : {}),
+    ...(constraint != null ? { constraint } : {}),
     createdAt: '2026-04-01T00:00:00.000Z',
     updatedAt: '2026-04-01T00:00:00.000Z',
   } as LayerDocType;
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerUnitDocType {
+function makeSegment(
+  id: string,
+  layerId: string,
+  startTime: number,
+  endTime: number,
+): LayerUnitDocType {
   return {
     id,
     layerId,
@@ -114,9 +131,8 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     selectTimelineUnit: vi.fn(),
     unitsOnCurrentMedia: createUnitsOnCurrentMedia(defaultSegments, defaultUnits),
     getUnitDocById: (id: string) => defaultUnits.find((u) => u.id === id),
-    findUnitDocContainingRange: (start: number, end: number) => defaultUnits.find(
-      (u) => u.startTime <= start + 0.01 && u.endTime >= end - 0.01,
-    ),
+    findUnitDocContainingRange: (start: number, end: number) =>
+      defaultUnits.find((u) => u.startTime <= start + 0.01 && u.endTime >= end - 0.01),
     setSaveState: vi.fn() as unknown as (state: SaveState) => void,
     splitUnit: vi.fn(async () => undefined),
     mergeSelectedUnits: vi.fn(async () => undefined),
@@ -147,12 +163,16 @@ describe('useTranscriptionSegmentMutationController', () => {
     const reloadSegments = vi.fn(async () => undefined);
     const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
     const selectTimelineUnit = vi.fn();
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      pushUndo,
-      reloadSegments,
-      refreshSegmentUndoSnapshot,
-      selectTimelineUnit,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          pushUndo,
+          reloadSegments,
+          refreshSegmentUndoSnapshot,
+          selectTimelineUnit,
+        }),
+      ),
+    );
 
     let splitToken: AiSegmentSplitRollbackToken | undefined;
     await act(async () => {
@@ -164,16 +184,24 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(mockSplitSegment).toHaveBeenCalledWith('seg-2', 1.5);
     expect(reloadSegments).toHaveBeenCalled();
     expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
-    expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-seg', unitId: 'seg-right', kind: 'segment' });
+    expect(selectTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'layer-seg',
+      unitId: 'seg-right',
+      kind: 'segment',
+    });
   });
 
   it('mergeAdjacentSegmentsForAiRollback merges then reloads and refreshes undo snapshot', async () => {
     const reloadSegments = vi.fn(async () => undefined);
     const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      reloadSegments,
-      refreshSegmentUndoSnapshot,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          reloadSegments,
+          refreshSegmentUndoSnapshot,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.mergeAdjacentSegmentsForAiRollback('seg-1', 'seg-2');
@@ -190,12 +218,16 @@ describe('useTranscriptionSegmentMutationController', () => {
     const reloadSegments = vi.fn(async () => undefined);
     const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
     const selectTimelineUnit = vi.fn();
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      setSaveState,
-      reloadSegments,
-      refreshSegmentUndoSnapshot,
-      selectTimelineUnit,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          setSaveState,
+          reloadSegments,
+          refreshSegmentUndoSnapshot,
+          selectTimelineUnit,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.splitRouted('seg-2', 1.5);
@@ -204,15 +236,17 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(reloadSegments).not.toHaveBeenCalled();
     expect(refreshSegmentUndoSnapshot).not.toHaveBeenCalled();
     expect(selectTimelineUnit).not.toHaveBeenCalled();
-    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'error',
-      message: '拆分句段失败：split failed',
-      errorMeta: expect.objectContaining({
-        category: 'action',
-        action: '拆分句段',
-        detail: 'split failed',
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'error',
+        message: '拆分句段失败：split failed',
+        errorMeta: expect.objectContaining({
+          category: 'action',
+          action: '拆分句段',
+          detail: 'split failed',
+        }),
       }),
-    }));
+    );
   });
 
   it('uses explicit layer override when overlay action targets another segment layer', async () => {
@@ -223,43 +257,54 @@ describe('useTranscriptionSegmentMutationController', () => {
       editMode: 'independent-segment' as const,
     }));
     const selectTimelineUnit = vi.fn();
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      resolveSegmentRoutingForLayer,
-      selectTimelineUnit,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          resolveSegmentRoutingForLayer,
+          selectTimelineUnit,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.splitRouted('seg-foreign', 1.5, 'layer-foreign');
     });
 
     expect(resolveSegmentRoutingForLayer).toHaveBeenCalledWith('layer-foreign');
-    expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-foreign', unitId: 'seg-right', kind: 'segment' });
+    expect(selectTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'layer-foreign',
+      unitId: 'seg-right',
+      kind: 'segment',
+    });
   });
 
   it('blocks time-subdivision merge when merged range exceeds parent unit', async () => {
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const pushUndo = vi.fn();
     const utt = makeUnit('utt-1', 1.5, 3.0);
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      activeLayerIdForEdits: 'layer-sub',
-      resolveSegmentRoutingForLayer: () => ({
-        layer: makeLayer('layer-sub', 'time_subdivision'),
-        segmentSourceLayer: makeLayer('layer-sub', 'time_subdivision'),
-        sourceLayerId: 'layer-sub',
-        editMode: 'time-subdivision',
-      }),
-      unitsOnCurrentMedia: createUnitsOnCurrentMedia(
-        [makeSegment('seg-1', 'layer-sub', 1, 2), makeSegment('seg-2', 'layer-sub', 2, 3)],
-        [utt],
-        'layer-sub',
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          activeLayerIdForEdits: 'layer-sub',
+          resolveSegmentRoutingForLayer: () => ({
+            layer: makeLayer('layer-sub', 'time_subdivision'),
+            segmentSourceLayer: makeLayer('layer-sub', 'time_subdivision'),
+            sourceLayerId: 'layer-sub',
+            editMode: 'time-subdivision',
+          }),
+          unitsOnCurrentMedia: createUnitsOnCurrentMedia(
+            [makeSegment('seg-1', 'layer-sub', 1, 2), makeSegment('seg-2', 'layer-sub', 2, 3)],
+            [utt],
+            'layer-sub',
+          ),
+          getUnitDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
+          findUnitDocContainingRange: (start: number, end: number) =>
+            utt.startTime <= start + 0.01 && utt.endTime >= end - 0.01 ? utt : undefined,
+          setSaveState,
+          pushUndo,
+        }),
       ),
-      getUnitDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
-      findUnitDocContainingRange: (start: number, end: number) => (
-        utt.startTime <= start + 0.01 && utt.endTime >= end - 0.01 ? utt : undefined
-      ),
-      setSaveState,
-      pushUndo,
-    })));
+    );
 
     await act(async () => {
       await result.current.mergeWithPreviousRouted('seg-2');
@@ -267,30 +312,37 @@ describe('useTranscriptionSegmentMutationController', () => {
 
     expect(mockMergeAdjacentSegments).not.toHaveBeenCalled();
     expect(pushUndo).not.toHaveBeenCalled();
-    expect(setSaveState).toHaveBeenCalledWith({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
+    expect(setSaveState).toHaveBeenCalledWith({
+      kind: 'error',
+      message: '合并后会超出父句段范围，无法完成。',
+    });
   });
 
   it('blocks time-subdivision merge when parent unit cannot be resolved from raw resolver', async () => {
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const pushUndo = vi.fn();
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      activeLayerIdForEdits: 'layer-sub',
-      resolveSegmentRoutingForLayer: () => ({
-        layer: makeLayer('layer-sub', 'time_subdivision'),
-        segmentSourceLayer: makeLayer('layer-sub', 'time_subdivision'),
-        sourceLayerId: 'layer-sub',
-        editMode: 'time-subdivision',
-      }),
-      unitsOnCurrentMedia: createUnitsOnCurrentMedia(
-        [makeSegment('seg-1', 'layer-sub', 1, 2), makeSegment('seg-2', 'layer-sub', 2, 3)],
-        [],
-        'layer-sub',
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          activeLayerIdForEdits: 'layer-sub',
+          resolveSegmentRoutingForLayer: () => ({
+            layer: makeLayer('layer-sub', 'time_subdivision'),
+            segmentSourceLayer: makeLayer('layer-sub', 'time_subdivision'),
+            sourceLayerId: 'layer-sub',
+            editMode: 'time-subdivision',
+          }),
+          unitsOnCurrentMedia: createUnitsOnCurrentMedia(
+            [makeSegment('seg-1', 'layer-sub', 1, 2), makeSegment('seg-2', 'layer-sub', 2, 3)],
+            [],
+            'layer-sub',
+          ),
+          getUnitDocById: () => undefined,
+          findUnitDocContainingRange: () => undefined,
+          setSaveState,
+          pushUndo,
+        }),
       ),
-      getUnitDocById: () => undefined,
-      findUnitDocContainingRange: () => undefined,
-      setSaveState,
-      pushUndo,
-    })));
+    );
 
     await act(async () => {
       await result.current.mergeWithPreviousRouted('seg-2');
@@ -298,7 +350,10 @@ describe('useTranscriptionSegmentMutationController', () => {
 
     expect(mockMergeAdjacentSegments).not.toHaveBeenCalled();
     expect(pushUndo).not.toHaveBeenCalled();
-    expect(setSaveState).toHaveBeenCalledWith({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
+    expect(setSaveState).toHaveBeenCalledWith({
+      kind: 'error',
+      message: '合并后会超出父句段范围，无法完成。',
+    });
   });
 
   it('allows independent-segment merge even when linked unit would not fully contain merged range', async () => {
@@ -308,21 +363,24 @@ describe('useTranscriptionSegmentMutationController', () => {
     const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
     const selectTimelineUnit = vi.fn();
     const utt = makeUnit('utt-1', 1.5, 3.0);
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      unitsOnCurrentMedia: createUnitsOnCurrentMedia(
-        [makeSegment('seg-1', 'layer-seg', 1, 2), makeSegment('seg-2', 'layer-seg', 2, 3)],
-        [utt],
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          unitsOnCurrentMedia: createUnitsOnCurrentMedia(
+            [makeSegment('seg-1', 'layer-seg', 1, 2), makeSegment('seg-2', 'layer-seg', 2, 3)],
+            [utt],
+          ),
+          getUnitDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
+          findUnitDocContainingRange: (start: number, end: number) =>
+            utt.startTime <= start + 0.01 && utt.endTime >= end - 0.01 ? utt : undefined,
+          setSaveState,
+          pushUndo,
+          reloadSegments,
+          refreshSegmentUndoSnapshot,
+          selectTimelineUnit,
+        }),
       ),
-      getUnitDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
-      findUnitDocContainingRange: (start: number, end: number) => (
-        utt.startTime <= start + 0.01 && utt.endTime >= end - 0.01 ? utt : undefined
-      ),
-      setSaveState,
-      pushUndo,
-      reloadSegments,
-      refreshSegmentUndoSnapshot,
-      selectTimelineUnit,
-    })));
+    );
 
     await act(async () => {
       await result.current.mergeWithPreviousRouted('seg-2');
@@ -332,8 +390,15 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(mockMergeAdjacentSegments).toHaveBeenCalledWith('seg-1', 'seg-2');
     expect(reloadSegments).toHaveBeenCalled();
     expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
-    expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' });
-    expect(setSaveState).not.toHaveBeenCalledWith({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
+    expect(selectTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'layer-seg',
+      unitId: 'seg-1',
+      kind: 'segment',
+    });
+    expect(setSaveState).not.toHaveBeenCalledWith({
+      kind: 'error',
+      message: '合并后会超出父句段范围，无法完成。',
+    });
   });
 
   it('merges selected independent segments in order and keeps the first segment selected', async () => {
@@ -341,12 +406,16 @@ describe('useTranscriptionSegmentMutationController', () => {
     const reloadSegments = vi.fn(async () => undefined);
     const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
     const selectTimelineUnit = vi.fn();
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      pushUndo,
-      reloadSegments,
-      refreshSegmentUndoSnapshot,
-      selectTimelineUnit,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          pushUndo,
+          reloadSegments,
+          refreshSegmentUndoSnapshot,
+          selectTimelineUnit,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.mergeSelectedSegmentsRouted(new Set(['seg-1', 'seg-2', 'seg-3']));
@@ -357,22 +426,35 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(mockMergeAdjacentSegments).toHaveBeenNthCalledWith(2, 'seg-1', 'seg-3');
     expect(reloadSegments).toHaveBeenCalled();
     expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
-    expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' });
+    expect(selectTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'layer-seg',
+      unitId: 'seg-1',
+      kind: 'segment',
+    });
   });
 
   it('rejects non-adjacent selected segments before batch merge', async () => {
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const pushUndo = vi.fn();
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      setSaveState,
-      pushUndo,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          setSaveState,
+          pushUndo,
+        }),
+      ),
+    );
 
-    await expect(result.current.mergeSelectedSegmentsRouted(new Set(['seg-1', 'seg-3']))).rejects.toThrow('请先选择相邻句段再执行合并。');
+    await expect(
+      result.current.mergeSelectedSegmentsRouted(new Set(['seg-1', 'seg-3'])),
+    ).rejects.toThrow('请先选择相邻句段再执行合并。');
 
     expect(mockMergeAdjacentSegments).not.toHaveBeenCalled();
     expect(pushUndo).not.toHaveBeenCalled();
-    expect(setSaveState).toHaveBeenCalledWith({ kind: 'error', message: '请先选择相邻句段再执行合并。' });
+    expect(setSaveState).toHaveBeenCalledWith({
+      kind: 'error',
+      message: '请先选择相邻句段再执行合并。',
+    });
   });
 
   it('reloads segments and surfaces error when batch segment delete fails', async () => {
@@ -382,11 +464,15 @@ describe('useTranscriptionSegmentMutationController', () => {
     const pushUndo = vi.fn();
     const reloadSegments = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      pushUndo,
-      reloadSegments,
-      setSaveState,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          pushUndo,
+          reloadSegments,
+          setSaveState,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.deleteSelectedUnitsRouted(new Set(['seg-1', 'seg-2']));
@@ -396,15 +482,17 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(mockDeleteSegmentsBatch).toHaveBeenCalledWith(['seg-1', 'seg-2']);
     expect(mockDeleteSegment).not.toHaveBeenCalled();
     expect(reloadSegments).toHaveBeenCalledTimes(1);
-    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'error',
-      message: '批量删除句段失败：delete failed',
-      errorMeta: expect.objectContaining({
-        category: 'action',
-        action: '批量删除句段',
-        detail: 'delete failed',
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'error',
+        message: '批量删除句段失败：delete failed',
+        errorMeta: expect.objectContaining({
+          category: 'action',
+          action: '批量删除句段',
+          detail: 'delete failed',
+        }),
       }),
-    }));
+    );
   });
 
   it('toggles skip-processing on a segment and keeps selection anchored', async () => {
@@ -413,25 +501,36 @@ describe('useTranscriptionSegmentMutationController', () => {
     const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
     const selectTimelineUnit = vi.fn();
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      pushUndo,
-      reloadSegments,
-      refreshSegmentUndoSnapshot,
-      selectTimelineUnit,
-      setSaveState,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          pushUndo,
+          reloadSegments,
+          refreshSegmentUndoSnapshot,
+          selectTimelineUnit,
+          setSaveState,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.toggleSkipProcessingRouted('seg-2');
     });
 
     expect(pushUndo).toHaveBeenCalledWith('标记跳过处理');
-    expect(mockUpdateUnit).toHaveBeenCalledWith('seg-2', expect.objectContaining({
-      tags: expect.objectContaining({ skipProcessing: true }),
-    }));
+    expect(mockUpdateUnit).toHaveBeenCalledWith(
+      'seg-2',
+      expect.objectContaining({
+        tags: expect.objectContaining({ skipProcessing: true }),
+      }),
+    );
     expect(reloadSegments).toHaveBeenCalled();
     expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
-    expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-seg', unitId: 'seg-2', kind: 'segment' });
+    expect(selectTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'layer-seg',
+      unitId: 'seg-2',
+      kind: 'segment',
+    });
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'done', message: '已标记为跳过处理' });
   });
 
@@ -442,20 +541,24 @@ describe('useTranscriptionSegmentMutationController', () => {
     const mergeWithNext = vi.fn(async () => undefined);
     const deleteUnit = vi.fn(async () => undefined);
     const deleteSelectedUnits = vi.fn(async () => undefined);
-    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      resolveSegmentRoutingForLayer: () => ({
-        layer: makeLayer('layer-main'),
-        segmentSourceLayer: undefined,
-        sourceLayerId: '',
-        editMode: 'unit',
-      }),
-      splitUnit: splitUnit,
-      mergeSelectedUnits: mergeSelectedUnits,
-      mergeWithPrevious,
-      mergeWithNext,
-      deleteUnit: deleteUnit,
-      deleteSelectedUnits: deleteSelectedUnits,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          resolveSegmentRoutingForLayer: () => ({
+            layer: makeLayer('layer-main'),
+            segmentSourceLayer: undefined,
+            sourceLayerId: '',
+            editMode: 'unit',
+          }),
+          splitUnit: splitUnit,
+          mergeSelectedUnits: mergeSelectedUnits,
+          mergeWithPrevious,
+          mergeWithNext,
+          deleteUnit: deleteUnit,
+          deleteSelectedUnits: deleteSelectedUnits,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.splitRouted('utt-1', 1.2);
