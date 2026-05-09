@@ -1,0 +1,21 @@
+# Build output
+dist/
+coverage/
+
+# Dependencies
+node_modules/
+
+# Lock files
+package-lock.json
+
+# Generated data
+src/data/generated/
+public/data/
+
+# Large binaries
+*.onnx
+*.wasm
+*.woff2
+
+# Logs
+*.log
