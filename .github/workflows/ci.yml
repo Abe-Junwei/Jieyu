@@ -77,7 +77,8 @@ jobs:
 
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # `npm test` repeats several gates already run above, then runs Vitest; allow headroom to avoid 30m edge cancels.
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
