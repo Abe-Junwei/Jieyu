@@ -116,6 +116,58 @@ jobs:
       - name: Architecture hotspot report
         run: npm run report:architecture-hotspots
 
+  # TranscriptionTimelineVerticalView suite shards are excluded from the quality job `vitest run`
+  # (`package.json` `test` script `--exclude`) so CI does not duplicate heavy suites in one process;
+  # each shard runs in its own job; suite-c uses 12288MB + forks (threads pool OOM flake on jsdom).
+  vertical-view-vitest-shard:
+    name: Vertical view Vitest (suite-${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [a, b, c, d]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Vitest shard (TranscriptionTimelineVerticalView.suite-${{ matrix.suite }})
+        env:
+          NODE_OPTIONS: ${{ matrix.suite == 'c' && '--max-old-space-size=12288' || '--max-old-space-size=8192' }}
+        run: npx vitest run "src/components/TranscriptionTimelineVerticalView.suite-${{ matrix.suite }}.test.tsx" --maxWorkers=1 ${{ matrix.suite == 'c' && '--pool=forks' || '' }}
+
+  vertical-view-content-vm-after-shards:
+    name: Vertical view content VM (after suite shards)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: vertical-view-vitest-shard
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Content view model tests (same heap budget as vertical-view scripts)
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: npm run test:vertical-view:content-vm-only
+
   agent-evals-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
