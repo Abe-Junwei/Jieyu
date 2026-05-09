@@ -214,7 +214,8 @@ export const architectureGuardRules = [
       /export function useTranscriptionAiController\(/,
       // ADR-004 single-caliber: controllers must consume injected TimelineUnitViewIndex directly.
       /const effectiveUnitIndex = input\.timelineUnitViewIndex;/,
-      /const projectUnitsForTools = effectiveUnitIndex\.isComplete \|\| effectiveUnitIndex\.allUnits\.length > 0/,
+      // Prettier may break the RHS across lines; keep the guard anchored on the ternary condition.
+      /const projectUnitsForTools\s*=\s*\n\s*effectiveUnitIndex\.isComplete \|\| effectiveUnitIndex\.allUnits\.length > 0/,
       /recordMetric\(\{\s*id:\s*'ai\.timeline_unit_count_mismatch'/,
       /layers:\s*input\.layers/,
       /recentActions:\s*formatRecentActions\(input\.recentTimelineEditEvents\)/,
