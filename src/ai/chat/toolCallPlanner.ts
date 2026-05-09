@@ -25,31 +25,11 @@ import {
 import { resolveLanguageQuery } from '../../utils/langMapping';
 import { decodeEscapedUnicode, escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 import { getAiToolPolicy } from '../policy/aiToolPolicyMatrix';
-import { TOOL_STRATEGY_TABLE, toolSupportsSegmentSelectionTarget } from './toolCallStrategy';
-
-export function resolveSelectionTargetPatchForTool(
-  callName: AiChatToolName,
-  context: AiPromptContext | null | undefined,
-): Record<string, string> | null {
-  const short = context?.shortTerm;
-  const activeUnitId = getFirstNonEmptyString(short?.activeUnitId);
-  const activeSegmentUnitId = getFirstNonEmptyString(short?.activeSegmentUnitId);
-  const selectedUnitKind = short?.selectedUnitKind;
-
-  if (toolSupportsSegmentSelectionTarget(callName)) {
-    if (
-      (selectedUnitKind === 'segment' || activeSegmentUnitId.length > 0) &&
-      activeSegmentUnitId.length > 0
-    ) {
-      return { segmentId: activeSegmentUnitId };
-    }
-    return null;
-  }
-  if (activeUnitId.length > 0) {
-    return { unitId: activeUnitId };
-  }
-  return null;
-}
+import {
+  TOOL_STRATEGY_TABLE,
+  toolSupportsSegmentSelectionTarget,
+  resolveSelectionTargetPatchForTool,
+} from './toolCallStrategy';
 
 export function planToolCallTargets(
   call: AiChatToolCall,

@@ -23,7 +23,7 @@ import {
   validateSplitSegmentArgs,
 } from './toolCallValidation';
 
-export interface ToolContextFillSpec {
+interface ToolContextFillSpec {
   unitId?: boolean;
   translationLayerId?: boolean;
   linkBothLayers?: boolean;
@@ -40,7 +40,7 @@ export interface ToolStrategy {
   };
 }
 
-export const SEGMENT_SELECTION_COMPATIBLE_TOOLS: ReadonlySet<AiChatToolName> = new Set([
+const SEGMENT_SELECTION_COMPATIBLE_TOOLS: ReadonlySet<AiChatToolName> = new Set([
   ...getAiToolSegmentExecutionToolNames(),
   'merge_prev',
   'merge_next',

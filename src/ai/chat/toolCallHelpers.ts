@@ -55,13 +55,12 @@ export type {
 import { hasResolvableSelectionTargetForTool } from './toolCallPlanner';
 export {
   planToolCallTargets,
-  resolveSelectionTargetPatchForTool,
   extractClarifyLanguagePatch,
   extractClarifySplitPositionPatch,
   buildClarifyCandidates,
 } from './toolCallPlanner';
-import { TOOL_STRATEGY_TABLE, toolSupportsSegmentSelectionTarget } from './toolCallStrategy';
-export { TOOL_STRATEGY_TABLE, toolSupportsSegmentSelectionTarget };
+export { resolveSelectionTargetPatchForTool } from './toolCallStrategy';
+import { TOOL_STRATEGY_TABLE } from './toolCallStrategy';
 
 interface RawToolCallEnvelope {
   name: string;
