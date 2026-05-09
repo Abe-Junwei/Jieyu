@@ -52,9 +52,13 @@ export interface TimelineParityRow {
   testAnchors: readonly string[];
 }
 
-function rowParts(id: TimelineParityMatrixRowId): Pick<TimelineParityRow, 'labelZh'> & Partial<Pick<TimelineParityRow, 'verticalGapZh'>> {
+function rowParts(
+  id: TimelineParityMatrixRowId,
+): Pick<TimelineParityRow, 'labelZh'> & Partial<Pick<TimelineParityRow, 'verticalGapZh'>> {
   const r = timelineParityMatrixRowsZh[id];
-  return 'verticalGapZh' in r ? { labelZh: r.labelZh, verticalGapZh: r.verticalGapZh } : { labelZh: r.labelZh };
+  return 'verticalGapZh' in r
+    ? { labelZh: r.labelZh, verticalGapZh: r.verticalGapZh }
+    : { labelZh: r.labelZh };
 }
 
 export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
@@ -81,16 +85,17 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     id: 'host-vertical-projection-input',
     ...rowParts('host-vertical-projection-input'),
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
-    testAnchors: [
-      'src/pages/useTranscriptionTimelineContentViewModel.test.tsx',
-    ],
+    testAnchors: ['src/pages/useTranscriptionTimelineContentViewModel.test.tsx'],
   },
   {
     id: 'segment-read-write',
     ...rowParts('segment-read-write'),
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
     testAnchors: [
-      'src/components/TranscriptionTimelineVerticalView.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-a.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-b.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-c.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-d.test.tsx',
       'src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx',
     ],
   },
@@ -124,7 +129,10 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     parity: { waveform: 'full', textOnly: 'partial', vertical: 'partial' },
     testAnchors: [
       'src/components/TimelineLaneHeader.test.tsx',
-      'src/components/TranscriptionTimelineVerticalView.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-a.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-b.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-c.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-d.test.tsx',
     ],
   },
   {
@@ -140,18 +148,13 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     id: 'zoom-scroll',
     ...rowParts('zoom-scroll'),
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
-    testAnchors: [
-      'src/hooks/useZoom.test.ts',
-      'src/hooks/useTimelineViewport.test.ts',
-    ],
+    testAnchors: ['src/hooks/useZoom.test.ts', 'src/hooks/useTimelineViewport.test.ts'],
   },
   {
     id: 'acoustic-strip-contract',
     ...rowParts('acoustic-strip-contract'),
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
-    testAnchors: [
-      'src/pages/TranscriptionPage.structure.test.ts',
-    ],
+    testAnchors: ['src/pages/TranscriptionPage.structure.test.ts'],
   },
   {
     id: 'timeline-mode-runtime-slim',
@@ -177,7 +180,10 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
     testAnchors: [
       'src/components/transcription/TimelineLaneDraftEditorCell.test.tsx',
-      'src/components/TranscriptionTimelineVerticalView.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-a.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-b.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-c.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-d.test.tsx',
     ],
   },
   {
@@ -189,7 +195,10 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
       'src/hooks/useTimelineLaneTextDraftAutosave.test.tsx',
       'src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx',
       'src/components/TranscriptionTimelineTextTranslationItem.test.tsx',
-      'src/components/TranscriptionTimelineVerticalView.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-a.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-b.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-c.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-d.test.tsx',
     ],
   },
   {
@@ -197,7 +206,10 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     ...rowParts('recording-layer-attachment'),
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
     testAnchors: [
-      'src/components/TranscriptionTimelineVerticalView.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-a.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-b.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-c.test.tsx',
+      'src/components/TranscriptionTimelineVerticalView.suite-d.test.tsx',
       'src/hooks/useTranscriptionUnitActions.test.tsx',
     ],
   },
@@ -205,8 +217,6 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     id: 'empty-state-and-copy',
     ...rowParts('empty-state-and-copy'),
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
-    testAnchors: [
-      'src/pages/TranscriptionPage.TimelineEmptyState.test.tsx',
-    ],
+    testAnchors: ['src/pages/TranscriptionPage.TimelineEmptyState.test.tsx'],
   },
 ];

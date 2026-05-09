@@ -28,9 +28,10 @@ export interface ProjectChangeCodecOptions {
 }
 
 function createClientOpId(clientId: string): string {
-  const suffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
+  const suffix =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
   return `${clientId}:${suffix}`;
 }
 
@@ -48,7 +49,9 @@ export class ProjectChangeCodec {
       actorId: this.options.actorId,
       clientId: this.options.clientId,
       clientOpId: createClientOpId(this.options.clientId),
-      ...(this.options.sessionId ? { sessionId: this.options.sessionId } : {}),
+      ...(this.options.sessionId !== undefined && this.options.sessionId.length > 0
+        ? { sessionId: this.options.sessionId }
+        : {}),
       protocolVersion: this.options.protocolVersion,
       projectRevision: 0,
       baseRevision: change.baseRevision,
@@ -56,7 +59,9 @@ export class ProjectChangeCodec {
       entityId: change.entityId,
       opType: change.opType,
       ...(change.payload !== undefined ? { payload: change.payload } : {}),
-      ...(change.payloadRefPath ? { payloadRefPath: change.payloadRefPath } : {}),
+      ...(change.payloadRefPath !== undefined && change.payloadRefPath.length > 0
+        ? { payloadRefPath: change.payloadRefPath }
+        : {}),
       ...(change.vectorClock ? { vectorClock: change.vectorClock } : {}),
       sourceKind: change.sourceKind,
       createdAt,
@@ -72,7 +77,9 @@ export class ProjectChangeCodec {
       entityId: record.entityId,
       opType: record.opType,
       ...(record.payload !== undefined ? { payload: record.payload } : {}),
-      ...(record.payloadRefPath ? { payloadRefPath: record.payloadRefPath } : {}),
+      ...(record.payloadRefPath !== undefined && record.payloadRefPath.length > 0
+        ? { payloadRefPath: record.payloadRefPath }
+        : {}),
       baseRevision: record.baseRevision,
       sourceKind: record.sourceKind,
       ...(record.vectorClock ? { vectorClock: record.vectorClock } : {}),

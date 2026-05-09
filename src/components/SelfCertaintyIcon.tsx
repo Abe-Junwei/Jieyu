@@ -29,13 +29,14 @@ export function SelfCertaintyIcon({
   style,
 }: SelfCertaintyIconProps) {
   if (!certainty) return null;
+  const certaintyStyleProps = style !== undefined ? { style } : {};
   return (
     <span
       className={[className, COLOR_CLASS[certainty]].filter(Boolean).join(' ')}
       role="img"
       aria-label={ariaLabel}
       title={title}
-      style={style}
+      {...certaintyStyleProps}
     >
       {certainty === 'uncertain' ? (
         <span className="timeline-annotation-self-certainty-wavy" aria-hidden>

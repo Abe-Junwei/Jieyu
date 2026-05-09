@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import type { LayerDisplaySettings, LayerDocType, LayerLinkDocType } from '../types/jieyuDbDocTypes';
+import type {
+  LayerDisplaySettings,
+  LayerDocType,
+  LayerLinkDocType,
+} from '../types/jieyuDbDocTypes';
 import { LayerTierUnifiedService } from '../app/transcriptionServicesPageAccess';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useLocalFonts } from '../hooks/useLocalFonts';
 import { useOrthographies } from '../hooks/useOrthographies';
-import { BASE_FONT_SIZE, buildOrthographyPreviewTextProps, computeLaneHeightFromRenderPolicy, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
+import {
+  BASE_FONT_SIZE,
+  buildOrthographyPreviewTextProps,
+  computeLaneHeightFromRenderPolicy,
+  resolveOrthographyRenderPolicy,
+} from '../utils/layerDisplayStyle';
 import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
 import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
 
@@ -37,62 +46,121 @@ export function useTranscriptionDisplayStyleControl({
 }: UseTranscriptionDisplayStyleControlInput) {
   const localFonts = useLocalFonts();
   const orthographyLanguageIds = useMemo(
-    () => Array.from(new Set(layers.map((layer) => layer.languageId).filter((languageId): languageId is string => Boolean(languageId)))),
+    () =>
+      Array.from(
+        new Set(
+          layers
+            .map((layer) => layer.languageId)
+            .filter((languageId): languageId is string => Boolean(languageId)),
+        ),
+      ),
     [layers],
   );
   const orthographies = useOrthographies(orthographyLanguageIds);
 
-  const handleUpdateLayerDisplaySettings = useCallback((layerId: string, patch: Partial<LayerDisplaySettings>) => {
-    const layer = layers.find((candidateLayer) => candidateLayer.id === layerId);
-    if (!layer) return;
-    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
-    const merged: LayerDisplaySettings = { ...layer.displaySettings, ...patch };
-    if (merged.fontSize === BASE_FONT_SIZE) delete merged.fontSize;
-    if (!merged.bold) delete merged.bold;
-    if (!merged.italic) delete merged.italic;
-    if (!merged.color) delete merged.color;
-    if (!merged.fontFamily || merged.fontFamily === renderPolicy.defaultFontKey) delete merged.fontFamily;
-    const { displaySettings: _prev, ...layerWithout } = layer;
-    const updatedLayer = {
-      ...layerWithout,
-      ...(Object.keys(merged).length > 0 ? { displaySettings: merged } : {}),
-      updatedAt: new Date().toISOString(),
-    } as typeof layer;
-    setLayers((prev) => prev.map((candidateLayer) => (candidateLayer.id === layerId ? updatedLayer : candidateLayer)));
-    fireAndForget(LayerTierUnifiedService.updateLayer(updatedLayer), { context: 'src/pages/useTranscriptionDisplayStyleControl.ts:L62', policy: 'user-visible' });
-    if (patch.fontSize != null) {
-      const nextHeight = computeLaneHeightFromRenderPolicy(patch.fontSize, renderPolicy);
-      handleTimelineLaneHeightChange(layerId, nextHeight);
-    }
-  }, [handleTimelineLaneHeightChange, layers, orthographies, setLayers]);
-
-  const handleResetLayerDisplaySettings = useCallback((layerId: string) => {
-    const layer = layers.find((candidateLayer) => candidateLayer.id === layerId);
-    if (!layer) return;
-    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
-    const { displaySettings: _removed, ...rest } = layer;
-    const updatedLayer = { ...rest, updatedAt: new Date().toISOString() } as typeof layer;
-    setLayers((prev) => prev.map((candidateLayer) => (candidateLayer.id === layerId ? updatedLayer : candidateLayer)));
-    fireAndForget(LayerTierUnifiedService.updateLayer(updatedLayer), { context: 'src/pages/useTranscriptionDisplayStyleControl.ts:L76', policy: 'user-visible' });
-    handleTimelineLaneHeightChange(layerId, computeLaneHeightFromRenderPolicy(BASE_FONT_SIZE, renderPolicy, () => DEFAULT_TIMELINE_LANE_HEIGHT));
-  }, [handleTimelineLaneHeightChange, layers, orthographies, setLayers]);
-
-  const displayStyleControl = useMemo(() => ({
-    orthographies,
-    onUpdate: handleUpdateLayerDisplaySettings,
-    onReset: handleResetLayerDisplaySettings,
-    localFonts: {
-      fonts: localFonts.fonts,
-      status: localFonts.status,
-      load: localFonts.loadLocalFonts,
-      showAllFonts: localFonts.showAllFonts,
-      toggleShowAllFonts: localFonts.toggleShowAllFonts,
-      getSearchQuery: localFonts.getSearchQuery,
-      setSearchQuery: localFonts.setSearchQuery,
-      getCoverage: localFonts.getCoverage,
-      ensureCoverage: localFonts.ensureCoverage,
+  const handleUpdateLayerDisplaySettings = useCallback(
+    (layerId: string, patch: Partial<LayerDisplaySettings>) => {
+      const layer = layers.find((candidateLayer) => candidateLayer.id === layerId);
+      if (!layer) return;
+      const renderPolicy = resolveOrthographyRenderPolicy(
+        layer.languageId,
+        orthographies,
+        layer.orthographyId,
+      );
+      const merged: LayerDisplaySettings = { ...layer.displaySettings, ...patch };
+      if (merged.fontSize === BASE_FONT_SIZE) delete merged.fontSize;
+      if (!merged.bold) delete merged.bold;
+      if (!merged.italic) delete merged.italic;
+      if (!merged.color) delete merged.color;
+      if (!merged.fontFamily || merged.fontFamily === renderPolicy.defaultFontKey)
+        delete merged.fontFamily;
+      const { displaySettings: _prev, ...layerWithout } = layer;
+      const updatedLayer = {
+        ...layerWithout,
+        ...(Object.keys(merged).length > 0 ? { displaySettings: merged } : {}),
+        updatedAt: new Date().toISOString(),
+      } as typeof layer;
+      setLayers((prev) =>
+        prev.map((candidateLayer) =>
+          candidateLayer.id === layerId ? updatedLayer : candidateLayer,
+        ),
+      );
+      fireAndForget(LayerTierUnifiedService.updateLayer(updatedLayer), {
+        context: 'src/pages/useTranscriptionDisplayStyleControl.ts:L62',
+        policy: 'user-visible',
+      });
+      if (patch.fontSize != null) {
+        const nextHeight = computeLaneHeightFromRenderPolicy(patch.fontSize, renderPolicy);
+        handleTimelineLaneHeightChange(layerId, nextHeight);
+      }
     },
-  }), [handleResetLayerDisplaySettings, handleUpdateLayerDisplaySettings, localFonts.ensureCoverage, localFonts.fonts, localFonts.getCoverage, localFonts.getSearchQuery, localFonts.loadLocalFonts, localFonts.setSearchQuery, localFonts.showAllFonts, localFonts.status, localFonts.toggleShowAllFonts, orthographies]);
+    [handleTimelineLaneHeightChange, layers, orthographies, setLayers],
+  );
+
+  const handleResetLayerDisplaySettings = useCallback(
+    (layerId: string) => {
+      const layer = layers.find((candidateLayer) => candidateLayer.id === layerId);
+      if (!layer) return;
+      const renderPolicy = resolveOrthographyRenderPolicy(
+        layer.languageId,
+        orthographies,
+        layer.orthographyId,
+      );
+      const { displaySettings: _removed, ...rest } = layer;
+      const updatedLayer = { ...rest, updatedAt: new Date().toISOString() } as typeof layer;
+      setLayers((prev) =>
+        prev.map((candidateLayer) =>
+          candidateLayer.id === layerId ? updatedLayer : candidateLayer,
+        ),
+      );
+      fireAndForget(LayerTierUnifiedService.updateLayer(updatedLayer), {
+        context: 'src/pages/useTranscriptionDisplayStyleControl.ts:L76',
+        policy: 'user-visible',
+      });
+      handleTimelineLaneHeightChange(
+        layerId,
+        computeLaneHeightFromRenderPolicy(
+          BASE_FONT_SIZE,
+          renderPolicy,
+          () => DEFAULT_TIMELINE_LANE_HEIGHT,
+        ),
+      );
+    },
+    [handleTimelineLaneHeightChange, layers, orthographies, setLayers],
+  );
+
+  const displayStyleControl = useMemo(
+    () => ({
+      orthographies,
+      onUpdate: handleUpdateLayerDisplaySettings,
+      onReset: handleResetLayerDisplaySettings,
+      localFonts: {
+        fonts: localFonts.fonts,
+        status: localFonts.status,
+        load: localFonts.loadLocalFonts,
+        showAllFonts: localFonts.showAllFonts,
+        toggleShowAllFonts: localFonts.toggleShowAllFonts,
+        getSearchQuery: localFonts.getSearchQuery,
+        setSearchQuery: localFonts.setSearchQuery,
+        getCoverage: localFonts.getCoverage,
+        ensureCoverage: localFonts.ensureCoverage,
+      },
+    }),
+    [
+      handleResetLayerDisplaySettings,
+      handleUpdateLayerDisplaySettings,
+      localFonts.ensureCoverage,
+      localFonts.fonts,
+      localFonts.getCoverage,
+      localFonts.getSearchQuery,
+      localFonts.loadLocalFonts,
+      localFonts.setSearchQuery,
+      localFonts.showAllFonts,
+      localFonts.status,
+      localFonts.toggleShowAllFonts,
+      orthographies,
+    ],
+  );
 
   const waveformHoverPreviewProps = useMemo(() => {
     if (!defaultTranscriptionLayerId) {
@@ -107,14 +175,21 @@ export function useTranscriptionDisplayStyleControl({
       orthographies,
       defaultTranscriptionLayer.orthographyId,
     );
-    return buildOrthographyPreviewTextProps(renderPolicy, defaultTranscriptionLayer.displaySettings);
+    return buildOrthographyPreviewTextProps(
+      renderPolicy,
+      defaultTranscriptionLayer.displaySettings,
+    );
   }, [defaultTranscriptionLayerId, layerById, orthographies]);
 
   const batchPreviewTextPropsByLayerId = useMemo(() => {
     const next: Record<string, ReturnType<typeof buildOrthographyPreviewTextProps>> = {};
     for (const layer of transcriptionLayers) {
       if (!layer.languageId) continue;
-      const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
+      const renderPolicy = resolveOrthographyRenderPolicy(
+        layer.languageId,
+        orthographies,
+        layer.orthographyId,
+      );
       next[layer.id] = buildOrthographyPreviewTextProps(renderPolicy, layer.displaySettings);
     }
     return next;
@@ -166,7 +241,11 @@ export function useTranscriptionDisplayStyleControl({
   useEffect(() => {
     const seen = new Set<string>();
     for (const layer of layers) {
-      const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
+      const renderPolicy = resolveOrthographyRenderPolicy(
+        layer.languageId,
+        orthographies,
+        layer.orthographyId,
+      );
       const fontCandidates = new Set<string>([
         renderPolicy.defaultFontKey,
         ...renderPolicy.preferredFontKeys,
@@ -181,7 +260,7 @@ export function useTranscriptionDisplayStyleControl({
         void localFonts.ensureCoverage(fontFamily, renderPolicy);
       }
     }
-  }, [layers, localFonts.ensureCoverage, orthographies]);
+  }, [layers, localFonts, orthographies]);
 
   return {
     displayStyleControl,

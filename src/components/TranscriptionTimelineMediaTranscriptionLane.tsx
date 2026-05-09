@@ -166,7 +166,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
   visibleUnits,
   overlapCycleItemsByUnitId,
   segmentSourceLayerId,
-  segmentSpeakerIdByLayer,
+  segmentSpeakerIdByLayer: _segmentSpeakerIdByLayer,
   segmentContentByLayer,
   unitById,
   segmentById,

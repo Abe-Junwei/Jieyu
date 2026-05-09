@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+} from '../types/jieyuDbDocTypes';
 import { getDb } from '../app/jieyuDbPageAccess';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { getLayerEditMode, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
@@ -7,7 +12,10 @@ import { LayerSegmentationV2Service } from '../app/transcriptionServicesPageAcce
 import { resolveTranscriptionTargetLayerId } from './transcriptionUnitTargetResolver';
 import type { SegmentTimelineRoutingResult } from './transcriptionSegmentRouting';
 import type { LayerSegmentGraphSnapshot } from '../types/layerSegmentGraphSnapshot.types';
-import { restoreLayerSegmentGraphSnapshot, snapshotLayerSegmentGraphByLayerIds } from '../app/transcriptionServicesPageAccess';
+import {
+  restoreLayerSegmentGraphSnapshot,
+  snapshotLayerSegmentGraphByLayerIds,
+} from '../app/transcriptionServicesPageAccess';
 import { fireAndForget } from '../utils/fireAndForget';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 
@@ -27,7 +35,12 @@ interface UseTranscriptionSegmentBridgeControllerInput {
   defaultTranscriptionLayerId?: string;
   firstTranscriptionLayerId?: string;
   layerById: ReadonlyMap<string, LayerDocType>;
-  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
+  layerLinks: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >;
   independentLayerIds: ReadonlySet<string>;
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]>;
   segmentContentByLayer: ReadonlyMap<string, Map<string, LayerUnitContentDocType>>;
@@ -44,7 +57,11 @@ interface UseTranscriptionSegmentBridgeControllerResult {
   saveSegmentContentForLayer: (segmentId: string, layerId: string, value: string) => Promise<void>;
 }
 
-function recordSegmentSaveLatency(layerId: string, status: 'success' | 'error', startedAtMs: number): void {
+function recordSegmentSaveLatency(
+  layerId: string,
+  status: 'success' | 'error',
+  startedAtMs: number,
+): void {
   try {
     recordDurationMetric(
       'business.transcription.segment_action_latency_ms',
@@ -59,13 +76,23 @@ function recordSegmentSaveLatency(layerId: string, status: 'success' | 'error', 
 export function useTranscriptionSegmentBridgeController(
   input: UseTranscriptionSegmentBridgeControllerInput,
 ): UseTranscriptionSegmentBridgeControllerResult {
-  const activeLayerIdForEdits = useMemo(() => resolveTranscriptionTargetLayerId({
-    selectedLayerId: input.selectedLayerId,
-    focusedLayerId: input.focusedLayerId,
-    selectedTimelineUnitLayerId: input.selectedTimelineUnit?.layerId,
-    defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
-    firstTranscriptionLayerId: input.firstTranscriptionLayerId,
-  }), [input.defaultTranscriptionLayerId, input.firstTranscriptionLayerId, input.focusedLayerId, input.selectedLayerId, input.selectedTimelineUnit?.layerId]);
+  const activeLayerIdForEdits = useMemo(
+    () =>
+      resolveTranscriptionTargetLayerId({
+        selectedLayerId: input.selectedLayerId,
+        focusedLayerId: input.focusedLayerId,
+        selectedTimelineUnitLayerId: input.selectedTimelineUnit?.layerId,
+        defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
+        firstTranscriptionLayerId: input.firstTranscriptionLayerId,
+      }),
+    [
+      input.defaultTranscriptionLayerId,
+      input.firstTranscriptionLayerId,
+      input.focusedLayerId,
+      input.selectedLayerId,
+      input.selectedTimelineUnit?.layerId,
+    ],
+  );
 
   const segmentUndoSnapshotRef = useRef<LayerSegmentGraphSnapshot>({
     units: [],
@@ -74,17 +101,25 @@ export function useTranscriptionSegmentBridgeController(
   });
   const segmentUndoSnapshotRequestIdRef = useRef(0);
 
-  const resolveSegmentRoutingForLayer = useCallback((layerId?: string): SegmentTimelineRoutingResult => {
-    const layer = layerId ? input.layerById.get(layerId) : undefined;
-    const segmentSourceLayer = resolveSegmentTimelineSourceLayer(layer, input.layerById, input.defaultTranscriptionLayerId, input.layerLinks);
-    return {
-      layer,
-      segmentSourceLayer,
-      sourceLayerId: segmentSourceLayer?.id ?? '',
-      usesSegmentTimeline: Boolean(segmentSourceLayer),
-      editMode: getLayerEditMode(segmentSourceLayer ?? layer, input.defaultTranscriptionLayerId),
-    };
-  }, [input.defaultTranscriptionLayerId, input.layerById, input.layerLinks]);
+  const resolveSegmentRoutingForLayer = useCallback(
+    (layerId?: string): SegmentTimelineRoutingResult => {
+      const layer = layerId ? input.layerById.get(layerId) : undefined;
+      const segmentSourceLayer = resolveSegmentTimelineSourceLayer(
+        layer,
+        input.layerById,
+        input.defaultTranscriptionLayerId,
+        input.layerLinks,
+      );
+      return {
+        layer,
+        segmentSourceLayer,
+        sourceLayerId: segmentSourceLayer?.id ?? '',
+        usesSegmentTimeline: Boolean(segmentSourceLayer),
+        editMode: getLayerEditMode(segmentSourceLayer ?? layer, input.defaultTranscriptionLayerId),
+      };
+    },
+    [input.defaultTranscriptionLayerId, input.layerById, input.layerLinks],
+  );
 
   const refreshSegmentUndoSnapshot = useCallback(async () => {
     const requestId = segmentUndoSnapshotRequestIdRef.current + 1;
@@ -121,7 +156,9 @@ export function useTranscriptionSegmentBridgeController(
       }),
       restoreLayerSegments: async (units, contents, links) => {
         const db = await getDb();
-        await restoreLayerSegmentGraphSnapshot(db, { units, contents, links }, [...input.independentLayerIds]);
+        await restoreLayerSegmentGraphSnapshot(db, { units, contents, links }, [
+          ...input.independentLayerIds,
+        ]);
         await input.reloadSegments();
         await input.reloadSegmentContents();
         await refreshSegmentUndoSnapshot();
@@ -131,55 +168,72 @@ export function useTranscriptionSegmentBridgeController(
     return () => {
       input.segmentUndoRef.current = null;
     };
-  }, [input.independentLayerIds, input.reloadSegmentContents, input.reloadSegments, input.segmentUndoRef, refreshSegmentUndoSnapshot]);
+  }, [
+    input,
+    input.independentLayerIds,
+    input.reloadSegmentContents,
+    input.reloadSegments,
+    input.segmentUndoRef,
+    refreshSegmentUndoSnapshot,
+  ]);
 
-  const saveSegmentContentForLayer = useCallback(async (segmentId: string, layerId: string, value: string) => {
-    const startedAtMs = performance.now();
-    const layer = input.layerById.get(layerId);
-    if (!layer) return;
-    const sourceLayer = resolveSegmentTimelineSourceLayer(layer, input.layerById, input.defaultTranscriptionLayerId, input.layerLinks);
-    if (!sourceLayer) return;
-    const now = new Date().toISOString();
-    const trimmed = value.trim();
-    const existing = input.segmentContentByLayer.get(layerId)?.get(segmentId);
+  const saveSegmentContentForLayer = useCallback(
+    async (segmentId: string, layerId: string, value: string) => {
+      const startedAtMs = performance.now();
+      const layer = input.layerById.get(layerId);
+      if (!layer) return;
+      const sourceLayer = resolveSegmentTimelineSourceLayer(
+        layer,
+        input.layerById,
+        input.defaultTranscriptionLayerId,
+        input.layerLinks,
+      );
+      if (!sourceLayer) return;
+      const now = new Date().toISOString();
+      const trimmed = value.trim();
+      const existing = input.segmentContentByLayer.get(layerId)?.get(segmentId);
 
-    if (!trimmed) {
-      try {
-        if (existing) {
-          await LayerSegmentationV2Service.deleteSegmentContent(existing.id);
+      if (!trimmed) {
+        try {
+          if (existing) {
+            await LayerSegmentationV2Service.deleteSegmentContent(existing.id);
+          }
+          await input.reloadSegmentContents();
+          recordSegmentSaveLatency(layerId, 'success', startedAtMs);
+        } catch (error) {
+          recordSegmentSaveLatency(layerId, 'error', startedAtMs);
+          throw error;
         }
+        return;
+      }
+
+      const segment = (input.segmentsByLayer.get(sourceLayer.id) ?? []).find(
+        (item) => item.id === segmentId,
+      );
+      if (!segment) return;
+      const next: LayerUnitContentDocType = {
+        id: existing?.id ?? `segc_${layerId}_${segmentId}`,
+        textId: segment.textId,
+        unitId: segmentId,
+        layerId,
+        modality: 'text',
+        text: trimmed,
+        sourceType: 'human',
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      };
+      try {
+        await LayerSegmentationV2Service.upsertSegmentContent(next);
         await input.reloadSegmentContents();
+        await refreshSegmentUndoSnapshot();
         recordSegmentSaveLatency(layerId, 'success', startedAtMs);
       } catch (error) {
         recordSegmentSaveLatency(layerId, 'error', startedAtMs);
         throw error;
       }
-      return;
-    }
-
-    const segment = (input.segmentsByLayer.get(sourceLayer.id) ?? []).find((item) => item.id === segmentId);
-    if (!segment) return;
-    const next: LayerUnitContentDocType = {
-      id: existing?.id ?? `segc_${layerId}_${segmentId}`,
-      textId: segment.textId,
-      unitId: segmentId,
-      layerId,
-      modality: 'text',
-      text: trimmed,
-      sourceType: 'human',
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    };
-    try {
-      await LayerSegmentationV2Service.upsertSegmentContent(next);
-      await input.reloadSegmentContents();
-      await refreshSegmentUndoSnapshot();
-      recordSegmentSaveLatency(layerId, 'success', startedAtMs);
-    } catch (error) {
-      recordSegmentSaveLatency(layerId, 'error', startedAtMs);
-      throw error;
-    }
-  }, [input.defaultTranscriptionLayerId, input.layerById, input.layerLinks, input.reloadSegmentContents, input.segmentContentByLayer, input.segmentsByLayer, refreshSegmentUndoSnapshot]);
+    },
+    [input, refreshSegmentUndoSnapshot],
+  );
 
   return {
     activeLayerIdForEdits,

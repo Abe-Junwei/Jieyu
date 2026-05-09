@@ -154,11 +154,12 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
       previewLayer.orthographyId,
     );
     const previewTextProps = buildOrthographyPreviewTextProps(renderPolicy, previewLayer.displaySettings);
+    const previewTextStyleProps = previewTextProps.style !== undefined ? { style: previewTextProps.style } : {};
 
     return (
       <>
         {prefix ? <span>{prefix} — </span> : null}
-        <span dir={previewTextProps.dir} style={previewTextProps.style}>
+        <span dir={previewTextProps.dir} {...previewTextStyleProps}>
           {uttText}
         </span>
       </>

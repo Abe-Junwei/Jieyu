@@ -30,7 +30,7 @@ function resolveInboundHostTranscriptionIdsForLane(
 ): string[] {
   if (layerLinks.length === 0) return [];
   const lid = laneLayerId.trim();
-  if (!lid) return [];
+  if (lid.length === 0) return [];
   const inbound = layerLinks.filter((link) => (link.layerId ?? '').trim() === lid);
   const ordered = [
     ...inbound.filter((link) => link.isPreferred),
@@ -40,7 +40,8 @@ function resolveInboundHostTranscriptionIdsForLane(
   const seen = new Set<string>();
   for (const link of ordered) {
     const hid = resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey).trim();
-    if (hid.length === 0 || hid === lid || !transcriptionLaneIds.has(hid) || seen.has(hid)) continue;
+    if (hid.length === 0 || hid === lid || !transcriptionLaneIds.has(hid) || seen.has(hid))
+      continue;
     seen.add(hid);
     out.push(hid);
   }
@@ -52,10 +53,11 @@ export function resolvePrimaryUnscopedTranscriptionHostId(
   transcriptionLayers: readonly LayerDocType[],
   defaultTranscriptionLayerId: string | undefined,
 ): string {
-  const defaultTr = (typeof defaultTranscriptionLayerId === 'string' && defaultTranscriptionLayerId.trim().length > 0
-    ? defaultTranscriptionLayerId.trim()
-    : '') || '';
-  if (defaultTr && transcriptionLayers.some((l) => l.id === defaultTr)) return defaultTr;
+  const defaultTr =
+    typeof defaultTranscriptionLayerId === 'string' && defaultTranscriptionLayerId.trim().length > 0
+      ? defaultTranscriptionLayerId.trim()
+      : '';
+  if (defaultTr.length > 0 && transcriptionLayers.some((l) => l.id === defaultTr)) return defaultTr;
   return transcriptionLayers[0]?.id ?? '';
 }
 
@@ -107,24 +109,30 @@ export function transcriptionLaneAcceptsUnscopedCanonicalUnits(input: {
 }): boolean {
   const { laneLayer, layerById, transcriptionLaneIds, primaryUnscopedHostId } = input;
   const primary = primaryUnscopedHostId.trim();
-  if (!primary) return false;
+  if (primary.length === 0) return false;
   if (laneLayer.id === primary) return true;
   const links = input.layerLinks ?? [];
 
   let cur: LayerDocType | undefined = layerById.get(laneLayer.id);
   const guard = new Set<string>();
-  for (let i = 0; i < 64 && cur; i += 1) {
+  for (let i = 0; i < 64 && cur !== undefined; i += 1) {
     if (guard.has(cur.id)) break;
     guard.add(cur.id);
     const p = layerTranscriptionTreeParentId(cur)?.trim() ?? '';
-    if (p && transcriptionLaneIds.has(p)) {
+    if (p.length > 0 && transcriptionLaneIds.has(p)) {
       if (p === primary) return true;
       cur = layerById.get(p);
       continue;
     }
-    const hostCandidates = links.length > 0
-      ? listInboundTranscriptionHostIdsForTranscriptionLane(cur.id, links, layerById, transcriptionLaneIds)
-      : [];
+    const hostCandidates =
+      links.length > 0
+        ? listInboundTranscriptionHostIdsForTranscriptionLane(
+            cur.id,
+            links,
+            layerById,
+            transcriptionLaneIds,
+          )
+        : [];
     let stepped = false;
     for (const hid of hostCandidates) {
       if (hid === primary) return true;
@@ -154,11 +162,18 @@ export function resolveCanonicalUnitForTranscriptionLaneRow(
   const lid = typeof unit.layerId === 'string' ? unit.layerId.trim() : '';
   const links = input.layerLinks ?? [];
   const treeParentId = layerTranscriptionTreeParentId(laneLayer)?.trim() ?? '';
-  const linkHostIds = links.length > 0
-    ? listInboundTranscriptionHostIdsForTranscriptionLane(laneLayer.id, links, layerById, transcriptionLaneIds)
-    : [];
+  const linkHostIds =
+    links.length > 0
+      ? listInboundTranscriptionHostIdsForTranscriptionLane(
+          laneLayer.id,
+          links,
+          layerById,
+          transcriptionLaneIds,
+        )
+      : [];
   const matchesLane = lid.length > 0 && lid === laneLayer.id;
-  const matchesTreeParent = treeParentId.length > 0 && transcriptionLaneIds.has(treeParentId) && lid === treeParentId;
+  const matchesTreeParent =
+    treeParentId.length > 0 && transcriptionLaneIds.has(treeParentId) && lid === treeParentId;
   const matchesLinkHostLayer = linkHostIds.some((hid) => lid === hid);
   const matchesHostTranscriptionLayer = matchesTreeParent || matchesLinkHostLayer;
   const unscoped = lid.length === 0;

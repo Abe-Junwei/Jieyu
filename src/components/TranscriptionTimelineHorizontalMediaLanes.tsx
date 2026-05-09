@@ -190,7 +190,7 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(function Transcrip
   timelineContentGutterPx,
   lassoRect,
   transcriptionLayers,
-  translationLayers,
+  translationLayers: _translationLayers,
   timelineUnitViewIndex: _timelineUnitViewIndex,
   timelineRenderUnits,
   segmentParentUnitLookup,

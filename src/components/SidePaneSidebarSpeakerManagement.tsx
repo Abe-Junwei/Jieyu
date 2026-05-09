@@ -258,18 +258,24 @@ export function SidePaneSidebarSpeakerManagement({
             {messages.speakerFilterAllLabel}
           </button>
           {speakerCtx.speakerFilterOptions.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              className={`transcription-side-pane-speaker-chip ${speakerCtx.activeSpeakerFilterKey === option.key ? 'transcription-side-pane-speaker-chip-active' : ''}`}
-              onClick={() => speakerCtx.setActiveSpeakerFilterKey(option.key)}
-              title={`${option.name}（${option.count}）`}
-              style={option.color ? ({ '--speaker-color': option.color } as CSSProperties) : undefined}
-            >
-              <span className="transcription-side-pane-speaker-dot" />
-              <span className="transcription-side-pane-speaker-name">{option.name}</span>
-              <span className="transcription-side-pane-speaker-count">{option.count}</span>
-            </button>
+            (() => {
+              const speakerToneStyle = option.color ? ({ '--speaker-color': option.color } as CSSProperties) : undefined;
+              const speakerToneProps = speakerToneStyle ? { style: speakerToneStyle } : {};
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  className={`transcription-side-pane-speaker-chip ${speakerCtx.activeSpeakerFilterKey === option.key ? 'transcription-side-pane-speaker-chip-active' : ''}`}
+                  onClick={() => speakerCtx.setActiveSpeakerFilterKey(option.key)}
+                  title={`${option.name}（${option.count}）`}
+                  {...speakerToneProps}
+                >
+                  <span className="transcription-side-pane-speaker-dot" />
+                  <span className="transcription-side-pane-speaker-name">{option.name}</span>
+                  <span className="transcription-side-pane-speaker-count">{option.count}</span>
+                </button>
+              );
+            })()
           ))}
         </div>
       </PanelSection>
@@ -285,8 +291,11 @@ export function SidePaneSidebarSpeakerManagement({
             const hasAssignmentsInScope = option.count > 0;
             const duplicateCount = duplicateSpeakerCountById.get(option.key) ?? 0;
             return (
-              <div key={`group-${option.key}`} className="transcription-side-pane-speaker-group">
-                <div className="transcription-side-pane-speaker-group-head" style={option.color ? ({ '--speaker-color': option.color } as CSSProperties) : undefined}>
+                <div key={`group-${option.key}`} className="transcription-side-pane-speaker-group">
+                  <div
+                    className="transcription-side-pane-speaker-group-head"
+                    {...(option.color ? { style: ({ '--speaker-color': option.color } as CSSProperties) } : {})}
+                  >
                   <button
                     type="button"
                     className="transcription-side-pane-speaker-group-toggle"

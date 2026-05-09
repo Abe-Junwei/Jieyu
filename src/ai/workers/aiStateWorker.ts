@@ -1,4 +1,12 @@
-import { AI_STATE_WORKER_DEFAULT_THRESHOLDS, buildAiStateWorkerFingerprint, computeAiStateWorkerSignalWeight, type AiStateWorkerRequest, type AiStateWorkerResponse, type AiStateWorkerSlice } from './aiStateWorkerProtocol';
+import {
+  AI_STATE_WORKER_DEFAULT_THRESHOLDS,
+  buildAiStateWorkerFingerprint,
+  computeAiStateWorkerSignalWeight,
+} from './aiStateWorkerProtocol';
+
+type AiStateWorkerRequest = import('./aiStateWorkerProtocol').AiStateWorkerRequest;
+type AiStateWorkerResponse = import('./aiStateWorkerProtocol').AiStateWorkerResponse;
+type AiStateWorkerSlice = import('./aiStateWorkerProtocol').AiStateWorkerSlice;
 
 type AiStateWorkerScope = {
   onmessage: ((event: MessageEvent<AiStateWorkerRequest>) => void) | null;

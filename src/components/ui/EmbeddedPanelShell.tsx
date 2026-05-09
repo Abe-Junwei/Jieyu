@@ -30,6 +30,7 @@ export function EmbeddedPanelShell({
   ...divProps
 }: EmbeddedPanelShellProps) {
   const hasHeader = title !== undefined || actions !== undefined;
+  const embeddedPanelLayoutStyleProps = layoutStyle !== undefined ? { style: layoutStyle } : {};
 
   return (
     <div
@@ -39,7 +40,7 @@ export function EmbeddedPanelShell({
         'panel-design-match-dialog',
         className,
       )}
-      style={layoutStyle}
+      {...embeddedPanelLayoutStyleProps}
       {...divProps}
     >
       {hasHeader ? (

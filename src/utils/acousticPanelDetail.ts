@@ -119,18 +119,21 @@ function maxOf(values: number[]): number {
   return r;
 }
 
-export function deriveAcousticCalibrationStatus(detail: AcousticPanelDetail | null): AcousticCalibrationStatus {
+export function deriveAcousticCalibrationStatus(
+  detail: AcousticPanelDetail | null,
+): AcousticCalibrationStatus {
   if (!detail || detail.sampleCount <= 0) return 'exploratory';
 
   const formantFrames = detail.frames.filter(
     (frame) => typeof frame.formantF1Hz === 'number' && typeof frame.formantF2Hz === 'number',
   );
   const formantCoverage = formantFrames.length / detail.sampleCount;
-  const formantReliability = average(
-    formantFrames
-      .map((frame) => frame.formantReliability)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value)),
-  ) ?? 0;
+  const formantReliability =
+    average(
+      formantFrames
+        .map((frame) => frame.formantReliability)
+        .filter((value): value is number => typeof value === 'number' && Number.isFinite(value)),
+    ) ?? 0;
 
   // Calibration gate heuristic: enough formant coverage + stable reliability.
   return formantFrames.length >= 24 && formantCoverage >= 0.35 && formantReliability >= 0.55
@@ -146,7 +149,11 @@ function normalize(value: number, min: number, max: number): number {
   return clamp((value - min) / (max - min), 0, 1);
 }
 
-function resolveTrend(startValue: number | null, endValue: number | null, threshold: number): AcousticPanelTrend {
+function resolveTrend(
+  startValue: number | null,
+  endValue: number | null,
+  threshold: number,
+): AcousticPanelTrend {
   if (startValue == null || endValue == null) return 'mixed';
   const delta = endValue - startValue;
   if (Math.abs(delta) < threshold) return 'flat';
@@ -154,8 +161,12 @@ function resolveTrend(startValue: number | null, endValue: number | null, thresh
 }
 
 function sanitizeFileStem(value: string): string {
-  const normalized = value.trim().replace(/[^a-z0-9_-]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-  return normalized || 'acoustic-selection';
+  const normalized = value
+    .trim()
+    .replace(/[^a-z0-9_-]+/gi, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return normalized.length > 0 ? normalized : 'acoustic-selection';
 }
 
 function csvEscape(value: string): string {
@@ -244,24 +255,36 @@ function buildAcousticPanelDetailFromFrames(
   const frames: AcousticPanelFramePoint[] = sourceFrames.map((frame) => ({
     timeSec: frame.timeSec,
     relativeTimeSec: frame.timeSec - selectionStartSec,
-    timeRatio: selectionDurationSec > 0 ? clamp((frame.timeSec - selectionStartSec) / selectionDurationSec, 0, 1) : 0,
+    timeRatio:
+      selectionDurationSec > 0
+        ? clamp((frame.timeSec - selectionStartSec) / selectionDurationSec, 0, 1)
+        : 0,
     f0Hz: frame.f0Hz,
     intensityDb: frame.intensityDb,
     reliability: frame.reliability,
-    ...(frame.spectralCentroidHz !== undefined ? { spectralCentroidHz: frame.spectralCentroidHz } : {}),
-    ...(frame.spectralRolloffHz !== undefined ? { spectralRolloffHz: frame.spectralRolloffHz } : {}),
+    ...(frame.spectralCentroidHz !== undefined
+      ? { spectralCentroidHz: frame.spectralCentroidHz }
+      : {}),
+    ...(frame.spectralRolloffHz !== undefined
+      ? { spectralRolloffHz: frame.spectralRolloffHz }
+      : {}),
     ...(frame.zeroCrossingRate !== undefined ? { zeroCrossingRate: frame.zeroCrossingRate } : {}),
     ...(frame.spectralFlatness !== undefined ? { spectralFlatness: frame.spectralFlatness } : {}),
     ...(frame.loudnessDb !== undefined ? { loudnessDb: frame.loudnessDb } : {}),
     ...(frame.mfccCoefficients !== undefined ? { mfccCoefficients: frame.mfccCoefficients } : {}),
     ...(frame.formantF1Hz !== undefined ? { formantF1Hz: frame.formantF1Hz } : {}),
     ...(frame.formantF2Hz !== undefined ? { formantF2Hz: frame.formantF2Hz } : {}),
-    ...(frame.formantReliability !== undefined ? { formantReliability: frame.formantReliability } : {}),
+    ...(frame.formantReliability !== undefined
+      ? { formantReliability: frame.formantReliability }
+      : {}),
     normalizedF0: typeof frame.f0Hz === 'number' ? normalize(frame.f0Hz, f0Min, f0Max) : null,
     normalizedIntensity: normalize(frame.intensityDb, intensityMin, intensityMax),
   }));
 
-  const binCount = Math.min(DEFAULT_TONE_BIN_COUNT, Math.max(6, Math.round(Math.sqrt(frames.length))));
+  const binCount = Math.min(
+    DEFAULT_TONE_BIN_COUNT,
+    Math.max(6, Math.round(Math.sqrt(frames.length))),
+  );
   const toneBins: AcousticPanelToneBin[] = Array.from({ length: binCount }, (_, index) => {
     const startIndex = Math.floor((index * frames.length) / binCount);
     const endIndex = Math.floor(((index + 1) * frames.length) / binCount);
@@ -288,7 +311,8 @@ function buildAcousticPanelDetailFromFrames(
       intensityDb,
       reliability,
       normalizedF0: typeof f0Hz === 'number' ? normalize(f0Hz, f0Min, f0Max) : null,
-      normalizedIntensity: typeof intensityDb === 'number' ? normalize(intensityDb, intensityMin, intensityMax) : null,
+      normalizedIntensity:
+        typeof intensityDb === 'number' ? normalize(intensityDb, intensityMin, intensityMax) : null,
     };
   });
 
@@ -316,7 +340,12 @@ export function buildAcousticPanelDetail(
   selectionStartSec?: number,
   selectionEndSec?: number,
 ): AcousticPanelDetail | null {
-  if (!analysis || selectionStartSec === undefined || selectionEndSec === undefined || selectionEndSec <= selectionStartSec) {
+  if (
+    !analysis ||
+    selectionStartSec === undefined ||
+    selectionEndSec === undefined ||
+    selectionEndSec <= selectionStartSec
+  ) {
     return null;
   }
   const sourceFrames = selectAnalysisFramesByRange(analysis, selectionStartSec, selectionEndSec);
@@ -367,7 +396,9 @@ export function buildAcousticPanelBatchBuildResult(
     }
     details.push({
       selectionId: range.selectionId,
-      ...(range.selectionLabel ? { selectionLabel: range.selectionLabel } : {}),
+      ...(range.selectionLabel !== undefined && range.selectionLabel.length > 0
+        ? { selectionLabel: range.selectionLabel }
+        : {}),
       detail,
       calibrationStatus: deriveAcousticCalibrationStatus(detail),
     });
@@ -397,8 +428,12 @@ export function buildAcousticInspectorSlice(
 
   const voicedFrames = windowFrames.filter((frame) => typeof frame.f0Hz === 'number');
   const voicedValues = voicedFrames.map((frame) => frame.f0Hz as number);
-  const intensityValues = windowFrames.map((frame) => frame.intensityDb).filter((value) => Number.isFinite(value));
-  const reliabilityValues = windowFrames.map((frame) => frame.reliability).filter((value) => Number.isFinite(value));
+  const intensityValues = windowFrames
+    .map((frame) => frame.intensityDb)
+    .filter((value) => Number.isFinite(value));
+  const reliabilityValues = windowFrames
+    .map((frame) => frame.reliability)
+    .filter((value) => Number.isFinite(value));
   const firstVoiced = voicedFrames[0]?.f0Hz ?? null;
   const lastVoiced = voicedFrames[voicedFrames.length - 1]?.f0Hz ?? null;
   const firstIntensity = intensityValues[0] ?? null;
@@ -421,104 +456,160 @@ export function buildAcousticInspectorSlice(
 }
 
 export function serializeAcousticPanelDetailCsv(detail: AcousticPanelDetail): string {
-  const header = ['timeSec', 'relativeTimeSec', 'timeRatio', 'f0Hz', 'intensityDb', 'reliability', 'spectralCentroidHz', 'spectralRolloffHz', 'zeroCrossingRate', 'spectralFlatness', 'loudnessDb', 'mfcc1', 'mfcc2', 'mfcc3', 'formantF1Hz', 'formantF2Hz', 'formantReliability'];
-  const rows = detail.frames.map((frame) => [
-    frame.timeSec.toFixed(4),
-    frame.relativeTimeSec.toFixed(4),
-    frame.timeRatio.toFixed(4),
-    frame.f0Hz == null ? '' : frame.f0Hz.toFixed(4),
-    frame.intensityDb.toFixed(4),
-    frame.reliability.toFixed(4),
-    frame.spectralCentroidHz == null ? '' : frame.spectralCentroidHz.toFixed(4),
-    frame.spectralRolloffHz == null ? '' : frame.spectralRolloffHz.toFixed(4),
-    frame.zeroCrossingRate == null ? '' : frame.zeroCrossingRate.toFixed(4),
-    frame.spectralFlatness == null ? '' : frame.spectralFlatness.toFixed(4),
-    frame.loudnessDb == null ? '' : frame.loudnessDb.toFixed(4),
-    frame.mfccCoefficients?.[0] == null ? '' : frame.mfccCoefficients[0].toFixed(4),
-    frame.mfccCoefficients?.[1] == null ? '' : frame.mfccCoefficients[1].toFixed(4),
-    frame.mfccCoefficients?.[2] == null ? '' : frame.mfccCoefficients[2].toFixed(4),
-    frame.formantF1Hz == null ? '' : frame.formantF1Hz.toFixed(4),
-    frame.formantF2Hz == null ? '' : frame.formantF2Hz.toFixed(4),
-    frame.formantReliability == null ? '' : frame.formantReliability.toFixed(4),
-  ]).map((row) => joinCsvRow(row));
+  const header = [
+    'timeSec',
+    'relativeTimeSec',
+    'timeRatio',
+    'f0Hz',
+    'intensityDb',
+    'reliability',
+    'spectralCentroidHz',
+    'spectralRolloffHz',
+    'zeroCrossingRate',
+    'spectralFlatness',
+    'loudnessDb',
+    'mfcc1',
+    'mfcc2',
+    'mfcc3',
+    'formantF1Hz',
+    'formantF2Hz',
+    'formantReliability',
+  ];
+  const rows = detail.frames
+    .map((frame) => [
+      frame.timeSec.toFixed(4),
+      frame.relativeTimeSec.toFixed(4),
+      frame.timeRatio.toFixed(4),
+      frame.f0Hz == null ? '' : frame.f0Hz.toFixed(4),
+      frame.intensityDb.toFixed(4),
+      frame.reliability.toFixed(4),
+      frame.spectralCentroidHz == null ? '' : frame.spectralCentroidHz.toFixed(4),
+      frame.spectralRolloffHz == null ? '' : frame.spectralRolloffHz.toFixed(4),
+      frame.zeroCrossingRate == null ? '' : frame.zeroCrossingRate.toFixed(4),
+      frame.spectralFlatness == null ? '' : frame.spectralFlatness.toFixed(4),
+      frame.loudnessDb == null ? '' : frame.loudnessDb.toFixed(4),
+      frame.mfccCoefficients?.[0] == null ? '' : frame.mfccCoefficients[0].toFixed(4),
+      frame.mfccCoefficients?.[1] == null ? '' : frame.mfccCoefficients[1].toFixed(4),
+      frame.mfccCoefficients?.[2] == null ? '' : frame.mfccCoefficients[2].toFixed(4),
+      frame.formantF1Hz == null ? '' : frame.formantF1Hz.toFixed(4),
+      frame.formantF2Hz == null ? '' : frame.formantF2Hz.toFixed(4),
+      frame.formantReliability == null ? '' : frame.formantReliability.toFixed(4),
+    ])
+    .map((row) => joinCsvRow(row));
   return [header.join(','), ...rows].join('\n');
 }
 
 export function serializeAcousticPanelBatchDetailCsv(items: AcousticPanelBatchDetail[]): string {
-  const header = ['selectionId', 'selectionLabel', 'selectionStartSec', 'selectionEndSec', 'timeSec', 'relativeTimeSec', 'timeRatio', 'f0Hz', 'intensityDb', 'reliability', 'spectralCentroidHz', 'spectralRolloffHz', 'zeroCrossingRate', 'spectralFlatness', 'loudnessDb', 'mfcc1', 'mfcc2', 'mfcc3', 'formantF1Hz', 'formantF2Hz', 'formantReliability'];
-  const rows = items.flatMap((item) => item.detail.frames.map((frame) => [
-    item.selectionId,
-    item.selectionLabel ?? '',
-    item.detail.selectionStartSec.toFixed(4),
-    item.detail.selectionEndSec.toFixed(4),
-    frame.timeSec.toFixed(4),
-    frame.relativeTimeSec.toFixed(4),
-    frame.timeRatio.toFixed(4),
-    frame.f0Hz == null ? '' : frame.f0Hz.toFixed(4),
-    frame.intensityDb.toFixed(4),
-    frame.reliability.toFixed(4),
-    frame.spectralCentroidHz == null ? '' : frame.spectralCentroidHz.toFixed(4),
-    frame.spectralRolloffHz == null ? '' : frame.spectralRolloffHz.toFixed(4),
-    frame.zeroCrossingRate == null ? '' : frame.zeroCrossingRate.toFixed(4),
-    frame.spectralFlatness == null ? '' : frame.spectralFlatness.toFixed(4),
-    frame.loudnessDb == null ? '' : frame.loudnessDb.toFixed(4),
-    frame.mfccCoefficients?.[0] == null ? '' : frame.mfccCoefficients[0].toFixed(4),
-    frame.mfccCoefficients?.[1] == null ? '' : frame.mfccCoefficients[1].toFixed(4),
-    frame.mfccCoefficients?.[2] == null ? '' : frame.mfccCoefficients[2].toFixed(4),
-    frame.formantF1Hz == null ? '' : frame.formantF1Hz.toFixed(4),
-    frame.formantF2Hz == null ? '' : frame.formantF2Hz.toFixed(4),
-    frame.formantReliability == null ? '' : frame.formantReliability.toFixed(4),
-  ])).map((row) => joinCsvRow(row));
+  const header = [
+    'selectionId',
+    'selectionLabel',
+    'selectionStartSec',
+    'selectionEndSec',
+    'timeSec',
+    'relativeTimeSec',
+    'timeRatio',
+    'f0Hz',
+    'intensityDb',
+    'reliability',
+    'spectralCentroidHz',
+    'spectralRolloffHz',
+    'zeroCrossingRate',
+    'spectralFlatness',
+    'loudnessDb',
+    'mfcc1',
+    'mfcc2',
+    'mfcc3',
+    'formantF1Hz',
+    'formantF2Hz',
+    'formantReliability',
+  ];
+  const rows = items
+    .flatMap((item) =>
+      item.detail.frames.map((frame) => [
+        item.selectionId,
+        item.selectionLabel ?? '',
+        item.detail.selectionStartSec.toFixed(4),
+        item.detail.selectionEndSec.toFixed(4),
+        frame.timeSec.toFixed(4),
+        frame.relativeTimeSec.toFixed(4),
+        frame.timeRatio.toFixed(4),
+        frame.f0Hz == null ? '' : frame.f0Hz.toFixed(4),
+        frame.intensityDb.toFixed(4),
+        frame.reliability.toFixed(4),
+        frame.spectralCentroidHz == null ? '' : frame.spectralCentroidHz.toFixed(4),
+        frame.spectralRolloffHz == null ? '' : frame.spectralRolloffHz.toFixed(4),
+        frame.zeroCrossingRate == null ? '' : frame.zeroCrossingRate.toFixed(4),
+        frame.spectralFlatness == null ? '' : frame.spectralFlatness.toFixed(4),
+        frame.loudnessDb == null ? '' : frame.loudnessDb.toFixed(4),
+        frame.mfccCoefficients?.[0] == null ? '' : frame.mfccCoefficients[0].toFixed(4),
+        frame.mfccCoefficients?.[1] == null ? '' : frame.mfccCoefficients[1].toFixed(4),
+        frame.mfccCoefficients?.[2] == null ? '' : frame.mfccCoefficients[2].toFixed(4),
+        frame.formantF1Hz == null ? '' : frame.formantF1Hz.toFixed(4),
+        frame.formantF2Hz == null ? '' : frame.formantF2Hz.toFixed(4),
+        frame.formantReliability == null ? '' : frame.formantReliability.toFixed(4),
+      ]),
+    )
+    .map((row) => joinCsvRow(row));
   return [header.join(','), ...rows].join('\n');
 }
 
 export function serializeAcousticPanelDetailJson(detail: AcousticPanelDetail): string {
-  return JSON.stringify({
-    mediaKey: detail.mediaKey,
-    sampleRate: detail.sampleRate,
-    algorithmVersion: detail.algorithmVersion,
-    modelVersion: detail.modelVersion,
-    persistenceVersion: detail.persistenceVersion,
-    frameStepSec: detail.frameStepSec,
-    analysisWindowSec: detail.analysisWindowSec,
-    yinThreshold: detail.yinThreshold,
-    silenceRmsThreshold: detail.silenceRmsThreshold,
-    selectionStartSec: detail.selectionStartSec,
-    selectionEndSec: detail.selectionEndSec,
-    sampleCount: detail.sampleCount,
-    voicedSampleCount: detail.voicedSampleCount,
-    toneBins: detail.toneBins,
-    frames: detail.frames,
-  }, null, 2);
+  return JSON.stringify(
+    {
+      mediaKey: detail.mediaKey,
+      sampleRate: detail.sampleRate,
+      algorithmVersion: detail.algorithmVersion,
+      modelVersion: detail.modelVersion,
+      persistenceVersion: detail.persistenceVersion,
+      frameStepSec: detail.frameStepSec,
+      analysisWindowSec: detail.analysisWindowSec,
+      yinThreshold: detail.yinThreshold,
+      silenceRmsThreshold: detail.silenceRmsThreshold,
+      selectionStartSec: detail.selectionStartSec,
+      selectionEndSec: detail.selectionEndSec,
+      sampleCount: detail.sampleCount,
+      voicedSampleCount: detail.voicedSampleCount,
+      toneBins: detail.toneBins,
+      frames: detail.frames,
+    },
+    null,
+    2,
+  );
 }
 
 export function serializeAcousticPanelBatchDetailJson(items: AcousticPanelBatchDetail[]): string {
-  return JSON.stringify({
-    format: 'jieyu-acoustic-export-batch',
-    formatVersion: 1,
-    exportedAt: new Date().toISOString(),
-    itemCount: items.length,
-    items: items.map((item) => ({
-      selectionId: item.selectionId,
-      ...(item.selectionLabel ? { selectionLabel: item.selectionLabel } : {}),
-      calibrationStatus: item.calibrationStatus,
-      mediaKey: item.detail.mediaKey,
-      sampleRate: item.detail.sampleRate,
-      algorithmVersion: item.detail.algorithmVersion,
-      modelVersion: item.detail.modelVersion,
-      persistenceVersion: item.detail.persistenceVersion,
-      frameStepSec: item.detail.frameStepSec,
-      analysisWindowSec: item.detail.analysisWindowSec,
-      yinThreshold: item.detail.yinThreshold,
-      silenceRmsThreshold: item.detail.silenceRmsThreshold,
-      selectionStartSec: item.detail.selectionStartSec,
-      selectionEndSec: item.detail.selectionEndSec,
-      sampleCount: item.detail.sampleCount,
-      voicedSampleCount: item.detail.voicedSampleCount,
-      toneBins: item.detail.toneBins,
-      frames: item.detail.frames,
-    })),
-  }, null, 2);
+  return JSON.stringify(
+    {
+      format: 'jieyu-acoustic-export-batch',
+      formatVersion: 1,
+      exportedAt: new Date().toISOString(),
+      itemCount: items.length,
+      items: items.map((item) => ({
+        selectionId: item.selectionId,
+        ...(item.selectionLabel !== undefined && item.selectionLabel.length > 0
+          ? { selectionLabel: item.selectionLabel }
+          : {}),
+        calibrationStatus: item.calibrationStatus,
+        mediaKey: item.detail.mediaKey,
+        sampleRate: item.detail.sampleRate,
+        algorithmVersion: item.detail.algorithmVersion,
+        modelVersion: item.detail.modelVersion,
+        persistenceVersion: item.detail.persistenceVersion,
+        frameStepSec: item.detail.frameStepSec,
+        analysisWindowSec: item.detail.analysisWindowSec,
+        yinThreshold: item.detail.yinThreshold,
+        silenceRmsThreshold: item.detail.silenceRmsThreshold,
+        selectionStartSec: item.detail.selectionStartSec,
+        selectionEndSec: item.detail.selectionEndSec,
+        sampleCount: item.detail.sampleCount,
+        voicedSampleCount: item.detail.voicedSampleCount,
+        toneBins: item.detail.toneBins,
+        frames: item.detail.frames,
+      })),
+    },
+    null,
+    2,
+  );
 }
 
 export function buildAcousticExportFileStem(detail: AcousticPanelDetail): string {
@@ -561,68 +652,80 @@ export function serializeAcousticPitchTierText(detail: AcousticPanelDetail): str
  */
 export function serializeAcousticPanelDetailJsonResearch(detail: AcousticPanelDetail): string {
   const calibrationStatus = deriveAcousticCalibrationStatus(detail);
-  return JSON.stringify({
-    format: 'jieyu-acoustic-export',
-    formatVersion: 2,
-    exportedAt: new Date().toISOString(),
-    mediaKey: detail.mediaKey,
-    sampleRate: detail.sampleRate,
-    algorithmVersion: detail.algorithmVersion,
-    modelVersion: detail.modelVersion,
-    persistenceVersion: detail.persistenceVersion,
-    calibrationVersion: ACOUSTIC_CALIBRATION_VERSION,
-    calibrationStatus,
-    parameters: {
-      frameStepSec: detail.frameStepSec,
-      analysisWindowSec: detail.analysisWindowSec,
-      yinThreshold: detail.yinThreshold,
-      silenceRmsThreshold: detail.silenceRmsThreshold,
-    },
-    selection: {
-      startSec: detail.selectionStartSec,
-      endSec: detail.selectionEndSec,
-    },
-    statistics: {
-      sampleCount: detail.sampleCount,
-      voicedSampleCount: detail.voicedSampleCount,
-    },
-    toneBins: detail.toneBins,
-    frames: detail.frames,
-  }, null, 2);
-}
-
-export function serializeAcousticPanelBatchDetailJsonResearch(items: AcousticPanelBatchDetail[]): string {
-  return JSON.stringify({
-    format: 'jieyu-acoustic-export-batch-research',
-    formatVersion: 1,
-    exportedAt: new Date().toISOString(),
-    calibrationVersion: ACOUSTIC_CALIBRATION_VERSION,
-    itemCount: items.length,
-    items: items.map((item) => ({
-      selectionId: item.selectionId,
-      ...(item.selectionLabel ? { selectionLabel: item.selectionLabel } : {}),
-      calibrationStatus: item.calibrationStatus,
-      mediaKey: item.detail.mediaKey,
-      sampleRate: item.detail.sampleRate,
-      algorithmVersion: item.detail.algorithmVersion,
-      modelVersion: item.detail.modelVersion,
-      persistenceVersion: item.detail.persistenceVersion,
+  return JSON.stringify(
+    {
+      format: 'jieyu-acoustic-export',
+      formatVersion: 2,
+      exportedAt: new Date().toISOString(),
+      mediaKey: detail.mediaKey,
+      sampleRate: detail.sampleRate,
+      algorithmVersion: detail.algorithmVersion,
+      modelVersion: detail.modelVersion,
+      persistenceVersion: detail.persistenceVersion,
+      calibrationVersion: ACOUSTIC_CALIBRATION_VERSION,
+      calibrationStatus,
       parameters: {
-        frameStepSec: item.detail.frameStepSec,
-        analysisWindowSec: item.detail.analysisWindowSec,
-        yinThreshold: item.detail.yinThreshold,
-        silenceRmsThreshold: item.detail.silenceRmsThreshold,
+        frameStepSec: detail.frameStepSec,
+        analysisWindowSec: detail.analysisWindowSec,
+        yinThreshold: detail.yinThreshold,
+        silenceRmsThreshold: detail.silenceRmsThreshold,
       },
       selection: {
-        startSec: item.detail.selectionStartSec,
-        endSec: item.detail.selectionEndSec,
+        startSec: detail.selectionStartSec,
+        endSec: detail.selectionEndSec,
       },
       statistics: {
-        sampleCount: item.detail.sampleCount,
-        voicedSampleCount: item.detail.voicedSampleCount,
+        sampleCount: detail.sampleCount,
+        voicedSampleCount: detail.voicedSampleCount,
       },
-      toneBins: item.detail.toneBins,
-      frames: item.detail.frames,
-    })),
-  }, null, 2);
+      toneBins: detail.toneBins,
+      frames: detail.frames,
+    },
+    null,
+    2,
+  );
+}
+
+export function serializeAcousticPanelBatchDetailJsonResearch(
+  items: AcousticPanelBatchDetail[],
+): string {
+  return JSON.stringify(
+    {
+      format: 'jieyu-acoustic-export-batch-research',
+      formatVersion: 1,
+      exportedAt: new Date().toISOString(),
+      calibrationVersion: ACOUSTIC_CALIBRATION_VERSION,
+      itemCount: items.length,
+      items: items.map((item) => ({
+        selectionId: item.selectionId,
+        ...(item.selectionLabel !== undefined && item.selectionLabel.length > 0
+          ? { selectionLabel: item.selectionLabel }
+          : {}),
+        calibrationStatus: item.calibrationStatus,
+        mediaKey: item.detail.mediaKey,
+        sampleRate: item.detail.sampleRate,
+        algorithmVersion: item.detail.algorithmVersion,
+        modelVersion: item.detail.modelVersion,
+        persistenceVersion: item.detail.persistenceVersion,
+        parameters: {
+          frameStepSec: item.detail.frameStepSec,
+          analysisWindowSec: item.detail.analysisWindowSec,
+          yinThreshold: item.detail.yinThreshold,
+          silenceRmsThreshold: item.detail.silenceRmsThreshold,
+        },
+        selection: {
+          startSec: item.detail.selectionStartSec,
+          endSec: item.detail.selectionEndSec,
+        },
+        statistics: {
+          sampleCount: item.detail.sampleCount,
+          voicedSampleCount: item.detail.voicedSampleCount,
+        },
+        toneBins: item.detail.toneBins,
+        frames: item.detail.frames,
+      })),
+    },
+    null,
+    2,
+  );
 }

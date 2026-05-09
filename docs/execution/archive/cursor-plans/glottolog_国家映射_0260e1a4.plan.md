@@ -30,14 +30,14 @@ isProject: false
 
 ## 背景与约束
 
-- [`iso-639-3`](node_modules/iso-639-3/iso6393.d.ts) **不含**国家信息；当前 7867 条只在 [`iso6393Seed.generated.ts`](src/data/generated/iso6393Seed.generated.ts) 存 `name` / `invertedName` / 码与 scope/type。
+- [`iso-639-3`](node_modules/iso-639-3/iso6393.d.ts) **不含**国家信息；当前 7867 条只在 [`iso6393Seed.generated.ts`](scripts/build-language-tag-mappings.mjs) 存 `name` / `invertedName` / 码与 scope/type。
 - 持久化层已有 [`LanguageDocType.countries`](src/db/types.ts)（`string[]`，工作台占位为 **ISO2**，见 [`languageMetadataWorkspace.country.ts`](src/pages/languageMetadataWorkspace.country.ts)）。
 - 你已选：**Glottolog 分布国** + **CLDR 官方国（一期必做）** + **UI 语言国名与各国本地称谓** 两种国名展示维度。
 
 ## 语言名称 vs 国家数据（范围说明）
 
 - **未自动更新「语言名称」**：本计划中的「语言所在国」baseline **只增加/更新** ISO 639-3 → **国家码列表**（分布 / 官方）及 UI 上对 **国家/地区** 的 `Intl.DisplayNames` 渲染。**不会**因此重跑或改写 [`generate-language-name-indexes.mjs`](scripts/generate-language-name-indexes.mjs)、[`language-display-names.core.json`](public/data/language-support/language-display-names.core.json)、[`languageNameCatalog.generated.ts`](src/data/generated/languageNameCatalog.generated.ts) 里的 **语种** `english` / `native` / `byLocale` 等字符串。  
-- **7867 英文语言名**仍来自 [`iso6393Seed.generated.ts`](src/data/generated/iso6393Seed.generated.ts)（`name` / `invertedName`），与国界数据 **独立版本、独立生成脚本**。  
+- **7867 英文语言名**仍来自 [`iso6393Seed.generated.ts`](scripts/build-language-tag-mappings.mjs)（`name` / `invertedName`），与国界数据 **独立版本、独立生成脚本**。  
 - **若产品要「国别消歧」的语言标签**（例如列表中显示「法语（比利时）」或把国名拼进 `secondaryLabel`）：属于 **单独需求**，需在 UI 层组合 **现有语言名 + baseline 国别**（或扩展名称矩阵），**不在**本计划「仅补国家 baseline」的默示范围内；若要一期就做，须 **显式加验收项**。
 
 ## 仓库现状（代码审阅，2026-04）
@@ -77,7 +77,7 @@ isProject: false
 ## 数据层建议（核心）
 
 1. **生成物（建议单独模块，避免塞进 seed 元组）**  
-   - 新增例如 [`src/data/generated/iso6393Countries.generated.ts`](src/data/generated/iso6393Countries.generated.ts)（名称可定）内 **两个** 只读表，同一 key 集为小写 `iso6393`：  
+   - 新增例如 [`src/data/generated/languageNameCatalog.generated.ts`](src/data/generated/languageNameCatalog.generated.ts)（名称可定）内 **两个** 只读表，同一 key 集为小写 `iso6393`：  
      - **`distributionByIso6393`**：**分布国**（Glottolog CLDF **`Countries`** 列语义；同一 ISO 639-3 多 `language` 行时 **ISO2 并集**；宏语言子语言并集见下文）。  
      - **`officialByIso6393`**：**官方国（CLDR）**——由 CLDR `territoryInfo` / `languagePopulation` 中 **`officialStatus` 非空**（具体取值集合以钉版 LDML 为准，如 `official`、`official_regional` 等，脚本内白名单枚举）反查得到的「该语言在该国有官方/法定类地位」的领土，再规范为 **ISO 3166-1 alpha-2**，按语种聚合为列表；**去重、ISO2 字母序**。  
    - **BCP47 → ISO 639-3**：CLDR 语言子标签需经 **IANA / CLDR 别名表** 规范到三字母码；无法可靠映射到 639-3 的项 **跳过** 并记入构建日志，避免脏键。  

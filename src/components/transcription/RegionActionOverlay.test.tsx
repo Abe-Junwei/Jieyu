@@ -6,7 +6,7 @@ import { RegionActionOverlay } from './RegionActionOverlay';
 
 vi.mock('../../i18n', () => ({
   useLocale: vi.fn(() => 'zh-CN'),
-  t: vi.fn((locale: unknown, key: string) => {
+  t: vi.fn((_locale: unknown, key: string) => {
     const translations: Record<string, string> = {
       'transcription.wave.segmentSpeed': '播放速度',
       'transcription.wave.segmentSpeedReset': '重置速度',
@@ -19,7 +19,7 @@ vi.mock('../../i18n', () => ({
     };
     return translations[key] ?? key;
   }),
-  tf: vi.fn((locale: unknown, key: string, params?: Record<string, string>) => {
+  tf: vi.fn((_locale: unknown, key: string, params?: Record<string, string>) => {
     const translations: Record<string, string> = {
       'transcription.wave.segmentSpeed': '播放速度 {rate}',
     };

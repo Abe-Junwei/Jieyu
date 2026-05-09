@@ -18,7 +18,10 @@ import { useEnsureVadCache } from '../hooks/useEnsureVadCache';
 import { useVadCachedSegments } from '../hooks/useVadCachedSegments';
 import { useWaveformSelectionController } from './useWaveformSelectionController';
 import { timelineUnitsToWaveformAnalysisRows } from '../hooks/timelineUnitView';
-import type { UseTranscriptionWaveformBridgeControllerInput, UseTranscriptionWaveformBridgeControllerResult } from './transcriptionWaveformBridge.types';
+import type {
+  UseTranscriptionWaveformBridgeControllerInput,
+  UseTranscriptionWaveformBridgeControllerResult,
+} from './transcriptionWaveformBridge.types';
 import { useWaveformAcousticOverlay } from './useWaveformAcousticOverlay';
 import { useWaveformSignalOverlays } from './useWaveformSignalOverlays';
 import {
@@ -46,7 +49,9 @@ export function useTranscriptionWaveformBridgeController(
   const [segmentPlaybackRate, setSegmentPlaybackRate] = useState(readDefaultPlaybackRate);
   const [hoverTime, setHoverTime] = useState<{ time: number; x: number; y: number } | null>(null);
   // RAF 聚合悬停时间，避免 mousemove 无上限触发 setState | RAF-coalesce hover time to cap mousemove setState at 60fps
-  const pendingHoverTimeRef = useRef<{ time: number; x: number; y: number } | null | undefined>(undefined);
+  const pendingHoverTimeRef = useRef<{ time: number; x: number; y: number } | null | undefined>(
+    undefined,
+  );
   const hoverTimeRafRef = useRef<number | null>(null);
   const [segMarkStart, setSegMarkStart] = useState<number | null>(null);
   const {
@@ -56,7 +61,9 @@ export function useTranscriptionWaveformBridgeController(
     dragPreview,
     segmentRangeGesturePreviewReadModel,
   } = useSegmentRangeGesturePreviewWriter();
-  const [subSelectionRange, setSubSelectionRange] = useState<{ start: number; end: number } | null>(null);
+  const [subSelectionRange, setSubSelectionRange] = useState<{ start: number; end: number } | null>(
+    null,
+  );
   const [waveformScrollLeft, setWaveformScrollLeft] = useState(0);
   const pendingWaveformScrollLeftRef = useRef<number | null>(null);
   const waveformScrollRafRef = useRef<number | null>(null);
@@ -66,16 +73,32 @@ export function useTranscriptionWaveformBridgeController(
   const creatingSegmentRef = useRef(false);
   const markingModeRef = useRef(false);
   const previousSelectedTimelineUnitIdRef = useRef(input.selectedTimelineUnit?.unitId ?? '');
-  const handleWaveformRegionAltPointerDownRef = useRef<((regionId: string, time: number, pointerId: number, clientX: number) => void) | undefined>(undefined);
-  const handleWaveformRegionClickRef = useRef<((regionId: string, clickTime: number, event: MouseEvent) => void) | undefined>(undefined);
-  const handleWaveformRegionDoubleClickRef = useRef<((regionId: string, start: number, end: number) => void) | undefined>(undefined);
-  const handleWaveformRegionCreateRef = useRef<((start: number, end: number) => void) | undefined>(undefined);
-  const handleWaveformRegionContextMenuRef = useRef<((regionId: string, x: number, y: number) => void) | undefined>(undefined);
-  const handleWaveformRegionUpdateRef = useRef<((regionId: string, start: number, end: number) => void) | undefined>(undefined);
-  const handleWaveformRegionUpdateEndRef = useRef<((regionId: string, start: number, end: number) => void) | undefined>(undefined);
+  const handleWaveformRegionAltPointerDownRef = useRef<
+    ((regionId: string, time: number, pointerId: number, clientX: number) => void) | undefined
+  >(undefined);
+  const handleWaveformRegionClickRef = useRef<
+    ((regionId: string, clickTime: number, event: MouseEvent) => void) | undefined
+  >(undefined);
+  const handleWaveformRegionDoubleClickRef = useRef<
+    ((regionId: string, start: number, end: number) => void) | undefined
+  >(undefined);
+  const handleWaveformRegionCreateRef = useRef<((start: number, end: number) => void) | undefined>(
+    undefined,
+  );
+  const handleWaveformRegionContextMenuRef = useRef<
+    ((regionId: string, x: number, y: number) => void) | undefined
+  >(undefined);
+  const handleWaveformRegionUpdateRef = useRef<
+    ((regionId: string, start: number, end: number) => void) | undefined
+  >(undefined);
+  const handleWaveformRegionUpdateEndRef = useRef<
+    ((regionId: string, start: number, end: number) => void) | undefined
+  >(undefined);
   const handleWaveformTimeUpdateRef = useRef<((time: number) => void) | undefined>(undefined);
   // RAF 聚合拖拽中的 region update，避免每像素的 dragPreview+snapGuide 双 setState | RAF-coalesce region drag updates
-  const pendingDragUpdateRef = useRef<{ regionId: string; start: number; end: number } | null>(null);
+  const pendingDragUpdateRef = useRef<{ regionId: string; start: number; end: number } | null>(
+    null,
+  );
   const dragUpdateRafRef = useRef<number | null>(null);
 
   const {
@@ -90,7 +113,9 @@ export function useTranscriptionWaveformBridgeController(
     layers: input.layers,
     layerById: input.layerById,
     layerLinks: input.layerLinks,
-    ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
+    ...(input.defaultTranscriptionLayerId !== undefined
+      ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId }
+      : {}),
     timelineUnitViewIndex: input.timelineUnitViewIndex,
     selectedTimelineUnit: input.selectedTimelineUnit,
     selectedUnitIds: input.selectedUnitIds,
@@ -159,17 +184,19 @@ export function useTranscriptionWaveformBridgeController(
     },
   });
 
-  const documentSpanSec = useMemo(
-    () => {
-      const anchor = player.isReady && player.duration > 0 ? player.duration : 0;
-      return computeLogicalTimelineDurationForZoom(
-        input.activeTextTimeLogicalDurationSec,
-        input.unitsOnCurrentMedia,
-        anchor > 0 ? { acousticTimelineAnchorSec: anchor } : undefined,
-      );
-    },
-    [input.activeTextTimeLogicalDurationSec, input.unitsOnCurrentMedia, player.isReady, player.duration],
-  );
+  const documentSpanSec = useMemo(() => {
+    const anchor = player.isReady && player.duration > 0 ? player.duration : 0;
+    return computeLogicalTimelineDurationForZoom(
+      input.activeTextTimeLogicalDurationSec,
+      input.unitsOnCurrentMedia,
+      anchor > 0 ? { acousticTimelineAnchorSec: anchor } : undefined,
+    );
+  }, [
+    input.activeTextTimeLogicalDurationSec,
+    input.unitsOnCurrentMedia,
+    player.isReady,
+    player.duration,
+  ]);
 
   const waveformViewportSizingInput: UseWaveformViewportSizingInput = {
     tierContainerRef: input.tierContainerRef,
@@ -187,16 +214,11 @@ export function useTranscriptionWaveformBridgeController(
     waveformViewportSizingInput.verticalComparisonEnabled = input.verticalComparisonEnabled;
   }
 
-  const {
-    containerWidth,
-    waveCanvasClientWidth,
-    rawTierAxisForFitPx,
-    tierTimeAxisForFitPx,
-  } = useWaveformViewportSizing(waveformViewportSizingInput);
+  const { containerWidth, waveCanvasClientWidth, rawTierAxisForFitPx, tierTimeAxisForFitPx } =
+    useWaveformViewportSizing(waveformViewportSizingInput);
 
-  const fitPxPerSec = documentSpanSec > 0 && Number.isFinite(documentSpanSec)
-    ? containerWidth / documentSpanSec
-    : 40;
+  const fitPxPerSec =
+    documentSpanSec > 0 && Number.isFinite(documentSpanSec) ? containerWidth / documentSpanSec : 40;
   const maxZoomPercent = Math.max(200, Math.ceil((2000 / fitPxPerSec) * 100));
   const zoomPxPerSec = Math.max(1e-9, fitPxPerSec * (zoomPercent / 100));
   useLayoutEffect(() => {
@@ -238,38 +260,46 @@ export function useTranscriptionWaveformBridgeController(
   }, []);
 
   const commitWaveformScrollLeft = useCallback((nextScrollLeft: number) => {
-    setWaveformScrollLeft((prev) => (Math.abs(prev - nextScrollLeft) > 0.5 ? nextScrollLeft : prev));
+    setWaveformScrollLeft((prev) =>
+      Math.abs(prev - nextScrollLeft) > 0.5 ? nextScrollLeft : prev,
+    );
   }, []);
 
-  const scheduleWaveformScrollLeft = useCallback((nextScrollLeft: number) => {
-    pendingWaveformScrollLeftRef.current = nextScrollLeft;
-    if (waveformScrollRafRef.current !== null) return;
-    waveformScrollRafRef.current = requestAnimationFrame(() => {
-      waveformScrollRafRef.current = null;
-      const pending = pendingWaveformScrollLeftRef.current;
+  const scheduleWaveformScrollLeft = useCallback(
+    (nextScrollLeft: number) => {
+      pendingWaveformScrollLeftRef.current = nextScrollLeft;
+      if (waveformScrollRafRef.current !== null) return;
+      waveformScrollRafRef.current = requestAnimationFrame(() => {
+        waveformScrollRafRef.current = null;
+        const pending = pendingWaveformScrollLeftRef.current;
+        pendingWaveformScrollLeftRef.current = null;
+        if (pending == null) return;
+        commitWaveformScrollLeft(pending);
+      });
+    },
+    [commitWaveformScrollLeft],
+  );
+
+  useEffect(
+    () => () => {
+      if (hoverTimeRafRef.current !== null) {
+        cancelAnimationFrame(hoverTimeRafRef.current);
+        hoverTimeRafRef.current = null;
+      }
+      pendingHoverTimeRef.current = undefined;
+      if (dragUpdateRafRef.current !== null) {
+        cancelAnimationFrame(dragUpdateRafRef.current);
+        dragUpdateRafRef.current = null;
+      }
+      pendingDragUpdateRef.current = null;
+      if (waveformScrollRafRef.current !== null) {
+        cancelAnimationFrame(waveformScrollRafRef.current);
+        waveformScrollRafRef.current = null;
+      }
       pendingWaveformScrollLeftRef.current = null;
-      if (pending == null) return;
-      commitWaveformScrollLeft(pending);
-    });
-  }, [commitWaveformScrollLeft]);
-
-  useEffect(() => () => {
-    if (hoverTimeRafRef.current !== null) {
-      cancelAnimationFrame(hoverTimeRafRef.current);
-      hoverTimeRafRef.current = null;
-    }
-    pendingHoverTimeRef.current = undefined;
-    if (dragUpdateRafRef.current !== null) {
-      cancelAnimationFrame(dragUpdateRafRef.current);
-      dragUpdateRafRef.current = null;
-    }
-    pendingDragUpdateRef.current = null;
-    if (waveformScrollRafRef.current !== null) {
-      cancelAnimationFrame(waveformScrollRafRef.current);
-      waveformScrollRafRef.current = null;
-    }
-    pendingWaveformScrollLeftRef.current = null;
-  }, []);
+    },
+    [],
+  );
 
   // 首帧前同步时间轴滚动，避免浏览器恢复滚动导致"先偏移后对齐" | Sync timeline scroll before first paint to avoid browser-restored flicker
   useLayoutEffect(() => {
@@ -285,7 +315,13 @@ export function useTranscriptionWaveformBridgeController(
       tier.scrollLeft = nextScrollLeft;
     }
     commitWaveformScrollLeft(nextScrollLeft);
-  }, [commitWaveformScrollLeft, input.selectedMediaUrl, input.tierContainerRef, player.instanceRef, player.isReady]);
+  }, [
+    commitWaveformScrollLeft,
+    input.selectedMediaUrl,
+    input.tierContainerRef,
+    player.instanceRef,
+    player.isReady,
+  ]);
 
   // 自无声学/纯文本**首次**挂上媒体 URL 时，把纯文本时拖出的长横向 scroll 收掉，与声学轴左缘对齐
   useLayoutEffect(() => {
@@ -300,20 +336,24 @@ export function useTranscriptionWaveformBridgeController(
     const ws = player.instanceRef.current;
     if (ws) ws.setScroll(0);
     commitWaveformScrollLeft(0);
-  }, [input.selectedMediaUrl, input.tierContainerRef, player.instanceRef, commitWaveformScrollLeft]);
+  }, [
+    input.selectedMediaUrl,
+    input.tierContainerRef,
+    player.instanceRef,
+    commitWaveformScrollLeft,
+  ]);
 
-  const {
-    waveformNoteIndicators,
-    waveformLowConfidenceOverlays,
-    waveformOverlapOverlays,
-  } = useWaveformSignalOverlays({
-    unitsOnCurrentMedia: timelineUnitsToWaveformAnalysisRows(input.timelineUnitViewIndex.currentMediaUnits),
-    ...(vadSegments ? { vadSegments } : {}),
-    waveformTimelineItems,
-    activeLayerIdForEdits: input.activeLayerIdForEdits,
-    resolveNoteIndicatorTarget: input.resolveNoteIndicatorTarget,
-    zoomPxPerSec,
-  });
+  const { waveformNoteIndicators, waveformLowConfidenceOverlays, waveformOverlapOverlays } =
+    useWaveformSignalOverlays({
+      unitsOnCurrentMedia: timelineUnitsToWaveformAnalysisRows(
+        input.timelineUnitViewIndex.currentMediaUnits,
+      ),
+      ...(vadSegments ? { vadSegments } : {}),
+      waveformTimelineItems,
+      activeLayerIdForEdits: input.activeLayerIdForEdits,
+      resolveNoteIndicatorTarget: input.resolveNoteIndicatorTarget,
+      zoomPxPerSec,
+    });
 
   const {
     acousticOverlayViewportWidth,
@@ -374,7 +414,11 @@ export function useTranscriptionWaveformBridgeController(
     tierLassoMode: input.selectedMediaUrl ? 'default' : 'noMediaTextCreate',
   });
 
-  const { projection: timelineViewportProjection, zoomToPercent, zoomToUnit } = useTimelineViewport({
+  const {
+    projection: timelineViewportProjection,
+    zoomToPercent,
+    zoomToUnit,
+  } = useTimelineViewport({
     waveCanvasRef,
     waveformWheelCaptureRootRef: waveformStripWheelShellRef,
     tierContainerRef: input.tierContainerRef,
@@ -404,31 +448,34 @@ export function useTranscriptionWaveformBridgeController(
     setWaveformFocused(false);
   }, []);
 
-  const handleWaveformAreaMouseMove = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-    const el = waveCanvasRef.current;
-    if (!el || !player.isReady) {
-      scheduleHoverTime(null);
-      return;
-    }
-    const rect = el.getBoundingClientRect();
-    if (
-      event.clientX < rect.left
-      || event.clientX > rect.right
-      || event.clientY < rect.top
-      || event.clientY > rect.bottom + 30
-    ) {
-      scheduleHoverTime(null);
-      return;
-    }
-    const ws = player.instanceRef.current;
-    const scrollLeft = ws ? ws.getScroll() : 0;
-    const time = (scrollLeft + (event.clientX - rect.left)) / zoomPxPerSec;
-    scheduleHoverTime({
-      time: Math.max(0, Math.min(time, player.duration)),
-      x: event.clientX,
-      y: rect.top - 4,
-    });
-  }, [player.duration, player.instanceRef, player.isReady, scheduleHoverTime, zoomPxPerSec]);
+  const handleWaveformAreaMouseMove = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      const el = waveCanvasRef.current;
+      if (!el || !player.isReady) {
+        scheduleHoverTime(null);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      if (
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom + 30
+      ) {
+        scheduleHoverTime(null);
+        return;
+      }
+      const ws = player.instanceRef.current;
+      const scrollLeft = ws ? ws.getScroll() : 0;
+      const time = (scrollLeft + (event.clientX - rect.left)) / zoomPxPerSec;
+      scheduleHoverTime({
+        time: Math.max(0, Math.min(time, player.duration)),
+        x: event.clientX,
+        y: rect.top - 4,
+      });
+    },
+    [player.duration, player.instanceRef, player.isReady, scheduleHoverTime, zoomPxPerSec],
+  );
 
   const handleWaveformAreaMouseLeave = useCallback(() => {
     // 离开时立即清除，不走 RAF，避免残留 tooltip | Clear immediately on leave, skip RAF to avoid stale tooltip
@@ -440,16 +487,19 @@ export function useTranscriptionWaveformBridgeController(
     setHoverTime(null);
   }, []);
 
-  const handleWaveformAreaWheel = useCallback((event: WheelEvent): void => {
-    // Ctrl/Meta 缩放统一交给 useZoom 的 wheel 拦截，避免双通道重复处理 | Delegate Ctrl/Meta zoom to useZoom wheel handlers to avoid duplicate handling.
-    if (event.ctrlKey || event.metaKey) return;
-    if (event.altKey) {
-      event.preventDefault();
-      event.stopPropagation();
-      const delta = event.deltaY > 0 ? -0.1 : 0.1;
-      setAmplitudeScale((prev) => Math.min(4, Math.max(0.25, prev + delta)));
-    }
-  }, [setAmplitudeScale]);
+  const handleWaveformAreaWheel = useCallback(
+    (event: WheelEvent): void => {
+      // Ctrl/Meta 缩放统一交给 useZoom 的 wheel 拦截，避免双通道重复处理 | Delegate Ctrl/Meta zoom to useZoom wheel handlers to avoid duplicate handling.
+      if (event.ctrlKey || event.metaKey) return;
+      if (event.altKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        const delta = event.deltaY > 0 ? -0.1 : 0.1;
+        setAmplitudeScale((prev) => Math.min(4, Math.max(0.25, prev + delta)));
+      }
+    },
+    [setAmplitudeScale],
+  );
 
   const handleTimelineScroll = (event: ReactUIEvent<HTMLDivElement>): void => {
     const nextScrollLeft = event.currentTarget.scrollLeft;
@@ -486,15 +536,25 @@ export function useTranscriptionWaveformBridgeController(
       return;
     }
     player.seekTo(selectedRange.startTime);
-  }, [input.selectedTimelineUnitForTime, input.zoomMode, player.isReady, player.seekTo, zoomToUnit]);
+  }, [
+    input.selectedTimelineUnitForTime,
+    input.zoomMode,
+    isPlayingRef,
+    player,
+    player.isReady,
+    player.seekTo,
+    zoomToUnit,
+  ]);
 
-  const resolveSelectedPlaybackRange = () => {
+  const resolveSelectedPlaybackRange = useCallback(() => {
     if (!selectedWaveformTimelineItem) return null;
-    return subSelectionRange ?? {
-      start: selectedWaveformTimelineItem.startTime,
-      end: selectedWaveformTimelineItem.endTime,
-    };
-  };
+    return (
+      subSelectionRange ?? {
+        start: selectedWaveformTimelineItem.startTime,
+        end: selectedWaveformTimelineItem.endTime,
+      }
+    );
+  }, [selectedWaveformTimelineItem, subSelectionRange]);
 
   const handleSegmentPlaybackRateChange = (rate: number): void => {
     setSegmentPlaybackRate(rate);

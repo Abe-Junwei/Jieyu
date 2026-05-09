@@ -1,9 +1,21 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { flushSync } from 'react-dom';
 import '../../styles/ai-hub.css';
 import '../../styles/panels/ai-chat-composer.css';
 import '../../styles/panels/ai-chat-thread.css';
-import { type AiToolGoldenSnapshot, type AiToolReplayBundle, type AiToolSnapshotDiff } from '../../ai/auditReplay';
+import {
+  type AiToolGoldenSnapshot,
+  type AiToolReplayBundle,
+  type AiToolSnapshotDiff,
+} from '../../ai/auditReplay';
 import { t, useLocale } from '../../i18n';
 import type { AdoptionItem } from '../../ai/vertical/adoptionQueue';
 import {
@@ -17,7 +29,12 @@ import {
 import { buildAdoptionAcceptProposeChangesUserPrompt } from '../../ai/vertical/adoptionProposeChangesUserPrompt';
 import { scheduleAdoptionOutcomeAuditLog } from '../../ai/vertical/adoptionOutcomeAuditPersist';
 import type { SavedCorpusSourceSet } from '../../ai/vertical/corpusSourceSet';
-import { createSavedSourceSet, switchActiveSourceSet, pruneInvalidatedSourceSets, type SourceSetMemberType } from '../../ai/vertical/corpusSourceSet';
+import {
+  createSavedSourceSet,
+  switchActiveSourceSet,
+  pruneInvalidatedSourceSets,
+  type SourceSetMemberType,
+} from '../../ai/vertical/corpusSourceSet';
 import { getAiChatProviderDefinition } from '../../ai/providers/providerCatalog';
 import type { AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
@@ -26,10 +43,17 @@ import { getAiChatCardMessages } from '../../i18n/messages';
 import { AiPanelContext } from '../../contexts/AiPanelContext';
 import { useGlobalContext } from '../../services/GlobalContextService';
 import { getDb } from '../../db';
+import { fireAndForget } from '../../utils/fireAndForget';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
 import { useAssistantDialogueSnapshot } from '../../hooks/useAssistantDialogueSnapshot';
-import { isAssistantChatComposerBlocked, isVoiceDialogueBlockingPrimary } from '../../services/assistantDialogueState';
-import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles } from '../../ai/chat/adaptiveInputProfile';
+import {
+  isAssistantChatComposerBlocked,
+  isVoiceDialogueBlockingPrimary,
+} from '../../services/assistantDialogueState';
+import {
+  deriveAdaptiveProfileFromMessages,
+  mergeAdaptiveProfiles,
+} from '../../ai/chat/adaptiveInputProfile';
 import { rankCandidateLabelsByAdaptiveProfile } from './aiChatAdaptiveRanking';
 import { useAiChatHybridRecommendations } from './useAiChatHybridRecommendations';
 import { buildFollowUpSuggestions } from './aiChatCardFollowUps';
@@ -60,13 +84,15 @@ type AiChatCardProps = {
   providerConfigOpen?: boolean;
   onProviderConfigOpenChange?: ((next: boolean) => void) | undefined;
   voiceDrawer?: ReactNode | undefined;
-  voiceEntry?: {
-    enabled: boolean;
-    expanded: boolean;
-    listening: boolean;
-    statusText?: string;
-    onTogglePanel: () => void;
-  } | undefined;
+  voiceEntry?:
+    | {
+        enabled: boolean;
+        expanded: boolean;
+        listening: boolean;
+        statusText?: string;
+        onTogglePanel: () => void;
+      }
+    | undefined;
 };
 
 export function AiChatCard({
@@ -140,9 +166,17 @@ export function AiChatCard({
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
   const chatInputRef = useRef<HTMLInputElement | null>(null);
   const visibleRecommendationSignatureRef = useRef<string | null>(null);
-  const exposedRecommendationRef = useRef<{ prompt: string; source: 'fallback' | 'llm'; signature: string } | null>(null);
-  const [dismissedRecommendationSignature, setDismissedRecommendationSignature] = useState<string | null>(null);
-  const [directiveSourceFilter, setDirectiveSourceFilter] = useState<'all' | 'user_explicit' | 'background_extracted' | 'pinned_message'>('all');
+  const exposedRecommendationRef = useRef<{
+    prompt: string;
+    source: 'fallback' | 'llm';
+    signature: string;
+  } | null>(null);
+  const [dismissedRecommendationSignature, setDismissedRecommendationSignature] = useState<
+    string | null
+  >(null);
+  const [directiveSourceFilter, setDirectiveSourceFilter] = useState<
+    'all' | 'user_explicit' | 'background_extracted' | 'pinned_message'
+  >('all');
   const [directiveActionNotice, setDirectiveActionNotice] = useState<string | null>(null);
   const [adoptionItems, setAdoptionItems] = useState<AdoptionItem[]>([]);
   const pendingPostStreamAdoptionPromptsRef = useRef<string[]>([]);
@@ -154,74 +188,105 @@ export function AiChatCard({
   // continuous invalidation would require subscribing to all related tables)
   useEffect(() => {
     let cancelled = false;
-    getDb()
-      .then(async (db) => {
-        const rows = await db.collections.ai_source_sets.find().exec();
-        if (cancelled) return;
-        let sets = rows.map((r) => r.toJSON());
+    const promise = getDb().then(async (db) => {
+      const rows = await db.collections.ai_source_sets.find().exec();
+      if (cancelled) return;
+      let sets = rows.map((r) => r.toJSON());
 
-        // P1-3: Runtime invalidation detection
-        if (sets.length > 0) {
-          const [layerUnitIdsList, texts, lexemes, userNotes, mediaItems, layerLinks] = await Promise.all([
+      // P1-3: Runtime invalidation detection
+      if (sets.length > 0) {
+        const [layerUnitIdsList, texts, lexemes, userNotes, mediaItems, layerLinks] =
+          await Promise.all([
             LayerSegmentQueryService.listAllLayerUnitIds().catch(() => [] as string[]),
-            db.collections.texts.find().exec().catch(() => []),
-            db.collections.lexemes.find().exec().catch(() => []),
-            db.collections.user_notes.find().exec().catch(() => []),
-            db.collections.media_items.find().exec().catch(() => []),
-            db.collections.layer_links.find().exec().catch(() => []),
+            db.collections.texts
+              .find()
+              .exec()
+              .catch(() => []),
+            db.collections.lexemes
+              .find()
+              .exec()
+              .catch(() => []),
+            db.collections.user_notes
+              .find()
+              .exec()
+              .catch(() => []),
+            db.collections.media_items
+              .find()
+              .exec()
+              .catch(() => []),
+            db.collections.layer_links
+              .find()
+              .exec()
+              .catch(() => []),
           ]);
-          const layerUnitIds = new Set(layerUnitIdsList);
-          const textIds = new Set(texts.map((t) => t.id));
-          const lexemeIds = new Set(lexemes.map((l) => l.id));
-          const noteIds = new Set(userNotes.map((n) => n.id));
-          const mediaIds = new Set(mediaItems.map((m) => m.id));
-          const layerLinkIds = new Set(layerLinks.map((l) => l.id));
+        const layerUnitIds = new Set(layerUnitIdsList);
+        const textIds = new Set(texts.map((t) => t.id));
+        const lexemeIds = new Set(lexemes.map((l) => l.id));
+        const noteIds = new Set(userNotes.map((n) => n.id));
+        const mediaIds = new Set(mediaItems.map((m) => m.id));
+        const layerLinkIds = new Set(layerLinks.map((l) => l.id));
 
-          const { updated, invalidatedIds } = pruneInvalidatedSourceSets(
-            sets,
-            (id, type) => {
-              switch (type) {
-                case 'segment': return layerUnitIds.has(id);
-                case 'document': return textIds.has(id);
-                case 'lexeme': return lexemeIds.has(id);
-                case 'note': return noteIds.has(id);
-                case 'layer': return layerLinkIds.has(id);
-                case 'audio_region': return mediaIds.has(id);
-                default: return false;
-              }
-            },
-            (mediaId) => mediaIds.has(mediaId),
-            (layerId) => layerLinkIds.has(layerId),
-          );
+        const { updated, invalidatedIds } = pruneInvalidatedSourceSets(
+          sets,
+          (id, type) => {
+            switch (type) {
+              case 'segment':
+                return layerUnitIds.has(id);
+              case 'document':
+                return textIds.has(id);
+              case 'lexeme':
+                return lexemeIds.has(id);
+              case 'note':
+                return noteIds.has(id);
+              case 'layer':
+                return layerLinkIds.has(id);
+              case 'audio_region':
+                return mediaIds.has(id);
+              default:
+                return false;
+            }
+          },
+          (mediaId) => mediaIds.has(mediaId),
+          (layerId) => layerLinkIds.has(layerId),
+        );
 
-          if (invalidatedIds.length > 0) {
-            sets = updated;
-            await Promise.all(sets.map((set) => db.collections.ai_source_sets.update(set.id, set)));
-          }
+        if (invalidatedIds.length > 0) {
+          sets = updated;
+          await Promise.all(sets.map((set) => db.collections.ai_source_sets.update(set.id, set)));
         }
+      }
 
-        if (!cancelled) {
-          setSavedSourceSets(sets);
-        }
-      })
-      .catch((err) => { console.error('[AiChatCard] source set hydration/prune failed', err); });
-    return () => { cancelled = true; };
+      if (!cancelled) {
+        setSavedSourceSets(sets);
+      }
+    });
+    fireAndForget(promise, {
+      context: 'src/components/ai/AiChatCard.tsx:L208',
+      policy: 'user-visible',
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // P5: Persist source sets to Dexie (serialized via Promise queue to avoid races)
   const persistSourceSets = useCallback((sets: SavedCorpusSourceSet[]) => {
-    persistQueueRef.current = persistQueueRef.current
-      .then(async () => {
-        const db = await getDb();
-        const existing = await db.collections.ai_source_sets.find().exec();
-        const existingIds = new Set(existing.map((r) => r.id));
-        await Promise.all(sets.map((set) =>
+    persistQueueRef.current = persistQueueRef.current.then(async () => {
+      const db = await getDb();
+      const existing = await db.collections.ai_source_sets.find().exec();
+      const existingIds = new Set(existing.map((r) => r.id));
+      await Promise.all(
+        sets.map((set) =>
           existingIds.has(set.id)
             ? db.collections.ai_source_sets.update(set.id, set)
             : db.collections.ai_source_sets.insert(set),
-        ));
-      })
-      .catch((err) => { console.error('[AiChatCard] persistSourceSets failed', err); });
+        ),
+      );
+    });
+    fireAndForget(persistQueueRef.current, {
+      context: 'src/components/ai/AiChatCard.tsx:L224',
+      policy: 'user-visible',
+    });
   }, []);
 
   // P5: Source set management
@@ -238,46 +303,55 @@ export function AiChatCard({
     persistSourceSets(nextSets);
   }, [savedSourceSets, onSetActiveSourceSetId, persistSourceSets]);
 
-  const handleSelectSourceSet = useCallback((id: string) => {
-    const nextId = id || null;
-    setActiveSourceSetId(nextId);
-    onSetActiveSourceSetId?.(nextId);
-    if (id) {
-      const nextSets = switchActiveSourceSet(savedSourceSets, id);
-      setSavedSourceSets(nextSets);
-      persistSourceSets(nextSets);
-    }
-  }, [savedSourceSets, onSetActiveSourceSetId, persistSourceSets]);
+  const handleSelectSourceSet = useCallback(
+    (id: string) => {
+      const nextId = id || null;
+      setActiveSourceSetId(nextId);
+      onSetActiveSourceSetId?.(nextId);
+      if (id) {
+        const nextSets = switchActiveSourceSet(savedSourceSets, id);
+        setSavedSourceSets(nextSets);
+        persistSourceSets(nextSets);
+      }
+    },
+    [savedSourceSets, onSetActiveSourceSetId, persistSourceSets],
+  );
 
   // P5: Source set member management
-  const handleAddSourceSetMember = useCallback((setId: string, member: { id: string; type: SourceSetMemberType; label?: string }) => {
-    setSavedSourceSets((prev) => {
-      const next = prev.map((s) => {
-        if (s.id !== setId) return s;
-        const newMember = {
-          id: member.id,
-          type: member.type,
-          ...(member.label !== undefined ? { label: member.label } : {}),
-        };
-        const members = [...s.members, newMember];
-        return { ...s, members, updatedAt: new Date().toISOString() };
+  const handleAddSourceSetMember = useCallback(
+    (setId: string, member: { id: string; type: SourceSetMemberType; label?: string }) => {
+      setSavedSourceSets((prev) => {
+        const next = prev.map((s) => {
+          if (s.id !== setId) return s;
+          const newMember = {
+            id: member.id,
+            type: member.type,
+            ...(member.label !== undefined ? { label: member.label } : {}),
+          };
+          const members = [...s.members, newMember];
+          return { ...s, members, updatedAt: new Date().toISOString() };
+        });
+        persistSourceSets(next);
+        return next;
       });
-      persistSourceSets(next);
-      return next;
-    });
-  }, [persistSourceSets]);
+    },
+    [persistSourceSets],
+  );
 
-  const handleRemoveSourceSetMember = useCallback((setId: string, memberId: string) => {
-    setSavedSourceSets((prev) => {
-      const next = prev.map((s) => {
-        if (s.id !== setId) return s;
-        const members = s.members.filter((m) => m.id !== memberId);
-        return { ...s, members, updatedAt: new Date().toISOString() };
+  const handleRemoveSourceSetMember = useCallback(
+    (setId: string, memberId: string) => {
+      setSavedSourceSets((prev) => {
+        const next = prev.map((s) => {
+          if (s.id !== setId) return s;
+          const members = s.members.filter((m) => m.id !== memberId);
+          return { ...s, members, updatedAt: new Date().toISOString() };
+        });
+        persistSourceSets(next);
+        return next;
       });
-      persistSourceSets(next);
-      return next;
-    });
-  }, [persistSourceSets]);
+    },
+    [persistSourceSets],
+  );
 
   const showProviderConfig = providerConfigOpen ?? localShowProviderConfig;
   const toggleProviderConfig = useCallback(() => {
@@ -288,8 +362,10 @@ export function AiChatCard({
     }
     setLocalShowProviderConfig(next);
   }, [onProviderConfigOpenChange, showProviderConfig]);
-  const sessionAdaptiveInputProfile = aiSessionMemory?.preferences?.adaptiveInputProfile ?? aiSessionMemory?.adaptiveInputProfile;
-  const sessionLastToolName = aiSessionMemory?.preferences?.lastToolName ?? aiSessionMemory?.lastToolName;
+  const sessionAdaptiveInputProfile =
+    aiSessionMemory?.preferences?.adaptiveInputProfile ?? aiSessionMemory?.adaptiveInputProfile;
+  const sessionLastToolName =
+    aiSessionMemory?.preferences?.lastToolName ?? aiSessionMemory?.lastToolName;
 
   const activeProviderDefinition = aiChatSettings
     ? getAiChatProviderDefinition(aiChatSettings.providerKind)
@@ -303,36 +379,42 @@ export function AiChatCard({
   );
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const hasApiKeyField = activeProviderDefinition.fields.some((field) => field.key === 'apiKey');
-  const activeDirectiveRows = useMemo(() => (
-    (aiSessionMemory?.directiveLedger ?? [])
-      .filter((entry) => entry.action === 'accepted')
-      .slice(-6)
-      .map((entry) => ({
-        id: entry.id,
-        text: entry.text,
-        category: entry.category,
-        source: entry.source,
-        ...(entry.sourceMessageId !== undefined ? { sourceMessageId: entry.sourceMessageId } : {}),
-      }))
-  ), [aiSessionMemory?.directiveLedger]);
-  const filteredDirectiveRows = useMemo(() => (
-    directiveSourceFilter === 'all'
-      ? activeDirectiveRows
-      : activeDirectiveRows.filter((item) => item.source === directiveSourceFilter)
-  ), [activeDirectiveRows, directiveSourceFilter]);
+  const activeDirectiveRows = useMemo(
+    () =>
+      (aiSessionMemory?.directiveLedger ?? [])
+        .filter((entry) => entry.action === 'accepted')
+        .slice(-6)
+        .map((entry) => ({
+          id: entry.id,
+          text: entry.text,
+          category: entry.category,
+          source: entry.source,
+          ...(entry.sourceMessageId !== undefined
+            ? { sourceMessageId: entry.sourceMessageId }
+            : {}),
+        })),
+    [aiSessionMemory?.directiveLedger],
+  );
+  const filteredDirectiveRows = useMemo(
+    () =>
+      directiveSourceFilter === 'all'
+        ? activeDirectiveRows
+        : activeDirectiveRows.filter((item) => item.source === directiveSourceFilter),
+    [activeDirectiveRows, directiveSourceFilter],
+  );
 
   const promptVars = useMemo<Record<string, string>>(() => {
-    const selectedText = selectedUnit?.text?.trim()
-      ?? '';
+    const selectedText = selectedUnit?.text?.trim() ?? '';
     const currentUnit = selectedUnit
       ? `id=${selectedUnit.id}; text=${selectedText}; time=${selectedUnit.startTime}-${selectedUnit.endTime}`
       : '';
-    const lexiconSummary = lexemeMatches.length === 0
-      ? ''
-      : lexemeMatches
-        .slice(0, 5)
-        .map((item) => Object.values(item.lemma)[0] ?? item.id)
-        .join(', ');
+    const lexiconSummary =
+      lexemeMatches.length === 0
+        ? ''
+        : lexemeMatches
+            .slice(0, 5)
+            .map((item) => Object.values(item.lemma)[0] ?? item.id)
+            .join(', ');
 
     return {
       selected_text: String(selectedText ?? ''),
@@ -344,10 +426,11 @@ export function AiChatCard({
   }, [lexemeMatches, observerStage, selectedRowMeta, selectedUnit]);
 
   const adaptiveInputProfile = useMemo(
-    () => mergeAdaptiveProfiles(
-      deriveAdaptiveProfileFromMessages(aiMessages ?? []),
-      sessionAdaptiveInputProfile,
-    ),
+    () =>
+      mergeAdaptiveProfiles(
+        deriveAdaptiveProfileFromMessages(aiMessages ?? []),
+        sessionAdaptiveInputProfile,
+      ),
     [aiMessages, sessionAdaptiveInputProfile],
   );
 
@@ -390,10 +473,11 @@ export function AiChatCard({
     handleCancelWebllmWarmup,
   } = useAiChatWebllmWarmup({ aiChatSettings, cardMessages, showProviderConfig });
 
-  const showAgentLoopProgress = aiTaskSession?.status === 'executing'
-    && typeof aiTaskSession.step === 'number'
-    && typeof aiTaskSession.maxSteps === 'number'
-    && aiTaskSession.maxSteps > 0;
+  const showAgentLoopProgress =
+    aiTaskSession?.status === 'executing' &&
+    typeof aiTaskSession.step === 'number' &&
+    typeof aiTaskSession.maxSteps === 'number' &&
+    aiTaskSession.maxSteps > 0;
 
   const providerStatusTone = useMemo(() => {
     const kind = aiChatSettings?.providerKind ?? 'mock';
@@ -405,51 +489,64 @@ export function AiChatCard({
 
   const isTestingConnection = testConnectionPending || aiConnectionTestStatus === 'testing';
 
-  const inputPlaceholder = useMemo(() => cardMessages.recommendedInputPlaceholder({
-    fallback: t(locale, 'ai.chat.inputPlaceholder'),
-    page: currentPage,
-    observerStage,
-    aiCurrentTask: aiPanelContext?.aiCurrentTask,
-    rowNumber: selectedRowMeta?.rowNumber ?? null,
-    selectedText: selectedText ?? '',
-    annotationStatus: selectedUnit?.annotationStatus ?? null,
-    confidence: selectedUnit?.ai_metadata?.confidence ?? null,
-    lexemeCount: lexemeMatches.length,
-    lastToolName: aiTaskSession?.toolName ?? sessionLastToolName ?? null,
-    preferredMode: profile.preferences.preferredMode,
-    confirmationThreshold: profile.preferences.confirmationThreshold,
-    selectedUnitKind: selectedUnitKind ?? null,
-    ...(adaptiveInputProfile?.dominantIntent !== undefined ? { adaptiveIntent: adaptiveInputProfile.dominantIntent } : {}),
-    ...(adaptiveInputProfile?.preferredResponseStyle !== undefined ? { adaptiveResponseStyle: adaptiveInputProfile.preferredResponseStyle } : {}),
-    ...(adaptiveInputProfile?.topKeywords !== undefined ? { adaptiveKeywords: adaptiveInputProfile.topKeywords } : {}),
-    ...(adaptiveInputProfile?.lastPromptExcerpt !== undefined ? { adaptiveLastPromptExcerpt: adaptiveInputProfile.lastPromptExcerpt } : {}),
-    ...(selectedLayerType !== undefined ? { selectedLayerType } : {}),
-    ...(selectedTimeRangeLabel !== undefined ? { selectedTimeRangeLabel } : {}),
-  }), [
-    adaptiveInputProfile?.dominantIntent,
-    adaptiveInputProfile?.lastPromptExcerpt,
-    adaptiveInputProfile?.preferredResponseStyle,
-    adaptiveInputProfile?.topKeywords,
-    aiPanelContext?.aiCurrentTask,
-    aiTaskSession?.toolName,
-    sessionLastToolName,
-    cardMessages,
-    currentPage,
-    lexemeMatches.length,
-    locale,
-    observerStage,
-    profile.preferences.confirmationThreshold,
-    profile.preferences.preferredMode,
-    selectedLayerType,
-    selectedRowMeta?.rowNumber,
-    selectedText,
-    selectedTimeRangeLabel,
-    selectedUnitKind,
-    selectedUnit,
-  ]);
+  const inputPlaceholder = useMemo(
+    () =>
+      cardMessages.recommendedInputPlaceholder({
+        fallback: t(locale, 'ai.chat.inputPlaceholder'),
+        page: currentPage,
+        observerStage,
+        aiCurrentTask: aiPanelContext?.aiCurrentTask,
+        rowNumber: selectedRowMeta?.rowNumber ?? null,
+        selectedText: selectedText ?? '',
+        annotationStatus: selectedUnit?.annotationStatus ?? null,
+        confidence: selectedUnit?.ai_metadata?.confidence ?? null,
+        lexemeCount: lexemeMatches.length,
+        lastToolName: aiTaskSession?.toolName ?? sessionLastToolName ?? null,
+        preferredMode: profile.preferences.preferredMode,
+        confirmationThreshold: profile.preferences.confirmationThreshold,
+        selectedUnitKind: selectedUnitKind ?? null,
+        ...(adaptiveInputProfile?.dominantIntent !== undefined
+          ? { adaptiveIntent: adaptiveInputProfile.dominantIntent }
+          : {}),
+        ...(adaptiveInputProfile?.preferredResponseStyle !== undefined
+          ? { adaptiveResponseStyle: adaptiveInputProfile.preferredResponseStyle }
+          : {}),
+        ...(adaptiveInputProfile?.topKeywords !== undefined
+          ? { adaptiveKeywords: adaptiveInputProfile.topKeywords }
+          : {}),
+        ...(adaptiveInputProfile?.lastPromptExcerpt !== undefined
+          ? { adaptiveLastPromptExcerpt: adaptiveInputProfile.lastPromptExcerpt }
+          : {}),
+        ...(selectedLayerType !== undefined ? { selectedLayerType } : {}),
+        ...(selectedTimeRangeLabel !== undefined ? { selectedTimeRangeLabel } : {}),
+      }),
+    [
+      adaptiveInputProfile?.dominantIntent,
+      adaptiveInputProfile?.lastPromptExcerpt,
+      adaptiveInputProfile?.preferredResponseStyle,
+      adaptiveInputProfile?.topKeywords,
+      aiPanelContext?.aiCurrentTask,
+      aiTaskSession?.toolName,
+      sessionLastToolName,
+      cardMessages,
+      currentPage,
+      lexemeMatches.length,
+      locale,
+      observerStage,
+      profile.preferences.confirmationThreshold,
+      profile.preferences.preferredMode,
+      selectedLayerType,
+      selectedRowMeta?.rowNumber,
+      selectedText,
+      selectedTimeRangeLabel,
+      selectedUnitKind,
+      selectedUnit,
+    ],
+  );
 
   const rankedClarifyCandidates = useMemo(
-    () => rankCandidateLabelsByAdaptiveProfile(aiTaskSession?.candidates ?? [], adaptiveInputProfile),
+    () =>
+      rankCandidateLabelsByAdaptiveProfile(aiTaskSession?.candidates ?? [], adaptiveInputProfile),
     [adaptiveInputProfile, aiTaskSession?.candidates],
   );
 
@@ -462,11 +559,15 @@ export function AiChatCard({
     return null;
   }, [aiMessages]);
 
-  const followUpSuggestions = useMemo(() => buildFollowUpSuggestions({
-    isZh,
-    latestAssistantMessage,
-    lastFrame: aiSessionMemory?.localToolState?.lastFrame,
-  }), [aiSessionMemory?.localToolState?.lastFrame, isZh, latestAssistantMessage]);
+  const followUpSuggestions = useMemo(
+    () =>
+      buildFollowUpSuggestions({
+        isZh,
+        latestAssistantMessage,
+        lastFrame: aiSessionMemory?.localToolState?.lastFrame,
+      }),
+    [aiSessionMemory?.localToolState?.lastFrame, isZh, latestAssistantMessage],
+  );
 
   const recentTaskTrace = useMemo(
     () => [...(aiTaskSession?.trace ?? [])].slice(-3).reverse(),
@@ -495,20 +596,29 @@ export function AiChatCard({
     selectedUnitKind: selectedUnitKind ?? null,
     selectedLayerType: selectedLayerType ?? null,
     selectedTimeRangeLabel: selectedTimeRangeLabel ?? null,
-    ...(adaptiveInputProfile?.dominantIntent !== undefined ? { adaptiveIntent: adaptiveInputProfile.dominantIntent } : {}),
-    ...(adaptiveInputProfile?.preferredResponseStyle !== undefined ? { adaptiveResponseStyle: adaptiveInputProfile.preferredResponseStyle } : {}),
-    ...(adaptiveInputProfile?.topKeywords !== undefined ? { adaptiveKeywords: adaptiveInputProfile.topKeywords } : {}),
-    ...(adaptiveInputProfile?.lastPromptExcerpt !== undefined ? { adaptiveLastPromptExcerpt: adaptiveInputProfile.lastPromptExcerpt } : {}),
+    ...(adaptiveInputProfile?.dominantIntent !== undefined
+      ? { adaptiveIntent: adaptiveInputProfile.dominantIntent }
+      : {}),
+    ...(adaptiveInputProfile?.preferredResponseStyle !== undefined
+      ? { adaptiveResponseStyle: adaptiveInputProfile.preferredResponseStyle }
+      : {}),
+    ...(adaptiveInputProfile?.topKeywords !== undefined
+      ? { adaptiveKeywords: adaptiveInputProfile.topKeywords }
+      : {}),
+    ...(adaptiveInputProfile?.lastPromptExcerpt !== undefined
+      ? { adaptiveLastPromptExcerpt: adaptiveInputProfile.lastPromptExcerpt }
+      : {}),
   });
   const topHybridRecommendation = hybridRecommendations.items[0];
   const hybridInputSuggestion = topHybridRecommendation?.prompt ?? inputPlaceholder;
   const hybridInputSignature = topHybridRecommendation
     ? `${hybridRecommendations.source}:${topHybridRecommendation.prompt}`
     : `fallback:${inputPlaceholder}`;
-  const showInlineRecommendation = chatInput.length === 0
-    && !aiIsStreaming
-    && hybridInputSuggestion.trim().length > 0
-    && dismissedRecommendationSignature !== hybridInputSignature;
+  const showInlineRecommendation =
+    chatInput.length === 0 &&
+    !aiIsStreaming &&
+    hybridInputSuggestion.trim().length > 0 &&
+    dismissedRecommendationSignature !== hybridInputSignature;
   const composerPlaceholder = showInlineRecommendation ? '' : inputPlaceholder;
 
   useAiChatRecommendationController({
@@ -523,8 +633,11 @@ export function AiChatCard({
     onTrackAiRecommendationEvent,
   });
 
-  const chatTitle = useMemo(() => t(locale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, ''), [locale]);
-  const messages = aiMessages ?? [];
+  const chatTitle = useMemo(
+    () => t(locale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, ''),
+    [locale],
+  );
+  const messages = useMemo(() => aiMessages ?? [], [aiMessages]);
 
   // PR-P4-3: Derive adoption items from vertical workflow audit entries（证据占位与助手 citations / envelope 对齐）
   useEffect(() => {
@@ -549,13 +662,14 @@ export function AiChatCard({
       if (pendingIdx >= 0) {
         const cur = prev[pendingIdx]!;
         if (
-          evidencePacketIds.length > cur.evidencePacketIds.length
-          || (assistantMsg?.content !== undefined && assistantMsg.content !== cur.rawContent)
+          evidencePacketIds.length > cur.evidencePacketIds.length ||
+          (assistantMsg?.content !== undefined && assistantMsg.content !== cur.rawContent)
         ) {
           const next = [...prev];
           next[pendingIdx] = {
             ...cur,
-            evidencePacketIds: evidencePacketIds.length > 0 ? evidencePacketIds : cur.evidencePacketIds,
+            evidencePacketIds:
+              evidencePacketIds.length > 0 ? evidencePacketIds : cur.evidencePacketIds,
             ...(assistantMsg?.content !== undefined ? { rawContent: assistantMsg.content } : {}),
           };
           return next;
@@ -602,7 +716,11 @@ export function AiChatCard({
       if (prev.length === 0) return prev;
       const pruned = pruneExpiredItems({ items: prev }, Date.now(), undefined, (expiredItems) => {
         for (const item of expiredItems) {
-          scheduleAdoptionOutcomeAuditLog({ conversationId: aiConversationId, item, action: 'expire' });
+          scheduleAdoptionOutcomeAuditLog({
+            conversationId: aiConversationId,
+            item,
+            action: 'expire',
+          });
         }
       });
       return pruned.items;
@@ -675,73 +793,85 @@ export function AiChatCard({
     onJumpToCitation,
   });
 
-  const handleAdoptionQueueItemAction = useCallback((itemId: string, action: AdoptionAction, options?: { reasonCode?: string }) => {
-    if (action === 'accept') {
-      const item = adoptionItems.find((i) => i.id === itemId);
-      if (!item || !canAcceptAdoptionItem(item)) return;
-      const applyAccept = () => {
-        setAdoptionItems((prev) => {
-          const row = prev.find((i) => i.id === itemId);
-          if (!row) return prev;
-          scheduleAdoptionOutcomeAuditLog({ conversationId: aiConversationId, item: row, action: 'accept' });
-          try {
-            return prev.map((r) => (r.id === itemId ? transitionAdoptionItem(r, 'accept', options) : r));
-          } catch {
-            return prev;
-          }
-        });
-      };
-      if (onSendAiMessage && aiIsStreaming) {
-        const head = t(locale, 'msg.aiChat.adoptionQueue.proposeChangesHead');
-        const prompt = buildAdoptionAcceptProposeChangesUserPrompt(item, head);
-        pendingPostStreamAdoptionPromptsRef.current.push(prompt);
-        flushSync(applyAccept);
+  const handleAdoptionQueueItemAction = useCallback(
+    (itemId: string, action: AdoptionAction, options?: { reasonCode?: string }) => {
+      if (action === 'accept') {
+        const item = adoptionItems.find((i) => i.id === itemId);
+        if (!item || !canAcceptAdoptionItem(item)) return;
+        const applyAccept = () => {
+          setAdoptionItems((prev) => {
+            const row = prev.find((i) => i.id === itemId);
+            if (!row) return prev;
+            scheduleAdoptionOutcomeAuditLog({
+              conversationId: aiConversationId,
+              item: row,
+              action: 'accept',
+            });
+            try {
+              return prev.map((r) =>
+                r.id === itemId ? transitionAdoptionItem(r, 'accept', options) : r,
+              );
+            } catch {
+              return prev;
+            }
+          });
+        };
+        if (onSendAiMessage && aiIsStreaming) {
+          const head = t(locale, 'msg.aiChat.adoptionQueue.proposeChangesHead');
+          const prompt = buildAdoptionAcceptProposeChangesUserPrompt(item, head);
+          pendingPostStreamAdoptionPromptsRef.current.push(prompt);
+          flushSync(applyAccept);
+          return;
+        }
+        if (onSendAiMessage && !aiIsStreaming) {
+          const head = t(locale, 'msg.aiChat.adoptionQueue.proposeChangesHead');
+          const prompt = buildAdoptionAcceptProposeChangesUserPrompt(item, head);
+          flushSync(applyAccept);
+          void onSendAiMessage(prompt);
+        } else {
+          applyAccept();
+        }
         return;
       }
-      if (onSendAiMessage && !aiIsStreaming) {
-        const head = t(locale, 'msg.aiChat.adoptionQueue.proposeChangesHead');
-        const prompt = buildAdoptionAcceptProposeChangesUserPrompt(item, head);
-        flushSync(applyAccept);
-        void onSendAiMessage(prompt);
-      } else {
-        applyAccept();
-      }
-      return;
-    }
 
-    setAdoptionItems((prev) => {
-      const item = prev.find((i) => i.id === itemId);
-      if (!item) return prev;
-      if (action !== 'jump_to_evidence') {
-        scheduleAdoptionOutcomeAuditLog({ conversationId: aiConversationId, item, action });
-      }
-      try {
-        return prev.map((row) => {
-          if (row.id !== itemId) return row;
-          return transitionAdoptionItem(row, action, options);
-        });
-      } catch {
-        return prev;
-      }
-    });
-  }, [adoptionItems, aiConversationId, aiIsStreaming, locale, onSendAiMessage]);
+      setAdoptionItems((prev) => {
+        const item = prev.find((i) => i.id === itemId);
+        if (!item) return prev;
+        if (action !== 'jump_to_evidence') {
+          scheduleAdoptionOutcomeAuditLog({ conversationId: aiConversationId, item, action });
+        }
+        try {
+          return prev.map((row) => {
+            if (row.id !== itemId) return row;
+            return transitionAdoptionItem(row, action, options);
+          });
+        } catch {
+          return prev;
+        }
+      });
+    },
+    [adoptionItems, aiConversationId, aiIsStreaming, locale, onSendAiMessage],
+  );
 
-  const handleJumpAdoptionEvidence = useCallback((packetIds: string[]) => {
-    const first = packetIds[0];
-    if (!first) return;
-    const matched = /^vertical_evidence:([^:]+):(\d+)$/.exec(first);
-    if (!matched) return;
-    const messageId = matched[1];
-    const index = Number.parseInt(matched[2] ?? '0', 10);
-    const msg = messages.find((x) => x.id === messageId && x.role === 'assistant');
-    const citations = msg?.citations ?? [];
-    const citation = citations[index] ?? citations[0];
-    if (!citation) return;
-    activateCitation(
-      { type: citation.type, refId: citation.refId },
-      citation.snippet !== undefined ? { snippet: citation.snippet } : undefined,
-    );
-  }, [messages, activateCitation]);
+  const handleJumpAdoptionEvidence = useCallback(
+    (packetIds: string[]) => {
+      const first = packetIds[0];
+      if (!first) return;
+      const matched = /^vertical_evidence:([^:]+):(\d+)$/.exec(first);
+      if (!matched) return;
+      const messageId = matched[1];
+      const index = Number.parseInt(matched[2] ?? '0', 10);
+      const msg = messages.find((x) => x.id === messageId && x.role === 'assistant');
+      const citations = msg?.citations ?? [];
+      const citation = citations[index] ?? citations[0];
+      if (!citation) return;
+      activateCitation(
+        { type: citation.type, refId: citation.refId },
+        citation.snippet !== undefined ? { snippet: citation.snippet } : undefined,
+      );
+    },
+    [messages, activateCitation],
+  );
 
   const {
     pinnedMessageIdsSignature,
@@ -758,7 +888,10 @@ export function AiChatCard({
   });
   const summaryQualityWarning = aiSessionMemory?.summaryQualityWarning ?? null;
   const turns = useMemo(() => {
-    const newestTurns: Array<{ assistant?: typeof messages[number]; user?: typeof messages[number] }> = [];
+    const newestTurns: Array<{
+      assistant?: (typeof messages)[number];
+      user?: (typeof messages)[number];
+    }> = [];
     let index = 0;
     while (index < messages.length) {
       const current = messages[index];
@@ -798,18 +931,20 @@ export function AiChatCard({
   const hasToolPending = !!aiPendingToolCall;
   const hasAgentLoopHandoffPending = Boolean(aiSessionMemory?.pendingAgentLoopCheckpoint);
   const hasDecisionLogs = (aiToolDecisionLogs ?? []).length > 0;
-  const alertCount = (hasToolPending || hasAgentLoopHandoffPending || hasVoiceDialogueBlocking) ? 1 : 0;
-  const { errorWarningText, persistLayerRecoveryActions, inputBlockedReason } = useAiChatComposerGuardState({
-    aiLastError,
-    cardMessages,
-    aiMessages,
-    aiIsStreaming,
-    onSendAiMessage,
-    activeProviderLabel: activeProviderDefinition.label,
-    aiConversationId,
-    hasToolPending,
-    hasVoiceDialogueBlocking,
-  });
+  const alertCount =
+    hasToolPending || hasAgentLoopHandoffPending || hasVoiceDialogueBlocking ? 1 : 0;
+  const { errorWarningText, persistLayerRecoveryActions, inputBlockedReason } =
+    useAiChatComposerGuardState({
+      aiLastError,
+      cardMessages,
+      aiMessages,
+      aiIsStreaming,
+      onSendAiMessage,
+      activeProviderLabel: activeProviderDefinition.label,
+      aiConversationId,
+      hasToolPending,
+      hasVoiceDialogueBlocking,
+    });
   const { showAlertBar, setShowAlertBar } = useAiChatAlertBarState(alertCount);
   const [showDecisionPanel, setShowDecisionPanel] = useState(false);
   const [showReplayDetailPanel, setShowReplayDetailPanel] = useState(false);
@@ -828,19 +963,28 @@ export function AiChatCard({
     aiVerticalWorkflowAuditEntries,
     cardMessages,
   });
-  const isLatestVerticalReplayLoading = latestVerticalWorkflowRequestId !== null
-    && replayLoadingRequestId === latestVerticalWorkflowRequestId;
-  const isLatestVerticalReplaySelected = latestVerticalWorkflowRequestId !== null
-    && selectedReplayBundle?.requestId === latestVerticalWorkflowRequestId;
-  const [copiedVerticalWorkflowRequestId, setCopiedVerticalWorkflowRequestId] = useState<string | null>(null);
-  const [decisionReplayFocusRequestId, setDecisionReplayFocusRequestId] = useState<string | null>(null);
-  const [decisionReplayLocatedRequestId, setDecisionReplayLocatedRequestId] = useState<string | null>(null);
+  const isLatestVerticalReplayLoading =
+    latestVerticalWorkflowRequestId !== null &&
+    replayLoadingRequestId === latestVerticalWorkflowRequestId;
+  const isLatestVerticalReplaySelected =
+    latestVerticalWorkflowRequestId !== null &&
+    selectedReplayBundle?.requestId === latestVerticalWorkflowRequestId;
+  const [copiedVerticalWorkflowRequestId, setCopiedVerticalWorkflowRequestId] = useState<
+    string | null
+  >(null);
+  const [decisionReplayFocusRequestId, setDecisionReplayFocusRequestId] = useState<string | null>(
+    null,
+  );
+  const [decisionReplayLocatedRequestId, setDecisionReplayLocatedRequestId] = useState<
+    string | null
+  >(null);
   const copiedVerticalRequestTimerRef = useRef<number | null>(null);
   const exportedSnapshotTimerRef = useRef<number | null>(null);
   const decisionPanelBodyRef = useRef<HTMLDivElement | null>(null);
   const decisionPanelToggleButtonRef = useRef<HTMLButtonElement | null>(null);
   const decisionItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const { transientBlockedReason, showTransientBlockedReason } = useAiChatTransientBlockedHint(aiIsStreaming);
+  const { transientBlockedReason, showTransientBlockedReason } =
+    useAiChatTransientBlockedHint(aiIsStreaming);
   const canUseVoiceEntry = Boolean(voiceEntry?.enabled);
   const {
     isVoiceDrawerResizing,
@@ -884,7 +1028,8 @@ export function AiChatCard({
   }, [selectedReplayBundle?.requestId]);
 
   useEffect(() => {
-    if (!showDecisionPanel || !decisionReplayFocusRequestId || typeof window === 'undefined') return;
+    if (!showDecisionPanel || !decisionReplayFocusRequestId || typeof window === 'undefined')
+      return;
     const target = decisionItemRefs.current[decisionReplayFocusRequestId];
     if (!target) return;
     window.requestAnimationFrame(() => {
@@ -898,12 +1043,14 @@ export function AiChatCard({
   }, [showDecisionPanel, decisionReplayFocusRequestId, aiToolDecisionLogs]);
 
   useEffect(() => {
+    const copiedVerticalRequestTimer = copiedVerticalRequestTimerRef.current;
+    const exportedSnapshotTimer = exportedSnapshotTimerRef.current;
     return () => {
-      if (copiedVerticalRequestTimerRef.current !== null && typeof window !== 'undefined') {
-        window.clearTimeout(copiedVerticalRequestTimerRef.current);
+      if (copiedVerticalRequestTimer !== null && typeof window !== 'undefined') {
+        window.clearTimeout(copiedVerticalRequestTimer);
       }
-      if (exportedSnapshotTimerRef.current !== null && typeof window !== 'undefined') {
-        window.clearTimeout(exportedSnapshotTimerRef.current);
+      if (exportedSnapshotTimer !== null && typeof window !== 'undefined') {
+        window.clearTimeout(exportedSnapshotTimer);
       }
     };
   }, []);
@@ -934,21 +1081,35 @@ export function AiChatCard({
     setCompareSnapshot,
   });
 
-  const { submitChatInput, submitFollowUpPrompt, handleComposerKeyDown } = useAiChatComposerActions({
-    chatInput, setChatInput, chatInputRef, onSendAiMessage, aiIsStreaming, sharedDialogueComposerBlocked,
-    inputBlockedReason, cardMessages, showTransientBlockedReason, setShowAlertBar,
-    exposedRecommendationRef, onTrackAiRecommendationEvent, setDismissedRecommendationSignature, topHybridRecommendation,
-    showInlineRecommendation, hybridInputSignature,
-  });
+  const { submitChatInput, submitFollowUpPrompt, handleComposerKeyDown } = useAiChatComposerActions(
+    {
+      chatInput,
+      setChatInput,
+      chatInputRef,
+      onSendAiMessage,
+      aiIsStreaming,
+      sharedDialogueComposerBlocked,
+      inputBlockedReason,
+      cardMessages,
+      showTransientBlockedReason,
+      setShowAlertBar,
+      exposedRecommendationRef,
+      onTrackAiRecommendationEvent,
+      setDismissedRecommendationSignature,
+      topHybridRecommendation,
+      showInlineRecommendation,
+      hybridInputSignature,
+    },
+  );
 
-  const updateCostGuardSetting = useCallback((
-    key: 'sessionTokenBudget' | 'outputTokenCap' | 'outputTokenRetryCap',
-    rawValue: string,
-  ) => {
-    const parsed = Number(rawValue);
-    if (!Number.isFinite(parsed)) return;
-    onUpdateAiChatSettings?.({ [key]: Math.floor(parsed) } as Partial<AiChatSettings>);
-  }, [onUpdateAiChatSettings]);
+  const updateCostGuardSetting = useCallback(
+    (key: 'sessionTokenBudget' | 'outputTokenCap' | 'outputTokenRetryCap', rawValue: string) => {
+      const parsed = Number(rawValue);
+      if (!Number.isFinite(parsed)) return;
+      onUpdateAiChatSettings?.({ [key]: Math.floor(parsed) } as Partial<AiChatSettings>);
+    },
+    [onUpdateAiChatSettings],
+  );
 
   return (
     <div className={`transcription-ai-card ${embedded ? 'transcription-ai-card-embedded' : ''}`}>
@@ -1013,8 +1174,12 @@ export function AiChatCard({
             latestVerticalWorkflowSummary={latestVerticalWorkflowSummary}
             latestVerticalWorkflowEntry={latestVerticalWorkflowEntry}
             latestVerticalWorkflowSelectionSummary={latestVerticalWorkflowSelectionSummary}
-            latestVerticalWorkflowSelectionKeywordSummary={latestVerticalWorkflowSelectionKeywordSummary}
-            latestVerticalWorkflowSelectionConfidenceSummary={latestVerticalWorkflowSelectionConfidenceSummary}
+            latestVerticalWorkflowSelectionKeywordSummary={
+              latestVerticalWorkflowSelectionKeywordSummary
+            }
+            latestVerticalWorkflowSelectionConfidenceSummary={
+              latestVerticalWorkflowSelectionConfidenceSummary
+            }
             latestVerticalWorkflowRequestId={latestVerticalWorkflowRequestId}
             showVerticalWorkflowDetail={showVerticalWorkflowDetail}
             setShowVerticalWorkflowDetail={setShowVerticalWorkflowDetail}
@@ -1166,7 +1331,6 @@ export function AiChatCard({
               onTogglePanel={() => setShowDecisionPanel((prev) => !prev)}
             />
           </div>
-
         </>
       )}
     </div>

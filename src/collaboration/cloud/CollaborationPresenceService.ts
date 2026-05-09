@@ -29,8 +29,16 @@ export interface CollaborationPresenceLiveMember {
 
 function asProjectEntityType(value: unknown): ProjectEntityType | null {
   const candidate = asString(value);
-  if (!candidate) return null;
-  const allowed: ProjectEntityType[] = ['text', 'layer', 'layer_unit', 'layer_unit_content', 'unit_relation', 'asset', 'comment'];
+  if (candidate === null || candidate.length === 0) return null;
+  const allowed: ProjectEntityType[] = [
+    'text',
+    'layer',
+    'layer_unit',
+    'layer_unit_content',
+    'unit_relation',
+    'asset',
+    'comment',
+  ];
   return allowed.includes(candidate as ProjectEntityType) ? (candidate as ProjectEntityType) : null;
 }
 
@@ -38,12 +46,15 @@ function asPresenceState(value: unknown): 'online' | 'idle' | 'offline' {
   return value === 'idle' || value === 'offline' ? value : 'online';
 }
 
-function parseLiveMember(rawMember: unknown, fallbackUserId: string): CollaborationPresenceLiveMember | null {
+function parseLiveMember(
+  rawMember: unknown,
+  fallbackUserId: string,
+): CollaborationPresenceLiveMember | null {
   const source = asRecord(rawMember);
-  if (!source) return null;
+  if (source === null) return null;
 
   const userId = asString(source.userId) ?? fallbackUserId;
-  if (!userId) return null;
+  if (userId.length === 0) return null;
   const displayName = asString(source.displayName);
   const focusedEntityType = asProjectEntityType(source.focusedEntityType);
   const focusedEntityId = asString(source.focusedEntityId);
@@ -52,31 +63,36 @@ function parseLiveMember(rawMember: unknown, fallbackUserId: string): Collaborat
 
   return {
     userId,
-    ...(displayName ? { displayName } : {}),
+    ...(displayName !== null && displayName.length > 0 ? { displayName } : {}),
     state: asPresenceState(source.state),
-    ...(focusedEntityType ? { focusedEntityType } : {}),
-    ...(focusedEntityId ? { focusedEntityId } : {}),
-    ...(cursorPayload ? { cursorPayload } : {}),
-    ...(lastSeenAt ? { lastSeenAt } : {}),
+    ...(focusedEntityType !== null ? { focusedEntityType } : {}),
+    ...(focusedEntityId !== null && focusedEntityId.length > 0 ? { focusedEntityId } : {}),
+    ...(cursorPayload !== null ? { cursorPayload } : {}),
+    ...(lastSeenAt !== null && lastSeenAt.length > 0 ? { lastSeenAt } : {}),
   };
 }
 
 function toTimestamp(value?: string): number {
-  if (!value) return 0;
+  if (value === undefined || value.length === 0) return 0;
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
-function parsePresenceStateSnapshot(stateSnapshot: Record<string, unknown>): CollaborationPresenceLiveMember[] {
+function parsePresenceStateSnapshot(
+  stateSnapshot: Record<string, unknown>,
+): CollaborationPresenceLiveMember[] {
   const memberByUserId = new Map<string, CollaborationPresenceLiveMember>();
 
   for (const [presenceKey, rawEntries] of Object.entries(stateSnapshot)) {
     if (!Array.isArray(rawEntries)) continue;
     for (const rawEntry of rawEntries) {
       const member = parseLiveMember(rawEntry, presenceKey);
-      if (!member) continue;
+      if (member === null) continue;
       const existing = memberByUserId.get(member.userId);
-      if (!existing || toTimestamp(member.lastSeenAt) >= toTimestamp(existing.lastSeenAt)) {
+      if (
+        existing === undefined ||
+        toTimestamp(member.lastSeenAt) >= toTimestamp(existing.lastSeenAt)
+      ) {
         memberByUserId.set(member.userId, member);
       }
     }
@@ -118,7 +134,9 @@ function toPresenceUpsertRow(record: CollaborationPresenceRecord): {
 /**
  * Persist presence row to `project_presence` (Supabase).
  */
-export async function upsertCollaborationPresenceRecord(record: CollaborationPresenceRecord): Promise<void> {
+export async function upsertCollaborationPresenceRecord(
+  record: CollaborationPresenceRecord,
+): Promise<void> {
   const client = getSupabaseBrowserClient();
   const { error } = await client
     .from('project_presence')
@@ -137,7 +155,7 @@ export class CollaborationPresenceService {
   }
 
   private refreshMembersFromChannel(): void {
-    if (!this.channel) {
+    if (this.channel === null) {
       this.members = [];
       this.emitMembersChanged();
       return;
@@ -147,7 +165,10 @@ export class CollaborationPresenceService {
     this.emitMembersChanged();
   }
 
-  async connect(input: PresenceConnectionInput, onMembersChanged?: (members: CollaborationPresenceLiveMember[]) => void): Promise<void> {
+  async connect(
+    input: PresenceConnectionInput,
+    onMembersChanged?: (members: CollaborationPresenceLiveMember[]) => void,
+  ): Promise<void> {
     await this.disconnect();
 
     const client = getSupabaseBrowserClient();
@@ -181,17 +202,23 @@ export class CollaborationPresenceService {
   }
 
   async update(patch: PresenceStatePatch): Promise<void> {
-    if (!this.channel || !this.connection) {
+    if (this.channel === null || this.connection === null) {
       return;
     }
 
     await this.channel.track({
       userId: this.connection.userId,
-      ...(this.connection.displayName ? { displayName: this.connection.displayName } : {}),
+      ...(this.connection.displayName !== undefined && this.connection.displayName.length > 0
+        ? { displayName: this.connection.displayName }
+        : {}),
       state: patch.state,
-      ...(patch.focusedEntityType ? { focusedEntityType: patch.focusedEntityType } : {}),
-      ...(patch.focusedEntityId ? { focusedEntityId: patch.focusedEntityId } : {}),
-      ...(patch.cursorPayload ? { cursorPayload: patch.cursorPayload } : {}),
+      ...(patch.focusedEntityType !== undefined
+        ? { focusedEntityType: patch.focusedEntityType }
+        : {}),
+      ...(patch.focusedEntityId !== undefined && patch.focusedEntityId.length > 0
+        ? { focusedEntityId: patch.focusedEntityId }
+        : {}),
+      ...(patch.cursorPayload !== undefined ? { cursorPayload: patch.cursorPayload } : {}),
       lastSeenAt: new Date().toISOString(),
     });
   }
@@ -211,16 +238,22 @@ export class CollaborationPresenceService {
   }
 
   toPersistedRecord(patch: PresenceStatePatch): CollaborationPresenceRecord | null {
-    if (!this.connection) return null;
+    if (this.connection === null) return null;
 
     return {
       projectId: this.connection.projectId,
       userId: this.connection.userId,
-      ...(this.connection.displayName ? { displayName: this.connection.displayName } : {}),
+      ...(this.connection.displayName !== undefined && this.connection.displayName.length > 0
+        ? { displayName: this.connection.displayName }
+        : {}),
       state: patch.state,
-      ...(patch.focusedEntityType ? { focusedEntityType: patch.focusedEntityType } : {}),
-      ...(patch.focusedEntityId ? { focusedEntityId: patch.focusedEntityId } : {}),
-      ...(patch.cursorPayload ? { cursorPayload: patch.cursorPayload } : {}),
+      ...(patch.focusedEntityType !== undefined
+        ? { focusedEntityType: patch.focusedEntityType }
+        : {}),
+      ...(patch.focusedEntityId !== undefined && patch.focusedEntityId.length > 0
+        ? { focusedEntityId: patch.focusedEntityId }
+        : {}),
+      ...(patch.cursorPayload !== undefined ? { cursorPayload: patch.cursorPayload } : {}),
       lastSeenAt: new Date().toISOString(),
     };
   }

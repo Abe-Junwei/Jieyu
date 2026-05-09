@@ -2,11 +2,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import type { GenericPlugin } from 'wavesurfer.js/dist/base-plugin.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
-import { evaluateSegmentTimeUpdateGuard, type SegmentSeekGuard } from '../utils/segmentPlaybackGuard';
+import {
+  evaluateSegmentTimeUpdateGuard,
+  type SegmentSeekGuard,
+} from '../utils/segmentPlaybackGuard';
 import { getWaveformDisplayHeights, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
-import { getWaveformVisualStylePreset, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
+import {
+  getWaveformVisualStylePreset,
+  type WaveformVisualStyle,
+} from '../utils/waveformVisualStyle';
 import { createLogger } from '../observability/logger';
-import { getTranscriptionPlaybackClockSnapshot, setTranscriptionPlaybackClock } from './transcriptionPlaybackClock';
+import {
+  getTranscriptionPlaybackClockSnapshot,
+  setTranscriptionPlaybackClock,
+} from './transcriptionPlaybackClock';
 import { useLatest } from './useLatest';
 
 const log = createLogger('useWaveSurfer');
@@ -68,7 +77,12 @@ export interface UseWaveSurferOptions {
   /** Sub-selection range to render as a highlight inside a region */
   subSelection?: { start: number; end: number } | null;
   /** Fires when user Alt+pointerdowns on a region (for sub-range drag) */
-  onRegionAltPointerDown?: (regionId: string, time: number, pointerId: number, clientX: number) => void;
+  onRegionAltPointerDown?: (
+    regionId: string,
+    time: number,
+    pointerId: number,
+    clientX: number,
+  ) => void;
   /** Whether WaveSurfer should auto-scroll/center during playback */
   autoScrollDuringPlayback?: boolean;
   /** WaveSurfer 波形区高度（像素）| Waveform canvas height in pixels */
@@ -82,7 +96,8 @@ export interface UseWaveSurferOptions {
 }
 
 export function useWaveSurfer(options: UseWaveSurferOptions) {
-  const { mediaUrl, regions, activeRegionIds, primaryRegionId, startMarker, waveformFocused } = options;
+  const { mediaUrl, regions, activeRegionIds, primaryRegionId, startMarker, waveformFocused } =
+    options;
 
   // Mirror callbacks in a ref so the heavy init effect doesn't re-run when they change.
   const cbRef = useLatest(options);
@@ -102,7 +117,9 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   /** Latest audio clock sample; store commits at rAF (or immediate flush); no React state for time. */
   const latestPlaybackTimeRef = useRef(0);
   const playbackVisualRafRef = useRef<number | null>(null);
-  const commitPlaybackVisualRef = useRef<((time: number, invokeCallback: boolean) => void) | null>(null);
+  const commitPlaybackVisualRef = useRef<((time: number, invokeCallback: boolean) => void) | null>(
+    null,
+  );
   const schedulePlaybackVisualRef = useRef<(() => void) | null>(null);
 
   const [isReady, setIsReady] = useState(false);
@@ -127,19 +144,23 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     volRef.current = v;
   }, []);
 
-  const showSpectrogram = options.waveformDisplayMode === 'spectrogram' || options.waveformDisplayMode === 'split';
+  const showSpectrogram =
+    options.waveformDisplayMode === 'spectrogram' || options.waveformDisplayMode === 'split';
 
   // ---- Core lifecycle: create / destroy WaveSurfer when media URL changes ----
   useEffect(() => {
     const container = waveformRef.current;
     if (!container) return;
     let disposed = false;
-    const visualStylePreset = getWaveformVisualStylePreset(options.waveformVisualStyle);
-    const totalHeight = options.waveformHeight ?? 180;
-    const mode = options.waveformDisplayMode ?? 'waveform';
+    const currentOptions = cbRef.current;
+    const visualStylePreset = getWaveformVisualStylePreset(currentOptions.waveformVisualStyle);
+    const totalHeight = currentOptions.waveformHeight ?? 180;
+    const mode = currentOptions.waveformDisplayMode ?? 'waveform';
     const splitHeights = getWaveformDisplayHeights(totalHeight, mode);
-    const effectiveWaveformHeight = mode === 'split' ? splitHeights.waveformPrimaryHeight : totalHeight;
-    const effectiveSpectrogramHeight = mode === 'split' ? splitHeights.spectrogramHeight : totalHeight;
+    const effectiveWaveformHeight =
+      mode === 'split' ? splitHeights.waveformPrimaryHeight : totalHeight;
+    const effectiveSpectrogramHeight =
+      mode === 'split' ? splitHeights.spectrogramHeight : totalHeight;
     const hadPreviousInstance = instanceRef.current != null;
 
     if (hadPreviousInstance && mediaUrl && mediaUrl === mediaUrlRef.current) {
@@ -170,260 +191,264 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     let layoutResizeObserver: ResizeObserver | null = null;
     let layoutResizeRaf: number | null = null;
     void (async () => {
-    // Safari / WebKit：首帧 flex 高度或 ref 链未稳定时直接 create 会得到空画布；延后到连续两帧 layout 后再读容器。
-    // Safari: defer init until layout settles so the wave canvas is not created at 0×0.
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => { resolve(); });
-      });
-    });
-    if (disposed) return;
-    const liveContainer = waveformRef.current;
-    if (!liveContainer?.isConnected) return;
-    const liveSpectrogram = spectrogramRef.current;
-
-    const plugin = RegionsPlugin.create();
-    regionsRef.current = plugin;
-    const plugins: GenericPlugin[] = [plugin];
-
-    let spectrogramPlugin: GenericPlugin | null = null;
-    if (showSpectrogram && liveSpectrogram) {
-      const { default: SpectrogramPlugin } = await import('wavesurfer.js/dist/plugins/spectrogram.esm.js');
-      if (disposed) return;
-      spectrogramPlugin = SpectrogramPlugin.create({
-        container: liveSpectrogram,
-        height: effectiveSpectrogramHeight,
-        labels: false,
-        scale: 'mel',
-        fftSamples: 1024,
-        gainDB: 22,
-        rangeDB: 78,
-        colorMap: 'roseus',
-        maxCanvasWidth: 16000,
-        useWebWorker: false,
-      });
-      plugins.push(spectrogramPlugin);
-    }
-
-    const waveformWaveColor = options.waveformDisplayMode === 'spectrogram'
-      ? 'transparent'
-      : visualStylePreset.waveColor;
-    const waveformProgressColor = options.waveformDisplayMode === 'spectrogram'
-      ? 'transparent'
-      : visualStylePreset.progressColor;
-
-    if (disposed) return;
-
-    const ws = WaveSurfer.create({
-      container: liveContainer,
-      waveColor: waveformWaveColor,
-      progressColor: waveformProgressColor,
-      cursorColor: visualStylePreset.cursorColor,
-      cursorWidth: 0,
-      height: effectiveWaveformHeight,
-      normalize: true,
-      dragToSeek: false,
-      autoScroll: options.autoScrollDuringPlayback !== false,
-      autoCenter: options.autoScrollDuringPlayback !== false,
-      plugins,
-      minPxPerSec: options.zoomLevel ?? 40,
-      barWidth: visualStylePreset.barWidth,
-      barHeight: options.amplitudeScale ?? 1,
-      barGap: visualStylePreset.barGap,
-      barRadius: visualStylePreset.barRadius,
-    });
-
-    // Fix: wavesurfer.js SpectrogramPlugin.onInit() always appends its wrapper to
-    // wavesurfer's own container, ignoring the user-specified `container` option.
-    // Relocate the wrapper to the dedicated spectrogram container and synchronise
-    // scroll position via CSS transform so it stays aligned with the waveform.
-    //
-    // The plugin also sets `width:100%; overflow:hidden` on its wrapper via the
-    // fillParent path.  After relocation "100%" resolves to the viewport-sized
-    // spectrogram container, which clips absolute-positioned canvases that extend
-    // beyond the viewport.  Override to `overflow:visible` so canvases are only
-    // clipped by the outer spectrogramContainer and translateX works correctly.
-    if (disposed) {
-      ws.destroy();
-      return;
-    }
-
-    if (spectrogramPlugin && liveSpectrogram) {
-      const specWrapper = (spectrogramPlugin as unknown as { wrapper?: HTMLElement }).wrapper;
-      if (specWrapper instanceof HTMLElement) {
-        liveSpectrogram.appendChild(specWrapper);
-        specWrapper.style.overflow = 'visible';
-        const syncScroll = () => {
-          if (disposed) return;
-          specWrapper.style.transform = `translateX(-${ws.getScroll()}px)`;
-        };
-        ws.on('scroll', syncScroll);
-        // Also sync after zoom / redraw so the spectrogram doesn't lag behind
-        ws.on('redraw', () => requestAnimationFrame(syncScroll));
-      }
-    }
-
-    const kickLayoutZoom = () => {
-      if (disposed || instanceRef.current !== ws) return;
-      const z = cbRef.current.zoomLevel ?? 40;
-      try {
-        if (ws.getDecodedData()) ws.zoom(z);
-      } catch {
-        // Video / streaming: decoded buffer may be absent even after `ready`
-      }
-    };
-
-    if (typeof ResizeObserver !== 'undefined') {
-      let prevW = Math.round(liveContainer.getBoundingClientRect().width);
-      layoutResizeObserver = new ResizeObserver(() => {
-        if (disposed || instanceRef.current !== ws) return;
-        if (layoutResizeRaf != null) return;
-        layoutResizeRaf = requestAnimationFrame(() => {
-          layoutResizeRaf = null;
-          if (disposed || instanceRef.current !== ws) return;
-          const w = Math.round(liveContainer.getBoundingClientRect().width);
-          // 刷新后常见：首帧 width≈0，下一 layout 才可用；补一次 zoom 触发重绘 | Post-refresh width 0 → N: re-zoom to repaint
-          if (prevW < 4 && w >= 4) kickLayoutZoom();
-          prevW = w;
+      // Safari / WebKit：首帧 flex 高度或 ref 链未稳定时直接 create 会得到空画布；延后到连续两帧 layout 后再读容器。
+      // Safari: defer init until layout settles so the wave canvas is not created at 0×0.
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve();
+          });
         });
       });
-      layoutResizeObserver.observe(liveContainer);
-    }
-
-    instanceRef.current = ws;
-
-    const cancelScheduledPlaybackVisual = () => {
-      if (playbackVisualRafRef.current !== null) {
-        cancelAnimationFrame(playbackVisualRafRef.current);
-        playbackVisualRafRef.current = null;
-      }
-    };
-
-    commitPlaybackVisualRef.current = (time: number, invokeCallback: boolean) => {
-      cancelScheduledPlaybackVisual();
-      latestPlaybackTimeRef.current = time;
       if (disposed) return;
-      setTranscriptionPlaybackClock(time);
-      if (invokeCallback) {
-        cbRef.current.onTimeUpdate?.(time);
-      }
-    };
+      const liveContainer = waveformRef.current;
+      if (!liveContainer?.isConnected) return;
+      const liveSpectrogram = spectrogramRef.current;
 
-    schedulePlaybackVisualRef.current = () => {
-      if (playbackVisualRafRef.current !== null) return;
-      playbackVisualRafRef.current = requestAnimationFrame(() => {
-        playbackVisualRafRef.current = null;
+      const plugin = RegionsPlugin.create();
+      regionsRef.current = plugin;
+      const plugins: GenericPlugin[] = [plugin];
+
+      let spectrogramPlugin: GenericPlugin | null = null;
+      if (showSpectrogram && liveSpectrogram) {
+        const { default: SpectrogramPlugin } =
+          await import('wavesurfer.js/dist/plugins/spectrogram.esm.js');
         if (disposed) return;
-        const t = latestPlaybackTimeRef.current;
-        setTranscriptionPlaybackClock(t);
-        cbRef.current.onTimeUpdate?.(t);
+        spectrogramPlugin = SpectrogramPlugin.create({
+          container: liveSpectrogram,
+          height: effectiveSpectrogramHeight,
+          labels: false,
+          scale: 'mel',
+          fftSamples: 1024,
+          gainDB: 22,
+          rangeDB: 78,
+          colorMap: 'roseus',
+          maxCanvasWidth: 16000,
+          useWebWorker: false,
+        });
+        plugins.push(spectrogramPlugin);
+      }
+
+      const waveformWaveColor =
+        currentOptions.waveformDisplayMode === 'spectrogram'
+          ? 'transparent'
+          : visualStylePreset.waveColor;
+      const waveformProgressColor =
+        currentOptions.waveformDisplayMode === 'spectrogram'
+          ? 'transparent'
+          : visualStylePreset.progressColor;
+
+      if (disposed) return;
+
+      const ws = WaveSurfer.create({
+        container: liveContainer,
+        waveColor: waveformWaveColor,
+        progressColor: waveformProgressColor,
+        cursorColor: visualStylePreset.cursorColor,
+        cursorWidth: 0,
+        height: effectiveWaveformHeight,
+        normalize: true,
+        dragToSeek: false,
+        autoScroll: currentOptions.autoScrollDuringPlayback !== false,
+        autoCenter: currentOptions.autoScrollDuringPlayback !== false,
+        plugins,
+        minPxPerSec: currentOptions.zoomLevel ?? 40,
+        barWidth: visualStylePreset.barWidth,
+        barHeight: currentOptions.amplitudeScale ?? 1,
+        barGap: visualStylePreset.barGap,
+        barRadius: visualStylePreset.barRadius,
       });
-    };
 
-    ws.setVolume(volRef.current);
-    ws.setPlaybackRate(rateRef.current);
-    void ws.load(mediaUrl).catch((err: unknown) => {
-      if (disposed) return;
-      const msg = err instanceof Error ? err.message : String(err);
-      log.warn('WaveSurfer load rejected', { mediaUrl, error: msg });
-      setLoadError(msg);
-    });
+      // Fix: wavesurfer.js SpectrogramPlugin.onInit() always appends its wrapper to
+      // wavesurfer's own container, ignoring the user-specified `container` option.
+      // Relocate the wrapper to the dedicated spectrogram container and synchronise
+      // scroll position via CSS transform so it stays aligned with the waveform.
+      //
+      // The plugin also sets `width:100%; overflow:hidden` on its wrapper via the
+      // fillParent path.  After relocation "100%" resolves to the viewport-sized
+      // spectrogram container, which clips absolute-positioned canvases that extend
+      // beyond the viewport.  Override to `overflow:visible` so canvases are only
+      // clipped by the outer spectrogramContainer and translateX works correctly.
+      if (disposed) {
+        ws.destroy();
+        return;
+      }
 
-    ws.on('ready', () => {
-      if (disposed) return;
-      setIsReady(true);
-      setLoadError(null);
-      const nextDuration = ws.getDuration() || 0;
-      setDuration(nextDuration);
-      mediaUrlRef.current = mediaUrl;
-
-      const restorePlayback = restorePlaybackRef.current;
-      if (restorePlayback) {
-        restorePlaybackRef.current = null;
-        const nextTime = Math.max(0, Math.min(restorePlayback.time, nextDuration));
-        if (nextTime > 0) {
-          ws.setTime(nextTime);
-          commitPlaybackVisualRef.current?.(nextTime, false);
-        }
-        if (restorePlayback.shouldResume) {
-          void ws.play();
+      if (spectrogramPlugin && liveSpectrogram) {
+        const specWrapper = (spectrogramPlugin as unknown as { wrapper?: HTMLElement }).wrapper;
+        if (specWrapper instanceof HTMLElement) {
+          liveSpectrogram.appendChild(specWrapper);
+          specWrapper.style.overflow = 'visible';
+          const syncScroll = () => {
+            if (disposed) return;
+            specWrapper.style.transform = `translateX(-${ws.getScroll()}px)`;
+          };
+          ws.on('scroll', syncScroll);
+          // Also sync after zoom / redraw so the spectrogram doesn't lag behind
+          ws.on('redraw', () => requestAnimationFrame(syncScroll));
         }
       }
-      // WebKit：ready 仍可能对应上一帧的 0 宽内部缓冲；延后 zoom 对齐 Safari 首次刷新空白 | Defer zoom so first paint has non-zero width
-      requestAnimationFrame(() => {
-        kickLayoutZoom();
-        requestAnimationFrame(kickLayoutZoom);
-      });
-    });
-    // 监听 WaveSurfer 的加载错误事件，将错误暴露给消费方 | Expose media load errors to consumers
-    ws.on('error', (err: Error) => {
-      if (disposed) return;
-      const msg = err instanceof Error ? err.message : String(err);
-      log.warn('WaveSurfer load error', { mediaUrl, error: msg });
-      setLoadError(msg);
-    });
-    ws.on('timeupdate', (time: number) => {
-      if (disposed) return;
-      const guardResult = evaluateSegmentTimeUpdateGuard(
-        time,
-        segmentBoundsRef.current,
-        segmentSeekGuardRef.current,
-      );
-      segmentSeekGuardRef.current = guardResult.nextGuard;
-      if (guardResult.ignore) return;
 
-      // Auto-stop or loop at segment boundary
-      const bounds = segmentBoundsRef.current;
-      if (bounds && time >= bounds.end) {
-        if (cbRef.current.segmentLoop) {
-          segmentSeekGuardRef.current = { pending: true };
-          commitPlaybackVisualRef.current?.(bounds.start, true);
-          ws.setTime(bounds.start);
-        } else {
-          ws.pause();
-          // Restore global playback rate if segment rate was active
-          if (segmentRateActiveRef.current) {
-            segmentRateActiveRef.current = false;
-            ws.setPlaybackRate(rateRef.current);
+      const kickLayoutZoom = () => {
+        if (disposed || instanceRef.current !== ws) return;
+        const z = cbRef.current.zoomLevel ?? 40;
+        try {
+          if (ws.getDecodedData()) ws.zoom(z);
+        } catch {
+          // Video / streaming: decoded buffer may be absent even after `ready`
+        }
+      };
+
+      if (typeof ResizeObserver !== 'undefined') {
+        let prevW = Math.round(liveContainer.getBoundingClientRect().width);
+        layoutResizeObserver = new ResizeObserver(() => {
+          if (disposed || instanceRef.current !== ws) return;
+          if (layoutResizeRaf != null) return;
+          layoutResizeRaf = requestAnimationFrame(() => {
+            layoutResizeRaf = null;
+            if (disposed || instanceRef.current !== ws) return;
+            const w = Math.round(liveContainer.getBoundingClientRect().width);
+            // 刷新后常见：首帧 width≈0，下一 layout 才可用；补一次 zoom 触发重绘 | Post-refresh width 0 → N: re-zoom to repaint
+            if (prevW < 4 && w >= 4) kickLayoutZoom();
+            prevW = w;
+          });
+        });
+        layoutResizeObserver.observe(liveContainer);
+      }
+
+      instanceRef.current = ws;
+
+      const cancelScheduledPlaybackVisual = () => {
+        if (playbackVisualRafRef.current !== null) {
+          cancelAnimationFrame(playbackVisualRafRef.current);
+          playbackVisualRafRef.current = null;
+        }
+      };
+
+      commitPlaybackVisualRef.current = (time: number, invokeCallback: boolean) => {
+        cancelScheduledPlaybackVisual();
+        latestPlaybackTimeRef.current = time;
+        if (disposed) return;
+        setTranscriptionPlaybackClock(time);
+        if (invokeCallback) {
+          cbRef.current.onTimeUpdate?.(time);
+        }
+      };
+
+      schedulePlaybackVisualRef.current = () => {
+        if (playbackVisualRafRef.current !== null) return;
+        playbackVisualRafRef.current = requestAnimationFrame(() => {
+          playbackVisualRafRef.current = null;
+          if (disposed) return;
+          const t = latestPlaybackTimeRef.current;
+          setTranscriptionPlaybackClock(t);
+          cbRef.current.onTimeUpdate?.(t);
+        });
+      };
+
+      ws.setVolume(volRef.current);
+      ws.setPlaybackRate(rateRef.current);
+      void ws.load(mediaUrl).catch((err: unknown) => {
+        if (disposed) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        log.warn('WaveSurfer load rejected', { mediaUrl, error: msg });
+        setLoadError(msg);
+      });
+
+      ws.on('ready', () => {
+        if (disposed) return;
+        setIsReady(true);
+        setLoadError(null);
+        const nextDuration = ws.getDuration() || 0;
+        setDuration(nextDuration);
+        mediaUrlRef.current = mediaUrl;
+
+        const restorePlayback = restorePlaybackRef.current;
+        if (restorePlayback) {
+          restorePlaybackRef.current = null;
+          const nextTime = Math.max(0, Math.min(restorePlayback.time, nextDuration));
+          if (nextTime > 0) {
+            ws.setTime(nextTime);
+            commitPlaybackVisualRef.current?.(nextTime, false);
           }
-          const restartAt = bounds.start;
-          segmentBoundsRef.current = null; // clear BEFORE setTime to prevent recursive timeupdate
-          commitPlaybackVisualRef.current?.(restartAt, true);
-          ws.setTime(restartAt);
+          if (restorePlayback.shouldResume) {
+            void ws.play();
+          }
         }
-        return;
-      }
+        // WebKit：ready 仍可能对应上一帧的 0 宽内部缓冲；延后 zoom 对齐 Safari 首次刷新空白 | Defer zoom so first paint has non-zero width
+        requestAnimationFrame(() => {
+          kickLayoutZoom();
+          requestAnimationFrame(kickLayoutZoom);
+        });
+      });
+      // 监听 WaveSurfer 的加载错误事件，将错误暴露给消费方 | Expose media load errors to consumers
+      ws.on('error', (err: Error) => {
+        if (disposed) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        log.warn('WaveSurfer load error', { mediaUrl, error: msg });
+        setLoadError(msg);
+      });
+      ws.on('timeupdate', (time: number) => {
+        if (disposed) return;
+        const guardResult = evaluateSegmentTimeUpdateGuard(
+          time,
+          segmentBoundsRef.current,
+          segmentSeekGuardRef.current,
+        );
+        segmentSeekGuardRef.current = guardResult.nextGuard;
+        if (guardResult.ignore) return;
 
-      latestPlaybackTimeRef.current = time;
-      schedulePlaybackVisualRef.current?.();
-    });
-    ws.on('play', () => {
-      if (disposed) return;
-      setIsPlaying(true);
-    });
-    ws.on('pause', () => {
-      if (disposed) return;
-      setIsPlaying(false);
-      commitPlaybackVisualRef.current?.(ws.getCurrentTime() || 0, false);
-    });
-    ws.on('finish', () => {
-      if (disposed) return;
-      segmentBoundsRef.current = null;
-      segmentSeekGuardRef.current = null;
-      // Restore global rate if segment rate was active
-      if (segmentRateActiveRef.current) {
-        segmentRateActiveRef.current = false;
-        ws.setPlaybackRate(rateRef.current);
-      }
-      if (cbRef.current.globalLoop) {
-        ws.setTime(0);
-        void ws.play();
-        return;
-      }
-      setIsPlaying(false);
-      commitPlaybackVisualRef.current?.(ws.getDuration() || 0, false);
-    });
+        // Auto-stop or loop at segment boundary
+        const bounds = segmentBoundsRef.current;
+        if (bounds && time >= bounds.end) {
+          if (cbRef.current.segmentLoop) {
+            segmentSeekGuardRef.current = { pending: true };
+            commitPlaybackVisualRef.current?.(bounds.start, true);
+            ws.setTime(bounds.start);
+          } else {
+            ws.pause();
+            // Restore global playback rate if segment rate was active
+            if (segmentRateActiveRef.current) {
+              segmentRateActiveRef.current = false;
+              ws.setPlaybackRate(rateRef.current);
+            }
+            const restartAt = bounds.start;
+            segmentBoundsRef.current = null; // clear BEFORE setTime to prevent recursive timeupdate
+            commitPlaybackVisualRef.current?.(restartAt, true);
+            ws.setTime(restartAt);
+          }
+          return;
+        }
 
+        latestPlaybackTimeRef.current = time;
+        schedulePlaybackVisualRef.current?.();
+      });
+      ws.on('play', () => {
+        if (disposed) return;
+        setIsPlaying(true);
+      });
+      ws.on('pause', () => {
+        if (disposed) return;
+        setIsPlaying(false);
+        commitPlaybackVisualRef.current?.(ws.getCurrentTime() || 0, false);
+      });
+      ws.on('finish', () => {
+        if (disposed) return;
+        segmentBoundsRef.current = null;
+        segmentSeekGuardRef.current = null;
+        // Restore global rate if segment rate was active
+        if (segmentRateActiveRef.current) {
+          segmentRateActiveRef.current = false;
+          ws.setPlaybackRate(rateRef.current);
+        }
+        if (cbRef.current.globalLoop) {
+          ws.setTime(0);
+          void ws.play();
+          return;
+        }
+        setIsPlaying(false);
+        commitPlaybackVisualRef.current?.(ws.getDuration() || 0, false);
+      });
     })(); // end async IIFE
 
     return () => {
@@ -452,7 +477,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       regionAbortRef.current.forEach((ac) => ac.abort());
       regionAbortRef.current = new Map();
     };
-  }, [mediaUrl, showSpectrogram]);
+  }, [cbRef, mediaUrl, showSpectrogram]);
 
   // ---- Incremental sync (no instance recreation) ----
   useEffect(() => {
@@ -472,44 +497,45 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   const primaryRegionIdRef = useLatest(primaryRegionId);
   const draggingRegionRef = useRef<string | null>(null);
 
-  const applyRegionPresentation = useCallback((
-    handle: RegionHandle,
-    region: { id: string; skipProcessing?: boolean },
-  ) => {
-    const el = (handle as unknown as { element?: HTMLElement }).element;
-    if (!el) return;
+  const applyRegionPresentation = useCallback(
+    (handle: RegionHandle, region: { id: string; skipProcessing?: boolean }) => {
+      const el = (handle as unknown as { element?: HTMLElement }).element;
+      if (!el) return;
 
-    const focused = waveformFocused !== false;
-    const isSkipped = region.skipProcessing === true;
-    const defaultBaseColor = region.id === primaryRegionIdRef.current
-      ? (focused
-          ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
-          : 'color-mix(in srgb, var(--state-success-solid) 18%, transparent)')
-      : activeRegionIdsRef.current?.has(region.id)
-        ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
-        : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)';
-    const baseColor = defaultBaseColor;
+      const focused = waveformFocused !== false;
+      const isSkipped = region.skipProcessing === true;
+      const defaultBaseColor =
+        region.id === primaryRegionIdRef.current
+          ? focused
+            ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
+            : 'color-mix(in srgb, var(--state-success-solid) 18%, transparent)'
+          : activeRegionIdsRef.current?.has(region.id)
+            ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
+            : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)';
+      const baseColor = defaultBaseColor;
 
-    // WaveSurfer region DOM lives in an isolated internal tree; paint skipped stripes inline.
-    // WaveSurfer 的 region DOM 位于内部隔离树中；跳过纹理需直接以内联样式绘制。
-    el.style.backgroundColor = baseColor;
-    el.style.backgroundImage = isSkipped
-      ? 'repeating-linear-gradient(135deg, color-mix(in srgb, var(--header-accent) 28%, transparent) 0 3px, transparent 3px 6px)'
-      : 'none';
-    el.style.backgroundRepeat = isSkipped ? 'repeat' : 'no-repeat';
-    el.style.opacity = '1';
-    el.style.outline = 'none';
-    el.style.borderTop = isSkipped
-      ? '1px dashed color-mix(in srgb, var(--header-accent) 38%, transparent)'
-      : 'none';
-    el.style.borderBottom = isSkipped
-      ? '1px dashed color-mix(in srgb, var(--header-accent) 38%, transparent)'
-      : 'none';
-    el.style.boxShadow = isSkipped
-      ? 'inset 0 0 0 1px color-mix(in srgb, var(--header-accent) 10%, transparent)'
-      : 'none';
-    el.classList.toggle('jieyu-waveform-region-skipped', isSkipped);
-  }, [waveformFocused, activeRegionIdsRef, primaryRegionIdRef]);
+      // WaveSurfer region DOM lives in an isolated internal tree; paint skipped stripes inline.
+      // WaveSurfer 的 region DOM 位于内部隔离树中；跳过纹理需直接以内联样式绘制。
+      el.style.backgroundColor = baseColor;
+      el.style.backgroundImage = isSkipped
+        ? 'repeating-linear-gradient(135deg, color-mix(in srgb, var(--header-accent) 28%, transparent) 0 3px, transparent 3px 6px)'
+        : 'none';
+      el.style.backgroundRepeat = isSkipped ? 'repeat' : 'no-repeat';
+      el.style.opacity = '1';
+      el.style.outline = 'none';
+      el.style.borderTop = isSkipped
+        ? '1px dashed color-mix(in srgb, var(--header-accent) 38%, transparent)'
+        : 'none';
+      el.style.borderBottom = isSkipped
+        ? '1px dashed color-mix(in srgb, var(--header-accent) 38%, transparent)'
+        : 'none';
+      el.style.boxShadow = isSkipped
+        ? 'inset 0 0 0 1px color-mix(in srgb, var(--header-accent) 10%, transparent)'
+        : 'none';
+      el.classList.toggle('jieyu-waveform-region-skipped', isSkipped);
+    },
+    [waveformFocused, activeRegionIdsRef, primaryRegionIdRef],
+  );
 
   // Enable drag-selection region creation and notify external handler.
   useEffect(() => {
@@ -549,7 +575,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       unsub();
       disableDragSelection();
     };
-  }, [isReady, options.enableEmptyDragCreate]);
+  }, [cbRef, isReady, options.enableEmptyDragCreate]);
 
   useEffect(() => {
     const rp = regionsRef.current;
@@ -570,32 +596,40 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       const sig = ac.signal;
 
       const handle = rp.addRegion({
-        id: r.id, start: r.start, end: r.end,
-        drag: true, resize: true,
-        color: r.id === primaryRegionIdRef.current
-          ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
-          : activeRegionIdsRef.current?.has(r.id)
-            ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
-            : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)',
+        id: r.id,
+        start: r.start,
+        end: r.end,
+        drag: true,
+        resize: true,
+        color:
+          r.id === primaryRegionIdRef.current
+            ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
+            : activeRegionIdsRef.current?.has(r.id)
+              ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
+              : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)',
       }) as unknown as RegionHandle;
       // Alt+pointerdown: intercept native region drag so we can do sub-range selection
       const elForAlt = (handle as unknown as { element?: HTMLElement }).element;
       if (elForAlt) {
-        elForAlt.addEventListener('pointerdown', (ev: PointerEvent) => {
-          if (!ev.altKey || ev.button !== 0) return;
-          ev.stopImmediatePropagation();
-          ev.preventDefault();
-          // Compute the time at the click position
-          const wrapper = ws.getWrapper();
-          const scrollParent = wrapper?.parentElement;
-          if (!wrapper || !scrollParent) return;
-          const wrapperRect = scrollParent.getBoundingClientRect();
-          const pxOffset = ev.clientX - wrapperRect.left + scrollParent.scrollLeft;
-          const totalWidth = wrapper.scrollWidth;
-          const dur = ws.getDuration() || 1;
-          const time = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
-          cbRef.current.onRegionAltPointerDown?.(r.id, time, ev.pointerId, ev.clientX);
-        }, { capture: true, signal: sig });
+        elForAlt.addEventListener(
+          'pointerdown',
+          (ev: PointerEvent) => {
+            if (!ev.altKey || ev.button !== 0) return;
+            ev.stopImmediatePropagation();
+            ev.preventDefault();
+            // Compute the time at the click position
+            const wrapper = ws.getWrapper();
+            const scrollParent = wrapper?.parentElement;
+            if (!wrapper || !scrollParent) return;
+            const wrapperRect = scrollParent.getBoundingClientRect();
+            const pxOffset = ev.clientX - wrapperRect.left + scrollParent.scrollLeft;
+            const totalWidth = wrapper.scrollWidth;
+            const dur = ws.getDuration() || 1;
+            const time = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+            cbRef.current.onRegionAltPointerDown?.(r.id, time, ev.pointerId, ev.clientX);
+          },
+          { capture: true, signal: sig },
+        );
       }
       handle.on('click', (...args: unknown[]) => {
         const ev = args[0] as MouseEvent | undefined;
@@ -626,15 +660,23 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       // Attach contextmenu on region DOM element
       const el = (handle as unknown as { element?: HTMLElement }).element;
       if (el) {
-        el.addEventListener('contextmenu', (ev: MouseEvent) => {
-          ev.preventDefault();
-          ev.stopPropagation();
-          cbRef.current.onRegionContextMenu?.(r.id, ev.clientX, ev.clientY);
-        }, { signal: sig });
-        el.addEventListener('dblclick', (ev: MouseEvent) => {
-          ev.stopPropagation();
-          cbRef.current.onRegionDblClick?.(r.id, handle.start, handle.end);
-        }, { signal: sig });
+        el.addEventListener(
+          'contextmenu',
+          (ev: MouseEvent) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            cbRef.current.onRegionContextMenu?.(r.id, ev.clientX, ev.clientY);
+          },
+          { signal: sig },
+        );
+        el.addEventListener(
+          'dblclick',
+          (ev: MouseEvent) => {
+            ev.stopPropagation();
+            cbRef.current.onRegionDblClick?.(r.id, handle.start, handle.end);
+          },
+          { signal: sig },
+        );
       }
       applyRegionPresentation(handle, r);
       return handle;
@@ -649,7 +691,10 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         if (draggingRegionRef.current === r.id) {
           applyRegionPresentation(existing, r);
           nextHandles.set(r.id, existing);
-        } else if (Math.abs(existing.start - r.start) > 0.0005 || Math.abs(existing.end - r.end) > 0.0005) {
+        } else if (
+          Math.abs(existing.start - r.start) > 0.0005 ||
+          Math.abs(existing.end - r.end) > 0.0005
+        ) {
           const el = (existing as unknown as { element?: HTMLElement }).element;
           const obj = existing as unknown as { setOptions?: (o: Record<string, unknown>) => void };
           if (obj.setOptions && el) {
@@ -710,15 +755,26 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     if (startMarker != null) {
       const markerHandle = rp.addRegion({
         id: '__start_marker__',
-        start: startMarker, end: startMarker,
-        color: 'var(--state-success-solid)', drag: false, resize: false,
+        start: startMarker,
+        end: startMarker,
+        color: 'var(--state-success-solid)',
+        drag: false,
+        resize: false,
       }) as unknown as RegionHandle;
       nextHandles.set('__start_marker__', markerHandle);
     }
 
     regionHandlesRef.current = nextHandles;
     syncingRegionsRef.current = false;
-  }, [isReady, regions, startMarker]);
+  }, [
+    activeRegionIdsRef,
+    applyRegionPresentation,
+    cbRef,
+    isReady,
+    primaryRegionIdRef,
+    regions,
+    startMarker,
+  ]);
 
   // Render sub-selection highlight as a non-interactive region.
   useEffect(() => {
@@ -767,7 +823,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
 
   // Toggle cursor to hair-line on region elements when Alt is held.
   useEffect(() => {
-    const hairCursor = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='3' height='32'%3E%3Cline x1='1' y1='0' x2='1' y2='32' stroke='%23333' stroke-width='1'/%3E%3C/svg%3E\") 1 16, text";
+    const hairCursor =
+      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='3' height='32'%3E%3Cline x1='1' y1='0' x2='1' y2='32' stroke='%23333' stroke-width='1'/%3E%3C/svg%3E\") 1 16, text";
     const setCursor = (cursor: string) => {
       regionHandlesRef.current.forEach((handle, id) => {
         if (id === '__start_marker__' || id === '__sub_selection__') return;
@@ -790,7 +847,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
     };
-  }, []);
+  }, [cbRef]);
 
   // ---- Playback controls ----
   const togglePlayback = useCallback(() => {
@@ -829,27 +886,30 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   /** Play a specific time range. Automatically stops (or loops) at `end`.
    *  When `resume` is true and current time is already within [start, end],
    *  continue from the current position instead of seeking to `start`. */
-  const playRegion = useCallback((start: number, end: number, resume?: boolean) => {
-    const ws = instanceRef.current;
-    if (!ws) return;
-    segmentBoundsRef.current = { start, end };
-    const cur = ws.getCurrentTime();
-    const canResume = resume && cur >= start && cur < end;
-    if (!canResume) {
-      segmentSeekGuardRef.current = { pending: true };
-      commitPlaybackVisualRef.current?.(start, true);
-      ws.setTime(start);
-    } else {
-      segmentSeekGuardRef.current = { pending: false };
-    }
-    // Apply segment-specific playback rate if configured
-    const segRate = cbRef.current.segmentPlaybackRate;
-    if (segRate != null) {
-      segmentRateActiveRef.current = true;
-      ws.setPlaybackRate(segRate);
-    }
-    void ws.play();
-  }, []);
+  const playRegion = useCallback(
+    (start: number, end: number, resume?: boolean) => {
+      const ws = instanceRef.current;
+      if (!ws) return;
+      segmentBoundsRef.current = { start, end };
+      const cur = ws.getCurrentTime();
+      const canResume = resume && cur >= start && cur < end;
+      if (!canResume) {
+        segmentSeekGuardRef.current = { pending: true };
+        commitPlaybackVisualRef.current?.(start, true);
+        ws.setTime(start);
+      } else {
+        segmentSeekGuardRef.current = { pending: false };
+      }
+      // Apply segment-specific playback rate if configured
+      const segRate = cbRef.current.segmentPlaybackRate;
+      if (segRate != null) {
+        segmentRateActiveRef.current = true;
+        ws.setPlaybackRate(segRate);
+      }
+      void ws.play();
+    },
+    [cbRef],
+  );
 
   /** Stop playback and clear segment bounds. */
   const stop = useCallback(() => {
@@ -913,12 +973,12 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   useEffect(() => {
     if (!isReady) return;
     const visualStylePreset = getWaveformVisualStylePreset(options.waveformVisualStyle);
-    const waveformWaveColor = options.waveformDisplayMode === 'spectrogram'
-      ? 'transparent'
-      : visualStylePreset.waveColor;
-    const waveformProgressColor = options.waveformDisplayMode === 'spectrogram'
-      ? 'transparent'
-      : visualStylePreset.progressColor;
+    const waveformWaveColor =
+      options.waveformDisplayMode === 'spectrogram' ? 'transparent' : visualStylePreset.waveColor;
+    const waveformProgressColor =
+      options.waveformDisplayMode === 'spectrogram'
+        ? 'transparent'
+        : visualStylePreset.progressColor;
     instanceRef.current?.setOptions({
       waveColor: waveformWaveColor,
       progressColor: waveformProgressColor,

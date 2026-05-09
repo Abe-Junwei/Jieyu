@@ -27,23 +27,28 @@ function parseCanonicalLocaleParts(localeTag: string): CanonicalLocaleParts {
   let script: string | undefined;
   let region: string | undefined;
 
-  if (parts[0] && /^[A-Za-z]{4}$/.test(parts[0])) {
+  const firstPart = parts[0];
+  if (typeof firstPart === 'string' && firstPart.length > 0 && /^[A-Za-z]{4}$/.test(firstPart)) {
     script = toTitleCaseSubtag(parts.shift() ?? '');
   }
-  if (parts[0] && /^(?:[A-Za-z]{2}|\d{3})$/.test(parts[0])) {
+
+  const secondPart = parts[0];
+  if (
+    typeof secondPart === 'string' &&
+    secondPart.length > 0 &&
+    /^(?:[A-Za-z]{2}|\d{3})$/.test(secondPart)
+  ) {
     const nextRegion = parts.shift() ?? '';
     region = /^[A-Za-z]{2}$/.test(nextRegion) ? nextRegion.toUpperCase() : nextRegion;
   }
 
-  const variants = parts
-    .map((part) => part.toLowerCase())
-    .filter(Boolean);
+  const variants = parts.map((part) => part.toLowerCase()).filter((part) => part.length > 0);
 
   return {
     language,
-    ...(script ? { script } : {}),
-    ...(region ? { region } : {}),
-    ...(variants.length ? { variant: variants.join('-') } : {}),
+    ...(script !== undefined ? { script } : {}),
+    ...(region !== undefined ? { region } : {}),
+    ...(variants.length > 0 ? { variant: variants.join('-') } : {}),
   };
 }
 
@@ -55,7 +60,7 @@ function canonicalizeLocaleTag(localeTag: string | undefined): {
   variant?: string;
 } {
   const normalizedInput = normalizeTagInput(localeTag ?? '');
-  if (!normalizedInput) {
+  if (normalizedInput.length === 0) {
     return {};
   }
 
@@ -65,9 +70,9 @@ function canonicalizeLocaleTag(localeTag: string | undefined): {
     return {
       localeTag: canonicalLocaleTag,
       language: parsed.language,
-      ...(parsed.script ? { script: parsed.script } : {}),
-      ...(parsed.region ? { region: parsed.region } : {}),
-      ...(parsed.variant ? { variant: parsed.variant } : {}),
+      ...(parsed.script !== undefined ? { script: parsed.script } : {}),
+      ...(parsed.region !== undefined ? { region: parsed.region } : {}),
+      ...(parsed.variant !== undefined ? { variant: parsed.variant } : {}),
     };
   } catch {
     throw new Error(`localeTag 无效：${localeTag}`);
@@ -76,7 +81,7 @@ function canonicalizeLocaleTag(localeTag: string | undefined): {
 
 function canonicalizeScriptTag(scriptTag: string | undefined): string | undefined {
   const normalizedInput = normalizeTagInput(scriptTag ?? '');
-  if (!normalizedInput) {
+  if (normalizedInput.length === 0) {
     return undefined;
   }
 
@@ -87,7 +92,7 @@ function canonicalizeScriptTag(scriptTag: string | undefined): string | undefine
   try {
     const localeSource = normalizedInput.includes('-') ? normalizedInput : `und-${normalizedInput}`;
     const parsed = parseCanonicalLocaleParts(new Intl.Locale(localeSource).toString());
-    if (parsed.script) {
+    if (parsed.script !== undefined) {
       return parsed.script;
     }
   } catch {
@@ -99,7 +104,7 @@ function canonicalizeScriptTag(scriptTag: string | undefined): string | undefine
 
 function canonicalizeRegionTag(regionTag: string | undefined): string | undefined {
   const normalizedInput = normalizeTagInput(regionTag ?? '');
-  if (!normalizedInput) {
+  if (normalizedInput.length === 0) {
     return undefined;
   }
 
@@ -113,7 +118,7 @@ function canonicalizeRegionTag(regionTag: string | undefined): string | undefine
   try {
     const localeSource = normalizedInput.includes('-') ? normalizedInput : `und-${normalizedInput}`;
     const parsed = parseCanonicalLocaleParts(new Intl.Locale(localeSource).toString());
-    if (parsed.region) {
+    if (parsed.region !== undefined) {
       return parsed.region;
     }
   } catch {
@@ -125,7 +130,7 @@ function canonicalizeRegionTag(regionTag: string | undefined): string | undefine
 
 function canonicalizeVariantTag(variantTag: string | undefined): string | undefined {
   const normalizedInput = normalizeTagInput(variantTag ?? '');
-  if (!normalizedInput) {
+  if (normalizedInput.length === 0) {
     return undefined;
   }
 
@@ -147,16 +152,16 @@ function canonicalizeVariantTag(variantTag: string | undefined): string | undefi
 
 function canonicalizeLanguageId(languageId: string | undefined): string | undefined {
   const normalizedInput = languageId?.trim().toLowerCase();
-  return normalizedInput ? normalizedInput : undefined;
+  return normalizedInput !== undefined && normalizedInput.length > 0 ? normalizedInput : undefined;
 }
 
 function resolveLocaleLanguageId(localeLanguage: string | undefined): string | undefined {
-  if (!localeLanguage) {
+  if (localeLanguage === undefined || localeLanguage.length === 0) {
     return undefined;
   }
 
   const mapped = toIso639_3(localeLanguage);
-  if (mapped) {
+  if (mapped !== undefined) {
     return mapped;
   }
   if (/^[a-z]{3}$/.test(localeLanguage)) {
@@ -165,27 +170,53 @@ function resolveLocaleLanguageId(localeLanguage: string | undefined): string | u
   return undefined;
 }
 
-export function normalizeOrthographyIdentity(input: OrthographyIdentityInput): OrthographyIdentityInput {
+export function normalizeOrthographyIdentity(
+  input: OrthographyIdentityInput,
+): OrthographyIdentityInput {
   const normalizedLanguageId = canonicalizeLanguageId(input.languageId);
   const localeMetadata = canonicalizeLocaleTag(input.localeTag);
   const localeLanguageId = resolveLocaleLanguageId(localeMetadata.language);
-  if (normalizedLanguageId && localeLanguageId && normalizedLanguageId !== localeLanguageId) {
-    throw new Error(`localeTag ${localeMetadata.localeTag} 与 languageId ${normalizedLanguageId} 不一致`);
+  if (
+    normalizedLanguageId !== undefined &&
+    localeLanguageId !== undefined &&
+    normalizedLanguageId !== localeLanguageId
+  ) {
+    throw new Error(
+      `localeTag ${localeMetadata.localeTag} 与 languageId ${normalizedLanguageId} 不一致`,
+    );
   }
 
   const explicitScriptTag = canonicalizeScriptTag(input.scriptTag);
-  if (explicitScriptTag && localeMetadata.script && explicitScriptTag !== localeMetadata.script) {
-    throw new Error(`scriptTag ${explicitScriptTag} 与 localeTag ${localeMetadata.localeTag} 不一致`);
+  if (
+    explicitScriptTag !== undefined &&
+    localeMetadata.script !== undefined &&
+    explicitScriptTag !== localeMetadata.script
+  ) {
+    throw new Error(
+      `scriptTag ${explicitScriptTag} 与 localeTag ${localeMetadata.localeTag} 不一致`,
+    );
   }
 
   const explicitRegionTag = canonicalizeRegionTag(input.regionTag);
-  if (explicitRegionTag && localeMetadata.region && explicitRegionTag !== localeMetadata.region) {
-    throw new Error(`regionTag ${explicitRegionTag} 与 localeTag ${localeMetadata.localeTag} 不一致`);
+  if (
+    explicitRegionTag !== undefined &&
+    localeMetadata.region !== undefined &&
+    explicitRegionTag !== localeMetadata.region
+  ) {
+    throw new Error(
+      `regionTag ${explicitRegionTag} 与 localeTag ${localeMetadata.localeTag} 不一致`,
+    );
   }
 
   const explicitVariantTag = canonicalizeVariantTag(input.variantTag);
-  if (explicitVariantTag && localeMetadata.variant && explicitVariantTag !== localeMetadata.variant) {
-    throw new Error(`variantTag ${explicitVariantTag} 与 localeTag ${localeMetadata.localeTag} 不一致`);
+  if (
+    explicitVariantTag !== undefined &&
+    localeMetadata.variant !== undefined &&
+    explicitVariantTag !== localeMetadata.variant
+  ) {
+    throw new Error(
+      `variantTag ${explicitVariantTag} 与 localeTag ${localeMetadata.localeTag} 不一致`,
+    );
   }
 
   const normalizedScriptTag = explicitScriptTag ?? localeMetadata.script;
@@ -193,12 +224,12 @@ export function normalizeOrthographyIdentity(input: OrthographyIdentityInput): O
   const normalizedVariantTag = explicitVariantTag ?? localeMetadata.variant;
 
   return {
-    ...(normalizedLanguageId ? { languageId: normalizedLanguageId } : {}),
-    ...(input.type ? { type: input.type } : {}),
-    ...(normalizedScriptTag ? { scriptTag: normalizedScriptTag } : {}),
-    ...(localeMetadata.localeTag ? { localeTag: localeMetadata.localeTag } : {}),
-    ...(normalizedRegionTag ? { regionTag: normalizedRegionTag } : {}),
-    ...(normalizedVariantTag ? { variantTag: normalizedVariantTag } : {}),
+    ...(normalizedLanguageId !== undefined ? { languageId: normalizedLanguageId } : {}),
+    ...(input.type !== undefined ? { type: input.type } : {}),
+    ...(normalizedScriptTag !== undefined ? { scriptTag: normalizedScriptTag } : {}),
+    ...(localeMetadata.localeTag !== undefined ? { localeTag: localeMetadata.localeTag } : {}),
+    ...(normalizedRegionTag !== undefined ? { regionTag: normalizedRegionTag } : {}),
+    ...(normalizedVariantTag !== undefined ? { variantTag: normalizedVariantTag } : {}),
   };
 }
 

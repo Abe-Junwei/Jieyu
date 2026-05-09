@@ -8,7 +8,16 @@ type AiChatConfirmationThreshold = 'always' | 'destructive' | 'never' | null | u
 type AiChatPage = 'transcription' | 'glossing' | 'settings' | 'other' | null | undefined;
 type AiChatUnitKind = 'unit' | 'segment' | null | undefined;
 type AiChatLayerType = 'transcription' | 'translation' | null | undefined;
-type AiAdaptiveIntent = 'translation' | 'transcription' | 'gloss' | 'review' | 'summary' | 'explain' | 'compare' | 'steps' | 'qa';
+type AiAdaptiveIntent =
+  | 'translation'
+  | 'transcription'
+  | 'gloss'
+  | 'review'
+  | 'summary'
+  | 'explain'
+  | 'compare'
+  | 'steps'
+  | 'qa';
 type AiAdaptiveResponseStyle = 'analysis' | 'direct_edit' | 'concise' | 'detailed' | 'step_by_step';
 type AiChatTask =
   | 'segmentation'
@@ -44,17 +53,24 @@ export interface RecommendedPlaceholderInput {
 }
 
 function clipText(text: string | null | undefined, max = 16): string {
-  const normalized = String(text ?? '').replace(/\s+/g, ' ').trim();
-  if (!normalized) return '';
-  return normalized.length <= max ? normalized : `${normalized.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+  const normalized = String(text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (normalized.length === 0) return '';
+  return normalized.length <= max
+    ? normalized
+    : `${normalized.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
 function isLowConfidence(confidence: number | null | undefined): boolean {
   return typeof confidence === 'number' && confidence > 0 && confidence < 0.72;
 }
 
-function normalizeTask(task: AiChatTask, observerStage: string | null | undefined): NonNullable<AiChatTask> | 'collecting' {
-  if (task) return task;
+function normalizeTask(
+  task: AiChatTask,
+  observerStage: string | null | undefined,
+): NonNullable<AiChatTask> | 'collecting' {
+  if (task !== null && task !== undefined) return task;
   if (observerStage === 'reviewing') return 'risk_review';
   if (observerStage === 'glossing') return 'glossing';
   if (observerStage === 'transcribing') return 'transcription';
@@ -62,42 +78,65 @@ function normalizeTask(task: AiChatTask, observerStage: string | null | undefine
 }
 
 function getPlaceholderPrefix(locale: Locale, input: RecommendedPlaceholderInput): string {
-  if (input.adaptiveResponseStyle === 'step_by_step') return t(locale, 'ai.chat.placeholder.prefix.steps');
-  if (input.preferredMode === 'analysis' || input.confirmationThreshold === 'always' || input.adaptiveResponseStyle === 'analysis') {
+  if (input.adaptiveResponseStyle === 'step_by_step')
+    return t(locale, 'ai.chat.placeholder.prefix.steps');
+  if (
+    input.preferredMode === 'analysis' ||
+    input.confirmationThreshold === 'always' ||
+    input.adaptiveResponseStyle === 'analysis'
+  ) {
     return t(locale, 'ai.chat.placeholder.prefix.analysis');
   }
-  if (input.adaptiveResponseStyle === 'direct_edit') return t(locale, 'ai.chat.placeholder.prefix.directEdit');
+  if (input.adaptiveResponseStyle === 'direct_edit')
+    return t(locale, 'ai.chat.placeholder.prefix.directEdit');
   return t(locale, 'ai.chat.placeholder.prefix.default');
 }
 
 function buildRecommendedPlaceholder(locale: Locale, input: RecommendedPlaceholderInput): string {
   const task = normalizeTask(input.aiCurrentTask, input.observerStage);
-  const rowLabel = input.rowNumber ? tf(locale, 'ai.chat.placeholder.scope.row', { rowNumber: input.rowNumber }) : '';
-  const unitLabel = input.selectedUnitKind === 'segment'
-    ? t(locale, 'ai.chat.placeholder.scope.unit.segment')
-    : input.selectedUnitKind === 'unit'
-      ? t(locale, 'ai.chat.placeholder.scope.unit.unit')
+  const rowLabel =
+    typeof input.rowNumber === 'number' && Number.isFinite(input.rowNumber)
+      ? tf(locale, 'ai.chat.placeholder.scope.row', { rowNumber: input.rowNumber })
       : '';
-  const layerLabel = input.selectedLayerType === 'translation'
-    ? t(locale, 'ai.chat.placeholder.scope.layer.translation')
-    : input.selectedLayerType === 'transcription'
-      ? t(locale, 'ai.chat.placeholder.scope.layer.transcription')
-      : '';
+  const unitLabel =
+    input.selectedUnitKind === 'segment'
+      ? t(locale, 'ai.chat.placeholder.scope.unit.segment')
+      : input.selectedUnitKind === 'unit'
+        ? t(locale, 'ai.chat.placeholder.scope.unit.unit')
+        : '';
+  const layerLabel =
+    input.selectedLayerType === 'translation'
+      ? t(locale, 'ai.chat.placeholder.scope.layer.translation')
+      : input.selectedLayerType === 'transcription'
+        ? t(locale, 'ai.chat.placeholder.scope.layer.transcription')
+        : '';
   const excerpt = clipText(input.selectedText);
-  const excerptLabel = excerpt ? (locale === 'zh-CN' ? `「${excerpt}」` : `"${excerpt}"`) : '';
-  const scope = [rowLabel, unitLabel, layerLabel, (input.selectedTimeRangeLabel ?? '').trim()].filter(Boolean).join(locale === 'zh-CN' ? ' · ' : ' | ');
-  const target = [scope, excerptLabel].filter(Boolean).join(' ');
-  const focus = target || (input.page === 'transcription'
-    ? t(locale, 'ai.chat.placeholder.focus.transcriptionWorkspace')
-    : t(locale, 'ai.chat.placeholder.focus.currentContext'));
+  const excerptLabel =
+    excerpt.length > 0 ? (locale === 'zh-CN' ? `「${excerpt}」` : `"${excerpt}"`) : '';
+  const scope = [rowLabel, unitLabel, layerLabel, (input.selectedTimeRangeLabel ?? '').trim()]
+    .filter((part): part is string => part.length > 0)
+    .join(locale === 'zh-CN' ? ' · ' : ' | ');
+  const target = [scope, excerptLabel].filter((part): part is string => part.length > 0).join(' ');
+  const focus =
+    target.length > 0
+      ? target
+      : input.page === 'transcription'
+        ? t(locale, 'ai.chat.placeholder.focus.transcriptionWorkspace')
+        : t(locale, 'ai.chat.placeholder.focus.currentContext');
   const prefix = getPlaceholderPrefix(locale, input);
-  const confidenceReview = isLowConfidence(input.confidence) || input.annotationStatus === 'verified';
-  const keywordHint = input.adaptiveKeywords && input.adaptiveKeywords.length > 0
-    ? tf(locale, 'ai.chat.placeholder.hint.keywords', { keywords: input.adaptiveKeywords.slice(0, 2).join(' / ') })
-    : '';
-  const recentNeedHint = input.adaptiveLastPromptExcerpt
-    ? tf(locale, 'ai.chat.placeholder.hint.recent', { prompt: input.adaptiveLastPromptExcerpt })
-    : '';
+  const confidenceReview =
+    isLowConfidence(input.confidence) || input.annotationStatus === 'verified';
+  const keywordHint =
+    input.adaptiveKeywords !== undefined && input.adaptiveKeywords.length > 0
+      ? tf(locale, 'ai.chat.placeholder.hint.keywords', {
+          keywords: input.adaptiveKeywords.slice(0, 2).join(' / '),
+        })
+      : '';
+  const recentPrompt = input.adaptiveLastPromptExcerpt?.trim();
+  const recentNeedHint =
+    recentPrompt !== undefined && recentPrompt.length > 0
+      ? tf(locale, 'ai.chat.placeholder.hint.recent', { prompt: recentPrompt })
+      : '';
 
   if (task === 'ai_chat_setup') {
     return `${prefix}${t(locale, 'ai.chat.placeholder.setup')}`;
@@ -114,7 +153,8 @@ function buildRecommendedPlaceholder(locale: Locale, input: RecommendedPlacehold
   }
 
   if (input.selectedLayerType === 'translation') {
-    if (!excerpt) return `${prefix}${tf(locale, 'ai.chat.placeholder.translation.draft', { focus })}`;
+    if (excerpt.length === 0)
+      return `${prefix}${tf(locale, 'ai.chat.placeholder.translation.draft', { focus })}`;
     if (confidenceReview || task === 'risk_review' || input.observerStage === 'reviewing') {
       return `${prefix}${tf(locale, 'ai.chat.placeholder.translation.review', { focus })}${recentNeedHint}${keywordHint}`;
     }
@@ -122,7 +162,8 @@ function buildRecommendedPlaceholder(locale: Locale, input: RecommendedPlacehold
   }
 
   if (input.selectedLayerType === 'transcription') {
-    if (!excerpt) return `${prefix}${tf(locale, 'ai.chat.placeholder.transcription.complete', { focus })}`;
+    if (excerpt.length === 0)
+      return `${prefix}${tf(locale, 'ai.chat.placeholder.transcription.complete', { focus })}`;
     if (task === 'glossing' || task === 'pos_tagging' || (input.lexemeCount ?? 0) > 0) {
       return `${prefix}${tf(locale, 'ai.chat.placeholder.transcription.gloss', { focus })}${recentNeedHint}${keywordHint}`;
     }
@@ -291,12 +332,18 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
         if (status === 'error') return '\u5f02\u5e38';
         return '\u672a\u9a8c\u8bc1';
       },
-      layerMismatchWarning: '\u26a0 \u672a\u627e\u5230\u5339\u914d\u201c\u5f53\u524d\u201d\u7684\u8f6c\u5199\u5c42',
-      highRiskPending: '\u5b58\u5728\u5f85\u786e\u8ba4\u7684\u9ad8\u98ce\u9669\u64cd\u4f5c\uff0c\u8bf7\u5148\u786e\u8ba4\u6216\u53d6\u6d88\u3002',
-      voiceDialogueBlocking: '\u8bed\u97f3\u52a9\u624b\u6b63\u5728\u7b49\u5f85\u786e\u8ba4\u6216\u9009\u62e9\u6307\u4ee4\uff0c\u8bf7\u5148\u5728\u4e0a\u65b9\u5904\u7406\u3002',
-      chatNotReady: 'AI \u5bf9\u8bdd\u5c1a\u672a\u5c31\u7eea\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002',
-      previousReplyStreaming: '\u4e0a\u4e00\u6761\u56de\u590d\u4ecd\u5728\u751f\u6210\u4e2d\uff0c\u505c\u6b62\u540e\u53ef\u7ee7\u7eed\u53d1\u9001\u3002',
-      pendingActionBeforeSend: '\u5b58\u5728\u5f85\u786e\u8ba4\u64cd\u4f5c\uff0c\u8bf7\u5148\u5904\u7406\u540e\u518d\u53d1\u9001\u3002',
+      layerMismatchWarning:
+        '\u26a0 \u672a\u627e\u5230\u5339\u914d\u201c\u5f53\u524d\u201d\u7684\u8f6c\u5199\u5c42',
+      highRiskPending:
+        '\u5b58\u5728\u5f85\u786e\u8ba4\u7684\u9ad8\u98ce\u9669\u64cd\u4f5c\uff0c\u8bf7\u5148\u786e\u8ba4\u6216\u53d6\u6d88\u3002',
+      voiceDialogueBlocking:
+        '\u8bed\u97f3\u52a9\u624b\u6b63\u5728\u7b49\u5f85\u786e\u8ba4\u6216\u9009\u62e9\u6307\u4ee4\uff0c\u8bf7\u5148\u5728\u4e0a\u65b9\u5904\u7406\u3002',
+      chatNotReady:
+        'AI \u5bf9\u8bdd\u5c1a\u672a\u5c31\u7eea\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002',
+      previousReplyStreaming:
+        '\u4e0a\u4e00\u6761\u56de\u590d\u4ecd\u5728\u751f\u6210\u4e2d\uff0c\u505c\u6b62\u540e\u53ef\u7ee7\u7eed\u53d1\u9001\u3002',
+      pendingActionBeforeSend:
+        '\u5b58\u5728\u5f85\u786e\u8ba4\u64cd\u4f5c\uff0c\u8bf7\u5148\u5904\u7406\u540e\u518d\u53d1\u9001\u3002',
       toolFeedbackStyle: '\u5de5\u5177\u53cd\u9988\u98ce\u683c',
       detailed: '\u8be6\u7ec6',
       concise: '\u7b80\u6d01',
@@ -317,11 +364,13 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       evidenceQuoteLabel: '\u5f15\u6587',
       evidenceConfidenceLabel: (confidencePercent) => `\u7f6e\u4fe1\u5ea6 ${confidencePercent}`,
       evidenceJump: '\u8df3\u8f6c\u5230\u6765\u6e90',
-      sourceScopeSummary: (count, scopeLabel) => `\u57fa\u4e8e ${count} \u6761${scopeLabel === 'segment' ? '\u8bed\u6bb5' : scopeLabel === 'mixed' ? '\u6df7\u5408\u6765\u6e90' : '\u6765\u6e90'}`,
+      sourceScopeSummary: (count, scopeLabel) =>
+        `\u57fa\u4e8e ${count} \u6761${scopeLabel === 'segment' ? '\u8bed\u6bb5' : scopeLabel === 'mixed' ? '\u6df7\u5408\u6765\u6e90' : '\u6765\u6e90'}`,
       workflowExplainabilitySrOnly: (headlineKey, detailsJoined) => {
         const tail = detailsJoined.trim().length > 0 ? `\uff1a${detailsJoined}` : '';
         if (headlineKey === 'assistant_error') return `\u52a9\u624b\u56de\u590d\u5f02\u5e38${tail}`;
-        if (headlineKey === 'degraded_response') return `\u6b64\u6761\u56de\u590d\u5305\u542b\u9700\u6ce8\u610f\u7684\u964d\u7ea7\u6216\u5ba1\u67e5\u573a\u666f${tail}`;
+        if (headlineKey === 'degraded_response')
+          return `\u6b64\u6761\u56de\u590d\u5305\u542b\u9700\u6ce8\u610f\u7684\u964d\u7ea7\u6216\u5ba1\u67e5\u573a\u666f${tail}`;
         return `\u8bfb\u53d6\u8303\u56f4\u6458\u8981${tail}`;
       },
       reasoning: '\ud83d\udcad \u63a8\u7406\u8fc7\u7a0b',
@@ -340,18 +389,22 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       hideConversationSummary: '\u6536\u8d77\u5bf9\u8bdd\u6458\u8981',
       conversationSummaryTitle: '\u5bf9\u8bdd\u6458\u8981\u94fe',
       summaryCoveredTurns: (turnCount) => `\u5df2\u8986\u76d6 ${turnCount} \u8f6e`,
-      summaryQualityWarning: (similarity, threshold) => `\u6458\u8981\u53ef\u80fd\u9057\u6f0f\u5173\u952e\u4fe1\u606f (${Math.round(similarity * 100)}% < ${Math.round(threshold * 100)}%)`,
+      summaryQualityWarning: (similarity, threshold) =>
+        `\u6458\u8981\u53ef\u80fd\u9057\u6f0f\u5173\u952e\u4fe1\u606f (${Math.round(similarity * 100)}% < ${Math.round(threshold * 100)}%)`,
       summaryEmpty: '\u6682\u65e0\u6458\u8981\u8bb0\u5f55',
       verticalWorkflowTitle: 'Vertical Workflow',
       verticalWorkflowShowDetail: '\u67e5\u770b\u8be6\u60c5',
       verticalWorkflowHideDetail: '\u6536\u8d77\u8be6\u60c5',
       verticalWorkflowOpenReplay: '\u67e5\u770b\u56de\u653e/\u5bf9\u6bd4',
       verticalWorkflowRequestLabel: (requestId) => `\u8bf7\u6c42: ${requestId}`,
-      verticalWorkflowSelectionLabel: (source, reasonCode) => `\u9009\u62e9\u4f9d\u636e: ${source} / ${reasonCode}`,
+      verticalWorkflowSelectionLabel: (source, reasonCode) =>
+        `\u9009\u62e9\u4f9d\u636e: ${source} / ${reasonCode}`,
       verticalWorkflowKeywordLabel: (keyword) => `\u5173\u952e\u8bcd: ${keyword}`,
-      verticalWorkflowConfidenceLabel: (confidencePercent) => `\u7f6e\u4fe1\u5ea6: ${confidencePercent}`,
+      verticalWorkflowConfidenceLabel: (confidencePercent) =>
+        `\u7f6e\u4fe1\u5ea6: ${confidencePercent}`,
       verticalWorkflowRequestCopied: (requestId) => `\u5df2\u590d\u5236 Request ID: ${requestId}`,
-      verticalWorkflowRequestUnavailable: '\u7f3a\u5c11\u8bf7\u6c42 ID\uff0c\u6682\u65e0\u6cd5\u56de\u653e',
+      verticalWorkflowRequestUnavailable:
+        '\u7f3a\u5c11\u8bf7\u6c42 ID\uff0c\u6682\u65e0\u6cd5\u56de\u653e',
       more: '\u66f4\u591a',
       ragQuickScenarios: 'RAG \u5feb\u6377\u573a\u666f',
       stopGenerating: '\u505c\u6b62\u751f\u6210',
@@ -403,7 +456,8 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       webllmWarmupPhaseInitializing: '\u521d\u59cb\u5316\u6a21\u578b',
       webllmWarmupPhaseReady: '\u6a21\u578b\u5c31\u7eea',
       agentLoopProgress: (step, maxSteps) => `\u591a\u6b65\u63a8\u7406 ${step}/${maxSteps}`,
-      tokenBudgetWarning: (estimatedTokens) => `\n\n如需我继续完成这项查询，请回复“继续”。预计还需约 ${estimatedTokens} tokens。`,
+      tokenBudgetWarning: (estimatedTokens) =>
+        `\n\n如需我继续完成这项查询，请回复“继续”。预计还需约 ${estimatedTokens} tokens。`,
       recommendedInputPlaceholder: (input) => buildRecommendedPlaceholder('zh-CN', input),
     };
   }
@@ -421,7 +475,8 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     },
     layerMismatchWarning: '\u26a0 No matching "current" transcription layer found',
     highRiskPending: 'A high-risk action is pending. Confirm or cancel it first.',
-    voiceDialogueBlocking: 'The voice assistant is waiting for confirmation or command selection. Resolve it above first.',
+    voiceDialogueBlocking:
+      'The voice assistant is waiting for confirmation or command selection. Resolve it above first.',
     chatNotReady: 'AI chat is not ready yet. Please try again shortly.',
     previousReplyStreaming: 'Previous reply is still streaming. Stop it before sending.',
     pendingActionBeforeSend: 'A pending action must be handled before sending.',
@@ -445,11 +500,13 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     evidenceQuoteLabel: 'Quote',
     evidenceConfidenceLabel: (confidencePercent) => `Confidence ${confidencePercent}`,
     evidenceJump: 'Jump to source',
-    sourceScopeSummary: (count, scopeLabel) => `Based on ${count} ${scopeLabel === 'segment' ? 'segment' : scopeLabel === 'mixed' ? 'mixed sources' : 'source'}${count > 1 ? 's' : ''}`,
+    sourceScopeSummary: (count, scopeLabel) =>
+      `Based on ${count} ${scopeLabel === 'segment' ? 'segment' : scopeLabel === 'mixed' ? 'mixed sources' : 'source'}${count > 1 ? 's' : ''}`,
     workflowExplainabilitySrOnly: (headlineKey, detailsJoined) => {
       const tail = detailsJoined.trim().length > 0 ? `: ${detailsJoined}` : '';
       if (headlineKey === 'assistant_error') return `Assistant reply error${tail}`;
-      if (headlineKey === 'degraded_response') return `This reply includes a degraded or flagged review scenario${tail}`;
+      if (headlineKey === 'degraded_response')
+        return `This reply includes a degraded or flagged review scenario${tail}`;
       return `Read scope summary${tail}`;
     },
     reasoning: '\ud83d\udcad Reasoning',
@@ -468,7 +525,8 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     hideConversationSummary: 'Hide summary',
     conversationSummaryTitle: 'Conversation summary chain',
     summaryCoveredTurns: (turnCount) => `Covers ${turnCount} turns`,
-    summaryQualityWarning: (similarity, threshold) => `Summary may miss key details (${Math.round(similarity * 100)}% < ${Math.round(threshold * 100)}%)`,
+    summaryQualityWarning: (similarity, threshold) =>
+      `Summary may miss key details (${Math.round(similarity * 100)}% < ${Math.round(threshold * 100)}%)`,
     summaryEmpty: 'No summary history yet',
     verticalWorkflowTitle: 'Vertical Workflow',
     verticalWorkflowShowDetail: 'Show detail',
@@ -531,7 +589,8 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     webllmWarmupPhaseInitializing: 'Initializing model runtime',
     webllmWarmupPhaseReady: 'Model ready',
     agentLoopProgress: (step, maxSteps) => `Agent loop ${step}/${maxSteps}`,
-    tokenBudgetWarning: (estimatedTokens) => `\n\nIf you want me to continue this lookup, reply "continue". Estimated remaining cost is ~${estimatedTokens} tokens.`,
+    tokenBudgetWarning: (estimatedTokens) =>
+      `\n\nIf you want me to continue this lookup, reply "continue". Estimated remaining cost is ~${estimatedTokens} tokens.`,
     recommendedInputPlaceholder: (input) => buildRecommendedPlaceholder('en-US', input),
   };
 }

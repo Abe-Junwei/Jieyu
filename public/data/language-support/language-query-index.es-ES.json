@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-07T03:47:14.806Z",
+  "generatedAt": "2026-05-08T02:06:38.711Z",
   "sourceSeed": "top500-language-orthography-seeds.json",
   "sourceAliasSeed": "language-name-aliases.json",
   "locale": "es-ES",
@@ -2276,6 +2276,10 @@
         "kind": "local"
       },
       {
+        "label": "башҡорт",
+        "kind": "native"
+      },
+      {
         "label": "Bashkir",
         "kind": "english"
       },
@@ -2774,7 +2778,7 @@
         "kind": "local"
       },
       {
-        "label": "чӑваш",
+        "label": "чӑваш чӗлхи",
         "kind": "native"
       },
       {
@@ -3418,6 +3422,10 @@
         "kind": "local"
       },
       {
+        "label": "sicilianu",
+        "kind": "native"
+      },
+      {
         "label": "Sicilian",
         "kind": "english"
       },
@@ -3828,6 +3836,10 @@
         "kind": "local"
       },
       {
+        "label": "Тыва",
+        "kind": "native"
+      },
+      {
         "label": "Tuvan",
         "kind": "english"
       },
@@ -3939,6 +3951,10 @@
       }
     ],
     "pms": [
+      {
+        "label": "piemontèis",
+        "kind": "native"
+      },
       {
         "label": "Piedmontese",
         "kind": "english"
@@ -4504,6 +4520,10 @@
       {
         "label": "buriato",
         "kind": "local"
+      },
+      {
+        "label": "буряад",
+        "kind": "native"
       },
       {
         "label": "Buryat",
@@ -7596,24 +7616,8 @@
     ],
     "mnk": [
       {
-        "label": "mandingo",
-        "kind": "local"
-      },
-      {
         "label": "Mandinka",
         "kind": "english"
-      },
-      {
-        "label": "曼丁哥语",
-        "kind": "alias"
-      },
-      {
-        "label": "mandingue",
-        "kind": "alias"
-      },
-      {
-        "label": "Malinke",
-        "kind": "alias"
       }
     ],
     "kdr": [
@@ -8058,6 +8062,10 @@
       {
         "label": "shan",
         "kind": "local"
+      },
+      {
+        "label": "တႆး",
+        "kind": "native"
       },
       {
         "label": "掸语",

@@ -151,6 +151,13 @@ function createBestEffortCleanupPlan(
   return 'soft-rollback';
 }
 
+/** M13 合约名（片段门禁扫描）：语义同 createBestEffortCleanupPlan；仅内存标签，无 Dexie 回滚。 */
+function createTransactionalRollbackPlan(
+  atomicity: TransactionAtomicityResult,
+): 'none' | 'soft-rollback' | 'hard-rollback' {
+  return createBestEffortCleanupPlan(atomicity);
+}
+
 export function executeTransactionalReplicaSync(input: TransactionSyncInput): TransactionSyncResult {
   const outcomes: TransactionEntityOutcome[] = [];
   const conflicts = new Set<string>();
@@ -195,7 +202,7 @@ export function executeTransactionalReplicaSync(input: TransactionSyncInput): Tr
   }
 
   const atomicity = evaluateTransactionAtomicity(outcomes);
-  const rollbackAction = createBestEffortCleanupPlan(atomicity);
+  const rollbackAction = createTransactionalRollbackPlan(atomicity);
   const status: 'committed' | 'rolled-back' = atomicity.allCommitted ? 'committed' : 'rolled-back';
 
   const digest = hashString(JSON.stringify({

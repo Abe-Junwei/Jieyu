@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import type { AiSessionMemorySummaryEntry } from '../../ai/chat/chatDomain.types';
+
+const EMPTY_SUMMARY_CHAIN: AiSessionMemorySummaryEntry[] = [];
 import type { AiSessionMemory, UiChatMessage } from '../../hooks/useAiChat';
 import { AI_CHAT_CARD_EMPTY_STRING_ARRAY, buildPinnedSummary } from './aiChatCardUtils';
 
@@ -16,7 +18,13 @@ export function useAiChatPinnedSummaries(input: {
   hasConversationSummary: boolean;
   summaryEntries: AiSessionMemorySummaryEntry[];
 } {
-  const { aiSessionMemory, messages, optimisticPinnedMessageIds, optimisticUnpinnedMessageIds, isZh } = input;
+  const {
+    aiSessionMemory,
+    messages,
+    optimisticPinnedMessageIds,
+    optimisticUnpinnedMessageIds,
+    isZh,
+  } = input;
   const pinnedMessageIds = aiSessionMemory?.pinnedMessageIds ?? AI_CHAT_CARD_EMPTY_STRING_ARRAY;
   const pinnedMessageIdsSignature = useMemo(() => pinnedMessageIds.join('|'), [pinnedMessageIds]);
   const pinnedMessageIdSet = useMemo(() => {
@@ -26,30 +34,43 @@ export function useAiChatPinnedSummaries(input: {
     return base;
   }, [optimisticPinnedMessageIds, optimisticUnpinnedMessageIds, pinnedMessageIds]);
   const pinnedMessageDigestItems = useMemo(() => {
-    const visiblePinnedMessageIds = pinnedMessageIds.filter((messageId) => !optimisticUnpinnedMessageIds.has(messageId));
+    const visiblePinnedMessageIds = pinnedMessageIds.filter(
+      (messageId) => !optimisticUnpinnedMessageIds.has(messageId),
+    );
     if (visiblePinnedMessageIds.length === 0) return [];
-    const digestById = new Map((aiSessionMemory?.pinnedMessageDigests ?? []).map((item) => [item.messageId, item] as const));
+    const digestById = new Map(
+      (aiSessionMemory?.pinnedMessageDigests ?? []).map((item) => [item.messageId, item] as const),
+    );
     const messageById = new Map(messages.map((item) => [item.id, item] as const));
-    return visiblePinnedMessageIds.map((messageId) => {
-      const digest = digestById.get(messageId);
-      if (digest) return digest;
-      const fallbackMessage = messageById.get(messageId);
-      if (!fallbackMessage) return null;
-      return {
-        messageId,
-        role: fallbackMessage.role,
-        content: fallbackMessage.content,
-        createdAt: '',
-      };
-    }).filter((item): item is NonNullable<typeof item> => Boolean(item));
-  }, [aiSessionMemory?.pinnedMessageDigests, messages, optimisticUnpinnedMessageIds, pinnedMessageIds]);
-  const pinnedSummaryItems = useMemo(() => (
-    pinnedMessageDigestItems.map((item) => ({
-      messageId: item.messageId,
-      summary: buildPinnedSummary(item.content, isZh),
-    }))
-  ), [isZh, pinnedMessageDigestItems]);
-  const summaryChain = aiSessionMemory?.summaryChain ?? [];
+    return visiblePinnedMessageIds
+      .map((messageId) => {
+        const digest = digestById.get(messageId);
+        if (digest) return digest;
+        const fallbackMessage = messageById.get(messageId);
+        if (!fallbackMessage) return null;
+        return {
+          messageId,
+          role: fallbackMessage.role,
+          content: fallbackMessage.content,
+          createdAt: '',
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  }, [
+    aiSessionMemory?.pinnedMessageDigests,
+    messages,
+    optimisticUnpinnedMessageIds,
+    pinnedMessageIds,
+  ]);
+  const pinnedSummaryItems = useMemo(
+    () =>
+      pinnedMessageDigestItems.map((item) => ({
+        messageId: item.messageId,
+        summary: buildPinnedSummary(item.content, isZh),
+      })),
+    [isZh, pinnedMessageDigestItems],
+  );
+  const summaryChain = aiSessionMemory?.summaryChain ?? EMPTY_SUMMARY_CHAIN;
   const latestConversationSummary = (aiSessionMemory?.conversationSummary ?? '').trim();
   const hasConversationSummary = latestConversationSummary.length > 0 || summaryChain.length > 0;
   const summaryEntries = useMemo(() => {
@@ -57,12 +78,14 @@ export function useAiChatPinnedSummaries(input: {
       return [...summaryChain].slice(-4).reverse();
     }
     if (!latestConversationSummary) return [];
-    return [{
-      id: 'latest-summary',
-      summary: latestConversationSummary,
-      coveredTurnCount: aiSessionMemory?.summaryTurnCount ?? 0,
-      createdAt: '',
-    }];
+    return [
+      {
+        id: 'latest-summary',
+        summary: latestConversationSummary,
+        coveredTurnCount: aiSessionMemory?.summaryTurnCount ?? 0,
+        createdAt: '',
+      },
+    ];
   }, [aiSessionMemory?.summaryTurnCount, latestConversationSummary, summaryChain]);
 
   return {

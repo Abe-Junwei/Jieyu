@@ -9,14 +9,25 @@
  * commercial engine config sync, and assistant panel expansion behavior.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type RefObject,
+} from 'react';
 import { useVoiceAgent } from './useVoiceAgent';
 import { applyVoiceCommercialConfigChange } from '../utils/voiceCommercialConfigSync';
 import type { CommercialProviderKind, SttEngine } from '../services/VoiceInputService';
 import { getActiveSttProviderMetadata } from '../services/stt/providerMetadata';
 import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../services/stt';
 import type { LayerDocType, LayerLinkDocType } from '../db';
-import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+import type {
+  DictationPipelineCallbacks,
+  QuickDictationConfig,
+} from '../services/SpeechAnnotationPipeline';
 import {
   computeTranscriptionVoiceSelectionSummary,
   computeTranscriptionVoiceTargetSummary,
@@ -27,7 +38,11 @@ import { useLocale, t } from '../i18n';
 import { getVoiceInteractionMessages } from '../i18n/messages';
 import { useGlobalContext } from '../services/GlobalContextService';
 import { useToast } from '../contexts/ToastContext';
-import { isAssistantWebSpeechTtsSupported, speakAssistantReplyWithWebSpeechTts, stopAssistantWebSpeechTts } from '../utils/assistantWebSpeechTts';
+import {
+  isAssistantWebSpeechTtsSupported,
+  speakAssistantReplyWithWebSpeechTts,
+  stopAssistantWebSpeechTts,
+} from '../utils/assistantWebSpeechTts';
 import { createLogger } from '../observability/logger';
 
 interface VoiceMessageLike {
@@ -57,7 +72,9 @@ interface UseVoiceInteractionOptions {
   effectiveVoiceCorpusLang: string;
   voiceCorpusLangOverride: string | null;
   executeAction: Parameters<typeof useVoiceAgent>[0]['executeAction'];
-  handleResolveVoiceIntentWithLlm: NonNullable<Parameters<typeof useVoiceAgent>[0]['resolveIntentWithLlm']>;
+  handleResolveVoiceIntentWithLlm: NonNullable<
+    Parameters<typeof useVoiceAgent>[0]['resolveIntentWithLlm']
+  >;
   /** 与转写页 AI `handleAiToolCall` 同源 */
   executeVoiceToolCall?: Parameters<typeof useVoiceAgent>[0]['executeVoiceToolCall'];
   handleVoiceDictation: NonNullable<Parameters<typeof useVoiceAgent>[0]['insertDictation']>;
@@ -90,7 +107,9 @@ interface UseVoiceInteractionOptions {
   featureVoiceEnabled: boolean;
   toggleVoiceRef: RefObject<(() => void) | undefined>;
   /** When set, AI stream completion is routed via `useAiChat` `onMessageComplete` (authoritative message id + body). */
-  voiceAiAssistantMessageBridgeRef?: MutableRefObject<((assistantMessageId: string, content: string) => void) | null>;
+  voiceAiAssistantMessageBridgeRef?: MutableRefObject<
+    ((assistantMessageId: string, content: string) => void) | null
+  >;
 }
 
 interface UseVoiceInteractionReturn {
@@ -156,15 +175,23 @@ export function useVoiceInteraction({
   const { showToast } = useToast();
   const { profile, updatePreference } = useGlobalContext();
   const assistantTtsEnabled = profile.preferences.assistantTtsEnabled;
-  const onSetAssistantTtsEnabled = useCallback((on: boolean) => {
-    updatePreference('assistantTtsEnabled', on);
-  }, [updatePreference]);
+  const onSetAssistantTtsEnabled = useCallback(
+    (on: boolean) => {
+      updatePreference('assistantTtsEnabled', on);
+    },
+    [updatePreference],
+  );
   const assistantTtsSupported = useMemo(() => isAssistantWebSpeechTtsSupported(), []);
   const assistantTtsUnsupportedHintShownRef = useRef(false);
   const messages = getVoiceInteractionMessages(locale);
 
   useEffect(() => {
-    if (!assistantTtsEnabled || assistantTtsSupported || assistantTtsUnsupportedHintShownRef.current) return;
+    if (
+      !assistantTtsEnabled ||
+      assistantTtsSupported ||
+      assistantTtsUnsupportedHintShownRef.current
+    )
+      return;
     assistantTtsUnsupportedHintShownRef.current = true;
     showToast(
       t(locale, 'transcription.voiceWidget.settings.assistantTtsUnsupported'),
@@ -187,28 +214,28 @@ export function useVoiceInteraction({
     return fallbackMessage;
   }, []);
 
-  const runVoiceTask = useCallback((
-    task: () => Promise<void>,
-    fallbackMessage: string,
-    onError?: (message: string) => void,
-  ) => {
-    void task().catch((error) => {
-      const message = normalizeVoiceTaskError(error, fallbackMessage);
-      voiceAgentRef.current?.setExternalError?.(message);
-      onError?.(message);
-    });
-  }, [normalizeVoiceTaskError]);
+  const runVoiceTask = useCallback(
+    (task: () => Promise<void>, fallbackMessage: string, onError?: (message: string) => void) => {
+      void task().catch((error) => {
+        const message = normalizeVoiceTaskError(error, fallbackMessage);
+        voiceAgentRef.current?.setExternalError?.(message);
+        onError?.(message);
+      });
+    },
+    [normalizeVoiceTaskError],
+  );
 
   const sendToAiChat = useMemo(
-    () => createTranscriptionVoiceSendToAiChat({
-      getActiveUnitId: () => selection.activeUnitId,
-      onVoiceAnalysisResult,
-      aiChatSend,
-      messages,
-      runVoiceTask,
-      getVoiceAgentApi: () => voiceAgentRef.current,
-      setAnalysisWritebackFeedback,
-    }),
+    () =>
+      createTranscriptionVoiceSendToAiChat({
+        getActiveUnitId: () => selection.activeUnitId,
+        onVoiceAnalysisResult,
+        aiChatSend,
+        messages,
+        runVoiceTask,
+        getVoiceAgentApi: () => voiceAgentRef.current,
+        setAnalysisWritebackFeedback,
+      }),
     [
       aiChatSend,
       messages,
@@ -241,16 +268,17 @@ export function useVoiceInteraction({
   const isNonDictationMode = voiceAgent.mode !== 'dictation';
 
   const voiceTargetSummary = useMemo(
-    () => computeTranscriptionVoiceTargetSummary({
-      isNonDictationMode,
-      selection,
-      layers,
-      translationLayers,
-      ...(layerLinks !== undefined ? { layerLinks } : {}),
-      ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
-      formatSidePaneLayerLabel,
-      messages,
-    }),
+    () =>
+      computeTranscriptionVoiceTargetSummary({
+        isNonDictationMode,
+        selection,
+        layers,
+        translationLayers,
+        ...(layerLinks !== undefined ? { layerLinks } : {}),
+        ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
+        formatSidePaneLayerLabel,
+        messages,
+      }),
     [
       defaultTranscriptionLayerId,
       formatSidePaneLayerLabel,
@@ -263,12 +291,14 @@ export function useVoiceInteraction({
     ],
   );
 
-  const pushToTalkReady = useMemo(() => (
-    voiceAgent.listening
-    && !voiceAgent.isRecording
-    && voiceAgent.agentState === 'idle'
-    && (voiceAgent.engine === 'whisper-local' || voiceAgent.engine === 'commercial')
-  ), [voiceAgent.agentState, voiceAgent.engine, voiceAgent.isRecording, voiceAgent.listening]);
+  const pushToTalkReady = useMemo(
+    () =>
+      voiceAgent.listening &&
+      !voiceAgent.isRecording &&
+      voiceAgent.agentState === 'idle' &&
+      (voiceAgent.engine === 'whisper-local' || voiceAgent.engine === 'commercial'),
+    [voiceAgent.agentState, voiceAgent.engine, voiceAgent.isRecording, voiceAgent.listening],
+  );
 
   const voiceStatusSummary = useMemo(() => {
     if (voiceAgent.error) {
@@ -295,7 +325,16 @@ export function useVoiceInteraction({
         }
         return voiceAgent.listening ? messages.listeningIdle : messages.readyToStart;
     }
-  }, [analysisWritebackFeedback, isNonDictationMode, messages, pushToTalkReady, voiceAgent.agentState, voiceAgent.error, voiceAgent.listening, voiceAgent.mode]);
+  }, [
+    analysisWritebackFeedback,
+    isNonDictationMode,
+    messages,
+    pushToTalkReady,
+    voiceAgent.agentState,
+    voiceAgent.error,
+    voiceAgent.listening,
+    voiceAgent.mode,
+  ]);
 
   useEffect(() => {
     if (voiceAgent.mode === 'dictation' && analysisWritebackFeedback) {
@@ -313,16 +352,18 @@ export function useVoiceInteraction({
   }, [analysisWritebackFeedback]);
 
   const voiceEnvironmentSummary = useMemo(() => {
-    const currentLanguage = voiceCorpusLangOverride === '__auto__'
-      ? messages.autoDetectLanguage
-      : formatLanguageLabel(voiceCorpusLangOverride ?? effectiveVoiceCorpusLang);
+    const currentLanguage =
+      voiceCorpusLangOverride === '__auto__'
+        ? messages.autoDetectLanguage
+        : formatLanguageLabel(voiceCorpusLangOverride ?? effectiveVoiceCorpusLang);
     const currentEngine = getActiveSttProviderMetadata(
       voiceAgent.engine,
       voiceAgent.commercialProviderKind,
     ).label;
-    const detectedLanguage = voiceCorpusLangOverride === '__auto__' && voiceAgent.detectedLang
-      ? messages.detectedLanguageSuffix(formatLanguageLabel(voiceAgent.detectedLang))
-      : '';
+    const detectedLanguage =
+      voiceCorpusLangOverride === '__auto__' && voiceAgent.detectedLang
+        ? messages.detectedLanguageSuffix(formatLanguageLabel(voiceAgent.detectedLang))
+        : '';
     return `${currentLanguage} · ${currentEngine}${detectedLanguage}`;
   }, [
     effectiveVoiceCorpusLang,
@@ -334,11 +375,12 @@ export function useVoiceInteraction({
   ]);
 
   const voiceSelectionSummary = useMemo(
-    () => computeTranscriptionVoiceSelectionSummary({
-      selection,
-      formatTime,
-      unknownSegmentLabel: messages.unknownSegment,
-    }),
+    () =>
+      computeTranscriptionVoiceSelectionSummary({
+        selection,
+        formatTime,
+        unknownSegmentLabel: messages.unknownSegment,
+      }),
     [formatTime, messages.unknownSegment, selection],
   );
 
@@ -349,14 +391,25 @@ export function useVoiceInteraction({
     if (!ref) return;
     ref.current = (_assistantMessageId, content) => {
       voiceAgentRef.current?.notifyAiStreamFinished?.(content);
-      if (featureVoiceEnabled && assistantTtsEnabled && assistantTtsSupported && content.trim().length > 0) {
+      if (
+        featureVoiceEnabled &&
+        assistantTtsEnabled &&
+        assistantTtsSupported &&
+        content.trim().length > 0
+      ) {
         speakAssistantReplyWithWebSpeechTts(content, locale);
       }
     };
     return () => {
       ref.current = null;
     };
-  }, [assistantTtsEnabled, assistantTtsSupported, featureVoiceEnabled, locale, voiceAiAssistantMessageBridgeRef]);
+  }, [
+    assistantTtsEnabled,
+    assistantTtsSupported,
+    featureVoiceEnabled,
+    locale,
+    voiceAiAssistantMessageBridgeRef,
+  ]);
 
   useEffect(() => {
     const wasStreaming = prevAiStreamingRef.current;
@@ -373,7 +426,7 @@ export function useVoiceInteraction({
     }
 
     prevAiStreamingRef.current = isStreaming;
-  }, [aiIsStreaming, aiMessages, voiceAgent.notifyAiStreamFinished, voiceAgent.notifyAiStreamStarted, voiceAiAssistantMessageBridgeRef]);
+  }, [aiIsStreaming, aiMessages, voiceAgent, voiceAiAssistantMessageBridgeRef]);
 
   const ensureWhisperLocalReady = useCallback(async (): Promise<boolean> => {
     const result = await voiceAgent.testWhisperLocal();
@@ -383,11 +436,18 @@ export function useVoiceInteraction({
     }
     voiceAgent.setExternalError(null);
     return true;
-  }, [voiceAgent.setExternalError, voiceAgent.testWhisperLocal]);
+  }, [voiceAgent]);
 
-  const handleVoiceCommercialConfigChange = useCallback((config: CommercialProviderConfigLike) => {
-    applyVoiceCommercialConfigChange(config, onCommercialConfigChange, voiceAgent.setCommercialProviderConfig);
-  }, [onCommercialConfigChange, voiceAgent.setCommercialProviderConfig]);
+  const handleVoiceCommercialConfigChange = useCallback(
+    (config: CommercialProviderConfigLike) => {
+      applyVoiceCommercialConfigChange(
+        config,
+        onCommercialConfigChange,
+        voiceAgent.setCommercialProviderConfig,
+      );
+    },
+    [onCommercialConfigChange, voiceAgent.setCommercialProviderConfig],
+  );
 
   useEffect(() => {
     setCommercialProviderKind(voiceAgent.commercialProviderKind);
@@ -413,28 +473,34 @@ export function useVoiceInteraction({
       }
       voiceAgent.toggle();
     }, 'Failed to toggle voice mode.');
-  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent.engine, voiceAgent.listening, voiceAgent.toggle]);
+  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent]);
 
-  const handleVoiceSwitchEngine = useCallback((engine: SttEngine) => {
-    runVoiceTask(async () => {
-      if (engine === 'whisper-local') {
-        const ready = await ensureWhisperLocalReady();
-        if (!ready) return;
-      }
-      voiceAgent.switchEngine(engine);
-    }, 'Failed to switch voice engine.');
-  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent.switchEngine]);
-
-  const handleMicPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-    void event;
-    if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
+  const handleVoiceSwitchEngine = useCallback(
+    (engine: SttEngine) => {
       runVoiceTask(async () => {
-        const ready = await ensureWhisperLocalReady();
-        if (!ready) return;
-        await voiceAgent.startRecording();
-      }, 'Failed to start recording.');
-    }
-  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent.engine, voiceAgent.listening, voiceAgent.startRecording]);
+        if (engine === 'whisper-local') {
+          const ready = await ensureWhisperLocalReady();
+          if (!ready) return;
+        }
+        voiceAgent.switchEngine(engine);
+      }, 'Failed to switch voice engine.');
+    },
+    [ensureWhisperLocalReady, runVoiceTask, voiceAgent],
+  );
+
+  const handleMicPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      void event;
+      if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
+        runVoiceTask(async () => {
+          const ready = await ensureWhisperLocalReady();
+          if (!ready) return;
+          await voiceAgent.startRecording();
+        }, 'Failed to start recording.');
+      }
+    },
+    [ensureWhisperLocalReady, runVoiceTask, voiceAgent],
+  );
 
   const handleMicPointerUp = useCallback(() => {
     if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
@@ -442,7 +508,7 @@ export function useVoiceInteraction({
         await voiceAgent.stopRecording();
       }, 'Failed to stop recording.');
     }
-  }, [runVoiceTask, voiceAgent.engine, voiceAgent.listening, voiceAgent.stopRecording]);
+  }, [runVoiceTask, voiceAgent]);
 
   const handleAssistantVoicePanelToggle = useCallback(() => {
     setAssistantVoiceExpanded((value) => !value);
@@ -456,15 +522,15 @@ export function useVoiceInteraction({
 
   useEffect(() => {
     if (
-      voiceAgent.listening
-      || voiceAgent.isRecording
-      || Boolean(voiceAgent.pendingConfirm)
-      || disambiguationOptionCount > 0
-      || Boolean(voiceAgent.error)
+      voiceAgent.listening ||
+      voiceAgent.isRecording ||
+      Boolean(voiceAgent.pendingConfirm) ||
+      disambiguationOptionCount > 0 ||
+      Boolean(voiceAgent.error)
     ) {
       setAssistantVoiceExpanded(true);
     }
-  }, [disambiguationOptionCount, voiceAgent.error, voiceAgent.isRecording, voiceAgent.listening, voiceAgent.pendingConfirm]);
+  }, [disambiguationOptionCount, voiceAgent]);
 
   return {
     voiceAgent,

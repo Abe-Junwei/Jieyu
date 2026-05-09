@@ -49,12 +49,13 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
   const leftPx = unitStartTime * zoomPxPerSec - scrollLeft;
   const widthPx = (unitEndTime - unitStartTime) * zoomPxPerSec;
 
+  const locale = useLocale();
+
   // 区域滚出视野时不渲染 | Don't render when region is out of view
   if (leftPx + widthPx < 0 || leftPx > waveAreaWidth) return null;
 
   const showSpeedSlider = widthPx >= 160;
   const showLoopBtn = widthPx >= 72;
-  const locale = useLocale();
 
   if (skipProcessing) {
     return null;

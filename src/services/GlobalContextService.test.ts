@@ -13,7 +13,6 @@ vi.mock('../ai/embeddings/EmbeddingSearchService', () => ({
   EmbeddingSearchService: vi.fn(),
 }));
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 type GCS = typeof import('./GlobalContextService');
 
 // 每次重新导入保证单例不跨测试污染 | Re-import to prevent singleton leaking between tests

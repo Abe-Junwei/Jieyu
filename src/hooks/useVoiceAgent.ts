@@ -15,13 +15,32 @@ import { useVoiceAgentResultHandler } from './useVoiceAgentResultHandler';
 import { useVoiceAgentStartController } from './useVoiceAgentStartController';
 import { useVoiceAgentTransportControls } from './useVoiceAgentTransportControls';
 import { useVoiceAgentWakeWord } from './useVoiceAgentWakeWord';
-import { createVoiceSessionState, loadIntentRouterRuntime, loadSttRuntime, loadSttStrategyRuntime, loadVoiceInputRuntime, loadVoiceIntentRefineRuntime, loadVoiceSessionStoreRuntime, loadWakeWordRuntime } from './useVoiceAgent.runtime';
+import {
+  createVoiceSessionState,
+  loadIntentRouterRuntime,
+  loadSttRuntime,
+  loadSttStrategyRuntime,
+  loadVoiceInputRuntime,
+  loadVoiceIntentRefineRuntime,
+  loadVoiceSessionStoreRuntime,
+  loadWakeWordRuntime,
+} from './useVoiceAgent.runtime';
 import { cleanupVoiceInputSubscriptions } from './useVoiceAgent.serviceBindings';
 import { useVoiceAgentModeController } from './useVoiceAgentModeController';
 import { useLocale } from '../i18n';
 import { DEFAULT_VOICE_MODE } from '../services/voiceMode';
-import type { UseVoiceAgentOptions, VoiceAgentMode, VoiceAgentState, VoicePendingConfirm } from './useVoiceAgent.types';
-export type { UseVoiceAgentOptions, VoiceAgentMode, VoiceAgentState, VoicePendingConfirm } from './useVoiceAgent.types';
+import type {
+  UseVoiceAgentOptions,
+  VoiceAgentMode,
+  VoiceAgentState,
+  VoicePendingConfirm,
+} from './useVoiceAgent.types';
+export type {
+  UseVoiceAgentOptions,
+  VoiceAgentMode,
+  VoiceAgentState,
+  VoicePendingConfirm,
+} from './useVoiceAgent.types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export { DEFAULT_VOICE_MODE };
@@ -61,8 +80,11 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const [session, setSession] = useState<VoiceSession>(createVoiceSessionState);
   const [engine, setEngine] = useState<SttEngine>('web-speech');
   const [isRecording, setIsRecording] = useState(false);
-  const [commercialProviderKindState, setCommercialProviderKindState] = useState<CommercialProviderKind>(commercialProviderKind);
-  const [commercialProviderConfigState, setCommercialProviderConfigState] = useState<CommercialProviderCreateConfig | undefined>(commercialProviderConfig);
+  const [commercialProviderKindState, setCommercialProviderKindState] =
+    useState<CommercialProviderKind>(commercialProviderKind);
+  const [commercialProviderConfigState, setCommercialProviderConfigState] = useState<
+    CommercialProviderCreateConfig | undefined
+  >(commercialProviderConfig);
   const [wakeWordEnabled, setWakeWordEnabledState] = useState(initialWakeWordEnabled);
 
   useEffect(() => {
@@ -132,22 +154,20 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     setDisambiguationOptions([]);
   }, []);
 
-  const {
-    handlePipelineResult,
-    startDictationPipeline,
-    stopDictationPipeline,
-  } = useVoiceAgentDictationPipeline({
-    ...(dictationPipeline !== undefined ? { dictationPipeline } : {}),
-    setDetectedLang,
-    setError,
-    setInterimText,
-    setFinalText,
-    setConfidence,
-    setAgentState: () => setAgentState('idle'),
-  });
+  const { handlePipelineResult, startDictationPipeline, stopDictationPipeline } =
+    useVoiceAgentDictationPipeline({
+      ...(dictationPipeline !== undefined ? { dictationPipeline } : {}),
+      setDetectedLang,
+      setError,
+      setInterimText,
+      setFinalText,
+      setConfidence,
+      setAgentState: () => setAgentState('idle'),
+    });
 
   useEffect(() => {
-    void loadVoiceSessionStoreRuntime().then(({ loadRecentVoiceSessions }) => loadRecentVoiceSessions(1))
+    void loadVoiceSessionStoreRuntime()
+      .then(({ loadRecentVoiceSessions }) => loadRecentVoiceSessions(1))
       .then(([recent]) => {
         if (recent && recent.entries.length > 0) {
           setSession(recent);
@@ -223,67 +243,58 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     exclusiveStartPromiseRef,
   });
 
-  const {
-    stop,
-    startRecording,
-    stopRecording,
-    switchEngine,
-    toggle,
-    confirmPendingAction,
-  } = useVoiceAgentTransportControls({
-    locale,
-    listening,
-    voiceActivateGenerationRef,
-    exclusiveStartPromiseRef,
-    start,
-    stopDictationPipeline,
-    clearInteractionPrompts,
-    loadVoiceSessionStoreRuntime,
-    serviceRef,
-    sessionRef,
-    executeActionRef,
-    pendingAiResponseCountRef,
-    recordingDurationIntervalRef,
-    setListening,
-    setSpeechActive,
-    setInterimText,
-    setAgentState,
-    setIsRecording,
-    setRecordingDuration,
-    setError,
-    setEngine,
-  });
+  const { stop, startRecording, stopRecording, switchEngine, toggle, confirmPendingAction } =
+    useVoiceAgentTransportControls({
+      locale,
+      listening,
+      voiceActivateGenerationRef,
+      exclusiveStartPromiseRef,
+      start,
+      stopDictationPipeline,
+      clearInteractionPrompts,
+      loadVoiceSessionStoreRuntime,
+      serviceRef,
+      sessionRef,
+      executeActionRef,
+      pendingAiResponseCountRef,
+      recordingDurationIntervalRef,
+      setListening,
+      setSpeechActive,
+      setInterimText,
+      setAgentState,
+      setIsRecording,
+      setRecordingDuration,
+      setError,
+      setEngine,
+    });
 
   const confirmPending = useCallback(() => {
     confirmPendingAction(pendingConfirm);
   }, [confirmPendingAction, pendingConfirm]);
 
-  const {
-    cancelPending,
-    selectDisambiguation,
-    dismissDisambiguation,
-    switchMode,
-  } = useVoiceAgentModeController({
-    locale,
-    listening,
-    dictationPipeline,
-    safeModeRef,
-    sessionRef,
-    executeActionRef,
-    loadIntentRouterRuntime,
-    clearInteractionPrompts,
-    startDictationPipeline,
-    stopDictationPipeline,
-    setMode,
-    setInterimText,
-    setAgentState,
-    setDisambiguationOptions,
-    setPendingConfirm,
-  });
+  const { cancelPending, selectDisambiguation, dismissDisambiguation, switchMode } =
+    useVoiceAgentModeController({
+      locale,
+      listening,
+      dictationPipeline,
+      safeModeRef,
+      sessionRef,
+      executeActionRef,
+      loadIntentRouterRuntime,
+      clearInteractionPrompts,
+      startDictationPipeline,
+      stopDictationPipeline,
+      setMode,
+      setInterimText,
+      setAgentState,
+      setDisambiguationOptions,
+      setPendingConfirm,
+    });
 
   useEffect(() => {
     const override = langOverride;
-    const effective = override === '__auto__' ? '' : (override ? toBcp47(override) : toBcp47(corpusLang));
+    const effective =
+      override === '__auto__' ? '' : override ? toBcp47(override) : toBcp47(corpusLang);
     serviceRef.current?.setLang(effective);
   }, [langOverride, corpusLang, listening]);
 
@@ -363,33 +374,39 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     consumeAiThinking();
   }, [consumeAiThinking]);
 
-  const notifyAiStreamFinished = useCallback((finalContent?: string) => {
-    clearAiThinking();
-    const cb = analysisFillCallbackRef.current;
-    if (cb) {
-      if (finalContent !== undefined && finalContent.trim().length > 0) {
-        cb(finalContent);
+  const notifyAiStreamFinished = useCallback(
+    (finalContent?: string) => {
+      clearAiThinking();
+      const cb = analysisFillCallbackRef.current;
+      if (cb) {
+        if (finalContent !== undefined && finalContent.trim().length > 0) {
+          cb(finalContent);
+        }
+        analysisFillCallbackRef.current = null;
+        analysisTargetUnitIdRef.current = null;
       }
-      analysisFillCallbackRef.current = null;
-      analysisTargetUnitIdRef.current = null;
-    }
-  }, [clearAiThinking]);
+    },
+    [clearAiThinking],
+  );
 
-  const testWhisperLocal = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
+  const testWhisperLocal = useCallback(async (): Promise<{
+    available: boolean;
+    error?: string;
+  }> => {
     const { testSttProvider } = await loadSttRuntime();
     return testSttProvider('whisper-local', {
       baseUrl: whisperServerUrl,
       model: whisperServerModel,
     });
-  }, [loadSttRuntime, whisperServerModel, whisperServerUrl]);
+  }, [whisperServerModel, whisperServerUrl]);
 
-  const setAnalysisFillCallback = useCallback((
-    unitId: string | null,
-    callback: ((content: string) => void) | null,
-  ) => {
-    analysisTargetUnitIdRef.current = unitId;
-    analysisFillCallbackRef.current = callback;
-  }, []);
+  const setAnalysisFillCallback = useCallback(
+    (unitId: string | null, callback: ((content: string) => void) | null) => {
+      analysisTargetUnitIdRef.current = unitId;
+      analysisFillCallbackRef.current = callback;
+    },
+    [],
+  );
 
   const {
     providerStatusMap,

@@ -3,7 +3,9 @@ import { escapeRegExp } from './escapeRegExp';
 
 export type OrthographyBridgeRules = OrthographyBridgeDocType['rules'];
 export type OrthographyBridgeEngine = OrthographyBridgeDocType['engine'];
-export type OrthographyBridgeSampleCase = NonNullable<OrthographyBridgeDocType['sampleCases']>[number];
+export type OrthographyBridgeSampleCase = NonNullable<
+  OrthographyBridgeDocType['sampleCases']
+>[number];
 type OrthographyNormalizationForm = NonNullable<OrthographyBridgeRules['normalizeInput']>;
 
 type ParsedBridgeMapping = {
@@ -33,7 +35,12 @@ type ParsedIcuRule =
   | { kind: 'normalize'; form: OrthographyNormalizationForm; raw: string }
   | ParsedIcuReplaceRule;
 
-const SUPPORTED_NORMALIZATION_FORMS = new Set<OrthographyNormalizationForm>(['NFC', 'NFD', 'NFKC', 'NFKD']);
+const SUPPORTED_NORMALIZATION_FORMS = new Set<OrthographyNormalizationForm>([
+  'NFC',
+  'NFD',
+  'NFKC',
+  'NFKD',
+]);
 
 function splitBridgeRuleText(ruleText: string): string[] {
   return ruleText
@@ -48,15 +55,15 @@ function parseBridgeMappingsDetailed(ruleText: string): ParsedBridgeMapping[] {
       const separator = line.includes('=>')
         ? '=>'
         : line.includes('->')
-        ? '->'
-        : line.includes('>')
-        ? '>'
-        : line.includes('=')
-        ? '='
-        : line.includes('\t')
-        ? '\t'
-        : '';
-      if (!separator) {
+          ? '->'
+          : line.includes('>')
+            ? '>'
+            : line.includes('=')
+              ? '='
+              : line.includes('\t')
+                ? '\t'
+                : '';
+      if (separator.length === 0) {
         return { from: line, to: '', raw: line, hasSeparator: false };
       }
       const [from, ...rest] = line.split(separator);
@@ -75,10 +82,7 @@ function ensureGlobalFlag(flags: string): string {
   return flags.includes('g') ? flags : `${flags}g`;
 }
 
-function parseIcuReplacementRule(
-  line: string,
-  caseSensitive: boolean,
-): ParsedIcuRule {
+function parseIcuReplacementRule(line: string, caseSensitive: boolean): ParsedIcuRule {
   const regexMatch = line.match(/^\/((?:\\\/|[^/])+)\/([dgimsuvy]*)\s*(=>|->|>|=)\s*(.*)$/u);
   if (regexMatch) {
     const patternSource = regexMatch[1] ?? '';
@@ -109,7 +113,7 @@ function parseIcuReplacementRule(
   }
 
   const mapping = parseBridgeMappingsDetailed(line)[0];
-  if (!mapping) {
+  if (mapping === undefined) {
     return {
       kind: 'replace',
       raw: line,
@@ -165,18 +169,18 @@ export function parseBridgeSampleCases(sampleText: string): OrthographyBridgeSam
       const separator = line.includes('=>')
         ? '=>'
         : line.includes('->')
-        ? '->'
-        : line.includes('\t')
-        ? '\t'
-        : '';
-      if (!separator) {
+          ? '->'
+          : line.includes('\t')
+            ? '\t'
+            : '';
+      if (separator.length === 0) {
         return { input: line };
       }
       const [input, ...rest] = line.split(separator);
       const expectedOutput = rest.join(separator).trim();
       return {
         input: (input ?? '').trim(),
-        ...(expectedOutput ? { expectedOutput } : {}),
+        ...(expectedOutput.length > 0 ? { expectedOutput } : {}),
       };
     })
     .filter((sampleCase) => sampleCase.input.length > 0);
@@ -199,45 +203,64 @@ export function validateOrthographyBridge(input: {
 }): { issues: string[] } {
   const issues: string[] = [];
   const ruleText = input.rules.ruleText?.trim() ?? '';
-  const mappingsDetailed = ruleText.length > 0
-    ? parseBridgeMappingsDetailed(ruleText)
-    : (input.rules.mappings ?? []).map((mapping) => ({
-      from: mapping.from,
-      to: mapping.to,
-      raw: `${mapping.from} => ${mapping.to}`,
-      hasSeparator: true,
-    }));
+  const mappingsDetailed =
+    ruleText.length > 0
+      ? parseBridgeMappingsDetailed(ruleText)
+      : (input.rules.mappings ?? []).map((mapping) => ({
+          from: mapping.from,
+          to: mapping.to,
+          raw: `${mapping.from} => ${mapping.to}`,
+          hasSeparator: true,
+        }));
 
   if (input.engine === 'manual') {
     return { issues };
   }
 
   if (input.engine === 'icu-rule') {
-    const icuRules: ParsedIcuRule[] = ruleText.length > 0
-      ? parseIcuRules(ruleText, input.rules.caseSensitive ?? true)
-      : (input.rules.mappings ?? []).map((mapping) => ({
-        kind: 'replace' as const,
-        raw: `${mapping.from} => ${mapping.to}`,
-        source: mapping.from,
-        replacement: mapping.to,
-        mode: 'text' as const,
-        hasSeparator: true,
-      }));
+    const icuRules: ParsedIcuRule[] =
+      ruleText.length > 0
+        ? parseIcuRules(ruleText, input.rules.caseSensitive ?? true)
+        : (input.rules.mappings ?? []).map((mapping) => ({
+            kind: 'replace' as const,
+            raw: `${mapping.from} => ${mapping.to}`,
+            source: mapping.from,
+            replacement: mapping.to,
+            mode: 'text' as const,
+            hasSeparator: true,
+          }));
 
     if (icuRules.length === 0) {
       issues.push('请至少填写一条 ICU 规则、正则规则或规范化指令。');
       return { issues };
     }
 
-    const replaceRules = icuRules.filter((rule): rule is ParsedIcuReplaceRule => rule.kind === 'replace');
-    const malformedRules = replaceRules.filter((rule) => !rule.hasSeparator && !rule.error);
+    const replaceRules = icuRules.filter(
+      (rule): rule is ParsedIcuReplaceRule => rule.kind === 'replace',
+    );
+    const malformedRules = replaceRules.filter(
+      (rule) =>
+        rule.hasSeparator === false && (rule.error === undefined || rule.error.length === 0),
+    );
     if (malformedRules.length > 0) {
-      issues.push(`以下 ICU 规则缺少分隔符：${malformedRules.slice(0, 3).map((rule) => rule.raw).join('；')}`);
+      issues.push(
+        `以下 ICU 规则缺少分隔符：${malformedRules
+          .slice(0, 3)
+          .map((rule) => rule.raw)
+          .join('；')}`,
+      );
     }
 
-    const invalidRules = replaceRules.filter((rule) => rule.error);
+    const invalidRules = replaceRules.filter(
+      (rule) => rule.error !== undefined && rule.error.length > 0,
+    );
     if (invalidRules.length > 0) {
-      issues.push(`以下 ICU 规则无效：${invalidRules.slice(0, 3).map((rule) => `${rule.raw}（${rule.error}）`).join('；')}`);
+      issues.push(
+        `以下 ICU 规则无效：${invalidRules
+          .slice(0, 3)
+          .map((rule) => `${rule.raw}（${rule.error}）`)
+          .join('；')}`,
+      );
     }
 
     return { issues };
@@ -250,13 +273,19 @@ export function validateOrthographyBridge(input: {
 
   const invalidMappings = mappingsDetailed.filter((mapping) => !mapping.hasSeparator);
   if (invalidMappings.length > 0) {
-    issues.push(`以下规则缺少分隔符：${invalidMappings.slice(0, 3).map((mapping) => mapping.raw).join('；')}`);
+    issues.push(
+      `以下规则缺少分隔符：${invalidMappings
+        .slice(0, 3)
+        .map((mapping) => mapping.raw)
+        .join('；')}`,
+    );
   }
 
   const duplicatedSources = new Set<string>();
   const seenSources = new Set<string>();
   for (const mapping of mappingsDetailed) {
-    const sourceKey = input.rules.caseSensitive === false ? mapping.from.toLocaleLowerCase() : mapping.from;
+    const sourceKey =
+      input.rules.caseSensitive === false ? mapping.from.toLocaleLowerCase() : mapping.from;
     if (seenSources.has(sourceKey)) {
       duplicatedSources.add(mapping.from);
       continue;
@@ -271,7 +300,7 @@ export function validateOrthographyBridge(input: {
 }
 
 function normalizeByForm(value: string, form?: OrthographyBridgeRules['normalizeInput']): string {
-  return form ? value.normalize(form) : value;
+  return form !== undefined ? value.normalize(form) : value;
 }
 
 function replaceWithMappings(
@@ -290,7 +319,9 @@ function replaceWithMappings(
   }));
 
   while (index < input.length) {
-    const matched = normalizedMappings.find((mapping) => normalizedInput.startsWith(mapping.fromMatch, index));
+    const matched = normalizedMappings.find((mapping) =>
+      normalizedInput.startsWith(mapping.fromMatch, index),
+    );
     if (!matched) {
       output += input[index] ?? '';
       index += 1;
@@ -309,28 +340,33 @@ function replaceTextSequentially(
   replacement: string,
   caseSensitive: boolean,
 ): string {
-  if (!source) return input;
+  if (source.length === 0) return input;
   return input.replace(new RegExp(escapeRegExp(source), caseSensitive ? 'g' : 'gi'), replacement);
 }
 
 function applyIcuRules(input: string, rules: OrthographyBridgeRules): string {
   const caseSensitive = rules.caseSensitive ?? true;
-  const operations: ParsedIcuRule[] = rules.ruleText?.trim()
-    ? parseIcuRules(rules.ruleText, caseSensitive)
-    : (rules.mappings ?? []).map((mapping) => ({
-      kind: 'replace' as const,
-      raw: `${mapping.from} => ${mapping.to}`,
-      source: mapping.from,
-      replacement: mapping.to,
-      mode: 'text' as const,
-      hasSeparator: true,
-    }));
+  const normalizedRuleText = rules.ruleText?.trim();
+  const operations: ParsedIcuRule[] =
+    normalizedRuleText !== undefined && normalizedRuleText.length > 0
+      ? parseIcuRules(normalizedRuleText, caseSensitive)
+      : (rules.mappings ?? []).map((mapping) => ({
+          kind: 'replace' as const,
+          raw: `${mapping.from} => ${mapping.to}`,
+          source: mapping.from,
+          replacement: mapping.to,
+          mode: 'text' as const,
+          hasSeparator: true,
+        }));
 
   return operations.reduce((value, operation) => {
     if (operation.kind === 'normalize') {
       return value.normalize(operation.form);
     }
-    if (!operation.hasSeparator || operation.error) {
+    if (
+      operation.hasSeparator === false ||
+      (operation.error !== undefined && operation.error.length > 0)
+    ) {
       return value;
     }
     if (operation.mode === 'regex') {
@@ -355,9 +391,10 @@ export function previewOrthographyBridge(input: {
     return normalizeByForm(bridgedText, input.rules.normalizeOutput);
   }
 
-  const mappings = (input.rules.mappings && input.rules.mappings.length > 0)
-    ? input.rules.mappings
-    : parseBridgeMappings(input.rules.ruleText ?? '');
+  const mappings =
+    input.rules.mappings && input.rules.mappings.length > 0
+      ? input.rules.mappings
+      : parseBridgeMappings(input.rules.ruleText ?? '');
   const bridgedText = replaceWithMappings(
     normalizedInput,
     mappings,

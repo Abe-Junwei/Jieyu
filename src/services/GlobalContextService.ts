@@ -228,7 +228,7 @@ class GlobalContextService {
    * @param durationMs - How long the action took (for navigation actions)
    * @param sessionId - Which session this belongs to
    */
-  recordAction(actionId: ActionId, durationMs: number, sessionId: string): void {
+  recordAction(actionId: ActionId, durationMs: number, _sessionId: string): void {
     const profile = this._behaviorProfile;
 
     // Update frequency

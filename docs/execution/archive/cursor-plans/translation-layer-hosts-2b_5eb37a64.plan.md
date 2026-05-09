@@ -63,21 +63,21 @@ isProject: false
 
 ## 核心读模型：统一解析 API
 
-新增小模块（建议路径 [`src/services/TranslationLayerHostService.ts`](src/services/TranslationLayerHostService.ts) 或 `src/utils/translationLayerHosts.ts`）：
+新增小模块（建议路径 [`src/hooks/useTranscriptionLayerActions.ts`](src/hooks/useTranscriptionLayerActions.ts) 或 `src/utils/translationLayerHosts.ts`）：
 
 - `listHostTranscriptionLayerIds(translationLayerId, { hosts, layers })` → `string[]`（含 primary/secondary，有序）。
 - `listTranslationLayersForTranscription(transcriptionLayerId, { hosts, layers })` → 译文层列表（**宿主表命中 OR `parentLayerId===id`**，过渡期并集）。
 - `getPrimaryHostTranscriptionLayerId(translationLayerId, ...)` → 用于拖拽/排序锚点。
 - `assertHostInvariants(...)`（开发/迁移校验用）。
 
-**对照视图**：将 [`TranscriptionTimelineComparison`](src/components/TranscriptionTimelineComparison.tsx) 内 `translationLayerAppliesToComparisonSourceTranscriptionIds` / `pickTranslationLayerForComparisonUnit` 从「只看 `parentLayerId`」改为调用解析器（以 `transcriptionLayerId` 精确匹配宿主）。
+**对照视图**：将 [`TranscriptionTimelineComparison`](src/pages/TranscriptionPage.ReadyWorkspace.tsx) 内 `translationLayerAppliesToComparisonSourceTranscriptionIds` / `pickTranslationLayerForComparisonUnit` 从「只看 `parentLayerId`」改为调用解析器（以 `transcriptionLayerId` 精确匹配宿主）。
 
 **层操作**：[`useTranscriptionLayerActions`](src/hooks/useTranscriptionLayerActions.ts) 里「列译文子层」「重绑父层」等 `.filter((layer) => ... parentLayerId === targetLayer.id)` 改为「宿主表包含该转写 id」。
 
 ## `buildLayerBundles` 与 UI 轨道策略（关键产品决策，写进实现说明）
 
 - **轨道排序/拖拽**：译文层仍只挂在 **primary** 对应独立转写 bundle 的 `translationDependents`（保持 [`buildLayerBundles`](src/services/LayerOrderingService.ts) 主体结构不大改），避免一条译文在扁平 `layers[]` 里出现两次导致 `sortOrder`/拖拽地狱。
-- **「法轨也要看到同一中文轨」**：在 **渲染/查询层**（如 [`TranscriptionTimelineMediaLanes`](src/components/TranscriptionTimelineMediaLanes.tsx) 或数据源 hook）对给定 `transcriptionLayerId` 合并 `listTranslationLayersForTranscription`，而不是依赖 bundle 内是否包含该译文行。
+- **「法轨也要看到同一中文轨」**：在 **渲染/查询层**（如 [`TranscriptionTimelineMediaLanes`](src/components/TranscriptionTimelineHorizontalMediaLanes.tsx) 或数据源 hook）对给定 `transcriptionLayerId` 合并 `listTranslationLayersForTranscription`，而不是依赖 bundle 内是否包含该译文行。
 
 ```mermaid
 flowchart LR
@@ -114,7 +114,7 @@ flowchart LR
 - 迁移：旧库仅有 `parentLayerId` → 宿主表有一条 `primary`，读 API 与旧过滤等价。
 - 双宿主：英+法各一条转写 + 一条中文译文，`listTranslationLayersForTranscription('fr')` 与 `('en')` 均包含中文层 id。
 - 删除/重绑：删主宿主、换主宿主、`LayerTierUnifiedService` 删译文层清理宿主。
-- 对照：纵向模式下法组仍显示中文（与当前 [`filterTranslationLayersForComparisonGroup`](src/components/TranscriptionTimelineComparison.tsx) 目标一致）。
+- 对照：纵向模式下法组仍显示中文（与当前 [`filterTranslationLayersForComparisonGroup`](src/pages/TranscriptionPage.ReadyWorkspace.tsx) 目标一致）。
 
 ## 分期（建议）
 

@@ -59,12 +59,13 @@ export function DevErrorAggregationPanel() {
     '--dev-error-panel-max-width': `${panelMaxWidth}px`,
     '--dev-error-panel-font-size': `${Math.max(11, Math.round(12 * uiFontScale))}px`,
   } as CSSProperties;
+  const panelStyleProps = { style: panelStyle };
 
   return (
     <details
       className="dev-error-aggregation-panel"
       dir={uiTextDirection}
-      style={panelStyle}
+      {...panelStyleProps}
     >
       <summary className="dev-error-aggregation-panel-summary">
         {messages.summary(entries.length)}

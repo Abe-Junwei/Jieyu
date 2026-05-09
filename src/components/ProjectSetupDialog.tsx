@@ -140,7 +140,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
       isOpen={isOpen}
       onClose={handleClose}
       className={`project-setup-dialog${orthographyPicker.isCreating ? ' orthography-builder-dialog-host' : ''}`}
-      style={orthographyPicker.isCreating ? { '--dialog-auto-width': '540px' } as React.CSSProperties : undefined}
+      {...(orthographyPicker.isCreating ? { style: { '--dialog-auto-width': '540px' } as React.CSSProperties } : {})}
       ariaLabel={messages.title}
       title={orthographyPicker.isCreating ? builderBreadcrumbTitle : messages.title}
       closeLabel={messages.close}

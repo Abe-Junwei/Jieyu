@@ -3,7 +3,10 @@ import { getStoredLocalePreference, normalizeLocale } from '../../i18n';
 import { getAppDataResilienceMessages } from '../../i18n/messages';
 import { dispatchAppGlobalToast } from '../../utils/appGlobalToast';
 import type { CollaborationProjectChangeRecord } from './syncTypes';
-import { loadCollabClientStateBlobFromIdb, saveCollabClientStateBlobToIdb } from './CollaborationClientStateStore.idb';
+import {
+  loadCollabClientStateBlobFromIdb,
+  saveCollabClientStateBlobToIdb,
+} from './CollaborationClientStateStore.idb';
 
 const log = createLogger('CollaborationClientStateStore');
 
@@ -24,24 +27,25 @@ type CollaborationClientStateMap = Record<string, CollaborationClientProjectStat
 const volatileByStorage = new WeakMap<Storage, CollaborationClientStateMap>();
 
 function getDefaultStorage(): Storage | undefined {
-  if (typeof window === 'undefined' || !window.localStorage) return undefined;
+  if (typeof window === 'undefined' || window.localStorage === undefined) return undefined;
   return window.localStorage;
 }
 
 function isQuotaExceededError(error: unknown): boolean {
-  return error instanceof DOMException
-    && (error.name === 'QuotaExceededError' || error.code === 22);
+  return (
+    error instanceof DOMException && (error.name === 'QuotaExceededError' || error.code === 22)
+  );
 }
 
 function resolveCollabToastLocale() {
   const stored = getStoredLocalePreference();
-  if (stored) return stored;
+  if (stored !== null && stored.length > 0) return stored;
   if (typeof navigator === 'undefined') return 'zh-CN';
   return normalizeLocale(navigator.language) ?? 'zh-CN';
 }
 
 function sanitizeChangeRecord(value: unknown): CollaborationProjectChangeRecord | null {
-  if (!value || typeof value !== 'object') return null;
+  if (value === null || value === undefined || typeof value !== 'object') return null;
   const source = value as Record<string, unknown>;
   if (typeof source.projectId !== 'string' || source.projectId.trim().length === 0) return null;
   if (typeof source.clientOpId !== 'string' || source.clientOpId.trim().length === 0) return null;
@@ -53,13 +57,17 @@ function sanitizeChangeRecord(value: unknown): CollaborationProjectChangeRecord 
 }
 
 function sanitizeProjectState(value: unknown): CollaborationClientProjectState | null {
-  if (!value || typeof value !== 'object') return null;
+  if (value === null || value === undefined || typeof value !== 'object') return null;
   const source = value as Record<string, unknown>;
   const next: CollaborationClientProjectState = {
     updatedAt: typeof source.updatedAt === 'string' ? source.updatedAt : new Date(0).toISOString(),
   };
 
-  if (typeof source.lastSeenRevision === 'number' && Number.isFinite(source.lastSeenRevision) && source.lastSeenRevision >= 0) {
+  if (
+    typeof source.lastSeenRevision === 'number' &&
+    Number.isFinite(source.lastSeenRevision) &&
+    source.lastSeenRevision >= 0
+  ) {
     next.lastSeenRevision = Math.floor(source.lastSeenRevision);
   }
 
@@ -77,13 +85,13 @@ function sanitizeProjectState(value: unknown): CollaborationClientProjectState |
 
 function parseRawToStateMap(raw: string): CollaborationClientStateMap {
   const parsed = JSON.parse(raw) as unknown;
-  if (!parsed || typeof parsed !== 'object') return {};
+  if (parsed === null || parsed === undefined || typeof parsed !== 'object') return {};
 
   const next: CollaborationClientStateMap = {};
   for (const [projectId, value] of Object.entries(parsed as Record<string, unknown>)) {
-    if (!projectId.trim()) continue;
+    if (projectId.trim().length === 0) continue;
     const sanitized = sanitizeProjectState(value);
-    if (!sanitized) continue;
+    if (sanitized === null) continue;
     next[projectId] = sanitized;
   }
   return next;
@@ -92,7 +100,7 @@ function parseRawToStateMap(raw: string): CollaborationClientStateMap {
 function loadBaseStateMapFromStorage(target: Storage): CollaborationClientStateMap {
   try {
     const raw = target.getItem(COLLAB_CLIENT_STATE_STORAGE_KEY);
-    if (!raw) return {};
+    if (raw === null || raw.length === 0) return {};
     return parseRawToStateMap(raw);
   } catch {
     return {};
@@ -101,15 +109,15 @@ function loadBaseStateMapFromStorage(target: Storage): CollaborationClientStateM
 
 function loadStateMap(storage?: Storage): CollaborationClientStateMap {
   const target = storage ?? getDefaultStorage();
-  if (!target) return {};
+  if (target === undefined) return {};
   const fromLs = loadBaseStateMapFromStorage(target);
   const vol = volatileByStorage.get(target);
-  return vol ? { ...fromLs, ...vol } : fromLs;
+  return vol !== undefined ? { ...fromLs, ...vol } : fromLs;
 }
 
 function tryFlushVolatileCollabStateToLocalStorage(target: Storage): void {
   const overlay = volatileByStorage.get(target);
-  if (!overlay) return;
+  if (overlay === undefined) return;
   const base = loadBaseStateMapFromStorage(target);
   const merged = { ...base, ...overlay };
   try {
@@ -122,7 +130,7 @@ function tryFlushVolatileCollabStateToLocalStorage(target: Storage): void {
 
 function saveStateMap(stateMap: CollaborationClientStateMap, storage?: Storage): void {
   const target = storage ?? getDefaultStorage();
-  if (!target) return;
+  if (target === undefined) return;
   try {
     target.setItem(COLLAB_CLIENT_STATE_STORAGE_KEY, JSON.stringify(stateMap));
     volatileByStorage.delete(target);
@@ -132,13 +140,18 @@ function saveStateMap(stateMap: CollaborationClientStateMap, storage?: Storage):
     void saveCollabClientStateBlobToIdb(JSON.stringify(stateMap)).catch((err) => {
       log.error('collab client state idb mirror failed', { err });
     });
-    log.warn('collab client state localStorage quota exceeded; volatile overlay + IndexedDB mirror', {
-      projectCount: Object.keys(stateMap).length,
-    });
+    log.warn(
+      'collab client state localStorage quota exceeded; volatile overlay + IndexedDB mirror',
+      {
+        projectCount: Object.keys(stateMap).length,
+      },
+    );
     const now = Date.now();
     if (now - lastCollabQuotaToastAt >= COLLAB_QUOTA_TOAST_COOLDOWN_MS) {
       lastCollabQuotaToastAt = now;
-      const toastMsg = getAppDataResilienceMessages(resolveCollabToastLocale()).collabLocalStorageQuotaToast;
+      const toastMsg = getAppDataResilienceMessages(
+        resolveCollabToastLocale(),
+      ).collabLocalStorageQuotaToast;
       dispatchAppGlobalToast({ message: toastMsg, variant: 'error', autoDismissMs: 14_000 });
     }
   }
@@ -150,7 +163,7 @@ function saveStateMap(stateMap: CollaborationClientStateMap, storage?: Storage):
  */
 export async function hydrateCollabClientStateFromIdb(): Promise<void> {
   const raw = await loadCollabClientStateBlobFromIdb();
-  if (!raw) return;
+  if (raw === null || raw.length === 0) return;
   let idbMap: CollaborationClientStateMap;
   try {
     idbMap = parseRawToStateMap(raw);
@@ -158,9 +171,9 @@ export async function hydrateCollabClientStateFromIdb(): Promise<void> {
     return;
   }
   const target = getDefaultStorage();
-  if (!target) return;
+  if (target === undefined) return;
   const prev = volatileByStorage.get(target);
-  volatileByStorage.set(target, prev ? { ...idbMap, ...prev } : idbMap);
+  volatileByStorage.set(target, prev !== undefined ? { ...idbMap, ...prev } : idbMap);
   tryFlushVolatileCollabStateToLocalStorage(target);
 }
 
@@ -171,18 +184,20 @@ export function resetCollabClientStateVolatileOverlayForTests(storage: Storage):
 
 function upsertProjectState(
   projectId: string,
-  updater: (existing: CollaborationClientProjectState | undefined) => CollaborationClientProjectState | null,
+  updater: (
+    existing: CollaborationClientProjectState | undefined,
+  ) => CollaborationClientProjectState | null,
   storage?: Storage,
 ): void {
-  if (!projectId.trim()) return;
+  if (projectId.trim().length === 0) return;
   const targetStorage = storage ?? getDefaultStorage();
-  if (!targetStorage) return;
+  if (targetStorage === undefined) return;
 
   const stateMap = loadStateMap(targetStorage);
   const previous = stateMap[projectId];
   const next = updater(previous);
 
-  if (!next) {
+  if (next === null) {
     delete stateMap[projectId];
   } else {
     stateMap[projectId] = next;
@@ -192,7 +207,7 @@ function upsertProjectState(
 }
 
 export function loadProjectLastSeenRevision(projectId: string, storage?: Storage): number {
-  if (!projectId.trim()) return 0;
+  if (projectId.trim().length === 0) return 0;
   const targetStorage = storage ?? getDefaultStorage();
   const stateMap = loadStateMap(targetStorage);
   const revision = stateMap[projectId]?.lastSeenRevision;
@@ -202,23 +217,31 @@ export function loadProjectLastSeenRevision(projectId: string, storage?: Storage
   return 0;
 }
 
-export function saveProjectLastSeenRevision(projectId: string, revision: number, storage?: Storage): void {
-  if (!projectId.trim()) return;
+export function saveProjectLastSeenRevision(
+  projectId: string,
+  revision: number,
+  storage?: Storage,
+): void {
+  if (projectId.trim().length === 0) return;
   if (!Number.isFinite(revision) || revision < 0) return;
   const normalizedRevision = Math.floor(revision);
 
-  upsertProjectState(projectId, (existing) => ({
-    ...(existing ?? {}),
-    lastSeenRevision: normalizedRevision,
-    updatedAt: new Date().toISOString(),
-  }), storage);
+  upsertProjectState(
+    projectId,
+    (existing) => ({
+      ...(existing ?? {}),
+      lastSeenRevision: normalizedRevision,
+      updatedAt: new Date().toISOString(),
+    }),
+    storage,
+  );
 }
 
 export function loadProjectPendingOutboundChanges(
   projectId: string,
   storage?: Storage,
 ): CollaborationProjectChangeRecord[] {
-  if (!projectId.trim()) return [];
+  if (projectId.trim().length === 0) return [];
   const targetStorage = storage ?? getDefaultStorage();
   const stateMap = loadStateMap(targetStorage);
   return stateMap[projectId]?.pendingOutboundChanges ?? [];
@@ -229,21 +252,25 @@ export function saveProjectPendingOutboundChanges(
   changes: CollaborationProjectChangeRecord[],
   storage?: Storage,
 ): void {
-  if (!projectId.trim()) return;
+  if (projectId.trim().length === 0) return;
 
   const normalizedChanges = changes
     .map((change) => sanitizeChangeRecord(change))
     .filter((item): item is CollaborationProjectChangeRecord => item !== null);
 
-  upsertProjectState(projectId, (existing) => {
-    const lastSeenRevision = existing?.lastSeenRevision;
-    if (normalizedChanges.length === 0 && lastSeenRevision === undefined) {
-      return null;
-    }
-    return {
-      ...(lastSeenRevision !== undefined ? { lastSeenRevision } : {}),
-      ...(normalizedChanges.length > 0 ? { pendingOutboundChanges: normalizedChanges } : {}),
-      updatedAt: new Date().toISOString(),
-    };
-  }, storage);
+  upsertProjectState(
+    projectId,
+    (existing) => {
+      const lastSeenRevision = existing?.lastSeenRevision;
+      if (normalizedChanges.length === 0 && lastSeenRevision === undefined) {
+        return null;
+      }
+      return {
+        ...(lastSeenRevision !== undefined ? { lastSeenRevision } : {}),
+        ...(normalizedChanges.length > 0 ? { pendingOutboundChanges: normalizedChanges } : {}),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+    storage,
+  );
 }

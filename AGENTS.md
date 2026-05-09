@@ -8,8 +8,10 @@ The same sections are mirrored in `**CLAUDE.md`** for Claude Code and other tool
 
 ## Jieyu-specific
 
+- **Repository-wide engineering constraints** (orchestration vs controllers, `src/pages` controller hooks, complexity thresholds, `check:architecture-guard`, panel CSS two-layer border rule, etc.): the **canonical full text** is **`copilot-instructions.md`** at the repository root (Chinese). Follow it in full when working in this repo; it extends these universal guidelines and resolves ambiguity for Jieyu-specific rules.
 - Docs layout and governed paths: `.cursor/rules/jieyu-docs-governance.mdc`
 - Prefer `docs/architecture/` and code as current truth when docs conflict.
+- **Mature solution first:** When adding a new feature, interaction, algorithm, storage flow, integration, or architecture, first research common mature implementations: established libraries/specs, framework-native patterns, and existing Jieyu modules. Prefer direct reuse or small adaptation when suitable; only design custom code after stating why reuse does not fit. Do not add a dependency unless its maintenance, bundle, license, and integration cost are justified.
 - **Browser support (desktop):** `docs/architecture/桌面端浏览器支持策略.md`. New or sensitive browser APIs: check compatibility, prefer feature detection, and extend E2E if behavior differs across engines (`npm run test:e2e`; local quick loop `npm run test:e2e:chromium`).
 - **UI / Stitch handoff:** For visual work, read repo-root `DESIGN.md` (design intent + Stitch export) and `src/styles/tokens.css`. Map colors to semantic tokens (`var(--…)`); do not introduce arbitrary hex in components unless deliberately extending `tokens.css` and updating `DESIGN.md`. User-visible copy must use i18n (`dictKeys` / dictionaries), not raw text from design tools.
 
@@ -24,6 +26,7 @@ Before implementing:
 - State your assumptions explicitly. If uncertain, ask.
 - If multiple interpretations exist, present them - don't pick silently.
 - If a simpler approach exists, say so. Push back when warranted.
+- For new design or product capabilities, compare mature/common approaches before inventing a custom architecture; record the reuse/adapt/custom decision briefly.
 - If something is unclear, stop. Name what's confusing. Ask.
 
 ## 2. Simplicity First

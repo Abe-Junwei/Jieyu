@@ -142,7 +142,6 @@ export function useRegisterAppSidePane({
     return () => {
       host.unmountRegistration(ownerId);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- content/title/subtitle 由 updateRegistrationContent 处理
   }, [enabled, host, ownerId]);
 
   // 内容更新 — 每次渲染推送最新 content/title/subtitle（延迟通知，不阻塞 commit）

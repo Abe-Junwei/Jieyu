@@ -4,16 +4,16 @@ export const DEFAULT_WAVE_CANVAS_WIDTH = 800;
 export const MIN_TIER_PX_FOR_FIT = 200;
 
 function readTimelineTimeStripGutterPx(tierScrollEl: HTMLElement | null): number {
-  if (!tierScrollEl) return 0;
+  if (tierScrollEl === null) return 0;
   const content = tierScrollEl.querySelector<HTMLElement>('.timeline-content');
-  if (!content) return 0;
+  if (content === null) return 0;
   const pl = getComputedStyle(content).paddingLeft;
   const n = parseFloat(pl);
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 export function readTimeAxisClientWidthForFit(tierScrollEl: HTMLElement | null): number {
-  if (!tierScrollEl?.isConnected) return 0;
+  if (tierScrollEl === null || tierScrollEl.isConnected !== true) return 0;
   let tierW = tierScrollEl.clientWidth;
   if (tierW < 4) {
     const br = Math.round(tierScrollEl.getBoundingClientRect().width);
@@ -53,8 +53,11 @@ interface SetupWaveformCanvasMeasurementInput {
   remeasureWaveCanvasLayoutRef: MutableRefObject<(() => void) | null>;
 }
 
-export function setupWaveformCanvasMeasurement(input: SetupWaveformCanvasMeasurementInput): () => void {
-  const hasMedia = typeof input.selectedMediaUrl === 'string' && input.selectedMediaUrl.trim() !== '';
+export function setupWaveformCanvasMeasurement(
+  input: SetupWaveformCanvasMeasurementInput,
+): () => void {
+  const hasMedia =
+    typeof input.selectedMediaUrl === 'string' && input.selectedMediaUrl.trim() !== '';
   let roTier: ResizeObserver | null = null;
   let moTier: MutationObserver | null = null;
   let moTierCoalesceRaf: number | null = null;
@@ -92,14 +95,13 @@ export function setupWaveformCanvasMeasurement(input: SetupWaveformCanvasMeasure
 
   function measure() {
     const el = input.waveCanvasRef.current;
-    if (!el?.isConnected) return;
+    if (el === null || el.isConnected !== true) return;
     const raw = el.clientWidth;
     const tierEl = input.tierContainerRef.current;
     const tierW = tierEl?.clientWidth ?? 0;
     const gutter = readTimelineTimeStripGutterPx(tierEl);
-    const clampGutterForAxis = (tw: number) => (tw >= MIN_TIER_PX_FOR_FIT
-      ? Math.min(gutter, Math.max(0, tw - MIN_TIER_PX_FOR_FIT))
-      : gutter);
+    const clampGutterForAxis = (tw: number) =>
+      tw >= MIN_TIER_PX_FOR_FIT ? Math.min(gutter, Math.max(0, tw - MIN_TIER_PX_FOR_FIT)) : gutter;
     let w: number;
     if (hasMedia) {
       if (raw <= 0) {
@@ -171,13 +173,13 @@ export function setupWaveformCanvasMeasurement(input: SetupWaveformCanvasMeasure
         measure();
       }, 60);
       tTierPollEnd = window.setTimeout(() => {
-        if (tTierPoll) clearInterval(tTierPoll);
+        if (tTierPoll !== null) clearInterval(tTierPoll);
         tTierPoll = null;
       }, 5000);
     }
   };
 
-  if (input.waveCanvasRef.current) {
+  if (input.waveCanvasRef.current !== null) {
     attach();
   } else {
     let waitFrames = 0;
@@ -211,8 +213,8 @@ export function setupWaveformCanvasMeasurement(input: SetupWaveformCanvasMeasure
     clearTimeout(t3);
     clearTimeout(t4);
     clearTimeout(t5);
-    if (tTierPoll) clearInterval(tTierPoll);
-    if (tTierPollEnd) clearTimeout(tTierPollEnd);
+    if (tTierPoll !== null) clearInterval(tTierPoll);
+    if (tTierPollEnd !== null) clearTimeout(tTierPollEnd);
     moTier?.disconnect();
     roCanvas?.disconnect();
     roWaveformArea?.disconnect();

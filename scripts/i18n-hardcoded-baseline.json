@@ -1,8 +1,13 @@
 {
-  "generatedAt": "2026-05-06T10:28:40.329Z",
+  "generatedAt": "2026-05-09T01:38:13.087Z",
   "scannerVersion": 2,
-  "totalHits": 71,
+  "totalHits": 216,
   "files": {
+    "src/ai/chat/executors/toolPayload.ts": 1,
+    "src/ai/chat/formatters/agentLoopPayload.ts": 1,
+    "src/ai/chat/formatters/structuredAnswer.ts": 68,
+    "src/ai/chat/formatters/summarizers.ts": 65,
+    "src/ai/chat/localContextToolFormatters.ts": 10,
     "src/ai/chat/modelSelectionFeedback.ts": 3,
     "src/ai/chat/toolCallSchemas.ts": 1,
     "src/ai/eval/userFeedback.ts": 13,

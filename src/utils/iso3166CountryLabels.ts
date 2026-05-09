@@ -47,7 +47,7 @@ function endonymFragmentsForIso2(iso2: string): string[] {
     try {
       const dn = new Intl.DisplayNames([loc], { type: 'region' });
       const label = dn.of(iso2)?.trim();
-      if (!label) return;
+      if (label === undefined || label.length === 0) return;
       const key = label.normalize('NFKC').toLowerCase();
       if (seen.has(key)) return;
       seen.add(key);
@@ -57,7 +57,7 @@ function endonymFragmentsForIso2(iso2: string): string[] {
     }
   };
 
-  if (locales?.length) {
+  if (locales !== undefined && locales.length > 0) {
     locales.forEach(tryLocale);
   } else {
     tryLocale('en');
@@ -73,10 +73,13 @@ function endonymFragmentsForIso2(iso2: string): string[] {
 /**
  * Comma/顿号-separated UI-language names for ISO2 list; truncates with " +N".
  */
-export function formatIso3166Alpha2ListUi(iso2List: readonly string[] | undefined, uiLocale: string): string {
-  if (!iso2List?.length) return '';
+export function formatIso3166Alpha2ListUi(
+  iso2List: readonly string[] | undefined,
+  uiLocale: string,
+): string {
+  if (iso2List === undefined || iso2List.length === 0) return '';
   const upper = iso2List.map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c));
-  if (!upper.length) return '';
+  if (upper.length === 0) return '';
   const shown = upper.slice(0, MAX_INLINE_ISO2);
   const labels = shown.map((c) => regionDisplayName(c, uiLocale));
   const sep = uiLocale.startsWith('zh') ? '、' : ', ';
@@ -92,9 +95,9 @@ export function formatIso3166Alpha2ListUi(iso2List: readonly string[] | undefine
  * Slash-separated endonym fragments per country, joined across countries; truncates with "…".
  */
 export function formatIso3166Alpha2ListEndonyms(iso2List: readonly string[] | undefined): string {
-  if (!iso2List?.length) return '';
+  if (iso2List === undefined || iso2List.length === 0) return '';
   const upper = iso2List.map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c));
-  if (!upper.length) return '';
+  if (upper.length === 0) return '';
   const parts: string[] = [];
   let fragments = 0;
   for (const code of upper) {

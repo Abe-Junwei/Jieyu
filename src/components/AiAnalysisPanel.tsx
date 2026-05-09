@@ -278,8 +278,6 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     ai_chat_setup: t(locale, 'ai.task.aiChatSetup'),
   };
 
-  if (isCollapsed) return null;
-
   const currentTaskLabel = aiCurrentTask ? taskLabel[aiCurrentTask] : t(locale, 'ai.header.taskUnknown');
   const vadCacheLabel = vadCacheStatus?.state === 'ready'
     ? tf(locale, 'ai.stats.vadCacheHit', {
@@ -506,6 +504,10 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
       setAcousticExporting(false);
     }
   };
+
+  if (isCollapsed) {
+    return null;
+  }
 
   return (
     <div className="pnl-analysis-panel panel-design-match-content" data-ai-analysis-panel="true">

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLatest } from './useLatest';
-import { evaluateSegmentTimeUpdateGuard, type SegmentSeekGuard } from '../utils/segmentPlaybackGuard';
+import {
+  evaluateSegmentTimeUpdateGuard,
+  type SegmentSeekGuard,
+} from '../utils/segmentPlaybackGuard';
 
 export interface UseVideoPlayerOptions {
   /** URL of video to load. */
@@ -43,7 +46,9 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   const segmentSeekGuardRef = useRef<SegmentSeekGuard | null>(null);
   const latestPlaybackTimeRef = useRef(0);
   const playbackVisualRafRef = useRef<number | null>(null);
-  const commitPlaybackVisualRef = useRef<((time: number, invokeCallback: boolean) => void) | null>(null);
+  const commitPlaybackVisualRef = useRef<((time: number, invokeCallback: boolean) => void) | null>(
+    null,
+  );
   const schedulePlaybackVisualRef = useRef<(() => void) | null>(null);
 
   const setPlaybackRate = useCallback((r: number) => {
@@ -171,7 +176,9 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       // 段落寻道防护：过滤寻道落地前的陈旧 tick | Guard: filter stale ticks before seek lands
       if (bounds) {
         const guardResult = evaluateSegmentTimeUpdateGuard(
-          time, bounds, segmentSeekGuardRef.current,
+          time,
+          bounds,
+          segmentSeekGuardRef.current,
         );
         segmentSeekGuardRef.current = guardResult.nextGuard;
         if (guardResult.ignore) return;
@@ -229,7 +236,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       video.removeEventListener('pause', onPause);
       video.removeEventListener('ended', onEnded);
     };
-  }, [options.mediaUrl]);
+  }, [cbRef, options.mediaUrl]);
 
   // Sync volume and rate changes
   useEffect(() => {

@@ -1,4 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AppGlobalToastHost } from './components/AppGlobalToastHost';
 import { DbIntegrityBlockingOverlay } from './components/DbIntegrityBlockingOverlay';
@@ -6,36 +15,79 @@ import { DbMigrationOverlay } from './components/DbMigrationOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
 import { AiPanelProvider } from './contexts/AiPanelContext';
-import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from './contexts/AppSidePaneContext';
+import {
+  AppSidePaneProvider,
+  useAppSidePaneRegistrationSnapshot,
+} from './contexts/AppSidePaneContext';
 import { usePanelAutoCollapse } from './hooks/usePanelAutoCollapse';
 import { SettingsModal } from './components/SettingsModal';
 import { resolveHostVersion } from './config/hostVersion';
-import { persistUiFontScalePreference, readPersistedUiFontScalePreference, type UiFontScaleMode } from './utils/panelAdaptiveLayout';
+import {
+  persistUiFontScalePreference,
+  readPersistedUiFontScalePreference,
+  type UiFontScaleMode,
+} from './utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from './hooks/useUiFontScaleRuntime';
 import { useAppDataResilienceEffects } from './hooks/useAppDataResilienceEffects';
 import { usePanelResize } from './hooks/usePanelResize';
-import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, preloadLocaleDictionary, setStoredLocalePreference, t, type Locale } from './i18n';
+import {
+  LOCALE_PREFERENCE_STORAGE_KEY,
+  LocaleProvider,
+  detectLocale,
+  preloadLocaleDictionary,
+  setStoredLocalePreference,
+  t,
+  type Locale,
+} from './i18n';
 import { getCollaborationCloudPanelMessages } from './i18n/messages';
 import { LeftRailResourcesMenu } from './components/LeftRailResourcesMenu';
 import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './components/transcription/TranscriptionLeftRailLayerActions';
 import { MaterialSymbol, ModalPanel } from './components/ui';
-import { AssetPanelProvider, type AssetPanelContextValue, type LanguageAssetPanel } from './contexts/AssetPanelContext';
+import {
+  AssetPanelProvider,
+  type AssetPanelContextValue,
+  type LanguageAssetPanel,
+} from './contexts/AssetPanelContext';
 import { syncDocumentDataTheme, THEME_MODE_STORAGE_KEY } from './utils/theme';
 import { type IconEffect, getIconEffect, setIconEffect } from './utils/iconEffect';
 import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspaceRoute';
 import { JIEYU_MATERIAL_NAV, type LeftRailNavIconName } from './utils/jieyuMaterialIcon';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
-const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
-const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
-const AnnotationPage = lazy(() => import('./pages/AnnotationPage').then(m => ({ default: m.AnnotationPage })));
-const AnalysisPage = lazy(() => import('./pages/AnalysisPage').then(m => ({ default: m.AnalysisPage })));
-const CorpusLibraryPage = lazy(() => import('./pages/CorpusLibraryPage').then(m => ({ default: m.CorpusLibraryPage })));
-const LexiconPage = lazy(() => import('./pages/LexiconPage').then(m => ({ default: m.LexiconPage })));
-const LanguageMetadataWorkspacePage = lazy(() => import('./pages/LanguageMetadataWorkspacePage').then(m => ({ default: m.LanguageMetadataWorkspacePage })));
-const OrthographyManagerPage = lazy(() => import('./pages/OrthographyManagerPage').then(m => ({ default: m.OrthographyManagerPage })));
-const OrthographyBridgeWorkspacePage = lazy(() => import('./pages/OrthographyBridgeWorkspacePage').then(m => ({ default: m.OrthographyBridgeWorkspacePage })));
-const StructuralProfileWorkspacePage = lazy(() => import('./pages/StructuralProfileWorkspacePage').then(m => ({ default: m.StructuralProfileWorkspacePage })));
+const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
+const TranscriptionPage = lazy(() =>
+  import('./pages/TranscriptionPage').then((m) => ({ default: m.TranscriptionPage })),
+);
+const AnnotationPage = lazy(() =>
+  import('./pages/AnnotationPage').then((m) => ({ default: m.AnnotationPage })),
+);
+const AnalysisPage = lazy(() =>
+  import('./pages/AnalysisPage').then((m) => ({ default: m.AnalysisPage })),
+);
+const CorpusLibraryPage = lazy(() =>
+  import('./pages/CorpusLibraryPage').then((m) => ({ default: m.CorpusLibraryPage })),
+);
+const LexiconPage = lazy(() =>
+  import('./pages/LexiconPage').then((m) => ({ default: m.LexiconPage })),
+);
+const LanguageMetadataWorkspacePage = lazy(() =>
+  import('./pages/LanguageMetadataWorkspacePage').then((m) => ({
+    default: m.LanguageMetadataWorkspacePage,
+  })),
+);
+const OrthographyManagerPage = lazy(() =>
+  import('./pages/OrthographyManagerPage').then((m) => ({ default: m.OrthographyManagerPage })),
+);
+const OrthographyBridgeWorkspacePage = lazy(() =>
+  import('./pages/OrthographyBridgeWorkspacePage').then((m) => ({
+    default: m.OrthographyBridgeWorkspacePage,
+  })),
+);
+const StructuralProfileWorkspacePage = lazy(() =>
+  import('./pages/StructuralProfileWorkspacePage').then((m) => ({
+    default: m.StructuralProfileWorkspacePage,
+  })),
+);
 
 function mapAssetPathToPanel(pathname: string): LanguageAssetPanel {
   if (pathname === '/assets/language-metadata') return 'language-metadata';
@@ -146,8 +198,12 @@ function AppShellSidePane({
   handleSidePaneToggle: (event?: React.SyntheticEvent<HTMLElement>) => void;
 }) {
   const sidePaneRegistration = useAppSidePaneRegistrationSnapshot();
-  const sidePaneTitle = sidePaneRegistration?.title ?? activeNavItem?.label ?? t(locale, 'app.sidePane.defaultTitle');
-  const sidePaneSubtitle = sidePaneRegistration?.subtitle ?? activeNavItem?.summary ?? t(locale, 'app.sidePane.defaultSubtitle');
+  const sidePaneTitle =
+    sidePaneRegistration?.title ?? activeNavItem?.label ?? t(locale, 'app.sidePane.defaultTitle');
+  const sidePaneSubtitle =
+    sidePaneRegistration?.subtitle ??
+    activeNavItem?.summary ??
+    t(locale, 'app.sidePane.defaultSubtitle');
   const sidePaneBody = sidePaneRegistration?.content ?? (
     <div className="app-side-pane-empty-state">
       <strong>{sidePaneTitle}</strong>
@@ -158,20 +214,29 @@ function AppShellSidePane({
 
   return (
     <>
-      <aside className={`app-side-pane ${isTranscriptionRoute ? 'app-side-pane-transcription' : ''} ${isSidePaneCollapsed ? 'app-side-pane-collapsed' : ''}`} aria-label={t(locale, 'app.sidePane.aria.panel')}>
+      <aside
+        className={`app-side-pane ${isTranscriptionRoute ? 'app-side-pane-transcription' : ''} ${isSidePaneCollapsed ? 'app-side-pane-collapsed' : ''}`}
+        aria-label={t(locale, 'app.sidePane.aria.panel')}
+      >
         <div className="app-side-pane-header">
           <p className="app-side-pane-title">{sidePaneTitle}</p>
           <p className="app-side-pane-subtitle">{sidePaneSubtitle}</p>
         </div>
 
         <div className="app-side-pane-body">
-          <div id="app-side-pane-body-slot" className="app-side-pane-body-slot" aria-label={t(locale, 'app.sidePane.aria.content')}>
+          <div
+            id="app-side-pane-body-slot"
+            className="app-side-pane-body-slot"
+            aria-label={t(locale, 'app.sidePane.aria.content')}
+          >
             {sidePaneBody}
           </div>
         </div>
       </aside>
 
-      <div className={`app-side-pane-handle-cluster ${isTranscriptionRoute ? 'app-side-pane-handle-cluster-transcription' : ''}`}>
+      <div
+        className={`app-side-pane-handle-cluster ${isTranscriptionRoute ? 'app-side-pane-handle-cluster-transcription' : ''}`}
+      >
         <div
           className="app-side-pane-resizer"
           onPointerDown={handleSidePaneResizeStart}
@@ -184,8 +249,16 @@ function AppShellSidePane({
           className="app-side-pane-collapse-toggle"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={handleSidePaneToggle}
-          aria-label={isSidePaneCollapsed ? t(locale, 'app.sidePane.expand') : t(locale, 'app.sidePane.collapse')}
-          title={isSidePaneCollapsed ? t(locale, 'app.sidePane.expand') : t(locale, 'app.sidePane.collapse')}
+          aria-label={
+            isSidePaneCollapsed
+              ? t(locale, 'app.sidePane.expand')
+              : t(locale, 'app.sidePane.collapse')
+          }
+          title={
+            isSidePaneCollapsed
+              ? t(locale, 'app.sidePane.expand')
+              : t(locale, 'app.sidePane.collapse')
+          }
         >
           <span aria-hidden="true">{isSidePaneCollapsed ? '›' : '‹'}</span>
         </button>
@@ -197,7 +270,10 @@ function AppShellSidePane({
 export function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const assetPanelFromRoute = useMemo(() => mapAssetPathToPanel(location.pathname), [location.pathname]);
+  const assetPanelFromRoute = useMemo(
+    () => mapAssetPathToPanel(location.pathname),
+    [location.pathname],
+  );
   const isTranscriptionRoute = isTranscriptionWorkspacePathname(location.pathname);
   const [openAssetPanel, setOpenAssetPanel] = useState<LanguageAssetPanel>('none');
   const panelSearchRestoreRef = useRef<string | null>(null);
@@ -246,7 +322,9 @@ export function App() {
     });
   }, []);
 
-  const [isSidePaneCollapsed, setIsSidePaneCollapsed] = useState<boolean>(readInitialSidePaneCollapsed);
+  const [isSidePaneCollapsed, setIsSidePaneCollapsed] = useState<boolean>(
+    readInitialSidePaneCollapsed,
+  );
   const [sidePaneWidth, setSidePaneWidth] = useState<number>(readPersistedSidePaneWidth);
 
   useEffect(() => {
@@ -265,9 +343,12 @@ export function App() {
     }
   }, [sidePaneWidth]);
 
-  useEffect(() => () => {
-    shellDragCleanupRef.current?.();
-  }, []);
+  useEffect(
+    () => () => {
+      shellDragCleanupRef.current?.();
+    },
+    [],
+  );
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -306,9 +387,12 @@ export function App() {
     };
 
     if (idleWindow.requestIdleCallback) {
-      idleHandle = idleWindow.requestIdleCallback(() => {
-        void runRefresh();
-      }, { timeout: 5000 });
+      idleHandle = idleWindow.requestIdleCallback(
+        () => {
+          void runRefresh();
+        },
+        { timeout: 5000 },
+      );
     } else {
       timeoutHandle = window.setTimeout(() => {
         void runRefresh();
@@ -375,86 +459,98 @@ export function App() {
     };
   }, []);
 
-  const navGroups = useMemo<NavGroup[]>(() => [
-    {
-      id: 'workspace-core',
-      title: t(locale, 'app.navGroup.core'),
-      items: [
-        {
-          to: '/',
-          label: t(locale, 'app.nav.home'),
-          icon: 'local_library',
-          summary: t(locale, 'app.nav.summary.home'),
-        },
-        {
-          to: '/transcription',
-          label: t(locale, 'app.nav.transcription'),
-          icon: 'speech_to_text',
-          summary: t(locale, 'app.nav.summary.transcription'),
-        },
-        {
-          to: '/annotation',
-          label: t(locale, 'app.nav.annotation'),
-          icon: 'draw',
-          summary: t(locale, 'app.nav.summary.annotation'),
-        },
-        {
-          to: '/lexicon',
-          label: t(locale, 'app.nav.lexicon'),
-          icon: 'menu_book',
-          summary: t(locale, 'app.nav.summary.lexicon'),
-        },
-        {
-          to: '/corpus',
-          label: t(locale, 'app.nav.corpus'),
-          icon: 'edit_note',
-          summary: t(locale, 'app.nav.summary.corpus'),
-        },
-        {
-          to: '/analysis',
-          label: t(locale, 'app.nav.analysis'),
-          icon: 'psychology',
-          summary: t(locale, 'app.nav.summary.analysis'),
-        },
-      ],
-    },
-  ], [locale]);
+  const navGroups = useMemo<NavGroup[]>(
+    () => [
+      {
+        id: 'workspace-core',
+        title: t(locale, 'app.navGroup.core'),
+        items: [
+          {
+            to: '/',
+            label: t(locale, 'app.nav.home'),
+            icon: 'local_library',
+            summary: t(locale, 'app.nav.summary.home'),
+          },
+          {
+            to: '/transcription',
+            label: t(locale, 'app.nav.transcription'),
+            icon: 'speech_to_text',
+            summary: t(locale, 'app.nav.summary.transcription'),
+          },
+          {
+            to: '/annotation',
+            label: t(locale, 'app.nav.annotation'),
+            icon: 'draw',
+            summary: t(locale, 'app.nav.summary.annotation'),
+          },
+          {
+            to: '/lexicon',
+            label: t(locale, 'app.nav.lexicon'),
+            icon: 'menu_book',
+            summary: t(locale, 'app.nav.summary.lexicon'),
+          },
+          {
+            to: '/corpus',
+            label: t(locale, 'app.nav.corpus'),
+            icon: 'edit_note',
+            summary: t(locale, 'app.nav.summary.corpus'),
+          },
+          {
+            to: '/analysis',
+            label: t(locale, 'app.nav.analysis'),
+            icon: 'psychology',
+            summary: t(locale, 'app.nav.summary.analysis'),
+          },
+        ],
+      },
+    ],
+    [locale],
+  );
 
-  const secondaryNavItems = useMemo<NavItem[]>(() => [
-    {
-      to: '/assets/language-metadata',
-      label: t(locale, 'app.nav.languageMetadata'),
-      icon: 'translate',
-      summary: t(locale, 'app.nav.summary.languageMetadata'),
-    },
-    {
-      to: '/assets/structural-profiles',
-      label: t(locale, 'app.nav.structuralProfiles'),
-      icon: 'layers',
-      summary: t(locale, 'app.nav.summary.structuralProfiles'),
-    },
-    {
-      to: '/assets/orthographies',
-      label: t(locale, 'app.nav.orthographies'),
-      icon: 'auto_stories',
-      summary: t(locale, 'app.nav.summary.orthographies'),
-    },
-    {
-      to: '/assets/orthography-bridges',
-      label: t(locale, 'app.nav.orthographyBridges'),
-      icon: 'account_tree',
-      summary: t(locale, 'app.nav.summary.orthographyBridges'),
-    },
-  ], [locale]);
+  const secondaryNavItems = useMemo<NavItem[]>(
+    () => [
+      {
+        to: '/assets/language-metadata',
+        label: t(locale, 'app.nav.languageMetadata'),
+        icon: 'translate',
+        summary: t(locale, 'app.nav.summary.languageMetadata'),
+      },
+      {
+        to: '/assets/structural-profiles',
+        label: t(locale, 'app.nav.structuralProfiles'),
+        icon: 'layers',
+        summary: t(locale, 'app.nav.summary.structuralProfiles'),
+      },
+      {
+        to: '/assets/orthographies',
+        label: t(locale, 'app.nav.orthographies'),
+        icon: 'auto_stories',
+        summary: t(locale, 'app.nav.summary.orthographies'),
+      },
+      {
+        to: '/assets/orthography-bridges',
+        label: t(locale, 'app.nav.orthographyBridges'),
+        icon: 'account_tree',
+        summary: t(locale, 'app.nav.summary.orthographyBridges'),
+      },
+    ],
+    [locale],
+  );
 
   const primaryNavItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups]);
-  const navItems = useMemo(() => [...primaryNavItems, ...secondaryNavItems], [primaryNavItems, secondaryNavItems]);
+  const navItems = useMemo(
+    () => [...primaryNavItems, ...secondaryNavItems],
+    [primaryNavItems, secondaryNavItems],
+  );
   const activePathname = assetPanelFromRoute !== 'none' ? '/transcription' : location.pathname;
 
-  const activeNavItem = useMemo(() => (
-    navItems.find((item) => activePathname === item.to || activePathname.startsWith(`${item.to}/`))
-    ?? navItems[0]
-  ), [activePathname, navItems]);
+  const activeNavItem = useMemo(
+    () =>
+      navItems.find(
+        (item) => activePathname === item.to || activePathname.startsWith(`${item.to}/`),
+      ) ?? navItems[0],
+    [activePathname, navItems],
+  );
 
   const handleAssetPanelClose = useCallback(() => {
     setOpenAssetPanel('none');
@@ -462,7 +558,7 @@ export function App() {
     const restoreSearch = panelSearchRestoreRef.current;
     panelSearchRestoreRef.current = null;
     if (restoreSearch !== null && location.search !== restoreSearch) {
-      navigate({ pathname: location.pathname, search: restoreSearch }, { replace: true });
+      void navigate({ pathname: location.pathname, search: restoreSearch }, { replace: true });
     }
   }, [location.pathname, location.search, navigate]);
 
@@ -481,43 +577,55 @@ export function App() {
     return hashStart < 0 ? to.slice(queryStart) : to.slice(queryStart, hashStart);
   }, []);
 
-  const openAssetPanelFromTarget = useCallback((to: string) => {
-    const panelId = pathToPanelId(to);
-    if (SHOULD_PREWARM_LANGUAGE_ASSET_PANELS) {
-      prewarmLanguageAssetPanel(panelId);
-    }
-    setOpenAssetPanel(panelId);
+  const openAssetPanelFromTarget = useCallback(
+    (to: string) => {
+      const panelId = pathToPanelId(to);
+      if (SHOULD_PREWARM_LANGUAGE_ASSET_PANELS) {
+        prewarmLanguageAssetPanel(panelId);
+      }
+      setOpenAssetPanel(panelId);
 
-    const nextSearch = searchFromTarget(to);
-    if (!nextSearch) {
-      return;
-    }
+      const nextSearch = searchFromTarget(to);
+      if (!nextSearch) {
+        return;
+      }
 
-    if (panelSearchRestoreRef.current === null) {
-      panelSearchRestoreRef.current = location.search;
-    }
+      if (panelSearchRestoreRef.current === null) {
+        panelSearchRestoreRef.current = location.search;
+      }
 
-    if (location.search !== nextSearch) {
-      navigate({ pathname: location.pathname, search: nextSearch }, { replace: true });
-    }
-  }, [location.pathname, location.search, navigate, pathToPanelId, searchFromTarget]);
+      if (location.search !== nextSearch) {
+        void navigate({ pathname: location.pathname, search: nextSearch }, { replace: true });
+      }
+    },
+    [location.pathname, location.search, navigate, pathToPanelId, searchFromTarget],
+  );
 
-  const handleAssetPanelToggle = useCallback((to: string) => {
-    const panelId = pathToPanelId(to);
-    if (panelId !== 'none' && openAssetPanel === panelId) {
-      handleAssetPanelClose();
-      return;
-    }
-    openAssetPanelFromTarget(to);
-  }, [handleAssetPanelClose, openAssetPanel, openAssetPanelFromTarget, pathToPanelId]);
+  const handleAssetPanelToggle = useCallback(
+    (to: string) => {
+      const panelId = pathToPanelId(to);
+      if (panelId !== 'none' && openAssetPanel === panelId) {
+        handleAssetPanelClose();
+        return;
+      }
+      openAssetPanelFromTarget(to);
+    },
+    [handleAssetPanelClose, openAssetPanel, openAssetPanelFromTarget, pathToPanelId],
+  );
 
-  const isAssetPanelActive = useCallback((to: string) => {
-    return openAssetPanel === pathToPanelId(to);
-  }, [openAssetPanel, pathToPanelId]);
+  const isAssetPanelActive = useCallback(
+    (to: string) => {
+      return openAssetPanel === pathToPanelId(to);
+    },
+    [openAssetPanel, pathToPanelId],
+  );
 
-  const assetPanelCtx = useMemo<AssetPanelContextValue>(() => ({
-    openPanel: (to: string) => openAssetPanelFromTarget(to),
-  }), [openAssetPanelFromTarget]);
+  const assetPanelCtx = useMemo<AssetPanelContextValue>(
+    () => ({
+      openPanel: (to: string) => openAssetPanelFromTarget(to),
+    }),
+    [openAssetPanelFromTarget],
+  );
 
   useEffect(() => {
     if (assetPanelFromRoute === 'none') {
@@ -541,13 +649,16 @@ export function App() {
     persistUiFontScalePreference({ mode: 'manual', manualScale: scale });
   }, []);
 
-  const handleFontScaleModeChange = useCallback((mode: UiFontScaleMode) => {
-    const current = readPersistedUiFontScalePreference();
-    persistUiFontScalePreference({
-      mode,
-      manualScale: mode === 'manual' ? uiFontScale : current.manualScale,
-    });
-  }, [uiFontScale]);
+  const handleFontScaleModeChange = useCallback(
+    (mode: UiFontScaleMode) => {
+      const current = readPersistedUiFontScalePreference();
+      persistUiFontScalePreference({
+        mode,
+        manualScale: mode === 'manual' ? uiFontScale : current.manualScale,
+      });
+    },
+    [uiFontScale],
+  );
 
   const handleSettingsOpen = useCallback(() => setIsSettingsOpen(true), []);
   const handleSettingsClose = useCallback(() => setIsSettingsOpen(false), []);
@@ -556,9 +667,16 @@ export function App() {
     window.dispatchEvent(new Event('jieyu:open-collaboration-cloud-panel'));
   }, [isTranscriptionRoute]);
 
-  const shellStyle = useMemo(() => ({
-    ['--side-pane-width' as '--side-pane-width']: isSidePaneCollapsed ? '0px' : `${sidePaneWidth}px`,
-  } as CSSProperties), [isSidePaneCollapsed, sidePaneWidth]);
+  const shellStyle = useMemo(
+    () =>
+      ({
+        ['--side-pane-width' as '--side-pane-width']: isSidePaneCollapsed
+          ? '0px'
+          : `${sidePaneWidth}px`,
+      }) as CSSProperties,
+    [isSidePaneCollapsed, sidePaneWidth],
+  );
+  const shellStyleProps = { style: shellStyle };
 
   // 仅保留“点击空白区域收起”，禁用 hover/贴边自动展开
   // Keep click-outside collapse only; disable hover/edge auto-expand.
@@ -592,12 +710,18 @@ export function App() {
         <AppSidePaneProvider>
           <div
             className={`app-shell ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
-            style={shellStyle}
+            {...shellStyleProps}
           >
             <div ref={shellBodyRef} className="app-shell-body">
-            <aside className="app-left-rail" aria-label={t(locale, 'app.leftRail.aria.navigation')}>
-              <nav className="app-left-rail-group app-left-rail-primary" aria-label={t(locale, 'app.navGroup.core')}>
-                {primaryNavItems.map((item) => (
+              <aside
+                className="app-left-rail"
+                aria-label={t(locale, 'app.leftRail.aria.navigation')}
+              >
+                <nav
+                  className="app-left-rail-group app-left-rail-primary"
+                  aria-label={t(locale, 'app.navGroup.core')}
+                >
+                  {primaryNavItems.map((item) => (
                     <NavLink
                       key={item.to}
                       to={item.to}
@@ -612,139 +736,153 @@ export function App() {
                       <span>{item.label}</span>
                     </NavLink>
                   ))}
-              </nav>
-              <div
-                className="app-left-rail-bottom-slot"
-                aria-hidden={!isTranscriptionRoute}
-                {...(isTranscriptionRoute
-                  ? { 'aria-label': t(locale, 'app.leftRail.aria.contextSlot') }
-                  : {})}
-              >
-                {isTranscriptionRoute ? (
-                  <div
-                    id={LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID}
-                    className="left-rail-context-actions-host"
-                    data-testid={LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID}
-                  />
-                ) : null}
-              </div>
-              <div className="app-left-rail-footer" aria-label={t(locale, 'app.leftRail.aria.footer')}>
+                </nav>
                 <div
-                  id="left-rail-project-hub-slot"
-                  className="left-rail-project-hub-anchor"
-                  aria-hidden="true"
-                />
-                <LeftRailResourcesMenu
-                  locale={locale}
-                  items={secondaryNavItems.map((item) => ({
-                    to: item.to,
-                    label: item.label,
-                  }))}
-                  isItemActive={isAssetPanelActive}
-                  onPick={handleAssetPanelToggle}
-                />
-                {isTranscriptionRoute ? (
+                  className="app-left-rail-bottom-slot"
+                  aria-hidden={!isTranscriptionRoute}
+                  {...(isTranscriptionRoute
+                    ? { 'aria-label': t(locale, 'app.leftRail.aria.contextSlot') }
+                    : {})}
+                >
+                  {isTranscriptionRoute ? (
+                    <div
+                      id={LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID}
+                      className="left-rail-context-actions-host"
+                      data-testid={LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID}
+                    />
+                  ) : null}
+                </div>
+                <div
+                  className="app-left-rail-footer"
+                  aria-label={t(locale, 'app.leftRail.aria.footer')}
+                >
+                  <div
+                    id="left-rail-project-hub-slot"
+                    className="left-rail-project-hub-anchor"
+                    aria-hidden="true"
+                  />
+                  <LeftRailResourcesMenu
+                    locale={locale}
+                    items={secondaryNavItems.map((item) => ({
+                      to: item.to,
+                      label: item.label,
+                    }))}
+                    isItemActive={isAssetPanelActive}
+                    onPick={handleAssetPanelToggle}
+                  />
+                  {isTranscriptionRoute ? (
+                    <button
+                      type="button"
+                      className="left-rail-btn left-rail-btn-utility"
+                      aria-label={collaborationMessages.title}
+                      title={collaborationMessages.title}
+                      onClick={handleCollaborationEntryOpen}
+                    >
+                      <MaterialSymbol
+                        name="cloud_sync"
+                        aria-hidden
+                        className={JIEYU_MATERIAL_NAV}
+                      />
+                      <span>{collaborationMessages.entryLabel}</span>
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="left-rail-btn left-rail-btn-utility"
-                    aria-label={collaborationMessages.title}
-                    title={collaborationMessages.title}
-                    onClick={handleCollaborationEntryOpen}
+                    aria-label={t(locale, 'transcription.voiceWidget.settings.button')}
+                    title={t(locale, 'transcription.voiceWidget.settings.button')}
+                    onClick={handleSettingsOpen}
                   >
-                    <MaterialSymbol name="cloud_sync" aria-hidden className={JIEYU_MATERIAL_NAV} />
-                    <span>{collaborationMessages.entryLabel}</span>
+                    <MaterialSymbol name="settings" aria-hidden className={JIEYU_MATERIAL_NAV} />
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="left-rail-btn left-rail-btn-utility"
-                  aria-label={t(locale, 'transcription.voiceWidget.settings.button')}
-                  title={t(locale, 'transcription.voiceWidget.settings.button')}
-                  onClick={handleSettingsOpen}
-                >
-                  <MaterialSymbol name="settings" aria-hidden className={JIEYU_MATERIAL_NAV} />
-                </button>
-              </div>
-            </aside>
+                </div>
+              </aside>
 
-            <AppShellSidePane
-              locale={locale}
-              activeNavItem={activeNavItem}
-              isTranscriptionRoute={isTranscriptionRoute}
-              isSidePaneCollapsed={isSidePaneCollapsed}
-              handleSidePaneResizeStart={handleSidePaneResizeStart}
-              handleSidePaneToggle={handleSidePaneToggle}
-            />
+              <AppShellSidePane
+                locale={locale}
+                activeNavItem={activeNavItem}
+                isTranscriptionRoute={isTranscriptionRoute}
+                isSidePaneCollapsed={isSidePaneCollapsed}
+                handleSidePaneResizeStart={handleSidePaneResizeStart}
+                handleSidePaneToggle={handleSidePaneToggle}
+              />
 
-            <main
-              className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}
-            >
-              <AiPanelProvider>
-                <AssetPanelProvider value={assetPanelCtx}>
-                <Suspense fallback={<div className="app-route-loading" aria-busy="true" />}>
-                  <Routes location={location}>
-                    <Route path="/" element={<HomePage />} />
-                    <Route
-                      path="/transcription"
-                      element={<TranscriptionPage />}
-                    />
-                    <Route path="/assets/language-metadata" element={<TranscriptionPage />} />
-                    <Route path="/assets/structural-profiles" element={<TranscriptionPage />} />
-                    <Route path="/assets/orthographies" element={<TranscriptionPage />} />
-                    <Route path="/assets/orthography-bridges" element={<TranscriptionPage />} />
-                    <Route path="/annotation" element={<AnnotationPage />} />
-                    <Route path="/analysis" element={<AnalysisPage />} />
-                    <Route path="/writing" element={<Navigate to="/corpus" replace />} />
-                    <Route path="/corpus" element={<CorpusLibraryPage />} />
-                    <Route path="/lexicon" element={<LexiconPage />} />
-                    <Route path="*" element={<NotFound locale={locale} />} />
-                  </Routes>
-                </Suspense>
-                <Suspense fallback={null}>
-                  <ModalPanel
-                    isOpen={openAssetPanel === 'language-metadata'}
-                    onClose={handleAssetPanelClose}
-                    ariaLabel={t(locale, 'app.nav.languageMetadata')}
-                    closeLabel={t(locale, 'transcription.importDialog.close')}
-                    renderShell={false}
-                    wide
-                  >
-                    <LanguageMetadataWorkspacePage registerSidePane={false} onClose={handleAssetPanelClose} />
-                  </ModalPanel>
-                  <ModalPanel
-                    isOpen={openAssetPanel === 'structural-profiles'}
-                    onClose={handleAssetPanelClose}
-                    ariaLabel={t(locale, 'app.nav.structuralProfiles')}
-                    closeLabel={t(locale, 'transcription.importDialog.close')}
-                    renderShell={false}
-                    wide
-                  >
-                    <StructuralProfileWorkspacePage registerSidePane={false} onClose={handleAssetPanelClose} />
-                  </ModalPanel>
-                  <ModalPanel
-                    isOpen={openAssetPanel === 'orthographies'}
-                    onClose={handleAssetPanelClose}
-                    ariaLabel={t(locale, 'app.nav.orthographies')}
-                    closeLabel={t(locale, 'transcription.importDialog.close')}
-                    renderShell={false}
-                    wide
-                  >
-                    <OrthographyManagerPage registerSidePane={false} onClose={handleAssetPanelClose} />
-                  </ModalPanel>
-                  <ModalPanel
-                    isOpen={openAssetPanel === 'orthography-bridges'}
-                    onClose={handleAssetPanelClose}
-                    ariaLabel={t(locale, 'app.nav.orthographyBridges')}
-                    closeLabel={t(locale, 'transcription.importDialog.close')}
-                    renderShell={false}
-                    wide
-                  >
-                    <OrthographyBridgeWorkspacePage registerSidePane={false} onClose={handleAssetPanelClose} />
-                  </ModalPanel>
-                </Suspense>
-                </AssetPanelProvider>
-              </AiPanelProvider>
-            </main>
+              <main className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}>
+                <AiPanelProvider>
+                  <AssetPanelProvider value={assetPanelCtx}>
+                    <Suspense fallback={<div className="app-route-loading" aria-busy="true" />}>
+                      <Routes location={location}>
+                        <Route path="/" element={<HomePage />} />
+                        <Route path="/transcription" element={<TranscriptionPage />} />
+                        <Route path="/assets/language-metadata" element={<TranscriptionPage />} />
+                        <Route path="/assets/structural-profiles" element={<TranscriptionPage />} />
+                        <Route path="/assets/orthographies" element={<TranscriptionPage />} />
+                        <Route path="/assets/orthography-bridges" element={<TranscriptionPage />} />
+                        <Route path="/annotation" element={<AnnotationPage />} />
+                        <Route path="/analysis" element={<AnalysisPage />} />
+                        <Route path="/writing" element={<Navigate to="/corpus" replace />} />
+                        <Route path="/corpus" element={<CorpusLibraryPage />} />
+                        <Route path="/lexicon" element={<LexiconPage />} />
+                        <Route path="*" element={<NotFound locale={locale} />} />
+                      </Routes>
+                    </Suspense>
+                    <Suspense fallback={null}>
+                      <ModalPanel
+                        isOpen={openAssetPanel === 'language-metadata'}
+                        onClose={handleAssetPanelClose}
+                        ariaLabel={t(locale, 'app.nav.languageMetadata')}
+                        closeLabel={t(locale, 'transcription.importDialog.close')}
+                        renderShell={false}
+                        wide
+                      >
+                        <LanguageMetadataWorkspacePage
+                          registerSidePane={false}
+                          onClose={handleAssetPanelClose}
+                        />
+                      </ModalPanel>
+                      <ModalPanel
+                        isOpen={openAssetPanel === 'structural-profiles'}
+                        onClose={handleAssetPanelClose}
+                        ariaLabel={t(locale, 'app.nav.structuralProfiles')}
+                        closeLabel={t(locale, 'transcription.importDialog.close')}
+                        renderShell={false}
+                        wide
+                      >
+                        <StructuralProfileWorkspacePage
+                          registerSidePane={false}
+                          onClose={handleAssetPanelClose}
+                        />
+                      </ModalPanel>
+                      <ModalPanel
+                        isOpen={openAssetPanel === 'orthographies'}
+                        onClose={handleAssetPanelClose}
+                        ariaLabel={t(locale, 'app.nav.orthographies')}
+                        closeLabel={t(locale, 'transcription.importDialog.close')}
+                        renderShell={false}
+                        wide
+                      >
+                        <OrthographyManagerPage
+                          registerSidePane={false}
+                          onClose={handleAssetPanelClose}
+                        />
+                      </ModalPanel>
+                      <ModalPanel
+                        isOpen={openAssetPanel === 'orthography-bridges'}
+                        onClose={handleAssetPanelClose}
+                        ariaLabel={t(locale, 'app.nav.orthographyBridges')}
+                        closeLabel={t(locale, 'transcription.importDialog.close')}
+                        renderShell={false}
+                        wide
+                      >
+                        <OrthographyBridgeWorkspacePage
+                          registerSidePane={false}
+                          onClose={handleAssetPanelClose}
+                        />
+                      </ModalPanel>
+                    </Suspense>
+                  </AssetPanelProvider>
+                </AiPanelProvider>
+              </main>
             </div>
             {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
             <AppGlobalToastHost />

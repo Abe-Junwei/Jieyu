@@ -49,6 +49,7 @@ export function DialogShell({
   /** E-2 / 勘误表：默认可聚焦对话框语义；无标题时由调用方传 `aria-label` 或 `aria-labelledby`。 */
   const ariaLabelledBy =
     ariaLabelledByProp ?? (title !== undefined ? titleHeadingId : undefined);
+  const dialogLayoutStyleProps = layoutStyle !== undefined ? { style: layoutStyle } : {};
 
   return (
     <div
@@ -61,7 +62,7 @@ export function DialogShell({
         wide && 'dialog-card-wide',
         className,
       )}
-      style={layoutStyle}
+      {...dialogLayoutStyleProps}
       role={roleProp ?? 'dialog'}
       aria-modal={ariaModalProp ?? 'true'}
       {...(ariaLabelProp !== undefined ? { 'aria-label': ariaLabelProp } : {})}

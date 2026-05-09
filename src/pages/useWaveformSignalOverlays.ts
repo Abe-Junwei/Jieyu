@@ -1,14 +1,27 @@
 import { useMemo } from 'react';
 import type { VadSegmentLike } from '../utils/waveformAnalysisOverlays';
 import { buildWaveformAnalysisOverlaySummary } from '../utils/waveformAnalysisOverlays';
-import type { WaveformLowConfidenceOverlay, WaveformNoteIndicator, WaveformOverlapOverlay } from './transcriptionWaveformBridge.types';
+import type {
+  WaveformLowConfidenceOverlay,
+  WaveformNoteIndicator,
+  WaveformOverlapOverlay,
+} from './transcriptionWaveformBridge.types';
 
 interface UseWaveformSignalOverlaysInput {
-  unitsOnCurrentMedia: Array<{ id: string; startTime: number; endTime: number; ai_metadata?: { confidence?: number } }>;
+  unitsOnCurrentMedia: Array<{
+    id: string;
+    startTime: number;
+    endTime: number;
+    ai_metadata?: { confidence?: number };
+  }>;
   vadSegments?: VadSegmentLike[];
   waveformTimelineItems: Array<{ id: string; startTime: number; endTime: number }>;
   activeLayerIdForEdits: string;
-  resolveNoteIndicatorTarget: (unitId: string, layerId?: string, scope?: 'timeline' | 'waveform') => { count: number; layerId?: string } | null;
+  resolveNoteIndicatorTarget: (
+    unitId: string,
+    layerId?: string,
+    scope?: 'timeline' | 'waveform',
+  ) => { count: number; layerId?: string } | null;
   zoomPxPerSec: number;
 }
 
@@ -18,7 +31,9 @@ interface UseWaveformSignalOverlaysResult {
   waveformOverlapOverlays: WaveformOverlapOverlay[];
 }
 
-export function useWaveformSignalOverlays(input: UseWaveformSignalOverlaysInput): UseWaveformSignalOverlaysResult {
+export function useWaveformSignalOverlays(
+  input: UseWaveformSignalOverlaysInput,
+): UseWaveformSignalOverlaysResult {
   const visibleWaveformAnalysisRows = useMemo(() => {
     const confidenceById = new Map(
       input.unitsOnCurrentMedia.map((unit) => [unit.id, unit.ai_metadata] as const),
@@ -32,14 +47,22 @@ export function useWaveformSignalOverlays(input: UseWaveformSignalOverlaysInput)
     }));
   }, [input.unitsOnCurrentMedia, input.waveformTimelineItems]);
 
-  const waveformAnalysisSummary = useMemo(() => buildWaveformAnalysisOverlaySummary(visibleWaveformAnalysisRows, {
-    ...(input.vadSegments ? { vadSegments: input.vadSegments } : {}),
-  }), [input.vadSegments, visibleWaveformAnalysisRows]);
+  const waveformAnalysisSummary = useMemo(
+    () =>
+      buildWaveformAnalysisOverlaySummary(visibleWaveformAnalysisRows, {
+        ...(input.vadSegments ? { vadSegments: input.vadSegments } : {}),
+      }),
+    [input.vadSegments, visibleWaveformAnalysisRows],
+  );
 
   const waveformNoteIndicators = useMemo(() => {
     const result: WaveformNoteIndicator[] = [];
     for (const item of input.waveformTimelineItems) {
-      const noteIndicator = input.resolveNoteIndicatorTarget(item.id, input.activeLayerIdForEdits || undefined, 'waveform');
+      const noteIndicator = input.resolveNoteIndicatorTarget(
+        item.id,
+        input.activeLayerIdForEdits || undefined,
+        'waveform',
+      );
       if (!noteIndicator) continue;
       result.push({
         uttId: item.id,
@@ -50,22 +73,29 @@ export function useWaveformSignalOverlays(input: UseWaveformSignalOverlaysInput)
       });
     }
     return result;
-  }, [input.activeLayerIdForEdits, input.resolveNoteIndicatorTarget, input.waveformTimelineItems, input.zoomPxPerSec]);
+  }, [input]);
 
-  const waveformLowConfidenceOverlays = useMemo(() => waveformAnalysisSummary.lowConfidenceBands.map((band) => ({
-    id: band.id,
-    leftPx: band.startTime * input.zoomPxPerSec,
-    widthPx: Math.max(2, (band.endTime - band.startTime) * input.zoomPxPerSec),
-    confidence: band.confidence,
-  })), [input.zoomPxPerSec, waveformAnalysisSummary.lowConfidenceBands]);
+  const waveformLowConfidenceOverlays = useMemo(
+    () =>
+      waveformAnalysisSummary.lowConfidenceBands.map((band) => ({
+        id: band.id,
+        leftPx: band.startTime * input.zoomPxPerSec,
+        widthPx: Math.max(2, (band.endTime - band.startTime) * input.zoomPxPerSec),
+        confidence: band.confidence,
+      })),
+    [input.zoomPxPerSec, waveformAnalysisSummary.lowConfidenceBands],
+  );
 
-  const waveformOverlapOverlays = useMemo(() => waveformAnalysisSummary.overlapBands.map((band) => ({
-    id: band.id,
-    leftPx: band.startTime * input.zoomPxPerSec,
-    widthPx: Math.max(2, (band.endTime - band.startTime) * input.zoomPxPerSec),
-    concurrentCount: band.concurrentCount,
-  })), [input.zoomPxPerSec, waveformAnalysisSummary.overlapBands]);
-
+  const waveformOverlapOverlays = useMemo(
+    () =>
+      waveformAnalysisSummary.overlapBands.map((band) => ({
+        id: band.id,
+        leftPx: band.startTime * input.zoomPxPerSec,
+        widthPx: Math.max(2, (band.endTime - band.startTime) * input.zoomPxPerSec),
+        concurrentCount: band.concurrentCount,
+      })),
+    [input.zoomPxPerSec, waveformAnalysisSummary.overlapBands],
+  );
 
   return {
     waveformNoteIndicators,

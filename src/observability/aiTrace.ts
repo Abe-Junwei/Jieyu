@@ -53,24 +53,28 @@ const KNOWN_TOOL_NAME_ALLOWLIST = new Set([
 
 function normalizeSemanticToken(value: string | undefined): string | undefined {
   const trimmed = value?.trim().toLowerCase();
-  if (!trimmed) return undefined;
+  if (trimmed === undefined || trimmed.length === 0) return undefined;
   const normalized = trimmed.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  return normalized || undefined;
+  return normalized.length > 0 ? normalized : undefined;
 }
 
 function resolveToolName(tags: MetricTags | undefined): string | undefined {
-  const rawValue = typeof tags?.toolName === 'string'
-    ? tags.toolName
-    : typeof tags?.tool_name === 'string'
-      ? tags.tool_name
-      : undefined;
+  const rawValue =
+    typeof tags?.toolName === 'string'
+      ? tags.toolName
+      : typeof tags?.tool_name === 'string'
+        ? tags.tool_name
+        : undefined;
   const normalized = normalizeSemanticToken(rawValue);
-  if (!normalized) return undefined;
+  if (normalized === undefined || normalized.length === 0) return undefined;
   return KNOWN_TOOL_NAME_ALLOWLIST.has(normalized) ? normalized : 'other';
 }
 
 function sanitizeUrlForAttribute(value: string): string {
-  return value.replace(/([?&](?:api.?key|token|password|secret|authorization)=)[^&]*/gi, '$1[REDACTED]');
+  return value.replace(
+    /([?&](?:api.?key|token|password|secret|authorization)=)[^&]*/gi,
+    '$1[REDACTED]',
+  );
 }
 
 function buildSemanticAttributes(
@@ -85,22 +89,23 @@ function buildSemanticAttributes(
   const attributes: Record<string, AiTraceAttributeValue> = {};
   const normalizedProvider = normalizeSemanticToken(provider);
   const normalizedFallbackProvider = normalizeSemanticToken(fallbackProvider);
+  const trimmedModel = model?.trim();
 
-  if (normalizedProvider) {
+  if (normalizedProvider !== undefined && normalizedProvider.length > 0) {
     attributes['gen_ai.system'] = normalizedProvider;
   }
-  if (model?.trim()) {
-    attributes['gen_ai.request.model'] = model.trim();
+  if (trimmedModel !== undefined && trimmedModel.length > 0) {
+    attributes['gen_ai.request.model'] = trimmedModel;
   }
   if (usedFallback) {
     attributes['gen_ai.jieyu.used_fallback'] = true;
-    if (normalizedFallbackProvider) {
+    if (normalizedFallbackProvider !== undefined && normalizedFallbackProvider.length > 0) {
       attributes['gen_ai.jieyu.fallback_system'] = normalizedFallbackProvider;
     }
   }
 
   const toolName = resolveToolName(tags);
-  if (toolName) {
+  if (toolName !== undefined && toolName.length > 0) {
     attributes['gen_ai.jieyu.tool_name'] = toolName;
   }
 
@@ -108,30 +113,38 @@ function buildSemanticAttributes(
     attributes['gen_ai.jieyu.step'] = tags.step;
   }
 
-  const httpMethod = typeof tags?.httpMethod === 'string'
-    ? tags.httpMethod
-    : typeof tags?.method === 'string'
-      ? tags.method
-      : undefined;
-  if (httpMethod?.trim()) {
-    attributes['http.request.method'] = httpMethod.trim().toUpperCase();
+  const httpMethod =
+    typeof tags?.httpMethod === 'string'
+      ? tags.httpMethod
+      : typeof tags?.method === 'string'
+        ? tags.method
+        : undefined;
+  const normalizedHttpMethod = httpMethod?.trim();
+  if (normalizedHttpMethod !== undefined && normalizedHttpMethod.length > 0) {
+    attributes['http.request.method'] = normalizedHttpMethod.toUpperCase();
   }
 
-  const rawUrl = typeof tags?.urlFull === 'string'
-    ? tags.urlFull
-    : typeof tags?.url === 'string'
-      ? tags.url
-      : undefined;
-  if (rawUrl?.trim()) {
-    attributes['url.full'] = sanitizeUrlForAttribute(rawUrl.trim());
+  const rawUrl =
+    typeof tags?.urlFull === 'string'
+      ? tags.urlFull
+      : typeof tags?.url === 'string'
+        ? tags.url
+        : undefined;
+  const normalizedRawUrl = rawUrl?.trim();
+  if (normalizedRawUrl !== undefined && normalizedRawUrl.length > 0) {
+    attributes['url.full'] = sanitizeUrlForAttribute(normalizedRawUrl);
   }
 
-  attributes['otel.status_code'] = error ? 'ERROR' : 'OK';
-  if (error) {
+  const hasError = error !== undefined && error.length > 0;
+  attributes['otel.status_code'] = hasError ? 'ERROR' : 'OK';
+  if (hasError) {
     attributes['otel.status_description'] = error;
   }
-  if (kind === 'agent-loop-step' && typeof tags?.queryFamily === 'string' && tags.queryFamily.trim()) {
-    attributes['gen_ai.jieyu.query_family'] = normalizeSemanticToken(tags.queryFamily) ?? tags.queryFamily.trim();
+  const rawQueryFamily =
+    typeof tags?.queryFamily === 'string' ? tags.queryFamily.trim() : undefined;
+  if (kind === 'agent-loop-step' && rawQueryFamily !== undefined && rawQueryFamily.length > 0) {
+    attributes['gen_ai.jieyu.query_family'] =
+      normalizeSemanticToken(rawQueryFamily) ?? rawQueryFamily;
   }
 
   return attributes;
@@ -200,8 +213,10 @@ export function startAiTraceSpan(options: StartSpanOptions): ActiveSpan {
 
   const baseTags: MetricTags = {
     ...(options.tags ?? {}),
-    ...(options.provider ? { provider: options.provider } : {}),
-    ...(options.model ? { model: options.model } : {}),
+    ...(options.provider !== undefined && options.provider.length > 0
+      ? { provider: options.provider }
+      : {}),
+    ...(options.model !== undefined && options.model.length > 0 ? { model: options.model } : {}),
   };
 
   function finalize(error?: string): AiTraceSpan {
@@ -213,7 +228,10 @@ export function startAiTraceSpan(options: StartSpanOptions): ActiveSpan {
       recordMetric({
         id: 'ai.trace.llm_request_latency_ms',
         value: durationMs,
-        tags: { ...baseTags, ...(usedFallback ? { fallback: 'true', fallback_provider: fallbackProvider ?? '' } : {}) },
+        tags: {
+          ...baseTags,
+          ...(usedFallback ? { fallback: 'true', fallback_provider: fallbackProvider ?? '' } : {}),
+        },
       });
       if (firstTokenMs !== undefined) {
         recordMetric({
@@ -222,7 +240,7 @@ export function startAiTraceSpan(options: StartSpanOptions): ActiveSpan {
           tags: baseTags,
         });
       }
-      if (error) {
+      if (error !== undefined && error.length > 0) {
         recordMetric({ id: 'ai.trace.llm_request_error_count', value: 1, tags: baseTags });
       }
       if (usedFallback) {
@@ -231,7 +249,11 @@ export function startAiTraceSpan(options: StartSpanOptions): ActiveSpan {
     } else if (options.kind === 'tool-execution') {
       recordMetric({ id: 'ai.trace.tool_execution_latency_ms', value: durationMs, tags: baseTags });
     } else if (options.kind === 'agent-loop-step') {
-      recordMetric({ id: 'ai.trace.agent_loop_step_latency_ms', value: durationMs, tags: baseTags });
+      recordMetric({
+        id: 'ai.trace.agent_loop_step_latency_ms',
+        value: durationMs,
+        tags: baseTags,
+      });
     }
 
     const resolvedProvider = usedFallback ? fallbackProvider : options.provider;
@@ -253,8 +275,8 @@ export function startAiTraceSpan(options: StartSpanOptions): ActiveSpan {
       endMs,
       durationMs,
       usedFallback,
-      ...(error ? { error } : {}),
-      statusCode: error ? 'ERROR' : 'OK',
+      ...(error !== undefined && error.length > 0 ? { error } : {}),
+      statusCode: error !== undefined && error.length > 0 ? 'ERROR' : 'OK',
       ...(resolvedProvider !== undefined ? { provider: resolvedProvider } : {}),
       ...(options.model !== undefined ? { model: options.model } : {}),
       attributes: semanticAttributes,

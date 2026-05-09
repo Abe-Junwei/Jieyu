@@ -1,6 +1,21 @@
-import { formatLanguageDisplayName, getLanguageCatalogEntry, resolveLanguageCodeInput, resolveLanguageCodeInputChange, type LanguageCatalogMatch, type LanguageSearchLocale } from './langMapping';
-import { resolveLanguageDisplayNameWithFallback, type ResolveLanguageDisplayName } from './languageDisplayNameResolver';
-import type { LanguageInputDisplayMode, LanguageInputAssistState, LanguageInputAssistMessages, LanguageIsoInputValue } from './languageInputTypes';
+import {
+  formatLanguageDisplayName,
+  getLanguageCatalogEntry,
+  resolveLanguageCodeInput,
+  resolveLanguageCodeInputChange,
+  type LanguageCatalogMatch,
+  type LanguageSearchLocale,
+} from './langMapping';
+import {
+  resolveLanguageDisplayNameWithFallback,
+  type ResolveLanguageDisplayName,
+} from './languageDisplayNameResolver';
+import type {
+  LanguageInputDisplayMode,
+  LanguageInputAssistState,
+  LanguageInputAssistMessages,
+  LanguageIsoInputValue,
+} from './languageInputTypes';
 
 type LanguageInputStatus =
   | 'idle'
@@ -38,7 +53,12 @@ export type LanguageInputModel = {
 
 export type LanguageInputEvent =
   | { type: 'nameChanged'; value: string }
-  | { type: 'nameSuggestionsResolved'; query: string; suggestions: LanguageCatalogMatch[]; autoFillMatch?: LanguageCatalogMatch }
+  | {
+      type: 'nameSuggestionsResolved';
+      query: string;
+      suggestions: LanguageCatalogMatch[];
+      autoFillMatch?: LanguageCatalogMatch;
+    }
   | { type: 'codeFocused' }
   | { type: 'codeChanged'; value: string }
   | { type: 'nameSuggestionHovered'; index: number }
@@ -68,7 +88,7 @@ function resolveLanguageDisplayMode(value: LanguageIsoInputValue): LanguageInput
 
 function optionalTrimmedValue(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed !== undefined && trimmed.length > 0 ? trimmed : undefined;
 }
 
 function normalizeLanguageNameQuery(value: string | undefined): string {
@@ -81,16 +101,30 @@ function normalizeLanguageValue(
   options?: LanguageInputResolverOptions,
 ): LanguageIsoInputValue {
   const normalizedCode = value.languageCode.trim().toLowerCase();
-  const normalizedAssetId = optionalTrimmedValue(value.languageAssetId)?.toLowerCase() ?? (normalizedCode || undefined);
+  const trimmedAssetId = optionalTrimmedValue(value.languageAssetId);
+  const normalizedAssetId =
+    trimmedAssetId?.toLowerCase() ?? (normalizedCode.length > 0 ? normalizedCode : undefined);
   const displayMode = resolveLanguageDisplayMode(value);
   const preferredDisplayName = optionalTrimmedValue(value.preferredDisplayName);
   const preferredDisplayKind = value.preferredDisplayKind;
   const preservedPrimaryName = preferredDisplayName ?? value.languageName.trim();
-  const normalizedName = (normalizedAssetId ?? normalizedCode)
-    ? (displayMode === 'input-first'
-      ? (preservedPrimaryName || resolveLanguageDisplayNameWithFallback(normalizedAssetId ?? normalizedCode, locale, options?.resolveLanguageDisplayName))
-      : resolveLanguageDisplayNameWithFallback(normalizedAssetId ?? normalizedCode, locale, options?.resolveLanguageDisplayName))
-    : value.languageName.trim();
+  const normalizedLookupKey = normalizedAssetId ?? normalizedCode;
+  const normalizedName =
+    normalizedLookupKey.length > 0
+      ? displayMode === 'input-first'
+        ? preservedPrimaryName.length > 0
+          ? preservedPrimaryName
+          : resolveLanguageDisplayNameWithFallback(
+              normalizedLookupKey,
+              locale,
+              options?.resolveLanguageDisplayName,
+            )
+        : resolveLanguageDisplayNameWithFallback(
+            normalizedLookupKey,
+            locale,
+            options?.resolveLanguageDisplayName,
+          )
+      : value.languageName.trim();
   const localeTag = optionalTrimmedValue(value.localeTag);
   const scriptTag = optionalTrimmedValue(value.scriptTag);
   const regionTag = optionalTrimmedValue(value.regionTag);
@@ -99,14 +133,14 @@ function normalizeLanguageValue(
   return {
     languageName: normalizedName,
     languageCode: normalizedCode,
-    ...(normalizedAssetId ? { languageAssetId: normalizedAssetId } : {}),
-    ...(normalizedCode ? { displayMode } : {}),
-    ...(preferredDisplayName ? { preferredDisplayName } : {}),
-    ...(preferredDisplayKind ? { preferredDisplayKind } : {}),
-    ...(localeTag ? { localeTag } : {}),
-    ...(scriptTag ? { scriptTag } : {}),
-    ...(regionTag ? { regionTag } : {}),
-    ...(variantTag ? { variantTag } : {}),
+    ...(normalizedAssetId !== undefined ? { languageAssetId: normalizedAssetId } : {}),
+    ...(normalizedCode.length > 0 ? { displayMode } : {}),
+    ...(preferredDisplayName !== undefined ? { preferredDisplayName } : {}),
+    ...(preferredDisplayKind !== undefined ? { preferredDisplayKind } : {}),
+    ...(localeTag !== undefined ? { localeTag } : {}),
+    ...(scriptTag !== undefined ? { scriptTag } : {}),
+    ...(regionTag !== undefined ? { regionTag } : {}),
+    ...(variantTag !== undefined ? { variantTag } : {}),
   };
 }
 
@@ -119,15 +153,22 @@ function buildCommittedValueFromMatch(
   locale: LanguageSearchLocale,
   options?: LanguageInputResolverOptions,
 ): LanguageIsoInputValue {
-  const displayMode: LanguageInputDisplayMode = match.matchedLabelKind === 'code' ? 'locale-first' : 'input-first';
+  const displayMode: LanguageInputDisplayMode =
+    match.matchedLabelKind === 'code' ? 'locale-first' : 'input-first';
   const preferredDisplayName = displayMode === 'input-first' ? match.matchedLabel : undefined;
   return {
-    languageName: preferredDisplayName ?? resolveLanguageDisplayNameWithFallback(match.entry.languageId, locale, options?.resolveLanguageDisplayName),
+    languageName:
+      preferredDisplayName ??
+      resolveLanguageDisplayNameWithFallback(
+        match.entry.languageId,
+        locale,
+        options?.resolveLanguageDisplayName,
+      ),
     languageCode: match.entry.iso6393,
     languageAssetId: match.entry.languageId,
     ...(displayMode === 'input-first' ? { displayMode } : {}),
-    ...(preferredDisplayName ? { preferredDisplayName } : {}),
-    ...(preferredDisplayName ? { preferredDisplayKind: match.matchedLabelKind } : {}),
+    ...(preferredDisplayName !== undefined ? { preferredDisplayName } : {}),
+    ...(preferredDisplayName !== undefined ? { preferredDisplayKind: match.matchedLabelKind } : {}),
   };
 }
 
@@ -147,18 +188,28 @@ function buildCommittedValueFromResolvedCode(
   const variantTag = optionalTrimmedValue(resolved.variantTag);
   const normalizedFallbackCode = fallbackCode.trim().toLowerCase();
   const normalizedAssetId = (resolved.languageId ?? normalizedFallbackCode).trim().toLowerCase();
-  const normalizedCode = getLanguageCatalogEntry(normalizedAssetId)?.iso6393?.trim().toLowerCase() || normalizedFallbackCode || normalizedAssetId;
-  const resolvedDisplayName = resolveLanguageDisplayNameWithFallback(normalizedAssetId, locale, options?.resolveLanguageDisplayName);
+  const catalogCode = getLanguageCatalogEntry(normalizedAssetId)?.iso6393?.trim().toLowerCase();
+  const normalizedCode =
+    catalogCode !== undefined && catalogCode.length > 0
+      ? catalogCode
+      : normalizedFallbackCode.length > 0
+        ? normalizedFallbackCode
+        : normalizedAssetId;
+  const resolvedDisplayName = resolveLanguageDisplayNameWithFallback(
+    normalizedAssetId,
+    locale,
+    options?.resolveLanguageDisplayName,
+  );
 
   return {
     languageName: resolvedDisplayName,
-    languageCode: normalizedCode || normalizedAssetId,
+    languageCode: normalizedCode.length > 0 ? normalizedCode : normalizedAssetId,
     languageAssetId: normalizedAssetId,
     displayMode: 'locale-first',
-    ...(localeTag ? { localeTag } : {}),
-    ...(scriptTag ? { scriptTag } : {}),
-    ...(regionTag ? { regionTag } : {}),
-    ...(variantTag ? { variantTag } : {}),
+    ...(localeTag !== undefined ? { localeTag } : {}),
+    ...(scriptTag !== undefined ? { scriptTag } : {}),
+    ...(regionTag !== undefined ? { regionTag } : {}),
+    ...(variantTag !== undefined ? { variantTag } : {}),
   };
 }
 
@@ -208,7 +259,7 @@ function buildModelFromExternalValue(
     selectedOption: null,
     suggestions: [],
     activeSuggestionIndex: -1,
-    status: trimmedName ? 'editing-name' : 'idle',
+    status: trimmedName.length > 0 ? 'editing-name' : 'idle',
     lastChangeSource: changeSource,
   };
 }
@@ -222,33 +273,54 @@ export function createLanguageInputModel(
 }
 
 export function serializeLanguageInputValue(value: LanguageIsoInputValue): string {
+  const normalizedLanguageAssetId = optionalTrimmedValue(value.languageAssetId)?.toLowerCase();
+  const normalizedPreferredDisplayName = optionalTrimmedValue(value.preferredDisplayName);
+  const normalizedLocaleTag = optionalTrimmedValue(value.localeTag);
+  const normalizedScriptTag = optionalTrimmedValue(value.scriptTag);
+  const normalizedRegionTag = optionalTrimmedValue(value.regionTag);
+  const normalizedVariantTag = optionalTrimmedValue(value.variantTag);
+
   return JSON.stringify({
     languageName: value.languageName.trim(),
     languageCode: value.languageCode.trim().toLowerCase(),
-    ...(optionalTrimmedValue(value.languageAssetId)?.toLowerCase() ? { languageAssetId: optionalTrimmedValue(value.languageAssetId)?.toLowerCase() } : {}),
-    ...(value.displayMode ? { displayMode: value.displayMode } : {}),
-    ...(optionalTrimmedValue(value.preferredDisplayName) ? { preferredDisplayName: optionalTrimmedValue(value.preferredDisplayName) } : {}),
-    ...(value.preferredDisplayKind ? { preferredDisplayKind: value.preferredDisplayKind } : {}),
-    ...(optionalTrimmedValue(value.localeTag) ? { localeTag: optionalTrimmedValue(value.localeTag) } : {}),
-    ...(optionalTrimmedValue(value.scriptTag) ? { scriptTag: optionalTrimmedValue(value.scriptTag) } : {}),
-    ...(optionalTrimmedValue(value.regionTag) ? { regionTag: optionalTrimmedValue(value.regionTag) } : {}),
-    ...(optionalTrimmedValue(value.variantTag) ? { variantTag: optionalTrimmedValue(value.variantTag) } : {}),
+    ...(normalizedLanguageAssetId !== undefined
+      ? { languageAssetId: normalizedLanguageAssetId }
+      : {}),
+    ...(value.displayMode !== undefined ? { displayMode: value.displayMode } : {}),
+    ...(normalizedPreferredDisplayName !== undefined
+      ? { preferredDisplayName: normalizedPreferredDisplayName }
+      : {}),
+    ...(value.preferredDisplayKind !== undefined
+      ? { preferredDisplayKind: value.preferredDisplayKind }
+      : {}),
+    ...(normalizedLocaleTag !== undefined ? { localeTag: normalizedLocaleTag } : {}),
+    ...(normalizedScriptTag !== undefined ? { scriptTag: normalizedScriptTag } : {}),
+    ...(normalizedRegionTag !== undefined ? { regionTag: normalizedRegionTag } : {}),
+    ...(normalizedVariantTag !== undefined ? { variantTag: normalizedVariantTag } : {}),
   });
 }
 
-export function selectDisplayedLanguageInputValue(model: LanguageInputModel): LanguageIsoInputValue {
+export function selectDisplayedLanguageInputValue(
+  model: LanguageInputModel,
+): LanguageIsoInputValue {
   const selected = model.selectedOption ?? model.committed;
   return {
     languageName: model.draft.nameInput,
     languageCode: model.draft.codeInput,
-    ...(selected?.languageAssetId ? { languageAssetId: selected.languageAssetId } : {}),
-    ...(selected?.displayMode ? { displayMode: selected.displayMode } : {}),
-    ...(selected?.preferredDisplayName ? { preferredDisplayName: selected.preferredDisplayName } : {}),
-    ...(selected?.preferredDisplayKind ? { preferredDisplayKind: selected.preferredDisplayKind } : {}),
-    ...(selected?.localeTag ? { localeTag: selected.localeTag } : {}),
-    ...(selected?.scriptTag ? { scriptTag: selected.scriptTag } : {}),
-    ...(selected?.regionTag ? { regionTag: selected.regionTag } : {}),
-    ...(selected?.variantTag ? { variantTag: selected.variantTag } : {}),
+    ...(selected?.languageAssetId !== undefined
+      ? { languageAssetId: selected.languageAssetId }
+      : {}),
+    ...(selected?.displayMode !== undefined ? { displayMode: selected.displayMode } : {}),
+    ...(selected?.preferredDisplayName !== undefined
+      ? { preferredDisplayName: selected.preferredDisplayName }
+      : {}),
+    ...(selected?.preferredDisplayKind !== undefined
+      ? { preferredDisplayKind: selected.preferredDisplayKind }
+      : {}),
+    ...(selected?.localeTag !== undefined ? { localeTag: selected.localeTag } : {}),
+    ...(selected?.scriptTag !== undefined ? { scriptTag: selected.scriptTag } : {}),
+    ...(selected?.regionTag !== undefined ? { regionTag: selected.regionTag } : {}),
+    ...(selected?.variantTag !== undefined ? { variantTag: selected.variantTag } : {}),
   };
 }
 
@@ -259,7 +331,7 @@ export function selectPresentedLanguageInputValue(
 ): LanguageIsoInputValue {
   const displayed = selectDisplayedLanguageInputValue(model);
   const selected = model.selectedOption ?? model.committed;
-  if (!selected || preserveEditableName || model.status !== 'selected') {
+  if (selected === null || preserveEditableName || model.status !== 'selected') {
     return displayed;
   }
 
@@ -273,9 +345,12 @@ export function selectPresentedLanguageInputValue(
   );
 
   const primaryCommittedName = selected.languageName.trim();
-  const resolvedLanguageName = displayMode === 'locale-first' && primaryCommittedName
-    ? [primaryCommittedName, ...formattedLanguageName.split(' · ').slice(1)].filter((part, index, all) => part && all.indexOf(part) === index).join(' · ')
-    : formattedLanguageName;
+  const resolvedLanguageName =
+    displayMode === 'locale-first' && primaryCommittedName.length > 0
+      ? [primaryCommittedName, ...formattedLanguageName.split(' · ').slice(1)]
+          .filter((part, index, all) => part.length > 0 && all.indexOf(part) === index)
+          .join(' · ')
+      : formattedLanguageName;
 
   return {
     ...displayed,
@@ -283,7 +358,9 @@ export function selectPresentedLanguageInputValue(
   };
 }
 
-export function selectCommittedLanguageInputValue(model: LanguageInputModel): LanguageIsoInputValue {
+export function selectCommittedLanguageInputValue(
+  model: LanguageInputModel,
+): LanguageIsoInputValue {
   return model.committed ?? EMPTY_LANGUAGE_INPUT_VALUE;
 }
 
@@ -292,31 +369,42 @@ export function selectLanguageInputAssistState(
   locale: LanguageSearchLocale,
   messages?: LanguageInputAssistMessages,
 ): LanguageInputAssistState {
-  const ambiguityHint = model.suggestions.length > 1
-    ? (messages?.ambiguityHint ?? (locale === 'zh-CN'
-      ? '\u5b58\u5728\u591a\u4e2a\u53ef\u80fd\u8bed\u8a00\uff0c\u8bf7\u9009\u62e9\u66f4\u5177\u4f53\u9879\u3002'
-      : 'Multiple languages matched. Please choose a more specific option.'))
-    : '';
+  const ambiguityHint =
+    model.suggestions.length > 1
+      ? (messages?.ambiguityHint ??
+        (locale === 'zh-CN'
+          ? '\u5b58\u5728\u591a\u4e2a\u53ef\u80fd\u8bed\u8a00\uff0c\u8bf7\u9009\u62e9\u66f4\u5177\u4f53\u9879\u3002'
+          : 'Multiple languages matched. Please choose a more specific option.'))
+      : '';
 
   const displayedCode = model.draft.codeInput;
-  const resolvedCode = displayedCode ? resolveLanguageCodeInput(displayedCode, locale) : { status: 'empty' as const, warnings: [] };
-  const shouldShowCodeError = displayedCode && resolvedCode.status === 'invalid' && model.draft.activeField !== 'code';
+  const resolvedCode =
+    displayedCode.length > 0
+      ? resolveLanguageCodeInput(displayedCode, locale)
+      : { status: 'empty' as const, warnings: [] };
+  const shouldShowCodeError =
+    displayedCode.length > 0 &&
+    resolvedCode.status === 'invalid' &&
+    model.draft.activeField !== 'code';
   const codeError = shouldShowCodeError
-    ? (messages?.invalidLanguageCode ?? (locale === 'zh-CN'
-      ? '\u8bf7\u8f93\u5165\u6709\u6548\u7684 ISO 639 / BCP 47 \u8bed\u8a00\u4ee3\u7801\u3002'
-      : 'Enter a valid ISO 639 / BCP 47 language code.'))
+    ? (messages?.invalidLanguageCode ??
+      (locale === 'zh-CN'
+        ? '\u8bf7\u8f93\u5165\u6709\u6548\u7684 ISO 639 / BCP 47 \u8bed\u8a00\u4ee3\u7801\u3002'
+        : 'Enter a valid ISO 639 / BCP 47 language code.'))
     : '';
   const warnings = [
     ...(model.status === 'deferred-code' ? [] : resolvedCode.warnings),
     ...(model.suggestions[0]?.warnings ?? []),
-  ].filter((warning, index, all) => warning && all.indexOf(warning) === index);
+  ].filter((warning, index, all) => warning.length > 0 && all.indexOf(warning) === index);
   const selected = model.selectedOption ?? model.committed;
   const detectedTagSummary = [
     selected?.localeTag,
     selected?.scriptTag,
     selected?.regionTag,
     selected?.variantTag,
-  ].filter(Boolean).join(' · ');
+  ]
+    .filter((tag): tag is string => tag !== undefined && tag.length > 0)
+    .join(' · ');
 
   return {
     suggestionMatches: model.suggestions,
@@ -327,9 +415,7 @@ export function selectLanguageInputAssistState(
   };
 }
 
-function clearModelForNameDraft(
-  nextNameInput: string,
-): LanguageInputModel {
+function clearModelForNameDraft(nextNameInput: string): LanguageInputModel {
   return {
     draft: {
       nameInput: nextNameInput,
@@ -340,19 +426,19 @@ function clearModelForNameDraft(
     selectedOption: null,
     suggestions: [],
     activeSuggestionIndex: -1,
-    status: nextNameInput.trim().length === 0
-      ? 'idle'
-      : 'suggesting',
+    status: nextNameInput.trim().length === 0 ? 'idle' : 'suggesting',
     lastChangeSource: 'user-name-input',
   };
 }
 
 function hasUncommittedLocalDraft(model: LanguageInputModel): boolean {
-  return model.status === 'editing-name'
-    || model.status === 'editing-code'
-    || model.status === 'suggesting'
-    || model.status === 'invalid'
-    || model.status === 'deferred-code';
+  return (
+    model.status === 'editing-name' ||
+    model.status === 'editing-code' ||
+    model.status === 'suggesting' ||
+    model.status === 'invalid' ||
+    model.status === 'deferred-code'
+  );
 }
 
 export function reduceLanguageInput(
@@ -382,22 +468,26 @@ export function reduceLanguageInput(
     case 'nameSuggestionsResolved': {
       const normalizedCurrentQuery = normalizeLanguageNameQuery(model.draft.nameInput);
       const normalizedResolvedQuery = normalizeLanguageNameQuery(event.query);
-      if (!normalizedCurrentQuery || normalizedCurrentQuery !== normalizedResolvedQuery) {
+      if (
+        normalizedCurrentQuery.length === 0 ||
+        normalizedCurrentQuery !== normalizedResolvedQuery
+      ) {
         return model;
       }
       if (model.draft.codeInput.trim().length > 0) {
         return model;
       }
 
-      if (event.autoFillMatch) {
+      if (event.autoFillMatch !== undefined) {
         const committed = buildCommittedValueFromMatch(event.autoFillMatch, locale, options);
-        const resolvedCommitted = committed.displayMode === 'input-first'
-          ? {
-            ...committed,
-            languageName: model.draft.nameInput.trim(),
-            preferredDisplayName: model.draft.nameInput.trim(),
-          }
-          : committed;
+        const resolvedCommitted =
+          committed.displayMode === 'input-first'
+            ? {
+                ...committed,
+                languageName: model.draft.nameInput.trim(),
+                preferredDisplayName: model.draft.nameInput.trim(),
+              }
+            : committed;
         return {
           draft: {
             nameInput: model.draft.nameInput,
@@ -429,10 +519,14 @@ export function reduceLanguageInput(
     }
 
     case 'codeChanged': {
-      const nextInputState = resolveLanguageCodeInputChange(event.value, model.draft.codeInput, locale);
+      const nextInputState = resolveLanguageCodeInputChange(
+        event.value,
+        model.draft.codeInput,
+        locale,
+      );
       const sanitizedInput = nextInputState.sanitizedInput;
 
-      if (!sanitizedInput) {
+      if (sanitizedInput.length === 0) {
         return {
           draft: {
             nameInput: '',
@@ -480,19 +574,29 @@ export function reduceLanguageInput(
         };
       }
 
-      const committed = buildCommittedValueFromResolvedCode(sanitizedInput, nextInputState.resolution, locale, options);
-      if (!committed) {
+      const committed = buildCommittedValueFromResolvedCode(
+        sanitizedInput,
+        nextInputState.resolution,
+        locale,
+        options,
+      );
+      if (committed === null) {
         return withChangeSource(model, 'user-code-input');
       }
 
       // 尝试构造候选项让用户确认，而非直接自动填充 | Try to show candidate for user confirmation instead of auto-filling
-      const resolvedEntry = getLanguageCatalogEntry(committed.languageAssetId ?? committed.languageCode);
-      if (resolvedEntry) {
+      const resolvedEntry = getLanguageCatalogEntry(
+        committed.languageAssetId ?? committed.languageCode,
+      );
+      if (resolvedEntry !== undefined) {
         const suggestion: LanguageCatalogMatch = {
           entry: resolvedEntry,
           score: 100,
           matchSource: 'iso6393-exact',
-          matchedLabel: resolvedEntry.iso6393 === sanitizedInput.toLowerCase() ? resolvedEntry.iso6393 : sanitizedInput,
+          matchedLabel:
+            resolvedEntry.iso6393 === sanitizedInput.toLowerCase()
+              ? resolvedEntry.iso6393
+              : sanitizedInput,
           matchedLabelKind: 'code',
           warnings: [],
         };
@@ -547,7 +651,8 @@ export function reduceLanguageInput(
       }
       return {
         ...model,
-        activeSuggestionIndex: (model.activeSuggestionIndex + 1 + visibleSuggestionCount) % visibleSuggestionCount,
+        activeSuggestionIndex:
+          (model.activeSuggestionIndex + 1 + visibleSuggestionCount) % visibleSuggestionCount,
       };
     }
 
@@ -561,9 +666,10 @@ export function reduceLanguageInput(
       }
       return {
         ...model,
-        activeSuggestionIndex: model.activeSuggestionIndex <= 0
-          ? visibleSuggestionCount - 1
-          : model.activeSuggestionIndex - 1,
+        activeSuggestionIndex:
+          model.activeSuggestionIndex <= 0
+            ? visibleSuggestionCount - 1
+            : model.activeSuggestionIndex - 1,
       };
     }
 
@@ -579,11 +685,12 @@ export function reduceLanguageInput(
 
     case 'nameSuggestionCommitted': {
       const match = model.suggestions[event.index];
-      if (!match) {
+      if (match === undefined) {
         return model;
       }
       // 如果 selectedOption 已由代码输入预构建（含 BCP 47 标签），直接使用 | If selectedOption was pre-built by code input (with BCP 47 tags), use it directly
-      const committed = model.selectedOption ?? buildCommittedValueFromMatch(match, locale, options);
+      const committed =
+        model.selectedOption ?? buildCommittedValueFromMatch(match, locale, options);
       return {
         draft: {
           nameInput: committed.languageName,
@@ -602,11 +709,16 @@ export function reduceLanguageInput(
     case 'codeBlurred': {
       if (model.status === 'deferred-code') {
         const resolved = resolveLanguageCodeInput(model.draft.codeInput, locale);
-        const committed = buildCommittedValueFromResolvedCode(model.draft.codeInput, resolved, locale, options);
-        if (!committed) {
+        const committed = buildCommittedValueFromResolvedCode(
+          model.draft.codeInput,
+          resolved,
+          locale,
+          options,
+        );
+        if (committed === null) {
           return {
             ...model,
-            status: model.draft.codeInput ? 'invalid' : 'idle',
+            status: model.draft.codeInput.length > 0 ? 'invalid' : 'idle',
             lastChangeSource: 'blur-commit',
             draft: {
               ...model.draft,
@@ -630,8 +742,14 @@ export function reduceLanguageInput(
       }
 
       // 代码输入产生的候选项在 blur 时自动提交 | Auto-commit code-derived suggestions on blur
-      if (model.status === 'suggesting' && model.suggestions.length > 0 && model.lastChangeSource === 'user-code-input') {
-        const committed = model.selectedOption ?? buildCommittedValueFromMatch(model.suggestions[0]!, locale, options);
+      if (
+        model.status === 'suggesting' &&
+        model.suggestions.length > 0 &&
+        model.lastChangeSource === 'user-code-input'
+      ) {
+        const committed =
+          model.selectedOption ??
+          buildCommittedValueFromMatch(model.suggestions[0]!, locale, options);
         return {
           draft: {
             nameInput: committed.languageName,

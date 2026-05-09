@@ -37,18 +37,28 @@ function normalizeSampleRate(rawValue: string | undefined): number {
   return Math.min(1, Math.max(0, parsed));
 }
 
-export function resolveSentryBootstrapConfig(env: SentryBootstrapEnv): ResolvedSentryBootstrapConfig {
+export function resolveSentryBootstrapConfig(
+  env: SentryBootstrapEnv,
+): ResolvedSentryBootstrapConfig {
   const dsn = env.VITE_SENTRY_DSN?.trim();
-  const release = env.VITE_SENTRY_RELEASE?.trim() || env.VITE_APP_VERSION?.trim();
-  const environment = env.VITE_SENTRY_ENVIRONMENT?.trim() || env.MODE;
-  const enabled = env.PROD && env.VITE_ENABLE_SENTRY === 'true' && Boolean(dsn);
+  const trimmedRelease = env.VITE_SENTRY_RELEASE?.trim();
+  const trimmedAppVersion = env.VITE_APP_VERSION?.trim();
+  const release =
+    trimmedRelease !== undefined && trimmedRelease.length > 0 ? trimmedRelease : trimmedAppVersion;
+  const trimmedEnvironment = env.VITE_SENTRY_ENVIRONMENT?.trim();
+  const environment =
+    trimmedEnvironment !== undefined && trimmedEnvironment.length > 0
+      ? trimmedEnvironment
+      : env.MODE;
+  const enabled =
+    env.PROD && env.VITE_ENABLE_SENTRY === 'true' && dsn !== undefined && dsn.length > 0;
 
   return {
     enabled,
-    ...(dsn ? { dsn } : {}),
+    ...(dsn !== undefined && dsn.length > 0 ? { dsn } : {}),
     environment,
     tracesSampleRate: normalizeSampleRate(env.VITE_SENTRY_TRACES_SAMPLE_RATE),
-    ...(release ? { release } : {}),
+    ...(release !== undefined && release.length > 0 ? { release } : {}),
     sendDefaultPii: env.VITE_SENTRY_SEND_DEFAULT_PII === 'true',
     enableBrowserTracing: env.VITE_SENTRY_ENABLE_BROWSER_TRACING !== 'false',
   };
@@ -77,8 +87,7 @@ export async function initSentryWithResolvedConfig(
   config: ResolvedSentryBootstrapConfig,
   loadSentryRuntime: SentryRuntimeLoader = () => import('@sentry/react'),
 ): Promise<void> {
-
-  if (!config.enabled || !config.dsn) {
+  if (!config.enabled || config.dsn === undefined || config.dsn.length === 0) {
     return;
   }
 
@@ -89,15 +98,17 @@ export async function initSentryWithResolvedConfig(
         delete event.user;
       }
       // 清理面包屑和扩展数据中的敏感信息 | Scrub PII from breadcrumbs & extras (deep, nested objects)
-      if (event.breadcrumbs) {
+      if (event.breadcrumbs !== undefined) {
         for (const bc of event.breadcrumbs) {
-          if (bc.data) {
+          if (bc.data !== undefined) {
             bc.data = scrubUnknownForSentry(bc.data) as Record<string, unknown>;
           }
         }
       }
-      if (event.extra) {
-        event.extra = scrubUnknownForSentry(event.extra as Record<string, unknown>) as typeof event.extra;
+      if (event.extra !== undefined) {
+        event.extra = scrubUnknownForSentry(
+          event.extra as Record<string, unknown>,
+        ) as typeof event.extra;
       }
       return event;
     };
@@ -108,7 +119,9 @@ export async function initSentryWithResolvedConfig(
       environment: config.environment,
       integrations: config.enableBrowserTracing ? [Sentry.browserTracingIntegration()] : [],
       tracesSampleRate: config.tracesSampleRate,
-      ...(config.release ? { release: config.release } : {}),
+      ...(config.release !== undefined && config.release.length > 0
+        ? { release: config.release }
+        : {}),
       sendDefaultPii: config.sendDefaultPii,
       /** 即使开启 sendDefaultPii，仍清理 user / breadcrumbs / extra 中的敏感键 | Scrub sensitive keys even when default PII is on */
       beforeSend,

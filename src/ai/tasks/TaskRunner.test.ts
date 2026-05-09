@@ -196,7 +196,7 @@ describe('TaskRunner', () => {
     const running = await runner.enqueue({
       taskType: 'embed',
       targetId: 'embeddings',
-      run: async ({ signal }) => new Promise<string>((resolve, reject) => {
+      run: async ({ signal }) => new Promise<string>((_resolve, reject) => {
         signal.addEventListener('abort', () => reject(new Error('aborted')));
       }),
     });

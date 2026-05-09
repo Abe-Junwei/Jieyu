@@ -40,8 +40,8 @@ depends_on:
 | Evidence 低置信视觉、与 reflection 对齐 | **待核** | 需在 `AiChatAssistantMessage` / alerts 中 grep `confidence`、`< 0.5` | 本轮 grep `reflection|segmentQa` 于 AssistantMessage **无命中**；reflection 可能仍主要在 stream 层或 prompt |
 | 无 evidence 明确 fallback（非静默 degraded） | **待核** | [useAiChat.sendTurnStreamPhase.ts](../../../src/hooks/useAiChat.sendTurnStreamPhase.ts) `degradationScenarios` | 需结合 UI 路径人工读代码确认 |
 | Reflection 结果 UI 面板 | **未实现/弱** | `AiChatAssistantMessage` 无 `reflection`/`quality` 关键词 | 与方案「质量检查折叠面板」有差距 |
-| E2E：`segmentQaEvidenceJump.spec.ts` | **已实现** | [segmentQaEvidenceJump.spec.ts](../../tests/e2e/segmentQaEvidenceJump.spec.ts) | IndexedDB 预置助手消息 + `data-testid` 证据跳转控件 |
-| segment_qa eval（完整 ≥10；允许分阶段 ≥6）+ 模板 | **未达标 / 口径已放宽** | [scripts/agent-evals/cases/](../../scripts/agent-evals/cases/) 中与 segment 相关若干 JSON，远少于 10 条专属 segment_qa golden | 路线拍板：先行波次可略少，季度内收敛；模板见 **ADR-0030** |
+| E2E：`segmentQaEvidenceJump.spec.ts` | **已实现** | [segmentQaEvidenceJump.spec.ts](../../../tests/e2e/segmentQaEvidenceJump.spec.ts) | IndexedDB 预置助手消息 + `data-testid` 证据跳转控件 |
+| segment_qa eval（完整 ≥10；允许分阶段 ≥6）+ 模板 | **未达标 / 口径已放宽** | 例：[workflow-segment-qa-select-zheduan-01.json](../../../scripts/agent-evals/cases/workflow-segment-qa-select-zheduan-01.json) 等 `workflow-segment-qa-*.json`（目录内若干条，仍远少于 10 条「专属 segment_qa golden」口径） | 路线拍板：先行波次可略少，季度内收敛；模板见 **ADR-0030** |
 
 **P1 小结**：**sourceScopeSummary** 路径已打通；**证据契约扩展、reflection UI、专用 E2E、10+ eval** 仍为缺口。
 
@@ -62,7 +62,7 @@ depends_on:
 
 | 原子验收项 | 状态 | 证据锚点 | 备注 |
 |------------|------|----------|------|
-| `JudgeProvider` + citation/relevance | **已实现** | [JudgeProvider.ts](../../../src/ai/eval/JudgeProvider.ts)、[citationJudge.ts](../../../src/ai/eval/citationJudge.ts)、[relevanceJudge.ts](../../../src/ai/eval/relevanceJudge.ts) | `annotateBaselineJudge` |
+| Citation / relevance 评测入口 | **已实现** | [citationJudge.ts](../../../src/ai/eval/citationJudge.ts)、[relevanceJudge.ts](../../../src/ai/eval/relevanceJudge.ts)（生产路径如 [useAiChat.sendTurnStreamPhase.ts](../../../src/hooks/useAiChat.sendTurnStreamPhase.ts) 批量/单条调用） | 无独立 `JudgeProvider.ts` 文件；契约见 ADR-0022 |
 | ADR judge 契约 | **已实现** | [0022-ai-evaluation-judge-provider-contract.md](../../adr/0022-ai-evaluation-judge-provider-contract.md) | 非占位 `00xx` |
 | `auditExportAdapter` | **已实现** | [auditExportAdapter.ts](../../../src/ai/audit/auditExportAdapter.ts) + test | — |
 | `AiRuntimeReport` 维度聚合 + sampleRequestIds | **已实现** | [aiRuntimeReport.ts](../../../src/ai/eval/aiRuntimeReport.ts) `dimensions.byWorkflow` 等 | — |
@@ -79,7 +79,7 @@ depends_on:
 
 ### 5.1 Scope 三条路径
 
-1. **MCP**：`McpServer` → `TOOL_HANDLERS[name](args, runtimeContext)` → `listSegmentSummaries(scope, ...)`，`scope` 来自 `runtimeContext.textId/mediaId/layerId`（[tools.ts](../../../src/ai/mcp/server/tools.ts)）。**三者全空时硬失败** `SEGMENT_READ_SCOPE_REQUIRED`（ADR-0030）。
+1. **MCP**：`McpServer` → `TOOL_HANDLERS[name]`（第一参为工具参数对象，第二参为 `runtimeContext`）→ `listSegmentSummaries(scope, ...)`，`scope` 来自 `runtimeContext.textId/mediaId/layerId`（[tools.ts](../../../src/ai/mcp/server/tools.ts)）。**三者全空时硬失败** `SEGMENT_READ_SCOPE_REQUIRED`（ADR-0030）。
 2. **localContextTools**：同 `SegmentReadQueryScope`（[localContextTools.ts](../../../src/ai/chat/localContextTools.ts)）。
 3. **Send-turn / RAG**：`resolveCorpusSourceSet` → `ragCitationsToEvidencePackets`（[useAiChat.sendPersistTurnAndBuildPromptContext.ts](../../../src/hooks/useAiChat.sendPersistTurnAndBuildPromptContext.ts)）。
 

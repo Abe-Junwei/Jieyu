@@ -2,7 +2,12 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { useVoiceAgent } from './useVoiceAgent';
-import { clearVoiceAliasLearningLog, loadVoiceAliasLearningLog, saveVoiceIntentAliasMap, type ActionId } from '../services/IntentRouter';
+import {
+  clearVoiceAliasLearningLog,
+  loadVoiceAliasLearningLog,
+  saveVoiceIntentAliasMap,
+  type ActionId,
+} from '../services/IntentRouter';
 // ── Mock region detection (avoids 3-second timeout in tests) ──
 vi.mock('../utils/regionDetection', () => ({
   detectRegion: vi.fn().mockResolvedValue('global'),
@@ -38,35 +43,49 @@ const voiceInputServiceMockState = vi.hoisted(() => {
 
       onResult(fn: (r: unknown) => void) {
         this.resultListeners.push(fn);
-        return () => { this.resultListeners = this.resultListeners.filter((l) => l !== fn); };
+        return () => {
+          this.resultListeners = this.resultListeners.filter((l) => l !== fn);
+        };
       }
       onError(fn: (e: string) => void) {
         this.errorListeners.push(fn);
-        return () => { this.errorListeners = this.errorListeners.filter((l) => l !== fn); };
+        return () => {
+          this.errorListeners = this.errorListeners.filter((l) => l !== fn);
+        };
       }
       onStateChange(fn: (l: boolean) => void) {
         this.stateListeners.push(fn);
-        return () => { this.stateListeners = this.stateListeners.filter((l) => l !== fn); };
+        return () => {
+          this.stateListeners = this.stateListeners.filter((l) => l !== fn);
+        };
       }
       onVadStateChange(fn: (s: boolean) => void) {
         this.vadListeners.push(fn);
-        return () => { this.vadListeners = this.vadListeners.filter((l) => l !== fn); };
+        return () => {
+          this.vadListeners = this.vadListeners.filter((l) => l !== fn);
+        };
       }
 
       async start() {
         if (mockStartError) throw mockStartError;
         for (const fn of this.stateListeners) fn(true);
       }
-      stop() { for (const fn of this.stateListeners) fn(false); }
+      stop() {
+        for (const fn of this.stateListeners) fn(false);
+      }
       async startRecording() {}
       async stopRecording() {}
       setLang() {}
-      dispose() { this.stop(); }
+      dispose() {
+        this.stop();
+      }
 
       async simulateResult(result: unknown) {
-        await Promise.all(this.resultListeners.map(async (fn) => {
-          await fn(result);
-        }));
+        await Promise.all(
+          this.resultListeners.map(async (fn) => {
+            await fn(result);
+          }),
+        );
       }
 
       simulateError(error: string) {
@@ -101,8 +120,14 @@ const voiceInputServiceMockState = vi.hoisted(() => {
   };
 });
 
-vi.mock('../services/VoiceInputService', voiceInputServiceMockState.createVoiceInputServiceMockModule);
-vi.mock('../services/VoiceInputService.ts', voiceInputServiceMockState.createVoiceInputServiceMockModule);
+vi.mock(
+  '../services/VoiceInputService',
+  voiceInputServiceMockState.createVoiceInputServiceMockModule,
+);
+vi.mock(
+  '../services/VoiceInputService.ts',
+  voiceInputServiceMockState.createVoiceInputServiceMockModule,
+);
 
 const sttRuntimeMockState = vi.hoisted(() => {
   const testSttProvider = vi.fn(async () => ({ available: true }));
@@ -118,12 +143,12 @@ vi.mock('../services/stt', () => ({
 }));
 
 vi.mock('../services/EarconService', () => ({
-  playActivate:   vi.fn(),
+  playActivate: vi.fn(),
   playDeactivate: vi.fn(),
-  playSuccess:    vi.fn(),
-  playError:      vi.fn(),
-  playTick:       vi.fn(),
-  unlockAudio:    vi.fn(async () => {}),
+  playSuccess: vi.fn(),
+  playError: vi.fn(),
+  playTick: vi.fn(),
+  unlockAudio: vi.fn(async () => {}),
 }));
 
 afterEach(() => {
@@ -172,80 +197,74 @@ describe('useVoiceAgent', () => {
 
   describe('initial state', () => {
     it('starts not listening', () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
       expect(result.current.listening).toBe(false);
       expect(result.current.speechActive).toBe(false);
     });
 
     it('defaults to command mode', () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
       expect(result.current.mode).toBe('command');
     });
 
     it('starts with no error', () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
       expect(result.current.error).toBeNull();
     });
 
     it('starts with empty interimText and finalText', () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
       expect(result.current.interimText).toBe('');
       expect(result.current.finalText).toBe('');
     });
 
     it('starts with no pending confirmation', () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
       expect(result.current.pendingConfirm).toBeNull();
     });
   });
 
   describe('start / stop', () => {
     it('starts listening after start()', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
-      await act(async () => { await result.current.start(); });
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
+      await act(async () => {
+        await result.current.start();
+      });
       expect(result.current.listening).toBe(true);
     });
 
     it('stops listening after stop()', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
-      await act(async () => { await result.current.start(); });
-      await act(async () => { result.current.stop(); });
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
+      await act(async () => {
+        await result.current.start();
+      });
+      await act(async () => {
+        await result.current.stop();
+      });
       expect(result.current.listening).toBe(false);
     });
 
     it('start() is idempotent when already listening', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
-      await act(async () => { await result.current.start(); });
-      await act(async () => { await result.current.start(); });
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
+      await act(async () => {
+        await result.current.start();
+      });
+      await act(async () => {
+        await result.current.start();
+      });
       expect(result.current.listening).toBe(true);
     });
 
     it('keeps push-to-talk engines idle until recording starts', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
 
       act(() => {
         result.current.switchEngine('whisper-local');
       });
 
-      await act(async () => { await result.current.start('dictation'); });
+      await act(async () => {
+        await result.current.start('dictation');
+      });
 
       expect(result.current.engine).toBe('whisper-local');
       expect(result.current.listening).toBe(true);
@@ -254,11 +273,11 @@ describe('useVoiceAgent', () => {
 
     it('sets error and stays idle when start() fails', async () => {
       voiceInputServiceMockState.setMockStartError(new Error('mic denied'));
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
 
-      await act(async () => { await result.current.start(); });
+      await act(async () => {
+        await result.current.start();
+      });
 
       expect(result.current.listening).toBe(false);
       expect(result.current.agentState).toBe('idle');
@@ -268,12 +287,14 @@ describe('useVoiceAgent', () => {
     it('stop() clears active recording state and duration timer', async () => {
       vi.useFakeTimers();
       try {
-        const { result } = renderHook(() =>
-          useVoiceAgent({ executeAction: makeExecuteAction() }),
-        );
+        const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
 
-        await act(async () => { await result.current.start(); });
-        await act(async () => { await result.current.startRecording(); });
+        await act(async () => {
+          await result.current.start();
+        });
+        await act(async () => {
+          await result.current.startRecording();
+        });
 
         expect(result.current.isRecording).toBe(true);
 
@@ -282,7 +303,9 @@ describe('useVoiceAgent', () => {
         });
         expect(result.current.recordingDuration).toBe(2);
 
-        await act(async () => { await result.current.stop(); });
+        await act(async () => {
+          await result.current.stop();
+        });
 
         expect(result.current.isRecording).toBe(false);
         expect(result.current.recordingDuration).toBe(0);
@@ -295,62 +318,66 @@ describe('useVoiceAgent', () => {
 
   describe('toggle()', () => {
     it('starts from stopped state', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
-      await act(async () => { result.current.toggle(); });
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
+      await act(async () => {
+        result.current.toggle();
+      });
       expect(result.current.listening).toBe(true);
     });
 
     it('stops from started state', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
-      await act(async () => { await result.current.start(); });
-      await act(async () => { result.current.toggle(); });
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
+      await act(async () => {
+        await result.current.start();
+      });
+      await act(async () => {
+        result.current.toggle();
+      });
       expect(result.current.listening).toBe(false);
     });
   });
 
   describe('mode switching', () => {
     it('switchMode() changes mode', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
-      await act(async () => { result.current.switchMode('dictation'); });
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
+      await act(async () => {
+        result.current.switchMode('dictation');
+      });
       expect(result.current.mode).toBe('dictation');
     });
 
     it('start(mode) sets mode during start', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
-      await act(async () => { await result.current.start('analysis'); });
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
+      await act(async () => {
+        await result.current.start('analysis');
+      });
       expect(result.current.mode).toBe('analysis');
       expect(result.current.listening).toBe(true);
     });
 
     it('switchMode() clears interim text', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
-      await act(async () => { result.current.switchMode('dictation'); });
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
+      await act(async () => {
+        result.current.switchMode('dictation');
+      });
       expect(result.current.interimText).toBe('');
     });
 
     it('switchMode() clears stale disambiguation options', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
       await simulateFinalSttResult({ text: '播放下一个', confidence: 0.5 });
 
       await waitFor(() => {
         expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
       });
 
-      await act(async () => { result.current.switchMode('analysis'); });
+      await act(async () => {
+        result.current.switchMode('analysis');
+      });
 
       expect(result.current.disambiguationOptions).toEqual([]);
     });
@@ -363,15 +390,17 @@ describe('useVoiceAgent', () => {
           executeAction: makeExecuteAction(),
           dictationPipeline: {
             callbacks: {
-              getSegments: () => [{
-                segmentId: 'utt-1',
-                index: 0,
-                startTime: 0,
-                endTime: 1,
-                existingText: null,
-                existingTranslation: null,
-                existingGloss: null,
-              }],
+              getSegments: () => [
+                {
+                  segmentId: 'utt-1',
+                  index: 0,
+                  startTime: 0,
+                  endTime: 1,
+                  existingText: null,
+                  existingTranslation: null,
+                  existingGloss: null,
+                },
+              ],
               getCurrentSegmentId: () => 'utt-1',
               fillSegment,
               restoreSegment: vi.fn(async () => undefined),
@@ -387,7 +416,9 @@ describe('useVoiceAgent', () => {
         }),
       );
 
-      await act(async () => { await result.current.start('dictation'); });
+      await act(async () => {
+        await result.current.start('dictation');
+      });
       expect(navigateTo).toHaveBeenCalledWith('utt-1');
 
       await simulateFinalSttResult({ text: '连续听写文本' });
@@ -400,17 +431,15 @@ describe('useVoiceAgent', () => {
 
   describe('safe mode', () => {
     it('is off by default', () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
       expect(result.current.safeMode).toBe(false);
     });
 
     it('setSafeMode(true) enables safe mode', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
-      await act(async () => { result.current.setSafeMode(true); });
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
+      await act(async () => {
+        result.current.setSafeMode(true);
+      });
       expect(result.current.safeMode).toBe(true);
     });
 
@@ -422,11 +451,11 @@ describe('useVoiceAgent', () => {
     });
 
     it('cancelPending() does not throw when nothing is pending', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
       expect(result.current.pendingConfirm).toBeNull();
-      await act(async () => { result.current.cancelPending(); });
+      await act(async () => {
+        result.current.cancelPending();
+      });
       expect(result.current.pendingConfirm).toBeNull();
     });
   });
@@ -455,29 +484,31 @@ describe('useVoiceAgent', () => {
 
   describe('session', () => {
     it('creates a new session on each start()', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
-      await act(async () => { await result.current.start(); });
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
+      await act(async () => {
+        await result.current.start();
+      });
       const id1 = result.current.session.id;
-      await act(async () => { result.current.stop(); });
-      await act(async () => { await result.current.start(); });
+      await act(async () => {
+        await result.current.stop();
+      });
+      await act(async () => {
+        await result.current.start();
+      });
       const id2 = result.current.session.id;
       expect(id1).not.toBe(id2);
     });
 
     it('session starts with empty entries', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
-      await act(async () => { await result.current.start(); });
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
+      await act(async () => {
+        await result.current.start();
+      });
       expect(result.current.session.entries).toHaveLength(0);
     });
 
     it('session id is a non-empty string', () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
       expect(result.current.session.id).toBeTruthy();
       expect(typeof result.current.session.id).toBe('string');
     });
@@ -488,7 +519,9 @@ describe('useVoiceAgent', () => {
       const { result, unmount } = renderHook(() =>
         useVoiceAgent({ executeAction: makeExecuteAction() }),
       );
-      await act(async () => { await result.current.start(); });
+      await act(async () => {
+        await result.current.start();
+      });
       expect(() => unmount()).not.toThrow();
     });
 
@@ -499,8 +532,12 @@ describe('useVoiceAgent', () => {
           useVoiceAgent({ executeAction: makeExecuteAction() }),
         );
 
-        await act(async () => { await result.current.start(); });
-        await act(async () => { await result.current.startRecording(); });
+        await act(async () => {
+          await result.current.start();
+        });
+        await act(async () => {
+          await result.current.startRecording();
+        });
 
         expect(vi.getTimerCount()).toBeGreaterThan(0);
 
@@ -518,11 +555,11 @@ describe('useVoiceAgent', () => {
       const executeAction = makeExecuteAction();
       const insertDictation = vi.fn();
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, insertDictation }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, insertDictation }));
 
-      await act(async () => { await result.current.start('dictation'); });
+      await act(async () => {
+        await result.current.start('dictation');
+      });
 
       await dispatchSttResult({ text: '这是要听写的内容' });
 
@@ -537,11 +574,11 @@ describe('useVoiceAgent', () => {
       const executeAction = makeExecuteAction();
       const insertDictation = vi.fn();
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, insertDictation }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, insertDictation }));
 
-      await act(async () => { await result.current.start('dictation'); });
+      await act(async () => {
+        await result.current.start('dictation');
+      });
 
       const text = '今天的听写：如果说到删除这个词，也只是文本内容';
       await dispatchSttResult({ text, confidence: 0.9 });
@@ -556,11 +593,11 @@ describe('useVoiceAgent', () => {
       const executeAction = makeExecuteAction();
       const sendToAiChat = vi.fn();
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, sendToAiChat }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, sendToAiChat }));
 
-      await act(async () => { await result.current.start('analysis'); });
+      await act(async () => {
+        await result.current.start('analysis');
+      });
 
       await dispatchSttResult({ text: '分析一下这个句子的结构', confidence: 0.88 });
 
@@ -573,11 +610,11 @@ describe('useVoiceAgent', () => {
       const executeAction = makeExecuteAction();
       const sendToAiChat = vi.fn();
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, sendToAiChat }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, sendToAiChat }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
 
       await dispatchSttResult({ text: '播放', confidence: 0.95 });
 
@@ -590,11 +627,11 @@ describe('useVoiceAgent', () => {
       const executeAction = makeExecuteAction();
       const sendToAiChat = vi.fn();
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, sendToAiChat }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, sendToAiChat }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
 
       await dispatchSttResult({ text: '今天天气怎么样', confidence: 0.8 });
 
@@ -609,11 +646,11 @@ describe('useVoiceAgent', () => {
     it('sets pendingConfirm for destructive actions when safeMode is on', async () => {
       const executeAction = makeExecuteAction();
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, initialSafeMode: true }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, initialSafeMode: true }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
 
       await dispatchSttResult({ text: '删除', confidence: 0.95 });
 
@@ -627,11 +664,11 @@ describe('useVoiceAgent', () => {
     it('calls executeAction immediately for non-destructive actions even with safeMode on', async () => {
       const executeAction = makeExecuteAction();
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, initialSafeMode: true }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, initialSafeMode: true }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
 
       await dispatchSttResult({ text: '播放', confidence: 0.95 });
 
@@ -644,11 +681,11 @@ describe('useVoiceAgent', () => {
     it('confirmPending executes the pending action', async () => {
       const executeAction = makeExecuteAction();
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, initialSafeMode: true }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, initialSafeMode: true }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
 
       // Trigger a destructive action to set pendingConfirm
       await dispatchSttResult({ text: '删除', confidence: 0.95 });
@@ -657,7 +694,9 @@ describe('useVoiceAgent', () => {
         expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
       });
 
-      await act(async () => { result.current.confirmPending(); });
+      await act(async () => {
+        result.current.confirmPending();
+      });
 
       expect(executeAction).toHaveBeenCalledWith('deleteSegment', undefined);
       expect(result.current.pendingConfirm).toBeNull();
@@ -666,11 +705,11 @@ describe('useVoiceAgent', () => {
     it('cancelPending clears the pending confirm', async () => {
       const executeAction = makeExecuteAction();
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, initialSafeMode: true }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, initialSafeMode: true }));
 
-      await act(async () => { result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
 
       await dispatchSttResult({ text: '删除', confidence: 0.95 });
 
@@ -678,7 +717,9 @@ describe('useVoiceAgent', () => {
         expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
       });
 
-      await act(async () => { result.current.cancelPending(); });
+      await act(async () => {
+        result.current.cancelPending();
+      });
 
       expect(result.current.pendingConfirm).toBeNull();
       expect(executeAction).not.toHaveBeenCalled();
@@ -687,11 +728,11 @@ describe('useVoiceAgent', () => {
     it('confirmPending clears stale disambiguation options together with pendingConfirm', async () => {
       const executeAction = makeExecuteAction();
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, initialSafeMode: true }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, initialSafeMode: true }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
       await simulateFinalSttResult({ text: '删除一下重做', confidence: 0.5 });
 
       await waitFor(() => {
@@ -699,7 +740,9 @@ describe('useVoiceAgent', () => {
         expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
       });
 
-      await act(async () => { result.current.confirmPending(); });
+      await act(async () => {
+        result.current.confirmPending();
+      });
 
       expect(result.current.pendingConfirm).toBeNull();
       expect(result.current.disambiguationOptions).toEqual([]);
@@ -711,7 +754,9 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction: makeExecuteAction(), initialSafeMode: true }),
       );
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
       await simulateFinalSttResult({ text: '删除一下重做', confidence: 0.5 });
 
       await waitFor(() => {
@@ -719,7 +764,9 @@ describe('useVoiceAgent', () => {
         expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
       });
 
-      await act(async () => { result.current.cancelPending(); });
+      await act(async () => {
+        result.current.cancelPending();
+      });
 
       expect(result.current.pendingConfirm).toBeNull();
       expect(result.current.disambiguationOptions).toEqual([]);
@@ -728,35 +775,41 @@ describe('useVoiceAgent', () => {
 
   describe('disambiguation lifecycle', () => {
     it('stop() clears stale disambiguation options', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
       await simulateFinalSttResult({ text: '播放下一个', confidence: 0.5 });
 
       await waitFor(() => {
         expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
       });
 
-      await act(async () => { await result.current.stop(); });
+      await act(async () => {
+        await result.current.stop();
+      });
 
       expect(result.current.disambiguationOptions).toEqual([]);
     });
 
     it('start() clears stale disambiguation options from the previous session', async () => {
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction: makeExecuteAction() }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction: makeExecuteAction() }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
       await simulateFinalSttResult({ text: '播放下一个', confidence: 0.5 });
       await waitFor(() => {
         expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
       });
 
-      await act(async () => { await result.current.stop(); });
-      await act(async () => { await result.current.start('analysis'); });
+      await act(async () => {
+        await result.current.stop();
+      });
+      await act(async () => {
+        await result.current.start('analysis');
+      });
 
       expect(result.current.disambiguationOptions).toEqual([]);
     });
@@ -765,11 +818,11 @@ describe('useVoiceAgent', () => {
   describe('VAD state', () => {
     it('sets speechActive to true when VAD detects speech', async () => {
       const executeAction = makeExecuteAction();
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction }));
 
-      await act(async () => { await result.current.start(); });
+      await act(async () => {
+        await result.current.start();
+      });
 
       // Simulate VAD state change (from VoiceInputService mock)
       // The mock doesn't expose onVadStateChange, so we verify initial state is false
@@ -786,11 +839,11 @@ describe('useVoiceAgent', () => {
         raw: '执行复杂的多步操作序列',
       });
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, resolveIntentWithLlm }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, resolveIntentWithLlm }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
 
       await dispatchSttResult({ text: '执行复杂的多步操作序列', confidence: 0.92 });
 
@@ -807,11 +860,11 @@ describe('useVoiceAgent', () => {
         raw: '分析这句话',
       });
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, resolveIntentWithLlm }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, resolveIntentWithLlm }));
 
-      await act(async () => { await result.current.start('analysis'); });
+      await act(async () => {
+        await result.current.start('analysis');
+      });
 
       await dispatchSttResult({ text: '分析这句话', confidence: 0.91 });
 
@@ -838,7 +891,9 @@ describe('useVoiceAgent', () => {
         }),
       );
 
-      await act(async () => { await commandResult.current.start('command'); });
+      await act(async () => {
+        await commandResult.current.start('command');
+      });
       await dispatchSttResult({ text: transcript, confidence: 0.91 });
 
       await waitFor(() => {
@@ -863,7 +918,9 @@ describe('useVoiceAgent', () => {
         }),
       );
 
-      await act(async () => { await analysisResult.current.start('analysis'); });
+      await act(async () => {
+        await analysisResult.current.start('analysis');
+      });
       await dispatchSttResult({ text: transcript, confidence: 0.91 });
 
       await waitFor(() => {
@@ -877,11 +934,11 @@ describe('useVoiceAgent', () => {
       const executeAction = makeExecuteAction();
       const resolveIntentWithLlm = vi.fn().mockResolvedValue(null);
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, resolveIntentWithLlm }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, resolveIntentWithLlm }));
 
-      await act(async () => { await result.current.start('analysis'); });
+      await act(async () => {
+        await result.current.start('analysis');
+      });
       await dispatchSttResult({ text: '播放', confidence: 0.95 });
 
       await waitFor(() => {
@@ -896,7 +953,9 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction: makeExecuteAction(), resolveIntentWithLlm }),
       );
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
 
       await dispatchSttResult({ text: '播放', confidence: 0.95 });
 
@@ -912,11 +971,11 @@ describe('useVoiceAgent', () => {
         raw: '开始一下',
       });
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, resolveIntentWithLlm }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, resolveIntentWithLlm }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
 
       await dispatchSttResult({ text: '开始一下', confidence: 0.9 });
       await dispatchSttResult({ text: '开始一下', confidence: 0.9 });
@@ -941,7 +1000,9 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction: makeExecuteAction(), resolveIntentWithLlm }),
       );
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
 
       await dispatchSttResult({ text: '开始一下', confidence: 0.9 });
 
@@ -964,11 +1025,11 @@ describe('useVoiceAgent', () => {
         raw: '把这个去掉吧',
       });
 
-      const { result } = renderHook(() =>
-        useVoiceAgent({ executeAction, resolveIntentWithLlm }),
-      );
+      const { result } = renderHook(() => useVoiceAgent({ executeAction, resolveIntentWithLlm }));
 
-      await act(async () => { await result.current.start('command'); });
+      await act(async () => {
+        await result.current.start('command');
+      });
 
       await dispatchSttResult({ text: '把这个去掉吧', confidence: 0.82 });
 

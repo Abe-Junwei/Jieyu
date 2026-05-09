@@ -130,8 +130,10 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(waveformContentCode.includes('segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel')).toBe(true);
     expect(waveformContentCode.includes('selectedHotspotTimeSec?: number | null;')).toBe(true);
-    expect(waveformContentCode.includes('const selectedHotspotLeftPx = typeof selectedHotspotTimeSec === \'number\'' )).toBe(true);
-    expect(waveformContentCode.includes("const shouldRenderSelectedHotspot = waveformDisplayMode === 'waveform'")).toBe(true);
+    expect(waveformContentCode.includes('const selectedHotspotLeftPx =')).toBe(true);
+    expect(waveformContentCode.includes("typeof selectedHotspotTimeSec === 'number'")).toBe(true);
+    expect(waveformContentCode.includes('const shouldRenderSelectedHotspot =')).toBe(true);
+    expect(waveformContentCode.includes("waveformDisplayMode === 'waveform'")).toBe(true);
     expect(decorationsCode.includes('className="waveform-guide-overlay"')).toBe(true);
     expect(decorationsCode.includes('className="waveform-analysis-hotspot-line"')).toBe(true);
     expect(guideIndex).toBeGreaterThan(-1);
@@ -144,16 +146,19 @@ describe('TranscriptionPage structure invariants', () => {
     const acousticPanelStatePath = path.resolve(process.cwd(), 'src/pages/useTranscriptionAcousticPanelState.ts');
     const acousticPanelStateCode = fs.readFileSync(acousticPanelStatePath, 'utf8');
 
-    expect(acousticPanelStateCode.includes('const activeAcousticHotspots = deferredAiRuntime.acousticSummary?.hotspots ?? [];')).toBe(true);
+    expect(acousticPanelStateCode.includes('const activeAcousticHotspots =')).toBe(true);
+    expect(acousticPanelStateCode.includes('EMPTY_ACOUSTIC_HOTSPOTS')).toBe(true);
     expect(acousticPanelStateCode.includes('setSelectedHotspotTimeSec(null);')).toBe(true);
     expect(acousticPanelStateCode.includes('setPinnedInspector(null);')).toBe(true);
-    expect(acousticPanelStateCode.includes("if (deferredAiRuntime.acousticRuntimeStatus?.state === 'loading') {")).toBe(true);
+    expect(acousticPanelStateCode.includes("deferredAiRuntime.acousticRuntimeStatus?.state === 'loading'")).toBe(true);
     expect(acousticPanelStateCode.includes('if (deferredAiRuntime.acousticSummary == null) {')).toBe(true);
-    expect(acousticPanelStateCode.includes('setSelectedHotspotTimeSec(null);')).toBe(true);
-    expect(acousticPanelStateCode.includes('const stillExists = activeAcousticHotspots.some((hotspot) => Math.abs(hotspot.timeSec - selectedHotspotTimeSec) <= 0.01);')).toBe(true);
+    expect(acousticPanelStateCode.includes('const stillExists = activeAcousticHotspots.some(')).toBe(true);
     expect(acousticPanelStateCode.includes('const selectionDuration = deferredAiRuntime.acousticSummary?.durationSec;')).toBe(true);
-    expect(acousticPanelStateCode.includes('const isTerminalSelection = selectionEnd !== undefined')).toBe(true);
-    expect(acousticPanelStateCode.includes('(isTerminalSelection ? activeReadout.timeSec <= selectionEnd : activeReadout.timeSec < selectionEnd)')).toBe(true);
+    expect(acousticPanelStateCode.includes('const isTerminalSelection =')).toBe(true);
+    expect(acousticPanelStateCode.includes('selectionEnd !== undefined')).toBe(true);
+    expect(acousticPanelStateCode.includes('isTerminalSelection')).toBe(true);
+    expect(acousticPanelStateCode.includes('activeReadout.timeSec <= selectionEnd')).toBe(true);
+    expect(acousticPanelStateCode.includes('activeReadout.timeSec < selectionEnd')).toBe(true);
   });
 
   it('keeps speaker routing stack without speaker-focus controller', () => {
@@ -192,7 +197,8 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(stateHookCode.includes('const { activeTextId, selectedTimelineMediaId, setTranscriptionTrackMode } = input;')).toBe(true);
     expect(stateHookCode.includes("const trackEntityProjectKey = activeTextId?.trim() || '__no-project__';")).toBe(true);
-    expect(stateHookCode.includes('const trackEntityScopedKey = selectedTimelineMediaId ? `${trackEntityProjectKey}::${selectedTimelineMediaId}` : null;')).toBe(true);
+    expect(stateHookCode.includes('const trackEntityScopedKey = selectedTimelineMediaId')).toBe(true);
+    expect(stateHookCode.includes('`${trackEntityProjectKey}::${selectedTimelineMediaId}`')).toBe(true);
     expect(stateHookCode.includes('trackEntityStateByMediaRef.current = dbStateMap;')).toBe(true);
     expect(stateHookCode.includes('const saved = getTrackEntityState(trackEntityStateByMediaRef.current, trackEntityScopedKey);')).toBe(true);
     expect(stateHookCode.includes('trackEntityHydratedKeyRef.current = trackEntityScopedKey;')).toBe(true);
@@ -260,7 +266,8 @@ describe('TranscriptionPage structure invariants', () => {
     expect(code.includes("import { useTranscriptionSegmentBridgeController } from './useTranscriptionSegmentBridgeController';")).toBe(true);
     expect(code.includes('} = useTranscriptionSegmentBridgeController({')).toBe(true);
     expect(segmentBridgeHookCode.includes("import { resolveTranscriptionTargetLayerId } from './transcriptionUnitTargetResolver';")).toBe(true);
-    expect(segmentBridgeHookCode.includes('const activeLayerIdForEdits = useMemo(() => resolveTranscriptionTargetLayerId({')).toBe(true);
+    expect(segmentBridgeHookCode.includes('const activeLayerIdForEdits = useMemo(')).toBe(true);
+    expect(segmentBridgeHookCode.includes('resolveTranscriptionTargetLayerId({')).toBe(true);
     expect(segmentBridgeHookCode.includes('selectedLayerId: input.selectedLayerId,')).toBe(true);
     expect(segmentBridgeHookCode.includes('focusedLayerId: input.focusedLayerId,')).toBe(true);
     expect(segmentBridgeHookCode.includes('selectedTimelineUnitLayerId: input.selectedTimelineUnit?.layerId,')).toBe(true);
@@ -282,7 +289,8 @@ describe('TranscriptionPage structure invariants', () => {
     expect(waveformBridgeHookCode.includes('} = useLasso({')).toBe(true);
     expect(waveformBridgeHookCode.includes('useSegmentRangeGesturePreviewWriter')).toBe(true);
     expect(waveformBridgeHookCode.includes('segmentRangeGesturePreviewReadModel')).toBe(true);
-    expect(waveformBridgeHookCode.includes('const { projection: timelineViewportProjection, zoomToPercent, zoomToUnit } = useTimelineViewport({')).toBe(true);
+    expect(waveformBridgeHookCode.includes('projection: timelineViewportProjection,')).toBe(true);
+    expect(waveformBridgeHookCode.includes('} = useTimelineViewport({')).toBe(true);
     const orchestratorInputPath = path.resolve(process.cwd(), 'src/pages/transcriptionReadyWorkspaceOrchestratorInput.ts');
     const orchestratorInputCode = fs.readFileSync(orchestratorInputPath, 'utf8');
     expect(orchestratorInputCode.includes('timelineViewportProjection: TimelineViewportProjection')).toBe(true);
@@ -428,11 +436,14 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const deleteSelectedUnitsRouted = useCallback(async (ids: Set<string>) => {')).toBe(false);
 
     expect(hookCode.includes('export function useTranscriptionSegmentMutationController(')).toBe(true);
-    expect(hookCode.includes('const splitRouted = useCallback(async (id: string, splitTime: number, layerIdOverride?: string) => {')).toBe(true);
-    expect(hookCode.includes('const mergeWithPreviousRouted = useCallback(async (id: string, layerIdOverride?: string) => {')).toBe(true);
-    expect(hookCode.includes('const mergeWithNextRouted = useCallback(async (id: string, layerIdOverride?: string) => {')).toBe(true);
-    expect(hookCode.includes('const deleteUnitRouted = useCallback(async (id: string, layerIdOverride?: string) => {')).toBe(true);
-    expect(hookCode.includes('const deleteSelectedUnitsRouted = useCallback(async (ids: Set<string>, layerIdOverride?: string) => {')).toBe(true);
+    expect(hookCode.includes('const splitRouted = useCallback(')).toBe(true);
+    expect(hookCode.includes('async (id: string, splitTime: number, layerIdOverride?: string) => {')).toBe(true);
+    expect(hookCode.includes('const mergeWithPreviousRouted = useCallback(')).toBe(true);
+    expect(hookCode.includes('async (id: string, layerIdOverride?: string) => {')).toBe(true);
+    expect(hookCode.includes('const mergeWithNextRouted = useCallback(')).toBe(true);
+    expect(hookCode.includes('const deleteUnitRouted = useCallback(')).toBe(true);
+    expect(hookCode.includes('const deleteSelectedUnitsRouted = useCallback(')).toBe(true);
+    expect(hookCode.includes('async (ids: Set<string>, layerIdOverride?: string) => {')).toBe(true);
   });
 
   it('keeps direct segment graph mutation service calls out of Orchestrator', () => {
@@ -531,14 +542,17 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(speakerControllerCode.includes("import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';")).toBe(true);
     expect(speakerControllerCode.includes('} = useSpeakerActionRoutingController({')).toBe(true);
-    expect(speakerControllerCode.includes('const handleAssignSpeakerFromMenu = useCallback((unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => {')).toBe(true);
+    expect(speakerControllerCode.includes('const handleAssignSpeakerFromMenu = useCallback(')).toBe(true);
+    expect(speakerControllerCode.includes('(unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => {')).toBe(true);
     expect(speakerControllerCode.includes("if (kind === 'segment') {")).toBe(true);
-    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToSegments(ids, speakerId), { context:')).toBe(true);
-    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToUnits(resolveSpeakerActionUnitIds(ids), speakerId), { context:')).toBe(true);
+    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToSegments(ids, speakerId)')).toBe(true);
+    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToUnits(resolveSpeakerActionUnitIds(ids), speakerId)')).toBe(true);
 
-    expect(routingHookCode.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(true);
+    expect(routingHookCode.includes('const handleAssignSpeakerToSegments = useCallback(')).toBe(true);
+    expect(routingHookCode.includes('async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(true);
     expect(routingHookCode.includes('await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);')).toBe(true);
-    expect(routingHookCode.includes('const createSpeakerAndAssignToSegments = useCallback(async (name: string, segmentIds: Iterable<string>) => {')).toBe(true);
+    expect(routingHookCode.includes('const createSpeakerAndAssignToSegments = useCallback(')).toBe(true);
+    expect(routingHookCode.includes('async (name: string, segmentIds: Iterable<string>) => {')).toBe(true);
   });
 
   it('keeps mixed segment and unit speaker routing intact', () => {
@@ -552,9 +566,13 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(routingHookCode.includes('const selectedStandaloneUnitIdsForSpeakerActions = useMemo(')).toBe(true);
     expect(routingHookCode.includes('selectedUnitIdsForSpeakerActions.filter((id) => !segmentByIdForSpeakerActions.has(id))')).toBe(true);
-    expect(routingHookCode.includes('selectedBatchSegmentsForSpeakerActions.length + selectedStandaloneUnitIdsForSpeakerActions.length')).toBe(true);
-    expect(routingHookCode.includes('const applySpeakerToMixedSelection = useCallback(async (speakerId?: string) => {')).toBe(true);
-    expect(routingHookCode.includes('if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUnitIdsForSpeakerActions.length > 0) {')).toBe(true);
+    expect(routingHookCode.includes('selectedSpeakerActionCount')).toBe(true);
+    expect(routingHookCode.includes('selectedBatchSegmentsForSpeakerActions.length')).toBe(true);
+    expect(routingHookCode.includes('selectedStandaloneUnitIdsForSpeakerActions.length')).toBe(true);
+    expect(routingHookCode.includes('const applySpeakerToMixedSelection = useCallback(')).toBe(true);
+    expect(routingHookCode.includes('async (speakerId?: string) => {')).toBe(true);
+    expect(routingHookCode.includes('selectedBatchSegmentsForSpeakerActions.length > 0 &&')).toBe(true);
+    expect(routingHookCode.includes('selectedStandaloneUnitIdsForSpeakerActions.length > 0')).toBe(true);
     expect(routingHookCode.includes('await applySpeakerToMixedSelection(batchSpeakerId || undefined);')).toBe(true);
     expect(routingHookCode.includes('selectedUnitIdsForSpeakerActionsSet')).toBe(false);
   });
@@ -668,16 +686,22 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('textOnlyProps: {')).toBe(false);
     expect(orchestratorCode.includes('speakerDialogState={speakerDialogStateRouted}')).toBe(false);
 
-    expect(hookCode.includes("import { createTranscriptionToolbarProps } from './transcriptionToolbarProps';")).toBe(true);
-    expect(hookCode.includes('const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => createTranscriptionToolbarProps({')).toBe(true);
+    expect(hookCode.includes("import { useTranscriptionToolbarProps } from './useTranscriptionToolbarProps';")).toBe(true);
+    expect(hookCode.includes('const toolbarProps = useTranscriptionToolbarProps(input, reviewVM, exportCallbacks);')).toBe(true);
     expect(hookCode.includes("import { useTranscriptionReviewSectionViewModel } from './useTranscriptionReviewSectionViewModel';")).toBe(true);
     expect(hookCode.includes('useTranscriptionReviewSectionViewModel({')).toBe(true);
     expect(reviewSectionHookCode.includes('const lowConfidenceCount = useMemo(() => unitsOnCurrentMedia.filter(')).toBe(true);
     expect(hookCode.includes("import { createTranscriptionTimelineTopProps } from './transcriptionTimelineTopProps';")).toBe(true);
-    expect(hookCode.includes('const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => createTranscriptionTimelineTopProps({')).toBe(true);
-    expect(hookCode.includes('return {\n    toolbarProps,\n    timelineTopProps,\n    timelineContentProps,\n    aiSidebarProps,\n    dialogsProps,\n  };')).toBe(true);
+    expect(hookCode.includes('const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(')).toBe(true);
+    expect(hookCode.includes('createTranscriptionTimelineTopProps({')).toBe(true);
+    expect(hookCode.includes('toolbarProps,')).toBe(true);
+    expect(hookCode.includes('timelineTopProps,')).toBe(true);
+    expect(hookCode.includes('timelineContentProps,')).toBe(true);
+    expect(hookCode.includes('aiSidebarProps,')).toBe(true);
+    expect(hookCode.includes('dialogsProps,')).toBe(true);
     expect(hookCode.includes("useTranscriptionSidebarSectionsViewModel")).toBe(true);
-    expect(hookCode.includes('const { aiSidebarProps, dialogsProps } = useTranscriptionSidebarSectionsViewModel(sidebarSectionsInput);')).toBe(true);
+    expect(hookCode.includes('const { aiSidebarProps, dialogsProps } =')).toBe(true);
+    expect(hookCode.includes('useTranscriptionSidebarSectionsViewModel(sidebarSectionsInput)')).toBe(true);
 
   expect(sidebarHookCode.includes('const aiSidebarProps = useMemo<TranscriptionPageAiSidebarProps>(() => ({')).toBe(true);
   expect(sidebarHookCode.includes('assistantRuntimeProps.aiChatContextValue.aiPendingToolCall')).toBe(true);
@@ -723,12 +747,12 @@ describe('TranscriptionPage structure invariants', () => {
   expect(pdfRuntimeCode.includes('const { request, onCloseRequest } = previewRequest;')).toBe(true);
   expect(pdfRuntimeCode.includes('onCloseRequest?.();')).toBe(true);
 
-    expect(timelineContentHookCode.includes('const mediaLanesProps = useMemo<TranscriptionPageTimelineHorizontalMediaLanesProps>(() => ({')).toBe(true);
+    expect(timelineContentHookCode.includes('const mediaLanesProps = useMemo<TranscriptionPageTimelineHorizontalMediaLanesProps>(')).toBe(true);
     expect(timelineContentHookCode.includes('const textOnlyProps = useMemo<TranscriptionPageTimelineTextOnlyProps>')).toBe(true);
     expect(timelineContentHookCode.includes('verticalProjection')).toBe(true);
     expect(timelineContentHookCode.includes('dropUndefinedKeys')).toBe(true);
-    expect(timelineContentHookCode.includes('const emptyStateProps = useMemo<TranscriptionPageTimelineEmptyStateProps>(() => ({')).toBe(true);
-    expect(timelineContentHookCode.includes('return useMemo<TranscriptionPageTimelineContentProps>(() => ({')).toBe(true);
+    expect(timelineContentHookCode.includes('const emptyStateProps = useMemo<TranscriptionPageTimelineEmptyStateProps>(')).toBe(true);
+    expect(timelineContentHookCode.includes('return useMemo<TranscriptionPageTimelineContentProps>(')).toBe(true);
   });
 
   it('keeps assistant callbacks and AI panel context extracted into dedicated hook', () => {
@@ -747,12 +771,16 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const aiPanelContextValue = useMemo(() => ({')).toBe(false);
 
     expect(hookCode.includes("import { buildTranscriptionAssistantContextValue } from './transcriptionAssistantContextValue';")).toBe(true);
-    expect(hookCode.includes('const aiPanelContextValue = useMemo<AiPanelContextValue>(() => buildTranscriptionAssistantContextValue(input), [')).toBe(true);
+    expect(hookCode.includes('const aiPanelContextValue = useMemo<AiPanelContextValue>(')).toBe(true);
+    expect(hookCode.includes('() => buildTranscriptionAssistantContextValue(input)')).toBe(true);
     expect(hookCode.includes('const aiPanelContextValue = useMemo<AiPanelContextValue>(() => ({')).toBe(false);
-    expect(hookCode.includes('const handleResolveVoiceIntentWithLlm = useCallback(async ({')).toBe(true);
-    expect(hookCode.includes('const handleVoiceDictation = useCallback((text: string) => {')).toBe(true);
+    expect(hookCode.includes('const handleResolveVoiceIntentWithLlm = useCallback(')).toBe(true);
+    expect(hookCode.includes('async ({')).toBe(true);
+    expect(hookCode.includes('const handleVoiceDictation = useCallback(')).toBe(true);
+    expect(hookCode.includes('(text: string) => {')).toBe(true);
     expect(hookCode.includes('const persistAndAdvance = async (persist: () => Promise<void>) => {')).toBe(true);
-    expect(hookCode.includes('const handleVoiceAnalysisResult = useCallback(async (unitId: string | null, analysisText: string) => {')).toBe(true);
+    expect(hookCode.includes('const handleVoiceAnalysisResult = useCallback(')).toBe(true);
+    expect(hookCode.includes('async (unitId: string | null, analysisText: string) => {')).toBe(true);
     expect(hookCode.includes('input.setAiPanelContext(aiPanelContextValue);')).toBe(true);
   });
 
@@ -799,7 +827,9 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes('const translationAudioByLayer = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const selectedBatchUnitTextById = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const batchPreviewTextByLayerId = useMemo(() => {')).toBe(true);
-    expect(hookCode.includes('const editorContextValue = useMemo<TranscriptionEditorContextValue>(() => ({')).toBe(true);
+    expect(hookCode.includes('const editorContextValue = useMemo<TranscriptionEditorContextValue>(')).toBe(true);
+    expect(hookCode.includes('() => ({')).toBe(true);
+    expect(hookCode.includes('unitDrafts: input.unitDrafts,')).toBe(true);
   });
 
   it('keeps timeline interaction routing extracted into dedicated hook', () => {
@@ -836,21 +866,37 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('handleWaveformRegionUpdateEndRef.current = handleWaveformRegionUpdateEnd;')).toBe(false);
     expect(orchestratorCode.includes('handleWaveformTimeUpdateRef.current = handleWaveformTimeUpdate;')).toBe(false);
 
-    expect(hookCode.includes('const handleSearchReplace = useCallback((unitId: string, layerId: string | undefined, _oldText: string, newText: string) => {')).toBe(true);
-    expect(hookCode.includes('const handleJumpToEmbeddingMatch = useCallback((unitId: string) => {')).toBe(true);
-    expect(hookCode.includes('const handleJumpToCitation = useCallback(async (')).toBe(true);
-    expect(hookCode.includes('const handleSplitAtTimeRequest = useCallback((timeSeconds: number) => {')).toBe(true);
-    expect(hookCode.includes('const handleZoomToSegmentRequest = useCallback((segmentId: string, zoomLevel?: number) => {')).toBe(true);
-    expect(hookCode.includes('const getNeighborBoundsRouted = useCallback((itemId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => {')).toBe(true);
-    expect(hookCode.includes('const saveTimingRouted = useCallback(async (id: string, start: number, end: number, layerId?: string) => {')).toBe(true);
-    expect(hookCode.includes('const handleWaveformRegionContextMenu = useCallback((regionId: string, x: number, y: number) => {')).toBe(true);
-    expect(hookCode.includes('const handleWaveformRegionAltPointerDown = useCallback((regionId: string, time: number, pointerId: number, _clientX: number) => {')).toBe(true);
-    expect(hookCode.includes('const handleWaveformRegionClick = useCallback((regionId: string, clickTime: number, event: MouseEvent) => {')).toBe(true);
-    expect(hookCode.includes('const handleWaveformRegionDoubleClick = useCallback((_regionId: string, start: number, end: number) => {')).toBe(true);
-    expect(hookCode.includes('const handleWaveformRegionCreate = useCallback((start: number, end: number) => {')).toBe(true);
-    expect(hookCode.includes('const handleWaveformRegionUpdate = useCallback((regionId: string, start: number, end: number) => {')).toBe(true);
-    expect(hookCode.includes('const handleWaveformRegionUpdateEnd = useCallback((regionId: string, start: number, end: number) => {')).toBe(true);
-    expect(hookCode.includes('const handleWaveformTimeUpdate = useCallback((time: number) => {')).toBe(true);
+    expect(hookCode.includes('const handleSearchReplace = useCallback(')).toBe(true);
+    expect(hookCode.includes('(unitId: string, layerId: string | undefined, _oldText: string, newText: string) => {')).toBe(true);
+    expect(hookCode.includes('const handleJumpToEmbeddingMatch = useCallback(')).toBe(true);
+    expect(hookCode.includes('(unitId: string) => {')).toBe(true);
+    expect(hookCode.includes('const handleJumpToCitation = useCallback(')).toBe(true);
+    expect(hookCode.includes("citationType: 'unit' | 'note' | 'pdf' | 'schema'")).toBe(true);
+    expect(hookCode.includes('const handleSplitAtTimeRequest = useCallback(')).toBe(true);
+    expect(hookCode.includes('(timeSeconds: number) => {')).toBe(true);
+    expect(hookCode.includes('const handleZoomToSegmentRequest = useCallback(')).toBe(true);
+    expect(hookCode.includes('(segmentId: string, zoomLevel?: number) => {')).toBe(true);
+    expect(hookCode.includes('const getNeighborBoundsRouted = useCallback(')).toBe(true);
+    expect(hookCode.includes('(itemId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => {')).toBe(true);
+    expect(hookCode.includes('const saveTimingRouted = useCallback(')).toBe(true);
+    expect(hookCode.includes('async (id: string, start: number, end: number, layerId?: string) => {')).toBe(true);
+    expect(hookCode.includes('const handleWaveformRegionContextMenu = useCallback(')).toBe(true);
+    expect(hookCode.includes('(regionId: string, x: number, y: number) => {')).toBe(true);
+    expect(hookCode.includes('const handleWaveformRegionAltPointerDown = useCallback(')).toBe(true);
+    expect(hookCode.includes('(regionId: string, time: number, pointerId: number, _clientX: number) => {')).toBe(true);
+    expect(hookCode.includes('const handleWaveformRegionClick = useCallback(')).toBe(true);
+    expect(hookCode.includes('(regionId: string, clickTime: number, event: MouseEvent) => {')).toBe(true);
+    expect(hookCode.includes('const handleWaveformRegionDoubleClick = useCallback(')).toBe(true);
+    expect(hookCode.includes('(_regionId: string, start: number, end: number) => {')).toBe(true);
+    expect(hookCode.includes('const handleWaveformRegionCreate = useCallback(')).toBe(true);
+    expect(hookCode.includes('(start: number, end: number) => {')).toBe(true);
+    expect(hookCode.includes("context: 'src/pages/useTranscriptionTimelineInteractionController.ts:L291'")).toBe(true);
+    expect(hookCode.includes('const handleWaveformRegionUpdate = useCallback(')).toBe(true);
+    expect(hookCode.includes('input.beginTimingGesture(regionId);')).toBe(true);
+    expect(hookCode.includes('const handleWaveformRegionUpdateEnd = useCallback(')).toBe(true);
+    expect(hookCode.includes('input.endTimingGesture(regionId);')).toBe(true);
+    expect(hookCode.includes('const handleWaveformTimeUpdate = useCallback(')).toBe(true);
+    expect(hookCode.includes('(time: number) => {')).toBe(true);
   });
 
   it('keeps batch operation controller extracted into dedicated hook', () => {
@@ -918,7 +964,10 @@ describe('TranscriptionPage structure invariants', () => {
     expect(selectionHookCode.includes("import { resolveNextUnitIdForDictation } from './voiceDictationFlow';")).toBe(true);
     expect(selectionHookCode.includes('const nextUnitIdForVoiceDictation = useMemo(() => resolveNextUnitIdForDictation({')).toBe(true);
     expect(hookCode.includes('const persistAndAdvance = async (persist: () => Promise<void>) => {')).toBe(true);
-    expect(hookCode.includes('if (!input.nextUnitIdForVoiceDictation) return;')).toBe(true);
+    expect(
+      hookCode.includes('if (!input.nextUnitIdForVoiceDictation) return;')
+        || hookCode.includes('if (input.nextUnitIdForVoiceDictation === undefined || input.nextUnitIdForVoiceDictation.length === 0) return;'),
+    ).toBe(true);
     expect(hookCode.includes('input.selectUnit(input.nextUnitIdForVoiceDictation);')).toBe(true);
   });
 

@@ -705,7 +705,7 @@ function readMultiLangValue(record: MultiLangString | undefined, locale: string)
 
   const languagePrefix = normalizedLocale.split('-')[0] ?? normalizedLocale;
   const prefixed = Object.entries(record)
-    .find(([key, value]) => key.toLowerCase() === languagePrefix || key.toLowerCase().startsWith(`${languagePrefix}-`))?.[1];
+    .find(([key, _value]) => key.toLowerCase() === languagePrefix || key.toLowerCase().startsWith(`${languagePrefix}-`))?.[1];
   if (prefixed?.trim()) {
     return prefixed.trim();
   }

@@ -4,6 +4,18 @@
  * — TS/TSX：全项目 typecheck（与 CI `quality` 一致，避免为单文件拼 tsc 参数）
  */
 export default {
-  'src/styles/**/*.css': (filenames) => (filenames.length ? `stylelint --fix ${filenames.map((f) => JSON.stringify(f)).join(' ')}` : []),
-  'src/**/*.{ts,tsx}': (filenames) => (filenames.length > 0 ? 'npm run typecheck' : []),
+  'src/styles/**/*.css': (filenames) =>
+    filenames.length
+      ? [
+          `stylelint --fix ${filenames.map((f) => JSON.stringify(f)).join(' ')}`,
+          `prettier --write ${filenames.map((f) => JSON.stringify(f)).join(' ')}`,
+        ]
+      : [],
+  'src/**/*.{ts,tsx}': (filenames) =>
+    filenames.length > 0
+      ? [
+          `prettier --write ${filenames.map((f) => JSON.stringify(f)).join(' ')}`,
+          'npm run typecheck',
+        ]
+      : [],
 };

@@ -7,7 +7,10 @@ import {
 } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
 import { LayerUnitRelationQueryService } from '../services/LayerUnitRelationQueryService';
-import { validateAnnotationAnalysisGraphFixture, type AnnotationAnalysisGraphFixture } from './analysisGraph';
+import {
+  validateAnnotationAnalysisGraphFixture,
+  type AnnotationAnalysisGraphFixture,
+} from './analysisGraph';
 
 export type AnalysisGraphCandidateActor = {
   type: ActorType;
@@ -32,14 +35,17 @@ type ConfirmAnalysisGraphCandidateInput = SubmitAnalysisGraphCandidateInput & {
   actorId?: string;
 };
 
-function normalizeCandidateActor(input: SubmitAnalysisGraphCandidateInput | ConfirmAnalysisGraphCandidateInput): AnalysisGraphCandidateActor {
-  if ('actor' in input && input.actor) return input.actor;
-  if ('actorId' in input && input.actorId) return { type: 'human', id: input.actorId };
+function normalizeCandidateActor(
+  input: SubmitAnalysisGraphCandidateInput | ConfirmAnalysisGraphCandidateInput,
+): AnalysisGraphCandidateActor {
+  if ('actor' in input && input.actor !== undefined) return input.actor;
+  if ('actorId' in input && input.actorId !== undefined && input.actorId.length > 0)
+    return { type: 'human', id: input.actorId };
   return { type: 'system' };
 }
 
 function resolveAnalysisGraphStatus(row: UnitRelationDocType): 'pending' | 'accepted' | 'rejected' {
-  if (row.analysisGraphStatus) return row.analysisGraphStatus;
+  if (row.analysisGraphStatus !== undefined) return row.analysisGraphStatus;
   const rs = row.provenance?.reviewStatus;
   if (rs === 'confirmed') return 'accepted';
   if (rs === 'rejected') return 'rejected';
@@ -50,7 +56,7 @@ function parseCandidateRelation(row: UnitRelationDocType): AnalysisGraphCandidat
   if (row.relationType !== 'analysis_graph_candidate') {
     throw new Error(`unit relation is not an analysis graph candidate: ${row.id}`);
   }
-  if (!row.analysisGraphCandidate) {
+  if (row.analysisGraphCandidate === undefined) {
     throw new Error(`analysis graph candidate is missing payload: ${row.id}`);
   }
   return {
@@ -61,7 +67,10 @@ function parseCandidateRelation(row: UnitRelationDocType): AnalysisGraphCandidat
   };
 }
 
-async function listAnalysisGraphCandidateRows(db: JieyuDatabase, unitId: string): Promise<UnitRelationDocType[]> {
+async function listAnalysisGraphCandidateRows(
+  db: JieyuDatabase,
+  unitId: string,
+): Promise<UnitRelationDocType[]> {
   return await LayerUnitRelationQueryService.listRelationsByUnitIds(
     [unitId],
     { relationType: 'analysis_graph_candidate' },
@@ -87,7 +96,7 @@ export async function submitAnalysisGraphCandidate(
     analysisGraphCandidate: candidateGraph as unknown as Record<string, unknown>,
     provenance: {
       actorType: actor.type,
-      ...(actor.id ? { actorId: actor.id } : {}),
+      ...(actor.id !== undefined && actor.id.length > 0 ? { actorId: actor.id } : {}),
       method: 'projection',
       createdAt: now,
       reviewStatus: 'suggested',
@@ -96,35 +105,45 @@ export async function submitAnalysisGraphCandidate(
     updatedAt: now,
   };
 
-  await withTransaction(db, 'rw', [db.dexie.unit_relations], async () => {
-    const pendingPeers = await listAnalysisGraphCandidateRows(db, input.unitId);
-    await Promise.all(pendingPeers
-      .filter((row) => resolveAnalysisGraphStatus(row) === 'pending')
-      .map((row) => db.collections.unit_relations.insert({
-        ...row,
-        analysisGraphStatus: 'rejected',
-        provenance: {
-          ...row.provenance,
-          actorType: row.provenance?.actorType ?? 'system',
-          method: row.provenance?.method ?? 'projection',
-          createdAt: row.provenance?.createdAt ?? row.createdAt,
-          updatedAt: now,
-          reviewStatus: 'rejected',
-        },
-        updatedAt: now,
-      })));
-    await db.collections.unit_relations.insert(doc);
-  }, { label: 'submitAnalysisGraphCandidate' });
+  await withTransaction(
+    db,
+    'rw',
+    [db.dexie.unit_relations],
+    async () => {
+      const pendingPeers = await listAnalysisGraphCandidateRows(db, input.unitId);
+      await Promise.all(
+        pendingPeers
+          .filter((row) => resolveAnalysisGraphStatus(row) === 'pending')
+          .map((row) =>
+            db.collections.unit_relations.insert({
+              ...row,
+              analysisGraphStatus: 'rejected',
+              provenance: {
+                ...row.provenance,
+                actorType: row.provenance?.actorType ?? 'system',
+                method: row.provenance?.method ?? 'projection',
+                createdAt: row.provenance?.createdAt ?? row.createdAt,
+                updatedAt: now,
+                reviewStatus: 'rejected',
+              },
+              updatedAt: now,
+            }),
+          ),
+      );
+      await db.collections.unit_relations.insert(doc);
+    },
+    { label: 'submitAnalysisGraphCandidate' },
+  );
 
   return parseCandidateRelation(doc);
 }
 
-export async function listPendingAnalysisGraphCandidates(unitId: string): Promise<AnalysisGraphCandidateRecord[]> {
+export async function listPendingAnalysisGraphCandidates(
+  unitId: string,
+): Promise<AnalysisGraphCandidateRecord[]> {
   const db = await getDb();
   const rows = await listAnalysisGraphCandidateRows(db, unitId);
-  return rows
-    .map(parseCandidateRelation)
-    .filter((row) => row.analysisGraphStatus === 'pending');
+  return rows.map(parseCandidateRelation).filter((row) => row.analysisGraphStatus === 'pending');
 }
 
 async function updateAnalysisGraphCandidateStatus(
@@ -147,7 +166,7 @@ async function updateAnalysisGraphCandidateStatus(
     provenance: {
       ...parsed.provenance,
       actorType: actor?.type ?? parsed.provenance?.actorType ?? 'human',
-      ...(actor?.id ? { actorId: actor.id } : {}),
+      ...(actor?.id !== undefined && actor.id.length > 0 ? { actorId: actor.id } : {}),
       method: parsed.provenance?.method ?? 'projection',
       createdAt: parsed.provenance?.createdAt ?? parsed.createdAt,
       updatedAt: now,
@@ -155,16 +174,28 @@ async function updateAnalysisGraphCandidateStatus(
     },
     updatedAt: now,
   };
-  await withTransaction(db, 'rw', [db.dexie.unit_relations], async () => {
-    if (status === 'accepted' && parsed.unitId) {
-      const peers = await listAnalysisGraphCandidateRows(db, parsed.unitId);
-      const otherAccepted = peers.some((row) => row.id !== id && (row.analysisGraphStatus ?? resolveAnalysisGraphStatus(row)) === 'accepted');
-      if (otherAccepted) {
-        throw new Error(`an accepted analysis graph candidate already exists for unit ${parsed.unitId}`);
+  await withTransaction(
+    db,
+    'rw',
+    [db.dexie.unit_relations],
+    async () => {
+      if (status === 'accepted' && parsed.unitId !== undefined && parsed.unitId.length > 0) {
+        const peers = await listAnalysisGraphCandidateRows(db, parsed.unitId);
+        const otherAccepted = peers.some(
+          (row) =>
+            row.id !== id &&
+            (row.analysisGraphStatus ?? resolveAnalysisGraphStatus(row)) === 'accepted',
+        );
+        if (otherAccepted) {
+          throw new Error(
+            `an accepted analysis graph candidate already exists for unit ${parsed.unitId}`,
+          );
+        }
       }
-    }
-    await db.collections.unit_relations.insert(next);
-  }, { label: 'updateAnalysisGraphCandidateStatus' });
+      await db.collections.unit_relations.insert(next);
+    },
+    { label: 'updateAnalysisGraphCandidateStatus' },
+  );
   return parseCandidateRelation(next);
 }
 

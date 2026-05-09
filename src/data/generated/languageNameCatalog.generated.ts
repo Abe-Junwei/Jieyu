@@ -1,4 +1,10 @@
-import type { LanguageAliasToCodeRecord, LanguageAliasesByCodeRecord, LanguageDisplayCoreEntry, LanguageNameQueryLocale, LanguageQueryIndexLocaleRecord } from '../languageNameTypes';
+import type {
+  LanguageAliasToCodeRecord,
+  LanguageAliasesByCodeRecord,
+  LanguageDisplayCoreEntry,
+  LanguageNameQueryLocale,
+  LanguageQueryIndexLocaleRecord,
+} from '../languageNameTypes';
 
 export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, LanguageDisplayCoreEntry>> = 
 {
@@ -1035,6 +1041,7 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
   },
   "bak": {
     "english": "Bashkir",
+    "native": "башҡорт",
     "byLocale": {
       "zh-CN": "巴什基尔语",
       "en-US": "Bashkir",
@@ -1275,7 +1282,7 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
   },
   "chv": {
     "english": "Chuvash",
-    "native": "чӑваш",
+    "native": "чӑваш чӗлхи",
     "byLocale": {
       "zh-CN": "楚瓦什语",
       "en-US": "Chuvash",
@@ -1664,6 +1671,7 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
   },
   "scn": {
     "english": "Sicilian",
+    "native": "sicilianu",
     "byLocale": {
       "zh-CN": "西西里语",
       "en-US": "Sicilian",
@@ -1914,6 +1922,7 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
   },
   "tyv": {
     "english": "Tuvan",
+    "native": "Тыва",
     "byLocale": {
       "zh-CN": "图瓦语",
       "en-US": "Tuvinian",
@@ -1984,6 +1993,7 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
   },
   "pms": {
     "english": "Piedmontese",
+    "native": "piemontèis",
     "byLocale": {
       "en-US": "Piedmontese",
       "fr-FR": "piémontais",
@@ -2322,6 +2332,7 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
   },
   "bua": {
     "english": "Buryat",
+    "native": "буряад",
     "byLocale": {
       "zh-CN": "布里亚特语",
       "en-US": "Buriat",
@@ -4290,13 +4301,6 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
   },
   "mnk": {
     "english": "Mandinka",
-    "byLocale": {
-      "zh-CN": "曼丁哥语",
-      "en-US": "Mandingo",
-      "fr-FR": "mandingue",
-      "es-ES": "mandingo",
-      "de-DE": "Malinke"
-    },
     "latitude": 12.8165233333,
     "longitude": -15.6539466667
   },
@@ -4628,6 +4632,7 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
   },
   "shn": {
     "english": "Shan",
+    "native": "တႆး",
     "byLocale": {
       "zh-CN": "掸语",
       "en-US": "Shan",
@@ -8520,6 +8525,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "башҡорт",
+        "kind": "native"
+      },
+      {
         "label": "Bashkir",
         "kind": "english"
       },
@@ -9018,7 +9027,7 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
-        "label": "чӑваш",
+        "label": "чӑваш чӗлхи",
         "kind": "native"
       },
       {
@@ -9662,6 +9671,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "sicilianu",
+        "kind": "native"
+      },
+      {
         "label": "Sicilian",
         "kind": "english"
       },
@@ -10072,6 +10085,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "Тыва",
+        "kind": "native"
+      },
+      {
         "label": "Tuvan",
         "kind": "english"
       },
@@ -10183,6 +10200,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       }
     ],
     "pms": [
+      {
+        "label": "piemontèis",
+        "kind": "native"
+      },
       {
         "label": "Piedmontese",
         "kind": "english"
@@ -10748,6 +10769,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "布里亚特语",
         "kind": "local"
+      },
+      {
+        "label": "буряад",
+        "kind": "native"
       },
       {
         "label": "Buryat",
@@ -13840,24 +13865,8 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
     ],
     "mnk": [
       {
-        "label": "曼丁哥语",
-        "kind": "local"
-      },
-      {
         "label": "Mandinka",
         "kind": "english"
-      },
-      {
-        "label": "Mandingo",
-        "kind": "alias"
-      },
-      {
-        "label": "mandingue",
-        "kind": "alias"
-      },
-      {
-        "label": "Malinke",
-        "kind": "alias"
       }
     ],
     "kdr": [
@@ -14302,6 +14311,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "掸语",
         "kind": "local"
+      },
+      {
+        "label": "တႆး",
+        "kind": "native"
       },
       {
         "label": "Shan",
@@ -18652,6 +18665,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "башҡорт",
+        "kind": "native"
+      },
+      {
         "label": "巴什基尔语",
         "kind": "alias"
       },
@@ -19150,7 +19167,7 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
-        "label": "чӑваш",
+        "label": "чӑваш чӗлхи",
         "kind": "native"
       },
       {
@@ -19794,6 +19811,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "sicilianu",
+        "kind": "native"
+      },
+      {
         "label": "西西里语",
         "kind": "alias"
       },
@@ -20204,6 +20225,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "Тыва",
+        "kind": "native"
+      },
+      {
         "label": "Tuvan",
         "kind": "english"
       },
@@ -20318,6 +20343,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Piedmontese",
         "kind": "local"
+      },
+      {
+        "label": "piemontèis",
+        "kind": "native"
       },
       {
         "label": "piémontais",
@@ -20880,6 +20909,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Buriat",
         "kind": "local"
+      },
+      {
+        "label": "буряад",
+        "kind": "native"
       },
       {
         "label": "Buryat",
@@ -23972,24 +24005,8 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
     ],
     "mnk": [
       {
-        "label": "Mandingo",
-        "kind": "local"
-      },
-      {
         "label": "Mandinka",
         "kind": "english"
-      },
-      {
-        "label": "曼丁哥语",
-        "kind": "alias"
-      },
-      {
-        "label": "mandingue",
-        "kind": "alias"
-      },
-      {
-        "label": "Malinke",
-        "kind": "alias"
       }
     ],
     "kdr": [
@@ -24434,6 +24451,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Shan",
         "kind": "local"
+      },
+      {
+        "label": "တႆး",
+        "kind": "native"
       },
       {
         "label": "掸语",
@@ -28784,6 +28805,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "башҡорт",
+        "kind": "native"
+      },
+      {
         "label": "Bashkir",
         "kind": "english"
       },
@@ -29282,7 +29307,7 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
-        "label": "чӑваш",
+        "label": "чӑваш чӗлхи",
         "kind": "native"
       },
       {
@@ -29926,6 +29951,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "sicilianu",
+        "kind": "native"
+      },
+      {
         "label": "Sicilian",
         "kind": "english"
       },
@@ -30336,6 +30365,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "Тыва",
+        "kind": "native"
+      },
+      {
         "label": "Tuvan",
         "kind": "english"
       },
@@ -30450,6 +30483,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "piémontais",
         "kind": "local"
+      },
+      {
+        "label": "piemontèis",
+        "kind": "native"
       },
       {
         "label": "Piedmontese",
@@ -31012,6 +31049,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "bouriate",
         "kind": "local"
+      },
+      {
+        "label": "буряад",
+        "kind": "native"
       },
       {
         "label": "Buryat",
@@ -34104,24 +34145,8 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
     ],
     "mnk": [
       {
-        "label": "mandingue",
-        "kind": "local"
-      },
-      {
         "label": "Mandinka",
         "kind": "english"
-      },
-      {
-        "label": "曼丁哥语",
-        "kind": "alias"
-      },
-      {
-        "label": "Mandingo",
-        "kind": "alias"
-      },
-      {
-        "label": "Malinke",
-        "kind": "alias"
       }
     ],
     "kdr": [
@@ -34566,6 +34591,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "shan",
         "kind": "local"
+      },
+      {
+        "label": "တႆး",
+        "kind": "native"
       },
       {
         "label": "掸语",
@@ -38916,6 +38945,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "башҡорт",
+        "kind": "native"
+      },
+      {
         "label": "Bashkir",
         "kind": "english"
       },
@@ -39414,7 +39447,7 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
-        "label": "чӑваш",
+        "label": "чӑваш чӗлхи",
         "kind": "native"
       },
       {
@@ -40058,6 +40091,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "sicilianu",
+        "kind": "native"
+      },
+      {
         "label": "Sicilian",
         "kind": "english"
       },
@@ -40468,6 +40505,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "Тыва",
+        "kind": "native"
+      },
+      {
         "label": "Tuvan",
         "kind": "english"
       },
@@ -40579,6 +40620,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       }
     ],
     "pms": [
+      {
+        "label": "piemontèis",
+        "kind": "native"
+      },
       {
         "label": "Piedmontese",
         "kind": "english"
@@ -41144,6 +41189,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "buriato",
         "kind": "local"
+      },
+      {
+        "label": "буряад",
+        "kind": "native"
       },
       {
         "label": "Buryat",
@@ -44236,24 +44285,8 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
     ],
     "mnk": [
       {
-        "label": "mandingo",
-        "kind": "local"
-      },
-      {
         "label": "Mandinka",
         "kind": "english"
-      },
-      {
-        "label": "曼丁哥语",
-        "kind": "alias"
-      },
-      {
-        "label": "mandingue",
-        "kind": "alias"
-      },
-      {
-        "label": "Malinke",
-        "kind": "alias"
       }
     ],
     "kdr": [
@@ -44698,6 +44731,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "shan",
         "kind": "local"
+      },
+      {
+        "label": "တႆး",
+        "kind": "native"
       },
       {
         "label": "掸语",
@@ -49048,6 +49085,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "башҡорт",
+        "kind": "native"
+      },
+      {
         "label": "Bashkir",
         "kind": "english"
       },
@@ -49546,7 +49587,7 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
-        "label": "чӑваш",
+        "label": "чӑваш чӗлхи",
         "kind": "native"
       },
       {
@@ -50190,6 +50231,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "sicilianu",
+        "kind": "native"
+      },
+      {
         "label": "Sicilian",
         "kind": "english"
       },
@@ -50600,6 +50645,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "local"
       },
       {
+        "label": "Тыва",
+        "kind": "native"
+      },
+      {
         "label": "Tuvan",
         "kind": "english"
       },
@@ -50714,6 +50763,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Piemontesisch",
         "kind": "local"
+      },
+      {
+        "label": "piemontèis",
+        "kind": "native"
       },
       {
         "label": "Piedmontese",
@@ -51276,6 +51329,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Burjatisch",
         "kind": "local"
+      },
+      {
+        "label": "буряад",
+        "kind": "native"
       },
       {
         "label": "Buryat",
@@ -54368,24 +54425,8 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
     ],
     "mnk": [
       {
-        "label": "Malinke",
-        "kind": "local"
-      },
-      {
         "label": "Mandinka",
         "kind": "english"
-      },
-      {
-        "label": "曼丁哥语",
-        "kind": "alias"
-      },
-      {
-        "label": "Mandingo",
-        "kind": "alias"
-      },
-      {
-        "label": "mandingue",
-        "kind": "alias"
       }
     ],
     "kdr": [
@@ -54830,6 +54871,10 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Schan",
         "kind": "local"
+      },
+      {
+        "label": "တႆး",
+        "kind": "native"
       },
       {
         "label": "Shan",

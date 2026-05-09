@@ -18,7 +18,9 @@ export interface UseVoiceAgentModeControllerParams {
   dictationPipeline: unknown | undefined;
   safeModeRef: React.RefObject<boolean>;
   sessionRef: React.RefObject<{ id: string }>;
-  executeActionRef: React.RefObject<(actionId: ActionId, params?: { segmentIndex?: number }) => void>;
+  executeActionRef: React.RefObject<
+    (actionId: ActionId, params?: { segmentIndex?: number }) => void
+  >;
   loadIntentRouterRuntime: typeof LoadIntentRouterRuntimeFn;
   clearInteractionPrompts: () => void;
   startDictationPipeline: () => void;
@@ -27,12 +29,14 @@ export interface UseVoiceAgentModeControllerParams {
   setInterimText: (text: string) => void;
   setAgentState: (state: VoiceAgentState['agentState']) => void;
   setDisambiguationOptions: (options: ActionIntent[]) => void;
-  setPendingConfirm: (confirm: {
-    actionId: ActionId;
-    label: string;
-    fromFuzzy?: boolean;
-    params?: { segmentIndex?: number };
-  } | null) => void;
+  setPendingConfirm: (
+    confirm: {
+      actionId: ActionId;
+      label: string;
+      fromFuzzy?: boolean;
+      params?: { segmentIndex?: number };
+    } | null,
+  ) => void;
 }
 
 export function useVoiceAgentModeController({
@@ -57,52 +61,76 @@ export function useVoiceAgentModeController({
     Earcon.playTick();
   }, [clearInteractionPrompts]);
 
-  const selectDisambiguation = useCallback((chosen: ActionIntent) => {
-    void (async () => {
-      setDisambiguationOptions([]);
-      const intentRouter = await loadIntentRouterRuntime();
-      const needsConfirm = intentRouter.shouldConfirmFuzzyAction(chosen.actionId)
-        || (safeModeRef.current && intentRouter.isDestructiveAction(chosen.actionId));
-      if (needsConfirm) {
-        setPendingConfirm({
-          actionId: chosen.actionId,
-          label: getActionLabel(chosen.actionId, locale),
-          fromFuzzy: true,
-          ...(chosen.params !== undefined ? { params: chosen.params } : {}),
-        });
-        Earcon.playTick();
-        setAgentState('idle');
-        return;
-      }
+  const selectDisambiguation = useCallback(
+    (chosen: ActionIntent) => {
+      void (async () => {
+        setDisambiguationOptions([]);
+        const intentRouter = await loadIntentRouterRuntime();
+        const needsConfirm =
+          intentRouter.shouldConfirmFuzzyAction(chosen.actionId) ||
+          (safeModeRef.current && intentRouter.isDestructiveAction(chosen.actionId));
+        if (needsConfirm) {
+          setPendingConfirm({
+            actionId: chosen.actionId,
+            label: getActionLabel(chosen.actionId, locale),
+            fromFuzzy: true,
+            ...(chosen.params !== undefined ? { params: chosen.params } : {}),
+          });
+          Earcon.playTick();
+          setAgentState('idle');
+          return;
+        }
 
-      setPendingConfirm(null);
-      executeActionRef.current(chosen.actionId, chosen.params);
-      applyVoiceConfirmedPendingTelemetry({
-        actionId: chosen.actionId,
-        sessionId: sessionRef.current.id,
-        inputModality: 'voice',
-      });
-      setAgentState('idle');
-    })();
-  }, [executeActionRef, loadIntentRouterRuntime, locale, safeModeRef, sessionRef, setAgentState, setDisambiguationOptions, setPendingConfirm]);
+        setPendingConfirm(null);
+        executeActionRef.current(chosen.actionId, chosen.params);
+        applyVoiceConfirmedPendingTelemetry({
+          actionId: chosen.actionId,
+          sessionId: sessionRef.current.id,
+          inputModality: 'voice',
+        });
+        setAgentState('idle');
+      })();
+    },
+    [
+      executeActionRef,
+      loadIntentRouterRuntime,
+      locale,
+      safeModeRef,
+      sessionRef,
+      setAgentState,
+      setDisambiguationOptions,
+      setPendingConfirm,
+    ],
+  );
 
   const dismissDisambiguation = useCallback(() => {
     setDisambiguationOptions([]);
     setPendingConfirm(null);
-  }, []);
+  }, [setDisambiguationOptions, setPendingConfirm]);
 
-  const switchMode = useCallback((newMode: VoiceAgentMode) => {
-    if (newMode === 'dictation') {
-      if (listening && dictationPipeline) {
-        startDictationPipeline();
+  const switchMode = useCallback(
+    (newMode: VoiceAgentMode) => {
+      if (newMode === 'dictation') {
+        if (listening && dictationPipeline) {
+          startDictationPipeline();
+        }
+      } else {
+        stopDictationPipeline();
       }
-    } else {
-      stopDictationPipeline();
-    }
-    setMode(newMode);
-    clearInteractionPrompts();
-    setInterimText('');
-  }, [clearInteractionPrompts, dictationPipeline, listening, startDictationPipeline, stopDictationPipeline]);
+      setMode(newMode);
+      clearInteractionPrompts();
+      setInterimText('');
+    },
+    [
+      clearInteractionPrompts,
+      dictationPipeline,
+      listening,
+      setInterimText,
+      setMode,
+      startDictationPipeline,
+      stopDictationPipeline,
+    ],
+  );
 
   return {
     cancelPending,
