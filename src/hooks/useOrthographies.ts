@@ -119,10 +119,10 @@ function mergeOrthographyRows(
 export function useOrthographies(languageIds: readonly string[]): OrthographyDocType[] {
   const [orthographies, setOrthographies] = useState<OrthographyDocType[]>([]);
   const languageIdsKey = useMemo(() => languageIds.join('\u0000'), [languageIds]);
-  const normalizedLanguageIds = useMemo(
-    () => normalizeLanguageIds(languageIdsKey.length > 0 ? languageIdsKey.split('\u0000') : []),
-    [languageIdsKey],
-  );
+  const normalizedLanguageIds = useMemo(() => {
+    void languageIdsKey;
+    return normalizeLanguageIds(languageIds);
+  }, [languageIds, languageIdsKey]);
   const resolvedLanguageIds = useMemo(
     () => expandOrthographyLanguageIds(normalizedLanguageIds),
     [normalizedLanguageIds],
