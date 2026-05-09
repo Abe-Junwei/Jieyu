@@ -43,9 +43,7 @@ export type M41Outcome = {
   skippedPreExistingSegmentCertainty: number;
 };
 
-export async function upgradeM41SelfCertaintyHostDepollute(
-  tx: Transaction,
-): Promise<M41Outcome> {
+export async function upgradeM41SelfCertaintyHostDepollute(tx: Transaction): Promise<M41Outcome> {
   const outcome: M41Outcome = {
     scannedCanonicalUnits: 0,
     touchedSegments: 0,
@@ -54,7 +52,6 @@ export async function upgradeM41SelfCertaintyHostDepollute(
   };
 
   const layerUnitsTable = tx.table<LayerUnitDocType>('layer_units');
-  if (!layerUnitsTable) return outcome;
 
   const allRows = await layerUnitsTable.toArray();
   if (allRows.length === 0) return outcome;
@@ -68,7 +65,7 @@ export async function upgradeM41SelfCertaintyHostDepollute(
     if (row.unitType !== 'segment') continue;
     const parentId = typeof row.parentUnitId === 'string' ? row.parentUnitId.trim() : '';
     const layerId = typeof row.layerId === 'string' ? row.layerId.trim() : '';
-    if (!parentId || !layerId) continue;
+    if (parentId.length === 0 || layerId.length === 0) continue;
     let byLayer = segmentsByParentByLayer.get(parentId);
     if (!byLayer) {
       byLayer = new Map();
@@ -84,7 +81,7 @@ export async function upgradeM41SelfCertaintyHostDepollute(
 
   for (const host of allRows) {
     if (host.unitType === 'segment') continue;
-    if (!host.selfCertainty) continue;
+    if (host.selfCertainty === undefined) continue;
     outcome.scannedCanonicalUnits += 1;
 
     const byLayer = segmentsByParentByLayer.get(host.id);

@@ -48,7 +48,8 @@ const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     module: 'speaker-routing',
     kind: 'counter',
     unit: 'count',
-    description: 'Count of speaker assignment operations that target mixed segment + standalone unit selections.',
+    description:
+      'Count of speaker assignment operations that target mixed segment + standalone unit selections.',
   },
   {
     id: 'parent_fallback_attempt_total',
@@ -64,7 +65,8 @@ const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     module: 'parent-fallback-governance',
     kind: 'counter',
     unit: 'count',
-    description: 'Count of parent fallback resolutions where more than one overlapping parent candidate was considered (true ambiguity).',
+    description:
+      'Count of parent fallback resolutions where more than one overlapping parent candidate was considered (true ambiguity).',
   },
   {
     id: 'blocked_write_without_explicit_target_total',
@@ -72,7 +74,8 @@ const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     module: 'parent-fallback-governance',
     kind: 'counter',
     unit: 'count',
-    description: 'Count of AI write attempts blocked because no explicit writable target is available.',
+    description:
+      'Count of AI write attempts blocked because no explicit writable target is available.',
   },
   {
     id: 'business.collaboration.conflict_resolved_count',
@@ -122,7 +125,8 @@ const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     module: 'local-context-tools',
     kind: 'counter',
     unit: 'count',
-    description: 'Local context tool JSON formatted for the model exceeded the char budget and was truncated.',
+    description:
+      'Local context tool JSON formatted for the model exceeded the char budget and was truncated.',
   },
   {
     id: 'ai.rag_citation_read_model_miss',
@@ -130,7 +134,8 @@ const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     module: 'ai-chat-rag',
     kind: 'counter',
     unit: 'count',
-    description: 'RAG unit citation refId was not present in localUnitIndex at retrieval (possible stale embedding hit).',
+    description:
+      'RAG unit citation refId was not present in localUnitIndex at retrieval (possible stale embedding hit).',
   },
   {
     id: 'ai.list_units_snapshot_created',
@@ -162,7 +167,8 @@ const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     module: 'ai-chat',
     kind: 'counter',
     unit: 'count',
-    description: 'Local tool execution was paused to request clarification for ambiguous metric/query/target.',
+    description:
+      'Local tool execution was paused to request clarification for ambiguous metric/query/target.',
   },
   // ─── AI trace span 指标 | AI trace span metrics ───────────────────────
   {
@@ -221,7 +227,8 @@ const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     module: 'otel-bootstrap',
     kind: 'counter',
     unit: 'count',
-    description: 'Count of OTel bootstrap failures (missing runtime exports / init exceptions / register unavailable).',
+    description:
+      'Count of OTel bootstrap failures (missing runtime exports / init exceptions / register unavailable).',
   },
   {
     id: 'ai.trace.otel_circuit_open_count',
@@ -266,22 +273,26 @@ export function isKnownMetricId(id: string): boolean {
 
 function normalizeMetricEnvironment(rawValue: string | undefined): string {
   const normalized = rawValue?.trim().toLowerCase();
-  if (!normalized) return import.meta.env.DEV ? 'local' : 'prod';
+  if (normalized === undefined || normalized.length === 0)
+    return import.meta.env.DEV ? 'local' : 'prod';
   if (normalized === 'development' || normalized === 'dev') return 'local';
   if (normalized === 'production') return 'prod';
   return normalized;
 }
 
 function getMetricEnvironmentTag(): string {
-  return normalizeMetricEnvironment(import.meta.env.VITE_M5_OBSERVABILITY_ENV ?? import.meta.env.MODE);
+  return normalizeMetricEnvironment(
+    import.meta.env.VITE_M5_OBSERVABILITY_ENV ?? import.meta.env.MODE,
+  );
 }
 
 export function getMetricVersionTag(): string {
   const envVersion = import.meta.env.VITE_APP_VERSION?.trim();
-  if (envVersion) return envVersion;
+  if (envVersion !== undefined && envVersion.length > 0) return envVersion;
   const sentryRelease = import.meta.env.VITE_SENTRY_RELEASE?.trim();
-  if (sentryRelease) return sentryRelease;
-  if (typeof __APP_VERSION__ === 'string' && __APP_VERSION__.trim()) return __APP_VERSION__.trim();
+  if (sentryRelease !== undefined && sentryRelease.length > 0) return sentryRelease;
+  if (typeof __APP_VERSION__ === 'string' && __APP_VERSION__.trim().length > 0)
+    return __APP_VERSION__.trim();
   return '0.0.0-dev';
 }
 
@@ -318,7 +329,11 @@ export function recordMetric(input: Omit<MetricEvent, 'at'> & { at?: string }): 
   return event;
 }
 
-export function recordDurationMetric(id: string, startedAtMs: number, tags?: MetricTags): MetricEvent {
+export function recordDurationMetric(
+  id: string,
+  startedAtMs: number,
+  tags?: MetricTags,
+): MetricEvent {
   const durationMs = Math.max(0, Math.round(performance.now() - startedAtMs));
   return recordMetric({
     id,
@@ -341,7 +356,10 @@ export function startMetricTimer(id: string, tags?: MetricTags): () => MetricEve
 
 function quantile(sortedValues: number[], ratio: number): number {
   if (sortedValues.length === 0) return 0;
-  const index = Math.min(sortedValues.length - 1, Math.max(0, Math.ceil(ratio * sortedValues.length) - 1));
+  const index = Math.min(
+    sortedValues.length - 1,
+    Math.max(0, Math.ceil(ratio * sortedValues.length) - 1),
+  );
   return sortedValues[index] ?? 0;
 }
 

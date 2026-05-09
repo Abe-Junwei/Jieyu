@@ -59,10 +59,11 @@ export const ContextMenu = memo(function ContextMenu({
   const submenuRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [position, setPosition] = useState(() => ({ left: x, top: y }));
   const [submenus, setSubmenus] = useState<OpenSubmenu[]>([]);
-  const [layoutVersion, setLayoutVersion] = useState(0);
+  /** 主菜单定位 `useLayoutEffect` 依赖此 tick；勿再用于子菜单「测宽后二次 setSubmenus」循环（曾触发 #185） */
+  const [layoutTick, setLayoutTick] = useState(0);
 
   const requestLayoutRecalc = () => {
-    setLayoutVersion((prev) => prev + 1);
+    setLayoutTick((prev) => prev + 1);
   };
 
   const getItemAtPath = useCallback(
@@ -95,8 +96,8 @@ export const ContextMenu = memo(function ContextMenu({
       const next = prev.filter((submenu) => getChildrenAtPath(submenu.path).length > 0);
       return next.length === prev.length ? prev : next;
     });
-    requestLayoutRecalc();
-  }, [getChildrenAtPath, items]);
+    // 不在此 effect 无条件 `requestLayoutRecalc`：会和 `items` / `getChildrenAtPath` 抖动叠加成连环 setState。
+  }, [getChildrenAtPath]);
 
   useEffect(() => {
     const handleWindowChange = () => {
@@ -126,7 +127,7 @@ export const ContextMenu = memo(function ContextMenu({
       left: Math.min(Math.max(margin, x), maxLeft),
       top: Math.min(Math.max(margin, anchoredTop), maxTop),
     });
-  }, [anchorOrigin, x, y, items.length]);
+  }, [anchorOrigin, x, y, items.length, layoutTick]);
 
   const computeSubmenuPosition = (anchorEl: HTMLElement, panel: HTMLDivElement | null) => {
     const margin = 8;
@@ -149,31 +150,11 @@ export const ContextMenu = memo(function ContextMenu({
     const maxTop = window.innerHeight - measuredHeight - margin;
     const top = Math.min(Math.max(margin, preferTop), Math.max(margin, maxTop));
 
-    return { left, top };
+    return { left: Math.round(left), top: Math.round(top) };
   };
 
-  useLayoutEffect(() => {
-    if (submenus.length === 0) return;
-    setSubmenus((prev) => {
-      let changed = false;
-      const next: OpenSubmenu[] = [];
-      prev.forEach((submenu, index) => {
-        if (getChildrenAtPath(submenu.path).length === 0) {
-          changed = true;
-          return;
-        }
-        const panel = submenuRefs.current[index] ?? null;
-        const position = computeSubmenuPosition(submenu.anchorEl, panel);
-        if (position.left !== submenu.left || position.top !== submenu.top) {
-          changed = true;
-          next.push({ ...submenu, ...position });
-          return;
-        }
-        next.push(submenu);
-      });
-      return changed ? next : prev;
-    });
-  }, [getChildrenAtPath, layoutVersion, submenus.length, items]);
+  // 子菜单不再做「panel 实测尺寸后二次 setSubmenus」的 layout 环：首开时 ref 由 0→实测宽会触发
+  // React #185。位置以 `computeSubmenuPosition(anchorEl, panel)` 初算为准（panel 空时用 fallback 尺寸）。
 
   const openSubmenuForItem = (itemPath: number[], target: HTMLElement, depth: number) => {
     const children = getChildrenAtPath(itemPath);

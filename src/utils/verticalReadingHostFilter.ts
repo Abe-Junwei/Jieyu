@@ -23,7 +23,7 @@ function resolveOrphanTranslationAttachTranscriptionLayerId(
   defaultTranscriptionLayerId: string | undefined,
 ): string | undefined {
   const d = defaultTranscriptionLayerId?.trim();
-  if (d && transcriptionLayers.some((l) => l.id === d)) return d;
+  if (d !== undefined && d.length > 0 && transcriptionLayers.some((l) => l.id === d)) return d;
   return transcriptionLayers[0]?.id;
 }
 
@@ -54,9 +54,9 @@ function expandTranscriptionSourceIdsWithTreeParents(
   const next = new Set<string>();
   for (const raw of seed) {
     const id = raw.trim();
-    if (id) next.add(id);
+    if (id.length > 0) next.add(id);
   }
-  if (!transcriptionLayers.length) return next;
+  if (transcriptionLayers.length === 0) return next;
 
   const laneIds = new Set(transcriptionLayers.map((l) => l.id));
   const layerById = new Map(transcriptionLayers.map((l) => [l.id, l] as const));
@@ -65,11 +65,11 @@ function expandTranscriptionSourceIdsWithTreeParents(
     expanded.add(rawId);
     let cur: LayerDocType | undefined = layerById.get(rawId);
     const guard = new Set<string>();
-    for (let i = 0; i < 64 && cur && cur.layerType === 'transcription'; i += 1) {
+    for (let i = 0; i < 64 && cur !== undefined && cur.layerType === 'transcription'; i += 1) {
       if (guard.has(cur.id)) break;
       guard.add(cur.id);
       const p = layerTranscriptionTreeParentId(cur)?.trim() ?? '';
-      if (!p || !laneIds.has(p)) break;
+      if (p.length === 0 || !laneIds.has(p)) break;
       expanded.add(p);
       cur = layerById.get(p);
     }
@@ -103,7 +103,7 @@ function translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
     return false;
   }
   if (transcriptionLayerCount <= 1) return true;
-  if (!orphanAttachLayerId) return false;
+  if (orphanAttachLayerId === undefined || orphanAttachLayerId.length === 0) return false;
   return sourceTranscriptionIds.has(orphanAttachLayerId);
 }
 
@@ -114,11 +114,11 @@ function collectVerticalReadingGroupSourceTranscriptionLayerIds(
   const sourceIds = new Set<string>();
   for (const si of group.sourceItems) {
     const id = si.layerId?.trim();
-    if (id) sourceIds.add(id);
+    if (id !== undefined && id.length > 0) sourceIds.add(id);
   }
   if (sourceIds.size === 0) {
     const primary = group.primaryAnchorLayerId?.trim();
-    if (primary) sourceIds.add(primary);
+    if (primary !== undefined && primary.length > 0) sourceIds.add(primary);
   }
   return expandTranscriptionSourceIdsWithTreeParents(sourceIds, transcriptionLayers ?? []);
 }
@@ -141,13 +141,15 @@ export function filterTranslationLayersForVerticalReadingSourceUnit(
     id: `__paired-reading-scope:${unit.id}`,
     startTime: unit.startTime,
     endTime: unit.endTime,
-    sourceItems: [{
-      unitId: unit.id,
-      text: '',
-      startTime: unit.startTime,
-      endTime: unit.endTime,
-      ...(layerId.length > 0 ? { layerId } : {}),
-    }],
+    sourceItems: [
+      {
+        unitId: unit.id,
+        text: '',
+        startTime: unit.startTime,
+        endTime: unit.endTime,
+        ...(layerId.length > 0 ? { layerId } : {}),
+      },
+    ],
     targetItems: [],
     speakerSummary: '',
     primaryAnchorUnitId: unit.id,
@@ -182,18 +184,23 @@ export function filterTranslationLayersForVerticalReadingGroup(
     transcriptionLayers,
     defaultTranscriptionLayerId,
   );
-  const sourceIds = collectVerticalReadingGroupSourceTranscriptionLayerIds(group, transcriptionLayers);
+  const sourceIds = collectVerticalReadingGroupSourceTranscriptionLayerIds(
+    group,
+    transcriptionLayers,
+  );
   if (sourceIds.size === 0) {
     return [...translationLayers];
   }
-  return translationLayers.filter((tl) => translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
-    tl,
-    sourceIds,
-    transcriptionLayerCount,
-    orphanAttach,
-    linksByTranslationLayerId,
-    transcriptionIdByKey,
-  ));
+  return translationLayers.filter((tl) =>
+    translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
+      tl,
+      sourceIds,
+      transcriptionLayerCount,
+      orphanAttach,
+      linksByTranslationLayerId,
+      transcriptionIdByKey,
+    ),
+  );
 }
 
 export function resolveVerticalReadingGroupEmptyReason(
@@ -213,7 +220,9 @@ export function resolveVerticalReadingGroupEmptyReason(
   const hasOrphanLayer = translationLayers.some((layer) => {
     const links = linksByTranslationLayerId.get(layer.id) ?? [];
     if (links.length > 0) {
-      const hasHost = links.some((link) => resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey).length > 0);
+      const hasHost = links.some(
+        (link) => resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey).length > 0,
+      );
       return !hasHost;
     }
     return true;
@@ -223,12 +232,18 @@ export function resolveVerticalReadingGroupEmptyReason(
     transcriptionLayers,
     defaultTranscriptionLayerId,
   );
-  if (!orphanAttachLayerId) return 'no-child';
-  let sourceIds = collectVerticalReadingGroupSourceTranscriptionLayerIds(group, transcriptionLayers);
+  if (orphanAttachLayerId === undefined || orphanAttachLayerId.length === 0) return 'no-child';
+  let sourceIds = collectVerticalReadingGroupSourceTranscriptionLayerIds(
+    group,
+    transcriptionLayers,
+  );
   if (sourceIds.size === 0) {
     const fallbackSourceLayerId = fallbackFocusedTranscriptionLayerId?.trim();
-    if (fallbackSourceLayerId) {
-      sourceIds = expandTranscriptionSourceIdsWithTreeParents(new Set([fallbackSourceLayerId]), transcriptionLayers);
+    if (fallbackSourceLayerId !== undefined && fallbackSourceLayerId.length > 0) {
+      sourceIds = expandTranscriptionSourceIdsWithTreeParents(
+        new Set([fallbackSourceLayerId]),
+        transcriptionLayers,
+      );
     }
   }
   if (sourceIds.size === 0) return 'no-child';

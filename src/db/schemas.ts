@@ -5,8 +5,54 @@ import { z } from 'zod';
 import { annotationAnalysisGraphFixtureSchema } from '../annotation/analysisGraph';
 import { structuralRuleProfileSchema } from '../annotation/structuralRuleProfile';
 import { UNIT_SELF_CERTAINTY_VALUES } from '../utils/unitSelfCertainty';
-import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, ProjectAiMemoryDoc, McpToolCallAuditDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType, AiSourceSetDoc } from './types';
-
+import type {
+  TextDocType,
+  MediaItemDocType,
+  LayerUnitDocType,
+  UnitTokenDocType,
+  UnitMorphemeDocType,
+  AnchorDocType,
+  LexemeDocType,
+  TokenLexemeLinkDocType,
+  AiTaskDoc,
+  EmbeddingDoc,
+  AiConversationDoc,
+  AiMessageDoc,
+  ProjectAiMemoryDoc,
+  McpToolCallAuditDoc,
+  LanguageDocType,
+  LanguageDisplayNameDocType,
+  LanguageAliasDocType,
+  LanguageCatalogHistoryDocType,
+  CustomFieldDefinitionDocType,
+  SpeakerDocType,
+  OrthographyDocType,
+  OrthographyBridgeDocType,
+  LocationDocType,
+  BibliographicSourceDocType,
+  GrammarDocDocType,
+  AbbreviationDocType,
+  StructuralRuleProfileAssetDocType,
+  PhonemeDocType,
+  TagDefinitionDocType,
+  LayerDocType,
+  LayerUnitContentDocType,
+  UnitRelationDocType,
+  LayerLinkDocType,
+  TierDefinitionDocType,
+  TierAnnotationDocType,
+  AuditLogDocType,
+  UserNoteDocType,
+  SegmentMetaDocType,
+  SegmentQualitySnapshotDocType,
+  ScopeStatsSnapshotDocType,
+  SpeakerProfileSnapshotDocType,
+  TranslationStatusSnapshotDocType,
+  LanguageAssetOverviewDocType,
+  AiTaskSnapshotDocType,
+  TrackEntityDocType,
+  AiSourceSetDoc,
+} from './types';
 
 export const isoDateSchema = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
   message: 'Expected ISO date-time string',
@@ -155,7 +201,14 @@ const tokenLexemeLinkDocSchema = z.object({
 });
 
 const aiTaskStatusSchema = z.enum(['pending', 'running', 'done', 'failed']);
-const aiTaskTypeSchema = z.enum(['transcribe', 'gloss', 'translate', 'embed', 'detect_language', 'agent_loop']);
+const aiTaskTypeSchema = z.enum([
+  'transcribe',
+  'gloss',
+  'translate',
+  'embed',
+  'detect_language',
+  'agent_loop',
+]);
 
 const aiTaskDocSchema = z.object({
   id: z.string().min(1),
@@ -178,7 +231,15 @@ const aiTaskDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
-const embeddingSourceTypeSchema = z.enum(['unit', 'token', 'morpheme', 'lexeme', 'note', 'pdf', 'schema']);
+const embeddingSourceTypeSchema = z.enum([
+  'unit',
+  'token',
+  'morpheme',
+  'lexeme',
+  'note',
+  'pdf',
+  'schema',
+]);
 
 const embeddingDocSchema = z.object({
   id: z.string().min(1),
@@ -298,10 +359,23 @@ const mcpToolCallAuditDocSchema = z.object({
   errorDataJson: z.string().optional(),
 });
 
-const languageCatalogSourceTypeSchema = z.enum(['built-in-generated', 'built-in-reviewed', 'user-override', 'user-custom']);
+const languageCatalogSourceTypeSchema = z.enum([
+  'built-in-generated',
+  'built-in-reviewed',
+  'user-override',
+  'user-custom',
+]);
 const languageCatalogReviewStatusSchema = z.enum(['needs-review', 'verified']);
 const languageCatalogVisibilitySchema = z.enum(['visible', 'hidden']);
-const languageDisplayNameRoleSchema = z.enum(['preferred', 'autonym', 'exonym', 'historical', 'menu', 'academic', 'search']);
+const languageDisplayNameRoleSchema = z.enum([
+  'preferred',
+  'autonym',
+  'exonym',
+  'historical',
+  'menu',
+  'academic',
+  'search',
+]);
 const languageAliasTypeSchema = z.enum(['search', 'display', 'legacy', 'short', 'variant']);
 const languageCatalogHistoryActionSchema = z.enum(['create', 'update', 'delete']);
 
@@ -322,7 +396,9 @@ const languageDocSchema = z.object({
   genus: z.string().optional(),
   classificationPath: z.string().optional(),
   modality: z.enum(['spoken', 'signed', 'written', 'mixed']).optional(),
-  languageType: z.enum(['living', 'historical', 'extinct', 'ancient', 'constructed', 'special']).optional(),
+  languageType: z
+    .enum(['living', 'historical', 'extinct', 'ancient', 'constructed', 'special'])
+    .optional(),
   endangermentLevel: z
     .enum([
       'safe',
@@ -333,7 +409,9 @@ const languageDocSchema = z.object({
       'extinct',
     ])
     .optional(),
-  aesStatus: z.enum(['not_endangered', 'threatened', 'shifting', 'moribund', 'nearly_extinct', 'extinct']).optional(),
+  aesStatus: z
+    .enum(['not_endangered', 'threatened', 'shifting', 'moribund', 'nearly_extinct', 'extinct'])
+    .optional(),
   endangermentSource: z.string().optional(),
   endangermentAssessmentYear: z.number().int().optional(),
   speakerCountL1: z.number().int().nonnegative().optional(),
@@ -343,21 +421,35 @@ const languageDocSchema = z.object({
   speakerTrend: z.enum(['growing', 'stable', 'shrinking', 'unknown']).optional(),
   countries: z.array(z.string().min(1)).optional(),
   countriesOfficial: z.array(z.string().min(1)).optional(),
-  macroarea: z.enum(['Africa', 'Eurasia', 'Papunesia', 'Australia', 'North America', 'South America']).optional(),
-  administrativeDivisions: z.array(z.object({
-    country: z.string().optional(),
-    province: z.string().optional(),
-    city: z.string().optional(),
-    county: z.string().optional(),
-    township: z.string().optional(),
-    village: z.string().optional(),
-    freeText: z.string().optional(),
-  })).optional(),
-  intergenerationalTransmission: z.enum(['all_ages', 'adults_only', 'elderly_only', 'very_few', 'none']).optional(),
-  domains: z.array(z.enum(['home', 'education', 'government', 'media', 'religion', 'commerce', 'literature'])).optional(),
+  macroarea: z
+    .enum(['Africa', 'Eurasia', 'Papunesia', 'Australia', 'North America', 'South America'])
+    .optional(),
+  administrativeDivisions: z
+    .array(
+      z.object({
+        country: z.string().optional(),
+        province: z.string().optional(),
+        city: z.string().optional(),
+        county: z.string().optional(),
+        township: z.string().optional(),
+        village: z.string().optional(),
+        freeText: z.string().optional(),
+      }),
+    )
+    .optional(),
+  intergenerationalTransmission: z
+    .enum(['all_ages', 'adults_only', 'elderly_only', 'very_few', 'none'])
+    .optional(),
+  domains: z
+    .array(
+      z.enum(['home', 'education', 'government', 'media', 'religion', 'commerce', 'literature']),
+    )
+    .optional(),
   officialStatus: z.enum(['national', 'regional', 'recognized_minority', 'none']).optional(),
   egids: z.string().optional(),
-  documentationLevel: z.enum(['undocumented', 'marginally', 'fragmentary', 'fair', 'well_documented']).optional(),
+  documentationLevel: z
+    .enum(['undocumented', 'marginally', 'fragmentary', 'fair', 'well_documented'])
+    .optional(),
   dialects: z.array(z.string().min(1)).optional(),
   writingSystems: z.array(z.string().min(1)).optional(),
   literacyRate: z.number().min(0).max(100).optional(),
@@ -366,12 +458,21 @@ const languageDocSchema = z.object({
   reviewStatus: languageCatalogReviewStatusSchema.optional(),
   visibility: languageCatalogVisibilitySchema.optional(),
   notes: multiLangStringSchema.optional(),
-  customFields: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.string())])).optional(),
+  customFields: z
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]))
+    .optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
 
-const customFieldValueTypeSchema = z.enum(['text', 'number', 'boolean', 'select', 'multiselect', 'url']);
+const customFieldValueTypeSchema = z.enum([
+  'text',
+  'number',
+  'boolean',
+  'select',
+  'multiselect',
+  'url',
+]);
 
 const customFieldDefinitionDocSchema = z.object({
   id: z.string().min(1),
@@ -452,44 +553,60 @@ const speakerDocSchema = z.object({
 });
 
 const orthographyDirectionSchema = z.enum(['ltr', 'rtl', 'ttb', 'btt']);
-const orthographyExemplarCharactersSchema = z.object({
-  main: z.array(z.string()).optional(),
-  auxiliary: z.array(z.string()).optional(),
-  numbers: z.array(z.string()).optional(),
-  punctuation: z.array(z.string()).optional(),
-  index: z.array(z.string()).optional(),
-}).optional();
-const orthographyNormalizationSchema = z.object({
-  form: z.enum(['NFC', 'NFD', 'NFKC', 'NFKD']).optional(),
-  caseSensitive: z.boolean().optional(),
-  stripDefaultIgnorables: z.boolean().optional(),
-}).optional();
-const orthographyCollationSchema = z.object({
-  base: z.string().optional(),
-  customRules: z.string().optional(),
-}).optional();
-const orthographyFontPreferencesSchema = z.object({
-  primary: z.array(z.string()).optional(),
-  fallback: z.array(z.string()).optional(),
-  mono: z.array(z.string()).optional(),
-  lineHeightScale: z.number().positive().optional(),
-  sizeAdjust: z.number().positive().optional(),
-}).optional();
-const orthographyInputHintsSchema = z.object({
-  keyboardLayout: z.string().optional(),
-  imeId: z.string().optional(),
-  deadKeys: z.array(z.string()).optional(),
-}).optional();
-const orthographyBidiPolicySchema = z.object({
-  isolateInlineRuns: z.boolean().optional(),
-  preferDirAttribute: z.boolean().optional(),
-}).optional();
+const orthographyExemplarCharactersSchema = z
+  .object({
+    main: z.array(z.string()).optional(),
+    auxiliary: z.array(z.string()).optional(),
+    numbers: z.array(z.string()).optional(),
+    punctuation: z.array(z.string()).optional(),
+    index: z.array(z.string()).optional(),
+  })
+  .optional();
+const orthographyNormalizationSchema = z
+  .object({
+    form: z.enum(['NFC', 'NFD', 'NFKC', 'NFKD']).optional(),
+    caseSensitive: z.boolean().optional(),
+    stripDefaultIgnorables: z.boolean().optional(),
+  })
+  .optional();
+const orthographyCollationSchema = z
+  .object({
+    base: z.string().optional(),
+    customRules: z.string().optional(),
+  })
+  .optional();
+const orthographyFontPreferencesSchema = z
+  .object({
+    primary: z.array(z.string()).optional(),
+    fallback: z.array(z.string()).optional(),
+    mono: z.array(z.string()).optional(),
+    lineHeightScale: z.number().positive().optional(),
+    sizeAdjust: z.number().positive().optional(),
+  })
+  .optional();
+const orthographyInputHintsSchema = z
+  .object({
+    keyboardLayout: z.string().optional(),
+    imeId: z.string().optional(),
+    deadKeys: z.array(z.string()).optional(),
+  })
+  .optional();
+const orthographyBidiPolicySchema = z
+  .object({
+    isolateInlineRuns: z.boolean().optional(),
+    preferDirAttribute: z.boolean().optional(),
+  })
+  .optional();
 const orthographyBridgeEngineSchema = z.enum(['table-map', 'icu-rule', 'manual']);
 const orthographyBridgeRulesSchema = z.object({
-  mappings: z.array(z.object({
-    from: z.string(),
-    to: z.string(),
-  })).optional(),
+  mappings: z
+    .array(
+      z.object({
+        from: z.string(),
+        to: z.string(),
+      }),
+    )
+    .optional(),
   ruleText: z.string().optional(),
   normalizeInput: z.enum(['NFC', 'NFD', 'NFKC', 'NFKD']).optional(),
   normalizeOutput: z.enum(['NFC', 'NFD', 'NFKC', 'NFKD']).optional(),
@@ -504,10 +621,14 @@ const orthographyBridgeDocSchema = z.object({
   rules: orthographyBridgeRulesSchema,
   sampleInput: z.string().optional(),
   sampleOutput: z.string().optional(),
-  sampleCases: z.array(z.object({
-    input: z.string(),
-    expectedOutput: z.string().optional(),
-  })).optional(),
+  sampleCases: z
+    .array(
+      z.object({
+        input: z.string(),
+        expectedOutput: z.string().optional(),
+      }),
+    )
+    .optional(),
   isReversible: z.boolean().optional(),
   status: z.enum(['draft', 'active', 'deprecated']).optional(),
   notes: multiLangStringSchema.optional(),
@@ -521,13 +642,24 @@ const orthographyDocSchema = z.object({
   abbreviation: z.string().optional(),
   languageId: z.string().optional(),
   type: z.enum(['phonemic', 'phonetic', 'practical', 'historical', 'other']).optional(),
-  catalogMetadata: z.object({
-    catalogSource: z.enum(['user', 'built-in-reviewed', 'built-in-generated']).optional(),
-    source: z.string().optional(),
-    reviewStatus: z.enum(['needs-review', 'verified-primary', 'verified-secondary', 'historical', 'legacy', 'experimental']).optional(),
-    priority: z.enum(['primary', 'secondary']).optional(),
-    seedKind: z.string().optional(),
-  }).optional(),
+  catalogMetadata: z
+    .object({
+      catalogSource: z.enum(['user', 'built-in-reviewed', 'built-in-generated']).optional(),
+      source: z.string().optional(),
+      reviewStatus: z
+        .enum([
+          'needs-review',
+          'verified-primary',
+          'verified-secondary',
+          'historical',
+          'legacy',
+          'experimental',
+        ])
+        .optional(),
+      priority: z.enum(['primary', 'secondary']).optional(),
+      seedKind: z.string().optional(),
+    })
+    .optional(),
   scriptTag: z.string().optional(),
   localeTag: z.string().optional(),
   regionTag: z.string().optional(),
@@ -589,39 +721,43 @@ const abbreviationDocSchema = z.object({
   id: z.string().min(1),
   abbreviation: z.string().min(1),
   name: multiLangStringSchema,
-  category: z.enum(['person', 'number', 'tense', 'aspect', 'mood', 'case', 'voice', 'other']).optional(),
+  category: z
+    .enum(['person', 'number', 'tense', 'aspect', 'mood', 'case', 'voice', 'other'])
+    .optional(),
   isLeipzigStandard: z.boolean().optional(),
   notes: multiLangStringSchema.optional(),
   createdAt: isoDateSchema,
 });
 
-const structuralRuleProfileAssetDocSchema = z.object({
-  id: z.string().min(1),
-  scope: z.enum(['system', 'language', 'project', 'user']),
-  languageId: z.string().min(1).optional(),
-  projectId: z.string().min(1).optional(),
-  enabled: z.boolean(),
-  priority: z.number().int(),
-  profile: structuralRuleProfileSchema,
-  provenance: provenanceSchema.optional(),
-  createdAt: isoDateSchema,
-  updatedAt: isoDateSchema,
-}).superRefine((doc, ctx) => {
-  if (doc.scope === 'language' && !doc.languageId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['languageId'],
-      message: 'language scoped structural rule profile requires languageId',
-    });
-  }
-  if (doc.scope === 'project' && !doc.projectId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['projectId'],
-      message: 'project scoped structural rule profile requires projectId',
-    });
-  }
-});
+const structuralRuleProfileAssetDocSchema = z
+  .object({
+    id: z.string().min(1),
+    scope: z.enum(['system', 'language', 'project', 'user']),
+    languageId: z.string().min(1).optional(),
+    projectId: z.string().min(1).optional(),
+    enabled: z.boolean(),
+    priority: z.number().int(),
+    profile: structuralRuleProfileSchema,
+    provenance: provenanceSchema.optional(),
+    createdAt: isoDateSchema,
+    updatedAt: isoDateSchema,
+  })
+  .superRefine((doc, ctx) => {
+    if (doc.scope === 'language' && (doc.languageId === undefined || doc.languageId.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['languageId'],
+        message: 'language scoped structural rule profile requires languageId',
+      });
+    }
+    if (doc.scope === 'project' && (doc.projectId === undefined || doc.projectId.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['projectId'],
+        message: 'project scoped structural rule profile requires projectId',
+      });
+    }
+  });
 
 const phonemeDocSchema = z.object({
   id: z.string().min(1),
@@ -648,15 +784,21 @@ const tagDefinitionDocSchema = z.object({
   createdAt: isoDateSchema,
 });
 
-const layerConstraintSchema = z.enum(['symbolic_association', 'independent_boundary', 'time_subdivision']);
+const layerConstraintSchema = z.enum([
+  'symbolic_association',
+  'independent_boundary',
+  'time_subdivision',
+]);
 
-const layerDisplaySettingsSchema = z.object({
-  fontFamily: z.string().optional(),
-  fontSize: z.number().positive().optional(),
-  bold: z.boolean().optional(),
-  italic: z.boolean().optional(),
-  color: z.string().optional(),
-}).optional();
+const layerDisplaySettingsSchema = z
+  .object({
+    fontFamily: z.string().optional(),
+    fontSize: z.number().positive().optional(),
+    bold: z.boolean().optional(),
+    italic: z.boolean().optional(),
+    color: z.string().optional(),
+  })
+  .optional();
 
 const layerDocBaseSchema = z.object({
   id: z.string().min(1),
@@ -684,9 +826,11 @@ const transcriptionLayerDocSchema = layerDocBaseSchema.extend({
   parentLayerId: z.string().min(1).optional(),
 });
 
-const translationLayerDocSchema = layerDocBaseSchema.extend({
-  layerType: z.literal('translation'),
-}).strict();
+const translationLayerDocSchema = layerDocBaseSchema
+  .extend({
+    layerType: z.literal('translation'),
+  })
+  .strict();
 
 const layerDocDiscriminatedSchema = z.discriminatedUnion('layerType', [
   transcriptionLayerDocSchema,
@@ -697,8 +841,19 @@ const layerDocDiscriminatedSchema = z.discriminatedUnion('layerType', [
 
 const layerUnitTypeSchema = z.enum(['unit', 'segment']);
 const layerUnitStatusSchema = z.enum(['raw', 'transcribed', 'translated', 'glossed', 'verified']);
-const layerContentRoleSchema = z.enum(['primary_text', 'translation', 'gloss', 'note', 'audio_ref']);
-const unitRelationTypeSchema = z.enum(['aligned_to', 'derived_from', 'linked_reference', 'analysis_graph_candidate']);
+const layerContentRoleSchema = z.enum([
+  'primary_text',
+  'translation',
+  'gloss',
+  'note',
+  'audio_ref',
+]);
+const unitRelationTypeSchema = z.enum([
+  'aligned_to',
+  'derived_from',
+  'linked_reference',
+  'analysis_graph_candidate',
+]);
 
 const layerUnitDocSchema = z
   .object({
@@ -765,61 +920,95 @@ const unitRelationDocSchema = z
   })
   .passthrough()
   .superRefine((doc, ctx) => {
-    if (doc.analysisGraphStatus && doc.relationType !== 'analysis_graph_candidate') {
+    if (doc.analysisGraphStatus !== undefined && doc.relationType !== 'analysis_graph_candidate') {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['analysisGraphStatus'],
         message: 'analysisGraphStatus requires relationType analysis_graph_candidate',
       });
     }
-    if (doc.relationType === 'analysis_graph_candidate' && !doc.analysisGraphCandidate) {
+    if (
+      doc.relationType === 'analysis_graph_candidate' &&
+      (doc.analysisGraphCandidate === undefined || doc.analysisGraphCandidate === null)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['analysisGraphCandidate'],
         message: 'analysis_graph_candidate relation requires analysisGraphCandidate',
       });
     }
-    if (doc.relationType === 'analysis_graph_candidate' && !doc.unitId) {
+    if (
+      doc.relationType === 'analysis_graph_candidate' &&
+      (doc.unitId === undefined || doc.unitId.length === 0)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['unitId'],
         message: 'analysis_graph_candidate relation requires unitId',
       });
     }
-    if (doc.relationType === 'analysis_graph_candidate' && doc.unitId && doc.sourceUnitId && doc.unitId !== doc.sourceUnitId) {
+    if (
+      doc.relationType === 'analysis_graph_candidate' &&
+      doc.unitId !== undefined &&
+      doc.unitId.length > 0 &&
+      doc.sourceUnitId !== undefined &&
+      doc.sourceUnitId.length > 0 &&
+      doc.unitId !== doc.sourceUnitId
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['sourceUnitId'],
         message: 'analysis_graph_candidate sourceUnitId must match unitId',
       });
     }
-    if (doc.relationType === 'analysis_graph_candidate' && doc.analysisGraphCandidate) {
+    if (
+      doc.relationType === 'analysis_graph_candidate' &&
+      doc.analysisGraphCandidate !== undefined &&
+      doc.analysisGraphCandidate !== null
+    ) {
       const parsed = annotationAnalysisGraphFixtureSchema.safeParse(doc.analysisGraphCandidate);
       if (!parsed.success) {
         const first = parsed.error.issues[0];
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['analysisGraphCandidate', ...((first?.path as (string | number)[]) ?? [])],
-          message: first?.message ?? 'analysisGraphCandidate must match annotationAnalysisGraphFixtureSchema',
+          message:
+            first?.message ??
+            'analysisGraphCandidate must match annotationAnalysisGraphFixtureSchema',
         });
       }
     }
     const reviewStatus = doc.provenance?.reviewStatus;
-    if (doc.analysisGraphStatus === 'pending' && reviewStatus && reviewStatus !== 'suggested') {
+    if (
+      doc.analysisGraphStatus === 'pending' &&
+      reviewStatus !== undefined &&
+      reviewStatus.length > 0 &&
+      reviewStatus !== 'suggested'
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['provenance', 'reviewStatus'],
         message: 'pending analysis graph candidate requires suggested reviewStatus',
       });
     }
-    if (doc.analysisGraphStatus === 'accepted' && reviewStatus && reviewStatus !== 'confirmed') {
+    if (
+      doc.analysisGraphStatus === 'accepted' &&
+      reviewStatus !== undefined &&
+      reviewStatus.length > 0 &&
+      reviewStatus !== 'confirmed'
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['provenance', 'reviewStatus'],
         message: 'accepted analysis graph candidate requires confirmed reviewStatus',
       });
     }
-    if (doc.analysisGraphStatus === 'rejected' && reviewStatus && reviewStatus !== 'rejected') {
+    if (
+      doc.analysisGraphStatus === 'rejected' &&
+      reviewStatus !== undefined &&
+      reviewStatus.length > 0 &&
+      reviewStatus !== 'rejected'
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['provenance', 'reviewStatus'],
@@ -828,8 +1017,20 @@ const unitRelationDocSchema = z
     }
   });
 
-const tierTypeSchema = z.enum(['time-aligned', 'time-subdivision', 'symbolic-subdivision', 'symbolic-association']);
-const tierContentTypeSchema = z.enum(['transcription', 'translation', 'gloss', 'pos', 'note', 'custom']);
+const tierTypeSchema = z.enum([
+  'time-aligned',
+  'time-subdivision',
+  'symbolic-subdivision',
+  'symbolic-association',
+]);
+const tierContentTypeSchema = z.enum([
+  'transcription',
+  'translation',
+  'gloss',
+  'pos',
+  'note',
+  'custom',
+]);
 
 const tierDefinitionDocSchema = z.object({
   id: z.string().min(1),
@@ -914,11 +1115,24 @@ const layerLinkDocSchema = z.object({
 });
 
 const noteTargetTypeSchema = z.enum([
-  'unit', 'translation', 'lexeme',
-  'sense', 'tier_annotation', 'text',
-  'token', 'morpheme', 'annotation',
+  'unit',
+  'translation',
+  'lexeme',
+  'sense',
+  'tier_annotation',
+  'text',
+  'token',
+  'morpheme',
+  'annotation',
 ]);
-const noteCategorySchema = z.enum(['comment', 'question', 'todo', 'linguistic', 'fieldwork', 'correction']);
+const noteCategorySchema = z.enum([
+  'comment',
+  'question',
+  'todo',
+  'linguistic',
+  'fieldwork',
+  'correction',
+]);
 
 const userNoteDocSchema = z.object({
   id: z.string().min(1),
@@ -933,37 +1147,49 @@ const userNoteDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
-const segmentMetaDocSchema = z.object({
-  id: z.string().min(1),
-  segmentId: z.string().min(1),
-  unitKind: layerUnitTypeSchema.optional(),
-  textId: z.string().min(1),
-  mediaId: z.string().min(1),
-  layerId: z.string().min(1),
-  hostUnitId: z.string().min(1).optional(),
-  startTime: z.number().finite(),
-  endTime: z.number().finite(),
-  text: z.string(),
-  normalizedText: z.string(),
-  hasText: z.boolean(),
-  effectiveSpeakerId: z.string().min(1).optional(),
-  effectiveSpeakerName: z.string().min(1).optional(),
-  noteCategoryKeys: z.array(noteCategorySchema).optional(),
-  effectiveSelfCertainty: z.enum(UNIT_SELF_CERTAINTY_VALUES).optional(),
-  annotationStatus: layerUnitStatusSchema.optional(),
-  aiConfidence: z.number().min(0).max(1).optional(),
-  sourceType: z.enum(['human', 'ai']).optional(),
-  createdAt: isoDateSchema,
-  updatedAt: isoDateSchema,
-}).refine((doc) => doc.endTime >= doc.startTime, {
-  message: 'endTime must be >= startTime',
-  path: ['endTime'],
-});
+const segmentMetaDocSchema = z
+  .object({
+    id: z.string().min(1),
+    segmentId: z.string().min(1),
+    unitKind: layerUnitTypeSchema.optional(),
+    textId: z.string().min(1),
+    mediaId: z.string().min(1),
+    layerId: z.string().min(1),
+    hostUnitId: z.string().min(1).optional(),
+    startTime: z.number().finite(),
+    endTime: z.number().finite(),
+    text: z.string(),
+    normalizedText: z.string(),
+    hasText: z.boolean(),
+    effectiveSpeakerId: z.string().min(1).optional(),
+    effectiveSpeakerName: z.string().min(1).optional(),
+    noteCategoryKeys: z.array(noteCategorySchema).optional(),
+    effectiveSelfCertainty: z.enum(UNIT_SELF_CERTAINTY_VALUES).optional(),
+    annotationStatus: layerUnitStatusSchema.optional(),
+    aiConfidence: z.number().min(0).max(1).optional(),
+    sourceType: z.enum(['human', 'ai']).optional(),
+    createdAt: isoDateSchema,
+    updatedAt: isoDateSchema,
+  })
+  .refine((doc) => doc.endTime >= doc.startTime, {
+    message: 'endTime must be >= startTime',
+    path: ['endTime'],
+  });
 
-const segmentQualityIssueKeySchema = z.enum(['empty_text', 'missing_speaker', 'low_ai_confidence', 'todo_note']);
+const segmentQualityIssueKeySchema = z.enum([
+  'empty_text',
+  'missing_speaker',
+  'low_ai_confidence',
+  'todo_note',
+]);
 const segmentQualitySeveritySchema = z.enum(['ok', 'warning', 'critical']);
 const scopeStatsSnapshotScopeTypeSchema = z.enum(['project', 'text', 'media', 'layer', 'speaker']);
-const translationStatusSnapshotStatusSchema = z.enum(['missing', 'draft', 'translated', 'verified']);
+const translationStatusSnapshotStatusSchema = z.enum([
+  'missing',
+  'draft',
+  'translated',
+  'verified',
+]);
 
 const segmentQualitySnapshotDocSchema = z.object({
   id: z.string().min(1),
@@ -1170,7 +1396,9 @@ export function validateAbbreviationDoc(doc: AbbreviationDocType): void {
   abbreviationDocSchema.parse(doc);
 }
 
-export function validateStructuralRuleProfileAssetDoc(doc: StructuralRuleProfileAssetDocType): void {
+export function validateStructuralRuleProfileAssetDoc(
+  doc: StructuralRuleProfileAssetDocType,
+): void {
   structuralRuleProfileAssetDocSchema.parse(doc);
 }
 
@@ -1287,4 +1515,3 @@ const aiSourceSetDocSchema = z.object({
 export function validateAiSourceSetDoc(doc: AiSourceSetDoc): void {
   aiSourceSetDocSchema.parse(doc);
 }
-

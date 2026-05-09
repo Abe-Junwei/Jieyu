@@ -1,7 +1,7 @@
 ---
 title: react-hooks/exhaustive-deps 剩余收口计划（2026-05-08）
 doc_type: execution-plan
-status: active
+status: completed
 owner: repo
 last_reviewed: 2026-05-09
 source_of_truth: exhaustive-deps-closure-2026-05-08
@@ -19,12 +19,18 @@ depends_on:
 - **2026-05-08（计划起草）**：`npx eslint src/ -f json --max-warnings=9999`：TOTAL **840**、EXHAUSTIVE **29**、STRICT **804**。
 - **2026-05-09（Batch A 验收后）**：同命令：TOTAL **807**、EXHAUSTIVE **0**、STRICT **800**（其余 **7** 条为其它 rule，以本机 `eslint` 输出为准）。`react-hooks/exhaustive-deps` 已全仓清零，后续以 **`npm run lint` / CI 防回潮** 为主；本文件 **Batch B–E** 仍可按文件做回归与 `strict-boolean` 收口。
 - **2026-05-09（Batch B 文件级验收）**：Batch B 所列 **9** 文件 `npx eslint … -f json`：**EXHAUSTIVE = 0**、**STRICT = 0**；§3.4 定向 **vitest** 全绿。**说明**：当前分支 **提交态** 上全仓 `npm run lint` 仍有 **`react-hooks/exhaustive-deps` error**（与未提交本地收口不同步），故 **`quality` 暂未加入 `npm run lint`**；待提交态与「EXHAUSTIVE=0」一致后再把 `npm run lint` 并入 CI，以免误红。
+- **2026-05-09（Strict 治理 S1 后）**：同命令：TOTAL **776**、EXHAUSTIVE **0**、STRICT **769**。本批次新增证据：`src/utils/orthographyIdentity.ts` 的 `@typescript-eslint/strict-boolean-expressions` **31 -> 0**，不影响本计划的 exhaustive-deps 完成态。
+- **2026-05-09（Strict 治理 S2 后）**：同命令：TOTAL **666**、EXHAUSTIVE **0**、STRICT **659**。本批次新增证据：`src/utils/languageInputReducer.ts` **49 -> 0**、`src/db/engine.ts` **36 -> 0**、`src/utils/layerDisplayStyle.ts` **25 -> 0**。
+- **2026-05-09（Strict 治理 S3 后）**：同命令：TOTAL **572**、EXHAUSTIVE **0**、STRICT **565**。本批次新增证据：`src/utils/layerDisplayStyle.ts` **24 -> 0**（回流复清）、`src/utils/langMapping.ts` **94 -> 0**。
+- **2026-05-09（Strict 治理 S4 后）**：同命令：TOTAL **529**、EXHAUSTIVE **0**、STRICT **522**。本批次新增证据：`src/utils/transcriptionFormatters.ts` **23 -> 0**、`src/db/migrations/timelineUnitMapping.ts` **20 -> 0**。
+- **2026-05-09（Strict 治理 S5 后）**：同命令：TOTAL **495**、EXHAUSTIVE **0**、STRICT **488**。本批次新增证据：`src/observability/aiTrace.ts` **17 -> 0**、`src/utils/orthographyInteropMetadata.ts` **17 -> 0**。
+- **2026-05-09（Strict 治理 S6 五轮后）**：同命令：TOTAL **441**、EXHAUSTIVE **0**、STRICT **418**。本批次新增证据：`src/collaboration/cloud/projectChangeRowParse.ts` **15 -> 0**、`src/utils/transcriptionUrlDeepLink.ts` **15 -> 0**、`src/utils/camDataUtils.ts` **14 -> 0**、`src/collaboration/cloud/CollaborationClientStateStore.ts` **13 -> 0**、`src/collaboration/cloud/CollaborationPresenceService.ts` **13 -> 0**。
 - `npm run lint -- --quiet`：通过（exit code 0）
 
-### 1.2 本计划只处理
+### 1.2 本计划范围（已完成）
 
-- 仅处理 `react-hooks/exhaustive-deps` 的剩余 29 条
-- 不扩展 `@typescript-eslint/strict-boolean-expressions` 覆盖范围
+- 仅处理 `react-hooks/exhaustive-deps` 的剩余 29 条（**已完成清零**）
+- `@typescript-eslint/strict-boolean-expressions` 作为并行治理项，迁移到代码治理主计划持续推进
 - 不做无关重构（保持“最小补丁 + 定向验证”）
 
 ### 1.3 完成定义（DoD）
@@ -167,8 +173,8 @@ depends_on:
 
 最终收口条件：
 
-- EXHAUSTIVE = 0
-- TOTAL = STRICT = 804
+- EXHAUSTIVE = 0（已达成）
+- 快照（2026-05-09）：TOTAL = 441，STRICT = 418，其余 23 条为其它 rule
 - lint 门禁连续通过
 
 ---
@@ -227,3 +233,9 @@ depends_on:
 | 日期 | 内容 |
 |------|------|
 | 2026-05-09 | Batch B 标记完成；`i18n-hardcoded-baseline` 修正（`localContextToolExecutors` vs 误列的 `executors/toolPayload`）；`quality` 暂缓加 `npm run lint`（提交态仍有 exhaustive-deps error，与未提交收口不同步）。 |
+| 2026-05-09 | Strict 治理 S1：`src/utils/orthographyIdentity.ts` 完成 strict-boolean 显式判断收口，文件级告警 `31 -> 0`；全仓基线更新为 TOTAL 776 / EXHAUSTIVE 0 / STRICT 769。 |
+| 2026-05-09 | Strict 治理 S2：`src/utils/languageInputReducer.ts`（49→0）、`src/db/engine.ts`（36→0）、`src/utils/layerDisplayStyle.ts`（25→0）；全仓基线更新为 TOTAL 666 / EXHAUSTIVE 0 / STRICT 659。 |
+| 2026-05-09 | Strict 治理 S3：`src/utils/layerDisplayStyle.ts`（24→0，回流复清）、`src/utils/langMapping.ts`（94→0）；全仓基线更新为 TOTAL 572 / EXHAUSTIVE 0 / STRICT 565。 |
+| 2026-05-09 | Strict 治理 S4：`src/utils/transcriptionFormatters.ts`（23→0）、`src/db/migrations/timelineUnitMapping.ts`（20→0）；全仓基线更新为 TOTAL 529 / EXHAUSTIVE 0 / STRICT 522。 |
+| 2026-05-09 | Strict 治理 S5：`src/observability/aiTrace.ts`（17→0）、`src/utils/orthographyInteropMetadata.ts`（17→0）；全仓基线更新为 TOTAL 495 / EXHAUSTIVE 0 / STRICT 488。 |
+| 2026-05-09 | Strict 治理 S6（五轮）：`src/collaboration/cloud/projectChangeRowParse.ts`（15→0）、`src/utils/transcriptionUrlDeepLink.ts`（15→0）、`src/utils/camDataUtils.ts`（14→0）、`src/collaboration/cloud/CollaborationClientStateStore.ts`（13→0）、`src/collaboration/cloud/CollaborationPresenceService.ts`（13→0）；全仓基线更新为 TOTAL 441 / EXHAUSTIVE 0 / STRICT 418。 |

@@ -15,37 +15,49 @@ const CANONICAL_LABEL_KEYS = new Set<string>([...PRIMARY_LABEL_KEYS, ...ENGLISH_
 
 function readTrimmedValue(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed !== undefined && trimmed.length > 0 ? trimmed : undefined;
 }
 
 function listUniqueNonEmptyValues(input: MultiLangLike): string[] {
-  if (!input) return [];
-  return Array.from(new Set(
-    Object.values(input)
-      .map((value) => readTrimmedValue(value))
-      .filter((value): value is string => Boolean(value)),
-  ));
+  if (input === null || input === undefined) return [];
+  return Array.from(
+    new Set(
+      Object.values(input)
+        .map((value) => readTrimmedValue(value))
+        .filter((value): value is string => value !== undefined && value.length > 0),
+    ),
+  );
 }
 
 function readByPriority(input: MultiLangLike, keys: readonly string[]): string | undefined {
-  if (!input) return undefined;
+  if (input === null || input === undefined) return undefined;
   for (const key of keys) {
     const resolved = readTrimmedValue(input[key]);
-    if (resolved) return resolved;
+    if (resolved !== undefined && resolved.length > 0) return resolved;
   }
   return undefined;
 }
 
 function normalizeLanguageTag(value: string | undefined): string | undefined {
   const normalized = value?.trim().toLowerCase();
-  return normalized ? normalized : undefined;
+  return normalized !== undefined && normalized.length > 0 ? normalized : undefined;
 }
 
-function appendAdditionalLabels(target: MultiLangString, labels: readonly MultiLangLabelEntry[]): void {
+function appendAdditionalLabels(
+  target: MultiLangString,
+  labels: readonly MultiLangLabelEntry[],
+): void {
   labels.forEach(({ languageTag, label }) => {
     const normalizedTag = normalizeLanguageTag(languageTag);
     const normalizedLabel = readTrimmedValue(label);
-    if (!normalizedTag || !normalizedLabel || CANONICAL_LABEL_KEYS.has(normalizedTag)) return;
+    if (
+      normalizedTag === undefined ||
+      normalizedTag.length === 0 ||
+      normalizedLabel === undefined ||
+      normalizedLabel.length === 0 ||
+      CANONICAL_LABEL_KEYS.has(normalizedTag)
+    )
+      return;
     target[normalizedTag] = normalizedLabel;
   });
 }
@@ -55,23 +67,32 @@ export function listUniqueNonEmptyMultiLangLabels(input: MultiLangLike): string[
 }
 
 export function listAdditionalMultiLangLabelEntries(input: MultiLangLike): MultiLangLabelEntry[] {
-  if (!input) return [];
+  if (input === null || input === undefined) return [];
   return Object.entries(input)
     .map(([languageTag, label]) => ({
       languageTag: normalizeLanguageTag(languageTag) ?? '',
       label: readTrimmedValue(label) ?? '',
     }))
-    .filter((entry) => entry.languageTag && entry.label && !CANONICAL_LABEL_KEYS.has(entry.languageTag));
+    .filter(
+      (entry) =>
+        entry.languageTag.length > 0 &&
+        entry.label.length > 0 &&
+        !CANONICAL_LABEL_KEYS.has(entry.languageTag),
+    );
 }
 
 export function readPrimaryMultiLangLabel(input: MultiLangLike): string | undefined {
-  return readByPriority(input, [...PRIMARY_LABEL_KEYS, ...ENGLISH_FALLBACK_KEYS])
-    ?? listUniqueNonEmptyValues(input)[0];
+  return (
+    readByPriority(input, [...PRIMARY_LABEL_KEYS, ...ENGLISH_FALLBACK_KEYS]) ??
+    listUniqueNonEmptyValues(input)[0]
+  );
 }
 
 export function readEnglishFallbackMultiLangLabel(input: MultiLangLike): string | undefined {
-  return readByPriority(input, [...ENGLISH_FALLBACK_KEYS, ...PRIMARY_LABEL_KEYS])
-    ?? listUniqueNonEmptyValues(input)[0];
+  return (
+    readByPriority(input, [...ENGLISH_FALLBACK_KEYS, ...PRIMARY_LABEL_KEYS]) ??
+    listUniqueNonEmptyValues(input)[0]
+  );
 }
 
 export function buildPrimaryAndEnglishLabels(input: {
@@ -91,22 +112,27 @@ export function buildPrimaryAndEnglishLabels(input: {
   const primaryLabel = readTrimmedValue(input.primaryLabel);
   const englishFallbackLabel = readTrimmedValue(input.englishFallbackLabel);
 
-  if (primaryLabel) nextLabels.und = primaryLabel;
-  if (englishFallbackLabel) nextLabels.eng = englishFallbackLabel;
+  if (primaryLabel !== undefined && primaryLabel.length > 0) nextLabels.und = primaryLabel;
+  if (englishFallbackLabel !== undefined && englishFallbackLabel.length > 0)
+    nextLabels.eng = englishFallbackLabel;
 
   return nextLabels;
 }
 
-export function readLocalizedMultiLangLabel(input: MultiLangLike, locale?: DisplayLocale): string | undefined {
-  if (!input) return undefined;
+export function readLocalizedMultiLangLabel(
+  input: MultiLangLike,
+  locale?: DisplayLocale,
+): string | undefined {
+  if (input === null || input === undefined) return undefined;
 
-  const preferredKeys = locale === 'zh-CN'
-    ? ['zho', 'zh', 'cmn', 'und', 'mul', 'eng', 'en']
-    : ['eng', 'en', 'und', 'mul', 'zho', 'zh', 'cmn'];
+  const preferredKeys =
+    locale === 'zh-CN'
+      ? ['zho', 'zh', 'cmn', 'und', 'mul', 'eng', 'en']
+      : ['eng', 'en', 'und', 'mul', 'zho', 'zh', 'cmn'];
 
   for (const key of preferredKeys) {
     const resolved = readTrimmedValue(input[key]);
-    if (resolved) return resolved;
+    if (resolved !== undefined && resolved.length > 0) return resolved;
   }
 
   return listUniqueNonEmptyValues(input)[0];

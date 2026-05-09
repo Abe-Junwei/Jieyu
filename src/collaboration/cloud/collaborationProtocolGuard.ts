@@ -14,9 +14,9 @@ export interface CollaborationProtocolGuardEvaluation {
 
 function parseSemverCore(version: string): [number, number, number] | null {
   const trimmed = version.trim();
-  if (!trimmed) return null;
+  if (trimmed.length === 0) return null;
   const core = trimmed.split(/[-+]/)[0];
-  if (!core) return null;
+  if (core === undefined || core.length === 0) return null;
   const segments = core.split('.');
   const numbers: number[] = [];
   for (let i = 0; i < 3; i += 1) {
@@ -36,7 +36,7 @@ function parseSemverCore(version: string): [number, number, number] | null {
 export function compareSemverCore(left: string, right: string): number | null {
   const a = parseSemverCore(left);
   const b = parseSemverCore(right);
-  if (!a || !b) return null;
+  if (a === null || b === null) return null;
   for (let i = 0; i < 3; i += 1) {
     const left = a[i]!;
     const right = b[i]!;
@@ -72,10 +72,12 @@ export function evaluateCollaborationProtocolGuard(
 ): CollaborationProtocolGuardEvaluation {
   if (!project) return { ...DEFAULT_EVALUATION };
 
-  const protocolVersion = typeof project.protocolVersion === 'number' && Number.isFinite(project.protocolVersion)
-    ? Math.trunc(project.protocolVersion)
-    : null;
-  const appMinVersion = typeof project.appMinVersion === 'string' ? project.appMinVersion.trim() : '';
+  const protocolVersion =
+    typeof project.protocolVersion === 'number' && Number.isFinite(project.protocolVersion)
+      ? Math.trunc(project.protocolVersion)
+      : null;
+  const appMinVersion =
+    typeof project.appMinVersion === 'string' ? project.appMinVersion.trim() : '';
 
   if (protocolVersion === null) {
     return {
@@ -88,7 +90,9 @@ export function evaluateCollaborationProtocolGuard(
   if (protocolVersion > SUPPORTED_COLLABORATION_PROTOCOL_VERSION) {
     return {
       cloudWritesDisabled: true,
-      reasons: [`server-protocol-version-${protocolVersion}-exceeds-client-${SUPPORTED_COLLABORATION_PROTOCOL_VERSION}`],
+      reasons: [
+        `server-protocol-version-${protocolVersion}-exceeds-client-${SUPPORTED_COLLABORATION_PROTOCOL_VERSION}`,
+      ],
       outboundProtocolVersion: SUPPORTED_COLLABORATION_PROTOCOL_VERSION,
     };
   }
@@ -96,12 +100,14 @@ export function evaluateCollaborationProtocolGuard(
   if (protocolVersion !== SUPPORTED_COLLABORATION_PROTOCOL_VERSION) {
     return {
       cloudWritesDisabled: true,
-      reasons: [`server-protocol-version-${protocolVersion}-mismatch-expected-${SUPPORTED_COLLABORATION_PROTOCOL_VERSION}`],
+      reasons: [
+        `server-protocol-version-${protocolVersion}-mismatch-expected-${SUPPORTED_COLLABORATION_PROTOCOL_VERSION}`,
+      ],
       outboundProtocolVersion: SUPPORTED_COLLABORATION_PROTOCOL_VERSION,
     };
   }
 
-  if (!appMinVersion) {
+  if (appMinVersion.length === 0) {
     return {
       cloudWritesDisabled: true,
       reasons: ['missing-project-app-min-version'],

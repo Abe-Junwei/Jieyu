@@ -9,6 +9,9 @@ source_of_truth: wave-2-2-formatters-resolver-split-plan
 
 # Wave 2.2：`localContextToolFormatters` + `localToolSlotResolver` 拆分规划
 
+> **状态：✅ 已完成**（2026-05-06）
+
+
 > **目标文件**
 > - `src/ai/chat/localContextToolFormatters.ts`：923 行 / 阈值 1100（92.4%）
 > - `src/ai/chat/localToolSlotResolver.ts`：932 行 / 阈值 1100（93.0%）

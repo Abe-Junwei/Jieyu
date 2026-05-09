@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { analysisGraphProjectionTargetSchema, projectionDiagnosticSchema, type ProjectionDiagnostic } from './analysisGraph';
+import {
+  analysisGraphProjectionTargetSchema,
+  projectionDiagnosticSchema,
+  type ProjectionDiagnostic,
+} from './analysisGraph';
 
 export const structuralRuleProfileScopeSchema = z.enum(['system', 'language', 'project', 'user']);
 export const structuralParseWarningSeveritySchema = z.enum(['info', 'warning']);
@@ -7,44 +11,51 @@ export const structuralParseWarningSeveritySchema = z.enum(['info', 'warning']);
 const markerSchema = z.string().min(1).max(8);
 const markerListSchema = z.array(markerSchema).min(1).max(24);
 
-export const structuralRuleProfileSchema = z.object({
-  id: z.string().trim().min(1).max(128),
-  label: z.string().trim().min(1).max(128),
-  version: z.string().trim().min(1).max(32),
-  scope: structuralRuleProfileScopeSchema,
-  symbols: z.object({
-    morphemeBoundary: markerSchema,
-    featureSeparator: markerSchema,
-    cliticBoundary: markerSchema,
-    infixStart: markerSchema,
-    infixEnd: markerSchema,
-    suppliedStart: markerSchema,
-    suppliedEnd: markerSchema,
-    alternationMarker: markerSchema,
-  }).strict(),
-  zeroMarkers: markerListSchema,
-  reduplicationMarkers: markerListSchema,
-  warningPolicy: z.object({
-    emptySegment: structuralParseWarningSeveritySchema,
-    unmatchedWrapper: structuralParseWarningSeveritySchema,
-    alternationMarker: structuralParseWarningSeveritySchema,
-  }).strict(),
-  projectionTargets: z.array(analysisGraphProjectionTargetSchema).min(1).max(8),
-}).strict().superRefine((profile, ctx) => {
-  const markers = Object.entries(profile.symbols);
-  for (const [leftName, leftMarker] of markers) {
-    for (const [rightName, rightMarker] of markers) {
-      if (leftName >= rightName) continue;
-      if (leftMarker === rightMarker) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['symbols', rightName],
-          message: `structural marker "${rightMarker}" is reused by ${leftName} and ${rightName}`,
-        });
+export const structuralRuleProfileSchema = z
+  .object({
+    id: z.string().trim().min(1).max(128),
+    label: z.string().trim().min(1).max(128),
+    version: z.string().trim().min(1).max(32),
+    scope: structuralRuleProfileScopeSchema,
+    symbols: z
+      .object({
+        morphemeBoundary: markerSchema,
+        featureSeparator: markerSchema,
+        cliticBoundary: markerSchema,
+        infixStart: markerSchema,
+        infixEnd: markerSchema,
+        suppliedStart: markerSchema,
+        suppliedEnd: markerSchema,
+        alternationMarker: markerSchema,
+      })
+      .strict(),
+    zeroMarkers: markerListSchema,
+    reduplicationMarkers: markerListSchema,
+    warningPolicy: z
+      .object({
+        emptySegment: structuralParseWarningSeveritySchema,
+        unmatchedWrapper: structuralParseWarningSeveritySchema,
+        alternationMarker: structuralParseWarningSeveritySchema,
+      })
+      .strict(),
+    projectionTargets: z.array(analysisGraphProjectionTargetSchema).min(1).max(8),
+  })
+  .strict()
+  .superRefine((profile, ctx) => {
+    const markers = Object.entries(profile.symbols);
+    for (const [leftName, leftMarker] of markers) {
+      for (const [rightName, rightMarker] of markers) {
+        if (leftName >= rightName) continue;
+        if (leftMarker === rightMarker) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['symbols', rightName],
+            message: `structural marker "${rightMarker}" is reused by ${leftName} and ${rightName}`,
+          });
+        }
       }
     }
-  }
-});
+  });
 
 type StructuralParseWarningSeverity = z.infer<typeof structuralParseWarningSeveritySchema>;
 export type StructuralRuleProfile = z.infer<typeof structuralRuleProfileSchema>;
@@ -57,7 +68,13 @@ type StructuralBoundaryType =
   | 'supplied'
   | 'alternation';
 
-type StructuralSegmentKind = 'lexical' | 'feature' | 'zero' | 'reduplication' | 'infix' | 'supplied';
+type StructuralSegmentKind =
+  | 'lexical'
+  | 'feature'
+  | 'zero'
+  | 'reduplication'
+  | 'infix'
+  | 'supplied';
 
 export type StructuralParsedSegment = {
   id: string;
@@ -132,29 +149,40 @@ function startsWithMarker(input: string, offset: number, marker: string): boolea
 
 /** True when the segment should be treated as an interlinear gloss feature label (vs surface/lexical material). */
 function segmentLooksLikeGlossFeatureLabel(text: string): boolean {
-  if (!text) return false;
+  if (text.length === 0) return false;
   if (text !== text.toLocaleUpperCase('und')) return false;
   return /\p{Lu}|\p{N}/u.test(text);
 }
 
-function classifySegment(text: string, profile: StructuralRuleProfile, forcedKind?: StructuralSegmentKind): StructuralSegmentKind {
-  if (forcedKind) return forcedKind;
+function classifySegment(
+  text: string,
+  profile: StructuralRuleProfile,
+  forcedKind?: StructuralSegmentKind,
+): StructuralSegmentKind {
+  if (forcedKind !== undefined) return forcedKind;
   const upper = text.toUpperCase();
   if (profile.zeroMarkers.some((marker) => marker.toUpperCase() === upper)) return 'zero';
-  if (profile.reduplicationMarkers.some((marker) => marker.toUpperCase() === upper)) return 'reduplication';
+  if (profile.reduplicationMarkers.some((marker) => marker.toUpperCase() === upper))
+    return 'reduplication';
   if (segmentLooksLikeGlossFeatureLabel(text)) return 'feature';
   return 'lexical';
 }
 
-function createProjectionDiagnostics(profile: StructuralRuleProfile, warnings: StructuralParseWarning[]): ProjectionDiagnostic[] {
+function createProjectionDiagnostics(
+  profile: StructuralRuleProfile,
+  warnings: StructuralParseWarning[],
+): ProjectionDiagnostic[] {
   const warningCount = warnings.filter((warning) => warning.severity === 'warning').length;
-  return profile.projectionTargets.map((target) => projectionDiagnosticSchema.parse({
-    target,
-    status: warningCount > 0 ? 'needsReview' : 'complete',
-    message: warningCount > 0
-      ? `Structural parse has ${warningCount} warning(s); review before projecting to analysisGraph.`
-      : 'Structural parse is ready for candidate analysisGraph projection.',
-  }));
+  return profile.projectionTargets.map((target) =>
+    projectionDiagnosticSchema.parse({
+      target,
+      status: warningCount > 0 ? 'needsReview' : 'complete',
+      message:
+        warningCount > 0
+          ? `Structural parse has ${warningCount} warning(s); review before projecting to analysisGraph.`
+          : 'Structural parse is ready for candidate analysisGraph projection.',
+    }),
+  );
 }
 
 export function parseGlossStructure(
@@ -174,7 +202,7 @@ export function parseGlossStructure(
   let bufferStart = 0;
 
   const pushSegment = (endOffset: number, forcedKind?: StructuralSegmentKind) => {
-    if (!buffer) return;
+    if (buffer.length === 0) return;
     const segment = {
       id: `seg-${segmentIndex + 1}`,
       text: buffer,
@@ -205,14 +233,18 @@ export function parseGlossStructure(
     });
   };
 
-  const readWrapped = (startOffset: number, startMarker: string, endMarker: string): { text: string; endOffset: number } | undefined => {
+  const readWrapped = (
+    startOffset: number,
+    startMarker: string,
+    endMarker: string,
+  ): { text: string; endOffset: number } | undefined => {
     const contentStart = startOffset + startMarker.length;
     const endOffset = input.indexOf(endMarker, contentStart);
     if (endOffset < 0) return undefined;
     return { text: input.slice(contentStart, endOffset), endOffset };
   };
 
-  for (let offset = 0; offset < input.length;) {
+  for (let offset = 0; offset < input.length; ) {
     const char = input[offset]!;
     if (/\s/.test(char)) {
       pushSegment(offset);
@@ -228,7 +260,7 @@ export function parseGlossStructure(
     ].find((candidate) => startsWithMarker(input, offset, candidate.marker));
 
     if (separatorMatch) {
-      if (!buffer) pushEmptyWarning(separatorMatch.marker, offset);
+      if (buffer.length === 0) pushEmptyWarning(separatorMatch.marker, offset);
       pushSegment(offset);
       pushBoundary(separatorMatch.type, separatorMatch.marker, offset);
       offset += separatorMatch.marker.length;
@@ -242,7 +274,8 @@ export function parseGlossStructure(
       warnings.push({
         type: 'alternation_marker',
         text: symbols.alternationMarker,
-        message: 'Alternation marker parsed structurally; relation projection requires user review.',
+        message:
+          'Alternation marker parsed structurally; relation projection requires user review.',
         severity: resolvedProfile.warningPolicy.alternationMarker,
       });
       offset += symbols.alternationMarker.length;
@@ -291,14 +324,17 @@ export function parseGlossStructure(
       pushBoundary('supplied', symbols.suppliedStart, offset);
       buffer = wrapped.text;
       bufferStart = offset + symbols.suppliedStart.length;
-      pushSegment(wrapped.endOffset, classifySegment(wrapped.text, resolvedProfile) === 'zero' ? 'zero' : 'supplied');
+      pushSegment(
+        wrapped.endOffset,
+        classifySegment(wrapped.text, resolvedProfile) === 'zero' ? 'zero' : 'supplied',
+      );
       pushBoundary('supplied', symbols.suppliedEnd, wrapped.endOffset);
       offset = wrapped.endOffset + symbols.suppliedEnd.length;
       bufferStart = offset;
       continue;
     }
 
-    if (!buffer) bufferStart = offset;
+    if (buffer.length === 0) bufferStart = offset;
     buffer += char;
     offset += 1;
   }

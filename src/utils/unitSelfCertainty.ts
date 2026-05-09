@@ -17,10 +17,7 @@
  * 且对外标记为 `@deprecated` 过渡薄壳；后续新调用点不应继续依赖本文件的 host-id helper。
  */
 
-import {
-  resolveHostUnitCascadeMedia,
-  type SegmentHostCandidate,
-} from './segmentHostResolution';
+import { resolveHostUnitCascadeMedia, type SegmentHostCandidate } from './segmentHostResolution';
 
 export const UNIT_SELF_CERTAINTY_VALUES = ['not_understood', 'uncertain', 'certain'] as const;
 
@@ -46,10 +43,10 @@ export function resolveSelfCertaintyHostUnitId(
 ): string | undefined {
   const id = unitId.trim();
   const explicitParentId = options?.parentUnitId?.trim() ?? '';
-  if (explicitParentId && units.some((utt) => utt.id === explicitParentId)) {
+  if (explicitParentId.length > 0 && units.some((utt) => utt.id === explicitParentId)) {
     return explicitParentId;
   }
-  if (id && units.some((utt) => utt.id === id)) {
+  if (id.length > 0 && units.some((utt) => utt.id === id)) {
     return id;
   }
 
@@ -77,21 +74,29 @@ export function resolveSelfCertaintyHostUnitId(
  */
 export function resolveSelfCertaintyHostUnitIds(
   unitIds: Iterable<string>,
-  units: ReadonlyArray<{ id: string; startTime: number; endTime: number; mediaId?: string | undefined }>,
-  hintsByUnitId?: ReadonlyMap<string, {
-    parentUnitId?: string | undefined;
+  units: ReadonlyArray<{
+    id: string;
+    startTime: number;
+    endTime: number;
     mediaId?: string | undefined;
-    startTime?: number | undefined;
-    endTime?: number | undefined;
   }>,
+  hintsByUnitId?: ReadonlyMap<
+    string,
+    {
+      parentUnitId?: string | undefined;
+      mediaId?: string | undefined;
+      startTime?: number | undefined;
+      endTime?: number | undefined;
+    }
+  >,
 ): string[] {
   const out = new Set<string>();
   for (const rawId of unitIds) {
     const unitId = rawId.trim();
-    if (!unitId) continue;
+    if (unitId.length === 0) continue;
     const hint = hintsByUnitId?.get(unitId);
     const resolved = resolveSelfCertaintyHostUnitId(unitId, units, hint);
-    if (resolved) out.add(resolved);
+    if (resolved !== undefined && resolved.length > 0) out.add(resolved);
   }
   return [...out];
 }

@@ -16,7 +16,25 @@ const UI_FONT_SCALE_CHANGE_EVENT = 'jieyu:ui-font-scale-changed';
 let runtimeUiFontScalePreference: UiFontScalePreference | null = null;
 
 const RTL_LOCALE_PREFIXES = ['ar', 'fa', 'he', 'ur', 'ps', 'dv', 'ku', 'yi'];
-const HEAVY_SCRIPT_PREFIXES = ['th', 'lo', 'km', 'my', 'bo', 'hi', 'bn', 'ta', 'te', 'ml', 'kn', 'si', 'mr', 'gu', 'pa', 'or', 'ne'];
+const HEAVY_SCRIPT_PREFIXES = [
+  'th',
+  'lo',
+  'km',
+  'my',
+  'bo',
+  'hi',
+  'bn',
+  'ta',
+  'te',
+  'ml',
+  'kn',
+  'si',
+  'mr',
+  'gu',
+  'pa',
+  'or',
+  'ne',
+];
 const CJK_PREFIXES = ['zh', 'ja', 'ko'];
 
 function clamp(value: number, min: number, max: number): number {
@@ -57,15 +75,25 @@ export function computeAutoUiFontScale(locale: string, direction?: TextDirection
   const resolvedDirection = direction ?? resolveTextDirectionFromLocale(locale);
   const scriptMultiplier = resolveScriptWidthMultiplier(locale);
   const directionBoost = resolvedDirection === 'rtl' ? 0.04 : 0;
-  const scriptBoost = scriptMultiplier >= 1.1 ? 0.05 : (scriptMultiplier >= 1.04 ? 0.02 : 0);
-  return clamp(UI_FONT_SCALE_FALLBACK + directionBoost + scriptBoost, UI_FONT_SCALE_MIN, UI_FONT_SCALE_MAX);
+  const scriptBoost = scriptMultiplier >= 1.1 ? 0.05 : scriptMultiplier >= 1.04 ? 0.02 : 0;
+  return clamp(
+    UI_FONT_SCALE_FALLBACK + directionBoost + scriptBoost,
+    UI_FONT_SCALE_MIN,
+    UI_FONT_SCALE_MAX,
+  );
 }
 
-function normalizeUiFontScalePreference(input: Partial<UiFontScalePreference>): UiFontScalePreference {
+function normalizeUiFontScalePreference(
+  input: Partial<UiFontScalePreference>,
+): UiFontScalePreference {
   const mode: UiFontScaleMode = input.mode === 'manual' ? 'manual' : 'auto';
   return {
     mode,
-    manualScale: clamp(input.manualScale ?? UI_FONT_SCALE_FALLBACK, UI_FONT_SCALE_MIN, UI_FONT_SCALE_MAX),
+    manualScale: clamp(
+      input.manualScale ?? UI_FONT_SCALE_FALLBACK,
+      UI_FONT_SCALE_MIN,
+      UI_FONT_SCALE_MAX,
+    ),
   };
 }
 
@@ -80,11 +108,16 @@ function parseUiFontScalePreferenceFromRaw(raw: string): UiFontScalePreference {
     ...(payload.mode !== undefined ? { mode: payload.mode } : {}),
     ...(payload.manualScale !== undefined
       ? { manualScale: payload.manualScale }
-      : (payload.scale !== undefined ? { manualScale: payload.scale } : {})),
+      : payload.scale !== undefined
+        ? { manualScale: payload.scale }
+        : {}),
   });
 }
 
-export function resolveEffectiveUiFontScale(preference: UiFontScalePreference, autoScale: number): number {
+export function resolveEffectiveUiFontScale(
+  preference: UiFontScalePreference,
+  autoScale: number,
+): number {
   return preference.mode === 'manual'
     ? clamp(preference.manualScale, UI_FONT_SCALE_MIN, UI_FONT_SCALE_MAX)
     : clamp(autoScale, UI_FONT_SCALE_MIN, UI_FONT_SCALE_MAX);
@@ -92,25 +125,33 @@ export function resolveEffectiveUiFontScale(preference: UiFontScalePreference, a
 
 export function readPersistedUiFontScalePreference(): UiFontScalePreference {
   if (typeof window === 'undefined') {
-    return runtimeUiFontScalePreference
-      ?? normalizeUiFontScalePreference({ mode: 'auto', manualScale: UI_FONT_SCALE_FALLBACK });
+    return (
+      runtimeUiFontScalePreference ??
+      normalizeUiFontScalePreference({ mode: 'auto', manualScale: UI_FONT_SCALE_FALLBACK })
+    );
   }
   try {
     const raw = window.localStorage.getItem(UI_FONT_SCALE_STORAGE_KEY);
-    if (!raw) {
-      return runtimeUiFontScalePreference
-        ?? normalizeUiFontScalePreference({ mode: 'auto', manualScale: UI_FONT_SCALE_FALLBACK });
+    if (raw === null || raw.length === 0) {
+      return (
+        runtimeUiFontScalePreference ??
+        normalizeUiFontScalePreference({ mode: 'auto', manualScale: UI_FONT_SCALE_FALLBACK })
+      );
     }
     const parsed = parseUiFontScalePreferenceFromRaw(raw);
     runtimeUiFontScalePreference = parsed;
     return parsed;
   } catch {
-    return runtimeUiFontScalePreference
-      ?? normalizeUiFontScalePreference({ mode: 'auto', manualScale: UI_FONT_SCALE_FALLBACK });
+    return (
+      runtimeUiFontScalePreference ??
+      normalizeUiFontScalePreference({ mode: 'auto', manualScale: UI_FONT_SCALE_FALLBACK })
+    );
   }
 }
 
-export function persistUiFontScalePreference(preference: UiFontScalePreference): UiFontScalePreference {
+export function persistUiFontScalePreference(
+  preference: UiFontScalePreference,
+): UiFontScalePreference {
   const normalized = normalizeUiFontScalePreference(preference);
   runtimeUiFontScalePreference = normalized;
   if (typeof window === 'undefined') return normalized;
@@ -120,7 +161,9 @@ export function persistUiFontScalePreference(preference: UiFontScalePreference):
     // Ignore persistence failures and keep runtime value available.
   }
   try {
-    window.dispatchEvent(new CustomEvent<UiFontScalePreference>(UI_FONT_SCALE_CHANGE_EVENT, { detail: normalized }));
+    window.dispatchEvent(
+      new CustomEvent<UiFontScalePreference>(UI_FONT_SCALE_CHANGE_EVENT, { detail: normalized }),
+    );
   } catch {
     // Ignore dispatch failures.
   }
@@ -132,9 +175,7 @@ export function subscribeUiFontScalePreference(listener: () => void): () => void
 
   const handleChange = (event: Event) => {
     const customEvent = event as CustomEvent<UiFontScalePreference>;
-    if (customEvent.detail) {
-      runtimeUiFontScalePreference = normalizeUiFontScalePreference(customEvent.detail);
-    }
+    runtimeUiFontScalePreference = normalizeUiFontScalePreference(customEvent.detail);
     listener();
   };
   const handleStorage = (event: StorageEvent) => {
@@ -185,23 +226,28 @@ export function computeAdaptivePanelWidth(input: {
 }): number {
   const density = input.density ?? 'standard';
   const direction = input.direction ?? resolveTextDirectionFromLocale(input.locale);
-  const fontScale = input.scaleWidthByFont
-    ? clamp(input.uiFontScale, UI_FONT_SCALE_MIN, UI_FONT_SCALE_MAX)
-    : 1;
-  const scriptMultiplier = input.scaleWidthByScript
-    ? resolveScriptWidthMultiplier(input.locale)
-    : 1;
+  const fontScale =
+    input.scaleWidthByFont === true
+      ? clamp(input.uiFontScale, UI_FONT_SCALE_MIN, UI_FONT_SCALE_MAX)
+      : 1;
+  const scriptMultiplier =
+    input.scaleWidthByScript === true ? resolveScriptWidthMultiplier(input.locale) : 1;
   const densityMultiplier = resolveDensityMultiplier(density);
   const directionMultiplier = direction === 'rtl' ? 1.06 : 1;
   const directionPadding = direction === 'rtl' ? 20 : 8;
 
-  const raw = input.baseWidth * fontScale * scriptMultiplier * densityMultiplier * directionMultiplier + directionPadding;
+  const raw =
+    input.baseWidth * fontScale * scriptMultiplier * densityMultiplier * directionMultiplier +
+    directionPadding;
 
   const requestedMinWidth = input.minWidth ?? 280;
   const requestedMaxWidth = input.maxWidth ?? 900;
-  const viewportCap = input.viewportWidth
-    ? Math.max(1, Math.floor(input.viewportWidth * 0.92))
-    : Number.POSITIVE_INFINITY;
+  const viewportCap =
+    typeof input.viewportWidth === 'number' &&
+    Number.isFinite(input.viewportWidth) &&
+    input.viewportWidth > 0
+      ? Math.max(1, Math.floor(input.viewportWidth * 0.92))
+      : Number.POSITIVE_INFINITY;
   const maxWidth = Math.min(requestedMaxWidth, viewportCap);
   const minWidth = Math.min(requestedMinWidth, maxWidth);
   return Math.round(clamp(raw, minWidth, maxWidth));

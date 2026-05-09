@@ -110,7 +110,7 @@ function dedupeNonEmptyStrings(values: readonly string[]): string[] {
   const next: string[] = [];
   for (const value of values) {
     const trimmed = value.trim();
-    if (!trimmed || seen.has(trimmed)) continue;
+    if (trimmed.length === 0 || seen.has(trimmed)) continue;
     seen.add(trimmed);
     next.push(trimmed);
   }
@@ -205,9 +205,10 @@ function readFontCoverageCache(): Record<string, StoredFontCoverageVerification>
   }
   try {
     const raw = window.localStorage.getItem(FONT_COVERAGE_CACHE_STORAGE_KEY);
-    fontCoverageCache = raw
-      ? (JSON.parse(raw) as Record<string, StoredFontCoverageVerification>)
-      : {};
+    fontCoverageCache =
+      raw !== null && raw.length > 0
+        ? (JSON.parse(raw) as Record<string, StoredFontCoverageVerification>)
+        : {};
   } catch {
     fontCoverageCache = {};
   }
@@ -246,7 +247,11 @@ function buildFontCoverageProbeText(renderPolicy: OrthographyRenderPolicy): stri
     ? SCRIPT_FONT_PROBE_TEXT.Latn
     : SCRIPT_FONT_PROBE_TEXT[renderPolicy.scriptTag];
   if (exemplarText.trim().length > 0) {
-    if (strictScriptProbe && SHAPING_RISK_SCRIPTS.has(renderPolicy.scriptTag)) {
+    if (
+      strictScriptProbe !== undefined &&
+      strictScriptProbe.length > 0 &&
+      SHAPING_RISK_SCRIPTS.has(renderPolicy.scriptTag)
+    ) {
       return normalizeProbeText(`${exemplarText} ${strictScriptProbe}`);
     }
     return normalizeProbeText(exemplarText);
@@ -282,7 +287,7 @@ export function getCachedFontCoverageVerification(
   fontFamily: string,
   renderPolicy: OrthographyRenderPolicy,
 ): FontCoverageVerification | undefined {
-  if (!fontFamily || fontFamily === '系统默认') return undefined;
+  if (fontFamily.length === 0 || fontFamily === '系统默认') return undefined;
   const cacheKey = getFontCoverageVerificationCacheKey(fontFamily, renderPolicy);
   const cache = readFontCoverageCache();
   const entry = cache[cacheKey];
@@ -308,7 +313,7 @@ export async function verifyFontCoverage(
   if (cached) return cached;
 
   const sampleText = buildFontCoverageProbeText(renderPolicy);
-  if (!fontFamily || fontFamily === '系统默认') {
+  if (fontFamily.length === 0 || fontFamily === '系统默认') {
     return { status: 'unchecked', sampleText, source: 'none' };
   }
   if (
@@ -668,12 +673,20 @@ export function resolveScriptForLanguage(
   orthographies?: OrthographyDocType[],
   preferredOrthographyId?: string,
 ): string {
-  const ortho = preferredOrthographyId
-    ? orthographies?.find((o) => o.id === preferredOrthographyId && o.scriptTag)
-    : orthographies?.find((o) => o.languageId === languageId && o.scriptTag);
-  if (ortho?.scriptTag) return ortho.scriptTag;
-  const fallback = orthographies?.find((o) => o.languageId === languageId && o.scriptTag);
-  if (fallback?.scriptTag) return fallback.scriptTag;
+  const ortho =
+    preferredOrthographyId !== undefined && preferredOrthographyId.length > 0
+      ? orthographies?.find(
+          (o) =>
+            o.id === preferredOrthographyId && o.scriptTag !== undefined && o.scriptTag.length > 0,
+        )
+      : orthographies?.find(
+          (o) => o.languageId === languageId && o.scriptTag !== undefined && o.scriptTag.length > 0,
+        );
+  if (ortho?.scriptTag !== undefined && ortho.scriptTag.length > 0) return ortho.scriptTag;
+  const fallback = orthographies?.find(
+    (o) => o.languageId === languageId && o.scriptTag !== undefined && o.scriptTag.length > 0,
+  );
+  if (fallback?.scriptTag !== undefined && fallback.scriptTag.length > 0) return fallback.scriptTag;
   return LANG_DEFAULT_SCRIPT[languageId] ?? 'Latn';
 }
 
@@ -682,9 +695,9 @@ function resolveOrthographyForLanguage(
   orthographies?: OrthographyDocType[],
   preferredOrthographyId?: string,
 ): OrthographyDocType | undefined {
-  if (preferredOrthographyId) {
+  if (preferredOrthographyId !== undefined && preferredOrthographyId.length > 0) {
     const preferred = orthographies?.find((o) => o.id === preferredOrthographyId);
-    if (preferred) return preferred;
+    if (preferred !== undefined) return preferred;
   }
   return orthographies?.find((o) => o.languageId === languageId);
 }
@@ -712,7 +725,7 @@ export function resolveDirectionForLanguage(
     orthographies,
     preferredOrthographyId,
   );
-  if (orthography?.direction) return orthography.direction;
+  if (orthography?.direction !== undefined) return orthography.direction;
   const scriptTag = resolveScriptForLanguage(languageId, orthographies, preferredOrthographyId);
   return SCRIPT_DEFAULT_DIRECTION[scriptTag] ?? 'ltr';
 }
@@ -957,12 +970,12 @@ function resolveLocalizedLocalFontName(
 ): string | undefined {
   const normalizedFamily = normalizeFontSearchValue(font.family);
   const alias = LOCAL_FONT_LOCALIZED_ALIASES[normalizedFamily]?.[scriptTag];
-  if (alias) return alias;
+  if (alias !== undefined && alias.length > 0) return alias;
 
   const localizedFullName = font.fullNames.find((name) =>
     containsScriptCharacters(name, scriptTag),
   );
-  if (localizedFullName) return localizedFullName;
+  if (localizedFullName !== undefined) return localizedFullName;
 
   if (containsScriptCharacters(font.family, scriptTag)) return font.family;
   return undefined;
@@ -975,7 +988,7 @@ function resolveEnglishLocalFontName(font: LocalFontEntry): string | undefined {
 
 function isLocalFontCompatibleWithScript(font: LocalFontEntry, scriptTag: string): boolean {
   const localizedName = resolveLocalizedLocalFontName(font, scriptTag);
-  if (localizedName) return true;
+  if (localizedName !== undefined) return true;
 
   const searchBlob = getLocalFontSearchBlob(font);
   return getLocalFontScriptHints(scriptTag).some((hint) =>
@@ -1003,7 +1016,10 @@ export function formatLocalFontLabel(
   const scriptTag = resolveScriptForLanguage(languageId, orthographies, preferredOrthographyId);
   const primaryName = resolveLocalizedLocalFontName(font, scriptTag) ?? font.family;
   const englishName = resolveEnglishLocalFontName(font);
-  if (!englishName || normalizeFontIdentity(primaryName) === normalizeFontIdentity(englishName)) {
+  if (
+    englishName === undefined ||
+    normalizeFontIdentity(primaryName) === normalizeFontIdentity(englishName)
+  ) {
     return primaryName;
   }
   return `${primaryName} (${englishName})`;
@@ -1197,15 +1213,15 @@ export function layerDisplaySettingsToStyle(
 ): CSSProperties {
   if (!settings && !renderPolicy) return {};
   const style: CSSProperties = {};
-  if (settings?.fontFamily) {
+  if (settings?.fontFamily !== undefined && settings.fontFamily.length > 0) {
     style.fontFamily = buildSelectedFontStackCss(settings.fontFamily, renderPolicy);
   } else if (renderPolicy) {
     style.fontFamily = renderPolicy.defaultFontCss;
   }
-  if (settings?.fontSize) style.fontSize = `${settings.fontSize}px`;
-  if (settings?.bold) style.fontWeight = 'bold';
-  if (settings?.italic) style.fontStyle = 'italic';
-  if (settings?.color) style.color = settings.color;
+  if (typeof settings?.fontSize === 'number') style.fontSize = `${settings.fontSize}px`;
+  if (settings?.bold === true) style.fontWeight = 'bold';
+  if (settings?.italic === true) style.fontStyle = 'italic';
+  if (settings?.color !== undefined && settings.color.length > 0) style.color = settings.color;
   if (renderPolicy) {
     style.direction = renderPolicy.textDirection;
     style.lineHeight = String(renderPolicy.lineHeightScale);
@@ -1221,7 +1237,7 @@ export function buildOrthographyPreviewTextProps(
   settings?: LayerDisplaySettings,
 ): OrthographyPreviewTextProps {
   return {
-    ...(renderPolicy?.preferDirAttribute ? { dir: renderPolicy.textDirection } : {}),
+    ...(renderPolicy?.preferDirAttribute === true ? { dir: renderPolicy.textDirection } : {}),
     style: layerDisplaySettingsToStyle(settings, renderPolicy),
   };
 }
@@ -1314,7 +1330,7 @@ export async function queryLocalFontFamilies(): Promise<LocalFontEntry[]> {
       fullNames: new Set<string>(),
     };
     existing.postscriptNames.add(fd.postscriptName);
-    if (fd.fullName) existing.fullNames.add(fd.fullName);
+    if (fd.fullName !== undefined && fd.fullName.length > 0) existing.fullNames.add(fd.fullName);
     familyMap.set(fd.family, existing);
   }
   cachedLocalFonts = Array.from(familyMap.entries())

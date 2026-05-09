@@ -2,7 +2,11 @@
 import type { LayerDocType } from '../db/types';
 import type { LanguageSearchLocale } from './langMapping';
 import { getLanguageCatalogEntry, getLanguageDisplayName } from './langMapping';
-import { listUniqueNonEmptyMultiLangLabels, readAnyMultiLangLabel, readLocalizedMultiLangLabel } from './multiLangLabels';
+import {
+  listUniqueNonEmptyMultiLangLabels,
+  readAnyMultiLangLabel,
+  readLocalizedMultiLangLabel,
+} from './multiLangLabels';
 
 const LANGUAGE_NAME_MAP: Record<string, string> = {
   cmn: '\u666e\u901a\u8bdd',
@@ -42,7 +46,7 @@ export function parseBcp47(tag: string): {
   full: string;
 } {
   const full = tag.trim();
-  if (!full) return { primary: '', variants: [], extensions: [], full: '' };
+  if (full.length === 0) return { primary: '', variants: [], extensions: [], full: '' };
 
   // \u79c1\u7528\u6269\u5c55 x-... \u5728\u6700\u540e | Private-use extension comes last
   const xIdx = full.search(/\b(x-)/i);
@@ -58,13 +62,13 @@ export function parseBcp47(tag: string): {
 
   for (let i = 1; i < subtags.length; i++) {
     const st = subtags[i]!;
-    if (st.length === 4 && /^[A-Za-z]{4}$/.test(st) && !script) {
+    if (st.length === 4 && /^[A-Za-z]{4}$/.test(st) && script === undefined) {
       // \u811a\u672c\u5b50\u6807\u7b7e（4 \u5b57\u6bcd） | Script subtag (4 letters)
       script = st;
-    } else if (st.length === 2 && /^[A-Za-z]{2}$/.test(st) && !region) {
+    } else if (st.length === 2 && /^[A-Za-z]{2}$/.test(st) && region === undefined) {
       // \u533a\u57df\u5b50\u6807\u7b7e（2 \u5b57\u6bcd） | Region subtag (2 letters)
       region = st.toUpperCase();
-    } else if (st.length === 3 && /^[0-9]{3}$/.test(st) && !region) {
+    } else if (st.length === 3 && /^[0-9]{3}$/.test(st) && region === undefined) {
       // \u533a\u57df\u5b50\u6807\u7b7e（3 \u6570\u5b57） | Region subtag (3 digits)
       region = st;
     } else if (st.length >= 5 || (st.length === 4 && /^[0-9]/.test(st))) {
@@ -82,11 +86,11 @@ export function parseBcp47(tag: string): {
 
   return {
     primary,
-    ...(script ? { script } : {}),
-    ...(region ? { region } : {}),
+    ...(script !== undefined ? { script } : {}),
+    ...(region !== undefined ? { region } : {}),
     variants,
     extensions,
-    ...(privateUse ? { privateUse } : {}),
+    ...(privateUse !== undefined && privateUse.length > 0 ? { privateUse } : {}),
     full,
   };
 }
@@ -98,7 +102,7 @@ export function parseBcp47(tag: string): {
  */
 function formatBcp47Label(tag: string, locale: LanguageSearchLocale = 'zh-CN'): string {
   const parsed = parseBcp47(tag);
-  if (!parsed.primary) {
+  if (parsed.primary.length === 0) {
     return locale === 'zh-CN' ? '\u672a\u8bbe\u7f6e\u8bed\u8a00' : 'Language not set';
   }
 
@@ -106,16 +110,18 @@ function formatBcp47Label(tag: string, locale: LanguageSearchLocale = 'zh-CN'): 
   const canonicalCode = catalogEntry?.iso6393 ?? parsed.primary;
   const baseName = catalogEntry
     ? getLanguageDisplayName(canonicalCode, locale)
-    : (LANGUAGE_NAME_MAP[canonicalCode]
-      ?? COMMON_LANGUAGES.find((l) => l.code === canonicalCode)?.label);
+    : (LANGUAGE_NAME_MAP[canonicalCode] ??
+      COMMON_LANGUAGES.find((l) => l.code === canonicalCode)?.label);
 
   const extras: string[] = [];
   for (const v of parsed.variants) {
     extras.push(VARIANT_LABEL_MAP[v] ?? v);
   }
-  if (parsed.privateUse) extras.push(parsed.privateUse);
+  if (parsed.privateUse !== undefined && parsed.privateUse.length > 0)
+    extras.push(parsed.privateUse);
 
-  const base = baseName ? `${baseName} ${canonicalCode}` : canonicalCode;
+  const base =
+    baseName !== undefined && baseName.length > 0 ? `${baseName} ${canonicalCode}` : canonicalCode;
   return extras.length > 0 ? `${base} (${extras.join(', ')})` : base;
 }
 
@@ -127,14 +133,18 @@ function formatBcp47Label(tag: string, locale: LanguageSearchLocale = 'zh-CN'): 
  */
 export function humanizeTierName(tierName: string): string {
   const trimmed = tierName.trim();
-  if (!trimmed) return 'Transcription';
+  if (trimmed.length === 0) return 'Transcription';
   // \u542b\u7a7a\u683c\u7684\u4e00\u5b9a\u4e0d\u662f BCP 47 \u6807\u7b7e | Contains space → not a BCP 47 tag
   if (/\s/.test(trimmed)) return trimmed;
   const parsed = parseBcp47(trimmed);
   // \u4e3b\u8bed\u8a00\u5b50\u6807\u7b7e 2-3 \u5b57\u6bcd + \u81f3\u5c11\u6709\u53ef\u89e3\u6790\u7684\u5b50\u6807\u8bb0 → \u89c6\u4e3a BCP 47 | Primary is 2-3 letters with subtags → BCP 47
   const isPrimary = /^[a-z]{2,3}$/.test(parsed.primary);
-  const hasSubtags = parsed.variants.length > 0 || parsed.extensions.length > 0
-    || parsed.script !== undefined || parsed.region !== undefined || parsed.privateUse !== undefined;
+  const hasSubtags =
+    parsed.variants.length > 0 ||
+    parsed.extensions.length > 0 ||
+    parsed.script !== undefined ||
+    parsed.region !== undefined ||
+    parsed.privateUse !== undefined;
   if (isPrimary && hasSubtags) {
     return formatBcp47Label(trimmed);
   }
@@ -156,55 +166,64 @@ export function normalizeSingleLine(value: string): string {
 
 export function formatSidePaneLayerLabel(layer: LayerDocType): string {
   const { type, lang } = getLayerLabelParts(layer);
-  return lang ? `${type} · ${lang}` : type;
+  return lang.length > 0 ? `${type} · ${lang}` : type;
 }
 
 function resolveLayerAlias(layer: LayerDocType): string {
-  const alias = readAnyMultiLangLabel(layer.name)
-    ?? listUniqueNonEmptyMultiLangLabels(layer.name)[0]
-    ?? '';
+  const alias =
+    readAnyMultiLangLabel(layer.name) ?? listUniqueNonEmptyMultiLangLabels(layer.name)[0] ?? '';
   const hasAutoPrefix = alias.startsWith('\u8f6c\u5199') || alias.startsWith('\u7ffb\u8bd1');
   return hasAutoPrefix ? '' : alias;
 }
 
-export function getLayerHeaderLanguageLine(layer: LayerDocType, locale: LanguageSearchLocale = 'zh-CN'): string {
+export function getLayerHeaderLanguageLine(
+  layer: LayerDocType,
+  locale: LanguageSearchLocale = 'zh-CN',
+): string {
   const code = (layer.languageId ?? '').trim();
-  if (!code) return '';
-  return formatBcp47Label(code, locale) || code;
+  if (code.length === 0) return '';
+  const label = formatBcp47Label(code, locale);
+  return label.length > 0 ? label : code;
 }
 
-export function getLayerHeaderLanguageName(layer: LayerDocType, locale: LanguageSearchLocale = 'zh-CN'): string {
+export function getLayerHeaderLanguageName(
+  layer: LayerDocType,
+  locale: LanguageSearchLocale = 'zh-CN',
+): string {
   const code = (layer.languageId ?? '').trim().toLowerCase();
-  if (!code) return '';
+  if (code.length === 0) return '';
   const parsed = parseBcp47(code);
-  const primary = (parsed.primary || code).toLowerCase();
+  const primary = (parsed.primary.length > 0 ? parsed.primary : code).toLowerCase();
   const catalogEntry = getLanguageCatalogEntry(primary);
   if (catalogEntry) {
     return getLanguageDisplayName(catalogEntry.iso6393, locale);
   }
-  return LANGUAGE_NAME_MAP[primary]
-    ?? COMMON_LANGUAGES.find((language) => language.code === primary)?.label
-    ?? primary;
+  return (
+    LANGUAGE_NAME_MAP[primary] ??
+    COMMON_LANGUAGES.find((language) => language.code === primary)?.label ??
+    primary
+  );
 }
 
 export function getLayerHeaderVarietyOrAliasLine(layer: LayerDocType): string {
-  const explicitVarietyParts = [layer.dialect?.trim(), layer.vernacular?.trim()]
-    .filter((part): part is string => Boolean(part));
+  const explicitVarietyParts = [layer.dialect?.trim(), layer.vernacular?.trim()].filter(
+    (part): part is string => Boolean(part),
+  );
   if (explicitVarietyParts.length > 0) {
     return explicitVarietyParts.join(' · ');
   }
 
   const code = (layer.languageId ?? '').trim();
-  if (!code) return resolveLayerAlias(layer);
+  if (code.length === 0) return resolveLayerAlias(layer);
   const parsed = parseBcp47(code);
   const varietyParts: string[] = [];
-  if (parsed.region) {
+  if (parsed.region !== undefined && parsed.region.length > 0) {
     varietyParts.push(parsed.region);
   }
   for (const variant of parsed.variants) {
     varietyParts.push(VARIANT_LABEL_MAP[variant] ?? variant);
   }
-  if (parsed.privateUse) {
+  if (parsed.privateUse !== undefined && parsed.privateUse.length > 0) {
     varietyParts.push(parsed.privateUse);
   }
   if (varietyParts.length > 0) {
@@ -214,16 +233,19 @@ export function getLayerHeaderVarietyOrAliasLine(layer: LayerDocType): string {
 }
 
 export function getOrthographyHeaderLine(
-  orthography: {
-    name?: Record<string, string>;
-    abbreviation?: string;
-  } | null | undefined,
+  orthography:
+    | {
+        name?: Record<string, string>;
+        abbreviation?: string;
+      }
+    | null
+    | undefined,
   locale?: 'zh-CN' | 'en-US',
 ): string {
   if (!orthography) return '';
-  return readLocalizedMultiLangLabel(orthography.name, locale)
-    ?? orthography.abbreviation?.trim()
-    ?? '';
+  return (
+    readLocalizedMultiLangLabel(orthography.name, locale) ?? orthography.abbreviation?.trim() ?? ''
+  );
 }
 
 const ORTHOGRAPHY_HEADER_LOCALE_BY_SEARCH: Record<LanguageSearchLocale, 'zh-CN' | 'en-US'> = {
@@ -240,13 +262,18 @@ const ORTHOGRAPHY_HEADER_LOCALE_BY_SEARCH: Record<LanguageSearchLocale, 'zh-CN' 
 export function buildLaneHeaderInlineDotSeparatedLabel(
   layer: LayerDocType,
   locale: LanguageSearchLocale,
-  orthographies: ReadonlyArray<{ id: string; name?: Record<string, string>; abbreviation?: string }>,
+  orthographies: ReadonlyArray<{
+    id: string;
+    name?: Record<string, string>;
+    abbreviation?: string;
+  }>,
 ): string {
   const languageLine = getLayerHeaderLanguageLine(layer, locale);
   const varietyOrAliasLine = getLayerHeaderVarietyOrAliasLine(layer);
-  const targetOrthography = layer.orthographyId
-    ? orthographies.find((o) => o.id === layer.orthographyId)
-    : undefined;
+  const targetOrthography =
+    layer.orthographyId !== undefined && layer.orthographyId.length > 0
+      ? orthographies.find((o) => o.id === layer.orthographyId)
+      : undefined;
   const orthographyLocale = ORTHOGRAPHY_HEADER_LOCALE_BY_SEARCH[locale] ?? 'zh-CN';
   const orthographyLine = getOrthographyHeaderLine(targetOrthography, orthographyLocale);
   const parts = [languageLine, varietyOrAliasLine, orthographyLine]
@@ -255,12 +282,16 @@ export function buildLaneHeaderInlineDotSeparatedLabel(
   return parts.join(' · ');
 }
 
-export function getLayerLabelParts(layer: LayerDocType, locale: LanguageSearchLocale = 'zh-CN'): { type: string; lang: string; alias: string } {
+export function getLayerLabelParts(
+  layer: LayerDocType,
+  locale: LanguageSearchLocale = 'zh-CN',
+): { type: string; lang: string; alias: string } {
   const code = (layer.languageId ?? '').trim();
   const typeLabel = layer.layerType === 'translation' ? '\u7ffb\u8bd1' : '\u8f6c\u5199';
-  const langLabel = formatBcp47Label(code, locale) || code;
+  const resolvedLangLabel = formatBcp47Label(code, locale);
+  const langLabel = resolvedLangLabel.length > 0 ? resolvedLangLabel : code;
   const alias = resolveLayerAlias(layer);
-  if (!alias) {
+  if (alias.length === 0) {
     return { type: typeLabel, lang: langLabel, alias: '' };
   }
   // Legacy manually named layers — show alias as third line
@@ -300,7 +331,9 @@ export function newId(prefix: string): string {
  * Returns the `default` key first, then falls back to any non-empty value.
  */
 export function pickDefaultTranscriptionText(transcription: unknown): string {
-  if (!transcription || typeof transcription !== 'object') return '';
+  if (transcription === null || transcription === undefined || typeof transcription !== 'object') {
+    return '';
+  }
   const record = transcription as Record<string, unknown>;
   const direct = typeof record.default === 'string' ? record.default.trim() : '';
   if (direct.length > 0) return direct;

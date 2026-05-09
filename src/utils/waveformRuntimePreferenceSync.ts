@@ -16,7 +16,7 @@ const WAVEFORM_RUNTIME_PREFERENCE_CHANGED_EVENT = 'jieyu:waveform-runtime-prefer
 export function readStoredWaveformHeightPreference(): number {
   try {
     const stored = localStorage.getItem(WAVEFORM_HEIGHT_STORAGE_KEY);
-    if (!stored) return 180;
+    if (stored === null || stored.length === 0) return 180;
     const parsed = Number(stored);
     if (Number.isNaN(parsed)) return 180;
     return Math.min(400, Math.max(80, Math.round(parsed)));
@@ -28,7 +28,7 @@ export function readStoredWaveformHeightPreference(): number {
 export function readStoredWaveformDisplayModePreference(): WaveformDisplayMode {
   try {
     const stored = localStorage.getItem(WAVEFORM_DISPLAY_MODE_STORAGE_KEY);
-    if (!stored || !isWaveformDisplayMode(stored)) return 'waveform';
+    if (stored === null || stored.length === 0 || !isWaveformDisplayMode(stored)) return 'waveform';
     return stored;
   } catch {
     return 'waveform';
@@ -38,7 +38,7 @@ export function readStoredWaveformDisplayModePreference(): WaveformDisplayMode {
 export function readStoredWaveformAmplitudeScalePreference(): number {
   try {
     const stored = localStorage.getItem(WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY);
-    if (!stored) return 1;
+    if (stored === null || stored.length === 0) return 1;
     const parsed = Number(stored);
     if (Number.isNaN(parsed)) return 1;
     return Math.min(4, Math.max(0.25, Number(parsed.toFixed(2))));
@@ -50,7 +50,7 @@ export function readStoredWaveformAmplitudeScalePreference(): number {
 export function readStoredWaveformVisualStylePreference(): WaveformVisualStyle {
   try {
     const stored = localStorage.getItem(WAVEFORM_VISUAL_STYLE_STORAGE_KEY);
-    if (!stored) return 'balanced';
+    if (stored === null || stored.length === 0) return 'balanced';
     // 旧版「praat」样式键已更名为 line（示波图式连续线画），迁移本地偏好 | Legacy style id rename
     if (stored === 'praat') {
       try {
@@ -70,7 +70,7 @@ export function readStoredWaveformVisualStylePreference(): WaveformVisualStyle {
 export function readStoredAcousticOverlayModePreference(): AcousticOverlayMode {
   try {
     const stored = localStorage.getItem(ACOUSTIC_OVERLAY_MODE_STORAGE_KEY);
-    if (!stored || !isAcousticOverlayMode(stored)) return 'none';
+    if (stored === null || stored.length === 0 || !isAcousticOverlayMode(stored)) return 'none';
     return stored;
   } catch {
     return 'none';
@@ -91,11 +91,11 @@ export function subscribeWaveformRuntimePreferenceChanged(listener: () => void):
 
   const handleStorage = (event: StorageEvent) => {
     if (
-      event.key === WAVEFORM_HEIGHT_STORAGE_KEY
-      || event.key === WAVEFORM_DISPLAY_MODE_STORAGE_KEY
-      || event.key === WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY
-      || event.key === WAVEFORM_VISUAL_STYLE_STORAGE_KEY
-      || event.key === ACOUSTIC_OVERLAY_MODE_STORAGE_KEY
+      event.key === WAVEFORM_HEIGHT_STORAGE_KEY ||
+      event.key === WAVEFORM_DISPLAY_MODE_STORAGE_KEY ||
+      event.key === WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY ||
+      event.key === WAVEFORM_VISUAL_STYLE_STORAGE_KEY ||
+      event.key === ACOUSTIC_OVERLAY_MODE_STORAGE_KEY
     ) {
       listener();
     }
@@ -104,7 +104,10 @@ export function subscribeWaveformRuntimePreferenceChanged(listener: () => void):
   window.addEventListener(WAVEFORM_RUNTIME_PREFERENCE_CHANGED_EVENT, listener as EventListener);
   window.addEventListener('storage', handleStorage);
   return () => {
-    window.removeEventListener(WAVEFORM_RUNTIME_PREFERENCE_CHANGED_EVENT, listener as EventListener);
+    window.removeEventListener(
+      WAVEFORM_RUNTIME_PREFERENCE_CHANGED_EVENT,
+      listener as EventListener,
+    );
     window.removeEventListener('storage', handleStorage);
   };
 }

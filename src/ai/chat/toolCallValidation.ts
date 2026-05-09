@@ -63,6 +63,25 @@ export function segmentSelectorNeedsAnchor(args: Record<string, unknown>): boole
   return args.segmentPosition === 'previous' || args.segmentPosition === 'next';
 }
 
+export function describeDeleteSegmentSelectorTarget(args: Record<string, unknown>): string | null {
+  const segmentIndex = args.segmentIndex;
+  if (typeof segmentIndex === 'number' && Number.isInteger(segmentIndex) && segmentIndex >= 1) {
+    return decodeEscapedUnicode(`\\u7b2c ${segmentIndex} \\u4e2a\\u53e5\\u6bb5`);
+  }
+
+  if (args.segmentPosition === 'last')
+    return decodeEscapedUnicode('\\u6700\\u540e\\u4e00\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'previous')
+    return decodeEscapedUnicode('\\u524d\\u4e00\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'next')
+    return decodeEscapedUnicode('\\u540e\\u4e00\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'penultimate')
+    return decodeEscapedUnicode('\\u5012\\u6570\\u7b2c\\u4e8c\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'middle')
+    return decodeEscapedUnicode('\\u4e2d\\u95f4\\u90a3\\u4e2a\\u53e5\\u6bb5');
+  return null;
+}
+
 const TOOL_ARG_MAX_ID_LENGTH = 128;
 const TOOL_ARG_MAX_TEXT_LENGTH = 5000;
 
