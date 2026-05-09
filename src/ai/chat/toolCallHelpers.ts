@@ -1,107 +1,108 @@
 import { featureFlags } from '../config/featureFlags';
 import { buildAiToolRequestId } from '../toolRequestId';
-import { formatActionClarify, formatNonActionFallback, formatTargetClarify, formatToolCancelledMessage, formatToolFailureMessage, formatToolGraySkippedMessage, formatToolPendingMessage, formatToolRollbackSkippedMessage, formatToolSuccessMessage } from '../messages';
+import {
+  formatActionClarify,
+  formatNonActionFallback,
+  formatTargetClarify,
+  formatToolCancelledMessage,
+  formatToolFailureMessage,
+  formatToolGraySkippedMessage,
+  formatToolPendingMessage,
+  formatToolRollbackSkippedMessage,
+  formatToolSuccessMessage,
+} from '../messages';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
-import type { AiChatToolCall, AiChatToolName, AiClarifyCandidate, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiToolDecisionMode, PreviewContract, UiChatMessage } from './chatDomain.types';
+import type {
+  AiChatToolCall,
+  AiChatToolName,
+  AiClarifyCandidate,
+  AiMemoryRecallShapeTelemetry,
+  AiPromptContext,
+  AiSessionMemory,
+  AiToolDecisionMode,
+  PreviewContract,
+  UiChatMessage,
+} from './chatDomain.types';
 import type { Locale } from '../../i18n';
-import { extractJsonCandidates, parseToolCallFromTextZod, validateToolArgumentsZod } from './toolCallSchemas';
+import {
+  extractJsonCandidates,
+  parseToolCallFromTextZod,
+  validateToolArgumentsZod,
+} from './toolCallSchemas';
 import { normalizeToolCallName } from './toolCallNameNormalize';
 import { decodeEscapedUnicode, escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 import { resolveLanguageQuery } from '../../utils/langMapping';
-import { getAiToolPolicy, getAiToolSegmentExecutionToolNames, isAiToolDestructive } from '../policy/aiToolPolicyMatrix';
+import {
+  getAiToolPolicy,
+  getAiToolSegmentExecutionToolNames,
+  isAiToolDestructive,
+} from '../policy/aiToolPolicyMatrix';
 import { evidenceSourceRefsFromToolCallForAudit } from '../vertical/evidenceSourceRef';
+import { extractSegmentSelectorFromUserText } from './segmentTextParsers';
+import {
+  getFirstNonEmptyString,
+  getNormalizedIdList,
+  hasDeleteAllSegmentsScope,
+  getDeleteTargetIds,
+  hasSegmentSelector,
+  segmentSelectorNeedsAnchor,
+  isAmbiguousLanguageTarget,
+  requiresConcreteLanguageTarget,
+  validateSegmentTargetArgs,
+  validateDeleteSegmentArgs,
+  validateOptionalSegmentTargetArgs,
+  validateSplitSegmentArgs,
+  validateArgText,
+  validateArgNumeric,
+  validateArgLayerCreate,
+  validateDeleteLayerArgs,
+  validateLinkLayerArgs,
+  validateArgId,
+} from './toolCallValidation';
+export {
+  validateArgId,
+  validateArgIdList,
+  validateDeleteSegmentArgs,
+  validateSegmentTargetArgs,
+  validateOptionalSegmentTargetArgs,
+  validateArgNumeric,
+  validateArgText,
+  validateSplitSegmentArgs,
+  validateArgLayerCreate,
+  validateDeleteLayerArgs,
+  validateLinkLayerArgs,
+} from './toolCallValidation';
+
+// Re-export types extracted to satellite file
+import type {
+  ToolPlannerClarifyReason,
+  ToolPlannerResult,
+  ToolIntentAssessment,
+  ToolIntentAssessmentOptions,
+  ToolAuditContext,
+  ToolIntentAuditMetadata,
+  ToolDecisionAuditMetadata,
+} from './toolCallHelpers.types';
+export type {
+  ToolPlannerClarifyReason,
+  ToolPlannerResult,
+  ToolIntentDecision,
+  ToolIntentAssessment,
+  ToolIntentAssessmentOptions,
+  ToolAuditContext,
+  ToolIntentAuditMetadata,
+  ToolDecisionAuditMetadata,
+} from './toolCallHelpers.types';
+
+export {
+  parseChineseInteger,
+  parseEnglishOrdinal,
+  extractSegmentSelectorFromUserText,
+} from './segmentTextParsers';
 
 interface RawToolCallEnvelope {
   name: string;
   arguments: Record<string, unknown>;
-}
-
-export type ToolPlannerClarifyReason =
-  | 'missing-unit-target'
-  | 'missing-split-position'
-  | 'missing-translation-layer-target'
-  | 'missing-layer-link-target'
-  | 'missing-layer-target'
-  | 'missing-language-target';
-
-type ToolPlannerDecision = 'resolved' | 'clarify';
-
-export interface ToolPlannerResult {
-  decision: ToolPlannerDecision;
-  call: AiChatToolCall;
-  reason?: ToolPlannerClarifyReason;
-}
-
-export type ToolIntentDecision = 'execute' | 'clarify' | 'ignore' | 'cancel';
-
-export interface ToolIntentAssessment {
-  decision: ToolIntentDecision;
-  score: number;
-  hasExecutionCue: boolean;
-  hasActionVerb: boolean;
-  hasActionTarget: boolean;
-  hasExplicitId: boolean;
-  hasMetaQuestion: boolean;
-  hasTechnicalDiscussion: boolean;
-  intentCandidates?: Array<{ decision: ToolIntentDecision; confidence: number; why: string }>;
-  confidence?: number;
-  margin?: number;
-  confidenceGate?: { triggered: boolean; threshold: number; marginThreshold: number; reason?: string };
-}
-
-export interface ToolIntentAssessmentOptions {
-  allowDeicticExecution?: boolean;
-}
-
-export interface ToolAuditContext {
-  userText: string;
-  providerId: string;
-  model: string;
-  toolDecisionMode: AiToolDecisionMode;
-  toolFeedbackStyle: AiToolFeedbackStyle;
-  plannerDecision?: ToolPlannerDecision;
-  plannerReason?: ToolPlannerClarifyReason;
-  intentAssessment?: ToolIntentAssessment;
-  memoryRecallShape?: AiMemoryRecallShapeTelemetry;
-}
-
-export interface ToolIntentAuditMetadata {
-  schemaVersion: 1;
-  phase: 'intent';
-  requestId: string;
-  assistantMessageId: string;
-  toolCall: AiChatToolCall;
-  context: ToolAuditContext;
-  /** P1: deduped `formatEvidenceSourceRefForAudit` keys for evidence / segment joins (see `evidenceSourceRef.ts`). */
-  evidenceSourceRefs?: string[];
-}
-
-export interface ToolDecisionAuditMetadata {
-  schemaVersion: 1;
-  phase: 'decision';
-  requestId: string;
-  assistantMessageId: string;
-  source: 'human' | 'ai' | 'system';
-  toolCall: AiChatToolCall;
-  context: ToolAuditContext;
-  executed: boolean;
-  outcome: string;
-  memoryRecallShape?: AiMemoryRecallShapeTelemetry;
-  message?: string;
-  reason?: string;
-  durationMs?: number;
-  executionProgress?: {
-    appliedCount: number;
-    totalCount: number;
-    partial: boolean;
-  };
-  proposeRollback?: {
-    attempted: boolean;
-    ok: boolean;
-    errorCount: number;
-  };
-  /** P1: deduped `formatEvidenceSourceRefForAudit` keys for evidence / segment joins (see `evidenceSourceRef.ts`). */
-  evidenceSourceRefs?: string[];
 }
 
 export function parseToolCallFromText(rawText: string): AiChatToolCall | null {
@@ -112,7 +113,9 @@ export function parseToolCallFromText(rawText: string): AiChatToolCall | null {
 
 export function parseLegacyNarratedToolCall(text: string): AiChatToolCall | null {
   const patterns = [
-    escapedUnicodeRegExp('\\u6211\\u8bc6\\u522b\\u5230\\u4f60\\u60f3\\u6267\\u884c[“\\”]([^”\\”]+)[“\\”]'),
+    escapedUnicodeRegExp(
+      '\\u6211\\u8bc6\\u522b\\u5230\\u4f60\\u60f3\\u6267\\u884c[“\\”]([^”\\”]+)[“\\”]',
+    ),
     /I think you want to (?:run|use|execute) [“\']([^”\']+)[“\']/i,
     /you want to (?:run|use|execute) [“\']([^”\']+)[“\']/i,
   ];
@@ -148,9 +151,10 @@ function parseRawToolCallEnvelope(rawText: string): RawToolCallEnvelope | null {
     const name = typeof obj.name === 'string' ? obj.name.trim() : '';
     if (!name) continue;
     const rawArgs = obj.arguments;
-    const args = typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs)
-      ? rawArgs as Record<string, unknown>
-      : {};
+    const args =
+      typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs)
+        ? (rawArgs as Record<string, unknown>)
+        : {};
     return { name, arguments: args };
   }
   return null;
@@ -166,175 +170,14 @@ function inferFallbackActionLabel(userText: string, rawToolName: string): string
 
 function looksLikeSegmentScopedTool(rawToolName: string, args: Record<string, unknown>): boolean {
   const normalizedName = rawToolName.toLowerCase();
-  if (normalizedName.includes('segment') || normalizedName.includes('unit') || normalizedName.includes('row')) {
+  if (
+    normalizedName.includes('segment') ||
+    normalizedName.includes('unit') ||
+    normalizedName.includes('row')
+  ) {
     return true;
   }
-  return [
-    'segmentId',
-    'segmentIds',
-    'segmentIndex',
-    'segmentPosition',
-  ].some((key) => key in args);
-}
-
-const AMBIGUOUS_LANGUAGE_TARGET_PATTERN = /^(und|unknown|auto|default)$/i;
-
-function isAmbiguousLanguageTarget(value: unknown): boolean {
-  if (typeof value !== 'string') return true;
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return true;
-  return AMBIGUOUS_LANGUAGE_TARGET_PATTERN.test(trimmed);
-}
-
-function requiresConcreteLanguageTarget(callName: AiChatToolName): boolean {
-  return callName === 'create_transcription_layer' || callName === 'create_translation_layer';
-}
-
-function getFirstNonEmptyString(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value !== 'string') continue;
-    const trimmed = value.trim();
-    if (trimmed.length > 0) return trimmed;
-  }
-  return '';
-}
-
-function getNormalizedIdList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is string => typeof item === 'string')
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-}
-
-function getDeleteTargetIds(args: Record<string, unknown>): string[] {
-  const ids = [
-    ...getNormalizedIdList(args.segmentIds),
-    ...(() => {
-      const segmentId = getFirstNonEmptyString(args.segmentId);
-      return segmentId ? [segmentId] : [];
-    })(),
-  ];
-  return Array.from(new Set(ids));
-}
-
-function hasDeleteAllSegmentsScope(args: Record<string, unknown>): boolean {
-  return args.allSegments === true;
-}
-
-function hasSegmentSelector(args: Record<string, unknown>): boolean {
-  const segmentIndex = args.segmentIndex;
-  if (typeof segmentIndex === 'number' && Number.isInteger(segmentIndex) && segmentIndex >= 1) {
-    return true;
-  }
-  return typeof args.segmentPosition === 'string' && args.segmentPosition.length > 0;
-}
-
-function segmentSelectorNeedsAnchor(args: Record<string, unknown>): boolean {
-  return args.segmentPosition === 'previous' || args.segmentPosition === 'next';
-}
-
-function parseChineseInteger(raw: string): number | null {
-  const normalized = raw.trim().replace(/\u4e24/g, '\u4e8c');
-  if (!normalized) return null;
-  if (/^\d+$/.test(normalized)) return Number(normalized);
-
-  const digitMap: Record<string, number> = {
-    '\u4e00': 1,
-    '\u4e8c': 2,
-    '\u4e09': 3,
-    '\u56db': 4,
-    '\u4e94': 5,
-    '\u516d': 6,
-    '\u4e03': 7,
-    '\u516b': 8,
-    '\u4e5d': 9,
-  };
-
-  if (normalized === '\u5341') return 10;
-  const parts = normalized.split('\u5341');
-  if (parts.length === 2) {
-    const tens = parts[0] ? (digitMap[parts[0]] ?? NaN) : 1;
-    const ones = parts[1] ? (digitMap[parts[1]] ?? NaN) : 0;
-    if (Number.isFinite(tens) && Number.isFinite(ones)) {
-      return tens * 10 + ones;
-    }
-  }
-
-  return digitMap[normalized] ?? null;
-}
-
-function parseEnglishOrdinal(raw: string): number | null {
-  const normalized = raw.trim().toLowerCase();
-  if (!normalized) return null;
-  const wordMap: Record<string, number> = {
-    first: 1,
-    second: 2,
-    third: 3,
-    fourth: 4,
-    fifth: 5,
-    sixth: 6,
-    seventh: 7,
-    eighth: 8,
-    ninth: 9,
-    tenth: 10,
-  };
-  if (normalized in wordMap) return wordMap[normalized] ?? null;
-  const parsed = Number(normalized.replace(/(?:st|nd|rd|th)$/i, ''));
-  return Number.isInteger(parsed) && parsed >= 1 ? parsed : null;
-}
-
-const SEGMENT_NOUN_PATTERN = `(?:${decodeEscapedUnicode('\u53e5\u6bb5|\u5206\u6bb5|\u53e5\u5b50?|\u53e5|\u6bb5')}|segment|segments?)`;
-const LAST_SEGMENT_PREFIX_PATTERN = decodeEscapedUnicode('\u6700\u540e(?:\u4e00[\u4e2a\u6761\u6bb5\u53e5]?|\u4e00\u4e2a)?');
-const PREVIOUS_SEGMENT_PREFIX_PATTERN = decodeEscapedUnicode('\u524d\u4e00\u4e2a|\u4e0a\u4e00\u4e2a');
-const NEXT_SEGMENT_PREFIX_PATTERN = decodeEscapedUnicode('\u540e\u4e00\u4e2a|\u4e0b\u4e00\u4e2a');
-const PENULTIMATE_SEGMENT_PREFIX_PATTERN = decodeEscapedUnicode('\u5012\u6570\u7b2c\u4e8c(?:\u4e2a|\u6761|\u53e5|\u6bb5)?');
-const MIDDLE_SEGMENT_PREFIX_PATTERN = decodeEscapedUnicode('\u4e2d\u95f4\u90a3(?:\u4e2a|\u6761|\u53e5|\u6bb5)|\u4e2d\u95f4(?:\u90a3)?\u4e2a');
-const CHINESE_SEGMENT_ORDINAL_PATTERN = decodeEscapedUnicode('\u7b2c\\s*([0-9]+|[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u4e24]+)\\s*(?:\u4e2a|\u6761|\u53e5|\u6bb5)?\\s*');
-
-function extractSegmentSelectorFromUserText(userText: string): Record<string, unknown> | null {
-  const normalizedText = userText.trim();
-  if (!normalizedText) return null;
-
-  if (new RegExp(`(${LAST_SEGMENT_PREFIX_PATTERN}|(?:the\\s+)?last)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(normalizedText)) {
-    return { segmentPosition: 'last' };
-  }
-
-  if (new RegExp(`(${PREVIOUS_SEGMENT_PREFIX_PATTERN}|(?:the\\s+)?previous|(?:the\\s+)?prev)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(normalizedText)) {
-    return { segmentPosition: 'previous' };
-  }
-
-  if (new RegExp(`(${NEXT_SEGMENT_PREFIX_PATTERN}|(?:the\\s+)?next)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(normalizedText)) {
-    return { segmentPosition: 'next' };
-  }
-
-  if (new RegExp(`(${PENULTIMATE_SEGMENT_PREFIX_PATTERN}|(?:the\\s+)?penultimate)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(normalizedText)) {
-    return { segmentPosition: 'penultimate' };
-  }
-
-  if (new RegExp(`(${MIDDLE_SEGMENT_PREFIX_PATTERN}|(?:the\\s+)?middle)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(normalizedText)) {
-    return { segmentPosition: 'middle' };
-  }
-
-  const chineseMatch = normalizedText.match(new RegExp(`${CHINESE_SEGMENT_ORDINAL_PATTERN}${SEGMENT_NOUN_PATTERN}?`, 'i'));
-  if (chineseMatch?.[1]) {
-    const parsed = parseChineseInteger(chineseMatch[1]);
-    if (typeof parsed === 'number' && Number.isInteger(parsed) && parsed >= 1) {
-      return { segmentIndex: parsed };
-    }
-  }
-
-  const englishMatch = normalizedText.match(/(?:the\s+)?(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|\d+(?:st|nd|rd|th))\s+segments?/i);
-  if (englishMatch?.[1]) {
-    const ordinal = englishMatch[1].toLowerCase();
-    if (ordinal === 'last') return { segmentPosition: 'last' };
-    const parsed = parseEnglishOrdinal(ordinal);
-    if (typeof parsed === 'number' && Number.isInteger(parsed) && parsed >= 1) {
-      return { segmentIndex: parsed };
-    }
-  }
-
-  return null;
+  return ['segmentId', 'segmentIds', 'segmentIndex', 'segmentPosition'].some((key) => key in args);
 }
 
 function getContextScopeOrProjectUnitCount(context: AiPromptContext | null | undefined): number {
@@ -359,11 +202,16 @@ function describeDeleteSegmentSelectorTarget(args: Record<string, unknown>): str
     return decodeEscapedUnicode(`\\u7b2c ${segmentIndex} \\u4e2a\\u53e5\\u6bb5`);
   }
 
-  if (args.segmentPosition === 'last') return decodeEscapedUnicode('\\u6700\\u540e\\u4e00\\u4e2a\\u53e5\\u6bb5');
-  if (args.segmentPosition === 'previous') return decodeEscapedUnicode('\\u524d\\u4e00\\u4e2a\\u53e5\\u6bb5');
-  if (args.segmentPosition === 'next') return decodeEscapedUnicode('\\u540e\\u4e00\\u4e2a\\u53e5\\u6bb5');
-  if (args.segmentPosition === 'penultimate') return decodeEscapedUnicode('\\u5012\\u6570\\u7b2c\\u4e8c\\u4e2a\\u53e5\\u6bb5');
-  if (args.segmentPosition === 'middle') return decodeEscapedUnicode('\\u4e2d\\u95f4\\u90a3\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'last')
+    return decodeEscapedUnicode('\\u6700\\u540e\\u4e00\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'previous')
+    return decodeEscapedUnicode('\\u524d\\u4e00\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'next')
+    return decodeEscapedUnicode('\\u540e\\u4e00\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'penultimate')
+    return decodeEscapedUnicode('\\u5012\\u6570\\u7b2c\\u4e8c\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'middle')
+    return decodeEscapedUnicode('\\u4e2d\\u95f4\\u90a3\\u4e2a\\u53e5\\u6bb5');
   return null;
 }
 
@@ -372,8 +220,17 @@ function inferDeleteLayerArgumentsFromText(userText: string): Partial<AiChatTool
   if (!normalizedText) return {};
 
   let layerType: 'translation' | 'transcription' | undefined;
-  if (escapedUnicodeRegExp('(\\u7ffb\\u8bd1\\u5c42|\\u8bd1\\u6587\\u5c42)', 'i').test(normalizedText)) layerType = 'translation';
-  if (escapedUnicodeRegExp('(\\u8f6c\\u5199\\u5c42|\\u8f6c\\u5f55\\u5c42|\\u542c\\u5199\\u5c42)', 'i').test(normalizedText)) layerType = 'transcription';
+  if (
+    escapedUnicodeRegExp('(\\u7ffb\\u8bd1\\u5c42|\\u8bd1\\u6587\\u5c42)', 'i').test(normalizedText)
+  )
+    layerType = 'translation';
+  if (
+    escapedUnicodeRegExp(
+      '(\\u8f6c\\u5199\\u5c42|\\u8f6c\\u5f55\\u5c42|\\u542c\\u5199\\u5c42)',
+      'i',
+    ).test(normalizedText)
+  )
+    layerType = 'transcription';
 
   const languageQueryMatch = normalizedText.match(
     escapedUnicodeRegExp(
@@ -387,167 +244,6 @@ function inferDeleteLayerArgumentsFromText(userText: string): Partial<AiChatTool
   if (layerType) result.layerType = layerType;
   if (languageQuery) result.languageQuery = languageQuery;
   return result;
-}
-
-const TOOL_ARG_MAX_ID_LENGTH = 128;
-const TOOL_ARG_MAX_TEXT_LENGTH = 5000;
-
-function validateArgId(args: Record<string, unknown>, key: string, required: boolean): string | null {
-  if (!(key in args)) return required ? decodeEscapedUnicode(`\\u7f3a\\u5c11 ${key}。`) : null;
-  const value = args[key];
-  if (typeof value !== 'string') return decodeEscapedUnicode(`${key} \\u5fc5\\u987b\\u662f\\u5b57\\u7b26\\u4e32。`);
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return decodeEscapedUnicode(`${key} \\u4e0d\\u80fd\\u4e3a\\u7a7a。`);
-  if (trimmed.length > TOOL_ARG_MAX_ID_LENGTH) return decodeEscapedUnicode(`${key} \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 ${TOOL_ARG_MAX_ID_LENGTH}。`);
-  return null;
-}
-
-function validateArgIdList(args: Record<string, unknown>, key: string, required: boolean): string | null {
-  if (!(key in args)) return required ? decodeEscapedUnicode(`\\u7f3a\\u5c11 ${key}。`) : null;
-  const value = args[key];
-  if (!Array.isArray(value)) return decodeEscapedUnicode(`${key} \\u5fc5\\u987b\\u662f ID \\u6570\\u7ec4。`);
-  if (value.length === 0) return decodeEscapedUnicode(`${key} \\u81f3\\u5c11\\u9700\\u8981 1 \\u4e2a ID。`);
-  for (const item of value) {
-    if (typeof item !== 'string') return decodeEscapedUnicode(`${key} \\u5fc5\\u987b\\u662f ID \\u6570\\u7ec4。`);
-    const trimmed = item.trim();
-    if (trimmed.length === 0) return decodeEscapedUnicode(`${key} \\u4e0d\\u80fd\\u5305\\u542b\\u7a7a ID。`);
-    if (trimmed.length > TOOL_ARG_MAX_ID_LENGTH) {
-      return decodeEscapedUnicode(`${key} \\u4e2d\\u7684 ID \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 ${TOOL_ARG_MAX_ID_LENGTH}。`);
-    }
-  }
-  return null;
-}
-
-function validateDeleteSegmentArgs(args: Record<string, unknown>): string | null {
-  if (hasDeleteAllSegmentsScope(args)) {
-    return null;
-  }
-
-  if (hasSegmentSelector(args)) {
-    return null;
-  }
-
-  const listValidation = validateArgIdList(args, 'segmentIds', false);
-  if (listValidation) return listValidation;
-
-  if (getNormalizedIdList(args.segmentIds).length > 0) {
-    return null;
-  }
-
-  const segmentId = getFirstNonEmptyString(args.segmentId);
-  if (segmentId) return validateArgId(args, 'segmentId', false);
-
-  return decodeEscapedUnicode('\u7f3a\u5c11 segmentId/segmentIds/allSegments。');
-}
-
-function validateSegmentTargetArgs(args: Record<string, unknown>): string | null {
-  if (hasSegmentSelector(args)) {
-    return null;
-  }
-  return validateArgId(args, 'segmentId', true);
-}
-
-function validateOptionalSegmentTargetArgs(args: Record<string, unknown>): string | null {
-  if (hasSegmentSelector(args)) {
-    return null;
-  }
-  return validateArgId(args, 'segmentId', false);
-}
-
-/** \\u6570\\u503c\\u53c2\\u6570\\u6821\\u9a8c（\\u517c\\u5bb9 Zod number schema） | Numeric arg validator (compatible with Zod number schemas) */
-function validateArgNumeric(args: Record<string, unknown>, key: string, required: boolean): string | null {
-  if (!(key in args)) return required ? decodeEscapedUnicode(`\\u7f3a\\u5c11 ${key}。`) : null;
-  const value = args[key];
-  const num = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
-  if (!Number.isFinite(num)) return decodeEscapedUnicode(`${key} \\u5fc5\\u987b\\u662f\\u6709\\u6548\\u6570\\u5b57。`);
-  return null;
-}
-
-function validateArgText(args: Record<string, unknown>): string | null {
-  const value = args.text;
-  if (typeof value !== 'string') return decodeEscapedUnicode('text \\u5fc5\\u987b\\u662f\\u5b57\\u7b26\\u4e32。');
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return decodeEscapedUnicode('text \\u4e0d\\u80fd\\u4e3a\\u7a7a。');
-  if (trimmed.length > TOOL_ARG_MAX_TEXT_LENGTH) return decodeEscapedUnicode(`text \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 ${TOOL_ARG_MAX_TEXT_LENGTH}。`);
-  return null;
-}
-
-function validateSplitSegmentArgs(args: Record<string, unknown>): string | null {
-  let idValidation: string | null = null;
-  if (!hasSegmentSelector(args)) {
-    idValidation = validateArgId(args, 'segmentId', true);
-  }
-  if (idValidation) return idValidation;
-
-  if (!('splitTime' in args)) return null;
-  const splitTime = args.splitTime;
-  if (typeof splitTime !== 'number' || !Number.isFinite(splitTime)) {
-    return decodeEscapedUnicode('splitTime \\u5fc5\\u987b\\u662f\\u6570\\u503c（\\u79d2）。');
-  }
-  if (splitTime < 0) {
-    return decodeEscapedUnicode('splitTime \\u4e0d\\u80fd\\u4e3a\\u8d1f\\u6570。');
-  }
-  return null;
-}
-
-function validateArgLayerCreate(args: Record<string, unknown>, allowModality: boolean): string | null {
-  const languageId = args.languageId;
-  const languageQuery = args.languageQuery;
-  const effectiveLang = (typeof languageId === 'string' && languageId.trim().length > 0)
-    ? languageId.trim()
-    : (typeof languageQuery === 'string' && languageQuery.trim().length > 0)
-      ? languageQuery.trim()
-      : '';
-  if (effectiveLang.length === 0) {
-    return decodeEscapedUnicode('languageId \\u5fc5\\u987b\\u662f\\u975e\\u7a7a\\u5b57\\u7b26\\u4e32。');
-  }
-  if (isAmbiguousLanguageTarget(effectiveLang)) {
-    return decodeEscapedUnicode('languageId \\u4e0d\\u80fd\\u662f und/unknown/auto/default，\\u8bf7\\u63d0\\u4f9b\\u660e\\u786e\\u8bed\\u8a00。');
-  }
-  if (effectiveLang.length > 32) return decodeEscapedUnicode('languageId/languageQuery \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 32。');
-  if ('alias' in args) {
-    const alias = args.alias;
-    if (typeof alias !== 'string') return decodeEscapedUnicode('alias \\u5fc5\\u987b\\u662f\\u5b57\\u7b26\\u4e32。');
-    if (alias.trim().length > 64) return decodeEscapedUnicode('alias \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 64。');
-  }
-  if (allowModality && 'modality' in args) {
-    const modality = args.modality;
-    if (typeof modality !== 'string') return decodeEscapedUnicode('modality \\u5fc5\\u987b\\u662f\\u5b57\\u7b26\\u4e32。');
-    if (!['text', 'audio', 'mixed'].includes(modality.trim().toLowerCase())) {
-      return decodeEscapedUnicode('modality \\u5fc5\\u987b\\u662f text/audio/mixed \\u4e4b\\u4e00。');
-    }
-  }
-  return null;
-}
-
-function validateDeleteLayerArgs(args: Record<string, unknown>): string | null {
-  const layerIdValidation = validateArgId(args, 'layerId', false);
-  if (layerIdValidation) return layerIdValidation;
-  const hasLayerId = typeof args.layerId === 'string' && args.layerId.trim().length > 0;
-  if (hasLayerId) return null;
-  const layerType = args.layerType;
-  if (layerType !== 'translation' && layerType !== 'transcription') {
-    return decodeEscapedUnicode('\\u7f3a\\u5c11 layerId，\\u4e14 layerType \\u5fc5\\u987b\\u662f translation/transcription \\u4e4b\\u4e00。');
-  }
-  const languageQuery = args.languageQuery;
-  if (typeof languageQuery !== 'string' || languageQuery.trim().length === 0) {
-    return decodeEscapedUnicode('\\u7f3a\\u5c11 layerId \\u65f6\\u5fc5\\u987b\\u63d0\\u4f9b languageQuery。');
-  }
-  if (languageQuery.trim().length > 32) return decodeEscapedUnicode('languageQuery \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 32。');
-  return null;
-}
-
-function validateLinkLayerArgs(args: Record<string, unknown>): string | null {
-  if (!('transcriptionLayerId' in args) && !('transcriptionLayerKey' in args)) {
-    return decodeEscapedUnicode('\\u7f3a\\u5c11 transcriptionLayerId（\\u517c\\u5bb9\\u5b57\\u6bb5\\uff1atranscriptionLayerKey）。');
-  }
-  if (!('translationLayerId' in args) && !('layerId' in args)) {
-    return decodeEscapedUnicode('\\u7f3a\\u5c11 translationLayerId/layerId。');
-  }
-  return validateArgId(args, 'transcriptionLayerId', false)
-    ?? validateArgId(args, 'transcriptionLayerKey', false)
-    ?? validateArgId(args, 'translationLayerId', false)
-    ?? validateArgId(args, 'layerId', false);
 }
 
 interface ToolContextFillSpec {
@@ -587,7 +283,10 @@ export function resolveSelectionTargetPatchForTool(
   const selectedUnitKind = short?.selectedUnitKind;
 
   if (toolSupportsSegmentSelectionTarget(callName)) {
-    if ((selectedUnitKind === 'segment' || activeSegmentUnitId.length > 0) && activeSegmentUnitId.length > 0) {
+    if (
+      (selectedUnitKind === 'segment' || activeSegmentUnitId.length > 0) &&
+      activeSegmentUnitId.length > 0
+    ) {
       return { segmentId: activeSegmentUnitId };
     }
     return null;
@@ -614,7 +313,9 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     contextFill: {},
     validateArgs: (args) => {
       const segmentIds = getNormalizedIdList(args.segmentIds);
-      return segmentIds.length >= 2 ? null : '\\u7f3a\\u5c11\\u81f3\\u5c11 2 \\u4e2a\\u76ee\\u6807\\u53e5\\u6bb5';
+      return segmentIds.length >= 2
+        ? null
+        : '\\u7f3a\\u5c11\\u81f3\\u5c11 2 \\u4e2a\\u76ee\\u6807\\u53e5\\u6bb5';
     },
   },
   delete_transcription_segment: {
@@ -657,7 +358,10 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   set_translation_text: {
     label: '\\u5199\\u5165\\u7ffb\\u8bd1',
     contextFill: { unitId: true, translationLayerId: true },
-    validateArgs: (args) => validateArgText(args) ?? validateSegmentTargetArgs(args) ?? validateArgId(args, 'layerId', true),
+    validateArgs: (args) =>
+      validateArgText(args) ??
+      validateSegmentTargetArgs(args) ??
+      validateArgId(args, 'layerId', true),
   },
   create_transcription_layer: {
     label: '\\u521b\\u5efa\\u8f6c\\u5199\\u5c42',
@@ -675,8 +379,14 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
       summary: (args) => {
         const layerId = typeof args.layerId === 'string' ? args.layerId.trim() : '';
         const layerType = typeof args.layerType === 'string' ? args.layerType.trim() : '';
-        const languageQuery = typeof args.languageQuery === 'string' ? args.languageQuery.trim() : '';
-        const typeLabel = layerType === 'transcription' ? '\\u8f6c\\u5199\\u5c42' : layerType === 'translation' ? '\\u7ffb\\u8bd1\\u5c42' : '\\u5c42';
+        const languageQuery =
+          typeof args.languageQuery === 'string' ? args.languageQuery.trim() : '';
+        const typeLabel =
+          layerType === 'transcription'
+            ? '\\u8f6c\\u5199\\u5c42'
+            : layerType === 'translation'
+              ? '\\u7ffb\\u8bd1\\u5c42'
+              : '\\u5c42';
         if (languageQuery) {
           return `\\u5c06\\u5220\\u9664\\u6574\\u5c42\\u6570\\u636e（\\u76ee\\u6807：${languageQuery}${typeLabel}${layerId ? `，ID：${layerId}` : ''}）`;
         }
@@ -752,14 +462,31 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   play_pause: { label: '\\u64ad\\u653e/\\u6682\\u505c', contextFill: {}, validateArgs: () => null },
   undo: { label: '\\u64a4\\u9500', contextFill: {}, validateArgs: () => null },
   redo: { label: '\\u91cd\\u505a', contextFill: {}, validateArgs: () => null },
-  search_segments: { label: '\\u641c\\u7d22\\u53e5\\u6bb5', contextFill: {}, validateArgs: (args) => validateArgText({ text: args.query }) },
-  toggle_notes: { label: '\\u5207\\u6362\\u5907\\u6ce8', contextFill: {}, validateArgs: () => null },
-  mark_segment: { label: '\\u6807\\u8bb0\\u53e5\\u6bb5', contextFill: {}, validateArgs: () => null },
-  delete_segment: { label: '\\u5220\\u9664\\u53e5\\u6bb5', contextFill: {}, validateArgs: () => null },
+  search_segments: {
+    label: '\\u641c\\u7d22\\u53e5\\u6bb5',
+    contextFill: {},
+    validateArgs: (args) => validateArgText({ text: args.query }),
+  },
+  toggle_notes: {
+    label: '\\u5207\\u6362\\u5907\\u6ce8',
+    contextFill: {},
+    validateArgs: () => null,
+  },
+  mark_segment: {
+    label: '\\u6807\\u8bb0\\u53e5\\u6bb5',
+    contextFill: {},
+    validateArgs: () => null,
+  },
+  delete_segment: {
+    label: '\\u5220\\u9664\\u53e5\\u6bb5',
+    contextFill: {},
+    validateArgs: () => null,
+  },
   auto_gloss_segment: {
     label: '\\u81ea\\u52a8\\u6807\\u6ce8',
     contextFill: { unitId: true },
-    validateArgs: (args) => validateArgId(args, 'segmentId', false) ?? validateArgId(args, 'unitId', false),
+    validateArgs: (args) =>
+      validateArgId(args, 'segmentId', false) ?? validateArgId(args, 'unitId', false),
   },
   nav_to_segment: {
     label: '\\u5bfc\\u822a\\u5230\\u53e5\\u6bb5',
@@ -796,9 +523,21 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     contextFill: { unitId: true },
     validateArgs: validateOptionalSegmentTargetArgs,
   },
-  get_current_segment: { label: '\\u83b7\\u53d6\\u5f53\\u524d\\u53e5\\u6bb5', contextFill: {}, validateArgs: () => null },
-  get_project_summary: { label: '\\u83b7\\u53d6\\u9879\\u76ee\\u6458\\u8981', contextFill: {}, validateArgs: () => null },
-  get_recent_history: { label: '\\u83b7\\u53d6\\u6700\\u8fd1\\u5386\\u53f2', contextFill: {}, validateArgs: () => null },
+  get_current_segment: {
+    label: '\\u83b7\\u53d6\\u5f53\\u524d\\u53e5\\u6bb5',
+    contextFill: {},
+    validateArgs: () => null,
+  },
+  get_project_summary: {
+    label: '\\u83b7\\u53d6\\u9879\\u76ee\\u6458\\u8981',
+    contextFill: {},
+    validateArgs: () => null,
+  },
+  get_recent_history: {
+    label: '\\u83b7\\u53d6\\u6700\\u8fd1\\u5386\\u53f2',
+    contextFill: {},
+    validateArgs: () => null,
+  },
 };
 
 export function planToolCallTargets(
@@ -810,9 +549,10 @@ export function planToolCallTargets(
   const currentUnitId = getFirstNonEmptyString(shortTerm?.activeUnitId);
   const currentSegmentId = getFirstNonEmptyString(shortTerm?.activeSegmentUnitId);
   const selectedUnitIds = getNormalizedIdList(shortTerm?.selectedUnitIds);
-  const currentAudioTimeSec = typeof shortTerm?.audioTimeSec === 'number' && Number.isFinite(shortTerm.audioTimeSec)
-    ? shortTerm.audioTimeSec
-    : undefined;
+  const currentAudioTimeSec =
+    typeof shortTerm?.audioTimeSec === 'number' && Number.isFinite(shortTerm.audioTimeSec)
+      ? shortTerm.audioTimeSec
+      : undefined;
   const selectedLayerId = getFirstNonEmptyString(shortTerm?.selectedLayerId);
   const selectedLayerType = shortTerm?.selectedLayerType;
   const selectedTranslationLayerId = getFirstNonEmptyString(
@@ -831,7 +571,10 @@ export function planToolCallTargets(
   if (toolSupportsSegmentSelectionTarget(call.name)) {
     delete nextCall.arguments.unitId;
   }
-  if (call.name === 'merge_transcription_segments' || call.name === 'delete_transcription_segment') {
+  if (
+    call.name === 'merge_transcription_segments' ||
+    call.name === 'delete_transcription_segment'
+  ) {
     delete nextCall.arguments.unitIds;
   }
   const parsedSegmentSelector = extractSegmentSelectorFromUserText(userText);
@@ -880,18 +623,28 @@ export function planToolCallTargets(
   const cf = TOOL_STRATEGY_TABLE[call.name]?.contextFill;
 
   if (requiresConcreteLanguageTarget(call.name)) {
-    if (isAmbiguousLanguageTarget(nextCall.arguments.languageId) && isAmbiguousLanguageTarget(nextCall.arguments.languageQuery)) {
+    if (
+      isAmbiguousLanguageTarget(nextCall.arguments.languageId) &&
+      isAmbiguousLanguageTarget(nextCall.arguments.languageQuery)
+    ) {
       return { decision: 'clarify', call: nextCall, reason: 'missing-language-target' };
     }
   }
 
   if (call.name === 'delete_transcription_segment') {
-    const hasExplicitDeleteTarget = getDeleteTargetIds(nextCall.arguments).length > 0 || hasSegmentSelector(nextCall.arguments);
-    if (hasSegmentSelector(nextCall.arguments) && segmentSelectorNeedsAnchor(nextCall.arguments) && !currentUnitId && !currentSegmentId) {
+    const hasExplicitDeleteTarget =
+      getDeleteTargetIds(nextCall.arguments).length > 0 || hasSegmentSelector(nextCall.arguments);
+    if (
+      hasSegmentSelector(nextCall.arguments) &&
+      segmentSelectorNeedsAnchor(nextCall.arguments) &&
+      !currentUnitId &&
+      !currentSegmentId
+    ) {
       return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
     }
-    const refersAllSelectedSegments = /(\u6240\u6709|\u5168\u90e8|\u5168\u4f53|all)/i.test(userText)
-      && /(\u53e5\u6bb5|\u5206\u6bb5|segment)/i.test(userText);
+    const refersAllSelectedSegments =
+      /(\u6240\u6709|\u5168\u90e8|\u5168\u4f53|all)/i.test(userText) &&
+      /(\u53e5\u6bb5|\u5206\u6bb5|segment)/i.test(userText);
 
     if (!hasExplicitDeleteTarget && !hasDeleteAllSegmentsScope(nextCall.arguments)) {
       if (refersAllSelectedSegments && selectedUnitIds.length > 1) {
@@ -915,7 +668,11 @@ export function planToolCallTargets(
       }
     }
 
-    if (!hasDeleteAllSegmentsScope(nextCall.arguments) && getDeleteTargetIds(nextCall.arguments).length === 0 && !hasSegmentSelector(nextCall.arguments)) {
+    if (
+      !hasDeleteAllSegmentsScope(nextCall.arguments) &&
+      getDeleteTargetIds(nextCall.arguments).length === 0 &&
+      !hasSegmentSelector(nextCall.arguments)
+    ) {
       return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
     }
   }
@@ -943,8 +700,17 @@ export function planToolCallTargets(
     }
   }
 
-  if (cf?.unitId && call.name !== 'delete_transcription_segment' && call.name !== 'merge_prev' && call.name !== 'merge_next') {
-    if (!getFirstNonEmptyString(nextCall.arguments.segmentId, nextCall.arguments.unitId) && !hasSegmentSelector(nextCall.arguments) && parsedSegmentSelector) {
+  if (
+    cf?.unitId &&
+    call.name !== 'delete_transcription_segment' &&
+    call.name !== 'merge_prev' &&
+    call.name !== 'merge_next'
+  ) {
+    if (
+      !getFirstNonEmptyString(nextCall.arguments.segmentId, nextCall.arguments.unitId) &&
+      !hasSegmentSelector(nextCall.arguments) &&
+      parsedSegmentSelector
+    ) {
       Object.assign(nextCall.arguments, parsedSegmentSelector);
       if (segmentSelectorNeedsAnchor(nextCall.arguments) && !currentUnitId && !currentSegmentId) {
         return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
@@ -967,9 +733,10 @@ export function planToolCallTargets(
 
   if (call.name === 'split_transcription_segment') {
     const rawSplitTime = nextCall.arguments.splitTime;
-    const splitTime = typeof rawSplitTime === 'number' && Number.isFinite(rawSplitTime)
-      ? rawSplitTime
-      : currentAudioTimeSec;
+    const splitTime =
+      typeof rawSplitTime === 'number' && Number.isFinite(rawSplitTime)
+        ? rawSplitTime
+        : currentAudioTimeSec;
 
     if (!(typeof splitTime === 'number' && Number.isFinite(splitTime))) {
       return { decision: 'clarify', call: nextCall, reason: 'missing-split-position' };
@@ -995,18 +762,37 @@ export function planToolCallTargets(
   if (cf?.linkBothLayers) {
     let transcriptionLayerId = getFirstNonEmptyString(nextCall.arguments.transcriptionLayerId);
     const transcriptionLayerKey = getFirstNonEmptyString(nextCall.arguments.transcriptionLayerKey);
-    const refersCurrentLayerPair = escapedUnicodeRegExp('(\\u5f53\\u524d|\\u8fd9\\u5c42|\\u8be5\\u5c42|\\u672c\\u5c42|\\u5f53\\u524d\\u5c42)', 'i').test(userText);
+    const refersCurrentLayerPair = escapedUnicodeRegExp(
+      '(\\u5f53\\u524d|\\u8fd9\\u5c42|\\u8be5\\u5c42|\\u672c\\u5c42|\\u5f53\\u524d\\u5c42)',
+      'i',
+    ).test(userText);
 
-    if (transcriptionLayerId && selectedTranscriptionLayerId && transcriptionLayerId !== selectedTranscriptionLayerId) {
+    if (
+      transcriptionLayerId &&
+      selectedTranscriptionLayerId &&
+      transcriptionLayerId !== selectedTranscriptionLayerId
+    ) {
       nextCall.arguments.transcriptionLayerId = selectedTranscriptionLayerId;
       transcriptionLayerId = selectedTranscriptionLayerId;
     }
-    if (!transcriptionLayerId && !transcriptionLayerKey && selectedTranscriptionLayerId && refersCurrentLayerPair) {
+    if (
+      !transcriptionLayerId &&
+      !transcriptionLayerKey &&
+      selectedTranscriptionLayerId &&
+      refersCurrentLayerPair
+    ) {
       nextCall.arguments.transcriptionLayerId = selectedTranscriptionLayerId;
     }
 
-    let translationLayerId = getFirstNonEmptyString(nextCall.arguments.translationLayerId, nextCall.arguments.layerId);
-    if (translationLayerId && selectedTranslationLayerId && translationLayerId !== selectedTranslationLayerId) {
+    let translationLayerId = getFirstNonEmptyString(
+      nextCall.arguments.translationLayerId,
+      nextCall.arguments.layerId,
+    );
+    if (
+      translationLayerId &&
+      selectedTranslationLayerId &&
+      translationLayerId !== selectedTranslationLayerId
+    ) {
       nextCall.arguments.translationLayerId = selectedTranslationLayerId;
       translationLayerId = selectedTranslationLayerId;
     }
@@ -1014,8 +800,14 @@ export function planToolCallTargets(
       nextCall.arguments.translationLayerId = selectedTranslationLayerId;
     }
 
-    const hasTranscriptionTarget = getFirstNonEmptyString(nextCall.arguments.transcriptionLayerId, nextCall.arguments.transcriptionLayerKey).length > 0;
-    const hasTranslationTarget = getFirstNonEmptyString(nextCall.arguments.translationLayerId, nextCall.arguments.layerId).length > 0;
+    const hasTranscriptionTarget =
+      getFirstNonEmptyString(
+        nextCall.arguments.transcriptionLayerId,
+        nextCall.arguments.transcriptionLayerKey,
+      ).length > 0;
+    const hasTranslationTarget =
+      getFirstNonEmptyString(nextCall.arguments.translationLayerId, nextCall.arguments.layerId)
+        .length > 0;
     if (!hasTranscriptionTarget || !hasTranslationTarget) {
       return { decision: 'clarify', call: nextCall, reason: 'missing-layer-link-target' };
     }
@@ -1025,7 +817,11 @@ export function planToolCallTargets(
     let layerId = getFirstNonEmptyString(nextCall.arguments.layerId);
 
     if (layerId) {
-      const knownIds = [selectedLayerId, selectedTranscriptionLayerId, selectedTranslationLayerId].filter(Boolean);
+      const knownIds = [
+        selectedLayerId,
+        selectedTranscriptionLayerId,
+        selectedTranslationLayerId,
+      ].filter(Boolean);
       if (!knownIds.includes(layerId)) {
         nextCall.arguments = { ...nextCall.arguments };
         delete nextCall.arguments.layerId;
@@ -1037,7 +833,10 @@ export function planToolCallTargets(
       const inferred = inferDeleteLayerArgumentsFromText(userText);
       nextCall.arguments = { ...nextCall.arguments, ...inferred };
 
-      const refersCurrentLayer = escapedUnicodeRegExp('(\\u5f53\\u524d|\\u8fd9\\u5c42|\\u8be5\\u5c42|\\u672c\\u5c42).*(\\u5c42)|\\u5220\\u9664\\u5f53\\u524d\\u5c42|\\u5220\\u9664\\u8fd9\\u5c42', 'i').test(userText);
+      const refersCurrentLayer = escapedUnicodeRegExp(
+        '(\\u5f53\\u524d|\\u8fd9\\u5c42|\\u8be5\\u5c42|\\u672c\\u5c42).*(\\u5c42)|\\u5220\\u9664\\u5f53\\u524d\\u5c42|\\u5220\\u9664\\u8fd9\\u5c42',
+        'i',
+      ).test(userText);
       if (refersCurrentLayer && selectedLayerId) {
         nextCall.arguments.layerId = selectedLayerId;
       }
@@ -1068,11 +867,17 @@ export function planToolCallTargets(
 
 function isDeicticConfirmationMessage(userText: string): boolean {
   const normalized = userText.trim();
-  return escapedUnicodeRegExp('^(\\u8fd9\\u4e2a|\\u8fd9\\u4e2a\\u5427|\\u5c31\\u8fd9\\u4e2a|\\u5b83|\\u5b83\\u5427|\\u5c31\\u5b83|\\u8fd9\\u6761|\\u8be5\\u6761|\\u8fd9\\u4e00\\u6761|\\u8fd9\\u4e2a\\u53e5\\u6bb5|\\u8be5\\u53e5\\u6bb5|\\u8fd9\\u4e2a\\u5b57\\u6bb5|\\u8be5\\u5b57\\u6bb5|\\u8fd9\\u91cc|\\u6b64\\u5904|\\u5728\\u8fd9\\u91cc|\\u5728\\u6b64\\u5904|\\u5c31\\u8fd9\\u91cc|\\u5c31\\u6b64\\u5904)$', 'i').test(normalized);
+  return escapedUnicodeRegExp(
+    '^(\\u8fd9\\u4e2a|\\u8fd9\\u4e2a\\u5427|\\u5c31\\u8fd9\\u4e2a|\\u5b83|\\u5b83\\u5427|\\u5c31\\u5b83|\\u8fd9\\u6761|\\u8be5\\u6761|\\u8fd9\\u4e00\\u6761|\\u8fd9\\u4e2a\\u53e5\\u6bb5|\\u8be5\\u53e5\\u6bb5|\\u8fd9\\u4e2a\\u5b57\\u6bb5|\\u8be5\\u5b57\\u6bb5|\\u8fd9\\u91cc|\\u6b64\\u5904|\\u5728\\u8fd9\\u91cc|\\u5728\\u6b64\\u5904|\\u5c31\\u8fd9\\u91cc|\\u5c31\\u6b64\\u5904)$',
+    'i',
+  ).test(normalized);
 }
 
 export function extractClarifyLanguagePatch(userText: string): Record<string, string> | null {
-  const trimmed = userText.trim().replace(escapedUnicodeRegExp('[\\u7684\\u90a3\\u4e2a\\u5427]$', 'g'), '').trim();
+  const trimmed = userText
+    .trim()
+    .replace(escapedUnicodeRegExp('[\\u7684\\u90a3\\u4e2a\\u5427]$', 'g'), '')
+    .trim();
   if (!trimmed || trimmed.length > 20) return null;
   const resolved = resolveLanguageQuery(trimmed);
   if (!resolved) return null;
@@ -1083,7 +888,13 @@ export function extractClarifySplitPositionPatch(
   userText: string,
   context: AiPromptContext | null | undefined,
 ): Record<string, number | string> | null {
-  if (!escapedUnicodeRegExp('^(\\u8fd9\\u91cc|\\u6b64\\u5904|\\u5728\\u8fd9\\u91cc|\\u5728\\u6b64\\u5904|\\u5c31\\u8fd9\\u91cc|\\u5c31\\u6b64\\u5904)$', 'i').test(userText.trim())) return null;
+  if (
+    !escapedUnicodeRegExp(
+      '^(\\u8fd9\\u91cc|\\u6b64\\u5904|\\u5728\\u8fd9\\u91cc|\\u5728\\u6b64\\u5904|\\u5c31\\u8fd9\\u91cc|\\u5c31\\u6b64\\u5904)$',
+      'i',
+    ).test(userText.trim())
+  )
+    return null;
   const audioTimeSec = context?.shortTerm?.audioTimeSec;
   if (typeof audioTimeSec !== 'number' || !Number.isFinite(audioTimeSec)) return null;
   const targetPatch = resolveSelectionTargetPatchForTool('split_transcription_segment', context);
@@ -1091,7 +902,10 @@ export function extractClarifySplitPositionPatch(
   return { ...targetPatch, splitTime: audioTimeSec };
 }
 
-function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: AiPromptContext | null | undefined): boolean {
+function hasResolvableSelectionTargetForTool(
+  callName: AiChatToolName,
+  context: AiPromptContext | null | undefined,
+): boolean {
   const short = context?.shortTerm;
   const selectedUnitIds = getNormalizedIdList(short?.selectedUnitIds);
   const selectedLayerId = getFirstNonEmptyString(short?.selectedLayerId);
@@ -1129,9 +943,13 @@ function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: 
 }
 
 function wasRecentAssistantClarification(messages: UiChatMessage[]): boolean {
-  const latestAssistant = messages.find((item) => item.role === 'assistant' && item.content.trim().length > 0);
+  const latestAssistant = messages.find(
+    (item) => item.role === 'assistant' && item.content.trim().length > 0,
+  );
   if (!latestAssistant) return false;
-  return escapedUnicodeRegExp('(\\u8fd8\\u4e0d\\u591f\\u786e\\u5b9a|\\u8fd8\\u4e0d\\u80fd\\u5b89\\u5168\\u6267\\u884c|\\u7f3a\\u5c11\\u76ee\\u6807|\\u8bf7\\u5148\\u9009\\u4e2d\\u76ee\\u6807)').test(latestAssistant.content);
+  return escapedUnicodeRegExp(
+    '(\\u8fd8\\u4e0d\\u591f\\u786e\\u5b9a|\\u8fd8\\u4e0d\\u80fd\\u5b89\\u5168\\u6267\\u884c|\\u7f3a\\u5c11\\u76ee\\u6807|\\u8bf7\\u5148\\u9009\\u4e2d\\u76ee\\u6807)',
+  ).test(latestAssistant.content);
 }
 
 export function shouldAllowDeicticExecutionIntent(
@@ -1146,7 +964,10 @@ export function shouldAllowDeicticExecutionIntent(
   return wasRecentAssistantClarification(messages) || hasResolvableTarget;
 }
 
-export function assessToolActionIntent(userText: string, options?: ToolIntentAssessmentOptions): ToolIntentAssessment {
+export function assessToolActionIntent(
+  userText: string,
+  options?: ToolIntentAssessmentOptions,
+): ToolIntentAssessment {
   const trimmed = userText.trim();
   const normalized = trimmed.toLowerCase();
   const allowDeicticExecution = options?.allowDeicticExecution ?? false;
@@ -1188,7 +1009,10 @@ export function assessToolActionIntent(userText: string, options?: ToolIntentAss
     };
   }
 
-  const cancelPattern = escapedUnicodeRegExp('^(\\u7b97\\u4e86|\\u4e0d\\u505a\\u4e86|\\u4e0d\\u7528\\u4e86|\\u53d6\\u6d88|\\u53d6\\u6d88\\u5427|\\u522b[\\u505a\\u5220\\u5efa]\\u4e86|\\u4e0d\\u8981\\u4e86|never\\s*mind|cancel|forget\\s*it|stop|nvm|\\u6ca1\\u4e8b\\u4e86|\\u4e0d\\u9700\\u8981\\u4e86|\\u8fd8\\u662f\\u7b97\\u4e86)$', 'i');
+  const cancelPattern = escapedUnicodeRegExp(
+    '^(\\u7b97\\u4e86|\\u4e0d\\u505a\\u4e86|\\u4e0d\\u7528\\u4e86|\\u53d6\\u6d88|\\u53d6\\u6d88\\u5427|\\u522b[\\u505a\\u5220\\u5efa]\\u4e86|\\u4e0d\\u8981\\u4e86|never\\s*mind|cancel|forget\\s*it|stop|nvm|\\u6ca1\\u4e8b\\u4e86|\\u4e0d\\u9700\\u8981\\u4e86|\\u8fd8\\u662f\\u7b97\\u4e86)$',
+    'i',
+  );
   if (cancelPattern.test(normalized)) {
     return {
       decision: 'cancel',
@@ -1202,18 +1026,34 @@ export function assessToolActionIntent(userText: string, options?: ToolIntentAss
     };
   }
 
-  const executionCuePattern = escapedUnicodeRegExp('(\\u8bf7\\u5e2e|\\u8bf7\\u628a|\\u8bf7\\u5c06|\\u5e2e\\u6211|\\u628a|\\u5c06|\\u7ed9\\u6211|\\u6267\\u884c|run|do|please|\\u9ebb\\u70e6|\\u5e2e\\u5fd9|\\u53ef\\u5426|\\u53ef\\u4ee5\\u628a|\\u5f53\\u524d|\\u6b64)', 'i');
-  const actionVerbPattern = escapedUnicodeRegExp('(\\u521b\\u5efa|\\u65b0\\u5efa|\\u65b0\\u589e|\\u5207\\u5206|\\u62c6\\u5206|\\u5408\\u5e76|\\u5220\\u9664|\\u6e05\\u7a7a|\\u79fb\\u9664|\\u5199\\u5165|\\u586b\\u5199|\\u586b\\u5165|\\u8bbe\\u7f6e|\\u8bbe\\u4e3a|\\u4fee\\u6539|\\u6539\\u6210|\\u6539\\u4e3a|\\u66f4\\u65b0|\\u8986\\u76d6|\\u66ff\\u6362|\\u5173\\u8054|\\u94fe\\u63a5|\\u89e3\\u9664|\\u65ad\\u5f00|\\u81ea\\u52a8\\u6807\\u6ce8|\\u8f6c\\u5199|\\u7ffb\\u8bd1|create|add|insert|split|merge|delete|remove|clear|set|update|replace|link|unlink|gloss)', 'i');
+  const executionCuePattern = escapedUnicodeRegExp(
+    '(\\u8bf7\\u5e2e|\\u8bf7\\u628a|\\u8bf7\\u5c06|\\u5e2e\\u6211|\\u628a|\\u5c06|\\u7ed9\\u6211|\\u6267\\u884c|run|do|please|\\u9ebb\\u70e6|\\u5e2e\\u5fd9|\\u53ef\\u5426|\\u53ef\\u4ee5\\u628a|\\u5f53\\u524d|\\u6b64)',
+    'i',
+  );
+  const actionVerbPattern = escapedUnicodeRegExp(
+    '(\\u521b\\u5efa|\\u65b0\\u5efa|\\u65b0\\u589e|\\u5207\\u5206|\\u62c6\\u5206|\\u5408\\u5e76|\\u5220\\u9664|\\u6e05\\u7a7a|\\u79fb\\u9664|\\u5199\\u5165|\\u586b\\u5199|\\u586b\\u5165|\\u8bbe\\u7f6e|\\u8bbe\\u4e3a|\\u4fee\\u6539|\\u6539\\u6210|\\u6539\\u4e3a|\\u66f4\\u65b0|\\u8986\\u76d6|\\u66ff\\u6362|\\u5173\\u8054|\\u94fe\\u63a5|\\u89e3\\u9664|\\u65ad\\u5f00|\\u81ea\\u52a8\\u6807\\u6ce8|\\u8f6c\\u5199|\\u7ffb\\u8bd1|create|add|insert|split|merge|delete|remove|clear|set|update|replace|link|unlink|gloss)',
+    'i',
+  );
   // 含「句段」与口语「语段」；后者常见于用户说法但与 UI 文案「句段」不同 | Colloquial 语段 vs product 句段
-  const actionTargetPattern = escapedUnicodeRegExp('(\\u53e5\\u6bb5|\\u8bed\\u6bb5|\\u6bb5\\u843d|segment|\\u5c42|layer|\\u8f6c\\u5199|\\u7ffb\\u8bd1|\\u6587\\u672c|text|gloss|\\u8bcd\\u4e49|unit|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a|\\u8fd9\\u4e24\\u4e2a|\\u90a3\\u4e24\\u4e2a|\\u4e24\\u4e2a)', 'i');
-  const actionObjectPronounPattern = escapedUnicodeRegExp('(\\u4e4b|\\u5b83|\\u5176|\\u8fd9\\u6761|\\u8be5\\u6761|\\u672c\\u6761|\\u6b64\\u6761|\\u8fd9\\u4e2a|\\u90a3\\u4e2a|\\u8be5)$', 'i');
-  const explicitIdPattern = escapedUnicodeRegExp('(unitId|layerId|transcriptionLayerId|translationLayerId|\\bu\\d+\\b|\\blayer[-_a-z0-9]+\\b|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a|\\u8be5|\\u8fd9\\u4e24\\u4e2a|\\u90a3\\u4e24\\u4e2a|\\u4e24\\u4e2a)', 'i');
+  const actionTargetPattern = escapedUnicodeRegExp(
+    '(\\u53e5\\u6bb5|\\u8bed\\u6bb5|\\u6bb5\\u843d|segment|\\u5c42|layer|\\u8f6c\\u5199|\\u7ffb\\u8bd1|\\u6587\\u672c|text|gloss|\\u8bcd\\u4e49|unit|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a|\\u8fd9\\u4e24\\u4e2a|\\u90a3\\u4e24\\u4e2a|\\u4e24\\u4e2a)',
+    'i',
+  );
+  const actionObjectPronounPattern = escapedUnicodeRegExp(
+    '(\\u4e4b|\\u5b83|\\u5176|\\u8fd9\\u6761|\\u8be5\\u6761|\\u672c\\u6761|\\u6b64\\u6761|\\u8fd9\\u4e2a|\\u90a3\\u4e2a|\\u8be5)$',
+    'i',
+  );
+  const explicitIdPattern = escapedUnicodeRegExp(
+    '(unitId|layerId|transcriptionLayerId|translationLayerId|\\bu\\d+\\b|\\blayer[-_a-z0-9]+\\b|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a|\\u8be5|\\u8fd9\\u4e24\\u4e2a|\\u90a3\\u4e24\\u4e2a|\\u4e24\\u4e2a)',
+    'i',
+  );
 
   let score = 0;
   const hasExecutionCue = executionCuePattern.test(trimmed);
   const hasActionVerb = actionVerbPattern.test(trimmed);
-  const hasActionTarget = actionTargetPattern.test(trimmed)
-    || (actionVerbPattern.test(trimmed) && actionObjectPronounPattern.test(trimmed));
+  const hasActionTarget =
+    actionTargetPattern.test(trimmed) ||
+    (actionVerbPattern.test(trimmed) && actionObjectPronounPattern.test(trimmed));
   const hasExplicitId = explicitIdPattern.test(trimmed);
 
   if (hasExecutionCue) score += 1;
@@ -1221,9 +1061,18 @@ export function assessToolActionIntent(userText: string, options?: ToolIntentAss
   if (hasActionTarget) score += 2;
   if (hasExplicitId) score += 1;
 
-  const greetingPattern = escapedUnicodeRegExp('^(\\u4f60\\u597d|\\u60a8\\u597d|\\u55e8|hello|hi|hey)([！!，,.。?？\\s].*)?$', 'i');
-  const metaQuestionPattern = escapedUnicodeRegExp('(\\u4ec0\\u4e48\\u662f|\\u662f\\u4ec0\\u4e48\\u610f\\u601d|\\u4ec0\\u4e48\\u610f\\u601d|\\u8bf7\\u89e3\\u91ca|\\u89e3\\u91ca\\u4e00\\u4e0b|\\u89e3\\u91ca|\\u8bf4\\u660e\\u4e00\\u4e0b|\\u8bf4\\u660e|\\u542b\\u4e49|\\u7528\\u6cd5|\\u533a\\u522b|\\u539f\\u7406|why|what is|what does|explain|meaning|how to use)', 'i');
-  const technicalDiscussionPattern = escapedUnicodeRegExp('(tool_call|set_translation_text|set_transcription_text|delete_layer|create_translation_layer|create_transcription_layer|\\u547d\\u4ee4|\\u6307\\u4ee4|\\u51fd\\u6570|\\u63a5\\u53e3|api)', 'i');
+  const greetingPattern = escapedUnicodeRegExp(
+    '^(\\u4f60\\u597d|\\u60a8\\u597d|\\u55e8|hello|hi|hey)([！!，,.。?？\\s].*)?$',
+    'i',
+  );
+  const metaQuestionPattern = escapedUnicodeRegExp(
+    '(\\u4ec0\\u4e48\\u662f|\\u662f\\u4ec0\\u4e48\\u610f\\u601d|\\u4ec0\\u4e48\\u610f\\u601d|\\u8bf7\\u89e3\\u91ca|\\u89e3\\u91ca\\u4e00\\u4e0b|\\u89e3\\u91ca|\\u8bf4\\u660e\\u4e00\\u4e0b|\\u8bf4\\u660e|\\u542b\\u4e49|\\u7528\\u6cd5|\\u533a\\u522b|\\u539f\\u7406|why|what is|what does|explain|meaning|how to use)',
+    'i',
+  );
+  const technicalDiscussionPattern = escapedUnicodeRegExp(
+    '(tool_call|set_translation_text|set_transcription_text|delete_layer|create_translation_layer|create_transcription_layer|\\u547d\\u4ee4|\\u6307\\u4ee4|\\u51fd\\u6570|\\u63a5\\u53e3|api)',
+    'i',
+  );
   const endsWithQuestionPattern = /[?？]\s*$/;
   const hasMetaQuestion = metaQuestionPattern.test(trimmed);
   const hasTechnicalDiscussion = technicalDiscussionPattern.test(trimmed);
@@ -1302,7 +1151,10 @@ export function isDestructiveToolCall(name: AiChatToolName): boolean {
   return isAiToolDestructive(name);
 }
 
-function describeToolCallImpact(call: AiChatToolCall): { riskSummary: string; impactPreview: string[] } {
+function describeToolCallImpact(call: AiChatToolCall): {
+  riskSummary: string;
+  impactPreview: string[];
+} {
   const spec = TOOL_STRATEGY_TABLE[call.name];
   if (spec?.riskSpec) {
     return {
@@ -1311,12 +1163,21 @@ function describeToolCallImpact(call: AiChatToolCall): { riskSummary: string; im
     };
   }
   return {
-    riskSummary: decodeEscapedUnicode(`\\u8be5\\u64cd\\u4f5c\\u4f1a\\u4fee\\u6539\\u6570\\u636e：${call.name}`),
-    impactPreview: [decodeEscapedUnicode('\\u8bf7\\u786e\\u8ba4\\u76ee\\u6807\\u4e0e\\u5f71\\u54cd\\u540e\\u518d\\u7ee7\\u7eed。')],
+    riskSummary: decodeEscapedUnicode(
+      `\\u8be5\\u64cd\\u4f5c\\u4f1a\\u4fee\\u6539\\u6570\\u636e：${call.name}`,
+    ),
+    impactPreview: [
+      decodeEscapedUnicode(
+        '\\u8bf7\\u786e\\u8ba4\\u76ee\\u6807\\u4e0e\\u5f71\\u54cd\\u540e\\u518d\\u7ee7\\u7eed。',
+      ),
+    ],
   };
 }
 
-export function buildPreviewContract(call: AiChatToolCall, context?: AiPromptContext | null): PreviewContract {
+export function buildPreviewContract(
+  call: AiChatToolCall,
+  context?: AiPromptContext | null,
+): PreviewContract {
   const args = call.arguments;
   if (call.name === 'delete_transcription_segment') {
     if (hasDeleteAllSegmentsScope(args)) {
@@ -1394,11 +1255,19 @@ export function toNaturalToolFailure(
   return formatToolFailureMessage(locale, callName, toToolActionLabel(callName), message, style);
 }
 
-export function toNaturalToolPending(locale: Locale, callName: AiChatToolName, style: AiToolFeedbackStyle): string {
+export function toNaturalToolPending(
+  locale: Locale,
+  callName: AiChatToolName,
+  style: AiToolFeedbackStyle,
+): string {
   return formatToolPendingMessage(locale, toToolActionLabel(callName), style);
 }
 
-export function toNaturalToolGraySkipped(locale: Locale, callName: AiChatToolName, style: AiToolFeedbackStyle): string {
+export function toNaturalToolGraySkipped(
+  locale: Locale,
+  callName: AiChatToolName,
+  style: AiToolFeedbackStyle,
+): string {
   return formatToolGraySkippedMessage(locale, toToolActionLabel(callName), style);
 }
 
@@ -1490,7 +1359,11 @@ export function buildToolDecisionAuditMetadata(
   };
 }
 
-export function toNaturalToolCancelled(locale: Locale, callName: AiChatToolName, style: AiToolFeedbackStyle): string {
+export function toNaturalToolCancelled(
+  locale: Locale,
+  callName: AiChatToolName,
+  style: AiToolFeedbackStyle,
+): string {
   return formatToolCancelledMessage(locale, toToolActionLabel(callName), style);
 }
 
@@ -1498,7 +1371,10 @@ export function toNaturalNonActionFallback(userText: string, style: AiToolFeedba
   return formatNonActionFallback(userText, style);
 }
 
-export function toNaturalActionClarify(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
+export function toNaturalActionClarify(
+  callName: AiChatToolName,
+  style: AiToolFeedbackStyle,
+): string {
   return formatActionClarify(toToolActionLabel(callName), style);
 }
 
@@ -1524,29 +1400,60 @@ export function buildClarifyCandidates(
   if (reason === 'missing-unit-target') {
     const selectionTargetPatch = resolveSelectionTargetPatchForTool(callName, context);
     if (selectionTargetPatch?.segmentId) {
-      candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5（${selectionTargetPatch.segmentId}）`, argsPatch: selectionTargetPatch });
+      candidates.push({
+        key: '1',
+        label: `\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5（${selectionTargetPatch.segmentId}）`,
+        argsPatch: selectionTargetPatch,
+      });
     }
   }
   if (reason === 'missing-layer-target' && selectedLayerId) {
-    candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u5c42（${selectedLayerId}）`, argsPatch: { layerId: selectedLayerId } });
+    candidates.push({
+      key: '1',
+      label: `\\u5f53\\u524d\\u9009\\u4e2d\\u5c42（${selectedLayerId}）`,
+      argsPatch: { layerId: selectedLayerId },
+    });
   }
   if (reason === 'missing-translation-layer-target' && selectedTranslationLayerId) {
-    candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u7ffb\\u8bd1\\u5c42（${selectedTranslationLayerId}）`, argsPatch: { layerId: selectedTranslationLayerId } });
+    candidates.push({
+      key: '1',
+      label: `\\u5f53\\u524d\\u9009\\u4e2d\\u7ffb\\u8bd1\\u5c42（${selectedTranslationLayerId}）`,
+      argsPatch: { layerId: selectedTranslationLayerId },
+    });
   }
-  if (reason === 'missing-layer-link-target' && selectedTranscriptionLayerId && selectedTranslationLayerId) {
+  if (
+    reason === 'missing-layer-link-target' &&
+    selectedTranscriptionLayerId &&
+    selectedTranslationLayerId
+  ) {
     candidates.push({
       key: '1',
       label: `\\u5f53\\u524d\\u9009\\u4e2d\\u5c42\\u5bf9（${selectedTranscriptionLayerId} -> ${selectedTranslationLayerId}）`,
-      argsPatch: { transcriptionLayerId: selectedTranscriptionLayerId, translationLayerId: selectedTranslationLayerId },
+      argsPatch: {
+        transcriptionLayerId: selectedTranscriptionLayerId,
+        translationLayerId: selectedTranslationLayerId,
+      },
     });
   }
   if (reason === 'missing-language-target' && callName === 'create_transcription_layer') {
     const lastLang = sessionMemory?.preferences?.lastLanguage ?? sessionMemory?.lastLanguage;
     if (lastLang && lastLang !== 'zho' && lastLang !== 'eng') {
-      candidates.push({ key: `${candidates.length}`, label: `\\u4e0a\\u6b21\\u4f7f\\u7528（${lastLang}）`, argsPatch: { languageId: lastLang } });
+      candidates.push({
+        key: `${candidates.length}`,
+        label: `\\u4e0a\\u6b21\\u4f7f\\u7528（${lastLang}）`,
+        argsPatch: { languageId: lastLang },
+      });
     }
-    candidates.push({ key: `${candidates.length}`, label: '\\u521b\\u5efa\\u4e2d\\u6587\\u8f6c\\u5199\\u5c42（zho）', argsPatch: { languageId: 'zho' } });
-    candidates.push({ key: `${candidates.length}`, label: '\\u521b\\u5efa\\u82f1\\u6587\\u8f6c\\u5199\\u5c42（eng）', argsPatch: { languageId: 'eng' } });
+    candidates.push({
+      key: `${candidates.length}`,
+      label: '\\u521b\\u5efa\\u4e2d\\u6587\\u8f6c\\u5199\\u5c42（zho）',
+      argsPatch: { languageId: 'zho' },
+    });
+    candidates.push({
+      key: `${candidates.length}`,
+      label: '\\u521b\\u5efa\\u82f1\\u6587\\u8f6c\\u5199\\u5c42（eng）',
+      argsPatch: { languageId: 'eng' },
+    });
   }
   return candidates.map((candidate) => ({
     ...candidate,
@@ -1591,7 +1498,10 @@ function looksLikeJsonishAssistantReply(content: string): boolean {
   const trimmed = content.trim();
   if (!trimmed) return false;
   if (/^```(?:json)?[\s\S]*```$/i.test(trimmed)) return true;
-  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
     return true;
   }
   return false;
@@ -1618,10 +1528,12 @@ export function normalizeJsonishAssistantReply(
 
 export function isAmbiguousTargetRiskSummary(summary: string): boolean {
   const normalized = summary.toLowerCase();
-  return normalized.includes(decodeEscapedUnicode('\\u5339\\u914d\\u5230\\u591a\\u4e2a'))
-    || normalized.includes(decodeEscapedUnicode('\\u76ee\\u6807\\u4e0d\\u552f\\u4e00'))
-    || normalized.includes('multiple')
-    || normalized.includes('ambiguous');
+  return (
+    normalized.includes(decodeEscapedUnicode('\\u5339\\u914d\\u5230\\u591a\\u4e2a')) ||
+    normalized.includes(decodeEscapedUnicode('\\u76ee\\u6807\\u4e0d\\u552f\\u4e00')) ||
+    normalized.includes('multiple') ||
+    normalized.includes('ambiguous')
+  );
 }
 
 export function describeAndBuildPending(
