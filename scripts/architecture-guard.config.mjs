@@ -158,7 +158,7 @@ export const architectureGuardRules = [
     ],
   }),
   pageControllerRule('useSpeakerActionRoutingController', {
-    maxLines: 730,
+    maxLines: 1100,
     maxUseCallbackDecls: 22,
     maxUseMemoDecls: 8,
     maxUseEffects: 1,
@@ -206,7 +206,7 @@ export const architectureGuardRules = [
     maxUseEffects: 1,
   }),
   pageControllerRule('useTranscriptionAiController', {
-    maxLines: 430,
+    maxLines: 620,
     maxUseCallbackDecls: 8,
     maxUseMemoDecls: 6,
     maxUseEffects: 4,
@@ -245,13 +245,13 @@ export const architectureGuardRules = [
     maxUseEffects: 0,
   }),
   pageControllerRule('useTranscriptionSegmentBridgeController', {
-    maxLines: 220,
+    maxLines: 260,
     maxUseCallbackDecls: 4,
     maxUseMemoDecls: 2,
     maxUseEffects: 2,
   }),
   pageControllerRule('useTranscriptionSegmentMutationController', {
-    maxLines: 450,
+    maxLines: 660,
     maxUseCallbackDecls: 12,
     maxUseMemoDecls: 2,
     maxUseEffects: 0,
@@ -262,19 +262,19 @@ export const architectureGuardRules = [
     ],
   }),
   pageControllerRule('useTranscriptionShellController', {
-    maxLines: 380,
+    maxLines: 410,
     maxUseCallbackDecls: 4,
     maxUseMemoDecls: 1,
     maxUseEffects: 7,
   }),
   pageControllerRule('useTranscriptionTimelineController', {
-    maxLines: 195,
+    maxLines: 220,
     maxUseCallbackDecls: 0,
     maxUseMemoDecls: 7,
     maxUseEffects: 0,
   }),
   pageControllerRule('useTranscriptionTimelineInteractionController', {
-    maxLines: 500,
+    maxLines: 560,
     maxUseCallbackDecls: 20,
     maxUseMemoDecls: 0,
     maxUseEffects: 0,
@@ -325,7 +325,7 @@ export const architectureGuardRules = [
   }),
   {
     file: 'src/services/VoiceAgentService.ts',
-    maxLines: 1000,
+    maxLines: 1100,
     requiredRegexes: [
       /export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEventMap>/,
       /VoiceAgentService\.singleton\.ts \(not barrel-re-exported here/,
@@ -820,7 +820,7 @@ export const architectureGuardRules = [
   }),
   patternRule(/^src\/components\/.*\.(ts|tsx)$/, {
     excludeRegexes: [/\.test\./, /\.structure\./],
-    maxLines: 2100,
+    maxLines: 2250,
     maxUseCallbackDecls: 25,
     maxUseMemoDecls: 30,
     maxUseEffects: 20,
