@@ -754,25 +754,19 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('} = useTranscriptionWorkspaceLayoutController({')).toBe(true);
 
     expect(
-      hookCode.includes(
-        "const [laneLabelWidth, setLaneLabelWidth] = useState<number>(() => readStoredClampedNumber('jieyu:lane-label-width', 40, 180, 64));",
-      ),
+      hookCode.includes('const [laneLabelWidth, setLaneLabelWidth] = useState<number>(() =>'),
     ).toBe(true);
     expect(
-      hookCode.includes(
-        'const handleLaneLabelWidthResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {',
-      ),
+      hookCode.includes("readStoredClampedNumber('jieyu:lane-label-width', 40, 180, 64)"),
     ).toBe(true);
+    expect(hookCode.includes('const handleLaneLabelWidthResizeStart = useCallback(')).toBe(true);
+    expect(hookCode.includes('(event: ReactPointerEvent<HTMLDivElement>)')).toBe(true);
     expect(
-      hookCode.includes(
-        'const [videoLayoutMode, setVideoLayoutMode] = useState<VideoLayoutMode>(readStoredVideoLayoutModePreference);',
-      ),
+      hookCode.includes('const [videoLayoutMode, setVideoLayoutMode] = useState<VideoLayoutMode>('),
     ).toBe(true);
-    expect(
-      hookCode.includes(
-        'const handleVideoRightPanelResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {',
-      ),
-    ).toBe(true);
+    expect(hookCode.includes('readStoredVideoLayoutModePreference')).toBe(true);
+    expect(hookCode.includes('const handleVideoRightPanelResizeStart = useCallback(')).toBe(true);
+    expect(hookCode.includes('(event: ReactPointerEvent<HTMLDivElement>)')).toBe(true);
     expect(
       hookCode.includes(
         "if (hasMod && event.shiftKey && !event.altKey && event.key.toLowerCase() === 'f') {",
@@ -860,10 +854,9 @@ describe('TranscriptionPage structure invariants', () => {
       ),
     ).toBe(true);
     expect(
-      orchestratorCode.includes(
-        '{ createNextSegmentRouted, createUnitFromSelectionRouted } = useTranscriptionSegmentCreationController({',
-      ),
+      orchestratorCode.includes('createNextSegmentRouted, createUnitFromSelectionRouted'),
     ).toBe(true);
+    expect(orchestratorCode.includes('useTranscriptionSegmentCreationController({')).toBe(true);
     expect(
       orchestratorCode.includes(
         'const createUnitFromSelectionRouted = useCallback(async (start: number, end: number) => {',
@@ -1147,11 +1140,8 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(scopeHookCode.includes('resolveMappedUnitIds(')).toBe(true);
     expect(scopeHookCode.includes('selectedBatchSegmentsForSpeakerActions')).toBe(true);
-    expect(
-      scopeHookCode.includes(
-        'const resolveSpeakerActionUnitIds = useCallback((ids: Iterable<string>) => {',
-      ),
-    ).toBe(true);
+    expect(scopeHookCode.includes('const resolveSpeakerActionUnitIds = useCallback(')).toBe(true);
+    expect(scopeHookCode.includes('(ids: Iterable<string>)')).toBe(true);
 
     expect(
       speakerControllerCode.includes(
@@ -1279,6 +1269,11 @@ describe('TranscriptionPage structure invariants', () => {
       'src/pages/useSpeakerActionRoutingController.ts',
     );
     const routingHookCode = fs.readFileSync(routingHookPath, 'utf8');
+    const speakerAssignmentsPath = path.resolve(
+      process.cwd(),
+      'src/pages/speakerActionScopeSpeakerAssignments.ts',
+    );
+    const speakerAssignmentsCode = fs.readFileSync(speakerAssignmentsPath, 'utf8');
 
     expect(
       orchestratorCode.includes(
@@ -1294,7 +1289,10 @@ describe('TranscriptionPage structure invariants', () => {
       true,
     );
     expect(
-      scopeHookCode.includes('speakerKey: resolveExplicitSpeakerKeyForSegment(segment),'),
+      scopeHookCode.includes('speakerKey: resolveExplicitSpeakerKeyForSegment(segment),') ||
+        speakerAssignmentsCode.includes(
+          'speakerKey: resolveExplicitSpeakerKeyForSegment(segment),',
+        ),
     ).toBe(true);
     expect(
       routingHookCode.includes(
@@ -1737,7 +1735,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes("import { useRecoveryBanner } from '../hooks/useRecoveryBanner';"),
     ).toBe(true);
-    expect(orchestratorCode.includes('} = useRecoveryBanner({')).toBe(true);
+    expect(/\}\s*=\s*useRecoveryBanner\s*\(\{/.test(orchestratorCode)).toBe(true);
     expect(surfacePropsCode.includes('onApplyRecoveryBanner: i.applyRecoveryBanner')).toBe(true);
     expect(surfacePropsCode.includes('onDismissRecoveryBanner: i.dismissRecoveryBanner')).toBe(
       true,
@@ -2033,15 +2031,21 @@ describe('TranscriptionPage structure invariants', () => {
       ),
     ).toBe(false);
 
-    expect(hookCode.includes('const batchUnitSelectionMapping = useMemo(() => {')).toBe(true);
-    expect(hookCode.includes('const resolveBatchUnitTargetIds = useCallback(() => {')).toBe(true);
+    expect(hookCode.includes('resolveUnitSelectionMapping({')).toBe(true);
+    expect(hookCode.includes('createResolveBatchUnitTargetIds')).toBe(true);
     expect(
-      hookCode.includes("message: t(locale, 'transcription.batchOperation.mappingUnavailable'),"),
+      hookCode.includes('const selectedBatchUnitIdsSet = batchUnitSelectionMapping.mappedUnitIds;'),
+    ).toBe(true);
+    const runnerPath = path.resolve(process.cwd(), 'src/pages/batchOperationMappedRunner.ts');
+    const runnerCode = fs.readFileSync(runnerPath, 'utf8');
+    expect(
+      runnerCode.includes("message: t(locale, 'transcription.batchOperation.mappingUnavailable'),"),
     ).toBe(true);
     expect(
-      hookCode.includes("message: tf(locale, 'transcription.batchOperation.mappingIgnored', {"),
+      runnerCode.includes("message: tf(locale, 'transcription.batchOperation.mappingIgnored', {"),
     ).toBe(true);
-    expect(hookCode.includes('const runMappedBatchAction = useCallback(async (')).toBe(true);
+    expect(hookCode.includes('const runMappedBatchAction = useCallback(')).toBe(true);
+    expect(hookCode.includes('runMappedBatchSelectionAction')).toBe(true);
     expect(hookCode.includes('actionLabelKey: Parameters<typeof t>[1],')).toBe(true);
     expect(hookCode.includes('i18nKey: Parameters<typeof t>[1],')).toBe(true);
   });
@@ -2078,7 +2082,10 @@ describe('TranscriptionPage structure invariants', () => {
       orchestratorCode.includes('const handleResetTrackAutoLayout = useCallback(() => {'),
     ).toBe(false);
 
-    expect(hookCode.includes('function hasOverlaps(items: OverlapLike[]): boolean {')).toBe(true);
+    const overlapUtilsPath = path.resolve(process.cwd(), 'src/pages/trackDisplayOverlapUtils.ts');
+    const overlapUtilsCode = fs.readFileSync(overlapUtilsPath, 'utf8');
+    expect(overlapUtilsCode.includes('export function hasOverlappingTimeRanges(')).toBe(true);
+    expect(hookCode.includes('hasOverlappingTimeRanges(')).toBe(true);
     expect(hookCode.includes('const effectiveLaneLockMap = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const handleResetTrackAutoLayout = useCallback(() => {')).toBe(true);
   });
@@ -2138,19 +2145,15 @@ describe('TranscriptionPage structure invariants', () => {
         "import { resolveNextUnitIdForDictation } from './voiceDictationFlow';",
       ),
     ).toBe(true);
-    expect(
-      selectionHookCode.includes(
-        'const nextUnitIdForVoiceDictation = useMemo(() => resolveNextUnitIdForDictation({',
-      ),
-    ).toBe(true);
+    expect(selectionHookCode.includes('const nextUnitIdForVoiceDictation = useMemo(')).toBe(true);
+    expect(selectionHookCode.includes('resolveNextUnitIdForDictation({')).toBe(true);
     expect(
       hookCode.includes('const persistAndAdvance = async (persist: () => Promise<void>) => {'),
     ).toBe(true);
     expect(
       hookCode.includes('if (!input.nextUnitIdForVoiceDictation) return;') ||
-        hookCode.includes(
-          'if (input.nextUnitIdForVoiceDictation === undefined || input.nextUnitIdForVoiceDictation.length === 0) return;',
-        ),
+        (hookCode.includes('input.nextUnitIdForVoiceDictation === undefined') &&
+          hookCode.includes('input.nextUnitIdForVoiceDictation.length === 0')),
     ).toBe(true);
     expect(hookCode.includes('input.selectUnit(input.nextUnitIdForVoiceDictation);')).toBe(true);
   });

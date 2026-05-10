@@ -17,7 +17,7 @@ source_of_truth: wave-2-1-linguistic-service-resplit
 ```
 src/services/linguistic/
   ├── index.ts                          # 统一 re-export，保持向后兼容
-  ├── LinguisticService.ts              # 核心门面（目标 <800 行）
+  ├── LinguisticService.ts              # 核心门面（当前 ~526 行；卫星 `linguisticService*.ts`）
   ├── types.ts                          # 跨子模块共享类型
   │
   ├── languageCatalog/                  # ← 二次拆分目标

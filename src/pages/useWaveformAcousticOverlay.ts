@@ -14,9 +14,8 @@ import type {
   WaveformHoverReadout,
 } from './transcriptionWaveformBridge.types';
 import {
-  buildAcousticPath,
+  buildAcousticOverlayVisiblePaths,
   buildSpectrogramHoverReadout,
-  clampAcousticValue,
   resolveNearestAcousticFrame,
 } from './waveformAcousticOverlay.utils';
 
@@ -44,24 +43,6 @@ interface UseWaveformAcousticOverlayResult {
   handleSpectrogramMouseMove: (event: ReactMouseEvent<HTMLDivElement>) => void;
   handleSpectrogramMouseLeave: () => void;
   handleSpectrogramClick: (event: ReactMouseEvent<HTMLDivElement>) => void;
-}
-
-function lowerBoundFrameTime(
-  frames: AcousticFeatureResult['frames'],
-  targetTimeSec: number,
-): number {
-  let lo = 0;
-  let hi = frames.length;
-  while (lo < hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    const frame = frames[mid];
-    if (!frame || frame.timeSec < targetTimeSec) {
-      lo = mid + 1;
-    } else {
-      hi = mid;
-    }
-  }
-  return lo;
 }
 
 export function useWaveformAcousticOverlay(
@@ -122,99 +103,13 @@ export function useWaveformAcousticOverlay(
           acousticOverlayVisibleSummary: null,
         };
       }
-
-      const viewportWidth = Math.max(1, acousticOverlayViewportWidth);
-      const visibleStartSec = Math.max(0, input.waveformScrollLeft / input.zoomPxPerSec);
-      const visibleEndSec = Math.max(
-        visibleStartSec,
-        (input.waveformScrollLeft + viewportWidth) / input.zoomPxPerSec,
-      );
-      const framePaddingSec = acousticAnalysis.config.frameStepSec * 2;
-      const frameWindowStart = visibleStartSec - framePaddingSec;
-      const frameWindowEnd = visibleEndSec + framePaddingSec;
-      const frames = acousticAnalysis.frames;
-      const visibleStartIndex = lowerBoundFrameTime(frames, frameWindowStart);
-      const visibleEndIndex = lowerBoundFrameTime(frames, frameWindowEnd + Number.EPSILON);
-      const visibleFrames = frames.slice(visibleStartIndex, visibleEndIndex);
-
-      if (visibleFrames.length === 0) {
-        return {
-          acousticOverlayF0Path: null,
-          acousticOverlayIntensityPath: null,
-          acousticOverlayVisibleSummary: null,
-        };
-      }
-
-      const f0Min = acousticAnalysis.config.pitchFloorHz;
-      const f0Max = acousticAnalysis.config.pitchCeilingHz;
-      const f0Span = Math.max(1, f0Max - f0Min);
-      const intensityMin = Math.min(acousticAnalysis.summary.intensityMinDb ?? -60, -24);
-      const intensityMax = Math.max(
-        acousticAnalysis.summary.intensityPeakDb ?? 0,
-        intensityMin + 6,
-      );
-      const intensitySpan = Math.max(1, intensityMax - intensityMin);
-      const topPadding = 10;
-      const drawableHeight = 80;
-
-      const f0Path =
-        input.acousticOverlayMode === 'f0' || input.acousticOverlayMode === 'both'
-          ? buildAcousticPath(
-              visibleFrames.map((frame) => {
-                if (frame.f0Hz == null) {
-                  return {
-                    x: frame.timeSec * input.zoomPxPerSec - input.waveformScrollLeft,
-                    y: null,
-                  };
-                }
-                const normalized =
-                  1 - (clampAcousticValue(frame.f0Hz, f0Min, f0Max) - f0Min) / f0Span;
-                return {
-                  x: frame.timeSec * input.zoomPxPerSec - input.waveformScrollLeft,
-                  y: topPadding + normalized * drawableHeight,
-                };
-              }),
-            )
-          : null;
-
-      const intensityPath =
-        input.acousticOverlayMode === 'intensity' || input.acousticOverlayMode === 'both'
-          ? buildAcousticPath(
-              visibleFrames.map((frame) => {
-                const normalized =
-                  1 -
-                  (clampAcousticValue(frame.intensityDb, intensityMin, intensityMax) -
-                    intensityMin) /
-                    intensitySpan;
-                return {
-                  x: frame.timeSec * input.zoomPxPerSec - input.waveformScrollLeft,
-                  y: topPadding + normalized * drawableHeight,
-                };
-              }),
-            )
-          : null;
-
-      const voicedFrames = visibleFrames.filter((frame) => frame.f0Hz != null);
-      const f0MeanHz =
-        voicedFrames.length > 0
-          ? voicedFrames.reduce((sum, frame) => sum + (frame.f0Hz ?? 0), 0) / voicedFrames.length
-          : null;
-      const intensityPeakDb = visibleFrames.reduce<number | null>((peak, frame) => {
-        if (!Number.isFinite(frame.intensityDb)) return peak;
-        if (peak == null) return frame.intensityDb;
-        return Math.max(peak, frame.intensityDb);
-      }, null);
-
-      return {
-        acousticOverlayF0Path: f0Path,
-        acousticOverlayIntensityPath: intensityPath,
-        acousticOverlayVisibleSummary: {
-          f0MeanHz,
-          intensityPeakDb,
-          voicedFrameCount: voicedFrames.length,
-          frameCount: visibleFrames.length,
-        },
-      };
+      return buildAcousticOverlayVisiblePaths({
+        acousticAnalysis,
+        acousticOverlayMode: input.acousticOverlayMode,
+        zoomPxPerSec: input.zoomPxPerSec,
+        waveformScrollLeft: input.waveformScrollLeft,
+        acousticOverlayViewportWidth,
+      });
     }, [
       acousticAnalysis,
       acousticOverlayViewportWidth,

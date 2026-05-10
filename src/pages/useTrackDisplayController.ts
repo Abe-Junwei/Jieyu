@@ -8,11 +8,7 @@ import {
   type SpeakerLayerLayoutResult,
 } from '../utils/speakerLayerLayout';
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
-
-function isTimelineUnitView(item: TimelineUnitView | LayerUnitDocType): item is TimelineUnitView {
-  const kind = (item as TimelineUnitView).kind;
-  return kind === 'unit' || kind === 'segment';
-}
+import { hasOverlappingTimeRanges, isTimelineUnitView } from './trackDisplayOverlapUtils';
 
 type SegmentSpeakerAssignmentLike = {
   speakerKey: string;
@@ -54,27 +50,6 @@ export interface UseTrackDisplayControllerResult {
   handleResetTrackAutoLayout: () => void;
 }
 
-type OverlapLike = {
-  id: string;
-  startTime: number;
-  endTime: number;
-};
-
-function hasOverlaps(items: OverlapLike[]): boolean {
-  if (items.length < 2) return false;
-  const sorted = [...items].sort((a, b) => {
-    if (a.startTime !== b.startTime) return a.startTime - b.startTime;
-    if (a.endTime !== b.endTime) return a.endTime - b.endTime;
-    return a.id.localeCompare(b.id);
-  });
-  for (let index = 1; index < sorted.length; index += 1) {
-    if (sorted[index]!.startTime < sorted[index - 1]!.endTime) {
-      return true;
-    }
-  }
-  return false;
-}
-
 export function useTrackDisplayController({
   unitsOnCurrentMedia,
   timelineUnitsOnCurrentMedia,
@@ -100,7 +75,7 @@ export function useTrackDisplayController({
 
   const hasOverlappingUnitsOnCurrentMedia = useMemo(
     () =>
-      hasOverlaps(
+      hasOverlappingTimeRanges(
         unitUnitsOnCurrentMedia.length > 0 ? unitUnitsOnCurrentMedia : unitsOnCurrentMedia,
       ),
     [unitUnitsOnCurrentMedia, unitsOnCurrentMedia],
@@ -110,7 +85,7 @@ export function useTrackDisplayController({
     const activeLayer = layers.find((item) => item.id === activeLayerIdForEdits);
     if (!activeLayer || !layerUsesOwnSegments(activeLayer, defaultTranscriptionLayerId))
       return false;
-    return hasOverlaps(segmentsByLayer.get(activeLayer.id) ?? []);
+    return hasOverlappingTimeRanges(segmentsByLayer.get(activeLayer.id) ?? []);
   }, [activeLayerIdForEdits, defaultTranscriptionLayerId, layers, segmentsByLayer]);
 
   useEffect(() => {

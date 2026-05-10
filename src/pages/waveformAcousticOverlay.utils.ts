@@ -1,6 +1,11 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import type { AcousticFeatureResult, AcousticFrame } from '../utils/acousticOverlayTypes';
+import type {
+  AcousticFeatureResult,
+  AcousticFrame,
+  AcousticOverlayMode,
+} from '../utils/acousticOverlayTypes';
 import type { SpectrogramHoverReadout } from './transcriptionWaveformBridge.types';
+import type { AcousticOverlayVisibleSummary } from './transcriptionWaveformBridge.types';
 
 export function clampAcousticValue(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -26,6 +31,139 @@ function hzToMel(hz: number): number {
 
 function melToHz(mel: number): number {
   return 700 * (10 ** (mel / 2595) - 1);
+}
+
+export function lowerBoundFrameTime(
+  frames: AcousticFeatureResult['frames'],
+  targetTimeSec: number,
+): number {
+  let lo = 0;
+  let hi = frames.length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const frame = frames[mid];
+    if (!frame || frame.timeSec < targetTimeSec) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo;
+}
+
+export function buildAcousticOverlayVisiblePaths(input: {
+  acousticAnalysis: AcousticFeatureResult;
+  acousticOverlayMode: AcousticOverlayMode;
+  zoomPxPerSec: number;
+  waveformScrollLeft: number;
+  acousticOverlayViewportWidth: number;
+}): {
+  acousticOverlayF0Path: string | null;
+  acousticOverlayIntensityPath: string | null;
+  acousticOverlayVisibleSummary: AcousticOverlayVisibleSummary | null;
+} {
+  const {
+    acousticAnalysis,
+    acousticOverlayMode,
+    zoomPxPerSec,
+    waveformScrollLeft,
+    acousticOverlayViewportWidth,
+  } = input;
+  if (acousticOverlayMode === 'none' || zoomPxPerSec <= 0) {
+    return {
+      acousticOverlayF0Path: null,
+      acousticOverlayIntensityPath: null,
+      acousticOverlayVisibleSummary: null,
+    };
+  }
+
+  const viewportWidth = Math.max(1, acousticOverlayViewportWidth);
+  const visibleStartSec = Math.max(0, waveformScrollLeft / zoomPxPerSec);
+  const visibleEndSec = Math.max(
+    visibleStartSec,
+    (waveformScrollLeft + viewportWidth) / zoomPxPerSec,
+  );
+  const framePaddingSec = acousticAnalysis.config.frameStepSec * 2;
+  const frameWindowStart = visibleStartSec - framePaddingSec;
+  const frameWindowEnd = visibleEndSec + framePaddingSec;
+  const frames = acousticAnalysis.frames;
+  const visibleStartIndex = lowerBoundFrameTime(frames, frameWindowStart);
+  const visibleEndIndex = lowerBoundFrameTime(frames, frameWindowEnd + Number.EPSILON);
+  const visibleFrames = frames.slice(visibleStartIndex, visibleEndIndex);
+
+  if (visibleFrames.length === 0) {
+    return {
+      acousticOverlayF0Path: null,
+      acousticOverlayIntensityPath: null,
+      acousticOverlayVisibleSummary: null,
+    };
+  }
+
+  const f0Min = acousticAnalysis.config.pitchFloorHz;
+  const f0Max = acousticAnalysis.config.pitchCeilingHz;
+  const f0Span = Math.max(1, f0Max - f0Min);
+  const intensityMin = Math.min(acousticAnalysis.summary.intensityMinDb ?? -60, -24);
+  const intensityMax = Math.max(acousticAnalysis.summary.intensityPeakDb ?? 0, intensityMin + 6);
+  const intensitySpan = Math.max(1, intensityMax - intensityMin);
+  const topPadding = 10;
+  const drawableHeight = 80;
+
+  const f0Path =
+    acousticOverlayMode === 'f0' || acousticOverlayMode === 'both'
+      ? buildAcousticPath(
+          visibleFrames.map((frame) => {
+            if (frame.f0Hz == null) {
+              return {
+                x: frame.timeSec * zoomPxPerSec - waveformScrollLeft,
+                y: null,
+              };
+            }
+            const normalized = 1 - (clampAcousticValue(frame.f0Hz, f0Min, f0Max) - f0Min) / f0Span;
+            return {
+              x: frame.timeSec * zoomPxPerSec - waveformScrollLeft,
+              y: topPadding + normalized * drawableHeight,
+            };
+          }),
+        )
+      : null;
+
+  const intensityPath =
+    acousticOverlayMode === 'intensity' || acousticOverlayMode === 'both'
+      ? buildAcousticPath(
+          visibleFrames.map((frame) => {
+            const normalized =
+              1 -
+              (clampAcousticValue(frame.intensityDb, intensityMin, intensityMax) - intensityMin) /
+                intensitySpan;
+            return {
+              x: frame.timeSec * zoomPxPerSec - waveformScrollLeft,
+              y: topPadding + normalized * drawableHeight,
+            };
+          }),
+        )
+      : null;
+
+  const voicedFrames = visibleFrames.filter((frame) => frame.f0Hz != null);
+  const f0MeanHz =
+    voicedFrames.length > 0
+      ? voicedFrames.reduce((sum, frame) => sum + (frame.f0Hz ?? 0), 0) / voicedFrames.length
+      : null;
+  const intensityPeakDb = visibleFrames.reduce<number | null>((peak, frame) => {
+    if (!Number.isFinite(frame.intensityDb)) return peak;
+    if (peak == null) return frame.intensityDb;
+    return Math.max(peak, frame.intensityDb);
+  }, null);
+
+  return {
+    acousticOverlayF0Path: f0Path,
+    acousticOverlayIntensityPath: intensityPath,
+    acousticOverlayVisibleSummary: {
+      f0MeanHz,
+      intensityPeakDb,
+      voicedFrameCount: voicedFrames.length,
+      frameCount: visibleFrames.length,
+    },
+  };
 }
 
 export function resolveNearestAcousticFrame(

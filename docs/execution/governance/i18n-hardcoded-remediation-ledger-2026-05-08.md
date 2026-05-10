@@ -35,4 +35,4 @@ source_of_truth: i18n-hardcoded-remediation
 | 日期 | 变更 | 执行人 |
 |------|------|--------|
 | 2026-05-08 | 将 `localContextToolExecutors` / `localContextToolFormatters` 等纳入严格基线；`totalHits` 调至 **216** | 技术债收口 |
-| 2026-05-08 | `src/ai/` **maxDelta** 设为 **20**（见 `scripts/i18n-hardcoded-thresholds.json`） | 技术债滚动 |
+| 2026-05-08 | `src/ai/` **maxDelta** 设为 **20**（见 `scripts/i18n-hardcoded-thresholds.json`） | 代码治理计划 §11 |

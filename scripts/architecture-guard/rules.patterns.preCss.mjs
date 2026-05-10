@@ -6,6 +6,8 @@ import { patternRule } from './rule-builders.mjs';
  */
 export const architectureGuardPreCssPatternRules = [
   patternRule(/^src\/pages\/(?:[^/]+\/)*use.*Controller\.ts$/, {
+    // Phase 0.2: explicit allowlist → only matching paths are hard-enforced; others on this regex warn-only.
+    allowlist: [/^src\/pages(?:\/[\w.-]+)*\/use[A-Za-z0-9]+Controller\.ts$/],
     excludeFiles: [
       'src/pages/useBatchOperationController.ts',
       'src/pages/useSpeakerActionRoutingController.ts',

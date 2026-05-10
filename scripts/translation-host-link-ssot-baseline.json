@@ -1,9 +1,11 @@
 {
-  "generatedAt": "2026-05-09T00:00:00.000Z",
+  "generatedAt": "2026-05-10T00:00:00.000Z",
   "description": "translation host SSOT guard baseline (parent* token count in translation-related source files)",
   "files": {
     "src/components/TranscriptionTimelineVerticalView.test.fixtures.ts": 1,
-    "src/components/LayerActionPopover.tsx": 10,
+    "src/components/layerActionPopover/layerActionPopoverCreateGuardDerivations.ts": 2,
+    "src/components/layerActionPopover/layerActionPopoverFormDerivations.ts": 4,
+    "src/components/layerActionPopover/useLayerActionPopoverHandleCreate.ts": 2,
     "src/components/SidePaneSidebar.tsx": 3,
     "src/db/adapter.ts": 4,
     "src/db/schemas.ts": 1,

@@ -13,6 +13,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
 import { useAiPanelContextUpdater } from '../contexts/AiPanelContext';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
+import { useLocaleBoundTf } from '../hooks/useLocaleBoundTf';
 import { useUnitOps } from '../hooks/useUnitOps';
 
 import { useAiPanelLogic } from '../hooks/useAiPanelLogic';
@@ -23,7 +24,7 @@ import { useTimelineUnitViewIndex } from '../hooks/useTimelineUnitViewIndex';
 import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
 import { useBackupReminder } from '../hooks/useBackupReminder';
 import { getUnitSpeakerKey } from '../hooks/useSpeakerActions';
-import { t, tf, useLocale } from '../i18n';
+import { t, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { formatSidePaneLayerLabel, formatTime } from '../utils/transcriptionFormatters';
@@ -97,12 +98,7 @@ function TranscriptionPageReadyWorkspace({
 }: TranscriptionPageReadyWorkspaceProps) {
   const locale = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
-  /** Pre-bound tf for components that need (key, params) without locale（须稳定引用，否则 ToastController 等会重复触发 effect） */
-  const tfB = useCallback(
-    (key: string, opts?: Record<string, unknown>) =>
-      tf(locale, key as Parameters<typeof tf>[1], opts as Parameters<typeof tf>[2]),
-    [locale],
-  );
+  const tfB = useLocaleBoundTf(locale);
   const { showToast } = useToast();
   const {
     state,

@@ -15,7 +15,7 @@ source_of_truth: execution-plan-index
 
 - **[TranscriptionTimelineVerticalView-测试OOM根治计划-2026-05-08.md](./TranscriptionTimelineVerticalView-测试OOM根治计划-2026-05-08.md)**（**当前**：纵向对照视图单文件 Vitest worker OOM；分阶段量化、测试层/产品层/拆文件与 CI 防回归、DoD 与验证命令）
 - **[exhaustive-deps收口计划-2026-05-08.md](./exhaustive-deps收口计划-2026-05-08.md)**（**已完成**：`react-hooks/exhaustive-deps` 全仓清零；保留分批清单与回归证据；最新快照 TOTAL 241 / EXHAUSTIVE 0 / STRICT 212）
-- **[技术债滚动-2026-05-08.md](./技术债滚动-2026-05-08.md)**（**当前**：ARCH-7 / G4 / G3 / 文档链接与 i18n 硬编码滚动；承接已 **superseded** 的里程碑方案）
+- **横切滚动项（ARCH-7 / G4 / G3 / 文档 / i18n）**：已并入 [`docs/architecture/code-governance-plan-2026-05-06.md`](../../architecture/code-governance-plan-2026-05-06.md) **§十一**（原《技术债滚动》废止）
 - [技术债修复方案-2026-05-08.md](./技术债修复方案-2026-05-08.md)（**superseded**：2026-05-08 审查修订快照；关闭条件已满足；正文保留作历史证据）
 
 - [工程审计勘误与全面修复计划-2026-04-24.md](../audits/工程审计勘误与全面修复计划-2026-04-24.md)（纠正「无 CI / 恢复快照仅存 localStorage」等不实表述；依赖 · 构建 · PWA · DX · A11y · 数据韧性分阶段路线图；与根目录 [`remediation-plan-2026-04-24.md`](../../remediation-plan-2026-04-24.md) 正交）
