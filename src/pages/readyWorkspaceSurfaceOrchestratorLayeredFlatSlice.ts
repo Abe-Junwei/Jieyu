@@ -1,0 +1,162 @@
+import type { ReadyWorkspaceSurfaceFlatLayeredContext } from './transcriptionReadyWorkspaceSurfaceFlatPropsBuilder';
+
+/**
+ * Flat assembly surface for `layeredFlat` (shell ∪ undo ∪ … ∪ row focus keys).
+ * Avoids duplicating the nested object in `TranscriptionPage.ReadyWorkspaceOrchestrator.tsx`.
+ */
+export type ReadyWorkspaceSurfaceOrchestratorLayeredFlatAssemblyInput =
+  ReadyWorkspaceSurfaceFlatLayeredContext['shell'] &
+    ReadyWorkspaceSurfaceFlatLayeredContext['undo'] &
+    ReadyWorkspaceSurfaceFlatLayeredContext['selectionZoom'] &
+    ReadyWorkspaceSurfaceFlatLayeredContext['workspaceChrome'] &
+    ReadyWorkspaceSurfaceFlatLayeredContext['layerProject'] &
+    ReadyWorkspaceSurfaceFlatLayeredContext['notesMenus'] &
+    ReadyWorkspaceSurfaceFlatLayeredContext['stageMedia'] &
+    ReadyWorkspaceSurfaceFlatLayeredContext['layerRowFocus'];
+
+export function buildReadyWorkspaceSurfaceOrchestratorLayeredFlatFromAssemblyInput(
+  d: ReadyWorkspaceSurfaceOrchestratorLayeredFlatAssemblyInput,
+): ReadyWorkspaceSurfaceFlatLayeredContext {
+  return {
+    shell: {
+      locale: d.locale,
+      activeTextId: d.activeTextId,
+      selectedTimelineMedia: d.selectedTimelineMedia,
+      selectedMediaUrl: d.selectedMediaUrl,
+      segmentScopeMediaId: d.segmentScopeMediaId,
+      verticalViewActive: d.verticalViewActive,
+      activeTextTimelineMode: d.activeTextTimelineMode,
+      activeTextTimeMapping: d.activeTextTimeMapping,
+    },
+    undo: {
+      canUndo: d.canUndo,
+      canRedo: d.canRedo,
+      undoLabel: d.undoLabel,
+      undoHistory: d.undoHistory,
+      showUndoHistory: d.showUndoHistory,
+      setShowUndoHistory: d.setShowUndoHistory,
+      redo: d.redo,
+      selectedTimelineUnit: d.selectedTimelineUnit,
+      activeTimelineUnitId: d.activeTimelineUnitId,
+      recordTimelineEdit: d.recordTimelineEdit,
+      undoToHistoryIndex: d.undoToHistoryIndex,
+      setShowProjectSetup: d.setShowProjectSetup,
+      setShowAudioImport: d.setShowAudioImport,
+      applyTextTimeMapping: d.applyTextTimeMapping,
+    },
+    selectionZoom: {
+      selectedUnitIds: d.selectedUnitIds,
+      batchPreviewTextPropsByLayerId: d.batchPreviewTextPropsByLayerId,
+      showBatchOperationPanel: d.showBatchOperationPanel,
+      setShowBatchOperationPanel: d.setShowBatchOperationPanel,
+      selectedWaveformRegionId: d.selectedWaveformRegionId,
+      waveformTimelineItems: d.waveformTimelineItems,
+      zoomToPercent: d.zoomToPercent,
+      zoomToUnit: d.zoomToUnit,
+      snapEnabled: d.snapEnabled,
+      autoScrollEnabled: d.autoScrollEnabled,
+      setSnapEnabled: d.setSnapEnabled,
+      setAutoScrollEnabled: d.setAutoScrollEnabled,
+    },
+    workspaceChrome: {
+      setIsAiPanelCollapsed: d.setIsAiPanelCollapsed,
+      handleAiPanelToggle: d.handleAiPanelToggle,
+      handleAiPanelResizeStart: d.handleAiPanelResizeStart,
+      handleLassoPointerDown: d.handleLassoPointerDown,
+      handleLassoPointerMove: d.handleLassoPointerMove,
+      handleLassoPointerUp: d.handleLassoPointerUp,
+      handleTimelineScroll: d.handleTimelineScroll,
+      recoveryAvailable: d.recoveryAvailable,
+      recoveryDiffSummary: d.recoveryDiffSummary,
+      applyRecoveryBanner: d.applyRecoveryBanner,
+      dismissRecoveryBanner: d.dismissRecoveryBanner,
+      toolbarPropsWithCollaboration: d.toolbarPropsWithCollaboration,
+      observerResult: d.observerResult,
+      actionableObserverRecommendations: d.actionableObserverRecommendations,
+      handleExecuteObserverRecommendation: d.handleExecuteObserverRecommendation,
+      deferredAiRuntime: d.deferredAiRuntime,
+      vadCacheStatus: d.vadCacheStatus,
+      collaborationProtocolGuard: d.collaborationProtocolGuard,
+      assistantBridgeControllerInput: d.assistantBridgeControllerInput,
+      handleDeferredAiRuntimeChange: d.handleDeferredAiRuntimeChange,
+      selectUnit: d.selectUnit,
+      formatTime: d.formatTime,
+    },
+    layerProject: {
+      defaultTranscriptionLayerId: d.defaultTranscriptionLayerId,
+      translationLayers: d.translationLayers,
+      orderedLayers: d.orderedLayers,
+      handleFocusLayerRow: d.handleFocusLayerRow,
+      layerLinks: d.layerLinks,
+      toggleLayerLink: d.toggleLayerLink,
+      deletableLayers: d.deletableLayers,
+      updateLayerMetadata: d.updateLayerMetadata,
+      layerCreateMessage: d.layerCreateMessage,
+      layerAction: d.layerAction,
+      segmentsByLayer: d.segmentsByLayer,
+      segmentContentByLayer: d.segmentContentByLayer,
+      unitsOnCurrentMedia: d.unitsOnCurrentMedia,
+      speakers: d.speakers,
+      listProjectAssets: d.listProjectAssets,
+      removeProjectAsset: d.removeProjectAsset,
+      getProjectAssetSignedUrl: d.getProjectAssetSignedUrl,
+      listProjectSnapshots: d.listProjectSnapshots,
+      restoreProjectSnapshotToLocalById: d.restoreProjectSnapshotToLocalById,
+      queryProjectChangeTimeline: d.queryProjectChangeTimeline,
+      listAccessibleCloudProjects: d.listAccessibleCloudProjects,
+      listCloudProjectMembers: d.listCloudProjectMembers,
+      getUnitTextForLayer: d.getUnitTextForLayer,
+      selectTimelineUnit: d.selectTimelineUnit,
+      reorderLayers: d.reorderLayers,
+      onSelectWorkspaceHorizontalLayout: d.onSelectWorkspaceHorizontalLayout,
+      onSelectWorkspaceVerticalLayout: d.onSelectWorkspaceVerticalLayout,
+    },
+    notesMenus: {
+      units: d.units,
+      notePopover: d.notePopover,
+      setNotePopover: d.setNotePopover,
+      currentNotes: d.currentNotes,
+      addNote: d.addNote,
+      updateNote: d.updateNote,
+      deleteNote: d.deleteNote,
+      ctxMenu: d.ctxMenu,
+      setCtxMenu: d.setCtxMenu,
+      uttOpsMenu: d.uttOpsMenu,
+      setUttOpsMenu: d.setUttOpsMenu,
+      runOverlayDeleteSelection: d.runOverlayDeleteSelection,
+      runOverlayMergeSelection: d.runOverlayMergeSelection,
+      runSelectBefore: d.runSelectBefore,
+      runSelectAfter: d.runSelectAfter,
+      runOverlayDeleteOne: d.runOverlayDeleteOne,
+      runOverlayMergePrev: d.runOverlayMergePrev,
+      runOverlayMergeNext: d.runOverlayMergeNext,
+      runOverlaySplitAtTime: d.runOverlaySplitAtTime,
+      deleteConfirmState: d.deleteConfirmState,
+      muteDeleteConfirmInSession: d.muteDeleteConfirmInSession,
+      setMuteDeleteConfirmInSession: d.setMuteDeleteConfirmInSession,
+      closeDeleteConfirmDialog: d.closeDeleteConfirmDialog,
+      confirmDeleteFromDialog: d.confirmDeleteFromDialog,
+    },
+    stageMedia: {
+      displayStyleControl: d.displayStyleControl,
+      toggleSkipProcessingRouted: d.toggleSkipProcessingRouted,
+      player: d.player,
+      timelineViewportProjection: d.timelineViewportProjection,
+      waveformAcousticRuntimeStatus: d.waveformAcousticRuntimeStatus,
+      waveformVadCacheStatus: d.waveformVadCacheStatus,
+      assistantSidebarController: d.assistantSidebarController,
+      assistantController: d.assistantController,
+      readyWorkspaceViewModels: d.readyWorkspaceViewModels,
+      readyWorkspaceRenderController: d.readyWorkspaceRenderController,
+      readyWorkspaceAxisStatusController: d.readyWorkspaceAxisStatusController,
+      workspacePanelEffectsController: d.workspacePanelEffectsController,
+      timelineResizeController: d.timelineResizeController,
+    },
+    layerRowFocus: {
+      ...(typeof d.focusedLayerRowId !== 'undefined'
+        ? { focusedLayerRowId: d.focusedLayerRowId }
+        : {}),
+      ...(typeof d.flashLayerRowId !== 'undefined' ? { flashLayerRowId: d.flashLayerRowId } : {}),
+    },
+  };
+}

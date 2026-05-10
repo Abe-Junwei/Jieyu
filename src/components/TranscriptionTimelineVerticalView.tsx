@@ -1060,9 +1060,7 @@ export function TranscriptionTimelineVerticalView({
       pairedReadingTargetSide: syncedSide,
       contextMenuSourceUnitId: activeUnitId,
     });
-    // Full `targetLayer` / `transcriptionLayers` in deps can thrash: `patchVerticalPaneFocus` updates host state
-    // and fresh array identities retrigger this effect in tight loops during tests and some layouts.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Full `targetLayer`/`transcriptionLayers` in deps thrash: `patchVerticalPaneFocus` updates host state and fresh array identities retrigger this effect in tight loops during tests and some layouts.
   }, [
     activeUnitId,
     defaultTranscriptionLayerId,

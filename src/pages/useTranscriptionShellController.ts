@@ -42,7 +42,7 @@ interface UseTranscriptionShellControllerInput {
   checkLayerHasContent?: (layerId: string) => Promise<number>;
 }
 
-interface UseTranscriptionShellControllerResult {
+export interface UseTranscriptionShellControllerResult {
   focusedLayerRowId: string;
   flashLayerRowId: string;
   setFocusedLayerRowId: React.Dispatch<React.SetStateAction<string>>;

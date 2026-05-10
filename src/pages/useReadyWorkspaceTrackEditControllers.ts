@@ -9,9 +9,24 @@ import { useTrackEntityStateController } from './useTrackEntityStateController';
 import { useReadyWorkspaceTextEditingController } from './useReadyWorkspaceTextEditingController';
 import { buildReadyWorkspaceTextEditingControllerInput } from './transcriptionReadyWorkspaceDomainInputBuilder';
 import { timeRangeDragPreviewFromSegmentRangeGesturePreview } from '../utils/segmentRangeGesturePreviewReadModel';
+import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
+import type { LayerActionPanelKind } from '../hooks/useLayerActionPanel';
+import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
+
+type SegmentLocalUpdater = (segment: LayerUnitDocType) => LayerUnitDocType;
 
 export interface UseReadyWorkspaceTrackEditControllersParams {
   data: any;
+  /** 段落读模型 / segment scope — 不在 `useTranscriptionData` 上，勿用 `data.reloadSegments`。 */
+  reloadSegments: () => Promise<void>;
+  /** `useTranscriptionSegmentBridgeController` */
+  refreshSegmentUndoSnapshot: () => Promise<void>;
+  /** Segment scope 本地图更新 */
+  updateSegmentsLocally: (segmentIds: Iterable<string>, updater: SegmentLocalUpdater) => void;
+  /** `useTranscriptionShellController` */
+  layerAction: { setLayerActionPanel: (panel: LayerActionPanelKind) => void };
+  /** `useReadyWorkspaceInteractionHelpers` */
+  recordTimelineEdit: (event: PushTimelineEditInput) => void;
   timelineUnitViewIndex: any;
   getUnitDocById: any;
   activeTimelineUnitId: any;
@@ -61,6 +76,11 @@ export function useReadyWorkspaceTrackEditControllers(
 ) {
   const {
     data,
+    reloadSegments,
+    refreshSegmentUndoSnapshot,
+    updateSegmentsLocally,
+    layerAction,
+    recordTimelineEdit,
     timelineUnitViewIndex,
     getUnitDocById,
     activeTimelineUnitId,
@@ -170,11 +190,11 @@ export function useReadyWorkspaceTrackEditControllers(
       speakerActionScopeController.segmentSpeakerAssignmentsOnCurrentMedia,
     selectTimelineUnit: data.selectTimelineUnit,
     setSelectedUnitIds: data.setSelectedUnitIds,
-    reloadSegments: data.reloadSegments,
-    refreshSegmentUndoSnapshot: data.refreshSegmentUndoSnapshot,
-    updateSegmentsLocally: data.updateSegmentsLocally,
-    layerAction: data.layerAction,
-    recordTimelineEdit: data.recordTimelineEdit,
+    reloadSegments,
+    refreshSegmentUndoSnapshot,
+    updateSegmentsLocally,
+    layerAction,
+    recordTimelineEdit,
   });
 
   const selfCertaintyController = useTranscriptionSelfCertaintyController({

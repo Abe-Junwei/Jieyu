@@ -50,7 +50,7 @@ interface UseTranscriptionSegmentBridgeControllerInput {
   segmentUndoRef: React.MutableRefObject<SegmentUndoRefValue | null>;
 }
 
-interface UseTranscriptionSegmentBridgeControllerResult {
+export interface UseTranscriptionSegmentBridgeControllerResult {
   activeLayerIdForEdits: string;
   resolveSegmentRoutingForLayer: (layerId?: string) => SegmentTimelineRoutingResult;
   refreshSegmentUndoSnapshot: () => Promise<void>;

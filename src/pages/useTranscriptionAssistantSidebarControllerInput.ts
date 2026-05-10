@@ -7,7 +7,7 @@ import type {
   UseTranscriptionAssistantSidebarControllerInput,
 } from './useTranscriptionAssistantSidebarController';
 
-interface UseTranscriptionAssistantSidebarControllerInputInput {
+export interface UseTranscriptionAssistantSidebarControllerInputArgs {
   locale: string;
   analysisTab: AnalysisBottomTab;
   onAnalysisTabChange: (tab: AnalysisBottomTab) => void;
@@ -59,6 +59,11 @@ interface UseTranscriptionAssistantSidebarControllerInputInput {
   runtimePropsInput: UseTranscriptionRuntimePropsInput;
 }
 
+export type UseTranscriptionAssistantSidebarControllerInputHeaderArgs = Omit<
+  UseTranscriptionAssistantSidebarControllerInputArgs,
+  'runtimePropsInput'
+>;
+
 export function useTranscriptionAssistantSidebarControllerInput({
   locale,
   analysisTab,
@@ -80,7 +85,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
   timelineReadModelEpoch,
   adoptionItemsPushSinkRef,
   runtimePropsInput,
-}: UseTranscriptionAssistantSidebarControllerInputInput): UseTranscriptionAssistantSidebarControllerInput {
+}: UseTranscriptionAssistantSidebarControllerInputArgs): UseTranscriptionAssistantSidebarControllerInput {
   const aiChatContextInput = useMemo(
     () => ({
       currentPage: currentPage ?? 'transcription',

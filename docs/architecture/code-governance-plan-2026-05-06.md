@@ -23,12 +23,12 @@ depends_on:
 
 ## 〇、统一排期与优先级（与 §二～§八、§十一对齐）
 
-> 本节把「门禁波次」与「横切工程债」压成一张优先级表，避免 §2.2 / §5.1 / §11.1 各说各话。行数均为 **2026-05-11** 前后 `wc -l` 快照，合并前请重跑。
+> 本节把「门禁波次」与「横切工程债」压成一张优先级表，避免 §2.2 / §5.1 / §11.1 各说各话。行数均为 **2026-05-09** 前后 `wc -l` 快照，合并前请重跑。
 
 | 优先级    | 主题                                  | 现状（快照）                                                                                                                                         | 主要落位                             | 下一步（可验收）                                                                                              |
 | ------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | **P0** | **Wave 2.2** Linguistic 门面 + 语言目录核心 | `LinguisticService.ts` **526** 行（卫星 `linguisticService*.ts` 已薄门面）；`languageCatalog/languageCatalogCore.ts` **薄 barrel ~8 行**（`languageCatalogCore*` + `languageCatalogUpsert*` + `languageCatalogListEntriesFilter`）；`languageCatalogCoreMutations.ts` **~256** 行；`LinguisticService.languageCatalog.ts` 薄 barrel **12** 行 | **§2.2**                         | 下一批：`languageCatalogUpsertLanguageDocExtended.ts` 若再涨可按子域拆；其余按需；每批 `madge --circular` + 定向 Vitest |
-| **P0** | **ARCH-7** ReadyWorkspace 编排壳       | `TranscriptionPage.ReadyWorkspace.tsx` **2017** / 2600（约 77.6%）                                                                                | **§5.1**、**§11.1**               | 延续 **C2**：新回调进专用 controller；`npm run check:architecture-guard`                                        |
+| **P0** | **ARCH-7** ReadyWorkspace 编排壳       | **入口** `TranscriptionPage.ReadyWorkspace.tsx` **10** / 40；**body** `TranscriptionPage.ReadyWorkspace.body.tsx` **20** / 80（薄壳）；**编排** `TranscriptionPage.ReadyWorkspaceOrchestrator.tsx` **~231** / 2600；`useReadyWorkspaceReadyPhaseBootstrap.ts` **122** / 140（ratchet） | **§5.1**、**§11.1**               | 延续 **C2**：新回调进专用 controller；编排增量默认进 **Orchestrator** 或阶段 hook；`npm run check:architecture-guard`；编排面外拆事实见 **§5.1.1**                                        |
 | **P1** | **G4** `useAiChat` 与相关卫星            | `useAiChat.ts` **564** / `hookRule` **1100**（约 51.3%）；`sendTurnStreamPhase` / `confirmExecution` 等已部分外拆                                        | **§2.1**、**§11.1**、**§五 Wave 3** | 继续把大块迁入既有 `useAiChat.*` 卫星模块；控制 `useCallback`/`useEffect` 计数近顶前预拆                                     |
 | **P1** | **Wave 4** DB 类型与 schema            | `db/types.ts` **1268**；`db/schemas.ts` **1517**                                                                                                | **§六**                           | 分型外迁；schemas 体量已高于旧规划数字，**以本表为真**                                                                     |
 | **P2** | **Wave 3** hooks 根目录平铺              | 根目录约 **271** 个 `*.ts/*.tsx`（仅 `src/hooks/` 深度 1）                                                                                               | **§五**                           | 首批域迁入子目录 + guard `matchRegex` / `allowlist`；禁止全量 `src/hooks/index.ts` barrel                          |
@@ -285,18 +285,30 @@ src/db/schemas/
 
 ## 七、Wave 5：组件瘦身（5-6 周）
 
-> **ARCH-7：** `TranscriptionPage.ReadyWorkspace.tsx` 减薄与 **§〇 P0**、**§11.1** 同一跟踪面；本 Wave 以「编排壳 + 卫星 controller」为验收单位。
+> **ARCH-7：** ReadyWorkspace **chunk 入口**（`TranscriptionPage.ReadyWorkspace.tsx`）、**薄 body**（`TranscriptionPage.ReadyWorkspace.body.tsx`，chunk 导出面）与 **编排实现**（`TranscriptionPage.ReadyWorkspaceOrchestrator.tsx`）分列行数口径，与 **§〇 P0**、**§11.1** 同一跟踪面；本 Wave 以「薄入口 + 薄 body + 编排模块 + 卫星 controller / hook」为验收单位。
 
 ### 5.1 TOP 组件拆分
 
 | 组件 | 当前行数 | 阈值 | 使用率 | 拆分方向 | Guard 影响 |
 |------|---------|------|--------|----------|-----------|
-| `TranscriptionPage.ReadyWorkspace.tsx` | 2017 | 2600 | 约 77.6% | 已抽出 `useReadyWorkspaceTrackEditControllers`、`useReadyWorkspaceTimelineSyncSetup`、`useReadyWorkspacePlaybackReadModelSetup`、`useReadyWorkspaceSurfaceProps`、`useLocaleBoundTf` 等；后续继续按域减薄编排层 | 单文件规则 maxLines 2600；结构锚点见 `TranscriptionPage.structure.test.ts` |
+| `TranscriptionPage.ReadyWorkspace.tsx`（chunk 入口） | 10 | 40 | — | CSS + re-export body；重编排见 **Orchestrator** | `rules.pages.mjs` 入口 maxLines **40** |
+| `TranscriptionPage.ReadyWorkspace.body.tsx` | 20 | 80 | 约 25% | 薄壳：结构锚点 + 转发 `TranscriptionPageReadyWorkspaceOrchestrator` | `rules.pages.mjs` body maxLines **80** |
+| `TranscriptionPage.ReadyWorkspaceOrchestrator.tsx` | ~231 | 2600 | 约 8.9% | 编排壳：`domainShell` / `pre` / `bootstrap` 等阶段结果装配；重 wiring 见 `useReadyWorkspace*Phase` 与 `buildReadyWorkspace*PhaseParams`（事实记录 **§5.1.1**） | `rules.pages.mjs` orchestrator maxLines **2600**；结构测试合并读 shell+body+orchestrator |
+| `useReadyWorkspaceReadyPhaseBootstrap.ts` | 122 | 140（ratchet） | 约 87.1% | ready 态前置：统一条数同步、段钳制、interaction helpers、段 mutation/creation、unit ops、overlay 路由 | `architectureGuardPageRatchetFileRules` |
 | `useReadyWorkspaceSurfaceProps.tsx` | 504 | 650（单文件 ratchet） | 约 77.5% | ReadyWorkspace 舞台/侧栏/遮罩 props 组装 | `file:` 规则 + bulk `excludeFiles` |
 | `useReadyWorkspaceTrackEditControllers.ts` | 316 | 450（单文件 ratchet） | 约 70.2% | 批量/轨道显示/说话人/轨道实体/文本编辑等聚合 | `file:` 规则 + bulk `excludeFiles` |
 | `SettingsModal.tsx` | 142 | — | — | 已按 Tab 拆至 `src/components/settings/*`，主文件为薄编排壳 | 无单条规则，受批量约束 |
 | `AiAnalysisPanel.tsx` | 243 | 2250（components 批量） | 约 10.8% | 声学分析拆至 `AiAnalysisPanelAcousticTabContent.tsx`、`useAiAnalysisPanelAcousticModel.ts`、`aiAnalysisPanelAcoustic/*` | 受 `rules.patterns.postCss.mjs` 中 `src/components` 批量 maxLines **2250** 约束 |
 | `LayerActionPopover.tsx` | **192** | — | — | 创建/元数据/编辑区块与表单状态、动作 hook 已迁至 `src/components/layerActionPopover/*`；主文件仅组装 | 无单条规则，受批量约束 |
+
+### 5.1.1 事实记录：`ReadyWorkspaceOrchestrator` 编排壳收口（2026-05-11）
+
+> 本节为合并后可追溯的**事实快照**（行数以当时 `wc -l` 为准）；与 **§〇 P0**、§5.1 主表、**§10** 热点表交叉引用时，以本节日期后的重跑为准。
+
+- **`TranscriptionPage.ReadyWorkspaceOrchestrator.tsx`**：由原先千行级 body 编排收敛为 **约 231 行**薄编排壳（`wc -l` ≈231）；`useTranscriptionData` 在壳层仅做**最小解构**（如 `state`、冲突票据与若干顶层 action），域壳能力经 **`useReadyWorkspaceDomainShellPhase`** 聚合为 `domainShell`，避免在编排文件内展开大块 `data` 字段。
+- **前置 chrome / 读模型边界**：**`useReadyWorkspacePreBootstrapChromePhase`** 承接 transcription lane 读范围、时间线索引等与 ADR 0020 相关的 wiring（与 `audit:ready-workspace-timeline-host` 门禁对齐）。
+- **阶段参数纯函数**：时间线 / 助手 / 播放 **`buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams`**；侧栏与轨道 **`buildReadyWorkspaceSidebarAndTrackPhaseParams`**；viewModels 与 surface **`buildReadyWorkspaceViewModelsSurfacePhaseParams`** — 编排壳主要负责调用阶段 hook 并传入上述 builder 产物，降低 orchestrator 内联对象字面量体积。
+- **验收**：`TranscriptionPage.structure.test.ts` 延续 shell + body + orchestrator 结构约束；`npm run check:architecture-guard`（含 `rules.pages.mjs` 与 timeline 审计脚本）为合并前硬门槛。
 
 ---
 
@@ -350,11 +362,14 @@ export function trackPageErrors(
 
 运行 `node scripts/report-code-scale-baseline.mjs` 获取最新数据。
 
-**当前热点（2026-05-11 文档同步，以本地 `wc -l` 为准；合并/拉取后请重跑）：**
+**当前热点（2026-05-09 文档同步，以本地 `wc -l` 为准；合并/拉取后请重跑）：**
 
 | 文件 | 当前行数 | 阈值 | 使用率 | 行动 |
 |------|---------|------|--------|------|
-| `TranscriptionPage.ReadyWorkspace.tsx` | 2017 | 2600 | 约 77.6% | 🟢 已部分下沉；继续监控编排层回调密度 |
+| `TranscriptionPage.ReadyWorkspace.tsx`（入口） | 10 | 40 | — | 🟢 chunk 壳；重逻辑在 Orchestrator |
+| `TranscriptionPage.ReadyWorkspace.body.tsx` | 20 | 80 | 约 25% | 🟢 薄壳达标 |
+| `TranscriptionPage.ReadyWorkspaceOrchestrator.tsx` | ~231 | 2600 | 约 8.9% | 🟢 编排壳已薄；增量进阶段 hook / builder（见 **§5.1.1**） |
+| `useReadyWorkspaceReadyPhaseBootstrap.ts` | 122 | 140（ratchet） | 约 87.1% | 🟡 近 ratchet 顶；后续可再按域拆簇 |
 | `useReadyWorkspaceSurfaceProps.tsx` | 504 | 650 | 约 77.5% | 🟢 单文件 ratchet，避免与 bulk 300 行规则冲突 |
 | `useReadyWorkspaceTrackEditControllers.ts` | 316 | 450 | 约 70.2% | 🟢 聚合边界；与 bulk 规则互斥排除 |
 | `AiAnalysisPanel.tsx` | 243 | 2250 | 约 10.8% | 🟢 声学 Tab 等已外拆；继续监控 |
@@ -398,7 +413,7 @@ export function trackPageErrors(
 
 | 主题 | 当前口径 | 规划落位与下一步 |
 |------|----------|------------------|
-| **ARCH-7** | `TranscriptionPage.ReadyWorkspace.tsx` **2017** 行，编排层仍厚（见 **§〇 P0**） | **Wave 5.1** + 原方案 **C2**：按控制器 / hook 聚合继续减薄；每 PR 附 `check:architecture-guard` |
+| **ARCH-7** | **入口** **10** 行 + **body 薄壳 ~20** 行 + **Orchestrator ~231** 行（见 **§〇 P0**、§5.1 表、**§5.1.1**） | **Wave 5.1** + 原方案 **C2**：编排增量进阶段 hook / 参数 builder；薄 orchestrator 上仍以 `check:architecture-guard` 验收 |
 | **G4 `useAiChat` 瘦身** | `useAiChat.ts` **564**/1100；`sendTurnStreamPhase` / `confirmExecution` 等须控制继续膨胀（见 **§〇 P1**、**§2.1**） | 卫星模块 `useAiChat.*` 持续承接；近顶前预拆；定向 Vitest |
 | **G3 Bundle** | `language-mapping-runtime` 已降至约 **342KB**；懒加载 / registry chunk 仍可选（**§〇 P2**） | **Wave 6** 与体积门禁：按需加载实验；与 Knip / 分包策略对齐 |
 | **文档链接** | `npm run report:docs-link-debt` 在 `--all-links` 下 **0 broken**（2026-05-08 批量归一化后）；个别历史计划内链可能仍指向已迁文件 | 新增 archive 链接时继续用 **仓库相对** `src/…`、`../../…`；大搬迁后跑 `report:docs-link-debt` |
