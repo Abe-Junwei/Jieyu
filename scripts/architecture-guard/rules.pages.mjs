@@ -445,7 +445,7 @@ export const architectureGuardPageRatchetFileRules = [
       /export function useReadyWorkspaceTimelineAssistantPlaybackPhase\(/,
       /useReadyWorkspaceTimelineSyncSetup\(/,
       /useTranscriptionAssistantController\(/,
-      /useReadyWorkspacePlaybackReadModelSetup\(\{/,
+      /useReadyWorkspacePlaybackReadModelSetup\(\s*\{/,
       /useReadyWorkspaceAudioCaptureController\(/,
       /buildReadyWorkspaceAudioCaptureControllerInput\(/,
     ],

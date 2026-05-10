@@ -308,6 +308,7 @@ src/db/schemas/
 - **`TranscriptionPage.ReadyWorkspaceOrchestrator.tsx`**：由原先千行级 body 编排收敛为 **约 231 行**薄编排壳（`wc -l` ≈231）；`useTranscriptionData` 在壳层仅做**最小解构**（如 `state`、冲突票据与若干顶层 action），域壳能力经 **`useReadyWorkspaceDomainShellPhase`** 聚合为 `domainShell`，避免在编排文件内展开大块 `data` 字段。
 - **前置 chrome / 读模型边界**：**`useReadyWorkspacePreBootstrapChromePhase`** 承接 transcription lane 读范围、时间线索引等与 ADR 0020 相关的 wiring（与 `audit:ready-workspace-timeline-host` 门禁对齐）。
 - **阶段参数纯函数**：时间线 / 助手 / 播放 **`buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams`**；侧栏与轨道 **`buildReadyWorkspaceSidebarAndTrackPhaseParams`**；viewModels 与 surface **`buildReadyWorkspaceViewModelsSurfacePhaseParams`** — 编排壳主要负责调用阶段 hook 并传入上述 builder 产物，降低 orchestrator 内联对象字面量体积。
+- **下一刀（builder 顶格前，2026-05-11）**：`buildReadyWorkspaceViewModelsSurfacePhaseParams.ts` 已触 `rules.pages.mjs` 单文件 **900** 行 ratchet 的 **~95%**（`check:architecture-guard:core` hotspot）；优先把仍留在该文件中的大块字面量按 **既有 slice 边界**（`readyWorkspaceViewModelsHeadSlice` / `Lane` / `Tail` / `Annotation`）继续外推，或新增 **`buildReadyWorkspaceViewModelsSurfacePhaseParams.*.ts`** 卫星（例如 collaboration / project-media / toolbar 其中一条纵切），主文件只保留 `deps` 解构与各 slice 组装，避免在 orchestrator 回灌体积。
 - **验收**：`TranscriptionPage.structure.test.ts` 延续 shell + body + orchestrator 结构约束；`npm run check:architecture-guard`（含 `rules.pages.mjs` 与 timeline 审计脚本）为合并前硬门槛。
 
 ---
