@@ -1,5 +1,5 @@
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import { resolveHostUnitIdForTimelineView } from './timelineUnitViewUnitHelpers';
 
 type SelectionMappingInput = {
@@ -16,11 +16,13 @@ export type UnitSelectionMappingResult = {
 
 function resolveSelectionSourceUnitIds(input: SelectionMappingInput): string[] {
   if (input.selectedUnitIds.size > 0) {
-    return Array.from(new Set(
-      Array.from(input.selectedUnitIds)
-        .map((id) => id.trim())
-        .filter((id) => id.length > 0),
-    ));
+    return Array.from(
+      new Set(
+        Array.from(input.selectedUnitIds)
+          .map((id) => id.trim())
+          .filter((id) => id.length > 0),
+      ),
+    );
   }
   const selectedUnitId = input.selectedTimelineUnit?.unitId?.trim() ?? '';
   return selectedUnitId.length > 0 ? [selectedUnitId] : [];
@@ -74,7 +76,9 @@ export function resolveSegmentOnlyIdsFromSelection(input: {
   resolveUnitViewById?: (unitId: string) => TimelineUnitView | undefined;
 }): Set<string> {
   const sourceUnitIds = resolveSelectionSourceUnitIds(input);
-  return new Set(resolveSegmentOnlyIds(sourceUnitIds, input.unitViewById, input.resolveUnitViewById));
+  return new Set(
+    resolveSegmentOnlyIds(sourceUnitIds, input.unitViewById, input.resolveUnitViewById),
+  );
 }
 
 export function hasSelectionSourceForUnitMapping(input: SelectionMappingInput): boolean {
@@ -101,7 +105,11 @@ export function resolveUnitSelectionMapping(input: {
   let mappedSourceCount = 0;
   const mappedUnitIds = new Set<string>();
   for (const unitId of sourceUnitIds) {
-    const mappedUnitId = resolveHostUnitIdForTimelineView(unitId, input.unitViewById, input.resolveUnitViewById);
+    const mappedUnitId = resolveHostUnitIdForTimelineView(
+      unitId,
+      input.unitViewById,
+      input.resolveUnitViewById,
+    );
     if (!mappedUnitId) continue;
     mappedSourceCount += 1;
     mappedUnitIds.add(mappedUnitId);

@@ -5,23 +5,31 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { AiChatCard } from './AiChatCard';
 import { db } from '../../db';
 import { normalizeAiChatSettings } from '../../ai/providers/providerCatalog';
-import { AiAssistantHubContext, type AiAssistantHubContextValue } from '../../contexts/AiAssistantHubContext';
+import {
+  AiAssistantHubContext,
+  type AiAssistantHubContextValue,
+} from '../../contexts/AiAssistantHubContext';
 import { DEFAULT_AI_CHAT_CONTEXT_VALUE } from '../../contexts/AiChatContext';
 import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../../contexts/VoiceAgentContext';
-import { pickAiAssistantHubContextValue } from '../../hooks/useAiAssistantHubContextValue';
-import { pickAiChatContextValue } from '../../hooks/useAiChatContextValue';
-import { pickVoiceAgentContextValue } from '../../hooks/useVoiceAgentContextValue';
-import {
-  resetAssistantDialogueStateForTests,
-} from '../../services/assistantDialogueState';
+import { pickAiAssistantHubContextValue } from '../../hooks/ai/useAiAssistantHubContextValue';
+import { pickAiChatContextValue } from '../../hooks/ai/useAiChatContextValue';
+import { pickVoiceAgentContextValue } from '../../hooks/voice/useVoiceAgentContextValue';
+import { resetAssistantDialogueStateForTests } from '../../services/assistantDialogueState';
 
 const DEFAULT_HUB_VALUE = pickAiAssistantHubContextValue(
   pickAiChatContextValue(DEFAULT_AI_CHAT_CONTEXT_VALUE),
   pickVoiceAgentContextValue(DEFAULT_VOICE_AGENT_CONTEXT_VALUE),
 );
 
-function makeContextValue(overrides: Partial<AiAssistantHubContextValue> = {}): AiAssistantHubContextValue {
-  return { ...DEFAULT_HUB_VALUE, aiChatEnabled: true, aiProviderLabel: 'Mock Provider', ...overrides };
+function makeContextValue(
+  overrides: Partial<AiAssistantHubContextValue> = {},
+): AiAssistantHubContextValue {
+  return {
+    ...DEFAULT_HUB_VALUE,
+    aiChatEnabled: true,
+    aiProviderLabel: 'Mock Provider',
+    ...overrides,
+  };
 }
 
 async function clearAuditLogs(): Promise<void> {
@@ -63,9 +71,12 @@ describe('AiChatCard input submit', () => {
 
   it('shows testing label during connection test and reverts to test-connection label afterwards', async () => {
     const deferred = { resolve: null as (() => void) | null };
-    const onTestAiConnection = vi.fn(() => new Promise<void>((resolve) => {
-      deferred.resolve = resolve;
-    }));
+    const onTestAiConnection = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          deferred.resolve = resolve;
+        }),
+    );
 
     const view = render(
       <AiAssistantHubContext.Provider
@@ -80,17 +91,23 @@ describe('AiChatCard input submit', () => {
 
     fireEvent.click(within(view.container).getByRole('button', { name: /配置|config/i }));
 
-    const testButton = within(view.container).getByRole('button', { name: /测试连接|test connection/i }) as HTMLButtonElement;
+    const testButton = within(view.container).getByRole('button', {
+      name: /测试连接|test connection/i,
+    }) as HTMLButtonElement;
     fireEvent.click(testButton);
 
     expect(onTestAiConnection).toHaveBeenCalledTimes(1);
-    const testingButton = within(view.container).getByRole('button', { name: /测试中|testing/i }) as HTMLButtonElement;
+    const testingButton = within(view.container).getByRole('button', {
+      name: /测试中|testing/i,
+    }) as HTMLButtonElement;
     expect(testingButton.disabled).toBe(true);
 
     deferred.resolve?.();
 
     await waitFor(() => {
-      const revertedButton = within(view.container).getByRole('button', { name: /测试连接|test connection/i }) as HTMLButtonElement;
+      const revertedButton = within(view.container).getByRole('button', {
+        name: /测试连接|test connection/i,
+      }) as HTMLButtonElement;
       expect(revertedButton.disabled).toBe(false);
     });
   });
@@ -109,7 +126,9 @@ describe('AiChatCard input submit', () => {
 
     fireEvent.click(within(view.container).getByRole('button', { name: /配置|config/i }));
 
-    expect(within(view.container).getByRole('button', { name: /测试连接|test connection/i })).toBeTruthy();
+    expect(
+      within(view.container).getByRole('button', { name: /测试连接|test connection/i }),
+    ).toBeTruthy();
     expect(within(view.container).queryByRole('button', { name: /已连接|connected/i })).toBeNull();
   });
 
@@ -126,7 +145,9 @@ describe('AiChatCard input submit', () => {
 
     fireEvent.click(within(view.container).getByRole('button', { name: /配置|config/i }));
 
-    const passwordInput = view.container.querySelector('input.ai-cfg-input[type="password"]') as HTMLInputElement | null;
+    const passwordInput = view.container.querySelector(
+      'input.ai-cfg-input[type="password"]',
+    ) as HTMLInputElement | null;
     expect(passwordInput).toBeTruthy();
     expect(passwordInput?.closest('form')).toBeTruthy();
   });
@@ -146,13 +167,19 @@ describe('AiChatCard input submit', () => {
 
     fireEvent.click(within(view.container).getByRole('button', { name: /配置|config/i }));
 
-    const sessionBudgetInput = within(view.container).getByRole('spinbutton', { name: /会话 Token 预算上限|Session token budget/i });
+    const sessionBudgetInput = within(view.container).getByRole('spinbutton', {
+      name: /会话 Token 预算上限|Session token budget/i,
+    });
     fireEvent.change(sessionBudgetInput, { target: { value: '18000' } });
 
-    const outputCapInput = within(view.container).getByRole('spinbutton', { name: /^单次输出 Token 封顶$|^Output token cap$/i });
+    const outputCapInput = within(view.container).getByRole('spinbutton', {
+      name: /^单次输出 Token 封顶$|^Output token cap$/i,
+    });
     fireEvent.change(outputCapInput, { target: { value: '512' } });
 
-    const retryCapInput = within(view.container).getByRole('spinbutton', { name: /重试升级 Token 上限|Retry output token cap/i });
+    const retryCapInput = within(view.container).getByRole('spinbutton', {
+      name: /重试升级 Token 上限|Retry output token cap/i,
+    });
     fireEvent.change(retryCapInput, { target: { value: '1024' } });
 
     expect(onUpdateAiChatSettings).toHaveBeenCalledWith({ sessionTokenBudget: 18000 });
@@ -162,14 +189,15 @@ describe('AiChatCard input submit', () => {
 
   it('renders the recommendation as an in-input ghost suggestion and nowhere else', () => {
     const view = render(
-      <AiAssistantHubContext.Provider value={makeContextValue({
-        currentPage: 'transcription',
-        selectedUnitKind: 'unit',
-        selectedLayerType: 'translation',
-        selectedText: '这是一条需要补充说明的译文',
-        selectedTimeRangeLabel: '00:12-00:15',
-        selectedRowMeta: { rowNumber: 8, start: 12, end: 15 },
-      })}
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          currentPage: 'transcription',
+          selectedUnitKind: 'unit',
+          selectedLayerType: 'translation',
+          selectedText: '这是一条需要补充说明的译文',
+          selectedTimeRangeLabel: '00:12-00:15',
+          selectedRowMeta: { rowNumber: 8, start: 12, end: 15 },
+        })}
       >
         <AiChatCard embedded />
       </AiAssistantHubContext.Provider>,
@@ -178,9 +206,15 @@ describe('AiChatCard input submit', () => {
     const input = within(view.container).getByRole('textbox') as HTMLInputElement;
     expect(input.value).toBe('');
     expect(input.placeholder).toBe('');
-    expect(view.container.querySelector('.ai-chat-input-ghost-suggestion')?.textContent).toMatch(/row 8/i);
+    expect(view.container.querySelector('.ai-chat-input-ghost-suggestion')?.textContent).toMatch(
+      /row 8/i,
+    );
     expect(within(view.container).getByText(/translation layer/i)).toBeTruthy();
-    expect(within(view.container).queryByRole('button', { name: /填入输入框|Use suggestion|忽略本条推荐|Dismiss suggestion/i })).toBeNull();
+    expect(
+      within(view.container).queryByRole('button', {
+        name: /填入输入框|Use suggestion|忽略本条推荐|Dismiss suggestion/i,
+      }),
+    ).toBeNull();
   });
 
   it('renders pinned summary under user bubble and allows quick unpin', () => {
@@ -193,12 +227,14 @@ describe('AiChatCard input submit', () => {
           ],
           aiSessionMemory: {
             pinnedMessageIds: ['usr-pin-1'],
-            pinnedMessageDigests: [{
-              messageId: 'usr-pin-1',
-              role: 'user',
-              content: '请记住：回答尽量简洁',
-              createdAt: '2026-04-25T12:00:00.000Z',
-            }],
+            pinnedMessageDigests: [
+              {
+                messageId: 'usr-pin-1',
+                role: 'user',
+                content: '请记住：回答尽量简洁',
+                createdAt: '2026-04-25T12:00:00.000Z',
+              },
+            ],
           },
           onToggleAiMessagePin,
         })}
@@ -208,11 +244,15 @@ describe('AiChatCard input submit', () => {
     );
 
     expect(within(view.container).queryByText(/已钉住消息|Pinned messages/i)).toBeNull();
-  const pinnedSummaryText = view.container.querySelector('.ai-chat-pinned-summary-text');
-  expect((pinnedSummaryText?.textContent ?? '').trim().length).toBeGreaterThan(0);
-    const pinnedSummaryPanel = view.container.querySelector('.ai-chat-pinned-summary-panel') as HTMLElement | null;
+    const pinnedSummaryText = view.container.querySelector('.ai-chat-pinned-summary-text');
+    expect((pinnedSummaryText?.textContent ?? '').trim().length).toBeGreaterThan(0);
+    const pinnedSummaryPanel = view.container.querySelector(
+      '.ai-chat-pinned-summary-panel',
+    ) as HTMLElement | null;
     expect(pinnedSummaryPanel).toBeTruthy();
-    fireEvent.click(within(pinnedSummaryPanel as HTMLElement).getByRole('button', { name: /取消钉住|Unpin/i }));
+    fireEvent.click(
+      within(pinnedSummaryPanel as HTMLElement).getByRole('button', { name: /取消钉住|Unpin/i }),
+    );
     expect(onToggleAiMessagePin).toHaveBeenCalledWith('usr-pin-1');
   });
 
@@ -258,7 +298,9 @@ describe('AiChatCard input submit', () => {
     const consolePanel = within(view.container).getByTestId('ai-directive-console-mvp');
     expect(within(consolePanel).getByText(/请用英文回答/)).toBeTruthy();
     expect(within(consolePanel).getAllByText('[response]').length).toBeGreaterThan(0);
-    const sourceFilter = within(consolePanel).getByRole('combobox', { name: /指令来源筛选|Directive source filter/i });
+    const sourceFilter = within(consolePanel).getByRole('combobox', {
+      name: /指令来源筛选|Directive source filter/i,
+    });
     fireEvent.change(sourceFilter, { target: { value: 'pinned_message' } });
     expect(within(consolePanel).queryByText(/请用英文回答/)).toBeNull();
     expect(within(consolePanel).getByText(/继续使用英文/)).toBeTruthy();
@@ -269,6 +311,4 @@ describe('AiChatCard input submit', () => {
     fireEvent.click(deactivateBtn);
     expect(onDeactivateAiSessionDirective).toHaveBeenCalledWith('dir-2');
   });
-
-
 });

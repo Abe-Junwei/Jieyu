@@ -4,7 +4,7 @@
  */
 
 import type { EmbeddingProviderKind } from '../../ai/embeddings/EmbeddingProvider';
-import type { CommercialProviderKind } from '../../hooks/useVoiceDock';
+import type { CommercialProviderKind } from '../../hooks/voice/useVoiceDock';
 import type { Locale } from '../../i18n';
 import type { UiFontScaleMode } from '../../utils/panelAdaptiveLayout';
 import type { IconEffect } from '../../utils/iconEffect';

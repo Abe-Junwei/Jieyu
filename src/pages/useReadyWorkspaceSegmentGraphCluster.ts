@@ -1,6 +1,6 @@
 import type { MutableRefObject } from 'react';
 
-import type { DbState } from '../hooks/transcriptionTypes';
+import type { DbState } from '../hooks/transcription/transcriptionTypes';
 
 import { useReadyWorkspaceUnifiedUnitCountSync } from './useReadyWorkspaceUnifiedUnitCountSync';
 import { useReadyWorkspaceSegmentRangeClamp } from './useReadyWorkspaceSegmentRangeClamp';

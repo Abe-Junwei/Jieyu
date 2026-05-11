@@ -1,6 +1,9 @@
 import type { LayerUnitDocType, MediaItemDocType } from '../db';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import { isSegmentTimelineUnit, isUnitTimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import {
+  isSegmentTimelineUnit,
+  isUnitTimelineUnit,
+} from '../hooks/transcription/transcriptionTypes';
 
 /**
  * 与 `resolveSelectedTimelineMedia` 对齐的「segment / segment 内容」加载用媒体 id：

@@ -1,13 +1,55 @@
-import { dexieStoresForTierAnnotationAtomicRw, dexieStoresForTierDefinitionAtomicRw, getDb, withTransaction, type AuditLogDocType, type AuditSource, type AnchorDocType, type TierAnnotationDocType } from '../db';
+import {
+  dexieStoresForTierAnnotationAtomicRw,
+  dexieStoresForTierDefinitionAtomicRw,
+  getDb,
+  withTransaction,
+  type AuditLogDocType,
+  type AuditSource,
+  type AnchorDocType,
+  type TierAnnotationDocType,
+} from '../db';
 import { newId } from '../utils/transcriptionFormatters';
-import { assertReviewProtection, assertStableId, normalizeTierAnnotationDocForStorage } from '../utils/camDataUtils';
-import { type ConstraintSeverity, type ConstraintViolation, type TierSaveResult, validateTierConstraints } from './LinguisticService.constraints';
+import {
+  assertReviewProtection,
+  assertStableId,
+  normalizeTierAnnotationDocForStorage,
+} from '../utils/camDataUtils';
+import {
+  type ConstraintSeverity,
+  type ConstraintViolation,
+  type TierSaveResult,
+  validateTierConstraints,
+} from './LinguisticService.constraints';
 
 type TierDefinitionRecord = import('../db').TierDefinitionDocType;
 
 const TRACKED_FIELDS: Record<string, readonly string[]> = {
-  tier_annotations: ['value', 'startTime', 'endTime', 'startAnchorId', 'endAnchorId', 'isVerified', 'parentAnnotationId'],
-  tier_definitions: ['parentTierId', 'extraParentTierIds', 'tierType', 'contentType', 'name', 'languageId', 'orthographyId', 'bridgeId', 'participantId', 'dataCategory', 'modality', 'isDefault', 'accessRights', 'delimiter', 'sortOrder'],
+  tier_annotations: [
+    'value',
+    'startTime',
+    'endTime',
+    'startAnchorId',
+    'endAnchorId',
+    'isVerified',
+    'parentAnnotationId',
+  ],
+  tier_definitions: [
+    'parentTierId',
+    'extraParentTierIds',
+    'tierType',
+    'contentType',
+    'name',
+    'languageId',
+    'orthographyId',
+    'bridgeId',
+    'participantId',
+    'dataCategory',
+    'modality',
+    'isDefault',
+    'accessRights',
+    'delimiter',
+    'sortOrder',
+  ],
   units: ['transcription', 'startTime', 'endTime'],
 };
 
@@ -31,7 +73,7 @@ async function writeAuditLog(
   changes?: Array<{ field: string; oldValue?: unknown; newValue?: unknown }>,
   dbArg?: Awaited<ReturnType<typeof getDb>>,
 ): Promise<void> {
-  const db = dbArg ?? await getDb();
+  const db = dbArg ?? (await getDb());
   const timestamp = new Date().toISOString();
 
   if (action === 'create' || action === 'delete' || !changes || changes.length === 0) {
@@ -85,7 +127,10 @@ export async function getTierDefinitions(textId: string): Promise<TierDefinition
   return docs.map((doc) => doc.toJSON());
 }
 
-async function persistTierDefinition(data: TierDefinitionRecord, source: AuditSource): Promise<string> {
+async function persistTierDefinition(
+  data: TierDefinitionRecord,
+  source: AuditSource,
+): Promise<string> {
   const db = await getDb();
   const existing = await db.dexie.tier_definitions.get(data.id);
   return withTransaction(
@@ -95,7 +140,11 @@ async function persistTierDefinition(data: TierDefinitionRecord, source: AuditSo
     async () => {
       await db.dexie.tier_definitions.put(data);
       if (existing) {
-        const changes = diffTrackedFields('tier_definitions', existing as unknown as Record<string, unknown>, data as unknown as Record<string, unknown>);
+        const changes = diffTrackedFields(
+          'tier_definitions',
+          existing as unknown as Record<string, unknown>,
+          data as unknown as Record<string, unknown>,
+        );
         if (changes.length > 0) {
           await writeAuditLog('tier_definitions', data.id, 'update', source, changes, db);
         }
@@ -108,7 +157,10 @@ async function persistTierDefinition(data: TierDefinitionRecord, source: AuditSo
   );
 }
 
-export async function saveTierDefinition(data: TierDefinitionRecord, source: AuditSource = 'human'): Promise<TierSaveResult> {
+export async function saveTierDefinition(
+  data: TierDefinitionRecord,
+  source: AuditSource = 'human',
+): Promise<TierSaveResult> {
   const db = await getDb();
   const allDocs = await db.collections.tier_definitions.findByIndex('textId', data.textId);
   const allTiers = allDocs.map((doc) => doc.toJSON());
@@ -126,7 +178,10 @@ export async function saveTierDefinition(data: TierDefinitionRecord, source: Aud
   return { id, errors: [], warnings };
 }
 
-export async function removeTierDefinition(id: string, source: AuditSource = 'human'): Promise<{ errors: ConstraintViolation[] }> {
+export async function removeTierDefinition(
+  id: string,
+  source: AuditSource = 'human',
+): Promise<{ errors: ConstraintViolation[] }> {
   const db = await getDb();
   const allDocs = await db.collections.tier_definitions.findByIndex('parentTierId', id);
   const childTiers = allDocs.map((doc) => doc.toJSON());
@@ -158,7 +213,7 @@ export async function removeTierDefinition(id: string, source: AuditSource = 'hu
       await db.collections.tier_definitions.remove(id);
       await writeAuditLog('tier_definitions', id, 'delete', source, undefined, db);
     },
-    { label: 'LinguisticService.removeTierDefinition' },
+    { label: 'LinguisticService.tiers.removeDefinition' },
   );
   return { errors: [] };
 }
@@ -179,7 +234,11 @@ async function loadTierGraph(textId: string) {
   return { tiers, annotations };
 }
 
-async function persistTierAnnotation(data: TierAnnotationDocType, source: AuditSource, mediaId?: string): Promise<string> {
+async function persistTierAnnotation(
+  data: TierAnnotationDocType,
+  source: AuditSource,
+  mediaId?: string,
+): Promise<string> {
   const db = await getDb();
   let normalizedData = normalizeTierAnnotationDocForStorage(data, {
     actorType: source === 'ai' ? 'ai' : source === 'system' ? 'system' : 'human',
@@ -194,7 +253,12 @@ async function persistTierAnnotation(data: TierAnnotationDocType, source: AuditS
     const startTime = normalizedData.startTime;
     const endTime = normalizedData.endTime;
     if (!normalizedData.startAnchorId) {
-      const startAnchor: AnchorDocType = { id: newId('anc'), mediaId, time: startTime, createdAt: now };
+      const startAnchor: AnchorDocType = {
+        id: newId('anc'),
+        mediaId,
+        time: startTime,
+        createdAt: now,
+      };
       await db.dexie.anchors.put(startAnchor);
       normalizedData = { ...normalizedData, startAnchorId: startAnchor.id };
     }
@@ -208,7 +272,11 @@ async function persistTierAnnotation(data: TierAnnotationDocType, source: AuditS
   const existing = await db.dexie.tier_annotations.get(normalizedData.id);
   await db.dexie.tier_annotations.put(normalizedData);
   if (existing) {
-    const changes = diffTrackedFields('tier_annotations', existing as unknown as Record<string, unknown>, normalizedData as unknown as Record<string, unknown>);
+    const changes = diffTrackedFields(
+      'tier_annotations',
+      existing as unknown as Record<string, unknown>,
+      normalizedData as unknown as Record<string, unknown>,
+    );
     if (changes.length > 0) {
       await writeAuditLog('tier_annotations', normalizedData.id, 'update', source, changes, db);
     }
@@ -233,13 +301,26 @@ async function persistTierAnnotationAtomic(
   );
 }
 
-export async function saveTierAnnotation(data: TierAnnotationDocType, source: AuditSource = 'human'): Promise<TierSaveResult> {
+export async function saveTierAnnotation(
+  data: TierAnnotationDocType,
+  source: AuditSource = 'human',
+): Promise<TierSaveResult> {
   const db = await getDb();
-  const tierDoc = await db.collections.tier_definitions.findOne({ selector: { id: data.tierId } }).exec();
+  const tierDoc = await db.collections.tier_definitions
+    .findOne({ selector: { id: data.tierId } })
+    .exec();
   if (!tierDoc) {
     return {
       id: '',
-      errors: [{ rule: 'R2', severity: 'error', tierId: data.tierId, annotationId: data.id, message: `Annotation references non-existent tier "${data.tierId}".` }],
+      errors: [
+        {
+          rule: 'R2',
+          severity: 'error',
+          tierId: data.tierId,
+          annotationId: data.id,
+          message: `Annotation references non-existent tier "${data.tierId}".`,
+        },
+      ],
       warnings: [],
     };
   }
@@ -262,7 +343,10 @@ export async function saveTierAnnotation(data: TierAnnotationDocType, source: Au
   return { id, errors: [], warnings };
 }
 
-export async function removeTierAnnotation(id: string, source: AuditSource = 'human'): Promise<void> {
+export async function removeTierAnnotation(
+  id: string,
+  source: AuditSource = 'human',
+): Promise<void> {
   const db = await getDb();
   await withTransaction(
     db,
@@ -278,14 +362,25 @@ export async function removeTierAnnotation(id: string, source: AuditSource = 'hu
         if (seen.has(currentId)) continue;
         seen.add(currentId);
         orderedIds.push(currentId);
-        const children = await db.dexie.tier_annotations.where('parentAnnotationId').equals(currentId).toArray();
+        const children = await db.dexie.tier_annotations
+          .where('parentAnnotationId')
+          .equals(currentId)
+          .toArray();
         for (const child of children) {
           if (!seen.has(child.id)) stack.push(child.id);
         }
       }
 
-      const rows = (await db.dexie.tier_annotations.bulkGet(orderedIds)).filter((row): row is TierAnnotationDocType => Boolean(row));
-      const anchorIds = [...new Set(rows.flatMap((row) => [row.startAnchorId, row.endAnchorId].filter((value): value is string => Boolean(value))))];
+      const rows = (await db.dexie.tier_annotations.bulkGet(orderedIds)).filter(
+        (row): row is TierAnnotationDocType => Boolean(row),
+      );
+      const anchorIds = [
+        ...new Set(
+          rows.flatMap((row) =>
+            [row.startAnchorId, row.endAnchorId].filter((value): value is string => Boolean(value)),
+          ),
+        ),
+      ];
 
       if (anchorIds.length > 0) {
         await db.dexie.anchors.bulkDelete(anchorIds);
@@ -297,7 +392,7 @@ export async function removeTierAnnotation(id: string, source: AuditSource = 'hu
         await writeAuditLog('tier_annotations', annotationId, 'delete', source, undefined, db);
       }
     },
-    { label: 'LinguisticService.removeTierAnnotation' },
+    { label: 'LinguisticService.tiers.removeAnnotation' },
   );
 }
 
@@ -330,7 +425,7 @@ export async function saveTierAnnotationsBatch(
         await persistTierAnnotation(annotation, 'human', mediaId);
       }
     },
-    { label: 'LinguisticService.saveTierAnnotationsBatch' },
+    { label: 'LinguisticService.tiers.saveAnnotationsBatch' },
   );
 
   const warnings = allViolations.filter((violation) => violation.severity === 'warning');
@@ -340,13 +435,17 @@ export async function saveTierAnnotationsBatch(
 export async function getAuditLogs(documentId: string): Promise<AuditLogDocType[]> {
   const db = await getDb();
   const docs = await db.collections.audit_logs.findByIndex('documentId', documentId);
-  return docs.map((doc) => doc.toJSON()).sort((left, right) => right.timestamp.localeCompare(left.timestamp));
+  return docs
+    .map((doc) => doc.toJSON())
+    .sort((left, right) => right.timestamp.localeCompare(left.timestamp));
 }
 
 export async function getAuditLogsByCollection(collection: string): Promise<AuditLogDocType[]> {
   const db = await getDb();
   const docs = await db.collections.audit_logs.findByIndex('collection', collection);
-  return docs.map((doc) => doc.toJSON()).sort((left, right) => right.timestamp.localeCompare(left.timestamp));
+  return docs
+    .map((doc) => doc.toJSON())
+    .sort((left, right) => right.timestamp.localeCompare(left.timestamp));
 }
 
 export async function pruneAuditLogs(maxAgeDays: number = 90): Promise<number> {

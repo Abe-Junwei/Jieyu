@@ -1,4 +1,4 @@
-import { useTimelineResize } from '../hooks/useTimelineResize';
+import { useTimelineResize } from '../hooks/transcription/useTimelineResize';
 import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';
 
 type UseInteractionInput = Parameters<typeof useTranscriptionTimelineInteractionController>[0];

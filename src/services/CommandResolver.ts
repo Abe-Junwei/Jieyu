@@ -11,7 +11,7 @@
  *   - 未命中的输入返回 null，由调用方回退到 LLM
  */
 
-import type { AiChatToolCall, AiChatToolName } from '../hooks/useAiChat.types';
+import type { AiChatToolCall, AiChatToolName } from '../hooks/ai/useAiChat.types';
 import { resolveLanguageQuery } from '../utils/langMapping';
 
 function parseChineseInteger(raw: string): number | null {
@@ -70,11 +70,21 @@ function extractSegmentSelectorArgs(rawText: string): Record<string, unknown> {
   const text = rawText.trim();
   if (!text) return {};
 
-  if (new RegExp(`(最后(?:一[个条段句]?|一个)?|(?:the\\s+)?last)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(text)) {
+  if (
+    new RegExp(
+      `(最后(?:一[个条段句]?|一个)?|(?:the\\s+)?last)\\s*${SEGMENT_NOUN_PATTERN}`,
+      'i',
+    ).test(text)
+  ) {
     return { segmentPosition: 'last' };
   }
 
-  if (new RegExp(`(前一个|上一个|(?:the\\s+)?previous|(?:the\\s+)?prev)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(text)) {
+  if (
+    new RegExp(
+      `(前一个|上一个|(?:the\\s+)?previous|(?:the\\s+)?prev)\\s*${SEGMENT_NOUN_PATTERN}`,
+      'i',
+    ).test(text)
+  ) {
     return { segmentPosition: 'previous' };
   }
 
@@ -82,15 +92,30 @@ function extractSegmentSelectorArgs(rawText: string): Record<string, unknown> {
     return { segmentPosition: 'next' };
   }
 
-  if (new RegExp(`(倒数第二(?:个|条|句|段)?|(?:the\\s+)?penultimate)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(text)) {
+  if (
+    new RegExp(
+      `(倒数第二(?:个|条|句|段)?|(?:the\\s+)?penultimate)\\s*${SEGMENT_NOUN_PATTERN}`,
+      'i',
+    ).test(text)
+  ) {
     return { segmentPosition: 'penultimate' };
   }
 
-  if (new RegExp(`(中间那(?:个|条|句|段)|中间(?:那)?个|(?:the\\s+)?middle)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(text)) {
+  if (
+    new RegExp(
+      `(中间那(?:个|条|句|段)|中间(?:那)?个|(?:the\\s+)?middle)\\s*${SEGMENT_NOUN_PATTERN}`,
+      'i',
+    ).test(text)
+  ) {
     return { segmentPosition: 'middle' };
   }
 
-  const chineseMatch = text.match(new RegExp(`第\\s*([0-9]+|[一二三四五六七八九十两]+)\\s*(?:个|条|句|段)?\\s*${SEGMENT_NOUN_PATTERN}?`, 'i'));
+  const chineseMatch = text.match(
+    new RegExp(
+      `第\\s*([0-9]+|[一二三四五六七八九十两]+)\\s*(?:个|条|句|段)?\\s*${SEGMENT_NOUN_PATTERN}?`,
+      'i',
+    ),
+  );
   if (chineseMatch?.[1]) {
     const parsed = parseChineseInteger(chineseMatch[1]);
     if (typeof parsed === 'number' && Number.isInteger(parsed) && parsed >= 1) {
@@ -98,7 +123,9 @@ function extractSegmentSelectorArgs(rawText: string): Record<string, unknown> {
     }
   }
 
-  const englishMatch = text.match(/(?:the\s+)?(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|\d+(?:st|nd|rd|th))\s+segments?/i);
+  const englishMatch = text.match(
+    /(?:the\s+)?(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|\d+(?:st|nd|rd|th))\s+segments?/i,
+  );
   if (englishMatch?.[1]) {
     const ordinal = englishMatch[1].toLowerCase();
     if (ordinal === 'last') return { segmentPosition: 'last' };
@@ -111,7 +138,10 @@ function extractSegmentSelectorArgs(rawText: string): Record<string, unknown> {
   return {};
 }
 
-function mergeSegmentSelectorArgs(rawSelectorText: string, args: Record<string, unknown>): Record<string, unknown> {
+function mergeSegmentSelectorArgs(
+  rawSelectorText: string,
+  args: Record<string, unknown>,
+): Record<string, unknown> {
   return {
     ...extractSegmentSelectorArgs(rawSelectorText),
     ...args,
@@ -134,8 +164,6 @@ function buildLayerCreateCall(
     },
   };
 }
-
-
 
 // ── 指令规则定义 | Command rule definition ──────────────────────────────────
 
@@ -161,54 +189,65 @@ const COMMAND_RULES: CommandRule[] = [
   // ── 句段操作 | Segment operations ──
 
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:(?:把|将)?(?:当前|这个|此)?(?:句段|分段|segment)?\s*(?:与|和)\s*(?:前一个|上一个|前一句段|上一句段|previous(?:\s+segment)?)\s*(?:合并|merge)|(?:向前|往前)\s*合并(?:句段|分段|segment)?|(?:合并|merge)\s*(?:前一个|上一个|前一句段|上一句段|previous(?:\s+segment)?))/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:(?:把|将)?(?:当前|这个|此)?(?:句段|分段|segment)?\s*(?:与|和)\s*(?:前一个|上一个|前一句段|上一句段|previous(?:\s+segment)?)\s*(?:合并|merge)|(?:向前|往前)\s*合并(?:句段|分段|segment)?|(?:合并|merge)\s*(?:前一个|上一个|前一句段|上一句段|previous(?:\s+segment)?))/i,
     build: () => ({ name: 'merge_prev', arguments: {} }),
     priority: 94,
   },
 
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:(?:把|将)?(?:当前|这个|此)?(?:句段|分段|segment)?\s*(?:与|和)\s*(?:后一个|下一个|后一句段|下一句段|next(?:\s+segment)?)\s*(?:合并|merge)|(?:向后|往后)\s*合并(?:句段|分段|segment)?|(?:合并|merge)\s*(?:后一个|下一个|后一句段|下一句段|next(?:\s+segment)?))/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:(?:把|将)?(?:当前|这个|此)?(?:句段|分段|segment)?\s*(?:与|和)\s*(?:后一个|下一个|后一句段|下一句段|next(?:\s+segment)?)\s*(?:合并|merge)|(?:向后|往后)\s*合并(?:句段|分段|segment)?|(?:合并|merge)\s*(?:后一个|下一个|后一句段|下一句段|next(?:\s+segment)?))/i,
     build: () => ({ name: 'merge_next', arguments: {} }),
     priority: 94,
   },
 
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:(?:把|将)?(?:选中|已选中|这些|这几个|selected|these)?\s*(?:句段|分段|segments?)\s*(?:合并|merge)|(?:合并|merge)\s*(?:选中|已选中|这些|这几个|selected|these|多个|两个|两[个条]?|multiple)?\s*(?:句段|分段|segments?))/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:(?:把|将)?(?:选中|已选中|这些|这几个|selected|these)?\s*(?:句段|分段|segments?)\s*(?:合并|merge)|(?:合并|merge)\s*(?:选中|已选中|这些|这几个|selected|these|多个|两个|两[个条]?|multiple)?\s*(?:句段|分段|segments?))/i,
     build: () => ({ name: 'merge_transcription_segments', arguments: {} }),
     priority: 93,
   },
 
   // "删除第五个句段" / "删除最后一个句段"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:删除|删掉|移除|remove|delete)\s*(?:第\s*(?:[0-9]+|[一二三四五六七八九十两]+)\s*(?:个|条|句|段)?|最后(?:一[个条段句]?|一个)?|前一个|上一个|后一个|下一个|倒数第二(?:个|条|句|段)?|中间那(?:个|条|句|段)|中间(?:那)?个|(?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|previous|prev|next|penultimate|middle|\d+(?:st|nd|rd|th)))\s*(?:句段|分段|句子?|句|段|segment|segments?)/i,
-    build: (m) => ({ name: 'delete_transcription_segment', arguments: extractSegmentSelectorArgs(m[0] ?? '') }),
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:删除|删掉|移除|remove|delete)\s*(?:第\s*(?:[0-9]+|[一二三四五六七八九十两]+)\s*(?:个|条|句|段)?|最后(?:一[个条段句]?|一个)?|前一个|上一个|后一个|下一个|倒数第二(?:个|条|句|段)?|中间那(?:个|条|句|段)|中间(?:那)?个|(?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|previous|prev|next|penultimate|middle|\d+(?:st|nd|rd|th)))\s*(?:句段|分段|句子?|句|段|segment|segments?)/i,
+    build: (m) => ({
+      name: 'delete_transcription_segment',
+      arguments: extractSegmentSelectorArgs(m[0] ?? ''),
+    }),
     priority: 92,
   },
 
   // "删除当前所有句段" / "移除全部分段"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:删除|删掉|移除|remove|delete)\s*(?:当前|现在|本页)?\s*(?:所有|全部|全体|选中的|selected|all)\s*(?:句段|分段|segment|segments)/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:删除|删掉|移除|remove|delete)\s*(?:当前|现在|本页)?\s*(?:所有|全部|全体|选中的|selected|all)\s*(?:句段|分段|segment|segments)/i,
     build: () => ({ name: 'delete_transcription_segment', arguments: {} }),
     priority: 95,
   },
 
   // "删除当前句段" / "删除这个句段" / "删掉这条"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:删除|删掉|移除|remove|delete)\s*(?:当前|这个|这条|此|这一[条个行]|current|this)?\s*(?:句段|段落|segment|这[条个行一])/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:删除|删掉|移除|remove|delete)\s*(?:当前|这个|这条|此|这一[条个行]|current|this)?\s*(?:句段|段落|segment|这[条个行一])/i,
     build: () => ({ name: 'delete_transcription_segment', arguments: {} }),
     priority: 90,
   },
 
   // "新建句段" / "创建句段" / "插入句段"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:新建|创建|新增|插入|添加|create|add|insert|new)\s*(?:一[个条])?(?:句段|段落|segment)/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:新建|创建|新增|插入|添加|create|add|insert|new)\s*(?:一[个条])?(?:句段|段落|segment)/i,
     build: () => ({ name: 'create_transcription_segment', arguments: {} }),
     priority: 85,
   },
 
   // "切分句段" / "分割当前句段"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:切分|分割|拆分|split)\s*(?:当前|这个|此)?\s*(?:句段|段落|segment)?/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:切分|分割|拆分|split)\s*(?:当前|这个|此)?\s*(?:句段|段落|segment)?/i,
     build: () => ({ name: 'split_transcription_segment', arguments: {} }),
     priority: 85,
   },
@@ -217,7 +256,8 @@ const COMMAND_RULES: CommandRule[] = [
 
   // "set the fifth segment transcription to XXX"
   {
-    pattern: /^(?:set|write)\s+((?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|previous|prev|next|penultimate|middle|\d+(?:st|nd|rd|th))\s+segments?)\s+(?:segment\s+)?transcription\s+(?:to|as)\s*[""「]?(.*?)[""」]?\s*$/i,
+    pattern:
+      /^(?:set|write)\s+((?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|previous|prev|next|penultimate|middle|\d+(?:st|nd|rd|th))\s+segments?)\s+(?:segment\s+)?transcription\s+(?:to|as)\s*[""「]?(.*?)[""」]?\s*$/i,
     build: (m) => ({
       name: 'set_transcription_text',
       arguments: mergeSegmentSelectorArgs(m[1] ?? '', { text: m[2]?.trim() ?? '' }),
@@ -227,7 +267,8 @@ const COMMAND_RULES: CommandRule[] = [
 
   // "把第五个句段转写改为XXX" / "set the fifth segment transcription to XXX"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:把|将)?\s*((?:第\s*(?:[0-9]+|[一二三四五六七八九十两]+)\s*(?:个|条)?|最后(?:一[个条]?|一个)?|前一个|上一个|后一个|下一个|倒数第二(?:个|条)?|中间那(?:个|条)|中间(?:那)?个|(?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|previous|prev|next|penultimate|middle|\d+(?:st|nd|rd|th)))\s*(?:句段|分段|segment|segments?))(?:的)?\s*(?:转写|transcription)\s*(?:改[为成]|写入|填[写入]|设[置为])\s*[""「]?(.+?)[""」]?\s*$/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:把|将)?\s*((?:第\s*(?:[0-9]+|[一二三四五六七八九十两]+)\s*(?:个|条)?|最后(?:一[个条]?|一个)?|前一个|上一个|后一个|下一个|倒数第二(?:个|条)?|中间那(?:个|条)|中间(?:那)?个|(?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|previous|prev|next|penultimate|middle|\d+(?:st|nd|rd|th)))\s*(?:句段|分段|segment|segments?))(?:的)?\s*(?:转写|transcription)\s*(?:改[为成]|写入|填[写入]|设[置为])\s*[""「]?(.+?)[""」]?\s*$/i,
     build: (m) => ({
       name: 'set_transcription_text',
       arguments: mergeSegmentSelectorArgs(m[1] ?? '', { text: m[2]?.trim() ?? '' }),
@@ -237,14 +278,16 @@ const COMMAND_RULES: CommandRule[] = [
 
   // "把转写改为XXX" / "转写写入XXX" / "设置转写文本为XXX"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:把|将)?(?:转写|transcription)?\s*(?:改[为成]|写入|填[写入]|设[置为])\s*[""「]?(.+?)[""」]?\s*$/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:把|将)?(?:转写|transcription)?\s*(?:改[为成]|写入|填[写入]|设[置为])\s*[""「]?(.+?)[""」]?\s*$/i,
     build: (m) => ({ name: 'set_transcription_text', arguments: { text: m[1]?.trim() ?? '' } }),
     priority: 75,
   },
 
   // "clear translation of the last segment"
   {
-    pattern: /^(?:clear)\s+(?:the\s+)?translation(?:\s+(?:text|content))?\s+of\s+((?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|previous|prev|next|penultimate|middle|\d+(?:st|nd|rd|th))\s+segments?)\s*$/i,
+    pattern:
+      /^(?:clear)\s+(?:the\s+)?translation(?:\s+(?:text|content))?\s+of\s+((?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|previous|prev|next|penultimate|middle|\d+(?:st|nd|rd|th))\s+segments?)\s*$/i,
     build: (m) => ({
       name: 'clear_translation_segment',
       arguments: mergeSegmentSelectorArgs(m[1] ?? '', {}),
@@ -254,7 +297,8 @@ const COMMAND_RULES: CommandRule[] = [
 
   // "清空最后一个句段翻译" / "clear translation of the last segment"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:清空|清除|clear)\s*((?:第\s*(?:[0-9]+|[一二三四五六七八九十两]+)\s*(?:个|条)?|最后(?:一[个条]?|一个)?|前一个|上一个|后一个|下一个|倒数第二(?:个|条)?|中间那(?:个|条)|中间(?:那)?个|(?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|previous|prev|next|penultimate|middle|\d+(?:st|nd|rd|th)))\s*(?:句段|分段|segment|segments?))(?:的)?\s*(?:翻译|translation)\s*(?:文本|内容|text)?/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:清空|清除|clear)\s*((?:第\s*(?:[0-9]+|[一二三四五六七八九十两]+)\s*(?:个|条)?|最后(?:一[个条]?|一个)?|前一个|上一个|后一个|下一个|倒数第二(?:个|条)?|中间那(?:个|条)|中间(?:那)?个|(?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|previous|prev|next|penultimate|middle|\d+(?:st|nd|rd|th)))\s*(?:句段|分段|segment|segments?))(?:的)?\s*(?:翻译|translation)\s*(?:文本|内容|text)?/i,
     build: (m) => ({
       name: 'clear_translation_segment',
       arguments: mergeSegmentSelectorArgs(m[1] ?? '', {}),
@@ -264,7 +308,8 @@ const COMMAND_RULES: CommandRule[] = [
 
   // "清空翻译" / "清除翻译文本"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:清空|清除|clear)\s*(?:当前|这个|此)?\s*(?:翻译|translation)\s*(?:文本|内容|text)?/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:清空|清除|clear)\s*(?:当前|这个|此)?\s*(?:翻译|translation)\s*(?:文本|内容|text)?/i,
     build: () => ({ name: 'clear_translation_segment', arguments: {} }),
     priority: 80,
   },
@@ -282,21 +327,24 @@ const COMMAND_RULES: CommandRule[] = [
 
   // "创建XX转写层" / "新建日语转写层"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:新建|创建|新增|create|add)\s*(?:一[个条层])?\s*(.+?)\s*(?:转写层|transcription\s*layer)/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:新建|创建|新增|create|add)\s*(?:一[个条层])?\s*(.+?)\s*(?:转写层|transcription\s*layer)/i,
     build: (m) => buildLayerCreateCall('create_transcription_layer', m[1]?.trim() ?? ''),
     priority: 80,
   },
 
   // "创建XX翻译层" / "新建英语翻译层"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:新建|创建|新增|create|add)\s*(?:一[个条层])?\s*(.+?)\s*(?:翻译层|translation\s*layer)/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:新建|创建|新增|create|add)\s*(?:一[个条层])?\s*(.+?)\s*(?:翻译层|translation\s*layer)/i,
     build: (m) => buildLayerCreateCall('create_translation_layer', m[1]?.trim() ?? ''),
     priority: 80,
   },
 
   // "删除转写层" / "删除翻译层" / "删除XX层"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:删除|删掉|移除|remove|delete)\s*(?:当前|这个)?(.+?)?\s*(?:转写层|翻译层|(?:transcription|translation)\s*layer|层)/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:删除|删掉|移除|remove|delete)\s*(?:当前|这个)?(.+?)?\s*(?:转写层|翻译层|(?:transcription|translation)\s*layer|层)/i,
     build: (m) => {
       const hint = m[1]?.trim() ?? '';
       const args: Record<string, unknown> = {};
@@ -319,21 +367,24 @@ const COMMAND_RULES: CommandRule[] = [
 
   // "新增宿主" / "add host"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:新增|添加|加入|add)\s*(?:宿主|host)(?:\s*(?:到|to))?\s*(?:翻译层|translation\s*layer)?/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:新增|添加|加入|add)\s*(?:宿主|host)(?:\s*(?:到|to))?\s*(?:翻译层|translation\s*layer)?/i,
     build: () => ({ name: 'add_host', arguments: {} }),
     priority: 76,
   },
 
   // "移除宿主" / "remove host"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:移除|删除|去掉|remove)\s*(?:宿主|host)(?:\s*(?:从|from))?\s*(?:翻译层|translation\s*layer)?/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:移除|删除|去掉|remove)\s*(?:宿主|host)(?:\s*(?:从|from))?\s*(?:翻译层|translation\s*layer)?/i,
     build: () => ({ name: 'remove_host', arguments: {} }),
     priority: 76,
   },
 
   // "切换主宿主" / "set preferred host"
   {
-    pattern: /^(?:请?(?:帮我)?)?(?:(?:切换|设为|设置|改为|switch|set)\s*(?:主宿主|首选宿主|preferred\s*host)|switch\s*preferred\s*host)/i,
+    pattern:
+      /^(?:请?(?:帮我)?)?(?:(?:切换|设为|设置|改为|switch|set)\s*(?:主宿主|首选宿主|preferred\s*host)|switch\s*preferred\s*host)/i,
     build: () => ({ name: 'switch_preferred_host', arguments: {} }),
     priority: 76,
   },

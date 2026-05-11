@@ -2,9 +2,9 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoPlayer } from './VideoPlayer';
-import { useVideoPlayer } from '../hooks/useVideoPlayer';
+import { useVideoPlayer } from '~/hooks/media/useVideoPlayer';
 
-vi.mock('../hooks/useVideoPlayer', () => ({
+vi.mock('../hooks/media/useVideoPlayer', () => ({
   useVideoPlayer: vi.fn(),
 }));
 

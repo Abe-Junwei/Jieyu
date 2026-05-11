@@ -3,7 +3,7 @@
  * Pure logic: no React dependencies.
  */
 import { clearConversationSummaryMemory, persistSessionMemory } from './sessionMemory';
-import type { AiSessionMemory } from '../../hooks/useAiChat.types';
+import type { AiSessionMemory } from '../../hooks/ai/useAiChat.types';
 
 export function resetSessionMemoryForClear(sessionMemory: AiSessionMemory): AiSessionMemory {
   let next = clearConversationSummaryMemory(sessionMemory);

@@ -6,14 +6,17 @@ import type {
   AiPromptNoteSummary,
   AiPromptSpeakerSnapshot,
   AiPromptVisibleTimelineState,
-} from '../hooks/useAiChat.types';
-import type { TimelineUnitView, TimelineUnitViewIndex } from '../hooks/timelineUnitView';
+} from '../hooks/ai/useAiChat.types';
+import type {
+  TimelineUnitView,
+  TimelineUnitViewIndex,
+} from '../hooks/transcription/timelineUnitView';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import type { WaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
 import { buildWorldModelSnapshot } from '../ai/chat/worldModelSnapshot';
 import type { LayerDocType } from '../types/jieyuDbDocTypes';
-import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
+import { resolveSegmentTimelineSourceLayer } from '~/hooks/layer/useLayerSegments';
 
 export type { AcousticDiagnosticKey, AcousticPromptSummary } from './transcriptionAcousticSummary';
 
@@ -40,7 +43,9 @@ export function buildUnitTimelineDigest(units: UnitTimelineEntry[]): string {
   for (let i = 0; i < sorted.length; i += 1) {
     const u = sorted[i]!;
     const text = u.transcription
-      ? (u.transcription.length > TIMELINE_TEXT_TRUNCATE ? `${u.transcription.slice(0, TIMELINE_TEXT_TRUNCATE)}…` : u.transcription)
+      ? u.transcription.length > TIMELINE_TEXT_TRUNCATE
+        ? `${u.transcription.slice(0, TIMELINE_TEXT_TRUNCATE)}…`
+        : u.transcription
       : '';
     const fmt = (sec: number): string => {
       const totalTenths = Math.round(sec * 10);
@@ -178,13 +183,19 @@ export function buildTranscriptionAiPromptContext({
     const layerById = new Map(layers.map((layer) => [layer.id, layer]));
     const focused = layerById.get(selectedLayerKey);
     if (!focused) return selectedLayerKey;
-    const source = resolveSegmentTimelineSourceLayer(focused, layerById, defaultTranscriptionLayerId);
+    const source = resolveSegmentTimelineSourceLayer(
+      focused,
+      layerById,
+      defaultTranscriptionLayerId,
+    );
     const resolved = (source?.id ?? selectedLayerKey).trim();
     return resolved || undefined;
   })();
 
   const localUnitIndex =
-    (unitIndexComplete || (projectUnitsForTools?.length ?? 0) > 0) && projectUnitsForTools && projectUnitsForTools.length > 0
+    (unitIndexComplete || (projectUnitsForTools?.length ?? 0) > 0) &&
+    projectUnitsForTools &&
+    projectUnitsForTools.length > 0
       ? projectUnitsForTools
       : undefined;
 
@@ -205,7 +216,9 @@ export function buildTranscriptionAiPromptContext({
     ...(mediaItems ? { mediaItems } : {}),
     ...(currentMediaId !== undefined ? { currentMediaId } : {}),
     selectedUnitIds,
-    ...(selectionSnapshot.selectedLayerId !== null ? { selectedLayerId: selectionSnapshot.selectedLayerId } : {}),
+    ...(selectionSnapshot.selectedLayerId !== null
+      ? { selectedLayerId: selectionSnapshot.selectedLayerId }
+      : {}),
     ...(activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits } : {}),
     maxChars: 1000,
   });
@@ -213,7 +226,9 @@ export function buildTranscriptionAiPromptContext({
   const layerIndex = buildLayerIndex({
     layers,
     allUnits,
-    ...(selectionSnapshot.selectedLayerId ? { selectedLayerId: selectionSnapshot.selectedLayerId } : {}),
+    ...(selectionSnapshot.selectedLayerId
+      ? { selectedLayerId: selectionSnapshot.selectedLayerId }
+      : {}),
     ...(activeLayerIdForEdits ? { activeLayerIdForEdits } : {}),
     ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
     ...(timelineUnitViewIndex ? { timelineUnitViewIndex } : {}),
@@ -236,24 +251,41 @@ export function buildTranscriptionAiPromptContext({
       ...(selectionSnapshot.selectedUnitKind === 'segment' && selectionSnapshot.timelineUnit
         ? { activeSegmentUnitId: selectionSnapshot.timelineUnit.unitId }
         : {}),
-      ...(selectionSnapshot.selectedUnitKind ? { selectedUnitKind: selectionSnapshot.selectedUnitKind } : {}),
+      ...(selectionSnapshot.selectedUnitKind
+        ? { selectedUnitKind: selectionSnapshot.selectedUnitKind }
+        : {}),
       ...(selectedUnitCount > 0 ? { selectedUnitCount } : {}),
       ...(selectedUnitIds.length > 0 ? { selectedUnitIds } : {}),
-      ...(selectionSnapshot.selectedUnitStartSec !== undefined && selectionSnapshot.selectedUnitEndSec !== undefined
+      ...(selectionSnapshot.selectedUnitStartSec !== undefined &&
+      selectionSnapshot.selectedUnitEndSec !== undefined
         ? {
             selectedUnitStartSec: selectionSnapshot.selectedUnitStartSec,
             selectedUnitEndSec: selectionSnapshot.selectedUnitEndSec,
           }
         : {}),
-      ...(selectionSnapshot.selectedLayerId ? { selectedLayerId: selectionSnapshot.selectedLayerId } : {}),
+      ...(selectionSnapshot.selectedLayerId
+        ? { selectedLayerId: selectionSnapshot.selectedLayerId }
+        : {}),
       ...(segmentMetaStorageLayerId ? { segmentMetaStorageLayerId } : {}),
-      ...(selectionSnapshot.selectedLayerType ? { selectedLayerType: selectionSnapshot.selectedLayerType } : {}),
-      ...(selectionSnapshot.selectedTranslationLayerId ? { selectedTranslationLayerId: selectionSnapshot.selectedTranslationLayerId } : {}),
-      ...(selectionSnapshot.selectedTranscriptionLayerId ? { selectedTranscriptionLayerId: selectionSnapshot.selectedTranscriptionLayerId } : {}),
+      ...(selectionSnapshot.selectedLayerType
+        ? { selectedLayerType: selectionSnapshot.selectedLayerType }
+        : {}),
+      ...(selectionSnapshot.selectedTranslationLayerId
+        ? { selectedTranslationLayerId: selectionSnapshot.selectedTranslationLayerId }
+        : {}),
+      ...(selectionSnapshot.selectedTranscriptionLayerId
+        ? { selectedTranscriptionLayerId: selectionSnapshot.selectedTranscriptionLayerId }
+        : {}),
       ...(currentMediaId !== undefined ? { currentMediaId } : {}),
-      ...(typeof activeTextId === 'string' && activeTextId.trim().length > 0 ? { workspaceTextId: activeTextId.trim() } : {}),
-      ...(selectionSnapshot.selectedText !== null ? { selectedText: selectionSnapshot.selectedText } : {}),
-      ...(selectionSnapshot.selectedTimeRangeLabel ? { selectionTimeRange: selectionSnapshot.selectedTimeRangeLabel } : {}),
+      ...(typeof activeTextId === 'string' && activeTextId.trim().length > 0
+        ? { workspaceTextId: activeTextId.trim() }
+        : {}),
+      ...(selectionSnapshot.selectedText !== null
+        ? { selectedText: selectionSnapshot.selectedText }
+        : {}),
+      ...(selectionSnapshot.selectedTimeRangeLabel
+        ? { selectionTimeRange: selectionSnapshot.selectedTimeRangeLabel }
+        : {}),
       ...(audioTimeSec !== undefined ? { audioTimeSec } : {}),
       projectUnitCount: unitCount,
       currentMediaUnitCount: currentMediaUnits.length,
@@ -268,7 +300,9 @@ export function buildTranscriptionAiPromptContext({
       ...(unsavedDrafts.length > 0 ? { unsavedDrafts } : {}),
       ...(speakerIndex.length > 0 ? { speakerIndex } : {}),
       ...(normalizedNoteSummary ? { noteSummary: normalizedNoteSummary } : {}),
-      ...(normalizedVisibleTimelineState ? { visibleTimelineState: normalizedVisibleTimelineState } : {}),
+      ...(normalizedVisibleTimelineState
+        ? { visibleTimelineState: normalizedVisibleTimelineState }
+        : {}),
       ...(localUnitIndex ? { localUnitIndex } : {}),
       ...(timelineUnitViewIndex?.byLayer && timelineUnitViewIndex.byLayer.size > 0
         ? { timelineUnitsByLayerId: timelineUnitViewIndex.byLayer }
@@ -293,7 +327,9 @@ export function buildTranscriptionAiPromptContext({
 
 function firstLocalizedName(name: Record<string, unknown> | undefined): string {
   if (!name) return '';
-  const value = Object.values(name).find((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  const value = Object.values(name).find(
+    (item): item is string => typeof item === 'string' && item.trim().length > 0,
+  );
   return value?.trim() ?? '';
 }
 
@@ -306,12 +342,13 @@ function buildLayerIndex(input: {
   timelineUnitViewIndex?: Pick<TimelineUnitViewIndex, 'byLayer'>;
 }): AiPromptLayerSnapshot[] {
   return input.layers.map((layer) => {
-    const unitCount = input.timelineUnitViewIndex?.byLayer.get(layer.id)?.length
-      ?? input.allUnits.filter((unit) => unit.layerId === layer.id).length;
-    const rawTreeHostLayerId = (layer as unknown as Record<string, unknown>)[['par', 'entLayerId'].join('')];
-    const treeHostLayerId = typeof rawTreeHostLayerId === 'string'
-      ? rawTreeHostLayerId
-      : undefined;
+    const unitCount =
+      input.timelineUnitViewIndex?.byLayer.get(layer.id)?.length ??
+      input.allUnits.filter((unit) => unit.layerId === layer.id).length;
+    const rawTreeHostLayerId = (layer as unknown as Record<string, unknown>)[
+      ['par', 'entLayerId'].join('')
+    ];
+    const treeHostLayerId = typeof rawTreeHostLayerId === 'string' ? rawTreeHostLayerId : undefined;
     return {
       id: layer.id,
       ...(layer.key ? { key: layer.key } : {}),
@@ -325,7 +362,9 @@ function buildLayerIndex(input: {
       unitCount,
       ...(layer.id === input.selectedLayerId ? { isSelected: true } : {}),
       ...(layer.id === input.activeLayerIdForEdits ? { isActiveEditLayer: true } : {}),
-      ...(layer.id === input.defaultTranscriptionLayerId ? { isDefaultTranscriptionLayer: true } : {}),
+      ...(layer.id === input.defaultTranscriptionLayerId
+        ? { isDefaultTranscriptionLayer: true }
+        : {}),
     };
   });
 }
@@ -339,7 +378,9 @@ function buildLayerLinkIndex(
       ...(link.id ? { id: link.id } : {}),
       ...(link.transcriptionLayerKey ? { transcriptionLayerKey: link.transcriptionLayerKey } : {}),
       ...(translationLayerId ? { translationLayerId } : {}),
-      ...(link.hostTranscriptionLayerId ? { hostTranscriptionLayerId: link.hostTranscriptionLayerId } : {}),
+      ...(link.hostTranscriptionLayerId
+        ? { hostTranscriptionLayerId: link.hostTranscriptionLayerId }
+        : {}),
       ...(typeof link.isPreferred === 'boolean' ? { isPreferred: link.isPreferred } : {}),
     };
   });
@@ -390,7 +431,9 @@ function normalizeNoteSummary(
     count: noteSummary.count,
     ...(noteSummary.byCategory ? { byCategory: noteSummary.byCategory } : {}),
     ...(noteSummary.focusedLayerId ? { focusedLayerId: noteSummary.focusedLayerId } : {}),
-    ...(noteSummary.currentTargetUnitId ? { currentTargetUnitId: noteSummary.currentTargetUnitId } : {}),
+    ...(noteSummary.currentTargetUnitId
+      ? { currentTargetUnitId: noteSummary.currentTargetUnitId }
+      : {}),
   };
 }
 
@@ -403,20 +446,51 @@ function normalizeVisibleTimelineState(
     ...(state.currentMediaFilename ? { currentMediaFilename: state.currentMediaFilename } : {}),
     ...(state.focusedLayerId ? { focusedLayerId: state.focusedLayerId } : {}),
     ...(state.selectedLayerId ? { selectedLayerId: state.selectedLayerId } : {}),
-    ...(typeof state.selectedUnitCount === 'number' ? { selectedUnitCount: state.selectedUnitCount } : {}),
-    ...(typeof state.verticalViewActive === 'boolean' ? { verticalViewActive: state.verticalViewActive } : {}),
-    ...(state.transcriptionTrackMode ? { transcriptionTrackMode: state.transcriptionTrackMode } : {}),
-    ...(typeof state.documentSpanSec === 'number' && Number.isFinite(state.documentSpanSec) ? { documentSpanSec: state.documentSpanSec } : {}),
-    ...(typeof state.zoomPercent === 'number' && Number.isFinite(state.zoomPercent) ? { zoomPercent: state.zoomPercent } : {}),
-    ...(typeof state.maxZoomPercent === 'number' && Number.isFinite(state.maxZoomPercent) ? { maxZoomPercent: state.maxZoomPercent } : {}),
-    ...(typeof state.zoomPxPerSec === 'number' && Number.isFinite(state.zoomPxPerSec) ? { zoomPxPerSec: state.zoomPxPerSec } : {}),
-    ...(typeof state.fitPxPerSec === 'number' && Number.isFinite(state.fitPxPerSec) ? { fitPxPerSec: state.fitPxPerSec } : {}),
-    ...(typeof state.rulerVisibleStartSec === 'number' && Number.isFinite(state.rulerVisibleStartSec) ? { rulerVisibleStartSec: state.rulerVisibleStartSec } : {}),
-    ...(typeof state.rulerVisibleEndSec === 'number' && Number.isFinite(state.rulerVisibleEndSec) ? { rulerVisibleEndSec: state.rulerVisibleEndSec } : {}),
-    ...(typeof state.waveformScrollLeftPx === 'number' && Number.isFinite(state.waveformScrollLeftPx) ? { waveformScrollLeftPx: state.waveformScrollLeftPx } : {}),
-    ...(typeof state.laneLockSpeakerCount === 'number' && Number.isFinite(state.laneLockSpeakerCount) ? { laneLockSpeakerCount: state.laneLockSpeakerCount } : {}),
+    ...(typeof state.selectedUnitCount === 'number'
+      ? { selectedUnitCount: state.selectedUnitCount }
+      : {}),
+    ...(typeof state.verticalViewActive === 'boolean'
+      ? { verticalViewActive: state.verticalViewActive }
+      : {}),
+    ...(state.transcriptionTrackMode
+      ? { transcriptionTrackMode: state.transcriptionTrackMode }
+      : {}),
+    ...(typeof state.documentSpanSec === 'number' && Number.isFinite(state.documentSpanSec)
+      ? { documentSpanSec: state.documentSpanSec }
+      : {}),
+    ...(typeof state.zoomPercent === 'number' && Number.isFinite(state.zoomPercent)
+      ? { zoomPercent: state.zoomPercent }
+      : {}),
+    ...(typeof state.maxZoomPercent === 'number' && Number.isFinite(state.maxZoomPercent)
+      ? { maxZoomPercent: state.maxZoomPercent }
+      : {}),
+    ...(typeof state.zoomPxPerSec === 'number' && Number.isFinite(state.zoomPxPerSec)
+      ? { zoomPxPerSec: state.zoomPxPerSec }
+      : {}),
+    ...(typeof state.fitPxPerSec === 'number' && Number.isFinite(state.fitPxPerSec)
+      ? { fitPxPerSec: state.fitPxPerSec }
+      : {}),
+    ...(typeof state.rulerVisibleStartSec === 'number' &&
+    Number.isFinite(state.rulerVisibleStartSec)
+      ? { rulerVisibleStartSec: state.rulerVisibleStartSec }
+      : {}),
+    ...(typeof state.rulerVisibleEndSec === 'number' && Number.isFinite(state.rulerVisibleEndSec)
+      ? { rulerVisibleEndSec: state.rulerVisibleEndSec }
+      : {}),
+    ...(typeof state.waveformScrollLeftPx === 'number' &&
+    Number.isFinite(state.waveformScrollLeftPx)
+      ? { waveformScrollLeftPx: state.waveformScrollLeftPx }
+      : {}),
+    ...(typeof state.laneLockSpeakerCount === 'number' &&
+    Number.isFinite(state.laneLockSpeakerCount)
+      ? { laneLockSpeakerCount: state.laneLockSpeakerCount }
+      : {}),
     ...(state.laneLocks && state.laneLocks.length > 0 ? { laneLocks: state.laneLocks } : {}),
-    ...(state.trackLockSpeakerIds && state.trackLockSpeakerIds.length > 0 ? { trackLockSpeakerIds: state.trackLockSpeakerIds } : {}),
-    ...(state.activeSpeakerFilterKey ? { activeSpeakerFilterKey: state.activeSpeakerFilterKey } : {}),
+    ...(state.trackLockSpeakerIds && state.trackLockSpeakerIds.length > 0
+      ? { trackLockSpeakerIds: state.trackLockSpeakerIds }
+      : {}),
+    ...(state.activeSpeakerFilterKey
+      ? { activeSpeakerFilterKey: state.activeSpeakerFilterKey }
+      : {}),
   };
 }

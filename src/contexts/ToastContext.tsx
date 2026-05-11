@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import type { SaveState } from '../hooks/transcriptionTypes';
+import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import type { VoiceAgentMode } from '../services/VoiceAgentService';
 import { isDictKey, t, useLocale, type Locale } from '../i18n';
 import { createLogger } from '../observability/logger';

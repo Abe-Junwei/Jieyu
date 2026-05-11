@@ -1,8 +1,13 @@
 import type { LayerDocType, UserNoteDocType } from '../types/jieyuDbDocTypes';
 import { db as appDb } from '../app/jieyuDbPageAccess';
-import type { NotePopoverState } from '../hooks/useNoteHandlers';
+import type { NotePopoverState } from '~/hooks/notes/useNoteHandlers';
 import { normalizeLocale, t, tf } from '../i18n';
-import { extractUnitIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';
+import {
+  extractUnitIdFromNote,
+  getPdfPageFromHash,
+  isDirectPdfCitationRef,
+  splitPdfCitationRef,
+} from '../utils/citationJumpUtils';
 import { normalizeCitationSnippetPlainText } from '../utils/citationFootnoteUtils';
 
 type CitationType = 'unit' | 'note' | 'pdf' | 'schema';
@@ -169,7 +174,9 @@ export async function handleTranscriptionCitationJump({
     }
     if (!source) {
       const allSources = await appDb.bibliographic_sources.toArray();
-      source = allSources.find((item) => item.citationKey === baseRef || item.citationKey === refId || item.id === refId);
+      source = allSources.find(
+        (item) => item.citationKey === baseRef || item.citationKey === refId || item.id === refId,
+      );
     }
     const sourceUrl = source?.url?.trim();
     if (source && sourceUrl) {
@@ -186,7 +193,9 @@ export async function handleTranscriptionCitationJump({
 
     let note = await appDb.user_notes.get(refId);
     if (!note) {
-      note = (await appDb.user_notes.toArray()).find((item) => item.targetId === refId || item.targetId === baseRef);
+      note = (await appDb.user_notes.toArray()).find(
+        (item) => item.targetId === refId || item.targetId === baseRef,
+      );
     }
 
     if (note) {
@@ -198,9 +207,7 @@ export async function handleTranscriptionCitationJump({
       return;
     }
 
-    onSetSidebarError(
-      t(uiLocale, 'transcription.citation.pdfTargetNotFound'),
-    );
+    onSetSidebarError(t(uiLocale, 'transcription.citation.pdfTargetNotFound'));
     return;
   }
 

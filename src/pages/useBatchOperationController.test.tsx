@@ -3,8 +3,8 @@ import { renderHook } from '@testing-library/react';
 import { act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerUnitDocType } from '../db';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { unitToView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
+import { unitToView } from '../hooks/transcription/timelineUnitView';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useBatchOperationController } from './useBatchOperationController';
 

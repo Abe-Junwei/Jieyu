@@ -57,7 +57,7 @@ export type SidePaneSidebarMessages = {
   speakerCurrentScopeNone: string;
   speakerProjectRefCount: (count: number) => string;
   speakerProjectRefPending: string;
-  /** Transcription-axis (`units`) vs layer segment counts from `LinguisticService.getSpeakerReferenceStats`. */
+  /** Transcription-axis (`units`) vs layer segment counts from `LinguisticService.speakers.getReferenceStats`. */
   speakerAxisStats: (transcriptionUnitCount: number, segmentCount: number) => string;
   speakerAxisStatsPending: string;
   speakerUnusedEntityHint: string;
@@ -215,29 +215,49 @@ type SidePaneSidebarCatalog = Omit<
 
 export function getSidePaneSidebarMessages(locale: Locale): SidePaneSidebarMessages {
   const normalizedLocale = normalizeLocale(locale) ?? 'zh-CN';
-  const catalog = readMessageCatalog<SidePaneSidebarCatalog>(normalizedLocale, 'msg.sidePaneSidebar.catalog');
+  const catalog = readMessageCatalog<SidePaneSidebarCatalog>(
+    normalizedLocale,
+    'msg.sidePaneSidebar.catalog',
+  );
   return {
     ...catalog,
     speakerEntityCount: (count) => formatCatalogTemplate(catalog.speakerEntityCount, { count }),
-    speakerReferencedInScope: (count) => formatCatalogTemplate(catalog.speakerReferencedInScope, { count }),
-    speakerReferencedProject: (count) => formatCatalogTemplate(catalog.speakerReferencedProject, { count }),
+    speakerReferencedInScope: (count) =>
+      formatCatalogTemplate(catalog.speakerReferencedInScope, { count }),
+    speakerReferencedProject: (count) =>
+      formatCatalogTemplate(catalog.speakerReferencedProject, { count }),
     speakerStatsScopeLabel: (scopedToCurrentMedia) =>
-      scopedToCurrentMedia ? catalog.speakerStatsScopeCurrentMedia : catalog.speakerStatsScopeWholeProject,
+      scopedToCurrentMedia
+        ? catalog.speakerStatsScopeCurrentMedia
+        : catalog.speakerStatsScopeWholeProject,
     speakerUnassignedAxisStats: (transcriptionUnitCount, segmentCount) =>
-      formatCatalogTemplate(catalog.speakerUnassignedAxisStats, { transcriptionUnitCount, segmentCount }),
+      formatCatalogTemplate(catalog.speakerUnassignedAxisStats, {
+        transcriptionUnitCount,
+        segmentCount,
+      }),
     speakerUnusedCount: (count) => formatCatalogTemplate(catalog.speakerUnusedCount, { count }),
-    speakerDuplicateGroupCount: (count) => formatCatalogTemplate(catalog.speakerDuplicateGroupCount, { count }),
-    speakerSelectedUnitCount: (count) => formatCatalogTemplate(catalog.speakerSelectedUnitCount, { count }),
-    speakerCleanupUnusedButton: (count) => formatCatalogTemplate(catalog.speakerCleanupUnusedButton, { count }),
-    speakerCurrentScopeCount: (count) => formatCatalogTemplate(catalog.speakerCurrentScopeCount, { count }),
-    speakerProjectRefCount: (count) => formatCatalogTemplate(catalog.speakerProjectRefCount, { count }),
+    speakerDuplicateGroupCount: (count) =>
+      formatCatalogTemplate(catalog.speakerDuplicateGroupCount, { count }),
+    speakerSelectedUnitCount: (count) =>
+      formatCatalogTemplate(catalog.speakerSelectedUnitCount, { count }),
+    speakerCleanupUnusedButton: (count) =>
+      formatCatalogTemplate(catalog.speakerCleanupUnusedButton, { count }),
+    speakerCurrentScopeCount: (count) =>
+      formatCatalogTemplate(catalog.speakerCurrentScopeCount, { count }),
+    speakerProjectRefCount: (count) =>
+      formatCatalogTemplate(catalog.speakerProjectRefCount, { count }),
     speakerAxisStats: (transcriptionUnitCount, segmentCount) =>
       formatCatalogTemplate(catalog.speakerAxisStats, { transcriptionUnitCount, segmentCount }),
-    speakerDuplicateEntityHint: (count) => formatCatalogTemplate(catalog.speakerDuplicateEntityHint, { count }),
-    presenceStateLabel: (state) => catalog.presenceStateLabels[state] ?? catalog.presenceStateLabels.online,
-    presenceEntityLabel: (entityType) => catalog.presenceEntityLabels[entityType] ?? catalog.presenceEntityLabels.default,
-    presenceFocusLabel: (entityLabel, entityId) => formatCatalogTemplate(catalog.presenceFocusLabel, { entityLabel, entityId }),
-    segmentListTimeRange: (start, end) => formatCatalogTemplate(catalog.segmentListTimeRange, { start, end }),
+    speakerDuplicateEntityHint: (count) =>
+      formatCatalogTemplate(catalog.speakerDuplicateEntityHint, { count }),
+    presenceStateLabel: (state) =>
+      catalog.presenceStateLabels[state] ?? catalog.presenceStateLabels.online,
+    presenceEntityLabel: (entityType) =>
+      catalog.presenceEntityLabels[entityType] ?? catalog.presenceEntityLabels.default,
+    presenceFocusLabel: (entityLabel, entityId) =>
+      formatCatalogTemplate(catalog.presenceFocusLabel, { entityLabel, entityId }),
+    segmentListTimeRange: (start, end) =>
+      formatCatalogTemplate(catalog.segmentListTimeRange, { start, end }),
     repairSummary: (changedLayers, changedSortLayers, remaining) =>
       formatCatalogTemplate(catalog.repairSummary, { changedLayers, changedSortLayers, remaining }),
     repairSummaryDone: (changedLayers, changedSortLayers) =>

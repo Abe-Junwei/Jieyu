@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
-import { useLatest } from '../hooks/useLatest';
+import { useLatest } from '~/hooks/ui/useLatest';
 import { DEFAULT_PLAYBACK_RATE_KEY, readDefaultPlaybackRate } from './useWaveformViewportSizing';
-import type { useWaveSurfer } from '../hooks/useWaveSurfer';
+import type { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
 import type { UseTranscriptionWaveformBridgeControllerInput } from './transcriptionWaveformBridge.types';
 
 type WaveformTimelineItemLike = {

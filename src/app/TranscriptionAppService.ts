@@ -16,7 +16,10 @@
 import { LinguisticService } from '../services/LinguisticService';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { detectVadSegments, loadAudioBuffer } from '../services/VadService';
-import { ensureVadCacheForMedia, VAD_AUTO_WARM_MAX_BYTES } from '../services/vad/VadMediaCacheService';
+import {
+  ensureVadCacheForMedia,
+  VAD_AUTO_WARM_MAX_BYTES,
+} from '../services/vad/VadMediaCacheService';
 import type { AppServiceMeta, AppServiceResult } from './contracts';
 import type { MediaItemDocType, TextDocType } from '../db';
 
@@ -66,7 +69,9 @@ export interface ExportRequest {
 
 export interface ITranscriptionAppService {
   createSegment(request: CreateSegmentRequest): Promise<AppServiceResult<{ segmentId: string }>>;
-  splitSegment(request: SplitSegmentRequest): Promise<AppServiceResult<{ leftId: string; rightId: string }>>;
+  splitSegment(
+    request: SplitSegmentRequest,
+  ): Promise<AppServiceResult<{ leftId: string; rightId: string }>>;
   mergeSegments(request: MergeSegmentsRequest): Promise<AppServiceResult<{ mergedId: string }>>;
   deleteSegment(request: DeleteSegmentRequest): Promise<AppServiceResult>;
   exportText(request: ExportRequest): Promise<AppServiceResult<Blob>>;
@@ -117,13 +122,19 @@ export interface TranscriptionMergeResult {
 }
 
 export interface ITranscriptionAppServiceGateway {
-  resolveAutoSegmentCandidates(request: ResolveAutoSegmentCandidatesRequest): Promise<Array<{ start: number; end: number }>>;
+  resolveAutoSegmentCandidates(
+    request: ResolveAutoSegmentCandidatesRequest,
+  ): Promise<Array<{ start: number; end: number }>>;
   createProject(request: CreateProjectRequest): Promise<{ textId: string }>;
   createPlaceholderMedia(request: CreatePlaceholderMediaRequest): Promise<MediaItemDocType>;
   importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }>;
   expandTextLogicalDurationToAtLeast(request: ExpandTextLogicalDurationRequest): Promise<void>;
-  updateTextTimeMapping(request: Parameters<typeof LinguisticService.updateTextTimeMapping>[0]): Promise<TextDocType>;
-  previewTextTimeMapping(request: Parameters<typeof LinguisticService.previewTextTimeMapping>[0]): ReturnType<typeof LinguisticService.previewTextTimeMapping>;
+  updateTextTimeMapping(
+    request: Parameters<typeof LinguisticService.timeline.updateTimeMapping>[0],
+  ): Promise<TextDocType>;
+  previewTextTimeMapping(
+    request: Parameters<typeof LinguisticService.timeline.previewTimeMapping>[0],
+  ): ReturnType<typeof LinguisticService.timeline.previewTimeMapping>;
   deleteProject(textId: string): Promise<void>;
   deleteAudio(mediaId: string): Promise<void>;
   deleteSegments(segmentIds: readonly string[]): Promise<void>;
@@ -133,14 +144,14 @@ export interface ITranscriptionAppServiceGateway {
 }
 
 export interface TranscriptionAppServiceDeps {
-  createProject: typeof LinguisticService.createProject;
-  createPlaceholderMedia: typeof LinguisticService.createPlaceholderMedia;
-  importAudio: typeof LinguisticService.importAudio;
-  expandTextLogicalDurationToAtLeast: typeof LinguisticService.expandTextLogicalDurationToAtLeast;
-  updateTextTimeMapping: typeof LinguisticService.updateTextTimeMapping;
-  previewTextTimeMapping: typeof LinguisticService.previewTextTimeMapping;
-  deleteProject: typeof LinguisticService.deleteProject;
-  deleteAudio: typeof LinguisticService.deleteAudio;
+  createProject: typeof LinguisticService.projects.create;
+  createPlaceholderMedia: typeof LinguisticService.media.createPlaceholder;
+  importAudio: typeof LinguisticService.media.importAudio;
+  expandTextLogicalDurationToAtLeast: typeof LinguisticService.media.expandTextLogicalDurationToAtLeast;
+  updateTextTimeMapping: typeof LinguisticService.timeline.updateTimeMapping;
+  previewTextTimeMapping: typeof LinguisticService.timeline.previewTimeMapping;
+  deleteProject: typeof LinguisticService.cleanup.deleteProject;
+  deleteAudio: typeof LinguisticService.cleanup.deleteAudio;
   deleteSegments: typeof LayerSegmentationV2Service.deleteSegmentsBatch;
   splitSegment: (segmentId: string, splitTime: number) => Promise<TranscriptionSplitResult>;
   mergeAdjacentSegments: (keepId: string, removeId: string) => Promise<TranscriptionMergeResult>;
@@ -152,17 +163,20 @@ export interface TranscriptionAppServiceDeps {
 }
 
 const defaultDeps: TranscriptionAppServiceDeps = {
-  createProject: LinguisticService.createProject.bind(LinguisticService),
-  createPlaceholderMedia: LinguisticService.createPlaceholderMedia.bind(LinguisticService),
-  importAudio: LinguisticService.importAudio.bind(LinguisticService),
-  expandTextLogicalDurationToAtLeast: LinguisticService.expandTextLogicalDurationToAtLeast.bind(LinguisticService),
-  updateTextTimeMapping: LinguisticService.updateTextTimeMapping.bind(LinguisticService),
-  previewTextTimeMapping: LinguisticService.previewTextTimeMapping.bind(LinguisticService),
-  deleteProject: LinguisticService.deleteProject.bind(LinguisticService),
-  deleteAudio: LinguisticService.deleteAudio.bind(LinguisticService),
+  createProject: LinguisticService.projects.create.bind(LinguisticService),
+  createPlaceholderMedia: LinguisticService.media.createPlaceholder.bind(LinguisticService),
+  importAudio: LinguisticService.media.importAudio.bind(LinguisticService),
+  expandTextLogicalDurationToAtLeast:
+    LinguisticService.media.expandTextLogicalDurationToAtLeast.bind(LinguisticService),
+  updateTextTimeMapping: LinguisticService.timeline.updateTimeMapping.bind(LinguisticService),
+  previewTextTimeMapping: LinguisticService.timeline.previewTimeMapping.bind(LinguisticService),
+  deleteProject: LinguisticService.cleanup.deleteProject.bind(LinguisticService),
+  deleteAudio: LinguisticService.cleanup.deleteAudio.bind(LinguisticService),
   deleteSegments: LayerSegmentationV2Service.deleteSegmentsBatch.bind(LayerSegmentationV2Service),
   splitSegment: LayerSegmentationV2Service.splitSegment.bind(LayerSegmentationV2Service),
-  mergeAdjacentSegments: LayerSegmentationV2Service.mergeAdjacentSegments.bind(LayerSegmentationV2Service),
+  mergeAdjacentSegments: LayerSegmentationV2Service.mergeAdjacentSegments.bind(
+    LayerSegmentationV2Service,
+  ),
   deleteSegment: LayerSegmentationV2Service.deleteSegment.bind(LayerSegmentationV2Service),
   ensureVadCacheForMedia,
   loadAudioBuffer,
@@ -179,7 +193,9 @@ export function createTranscriptionAppService(
   };
 
   return {
-    async resolveAutoSegmentCandidates(request: ResolveAutoSegmentCandidatesRequest): Promise<Array<{ start: number; end: number }>> {
+    async resolveAutoSegmentCandidates(
+      request: ResolveAutoSegmentCandidatesRequest,
+    ): Promise<Array<{ start: number; end: number }>> {
       const cachedEntry = await deps.ensureVadCacheForMedia({
         ...(request.mediaId !== undefined ? { mediaId: request.mediaId } : {}),
         mediaUrl: request.mediaUrl,
@@ -205,7 +221,9 @@ export function createTranscriptionAppService(
       return deps.createProject(request);
     },
 
-    async createPlaceholderMedia(request: CreatePlaceholderMediaRequest): Promise<MediaItemDocType> {
+    async createPlaceholderMedia(
+      request: CreatePlaceholderMediaRequest,
+    ): Promise<MediaItemDocType> {
       return deps.createPlaceholderMedia(request);
     },
 
@@ -213,15 +231,21 @@ export function createTranscriptionAppService(
       return deps.importAudio(request);
     },
 
-    async expandTextLogicalDurationToAtLeast(request: ExpandTextLogicalDurationRequest): Promise<void> {
+    async expandTextLogicalDurationToAtLeast(
+      request: ExpandTextLogicalDurationRequest,
+    ): Promise<void> {
       await deps.expandTextLogicalDurationToAtLeast(request);
     },
 
-    async updateTextTimeMapping(request: Parameters<typeof LinguisticService.updateTextTimeMapping>[0]): Promise<TextDocType> {
+    async updateTextTimeMapping(
+      request: Parameters<typeof LinguisticService.timeline.updateTimeMapping>[0],
+    ): Promise<TextDocType> {
       return deps.updateTextTimeMapping(request);
     },
 
-    previewTextTimeMapping(request: Parameters<typeof LinguisticService.previewTextTimeMapping>[0]): ReturnType<typeof LinguisticService.previewTextTimeMapping> {
+    previewTextTimeMapping(
+      request: Parameters<typeof LinguisticService.timeline.previewTimeMapping>[0],
+    ): ReturnType<typeof LinguisticService.timeline.previewTimeMapping> {
       return deps.previewTextTimeMapping(request);
     },
 

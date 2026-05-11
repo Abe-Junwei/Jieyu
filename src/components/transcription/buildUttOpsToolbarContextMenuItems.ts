@@ -1,5 +1,5 @@
 import type { LayerDocType } from '../../db';
-import type { TimelineUnit, TimelineUnitKind } from '../../hooks/transcriptionTypes';
+import type { TimelineUnit, TimelineUnitKind } from '../../hooks/transcription/transcriptionTypes';
 import type { TranscriptionOverlaysMessages } from '../../i18n/messages';
 import type { ContextMenuItem } from '../ContextMenu';
 
@@ -10,12 +10,26 @@ export type BuildUttOpsToolbarMenuItemsInput = {
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   resolveSkipProcessingState?: (unitId: string, layerId: string, kind: TimelineUnitKind) => boolean;
-  runDeleteSelection: (anchorId: string, selectedIds: Set<string>, unitKind: TimelineUnitKind, layerId: string) => void;
-  runMergeSelection: (selectedIds: Set<string>, unitKind: TimelineUnitKind, layerId: string) => void;
+  runDeleteSelection: (
+    anchorId: string,
+    selectedIds: Set<string>,
+    unitKind: TimelineUnitKind,
+    layerId: string,
+  ) => void;
+  runMergeSelection: (
+    selectedIds: Set<string>,
+    unitKind: TimelineUnitKind,
+    layerId: string,
+  ) => void;
   runDeleteOne: (id: string, unitKind: TimelineUnitKind, layerId: string) => void;
   runMergePrev: (id: string, unitKind: TimelineUnitKind, layerId: string) => void;
   runMergeNext: (id: string, unitKind: TimelineUnitKind, layerId: string) => void;
-  runSplitAtTime: (id: string, splitTime: number, unitKind: TimelineUnitKind, layerId: string) => void;
+  runSplitAtTime: (
+    id: string,
+    splitTime: number,
+    unitKind: TimelineUnitKind,
+    layerId: string,
+  ) => void;
   getCurrentTime: () => number;
 };
 
@@ -28,7 +42,9 @@ function isTranscriptionLayerId(layerId: string, transcriptionLayers: LayerDocTy
 }
 
 /** 工具栏「句段操作」菜单：与全局语段菜单一致，翻译层裁剪结构合并项。 */
-export function buildUttOpsToolbarMenuItems(input: BuildUttOpsToolbarMenuItemsInput): ContextMenuItem[] {
+export function buildUttOpsToolbarMenuItems(
+  input: BuildUttOpsToolbarMenuItemsInput,
+): ContextMenuItem[] {
   const {
     messages,
     selectedUnitIds,
@@ -51,11 +67,15 @@ export function buildUttOpsToolbarMenuItems(input: BuildUttOpsToolbarMenuItemsIn
   const targetLayerId = selectedTimelineUnit.layerId;
   const isTranslation = isTranslationLayerId(targetLayerId, translationLayers);
   const anchorSkipProcessing = resolveSkipProcessingState?.(id, targetLayerId, targetKind) === true;
-  const restrictSkippedSegmentToolbar = selectedTimelineUnit.kind === 'segment'
-    && isTranscriptionLayerId(targetLayerId, transcriptionLayers)
-    && anchorSkipProcessing;
-  const selectionIncludesSkippedForMerge = multiCount > 1
-    && [...selectedUnitIds].some((uid) => resolveSkipProcessingState?.(uid, targetLayerId, targetKind) === true);
+  const restrictSkippedSegmentToolbar =
+    selectedTimelineUnit.kind === 'segment' &&
+    isTranscriptionLayerId(targetLayerId, transcriptionLayers) &&
+    anchorSkipProcessing;
+  const selectionIncludesSkippedForMerge =
+    multiCount > 1 &&
+    [...selectedUnitIds].some(
+      (uid) => resolveSkipProcessingState?.(uid, targetLayerId, targetKind) === true,
+    );
   const showMultiBatchMerge = !isTranslation && !selectionIncludesSkippedForMerge;
   const showPairMergeStructuralActions = !isTranslation && !restrictSkippedSegmentToolbar;
   const showSplitAction = !restrictSkippedSegmentToolbar;
@@ -66,13 +86,19 @@ export function buildUttOpsToolbarMenuItems(input: BuildUttOpsToolbarMenuItemsIn
         label: messages.deleteSegments(multiCount),
         shortcut: '⌫',
         danger: true,
-        onClick: () => { runDeleteSelection(id, selectedUnitIds, targetKind, targetLayerId); },
+        onClick: () => {
+          runDeleteSelection(id, selectedUnitIds, targetKind, targetLayerId);
+        },
       },
       ...(showMultiBatchMerge
-        ? [{
-            label: messages.mergeSegments(multiCount),
-            onClick: () => { runMergeSelection(selectedUnitIds, targetKind, targetLayerId); },
-          }]
+        ? [
+            {
+              label: messages.mergeSegments(multiCount),
+              onClick: () => {
+                runMergeSelection(selectedUnitIds, targetKind, targetLayerId);
+              },
+            },
+          ]
         : []),
     ];
   }
@@ -82,28 +108,38 @@ export function buildUttOpsToolbarMenuItems(input: BuildUttOpsToolbarMenuItemsIn
       label: messages.deleteSegment,
       shortcut: '⌫',
       danger: true,
-      onClick: () => { runDeleteOne(id, targetKind, targetLayerId); },
+      onClick: () => {
+        runDeleteOne(id, targetKind, targetLayerId);
+      },
     },
     ...(showPairMergeStructuralActions
       ? [
           {
             label: messages.mergePrevious,
             shortcut: '⌘⇧M',
-            onClick: () => { runMergePrev(id, targetKind, targetLayerId); },
+            onClick: () => {
+              runMergePrev(id, targetKind, targetLayerId);
+            },
           },
           {
             label: messages.mergeNext,
             shortcut: '⌘M',
-            onClick: () => { runMergeNext(id, targetKind, targetLayerId); },
+            onClick: () => {
+              runMergeNext(id, targetKind, targetLayerId);
+            },
           },
         ]
       : []),
     ...(showSplitAction
-      ? [{
-          label: messages.splitSegment,
-          shortcut: '⌘⇧S',
-          onClick: () => { runSplitAtTime(id, getCurrentTime(), targetKind, targetLayerId); },
-        }]
+      ? [
+          {
+            label: messages.splitSegment,
+            shortcut: '⌘⇧S',
+            onClick: () => {
+              runSplitAtTime(id, getCurrentTime(), targetKind, targetLayerId);
+            },
+          },
+        ]
       : []),
   ];
 }

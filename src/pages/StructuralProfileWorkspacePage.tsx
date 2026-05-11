@@ -16,7 +16,11 @@ import {
 } from '../hooks/structuralProfileWorkspaceRuntime';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
-import { LANGUAGE_ID_PARAM, readEntryKindLabel, type WorkspaceLocale } from './languageMetadataWorkspace.shared';
+import {
+  LANGUAGE_ID_PARAM,
+  readEntryKindLabel,
+  type WorkspaceLocale,
+} from './languageMetadataWorkspace.shared';
 
 const DEFAULT_GLOSS_SAMPLE = '1SG=COP dog-PL';
 
@@ -32,7 +36,9 @@ export function StructuralProfileWorkspacePage({
   const [searchParams, setSearchParams] = useSearchParams();
   const [entries, setEntries] = useState<LanguageCatalogEntry[]>([]);
   const [, setLoading] = useState(true);
-  const [structuralPreview, setStructuralPreview] = useState<StructuralRuleProfilePreview | null>(null);
+  const [structuralPreview, setStructuralPreview] = useState<StructuralRuleProfilePreview | null>(
+    null,
+  );
   const [structuralPreviewPending, setStructuralPreviewPending] = useState(false);
   const [structuralPreviewError, setStructuralPreviewError] = useState('');
   const selectedLanguageId = searchParams.get(LANGUAGE_ID_PARAM) ?? '';
@@ -67,13 +73,14 @@ export function StructuralProfileWorkspacePage({
   const loadEntries = async () => {
     setLoading(true);
     try {
-      const records = browseLanguageIds.length > 0
-        ? await loadStructuralProfileWorkspaceEntries({
-          locale,
-          includeHidden: true,
-          languageIds: browseLanguageIds,
-        })
-        : [];
+      const records =
+        browseLanguageIds.length > 0
+          ? await loadStructuralProfileWorkspaceEntries({
+              locale,
+              includeHidden: true,
+              languageIds: browseLanguageIds,
+            })
+          : [];
 
       setEntries(records);
       return records;
@@ -97,8 +104,10 @@ export function StructuralProfileWorkspacePage({
         setSearchParams(nextParams, { replace: true });
       }
     });
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- refs avoid circular deps with search params
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 合并 loadEntries + 首次 URL 回写；selectedLanguageId/searchParams 经 ref 读取，避免 entries→setSearchParams→effect 循环 | Merged load + initial URL write; refs break entries↔searchParams cycle
   }, [browseLanguageIds, locale]);
 
   const selectedEntry = useMemo(
@@ -123,14 +132,20 @@ export function StructuralProfileWorkspacePage({
         languageId,
         glossText,
       });
-      if (structuralPreviewRequestRef.current !== requestId || selectedLanguageIdRef.current !== languageId) return;
+      if (
+        structuralPreviewRequestRef.current !== requestId ||
+        selectedLanguageIdRef.current !== languageId
+      )
+        return;
       setStructuralPreview(preview);
       setStructuralPreviewError('');
     } catch (previewError) {
       if (structuralPreviewRequestRef.current !== requestId) return;
       setStructuralPreview(null);
       setStructuralPreviewError(
-        previewError instanceof Error ? previewError.message : t(locale, 'workspace.structuralProfile.previewErrorFallback'),
+        previewError instanceof Error
+          ? previewError.message
+          : t(locale, 'workspace.structuralProfile.previewErrorFallback'),
       );
     } finally {
       if (structuralPreviewRequestRef.current === requestId) {
@@ -139,44 +154,73 @@ export function StructuralProfileWorkspacePage({
     }
   };
 
-  const sidePaneContent = useMemo(() => (
-    <div className="app-side-pane-feature-stack">
-      <section className="app-side-pane-group" aria-label={t(locale, 'workspace.structuralProfile.sidePaneCurrent')}>
-        <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-          <span className="app-side-pane-section-title">{t(locale, 'workspace.structuralProfile.sidePaneCurrent')}</span>
-        </div>
-        <div className="app-side-pane-nav app-side-pane-feature-nav">
-          {selectedEntry ? (
-            <>
-              <span className="app-side-pane-feature-badge">{readEntryKindLabel(locale, selectedEntry)}</span>
-              <p className="app-side-pane-feature-summary">{selectedEntry.localName}</p>
-              <p className="app-side-pane-feature-note">{selectedEntry.englishName}</p>
-              <p className="app-side-pane-feature-note">{selectedEntry.languageCode}</p>
-            </>
-          ) : (
-            <p className="app-side-pane-feature-note">{t(locale, 'workspace.structuralProfile.sidePaneEmpty')}</p>
-          )}
-        </div>
-      </section>
+  const sidePaneContent = useMemo(
+    () => (
+      <div className="app-side-pane-feature-stack">
+        <section
+          className="app-side-pane-group"
+          aria-label={t(locale, 'workspace.structuralProfile.sidePaneCurrent')}
+        >
+          <div
+            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
+            role="presentation"
+          >
+            <span className="app-side-pane-section-title">
+              {t(locale, 'workspace.structuralProfile.sidePaneCurrent')}
+            </span>
+          </div>
+          <div className="app-side-pane-nav app-side-pane-feature-nav">
+            {selectedEntry ? (
+              <>
+                <span className="app-side-pane-feature-badge">
+                  {readEntryKindLabel(locale, selectedEntry)}
+                </span>
+                <p className="app-side-pane-feature-summary">{selectedEntry.localName}</p>
+                <p className="app-side-pane-feature-note">{selectedEntry.englishName}</p>
+                <p className="app-side-pane-feature-note">{selectedEntry.languageCode}</p>
+              </>
+            ) : (
+              <p className="app-side-pane-feature-note">
+                {t(locale, 'workspace.structuralProfile.sidePaneEmpty')}
+              </p>
+            )}
+          </div>
+        </section>
 
-      <section className="app-side-pane-group" aria-label={t(locale, 'workspace.structuralProfile.sidePaneQuickAccess')}>
-        <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-          <span className="app-side-pane-section-title">{t(locale, 'workspace.structuralProfile.sidePaneQuickAccess')}</span>
-        </div>
-        <div className="app-side-pane-nav app-side-pane-feature-nav">
-          <LanguageAssetRouteLink to="/assets/language-metadata" className="side-pane-nav-link app-side-pane-feature-link">
-            {t(locale, 'workspace.structuralProfile.openLanguageMetadata')}
-          </LanguageAssetRouteLink>
-          <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">
-            {t(locale, 'workspace.structuralProfile.openOrthographyManager')}
-          </OrthographyPanelLink>
-          <LanguageAssetRouteLink to="/assets/orthography-bridges" className="side-pane-nav-link app-side-pane-feature-link">
-            {t(locale, 'workspace.structuralProfile.openBridgeWorkspace')}
-          </LanguageAssetRouteLink>
-        </div>
-      </section>
-    </div>
-  ), [locale, selectedEntry]);
+        <section
+          className="app-side-pane-group"
+          aria-label={t(locale, 'workspace.structuralProfile.sidePaneQuickAccess')}
+        >
+          <div
+            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
+            role="presentation"
+          >
+            <span className="app-side-pane-section-title">
+              {t(locale, 'workspace.structuralProfile.sidePaneQuickAccess')}
+            </span>
+          </div>
+          <div className="app-side-pane-nav app-side-pane-feature-nav">
+            <LanguageAssetRouteLink
+              to="/assets/language-metadata"
+              className="side-pane-nav-link app-side-pane-feature-link"
+            >
+              {t(locale, 'workspace.structuralProfile.openLanguageMetadata')}
+            </LanguageAssetRouteLink>
+            <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">
+              {t(locale, 'workspace.structuralProfile.openOrthographyManager')}
+            </OrthographyPanelLink>
+            <LanguageAssetRouteLink
+              to="/assets/orthography-bridges"
+              className="side-pane-nav-link app-side-pane-feature-link"
+            >
+              {t(locale, 'workspace.structuralProfile.openBridgeWorkspace')}
+            </LanguageAssetRouteLink>
+          </div>
+        </section>
+      </div>
+    ),
+    [locale, selectedEntry],
+  );
 
   useRegisterAppSidePane({
     title: t(locale, 'workspace.structuralProfile.sidePaneTitle'),
@@ -216,7 +260,10 @@ export function StructuralProfileWorkspacePage({
       aria-label={t(locale, 'workspace.structuralProfile.title')}
     >
       {entries.length > 0 && (
-        <nav className="lm-entry-list la-panel-section" aria-label={t(locale, 'workspace.structuralProfile.title')}>
+        <nav
+          className="lm-entry-list la-panel-section"
+          aria-label={t(locale, 'workspace.structuralProfile.title')}
+        >
           {entries.map((entry) => {
             const isSelected = entry.id === selectedLanguageId;
             return (
@@ -227,7 +274,9 @@ export function StructuralProfileWorkspacePage({
                 aria-current={isSelected ? 'true' : undefined}
                 onClick={() => handleSelectEntry(entry.id)}
               >
-                <span className="lm-entry-item-name">{entry.localName || entry.englishName || entry.id}</span>
+                <span className="lm-entry-item-name">
+                  {entry.localName || entry.englishName || entry.id}
+                </span>
                 <span className="lm-entry-item-code">{entry.languageCode}</span>
               </button>
             );

@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
-import { useBackupReminder } from '../hooks/useBackupReminder';
-import { useTimelineUnitViewIndex } from '../hooks/useTimelineUnitViewIndex';
-import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
-import { useNoteHandlers } from '../hooks/useNoteHandlers';
+import { useBackupReminder } from '~/hooks/backup/useBackupReminder';
+import { useTimelineUnitViewIndex } from '../hooks/transcription/useTimelineUnitViewIndex';
+import { useRecoveryBanner } from '../hooks/ui/useRecoveryBanner';
+import { useNoteHandlers } from '~/hooks/notes/useNoteHandlers';
 import { useTranscriptionUIState } from './TranscriptionPage.UIState';
 import { useTranscriptionDisplayStyleControl } from './useTranscriptionDisplayStyleControl';
 import { useTranscriptionRuntimeRefs } from './useTranscriptionRuntimeRefs';

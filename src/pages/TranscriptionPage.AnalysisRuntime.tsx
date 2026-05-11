@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { EmbeddingProvider } from '../contexts/EmbeddingContext';
-import { useAiEmbeddingState } from '../hooks/useAiEmbeddingState';
+import { useAiEmbeddingState } from '../hooks/ai/useAiEmbeddingState';
 import { useEmbeddingContextValue } from '../hooks/useEmbeddingContextValue';
 import { getGlobalTaskRunner } from '../ai/tasks/taskRunnerSingleton';
 import {

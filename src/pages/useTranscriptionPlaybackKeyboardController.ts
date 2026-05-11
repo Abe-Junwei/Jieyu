@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { useKeybindingActions } from '../hooks/useKeybindingActions';
+import { useKeybindingActions } from '../hooks/ui/useKeybindingActions';
 
 export function useTranscriptionPlaybackKeyboardController(
   input: Parameters<typeof useKeybindingActions>[0],

@@ -7,18 +7,17 @@ import { REQUEST_EMBEDDING_TASK_FOCUS_EVENT } from '../ai/tasks/taskRefreshEvent
 import { TranscriptionPageAnalysisRuntime } from './TranscriptionPage.AnalysisRuntime';
 import type { TranscriptionPageAnalysisRuntimeProps } from './TranscriptionPage.runtimeContracts';
 
-const {
-  mockNotifyOpenApprovalCenter,
-  mockNotifyRequestAgentLoopResume,
-  mockUseAiEmbeddingState,
-} = vi.hoisted(() => ({
-  mockNotifyOpenApprovalCenter: vi.fn(),
-  mockNotifyRequestAgentLoopResume: vi.fn(),
-  mockUseAiEmbeddingState: vi.fn(),
-}));
+const { mockNotifyOpenApprovalCenter, mockNotifyRequestAgentLoopResume, mockUseAiEmbeddingState } =
+  vi.hoisted(() => ({
+    mockNotifyOpenApprovalCenter: vi.fn(),
+    mockNotifyRequestAgentLoopResume: vi.fn(),
+    mockUseAiEmbeddingState: vi.fn(),
+  }));
 
 vi.mock('../ai/tasks/taskRefreshEvents', async () => {
-  const actual = await vi.importActual<typeof import('../ai/tasks/taskRefreshEvents')>('../ai/tasks/taskRefreshEvents');
+  const actual = await vi.importActual<typeof import('../ai/tasks/taskRefreshEvents')>(
+    '../ai/tasks/taskRefreshEvents',
+  );
   return {
     ...actual,
     notifyOpenApprovalCenter: mockNotifyOpenApprovalCenter,
@@ -26,7 +25,7 @@ vi.mock('../ai/tasks/taskRefreshEvents', async () => {
   };
 });
 
-vi.mock('../hooks/useAiEmbeddingState', () => ({
+vi.mock('../hooks/ai/useAiEmbeddingState', () => ({
   useAiEmbeddingState: mockUseAiEmbeddingState,
 }));
 
@@ -45,9 +44,30 @@ vi.mock('../ai/embeddings/DeferredEmbeddingRuntime', () => ({
   createDeferredEmbeddingRuntime: () => ({
     embeddingService: {
       terminate: () => undefined,
-      buildEmbeddings: async () => ({ taskId: 'x', total: 0, generated: 0, skipped: 0, modelId: 'm', modelVersion: 'v' }),
-      buildNotesEmbeddings: async () => ({ taskId: 'x', total: 0, generated: 0, skipped: 0, modelId: 'm', modelVersion: 'v' }),
-      buildPdfEmbeddings: async () => ({ taskId: 'x', total: 0, generated: 0, skipped: 0, modelId: 'm', modelVersion: 'v' }),
+      buildEmbeddings: async () => ({
+        taskId: 'x',
+        total: 0,
+        generated: 0,
+        skipped: 0,
+        modelId: 'm',
+        modelVersion: 'v',
+      }),
+      buildNotesEmbeddings: async () => ({
+        taskId: 'x',
+        total: 0,
+        generated: 0,
+        skipped: 0,
+        modelId: 'm',
+        modelVersion: 'v',
+      }),
+      buildPdfEmbeddings: async () => ({
+        taskId: 'x',
+        total: 0,
+        generated: 0,
+        skipped: 0,
+        modelId: 'm',
+        modelVersion: 'v',
+      }),
     },
     embeddingSearchService: {
       terminate: () => undefined,
@@ -124,7 +144,10 @@ describe('TranscriptionPageAnalysisRuntime resume bridge', () => {
 
     render(
       <LocaleProvider locale="zh-CN">
-        <TranscriptionPageAnalysisRuntime panel={makeProps().panel} embedding={makeProps().embedding} />
+        <TranscriptionPageAnalysisRuntime
+          panel={makeProps().panel}
+          embedding={makeProps().embedding}
+        />
       </LocaleProvider>,
     );
 
@@ -132,7 +155,9 @@ describe('TranscriptionPageAnalysisRuntime resume bridge', () => {
 
     expect(mockNotifyOpenApprovalCenter).toHaveBeenCalledTimes(1);
     expect(mockNotifyRequestAgentLoopResume).toHaveBeenCalledTimes(1);
-    expect(mockNotifyRequestAgentLoopResume).toHaveBeenCalledWith({ taskId: 'task-loop-resume-runtime' });
+    expect(mockNotifyRequestAgentLoopResume).toHaveBeenCalledWith({
+      taskId: 'task-loop-resume-runtime',
+    });
   });
 
   it('switches analysis tab to embedding when receiving reverse task focus request', () => {
@@ -165,9 +190,12 @@ describe('TranscriptionPageAnalysisRuntime resume bridge', () => {
       </LocaleProvider>,
     );
 
-    fireEvent(window, new CustomEvent(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, {
-      detail: { taskId: 'task-loop-focus-runtime' },
-    }));
+    fireEvent(
+      window,
+      new CustomEvent(REQUEST_EMBEDDING_TASK_FOCUS_EVENT, {
+        detail: { taskId: 'task-loop-focus-runtime' },
+      }),
+    );
 
     expect(onAnalysisTabChange).toHaveBeenCalledTimes(1);
     expect(onAnalysisTabChange).toHaveBeenCalledWith('embedding');

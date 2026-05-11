@@ -44,6 +44,9 @@
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "resolveJsonModule": true,
+    "paths": {
+      "~/*": ["./src/*"]
+    },
   },
   "exclude": [
     "dist",

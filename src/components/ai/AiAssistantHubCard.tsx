@@ -2,7 +2,7 @@ import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE_TIGHT, JIEYU_MATERIAL_WAVE_MD } from '../../utils/jieyuMaterialIcon';
 import { t, useLocale } from '../../i18n';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
-import { getConfidenceColor } from '../../hooks/voiceAgentPresentation';
+import { getConfidenceColor } from '../../hooks/voice/voiceAgentPresentation';
 import { AiChatCard } from './AiChatCard';
 
 const MODE_LABEL_KEYS: Record<

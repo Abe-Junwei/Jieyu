@@ -13,14 +13,14 @@ import type {
   MediaItemDocType,
   OrthographyDocType,
 } from '../types/jieyuDbDocTypes';
-import type { TimelineResizeDragOptions } from '../hooks/useTimelineResize';
+import type { TimelineResizeDragOptions } from '../hooks/transcription/useTimelineResize';
 /** 与 `TextTimeMapping` 线性段一致；本文件不 import services 以满足架构守卫 M3 */
 type WorkspacePanelTextTimeMappingLinear = { offsetSec: number; scale: number };
-import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { TranscriptionVerticalPaneFocusState } from './TranscriptionPage.UIState';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 export type TranscriptionTimelineWorkspacePanelProps = {

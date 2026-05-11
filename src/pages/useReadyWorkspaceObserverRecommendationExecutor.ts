@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import type { ActionableRecommendation } from '../hooks/useAiPanelLogic';
+import type { ActionableRecommendation } from '../hooks/ai/useAiPanelLogic';
 import { fireAndForget } from '../utils/fireAndForget';
 
 export function useReadyWorkspaceObserverRecommendationExecutor(input: {

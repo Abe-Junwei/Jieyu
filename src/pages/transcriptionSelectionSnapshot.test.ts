@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType, LayerUnitDocType, TranscriptionLayerDocType } from '../db';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import { buildTranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 
 function unitView(id: string, layerId: string): TimelineUnitView {

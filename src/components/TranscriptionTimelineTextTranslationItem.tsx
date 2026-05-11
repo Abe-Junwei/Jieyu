@@ -1,10 +1,10 @@
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import {
   recordingScopeUnitId,
   resolveVoiceRecordingSourceUnit,
 } from '../utils/recordingScopeUnitId';
-import { useTranslationSidebarTextDraftAutosave } from '../hooks/useTimelineLaneTextDraftAutosave';
+import { useTranslationSidebarTextDraftAutosave } from '../hooks/transcription/useTimelineLaneTextDraftAutosave';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';

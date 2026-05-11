@@ -1,8 +1,10 @@
-import type { DbState } from '../hooks/transcriptionTypes';
+import type { DbState } from '../hooks/transcription/transcriptionTypes';
 import type { UseTranscriptionAiControllerInput } from './transcriptionAiController.types';
 
-export interface BuildReadyWorkspaceAssistantBridgeInput
-  extends Omit<UseTranscriptionAiControllerInput, 'translationLayerCount' | 'authoritativeUnitCount'> {
+export interface BuildReadyWorkspaceAssistantBridgeInput extends Omit<
+  UseTranscriptionAiControllerInput,
+  'translationLayerCount' | 'authoritativeUnitCount'
+> {
   state: DbState;
 }
 

@@ -1,7 +1,15 @@
-import type { LayerDocType, MediaItemDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
-import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import type {
+  LayerDocType,
+  MediaItemDocType,
+  LayerUnitDocType,
+  LayerUnitContentDocType,
+} from '../db';
+import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { Locale } from '../i18n';
-import type { AudioImportDisposition, TranscriptionAudioImportOptions } from '../pages/transcriptionAudioImportTypes';
+import type {
+  AudioImportDisposition,
+  TranscriptionAudioImportOptions,
+} from '../pages/transcriptionAudioImportTypes';
 import type { SearchableItem } from '../utils/searchReplaceUtils';
 
 export interface UseTranscriptionProjectMediaControllerInput {
@@ -39,8 +47,17 @@ export interface UseTranscriptionProjectMediaControllerResult {
   handleConfirmAudioDelete: () => void;
   handleDeleteCurrentProject: () => void;
   handleConfirmProjectDelete: () => void;
-  handleProjectSetupSubmit: (input: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
-  handleAudioImport: (file: File, duration: number, options?: TranscriptionAudioImportOptions) => Promise<void>;
+  handleProjectSetupSubmit: (input: {
+    primaryTitle: string;
+    englishFallbackTitle: string;
+    primaryLanguageId: string;
+    primaryOrthographyId?: string;
+  }) => Promise<void>;
+  handleAudioImport: (
+    file: File,
+    duration: number,
+    options?: TranscriptionAudioImportOptions,
+  ) => Promise<void>;
   searchableItems: SearchableItem[];
   setAudioDeleteConfirm: React.Dispatch<React.SetStateAction<{ filename: string } | null>>;
   setProjectDeleteConfirm: React.Dispatch<React.SetStateAction<boolean>>;

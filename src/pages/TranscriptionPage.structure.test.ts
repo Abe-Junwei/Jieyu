@@ -362,7 +362,9 @@ describe('TranscriptionPage structure invariants', () => {
     ).toBe(true);
     expect(controllerCode.includes('} = useSpeakerActionRoutingController({')).toBe(true);
     expect(
-      controllerCode.includes("import { useSpeakerActions } from '../hooks/useSpeakerActions';"),
+      controllerCode.includes(
+        "import { useSpeakerActions } from '../hooks/speakerManagement/useSpeakerActions';",
+      ),
     ).toBe(true);
     expect(controllerCode.includes('} = useSpeakerActions({')).toBe(true);
     expect(orchestratorCode.includes('speakerFocusTargetMemoryByMediaRef')).toBe(false);
@@ -495,7 +497,7 @@ describe('TranscriptionPage structure invariants', () => {
     ).toBe(true);
     expect(
       orchestratorCode.includes(
-        "import { useAiChatContextValue } from '../hooks/useAiChatContextValue';",
+        "import { useAiChatContextValue } from '../hooks/ai/useAiChatContextValue';",
       ),
     ).toBe(false);
     expect(
@@ -1295,7 +1297,7 @@ describe('TranscriptionPage structure invariants', () => {
     ).toBe(true);
     expect(
       routingHookCode.includes(
-        'await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);',
+        'await LinguisticService.speakers.assignToSegments(targetIds, speakerId);',
       ),
     ).toBe(true);
     expect(routingHookCode.includes('const createSpeakerAndAssignToSegments = useCallback(')).toBe(
@@ -1866,15 +1868,15 @@ describe('TranscriptionPage structure invariants', () => {
       'src/pages/useReadyWorkspaceSurfaceProps.tsx',
     );
     const surfacePropsCode = fs.readFileSync(surfacePropsPath, 'utf8');
-    const hookPath = path.resolve(process.cwd(), 'src/hooks/useRecoveryBanner.ts');
+    const hookPath = path.resolve(process.cwd(), 'src/hooks/ui/useRecoveryBanner.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
     expect(
       orchestratorCode.includes(
-        "import { useRecoveryBanner } from '../hooks/useRecoveryBanner';",
+        "import { useRecoveryBanner } from '../hooks/ui/useRecoveryBanner';",
       ) ||
         preBootstrapCode.includes(
-          "import { useRecoveryBanner } from '../hooks/useRecoveryBanner';",
+          "import { useRecoveryBanner } from '../hooks/ui/useRecoveryBanner';",
         ),
     ).toBe(true);
     expect(

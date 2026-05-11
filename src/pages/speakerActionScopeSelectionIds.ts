@@ -1,4 +1,4 @@
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 
 export function buildSelectedUnitIdsForSpeakerActions(input: {
   selectedUnitIds: Set<string>;

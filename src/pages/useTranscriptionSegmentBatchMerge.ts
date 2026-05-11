@@ -1,8 +1,8 @@
 import { useCallback, type MutableRefObject } from 'react';
 import { getTranscriptionAppService } from '../app/index';
-import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
+import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
+import type { PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';
 import { t, useLocale } from '../i18n';
 import { reportActionError } from '../utils/actionErrorReporter';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';

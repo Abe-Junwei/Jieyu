@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildWorldModelSnapshot, resolveWorldModelDetailLevel } from './worldModelSnapshot';
-import type { TimelineUnitView } from '../../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../../hooks/transcription/timelineUnitView';
 
 const layers = [
   {
@@ -47,7 +47,13 @@ const mediaItems = [
   },
 ];
 
-function unit(overrides: Partial<TimelineUnitView> & Pick<TimelineUnitView, 'id' | 'mediaId' | 'layerId' | 'startTime' | 'endTime' | 'text' | 'kind'>): TimelineUnitView {
+function unit(
+  overrides: Partial<TimelineUnitView> &
+    Pick<
+      TimelineUnitView,
+      'id' | 'mediaId' | 'layerId' | 'startTime' | 'endTime' | 'text' | 'kind'
+    >,
+): TimelineUnitView {
   return {
     speakerId: 'spk-1',
     ...overrides,
@@ -57,9 +63,33 @@ function unit(overrides: Partial<TimelineUnitView> & Pick<TimelineUnitView, 'id'
 describe('worldModelSnapshot', () => {
   it('renders a hierarchical snapshot for the current media and layers', () => {
     const allUnits = [
-      unit({ id: 'u-1', kind: 'unit', mediaId: 'media-a', layerId: 'layer-transcription', startTime: 0, endTime: 3, text: '你好' }),
-      unit({ id: 'u-2', kind: 'segment', mediaId: 'media-a', layerId: 'layer-translation', startTime: 3, endTime: 6, text: 'hello' }),
-      unit({ id: 'u-3', kind: 'segment', mediaId: 'media-b', layerId: 'layer-translation', startTime: 1, endTime: 2, text: 'thanks' }),
+      unit({
+        id: 'u-1',
+        kind: 'unit',
+        mediaId: 'media-a',
+        layerId: 'layer-transcription',
+        startTime: 0,
+        endTime: 3,
+        text: '你好',
+      }),
+      unit({
+        id: 'u-2',
+        kind: 'segment',
+        mediaId: 'media-a',
+        layerId: 'layer-translation',
+        startTime: 3,
+        endTime: 6,
+        text: 'hello',
+      }),
+      unit({
+        id: 'u-3',
+        kind: 'segment',
+        mediaId: 'media-b',
+        layerId: 'layer-translation',
+        startTime: 1,
+        endTime: 2,
+        text: 'thanks',
+      }),
     ];
 
     const snapshot = buildWorldModelSnapshot({
@@ -91,20 +121,31 @@ describe('worldModelSnapshot', () => {
 
   it('keeps current media bucket even when it has no units', () => {
     const allUnits = [
-      unit({ id: 'u-1', kind: 'unit', mediaId: 'media-a', layerId: 'layer-transcription', startTime: 0, endTime: 3, text: '你好' }),
+      unit({
+        id: 'u-1',
+        kind: 'unit',
+        mediaId: 'media-a',
+        layerId: 'layer-transcription',
+        startTime: 0,
+        endTime: 3,
+        text: '你好',
+      }),
     ];
     const snapshot = buildWorldModelSnapshot({
       allUnits,
       currentMediaUnits: [],
       layers,
-      mediaItems: [...mediaItems, {
-        id: 'media-placeholder',
-        textId: 'text-1',
-        filename: 'document-placeholder.track',
-        duration: 0,
-        isOfflineCached: false,
-        createdAt: '2026-01-01T00:00:00.000Z',
-      }],
+      mediaItems: [
+        ...mediaItems,
+        {
+          id: 'media-placeholder',
+          textId: 'text-1',
+          filename: 'document-placeholder.track',
+          duration: 0,
+          isOfflineCached: false,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
       currentMediaId: 'media-placeholder',
     });
 

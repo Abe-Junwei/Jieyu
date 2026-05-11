@@ -44,14 +44,18 @@ async function clearDatabase(): Promise<void> {
 }
 
 /** Default transcription layer per textId — required for `upsertUnitLayerUnit` (M18+). */
-async function seedDefaultTranscriptionLayerForText(textId: string, layerId: string, nowIso: string): Promise<void> {
+async function seedDefaultTranscriptionLayerForText(
+  textId: string,
+  layerId: string,
+  nowIso: string,
+): Promise<void> {
   await db.texts.put({
     id: textId,
     title: { default: 'Fixture' },
     createdAt: nowIso,
     updatedAt: nowIso,
   });
-  await LinguisticService.saveTranslationLayer({
+  await LinguisticService.layers.saveTranslation({
     id: layerId,
     textId,
     key: `trc_fixture_${textId}`,
@@ -97,7 +101,7 @@ async function seedLinguisticServiceSmokeFixtures(nowIso: string): Promise<void>
     createdAt: nowIso,
     updatedAt: nowIso,
   });
-  await LinguisticService.saveTranslationLayer({
+  await LinguisticService.layers.saveTranslation({
     id: 'layer_trc_rt',
     textId: 'text_layer_rt',
     key: 'trc_rt',
@@ -110,7 +114,7 @@ async function seedLinguisticServiceSmokeFixtures(nowIso: string): Promise<void>
     createdAt: nowIso,
     updatedAt: nowIso,
   });
-  await LinguisticService.saveTranslationLayer({
+  await LinguisticService.layers.saveTranslation({
     id: 'layer_trl_rt',
     textId: 'text_layer_rt',
     key: 'trl_rt',
@@ -124,7 +128,7 @@ async function seedLinguisticServiceSmokeFixtures(nowIso: string): Promise<void>
     updatedAt: nowIso,
   });
 
-  await LinguisticService.saveTranslationLayer({
+  await LinguisticService.layers.saveTranslation({
     id: 'layer_cascade',
     textId: 'text_cascade_ut',
     key: 'cascade_layer',
@@ -148,7 +152,7 @@ describe('LinguisticService smoke tests', () => {
   });
 
   it('can create an orthography for the target language', async () => {
-    const created = await LinguisticService.createOrthography({
+    const created = await LinguisticService.orthography.create({
       languageId: 'cmn',
       name: { zho: '普通话 IPA', eng: 'Mandarin IPA' },
       abbreviation: 'IPA',
@@ -178,27 +182,31 @@ describe('LinguisticService smoke tests', () => {
   });
 
   it('rejects invalid ISO 639-3 language ids for project and orthography creation', async () => {
-    await expect(LinguisticService.createProject({
-      primaryTitle: '项目',
-      englishFallbackTitle: 'Project',
-      primaryLanguageId: 'zh',
-    })).rejects.toThrow('primaryLanguageId 必须是有效的 ISO 639-3 三字母代码');
+    await expect(
+      LinguisticService.projects.create({
+        primaryTitle: '项目',
+        englishFallbackTitle: 'Project',
+        primaryLanguageId: 'zh',
+      }),
+    ).rejects.toThrow('primaryLanguageId 必须是有效的 ISO 639-3 三字母代码');
 
-    await expect(LinguisticService.createOrthography({
-      languageId: 'zh',
-      name: { eng: 'Invalid Orthography' },
-    })).rejects.toThrow('languageId 必须是已存在的语言资产 ID 或有效的 ISO 639-3 三字母代码');
+    await expect(
+      LinguisticService.orthography.create({
+        languageId: 'zh',
+        name: { eng: 'Invalid Orthography' },
+      }),
+    ).rejects.toThrow('languageId 必须是已存在的语言资产 ID 或有效的 ISO 639-3 三字母代码');
   });
 
   it('allows existing custom language assets to own orthographies', async () => {
-    const customLanguage = await LinguisticService.upsertLanguageCatalogEntry({
+    const customLanguage = await LinguisticService.languageCatalog.upsertEntry({
       id: 'user:hak-community',
       localName: '客话社区语',
       englishName: 'Hakka Community Language',
       nativeName: 'Hak-ka-fa',
     });
 
-    const created = await LinguisticService.createOrthography({
+    const created = await LinguisticService.orthography.create({
       languageId: customLanguage.id,
       name: { zho: '客话社区语拼写', eng: 'Hakka Community Orthography' },
       scriptTag: 'Latn',
@@ -208,7 +216,7 @@ describe('LinguisticService smoke tests', () => {
 
     expect(created.languageId).toBe('user:hak-community');
 
-    const cloned = await LinguisticService.cloneOrthographyToLanguage({
+    const cloned = await LinguisticService.orthography.cloneToLanguage({
       sourceOrthographyId: created.id,
       targetLanguageId: 'user:hak-community',
       name: { zho: '客话社区语拼写-副本', eng: 'Hakka Community Orthography Copy' },
@@ -219,7 +227,7 @@ describe('LinguisticService smoke tests', () => {
   });
 
   it('stores new project titles in neutral primary and English fallback slots', async () => {
-    const created = await LinguisticService.createProject({
+    const created = await LinguisticService.projects.create({
       primaryTitle: '白马藏语田野调查',
       englishFallbackTitle: 'Baima Tibetan Fieldwork',
       primaryLanguageId: 'eng',
@@ -229,71 +237,83 @@ describe('LinguisticService smoke tests', () => {
     expect(saved?.title.und).toBe('白马藏语田野调查');
     expect(saved?.title.eng).toBe('Baima Tibetan Fieldwork');
     expect(saved?.metadata?.primaryLanguageId).toBe('eng');
-    expect((saved?.metadata as { timelineMode?: unknown } | undefined)?.timelineMode).toBe('document');
-    expect((saved?.metadata as { logicalDurationSec?: unknown } | undefined)?.logicalDurationSec).toBe(1800);
-    expect((saved?.metadata as { timebaseLabel?: unknown } | undefined)?.timebaseLabel).toBe('logical-second');
+    expect((saved?.metadata as { timelineMode?: unknown } | undefined)?.timelineMode).toBe(
+      'document',
+    );
+    expect(
+      (saved?.metadata as { logicalDurationSec?: unknown } | undefined)?.logicalDurationSec,
+    ).toBe(1800);
+    expect((saved?.metadata as { timebaseLabel?: unknown } | undefined)?.timebaseLabel).toBe(
+      'logical-second',
+    );
   });
 
   it('stores logical-to-real time mapping metadata with a rollback snapshot', async () => {
-    const created = await LinguisticService.createProject({
+    const created = await LinguisticService.projects.create({
       primaryTitle: '逻辑时间映射项目',
       englishFallbackTitle: 'Logical Mapping Project',
       primaryLanguageId: 'eng',
     });
 
-    await LinguisticService.updateTextTimeMapping({
+    await LinguisticService.timeline.updateTimeMapping({
       textId: created.textId,
       offsetSec: 12.5,
       scale: 0.8,
       sourceMediaId: 'media_mapping_1',
     });
 
-    await LinguisticService.updateTextTimeMapping({
+    await LinguisticService.timeline.updateTimeMapping({
       textId: created.textId,
       offsetSec: 18,
       scale: 1.25,
     });
 
-    await LinguisticService.updateTextTimeMapping({
+    await LinguisticService.timeline.updateTimeMapping({
       textId: created.textId,
       offsetSec: 24,
       scale: 1.5,
     });
 
     const saved = await db.texts.get(created.textId);
-    const metadata = saved?.metadata as {
-      timeMapping?: {
-        offsetSec?: unknown;
-        scale?: unknown;
-        revision?: unknown;
-        sourceMediaId?: unknown;
-      };
-      timeMappingRollback?: {
-        offsetSec?: unknown;
-        scale?: unknown;
-        revision?: unknown;
-        sourceMediaId?: unknown;
-      };
-      timeMappingHistory?: Array<{
-        offsetSec?: unknown;
-        scale?: unknown;
-        revision?: unknown;
-        sourceMediaId?: unknown;
-      }>;
-    } | undefined;
+    const metadata = saved?.metadata as
+      | {
+          timeMapping?: {
+            offsetSec?: unknown;
+            scale?: unknown;
+            revision?: unknown;
+            sourceMediaId?: unknown;
+          };
+          timeMappingRollback?: {
+            offsetSec?: unknown;
+            scale?: unknown;
+            revision?: unknown;
+            sourceMediaId?: unknown;
+          };
+          timeMappingHistory?: Array<{
+            offsetSec?: unknown;
+            scale?: unknown;
+            revision?: unknown;
+            sourceMediaId?: unknown;
+          }>;
+        }
+      | undefined;
 
-    expect(metadata?.timeMapping).toEqual(expect.objectContaining({
-      offsetSec: 24,
-      scale: 1.5,
-      revision: 3,
-      sourceMediaId: 'media_mapping_1',
-    }));
-    expect(metadata?.timeMappingRollback).toEqual(expect.objectContaining({
-      offsetSec: 18,
-      scale: 1.25,
-      revision: 2,
-      sourceMediaId: 'media_mapping_1',
-    }));
+    expect(metadata?.timeMapping).toEqual(
+      expect.objectContaining({
+        offsetSec: 24,
+        scale: 1.5,
+        revision: 3,
+        sourceMediaId: 'media_mapping_1',
+      }),
+    );
+    expect(metadata?.timeMappingRollback).toEqual(
+      expect.objectContaining({
+        offsetSec: 18,
+        scale: 1.25,
+        revision: 2,
+        sourceMediaId: 'media_mapping_1',
+      }),
+    );
     expect(metadata?.timeMappingHistory).toEqual([
       expect.objectContaining({
         offsetSec: 18,
@@ -311,21 +331,23 @@ describe('LinguisticService smoke tests', () => {
   });
 
   it('rejects updating text time mapping when offsetSec is negative', async () => {
-    const created = await LinguisticService.createProject({
+    const created = await LinguisticService.projects.create({
       primaryTitle: '负偏移映射校验',
       englishFallbackTitle: 'Negative offset validation',
       primaryLanguageId: 'eng',
     });
 
-    await expect(LinguisticService.updateTextTimeMapping({
-      textId: created.textId,
-      offsetSec: -0.5,
-      scale: 1,
-    })).rejects.toThrow('offsetSec 不能小于 0');
+    await expect(
+      LinguisticService.timeline.updateTimeMapping({
+        textId: created.textId,
+        offsetSec: -0.5,
+        scale: 1,
+      }),
+    ).rejects.toThrow('offsetSec 不能小于 0');
   });
 
   it('previews offset-scale mapping and can invert real time back to document time', () => {
-    const preview = LinguisticService.previewTextTimeMapping({
+    const preview = LinguisticService.timeline.previewTimeMapping({
       startTime: 10,
       endTime: 22,
       offsetSec: 5,
@@ -340,12 +362,16 @@ describe('LinguisticService smoke tests', () => {
       offsetSec: 5,
       scale: 2,
     });
-    expect(LinguisticService.invertTextTimeMapping(25, { offsetSec: 5, scale: 2 })).toBeCloseTo(10);
-    expect(LinguisticService.invertTextTimeMapping(49, { offsetSec: 5, scale: 2 })).toBeCloseTo(22);
+    expect(
+      LinguisticService.timeline.invertTimeMapping(25, { offsetSec: 5, scale: 2 }),
+    ).toBeCloseTo(10);
+    expect(
+      LinguisticService.timeline.invertTimeMapping(49, { offsetSec: 5, scale: 2 }),
+    ).toBeCloseTo(22);
   });
 
   it('keeps previewed real times non-negative and monotonic', () => {
-    const preview = LinguisticService.previewTextTimeMapping({
+    const preview = LinguisticService.timeline.previewTimeMapping({
       startTime: 0,
       endTime: 4,
       offsetSec: -3,
@@ -374,7 +400,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    const updated = await LinguisticService.updateOrthography({
+    const updated = await LinguisticService.orthography.update({
       id: 'orth_update_1',
       languageId: 'eng',
       name: { eng: 'English Practical Updated' },
@@ -429,7 +455,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.updateOrthography({
+    await LinguisticService.orthography.update({
       id: 'orth_update_catalog_1',
       languageId: 'eng',
       name: { eng: 'Generated Orthography' },
@@ -486,7 +512,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    const listed = await LinguisticService.listOrthographies({
+    const listed = await LinguisticService.orthography.list({
       includeBuiltIns: false,
       languageIds: ['eng'],
       orthographyIds: ['orth_scope_zho'],
@@ -494,11 +520,14 @@ describe('LinguisticService smoke tests', () => {
       searchLanguageIds: ['eng'],
     });
 
-    expect(listed.map((orthography) => orthography.id)).toEqual(['orth_scope_eng', 'orth_scope_zho']);
+    expect(listed.map((orthography) => orthography.id)).toEqual([
+      'orth_scope_eng',
+      'orth_scope_zho',
+    ]);
   });
 
   it('can materialize and update a built-in orthography from the workspace', async () => {
-    const updated = await LinguisticService.updateOrthography({
+    const updated = await LinguisticService.orthography.update({
       id: 'eng-latn',
       languageId: 'eng',
       name: { eng: 'English Workspace Override' },
@@ -517,15 +546,17 @@ describe('LinguisticService smoke tests', () => {
     const saved = await db.orthographies.get('eng-latn');
     expect(updated.name.eng).toBe('English Workspace Override');
     expect(saved?.inputHints?.keyboardLayout).toBe('us-intl');
-    expect(saved?.catalogMetadata).toEqual(expect.objectContaining({
-      catalogSource: 'built-in-reviewed',
-      reviewStatus: 'verified-secondary',
-      priority: 'secondary',
-    }));
+    expect(saved?.catalogMetadata).toEqual(
+      expect.objectContaining({
+        catalogSource: 'built-in-reviewed',
+        reviewStatus: 'verified-secondary',
+        priority: 'secondary',
+      }),
+    );
   });
 
   it('canonicalizes orthography identity tags and rejects duplicate identities', async () => {
-    const created = await LinguisticService.createOrthography({
+    const created = await LinguisticService.orthography.create({
       languageId: 'ENG',
       name: { eng: 'English Canonicalized' },
       localeTag: 'EN_latn_us_fonipa',
@@ -538,14 +569,16 @@ describe('LinguisticService smoke tests', () => {
     expect(saved?.regionTag).toBe('US');
     expect(saved?.variantTag).toBe('fonipa');
 
-    await expect(LinguisticService.createOrthography({
-      languageId: 'eng',
-      name: { eng: 'English Canonicalized Duplicate' },
-      type: 'practical',
-      scriptTag: 'latn',
-      regionTag: 'us',
-      variantTag: 'FONIPA',
-    })).rejects.toThrow('已存在相同语言/类型/脚本/地区/变体身份的正字法');
+    await expect(
+      LinguisticService.orthography.create({
+        languageId: 'eng',
+        name: { eng: 'English Canonicalized Duplicate' },
+        type: 'practical',
+        scriptTag: 'latn',
+        regionTag: 'us',
+        variantTag: 'FONIPA',
+      }),
+    ).rejects.toThrow('已存在相同语言/类型/脚本/地区/变体身份的正字法');
   });
 
   it('can clone an orthography into another language as a new record', async () => {
@@ -570,7 +603,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    const cloned = await LinguisticService.cloneOrthographyToLanguage({
+    const cloned = await LinguisticService.orthography.cloneToLanguage({
       sourceOrthographyId: 'orth_source_1',
       targetLanguageId: 'cmn',
       name: { zho: '普通话拉丁化', eng: 'Mandarin Latinized' },
@@ -590,7 +623,7 @@ describe('LinguisticService smoke tests', () => {
   });
 
   it('can clone a built-in orthography source into another language', async () => {
-    const cloned = await LinguisticService.cloneOrthographyToLanguage({
+    const cloned = await LinguisticService.orthography.cloneToLanguage({
       sourceOrthographyId: 'eng-latn',
       targetLanguageId: 'cmn',
       name: { zho: '普通话英语派生', eng: 'Mandarin from English Built-in' },
@@ -627,7 +660,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    const created = await LinguisticService.createOrthographyBridge({
+    const created = await LinguisticService.orthography.createBridge({
       sourceOrthographyId: 'orth_source_transform',
       targetOrthographyId: 'orth_target_transform',
       engine: 'table-map',
@@ -647,7 +680,7 @@ describe('LinguisticService smoke tests', () => {
       status: 'active',
     });
 
-    const listed = await LinguisticService.listOrthographyBridges({
+    const listed = await LinguisticService.orthography.listBridges({
       sourceOrthographyId: 'orth_source_transform',
     });
 
@@ -659,11 +692,13 @@ describe('LinguisticService smoke tests', () => {
       { input: 'sh', expectedOutput: 's' },
     ]);
     expect(listed[0]?.isReversible).toBe(true);
-    expect(LinguisticService.previewOrthographyBridge({
-      engine: 'table-map',
-      rules: { mappings: [{ from: 'sh', to: 's' }] },
-      text: 'sha',
-    })).toBe('sa');
+    expect(
+      LinguisticService.orthography.previewBridge({
+        engine: 'table-map',
+        rules: { mappings: [{ from: 'sh', to: 's' }] },
+        text: 'sha',
+      }),
+    ).toBe('sa');
   });
 
   it('demotes older active sibling transforms when a new active transform is created', async () => {
@@ -695,7 +730,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    const created = await LinguisticService.createOrthographyBridge({
+    const created = await LinguisticService.orthography.createBridge({
       sourceOrthographyId: 'orth_create_source',
       targetOrthographyId: 'orth_create_target',
       engine: 'table-map',
@@ -718,7 +753,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    const created = await LinguisticService.createOrthographyBridge({
+    const created = await LinguisticService.orthography.createBridge({
       sourceOrthographyId: 'eng-latn',
       targetOrthographyId: 'orth_runtime_target_user',
       engine: 'table-map',
@@ -727,7 +762,9 @@ describe('LinguisticService smoke tests', () => {
     });
 
     expect(created.sourceOrthographyId).toBe('eng-latn');
-    expect((await db.orthography_bridges.get(created.id))?.targetOrthographyId).toBe('orth_runtime_target_user');
+    expect((await db.orthography_bridges.get(created.id))?.targetOrthographyId).toBe(
+      'orth_runtime_target_user',
+    );
   });
 
   it('prefers active orthography transforms for runtime application', async () => {
@@ -790,11 +827,11 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    const selected = await LinguisticService.getActiveOrthographyBridge({
+    const selected = await LinguisticService.orthography.getActiveBridge({
       sourceOrthographyId: 'orth_runtime_source',
       targetOrthographyId: 'orth_runtime_target',
     });
-    const applied = await LinguisticService.applyOrthographyBridge({
+    const applied = await LinguisticService.orthography.applyBridge({
       sourceOrthographyId: 'orth_runtime_source',
       targetOrthographyId: 'orth_runtime_target',
       text: 'shaam',
@@ -841,11 +878,11 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    const selected = await LinguisticService.getActiveOrthographyBridge({
+    const selected = await LinguisticService.orthography.getActiveBridge({
       sourceOrthographyId: 'orth_runtime_draft_source',
       targetOrthographyId: 'orth_runtime_draft_target',
     });
-    const applied = await LinguisticService.applyOrthographyBridge({
+    const applied = await LinguisticService.orthography.applyBridge({
       sourceOrthographyId: 'orth_runtime_draft_source',
       targetOrthographyId: 'orth_runtime_draft_target',
       text: 'shaam',
@@ -891,7 +928,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    const applied = await LinguisticService.applyOrthographyBridge({
+    const applied = await LinguisticService.orthography.applyBridge({
       sourceOrthographyId: 'orth_runtime_icu_source',
       targetOrthographyId: 'orth_runtime_icu_target',
       text: 'shaakh',
@@ -948,7 +985,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    const updated = await LinguisticService.updateOrthographyBridge({
+    const updated = await LinguisticService.orthography.updateBridge({
       id: 'orthxfm_manage_draft',
       name: { zho: '导入映射' },
       status: 'active',
@@ -956,7 +993,12 @@ describe('LinguisticService smoke tests', () => {
       sampleOutput: 'sam',
       sampleCases: [{ input: 'sh', expectedOutput: 's' }],
       isReversible: true,
-      rules: { mappings: [{ from: 'sh', to: 's' }, { from: 'aa', to: 'a' }] },
+      rules: {
+        mappings: [
+          { from: 'sh', to: 's' },
+          { from: 'aa', to: 'a' },
+        ],
+      },
     });
 
     expect(updated.status).toBe('active');
@@ -964,7 +1006,7 @@ describe('LinguisticService smoke tests', () => {
     expect(updated.sampleOutput).toBe('sam');
     expect(updated.isReversible).toBe(true);
 
-    const listed = await LinguisticService.listOrthographyBridges({
+    const listed = await LinguisticService.orthography.listBridges({
       targetOrthographyId: 'orth_manage_target',
     });
     expect(listed.map((item) => item.id)).toEqual([
@@ -973,14 +1015,14 @@ describe('LinguisticService smoke tests', () => {
     ]);
     expect((await db.orthography_bridges.get('orthxfm_manage_old_active'))?.status).toBe('draft');
 
-    await LinguisticService.deleteOrthographyBridge('orthxfm_manage_old_active');
+    await LinguisticService.orthography.deleteBridge('orthxfm_manage_old_active');
     expect(await db.orthography_bridges.get('orthxfm_manage_old_active')).toBeUndefined();
   });
 
   it('can save unit and query by media time', async () => {
     const now = new Date().toISOString();
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_1',
       textId: 'text_1',
       startTime: 2.5,
@@ -989,15 +1031,15 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const hit = await LinguisticService.getUnitAtTime(3.2);
-    const miss = await LinguisticService.getUnitAtTime(9.9);
+    const hit = await LinguisticService.units.getAtTime(3.2);
+    const miss = await LinguisticService.units.getAtTime(9.9);
 
     expect(hit?.id).toBe('utt_1');
     expect(miss).toBeUndefined();
   });
 
   it('syncs default transcription unit into layer_units', async () => {
-    await LinguisticService.saveTranslationLayer({
+    await LinguisticService.layers.saveTranslation({
       id: 'layer_default_sync',
       textId: 'text_sync',
       key: 'trc_default',
@@ -1010,7 +1052,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_sync_1',
       textId: 'text_sync',
       mediaId: 'media_sync',
@@ -1029,17 +1071,18 @@ describe('LinguisticService smoke tests', () => {
     expect(unit?.speakerId).toBe('speaker_sync');
   });
 
-    it('saveUnit rolls back canonical unit and content writes when primary_text persistence fails (ARCH-3)', async () => {
-      const now = new Date().toISOString();
-      const textId = 'text_arch3_save_unit';
-      await seedDefaultTranscriptionLayerForText(textId, 'layer_trc_arch3_save_unit', now);
+  it('saveUnit rolls back canonical unit and content writes when primary_text persistence fails (ARCH-3)', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_arch3_save_unit';
+    await seedDefaultTranscriptionLayerForText(textId, 'layer_trc_arch3_save_unit', now);
 
-      const putSpy = vi.spyOn(db.layer_unit_contents, 'put').mockImplementation(() => {
-        throw new Error('content boom');
-      });
+    const putSpy = vi.spyOn(db.layer_unit_contents, 'put').mockImplementation(() => {
+      throw new Error('content boom');
+    });
 
-      try {
-        await expect(LinguisticService.saveUnit({
+    try {
+      await expect(
+        LinguisticService.units.save({
           id: 'utt_arch3_save_unit',
           textId,
           mediaId: 'media_arch3_save_unit',
@@ -1047,19 +1090,22 @@ describe('LinguisticService smoke tests', () => {
           endTime: 2,
           createdAt: now,
           updatedAt: now,
-        })).rejects.toThrow('content boom');
+        }),
+      ).rejects.toThrow('content boom');
 
-        await expect(db.layer_units.get('utt_arch3_save_unit')).resolves.toBeUndefined();
-        await expect(db.layer_unit_contents.where('unitId').equals('utt_arch3_save_unit').toArray()).resolves.toHaveLength(0);
-      } finally {
-        putSpy.mockRestore();
-      }
-    });
+      await expect(db.layer_units.get('utt_arch3_save_unit')).resolves.toBeUndefined();
+      await expect(
+        db.layer_unit_contents.where('unitId').equals('utt_arch3_save_unit').toArray(),
+      ).resolves.toHaveLength(0);
+    } finally {
+      putSpy.mockRestore();
+    }
+  });
 
   it('enforces time_subdivision child bounds when parent unit is resized', async () => {
     const now = new Date().toISOString();
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_parent_resize_1',
       textId: 'text_1',
       mediaId: 'media_1',
@@ -1091,7 +1137,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_parent_resize_1',
       textId: 'text_1',
       mediaId: 'media_1',
@@ -1110,7 +1156,7 @@ describe('LinguisticService smoke tests', () => {
   it('can persist translation layer and unit text linkage', async () => {
     const now = new Date().toISOString();
 
-    await LinguisticService.saveTranslationLayer({
+    await LinguisticService.layers.saveTranslation({
       id: 'layer_1',
       textId: 'text_1',
       key: 'eng_free',
@@ -1122,7 +1168,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_2',
       textId: 'text_1',
       startTime: 0,
@@ -1132,7 +1178,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUnitText({
+    await LinguisticService.timeline.saveUnitText({
       id: 'utr_1',
       unitId: 'utt_2',
       layerId: 'layer_1',
@@ -1143,8 +1189,8 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const layers = await LinguisticService.getTranslationLayers('translation', 'text_1');
-    const records = await LinguisticService.getUnitTexts('utt_2');
+    const layers = await LinguisticService.layers.listTranslation('translation', 'text_1');
+    const records = await LinguisticService.timeline.listUnitTexts('utt_2');
 
     expect(layers).toHaveLength(1);
     expect(layers[0]!.id).toBe('layer_1');
@@ -1155,7 +1201,7 @@ describe('LinguisticService smoke tests', () => {
   it('can persist unit text through canonical LayerUnit write path', async () => {
     const now = new Date().toISOString();
 
-    await LinguisticService.saveTranslationLayer({
+    await LinguisticService.layers.saveTranslation({
       id: 'layer_stop_write',
       textId: 'text_stop_write',
       key: 'eng_stop_write',
@@ -1167,7 +1213,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_stop_write',
       textId: 'text_stop_write',
       startTime: 0,
@@ -1177,7 +1223,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUnitText({
+    await LinguisticService.timeline.saveUnitText({
       id: 'utr_stop_write',
       unitId: 'utt_stop_write',
       layerId: 'layer_stop_write',
@@ -1188,13 +1234,15 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const records = await LinguisticService.getUnitTexts('utt_stop_write');
+    const records = await LinguisticService.timeline.listUnitTexts('utt_stop_write');
 
     expect(await db.layer_units.get('segv2_layer_stop_write_utt_stop_write')).toBeTruthy();
-    expect(await db.layer_unit_contents.get('utr_stop_write')).toEqual(expect.objectContaining({
-      unitId: 'segv2_layer_stop_write_utt_stop_write',
-      text: 'layerunit only text',
-    }));
+    expect(await db.layer_unit_contents.get('utr_stop_write')).toEqual(
+      expect.objectContaining({
+        unitId: 'segv2_layer_stop_write_utt_stop_write',
+        text: 'layerunit only text',
+      }),
+    );
     expect(records).toHaveLength(1);
     expect(records[0]!.text).toBe('layerunit only text');
   });
@@ -1202,7 +1250,7 @@ describe('LinguisticService smoke tests', () => {
   it('can read canonical tokens/morphemes via service APIs', async () => {
     const now = new Date().toISOString();
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_read_1',
       textId: 'text_read',
       startTime: 0,
@@ -1212,7 +1260,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveTokensBatch([
+    await LinguisticService.units.saveTokensBatch([
       {
         id: 'tok_2',
         textId: 'text_read',
@@ -1237,7 +1285,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.saveMorphemesBatch([
+    await LinguisticService.units.saveMorphemesBatch([
       {
         id: 'mor_2',
         textId: 'text_read',
@@ -1262,7 +1310,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    const tokens = await LinguisticService.getTokensByUnitId('utt_read_1');
+    const tokens = await LinguisticService.units.listTokensByUnitId('utt_read_1');
     expect(tokens).toHaveLength(2);
     expect(tokens[0]!.id).toBe('tok_1');
     expect(tokens[0]!.form.default).toBe('word1');
@@ -1271,10 +1319,10 @@ describe('LinguisticService smoke tests', () => {
     expect(tokens[1]!.form.default).toBe('word2');
     expect(tokens[1]!.tokenIndex).toBe(1);
 
-    const morph1 = await LinguisticService.getMorphemesByTokenId('tok_1');
+    const morph1 = await LinguisticService.units.listMorphemesByTokenId('tok_1');
     expect(morph1).toHaveLength(0);
 
-    const morph2 = await LinguisticService.getMorphemesByTokenId('tok_2');
+    const morph2 = await LinguisticService.units.listMorphemesByTokenId('tok_2');
     expect(morph2).toHaveLength(2);
     expect(morph2[0]!.form.default).toBe('mor1');
     expect(morph2[0]!.morphemeIndex).toBe(0);
@@ -1282,336 +1330,365 @@ describe('LinguisticService smoke tests', () => {
     expect(morph2[1]!.morphemeIndex).toBe(1);
   });
 
-    it('supports creating speaker and assigning speaker to units', async () => {
-      const now = new Date().toISOString();
+  it('supports creating speaker and assigning speaker to units', async () => {
+    const now = new Date().toISOString();
 
-      await LinguisticService.saveUnit({
-        id: 'utt_spk_assign_1',
-        textId: 'text_spk_assign',
-        startTime: 0,
-        endTime: 1,
-        annotationStatus: 'raw',
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      const speaker = await LinguisticService.createSpeaker({ name: '说话人甲' });
-      const updatedCount = await LinguisticService.assignSpeakerToUnits(['utt_spk_assign_1'], speaker.id);
-      const units = await LinguisticService.getAllUnits();
-      const speakers = await LinguisticService.getSpeakers();
-
-      expect(updatedCount).toBe(1);
-      expect(units).toHaveLength(1);
-      expect(units[0]!.speakerId).toBe(speaker.id);
-      expect(units[0]!.speaker).toBe('说话人甲');
-      expect(speakers.map((s) => s.id)).toContain(speaker.id);
+    await LinguisticService.units.save({
+      id: 'utt_spk_assign_1',
+      textId: 'text_spk_assign',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('renames speaker and propagates the new name to linked units', async () => {
-      const now = new Date().toISOString();
+    const speaker = await LinguisticService.speakers.create({ name: '说话人甲' });
+    const updatedCount = await LinguisticService.speakers.assignToUnits(
+      ['utt_spk_assign_1'],
+      speaker.id,
+    );
+    const units = await LinguisticService.units.getAll();
+    const speakers = await LinguisticService.speakers.list();
 
-      await LinguisticService.saveUnit({
-        id: 'utt_spk_rename_1',
-        textId: 'text_spk_rename',
-        startTime: 0,
-        endTime: 1,
-        annotationStatus: 'raw',
-        createdAt: now,
-        updatedAt: now,
-      });
+    expect(updatedCount).toBe(1);
+    expect(units).toHaveLength(1);
+    expect(units[0]!.speakerId).toBe(speaker.id);
+    expect(units[0]!.speaker).toBe('说话人甲');
+    expect(speakers.map((s) => s.id)).toContain(speaker.id);
+  });
 
-      const speaker = await LinguisticService.createSpeaker({ name: '旧名' });
-      await LinguisticService.assignSpeakerToUnits(['utt_spk_rename_1'], speaker.id);
-      const renamed = await LinguisticService.renameSpeaker(speaker.id, '新名');
-      const units = await LinguisticService.getAllUnits();
+  it('renames speaker and propagates the new name to linked units', async () => {
+    const now = new Date().toISOString();
 
-      expect(renamed.name).toBe('新名');
-      expect(units[0]!.speakerId).toBe(speaker.id);
-      expect(units[0]!.speaker).toBe('新名');
+    await LinguisticService.units.save({
+      id: 'utt_spk_rename_1',
+      textId: 'text_spk_rename',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('merges speaker and migrates units to target speaker', async () => {
-      const now = new Date().toISOString();
+    const speaker = await LinguisticService.speakers.create({ name: '旧名' });
+    await LinguisticService.speakers.assignToUnits(['utt_spk_rename_1'], speaker.id);
+    const renamed = await LinguisticService.speakers.rename(speaker.id, '新名');
+    const units = await LinguisticService.units.getAll();
 
-      await LinguisticService.saveUnit({
-        id: 'utt_spk_merge_1',
-        textId: 'text_spk_merge',
-        startTime: 0,
-        endTime: 1,
-        annotationStatus: 'raw',
-        createdAt: now,
-        updatedAt: now,
-      });
-      await LinguisticService.saveUnit({
-        id: 'utt_spk_merge_2',
-        textId: 'text_spk_merge',
-        startTime: 2,
-        endTime: 3,
-        annotationStatus: 'raw',
-        createdAt: now,
-        updatedAt: now,
-      });
+    expect(renamed.name).toBe('新名');
+    expect(units[0]!.speakerId).toBe(speaker.id);
+    expect(units[0]!.speaker).toBe('新名');
+  });
 
-      const source = await LinguisticService.createSpeaker({ name: '来源说话人' });
-      const target = await LinguisticService.createSpeaker({ name: '目标说话人' });
-      await LinguisticService.assignSpeakerToUnits(['utt_spk_merge_1', 'utt_spk_merge_2'], source.id);
+  it('merges speaker and migrates units to target speaker', async () => {
+    const now = new Date().toISOString();
 
-      const moved = await LinguisticService.mergeSpeakers(source.id, target.id);
-      const speakers = await LinguisticService.getSpeakers();
-      const units = await LinguisticService.getAllUnits();
-
-      expect(moved).toBe(2);
-      expect(speakers.map((s) => s.id)).not.toContain(source.id);
-      expect(speakers.map((s) => s.id)).toContain(target.id);
-      expect(units.every((u) => u.speakerId === target.id)).toBe(true);
-      expect(units.every((u) => u.speaker === '目标说话人')).toBe(true);
+    await LinguisticService.units.save({
+      id: 'utt_spk_merge_1',
+      textId: 'text_spk_merge',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await LinguisticService.units.save({
+      id: 'utt_spk_merge_2',
+      textId: 'text_spk_merge',
+      startTime: 2,
+      endTime: 3,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('merges speaker and migrates independent segments to target speaker', async () => {
-      const now = new Date().toISOString();
+    const source = await LinguisticService.speakers.create({ name: '来源说话人' });
+    const target = await LinguisticService.speakers.create({ name: '目标说话人' });
+    await LinguisticService.speakers.assignToUnits(
+      ['utt_spk_merge_1', 'utt_spk_merge_2'],
+      source.id,
+    );
 
-      await db.layer_units.put({
-        id: 'seg_spk_merge_1',
-        textId: 'text_spk_merge_seg',
-        mediaId: 'media_spk_merge_seg',
-        layerId: 'layer_independent',
-        unitType: 'segment',
-        startTime: 0,
-        endTime: 1,
-        createdAt: now,
-        updatedAt: now,
-      });
+    const moved = await LinguisticService.speakers.merge(source.id, target.id);
+    const speakers = await LinguisticService.speakers.list();
+    const units = await LinguisticService.units.getAll();
 
-      const source = await LinguisticService.createSpeaker({ name: '来源语段说话人' });
-      const target = await LinguisticService.createSpeaker({ name: '目标语段说话人' });
-      await LinguisticService.assignSpeakerToSegments(['seg_spk_merge_1'], source.id);
+    expect(moved).toBe(2);
+    expect(speakers.map((s) => s.id)).not.toContain(source.id);
+    expect(speakers.map((s) => s.id)).toContain(target.id);
+    expect(units.every((u) => u.speakerId === target.id)).toBe(true);
+    expect(units.every((u) => u.speaker === '目标说话人')).toBe(true);
+  });
 
-      const moved = await LinguisticService.mergeSpeakers(source.id, target.id);
-      const segment = await db.layer_units.get('seg_spk_merge_1');
+  it('merges speaker and migrates independent segments to target speaker', async () => {
+    const now = new Date().toISOString();
 
-      expect(moved).toBe(1);
-      expect(segment?.speakerId).toBe(target.id);
+    await db.layer_units.put({
+      id: 'seg_spk_merge_1',
+      textId: 'text_spk_merge_seg',
+      mediaId: 'media_spk_merge_seg',
+      layerId: 'layer_independent',
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('clears speaker assignment when assigning undefined speaker id', async () => {
-      const now = new Date().toISOString();
+    const source = await LinguisticService.speakers.create({ name: '来源语段说话人' });
+    const target = await LinguisticService.speakers.create({ name: '目标语段说话人' });
+    await LinguisticService.speakers.assignToSegments(['seg_spk_merge_1'], source.id);
 
-      await LinguisticService.saveUnit({
-        id: 'utt_spk_clear_1',
-        textId: 'text_spk_clear',
-        startTime: 0,
-        endTime: 1,
-        annotationStatus: 'raw',
-        createdAt: now,
-        updatedAt: now,
-      });
+    const moved = await LinguisticService.speakers.merge(source.id, target.id);
+    const segment = await db.layer_units.get('seg_spk_merge_1');
 
-      const speaker = await LinguisticService.createSpeaker({ name: '待清空说话人' });
-      await LinguisticService.assignSpeakerToUnits(['utt_spk_clear_1'], speaker.id);
-      const cleared = await LinguisticService.assignSpeakerToUnits(['utt_spk_clear_1'], undefined);
-      const units = await LinguisticService.getAllUnits();
+    expect(moved).toBe(1);
+    expect(segment?.speakerId).toBe(target.id);
+  });
 
-      expect(cleared).toBe(1);
-      expect(units[0]!.speakerId).toBeUndefined();
-      expect(units[0]!.speaker).toBeUndefined();
+  it('clears speaker assignment when assigning undefined speaker id', async () => {
+    const now = new Date().toISOString();
+
+    await LinguisticService.units.save({
+      id: 'utt_spk_clear_1',
+      textId: 'text_spk_clear',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('supports assigning speaker directly to independent segments', async () => {
-      const now = new Date().toISOString();
+    const speaker = await LinguisticService.speakers.create({ name: '待清空说话人' });
+    await LinguisticService.speakers.assignToUnits(['utt_spk_clear_1'], speaker.id);
+    const cleared = await LinguisticService.speakers.assignToUnits(['utt_spk_clear_1'], undefined);
+    const units = await LinguisticService.units.getAll();
 
-      await db.layer_units.put({
-        id: 'seg_spk_assign_1',
-        textId: 'text_spk_assign',
-        mediaId: 'media_spk_assign',
-        layerId: 'layer_independent',
-        unitType: 'segment',
-        startTime: 0,
-        endTime: 1,
-        createdAt: now,
-        updatedAt: now,
-      });
+    expect(cleared).toBe(1);
+    expect(units[0]!.speakerId).toBeUndefined();
+    expect(units[0]!.speaker).toBeUndefined();
+  });
 
-      const speaker = await LinguisticService.createSpeaker({ name: '独立语段说话人' });
-      const updatedCount = await LinguisticService.assignSpeakerToSegments(['seg_spk_assign_1'], speaker.id);
-  const segment = await db.layer_units.get('seg_spk_assign_1');
+  it('supports assigning speaker directly to independent segments', async () => {
+    const now = new Date().toISOString();
 
-      expect(updatedCount).toBe(1);
-      expect(segment?.speakerId).toBe(speaker.id);
+    await db.layer_units.put({
+      id: 'seg_spk_assign_1',
+      textId: 'text_spk_assign',
+      mediaId: 'media_spk_assign',
+      layerId: 'layer_independent',
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('supports assigning speaker to LayerUnit-only segments', async () => {
-      const now = new Date().toISOString();
+    const speaker = await LinguisticService.speakers.create({ name: '独立语段说话人' });
+    const updatedCount = await LinguisticService.speakers.assignToSegments(
+      ['seg_spk_assign_1'],
+      speaker.id,
+    );
+    const segment = await db.layer_units.get('seg_spk_assign_1');
 
-      await db.layer_units.put({
-        id: 'seg_spk_assign_unit_1',
-        textId: 'text_spk_assign_unit',
-        mediaId: 'media_spk_assign_unit',
-        layerId: 'layer_independent',
-        unitType: 'segment',
-        startTime: 0,
-        endTime: 1,
-        createdAt: now,
-        updatedAt: now,
-      });
+    expect(updatedCount).toBe(1);
+    expect(segment?.speakerId).toBe(speaker.id);
+  });
 
-      const speaker = await LinguisticService.createSpeaker({ name: 'LayerUnit 语段说话人' });
-      const updatedCount = await LinguisticService.assignSpeakerToSegments(['seg_spk_assign_unit_1'], speaker.id);
-      const unit = await db.layer_units.get('seg_spk_assign_unit_1');
+  it('supports assigning speaker to LayerUnit-only segments', async () => {
+    const now = new Date().toISOString();
 
-      expect(updatedCount).toBe(1);
-      expect(unit?.speakerId).toBe(speaker.id);
+    await db.layer_units.put({
+      id: 'seg_spk_assign_unit_1',
+      textId: 'text_spk_assign_unit',
+      mediaId: 'media_spk_assign_unit',
+      layerId: 'layer_independent',
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('clears segment speaker assignment when assigning undefined speaker id', async () => {
-      const now = new Date().toISOString();
-      const speaker = await LinguisticService.createSpeaker({ name: '待清空独立语段说话人' });
+    const speaker = await LinguisticService.speakers.create({ name: 'LayerUnit 语段说话人' });
+    const updatedCount = await LinguisticService.speakers.assignToSegments(
+      ['seg_spk_assign_unit_1'],
+      speaker.id,
+    );
+    const unit = await db.layer_units.get('seg_spk_assign_unit_1');
 
-      await db.layer_units.put({
-        id: 'seg_spk_clear_1',
-        textId: 'text_spk_clear',
-        mediaId: 'media_spk_clear',
-        layerId: 'layer_independent',
-        unitType: 'segment',
-        speakerId: speaker.id,
-        startTime: 0,
-        endTime: 1,
-        createdAt: now,
-        updatedAt: now,
-      });
+    expect(updatedCount).toBe(1);
+    expect(unit?.speakerId).toBe(speaker.id);
+  });
 
-      const cleared = await LinguisticService.assignSpeakerToSegments(['seg_spk_clear_1'], undefined);
-      const segment = await db.layer_units.get('seg_spk_clear_1');
+  it('clears segment speaker assignment when assigning undefined speaker id', async () => {
+    const now = new Date().toISOString();
+    const speaker = await LinguisticService.speakers.create({ name: '待清空独立语段说话人' });
 
-      expect(cleared).toBe(1);
-      expect(segment?.speakerId).toBeUndefined();
+    await db.layer_units.put({
+      id: 'seg_spk_clear_1',
+      textId: 'text_spk_clear',
+      mediaId: 'media_spk_clear',
+      layerId: 'layer_independent',
+      unitType: 'segment',
+      speakerId: speaker.id,
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('deletes speaker with clear strategy and clears independent segment references', async () => {
-      const now = new Date().toISOString();
-      const speaker = await LinguisticService.createSpeaker({ name: '待删除独立语段说话人' });
+    const cleared = await LinguisticService.speakers.assignToSegments(
+      ['seg_spk_clear_1'],
+      undefined,
+    );
+    const segment = await db.layer_units.get('seg_spk_clear_1');
 
-      await db.layer_units.put({
-        id: 'seg_spk_delete_1',
-        textId: 'text_spk_delete',
-        mediaId: 'media_spk_delete',
-        layerId: 'layer_independent',
-        unitType: 'segment',
-        speakerId: speaker.id,
-        startTime: 0,
-        endTime: 1,
-        createdAt: now,
-        updatedAt: now,
-      });
+    expect(cleared).toBe(1);
+    expect(segment?.speakerId).toBeUndefined();
+  });
 
-      const cleared = await LinguisticService.deleteSpeaker(speaker.id, { strategy: 'clear' });
-      const segment = await db.layer_units.get('seg_spk_delete_1');
+  it('deletes speaker with clear strategy and clears independent segment references', async () => {
+    const now = new Date().toISOString();
+    const speaker = await LinguisticService.speakers.create({ name: '待删除独立语段说话人' });
 
-      expect(cleared).toBe(1);
-      expect(segment?.speakerId).toBeUndefined();
+    await db.layer_units.put({
+      id: 'seg_spk_delete_1',
+      textId: 'text_spk_delete',
+      mediaId: 'media_spk_delete',
+      layerId: 'layer_independent',
+      unitType: 'segment',
+      speakerId: speaker.id,
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('rejects deleting speaker when independent segments still reference it', async () => {
-      const now = new Date().toISOString();
-      const speaker = await LinguisticService.createSpeaker({ name: '被引用语段说话人' });
+    const cleared = await LinguisticService.speakers.delete(speaker.id, { strategy: 'clear' });
+    const segment = await db.layer_units.get('seg_spk_delete_1');
 
-      await db.layer_units.put({
-        id: 'seg_spk_delete_reject_1',
-        textId: 'text_spk_delete_reject',
-        mediaId: 'media_spk_delete_reject',
-        layerId: 'layer_independent',
-        unitType: 'segment',
-        speakerId: speaker.id,
-        startTime: 0,
-        endTime: 1,
-        createdAt: now,
-        updatedAt: now,
-      });
+    expect(cleared).toBe(1);
+    expect(segment?.speakerId).toBeUndefined();
+  });
 
-      await expect(LinguisticService.deleteSpeaker(speaker.id)).rejects.toThrow('说话人仍被 1 条句段引用');
+  it('rejects deleting speaker when independent segments still reference it', async () => {
+    const now = new Date().toISOString();
+    const speaker = await LinguisticService.speakers.create({ name: '被引用语段说话人' });
+
+    await db.layer_units.put({
+      id: 'seg_spk_delete_reject_1',
+      textId: 'text_spk_delete_reject',
+      mediaId: 'media_spk_delete_reject',
+      layerId: 'layer_independent',
+      unitType: 'segment',
+      speakerId: speaker.id,
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('reports combined unit and segment speaker reference stats', async () => {
-      const now = new Date().toISOString();
-      await LinguisticService.saveUnit({
-        id: 'utt_stats_1',
-        textId: 'text_stats',
-        mediaId: 'media_stats',
-        startTime: 0,
-        endTime: 1,
-        annotationStatus: 'raw',
-        createdAt: now,
-        updatedAt: now,
-      });
+    await expect(LinguisticService.speakers.delete(speaker.id)).rejects.toThrow(
+      '说话人仍被 1 条句段引用',
+    );
+  });
 
-      await db.layer_units.put({
-        id: 'seg_stats_1',
-        textId: 'text_stats',
-        mediaId: 'media_stats',
-        layerId: 'layer_independent',
-        unitType: 'segment',
-        startTime: 2,
-        endTime: 3,
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      const speaker = await LinguisticService.createSpeaker({ name: '统计说话人' });
-      await LinguisticService.assignSpeakerToUnits(['utt_stats_1'], speaker.id);
-      await LinguisticService.assignSpeakerToSegments(['seg_stats_1'], speaker.id);
-
-      const bundle = await LinguisticService.getSpeakerReferenceStats();
-
-      expect(bundle.perSpeaker[speaker.id]).toEqual({ transcriptionUnitCount: 1, segmentCount: 1, totalCount: 2 });
-      expect(bundle.unassigned).toEqual({ transcriptionUnitCount: 0, segmentCount: 0, totalCount: 0 });
+  it('reports combined unit and segment speaker reference stats', async () => {
+    const now = new Date().toISOString();
+    await LinguisticService.units.save({
+      id: 'utt_stats_1',
+      textId: 'text_stats',
+      mediaId: 'media_stats',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('counts unassigned rows in speaker reference stats bundle', async () => {
-      const now = new Date().toISOString();
-      await LinguisticService.saveUnit({
-        id: 'utt_unassigned_stats',
-        textId: 'text_stats_u',
-        mediaId: 'media_stats_u',
-        startTime: 0,
-        endTime: 1,
-        annotationStatus: 'raw',
-        createdAt: now,
-        updatedAt: now,
-      });
-      const bundle = await LinguisticService.getSpeakerReferenceStats();
-      expect(bundle.unassigned).toEqual({ transcriptionUnitCount: 1, segmentCount: 0, totalCount: 1 });
-      expect(Object.keys(bundle.perSpeaker)).toHaveLength(0);
+    await db.layer_units.put({
+      id: 'seg_stats_1',
+      textId: 'text_stats',
+      mediaId: 'media_stats',
+      layerId: 'layer_independent',
+      unitType: 'segment',
+      startTime: 2,
+      endTime: 3,
+      createdAt: now,
+      updatedAt: now,
     });
 
-    it('filters speaker reference stats by mediaId', async () => {
-      const now = new Date().toISOString();
-      await LinguisticService.saveUnit({
-        id: 'utt_m_a',
-        textId: 'text_m',
-        mediaId: 'media_a',
-        startTime: 0,
-        endTime: 1,
-        annotationStatus: 'raw',
-        createdAt: now,
-        updatedAt: now,
-      });
-      await LinguisticService.saveUnit({
-        id: 'utt_m_b',
-        textId: 'text_m',
-        mediaId: 'media_b',
-        startTime: 0,
-        endTime: 1,
-        annotationStatus: 'raw',
-        createdAt: now,
-        updatedAt: now,
-      });
-      const bundleA = await LinguisticService.getSpeakerReferenceStats({ mediaId: 'media_a' });
-      expect(bundleA.unassigned.transcriptionUnitCount).toBe(1);
-      const bundleAll = await LinguisticService.getSpeakerReferenceStats();
-      expect(bundleAll.unassigned.transcriptionUnitCount).toBe(2);
+    const speaker = await LinguisticService.speakers.create({ name: '统计说话人' });
+    await LinguisticService.speakers.assignToUnits(['utt_stats_1'], speaker.id);
+    await LinguisticService.speakers.assignToSegments(['seg_stats_1'], speaker.id);
+
+    const bundle = await LinguisticService.speakers.getReferenceStats();
+
+    expect(bundle.perSpeaker[speaker.id]).toEqual({
+      transcriptionUnitCount: 1,
+      segmentCount: 1,
+      totalCount: 2,
     });
+    expect(bundle.unassigned).toEqual({
+      transcriptionUnitCount: 0,
+      segmentCount: 0,
+      totalCount: 0,
+    });
+  });
+
+  it('counts unassigned rows in speaker reference stats bundle', async () => {
+    const now = new Date().toISOString();
+    await LinguisticService.units.save({
+      id: 'utt_unassigned_stats',
+      textId: 'text_stats_u',
+      mediaId: 'media_stats_u',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
+    });
+    const bundle = await LinguisticService.speakers.getReferenceStats();
+    expect(bundle.unassigned).toEqual({
+      transcriptionUnitCount: 1,
+      segmentCount: 0,
+      totalCount: 1,
+    });
+    expect(Object.keys(bundle.perSpeaker)).toHaveLength(0);
+  });
+
+  it('filters speaker reference stats by mediaId', async () => {
+    const now = new Date().toISOString();
+    await LinguisticService.units.save({
+      id: 'utt_m_a',
+      textId: 'text_m',
+      mediaId: 'media_a',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await LinguisticService.units.save({
+      id: 'utt_m_b',
+      textId: 'text_m',
+      mediaId: 'media_b',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
+    });
+    const bundleA = await LinguisticService.speakers.getReferenceStats({ mediaId: 'media_a' });
+    expect(bundleA.unassigned.transcriptionUnitCount).toBe(1);
+    const bundleAll = await LinguisticService.speakers.getReferenceStats();
+    expect(bundleAll.unassigned.transcriptionUnitCount).toBe(2);
+  });
 
   it('supports token/morpheme lexeme links lifecycle', async () => {
-    await LinguisticService.saveTokenLexemeLink({
+    await LinguisticService.units.saveTokenLexemeLink({
       id: 'link_tok',
       targetType: 'token',
       targetId: 'tok_1',
@@ -1622,7 +1699,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveTokenLexemeLink({
+    await LinguisticService.units.saveTokenLexemeLink({
       id: 'link_mor',
       targetType: 'morpheme',
       targetId: 'mor_1',
@@ -1633,18 +1710,18 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    const tokenLinks = await LinguisticService.getTokenLexemeLinks('token', 'tok_1');
-    const morphemeLinks = await LinguisticService.getTokenLexemeLinks('morpheme', 'mor_1');
+    const tokenLinks = await LinguisticService.units.listTokenLexemeLinks('token', 'tok_1');
+    const morphemeLinks = await LinguisticService.units.listTokenLexemeLinks('morpheme', 'mor_1');
     expect(tokenLinks).toHaveLength(1);
     expect(morphemeLinks).toHaveLength(1);
 
-    await LinguisticService.removeTokenLexemeLinks('token', 'tok_1');
-    expect(await LinguisticService.getTokenLexemeLinks('token', 'tok_1')).toHaveLength(0);
-    expect(await LinguisticService.getTokenLexemeLinks('morpheme', 'mor_1')).toHaveLength(1);
+    await LinguisticService.units.removeTokenLexemeLinks('token', 'tok_1');
+    expect(await LinguisticService.units.listTokenLexemeLinks('token', 'tok_1')).toHaveLength(0);
+    expect(await LinguisticService.units.listTokenLexemeLinks('morpheme', 'mor_1')).toHaveLength(1);
   });
 
   it('generates import quality report with coverage and integrity metrics', async () => {
-    await LinguisticService.saveTranslationLayer({
+    await LinguisticService.layers.saveTranslation({
       id: 'layer_trc_quality',
       textId: 'text_quality',
       key: 'trc_quality',
@@ -1656,7 +1733,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveTranslationLayer({
+    await LinguisticService.layers.saveTranslation({
       id: 'layer_trl_quality',
       textId: 'text_quality',
       key: 'trl_quality',
@@ -1668,7 +1745,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_quality_1',
       textId: 'text_quality',
       startTime: 0,
@@ -1678,7 +1755,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveToken({
+    await LinguisticService.units.saveToken({
       id: 'tok_quality_1',
       textId: 'text_quality',
       unitId: 'utt_quality_1',
@@ -1689,7 +1766,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUnitText({
+    await LinguisticService.timeline.saveUnitText({
       id: 'utr_quality_trc',
       unitId: 'utt_quality_1',
       layerId: 'layer_trc_quality',
@@ -1700,7 +1777,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUnitText({
+    await LinguisticService.timeline.saveUnitText({
       id: 'utr_quality_trl',
       unitId: 'utt_quality_1',
       layerId: 'layer_trl_quality',
@@ -1712,7 +1789,12 @@ describe('LinguisticService smoke tests', () => {
     });
 
     // Add one orphan anchor and one orphan note
-    await db.anchors.put({ id: 'anc_orphan_quality', mediaId: 'media_orphan', time: 99, createdAt: NOW });
+    await db.anchors.put({
+      id: 'anc_orphan_quality',
+      mediaId: 'media_orphan',
+      time: 99,
+      createdAt: NOW,
+    });
     await db.user_notes.put({
       id: 'note_orphan_quality',
       targetType: 'token',
@@ -1723,7 +1805,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    const report = await LinguisticService.generateImportQualityReport('text_quality');
+    const report = await LinguisticService.imports.generateQualityReport('text_quality');
 
     expect(report.totals.units).toBe(1);
     expect(report.coverage.transcribedUnits).toBe(1);
@@ -1744,7 +1826,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_3',
       textId: 'text_2',
       startTime: 1,
@@ -1754,12 +1836,12 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const backup = await LinguisticService.exportToJSON();
+    const backup = await LinguisticService.database.exportToJSON();
 
     await db.layer_units.filter((u) => u.unitType === 'unit').delete();
     expect(await db.layer_units.filter((u) => u.unitType === 'unit').count()).toBe(0);
 
-    const report = await LinguisticService.importFromJSON(backup, 'upsert');
+    const report = await LinguisticService.database.importFromJSON(backup, 'upsert');
 
     expect(report.collections.layer_units?.written).toBeGreaterThan(0);
     expect(await db.layer_units.filter((u) => u.unitType === 'unit').count()).toBe(1);
@@ -1778,22 +1860,25 @@ describe('LinguisticService smoke tests', () => {
     });
 
     await expect(
-      LinguisticService.saveTierAnnotation({
-        id: 'ann_ai_guard',
-        tierId: 'tier_ai_guard',
-        value: 'x',
-        startTime: 0,
-        endTime: 1,
-        isVerified: false,
-        provenance: {
-          actorType: 'ai',
-          method: 'auto-gloss',
+      LinguisticService.tiers.saveAnnotation(
+        {
+          id: 'ann_ai_guard',
+          tierId: 'tier_ai_guard',
+          value: 'x',
+          startTime: 0,
+          endTime: 1,
+          isVerified: false,
+          provenance: {
+            actorType: 'ai',
+            method: 'auto-gloss',
+            createdAt: NOW,
+            reviewStatus: 'confirmed',
+          },
           createdAt: NOW,
-          reviewStatus: 'confirmed',
+          updatedAt: NOW,
         },
-        createdAt: NOW,
-        updatedAt: NOW,
-      }, 'ai'),
+        'ai',
+      ),
     ).rejects.toThrow(/confirmed.*AI/);
   });
 
@@ -1805,7 +1890,7 @@ describe('LinguisticService smoke tests', () => {
       { id: 'anc_e2', mediaId: 'media_batch', time: 2, createdAt: NOW },
     ]);
 
-    await LinguisticService.saveUnitsBatch([
+    await LinguisticService.units.saveBatch([
       {
         id: 'utt_batch_1',
         textId: 'text_batch',
@@ -1832,7 +1917,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.saveTokensBatch([
+    await LinguisticService.units.saveTokensBatch([
       {
         id: 'tok_batch_1',
         textId: 'text_batch',
@@ -1853,7 +1938,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.saveMorphemesBatch([
+    await LinguisticService.units.saveMorphemesBatch([
       {
         id: 'mor_batch_1',
         textId: 'text_batch',
@@ -1876,7 +1961,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.saveTokenLexemeLink({
+    await LinguisticService.units.saveTokenLexemeLink({
       id: 'link_batch_1',
       targetType: 'token',
       targetId: 'tok_batch_1',
@@ -1884,7 +1969,7 @@ describe('LinguisticService smoke tests', () => {
       createdAt: NOW,
       updatedAt: NOW,
     });
-    await LinguisticService.saveTokenLexemeLink({
+    await LinguisticService.units.saveTokenLexemeLink({
       id: 'link_batch_2',
       targetType: 'morpheme',
       targetId: 'mor_batch_2',
@@ -1894,7 +1979,7 @@ describe('LinguisticService smoke tests', () => {
     });
 
     await Promise.all([
-      LinguisticService.saveUnitText({
+      LinguisticService.timeline.saveUnitText({
         id: 'utr_batch_1',
         unitId: 'utt_batch_1',
         layerId: 'layer_batch',
@@ -1904,7 +1989,7 @@ describe('LinguisticService smoke tests', () => {
         createdAt: NOW,
         updatedAt: NOW,
       }),
-      LinguisticService.saveUnitText({
+      LinguisticService.timeline.saveUnitText({
         id: 'utr_batch_2',
         unitId: 'utt_batch_2',
         layerId: 'layer_batch',
@@ -1945,14 +2030,27 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.removeUnitsBatch(['utt_batch_1', 'utt_batch_2']);
+    await LinguisticService.cleanup.removeUnitsBatch(['utt_batch_1', 'utt_batch_2']);
 
     expect(await db.layer_units.where('id').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
-    expect(await db.unit_tokens.where('unitId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
-    expect(await db.unit_morphemes.where('unitId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
-    expect(await db.token_lexeme_links.where('id').anyOf(['link_batch_1', 'link_batch_2']).count()).toBe(0);
-    expect(await db.user_notes.where('id').anyOf(['note_u_batch_1', 'note_t_batch_1', 'note_m_batch_2']).count()).toBe(0);
-    expect(await db.anchors.where('id').anyOf(['anc_s1', 'anc_e1', 'anc_s2', 'anc_e2']).count()).toBe(0);
+    expect(await db.unit_tokens.where('unitId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(
+      0,
+    );
+    expect(
+      await db.unit_morphemes.where('unitId').anyOf(['utt_batch_1', 'utt_batch_2']).count(),
+    ).toBe(0);
+    expect(
+      await db.token_lexeme_links.where('id').anyOf(['link_batch_1', 'link_batch_2']).count(),
+    ).toBe(0);
+    expect(
+      await db.user_notes
+        .where('id')
+        .anyOf(['note_u_batch_1', 'note_t_batch_1', 'note_m_batch_2'])
+        .count(),
+    ).toBe(0);
+    expect(
+      await db.anchors.where('id').anyOf(['anc_s1', 'anc_e1', 'anc_s2', 'anc_e2']).count(),
+    ).toBe(0);
   });
 
   it('saveUnitsBatch rolls back canonical unit and content writes when primary_text batch persistence fails (ARCH-3)', async () => {
@@ -1965,29 +2063,35 @@ describe('LinguisticService smoke tests', () => {
     });
 
     try {
-      await expect(LinguisticService.saveUnitsBatch([
-        {
-          id: 'utt_arch3_batch_1',
-          textId,
-          mediaId: 'media_arch3_batch',
-          startTime: 0,
-          endTime: 1,
-          createdAt: now,
-          updatedAt: now,
-        },
-        {
-          id: 'utt_arch3_batch_2',
-          textId,
-          mediaId: 'media_arch3_batch',
-          startTime: 1,
-          endTime: 2,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ])).rejects.toThrow('content batch boom');
+      await expect(
+        LinguisticService.units.saveBatch([
+          {
+            id: 'utt_arch3_batch_1',
+            textId,
+            mediaId: 'media_arch3_batch',
+            startTime: 0,
+            endTime: 1,
+            createdAt: now,
+            updatedAt: now,
+          },
+          {
+            id: 'utt_arch3_batch_2',
+            textId,
+            mediaId: 'media_arch3_batch',
+            startTime: 1,
+            endTime: 2,
+            createdAt: now,
+            updatedAt: now,
+          },
+        ]),
+      ).rejects.toThrow('content batch boom');
 
-      await expect(db.layer_units.bulkGet(['utt_arch3_batch_1', 'utt_arch3_batch_2'])).resolves.toEqual([undefined, undefined]);
-      await expect(db.layer_unit_contents.where('textId').equals(textId).toArray()).resolves.toHaveLength(0);
+      await expect(
+        db.layer_units.bulkGet(['utt_arch3_batch_1', 'utt_arch3_batch_2']),
+      ).resolves.toEqual([undefined, undefined]);
+      await expect(
+        db.layer_unit_contents.where('textId').equals(textId).toArray(),
+      ).resolves.toHaveLength(0);
     } finally {
       bulkPutSpy.mockRestore();
     }
@@ -2018,7 +2122,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.saveUnitsBatch([
+    await LinguisticService.units.saveBatch([
       {
         id: 'utt_del_single',
         textId: 'text_del',
@@ -2041,7 +2145,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.saveTokensBatch([
+    await LinguisticService.units.saveTokensBatch([
       {
         id: 'tok_del_single',
         textId: 'text_del',
@@ -2062,7 +2166,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.saveMorphemesBatch([
+    await LinguisticService.units.saveMorphemesBatch([
       {
         id: 'mor_del_single',
         textId: 'text_del',
@@ -2120,30 +2224,51 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await expect(LinguisticService.removeUnit('utt_del_single')).resolves.toBeUndefined();
-    expect(await db.token_lexeme_links.where('id').anyOf(['link_del_single_tok', 'link_del_single_mor']).count()).toBe(0);
-    expect(await db.token_lexeme_links.where('id').anyOf(['link_del_audio_tok', 'link_del_audio_mor']).count()).toBe(2);
+    await expect(LinguisticService.cleanup.removeUnit('utt_del_single')).resolves.toBeUndefined();
+    expect(
+      await db.token_lexeme_links
+        .where('id')
+        .anyOf(['link_del_single_tok', 'link_del_single_mor'])
+        .count(),
+    ).toBe(0);
+    expect(
+      await db.token_lexeme_links
+        .where('id')
+        .anyOf(['link_del_audio_tok', 'link_del_audio_mor'])
+        .count(),
+    ).toBe(2);
 
-    await expect(LinguisticService.deleteAudio('media_del_audio')).resolves.toBeUndefined();
+    await expect(LinguisticService.cleanup.deleteAudio('media_del_audio')).resolves.toBeUndefined();
 
-    expect(await db.token_lexeme_links.where('id').anyOf(['link_del_audio_tok', 'link_del_audio_mor']).count()).toBe(2);
-    await expect(db.layer_units.get('utt_del_audio')).resolves.toEqual(expect.objectContaining({
-      startTime: 1,
-      endTime: 2,
-    }));
-    await expect(db.media_items.get('media_del_audio')).resolves.toEqual(expect.objectContaining({
-      filename: 'document-placeholder.track',
-      details: expect.objectContaining({
-        placeholder: true,
-        timelineMode: 'media',
+    expect(
+      await db.token_lexeme_links
+        .where('id')
+        .anyOf(['link_del_audio_tok', 'link_del_audio_mor'])
+        .count(),
+    ).toBe(2);
+    await expect(db.layer_units.get('utt_del_audio')).resolves.toEqual(
+      expect.objectContaining({
+        startTime: 1,
+        endTime: 2,
       }),
-    }));
-    await expect(db.texts.get('text_del')).resolves.toEqual(expect.objectContaining({
-      metadata: expect.objectContaining({
-        timelineMode: 'media',
-        timebaseLabel: 'logical-second',
+    );
+    await expect(db.media_items.get('media_del_audio')).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'document-placeholder.track',
+        details: expect.objectContaining({
+          placeholder: true,
+          timelineMode: 'media',
+        }),
       }),
-    }));
+    );
+    await expect(db.texts.get('text_del')).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          timelineMode: 'media',
+          timebaseLabel: 'logical-second',
+        }),
+      }),
+    );
   });
 
   it('promotes the existing placeholder media when importing audio into a pure-text project', async () => {
@@ -2175,7 +2300,7 @@ describe('LinguisticService smoke tests', () => {
       createdAt: now,
     });
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_doc_keep',
       textId: 'text_doc_import',
       mediaId: 'media_doc_placeholder',
@@ -2186,7 +2311,7 @@ describe('LinguisticService smoke tests', () => {
     });
 
     const blob = new Blob(['audio-data'], { type: 'audio/wav' });
-    const result = await LinguisticService.importAudio({
+    const result = await LinguisticService.media.importAudio({
       textId: 'text_doc_import',
       audioBlob: blob,
       filename: 'imported.wav',
@@ -2194,25 +2319,35 @@ describe('LinguisticService smoke tests', () => {
     });
 
     expect(result.mediaId).toBe('media_doc_placeholder');
-    await expect(db.media_items.where('textId').equals('text_doc_import').toArray()).resolves.toHaveLength(1);
-    await expect(db.media_items.get('media_doc_placeholder')).resolves.toEqual(expect.objectContaining({
-      filename: 'imported.wav',
-      duration: 18,
-      details: expect.objectContaining({
-        audioBlob: blob,
+    await expect(
+      db.media_items.where('textId').equals('text_doc_import').toArray(),
+    ).resolves.toHaveLength(1);
+    await expect(db.media_items.get('media_doc_placeholder')).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'imported.wav',
+        duration: 18,
+        details: expect.objectContaining({
+          audioBlob: blob,
+        }),
       }),
-    }));
-    await expect(db.layer_units.get('utt_doc_keep')).resolves.toEqual(expect.objectContaining({
-      mediaId: 'media_doc_placeholder',
-      startTime: 0,
-      endTime: 1.2,
-    }));
+    );
+    await expect(db.layer_units.get('utt_doc_keep')).resolves.toEqual(
+      expect.objectContaining({
+        mediaId: 'media_doc_placeholder',
+        startTime: 0,
+        endTime: 1.2,
+      }),
+    );
   });
 
   it('promotes placeholder timeline media even when auxiliary recording rows exist', async () => {
     const now = new Date().toISOString();
 
-    await seedDefaultTranscriptionLayerForText('text_doc_import_aux', 'layer_trc_doc_import_aux', now);
+    await seedDefaultTranscriptionLayerForText(
+      'text_doc_import_aux',
+      'layer_trc_doc_import_aux',
+      now,
+    );
     await db.texts.put({
       id: 'text_doc_import_aux',
       title: { default: 'Doc Import Aux' },
@@ -2254,7 +2389,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_doc_keep_aux',
       textId: 'text_doc_import_aux',
       mediaId: 'media_doc_placeholder_aux',
@@ -2265,7 +2400,7 @@ describe('LinguisticService smoke tests', () => {
     });
 
     const blob = new Blob(['audio-data-aux'], { type: 'audio/wav' });
-    const result = await LinguisticService.importAudio({
+    const result = await LinguisticService.media.importAudio({
       textId: 'text_doc_import_aux',
       audioBlob: blob,
       filename: 'imported-aux.wav',
@@ -2273,30 +2408,40 @@ describe('LinguisticService smoke tests', () => {
     });
 
     expect(result.mediaId).toBe('media_doc_placeholder_aux');
-    await expect(db.layer_units.get('utt_doc_keep_aux')).resolves.toEqual(expect.objectContaining({
-      mediaId: 'media_doc_placeholder_aux',
-      startTime: 0,
-      endTime: 1.2,
-    }));
-    await expect(db.media_items.get('media_doc_placeholder_aux')).resolves.toEqual(expect.objectContaining({
-      filename: 'imported-aux.wav',
-      duration: 18,
-      details: expect.objectContaining({
-        timelineKind: 'acoustic',
+    await expect(db.layer_units.get('utt_doc_keep_aux')).resolves.toEqual(
+      expect.objectContaining({
+        mediaId: 'media_doc_placeholder_aux',
+        startTime: 0,
+        endTime: 1.2,
       }),
-    }));
-    await expect(db.media_items.get('media_translation_recording_aux')).resolves.toEqual(expect.objectContaining({
-      filename: 'translation-audio.webm',
-      details: expect.objectContaining({
-        source: 'translation-recording',
+    );
+    await expect(db.media_items.get('media_doc_placeholder_aux')).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'imported-aux.wav',
+        duration: 18,
+        details: expect.objectContaining({
+          timelineKind: 'acoustic',
+        }),
       }),
-    }));
+    );
+    await expect(db.media_items.get('media_translation_recording_aux')).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'translation-audio.webm',
+        details: expect.objectContaining({
+          source: 'translation-recording',
+        }),
+      }),
+    );
   });
 
   it('promotes payload-empty legacy timeline row in place so text-only created segments remain visible after import', async () => {
     const now = new Date().toISOString();
 
-    await seedDefaultTranscriptionLayerForText('text_doc_legacy_payload_empty', 'layer_trc_doc_legacy_payload_empty', now);
+    await seedDefaultTranscriptionLayerForText(
+      'text_doc_legacy_payload_empty',
+      'layer_trc_doc_legacy_payload_empty',
+      now,
+    );
     await db.texts.put({
       id: 'text_doc_legacy_payload_empty',
       title: { default: 'Legacy payload empty row' },
@@ -2332,7 +2477,7 @@ describe('LinguisticService smoke tests', () => {
     });
 
     const blob = new Blob(['audio-data-legacy-payload-empty'], { type: 'audio/wav' });
-    const result = await LinguisticService.importAudio({
+    const result = await LinguisticService.media.importAudio({
       textId: 'text_doc_legacy_payload_empty',
       audioBlob: blob,
       filename: 'imported-legacy.wav',
@@ -2340,19 +2485,25 @@ describe('LinguisticService smoke tests', () => {
     });
 
     expect(result.mediaId).toBe('media_doc_legacy_payload_empty');
-    await expect(db.media_items.where('textId').equals('text_doc_legacy_payload_empty').toArray()).resolves.toHaveLength(1);
-    await expect(db.layer_units.get('seg_doc_keep_legacy_payload_empty')).resolves.toEqual(expect.objectContaining({
-      mediaId: 'media_doc_legacy_payload_empty',
-      startTime: 0,
-      endTime: 1.2,
-    }));
-    await expect(db.media_items.get('media_doc_legacy_payload_empty')).resolves.toEqual(expect.objectContaining({
-      filename: 'imported-legacy.wav',
-      duration: 18,
-      details: expect.objectContaining({
-        timelineKind: 'acoustic',
+    await expect(
+      db.media_items.where('textId').equals('text_doc_legacy_payload_empty').toArray(),
+    ).resolves.toHaveLength(1);
+    await expect(db.layer_units.get('seg_doc_keep_legacy_payload_empty')).resolves.toEqual(
+      expect.objectContaining({
+        mediaId: 'media_doc_legacy_payload_empty',
+        startTime: 0,
+        endTime: 1.2,
       }),
-    }));
+    );
+    await expect(db.media_items.get('media_doc_legacy_payload_empty')).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'imported-legacy.wav',
+        duration: 18,
+        details: expect.objectContaining({
+          timelineKind: 'acoustic',
+        }),
+      }),
+    );
   });
 
   it('keeps both pre-import and post-import segments on one placeholder timeline after deleting audio', async () => {
@@ -2397,7 +2548,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_doc_old',
       textId: 'text_doc_merge',
       mediaId: 'media_doc_old',
@@ -2406,7 +2557,7 @@ describe('LinguisticService smoke tests', () => {
       createdAt: now,
       updatedAt: now,
     });
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_doc_new',
       textId: 'text_doc_merge',
       mediaId: 'media_doc_new',
@@ -2416,32 +2567,42 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.deleteAudio('media_doc_new');
+    await LinguisticService.cleanup.deleteAudio('media_doc_new');
 
-    await expect(db.layer_units.get('utt_doc_old')).resolves.toEqual(expect.objectContaining({
-      mediaId: 'media_doc_new',
-      startTime: 2,
-      endTime: 4,
-    }));
-    await expect(db.layer_units.get('utt_doc_new')).resolves.toEqual(expect.objectContaining({
-      mediaId: 'media_doc_new',
-      startTime: 10,
-      endTime: 12,
-    }));
-    await expect(db.media_items.where('textId').equals('text_doc_merge').toArray()).resolves.toHaveLength(1);
-    await expect(db.media_items.get('media_doc_new')).resolves.toEqual(expect.objectContaining({
-      filename: 'document-placeholder.track',
-      details: expect.objectContaining({
-        placeholder: true,
-        timelineMode: 'media',
+    await expect(db.layer_units.get('utt_doc_old')).resolves.toEqual(
+      expect.objectContaining({
+        mediaId: 'media_doc_new',
+        startTime: 2,
+        endTime: 4,
       }),
-    }));
-    await expect(db.texts.get('text_doc_merge')).resolves.toEqual(expect.objectContaining({
-      metadata: expect.objectContaining({
-        timelineMode: 'media',
-        logicalDurationSec: 40,
+    );
+    await expect(db.layer_units.get('utt_doc_new')).resolves.toEqual(
+      expect.objectContaining({
+        mediaId: 'media_doc_new',
+        startTime: 10,
+        endTime: 12,
       }),
-    }));
+    );
+    await expect(
+      db.media_items.where('textId').equals('text_doc_merge').toArray(),
+    ).resolves.toHaveLength(1);
+    await expect(db.media_items.get('media_doc_new')).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'document-placeholder.track',
+        details: expect.objectContaining({
+          placeholder: true,
+          timelineMode: 'media',
+        }),
+      }),
+    );
+    await expect(db.texts.get('text_doc_merge')).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          timelineMode: 'media',
+          logicalDurationSec: 40,
+        }),
+      }),
+    );
   });
 
   it('deleteAudio preserves timelineMode media and importAudio keeps media metadata', async () => {
@@ -2467,7 +2628,7 @@ describe('LinguisticService smoke tests', () => {
       isOfflineCached: true,
       createdAt: now,
     });
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_media_rt',
       textId: 'text_media_roundtrip',
       mediaId: 'media_media_rt',
@@ -2477,47 +2638,57 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.deleteAudio('media_media_rt');
+    await LinguisticService.cleanup.deleteAudio('media_media_rt');
 
-    await expect(db.texts.get('text_media_roundtrip')).resolves.toEqual(expect.objectContaining({
-      metadata: expect.objectContaining({
-        timelineMode: 'media',
-        logicalDurationSec: 60,
-        timebaseLabel: 'logical-second',
+    await expect(db.texts.get('text_media_roundtrip')).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          timelineMode: 'media',
+          logicalDurationSec: 60,
+          timebaseLabel: 'logical-second',
+        }),
       }),
-    }));
-    await expect(db.media_items.get('media_media_rt')).resolves.toEqual(expect.objectContaining({
-      filename: 'document-placeholder.track',
-      details: expect.objectContaining({
-        placeholder: true,
-        timelineMode: 'media',
-        timelineKind: 'placeholder',
+    );
+    await expect(db.media_items.get('media_media_rt')).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'document-placeholder.track',
+        details: expect.objectContaining({
+          placeholder: true,
+          timelineMode: 'media',
+          timelineKind: 'placeholder',
+        }),
       }),
-    }));
+    );
 
     const blob2 = new Blob(['y'], { type: 'audio/wav' });
-    await LinguisticService.importAudio({
+    await LinguisticService.media.importAudio({
       textId: 'text_media_roundtrip',
       audioBlob: blob2,
       filename: 'reimport.wav',
       duration: 30,
     });
 
-    await expect(db.texts.get('text_media_roundtrip')).resolves.toEqual(expect.objectContaining({
-      metadata: expect.objectContaining({
-        timelineMode: 'media',
-        logicalDurationSec: 30,
+    await expect(db.texts.get('text_media_roundtrip')).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          timelineMode: 'media',
+          logicalDurationSec: 30,
+        }),
       }),
-    }));
-    await expect(db.layer_units.get('utt_media_rt')).resolves.toEqual(expect.objectContaining({
-      startTime: 0,
-      endTime: 2.5,
-    }));
-    await expect(db.media_items.get('media_media_rt')).resolves.toEqual(expect.objectContaining({
-      filename: 'reimport.wav',
-      duration: 30,
-      details: expect.objectContaining({ audioBlob: blob2, timelineKind: 'acoustic' }),
-    }));
+    );
+    await expect(db.layer_units.get('utt_media_rt')).resolves.toEqual(
+      expect.objectContaining({
+        startTime: 0,
+        endTime: 2.5,
+      }),
+    );
+    await expect(db.media_items.get('media_media_rt')).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'reimport.wav',
+        duration: 30,
+        details: expect.objectContaining({ audioBlob: blob2, timelineKind: 'acoustic' }),
+      }),
+    );
   });
 
   it('deleteAudio keeps unit times beyond deleted clip duration (logical axis grows, no rescaling)', async () => {
@@ -2543,7 +2714,7 @@ describe('LinguisticService smoke tests', () => {
       isOfflineCached: true,
       createdAt: now,
     });
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_long_span',
       textId: 'text_del_long_span',
       mediaId: 'media_del_short',
@@ -2554,18 +2725,22 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.deleteAudio('media_del_short');
+    await LinguisticService.cleanup.deleteAudio('media_del_short');
 
-    await expect(db.layer_units.get('utt_long_span')).resolves.toEqual(expect.objectContaining({
-      mediaId: 'media_del_short',
-      startTime: 3.5,
-      endTime: 102.75,
-    }));
-    await expect(db.texts.get('text_del_long_span')).resolves.toEqual(expect.objectContaining({
-      metadata: expect.objectContaining({
-        logicalDurationSec: 102.75,
+    await expect(db.layer_units.get('utt_long_span')).resolves.toEqual(
+      expect.objectContaining({
+        mediaId: 'media_del_short',
+        startTime: 3.5,
+        endTime: 102.75,
       }),
-    }));
+    );
+    await expect(db.texts.get('text_del_long_span')).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          logicalDurationSec: 102.75,
+        }),
+      }),
+    );
   });
 
   it('createPlaceholderMedia writes details.timelineKind placeholder', async () => {
@@ -2576,15 +2751,23 @@ describe('LinguisticService smoke tests', () => {
       createdAt: now,
       updatedAt: now,
     });
-    await seedDefaultTranscriptionLayerForText('text_ph_timeline_kind', 'layer_trc_ph_timeline_kind', now);
-    const media = await LinguisticService.createPlaceholderMedia({ textId: 'text_ph_timeline_kind' });
-    await expect(db.media_items.get(media.id)).resolves.toEqual(expect.objectContaining({
-      details: expect.objectContaining({
-        placeholder: true,
-        timelineMode: 'document',
-        timelineKind: 'placeholder',
+    await seedDefaultTranscriptionLayerForText(
+      'text_ph_timeline_kind',
+      'layer_trc_ph_timeline_kind',
+      now,
+    );
+    const media = await LinguisticService.media.createPlaceholder({
+      textId: 'text_ph_timeline_kind',
+    });
+    await expect(db.media_items.get(media.id)).resolves.toEqual(
+      expect.objectContaining({
+        details: expect.objectContaining({
+          placeholder: true,
+          timelineMode: 'document',
+          timelineKind: 'placeholder',
+        }),
       }),
-    }));
+    );
   });
 
   it('expandTextLogicalDurationToAtLeast bumps logicalDurationSec upward and no-ops otherwise', async () => {
@@ -2597,19 +2780,37 @@ describe('LinguisticService smoke tests', () => {
       createdAt: now,
       updatedAt: now,
     });
-    await LinguisticService.expandTextLogicalDurationToAtLeast({ textId: 'missing_text_expand', minLogicalDurationSec: 50 });
-    await LinguisticService.expandTextLogicalDurationToAtLeast({ textId, minLogicalDurationSec: 0 });
-    await expect(db.texts.get(textId)).resolves.toEqual(expect.objectContaining({
-      metadata: expect.objectContaining({ logicalDurationSec: 10, timelineMode: 'document' }),
-    }));
-    await LinguisticService.expandTextLogicalDurationToAtLeast({ textId, minLogicalDurationSec: 25 });
-    await expect(db.texts.get(textId)).resolves.toEqual(expect.objectContaining({
-      metadata: expect.objectContaining({ logicalDurationSec: 25, timelineMode: 'document' }),
-    }));
-    await LinguisticService.expandTextLogicalDurationToAtLeast({ textId, minLogicalDurationSec: 20 });
-    await expect(db.texts.get(textId)).resolves.toEqual(expect.objectContaining({
-      metadata: expect.objectContaining({ logicalDurationSec: 25 }),
-    }));
+    await LinguisticService.media.expandTextLogicalDurationToAtLeast({
+      textId: 'missing_text_expand',
+      minLogicalDurationSec: 50,
+    });
+    await LinguisticService.media.expandTextLogicalDurationToAtLeast({
+      textId,
+      minLogicalDurationSec: 0,
+    });
+    await expect(db.texts.get(textId)).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ logicalDurationSec: 10, timelineMode: 'document' }),
+      }),
+    );
+    await LinguisticService.media.expandTextLogicalDurationToAtLeast({
+      textId,
+      minLogicalDurationSec: 25,
+    });
+    await expect(db.texts.get(textId)).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ logicalDurationSec: 25, timelineMode: 'document' }),
+      }),
+    );
+    await LinguisticService.media.expandTextLogicalDurationToAtLeast({
+      textId,
+      minLogicalDurationSec: 20,
+    });
+    await expect(db.texts.get(textId)).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ logicalDurationSec: 25 }),
+      }),
+    );
   });
 
   it('getMediaItemsByTextId backfills explicit timelineKind for legacy media rows', async () => {
@@ -2647,20 +2848,28 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    const mediaItems = await LinguisticService.getMediaItemsByTextId(textId);
-    expect(mediaItems.find((row) => row.id === 'media_backfill_placeholder')).toEqual(expect.objectContaining({
-      details: expect.objectContaining({ timelineKind: 'placeholder' }),
-    }));
-    expect(mediaItems.find((row) => row.id === 'media_backfill_acoustic')).toEqual(expect.objectContaining({
-      details: expect.objectContaining({ timelineKind: 'acoustic' }),
-    }));
+    const mediaItems = await LinguisticService.media.listByTextId(textId);
+    expect(mediaItems.find((row) => row.id === 'media_backfill_placeholder')).toEqual(
+      expect.objectContaining({
+        details: expect.objectContaining({ timelineKind: 'placeholder' }),
+      }),
+    );
+    expect(mediaItems.find((row) => row.id === 'media_backfill_acoustic')).toEqual(
+      expect.objectContaining({
+        details: expect.objectContaining({ timelineKind: 'acoustic' }),
+      }),
+    );
 
-    await expect(db.media_items.get('media_backfill_placeholder')).resolves.toEqual(expect.objectContaining({
-      details: expect.objectContaining({ timelineKind: 'placeholder' }),
-    }));
-    await expect(db.media_items.get('media_backfill_acoustic')).resolves.toEqual(expect.objectContaining({
-      details: expect.objectContaining({ timelineKind: 'acoustic' }),
-    }));
+    await expect(db.media_items.get('media_backfill_placeholder')).resolves.toEqual(
+      expect.objectContaining({
+        details: expect.objectContaining({ timelineKind: 'placeholder' }),
+      }),
+    );
+    await expect(db.media_items.get('media_backfill_acoustic')).resolves.toEqual(
+      expect.objectContaining({
+        details: expect.objectContaining({ timelineKind: 'acoustic' }),
+      }),
+    );
   });
 
   it('importAudio rescales layer_units when first acoustic bind span exceeds file duration', async () => {
@@ -2688,7 +2897,7 @@ describe('LinguisticService smoke tests', () => {
       isOfflineCached: true,
       createdAt: now,
     });
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_import_no_rescale',
       textId,
       mediaId,
@@ -2698,7 +2907,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.importAudio({
+    await LinguisticService.media.importAudio({
       textId,
       audioBlob: new Blob(['z'], { type: 'audio/wav' }),
       filename: 'short.wav',
@@ -2707,14 +2916,18 @@ describe('LinguisticService smoke tests', () => {
 
     const unit = await db.layer_units.get('utt_import_no_rescale');
     expect(unit).toMatchObject({ startTime: 0, endTime: 9.3, mediaId });
-    await expect(db.texts.get(textId)).resolves.toEqual(expect.objectContaining({
-      metadata: expect.objectContaining({ logicalDurationSec: 12 }),
-    }));
-    await expect(db.media_items.get(mediaId)).resolves.toEqual(expect.objectContaining({
-      filename: 'short.wav',
-      duration: 12,
-      details: expect.objectContaining({ timelineKind: 'acoustic' }),
-    }));
+    await expect(db.texts.get(textId)).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ logicalDurationSec: 12 }),
+      }),
+    );
+    await expect(db.media_items.get(mediaId)).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'short.wav',
+        duration: 12,
+        details: expect.objectContaining({ timelineKind: 'acoustic' }),
+      }),
+    );
   });
 
   it('importAudio rolls back placeholder promotion and remap when metadata write fails (ARCH-3)', async () => {
@@ -2748,7 +2961,7 @@ describe('LinguisticService smoke tests', () => {
       time: 100,
       createdAt: now,
     });
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_arch3_import_audio',
       textId,
       mediaId,
@@ -2763,26 +2976,34 @@ describe('LinguisticService smoke tests', () => {
     });
 
     try {
-      await expect(LinguisticService.importAudio({
-        textId,
-        audioBlob: new Blob(['arch3'], { type: 'audio/wav' }),
-        filename: 'arch3.wav',
-        duration: 12,
-      })).rejects.toThrow('timeline metadata boom');
+      await expect(
+        LinguisticService.media.importAudio({
+          textId,
+          audioBlob: new Blob(['arch3'], { type: 'audio/wav' }),
+          filename: 'arch3.wav',
+          duration: 12,
+        }),
+      ).rejects.toThrow('timeline metadata boom');
 
-      await expect(db.media_items.get(mediaId)).resolves.toEqual(expect.objectContaining({
-        filename: 'document-placeholder.track',
-        duration: 400,
-        details: expect.objectContaining({ placeholder: true, timelineKind: 'placeholder' }),
-      }));
-      await expect(db.layer_units.get('utt_arch3_import_audio')).resolves.toEqual(expect.objectContaining({
-        mediaId,
-        startTime: 10,
-        endTime: 320,
-      }));
-      await expect(db.anchors.get('anchor_arch3_import_audio')).resolves.toEqual(expect.objectContaining({
-        time: 100,
-      }));
+      await expect(db.media_items.get(mediaId)).resolves.toEqual(
+        expect.objectContaining({
+          filename: 'document-placeholder.track',
+          duration: 400,
+          details: expect.objectContaining({ placeholder: true, timelineKind: 'placeholder' }),
+        }),
+      );
+      await expect(db.layer_units.get('utt_arch3_import_audio')).resolves.toEqual(
+        expect.objectContaining({
+          mediaId,
+          startTime: 10,
+          endTime: 320,
+        }),
+      );
+      await expect(db.anchors.get('anchor_arch3_import_audio')).resolves.toEqual(
+        expect.objectContaining({
+          time: 100,
+        }),
+      );
     } finally {
       textPutSpy.mockRestore();
     }
@@ -2810,7 +3031,7 @@ describe('LinguisticService smoke tests', () => {
       createdAt: now,
     });
     const blob = new Blob(['b'], { type: 'audio/wav' });
-    const result = await LinguisticService.importAudio({
+    const result = await LinguisticService.media.importAudio({
       textId,
       audioBlob: blob,
       filename: 'second.wav',
@@ -2821,14 +3042,18 @@ describe('LinguisticService smoke tests', () => {
     const rows = await db.media_items.where('textId').equals(textId).toArray();
     expect(rows).toHaveLength(2);
     const second = await db.media_items.get(result.mediaId);
-    expect(second).toEqual(expect.objectContaining({
-      filename: 'second.wav',
-      duration: 40,
-      details: expect.objectContaining({ audioBlob: blob, timelineKind: 'acoustic' }),
-    }));
-    await expect(db.media_items.get('media_first_acoustic')).resolves.toEqual(expect.objectContaining({
-      filename: 'first.wav',
-    }));
+    expect(second).toEqual(
+      expect.objectContaining({
+        filename: 'second.wav',
+        duration: 40,
+        details: expect.objectContaining({ audioBlob: blob, timelineKind: 'acoustic' }),
+      }),
+    );
+    await expect(db.media_items.get('media_first_acoustic')).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'first.wav',
+      }),
+    );
   });
 
   it('importAudio importMode replace overwrites the targeted acoustic row in place', async () => {
@@ -2853,7 +3078,7 @@ describe('LinguisticService smoke tests', () => {
       createdAt: now,
     });
     const blob = new Blob(['new'], { type: 'audio/wav' });
-    const result = await LinguisticService.importAudio({
+    const result = await LinguisticService.media.importAudio({
       textId,
       audioBlob: blob,
       filename: 'new.wav',
@@ -2863,11 +3088,13 @@ describe('LinguisticService smoke tests', () => {
     });
     expect(result.mediaId).toBe('media_replace_target');
     await expect(db.media_items.where('textId').equals(textId).count()).resolves.toBe(1);
-    await expect(db.media_items.get('media_replace_target')).resolves.toEqual(expect.objectContaining({
-      filename: 'new.wav',
-      duration: 22,
-      details: expect.objectContaining({ audioBlob: blob, timelineKind: 'acoustic' }),
-    }));
+    await expect(db.media_items.get('media_replace_target')).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'new.wav',
+        duration: 22,
+        details: expect.objectContaining({ audioBlob: blob, timelineKind: 'acoustic' }),
+      }),
+    );
   });
 
   it('importAudio importMode replace without replaceMediaId throws', async () => {
@@ -2881,13 +3108,15 @@ describe('LinguisticService smoke tests', () => {
       createdAt: now,
       updatedAt: now,
     });
-    await expect(LinguisticService.importAudio({
-      textId,
-      audioBlob: new Blob(['x'], { type: 'audio/wav' }),
-      filename: 'x.wav',
-      duration: 1,
-      importMode: 'replace',
-    })).rejects.toThrow(/replaceMediaId/);
+    await expect(
+      LinguisticService.media.importAudio({
+        textId,
+        audioBlob: new Blob(['x'], { type: 'audio/wav' }),
+        filename: 'x.wav',
+        duration: 1,
+        importMode: 'replace',
+      }),
+    ).rejects.toThrow(/replaceMediaId/);
   });
 
   it('importAudio importMode replace with unknown replaceMediaId throws', async () => {
@@ -2901,20 +3130,22 @@ describe('LinguisticService smoke tests', () => {
       createdAt: now,
       updatedAt: now,
     });
-    await expect(LinguisticService.importAudio({
-      textId,
-      audioBlob: new Blob(['x'], { type: 'audio/wav' }),
-      filename: 'x.wav',
-      duration: 1,
-      importMode: 'replace',
-      replaceMediaId: 'missing-id',
-    })).rejects.toThrow(/replaceMediaId/);
+    await expect(
+      LinguisticService.media.importAudio({
+        textId,
+        audioBlob: new Blob(['x'], { type: 'audio/wav' }),
+        filename: 'x.wav',
+        duration: 1,
+        importMode: 'replace',
+        replaceMediaId: 'missing-id',
+      }),
+    ).rejects.toThrow(/replaceMediaId/);
   });
 
   // ── Regression guard: segmentation text queries ──────
 
   it('regression: saveUnitText round-trips via layer-field index', async () => {
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_layer_rt',
       textId: 'text_layer_rt',
       startTime: 0,
@@ -2924,7 +3155,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUnitText({
+    await LinguisticService.timeline.saveUnitText({
       id: 'utr_layer_rt_1',
       unitId: 'utt_layer_rt',
       layerId: 'layer_trc_rt',
@@ -2935,7 +3166,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUnitText({
+    await LinguisticService.timeline.saveUnitText({
       id: 'utr_layer_rt_2',
       unitId: 'utt_layer_rt',
       layerId: 'layer_trl_rt',
@@ -2947,7 +3178,7 @@ describe('LinguisticService smoke tests', () => {
     });
 
     // Query by unitId should return both (via V2 read path)
-    const texts = await LinguisticService.getUnitTexts('utt_layer_rt');
+    const texts = await LinguisticService.timeline.listUnitTexts('utt_layer_rt');
     expect(texts).toHaveLength(2);
 
     // Canonical layer_unit_contents should have both entries
@@ -2960,8 +3191,8 @@ describe('LinguisticService smoke tests', () => {
     expect(helloRows[0]!.text).toBe('hello');
 
     // Cascade delete via removeUnit should clean up V2 entries
-    await LinguisticService.removeUnit('utt_layer_rt');
-    const remaining = await LinguisticService.getUnitTexts('utt_layer_rt');
+    await LinguisticService.cleanup.removeUnit('utt_layer_rt');
+    const remaining = await LinguisticService.timeline.listUnitTexts('utt_layer_rt');
     expect(remaining).toHaveLength(0);
   });
 
@@ -2973,7 +3204,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_cascade_ut_1',
       textId: 'text_cascade_ut',
       startTime: 0,
@@ -2983,7 +3214,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUnitText({
+    await LinguisticService.timeline.saveUnitText({
       id: 'utr_cascade_ut_1',
       unitId: 'utt_cascade_ut_1',
       layerId: 'layer_cascade',
@@ -2997,7 +3228,7 @@ describe('LinguisticService smoke tests', () => {
     // Canonical graph should have the content after save
     expect(await db.layer_unit_contents.count()).toBeGreaterThan(0);
 
-    await LinguisticService.deleteProject('text_cascade_ut');
+    await LinguisticService.cleanup.deleteProject('text_cascade_ut');
 
     // Canonical cascade should clean up segment contents
     expect(await db.layer_unit_contents.where('layerId').equals('layer_cascade').count()).toBe(0);
@@ -3005,7 +3236,7 @@ describe('LinguisticService smoke tests', () => {
   });
 
   it('regression: upsertLanguageCatalogEntry clears explicitly blank persisted fields', async () => {
-    await LinguisticService.upsertLanguageCatalogEntry({
+    await LinguisticService.languageCatalog.upsertEntry({
       id: 'user:demo-language',
       languageCode: 'demo',
       locale: 'zh-CN',
@@ -3050,7 +3281,9 @@ describe('LinguisticService smoke tests', () => {
       languageType: undefined,
     };
 
-    await LinguisticService.upsertLanguageCatalogEntry(clearInput as Parameters<typeof LinguisticService.upsertLanguageCatalogEntry>[0]);
+    await LinguisticService.languageCatalog.upsertEntry(
+      clearInput as Parameters<typeof LinguisticService.languageCatalog.upsertEntry>[0],
+    );
 
     const saved = await db.languages.get('user:demo-language');
     expect(saved).toBeTruthy();
@@ -3069,12 +3302,16 @@ describe('LinguisticService smoke tests', () => {
     expect(saved?.scope).toBeUndefined();
     expect(saved?.modality).toBeUndefined();
     expect(saved?.languageType).toBeUndefined();
-    expect(await db.language_display_names.where('languageId').equals('user:demo-language').count()).toBe(0);
-    expect(await db.language_aliases.where('languageId').equals('user:demo-language').count()).toBe(0);
+    expect(
+      await db.language_display_names.where('languageId').equals('user:demo-language').count(),
+    ).toBe(0);
+    expect(await db.language_aliases.where('languageId').equals('user:demo-language').count()).toBe(
+      0,
+    );
   });
 
   it('regression: upsertLanguageCatalogEntry replaces custom fields so single-key clears persist', async () => {
-    await LinguisticService.upsertLanguageCatalogEntry({
+    await LinguisticService.languageCatalog.upsertEntry({
       id: 'user:custom-fields-language',
       languageCode: 'cfl',
       locale: 'zh-CN',
@@ -3086,7 +3323,7 @@ describe('LinguisticService smoke tests', () => {
       },
     });
 
-    await LinguisticService.upsertLanguageCatalogEntry({
+    await LinguisticService.languageCatalog.upsertEntry({
       id: 'user:custom-fields-language',
       languageCode: 'cfl',
       locale: 'zh-CN',
@@ -3102,16 +3339,16 @@ describe('LinguisticService smoke tests', () => {
   });
 
   it('regression: deleting a custom field definition cascades persisted language values', async () => {
-    const keepDefinition = await LinguisticService.upsertCustomFieldDefinition({
+    const keepDefinition = await LinguisticService.languageCatalog.upsertCustomFieldDefinition({
       name: { 'zh-CN': '保留字段' },
       fieldType: 'text',
     });
-    const removedDefinition = await LinguisticService.upsertCustomFieldDefinition({
+    const removedDefinition = await LinguisticService.languageCatalog.upsertCustomFieldDefinition({
       name: { 'zh-CN': '删除字段' },
       fieldType: 'text',
     });
 
-    await LinguisticService.upsertLanguageCatalogEntry({
+    await LinguisticService.languageCatalog.upsertEntry({
       id: 'user:custom-field-delete',
       languageCode: 'cfd',
       locale: 'zh-CN',
@@ -3123,14 +3360,14 @@ describe('LinguisticService smoke tests', () => {
       },
     });
 
-    await LinguisticService.deleteCustomFieldDefinition(removedDefinition.id);
+    await LinguisticService.languageCatalog.deleteCustomFieldDefinition(removedDefinition.id);
 
     const saved = await db.languages.get('user:custom-field-delete');
     expect(saved?.customFields).toEqual({
       [keepDefinition.id]: 'keep',
     });
 
-    const entry = await LinguisticService.getLanguageCatalogEntry({
+    const entry = await LinguisticService.languageCatalog.getEntry({
       languageId: 'user:custom-field-delete',
       locale: 'zh-CN',
     });
@@ -3140,12 +3377,12 @@ describe('LinguisticService smoke tests', () => {
   });
 
   it('regression: deleting the last custom field definition removes persisted customFields entirely', async () => {
-    const removedDefinition = await LinguisticService.upsertCustomFieldDefinition({
+    const removedDefinition = await LinguisticService.languageCatalog.upsertCustomFieldDefinition({
       name: { 'zh-CN': '唯一字段' },
       fieldType: 'text',
     });
 
-    await LinguisticService.upsertLanguageCatalogEntry({
+    await LinguisticService.languageCatalog.upsertEntry({
       id: 'user:custom-field-delete-last',
       languageCode: 'cfe',
       locale: 'zh-CN',
@@ -3156,12 +3393,12 @@ describe('LinguisticService smoke tests', () => {
       },
     });
 
-    await LinguisticService.deleteCustomFieldDefinition(removedDefinition.id);
+    await LinguisticService.languageCatalog.deleteCustomFieldDefinition(removedDefinition.id);
 
     const saved = await db.languages.get('user:custom-field-delete-last');
     expect(saved?.customFields).toBeUndefined();
 
-    const entry = await LinguisticService.getLanguageCatalogEntry({
+    const entry = await LinguisticService.languageCatalog.getEntry({
       languageId: 'user:custom-field-delete-last',
       locale: 'zh-CN',
     });
@@ -3169,18 +3406,20 @@ describe('LinguisticService smoke tests', () => {
   });
 
   it('rejects conflicting or highly ambiguous aliases before saving', async () => {
-    await expect(LinguisticService.upsertLanguageCatalogEntry({
-      id: 'user:conflict-language',
-      languageCode: 'demo',
-      locale: 'zh-CN',
-      localName: '冲突语言',
-      englishName: 'Conflict Language',
-      aliases: ['Chinese'],
-    })).rejects.toThrow('别名“Chinese”属于高频泛称');
+    await expect(
+      LinguisticService.languageCatalog.upsertEntry({
+        id: 'user:conflict-language',
+        languageCode: 'demo',
+        locale: 'zh-CN',
+        localName: '冲突语言',
+        englishName: 'Conflict Language',
+        aliases: ['Chinese'],
+      }),
+    ).rejects.toThrow('别名“Chinese”属于高频泛称');
   });
 
   it('rehydrates the runtime language read model from persisted catalog data', async () => {
-    await LinguisticService.upsertLanguageCatalogEntry({
+    await LinguisticService.languageCatalog.upsertEntry({
       id: 'user:demo-language',
       languageCode: 'demo',
       locale: 'zh-CN',
@@ -3193,15 +3432,19 @@ describe('LinguisticService smoke tests', () => {
     expect(getLanguageLocalDisplayNameFromCatalog('demo', 'zh-CN')).toBeUndefined();
     expect(resolveLanguageQuery('示例别名')).toBeUndefined();
 
-    await LinguisticService.refreshLanguageCatalogReadModel();
+    await LinguisticService.languageCatalog.refreshReadModel();
 
     expect(getLanguageLocalDisplayNameFromCatalog('demo', 'zh-CN')).toBe('示例语言');
     expect(resolveLanguageQuery('示例别名')).toBe('demo');
   });
 
   it('regression: refreshLanguageCatalogReadModel stays isolated from active layer_units transactions', async () => {
-    await seedDefaultTranscriptionLayerForText('text_lang_cache_txn', 'layer_trc_lang_cache_txn', NOW);
-    await LinguisticService.saveUnit({
+    await seedDefaultTranscriptionLayerForText(
+      'text_lang_cache_txn',
+      'layer_trc_lang_cache_txn',
+      NOW,
+    );
+    await LinguisticService.units.save({
       id: 'utt_lang_cache_txn',
       textId: 'text_lang_cache_txn',
       startTime: 0,
@@ -3210,7 +3453,7 @@ describe('LinguisticService smoke tests', () => {
       createdAt: NOW,
       updatedAt: NOW,
     });
-    await LinguisticService.upsertLanguageCatalogEntry({
+    await LinguisticService.languageCatalog.upsertEntry({
       id: 'user:txn-language',
       languageCode: 'txn',
       locale: 'zh-CN',
@@ -3221,23 +3464,25 @@ describe('LinguisticService smoke tests', () => {
 
     clearLanguageCatalogRuntimeCache();
 
-    await expect(db.transaction('rw', db.layer_units, async () => {
-      const beforeRefresh = await db.layer_units.get('utt_lang_cache_txn');
-      expect(beforeRefresh).toEqual(expect.objectContaining({ id: 'utt_lang_cache_txn' }));
+    await expect(
+      db.transaction('rw', db.layer_units, async () => {
+        const beforeRefresh = await db.layer_units.get('utt_lang_cache_txn');
+        expect(beforeRefresh).toEqual(expect.objectContaining({ id: 'utt_lang_cache_txn' }));
 
-      await LinguisticService.refreshLanguageCatalogReadModel();
+        await LinguisticService.languageCatalog.refreshReadModel();
 
-      const afterRefresh = await db.layer_units.get('utt_lang_cache_txn');
-      expect(afterRefresh).toEqual(expect.objectContaining({ id: 'utt_lang_cache_txn' }));
-    })).resolves.toBeUndefined();
+        const afterRefresh = await db.layer_units.get('utt_lang_cache_txn');
+        expect(afterRefresh).toEqual(expect.objectContaining({ id: 'utt_lang_cache_txn' }));
+      }),
+    ).resolves.toBeUndefined();
 
-    await LinguisticService.refreshLanguageCatalogReadModel();
+    await LinguisticService.languageCatalog.refreshReadModel();
     expect(getLanguageLocalDisplayNameFromCatalog('txn', 'zh-CN')).toBe('事务语言');
     expect(resolveLanguageQuery('事务别名')).toBe('txn');
   });
 
   it('records detailed changed fields and reason in language catalog history', async () => {
-    await LinguisticService.upsertLanguageCatalogEntry({
+    await LinguisticService.languageCatalog.upsertEntry({
       id: 'user:history-language',
       languageCode: 'hst',
       locale: 'zh-CN',
@@ -3247,7 +3492,7 @@ describe('LinguisticService smoke tests', () => {
       reason: '初始化自定义语言条目',
     });
 
-    await LinguisticService.upsertLanguageCatalogEntry({
+    await LinguisticService.languageCatalog.upsertEntry({
       id: 'user:history-language',
       languageCode: 'hst',
       locale: 'zh-CN',
@@ -3259,41 +3504,57 @@ describe('LinguisticService smoke tests', () => {
       reason: '补充法语菜单名并统一 canonical tag',
     });
 
-    const history = await LinguisticService.listLanguageCatalogHistory('user:history-language');
+    const history = await LinguisticService.languageCatalog.listHistory('user:history-language');
     const latest = history[0];
     expect(latest).toBeTruthy();
     expect(latest?.reason).toBe('补充法语菜单名并统一 canonical tag');
     expect(latest?.reasonCode).toBe('user-provided');
-    expect(latest?.changedFields).toEqual(expect.arrayContaining(['localName', 'englishName', 'aliases', 'canonicalTag', 'displayNames']));
-    expect(latest?.beforePatch).toEqual(expect.objectContaining({
-      localName: '历史语言',
-      englishName: 'History Language',
-      aliases: ['历史别名'],
-    }));
-    expect(latest?.afterPatch).toEqual(expect.objectContaining({
-      localName: '历史语言新版',
-      englishName: 'History Language Revised',
-      aliases: ['历史别名新版'],
-      canonicalTag: 'zh-Hans-CN',
-    }));
+    expect(latest?.changedFields).toEqual(
+      expect.arrayContaining([
+        'localName',
+        'englishName',
+        'aliases',
+        'canonicalTag',
+        'displayNames',
+      ]),
+    );
+    expect(latest?.beforePatch).toEqual(
+      expect.objectContaining({
+        localName: '历史语言',
+        englishName: 'History Language',
+        aliases: ['历史别名'],
+      }),
+    );
+    expect(latest?.afterPatch).toEqual(
+      expect.objectContaining({
+        localName: '历史语言新版',
+        englishName: 'History Language Revised',
+        aliases: ['历史别名新版'],
+        canonicalTag: 'zh-Hans-CN',
+      }),
+    );
   });
 
   it('validates canonical tags and display-name locales before saving', async () => {
-    await expect(LinguisticService.upsertLanguageCatalogEntry({
-      id: 'user:invalid-tag',
-      languageCode: 'bad',
-      locale: 'zh-CN',
-      localName: '非法标签语言',
-      canonicalTag: 'not a tag',
-    })).rejects.toThrow('Canonical Tag 不是合法的 BCP 47 语言标签');
+    await expect(
+      LinguisticService.languageCatalog.upsertEntry({
+        id: 'user:invalid-tag',
+        languageCode: 'bad',
+        locale: 'zh-CN',
+        localName: '非法标签语言',
+        canonicalTag: 'not a tag',
+      }),
+    ).rejects.toThrow('Canonical Tag 不是合法的 BCP 47 语言标签');
 
-    await expect(LinguisticService.upsertLanguageCatalogEntry({
-      id: 'user:invalid-locale',
-      languageCode: 'bad',
-      locale: 'zh-CN',
-      localName: '非法 locale 语言',
-      displayNames: [{ locale: 'bad locale', role: 'preferred', value: 'bad locale label' }],
-    })).rejects.toThrow('显示名称矩阵中的 locale 必须是合法的 BCP 47 locale key');
+    await expect(
+      LinguisticService.languageCatalog.upsertEntry({
+        id: 'user:invalid-locale',
+        languageCode: 'bad',
+        locale: 'zh-CN',
+        localName: '非法 locale 语言',
+        displayNames: [{ locale: 'bad locale', role: 'preferred', value: 'bad locale label' }],
+      }),
+    ).rejects.toThrow('显示名称矩阵中的 locale 必须是合法的 BCP 47 locale key');
   });
 });
 
@@ -3301,7 +3562,9 @@ describe('LinguisticService smoke tests', () => {
 
 const NOW = '2025-01-01T00:00:00.000Z';
 
-function makeTier(overrides: Partial<TierDefinitionDocType> & { id: string; textId: string; key: string }): TierDefinitionDocType {
+function makeTier(
+  overrides: Partial<TierDefinitionDocType> & { id: string; textId: string; key: string },
+): TierDefinitionDocType {
   return {
     name: { default: overrides.key },
     tierType: 'time-aligned',
@@ -3312,7 +3575,9 @@ function makeTier(overrides: Partial<TierDefinitionDocType> & { id: string; text
   };
 }
 
-function makeAnn(overrides: Partial<TierAnnotationDocType> & { id: string; tierId: string }): TierAnnotationDocType {
+function makeAnn(
+  overrides: Partial<TierAnnotationDocType> & { id: string; tierId: string },
+): TierAnnotationDocType {
   return {
     value: '',
     isVerified: false,
@@ -3371,7 +3636,14 @@ describe('validateTierConstraints', () => {
   // T6: no-time-on-symbolic
   it('T6 — rejects time values on symbolic annotation', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'root', tierType: 'time-aligned' });
-    const sym = makeTier({ id: 't2', textId: 'x', key: 'gloss', tierType: 'symbolic-association', parentTierId: 't1', contentType: 'gloss' });
+    const sym = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'gloss',
+      tierType: 'symbolic-association',
+      parentTierId: 't1',
+      contentType: 'gloss',
+    });
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 1 }),
       makeAnn({ id: 'a2', tierId: 't2', parentAnnotationId: 'a1', startTime: 0, endTime: 1 }),
@@ -3383,7 +3655,13 @@ describe('validateTierConstraints', () => {
   // S1: parent-annotation-exists
   it('S1 — rejects missing parentAnnotationId on child tier', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'root', tierType: 'time-aligned' });
-    const child = makeTier({ id: 't2', textId: 'x', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 't1' });
+    const child = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'morph',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 't1',
+    });
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 1 }),
       makeAnn({ id: 'a2', tierId: 't2', ordinal: 0 }), // missing parentAnnotationId
@@ -3394,10 +3672,14 @@ describe('validateTierConstraints', () => {
 
   it('S1 — rejects reference to non-existent parent annotation', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'root', tierType: 'time-aligned' });
-    const child = makeTier({ id: 't2', textId: 'x', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 't1' });
-    const anns = [
-      makeAnn({ id: 'a2', tierId: 't2', parentAnnotationId: 'ghost', ordinal: 0 }),
-    ];
+    const child = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'morph',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 't1',
+    });
+    const anns = [makeAnn({ id: 'a2', tierId: 't2', parentAnnotationId: 'ghost', ordinal: 0 })];
     const v = validateTierConstraints([root, child], anns);
     expect(v.some((e) => e.rule === 'S1')).toBe(true);
   });
@@ -3406,7 +3688,13 @@ describe('validateTierConstraints', () => {
   it('S2 — rejects parent annotation from wrong tier', () => {
     const t1 = makeTier({ id: 't1', textId: 'x', key: 'root', tierType: 'time-aligned' });
     const t2 = makeTier({ id: 't2', textId: 'x', key: 'other', tierType: 'time-aligned' });
-    const child = makeTier({ id: 't3', textId: 'x', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 't1' });
+    const child = makeTier({
+      id: 't3',
+      textId: 'x',
+      key: 'morph',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 't1',
+    });
     const anns = [
       makeAnn({ id: 'a1', tierId: 't2', startTime: 0, endTime: 1 }), // belongs to t2, not t1
       makeAnn({ id: 'a2', tierId: 't3', parentAnnotationId: 'a1', ordinal: 0 }),
@@ -3418,7 +3706,14 @@ describe('validateTierConstraints', () => {
   // S3: one-to-one for symbolic-association
   it('S3 — rejects multiple children on symbolic-association for same parent', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'root', tierType: 'time-aligned' });
-    const assoc = makeTier({ id: 't2', textId: 'x', key: 'pos', tierType: 'symbolic-association', parentTierId: 't1', contentType: 'pos' });
+    const assoc = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'pos',
+      tierType: 'symbolic-association',
+      parentTierId: 't1',
+      contentType: 'pos',
+    });
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 1 }),
       makeAnn({ id: 'a2', tierId: 't2', parentAnnotationId: 'a1' }),
@@ -3430,8 +3725,20 @@ describe('validateTierConstraints', () => {
 
   // S5: tier-dag-acyclic
   it('S5 — detects cycle in tier parent references', () => {
-    const t1 = makeTier({ id: 't1', textId: 'x', key: 'a', tierType: 'symbolic-subdivision', parentTierId: 't2' });
-    const t2 = makeTier({ id: 't2', textId: 'x', key: 'b', tierType: 'symbolic-subdivision', parentTierId: 't1' });
+    const t1 = makeTier({
+      id: 't1',
+      textId: 'x',
+      key: 'a',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 't2',
+    });
+    const t2 = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'b',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 't1',
+    });
     const v = validateTierConstraints([t1, t2], []);
     expect(v.some((e) => e.rule === 'S5')).toBe(true);
   });
@@ -3439,21 +3746,39 @@ describe('validateTierConstraints', () => {
   // S6: tier-parent-type-compatible
   it('S6 — rejects time-subdivision under symbolic-association parent', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'root', tierType: 'symbolic-association' });
-    const child = makeTier({ id: 't2', textId: 'x', key: 'sub', tierType: 'time-subdivision', parentTierId: 't1' });
+    const child = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'sub',
+      tierType: 'time-subdivision',
+      parentTierId: 't1',
+    });
     const v = validateTierConstraints([root, child], []);
     expect(v.some((e) => e.rule === 'S6')).toBe(true);
   });
 
   it('S6 — allows symbolic-subdivision under time-aligned', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'root', tierType: 'time-aligned' });
-    const child = makeTier({ id: 't2', textId: 'x', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 't1' });
+    const child = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'morph',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 't1',
+    });
     const v = validateTierConstraints([root, child], []);
     expect(v.filter((e) => e.rule === 'S6')).toHaveLength(0);
   });
 
   // R1: tier-parent-valid
   it('R1 — rejects reference to non-existent parent tier', () => {
-    const t = makeTier({ id: 't1', textId: 'x', key: 'child', tierType: 'time-subdivision', parentTierId: 'ghost' });
+    const t = makeTier({
+      id: 't1',
+      textId: 'x',
+      key: 'child',
+      tierType: 'time-subdivision',
+      parentTierId: 'ghost',
+    });
     const v = validateTierConstraints([t], []);
     expect(v.some((e) => e.rule === 'R1')).toBe(true);
   });
@@ -3468,7 +3793,13 @@ describe('validateTierConstraints', () => {
   // T3: subdivision-within-parent
   it('T3 — rejects subdivision annotation outside parent time range', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'utt', tierType: 'time-aligned' });
-    const sub = makeTier({ id: 't2', textId: 'x', key: 'word', tierType: 'time-subdivision', parentTierId: 't1' });
+    const sub = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'word',
+      tierType: 'time-subdivision',
+      parentTierId: 't1',
+    });
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 5 }),
       makeAnn({ id: 'a2', tierId: 't2', parentAnnotationId: 'a1', startTime: 3, endTime: 7 }), // exceeds parent
@@ -3479,7 +3810,13 @@ describe('validateTierConstraints', () => {
 
   it('T3 — accepts subdivision within parent bounds', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'utt', tierType: 'time-aligned' });
-    const sub = makeTier({ id: 't2', textId: 'x', key: 'word', tierType: 'time-subdivision', parentTierId: 't1' });
+    const sub = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'word',
+      tierType: 'time-subdivision',
+      parentTierId: 't1',
+    });
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 5 }),
       makeAnn({ id: 'a2', tierId: 't2', parentAnnotationId: 'a1', startTime: 0, endTime: 3 }),
@@ -3492,7 +3829,13 @@ describe('validateTierConstraints', () => {
   // T4: subdivision-full-coverage (warning)
   it('T4 — warns when subdivisions do not fully cover parent span', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'utt', tierType: 'time-aligned' });
-    const sub = makeTier({ id: 't2', textId: 'x', key: 'word', tierType: 'time-subdivision', parentTierId: 't1' });
+    const sub = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'word',
+      tierType: 'time-subdivision',
+      parentTierId: 't1',
+    });
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 10 }),
       makeAnn({ id: 'a2', tierId: 't2', parentAnnotationId: 'a1', startTime: 0, endTime: 5 }),
@@ -3504,7 +3847,13 @@ describe('validateTierConstraints', () => {
 
   it('T4 — no warning when subdivisions fully cover parent', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'utt', tierType: 'time-aligned' });
-    const sub = makeTier({ id: 't2', textId: 'x', key: 'word', tierType: 'time-subdivision', parentTierId: 't1' });
+    const sub = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'word',
+      tierType: 'time-subdivision',
+      parentTierId: 't1',
+    });
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 10 }),
       makeAnn({ id: 'a2', tierId: 't2', parentAnnotationId: 'a1', startTime: 0, endTime: 5 }),
@@ -3517,7 +3866,13 @@ describe('validateTierConstraints', () => {
   // T5: subdivision-no-overlap
   it('T5 — rejects overlapping subdivisions under the same parent', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'utt', tierType: 'time-aligned' });
-    const sub = makeTier({ id: 't2', textId: 'x', key: 'word', tierType: 'time-subdivision', parentTierId: 't1' });
+    const sub = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'word',
+      tierType: 'time-subdivision',
+      parentTierId: 't1',
+    });
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 10 }),
       makeAnn({ id: 'a2', tierId: 't2', parentAnnotationId: 'a1', startTime: 0, endTime: 6 }),
@@ -3529,7 +3884,13 @@ describe('validateTierConstraints', () => {
 
   it('T5 — accepts non-overlapping subdivisions under the same parent', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'utt', tierType: 'time-aligned' });
-    const sub = makeTier({ id: 't2', textId: 'x', key: 'word', tierType: 'time-subdivision', parentTierId: 't1' });
+    const sub = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'word',
+      tierType: 'time-subdivision',
+      parentTierId: 't1',
+    });
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 10 }),
       makeAnn({ id: 'a2', tierId: 't2', parentAnnotationId: 'a1', startTime: 0, endTime: 5 }),
@@ -3542,8 +3903,21 @@ describe('validateTierConstraints', () => {
   // L4: morph-gloss alignment
   it('L4 — warns when gloss count does not match morpheme count', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'utt', tierType: 'time-aligned' });
-    const morph = makeTier({ id: 't2', textId: 'x', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 't1' });
-    const gloss = makeTier({ id: 't3', textId: 'x', key: 'gloss', tierType: 'symbolic-association', parentTierId: 't2', contentType: 'gloss' });
+    const morph = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'morph',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 't1',
+    });
+    const gloss = makeTier({
+      id: 't3',
+      textId: 'x',
+      key: 'gloss',
+      tierType: 'symbolic-association',
+      parentTierId: 't2',
+      contentType: 'gloss',
+    });
 
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 2 }),
@@ -3561,8 +3935,21 @@ describe('validateTierConstraints', () => {
 
   it('L4 — no warning when gloss count matches morpheme count', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'utt', tierType: 'time-aligned' });
-    const morph = makeTier({ id: 't2', textId: 'x', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 't1' });
-    const gloss = makeTier({ id: 't3', textId: 'x', key: 'gloss', tierType: 'symbolic-association', parentTierId: 't2', contentType: 'gloss' });
+    const morph = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'morph',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 't1',
+    });
+    const gloss = makeTier({
+      id: 't3',
+      textId: 'x',
+      key: 'gloss',
+      tierType: 'symbolic-association',
+      parentTierId: 't2',
+      contentType: 'gloss',
+    });
 
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 2 }),
@@ -3579,8 +3966,21 @@ describe('validateTierConstraints', () => {
   // Happy path: valid 3-level ELAN-style hierarchy
   it('accepts valid 3-level time→subdivision→association hierarchy', () => {
     const root = makeTier({ id: 't1', textId: 'x', key: 'unit', tierType: 'time-aligned' });
-    const morph = makeTier({ id: 't2', textId: 'x', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 't1' });
-    const gloss = makeTier({ id: 't3', textId: 'x', key: 'gloss', tierType: 'symbolic-association', parentTierId: 't2', contentType: 'gloss' });
+    const morph = makeTier({
+      id: 't2',
+      textId: 'x',
+      key: 'morph',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 't1',
+    });
+    const gloss = makeTier({
+      id: 't3',
+      textId: 'x',
+      key: 'gloss',
+      tierType: 'symbolic-association',
+      parentTierId: 't2',
+      contentType: 'gloss',
+    });
 
     const anns = [
       makeAnn({ id: 'a1', tierId: 't1', startTime: 0, endTime: 2 }),
@@ -3606,15 +4006,15 @@ describe('Tier CRUD & batch save', () => {
 
   it('can save and retrieve tier definitions', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'unit', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
-    const result = await LinguisticService.getTierDefinitions('text_1');
+    await LinguisticService.tiers.saveDefinition(tier);
+    const result = await LinguisticService.tiers.getDefinitions('text_1');
     expect(result).toHaveLength(1);
     expect(result[0]!.key).toBe('unit');
   });
 
   it('saveTierAnnotationsBatch rejects invalid annotations', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
+    await LinguisticService.tiers.saveDefinition(tier);
 
     // overlapping annotations → T2 violation
     const anns = [
@@ -3622,34 +4022,34 @@ describe('Tier CRUD & batch save', () => {
       makeAnn({ id: 'a2', tierId: 'td1', startTime: 2, endTime: 5 }),
     ];
 
-    const { violations } = await LinguisticService.saveTierAnnotationsBatch('text_1', anns);
+    const { violations } = await LinguisticService.tiers.saveAnnotationsBatch('text_1', anns);
     expect(violations.length).toBeGreaterThan(0);
     expect(violations.some((v) => v.rule === 'T2')).toBe(true);
 
     // Annotations should NOT have been persisted
-    const stored = await LinguisticService.getTierAnnotations('td1');
+    const stored = await LinguisticService.tiers.getAnnotations('td1');
     expect(stored).toHaveLength(0);
   });
 
   it('saveTierAnnotationsBatch persists valid annotations', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
+    await LinguisticService.tiers.saveDefinition(tier);
 
     const anns = [
       makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2 }),
       makeAnn({ id: 'a2', tierId: 'td1', startTime: 2, endTime: 4 }),
     ];
 
-    const { violations } = await LinguisticService.saveTierAnnotationsBatch('text_1', anns);
+    const { violations } = await LinguisticService.tiers.saveAnnotationsBatch('text_1', anns);
     expect(violations).toHaveLength(0);
 
-    const stored = await LinguisticService.getTierAnnotations('td1');
+    const stored = await LinguisticService.tiers.getAnnotations('td1');
     expect(stored).toHaveLength(2);
   });
 
   it('saveTierAnnotationsBatch rolls back earlier writes when a later annotation fails', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
+    await LinguisticService.tiers.saveDefinition(tier);
     await db.media_items.put({
       id: 'media_batch_tx',
       textId: 'text_1',
@@ -3674,9 +4074,11 @@ describe('Tier CRUD & batch save', () => {
     });
 
     try {
-      await expect(LinguisticService.saveTierAnnotationsBatch('text_1', anns)).rejects.toThrow('audit boom');
+      await expect(LinguisticService.tiers.saveAnnotationsBatch('text_1', anns)).rejects.toThrow(
+        'audit boom',
+      );
 
-      expect(await LinguisticService.getTierAnnotations('td1')).toHaveLength(0);
+      expect(await LinguisticService.tiers.getAnnotations('td1')).toHaveLength(0);
       expect((await db.audit_logs.toArray()).length).toBe(auditLogCountBefore);
       expect(await db.anchors.toArray()).toHaveLength(0);
     } finally {
@@ -3695,9 +4097,9 @@ describe('Audit logging', () => {
 
   it('logs create action when saving a new tier definition', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier, 'human');
+    await LinguisticService.tiers.saveDefinition(tier, 'human');
 
-    const logs = await LinguisticService.getAuditLogs('td1');
+    const logs = await LinguisticService.tiers.getAuditLogs('td1');
     expect(logs).toHaveLength(1);
     expect(logs[0]!.action).toBe('create');
     expect(logs[0]!.collection).toBe('tier_definitions');
@@ -3705,13 +4107,20 @@ describe('Audit logging', () => {
   });
 
   it('saveTierDefinition rolls back tier row when audit logging fails (ARCH-3)', async () => {
-    const tier = makeTier({ id: 'td_arch3_tier_save', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
+    const tier = makeTier({
+      id: 'td_arch3_tier_save',
+      textId: 'text_1',
+      key: 'root',
+      tierType: 'time-aligned',
+    });
     const putSpy = vi.spyOn(db.audit_logs, 'put').mockImplementation(() => {
       throw new Error('tier audit boom');
     });
 
     try {
-      await expect(LinguisticService.saveTierDefinition(tier, 'human')).rejects.toThrow('tier audit boom');
+      await expect(LinguisticService.tiers.saveDefinition(tier, 'human')).rejects.toThrow(
+        'tier audit boom',
+      );
       await expect(db.tier_definitions.get('td_arch3_tier_save')).resolves.toBeUndefined();
       await expect(db.audit_logs.toArray()).resolves.toHaveLength(0);
     } finally {
@@ -3721,16 +4130,16 @@ describe('Audit logging', () => {
 
   it('logs field-level changes when updating a tier annotation', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
+    await LinguisticService.tiers.saveDefinition(tier);
 
     const ann = makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2, value: 'hello' });
-    await LinguisticService.saveTierAnnotation(ann, 'human');
+    await LinguisticService.tiers.saveAnnotation(ann, 'human');
 
     // Update the annotation value
     const updated = { ...ann, value: 'world', updatedAt: new Date().toISOString() };
-    await LinguisticService.saveTierAnnotation(updated, 'ai');
+    await LinguisticService.tiers.saveAnnotation(updated, 'ai');
 
-    const logs = await LinguisticService.getAuditLogs('a1');
+    const logs = await LinguisticService.tiers.getAuditLogs('a1');
     expect(logs.length).toBeGreaterThanOrEqual(2);
 
     const createLog = logs.find((l) => l.action === 'create');
@@ -3745,13 +4154,13 @@ describe('Audit logging', () => {
 
   it('logs delete action when removing a tier annotation', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
+    await LinguisticService.tiers.saveDefinition(tier);
 
     const ann = makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2 });
-    await LinguisticService.saveTierAnnotation(ann);
-    await LinguisticService.removeTierAnnotation('a1', 'human');
+    await LinguisticService.tiers.saveAnnotation(ann);
+    await LinguisticService.tiers.removeAnnotation('a1', 'human');
 
-    const logs = await LinguisticService.getAuditLogs('a1');
+    const logs = await LinguisticService.tiers.getAuditLogs('a1');
     const deleteLog = logs.find((l) => l.action === 'delete');
     expect(deleteLog).toBeDefined();
     expect(deleteLog!.collection).toBe('tier_annotations');
@@ -3759,31 +4168,37 @@ describe('Audit logging', () => {
 
   it('does not log when tracked fields are unchanged', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
+    await LinguisticService.tiers.saveDefinition(tier);
 
     const ann = makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2, value: 'same' });
-    await LinguisticService.saveTierAnnotation(ann);
+    await LinguisticService.tiers.saveAnnotation(ann);
 
     // Re-save with same tracked fields (only updatedAt changes, which is not tracked)
     const resaved = { ...ann, updatedAt: new Date().toISOString() };
-    await LinguisticService.saveTierAnnotation(resaved);
+    await LinguisticService.tiers.saveAnnotation(resaved);
 
-    const logs = await LinguisticService.getAuditLogs('a1');
+    const logs = await LinguisticService.tiers.getAuditLogs('a1');
     // Should have only the create log, no update log
     expect(logs.every((l) => l.action === 'create')).toBe(true);
   });
 
   it('logs multiple field changes as separate entries', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
+    await LinguisticService.tiers.saveDefinition(tier);
 
     const ann = makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2, value: 'hi' });
-    await LinguisticService.saveTierAnnotation(ann);
+    await LinguisticService.tiers.saveAnnotation(ann);
 
-    const updated = { ...ann, value: 'bye', startTime: 1, endTime: 3, updatedAt: new Date().toISOString() };
-    await LinguisticService.saveTierAnnotation(updated);
+    const updated = {
+      ...ann,
+      value: 'bye',
+      startTime: 1,
+      endTime: 3,
+      updatedAt: new Date().toISOString(),
+    };
+    await LinguisticService.tiers.saveAnnotation(updated);
 
-    const logs = await LinguisticService.getAuditLogs('a1');
+    const logs = await LinguisticService.tiers.getAuditLogs('a1');
     const updateLogs = logs.filter((l) => l.action === 'update');
     const changedFields = updateLogs.map((l) => l.field).sort();
     expect(changedFields).toEqual(['endTime', 'startTime', 'value']);
@@ -3791,13 +4206,13 @@ describe('Audit logging', () => {
 
   it('getAuditLogsByCollection filters by collection', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
+    await LinguisticService.tiers.saveDefinition(tier);
 
     const ann = makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2 });
-    await LinguisticService.saveTierAnnotation(ann);
+    await LinguisticService.tiers.saveAnnotation(ann);
 
-    const tierDefLogs = await LinguisticService.getAuditLogsByCollection('tier_definitions');
-    const tierAnnLogs = await LinguisticService.getAuditLogsByCollection('tier_annotations');
+    const tierDefLogs = await LinguisticService.tiers.getAuditLogsByCollection('tier_definitions');
+    const tierAnnLogs = await LinguisticService.tiers.getAuditLogsByCollection('tier_annotations');
 
     expect(tierDefLogs.every((l) => l.collection === 'tier_definitions')).toBe(true);
     expect(tierAnnLogs.every((l) => l.collection === 'tier_annotations')).toBe(true);
@@ -3807,17 +4222,17 @@ describe('Audit logging', () => {
 
   it('saveTierAnnotationsBatch generates audit logs for each annotation', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
+    await LinguisticService.tiers.saveDefinition(tier);
 
     const anns = [
       makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2 }),
       makeAnn({ id: 'a2', tierId: 'td1', startTime: 2, endTime: 4 }),
     ];
 
-    await LinguisticService.saveTierAnnotationsBatch('text_1', anns);
+    await LinguisticService.tiers.saveAnnotationsBatch('text_1', anns);
 
-    const logs1 = await LinguisticService.getAuditLogs('a1');
-    const logs2 = await LinguisticService.getAuditLogs('a2');
+    const logs1 = await LinguisticService.tiers.getAuditLogs('a1');
+    const logs2 = await LinguisticService.tiers.getAuditLogs('a2');
     expect(logs1.some((l) => l.action === 'create')).toBe(true);
     expect(logs2.some((l) => l.action === 'create')).toBe(true);
   });
@@ -3834,17 +4249,17 @@ describe('Validated single-item CRUD', () => {
   // saveTierAnnotation — validation
   it('saveTierAnnotation blocks save on T2 overlap error', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
+    await LinguisticService.tiers.saveDefinition(tier);
 
     // First annotation succeeds
-    const r1 = await LinguisticService.saveTierAnnotation(
+    const r1 = await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 3 }),
     );
     expect(r1.errors).toHaveLength(0);
     expect(r1.id).toBeTruthy();
 
     // Overlapping annotation is blocked
-    const r2 = await LinguisticService.saveTierAnnotation(
+    const r2 = await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'a2', tierId: 'td1', startTime: 2, endTime: 5 }),
     );
     expect(r2.errors.length).toBeGreaterThan(0);
@@ -3852,23 +4267,29 @@ describe('Validated single-item CRUD', () => {
     expect(r2.id).toBe('');
 
     // Only first annotation persisted
-    const stored = await LinguisticService.getTierAnnotations('td1');
+    const stored = await LinguisticService.tiers.getAnnotations('td1');
     expect(stored).toHaveLength(1);
   });
 
   it('saveTierAnnotation returns warnings for T4 coverage gap', async () => {
     const root = makeTier({ id: 'td1', textId: 'text_1', key: 'utt', tierType: 'time-aligned' });
-    const sub = makeTier({ id: 'td2', textId: 'text_1', key: 'word', tierType: 'time-subdivision', parentTierId: 'td1' });
-    await LinguisticService.saveTierDefinition(root);
-    await LinguisticService.saveTierDefinition(sub);
+    const sub = makeTier({
+      id: 'td2',
+      textId: 'text_1',
+      key: 'word',
+      tierType: 'time-subdivision',
+      parentTierId: 'td1',
+    });
+    await LinguisticService.tiers.saveDefinition(root);
+    await LinguisticService.tiers.saveDefinition(sub);
 
     // Root annotation
-    await LinguisticService.saveTierAnnotation(
+    await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 10 }),
     );
 
     // Subdivision only covers part of parent → T4 warning, but save proceeds
-    const r = await LinguisticService.saveTierAnnotation(
+    const r = await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'a2', tierId: 'td2', parentAnnotationId: 'a1', startTime: 0, endTime: 5 }),
     );
     expect(r.errors).toHaveLength(0);
@@ -3877,7 +4298,7 @@ describe('Validated single-item CRUD', () => {
   });
 
   it('saveTierAnnotation rejects reference to non-existent tier', async () => {
-    const r = await LinguisticService.saveTierAnnotation(
+    const r = await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'a1', tierId: 'ghost', startTime: 0, endTime: 1 }),
     );
     expect(r.errors.length).toBeGreaterThan(0);
@@ -3887,25 +4308,42 @@ describe('Validated single-item CRUD', () => {
 
   // saveTierDefinition — validation
   it('saveTierDefinition blocks save on S6 incompatible parent type', async () => {
-    const root = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'symbolic-association' });
-    await LinguisticService.saveTierDefinition(root);
+    const root = makeTier({
+      id: 'td1',
+      textId: 'text_1',
+      key: 'root',
+      tierType: 'symbolic-association',
+    });
+    await LinguisticService.tiers.saveDefinition(root);
 
     // time-subdivision cannot have symbolic-association parent
-    const child = makeTier({ id: 'td2', textId: 'text_1', key: 'sub', tierType: 'time-subdivision', parentTierId: 'td1' });
-    const r = await LinguisticService.saveTierDefinition(child);
+    const child = makeTier({
+      id: 'td2',
+      textId: 'text_1',
+      key: 'sub',
+      tierType: 'time-subdivision',
+      parentTierId: 'td1',
+    });
+    const r = await LinguisticService.tiers.saveDefinition(child);
     expect(r.errors.length).toBeGreaterThan(0);
     expect(r.errors.some((e) => e.rule === 'S6')).toBe(true);
     expect(r.id).toBe('');
 
     // Child tier should not be in the database
-    const defs = await LinguisticService.getTierDefinitions('text_1');
+    const defs = await LinguisticService.tiers.getDefinitions('text_1');
     expect(defs).toHaveLength(1);
     expect(defs[0]!.id).toBe('td1');
   });
 
   it('saveTierDefinition blocks save on R1 non-existent parent', async () => {
-    const child = makeTier({ id: 'td1', textId: 'text_1', key: 'orphan', tierType: 'time-subdivision', parentTierId: 'ghost' });
-    const r = await LinguisticService.saveTierDefinition(child);
+    const child = makeTier({
+      id: 'td1',
+      textId: 'text_1',
+      key: 'orphan',
+      tierType: 'time-subdivision',
+      parentTierId: 'ghost',
+    });
+    const r = await LinguisticService.tiers.saveDefinition(child);
     expect(r.errors.some((e) => e.rule === 'R1')).toBe(true);
     expect(r.id).toBe('');
   });
@@ -3913,25 +4351,30 @@ describe('Validated single-item CRUD', () => {
   // removeTierDefinition — cascade + child tier rejection
   it('removeTierDefinition cascades to annotations', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
-    await LinguisticService.saveTierAnnotation(
+    await LinguisticService.tiers.saveDefinition(tier);
+    await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 1 }),
     );
-    await LinguisticService.saveTierAnnotation(
+    await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'a2', tierId: 'td1', startTime: 1, endTime: 2 }),
     );
 
-    const result = await LinguisticService.removeTierDefinition('td1');
+    const result = await LinguisticService.tiers.removeDefinition('td1');
     expect(result.errors).toHaveLength(0);
 
     // Annotations should be gone too
-    const anns = await LinguisticService.getTierAnnotations('td1');
+    const anns = await LinguisticService.tiers.getAnnotations('td1');
     expect(anns).toHaveLength(0);
   });
 
   it('removeTierDefinition rolls back tier cascade when audit logging fails (ARCH-3)', async () => {
-    const tier = makeTier({ id: 'td_arch3_tier_remove', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    await LinguisticService.saveTierDefinition(tier);
+    const tier = makeTier({
+      id: 'td_arch3_tier_remove',
+      textId: 'text_1',
+      key: 'root',
+      tierType: 'time-aligned',
+    });
+    await LinguisticService.tiers.saveDefinition(tier);
     await db.media_items.put({
       id: 'media_arch3_tier_remove',
       textId: 'text_1',
@@ -3940,23 +4383,35 @@ describe('Validated single-item CRUD', () => {
       isOfflineCached: true,
       createdAt: NOW,
     });
-    await LinguisticService.saveTierAnnotation(
-      makeAnn({ id: 'ann_arch3_tier_remove', tierId: 'td_arch3_tier_remove', startTime: 0, endTime: 1 }),
+    await LinguisticService.tiers.saveAnnotation(
+      makeAnn({
+        id: 'ann_arch3_tier_remove',
+        tierId: 'td_arch3_tier_remove',
+        startTime: 0,
+        endTime: 1,
+      }),
     );
     const storedBefore = await db.tier_annotations.get('ann_arch3_tier_remove');
     expect(storedBefore?.startAnchorId).toBeTruthy();
 
     const putSpy = vi.spyOn(db.audit_logs, 'put').mockImplementation((value: AuditLogDocType) => {
-      if (value.documentId === 'ann_arch3_tier_remove' || value.documentId === 'td_arch3_tier_remove') {
+      if (
+        value.documentId === 'ann_arch3_tier_remove' ||
+        value.documentId === 'td_arch3_tier_remove'
+      ) {
         throw new Error('tier remove audit boom');
       }
       return Promise.resolve(value.id) as unknown as ReturnType<typeof db.audit_logs.put>;
     });
 
     try {
-      await expect(LinguisticService.removeTierDefinition('td_arch3_tier_remove')).rejects.toThrow('tier remove audit boom');
+      await expect(
+        LinguisticService.tiers.removeDefinition('td_arch3_tier_remove'),
+      ).rejects.toThrow('tier remove audit boom');
       await expect(db.tier_definitions.get('td_arch3_tier_remove')).resolves.toBeTruthy();
-      await expect(db.tier_annotations.get('ann_arch3_tier_remove')).resolves.toEqual(expect.objectContaining({ id: 'ann_arch3_tier_remove' }));
+      await expect(db.tier_annotations.get('ann_arch3_tier_remove')).resolves.toEqual(
+        expect.objectContaining({ id: 'ann_arch3_tier_remove' }),
+      );
       await expect(db.anchors.get(storedBefore!.startAnchorId!)).resolves.toBeTruthy();
     } finally {
       putSpy.mockRestore();
@@ -3965,49 +4420,67 @@ describe('Validated single-item CRUD', () => {
 
   it('removeTierDefinition rejects when child tiers depend on it', async () => {
     const root = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
-    const child = makeTier({ id: 'td2', textId: 'text_1', key: 'child', tierType: 'symbolic-subdivision', parentTierId: 'td1' });
-    await LinguisticService.saveTierDefinition(root);
-    await LinguisticService.saveTierDefinition(child);
+    const child = makeTier({
+      id: 'td2',
+      textId: 'text_1',
+      key: 'child',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 'td1',
+    });
+    await LinguisticService.tiers.saveDefinition(root);
+    await LinguisticService.tiers.saveDefinition(child);
 
-    const result = await LinguisticService.removeTierDefinition('td1');
+    const result = await LinguisticService.tiers.removeDefinition('td1');
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0]!.rule).toBe('CASCADE');
 
     // Root tier should still exist
-    const defs = await LinguisticService.getTierDefinitions('text_1');
+    const defs = await LinguisticService.tiers.getDefinitions('text_1');
     expect(defs).toHaveLength(2);
   });
 
   // removeTierAnnotation — cascade to child annotations
   it('removeTierAnnotation cascades to child annotations', async () => {
     const root = makeTier({ id: 'td1', textId: 'text_1', key: 'utt', tierType: 'time-aligned' });
-    const sub = makeTier({ id: 'td2', textId: 'text_1', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 'td1' });
-    await LinguisticService.saveTierDefinition(root);
-    await LinguisticService.saveTierDefinition(sub);
+    const sub = makeTier({
+      id: 'td2',
+      textId: 'text_1',
+      key: 'morph',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 'td1',
+    });
+    await LinguisticService.tiers.saveDefinition(root);
+    await LinguisticService.tiers.saveDefinition(sub);
 
-    await LinguisticService.saveTierAnnotation(
+    await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2 }),
     );
-    await LinguisticService.saveTierAnnotation(
+    await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'm1', tierId: 'td2', parentAnnotationId: 'a1', ordinal: 0 }),
     );
-    await LinguisticService.saveTierAnnotation(
+    await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'm2', tierId: 'td2', parentAnnotationId: 'a1', ordinal: 1 }),
     );
 
     // Removing parent also removes children
-    await LinguisticService.removeTierAnnotation('a1');
-    const rootAnns = await LinguisticService.getTierAnnotations('td1');
-    const childAnns = await LinguisticService.getTierAnnotations('td2');
+    await LinguisticService.tiers.removeAnnotation('a1');
+    const rootAnns = await LinguisticService.tiers.getAnnotations('td1');
+    const childAnns = await LinguisticService.tiers.getAnnotations('td2');
     expect(rootAnns).toHaveLength(0);
     expect(childAnns).toHaveLength(0);
   });
 
   it('removeTierAnnotation rolls back all deletes when audit logging fails', async () => {
     const root = makeTier({ id: 'td1', textId: 'text_1', key: 'utt', tierType: 'time-aligned' });
-    const sub = makeTier({ id: 'td2', textId: 'text_1', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 'td1' });
-    await LinguisticService.saveTierDefinition(root);
-    await LinguisticService.saveTierDefinition(sub);
+    const sub = makeTier({
+      id: 'td2',
+      textId: 'text_1',
+      key: 'morph',
+      tierType: 'symbolic-subdivision',
+      parentTierId: 'td1',
+    });
+    await LinguisticService.tiers.saveDefinition(root);
+    await LinguisticService.tiers.saveDefinition(sub);
     await db.media_items.put({
       id: 'media_remove_tx',
       textId: 'text_1',
@@ -4017,10 +4490,10 @@ describe('Validated single-item CRUD', () => {
       createdAt: NOW,
     });
 
-    await LinguisticService.saveTierAnnotation(
+    await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2 }),
     );
-    await LinguisticService.saveTierAnnotation(
+    await LinguisticService.tiers.saveAnnotation(
       makeAnn({ id: 'm1', tierId: 'td2', parentAnnotationId: 'a1', ordinal: 0 }),
     );
 
@@ -4033,9 +4506,11 @@ describe('Validated single-item CRUD', () => {
     });
 
     try {
-      await expect(LinguisticService.removeTierAnnotation('a1')).rejects.toThrow('audit delete boom');
-      expect(await LinguisticService.getTierAnnotations('td1')).toHaveLength(1);
-      expect(await LinguisticService.getTierAnnotations('td2')).toHaveLength(1);
+      await expect(LinguisticService.tiers.removeAnnotation('a1')).rejects.toThrow(
+        'audit delete boom',
+      );
+      expect(await LinguisticService.tiers.getAnnotations('td1')).toHaveLength(1);
+      expect(await LinguisticService.tiers.getAnnotations('td2')).toHaveLength(1);
       expect(await db.anchors.toArray()).toHaveLength(2);
     } finally {
       putSpy.mockRestore();
@@ -4045,9 +4520,15 @@ describe('Validated single-item CRUD', () => {
   // saveTierAnnotationsBatch returns warnings
   it('saveTierAnnotationsBatch returns warnings for T4', async () => {
     const root = makeTier({ id: 'td1', textId: 'text_1', key: 'utt', tierType: 'time-aligned' });
-    const sub = makeTier({ id: 'td2', textId: 'text_1', key: 'word', tierType: 'time-subdivision', parentTierId: 'td1' });
-    await LinguisticService.saveTierDefinition(root);
-    await LinguisticService.saveTierDefinition(sub);
+    const sub = makeTier({
+      id: 'td2',
+      textId: 'text_1',
+      key: 'word',
+      tierType: 'time-subdivision',
+      parentTierId: 'td1',
+    });
+    await LinguisticService.tiers.saveDefinition(root);
+    await LinguisticService.tiers.saveDefinition(sub);
 
     const anns = [
       makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 10 }),
@@ -4055,12 +4536,12 @@ describe('Validated single-item CRUD', () => {
       // gap 5-10 → T4 warning
     ];
 
-    const result = await LinguisticService.saveTierAnnotationsBatch('text_1', anns);
+    const result = await LinguisticService.tiers.saveAnnotationsBatch('text_1', anns);
     expect(result.violations).toHaveLength(0);
     expect(result.warnings.some((w) => w.rule === 'T4')).toBe(true);
 
     // Annotations still saved despite warning
-    const stored = await LinguisticService.getTierAnnotations('td1');
+    const stored = await LinguisticService.tiers.getAnnotations('td1');
     expect(stored).toHaveLength(1);
   });
 });
@@ -4069,19 +4550,19 @@ describe('Validated single-item CRUD', () => {
 
 describe('searchLanguageCatalogEntries', () => {
   it('returns matches for a known language name', () => {
-    const results = LinguisticService.searchLanguageCatalogEntries('English', 'en-US', 5);
+    const results = LinguisticService.languageCatalog.searchEntries('English', 'en-US', 5);
     expect(results.length).toBeGreaterThan(0);
     expect(results[0]!.entry.iso6393).toBe('eng');
   });
 
   it('returns empty suggestions for empty query (common languages fallback)', () => {
-    const results = LinguisticService.searchLanguageCatalogEntries('', 'zh-CN', 5);
+    const results = LinguisticService.languageCatalog.searchEntries('', 'zh-CN', 5);
     // 空查询返回常见语言列表 | Empty query returns common language list
     expect(Array.isArray(results)).toBe(true);
   });
 
   it('lists persisted entries when search hits number, boolean, or multiselect custom fields', async () => {
-    await LinguisticService.upsertLanguageCatalogEntry({
+    await LinguisticService.languageCatalog.upsertEntry({
       id: 'user:search-custom-fields',
       languageCode: 'scf',
       locale: 'zh-CN',
@@ -4094,43 +4575,49 @@ describe('searchLanguageCatalogEntries', () => {
       },
     });
 
-    await expect(LinguisticService.listLanguageCatalogEntries({
-      locale: 'zh-CN',
-      searchText: '1200',
-      includeHidden: true,
-    })).resolves.toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'user:search-custom-fields' }),
-    ]));
+    await expect(
+      LinguisticService.languageCatalog.listEntries({
+        locale: 'zh-CN',
+        searchText: '1200',
+        includeHidden: true,
+      }),
+    ).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'user:search-custom-fields' })]),
+    );
 
-    await expect(LinguisticService.listLanguageCatalogEntries({
-      locale: 'zh-CN',
-      searchText: 'true',
-      includeHidden: true,
-    })).resolves.toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'user:search-custom-fields' }),
-    ]));
+    await expect(
+      LinguisticService.languageCatalog.listEntries({
+        locale: 'zh-CN',
+        searchText: 'true',
+        includeHidden: true,
+      }),
+    ).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'user:search-custom-fields' })]),
+    );
 
-    await expect(LinguisticService.listLanguageCatalogEntries({
-      locale: 'zh-CN',
-      searchText: 'river',
-      includeHidden: true,
-    })).resolves.toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'user:search-custom-fields' }),
-    ]));
+    await expect(
+      LinguisticService.languageCatalog.listEntries({
+        locale: 'zh-CN',
+        searchText: 'river',
+        includeHidden: true,
+      }),
+    ).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'user:search-custom-fields' })]),
+    );
   });
 });
 
 describe('resolveLanguageQuery', () => {
   it('resolves a known ISO 639-3 code directly', () => {
-    expect(LinguisticService.resolveLanguageQuery('eng')).toBe('eng');
+    expect(LinguisticService.languageCatalog.resolveQuery('eng')).toBe('eng');
   });
 
   it('resolves a Chinese language name to ISO code', () => {
-    expect(LinguisticService.resolveLanguageQuery('英语')).toBe('eng');
+    expect(LinguisticService.languageCatalog.resolveQuery('英语')).toBe('eng');
   });
 
   it('returns undefined for unrecognised input', () => {
-    expect(LinguisticService.resolveLanguageQuery('xyznonexistent')).toBeUndefined();
+    expect(LinguisticService.languageCatalog.resolveQuery('xyznonexistent')).toBeUndefined();
   });
 });
 
@@ -4142,31 +4629,31 @@ describe('listCustomFieldDefinitions', () => {
   });
 
   it('按 sortOrder 返回自定义字段定义 | returns definitions sorted by sortOrder', async () => {
-    const b = await LinguisticService.upsertCustomFieldDefinition({
+    const b = await LinguisticService.languageCatalog.upsertCustomFieldDefinition({
       name: { 'zh-CN': 'B 字段', 'en-US': 'Field B' },
       fieldType: 'text',
       sortOrder: 2,
     });
-    const a = await LinguisticService.upsertCustomFieldDefinition({
+    const a = await LinguisticService.languageCatalog.upsertCustomFieldDefinition({
       name: { 'zh-CN': 'A 字段', 'en-US': 'Field A' },
       fieldType: 'number',
       sortOrder: 1,
     });
 
-    const defs = await LinguisticService.listCustomFieldDefinitions();
+    const defs = await LinguisticService.languageCatalog.listCustomFieldDefinitions();
     expect(defs.length).toBe(2);
     expect(defs[0]?.id).toBe(a.id);
     expect(defs[1]?.id).toBe(b.id);
   });
 
   it('删除后不再返回 | does not return deleted definitions', async () => {
-    const def = await LinguisticService.upsertCustomFieldDefinition({
+    const def = await LinguisticService.languageCatalog.upsertCustomFieldDefinition({
       name: { 'zh-CN': '临时字段', 'en-US': 'Temp field' },
       fieldType: 'text',
     });
-    await LinguisticService.deleteCustomFieldDefinition(def.id);
+    await LinguisticService.languageCatalog.deleteCustomFieldDefinition(def.id);
 
-    const defs = await LinguisticService.listCustomFieldDefinitions();
+    const defs = await LinguisticService.languageCatalog.listCustomFieldDefinitions();
     expect(defs.find((d) => d.id === def.id)).toBeUndefined();
   });
 });

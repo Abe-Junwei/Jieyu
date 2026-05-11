@@ -3,7 +3,7 @@ import type {
   LayerUnitDocType,
   MediaItemDocType,
 } from '../types/jieyuDbDocTypes';
-import type { SegmentTargetDescriptor } from '../hooks/useAiToolCallHandler.segmentTargeting';
+import type { SegmentTargetDescriptor } from '../hooks/ai/useAiToolCallHandler.segmentTargeting';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 
 function orderUnitsByTimeline(units: LayerUnitDocType[]): LayerUnitDocType[] {

@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { fireEvent, render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { resetTranscriptionPlaybackClockForTests, setTranscriptionPlaybackClock } from '../../hooks/transcriptionPlaybackClock';
+import {
+  resetTranscriptionPlaybackClockForTests,
+  setTranscriptionPlaybackClock,
+} from '../../hooks/transcription/transcriptionPlaybackClock';
 import { WaveformLeftStatusStrip } from './WaveformLeftStatusStrip';
 
 describe('WaveformLeftStatusStrip', () => {
@@ -23,7 +26,9 @@ describe('WaveformLeftStatusStrip', () => {
         formatTime={(seconds) => `${seconds.toFixed(1)}s`}
       />,
     );
-    const value = container.querySelector('.waveform-left-status-item:nth-of-type(4) .waveform-left-status-value');
+    const value = container.querySelector(
+      '.waveform-left-status-item:nth-of-type(4) .waveform-left-status-value',
+    );
     expect(value?.textContent).toBe('0.0s');
     setTranscriptionPlaybackClock(3.25);
     expect(value?.textContent).toBe('3.3s');

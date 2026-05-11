@@ -8,9 +8,9 @@ import type {
   UserNoteDocType,
   LayerUnitDocType,
 } from '../db';
-import type { NotePopoverState } from '../hooks/useNoteHandlers';
-import type { SpeakerFilterOption } from '../hooks/useSpeakerActions';
-import type { TimelineUnit, TimelineUnitKind } from '../hooks/transcriptionTypes';
+import type { NotePopoverState } from '~/hooks/notes/useNoteHandlers';
+import type { SpeakerFilterOption } from '../hooks/speakerManagement/useSpeakerActions';
+import type { TimelineUnit, TimelineUnitKind } from '../hooks/transcription/transcriptionTypes';
 import type { ContextMenuState } from '../pages/TranscriptionPage.UIState';
 import { useOptionalLocale } from '../i18n';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';

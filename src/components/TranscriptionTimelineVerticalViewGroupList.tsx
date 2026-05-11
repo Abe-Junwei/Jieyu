@@ -7,8 +7,8 @@ import type {
   MediaItemDocType,
   OrthographyDocType,
 } from '../db';
-import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
-import { unitToView } from '../hooks/timelineUnitView';
+import { layerUsesOwnSegments } from '~/hooks/layer/useLayerSegments';
+import { unitToView } from '../hooks/transcription/timelineUnitView';
 import { t, tf, type Locale } from '../i18n';
 import {
   buildLaneHeaderInlineDotSeparatedLabel,

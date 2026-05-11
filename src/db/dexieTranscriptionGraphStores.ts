@@ -19,7 +19,7 @@ export function dexieStoresForGetUnitLinguisticMemoryRead(db: JieyuDatabase) {
   ] as const;
 }
 
-/** `LinguisticService.deleteAudio`: `media_items` + `texts` + `LayerSegmentQueryService.listUnits*` on `layer_units`. */
+/** `LinguisticService.cleanup.deleteAudio`: `media_items` + `texts` + `LayerSegmentQueryService.listUnits*` on `layer_units`. */
 export function dexieStoresForDeleteAudioKeepTimeline(db: JieyuDatabase) {
   return [db.dexie.media_items, db.dexie.texts, db.dexie.layer_units] as const;
 }
@@ -101,7 +101,12 @@ export function dexieStoresForTierAnnotationAtomicRw(db: JieyuDatabase) {
 
 /** RW: `saveTierDefinition` / `removeTierDefinition` — tier defs plus cascaded annotations/anchors/audit logs. */
 export function dexieStoresForTierDefinitionAtomicRw(db: JieyuDatabase) {
-  return [db.dexie.tier_definitions, db.dexie.tier_annotations, db.dexie.anchors, db.dexie.audit_logs] as const;
+  return [
+    db.dexie.tier_definitions,
+    db.dexie.tier_annotations,
+    db.dexie.anchors,
+    db.dexie.audit_logs,
+  ] as const;
 }
 
 // ── P3+: track UI state, language catalog, orthography, project/unit cascade deletes ──
@@ -132,7 +137,7 @@ export function dexieStoresForStructuralRuleProfilesRw(db: JieyuDatabase) {
 }
 
 /**
- * RW: `LinguisticService.removeUnit` / `removeUnitsBatch` — embeddings, canonical graph,
+ * RW: `LinguisticService.cleanup.removeUnit` / `removeUnitsBatch` — embeddings, canonical graph,
  * lexicon, notes, anchors (same store set for both entry points).
  */
 export function dexieStoresForRemoveUnitCascadeRw(db: JieyuDatabase) {
@@ -149,7 +154,7 @@ export function dexieStoresForRemoveUnitCascadeRw(db: JieyuDatabase) {
   ] as const;
 }
 
-/** RW: `LinguisticService.deleteProject` — full text cascade across Dexie tables listed here. */
+/** RW: `LinguisticService.cleanup.deleteProject` — full text cascade across Dexie tables listed here. */
 export function dexieStoresForDeleteProjectByTextIdCascadeRw(db: JieyuDatabase) {
   return [
     db.dexie.embeddings,

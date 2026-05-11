@@ -21,7 +21,7 @@ async function clearDatabase(): Promise<void> {
 }
 
 async function seedOrthography(overrides: Record<string, unknown> = {}) {
-  return LinguisticService.createOrthography({
+  return LinguisticService.orthography.create({
     languageId: 'cmn',
     name: { zho: '拼音', eng: 'Pinyin' },
     type: 'practical',
@@ -71,7 +71,7 @@ describe('LinguisticService.orthography', () => {
   describe('updateOrthography', () => {
     it('更新名称与缩写 | updates name and abbreviation', async () => {
       const created = await seedOrthography();
-      const updated = await LinguisticService.updateOrthography({
+      const updated = await LinguisticService.orthography.update({
         id: created.id,
         languageId: 'cmn',
         name: { zho: '汉语拼音', eng: 'Hanyu Pinyin' },
@@ -94,7 +94,7 @@ describe('LinguisticService.orthography', () => {
       });
 
       await expect(
-        LinguisticService.updateOrthography({
+        LinguisticService.orthography.update({
           id: b.id,
           languageId: 'cmn',
           name: { eng: 'IPA' },
@@ -105,7 +105,7 @@ describe('LinguisticService.orthography', () => {
       ).rejects.toThrow();
 
       // 保持自身身份不报错 | keeping own identity should not throw
-      const selfUpdate = await LinguisticService.updateOrthography({
+      const selfUpdate = await LinguisticService.orthography.update({
         id: a.id,
         languageId: 'cmn',
         name: { eng: 'Pinyin 2' },
@@ -122,7 +122,7 @@ describe('LinguisticService.orthography', () => {
       await seedOrthography();
       await seedOrthography({ languageId: 'yue', name: { eng: 'Jyutping' } });
 
-      const list = await LinguisticService.listOrthographies({ languageId: 'cmn' });
+      const list = await LinguisticService.orthography.list({ languageId: 'cmn' });
       expect(list.every((o) => o.languageId === 'cmn')).toBe(true);
     });
   });
@@ -130,7 +130,7 @@ describe('LinguisticService.orthography', () => {
   describe('cloneOrthographyToLanguage', () => {
     it('克隆到新语言 | clones orthography to a different language', async () => {
       const source = await seedOrthography();
-      const cloned = await LinguisticService.cloneOrthographyToLanguage({
+      const cloned = await LinguisticService.orthography.cloneToLanguage({
         sourceOrthographyId: source.id,
         targetLanguageId: 'yue',
         name: { eng: 'Cantonese Pinyin' },
@@ -156,7 +156,7 @@ describe('LinguisticService.orthography', () => {
 
     it('创建桥接并持久化 | creates and persists a bridge', async () => {
       const { source, target } = await seedBridgePair();
-      const bridge = await LinguisticService.createOrthographyBridge({
+      const bridge = await LinguisticService.orthography.createBridge({
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
         engine: 'table-map',
@@ -175,7 +175,7 @@ describe('LinguisticService.orthography', () => {
     it('源与目标相同时抛出 | rejects bridge when source equals target', async () => {
       const source = await seedOrthography();
       await expect(
-        LinguisticService.createOrthographyBridge({
+        LinguisticService.orthography.createBridge({
           sourceOrthographyId: source.id,
           targetOrthographyId: source.id,
           engine: 'table-map',
@@ -187,7 +187,7 @@ describe('LinguisticService.orthography', () => {
     it('激活桥接时停用同对中其他桥接 | deactivates sibling bridges on activation', async () => {
       const { source, target } = await seedBridgePair();
 
-      const bridge1 = await LinguisticService.createOrthographyBridge({
+      const bridge1 = await LinguisticService.orthography.createBridge({
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
         engine: 'table-map',
@@ -195,7 +195,7 @@ describe('LinguisticService.orthography', () => {
         status: 'active',
       });
 
-      const bridge2 = await LinguisticService.createOrthographyBridge({
+      const bridge2 = await LinguisticService.orthography.createBridge({
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
         engine: 'table-map',
@@ -212,14 +212,14 @@ describe('LinguisticService.orthography', () => {
 
     it('listOrthographyBridges 按源/目标过滤 | filters by source/target', async () => {
       const { source, target } = await seedBridgePair();
-      await LinguisticService.createOrthographyBridge({
+      await LinguisticService.orthography.createBridge({
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
         engine: 'table-map',
         rules: { mappings: [] },
       });
 
-      const list = await LinguisticService.listOrthographyBridges({
+      const list = await LinguisticService.orthography.listBridges({
         sourceOrthographyId: source.id,
       });
       expect(list.length).toBeGreaterThanOrEqual(1);
@@ -228,14 +228,14 @@ describe('LinguisticService.orthography', () => {
 
     it('updateOrthographyBridge 更新规则 | updates bridge rules', async () => {
       const { source, target } = await seedBridgePair();
-      const bridge = await LinguisticService.createOrthographyBridge({
+      const bridge = await LinguisticService.orthography.createBridge({
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
         engine: 'table-map',
         rules: { mappings: [{ from: 'a', to: 'ɑ' }] },
       });
 
-      const updated = await LinguisticService.updateOrthographyBridge({
+      const updated = await LinguisticService.orthography.updateBridge({
         id: bridge.id,
         rules: { mappings: [{ from: 'b', to: 'β' }] },
       });
@@ -245,14 +245,14 @@ describe('LinguisticService.orthography', () => {
 
     it('deleteOrthographyBridge 删除桥接 | deletes a bridge', async () => {
       const { source, target } = await seedBridgePair();
-      const bridge = await LinguisticService.createOrthographyBridge({
+      const bridge = await LinguisticService.orthography.createBridge({
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
         engine: 'table-map',
         rules: { mappings: [] },
       });
 
-      await LinguisticService.deleteOrthographyBridge(bridge.id);
+      await LinguisticService.orthography.deleteBridge(bridge.id);
       const deleted = await db.orthography_bridges.get(bridge.id);
       expect(deleted).toBeUndefined();
     });
@@ -261,7 +261,7 @@ describe('LinguisticService.orthography', () => {
       const { source, target } = await seedBridgePair();
 
       // 先创建一个 draft 桥接 | First create a draft bridge
-      await LinguisticService.createOrthographyBridge({
+      await LinguisticService.orthography.createBridge({
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
         engine: 'table-map',
@@ -269,7 +269,7 @@ describe('LinguisticService.orthography', () => {
         status: 'draft',
       });
 
-      const active = await LinguisticService.getActiveOrthographyBridge({
+      const active = await LinguisticService.orthography.getActiveBridge({
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
       });
@@ -277,7 +277,7 @@ describe('LinguisticService.orthography', () => {
       expect(active).toBeNull();
 
       // 创建 active 桥接 | Create an active bridge
-      const activeBridge = await LinguisticService.createOrthographyBridge({
+      const activeBridge = await LinguisticService.orthography.createBridge({
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
         engine: 'table-map',
@@ -285,7 +285,7 @@ describe('LinguisticService.orthography', () => {
         status: 'active',
       });
 
-      const found = await LinguisticService.getActiveOrthographyBridge({
+      const found = await LinguisticService.orthography.getActiveBridge({
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
       });
@@ -294,7 +294,7 @@ describe('LinguisticService.orthography', () => {
 
     it('applyOrthographyBridge 执行 table-map 转换 | applies table-map bridge transformation', async () => {
       const { source, target } = await seedBridgePair();
-      await LinguisticService.createOrthographyBridge({
+      await LinguisticService.orthography.createBridge({
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
         engine: 'table-map',
@@ -302,7 +302,7 @@ describe('LinguisticService.orthography', () => {
         status: 'active',
       });
 
-      const result = await LinguisticService.applyOrthographyBridge({
+      const result = await LinguisticService.orthography.applyBridge({
         text: 'banana',
         sourceOrthographyId: source.id,
         targetOrthographyId: target.id,
@@ -313,9 +313,14 @@ describe('LinguisticService.orthography', () => {
     });
 
     it('previewOrthographyBridge 同步预览 | synchronously previews bridge text', () => {
-      const result = LinguisticService.previewOrthographyBridge({
+      const result = LinguisticService.orthography.previewBridge({
         engine: 'table-map',
-        rules: { mappings: [{ from: 'a', to: 'ɑ' }, { from: 'e', to: 'ɛ' }] },
+        rules: {
+          mappings: [
+            { from: 'a', to: 'ɑ' },
+            { from: 'e', to: 'ɛ' },
+          ],
+        },
         text: 'cafe',
       });
       expect(result).toBe('cɑfɛ');
@@ -323,7 +328,7 @@ describe('LinguisticService.orthography', () => {
 
     it('源/目标相同时 applyOrthographyBridge 返回原文 | returns original text when source equals target', async () => {
       const source = await seedOrthography();
-      const result = await LinguisticService.applyOrthographyBridge({
+      const result = await LinguisticService.orthography.applyBridge({
         text: 'hello',
         sourceOrthographyId: source.id,
         targetOrthographyId: source.id,

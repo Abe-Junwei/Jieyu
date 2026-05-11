@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 
 interface SelectedRowMetaLike {
   rowNumber: number;

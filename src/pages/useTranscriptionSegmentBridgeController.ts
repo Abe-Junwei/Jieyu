@@ -6,8 +6,11 @@ import type {
   LayerUnitDocType,
 } from '../types/jieyuDbDocTypes';
 import { getDb } from '../app/jieyuDbPageAccess';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import { getLayerEditMode, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import {
+  getLayerEditMode,
+  resolveSegmentTimelineSourceLayer,
+} from '~/hooks/layer/useLayerSegments';
 import { LayerSegmentationV2Service } from '../app/transcriptionServicesPageAccess';
 import { resolveTranscriptionTargetLayerId } from './transcriptionUnitTargetResolver';
 import type { SegmentTimelineRoutingResult } from './transcriptionSegmentRouting';

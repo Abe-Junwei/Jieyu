@@ -39,18 +39,24 @@ const {
 
 vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
-    createProject: mockCreateProject,
-    getMediaItemsByTextId: mockGetMediaItemsByTextId,
-    ensureDocumentTimeline: mockEnsureDocumentTimeline,
-    createPlaceholderMedia: mockCreatePlaceholderMedia,
+    projects: {
+      create: mockCreateProject,
+    },
+    media: {
+      listByTextId: mockGetMediaItemsByTextId,
+      createPlaceholder: mockCreatePlaceholderMedia,
+    },
+    timeline: {
+      ensureDocument: mockEnsureDocumentTimeline,
+    },
   },
 }));
 
-vi.mock('../hooks/useLayerActionPanel', () => ({
+vi.mock('../hooks/layer/useLayerActionPanel', () => ({
   useLayerActionPanel: () => ({}),
 }));
 
-vi.mock('../hooks/useDialogs', () => ({
+vi.mock('../hooks/dialogs/useDialogs', () => ({
   useDialogs: () => ({
     showProjectSetup: false,
     setShowProjectSetup: vi.fn(),
@@ -85,7 +91,7 @@ vi.mock('./useTranscriptionAdaptiveSizing', () => ({
   }),
 }));
 
-vi.mock('../hooks/usePanelToggles', () => ({
+vi.mock('../hooks/panel/usePanelToggles', () => ({
   usePanelToggles: () => ({
     isAiPanelCollapsed: false,
     setIsAiPanelCollapsed: vi.fn(),
@@ -109,31 +115,41 @@ describe('useTranscriptionShellController', () => {
   it('provisions document mode when creating a layer in a project with no audio', async () => {
     const orderedLayers: LayerDocType[] = [];
 
-    const { result } = renderHook(() => useTranscriptionShellController({
-      units: [],
-      selectedLayerId: '',
-      setSelectedLayerId: vi.fn(),
-      orderedLayers,
-      layerLinks: [],
-      deletableLayers: [],
-      layerCreateMessage: '',
-      setLayerCreateMessage: vi.fn(),
-      createLayer: mockCreateLayer,
-      deleteLayer: vi.fn(async () => undefined),
-    }));
+    const { result } = renderHook(() =>
+      useTranscriptionShellController({
+        units: [],
+        selectedLayerId: '',
+        setSelectedLayerId: vi.fn(),
+        orderedLayers,
+        layerLinks: [],
+        deletableLayers: [],
+        layerCreateMessage: '',
+        setLayerCreateMessage: vi.fn(),
+        createLayer: mockCreateLayer,
+        deleteLayer: vi.fn(async () => undefined),
+      }),
+    );
 
     await act(async () => {
-      await result.current.createLayerWithActiveContext('transcription', {
-        languageId: 'eng',
-      }, 'text');
+      await result.current.createLayerWithActiveContext(
+        'transcription',
+        {
+          languageId: 'eng',
+        },
+        'text',
+      );
     });
 
     expect(mockGetMediaItemsByTextId).toHaveBeenCalledWith('text-existing');
     expect(mockEnsureDocumentTimeline).toHaveBeenCalledWith({ textId: 'text-existing' });
     expect(mockCreatePlaceholderMedia).not.toHaveBeenCalled();
-    expect(mockCreateLayer).toHaveBeenCalledWith('transcription', expect.objectContaining({
-      textId: 'text-existing',
-      languageId: 'eng',
-    }), 'text');
+    expect(mockCreateLayer).toHaveBeenCalledWith(
+      'transcription',
+      expect.objectContaining({
+        textId: 'text-existing',
+        languageId: 'eng',
+      }),
+      'text',
+    );
   });
 });

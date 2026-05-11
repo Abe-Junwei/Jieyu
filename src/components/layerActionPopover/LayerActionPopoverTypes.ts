@@ -1,4 +1,4 @@
-import type { LayerCreateInput } from '../../hooks/transcriptionTypes';
+import type { LayerCreateInput } from '../../hooks/transcription/transcriptionTypes';
 import type { LayerDocType, LayerLinkDocType } from '../../db';
 import type { LayerMetadataUpdateInput } from '../../types/layerMetadata';
 import type { LayerActionType } from '../layerActionPopoverHelpers';

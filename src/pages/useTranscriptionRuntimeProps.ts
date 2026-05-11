@@ -2,12 +2,21 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import { unitDocForSpeakerTargetFromUnitView } from './timelineUnitViewUnitHelpers';
 import type { VoiceIntent, VoiceSession } from '../types/voiceSession.types';
-import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
-import type { SaveState } from '../hooks/transcriptionTypes';
+import type { VoiceAgentMode } from '../hooks/voice/useVoiceAgent';
+import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import type { Locale } from '../i18n';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
-import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
-import type { PdfPreviewOpenRequest, TranscriptionPageAnalysisRuntimeProps, TranscriptionPageAssistantRuntimeProps, TranscriptionPageEmbeddingProviderConfig, TranscriptionPagePdfRuntimeProps } from './TranscriptionPage.runtimeContracts';
+import type {
+  DictationPipelineCallbacks,
+  QuickDictationConfig,
+} from '../types/dictationPipeline.types';
+import type {
+  PdfPreviewOpenRequest,
+  TranscriptionPageAnalysisRuntimeProps,
+  TranscriptionPageAssistantRuntimeProps,
+  TranscriptionPageEmbeddingProviderConfig,
+  TranscriptionPagePdfRuntimeProps,
+} from './TranscriptionPage.runtimeContracts';
 import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import { useTranscriptionAssistantRuntimeProps } from './useTranscriptionAssistantRuntimeProps';
@@ -58,7 +67,9 @@ interface UseTranscriptionRuntimePropsInput {
   formatSidePaneLayerLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   toggleVoiceRef: MutableRefObject<(() => void) | undefined>;
-  onAiAssistantMessageBridgeRef?: MutableRefObject<((assistantMessageId: string, content: string) => void) | null>;
+  onAiAssistantMessageBridgeRef?: MutableRefObject<
+    ((assistantMessageId: string, content: string) => void) | null
+  >;
   unitsOnCurrentMedia: LayerUnitDocType[];
   getUnitDocById: (id: string) => LayerUnitDocType | undefined;
   getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
@@ -80,7 +91,10 @@ interface UseTranscriptionRuntimePropsInput {
 
 export type { UseTranscriptionRuntimePropsInput };
 
-type UseTranscriptionAssistantRuntimeProps = Omit<TranscriptionPageAssistantRuntimeProps, 'locale' | 'aiChatContextValue'>;
+type UseTranscriptionAssistantRuntimeProps = Omit<
+  TranscriptionPageAssistantRuntimeProps,
+  'locale' | 'aiChatContextValue'
+>;
 type UseTranscriptionAnalysisRuntimeProps = Omit<TranscriptionPageAnalysisRuntimeProps, 'panel'>;
 
 interface UseTranscriptionRuntimePropsResult {
@@ -89,33 +103,51 @@ interface UseTranscriptionRuntimePropsResult {
   pdfRuntimeProps: TranscriptionPagePdfRuntimeProps;
 }
 
-export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimePropsInput): UseTranscriptionRuntimePropsResult {
+export function useTranscriptionRuntimeProps(
+  input: UseTranscriptionRuntimePropsInput,
+): UseTranscriptionRuntimePropsResult {
   const assistantRuntimeProps = useTranscriptionAssistantRuntimeProps({
     saveState: input.saveState,
     recording: input.recording,
     recordingUnitId: input.recordingUnitId,
     recordingError: input.recordingError,
-    ...(input.overlapCycleToast !== undefined ? { overlapCycleToast: input.overlapCycleToast } : {}),
-    ...(input.lockConflictToast !== undefined ? { lockConflictToast: input.lockConflictToast } : {}),
+    ...(input.overlapCycleToast !== undefined
+      ? { overlapCycleToast: input.overlapCycleToast }
+      : {}),
+    ...(input.lockConflictToast !== undefined
+      ? { lockConflictToast: input.lockConflictToast }
+      : {}),
     tfB: input.tfB,
-    ...(input.activeTextPrimaryLanguageId !== undefined ? { activeTextPrimaryLanguageId: input.activeTextPrimaryLanguageId } : {}),
+    ...(input.activeTextPrimaryLanguageId !== undefined
+      ? { activeTextPrimaryLanguageId: input.activeTextPrimaryLanguageId }
+      : {}),
     getActiveTextPrimaryLanguageId: input.getActiveTextPrimaryLanguageId,
     executeAction: input.executeAction,
     handleResolveVoiceIntentWithLlm: input.handleResolveVoiceIntentWithLlm,
-    ...(input.executeVoiceToolCall !== undefined ? { executeVoiceToolCall: input.executeVoiceToolCall } : {}),
+    ...(input.executeVoiceToolCall !== undefined
+      ? { executeVoiceToolCall: input.executeVoiceToolCall }
+      : {}),
     handleVoiceDictation: input.handleVoiceDictation,
     handleVoiceAnalysisResult: input.handleVoiceAnalysisResult,
     selectionSnapshot: input.selectionSnapshot,
-    ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
+    ...(input.defaultTranscriptionLayerId !== undefined
+      ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId }
+      : {}),
     translationLayers: input.translationLayers,
     layers: input.layers,
     ...(input.layerLinks !== undefined ? { layerLinks: input.layerLinks } : {}),
-    ...(input.dictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: input.dictationPreviewTextProps } : {}),
-    ...(input.dictationPipeline !== undefined ? { dictationPipeline: input.dictationPipeline } : {}),
+    ...(input.dictationPreviewTextProps !== undefined
+      ? { dictationPreviewTextProps: input.dictationPreviewTextProps }
+      : {}),
+    ...(input.dictationPipeline !== undefined
+      ? { dictationPipeline: input.dictationPipeline }
+      : {}),
     formatSidePaneLayerLabel: input.formatSidePaneLayerLabel,
     formatTime: input.formatTime,
     toggleVoiceRef: input.toggleVoiceRef,
-    ...(input.onAiAssistantMessageBridgeRef !== undefined ? { onAiAssistantMessageBridgeRef: input.onAiAssistantMessageBridgeRef } : {}),
+    ...(input.onAiAssistantMessageBridgeRef !== undefined
+      ? { onAiAssistantMessageBridgeRef: input.onAiAssistantMessageBridgeRef }
+      : {}),
   });
 
   const analysisRuntimeProps = useTranscriptionAnalysisRuntimeProps({

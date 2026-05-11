@@ -1,12 +1,15 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
-import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
-import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
+import type { VoiceAgentMode } from '../hooks/voice/useVoiceAgent';
 import type { VoiceIntent, VoiceSession } from '../types/voiceSession.types';
-import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
+import type {
+  DictationPipelineCallbacks,
+  QuickDictationConfig,
+} from '../types/dictationPipeline.types';
 
 interface SelectedRowMetaLike {
   rowNumber: number;
@@ -98,5 +101,8 @@ export interface UseTranscriptionAssistantControllerResult {
     callbacks: DictationPipelineCallbacks;
     config?: QuickDictationConfig;
   };
-  handleVoiceAnalysisResult: (unitId: string | null, analysisText: string) => Promise<{ ok: boolean; message: string }>;
+  handleVoiceAnalysisResult: (
+    unitId: string | null,
+    analysisText: string,
+  ) => Promise<{ ok: boolean; message: string }>;
 }

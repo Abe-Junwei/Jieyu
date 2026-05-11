@@ -1,4 +1,4 @@
-import { getUnitSpeakerKey } from '../hooks/useSpeakerActions';
+import { getUnitSpeakerKey } from '../hooks/speakerManagement/useSpeakerActions';
 import type { Locale } from '../i18n';
 import { formatSidePaneLayerLabel, formatTime } from '../utils/transcriptionFormatters';
 

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { TimelineUnitViewIndexWithEpoch } from '../hooks/transcription/useTimelineUnitViewIndex';
 import {
   computeEffectiveTimelineShellLayersCount,
   resolveTimelineShellMode,

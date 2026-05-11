@@ -4,8 +4,8 @@ import type {
   LayerUnitDocType,
   SpeakerDocType,
 } from '../types/jieyuDbDocTypes';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 
 export type SpeakerAssignmentLike = {
   unitId: string;

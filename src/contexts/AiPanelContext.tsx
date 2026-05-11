@@ -1,8 +1,13 @@
 import { createContext, useContext, useMemo, useState } from 'react';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel.types';
 import type { AcousticPromptSummary } from '../pages/TranscriptionPage.aiPromptContext';
-import type { AcousticBatchSelectionRange, AcousticCalibrationStatus, AcousticPanelBatchDetail, AcousticPanelDetail } from '../utils/acousticPanelDetail';
+import type {
+  AcousticBatchSelectionRange,
+  AcousticCalibrationStatus,
+  AcousticPanelBatchDetail,
+  AcousticPanelDetail,
+} from '../utils/acousticPanelDetail';
 import type { AcousticHotspotKind } from '../utils/acousticOverlayTypes';
 import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
 
@@ -47,7 +52,11 @@ export type AiPanelContextValue = {
   selectedAiWarning: boolean;
   lexemeMatches: Array<{ id: string; lemma: Record<string, string> }>;
   // ── Lexeme/Token editing callbacks ──
-  onOpenWordNote?: (unitId: string, wordId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
+  onOpenWordNote?: (
+    unitId: string,
+    wordId: string,
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => void;
   onOpenMorphemeNote?: (
     unitId: string,
     wordId: string,
@@ -92,7 +101,9 @@ export type AiPanelContextValue = {
   onResetAcousticConfig?: () => void;
   onChangeAcousticProvider?: (providerId: string | null) => void;
   onRefreshAcousticProviderState?: () => void;
-  acousticConfigOverride?: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig> | null;
+  acousticConfigOverride?: Partial<
+    import('../utils/acousticOverlayTypes').AcousticAnalysisConfig
+  > | null;
 };
 
 export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
@@ -123,7 +134,9 @@ export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
 };
 
 export const AiPanelContext = createContext<AiPanelContextValue | null>(null);
-const AiPanelContextUpdateContext = createContext<React.Dispatch<React.SetStateAction<AiPanelContextValue>> | null>(null);
+const AiPanelContextUpdateContext = createContext<React.Dispatch<
+  React.SetStateAction<AiPanelContextValue>
+> | null>(null);
 
 export function AiPanelProvider({ children }: { children: React.ReactNode }) {
   const [value, setValue] = useState<AiPanelContextValue>(DEFAULT_AI_PANEL_CONTEXT_VALUE);
@@ -146,7 +159,9 @@ export function useAiPanelContext(): AiPanelContextValue {
   return value;
 }
 
-export function useAiPanelContextUpdater(): React.Dispatch<React.SetStateAction<AiPanelContextValue>> {
+export function useAiPanelContextUpdater(): React.Dispatch<
+  React.SetStateAction<AiPanelContextValue>
+> {
   const setValue = useContext(AiPanelContextUpdateContext);
   if (!setValue) {
     throw new Error('useAiPanelContextUpdater must be used within AiPanelProvider');

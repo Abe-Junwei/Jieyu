@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UseOrthographyPickerResult } from '../hooks/useOrthographyPicker';
+import type { UseOrthographyPickerResult } from '~/hooks/orthography/useOrthographyPicker';
 import { LocaleProvider } from '../i18n';
 import type { OrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { clearFontCoverageVerificationCache } from '../utils/layerDisplayStyle';
@@ -151,12 +151,7 @@ function renderZh(ui: Parameters<typeof render>[0]) {
 
 describe('OrthographyBuilderPanel', () => {
   it('renders draft render preview with coverage summary and bidi direction', async () => {
-    const view = renderZh(
-      <OrthographyBuilderPanel
-        picker={createPicker()}
-        languageOptions={[]}
-      />,
-    );
+    const view = renderZh(<OrthographyBuilderPanel picker={createPicker()} languageOptions={[]} />);
 
     const root = view.container.querySelector('.orthography-builder-panel-shell') as HTMLDivElement;
 
@@ -167,7 +162,9 @@ describe('OrthographyBuilderPanel', () => {
     expect(screen.getByText('脚本：Arab')).toBeTruthy();
     expect(screen.getByText('方向：RTL')).toBeTruthy();
     expect(screen.getByText('字体覆盖：样例 3 项')).toBeTruthy();
-    expect(screen.getByText('最终字体栈：Scheherazade New -> Noto Sans Arabic -> 系统默认')).toBeTruthy();
+    expect(
+      screen.getByText('最终字体栈：Scheherazade New -> Noto Sans Arabic -> 系统默认'),
+    ).toBeTruthy();
     await waitFor(() => {
       expect(screen.getByText('默认字体验证：Scheherazade New · 已验证')).toBeTruthy();
     });
@@ -206,7 +203,9 @@ describe('OrthographyBuilderPanel', () => {
 
     expect(screen.getByText('字体覆盖：未配置样例')).toBeTruthy();
     expect(screen.getByText('未配置示例字符，当前仅提供脚本级字体推荐。')).toBeTruthy();
-    expect(screen.getByText('最终字体栈：Annapurna SIL -> Noto Sans Devanagari -> 系统默认')).toBeTruthy();
+    expect(
+      screen.getByText('最终字体栈：Annapurna SIL -> Noto Sans Devanagari -> 系统默认'),
+    ).toBeTruthy();
 
     const sample = screen.getByText('कखग १२३');
     expect(sample.getAttribute('dir')).toBeNull();
@@ -224,7 +223,9 @@ describe('OrthographyBuilderPanel', () => {
     );
 
     expect(screen.getByText('创建风险提示')).toBeTruthy();
-    expect(screen.getByText('首次点击创建将进入确认状态，再次点击才会按当前配置创建。')).toBeTruthy();
+    expect(
+      screen.getByText('首次点击创建将进入确认状态，再次点击才会按当前配置创建。'),
+    ).toBeTruthy();
     expect(screen.getByRole('button', { name: '先确认这些风险' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '确认风险并创建' })).toBeTruthy();
   });
@@ -348,7 +349,11 @@ describe('OrthographyBuilderPanel', () => {
               type: 'practical',
               createdAt: '2026-04-04T00:00:00.000Z',
               updatedAt: '2026-04-04T00:00:00.000Z',
-              catalogMetadata: { catalogSource: 'built-in-reviewed', reviewStatus: 'verified-primary', priority: 'primary' },
+              catalogMetadata: {
+                catalogSource: 'built-in-reviewed',
+                reviewStatus: 'verified-primary',
+                priority: 'primary',
+              },
             },
           ],
         })}
@@ -363,7 +368,9 @@ describe('OrthographyBuilderPanel', () => {
     expect(screen.queryByRole('textbox', { name: '桥接样例' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '添加创建前自检样例' }));
     expect(screen.getByRole('textbox', { name: '桥接样例' })).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: '桥接规则文本' }).getAttribute('placeholder')).toContain('::NFC');
+    expect(
+      screen.getByRole('textbox', { name: '桥接规则文本' }).getAttribute('placeholder'),
+    ).toContain('::NFC');
   });
 
   it('renders a resolved source language code with its locale-first display label', async () => {
@@ -377,8 +384,12 @@ describe('OrthographyBuilderPanel', () => {
       />,
     );
 
-    const sourceLanguageNameInput = screen.getByRole('combobox', { name: '来源语言' }) as HTMLInputElement;
-    const sourceLanguageCodeInput = screen.getByRole('textbox', { name: '来源语言代码' }) as HTMLInputElement;
+    const sourceLanguageNameInput = screen.getByRole('combobox', {
+      name: '来源语言',
+    }) as HTMLInputElement;
+    const sourceLanguageCodeInput = screen.getByRole('textbox', {
+      name: '来源语言代码',
+    }) as HTMLInputElement;
 
     await waitFor(() => {
       expect(sourceLanguageCodeInput.value).toBe('eng');

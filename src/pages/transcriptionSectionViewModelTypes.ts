@@ -1,7 +1,7 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { OrthographyDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
@@ -85,7 +85,12 @@ export interface UseTranscriptionSectionViewModelsInput {
   searchOverlayRequest: AppShellOpenSearchDetail | null;
   manualSelectTsRef: MutableRefObject<number>;
   selectUnit: (id: string) => void;
-  handleSearchReplace: (unitId: string, layerId: string | undefined, oldText: string, newText: string) => void;
+  handleSearchReplace: (
+    unitId: string,
+    layerId: string | undefined,
+    oldText: string,
+    newText: string,
+  ) => void;
   setShowSearch: (value: boolean) => void;
   setSearchOverlayRequest: Dispatch<SetStateAction<AppShellOpenSearchDetail | null>>;
   timelineContentProps: TranscriptionPageTimelineContentProps;

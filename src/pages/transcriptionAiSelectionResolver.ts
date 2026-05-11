@@ -1,5 +1,5 @@
 import type { LayerUnitDocType } from '../types/transcriptionDomain.types';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import { resolveSegmentOwnerUnit } from './transcriptionSelectionOwnerResolver';
 import { unitDocForSpeakerTargetFromUnitView } from './timelineUnitViewUnitHelpers';
 

@@ -1,4 +1,4 @@
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 
 /**

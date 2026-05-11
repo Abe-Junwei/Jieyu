@@ -1,6 +1,6 @@
 import { useEffect, type Dispatch, type SetStateAction } from 'react';
 
-import type { DbState } from '../hooks/transcriptionTypes';
+import type { DbState } from '../hooks/transcription/transcriptionTypes';
 
 /** Syncs `DbState.unifiedUnitCount` with the CQRS timeline read model total while `phase === 'ready'`. */
 export function useReadyWorkspaceUnifiedUnitCountSync(input: {

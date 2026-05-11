@@ -1,4 +1,4 @@
-import type { TimelineUnitView } from '../../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../../hooks/transcription/timelineUnitView';
 
 export type WorldModelDetailLevel = 'full' | 'digest' | 'summary';
 
@@ -15,7 +15,9 @@ export interface WorldModelMediaInput {
 
 function firstLocalizedName(name: Record<string, unknown> | undefined): string {
   if (!name) return '';
-  const values = Object.values(name).filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  const values = Object.values(name).filter(
+    (value): value is string => typeof value === 'string' && value.trim().length > 0,
+  );
   return values[0] ?? '';
 }
 
@@ -62,14 +64,21 @@ export function buildWorldModelSnapshot(input: {
     else unitsByMedia.set(unit.mediaId, [unit]);
   }
 
-  const mediaOrder = input.mediaItems?.map((item) => item.id)
-    ?? [...new Set([input.currentMediaId, ...input.allUnits.map((unit) => unit.mediaId)].filter((id): id is string => typeof id === 'string' && id.length > 0))];
+  const mediaOrder = input.mediaItems?.map((item) => item.id) ?? [
+    ...new Set(
+      [input.currentMediaId, ...input.allUnits.map((unit) => unit.mediaId)].filter(
+        (id): id is string => typeof id === 'string' && id.length > 0,
+      ),
+    ),
+  ];
 
   const lines: string[] = ['project'];
 
   for (const mediaId of mediaOrder) {
     const media = input.mediaItems?.find((item) => item.id === mediaId);
-    const units = [...(unitsByMedia.get(mediaId) ?? [])].sort((left, right) => left.startTime - right.startTime);
+    const units = [...(unitsByMedia.get(mediaId) ?? [])].sort(
+      (left, right) => left.startTime - right.startTime,
+    );
     const mediaLabel = media?.filename ?? mediaId;
     const currentSuffix = mediaId === input.currentMediaId ? ' ← currentMedia' : '';
     lines.push(`├── media ${mediaLabel} units=${units.length}${currentSuffix}`);
@@ -78,19 +87,20 @@ export function buildWorldModelSnapshot(input: {
       continue;
     }
 
-    const sourceUnits = detailLevel === 'full'
-      ? units
-      : mediaId === input.currentMediaId
-        ? units.slice(0, 6)
-        : (() => {
-            const merged = [...units.slice(0, 3), ...units.slice(-3)];
-            const seen = new Set<string>();
-            return merged.filter((unit) => {
-              if (seen.has(unit.id)) return false;
-              seen.add(unit.id);
-              return true;
-            });
-          })();
+    const sourceUnits =
+      detailLevel === 'full'
+        ? units
+        : mediaId === input.currentMediaId
+          ? units.slice(0, 6)
+          : (() => {
+              const merged = [...units.slice(0, 3), ...units.slice(-3)];
+              const seen = new Set<string>();
+              return merged.filter((unit) => {
+                if (seen.has(unit.id)) return false;
+                seen.add(unit.id);
+                return true;
+              });
+            })();
 
     for (const unit of sourceUnits) {
       const selectedSuffix = selectedIds.has(unit.id) ? ' ← selected' : '';

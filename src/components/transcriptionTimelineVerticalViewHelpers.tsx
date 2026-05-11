@@ -6,11 +6,21 @@ import {
   type LayerUnitContentDocType,
   type LayerUnitDocType,
 } from '../db';
-import { DEFAULT_TIMELINE_LANE_HEIGHT, MAX_TIMELINE_LANE_HEIGHT, MIN_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
-import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
+import {
+  DEFAULT_TIMELINE_LANE_HEIGHT,
+  MAX_TIMELINE_LANE_HEIGHT,
+  MIN_TIMELINE_LANE_HEIGHT,
+} from '../hooks/transcription/useTimelineLaneHeightResize';
+import {
+  layerUsesOwnSegments,
+  resolveSegmentTimelineSourceLayer,
+} from '~/hooks/layer/useLayerSegments';
 import type { Locale } from '../i18n';
 import { TimelineBadges } from './TimelineBadges';
-import { normalizeSpeakerFocusKey, resolveSpeakerFocusKeyFromSegment } from './transcriptionTimelineSegmentSpeakerLayout';
+import {
+  normalizeSpeakerFocusKey,
+  resolveSpeakerFocusKeyFromSegment,
+} from './transcriptionTimelineSegmentSpeakerLayout';
 import {
   buildVerticalReadingTargetItemsFromRawText,
   listTranslationSegmentsForVerticalReadingSourceUnit,
@@ -41,27 +51,49 @@ import {
 function isTranscriptionDependentLaneForVerticalSourceWalk(
   layer: LayerDocType,
   transcriptionLaneIds: ReadonlySet<string>,
-  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>,
+  layerLinks: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >,
   layerById: ReadonlyMap<string, LayerDocType>,
 ): boolean {
   if (layer.layerType !== 'transcription') return false;
   const tp = layerTranscriptionTreeParentId(layer)?.trim() ?? '';
   if (tp.length > 0 && transcriptionLaneIds.has(tp)) return true;
   if (layerLinks.length === 0) return false;
-  return listInboundTranscriptionHostIdsForTranscriptionLane(layer.id, layerLinks, layerById, transcriptionLaneIds).length > 0;
+  return (
+    listInboundTranscriptionHostIdsForTranscriptionLane(
+      layer.id,
+      layerLinks,
+      layerById,
+      transcriptionLaneIds,
+    ).length > 0
+  );
 }
 
 function resolveTranscriptionDependentHostTranscriptionLayerId(
   layer: LayerDocType,
   transcriptionLaneIds: ReadonlySet<string>,
-  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>,
+  layerLinks: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >,
   layerById: ReadonlyMap<string, LayerDocType>,
 ): string | undefined {
   if (layer.layerType !== 'transcription') return undefined;
   const tp = layerTranscriptionTreeParentId(layer)?.trim() ?? '';
   if (tp.length > 0 && transcriptionLaneIds.has(tp)) return tp;
   if (layerLinks.length === 0) return undefined;
-  const hosts = listInboundTranscriptionHostIdsForTranscriptionLane(layer.id, layerLinks, layerById, transcriptionLaneIds);
+  const hosts = listInboundTranscriptionHostIdsForTranscriptionLane(
+    layer.id,
+    layerLinks,
+    layerById,
+    transcriptionLaneIds,
+  );
   const hid = hosts[0]?.trim();
   return hid && hid.length > 0 ? hid : undefined;
 }
@@ -73,7 +105,12 @@ function resolveTranscriptionDependentHostTranscriptionLayerId(
 function pushHostTranscriptionSegmentsOntoDependentLane(input: {
   layer: LayerDocType;
   transcriptionLaneIds: ReadonlySet<string>;
-  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
+  layerLinks: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >;
   layerById: ReadonlyMap<string, LayerDocType>;
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined;
   speakerKey: string;
@@ -95,12 +132,27 @@ function pushHostTranscriptionSegmentsOntoDependentLane(input: {
     defaultTranscriptionLayerId,
     existingRows,
   } = input;
-  if (!isTranscriptionDependentLaneForVerticalSourceWalk(layer, transcriptionLaneIds, layerLinks, layerById)) return;
-  const hostId = resolveTranscriptionDependentHostTranscriptionLayerId(layer, transcriptionLaneIds, layerLinks, layerById);
+  if (
+    !isTranscriptionDependentLaneForVerticalSourceWalk(
+      layer,
+      transcriptionLaneIds,
+      layerLinks,
+      layerById,
+    )
+  )
+    return;
+  const hostId = resolveTranscriptionDependentHostTranscriptionLayerId(
+    layer,
+    transcriptionLaneIds,
+    layerLinks,
+    layerById,
+  );
   if (!hostId) return;
   const laneId = layer.id;
-  const skipHostSegIfOverlappingCanonical =
-    !layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
+  const skipHostSegIfOverlappingCanonical = !layerUsesOwnSegments(
+    layer,
+    defaultTranscriptionLayerId,
+  );
   const hasOverlapOnDependentLane = (start: number, end: number) => {
     for (const r of existingRows) {
       if (r.layerId !== laneId) continue;
@@ -115,7 +167,11 @@ function pushHostTranscriptionSegmentsOntoDependentLane(input: {
       const k = resolveSpeakerFocusKeyFromSegment(segment, unitByIdForSpeaker);
       if (k !== normalizeSpeakerFocusKey(speakerKey)) continue;
     }
-    if (skipHostSegIfOverlappingCanonical && hasOverlapOnDependentLane(segment.startTime, segment.endTime)) continue;
+    if (
+      skipHostSegIfOverlappingCanonical &&
+      hasOverlapOnDependentLane(segment.startTime, segment.endTime)
+    )
+      continue;
     push(layer, { ...segment, layerId: layer.id });
   }
 }
@@ -132,7 +188,8 @@ export function resolveVerticalReadingGroupAnchorForUi(
     return item ? { unitId: item.unitId, startTime: item.startTime } : undefined;
   };
   const fromPrimaryAnchor = () => {
-    const id = typeof group.primaryAnchorUnitId === 'string' ? group.primaryAnchorUnitId.trim() : '';
+    const id =
+      typeof group.primaryAnchorUnitId === 'string' ? group.primaryAnchorUnitId.trim() : '';
     if (id.length === 0) return undefined;
     return { unitId: id, startTime: group.startTime };
   };
@@ -142,11 +199,10 @@ export function resolveVerticalReadingGroupAnchorForUi(
     return { unitId: first.unitId, startTime: first.startTime };
   };
   return (
-    fromId(contextMenuSourceUnitId)
-    ?? fromId(activeUnitId)
-    ?? fromFirstSource()
-    ?? fromPrimaryAnchor()
-    ?? { unitId: group.primaryAnchorUnitId, startTime: group.startTime }
+    fromId(contextMenuSourceUnitId) ??
+    fromId(activeUnitId) ??
+    fromFirstSource() ??
+    fromPrimaryAnchor() ?? { unitId: group.primaryAnchorUnitId, startTime: group.startTime }
   );
 }
 
@@ -243,8 +299,12 @@ export function resolvePairedReadingSyncedTargetCellId(input: {
   defaultTranscriptionLayerId: string | undefined;
   layerLinks: readonly VerticalReadingHostLink[];
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined;
-  segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined;
-  translationTextByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined;
+  segmentContentByLayer:
+    | ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>
+    | undefined;
+  translationTextByLayer:
+    | ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>
+    | undefined;
   unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>;
 }): string {
   const {
@@ -270,45 +330,51 @@ export function resolvePairedReadingSyncedTargetCellId(input: {
     sourceLayer?.id,
     layerLinks,
   );
-  const groupTranslationAnchorUnitIds = Array.from(new Set(group.targetItems.flatMap((item) => item.anchorUnitIds)));
-  const textMap = translationTextByLayer ?? new Map<string, ReadonlyMap<string, LayerUnitContentDocType>>();
-  const textBackedFallbackTranslationLayers = hostMatchedTranslationLayers.length === 0
-    ? translationLayers.filter((layer) => {
-        const layerTextMap = textMap.get(layer.id);
-        if (!layerTextMap || layerTextMap.size === 0) return false;
-        return groupTranslationAnchorUnitIds.some((unitId) => {
-          const content = layerTextMap.get(unitId);
-          const text = normalizePairedReadingPlainText(content?.text ?? '');
-          return text.length > 0;
-        });
-      })
-    : [];
-  const groupTranslationLayers = hostMatchedTranslationLayers.length > 0
-    ? hostMatchedTranslationLayers
-    : textBackedFallbackTranslationLayers;
-  const groupPreferredTargetLayer = groupTranslationLayers.find((l) => l.id === targetLayer?.id)
-    ?? groupTranslationLayers[0];
+  const groupTranslationAnchorUnitIds = Array.from(
+    new Set(group.targetItems.flatMap((item) => item.anchorUnitIds)),
+  );
+  const textMap =
+    translationTextByLayer ?? new Map<string, ReadonlyMap<string, LayerUnitContentDocType>>();
+  const textBackedFallbackTranslationLayers =
+    hostMatchedTranslationLayers.length === 0
+      ? translationLayers.filter((layer) => {
+          const layerTextMap = textMap.get(layer.id);
+          if (!layerTextMap || layerTextMap.size === 0) return false;
+          return groupTranslationAnchorUnitIds.some((unitId) => {
+            const content = layerTextMap.get(unitId);
+            const text = normalizePairedReadingPlainText(content?.text ?? '');
+            return text.length > 0;
+          });
+        })
+      : [];
+  const groupTranslationLayers =
+    hostMatchedTranslationLayers.length > 0
+      ? hostMatchedTranslationLayers
+      : textBackedFallbackTranslationLayers;
+  const groupPreferredTargetLayer =
+    groupTranslationLayers.find((l) => l.id === targetLayer?.id) ?? groupTranslationLayers[0];
 
   const primaryUnitId = group.sourceItems[0]?.unitId ?? '';
   const primarySourceUnit = primaryUnitId ? unitByIdForSpeaker.get(primaryUnitId) : undefined;
 
   const baseReuseGroupTargetItems = !(
-    hostMatchedTranslationLayers.length === 0
-    && group.targetItems.every((item) => normalizePairedReadingPlainText(item.text ?? '').length === 0)
+    hostMatchedTranslationLayers.length === 0 &&
+    group.targetItems.every((item) => normalizePairedReadingPlainText(item.text ?? '').length === 0)
   );
   const isPrimaryLayer = syncTranslationLayer.id === groupPreferredTargetLayer?.id;
-  const shouldReuseGroupTargetItems = isPrimaryLayer
-    && translationLayers.length <= 1
-    && baseReuseGroupTargetItems;
+  const shouldReuseGroupTargetItems =
+    isPrimaryLayer && translationLayers.length <= 1 && baseReuseGroupTargetItems;
 
   const layerTargetItems: PairedReadingTargetItem[] = (() => {
     if (shouldReuseGroupTargetItems) return group.targetItems;
     if (!primarySourceUnit) {
-      return [{
-        id: `${group.id}:${syncTranslationLayer.id}:placeholder`,
-        text: '',
-        anchorUnitIds: primaryUnitId ? [primaryUnitId] : [],
-      }];
+      return [
+        {
+          id: `${group.id}:${syncTranslationLayer.id}:placeholder`,
+          text: '',
+          anchorUnitIds: primaryUnitId ? [primaryUnitId] : [],
+        },
+      ];
     }
     const explicit = resolvePairedReadingExplicitTargetItemsForLayer(
       primarySourceUnit,
@@ -333,7 +399,9 @@ export function resolvePairedReadingSyncedTargetCellId(input: {
 
   const perSegTargetsPrimary = verticalReadingUsesSplitTargetEditors(group);
   const layerPerSeg = isPrimaryLayer
-    ? (translationLayers.length <= 1 ? perSegTargetsPrimary : layerTargetItems.length > 1)
+    ? translationLayers.length <= 1
+      ? perSegTargetsPrimary
+      : layerTargetItems.length > 1
     : layerTargetItems.length > 1;
 
   if (layerPerSeg && layerTargetItems[0]) {
@@ -351,7 +419,8 @@ function resolveVerticalReadingGroupSourceAnchorLayerId(
     const lid = typeof item.layerId === 'string' ? item.layerId.trim() : '';
     if (lid.length > 0) return lid;
   }
-  const anchor = typeof group.primaryAnchorLayerId === 'string' ? group.primaryAnchorLayerId.trim() : '';
+  const anchor =
+    typeof group.primaryAnchorLayerId === 'string' ? group.primaryAnchorLayerId.trim() : '';
   if (anchor.length > 0) return anchor;
   const fb = typeof fallbackSourceLayerId === 'string' ? fallbackSourceLayerId.trim() : '';
   return fb.length > 0 ? fb : undefined;
@@ -385,7 +454,10 @@ export function resolvePairedReadingHorizontalBundleKey(
   layerIdToBundleRootId: ReadonlyMap<string, string>,
   fallbackSourceLayerId: string | undefined,
 ): string {
-  const anchorLayerId = resolveVerticalReadingGroupSourceAnchorLayerId(group, fallbackSourceLayerId);
+  const anchorLayerId = resolveVerticalReadingGroupSourceAnchorLayerId(
+    group,
+    fallbackSourceLayerId,
+  );
   if (anchorLayerId) {
     const root = layerIdToBundleRootId.get(anchorLayerId);
     if (root) return root;
@@ -403,7 +475,9 @@ export function resolvePairedReadingTargetPlainTextForLayer(
   tLayer: LayerDocType,
   defaultTranscriptionLayerId: string | undefined,
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
-  segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined,
+  segmentContentByLayer:
+    | ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>
+    | undefined,
   translationTextByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>,
   unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>,
 ): string {
@@ -432,13 +506,16 @@ export function resolvePairedReadingExplicitTargetItemsForLayer(
   tLayer: LayerDocType,
   defaultTranscriptionLayerId: string | undefined,
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
-  segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined,
+  segmentContentByLayer:
+    | ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>
+    | undefined,
   unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>,
 ): PairedReadingTargetItem[] | undefined {
   const targetUsesSegments = layerUsesOwnSegments(tLayer, defaultTranscriptionLayerId);
   const translationSegmentsForTarget = segmentsByLayer?.get(tLayer.id);
   const layerContent = segmentContentByLayer?.get(tLayer.id);
-  if (!targetUsesSegments || !layerContent || !translationSegmentsForTarget?.length) return undefined;
+  if (!targetUsesSegments || !layerContent || !translationSegmentsForTarget?.length)
+    return undefined;
   const overlapping = listTranslationSegmentsForVerticalReadingSourceUnit(
     unit,
     translationSegmentsForTarget,
@@ -465,7 +542,9 @@ export function buildAggregatePairedReadingTargetItemsForSourceUnit(input: {
   defaultTranscriptionLayerId: string | undefined;
   layerLinks: readonly VerticalReadingHostLink[];
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined;
-  segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined;
+  segmentContentByLayer:
+    | ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>
+    | undefined;
   translationTextByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>;
   unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>;
   fallbackFocusedSourceLayerId: string | undefined;
@@ -518,7 +597,10 @@ export function buildAggregatePairedReadingTargetItemsForSourceUnit(input: {
   return out;
 }
 
-export function accumulatedOffsetTopUntil(el: HTMLElement | null, ancestor: HTMLElement | null): number | null {
+export function accumulatedOffsetTopUntil(
+  el: HTMLElement | null,
+  ancestor: HTMLElement | null,
+): number | null {
   if (!el || !ancestor) return null;
   let sum = 0;
   let node: HTMLElement | null = el;
@@ -555,7 +637,10 @@ export function readStoredPairedReadingEditorMinHeight(): number {
     const raw = localStorage.getItem(PAIRED_READING_EDITOR_HEIGHT_STORAGE_KEY);
     const n = Number(raw);
     if (Number.isFinite(n)) {
-      const clamped = Math.min(MAX_TIMELINE_LANE_HEIGHT, Math.max(MIN_TIMELINE_LANE_HEIGHT, Math.round(n)));
+      const clamped = Math.min(
+        MAX_TIMELINE_LANE_HEIGHT,
+        Math.max(MIN_TIMELINE_LANE_HEIGHT, Math.round(n)),
+      );
       return clamped === LEGACY_SHARED_TIMELINE_EDITOR_MIN_HEIGHT
         ? SHARED_TIMELINE_EDITOR_MIN_HEIGHT
         : clamped;
@@ -576,7 +661,10 @@ export function readStoredPairedReadingEditorHeightMap(): Record<string, number>
     for (const [key, value] of Object.entries(parsed)) {
       const n = Number(value);
       if (!Number.isFinite(n)) continue;
-      next[key] = Math.min(MAX_TIMELINE_LANE_HEIGHT, Math.max(MIN_TIMELINE_LANE_HEIGHT, Math.round(n)));
+      next[key] = Math.min(
+        MAX_TIMELINE_LANE_HEIGHT,
+        Math.max(MIN_TIMELINE_LANE_HEIGHT, Math.round(n)),
+      );
     }
     return next;
   } catch {
@@ -612,7 +700,12 @@ function transcriptionTreeDepthAmongLanes(
   layer: LayerDocType,
   layerById: ReadonlyMap<string, LayerDocType>,
   transcriptionLaneIds: ReadonlySet<string>,
-  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>,
+  layerLinks: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >,
 ): number {
   if (layer.layerType !== 'transcription') return 0;
   let depth = 0;
@@ -628,7 +721,12 @@ function transcriptionTreeDepthAmongLanes(
       continue;
     }
     if (layerLinks.length > 0) {
-      const hosts = listInboundTranscriptionHostIdsForTranscriptionLane(cur.id, layerLinks, layerById, transcriptionLaneIds);
+      const hosts = listInboundTranscriptionHostIdsForTranscriptionLane(
+        cur.id,
+        layerLinks,
+        layerById,
+        transcriptionLaneIds,
+      );
       const step = hosts[0];
       if (step) {
         depth += 1;
@@ -645,7 +743,12 @@ function transcriptionTreeDepthAmongLanes(
 function sortTranscriptionLayersForVerticalReadingSourceWalk(
   layers: LayerDocType[],
   layerById: ReadonlyMap<string, LayerDocType>,
-  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>,
+  layerLinks: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >,
 ): LayerDocType[] {
   const transcriptionLaneIds = new Set(layers.map((l) => l.id));
   return [...layers].sort((a, b) => {
@@ -664,12 +767,23 @@ export function transcriptionLayersOrderedForVerticalReadingSourceWalk(input: {
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   allLayersOrdered: LayerDocType[] | undefined;
-  layerLinks?: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
+  layerLinks?: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >;
 }): LayerDocType[] {
   const layerById = new Map(
-    (input.allLayersOrdered ?? [...input.transcriptionLayers, ...input.translationLayers]).map((l) => [l.id, l] as const),
+    (input.allLayersOrdered ?? [...input.transcriptionLayers, ...input.translationLayers]).map(
+      (l) => [l.id, l] as const,
+    ),
   );
-  return sortTranscriptionLayersForVerticalReadingSourceWalk(input.transcriptionLayers, layerById, input.layerLinks ?? []);
+  return sortTranscriptionLayersForVerticalReadingSourceWalk(
+    input.transcriptionLayers,
+    layerById,
+    input.layerLinks ?? [],
+  );
 }
 
 /**
@@ -681,18 +795,24 @@ export function partitionPairedReadingSourceItemsForDualTranscriptionColumns(inp
   sourceItems: ReadonlyArray<PairedReadingSourceItem>;
   translationLayers: readonly { id: string }[];
   orderedTranscriptionLanes: readonly LayerDocType[];
-}): { primaryColumnItems: PairedReadingSourceItem[]; secondaryColumnItems: PairedReadingSourceItem[] } {
+}): {
+  primaryColumnItems: PairedReadingSourceItem[];
+  secondaryColumnItems: PairedReadingSourceItem[];
+} {
   const { sourceItems, translationLayers, orderedTranscriptionLanes } = input;
   if (translationLayers.length > 0 || sourceItems.length <= 1) {
     return { primaryColumnItems: [...sourceItems], secondaryColumnItems: [] };
   }
-  const laneOf = (s: PairedReadingSourceItem) => (typeof s.layerId === 'string' ? s.layerId.trim() : '');
+  const laneOf = (s: PairedReadingSourceItem) =>
+    typeof s.layerId === 'string' ? s.layerId.trim() : '';
   const distinctLaneIds = [...new Set(sourceItems.map(laneOf).filter((id) => id.length > 0))];
   if (distinctLaneIds.length < 2) {
     return { primaryColumnItems: [...sourceItems], secondaryColumnItems: [] };
   }
   const orderMap = new Map(orderedTranscriptionLanes.map((l, i) => [l.id, i] as const));
-  const lanesSorted = [...distinctLaneIds].sort((a, b) => (orderMap.get(a) ?? 999) - (orderMap.get(b) ?? 999));
+  const lanesSorted = [...distinctLaneIds].sort(
+    (a, b) => (orderMap.get(a) ?? 999) - (orderMap.get(b) ?? 999),
+  );
   const primaryLaneId = lanesSorted[0]!;
   const secondaryLaneIds = new Set(lanesSorted.slice(1));
   const primaryColumnItems = sourceItems.filter((s) => laneOf(s) === primaryLaneId);
@@ -713,9 +833,8 @@ export function partitionSecondarySourceItemsUnderPrimaryItems(
 ): PairedReadingSourceItem[][] {
   if (primaryColumnItems.length === 0 || secondaryColumnItems.length === 0) return [];
   const epsilon = 1e-4;
-  const overlap = (p: PairedReadingSourceItem, s: PairedReadingSourceItem) => (
-    s.startTime < p.endTime + epsilon && s.endTime > p.startTime - epsilon
-  );
+  const overlap = (p: PairedReadingSourceItem, s: PairedReadingSourceItem) =>
+    s.startTime < p.endTime + epsilon && s.endTime > p.startTime - epsilon;
   const buckets: PairedReadingSourceItem[][] = primaryColumnItems.map(() => []);
   for (const s of secondaryColumnItems) {
     let placed = false;
@@ -736,7 +855,12 @@ export function partitionSecondarySourceItemsUnderPrimaryItems(
 export function resolveVerticalReadingGroupSourceUnits(input: {
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
-  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
+  layerLinks: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >;
   unitsOnCurrentMedia: LayerUnitDocType[];
   segmentParentUnitLookup: LayerUnitDocType[] | undefined;
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined;
@@ -761,7 +885,9 @@ export function resolveVerticalReadingGroupSourceUnits(input: {
   const filteredHostUnits = unitsOnCurrentMedia.filter((u) => u.tags?.skipProcessing !== true);
 
   const layerById = new Map(
-    (allLayersOrdered ?? [...transcriptionLayers, ...translationLayers]).map((l) => [l.id, l] as const),
+    (allLayersOrdered ?? [...transcriptionLayers, ...translationLayers]).map(
+      (l) => [l.id, l] as const,
+    ),
   );
 
   const transcriptionLaneIds = new Set(transcriptionLayers.map((l) => l.id));
@@ -815,7 +941,12 @@ export function resolveVerticalReadingGroupSourceUnits(input: {
 
   for (const layer of transcriptionLayersOrdered) {
     if (layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) {
-      const segmentSourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId, layerLinks);
+      const segmentSourceLayer = resolveSegmentTimelineSourceLayer(
+        layer,
+        layerById,
+        defaultTranscriptionLayerId,
+        layerLinks,
+      );
       const segmentSourceLayerId = segmentSourceLayer?.id ?? '';
       const segs = segmentsByLayer?.get(segmentSourceLayerId) ?? [];
       if (segs.length > 0) {
@@ -833,7 +964,14 @@ export function resolveVerticalReadingGroupSourceUnits(input: {
          * 纵向对读组里会只剩父轨（用户见「有的组有子轨、有的组没有」）。宿主轨勿补，以免与 segment 行重复。 |
          * Dependent lanes: fill gaps with canonical projection; host lanes skip to avoid duplicate rows.
          */
-        if (isTranscriptionDependentLaneForVerticalSourceWalk(layer, transcriptionLaneIds, layerLinks, layerById)) {
+        if (
+          isTranscriptionDependentLaneForVerticalSourceWalk(
+            layer,
+            transcriptionLaneIds,
+            layerLinks,
+            layerById,
+          )
+        ) {
           pushCanonicalRowsForLane(layer);
         }
       } else {
@@ -912,7 +1050,11 @@ export function renderPairedReadingRailLaneBody(input: {
   if (input.layer) {
     const body = input.renderLaneLabel(input.layer);
     if (body != null && body !== false && body !== '') {
-      return <span className="timeline-paired-reading-row-rail-lane-label" aria-hidden>{body}</span>;
+      return (
+        <span className="timeline-paired-reading-row-rail-lane-label" aria-hidden>
+          {body}
+        </span>
+      );
     }
   }
   return (
@@ -922,15 +1064,22 @@ export function renderPairedReadingRailLaneBody(input: {
   );
 }
 
-export function resolvePairedReadingLayerLabel(layer: LayerDocType | undefined, locale: Locale, fallback: string): string {
+export function resolvePairedReadingLayerLabel(
+  layer: LayerDocType | undefined,
+  locale: Locale,
+  fallback: string,
+): string {
   if (!layer) return fallback;
-  const localizedName = typeof layer.name === 'string'
-    ? layer.name
-    : layer.name?.[locale]
-      ?? layer.name?.['zh-CN']
-      ?? layer.name?.['en-US']
-      ?? Object.values(layer.name ?? {}).find((value) => typeof value === 'string' && value.trim().length > 0)
-      ?? '';
+  const localizedName =
+    typeof layer.name === 'string'
+      ? layer.name
+      : (layer.name?.[locale] ??
+        layer.name?.['zh-CN'] ??
+        layer.name?.['en-US'] ??
+        Object.values(layer.name ?? {}).find(
+          (value) => typeof value === 'string' && value.trim().length > 0,
+        ) ??
+        '');
   const normalized = normalizeSingleLine(localizedName);
   if (normalized.length > 0) return normalized;
   if (typeof layer.key === 'string' && layer.key.trim().length > 0) return layer.key.trim();

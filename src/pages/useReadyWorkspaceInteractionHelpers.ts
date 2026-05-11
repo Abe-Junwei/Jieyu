@@ -8,8 +8,8 @@
  */
 
 import { useCallback, useMemo, useState, type RefObject } from 'react';
-import type { EditEvent } from '../hooks/useEditEventBuffer';
-import { pushTimelineEditToRing, type PushTimelineEditInput } from '../hooks/useEditEventBuffer';
+import type { EditEvent } from '../hooks/ui/useEditEventBuffer';
+import { pushTimelineEditToRing, type PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';
 import { fireAndForget } from '../utils/fireAndForget';
 
 type RecommendationWithId = { id: string };
@@ -47,7 +47,9 @@ export function useReadyWorkspaceInteractionHelpers(
 export function useReadyWorkspaceInteractionHelpers<
   TUnit extends TimeRangedUnitDoc,
   TRecommendation extends RecommendationWithId = RecommendationWithId,
->(input: ReadyWorkspaceInteractionInput<TUnit, TRecommendation>): ReadyWorkspaceInteractionResult<TUnit> {
+>(
+  input: ReadyWorkspaceInteractionInput<TUnit, TRecommendation>,
+): ReadyWorkspaceInteractionResult<TUnit> {
   const {
     unitsOnCurrentMedia,
     actionableObserverRecommendations = [],
@@ -61,21 +63,29 @@ export function useReadyWorkspaceInteractionHelpers<
     setRecentTimelineEditEvents((prev) => pushTimelineEditToRing(prev, event));
   }, []);
 
-  const { getUnitDocById, findUnitDocContainingRange, findOverlappingUnitDoc } = useMemo(() => ({
-    getUnitDocById: (id: string) => unitsOnCurrentMedia.find((unit) => unit.id === id),
-    findUnitDocContainingRange: (start: number, end: number) => unitsOnCurrentMedia.find(
-      (unit) => unit.startTime <= start + 0.01 && unit.endTime >= end - 0.01,
-    ),
-    findOverlappingUnitDoc: (start: number, end: number) => unitsOnCurrentMedia.find(
-      (unit) => unit.startTime <= end - 0.01 && unit.endTime >= start + 0.01,
-    ),
-  }), [unitsOnCurrentMedia]);
+  const { getUnitDocById, findUnitDocContainingRange, findOverlappingUnitDoc } = useMemo(
+    () => ({
+      getUnitDocById: (id: string) => unitsOnCurrentMedia.find((unit) => unit.id === id),
+      findUnitDocContainingRange: (start: number, end: number) =>
+        unitsOnCurrentMedia.find(
+          (unit) => unit.startTime <= start + 0.01 && unit.endTime >= end - 0.01,
+        ),
+      findOverlappingUnitDoc: (start: number, end: number) =>
+        unitsOnCurrentMedia.find(
+          (unit) => unit.startTime <= end - 0.01 && unit.endTime >= start + 0.01,
+        ),
+    }),
+    [unitsOnCurrentMedia],
+  );
 
   const handleExecuteObserverRecommendation = (item: RecommendationWithId) => {
     if (!handleExecuteRecommendation) return;
     const match = actionableObserverRecommendations.find((candidate) => candidate.id === item.id);
     if (match) {
-      fireAndForget(Promise.resolve(handleExecuteRecommendation(match)), { context: 'src/pages/useReadyWorkspaceInteractionHelpers.ts:L78', policy: 'user-visible' });
+      fireAndForget(Promise.resolve(handleExecuteRecommendation(match)), {
+        context: 'src/pages/useReadyWorkspaceInteractionHelpers.ts:L78',
+        policy: 'user-visible',
+      });
     }
   };
 

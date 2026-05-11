@@ -6,11 +6,19 @@
  */
 
 import type { MutableRefObject } from 'react';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ProjectStage } from '../ai/ProjectObserver';
-import type { AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage } from '../hooks/useAiChat.types';
-import type { AiRecommendationEvent } from '../hooks/useAiChat.types';
+import type {
+  AiConnectionTestStatus,
+  AiContextDebugSnapshot,
+  AiInteractionMetrics,
+  AiSessionMemory,
+  AiTaskSession,
+  PendingAiToolCall,
+  UiChatMessage,
+} from '../hooks/ai/useAiChat.types';
+import type { AiRecommendationEvent } from '../hooks/ai/useAiChat.types';
 import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
 import type { AdoptionItem } from '../ai/vertical/adoptionQueue';
 
@@ -80,11 +88,13 @@ export interface AiChatContextValue {
   onDismissPendingAgentLoopCheckpoint: (() => Promise<void>) | undefined;
   onTrackAiRecommendationEvent: ((event: AiRecommendationEvent) => void) | undefined;
   onSetActiveSourceSetId?: ((id: string | null) => void) | undefined;
-  onJumpToCitation: ((
-    citationType: 'unit' | 'note' | 'pdf' | 'schema',
-    refId: string,
-    citation?: { snippet?: string },
-  ) => Promise<void> | void) | undefined;
+  onJumpToCitation:
+    | ((
+        citationType: 'unit' | 'note' | 'pdf' | 'schema',
+        refId: string,
+        citation?: { snippet?: string },
+      ) => Promise<void> | void)
+    | undefined;
   /** Current timeline read-model epoch (transcription workspace); for pending destructive tool UX. */
   timelineReadModelEpoch?: number;
   /** When set, stream-phase adoption pushes merge into the sidebar Adoption queue (`AiChatCard` assigns `current`). */

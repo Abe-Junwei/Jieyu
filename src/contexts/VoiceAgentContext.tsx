@@ -7,7 +7,11 @@
 
 import { createContext, useContext } from 'react';
 import type { ActionIntent } from '../services/IntentRouter';
-import { DEFAULT_VOICE_MODE, type VoiceAgentMode, type VoicePendingConfirm } from '../hooks/useVoiceAgent';
+import {
+  DEFAULT_VOICE_MODE,
+  type VoiceAgentMode,
+  type VoicePendingConfirm,
+} from '../hooks/voice/useVoiceAgent';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -77,9 +81,5 @@ interface VoiceAgentProviderProps {
 }
 
 export function VoiceAgentProvider({ children, value }: VoiceAgentProviderProps) {
-  return (
-    <VoiceAgentContext.Provider value={value}>
-      {children}
-    </VoiceAgentContext.Provider>
-  );
+  return <VoiceAgentContext.Provider value={value}>{children}</VoiceAgentContext.Provider>;
 }

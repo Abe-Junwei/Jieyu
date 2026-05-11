@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { SaveState } from '../hooks/transcriptionTypes';
+import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import { ToastController } from './TranscriptionPage.ToastController';
 import { DEFAULT_VOICE_MODE } from '../services/voiceMode';
 
@@ -66,8 +66,10 @@ describe('ToastController overlap cycle toast', () => {
   });
 
   it('does not re-fire recording error toast when only the tf function reference changes', () => {
-    const tfA = (key: string) => (key === 'transcription.timeline.audio.error.micPermissionDenied' ? '文案A' : key);
-    const tfB = (key: string) => (key === 'transcription.timeline.audio.error.micPermissionDenied' ? '文案B' : key);
+    const tfA = (key: string) =>
+      key === 'transcription.timeline.audio.error.micPermissionDenied' ? '文案A' : key;
+    const tfB = (key: string) =>
+      key === 'transcription.timeline.audio.error.micPermissionDenied' ? '文案B' : key;
     const { rerender } = render(
       <ToastController
         {...baseProps}
@@ -88,12 +90,7 @@ describe('ToastController overlap cycle toast', () => {
   });
 
   it('shows lightweight toast when overlap cycle payload updates', () => {
-    const { rerender } = render(
-      <ToastController
-        {...baseProps}
-        overlapCycleToast={null}
-      />,
-    );
+    const { rerender } = render(<ToastController {...baseProps} overlapCycleToast={null} />);
 
     expect(showToast).not.toHaveBeenCalledWith('重叠候选 2/4', 'info', 2000);
 
@@ -108,14 +105,11 @@ describe('ToastController overlap cycle toast', () => {
   });
 
   it('does not show overlap cycle toast when payload is absent', () => {
-    render(
-      <ToastController
-        {...baseProps}
-        overlapCycleToast={null}
-      />,
-    );
+    render(<ToastController {...baseProps} overlapCycleToast={null} />);
 
-    const overlapCalls = showToast.mock.calls.filter((call) => String(call[0]).includes('重叠候选'));
+    const overlapCalls = showToast.mock.calls.filter((call) =>
+      String(call[0]).includes('重叠候选'),
+    );
     expect(overlapCalls.length).toBe(0);
   });
 
@@ -142,7 +136,11 @@ describe('ToastController overlap cycle toast', () => {
       />,
     );
 
-    expect(showToast).toHaveBeenCalledWith('语音唤醒启动失败，已自动关闭。请检查麦克风权限后重试。', 'error', 0);
+    expect(showToast).toHaveBeenCalledWith(
+      '语音唤醒启动失败，已自动关闭。请检查麦克风权限后重试。',
+      'error',
+      0,
+    );
   });
 
   it('maps push-to-talk ready state to waiting voice toast semantics', () => {
@@ -202,43 +200,37 @@ describe('ToastController overlap cycle toast', () => {
   });
 
   it('shows webllm warmup event as toast', () => {
-    render(
-      <ToastController
-        {...baseProps}
-      />,
-    );
+    render(<ToastController {...baseProps} />);
 
-    window.dispatchEvent(new CustomEvent('ai:webllm-warmup', {
-      detail: { status: 'success', message: '模型已就绪' },
-    }));
+    window.dispatchEvent(
+      new CustomEvent('ai:webllm-warmup', {
+        detail: { status: 'success', message: '模型已就绪' },
+      }),
+    );
 
     expect(showToast).toHaveBeenCalledWith('模型已就绪', 'info', 2000);
   });
 
   it('shows cancelled webllm warmup event as info toast', () => {
-    render(
-      <ToastController
-        {...baseProps}
-      />,
-    );
+    render(<ToastController {...baseProps} />);
 
-    window.dispatchEvent(new CustomEvent('ai:webllm-warmup', {
-      detail: { status: 'cancelled', message: '已取消预热' },
-    }));
+    window.dispatchEvent(
+      new CustomEvent('ai:webllm-warmup', {
+        detail: { status: 'cancelled', message: '已取消预热' },
+      }),
+    );
 
     expect(showToast).toHaveBeenCalledWith('已取消预热', 'info', 2000);
   });
 
   it('shows taskrunner stale recovered event as toast', () => {
-    render(
-      <ToastController
-        {...baseProps}
-      />,
-    );
+    render(<ToastController {...baseProps} />);
 
-    window.dispatchEvent(new CustomEvent('taskrunner:stale-recovered', {
-      detail: { count: 3 },
-    }));
+    window.dispatchEvent(
+      new CustomEvent('taskrunner:stale-recovered', {
+        detail: { count: 3 },
+      }),
+    );
 
     expect(showToast).toHaveBeenCalledWith('transcription.toast.taskRecovered', 'info');
   });

@@ -4,8 +4,8 @@ import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_PANEL_CLOSE_LG } from '../utils/jieyuMaterialIcon';
 import { useLocale } from '../i18n';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
-import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
-import { useViewportWidth } from '../hooks/useViewportWidth';
+import { useUiFontScaleRuntime } from '~/hooks/ui/useUiFontScaleRuntime';
+import { useViewportWidth } from '~/hooks/ui/useViewportWidth';
 import { DialogOverlay, DialogShell } from './ui';
 
 interface SidePaneActionModalProps {
@@ -34,9 +34,7 @@ export function SidePaneActionModal({
   const locale = useLocale();
   const { uiTextDirection, uiFontScale } = useUiFontScaleRuntime(locale);
   const viewportWidth = useViewportWidth();
-  const isSpeakerModal = Boolean(
-    className?.includes('side-pane-dialog-speaker'),
-  );
+  const isSpeakerModal = Boolean(className?.includes('side-pane-dialog-speaker'));
   const isWideModal = widthPreset === 'wide';
   const dialogAutoWidth = useMemo(() => {
     const base = computeAdaptivePanelWidth({
@@ -88,7 +86,7 @@ export function SidePaneActionModal({
         title={ariaLabel}
         bodyClassName="side-pane-action-modal-body"
         footer={footer}
-        actions={(
+        actions={
           <button
             type="button"
             className="icon-btn"
@@ -99,7 +97,7 @@ export function SidePaneActionModal({
           >
             <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL_CLOSE_LG} />
           </button>
-        )}
+        }
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}

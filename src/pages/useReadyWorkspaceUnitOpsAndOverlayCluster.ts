@@ -1,32 +1,12 @@
-import type { Locale } from '../i18n';
 import { t } from '../i18n';
 import { reportValidationError } from '../utils/validationErrorReporter';
 
-import { useUnitOps } from '../hooks/useUnitOps';
+import { useUnitOps } from '../hooks/transcription/useUnitOps';
 import { useTranscriptionOverlayActionRoutingController } from './useTranscriptionOverlayActionRoutingController';
 
-import { useReadyWorkspaceSegmentMutationCreationCluster } from './useReadyWorkspaceSegmentMutationCreationCluster';
+import type { UseReadyWorkspaceUnitOpsAndOverlayClusterParams } from './useReadyWorkspaceUnitOpsAndOverlayCluster.types';
 
-type MutationCreationReturn = ReturnType<typeof useReadyWorkspaceSegmentMutationCreationCluster>;
-
-export interface UseReadyWorkspaceUnitOpsAndOverlayClusterParams {
-  units: Parameters<typeof useUnitOps>[0]['units'];
-  translationTextByLayer: Parameters<typeof useUnitOps>[0]['translationTextByLayer'];
-  mergeSelectedUnits: Parameters<typeof useUnitOps>[0]['mergeSelectedUnits'];
-  selectAllBefore: Parameters<typeof useUnitOps>[0]['selectAllBefore'];
-  selectAllAfter: Parameters<typeof useUnitOps>[0]['selectAllAfter'];
-  locale: Locale;
-  setSaveState: (next: import('../hooks/transcriptionTypes').SaveState) => void;
-  mutationCreation: Pick<
-    MutationCreationReturn,
-    | 'deleteUnitRouted'
-    | 'deleteSelectedUnitsRouted'
-    | 'mergeWithPreviousRouted'
-    | 'mergeWithNextRouted'
-    | 'mergeSelectedSegmentsRouted'
-    | 'splitRoutedVoidResult'
-  >;
-}
+export type { UseReadyWorkspaceUnitOpsAndOverlayClusterParams };
 
 export function useReadyWorkspaceUnitOpsAndOverlayCluster(
   params: UseReadyWorkspaceUnitOpsAndOverlayClusterParams,

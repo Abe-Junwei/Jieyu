@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CloudSyncConflictReviewTicket } from '../../hooks/useTranscriptionCloudSyncActions';
+import type { CloudSyncConflictReviewTicket } from '../../hooks/transcription/useTranscriptionCloudSyncActions';
 import { useLocale } from '../../i18n';
 import { getCollaborationConflictReviewDrawerMessages } from '../../i18n/messages';
 
@@ -46,7 +46,10 @@ export function CollaborationConflictReviewDrawer({
   };
 
   return (
-    <aside className={`collaboration-conflict-drawer ${isOpen ? 'is-open' : 'is-closed'}`} aria-live="polite">
+    <aside
+      className={`collaboration-conflict-drawer ${isOpen ? 'is-open' : 'is-closed'}`}
+      aria-live="polite"
+    >
       <button
         type="button"
         className="collaboration-conflict-drawer-head"
@@ -54,7 +57,12 @@ export function CollaborationConflictReviewDrawer({
         aria-expanded={isOpen}
       >
         <span className="collaboration-conflict-drawer-title">{messages.title}</span>
-        <span className="collaboration-conflict-drawer-badge" aria-label={messages.badgeAriaLabel(tickets.length)}>{tickets.length}</span>
+        <span
+          className="collaboration-conflict-drawer-badge"
+          aria-label={messages.badgeAriaLabel(tickets.length)}
+        >
+          {tickets.length}
+        </span>
       </button>
 
       {isOpen ? (
@@ -65,7 +73,9 @@ export function CollaborationConflictReviewDrawer({
               <section className="collaboration-conflict-ticket" key={ticket.ticketId}>
                 <header className="collaboration-conflict-ticket-head">
                   <strong>{messages.priorityLabel(ticket.priority)}</strong>
-                  <span>{ticket.entityType}:{ticket.entityId}</span>
+                  <span>
+                    {ticket.entityType}:{ticket.entityId}
+                  </span>
                 </header>
 
                 <p className="collaboration-conflict-ticket-summary">

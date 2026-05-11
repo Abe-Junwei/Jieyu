@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerUnitDocType, MediaItemDocType } from '../db';
-import { createTimelineUnit } from '../hooks/transcriptionTypes';
-import { resolveSegmentMediaIdFromSegmentGraph, resolveSegmentScopeMediaId } from './resolveSegmentScopeMediaId';
+import { createTimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import {
+  resolveSegmentMediaIdFromSegmentGraph,
+  resolveSegmentScopeMediaId,
+} from './resolveSegmentScopeMediaId';
 
 function media(id: string): MediaItemDocType {
   const now = '2026-04-23T00:00:00.000Z';
@@ -60,7 +63,10 @@ describe('resolveSegmentMediaIdFromSegmentGraph', () => {
   it('returns undefined when selection is not a segment', () => {
     expect(resolveSegmentMediaIdFromSegmentGraph(null, new Map())).toBeUndefined();
     expect(
-      resolveSegmentMediaIdFromSegmentGraph(createTimelineUnit('L', 'u1', 'unit'), new Map([['L', [{ id: 'u1', mediaId: 'm-x' }]]])),
+      resolveSegmentMediaIdFromSegmentGraph(
+        createTimelineUnit('L', 'u1', 'unit'),
+        new Map([['L', [{ id: 'u1', mediaId: 'm-x' }]]]),
+      ),
     ).toBeUndefined();
   });
 

@@ -1,14 +1,41 @@
-import { assessToolActionIntent, buildPreviewContract, buildToolAuditContext, buildToolDecisionAuditMetadata, buildToolIntentAuditMetadata, describeAndBuildPending, isDestructiveToolCall, toNaturalToolFailure, toNaturalToolGraySkipped, toNaturalToolPending, toNaturalToolRollbackSkipped, validateToolCallArguments } from './toolCallHelpers';
+import {
+  assessToolActionIntent,
+  buildPreviewContract,
+  buildToolAuditContext,
+  buildToolDecisionAuditMetadata,
+  buildToolIntentAuditMetadata,
+  describeAndBuildPending,
+  isDestructiveToolCall,
+  toNaturalToolFailure,
+  toNaturalToolGraySkipped,
+  toNaturalToolPending,
+  toNaturalToolRollbackSkipped,
+  validateToolCallArguments,
+} from './toolCallHelpers';
 import { resolveUserDirectivePolicyDecision } from '../policy/resolveExecutionPolicy';
-import { formatDuplicateRequestIgnoredDetail, formatDuplicateRequestIgnoredError } from '../messages';
+import {
+  formatDuplicateRequestIgnoredDetail,
+  formatDuplicateRequestIgnoredError,
+} from '../messages';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
 import type { Locale } from '../../i18n';
-import { buildAndAuditToolIntent } from '../../hooks/useAiChat.toolIntent';
-import { resolveToolIntentOutcome } from '../../hooks/useAiChat.intentResolution';
-import { handleInvalidToolArguments } from '../../hooks/useAiChat.argsValidation';
-import { resolveDestructiveGate } from '../../hooks/useAiChat.destructiveGate';
-import { executeAutoToolCall } from '../../hooks/useAiChat.autoExecute';
-import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, UiChatMessage } from '../../hooks/useAiChat.types';
+import { buildAndAuditToolIntent } from '../../hooks/ai/useAiChat.toolIntent';
+import { resolveToolIntentOutcome } from '../../hooks/ai/useAiChat.intentResolution';
+import { handleInvalidToolArguments } from '../../hooks/ai/useAiChat.argsValidation';
+import { resolveDestructiveGate } from '../../hooks/ai/useAiChat.destructiveGate';
+import { executeAutoToolCall } from '../../hooks/ai/useAiChat.autoExecute';
+import type {
+  AiChatToolCall,
+  AiInteractionMetrics,
+  AiMemoryRecallShapeTelemetry,
+  AiPromptContext,
+  AiSessionMemory,
+  AiTaskSession,
+  AiToolDecisionMode,
+  AiToolRiskCheckResult,
+  PendingAiToolCall,
+  UiChatMessage,
+} from '../../hooks/ai/useAiChat.types';
 
 export interface ResolveToolDecisionPipelineParams {
   assistantMessageId: string;
@@ -24,9 +51,28 @@ export interface ResolveToolDecisionPipelineParams {
   planner?: Parameters<typeof buildToolAuditContext>[5];
   memoryRecallShape?: AiMemoryRecallShapeTelemetry;
   allowDestructiveToolCalls: boolean;
-  onToolRiskCheck?: ((call: AiChatToolCall) => Promise<AiToolRiskCheckResult | null | undefined> | AiToolRiskCheckResult | null | undefined) | null | undefined;
-  preparePendingToolCall?: ((call: AiChatToolCall) => Promise<AiChatToolCall | null | undefined> | AiChatToolCall | null | undefined) | null | undefined;
-  onToolCall?: ((call: AiChatToolCall) => Promise<{ ok: boolean; message: string }> | { ok: boolean; message: string }) | null | undefined;
+  onToolRiskCheck?:
+    | ((
+        call: AiChatToolCall,
+      ) =>
+        | Promise<AiToolRiskCheckResult | null | undefined>
+        | AiToolRiskCheckResult
+        | null
+        | undefined)
+    | null
+    | undefined;
+  preparePendingToolCall?:
+    | ((
+        call: AiChatToolCall,
+      ) => Promise<AiChatToolCall | null | undefined> | AiChatToolCall | null | undefined)
+    | null
+    | undefined;
+  onToolCall?:
+    | ((
+        call: AiChatToolCall,
+      ) => Promise<{ ok: boolean; message: string }> | { ok: boolean; message: string })
+    | null
+    | undefined;
   hasPersistedExecutionForRequest: (requestId: string) => Promise<boolean>;
   writeToolDecisionAuditLog: (
     assistantMessageId: string,
@@ -122,10 +168,7 @@ export async function resolveToolDecisionPipeline({
     return { finalContent, finalStatus: 'done' };
   }
 
-  const {
-    intentAssessment,
-    auditContext,
-  } = await buildAndAuditToolIntent({
+  const { intentAssessment, auditContext } = await buildAndAuditToolIntent({
     assistantMessageId,
     toolCall,
     userText,
@@ -209,7 +252,12 @@ export async function resolveToolDecisionPipeline({
 
   if (await hasPersistedExecutionForRequest(toolCall.requestId ?? '')) {
     const finalErrorMessage = formatDuplicateRequestIgnoredError();
-    const finalContent = toNaturalToolFailure(locale, toolCall.name, formatDuplicateRequestIgnoredDetail(), toolFeedbackStyle);
+    const finalContent = toNaturalToolFailure(
+      locale,
+      toolCall.name,
+      formatDuplicateRequestIgnoredDetail(),
+      toolFeedbackStyle,
+    );
     await writeToolDecisionAuditLog(
       assistantMessageId,
       `auto:${toolCall.name}`,
@@ -257,7 +305,12 @@ export async function resolveToolDecisionPipeline({
 
   const policyDecision = resolveUserDirectivePolicyDecision(toolCall, sessionMemory);
   if (policyDecision.action === 'block') {
-    const finalContent = toNaturalToolFailure(locale, toolCall.name, policyDecision.message, toolFeedbackStyle);
+    const finalContent = toNaturalToolFailure(
+      locale,
+      toolCall.name,
+      policyDecision.message,
+      toolFeedbackStyle,
+    );
     await writeToolDecisionAuditLog(
       assistantMessageId,
       `auto:${toolCall.name}`,
@@ -280,7 +333,7 @@ export async function resolveToolDecisionPipeline({
 
   if (policyDecision.action === 'confirm') {
     const executionCall = preparePendingToolCall
-      ? await preparePendingToolCall(toolCall) ?? undefined
+      ? ((await preparePendingToolCall(toolCall)) ?? undefined)
       : undefined;
     const previewSourceCall = executionCall ?? toolCall;
     const impact = describeAndBuildPending(previewSourceCall, aiContext);
@@ -384,6 +437,8 @@ export async function resolveToolDecisionPipeline({
   return {
     finalContent: autoExecution.finalContent,
     finalStatus: autoExecution.finalStatus,
-    ...(autoExecution.finalErrorMessage ? { finalErrorMessage: autoExecution.finalErrorMessage } : {}),
+    ...(autoExecution.finalErrorMessage
+      ? { finalErrorMessage: autoExecution.finalErrorMessage }
+      : {}),
   };
 }

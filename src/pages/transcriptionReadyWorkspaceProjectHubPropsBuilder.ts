@@ -1,8 +1,9 @@
-import type { AnnotationImportBridgeStrategy } from '../hooks/useImportExport.annotationImport';
+import type { AnnotationImportBridgeStrategy } from '~/hooks/importExport/useImportExport.annotationImport';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
 import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 
-type ReadyWorkspaceProjectHubProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps']['projectHubProps'];
+type ReadyWorkspaceProjectHubProps =
+  TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps']['projectHubProps'];
 
 export type BuildReadyWorkspaceProjectHubPropsInput = {
   currentProjectLabel: ReadyWorkspaceProjectHubProps['currentProjectLabel'];
@@ -73,11 +74,11 @@ export function buildReadyWorkspaceProjectHubProps(
     },
     ...(input.onApplyTextTimeMapping
       ? {
-        onApplyTextTimeMapping: async (mappingInput) => {
-          recordTranscriptionKeyboardAction('toolbarApplyTextTimeMapping');
-          await input.onApplyTextTimeMapping!(mappingInput);
-        },
-      }
+          onApplyTextTimeMapping: async (mappingInput) => {
+            recordTranscriptionKeyboardAction('toolbarApplyTextTimeMapping');
+            await input.onApplyTextTimeMapping!(mappingInput);
+          },
+        }
       : {}),
     onExportEaf: () => {
       recordTranscriptionKeyboardAction('toolbarExportEaf');

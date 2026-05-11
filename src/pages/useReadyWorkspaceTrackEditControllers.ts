@@ -10,8 +10,8 @@ import { useReadyWorkspaceTextEditingController } from './useReadyWorkspaceTextE
 import { buildReadyWorkspaceTextEditingControllerInput } from './transcriptionReadyWorkspaceDomainInputBuilder';
 import { timeRangeDragPreviewFromSegmentRangeGesturePreview } from '../utils/segmentRangeGesturePreviewReadModel';
 import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import type { LayerActionPanelKind } from '../hooks/useLayerActionPanel';
-import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
+import type { LayerActionPanelKind } from '~/hooks/layer/useLayerActionPanel';
+import type { PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';
 
 type SegmentLocalUpdater = (segment: LayerUnitDocType) => LayerUnitDocType;
 

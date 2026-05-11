@@ -8,7 +8,7 @@ import {
   resetAssistantDialogueStateForTests,
 } from './assistantDialogueState';
 import type { ActionIntent } from './IntentRouter';
-import type { PendingAiToolCall } from '../hooks/useAiChat.types';
+import type { PendingAiToolCall } from '../hooks/ai/useAiChat.types';
 
 function makeActionIntent(actionId: ActionIntent['actionId'], confidence = 0.9): ActionIntent {
   return {
@@ -65,7 +65,10 @@ describe('assistantDialogueState', () => {
   });
 
   it('is idle when layers cleared', () => {
-    publishAssistantDialogueVoiceLayer({ pendingConfirm: { actionId: 'playPause', label: 'Play' }, disambiguationOptions: [] });
+    publishAssistantDialogueVoiceLayer({
+      pendingConfirm: { actionId: 'playPause', label: 'Play' },
+      disambiguationOptions: [],
+    });
     publishAssistantDialogueVoiceLayer({ pendingConfirm: null, disambiguationOptions: [] });
 
     expect(getAssistantDialogueSnapshot().primary).toBe('none');
@@ -117,7 +120,11 @@ describe('ADR-0028 same-session assistant dialogue + chat composer gate', () => 
     const snap = getAssistantDialogueSnapshot();
     expect(snap.primary).toBe('chat_tool');
     expect(isVoiceDialogueBlockingPrimary(snap.primary)).toBe(false);
-    expect(isAssistantChatComposerBlocked({ hasToolPending: true, dialoguePrimary: snap.primary })).toBe(true);
-    expect(isAssistantChatComposerBlocked({ hasToolPending: false, dialoguePrimary: snap.primary })).toBe(false);
+    expect(
+      isAssistantChatComposerBlocked({ hasToolPending: true, dialoguePrimary: snap.primary }),
+    ).toBe(true);
+    expect(
+      isAssistantChatComposerBlocked({ hasToolPending: false, dialoguePrimary: snap.primary }),
+    ).toBe(false);
   });
 });

@@ -10,7 +10,7 @@ import {
   AI_AGENT_LOOP_PAYLOAD_SHRINK_MAX_STEPS,
   AI_AGENT_LOOP_USER_REQUEST_MAX_CHARS,
   AI_LOCAL_TOOL_RESULT_CHAR_BUDGET,
-} from '../../../hooks/useAiChat.config';
+} from '../../../hooks/ai/useAiChat.config';
 import { createMetricTags, recordMetric } from '../../../observability/metrics';
 import type { LocalContextToolResult } from '../localContextToolTypes';
 

@@ -2,43 +2,9 @@ import { useTranscriptionSegmentMutationController } from './useTranscriptionSeg
 import { useReadyWorkspaceSegmentMutationAdapters } from './useReadyWorkspaceSegmentMutationAdapters';
 import { useTranscriptionSegmentCreationController } from './useTranscriptionSegmentCreationController';
 
-type SegmentMutationControllerInput = Parameters<
-  typeof useTranscriptionSegmentMutationController
->[0];
-type SegmentCreationControllerInput = Parameters<
-  typeof useTranscriptionSegmentCreationController
->[0];
+import type { UseReadyWorkspaceSegmentMutationCreationClusterParams } from './useReadyWorkspaceSegmentMutationCreationCluster.types';
 
-export interface UseReadyWorkspaceSegmentMutationCreationClusterParams extends Pick<
-  SegmentMutationControllerInput,
-  | 'activeLayerIdForEdits'
-  | 'resolveSegmentRoutingForLayer'
-  | 'pushUndo'
-  | 'reloadSegments'
-  | 'refreshSegmentUndoSnapshot'
-  | 'selectTimelineUnit'
-  | 'setSaveState'
-  | 'splitUnit'
-  | 'mergeSelectedUnits'
-  | 'mergeWithPrevious'
-  | 'mergeWithNext'
-  | 'deleteUnit'
-  | 'deleteSelectedUnits'
-> {
-  timelineCurrentMediaUnits: SegmentMutationControllerInput['unitsOnCurrentMedia'];
-  getUnitDocById: SegmentMutationControllerInput['getUnitDocById'];
-  findUnitDocContainingRange: SegmentMutationControllerInput['findUnitDocContainingRange'];
-  recordTimelineEdit: NonNullable<SegmentMutationControllerInput['recordTimelineEdit']>;
-  reloadSegmentContents: Parameters<
-    typeof useReadyWorkspaceSegmentMutationAdapters
-  >[0]['reloadSegmentContents'];
-  selectedTimelineMediaForCreation: SegmentCreationControllerInput['selectedTimelineMedia'];
-  getDocumentSpanSec: NonNullable<SegmentCreationControllerInput['getDocumentSpanSec']>;
-  ensureTimelineMediaRowResolved?: SegmentCreationControllerInput['ensureTimelineMediaRowResolved'];
-  findOverlappingUnitDoc: SegmentCreationControllerInput['findOverlappingUnitDoc'];
-  createAdjacentUnit: SegmentCreationControllerInput['createAdjacentUnit'];
-  createUnitFromSelection: SegmentCreationControllerInput['createUnitFromSelection'];
-}
+export type { UseReadyWorkspaceSegmentMutationCreationClusterParams };
 
 export function useReadyWorkspaceSegmentMutationCreationCluster(
   params: UseReadyWorkspaceSegmentMutationCreationClusterParams,
@@ -119,11 +85,15 @@ export function useReadyWorkspaceSegmentMutationCreationCluster(
       findUnitDocContainingRange,
       findOverlappingUnitDoc,
       pushUndo,
-      reloadSegments: reloadSegments as SegmentCreationControllerInput['reloadSegments'],
-      refreshSegmentUndoSnapshot:
-        refreshSegmentUndoSnapshot as SegmentCreationControllerInput['refreshSegmentUndoSnapshot'],
-      reloadSegmentContents:
-        reloadSegmentContents as SegmentCreationControllerInput['reloadSegmentContents'],
+      reloadSegments: reloadSegments as Parameters<
+        typeof useTranscriptionSegmentCreationController
+      >[0]['reloadSegments'],
+      refreshSegmentUndoSnapshot: refreshSegmentUndoSnapshot as Parameters<
+        typeof useTranscriptionSegmentCreationController
+      >[0]['refreshSegmentUndoSnapshot'],
+      reloadSegmentContents: reloadSegmentContents as Parameters<
+        typeof useTranscriptionSegmentCreationController
+      >[0]['reloadSegmentContents'],
       selectTimelineUnit,
       setSaveState,
       createAdjacentUnit,

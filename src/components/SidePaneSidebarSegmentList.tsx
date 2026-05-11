@@ -15,8 +15,8 @@ import type {
   SegmentMetaDocType,
   SpeakerDocType,
 } from '../db';
-import { createTimelineUnit, type TimelineUnit } from '../hooks/transcriptionTypes';
-import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
+import { createTimelineUnit, type TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import { resolveSegmentTimelineSourceLayer } from '~/hooks/layer/useLayerSegments';
 import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { formatTime } from '../utils/transcriptionFormatters';
 import { type UnitSelfCertainty } from '../utils/unitSelfCertainty';

@@ -2,10 +2,13 @@
 
 import { cleanup, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CollaborationRecord, ConflictDescriptor } from '../../collaboration/collaborationConflictRuntime';
+import type {
+  CollaborationRecord,
+  ConflictDescriptor,
+} from '../../collaboration/collaborationConflictRuntime';
 import type { ArbitrationTicket } from '../../collaboration/collaborationRulesRuntime';
 import type { CollaborationProjectChangeRecord } from '../../collaboration/cloud/syncTypes';
-import type { CloudSyncConflictReviewTicket } from '../../hooks/useTranscriptionCloudSyncActions';
+import type { CloudSyncConflictReviewTicket } from '../../hooks/transcription/useTranscriptionCloudSyncActions';
 import { renderWithLocale } from '../../test/localeTestUtils';
 import { CollaborationConflictReviewDrawer } from './CollaborationConflictReviewDrawer';
 

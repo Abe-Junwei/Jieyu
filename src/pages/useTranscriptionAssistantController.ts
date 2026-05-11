@@ -6,8 +6,8 @@ import { getDb } from '../app/jieyuDbPageAccess';
 import { getUnitDocProjectionById } from '../app/transcriptionServicesPageAccess';
 import { LinguisticService } from '../app/languageAssetPageAccess';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
-import { isSegmentTimelineUnit } from '../hooks/transcriptionTypes';
-import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
+import { isSegmentTimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { VoiceAgentMode } from '../hooks/voice/useVoiceAgent';
 import type { VoiceSession } from '../types/voiceSession.types';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
@@ -260,7 +260,7 @@ export function useTranscriptionAssistantController(
           notes: { ...existingNotes, eng: trimmed },
           updatedAt: now,
         };
-        await LinguisticService.saveUnit(updated);
+        await LinguisticService.units.save(updated);
         setUnits((prev) => prev.map((item) => (item.id === unitId ? updated : item)));
         const message = t(locale, 'transcription.assistant.voiceAnalysis.saved');
         setSaveState({ kind: 'done', message });

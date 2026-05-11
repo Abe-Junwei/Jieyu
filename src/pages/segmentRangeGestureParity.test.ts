@@ -22,6 +22,6 @@ describe('segmentRangeGestureParity', () => {
     expect(row.testAnchors).toContain('src/pages/timelineParityMatrix.test.ts');
     expect(row.testAnchors).toContain('src/pages/segmentRangeGestureParity.test.ts');
     expect(row.testAnchors).toContain('src/pages/TranscriptionPage.structure.test.ts');
-    expect(row.testAnchors).toContain('src/hooks/useLasso.test.tsx');
+    expect(row.testAnchors).toContain('src/hooks/ui/useLasso.test.tsx');
   });
 });

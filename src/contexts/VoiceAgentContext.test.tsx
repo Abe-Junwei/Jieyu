@@ -2,9 +2,13 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
-import { VoiceAgentProvider, useVoiceAgentContext, DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from './VoiceAgentContext';
+import {
+  VoiceAgentProvider,
+  useVoiceAgentContext,
+  DEFAULT_VOICE_AGENT_CONTEXT_VALUE,
+} from './VoiceAgentContext';
 import type { VoiceAgentContextValue } from './VoiceAgentContext';
-import { DEFAULT_VOICE_MODE, type VoiceAgentMode } from '../hooks/useVoiceAgent';
+import { DEFAULT_VOICE_MODE, type VoiceAgentMode } from '../hooks/voice/useVoiceAgent';
 
 function ProviderProbe({ testId }: { testId: string }) {
   const ctx = useVoiceAgentContext();
@@ -119,7 +123,11 @@ describe('VoiceAgentContext', () => {
       </VoiceAgentProvider>,
     );
 
-    expect(customValue.voicePendingConfirm).toEqual({ actionId: 'deleteSegment', label: '确认删除', fromFuzzy: true });
+    expect(customValue.voicePendingConfirm).toEqual({
+      actionId: 'deleteSegment',
+      label: '确认删除',
+      fromFuzzy: true,
+    });
   });
 
   it('renders with lang override', () => {

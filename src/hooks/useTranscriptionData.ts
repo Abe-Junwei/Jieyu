@@ -1,6 +1,6 @@
-import type { SaveState, SnapGuide } from './transcriptionTypes';
-import { useTranscriptionDataBindings } from './useTranscriptionDataBindings';
-import { useTranscriptionDataFoundation } from './useTranscriptionDataFoundation';
+import type { SaveState, SnapGuide } from './transcription/transcriptionTypes';
+import { useTranscriptionDataBindings } from './transcription/useTranscriptionDataBindings';
+import { useTranscriptionDataFoundation } from './transcription/useTranscriptionDataFoundation';
 
 export type { SaveState, SnapGuide };
 

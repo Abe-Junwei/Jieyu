@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db';
 import { LinguisticService } from './LinguisticService';
 
-describe('LinguisticService.listLexemeTranscriptionJumpTargets', () => {
+describe('LinguisticService.lexemes.listTranscriptionJumpTargets', () => {
   const now = '2026-04-24T12:00:00.000Z';
 
   beforeEach(async () => {
@@ -33,7 +33,7 @@ describe('LinguisticService.listLexemeTranscriptionJumpTargets', () => {
       isOfflineCached: false,
       createdAt: now,
     });
-    await LinguisticService.saveTranslationLayer({
+    await LinguisticService.layers.saveTranslation({
       id: 'layer-jt-tr',
       textId: 'text-jt-1',
       key: 'tr_jt',
@@ -81,7 +81,7 @@ describe('LinguisticService.listLexemeTranscriptionJumpTargets', () => {
       updatedAt: now,
     });
 
-    const hits = await LinguisticService.listLexemeTranscriptionJumpTargets('lex-jt-1');
+    const hits = await LinguisticService.lexemes.listTranscriptionJumpTargets('lex-jt-1');
     expect(hits).toHaveLength(1);
     expect(hits[0]).toEqual({
       textId: 'text-jt-1',
@@ -101,7 +101,7 @@ describe('LinguisticService.listLexemeTranscriptionJumpTargets', () => {
       createdAt: now,
       updatedAt: now,
     });
-    await LinguisticService.saveTranslationLayer({
+    await LinguisticService.layers.saveTranslation({
       id: 'layer-jt-tr2',
       textId: 'text-jt-2',
       key: 'tr_jt2',
@@ -160,7 +160,7 @@ describe('LinguisticService.listLexemeTranscriptionJumpTargets', () => {
       updatedAt: now,
     });
 
-    const hits = await LinguisticService.listLexemeTranscriptionJumpTargets('lex-jt-2');
+    const hits = await LinguisticService.lexemes.listTranscriptionJumpTargets('lex-jt-2');
     expect(hits).toHaveLength(1);
     expect(hits[0]?.unitKind).toBe('segment');
     expect(hits[0]?.surfaceHint).toBe('ya');

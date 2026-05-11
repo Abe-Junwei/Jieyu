@@ -12,7 +12,7 @@ import type {
   LayerUnitContentViewDocType,
 } from '../types/jieyuDbDocTypes';
 import type { TranscriptionEditorContextValue } from '../contexts/TranscriptionEditorContext';
-import type { LayerCreateInput } from '../hooks/transcriptionTypes';
+import type { LayerCreateInput } from '../hooks/transcription/transcriptionTypes';
 import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';
 
 interface RulerViewLike {

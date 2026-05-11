@@ -9,8 +9,8 @@ import {
   type DevErrorAggregationPanelMessages,
 } from '../i18n/messages';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
-import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
-import { useViewportWidth } from '../hooks/useViewportWidth';
+import { useUiFontScaleRuntime } from '~/hooks/ui/useUiFontScaleRuntime';
+import { useViewportWidth } from '~/hooks/ui/useViewportWidth';
 import '../styles/panels/dev-error-aggregation.css';
 
 function formatEntryLabel(

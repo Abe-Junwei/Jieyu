@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
-import { useTranscriptionPlaybackClock } from '../hooks/transcriptionPlaybackClock';
+import { useTranscriptionPlaybackClock } from '../hooks/transcription/transcriptionPlaybackClock';
 import { t, useLocale } from '../i18n';
 
 interface TimeRulerProps {

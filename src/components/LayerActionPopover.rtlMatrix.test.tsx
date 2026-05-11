@@ -11,7 +11,8 @@ const {
   resolveTextDirectionFromLocaleMock,
   mockUseOrthographies,
 } = vi.hoisted(() => ({
-  computeAdaptivePanelWidthMock: vi.fn<(input: { direction: 'ltr' | 'rtl'; baseWidth: number }) => number>(),
+  computeAdaptivePanelWidthMock:
+    vi.fn<(input: { direction: 'ltr' | 'rtl'; baseWidth: number }) => number>(),
   readPersistedUiFontScaleMock: vi.fn<(locale: string, direction: 'ltr' | 'rtl') => number>(),
   resolveTextDirectionFromLocaleMock: vi.fn<(locale: string) => 'ltr' | 'rtl'>(),
   mockUseOrthographies: vi.fn(),
@@ -28,12 +29,14 @@ vi.mock('../utils/panelAdaptiveLayout', () => ({
   subscribeUiFontScalePreference: () => () => {},
   readUiFontScalePreferenceSnapshot: () => 'auto:1.0000',
   readPersistedUiFontScalePreference: () => ({ mode: 'auto', manualScale: 1 }),
-  computeAdaptivePanelWidth: (input: { direction: 'ltr' | 'rtl'; baseWidth: number }) => computeAdaptivePanelWidthMock(input),
-  readPersistedUiFontScale: (locale: string, direction: 'ltr' | 'rtl') => readPersistedUiFontScaleMock(locale, direction),
+  computeAdaptivePanelWidth: (input: { direction: 'ltr' | 'rtl'; baseWidth: number }) =>
+    computeAdaptivePanelWidthMock(input),
+  readPersistedUiFontScale: (locale: string, direction: 'ltr' | 'rtl') =>
+    readPersistedUiFontScaleMock(locale, direction),
   resolveTextDirectionFromLocale: (locale: string) => resolveTextDirectionFromLocaleMock(locale),
 }));
 
-vi.mock('../hooks/useOrthographies', () => ({
+vi.mock('../hooks/orthography/useOrthographies', () => ({
   useOrthographies: (...args: unknown[]) => mockUseOrthographies(...args),
 }));
 
@@ -70,85 +73,87 @@ describe('LayerActionPopover RTL matrix', () => {
     cleanup();
   });
 
-  it.each([
-    { direction: 'ltr' as const },
-    { direction: 'rtl' as const },
-  ])('applies direction + adaptive width channels in $direction mode', ({ direction }) => {
-    resolveTextDirectionFromLocaleMock.mockReturnValue(direction);
+  it.each([{ direction: 'ltr' as const }, { direction: 'rtl' as const }])(
+    'applies direction + adaptive width channels in $direction mode',
+    ({ direction }) => {
+      resolveTextDirectionFromLocaleMock.mockReturnValue(direction);
 
-    renderWithLocale(
-      <LayerActionPopover
-        action="create-transcription"
-        layerId={undefined}
-        deletableLayers={[makeLayer('trc-base')]}
-        createLayer={vi.fn(async () => false)}
-        deleteLayer={vi.fn(async () => undefined)}
-        onClose={vi.fn()}
-      />,
-      'en-US',
-    );
+      renderWithLocale(
+        <LayerActionPopover
+          action="create-transcription"
+          layerId={undefined}
+          deletableLayers={[makeLayer('trc-base')]}
+          createLayer={vi.fn(async () => false)}
+          deleteLayer={vi.fn(async () => undefined)}
+          onClose={vi.fn()}
+        />,
+        'en-US',
+      );
 
-    const dialog = screen.getByRole('dialog');
-    expect(dialog.getAttribute('dir')).toBe(direction);
-    expect(readPersistedUiFontScaleMock).toHaveBeenCalledWith('en-US', direction);
-    expect(computeAdaptivePanelWidthMock).toHaveBeenCalledWith(expect.objectContaining({
-      direction,
-      baseWidth: 480,
-    }));
-  });
+      const dialog = screen.getByRole('dialog');
+      expect(dialog.getAttribute('dir')).toBe(direction);
+      expect(readPersistedUiFontScaleMock).toHaveBeenCalledWith('en-US', direction);
+      expect(computeAdaptivePanelWidthMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          direction,
+          baseWidth: 480,
+        }),
+      );
+    },
+  );
 
-  it.each([
-    { direction: 'ltr' as const },
-    { direction: 'rtl' as const },
-  ])('completes create flow then supports header close without create in $direction mode', async ({ direction }) => {
-    resolveTextDirectionFromLocaleMock.mockReturnValue(direction);
+  it.each([{ direction: 'ltr' as const }, { direction: 'rtl' as const }])(
+    'completes create flow then supports header close without create in $direction mode',
+    async ({ direction }) => {
+      resolveTextDirectionFromLocaleMock.mockReturnValue(direction);
 
-    const createLayer = vi.fn(async () => true);
-    const onClose = vi.fn();
+      const createLayer = vi.fn(async () => true);
+      const onClose = vi.fn();
 
-    renderWithLocale(
-      <LayerActionPopover
-        action="create-transcription"
-        layerId={undefined}
-        deletableLayers={[]}
-        createLayer={createLayer}
-        deleteLayer={vi.fn(async () => undefined)}
-        onClose={onClose}
-      />,
-      'en-US',
-    );
+      renderWithLocale(
+        <LayerActionPopover
+          action="create-transcription"
+          layerId={undefined}
+          deletableLayers={[]}
+          createLayer={createLayer}
+          deleteLayer={vi.fn(async () => undefined)}
+          onClose={onClose}
+        />,
+        'en-US',
+      );
 
-    const languageCodeInput = screen.getByRole('textbox', { name: /language code/i });
-    fireEvent.change(languageCodeInput, { target: { value: 'cmn' } });
-    const mandarinOption = screen.getByRole('option', { name: /Mandarin/ });
-    fireEvent.click(mandarinOption);
+      const languageCodeInput = screen.getByRole('textbox', { name: /language code/i });
+      fireEvent.change(languageCodeInput, { target: { value: 'cmn' } });
+      const mandarinOption = screen.getByRole('option', { name: /Mandarin/ });
+      fireEvent.click(mandarinOption);
 
-    const createButton = screen.getByRole('button', { name: /^new transcription layer$/i });
-    fireEvent.click(createButton);
+      const createButton = screen.getByRole('button', { name: /^new transcription layer$/i });
+      fireEvent.click(createButton);
 
-    await waitFor(() => {
-      expect(createLayer).toHaveBeenCalledTimes(1);
-      expect(onClose).toHaveBeenCalledTimes(1);
-    });
+      await waitFor(() => {
+        expect(createLayer).toHaveBeenCalledTimes(1);
+        expect(onClose).toHaveBeenCalledTimes(1);
+      });
 
-    cleanup();
+      cleanup();
 
-    const createLayerB = vi.fn(async () => false);
-    const onCloseB = vi.fn();
-    renderWithLocale(
-      <LayerActionPopover
-        action="create-transcription"
-        layerId={undefined}
-        deletableLayers={[]}
-        createLayer={createLayerB}
-        deleteLayer={vi.fn(async () => undefined)}
-        onClose={onCloseB}
-      />,
-      'en-US',
-    );
+      const createLayerB = vi.fn(async () => false);
+      const onCloseB = vi.fn();
+      renderWithLocale(
+        <LayerActionPopover
+          action="create-transcription"
+          layerId={undefined}
+          deletableLayers={[]}
+          createLayer={createLayerB}
+          deleteLayer={vi.fn(async () => undefined)}
+          onClose={onCloseB}
+        />,
+        'en-US',
+      );
 
-    fireEvent.click(screen.getByRole('button', { name: /New Transcription Layer Cancel/i }));
-    expect(onCloseB).toHaveBeenCalledTimes(1);
-    expect(createLayerB).not.toHaveBeenCalled();
-  });
+      fireEvent.click(screen.getByRole('button', { name: /New Transcription Layer Cancel/i }));
+      expect(onCloseB).toHaveBeenCalledTimes(1);
+      expect(createLayerB).not.toHaveBeenCalled();
+    },
+  );
 });

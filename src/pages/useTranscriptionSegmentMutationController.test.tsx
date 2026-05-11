@@ -2,10 +2,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../db';
-import type { SaveState } from '../hooks/transcriptionTypes';
-import { segmentToView, unitToView } from '../hooks/timelineUnitView';
+import type { SaveState } from '../hooks/transcription/transcriptionTypes';
+import { segmentToView, unitToView } from '../hooks/transcription/timelineUnitView';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
-import type { AiSegmentSplitRollbackToken } from '../hooks/useAiToolCallHandler.types';
+import type { AiSegmentSplitRollbackToken } from '../hooks/ai/useAiToolCallHandler.types';
 import { useTranscriptionSegmentMutationController } from './useTranscriptionSegmentMutationController';
 
 const {

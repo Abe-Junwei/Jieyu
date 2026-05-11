@@ -1,6 +1,10 @@
 import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { isSegmentTimelineUnit, type TimelineUnit, type TimelineUnitKind } from '../hooks/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
+import {
+  isSegmentTimelineUnit,
+  type TimelineUnit,
+  type TimelineUnitKind,
+} from '../hooks/transcription/transcriptionTypes';
 import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
 
 function activeUnitIdFromPrimaryView(
@@ -64,11 +68,12 @@ export function buildTranscriptionSelectionSnapshot(
   const selectedLayer = input.layers.find((layer) => layer.id === input.selectedLayerId) ?? null;
   const translationLayers = input.layers.filter((layer) => layer.layerType === 'translation');
   const selectedLayerType: 'transcription' | 'translation' | undefined = selectedLayer
-    ? (selectedLayer.layerType === 'translation' ? 'translation' : 'transcription')
+    ? selectedLayer.layerType === 'translation'
+      ? 'translation'
+      : 'transcription'
     : undefined;
-  const selectedUnitLayerId = input.primaryUnitView?.layerId
-    ?? input.selectedTimelineUnit?.layerId
-    ?? undefined;
+  const selectedUnitLayerId =
+    input.primaryUnitView?.layerId ?? input.selectedTimelineUnit?.layerId ?? undefined;
   const hostAwareTranslationLayerId = resolveHostAwareTranslationLayerIdFromSnapshot({
     selectedLayerId: input.selectedLayerId,
     selectedUnitLayerId,
@@ -78,20 +83,22 @@ export function buildTranscriptionSelectionSnapshot(
     transcriptionLayers: input.layers.filter((layer) => layer.layerType === 'transcription'),
     layerLinks: input.layerLinks,
   });
-  const selectedTranslationLayerId = selectedLayerType === 'translation'
-    ? selectedLayer?.id
-    : hostAwareTranslationLayerId;
-  const selectedTranscriptionLayerId = selectedLayerType === 'transcription'
-    ? selectedLayer?.id
-    : undefined;
+  const selectedTranslationLayerId =
+    selectedLayerType === 'translation' ? selectedLayer?.id : hostAwareTranslationLayerId;
+  const selectedTranscriptionLayerId =
+    selectedLayerType === 'transcription' ? selectedLayer?.id : undefined;
 
   const selectedSegmentUnit = isSegmentTimelineUnit(input.selectedTimelineUnit)
     ? input.selectedTimelineUnit
     : null;
   const selectedText = selectedSegmentUnit
-    ? (input.segmentContentByLayer.get(selectedSegmentUnit.layerId)?.get(selectedSegmentUnit.unitId)?.text ?? '')
+    ? (input.segmentContentByLayer.get(selectedSegmentUnit.layerId)?.get(selectedSegmentUnit.unitId)
+        ?.text ?? '')
     : input.selectedTimelineOwnerUnit
-      ? input.getUnitTextForLayer(input.selectedTimelineOwnerUnit, input.selectedLayerId ?? undefined)
+      ? input.getUnitTextForLayer(
+          input.selectedTimelineOwnerUnit,
+          input.selectedLayerId ?? undefined,
+        )
       : '';
 
   const selectedTimeSource = selectedSegmentUnit
@@ -104,7 +111,10 @@ export function buildTranscriptionSelectionSnapshot(
   return {
     timelineUnit: input.selectedTimelineUnit,
     selectedUnitKind: input.selectedTimelineUnit?.kind ?? null,
-    activeUnitId: activeUnitIdFromPrimaryView(input.primaryUnitView, input.selectedTimelineOwnerUnit),
+    activeUnitId: activeUnitIdFromPrimaryView(
+      input.primaryUnitView,
+      input.selectedTimelineOwnerUnit,
+    ),
     selectedUnit: input.primaryUnitView,
     selectedRowMeta: input.selectedTimelineRowMeta,
     selectedLayerId: input.selectedLayerId,

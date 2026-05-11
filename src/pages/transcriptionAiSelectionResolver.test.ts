@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { LayerUnitDocType } from '../db';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import {
   buildOwnerUnitCandidates,
   resolveExplicitOwnerUnitForAi,

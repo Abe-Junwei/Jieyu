@@ -1,5 +1,5 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
-import type { TimelineViewportProjection } from '../hooks/timelineViewportTypes';
+import type { TimelineViewportProjection } from '../hooks/transcription/timelineViewportTypes';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
 import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 import {
@@ -155,7 +155,8 @@ export function buildReadyWorkspaceStageProps(
     maxZoomPercent: input.timelineViewportProjection.maxZoomPercent,
     onZoomToPercent: (percent: number, mode: 'fit-all' | 'fit-selection' | 'custom') => {
       if (mode === 'fit-all') recordTranscriptionKeyboardAction('timelineZoomFitAll');
-      else if (mode === 'fit-selection') recordTranscriptionKeyboardAction('timelineZoomFitSelection');
+      else if (mode === 'fit-selection')
+        recordTranscriptionKeyboardAction('timelineZoomFitSelection');
       input.onZoomToPercent(percent, mode);
     },
     onZoomToUnit: (startTime: number, endTime: number) => {

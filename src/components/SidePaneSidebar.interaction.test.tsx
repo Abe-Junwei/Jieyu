@@ -17,16 +17,12 @@ const { mockUseOrthographies } = vi.hoisted(() => ({
   mockUseOrthographies: vi.fn<(languageIds: string[]) => Array<Record<string, unknown>>>(() => []),
 }));
 
-vi.mock('../hooks/useOrthographies', () => ({
+vi.mock('../hooks/orthography/useOrthographies', () => ({
   useOrthographies: mockUseOrthographies,
 }));
 
 function wrapSidebarTestTree(node: ReactNode) {
-  return (
-    <MemoryRouter initialEntries={['/transcription']}>
-      {node}
-    </MemoryRouter>
-  );
+  return <MemoryRouter initialEntries={['/transcription']}>{node}</MemoryRouter>;
 }
 
 function ensureLeftRailLayerActionsHost(): void {
@@ -80,7 +76,10 @@ function createLayerActionStub() {
 
 function renderSidebar(input?: {
   speakerFilterOptions?: Array<{ key: string; name: string; count: number; color?: string }>;
-  speakerReferenceStats?: Record<string, { transcriptionUnitCount: number; segmentCount: number; totalCount: number }>;
+  speakerReferenceStats?: Record<
+    string,
+    { transcriptionUnitCount: number; segmentCount: number; totalCount: number }
+  >;
   speakerReferenceStatsReady?: boolean;
 }) {
   const onSelectSpeakerUnits = vi.fn();
@@ -97,15 +96,26 @@ function renderSidebar(input?: {
   const setActiveSpeakerFilterKey = vi.fn();
 
   const layerAction = createLayerActionStub();
-  let actionPanel: 'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null = null;
+  let actionPanel:
+    | 'speaker-management'
+    | 'create-transcription'
+    | 'create-translation'
+    | 'delete'
+    | null = null;
   layerAction.setLayerActionPanel.mockImplementation((updater: unknown) => {
-    actionPanel = typeof updater === 'function'
-      ? (updater as (prev: typeof actionPanel) => typeof actionPanel)(actionPanel)
-      : updater as typeof actionPanel;
+    actionPanel =
+      typeof updater === 'function'
+        ? (updater as (prev: typeof actionPanel) => typeof actionPanel)(actionPanel)
+        : (updater as typeof actionPanel);
   });
 
   const speakerOptions: SpeakerDocType[] = [
-    { id: 'spk-1', name: 'Alice', createdAt: '2026-03-23T00:00:00.000Z', updatedAt: '2026-03-23T00:00:00.000Z' },
+    {
+      id: 'spk-1',
+      name: 'Alice',
+      createdAt: '2026-03-23T00:00:00.000Z',
+      updatedAt: '2026-03-23T00:00:00.000Z',
+    },
   ];
 
   const speakerManagement = {
@@ -173,33 +183,36 @@ function renderSidebar(input?: {
   );
 
   return {
-    rerender: (speakerFilterOptions = input?.speakerFilterOptions ?? [
-      { key: 'spk-1', name: 'Alice', count: 3 },
-    ]) => rendered.rerender(
-      wrapSidebarTestTree(
-        <LocaleProvider locale="zh-CN">
-          <SpeakerRailProvider
-            speakerManagement={{ ...speakerManagement, speakerFilterOptions }}
-            selectedUnitIds={new Set(['utt-1'])}
-            handleAssignSpeakerToSelectedRouted={onAssignSpeakerToSelectedRouted}
-            handleClearSpeakerOnSelectedRouted={onClearSpeakerOnSelectedRouted}
-          >
-            <SidePaneSidebar
-              sidePaneRows={[] as LayerDocType[]}
-              focusedLayerRowId=""
-              flashLayerRowId=""
-              onFocusLayer={vi.fn()}
-              transcriptionLayers={[]}
-              toggleLayerLink={vi.fn(async () => undefined)}
-              deletableLayers={[]}
-              layerCreateMessage=""
-              layerAction={{ ...layerAction, layerActionPanel: actionPanel } as never}
-              onReorderLayers={vi.fn(async () => undefined)}
-            />
-          </SpeakerRailProvider>
-        </LocaleProvider>,
+    rerender: (
+      speakerFilterOptions = input?.speakerFilterOptions ?? [
+        { key: 'spk-1', name: 'Alice', count: 3 },
+      ],
+    ) =>
+      rendered.rerender(
+        wrapSidebarTestTree(
+          <LocaleProvider locale="zh-CN">
+            <SpeakerRailProvider
+              speakerManagement={{ ...speakerManagement, speakerFilterOptions }}
+              selectedUnitIds={new Set(['utt-1'])}
+              handleAssignSpeakerToSelectedRouted={onAssignSpeakerToSelectedRouted}
+              handleClearSpeakerOnSelectedRouted={onClearSpeakerOnSelectedRouted}
+            >
+              <SidePaneSidebar
+                sidePaneRows={[] as LayerDocType[]}
+                focusedLayerRowId=""
+                flashLayerRowId=""
+                onFocusLayer={vi.fn()}
+                transcriptionLayers={[]}
+                toggleLayerLink={vi.fn(async () => undefined)}
+                deletableLayers={[]}
+                layerCreateMessage=""
+                layerAction={{ ...layerAction, layerActionPanel: actionPanel } as never}
+                onReorderLayers={vi.fn(async () => undefined)}
+              />
+            </SpeakerRailProvider>
+          </LocaleProvider>,
+        ),
       ),
-    ),
     layerAction,
     onRenameSpeaker,
     onMergeSpeaker,
@@ -300,7 +313,9 @@ function renderSidebarForDeleteFlow(input: {
             focusedLayerRowId={input.deletableLayers[0]?.id ?? ''}
             flashLayerRowId=""
             onFocusLayer={vi.fn()}
-            transcriptionLayers={input.deletableLayers.filter((l) => l.layerType === 'transcription')}
+            transcriptionLayers={input.deletableLayers.filter(
+              (l) => l.layerType === 'transcription',
+            )}
             toggleLayerLink={vi.fn(async () => undefined)}
             deletableLayers={input.deletableLayers}
             layerCreateMessage=""
@@ -324,9 +339,13 @@ function renderSidebarForCreateContextMenuFlow(input: {
   onReorderLayers?: (draggedLayerId: string, targetIndex: number) => Promise<void>;
   focusedLayerRowId?: string;
 }) {
-  const onReorderLayers = input.onReorderLayers ?? (async (_draggedLayerId: string, _targetIndex: number) => undefined);
-  const toggleLayerLink: (transcriptionKey: string, translationId: string) => Promise<void> = input.toggleLayerLink
-    ?? vi.fn<(transcriptionKey: string, translationId: string) => Promise<void>>(async () => undefined);
+  const onReorderLayers =
+    input.onReorderLayers ?? (async (_draggedLayerId: string, _targetIndex: number) => undefined);
+  const toggleLayerLink: (transcriptionKey: string, translationId: string) => Promise<void> =
+    input.toggleLayerLink ??
+    vi.fn<(transcriptionKey: string, translationId: string) => Promise<void>>(
+      async () => undefined,
+    );
   const speakerManagement = {
     speakerOptions: [] as SpeakerDocType[],
     speakerDraftName: '',
@@ -420,7 +439,12 @@ function mockLayerRowRect(element: HTMLElement, top: number, height = 20) {
   });
 }
 
-async function openSpeakerManagementPanel(sidebar: { layerAction: ReturnType<typeof createLayerActionStub>; rerender: (speakerFilterOptions?: Array<{ key: string; name: string; count: number; color?: string }>) => void }) {
+async function openSpeakerManagementPanel(sidebar: {
+  layerAction: ReturnType<typeof createLayerActionStub>;
+  rerender: (
+    speakerFilterOptions?: Array<{ key: string; name: string; count: number; color?: string }>,
+  ) => void;
+}) {
   await act(async () => {
     sidebar.layerAction.setLayerActionPanel('speaker-management');
   });
@@ -513,14 +537,23 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
     function StatefulSidebarHost() {
       const [batchSpeakerId, setBatchSpeakerId] = useState('');
-      const [layerActionPanel, setLayerActionPanel] = useState<'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null>('speaker-management');
+      const [layerActionPanel, setLayerActionPanel] = useState<
+        'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null
+      >('speaker-management');
       const layerAction = {
         ...createLayerActionStub(),
         layerActionPanel,
         setLayerActionPanel,
       };
       const speakerManagement = {
-        speakerOptions: [{ id: 'spk-1', name: 'Alice', createdAt: '2026-03-23T00:00:00.000Z', updatedAt: '2026-03-23T00:00:00.000Z' }],
+        speakerOptions: [
+          {
+            id: 'spk-1',
+            name: 'Alice',
+            createdAt: '2026-03-23T00:00:00.000Z',
+            updatedAt: '2026-03-23T00:00:00.000Z',
+          },
+        ],
         speakerDraftName: '',
         setSpeakerDraftName: vi.fn(),
         batchSpeakerId,
@@ -531,7 +564,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
         speakerDialogState: null,
         speakerVisualByUnitId: {},
         speakerFilterOptions: [{ key: 'spk-1', name: 'Alice', count: 3 }],
-        speakerReferenceStats: { 'spk-1': { transcriptionUnitCount: 2, segmentCount: 1, totalCount: 3 } },
+        speakerReferenceStats: {
+          'spk-1': { transcriptionUnitCount: 2, segmentCount: 1, totalCount: 3 },
+        },
         speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
         speakerReferenceStatsMediaScoped: false,
         speakerReferenceStatsReady: true,
@@ -554,7 +589,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
       return (
         <>
-          <button type="button" onClick={() => setLayerActionPanel('speaker-management')}>打开说话人管理</button>
+          <button type="button" onClick={() => setLayerActionPanel('speaker-management')}>
+            打开说话人管理
+          </button>
           <SpeakerRailProvider
             speakerManagement={speakerManagement}
             selectedUnitIds={new Set(['utt-1', 'utt-2'])}
@@ -586,10 +623,12 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       ),
     );
 
-    expect(screen.getByRole('button', { name: '清空已选说话人' }).className).toContain('panel-button');
-    const speakerSelect = screen.getAllByRole('combobox').find(
-      (element): element is HTMLSelectElement => element instanceof HTMLSelectElement,
+    expect(screen.getByRole('button', { name: '清空已选说话人' }).className).toContain(
+      'panel-button',
     );
+    const speakerSelect = screen
+      .getAllByRole('combobox')
+      .find((element): element is HTMLSelectElement => element instanceof HTMLSelectElement);
     expect(speakerSelect).toBeTruthy();
     fireEvent.change(speakerSelect!, { target: { value: 'spk-1' } });
     fireEvent.click(screen.getByRole('button', { name: '应用说话人' }));
@@ -612,14 +651,23 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
   it('closes the speaker management panel after selecting a grouped speaker action', async () => {
     function StatefulGroupActionHost() {
-      const [layerActionPanel, setLayerActionPanel] = useState<'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null>('speaker-management');
+      const [layerActionPanel, setLayerActionPanel] = useState<
+        'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null
+      >('speaker-management');
       const layerAction = {
         ...createLayerActionStub(),
         layerActionPanel,
         setLayerActionPanel,
       };
       const speakerManagement = {
-        speakerOptions: [{ id: 'spk-1', name: 'Alice', createdAt: '2026-03-23T00:00:00.000Z', updatedAt: '2026-03-23T00:00:00.000Z' }],
+        speakerOptions: [
+          {
+            id: 'spk-1',
+            name: 'Alice',
+            createdAt: '2026-03-23T00:00:00.000Z',
+            updatedAt: '2026-03-23T00:00:00.000Z',
+          },
+        ],
         speakerDraftName: '',
         setSpeakerDraftName: vi.fn(),
         batchSpeakerId: '',
@@ -630,7 +678,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
         speakerDialogState: null,
         speakerVisualByUnitId: {},
         speakerFilterOptions: [{ key: 'spk-1', name: 'Alice', count: 3 }],
-        speakerReferenceStats: { 'spk-1': { transcriptionUnitCount: 2, segmentCount: 1, totalCount: 3 } },
+        speakerReferenceStats: {
+          'spk-1': { transcriptionUnitCount: 2, segmentCount: 1, totalCount: 3 },
+        },
         speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
         speakerReferenceStatsMediaScoped: false,
         speakerReferenceStatsReady: true,
@@ -653,7 +703,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
       return (
         <>
-          <button type="button" onClick={() => setLayerActionPanel('speaker-management')}>打开说话人管理</button>
+          <button type="button" onClick={() => setLayerActionPanel('speaker-management')}>
+            打开说话人管理
+          </button>
           <SpeakerRailProvider
             speakerManagement={speakerManagement}
             selectedUnitIds={new Set(['utt-1'])}
@@ -808,19 +860,21 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       updatedAt: now,
     } as LayerDocType;
     const createLayer = vi.fn(async () => true);
-    mockUseOrthographies.mockImplementation((languageIds: string[]) => (
+    mockUseOrthographies.mockImplementation((languageIds: string[]) =>
       languageIds.includes('eng')
-        ? [{
-          id: 'orth_eng_default',
-          languageId: 'eng',
-          name: { eng: 'English Default' },
-          scriptTag: 'Latn',
-          type: 'practical',
-          createdAt: now,
-          updatedAt: now,
-        }]
-        : []
-    ));
+        ? [
+            {
+              id: 'orth_eng_default',
+              languageId: 'eng',
+              name: { eng: 'English Default' },
+              scriptTag: 'Latn',
+              type: 'practical',
+              createdAt: now,
+              updatedAt: now,
+            },
+          ]
+        : [],
+    );
 
     renderSidebarForCreateContextMenuFlow({
       layerRows: [trcLayer],
@@ -832,11 +886,18 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     await clickCreateAction('新建转写层');
 
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
-    fireEvent.change(within(dialog).getByRole('textbox', { name: '语言 ID（系统唯一标识）' }), { target: { value: 'eng' } });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '语言 ID（系统唯一标识）' }), {
+      target: { value: 'eng' },
+    });
 
     await waitFor(() => {
-      expect((within(dialog).getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_eng_default');
-      expect((within(dialog).getByRole('button', { name: '新建转写层' }) as HTMLButtonElement).disabled).toBe(false);
+      expect(
+        (within(dialog).getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement)
+          .value,
+      ).toBe('orth_eng_default');
+      expect(
+        (within(dialog).getByRole('button', { name: '新建转写层' }) as HTMLButtonElement).disabled,
+      ).toBe(false);
     });
 
     fireEvent.click(within(dialog).getByRole('button', { name: '新建转写层' }));
@@ -847,10 +908,12 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     const firstCall = createLayer.mock.calls[0] as [string, Record<string, unknown>] | undefined;
     expect(firstCall).toBeDefined();
     expect(firstCall![0]).toBe('transcription');
-    expect(firstCall![1]).toEqual(expect.objectContaining({
-      languageId: 'eng',
-      orthographyId: 'orth_eng_default',
-    }));
+    expect(firstCall![1]).toEqual(
+      expect.objectContaining({
+        languageId: 'eng',
+        orthographyId: 'orth_eng_default',
+      }),
+    );
   });
 
   it('allows switching transcription constraint back to dependent after choosing independent', async () => {
@@ -892,8 +955,12 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
     await clickCreateAction('新建转写层');
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
-    const independentRadio = within(dialog).getByRole('radio', { name: /独立边界/ }) as HTMLInputElement;
-    const dependentRadio = within(dialog).getByRole('radio', { name: /依赖边界/ }) as HTMLInputElement;
+    const independentRadio = within(dialog).getByRole('radio', {
+      name: /独立边界/,
+    }) as HTMLInputElement;
+    const dependentRadio = within(dialog).getByRole('radio', {
+      name: /依赖边界/,
+    }) as HTMLInputElement;
 
     expect(dependentRadio.disabled).toBe(false);
     fireEvent.click(independentRadio);
@@ -953,7 +1020,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       if ((cb as HTMLInputElement).checked) fireEvent.click(cb);
     }
 
-    const languageCodeInput = within(dialog).getByRole('textbox', { name: /语言代码|Source language code/i });
+    const languageCodeInput = within(dialog).getByRole('textbox', {
+      name: /语言代码|Source language code/i,
+    });
     fireEvent.change(languageCodeInput, { target: { value: 'fra' } });
     fireEvent.click(within(dialog).getByRole('button', { name: '新建翻译层' }));
 
@@ -1029,7 +1098,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     fireEvent.change(langInput, { target: { value: 'fra' } });
     fireEvent.click(await within(dialog).findByRole('option', { name: /法语|fra/i }));
     await waitFor(() => {
-      expect((within(dialog).getByRole('button', { name: '新建翻译层' }) as HTMLButtonElement).disabled).toBe(false);
+      expect(
+        (within(dialog).getByRole('button', { name: '新建翻译层' }) as HTMLButtonElement).disabled,
+      ).toBe(false);
     });
     fireEvent.click(within(dialog).getByRole('button', { name: '新建翻译层' }));
 
@@ -1077,9 +1148,13 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     await clickCreateAction('新建转写层');
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
 
-    fireEvent.change(within(dialog).getByRole('textbox', { name: '语言 ID（系统唯一标识）' }), { target: { value: 'eng' } });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '语言 ID（系统唯一标识）' }), {
+      target: { value: 'eng' },
+    });
     await waitFor(() => {
-      expect((within(dialog).getByRole('button', { name: '新建转写层' }) as HTMLButtonElement).disabled).toBe(false);
+      expect(
+        (within(dialog).getByRole('button', { name: '新建转写层' }) as HTMLButtonElement).disabled,
+      ).toBe(false);
     });
     fireEvent.click(within(dialog).getByRole('button', { name: '新建转写层' }));
 
@@ -1144,8 +1219,12 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       onReorderLayers,
     });
 
-    const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'));
-    const rowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'));
+    const rowButtons = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'),
+    );
+    const rowWrappers = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'),
+    );
     expect(rowButtons).toHaveLength(3);
     expect(rowWrappers).toHaveLength(3);
     mockLayerRowRect(rowButtons[0]!, 0);
@@ -1155,7 +1234,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     mockLayerRowRect(rowWrappers[1]!, 20);
     mockLayerRowRect(rowWrappers[2]!, 40);
 
-    const overview = view.container.querySelector('.transcription-side-pane-overview') as HTMLElement | null;
+    const overview = view.container.querySelector(
+      '.transcription-side-pane-overview',
+    ) as HTMLElement | null;
     expect(overview).toBeTruthy();
 
     fireEvent.mouseDown(rowButtons[0]!);
@@ -1224,8 +1305,12 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       onReorderLayers,
     });
 
-    const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'));
-    const rowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'));
+    const rowButtons = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'),
+    );
+    const rowWrappers = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'),
+    );
     expect(rowButtons).toHaveLength(3);
     expect(rowWrappers).toHaveLength(3);
     mockLayerRowRect(rowButtons[0]!, 0);
@@ -1235,7 +1320,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     mockLayerRowRect(rowWrappers[1]!, 20);
     mockLayerRowRect(rowWrappers[2]!, 40);
 
-    const overview = view.container.querySelector('.transcription-side-pane-overview') as HTMLElement | null;
+    const overview = view.container.querySelector(
+      '.transcription-side-pane-overview',
+    ) as HTMLElement | null;
     expect(overview).toBeTruthy();
 
     fireEvent.mouseDown(rowButtons[0]!);
@@ -1320,8 +1407,12 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       onReorderLayers,
     });
 
-    const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'));
-    const rowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'));
+    const rowButtons = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'),
+    );
+    const rowWrappers = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'),
+    );
     expect(rowButtons).toHaveLength(4);
     expect(rowWrappers).toHaveLength(4);
     mockLayerRowRect(rowButtons[0]!, 0);
@@ -1333,7 +1424,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     mockLayerRowRect(rowWrappers[2]!, 40);
     mockLayerRowRect(rowWrappers[3]!, 60);
 
-    const overview = view.container.querySelector('.transcription-side-pane-overview') as HTMLElement | null;
+    const overview = view.container.querySelector(
+      '.transcription-side-pane-overview',
+    ) as HTMLElement | null;
     expect(overview).toBeTruthy();
 
     fireEvent.mouseDown(rowButtons[1]!, { clientY: 28 });
@@ -1341,8 +1434,12 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       vi.advanceTimersByTime(500);
     });
 
-    const activeRowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'));
-    const activeRowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'));
+    const activeRowButtons = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'),
+    );
+    const activeRowWrappers = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'),
+    );
     expect(activeRowButtons).toHaveLength(4);
     expect(activeRowWrappers).toHaveLength(4);
     mockLayerRowRect(activeRowButtons[0]!, 0);
@@ -1413,21 +1510,27 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       layerRows: [root, child, otherRoot],
       transcriptionLayers: [root, otherRoot],
       translationLayers: [child],
-      layerLinks: [{
-        id: 'link_trl_to_root',
-        layerId: child.id,
-        transcriptionLayerKey: root.key,
-        hostTranscriptionLayerId: root.id,
-        linkType: 'free',
-        isPreferred: true,
-        createdAt: now,
-        updatedAt: now,
-      } as LayerLinkDocType],
+      layerLinks: [
+        {
+          id: 'link_trl_to_root',
+          layerId: child.id,
+          transcriptionLayerKey: root.key,
+          hostTranscriptionLayerId: root.id,
+          linkType: 'free',
+          isPreferred: true,
+          createdAt: now,
+          updatedAt: now,
+        } as LayerLinkDocType,
+      ],
       onReorderLayers: vi.fn(async () => undefined),
     });
 
-    const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'));
-    const rowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'));
+    const rowButtons = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'),
+    );
+    const rowWrappers = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'),
+    );
     expect(rowButtons).toHaveLength(3);
     expect(rowWrappers).toHaveLength(3);
     mockLayerRowRect(rowButtons[0]!, 0);
@@ -1437,7 +1540,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     mockLayerRowRect(rowWrappers[1]!, 20);
     mockLayerRowRect(rowWrappers[2]!, 40);
 
-    const overview = view.container.querySelector('.transcription-side-pane-overview') as HTMLElement | null;
+    const overview = view.container.querySelector(
+      '.transcription-side-pane-overview',
+    ) as HTMLElement | null;
     expect(overview).toBeTruthy();
 
     fireEvent.mouseDown(rowButtons[0]!, { clientY: 10 });
@@ -1447,8 +1552,12 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
     fireEvent.mouseMove(overview!, { clientY: 70 });
 
-    expect(rowWrappers[0]!.classList.contains('transcription-side-pane-item-row-dragging')).toBe(true);
-    expect(rowWrappers[1]!.classList.contains('transcription-side-pane-item-row-dragging')).toBe(true);
+    expect(rowWrappers[0]!.classList.contains('transcription-side-pane-item-row-dragging')).toBe(
+      true,
+    );
+    expect(rowWrappers[1]!.classList.contains('transcription-side-pane-item-row-dragging')).toBe(
+      true,
+    );
   });
 
   it('snaps a root bundle drag to the next bundle boundary index and highlights the target bundle', async () => {
@@ -1503,21 +1612,27 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       layerRows: [root, child, otherRoot],
       transcriptionLayers: [root, otherRoot],
       translationLayers: [child],
-      layerLinks: [{
-        id: 'link_trl_to_root_snap',
-        layerId: child.id,
-        transcriptionLayerKey: root.key,
-        hostTranscriptionLayerId: root.id,
-        linkType: 'free',
-        isPreferred: true,
-        createdAt: now,
-        updatedAt: now,
-      } as LayerLinkDocType],
+      layerLinks: [
+        {
+          id: 'link_trl_to_root_snap',
+          layerId: child.id,
+          transcriptionLayerKey: root.key,
+          hostTranscriptionLayerId: root.id,
+          linkType: 'free',
+          isPreferred: true,
+          createdAt: now,
+          updatedAt: now,
+        } as LayerLinkDocType,
+      ],
       onReorderLayers,
     });
 
-    const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'));
-    const rowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'));
+    const rowButtons = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'),
+    );
+    const rowWrappers = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'),
+    );
     expect(rowButtons).toHaveLength(3);
     expect(rowWrappers).toHaveLength(3);
     mockLayerRowRect(rowButtons[0]!, 0);
@@ -1532,14 +1647,20 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       vi.advanceTimersByTime(500);
     });
 
-    const overview = view.container.querySelector('.transcription-side-pane-overview') as HTMLElement | null;
+    const overview = view.container.querySelector(
+      '.transcription-side-pane-overview',
+    ) as HTMLElement | null;
     expect(overview).toBeTruthy();
 
     fireEvent.mouseMove(overview!, { clientY: 42 });
     await act(async () => {});
 
-    const updatedRowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'));
-    expect(updatedRowWrappers[2]!.classList.contains('transcription-side-pane-item-row-bundle-target')).toBe(true);
+    const updatedRowWrappers = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item-row'),
+    );
+    expect(
+      updatedRowWrappers[2]!.classList.contains('transcription-side-pane-item-row-bundle-target'),
+    ).toBe(true);
     fireEvent.mouseUp(document, { clientY: 42 });
 
     expect(onReorderLayers).toHaveBeenCalledWith('layer_trc_root', 3);
@@ -1575,15 +1696,17 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       createdAt: now,
       updatedAt: now,
     } as LayerDocType;
-    const layerLinks = [{
-      id: 'link_meta_1',
-      transcriptionLayerKey: rootLayer.key,
-      hostTranscriptionLayerId: rootLayer.id,
-      layerId: translationLayer.id,
-      linkType: 'free',
-      isPreferred: true,
-      createdAt: now,
-    }] as LayerLinkDocType[];
+    const layerLinks = [
+      {
+        id: 'link_meta_1',
+        transcriptionLayerKey: rootLayer.key,
+        hostTranscriptionLayerId: rootLayer.id,
+        layerId: translationLayer.id,
+        linkType: 'free',
+        isPreferred: true,
+        createdAt: now,
+      },
+    ] as LayerLinkDocType[];
 
     const view = renderSidebarForCreateContextMenuFlow({
       layerRows: [rootLayer, translationLayer],
@@ -1593,7 +1716,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       focusedLayerRowId: 'missing-layer',
     });
 
-    const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'));
+    const rowButtons = Array.from(
+      view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'),
+    );
     expect(rowButtons).toHaveLength(2);
     expect(within(rowButtons[0]!).getByText('独立边界')).toBeTruthy();
     expect(within(rowButtons[1]!).getByText('符号关联')).toBeTruthy();
@@ -1601,7 +1726,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
   });
 
   it('shows repair detail panel after constraint repair action', async () => {
-    const updateLayerSpy = vi.spyOn(LayerTierUnifiedService, 'updateLayer').mockResolvedValue(undefined);
+    const updateLayerSpy = vi
+      .spyOn(LayerTierUnifiedService, 'updateLayer')
+      .mockResolvedValue(undefined);
     const now = '2026-03-25T00:00:00.000Z';
     const trcLayer = {
       id: 'layer_trc_1',

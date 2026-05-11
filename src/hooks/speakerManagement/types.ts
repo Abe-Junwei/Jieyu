@@ -28,7 +28,7 @@ export const EMPTY_SPEAKER_REFERENCE_STATS: SpeakerReferenceStats = {
   totalCount: 0,
 };
 
-/** Result of `LinguisticService.getSpeakerReferenceStats` (per-speaker map + unassigned bucket). */
+/** Result of `LinguisticService.speakers.getReferenceStats` (per-speaker map + unassigned bucket). */
 export interface SpeakerReferenceStatsBundle {
   perSpeaker: Record<string, SpeakerReferenceStats>;
   unassigned: SpeakerReferenceStats;

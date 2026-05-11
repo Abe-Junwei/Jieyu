@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, type Dispatch, type SetStateAction } from 'react';
 import type { LayerDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import {
   buildSpeakerLayerLayoutWithOptions,
   buildStableSpeakerLaneMap,
   type SpeakerLayerLayoutResult,
 } from '../utils/speakerLayerLayout';
-import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
+import { layerUsesOwnSegments } from '~/hooks/layer/useLayerSegments';
 import { hasOverlappingTimeRanges, isTimelineUnitView } from './trackDisplayOverlapUtils';
 
 type SegmentSpeakerAssignmentLike = {

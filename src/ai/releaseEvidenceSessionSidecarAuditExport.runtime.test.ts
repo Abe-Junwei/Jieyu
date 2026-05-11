@@ -4,9 +4,10 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db';
-import { newAuditLogId } from '../hooks/useAiChat.helpers';
+import { newAuditLogId } from '../hooks/ai/useAiChat.helpers';
 
-const DEFAULT_OUTPUT_RELATIVE_PATH = 'docs/execution/audits/ai-session-sidecar-audit-export-v1.ndjson';
+const DEFAULT_OUTPUT_RELATIVE_PATH =
+  'docs/execution/audits/ai-session-sidecar-audit-export-v1.ndjson';
 
 function resolveExportOutputPath(): string {
   const configured = String(process.env.RELEASE_EVIDENCE_SESSION_SIDECAR_AUDIT_EXPORT ?? '').trim();
@@ -61,20 +62,24 @@ describe('release evidence session sidecar audit export runtime', () => {
     expect(rows.length).toBeGreaterThan(0);
 
     const normalizedLines = [...rows]
-      .sort((left, right) => String(left.timestamp ?? '').localeCompare(String(right.timestamp ?? '')))
-      .map((row) => JSON.stringify({
-        id: row.id,
-        collection: row.collection,
-        documentId: row.documentId,
-        action: row.action,
-        field: row.field,
-        oldValue: row.oldValue,
-        newValue: row.newValue,
-        source: row.source,
-        timestamp: row.timestamp,
-        requestId: row.requestId,
-        metadataJson: row.metadataJson,
-      }));
+      .sort((left, right) =>
+        String(left.timestamp ?? '').localeCompare(String(right.timestamp ?? '')),
+      )
+      .map((row) =>
+        JSON.stringify({
+          id: row.id,
+          collection: row.collection,
+          documentId: row.documentId,
+          action: row.action,
+          field: row.field,
+          oldValue: row.oldValue,
+          newValue: row.newValue,
+          source: row.source,
+          timestamp: row.timestamp,
+          requestId: row.requestId,
+          metadataJson: row.metadataJson,
+        }),
+      );
 
     await mkdir(path.dirname(outputPath), { recursive: true });
     await writeFile(outputPath, `${normalizedLines.join('\n')}\n`, 'utf8');

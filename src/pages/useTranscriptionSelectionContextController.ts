@@ -5,9 +5,12 @@ import type {
   LayerUnitDocType,
   MediaItemDocType,
 } from '../types/jieyuDbDocTypes';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import { isSegmentTimelineUnit } from '../hooks/transcriptionTypes';
-import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import { isSegmentTimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import {
+  layerUsesOwnSegments,
+  resolveSegmentTimelineSourceLayer,
+} from '~/hooks/layer/useLayerSegments';
 import {
   collectNoteTimelineUnitIds,
   resolveSelectedTimelineMedia,

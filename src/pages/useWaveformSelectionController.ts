@@ -1,9 +1,13 @@
 import { useMemo } from 'react';
 import type { LayerDocType, LayerLinkDocType } from '../types/jieyuDbDocTypes';
-import { isSegmentTimelineUnit, isUnitTimelineUnit, type TimelineUnit } from '../hooks/transcriptionTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
-import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
+import {
+  isSegmentTimelineUnit,
+  isUnitTimelineUnit,
+  type TimelineUnit,
+} from '../hooks/transcription/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
+import type { TimelineUnitViewIndexWithEpoch } from '../hooks/transcription/useTimelineUnitViewIndex';
+import { resolveSegmentTimelineSourceLayer } from '~/hooks/layer/useLayerSegments';
 
 type WaveformTimelineItem = TimelineUnitView;
 
@@ -11,7 +15,12 @@ interface UseWaveformSelectionControllerInput {
   activeLayerIdForEdits: string;
   layers: LayerDocType[];
   layerById: ReadonlyMap<string, LayerDocType>;
-  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
+  layerLinks: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >;
   defaultTranscriptionLayerId?: string;
   /** Single read-model source for waveform regions (unit vs segment rows). */
   timelineUnitViewIndex: TimelineUnitViewIndexWithEpoch;
@@ -46,7 +55,13 @@ export function useWaveformSelectionController({
   );
 
   const activeWaveformSegmentSourceLayer = useMemo(
-    () => resolveSegmentTimelineSourceLayer(activeWaveformLayer, layerById, defaultTranscriptionLayerId, layerLinks),
+    () =>
+      resolveSegmentTimelineSourceLayer(
+        activeWaveformLayer,
+        layerById,
+        defaultTranscriptionLayerId,
+        layerLinks,
+      ),
     [activeWaveformLayer, defaultTranscriptionLayerId, layerById, layerLinks],
   );
 
@@ -56,7 +71,9 @@ export function useWaveformSelectionController({
     const unitRowsFromIndex = timelineUnitViewIndex.currentMediaUnits;
     if (useSegmentWaveformRegions && activeWaveformSegmentSourceLayer) {
       return unitRowsFromIndex
-        .filter((unit) => unit.kind === 'segment' && unit.layerId === activeWaveformSegmentSourceLayer.id)
+        .filter(
+          (unit) => unit.kind === 'segment' && unit.layerId === activeWaveformSegmentSourceLayer.id,
+        )
         .sort((a, b) => a.startTime - b.startTime);
     }
     return unitRowsFromIndex
@@ -68,14 +85,16 @@ export function useWaveformSelectionController({
     useSegmentWaveformRegions,
   ]);
 
-  const waveformRegions = useMemo(() =>
-    waveformTimelineItems.map((item) => ({
-      id: item.id,
-      start: item.startTime,
-      end: item.endTime,
-      ...(item.tags?.skipProcessing === true ? { skipProcessing: true } : {}),
-    })),
-  [waveformTimelineItems]);
+  const waveformRegions = useMemo(
+    () =>
+      waveformTimelineItems.map((item) => ({
+        id: item.id,
+        start: item.startTime,
+        end: item.endTime,
+        ...(item.tags?.skipProcessing === true ? { skipProcessing: true } : {}),
+      })),
+    [waveformTimelineItems],
+  );
 
   const selectedWaveformRegionId = useMemo(() => {
     if (!selectedTimelineUnit?.unitId) return '';

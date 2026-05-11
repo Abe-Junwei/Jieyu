@@ -9,7 +9,7 @@ import { t, tf, useLocale } from '../../i18n';
 import {
   DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
   type AnnotationImportBridgeStrategy,
-} from '../../hooks/useImportExport.annotationImport';
+} from '../../hooks/importExport/useImportExport.annotationImport';
 import { getSidePaneSidebarMessages } from '../../i18n/messages';
 import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';

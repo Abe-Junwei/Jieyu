@@ -3,7 +3,7 @@
  * Pure logic: no React dependencies.
  */
 import { persistSessionMemory } from './sessionMemory';
-import type { AiSessionMemory } from '../../hooks/useAiChat.types';
+import type { AiSessionMemory } from '../../hooks/ai/useAiChat.types';
 import {
   buildStep2RetryPrompt,
   buildStep3RetryPrompt,

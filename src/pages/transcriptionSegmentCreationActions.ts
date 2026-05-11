@@ -1,11 +1,14 @@
 import type { LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
-import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import { t, tf, type Locale } from '../i18n';
 import { LayerSegmentationV2Service } from '../app/transcriptionServicesPageAccess';
 import { formatTime, newId } from '../utils/transcriptionFormatters';
-import { readStoredNewSegmentSelectionBehavior, type NewSegmentSelectionBehavior } from '../utils/transcriptionInteractionPreferences';
-import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
+import {
+  readStoredNewSegmentSelectionBehavior,
+  type NewSegmentSelectionBehavior,
+} from '../utils/transcriptionInteractionPreferences';
+import type { PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { type ParentUnitBounds } from './timelineUnitViewUnitHelpers';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
@@ -76,9 +79,11 @@ function resolveDocumentSpanInputSec(
       return v;
     }
   }
-  if (typeof input.documentSpanSec === 'number'
-    && Number.isFinite(input.documentSpanSec)
-    && input.documentSpanSec > 0) {
+  if (
+    typeof input.documentSpanSec === 'number' &&
+    Number.isFinite(input.documentSpanSec) &&
+    input.documentSpanSec > 0
+  ) {
     return input.documentSpanSec;
   }
   return undefined;
@@ -106,15 +111,16 @@ export function createTranscriptionSegmentCreationActions(
     return input.findUnitDocContainingRange(segment.startTime, segment.endTime);
   };
 
-  const resolveSegmentUnitsForLayer = (layerId: string): TimelineUnitView[] => (
+  const resolveSegmentUnitsForLayer = (layerId: string): TimelineUnitView[] =>
     input.unitsOnCurrentMedia
       .filter((unit) => unit.kind === 'segment' && unit.layerId === layerId)
-      .sort((left, right) => left.startTime - right.startTime)
-  );
+      .sort((left, right) => left.startTime - right.startTime);
 
   const finalizeCreatedSegment = async (
     segment: LayerUnitDocType,
-    messageKey: 'transcription.unitAction.done.createFromSelection' | 'transcription.unitAction.done.createNext',
+    messageKey:
+      | 'transcription.unitAction.done.createFromSelection'
+      | 'transcription.unitAction.done.createNext',
   ) => {
     await input.reloadSegments();
     await input.refreshSegmentUndoSnapshot();
@@ -136,18 +142,24 @@ export function createTranscriptionSegmentCreationActions(
     segment: LayerUnitDocType,
     routing: SegmentRoutingResult,
     options: {
-      doneMessageKey: 'transcription.unitAction.done.createFromSelection' | 'transcription.unitAction.done.createNext';
+      doneMessageKey:
+        | 'transcription.unitAction.done.createFromSelection'
+        | 'transcription.unitAction.done.createNext';
       parentUnit?: ParentUnitBounds;
     },
   ) => {
-    const undoKey = options.doneMessageKey === 'transcription.unitAction.done.createNext'
-      ? 'transcription.unitAction.undo.createNext'
-      : 'transcription.unitAction.undo.createFromSelection';
+    const undoKey =
+      options.doneMessageKey === 'transcription.unitAction.done.createNext'
+        ? 'transcription.unitAction.undo.createNext'
+        : 'transcription.unitAction.undo.createFromSelection';
 
     if (routing.editMode === 'time-subdivision') {
       const parentUnit = options.parentUnit;
       if (!parentUnit) {
-        input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.segmentCreateNoParentSubdivision') });
+        input.setSaveState({
+          kind: 'error',
+          message: t(locale, 'transcription.error.validation.segmentCreateNoParentSubdivision'),
+        });
         return;
       }
       input.pushUndo(t(locale, undoKey));
@@ -170,7 +182,9 @@ export function createTranscriptionSegmentCreationActions(
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
     if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
       const selectedMedia = await resolveTimelineMediaForMutation();
-      if (!assertTimelineMediaForMutation(selectedMedia, { locale, setSaveState: input.setSaveState })) {
+      if (
+        !assertTimelineMediaForMutation(selectedMedia, { locale, setSaveState: input.setSaveState })
+      ) {
         return undefined;
       }
       if (!routing.layer || !routing.segmentSourceLayer) {
@@ -183,7 +197,10 @@ export function createTranscriptionSegmentCreationActions(
       const siblings = resolveSegmentUnitsForLayer(routing.sourceLayerId);
       const targetSegment = siblings.find((segment) => segment.id === targetId);
       if (!targetSegment) {
-        input.setSaveState({ kind: 'error', message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { unitId: targetId }) });
+        input.setSaveState({
+          kind: 'error',
+          message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { unitId: targetId }),
+        });
         return undefined;
       }
 
@@ -195,12 +212,18 @@ export function createTranscriptionSegmentCreationActions(
         resolveDocumentSpanInputSec(input),
       );
 
-      let upperBound = Math.min(mediaDuration, nextSegment ? nextSegment.startTime - gap : Number.POSITIVE_INFINITY);
+      let upperBound = Math.min(
+        mediaDuration,
+        nextSegment ? nextSegment.startTime - gap : Number.POSITIVE_INFINITY,
+      );
       let parentUnit: ParentUnitBounds | undefined;
       if (routing.editMode === 'time-subdivision') {
         parentUnit = resolveParentUnitForSegment(targetSegment);
         if (!parentUnit) {
-          input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.segmentCreateNoParentSubdivision') });
+          input.setSaveState({
+            kind: 'error',
+            message: t(locale, 'transcription.error.validation.segmentCreateNoParentSubdivision'),
+          });
           return undefined;
         }
         upperBound = Math.min(upperBound, parentUnit.endTime);
@@ -209,7 +232,10 @@ export function createTranscriptionSegmentCreationActions(
       const fallbackEnd = startTime + 2;
       const endTime = Number(Math.min(upperBound, fallbackEnd).toFixed(3));
       if (!Number.isFinite(endTime) || endTime - startTime < minSpan) {
-        input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.createFromSelectionOverlap') });
+        input.setSaveState({
+          kind: 'error',
+          message: t(locale, 'transcription.error.validation.createFromSelectionOverlap'),
+        });
         return undefined;
       }
 
@@ -242,20 +268,27 @@ export function createTranscriptionSegmentCreationActions(
 
     const targetUnit = input.getUnitDocById(targetId);
     if (!targetUnit) {
-      input.setSaveState({ kind: 'error', message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { unitId: targetId }) });
+      input.setSaveState({
+        kind: 'error',
+        message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { unitId: targetId }),
+      });
       return undefined;
     }
     const cap = mediaDurationSecForTimeBounds(input.selectedTimelineMedia);
     const mediaDuration = cap === Number.POSITIVE_INFINITY ? targetUnit.endTime + 2 : cap;
     const createdUnitId = await input.createAdjacentUnit(targetUnit, mediaDuration);
-    return typeof createdUnitId === 'string' && createdUnitId.length > 0 ? createdUnitId : undefined;
+    return typeof createdUnitId === 'string' && createdUnitId.length > 0
+      ? createdUnitId
+      : undefined;
   };
 
   const createUnitFromSelectionRouted = async (start: number, end: number) => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
     if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
       const selectedMedia = await resolveTimelineMediaForMutation();
-      if (!assertTimelineMediaForMutation(selectedMedia, { locale, setSaveState: input.setSaveState })) {
+      if (
+        !assertTimelineMediaForMutation(selectedMedia, { locale, setSaveState: input.setSaveState })
+      ) {
         return;
       }
       const rawStart = Math.max(0, Math.min(start, end));
@@ -276,7 +309,10 @@ export function createTranscriptionSegmentCreationActions(
         mediaDuration,
       );
       if (!clamped.ok) {
-        input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.createFromSelectionOverlap') });
+        input.setSaveState({
+          kind: 'error',
+          message: t(locale, 'transcription.error.validation.createFromSelectionOverlap'),
+        });
         return;
       }
       const { start: finalStart, end: finalEnd } = clamped;
@@ -294,7 +330,10 @@ export function createTranscriptionSegmentCreationActions(
       if (routing.editMode === 'time-subdivision') {
         const parentUtt = input.findUnitDocContainingRange(finalStart, finalEnd);
         if (!parentUtt) {
-          input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.segmentCreateNoParentSubdivision') });
+          input.setSaveState({
+            kind: 'error',
+            message: t(locale, 'transcription.error.validation.segmentCreateNoParentSubdivision'),
+          });
           return;
         }
         newSeg.unitId = parentUtt.id;

@@ -6,7 +6,7 @@ import {
   type TimelineLayerFallbackInput,
   type TimelineUnit,
   type TimelineUnitKind,
-} from '../hooks/transcriptionTypes';
+} from '../hooks/transcription/transcriptionTypes';
 
 interface ResolveTranscriptionUnitKindInput {
   layerId: string;

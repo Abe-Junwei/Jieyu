@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import type { LayerSegmentViewDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
+import { layerUsesOwnSegments } from '~/hooks/layer/useLayerSegments';
 import {
   buildSpeakerFilterOptionsFromKeys,
   buildSpeakerVisualMapFromKeys,

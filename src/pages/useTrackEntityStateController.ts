@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
 import type { TrackEntityStateMap } from '../types/trackEntityStateMap.types';
 import {
   getTrackEntityState,

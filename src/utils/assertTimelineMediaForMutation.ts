@@ -1,10 +1,11 @@
 import type { MediaItemDocType } from '../db';
-import type { SaveState } from '../hooks/transcriptionTypes';
+import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
 import { reportValidationError } from './validationErrorReporter';
 
-export const TIMELINE_MEDIA_REQUIRED_I18N_KEY = 'transcription.error.validation.mediaRequired' as const;
+export const TIMELINE_MEDIA_REQUIRED_I18N_KEY =
+  'transcription.error.validation.mediaRequired' as const;
 
 /**
  * 建段、拖选建段、相邻建段等写库路径的统一前置：必须能解析到当前时间轴媒体行（含占位）。
@@ -21,7 +22,8 @@ export function assertTimelineMediaForMutation(
   reportValidationError({
     message: t(input.locale, TIMELINE_MEDIA_REQUIRED_I18N_KEY),
     i18nKey: TIMELINE_MEDIA_REQUIRED_I18N_KEY,
-    setErrorState: ({ message, meta }) => input.setSaveState({ kind: 'error', message, errorMeta: meta }),
+    setErrorState: ({ message, meta }) =>
+      input.setSaveState({ kind: 'error', message, errorMeta: meta }),
   });
   return false;
 }

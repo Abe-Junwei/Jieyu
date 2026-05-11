@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
-import { dispatchTimelineUnitMutation, dispatchTimelineUnitSelectionMutation, resolveTimelineUnitSelectionWritePath, resolveTimelineUnitWritePath } from './timelineUnitMutationDispatch';
+import {
+  dispatchTimelineUnitMutation,
+  dispatchTimelineUnitSelectionMutation,
+  resolveTimelineUnitSelectionWritePath,
+  resolveTimelineUnitWritePath,
+} from './timelineUnitMutationDispatch';
 
 function routing(editMode: SegmentRoutingResult['editMode']): SegmentRoutingResult {
   return {
@@ -27,13 +32,19 @@ function unit(kind: TimelineUnitView['kind'], id = 'u1'): TimelineUnitView {
 describe('timelineUnitMutationDispatch', () => {
   describe('resolveTimelineUnitWritePath', () => {
     it('prefers unit-doc when view kind is unit', () => {
-      expect(resolveTimelineUnitWritePath(unit('unit'), routing('independent-segment'))).toBe('unit-doc');
+      expect(resolveTimelineUnitWritePath(unit('unit'), routing('independent-segment'))).toBe(
+        'unit-doc',
+      );
       expect(resolveTimelineUnitWritePath(unit('unit'), routing('unit'))).toBe('unit-doc');
     });
 
     it('uses segment-layer for independent-segment or time-subdivision when view is segment', () => {
-      expect(resolveTimelineUnitWritePath(unit('segment'), routing('independent-segment'))).toBe('segment-layer');
-      expect(resolveTimelineUnitWritePath(unit('segment'), routing('time-subdivision'))).toBe('segment-layer');
+      expect(resolveTimelineUnitWritePath(unit('segment'), routing('independent-segment'))).toBe(
+        'segment-layer',
+      );
+      expect(resolveTimelineUnitWritePath(unit('segment'), routing('time-subdivision'))).toBe(
+        'segment-layer',
+      );
     });
 
     it('falls back to unit-doc for unit edit mode on segment view rows', () => {
@@ -47,9 +58,13 @@ describe('timelineUnitMutationDispatch', () => {
         ['a', unit('unit', 'a')],
         ['b', unit('unit', 'b')],
       ]);
-      expect(resolveTimelineUnitSelectionWritePath(new Set(['a', 'b']), map, routing('independent-segment'))).toBe(
-        'unit-doc',
-      );
+      expect(
+        resolveTimelineUnitSelectionWritePath(
+          new Set(['a', 'b']),
+          map,
+          routing('independent-segment'),
+        ),
+      ).toBe('unit-doc');
     });
 
     it('uses segment-layer for mixed selection when layer is segment mode', () => {
@@ -57,9 +72,13 @@ describe('timelineUnitMutationDispatch', () => {
         ['a', unit('unit', 'a')],
         ['b', unit('segment', 'b')],
       ]);
-      expect(resolveTimelineUnitSelectionWritePath(new Set(['a', 'b']), map, routing('independent-segment'))).toBe(
-        'segment-layer',
-      );
+      expect(
+        resolveTimelineUnitSelectionWritePath(
+          new Set(['a', 'b']),
+          map,
+          routing('independent-segment'),
+        ),
+      ).toBe('segment-layer');
     });
   });
 

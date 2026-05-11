@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLatest } from './useLatest';
+import { useLatest } from './ui/useLatest';
 import { useLocale, useOptionalLocale, type Locale } from '../i18n';
-import { useAiChatConnectionProbe } from './useAiChat.connectionProbe';
-import { useAiChatConversationState } from './useAiChat.conversationState';
+import { useAiChatConnectionProbe } from './ai/useAiChat.connectionProbe';
+import { useAiChatConversationState } from './ai/useAiChat.conversationState';
 import {
   DEFAULT_OUTPUT_TOKEN_CAP,
   INITIAL_METRICS,
@@ -19,20 +19,20 @@ import {
   readDevRagContextTimeoutMs,
   readDevSessionTokenBudget,
   readDevStreamPersistIntervalMs,
-} from './useAiChat.config';
-import { newAuditLogId, nowIso } from './useAiChat.helpers';
+} from './ai/useAiChat.config';
+import { newAuditLogId, nowIso } from './ai/useAiChat.helpers';
 import { getDb } from '../db';
-import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
-import { enrichContextWithRag } from './useAiChat.rag';
-import type { AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
-import { resolveAiChatResponsePolicy } from './useAiChat.responsePolicy';
+import { executeConfirmedToolCall } from './ai/useAiChat.confirmExecution';
+import { enrichContextWithRag } from './ai/useAiChat.rag';
+import type { AiChatBackgroundMemoryRuntime } from './ai/useAiChat.backgroundMemory';
+import { resolveAiChatResponsePolicy } from './ai/useAiChat.responsePolicy';
 
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { loadSessionMemory, persistSessionMemory } from '../ai/chat/sessionMemory';
 import { resetSessionMemoryForClear } from '../ai/chat/resetSessionMemoryForClear';
 import { resolveComposedWorkflowReflectionRetry } from '../ai/chat/composedWorkflowRetry';
 import { buildStep2RetryPrompt } from '../ai/vertical/composedWorkflowTemplates';
-import { useAgentLoopSessionMemoryDexieReconcile } from './useAiChat.agentLoopDexieReconcile';
+import { useAgentLoopSessionMemoryDexieReconcile } from './ai/useAiChat.agentLoopDexieReconcile';
 import {
   abortAiChatStream,
   createApplyAssistantMessageResultWrapper,
@@ -42,18 +42,18 @@ import {
 import {
   runAiChatClearPersistenceCleanup,
   type AiChatClearPersistenceRequest,
-} from './useAiChat.persistenceCleanup';
+} from './ai/useAiChat.persistenceCleanup';
 import { scheduleClearPersistenceCleanup } from '../ai/chat/scheduleClearPersistenceCleanup';
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import { featureFlags } from '../ai/config/featureFlags';
-import { createAssistantStream } from './useAiChat.streamFactory';
-import { useAiChatToolAudit } from './useAiChat.toolAudit';
-import { useAiChatPendingToolCall } from './useAiChat.pendingToolCall';
-import { useSyncAssistantDialogueChatTool } from './useSyncAssistantDialogueChatTool';
-import { useAiChatAgentLoopCheckpointControls } from './useAiChat.agentLoopCheckpointControls';
-import { useAiChatDirectiveSessionControls } from './useAiChat.directiveSessionControls';
-import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
-import { runAiChatSendTurn, type RunAiChatSendTurnArgs } from './useAiChat.sendTurn';
+import { createAssistantStream } from './ai/useAiChat.streamFactory';
+import { useAiChatToolAudit } from './ai/useAiChat.toolAudit';
+import { useAiChatPendingToolCall } from './ai/useAiChat.pendingToolCall';
+import { useSyncAssistantDialogueChatTool } from './ai/useSyncAssistantDialogueChatTool';
+import { useAiChatAgentLoopCheckpointControls } from './ai/useAiChat.agentLoopCheckpointControls';
+import { useAiChatDirectiveSessionControls } from './ai/useAiChat.directiveSessionControls';
+import { resolveToolDecisionPipeline } from './ai/useAiChat.toolDecisionPipeline';
+import { runAiChatSendTurn, type RunAiChatSendTurnArgs } from './ai/useAiChat.sendTurn';
 import {
   applyAiChatSettingsPatch,
   createAiChatProvider,
@@ -80,7 +80,7 @@ import type {
   PendingAiToolCall,
   UiChatMessage,
   UseAiChatOptions,
-} from './useAiChat.types';
+} from './ai/useAiChat.types';
 
 export type { AiChatSettings } from '../ai/providers/providerCatalog';
 export type {
@@ -94,7 +94,7 @@ export type {
   PendingAiToolCall,
   UiChatMessage,
   UseAiChatOptions,
-} from './useAiChat.types';
+} from './ai/useAiChat.types';
 
 export function useAiChat(options?: UseAiChatOptions) {
   // 保留主 hook 对确认执行 seam 的显式依赖，结构测试据此验证拆分边界 |

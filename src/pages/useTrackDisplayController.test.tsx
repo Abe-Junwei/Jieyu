@@ -3,7 +3,7 @@ import { act } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../db';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import { useTrackDisplayController } from './useTrackDisplayController';
 
 function makeUnit(

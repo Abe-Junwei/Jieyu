@@ -12,8 +12,14 @@ import { createContext, useContext, useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SpeakerDocType } from '../db';
 import { createLogger } from '../observability/logger';
-import { EMPTY_SPEAKER_REFERENCE_STATS, type SpeakerActionDialogState, type SpeakerFilterOption, type SpeakerReferenceStats, type SpeakerVisual } from '../hooks/speakerManagement/types';
-import type { UseSpeakerActionsReturn } from '../hooks/useSpeakerActions';
+import {
+  EMPTY_SPEAKER_REFERENCE_STATS,
+  type SpeakerActionDialogState,
+  type SpeakerFilterOption,
+  type SpeakerReferenceStats,
+  type SpeakerVisual,
+} from '../hooks/speakerManagement/types';
+import type { UseSpeakerActionsReturn } from '../hooks/speakerManagement/useSpeakerActions';
 
 // ── Context Value Type ────────────────────────────────────────────────────────
 
@@ -61,7 +67,8 @@ export interface SpeakerRailContextValue {
 const SpeakerRailContext = createContext<SpeakerRailContextValue | null>(null);
 
 const log = createLogger('SpeakerRailContext');
-const MISSING_PROVIDER_MESSAGE = 'SpeakerRailProvider is missing. SidePaneSidebar speaker actions are unavailable.';
+const MISSING_PROVIDER_MESSAGE =
+  'SpeakerRailProvider is missing. SidePaneSidebar speaker actions are unavailable.';
 
 let hasLoggedMissingProvider = false;
 
@@ -126,8 +133,12 @@ const fallbackSpeakerRailContext: SpeakerRailContextValue = {
   handleDeleteSpeaker: createMissingProviderAction('handleDeleteSpeaker'),
   handleDeleteUnusedSpeakers: createMissingProviderAsyncAction('handleDeleteUnusedSpeakers'),
   handleAssignSpeakerToSelected: createMissingProviderAsyncAction('handleAssignSpeakerToSelected'),
-  handleAssignSpeakerToSelectedRouted: createMissingProviderAsyncAction('handleAssignSpeakerToSelectedRouted'),
-  handleClearSpeakerOnSelectedRouted: createMissingProviderAsyncAction('handleClearSpeakerOnSelectedRouted'),
+  handleAssignSpeakerToSelectedRouted: createMissingProviderAsyncAction(
+    'handleAssignSpeakerToSelectedRouted',
+  ),
+  handleClearSpeakerOnSelectedRouted: createMissingProviderAsyncAction(
+    'handleClearSpeakerOnSelectedRouted',
+  ),
   handleCreateSpeakerAndAssign: createMissingProviderAsyncAction('handleCreateSpeakerAndAssign'),
   handleCreateSpeakerOnly: createMissingProviderAsyncAction('handleCreateSpeakerOnly'),
   closeSpeakerDialog: createMissingProviderAction('closeSpeakerDialog'),
@@ -149,7 +160,8 @@ export function useSpeakerRailContext(): SpeakerRailContextValue {
 
 type SpeakerRailProviderProps = {
   children: React.ReactNode;
-  speakerManagement: Pick<UseSpeakerActionsReturn,
+  speakerManagement: Pick<
+    UseSpeakerActionsReturn,
     | 'speakerOptions'
     | 'speakerDraftName'
     | 'setSpeakerDraftName'
@@ -188,46 +200,56 @@ type SpeakerRailProviderProps = {
 
 // ── Provider Implementation ───────────────────────────────────────────────────
 
-export function SpeakerRailProvider({ children, speakerManagement, handleAssignSpeakerToSelectedRouted, handleClearSpeakerOnSelectedRouted, selectedUnitIds }: SpeakerRailProviderProps) {
-  const value = useMemo<SpeakerRailContextValue>(() => ({
-    speakerOptions: speakerManagement.speakerOptions,
-    speakerDraftName: speakerManagement.speakerDraftName,
-    setSpeakerDraftName: speakerManagement.setSpeakerDraftName,
-    batchSpeakerId: speakerManagement.batchSpeakerId,
-    setBatchSpeakerId: speakerManagement.setBatchSpeakerId,
-    speakerSaving: speakerManagement.speakerSaving,
-    activeSpeakerFilterKey: speakerManagement.activeSpeakerFilterKey,
-    setActiveSpeakerFilterKey: speakerManagement.setActiveSpeakerFilterKey,
-    speakerDialogState: speakerManagement.speakerDialogState,
-    speakerVisualByUnitId: speakerManagement.speakerVisualByUnitId,
-    speakerFilterOptions: speakerManagement.speakerFilterOptions,
-    speakerReferenceStats: speakerManagement.speakerReferenceStats,
-    speakerReferenceUnassignedStats: speakerManagement.speakerReferenceUnassignedStats,
-    speakerReferenceStatsMediaScoped: speakerManagement.speakerReferenceStatsMediaScoped,
-    speakerReferenceStatsReady: speakerManagement.speakerReferenceStatsReady,
-    selectedSpeakerSummary: speakerManagement.selectedSpeakerSummary,
-    selectedUnitIds,
-    handleSelectSpeakerUnits: speakerManagement.handleSelectSpeakerUnits,
-    handleClearSpeakerAssignments: speakerManagement.handleClearSpeakerAssignments,
-    handleExportSpeakerSegments: speakerManagement.handleExportSpeakerSegments,
-    handleRenameSpeaker: speakerManagement.handleRenameSpeaker,
-    handleMergeSpeaker: speakerManagement.handleMergeSpeaker,
-    handleDeleteSpeaker: speakerManagement.handleDeleteSpeaker,
-    handleDeleteUnusedSpeakers: speakerManagement.handleDeleteUnusedSpeakers,
-    handleAssignSpeakerToSelected: speakerManagement.handleAssignSpeakerToSelected,
-    handleAssignSpeakerToSelectedRouted,
-    handleClearSpeakerOnSelectedRouted,
-    handleCreateSpeakerAndAssign: speakerManagement.handleCreateSpeakerAndAssign,
-    handleCreateSpeakerOnly: speakerManagement.handleCreateSpeakerOnly,
-    closeSpeakerDialog: speakerManagement.closeSpeakerDialog,
-    updateSpeakerDialogDraftName: speakerManagement.updateSpeakerDialogDraftName,
-    updateSpeakerDialogTargetKey: speakerManagement.updateSpeakerDialogTargetKey,
-    confirmSpeakerDialog: speakerManagement.confirmSpeakerDialog,
-  }), [handleAssignSpeakerToSelectedRouted, handleClearSpeakerOnSelectedRouted, selectedUnitIds, speakerManagement]);
-
-  return (
-    <SpeakerRailContext.Provider value={value}>
-      {children}
-    </SpeakerRailContext.Provider>
+export function SpeakerRailProvider({
+  children,
+  speakerManagement,
+  handleAssignSpeakerToSelectedRouted,
+  handleClearSpeakerOnSelectedRouted,
+  selectedUnitIds,
+}: SpeakerRailProviderProps) {
+  const value = useMemo<SpeakerRailContextValue>(
+    () => ({
+      speakerOptions: speakerManagement.speakerOptions,
+      speakerDraftName: speakerManagement.speakerDraftName,
+      setSpeakerDraftName: speakerManagement.setSpeakerDraftName,
+      batchSpeakerId: speakerManagement.batchSpeakerId,
+      setBatchSpeakerId: speakerManagement.setBatchSpeakerId,
+      speakerSaving: speakerManagement.speakerSaving,
+      activeSpeakerFilterKey: speakerManagement.activeSpeakerFilterKey,
+      setActiveSpeakerFilterKey: speakerManagement.setActiveSpeakerFilterKey,
+      speakerDialogState: speakerManagement.speakerDialogState,
+      speakerVisualByUnitId: speakerManagement.speakerVisualByUnitId,
+      speakerFilterOptions: speakerManagement.speakerFilterOptions,
+      speakerReferenceStats: speakerManagement.speakerReferenceStats,
+      speakerReferenceUnassignedStats: speakerManagement.speakerReferenceUnassignedStats,
+      speakerReferenceStatsMediaScoped: speakerManagement.speakerReferenceStatsMediaScoped,
+      speakerReferenceStatsReady: speakerManagement.speakerReferenceStatsReady,
+      selectedSpeakerSummary: speakerManagement.selectedSpeakerSummary,
+      selectedUnitIds,
+      handleSelectSpeakerUnits: speakerManagement.handleSelectSpeakerUnits,
+      handleClearSpeakerAssignments: speakerManagement.handleClearSpeakerAssignments,
+      handleExportSpeakerSegments: speakerManagement.handleExportSpeakerSegments,
+      handleRenameSpeaker: speakerManagement.handleRenameSpeaker,
+      handleMergeSpeaker: speakerManagement.handleMergeSpeaker,
+      handleDeleteSpeaker: speakerManagement.handleDeleteSpeaker,
+      handleDeleteUnusedSpeakers: speakerManagement.handleDeleteUnusedSpeakers,
+      handleAssignSpeakerToSelected: speakerManagement.handleAssignSpeakerToSelected,
+      handleAssignSpeakerToSelectedRouted,
+      handleClearSpeakerOnSelectedRouted,
+      handleCreateSpeakerAndAssign: speakerManagement.handleCreateSpeakerAndAssign,
+      handleCreateSpeakerOnly: speakerManagement.handleCreateSpeakerOnly,
+      closeSpeakerDialog: speakerManagement.closeSpeakerDialog,
+      updateSpeakerDialogDraftName: speakerManagement.updateSpeakerDialogDraftName,
+      updateSpeakerDialogTargetKey: speakerManagement.updateSpeakerDialogTargetKey,
+      confirmSpeakerDialog: speakerManagement.confirmSpeakerDialog,
+    }),
+    [
+      handleAssignSpeakerToSelectedRouted,
+      handleClearSpeakerOnSelectedRouted,
+      selectedUnitIds,
+      speakerManagement,
+    ],
   );
+
+  return <SpeakerRailContext.Provider value={value}>{children}</SpeakerRailContext.Provider>;
 }

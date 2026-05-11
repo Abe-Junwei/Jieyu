@@ -20,7 +20,9 @@ describe('phaseFRangePreviewSsotParity', () => {
     expect(row.testAnchors).toContain('src/pages/phaseFRangePreviewSsot.test.ts');
     expect(row.testAnchors).toContain('src/utils/segmentRangeGesturePreviewReadModel.test.ts');
     expect(row.testAnchors).toContain('src/utils/segmentRangeGesturePreviewWriter.test.ts');
-    expect(row.testAnchors).toContain('src/hooks/useSegmentRangeGesturePreviewWriter.test.ts');
+    expect(row.testAnchors).toContain(
+      'src/hooks/transcription/useSegmentRangeGesturePreviewWriter.test.ts',
+    );
     expect(row.verticalGapZh?.length).toBeGreaterThan(0);
   });
 });
