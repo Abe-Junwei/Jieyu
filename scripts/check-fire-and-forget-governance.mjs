@@ -8,13 +8,13 @@ import { readFileSync } from 'node:fs';
  */
 
 const HOOKS_USER_VISIBLE_ALLOWLIST = new Set([
-  'src/hooks/useKeybindingActions.ts',
-  'src/hooks/useLasso.ts',
-  'src/hooks/useRecoveryBanner.ts',
-  'src/hooks/useSidePaneSidebarDrag.ts',
-  'src/hooks/useTimelineLaneTextDraftAutosave.ts',
-  'src/hooks/useTimelineResize.ts',
-  'src/hooks/useUnitOps.ts',
+  'src/hooks/ui/useKeybindingActions.ts',
+  'src/hooks/ui/useLasso.ts',
+  'src/hooks/ui/useRecoveryBanner.ts',
+  'src/hooks/sidePane/useSidePaneSidebarDrag.ts',
+  'src/hooks/transcription/useTimelineLaneTextDraftAutosave.ts',
+  'src/hooks/transcription/useTimelineResize.ts',
+  'src/hooks/transcription/useUnitOps.ts',
 ]);
 
 const PAGES_BACKGROUND_ALLOWLIST = new Set([

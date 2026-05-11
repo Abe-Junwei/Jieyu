@@ -15,6 +15,7 @@ export const architectureGuardPostCssPatternRules = [
       /\.test\./,
       /\.structure\./,
       /\.segmentTargets\.ts$/,
+      /\.types\.ts$/,
       // Ratchet files in `rules.pages.mjs` own ceilings for ReadyWorkspace phase hooks.
       /useReadyWorkspace.*Phase\.ts$/,
     ],

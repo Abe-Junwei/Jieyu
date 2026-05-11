@@ -20,6 +20,8 @@ source_of_truth: execution-plan-index
 
 - [工程审计勘误与全面修复计划-2026-04-24.md](../audits/工程审计勘误与全面修复计划-2026-04-24.md)（纠正「无 CI / 恢复快照仅存 localStorage」等不实表述；依赖 · 构建 · PWA · DX · A11y · 数据韧性分阶段路线图；与根目录 [`remediation-plan-2026-04-24.md`](../../remediation-plan-2026-04-24.md) 正交）
 
+- [如是我闻-本地版改进计划书-2026-05-11.md](./如是我闻-本地版改进计划书-2026-05-11.md)（独立项目：中文内容优先、本地版先行；FunASR/SenseVoice 主线；**修订**：多产品对标与 §3.4 技术栈摘要、阶段与导出口径、SQLite 默认、热词能力分级、分发与安全风险、P1 含 TXT/SRT 最小导出）
+
 - [C阶段AI治理完整落地方案-2026-04-25.md](./C阶段AI治理完整落地方案-2026-04-25.md)（C1-C7 全量落地：Memory Broker、后台记忆抽取、工具沙箱、扩展信任、语音 manifest、轻量协调协议；默认 behind-flag，按 release evidence 封账）
 
 - [AI治理与结构标注收口拆分方案-2026-04-25.md](./AI治理与结构标注收口拆分方案-2026-04-25.md)（提交/PR 拆分边界、文件清单、验证命令、release evidence 口径确认与 `AiChatCard` 行数 warning backlog）

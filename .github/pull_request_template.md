@@ -16,7 +16,7 @@
 ## Architecture Guard
 
 - [ ] 已运行 `npm run typecheck`
-- [ ] 已运行 `npm test`
+- [ ] 已运行 `npm test`（内含 `check:architecture-guard` → **`audit:ready-workspace-timeline-host`**；或单独 `npm run audit:ready-workspace-timeline-host`）
 - [ ] 已查看 `npm run report:architecture-hotspots`
 - [ ] 若影响转写页时间轴，已运行 `npm run gate:timeline-phase1`
 - [ ] 未新增 `check:architecture-guard` hard failure
