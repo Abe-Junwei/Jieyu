@@ -5,7 +5,10 @@
 import { LinguisticService } from '../services/LinguisticService';
 import type { PreviewTextTimeMappingInput, TextTimeMapping } from '../services/LinguisticService';
 
-export type TextOnlyTimeMappingLike = Pick<TextTimeMapping, 'offsetSec' | 'scale'> | null | undefined;
+export type TextOnlyTimeMappingLike =
+  | Pick<TextTimeMapping, 'offsetSec' | 'scale'>
+  | null
+  | undefined;
 
 function buildPreviewInputForFullDocumentAxis(
   logicalDurationSec: number,
@@ -33,13 +36,15 @@ export function documentTimeFromTextOnlyTrackX(
   const w = Math.max(trackWidthPx, 1e-9);
   const offsetSec = timeMapping?.offsetSec ?? 0;
   const scale = timeMapping?.scale ?? 1;
-  const preview = LinguisticService.previewTextTimeMapping(buildPreviewInputForFullDocumentAxis(logicalDurationSec, timeMapping));
+  const preview = LinguisticService.timeline.previewTimeMapping(
+    buildPreviewInputForFullDocumentAxis(logicalDurationSec, timeMapping),
+  );
   const realStart = preview.realStartTime;
   const realEnd = preview.realEndTime;
   const realSpan = Math.max(realEnd - realStart, 1e-9);
   const clampedX = Math.min(Math.max(xInTrack, 0), w);
   const real = realStart + (clampedX / w) * realSpan;
-  return LinguisticService.invertTextTimeMapping(real, { offsetSec, scale });
+  return LinguisticService.timeline.invertTimeMapping(real, { offsetSec, scale });
 }
 
 /**
@@ -54,7 +59,9 @@ export function computeTextOnlyZoomPxPerDocSec(
   if (!(w > 0)) return undefined;
   const scale = timeMapping?.scale ?? 1;
   if (!Number.isFinite(scale) || scale <= 0) return undefined;
-  const preview = LinguisticService.previewTextTimeMapping(buildPreviewInputForFullDocumentAxis(logicalDurationSec, timeMapping));
+  const preview = LinguisticService.timeline.previewTimeMapping(
+    buildPreviewInputForFullDocumentAxis(logicalDurationSec, timeMapping),
+  );
   const realSpan = Math.max(preview.realEndTime - preview.realStartTime, 1e-9);
   return (w * scale) / realSpan;
 }

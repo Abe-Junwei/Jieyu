@@ -12,7 +12,7 @@ import type {
   LayerUnitDocType,
   SpeakerDocType,
 } from '../types/jieyuDbDocTypes';
-import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type {
   SpeakerActionDialogState,
   SpeakerFilterOption,
@@ -334,7 +334,7 @@ export function useSpeakerActionRoutingController({
 
       try {
         pushUndo(getSpeakerUndoLabel('assign', t));
-        const updated = await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);
+        const updated = await LinguisticService.speakers.assignToSegments(targetIds, speakerId);
         const now = new Date().toISOString();
         updateSegmentsLocally(targetIds, (segment) => {
           if (speakerId) {
@@ -395,8 +395,8 @@ export function useSpeakerActionRoutingController({
         pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
         undoPushed = true;
         const targetSpeaker =
-          existing ?? (await LinguisticService.createSpeaker({ name: trimmedName }));
-        const updated = await LinguisticService.assignSpeakerToSegments(
+          existing ?? (await LinguisticService.speakers.create({ name: trimmedName }));
+        const updated = await LinguisticService.speakers.assignToSegments(
           targetIds,
           targetSpeaker.id,
         );
@@ -467,10 +467,10 @@ export function useSpeakerActionRoutingController({
         undoPushed = true;
         const [updatedSegments, updatedUnits] = await Promise.all([
           targetSegmentIds.length > 0
-            ? LinguisticService.assignSpeakerToSegments(targetSegmentIds, normalizedSpeakerId)
+            ? LinguisticService.speakers.assignToSegments(targetSegmentIds, normalizedSpeakerId)
             : Promise.resolve(0),
           targetUnitIds.length > 0
-            ? LinguisticService.assignSpeakerToUnits(targetUnitIds, normalizedSpeakerId)
+            ? LinguisticService.speakers.assignToUnits(targetUnitIds, normalizedSpeakerId)
             : Promise.resolve(0),
         ]);
         const now = new Date().toISOString();
@@ -547,13 +547,13 @@ export function useSpeakerActionRoutingController({
         pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
         undoPushed = true;
         const targetSpeaker =
-          existing ?? (await LinguisticService.createSpeaker({ name: trimmedName }));
+          existing ?? (await LinguisticService.speakers.create({ name: trimmedName }));
         const [updatedSegments, updatedUnits] = await Promise.all([
           targetSegmentIds.length > 0
-            ? LinguisticService.assignSpeakerToSegments(targetSegmentIds, targetSpeaker.id)
+            ? LinguisticService.speakers.assignToSegments(targetSegmentIds, targetSpeaker.id)
             : Promise.resolve(0),
           targetUnitIds.length > 0
-            ? LinguisticService.assignSpeakerToUnits(targetUnitIds, targetSpeaker.id)
+            ? LinguisticService.speakers.assignToUnits(targetUnitIds, targetSpeaker.id)
             : Promise.resolve(0),
         ]);
         const now = new Date().toISOString();
@@ -808,7 +808,7 @@ export function useSpeakerActionRoutingController({
       try {
         pushUndo(getSpeakerUndoLabel('clearTag', t));
         undoPushed = true;
-        const cleared = await LinguisticService.assignSpeakerToSegments(ids, undefined);
+        const cleared = await LinguisticService.speakers.assignToSegments(ids, undefined);
         const now = new Date().toISOString();
         updateSegmentsLocally(ids, (segment) => {
           const next = { ...segment, updatedAt: now };

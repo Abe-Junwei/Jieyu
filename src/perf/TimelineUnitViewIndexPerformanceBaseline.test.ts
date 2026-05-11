@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTimelineUnitViewIndex } from '../hooks/timelineUnitView';
+import { buildTimelineUnitViewIndex } from '../hooks/transcription/timelineUnitView';
 
 function buildUnits(count: number) {
   return Array.from({ length: count }, (_, index) => ({

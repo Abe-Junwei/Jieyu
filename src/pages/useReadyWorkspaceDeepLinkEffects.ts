@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 
 import type { ToastContextValue } from '../contexts/ToastContext';
-import { createTimelineUnit } from '../hooks/transcriptionTypes';
-import { getTranscriptionTextById } from '../hooks/transcriptionTextLookup';
+import { createTimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import { getTranscriptionTextById } from '../hooks/transcription/transcriptionTextLookup';
 import {
   hasTranscriptionDeepLinkSelectionPayload,
   readTranscriptionDeepLinkOptionalParams,
@@ -10,7 +10,10 @@ import {
   stripTranscriptionDeepLinkSearchParams,
 } from '../utils/transcriptionUrlDeepLink';
 
-type SetSearchParams = (updater: (prev: URLSearchParams) => URLSearchParams, options?: { replace?: boolean }) => void;
+type SetSearchParams = (
+  updater: (prev: URLSearchParams) => URLSearchParams,
+  options?: { replace?: boolean },
+) => void;
 type DeepLinkUnitRow = { id: string; textId: string; mediaId?: string; layerId?: string };
 type DeepLinkLayerRow = { id: string; textId: string };
 type DeepLinkMediaRow = { id: string; textId: string };
@@ -65,7 +68,9 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
   } = input;
 
   const urlTextIdApplyNonceRef = useRef(0);
-  const pendingPostTextIdDeepLinkRef = useRef<ReturnType<typeof readTranscriptionDeepLinkOptionalParams> | null>(null);
+  const pendingPostTextIdDeepLinkRef = useRef<ReturnType<
+    typeof readTranscriptionDeepLinkOptionalParams
+  > | null>(null);
 
   useEffect(() => {
     const raw = searchParams.get('textId')?.trim() ?? '';
@@ -149,16 +154,25 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
         const row = units.find((u) => u.id === unitTarget && u.textId === projectTextId);
         if (row) {
           const rowMedia = row.mediaId?.trim() ?? '';
-          if (!requestedMediaValid && rowMedia && mediaOk(rowMedia) && (selectedUnitMedia?.id ?? '').trim() !== rowMedia) {
+          if (
+            !requestedMediaValid &&
+            rowMedia &&
+            mediaOk(rowMedia) &&
+            (selectedUnitMedia?.id ?? '').trim() !== rowMedia
+          ) {
             setSelectedMediaId(rowMedia);
             return;
           }
           let layerForUnit =
             pending.layerId?.trim() && layerOk(pending.layerId)
               ? pending.layerId.trim()
-              : (row.layerId?.trim() || selectedLayerId?.trim() || defaultTranscriptionLayerId?.trim() || '');
+              : row.layerId?.trim() ||
+                selectedLayerId?.trim() ||
+                defaultTranscriptionLayerId?.trim() ||
+                '';
           if (!layerForUnit || !layers.some((l) => l.id === layerForUnit)) {
-            layerForUnit = defaultTranscriptionLayerId?.trim() || transcriptionLayers[0]?.id?.trim() || '';
+            layerForUnit =
+              defaultTranscriptionLayerId?.trim() || transcriptionLayers[0]?.id?.trim() || '';
           }
           if (layerForUnit) {
             selectTimelineUnit(createTimelineUnit(layerForUnit, row.id, 'unit'));

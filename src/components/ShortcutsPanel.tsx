@@ -6,8 +6,8 @@ import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay } from '../services/Keybi
 import { useOptionalLocale } from '../i18n';
 import { getShortcutsPanelMessages } from '../i18n/messages';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
-import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
-import { useViewportWidth } from '../hooks/useViewportWidth';
+import { useUiFontScaleRuntime } from '~/hooks/ui/useUiFontScaleRuntime';
+import { useViewportWidth } from '~/hooks/ui/useViewportWidth';
 import { ModalPanel, PanelSection } from './ui';
 
 interface ShortcutsPanelProps {
@@ -21,16 +21,17 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
   const { uiTextDirection, uiFontScale } = useUiFontScaleRuntime(locale);
   const viewportWidth = useViewportWidth();
   const panelWidth = useMemo(
-    () => computeAdaptivePanelWidth({
-      baseWidth: 480,
-      locale,
-      direction: uiTextDirection,
-      uiFontScale,
-      density: 'standard',
-      minWidth: 340,
-      maxWidth: 760,
-      ...(viewportWidth !== undefined ? { viewportWidth } : {}),
-    }),
+    () =>
+      computeAdaptivePanelWidth({
+        baseWidth: 480,
+        locale,
+        direction: uiTextDirection,
+        uiFontScale,
+        density: 'standard',
+        minWidth: 340,
+        maxWidth: 760,
+        ...(viewportWidth !== undefined ? { viewportWidth } : {}),
+      }),
     [locale, uiFontScale, uiTextDirection, viewportWidth],
   );
   const messages = getShortcutsPanelMessages(locale);
@@ -63,25 +64,25 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
       closeLabel={messages.closePanelAriaLabel}
       layoutStyle={{ width: `min(${panelWidth}px, 92vw)` }}
     >
-          {grouped.map(({ cat, label, entries }) => (
-            <PanelSection key={cat} className="shortcuts-panel-group" title={label}>
-              <table className="shortcuts-panel-table">
-                <tbody>
-                  {entries.map((entry) => (
-                    <tr key={entry.id}>
-                      <td className="shortcuts-panel-key">
-                        <kbd>{formatKeyComboForDisplay(entry.defaultKey)}</kbd>
-                      </td>
-                      <td className="shortcuts-panel-desc">{entry.label}</td>
-                      <td className="shortcuts-panel-scope">
-                        {entry.scope === 'waveform' ? messages.scopeWaveform : messages.scopeGlobal}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </PanelSection>
-          ))}
+      {grouped.map(({ cat, label, entries }) => (
+        <PanelSection key={cat} className="shortcuts-panel-group" title={label}>
+          <table className="shortcuts-panel-table">
+            <tbody>
+              {entries.map((entry) => (
+                <tr key={entry.id}>
+                  <td className="shortcuts-panel-key">
+                    <kbd>{formatKeyComboForDisplay(entry.defaultKey)}</kbd>
+                  </td>
+                  <td className="shortcuts-panel-desc">{entry.label}</td>
+                  <td className="shortcuts-panel-scope">
+                    {entry.scope === 'waveform' ? messages.scopeWaveform : messages.scopeGlobal}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </PanelSection>
+      ))}
     </ModalPanel>
   );
 }

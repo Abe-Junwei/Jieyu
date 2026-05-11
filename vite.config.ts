@@ -169,6 +169,8 @@ export default defineConfig({
       'zod/v4/core/core.js': zodCoreConfigEntry,
       // wavesurfer spectrogram probes Node worker_threads at module scope; map to browser shim to avoid externalization warnings
       worker_threads: resolve(repoRoot, 'src/workerThreads.browser.ts'),
+      // 支持 ~/hooks/... 等绝对路径别名（与 tsconfig paths 对齐）| Align with tsconfig paths for Vitest resolution
+      '~': resolve(repoRoot, 'src'),
     },
   },
   plugins: [
@@ -477,6 +479,7 @@ export default defineConfig({
     slowTestThreshold: 10_000,
     setupFiles: [
       'src/zodJitlessBootstrap.ts',
+      'src/test/vitestWebApiPolyfillsSetup.ts',
       'src/test/vitestLocalStorageSetup.ts',
       'src/test/vitestJestDomSetup.ts',
       'src/test/vitestLanguageGeodataSetup.ts',

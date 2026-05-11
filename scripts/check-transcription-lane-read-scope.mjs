@@ -22,10 +22,25 @@ mustContain(
   'resolveCanonicalUnitForTranscriptionLaneRow',
 );
 mustContain(path.join('src', 'hooks', 'timelineUnitView.ts'), 'transcriptionUnitLaneReadScope');
-mustContain(
-  path.join('src', 'pages', 'TranscriptionPage.ReadyWorkspace.tsx'),
+const readyWorkspaceBodyPath = path.join('src', 'pages', 'TranscriptionPage.ReadyWorkspace.body.tsx');
+const readyWorkspaceOrchestratorPath = path.join(
+  'src',
+  'pages',
+  'TranscriptionPage.ReadyWorkspaceOrchestrator.tsx',
+);
+const bodyHasLane = readFileSync(path.join(repoRoot, readyWorkspaceBodyPath), 'utf8').includes(
   'transcriptionLaneReadScope',
 );
+const orchestratorHasLane = readFileSync(
+  path.join(repoRoot, readyWorkspaceOrchestratorPath),
+  'utf8',
+).includes('transcriptionLaneReadScope');
+if (!bodyHasLane && !orchestratorHasLane) {
+  console.error(
+    `check-transcription-lane-read-scope: expected "transcriptionLaneReadScope" in ${readyWorkspaceBodyPath} and/or ${readyWorkspaceOrchestratorPath}`,
+  );
+  process.exit(1);
+}
 mustContain(path.join('src', 'pages', 'useTranscriptionAiController.ts'), 'timelineUnitViewIndex');
 
 console.log('check-transcription-lane-read-scope passed');

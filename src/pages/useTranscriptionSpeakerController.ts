@@ -5,12 +5,16 @@ import type {
   LayerUnitDocType,
   SpeakerDocType,
 } from '../types/jieyuDbDocTypes';
-import { useSpeakerActions } from '../hooks/useSpeakerActions';
-import type { LayerActionPanelKind } from '../hooks/useLayerActionPanel';
+import { useSpeakerActions } from '../hooks/speakerManagement/useSpeakerActions';
+import type { LayerActionPanelKind } from '~/hooks/layer/useLayerActionPanel';
 import type { SpeakerFilterOption } from '../hooks/speakerManagement/types';
-import type { SaveState, TimelineUnit, TimelineUnitKind } from '../hooks/transcriptionTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
+import type {
+  SaveState,
+  TimelineUnit,
+  TimelineUnitKind,
+} from '../hooks/transcription/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
+import type { PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';
 import { isDictKey, t as translate, tf as formatMessage, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';

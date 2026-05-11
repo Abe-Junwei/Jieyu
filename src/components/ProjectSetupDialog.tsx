@@ -3,7 +3,7 @@ import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
-import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
+import { useLanguageCatalogLabelMap } from '~/hooks/languageCatalog/useLanguageCatalogLabelMap';
 import { useLocale } from '../i18n';
 import { getProjectSetupDialogMessages } from '../i18n/messages';
 import {
@@ -11,7 +11,7 @@ import {
   groupOrthographiesForSelect,
   ORTHOGRAPHY_CREATE_SENTINEL,
   useOrthographyPicker,
-} from '../hooks/useOrthographyPicker';
+} from '~/hooks/orthography/useOrthographyPicker';
 import { getOrthographyCatalogGroupLabel, getOrthographyBuilderMessages } from '../i18n/messages';
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 import { FormField, ModalPanel, PanelButton, PanelFeedback } from './ui';

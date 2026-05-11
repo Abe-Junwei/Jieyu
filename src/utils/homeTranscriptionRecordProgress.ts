@@ -196,7 +196,7 @@ export async function loadHomeProjectProgressBundle(
   const layers = layerDocs.map((doc) => doc.toJSON()).filter((layer) => layer.textId === text.id);
   const hasTranslationLayers = layers.some((layer) => layer.layerType === 'translation');
 
-  const rawMedia = await LinguisticService.getMediaItemsByTextId(text.id);
+  const rawMedia = await LinguisticService.media.listByTextId(text.id);
   /** 与转写项目中枢一致：排除逻辑占位行与译文/转写附属录音行，避免首页「声文稿」与主时间轴条数错位 | Align with project hub: drop placeholders + auxiliary recording rows */
   const mediaItems = rawMedia.filter(
     (m) => !isMediaItemPlaceholderRow(m) && !isAuxiliaryRecordingMediaRow(m),
@@ -233,7 +233,7 @@ export async function loadHomeProjectProgressBundle(
 export async function loadAllHomeProjectProgressBundles(
   locale: Locale,
 ): Promise<HomeProjectProgressBundle[]> {
-  const texts = await LinguisticService.getAllTexts();
+  const texts = await LinguisticService.timeline.listTexts();
   const sorted = [...texts].sort((a, b) => {
     const parsedA = Date.parse(a.updatedAt);
     const parsedB = Date.parse(b.updatedAt);

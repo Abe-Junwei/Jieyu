@@ -1,6 +1,13 @@
-import { createContext, useContext, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from 'react';
+import {
+  createContext,
+  useContext,
+  type Dispatch,
+  type MutableRefObject,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
 import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
-import type { LayerCreateInput } from '../hooks/transcriptionTypes';
+import type { LayerCreateInput } from '../hooks/transcription/transcriptionTypes';
 import type { LayerMetadataUpdateInput } from '../types/layerMetadata';
 
 export type TranscriptionEditorContextValue = {
@@ -28,8 +35,9 @@ export type TranscriptionEditorContextValue = {
   checkLayerHasContent: (layerId: string) => Promise<number>;
 };
 
-export const TranscriptionEditorContext =
-  createContext<TranscriptionEditorContextValue | null>(null);
+export const TranscriptionEditorContext = createContext<TranscriptionEditorContextValue | null>(
+  null,
+);
 
 export function useTranscriptionEditorContext(): TranscriptionEditorContextValue {
   const ctx = useContext(TranscriptionEditorContext);

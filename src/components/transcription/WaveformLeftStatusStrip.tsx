@@ -21,24 +21,24 @@ function recordWaveformAmplitudeSliderTelemetryThrottled(): void {
 import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
-} from '../../hooks/transcriptionPlaybackClock';
+} from '../../hooks/transcription/transcriptionPlaybackClock';
 import type { VideoLayoutMode } from './TranscriptionTimelineSections';
 
-const PlaybackClockTimeValue: FC<{ formatTime: (seconds: number) => string }> = memo(function PlaybackClockTimeValue({
-  formatTime,
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    const paint = () => {
-      el.textContent = formatTime(getTranscriptionPlaybackClockSnapshot());
-    };
-    paint();
-    return subscribeTranscriptionPlaybackClock(paint);
-  }, [formatTime]);
-  return <span ref={ref} className="waveform-left-status-value" aria-live="off" />;
-});
+const PlaybackClockTimeValue: FC<{ formatTime: (seconds: number) => string }> = memo(
+  function PlaybackClockTimeValue({ formatTime }) {
+    const ref = useRef<HTMLSpanElement>(null);
+    useEffect(() => {
+      const el = ref.current;
+      if (!el) return undefined;
+      const paint = () => {
+        el.textContent = formatTime(getTranscriptionPlaybackClockSnapshot());
+      };
+      paint();
+      return subscribeTranscriptionPlaybackClock(paint);
+    }, [formatTime]);
+    return <span ref={ref} className="waveform-left-status-value" aria-live="off" />;
+  },
+);
 
 export interface WaveformLeftStatusStripProps {
   // 缩放与交互状态 | Zoom and interaction state
@@ -74,146 +74,184 @@ export interface WaveformLeftStatusStripProps {
   formatTime: (seconds: number) => string;
 }
 
-export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(function WaveformLeftStatusStrip({
-  zoomPercent,
-  snapEnabled,
-  onSnapToggle,
-  playbackRate,
-  currentTime,
-  selectedUnitDuration,
-  amplitudeScale,
-  onAmplitudeChange,
-  onAmplitudeReset,
-  selectedMediaIsVideo,
-  videoLayoutMode,
-  onVideoLayoutModeChange,
-  onLaneLabelWidthResize,
-  formatTime,
-}) {
-  const locale = useLocale();
-  const useClockForCurrentTime = currentTime === undefined;
-  return (
-    <div className="waveform-left-status-strip">
-      <div className="waveform-left-status-item">
-        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.zoom')}</span>
-        <span className="waveform-left-status-value">{Math.round(zoomPercent)}%</span>
-      </div>
-      <div className="waveform-left-status-item">
-        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.snap')}</span>
-        <button
-          type="button"
-          className={`waveform-left-status-toggle ${snapEnabled ? 'waveform-left-status-toggle-on' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            recordTranscriptionKeyboardAction('timelineZoomSnapToggle');
-            onSnapToggle();
-          }}
-          title={snapEnabled ? t(locale, 'transcription.zoom.snapOn') : t(locale, 'transcription.zoom.snapOff')}
-          aria-label={snapEnabled ? t(locale, 'transcription.statusStrip.snapDisable') : t(locale, 'transcription.statusStrip.snapEnable')}
-        >
-          {snapEnabled ? t(locale, 'transcription.statusStrip.snapOnShort') : t(locale, 'transcription.statusStrip.snapOffShort')}
-        </button>
-      </div>
-      <div className="waveform-left-status-item">
-        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.speed')}</span>
-        <span className="waveform-left-status-value">{playbackRate.toFixed(2)}x</span>
-      </div>
-      <div className="waveform-left-status-item">
-        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.current')}</span>
-        {useClockForCurrentTime
-          ? <PlaybackClockTimeValue formatTime={formatTime} />
-          : <span className="waveform-left-status-value">{formatTime(currentTime)}</span>}
-      </div>
-      <div className="waveform-left-status-item">
-        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.selection')}</span>
-        <span className="waveform-left-status-value">
-          {selectedUnitDuration !== null
-            ? formatTime(Math.max(0, selectedUnitDuration))
-            : '--:--'}
-        </span>
-      </div>
-      <div className="waveform-left-status-item waveform-left-status-item-gain">
-        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.gain')}</span>
-        <input
-          type="range"
-          className="waveform-gain-slider"
-          min={0.25}
-          max={4}
-          step={0.05}
-          value={amplitudeScale}
-          onChange={(e) => {
-            recordWaveformAmplitudeSliderTelemetryThrottled();
-            onAmplitudeChange(Number(e.target.value));
-          }}
-          title={tf(locale, 'transcription.statusStrip.gainValue', { value: amplitudeScale.toFixed(1) })}
-          aria-label={tf(locale, 'transcription.statusStrip.gainValue', { value: amplitudeScale.toFixed(1) })}
-        />
-        <button
-          type="button"
-          className="waveform-left-status-value waveform-gain-reset"
-          onClick={(ev) => {
-            ev.stopPropagation();
-            recordTranscriptionKeyboardAction('waveformAmplitudeReset');
-            onAmplitudeReset();
-          }}
-          title={t(locale, 'transcription.statusStrip.gainReset')}
-        >{amplitudeScale.toFixed(1)}x</button>
-      </div>
-      {selectedMediaIsVideo && (
-        <div className="waveform-left-status-item waveform-left-status-item-layout">
-          <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.layout')}</span>
-          <div className="waveform-layout-toggle" role="group" aria-label={t(locale, 'transcription.statusStrip.videoLayoutMode')}>
-            <button
-              type="button"
-              className={`waveform-layout-toggle-btn ${videoLayoutMode === 'top' ? 'active' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                recordTranscriptionKeyboardAction('timelineVideoLayoutModeTop');
-                onVideoLayoutModeChange('top');
-              }}
-              title={t(locale, 'transcription.statusStrip.layoutTopTitle')}
-            >
-              {t(locale, 'transcription.statusStrip.layoutTopShort')}
-            </button>
-            <button
-              type="button"
-              className={`waveform-layout-toggle-btn ${videoLayoutMode === 'right' ? 'active' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                recordTranscriptionKeyboardAction('timelineVideoLayoutModeRight');
-                onVideoLayoutModeChange('right');
-              }}
-              title={t(locale, 'transcription.statusStrip.layoutRightTitle')}
-            >
-              {t(locale, 'transcription.statusStrip.layoutRightShort')}
-            </button>
-            <button
-              type="button"
-              className={`waveform-layout-toggle-btn ${videoLayoutMode === 'left' ? 'active' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                recordTranscriptionKeyboardAction('timelineVideoLayoutModeLeft');
-                onVideoLayoutModeChange('left');
-              }}
-              title={t(locale, 'transcription.statusStrip.layoutLeftTitle')}
-            >
-              {t(locale, 'transcription.statusStrip.layoutLeftShort')}
-            </button>
-          </div>
+export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(
+  function WaveformLeftStatusStrip({
+    zoomPercent,
+    snapEnabled,
+    onSnapToggle,
+    playbackRate,
+    currentTime,
+    selectedUnitDuration,
+    amplitudeScale,
+    onAmplitudeChange,
+    onAmplitudeReset,
+    selectedMediaIsVideo,
+    videoLayoutMode,
+    onVideoLayoutModeChange,
+    onLaneLabelWidthResize,
+    formatTime,
+  }) {
+    const locale = useLocale();
+    const useClockForCurrentTime = currentTime === undefined;
+    return (
+      <div className="waveform-left-status-strip">
+        <div className="waveform-left-status-item">
+          <span className="waveform-left-status-label">
+            {t(locale, 'transcription.statusStrip.zoom')}
+          </span>
+          <span className="waveform-left-status-value">{Math.round(zoomPercent)}%</span>
         </div>
-      )}
-      {onLaneLabelWidthResize && (
-        <div
-          className="lane-label-resize-handle"
-          onPointerDown={(event) => {
-            recordTranscriptionKeyboardAction('timelineLaneLabelResizeStart');
-            onLaneLabelWidthResize?.(event);
-          }}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={t(locale, 'transcription.statusStrip.resizeLaneLabel')}
-        />
-      )}
-    </div>
-  );
-});
+        <div className="waveform-left-status-item">
+          <span className="waveform-left-status-label">
+            {t(locale, 'transcription.statusStrip.snap')}
+          </span>
+          <button
+            type="button"
+            className={`waveform-left-status-toggle ${snapEnabled ? 'waveform-left-status-toggle-on' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              recordTranscriptionKeyboardAction('timelineZoomSnapToggle');
+              onSnapToggle();
+            }}
+            title={
+              snapEnabled
+                ? t(locale, 'transcription.zoom.snapOn')
+                : t(locale, 'transcription.zoom.snapOff')
+            }
+            aria-label={
+              snapEnabled
+                ? t(locale, 'transcription.statusStrip.snapDisable')
+                : t(locale, 'transcription.statusStrip.snapEnable')
+            }
+          >
+            {snapEnabled
+              ? t(locale, 'transcription.statusStrip.snapOnShort')
+              : t(locale, 'transcription.statusStrip.snapOffShort')}
+          </button>
+        </div>
+        <div className="waveform-left-status-item">
+          <span className="waveform-left-status-label">
+            {t(locale, 'transcription.statusStrip.speed')}
+          </span>
+          <span className="waveform-left-status-value">{playbackRate.toFixed(2)}x</span>
+        </div>
+        <div className="waveform-left-status-item">
+          <span className="waveform-left-status-label">
+            {t(locale, 'transcription.statusStrip.current')}
+          </span>
+          {useClockForCurrentTime ? (
+            <PlaybackClockTimeValue formatTime={formatTime} />
+          ) : (
+            <span className="waveform-left-status-value">{formatTime(currentTime)}</span>
+          )}
+        </div>
+        <div className="waveform-left-status-item">
+          <span className="waveform-left-status-label">
+            {t(locale, 'transcription.statusStrip.selection')}
+          </span>
+          <span className="waveform-left-status-value">
+            {selectedUnitDuration !== null
+              ? formatTime(Math.max(0, selectedUnitDuration))
+              : '--:--'}
+          </span>
+        </div>
+        <div className="waveform-left-status-item waveform-left-status-item-gain">
+          <span className="waveform-left-status-label">
+            {t(locale, 'transcription.statusStrip.gain')}
+          </span>
+          <input
+            type="range"
+            className="waveform-gain-slider"
+            min={0.25}
+            max={4}
+            step={0.05}
+            value={amplitudeScale}
+            onChange={(e) => {
+              recordWaveformAmplitudeSliderTelemetryThrottled();
+              onAmplitudeChange(Number(e.target.value));
+            }}
+            title={tf(locale, 'transcription.statusStrip.gainValue', {
+              value: amplitudeScale.toFixed(1),
+            })}
+            aria-label={tf(locale, 'transcription.statusStrip.gainValue', {
+              value: amplitudeScale.toFixed(1),
+            })}
+          />
+          <button
+            type="button"
+            className="waveform-left-status-value waveform-gain-reset"
+            onClick={(ev) => {
+              ev.stopPropagation();
+              recordTranscriptionKeyboardAction('waveformAmplitudeReset');
+              onAmplitudeReset();
+            }}
+            title={t(locale, 'transcription.statusStrip.gainReset')}
+          >
+            {amplitudeScale.toFixed(1)}x
+          </button>
+        </div>
+        {selectedMediaIsVideo && (
+          <div className="waveform-left-status-item waveform-left-status-item-layout">
+            <span className="waveform-left-status-label">
+              {t(locale, 'transcription.statusStrip.layout')}
+            </span>
+            <div
+              className="waveform-layout-toggle"
+              role="group"
+              aria-label={t(locale, 'transcription.statusStrip.videoLayoutMode')}
+            >
+              <button
+                type="button"
+                className={`waveform-layout-toggle-btn ${videoLayoutMode === 'top' ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  recordTranscriptionKeyboardAction('timelineVideoLayoutModeTop');
+                  onVideoLayoutModeChange('top');
+                }}
+                title={t(locale, 'transcription.statusStrip.layoutTopTitle')}
+              >
+                {t(locale, 'transcription.statusStrip.layoutTopShort')}
+              </button>
+              <button
+                type="button"
+                className={`waveform-layout-toggle-btn ${videoLayoutMode === 'right' ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  recordTranscriptionKeyboardAction('timelineVideoLayoutModeRight');
+                  onVideoLayoutModeChange('right');
+                }}
+                title={t(locale, 'transcription.statusStrip.layoutRightTitle')}
+              >
+                {t(locale, 'transcription.statusStrip.layoutRightShort')}
+              </button>
+              <button
+                type="button"
+                className={`waveform-layout-toggle-btn ${videoLayoutMode === 'left' ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  recordTranscriptionKeyboardAction('timelineVideoLayoutModeLeft');
+                  onVideoLayoutModeChange('left');
+                }}
+                title={t(locale, 'transcription.statusStrip.layoutLeftTitle')}
+              >
+                {t(locale, 'transcription.statusStrip.layoutLeftShort')}
+              </button>
+            </div>
+          </div>
+        )}
+        {onLaneLabelWidthResize && (
+          <div
+            className="lane-label-resize-handle"
+            onPointerDown={(event) => {
+              recordTranscriptionKeyboardAction('timelineLaneLabelResizeStart');
+              onLaneLabelWidthResize?.(event);
+            }}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t(locale, 'transcription.statusStrip.resizeLaneLabel')}
+          />
+        )}
+      </div>
+    );
+  },
+);

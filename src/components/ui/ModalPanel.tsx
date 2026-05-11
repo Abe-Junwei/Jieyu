@@ -14,7 +14,7 @@ import { JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
 import { DialogOverlay } from './DialogOverlay';
 import { DialogShell } from './DialogShell';
 import { joinClassNames } from './classNames';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useFocusTrap } from '~/hooks/ui/useFocusTrap';
 
 interface ModalPanelProps {
   /** 是否显示 | Whether the modal is open */

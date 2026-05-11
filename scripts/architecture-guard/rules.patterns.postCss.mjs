@@ -10,7 +10,15 @@ export const architectureGuardPostCssPatternRules = [
       'src/pages/useReadyWorkspaceSurfaceProps.tsx',
       'src/pages/useReadyWorkspaceTrackEditControllers.ts',
     ],
-    excludeRegexes: [/Controller\.ts$/, /\.test\./, /\.structure\./, /\.segmentTargets\.ts$/],
+    excludeRegexes: [
+      /Controller\.ts$/,
+      /\.test\./,
+      /\.structure\./,
+      /\.segmentTargets\.ts$/,
+      /\.types\.ts$/,
+      // Ratchet files in `rules.pages.mjs` own ceilings for ReadyWorkspace phase hooks.
+      /useReadyWorkspace.*Phase\.ts$/,
+    ],
     maxLines: 300,
     maxUseCallbackDecls: 6,
     maxUseMemoDecls: 6,

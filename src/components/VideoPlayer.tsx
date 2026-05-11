@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_PLAY } from '../utils/jieyuMaterialIcon';
-import { useVideoPlayer } from '../hooks/useVideoPlayer';
-import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
+import { useVideoPlayer } from '~/hooks/media/useVideoPlayer';
+import type { WaveSurferRegion } from '~/hooks/media/useWaveSurfer';
 import { t, useLocale } from '../i18n';
 import { createLogger } from '../observability/logger';
 
@@ -121,12 +121,14 @@ export function VideoPlayer({
 
   const progressRatio = duration > 0 ? currentTime / duration : 0;
   const progressOverlayX = progressRatio * VIDEO_PROGRESS_OVERLAY_WIDTH;
-  const subSelectionOverlay = subSelection && duration > 0
-    ? {
-        x: (subSelection.start / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH,
-        width: ((subSelection.end - subSelection.start) / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH,
-      }
-    : null;
+  const subSelectionOverlay =
+    subSelection && duration > 0
+      ? {
+          x: (subSelection.start / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH,
+          width:
+            ((subSelection.end - subSelection.start) / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH,
+        }
+      : null;
 
   return (
     <div
@@ -171,8 +173,12 @@ export function VideoPlayer({
               />
             ) : null}
             {regions?.map((region) => {
-              const left = duration > 0 ? (region.start / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH : 0;
-              const width = duration > 0 ? ((region.end - region.start) / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH : 0;
+              const left =
+                duration > 0 ? (region.start / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH : 0;
+              const width =
+                duration > 0
+                  ? ((region.end - region.start) / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH
+                  : 0;
               const isActive = activeRegionIds?.has(region.id);
               const isPrimary = region.id === primaryRegionId;
               return (
@@ -215,7 +221,11 @@ export function VideoPlayer({
               onClick={() => player.togglePlayback()}
               title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
             >
-              {isPlaying ? <MaterialSymbol name="pause" className={JIEYU_MATERIAL_WAVE_PLAY} /> : <MaterialSymbol name="play_arrow" className={JIEYU_MATERIAL_WAVE_PLAY} />}
+              {isPlaying ? (
+                <MaterialSymbol name="pause" className={JIEYU_MATERIAL_WAVE_PLAY} />
+              ) : (
+                <MaterialSymbol name="play_arrow" className={JIEYU_MATERIAL_WAVE_PLAY} />
+              )}
             </button>
 
             {/* Skip back 5s */}
@@ -283,23 +293,29 @@ export function VideoPlayer({
               }}
               title={isMuted ? 'Unmute' : 'Mute'}
             >
-              {isMuted || volume === 0 ? <MaterialSymbol name="volume_off" className={JIEYU_MATERIAL_WAVE_PLAY} /> : <MaterialSymbol name="volume_up" className={JIEYU_MATERIAL_WAVE_PLAY} />}
+              {isMuted || volume === 0 ? (
+                <MaterialSymbol name="volume_off" className={JIEYU_MATERIAL_WAVE_PLAY} />
+              ) : (
+                <MaterialSymbol name="volume_up" className={JIEYU_MATERIAL_WAVE_PLAY} />
+              )}
             </button>
 
             {/* Fit/Fill/Original display mode */}
             <button
               className="video-player-btn video-player-fit-mode-btn"
-              onClick={() => setVideoFitMode((prev) => {
-                if (prev === 'fit') return 'fill';
-                if (prev === 'fill') return 'original';
-                return 'fit';
-              })}
+              onClick={() =>
+                setVideoFitMode((prev) => {
+                  if (prev === 'fit') return 'fill';
+                  if (prev === 'fill') return 'original';
+                  return 'fit';
+                })
+              }
               title={
                 videoFitMode === 'fit'
                   ? t(locale, 'transcription.video.fitMode.fitTitle')
                   : videoFitMode === 'fill'
-                  ? t(locale, 'transcription.video.fitMode.fillTitle')
-                  : t(locale, 'transcription.video.fitMode.originalTitle')
+                    ? t(locale, 'transcription.video.fitMode.fillTitle')
+                    : t(locale, 'transcription.video.fitMode.originalTitle')
               }
             >
               {videoFitMode === 'fit' ? 'Fit' : videoFitMode === 'fill' ? 'Fill' : 'Orig'}

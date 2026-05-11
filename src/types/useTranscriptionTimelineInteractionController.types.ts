@@ -1,7 +1,10 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { LayerDocType, LayerUnitDocType } from '../db';
-import type { TranscriptionCtxMenuLayerType, TranscriptionCtxMenuSurface } from '../pages/TranscriptionPage.UIState';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type {
+  TranscriptionCtxMenuLayerType,
+  TranscriptionCtxMenuSurface,
+} from '../pages/TranscriptionPage.UIState';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { SnapGuide } from '../hooks/useTranscriptionData';
 
 type ContextMenuUnitKind = 'segment' | 'unit';
@@ -68,7 +71,9 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   locale: string;
   sidePaneRows: LayerDocType[];
   activeTimelineUnitId: string;
-  onSetNotePopover: (state: { x: number; y: number; uttId: string; layerId?: string } | null) => void;
+  onSetNotePopover: (
+    state: { x: number; y: number; uttId: string; layerId?: string } | null,
+  ) => void;
   onSetSidebarError: (value: string | null) => void;
   onRevealSchemaLayer: (layerId: string) => void;
   onOpenPdfPreviewRequest: (input: PdfPreviewOpenRequestInput) => void;
@@ -79,13 +84,21 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
   selectedTimelineUnit: TimelineUnit | null;
   toggleSegmentSelection: (segmentId: string) => void;
-  selectSegmentRange: (anchorId: string, targetId: string, items: WaveformTimelineItemLike[]) => void;
+  selectSegmentRange: (
+    anchorId: string,
+    targetId: string,
+    items: WaveformTimelineItemLike[],
+  ) => void;
   toggleUnitSelection: (unitId: string) => void;
   selectUnitRange: (anchorId: string, targetId: string) => void;
   setSubSelectionRange: (range: { start: number; end: number } | null) => void;
   subSelectDragRef: MutableRefObject<SubSelectDragLike | null>;
   waveCanvasRef: MutableRefObject<HTMLElement | null>;
-  zoomToPercent: (percent: number, centerRatio?: number, mode?: 'fit-all' | 'fit-selection' | 'custom') => void;
+  zoomToPercent: (
+    percent: number,
+    centerRatio?: number,
+    mode?: 'fit-all' | 'fit-selection' | 'custom',
+  ) => void;
   zoomToUnit: (startTime: number, endTime: number) => void;
   resolveSegmentRoutingForLayer: (layerId?: string) => {
     segmentSourceLayer: LayerDocType | undefined;
@@ -94,7 +107,11 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   };
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]>;
   unitsOnCurrentMedia: LayerUnitDocType[];
-  getNeighborBounds: (itemId: string, mediaId: string | undefined, probeStart: number) => { left: number; right: number | undefined };
+  getNeighborBounds: (
+    itemId: string,
+    mediaId: string | undefined,
+    probeStart: number,
+  ) => { left: number; right: number | undefined };
   reloadSegments: () => Promise<void>;
   saveUnitTiming: (id: string, start: number, end: number) => Promise<void>;
   setSaveState: (state: { kind: 'done' | 'error'; message: string }) => void;
@@ -102,7 +119,11 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   selectedWaveformRegionId: string | null;
   beginTimingGesture: (id: string) => void;
   endTimingGesture: (id: string) => void;
-  makeSnapGuide: (bounds: { left: number; right: number | undefined }, start: number, end: number) => SnapGuide;
+  makeSnapGuide: (
+    bounds: { left: number; right: number | undefined },
+    start: number,
+    end: number,
+  ) => SnapGuide;
   snapEnabled: boolean;
   setSnapGuide: Dispatch<SetStateAction<SnapGuide>>;
   setDragPreview: Dispatch<SetStateAction<{ id: string; start: number; end: number } | null>>;
@@ -113,7 +134,12 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
 }
 
 export interface UseTranscriptionTimelineInteractionControllerResult {
-  handleSearchReplace: (unitId: string, layerId: string | undefined, oldText: string, newText: string) => void;
+  handleSearchReplace: (
+    unitId: string,
+    layerId: string | undefined,
+    oldText: string,
+    newText: string,
+  ) => void;
   handleJumpToEmbeddingMatch: (unitId: string) => void;
   handleJumpToCitation: (
     citationType: 'unit' | 'note' | 'pdf' | 'schema',
@@ -122,10 +148,20 @@ export interface UseTranscriptionTimelineInteractionControllerResult {
   ) => Promise<void>;
   handleSplitAtTimeRequest: (timeSeconds: number) => boolean;
   handleZoomToSegmentRequest: (segmentId: string, zoomLevel?: number) => boolean;
-  getNeighborBoundsRouted: (itemId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => { left: number; right: number | undefined };
+  getNeighborBoundsRouted: (
+    itemId: string,
+    mediaId: string | undefined,
+    probeStart: number,
+    layerId?: string,
+  ) => { left: number; right: number | undefined };
   saveTimingRouted: (id: string, start: number, end: number, layerId?: string) => Promise<void>;
   handleWaveformRegionContextMenu: (regionId: string, x: number, y: number) => void;
-  handleWaveformRegionAltPointerDown: (regionId: string, time: number, pointerId: number, clientX: number) => void;
+  handleWaveformRegionAltPointerDown: (
+    regionId: string,
+    time: number,
+    pointerId: number,
+    clientX: number,
+  ) => void;
   handleWaveformRegionClick: (regionId: string, clickTime: number, event: MouseEvent) => void;
   handleWaveformRegionDoubleClick: (regionId: string, start: number, end: number) => void;
   handleWaveformRegionCreate: (start: number, end: number) => void;

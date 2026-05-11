@@ -1,5 +1,5 @@
 import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 
 export function isTimelineUnitView(
   item: TimelineUnitView | LayerUnitDocType,

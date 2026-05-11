@@ -6,14 +6,14 @@ import type {
 } from '../types/jieyuDbDocTypes';
 import { LayerTierUnifiedService } from '../app/transcriptionServicesPageAccess';
 import { fireAndForget } from '../utils/fireAndForget';
-import { useLocalFonts } from '../hooks/useLocalFonts';
-import { useOrthographies } from '../hooks/useOrthographies';
+import { useLocalFonts } from '~/hooks/fonts/useLocalFonts';
+import { useOrthographies } from '~/hooks/orthography/useOrthographies';
 import {
   BASE_FONT_SIZE,
   computeLaneHeightFromRenderPolicy,
   resolveOrthographyRenderPolicy,
 } from '../utils/layerDisplayStyle';
-import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
+import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/transcription/useTimelineLaneHeightResize';
 import {
   buildBatchPreviewTextPropsByLayerId,
   buildVoiceDictationPreviewTextProps,

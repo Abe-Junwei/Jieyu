@@ -28,10 +28,10 @@ export const architectureGuardNamedHookRules = [
     maxUseEffects: 4,
     requiredRegexes: [
       /export function useAiChat\(options\?: UseAiChatOptions\)/,
-      /import \{ createAssistantStream \} from '\.\/useAiChat\.streamFactory';/,
-      /import \{ enrichContextWithRag \} from '\.\/useAiChat\.rag';/,
-      /import \{ resolveToolDecisionPipeline \} from '\.\/useAiChat\.toolDecisionPipeline';/,
-      /import \{ executeConfirmedToolCall \} from '\.\/useAiChat\.confirmExecution';/,
+      /import \{ createAssistantStream \} from '\.\/ai\/useAiChat\.streamFactory';/,
+      /import \{ enrichContextWithRag \} from '\.\/ai\/useAiChat\.rag';/,
+      /import \{ resolveToolDecisionPipeline \} from '\.\/ai\/useAiChat\.toolDecisionPipeline';/,
+      /import \{ executeConfirmedToolCall \} from '\.\/ai\/useAiChat\.confirmExecution';/,
     ],
   }),
   hookRule('useTimelineUnitViewIndex', {

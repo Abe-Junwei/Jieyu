@@ -26,8 +26,12 @@ import {
   JIEYU_MATERIAL_WAVE_MD,
   jieyuMaterialClass,
 } from '../utils/jieyuMaterialIcon';
-import type { VoiceAgentMode, VoiceAgentState, VoicePendingConfirm } from '../hooks/useVoiceAgent';
-import { getConfidenceColor } from '../hooks/voiceAgentPresentation';
+import type {
+  VoiceAgentMode,
+  VoiceAgentState,
+  VoicePendingConfirm,
+} from '../hooks/voice/useVoiceAgent';
+import { getConfidenceColor } from '../hooks/voice/voiceAgentPresentation';
 import { SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { SttEngine } from '../services/VoiceInputService';

@@ -106,7 +106,7 @@ export async function importAudio(input: {
           });
           await refreshMediaTimelineMetadata(targetRow.id);
         },
-        { label: 'LinguisticService.importAudio.replace' },
+        { label: 'LinguisticService.media.importAudio.replace' },
       );
       return { mediaId: targetRow.id };
     }
@@ -219,7 +219,7 @@ export async function importAudio(input: {
         });
       }
     },
-    { label: 'LinguisticService.importAudio' },
+    { label: 'LinguisticService.media.importAudio' },
   );
 
   return { mediaId };

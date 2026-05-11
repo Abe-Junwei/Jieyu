@@ -16,7 +16,7 @@
  *   segment row, not the shared canonical unit. Use `dispatchTimelineUnitMutation` for writes.
  */
 
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 
 /** Resolve backing unit doc for speaker/batch/AI tools from a unified row view. */
 export function unitDocForSpeakerTargetFromUnitView<T extends { id: string }>(

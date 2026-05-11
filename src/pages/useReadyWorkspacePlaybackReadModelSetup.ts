@@ -1,4 +1,4 @@
-import { useJKLShuttle } from '../hooks/useJKLShuttle';
+import { useJKLShuttle } from '~/hooks/ui/useJKLShuttle';
 import { useTranscriptionActionRefBindings } from './useTranscriptionActionRefBindings';
 import { useTranscriptionPlaybackKeyboardController } from './useTranscriptionPlaybackKeyboardController';
 import { useTimelineReadModel } from './timelineReadModel';

@@ -2,6 +2,8 @@
 
 解语（Jieyu）是一个面向濒危语言研究与协作的本地优先应用。
 
+著作权：见根目录 **[LICENSE](LICENSE)**（Copyright (c) **沂南灵创技术服务中心**，ISC）。
+
 协作流程、Node 版本与常用门禁命令见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。
 
 ## 启动

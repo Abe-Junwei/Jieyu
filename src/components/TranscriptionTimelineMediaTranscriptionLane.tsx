@@ -15,9 +15,9 @@ import type {
   MediaItemDocType,
 } from '../db';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
-import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { TranscriptionTimelineMediaTranscriptionRow } from './TranscriptionTimelineMediaTranscriptionRow';
 import {

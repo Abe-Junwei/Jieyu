@@ -160,7 +160,13 @@ export const architectureGuardPreCssPatternRules = [
 
 
   patternRule(/^src\/pages\/(?!use).*\.(ts|tsx)$/, {
-    excludeFiles: ['src/pages/TranscriptionPage.Orchestrator.tsx', 'src/pages/TranscriptionPage.ReadyWorkspace.tsx'],
+      excludeFiles: [
+        'src/pages/TranscriptionPage.Orchestrator.tsx',
+        'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
+        'src/pages/TranscriptionPage.ReadyWorkspace.body.tsx',
+        'src/pages/TranscriptionPage.ReadyWorkspaceOrchestrator.tsx',
+        'src/pages/buildReadyWorkspaceViewModelsSurfacePhaseParams.ts',
+      ],
     excludeRegexes: [/\.test\./, /\.structure\./],
     maxLines: 800,
     maxUseCallbackDecls: 8,

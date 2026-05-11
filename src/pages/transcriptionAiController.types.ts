@@ -1,21 +1,31 @@
 import type { AiPanelMode } from '../components/AiAnalysisPanel.types';
 import type { AiObserverRecommendation } from '../components/transcription/toolbar/ObserverStatus';
-import type { LayerDocType, LayerLinkDocType, LayerUnitDocType, MediaItemDocType } from '../types/jieyuDbDocTypes';
-import type { SaveState } from '../hooks/transcriptionTypes';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerUnitDocType,
+  MediaItemDocType,
+} from '../types/jieyuDbDocTypes';
+import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import type { Locale } from '../i18n';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
-import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
+import type { TimelineUnitViewIndexWithEpoch } from '../hooks/transcription/useTimelineUnitViewIndex';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
-import type { ActionableRecommendation } from '../hooks/useAiPanelLogic';
+import type { ActionableRecommendation } from '../hooks/ai/useAiPanelLogic';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
-import type { AcousticBatchSelectionRange, AcousticCalibrationStatus, AcousticPanelBatchDetail, AcousticPanelDetail } from '../utils/acousticPanelDetail';
+import type {
+  AcousticBatchSelectionRange,
+  AcousticCalibrationStatus,
+  AcousticPanelBatchDetail,
+  AcousticPanelDetail,
+} from '../utils/acousticPanelDetail';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
-import type { UseAiChatReturn } from '../hooks/useAiChat.types';
-import type { AiSegmentSplitRollbackToken } from '../hooks/useAiToolCallHandler.types';
-import type { useAiPanelLogic } from '../hooks/useAiPanelLogic';
-import type { EditEvent } from '../hooks/useEditEventBuffer';
+import type { UseAiChatReturn } from '../hooks/ai/useAiChat.types';
+import type { AiSegmentSplitRollbackToken } from '../hooks/ai/useAiToolCallHandler.types';
+import type { useAiPanelLogic } from '../hooks/ai/useAiPanelLogic';
+import type { EditEvent } from '../hooks/ui/useEditEventBuffer';
 import type { ResolvedAcousticProviderState } from '../types/acousticProviderResolved.types';
 import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
@@ -66,7 +76,10 @@ export interface UseTranscriptionAiControllerInput {
   createTranscriptionSegment: (targetId: string) => Promise<string | void>;
   /** Unit-layer “create next” used when segment routing is on unit docs; optional on segment-only bridges. */
   createAdjacentUnit?: (utt: LayerUnitDocType, duration: number) => Promise<string | void>;
-  splitTranscriptionSegment: (targetId: string, splitTime: number) => Promise<AiSegmentSplitRollbackToken | void>;
+  splitTranscriptionSegment: (
+    targetId: string,
+    splitTime: number,
+  ) => Promise<AiSegmentSplitRollbackToken | void>;
   /**
    * Segment-layer merge used only for AI rollback of a prior split (no user Undo label).
    */
@@ -92,7 +105,11 @@ export interface UseTranscriptionAiControllerInput {
   saveUnitLayerText: (unitId: string, text: string, layerId: string) => Promise<void>;
   saveSegmentContentForLayer: (segmentId: string, layerId: string, value: string) => Promise<void>;
   updateTokenPos: (tokenId: string, pos: string | null) => Promise<void> | void;
-  batchUpdateTokenPosByForm: (unitId: string, form: string, pos: string | null) => Promise<number> | number;
+  batchUpdateTokenPosByForm: (
+    unitId: string,
+    form: string,
+    pos: string | null,
+  ) => Promise<number> | number;
   updateTokenGloss: (tokenId: string, gloss: string | null, lang?: string) => Promise<void> | void;
   selectUnit: (id: string) => void;
   setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
@@ -137,13 +154,29 @@ export interface UseTranscriptionAiControllerInput {
   openSearchRef: React.MutableRefObject<((detail?: AppShellOpenSearchDetail) => void) | undefined>;
   seekToTimeRef: React.MutableRefObject<((timeSeconds: number) => void) | undefined>;
   splitAtTimeRef: React.MutableRefObject<((timeSeconds: number) => boolean) | undefined>;
-  zoomToSegmentRef: React.MutableRefObject<((segmentId: string, zoomLevel?: number) => boolean) | undefined>;
+  zoomToSegmentRef: React.MutableRefObject<
+    ((segmentId: string, zoomLevel?: number) => boolean) | undefined
+  >;
   handleExecuteRecommendation: (item: ActionableRecommendation) => Promise<void> | void;
   aiSidebarError?: string | null;
   setAiSidebarError?: React.Dispatch<React.SetStateAction<string | null>>;
-  embeddingProviderConfig?: { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string };
-  setEmbeddingProviderConfig?: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
-  acousticConfigOverride?: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig> | null;
+  embeddingProviderConfig?: {
+    kind: EmbeddingProviderKind;
+    baseUrl?: string;
+    apiKey?: string;
+    model?: string;
+  };
+  setEmbeddingProviderConfig?: React.Dispatch<
+    React.SetStateAction<{
+      kind: EmbeddingProviderKind;
+      baseUrl?: string;
+      apiKey?: string;
+      model?: string;
+    }>
+  >;
+  acousticConfigOverride?: Partial<
+    import('../utils/acousticOverlayTypes').AcousticAnalysisConfig
+  > | null;
   acousticProviderPreference?: string | null;
   /**
    * 当一轮 AI assistant 消息流在 `useAiChat` 中结束时调用（含空正文），供语音分析写回等与 messageId 对齐。
@@ -161,9 +194,34 @@ export interface UseTranscriptionAiControllerResult {
   setAiPanelMode: React.Dispatch<React.SetStateAction<AiPanelMode>>;
   aiSidebarError: string | null;
   setAiSidebarError: React.Dispatch<React.SetStateAction<string | null>>;
-  embeddingProviderConfig: { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string };
-  setEmbeddingProviderConfig: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
-  aiToolDecisionLogs: Array<{ id: string; toolName: string; decision: string; reason?: string; reasonLabelEn?: string; reasonLabelZh?: string; requestId?: string; timestamp: string; source?: 'human' | 'ai' | 'system'; executed?: boolean; durationMs?: number; message?: string }>;
+  embeddingProviderConfig: {
+    kind: EmbeddingProviderKind;
+    baseUrl?: string;
+    apiKey?: string;
+    model?: string;
+  };
+  setEmbeddingProviderConfig: React.Dispatch<
+    React.SetStateAction<{
+      kind: EmbeddingProviderKind;
+      baseUrl?: string;
+      apiKey?: string;
+      model?: string;
+    }>
+  >;
+  aiToolDecisionLogs: Array<{
+    id: string;
+    toolName: string;
+    decision: string;
+    reason?: string;
+    reasonLabelEn?: string;
+    reasonLabelZh?: string;
+    requestId?: string;
+    timestamp: string;
+    source?: 'human' | 'ai' | 'system';
+    executed?: boolean;
+    durationMs?: number;
+    message?: string;
+  }>;
   aiVerticalWorkflowAuditEntries: ParsedVerticalWorkflowAuditEntry[];
   aiChat: UseAiChatReturn;
   /** 与 `aiChat` 内 `onToolCall` 同源，供语音 tool 意图 |
@@ -171,7 +229,9 @@ export interface UseTranscriptionAiControllerResult {
   executeVoiceToolCall: VoiceAssistantToolCallHandler;
   lexemeMatches: ReturnType<typeof useAiPanelLogic>['lexemeMatches'];
   observerResult: ReturnType<typeof useAiPanelLogic>['observerResult'];
-  actionableObserverRecommendations: ReturnType<typeof useAiPanelLogic>['actionableObserverRecommendations'];
+  actionableObserverRecommendations: ReturnType<
+    typeof useAiPanelLogic
+  >['actionableObserverRecommendations'];
   selectedAiWarning: boolean;
   selectedTranslationGapCount: number;
   aiCurrentTask: ReturnType<typeof useAiPanelLogic>['aiCurrentTask'];

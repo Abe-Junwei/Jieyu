@@ -21,8 +21,8 @@ import {
 import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
 import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../contexts/VoiceAgentContext';
-import { pickAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContextValue';
-import { pickVoiceAgentContextValue } from '../hooks/useVoiceAgentContextValue';
+import { pickAiAssistantHubContextValue } from '../hooks/ai/useAiAssistantHubContextValue';
+import { pickVoiceAgentContextValue } from '../hooks/voice/useVoiceAgentContextValue';
 import { MaterialSymbol } from '../components/ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE } from '../utils/jieyuMaterialIcon';
 import {

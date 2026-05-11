@@ -1,0 +1,463 @@
+import {
+  startTransition,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from 'react';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+  UnitRelationDocType,
+  SpeakerDocType,
+} from '../../db';
+import { CommandHistory, type ReversibleCommand } from '../../services/CommandService';
+import type { SaveState } from './transcriptionTypes';
+import type { TimingUndoState } from '../../utils/selectionUtils';
+import { createLogger } from '../../observability/logger';
+import { reportActionError } from '../../utils/actionErrorReporter';
+import { type Locale, t, tf, useLocale } from '../../i18n';
+
+const log = createLogger('useTranscriptionUndo');
+
+type UndoEntry = {
+  label: string;
+  units: LayerUnitDocType[];
+  translations: LayerUnitContentDocType[];
+  layers?: LayerDocType[];
+  /** Independent-layer segment graph: canonical `layer_units` (segment-type) rows. */
+  layerSegmentUnits?: LayerUnitDocType[];
+  layerSegmentUnitContents?: LayerUnitContentDocType[];
+  segmentLinks?: UnitRelationDocType[];
+  layerLinks?: LayerLinkDocType[];
+  speakers?: SpeakerDocType[];
+};
+
+type Params = {
+  unitsRef: MutableRefObject<LayerUnitDocType[]>;
+  translationsRef: MutableRefObject<LayerUnitContentDocType[]>;
+  layersRef: MutableRefObject<LayerDocType[]>;
+  layerLinksRef: MutableRefObject<LayerLinkDocType[]>;
+  speakersRef: MutableRefObject<SpeakerDocType[]>;
+  dirtyRef: MutableRefObject<boolean>;
+  scheduleRecoverySave: () => void;
+  syncToDb: (
+    targetUnits: LayerUnitDocType[],
+    targetTranslations: LayerUnitContentDocType[],
+    targetSpeakers: SpeakerDocType[],
+    options?: { conflictGuard?: boolean },
+  ) => Promise<void>;
+  setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
+  setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
+  setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;
+  setLayerLinks: React.Dispatch<React.SetStateAction<LayerLinkDocType[]>>;
+  setSpeakers: React.Dispatch<React.SetStateAction<SpeakerDocType[]>>;
+  setSaveState: (s: SaveState) => void;
+};
+
+function getHistoryActionLabel(locale: Locale, action: 'undo' | 'redo'): string {
+  return t(locale, action === 'undo' ? 'transcription.toolbar.undo' : 'transcription.toolbar.redo');
+}
+
+/** 独立边界层 segment 快照/恢复回调 | Segment snapshot/restore callbacks for independent boundary layers */
+export type SegmentUndoCallbacks = {
+  snapshotLayerSegments: () => {
+    units: LayerUnitDocType[];
+    contents: LayerUnitContentDocType[];
+    links: UnitRelationDocType[];
+  };
+  restoreLayerSegments: (
+    units: LayerUnitDocType[],
+    contents: LayerUnitContentDocType[],
+    links: UnitRelationDocType[],
+  ) => Promise<void>;
+};
+
+export function useTranscriptionUndo({
+  unitsRef,
+  translationsRef,
+  layersRef,
+  layerLinksRef,
+  speakersRef,
+  dirtyRef,
+  scheduleRecoverySave,
+  syncToDb,
+  setUnits,
+  setTranslations,
+  setLayers,
+  setLayerLinks,
+  setSpeakers,
+  setSaveState,
+}: Params) {
+  const locale = useLocale();
+  const MAX_UNDO = 50;
+  const undoStackRef = useRef<UndoEntry[]>([]);
+  const redoStackRef = useRef<UndoEntry[]>([]);
+  const commandHistoryRef = useRef(new CommandHistory(MAX_UNDO));
+  const [_undoRedoVersion, setUndoRedoVersion] = useState(0);
+  const timingUndoRef = useRef<TimingUndoState | null>(null);
+  const timingGestureRef = useRef<{ active: boolean; unitId: string | null }>({
+    active: false,
+    unitId: null,
+  });
+  // 外部注入：Orchestrator 加载 segment 数据后填充 | External injection: Orchestrator populates after segment hooks are ready
+  const segmentUndoRef = useRef<SegmentUndoCallbacks | null>(null);
+
+  // 以引用方式抓取快照，避免高频操作时 O(n) 数组拷贝 | Capture snapshot by reference to avoid O(n) array copies on hot paths
+  // 依赖前提：状态更新采用不可变写法（返回新数组）| Assumes immutable state updates (new array on write)
+  const snapshotCurrentState = useCallback(
+    (
+      label: string,
+      segSnapshot?: {
+        units: LayerUnitDocType[];
+        contents: LayerUnitContentDocType[];
+        links: UnitRelationDocType[];
+      },
+    ): UndoEntry => ({
+      label,
+      units: unitsRef.current,
+      translations: translationsRef.current,
+      layers: layersRef.current,
+      layerLinks: layerLinksRef.current,
+      speakers: speakersRef.current,
+      ...(segSnapshot
+        ? {
+            layerSegmentUnits: segSnapshot.units,
+            layerSegmentUnitContents: segSnapshot.contents,
+            segmentLinks: segSnapshot.links,
+          }
+        : {}),
+    }),
+    [layerLinksRef, layersRef, speakersRef, translationsRef, unitsRef],
+  );
+
+  const pushUndo = useCallback(
+    (label: string) => {
+      dirtyRef.current = true;
+      const segSnapshot = segmentUndoRef.current?.snapshotLayerSegments();
+      undoStackRef.current.push(snapshotCurrentState(label, segSnapshot));
+      if (undoStackRef.current.length > MAX_UNDO) undoStackRef.current.shift();
+      redoStackRef.current = [];
+      // undo 按钮状态为低优先级渲染 | Undo button state is low-priority render
+      startTransition(() => {
+        setUndoRedoVersion((v) => v + 1);
+      });
+      scheduleRecoverySave();
+    },
+    [dirtyRef, scheduleRecoverySave, segmentUndoRef, snapshotCurrentState],
+  );
+
+  const beginTimingGesture = useCallback(
+    (unitId: string) => {
+      const current = timingGestureRef.current;
+      if (current.active && current.unitId === unitId) return;
+      timingGestureRef.current = { active: true, unitId };
+      pushUndo(t(locale, 'transcription.unitAction.undo.updateTiming'));
+    },
+    [locale, pushUndo],
+  );
+
+  const endTimingGesture = useCallback((unitId?: string) => {
+    const current = timingGestureRef.current;
+    if (!current.active) return;
+    if (unitId && current.unitId && unitId !== current.unitId) return;
+    timingGestureRef.current = { active: false, unitId: null };
+  }, []);
+
+  const executeCommand = useCallback(
+    async (cmd: ReversibleCommand) => {
+      pushUndo(cmd.label);
+      try {
+        await cmd.execute();
+      } catch (error) {
+        // 执行失败，回退 undo 快照 | Execute failed, roll back undo snapshot
+        undoStackRef.current.pop();
+        throw error;
+      }
+      try {
+        await commandHistoryRef.current.execute({
+          label: cmd.label,
+          execute: async () => {
+            // Snapshot redo is the source of truth; command history tracks labels/undoability.
+          },
+          undo: async () => {
+            await cmd.undo();
+          },
+        });
+      } catch (error) {
+        // commandHistory 登记失败但操作已完成，undo 快照仍有效 | commandHistory tracking failed but op completed, undo snapshot still valid
+        log.error('Failed to register command in history', {
+          label: cmd.label,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    },
+    [pushUndo],
+  );
+
+  const undo = useCallback(async () => {
+    const entry = undoStackRef.current.pop();
+    if (!entry) return;
+    const segSnapshot = segmentUndoRef.current?.snapshotLayerSegments();
+    const redoEntry = snapshotCurrentState(entry.label, segSnapshot);
+    redoStackRef.current.push(redoEntry);
+    try {
+      await syncToDb(entry.units, entry.translations, entry.speakers ?? [], {
+        conflictGuard: true,
+      });
+      if (entry.layerSegmentUnits && segmentUndoRef.current) {
+        await segmentUndoRef.current.restoreLayerSegments(
+          entry.layerSegmentUnits,
+          entry.layerSegmentUnitContents ?? [],
+          entry.segmentLinks ?? [],
+        );
+      }
+      setUnits(entry.units);
+      setTranslations(entry.translations);
+      if (entry.layers) setLayers(entry.layers);
+      if (entry.layerLinks) setLayerLinks(entry.layerLinks);
+      setSpeakers(entry.speakers ?? []);
+      await commandHistoryRef.current.undo();
+      setUndoRedoVersion((v) => v + 1);
+      setSaveState({
+        kind: 'done',
+        message: tf(locale, 'transcription.undo.done', { label: entry.label }),
+      });
+    } catch (error) {
+      // 回滚栈状态，避免“UI看起来已撤销但数据库未回写成功” | Rollback stack mutation when persistence failed.
+      redoStackRef.current.pop();
+      undoStackRef.current.push(entry);
+      log.error('Undo failed during persistence', {
+        label: entry.label,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      reportActionError({
+        actionLabel: getHistoryActionLabel(locale, 'undo'),
+        error,
+        conflictNames: ['TranscriptionPersistenceConflictError'],
+        conflictI18nKey: 'transcription.error.conflict.undo',
+        fallbackI18nKey: 'transcription.error.action.undoFailed',
+        setErrorState: ({ message, meta }) =>
+          setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+    }
+  }, [
+    locale,
+    segmentUndoRef,
+    setLayerLinks,
+    setLayers,
+    setSaveState,
+    setSpeakers,
+    setTranslations,
+    setUnits,
+    snapshotCurrentState,
+    syncToDb,
+  ]);
+
+  const undoToHistoryIndex = useCallback(
+    async (historyIndex: number) => {
+      const previousUndoStack = [...undoStackRef.current];
+      const previousRedoStack = [...redoStackRef.current];
+      const stack = previousUndoStack;
+      if (historyIndex < 0 || historyIndex >= stack.length) return;
+
+      const targetStackIndex = stack.length - 1 - historyIndex;
+      const targetEntry = stack[targetStackIndex];
+      if (!targetEntry) return;
+
+      const redoAdds: UndoEntry[] = [];
+      // 首次快照为当前活跃状态；后续取栈中上一条条目的状态 | First snapshot is live state; subsequent ones use the entry above
+      const currentSegSnapshot = segmentUndoRef.current?.snapshotLayerSegments();
+      for (let j = stack.length - 1; j >= targetStackIndex; j -= 1) {
+        const entry = stack[j];
+        if (!entry) continue;
+        if (j === stack.length - 1) {
+          // 第一步：捕获当前活跃状态 | First step: capture current live state
+          redoAdds.push(snapshotCurrentState(entry.label, currentSegSnapshot));
+        } else {
+          // 后续步骤：从栈中上一条条目获取中间状态 | Subsequent: intermediate state from stack entry above
+          const above = stack[j + 1]!;
+          redoAdds.push({
+            label: entry.label,
+            units: [...above.units],
+            translations: [...above.translations],
+            layers: [...(above.layers ?? layersRef.current)],
+            layerLinks: [...(above.layerLinks ?? layerLinksRef.current)],
+            speakers: [...(above.speakers ?? speakersRef.current)],
+            ...(above.layerSegmentUnits
+              ? {
+                  layerSegmentUnits: above.layerSegmentUnits,
+                  layerSegmentUnitContents: above.layerSegmentUnitContents ?? [],
+                  segmentLinks: above.segmentLinks ?? [],
+                }
+              : {}),
+          });
+        }
+      }
+
+      redoStackRef.current = [...redoStackRef.current, ...redoAdds];
+      undoStackRef.current = stack.slice(0, targetStackIndex);
+
+      try {
+        await syncToDb(targetEntry.units, targetEntry.translations, targetEntry.speakers ?? [], {
+          conflictGuard: true,
+        });
+        if (targetEntry.layerSegmentUnits && segmentUndoRef.current) {
+          await segmentUndoRef.current.restoreLayerSegments(
+            targetEntry.layerSegmentUnits,
+            targetEntry.layerSegmentUnitContents ?? [],
+            targetEntry.segmentLinks ?? [],
+          );
+        }
+        setUnits(targetEntry.units);
+        setTranslations(targetEntry.translations);
+        if (targetEntry.layers) setLayers(targetEntry.layers);
+        if (targetEntry.layerLinks) setLayerLinks(targetEntry.layerLinks);
+        setSpeakers(targetEntry.speakers ?? []);
+        await commandHistoryRef.current.undoToIndex(historyIndex);
+        setUndoRedoVersion((v) => v + 1);
+
+        const steps = stack.length - targetStackIndex;
+        setSaveState({
+          kind: 'done',
+          message: tf(locale, 'transcription.undo.doneMultiple', {
+            count: steps,
+            label: targetEntry.label,
+          }),
+        });
+      } catch (error) {
+        // 回滚栈状态，避免批量撤销失败后历史栈损坏 | Roll back stacks when batch undo persistence fails.
+        undoStackRef.current = previousUndoStack;
+        redoStackRef.current = previousRedoStack;
+        log.error('Undo to history index failed during persistence', {
+          historyIndex,
+          label: targetEntry.label,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        reportActionError({
+          actionLabel: getHistoryActionLabel(locale, 'undo'),
+          error,
+          conflictNames: ['TranscriptionPersistenceConflictError'],
+          conflictI18nKey: 'transcription.error.conflict.undo',
+          fallbackI18nKey: 'transcription.error.action.undoFailed',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+      }
+    },
+    [
+      layerLinksRef,
+      layersRef,
+      locale,
+      segmentUndoRef,
+      setLayerLinks,
+      setLayers,
+      setSaveState,
+      setSpeakers,
+      setTranslations,
+      setUnits,
+      speakersRef,
+      snapshotCurrentState,
+      syncToDb,
+    ],
+  );
+
+  const redo = useCallback(async () => {
+    const entry = redoStackRef.current.pop();
+    if (!entry) return;
+    const segSnapshot = segmentUndoRef.current?.snapshotLayerSegments();
+    const undoEntry = snapshotCurrentState(entry.label, segSnapshot);
+    undoStackRef.current.push(undoEntry);
+    try {
+      await syncToDb(entry.units, entry.translations, entry.speakers ?? [], {
+        conflictGuard: true,
+      });
+      if (entry.layerSegmentUnits && segmentUndoRef.current) {
+        await segmentUndoRef.current.restoreLayerSegments(
+          entry.layerSegmentUnits,
+          entry.layerSegmentUnitContents ?? [],
+          entry.segmentLinks ?? [],
+        );
+      }
+      setUnits(entry.units);
+      setTranslations(entry.translations);
+      if (entry.layers) setLayers(entry.layers);
+      if (entry.layerLinks) setLayerLinks(entry.layerLinks);
+      setSpeakers(entry.speakers ?? []);
+      await commandHistoryRef.current.redo();
+      setUndoRedoVersion((v) => v + 1);
+      setSaveState({
+        kind: 'done',
+        message: tf(locale, 'transcription.redo.done', { label: entry.label }),
+      });
+    } catch (error) {
+      // 回滚栈状态，避免“UI看起来已重做但数据库未回写成功” | Rollback stack mutation when persistence failed.
+      undoStackRef.current.pop();
+      redoStackRef.current.push(entry);
+      log.error('Redo failed during persistence', {
+        label: entry.label,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      reportActionError({
+        actionLabel: getHistoryActionLabel(locale, 'redo'),
+        error,
+        conflictNames: ['TranscriptionPersistenceConflictError'],
+        conflictI18nKey: 'transcription.error.conflict.redo',
+        fallbackI18nKey: 'transcription.error.action.redoFailed',
+        setErrorState: ({ message, meta }) =>
+          setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+    }
+  }, [
+    locale,
+    segmentUndoRef,
+    setLayerLinks,
+    setLayers,
+    setSaveState,
+    setSpeakers,
+    setTranslations,
+    setUnits,
+    snapshotCurrentState,
+    syncToDb,
+  ]);
+
+  const canUndo = useMemo(() => {
+    void _undoRedoVersion;
+    return undoStackRef.current.length > 0;
+  }, [_undoRedoVersion]);
+  const canRedo = useMemo(() => {
+    void _undoRedoVersion;
+    return redoStackRef.current.length > 0;
+  }, [_undoRedoVersion]);
+  const undoLabel = useMemo(() => {
+    void _undoRedoVersion;
+    return undoStackRef.current[undoStackRef.current.length - 1]?.label ?? '';
+  }, [_undoRedoVersion]);
+  const undoHistory = useMemo(() => {
+    void _undoRedoVersion;
+    return undoStackRef.current
+      .slice(-15)
+      .map((item) => item.label)
+      .reverse();
+  }, [_undoRedoVersion]);
+
+  return {
+    segmentUndoRef,
+    timingUndoRef,
+    timingGestureRef,
+    pushUndo,
+    executeCommand,
+    beginTimingGesture,
+    endTimingGesture,
+    undo,
+    undoToHistoryIndex,
+    redo,
+    canUndo,
+    canRedo,
+    undoLabel,
+    undoHistory,
+  };
+}

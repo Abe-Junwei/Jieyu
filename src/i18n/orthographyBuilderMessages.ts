@@ -1,6 +1,6 @@
 import { normalizeLocale, type Locale } from './index';
 import { formatCatalogTemplate, readMessageCatalog } from './messageCatalog';
-import type { OrthographyCatalogGroupKey } from '../hooks/useOrthographyPicker';
+import type { OrthographyCatalogGroupKey } from '~/hooks/orthography/useOrthographyPicker';
 
 export type OrthographyBuilderMessages = {
   panelTitle: string;
@@ -127,7 +127,10 @@ type OrthographyBuilderCatalog = Omit<OrthographyBuilderMessages, 'fontCoverageS
 
 export function getOrthographyBuilderMessages(locale: Locale): OrthographyBuilderMessages {
   const normalizedLocale = normalizeLocale(locale) ?? 'zh-CN';
-  const { fontCoverageSample, ...rest } = readMessageCatalog<OrthographyBuilderCatalog>(normalizedLocale, 'msg.orthoBuilder.catalog');
+  const { fontCoverageSample, ...rest } = readMessageCatalog<OrthographyBuilderCatalog>(
+    normalizedLocale,
+    'msg.orthoBuilder.catalog',
+  );
   return {
     ...rest,
     fontCoverageSample: (count) => formatCatalogTemplate(fontCoverageSample, { count }),
@@ -162,7 +165,10 @@ export function getOrthographyBridgeSyntaxHint(
   }
 }
 
-export function getOrthographyCatalogGroupLabel(locale: Locale, groupKey: OrthographyCatalogGroupKey): string {
+export function getOrthographyCatalogGroupLabel(
+  locale: Locale,
+  groupKey: OrthographyCatalogGroupKey,
+): string {
   const messages = getOrthographyBuilderMessages(locale);
   switch (groupKey) {
     case 'user':

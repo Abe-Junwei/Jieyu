@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptContext';
 import { executeLocalContextToolCall } from '../ai/chat/localContextTools';
-import { buildTimelineUnitViewIndex } from '../hooks/timelineUnitView';
+import { buildTimelineUnitViewIndex } from '../hooks/transcription/timelineUnitView';
 
 describe('transcription data caliber consistency', () => {
   it('keeps unit counts aligned across read model, prompt context, and local tools', async () => {
@@ -75,10 +75,12 @@ describe('transcription data caliber consistency', () => {
     expect((toolResult.result as { total: number }).total).toBe(unitIndex.totalCount);
 
     const statsResult = await executeLocalContextToolCall(
-      { name: 'get_project_stats', arguments: {} },
+      { name: 'get_project_stats', arguments: { scope: 'current_track' } },
       context,
       { current: 1 },
     );
-    expect((statsResult.result as { unitCount: number }).unitCount).toBe(unitIndex.totalCount);
+    expect((statsResult.result as { unitCount: number }).unitCount).toBe(
+      unitIndex.currentMediaCount,
+    );
   });
 });

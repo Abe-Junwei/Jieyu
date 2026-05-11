@@ -9,32 +9,35 @@ import type {
 } from '../db';
 import { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
-import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { fireAndForget } from '../utils/fireAndForget';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { LayerActionPopover } from './LayerActionPopover';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
-import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
+import {
+  layerUsesOwnSegments,
+  resolveSegmentTimelineSourceLayer,
+} from '~/hooks/layer/useLayerSegments';
 import {
   DEFAULT_TIMELINE_LANE_HEIGHT,
   useTimelineLaneHeightResize,
-} from '../hooks/useTimelineLaneHeightResize';
+} from '../hooks/transcription/useTimelineLaneHeightResize';
 import { t, useLocale } from '../i18n';
-import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
+import { useLayerDeleteConfirm } from '~/hooks/layer/useLayerDeleteConfirm';
 import {
   buildSpeakerLayerLayoutWithOptions,
   type SpeakerLayerLayoutResult,
 } from '../utils/speakerLayerLayout';
 import { recordingScopeUnitId } from '../utils/recordingScopeUnitId';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import {
   unitToView,
   segmentToView,
   scopeTimelineUnitViewToLayer,
   type TimelineUnitView,
-} from '../hooks/timelineUnitView';
-import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
+} from '../hooks/transcription/timelineUnitView';
+import type { TimelineUnitViewIndexWithEpoch } from '../hooks/transcription/useTimelineUnitViewIndex';
 import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelineMediaTranslationRow';
 import { TranscriptionTimelineMediaTranscriptionLane } from './TranscriptionTimelineMediaTranscriptionLane';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
@@ -46,9 +49,9 @@ import {
   resolveSpeakerFocusKeyFromSegment,
 } from './transcriptionTimelineSegmentSpeakerLayout';
 import type { LayerOperationActionType } from './layerOperationMenuItems';
-import { useCollapsedLayerIds } from '../hooks/useTimelineVisibilityState';
+import { useCollapsedLayerIds } from '../hooks/transcription/useTimelineVisibilityState';
 import { listSegmentTimelineUnitsForLayer } from '../utils/timelineLaneSegmentIteration';
-import { useTimelineLaneDisplayStyleResizePreview } from '../hooks/useTimelineLaneDisplayStyleResizePreview';
+import { useTimelineLaneDisplayStyleResizePreview } from '../hooks/transcription/useTimelineLaneDisplayStyleResizePreview';
 
 type LassoRect = {
   x: number;

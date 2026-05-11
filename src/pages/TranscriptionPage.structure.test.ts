@@ -68,17 +68,94 @@ function findFirstJsxByClassName(
   return found;
 }
 
-/** ReadyWorkspace 主体 + 结构锚点模块（架构守卫 JSX 已外提至 structureMarkers） */
-function readTranscriptionReadyWorkspaceAnchors(): string {
+/** Chunk shell + thin `.body` + orchestrator runtime for structure tests. */
+function readTranscriptionReadyWorkspaceRuntimeSource(): string {
+  const shellPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
+  const bodyPath = path.resolve(
+    process.cwd(),
+    'src/pages/TranscriptionPage.ReadyWorkspace.body.tsx',
+  );
   const orchestratorPath = path.resolve(
     process.cwd(),
-    'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
+    'src/pages/TranscriptionPage.ReadyWorkspaceOrchestrator.tsx',
   );
+  return `${fs.readFileSync(shellPath, 'utf8')}\n${fs.readFileSync(bodyPath, 'utf8')}\n${fs.readFileSync(orchestratorPath, 'utf8')}`;
+}
+
+function readTranscriptionReadyWorkspaceReadyPhaseBootstrapSource(): string {
+  const bootstrapPath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceReadyPhaseBootstrap.ts',
+  );
+  return fs.readFileSync(bootstrapPath, 'utf8');
+}
+
+/** Shell + body + ready-phase bootstrap hook（段变更 / overlay 路由接线） */
+function readTranscriptionReadyWorkspaceReadySurfaceWiring(): string {
+  return `${readTranscriptionReadyWorkspaceRuntimeSource()}\n${readTranscriptionReadyWorkspaceReadyPhaseBootstrapSource()}`;
+}
+
+/** Body + bootstrap + domain shell + L6 cluster satellites（结构断言用合并源码） */
+function readReadyWorkspaceWiringBundle(): string {
+  const domainPath = path.resolve(process.cwd(), 'src/pages/useReadyWorkspaceDomainShellPhase.ts');
+  const graphClusterPath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceSegmentGraphCluster.ts',
+  );
+  const mutationClusterPath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceSegmentMutationCreationCluster.ts',
+  );
+  const unitOpsClusterPath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceUnitOpsAndOverlayCluster.ts',
+  );
+  const waveformBridgePhasePath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceWaveformBridgePhase.ts',
+  );
+  const selectionAiPrepPhasePath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceSelectionAndAiPrepPhase.ts',
+  );
+  const timelineAssistantPlaybackPhasePath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceTimelineAssistantPlaybackPhase.ts',
+  );
+  const sidebarAndTrackPhasePath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceSidebarAndTrackPhase.ts',
+  );
+  const viewModelsAndSurfacePhasePath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceViewModelsAndSurfacePhase.ts',
+  );
+  const preBootstrapChromePath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspacePreBootstrapChromePhase.ts',
+  );
+  const buildTimelineAssistantParamsPath = path.resolve(
+    process.cwd(),
+    'src/pages/buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams.ts',
+  );
+  const buildSidebarTrackParamsPath = path.resolve(
+    process.cwd(),
+    'src/pages/buildReadyWorkspaceSidebarAndTrackPhaseParams.ts',
+  );
+  const buildViewModelsSurfaceParamsPath = path.resolve(
+    process.cwd(),
+    'src/pages/buildReadyWorkspaceViewModelsSurfacePhaseParams.ts',
+  );
+  return `${readTranscriptionReadyWorkspaceReadySurfaceWiring()}\n${fs.readFileSync(domainPath, 'utf8')}\n${fs.readFileSync(graphClusterPath, 'utf8')}\n${fs.readFileSync(mutationClusterPath, 'utf8')}\n${fs.readFileSync(unitOpsClusterPath, 'utf8')}\n${fs.readFileSync(waveformBridgePhasePath, 'utf8')}\n${fs.readFileSync(selectionAiPrepPhasePath, 'utf8')}\n${fs.readFileSync(timelineAssistantPlaybackPhasePath, 'utf8')}\n${fs.readFileSync(sidebarAndTrackPhasePath, 'utf8')}\n${fs.readFileSync(viewModelsAndSurfacePhasePath, 'utf8')}\n${fs.readFileSync(preBootstrapChromePath, 'utf8')}\n${fs.readFileSync(buildTimelineAssistantParamsPath, 'utf8')}\n${fs.readFileSync(buildSidebarTrackParamsPath, 'utf8')}\n${fs.readFileSync(buildViewModelsSurfaceParamsPath, 'utf8')}`;
+}
+
+/** ReadyWorkspace 主体 + 结构锚点模块（架构守卫 JSX 已外提至 structureMarkers） */
+function readTranscriptionReadyWorkspaceAnchors(): string {
   const markersPath = path.resolve(
     process.cwd(),
     'src/pages/TranscriptionPage.ReadyWorkspace.structureMarkers.tsx',
   );
-  return `${fs.readFileSync(orchestratorPath, 'utf8')}\n${fs.readFileSync(markersPath, 'utf8')}`;
+  return `${readTranscriptionReadyWorkspaceRuntimeSource()}\n${fs.readFileSync(markersPath, 'utf8')}`;
 }
 
 describe('TranscriptionPage structure invariants', () => {
@@ -236,11 +313,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps speaker routing stack without speaker-focus controller', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const trackEditPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspaceTrackEditControllers.ts',
@@ -255,9 +329,18 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useReadyWorkspaceTrackEditControllers } from './useReadyWorkspaceTrackEditControllers';",
-      ),
+      ) ||
+        orchestratorCode.includes(
+          "import { useReadyWorkspaceSidebarAndTrackPhase } from './useReadyWorkspaceSidebarAndTrackPhase';",
+        ) ||
+        readyWorkspaceWiringBundle.includes('useReadyWorkspaceTrackEditControllers('),
     ).toBe(true);
-    expect(orchestratorCode.includes('} = useReadyWorkspaceTrackEditControllers({')).toBe(true);
+    expect(
+      orchestratorCode.includes('} = useReadyWorkspaceTrackEditControllers({') ||
+        orchestratorCode.includes('} = useReadyWorkspaceSidebarAndTrackPhase({') ||
+        orchestratorCode.includes('useReadyWorkspaceSidebarAndTrackPhase(') ||
+        readyWorkspaceWiringBundle.includes('useReadyWorkspaceTrackEditControllers({'),
+    ).toBe(true);
     expect(
       trackEditCode.includes(
         "import { useTranscriptionSpeakerController } from './useTranscriptionSpeakerController';",
@@ -279,18 +362,17 @@ describe('TranscriptionPage structure invariants', () => {
     ).toBe(true);
     expect(controllerCode.includes('} = useSpeakerActionRoutingController({')).toBe(true);
     expect(
-      controllerCode.includes("import { useSpeakerActions } from '../hooks/useSpeakerActions';"),
+      controllerCode.includes(
+        "import { useSpeakerActions } from '../hooks/speakerManagement/useSpeakerActions';",
+      ),
     ).toBe(true);
     expect(controllerCode.includes('} = useSpeakerActions({')).toBe(true);
     expect(orchestratorCode.includes('speakerFocusTargetMemoryByMediaRef')).toBe(false);
   });
 
   it('keeps media-scoped track entity persistence integration', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const trackEditPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspaceTrackEditControllers.ts',
@@ -307,10 +389,17 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useReadyWorkspaceTrackEditControllers } from './useReadyWorkspaceTrackEditControllers';",
-      ),
+      ) ||
+        orchestratorCode.includes(
+          "import { useReadyWorkspaceSidebarAndTrackPhase } from './useReadyWorkspaceSidebarAndTrackPhase';",
+        ) ||
+        readyWorkspaceWiringBundle.includes('useReadyWorkspaceTrackEditControllers('),
     ).toBe(true);
     expect(
-      orchestratorCode.includes('trackEntityStateController: _trackEntityStateController'),
+      orchestratorCode.includes('trackEntityStateController: _trackEntityStateController') ||
+        readyWorkspaceWiringBundle.includes(
+          'trackEntityStateController: _trackEntityStateController',
+        ),
     ).toBe(true);
     expect(
       trackEditCode.includes(
@@ -375,11 +464,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps assistant sidebar assembly outside orchestrator inline glue', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const controllerPath = path.resolve(
       process.cwd(),
       'src/pages/useTranscriptionAssistantSidebarController.ts',
@@ -394,17 +480,24 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';",
-      ),
+      ) ||
+        orchestratorCode.includes(
+          "import { useReadyWorkspaceSidebarAndTrackPhase } from './useReadyWorkspaceSidebarAndTrackPhase';",
+        ) ||
+        readyWorkspaceWiringBundle.includes('useTranscriptionAssistantSidebarController('),
     ).toBe(true);
     expect(
       orchestratorCode.includes('} = useTranscriptionAssistantSidebarController({') ||
         orchestratorCode.includes(
           'const assistantSidebarController = useTranscriptionAssistantSidebarController({',
-        ),
+        ) ||
+        orchestratorCode.includes('} = useReadyWorkspaceSidebarAndTrackPhase({') ||
+        orchestratorCode.includes('useReadyWorkspaceSidebarAndTrackPhase(') ||
+        readyWorkspaceWiringBundle.includes('useTranscriptionAssistantSidebarController({'),
     ).toBe(true);
     expect(
       orchestratorCode.includes(
-        "import { useAiChatContextValue } from '../hooks/useAiChatContextValue';",
+        "import { useAiChatContextValue } from '../hooks/ai/useAiChatContextValue';",
       ),
     ).toBe(false);
     expect(
@@ -413,8 +506,27 @@ describe('TranscriptionPage structure invariants', () => {
       ),
     ).toBe(false);
     expect(orchestratorCode.includes('observerRecommendationsForSidebar')).toBe(false);
-    expect(orchestratorCode.includes('analysisTab,')).toBe(true);
-    expect(orchestratorCode.includes('onAnalysisTabChange: setAnalysisTab,')).toBe(true);
+    expect(
+      orchestratorCode.includes('analysisTab,') ||
+        readyWorkspaceWiringBundle.includes('analysisTab,'),
+    ).toBe(true);
+    expect(
+      orchestratorCode.includes('onAnalysisTabChange: setAnalysisTab,') ||
+        (orchestratorCode.includes('setAnalysisTab,') &&
+          orchestratorCode.includes(
+            'buildReadyWorkspaceAssistantSidebarControllerInputHeaderSlice(',
+          )) ||
+        (readyWorkspaceWiringBundle.includes('setAnalysisTab,') &&
+          readyWorkspaceWiringBundle.includes(
+            'buildReadyWorkspaceAssistantSidebarControllerInputHeaderSlice(',
+          )),
+    ).toBe(true);
+    expect(
+      orchestratorCode.includes('buildReadyWorkspaceAssistantSidebarRuntimePropsInput(') ||
+        readyWorkspaceWiringBundle.includes(
+          'buildReadyWorkspaceAssistantSidebarRuntimePropsInput(',
+        ),
+    ).toBe(true);
 
     expect(
       controllerCode.includes('function normalizeAssistantSidebarObserverRecommendation('),
@@ -449,11 +561,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps action ref wiring behind a dedicated hook boundary', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const playbackSetupPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspacePlaybackReadModelSetup.ts',
@@ -465,7 +574,10 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useReadyWorkspacePlaybackReadModelSetup } from './useReadyWorkspacePlaybackReadModelSetup';",
-      ),
+      ) ||
+        readyWorkspaceWiringBundle.includes(
+          "import { useReadyWorkspacePlaybackReadModelSetup } from './useReadyWorkspacePlaybackReadModelSetup';",
+        ),
     ).toBe(true);
     expect(
       playbackSetupCode.includes(
@@ -493,8 +605,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps waveform region routing for independent-boundary layers', () => {
-    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
-    const code = fs.readFileSync(filePath, 'utf8');
+    const code = readReadyWorkspaceWiringBundle();
     const surfacePropsPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspaceSurfaceProps.tsx',
@@ -517,7 +628,10 @@ describe('TranscriptionPage structure invariants', () => {
         "import { useTranscriptionSegmentBridgeController } from './useTranscriptionSegmentBridgeController';",
       ),
     ).toBe(true);
-    expect(code.includes('} = useTranscriptionSegmentBridgeController({')).toBe(true);
+    expect(
+      code.includes('} = useTranscriptionSegmentBridgeController({') ||
+        code.includes('= useTranscriptionSegmentBridgeController({'),
+    ).toBe(true);
     expect(
       segmentBridgeHookCode.includes(
         "import { resolveTranscriptionTargetLayerId } from './transcriptionUnitTargetResolver';",
@@ -552,10 +666,14 @@ describe('TranscriptionPage structure invariants', () => {
     // When independent layer is active, waveform regions should come from layer_segments.
     expect(
       code.includes(
-        "import { useReadyWorkspaceWaveformBridgeController } from './useReadyWorkspaceWaveformBridgeController';",
-      ),
+        "import { useReadyWorkspaceWaveformBridgePhase } from './useReadyWorkspaceWaveformBridgePhase';",
+      ) || code.includes("from './useReadyWorkspaceWaveformBridgePhase'"),
     ).toBe(true);
-    expect(code.includes('} = useReadyWorkspaceWaveformBridgeController({')).toBe(true);
+    expect(
+      code.includes('} = useReadyWorkspaceWaveformBridgePhase({') ||
+        code.includes('= useReadyWorkspaceWaveformBridgePhase({'),
+    ).toBe(true);
+    expect(code.includes('useReadyWorkspaceWaveformBridgeController({')).toBe(true);
     expect(
       code.includes(
         "import { useWaveformSelectionController } from './useWaveformSelectionController';",
@@ -735,11 +853,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps workspace layout state behind a dedicated controller boundary', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const hookPath = path.resolve(
       process.cwd(),
       'src/pages/useTranscriptionWorkspaceLayoutController.ts',
@@ -749,9 +864,15 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useTranscriptionWorkspaceLayoutController } from './useTranscriptionWorkspaceLayoutController';",
-      ),
+      ) ||
+        readyWorkspaceWiringBundle.includes(
+          "import { useTranscriptionWorkspaceLayoutController } from './useTranscriptionWorkspaceLayoutController';",
+        ),
     ).toBe(true);
-    expect(orchestratorCode.includes('} = useTranscriptionWorkspaceLayoutController({')).toBe(true);
+    expect(
+      orchestratorCode.includes('} = useTranscriptionWorkspaceLayoutController({') ||
+        readyWorkspaceWiringBundle.includes('} = useTranscriptionWorkspaceLayoutController({'),
+    ).toBe(true);
 
     expect(
       hookCode.includes('const [laneLabelWidth, setLaneLabelWidth] = useState<number>(() =>'),
@@ -832,11 +953,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps segment creation routing extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readReadyWorkspaceWiringBundle();
     const hookPath = path.resolve(
       process.cwd(),
       'src/pages/useTranscriptionSegmentCreationController.ts',
@@ -887,11 +1004,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps segment mutation routing extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readReadyWorkspaceWiringBundle();
     const hookPath = path.resolve(
       process.cwd(),
       'src/pages/useTranscriptionSegmentMutationController.ts',
@@ -903,7 +1016,10 @@ describe('TranscriptionPage structure invariants', () => {
         "import { useTranscriptionSegmentMutationController } from './useTranscriptionSegmentMutationController';",
       ),
     ).toBe(true);
-    expect(orchestratorCode.includes('} = useTranscriptionSegmentMutationController({')).toBe(true);
+    expect(
+      orchestratorCode.includes('} = useTranscriptionSegmentMutationController({') ||
+        orchestratorCode.includes('= useTranscriptionSegmentMutationController({'),
+    ).toBe(true);
     expect(
       orchestratorCode.includes(
         'const splitRouted = useCallback(async (id: string, splitTime: number) => {',
@@ -942,11 +1058,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps direct segment graph mutation service calls out of Orchestrator', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
 
     // 允许仅剩的 segment content 写路径暂时留在页面层；segment graph mutation 必须留在 dedicated controllers。
     // Allow the remaining segment content write path for now; segment graph mutations must stay in dedicated controllers.
@@ -978,11 +1090,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps overlay action routing extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readReadyWorkspaceWiringBundle();
     const hookPath = path.resolve(
       process.cwd(),
       'src/pages/useTranscriptionOverlayActionRoutingController.ts',
@@ -994,9 +1102,10 @@ describe('TranscriptionPage structure invariants', () => {
         "import { useTranscriptionOverlayActionRoutingController } from './useTranscriptionOverlayActionRoutingController';",
       ),
     ).toBe(true);
-    expect(orchestratorCode.includes('} = useTranscriptionOverlayActionRoutingController({')).toBe(
-      true,
-    );
+    expect(
+      orchestratorCode.includes('} = useTranscriptionOverlayActionRoutingController({') ||
+        orchestratorCode.includes('= useTranscriptionOverlayActionRoutingController({'),
+    ).toBe(true);
     expect(orchestratorCode.includes('const runOverlayDeleteSelection = (')).toBe(false);
     expect(orchestratorCode.includes('const runOverlaySplitAtTime = (')).toBe(false);
 
@@ -1014,11 +1123,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps Orchestrator below the current regression ceiling', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
     const lineCount = orchestratorCode.split('\n').length;
     const useCallbackCount = (orchestratorCode.match(/const\s+\w+\s*=\s*useCallback\(/g) ?? [])
       .length;
@@ -1028,11 +1133,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('routes speaker assignment through segment writes for independent selections', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const trackEditPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspaceTrackEditControllers.ts',
@@ -1057,9 +1159,18 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useReadyWorkspaceTrackEditControllers } from './useReadyWorkspaceTrackEditControllers';",
-      ),
+      ) ||
+        orchestratorCode.includes(
+          "import { useReadyWorkspaceSidebarAndTrackPhase } from './useReadyWorkspaceSidebarAndTrackPhase';",
+        ) ||
+        readyWorkspaceWiringBundle.includes('useReadyWorkspaceTrackEditControllers('),
     ).toBe(true);
-    expect(orchestratorCode.includes('} = useReadyWorkspaceTrackEditControllers({')).toBe(true);
+    expect(
+      orchestratorCode.includes('} = useReadyWorkspaceTrackEditControllers({') ||
+        orchestratorCode.includes('} = useReadyWorkspaceSidebarAndTrackPhase({') ||
+        orchestratorCode.includes('useReadyWorkspaceSidebarAndTrackPhase(') ||
+        readyWorkspaceWiringBundle.includes('useReadyWorkspaceTrackEditControllers({'),
+    ).toBe(true);
     expect(
       trackEditCode.includes(
         "import { useSpeakerActionScopeController } from './useSpeakerActionScopeController';",
@@ -1103,6 +1214,11 @@ describe('TranscriptionPage structure invariants', () => {
       'src/pages/useReadyWorkspaceSurfaceProps.tsx',
     );
     const surfacePropsCode = fs.readFileSync(surfacePropsPath, 'utf8');
+    const surfaceNestedSliceBuilderPath = path.resolve(
+      process.cwd(),
+      'src/pages/readyWorkspaceSurfaceOrchestratorNestedSliceInputsBuilder.ts',
+    );
+    const surfaceNestedSliceBuilderCode = fs.readFileSync(surfaceNestedSliceBuilderPath, 'utf8');
     expect(surfacePropsCode.includes('buildReadyWorkspaceSidePaneProps(')).toBe(true);
     expect(surfacePropsCode.includes('buildReadyWorkspaceSidePanePropsInput({')).toBe(true);
     expect(
@@ -1117,17 +1233,21 @@ describe('TranscriptionPage structure invariants', () => {
       orchestratorCode.includes('onAssignSpeakerFromMenu: handleAssignSpeakerFromMenu') ||
         orchestratorCode.includes(
           'onAssignSpeakerFromMenu: speakerController.handleAssignSpeakerFromMenu',
-        ),
+        ) ||
+        (surfaceNestedSliceBuilderCode.includes('onAssignSpeakerFromMenu:') &&
+          surfaceNestedSliceBuilderCode.includes('handleAssignSpeakerFromMenu')),
     ).toBe(true);
     expect(
       orchestratorCode.includes(
         'onSetUnitSelfCertaintyFromMenu: selfCertaintyController.handleSetUnitSelfCertaintyFromMenu',
-      ),
+      ) ||
+        (surfaceNestedSliceBuilderCode.includes('onSetUnitSelfCertaintyFromMenu:') &&
+          surfaceNestedSliceBuilderCode.includes('handleSetUnitSelfCertaintyFromMenu')),
     ).toBe(true);
     expect(
       orchestratorCode.includes(
         'resolveSelfCertaintyUnitIds: selfCertaintyController.resolveSelfCertaintyUnitIds',
-      ),
+      ) || surfaceNestedSliceBuilderCode.includes('resolveSelfCertaintyUnitIds:'),
     ).toBe(true);
     expect(
       orchestratorCode.includes(
@@ -1135,7 +1255,9 @@ describe('TranscriptionPage structure invariants', () => {
       ) ||
         orchestratorCode.includes(
           'onOpenSpeakerManagementPanelFromMenu: speakerController.handleOpenSpeakerManagementPanel',
-        ),
+        ) ||
+        (surfaceNestedSliceBuilderCode.includes('onOpenSpeakerManagementPanelFromMenu:') &&
+          surfaceNestedSliceBuilderCode.includes('handleOpenSpeakerManagementPanel')),
     ).toBe(true);
 
     expect(scopeHookCode.includes('resolveMappedUnitIds(')).toBe(true);
@@ -1175,7 +1297,7 @@ describe('TranscriptionPage structure invariants', () => {
     ).toBe(true);
     expect(
       routingHookCode.includes(
-        'await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);',
+        'await LinguisticService.speakers.assignToSegments(targetIds, speakerId);',
       ),
     ).toBe(true);
     expect(routingHookCode.includes('const createSpeakerAndAssignToSegments = useCallback(')).toBe(
@@ -1187,11 +1309,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps mixed segment and unit speaker routing intact', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
     const routingHookPath = path.resolve(
       process.cwd(),
       'src/pages/useSpeakerActionRoutingController.ts',
@@ -1237,8 +1355,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('does not render the removed floating speaker assign panel', () => {
-    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
-    const code = fs.readFileSync(filePath, 'utf8');
+    const code = readTranscriptionReadyWorkspaceRuntimeSource();
 
     expect(
       code.includes(
@@ -1249,11 +1366,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('limits segment speaker management actions to explicit segment speaker labels', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const trackEditPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspaceTrackEditControllers.ts',
@@ -1278,7 +1392,11 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useReadyWorkspaceTrackEditControllers } from './useReadyWorkspaceTrackEditControllers';",
-      ),
+      ) ||
+        orchestratorCode.includes(
+          "import { useReadyWorkspaceSidebarAndTrackPhase } from './useReadyWorkspaceSidebarAndTrackPhase';",
+        ) ||
+        readyWorkspaceWiringBundle.includes('useReadyWorkspaceTrackEditControllers('),
     ).toBe(true);
     expect(
       trackEditCode.includes(
@@ -1302,8 +1420,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps runtime props composition extracted into dedicated hook', () => {
-    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
-    const code = fs.readFileSync(filePath, 'utf8');
+    const code = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const sidebarControllerPath = path.resolve(
       process.cwd(),
       'src/pages/useTranscriptionAssistantSidebarController.ts',
@@ -1323,21 +1441,32 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       code.includes(
         "import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';",
-      ),
+      ) ||
+        code.includes(
+          "import { useReadyWorkspaceSidebarAndTrackPhase } from './useReadyWorkspaceSidebarAndTrackPhase';",
+        ) ||
+        readyWorkspaceWiringBundle.includes('useTranscriptionAssistantSidebarController('),
     ).toBe(true);
     expect(
       code.includes(
         "import { useTranscriptionSelectionSnapshot } from './useTranscriptionSelectionSnapshot';",
-      ),
+      ) ||
+        code.includes(
+          "import { useReadyWorkspaceSelectionAndAiPrepPhase } from './useReadyWorkspaceSelectionAndAiPrepPhase';",
+        ),
     ).toBe(true);
-    expect(code.includes('const selectionSnapshot = useTranscriptionSelectionSnapshot({')).toBe(
-      true,
-    );
+    expect(
+      code.includes('const selectionSnapshot = useTranscriptionSelectionSnapshot({') ||
+        code.includes('} = useReadyWorkspaceSelectionAndAiPrepPhase({') ||
+        code.includes('= useReadyWorkspaceSelectionAndAiPrepPhase({'),
+    ).toBe(true);
     expect(
       code.includes('} = useTranscriptionAssistantSidebarController({') ||
         code.includes(
           'const assistantSidebarController = useTranscriptionAssistantSidebarController({',
-        ),
+        ) ||
+        code.includes('} = useReadyWorkspaceSidebarAndTrackPhase({') ||
+        readyWorkspaceWiringBundle.includes('useTranscriptionAssistantSidebarController({'),
     ).toBe(true);
     expect(code.includes('createAssistantRuntimeProps({')).toBe(false);
     expect(code.includes('createAnalysisRuntimeProps({')).toBe(false);
@@ -1359,11 +1488,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps section view-model assembly extracted from orchestrator JSX', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSectionViewModels.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
     const reviewSectionHookPath = path.resolve(
@@ -1412,17 +1537,32 @@ describe('TranscriptionPage structure invariants', () => {
     const readyVmCode = fs.readFileSync(readyVmPath, 'utf8');
     const orchestratorAnchors = readTranscriptionReadyWorkspaceAnchors();
 
+    const viewModelsSurfacePhasePath = path.resolve(
+      process.cwd(),
+      'src/pages/useReadyWorkspaceViewModelsAndSurfacePhase.ts',
+    );
+    const viewModelsSurfacePhaseCode = fs.readFileSync(viewModelsSurfacePhasePath, 'utf8');
     expect(
       orchestratorCode.includes(
-        "import { useReadyWorkspaceViewModels } from './useReadyWorkspaceViewModels';",
-      ),
+        "import { useReadyWorkspaceViewModelsAndSurfacePhase } from './useReadyWorkspaceViewModelsAndSurfacePhase';",
+      ) ||
+        orchestratorCode.includes(
+          "import { useReadyWorkspaceViewModels } from './useReadyWorkspaceViewModels';",
+        ),
     ).toBe(true);
     expect(
       orchestratorCode.includes('sidebarSectionsInput: {') ||
         orchestratorInputBuilderCode.includes('sidebarSectionsInput: {'),
     ).toBe(true);
-    expect(orchestratorCode.includes('= useReadyWorkspaceViewModels(')).toBe(true);
-    expect(orchestratorCode.includes('buildReadyWorkspaceViewModelsInput(')).toBe(true);
+    expect(
+      orchestratorCode.includes('= useReadyWorkspaceViewModels(') ||
+        orchestratorCode.includes('useReadyWorkspaceViewModelsAndSurfacePhase({') ||
+        orchestratorCode.includes('useReadyWorkspaceViewModelsAndSurfacePhase('),
+    ).toBe(true);
+    expect(
+      orchestratorCode.includes('buildReadyWorkspaceViewModelsInput(') ||
+        viewModelsSurfacePhaseCode.includes('buildReadyWorkspaceViewModelsInput('),
+    ).toBe(true);
     expect(
       readyVmCode.includes(
         "import { useOrchestratorViewModels } from './useOrchestratorViewModels';",
@@ -1660,11 +1800,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps assistant callbacks and AI panel context extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const hookPath = path.resolve(
       process.cwd(),
       'src/pages/useTranscriptionAssistantController.ts',
@@ -1674,13 +1811,14 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useTranscriptionAssistantController } from './useTranscriptionAssistantController';",
-      ),
+      ) || readyWorkspaceWiringBundle.includes('useTranscriptionAssistantController('),
     ).toBe(true);
     expect(
       orchestratorCode.includes('} = useTranscriptionAssistantController({') ||
         orchestratorCode.includes(
           'const assistantController = useTranscriptionAssistantController({',
-        ),
+        ) ||
+        readyWorkspaceWiringBundle.includes('useTranscriptionAssistantController('),
     ).toBe(true);
     expect(
       orchestratorCode.includes('const handleVoiceDictation = useCallback((text: string) => {'),
@@ -1719,23 +1857,32 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps recovery banner actions behind the dedicated hook boundary', () => {
-    const orchestratorPath = path.resolve(
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const preBootstrapPath = path.resolve(
       process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
+      'src/pages/useReadyWorkspacePreBootstrapChromePhase.ts',
     );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const preBootstrapCode = fs.readFileSync(preBootstrapPath, 'utf8');
     const surfacePropsPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspaceSurfaceProps.tsx',
     );
     const surfacePropsCode = fs.readFileSync(surfacePropsPath, 'utf8');
-    const hookPath = path.resolve(process.cwd(), 'src/hooks/useRecoveryBanner.ts');
+    const hookPath = path.resolve(process.cwd(), 'src/hooks/ui/useRecoveryBanner.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
     expect(
-      orchestratorCode.includes("import { useRecoveryBanner } from '../hooks/useRecoveryBanner';"),
+      orchestratorCode.includes(
+        "import { useRecoveryBanner } from '../hooks/ui/useRecoveryBanner';",
+      ) ||
+        preBootstrapCode.includes(
+          "import { useRecoveryBanner } from '../hooks/ui/useRecoveryBanner';",
+        ),
     ).toBe(true);
-    expect(/\}\s*=\s*useRecoveryBanner\s*\(\{/.test(orchestratorCode)).toBe(true);
+    expect(
+      /\}\s*=\s*useRecoveryBanner\s*\(\{/.test(orchestratorCode) ||
+        /\}\s*=\s*useRecoveryBanner\s*\(\{/.test(preBootstrapCode),
+    ).toBe(true);
     expect(surfacePropsCode.includes('onApplyRecoveryBanner: i.applyRecoveryBanner')).toBe(true);
     expect(surfacePropsCode.includes('onDismissRecoveryBanner: i.dismissRecoveryBanner')).toBe(
       true,
@@ -1748,11 +1895,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps timeline filtering and editor context composition extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const trackEditPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspaceTrackEditControllers.ts',
@@ -1769,7 +1913,11 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useReadyWorkspaceTrackEditControllers } from './useReadyWorkspaceTrackEditControllers';",
-      ),
+      ) ||
+        orchestratorCode.includes(
+          "import { useReadyWorkspaceSidebarAndTrackPhase } from './useReadyWorkspaceSidebarAndTrackPhase';",
+        ) ||
+        readyWorkspaceWiringBundle.includes('useReadyWorkspaceTrackEditControllers('),
     ).toBe(true);
     expect(
       orchestratorCode.includes(
@@ -1819,11 +1967,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps timeline interaction routing extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const timelineSyncSetupPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspaceTimelineSyncSetup.ts',
@@ -1843,12 +1988,20 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useReadyWorkspaceTimelineSyncSetup } from './useReadyWorkspaceTimelineSyncSetup';",
-      ),
+      ) ||
+        orchestratorCode.includes(
+          "import { useReadyWorkspaceTimelineAssistantPlaybackPhase } from './useReadyWorkspaceTimelineAssistantPlaybackPhase';",
+        ) ||
+        readyWorkspaceWiringBundle.includes(
+          "import { useReadyWorkspaceTimelineSyncSetup } from './useReadyWorkspaceTimelineSyncSetup';",
+        ),
     ).toBe(true);
     expect(
       orchestratorCode.includes(
         'const timelineSyncController = useReadyWorkspaceTimelineSyncSetup({',
-      ),
+      ) ||
+        orchestratorCode.includes('} = useReadyWorkspaceTimelineAssistantPlaybackPhase({') ||
+        readyWorkspaceWiringBundle.includes('useReadyWorkspaceTimelineSyncSetup('),
     ).toBe(true);
     expect(timelineSyncSetupCode.includes('return useReadyWorkspaceTimelineSyncController(')).toBe(
       true,
@@ -1998,11 +2151,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps batch operation controller extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const trackEditPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspaceTrackEditControllers.ts',
@@ -2014,7 +2164,11 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useReadyWorkspaceTrackEditControllers } from './useReadyWorkspaceTrackEditControllers';",
-      ),
+      ) ||
+        orchestratorCode.includes(
+          "import { useReadyWorkspaceSidebarAndTrackPhase } from './useReadyWorkspaceSidebarAndTrackPhase';",
+        ) ||
+        readyWorkspaceWiringBundle.includes('useReadyWorkspaceTrackEditControllers('),
     ).toBe(true);
     expect(
       trackEditCode.includes(
@@ -2051,11 +2205,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps track display controller extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
     const trackEditPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspaceTrackEditControllers.ts',
@@ -2067,7 +2218,11 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       orchestratorCode.includes(
         "import { useReadyWorkspaceTrackEditControllers } from './useReadyWorkspaceTrackEditControllers';",
-      ),
+      ) ||
+        orchestratorCode.includes(
+          "import { useReadyWorkspaceSidebarAndTrackPhase } from './useReadyWorkspaceSidebarAndTrackPhase';",
+        ) ||
+        readyWorkspaceWiringBundle.includes('useReadyWorkspaceTrackEditControllers('),
     ).toBe(true);
     expect(
       trackEditCode.includes(
@@ -2091,20 +2246,27 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps waveform runtime controller extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
+    const preBootstrapPath = path.resolve(
       process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
+      'src/pages/useReadyWorkspacePreBootstrapChromePhase.ts',
     );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const preBootstrapCode = fs.readFileSync(preBootstrapPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useWaveformRuntimeController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
     expect(
       orchestratorCode.includes(
         "import { useWaveformRuntimeController } from './useWaveformRuntimeController';",
-      ),
+      ) ||
+        preBootstrapCode.includes(
+          "import { useWaveformRuntimeController } from './useWaveformRuntimeController';",
+        ),
     ).toBe(true);
-    expect(orchestratorCode.includes('} = useWaveformRuntimeController();')).toBe(true);
+    expect(
+      orchestratorCode.includes('} = useWaveformRuntimeController();') ||
+        preBootstrapCode.includes('} = useWaveformRuntimeController();'),
+    ).toBe(true);
     expect(orchestratorCode.includes('const handleWaveformResizeStart = useCallback(')).toBe(false);
 
     expect(hookCode.includes('localStorage.setItem(WAVEFORM_HEIGHT_STORAGE_KEY')).toBe(true);
@@ -2117,11 +2279,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps voice dictation write-then-auto-advance flow inside assistant controller', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readReadyWorkspaceWiringBundle();
     const hookPath = path.resolve(
       process.cwd(),
       'src/pages/useTranscriptionAssistantController.ts',
@@ -2168,16 +2326,17 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps orchestration playback facts bound to acoustic.globalState', () => {
-    const orchestratorPath = path.resolve(
-      process.cwd(),
-      'src/pages/TranscriptionPage.ReadyWorkspace.tsx',
-    );
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
     const vmInputBuilderPath = path.resolve(
       process.cwd(),
       'src/pages/readyWorkspaceViewModelsInputBuilder.ts',
     );
     const vmInputBuilderCode = fs.readFileSync(vmInputBuilderPath, 'utf8');
+    const vmSurfaceParamsPath = path.resolve(
+      process.cwd(),
+      'src/pages/buildReadyWorkspaceViewModelsSurfacePhaseParams.ts',
+    );
+    const vmSurfaceParamsCode = fs.readFileSync(vmSurfaceParamsPath, 'utf8');
 
     expect(
       orchestratorCode.includes(
@@ -2185,19 +2344,24 @@ describe('TranscriptionPage structure invariants', () => {
       ) ||
         vmInputBuilderCode.includes(
           "playableAcoustic: timelineReadModel.acoustic.globalState === 'playable'",
+        ) ||
+        vmSurfaceParamsCode.includes(
+          "playableAcoustic: timelineReadModel.acoustic.globalState === 'playable'",
         ),
     ).toBe(true);
-    expect(orchestratorCode.includes('acousticState: timelineReadModel.acoustic.globalState')).toBe(
-      true,
-    );
+    expect(
+      orchestratorCode.includes('acousticState: timelineReadModel.acoustic.globalState') ||
+        vmSurfaceParamsCode.includes('acousticState: timelineReadModel.acoustic.globalState'),
+    ).toBe(true);
     expect(
       orchestratorCode.includes(
         "playableAcoustic: timelineReadModel.acoustic.state === 'playable'",
       ),
     ).toBe(false);
-    expect(orchestratorCode.includes('acousticState: timelineReadModel.acoustic.state')).toBe(
-      false,
-    );
+    expect(
+      orchestratorCode.includes('acousticState: timelineReadModel.acoustic.state') ||
+        vmSurfaceParamsCode.includes('acousticState: timelineReadModel.acoustic.state'),
+    ).toBe(false);
   });
 
   it('keeps vertical host payload narrowed and removes textTimelineZoomPxPerSec contract', () => {

@@ -64,7 +64,7 @@ export async function listLexemeTranscriptionJumpTargets(
 
   const db = await getDb();
   const links = await runDexieIndexedQueryOrElse(
-    'LinguisticService.listLexemeTranscriptionJumpTargets:token_lexeme_links',
+    'LinguisticService.lexemes.listTranscriptionJumpTargets:token_lexeme_links',
     () => db.dexie.token_lexeme_links.where('lexemeId').equals(id).toArray(),
     async () => {
       const all = await db.dexie.token_lexeme_links.toArray();

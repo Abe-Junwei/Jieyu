@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { LayerDocType, LayerUnitDocType } from '../db';
-import { createTimelineUnit } from '../hooks/transcriptionTypes';
+import { createTimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import { useTranscriptionSelectionContextController } from './useTranscriptionSelectionContextController';
 
 function makeLayer(id: string): LayerDocType {

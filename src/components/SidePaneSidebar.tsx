@@ -7,8 +7,8 @@ import type {
   LayerUnitDocType,
   SpeakerDocType,
 } from '../db';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { useLayerActionPanel } from '~/hooks/layer/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
 import {
   formatSidePaneLayerLabel,
@@ -30,8 +30,8 @@ import { useLocale, type Locale } from '../i18n';
 import { getCollaborationCloudPanelMessages } from '../i18n/messages';
 import { getSidePaneSidebarMessages } from '../i18n/messages';
 import { ModalPanel } from './ui';
-import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
-import { useSidePaneSidebarDrag } from '../hooks/useSidePaneSidebarDrag';
+import { useLayerDeleteConfirm } from '~/hooks/layer/useLayerDeleteConfirm';
+import { useSidePaneSidebarDrag } from '~/hooks/sidePane/useSidePaneSidebarDrag';
 import { buildLayerBundles } from '../services/LayerOrderingService';
 import { isTranscriptionWorkspacePathname } from '../utils/transcriptionWorkspaceRoute';
 import type { LayerMetadataUpdateInput } from '../types/layerMetadata';

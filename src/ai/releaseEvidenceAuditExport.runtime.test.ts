@@ -5,11 +5,12 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { db } from '../db';
-import { useAiChatToolAudit } from '../hooks/useAiChat.toolAudit';
-import type { AiChatToolCall } from '../hooks/useAiChat.types';
+import { useAiChatToolAudit } from '../hooks/ai/useAiChat.toolAudit';
+import type { AiChatToolCall } from '../hooks/ai/useAiChat.types';
 import type { ToolAuditContext, ToolDecisionAuditMetadata } from './chat/toolCallHelpers';
 
-const DEFAULT_OUTPUT_RELATIVE_PATH = 'docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson';
+const DEFAULT_OUTPUT_RELATIVE_PATH =
+  'docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson';
 const DEFAULT_REQUEST_ID = 'toolreq_runtime_ci_001';
 
 function resolveExportOutputPath(): string {
@@ -243,28 +244,29 @@ describe('release evidence ai audit export runtime', () => {
     await seedCoordinationLiteAuditRows(requestId);
     await seedUserDirectiveGovernanceAuditRows(requestId);
 
-    const rows = await db.audit_logs
-      .where('collection')
-      .equals('ai_messages')
-      .toArray();
+    const rows = await db.audit_logs.where('collection').equals('ai_messages').toArray();
 
     expect(rows.length).toBeGreaterThanOrEqual(4);
 
     const normalizedLines = [...rows]
-      .sort((left, right) => String(left.timestamp ?? '').localeCompare(String(right.timestamp ?? '')))
-      .map((row) => JSON.stringify({
-        id: row.id,
-        collection: row.collection,
-        documentId: row.documentId,
-        action: row.action,
-        field: row.field,
-        oldValue: row.oldValue,
-        newValue: row.newValue,
-        source: row.source,
-        timestamp: row.timestamp,
-        requestId: row.requestId,
-        metadataJson: row.metadataJson,
-      }));
+      .sort((left, right) =>
+        String(left.timestamp ?? '').localeCompare(String(right.timestamp ?? '')),
+      )
+      .map((row) =>
+        JSON.stringify({
+          id: row.id,
+          collection: row.collection,
+          documentId: row.documentId,
+          action: row.action,
+          field: row.field,
+          oldValue: row.oldValue,
+          newValue: row.newValue,
+          source: row.source,
+          timestamp: row.timestamp,
+          requestId: row.requestId,
+          metadataJson: row.metadataJson,
+        }),
+      );
 
     await mkdir(path.dirname(outputPath), { recursive: true });
     await writeFile(outputPath, `${normalizedLines.join('\n')}\n`, 'utf8');
@@ -274,12 +276,15 @@ describe('release evidence ai audit export runtime', () => {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean)
-      .map((line) => JSON.parse(line) as {
-        field?: string;
-        requestId?: string;
-        newValue?: string;
-        metadataJson?: string;
-      });
+      .map(
+        (line) =>
+          JSON.parse(line) as {
+            field?: string;
+            requestId?: string;
+            newValue?: string;
+            metadataJson?: string;
+          },
+      );
 
     const decisionExportRow = allParsedRows.find((r) => r.field === 'ai_tool_call_decision');
     expect(decisionExportRow).toBeTruthy();

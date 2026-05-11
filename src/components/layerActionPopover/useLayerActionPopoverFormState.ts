@@ -4,8 +4,8 @@ import type { LanguageIsoInputValue } from '../LanguageIsoInput';
 import {
   groupOrthographiesForSelect,
   useOrthographyPicker,
-} from '../../hooks/useOrthographyPicker';
-import { useLanguageCatalogLabelMap } from '../../hooks/useLanguageCatalogLabelMap';
+} from '../../hooks/orthography/useOrthographyPicker';
+import { useLanguageCatalogLabelMap } from '../../hooks/languageCatalog/useLanguageCatalogLabelMap';
 import { useLocale } from '../../i18n';
 import { getLayerActionPopoverMessages } from '../../i18n/messages';
 import { getOrthographyCatalogBadgeInfo } from '../orthographyCatalogUi';
@@ -17,8 +17,8 @@ import {
 } from '../../utils/languageInputHostState';
 import { isKnownIso639_3Code } from '../../utils/langMapping';
 import { computeAdaptivePanelWidth } from '../../utils/panelAdaptiveLayout';
-import { useUiFontScaleRuntime } from '../../hooks/useUiFontScaleRuntime';
-import { useViewportWidth } from '../../hooks/useViewportWidth';
+import { useUiFontScaleRuntime } from '~/hooks/ui/useUiFontScaleRuntime';
+import { useViewportWidth } from '~/hooks/ui/useViewportWidth';
 import {
   buildFormInitializationKey,
   computeContextualParentLayerId,

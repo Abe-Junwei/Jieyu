@@ -1,5 +1,8 @@
 import type { LayerDocType, LayerUnitDocType } from '../db';
-import { resolveSegmentTimelineSourceLayer, type SegmentTimelineHostLink } from '../hooks/useLayerSegments';
+import {
+  resolveSegmentTimelineSourceLayer,
+  type SegmentTimelineHostLink,
+} from '~/hooks/layer/useLayerSegments';
 import { createLogger } from '../observability/logger';
 
 export interface SegmentTimelineFallbackDiagnosticEvent {
@@ -14,7 +17,9 @@ const segmentTimelineFallbackDiagnostics = {
 };
 const log = createLogger('timelineLaneSegmentIteration');
 
-function recordSegmentTimelineFallbackDiagnostic(event: SegmentTimelineFallbackDiagnosticEvent): void {
+function recordSegmentTimelineFallbackDiagnostic(
+  event: SegmentTimelineFallbackDiagnosticEvent,
+): void {
   segmentTimelineFallbackDiagnostics.total += 1;
   segmentTimelineFallbackDiagnostics.lastEvent = event;
   if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
@@ -49,7 +54,12 @@ export function listSegmentTimelineUnitsForLayer(
   defaultTranscriptionLayerId?: string,
   layerLinks: ReadonlyArray<SegmentTimelineHostLink> = [],
 ): ReadonlyArray<LayerUnitDocType> {
-  const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId, layerLinks);
+  const sourceLayer = resolveSegmentTimelineSourceLayer(
+    layer,
+    layerById,
+    defaultTranscriptionLayerId,
+    layerLinks,
+  );
   if (!sourceLayer) {
     recordSegmentTimelineFallbackDiagnostic({
       layerId: layer.id,

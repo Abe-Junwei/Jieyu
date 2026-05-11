@@ -34,7 +34,7 @@ vi.mock('../services/LanguageCatalogSearchService', () => ({
   searchLanguageCatalogSuggestions: mockSearchLanguageCatalogSuggestions,
 }));
 
-vi.mock('../hooks/useOrthographies', () => ({
+vi.mock('../hooks/orthography/useOrthographies', () => ({
   useOrthographies: mockUseOrthographies,
 }));
 
@@ -42,28 +42,32 @@ mockListLanguageCatalogEntries.mockResolvedValue([]);
 mockSearchLanguageCatalogSuggestions.mockImplementation(async ({ query }: { query: string }) => {
   const normalized = query.trim().toLowerCase();
   if (normalized === 'english') {
-    return [{
-      id: 'eng',
-      languageCode: 'eng',
-      primaryLabel: 'English',
-      matchedLabel: 'English',
-      matchedLabelKind: 'english',
-      matchSource: 'english-exact',
-      rank: 1,
-      hasRuntimeOverride: false,
-    }];
+    return [
+      {
+        id: 'eng',
+        languageCode: 'eng',
+        primaryLabel: 'English',
+        matchedLabel: 'English',
+        matchedLabelKind: 'english',
+        matchSource: 'english-exact',
+        rank: 1,
+        hasRuntimeOverride: false,
+      },
+    ];
   }
   if (normalized === 'portuguese') {
-    return [{
-      id: 'por',
-      languageCode: 'por',
-      primaryLabel: 'Portuguese',
-      matchedLabel: 'Portuguese',
-      matchedLabelKind: 'english',
-      matchSource: 'english-exact',
-      rank: 1,
-      hasRuntimeOverride: false,
-    }];
+    return [
+      {
+        id: 'por',
+        languageCode: 'por',
+        primaryLabel: 'Portuguese',
+        matchedLabel: 'Portuguese',
+        matchedLabelKind: 'english',
+        matchSource: 'english-exact',
+        rank: 1,
+        hasRuntimeOverride: false,
+      },
+    ];
   }
   return [];
 });
@@ -82,45 +86,47 @@ describe('ProjectSetupDialog orthography creation', () => {
     mockListLanguageCatalogEntries.mockResolvedValue([]);
     mockUseOrthographies.mockReset();
     mockSearchLanguageCatalogSuggestions.mockReset();
-    mockSearchLanguageCatalogSuggestions.mockImplementation(async ({ query }: { query: string }) => {
-      const normalized = query.trim().toLowerCase();
-      if (normalized === 'english') {
-        return [{
-          id: 'eng',
-          languageCode: 'eng',
-          primaryLabel: 'English',
-          matchedLabel: 'English',
-          matchedLabelKind: 'english',
-          matchSource: 'english-exact',
-          rank: 1,
-          hasRuntimeOverride: false,
-        }];
-      }
-      if (normalized === 'portuguese') {
-        return [{
-          id: 'por',
-          languageCode: 'por',
-          primaryLabel: 'Portuguese',
-          matchedLabel: 'Portuguese',
-          matchedLabelKind: 'english',
-          matchSource: 'english-exact',
-          rank: 1,
-          hasRuntimeOverride: false,
-        }];
-      }
-      return [];
-    });
+    mockSearchLanguageCatalogSuggestions.mockImplementation(
+      async ({ query }: { query: string }) => {
+        const normalized = query.trim().toLowerCase();
+        if (normalized === 'english') {
+          return [
+            {
+              id: 'eng',
+              languageCode: 'eng',
+              primaryLabel: 'English',
+              matchedLabel: 'English',
+              matchedLabelKind: 'english',
+              matchSource: 'english-exact',
+              rank: 1,
+              hasRuntimeOverride: false,
+            },
+          ];
+        }
+        if (normalized === 'portuguese') {
+          return [
+            {
+              id: 'por',
+              languageCode: 'por',
+              primaryLabel: 'Portuguese',
+              matchedLabel: 'Portuguese',
+              matchedLabelKind: 'english',
+              matchSource: 'english-exact',
+              rank: 1,
+              hasRuntimeOverride: false,
+            },
+          ];
+        }
+        return [];
+      },
+    );
   });
 
   it('renders through DialogShell with panel footer actions', () => {
     mockUseOrthographies.mockReturnValue([]);
 
     renderWithLocale(
-      <ProjectSetupDialog
-        isOpen
-        onClose={vi.fn()}
-        onSubmit={vi.fn(async () => undefined)}
-      />,
+      <ProjectSetupDialog isOpen onClose={vi.fn()} onSubmit={vi.fn(async () => undefined)} />,
     );
 
     const dialog = screen.getByRole('dialog', { name: '新建项目' });
@@ -150,13 +156,7 @@ describe('ProjectSetupDialog orthography creation', () => {
 
     const onSubmit = vi.fn(async () => undefined);
     const onClose = vi.fn();
-    renderWithLocale(
-      <ProjectSetupDialog
-        isOpen
-        onClose={onClose}
-        onSubmit={onSubmit}
-      />,
-    );
+    renderWithLocale(<ProjectSetupDialog isOpen onClose={onClose} onSubmit={onSubmit} />);
 
     fireEvent.change(screen.getByPlaceholderText('例：白马藏语田野调查'), {
       target: { value: '项目 A' },
@@ -175,7 +175,9 @@ describe('ProjectSetupDialog orthography creation', () => {
       expect(screen.getByRole('combobox', { name: '正字法 / 书写系统' })).toBeTruthy();
     });
 
-    const openBuilderButton = document.querySelector('.dialog-field-inline-btn') as HTMLButtonElement | null;
+    const openBuilderButton = document.querySelector(
+      '.dialog-field-inline-btn',
+    ) as HTMLButtonElement | null;
     expect(openBuilderButton).toBeTruthy();
     fireEvent.click(openBuilderButton as HTMLButtonElement);
 
@@ -185,48 +187,54 @@ describe('ProjectSetupDialog orthography creation', () => {
     }
 
     await waitFor(() => {
-      expect(mockCreateOrthography).toHaveBeenCalledWith(expect.objectContaining({
-        languageId: 'eng',
-        abbreviation: 'IPA',
-        scriptTag: 'Latn',
-        type: 'phonetic',
-      }));
+      expect(mockCreateOrthography).toHaveBeenCalledWith(
+        expect.objectContaining({
+          languageId: 'eng',
+          abbreviation: 'IPA',
+          scriptTag: 'Latn',
+          type: 'phonetic',
+        }),
+      );
     });
 
     fireEvent.click(screen.getByRole('button', { name: '创建项目' }));
 
     await waitFor(() => {
-      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-        primaryTitle: '项目 A',
-        primaryLanguageId: 'eng',
-        primaryOrthographyId: 'orth_project_ipa',
-      }));
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          primaryTitle: '项目 A',
+          primaryLanguageId: 'eng',
+          primaryOrthographyId: 'orth_project_ipa',
+        }),
+      );
     });
   });
 
   it('shows the selected orthography status badge in project setup', async () => {
     mockUseOrthographies.mockImplementation((languageIds: string[]) => {
       if (languageIds.includes('eng')) {
-        return [{
-          id: 'orth_project_reviewed',
-          languageId: 'eng',
-          name: { eng: 'English Reviewed' },
-          scriptTag: 'Latn',
-          type: 'practical',
-          catalogMetadata: { catalogSource: 'built-in-reviewed', reviewStatus: 'verified-primary', priority: 'primary' },
-          createdAt: '2025-01-01T00:00:00.000Z',
-          updatedAt: '2025-01-01T00:00:00.000Z',
-        }];
+        return [
+          {
+            id: 'orth_project_reviewed',
+            languageId: 'eng',
+            name: { eng: 'English Reviewed' },
+            scriptTag: 'Latn',
+            type: 'practical',
+            catalogMetadata: {
+              catalogSource: 'built-in-reviewed',
+              reviewStatus: 'verified-primary',
+              priority: 'primary',
+            },
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+          },
+        ];
       }
       return [];
     });
 
     renderWithLocale(
-      <ProjectSetupDialog
-        isOpen
-        onClose={vi.fn()}
-        onSubmit={vi.fn(async () => undefined)}
-      />,
+      <ProjectSetupDialog isOpen onClose={vi.fn()} onSubmit={vi.fn(async () => undefined)} />,
     );
 
     fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
@@ -240,7 +248,11 @@ describe('ProjectSetupDialog orthography creation', () => {
 
     await waitFor(() => {
       expect(screen.getAllByText('English Reviewed · Latn · practical').length).toBeGreaterThan(0);
-      expect(Array.from(document.querySelectorAll('.panel-chip')).some((node) => node.textContent === '已审校主项')).toBe(true);
+      expect(
+        Array.from(document.querySelectorAll('.panel-chip')).some(
+          (node) => node.textContent === '已审校主项',
+        ),
+      ).toBe(true);
     });
 
     expect(screen.queryByRole('button', { name: '管理写入桥接规则' })).toBeNull();
@@ -250,11 +262,7 @@ describe('ProjectSetupDialog orthography creation', () => {
     mockUseOrthographies.mockReturnValue([]);
 
     renderWithLocale(
-      <ProjectSetupDialog
-        isOpen
-        onClose={vi.fn()}
-        onSubmit={vi.fn(async () => undefined)}
-      />,
+      <ProjectSetupDialog isOpen onClose={vi.fn()} onSubmit={vi.fn(async () => undefined)} />,
     );
 
     fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
@@ -264,18 +272,16 @@ describe('ProjectSetupDialog orthography creation', () => {
       target: { value: 'por' },
     });
 
-    expect((screen.getByRole('textbox', { name: /语言代码/ }) as HTMLInputElement).value).toBe('por');
+    expect((screen.getByRole('textbox', { name: /语言代码/ }) as HTMLInputElement).value).toBe(
+      'por',
+    );
   });
 
   it('focuses the language code field when submit is attempted with invalid language input', () => {
     mockUseOrthographies.mockReturnValue([]);
 
     renderWithLocale(
-      <ProjectSetupDialog
-        isOpen
-        onClose={vi.fn()}
-        onSubmit={vi.fn(async () => undefined)}
-      />,
+      <ProjectSetupDialog isOpen onClose={vi.fn()} onSubmit={vi.fn(async () => undefined)} />,
     );
 
     fireEvent.change(screen.getByPlaceholderText('例：白马藏语田野调查'), {

@@ -1,5 +1,5 @@
-import { usePanelResize } from '../hooks/usePanelResize';
-import { usePanelAutoCollapse } from '../hooks/usePanelAutoCollapse';
+import { usePanelResize } from '~/hooks/panel/usePanelResize';
+import { usePanelAutoCollapse } from '~/hooks/panel/usePanelAutoCollapse';
 import { useBatchOperationPanelShortcut } from './useBatchOperationPanelShortcut';
 import { useEffect } from 'react';
 

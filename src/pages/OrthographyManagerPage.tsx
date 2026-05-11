@@ -4,16 +4,32 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../types/jieyuDbDocTypes';
-import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
-import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
-import { useListKeyboardNav } from '../hooks/useListKeyboardNav';
+import { formatOrthographyOptionLabel } from '~/hooks/orthography/useOrthographyPicker';
+import { useLanguageCatalogLabelMap } from '~/hooks/languageCatalog/useLanguageCatalogLabelMap';
+import { useListKeyboardNav } from '~/hooks/ui/useListKeyboardNav';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { getOrthographyBuilderMessages } from '../i18n/messages';
-import { listOrthographyRecords, searchLanguageCatalogSuggestions, updateOrthographyRecord } from '../app/languageAssetPageAccess';
+import {
+  listOrthographyRecords,
+  searchLanguageCatalogSuggestions,
+  updateOrthographyRecord,
+} from '../app/languageAssetPageAccess';
 import { OrthographyManagerPanel } from './OrthographyManagerPanel';
-import { buildOrthographyBrowseSelector, buildOrthographyBrowseState, WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';
-import { areDraftsEqual, buildOrthographyDraft, parseConversionRulesJson, parseDraftList, parseOptionalNumber, type OrthographyDraft, type NormalizationForm } from './orthographyManager.shared';
+import {
+  buildOrthographyBrowseSelector,
+  buildOrthographyBrowseState,
+  WORKSPACE_LANGUAGE_SEARCH_LIMIT,
+} from './orthographyBrowse.shared';
+import {
+  areDraftsEqual,
+  buildOrthographyDraft,
+  parseConversionRulesJson,
+  parseDraftList,
+  parseOptionalNumber,
+  type OrthographyDraft,
+  type NormalizationForm,
+} from './orthographyManager.shared';
 import type { LanguageIsoInputValue } from '../components/LanguageIsoInput';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import { normalizeLanguageInputAssetId } from '../utils/languageInputHostState';
@@ -44,31 +60,48 @@ export function OrthographyManagerPage({
   const [searchInputFocused, setSearchInputFocused] = useState(false);
   const [browseAllWithoutProject, setBrowseAllWithoutProject] = useState(false);
   const [draft, setDraft] = useState<OrthographyDraft | null>(null);
-  const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>({ languageName: '', languageCode: '' });
+  const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>({
+    languageName: '',
+    languageCode: '',
+  });
   const deferredSearchText = useDeferredValue(searchText);
   const { projectLanguageIds } = useProjectLanguageIds();
   // 默认仅显示项目语言的正字法（有项目语言时） | Default to project-only when project has languages
   const [projectOnly, setProjectOnly] = useState(true);
-  const orthographyLanguageIds = useMemo(() => Array.from(new Set(
-    orthographies
-      .map((orthography) => orthography.languageId?.trim().toLowerCase())
-      .filter((languageId): languageId is string => Boolean(languageId)),
-  )), [orthographies]);
-  const { resolveLanguageCode, resolveLabel, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale, {
-    languageIds: orthographyLanguageIds,
-  });
+  const orthographyLanguageIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          orthographies
+            .map((orthography) => orthography.languageId?.trim().toLowerCase())
+            .filter((languageId): languageId is string => Boolean(languageId)),
+        ),
+      ),
+    [orthographies],
+  );
+  const { resolveLanguageCode, resolveLabel, resolveLanguageDisplayName } =
+    useLanguageCatalogLabelMap(locale, {
+      languageIds: orthographyLanguageIds,
+    });
   const selectedOrthographyId = searchParams.get(ORTHOGRAPHY_ID_PARAM) ?? '';
-  const browseState = useMemo(() => buildOrthographyBrowseState({
-    projectLanguageIds,
-    projectOnly,
-    selectedOrthographyId,
-    searchText: deferredSearchText,
-    browseAllWithoutProject,
-  }), [browseAllWithoutProject, deferredSearchText, projectLanguageIds, projectOnly, selectedOrthographyId]);
-  const {
-    normalizedSearchText,
-    showUnscopedIdleState,
-  } = browseState;
+  const browseState = useMemo(
+    () =>
+      buildOrthographyBrowseState({
+        projectLanguageIds,
+        projectOnly,
+        selectedOrthographyId,
+        searchText: deferredSearchText,
+        browseAllWithoutProject,
+      }),
+    [
+      browseAllWithoutProject,
+      deferredSearchText,
+      projectLanguageIds,
+      projectOnly,
+      selectedOrthographyId,
+    ],
+  );
+  const { normalizedSearchText, showUnscopedIdleState } = browseState;
   const hasVisibleSearchSuggestions = searchInputFocused && searchSuggestions.length > 0;
 
   // 用 ref 追踪最新值，避免加载 effect 依赖 searchParams 导致循环 | Track latest via refs to avoid circular deps
@@ -85,11 +118,11 @@ export function OrthographyManagerPage({
 
       try {
         const suggestions = normalizedSearchText
-          ? (await searchLanguageCatalogSuggestions({
-            query: normalizedSearchText,
-            locale,
-            limit: WORKSPACE_LANGUAGE_SEARCH_LIMIT,
-          }))
+          ? await searchLanguageCatalogSuggestions({
+              query: normalizedSearchText,
+              locale,
+              limit: WORKSPACE_LANGUAGE_SEARCH_LIMIT,
+            })
           : [];
         const searchLanguageIds = suggestions.map((suggestion) => suggestion.id);
         const selector = buildOrthographyBrowseSelector({
@@ -110,7 +143,9 @@ export function OrthographyManagerPage({
         const records = await listOrthographyRecords(selector);
         if (cancelled) return;
         setSearchSuggestions(suggestions);
-        setSearchSuggestionActiveIndex((prev) => (prev >= 0 && prev < suggestions.length ? prev : -1));
+        setSearchSuggestionActiveIndex((prev) =>
+          prev >= 0 && prev < suggestions.length ? prev : -1,
+        );
         setOrthographies(records);
         setError('');
 
@@ -126,7 +161,11 @@ export function OrthographyManagerPage({
         setSearchSuggestions([]);
         setSearchSuggestionActiveIndex(-1);
         setOrthographies([]);
-        setError(loadError instanceof Error ? loadError.message : t(locale, 'workspace.orthography.errorFallback'));
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : t(locale, 'workspace.orthography.errorFallback'),
+        );
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -139,7 +178,7 @@ export function OrthographyManagerPage({
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- 数据加载不依赖 locale，但 catch 中错误文案需要 locale；用 ref 读取 selectedOrthographyId/searchParams 以避免循环 | Data fetch is locale-independent, but error message formatting needs locale; read via refs to avoid circular deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 数据加载不依赖 locale，但 catch 中错误文案需要 locale；用 ref 读取 selectedOrthographyId/searchParams 以避免循环 | Data fetch is locale-independent, but error message formatting needs locale; read via refs to avoid circular deps
   }, [browseState, locale, normalizedSearchText, selectedOrthographyId]);
 
   const filteredOrthographies = orthographies;
@@ -147,16 +186,28 @@ export function OrthographyManagerPage({
   // 列表键盘导航 | List keyboard navigation
   const getOrthographyId = useCallback((o: OrthographyDocType) => o.id, []);
   const selectOrthographyRef = useRef<(id: string) => void>(() => {});
-  const { activeIndex: kbActiveIndex, handleSearchKeyDown: kbSearchKeyDown, listRef: kbListRef, resetActiveIndex: kbReset } = useListKeyboardNav({
+  const {
+    activeIndex: kbActiveIndex,
+    handleSearchKeyDown: kbSearchKeyDown,
+    listRef: kbListRef,
+    resetActiveIndex: kbReset,
+  } = useListKeyboardNav({
     items: filteredOrthographies,
     getItemId: getOrthographyId,
-    onSelect: (id) => { selectOrthographyRef.current(id); },
+    onSelect: (id) => {
+      selectOrthographyRef.current(id);
+    },
   });
   // 列表变化时重置高亮 | Reset highlight when list changes
-  useEffect(() => { kbReset(); }, [filteredOrthographies, kbReset]);
+  useEffect(() => {
+    kbReset();
+  }, [filteredOrthographies, kbReset]);
 
-  const selectedOrthography = orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
-  const selectedBadge = selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null;
+  const selectedOrthography =
+    orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
+  const selectedBadge = selectedOrthography
+    ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography)
+    : null;
   const fromLayerId = searchParams.get('fromLayerId');
   const baselineDraft = useMemo(
     () => (selectedOrthography ? buildOrthographyDraft(selectedOrthography) : null),
@@ -187,7 +238,7 @@ export function OrthographyManagerPage({
     });
     setSaveError('');
     setSaveSuccess('');
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveLabel/resolveLanguageCode 仅用于初始赋值，不做后续同步 | resolveLabel/resolveLanguageCode used only for initial assignment
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveLabel/resolveLanguageCode 仅用于初始赋值，不做后续同步 | resolveLabel/resolveLanguageCode used only for initial assignment
   }, [baselineDraft]);
 
   // 目录加载后同步语言标签显示（不重置草稿） | Sync language display labels after catalog loads (without resetting draft)
@@ -245,62 +296,75 @@ export function OrthographyManagerPage({
     setSearchInputFocused(true);
   }, []);
 
-  const handleSearchSuggestionSelect = useCallback((suggestion: LanguageCatalogSearchSuggestion) => {
-    setSearchText(suggestion.primaryLabel);
-    setSearchSuggestionActiveIndex(-1);
-    setSearchInputFocused(false);
-  }, []);
-
-  const handleSearchInputKeyDown = useCallback((event: React.KeyboardEvent<Element>) => {
-    if (!hasVisibleSearchSuggestions) {
-      kbSearchKeyDown(event);
-      return;
-    }
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      setSearchSuggestionActiveIndex((prev) => {
-        if (searchSuggestions.length === 0) return -1;
-        if (prev < 0) return 0;
-        return Math.min(prev + 1, searchSuggestions.length - 1);
-      });
-      return;
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      setSearchSuggestionActiveIndex((prev) => {
-        if (searchSuggestions.length === 0) return -1;
-        if (prev <= 0) return 0;
-        return prev - 1;
-      });
-      return;
-    }
-
-    if (event.key === 'Escape') {
-      event.preventDefault();
+  const handleSearchSuggestionSelect = useCallback(
+    (suggestion: LanguageCatalogSearchSuggestion) => {
+      setSearchText(suggestion.primaryLabel);
       setSearchSuggestionActiveIndex(-1);
       setSearchInputFocused(false);
-      return;
-    }
+    },
+    [],
+  );
 
-    if (event.key === 'Enter') {
-      if (searchSuggestions.length === 0) return;
-      event.preventDefault();
-      const targetIndex = searchSuggestionActiveIndex >= 0
-        ? searchSuggestionActiveIndex
-        : 0;
-      const suggestion = searchSuggestions[targetIndex];
-      if (suggestion) {
-        handleSearchSuggestionSelect(suggestion);
+  const handleSearchInputKeyDown = useCallback(
+    (event: React.KeyboardEvent<Element>) => {
+      if (!hasVisibleSearchSuggestions) {
+        kbSearchKeyDown(event);
+        return;
       }
-      return;
-    }
 
-    kbSearchKeyDown(event);
-  }, [hasVisibleSearchSuggestions, handleSearchSuggestionSelect, kbSearchKeyDown, searchSuggestionActiveIndex, searchSuggestions]);
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setSearchSuggestionActiveIndex((prev) => {
+          if (searchSuggestions.length === 0) return -1;
+          if (prev < 0) return 0;
+          return Math.min(prev + 1, searchSuggestions.length - 1);
+        });
+        return;
+      }
 
-  const handleDraftChange = <K extends keyof OrthographyDraft>(key: K, value: OrthographyDraft[K]) => {
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setSearchSuggestionActiveIndex((prev) => {
+          if (searchSuggestions.length === 0) return -1;
+          if (prev <= 0) return 0;
+          return prev - 1;
+        });
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSearchSuggestionActiveIndex(-1);
+        setSearchInputFocused(false);
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        if (searchSuggestions.length === 0) return;
+        event.preventDefault();
+        const targetIndex = searchSuggestionActiveIndex >= 0 ? searchSuggestionActiveIndex : 0;
+        const suggestion = searchSuggestions[targetIndex];
+        if (suggestion) {
+          handleSearchSuggestionSelect(suggestion);
+        }
+        return;
+      }
+
+      kbSearchKeyDown(event);
+    },
+    [
+      hasVisibleSearchSuggestions,
+      handleSearchSuggestionSelect,
+      kbSearchKeyDown,
+      searchSuggestionActiveIndex,
+      searchSuggestions,
+    ],
+  );
+
+  const handleDraftChange = <K extends keyof OrthographyDraft>(
+    key: K,
+    value: OrthographyDraft[K],
+  ) => {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
     setSaveError('');
     setSaveSuccess('');
@@ -348,56 +412,89 @@ export function OrthographyManagerPage({
     return `/assets/orthography-bridges?${params.toString()}`;
   }, [fromLayerId, selectedOrthography]);
 
-  const sidePaneContent = useMemo(() => (
-    <div className="app-side-pane-feature-stack">
-      <section className="app-side-pane-group" aria-label={t(locale, 'workspace.orthography.sidePaneCurrent')}>
-        <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-          <span className="app-side-pane-section-title">{t(locale, 'workspace.orthography.sidePaneCurrent')}</span>
-        </div>
-        <div className="app-side-pane-nav app-side-pane-feature-nav">
-          {selectedOrthography ? (
-            <>
-              <span className="app-side-pane-feature-badge">{selectedBadge?.label ?? t(locale, 'workspace.orthography.notSet')}</span>
-              <p className="app-side-pane-feature-summary">{formatOrthographyOptionLabel(selectedOrthography, locale)}</p>
-              <p className="app-side-pane-feature-note">{t(locale, 'workspace.orthography.sidePaneSelectedHint')}</p>
-            </>
-          ) : (
-            <p className="app-side-pane-feature-note">{t(locale, 'workspace.orthography.sidePaneEmpty')}</p>
-          )}
-        </div>
-      </section>
+  const sidePaneContent = useMemo(
+    () => (
+      <div className="app-side-pane-feature-stack">
+        <section
+          className="app-side-pane-group"
+          aria-label={t(locale, 'workspace.orthography.sidePaneCurrent')}
+        >
+          <div
+            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
+            role="presentation"
+          >
+            <span className="app-side-pane-section-title">
+              {t(locale, 'workspace.orthography.sidePaneCurrent')}
+            </span>
+          </div>
+          <div className="app-side-pane-nav app-side-pane-feature-nav">
+            {selectedOrthography ? (
+              <>
+                <span className="app-side-pane-feature-badge">
+                  {selectedBadge?.label ?? t(locale, 'workspace.orthography.notSet')}
+                </span>
+                <p className="app-side-pane-feature-summary">
+                  {formatOrthographyOptionLabel(selectedOrthography, locale)}
+                </p>
+                <p className="app-side-pane-feature-note">
+                  {t(locale, 'workspace.orthography.sidePaneSelectedHint')}
+                </p>
+              </>
+            ) : (
+              <p className="app-side-pane-feature-note">
+                {t(locale, 'workspace.orthography.sidePaneEmpty')}
+              </p>
+            )}
+          </div>
+        </section>
 
-      <section className="app-side-pane-group" aria-label={t(locale, 'workspace.orthography.sidePaneQuickAccess')}>
-        <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-          <span className="app-side-pane-section-title">{t(locale, 'workspace.orthography.sidePaneQuickAccess')}</span>
-        </div>
-        <div className="app-side-pane-nav app-side-pane-feature-nav">
-          <Link
-            to={buildTranscriptionWorkspaceReturnHref()}
-            className="side-pane-nav-link app-side-pane-feature-link"
-            onClick={(event) => {
-              if (!confirmDiscardDirtyDraft()) {
-                event.preventDefault();
-              }
-            }}
+        <section
+          className="app-side-pane-group"
+          aria-label={t(locale, 'workspace.orthography.sidePaneQuickAccess')}
+        >
+          <div
+            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
+            role="presentation"
           >
-            {t(locale, 'app.featureAvailability.backToTranscription')}
-          </Link>
-          <Link
-            to={bridgeWorkspaceHref}
-            className="side-pane-nav-link app-side-pane-feature-link"
-            onClick={(event) => {
-              if (!confirmDiscardDirtyDraft()) {
-                event.preventDefault();
-              }
-            }}
-          >
-            {t(locale, 'workspace.orthography.openBridgeWorkspace')}
-          </Link>
-        </div>
-      </section>
-    </div>
-  ), [bridgeWorkspaceHref, confirmDiscardDirtyDraft, locale, selectedBadge?.label, selectedOrthography]);
+            <span className="app-side-pane-section-title">
+              {t(locale, 'workspace.orthography.sidePaneQuickAccess')}
+            </span>
+          </div>
+          <div className="app-side-pane-nav app-side-pane-feature-nav">
+            <Link
+              to={buildTranscriptionWorkspaceReturnHref()}
+              className="side-pane-nav-link app-side-pane-feature-link"
+              onClick={(event) => {
+                if (!confirmDiscardDirtyDraft()) {
+                  event.preventDefault();
+                }
+              }}
+            >
+              {t(locale, 'app.featureAvailability.backToTranscription')}
+            </Link>
+            <Link
+              to={bridgeWorkspaceHref}
+              className="side-pane-nav-link app-side-pane-feature-link"
+              onClick={(event) => {
+                if (!confirmDiscardDirtyDraft()) {
+                  event.preventDefault();
+                }
+              }}
+            >
+              {t(locale, 'workspace.orthography.openBridgeWorkspace')}
+            </Link>
+          </div>
+        </section>
+      </div>
+    ),
+    [
+      bridgeWorkspaceHref,
+      confirmDiscardDirtyDraft,
+      locale,
+      selectedBadge?.label,
+      selectedOrthography,
+    ],
+  );
 
   useRegisterAppSidePane({
     title: t(locale, 'workspace.orthography.sidePaneTitle'),
@@ -433,11 +530,21 @@ export function OrthographyManagerPage({
     const conversionRules = parseConversionRulesJson(draft.conversionRulesJson);
 
     if (!lineHeightScale.valid) {
-      setSaveError(t(locale, 'workspace.orthography.invalidNumber').replace('{field}', t(locale, 'workspace.orthography.lineHeightScaleLabel')));
+      setSaveError(
+        t(locale, 'workspace.orthography.invalidNumber').replace(
+          '{field}',
+          t(locale, 'workspace.orthography.lineHeightScaleLabel'),
+        ),
+      );
       return;
     }
     if (!sizeAdjust.valid) {
-      setSaveError(t(locale, 'workspace.orthography.invalidNumber').replace('{field}', t(locale, 'workspace.orthography.sizeAdjustLabel')));
+      setSaveError(
+        t(locale, 'workspace.orthography.invalidNumber').replace(
+          '{field}',
+          t(locale, 'workspace.orthography.sizeAdjustLabel'),
+        ),
+      );
       return;
     }
     if (!conversionRules.valid) {
@@ -468,84 +575,108 @@ export function OrthographyManagerPage({
         ...(draft.localeTag.trim() ? { localeTag: draft.localeTag.trim() } : {}),
         ...(draft.regionTag.trim() ? { regionTag: draft.regionTag.trim() } : {}),
         ...(draft.variantTag.trim() ? { variantTag: draft.variantTag.trim() } : {}),
-        ...((draft.catalogReviewStatus || draft.catalogPriority)
+        ...(draft.catalogReviewStatus || draft.catalogPriority
           ? {
-            catalogMetadata: {
-              ...(draft.catalogReviewStatus ? { reviewStatus: draft.catalogReviewStatus } : {}),
-              ...(draft.catalogPriority ? { priority: draft.catalogPriority } : {}),
-            },
-          }
+              catalogMetadata: {
+                ...(draft.catalogReviewStatus ? { reviewStatus: draft.catalogReviewStatus } : {}),
+                ...(draft.catalogPriority ? { priority: draft.catalogPriority } : {}),
+              },
+            }
           : {}),
-        ...((exemplarMain.length || exemplarAuxiliary.length || exemplarNumbers.length || exemplarPunctuation.length || exemplarIndex.length)
+        ...(exemplarMain.length ||
+        exemplarAuxiliary.length ||
+        exemplarNumbers.length ||
+        exemplarPunctuation.length ||
+        exemplarIndex.length
           ? {
-            exemplarCharacters: {
-              ...(exemplarMain.length ? { main: exemplarMain } : {}),
-              ...(exemplarAuxiliary.length ? { auxiliary: exemplarAuxiliary } : {}),
-              ...(exemplarNumbers.length ? { numbers: exemplarNumbers } : {}),
-              ...(exemplarPunctuation.length ? { punctuation: exemplarPunctuation } : {}),
-              ...(exemplarIndex.length ? { index: exemplarIndex } : {}),
-            },
-          }
+              exemplarCharacters: {
+                ...(exemplarMain.length ? { main: exemplarMain } : {}),
+                ...(exemplarAuxiliary.length ? { auxiliary: exemplarAuxiliary } : {}),
+                ...(exemplarNumbers.length ? { numbers: exemplarNumbers } : {}),
+                ...(exemplarPunctuation.length ? { punctuation: exemplarPunctuation } : {}),
+                ...(exemplarIndex.length ? { index: exemplarIndex } : {}),
+              },
+            }
           : {}),
-        ...((draft.normalizationForm || draft.normalizationCaseSensitive || draft.normalizationStripDefaultIgnorables)
+        ...(draft.normalizationForm ||
+        draft.normalizationCaseSensitive ||
+        draft.normalizationStripDefaultIgnorables
           ? {
-            normalization: {
-              ...(draft.normalizationForm
-                ? { form: draft.normalizationForm as NormalizationForm }
-                : {}),
-              ...(draft.normalizationCaseSensitive ? { caseSensitive: true } : {}),
-              ...(draft.normalizationStripDefaultIgnorables ? { stripDefaultIgnorables: true } : {}),
-            },
-          }
+              normalization: {
+                ...(draft.normalizationForm
+                  ? { form: draft.normalizationForm as NormalizationForm }
+                  : {}),
+                ...(draft.normalizationCaseSensitive ? { caseSensitive: true } : {}),
+                ...(draft.normalizationStripDefaultIgnorables
+                  ? { stripDefaultIgnorables: true }
+                  : {}),
+              },
+            }
           : {}),
-        ...((draft.collationBase.trim() || draft.collationRules.trim())
+        ...(draft.collationBase.trim() || draft.collationRules.trim()
           ? {
-            collation: {
-              ...(draft.collationBase.trim() ? { base: draft.collationBase.trim() } : {}),
-              ...(draft.collationRules.trim() ? { customRules: draft.collationRules.trim() } : {}),
-            },
-          }
+              collation: {
+                ...(draft.collationBase.trim() ? { base: draft.collationBase.trim() } : {}),
+                ...(draft.collationRules.trim()
+                  ? { customRules: draft.collationRules.trim() }
+                  : {}),
+              },
+            }
           : {}),
-        ...((primaryFonts.length || fallbackFonts.length || monoFonts.length || lineHeightScale.value !== undefined || sizeAdjust.value !== undefined)
+        ...(primaryFonts.length ||
+        fallbackFonts.length ||
+        monoFonts.length ||
+        lineHeightScale.value !== undefined ||
+        sizeAdjust.value !== undefined
           ? {
-            fontPreferences: {
-              ...(primaryFonts.length ? { primary: primaryFonts } : {}),
-              ...(fallbackFonts.length ? { fallback: fallbackFonts } : {}),
-              ...(monoFonts.length ? { mono: monoFonts } : {}),
-              ...(lineHeightScale.value !== undefined ? { lineHeightScale: lineHeightScale.value } : {}),
-              ...(sizeAdjust.value !== undefined ? { sizeAdjust: sizeAdjust.value } : {}),
-            },
-          }
+              fontPreferences: {
+                ...(primaryFonts.length ? { primary: primaryFonts } : {}),
+                ...(fallbackFonts.length ? { fallback: fallbackFonts } : {}),
+                ...(monoFonts.length ? { mono: monoFonts } : {}),
+                ...(lineHeightScale.value !== undefined
+                  ? { lineHeightScale: lineHeightScale.value }
+                  : {}),
+                ...(sizeAdjust.value !== undefined ? { sizeAdjust: sizeAdjust.value } : {}),
+              },
+            }
           : {}),
-        ...((draft.keyboardLayout.trim() || draft.imeId.trim() || deadKeys.length)
+        ...(draft.keyboardLayout.trim() || draft.imeId.trim() || deadKeys.length
           ? {
-            inputHints: {
-              ...(draft.keyboardLayout.trim() ? { keyboardLayout: draft.keyboardLayout.trim() } : {}),
-              ...(draft.imeId.trim() ? { imeId: draft.imeId.trim() } : {}),
-              ...(deadKeys.length ? { deadKeys } : {}),
-            },
-          }
+              inputHints: {
+                ...(draft.keyboardLayout.trim()
+                  ? { keyboardLayout: draft.keyboardLayout.trim() }
+                  : {}),
+                ...(draft.imeId.trim() ? { imeId: draft.imeId.trim() } : {}),
+                ...(deadKeys.length ? { deadKeys } : {}),
+              },
+            }
           : {}),
         bidiPolicy: {
           isolateInlineRuns: draft.bidiIsolate,
           preferDirAttribute: draft.preferDirAttribute,
         },
         ...(conversionRules.value ? { conversionRules: conversionRules.value } : {}),
-        ...((draft.notesZh.trim() || draft.notesEn.trim())
+        ...(draft.notesZh.trim() || draft.notesEn.trim()
           ? {
-            notes: {
-              ...(draft.notesZh.trim() ? { 'zh-CN': draft.notesZh.trim() } : {}),
-              ...(draft.notesEn.trim() ? { 'en-US': draft.notesEn.trim() } : {}),
-            },
-          }
+              notes: {
+                ...(draft.notesZh.trim() ? { 'zh-CN': draft.notesZh.trim() } : {}),
+                ...(draft.notesEn.trim() ? { 'en-US': draft.notesEn.trim() } : {}),
+              },
+            }
           : {}),
       });
 
-      setOrthographies((prev) => prev.map((orthography) => (orthography.id === updated.id ? updated : orthography)));
+      setOrthographies((prev) =>
+        prev.map((orthography) => (orthography.id === updated.id ? updated : orthography)),
+      );
       setDraft(buildOrthographyDraft(updated));
       setSaveSuccess(t(locale, 'workspace.orthography.saveSuccess'));
     } catch (saveDraftError) {
-      setSaveError(saveDraftError instanceof Error ? saveDraftError.message : t(locale, 'workspace.orthography.saveErrorFallback'));
+      setSaveError(
+        saveDraftError instanceof Error
+          ? saveDraftError.message
+          : t(locale, 'workspace.orthography.saveErrorFallback'),
+      );
     } finally {
       setSaving(false);
     }

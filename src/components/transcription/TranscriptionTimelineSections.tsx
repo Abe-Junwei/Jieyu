@@ -1,12 +1,24 @@
-import { memo, type ComponentPropsWithoutRef, type CSSProperties, type MutableRefObject, type PointerEventHandler, type ReactNode, type Ref, type RefObject } from 'react';
+import {
+  memo,
+  type ComponentPropsWithoutRef,
+  type CSSProperties,
+  type MutableRefObject,
+  type PointerEventHandler,
+  type ReactNode,
+  type Ref,
+  type RefObject,
+} from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import type { LayerUnitDocType } from '../../db';
 import { VideoPlayer } from '../VideoPlayer';
 import { TimeRuler } from '../TimeRuler';
 import { TimelineStyledContainer } from './TimelineStyledContainer';
-import type { WaveSurferRegion } from '../../hooks/useWaveSurfer';
+import type { WaveSurferRegion } from '../../hooks/media/useWaveSurfer';
 import { t, useLocale } from '../../i18n';
-import { getWaveformDisplayHeights, type WaveformDisplayMode } from '../../utils/waveformDisplayMode';
+import {
+  getWaveformDisplayHeights,
+  type WaveformDisplayMode,
+} from '../../utils/waveformDisplayMode';
 
 export type VideoLayoutMode = 'top' | 'right' | 'left';
 
@@ -66,17 +78,22 @@ export const VideoPreviewSection = memo(function VideoPreviewSection({
   spectrogramOverlay,
 }: VideoPreviewSectionProps) {
   const locale = useLocale();
-  const { waveformPrimaryHeight, spectrogramHeight } = getWaveformDisplayHeights(waveformStripHeight, waveformDisplayMode);
+  const { waveformPrimaryHeight, spectrogramHeight } = getWaveformDisplayHeights(
+    waveformStripHeight,
+    waveformDisplayMode,
+  );
   const renderWaveDisplay = () => (
     <TimelineStyledContainer
       ref={waveformStripWheelShellRef}
       className={`waveform-display-shell waveform-display-shell-${waveformDisplayMode}`}
-      layoutStyle={{
-        '--waveform-height': `${waveformPrimaryHeight}px`,
-        '--waveform-primary-height': `${waveformPrimaryHeight}px`,
-        '--waveform-spectrogram-height': `${spectrogramHeight}px`,
-        '--waveform-shell-height': `${waveformStripHeight}px`,
-      } as CSSProperties}
+      layoutStyle={
+        {
+          '--waveform-height': `${waveformPrimaryHeight}px`,
+          '--waveform-primary-height': `${waveformPrimaryHeight}px`,
+          '--waveform-spectrogram-height': `${spectrogramHeight}px`,
+          '--waveform-shell-height': `${waveformStripHeight}px`,
+        } as CSSProperties
+      }
     >
       <div className="waveform-primary-stage">
         <div
@@ -100,11 +117,7 @@ export const VideoPreviewSection = memo(function VideoPreviewSection({
   );
 
   if (!selectedMediaIsVideo) {
-    return (
-      <div className="video-preview-layout-wave">
-        {renderWaveDisplay()}
-      </div>
-    );
+    return <div className="video-preview-layout-wave">{renderWaveDisplay()}</div>;
   }
 
   const isRightLayout = videoLayoutMode === 'right';
@@ -123,14 +136,14 @@ export const VideoPreviewSection = memo(function VideoPreviewSection({
   return (
     <TimelineStyledContainer
       className={`video-preview-layout ${layoutClass}`}
-      layoutStyle={{
-        '--video-preview-panel-width': isSideLayout ? `${videoRightPanelWidth}px` : '100%',
-        '--video-preview-panel-height': `${isSideLayout ? waveformStripHeight : videoPreviewHeight}px`,
-      } as CSSProperties}
+      layoutStyle={
+        {
+          '--video-preview-panel-width': isSideLayout ? `${videoRightPanelWidth}px` : '100%',
+          '--video-preview-panel-height': `${isSideLayout ? waveformStripHeight : videoPreviewHeight}px`,
+        } as CSSProperties
+      }
     >
-      <div className="video-preview-layout-wave">
-        {renderWaveDisplay()}
-      </div>
+      <div className="video-preview-layout-wave">{renderWaveDisplay()}</div>
 
       {/* 侧边布局拖拽手柄（左/右均复用，CSS order 决定位置）| Side-layout resize handle, CSS order positions it */}
       {isSideLayout && (
@@ -164,7 +177,9 @@ export const VideoPreviewSection = memo(function VideoPreviewSection({
             }}
             segmentLoop={segmentLoopPlayback}
             subSelection={videoSubSelection}
-            videoHeight={isSideLayout ? Math.max(waveformStripHeight - 56, 120) : videoPreviewHeight - 50}
+            videoHeight={
+              isSideLayout ? Math.max(waveformStripHeight - 56, 120) : videoPreviewHeight - 50
+            }
           />
         </div>
         {!isSideLayout && (
@@ -250,7 +265,10 @@ export function TimelineRailSection({ children }: TimelineRailSectionProps) {
   return <>{children}</>;
 }
 
-type TimelineScrollSectionProps = Omit<ComponentPropsWithoutRef<'div'>, 'children' | 'ref' | 'onPointerDownCapture' | 'onPointerMove' | 'onPointerUp' | 'onScroll'> & {
+type TimelineScrollSectionProps = Omit<
+  ComponentPropsWithoutRef<'div'>,
+  'children' | 'ref' | 'onPointerDownCapture' | 'onPointerMove' | 'onPointerUp' | 'onScroll'
+> & {
   containerRef: Ref<HTMLDivElement>;
   /** 捕获阶段：先于子节点内 `stopPropagation` 的 pointerdown，供轨间套索/拖建 | Capture phase so lasso runs before draft cells stopPropagation */
   onPointerDownCapture: PointerEventHandler<HTMLDivElement>;

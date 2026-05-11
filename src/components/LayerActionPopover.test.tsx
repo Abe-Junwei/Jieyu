@@ -9,7 +9,14 @@ import { renderWithLocale } from '../test/localeTestUtils';
 
 const NOW = '2025-01-01T00:00:00.000Z';
 
-const { mockCreateOrthography, mockCloneOrthographyToLanguage, mockCreateOrthographyBridge, mockListLanguageCatalogEntries, mockUseOrthographies, mockGetDb } = vi.hoisted(() => ({
+const {
+  mockCreateOrthography,
+  mockCloneOrthographyToLanguage,
+  mockCreateOrthographyBridge,
+  mockListLanguageCatalogEntries,
+  mockUseOrthographies,
+  mockGetDb,
+} = vi.hoisted(() => ({
   mockCreateOrthography: vi.fn(),
   mockCloneOrthographyToLanguage: vi.fn(),
   mockCreateOrthographyBridge: vi.fn(),
@@ -36,7 +43,7 @@ vi.mock('../services/LinguisticService.languageCatalog', () => ({
   listLanguageCatalogEntries: mockListLanguageCatalogEntries,
 }));
 
-vi.mock('../hooks/useOrthographies', () => ({
+vi.mock('../hooks/orthography/useOrthographies', () => ({
   useOrthographies: mockUseOrthographies,
 }));
 
@@ -164,12 +171,15 @@ describe('LayerActionPopover orthography creation', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
 
     await waitFor(() => {
-      expect(updateLayerMetadata).toHaveBeenCalledWith('trc-edit-1', expect.objectContaining({
-        participantId: 'speaker-b',
-        dataCategory: 'narrative',
-        delimiter: '/',
-        sortOrder: 7,
-      }));
+      expect(updateLayerMetadata).toHaveBeenCalledWith(
+        'trc-edit-1',
+        expect.objectContaining({
+          participantId: 'speaker-b',
+          dataCategory: 'narrative',
+          delimiter: '/',
+          sortOrder: 7,
+        }),
+      );
     });
   });
 
@@ -208,7 +218,15 @@ describe('LayerActionPopover orthography creation', () => {
         action="edit-translation-metadata"
         layerId="trl-edit-1"
         deletableLayers={[host, layer]}
-        layerLinks={[{ layerId: 'trl-edit-1', transcriptionLayerKey: 'trc-host-1', hostTranscriptionLayerId: 'trc-host-1', isPreferred: true, linkType: 'free' }]}
+        layerLinks={[
+          {
+            layerId: 'trl-edit-1',
+            transcriptionLayerKey: 'trc-host-1',
+            hostTranscriptionLayerId: 'trc-host-1',
+            isPreferred: true,
+            linkType: 'free',
+          },
+        ]}
         updateLayerMetadata={vi.fn(async () => true)}
         createLayer={vi.fn(async () => true)}
         deleteLayer={vi.fn(async () => undefined)}
@@ -263,16 +281,18 @@ describe('LayerActionPopover orthography creation', () => {
   it('derives a new current-language orthography from another language before layer creation', async () => {
     mockUseOrthographies.mockImplementation((languageIds: string[]) => {
       if (languageIds.includes('eng')) {
-        return [{
-          id: 'orth_eng_base',
-          name: { eng: 'English Practical' },
-          languageId: 'eng',
-          abbreviation: 'ENG-PRAC',
-          scriptTag: 'Latn',
-          type: 'practical',
-          createdAt: NOW,
-          updatedAt: NOW,
-        }];
+        return [
+          {
+            id: 'orth_eng_base',
+            name: { eng: 'English Practical' },
+            languageId: 'eng',
+            abbreviation: 'ENG-PRAC',
+            scriptTag: 'Latn',
+            type: 'practical',
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ];
       }
       return [];
     });
@@ -307,7 +327,9 @@ describe('LayerActionPopover orthography creation', () => {
     });
     fireEvent.blur(codeInputForCmn);
 
-    const openBuilderButton = document.querySelector('.layer-action-dialog-inline-btn') as HTMLButtonElement | null;
+    const openBuilderButton = document.querySelector(
+      '.layer-action-dialog-inline-btn',
+    ) as HTMLButtonElement | null;
     expect(openBuilderButton).toBeTruthy();
     fireEvent.click(openBuilderButton as HTMLButtonElement);
 
@@ -315,14 +337,18 @@ describe('LayerActionPopover orthography creation', () => {
       target: { value: 'derive-other' },
     });
 
-    const sourceLanguageCodeInput = await screen.findByPlaceholderText('来源语言 ISO 639-3 代码（如 eng）');
+    const sourceLanguageCodeInput = await screen.findByPlaceholderText(
+      '来源语言 ISO 639-3 代码（如 eng）',
+    );
     fireEvent.change(sourceLanguageCodeInput, {
       target: { value: 'eng' },
     });
     fireEvent.blur(sourceLanguageCodeInput);
 
     await waitFor(() => {
-      const sourceOrthographySelect = screen.getByRole('combobox', { name: '来源正字法' }) as HTMLSelectElement;
+      const sourceOrthographySelect = screen.getByRole('combobox', {
+        name: '来源正字法',
+      }) as HTMLSelectElement;
       expect(sourceOrthographySelect.options.length).toBeGreaterThan(0);
       expect(sourceOrthographySelect.value).toBe('orth_eng_base');
     });
@@ -333,11 +359,13 @@ describe('LayerActionPopover orthography creation', () => {
     }
 
     await waitFor(() => {
-      expect(mockCloneOrthographyToLanguage).toHaveBeenCalledWith(expect.objectContaining({
-        sourceOrthographyId: 'orth_eng_base',
-        targetLanguageId: 'cmn',
-        scriptTag: 'Latn',
-      }));
+      expect(mockCloneOrthographyToLanguage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceOrthographyId: 'orth_eng_base',
+          targetLanguageId: 'cmn',
+          scriptTag: 'Latn',
+        }),
+      );
     });
 
     fireEvent.click(screen.getByRole('button', { name: '新建转写层' }));
@@ -358,16 +386,22 @@ describe('LayerActionPopover orthography creation', () => {
   it('shows the selected orthography status badge in the dialog', async () => {
     mockUseOrthographies.mockImplementation((languageIds: string[]) => {
       if (languageIds.includes('eng')) {
-        return [{
-          id: 'orth_eng_reviewed',
-          name: { eng: 'English Reviewed' },
-          languageId: 'eng',
-          scriptTag: 'Latn',
-          type: 'practical',
-          catalogMetadata: { catalogSource: 'built-in-reviewed', reviewStatus: 'verified-primary', priority: 'primary' },
-          createdAt: NOW,
-          updatedAt: NOW,
-        }];
+        return [
+          {
+            id: 'orth_eng_reviewed',
+            name: { eng: 'English Reviewed' },
+            languageId: 'eng',
+            scriptTag: 'Latn',
+            type: 'practical',
+            catalogMetadata: {
+              catalogSource: 'built-in-reviewed',
+              reviewStatus: 'verified-primary',
+              priority: 'primary',
+            },
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ];
       }
       return [];
     });
@@ -391,7 +425,11 @@ describe('LayerActionPopover orthography creation', () => {
 
     await waitFor(() => {
       expect(screen.getAllByText('English Reviewed · Latn · practical').length).toBeGreaterThan(0);
-      expect(Array.from(document.querySelectorAll('.panel-chip')).some((node) => node.textContent === '已审校主项')).toBe(true);
+      expect(
+        Array.from(document.querySelectorAll('.panel-chip')).some(
+          (node) => node.textContent === '已审校主项',
+        ),
+      ).toBe(true);
     });
 
     expect(screen.queryByRole('button', { name: '管理写入桥接规则' })).toBeNull();
@@ -400,26 +438,30 @@ describe('LayerActionPopover orthography creation', () => {
   it('prefills project default language and orthography and reset restores them', async () => {
     mockUseOrthographies.mockImplementation((languageIds: string[]) => {
       if (languageIds.includes('eng')) {
-        return [{
-          id: 'orth_eng_default',
-          languageId: 'eng',
-          name: { eng: 'English Default' },
-          scriptTag: 'Latn',
-          type: 'practical',
-          createdAt: NOW,
-          updatedAt: NOW,
-        }];
+        return [
+          {
+            id: 'orth_eng_default',
+            languageId: 'eng',
+            name: { eng: 'English Default' },
+            scriptTag: 'Latn',
+            type: 'practical',
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ];
       }
       if (languageIds.includes('jpn')) {
-        return [{
-          id: 'orth_jpn_default',
-          languageId: 'jpn',
-          name: { eng: 'Japanese Default' },
-          scriptTag: 'Jpan',
-          type: 'practical',
-          createdAt: NOW,
-          updatedAt: NOW,
-        }];
+        return [
+          {
+            id: 'orth_jpn_default',
+            languageId: 'jpn',
+            name: { eng: 'Japanese Default' },
+            scriptTag: 'Jpan',
+            type: 'practical',
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ];
       }
       return [];
     });
@@ -437,11 +479,15 @@ describe('LayerActionPopover orthography creation', () => {
       />,
     );
 
-    const languageCodeInput = screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement;
+    const languageCodeInput = screen.getByRole('textbox', {
+      name: /语言代码|ISO 639-3/i,
+    }) as HTMLInputElement;
 
     await waitFor(() => {
       expect(languageCodeInput.value).toBe('eng');
-      expect((screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_eng_default');
+      expect(
+        (screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value,
+      ).toBe('orth_eng_default');
     });
 
     // 等待异步语言目录加载完成，避免 resolveLanguageDisplayName 引用变化覆盖用户输入
@@ -454,15 +500,23 @@ describe('LayerActionPopover orthography creation', () => {
     fireEvent.blur(languageCodeInput);
 
     await waitFor(() => {
-      expect((screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement).value).toBe('jpn');
-      expect((screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_jpn_default');
+      expect(
+        (screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement).value,
+      ).toBe('jpn');
+      expect(
+        (screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value,
+      ).toBe('orth_jpn_default');
     });
 
     fireEvent.click(screen.getByRole('button', { name: '重置表单' }));
 
     await waitFor(() => {
-      expect((screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement).value).toBe('eng');
-      expect((screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_eng_default');
+      expect(
+        (screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement).value,
+      ).toBe('eng');
+      expect(
+        (screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value,
+      ).toBe('orth_eng_default');
     });
   });
 
@@ -506,7 +560,9 @@ describe('LayerActionPopover orthography creation', () => {
     fireEvent.blur(languageCodeInput);
 
     await waitFor(() => {
-      expect((within(dialog).getByRole('button', { name: '新建翻译层' }) as HTMLButtonElement).disabled).toBe(false);
+      expect(
+        (within(dialog).getByRole('button', { name: '新建翻译层' }) as HTMLButtonElement).disabled,
+      ).toBe(false);
     });
     fireEvent.click(within(dialog).getByRole('button', { name: '新建翻译层' }));
 
@@ -537,7 +593,9 @@ describe('LayerActionPopover orthography creation', () => {
       />,
     );
 
-    const languageCodeInput = screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement;
+    const languageCodeInput = screen.getByRole('textbox', {
+      name: /语言代码|ISO 639-3/i,
+    }) as HTMLInputElement;
     fireEvent.focus(languageCodeInput);
     fireEvent.change(languageCodeInput, {
       target: { value: '0' },
@@ -553,26 +611,30 @@ describe('LayerActionPopover orthography creation', () => {
   it('keeps user edits when locale changes instead of resetting back to defaults', async () => {
     mockUseOrthographies.mockImplementation((languageIds: string[]) => {
       if (languageIds.includes('eng')) {
-        return [{
-          id: 'orth_eng_default',
-          languageId: 'eng',
-          name: { eng: 'English Default' },
-          scriptTag: 'Latn',
-          type: 'practical',
-          createdAt: NOW,
-          updatedAt: NOW,
-        }];
+        return [
+          {
+            id: 'orth_eng_default',
+            languageId: 'eng',
+            name: { eng: 'English Default' },
+            scriptTag: 'Latn',
+            type: 'practical',
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ];
       }
       if (languageIds.includes('jpn')) {
-        return [{
-          id: 'orth_jpn_default',
-          languageId: 'jpn',
-          name: { eng: 'Japanese Default' },
-          scriptTag: 'Jpan',
-          type: 'practical',
-          createdAt: NOW,
-          updatedAt: NOW,
-        }];
+        return [
+          {
+            id: 'orth_jpn_default',
+            languageId: 'jpn',
+            name: { eng: 'Japanese Default' },
+            scriptTag: 'Jpan',
+            type: 'practical',
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ];
       }
       return [];
     });
@@ -594,12 +656,18 @@ describe('LayerActionPopover orthography creation', () => {
 
     const { rerender } = render(renderPopover('zh-CN'));
 
-    const languageCodeInput = screen.getByRole('textbox', { name: /语言代码|Language Code/i }) as HTMLInputElement;
-    const aliasInput = screen.getByRole('textbox', { name: /别名（可选）|Alias \(optional\)/i }) as HTMLInputElement;
+    const languageCodeInput = screen.getByRole('textbox', {
+      name: /语言代码|Language Code/i,
+    }) as HTMLInputElement;
+    const aliasInput = screen.getByRole('textbox', {
+      name: /别名（可选）|Alias \(optional\)/i,
+    }) as HTMLInputElement;
 
     await waitFor(() => {
       expect(languageCodeInput.value).toBe('eng');
-      expect((screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_eng_default');
+      expect(
+        (screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value,
+      ).toBe('orth_eng_default');
     });
 
     // 等待异步语言目录加载完成 | Wait for async language catalog to settle
@@ -612,17 +680,33 @@ describe('LayerActionPopover orthography creation', () => {
     fireEvent.change(aliasInput, { target: { value: 'draft alias' } });
 
     await waitFor(() => {
-      expect((screen.getByRole('textbox', { name: /语言代码|Language Code/i }) as HTMLInputElement).value).toBe('jpn');
+      expect(
+        (screen.getByRole('textbox', { name: /语言代码|Language Code/i }) as HTMLInputElement)
+          .value,
+      ).toBe('jpn');
       expect(aliasInput.value).toBe('draft alias');
-      expect((screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_jpn_default');
+      expect(
+        (screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value,
+      ).toBe('orth_jpn_default');
     });
 
     rerender(renderPopover('en-US'));
 
     await waitFor(() => {
-      expect((screen.getByRole('textbox', { name: /语言代码|Language Code/i }) as HTMLInputElement).value).toBe('jpn');
-      expect((screen.getByRole('textbox', { name: /别名（可选）|Alias \(optional\)/i }) as HTMLInputElement).value).toBe('draft alias');
-      expect((screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_jpn_default');
+      expect(
+        (screen.getByRole('textbox', { name: /语言代码|Language Code/i }) as HTMLInputElement)
+          .value,
+      ).toBe('jpn');
+      expect(
+        (
+          screen.getByRole('textbox', {
+            name: /别名（可选）|Alias \(optional\)/i,
+          }) as HTMLInputElement
+        ).value,
+      ).toBe('draft alias');
+      expect(
+        (screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value,
+      ).toBe('orth_jpn_default');
     });
   });
 });

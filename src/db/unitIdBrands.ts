@@ -18,7 +18,7 @@
  *   `CanonicalUnitId[]` 或 `LayerSegmentRowId[]`（或二者的 tagged union）。
  *   运行时批量写入（`selfCertainty` / `status` / `provenance` 等）统一走
  *   `useTranscriptionUnitActions` 的 `saveUnitLayerFields`（按 Dexie 行 `unitType` 分派），
- *   避免在业务层手写 `segmentId → hostId → LinguisticService.saveUnit` 的反模式。
+ *   避免在业务层手写 `segmentId → hostId → LinguisticService.units.save` 的反模式。
  *   需要 escape hatch 时在适配层显式 cast，并附带可审计的 reason，便于 review / 架构守卫识别。
  */
 
@@ -43,7 +43,9 @@ function isSegmentRow(row: Pick<LayerUnitDocType, 'unitType'>): boolean {
 }
 
 /** 从 row 自动按 kind 生成 tagged target（per-layer 字段写入的首选入口）。 */
-export function brandLayerUnitWriteTarget(row: Pick<LayerUnitDocType, 'id' | 'unitType'>): LayerUnitWriteTarget {
+export function brandLayerUnitWriteTarget(
+  row: Pick<LayerUnitDocType, 'id' | 'unitType'>,
+): LayerUnitWriteTarget {
   return isSegmentRow(row)
     ? { kind: 'segment', id: row.id as LayerSegmentRowId }
     : { kind: 'unit', id: row.id as CanonicalUnitId };

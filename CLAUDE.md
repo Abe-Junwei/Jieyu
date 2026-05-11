@@ -9,6 +9,7 @@ The same sections are mirrored in **`AGENTS.md`** for Cursor and other tools tha
 ## Jieyu-specific
 
 - **Repository-wide engineering constraints** (orchestration vs controllers, `src/pages` controller hooks, complexity thresholds, `check:architecture-guard`, panel CSS two-layer border rule, etc.): the **canonical full text** is **`copilot-instructions.md`** at the repository root (Chinese). Follow it in full when working in this repo; it extends these universal guidelines and resolves ambiguity for Jieyu-specific rules.
+- **ReadyWorkspace 装配**：波形 / UI state / segment scope 的 API **不得**从 `useTranscriptionData` 的 `data` 上取；见 `docs/architecture/ReadyWorkspace-数据域与壳层装配边界.md`，门禁已含于 `npm run check:architecture-guard`（`audit:ready-workspace-timeline-host`）。
 - Docs layout and governed paths: `.cursor/rules/jieyu-docs-governance.mdc`
 - Prefer `docs/architecture/` and code as current truth when docs conflict.
 - **Mature solution first:** When adding a new feature, interaction, algorithm, storage flow, integration, or architecture, first research common mature implementations: established libraries/specs, framework-native patterns, and existing Jieyu modules. Prefer direct reuse or small adaptation when suitable; only design custom code after stating why reuse does not fit. Do not add a dependency unless its maintenance, bundle, license, and integration cost are justified.

@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import { t, type Locale } from '../i18n';
 import { DOCUMENT_PLACEHOLDER_TRACK_FILENAME } from '../utils/mediaItemTimelineKind';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';

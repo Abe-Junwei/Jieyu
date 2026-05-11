@@ -58,9 +58,7 @@ export function useTranscriptionTimelineContentViewModel(
         ...input.textOnlyPropsInput,
         ...verticalProjection,
       }) as TranscriptionPageTimelineTextOnlyProps,
-    // Hosts may reuse `verticalProjection` and mutate fields in place without replacing the object
-    // (see `useTranscriptionTimelineContentViewModel.test.tsx`); shallow keys keep memo in sync.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Hosts may reuse `verticalProjection` and mutate fields in place without replacing the object; deps are intentional shallow fields only (see `useTranscriptionTimelineContentViewModel.test.tsx`).
     [
       input.textOnlyPropsInput,
       verticalProjection.verticalViewEnabled,

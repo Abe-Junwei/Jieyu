@@ -1,5 +1,5 @@
-import { useImportExport } from '../hooks/useImportExport';
-import { useRecording } from '../hooks/useRecording';
+import { useImportExport } from '~/hooks/importExport/useImportExport';
+import { useRecording } from '~/hooks/media/useRecording';
 import { useTranscriptionImportExportInput } from './useTranscriptionImportExportInput';
 import { useTranscriptionProjectMediaController } from './useTranscriptionProjectMediaController';
 import { useTranscriptionProjectMediaControllerInput } from './useTranscriptionProjectMediaControllerInput';

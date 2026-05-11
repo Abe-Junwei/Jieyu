@@ -1,9 +1,23 @@
 // @vitest-environment jsdom
 import type { ComponentProps } from 'react';
-import { act, cleanup, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType } from '../db';
-import type { TimelineUnitViewIndex } from '../hooks/timelineUnitView';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+  MediaItemDocType,
+} from '../db';
+import type { TimelineUnitViewIndex } from '../hooks/transcription/timelineUnitView';
 import { TranscriptionTimelineHorizontalMediaLanes as RawTranscriptionTimelineHorizontalMediaLanes } from './TranscriptionTimelineHorizontalMediaLanes';
 import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelineMediaTranslationRow';
 
@@ -29,7 +43,9 @@ type TestTranscriptionTimelineHorizontalMediaLanesProps = Omit<
   'timelineUnitViewIndex' | 'timelineContentGutterPx'
 > & { timelineContentGutterPx?: number };
 
-function TranscriptionTimelineHorizontalMediaLanes(props: TestTranscriptionTimelineHorizontalMediaLanesProps) {
+function TranscriptionTimelineHorizontalMediaLanes(
+  props: TestTranscriptionTimelineHorizontalMediaLanesProps,
+) {
   const { timelineContentGutterPx: gutterProp, ...rest } = props;
   return (
     <RawTranscriptionTimelineHorizontalMediaLanes
@@ -64,13 +80,30 @@ vi.mock('../contexts/TranscriptionEditorContext', () => ({
 }));
 
 const timelineLaneHeaderMock = vi.fn(
-  ({ layer, onToggleCollapsed }: { layer: { id: string }; onToggleCollapsed?: (layerId: string) => void; trackModeControl?: { lockConflictCount?: number } }) => (
-    <button type="button" data-testid={`toggle-${layer.id}`} onClick={() => onToggleCollapsed?.(layer.id)}>toggle</button>
+  ({
+    layer,
+    onToggleCollapsed,
+  }: {
+    layer: { id: string };
+    onToggleCollapsed?: (layerId: string) => void;
+    trackModeControl?: { lockConflictCount?: number };
+  }) => (
+    <button
+      type="button"
+      data-testid={`toggle-${layer.id}`}
+      onClick={() => onToggleCollapsed?.(layer.id)}
+    >
+      toggle
+    </button>
   ),
 );
 
 vi.mock('./TimelineLaneHeader', () => ({
-  TimelineLaneHeader: (props: { layer: { id: string }; onToggleCollapsed?: (layerId: string) => void; trackModeControl?: { lockConflictCount?: number } }) => timelineLaneHeaderMock(props),
+  TimelineLaneHeader: (props: {
+    layer: { id: string };
+    onToggleCollapsed?: (layerId: string) => void;
+    trackModeControl?: { lockConflictCount?: number };
+  }) => timelineLaneHeaderMock(props),
 }));
 
 vi.mock('./LayerActionPopover', () => ({
@@ -81,7 +114,7 @@ vi.mock('./DeleteLayerConfirmDialog', () => ({
   DeleteLayerConfirmDialog: () => null,
 }));
 
-vi.mock('../hooks/useLayerDeleteConfirm', () => ({
+vi.mock('../hooks/layer/useLayerDeleteConfirm', () => ({
   useLayerDeleteConfirm: () => ({
     deleteLayerConfirm: null,
     deleteConfirmKeepUnits: false,
@@ -100,7 +133,10 @@ vi.mock('../hooks/useTimelineLaneHeightResize', () => ({
   }),
 }));
 
-function makeLayer(id: string, layerType: 'transcription' | 'translation' = 'transcription'): LayerDocType {
+function makeLayer(
+  id: string,
+  layerType: 'transcription' | 'translation' = 'transcription',
+): LayerDocType {
   return {
     id,
     textId: 't1',
@@ -116,7 +152,13 @@ function makeLayer(id: string, layerType: 'transcription' | 'translation' = 'tra
   } as LayerDocType;
 }
 
-function makeUnit(id: string, startTime: number, endTime: number, speakerId?: string, speaker?: string): LayerUnitDocType {
+function makeUnit(
+  id: string,
+  startTime: number,
+  endTime: number,
+  speakerId?: string,
+  speaker?: string,
+): LayerUnitDocType {
   return {
     id,
     textId: 't1',
@@ -180,7 +222,9 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       ...makeLayer('trc-seg'),
       constraint: 'independent_boundary',
     } as LayerDocType;
-    const renderAnnotationItem = vi.fn((utt: { id: string }) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>);
+    const renderAnnotationItem = vi.fn((utt: { id: string }) => (
+      <div data-testid={`ann-${utt.id}`}>{utt.id}</div>
+    ));
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
@@ -189,23 +233,27 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         lassoRect={null}
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        timelineRenderUnits={[
-          makeUnit('seg-1', 0, 2),
-          makeUnit('utt-host', 4, 6),
-        ]}
-        segmentsByLayer={new Map([
-          [layer.id, [{
-            id: 'seg-1',
-            layerId: layer.id,
-            mediaId: 'm1',
-            unitId: 'utt-host',
-            startTime: 4,
-            endTime: 6,
-            textId: 't1',
-            createdAt: NOW,
-            updatedAt: NOW,
-          }]],
-        ])}
+        timelineRenderUnits={[makeUnit('seg-1', 0, 2), makeUnit('utt-host', 4, 6)]}
+        segmentsByLayer={
+          new Map([
+            [
+              layer.id,
+              [
+                {
+                  id: 'seg-1',
+                  layerId: layer.id,
+                  mediaId: 'm1',
+                  unitId: 'utt-host',
+                  startTime: 4,
+                  endTime: 6,
+                  textId: 't1',
+                  createdAt: NOW,
+                  updatedAt: NOW,
+                },
+              ],
+            ],
+          ])
+        }
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -219,7 +267,9 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       />,
     );
 
-    const firstRenderedUnit = renderAnnotationItem.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+    const firstRenderedUnit = renderAnnotationItem.mock.calls[0]?.[0] as
+      | Record<string, unknown>
+      | undefined;
     expect(firstRenderedUnit).toBeTruthy();
     expect(firstRenderedUnit?.kind).toBe('segment');
     expect(firstRenderedUnit?.parentUnitId).toBe('utt-host');
@@ -396,7 +446,9 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       makeUnit('u2', 1, 4, 's2'),
       makeUnit('u3', 2, 3, 's3'),
     ];
-    const segments = units.map((u) => ({ ...u, layerId: trcHost.id, unitType: 'segment' } as LayerUnitDocType));
+    const segments = units.map(
+      (u) => ({ ...u, layerId: trcHost.id, unitType: 'segment' }) as LayerUnitDocType,
+    );
     const layerLinks = [
       {
         id: 'link-tr-overlap',
@@ -420,7 +472,9 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={trcHost.id}
-        renderAnnotationItem={(utt, layer) => <div data-testid={`ann-${layer.id}-${utt.id}`}>{utt.id}</div>}
+        renderAnnotationItem={(utt, layer) => (
+          <div data-testid={`ann-${layer.id}-${utt.id}`}>{utt.id}</div>
+        )}
         allLayersOrdered={[trLayer, trcHost]}
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[trLayer, trcHost]}
@@ -453,7 +507,14 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       parentLayerId: parentLayer.id,
     } as LayerDocType;
     const layerLinks = [
-      { id: 'link-1', layerId: translationLayer.id, transcriptionLayerKey: parentLayer.key!, hostTranscriptionLayerId: parentLayer.id, isPreferred: true, createdAt: NOW },
+      {
+        id: 'link-1',
+        layerId: translationLayer.id,
+        transcriptionLayerKey: parentLayer.key!,
+        hostTranscriptionLayerId: parentLayer.id,
+        isPreferred: true,
+        createdAt: NOW,
+      },
     ] as LayerLinkDocType[];
 
     render(
@@ -475,16 +536,41 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         laneHeights={{ [translationLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
         layerLinks={layerLinks}
-        segmentsByLayer={new Map([
-          [parentLayer.id, [
-            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
-            { id: 'seg-2', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
-          ]],
-        ])}
+        segmentsByLayer={
+          new Map([
+            [
+              parentLayer.id,
+              [
+                {
+                  id: 'seg-1',
+                  textId: 't1',
+                  mediaId: 'm1',
+                  layerId: parentLayer.id,
+                  startTime: 0,
+                  endTime: 1,
+                  createdAt: NOW,
+                  updatedAt: NOW,
+                },
+                {
+                  id: 'seg-2',
+                  textId: 't1',
+                  mediaId: 'm1',
+                  layerId: parentLayer.id,
+                  startTime: 1,
+                  endTime: 2,
+                  createdAt: NOW,
+                  updatedAt: NOW,
+                },
+              ],
+            ],
+          ])
+        }
       />,
     );
 
-    const translationLane = screen.getByTestId(`toggle-${translationLayer.id}`).closest('.timeline-lane-translation');
+    const translationLane = screen
+      .getByTestId(`toggle-${translationLayer.id}`)
+      .closest('.timeline-lane-translation');
     expect(translationLane).toBeTruthy();
     expect(within(translationLane as HTMLElement).getByTestId('ann-seg-1')).toBeTruthy();
     expect(within(translationLane as HTMLElement).getByTestId('ann-seg-2')).toBeTruthy();
@@ -520,11 +606,25 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         onFocusLayer={vi.fn()}
         laneHeights={{ [parentLayer.id]: 44, [childLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
-        segmentsByLayer={new Map([
-          [parentLayer.id, [
-            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
-          ]],
-        ])}
+        segmentsByLayer={
+          new Map([
+            [
+              parentLayer.id,
+              [
+                {
+                  id: 'seg-1',
+                  textId: 't1',
+                  mediaId: 'm1',
+                  layerId: parentLayer.id,
+                  startTime: 0,
+                  endTime: 1,
+                  createdAt: NOW,
+                  updatedAt: NOW,
+                },
+              ],
+            ],
+          ])
+        }
       />,
     );
 
@@ -551,12 +651,35 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         onFocusLayer={vi.fn()}
         laneHeights={{ [parentLayer.id]: 44, [childLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
-        segmentsByLayer={new Map([
-          [parentLayer.id, [
-            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
-            { id: 'seg-2', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
-          ]],
-        ])}
+        segmentsByLayer={
+          new Map([
+            [
+              parentLayer.id,
+              [
+                {
+                  id: 'seg-1',
+                  textId: 't1',
+                  mediaId: 'm1',
+                  layerId: parentLayer.id,
+                  startTime: 0,
+                  endTime: 1,
+                  createdAt: NOW,
+                  updatedAt: NOW,
+                },
+                {
+                  id: 'seg-2',
+                  textId: 't1',
+                  mediaId: 'm1',
+                  layerId: parentLayer.id,
+                  startTime: 1,
+                  endTime: 2,
+                  createdAt: NOW,
+                  updatedAt: NOW,
+                },
+              ],
+            ],
+          ])
+        }
       />,
     );
 
@@ -597,32 +720,37 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         onFocusLayer={vi.fn()}
         laneHeights={{ [parentLayer.id]: 44, [childLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
-        segmentsByLayer={new Map([
-          [parentLayer.id, [
-            {
-              id: 'seg-s1',
-              textId: 't1',
-              mediaId: 'm1',
-              layerId: parentLayer.id,
-              speakerId: 's1',
-              startTime: 0,
-              endTime: 1,
-              createdAt: NOW,
-              updatedAt: NOW,
-            },
-            {
-              id: 'seg-s2',
-              textId: 't1',
-              mediaId: 'm1',
-              layerId: parentLayer.id,
-              speakerId: 's2',
-              startTime: 1,
-              endTime: 2,
-              createdAt: NOW,
-              updatedAt: NOW,
-            },
-          ]],
-        ])}
+        segmentsByLayer={
+          new Map([
+            [
+              parentLayer.id,
+              [
+                {
+                  id: 'seg-s1',
+                  textId: 't1',
+                  mediaId: 'm1',
+                  layerId: parentLayer.id,
+                  speakerId: 's1',
+                  startTime: 0,
+                  endTime: 1,
+                  createdAt: NOW,
+                  updatedAt: NOW,
+                },
+                {
+                  id: 'seg-s2',
+                  textId: 't1',
+                  mediaId: 'm1',
+                  layerId: parentLayer.id,
+                  speakerId: 's2',
+                  startTime: 1,
+                  endTime: 2,
+                  createdAt: NOW,
+                  updatedAt: NOW,
+                },
+              ],
+            ],
+          ])
+        }
       />,
     );
 
@@ -639,10 +767,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
   it('renders overlapping units without speaker-focus dim or hide classes', () => {
     const layer = makeLayer('trc-1');
-    const units = [
-      makeUnit('u1', 0, 2, 's1'),
-      makeUnit('u2', 2, 4, 's2'),
-    ];
+    const units = [makeUnit('u1', 0, 2, 's1'), makeUnit('u2', 2, 4, 's2')];
 
     const { container } = render(
       <TranscriptionTimelineHorizontalMediaLanes
@@ -677,19 +802,22 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       constraint: 'independent_boundary',
     } as LayerDocType;
     const segmentsByLayer = new Map([
-      [layer.id, [
-        {
-          id: 'seg_1',
-          textId: 't1',
-          mediaId: 'm1',
-          layerId: layer.id,
-          speakerId: 's1',
-          startTime: 0,
-          endTime: 1,
-          createdAt: NOW,
-          updatedAt: NOW,
-        },
-      ]],
+      [
+        layer.id,
+        [
+          {
+            id: 'seg_1',
+            textId: 't1',
+            mediaId: 'm1',
+            layerId: layer.id,
+            speakerId: 's1',
+            startTime: 0,
+            endTime: 1,
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+      ],
     ]);
 
     render(
@@ -738,7 +866,11 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         defaultTranscriptionLayerId={layer.id}
         renderAnnotationItem={(utt, _layer, _draft, extra) => {
           const status = extra.overlapCycleStatus;
-          return <div data-testid={`meta-${utt.id}`}>{status ? `${status.index}/${status.total}` : 'none'}</div>;
+          return (
+            <div data-testid={`meta-${utt.id}`}>
+              {status ? `${status.index}/${status.total}` : 'none'}
+            </div>
+          );
         }}
         allLayersOrdered={[layer]}
         onReorderLayers={vi.fn(async () => undefined)}
@@ -756,10 +888,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
   it('surfaces lock conflict count in lane header track mode control', () => {
     const layer = makeLayer('trc-1');
-    const units = [
-      makeUnit('u1', 0, 4, 's1'),
-      makeUnit('u2', 1, 3, 's2'),
-    ];
+    const units = [makeUnit('u1', 0, 4, 's1'), makeUnit('u2', 1, 3, 's2')];
 
     const { rerender } = render(
       <TranscriptionTimelineHorizontalMediaLanes
@@ -785,7 +914,9 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       />,
     );
 
-    const firstProps = timelineLaneHeaderMock.mock.calls[0]?.[0] as { trackModeControl?: { lockConflictCount?: number } } | undefined;
+    const firstProps = timelineLaneHeaderMock.mock.calls[0]?.[0] as
+      | { trackModeControl?: { lockConflictCount?: number } }
+      | undefined;
     expect(firstProps?.trackModeControl?.lockConflictCount).toBe(1);
 
     rerender(
@@ -812,7 +943,9 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       />,
     );
 
-    const latestProps = timelineLaneHeaderMock.mock.calls[timelineLaneHeaderMock.mock.calls.length - 1]?.[0] as { trackModeControl?: { lockConflictCount?: number } } | undefined;
+    const latestProps = timelineLaneHeaderMock.mock.calls[
+      timelineLaneHeaderMock.mock.calls.length - 1
+    ]?.[0] as { trackModeControl?: { lockConflictCount?: number } } | undefined;
     expect(latestProps?.trackModeControl?.lockConflictCount).toBeUndefined();
   });
 
@@ -822,10 +955,31 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       constraint: 'independent_boundary',
     } as LayerDocType;
     const segmentsByLayer = new Map([
-      [layer.id, [
-        { id: 'seg-view-1', textId: 't1', mediaId: 'm1', layerId: layer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
-        { id: 'seg-view-2', textId: 't1', mediaId: 'm1', layerId: layer.id, startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
-      ]],
+      [
+        layer.id,
+        [
+          {
+            id: 'seg-view-1',
+            textId: 't1',
+            mediaId: 'm1',
+            layerId: layer.id,
+            startTime: 0,
+            endTime: 1,
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+          {
+            id: 'seg-view-2',
+            textId: 't1',
+            mediaId: 'm1',
+            layerId: layer.id,
+            startTime: 1,
+            endTime: 2,
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+      ],
     ]);
 
     render(
@@ -856,9 +1010,13 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
   it('surfaces save error and retry callbacks for media translation rows', async () => {
     const translationLayer = makeLayer('trl-save', 'translation');
-    const item = { ...makeUnit('u1', 0, 1, 's1'), layerId: translationLayer.id } as LayerUnitDocType;
+    const item = {
+      ...makeUnit('u1', 0, 1, 's1'),
+      layerId: translationLayer.id,
+    } as LayerUnitDocType;
     const scheduleAutoSave = vi.fn();
-    const saveUnitLayerText = vi.fn()
+    const saveUnitLayerText = vi
+      .fn()
       .mockRejectedValueOnce(new Error('save failed'))
       .mockResolvedValue(undefined);
 
@@ -890,8 +1048,15 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         renderAnnotationItem={(_utt, _layer, draft, extra) => (
           <div>
             <div data-testid="media-save-status">{extra.saveStatus ?? 'none'}</div>
-            <input aria-label="media-draft" value={draft} onChange={extra.onChange as never} onBlur={extra.onBlur as never} />
-            <button type="button" onClick={() => extra.onRetrySave?.()}>retry</button>
+            <input
+              aria-label="media-draft"
+              value={draft}
+              onChange={extra.onChange as never}
+              onBlur={extra.onBlur as never}
+            />
+            <button type="button" onClick={() => extra.onRetrySave?.()}>
+              retry
+            </button>
           </div>
         )}
       />,
@@ -927,7 +1092,11 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       acceptsAudio: true,
     } as LayerDocType;
     const unit = makeUnit('u1', 0, 1, 's1');
-    const segmentRow = { ...unit, layerId: transcriptionLayer.id, unitType: 'segment' } as LayerUnitDocType;
+    const segmentRow = {
+      ...unit,
+      layerId: transcriptionLayer.id,
+      unitType: 'segment',
+    } as LayerUnitDocType;
     const layerLinks = [
       {
         id: 'link-trl-audio',
@@ -953,8 +1122,16 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         focusedLayerRowId=""
         defaultTranscriptionLayerId={transcriptionLayer.id}
         renderAnnotationItem={(_utt, _layer, _draft, extra) => {
-          const audioExtra = extra as typeof extra & { content?: React.ReactNode; tools?: React.ReactNode };
-          return <div>{audioExtra.content}{audioExtra.tools}</div>;
+          const audioExtra = extra as typeof extra & {
+            content?: React.ReactNode;
+            tools?: React.ReactNode;
+          };
+          return (
+            <div>
+              {audioExtra.content}
+              {audioExtra.tools}
+            </div>
+          );
         }}
         allLayersOrdered={[translationLayer, transcriptionLayer]}
         onReorderLayers={vi.fn(async () => undefined)}
@@ -971,7 +1148,9 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /开始录音翻译|Start recording translation/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /开始录音翻译|Start recording translation/i }),
+    );
 
     expect(startRecordingForUnit).toHaveBeenCalledWith(
       expect.objectContaining({ id: unit.id }),
@@ -992,7 +1171,11 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       acceptsAudio: false,
     } as LayerDocType;
     const unit = makeUnit('u-mixed-1', 0, 1, 's1');
-    const segmentRow = { ...unit, layerId: transcriptionLayer.id, unitType: 'segment' } as LayerUnitDocType;
+    const segmentRow = {
+      ...unit,
+      layerId: transcriptionLayer.id,
+      unitType: 'segment',
+    } as LayerUnitDocType;
     const layerLinks = [
       {
         id: 'link-trl-mixed',
@@ -1018,8 +1201,16 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         focusedLayerRowId=""
         defaultTranscriptionLayerId={transcriptionLayer.id}
         renderAnnotationItem={(_utt, _layer, _draft, extra) => {
-          const audioExtra = extra as typeof extra & { content?: React.ReactNode; tools?: React.ReactNode };
-          return <div>{audioExtra.content}{audioExtra.tools}</div>;
+          const audioExtra = extra as typeof extra & {
+            content?: React.ReactNode;
+            tools?: React.ReactNode;
+          };
+          return (
+            <div>
+              {audioExtra.content}
+              {audioExtra.tools}
+            </div>
+          );
         }}
         allLayersOrdered={[translationLayer, transcriptionLayer]}
         onReorderLayers={vi.fn(async () => undefined)}
@@ -1036,7 +1227,9 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       />,
     );
 
-    const recordButton = screen.getByRole('button', { name: /开始录音翻译|Start recording translation/i });
+    const recordButton = screen.getByRole('button', {
+      name: /开始录音翻译|Start recording translation/i,
+    });
     expect(recordButton.hasAttribute('disabled')).toBe(false);
     fireEvent.click(recordButton);
 
@@ -1096,15 +1289,17 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         ]),
       ],
     ]);
-    const mediaItems: MediaItemDocType[] = [{
-      id: 'media-audio-1',
-      textId: 't1',
-      filename: 'playback.webm',
-      url: 'blob:horizontal-playback',
-      isOfflineCached: true,
-      details: { source: 'translation-recording', mimeType: 'audio/webm' },
-      createdAt: NOW,
-    }] as MediaItemDocType[];
+    const mediaItems: MediaItemDocType[] = [
+      {
+        id: 'media-audio-1',
+        textId: 't1',
+        filename: 'playback.webm',
+        url: 'blob:horizontal-playback',
+        isOfflineCached: true,
+        details: { source: 'translation-recording', mimeType: 'audio/webm' },
+        createdAt: NOW,
+      },
+    ] as MediaItemDocType[];
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
@@ -1119,8 +1314,16 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         focusedLayerRowId=""
         defaultTranscriptionLayerId={transcriptionLayer.id}
         renderAnnotationItem={(_utt, _layer, _draft, extra) => {
-          const audioExtra = extra as typeof extra & { content?: React.ReactNode; tools?: React.ReactNode };
-          return <div>{audioExtra.content}{audioExtra.tools}</div>;
+          const audioExtra = extra as typeof extra & {
+            content?: React.ReactNode;
+            tools?: React.ReactNode;
+          };
+          return (
+            <div>
+              {audioExtra.content}
+              {audioExtra.tools}
+            </div>
+          );
         }}
         allLayersOrdered={[translationLayer, transcriptionLayer]}
         onReorderLayers={vi.fn(async () => undefined)}
@@ -1137,6 +1340,10 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       />,
     );
 
-    expect(screen.getByRole('button', { name: /播放录音翻译|播放已录音翻译|Play recorded translation/i })).toBeTruthy();
+    expect(
+      screen.getByRole('button', {
+        name: /播放录音翻译|播放已录音翻译|Play recorded translation/i,
+      }),
+    ).toBeTruthy();
   });
 });

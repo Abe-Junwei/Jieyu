@@ -1,4 +1,4 @@
-import type { AiInteractionMetrics } from '../../hooks/useAiChat.types';
+import type { AiInteractionMetrics } from '../../hooks/ai/useAiChat.types';
 
 /**
  * 纯函数：对 metrics 对象中的指定数值字段增加 delta。

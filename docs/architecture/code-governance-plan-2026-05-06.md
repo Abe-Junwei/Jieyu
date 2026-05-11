@@ -27,10 +27,10 @@ depends_on:
 
 | 优先级    | 主题                                  | 现状（快照）                                                                                                                                         | 主要落位                             | 下一步（可验收）                                                                                              |
 | ------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **P0** | **Wave 2.2** Linguistic 门面 + 语言目录核心 | `LinguisticService.ts` **526** 行（卫星 `linguisticService*.ts` 已薄门面）；`languageCatalog/languageCatalogCore.ts` **薄 barrel ~8 行**（`languageCatalogCore*` + `languageCatalogUpsert*` + `languageCatalogListEntriesFilter`）；`languageCatalogCoreMutations.ts` **~256** 行；`LinguisticService.languageCatalog.ts` 薄 barrel **12** 行 | **§2.2**                         | 下一批：`languageCatalogUpsertLanguageDocExtended.ts` 若再涨可按子域拆；其余按需；每批 `madge --circular` + 定向 Vitest |
-| **P0** | **ARCH-7** ReadyWorkspace 编排壳       | `TranscriptionPage.ReadyWorkspace.tsx` **2017** / 2600（约 77.6%）                                                                                | **§5.1**、**§11.1**               | 延续 **C2**：新回调进专用 controller；`npm run check:architecture-guard`                                        |
+| **P1** | **Wave 2.2** Linguistic 门面 + 语言目录核心 | `LinguisticService.ts` **600** 行（guard 上限 2000，利用率 30%；**100% 薄委托**，无业务逻辑可拆）；`languageCatalog/languageCatalogCore.ts` **薄 barrel ~8 行**；`languageCatalogCoreMutations.ts` **~256** 行；`LinguisticService.languageCatalog.ts` 薄 barrel **12** 行 | **§2.2**                         | `languageCatalogUpsertLanguageDocExtended.ts` 按需拆；门面 600 行属纯委托，不阻塞 guard；每批 `madge --circular` + 定向 Vitest |
+| **P1** | **ARCH-7** ReadyWorkspace 编排壳       | **入口** `TranscriptionPage.ReadyWorkspace.tsx` **10** / 40；**body** `TranscriptionPage.ReadyWorkspace.body.tsx` **20** / 80（薄壳）；**编排** `TranscriptionPage.ReadyWorkspaceOrchestrator.tsx` **~231** / 2600（**8.9%，已薄**）；`useReadyWorkspaceReadyPhaseBootstrap.ts` **74** / 140（ratchet，~52.9%）；`buildReadyWorkspaceViewModelsSurfacePhaseParams.ts` **456** / 900（~50.7%） | **§5.1**、**§11.1**               | 编排壳已收敛为阶段 hook + builder 调用；增量默认进 **Orchestrator** 或阶段 hook；`npm run check:architecture-guard` 为硬门槛；事实见 **§5.1.1**                                        |
 | **P1** | **G4** `useAiChat` 与相关卫星            | `useAiChat.ts` **564** / `hookRule` **1100**（约 51.3%）；`sendTurnStreamPhase` / `confirmExecution` 等已部分外拆                                        | **§2.1**、**§11.1**、**§五 Wave 3** | 继续把大块迁入既有 `useAiChat.*` 卫星模块；控制 `useCallback`/`useEffect` 计数近顶前预拆                                     |
-| **P1** | **Wave 4** DB 类型与 schema            | `db/types.ts` **1268**；`db/schemas.ts` **1517**                                                                                                | **§六**                           | 分型外迁；schemas 体量已高于旧规划数字，**以本表为真**                                                                     |
+| **P1** | **Wave 4** DB 类型与 schema            | `db/types.ts` **1268**；`db/schemas.ts` **1517**；guard 无 ratchet，属长期架构债                                                                  | **§六**                           | 分型外迁；schemas 体量已高于旧规划数字，**以本表为真**                                                                     |
 | **P2** | **Wave 3** hooks 根目录平铺              | 根目录约 **271** 个 `*.ts/*.tsx`（仅 `src/hooks/` 深度 1）                                                                                               | **§五**                           | 首批域迁入子目录 + guard `matchRegex` / `allowlist`；禁止全量 `src/hooks/index.ts` barrel                          |
 | **P2** | **G3** 分包与 Wave 6 基建                | `language-mapping-runtime` 约 **342KB**（见 §11 历史口径）                                                                                             | **§八**、**§11.1**                 | 按需加载 / registry chunk 实验；与 Knip、体积分轨对齐                                                                |
 | **持续** | 文档链接、i18n 硬编码、guard 回归              | `report:docs-link-debt`；ledger + `i18n-hardcoded-thresholds.json`                                                                              | **§11.1～11.3**                   | 见 **§11.2** 发版命令；大 doc 搬迁后重跑 link debt                                                                |
@@ -203,11 +203,11 @@ scripts/architecture-guard/
 2. `scripts/architecture-guard.config.mjs` 已无 `toolCallHelpers.ts` 专门 1700 规则。
 3. `npm run check:architecture-guard:core`：**AI Chat 行数项不因 `toolCallHelpers` 失败**；命名 page controller 是否仍触顶以 **当前 guard 输出**为准（历史叙述见 **§10** 表与 **§11**）。
 
-### 2.2 LinguisticService.ts + language catalog 子域 — **进行中（Wave 2.2 当前焦点）**
+### 2.2 LinguisticService.ts + language catalog 子域 — **大部完成（Wave 2.2 当前焦点）**
 
 **现状（以仓库 `wc -l` 为准，随 PR 漂移）：**
 
-- `src/services/LinguisticService.ts`：**526** 行（`wc -l`；卫星模块：`linguisticServiceMediaImport`、`linguisticServiceImportQualityReport`、`linguisticServiceLexemeOps`、`linguisticServiceUnitTokenOps`、`linguisticServiceLayerOps`、`linguisticServiceTextTimelineOps`、`linguisticServiceMediaReadWrite`、`linguisticServiceDatabaseIo`、`linguisticServiceProjectBootstrap`、`linguisticServiceTierFacade`、`linguisticServiceLanguageCatalogFacade`、`linguisticServiceOrthographyFacade`、`linguisticServiceStructuralProfileFacade`、`linguisticServiceCollaborationCleanupFacade` 等），Wave 2.2 **门面已薄**；语言目录核心已自 `languageCatalogCore.ts` 单文件拆出（见下条）。
+- `src/services/LinguisticService.ts`：**600** 行（`wc -l`；卫星模块：`linguisticServiceMediaImport`、`linguisticServiceImportQualityReport`、`linguisticServiceLexemeOps`、`linguisticServiceUnitTokenOps`、`linguisticServiceLayerOps`、`linguisticServiceTextTimelineOps`、`linguisticServiceMediaReadWrite`、`linguisticServiceDatabaseIo`、`linguisticServiceProjectBootstrap`、`linguisticServiceTierFacade`、`linguisticServiceLanguageCatalogFacade`、`linguisticServiceOrthographyFacade`、`linguisticServiceStructuralProfileFacade`、`linguisticServiceCollaborationCleanupFacade` 等），Wave 2.2 **门面已薄**；**600 行全部为薄委托**（`return satelliteModule.method(...)`），无业务逻辑可拆；语言目录核心已自 `languageCatalogCore.ts` 单文件拆出（见下条）。 guard 上限 2000，利用率 30%，不报警。
 - `src/services/LinguisticService.languageCatalog.ts`：已收口为 **薄 barrel**（re-export `languageCatalog/*` + customFieldAdmin），**动态 import 路径必须保持稳定**（见文件头注释）。
 - `src/services/languageCatalog/languageCatalogCore.ts`：**薄 re-export**（`refreshLanguageCatalogReadModel` + CRUD/history API），逻辑分布在 `languageCatalogCoreNormalization.ts`、`languageCatalogCoreProjection.ts`、`languageCatalogCoreReadModel.ts`、`languageCatalogCoreHistory.ts`、`languageCatalogCoreMutations.ts`（list/get/delete/history + upsert 编排）、`languageCatalogListEntriesFilter.ts`（列表搜索过滤），以及 **`languageCatalogUpsertPrep.ts` / `languageCatalogUpsertRows.ts` / `languageCatalogUpsertLanguageDoc*.ts`**（`upsert` 预计算、别名与 displayName 行、`LanguageDoc` 分片 merge：identity / extended / trail）；**动态 import 仍指向 `./languageCatalog/languageCatalogCore`** 的路径不变。
 
@@ -222,7 +222,7 @@ scripts/architecture-guard/
 
 > ⚠️ **前置条件：** Phase 0.2 allowlist 迁移策略落地（引擎已实现）+ Phase 0.1 hooks 批量 patternRule 扩展至子目录。
 
-`src/hooks/` 根目录约 **271** 个 `*.ts` / `*.tsx`（深度 1 计数；含子目录文件总数以 `npm run report:code-scale` 为准）。
+`src/hooks/` 根目录约 **225** 个 `*.ts` / `*.tsx`（深度 1 计数，已自 273 降至 225）；首批 **14 个子目录**已迁入：`layer/`、`importExport/`、`media/`、`notes/`、`orthography/`、`pdf/`、`fonts/`、`languageCatalog/`、`lexicon/`、`cloudSync/`、`backup/`、`dialogs/`、`panel/`、`sidePane/`；`speakerManagement/` 为此前已迁入。
 
 **按域分组（不一次性搬完，分批）：**
 
@@ -283,20 +283,37 @@ src/db/schemas/
 
 ---
 
-## 七、Wave 5：组件瘦身（5-6 周）
+## 七、Wave 5：组件瘦身（5-6 周）— **编排壳已收敛，卫星体系已建**
 
-> **ARCH-7：** `TranscriptionPage.ReadyWorkspace.tsx` 减薄与 **§〇 P0**、**§11.1** 同一跟踪面；本 Wave 以「编排壳 + 卫星 controller」为验收单位。
+> **ARCH-7：** ReadyWorkspace **chunk 入口**（`TranscriptionPage.ReadyWorkspace.tsx` **10/40**）、**薄 body**（`TranscriptionPage.ReadyWorkspace.body.tsx` **20/80**）与 **编排实现**（`TranscriptionPage.ReadyWorkspaceOrchestrator.tsx` **~231/2600**）均已达标；本 Wave 以「薄入口 + 薄 body + 编排模块 + 卫星 controller / hook」为验收单位，当前状态见 **§5.1.1**。
 
 ### 5.1 TOP 组件拆分
 
 | 组件 | 当前行数 | 阈值 | 使用率 | 拆分方向 | Guard 影响 |
 |------|---------|------|--------|----------|-----------|
-| `TranscriptionPage.ReadyWorkspace.tsx` | 2017 | 2600 | 约 77.6% | 已抽出 `useReadyWorkspaceTrackEditControllers`、`useReadyWorkspaceTimelineSyncSetup`、`useReadyWorkspacePlaybackReadModelSetup`、`useReadyWorkspaceSurfaceProps`、`useLocaleBoundTf` 等；后续继续按域减薄编排层 | 单文件规则 maxLines 2600；结构锚点见 `TranscriptionPage.structure.test.ts` |
-| `useReadyWorkspaceSurfaceProps.tsx` | 504 | 650（单文件 ratchet） | 约 77.5% | ReadyWorkspace 舞台/侧栏/遮罩 props 组装 | `file:` 规则 + bulk `excludeFiles` |
-| `useReadyWorkspaceTrackEditControllers.ts` | 316 | 450（单文件 ratchet） | 约 70.2% | 批量/轨道显示/说话人/轨道实体/文本编辑等聚合 | `file:` 规则 + bulk `excludeFiles` |
+| `TranscriptionPage.ReadyWorkspace.tsx`（chunk 入口） | 10 | 40 | — | CSS + re-export body；重编排见 **Orchestrator** | `rules.pages.mjs` 入口 maxLines **40** |
+| `TranscriptionPage.ReadyWorkspace.body.tsx` | 20 | 80 | 约 25% | 薄壳：结构锚点 + 转发 `TranscriptionPageReadyWorkspaceOrchestrator` | `rules.pages.mjs` body maxLines **80** |
+| `TranscriptionPage.ReadyWorkspaceOrchestrator.tsx` | ~231 | 2600 | 约 8.9% | 编排壳：`domainShell` / `pre` / `bootstrap` 等阶段结果装配；重 wiring 见 `useReadyWorkspace*Phase` 与 `buildReadyWorkspace*PhaseParams`（事实记录 **§5.1.1**） | `rules.pages.mjs` orchestrator maxLines **2600**；结构测试合并读 shell+body+orchestrator |
+| `useReadyWorkspaceReadyPhaseBootstrap.ts` | 74 | 140（ratchet） | 约 52.9% | ready 态前置：统一条数同步、段钳制、interaction helpers、段 mutation/creation、unit ops、overlay 路由；类型定义外推至 `.types.ts` | `architectureGuardPageRatchetFileRules` |
+| `useReadyWorkspaceSurfaceProps.tsx` | 507 | 650（单文件 ratchet） | 约 78.0% | ReadyWorkspace 舞台/侧栏/遮罩 props 组装 | `file:` 规则 + bulk `excludeFiles` |
+| `useReadyWorkspaceTrackEditControllers.ts` | 336 | 450（单文件 ratchet） | 约 74.7% | 批量/轨道显示/说话人/轨道实体/文本编辑等聚合 | `file:` 规则 + bulk `excludeFiles` |
 | `SettingsModal.tsx` | 142 | — | — | 已按 Tab 拆至 `src/components/settings/*`，主文件为薄编排壳 | 无单条规则，受批量约束 |
 | `AiAnalysisPanel.tsx` | 243 | 2250（components 批量） | 约 10.8% | 声学分析拆至 `AiAnalysisPanelAcousticTabContent.tsx`、`useAiAnalysisPanelAcousticModel.ts`、`aiAnalysisPanelAcoustic/*` | 受 `rules.patterns.postCss.mjs` 中 `src/components` 批量 maxLines **2250** 约束 |
 | `LayerActionPopover.tsx` | **192** | — | — | 创建/元数据/编辑区块与表单状态、动作 hook 已迁至 `src/components/layerActionPopover/*`；主文件仅组装 | 无单条规则，受批量约束 |
+
+### 5.1.1 事实记录：`ReadyWorkspaceOrchestrator` 编排壳收口（2026-05-11）
+
+> 本节为合并后可追溯的**事实快照**（行数以当时 `wc -l` 为准）；与 **§〇 P0**、§5.1 主表、**§10** 热点表交叉引用时，以本节日期后的重跑为准。
+
+- **`TranscriptionPage.ReadyWorkspaceOrchestrator.tsx`**：由原先千行级 body 编排收敛为 **约 231 行**薄编排壳（`wc -l` ≈231）；`useTranscriptionData` 在壳层仅做**最小解构**（如 `state`、冲突票据与若干顶层 action），域壳能力经 **`useReadyWorkspaceDomainShellPhase`** 聚合为 `domainShell`，避免在编排文件内展开大块 `data` 字段。
+- **前置 chrome / 读模型边界**：**`useReadyWorkspacePreBootstrapChromePhase`** 承接 transcription lane 读范围、时间线索引等与 ADR 0020 相关的 wiring（与 `audit:ready-workspace-timeline-host` 门禁对齐）。
+- **阶段参数纯函数**：时间线 / 助手 / 播放 **`buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams`**；侧栏与轨道 **`buildReadyWorkspaceSidebarAndTrackPhaseParams`**；viewModels 与 surface **`buildReadyWorkspaceViewModelsSurfacePhaseParams`** — 编排壳主要负责调用阶段 hook 并传入上述 builder 产物，降低 orchestrator 内联对象字面量体积。
+- **`layeredFlatAssemblyWithoutAssembled` / `nestedOrchestratorSlices` 外推（2026-05-11）**：从 `buildReadyWorkspaceViewModelsSurfacePhaseParams.ts` 中提取两块最大字面量至独立纯函数：
+  - `readyWorkspaceSurfaceLayeredFlatAssembly.ts`（~127 行）：组装 `layeredFlatAssemblyWithoutAssembled` 对象；
+  - `readyWorkspaceSurfaceNestedOrchestratorSlices.ts`（~127 行）：组装 `nestedOrchestratorSlices` 对象；
+  - `buildReadyWorkspaceViewModelsSurfacePhaseDeps.ts`（~38 行）：提取共享 `BuildReadyWorkspaceViewModelsSurfacePhaseDeps` 接口（打破提取后潜在的循环依赖）。
+  - 主文件从 **858 行降至约 456 行**（ratchet 900，利用率 **~50.7%**），`madge --circular` 0，`check:architecture-guard:core` 无 WARN，`TranscriptionPage.structure.test.ts` 绿。
+- **验收**：`TranscriptionPage.structure.test.ts` 延续 shell + body + orchestrator 结构约束；`npm run check:architecture-guard`（含 `rules.pages.mjs` 与 timeline 审计脚本）为合并前硬门槛。
 
 ---
 
@@ -340,8 +357,8 @@ export function trackPageErrors(
 | 6 | Wave 1.1：VoiceAgentService 拆出 dictation | Agent | 2026-05-08 | ✅ | — |
 | 7 | Wave 1.2～1.3：波形桥 + `useTranscriptionData` 阈值释放 | Agent | 2026-05-15 | ✅ | 1.2：同目录 `waveformBridge*.ts` 卫星模块 + 主 controller **460/700**；1.3：入口薄化 + `useTranscriptionDataFoundation` / `useTranscriptionDataBindings` |
 | 8 | Wave 2.1：AI Chat 层重组 | Agent | 2026-05-09 | ✅ | toolCallHelpers/formatters/slotResolver 已回落到安全区 |
-| 9 | Wave 2.2：LinguisticService 门面 + `languageCatalog/*` 分簇 | 待分配 | 2026-05-29 | ⏳ | 门面已薄；语言目录已多文件分簇；当前最大块多为 `languageCatalogUpsertLanguageDocExtended.ts`；见 **§2.2** |
-| 10 | Wave 3：Hooks 分组启动 | 待分配 | 2026-06-05 | ⏳ | 首批域与 `allowlist` 策略见 **§〇 P2**、**§五**；与 G4（`hooks/ai/`）可同批次规划 |
+| 9 | Wave 2.2：LinguisticService 门面 + `languageCatalog/*` 分簇 | Agent | 2026-05-29 | 🟢 | 门面已薄（600 行纯委托）；语言目录已多文件分簇；`languageCatalogUpsertLanguageDocExtended.ts` 按需拆；见 **§2.2** |
+| 10 | Wave 3：Hooks 分组启动 | Agent | 2026-06-05 | 🟢 第一批 | 14 个子目录已迁入；下一批：`ai/`、`transcription/`、`voice/`、`ui/` |
 | 11 | 命名 page controller 行数（guard:core） | 待分配 | — | 🟢 | 以 `npm run check:architecture-guard:core` 为准；历史热点见 **§10** 表；若再超限则降压或经评审调整 `rules.pages.mjs` ratchet |
 
 ---
@@ -354,9 +371,12 @@ export function trackPageErrors(
 
 | 文件 | 当前行数 | 阈值 | 使用率 | 行动 |
 |------|---------|------|--------|------|
-| `TranscriptionPage.ReadyWorkspace.tsx` | 2017 | 2600 | 约 77.6% | 🟢 已部分下沉；继续监控编排层回调密度 |
-| `useReadyWorkspaceSurfaceProps.tsx` | 504 | 650 | 约 77.5% | 🟢 单文件 ratchet，避免与 bulk 300 行规则冲突 |
-| `useReadyWorkspaceTrackEditControllers.ts` | 316 | 450 | 约 70.2% | 🟢 聚合边界；与 bulk 规则互斥排除 |
+| `TranscriptionPage.ReadyWorkspace.tsx`（入口） | 10 | 40 | — | 🟢 chunk 壳；重逻辑在 Orchestrator |
+| `TranscriptionPage.ReadyWorkspace.body.tsx` | 20 | 80 | 约 25% | 🟢 薄壳达标 |
+| `TranscriptionPage.ReadyWorkspaceOrchestrator.tsx` | ~231 | 2600 | 约 8.9% | 🟢 编排壳已薄；增量进阶段 hook / builder（见 **§5.1.1**） |
+| `useReadyWorkspaceReadyPhaseBootstrap.ts` | 74 | 140（ratchet） | 约 52.9% | 🟢 `UseReadyWorkspaceReadyPhaseBootstrapParams` 类型外推至 `.types.ts`，门面降至薄组装壳 |
+| `useReadyWorkspaceSurfaceProps.tsx` | 507 | 650 | 约 78.0% | 🟡 单文件 ratchet，缓冲收窄；继续监控 |
+| `useReadyWorkspaceTrackEditControllers.ts` | 336 | 450 | 约 74.7% | 🟡 单文件 ratchet，缓冲收窄；继续监控 |
 | `AiAnalysisPanel.tsx` | 243 | 2250 | 约 10.8% | 🟢 声学 Tab 等已外拆；继续监控 |
 | `VoiceAgentService.ts` | 817 | 1100 | 约 74.3% | ✅ 持续监控；软目标 ≤900 行 |
 | `VoiceAgentDictationController.ts` | 77 | 2000 | 约 3.9% | 🟢 子模块，无阈值压力 |
@@ -365,7 +385,7 @@ export function trackPageErrors(
 | `useTranscriptionData.ts` | 10 | 600 | 约 1.7% | ✅ 薄入口 |
 | `useTranscriptionDataBindings.ts` | 579 | 1500 | 约 38.6% | 🟢 hooks 批量；继续避免再膨胀 |
 | `useTranscriptionDataFoundation.ts` | 114 | 1500 | 约 7.6% | 🟢 hooks 批量 |
-| `LinguisticService.ts` | 526 | 2000 | 约 26.3% | 🟡 Wave 2.2：门面已薄 |
+| `LinguisticService.ts` | 600 | 2000 | 约 30.0% | 🟢 **Wave 2.2：门面已薄**；600 行全部为薄委托（`return satelliteModule.method(...)`），guard 上限 2000，无报警；若继续膨胀需架构模式升级（命名空间/子门面），影响 554 处调用 |
 | `languageCatalog/languageCatalogCore.ts` | ~8 | — | — | 🟢 Wave 2.2：薄 barrel，re-export 子模块 |
 | `languageCatalog/languageCatalogCoreMutations.ts` | ~256 | — | — | 🟢 Wave 2.2：写路径编排 |
 | `languageCatalog/languageCatalogUpsertLanguageDocExtended.ts` | ~172 | — | — | 🟢 Wave 2.2：扩展元数据 merge（濒危/地理/方言等） |
@@ -381,6 +401,9 @@ export function trackPageErrors(
 | `useTrackDisplayController.ts` | 259 | 260 | 约 99.6% | 🟡 缓冲薄；继续避免膨胀 |
 | `useWaveformAcousticOverlay.ts` | 197 | 300 | 约 65.7% | 🟢 |
 | `useAiChat.ts` | 564 | 1100（`hookRule`） | 约 51.3% | 🟡 **G4**：见 **§〇**、**§2.1**；近顶前继续外拆大块 |
+| `useReadyWorkspaceSelectionAndAiPrepPhase.ts` | 191 | 320（ratchet） | 约 59.7% | 🟢 `SelectionAndAiPrepExtras` / `Result` 等类型外推至 `.types.ts`，缓冲充足 |
+| `useReadyWorkspaceSegmentMutationCreationCluster.ts` | 114 | 160（ratchet） | 约 71.3% | 🟢 `UseReadyWorkspaceSegmentMutationCreationClusterParams` 类型外推至 `.types.ts` |
+| `useReadyWorkspaceUnitOpsAndOverlayCluster.ts` | 110 | 150（ratchet） | 约 73.3% | 🟢 `UseReadyWorkspaceUnitOpsAndOverlayClusterParams` 类型外推至 `.types.ts` |
 
 > 注：当前 `^src/ai/chat/.*\.(ts|tsx)$` 批量规则 `excludeFiles` 仅包含 `toolCallHelpers.ts`。`localContextToolExecutors.ts`、`localContextToolFormatters.ts`、`localToolSlotResolver.ts` 均按批量规则（maxLines: 1000）治理；本轮已删除两条 1100 临时 ratchet，消除双口径。
 
@@ -398,7 +421,7 @@ export function trackPageErrors(
 
 | 主题 | 当前口径 | 规划落位与下一步 |
 |------|----------|------------------|
-| **ARCH-7** | `TranscriptionPage.ReadyWorkspace.tsx` **2017** 行，编排层仍厚（见 **§〇 P0**） | **Wave 5.1** + 原方案 **C2**：按控制器 / hook 聚合继续减薄；每 PR 附 `check:architecture-guard` |
+| **ARCH-7** | **入口** **10** 行 + **body 薄壳 ~20** 行 + **Orchestrator ~231** 行（见 **§〇 P1**、§5.1 表、**§5.1.1**） | **Wave 5.1 已达标**：编排增量进阶段 hook / 参数 builder；薄 orchestrator 以 `check:architecture-guard` 验收 |
 | **G4 `useAiChat` 瘦身** | `useAiChat.ts` **564**/1100；`sendTurnStreamPhase` / `confirmExecution` 等须控制继续膨胀（见 **§〇 P1**、**§2.1**） | 卫星模块 `useAiChat.*` 持续承接；近顶前预拆；定向 Vitest |
 | **G3 Bundle** | `language-mapping-runtime` 已降至约 **342KB**；懒加载 / registry chunk 仍可选（**§〇 P2**） | **Wave 6** 与体积门禁：按需加载实验；与 Knip / 分包策略对齐 |
 | **文档链接** | `npm run report:docs-link-debt` 在 `--all-links` 下 **0 broken**（2026-05-08 批量归一化后）；个别历史计划内链可能仍指向已迁文件 | 新增 archive 链接时继续用 **仓库相对** `src/…`、`../../…`；大搬迁后跑 `report:docs-link-debt` |
@@ -414,11 +437,21 @@ export function trackPageErrors(
 - `npm test`（Node 与 **`.nvmrc`** 一致，当前 **22**）
 - `npm run report:docs-link-debt`（可选：CI `docs-governance` job 已跑）
 
-### 11.3 与权威文书的关系
+### 11.4 下一步规划（2026-05-11 更新）
 
-- 台账：[未落地项汇总-2026-04-24.md](../execution/governance/未落地项汇总-2026-04-24.md)
-- AI 主规划：[AI智能体-战略规划与下一步-2026-05-07.md](../execution/plans/AI智能体-战略规划与下一步-2026-05-07.md)
-- 审查基线：[CODE_REVIEW_REPORT_2026-05-07.md](../execution/audits/CODE_REVIEW_REPORT_2026-05-07.md)
+基于本轮 `wc -l` 复跑与 `npm run check:architecture-guard` 输出，近期行动项如下：
+
+| 优先级 | 主题 | 行动 | 验收 |
+|--------|------|------|------|
+| **P1** | ~~**LinguisticService.ts 门面回涨**~~ | 600 行（guard 上限 2000，利用率 30%）。经审计：**100% 为薄委托**（`return satelliteModule.method(...)`），无「非编排逻辑」可拆；从 526 → 600 的增量全部来自新增委托方法。如需降至 550 需改变门面架构模式（命名空间/子门面），影响 554 处调用。当前不阻塞 guard，标记为监控项 | `madge --circular` 0；定向 Vitest 绿 |
+| **P0** ✅ | ~~**buildReadyWorkspaceViewModelsSurfacePhaseParams.ts**~~ | ~~858/900（95.3%）~~ → **456/900（50.7%）**。`layeredFlatAssemblyWithoutAssembled` 与 `nestedOrchestratorSlices` 两块最大字面量已外推至 `readyWorkspaceSurfaceLayeredFlatAssembly.ts`（127 行）与 `readyWorkspaceSurfaceNestedOrchestratorSlices.ts`（127 行）；`deps` 接口拆至 `buildReadyWorkspaceViewModelsSurfacePhaseDeps.ts`（38 行） | `check:architecture-guard:core` 无 WARN；`madge --circular` 0；`TranscriptionPage.structure.test.ts` 绿 |
+| **P1** ✅ | ~~**useReadyWorkspaceReadyPhaseBootstrap.ts ratchet 顶格**~~ | ~~135/140（96.4%）~~ → **74/140（52.9%）**。`UseReadyWorkspaceReadyPhaseBootstrapParams` 类型外推至 `useReadyWorkspaceReadyPhaseBootstrap.types.ts`（62 行），门面降至薄组装壳 | `check:architecture-guard:core` 无 WARN；`madge --circular` 0 |
+| **P1** ✅ | ~~**useReadyWorkspaceSelectionAndAiPrepPhase.ts**~~ | ~~302/320（94.4%）~~ → **191/320（59.7%）**。`SelectionAndAiPrepExtras` / `UseReadyWorkspaceSelectionAndAiPrepPhaseResult` 等类型外推至 `.types.ts`（127 行），缓冲充足 | `check:architecture-guard:core` 无 WARN |
+| **P1** | **useReadyWorkspaceTrackEditControllers.ts** | 336/450（74.7%）。单文件 ratchet，缓冲 114 行；监控不继续膨胀 | `check:architecture-guard` 通过 |
+| **P2** | **§十 热点表自动化** | 当前依赖手工 `wc -l` 后手动改表，易 stale。后续探索将 ratchet 高利用率文件列表接入 `report:code-scale` JSON 输出或 guard 报警自动同步到文档 | 文档行数与脚本输出一致 |
+| **持续** | **Wave 2.2 语言目录** | `languageCatalogUpsertLanguageDocExtended.ts` 174 行仍安全；若涨至 220+ 则按子域（濒危/地理/方言）拆 | `madge --circular` 0；定向 Vitest |
+
+> **staleness 纪律**：每次 PR 合并涉及上述文件后，以 `npm run check:architecture-guard:core` 输出为准刷新 §十 热点表；大搬迁后以 `npm run report:code-scale` 归档为辅助。
 
 ---
 

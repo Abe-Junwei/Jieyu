@@ -2,7 +2,7 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../db';
-import { buildTimelineUnitViewIndex } from '../hooks/timelineUnitView';
+import { buildTimelineUnitViewIndex } from '../hooks/transcription/timelineUnitView';
 import { useTranscriptionAiController } from './useTranscriptionAiController';
 
 const {
@@ -40,12 +40,12 @@ vi.mock('../hooks/useAiChat', () => ({
   useAiChat: mockUseAiChat,
 }));
 
-vi.mock('../hooks/useAiPanelLogic', () => ({
+vi.mock('../hooks/ai/useAiPanelLogic', () => ({
   useAiPanelLogic: mockUseAiPanelLogic,
   taskToPersona: vi.fn(() => 'transcription'),
 }));
 
-vi.mock('../hooks/useAiToolCallHandler', () => ({
+vi.mock('../hooks/ai/useAiToolCallHandler', () => ({
   useAiToolCallHandler: mockUseAiToolCallHandler,
 }));
 

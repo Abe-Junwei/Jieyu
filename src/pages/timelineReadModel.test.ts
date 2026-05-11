@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
+import type { TimelineUnitViewIndexWithEpoch } from '../hooks/transcription/useTimelineUnitViewIndex';
 import { DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC } from '../utils/timelineExtent';
 import { buildTimelineReadModel } from './timelineReadModel';
 

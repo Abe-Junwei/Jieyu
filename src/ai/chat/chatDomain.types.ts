@@ -7,7 +7,7 @@ import type { AiMessageCitation } from '../../db';
 import type { EmbeddingSearchService } from '../embeddings/EmbeddingSearchService';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
 import type { VoiceActionToolName } from '../voice/VoiceActionTools';
-import type { TimelineUnitView } from '../../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../../hooks/transcription/timelineUnitView';
 import type { ComposedWorkflowState } from '../vertical/composedWorkflowTemplates';
 import type { DegradationScenario } from './degradationManualOverride';
 import type { WorkflowExplainabilityV0 } from './workflowExplainability';
@@ -280,16 +280,9 @@ export interface AiSessionMemoryPendingAgentLoopCheckpoint {
   createdAt: string;
 }
 
-export type LocalToolIntent =
-  | 'unit.list'
-  | 'unit.search'
-  | 'unit.detail'
-  | 'stats.get';
+export type LocalToolIntent = 'unit.list' | 'unit.search' | 'unit.detail' | 'stats.get';
 
-export type LocalUnitScope =
-  | 'project'
-  | 'current_track'
-  | 'current_scope';
+export type LocalUnitScope = 'project' | 'current_track' | 'current_scope';
 
 export type LocalToolMetric =
   | 'unit_count'
@@ -299,19 +292,11 @@ export type LocalToolMetric =
   | 'untranscribed_count'
   | 'missing_speaker_count';
 
-type LocalToolMetricCategory =
-  | 'total'
-  | 'gap';
+type LocalToolMetricCategory = 'total' | 'gap';
 
-type LocalToolQuestionKind =
-  | 'count'
-  | 'list'
-  | 'search'
-  | 'detail';
+type LocalToolQuestionKind = 'count' | 'list' | 'search' | 'detail';
 
-type LocalToolDomain =
-  | 'units'
-  | 'project_stats';
+type LocalToolDomain = 'units' | 'project_stats';
 
 export interface AiSessionMemoryLocalSemanticFrame {
   domain?: LocalToolDomain;
@@ -380,10 +365,19 @@ interface ToolIntentAssessment {
   hasExplicitId: boolean;
   hasMetaQuestion: boolean;
   hasTechnicalDiscussion: boolean;
-  intentCandidates?: Array<{ decision: 'execute' | 'clarify' | 'ignore' | 'cancel'; confidence: number; why: string }>;
+  intentCandidates?: Array<{
+    decision: 'execute' | 'clarify' | 'ignore' | 'cancel';
+    confidence: number;
+    why: string;
+  }>;
   confidence?: number;
   margin?: number;
-  confidenceGate?: { triggered: boolean; threshold: number; marginThreshold: number; reason?: string };
+  confidenceGate?: {
+    triggered: boolean;
+    threshold: number;
+    marginThreshold: number;
+    reason?: string;
+  };
 }
 
 export interface ToolAuditContext {
@@ -673,7 +667,13 @@ export interface AiLocalToolReadModelMeta {
   /** `localUnitIndex` row count when present (may differ from `projectStats.unitCount`). */
   indexRowCount?: number;
   /** Tool payload来源，便于解释查询是否命中了统一读模型。 */
-  source?: 'timeline_index' | 'segment_meta' | 'scope_stats_snapshot' | 'segment_quality_snapshot' | 'hybrid' | 'user_notes';
+  source?:
+    | 'timeline_index'
+    | 'segment_meta'
+    | 'scope_stats_snapshot'
+    | 'segment_quality_snapshot'
+    | 'hybrid'
+    | 'user_notes';
 }
 
 export interface AiContextDebugSnapshot {
@@ -690,8 +690,12 @@ export interface AiContextDebugSnapshot {
 
 export interface UseAiChatOptions {
   onToolCall?: (call: AiChatToolCall) => Promise<AiChatToolResult> | AiChatToolResult;
-  onToolRiskCheck?: (call: AiChatToolCall) => Promise<AiToolRiskCheckResult | null | undefined> | AiToolRiskCheckResult | null | undefined;
-  preparePendingToolCall?: (call: AiChatToolCall) => Promise<AiChatToolCall | null | undefined> | AiChatToolCall | null | undefined;
+  onToolRiskCheck?: (
+    call: AiChatToolCall,
+  ) => Promise<AiToolRiskCheckResult | null | undefined> | AiToolRiskCheckResult | null | undefined;
+  preparePendingToolCall?: (
+    call: AiChatToolCall,
+  ) => Promise<AiChatToolCall | null | undefined> | AiChatToolCall | null | undefined;
   onMessageComplete?: (assistantMessageId: string, content: string) => void;
   systemPersonaKey?: AiSystemPersonaKey;
   getContext?: () => AiPromptContext | null;

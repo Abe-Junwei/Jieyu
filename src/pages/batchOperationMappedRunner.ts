@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { SaveState } from '../hooks/transcriptionTypes';
+import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import { t, tf, type Locale } from '../i18n';
 import { reportActionError } from '../utils/actionErrorReporter';
 import type { BatchOperationSelectionAction } from './batchOperationControllerTypes';
@@ -60,7 +60,7 @@ export async function runMappedBatchSelectionAction(input: {
     const { message, meta } = reportActionError({
       actionLabel: t(locale, actionLabelKey),
       error,
-      i18nKey,
+      i18nKey: i18nKey,
     });
     setSaveState({
       kind: 'error',

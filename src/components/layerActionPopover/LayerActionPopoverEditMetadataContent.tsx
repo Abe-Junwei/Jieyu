@@ -4,7 +4,7 @@ import type { LanguageIsoInputValue } from '../LanguageIsoInput';
 import {
   groupOrthographiesForSelect,
   type UseOrthographyPickerResult,
-} from '../../hooks/useOrthographyPicker';
+} from '../../hooks/orthography/useOrthographyPicker';
 import { getOrthographyCatalogBadgeInfo } from '../orthographyCatalogUi';
 import type { Locale } from '../../i18n';
 import type { ResolveLanguageDisplayName } from '../../utils/languageDisplayNameResolver';

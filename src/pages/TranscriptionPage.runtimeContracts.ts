@@ -3,13 +3,16 @@ import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
 import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import type { SaveState, TimelineUnitKind } from '../hooks/transcriptionTypes';
-import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
+import type { SaveState, TimelineUnitKind } from '../hooks/transcription/transcriptionTypes';
+import type { VoiceAgentMode } from '../hooks/voice/useVoiceAgent';
 import type { Locale } from '../i18n';
 import type { VoiceIntent, VoiceSession } from '../types/voiceSession.types';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
-import type { DictationPipelineCallbacks, QuickDictationConfig } from '../types/dictationPipeline.types';
+import type {
+  DictationPipelineCallbacks,
+  QuickDictationConfig,
+} from '../types/dictationPipeline.types';
 import type { VoiceAssistantToolCallHandler } from '../types/voiceAssistantToolCall';
 
 export interface TranscriptionPageAssistantRuntimeFrameProps {
@@ -85,7 +88,9 @@ export interface TranscriptionPageAssistantRuntimeVoiceProps {
    * 由语音运行时写入：在 `useAiChat` 完成一轮 assistant 流时调用，正文与 messageId 与持久层一致。
    * Populated by voice runtime: invoked when `useAiChat` finalizes an assistant stream (content + id match persistence).
    */
-  onAiAssistantMessageBridgeRef?: MutableRefObject<((assistantMessageId: string, content: string) => void) | null>;
+  onAiAssistantMessageBridgeRef?: MutableRefObject<
+    ((assistantMessageId: string, content: string) => void) | null
+  >;
 }
 
 export interface TranscriptionPageAssistantRuntimeProps {

@@ -1,5 +1,6 @@
 import {
   createContext,
+  isValidElement,
   useContext,
   useEffect,
   useId,
@@ -36,6 +37,29 @@ function emptySidePaneSubscribe(_listener: () => void): () => void {
 
 function nullSidePaneSnapshot(): AppSidePaneRegistration | null {
   return null;
+}
+
+/** Avoid notify storms when callers pass fresh element instances with the same type/key/props. */
+function appSidePaneReactNodeSnapshotEqual(a: ReactNode, b: ReactNode): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a === 'string' || typeof a === 'number' || typeof a === 'boolean') {
+    return a === b;
+  }
+  if (typeof b === 'string' || typeof b === 'number' || typeof b === 'boolean') {
+    return false;
+  }
+  if (a == null || b == null) return a === b;
+  if (!isValidElement(a) || !isValidElement(b)) return false;
+  if (a.type !== b.type) return false;
+  if (a.key !== b.key) return false;
+  const ap = a.props as Record<string, unknown>;
+  const bp = b.props as Record<string, unknown>;
+  const aKeys = Object.keys(ap);
+  if (aKeys.length !== Object.keys(bp).length) return false;
+  for (const key of aKeys) {
+    if (!Object.is(ap[key], bp[key])) return false;
+  }
+  return true;
 }
 
 export function AppSidePaneProvider({ children }: { children: ReactNode }) {
@@ -75,15 +99,16 @@ export function AppSidePaneProvider({ children }: { children: ReactNode }) {
       updateRegistrationContent: (ownerId, patch) => {
         if (registrationRef.current?.ownerId !== ownerId) return;
         const currentRegistration = registrationRef.current;
+        const nextRegistration = { ...currentRegistration, ...patch };
         if (
-          currentRegistration.title === patch.title &&
-          currentRegistration.subtitle === patch.subtitle &&
-          currentRegistration.content === patch.content
+          nextRegistration.title === currentRegistration.title &&
+          nextRegistration.subtitle === currentRegistration.subtitle &&
+          appSidePaneReactNodeSnapshotEqual(nextRegistration.content, currentRegistration.content)
         ) {
           return;
         }
         // 创建新快照让 useSyncExternalStore 检测变化 | New snapshot for useSyncExternalStore change detection
-        registrationRef.current = { ...currentRegistration, ...patch };
+        registrationRef.current = nextRegistration;
         // 延迟通知 — 切到下一轮任务，避免 commit 链内嵌套更新 | Defer to next task to avoid nested updates in the current commit chain
         scheduleNotify();
       },
@@ -164,8 +189,8 @@ export function useRegisterAppSidePane({
     };
   }, [enabled, host, ownerId]);
 
-  // 每次提交后从 ref 推送快照；不把 `content`/ReactNode 放进依赖，否则新 element 引用会每帧触发 effect → 通知 → 极端情况下与同步 store 形成更新风暴
-  // After each commit, push from refs; omitting ReactNode deps avoids per-frame effect + notify churn with useSyncExternalStore
+  // 仅在 title/subtitle/content 引用变化时推送；`updateRegistrationContent` 内对 ReactNode 做浅比较，避免兄弟订阅者重渲染导致的新 element 实例触发无限 setState
+  // Push when title/subtitle/content change; shallow node compare inside host avoids notify loops from fresh element instances after sibling snapshot updates
   useEffect(() => {
     if (!host || !enabled) return;
     host.updateRegistrationContent(ownerId, {
@@ -177,7 +202,7 @@ export function useRegisterAppSidePane({
         : {}),
       content: contentRef.current,
     });
-  });
+  }, [content, enabled, host, ownerId, subtitle, title]);
 
   return host !== null && enabled;
 }

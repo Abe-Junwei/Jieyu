@@ -8,7 +8,7 @@ import type {
   LayerUnitDocType,
   SpeakerDocType,
 } from '../db';
-import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type {
   SpeakerActionDialogState,
   SpeakerFilterOption,
@@ -222,10 +222,10 @@ describe('useSpeakerActionRoutingController', () => {
 
   it('rolls back mixed speaker assignment when segment update fails', async () => {
     const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService, 'assignSpeakerToSegments')
+      .spyOn(LinguisticService.speakers, 'assignToSegments')
       .mockRejectedValue(new Error('segment write failed'));
     const assignSpeakerToUnits = vi
-      .spyOn(LinguisticService, 'assignSpeakerToUnits')
+      .spyOn(LinguisticService.speakers, 'assignToUnits')
       .mockResolvedValue(1);
     const undo = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
@@ -265,7 +265,7 @@ describe('useSpeakerActionRoutingController', () => {
 
   it('keeps clear-speaker dialog open and rolls back when clear action fails', async () => {
     const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService, 'assignSpeakerToSegments')
+      .spyOn(LinguisticService.speakers, 'assignToSegments')
       .mockRejectedValue(new Error('clear failed'));
     const undo = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
@@ -307,10 +307,10 @@ describe('useSpeakerActionRoutingController', () => {
 
   it('clears mixed selection speakers across segments and units', async () => {
     const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService, 'assignSpeakerToSegments')
+      .spyOn(LinguisticService.speakers, 'assignToSegments')
       .mockResolvedValue(1);
     const assignSpeakerToUnits = vi
-      .spyOn(LinguisticService, 'assignSpeakerToUnits')
+      .spyOn(LinguisticService.speakers, 'assignToUnits')
       .mockResolvedValue(1);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const { result } = renderHook(() =>
@@ -345,10 +345,10 @@ describe('useSpeakerActionRoutingController', () => {
 
   it('clears speaker on segment-only selection without unit fallback writes', async () => {
     const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService, 'assignSpeakerToSegments')
+      .spyOn(LinguisticService.speakers, 'assignToSegments')
       .mockResolvedValue(1);
     const assignSpeakerToUnits = vi
-      .spyOn(LinguisticService, 'assignSpeakerToUnits')
+      .spyOn(LinguisticService.speakers, 'assignToUnits')
       .mockResolvedValue(1);
     const { result } = renderHook(() =>
       useSpeakerActionRoutingController(
@@ -375,13 +375,13 @@ describe('useSpeakerActionRoutingController', () => {
 
   it('creates a speaker and assigns mixed selection across segments and units', async () => {
     const createSpeaker = vi
-      .spyOn(LinguisticService, 'createSpeaker')
+      .spyOn(LinguisticService.speakers, 'create')
       .mockResolvedValue(makeSpeaker('spk-new', 'Bob'));
     const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService, 'assignSpeakerToSegments')
+      .spyOn(LinguisticService.speakers, 'assignToSegments')
       .mockResolvedValue(1);
     const assignSpeakerToUnits = vi
-      .spyOn(LinguisticService, 'assignSpeakerToUnits')
+      .spyOn(LinguisticService.speakers, 'assignToUnits')
       .mockResolvedValue(1);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const setBatchSpeakerId = vi.fn() as unknown as Dispatch<SetStateAction<string>>;
@@ -433,13 +433,13 @@ describe('useSpeakerActionRoutingController', () => {
 
   it('rolls back mixed create-speaker assignment when segment write fails', async () => {
     const createSpeaker = vi
-      .spyOn(LinguisticService, 'createSpeaker')
+      .spyOn(LinguisticService.speakers, 'create')
       .mockResolvedValue(makeSpeaker('spk-new', 'Bob'));
     const assignSpeakerToSegments = vi
-      .spyOn(LinguisticService, 'assignSpeakerToSegments')
+      .spyOn(LinguisticService.speakers, 'assignToSegments')
       .mockRejectedValue(new Error('segment create-assign failed'));
     const assignSpeakerToUnits = vi
-      .spyOn(LinguisticService, 'assignSpeakerToUnits')
+      .spyOn(LinguisticService.speakers, 'assignToUnits')
       .mockResolvedValue(1);
     const undo = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;

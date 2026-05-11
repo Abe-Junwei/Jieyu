@@ -1,0 +1,803 @@
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
+import { computeLassoOutcome } from '../../utils/waveformSelectionUtils';
+import { fireAndForget } from '../../utils/fireAndForget';
+import { viewportFrameToDocRange } from '../../utils/viewportFrameToDocRange';
+import type WaveSurfer from 'wavesurfer.js';
+import { useLatest } from './useLatest';
+import type { LassoSurfacePreview } from '../../utils/segmentRangeGesturePreviewWriter';
+import { toLegacyLassoOutputs } from '../../utils/segmentRangeGesturePreviewWriter';
+import {
+  areSelectionSnapshotsEqual,
+  buildTimelineHitIndex,
+  hasTimelineHitAtTime,
+  type LassoSelectionSnapshot,
+} from '../../utils/lassoTimelineHitIndex';
+import {
+  isTimelineTierLassoExcludedTarget,
+  isTimelineTierLassoExcludedTargetNoMediaTextCreate,
+} from '../../utils/lassoTierPointerTargetFilter';
+import {
+  getTierTimelineContentPaddingToInnerOffsetPx,
+  getTierTimelineInnerOriginScrollPx,
+} from '../../utils/tierTimeAxisOriginScrollPx';
+
+export type SubSelectDrag = {
+  active: boolean;
+  regionId: string;
+  anchorTime: number;
+  pointerId: number;
+};
+
+interface UseLassoInput {
+  waveCanvasRef: React.RefObject<HTMLDivElement | null>;
+  tierContainerRef: React.RefObject<HTMLDivElement | null>;
+  playerInstanceRef: React.RefObject<WaveSurfer | null>;
+  playerIsReady: boolean;
+  selectedMediaUrl: string | undefined;
+  /** Items to select against — units for default layer, segments for independent layers */
+  timelineItems: Array<{ id: string; startTime: number; endTime: number }>;
+  selectedUnitIds: Set<string>;
+  selectedUnitId: string;
+  zoomPxPerSec: number;
+  skipSeekForIdRef: React.MutableRefObject<string | null>;
+  clearUnitSelection: () => void;
+  createUnitFromSelection: (start: number, end: number) => Promise<void>;
+  setUnitSelection: (primaryId: string, ids: Set<string>) => void;
+  playerSeekTo: (time: number) => void;
+  // Lifted state (shared with useWaveSurfer)
+  subSelectionRange: { start: number; end: number } | null;
+  setSubSelectionRange: React.Dispatch<React.SetStateAction<{ start: number; end: number } | null>>;
+  subSelectDragRef: React.MutableRefObject<SubSelectDrag | null>;
+  /**
+   * 为真时禁用 `timeline-scroll` 上的 tier 套索与「轻点清选」链（纵向对读已定产品行为）；波形区 wave lasso 不受影响。
+   */
+  tierTimelineLassoSuppressed?: boolean;
+  /** 由波形桥 `useReducer` 抬升的套索预览（与 `timeDrag` 同一写者）；不传则回退到 hook 内 `useState`。 */
+  liftedLassoPreview?: LassoSurfacePreview;
+  setLiftedLassoPreview?: Dispatch<SetStateAction<LassoSurfacePreview>>;
+  /**
+   * 与 `useTranscriptionWaveformBridgeController` 中 `lastDurationRef` 一致：解码时长为 0 时用语义轴秒数做像素↔时间换算，
+   * 避免无声学/占位媒体下波形空拖整段静默 return。
+   */
+  waveformMappingDurationSec?: number;
+  /**
+   * 独立语段拖选：将文档秒钳制到与 `createUnitFromSelectionRouted` 相同的可插入间隙，用于 tier 套索预览与松手写入对齐。
+   */
+  tierIndependentSegmentCreateRangeClamp?: (
+    start: number,
+    end: number,
+  ) => { start: number; end: number } | null;
+  /** 无 `selectedMediaUrl` 时允许在语段/文本轨表面起 tier 套索（与默认排除链不同）。 */
+  tierLassoMode?: 'default' | 'noMediaTextCreate';
+}
+
+export function useLasso(input: UseLassoInput) {
+  const {
+    waveCanvasRef,
+    tierContainerRef,
+    playerInstanceRef,
+    playerIsReady,
+    selectedMediaUrl,
+    timelineItems,
+    selectedUnitIds,
+    selectedUnitId,
+    zoomPxPerSec,
+    skipSeekForIdRef,
+    clearUnitSelection,
+    createUnitFromSelection,
+    setUnitSelection,
+    playerSeekTo,
+    subSelectionRange: _subSelectionRange,
+    setSubSelectionRange,
+    subSelectDragRef,
+    tierTimelineLassoSuppressed = false,
+    liftedLassoPreview: liftedLassoPreviewInput,
+    setLiftedLassoPreview: setLiftedLassoPreviewInput,
+    waveformMappingDurationSec,
+    tierIndependentSegmentCreateRangeClamp,
+    tierLassoMode = 'default',
+  } = input;
+
+  // ---- Lasso state（可抬升到波形桥 reducer，与 Regions 时间预览同一写路径）----
+  const [internalLassoPreview, setInternalLassoPreview] = useState<LassoSurfacePreview>({
+    surface: 'none',
+  });
+  const timeRangePreview = liftedLassoPreviewInput ?? internalLassoPreview;
+  const setTimeRangePreview = setLiftedLassoPreviewInput ?? setInternalLassoPreview;
+
+  // ---- Sub-selection internal refs ----
+  const subSelectPreviewRef = useRef<HTMLDivElement | null>(null);
+
+  // ---- Internal refs ----
+  const lassoRef = useRef<{
+    active: boolean;
+    anchorX: number;
+    anchorY: number;
+    scrollLeft0: number;
+    scrollTop0: number;
+    baseIds: Set<string>;
+    hitCount: number;
+    rangeStart: number;
+    rangeEnd: number;
+  } | null>(null);
+  const waveLassoRef = useRef<{
+    active: boolean;
+    anchorX: number;
+    anchorY: number;
+    anchorTime: number;
+    baseIds: Set<string>;
+    pointerId: number;
+    hitCount: number;
+    rangeStart: number;
+    rangeEnd: number;
+  } | null>(null);
+  const waveLassoHintCountRef = useRef(0);
+  const waveLassoHintTimerRef = useRef<number | undefined>(undefined);
+  const pendingLassoSelectionRef = useRef<{ ids: Set<string>; primaryId: string } | null>(null);
+  const lassoSelectionRafRef = useRef<number | null>(null);
+  const lastDispatchedSelectionRef = useRef<LassoSelectionSnapshot | null>(null);
+  const pendingTimelineLassoMoveRef = useRef<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    tStart: number;
+    tEnd: number;
+  } | null>(null);
+  const timelineLassoMoveRafRef = useRef<number | null>(null);
+  const pendingWaveLassoPreviewRef = useRef<LassoSurfacePreview | null>(null);
+  const waveLassoPreviewRafRef = useRef<number | null>(null);
+
+  // Sync refs for values used inside effects
+  const timelineItemsRef = useLatest(timelineItems);
+  const selectedUnitIdsRef = useLatest(selectedUnitIds);
+  const selectedUnitIdRef = useLatest(selectedUnitId);
+  const timelineHitIndex = useMemo(() => buildTimelineHitIndex(timelineItems), [timelineItems]);
+  const timelineHitIndexRef = useLatest(timelineHitIndex);
+
+  const scheduleLassoSelectionUpdate = useCallback(
+    (ids: Set<string>, primaryId: string) => {
+      const normalizedIds = new Set(ids);
+      const nextSelection: LassoSelectionSnapshot = { primaryId, ids: normalizedIds };
+
+      const currentSelection: LassoSelectionSnapshot = {
+        primaryId: selectedUnitIdRef.current,
+        ids: new Set(selectedUnitIdsRef.current),
+      };
+      if (areSelectionSnapshotsEqual(nextSelection, currentSelection)) {
+        pendingLassoSelectionRef.current = null;
+        return;
+      }
+
+      const pendingSelection = pendingLassoSelectionRef.current
+        ? {
+            primaryId: pendingLassoSelectionRef.current.primaryId,
+            ids: pendingLassoSelectionRef.current.ids,
+          }
+        : null;
+      if (areSelectionSnapshotsEqual(nextSelection, pendingSelection)) {
+        return;
+      }
+
+      if (areSelectionSnapshotsEqual(nextSelection, lastDispatchedSelectionRef.current)) {
+        return;
+      }
+
+      pendingLassoSelectionRef.current = nextSelection;
+      if (lassoSelectionRafRef.current !== null) return;
+      lassoSelectionRafRef.current = requestAnimationFrame(() => {
+        lassoSelectionRafRef.current = null;
+        const pending = pendingLassoSelectionRef.current;
+        pendingLassoSelectionRef.current = null;
+        if (!pending) return;
+        lastDispatchedSelectionRef.current = {
+          primaryId: pending.primaryId,
+          ids: new Set(pending.ids),
+        };
+        setUnitSelection(pending.primaryId, pending.ids);
+      });
+    },
+    [selectedUnitIdsRef, selectedUnitIdRef, setUnitSelection],
+  );
+
+  const scheduleWaveLassoPreview = useCallback(
+    (preview: LassoSurfacePreview) => {
+      pendingWaveLassoPreviewRef.current = preview;
+      if (waveLassoPreviewRafRef.current !== null) return;
+      waveLassoPreviewRafRef.current = requestAnimationFrame(() => {
+        waveLassoPreviewRafRef.current = null;
+        const pending = pendingWaveLassoPreviewRef.current;
+        pendingWaveLassoPreviewRef.current = null;
+        if (!pending) return;
+        setTimeRangePreview(pending);
+      });
+    },
+    [setTimeRangePreview],
+  );
+
+  const clearPendingWaveLassoPreview = useCallback(() => {
+    if (waveLassoPreviewRafRef.current !== null) {
+      cancelAnimationFrame(waveLassoPreviewRafRef.current);
+      waveLassoPreviewRafRef.current = null;
+    }
+    pendingWaveLassoPreviewRef.current = null;
+  }, []);
+
+  // Clear sub-selection when the selected unit changes
+  useEffect(() => {
+    setSubSelectionRange(null);
+  }, [selectedUnitId, setSubSelectionRange]);
+
+  // ---- Waveform pointer interactions ----
+  // Default drag on region = sub-range selection; Alt+drag = move/resize region.
+  // Drag on empty area: if hits regions => select; if hits none => create a new segment.
+  useEffect(() => {
+    const el = waveCanvasRef.current;
+    if (!el) return;
+
+    const resolveWaveformDurationSec = (): number => {
+      const ws = playerInstanceRef.current;
+      const decoded = typeof ws?.getDuration === 'function' ? ws.getDuration() : 0;
+      if (typeof decoded === 'number' && Number.isFinite(decoded) && decoded > 0) {
+        return decoded;
+      }
+      const logical = waveformMappingDurationSec;
+      if (typeof logical === 'number' && Number.isFinite(logical) && logical > 0) {
+        return logical;
+      }
+      return 0;
+    };
+
+    // Convert a clientX position to audio time using WaveSurfer's actual layout.
+    const clientXToTime = (clientX: number): number | null => {
+      const ws = playerInstanceRef.current;
+      const wrapper = ws?.getWrapper();
+      const sc = wrapper?.parentElement;
+      if (!wrapper || !sc) return null;
+      const totalWidth = wrapper.scrollWidth;
+      if (totalWidth <= 0) return null;
+      const dur = resolveWaveformDurationSec();
+      if (dur <= 0) return null;
+      const rect = sc.getBoundingClientRect();
+      const pxOffset = clientX - rect.left + sc.scrollLeft;
+      return Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+    };
+
+    const hitTestExistingAtClientX = (clientX: number) => {
+      const time = clientXToTime(clientX);
+      if (time === null) return false;
+      const wrapper = playerInstanceRef.current?.getWrapper();
+      const dur = resolveWaveformDurationSec();
+      const totalWidth = wrapper?.scrollWidth ?? 0;
+      const eps =
+        totalWidth > 0 && dur > 0 ? Math.min(0.03, Math.max(0.005, (3 / totalWidth) * dur)) : 0.01;
+      // 用当前活跃层条目判断（独立层用 segment，默认层用 unit）| Use active-layer items (segments for independent layers, units for default)
+      return hasTimelineHitAtTime(timelineHitIndexRef.current, timelineItemsRef.current, time, eps);
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+
+      // Sub-selection drag is starting via onRegionAltPointerDown callback
+      if (subSelectDragRef.current) return;
+
+      // Ignore interactive controls in waveform overlay.
+      const onControl = e.composedPath().some((node) => {
+        if (!(node instanceof HTMLElement)) return false;
+        if (node.closest('button, input, textarea, select, a, [role="button"]')) return true;
+        return (
+          node.classList.contains('region-action-overlay') ||
+          node.classList.contains('region-action-btn')
+        );
+      });
+      if (onControl) return;
+
+      // Robust hit-test: if pointer time is inside any existing unit, don't
+      // start empty-area lasso; let region click/selection logic handle it.
+      const hitExisting = hitTestExistingAtClientX(e.clientX);
+      if (hitExisting) return;
+
+      // Any click on empty area clears the sub-selection
+      setSubSelectionRange(null);
+
+      // Unified drag on empty area
+      e.stopPropagation();
+      e.preventDefault();
+
+      const anchorTime = clientXToTime(e.clientX);
+      if (anchorTime === null) return;
+
+      const baseIds = e.shiftKey ? new Set(selectedUnitIdsRef.current) : new Set<string>();
+      waveLassoRef.current = {
+        active: false,
+        anchorX: e.clientX,
+        anchorY: e.clientY,
+        anchorTime,
+        baseIds,
+        pointerId: e.pointerId,
+        hitCount: 0,
+        rangeStart: 0,
+        rangeEnd: 0,
+      };
+      el.setPointerCapture(e.pointerId);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      // --- Sub-selection drag ---
+      const sub = subSelectDragRef.current;
+      if (sub) {
+        const ws = playerInstanceRef.current;
+        const wrapper = ws?.getWrapper();
+        const sc = wrapper?.parentElement;
+        if (!sc || !wrapper) return;
+        const rect = sc.getBoundingClientRect();
+        const pxOffset = e.clientX - rect.left + sc.scrollLeft;
+        const totalWidth = wrapper.scrollWidth;
+        const dur = resolveWaveformDurationSec();
+        if (dur <= 0) return;
+        const currentTime = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+        const dragStart = Math.min(sub.anchorTime, currentTime);
+        const dragEnd = Math.max(sub.anchorTime, currentTime);
+        if (!sub.active && Math.abs(currentTime - sub.anchorTime) < 0.01) return;
+        sub.active = true;
+
+        // Direct DOM preview for responsiveness
+        if (!subSelectPreviewRef.current) {
+          const div = document.createElement('div');
+          div.style.position = 'absolute';
+          div.style.top = '0';
+          div.style.height = '100%';
+          div.style.backgroundColor =
+            'color-mix(in srgb, var(--state-success-solid) 30%, transparent)';
+          div.style.pointerEvents = 'none';
+          div.style.zIndex = '5';
+          sc.style.position = 'relative';
+          sc.appendChild(div);
+          subSelectPreviewRef.current = div;
+        }
+        const leftPx = dragStart * (totalWidth / dur);
+        const widthPx = (dragEnd - dragStart) * (totalWidth / dur);
+        subSelectPreviewRef.current.style.left = `${leftPx}px`;
+        subSelectPreviewRef.current.style.width = `${widthPx}px`;
+        return;
+      }
+
+      // --- Lasso multi-select drag ---
+      const info = waveLassoRef.current;
+      if (!info) return;
+      const dx = e.clientX - info.anchorX;
+      const dy = e.clientY - info.anchorY;
+      if (!info.active && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      info.active = true;
+
+      const rect = el.getBoundingClientRect();
+
+      const toY = (cy: number) => cy - rect.top;
+
+      const axRaw = info.anchorX - rect.left;
+      const ay = toY(info.anchorY);
+      const cxRaw = e.clientX - rect.left;
+      const cy = toY(e.clientY);
+
+      let ax = axRaw;
+      let cx = cxRaw;
+
+      // Use WaveSurfer coordinate system for time calculation (same as sub-selection).
+      const currentTime = clientXToTime(e.clientX);
+      if (currentTime !== null) {
+        const ws = playerInstanceRef.current;
+        const wrapper = ws?.getWrapper();
+        const sc = wrapper?.parentElement;
+        const totalWidth = wrapper?.scrollWidth ?? 0;
+        const dur = resolveWaveformDurationSec();
+        if (sc && totalWidth > 0 && dur > 0) {
+          const scrollLeft = sc.scrollLeft;
+          const anchorContentX = (info.anchorTime / dur) * totalWidth;
+          const currentContentX = (currentTime / dur) * totalWidth;
+          ax = anchorContentX - scrollLeft;
+          cx = currentContentX - scrollLeft;
+        }
+
+        const left = Math.max(0, Math.min(ax, cx));
+        const top = Math.max(0, Math.min(ay, cy));
+        const width = Math.abs(cx - ax);
+        const height = Math.abs(cy - ay);
+
+        const tStart = Math.min(info.anchorTime, currentTime);
+        const tEnd = Math.max(info.anchorTime, currentTime);
+        const outcome = computeLassoOutcome(timelineItemsRef.current, tStart, tEnd, info.baseIds);
+        if (outcome.mode === 'select' && outcome.hitCount !== waveLassoHintCountRef.current) {
+          if (waveLassoHintTimerRef.current !== undefined) {
+            window.clearTimeout(waveLassoHintTimerRef.current);
+          }
+          waveLassoHintTimerRef.current = window.setTimeout(() => {
+            waveLassoHintTimerRef.current = undefined;
+            waveLassoHintCountRef.current = outcome.hitCount;
+            setTimeRangePreview((prev) =>
+              prev.surface === 'wave' ? { ...prev, hintCount: outcome.hitCount } : prev,
+            );
+          }, 90);
+        }
+        if (outcome.mode === 'create' && waveLassoHintCountRef.current !== 0) {
+          waveLassoHintCountRef.current = 0;
+          setTimeRangePreview((prev) =>
+            prev.surface === 'wave' ? { ...prev, hintCount: 0 } : prev,
+          );
+        }
+        scheduleWaveLassoPreview({
+          surface: 'wave',
+          rect: {
+            x: left,
+            y: outcome.mode === 'create' ? 0 : top,
+            w: width,
+            h: outcome.mode === 'create' ? el.clientHeight : height,
+            mode: outcome.mode,
+            hitCount: outcome.hitCount,
+          },
+          hintCount: waveLassoHintCountRef.current,
+        });
+        info.hitCount = outcome.hitCount;
+        info.rangeStart = tStart;
+        info.rangeEnd = tEnd;
+        if (outcome.primaryId) skipSeekForIdRef.current = outcome.primaryId;
+        scheduleLassoSelectionUpdate(outcome.ids, outcome.primaryId);
+      }
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      // --- Sub-selection finish ---
+      const sub = subSelectDragRef.current;
+      if (sub) {
+        subSelectDragRef.current = null;
+        // Remove direct DOM preview
+        if (subSelectPreviewRef.current) {
+          subSelectPreviewRef.current.remove();
+          subSelectPreviewRef.current = null;
+        }
+        if (sub.active) {
+          // Compute final range
+          const ws = playerInstanceRef.current;
+          const wrapper = ws?.getWrapper();
+          const sc = wrapper?.parentElement;
+          if (sc && wrapper) {
+            const rectSc = sc.getBoundingClientRect();
+            const pxOffset = e.clientX - rectSc.left + sc.scrollLeft;
+            const totalWidth = wrapper.scrollWidth;
+            const dur = resolveWaveformDurationSec();
+            if (dur > 0) {
+              const currentTime = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+              const s = Math.min(sub.anchorTime, currentTime);
+              const end = Math.max(sub.anchorTime, currentTime);
+              if (end - s >= 0.02) {
+                setSubSelectionRange({ start: s, end });
+              }
+            }
+          }
+        }
+        return;
+      }
+
+      // --- Lasso finish ---
+      const info = waveLassoRef.current;
+      waveLassoRef.current = null;
+      clearPendingWaveLassoPreview();
+      setTimeRangePreview({ surface: 'none' });
+      if (waveLassoHintTimerRef.current !== undefined) {
+        window.clearTimeout(waveLassoHintTimerRef.current);
+        waveLassoHintTimerRef.current = undefined;
+      }
+      waveLassoHintCountRef.current = 0;
+      if (info && !info.active) {
+        // Only clear when pointerup is still on empty area; don't clear if the
+        // click actually landed on an existing segment.
+        if (!hitTestExistingAtClientX(e.clientX)) {
+          clearUnitSelection();
+          // Click-to-seek: move playback position to the clicked time
+          const clickTime = clientXToTime(e.clientX);
+          if (clickTime !== null) {
+            playerSeekTo(clickTime);
+          }
+        }
+      } else if (info && info.active) {
+        const s = Math.min(info.rangeStart, info.rangeEnd);
+        const end = Math.max(info.rangeStart, info.rangeEnd);
+        if (info.hitCount === 0 && end - s >= 0.05) {
+          fireAndForget(createUnitFromSelection(s, end), {
+            context: 'src/hooks/ui/useLasso.ts:L491',
+            policy: 'user-visible',
+          });
+        }
+      }
+    };
+
+    el.addEventListener('pointerdown', onPointerDown, { capture: true });
+    el.addEventListener('pointermove', onPointerMove);
+    el.addEventListener('pointerup', onPointerUp);
+    el.addEventListener('pointercancel', onPointerUp);
+
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown, { capture: true });
+      el.removeEventListener('pointermove', onPointerMove);
+      el.removeEventListener('pointerup', onPointerUp);
+      el.removeEventListener('pointercancel', onPointerUp);
+      if (subSelectPreviewRef.current) {
+        subSelectPreviewRef.current.remove();
+        subSelectPreviewRef.current = null;
+      }
+    };
+  }, [
+    selectedMediaUrl,
+    playerIsReady,
+    clearPendingWaveLassoPreview,
+    clearUnitSelection,
+    createUnitFromSelection,
+    scheduleLassoSelectionUpdate,
+    scheduleWaveLassoPreview,
+    playerSeekTo,
+    playerInstanceRef,
+    selectedUnitIdsRef,
+    setSubSelectionRange,
+    setTimeRangePreview,
+    subSelectDragRef,
+    timelineHitIndexRef,
+    timelineItemsRef,
+    waveCanvasRef,
+    skipSeekForIdRef,
+    waveformMappingDurationSec,
+  ]);
+
+  // RAF & timer cleanup
+  useEffect(
+    () => () => {
+      if (lassoSelectionRafRef.current !== null) {
+        cancelAnimationFrame(lassoSelectionRafRef.current);
+        lassoSelectionRafRef.current = null;
+      }
+      if (waveLassoPreviewRafRef.current !== null) {
+        cancelAnimationFrame(waveLassoPreviewRafRef.current);
+        waveLassoPreviewRafRef.current = null;
+      }
+      pendingWaveLassoPreviewRef.current = null;
+      if (waveLassoHintTimerRef.current !== undefined) {
+        window.clearTimeout(waveLassoHintTimerRef.current);
+        waveLassoHintTimerRef.current = undefined;
+      }
+    },
+    [],
+  );
+
+  // ---- Timeline lasso handlers ----
+  const flushTimelineLassoMove = useCallback(() => {
+    const info = lassoRef.current;
+    const pending = pendingTimelineLassoMoveRef.current;
+    pendingTimelineLassoMoveRef.current = null;
+    if (!info || !pending) return;
+
+    const container = tierContainerRef.current;
+    const tc = container?.querySelector('.timeline-content') ?? null;
+    const pad =
+      tc instanceof HTMLElement ? getTierTimelineContentPaddingToInnerOffsetPx(tc) : { x: 0, y: 0 };
+
+    if (zoomPxPerSec > 0) {
+      const outcome = computeLassoOutcome(
+        timelineItems,
+        pending.tStart,
+        pending.tEnd,
+        info.baseIds,
+        true,
+      );
+      let rangeStart = pending.tStart;
+      let rangeEnd = pending.tEnd;
+      if (
+        tierIndependentSegmentCreateRangeClamp &&
+        outcome.mode === 'create' &&
+        outcome.hitCount === 0
+      ) {
+        const clamped = tierIndependentSegmentCreateRangeClamp(pending.tStart, pending.tEnd);
+        if (clamped) {
+          rangeStart = Math.min(clamped.start, clamped.end);
+          rangeEnd = Math.max(clamped.start, clamped.end);
+        }
+      }
+      info.hitCount = outcome.hitCount;
+      info.rangeStart = rangeStart;
+      info.rangeEnd = rangeEnd;
+      if (outcome.primaryId) {
+        skipSeekForIdRef.current = outcome.primaryId;
+      }
+      scheduleLassoSelectionUpdate(outcome.ids, outcome.primaryId);
+      // 预览矩形始终跟手：钳制只影响落库区间；+pad 将「轨面坐标」换到 SVG overlay 与 .timeline-content 同层的局部坐标 | Track → SVG local
+      setTimeRangePreview({
+        surface: 'tier',
+        rect: {
+          x: pending.left + pad.x,
+          y: pending.top + pad.y,
+          w: pending.width,
+          h: pending.height,
+        },
+      });
+    } else {
+      setTimeRangePreview({
+        surface: 'tier',
+        rect: {
+          x: pending.left + pad.x,
+          y: pending.top + pad.y,
+          w: pending.width,
+          h: pending.height,
+        },
+      });
+    }
+  }, [
+    scheduleLassoSelectionUpdate,
+    setTimeRangePreview,
+    skipSeekForIdRef,
+    tierContainerRef,
+    tierIndependentSegmentCreateRangeClamp,
+    timelineItems,
+    zoomPxPerSec,
+  ]);
+
+  const handleLassoPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (tierTimelineLassoSuppressed) return;
+      // Only start lasso from empty area (not from annotations, labels, inputs)
+      const target = e.target as Element;
+      const excluded =
+        tierLassoMode === 'noMediaTextCreate'
+          ? isTimelineTierLassoExcludedTargetNoMediaTextCreate(target)
+          : isTimelineTierLassoExcludedTarget(target);
+      if (excluded) return;
+      if (e.button !== 0) return;
+
+      const container = tierContainerRef.current;
+      if (!container) return;
+
+      const baseIds = e.shiftKey ? new Set(selectedUnitIds) : new Set<string>();
+
+      lassoRef.current = {
+        active: false,
+        anchorX: e.clientX,
+        anchorY: e.clientY,
+        scrollLeft0: container.scrollLeft,
+        scrollTop0: container.scrollTop,
+        baseIds,
+        hitCount: 0,
+        rangeStart: 0,
+        rangeEnd: 0,
+      };
+
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [selectedUnitIds, tierContainerRef, tierLassoMode, tierTimelineLassoSuppressed],
+  );
+
+  const handleLassoPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const info = lassoRef.current;
+      if (!info) return;
+
+      const dx = e.clientX - info.anchorX;
+      const dy = e.clientY - info.anchorY;
+      if (!info.active && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      info.active = true;
+
+      const container = tierContainerRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const toContentX = (clientX: number) => clientX - rect.left + container.scrollLeft;
+      const toContentY = (clientY: number) => clientY - rect.top + container.scrollTop;
+
+      const innerOrigin = getTierTimelineInnerOriginScrollPx(container);
+      const axFull = toContentX(info.anchorX) - (container.scrollLeft - info.scrollLeft0);
+      const cxFull = toContentX(e.clientX);
+      const ax = axFull - innerOrigin.x;
+      const cx = cxFull - innerOrigin.x;
+      const ayFull = toContentY(info.anchorY) - (container.scrollTop - info.scrollTop0);
+      const cyFull = toContentY(e.clientY);
+      const ay = ayFull - innerOrigin.y;
+      const cy = cyFull - innerOrigin.y;
+
+      const lo = Math.min(ax, cx);
+      const hi = Math.max(ax, cx);
+      const left = Math.max(0, lo);
+      const right = Math.max(left, hi);
+      const width = right - left;
+      const top = Math.min(ay, cy);
+      const height = Math.abs(cy - ay);
+
+      const range = viewportFrameToDocRange({ pxPerDocSec: zoomPxPerSec }, left, width);
+      pendingTimelineLassoMoveRef.current = {
+        left,
+        top,
+        width,
+        height,
+        tStart: range.startSec,
+        tEnd: range.endSec,
+      };
+      if (timelineLassoMoveRafRef.current === null) {
+        timelineLassoMoveRafRef.current = requestAnimationFrame(() => {
+          timelineLassoMoveRafRef.current = null;
+          flushTimelineLassoMove();
+        });
+      }
+    },
+    [flushTimelineLassoMove, tierContainerRef, zoomPxPerSec],
+  );
+
+  const handleLassoPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (timelineLassoMoveRafRef.current !== null) {
+        cancelAnimationFrame(timelineLassoMoveRafRef.current);
+        timelineLassoMoveRafRef.current = null;
+        flushTimelineLassoMove();
+      }
+      const info = lassoRef.current;
+      lassoRef.current = null;
+      setTimeRangePreview({ surface: 'none' });
+
+      if (info && !info.active) {
+        const target = e.target as Element;
+        const excluded =
+          tierLassoMode === 'noMediaTextCreate'
+            ? isTimelineTierLassoExcludedTargetNoMediaTextCreate(target)
+            : isTimelineTierLassoExcludedTarget(target);
+        if (!tierTimelineLassoSuppressed && !excluded) {
+          if (!(e.shiftKey || e.metaKey || e.ctrlKey)) {
+            clearUnitSelection();
+          }
+        }
+      } else if (info && info.active) {
+        const s = Math.min(info.rangeStart, info.rangeEnd);
+        const end = Math.max(info.rangeStart, info.rangeEnd);
+        if (info.hitCount === 0 && end - s >= 0.05) {
+          fireAndForget(createUnitFromSelection(s, end), {
+            context: 'src/hooks/ui/useLasso.ts:L710',
+            policy: 'user-visible',
+          });
+        }
+      }
+    },
+    [
+      clearUnitSelection,
+      createUnitFromSelection,
+      flushTimelineLassoMove,
+      setTimeRangePreview,
+      tierLassoMode,
+      tierTimelineLassoSuppressed,
+    ],
+  );
+
+  useEffect(
+    () => () => {
+      if (timelineLassoMoveRafRef.current !== null) {
+        cancelAnimationFrame(timelineLassoMoveRafRef.current);
+        timelineLassoMoveRafRef.current = null;
+      }
+      pendingTimelineLassoMoveRef.current = null;
+    },
+    [],
+  );
+
+  const { lassoRect, waveLassoRect, waveLassoHintCount } = useMemo(
+    () => toLegacyLassoOutputs(timeRangePreview),
+    [timeRangePreview],
+  );
+
+  return {
+    waveLassoRect,
+    waveLassoHintCount,
+    lassoRect,
+    handleLassoPointerDown,
+    handleLassoPointerMove,
+    handleLassoPointerUp,
+  };
+}

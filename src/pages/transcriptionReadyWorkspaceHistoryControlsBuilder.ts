@@ -1,5 +1,5 @@
-import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type { PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
 import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';

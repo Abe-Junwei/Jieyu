@@ -3,7 +3,7 @@ title: Architecture 文档索引
 doc_type: architecture-index
 status: active
 owner: repo
-last_reviewed: 2026-05-09
+last_reviewed: 2026-05-11
 source_of_truth: current-state-index
 ---
 
@@ -79,6 +79,12 @@ source_of_truth: current-state-index
 
 - [CSS治理执行记录.md](./CSS治理执行记录.md)
   - 用途：记录季度治理执行证据（预算复盘、兼容复核、视觉基线与废弃窗口推进）。
+
+- [ReadyWorkspace-数据域与壳层装配边界.md](./ReadyWorkspace-数据域与壳层装配边界.md)
+  - 用途：`useTranscriptionData`（`data`）与波形桥 / UI state / segment scope 的职责边界；时间轴交互 `domainWrite`+`hostWrite` 装配纪律，防止 `data.xxx` 壳层误接导致的运行期 `undefined`。
+
+- [如是我闻-独立新仓库与-Jieyu-对齐策略.md](./如是我闻-独立新仓库与-Jieyu-对齐策略.md)
+  - 用途：**如是我闻分仓**时如何借鉴 Jieyu 规范与代码白名单、如何规避已知反模式；与 [`docs/execution/plans/如是我闻-本地版改进计划书-2026-05-11.md`](../execution/plans/如是我闻-本地版改进计划书-2026-05-11.md) 配套。
 
 ## 收录原则
 

@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 
 export type BatchOperationSelectionAction = (targetIds: Set<string>) => Promise<void>;
 

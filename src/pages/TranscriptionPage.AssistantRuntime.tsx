@@ -16,13 +16,13 @@ import { type AiChatContextValue } from '../contexts/AiChatContext';
 import {
   pickAiAssistantHubContextValue,
   useAiAssistantHubContextValue,
-} from '../hooks/useAiAssistantHubContextValue';
-import { useVoiceDock } from '../hooks/useVoiceDock';
-import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
+} from '../hooks/ai/useAiAssistantHubContextValue';
+import { useVoiceDock } from '../hooks/voice/useVoiceDock';
+import { useVoiceInteraction } from '../hooks/voice/useVoiceInteraction';
 import {
   pickVoiceAgentContextValue,
   useVoiceAgentContextValue,
-} from '../hooks/useVoiceAgentContextValue';
+} from '../hooks/voice/useVoiceAgentContextValue';
 import { ToastController } from './TranscriptionPage.ToastController';
 import { featureFlags } from '../ai/config/featureFlags';
 import { normalizeLocale, t } from '../i18n';

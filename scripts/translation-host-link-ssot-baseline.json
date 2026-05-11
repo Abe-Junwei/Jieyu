@@ -18,6 +18,9 @@
     "src/services/EafService.ts": 3,
     "src/services/LayerConstraintService.ts": 19,
     "src/services/LayerOrderingService.ts": 3,
-    "src/utils/verticalReadingHostFilter.ts": 1
+    "src/utils/verticalReadingHostFilter.ts": 1,
+    "src/hooks/transcription/transcriptionTypes.ts": 1,
+    "src/hooks/layer/useLayerActionPanel.ts": 1,
+    "src/hooks/transcription/useTranscriptionLayerActions.ts": 3
   }
 }

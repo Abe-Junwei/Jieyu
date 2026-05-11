@@ -22,6 +22,7 @@ npm ci
 | `npm run build`                 | 生产构建                      |
 | `npm run test:e2e`              | Playwright E2E            |
 | `npm run check:docs-governance` | 文档放置与链接治理（改 `docs/` 后建议跑） |
+| `npm run audit:ready-workspace-timeline-host` | ReadyWorkspace 时间轴「壳层写 API」不得从 `data.` 误接（亦含于 `npm run check:architecture-guard` / CI `quality` 的 `npm test`） |
 
 
 门禁类脚本见 `package.json` 中 `gate:*`、`check:*`；合并前以 **CI `quality` job** 与分支保护为准。

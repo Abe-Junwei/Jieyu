@@ -4,7 +4,7 @@
  */
 
 import type { ActionIntent, ActionId } from './IntentRouter';
-import type { PendingAiToolCall } from '../hooks/useAiChat.types';
+import type { PendingAiToolCall } from '../hooks/ai/useAiChat.types';
 
 /** Mirrors `VoicePendingConfirm` without importing `useVoiceAgent` (avoid circular deps). */
 export interface AssistantVoicePendingConfirm {

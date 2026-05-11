@@ -4,10 +4,10 @@
  */
 import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
 import { persistSessionMemory } from './sessionMemory';
-import type { AiSessionMemory } from '../../hooks/useAiChat.types';
+import type { AiSessionMemory } from '../../hooks/ai/useAiChat.types';
 import { updateSessionMemoryWithRecommendationEvent } from './recommendationTelemetry';
 import { applyAssistantMessageResult } from './applyAssistantMessageResult';
-import type { AiRecommendationEvent, UiChatMessage } from '../../hooks/useAiChat.types';
+import type { AiRecommendationEvent, UiChatMessage } from '../../hooks/ai/useAiChat.types';
 
 export function setActiveSourceSetIdInSessionMemory(
   sessionMemory: AiSessionMemory,

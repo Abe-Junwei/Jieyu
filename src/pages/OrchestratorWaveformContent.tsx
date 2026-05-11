@@ -13,7 +13,7 @@ import '../styles/pages/transcription-waveform.css';
 
 import React, { useEffect, type MutableRefObject, type RefObject } from 'react';
 import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import type { NotePopoverState } from '../hooks/useNoteHandlers';
+import type { NotePopoverState } from '~/hooks/notes/useNoteHandlers';
 import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
 import { WaveformAnalysisBands } from '../components/transcription/WaveformAnalysisBands';
@@ -26,10 +26,10 @@ import {
   type VideoLayoutMode,
 } from '../components/transcription/TranscriptionTimelineSections';
 import { WaveformAreaSection } from '../components/transcription/TranscriptionLayoutSections';
-import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
+import type { WaveSurferRegion } from '~/hooks/media/useWaveSurfer';
 import { t, tf, type Locale } from '../i18n';
 import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
-import type { AcousticStripContract } from '../hooks/timelineViewportTypes';
+import type { AcousticStripContract } from '../hooks/transcription/timelineViewportTypes';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { formatTime } from '../utils/transcriptionFormatters';

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import {
   recordingScopeUnitId,
   resolveVoiceRecordingSourceUnit,
@@ -11,7 +11,7 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 import { t, useLocale } from '../i18n';
-import { useMediaTranslationLaneRowDraftAutosave } from '../hooks/useTimelineLaneTextDraftAutosave';
+import { useMediaTranslationLaneRowDraftAutosave } from '../hooks/transcription/useTimelineLaneTextDraftAutosave';
 import { createLogger } from '../observability/logger';
 
 interface TranscriptionTimelineMediaTranslationRowProps {

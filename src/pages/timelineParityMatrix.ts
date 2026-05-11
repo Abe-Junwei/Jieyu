@@ -77,7 +77,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     ...rowParts('timeline-viewport-single-writer'),
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
     testAnchors: [
-      'src/hooks/useTimelineViewport.test.ts',
+      'src/hooks/transcription/useTimelineViewport.test.ts',
       'src/pages/TranscriptionPage.structure.test.ts',
     ],
   },
@@ -107,7 +107,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
       'src/pages/timelineParityMatrix.test.ts',
       'src/pages/segmentRangeGestureParity.test.ts',
       'src/pages/TranscriptionPage.structure.test.ts',
-      'src/hooks/useLasso.test.tsx',
+      'src/hooks/ui/useLasso.test.tsx',
     ],
   },
   {
@@ -118,7 +118,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
       'src/pages/phaseFRangePreviewSsot.test.ts',
       'src/utils/segmentRangeGesturePreviewReadModel.test.ts',
       'src/utils/segmentRangeGesturePreviewWriter.test.ts',
-      'src/hooks/useSegmentRangeGesturePreviewWriter.test.ts',
+      'src/hooks/transcription/useSegmentRangeGesturePreviewWriter.test.ts',
       'src/pages/segmentRangeGestureParity.test.ts',
       'src/pages/timelineParityMatrix.test.ts',
     ],
@@ -148,7 +148,10 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     id: 'zoom-scroll',
     ...rowParts('zoom-scroll'),
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
-    testAnchors: ['src/hooks/useZoom.test.ts', 'src/hooks/useTimelineViewport.test.ts'],
+    testAnchors: [
+      'src/hooks/ui/useZoom.test.ts',
+      'src/hooks/transcription/useTimelineViewport.test.ts',
+    ],
   },
   {
     id: 'acoustic-strip-contract',
@@ -192,7 +195,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
     testAnchors: [
       'src/utils/timelineDraftAutoSaveKeys.test.ts',
-      'src/hooks/useTimelineLaneTextDraftAutosave.test.tsx',
+      'src/hooks/transcription/useTimelineLaneTextDraftAutosave.test.tsx',
       'src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx',
       'src/components/TranscriptionTimelineTextTranslationItem.test.tsx',
       'src/components/TranscriptionTimelineVerticalView.suite-a.test.tsx',
@@ -210,7 +213,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
       'src/components/TranscriptionTimelineVerticalView.suite-b.test.tsx',
       'src/components/TranscriptionTimelineVerticalView.suite-c.test.tsx',
       'src/components/TranscriptionTimelineVerticalView.suite-d.test.tsx',
-      'src/hooks/useTranscriptionUnitActions.test.tsx',
+      'src/hooks/transcription/useTranscriptionUnitActions.test.tsx',
     ],
   },
   {

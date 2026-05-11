@@ -34,7 +34,7 @@ import {
   type CommercialProviderConfig,
   type VoiceLocalWhisperConfig,
   type VoiceSttEnhancementConfig,
-} from '../../hooks/useVoiceDock';
+} from '../../hooks/voice/useVoiceDock';
 import {
   EMBEDDING_PROVIDER_OPTIONS,
   VOICE_COMMERCIAL_PROVIDER_OPTIONS,

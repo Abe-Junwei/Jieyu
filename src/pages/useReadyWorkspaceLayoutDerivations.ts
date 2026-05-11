@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import type { UseAiPanelLogicInput } from '../hooks/useAiPanelLogic';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
+import type { UseAiPanelLogicInput } from '../hooks/ai/useAiPanelLogic';
 import { unitDocForSpeakerTargetFromUnitView } from './timelineUnitViewUnitHelpers';
 import type { DeferredTranscriptionAiRuntimeState } from './TranscriptionPage.AssistantBridge';
 

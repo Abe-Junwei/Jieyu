@@ -42,7 +42,7 @@ vi.mock('../services/LinguisticService.orthography', () => ({
   deleteOrthographyBridgeRecord: mockDeleteOrthographyBridge,
 }));
 
-vi.mock('../hooks/useOrthographies', () => ({
+vi.mock('../hooks/orthography/useOrthographies', () => ({
   useOrthographies: mockUseOrthographies,
 }));
 
@@ -64,7 +64,11 @@ const targetOrthography: OrthographyDocType = {
   name: { zho: '目标正字法' },
   scriptTag: 'Latn',
   type: 'practical',
-  catalogMetadata: { catalogSource: 'built-in-reviewed', reviewStatus: 'verified-primary', priority: 'primary' },
+  catalogMetadata: {
+    catalogSource: 'built-in-reviewed',
+    reviewStatus: 'verified-primary',
+    priority: 'primary',
+  },
   createdAt: NOW,
   updatedAt: NOW,
 };
@@ -129,7 +133,10 @@ describe('OrthographyBridgeManager', () => {
     mockBulkGet.mockReset();
 
     // 模拟 window.confirm 总是返回 true | Mock window.confirm to always return true
-    vi.stubGlobal('confirm', vi.fn(() => true));
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
 
     mockListOrthographyBridges.mockResolvedValue([] as OrthographyBridgeDocType[]);
     mockBulkGet.mockResolvedValue([]);
@@ -161,10 +168,16 @@ describe('OrthographyBridgeManager', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '管理写入桥接规则' }));
     await screen.findByText('当前正字法尚未配置入站桥接规则，导入或自动写入时会保留原文本。');
-    expect(Array.from(document.querySelectorAll('.panel-chip')).some((node) => node.textContent === '已审校主项')).toBe(true);
+    expect(
+      Array.from(document.querySelectorAll('.panel-chip')).some(
+        (node) => node.textContent === '已审校主项',
+      ),
+    ).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: '新建规则' }));
-    const bridgeCodeInput1 = screen.getByRole('textbox', { name: /语言代码|Source language code/i });
+    const bridgeCodeInput1 = screen.getByRole('textbox', {
+      name: /语言代码|Source language code/i,
+    });
     fireEvent.change(bridgeCodeInput1, { target: { value: 'eng' } });
     fireEvent.blur(bridgeCodeInput1);
 
@@ -174,17 +187,23 @@ describe('OrthographyBridgeManager', () => {
     });
 
     fireEvent.change(screen.getByLabelText('来源正字法'), { target: { value: 'orth-source' } });
-    fireEvent.change(screen.getByPlaceholderText('每行一条映射，如 aa => a'), { target: { value: 'sh => s' } });
-    fireEvent.change(screen.getByPlaceholderText('输入一段样例文本预览桥接结果'), { target: { value: 'sha' } });
+    fireEvent.change(screen.getByPlaceholderText('每行一条映射，如 aa => a'), {
+      target: { value: 'sh => s' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('输入一段样例文本预览桥接结果'), {
+      target: { value: 'sha' },
+    });
     fireEvent.click(screen.getByRole('button', { name: '保存规则' }));
 
     await waitFor(() => {
-      expect(mockCreateOrthographyBridge).toHaveBeenCalledWith(expect.objectContaining({
-        sourceOrthographyId: 'orth-source',
-        targetOrthographyId: 'orth-target',
-        engine: 'table-map',
-        status: 'draft',
-      }));
+      expect(mockCreateOrthographyBridge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceOrthographyId: 'orth-source',
+          targetOrthographyId: 'orth-target',
+          engine: 'table-map',
+          status: 'draft',
+        }),
+      );
     });
   });
 
@@ -215,7 +234,9 @@ describe('OrthographyBridgeManager', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '管理写入桥接规则' }));
 
-    await screen.findByText('Source Orthography · Latn · practical -> 目标正字法 · Latn · practical');
+    await screen.findByText(
+      'Source Orthography · Latn · practical -> 目标正字法 · Latn · practical',
+    );
 
     fireEvent.click(screen.getByRole('button', { name: '设为草稿' }));
     await waitFor(() => {
@@ -256,7 +277,9 @@ describe('OrthographyBridgeManager', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: '管理写入桥接规则' }));
-    await screen.findByText('Source Orthography · Latn · practical -> 目标正字法 · Latn · practical');
+    await screen.findByText(
+      'Source Orthography · Latn · practical -> 目标正字法 · Latn · practical',
+    );
 
     fireEvent.click(screen.getByRole('button', { name: '编辑' }));
     fireEvent.change(screen.getByLabelText('规则本地名称'), { target: { value: '' } });
@@ -264,10 +287,12 @@ describe('OrthographyBridgeManager', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存规则' }));
 
     await waitFor(() => {
-      expect(mockUpdateOrthographyBridge).toHaveBeenCalledWith(expect.objectContaining({
-        id: 'orthxfm-clear-name',
-        name: null,
-      }));
+      expect(mockUpdateOrthographyBridge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'orthxfm-clear-name',
+          name: null,
+        }),
+      );
     });
   });
 
@@ -278,7 +303,9 @@ describe('OrthographyBridgeManager', () => {
     await screen.findByRole('dialog', { name: '正字法写入桥接规则' });
 
     fireEvent.click(screen.getByRole('button', { name: '新建规则' }));
-    const bridgeCodeInput2 = screen.getByRole('textbox', { name: /语言代码|Source language code/i });
+    const bridgeCodeInput2 = screen.getByRole('textbox', {
+      name: /语言代码|Source language code/i,
+    });
     fireEvent.change(bridgeCodeInput2, { target: { value: 'eng' } });
     fireEvent.blur(bridgeCodeInput2);
 
@@ -288,8 +315,12 @@ describe('OrthographyBridgeManager', () => {
     });
 
     fireEvent.change(screen.getByLabelText('来源正字法'), { target: { value: 'orth-source' } });
-    fireEvent.change(screen.getByPlaceholderText('每行一条映射，如 aa => a'), { target: { value: 'sh => s' } });
-    fireEvent.change(screen.getByPlaceholderText('输入一段样例文本预览桥接结果'), { target: { value: 'sha' } });
+    fireEvent.change(screen.getByPlaceholderText('每行一条映射，如 aa => a'), {
+      target: { value: 'sh => s' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('输入一段样例文本预览桥接结果'), {
+      target: { value: 'sha' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: '正字法写入桥接规则 关闭' }));
 
@@ -333,22 +364,28 @@ describe('OrthographyBridgeManager', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: '管理写入桥接规则' }));
-    await screen.findByText('English Standard Orthography · Latn · practical -> 目标正字法 · Latn · practical');
+    await screen.findByText(
+      'English Standard Orthography · Latn · practical -> 目标正字法 · Latn · practical',
+    );
 
     fireEvent.click(screen.getByRole('button', { name: '编辑' }));
     await waitFor(() => {
       expect((screen.getByLabelText('来源正字法') as HTMLSelectElement).value).toBe('eng-latn');
     });
 
-    fireEvent.change(screen.getByPlaceholderText('每行一条映射，如 aa => a'), { target: { value: 'th => θ' } });
+    fireEvent.change(screen.getByPlaceholderText('每行一条映射，如 aa => a'), {
+      target: { value: 'th => θ' },
+    });
     fireEvent.click(screen.getByRole('button', { name: '保存规则' }));
 
     await waitFor(() => {
-      expect(mockUpdateOrthographyBridge).toHaveBeenCalledWith(expect.objectContaining({
-        id: 'orthxfm-built-in',
-        sourceOrthographyId: 'eng-latn',
-        targetOrthographyId: 'orth-target',
-      }));
+      expect(mockUpdateOrthographyBridge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'orthxfm-built-in',
+          sourceOrthographyId: 'eng-latn',
+          targetOrthographyId: 'orth-target',
+        }),
+      );
     });
   });
 
@@ -367,6 +404,8 @@ describe('OrthographyBridgeManager', () => {
       expect(screen.queryByText('正在加载桥接规则…')).toBeNull();
     });
 
-    expect(screen.getByText('当前正字法尚未配置入站桥接规则，导入或自动写入时会保留原文本。')).toBeTruthy();
+    expect(
+      screen.getByText('当前正字法尚未配置入站桥接规则，导入或自动写入时会保留原文本。'),
+    ).toBeTruthy();
   });
 });

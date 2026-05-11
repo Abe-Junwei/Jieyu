@@ -1,8 +1,13 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, MediaItemDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
-import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import type {
+  LayerDocType,
+  MediaItemDocType,
+  LayerUnitDocType,
+  LayerUnitContentDocType,
+} from '../db';
+import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import { useTranscriptionProjectMediaController } from './useTranscriptionProjectMediaController';
 
 const {
@@ -17,7 +22,7 @@ const {
   mockDetectVadSegments: vi.fn(),
 }));
 
-vi.mock('../hooks/useMediaImport', () => ({
+vi.mock('../hooks/media/useMediaImport', () => ({
   useMediaImport: () => ({
     mediaFileInputRef: { current: null },
     handleDirectMediaImport: mockHandleDirectMediaImport,
@@ -25,7 +30,8 @@ vi.mock('../hooks/useMediaImport', () => ({
 }));
 
 vi.mock('../services/vad/VadMediaCacheService', () => ({
-  ensureVadCacheForMedia: (options: { mediaId?: string; mediaUrl?: string }) => mockEnsureVadCacheForMedia(options),
+  ensureVadCacheForMedia: (options: { mediaId?: string; mediaUrl?: string }) =>
+    mockEnsureVadCacheForMedia(options),
   VAD_AUTO_WARM_MAX_BYTES: 100 * 1024 * 1024,
 }));
 
@@ -75,7 +81,9 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     loadSnapshot: vi.fn(async () => undefined),
     selectTimelineUnit: vi.fn() as unknown as (unit: TimelineUnit | null) => void,
     locale: 'zh-CN',
-    tfB: vi.fn((key: string, opts?: Record<string, unknown>) => `${key}:${String(opts?.count ?? '')}`),
+    tfB: vi.fn(
+      (key: string, opts?: Record<string, unknown>) => `${key}:${String(opts?.count ?? '')}`,
+    ),
     transcriptionLayers: [] as Array<Pick<LayerDocType, 'id' | 'languageId' | 'orthographyId'>>,
     translationLayers: [] as Array<Pick<LayerDocType, 'id' | 'languageId' | 'orthographyId'>>,
     translationTextByLayer: new Map<string, Map<string, LayerUnitContentDocType>>(),
@@ -104,13 +112,19 @@ describe('useTranscriptionProjectMediaController', () => {
     });
     const createUnitFromSelectionRouted = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
-    const tfB = vi.fn((key: string, opts?: Record<string, unknown>) => `${key}:${String(opts?.count ?? '')}`);
-    const { result } = renderHook(() => useTranscriptionProjectMediaController(createBaseInput({
-      createUnitFromSelectionRouted,
-      setSaveState,
-      tfB,
-      unitsOnCurrentMedia: [makeUnit('utt-1', 1.05, 1.75)],
-    })));
+    const tfB = vi.fn(
+      (key: string, opts?: Record<string, unknown>) => `${key}:${String(opts?.count ?? '')}`,
+    );
+    const { result } = renderHook(() =>
+      useTranscriptionProjectMediaController(
+        createBaseInput({
+          createUnitFromSelectionRouted,
+          setSaveState,
+          tfB,
+          unitsOnCurrentMedia: [makeUnit('utt-1', 1.05, 1.75)],
+        }),
+      ),
+    );
 
     act(() => {
       result.current.handleAutoSegment();
@@ -143,16 +157,20 @@ describe('useTranscriptionProjectMediaController', () => {
     ]);
     const createUnitFromSelectionRouted = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
-    const { result } = renderHook(() => useTranscriptionProjectMediaController(createBaseInput({
-      createUnitFromSelectionRouted,
-      setSaveState,
-      selectedTimelineMedia: {
-        ...makeMedia(),
-        details: {
-          audioBlob: new Blob([new Uint8Array(16)]),
-        },
-      } as MediaItemDocType,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionProjectMediaController(
+        createBaseInput({
+          createUnitFromSelectionRouted,
+          setSaveState,
+          selectedTimelineMedia: {
+            ...makeMedia(),
+            details: {
+              audioBlob: new Blob([new Uint8Array(16)]),
+            },
+          } as MediaItemDocType,
+        }),
+      ),
+    );
 
     act(() => {
       result.current.handleAutoSegment();
@@ -175,11 +193,15 @@ describe('useTranscriptionProjectMediaController', () => {
     mockEnsureVadCacheForMedia.mockResolvedValue(null);
     const createUnitFromSelectionRouted = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
-    const { result } = renderHook(() => useTranscriptionProjectMediaController(createBaseInput({
-      createUnitFromSelectionRouted,
-      setSaveState,
-      selectedTimelineMedia: makeMedia(),
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionProjectMediaController(
+        createBaseInput({
+          createUnitFromSelectionRouted,
+          setSaveState,
+          selectedTimelineMedia: makeMedia(),
+        }),
+      ),
+    );
 
     act(() => {
       result.current.handleAutoSegment();
@@ -206,10 +228,14 @@ describe('useTranscriptionProjectMediaController', () => {
     });
     const createUnitFromSelectionRouted = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
-    const { result } = renderHook(() => useTranscriptionProjectMediaController(createBaseInput({
-      createUnitFromSelectionRouted,
-      setSaveState,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionProjectMediaController(
+        createBaseInput({
+          createUnitFromSelectionRouted,
+          setSaveState,
+        }),
+      ),
+    );
 
     act(() => {
       result.current.handleAutoSegment();
@@ -251,10 +277,14 @@ describe('useTranscriptionProjectMediaController', () => {
       createdAt: '2026-04-08T00:00:00.000Z',
     } as MediaItemDocType;
 
-    const { result } = renderHook(() => useTranscriptionProjectMediaController(createBaseInput({
-      mediaItems: [placeholderMedia, translationRecordingMedia],
-      selectedTimelineMedia: translationRecordingMedia,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionProjectMediaController(
+        createBaseInput({
+          mediaItems: [placeholderMedia, translationRecordingMedia],
+          selectedTimelineMedia: translationRecordingMedia,
+        }),
+      ),
+    );
 
     expect(result.current.audioImportDisposition).toEqual({ kind: 'simple' });
   });

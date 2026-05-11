@@ -7,14 +7,14 @@ import {
   type UIEvent as ReactUIEvent,
 } from 'react';
 import { computeLogicalTimelineDurationForZoom } from './readyWorkspaceLogicalTimelineDuration';
-import { useLasso, type SubSelectDrag } from '../hooks/useLasso';
-import { useSegmentRangeGesturePreviewWriter } from '../hooks/useSegmentRangeGesturePreviewWriter';
-import { useWaveSurfer } from '../hooks/useWaveSurfer';
-import { useTimelineViewport } from '../hooks/useTimelineViewport';
+import { useLasso, type SubSelectDrag } from '../hooks/ui/useLasso';
+import { useSegmentRangeGesturePreviewWriter } from '../hooks/transcription/useSegmentRangeGesturePreviewWriter';
+import { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
+import { useTimelineViewport } from '../hooks/transcription/useTimelineViewport';
 import { useEnsureVadCache } from '../hooks/useEnsureVadCache';
-import { useVadCachedSegments } from '../hooks/useVadCachedSegments';
+import { useVadCachedSegments } from '../hooks/voice/useVadCachedSegments';
 import { useWaveformSelectionController } from './useWaveformSelectionController';
-import { timelineUnitsToWaveformAnalysisRows } from '../hooks/timelineUnitView';
+import { timelineUnitsToWaveformAnalysisRows } from '../hooks/transcription/timelineUnitView';
 import type {
   UseTranscriptionWaveformBridgeControllerInput,
   UseTranscriptionWaveformBridgeControllerResult,

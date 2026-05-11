@@ -1,15 +1,25 @@
 import { useMemo, type RefObject } from 'react';
-import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, OrthographyDocType, SpeakerDocType } from '../db';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+  OrthographyDocType,
+  SpeakerDocType,
+} from '../db';
 import { layerTranscriptionTreeParentId } from '../db';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import { useOrthographies } from '../hooks/useOrthographies';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import { useOrthographies } from '~/hooks/orthography/useOrthographies';
 import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { resolveLayerLinkHostTranscriptionLayerId } from '../utils/translationHostLinkQuery';
 import { SidePaneSidebarLayerRow } from './SidePaneSidebarLayerRow';
 import { SidePaneSidebarSegmentList } from './SidePaneSidebarSegmentList';
 import { FolderOpenIcon } from './SvgIcons';
 
-type SidebarHostLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
+type SidebarHostLink = Pick<
+  LayerLinkDocType,
+  'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+>;
 
 type DragState = {
   draggedId: string;
@@ -79,7 +89,14 @@ export function SidePaneSidebarOverview({
   onKeyboardReorder,
 }: SidePaneSidebarOverviewProps) {
   const orthographyLanguageIds = useMemo(
-    () => Array.from(new Set(sidePaneRows.map((layer) => layer.languageId).filter((languageId): languageId is string => Boolean(languageId)))),
+    () =>
+      Array.from(
+        new Set(
+          sidePaneRows
+            .map((layer) => layer.languageId)
+            .filter((languageId): languageId is string => Boolean(languageId)),
+        ),
+      ),
     [sidePaneRows],
   );
   const orthographies = useOrthographies(orthographyLanguageIds);
@@ -156,18 +173,26 @@ export function SidePaneSidebarOverview({
         <div className="transcription-side-pane-empty">
           <FolderOpenIcon className="transcription-side-pane-empty-icon" />
           <span>{messages.emptyLayerHint}</span>
-          <span className="transcription-side-pane-empty-hint" aria-hidden="true">←</span>
+          <span className="transcription-side-pane-empty-hint" aria-hidden="true">
+            ←
+          </span>
         </div>
       );
     }
-    const targetBundleRange = dragState && dropTargetIndex !== null
-      ? resolveTargetBundleRange(dragState.draggedId, dropTargetIndex)
-      : null;
-    const bundleBoundaryHighlight = dragState && dropTargetIndex !== null && bundleRootIds.has(dragState.draggedId) && bundleBoundaryIndexes.includes(dropTargetIndex) && dropTargetIndex !== dragState.sourceIndex
-      ? (dropTargetIndex >= sidePaneRows.length
+    const targetBundleRange =
+      dragState && dropTargetIndex !== null
+        ? resolveTargetBundleRange(dragState.draggedId, dropTargetIndex)
+        : null;
+    const bundleBoundaryHighlight =
+      dragState &&
+      dropTargetIndex !== null &&
+      bundleRootIds.has(dragState.draggedId) &&
+      bundleBoundaryIndexes.includes(dropTargetIndex) &&
+      dropTargetIndex !== dragState.sourceIndex
+        ? dropTargetIndex >= sidePaneRows.length
           ? { index: sidePaneRows.length - 1, position: 'bottom' as const }
-          : { index: dropTargetIndex, position: 'top' as const })
-      : null;
+          : { index: dropTargetIndex, position: 'top' as const }
+        : null;
     return sidePaneRows.map((layer, index) => (
       <SidePaneSidebarLayerRow
         key={layer.id}
@@ -177,14 +202,20 @@ export function SidePaneSidebarOverview({
         flashLayerRowId={flashLayerRowId}
         dragState={dragState}
         dropTargetIndex={dropTargetIndex}
-        boundaryHighlight={bundleBoundaryHighlight?.index === index ? bundleBoundaryHighlight.position : null}
-        bundleTargetHighlighted={Boolean(targetBundleRange && index >= targetBundleRange.start && index < targetBundleRange.end)}
-        parentLabel={layer.layerType === 'translation'
-          ? resolveTranslationHostLabel(layer.id)
-          : (() => {
-            const pid = layerTranscriptionTreeParentId(layer);
-            return pid ? (layerLanguageNameById.get(pid) ?? '') : '';
-          })()}
+        boundaryHighlight={
+          bundleBoundaryHighlight?.index === index ? bundleBoundaryHighlight.position : null
+        }
+        bundleTargetHighlighted={Boolean(
+          targetBundleRange && index >= targetBundleRange.start && index < targetBundleRange.end,
+        )}
+        parentLabel={
+          layer.layerType === 'translation'
+            ? resolveTranslationHostLabel(layer.id)
+            : (() => {
+                const pid = layerTranscriptionTreeParentId(layer);
+                return pid ? (layerLanguageNameById.get(pid) ?? '') : '';
+              })()
+        }
         orthographyById={orthographyById}
         messages={messages}
         onFocusLayer={onFocusLayer}
@@ -203,7 +234,10 @@ export function SidePaneSidebarOverview({
     >
       {hasSidePaneHost ? (
         <>
-          <section className="app-side-pane-group app-side-pane-layer-group" aria-label={messages.overviewLayerListAria}>
+          <section
+            className="app-side-pane-group app-side-pane-layer-group"
+            aria-label={messages.overviewLayerListAria}
+          >
             <div className="app-side-pane-nav app-side-pane-layer-list">
               {renderSidePaneItems()}
             </div>

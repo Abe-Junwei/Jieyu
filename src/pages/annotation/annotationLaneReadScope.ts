@@ -10,4 +10,4 @@ export {
   transcriptionLaneAcceptsUnscopedCanonicalUnits,
 } from '../../utils/transcriptionUnitLaneReadScope';
 
-export { pickTimelineUnitsForTranscriptionLayer } from '../../hooks/timelineUnitView';
+export { pickTimelineUnitsForTranscriptionLayer } from '../../hooks/transcription/timelineUnitView';

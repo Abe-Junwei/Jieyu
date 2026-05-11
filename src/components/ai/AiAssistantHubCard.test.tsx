@@ -2,13 +2,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { AiAssistantHubCard } from './AiAssistantHubCard';
-import { AiAssistantHubContext, type AiAssistantHubContextValue } from '../../contexts/AiAssistantHubContext';
+import {
+  AiAssistantHubContext,
+  type AiAssistantHubContextValue,
+} from '../../contexts/AiAssistantHubContext';
 import { LocaleProvider } from '../../i18n';
 import { DEFAULT_AI_CHAT_CONTEXT_VALUE } from '../../contexts/AiChatContext';
 import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../../contexts/VoiceAgentContext';
-import { pickAiAssistantHubContextValue } from '../../hooks/useAiAssistantHubContextValue';
-import { pickAiChatContextValue } from '../../hooks/useAiChatContextValue';
-import { pickVoiceAgentContextValue } from '../../hooks/useVoiceAgentContextValue';
+import { pickAiAssistantHubContextValue } from '../../hooks/ai/useAiAssistantHubContextValue';
+import { pickAiChatContextValue } from '../../hooks/ai/useAiChatContextValue';
+import { pickVoiceAgentContextValue } from '../../hooks/voice/useVoiceAgentContextValue';
 
 vi.mock('./AiChatCard', () => ({
   AiChatCard: () => <div data-testid="mock-ai-chat-card">mock-chat</div>,
@@ -19,8 +22,16 @@ const DEFAULT_HUB_VALUE = pickAiAssistantHubContextValue(
   pickVoiceAgentContextValue(DEFAULT_VOICE_AGENT_CONTEXT_VALUE),
 );
 
-function makeContextValue(overrides: Partial<AiAssistantHubContextValue> = {}): AiAssistantHubContextValue {
-  return { ...DEFAULT_HUB_VALUE, aiChatEnabled: true, aiProviderLabel: 'Mock Provider', voiceEnabled: true, ...overrides };
+function makeContextValue(
+  overrides: Partial<AiAssistantHubContextValue> = {},
+): AiAssistantHubContextValue {
+  return {
+    ...DEFAULT_HUB_VALUE,
+    aiChatEnabled: true,
+    aiProviderLabel: 'Mock Provider',
+    voiceEnabled: true,
+    ...overrides,
+  };
 }
 
 describe('AiAssistantHubCard', () => {

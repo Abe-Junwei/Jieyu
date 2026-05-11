@@ -4,8 +4,8 @@
  */
 
 import { getDb } from '../../db';
-import { nowIso } from '../../hooks/useAiChat.helpers';
-import type { UiChatMessage } from '../../hooks/useAiChat.types';
+import { nowIso } from '../../hooks/ai/useAiChat.helpers';
+import type { UiChatMessage } from '../../hooks/ai/useAiChat.types';
 
 export interface ApplyAssistantMessageResultParams {
   messageId: string;
@@ -24,14 +24,16 @@ export async function applyAssistantMessageResult(
 ): Promise<void> {
   const { messageId, content, status = 'done', errorMessage, setMessages } = params;
 
-  setMessages((prev) => prev.map((msg) => {
-    if (msg.id !== messageId) return msg;
-    if (status === 'error') {
-      return { ...msg, content, status, ...(errorMessage ? { error: errorMessage } : {}) };
-    }
-    const { error: _ignoredError, ...rest } = msg;
-    return { ...rest, content, status: 'done' };
-  }));
+  setMessages((prev) =>
+    prev.map((msg) => {
+      if (msg.id !== messageId) return msg;
+      if (status === 'error') {
+        return { ...msg, content, status, ...(errorMessage ? { error: errorMessage } : {}) };
+      }
+      const { error: _ignoredError, ...rest } = msg;
+      return { ...rest, content, status: 'done' };
+    }),
+  );
 
   const db = await getDb();
   await db.collections.ai_messages.update(messageId, {

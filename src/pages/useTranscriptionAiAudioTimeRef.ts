@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
-} from '../hooks/transcriptionPlaybackClock';
+} from '../hooks/transcription/transcriptionPlaybackClock';
 
 export function useTranscriptionAiAudioTimeRef(playerCurrentTime: number | undefined) {
   const aiAudioTimeRef = useRef(0);

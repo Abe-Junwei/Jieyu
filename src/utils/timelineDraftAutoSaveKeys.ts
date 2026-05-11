@@ -2,7 +2,7 @@
  * 时间轴 lane 内「草稿防抖保存」使用的 timer key 前缀单点，避免横纵多文件硬编码分叉（G3）。
  */
 
-import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
+import type { TimelineUnitKind } from '../hooks/transcription/transcriptionTypes';
 
 export function timelineSegmentDraftAutoSaveKey(layerId: string, segmentOrUnitId: string): string {
   return `seg-${layerId}-${segmentOrUnitId}`;
@@ -42,7 +42,10 @@ export function timelineTranslationHostDraftAutoSaveKey(
 }
 
 /** 纵向对读：源列单元草稿防抖（与 `TranscriptionTimelineVerticalViewGroupList` 一致） */
-export function timelinePairedReadingSourceDraftAutoSaveKey(sourceLayerId: string, sourceUnitId: string): string {
+export function timelinePairedReadingSourceDraftAutoSaveKey(
+  sourceLayerId: string,
+  sourceUnitId: string,
+): string {
   return `pr-src-${sourceLayerId}-${sourceUnitId}`;
 }
 

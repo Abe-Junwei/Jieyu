@@ -4,8 +4,8 @@ import type { Dispatch, SetStateAction } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType, TranscriptionLayerDocType } from '../db';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
-import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
-import { unitToView } from '../hooks/timelineUnitView';
+import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import { unitToView } from '../hooks/transcription/timelineUnitView';
 import { useTranscriptionAssistantController } from './useTranscriptionAssistantController';
 import { DEFAULT_VOICE_MODE } from '../services/voiceMode';
 

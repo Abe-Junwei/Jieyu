@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { useLayerSegmentContents } from '../hooks/useLayerSegmentContents';
-import { useLayerSegments } from '../hooks/useLayerSegments';
-import { isSegmentTimelineUnit, isUnitTimelineUnit } from '../hooks/transcriptionTypes';
+import { useLayerSegmentContents } from '~/hooks/layer/useLayerSegmentContents';
+import { useLayerSegments } from '~/hooks/layer/useLayerSegments';
+import {
+  isSegmentTimelineUnit,
+  isUnitTimelineUnit,
+} from '../hooks/transcription/transcriptionTypes';
 import {
   resolveSegmentMediaIdFromSegmentGraph,
   resolveSegmentScopeMediaId,

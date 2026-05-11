@@ -3,7 +3,7 @@
  * Extracted from localContextToolExecutors.ts
  */
 
-import type { TimelineUnitView } from '../../../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../../../hooks/transcription/timelineUnitView';
 import type { AiPromptContext } from '../chatDomain.types';
 import { SegmentMetaService } from '../../../services/SegmentMetaService';
 import {

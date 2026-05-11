@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
+import type { TimelineUnitKind } from '../hooks/transcription/transcriptionTypes';
 
 /** 左右对照视图焦点（组 + 子项 + 译文侧菜单锚点），由 ReadyWorkspace 持有以便与波形/便签协同 */
 export interface TranscriptionVerticalPaneFocusState {
@@ -54,13 +54,17 @@ export function useTranscriptionUIState() {
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
   const [uttOpsMenu, setUttOpsMenu] = useState<UttOpsMenuState | null>(null);
   const [showBatchOperationPanel, setShowBatchOperationPanel] = useState(false);
-  const [verticalPaneFocus, setVerticalPaneFocusState] = useState<TranscriptionVerticalPaneFocusState>(
-    () => ({ ...DEFAULT_TRANSCRIPTION_VERTICAL_PANE_FOCUS }),
-  );
+  const [verticalPaneFocus, setVerticalPaneFocusState] =
+    useState<TranscriptionVerticalPaneFocusState>(() => ({
+      ...DEFAULT_TRANSCRIPTION_VERTICAL_PANE_FOCUS,
+    }));
 
-  const updateVerticalPaneFocus = useCallback((patch: Partial<TranscriptionVerticalPaneFocusState>) => {
-    setVerticalPaneFocusState((prev) => ({ ...prev, ...patch }));
-  }, []);
+  const updateVerticalPaneFocus = useCallback(
+    (patch: Partial<TranscriptionVerticalPaneFocusState>) => {
+      setVerticalPaneFocusState((prev) => ({ ...prev, ...patch }));
+    },
+    [],
+  );
 
   const resetVerticalPaneFocus = useCallback(() => {
     setVerticalPaneFocusState({ ...DEFAULT_TRANSCRIPTION_VERTICAL_PANE_FOCUS });

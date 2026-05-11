@@ -1,10 +1,21 @@
-import type { LayerDocType, LayerLinkDocType, LayerSegmentViewDocType, LayerUnitDocType } from '../db';
-import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerSegmentViewDocType,
+  LayerUnitDocType,
+} from '../db';
+import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
 import { getUnitSpeakerKey } from '../hooks/speakerManagement/speakerUtils';
-import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
-import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
+import { resolveSegmentTimelineSourceLayer } from '~/hooks/layer/useLayerSegments';
+import {
+  buildSpeakerLayerLayoutWithOptions,
+  type SpeakerLayerLayoutResult,
+} from '../utils/speakerLayerLayout';
 
-export const EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID = new Map<string, Array<{ id: string; startTime: number }>>();
+export const EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID = new Map<
+  string,
+  Array<{ id: string; startTime: number }>
+>();
 
 export const EMPTY_SPEAKER_LAYOUT: SpeakerLayerLayoutResult = {
   placements: new Map(),
@@ -73,7 +84,12 @@ function buildSegmentSpeakerIdMap(
 interface SegmentSpeakerLayoutMapsOptions {
   transcriptionLayers: LayerDocType[];
   layerById: ReadonlyMap<string, LayerDocType>;
-  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
+  layerLinks: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >;
   unitById: ReadonlyMap<string, LayerUnitDocType>;
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined;
   defaultTranscriptionLayerId: string | undefined;
@@ -102,12 +118,19 @@ export function buildSegmentSpeakerLayoutMaps({
   const segmentSpeakerIdByLayer = new Map<string, Map<string, string>>();
 
   for (const layer of transcriptionLayers) {
-    const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId, layerLinks);
+    const sourceLayer = resolveSegmentTimelineSourceLayer(
+      layer,
+      layerById,
+      defaultTranscriptionLayerId,
+      layerLinks,
+    );
     if (!sourceLayer) continue;
-    const segments = (segmentsByLayer?.get(sourceLayer.id) ?? []).filter((segment) => (
-      activeSpeakerFilterKey === 'all'
-        || resolveSpeakerFocusKeyFromSegment(segment, unitById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
-    ));
+    const segments = (segmentsByLayer?.get(sourceLayer.id) ?? []).filter(
+      (segment) =>
+        activeSpeakerFilterKey === 'all' ||
+        resolveSpeakerFocusKeyFromSegment(segment, unitById) ===
+          normalizeSpeakerFocusKey(activeSpeakerFilterKey),
+    );
     const segmentAsUnits = toSpeakerLayoutInputFromSegments(segments, unitById);
     segmentSpeakerLayoutByLayer.set(
       sourceLayer.id,

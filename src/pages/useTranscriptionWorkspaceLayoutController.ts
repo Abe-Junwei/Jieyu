@@ -10,7 +10,7 @@ import {
 } from 'react';
 import type { VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
 import type { LayerDocType } from '../types/jieyuDbDocTypes';
-import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
+import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/transcription/useTimelineLaneHeightResize';
 import { createLogger } from '../observability/logger';
 import {
   readStoredClampedNumber,

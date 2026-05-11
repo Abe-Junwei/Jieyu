@@ -2,20 +2,19 @@
 import { render, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
 import { useTrackEntityPersistenceController } from './useTrackEntityPersistenceController';
 import { useTrackEntityStateController } from './useTrackEntityStateController';
 
-const {
-  mockLoadTrackEntityStateMapFromDb,
-  mockSaveTrackEntityStateToDb,
-} = vi.hoisted(() => ({
+const { mockLoadTrackEntityStateMapFromDb, mockSaveTrackEntityStateToDb } = vi.hoisted(() => ({
   mockLoadTrackEntityStateMapFromDb: vi.fn(async () => ({})),
   mockSaveTrackEntityStateToDb: vi.fn(async () => undefined),
 }));
 
 vi.mock('../services/TrackEntityStore', async () => {
-  const actual = await vi.importActual<typeof import('../services/TrackEntityStore')>('../services/TrackEntityStore');
+  const actual = await vi.importActual<typeof import('../services/TrackEntityStore')>(
+    '../services/TrackEntityStore',
+  );
   return {
     ...actual,
     loadTrackEntityStateMapFromDb: mockLoadTrackEntityStateMapFromDb,
@@ -29,11 +28,9 @@ interface HarnessProps {
 }
 
 function TrackEntityInitHarness(props: HarnessProps) {
-  const [transcriptionTrackMode, setTranscriptionTrackMode] = useState<TranscriptionTrackDisplayMode>('single');
-  const {
-    laneLockMap,
-    persistenceContext,
-  } = useTrackEntityStateController({
+  const [transcriptionTrackMode, setTranscriptionTrackMode] =
+    useState<TranscriptionTrackDisplayMode>('single');
+  const { laneLockMap, persistenceContext } = useTrackEntityStateController({
     activeTextId: props.activeTextId,
     selectedTimelineMediaId: props.selectedTimelineMediaId,
     setTranscriptionTrackMode,

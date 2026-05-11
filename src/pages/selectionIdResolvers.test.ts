@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { hasSelectionSourceForUnitMapping, resolveMappedUnitIds, resolveMappedUnitIdsFromSelection, resolveSegmentOnlyIds, resolveSegmentOnlyIdsFromSelection, resolveUnitSelectionMapping } from './selectionIdResolvers';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
+import {
+  hasSelectionSourceForUnitMapping,
+  resolveMappedUnitIds,
+  resolveMappedUnitIdsFromSelection,
+  resolveSegmentOnlyIds,
+  resolveSegmentOnlyIdsFromSelection,
+  resolveUnitSelectionMapping,
+} from './selectionIdResolvers';
 
 function utt(id: string): TimelineUnitView {
   return { id, kind: 'unit', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: '' };

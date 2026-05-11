@@ -1,5 +1,5 @@
 import { createLogger } from '../observability/logger';
-import { useTimelineAnnotationHelpers } from '../hooks/useTimelineAnnotationHelpers';
+import { useTimelineAnnotationHelpers } from '../hooks/transcription/useTimelineAnnotationHelpers';
 import { updateOverlapCycleTelemetry } from '../utils/overlapCycleTelemetry';
 
 const log = createLogger('TranscriptionPage');
@@ -7,7 +7,9 @@ const log = createLogger('TranscriptionPage');
 type UseTimelineAnnotationHelpersInput = Parameters<typeof useTimelineAnnotationHelpers>[0];
 
 interface UseTranscriptionAnnotationControllerInput extends UseTimelineAnnotationHelpersInput {
-  setOverlapCycleToast: React.Dispatch<React.SetStateAction<{ index: number; total: number; nonce: number } | null>>;
+  setOverlapCycleToast: React.Dispatch<
+    React.SetStateAction<{ index: number; total: number; nonce: number } | null>
+  >;
   overlapCycleTelemetryRef: React.MutableRefObject<ReturnType<typeof updateOverlapCycleTelemetry>>;
 }
 

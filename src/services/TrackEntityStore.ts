@@ -1,4 +1,4 @@
-import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
 import { getDb, type TrackEntityDocType } from '../db';
 import { trackEntityDocumentId } from '../db/trackEntityIds';
 
@@ -24,7 +24,13 @@ function sanitizeLaneLockMap(input: unknown): Record<string, number> {
 }
 
 function sanitizeMode(value: unknown): TranscriptionTrackDisplayMode {
-  if (value === 'multi-auto' || value === 'multi-locked' || value === 'multi-speaker-fixed' || value === 'single') return value;
+  if (
+    value === 'multi-auto' ||
+    value === 'multi-locked' ||
+    value === 'multi-speaker-fixed' ||
+    value === 'single'
+  )
+    return value;
   return 'single';
 }
 
@@ -60,7 +66,10 @@ export function saveTrackEntityStateMap(stateMap: TrackEntityStateMap, storage?:
   }
 }
 
-export function getTrackEntityState(stateMap: TrackEntityStateMap, mediaId: string): TrackEntityState | null {
+export function getTrackEntityState(
+  stateMap: TrackEntityStateMap,
+  mediaId: string,
+): TrackEntityState | null {
   return stateMap[mediaId] ?? null;
 }
 

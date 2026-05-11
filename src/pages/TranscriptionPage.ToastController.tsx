@@ -5,7 +5,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useToast } from '../contexts/ToastContext';
-import type { SaveState } from '../hooks/transcriptionTypes';
+import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import { isDictKey } from '../i18n';
 import {
   useFireAndForgetErrorToast,

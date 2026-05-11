@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
-import type { useWaveSurfer } from '../hooks/useWaveSurfer';
+import type { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
 
 type PlayerSlice = Pick<ReturnType<typeof useWaveSurfer>, 'instanceRef' | 'isReady'>;
 

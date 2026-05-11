@@ -37,7 +37,7 @@ describe('LinguisticService embedding invalidation', () => {
     };
     await (await getDb()).collections.layers.insert(trcLayer);
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_embed_1',
       textId: 'text_embed',
       startTime: 0,
@@ -59,7 +59,7 @@ describe('LinguisticService embedding invalidation', () => {
       createdAt: now,
     });
 
-    await LinguisticService.saveUnit({
+    await LinguisticService.units.save({
       id: 'utt_embed_1',
       textId: 'text_embed',
       startTime: 0,
@@ -76,7 +76,7 @@ describe('LinguisticService embedding invalidation', () => {
   it('removes unit embeddings when units are batch-deleted', async () => {
     const now = new Date().toISOString();
 
-    await LinguisticService.saveUnitsBatch([
+    await LinguisticService.units.saveBatch([
       {
         id: 'utt_batch_1',
         textId: 'text_batch',
@@ -122,7 +122,7 @@ describe('LinguisticService embedding invalidation', () => {
       },
     ]);
 
-    await LinguisticService.removeUnitsBatch(['utt_batch_1', 'utt_batch_2']);
+    await LinguisticService.cleanup.removeUnitsBatch(['utt_batch_1', 'utt_batch_2']);
 
     expect(await db.embeddings.where('sourceType').equals('unit').count()).toBe(0);
   });

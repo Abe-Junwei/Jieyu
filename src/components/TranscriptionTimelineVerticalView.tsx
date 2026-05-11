@@ -12,8 +12,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
-import { useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
-import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
+import { useTimelineLaneHeightResize } from '../hooks/transcription/useTimelineLaneHeightResize';
+import { layerUsesOwnSegments } from '~/hooks/layer/useLayerSegments';
 import { useToast } from '../contexts/ToastContext';
 import { t, useLocale } from '../i18n';
 import { createLogger } from '../observability/logger';
@@ -30,7 +30,7 @@ import {
 } from '../utils/transcriptionVerticalReadingGroups';
 import { buildLayerBundles } from '../services/LayerOrderingService';
 import { filterTranslationLayersForVerticalReadingGroup } from '../utils/verticalReadingHostFilter';
-import { useTranscriptionTimelineVerticalChrome } from '../hooks/useTranscriptionTimelineVerticalChrome';
+import { useTranscriptionTimelineVerticalChrome } from '../hooks/transcription/useTranscriptionTimelineVerticalChrome';
 import {
   BASE_FONT_SIZE,
   computeFontSizeFromRenderPolicy,
@@ -39,7 +39,7 @@ import {
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { LayerActionPopover } from './LayerActionPopover';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
-import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
+import { useLayerDeleteConfirm } from '~/hooks/layer/useLayerDeleteConfirm';
 import { type LayerOperationActionType } from './layerOperationMenuItems';
 import {
   PAIRED_READING_COLUMN_LEFT_GROW_KEY,
@@ -58,7 +58,7 @@ import {
   partitionPairedReadingSourceItemsForDualTranscriptionColumns,
   transcriptionLayersOrderedForVerticalReadingSourceWalk,
 } from './transcriptionTimelineVerticalViewHelpers';
-import { type PairedReadingCompactMode } from '../hooks/useTimelineVisibilityState';
+import { type PairedReadingCompactMode } from '../hooks/transcription/useTimelineVisibilityState';
 import type { TranscriptionTimelineVerticalViewInput } from '../pages/transcriptionTimelineWorkspacePanelTypes';
 
 type PairedReadingLayerActionType = Exclude<LayerOperationActionType, 'delete'>;
@@ -1060,9 +1060,7 @@ export function TranscriptionTimelineVerticalView({
       pairedReadingTargetSide: syncedSide,
       contextMenuSourceUnitId: activeUnitId,
     });
-    // Full `targetLayer` / `transcriptionLayers` in deps can thrash: `patchVerticalPaneFocus` updates host state
-    // and fresh array identities retrigger this effect in tight loops during tests and some layouts.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Full `targetLayer`/`transcriptionLayers` in deps thrash: `patchVerticalPaneFocus` updates host state and fresh array identities retrigger this effect in tight loops during tests and some layouts.
   }, [
     activeUnitId,
     defaultTranscriptionLayerId,

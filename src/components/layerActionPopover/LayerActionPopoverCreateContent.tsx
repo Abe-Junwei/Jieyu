@@ -8,7 +8,7 @@ import {
   groupOrthographiesForSelect,
   ORTHOGRAPHY_CREATE_SENTINEL,
   type UseOrthographyPickerResult,
-} from '../../hooks/useOrthographyPicker';
+} from '../../hooks/orthography/useOrthographyPicker';
 import { getOrthographyCatalogGroupLabel } from '../../i18n/messages';
 import { getOrthographyCatalogBadgeInfo } from '../orthographyCatalogUi';
 import type { Locale } from '../../i18n';

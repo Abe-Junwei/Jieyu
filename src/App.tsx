@@ -19,7 +19,7 @@ import {
   AppSidePaneProvider,
   useAppSidePaneRegistrationSnapshot,
 } from './contexts/AppSidePaneContext';
-import { usePanelAutoCollapse } from './hooks/usePanelAutoCollapse';
+import { usePanelAutoCollapse } from '~/hooks/panel/usePanelAutoCollapse';
 import { SettingsModal } from './components/SettingsModal';
 import { resolveHostVersion } from './config/hostVersion';
 import {
@@ -27,9 +27,9 @@ import {
   readPersistedUiFontScalePreference,
   type UiFontScaleMode,
 } from './utils/panelAdaptiveLayout';
-import { useUiFontScaleRuntime } from './hooks/useUiFontScaleRuntime';
+import { useUiFontScaleRuntime } from './hooks/ui/useUiFontScaleRuntime';
 import { useAppDataResilienceEffects } from './hooks/useAppDataResilienceEffects';
-import { usePanelResize } from './hooks/usePanelResize';
+import { usePanelResize } from '~/hooks/panel/usePanelResize';
 import {
   LOCALE_PREFERENCE_STORAGE_KEY,
   LocaleProvider,
@@ -380,7 +380,7 @@ export function App() {
       try {
         const { LinguisticService } = await import('./services/LinguisticService');
         if (cancelled) return;
-        await LinguisticService.refreshLanguageCatalogReadModel();
+        await LinguisticService.languageCatalog.refreshReadModel();
       } catch {
         // 忽略启动期语言目录快照刷新失败，保留生成基线回退 | Ignore boot-time refresh failures and keep generated fallback behavior
       }

@@ -29,6 +29,9 @@ import type { TranscriptionPageReadyWorkspaceLayoutProps } from './Transcription
 
 export interface UseReadyWorkspaceSurfacePropsInput {
   locale: string;
+  /** Side pane row flash/focus — forwarded to side pane builder | 侧栏层行高亮 */
+  focusedLayerRowId?: string | null;
+  flashLayerRowId?: string | null;
   activeTextId: unknown;
   selectedTimelineMedia: unknown | undefined;
   selectedMediaUrl: unknown;

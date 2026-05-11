@@ -18,7 +18,7 @@ export function useProjectLanguageIds(): {
 } {
   const { data, isLoading } = useQuery({
     queryKey: projectLanguageIdsQueryKey(),
-    queryFn: () => LinguisticService.listDistinctProjectLanguageIds(),
+    queryFn: () => LinguisticService.layers.listDistinctProjectLanguageIds(),
   });
 
   return {

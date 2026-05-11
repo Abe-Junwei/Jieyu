@@ -4,7 +4,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from '../contexts/AppSidePaneContext';
+import {
+  AppSidePaneProvider,
+  useAppSidePaneRegistrationSnapshot,
+} from '../contexts/AppSidePaneContext';
 import type { LexemeDocType } from '../db';
 import { LocaleProvider } from '../i18n';
 import { LexiconPage } from './LexiconPage';
@@ -16,8 +19,10 @@ const { mockListLexemes, mockListLexemeTranscriptionJumpTargets } = vi.hoisted((
 
 vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
-    listLexemes: mockListLexemes,
-    listLexemeTranscriptionJumpTargets: mockListLexemeTranscriptionJumpTargets,
+    lexemes: {
+      list: mockListLexemes,
+      listTranscriptionJumpTargets: mockListLexemeTranscriptionJumpTargets,
+    },
   },
 }));
 
@@ -67,7 +72,13 @@ describe('LexiconPage', () => {
         id: 'lex-dog',
         lemma: { default: 'dog' },
         citationForm: 'dog',
-        senses: [{ gloss: { eng: 'canine' }, definition: { eng: 'domesticated canine' }, category: 'noun' }],
+        senses: [
+          {
+            gloss: { eng: 'canine' },
+            definition: { eng: 'domesticated canine' },
+            category: 'noun',
+          },
+        ],
         language: 'eng',
         lexemeType: 'word',
         forms: [{ transcription: { default: 'dogs' } }],
@@ -111,7 +122,9 @@ describe('LexiconPage', () => {
   it('filters lexemes by search text and updates the current detail selection', async () => {
     renderLexiconPage();
 
-    const searchInput = await screen.findByRole('searchbox', { name: '按词元、释义或语言筛选词条' });
+    const searchInput = await screen.findByRole('searchbox', {
+      name: '按词元、释义或语言筛选词条',
+    });
     fireEvent.change(searchInput, { target: { value: 'move quickly' } });
 
     await waitFor(() => {
@@ -137,7 +150,9 @@ describe('LexiconPage', () => {
     renderLexiconPage();
 
     const hit = await screen.findByRole('link', { name: /dog/ });
-    expect(hit.getAttribute('href')).toBe('/transcription?textId=text-1&mediaId=media-1&layerId=layer-1&unitId=unit-1');
+    expect(hit.getAttribute('href')).toBe(
+      '/transcription?textId=text-1&mediaId=media-1&layerId=layer-1&unitId=unit-1',
+    );
   });
 
   it('shows empty state and quick access when no lexemes exist', async () => {
@@ -145,7 +160,11 @@ describe('LexiconPage', () => {
 
     renderLexiconPage();
 
-    expect(await screen.findByText('当前词典里还没有词条；后续可从导入、标注回链或人工创建补齐。')).toBeTruthy();
-    expect(screen.getByRole('link', { name: '打开正字法管理器' }).getAttribute('href')).toBe('/assets/orthographies');
+    expect(
+      await screen.findByText('当前词典里还没有词条；后续可从导入、标注回链或人工创建补齐。'),
+    ).toBeTruthy();
+    expect(screen.getByRole('link', { name: '打开正字法管理器' }).getAttribute('href')).toBe(
+      '/assets/orthographies',
+    );
   });
 });

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { MediaItemDocType } from '../types/jieyuDbDocTypes';
-import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
+import type { TimelineUnitViewIndexWithEpoch } from '../hooks/transcription/useTimelineUnitViewIndex';
 
 export function useTranscriptionAiAcousticBatchRanges(input: {
   timelineUnitViewIndex: TimelineUnitViewIndexWithEpoch;

@@ -2,19 +2,21 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType, MediaItemDocType } from '../db';
-import type { SaveState } from '../hooks/transcriptionTypes';
-import { segmentToView, unitToView } from '../hooks/timelineUnitView';
+import type { SaveState } from '../hooks/transcription/transcriptionTypes';
+import { segmentToView, unitToView } from '../hooks/transcription/timelineUnitView';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useTranscriptionSegmentCreationController } from './useTranscriptionSegmentCreationController';
 
 const { mockCreateSegment, mockCreateSegmentWithParentConstraint } = vi.hoisted(() => ({
   mockCreateSegment: vi.fn<(segment: LayerUnitDocType) => Promise<void>>(async () => undefined),
-  mockCreateSegmentWithParentConstraint: vi.fn<(
-    segment: LayerUnitDocType,
-    parentId: string,
-    parentStart: number,
-    parentEnd: number,
-  ) => Promise<void>>(async () => undefined),
+  mockCreateSegmentWithParentConstraint: vi.fn<
+    (
+      segment: LayerUnitDocType,
+      parentId: string,
+      parentStart: number,
+      parentEnd: number,
+    ) => Promise<void>
+  >(async () => undefined),
 }));
 
 vi.mock('../services/LayerSegmentationV2Service', () => ({
@@ -44,7 +46,13 @@ function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDo
   } as LayerDocType;
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number, speakerId?: string): LayerUnitDocType {
+function makeSegment(
+  id: string,
+  layerId: string,
+  startTime: number,
+  endTime: number,
+  speakerId?: string,
+): LayerUnitDocType {
   return {
     id,
     layerId,
@@ -58,7 +66,12 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
   } as LayerUnitDocType;
 }
 
-function makeUnit(id: string, startTime: number, endTime: number, speakerId?: string): LayerUnitDocType {
+function makeUnit(
+  id: string,
+  startTime: number,
+  endTime: number,
+  speakerId?: string,
+): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -112,12 +125,10 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     selectedTimelineMedia: makeMedia(),
     unitsOnCurrentMedia: createUnitsOnCurrentMedia(defaultSegments, defaultUnits),
     getUnitDocById: (id: string) => defaultUnits.find((u) => u.id === id),
-    findUnitDocContainingRange: (start: number, end: number) => defaultUnits.find(
-      (u) => u.startTime <= start + 0.01 && u.endTime >= end - 0.01,
-    ),
-    findOverlappingUnitDoc: (start: number, end: number) => defaultUnits.find(
-      (u) => u.startTime <= end - 0.01 && u.endTime >= start + 0.01,
-    ),
+    findUnitDocContainingRange: (start: number, end: number) =>
+      defaultUnits.find((u) => u.startTime <= start + 0.01 && u.endTime >= end - 0.01),
+    findOverlappingUnitDoc: (start: number, end: number) =>
+      defaultUnits.find((u) => u.startTime <= end - 0.01 && u.endTime >= start + 0.01),
     pushUndo: vi.fn(),
     reloadSegments: vi.fn(async () => undefined),
     refreshSegmentUndoSnapshot: vi.fn(async () => undefined),
@@ -147,11 +158,15 @@ describe('useTranscriptionSegmentCreationController', () => {
     const pushUndo = vi.fn();
     const selectTimelineUnit = vi.fn();
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
-    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      pushUndo,
-      selectTimelineUnit,
-      setSaveState,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentCreationController(
+        createBaseInput({
+          pushUndo,
+          selectTimelineUnit,
+          setSaveState,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.createUnitFromSelectionRouted(1.2, 2.4);
@@ -159,44 +174,56 @@ describe('useTranscriptionSegmentCreationController', () => {
 
     expect(pushUndo).toHaveBeenCalledWith('从选区创建句段');
     const created = mockCreateSegment.mock.calls[0]?.[0];
-    expect(created).toEqual(expect.objectContaining({
-      layerId: 'layer-seg',
-      startTime: 1.2,
-      endTime: 2.4,
-      speakerId: 'spk-parent',
-    }));
+    expect(created).toEqual(
+      expect.objectContaining({
+        layerId: 'layer-seg',
+        startTime: 1.2,
+        endTime: 2.4,
+        speakerId: 'spk-parent',
+      }),
+    );
     expect(created?.unitId).toBeUndefined();
-    expect(selectTimelineUnit).toHaveBeenCalledWith(expect.objectContaining({
-      layerId: 'layer-seg',
-      kind: 'segment',
-    }));
-    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'done',
-      message: '已新建句段 00:01.2 - 00:02.4',
-    }));
+    expect(selectTimelineUnit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        layerId: 'layer-seg',
+        kind: 'segment',
+      }),
+    );
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'done',
+        message: '已新建句段 00:01.2 - 00:02.4',
+      }),
+    );
   });
 
   it('creates time-subdivision segments within parent bounds and inherits parent speaker', async () => {
     const pushUndo = vi.fn();
     const parentUtt = makeUnit('utt-parent', 0.5, 2.5, 'spk-parent');
-    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      resolveSegmentRoutingForLayer: () => ({
-        layer: makeLayer('layer-sub', 'time_subdivision'),
-        segmentSourceLayer: makeLayer('layer-sub', 'time_subdivision'),
-        sourceLayerId: 'layer-sub',
-        editMode: 'time-subdivision',
-      }),
-      activeLayerIdForEdits: 'layer-sub',
-      unitsOnCurrentMedia: createUnitsOnCurrentMedia([], [parentUtt], 'layer-sub'),
-      getUnitDocById: (id: string) => (id === 'utt-parent' ? parentUtt : undefined),
-      findUnitDocContainingRange: (start: number, end: number) => (
-        parentUtt.startTime <= start + 0.01 && parentUtt.endTime >= end - 0.01 ? parentUtt : undefined
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentCreationController(
+        createBaseInput({
+          resolveSegmentRoutingForLayer: () => ({
+            layer: makeLayer('layer-sub', 'time_subdivision'),
+            segmentSourceLayer: makeLayer('layer-sub', 'time_subdivision'),
+            sourceLayerId: 'layer-sub',
+            editMode: 'time-subdivision',
+          }),
+          activeLayerIdForEdits: 'layer-sub',
+          unitsOnCurrentMedia: createUnitsOnCurrentMedia([], [parentUtt], 'layer-sub'),
+          getUnitDocById: (id: string) => (id === 'utt-parent' ? parentUtt : undefined),
+          findUnitDocContainingRange: (start: number, end: number) =>
+            parentUtt.startTime <= start + 0.01 && parentUtt.endTime >= end - 0.01
+              ? parentUtt
+              : undefined,
+          findOverlappingUnitDoc: (start: number, end: number) =>
+            parentUtt.startTime <= end - 0.01 && parentUtt.endTime >= start + 0.01
+              ? parentUtt
+              : undefined,
+          pushUndo,
+        }),
       ),
-      findOverlappingUnitDoc: (start: number, end: number) => (
-        parentUtt.startTime <= end - 0.01 && parentUtt.endTime >= start + 0.01 ? parentUtt : undefined
-      ),
-      pushUndo,
-    })));
+    );
 
     await act(async () => {
       await result.current.createUnitFromSelectionRouted(0.6, 2.4);
@@ -221,39 +248,53 @@ describe('useTranscriptionSegmentCreationController', () => {
     const pushUndo = vi.fn();
     const selectTimelineUnit = vi.fn();
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
-    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      pushUndo,
-      selectTimelineUnit,
-      setSaveState,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentCreationController(
+        createBaseInput({
+          pushUndo,
+          selectTimelineUnit,
+          setSaveState,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.createNextSegmentRouted('seg-a');
     });
 
     expect(pushUndo).toHaveBeenCalledWith('创建句段');
-    expect(mockCreateSegment).toHaveBeenCalledWith(expect.objectContaining({
-      layerId: 'layer-seg',
-      startTime: 1.02,
-      endTime: 2.98,
-    }));
-    expect(selectTimelineUnit).toHaveBeenCalledWith(expect.objectContaining({
-      layerId: 'layer-seg',
-      kind: 'segment',
-    }));
-    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'done',
-      message: '已创建新区间 00:01.0 - 00:03.0',
-    }));
+    expect(mockCreateSegment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        layerId: 'layer-seg',
+        startTime: 1.02,
+        endTime: 2.98,
+      }),
+    );
+    expect(selectTimelineUnit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        layerId: 'layer-seg',
+        kind: 'segment',
+      }),
+    );
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'done',
+        message: '已创建新区间 00:01.0 - 00:03.0',
+      }),
+    );
   });
 
   it('keeps current selection when segment selection preference is keep-current', async () => {
     window.localStorage.setItem('jieyu:new-segment-selection-behavior', 'keep-current');
 
     const selectTimelineUnit = vi.fn();
-    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      selectTimelineUnit,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentCreationController(
+        createBaseInput({
+          selectTimelineUnit,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.createUnitFromSelectionRouted(1.2, 2.4);
@@ -266,25 +307,31 @@ describe('useTranscriptionSegmentCreationController', () => {
     const pushUndo = vi.fn();
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const parentUtt = makeUnit('utt-parent', 0.5, 2.5, 'spk-parent');
-    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      resolveSegmentRoutingForLayer: () => ({
-        layer: makeLayer('layer-sub', 'time_subdivision'),
-        segmentSourceLayer: makeLayer('layer-sub', 'time_subdivision'),
-        sourceLayerId: 'layer-sub',
-        editMode: 'time-subdivision',
-      }),
-      activeLayerIdForEdits: 'layer-sub',
-      unitsOnCurrentMedia: createUnitsOnCurrentMedia([], [parentUtt], 'layer-sub'),
-      getUnitDocById: (id: string) => (id === 'utt-parent' ? parentUtt : undefined),
-      findUnitDocContainingRange: (start: number, end: number) => (
-        parentUtt.startTime <= start + 0.01 && parentUtt.endTime >= end - 0.01 ? parentUtt : undefined
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentCreationController(
+        createBaseInput({
+          resolveSegmentRoutingForLayer: () => ({
+            layer: makeLayer('layer-sub', 'time_subdivision'),
+            segmentSourceLayer: makeLayer('layer-sub', 'time_subdivision'),
+            sourceLayerId: 'layer-sub',
+            editMode: 'time-subdivision',
+          }),
+          activeLayerIdForEdits: 'layer-sub',
+          unitsOnCurrentMedia: createUnitsOnCurrentMedia([], [parentUtt], 'layer-sub'),
+          getUnitDocById: (id: string) => (id === 'utt-parent' ? parentUtt : undefined),
+          findUnitDocContainingRange: (start: number, end: number) =>
+            parentUtt.startTime <= start + 0.01 && parentUtt.endTime >= end - 0.01
+              ? parentUtt
+              : undefined,
+          findOverlappingUnitDoc: (start: number, end: number) =>
+            parentUtt.startTime <= end - 0.01 && parentUtt.endTime >= start + 0.01
+              ? parentUtt
+              : undefined,
+          pushUndo,
+          setSaveState,
+        }),
       ),
-      findOverlappingUnitDoc: (start: number, end: number) => (
-        parentUtt.startTime <= end - 0.01 && parentUtt.endTime >= start + 0.01 ? parentUtt : undefined
-      ),
-      pushUndo,
-      setSaveState,
-    })));
+    );
 
     await act(async () => {
       await result.current.createUnitFromSelectionRouted(2.8, 3.2);
@@ -300,20 +347,28 @@ describe('useTranscriptionSegmentCreationController', () => {
 
   it('rejects independent-segment create when selected timeline media is missing', async () => {
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
-    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      selectedTimelineMedia: null,
-      setSaveState,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentCreationController(
+        createBaseInput({
+          selectedTimelineMedia: null,
+          setSaveState,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.createUnitFromSelectionRouted(1, 2);
     });
 
     expect(mockCreateSegment).not.toHaveBeenCalled();
-    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'error',
-      errorMeta: expect.objectContaining({ i18nKey: 'transcription.error.validation.mediaRequired' }),
-    }));
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'error',
+        errorMeta: expect.objectContaining({
+          i18nKey: 'transcription.error.validation.mediaRequired',
+        }),
+      }),
+    );
   });
 
   it('allows independent segment creation beyond 1800s on placeholder media (no acoustic cap)', async () => {
@@ -327,84 +382,108 @@ describe('useTranscriptionSegmentCreationController', () => {
       isOfflineCached: true,
       createdAt: '2026-04-01T00:00:00.000Z',
     } as MediaItemDocType;
-    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      selectedTimelineMedia: placeholderMedia,
-      documentSpanSec: 1800,
-      setSaveState,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentCreationController(
+        createBaseInput({
+          selectedTimelineMedia: placeholderMedia,
+          documentSpanSec: 1800,
+          setSaveState,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.createUnitFromSelectionRouted(2000, 2010);
     });
 
-    expect(mockCreateSegment).toHaveBeenCalledWith(expect.objectContaining({
-      mediaId: 'media-ph',
-      startTime: 2000,
-      endTime: 2010,
-    }));
+    expect(mockCreateSegment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaId: 'media-ph',
+        startTime: 2000,
+        endTime: 2010,
+      }),
+    );
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
 
   it('uses logical timeline upper bound when media duration is shorter (text-only / logical axis)', async () => {
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const shortMedia = { ...makeMedia(), duration: 10 } as MediaItemDocType;
-    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      selectedTimelineMedia: shortMedia,
-      documentSpanSec: 100,
-      unitsOnCurrentMedia: createUnitsOnCurrentMedia([], [makeUnit('utt-wide', 0, 100)]),
-      getUnitDocById: (id: string) => (id === 'utt-wide' ? makeUnit('utt-wide', 0, 100) : undefined),
-      findUnitDocContainingRange: () => undefined,
-      findOverlappingUnitDoc: () => undefined,
-      setSaveState,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentCreationController(
+        createBaseInput({
+          selectedTimelineMedia: shortMedia,
+          documentSpanSec: 100,
+          unitsOnCurrentMedia: createUnitsOnCurrentMedia([], [makeUnit('utt-wide', 0, 100)]),
+          getUnitDocById: (id: string) =>
+            id === 'utt-wide' ? makeUnit('utt-wide', 0, 100) : undefined,
+          findUnitDocContainingRange: () => undefined,
+          findOverlappingUnitDoc: () => undefined,
+          setSaveState,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.createUnitFromSelectionRouted(50, 55);
     });
 
-    expect(mockCreateSegment).toHaveBeenCalledWith(expect.objectContaining({
-      startTime: 50,
-      endTime: 55,
-    }));
+    expect(mockCreateSegment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startTime: 50,
+        endTime: 55,
+      }),
+    );
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
 
   it('creates independent segment when media row is resolved lazily in text-only mode', async () => {
     const ensureTimelineMediaRowResolved = vi.fn(async () => makeMedia());
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
-    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      selectedTimelineMedia: null,
-      ensureTimelineMediaRowResolved,
-      setSaveState,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentCreationController(
+        createBaseInput({
+          selectedTimelineMedia: null,
+          ensureTimelineMediaRowResolved,
+          setSaveState,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.createUnitFromSelectionRouted(1.2, 2.4);
     });
 
     expect(ensureTimelineMediaRowResolved).toHaveBeenCalledTimes(1);
-    expect(mockCreateSegment).toHaveBeenCalledWith(expect.objectContaining({
-      mediaId: 'media-1',
-      startTime: 1.2,
-      endTime: 2.4,
-    }));
+    expect(mockCreateSegment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaId: 'media-1',
+        startTime: 1.2,
+        endTime: 2.4,
+      }),
+    );
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
 
   it('falls back to unit creation when current layer does not use segments', async () => {
     const createUnitFromSelection = vi.fn(async () => undefined);
     const createAdjacentUnit = vi.fn(async () => undefined);
-    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      resolveSegmentRoutingForLayer: () => ({
-        layer: makeLayer('layer-main'),
-        segmentSourceLayer: undefined,
-        sourceLayerId: '',
-        editMode: 'unit',
-      }),
-      getUnitDocById: (id: string) => (id === 'utt-1' ? makeUnit('utt-1', 1, 2, 'spk-focus') : undefined),
-      createAdjacentUnit: createAdjacentUnit,
-      createUnitFromSelection,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentCreationController(
+        createBaseInput({
+          resolveSegmentRoutingForLayer: () => ({
+            layer: makeLayer('layer-main'),
+            segmentSourceLayer: undefined,
+            sourceLayerId: '',
+            editMode: 'unit',
+          }),
+          getUnitDocById: (id: string) =>
+            id === 'utt-1' ? makeUnit('utt-1', 1, 2, 'spk-focus') : undefined,
+          createAdjacentUnit: createAdjacentUnit,
+          createUnitFromSelection,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.createUnitFromSelectionRouted(4, 5);
@@ -426,22 +505,30 @@ describe('useTranscriptionSegmentCreationController', () => {
     window.localStorage.setItem('jieyu:new-segment-selection-behavior', 'keep-current');
 
     const createUnitFromSelection = vi.fn(async () => undefined);
-    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      resolveSegmentRoutingForLayer: () => ({
-        layer: makeLayer('layer-main'),
-        segmentSourceLayer: undefined,
-        sourceLayerId: '',
-        editMode: 'unit',
-      }),
-      createUnitFromSelection,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentCreationController(
+        createBaseInput({
+          resolveSegmentRoutingForLayer: () => ({
+            layer: makeLayer('layer-main'),
+            segmentSourceLayer: undefined,
+            sourceLayerId: '',
+            editMode: 'unit',
+          }),
+          createUnitFromSelection,
+        }),
+      ),
+    );
 
     await act(async () => {
       await result.current.createUnitFromSelectionRouted(4, 5);
     });
 
-    expect(createUnitFromSelection).toHaveBeenCalledWith(4, 5, expect.objectContaining({
-      selectionBehavior: 'keep-current',
-    }));
+    expect(createUnitFromSelection).toHaveBeenCalledWith(
+      4,
+      5,
+      expect.objectContaining({
+        selectionBehavior: 'keep-current',
+      }),
+    );
   });
 });

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { LayerDocType, LayerLinkDocType } from '../types/jieyuDbDocTypes';
-import { useLayerActionPanel } from '../hooks/useLayerActionPanel';
-import type { LayerCreateInput } from '../hooks/transcriptionTypes';
-import { useDialogs, type TextTimeMappingSummary } from '../hooks/useDialogs';
-import { usePanelToggles } from '../hooks/usePanelToggles';
+import { useLayerActionPanel } from '~/hooks/layer/useLayerActionPanel';
+import type { LayerCreateInput } from '../hooks/transcription/transcriptionTypes';
+import { useDialogs, type TextTimeMappingSummary } from '~/hooks/dialogs/useDialogs';
+import { usePanelToggles } from '~/hooks/panel/usePanelToggles';
 import {
   APP_SHELL_OPEN_SEARCH_EVENT,
   type AppShellOpenSearchDetail,
@@ -42,7 +42,7 @@ interface UseTranscriptionShellControllerInput {
   checkLayerHasContent?: (layerId: string) => Promise<number>;
 }
 
-interface UseTranscriptionShellControllerResult {
+export interface UseTranscriptionShellControllerResult {
   focusedLayerRowId: string;
   flashLayerRowId: string;
   setFocusedLayerRowId: React.Dispatch<React.SetStateAction<string>>;
@@ -249,7 +249,7 @@ export function useTranscriptionShellController(
       const [layerType, config, modality] = args;
       let resolvedTextId = config.textId?.trim() || activeTextId || (await getActiveTextId()) || '';
       if (!resolvedTextId) {
-        const result = await LinguisticService.createProject({
+        const result = await LinguisticService.projects.create({
           primaryTitle: t('zh-CN', 'transcription.project.untitledZh'),
           englishFallbackTitle: t('en-US', 'transcription.project.untitledEn'),
           primaryLanguageId: config.languageId?.trim() || 'und',
@@ -262,9 +262,9 @@ export function useTranscriptionShellController(
       }
 
       if (resolvedTextId) {
-        const mediaItems = await LinguisticService.getMediaItemsByTextId(resolvedTextId);
+        const mediaItems = await LinguisticService.media.listByTextId(resolvedTextId);
         if (mediaItems.length === 0) {
-          await LinguisticService.ensureDocumentTimeline({ textId: resolvedTextId });
+          await LinguisticService.timeline.ensureDocument({ textId: resolvedTextId });
         }
       }
 

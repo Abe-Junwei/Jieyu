@@ -1,5 +1,5 @@
 import { extractJsonCandidates } from './toolCallSchemas';
-import { AI_LOCAL_TOOL_RESULT_CHAR_BUDGET } from '../../hooks/useAiChat.config';
+import { AI_LOCAL_TOOL_RESULT_CHAR_BUDGET } from '../../hooks/ai/useAiChat.config';
 import type { LocalContextToolCall, LocalContextToolName } from './localContextToolTypes';
 
 export type {
@@ -120,7 +120,7 @@ export {
   formatLocalContextToolBatchResultMessage,
   buildAgentLoopContinuationToolPayload,
 } from './localContextToolFormatters';
-export { AI_LOCAL_TOOL_RESULT_CHAR_BUDGET as LOCAL_TOOL_RESULT_CHAR_BUDGET } from '../../hooks/useAiChat.config';
+export { AI_LOCAL_TOOL_RESULT_CHAR_BUDGET as LOCAL_TOOL_RESULT_CHAR_BUDGET } from '../../hooks/ai/useAiChat.config';
 
 export function buildLocalContextToolGuide(): string {
   return [

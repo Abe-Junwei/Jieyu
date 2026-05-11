@@ -1,14 +1,20 @@
-import type { Dispatch, MouseEvent as ReactMouseEvent, MutableRefObject, SetStateAction, UIEvent as ReactUIEvent } from 'react';
-import type { TimelineViewportProjection } from '../hooks/timelineViewportTypes';
-import type { SubSelectDrag } from '../hooks/useLasso';
-import type { useWaveSurfer } from '../hooks/useWaveSurfer';
+import type {
+  Dispatch,
+  MouseEvent as ReactMouseEvent,
+  MutableRefObject,
+  SetStateAction,
+  UIEvent as ReactUIEvent,
+} from 'react';
+import type { TimelineViewportProjection } from '../hooks/transcription/timelineViewportTypes';
+import type { SubSelectDrag } from '../hooks/ui/useLasso';
+import type { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import type { LayerDocType, LayerLinkDocType } from '../types/jieyuDbDocTypes';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
+import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
+import type { TimelineUnitViewIndexWithEpoch } from '../hooks/transcription/useTimelineUnitViewIndex';
 import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
 
 interface TimeRangeLike {
@@ -59,13 +65,27 @@ export interface WaveformHoverReadout {
 }
 
 export interface WaveformInteractionHandlerRefs {
-  handleWaveformRegionAltPointerDownRef: MutableRefObject<((regionId: string, time: number, pointerId: number, clientX: number) => void) | undefined>;
-  handleWaveformRegionClickRef: MutableRefObject<((regionId: string, clickTime: number, event: MouseEvent) => void) | undefined>;
-  handleWaveformRegionDoubleClickRef: MutableRefObject<((regionId: string, start: number, end: number) => void) | undefined>;
-  handleWaveformRegionCreateRef: MutableRefObject<((start: number, end: number) => void) | undefined>;
-  handleWaveformRegionContextMenuRef: MutableRefObject<((regionId: string, x: number, y: number) => void) | undefined>;
-  handleWaveformRegionUpdateRef: MutableRefObject<((regionId: string, start: number, end: number) => void) | undefined>;
-  handleWaveformRegionUpdateEndRef: MutableRefObject<((regionId: string, start: number, end: number) => void) | undefined>;
+  handleWaveformRegionAltPointerDownRef: MutableRefObject<
+    ((regionId: string, time: number, pointerId: number, clientX: number) => void) | undefined
+  >;
+  handleWaveformRegionClickRef: MutableRefObject<
+    ((regionId: string, clickTime: number, event: MouseEvent) => void) | undefined
+  >;
+  handleWaveformRegionDoubleClickRef: MutableRefObject<
+    ((regionId: string, start: number, end: number) => void) | undefined
+  >;
+  handleWaveformRegionCreateRef: MutableRefObject<
+    ((start: number, end: number) => void) | undefined
+  >;
+  handleWaveformRegionContextMenuRef: MutableRefObject<
+    ((regionId: string, x: number, y: number) => void) | undefined
+  >;
+  handleWaveformRegionUpdateRef: MutableRefObject<
+    ((regionId: string, start: number, end: number) => void) | undefined
+  >;
+  handleWaveformRegionUpdateEndRef: MutableRefObject<
+    ((regionId: string, start: number, end: number) => void) | undefined
+  >;
   handleWaveformTimeUpdateRef: MutableRefObject<((time: number) => void) | undefined>;
 }
 
@@ -73,7 +93,12 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   activeLayerIdForEdits: string;
   layers: LayerDocType[];
   layerById: ReadonlyMap<string, LayerDocType>;
-  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
+  layerLinks: ReadonlyArray<
+    Pick<
+      LayerLinkDocType,
+      'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+    >
+  >;
   defaultTranscriptionLayerId?: string;
   timelineUnitViewIndex: TimelineUnitViewIndexWithEpoch;
   selectedTimelineUnit: TimelineUnit | null;
@@ -91,7 +116,11 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   clearUnitSelection: () => void;
   createUnitFromSelection: (start: number, end: number) => Promise<void>;
   setUnitSelection: (primaryId: string, ids: Set<string>) => void;
-  resolveNoteIndicatorTarget: (unitId: string, layerId?: string, scope?: 'timeline' | 'waveform') => { count: number; layerId?: string } | null;
+  resolveNoteIndicatorTarget: (
+    unitId: string,
+    layerId?: string,
+    scope?: 'timeline' | 'waveform',
+  ) => { count: number; layerId?: string } | null;
   tierContainerRef: MutableRefObject<HTMLDivElement | null>;
   /** 与纵向对读 `verticalComparisonEnabled` 同步：为真时禁用 tier 套索 / 空击清选链。 */
   tierTimelineLassoSuppressed?: boolean;
@@ -109,7 +138,10 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   /** 已选媒体 Blob 字节数，传给 VAD 预热前置门控 | Selected media blob byte size for VAD pre-fetch gate */
   mediaBlobSize?: number;
   /** 独立语段 tier 套索：预览/松手时间与写库钳制一致 | Tier lasso preview aligned with independent-segment insert clamp */
-  tierIndependentSegmentCreateRangeClamp?: (start: number, end: number) => { start: number; end: number } | null;
+  tierIndependentSegmentCreateRangeClamp?: (
+    start: number,
+    end: number,
+  ) => { start: number; end: number } | null;
 }
 
 export interface UseTranscriptionWaveformBridgeControllerResult {
@@ -166,7 +198,11 @@ export interface UseTranscriptionWaveformBridgeControllerResult {
   /** Authoritative viewport snapshot for read model / orchestration (phase C). */
   timelineViewportProjection: TimelineViewportProjection;
   rulerView: { start: number; end: number } | null;
-  zoomToPercent: (percent: number, centerRatio?: number, mode?: 'fit-all' | 'fit-selection' | 'custom') => void;
+  zoomToPercent: (
+    percent: number,
+    centerRatio?: number,
+    mode?: 'fit-all' | 'fit-selection' | 'custom',
+  ) => void;
   zoomToUnit: (startTime: number, endTime: number) => void;
   hoverTime: { time: number; x: number; y: number } | null;
   handleWaveformAreaFocus: () => void;

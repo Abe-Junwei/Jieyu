@@ -5,7 +5,7 @@ import { JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
 import { getOrthographyBuilderMessages } from '../../i18n/messages';
 import type { Locale } from '../../i18n';
 import type { LayerActionPopoverMessages } from '../../i18n/messages';
-import type { UseOrthographyPickerResult } from '../../hooks/useOrthographyPicker';
+import type { UseOrthographyPickerResult } from '../../hooks/orthography/useOrthographyPicker';
 import type { LayerMetadataUpdateInput } from '../../types/layerMetadata';
 import type { LayerActionType } from '../layerActionPopoverHelpers';
 

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
+import type { TimelineUnitKind } from '../hooks/transcription/transcriptionTypes';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import { brandLayerUnitWriteTarget, type LayerUnitWriteTarget } from '../app/jieyuDbPageAccess';
@@ -49,7 +49,7 @@ type UseTranscriptionSelfCertaintyControllerInput = {
    *   `{ kind: 'unit', id }`    → 写 layer_units 中的 canonical unit 行（unitType='unit'）。
    *   `{ kind: 'segment', id }` → 写 layer_units 中的段行（unitType='segment'）。
    *   控制器保证 target.id 与 target.kind 严格一致；leaf 层根据 DB 行 unitType 分派到
-   *   LinguisticService.saveUnitsBatch vs LayerUnitSegmentWriteService.upsertSegments。
+   *   LinguisticService.units.saveBatch vs LayerUnitSegmentWriteService.upsertSegments。
    *
    * ⚠️ Upgraded to kind-aware tagged targets. Controller guarantees targets match the row kind;
    *   the leaf dispatches by DB row unitType. Never routes a per-layer write to a shared host.

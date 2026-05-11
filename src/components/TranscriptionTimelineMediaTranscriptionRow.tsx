@@ -1,8 +1,8 @@
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
-import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
-import { useTranscriptionMediaLaneRowTextAutosave } from '../hooks/useTimelineLaneTextDraftAutosave';
+import type { TimelineUnitKind } from '../hooks/transcription/transcriptionTypes';
+import { useTranscriptionMediaLaneRowTextAutosave } from '../hooks/transcription/useTimelineLaneTextDraftAutosave';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import {
   recordingScopeUnitId,

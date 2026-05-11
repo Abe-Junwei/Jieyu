@@ -20,11 +20,27 @@ import {
   searchLanguageCatalogSuggestions,
   upsertLanguageCatalogEntry,
 } from '../app/languageAssetPageAccess';
-import { useInvalidateLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
+import { useInvalidateLanguageCatalogLabelMap } from '~/hooks/languageCatalog/useLanguageCatalogLabelMap';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspaceDetailColumn';
 import { WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';
-import { LANGUAGE_ID_PARAM, NEW_LANGUAGE_ID, buildClassificationPathValue, buildDraft, createDisplayNameDraftRow, normalizeDisplayNameRows, parseAdministrativeDivisionText, parseAliasText, parseLineSeparatedText, readDisplayNameMatrixFallback, readEntryKindLabel, type HistoryItem, type LanguageDisplayNameDraftRow, type LanguageMetadataDraft, type WorkspaceLocale } from './languageMetadataWorkspace.shared';
+import {
+  LANGUAGE_ID_PARAM,
+  NEW_LANGUAGE_ID,
+  buildClassificationPathValue,
+  buildDraft,
+  createDisplayNameDraftRow,
+  normalizeDisplayNameRows,
+  parseAdministrativeDivisionText,
+  parseAliasText,
+  parseLineSeparatedText,
+  readDisplayNameMatrixFallback,
+  readEntryKindLabel,
+  type HistoryItem,
+  type LanguageDisplayNameDraftRow,
+  type LanguageMetadataDraft,
+  type WorkspaceLocale,
+} from './languageMetadataWorkspace.shared';
 export function LanguageMetadataWorkspacePage({
   registerSidePane = true,
   onClose,
@@ -48,7 +64,9 @@ export function LanguageMetadataWorkspacePage({
   const [searchText, setSearchText] = useState('');
   const [draft, setDraft] = useState<LanguageMetadataDraft>(() => buildDraft(null, locale));
   // 搜索匹配元数据：用于 P2 match rendering | Search match metadata for P2 match rendering
-  const [searchSuggestionMap, setSearchSuggestionMap] = useState<ReadonlyMap<string, LanguageCatalogSearchSuggestion>>(new Map());
+  const [searchSuggestionMap, setSearchSuggestionMap] = useState<
+    ReadonlyMap<string, LanguageCatalogSearchSuggestion>
+  >(new Map());
   const deferredSearchText = useDeferredValue(searchText);
   const selectedLanguageId = searchParams.get(LANGUAGE_ID_PARAM) ?? '';
   // 跟踪最近一次已完成草稿装载的语言 ID，避免仅 entries 变化时覆盖未保存草稿 | Track last hydrated language id to avoid clobbering unsaved draft on entries-only refreshes
@@ -103,17 +121,20 @@ export function LanguageMetadataWorkspacePage({
           });
           // 按搜索排名排序 | Sort by search rank order
           const idOrder = new Map(rankedIds.map((id, index) => [id, index]));
-          records = raw.slice().sort((a, b) => (idOrder.get(a.id) ?? Infinity) - (idOrder.get(b.id) ?? Infinity));
+          records = raw
+            .slice()
+            .sort((a, b) => (idOrder.get(a.id) ?? Infinity) - (idOrder.get(b.id) ?? Infinity));
         }
       } else {
         setSearchSuggestionMap(new Map());
-        records = browseLanguageIds.length > 0
-          ? await listLanguageCatalogEntries({
-            locale,
-            includeHidden: true,
-            languageIds: browseLanguageIds,
-          })
-          : [];
+        records =
+          browseLanguageIds.length > 0
+            ? await listLanguageCatalogEntries({
+                locale,
+                includeHidden: true,
+                languageIds: browseLanguageIds,
+              })
+            : [];
       }
 
       setEntries(records);
@@ -121,7 +142,11 @@ export function LanguageMetadataWorkspacePage({
       return records;
     } catch (loadError) {
       setEntries([]);
-      setError(loadError instanceof Error ? loadError.message : t(locale, 'workspace.languageMetadata.errorFallback'));
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : t(locale, 'workspace.languageMetadata.errorFallback'),
+      );
       return [] as LanguageCatalogEntry[];
     } finally {
       setLoading(false);
@@ -143,8 +168,10 @@ export function LanguageMetadataWorkspacePage({
         setSearchParams(nextParams, { replace: true });
       }
     });
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- 用 ref 读取 selectedLanguageId/searchParams 以避免循环 | Read via refs to avoid circular deps
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 合并数据加载 + 首次 URL 回写；selectedLanguageId/searchParams 经 ref 读取，避免 entries→setSearchParams→effect 循环 | Merged load + initial URL write; refs break entries↔searchParams cycle
   }, [browseLanguageIds, deferredSearchText, locale]);
 
   // 草稿同步：纯视图同步，不再调用 setSearchParams | Draft hydration: pure view sync, no setSearchParams
@@ -213,7 +240,10 @@ export function LanguageMetadataWorkspacePage({
     };
   }, [selectedEntry?.hasPersistedRecord, selectedEntry?.id]);
 
-  const handleDraftChange = <K extends keyof LanguageMetadataDraft>(key: K, value: LanguageMetadataDraft[K]) => {
+  const handleDraftChange = <K extends keyof LanguageMetadataDraft>(
+    key: K,
+    value: LanguageMetadataDraft[K],
+  ) => {
     setDraft((prev) => {
       const next = { ...prev, [key]: value };
       // 新建模式下输入 ISO 代码时同步预填充种子数据（仅填充空字段） | Sync pre-fill seed data when typing ISO code in new-entry mode (empty fields only)
@@ -237,10 +267,16 @@ export function LanguageMetadataWorkspacePage({
     setSaveSuccess('');
   };
 
-  const handleDisplayNameRowChange = <K extends keyof Omit<LanguageDisplayNameDraftRow, 'key'>>(rowKey: string, key: K, value: LanguageDisplayNameDraftRow[K]) => {
+  const handleDisplayNameRowChange = <K extends keyof Omit<LanguageDisplayNameDraftRow, 'key'>>(
+    rowKey: string,
+    key: K,
+    value: LanguageDisplayNameDraftRow[K],
+  ) => {
     setDraft((prev) => ({
       ...prev,
-      displayNameRows: prev.displayNameRows.map((row) => (row.key === rowKey ? { ...row, [key]: value } : row)),
+      displayNameRows: prev.displayNameRows.map((row) =>
+        row.key === rowKey ? { ...row, [key]: value } : row,
+      ),
     }));
     setSaveError('');
     setSaveSuccess('');
@@ -285,20 +321,24 @@ export function LanguageMetadataWorkspacePage({
   };
 
   const handleSave = async () => {
-    const matrixRows = normalizeDisplayNameRows([...draft.displayNameHiddenRows, ...draft.displayNameRows]);
+    const matrixRows = normalizeDisplayNameRows([
+      ...draft.displayNameHiddenRows,
+      ...draft.displayNameRows,
+    ]);
     const matrixFallback = readDisplayNameMatrixFallback(matrixRows, locale);
     const englishName = draft.englishName.trim() || matrixFallback.englishName || '';
     const localName = draft.localName.trim() || matrixFallback.localName || '';
     const nativeName = draft.nativeName.trim() || matrixFallback.nativeName || '';
     const dialects = parseLineSeparatedText(draft.dialectsText);
     const vernaculars = parseLineSeparatedText(draft.vernacularsText);
-    const classificationPath = buildClassificationPathValue({
-      genus: draft.genus,
-      subfamily: draft.subfamily,
-      branch: draft.branch,
-      dialects,
-      vernaculars,
-    }) || draft.classificationPath.trim();
+    const classificationPath =
+      buildClassificationPathValue({
+        genus: draft.genus,
+        subfamily: draft.subfamily,
+        branch: draft.branch,
+        dialects,
+        vernaculars,
+      }) || draft.classificationPath.trim();
 
     if (!englishName && !localName && matrixRows.length === 0) {
       setSaveError(t(locale, 'workspace.languageMetadata.errorNameRequired'));
@@ -309,7 +349,11 @@ export function LanguageMetadataWorkspacePage({
     setSaving(true);
     try {
       const saved = await upsertLanguageCatalogEntry({
-        ...(selectedEntry ? { id: selectedEntry.id } : draft.idInput.trim() ? { id: draft.idInput.trim() } : {}),
+        ...(selectedEntry
+          ? { id: selectedEntry.id }
+          : draft.idInput.trim()
+            ? { id: draft.idInput.trim() }
+            : {}),
         languageCode: draft.languageCode.trim(),
         canonicalTag: draft.canonicalTag.trim(),
         iso6391: draft.iso6391.trim(),
@@ -326,29 +370,101 @@ export function LanguageMetadataWorkspacePage({
         branch: draft.branch.trim(),
         classificationPath,
         macrolanguage: draft.macrolanguage.trim(),
-        scope: draft.scope.trim() ? draft.scope as LanguageCatalogEntry['scope'] : undefined,
-        languageType: draft.languageType.trim() ? draft.languageType as LanguageCatalogEntry['languageType'] : undefined,
-        ...(draft.endangermentLevel.trim() ? { endangermentLevel: draft.endangermentLevel as NonNullable<LanguageCatalogEntry['endangermentLevel']> } : {}),
-        ...(draft.aesStatus.trim() ? { aesStatus: draft.aesStatus as NonNullable<LanguageCatalogEntry['aesStatus']> } : {}),
+        scope: draft.scope.trim() ? (draft.scope as LanguageCatalogEntry['scope']) : undefined,
+        languageType: draft.languageType.trim()
+          ? (draft.languageType as LanguageCatalogEntry['languageType'])
+          : undefined,
+        ...(draft.endangermentLevel.trim()
+          ? {
+              endangermentLevel: draft.endangermentLevel as NonNullable<
+                LanguageCatalogEntry['endangermentLevel']
+              >,
+            }
+          : {}),
+        ...(draft.aesStatus.trim()
+          ? { aesStatus: draft.aesStatus as NonNullable<LanguageCatalogEntry['aesStatus']> }
+          : {}),
         endangermentSource: draft.endangermentSource.trim(),
-        ...(draft.endangermentAssessmentYear.trim() ? { endangermentAssessmentYear: Number(draft.endangermentAssessmentYear.trim()) } : {}),
-        ...(draft.speakerCountL1.trim() ? { speakerCountL1: Number(draft.speakerCountL1.trim()) } : {}),
-        ...(draft.speakerCountL2.trim() ? { speakerCountL2: Number(draft.speakerCountL2.trim()) } : {}),
+        ...(draft.endangermentAssessmentYear.trim()
+          ? { endangermentAssessmentYear: Number(draft.endangermentAssessmentYear.trim()) }
+          : {}),
+        ...(draft.speakerCountL1.trim()
+          ? { speakerCountL1: Number(draft.speakerCountL1.trim()) }
+          : {}),
+        ...(draft.speakerCountL2.trim()
+          ? { speakerCountL2: Number(draft.speakerCountL2.trim()) }
+          : {}),
         speakerCountSource: draft.speakerCountSource.trim(),
-        ...(draft.speakerCountYear.trim() ? { speakerCountYear: Number(draft.speakerCountYear.trim()) } : {}),
-        ...(draft.speakerTrend.trim() ? { speakerTrend: draft.speakerTrend as NonNullable<LanguageCatalogEntry['speakerTrend']> } : {}),
-        ...(draft.countriesText.trim() ? { countries: draft.countriesText.split(',').map((c) => c.trim()).filter(Boolean) } : {}),
-        countriesOfficial: draft.countriesOfficialText.split(',').map((c) => c.trim()).filter(Boolean),
-        ...(draft.macroarea.trim() ? { macroarea: draft.macroarea as NonNullable<LanguageCatalogEntry['macroarea']> } : {}),
-        ...(draft.administrativeDivisionsText.trim() ? { administrativeDivisions: parseAdministrativeDivisionText(draft.administrativeDivisionsText) } : {}),
-        ...(draft.intergenerationalTransmission.trim() ? { intergenerationalTransmission: draft.intergenerationalTransmission as NonNullable<LanguageCatalogEntry['intergenerationalTransmission']> } : {}),
-        ...(draft.domainsText.trim() ? { domains: draft.domainsText.split(',').map((d) => d.trim()).filter(Boolean) as NonNullable<LanguageCatalogEntry['domains']> } : {}),
-        ...(draft.officialStatus.trim() ? { officialStatus: draft.officialStatus as NonNullable<LanguageCatalogEntry['officialStatus']> } : {}),
+        ...(draft.speakerCountYear.trim()
+          ? { speakerCountYear: Number(draft.speakerCountYear.trim()) }
+          : {}),
+        ...(draft.speakerTrend.trim()
+          ? {
+              speakerTrend: draft.speakerTrend as NonNullable<LanguageCatalogEntry['speakerTrend']>,
+            }
+          : {}),
+        ...(draft.countriesText.trim()
+          ? {
+              countries: draft.countriesText
+                .split(',')
+                .map((c) => c.trim())
+                .filter(Boolean),
+            }
+          : {}),
+        countriesOfficial: draft.countriesOfficialText
+          .split(',')
+          .map((c) => c.trim())
+          .filter(Boolean),
+        ...(draft.macroarea.trim()
+          ? { macroarea: draft.macroarea as NonNullable<LanguageCatalogEntry['macroarea']> }
+          : {}),
+        ...(draft.administrativeDivisionsText.trim()
+          ? {
+              administrativeDivisions: parseAdministrativeDivisionText(
+                draft.administrativeDivisionsText,
+              ),
+            }
+          : {}),
+        ...(draft.intergenerationalTransmission.trim()
+          ? {
+              intergenerationalTransmission: draft.intergenerationalTransmission as NonNullable<
+                LanguageCatalogEntry['intergenerationalTransmission']
+              >,
+            }
+          : {}),
+        ...(draft.domainsText.trim()
+          ? {
+              domains: draft.domainsText
+                .split(',')
+                .map((d) => d.trim())
+                .filter(Boolean) as NonNullable<LanguageCatalogEntry['domains']>,
+            }
+          : {}),
+        ...(draft.officialStatus.trim()
+          ? {
+              officialStatus: draft.officialStatus as NonNullable<
+                LanguageCatalogEntry['officialStatus']
+              >,
+            }
+          : {}),
         egids: draft.egids.trim(),
-        ...(draft.documentationLevel.trim() ? { documentationLevel: draft.documentationLevel as NonNullable<LanguageCatalogEntry['documentationLevel']> } : {}),
+        ...(draft.documentationLevel.trim()
+          ? {
+              documentationLevel: draft.documentationLevel as NonNullable<
+                LanguageCatalogEntry['documentationLevel']
+              >,
+            }
+          : {}),
         ...(dialects.length ? { dialects } : {}),
         ...(vernaculars.length ? { vernaculars } : {}),
-        ...(draft.writingSystemsText.trim() ? { writingSystems: draft.writingSystemsText.split(',').map((w) => w.trim()).filter(Boolean) } : {}),
+        ...(draft.writingSystemsText.trim()
+          ? {
+              writingSystems: draft.writingSystemsText
+                .split(',')
+                .map((w) => w.trim())
+                .filter(Boolean),
+            }
+          : {}),
         ...(draft.literacyRate.trim() ? { literacyRate: Number(draft.literacyRate.trim()) } : {}),
         glottocode: draft.glottocode.trim(),
         wikidataId: draft.wikidataId.trim(),
@@ -377,7 +493,11 @@ export function LanguageMetadataWorkspacePage({
       setSaveSuccess(t(locale, 'workspace.languageMetadata.saveSuccess'));
     } catch (saveDraftError) {
       setSaveSuccess('');
-      setSaveError(saveDraftError instanceof Error ? saveDraftError.message : t(locale, 'workspace.languageMetadata.saveErrorFallback'));
+      setSaveError(
+        saveDraftError instanceof Error
+          ? saveDraftError.message
+          : t(locale, 'workspace.languageMetadata.saveErrorFallback'),
+      );
     } finally {
       setSaving(false);
     }
@@ -416,44 +536,83 @@ export function LanguageMetadataWorkspacePage({
       );
     } catch (deleteError) {
       setSaveSuccess('');
-      setSaveError(deleteError instanceof Error ? deleteError.message : t(locale, 'workspace.languageMetadata.deleteErrorFallback'));
+      setSaveError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : t(locale, 'workspace.languageMetadata.deleteErrorFallback'),
+      );
     } finally {
       setDeleting(false);
     }
   };
 
-  const sidePaneContent = useMemo(() => (
-    <div className="app-side-pane-feature-stack">
-      <section className="app-side-pane-group" aria-label={t(locale, 'workspace.languageMetadata.sidePaneCurrent')}>
-        <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-          <span className="app-side-pane-section-title">{t(locale, 'workspace.languageMetadata.sidePaneCurrent')}</span>
-        </div>
-        <div className="app-side-pane-nav app-side-pane-feature-nav">
-          {selectedEntry ? (
-            <>
-              <span className="app-side-pane-feature-badge">{readEntryKindLabel(locale, selectedEntry)}</span>
-              <p className="app-side-pane-feature-summary">{selectedEntry.localName}</p>
-              <p className="app-side-pane-feature-note">{selectedEntry.englishName}</p>
-              <p className="app-side-pane-feature-note">{selectedEntry.languageCode}</p>
-            </>
-          ) : (
-            <p className="app-side-pane-feature-note">{t(locale, 'workspace.languageMetadata.sidePaneEmpty')}</p>
-          )}
-        </div>
-      </section>
+  const sidePaneContent = useMemo(
+    () => (
+      <div className="app-side-pane-feature-stack">
+        <section
+          className="app-side-pane-group"
+          aria-label={t(locale, 'workspace.languageMetadata.sidePaneCurrent')}
+        >
+          <div
+            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
+            role="presentation"
+          >
+            <span className="app-side-pane-section-title">
+              {t(locale, 'workspace.languageMetadata.sidePaneCurrent')}
+            </span>
+          </div>
+          <div className="app-side-pane-nav app-side-pane-feature-nav">
+            {selectedEntry ? (
+              <>
+                <span className="app-side-pane-feature-badge">
+                  {readEntryKindLabel(locale, selectedEntry)}
+                </span>
+                <p className="app-side-pane-feature-summary">{selectedEntry.localName}</p>
+                <p className="app-side-pane-feature-note">{selectedEntry.englishName}</p>
+                <p className="app-side-pane-feature-note">{selectedEntry.languageCode}</p>
+              </>
+            ) : (
+              <p className="app-side-pane-feature-note">
+                {t(locale, 'workspace.languageMetadata.sidePaneEmpty')}
+              </p>
+            )}
+          </div>
+        </section>
 
-      <section className="app-side-pane-group" aria-label={t(locale, 'workspace.languageMetadata.sidePaneQuickAccess')}>
-        <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-          <span className="app-side-pane-section-title">{t(locale, 'workspace.languageMetadata.sidePaneQuickAccess')}</span>
-        </div>
-        <div className="app-side-pane-nav app-side-pane-feature-nav">
-          <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openOrthographyManager')}</OrthographyPanelLink>
-          <LanguageAssetRouteLink to="/assets/structural-profiles" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openStructuralProfiles')}</LanguageAssetRouteLink>
-          <LanguageAssetRouteLink to="/assets/orthography-bridges" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openBridgeWorkspace')}</LanguageAssetRouteLink>
-        </div>
-      </section>
-    </div>
-  ), [locale, selectedEntry]);
+        <section
+          className="app-side-pane-group"
+          aria-label={t(locale, 'workspace.languageMetadata.sidePaneQuickAccess')}
+        >
+          <div
+            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
+            role="presentation"
+          >
+            <span className="app-side-pane-section-title">
+              {t(locale, 'workspace.languageMetadata.sidePaneQuickAccess')}
+            </span>
+          </div>
+          <div className="app-side-pane-nav app-side-pane-feature-nav">
+            <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">
+              {t(locale, 'workspace.languageMetadata.openOrthographyManager')}
+            </OrthographyPanelLink>
+            <LanguageAssetRouteLink
+              to="/assets/structural-profiles"
+              className="side-pane-nav-link app-side-pane-feature-link"
+            >
+              {t(locale, 'workspace.languageMetadata.openStructuralProfiles')}
+            </LanguageAssetRouteLink>
+            <LanguageAssetRouteLink
+              to="/assets/orthography-bridges"
+              className="side-pane-nav-link app-side-pane-feature-link"
+            >
+              {t(locale, 'workspace.languageMetadata.openBridgeWorkspace')}
+            </LanguageAssetRouteLink>
+          </div>
+        </section>
+      </div>
+    ),
+    [locale, selectedEntry],
+  );
 
   useRegisterAppSidePane({
     title: t(locale, 'workspace.languageMetadata.sidePaneTitle'),
@@ -479,13 +638,22 @@ export function LanguageMetadataWorkspacePage({
       <div className="lm-footer-status">
         {saveError ? <p className="lm-state lm-state-error">{saveError}</p> : null}
         {saveSuccess ? <p className="lm-state lm-state-success">{saveSuccess}</p> : null}
-        {!saveError && !saveSuccess ? <p className="lm-state">{t(locale, 'workspace.languageMetadata.summary')}</p> : null}
+        {!saveError && !saveSuccess ? (
+          <p className="lm-state">{t(locale, 'workspace.languageMetadata.summary')}</p>
+        ) : null}
       </div>
 
       <div className="lm-actions">
-        <button type="button" className="btn btn-ghost" onClick={handleResetDraft}>{t(locale, 'workspace.languageMetadata.resetButton')}</button>
+        <button type="button" className="btn btn-ghost" onClick={handleResetDraft}>
+          {t(locale, 'workspace.languageMetadata.resetButton')}
+        </button>
         {selectedEntry?.hasPersistedRecord ? (
-          <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
             {deleting
               ? t(locale, 'workspace.languageMetadata.deleting')
               : selectedEntry.entryKind === 'custom'
@@ -493,7 +661,11 @@ export function LanguageMetadataWorkspacePage({
                 : t(locale, 'workspace.languageMetadata.deleteOverrideButton')}
           </button>
         ) : null}
-        <button type="button" className="btn" onClick={handleSave} disabled={saving}>{saving ? t(locale, 'workspace.languageMetadata.saving') : t(locale, 'workspace.languageMetadata.saveButton')}</button>
+        <button type="button" className="btn" onClick={handleSave} disabled={saving}>
+          {saving
+            ? t(locale, 'workspace.languageMetadata.saving')
+            : t(locale, 'workspace.languageMetadata.saveButton')}
+        </button>
       </div>
     </>
   );
@@ -517,19 +689,29 @@ export function LanguageMetadataWorkspacePage({
           placeholder={t(locale, 'workspace.languageMetadata.searchPlaceholder')}
           aria-label={t(locale, 'workspace.languageMetadata.searchPlaceholder')}
         />
-        <button type="button" className="btn btn-ghost" onClick={handleCreateCustom}>{t(locale, 'workspace.languageMetadata.createCustom')}</button>
-        <p className={`lm-toolbar-hint${deferredSearchText.trim() && entries.length === 0 ? ' lm-toolbar-hint-warn' : ''}`}>
+        <button type="button" className="btn btn-ghost" onClick={handleCreateCustom}>
+          {t(locale, 'workspace.languageMetadata.createCustom')}
+        </button>
+        <p
+          className={`lm-toolbar-hint${deferredSearchText.trim() && entries.length === 0 ? ' lm-toolbar-hint-warn' : ''}`}
+        >
           {deferredSearchText.trim() && entries.length === 0
             ? t(locale, 'workspace.languageMetadata.searchNoResults')
             : deferredSearchText.trim() && entries.length > 0
-              ? tf(locale, 'workspace.languageMetadata.searchMatchCount', { count: String(entries.length), source: searchSuggestionMap.get(entries[0]?.id ?? '')?.matchSource ?? '' })
+              ? tf(locale, 'workspace.languageMetadata.searchMatchCount', {
+                  count: String(entries.length),
+                  source: searchSuggestionMap.get(entries[0]?.id ?? '')?.matchSource ?? '',
+                })
               : t(locale, 'workspace.languageMetadata.searchLocateHint')}
         </p>
       </div>
 
       {/* 搜索结果条目列表（master-detail 的 master 侧） | Search result entry list (master side of master-detail) */}
       {entries.length > 0 && (
-        <nav className="lm-entry-list la-panel-section" aria-label={t(locale, 'workspace.languageMetadata.title')}>
+        <nav
+          className="lm-entry-list la-panel-section"
+          aria-label={t(locale, 'workspace.languageMetadata.title')}
+        >
           {entries.map((entry) => {
             const isSelected = entry.id === selectedLanguageId;
             const suggestion = searchSuggestionMap.get(entry.id);
@@ -541,9 +723,13 @@ export function LanguageMetadataWorkspacePage({
                 aria-current={isSelected ? 'true' : undefined}
                 onClick={() => handleSelectEntry(entry.id)}
               >
-                <span className="lm-entry-item-name">{entry.localName || entry.englishName || entry.id}</span>
+                <span className="lm-entry-item-name">
+                  {entry.localName || entry.englishName || entry.id}
+                </span>
                 <span className="lm-entry-item-code">{entry.languageCode}</span>
-                {suggestion && <span className="lm-entry-item-match">{suggestion.matchedLabel}</span>}
+                {suggestion && (
+                  <span className="lm-entry-item-match">{suggestion.matchedLabel}</span>
+                )}
               </button>
             );
           })}
