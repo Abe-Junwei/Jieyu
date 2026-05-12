@@ -203,7 +203,9 @@ export function useReadyWorkspaceSurfaceProps(
       focusedLayerRowId: i.focusedLayerRowId,
       flashLayerRowId: i.flashLayerRowId,
       onFocusLayer: i.handleFocusLayerRow,
-      transcriptionLayers: i.translationLayers,
+      transcriptionLayers: i.orderedLayers.filter(
+        (layer: any) => layer.layerType === 'transcription',
+      ),
       layerLinks: i.layerLinks,
       toggleLayerLink: i.toggleLayerLink,
       deletableLayers: i.deletableLayers,

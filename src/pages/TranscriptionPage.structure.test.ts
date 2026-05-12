@@ -1217,6 +1217,8 @@ describe('TranscriptionPage structure invariants', () => {
     const surfaceNestedSliceBuilderCode = fs.readFileSync(surfaceNestedSliceBuilderPath, 'utf8');
     expect(surfacePropsCode.includes('buildReadyWorkspaceSidePaneProps(')).toBe(true);
     expect(surfacePropsCode.includes('buildReadyWorkspaceSidePanePropsInput({')).toBe(true);
+    expect(surfacePropsCode).toMatch(/transcriptionLayers:\s*i\.orderedLayers\.filter/);
+    expect(surfacePropsCode).toContain("layer.layerType === 'transcription'");
     expect(
       surfaceInputBuilderCode.includes(
         'handleAssignSpeakerToSelected: input.speakerController.handleAssignSpeakerToSelectedRouted,',
