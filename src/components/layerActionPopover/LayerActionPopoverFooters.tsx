@@ -37,6 +37,11 @@ export const LayerActionPopoverCreateFooter = memo(function LayerActionPopoverCr
   return (
     <PanelButton
       variant="primary"
+      data-testid={
+        action === 'create-translation'
+          ? 'layer-action-submit-create-translation'
+          : 'layer-action-submit-create-transcription'
+      }
       disabled={
         action === 'create-translation'
           ? isLoading ||
