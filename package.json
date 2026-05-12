@@ -207,6 +207,8 @@
     "check:depcheck": "npx --yes depcheck",
     "check:knip:ci": "knip --no-progress --exclude exports,types,classMembers,nsExports,nsTypes,enumMembers,duplicates",
     "check:knip:full": "knip --no-progress",
+    "check:ci-parity": "npm run typecheck && npm run lint:ci && npm run check:knip:ci && npm run check:acceptance-1 && npm run gate:timeline-cqrs-full-migration && npm run check:agent-evals:trace && npm run gate:collaboration-cloud && npm run gate:greenfield-local && cross-env RELEASE_EVIDENCE_AI_REQUEST_IDS=toolreq_runtime_ci_001 RELEASE_EVIDENCE_AI_AUDIT_EXPORT=docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS=docs/execution/audits/ai-task-snapshots-export-v1.json RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT=docs/execution/audits/extension-capability-audit-export-v1.ndjson npm run gate:release-evidence:core",
+    "check:ci-parity:full": "npm run check:ci-parity && npm test",
     "// === Other ===": "",
     "report:css-debt-thresholds": "node scripts/check-css-debt-thresholds.mjs --report-only",
     "check:dialog-style-guard": "node scripts/check-dialog-style-guard.mjs",
