@@ -36,8 +36,17 @@ export async function createTranscriptionAndTranslationLayersViaLeftRail(
   await trcSubmit.click();
   await expect(trcDialog).toBeHidden({ timeout: 20_000 });
 
-  await expect(createTranslationBtn).toBeEnabled({ timeout: 25_000 });
-  await createTranslationBtn.click();
+  // In some engines the left-rail portal updates after a microtask tick.
+  // Give the workspace a clean paint to reflect the new transcription layer.
+  await page.reload();
+  await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
+  const leftRailAfter = page.locator('.left-rail-layer-actions-root');
+  await expect(leftRailAfter).toBeVisible({ timeout: 25_000 });
+  const createTranslationBtnAfter = leftRailAfter.getByRole('button', {
+    name: /新建翻译层|Create translation layer/i,
+  });
+  await expect(createTranslationBtnAfter).toBeEnabled({ timeout: 25_000 });
+  await createTranslationBtnAfter.click();
   const trlDialog = page.getByRole('dialog', { name: translationDialogName });
   await expect(trlDialog).toBeVisible();
   await trlDialog.getByRole('combobox', { name: /语言名称|Language Name/i }).fill(opts.translation.languageSearch);
