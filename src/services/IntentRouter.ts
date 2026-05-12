@@ -13,7 +13,12 @@
  * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md §4.2（意图路由）
  */
 
-import { appendVoiceAliasLearningLog, clearVoiceAliasLearningLog, getActionLabel, loadVoiceAliasLearningLog } from './voiceIntentUi';
+import {
+  appendVoiceAliasLearningLog,
+  clearVoiceAliasLearningLog,
+  getActionLabel,
+  loadVoiceAliasLearningLog,
+} from './voiceIntentUi';
 import { DEFAULT_VOICE_MODE, type VoiceMode } from './voiceMode';
 import type { ActionId } from '../types/intentActionId';
 import { createLogger } from '../observability/logger';
@@ -249,7 +254,10 @@ export function createVoiceSession(): VoiceSession {
  */
 export function exportReplaySequence(session: VoiceSession): VoiceReplayAction[] {
   return session.entries
-    .filter((entry): entry is VoiceSessionEntry & { intent: ActionIntent } => entry.intent.type === 'action')
+    .filter(
+      (entry): entry is VoiceSessionEntry & { intent: ActionIntent } =>
+        entry.intent.type === 'action',
+    )
     .map((entry) => ({
       actionId: entry.intent.actionId,
       label: getActionLabel(entry.intent.actionId),
@@ -285,7 +293,12 @@ const INTENT_RULES: IntentRule[] = [
   {
     // Allow optional trailing punctuation (whisper may return "播放!" or "播放。")
     pattern: /^(播放|暂停|停|play|pause|stop)[.!。!?]*$/,
-    extract: (m, confidence) => ({ type: 'action', actionId: 'playPause', raw: m[0].replace(/[.!。!?]+$/, ''), confidence }),
+    extract: (m, confidence) => ({
+      type: 'action',
+      actionId: 'playPause',
+      raw: m[0].replace(/[.!。!?]+$/, ''),
+      confidence,
+    }),
     priority: 100,
   },
 
@@ -318,12 +331,22 @@ const INTENT_RULES: IntentRule[] = [
   // ── Priority 85: Editing (all modes) ──
   {
     pattern: /^(标记|mark|mark\s*segment)$/,
-    extract: (m, confidence) => ({ type: 'action', actionId: 'markSegment', raw: m[0], confidence }),
+    extract: (m, confidence) => ({
+      type: 'action',
+      actionId: 'markSegment',
+      raw: m[0],
+      confidence,
+    }),
     priority: 85,
   },
   {
     pattern: /^(删除|删掉|delete|remove)$/,
-    extract: (m, confidence) => ({ type: 'action', actionId: 'deleteSegment', raw: m[0], confidence }),
+    extract: (m, confidence) => ({
+      type: 'action',
+      actionId: 'deleteSegment',
+      raw: m[0],
+      confidence,
+    }),
     priority: 85,
   },
   {
@@ -338,7 +361,12 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     pattern: /^(分割|split|分割句段)$/,
-    extract: (m, confidence) => ({ type: 'action', actionId: 'splitSegment', raw: m[0], confidence }),
+    extract: (m, confidence) => ({
+      type: 'action',
+      actionId: 'splitSegment',
+      raw: m[0],
+      confidence,
+    }),
     priority: 85,
   },
   {
@@ -370,7 +398,12 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     pattern: /^(备注|笔记|notes|toggle\s*notes)$/,
-    extract: (m, confidence) => ({ type: 'action', actionId: 'toggleNotes', raw: m[0], confidence }),
+    extract: (m, confidence) => ({
+      type: 'action',
+      actionId: 'toggleNotes',
+      raw: m[0],
+      confidence,
+    }),
     priority: 80,
   },
 
@@ -448,13 +481,33 @@ interface FuzzyRule {
  */
 const FUZZY_RULES: FuzzyRule[] = [
   // Playback — very high recall (play/pause/stop are the same action)
-  { keywords: '播放 播一下 播放一下 播呗 播放呗 停一下 暂停 停止', actionId: 'playPause', priority: 50 },
+  {
+    keywords: '播放 播一下 播放一下 播呗 播放呗 停一下 暂停 停止',
+    actionId: 'playPause',
+    priority: 50,
+  },
   // Navigation — also very high recall
-  { keywords: '上一 前一个 上一个 上一条 前一条 previous prev 向前 往前', actionId: 'navPrev', priority: 50 },
-  { keywords: '下一 后一个 下一个 下一条 后一条 next 向后 往后', actionId: 'navNext', priority: 50 },
+  {
+    keywords: '上一 前一个 上一个 上一条 前一条 previous prev 向前 往前',
+    actionId: 'navPrev',
+    priority: 50,
+  },
+  {
+    keywords: '下一 后一个 下一个 下一条 后一条 next 向后 往后',
+    actionId: 'navNext',
+    priority: 50,
+  },
   // Segment editing — common partial speech forms
-  { keywords: '标记 标一下 标记一下 标记句段 mark segment mark一下 标注', actionId: 'markSegment', priority: 50 },
-  { keywords: '删除 删掉 删一下 删除一下 删除这句 删了 删', actionId: 'deleteSegment', priority: 50 },
+  {
+    keywords: '标记 标一下 标记一下 标记句段 mark segment mark一下 标注',
+    actionId: 'markSegment',
+    priority: 50,
+  },
+  {
+    keywords: '删除 删掉 删一下 删除一下 删除这句 删了 删',
+    actionId: 'deleteSegment',
+    priority: 50,
+  },
   { keywords: '合并上 合并上一个 合并上 合并前', actionId: 'mergePrev', priority: 50 },
   { keywords: '合并下 合并下一个 合并下 合并后', actionId: 'mergeNext', priority: 50 },
   { keywords: '分割 split 分割一下 分一下 切开 切', actionId: 'splitSegment', priority: 50 },
@@ -501,7 +554,8 @@ export function routeIntent(
     return { type: 'chat', text: '', raw: text, confidence: 0 } as VoiceIntent;
   }
 
-  const hasExplicitConfidence = typeof options?.sttConfidence === 'number' && Number.isFinite(options.sttConfidence);
+  const hasExplicitConfidence =
+    typeof options?.sttConfidence === 'number' && Number.isFinite(options.sttConfidence);
   const sttConfidence = hasExplicitConfidence
     ? Math.min(1, Math.max(0, options!.sttConfidence!))
     : 1;
@@ -514,13 +568,23 @@ export function routeIntent(
   // Alias map has the highest priority for user-specific adaptation.
   const aliasAction = options?.aliasMap?.[cleaned];
   if (aliasAction) {
-    return { type: 'action', actionId: aliasAction, raw: text, fromAlias: true, confidence: sttConfidence };
+    return {
+      type: 'action',
+      actionId: aliasAction,
+      raw: text,
+      fromAlias: true,
+      confidence: sttConfidence,
+    };
   }
 
   // Try all exact rules in priority order, respecting mode filter
   for (const rule of SORTED_RULES) {
     if (rule.mode !== undefined && rule.mode !== mode) continue;
-    if (rule.locales && rule.locales.length > 0 && !rule.locales.some((item) => locale.startsWith(item.toLowerCase()))) {
+    if (
+      rule.locales &&
+      rule.locales.length > 0 &&
+      !rule.locales.some((item) => locale.startsWith(item.toLowerCase()))
+    ) {
       continue;
     }
     const match = cleaned.match(rule.pattern);
@@ -578,7 +642,10 @@ export function collectAlternativeIntents(
   sttConfidence: number,
   maxAlternatives = 3,
 ): ActionIntent[] {
-  const cleaned = text.trim().replace(/[。！？，、,.!?]+$/, '').toLowerCase();
+  const cleaned = text
+    .trim()
+    .replace(/[。！？，、,.!?]+$/, '')
+    .toLowerCase();
   if (!cleaned) return [];
 
   const alternatives: ActionIntent[] = [];
@@ -744,7 +811,10 @@ export function learnVoiceIntentAliasFromMap(
   };
 }
 
-export function learnVoiceIntentAlias(phrase: string, actionId: ActionId): VoiceAliasLearningResult {
+export function learnVoiceIntentAlias(
+  phrase: string,
+  actionId: ActionId,
+): VoiceAliasLearningResult {
   const current = loadVoiceIntentAliasMap();
   const learned = learnVoiceIntentAliasFromMap(current, phrase, actionId);
   const normalizedPhrase = phrase.trim();
@@ -771,14 +841,6 @@ export function learnVoiceIntentAlias(phrase: string, actionId: ActionId): Voice
     ...(previousActionId !== undefined && { previousActionId }),
   });
   return learned;
-}
-
-export function upsertVoiceIntentAlias(phrase: string, actionId: ActionId): void {
-  const key = phrase.trim().toLowerCase();
-  if (!key) return;
-  const current = loadVoiceIntentAliasMap();
-  current[key] = actionId;
-  saveVoiceIntentAliasMap(current);
 }
 
 /**

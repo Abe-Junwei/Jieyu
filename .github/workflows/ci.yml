@@ -106,7 +106,7 @@ jobs:
         run: npm run lint:ci
 
       - name: Knip cleanup gate
-        run: npx knip --no-progress
+        run: npm run check:knip:ci
 
       - name: fireAndForget governance (context on all callsites)
         run: npm run check:fire-and-forget-governance

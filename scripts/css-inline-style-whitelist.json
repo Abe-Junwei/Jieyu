@@ -124,11 +124,11 @@
       "file": "src/pages/TranscriptionPage.ChatWindow.tsx",
       "reason": "Floating chat window geometry is driven by runtime drag and resize coordinates.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-26",
+      "reviewedAt": "2026-05-12",
       "snippets": [
         {
           "anchor": "left: `${position.x}px`, top: `${position.y}px`, width: `${size.width}px`, height: minimized ? '44px' : `${size.height}px`",
-          "reviewedSha256": "567562d55b02f6d01a5cbe06841dadbe61df7d996ac8dc58717e0f55f8278758"
+          "reviewedSha256": "835f51eb82af2c6b7caf39d8a0097591d81342f18c0a627e6d091417118c2f2f"
         }
       ]
     }

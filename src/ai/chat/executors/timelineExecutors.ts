@@ -15,7 +15,7 @@ import type { SegmentMetaDocType } from '../../../db';
 import type { LocalUnitScope } from '../localContextToolScopeNormalize';
 import { normalizeTextValue } from './argNormalizers';
 
-export function timelineViewsToNormalizedRows(
+function timelineViewsToNormalizedRows(
   views: ReadonlyArray<TimelineUnitView>,
 ): NormalizedUnitRow[] {
   return views.map((row) => {
@@ -215,7 +215,7 @@ export function resolveSegmentReadQueryScope(
   };
 }
 
-export function mapSegmentSummariesToRows(rows: readonly SegmentSummary[]): SegmentMetaDocType[] {
+function mapSegmentSummariesToRows(rows: readonly SegmentSummary[]): SegmentMetaDocType[] {
   return rows.map((row) => ({
     id: `${row.layerId}::${row.id}`,
     segmentId: row.id,
@@ -242,7 +242,7 @@ export function mapSegmentSummariesToRows(rows: readonly SegmentSummary[]): Segm
   }));
 }
 
-export async function listAllSegmentSummariesForScope(
+async function listAllSegmentSummariesForScope(
   scope: SegmentReadQueryScope,
 ): Promise<SegmentSummary[]> {
   const pageSize = 100;

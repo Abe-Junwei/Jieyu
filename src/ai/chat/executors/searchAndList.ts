@@ -165,7 +165,7 @@ export async function searchUnits(
   };
 }
 
-export function buildListUnitsPageResult(
+function buildListUnitsPageResult(
   context: AiPromptContext,
   rowsUnsorted: NormalizedUnitRow[],
   args: Record<string, unknown>,

@@ -54,24 +54,6 @@ function persistRegistrySnapshots(): void {
   }
 }
 
-/** 注册官方扩展并触发持久化 | Register official extension with auto-persistence */
-export async function registerOfficialExtension(
-  manifest: Parameters<ExtensionRegistry['registerOfficial']>[0],
-  hooks: Parameters<ExtensionRegistry['registerOfficial']>[1],
-): Promise<ReturnType<ExtensionRegistry['registerOfficial']>> {
-  const reg = getExtensionRegistry();
-  const result = await reg.registerOfficial(manifest, hooks);
-  persistRegistrySnapshots();
-  return result;
-}
-
-/** 卸载扩展并触发持久化 | Unregister extension with auto-persistence */
-export async function unregisterExtension(id: string): Promise<void> {
-  const reg = getExtensionRegistry();
-  await reg.unregister(id);
-  persistRegistrySnapshots();
-}
-
 /** 首次打开设置「扩展」页时调用：注册内置探针（幂等） | Idempotent built-in probe registration */
 export async function ensureBuiltinExtensionsLoaded(): Promise<void> {
   const reg = getExtensionRegistry();
@@ -89,21 +71,4 @@ export async function ensureBuiltinExtensionsLoaded(): Promise<void> {
   if (!result.ok) {
     throw new Error(result.reason);
   }
-}
-
-/** 一键安全模式：禁用全部非内置扩展 | Safe mode: unload all non-built-in extensions */
-export async function enableExtensionSafeMode(): Promise<void> {
-  const reg = getExtensionRegistry();
-  const items = reg.list();
-  for (const item of items) {
-    if (item.id !== BUILTIN_HOST_CONTRACTS_EXTENSION_ID) {
-      await reg.unregister(item.id);
-    }
-  }
-  persistRegistrySnapshots();
-}
-
-/** 恢复安全模式：重新注册内置探针 | Recover from safe mode */
-export async function recoverFromExtensionSafeMode(): Promise<void> {
-  await ensureBuiltinExtensionsLoaded();
 }

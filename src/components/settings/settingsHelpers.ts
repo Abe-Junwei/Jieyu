@@ -18,7 +18,7 @@ import {
 import { readStoredWaveformDisplayModePreference } from '../../utils/waveformRuntimePreferenceSync';
 import type { EmbeddingProviderConfig } from '../../pages/TranscriptionPage.helpers';
 
-export function normalizeEventKey(key: string): string {
+function normalizeEventKey(key: string): string {
   const k = key.toLowerCase();
   if (k === ' ' || k === 'spacebar') return 'space';
   if (k === 'esc') return 'escape';

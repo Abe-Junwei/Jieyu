@@ -5,6 +5,7 @@
     { "pathPrefix": "src/utils/layerDisplayStyle.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/services/IntentRouter.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/ai/config/voiceIntentResolver.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/ai/messages/", "reason": "runtime-template-message" },
     { "pathPrefix": "src/ai/embeddings/embeddingSmokeTest.ts", "reason": "test-fixture" },
     { "pathPrefix": "src/ai/embeddings/fallbackWarning.ts", "reason": "runtime-template-message" },
 
@@ -51,9 +52,9 @@
     { "pathPrefix": "src/utils/saveStateError.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/utils/validationErrorReporter.ts", "reason": "runtime-template-message" },
 
-    { "pathPrefix": "src/hooks/useAiChat.rag.ts", "reason": "runtime-template-message" },
-    { "pathPrefix": "src/hooks/useOrthographyPicker.ts", "reason": "validation-and-guard-message" },
-    { "pathPrefix": "src/hooks/useTranscriptionLayerActions.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/hooks/ai/useAiChat.rag.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/hooks/orthography/useOrthographyPicker.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/hooks/transcription/useTranscriptionLayerActions.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/components/ai/aiChatAdaptiveRanking.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/components/ScriptTagCombobox.tsx", "reason": "data-dictionary" },
     { "pathPrefix": "src/components/LanguageMapEmbed.tsx", "reason": "data-dictionary" },
@@ -65,8 +66,8 @@
     { "pathPrefix": "src/ai/embeddings/searchFusionProfiles.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/ai/chat/localContextTools.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/ai/chat/promptContext.ts", "reason": "runtime-template-message" },
-    { "pathPrefix": "src/hooks/useAiChat.streamCompletion.ts", "reason": "runtime-template-message" },
-    { "pathPrefix": "src/hooks/useAiChat.confirmExecution.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/hooks/ai/useAiChat.streamCompletion.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/hooks/ai/useAiChat.confirmExecution.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/pages/useTranscriptionLayerMetadataController.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/aiChatCardMessages.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/layerActionPopoverMessages.ts", "reason": "runtime-template-message" },
@@ -74,7 +75,6 @@
     { "pathPrefix": "src/i18n/transcriptionOverlaysMessages.ts", "reason": "runtime-template-message" },
 
     { "pathPrefix": "src/data/builtInOrthographies.ts", "reason": "data-dictionary" },
-    { "pathPrefix": "src/data/generated/languageNameCatalog.generated.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/data/languageNameOverrides.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/data/orthographyTop50Reviewed.ts", "reason": "data-dictionary" },
 

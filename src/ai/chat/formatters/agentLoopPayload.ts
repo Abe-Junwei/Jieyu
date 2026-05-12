@@ -43,13 +43,13 @@ export function applyLocalToolResultCharBudget(
   return { limitedPayload, truncated };
 }
 
-export function cloneLocalToolResultsForAgentLoop(
+function cloneLocalToolResultsForAgentLoop(
   results: LocalContextToolResult[],
 ): LocalContextToolResult[] {
   return JSON.parse(JSON.stringify(results)) as LocalContextToolResult[];
 }
 
-export function agentLoopContinuationPayloadJson(
+function agentLoopContinuationPayloadJson(
   cappedUserRequest: string,
   results: LocalContextToolResult[],
   step: number,
@@ -62,9 +62,7 @@ export function agentLoopContinuationPayloadJson(
   });
 }
 
-export function truncateMatchTranscriptionsForAgentLoop(
-  results: LocalContextToolResult[],
-): boolean {
+function truncateMatchTranscriptionsForAgentLoop(results: LocalContextToolResult[]): boolean {
   let changed = false;
   for (const item of results) {
     if (
@@ -90,7 +88,7 @@ export function truncateMatchTranscriptionsForAgentLoop(
   return changed;
 }
 
-export function popLongestMatchesRowForAgentLoop(results: LocalContextToolResult[]): boolean {
+function popLongestMatchesRowForAgentLoop(results: LocalContextToolResult[]): boolean {
   let bestIdx = -1;
   let bestLen = -1;
   for (let i = 0; i < results.length; i += 1) {
@@ -114,7 +112,7 @@ export function popLongestMatchesRowForAgentLoop(results: LocalContextToolResult
   return true;
 }
 
-export function truncateDeepStringsForAgentLoop(value: unknown, maxLen: number): void {
+function truncateDeepStringsForAgentLoop(value: unknown, maxLen: number): void {
   if (value === null || typeof value !== 'object') return;
   if (Array.isArray(value)) {
     for (const el of value) truncateDeepStringsForAgentLoop(el, maxLen);

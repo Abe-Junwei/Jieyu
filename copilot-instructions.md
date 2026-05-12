@@ -6,6 +6,7 @@
 - **通用代理基线**（Karpathy 风格：Think / Simplicity / Surgical / Goal-Driven，及代码审查数据流要求）以根目录 **`AGENTS.md`**（Cursor 等优先读取）与 **`CLAUDE.md`**（Claude Code 等）为 **英文镜像正文**；与本文 **无冲突时** 一并遵守。
 - **若摘要与本文不一致**，以 **本文** 及 **`AGENTS.md` / `CLAUDE.md` 中与之对齐的段落** 为准；更新项目级约束时请 **只改本文件正文**，并同步检查 `AGENTS.md` / `CLAUDE.md` 中的交叉引用是否仍正确。
 - GitHub Copilot 工作区入口说明见 **`.github/copilot-instructions.md`**（该文件指向本仓库内上述文件，不重复长文）。
+- **UI 文案与 AI 内部 formatter 文案分层**：用户可见字符串走 `dictKeys` / `src/i18n`；面向模型/工具输出的固定句式放在 **`src/ai/messages/`**（如 `structuredAnswerCopy.ts`），勿与界面字典混在同一命名空间。
 
 本文件用于约束在本仓库中运行的 AI 编码代理（如 GitHub Copilot、Cursor、Claude Code）。
 

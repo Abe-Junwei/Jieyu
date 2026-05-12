@@ -23,7 +23,7 @@ import {
   normalizeUnitOrdinal,
 } from './toolRouting';
 
-export function needsMetricClarification(
+function needsMetricClarification(
   call: LocalContextToolCall,
   userText: string,
   memory: AiSessionMemory,
@@ -42,7 +42,7 @@ export function needsMetricClarification(
   return callMetric === 'unit_count';
 }
 
-export function needsScopeClarification(
+function needsScopeClarification(
   call: LocalContextToolCall,
   userText: string,
   memory: AiSessionMemory,
@@ -62,7 +62,7 @@ export function needsScopeClarification(
   return scopeAutofilled || explicitScope === undefined;
 }
 
-export function needsQueryClarification(
+function needsQueryClarification(
   call: LocalContextToolCall,
   userText: string,
   memory: AiSessionMemory,
@@ -76,7 +76,7 @@ export function needsQueryClarification(
   return !isFollowUpIntentText(userText) || lastQuery.length === 0;
 }
 
-export function needsTargetClarification(
+function needsTargetClarification(
   call: LocalContextToolCall,
   userText: string,
   memory: AiSessionMemory,
@@ -96,7 +96,7 @@ export function needsTargetClarification(
   return true;
 }
 
-export function needsActionClarification(call: LocalContextToolCall): boolean {
+function needsActionClarification(call: LocalContextToolCall): boolean {
   if (call.name !== 'batch_apply') return false;
   const action = normalizeText(call.arguments.action);
   return action.length === 0;

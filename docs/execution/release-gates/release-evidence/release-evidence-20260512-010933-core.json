@@ -1,0 +1,789 @@
+{
+  "schemaVersion": 1,
+  "reportType": "release-evidence",
+  "degraded": false,
+  "metadata": {
+    "generatedAt": "2026-05-12T01:09:33.925Z",
+    "releaseProfile": "core",
+    "mode": "enforce",
+    "environment": "local",
+    "appVersion": "1.1.0",
+    "gitShortSha": "f6d465ec",
+    "nodeVersion": "v22.22.2",
+    "workspaceRoot": ".",
+    "stage": "A1b",
+    "dryRun": false,
+    "outputPath": "docs/execution/release-gates/release-evidence/release-evidence-20260512-010933-core.json",
+    "logsDir": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core"
+  },
+  "summary": {
+    "total": 21,
+    "passed": 21,
+    "failed": 0,
+    "skipped": 0
+  },
+  "evidenceIndex": [
+    {
+      "conclusionId": "check.docs-governance",
+      "conclusion": "check:docs-governance passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:docs-governance",
+      "module": "docs",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/01-check_docs-governance.log",
+      "keySummary": "[check-docs-governance] OK: validated 392 markdown files."
+    },
+    {
+      "conclusionId": "check.architecture-guard",
+      "conclusion": "check:architecture-guard passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:architecture-guard",
+      "module": "architecture",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/02-check_architecture-guard.log",
+      "keySummary": "- src/pages/OrthographyManagerPage.tsx: line count 737/800 reached 92% of ceiling"
+    },
+    {
+      "conclusionId": "report.m5-trend",
+      "conclusion": "report:m5-trend passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s report:m5-trend",
+      "module": "observability",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/03-report_m5-trend.log",
+      "keySummary": "[m5-trend] Report written: docs/execution/audits/M5-观测趋势报告-v1-2026-05-12.md"
+    },
+    {
+      "conclusionId": "gate.m6-release",
+      "conclusion": "gate:m6-release passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s gate:m6-release",
+      "module": "release",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/04-gate_m6-release.log",
+      "keySummary": "[m6-gate-runner] Completed."
+    },
+    {
+      "conclusionId": "check.m7-extension-foundation",
+      "conclusion": "check:m7-extension-foundation passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:m7-extension-foundation",
+      "module": "extension",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/05-check_m7-extension-foundation.log",
+      "keySummary": "[check-m7-extension-foundation] OK: 11 required files and 4 runtime contracts."
+    },
+    {
+      "conclusionId": "perf.track",
+      "conclusion": "perf:track passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s perf:track",
+      "module": "performance",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/06-perf_track.log",
+      "keySummary": "Duration  621ms (transform 212ms, setup 317ms, import 14ms, tests 195ms, environment 0ms)"
+    },
+    {
+      "conclusionId": "perf.ai",
+      "conclusion": "perf:ai passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s perf:ai",
+      "module": "performance",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/07-perf_ai.log",
+      "keySummary": "Duration  4.14s (transform 1.60s, setup 327ms, import 1.74s, tests 1.55s, environment 428ms)"
+    },
+    {
+      "conclusionId": "a2.toolreq_runtime_ci_001",
+      "conclusion": "AI evidence card ready for toolreq_runtime_ci_001",
+      "evidenceType": "audit_replay",
+      "command": "ai_card:requestId=toolreq_runtime_ci_001",
+      "module": "ai-audit",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "delete_transcription_segment:confirmed"
+    },
+    {
+      "conclusionId": "a3.perf.cards",
+      "conclusion": "A3 perf evidence cards generated",
+      "evidenceType": "perf_cards",
+      "command": "release_evidence:perf_cards",
+      "module": "performance",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "passed=2;failed=0;skipped=1"
+    },
+    {
+      "conclusionId": "b3.extensions.capability-audit-summary",
+      "conclusion": "B3 extension capability audit summary generated",
+      "evidenceType": "extension_capability_audit",
+      "command": "release_evidence:extension_capability_audit",
+      "module": "extension",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "extensions=1"
+    },
+    {
+      "conclusionId": "p1.progressive-disclosure.v1",
+      "conclusion": "P1-ProgressiveDisclosure card generated",
+      "evidenceType": "progressive_disclosure",
+      "command": "release_evidence:progressive_disclosure",
+      "module": "ai-progressive-disclosure",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "cards=4"
+    },
+    {
+      "conclusionId": "p1.rag-shape-telemetry.v1",
+      "conclusion": "P1-RagShapeTelemetry card generated",
+      "evidenceType": "memory_recall_shape",
+      "command": "release_evidence:memory_recall_shape",
+      "module": "ai-rag-shape",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "sampleCount=1"
+    },
+    {
+      "conclusionId": "c5.background-memory-extraction.v1",
+      "conclusion": "C5 background memory extraction card generated",
+      "evidenceType": "background_memory_extraction",
+      "command": "release_evidence:background_memory_extraction",
+      "module": "ai-memory",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "completed=1;written=3;allow=1;ask=0;deny=0;quotaSkipped=0"
+    },
+    {
+      "conclusionId": "c7.coordination-lite.v1",
+      "conclusion": "C7 coordination lite card generated",
+      "evidenceType": "coordination_lite",
+      "command": "release_evidence:coordination_lite",
+      "module": "ai-coordination",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "completed=1;failed=0;quarantined=0"
+    },
+    {
+      "conclusionId": "c8.user-directive-governance.v1",
+      "conclusion": "C8 user directive governance card ready",
+      "evidenceType": "user_directive_governance_ready_or_partial",
+      "status": "passed",
+      "exitCode": 0,
+      "logPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+      "keySummary": "accepted=2;ignored=0;mismatch=0"
+    },
+    {
+      "conclusionId": "m1.action-approval-center.v1",
+      "conclusion": "M1 action approval center card generated",
+      "evidenceType": "action_approval_center",
+      "command": "release_evidence:action_approval_center",
+      "module": "ai-runtime",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "pending=0;blocked=0;confirmed=1;partialFailure=1"
+    },
+    {
+      "conclusionId": "f3.durable-orchestration.v1",
+      "conclusion": "F3 durable orchestration card generated",
+      "evidenceType": "durable_orchestration",
+      "command": "release_evidence:durable_orchestration",
+      "module": "ai-runtime",
+      "exitCode": 0,
+      "logPath": "docs/execution/audits/ai-task-snapshots-export-v1.json",
+      "keySummary": "done=1;cancelledByUser=0;checkpointed=2;resumable=1;checkpointRecoveryRate=0.5"
+    },
+    {
+      "conclusionId": "t4.tool-decision-failure-signals.v1",
+      "conclusion": "T4 tool decision failure signals generated",
+      "evidenceType": "tool_decision_failure_signals",
+      "command": "release_evidence:tool_decision_failure_signals",
+      "module": "ai-runtime",
+      "exitCode": 0,
+      "logPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+      "keySummary": "failedRows=0;triageRetry=0;partial=1;rollback2+=0;handoffRate=0.6667"
+    },
+    {
+      "conclusionId": "m0.audit-field-dictionary.v1",
+      "conclusion": "M0 audit field dictionary v1 generated",
+      "evidenceType": "audit_field_dictionary_v1",
+      "command": "release_evidence:audit_field_dictionary_v1",
+      "module": "observability",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "fields=11;namespace=ai_messages"
+    },
+    {
+      "conclusionId": "p1.cost-guard.v1",
+      "conclusion": "P1-CostGuard card generated",
+      "evidenceType": "cost_guard",
+      "command": "release_evidence:cost_guard",
+      "module": "ai-cost",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "budget=0;retry=0;retrySuccess=0;outputCap=0"
+    },
+    {
+      "conclusionId": "p1.cost-guard.trend.v1",
+      "conclusion": "P1-CostGuard trend card generated",
+      "evidenceType": "cost_guard_trend",
+      "command": "release_evidence:cost_guard_trend",
+      "module": "ai-cost",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "points=1;compareReady=no"
+    }
+  ],
+  "steps": [
+    {
+      "id": "check.docs-governance",
+      "kind": "gate_script",
+      "module": "docs",
+      "script": "check:docs-governance",
+      "command": "npm run -s check:docs-governance",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 140,
+      "summary": "[check-docs-governance] OK: validated 392 markdown files.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/01-check_docs-governance.log"
+    },
+    {
+      "id": "check.architecture-guard",
+      "kind": "gate_script",
+      "module": "architecture",
+      "script": "check:architecture-guard",
+      "command": "npm run -s check:architecture-guard",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 1208,
+      "summary": "- src/pages/OrthographyManagerPage.tsx: line count 737/800 reached 92% of ceiling",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/02-check_architecture-guard.log"
+    },
+    {
+      "id": "report.m5-trend",
+      "kind": "gate_script",
+      "module": "observability",
+      "script": "report:m5-trend",
+      "command": "npm run -s report:m5-trend",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 127,
+      "summary": "[m5-trend] Report written: docs/execution/audits/M5-观测趋势报告-v1-2026-05-12.md",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/03-report_m5-trend.log"
+    },
+    {
+      "id": "gate.m6-release",
+      "kind": "gate_script",
+      "module": "release",
+      "script": "gate:m6-release",
+      "command": "npm run -s gate:m6-release",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 46519,
+      "summary": "[m6-gate-runner] Completed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/04-gate_m6-release.log"
+    },
+    {
+      "id": "check.m7-extension-foundation",
+      "kind": "gate_script",
+      "module": "extension",
+      "script": "check:m7-extension-foundation",
+      "command": "npm run -s check:m7-extension-foundation",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 116,
+      "summary": "[check-m7-extension-foundation] OK: 11 required files and 4 runtime contracts.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/05-check_m7-extension-foundation.log"
+    },
+    {
+      "id": "perf.track",
+      "kind": "gate_script",
+      "module": "performance",
+      "script": "perf:track",
+      "command": "npm run -s perf:track",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 1727,
+      "summary": "Duration  621ms (transform 212ms, setup 317ms, import 14ms, tests 195ms, environment 0ms)",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/06-perf_track.log"
+    },
+    {
+      "id": "perf.ai",
+      "kind": "gate_script",
+      "module": "performance",
+      "script": "perf:ai",
+      "command": "npm run -s perf:ai",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 5244,
+      "summary": "Duration  4.14s (transform 1.60s, setup 327ms, import 1.74s, tests 1.55s, environment 428ms)",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260512-010933-core/07-perf_ai.log"
+    }
+  ],
+  "aiToolEvidenceCards": {
+    "summary": {
+      "total": 1,
+      "ready": 1,
+      "skipped": 0
+    },
+    "status": "partial_or_ready",
+    "cards": [
+      {
+        "requestId": "toolreq_runtime_ci_001",
+        "status": "ready",
+        "source": "audit_export",
+        "toolName": "delete_transcription_segment",
+        "replayable": true,
+        "latestDecision": {
+          "decision": "confirmed",
+          "executed": true,
+          "message": "runtime export seed",
+          "timestamp": "2026-05-12T01:07:49.744Z"
+        },
+        "diff": {
+          "matches": null
+        },
+        "auditLogQueryHint": "collection=ai_messages;field=ai_tool_call_decision;requestId=toolreq_runtime_ci_001",
+        "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson"
+      }
+    ],
+    "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson"
+  },
+  "perf": {
+    "status": "ready_or_partial",
+    "summary": {
+      "total": 3,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 1
+    },
+    "cards": [
+      {
+        "id": "track_layout_baseline",
+        "title": "Track layout baseline",
+        "script": "perf:track",
+        "status": "passed",
+        "elapsedMs": 1727,
+        "thresholdMaxMs": 260,
+        "metricObservedMs": 25.393,
+        "metricKind": "medianMs",
+        "checks": [
+          {
+            "label": "2k",
+            "maxMs": 120,
+            "observedMs": 14.383,
+            "passed": true
+          },
+          {
+            "label": "5k",
+            "maxMs": 260,
+            "observedMs": 25.393,
+            "passed": true
+          }
+        ],
+        "summary": "Duration  621ms (transform 212ms, setup 317ms, import 14ms, tests 195ms, environment 0ms)"
+      },
+      {
+        "id": "timeline_index_baseline",
+        "title": "Timeline unit index baseline",
+        "script": "test:timeline-cqrs-phase9",
+        "status": "not_run",
+        "elapsedMs": null,
+        "thresholdMaxMs": 500,
+        "metricObservedMs": null,
+        "metricKind": "elapsedMs",
+        "checks": [
+          {
+            "label": "1k",
+            "maxMs": 80,
+            "observedMs": null,
+            "passed": null
+          },
+          {
+            "label": "5k",
+            "maxMs": 250,
+            "observedMs": null,
+            "passed": null
+          },
+          {
+            "label": "10k",
+            "maxMs": 500,
+            "observedMs": null,
+            "passed": null
+          }
+        ],
+        "summary": "Step is not part of current profile pipeline."
+      },
+      {
+        "id": "ai_baseline",
+        "title": "AI baseline",
+        "script": "perf:ai",
+        "status": "passed",
+        "elapsedMs": 5244,
+        "thresholdMaxMs": null,
+        "metricObservedMs": 32,
+        "metricKind": "elapsedMs",
+        "checks": [],
+        "summary": "Duration  4.14s (transform 1.60s, setup 327ms, import 1.74s, tests 1.55s, environment 428ms)"
+      }
+    ],
+    "profile": "core"
+  },
+  "progressiveDisclosure": {
+    "status": "ready_or_partial",
+    "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+    "cards": [
+      {
+        "id": "first_pass_resolution_rate",
+        "status": "ready_or_partial",
+        "value": 1,
+        "numerator": 1,
+        "denominator": 1,
+        "numeratorSource": "ai_messages.ai_tool_call_decision latestDecision in {confirmed,auto_confirmed} and clarifyCount=0",
+        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
+      },
+      {
+        "id": "clarify_then_success_rate",
+        "status": "ready_or_partial",
+        "value": 0,
+        "numerator": 0,
+        "denominator": 1,
+        "numeratorSource": "ai_messages.ai_tool_call_decision latestDecision in {confirmed,auto_confirmed} and clarifyCount=1",
+        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
+      },
+      {
+        "id": "advanced_entry_reach_rate",
+        "status": "ready_or_partial",
+        "value": 0,
+        "numerator": 0,
+        "denominator": 1,
+        "numeratorSource": "ai_messages.ai_tool_call_decision reason in advanced set OR decision in {retry,capped}",
+        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
+      },
+      {
+        "id": "clarify_loop_rate",
+        "status": "ready_or_partial",
+        "value": 0,
+        "numerator": 0,
+        "denominator": 1,
+        "numeratorSource": "ai_messages.ai_tool_call_decision clarifyCount>=2 and latestDecision not in {confirmed,auto_confirmed}",
+        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
+      }
+    ]
+  },
+  "memoryRecallShape": {
+    "status": "ready_or_partial",
+    "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+    "card": {
+      "id": "memory_recall_shape_v1",
+      "status": "ready_or_partial",
+      "sampleCount": 1,
+      "candidateCountAvg": 12,
+      "emptySelectionRate": 0,
+      "duplicateSuppressionRate": 1,
+      "budgetSuppressionRate": 1,
+      "freshnessDistribution": {
+        "recent": 1
+      },
+      "numeratorSource": "ai_messages.ai_tool_call_decision metadata.memoryRecallShape/ragShape",
+      "denominatorSource": "decision rows with corresponding metric available"
+    }
+  },
+  "backgroundMemoryExtraction": {
+    "status": "ready_or_partial",
+    "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+    "summary": {
+      "total": 1,
+      "scheduled": 0,
+      "merged": 0,
+      "completed": 1,
+      "skipped": 0,
+      "failed": 0,
+      "writtenCount": 3,
+      "avgDurationMs": 120
+    },
+    "sandboxDecisions": {
+      "actions": {
+        "allow": 1
+      },
+      "reasons": {
+        "within_quota": 1
+      }
+    },
+    "skipReasons": {}
+  },
+  "coordinationLite": {
+    "status": "ready_or_partial",
+    "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+    "summary": {
+      "total": 1,
+      "completed": 1,
+      "failed": 0,
+      "cancelled": 0,
+      "quarantinedCount": 0,
+      "avgDurationMs": 85
+    },
+    "phaseDistribution": {
+      "execute": 1
+    },
+    "parallelPolicy": {
+      "readonly-parallel": 1
+    }
+  },
+  "userDirectiveGovernance": {
+    "status": "ready_or_partial",
+    "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+    "summary": {
+      "total": 3,
+      "extractionCount": 1,
+      "applicationCount": 1,
+      "responsePolicyResolutionCount": 1,
+      "accepted": 2,
+      "ignored": 0,
+      "downgraded": 2,
+      "superseded": 0,
+      "languageFormatterMismatchCount": 0
+    },
+    "categories": {
+      "formatting": 2,
+      "safety": 2
+    },
+    "reasonCodes": {},
+    "reasonLabelsEn": {},
+    "reasonLabelsZh": {}
+  },
+  "actionApprovalCenter": {
+    "status": "ready_or_partial",
+    "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+    "summary": {
+      "total": 1,
+      "pending": 0,
+      "blocked": 0,
+      "confirmed": 1,
+      "cancelled": 0,
+      "failed": 0,
+      "partialFailureCount": 1
+    },
+    "riskTiers": {},
+    "approvalModes": {}
+  },
+  "durableOrchestration": {
+    "status": "ready_or_partial",
+    "snapshotExportPath": "docs/execution/audits/ai-task-snapshots-export-v1.json",
+    "summary": {
+      "total": 3,
+      "done": 1,
+      "failed": 1,
+      "cancelledByUser": 0,
+      "running": 0,
+      "pending": 1,
+      "checkpointed": 2,
+      "resumable": 1,
+      "handoffRequired": 2,
+      "checkpointRecovered": 1,
+      "longTaskCompletionRate": 0.3333,
+      "humanInterventionRate": 0.6667,
+      "checkpointRecoveryRate": 0.5,
+      "avgDurationMs": 2000.5
+    },
+    "taskTypes": {
+      "agent_loop": 2,
+      "embed": 1
+    },
+    "handoffReasons": {
+      "token_budget_warning": 2
+    }
+  },
+  "toolDecisionFailureSignals": {
+    "status": "ready_or_partial",
+    "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+    "failureSignals": {
+      "failedDecisionRows": 0,
+      "triageCounts": {
+        "retry": 0,
+        "clarify": 0,
+        "human": 0,
+        "abandon": 0
+      },
+      "partialExecutionProgressRows": 1,
+      "rollbackErrorCountBuckets": {
+        "0": 0,
+        "1": 1,
+        "2+": 0
+      }
+    },
+    "durableHandoff": {
+      "status": "ready",
+      "humanInterventionRate": 0.6667,
+      "handoffReasons": {
+        "token_budget_warning": 2
+      }
+    }
+  },
+  "auditFieldDictionary": {
+    "schemaVersion": 1,
+    "status": "ready",
+    "namespace": "ai_messages",
+    "fields": [
+      {
+        "field": "ai_user_directive_extraction",
+        "phase": "directive_governance",
+        "requiredMetadataKeys": [
+          "phase",
+          "summary.extractedCount",
+          "summary.categories"
+        ]
+      },
+      {
+        "field": "ai_user_directive_application",
+        "phase": "directive_governance",
+        "requiredMetadataKeys": [
+          "phase",
+          "summary.acceptedCount",
+          "summary.ignoredCount"
+        ]
+      },
+      {
+        "field": "ai_response_policy_resolution",
+        "phase": "directive_governance",
+        "requiredMetadataKeys": [
+          "phase",
+          "policy.language",
+          "policy.locale",
+          "policy.style"
+        ]
+      },
+      {
+        "field": "ai_tool_call_decision",
+        "phase": "tool_decision",
+        "requiredMetadataKeys": [
+          "phase",
+          "outcome",
+          "toolCall.name",
+          "executed"
+        ]
+      },
+      {
+        "field": "ai_session_sidecar_sandbox",
+        "phase": "session_sidecar_sandbox",
+        "requiredMetadataKeys": [
+          "phase",
+          "gate",
+          "sandboxAction",
+          "sandboxReason"
+        ]
+      },
+      {
+        "field": "ai_judge_failure",
+        "phase": "vertical_workflow_judge",
+        "requiredMetadataKeys": [
+          "schemaVersion",
+          "workflowId",
+          "providerId",
+          "error"
+        ]
+      },
+      {
+        "field": "ai_adoption_item_queued",
+        "phase": "adoption_queue",
+        "requiredMetadataKeys": [
+          "schemaVersion",
+          "workflowId",
+          "outputKind",
+          "writeMode"
+        ]
+      },
+      {
+        "field": "ai_adoption_outcome",
+        "phase": "adoption_outcome",
+        "requiredMetadataKeys": [
+          "phase",
+          "action",
+          "itemId",
+          "workflowId",
+          "toStatus"
+        ]
+      },
+      {
+        "field": "ai_composed_reflection_retry",
+        "phase": "composed_workflow_reflection_retry",
+        "requiredMetadataKeys": [
+          "schemaVersion",
+          "templateId",
+          "stepIndex",
+          "retryCount"
+        ]
+      },
+      {
+        "field": "ai_source_set_mutation",
+        "phase": "active_source_set_change",
+        "requiredMetadataKeys": [
+          "schemaVersion",
+          "phase"
+        ]
+      },
+      {
+        "field": "ai_session_memory_reset",
+        "phase": "session_memory_reset",
+        "requiredMetadataKeys": [
+          "schemaVersion"
+        ]
+      }
+    ]
+  },
+  "costGuard": {
+    "status": "ready_or_partial",
+    "estimatorVersion": "v1.provider_usage_or_unknown",
+    "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+    "summary": {
+      "requestCount": 1,
+      "budgetTriggerCount": 0,
+      "retryTriggeredCount": 0,
+      "retrySuccessCount": 0,
+      "outputCapTriggeredCount": 0
+    },
+    "trend": {
+      "bucket": "day",
+      "pointCount": 1,
+      "compareReady": false,
+      "points": [
+        {
+          "date": "2026-05-12",
+          "requestCount": 1,
+          "budgetTriggerCount": 0,
+          "retryTriggeredCount": 0,
+          "retrySuccessCount": 0,
+          "outputCapTriggeredCount": 0
+        }
+      ]
+    },
+    "card": {
+      "id": "session_cost_guard_v1",
+      "status": "ready_or_partial",
+      "sampleSource": "audit_export",
+      "counts": {
+        "budgetTriggerCount": 0,
+        "retryTriggeredCount": 0,
+        "retrySuccessCount": 0,
+        "outputCapTriggeredCount": 0
+      }
+    }
+  },
+  "extensions": {
+    "status": "ready_or_partial",
+    "auditExportPath": "docs/execution/audits/extension-capability-audit-export-v1.ndjson",
+    "capabilityAuditSummary": [
+      {
+        "extensionId": "ext.release-evidence.runtime-export",
+        "total": 2,
+        "success": 1,
+        "failed": 1,
+        "successRate": 0.5
+      }
+    ]
+  },
+  "skipTaxonomyRollup": {
+    "schemaVersion": 1,
+    "byTaxonomy": {},
+    "note": "Rollup for analytics; defect-class skip zero is a goal metric only, not a merge gate."
+  }
+}

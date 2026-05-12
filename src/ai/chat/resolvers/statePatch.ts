@@ -15,7 +15,7 @@ import {
   isGapMetric,
 } from './toolRouting';
 
-export function buildSemanticFrameFromCall(
+function buildSemanticFrameFromCall(
   call: LocalContextToolCall,
   scope: LocalUnitScope | undefined,
 ): AiSessionMemoryLocalSemanticFrame | undefined {
@@ -77,7 +77,7 @@ export function buildSemanticFrameFromCall(
   }
 }
 
-export function asResultUnitIds(result: unknown): string[] {
+function asResultUnitIds(result: unknown): string[] {
   if (!result || typeof result !== 'object') return [];
   const matches = (result as { matches?: unknown[] }).matches;
   if (!Array.isArray(matches)) return [];

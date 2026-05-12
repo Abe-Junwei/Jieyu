@@ -9,7 +9,7 @@ async function walk(dir: string): Promise<string[]> {
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      out.push(...await walk(full));
+      out.push(...(await walk(full)));
       continue;
     }
     if (!entry.isFile()) continue;
@@ -26,8 +26,11 @@ function collectMissingI18nCallsites(content: string): number[] {
   let match: RegExpExecArray | null = null;
   while ((match = pattern.exec(content)) !== null) {
     const block = match[1] ?? '';
-    const hasI18nKey = /(i18nKey|conflictI18nKey|fallbackI18nKey)\s*:/.test(block);
-    if (hasI18nKey) continue;
+    const hasExplicitI18nKey = /(i18nKey|conflictI18nKey|fallbackI18nKey)\s*:/.test(block);
+    const hasShorthandI18nKey =
+      /\b(i18nKey|conflictI18nKey|fallbackI18nKey)\s*[,}]/.test(block) ||
+      /\b(i18nKey|conflictI18nKey|fallbackI18nKey)\s*$/.test(block.trim());
+    if (hasExplicitI18nKey || hasShorthandI18nKey) continue;
     const before = content.slice(0, match.index);
     const line = before.split('\n').length;
     missing.push(line);
@@ -35,7 +38,10 @@ function collectMissingI18nCallsites(content: string): number[] {
   return missing;
 }
 
-function collectUnknownI18nKeyLiterals(content: string, dictKeySet: Set<string>): Array<{ line: number; key: string }> {
+function collectUnknownI18nKeyLiterals(
+  content: string,
+  dictKeySet: Set<string>,
+): Array<{ line: number; key: string }> {
   const unknown: Array<{ line: number; key: string }> = [];
   const pattern = /(i18nKey|conflictI18nKey|fallbackI18nKey)\s*:\s*['"]([^'"]+)['"]/g;
   let match: RegExpExecArray | null = null;
@@ -61,7 +67,8 @@ describe('error reporter callsite contract', () => {
       if (file.endsWith(path.join('utils', 'actionErrorReporter.ts'))) continue;
       if (file.endsWith(path.join('utils', 'validationErrorReporter.ts'))) continue;
       const content = await fs.readFile(file, 'utf8');
-      if (!content.includes('reportActionError(') && !content.includes('reportValidationError(')) continue;
+      if (!content.includes('reportActionError(') && !content.includes('reportValidationError('))
+        continue;
 
       const missingLines = collectMissingI18nCallsites(content);
       for (const line of missingLines) {
@@ -70,7 +77,9 @@ describe('error reporter callsite contract', () => {
 
       const unknownKeys = collectUnknownI18nKeyLiterals(content, dictKeySet);
       for (const item of unknownKeys) {
-        unknownKeyOffenders.push(`${path.relative(process.cwd(), file)}:${item.line} -> ${item.key}`);
+        unknownKeyOffenders.push(
+          `${path.relative(process.cwd(), file)}:${item.line} -> ${item.key}`,
+        );
       }
     }
 

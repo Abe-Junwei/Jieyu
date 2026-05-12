@@ -1497,7 +1497,7 @@ function registerIndexedDbMutationBackupHooks(dexie: JieyuDexie): void {
   }
 }
 
-export class JieyuDatabaseOpenError extends Error {
+class JieyuDatabaseOpenError extends Error {
   constructor(
     message: string,
     public readonly cause: unknown,

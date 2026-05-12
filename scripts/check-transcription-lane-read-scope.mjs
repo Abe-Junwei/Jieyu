@@ -21,7 +21,7 @@ mustContain(
   path.join('src', 'components', 'transcriptionTimelineVerticalViewHelpers.tsx'),
   'resolveCanonicalUnitForTranscriptionLaneRow',
 );
-mustContain(path.join('src', 'hooks', 'timelineUnitView.ts'), 'transcriptionUnitLaneReadScope');
+mustContain(path.join('src', 'hooks', 'transcription', 'timelineUnitView.ts'), 'transcriptionUnitLaneReadScope');
 const readyWorkspaceBodyPath = path.join('src', 'pages', 'TranscriptionPage.ReadyWorkspace.body.tsx');
 const readyWorkspaceOrchestratorPath = path.join(
   'src',

@@ -25,8 +25,11 @@ function countMatches(source, pattern) {
 }
 
 function measureFile(source) {
+  // Match `wc -l`: count newline characters (POSIX). Avoid split('\n').length
+  // counting a phantom extra line when the file ends with a trailing newline.
+  const lines = source.length === 0 ? 0 : (source.match(/\n/g) ?? []).length;
   return {
-    lines: source.split('\n').length,
+    lines,
     useCallbackDecls: countMatches(source, /const\s+\w+\s*=\s*useCallback\(/g),
     useMemoDecls: countMatches(source, /const\s+\w+\s*=\s*useMemo\(/g),
     useEffects: countMatches(source, /useEffect\(/g),

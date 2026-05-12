@@ -1,89 +1,59 @@
 {
-  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "exclude": ["types"],
   "entry": [
-    "index.html",
-    "src/workerThreads.browser.ts",
-    "src/test/vitest*Setup.ts",
-    "scripts/**/*.{mjs,cjs,js}",
-    "tests/**/*.{ts,tsx}"
+    "src/App.tsx",
+    "src/db/index.ts",
+
+    "src/services/LinguisticService.ts"
   ],
-  "project": [
-    "src/**/*.{ts,tsx}",
-    "scripts/**/*.{mjs,cjs,js,ts}",
-    "tests/**/*.{ts,tsx}",
-    "*.{ts,mjs,cjs,js}"
-  ],
+  "project": ["src/**/*.{ts,tsx}"],
   "ignore": [
+    "src/**/*.test.{ts,tsx}",
+    "src/**/*.structure.{ts,tsx}",
+    "src/hooks/*/index.ts",
+    "src/db/schemas/index.ts",
+    "src/db/types/index.ts",
+    "src/ai/*/index.ts",
+    "src/services/*/index.ts",
+    "src/components/*/index.ts",
+    "src/pages/*/index.ts",
+    "src/app/index.ts",
     "src/ai/embeddings/embeddingSmokeTest.ts",
     "src/ai/mcp/client/mcpClientTypes.ts",
     "src/ai/perf/embeddingModelDecision.ts",
     "src/assets/lottie/left-rail/leftRailLottieMap.ts",
-
-    "src/data/generated/languageNameCatalog.generated.ts",
     "src/pages/annotation/annotationLaneReadScope.ts",
-    "src/services/VoiceAgentService.singleton.ts"
+    "src/services/VoiceAgentService.singleton.ts",
+    "src/workerThreads.browser.ts"
   ],
-  "ignoreDependencies": [
-    "country-state-city"
-  ],
-  "ignoreBinaries": [
-    "knip"
-  ],
+  "ignoreDependencies": [],
   "ignoreIssues": {
-    "src/ai/chat/executors/**/*.ts": [
-      "exports"
-    ],
-    "src/ai/chat/formatters/**/*.ts": [
-      "exports"
-    ],
-    "src/ai/chat/resolvers/**/*.ts": [
-      "exports"
-    ],
-    "src/ai/chat/segmentTextParsers.ts": [
-      "exports"
-    ],
-    "src/ai/chat/toolCallValidation.ts": [
-      "exports"
-    ],
-    "src/ai/chat/localToolSlotResolver.ts": [
-      "exports",
-      "types"
-    ],
-    "src/ai/chat/localToolSlotTypes.ts": [
-      "types"
-    ],
-    "src/ai/chat/toolCallSchemas.ts": [
-      "exports"
-    ],
-    "src/annotation/analysisGraph.ts": [
-      "exports"
-    ],
-    "src/annotation/structuralRuleProfile.ts": [
-      "exports"
-    ],
-    "src/data/languageCatalogRuntimeCache.ts": [
-      "exports"
-    ],
-    "src/data/languageNameTypes.ts": [
-      "types"
-    ],
-    "src/db/index.ts": [
-      "exports"
-    ],
-    "src/utils/transcriptionUnitLaneReadScope.ts": [
-      "types"
-    ],
-    "src/workerThreads.browser.ts": [
-      "exports"
-    ],
-    "src/integrations/supabase/storage.ts": [
-      "exports"
-    ],
-    "src/pages/transcriptionAcousticSummary.ts": [
-      "exports"
-    ],
-    "src/pages/transcriptionTimelineWorkspacePanelTypes.ts": [
-      "exports"
-    ]
+    "src/ai/chat/toolCallSchemas.ts": ["exports"],
+    "src/ai/chat/toolCallValidation.ts": ["exports"],
+    "src/annotation/analysisGraph.ts": ["exports"],
+    "src/annotation/structuralRuleProfile.ts": ["exports"],
+    "src/data/languageCatalogRuntimeCache.ts": ["exports"],
+    "src/data/languageNameTypes.ts": ["types"],
+    "src/db/index.ts": ["exports"],
+    "src/db/ioImportValidation.ts": ["exports"],
+    "src/hooks/importExport/useImportExport.importHandlers.ts": ["exports"],
+    "src/hooks/orthography/useOrthographyPicker.ts": ["exports"],
+    "src/integrations/supabase/storage.ts": ["exports"],
+    "src/pages/transcriptionAcousticSummary.ts": ["exports"],
+    "src/pages/transcriptionReadyWorkspaceDomainInputBuilder.ts": ["exports"],
+    "src/pages/transcriptionReadyWorkspaceTimelineInteractionInputBuilder.ts": ["exports"],
+    "src/pages/transcriptionTimelineWorkspacePanelTypes.ts": ["exports"],
+    "src/services/languageCatalog/languageCatalogCoreNormalization.ts": ["exports"],
+    "src/services/VoiceAgentService.lifecycle.ts": ["exports"],
+    "src/services/VoiceInputService.probes.ts": ["exports"],
+    "src/services/VoiceInputService.ts": ["exports"],
+    "src/services/VoiceInputService.webSpeechSupport.ts": ["exports"],
+    "src/utils/orthographyRuntime.ts": ["exports"],
+    "src/utils/transcriptionUnitLaneReadScope.ts": ["types"],
+    "src/workerThreads.browser.ts": ["exports"]
+  },
+  "paths": {
+    "~/*": ["./src/*"]
   }
 }

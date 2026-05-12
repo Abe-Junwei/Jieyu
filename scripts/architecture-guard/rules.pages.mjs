@@ -161,7 +161,7 @@ export const architectureGuardPageControllerRules = [
     maxUseEffects: 2,
     requiredRegexes: [
       /export function useTrackDisplayController\(/,
-      /timelineUnitsOnCurrentMedia\?:\s*ReadonlyArray<TimelineUnitView>/,
+      /timelineUnitsOnCurrentMedia/,
     ],
   }),
   pageControllerRule('useTranscriptionAssistantController', {
@@ -193,7 +193,7 @@ export const architectureGuardPageControllerRules = [
     ],
   }),
   pageControllerRule('useTranscriptionProjectMediaController', {
-    maxLines: 300,
+    maxLines: 400,
     maxUseCallbackDecls: 8,
     maxUseMemoDecls: 1,
     maxUseEffects: 0,

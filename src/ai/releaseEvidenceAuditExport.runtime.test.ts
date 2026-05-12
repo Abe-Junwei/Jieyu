@@ -227,6 +227,8 @@ describe('release evidence ai audit export runtime', () => {
         budgetSuppressedCount: 1,
         freshnessBucket: 'recent',
       },
+      executionProgress: { appliedCount: 0, totalCount: 2, partial: true },
+      proposeRollback: { attempted: true, ok: false, errorCount: 1 },
     };
 
     const { result } = renderHook(() => useAiChatToolAudit());
@@ -309,5 +311,11 @@ describe('release evidence ai audit export runtime', () => {
     expect(decisionRow).toBeTruthy();
     const decisionMeta = JSON.parse(decisionRow?.metadataJson ?? '{}') as Record<string, unknown>;
     expect(decisionMeta.memoryRecallShape).toBeTruthy();
+    expect((decisionMeta.executionProgress as { partial?: boolean } | undefined)?.partial).toBe(
+      true,
+    );
+    expect(
+      Number((decisionMeta.proposeRollback as { errorCount?: number } | undefined)?.errorCount),
+    ).toBe(1);
   });
 });

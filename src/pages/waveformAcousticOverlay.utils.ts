@@ -7,11 +7,11 @@ import type {
 import type { SpectrogramHoverReadout } from './transcriptionWaveformBridge.types';
 import type { AcousticOverlayVisibleSummary } from './transcriptionWaveformBridge.types';
 
-export function clampAcousticValue(value: number, min: number, max: number): number {
+function clampAcousticValue(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-export function buildAcousticPath(segments: Array<{ x: number; y: number | null }>): string | null {
+function buildAcousticPath(segments: Array<{ x: number; y: number | null }>): string | null {
   let path = '';
   let segmentStarted = false;
   for (const point of segments) {
@@ -33,7 +33,7 @@ function melToHz(mel: number): number {
   return 700 * (10 ** (mel / 2595) - 1);
 }
 
-export function lowerBoundFrameTime(
+function lowerBoundFrameTime(
   frames: AcousticFeatureResult['frames'],
   targetTimeSec: number,
 ): number {

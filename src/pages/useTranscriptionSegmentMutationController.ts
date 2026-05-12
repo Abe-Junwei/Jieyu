@@ -1,82 +1,28 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { getTranscriptionAppService } from '../app/index';
-import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
-import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
-import type { PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';
 import { t, useLocale } from '../i18n';
-import { reportActionError } from '../utils/actionErrorReporter';
-import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import {
   dispatchTimelineUnitMutation,
   dispatchTimelineUnitSelectionMutation,
 } from './timelineUnitMutationDispatch';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 import { useTranscriptionSegmentBatchMerge } from './useTranscriptionSegmentBatchMerge';
-import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 import { LayerUnitService } from '../app/transcriptionServicesPageAccess';
+import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { AiSegmentSplitRollbackToken } from '../hooks/ai/useAiToolCallHandler.types';
+import type {
+  UseTranscriptionSegmentMutationControllerInput,
+  UseTranscriptionSegmentMutationControllerResult,
+} from './useTranscriptionSegmentMutationController.types';
+import {
+  recordSegmentMutationLatency,
+  setSegmentMutationActionError,
+} from './useTranscriptionSegmentMutationController.utils';
 
-interface UseTranscriptionSegmentMutationControllerInput {
-  activeLayerIdForEdits: string;
-  resolveSegmentRoutingForLayer: (layerId?: string) => SegmentRoutingResult;
-  pushUndo: (label: string) => void;
-  reloadSegments: () => Promise<void>;
-  refreshSegmentUndoSnapshot: () => Promise<void>;
-  selectTimelineUnit: (unit: TimelineUnit | null) => void;
-  unitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
-  getUnitDocById: (id: string) => LayerUnitDocType | undefined;
-  findUnitDocContainingRange: (start: number, end: number) => LayerUnitDocType | undefined;
-  setSaveState: (state: SaveState) => void;
-  splitUnit: (id: string, splitTime: number) => Promise<void>;
-  mergeSelectedUnits: (ids: Set<string>) => Promise<void>;
-  mergeWithPrevious: (id: string) => Promise<void>;
-  mergeWithNext: (id: string) => Promise<void>;
-  deleteUnit: (id: string) => Promise<void>;
-  deleteSelectedUnits: (ids: Set<string>) => Promise<void>;
-  recordTimelineEdit?: (event: PushTimelineEditInput) => void;
-}
-
-interface UseTranscriptionSegmentMutationControllerResult {
-  splitRouted: (
-    id: string,
-    splitTime: number,
-    layerIdOverride?: string,
-  ) => Promise<AiSegmentSplitRollbackToken | undefined>;
-  mergeAdjacentSegmentsForAiRollback: (keepId: string, removeId: string) => Promise<void>;
-  mergeWithPreviousRouted: (id: string, layerIdOverride?: string) => Promise<void>;
-  mergeWithNextRouted: (id: string, layerIdOverride?: string) => Promise<void>;
-  mergeSelectedSegmentsRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
-  deleteUnitRouted: (id: string, layerIdOverride?: string) => Promise<void>;
-  deleteSelectedUnitsRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
-  toggleSkipProcessingRouted: (id: string, layerIdOverride?: string) => Promise<void>;
-}
-
-function setSegmentMutationActionError(
-  setSaveState: (state: SaveState) => void,
-  actionLabel: string,
-  i18nKey: string,
-  error: unknown,
-): void {
-  const { message, meta } = reportActionError({ actionLabel, error, i18nKey: i18nKey });
-  setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) });
-}
-
-function recordSegmentMutationLatency(
-  action: string,
-  status: 'success' | 'error',
-  startedAtMs: number,
-): void {
-  try {
-    recordDurationMetric(
-      'business.transcription.segment_action_latency_ms',
-      startedAtMs,
-      createMetricTags('transcription', { action, status }),
-    );
-  } catch {
-    // 忽略指标上报异常，避免影响主流程 | Ignore metric reporting errors to avoid affecting the main flow
-  }
-}
+export type {
+  UseTranscriptionSegmentMutationControllerInput,
+  UseTranscriptionSegmentMutationControllerResult,
+} from './useTranscriptionSegmentMutationController.types';
 
 export function useTranscriptionSegmentMutationController(
   input: UseTranscriptionSegmentMutationControllerInput,

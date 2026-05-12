@@ -26,7 +26,7 @@
     {
       "id": "directive-governance",
       "name": "Directive governance tests",
-      "command": "npx vitest run src/ai/memory/userDirectiveExtractor.test.ts src/hooks/useAiChat.responsePolicy.test.ts src/hooks/useAiChat.backgroundMemory.test.ts src/hooks/useAiChat.toolDecisionPipeline.test.ts",
+      "command": "npx vitest run src/ai/memory/userDirectiveExtractor.test.ts src/hooks/ai/useAiChat.responsePolicy.test.ts src/hooks/ai/useAiChat.backgroundMemory.test.ts src/hooks/ai/useAiChat.toolDecisionPipeline.test.ts",
       "category": "policy",
       "goldenTaskCount": 10,
       "trajectorySignals": [
@@ -38,7 +38,7 @@
     {
       "id": "prompt-memory",
       "name": "Prompt and memory integration tests",
-      "command": "npx vitest run src/ai/chat/sessionMemory.test.ts src/ai/chat/promptContext.tiered.test.ts src/hooks/useAiChat.streamCompletion.test.ts src/hooks/useAiChat.agentLoopRunner.test.ts",
+      "command": "npx vitest run src/ai/chat/sessionMemory.test.ts src/ai/chat/promptContext.tiered.test.ts src/hooks/ai/useAiChat.streamCompletion.test.ts src/hooks/ai/useAiChat.agentLoopRunner.test.ts",
       "category": "runtime",
       "goldenTaskCount": 8,
       "trajectorySignals": [

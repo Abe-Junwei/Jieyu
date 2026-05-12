@@ -14,7 +14,7 @@ const metricEventLogPath = path.join(
 );
 
 const mainPathTestFiles = [
-  'src/hooks/useAiChat.test.tsx',
+  'src/hooks/ai/useAiChat.test.tsx',
   'src/pages/useTranscriptionSegmentMutationController.test.tsx',
 ];
 

@@ -63,19 +63,6 @@ export function isLinguisticMemoryIntentText(userText: string): boolean {
   );
 }
 
-export function normalizeBatchApplyUnitIds(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  const dedup = new Set<string>();
-  for (const item of value) {
-    if (typeof item !== 'string') continue;
-    const id = item.trim();
-    if (!id) continue;
-    dedup.add(id);
-    if (dedup.size >= 200) break;
-  }
-  return [...dedup];
-}
-
 export function inferBatchApplyActionFromUserText(userText: string): string | undefined {
   const text = userText.trim();
   if (!text) return undefined;

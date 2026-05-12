@@ -3,12 +3,7 @@
  * Extracted from localToolSlotResolver.ts
  */
 
-import type {
-  AiSessionMemory,
-  AiSessionMemoryLocalSemanticFrame,
-  LocalToolMetric,
-  LocalUnitScope,
-} from '../chatDomain.types';
+import type { AiSessionMemory, LocalToolMetric, LocalUnitScope } from '../chatDomain.types';
 import { isFollowUpIntentText, isUnitListIntentText } from '../intentContracts';
 import type { LocalContextToolCall } from '../localContextTools';
 import type { LocalToolRoutingPlan } from '../localToolSlotTypes';
@@ -384,68 +379,6 @@ export function resolveDiagnoseQualityCall(
 export function shouldUpgradeSelectionToProjectStats(userText: string): boolean {
   if (isGapCountIntentText(userText)) return false;
   return isCountIntentText(userText) || inferMetricFromUserText(userText) !== undefined;
-}
-
-export function buildSemanticFrameFromCall(
-  call: LocalContextToolCall,
-  scope: LocalUnitScope | undefined,
-): AiSessionMemoryLocalSemanticFrame | undefined {
-  const updatedAt = new Date().toISOString();
-  switch (call.name) {
-    case 'list_units':
-      return {
-        domain: 'units',
-        questionKind: 'list',
-        ...(scope ? { scope } : {}),
-        source: 'tool',
-        updatedAt,
-      };
-    case 'search_units':
-      return {
-        domain: 'units',
-        questionKind: 'search',
-        ...(scope ? { scope } : {}),
-        source: 'tool',
-        updatedAt,
-      };
-    case 'get_unit_detail':
-    case 'get_unit_linguistic_memory':
-      return {
-        domain: 'units',
-        questionKind: 'detail',
-        ...(scope ? { scope } : {}),
-        source: 'tool',
-        updatedAt,
-      };
-    case 'get_project_stats': {
-      const metric = normalizeMetricArg(call.arguments.metric);
-      return {
-        domain: 'project_stats',
-        questionKind: 'count',
-        ...(metric ? { metric } : {}),
-        ...(metric ? { metricCategory: isGapMetric(metric) ? 'gap' : 'total' } : {}),
-        ...(scope ? { scope } : {}),
-        ...(metric && isGapMetric(metric) ? { isQualityGapQuestion: true } : {}),
-        source: 'tool',
-        updatedAt,
-      };
-    }
-    case 'diagnose_quality': {
-      const metric = normalizeGapMetricArg(call.arguments.metric);
-      return {
-        domain: 'project_stats',
-        questionKind: 'count',
-        ...(metric ? { metric } : {}),
-        metricCategory: 'gap',
-        ...(scope ? { scope } : {}),
-        isQualityGapQuestion: true,
-        source: 'tool',
-        updatedAt,
-      };
-    }
-    default:
-      return undefined;
-  }
 }
 
 export function resolveSearchCall(

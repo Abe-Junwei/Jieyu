@@ -32,7 +32,7 @@ const suiteMatrix = [
     files: [
       'src/pages/useTranscriptionSegmentCreationController.test.tsx',
       'src/pages/useTranscriptionSegmentMutationController.test.tsx',
-      'src/hooks/useTranscriptionPersistence.test.tsx',
+      'src/hooks/transcription/useTranscriptionPersistence.test.tsx',
       'src/hooks/useImportExport.export.test.tsx',
     ],
   },
