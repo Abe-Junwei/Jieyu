@@ -340,11 +340,13 @@ async function runPipelineStep(input) {
   const run = spawnSync('npm', ['run', '-s', step.script], {
     cwd: workspaceRoot,
     encoding: 'utf8',
-    maxBuffer: 20 * 1024 * 1024,
+    // CI steps (esp. architecture-guard + nested npm) can be verbose; avoid ENOBUFS / null status.
+    maxBuffer: 100 * 1024 * 1024,
   });
   const durationMs = Date.now() - startedAt;
-  const combinedOutput = `${run.stdout ?? ''}${run.stderr ?? ''}`;
-  const status = run.status === 0 && !run.signal ? 'passed' : 'failed';
+  const spawnErr = run.error ? `spawn error: ${run.error.message}\n` : '';
+  const combinedOutput = `${spawnErr}${run.stdout ?? ''}${run.stderr ?? ''}`;
+  const status = run.status === 0 && !run.signal && !run.error ? 'passed' : 'failed';
   const exitCode = run.status ?? 1;
   const summary = summarizeOutput(combinedOutput, status);
   const logBody = [
@@ -3175,7 +3177,15 @@ async function run() {
       dryRun,
     });
     stepResults.push(result);
-    console.log(`[release-evidence] ${result.status.toUpperCase()} ${result.script}`);
+    const stepLine = `[release-evidence] ${result.status.toUpperCase()} ${result.script}`;
+    if (result.status === 'failed') {
+      const hint = String(result.summary ?? '').trim();
+      const cap = 800;
+      const clipped = hint.length > cap ? `${hint.slice(0, cap)}…` : hint;
+      console.log(clipped ? `${stepLine} — ${clipped}` : stepLine);
+    } else {
+      console.log(stepLine);
+    }
   }
 
   const durableOrchestrationSection = buildDurableOrchestrationSection({
