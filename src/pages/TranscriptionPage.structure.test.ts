@@ -542,17 +542,17 @@ describe('TranscriptionPage structure invariants', () => {
     ).toBe(true);
     expect(
       controllerCode.includes(
-        'const assistantRuntimeProps = useMemo<TranscriptionPageAssistantRuntimeProps>(() => ({',
+        'const assistantRuntimeProps = useMemo<TranscriptionPageAssistantRuntimeProps>(',
       ),
     ).toBe(true);
     expect(
       controllerCode.includes(
-        'const analysisPanelProps = useMemo<TranscriptionPageAnalysisPanelProps>(() => ({',
+        'const analysisPanelProps = useMemo<TranscriptionPageAnalysisPanelProps>(',
       ),
     ).toBe(true);
     expect(
       controllerCode.includes(
-        'const analysisRuntimeProps = useMemo<TranscriptionPageAnalysisRuntimeProps>(() => ({',
+        'const analysisRuntimeProps = useMemo<TranscriptionPageAnalysisRuntimeProps>(',
       ),
     ).toBe(true);
     expect(summaryCode.includes('export function buildTranscriptionAssistantStatusSummary(')).toBe(
@@ -752,7 +752,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(
       hookCode.includes('const unitRowsFromIndex = timelineUnitViewIndex.currentMediaUnits;'),
     ).toBe(true);
-    expect(hookCode.includes('const waveformRegions = useMemo(() =>')).toBe(true);
+    expect(hookCode.includes('const waveformRegions = useMemo(')).toBe(true);
 
     // 选择态应按 independent/unit 双路径路由
     // Selection state must route by independent/unit mode.
@@ -1110,16 +1110,12 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const runOverlaySplitAtTime = (')).toBe(false);
 
     expect(hookCode.includes("if (unitKind === 'segment') {")).toBe(true);
-    expect(
-      hookCode.includes('fireAndForget(deleteSelectedUnitsRouted(ids, layerId), { context:'),
-    ).toBe(true);
-    expect(
-      hookCode.includes('fireAndForget(mergeSelectedSegmentsRouted(ids, layerId), { context:'),
-    ).toBe(true);
-    expect(hookCode.includes('runMergeSelection(ids);')).toBe(true);
-    expect(hookCode.includes('fireAndForget(splitRouted(id, splitTime, layerId), { context:')).toBe(
+    expect(hookCode.includes('fireAndForget(deleteSelectedUnitsRouted(ids, layerId),')).toBe(true);
+    expect(hookCode.includes('fireAndForget(mergeSelectedSegmentsRouted(ids, layerId),')).toBe(
       true,
     );
+    expect(hookCode.includes('runMergeSelection(ids);')).toBe(true);
+    expect(hookCode.includes('fireAndForget(splitRouted(id, splitTime, layerId),')).toBe(true);
   });
 
   it('keeps Orchestrator below the current regression ceiling', () => {
