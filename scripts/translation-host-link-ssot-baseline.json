@@ -10,17 +10,14 @@
     "src/db/adapter.ts": 4,
     "src/db/schemas.ts": 1,
     "src/db/types.ts": 9,
-    "src/hooks/transcriptionTypes.ts": 1,
-    "src/hooks/useLayerActionPanel.ts": 1,
-    "src/hooks/useTranscriptionLayerActions.ts": 3,
+    "src/hooks/transcription/transcriptionTypes.ts": 1,
+    "src/hooks/layer/useLayerActionPanel.ts": 1,
+    "src/hooks/transcription/useTranscriptionLayerActions.ts": 3,
     "src/i18n/layerConstraintServiceMessages.ts": 3,
     "src/pages/useTranscriptionLayerMetadataController.ts": 4,
     "src/services/EafService.ts": 3,
     "src/services/LayerConstraintService.ts": 19,
     "src/services/LayerOrderingService.ts": 3,
-    "src/utils/verticalReadingHostFilter.ts": 1,
-    "src/hooks/transcription/transcriptionTypes.ts": 1,
-    "src/hooks/layer/useLayerActionPanel.ts": 1,
-    "src/hooks/transcription/useTranscriptionLayerActions.ts": 3
+    "src/utils/verticalReadingHostFilter.ts": 1
   }
 }

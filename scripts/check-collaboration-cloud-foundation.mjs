@@ -14,8 +14,8 @@ const requiredFiles = [
   'src/collaboration/cloud/CollaborationSnapshotService.ts',
   'src/collaboration/cloud/CollaborationAuditLogService.ts',
   'src/collaboration/cloud/projectChangeRowParse.ts',
-  'src/hooks/useTranscriptionCollaborationBridge.ts',
-  'src/hooks/useTranscriptionCloudSyncActions.ts',
+  'src/hooks/transcription/useTranscriptionCollaborationBridge.ts',
+  'src/hooks/transcription/useTranscriptionCloudSyncActions.ts',
   'src/components/transcription/CollaborationCloudPanel.tsx',
   'supabase/sql/001_collaboration_foundation.sql',
   'docs/execution/plans/托管实时协同-Supabase完整落地方案-2026-04-17.md',
@@ -36,11 +36,11 @@ const runtimeContracts = [
     snippets: ['onOutboundPendingSizeChanged', 'registerProjectAsset', 'createProjectSnapshot', 'queryProjectChangeTimeline'],
   },
   {
-    filePath: 'src/hooks/useTranscriptionCollaborationBridge.ts',
+    filePath: 'src/hooks/transcription/useTranscriptionCollaborationBridge.ts',
     snippets: ['collaborationOutboundPendingCount', 'collaborationProtocolGuard', 'evaluateCollaborationProtocolGuard'],
   },
   {
-    filePath: 'src/hooks/useTranscriptionCloudSyncActions.ts',
+    filePath: 'src/hooks/transcription/useTranscriptionCloudSyncActions.ts',
     snippets: ['collaborationSyncBadge', 'collaborationProtocolGuard', 'restoreProjectSnapshotToLocalById', 'queryProjectChangeTimeline'],
   },
   {

@@ -46,7 +46,7 @@ const deadSrcRewrites = [
   ['src/components/TranscriptionTimelineComparison.tsx', 'src/pages/TranscriptionPage.ReadyWorkspace.tsx'],
   ['src/components/TranscriptionTimelineComparison.test.tsx', 'src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx'],
   ['src/styles/pages/timeline/timeline-comparison.css', 'src/styles/pages/transcription-timeline.css'],
-  ['src/services/TranslationLayerHostService.ts', 'src/hooks/useTranscriptionLayerActions.ts'],
+  ['src/services/TranslationLayerHostService.ts', 'src/hooks/transcription/useTranscriptionLayerActions.ts'],
   ['src/ai/eval/JudgeProvider.ts', 'src/ai/eval/citationJudge.ts'],
   ['src/data/generated/iso6393Seed.generated.ts', 'scripts/build-language-tag-mappings.mjs'],
   ['../../../../src/pages/index.ts', '../../../../src/App.tsx'],

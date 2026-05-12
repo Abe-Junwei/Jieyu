@@ -54,7 +54,7 @@
 
     { "pathPrefix": "src/hooks/useAiChat.rag.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/hooks/useOrthographyPicker.ts", "reason": "validation-and-guard-message" },
-    { "pathPrefix": "src/hooks/useTranscriptionLayerActions.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/hooks/transcription/useTranscriptionLayerActions.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/components/ai/aiChatAdaptiveRanking.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/components/ScriptTagCombobox.tsx", "reason": "data-dictionary" },
     { "pathPrefix": "src/components/LanguageMapEmbed.tsx", "reason": "data-dictionary" },

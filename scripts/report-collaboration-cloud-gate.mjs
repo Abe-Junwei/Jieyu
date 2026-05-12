@@ -22,10 +22,10 @@ const TEST_FILES = [
   'src/collaboration/cloud/CollaborationSyncBridge.persistence.test.ts',
   'src/collaboration/cloud/CollaborationPresenceService.test.ts',
   'src/collaboration/cloud/CollaborationClientStateStore.test.ts',
-  'src/hooks/useTranscriptionCollaborationBridge.test.tsx',
-  'src/hooks/useTranscriptionCloudSyncActions.conflict.test.tsx',
-  'src/hooks/useTranscriptionCloudSyncActions.applyRemote.test.tsx',
-  'src/hooks/useTranscriptionCloudSyncActions.presence.test.tsx',
+  'src/hooks/transcription/useTranscriptionCollaborationBridge.test.tsx',
+  'src/hooks/transcription/useTranscriptionCloudSyncActions.conflict.test.tsx',
+  'src/hooks/transcription/useTranscriptionCloudSyncActions.applyRemote.test.tsx',
+  'src/hooks/transcription/useTranscriptionCloudSyncActions.presence.test.tsx',
   'src/components/transcription/CollaborationCloudPanel.test.tsx',
 ];
 
@@ -43,10 +43,10 @@ const SERVICE_SUITES = [
 ];
 
 const WORKSPACE_ENTRY_SUITES = [
-  'src/hooks/useTranscriptionCollaborationBridge.test.tsx',
-  'src/hooks/useTranscriptionCloudSyncActions.conflict.test.tsx',
-  'src/hooks/useTranscriptionCloudSyncActions.applyRemote.test.tsx',
-  'src/hooks/useTranscriptionCloudSyncActions.presence.test.tsx',
+  'src/hooks/transcription/useTranscriptionCollaborationBridge.test.tsx',
+  'src/hooks/transcription/useTranscriptionCloudSyncActions.conflict.test.tsx',
+  'src/hooks/transcription/useTranscriptionCloudSyncActions.applyRemote.test.tsx',
+  'src/hooks/transcription/useTranscriptionCloudSyncActions.presence.test.tsx',
   'src/components/transcription/CollaborationCloudPanel.test.tsx',
 ];
 
