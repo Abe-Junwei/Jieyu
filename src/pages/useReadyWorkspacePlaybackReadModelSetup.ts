@@ -1,10 +1,19 @@
+import type { Dispatch, SetStateAction } from 'react';
+
+import type { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useJKLShuttle } from '~/hooks/ui/useJKLShuttle';
 import { useTranscriptionActionRefBindings } from './useTranscriptionActionRefBindings';
 import { useTranscriptionPlaybackKeyboardController } from './useTranscriptionPlaybackKeyboardController';
 import { useTimelineReadModel } from './timelineReadModel';
 
+/**
+ * `data` 仅承载 `useTranscriptionData` 暴露的文档/协作域 API；UI 入口（如 `toggleNotes` /
+ * `setShowSearch`）必须从 `pre`（`useNoteHandlers`）/ `domainShell`（`useTranscriptionShellController`）
+ * 显式注入。回归历史与 lock-in 测试见
+ * `src/pages/buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams.test.ts`。
+ */
 export interface UseReadyWorkspacePlaybackReadModelSetupParams {
-  data: any;
+  data: ReturnType<typeof useTranscriptionData>;
   player: any;
   waveformBridge: any;
   selectedTimelineOwnerUnit: any;
@@ -32,6 +41,8 @@ export interface UseReadyWorkspacePlaybackReadModelSetupParams {
   zoomToSegmentRef: any;
   timelineSyncController: any;
   activeLayerIdForEdits: any;
+  toggleNotes: () => void;
+  setShowSearch: Dispatch<SetStateAction<boolean>>;
 }
 
 export function useReadyWorkspacePlaybackReadModelSetup(
@@ -66,6 +77,8 @@ export function useReadyWorkspacePlaybackReadModelSetup(
     zoomToSegmentRef,
     timelineSyncController,
     activeLayerIdForEdits,
+    toggleNotes,
+    setShowSearch,
   } = params;
 
   const playbackKeyboardController = useTranscriptionPlaybackKeyboardController({
@@ -99,8 +112,8 @@ export function useReadyWorkspacePlaybackReadModelSetup(
     runSelectAfter,
     undo: data.undo,
     redo: data.redo,
-    setShowSearch: data.setShowSearch,
-    toggleNotes: data.toggleNotes,
+    setShowSearch,
+    toggleNotes,
   });
 
   useJKLShuttle(player);

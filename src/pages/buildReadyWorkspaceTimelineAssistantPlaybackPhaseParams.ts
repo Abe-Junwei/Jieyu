@@ -301,6 +301,8 @@ export function buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams(
       zoomToSegmentRef,
       activeLayerIdForEdits,
       documentSpanSecFromBridgeRef: pre.documentSpanSecFromBridgeRef,
+      toggleNotes: pre.toggleNotes,
+      setShowSearch: domainShell.setShowSearch,
     },
     audioCaptureBuild: {
       recordingInput: {

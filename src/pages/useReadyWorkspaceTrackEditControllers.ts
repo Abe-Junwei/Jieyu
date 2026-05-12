@@ -12,11 +12,12 @@ import { timeRangeDragPreviewFromSegmentRangeGesturePreview } from '../utils/seg
 import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import type { LayerActionPanelKind } from '~/hooks/layer/useLayerActionPanel';
 import type { PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';
+import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 type SegmentLocalUpdater = (segment: LayerUnitDocType) => LayerUnitDocType;
 
 export interface UseReadyWorkspaceTrackEditControllersParams {
-  data: any;
+  data: ReturnType<typeof import('../hooks/useTranscriptionData').useTranscriptionData>;
   /** 段落读模型 / segment scope — 不在 `useTranscriptionData` 上，勿用 `data.reloadSegments`。 */
   reloadSegments: () => Promise<void>;
   /** `useTranscriptionSegmentBridgeController` */
@@ -201,12 +202,14 @@ export function useReadyWorkspaceTrackEditControllers(
     segmentsByLayer,
     currentMediaUnits: timelineUnitViewIndex.currentMediaUnits,
     units: data.units,
-    saveUnitSelfCertainty: ((targets: readonly { id: string }[], value: number) => {
+    saveUnitSelfCertainty: (
+      targets: readonly { id: string }[],
+      value: UnitSelfCertainty | undefined,
+    ) =>
       data.saveUnitSelfCertainty(
         targets.map((t) => t.id),
         value,
-      );
-    }) as any,
+      ),
   });
 
   const { updateLayerMetadata } = useTranscriptionLayerMetadataController({

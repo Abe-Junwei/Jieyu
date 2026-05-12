@@ -12,7 +12,7 @@ import { useReadyWorkspaceTimelineSyncController } from './useReadyWorkspaceTime
  * `undefined` 并在首次调用时报「is not a function」。
  */
 export interface UseReadyWorkspaceTimelineSyncSetupParams {
-  data: any;
+  data: ReturnType<typeof import('../hooks/useTranscriptionData').useTranscriptionData>;
   /** 来自波形桥 `useReadyWorkspaceWaveformBridgeController`，不在 `useTranscriptionData` 上。 */
   setSubSelectionRange: Dispatch<SetStateAction<{ start: number; end: number } | null>>;
   /** 来自波形桥；拖拽语段边界时 `handleWaveformRegionUpdate` 需要。 */
