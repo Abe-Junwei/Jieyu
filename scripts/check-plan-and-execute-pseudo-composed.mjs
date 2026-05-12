@@ -16,7 +16,7 @@ const rootDir = join(__dirname, '..');
 const testFiles = [
   'src/ai/vertical/composedWorkflowTemplates.test.ts',
   'src/ai/chat/sessionMemory.test.ts',
-  'src/hooks/useAiChat.sendTurnPreflight.test.ts',
+  'src/hooks/ai/useAiChat.sendTurnPreflight.test.ts',
   'src/hooks/useAiChat.sendTurnStreamPhase.test.ts',
 ];
 

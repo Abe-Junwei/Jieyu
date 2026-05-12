@@ -4,15 +4,15 @@ import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const EXPECTED_FILES = new Set([
-  'src/hooks/useAiChat.backgroundMemory.ts',
-  'src/hooks/useAiChat.messagePinning.ts',
-  'src/hooks/useAiChat.sendTurnPreflight.ts',
+  'src/hooks/ai/useAiChat.backgroundMemory.ts',
+  'src/hooks/ai/useAiChat.messagePinning.ts',
+  'src/hooks/ai/useAiChat.sendTurnPreflight.ts',
 ]);
 
 const REQUIRED_GUARDS = new Map([
-  ['src/hooks/useAiChat.backgroundMemory.ts', /resolveAiChatBackgroundMemorySandboxPolicy\(/],
-  ['src/hooks/useAiChat.messagePinning.ts', /resolveAiChatSessionSidecarSandboxPolicy\(/],
-  ['src/hooks/useAiChat.sendTurnPreflight.ts', /resolveAiChatSessionSidecarSandboxPolicy\(/],
+  ['src/hooks/ai/useAiChat.backgroundMemory.ts', /resolveAiChatBackgroundMemorySandboxPolicy\(/],
+  ['src/hooks/ai/useAiChat.messagePinning.ts', /resolveAiChatSessionSidecarSandboxPolicy\(/],
+  ['src/hooks/ai/useAiChat.sendTurnPreflight.ts', /resolveAiChatSessionSidecarSandboxPolicy\(/],
 ]);
 
 function commandExists(command) {
