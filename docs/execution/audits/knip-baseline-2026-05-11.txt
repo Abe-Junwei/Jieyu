@@ -1,0 +1,10 @@
+# Knip baseline snapshot (2026-05-11)
+
+Captured via `npx knip --no-progress` before aligning `knip.json` with
+`docs/execution/governance/knip-exception-ledger-2026-05-08.md` (unused files,
+unlisted dependency, unlisted binary).
+
+See repository `knip.json` and the exception ledger for current resolution.
+
+---
+Content from capture:

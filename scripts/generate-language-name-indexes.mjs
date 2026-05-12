@@ -17,7 +17,6 @@ const DISPLAY_OVERRIDE_SEED_PATH = path.resolve(process.cwd(), 'scripts/lib/lang
 const OUTPUT_DIR = path.resolve(process.cwd(), 'public/data/language-support');
 const OUTPUT_CORE_JSON = path.join(OUTPUT_DIR, 'language-display-names.core.json');
 const OUTPUT_ALIAS_JSON = path.join(OUTPUT_DIR, 'language-query-aliases.json');
-const OUTPUT_TS = path.resolve(process.cwd(), 'src/data/generated/languageNameCatalog.generated.ts');
 const OUTPUT_ISO_SEED_JSON = path.join(OUTPUT_DIR, 'iso6393-seed-rows.json');
 
 const QUERY_LOCALES = [
@@ -406,31 +405,6 @@ function buildCoreDisplayPayload(languages, cldrLanguageMaps, aliasesByCode, dis
   return { core, queryIndexes };
 }
 
-function toTsModule(core, queryIndexes, aliasToCode, aliasesByCode) {
-  return [
-    "import type {",
-    "  LanguageAliasToCodeRecord,",
-    "  LanguageAliasesByCodeRecord,",
-    "  LanguageDisplayCoreEntry,",
-    "  LanguageNameQueryLocale,",
-    "  LanguageQueryIndexLocaleRecord,",
-    "} from '../languageNameTypes';",
-    '',
-    'export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, LanguageDisplayCoreEntry>> = ',
-    `${JSON.stringify(core, null, 2)};`,
-    '',
-    'export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQueryLocale, LanguageQueryIndexLocaleRecord>> = ',
-    `${JSON.stringify(queryIndexes, null, 2)};`,
-    '',
-    'export const GENERATED_LANGUAGE_ALIAS_TO_CODE: LanguageAliasToCodeRecord = ',
-    `${JSON.stringify(aliasToCode, null, 2)};`,
-    '',
-    'export const GENERATED_LANGUAGE_ALIASES_BY_CODE: LanguageAliasesByCodeRecord = ',
-    `${JSON.stringify(aliasesByCode, null, 2)};`,
-    '',
-  ].join('\n');
-}
-
 function toIsoSeedJson() {
   const rows = iso6393
     .filter((entry) => entry.iso6393.trim().length > 0)
@@ -461,7 +435,6 @@ async function main() {
   const { core, queryIndexes } = buildCoreDisplayPayload(languages, cldrLanguageMaps, aliasesByCode, displayOverrideSeed);
 
   await mkdir(OUTPUT_DIR, { recursive: true });
-  await mkdir(path.dirname(OUTPUT_TS), { recursive: true });
 
   await writeFile(OUTPUT_CORE_JSON, `${JSON.stringify({
     generatedAt: new Date().toISOString(),
@@ -491,12 +464,10 @@ async function main() {
     }),
   );
 
-  await writeFile(OUTPUT_TS, toTsModule(core, queryIndexes, aliasToCode, aliasesByCode), 'utf8');
   await writeFile(OUTPUT_ISO_SEED_JSON, toIsoSeedJson(), 'utf8');
 
   console.log(`Generated language name core: ${OUTPUT_CORE_JSON}`);
   console.log(`Generated language alias index: ${OUTPUT_ALIAS_JSON}`);
-  console.log(`Generated runtime module: ${OUTPUT_TS}`);
   console.log(`Generated ISO seed JSON: ${OUTPUT_ISO_SEED_JSON}`);
 }
 

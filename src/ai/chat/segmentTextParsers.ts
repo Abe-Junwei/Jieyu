@@ -5,7 +5,7 @@
 
 import { decodeEscapedUnicode } from '../../utils/decodeEscapedUnicode';
 
-export function parseChineseInteger(raw: string): number | null {
+function parseChineseInteger(raw: string): number | null {
   const normalized = raw.trim().replace(/\u4e24/g, '\u4e8c');
   if (!normalized) return null;
   if (/^\d+$/.test(normalized)) return Number(normalized);
@@ -35,7 +35,7 @@ export function parseChineseInteger(raw: string): number | null {
   return digitMap[normalized] ?? null;
 }
 
-export function parseEnglishOrdinal(raw: string): number | null {
+function parseEnglishOrdinal(raw: string): number | null {
   const normalized = raw.trim().toLowerCase();
   if (!normalized) return null;
   const wordMap: Record<string, number> = {

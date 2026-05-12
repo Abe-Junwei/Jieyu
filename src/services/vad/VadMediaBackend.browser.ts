@@ -13,7 +13,12 @@ import { createLogger } from '../../observability/logger';
 import { VAD_AUTO_WARM_MAX_BYTES } from './VadMediaCacheService';
 import { WhisperXVadService } from './WhisperXVadService';
 import { registerVadMediaBackend } from './VadMediaBackend';
-import type { VadMediaBackend, VadMediaBackendResult, VadMediaBackendRunOptions, VadMediaRef } from './VadMediaBackend';
+import type {
+  VadMediaBackend,
+  VadMediaBackendResult,
+  VadMediaBackendRunOptions,
+  VadMediaRef,
+} from './VadMediaBackend';
 
 const log = createLogger('VadMediaBackend.browser');
 
@@ -25,7 +30,10 @@ interface AudioContextLike {
 }
 
 function createBrowserAudioContext(): AudioContextLike {
-  const AudioContextCtor = window.AudioContext ?? (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const AudioContextCtor =
+    window.AudioContext ??
+    (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
   if (!AudioContextCtor) {
     throw new Error('AudioContext unavailable');
   }
@@ -45,7 +53,7 @@ async function closeAudioContext(audioContext: AudioContextLike | null): Promise
 
 // ── 浏览器后端实现 | Browser backend implementation ─────────────────────────
 
-export class BrowserVadMediaBackend implements VadMediaBackend {
+class BrowserVadMediaBackend implements VadMediaBackend {
   private vadRuntime: WhisperXVadService | null = null;
 
   canProcess(ref: VadMediaRef): boolean {
@@ -132,7 +140,7 @@ export class BrowserVadMediaBackend implements VadMediaBackend {
  * 媒体文件过大，浏览器端无法安全处理。
  * Media file too large for safe browser-side processing.
  */
-export class VadMediaTooLargeError extends Error {
+class VadMediaTooLargeError extends Error {
   readonly mediaId: string;
   readonly byteSize: number;
 

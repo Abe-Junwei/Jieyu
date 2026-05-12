@@ -19,7 +19,7 @@ import {
   type NormalizedUnitRow,
 } from './timelineExecutors';
 
-export function normalizeNotesDetailLimit(value: unknown): number {
+function normalizeNotesDetailLimit(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return Math.min(50, Math.max(1, Math.floor(value)));
   }
@@ -32,7 +32,7 @@ export function normalizeNotesDetailLimit(value: unknown): number {
   return 20;
 }
 
-export function normalizeNoteCategoryFilter(value: unknown): NoteCategory | undefined {
+function normalizeNoteCategoryFilter(value: unknown): NoteCategory | undefined {
   if (typeof value !== 'string') return undefined;
   const n = value.trim().toLowerCase() as NoteCategory;
   const allowed: NoteCategory[] = [
@@ -46,7 +46,7 @@ export function normalizeNoteCategoryFilter(value: unknown): NoteCategory | unde
   return allowed.includes(n) ? n : undefined;
 }
 
-export function firstNoteContentPreview(content: unknown, maxChars: number): string {
+function firstNoteContentPreview(content: unknown, maxChars: number): string {
   if (!content || typeof content !== 'object' || Array.isArray(content)) return '';
   const values = Object.values(content as Record<string, unknown>).filter(
     (v): v is string => typeof v === 'string' && v.trim().length > 0,
@@ -55,12 +55,12 @@ export function firstNoteContentPreview(content: unknown, maxChars: number): str
   return raw.length > maxChars ? `${raw.slice(0, maxChars)}…` : raw;
 }
 
-export function noteHostTargetId(note: UserNoteDocType): string | undefined {
+function noteHostTargetId(note: UserNoteDocType): string | undefined {
   const rawValue = (note as unknown as Record<string, unknown>)[['par', 'entTargetId'].join('')];
   return typeof rawValue === 'string' && rawValue.trim().length > 0 ? rawValue : undefined;
 }
 
-export function noteMatchesTimelineScope(
+function noteMatchesTimelineScope(
   note: UserNoteDocType,
   idSet: Set<string>,
   workspaceTextId: string,

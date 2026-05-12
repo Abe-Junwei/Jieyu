@@ -20,7 +20,7 @@ import { diagnoseQuality } from '../intentTools';
 import { WorkspaceReadModelService } from '../../../services/WorkspaceReadModelService';
 import { diagnoseProjectQuality } from '../../queries/segmentReadQueries';
 
-export function normalizeQualityMetric(
+function normalizeQualityMetric(
   value: unknown,
 ): 'untranscribed_count' | 'missing_speaker_count' | undefined {
   const normalized = normalizeProjectMetric(value);
@@ -29,7 +29,7 @@ export function normalizeQualityMetric(
     : undefined;
 }
 
-export function resolveSnapshotScopeParams(
+function resolveSnapshotScopeParams(
   context: AiPromptContext,
   scope: LocalUnitScope,
   textId: string,

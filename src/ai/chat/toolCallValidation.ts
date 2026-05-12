@@ -103,7 +103,7 @@ export function validateArgId(
   return null;
 }
 
-export function validateArgIdList(
+function validateArgIdList(
   args: Record<string, unknown>,
   key: string,
   required: boolean,

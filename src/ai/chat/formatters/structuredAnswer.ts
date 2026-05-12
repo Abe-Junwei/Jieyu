@@ -12,27 +12,28 @@ import {
   summarizeLocalContextToolResult,
   humanizeScope,
 } from './summarizers';
+import {
+  STRUCTURED_ANSWER_EMPTY_EN,
+  STRUCTURED_ANSWER_EMPTY_ZH,
+} from '../../messages/structuredAnswerCopy';
 
-export function previewPlainText(value: unknown, maxChars = 48): string {
+function previewPlainText(value: unknown, maxChars = 48): string {
   if (typeof value !== 'string') return '';
   const trimmed = value.trim();
   if (!trimmed) return '';
   return trimmed.length > maxChars ? `${trimmed.slice(0, maxChars)}…` : trimmed;
 }
 
-export function joinStructuredBits(bits: string[], locale?: string): string {
+function joinStructuredBits(bits: string[], locale?: string): string {
   const zh = isZhLocale(locale);
   return bits.length > 0
     ? bits.join(zh ? '；' : '; ')
     : zh
-      ? '当前没有额外的结构化证据。'
-      : 'There is no additional structured evidence in this result.';
+      ? STRUCTURED_ANSWER_EMPTY_ZH
+      : STRUCTURED_ANSWER_EMPTY_EN;
 }
 
-export function buildLocalToolEvidenceText(
-  result: LocalContextToolResult,
-  locale?: string,
-): string {
+function buildLocalToolEvidenceText(result: LocalContextToolResult, locale?: string): string {
   const zh = isZhLocale(locale);
   const body = asObjectRecord(result.result);
   if (!body) {
@@ -302,7 +303,7 @@ export function buildLocalToolEvidenceText(
   return joinStructuredBits(bits, locale);
 }
 
-export function buildLocalToolScopeText(result: LocalContextToolResult, locale?: string): string {
+function buildLocalToolScopeText(result: LocalContextToolResult, locale?: string): string {
   const zh = isZhLocale(locale);
   const body = asObjectRecord(result.result);
   if (result.name === 'get_current_selection') {
@@ -315,10 +316,7 @@ export function buildLocalToolScopeText(result: LocalContextToolResult, locale?:
     : `This query used ${humanizeScope(body?.scope, locale)}.`;
 }
 
-export function buildLocalToolUncertaintyText(
-  result: LocalContextToolResult,
-  locale?: string,
-): string {
+function buildLocalToolUncertaintyText(result: LocalContextToolResult, locale?: string): string {
   const zh = isZhLocale(locale);
   if (!result.ok) {
     const reason = result.error ?? 'unknown_error';
@@ -352,10 +350,7 @@ export function buildLocalToolUncertaintyText(
     : 'This answer is based on the local snapshot; if you edited content just now, I can re-check the details.';
 }
 
-export function buildLocalToolNextStepText(
-  result: LocalContextToolResult,
-  locale?: string,
-): string {
+function buildLocalToolNextStepText(result: LocalContextToolResult, locale?: string): string {
   const zh = isZhLocale(locale);
   switch (result.name) {
     case 'get_project_stats':

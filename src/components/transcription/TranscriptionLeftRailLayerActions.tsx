@@ -6,7 +6,8 @@ import type { SidePaneSidebarMessages } from '../../i18n/messages';
 import { t, type Locale } from '../../i18n';
 
 /** DOM id for App shell `app-left-rail-bottom-slot` host; tests mount a matching node. */
-export const LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID = 'left-rail-transcription-layer-actions-slot';
+export const LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID =
+  'left-rail-transcription-layer-actions-slot';
 
 type WorkspaceTimelineLayoutControl = {
   locale: Locale;
@@ -42,12 +43,8 @@ export function TranscriptionLeftRailLayerActions({
 
   let workspaceLayoutNode: ReactNode = null;
   if (workspaceTimelineLayout) {
-    const {
-      locale,
-      verticalViewActive,
-      onSelectHorizontalMode,
-      onSelectVerticalMode,
-    } = workspaceTimelineLayout;
+    const { locale, verticalViewActive, onSelectHorizontalMode, onSelectVerticalMode } =
+      workspaceTimelineLayout;
     const title = verticalViewActive
       ? t(locale, 'transcription.toolbar.switchToHorizontalView')
       : t(locale, 'transcription.toolbar.switchToVerticalView');
@@ -91,6 +88,7 @@ export function TranscriptionLeftRailLayerActions({
   return createPortal(
     <div
       className="left-rail-layer-actions-root"
+      data-testid="left-rail-layer-actions-root"
       role="group"
       aria-label={messages.layerCreateStripAria}
     >

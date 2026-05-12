@@ -3,13 +3,9 @@ import {
   useEffect,
   useRef,
   useState,
-  type Dispatch,
-  type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
-  type SetStateAction,
 } from 'react';
 import type { VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
-import type { LayerDocType } from '../types/jieyuDbDocTypes';
 import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/transcription/useTimelineLaneHeightResize';
 import { createLogger } from '../observability/logger';
 import {
@@ -30,44 +26,17 @@ import {
   subscribeWorkspaceLayoutPreferenceChanged,
   WORKSPACE_VERTICAL_VIEW_STORAGE_KEY,
 } from '../utils/workspaceLayoutPreferenceSync';
+import type {
+  UseTranscriptionWorkspaceLayoutControllerInput,
+  UseTranscriptionWorkspaceLayoutControllerResult,
+} from './useTranscriptionWorkspaceLayoutController.types';
+
+export type {
+  UseTranscriptionWorkspaceLayoutControllerInput,
+  UseTranscriptionWorkspaceLayoutControllerResult,
+} from './useTranscriptionWorkspaceLayoutController.types';
 
 const log = createLogger('TranscriptionWorkspaceLayout');
-type UseTranscriptionWorkspaceLayoutControllerInput = {
-  layers: LayerDocType[];
-  selectedTimelineOwnerUnitId: string | undefined;
-  unitRowRef: MutableRefObject<Record<string, HTMLDivElement | null>>;
-};
-
-type UseTranscriptionWorkspaceLayoutControllerResult = {
-  zoomMode: 'fit-all' | 'fit-selection' | 'custom';
-  setZoomMode: Dispatch<SetStateAction<'fit-all' | 'fit-selection' | 'custom'>>;
-  isTimelineLaneHeaderCollapsed: boolean;
-  toggleTimelineLaneHeader: () => void;
-  laneLabelWidth: number;
-  timelineLaneHeights: Record<string, number>;
-  handleLaneLabelWidthResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  handleTimelineLaneHeightChange: (layerId: string, nextHeight: number) => void;
-  videoPreviewHeight: number;
-  videoRightPanelWidth: number;
-  videoLayoutMode: VideoLayoutMode;
-  setVideoLayoutMode: Dispatch<SetStateAction<VideoLayoutMode>>;
-  isResizingVideoPreview: boolean;
-  isResizingVideoRightPanel: boolean;
-  handleVideoPreviewResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  handleVideoRightPanelResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  autoScrollEnabled: boolean;
-  setAutoScrollEnabled: Dispatch<SetStateAction<boolean>>;
-  isFocusMode: boolean;
-  exitFocusMode: () => void;
-  showShortcuts: boolean;
-  closeShortcuts: () => void;
-  snapEnabled: boolean;
-  setSnapEnabled: Dispatch<SetStateAction<boolean>>;
-  toggleSnapEnabled: () => void;
-  verticalViewEnabled: boolean;
-  setVerticalViewEnabled: Dispatch<SetStateAction<boolean>>;
-  toggleVerticalViewEnabled: () => void;
-};
 
 export function useTranscriptionWorkspaceLayoutController(
   input: UseTranscriptionWorkspaceLayoutControllerInput,

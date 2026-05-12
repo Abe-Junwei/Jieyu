@@ -5,6 +5,7 @@
     { "pathPrefix": "src/utils/layerDisplayStyle.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/services/IntentRouter.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/ai/config/voiceIntentResolver.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/ai/messages/", "reason": "runtime-template-message" },
     { "pathPrefix": "src/ai/embeddings/embeddingSmokeTest.ts", "reason": "test-fixture" },
     { "pathPrefix": "src/ai/embeddings/fallbackWarning.ts", "reason": "runtime-template-message" },
 
@@ -74,7 +75,6 @@
     { "pathPrefix": "src/i18n/transcriptionOverlaysMessages.ts", "reason": "runtime-template-message" },
 
     { "pathPrefix": "src/data/builtInOrthographies.ts", "reason": "data-dictionary" },
-    { "pathPrefix": "src/data/generated/languageNameCatalog.generated.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/data/languageNameOverrides.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/data/orthographyTop50Reviewed.ts", "reason": "data-dictionary" },
 

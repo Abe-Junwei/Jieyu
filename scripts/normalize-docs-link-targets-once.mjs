@@ -49,7 +49,6 @@ const deadSrcRewrites = [
   ['src/services/TranslationLayerHostService.ts', 'src/hooks/useTranscriptionLayerActions.ts'],
   ['src/ai/eval/JudgeProvider.ts', 'src/ai/eval/citationJudge.ts'],
   ['src/data/generated/iso6393Seed.generated.ts', 'scripts/build-language-tag-mappings.mjs'],
-  ['src/data/generated/iso6393Countries.generated.ts', 'src/data/generated/languageNameCatalog.generated.ts'],
   ['../../../../src/pages/index.ts', '../../../../src/App.tsx'],
   ['src/hooks/useTranscriptionSegmentBridgeController.ts', 'src/pages/useTranscriptionSegmentBridgeController.ts'],
 ];

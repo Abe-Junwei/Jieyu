@@ -7,7 +7,7 @@ import type { AiPromptContext } from '../chatDomain.types';
 import type { LocalContextToolResult } from '../localContextToolTypes';
 import { buildLocalToolReadModelMeta } from '../localContextToolReadModelMeta';
 
-export function attachReadModelToToolPayload(context: AiPromptContext, result: unknown): unknown {
+function attachReadModelToToolPayload(context: AiPromptContext, result: unknown): unknown {
   const meta = buildLocalToolReadModelMeta(context);
   if (result === null) {
     return { _readModel: meta };

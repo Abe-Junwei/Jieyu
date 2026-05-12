@@ -140,12 +140,12 @@ interface LinguisticMemoryLayerRow {
   contentType?: unknown;
 }
 
-export function mapLayerType(value: unknown): 'transcription' | 'translation' | 'unknown' {
+function mapLayerType(value: unknown): 'transcription' | 'translation' | 'unknown' {
   if (value === 'transcription' || value === 'translation') return value;
   return 'unknown';
 }
 
-export function mapLinguisticMemoryNoteRows(
+function mapLinguisticMemoryNoteRows(
   rows: Array<Record<string, unknown>>,
 ): LinguisticMemoryNoteView[] {
   return rows
@@ -166,7 +166,7 @@ export function mapLinguisticMemoryNoteRows(
     });
 }
 
-export async function listNotesByTarget(
+async function listNotesByTarget(
   db: Awaited<ReturnType<typeof getDb>>,
   targetType: LinguisticMemoryNoteTargetType,
   targetId: string,

@@ -1,54 +1,20 @@
-import { useCallback, useEffect, useMemo, type Dispatch, type SetStateAction } from 'react';
-import type { LayerDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
+import { useCallback, useEffect, useMemo } from 'react';
 import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
-import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import {
   buildSpeakerLayerLayoutWithOptions,
   buildStableSpeakerLaneMap,
-  type SpeakerLayerLayoutResult,
 } from '../utils/speakerLayerLayout';
 import { layerUsesOwnSegments } from '~/hooks/layer/useLayerSegments';
 import { hasOverlappingTimeRanges, isTimelineUnitView } from './trackDisplayOverlapUtils';
+import type {
+  UseTrackDisplayControllerInput,
+  UseTrackDisplayControllerResult,
+} from './useTrackDisplayController.types';
 
-type SegmentSpeakerAssignmentLike = {
-  speakerKey: string;
-};
-
-type LockConflictToastState = {
-  count: number;
-  speakers: string[];
-  nonce: number;
-};
-
-interface UseTrackDisplayControllerInput {
-  unitsOnCurrentMedia: LayerUnitDocType[];
-  timelineUnitsOnCurrentMedia?: ReadonlyArray<TimelineUnitView>;
-  timelineRenderUnits: LayerUnitDocType[];
-  activeLayerIdForEdits: string;
-  defaultTranscriptionLayerId?: string;
-  layers: LayerDocType[];
-  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]>;
-  segmentSpeakerAssignmentsOnCurrentMedia: SegmentSpeakerAssignmentLike[];
-  transcriptionTrackMode: TranscriptionTrackDisplayMode;
-  setTranscriptionTrackMode: Dispatch<SetStateAction<TranscriptionTrackDisplayMode>>;
-  laneLockMap: Record<string, number>;
-  setLaneLockMap: Dispatch<SetStateAction<Record<string, number>>>;
-  selectedSpeakerIdsForTrackLock: string[];
-  speakerNameById: Record<string, string>;
-  setLockConflictToast: Dispatch<SetStateAction<LockConflictToastState | null>>;
-  getUnitSpeakerKey: (unit: LayerUnitDocType) => string;
-}
-
-export interface UseTrackDisplayControllerResult {
-  speakerSortKeyById: Record<string, number>;
-  effectiveLaneLockMap: Record<string, number>;
-  speakerLayerLayout: SpeakerLayerLayoutResult;
-  setTrackDisplayMode: (mode: TranscriptionTrackDisplayMode) => void;
-  handleToggleTrackDisplayMode: () => void;
-  handleLockSelectedSpeakersToLane: (laneIndex: number) => void;
-  handleUnlockSelectedSpeakers: () => void;
-  handleResetTrackAutoLayout: () => void;
-}
+export type {
+  UseTrackDisplayControllerInput,
+  UseTrackDisplayControllerResult,
+} from './useTrackDisplayController.types';
 
 export function useTrackDisplayController({
   unitsOnCurrentMedia,

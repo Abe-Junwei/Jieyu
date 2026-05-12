@@ -7,6 +7,9 @@
  */
 import { test, expect } from '@playwright/test';
 
+import { trackPageErrors } from './_helpers/pageErrorFilter';
+import { createTranscriptionAndTranslationLayersViaLeftRail } from './_helpers/layerCreationFlow';
+
 test.describe('关键路径 | Critical paths', () => {
   test('首屏加载并显示应用壳 | App shell loads', async ({ page }) => {
     await page.goto('/');
@@ -19,6 +22,7 @@ test.describe('关键路径 | Critical paths', () => {
   });
 
   test('转写页渲染核心区域 | Transcription page renders main area', async ({ page }) => {
+    const errors = trackPageErrors(page);
     await page.goto('/transcription');
     await expect(
       page.getByTestId('transcription-page-loading').or(page.getByTestId('transcription-workspace-screen')),
@@ -28,8 +32,6 @@ test.describe('关键路径 | Critical paths', () => {
     // 等待主内容区域出现（非 loading 骨架屏） | Wait for main content area
     await expect(page.locator('#root')).not.toBeEmpty();
     // 检查页面不包含未捕获错误 | No uncaught errors
-    const errors: string[] = [];
-    page.on('pageerror', (err) => errors.push(err.message));
     await page.waitForTimeout(2000);
     expect(errors).toHaveLength(0);
   });
@@ -89,38 +91,18 @@ test.describe('关键路径 | Critical paths', () => {
     await page.goto('/transcription');
     await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
 
-    // 左轨：先建转写层（含语言代码），再建翻译层
-    const leftRailActions = page.locator('.left-rail-layer-actions-root');
-    const createTranscriptionEntry = leftRailActions.getByRole('button', { name: /新建转写层|Create transcription layer/i });
-    const createTranslationButton = leftRailActions.getByRole('button', { name: /新建翻译层|Create translation layer/i });
-    await expect(createTranslationButton).toBeDisabled();
-
-    await createTranscriptionEntry.click();
-    const createTranscriptionDialog = page.getByRole('dialog', { name: /新建转写层|Create transcription layer|New Transcription Layer/i });
-    await expect(createTranscriptionDialog).toBeVisible();
-    await createTranscriptionDialog.getByRole('combobox', { name: /语言名称|Language Name/i }).fill('Chinese');
-    await createTranscriptionDialog.getByRole('option', { name: /Chinese|中文|汉语|zho/i }).first().click();
-    await createTranscriptionDialog.getByPlaceholder(/ISO 639-3/i).fill('zho');
-    const createTranscriptionSubmit = createTranscriptionDialog.getByRole('button', {
-      name: /^(新建转写层|Create transcription layer|New Transcription Layer)$/i,
+    await createTranscriptionAndTranslationLayersViaLeftRail(page, {
+      transcription: {
+        languageSearch: 'Chinese',
+        optionName: /Chinese|中文|汉语|zho/i,
+        iso6393: 'zho',
+      },
+      translation: {
+        languageSearch: 'French',
+        optionName: /French|法语|fra/i,
+        iso6393: 'fra',
+      },
     });
-    await expect(createTranscriptionSubmit).toBeEnabled();
-    await createTranscriptionSubmit.click();
-    await expect(createTranscriptionDialog).toBeHidden({ timeout: 15_000 });
-
-    await expect(createTranslationButton).toBeEnabled();
-    await createTranslationButton.click();
-    const createTranslationDialog = page.getByRole('dialog', { name: /新建翻译层|Create translation layer|New Translation Layer/i });
-    await expect(createTranslationDialog).toBeVisible();
-    await createTranslationDialog.getByRole('combobox', { name: /语言名称|Language Name/i }).fill('French');
-    await createTranslationDialog.getByRole('option', { name: /French|法语|fra/i }).first().click();
-    await createTranslationDialog.getByPlaceholder(/ISO 639-3/i).fill('fra');
-    const createTranslationSubmit = createTranslationDialog.getByRole('button', {
-      name: /^(新建翻译层|Create translation layer|New Translation Layer)$/i,
-    });
-    await expect(createTranslationSubmit).toBeEnabled();
-    await createTranslationSubmit.click();
-    await expect(createTranslationDialog).toBeHidden({ timeout: 15_000 });
 
     // 项目中心：导出 Toolbox，确认下载动作可达（悬停打开子菜单：父项 mousedown+click 双 toggle 下同一次 click 不可靠）
     await page.locator('.left-rail-project-hub-btn').click();

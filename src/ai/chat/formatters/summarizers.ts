@@ -19,7 +19,7 @@ export function asFiniteNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
-export function isSpeakerCountQuestion(userText?: string): boolean {
+function isSpeakerCountQuestion(userText?: string): boolean {
   return /(speaker|speakers|说话人|发言人)/i.test(userText ?? '');
 }
 
@@ -37,7 +37,7 @@ export function humanizeScope(scope: unknown, locale?: string): string {
   }
 }
 
-export function summarizeCurrentSelectionResult(
+function summarizeCurrentSelectionResult(
   body: Record<string, unknown>,
   locale?: string,
   userText?: string,
@@ -104,7 +104,7 @@ export function summarizeCurrentSelectionResult(
     : `I checked the current context: ${details.join('; ')}.`;
 }
 
-export function summarizeProjectStatsResult(
+function summarizeProjectStatsResult(
   body: Record<string, unknown>,
   locale?: string,
   userText?: string,
@@ -214,7 +214,7 @@ export function summarizeProjectStatsResult(
     : `I checked the stats for ${scopeLabel}: ${bits.join(', ')}.`;
 }
 
-export function summarizeListLikeResult(result: LocalContextToolResult, locale?: string): string {
+function summarizeListLikeResult(result: LocalContextToolResult, locale?: string): string {
   const zh = isZhLocale(locale);
   const body = asObjectRecord(result.result);
   const scopeLabel = humanizeScope(body?.scope, locale);
@@ -231,7 +231,7 @@ export function summarizeListLikeResult(result: LocalContextToolResult, locale?:
     : `I checked the segments in ${scopeLabel} and found ${count}.`;
 }
 
-export function summarizeDetailResult(result: LocalContextToolResult, locale?: string): string {
+function summarizeDetailResult(result: LocalContextToolResult, locale?: string): string {
   const zh = isZhLocale(locale);
   const body = asObjectRecord(result.result);
   const unitId = typeof body?.id === 'string' ? body.id : '';
@@ -254,13 +254,13 @@ export function summarizeDetailResult(result: LocalContextToolResult, locale?: s
     : `I located segment ${unitId || ''}${timeLabel ? ` (${timeLabel})` : ''}.`;
 }
 
-export function isUntranscribedQuestion(userText?: string): boolean {
+function isUntranscribedQuestion(userText?: string): boolean {
   return /(未转写|未完成转写|空文本|还没转写|还剩|剩余|unfinished|untranscribed|remaining)/i.test(
     userText ?? '',
   );
 }
 
-export function isMissingSpeakerQuestion(userText?: string): boolean {
+function isMissingSpeakerQuestion(userText?: string): boolean {
   return /(缺少说话人|未标说话人|missing\s+speaker|speaker\s+missing)/i.test(userText ?? '');
 }
 
@@ -269,10 +269,7 @@ export function asObject(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
-export function findCategoryCount(
-  body: Record<string, unknown>,
-  category: string,
-): number | undefined {
+function findCategoryCount(body: Record<string, unknown>, category: string): number | undefined {
   const items = Array.isArray(body.items) ? body.items : [];
   for (const item of items) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
@@ -284,7 +281,7 @@ export function findCategoryCount(
   return undefined;
 }
 
-export function summarizeDiagnoseQualityResult(
+function summarizeDiagnoseQualityResult(
   body: Record<string, unknown>,
   locale?: string,
   userText?: string,

@@ -6,7 +6,7 @@ import type {
 } from '../../db';
 import type { LanguageCatalogEntry } from './languageCatalogTypes';
 
-export function normalizeComparableValue(value: unknown): unknown {
+function normalizeComparableValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map((item) => normalizeComparableValue(item));
   }
@@ -20,7 +20,7 @@ export function normalizeComparableValue(value: unknown): unknown {
   return value ?? null;
 }
 
-export function isMeaningfulPatchValue(value: unknown): boolean {
+function isMeaningfulPatchValue(value: unknown): boolean {
   if (value === undefined || value === null) {
     return false;
   }
@@ -36,9 +36,7 @@ export function isMeaningfulPatchValue(value: unknown): boolean {
   return true;
 }
 
-export function buildComparableHistoryPatch(
-  entry: LanguageCatalogEntry | null,
-): Record<string, unknown> {
+function buildComparableHistoryPatch(entry: LanguageCatalogEntry | null): Record<string, unknown> {
   if (!entry) {
     return {};
   }

@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-05-09T01:38:13.087Z",
+  "generatedAt": "2026-05-11T23:17:37.105Z",
   "scannerVersion": 2,
-  "totalHits": 216,
+  "totalHits": 247,
   "files": {
     "src/ai/chat/executors/toolPayload.ts": 1,
     "src/ai/chat/formatters/agentLoopPayload.ts": 1,
-    "src/ai/chat/formatters/structuredAnswer.ts": 68,
+    "src/ai/chat/formatters/structuredAnswer.ts": 67,
     "src/ai/chat/formatters/summarizers.ts": 65,
     "src/ai/chat/localContextToolFormatters.ts": 10,
     "src/ai/chat/modelSelectionFeedback.ts": 3,
@@ -13,8 +13,18 @@
     "src/ai/eval/userFeedback.ts": 13,
     "src/ai/vertical/composedWorkflowTemplates.ts": 6,
     "src/components/transcription/toolbar/ObserverStatus.tsx": 1,
-    "src/hooks/useAiChat.sendTurnStreamPhase.ts": 2,
-    "src/hooks/useTranscriptionTimelineVerticalChrome.ts": 8,
+    "src/hooks/ai/useAiChat.confirmExecution.ts": 7,
+    "src/hooks/ai/useAiChat.rag.ts": 3,
+    "src/hooks/ai/useAiChat.sendTurnStreamPhase.ts": 2,
+    "src/hooks/ai/useAiChat.streamCompletion.ts": 8,
+    "src/hooks/orthography/useOrthographyPicker.ts": 1,
+    "src/hooks/transcription/useTranscriptionLayerActions.ts": 1,
+    "src/hooks/transcription/useTranscriptionTimelineVerticalChrome.ts": 8,
+    "src/services/VoiceAgentService.startFlow.ts": 1,
+    "src/services/VoiceAgentService.wakeWordFailure.ts": 2,
+    "src/services/languageCatalog/languageCatalogCoreNormalization.ts": 1,
+    "src/services/linguisticServiceProjectBootstrap.ts": 1,
+    "src/services/linguisticServiceTextTimelineOps.ts": 7,
     "src/utils/theme.ts": 37
   }
 }

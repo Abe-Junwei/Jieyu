@@ -5,6 +5,7 @@
  * 运行：`npm run test:e2e:session-sidecar-audit`（`playwright.session-sidecar.config.ts`，Chromium only）。
  */
 import { expect, test, type Page } from '@playwright/test';
+import { trackPageErrors } from '../e2e/_helpers/pageErrorFilter';
 
 async function countSessionSidecarAuditRows(page: Page): Promise<number> {
   return page.evaluate(async () => {
@@ -67,8 +68,7 @@ async function openTranscriptionAiComposer(page: Page): Promise<void> {
 
 test.describe('F4 session sidecar sandbox audit (readonly build)', () => {
   test('send-preflight directive block writes ai_session_sidecar_sandbox audit row', async ({ page }) => {
-    const errors: string[] = [];
-    page.on('pageerror', (err) => errors.push(err.message));
+    const errors = trackPageErrors(page);
 
     await openTranscriptionAiComposer(page);
 
@@ -91,8 +91,7 @@ test.describe('F4 session sidecar sandbox audit (readonly build)', () => {
   });
 
   test('pinned user directive block writes ai_session_sidecar_sandbox audit row', async ({ page }) => {
-    const errors: string[] = [];
-    page.on('pageerror', (err) => errors.push(err.message));
+    const errors = trackPageErrors(page);
 
     await openTranscriptionAiComposer(page);
 
