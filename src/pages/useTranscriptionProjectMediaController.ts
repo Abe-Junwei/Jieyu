@@ -6,11 +6,11 @@ import { t } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { fireAndForget } from '../utils/fireAndForget';
+import { withResolvedMediaItemTimelineKind } from '../utils/mediaItemTimelineKind';
 import {
-  isAuxiliaryRecordingMediaRow,
-  isMediaItemPlaceholderRow,
-  withResolvedMediaItemTimelineKind,
-} from '../utils/mediaItemTimelineKind';
+  buildProjectMediaSearchableItems,
+  computeAudioImportDisposition,
+} from '../utils/transcriptionProjectMediaDerived';
 import type { SearchableItem } from '../utils/searchReplaceUtils';
 import type {
   UseTranscriptionProjectMediaControllerInput,
@@ -49,26 +49,15 @@ export function useTranscriptionProjectMediaController(
   const [projectDeleteConfirm, setProjectDeleteConfirm] = useState(false);
   const [autoSegmentBusy, setAutoSegmentBusy] = useState(false);
 
-  const audioImportDisposition = useMemo(() => {
-    if (!activeTextId) return { kind: 'simple' as const };
-    const projectMedia = mediaItems.filter((m) => m.textId === activeTextId);
-    const hasAcoustic = projectMedia.some(
-      (m) => !isMediaItemPlaceholderRow(m) && !isAuxiliaryRecordingMediaRow(m),
-    );
-    if (!hasAcoustic) return { kind: 'simple' as const };
-    const replaceTarget =
-      (selectedTimelineMedia && projectMedia.some((m) => m.id === selectedTimelineMedia.id)
-        ? selectedTimelineMedia
-        : projectMedia.find(
-            (m) => !isMediaItemPlaceholderRow(m) && !isAuxiliaryRecordingMediaRow(m),
-          )) ?? null;
-    if (!replaceTarget) return { kind: 'simple' as const };
-    return {
-      kind: 'choose' as const,
-      replaceMediaId: replaceTarget.id,
-      replaceLabel: replaceTarget.filename,
-    };
-  }, [activeTextId, mediaItems, selectedTimelineMedia]);
+  const audioImportDisposition = useMemo(
+    () =>
+      computeAudioImportDisposition({
+        activeTextId,
+        mediaItems,
+        selectedTimelineMedia,
+      }),
+    [activeTextId, mediaItems, selectedTimelineMedia],
+  );
 
   const { mediaFileInputRef, handleDirectMediaImport } = useMediaImport({
     activeTextId,
@@ -317,60 +306,23 @@ export function useTranscriptionProjectMediaController(
     ],
   );
 
-  const searchableItems = useMemo<SearchableItem[]>(() => {
-    const items: SearchableItem[] = [];
-
-    if (transcriptionLayers.length === 0) {
-      for (const unit of unitsOnCurrentMedia) {
-        items.push({
-          unitId: unit.id,
-          layerKind: 'transcription',
-          text: getUnitTextForLayer(unit),
-        });
-      }
-    } else {
-      for (const layer of transcriptionLayers) {
-        for (const unit of unitsOnCurrentMedia) {
-          const text = getUnitTextForLayer(unit, layer.id);
-          if (text) {
-            items.push({
-              unitId: unit.id,
-              layerId: layer.id,
-              layerKind: 'transcription',
-              ...(layer.languageId ? { languageId: layer.languageId } : {}),
-              ...(layer.orthographyId ? { orthographyId: layer.orthographyId } : {}),
-              text,
-            });
-          }
-        }
-      }
-    }
-
-    for (const layer of translationLayers) {
-      const layerMap = translationTextByLayer.get(layer.id);
-      if (!layerMap) continue;
-      for (const unit of unitsOnCurrentMedia) {
-        const translation = layerMap.get(unit.id);
-        if (translation?.text) {
-          items.push({
-            unitId: unit.id,
-            layerId: layer.id,
-            layerKind: 'translation',
-            ...(layer.languageId ? { languageId: layer.languageId } : {}),
-            ...(layer.orthographyId ? { orthographyId: layer.orthographyId } : {}),
-            text: translation.text,
-          });
-        }
-      }
-    }
-    return items;
-  }, [
-    getUnitTextForLayer,
-    transcriptionLayers,
-    translationLayers,
-    translationTextByLayer,
-    unitsOnCurrentMedia,
-  ]);
+  const searchableItems = useMemo<SearchableItem[]>(
+    () =>
+      buildProjectMediaSearchableItems({
+        transcriptionLayers,
+        translationLayers,
+        unitsOnCurrentMedia,
+        getUnitTextForLayer,
+        translationTextByLayer,
+      }),
+    [
+      getUnitTextForLayer,
+      transcriptionLayers,
+      translationLayers,
+      translationTextByLayer,
+      unitsOnCurrentMedia,
+    ],
+  );
 
   return {
     audioImportDisposition,

@@ -15,7 +15,7 @@ const metricEventLogPath = path.join(
 );
 
 const runtimeLatencyFiles = [
-  'src/hooks/useAiChat.test.tsx',
+  'src/hooks/ai/useAiChat.test.tsx',
   'src/pages/useTranscriptionSegmentCreationController.test.tsx',
   'src/pages/useTranscriptionSegmentMutationController.test.tsx',
 ];
@@ -144,7 +144,7 @@ async function main() {
     return;
   }
 
-  let aiDurations = collectAssertionDurations(firstPassReport, 'src/hooks/useAiChat.test.tsx');
+  let aiDurations = collectAssertionDurations(firstPassReport, 'src/hooks/ai/useAiChat.test.tsx');
   let segmentDurations = [
     ...collectAssertionDurations(firstPassReport, 'src/pages/useTranscriptionSegmentMutationController.test.tsx'),
     ...collectAssertionDurations(firstPassReport, 'src/pages/useTranscriptionSegmentCreationController.test.tsx'),
@@ -157,7 +157,7 @@ async function main() {
       const secondPassReport = await readVitestReport(secondPassPath);
       if (secondPassReport) {
         aiDurations = aiDurations.concat(
-          collectAssertionDurations(secondPassReport, 'src/hooks/useAiChat.test.tsx'),
+          collectAssertionDurations(secondPassReport, 'src/hooks/ai/useAiChat.test.tsx'),
         );
         segmentDurations = segmentDurations.concat(
           collectAssertionDurations(secondPassReport, 'src/pages/useTranscriptionSegmentMutationController.test.tsx'),
@@ -191,7 +191,7 @@ async function main() {
       environment,
       source: 'vitest-runtime-latency-probe',
       measurementClass: 'synthetic-test-probe',
-      suite: 'useAiChat.test.tsx',
+      suite: 'src/hooks/ai/useAiChat.test.tsx',
       sampleCount: aiSummary.count,
       p50: Number(aiSummary.p50.toFixed(3)),
       p95: Number(aiSummary.p95.toFixed(3)),

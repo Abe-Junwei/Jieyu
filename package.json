@@ -210,7 +210,7 @@
     "// === Other ===": "",
     "report:css-debt-thresholds": "node scripts/check-css-debt-thresholds.mjs --report-only",
     "check:dialog-style-guard": "node scripts/check-dialog-style-guard.mjs",
-    "check:acceptance-1": "vitest run src/ai/chat/toolCallHelpers.test.ts && vitest run src/hooks/useAiChat.test.tsx -t \"intent score is in gray zone\" && vitest run src/services/AiCanonicalClusterRollbackSnapshot.dexie.test.ts && vitest run src/hooks/useAiToolCallHandler.segmentAdapter.test.ts && vitest run src/hooks/useAiChat.confirmExecution.proposeBatch.test.ts -t \"merge_transcription_segments rollback\"",
+    "check:acceptance-1": "vitest run src/ai/chat/toolCallHelpers.test.ts && vitest run src/hooks/ai/useAiChat.test.tsx -t \"intent score is in gray zone\" && vitest run src/services/AiCanonicalClusterRollbackSnapshot.dexie.test.ts && vitest run src/hooks/ai/useAiToolCallHandler.segmentAdapter.test.ts && vitest run src/hooks/ai/useAiChat.confirmExecution.proposeBatch.test.ts -t \"merge_transcription_segments rollback\"",
     "check:release-evidence:cost-guard-trend": "node scripts/check-release-evidence-cost-guard-trend.mjs --report=docs/execution/release-gates/release-evidence/release-evidence-cost-guard-trend-gate.json",
     "check:release-evidence:cost-guard-trend:require-ready": "node scripts/check-release-evidence-cost-guard-trend.mjs --report=docs/execution/release-gates/release-evidence/release-evidence-cost-guard-trend-gate.json --require-compare-ready",
     "check:release-evidence:action-approval": "node scripts/check-release-evidence-action-approval.mjs --report=docs/execution/release-gates/release-evidence/release-evidence-action-approval-gate.json",

@@ -25,7 +25,6 @@ export interface UseTimelineUnitViewIndexInput {
 }
 
 export type TimelineUnitViewIndexWithEpoch = TimelineUnitViewIndex;
-
 /**
  * Derived read model over units + segments; single facade for timeline AI/UI consumers.
  */
