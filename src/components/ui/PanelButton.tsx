@@ -15,6 +15,7 @@ interface PanelButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: PanelButtonVariant;
   size?: PanelButtonSize;
   children: ReactNode;
+  'data-testid'?: string;
 }
 
 /**
@@ -31,6 +32,7 @@ export function PanelButton({
   size = 'default',
   className,
   children,
+  'data-testid': dataTestId,
   ...rest
 }: PanelButtonProps) {
   return (
@@ -42,6 +44,7 @@ export function PanelButton({
         size !== 'default' && `panel-button--${size}`,
         className,
       )}
+      {...(dataTestId ? { 'data-testid': dataTestId } : {})}
       {...rest}
     >
       {children}

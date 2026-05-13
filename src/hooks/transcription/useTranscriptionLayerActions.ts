@@ -496,6 +496,10 @@ export function useTranscriptionLayerActions({
 
         setSelectedLayerId(id);
         setLayers(nextLayers);
+        // Debug: expose nextLayers to window for E2E diagnostics
+        if (typeof window !== 'undefined') {
+          (window as unknown as Record<string, unknown>).__jieyu_layers_next = nextLayers;
+        }
         if (autoLinks.length > 0) {
           setLayerLinks((prev) => [...prev, ...autoLinks]);
         }

@@ -14,6 +14,10 @@ export function useTranscriptionDocumentState() {
   const [anchors, setAnchors] = useState<AnchorDocType[]>([]);
   const [translations, setTranslations] = useState<LayerUnitContentDocType[]>([]);
   const [layers, setLayers] = useState<LayerDocType[]>([]);
+  // Debug: expose layers to window for E2E diagnostics
+  if (typeof window !== 'undefined') {
+    (window as unknown as Record<string, unknown>).__jieyu_layers = layers;
+  }
   const [layerLinks, setLayerLinks] = useState<LayerLinkDocType[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItemDocType[]>([]);
   const [speakers, setSpeakers] = useState<SpeakerDocType[]>([]);

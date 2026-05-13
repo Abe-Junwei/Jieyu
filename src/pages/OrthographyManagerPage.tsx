@@ -1,12 +1,11 @@
 import '../styles/pages/orthography-manager-panel.css';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../types/jieyuDbDocTypes';
 import { formatOrthographyOptionLabel } from '~/hooks/orthography/useOrthographyPicker';
 import { useLanguageCatalogLabelMap } from '~/hooks/languageCatalog/useLanguageCatalogLabelMap';
-import { useListKeyboardNav } from '~/hooks/ui/useListKeyboardNav';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { getOrthographyBuilderMessages } from '../i18n/messages';
@@ -33,8 +32,8 @@ import {
 import type { LanguageIsoInputValue } from '../components/LanguageIsoInput';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import { normalizeLanguageInputAssetId } from '../utils/languageInputHostState';
-import { buildTranscriptionWorkspaceReturnHref } from '../utils/transcriptionUrlDeepLink';
-import type { LanguageCatalogSearchSuggestion } from '../types/languageCatalogSearchSuggestion.types';
+import { OrthographyManagerSidePane } from './OrthographyManagerSidePane';
+import { useOrthographyManagerSearch } from './useOrthographyManagerSearch';
 
 const ORTHOGRAPHY_ID_PARAM = 'orthographyId';
 
@@ -54,17 +53,13 @@ export function OrthographyManagerPage({
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
   const [saving, setSaving] = useState(false);
-  const [searchText, setSearchText] = useState('');
-  const [searchSuggestions, setSearchSuggestions] = useState<LanguageCatalogSearchSuggestion[]>([]);
-  const [searchSuggestionActiveIndex, setSearchSuggestionActiveIndex] = useState(-1);
-  const [searchInputFocused, setSearchInputFocused] = useState(false);
   const [browseAllWithoutProject, setBrowseAllWithoutProject] = useState(false);
   const [draft, setDraft] = useState<OrthographyDraft | null>(null);
   const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>({
     languageName: '',
     languageCode: '',
   });
-  const deferredSearchText = useDeferredValue(searchText);
+
   const { projectLanguageIds } = useProjectLanguageIds();
   // 默认仅显示项目语言的正字法（有项目语言时） | Default to project-only when project has languages
   const [projectOnly, setProjectOnly] = useState(true);
@@ -84,25 +79,6 @@ export function OrthographyManagerPage({
       languageIds: orthographyLanguageIds,
     });
   const selectedOrthographyId = searchParams.get(ORTHOGRAPHY_ID_PARAM) ?? '';
-  const browseState = useMemo(
-    () =>
-      buildOrthographyBrowseState({
-        projectLanguageIds,
-        projectOnly,
-        selectedOrthographyId,
-        searchText: deferredSearchText,
-        browseAllWithoutProject,
-      }),
-    [
-      browseAllWithoutProject,
-      deferredSearchText,
-      projectLanguageIds,
-      projectOnly,
-      selectedOrthographyId,
-    ],
-  );
-  const { normalizedSearchText, showUnscopedIdleState } = browseState;
-  const hasVisibleSearchSuggestions = searchInputFocused && searchSuggestions.length > 0;
 
   // 用 ref 追踪最新值，避免加载 effect 依赖 searchParams 导致循环 | Track latest via refs to avoid circular deps
   const searchParamsRef = useRef(searchParams);
@@ -110,98 +86,7 @@ export function OrthographyManagerPage({
   const selectedOrthographyIdRef = useRef(selectedOrthographyId);
   selectedOrthographyIdRef.current = selectedOrthographyId;
 
-  // M3: 正字法数据不依赖 locale，移除多余的重取触发 | Orthography data is locale-independent; remove unnecessary refetch trigger
-  useEffect(() => {
-    let cancelled = false;
-    const loadOrthographies = async () => {
-      setLoading(true);
-
-      try {
-        const suggestions = normalizedSearchText
-          ? await searchLanguageCatalogSuggestions({
-              query: normalizedSearchText,
-              locale,
-              limit: WORKSPACE_LANGUAGE_SEARCH_LIMIT,
-            })
-          : [];
-        const searchLanguageIds = suggestions.map((suggestion) => suggestion.id);
-        const selector = buildOrthographyBrowseSelector({
-          selectedOrthographyId,
-          searchLanguageIds,
-          state: browseState,
-        });
-
-        if (!selector) {
-          if (cancelled) return;
-          setSearchSuggestions(suggestions);
-          setSearchSuggestionActiveIndex(-1);
-          setOrthographies([]);
-          setError('');
-          return;
-        }
-
-        const records = await listOrthographyRecords(selector);
-        if (cancelled) return;
-        setSearchSuggestions(suggestions);
-        setSearchSuggestionActiveIndex((prev) =>
-          prev >= 0 && prev < suggestions.length ? prev : -1,
-        );
-        setOrthographies(records);
-        setError('');
-
-        // 仅在无当前选择时自动选中首项，搜索缩窄时不强制切换 | Only auto-select first on initial load; do NOT force-switch when current is filtered out
-        const currentId = selectedOrthographyIdRef.current;
-        if (records.length > 0 && !currentId) {
-          const nextParams = new URLSearchParams(searchParamsRef.current);
-          nextParams.set(ORTHOGRAPHY_ID_PARAM, records[0]!.id);
-          setSearchParams(nextParams, { replace: true });
-        }
-      } catch (loadError) {
-        if (cancelled) return;
-        setSearchSuggestions([]);
-        setSearchSuggestionActiveIndex(-1);
-        setOrthographies([]);
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : t(locale, 'workspace.orthography.errorFallback'),
-        );
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void loadOrthographies();
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 数据加载不依赖 locale，但 catch 中错误文案需要 locale；用 ref 读取 selectedOrthographyId/searchParams 以避免循环 | Data fetch is locale-independent, but error message formatting needs locale; read via refs to avoid circular deps
-  }, [browseState, locale, normalizedSearchText, selectedOrthographyId]);
-
   const filteredOrthographies = orthographies;
-
-  // 列表键盘导航 | List keyboard navigation
-  const getOrthographyId = useCallback((o: OrthographyDocType) => o.id, []);
-  const selectOrthographyRef = useRef<(id: string) => void>(() => {});
-  const {
-    activeIndex: kbActiveIndex,
-    handleSearchKeyDown: kbSearchKeyDown,
-    listRef: kbListRef,
-    resetActiveIndex: kbReset,
-  } = useListKeyboardNav({
-    items: filteredOrthographies,
-    getItemId: getOrthographyId,
-    onSelect: (id) => {
-      selectOrthographyRef.current(id);
-    },
-  });
-  // 列表变化时重置高亮 | Reset highlight when list changes
-  useEffect(() => {
-    kbReset();
-  }, [filteredOrthographies, kbReset]);
 
   const selectedOrthography =
     orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
@@ -288,78 +173,116 @@ export function OrthographyManagerPage({
     nextParams.set(ORTHOGRAPHY_ID_PARAM, orthographyId);
     setSearchParams(nextParams);
   };
-  selectOrthographyRef.current = handleSelectOrthography;
+  const {
+    searchText,
+    searchSuggestions,
+    setSearchSuggestions,
+    searchSuggestionActiveIndex,
+    setSearchSuggestionActiveIndex,
+    searchInputFocused,
+    setSearchInputFocused,
+    kbActiveIndex,
+    kbListRef,
+    handleSearchTextChange,
+    handleSearchSuggestionSelect,
+    handleSearchInputKeyDown,
+  } = useOrthographyManagerSearch({
+    orthographies: filteredOrthographies,
+    onSelect: handleSelectOrthography,
+  });
 
-  const handleSearchTextChange = useCallback((value: string) => {
-    setSearchText(value);
-    setSearchSuggestionActiveIndex(-1);
-    setSearchInputFocused(true);
-  }, []);
+  const hasVisibleSearchSuggestions = searchInputFocused && searchSuggestions.length > 0;
 
-  const handleSearchSuggestionSelect = useCallback(
-    (suggestion: LanguageCatalogSearchSuggestion) => {
-      setSearchText(suggestion.primaryLabel);
-      setSearchSuggestionActiveIndex(-1);
-      setSearchInputFocused(false);
-    },
-    [],
-  );
-
-  const handleSearchInputKeyDown = useCallback(
-    (event: React.KeyboardEvent<Element>) => {
-      if (!hasVisibleSearchSuggestions) {
-        kbSearchKeyDown(event);
-        return;
-      }
-
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        setSearchSuggestionActiveIndex((prev) => {
-          if (searchSuggestions.length === 0) return -1;
-          if (prev < 0) return 0;
-          return Math.min(prev + 1, searchSuggestions.length - 1);
-        });
-        return;
-      }
-
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        setSearchSuggestionActiveIndex((prev) => {
-          if (searchSuggestions.length === 0) return -1;
-          if (prev <= 0) return 0;
-          return prev - 1;
-        });
-        return;
-      }
-
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setSearchSuggestionActiveIndex(-1);
-        setSearchInputFocused(false);
-        return;
-      }
-
-      if (event.key === 'Enter') {
-        if (searchSuggestions.length === 0) return;
-        event.preventDefault();
-        const targetIndex = searchSuggestionActiveIndex >= 0 ? searchSuggestionActiveIndex : 0;
-        const suggestion = searchSuggestions[targetIndex];
-        if (suggestion) {
-          handleSearchSuggestionSelect(suggestion);
-        }
-        return;
-      }
-
-      kbSearchKeyDown(event);
-    },
+  const deferredSearchText = useDeferredValue(searchText);
+  const browseState = useMemo(
+    () =>
+      buildOrthographyBrowseState({
+        projectLanguageIds,
+        projectOnly,
+        selectedOrthographyId,
+        searchText: deferredSearchText,
+        browseAllWithoutProject,
+      }),
     [
-      hasVisibleSearchSuggestions,
-      handleSearchSuggestionSelect,
-      kbSearchKeyDown,
-      searchSuggestionActiveIndex,
-      searchSuggestions,
+      browseAllWithoutProject,
+      deferredSearchText,
+      projectLanguageIds,
+      projectOnly,
+      selectedOrthographyId,
     ],
   );
+  const { normalizedSearchText, showUnscopedIdleState } = browseState;
+
+  // M3: 正字法数据不依赖 locale，移除多余的重取触发 | Orthography data is locale-independent; remove unnecessary refetch trigger
+  useEffect(() => {
+    let cancelled = false;
+    const loadOrthographies = async () => {
+      setLoading(true);
+
+      try {
+        const suggestions = normalizedSearchText
+          ? await searchLanguageCatalogSuggestions({
+              query: normalizedSearchText,
+              locale,
+              limit: WORKSPACE_LANGUAGE_SEARCH_LIMIT,
+            })
+          : [];
+        const searchLanguageIds = suggestions.map((suggestion) => suggestion.id);
+        const selector = buildOrthographyBrowseSelector({
+          selectedOrthographyId,
+          searchLanguageIds,
+          state: browseState,
+        });
+
+        if (!selector) {
+          if (cancelled) return;
+          setSearchSuggestions(suggestions);
+          setSearchSuggestionActiveIndex(-1);
+          setOrthographies([]);
+          setError('');
+          return;
+        }
+
+        const records = await listOrthographyRecords(selector);
+        if (cancelled) return;
+        setSearchSuggestions(suggestions);
+        setSearchSuggestionActiveIndex((prev) =>
+          prev >= 0 && prev < suggestions.length ? prev : -1,
+        );
+        setOrthographies(records);
+        setError('');
+
+        // 仅在无当前选择时自动选中首项，搜索缩窄时不强制切换 | Only auto-select first on initial load; do NOT force-switch when current is filtered out
+        const currentId = selectedOrthographyIdRef.current;
+        if (records.length > 0 && !currentId) {
+          const nextParams = new URLSearchParams(searchParamsRef.current);
+          nextParams.set(ORTHOGRAPHY_ID_PARAM, records[0]!.id);
+          setSearchParams(nextParams, { replace: true });
+        }
+      } catch (loadError) {
+        if (cancelled) return;
+        setSearchSuggestions([]);
+        setSearchSuggestionActiveIndex(-1);
+        setOrthographies([]);
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : t(locale, 'workspace.orthography.errorFallback'),
+        );
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadOrthographies();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 数据加载不依赖 locale，但 catch 中错误文案需要 locale；用 ref 读取 selectedOrthographyId/searchParams 以避免循环 | Data fetch is locale-independent, but error message formatting needs locale; read via refs to avoid circular deps
+  }, [browseState, locale, normalizedSearchText, selectedOrthographyId]);
 
   const handleDraftChange = <K extends keyof OrthographyDraft>(
     key: K,
@@ -412,96 +335,19 @@ export function OrthographyManagerPage({
     return `/assets/orthography-bridges?${params.toString()}`;
   }, [fromLayerId, selectedOrthography]);
 
-  const sidePaneContent = useMemo(
-    () => (
-      <div className="app-side-pane-feature-stack">
-        <section
-          className="app-side-pane-group"
-          aria-label={t(locale, 'workspace.orthography.sidePaneCurrent')}
-        >
-          <div
-            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
-            role="presentation"
-          >
-            <span className="app-side-pane-section-title">
-              {t(locale, 'workspace.orthography.sidePaneCurrent')}
-            </span>
-          </div>
-          <div className="app-side-pane-nav app-side-pane-feature-nav">
-            {selectedOrthography ? (
-              <>
-                <span className="app-side-pane-feature-badge">
-                  {selectedBadge?.label ?? t(locale, 'workspace.orthography.notSet')}
-                </span>
-                <p className="app-side-pane-feature-summary">
-                  {formatOrthographyOptionLabel(selectedOrthography, locale)}
-                </p>
-                <p className="app-side-pane-feature-note">
-                  {t(locale, 'workspace.orthography.sidePaneSelectedHint')}
-                </p>
-              </>
-            ) : (
-              <p className="app-side-pane-feature-note">
-                {t(locale, 'workspace.orthography.sidePaneEmpty')}
-              </p>
-            )}
-          </div>
-        </section>
-
-        <section
-          className="app-side-pane-group"
-          aria-label={t(locale, 'workspace.orthography.sidePaneQuickAccess')}
-        >
-          <div
-            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
-            role="presentation"
-          >
-            <span className="app-side-pane-section-title">
-              {t(locale, 'workspace.orthography.sidePaneQuickAccess')}
-            </span>
-          </div>
-          <div className="app-side-pane-nav app-side-pane-feature-nav">
-            <Link
-              to={buildTranscriptionWorkspaceReturnHref()}
-              className="side-pane-nav-link app-side-pane-feature-link"
-              onClick={(event) => {
-                if (!confirmDiscardDirtyDraft()) {
-                  event.preventDefault();
-                }
-              }}
-            >
-              {t(locale, 'app.featureAvailability.backToTranscription')}
-            </Link>
-            <Link
-              to={bridgeWorkspaceHref}
-              className="side-pane-nav-link app-side-pane-feature-link"
-              onClick={(event) => {
-                if (!confirmDiscardDirtyDraft()) {
-                  event.preventDefault();
-                }
-              }}
-            >
-              {t(locale, 'workspace.orthography.openBridgeWorkspace')}
-            </Link>
-          </div>
-        </section>
-      </div>
-    ),
-    [
-      bridgeWorkspaceHref,
-      confirmDiscardDirtyDraft,
-      locale,
-      selectedBadge?.label,
-      selectedOrthography,
-    ],
-  );
-
   useRegisterAppSidePane({
     title: t(locale, 'workspace.orthography.sidePaneTitle'),
     subtitle: selectedOrthography
       ? formatOrthographyOptionLabel(selectedOrthography, locale)
       : t(locale, 'workspace.orthography.sidePaneSubtitle'),
-    content: sidePaneContent,
+    content: (
+      <OrthographyManagerSidePane
+        locale={locale}
+        selectedOrthography={selectedOrthography}
+        bridgeWorkspaceHref={bridgeWorkspaceHref}
+        onBeforeOpenBridge={confirmDiscardDirtyDraft}
+      />
+    ),
     enabled: registerSidePane,
   });
 

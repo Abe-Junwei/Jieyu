@@ -108,6 +108,7 @@ export function TranscriptionLeftRailLayerActions({
         title={messages.quickActionCreateTranslation}
         aria-label={messages.quickActionCreateTranslation}
         disabled={disableCreateTranslationEntry}
+        data-disable-reason={disableCreateTranslationEntry ? 'no-transcription' : 'ok'}
         onClick={onCreateTranslation}
       >
         <MaterialSymbol name="translate" aria-hidden className={JIEYU_MATERIAL_LEFT_RAIL_CTX} />

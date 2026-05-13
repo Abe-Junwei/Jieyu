@@ -3,8 +3,6 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { MaterialSymbol } from '../components/ui/MaterialSymbol';
 import { JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
 import { useSearchParams } from 'react-router-dom';
-import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
-import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, tf, useLocale } from '../i18n';
@@ -14,16 +12,15 @@ import {
   buildPersistedCustomFieldValues,
   deleteLanguageCatalogEntry,
   listCustomFieldDefinitions,
-  listLanguageCatalogEntries,
   listLanguageCatalogHistory,
   lookupIso639_3Seed,
-  searchLanguageCatalogSuggestions,
   upsertLanguageCatalogEntry,
 } from '../app/languageAssetPageAccess';
 import { useInvalidateLanguageCatalogLabelMap } from '~/hooks/languageCatalog/useLanguageCatalogLabelMap';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspaceDetailColumn';
-import { WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';
+import { createLoadEntries } from './languageMetadataWorkspace.loadEntries';
+import { LanguageMetadataWorkspaceSidePane } from './LanguageMetadataWorkspaceSidePane';
 import {
   LANGUAGE_ID_PARAM,
   NEW_LANGUAGE_ID,
@@ -35,7 +32,6 @@ import {
   parseAliasText,
   parseLineSeparatedText,
   readDisplayNameMatrixFallback,
-  readEntryKindLabel,
   type HistoryItem,
   type LanguageDisplayNameDraftRow,
   type LanguageMetadataDraft,
@@ -92,66 +88,14 @@ export function LanguageMetadataWorkspacePage({
   selectedLanguageIdRef.current = selectedLanguageId;
   const searchParamsRef = useRef(searchParams);
   searchParamsRef.current = searchParams;
-  const loadEntries = async (nextSearchText: string) => {
-    setLoading(true);
-    try {
-      const normalizedSearchText = nextSearchText.trim();
-      let records: LanguageCatalogEntry[];
-
-      if (normalizedSearchText) {
-        // 两阶段搜索：先用分层排名获取匹配 ID，再取完整条目 | Two-stage search: ranked IDs first, then full entries
-        const suggestions = await searchLanguageCatalogSuggestions({
-          query: normalizedSearchText,
-          locale,
-          limit: WORKSPACE_LANGUAGE_SEARCH_LIMIT,
-          catalogScope: 'language',
-        });
-        const nextSuggestionMap = new Map<string, LanguageCatalogSearchSuggestion>();
-        suggestions.forEach((suggestion) => nextSuggestionMap.set(suggestion.id, suggestion));
-        setSearchSuggestionMap(nextSuggestionMap);
-
-        if (suggestions.length === 0) {
-          records = [];
-        } else {
-          const rankedIds = suggestions.map((suggestion) => suggestion.id);
-          const raw = await listLanguageCatalogEntries({
-            locale,
-            includeHidden: true,
-            languageIds: rankedIds,
-          });
-          // 按搜索排名排序 | Sort by search rank order
-          const idOrder = new Map(rankedIds.map((id, index) => [id, index]));
-          records = raw
-            .slice()
-            .sort((a, b) => (idOrder.get(a.id) ?? Infinity) - (idOrder.get(b.id) ?? Infinity));
-        }
-      } else {
-        setSearchSuggestionMap(new Map());
-        records =
-          browseLanguageIds.length > 0
-            ? await listLanguageCatalogEntries({
-                locale,
-                includeHidden: true,
-                languageIds: browseLanguageIds,
-              })
-            : [];
-      }
-
-      setEntries(records);
-      setError('');
-      return records;
-    } catch (loadError) {
-      setEntries([]);
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : t(locale, 'workspace.languageMetadata.errorFallback'),
-      );
-      return [] as LanguageCatalogEntry[];
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadEntries = createLoadEntries({
+    locale,
+    browseLanguageIds,
+    setLoading,
+    setError,
+    setEntries,
+    setSearchSuggestionMap,
+  });
 
   // 合并数据加载 + 自动选择为单一 effect，消除 entries→setSearchParams→entries 循环
   // Merge data loading + auto-select into one effect, eliminating entries→setSearchParams→entries cycle
@@ -546,78 +490,10 @@ export function LanguageMetadataWorkspacePage({
     }
   };
 
-  const sidePaneContent = useMemo(
-    () => (
-      <div className="app-side-pane-feature-stack">
-        <section
-          className="app-side-pane-group"
-          aria-label={t(locale, 'workspace.languageMetadata.sidePaneCurrent')}
-        >
-          <div
-            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
-            role="presentation"
-          >
-            <span className="app-side-pane-section-title">
-              {t(locale, 'workspace.languageMetadata.sidePaneCurrent')}
-            </span>
-          </div>
-          <div className="app-side-pane-nav app-side-pane-feature-nav">
-            {selectedEntry ? (
-              <>
-                <span className="app-side-pane-feature-badge">
-                  {readEntryKindLabel(locale, selectedEntry)}
-                </span>
-                <p className="app-side-pane-feature-summary">{selectedEntry.localName}</p>
-                <p className="app-side-pane-feature-note">{selectedEntry.englishName}</p>
-                <p className="app-side-pane-feature-note">{selectedEntry.languageCode}</p>
-              </>
-            ) : (
-              <p className="app-side-pane-feature-note">
-                {t(locale, 'workspace.languageMetadata.sidePaneEmpty')}
-              </p>
-            )}
-          </div>
-        </section>
-
-        <section
-          className="app-side-pane-group"
-          aria-label={t(locale, 'workspace.languageMetadata.sidePaneQuickAccess')}
-        >
-          <div
-            className="app-side-pane-group-toggle app-side-pane-group-toggle-static"
-            role="presentation"
-          >
-            <span className="app-side-pane-section-title">
-              {t(locale, 'workspace.languageMetadata.sidePaneQuickAccess')}
-            </span>
-          </div>
-          <div className="app-side-pane-nav app-side-pane-feature-nav">
-            <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">
-              {t(locale, 'workspace.languageMetadata.openOrthographyManager')}
-            </OrthographyPanelLink>
-            <LanguageAssetRouteLink
-              to="/assets/structural-profiles"
-              className="side-pane-nav-link app-side-pane-feature-link"
-            >
-              {t(locale, 'workspace.languageMetadata.openStructuralProfiles')}
-            </LanguageAssetRouteLink>
-            <LanguageAssetRouteLink
-              to="/assets/orthography-bridges"
-              className="side-pane-nav-link app-side-pane-feature-link"
-            >
-              {t(locale, 'workspace.languageMetadata.openBridgeWorkspace')}
-            </LanguageAssetRouteLink>
-          </div>
-        </section>
-      </div>
-    ),
-    [locale, selectedEntry],
-  );
-
   useRegisterAppSidePane({
     title: t(locale, 'workspace.languageMetadata.sidePaneTitle'),
     subtitle: selectedEntry?.localName ?? t(locale, 'workspace.languageMetadata.sidePaneSubtitle'),
-    content: sidePaneContent,
+    content: <LanguageMetadataWorkspaceSidePane locale={locale} selectedEntry={selectedEntry} />,
     enabled: registerSidePane,
   });
 
