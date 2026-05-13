@@ -54,7 +54,7 @@ function textFromUnknown(value: unknown): string {
 
 async function defaultParsePdfData(data: Uint8Array): Promise<PdfParsePage[]> {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const loadingTask = pdfjs.getDocument({ data, useWorkerFetch: false, isEvalSupported: false });
+  const loadingTask = pdfjs.getDocument({ data, useWorkerFetch: false });
   const document = await loadingTask.promise;
   const pages: PdfParsePage[] = [];
 
@@ -74,7 +74,9 @@ async function defaultParsePdfData(data: Uint8Array): Promise<PdfParsePage[]> {
   return pages;
 }
 
-async function loadPdfBinary(details: Record<string, unknown> | undefined): Promise<Uint8Array | null> {
+async function loadPdfBinary(
+  details: Record<string, unknown> | undefined,
+): Promise<Uint8Array | null> {
   if (!details) return null;
 
   const pdfBlob = details.pdfBlob;
@@ -94,7 +96,9 @@ async function loadPdfBinary(details: Record<string, unknown> | undefined): Prom
   return null;
 }
 
-export function extractPdfTextFragments(details: Record<string, unknown> | undefined): PdfTextFragment[] {
+export function extractPdfTextFragments(
+  details: Record<string, unknown> | undefined,
+): PdfTextFragment[] {
   if (!details) return [];
 
   const fragments: PdfTextFragment[] = [];
@@ -169,7 +173,10 @@ export function splitPdfFragmentsToChunks(
   overlapChars = 120,
 ): PdfChunk[] {
   const normalizedMaxChars = Math.max(160, Math.floor(maxChars));
-  const normalizedOverlap = Math.max(0, Math.min(Math.floor(overlapChars), Math.floor(normalizedMaxChars / 3)));
+  const normalizedOverlap = Math.max(
+    0,
+    Math.min(Math.floor(overlapChars), Math.floor(normalizedMaxChars / 3)),
+  );
   const chunks: PdfChunk[] = [];
 
   for (const fragment of fragments) {
@@ -205,14 +212,19 @@ export function splitPdfFragmentsToChunks(
   return chunks;
 }
 
-export function buildPdfEmbeddingSourceId(mediaId: string, page: number | null, chunk: number): string {
-  const suffix = page
-    ? `#page=${page}&chunk=${chunk}`
-    : `#chunk=${chunk}`;
+export function buildPdfEmbeddingSourceId(
+  mediaId: string,
+  page: number | null,
+  chunk: number,
+): string {
+  const suffix = page ? `#page=${page}&chunk=${chunk}` : `#chunk=${chunk}`;
   return `${mediaId}${suffix}`;
 }
 
-export function extractPdfSnippet(details: Record<string, unknown> | undefined, maxChars = 320): string {
+export function extractPdfSnippet(
+  details: Record<string, unknown> | undefined,
+  maxChars = 320,
+): string {
   const fragments = extractPdfTextFragments(details);
   const first = fragments.find((item) => item.text.trim().length > 0)?.text ?? '';
   return normalizeText(first).slice(0, Math.max(80, maxChars));
