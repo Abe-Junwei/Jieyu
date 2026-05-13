@@ -76,7 +76,9 @@ export function SidePaneSidebar({
   focusedLayerRowId,
   flashLayerRowId,
   onFocusLayer,
-  transcriptionLayers,
+  // transcriptionLayers prop kept on the public interface; current body derives
+  // the same set from sidePaneRows.filter(...) (debugging disableCreateTranslationEntry).
+  transcriptionLayers: _transcriptionLayers,
   layerLinks,
   toggleLayerLink: _toggleLayerLink,
   deletableLayers,
@@ -227,7 +229,14 @@ export function SidePaneSidebar({
     layerLinks: layerLinks ?? [],
     onReorderLayers,
   });
-  const disableCreateTranslationEntry = transcriptionLayers.length === 0;
+  const disableCreateTranslationEntry =
+    sidePaneRows.filter((layer) => layer.layerType === 'transcription').length === 0;
+  // eslint-disable-next-line no-console
+  console.log('[SidePaneSidebar] render', {
+    sidePaneRowsCount: sidePaneRows.length,
+    transcriptionCount: sidePaneRows.filter((l) => l.layerType === 'transcription').length,
+    disableCreateTranslationEntry,
+  });
   const layerLabelById = useMemo(
     () =>
       new Map(sidePaneRows.map((layer) => [layer.id, formatSidePaneLayerLabel(layer)] as const)),
@@ -464,13 +473,15 @@ export function SidePaneSidebar({
       deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}
     >
       {showLeftRailLayerActions ? (
-        <TranscriptionLeftRailLayerActions
-          messages={messages}
-          disableCreateTranslationEntry={disableCreateTranslationEntry}
-          onCreateTranscription={() => openCreateLayerPopover('create-transcription')}
-          onCreateTranslation={() => openCreateLayerPopover('create-translation')}
-          {...(workspaceTimelineLayout !== undefined ? { workspaceTimelineLayout } : {})}
-        />
+        <div data-debug-disable={String(disableCreateTranslationEntry)}>
+          <TranscriptionLeftRailLayerActions
+            messages={messages}
+            disableCreateTranslationEntry={disableCreateTranslationEntry}
+            onCreateTranscription={() => openCreateLayerPopover('create-transcription')}
+            onCreateTranslation={() => openCreateLayerPopover('create-translation')}
+            {...(workspaceTimelineLayout !== undefined ? { workspaceTimelineLayout } : {})}
+          />
+        </div>
       ) : null}
       {sidePaneHost ? null : sidePaneInlineFallbackNode}
       {collaborationCloudModalNode}
