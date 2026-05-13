@@ -13,7 +13,7 @@
 // Implementation uses Node-only scanning (no `rg` binary) so CI runners
 // without ripgrep still enforce the rule.
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const ROOT = process.cwd();
