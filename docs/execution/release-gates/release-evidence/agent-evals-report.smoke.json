@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-13T01:27:57.009Z",
+  "generatedAt": "2026-05-13T01:32:38.716Z",
   "mode": "enforce",
   "suite": {
     "suiteId": "jieyu-agent-evals-v1",
@@ -22,8 +22,8 @@
     "missingTrajectorySignals": [],
     "auditTracePassed": true,
     "thresholdPassed": true,
-    "startedAt": "2026-05-13T01:27:42.813Z",
-    "endedAt": "2026-05-13T01:27:57.009Z"
+    "startedAt": "2026-05-13T01:32:24.304Z",
+    "endedAt": "2026-05-13T01:32:38.716Z"
   },
   "cases": [
     {
@@ -35,9 +35,9 @@
       "command": "npm run typecheck",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-13T01:27:42.814Z",
-      "endedAt": "2026-05-13T01:27:56.463Z",
-      "elapsedMs": 13649,
+      "startedAt": "2026-05-13T01:32:24.305Z",
+      "endedAt": "2026-05-13T01:32:38.140Z",
+      "elapsedMs": 13835,
       "stdout": "\n> jieyu@1.1.0 typecheck\n> tsc --noEmit\n\n",
       "stderr": ""
     },
@@ -50,9 +50,9 @@
       "command": "npm run check:architecture-guard:core",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-13T01:27:56.464Z",
-      "endedAt": "2026-05-13T01:27:56.945Z",
-      "elapsedMs": 481,
+      "startedAt": "2026-05-13T01:32:38.140Z",
+      "endedAt": "2026-05-13T01:32:38.653Z",
+      "elapsedMs": 513,
       "stdout": "\n> jieyu@1.1.0 check:architecture-guard:core\n> node scripts/check-architecture-guard.mjs\n\n[check-architecture-guard] OK: guarded files stayed within architecture ceilings.\n",
       "stderr": ""
     },
@@ -65,9 +65,9 @@
       "command": "node scripts/check-ai-messages-isolation.mjs",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-13T01:27:56.945Z",
-      "endedAt": "2026-05-13T01:27:57.009Z",
-      "elapsedMs": 64,
+      "startedAt": "2026-05-13T01:32:38.653Z",
+      "endedAt": "2026-05-13T01:32:38.716Z",
+      "elapsedMs": 63,
       "stdout": "[check-ai-messages-isolation] OK: src/ai/messages/ keeps formatter copy isolated from UI i18n.\n",
       "stderr": ""
     }

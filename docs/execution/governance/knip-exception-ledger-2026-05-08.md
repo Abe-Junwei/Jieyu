@@ -3,7 +3,7 @@ title: Knip 例外清单（2026-05-08）
 doc_type: execution-governance-ledger
 status: active
 owner: repo
-last_reviewed: 2026-05-08
+last_reviewed: 2026-05-13
 source_of_truth: knip-exceptions
 ---
 
@@ -13,7 +13,7 @@ source_of_truth: knip-exceptions
 
 > **当前状态**：
 >
-> - **CI 门禁（窄）**：`npm run check:knip:ci` 通过。等价于 `knip --no-progress --exclude exports,types,classMembers,nsExports,nsTypes,enumMembers,duplicates`，仅强约束 unused **files / dependencies / binaries / unlisted**，作为不可降级的合并门槛。
+> - **CI 门禁（窄）**：`npm run check:knip:ci` 通过。等价于 `knip --no-progress --exclude exports,types,nsExports,nsTypes,enumMembers,duplicates`（Knip 6 起移除已废弃的 `classMembers` issue 类型），仅强约束 unused **files / dependencies / binaries / unlisted**，作为不可降级的合并门槛。
 > - **本地全量（宽）**：`npm run check:knip:full` 仍会报告 `unused exports / types / duplicates` 等条目，作为长期收敛清单使用，不阻塞 PR；新增导出请优先就地消费或在本 ledger 第 2 节登记 `ignoreIssues`。
 > - 完整快照：`docs/execution/audits/knip-baseline-2026-05-11.txt`。
 
