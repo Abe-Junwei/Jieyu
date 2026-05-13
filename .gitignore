@@ -17,6 +17,9 @@ coverage/
 .cache/
 *.tsbuildinfo
 
+# Playwright run artifacts (screenshots / videos / traces from test:e2e*)
+test-results/
+
 # IDE and OS
 .idea/
 .cursor/
