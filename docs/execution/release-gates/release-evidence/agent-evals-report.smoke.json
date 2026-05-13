@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-13T00:24:59.109Z",
+  "mode": "enforce",
+  "suite": {
+    "suiteId": "jieyu-agent-evals-v1",
+    "version": 1,
+    "description": "Golden-path agent governance regression suite. Cases tagged `tier: smoke` are the L1 pre-merge subset (≤ ~90s) covering the 3 typical AI mistake categories: 错读路径 / 业务逻辑落到编排层 / UI 文案落到 src/ai/messages/. All other cases default to `tier: full` and run via `check:agent-evals` / `:trace`.",
+    "suitePath": "scripts/agent-evals/suite.v1.json"
+  },
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "passRate": 1,
+    "requiredPassRate": 1,
+    "maxFailedCases": 0,
+    "coveredGoldenTasks": 0,
+    "requiredGoldenTasksMin": 0,
+    "coveredTrajectorySignals": [],
+    "requiredTrajectorySignals": [],
+    "missingTrajectorySignals": [],
+    "auditTracePassed": true,
+    "thresholdPassed": true,
+    "startedAt": "2026-05-13T00:24:45.003Z",
+    "endedAt": "2026-05-13T00:24:59.109Z"
+  },
+  "cases": [
+    {
+      "id": "typecheck",
+      "name": "TypeScript typecheck (smoke: catches 错读路径 via broken imports)",
+      "category": "build",
+      "goldenTaskCount": 0,
+      "trajectorySignals": [],
+      "command": "npm run typecheck",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-05-13T00:24:45.004Z",
+      "endedAt": "2026-05-13T00:24:58.457Z",
+      "elapsedMs": 13453,
+      "stdout": "\n> jieyu@1.1.0 typecheck\n> tsc --noEmit\n\n",
+      "stderr": ""
+    },
+    {
+      "id": "architecture-guard-core",
+      "name": "architecture-guard core (smoke: catches 业务逻辑落到编排层)",
+      "category": "structure",
+      "goldenTaskCount": 0,
+      "trajectorySignals": [],
+      "command": "npm run check:architecture-guard:core",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-05-13T00:24:58.457Z",
+      "endedAt": "2026-05-13T00:24:59.027Z",
+      "elapsedMs": 570,
+      "stdout": "\n> jieyu@1.1.0 check:architecture-guard:core\n> node scripts/check-architecture-guard.mjs\n\n[check-architecture-guard] OK: guarded files stayed within architecture ceilings.\n",
+      "stderr": ""
+    },
+    {
+      "id": "ai-messages-isolation",
+      "name": "src/ai/messages 与 i18n dictKeys 分层 (smoke: UI 文案 vs formatter 文案分层)",
+      "category": "policy",
+      "goldenTaskCount": 0,
+      "trajectorySignals": [],
+      "command": "node scripts/check-ai-messages-isolation.mjs",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-05-13T00:24:59.027Z",
+      "endedAt": "2026-05-13T00:24:59.109Z",
+      "elapsedMs": 82,
+      "stdout": "[check-ai-messages-isolation] OK: src/ai/messages/ keeps formatter copy isolated from UI i18n.\n",
+      "stderr": ""
+    }
+  ]
+}

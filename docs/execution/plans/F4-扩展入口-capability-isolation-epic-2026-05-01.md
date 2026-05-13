@@ -1,4 +1,11 @@
 ---
+title: F4-扩展入口-capability-isolation-epic-2026-05-01
+doc_type: execution-plan
+status: active
+owner: repo
+last_reviewed: 2026-05-12
+---
+---
 
 ## title: F4 扩展入口 Capability Isolation 史诗（2026-05-01）
 doc_type: execution-plan

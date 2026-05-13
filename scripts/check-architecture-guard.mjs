@@ -168,6 +168,17 @@ for (const rule of architectureGuardRules) {
         }
       }
     }
+    if (typeof rule.floorTrendDays === 'number' && typeof rule.floorSetAt === 'string') {
+      const setAt = new Date(`${rule.floorSetAt}T00:00:00Z`);
+      if (!Number.isNaN(setAt.getTime())) {
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+        const ageDays = Math.floor((today.getTime() - setAt.getTime()) / (1000 * 60 * 60 * 24));
+        if (ageDays >= rule.floorTrendDays) {
+          warnings.push(`${target}: ratchet floor unchanged for ${ageDays}d (>= ${rule.floorTrendDays}d trend window since floorSetAt=${rule.floorSetAt}); consider slimming.`);
+        }
+      }
+    }
   }
 }
 

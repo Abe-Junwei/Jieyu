@@ -4,6 +4,7 @@ doc_type: execution-plan
 status: completed
 owner: repo
 last_reviewed: 2026-05-09
+closed_at: 2026-05-09
 source_of_truth: exhaustive-deps-closure-2026-05-08
 depends_on:
   - ../../architecture/code-governance-plan-2026-05-06.md

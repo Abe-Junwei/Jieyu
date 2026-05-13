@@ -1,3 +1,10 @@
+---
+title: ready-workspace-body-彻底拆分一次性计划-2026-05-09
+doc_type: execution-plan
+status: active
+owner: repo
+last_reviewed: 2026-05-12
+---
 # ReadyWorkspace.body 彻底拆分 — 一次性收口计划（2026-05-09）
 
 ## 0. 目标与边界

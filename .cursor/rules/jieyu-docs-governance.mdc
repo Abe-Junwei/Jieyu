@@ -11,7 +11,8 @@ Follow this repository structure when creating or updating files:
 - Put executable checks and automation scripts under `scripts/`.
 - Use `docs/architecture/` for long-lived current-state facts.
 - Use `docs/adr/` for durable architecture decisions; add a new ADR when superseding.
-- Use `docs/execution/plans/` for active execution plans; put closed milestone **执行记录**与合并总览 into `docs/execution/archive/milestone-records/`.
+- Use `docs/execution/plans/` for active execution plans; put closed milestone **执行记录**与合并总览 into `docs/execution/archive/milestone-records/`; new closed plans go to `docs/execution/archive/plans-closed/` (frontmatter `status` is SSoT — see `scripts/check-plans-frontmatter.mjs`).
+- Use `docs/execution/specs/<feature-slug>/` for per-feature Spec-Driven Development 三件套 (`requirements.md` / `design.md` / `tasks.md`); template at `docs/execution/specs/_template/`. Triggered for medium+ complexity per `copilot-instructions.md` §5.2.1.
 - Use `docs/execution/audits/` for human-authored audits/baselines/reports.
 - Use `docs/execution/archive/audits-auto/` for **auto-generated** audit markdown (currently `M2-主路径行为对比报告-自动生成.md` from `scripts/generate-m2-behavior-report.mjs`).
 - Use `docs/execution/release-gates/` for go/no-go checklists, runbooks, and human-authored gate artifacts.

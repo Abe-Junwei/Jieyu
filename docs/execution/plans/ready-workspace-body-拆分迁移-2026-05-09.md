@@ -1,3 +1,10 @@
+---
+title: ready-workspace-body-拆分迁移-2026-05-09
+doc_type: execution-plan
+status: active
+owner: repo
+last_reviewed: 2026-05-12
+---
 # ReadyWorkspace.body 拆分迁移总览（2026-05-09）
 
 ## 关联：一次性收口总图

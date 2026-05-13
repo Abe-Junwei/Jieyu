@@ -15,7 +15,7 @@ agent: agent
 - 确认可访问 URL 后，打开目标页面（若参数提供路由则拼接路由，否则先到首页并导航到语言资产区域）。
 
 2. 执行三面板对比
-- 严格遵循技能说明：[pen-language-assets-compare](../../.claude/skills/pen-language-assets-compare/SKILL.md)。
+- 严格遵循 runbook：[面板-极简 pen vs runtime 对比 runbook](../../docs/architecture/面板-极简-pen-vs-runtime-compare.md)。
 - 对比对象固定为：`面板—极简.pen` 中“语言资产-section”的三个面板。
 - 对齐强度要求：视觉像素级严格对齐（包括 spacing、字号、颜色、边框细节）。
 

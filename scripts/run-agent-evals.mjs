@@ -180,19 +180,40 @@ function main() {
     process.exit(1);
   }
   const suitePath = resolvePathWithinRepo(readArg('--suite'), 'scripts/agent-evals/suite.v1.json');
+  const tierFilterArg = readArg('--tier');
+  const defaultReportRel = tierFilterArg && tierFilterArg !== 'full'
+    ? `docs/execution/release-gates/release-evidence/agent-evals-report.${tierFilterArg}.json`
+    : 'docs/execution/release-gates/release-evidence/agent-evals-report.json';
   const reportPath = resolvePathWithinRepo(
     readArg('--report'),
-    'docs/execution/release-gates/release-evidence/agent-evals-report.json',
+    defaultReportRel,
   );
   const auditTracePathArg = readArg('--assert-audit-trace');
   const auditTracePath = auditTracePathArg
     ? resolvePathWithinRepo(auditTracePathArg, auditTracePathArg)
     : null;
   const suite = JSON.parse(readFileSync(suitePath, 'utf8'));
-  const cases = Array.isArray(suite.cases) ? suite.cases : [];
-  if (cases.length === 0) {
+  const allCases = Array.isArray(suite.cases) ? suite.cases : [];
+  if (allCases.length === 0) {
     process.stderr.write(`agent eval suite has no cases: ${path.relative(repoRoot, suitePath)}\n`);
     process.exit(1);
+  }
+
+  const tierFilter = tierFilterArg;
+  const caseTiers = (item) => {
+    if (Array.isArray(item.tiers) && item.tiers.length > 0) return item.tiers;
+    if (typeof item.tier === 'string') return [item.tier];
+    return ['full'];
+  };
+  const cases = tierFilter
+    ? allCases.filter((item) => caseTiers(item).includes(tierFilter))
+    : allCases;
+  if (cases.length === 0) {
+    process.stderr.write(`no cases match --tier=${tierFilter} in suite ${path.relative(repoRoot, suitePath)}\n`);
+    process.exit(1);
+  }
+  if (tierFilter) {
+    process.stdout.write(`[agent-evals] tier filter active: --tier=${tierFilter} (${cases.length}/${allCases.length} cases selected)\n`);
   }
 
   const startedAt = nowIso();
@@ -212,13 +233,16 @@ function main() {
   const failed = caseResults.filter((item) => item.status === 'failed').length;
   const passed = total - failed;
   const passRate = total > 0 ? Number((passed / total).toFixed(4)) : 0;
-  const requiredPassRate = Number(suite?.thresholds?.requiredPassRate ?? 1);
-  const maxFailedCases = Number(suite?.thresholds?.maxFailedCases ?? 0);
+  // Per-tier thresholds override the top-level ones when --tier is active.
+  const tierThresholds = tierFilter ? suite?.tierThresholds?.[tierFilter] : null;
+  const effectiveThresholds = tierThresholds ?? suite?.thresholds ?? {};
+  const requiredPassRate = Number(effectiveThresholds.requiredPassRate ?? 1);
+  const maxFailedCases = Number(effectiveThresholds.maxFailedCases ?? 0);
   const coveredGoldenTasks = caseResults.reduce((sum, item) => sum + (Number.isFinite(Number(item.goldenTaskCount)) ? Number(item.goldenTaskCount) : 0), 0);
-  const requiredGoldenTasksMin = Number(suite?.thresholds?.requiredGoldenTasksMin ?? 0);
+  const requiredGoldenTasksMin = Number(effectiveThresholds.requiredGoldenTasksMin ?? 0);
   const coveredTrajectorySignals = [...new Set(caseResults.flatMap((item) => Array.isArray(item.trajectorySignals) ? item.trajectorySignals : []))];
-  const requiredTrajectorySignals = Array.isArray(suite?.thresholds?.requiredTrajectorySignals)
-    ? [...new Set(suite.thresholds.requiredTrajectorySignals.filter((signal) => typeof signal === 'string' && signal.trim().length > 0).map((signal) => signal.trim()))]
+  const requiredTrajectorySignals = Array.isArray(effectiveThresholds.requiredTrajectorySignals)
+    ? [...new Set(effectiveThresholds.requiredTrajectorySignals.filter((signal) => typeof signal === 'string' && signal.trim().length > 0).map((signal) => signal.trim()))]
     : [];
   const missingTrajectorySignals = requiredTrajectorySignals.filter((signal) => !coveredTrajectorySignals.includes(signal));
   const auditTrace = auditTracePath ? evaluateAuditTrace(auditTracePath) : {

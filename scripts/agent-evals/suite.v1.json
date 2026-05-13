@@ -1,7 +1,7 @@
 {
   "suiteId": "jieyu-agent-evals-v1",
   "version": 1,
-  "description": "Golden-path agent governance regression suite.",
+  "description": "Golden-path agent governance regression suite. Cases tagged `tier: smoke` are the L1 pre-merge subset (≤ ~90s) covering the 3 typical AI mistake categories: 错读路径 / 业务逻辑落到编排层 / UI 文案落到 src/ai/messages/. All other cases default to `tier: full` and run via `check:agent-evals` / `:trace`.",
   "thresholds": {
     "requiredPassRate": 0.9,
     "maxFailedCases": 0,
@@ -14,12 +14,39 @@
       "approval_explainability"
     ]
   },
+  "tierThresholds": {
+    "smoke": {
+      "requiredPassRate": 1.0,
+      "maxFailedCases": 0,
+      "requiredGoldenTasksMin": 0,
+      "requiredTrajectorySignals": []
+    }
+  },
   "cases": [
     {
       "id": "typecheck",
-      "name": "TypeScript typecheck",
+      "name": "TypeScript typecheck (smoke: catches 错读路径 via broken imports)",
       "command": "npm run typecheck",
       "category": "build",
+      "tiers": ["smoke", "full"],
+      "goldenTaskCount": 0,
+      "trajectorySignals": []
+    },
+    {
+      "id": "architecture-guard-core",
+      "name": "architecture-guard core (smoke: catches 业务逻辑落到编排层)",
+      "command": "npm run check:architecture-guard:core",
+      "category": "structure",
+      "tiers": ["smoke", "full"],
+      "goldenTaskCount": 0,
+      "trajectorySignals": []
+    },
+    {
+      "id": "ai-messages-isolation",
+      "name": "src/ai/messages 与 i18n dictKeys 分层 (smoke: UI 文案 vs formatter 文案分层)",
+      "command": "node scripts/check-ai-messages-isolation.mjs",
+      "category": "policy",
+      "tiers": ["smoke", "full"],
       "goldenTaskCount": 0,
       "trajectorySignals": []
     },
