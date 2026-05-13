@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-11T22:13:01.614Z",
+  "generatedAt": "2026-05-13T01:04:02.727Z",
   "ai_task_snapshots": [
     {
       "id": "task-release-agent-loop-done",
@@ -15,12 +15,12 @@
       "durationMs": 1,
       "attempt": 0,
       "maxAttempts": 1,
-      "lastHeartbeatAt": "2026-05-11T22:13:01.609Z",
+      "lastHeartbeatAt": "2026-05-13T01:04:02.720Z",
       "hasCheckpoint": true,
       "resumable": false,
       "handoffReason": "token_budget_warning",
-      "createdAt": "2026-05-11T22:13:01.609Z",
-      "updatedAt": "2026-05-11T22:13:01.610Z"
+      "createdAt": "2026-05-13T01:04:02.720Z",
+      "updatedAt": "2026-05-13T01:04:02.721Z"
     },
     {
       "id": "task-release-agent-loop-resumable",
@@ -35,12 +35,12 @@
       "durationMs": 0,
       "attempt": 0,
       "maxAttempts": 1,
-      "lastHeartbeatAt": "2026-05-11T22:13:01.608Z",
+      "lastHeartbeatAt": "2026-05-13T01:04:02.718Z",
       "hasCheckpoint": true,
       "resumable": true,
       "handoffReason": "token_budget_warning",
-      "createdAt": "2026-05-11T22:13:01.608Z",
-      "updatedAt": "2026-05-11T22:13:01.608Z"
+      "createdAt": "2026-05-13T01:04:02.718Z",
+      "updatedAt": "2026-05-13T01:04:02.718Z"
     },
     {
       "id": "task-release-embed-failed",

@@ -71,7 +71,7 @@ depends_on:
 | 8 | 跨工具子 agent 决策表 | 已含于 `AI_QUICKSTART.md` §3（Cursor `Task` subagent_type / Kimi YAML subagent / Copilot 直接工具） |
 | 9 | Hotspot ratchet trend | `rule-builders.mjs` 文档化 `floorTrendDays` + `floorSetAt` opt-in 字段；`check-architecture-guard.mjs` 加 trend WARN 逻辑 |
 | 10 | Script L0/L1/L2 分层 | `package.json` 顶部加 tier reference 注释；M2–M14 区段加 `// === Legacy Milestone Gates ===` 分组注释（**不重命名**，避免破 CI 9 处引用） |
-| 11 | Feature flag 极简框架 | `src/featureFlags.ts`（boolean / string enum；localStorage > `import.meta.env` > defaults）；`copilot-instructions.md` §5.5 工作流约束 |
+| 11 | Feature flag 极简框架 | **复用既存 `src/ai/config/featureFlags.ts`**（AI 与非 AI 共用注册表，已含 env override + defaults + 真实消费方）；工作流约束（默认 `false` → 自用 1 周 → flip `true` → 1 release 后清理 flag）写入 `copilot-instructions.md` §5.5。**不另起根级 `src/featureFlags.ts`**（违反 Mature solution first）。 |
 
 ## 四、新 npm scripts 汇总
 
