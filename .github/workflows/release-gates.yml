@@ -1,0 +1,397 @@
+name: Release Gates
+
+# Heavy release-only gates. Triggered on:
+# - push to release tags (v*)
+# - manual dispatch
+#
+# Rationale: these gates verify multi-user collaboration features, milestone-era
+# contracts (M2–M14), full release evidence, and infrastructure that has no
+# active user in solo + AI long-term development today. Running them every PR
+# created CI/policy contradictions vs.
+# docs/execution/plans/单人AI协作改进计划-拍板决策-2026-05-11.md §四.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      run_release_evidence_full:
+        description: 'Run full release evidence gate (can be long-running)'
+        required: false
+        default: false
+        type: boolean
+      require_cost_guard_trend_ready:
+        description: 'Enable strict release-evidence compareReady gate for costGuard.trend'
+        required: false
+        default: false
+        type: boolean
+      require_action_approval_strict:
+        description: 'Enable strict release-evidence action approval gate'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-gates-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ONNXRUNTIME_NODE_INSTALL: skip
+  npm_config_onnxruntime_node_install: skip
+
+jobs:
+  iso6393-country-baselines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: Verify committed ISO 639-3 country baselines artifact
+        run: npm run verify:iso6393-country-baselines
+
+  build-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: Build guard
+        run: npm run build:guard
+
+  otel-contract-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: OTel contract smoke
+        run: npm run test:otel-contract
+
+  timeline-phase1-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: Timeline phase1 gate
+        run: npm run gate:timeline-phase1
+
+  timeline-cqrs-full-migration-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: Timeline CQRS full migration gate
+        run: npm run gate:timeline-cqrs-full-migration
+
+  m2-mainpath-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: M2 mainpath gate
+        run: npm run gate:m2
+
+  m5-observability-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: M5 observability gate
+        run: npm run gate:m5-observability
+
+  m6-release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: M6 release gate (enforce)
+        run: npm run gate:m6-release
+
+  m7-extension-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: M7 extension gate (enforce)
+        run: npm run gate:m7-extension
+
+  m8-collaboration-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: M8 collaboration gate (enforce)
+        run: npm run gate:m8-collaboration
+
+  m9-collaboration-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: M9 collaboration gate (enforce)
+        run: npm run gate:m9-collaboration
+
+  m10-collaboration-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: M10 collaboration gate (enforce)
+        run: npm run gate:m10-collaboration
+
+  m11-cross-device-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: M11 cross-device gate (enforce)
+        run: npm run gate:m11-cross-device
+
+  m12-multi-replica-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: M12 multi-replica gate (enforce)
+        run: npm run gate:m12-multi-replica
+
+  m13-transaction-sync-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: M13 transaction sync gate (enforce)
+        run: npm run gate:m13-transaction-sync
+
+  greenfield-local-gate:
+    name: Greenfield local gate (no Supabase)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: Greenfield local gate
+        run: npm run gate:greenfield-local
+
+  collaboration-cloud-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Collaboration cloud gate (enforce)
+        run: npm run gate:collaboration-cloud
+
+  release-evidence-core-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+
+      - name: Export release evidence AI audit input
+        env:
+          RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
+          RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+        run: npm run export:release-evidence:ai-audit
+
+      - name: Export release evidence extension capability audit input
+        env:
+          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
+        run: npm run export:release-evidence:extension-audit
+
+      - name: Export release evidence AI task snapshots input
+        env:
+          RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
+        run: npm run export:release-evidence:ai-task-snapshots
+
+      - name: Release evidence core gate (enforce)
+        env:
+          RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
+          RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+          RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
+          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
+          RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
+        run: npm run gate:release-evidence:core
+
+      - name: Release evidence governance gate (core)
+        env:
+          REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
+          REQUIRE_ACTION_APPROVAL_STRICT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_action_approval_strict == 'true' }}
+        run: |
+          if [ "${REQUIRE_COST_GUARD_TREND_READY}" = "true" ] || [ "${REQUIRE_ACTION_APPROVAL_STRICT}" = "true" ]; then
+            npm run gate:release-evidence:governance:strict
+          else
+            npm run gate:release-evidence:governance
+          fi
+
+      - name: Upload release evidence artifacts (core)
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-evidence-core-${{ github.run_id }}
+          path: |
+            docs/execution/audits/ai-task-snapshots-export-v1.json
+            docs/execution/release-gates/release-evidence/release-evidence-*.json
+            docs/execution/release-gates/release-evidence/logs/**/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  release-evidence-full-gate:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_release_evidence_full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+
+      - name: Export release evidence AI audit input
+        env:
+          RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
+          RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+        run: npm run export:release-evidence:ai-audit
+
+      - name: Export release evidence extension capability audit input
+        env:
+          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
+        run: npm run export:release-evidence:extension-audit
+
+      - name: Export release evidence AI task snapshots input
+        env:
+          RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
+        run: npm run export:release-evidence:ai-task-snapshots
+
+      - name: Release evidence full gate (enforce)
+        env:
+          RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
+          RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+          RELEASE_EVIDENCE_AI_TASK_SNAPSHOTS: docs/execution/audits/ai-task-snapshots-export-v1.json
+          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
+          RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
+        run: npm run gate:release-evidence:full
+
+      - name: Upload release evidence artifacts (full)
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-evidence-full-${{ github.run_id }}
+          path: |
+            docs/execution/audits/ai-task-snapshots-export-v1.json
+            docs/execution/release-gates/release-evidence/release-evidence-*.json
+            docs/execution/release-gates/release-evidence/logs/**/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  agent-evals-full-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: Agent evals full + audit trace (release-only)
+        run: npm run check:agent-evals:trace
+      - name: Upload agent eval report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: agent-evals-report-${{ github.run_id }}
+          path: docs/execution/release-gates/release-evidence/agent-evals-report.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,29 @@
+name: Security Audit Weekly
+
+# Weekly dependency security audit (advisory only). Previously embedded in
+# the per-PR `quality` job as `continue-on-error: true`, which made it pure
+# log noise. Split out so the signal is checked deliberately rather than
+# silently swallowed.
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: security-audit-weekly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  npm-audit-prod:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: Production dependency audit
+        run: npm run audit:prod

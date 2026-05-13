@@ -1,0 +1,55 @@
+name: E2E (Chromium, PR)
+
+# Chromium-only E2E for PRs that touch interaction / assembly / side-pane
+# code paths. Per docs/execution/plans/单人AI协作改进计划-拍板决策-2026-05-11.md
+# decision 2A: "E2E 仅在改动交互/装配/侧栏等相关路径时跑 npm run test:e2e:chromium".
+# Firefox + WebKit run nightly in .github/workflows/nightly.yml.
+
+on:
+  pull_request:
+    paths:
+      - 'src/components/**'
+      - 'src/pages/**'
+      - 'src/hooks/**'
+      - 'src/app/**'
+      - 'src/styles/**'
+      - 'tests/e2e/**'
+      - 'playwright*.config.ts'
+      - 'public/**'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-pr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ONNXRUNTIME_NODE_INSTALL: skip
+  npm_config_onnxruntime_node_install: skip
+
+jobs:
+  e2e-chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+      - run: npm ci
+      - name: Install Playwright (Chromium only)
+        run: npx playwright install --with-deps chromium
+      - name: Build
+        run: npm run build
+      - name: Run E2E (Chromium)
+        run: npm run test:e2e:chromium
+      - name: E2E F4 session-sidecar audit (readonly bundle, Chromium)
+        run: npm run test:e2e:session-sidecar-audit

@@ -1,0 +1,87 @@
+name: Nightly Regression
+
+# Heavy regression suites that were previously running per-PR but produce
+# diminishing returns when re-run on every commit. Triggered on:
+# - schedule: daily at 02:00 UTC
+# - manual dispatch
+#
+# Covered:
+# - TranscriptionTimelineVerticalView suite-a/b/c/d shards (4× 45min)
+# - Content view-model post-shard test
+# - E2E on Firefox + WebKit (Chromium remains per-PR in ci.yml)
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ONNXRUNTIME_NODE_INSTALL: skip
+  npm_config_onnxruntime_node_install: skip
+
+jobs:
+  vertical-view-vitest-shard:
+    name: Vertical view Vitest (suite-${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [a, b, c, d]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: Vitest shard (TranscriptionTimelineVerticalView.suite-${{ matrix.suite }})
+        env:
+          NODE_OPTIONS: ${{ matrix.suite == 'c' && '--max-old-space-size=12288' || '--max-old-space-size=8192' }}
+        run: npx vitest run "src/components/TranscriptionTimelineVerticalView.suite-${{ matrix.suite }}.test.tsx" --maxWorkers=1 ${{ matrix.suite == 'c' && '--pool=forks' || '' }}
+
+  vertical-view-content-vm-after-shards:
+    name: Vertical view content VM (after suite shards)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: vertical-view-vitest-shard
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - name: Content view model tests
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: npm run test:vertical-view:content-vm-only
+
+  e2e-firefox-webkit:
+    name: E2E (Firefox + WebKit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+      - run: npm ci
+      - name: Install Playwright browsers (FF + WebKit)
+        run: npx playwright install --with-deps firefox webkit
+      - name: Build
+        run: npm run build
+      - name: Run E2E on Firefox
+        run: npx playwright test --project=firefox
+      - name: Run E2E on WebKit
+        run: npx playwright test --project=webkit
