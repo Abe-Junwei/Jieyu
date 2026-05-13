@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../db';
 import {
+  buildTranscriptionLaneReadScopeResolutionCache,
   resolveCanonicalUnitForTranscriptionLaneRow,
   resolvePrimaryUnscopedTranscriptionHostId,
   transcriptionLaneAcceptsUnscopedCanonicalUnits,
@@ -237,5 +238,83 @@ describe('resolveCanonicalUnitForTranscriptionLaneRow', () => {
       primaryUnscopedHostId: 'tr-a',
     });
     expect(r.include).toBe(false);
+  });
+});
+
+describe('readScopeCache parity', () => {
+  function assertParity(input: {
+    unit: LayerUnitDocType;
+    laneLayer: LayerDocType;
+    layerById: Map<string, LayerDocType>;
+    transcriptionLaneIds: Set<string>;
+    primaryUnscopedHostId: string;
+    layerLinks?: ReadonlyArray<{
+      layerId: string;
+      transcriptionLayerKey: string;
+      hostTranscriptionLayerId: string;
+      isPreferred: boolean;
+    }>;
+  }) {
+    const { unit, laneLayer, layerById, transcriptionLaneIds, primaryUnscopedHostId, layerLinks } =
+      input;
+    const base = {
+      unit,
+      laneLayer,
+      layerById,
+      transcriptionLaneIds,
+      primaryUnscopedHostId,
+      ...(layerLinks && layerLinks.length > 0 ? { layerLinks } : {}),
+    };
+    const without = resolveCanonicalUnitForTranscriptionLaneRow(base);
+    const readScopeCache = buildTranscriptionLaneReadScopeResolutionCache({
+      transcriptionLanes: [...transcriptionLaneIds].map((id) => layerById.get(id)!).filter(Boolean),
+      layerById,
+      transcriptionLaneIds,
+      primaryUnscopedHostId,
+      ...(layerLinks && layerLinks.length > 0 ? { layerLinks } : {}),
+    });
+    const withCache = resolveCanonicalUnitForTranscriptionLaneRow({ ...base, readScopeCache });
+    expect(withCache).toEqual(without);
+  }
+
+  it('matches uncached resolution for dependent unscoped lane', () => {
+    const parent = tr('tr-parent', 'independent_boundary');
+    const dep = tr('tr-dep', 'symbolic_association', 'tr-parent');
+    const layerById = new Map<string, LayerDocType>([
+      ['tr-parent', parent],
+      ['tr-dep', dep],
+    ]);
+    assertParity({
+      unit: unit('u1', ''),
+      laneLayer: dep,
+      layerById,
+      transcriptionLaneIds: new Set(['tr-parent', 'tr-dep']),
+      primaryUnscopedHostId: 'tr-parent',
+    });
+  });
+
+  it('matches uncached resolution for layer_links host case', () => {
+    const parent = tr('tr-parent', 'independent_boundary');
+    const dep = tr('tr-dep', 'independent_boundary');
+    const layerById = new Map<string, LayerDocType>([
+      ['tr-parent', parent],
+      ['tr-dep', dep],
+    ]);
+    const layerLinks = [
+      {
+        layerId: 'tr-dep',
+        transcriptionLayerKey: 'tr-parent',
+        hostTranscriptionLayerId: 'tr-parent',
+        isPreferred: true,
+      },
+    ];
+    assertParity({
+      unit: unit('u1', ''),
+      laneLayer: dep,
+      layerById,
+      transcriptionLaneIds: new Set(['tr-parent', 'tr-dep']),
+      primaryUnscopedHostId: 'tr-parent',
+      layerLinks,
+    });
   });
 });

@@ -38,6 +38,7 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { buildTimelineSelfCertaintyTitle } from '../utils/timelineSelfCertainty';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import {
+  buildTranscriptionLaneReadScopeResolutionCache,
   listInboundTranscriptionHostIdsForTranscriptionLane,
   resolveCanonicalUnitForTranscriptionLaneRow,
   resolvePrimaryUnscopedTranscriptionHostId,
@@ -924,6 +925,14 @@ export function resolveVerticalReadingGroupSourceUnits(input: {
     defaultTranscriptionLayerId,
   );
 
+  const readScopeCache = buildTranscriptionLaneReadScopeResolutionCache({
+    transcriptionLanes: transcriptionLayersOrdered,
+    layerById,
+    transcriptionLaneIds,
+    primaryUnscopedHostId,
+    ...(layerLinks.length > 0 ? { layerLinks } : {}),
+  });
+
   const pushCanonicalRowsForLane = (layer: LayerDocType) => {
     for (const u of unitsOnCurrentMedia) {
       const resolved = resolveCanonicalUnitForTranscriptionLaneRow({
@@ -933,6 +942,7 @@ export function resolveVerticalReadingGroupSourceUnits(input: {
         transcriptionLaneIds,
         primaryUnscopedHostId,
         ...(layerLinks.length > 0 ? { layerLinks } : {}),
+        readScopeCache,
       });
       if (!resolved.include) continue;
       push(layer, resolved.row);

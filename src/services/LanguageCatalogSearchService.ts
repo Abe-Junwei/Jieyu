@@ -1,7 +1,19 @@
-import { LANGUAGE_NAME_QUERY_LOCALES, type LanguageDisplayCoreEntry, type LanguageNameQueryLocale, type LanguageQueryIndexLocaleRecord, type LanguageQueryLabelEntry } from '../data/languageNameTypes';
-import { loadIso6393CountryBaselines, resetIso6393CountryBaselinesCacheForTests } from '../data/iso6393CountryBaselinesLoader';
+import {
+  LANGUAGE_NAME_QUERY_LOCALES,
+  type LanguageDisplayCoreEntry,
+  type LanguageNameQueryLocale,
+  type LanguageQueryIndexLocaleRecord,
+  type LanguageQueryLabelEntry,
+} from '../data/languageNameTypes';
+import {
+  loadIso6393CountryBaselines,
+  resetIso6393CountryBaselinesCacheForTests,
+} from '../data/iso6393CountryBaselinesLoader';
 import { getIso639_3SeedMap } from '../data/iso6393Seed';
-import { formatIso3166Alpha2ListEndonyms, formatIso3166Alpha2ListUi } from '../utils/iso3166CountryLabels';
+import {
+  formatIso3166Alpha2ListEndonyms,
+  formatIso3166Alpha2ListUi,
+} from '../utils/iso3166CountryLabels';
 import MiniSearch from 'minisearch';
 
 const LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY = 'jieyu.language-catalog.runtime-cache.v1';
@@ -109,23 +121,29 @@ const ISO6393_EXACT_CODE_PATTERN = /^[a-z]{3}$/;
 
 let displayCorePromise: Promise<LanguageDisplayCorePayload> | null = null;
 let queryAliasPromise: Promise<LanguageQueryAliasPayload> | null = null;
-const queryIndexPromiseByLocale = new Map<LanguageNameQueryLocale, Promise<LanguageQueryIndexPayload>>();
+const queryIndexPromiseByLocale = new Map<
+  LanguageNameQueryLocale,
+  Promise<LanguageQueryIndexPayload>
+>();
 
 function normalizeSearchKey(value: string | undefined): string {
   return value?.normalize('NFKC').trim().toLowerCase() ?? '';
 }
 
-function sanitizeLocaleMap(value: unknown): Partial<Record<LanguageNameQueryLocale, string>> | undefined {
+function sanitizeLocaleMap(
+  value: unknown,
+): Partial<Record<LanguageNameQueryLocale, string>> | undefined {
   if (!value || typeof value !== 'object') {
     return undefined;
   }
 
   const entries = Object.entries(value as Record<string, unknown>)
-    .filter((entry): entry is [string, string] => (
-      typeof entry[1] === 'string'
-      && entry[1].trim().length > 0
-      && LANGUAGE_NAME_QUERY_LOCALES.includes(entry[0] as LanguageNameQueryLocale)
-    ))
+    .filter(
+      (entry): entry is [string, string] =>
+        typeof entry[1] === 'string' &&
+        entry[1].trim().length > 0 &&
+        LANGUAGE_NAME_QUERY_LOCALES.includes(entry[0] as LanguageNameQueryLocale),
+    )
     .map(([locale, label]) => [locale as LanguageNameQueryLocale, label.trim()] as const);
 
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
@@ -134,8 +152,8 @@ function sanitizeLocaleMap(value: unknown): Partial<Record<LanguageNameQueryLoca
 function sanitizeStringList(value: unknown): string[] {
   return Array.isArray(value)
     ? value
-      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-      .map((item) => item.trim())
+        .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        .map((item) => item.trim())
     : [];
 }
 
@@ -145,21 +163,32 @@ function sanitizeRuntimeEntry(value: unknown): RuntimeLanguageCatalogEntry | und
   }
 
   const record = value as Record<string, unknown>;
-  const languageCode = typeof record.languageCode === 'string' && record.languageCode.trim().length > 0
-    ? record.languageCode.trim().toLowerCase()
-    : undefined;
-  const english = typeof record.english === 'string' && record.english.trim().length > 0
-    ? record.english.trim()
-    : undefined;
-  const native = typeof record.native === 'string' && record.native.trim().length > 0
-    ? record.native.trim()
-    : undefined;
+  const languageCode =
+    typeof record.languageCode === 'string' && record.languageCode.trim().length > 0
+      ? record.languageCode.trim().toLowerCase()
+      : undefined;
+  const english =
+    typeof record.english === 'string' && record.english.trim().length > 0
+      ? record.english.trim()
+      : undefined;
+  const native =
+    typeof record.native === 'string' && record.native.trim().length > 0
+      ? record.native.trim()
+      : undefined;
   const byLocale = sanitizeLocaleMap(record.byLocale);
   const aliases = sanitizeStringList(record.aliases);
   const visibility = record.visibility === 'hidden' ? 'hidden' : 'visible';
   const countriesOfficial = sanitizeStringList(record.countriesOfficial);
 
-  if (!languageCode && !english && !native && !byLocale && aliases.length === 0 && visibility === 'visible' && countriesOfficial.length === 0) {
+  if (
+    !languageCode &&
+    !english &&
+    !native &&
+    !byLocale &&
+    aliases.length === 0 &&
+    visibility === 'visible' &&
+    countriesOfficial.length === 0
+  ) {
     return undefined;
   }
 
@@ -186,14 +215,18 @@ function readRuntimeLanguageCatalogSnapshot(): RuntimeLanguageCatalogSnapshot {
     }
 
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const entriesSource = parsed.entries && typeof parsed.entries === 'object'
-      ? parsed.entries as Record<string, unknown>
-      : {};
+    const entriesSource =
+      parsed.entries && typeof parsed.entries === 'object'
+        ? (parsed.entries as Record<string, unknown>)
+        : {};
 
     const entries = Object.fromEntries(
       Object.entries(entriesSource)
         .map(([id, entry]) => [id.trim().toLowerCase(), sanitizeRuntimeEntry(entry)] as const)
-        .filter((entry): entry is [string, RuntimeLanguageCatalogEntry] => Boolean(entry[0]) && Boolean(entry[1])),
+        .filter(
+          (entry): entry is [string, RuntimeLanguageCatalogEntry] =>
+            Boolean(entry[0]) && Boolean(entry[1]),
+        ),
     );
 
     return { entries };
@@ -202,12 +235,28 @@ function readRuntimeLanguageCatalogSnapshot(): RuntimeLanguageCatalogSnapshot {
   }
 }
 
+/** Stable signature for runtime catalog overrides (localStorage). Used to invalidate memoized indexes. */
+function runtimeCatalogSnapshotSignature(snapshot: RuntimeLanguageCatalogSnapshot): string {
+  const keys = Object.keys(snapshot.entries).sort();
+  if (keys.length === 0) return 'empty';
+  const tuples = keys.map((k) => [k, snapshot.entries[k]] as const);
+  return djb2Hex(JSON.stringify(tuples));
+}
+
+function djb2Hex(input: string): string {
+  let hash = 5381;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = ((hash << 5) + hash) ^ input.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(16);
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url, { cache: 'force-cache' });
   if (!response.ok) {
     throw new Error(`Failed to load language catalog asset: ${url}`);
   }
-  return await response.json() as T;
+  return (await response.json()) as T;
 }
 
 async function loadLanguageDisplayCore(): Promise<LanguageDisplayCorePayload> {
@@ -224,13 +273,17 @@ async function loadLanguageQueryAliases(): Promise<LanguageQueryAliasPayload> {
   return await queryAliasPromise;
 }
 
-async function loadLanguageQueryIndex(locale: LanguageNameQueryLocale): Promise<LanguageQueryIndexPayload> {
+async function loadLanguageQueryIndex(
+  locale: LanguageNameQueryLocale,
+): Promise<LanguageQueryIndexPayload> {
   const existing = queryIndexPromiseByLocale.get(locale);
   if (existing) {
     return await existing;
   }
 
-  const nextPromise = fetchJson<LanguageQueryIndexPayload>(`/data/language-support/language-query-index.${locale}.json`);
+  const nextPromise = fetchJson<LanguageQueryIndexPayload>(
+    `/data/language-support/language-query-index.${locale}.json`,
+  );
   queryIndexPromiseByLocale.set(locale, nextPromise);
   return await nextPromise;
 }
@@ -255,14 +308,22 @@ function dedupeStrings(values: Array<string | undefined>): string[] {
   return result;
 }
 
-function getCandidatePrimaryLabel(candidate: LanguageCatalogCandidate, locale: LanguageNameQueryLocale): string {
-  return candidate.byLocale?.[locale]?.trim()
-    || candidate.nativeName?.trim()
-    || candidate.englishName?.trim()
-    || candidate.languageCode;
+function getCandidatePrimaryLabel(
+  candidate: LanguageCatalogCandidate,
+  locale: LanguageNameQueryLocale,
+): string {
+  return (
+    candidate.byLocale?.[locale]?.trim() ||
+    candidate.nativeName?.trim() ||
+    candidate.englishName?.trim() ||
+    candidate.languageCode
+  );
 }
 
-function getCandidateSecondaryLabel(candidate: LanguageCatalogCandidate, locale: LanguageNameQueryLocale): string | undefined {
+function getCandidateSecondaryLabel(
+  candidate: LanguageCatalogCandidate,
+  locale: LanguageNameQueryLocale,
+): string | undefined {
   const primaryLabel = getCandidatePrimaryLabel(candidate, locale);
   return dedupeStrings([
     candidate.nativeName,
@@ -285,7 +346,9 @@ function buildRuntimeQueryEntries(
     .map(([, label]) => ({ label: label.trim(), kind: 'alias' as const }));
 
   const merged = [
-    ...(runtimeEntry.byLocale?.[locale] ? [{ label: runtimeEntry.byLocale[locale]!, kind: 'local' as const }] : []),
+    ...(runtimeEntry.byLocale?.[locale]
+      ? [{ label: runtimeEntry.byLocale[locale]!, kind: 'local' as const }]
+      : []),
     ...(runtimeEntry.native ? [{ label: runtimeEntry.native, kind: 'native' as const }] : []),
     ...(runtimeEntry.english ? [{ label: runtimeEntry.english, kind: 'english' as const }] : []),
     ...sanitizeStringList(runtimeEntry.aliases).map((label) => ({ label, kind: 'alias' as const })),
@@ -321,12 +384,22 @@ function mergeQueryEntries(
 function buildCountryBaselineDisplayFields(
   candidate: LanguageCatalogCandidate,
   locale: LanguageNameQueryLocale,
-): Pick<LanguageCatalogSearchSuggestion, 'distributionCountriesUi' | 'officialCountriesUi' | 'distributionCountriesEndonym' | 'officialCountriesEndonym'> {
+): Pick<
+  LanguageCatalogSearchSuggestion,
+  | 'distributionCountriesUi'
+  | 'officialCountriesUi'
+  | 'distributionCountriesEndonym'
+  | 'officialCountriesEndonym'
+> {
   const dist = candidate.baselineDistributionCountryCodes;
   const off = candidate.baselineOfficialCountryCodes;
-  const distributionCountriesUi = dist?.length ? formatIso3166Alpha2ListUi(dist, locale) : undefined;
+  const distributionCountriesUi = dist?.length
+    ? formatIso3166Alpha2ListUi(dist, locale)
+    : undefined;
   const officialCountriesUi = off?.length ? formatIso3166Alpha2ListUi(off, locale) : undefined;
-  const distributionCountriesEndonym = dist?.length ? formatIso3166Alpha2ListEndonyms(dist) : undefined;
+  const distributionCountriesEndonym = dist?.length
+    ? formatIso3166Alpha2ListEndonyms(dist)
+    : undefined;
   const officialCountriesEndonym = off?.length ? formatIso3166Alpha2ListEndonyms(off) : undefined;
   return {
     ...(distributionCountriesUi ? { distributionCountriesUi } : {}),
@@ -343,7 +416,10 @@ function buildCandidate(
   aliasPayload: LanguageQueryAliasPayload,
   queryEntries: readonly LanguageQueryLabelEntry[],
   runtimeEntry: RuntimeLanguageCatalogEntry | undefined,
-  countryBaselines: { distributionByIso6393: Record<string, string[]>; officialByIso6393: Record<string, string[]> } | null,
+  countryBaselines: {
+    distributionByIso6393: Record<string, string[]>;
+    officialByIso6393: Record<string, string[]>;
+  } | null,
 ): LanguageCatalogCandidate | null {
   const normalizedId = id.trim().toLowerCase();
   if (!normalizedId) {
@@ -368,7 +444,8 @@ function buildCandidate(
     buildRuntimeQueryEntries(runtimeEntry, locale),
   );
   const languageCode = runtimeEntry?.languageCode?.trim().toLowerCase() || normalizedId;
-  const englishName = runtimeEntry?.english?.trim() || coreEntry?.english?.trim() || isoSeed?.name || languageCode;
+  const englishName =
+    runtimeEntry?.english?.trim() || coreEntry?.english?.trim() || isoSeed?.name || languageCode;
   const nativeName = runtimeEntry?.native?.trim() || coreEntry?.native?.trim() || undefined;
   const visibility = runtimeEntry?.visibility === 'hidden' ? 'hidden' : 'visible';
 
@@ -392,7 +469,10 @@ function buildCandidate(
   };
 }
 
-function evaluateCodeMatch(query: string, candidate: LanguageCatalogCandidate): LanguageCatalogMatch | null {
+function evaluateCodeMatch(
+  query: string,
+  candidate: LanguageCatalogCandidate,
+): LanguageCatalogMatch | null {
   const candidateCodes = dedupeStrings([candidate.languageCode, candidate.id]);
   let bestMatch: LanguageCatalogMatch | null = null;
 
@@ -450,7 +530,10 @@ function getLabelKindOrder(kind: LanguageQueryLabelEntry['kind']): number {
   }
 }
 
-function evaluateLabelMatch(query: string, candidate: LanguageCatalogCandidate): LanguageCatalogMatch | null {
+function evaluateLabelMatch(
+  query: string,
+  candidate: LanguageCatalogCandidate,
+): LanguageCatalogMatch | null {
   let bestMatch: LanguageCatalogMatch | null = null;
 
   candidate.queryEntries.forEach((entry) => {
@@ -505,7 +588,10 @@ function compareMatches(left: LanguageCatalogMatch, right: LanguageCatalogMatch)
   return left.matchedLabel.localeCompare(right.matchedLabel, 'en');
 }
 
-function evaluateCandidateMatch(query: string, candidate: LanguageCatalogCandidate): LanguageCatalogMatch | null {
+function evaluateCandidateMatch(
+  query: string,
+  candidate: LanguageCatalogCandidate,
+): LanguageCatalogMatch | null {
   const codeMatch = evaluateCodeMatch(query, candidate);
   const labelMatch = evaluateLabelMatch(query, candidate);
 
@@ -548,53 +634,77 @@ function buildIso6393ExactCodeFallbackSuggestion(
   };
 }
 
+/** Memoized full candidate map (expensive). Keyed by locale + scope + runtime overrides + baselines artifact version. */
+let catalogCandidateIndexCache: {
+  key: string;
+  promise: Promise<Map<string, LanguageCatalogCandidate>>;
+} | null = null;
+
 async function buildCatalogCandidateIndex(
   locale: LanguageNameQueryLocale,
   catalogScope: LanguageCatalogSearchScope,
 ): Promise<Map<string, LanguageCatalogCandidate>> {
-  const [displayCore, aliasPayload, queryIndexPayload, countryBaselinesRaw] = await Promise.all([
-    loadLanguageDisplayCore(),
-    loadLanguageQueryAliases(),
-    loadLanguageQueryIndex(locale),
-    loadIso6393CountryBaselines().catch(() => null),
-  ]);
-  const countryBaselines = countryBaselinesRaw
-    ? {
-        distributionByIso6393: countryBaselinesRaw.distributionByIso6393,
-        officialByIso6393: countryBaselinesRaw.officialByIso6393,
-      }
-    : null;
   const runtimeSnapshot = readRuntimeLanguageCatalogSnapshot();
-  const candidateIds = new Set<string>([
-    ...Object.keys(displayCore.languages),
-    ...Object.keys(queryIndexPayload.entriesByIso6393),
-    ...Object.keys(runtimeSnapshot.entries),
-  ]);
-  const candidates = new Map<string, LanguageCatalogCandidate>();
+  const rtSig = runtimeCatalogSnapshotSignature(runtimeSnapshot);
 
-  if (catalogScope === 'language') {
-    getIso639_3SeedMap().forEach((_, code) => {
-      candidateIds.add(code);
-    });
+  const countryBaselinesEarly = await loadIso6393CountryBaselines().catch(() => null);
+  const baselinePart =
+    countryBaselinesEarly?.generatedAt ?? (countryBaselinesEarly ? 'nogen' : 'null');
+
+  const cacheKey = `${catalogScope}:${locale}:${rtSig}:${baselinePart}`;
+
+  if (catalogCandidateIndexCache?.key === cacheKey) {
+    return await catalogCandidateIndexCache.promise;
   }
 
-  candidateIds.forEach((candidateId) => {
-    const candidate = buildCandidate(
-      candidateId,
-      locale,
-      displayCore.languages[candidateId],
-      aliasPayload,
-      queryIndexPayload.entriesByIso6393[candidateId] ?? [],
-      runtimeSnapshot.entries[candidateId],
-      countryBaselines,
-    );
-    if (!candidate || candidate.visibility === 'hidden') {
-      return;
-    }
-    candidates.set(candidate.id, candidate);
-  });
+  const promise = (async () => {
+    const [displayCore, aliasPayload, queryIndexPayload] = await Promise.all([
+      loadLanguageDisplayCore(),
+      loadLanguageQueryAliases(),
+      loadLanguageQueryIndex(locale),
+    ]);
 
-  return candidates;
+    const countryBaselines = countryBaselinesEarly
+      ? {
+          distributionByIso6393: countryBaselinesEarly.distributionByIso6393,
+          officialByIso6393: countryBaselinesEarly.officialByIso6393,
+        }
+      : null;
+
+    const candidateIds = new Set<string>([
+      ...Object.keys(displayCore.languages),
+      ...Object.keys(queryIndexPayload.entriesByIso6393),
+      ...Object.keys(runtimeSnapshot.entries),
+    ]);
+    const candidates = new Map<string, LanguageCatalogCandidate>();
+
+    if (catalogScope === 'language') {
+      getIso639_3SeedMap().forEach((_, code) => {
+        candidateIds.add(code);
+      });
+    }
+
+    candidateIds.forEach((candidateId) => {
+      const candidate = buildCandidate(
+        candidateId,
+        locale,
+        displayCore.languages[candidateId],
+        aliasPayload,
+        queryIndexPayload.entriesByIso6393[candidateId] ?? [],
+        runtimeSnapshot.entries[candidateId],
+        countryBaselines,
+      );
+      if (!candidate || candidate.visibility === 'hidden') {
+        return;
+      }
+      candidates.set(candidate.id, candidate);
+    });
+
+    return candidates;
+  })();
+
+  catalogCandidateIndexCache = { key: cacheKey, promise };
+  return await promise;
 }
 
 // ── MiniSearch 模糊索引 | MiniSearch fuzzy index ──
@@ -604,8 +714,9 @@ function buildMiniSearchIndex(
   candidates: Map<string, LanguageCatalogCandidate>,
   locale: LanguageNameQueryLocale,
   catalogScope: LanguageCatalogSearchScope,
+  runtimeSig: string,
 ): MiniSearch {
-  const cacheKey = `${catalogScope}:${locale}`;
+  const cacheKey = `${catalogScope}:${locale}:${runtimeSig}`;
   const existing = miniSearchByScopeAndLocale.get(cacheKey);
   if (existing) return existing;
 
@@ -628,7 +739,9 @@ function buildMiniSearchIndex(
       c.nativeName ?? '',
       ...c.aliases,
       ...c.queryEntries.map((e) => e.label),
-    ].filter(Boolean).join(' '),
+    ]
+      .filter(Boolean)
+      .join(' '),
   }));
   ms.addAll(docs);
   miniSearchByScopeAndLocale.set(cacheKey, ms);
@@ -646,6 +759,7 @@ export async function searchLanguageCatalogSuggestions(
   const catalogScope = options.catalogScope ?? 'orthography';
   const limit = options.limit && options.limit > 0 ? options.limit : 10;
   const runtimeSnapshot = readRuntimeLanguageCatalogSnapshot();
+  const rtSig = runtimeCatalogSnapshotSignature(runtimeSnapshot);
   const candidates = await buildCatalogCandidateIndex(options.locale, catalogScope);
   const matches = Array.from(candidates.values())
     .map((candidate) => {
@@ -710,26 +824,29 @@ export async function searchLanguageCatalogSuggestions(
 
   // 精确/前缀/包含搜索无结果时，降级到 MiniSearch 模糊搜索 | Fallback to fuzzy search when no exact/prefix/contains hits
   if (exactMatches.length === 0) {
-    const ms = buildMiniSearchIndex(candidates, options.locale, catalogScope);
+    const ms = buildMiniSearchIndex(candidates, options.locale, catalogScope, rtSig);
     const fuzzyResults = ms.search(normalizedQuery);
-    const fuzzyHits = fuzzyResults.slice(0, limit).map((result) => {
-      const candidate = candidates.get(result.id);
-      if (!candidate) return null;
-      const secondaryLabel = getCandidateSecondaryLabel(candidate, options.locale);
-      const countryFields = buildCountryBaselineDisplayFields(candidate, options.locale);
-      return {
-        id: candidate.id,
-        languageCode: candidate.languageCode,
-        primaryLabel: getCandidatePrimaryLabel(candidate, options.locale),
-        ...(secondaryLabel ? { secondaryLabel } : {}),
-        ...countryFields,
-        matchedLabel: getCandidatePrimaryLabel(candidate, options.locale),
-        matchedLabelKind: 'alias' as LanguageSearchLabelKind,
-        matchSource: 'fuzzy',
-        rank: 100 + Math.round(10 * (1 - (result.score / (fuzzyResults[0]?.score || 1)))),
-        hasRuntimeOverride: candidate.hasRuntimeOverride,
-      } satisfies LanguageCatalogSearchSuggestion;
-    }).filter((h): h is LanguageCatalogSearchSuggestion => Boolean(h));
+    const fuzzyHits = fuzzyResults
+      .slice(0, limit)
+      .map((result) => {
+        const candidate = candidates.get(result.id);
+        if (!candidate) return null;
+        const secondaryLabel = getCandidateSecondaryLabel(candidate, options.locale);
+        const countryFields = buildCountryBaselineDisplayFields(candidate, options.locale);
+        return {
+          id: candidate.id,
+          languageCode: candidate.languageCode,
+          primaryLabel: getCandidatePrimaryLabel(candidate, options.locale),
+          ...(secondaryLabel ? { secondaryLabel } : {}),
+          ...countryFields,
+          matchedLabel: getCandidatePrimaryLabel(candidate, options.locale),
+          matchedLabelKind: 'alias' as LanguageSearchLabelKind,
+          matchSource: 'fuzzy',
+          rank: 100 + Math.round(10 * (1 - result.score / (fuzzyResults[0]?.score || 1))),
+          hasRuntimeOverride: candidate.hasRuntimeOverride,
+        } satisfies LanguageCatalogSearchSuggestion;
+      })
+      .filter((h): h is LanguageCatalogSearchSuggestion => Boolean(h));
     return fuzzyHits;
   }
 
@@ -804,12 +921,16 @@ export async function lookupLanguageCatalogEntriesByIds(
   ids: readonly string[],
   locale: LanguageNameQueryLocale,
 ): Promise<LanguageCatalogSearchEntry[]> {
-  const normalizedIds = Array.from(new Set(ids.map((id) => normalizeSearchKey(id)).filter(Boolean)));
+  const normalizedIds = Array.from(
+    new Set(ids.map((id) => normalizeSearchKey(id)).filter(Boolean)),
+  );
   if (normalizedIds.length === 0) {
     return [];
   }
 
-  const results = await Promise.all(normalizedIds.map((id) => lookupLanguageCatalogEntryById(id, locale)));
+  const results = await Promise.all(
+    normalizedIds.map((id) => lookupLanguageCatalogEntryById(id, locale)),
+  );
   return results.filter((result): result is LanguageCatalogSearchEntry => Boolean(result));
 }
 
@@ -818,5 +939,6 @@ export function resetLanguageCatalogSearchServiceForTests(): void {
   queryAliasPromise = null;
   queryIndexPromiseByLocale.clear();
   miniSearchByScopeAndLocale.clear();
+  catalogCandidateIndexCache = null;
   resetIso6393CountryBaselinesCacheForTests();
 }

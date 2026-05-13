@@ -85,6 +85,12 @@ export type ResolveCanonicalUnitForTranscriptionLaneResult =
   | Readonly<{ include: false }>
   | Readonly<{ include: true } & LaneScopedUnitView>;
 
+/** Per-lane read-scope slices reused across many units (ADR 0020 hot path). */
+export type TranscriptionLaneReadScopeResolutionCache = Readonly<{
+  linkHostIdsByLaneId: ReadonlyMap<string, readonly string[]>;
+  laneAcceptsUnscopedByLaneId: ReadonlyMap<string, boolean>;
+}>;
+
 export type ResolveCanonicalUnitForTranscriptionLaneInput = {
   unit: LayerUnitDocType;
   laneLayer: LayerDocType;
@@ -93,6 +99,11 @@ export type ResolveCanonicalUnitForTranscriptionLaneInput = {
   primaryUnscopedHostId: string;
   /** 入站宿主 link（`link.layerId` 为子层）；无 `parentLayerId` 的独立边界依赖轨靠此与宿主对齐读模型 | Inbound host links when tree parent is absent */
   layerLinks?: ReadonlyArray<TranslationHostLink>;
+  /**
+   * Precomputed per-lane inbound link hosts + unscoped acceptance (hot loops: vertical source walk,
+   * `buildTimelineUnitViewIndex`). When omitted, callers pay redundant O(lanes × units) link/tree work.
+   */
+  readScopeCache?: TranscriptionLaneReadScopeResolutionCache;
 };
 
 /**
@@ -149,6 +160,41 @@ export function transcriptionLaneAcceptsUnscopedCanonicalUnits(input: {
   return false;
 }
 
+export function buildTranscriptionLaneReadScopeResolutionCache(input: {
+  transcriptionLanes: readonly LayerDocType[];
+  layerById: ReadonlyMap<string, LayerDocType>;
+  transcriptionLaneIds: ReadonlySet<string>;
+  primaryUnscopedHostId: string;
+  layerLinks?: ReadonlyArray<TranslationHostLink>;
+}): TranscriptionLaneReadScopeResolutionCache {
+  const links = input.layerLinks ?? [];
+  const linkHostIdsByLaneId = new Map<string, readonly string[]>();
+  const laneAcceptsUnscopedByLaneId = new Map<string, boolean>();
+  for (const lane of input.transcriptionLanes) {
+    const linkHostIds =
+      links.length > 0
+        ? listInboundTranscriptionHostIdsForTranscriptionLane(
+            lane.id,
+            links,
+            input.layerById,
+            input.transcriptionLaneIds,
+          )
+        : [];
+    linkHostIdsByLaneId.set(lane.id, linkHostIds);
+    laneAcceptsUnscopedByLaneId.set(
+      lane.id,
+      transcriptionLaneAcceptsUnscopedCanonicalUnits({
+        laneLayer: lane,
+        layerById: input.layerById,
+        transcriptionLaneIds: input.transcriptionLaneIds,
+        primaryUnscopedHostId: input.primaryUnscopedHostId,
+        ...(links.length > 0 ? { layerLinks: links } : {}),
+      }),
+    );
+  }
+  return { linkHostIdsByLaneId, laneAcceptsUnscopedByLaneId };
+}
+
 /**
  * Single entry for: should this canonical `unit` contribute a row on `laneLayer`, and with what stamped `layerId`?
  * Call sites that partition units by lane **must** use this (or wrappers) for unscoped canonical rows — do not
@@ -161,31 +207,38 @@ export function resolveCanonicalUnitForTranscriptionLaneRow(
   if (unit.tags?.skipProcessing === true) return { include: false };
   const lid = typeof unit.layerId === 'string' ? unit.layerId.trim() : '';
   const links = input.layerLinks ?? [];
+  const cache = input.readScopeCache;
   const treeParentId = layerTranscriptionTreeParentId(laneLayer)?.trim() ?? '';
+  const cachedLinkHosts = cache?.linkHostIdsByLaneId.get(laneLayer.id);
   const linkHostIds =
-    links.length > 0
-      ? listInboundTranscriptionHostIdsForTranscriptionLane(
-          laneLayer.id,
-          links,
-          layerById,
-          transcriptionLaneIds,
-        )
-      : [];
+    cachedLinkHosts !== undefined
+      ? cachedLinkHosts
+      : links.length > 0
+        ? listInboundTranscriptionHostIdsForTranscriptionLane(
+            laneLayer.id,
+            links,
+            layerById,
+            transcriptionLaneIds,
+          )
+        : [];
   const matchesLane = lid.length > 0 && lid === laneLayer.id;
   const matchesTreeParent =
     treeParentId.length > 0 && transcriptionLaneIds.has(treeParentId) && lid === treeParentId;
   const matchesLinkHostLayer = linkHostIds.some((hid) => lid === hid);
   const matchesHostTranscriptionLayer = matchesTreeParent || matchesLinkHostLayer;
   const unscoped = lid.length === 0;
+  const cachedUnscopedAcc = cache?.laneAcceptsUnscopedByLaneId.get(laneLayer.id);
   const unscopedInherits =
     unscoped &&
-    transcriptionLaneAcceptsUnscopedCanonicalUnits({
-      laneLayer,
-      layerById,
-      transcriptionLaneIds,
-      primaryUnscopedHostId,
-      ...(links.length > 0 ? { layerLinks: links } : {}),
-    });
+    (cachedUnscopedAcc !== undefined
+      ? cachedUnscopedAcc
+      : transcriptionLaneAcceptsUnscopedCanonicalUnits({
+          laneLayer,
+          layerById,
+          transcriptionLaneIds,
+          primaryUnscopedHostId,
+          ...(links.length > 0 ? { layerLinks: links } : {}),
+        }));
   if (!unscoped && !matchesLane && !matchesHostTranscriptionLayer) return { include: false };
   if (unscoped && !unscopedInherits) return { include: false };
 

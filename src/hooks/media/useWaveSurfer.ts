@@ -814,9 +814,10 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
 
   // Update region colors without rebuilding (avoids interrupting drag).
   useEffect(() => {
+    const regionById = new Map((regions ?? []).map((r) => [r.id, r] as const));
     regionHandlesRef.current.forEach((handle, id) => {
       if (id === '__start_marker__' || id === '__sub_selection__') return;
-      const regionRow = (regions ?? []).find((region) => region.id === id);
+      const regionRow = regionById.get(id);
       applyRegionPresentation(handle, {
         id,
         ...(regionRow?.skipProcessing === true ? { skipProcessing: true } : {}),

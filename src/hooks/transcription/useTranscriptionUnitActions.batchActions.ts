@@ -16,6 +16,7 @@ import { t, tf } from '../../i18n';
 import { createLogger } from '../../observability/logger';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { mergeUnitSelfCertaintyConservative } from '../../utils/unitSelfCertainty';
+import { hasTimelineGapOverlapAfterTransforms } from '../../utils/timelineBatchOverlapValidation';
 
 const log = createLogger('useTranscriptionUnitActions');
 
@@ -103,22 +104,14 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
     }
 
     if (!allowOverlapInTranscription) {
-      const timeline = unitsOnCurrentMediaRef.current
-        .map((u) => {
-          const next = transformed.get(u.id);
-          return next ? { ...u, ...next } : u;
-        })
-        .sort((a, b) => a.startTime - b.startTime);
-      for (let i = 1; i < timeline.length; i++) {
-        if (timeline[i]!.startTime < timeline[i - 1]!.endTime + gap) {
-          reportValidationError({
-            message: t(locale, 'transcription.error.validation.offsetOverlap'),
-            i18nKey: 'transcription.error.validation.offsetOverlap',
-            setErrorState: ({ message, meta }) =>
-              setSaveState({ kind: 'error', message, errorMeta: meta }),
-          });
-          return;
-        }
+      if (hasTimelineGapOverlapAfterTransforms(unitsOnCurrentMediaRef.current, transformed, gap)) {
+        reportValidationError({
+          message: t(locale, 'transcription.error.validation.offsetOverlap'),
+          i18nKey: 'transcription.error.validation.offsetOverlap',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+        return;
       }
     }
 
@@ -215,22 +208,14 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
     }
 
     if (!allowOverlapInTranscription) {
-      const timeline = unitsOnCurrentMediaRef.current
-        .map((u) => {
-          const next = transformed.get(u.id);
-          return next ? { ...u, ...next } : u;
-        })
-        .sort((a, b) => a.startTime - b.startTime);
-      for (let i = 1; i < timeline.length; i++) {
-        if (timeline[i]!.startTime < timeline[i - 1]!.endTime + gap) {
-          reportValidationError({
-            message: t(locale, 'transcription.error.validation.scaleOverlap'),
-            i18nKey: 'transcription.error.validation.scaleOverlap',
-            setErrorState: ({ message, meta }) =>
-              setSaveState({ kind: 'error', message, errorMeta: meta }),
-          });
-          return;
-        }
+      if (hasTimelineGapOverlapAfterTransforms(unitsOnCurrentMediaRef.current, transformed, gap)) {
+        reportValidationError({
+          message: t(locale, 'transcription.error.validation.scaleOverlap'),
+          i18nKey: 'transcription.error.validation.scaleOverlap',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+        return;
       }
     }
 

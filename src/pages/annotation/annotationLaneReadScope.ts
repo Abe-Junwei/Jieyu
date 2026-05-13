@@ -3,8 +3,10 @@
  * Re-export hub so AnnotationPage work can import from a stable path without reaching into vertical helpers.
  */
 export {
+  buildTranscriptionLaneReadScopeResolutionCache,
   type LaneScopedUnitView,
   type ResolveCanonicalUnitForTranscriptionLaneResult,
+  type TranscriptionLaneReadScopeResolutionCache,
   resolveCanonicalUnitForTranscriptionLaneRow,
   resolvePrimaryUnscopedTranscriptionHostId,
   transcriptionLaneAcceptsUnscopedCanonicalUnits,

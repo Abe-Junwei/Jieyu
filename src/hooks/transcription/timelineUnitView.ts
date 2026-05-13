@@ -7,6 +7,7 @@ import type {
 } from '../../db';
 import { pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
 import {
+  buildTranscriptionLaneReadScopeResolutionCache,
   resolveCanonicalUnitForTranscriptionLaneRow,
   resolvePrimaryUnscopedTranscriptionHostId,
 } from '../../utils/transcriptionUnitLaneReadScope';
@@ -261,6 +262,13 @@ export function buildTimelineUnitViewIndex(
       input.defaultTranscriptionLayerId,
     );
     const laneLinks = laneReadScope.layerLinks ?? [];
+    const readScopeCache = buildTranscriptionLaneReadScopeResolutionCache({
+      transcriptionLanes: laneReadScope.transcriptionLayers,
+      layerById,
+      transcriptionLaneIds,
+      primaryUnscopedHostId,
+      ...(laneLinks.length > 0 ? { layerLinks: laneLinks } : {}),
+    });
     const currentMedia = input.currentMediaId?.trim() ?? '';
     const rawForLanes = input.units.filter((u) => {
       if (u.tags?.skipProcessing === true) return false;
@@ -277,6 +285,7 @@ export function buildTimelineUnitViewIndex(
           transcriptionLaneIds,
           primaryUnscopedHostId,
           ...(laneLinks.length > 0 ? { layerLinks: laneLinks } : {}),
+          readScopeCache,
         });
         if (!resolved.include) continue;
         const v = unitToView(raw, lane.id);

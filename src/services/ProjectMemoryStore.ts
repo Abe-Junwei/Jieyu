@@ -123,6 +123,13 @@ class ProjectMemoryStore {
   private _listeners = new Set<(m: ProjectMemory) => void>();
   // 缓存 IndexedDB 连接避免频繁 open() | Cache IndexedDB connection to avoid repeated open()
   private _dbPromise: Promise<IDBDatabase> | null = null;
+  /** Rebuild when `ProjectMemory.updatedAt` changes | Rebuild when memory mutates */
+  private _ragSearchIndexVersion = -1;
+  private _ragMiniSearch: MiniSearch | null = null;
+  private readonly _ragDocsById = new Map<
+    string,
+    { id: string; kind: 'term' | 'phrase' | 'domain'; text: string; annotation: string | null }
+  >();
 
   private constructor() {}
 
@@ -160,7 +167,9 @@ class ProjectMemoryStore {
   /** Subscribe to memory changes */
   onMemoryChange(callback: (m: ProjectMemory) => void): () => void {
     this._listeners.add(callback);
-    return () => { this._listeners.delete(callback); };
+    return () => {
+      this._listeners.delete(callback);
+    };
   }
 
   /**
@@ -171,18 +180,23 @@ class ProjectMemoryStore {
     this._listeners.clear();
     this._memory = null;
     this._currentProjectId = null;
+    this._ragMiniSearch = null;
+    this._ragSearchIndexVersion = -1;
+    this._ragDocsById.clear();
     const dbPromise = this._dbPromise;
     this._dbPromise = null;
-    void dbPromise?.then((db) => {
-      try {
-        db.close();
-      } catch (err) {
-        log.debug('db.close() failed during dispose', { err });
-        // 忽略关闭失败，后续按需懒加载重建 | Ignore close failures and reopen lazily on next use.
-      }
-    }).catch(() => {
-      // 忽略打开失败，后续访问时再重试 | Ignore failed open attempts and retry on later access.
-    });
+    void dbPromise
+      ?.then((db) => {
+        try {
+          db.close();
+        } catch (err) {
+          log.debug('db.close() failed during dispose', { err });
+          // 忽略关闭失败，后续按需懒加载重建 | Ignore close failures and reopen lazily on next use.
+        }
+      })
+      .catch(() => {
+        // 忽略打开失败，后续访问时再重试 | Ignore failed open attempts and retry on later access.
+      });
   }
 
   // ── Term management ───────────────────────────────────────────────────────
@@ -194,9 +208,7 @@ class ProjectMemoryStore {
   async confirmTerm(term: string, gloss: string, lang: string): Promise<void> {
     if (!this._memory) return;
 
-    const existing = this._memory.terms.find(
-      (t) => t.term === term && t.lang === lang,
-    );
+    const existing = this._memory.terms.find((t) => t.term === term && t.lang === lang);
 
     if (existing) {
       existing.gloss = gloss;
@@ -319,7 +331,11 @@ class ProjectMemoryStore {
   /**
    * Add domain vocabulary.
    */
-  async addDomainVocabulary(domain: string, terms: string[], source: DomainVocabulary['source'] = 'auto-detected'): Promise<void> {
+  async addDomainVocabulary(
+    domain: string,
+    terms: string[],
+    source: DomainVocabulary['source'] = 'auto-detected',
+  ): Promise<void> {
     if (!this._memory) return;
 
     const existing = this._memory.domainVocabulary.find((d) => d.domain === domain);
@@ -385,49 +401,77 @@ class ProjectMemoryStore {
    *
    * Falls back to empty array when no memory is loaded or no entries exist.
    */
-  getRagContextVector(
-    query: string,
-    options?: GetRagContextVectorOptions,
-  ): RAGContextMatch[] {
+  getRagContextVector(query: string, options?: GetRagContextVectorOptions): RAGContextMatch[] {
     const topK = Math.max(1, Math.floor(options?.topK ?? 10));
     const minScore = Math.max(0, Math.min(1, options?.minScore ?? 0.2));
 
     if (!this._memory || !query.trim()) return [];
 
     // Build index from all memory entries
-    const docs: Array<{ id: string; kind: 'term' | 'phrase' | 'domain'; text: string; annotation: string | null }> = [];
+    const docs: Array<{
+      id: string;
+      kind: 'term' | 'phrase' | 'domain';
+      text: string;
+      annotation: string | null;
+    }> = [];
 
     for (const t of this._memory.terms) {
-      docs.push({ id: `term::${t.term}`, kind: 'term', text: `${t.term} ${t.gloss}`, annotation: t.gloss });
+      docs.push({
+        id: `term::${t.term}`,
+        kind: 'term',
+        text: `${t.term} ${t.gloss}`,
+        annotation: t.gloss,
+      });
     }
     for (const p of this._memory.phrasePatterns) {
-      docs.push({ id: `phrase::${p.pattern}`, kind: 'phrase', text: `${p.pattern} ${p.translation}`, annotation: p.translation });
+      docs.push({
+        id: `phrase::${p.pattern}`,
+        kind: 'phrase',
+        text: `${p.pattern} ${p.translation}`,
+        annotation: p.translation,
+      });
     }
     for (const d of this._memory.domainVocabulary) {
-      docs.push({ id: `domain::${d.domain}`, kind: 'domain', text: `${d.domain} ${d.terms.join(' ')}`, annotation: null });
+      docs.push({
+        id: `domain::${d.domain}`,
+        kind: 'domain',
+        text: `${d.domain} ${d.terms.join(' ')}`,
+        annotation: null,
+      });
     }
 
     if (docs.length === 0) return [];
 
-    const miniSearch = new MiniSearch({
-      fields: ['text'],
-      storeFields: ['id'],
-      idField: 'id',
-      searchOptions: {
-        prefix: true,
-        fuzzy: 0.2,
-        boost: { text: 2 },
-      },
-      tokenize: (text) => {
-        const lowered = text.toLowerCase();
-        const cjkChars = lowered.match(/[\u4e00-\u9fff]/g) ?? [];
-        const latinWords = lowered.split(/[^\p{L}\p{N}]+/u).filter((item) => item.length >= 2);
-        return [...new Set([...cjkChars, ...latinWords])];
-      },
-      processTerm: (term) => term.trim(),
-    });
+    if (this._ragSearchIndexVersion !== this._memory.updatedAt) {
+      this._ragDocsById.clear();
+      for (const d of docs) {
+        this._ragDocsById.set(d.id, d);
+      }
 
-    miniSearch.addAll(docs);
+      const miniSearch = new MiniSearch({
+        fields: ['text'],
+        storeFields: ['id'],
+        idField: 'id',
+        searchOptions: {
+          prefix: true,
+          fuzzy: 0.2,
+          boost: { text: 2 },
+        },
+        tokenize: (text) => {
+          const lowered = text.toLowerCase();
+          const cjkChars = lowered.match(/[\u4e00-\u9fff]/g) ?? [];
+          const latinWords = lowered.split(/[^\p{L}\p{N}]+/u).filter((item) => item.length >= 2);
+          return [...new Set([...cjkChars, ...latinWords])];
+        },
+        processTerm: (term) => term.trim(),
+      });
+
+      miniSearch.addAll(docs);
+      this._ragMiniSearch = miniSearch;
+      this._ragSearchIndexVersion = this._memory.updatedAt;
+    }
+
+    const miniSearch = this._ragMiniSearch!;
     const results = miniSearch.search(query.trim());
 
     if (results.length === 0) return [];
@@ -439,9 +483,14 @@ class ProjectMemoryStore {
     for (const result of results) {
       const score = result.score / maxScore;
       if (score < minScore) continue;
-      const doc = docs.find((d) => d.id === result.id);
+      const doc = this._ragDocsById.get(result.id);
       if (!doc) continue;
-      out.push({ kind: doc.kind, text: doc.text.split(' ')[0] ?? doc.text, score, annotation: doc.annotation });
+      out.push({
+        kind: doc.kind,
+        text: doc.text.split(' ')[0] ?? doc.text,
+        score,
+        annotation: doc.annotation,
+      });
       if (out.length >= topK) break;
     }
 
@@ -501,8 +550,9 @@ class ProjectMemoryStore {
       return await runner(db);
     } catch (error) {
       // 仅对可恢复的 IndexedDB 状态错误做一次重试 | Retry once only for recoverable IndexedDB state errors
-      const retryable = error instanceof DOMException
-        && ['InvalidStateError', 'AbortError', 'UnknownError'].includes(error.name);
+      const retryable =
+        error instanceof DOMException &&
+        ['InvalidStateError', 'AbortError', 'UnknownError'].includes(error.name);
       if (!retryable) throw error;
       this._dbPromise = null;
       const retryDb = await this._getDb();
@@ -512,13 +562,16 @@ class ProjectMemoryStore {
 
   private async _loadFromDB(projectId: string): Promise<ProjectMemory | null> {
     try {
-      return await this._withDb(async (db) => new Promise((resolve) => {
-        const tx = db.transaction('projectMemory', 'readonly');
-        const store = tx.objectStore('projectMemory');
-        const getReq = store.get(projectId);
-        getReq.onsuccess = () => resolve(getReq.result ?? null);
-        getReq.onerror = () => resolve(null);
-      }));
+      return await this._withDb(
+        async (db) =>
+          new Promise((resolve) => {
+            const tx = db.transaction('projectMemory', 'readonly');
+            const store = tx.objectStore('projectMemory');
+            const getReq = store.get(projectId);
+            getReq.onsuccess = () => resolve(getReq.result ?? null);
+            getReq.onerror = () => resolve(null);
+          }),
+      );
     } catch (err) {
       log.warn('load from IndexedDB failed', { err });
       return null;
@@ -526,13 +579,16 @@ class ProjectMemoryStore {
   }
 
   private async _saveToDB(memory: ProjectMemory): Promise<void> {
-    await this._withDb(async (db) => new Promise<void>((resolve, reject) => {
-      const tx = db.transaction('projectMemory', 'readwrite');
-      const store = tx.objectStore('projectMemory');
-      store.put(memory);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    }));
+    await this._withDb(
+      async (db) =>
+        new Promise<void>((resolve, reject) => {
+          const tx = db.transaction('projectMemory', 'readwrite');
+          const store = tx.objectStore('projectMemory');
+          store.put(memory);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        }),
+    );
   }
 }
 

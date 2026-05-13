@@ -1,12 +1,21 @@
 import { getDb } from '../../db';
-import type { EmbeddingSourceType } from '../../db';
+import type { EmbeddingDoc, EmbeddingSourceType, JieyuDatabase } from '../../db';
 import type { EmbeddingProvider } from './EmbeddingProvider';
 import MiniSearch from 'minisearch';
 import { splitPdfCitationRef } from '../../utils/citationJumpUtils';
 import { extractPdfSnippet, isPdfMediaItem } from './pdfTextUtils';
 import { resolveFusionWeightsForScenario, type SearchFusionScenario } from './searchFusionProfiles';
-import { listUnitTextsFromSegmentation, listUnitTextsByUnits } from '../../services/LayerSegmentationTextService';
+import {
+  listUnitTextsFromSegmentation,
+  listUnitTextsByUnits,
+} from '../../services/LayerSegmentationTextService';
 import { DEFAULT_LOCAL_EMBEDDING_MODEL_ID } from './localEmbeddingModelConfig';
+
+/** Coarse hybrid-search phases for optional perf baselines (no effect on ranking). */
+export type EmbeddingSearchHybridPerfPhase =
+  | 'vector-retrieval'
+  | 'text-and-keyword-pool'
+  | 'minisearch-and-rerank';
 
 export interface SearchSimilarUnitsOptions {
   modelId?: string;
@@ -20,6 +29,11 @@ export interface SearchSimilarUnitsOptions {
   fusionScenario?: SearchFusionScenario;
   /** 最低相似度阈值（0-1）；低于此值的匹配结果将被丢弃，默认 0.3 | Minimum similarity score threshold (0-1); matches below this are discarded */
   minScore?: number;
+  /**
+   * Optional coarse timings for perf baselines; does not change results.
+   * vector-retrieval: embed + IndexedDB scan + vector sort; text-and-keyword-pool: hydration + keyword expansion; minisearch-and-rerank: MiniSearch + fused sort.
+   */
+  onSearchPerfPhase?: (phase: EmbeddingSearchHybridPerfPhase, durationMs: number) => void;
 }
 
 export interface SimilarUnitMatch {
@@ -38,6 +52,32 @@ export interface SearchSimilarUnitsResult {
 
 const DEFAULT_MODEL_VERSION = '2026-03';
 const DEFAULT_MIN_SCORE = 0.3;
+
+/**
+ * Vector-stage rows: compound `[sourceType+model]` seek, then `modelVersion` filter and optional
+ * `candidateSourceIds` filter. Explicit empty candidate set short-circuits (avoids a useless full read).
+ */
+async function loadEmbeddingRowsForVectorScan(
+  db: JieyuDatabase,
+  sourceType: EmbeddingSourceType,
+  modelId: string,
+  modelVersion: string,
+  candidateSourceIds: ReadonlySet<string> | null,
+): Promise<EmbeddingDoc[]> {
+  if (candidateSourceIds !== null && candidateSourceIds.size === 0) {
+    return [];
+  }
+
+  const table = db.dexie.embeddings;
+  const rows = await table.where('[sourceType+model]').equals([sourceType, modelId]).toArray();
+  const matchesModelVersion = (row: EmbeddingDoc) =>
+    (row.modelVersion ?? DEFAULT_MODEL_VERSION) === modelVersion;
+
+  if (candidateSourceIds === null) {
+    return rows.filter(matchesModelVersion);
+  }
+  return rows.filter((row) => matchesModelVersion(row) && candidateSourceIds.has(row.sourceId));
+}
 
 function normalizeTopK(input: number | undefined): number {
   if (!Number.isFinite(input)) return 5;
@@ -189,19 +229,18 @@ export class EmbeddingSearchService {
     }
 
     const db = await getDb();
-    const embeddingRows = await db.dexie.embeddings
-      .where('[sourceType+model]')
-      .equals(['unit', modelId])
-      .toArray();
-    const candidateSet = options?.candidateSourceIds
-      ? new Set(options.candidateSourceIds)
-      : null;
+    const candidateSet = options?.candidateSourceIds ? new Set(options.candidateSourceIds) : null;
+
+    const embeddingRows = await loadEmbeddingRowsForVectorScan(
+      db,
+      'unit',
+      modelId,
+      modelVersion,
+      candidateSet,
+    );
 
     const scored: SimilarUnitMatch[] = [];
     for (const item of embeddingRows) {
-      if ((item.modelVersion ?? DEFAULT_MODEL_VERSION) !== modelVersion) continue;
-      if (candidateSet && !candidateSet.has(item.sourceId)) continue;
-
       const score = cosineSimilarity(queryVector, item.vector);
       if (!Number.isFinite(score)) continue;
       scored.push({
@@ -252,21 +291,17 @@ export class EmbeddingSearchService {
 
     const db = await getDb();
     const scored: SimilarUnitMatch[] = [];
-    const candidateSet = options?.candidateSourceIds
-      ? new Set(options.candidateSourceIds)
-      : null;
+    const candidateSet = options?.candidateSourceIds ? new Set(options.candidateSourceIds) : null;
 
     for (const sourceType of sourceTypes) {
-      // B-08 fix: use compound [sourceType+model] index for direct seek instead of scan + JS filter
-      const rows = await db.dexie.embeddings
-        .where('[sourceType+model]')
-        .equals([sourceType, modelId])
-        .toArray();
-      for (const row of rows) {
-        const item = row;
-        if ((item.modelVersion ?? DEFAULT_MODEL_VERSION) !== modelVersion) continue;
-        if (candidateSet && !candidateSet.has(item.sourceId)) continue;
-
+      const rows = await loadEmbeddingRowsForVectorScan(
+        db,
+        sourceType,
+        modelId,
+        modelVersion,
+        candidateSet,
+      );
+      for (const item of rows) {
         const score = cosineSimilarity(queryVector, item.vector);
         if (!Number.isFinite(score)) continue;
         scored.push({
@@ -298,16 +333,27 @@ export class EmbeddingSearchService {
   ): Promise<SearchSimilarUnitsResult> {
     const topK = normalizeTopK(options?.topK);
     const minScore = options?.minScore ?? DEFAULT_MIN_SCORE;
+    const perfCb = options?.onSearchPerfPhase;
+    let perfMark = performance.now();
     const base = await this.searchMultiSource(query, sourceTypes, {
       ...options,
       topK: Math.max(topK * 3, 12),
     });
+    if (perfCb) {
+      const now = performance.now();
+      perfCb('vector-retrieval', now - perfMark);
+      perfMark = now;
+    }
 
     // 根据场景模板获取默认权重，允许手动参数覆盖 | Get default weights from scenario profile, allow manual override
     let keywordWeight: number;
     let fullTextWeight: number;
 
-    if (options?.fusionScenario && !Number.isFinite(options.keywordWeight) && !Number.isFinite(options.fullTextWeight)) {
+    if (
+      options?.fusionScenario &&
+      !Number.isFinite(options.keywordWeight) &&
+      !Number.isFinite(options.fullTextWeight)
+    ) {
       // 场景模式：使用模板权重 | Use profile weights
       const profile = resolveFusionWeightsForScenario(options.fusionScenario);
       keywordWeight = normalizeKeywordWeight(profile.keywordWeight);
@@ -338,25 +384,25 @@ export class EmbeddingSearchService {
     const db = await getDb();
     const modelId = options?.modelId ?? this.provider.modelId ?? DEFAULT_LOCAL_EMBEDDING_MODEL_ID;
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
-    const candidateSet = options?.candidateSourceIds
-      ? new Set(options.candidateSourceIds)
-      : null;
+    const candidateSet = options?.candidateSourceIds ? new Set(options.candidateSourceIds) : null;
 
-    const matchedUnitIds = [...new Set(
-      base.matches
-        .filter((match) => match.sourceType === 'unit')
-        .map((match) => match.sourceId),
-    )];
-    const matchedNoteIds = [...new Set(
-      base.matches
-        .filter((match) => match.sourceType === 'note')
-        .map((match) => match.sourceId),
-    )];
-    const matchedPdfBaseRefs = [...new Set(
-      base.matches
-        .filter((match) => match.sourceType === 'pdf')
-        .map((match) => splitPdfCitationRef(match.sourceId).baseRef),
-    )];
+    const matchedUnitIds = [
+      ...new Set(
+        base.matches.filter((match) => match.sourceType === 'unit').map((match) => match.sourceId),
+      ),
+    ];
+    const matchedNoteIds = [
+      ...new Set(
+        base.matches.filter((match) => match.sourceType === 'note').map((match) => match.sourceId),
+      ),
+    ];
+    const matchedPdfBaseRefs = [
+      ...new Set(
+        base.matches
+          .filter((match) => match.sourceType === 'pdf')
+          .map((match) => splitPdfCitationRef(match.sourceId).baseRef),
+      ),
+    ];
 
     const unitTextMap = new Map<string, string>();
     if (matchedUnitIds.length > 0) {
@@ -457,9 +503,10 @@ export class EmbeddingSearchService {
         .filter((m) => m.sourceType === 'note')
         .map((m) => m.sourceId);
       const uniqueNoteIds = [...new Set(noteIdsFromMatches)];
-      const noteRows = uniqueNoteIds.length > 0
-        ? await db.dexie.user_notes.where('id').anyOf(uniqueNoteIds).toArray()
-        : [];
+      const noteRows =
+        uniqueNoteIds.length > 0
+          ? await db.dexie.user_notes.where('id').anyOf(uniqueNoteIds).toArray()
+          : [];
       for (const note of noteRows) {
         if (candidateSet && !candidateSet.has(note.id)) continue;
         const sourceKey = `note:${note.id}`;
@@ -490,11 +537,12 @@ export class EmbeddingSearchService {
           return baseRef;
         });
       const uniquePdfIds = [...new Set(pdfIdsFromMatches)];
-      const mediaRows = uniquePdfIds.length > 0
-        ? await db.dexie.media_items.where('id').anyOf(uniquePdfIds).toArray()
-        : candidateSet
-          ? []
-          : await db.dexie.media_items.toArray();
+      const mediaRows =
+        uniquePdfIds.length > 0
+          ? await db.dexie.media_items.where('id').anyOf(uniquePdfIds).toArray()
+          : candidateSet
+            ? []
+            : await db.dexie.media_items.toArray();
       for (const media of mediaRows) {
         if (!isPdfMediaItem(media)) continue;
         if (candidateSet && !candidateSet.has(media.id)) continue;
@@ -517,21 +565,34 @@ export class EmbeddingSearchService {
       }
     }
 
+    if (perfCb) {
+      const now = performance.now();
+      perfCb('text-and-keyword-pool', now - perfMark);
+      perfMark = now;
+    }
+
     const fullTextScoreMap = buildFullTextScoreMap(base.query, fusedCandidates);
     const combinedWeight = keywordWeight + fullTextWeight;
-    const vectorWeight = combinedWeight >= 1 ? 0 : (1 - combinedWeight);
+    const vectorWeight = combinedWeight >= 1 ? 0 : 1 - combinedWeight;
 
     const reranked = Array.from(fusedCandidates.entries())
       .map(([candidateId, { match, rawText }]) => {
         const keywordScore = calcKeywordScore(rawText, queryTokens);
         const fullTextScore = fullTextScoreMap.get(candidateId) ?? 0;
-        const fusedScore = vectorWeight * match.score + keywordWeight * keywordScore + fullTextWeight * fullTextScore;
+        const fusedScore =
+          vectorWeight * match.score +
+          keywordWeight * keywordScore +
+          fullTextWeight * fullTextScore;
         return { match, fusedScore };
       })
       .filter((item) => item.fusedScore >= minScore)
       .sort((a, b) => b.fusedScore - a.fusedScore)
       .map((item) => item.match)
       .slice(0, topK);
+
+    if (perfCb) {
+      perfCb('minisearch-and-rerank', performance.now() - perfMark);
+    }
 
     return {
       query: base.query,

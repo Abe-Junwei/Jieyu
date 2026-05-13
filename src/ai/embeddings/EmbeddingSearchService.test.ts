@@ -14,7 +14,9 @@ class QueryRuntime implements EmbeddingProvider {
 
   constructor(private readonly queryVector: number[]) {}
 
-  async preload(options?: { onProgress?: (progress: { usingFallback?: boolean }) => void }): Promise<void> {
+  async preload(options?: {
+    onProgress?: (progress: { usingFallback?: boolean }) => void;
+  }): Promise<void> {
     this.preloadCount += 1;
     if (this.usingFallback) {
       options?.onProgress?.({ usingFallback: true });
@@ -171,6 +173,28 @@ describe('EmbeddingSearchService', () => {
     });
 
     expect(result.matches.map((item) => item.sourceId)).toEqual(['utt_2']);
+  });
+
+  it('returns no matches when candidate source id list is empty', async () => {
+    await db.embeddings.put({
+      id: 'unit::utt_1::test-model::v-test',
+      sourceType: 'unit',
+      sourceId: 'utt_1',
+      model: 'test-model',
+      modelVersion: 'v-test',
+      contentHash: 'h1',
+      vector: [1, 0],
+      createdAt: new Date().toISOString(),
+    });
+
+    const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
+    const result = await service.searchSimilarUnits('hello', {
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+      candidateSourceIds: [],
+    });
+
+    expect(result.matches).toEqual([]);
   });
 
   it('returns empty when query is blank', async () => {
@@ -389,6 +413,28 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     expect(result.matches).toEqual([]);
   });
 
+  it('returns no matches when candidate source ids are empty', async () => {
+    await db.embeddings.put({
+      id: 'unit::utt_1::test-model::v-test',
+      sourceType: 'unit',
+      sourceId: 'utt_1',
+      model: 'test-model',
+      modelVersion: 'v-test',
+      contentHash: 'h1',
+      vector: [1, 0],
+      createdAt: new Date().toISOString(),
+    });
+
+    const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
+    const result = await service.searchMultiSource('hello', ['unit'], {
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+      candidateSourceIds: [],
+    });
+
+    expect(result.matches).toEqual([]);
+  });
+
   it('returns empty when query is blank', async () => {
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     const result = await service.searchMultiSource('  ', ['unit']);
@@ -537,13 +583,17 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     });
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
-    const result = await service.searchMultiSourceHybrid('morphology elicitation', ['unit', 'note'], {
-      modelId: 'test-model',
-      modelVersion: 'v-test',
-      topK: 2,
-      keywordWeight: 0,
-      fullTextWeight: 0.9,
-    });
+    const result = await service.searchMultiSourceHybrid(
+      'morphology elicitation',
+      ['unit', 'note'],
+      {
+        modelId: 'test-model',
+        modelVersion: 'v-test',
+        topK: 2,
+        keywordWeight: 0,
+        fullTextWeight: 0.9,
+      },
+    );
 
     expect(result.matches[0]?.sourceId).toBe('utt_ft_1');
   });
