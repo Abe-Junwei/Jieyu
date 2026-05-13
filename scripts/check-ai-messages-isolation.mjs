@@ -9,46 +9,76 @@
 //      `*/i18n/dictKeys` (formatter copy must not depend on user-facing
 //      dictionaries).
 //   2. Files under src/ai/messages/** appearing in i18n/dictionaries/*.
+//
+// Implementation uses Node-only scanning (no `rg` binary) so CI runners
+// without ripgrep still enforce the rule.
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 const ROOT = process.cwd();
-const TARGET_DIR = 'src/ai/messages';
+const TARGET_DIR = resolve(ROOT, 'src/ai/messages');
 
-function rg(pattern, options = []) {
-  try {
-    const out = execFileSync('rg', ['-n', '--no-heading', ...options, pattern, TARGET_DIR], {
-      cwd: ROOT, encoding: 'utf8',
-    });
-    return out.split('\n').filter(Boolean);
-  } catch (err) {
-    if (err.status === 1) return [];
-    throw err;
+/** @param {string} dir @returns {string[]} */
+function collectSourceFiles(dir) {
+  /** @type {string[]} */
+  const out = [];
+  for (const name of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, name.name);
+    if (name.isDirectory()) {
+      out.push(...collectSourceFiles(p));
+      continue;
+    }
+    if (!name.isFile()) continue;
+    if (/\.(ts|tsx|mts|cts|js|mjs|cjs)$/.test(name.name)) out.push(p);
   }
+  return out;
 }
+
+const dictKeyImportRe = /from\s+['"][^'"]*i18n\/dictKeys['"]/g;
+const tCallRe = /\bt\(\s*['"]/g;
 
 const failures = [];
 
-// Rule 1: src/ai/messages/** must not import i18n dictKeys.
-const dictKeyImports = rg("from ['\"][^'\"]*i18n/dictKeys");
-if (dictKeyImports.length > 0) {
-  failures.push(`src/ai/messages/** imports i18n/dictKeys (UI 文案 vs formatter 分层违规):`);
-  for (const line of dictKeyImports) failures.push(`  - ${line}`);
+let files;
+try {
+  files = collectSourceFiles(TARGET_DIR);
+} catch (e) {
+  console.error('[check-ai-messages-isolation] FAILED: cannot read', TARGET_DIR, e);
+  process.exit(1);
 }
 
-// Rule 2: src/ai/messages/** must not reference t()/translate() i18n calls.
-const tCalls = rg("\\bt\\(['\"]");
-if (tCalls.length > 0) {
-  failures.push(`src/ai/messages/** uses t(...) i18n call (formatter must produce static copy):`);
-  for (const line of tCalls) failures.push(`  - ${line}`);
+for (const abs of files) {
+  const rel = abs.slice(ROOT.length + 1);
+  let text;
+  try {
+    text = readFileSync(abs, 'utf8');
+  } catch (e) {
+    console.error('[check-ai-messages-isolation] FAILED: cannot read file', rel, e);
+    process.exit(1);
+  }
+
+  let m;
+  dictKeyImportRe.lastIndex = 0;
+  while ((m = dictKeyImportRe.exec(text)) !== null) {
+    const line = text.slice(0, m.index).split('\n').length;
+    failures.push(`  - ${rel}:${line}: imports i18n/dictKeys (UI vs formatter layering violation)`);
+  }
+
+  tCallRe.lastIndex = 0;
+  while ((m = tCallRe.exec(text)) !== null) {
+    const line = text.slice(0, m.index).split('\n').length;
+    failures.push(`  - ${rel}:${line}: t("...") / t('...') i18n-style call (formatter must use static copy)`);
+  }
 }
 
 if (failures.length > 0) {
   console.error('[check-ai-messages-isolation] FAILED:');
+  console.error('src/ai/messages/** must not depend on UI i18n dictKeys or t("key") one-arg pattern:');
   for (const f of failures) console.error(f);
   process.exit(1);
 }
 
-console.log('[check-ai-messages-isolation] OK: src/ai/messages/ keeps formatter copy isolated from UI i18n.');
+console.log(
+  '[check-ai-messages-isolation] OK: src/ai/messages/ keeps formatter copy isolated from UI i18n.',
+);
