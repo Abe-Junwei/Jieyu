@@ -1,98 +1,30 @@
 import { useTranscriptionLayerMetadataController } from './useTranscriptionLayerMetadataController';
 import { useTranscriptionSelfCertaintyController } from './useTranscriptionSelfCertaintyController';
-import { useTranscriptionSpeakerController } from './useTranscriptionSpeakerController';
-import { useSpeakerActionScopeController } from './useSpeakerActionScopeController';
-import { useBatchOperationController } from './useBatchOperationController';
 import { useTrackDisplayController } from './useTrackDisplayController';
 import { useTrackEntityPersistenceController } from './useTrackEntityPersistenceController';
 import { useTrackEntityStateController } from './useTrackEntityStateController';
 import { useReadyWorkspaceTextEditingController } from './useReadyWorkspaceTextEditingController';
+import { useReadyWorkspaceTrackEditSpeakerBatchChain } from './useReadyWorkspaceTrackEditControllersSpeakerBatch';
 import { buildReadyWorkspaceTextEditingControllerInput } from './transcriptionReadyWorkspaceDomainInputBuilder';
 import { timeRangeDragPreviewFromSegmentRangeGesturePreview } from '../utils/segmentRangeGesturePreviewReadModel';
-import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
-import type { LayerActionPanelKind } from '~/hooks/layer/useLayerActionPanel';
-import type { PushTimelineEditInput } from '../hooks/ui/useEditEventBuffer';
+import type { UseReadyWorkspaceTrackEditControllersParams } from './readyWorkspaceTrackEditControllersParams';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
-type SegmentLocalUpdater = (segment: LayerUnitDocType) => LayerUnitDocType;
-
-export interface UseReadyWorkspaceTrackEditControllersParams {
-  data: ReturnType<typeof import('../hooks/useTranscriptionData').useTranscriptionData>;
-  /** 段落读模型 / segment scope — 不在 `useTranscriptionData` 上，勿用 `data.reloadSegments`。 */
-  reloadSegments: () => Promise<void>;
-  /** `useTranscriptionSegmentBridgeController` */
-  refreshSegmentUndoSnapshot: () => Promise<void>;
-  /** Segment scope 本地图更新 */
-  updateSegmentsLocally: (segmentIds: Iterable<string>, updater: SegmentLocalUpdater) => void;
-  /** `useTranscriptionShellController` */
-  layerAction: { setLayerActionPanel: (panel: LayerActionPanelKind) => void };
-  /** `useReadyWorkspaceInteractionHelpers` */
-  recordTimelineEdit: (event: PushTimelineEditInput) => void;
-  timelineUnitViewIndex: any;
-  getUnitDocById: any;
-  activeTimelineUnitId: any;
-  selectedUnitIds: any;
-  selectedTimelineUnit: any;
-  selectedTimelineMedia: any;
-  selectedUnit: any;
-  defaultTranscriptionLayerId: any;
-  selectedLayerId: any;
-  segmentsByLayer: any;
-  segmentContentByLayer: any;
-  transcriptionTrackMode: any;
-  activeTextId: any;
-  segmentTimelineLayerIds: any;
-  displayStyleControl: any;
-  manualSelectTsRef: any;
-  player: any;
-  navigateUnitFromInput: any;
-  waveformAreaRef: any;
-  segmentRangeGesturePreviewReadModel: any;
-  timelineViewportProjection: any;
-  focusedLayerRowId: any;
-  zoomToUnit: any;
-  startTimelineResizeDrag: any;
-  handleNoteClick: any;
-  resolveNoteIndicatorTarget: any;
-  setOverlapCycleToast: any;
-  overlapCycleTelemetryRef: any;
-  createLayerWithActiveContext: any;
-  handleFocusLayerRow: any;
-  tierContainerRef: any;
-  zoomPxPerSec: any;
-  setCtxMenu: any;
-  activeLayerIdForEdits: any;
-  setLockConflictToast: any;
-  selectUnitRange: any;
-  toggleUnitSelection: any;
-  selectUnit: any;
-  selectSegment: any;
-  setSelectedLayerId: any;
-  formatTime: any;
-  getUnitSpeakerKey: any;
-}
+export type { UseReadyWorkspaceTrackEditControllersParams } from './readyWorkspaceTrackEditControllersParams';
 
 export function useReadyWorkspaceTrackEditControllers(
   params: UseReadyWorkspaceTrackEditControllersParams,
 ) {
   const {
     data,
-    reloadSegments,
-    refreshSegmentUndoSnapshot,
-    updateSegmentsLocally,
-    layerAction,
-    recordTimelineEdit,
     timelineUnitViewIndex,
-    getUnitDocById,
     activeTimelineUnitId,
     selectedUnitIds,
     selectedTimelineUnit,
     selectedTimelineMedia,
-    selectedUnit,
     defaultTranscriptionLayerId,
     selectedLayerId,
     segmentsByLayer,
-    segmentContentByLayer,
     transcriptionTrackMode,
     activeTextId,
     segmentTimelineLayerIds,
@@ -122,81 +54,11 @@ export function useReadyWorkspaceTrackEditControllers(
     selectUnit,
     selectSegment,
     setSelectedLayerId,
-    formatTime,
     getUnitSpeakerKey,
   } = params;
 
-  const speakerActionScopeController = useSpeakerActionScopeController({
-    unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
-    unitViewById: timelineUnitViewIndex.byId,
-    resolveUnitViewById: timelineUnitViewIndex.resolveBySemanticId,
-    getUnitDocById,
-    segmentsByLayer,
-    speakers: data.speakers,
-    layers: data.layers,
-    ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
-    ...(selectedLayerId !== undefined ? { selectedLayerId } : {}),
-    selectedUnitIds,
-    selectedTimelineUnit,
-    getUnitSpeakerKey,
-  });
-
-  const batchOperationController = useBatchOperationController({
-    selectedUnitIds,
-    selectedTimelineUnit,
-    unitViewById: timelineUnitViewIndex.byId,
-    resolveUnitViewById: timelineUnitViewIndex.resolveBySemanticId,
-    unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
-    getUnitDocById,
-    setSaveState: data.setSaveState,
-    offsetSelectedTimes: data.offsetSelectedTimes,
-    scaleSelectedTimes: data.scaleSelectedTimes,
-    splitByRegex: data.splitByRegex,
-    mergeSelectedUnits: data.mergeSelectedUnits,
-  });
-
-  const speakerController = useTranscriptionSpeakerController({
-    units: data.units,
-    setUnits: data.setUnits,
-    speakers: data.speakers,
-    setSpeakers: data.setSpeakers,
-    unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
-    getUnitDocById,
-    activeTimelineUnitId,
-    selectedUnitIds,
-    selectedBatchSegmentsForSpeakerActions:
-      speakerActionScopeController.selectedBatchSegmentsForSpeakerActions,
-    selectedBatchUnits: speakerActionScopeController.selectedBatchUnits,
-    selectedTimelineUnit,
-    selectedTimelineMediaId: selectedTimelineMedia?.id ?? null,
-    selectedUnit: selectedUnit ?? null,
-    statePhase: data.state.phase,
-    setUnitSelection: data.setUnitSelection,
-    data,
-    setSaveState: data.setSaveState,
-    getUnitTextForLayer: data.getUnitTextForLayer,
-    formatTime,
-    getUnitSpeakerKey,
-    activeSpeakerManagementLayer: speakerActionScopeController.activeSpeakerManagementLayer,
-    segmentsByLayer,
-    segmentContentByLayer,
-    resolveExplicitSpeakerKeyForSegment:
-      speakerActionScopeController.resolveExplicitSpeakerKeyForSegment,
-    resolveSpeakerKeyForSegment: speakerActionScopeController.resolveSpeakerKeyForSegment,
-    selectedUnitIdsForSpeakerActions: speakerActionScopeController.selectedUnitIdsForSpeakerActions,
-    segmentByIdForSpeakerActions: speakerActionScopeController.segmentByIdForSpeakerActions,
-    resolveSpeakerActionUnitIds: speakerActionScopeController.resolveSpeakerActionUnitIds,
-    speakerFilterOptionsForActions: speakerActionScopeController.speakerFilterOptionsForActions,
-    segmentSpeakerAssignmentsOnCurrentMedia:
-      speakerActionScopeController.segmentSpeakerAssignmentsOnCurrentMedia,
-    selectTimelineUnit: data.selectTimelineUnit,
-    setSelectedUnitIds: data.setSelectedUnitIds,
-    reloadSegments,
-    refreshSegmentUndoSnapshot,
-    updateSegmentsLocally,
-    layerAction,
-    recordTimelineEdit,
-  });
+  const { speakerActionScopeController, batchOperationController, speakerController } =
+    useReadyWorkspaceTrackEditSpeakerBatchChain(params);
 
   const selfCertaintyController = useTranscriptionSelfCertaintyController({
     segmentsByLayer,

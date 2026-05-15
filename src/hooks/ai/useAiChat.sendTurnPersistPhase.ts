@@ -5,7 +5,7 @@
  * - useAiChat.sendPersistTurnAndBuildPromptContext.ts — user + assistant placeholder inserts
  * - useAiChat.sendTurnPersistAndPrimaryStream.ts — generation metadata update
  * - useAiChat.assistantPersistence.ts — stream flush + finalize inserts
- * - useAiChat.sendTurnStreamPhase.ts — retry generation metadata update
+ * - useAiChat.sendTurnStreamPhase.persistOutputCapRetry.ts — retry generation metadata update (output-cap path)
  *
  * This module centralizes all ai_messages DB mutations into a single file.
  */

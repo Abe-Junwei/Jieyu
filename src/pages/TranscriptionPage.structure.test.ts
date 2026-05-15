@@ -149,6 +149,32 @@ function readReadyWorkspaceWiringBundle(): string {
   return `${readTranscriptionReadyWorkspaceReadySurfaceWiring()}\n${fs.readFileSync(domainPath, 'utf8')}\n${fs.readFileSync(graphClusterPath, 'utf8')}\n${fs.readFileSync(mutationClusterPath, 'utf8')}\n${fs.readFileSync(unitOpsClusterPath, 'utf8')}\n${fs.readFileSync(waveformBridgePhasePath, 'utf8')}\n${fs.readFileSync(selectionAiPrepPhasePath, 'utf8')}\n${fs.readFileSync(timelineAssistantPlaybackPhasePath, 'utf8')}\n${fs.readFileSync(sidebarAndTrackPhasePath, 'utf8')}\n${fs.readFileSync(viewModelsAndSurfacePhasePath, 'utf8')}\n${fs.readFileSync(preBootstrapChromePath, 'utf8')}\n${fs.readFileSync(buildTimelineAssistantParamsPath, 'utf8')}\n${fs.readFileSync(buildSidebarTrackParamsPath, 'utf8')}\n${fs.readFileSync(buildViewModelsSurfaceParamsPath, 'utf8')}`;
 }
 
+/** Track-edit controller hook + speaker/batch chain module (structure assertions). */
+function readReadyWorkspaceTrackEditControllersStackSource(): string {
+  const trackEditPath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceTrackEditControllers.ts',
+  );
+  const speakerBatchPath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceTrackEditControllersSpeakerBatch.ts',
+  );
+  return `${fs.readFileSync(trackEditPath, 'utf8')}\n${fs.readFileSync(speakerBatchPath, 'utf8')}`;
+}
+
+/** Surface props hook + assembly phase module (structure assertions). */
+function readReadyWorkspaceSurfacePropsAssemblySource(): string {
+  const surfacePropsPath = path.resolve(
+    process.cwd(),
+    'src/pages/useReadyWorkspaceSurfaceProps.tsx',
+  );
+  const assemblyPath = path.resolve(
+    process.cwd(),
+    'src/pages/readyWorkspaceSurfacePropsAssemblyPhase.tsx',
+  );
+  return `${fs.readFileSync(surfacePropsPath, 'utf8')}\n${fs.readFileSync(assemblyPath, 'utf8')}`;
+}
+
 /** ReadyWorkspace 主体 + 结构锚点模块（架构守卫 JSX 已外提至 structureMarkers） */
 function readTranscriptionReadyWorkspaceAnchors(): string {
   const markersPath = path.resolve(
@@ -315,11 +341,7 @@ describe('TranscriptionPage structure invariants', () => {
   it('keeps speaker routing stack without speaker-focus controller', () => {
     const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
     const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
-    const trackEditPath = path.resolve(
-      process.cwd(),
-      'src/pages/useReadyWorkspaceTrackEditControllers.ts',
-    );
-    const trackEditCode = fs.readFileSync(trackEditPath, 'utf8');
+    const trackEditCode = readReadyWorkspaceTrackEditControllersStackSource();
     const controllerPath = path.resolve(
       process.cwd(),
       'src/pages/useTranscriptionSpeakerController.ts',
@@ -373,11 +395,7 @@ describe('TranscriptionPage structure invariants', () => {
   it('keeps media-scoped track entity persistence integration', () => {
     const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
     const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
-    const trackEditPath = path.resolve(
-      process.cwd(),
-      'src/pages/useReadyWorkspaceTrackEditControllers.ts',
-    );
-    const trackEditCode = fs.readFileSync(trackEditPath, 'utf8');
+    const trackEditCode = readReadyWorkspaceTrackEditControllersStackSource();
     const stateHookPath = path.resolve(process.cwd(), 'src/pages/useTrackEntityStateController.ts');
     const stateHookCode = fs.readFileSync(stateHookPath, 'utf8');
     const persistenceHookPath = path.resolve(
@@ -606,11 +624,7 @@ describe('TranscriptionPage structure invariants', () => {
 
   it('keeps waveform region routing for independent-boundary layers', () => {
     const code = readReadyWorkspaceWiringBundle();
-    const surfacePropsPath = path.resolve(
-      process.cwd(),
-      'src/pages/useReadyWorkspaceSurfaceProps.tsx',
-    );
-    const surfacePropsCode = fs.readFileSync(surfacePropsPath, 'utf8');
+    const surfacePropsCode = readReadyWorkspaceSurfacePropsAssemblySource();
     const waveformBridgeHookPath = path.resolve(
       process.cwd(),
       'src/pages/useTranscriptionWaveformBridgeController.ts',
@@ -834,11 +848,7 @@ describe('TranscriptionPage structure invariants', () => {
 
     // 批量入口已下沉到独立 controller，当前文件只保留调用边界
     // Batch mapping/error surfacing now lives in a dedicated controller hook.
-    const trackEditPath = path.resolve(
-      process.cwd(),
-      'src/pages/useReadyWorkspaceTrackEditControllers.ts',
-    );
-    const trackEditCode = fs.readFileSync(trackEditPath, 'utf8');
+    const trackEditCode = readReadyWorkspaceTrackEditControllersStackSource();
     expect(
       code.includes(
         "import { useReadyWorkspaceTrackEditControllers } from './useReadyWorkspaceTrackEditControllers';",
@@ -1131,11 +1141,7 @@ describe('TranscriptionPage structure invariants', () => {
   it('routes speaker assignment through segment writes for independent selections', () => {
     const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
     const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
-    const trackEditPath = path.resolve(
-      process.cwd(),
-      'src/pages/useReadyWorkspaceTrackEditControllers.ts',
-    );
-    const trackEditCode = fs.readFileSync(trackEditPath, 'utf8');
+    const trackEditCode = readReadyWorkspaceTrackEditControllersStackSource();
     const scopeHookPath = path.resolve(
       process.cwd(),
       'src/pages/useSpeakerActionScopeController.ts',
@@ -1205,11 +1211,7 @@ describe('TranscriptionPage structure invariants', () => {
       'src/pages/transcriptionReadyWorkspaceSidePaneInputBuilder.ts',
     );
     const sidePaneInputBuilderCode = fs.readFileSync(sidePaneInputBuilderPath, 'utf8');
-    const surfacePropsPath = path.resolve(
-      process.cwd(),
-      'src/pages/useReadyWorkspaceSurfaceProps.tsx',
-    );
-    const surfacePropsCode = fs.readFileSync(surfacePropsPath, 'utf8');
+    const surfacePropsCode = readReadyWorkspaceSurfacePropsAssemblySource();
     const surfaceNestedSliceBuilderPath = path.resolve(
       process.cwd(),
       'src/pages/readyWorkspaceSurfaceOrchestratorNestedSliceInputsBuilder.ts',
@@ -1366,11 +1368,7 @@ describe('TranscriptionPage structure invariants', () => {
   it('limits segment speaker management actions to explicit segment speaker labels', () => {
     const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
     const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
-    const trackEditPath = path.resolve(
-      process.cwd(),
-      'src/pages/useReadyWorkspaceTrackEditControllers.ts',
-    );
-    const trackEditCode = fs.readFileSync(trackEditPath, 'utf8');
+    const trackEditCode = readReadyWorkspaceTrackEditControllersStackSource();
     const scopeHookPath = path.resolve(
       process.cwd(),
       'src/pages/useSpeakerActionScopeController.ts',
@@ -1861,11 +1859,7 @@ describe('TranscriptionPage structure invariants', () => {
       'src/pages/useReadyWorkspacePreBootstrapChromePhase.ts',
     );
     const preBootstrapCode = fs.readFileSync(preBootstrapPath, 'utf8');
-    const surfacePropsPath = path.resolve(
-      process.cwd(),
-      'src/pages/useReadyWorkspaceSurfaceProps.tsx',
-    );
-    const surfacePropsCode = fs.readFileSync(surfacePropsPath, 'utf8');
+    const surfacePropsCode = readReadyWorkspaceSurfacePropsAssemblySource();
     const hookPath = path.resolve(process.cwd(), 'src/hooks/ui/useRecoveryBanner.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
@@ -1895,11 +1889,7 @@ describe('TranscriptionPage structure invariants', () => {
   it('keeps timeline filtering and editor context composition extracted into dedicated hook', () => {
     const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
     const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
-    const trackEditPath = path.resolve(
-      process.cwd(),
-      'src/pages/useReadyWorkspaceTrackEditControllers.ts',
-    );
-    const trackEditCode = fs.readFileSync(trackEditPath, 'utf8');
+    const trackEditCode = readReadyWorkspaceTrackEditControllersStackSource();
     const aggregateHookPath = path.resolve(
       process.cwd(),
       'src/pages/useReadyWorkspaceTextEditingController.ts',
@@ -2151,11 +2141,7 @@ describe('TranscriptionPage structure invariants', () => {
   it('keeps batch operation controller extracted into dedicated hook', () => {
     const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
     const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
-    const trackEditPath = path.resolve(
-      process.cwd(),
-      'src/pages/useReadyWorkspaceTrackEditControllers.ts',
-    );
-    const trackEditCode = fs.readFileSync(trackEditPath, 'utf8');
+    const trackEditCode = readReadyWorkspaceTrackEditControllersStackSource();
     const hookPath = path.resolve(process.cwd(), 'src/pages/useBatchOperationController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
@@ -2205,11 +2191,7 @@ describe('TranscriptionPage structure invariants', () => {
   it('keeps track display controller extracted into dedicated hook', () => {
     const orchestratorCode = readTranscriptionReadyWorkspaceRuntimeSource();
     const readyWorkspaceWiringBundle = readReadyWorkspaceWiringBundle();
-    const trackEditPath = path.resolve(
-      process.cwd(),
-      'src/pages/useReadyWorkspaceTrackEditControllers.ts',
-    );
-    const trackEditCode = fs.readFileSync(trackEditPath, 'utf8');
+    const trackEditCode = readReadyWorkspaceTrackEditControllersStackSource();
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTrackDisplayController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 

@@ -1,4 +1,4 @@
-import type { UseReadyWorkspaceSurfacePropsInput } from './useReadyWorkspaceSurfaceProps';
+import type { UseReadyWorkspaceSurfacePropsInput } from './readyWorkspaceSurfacePropsTypes';
 
 export type ReadyWorkspaceSurfaceFlatLayeredContext = {
   shell: Pick<

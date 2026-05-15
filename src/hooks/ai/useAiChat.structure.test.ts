@@ -19,6 +19,14 @@ function readUseAiChatSeamBundle() {
     'useAiChat.sendTurnCompletion.ts',
     'useAiChat.sendTurnCorrelation.ts',
     'useAiChat.sendTurnStreamPhase.ts',
+    'useAiChat.sendTurnStreamPhase.types.ts',
+    'useAiChat.sendTurnStreamPhase.completionEnv.ts',
+    'useAiChat.sendTurnStreamPhase.persistOutputCapRetry.ts',
+    'useAiChat.sendTurnStreamPhase.completionPipeline.ts',
+    'useAiChat.sendTurnStreamPhase.completionPipelineShared.ts',
+    'useAiChat.sendTurnStreamPhase.completionPipelineAgentLoop.ts',
+    'useAiChat.sendTurnStreamPhase.completionPipelineVerticalFinalize.ts',
+    'useAiChat.sendTurnStreamPhase.completionPipelineVerticalComposedWorkflow.ts',
     'useAiChat.sendPersistTurnAndBuildPromptContext.ts',
   ] as const;
   return [
@@ -38,6 +46,9 @@ describe('useAiChat structure invariants', () => {
     expect(code.includes("from './ai/useAiChat.streamFactory';")).toBe(true);
     expect(bundle.includes("from './useAiChat.streamCompletion';")).toBe(true);
     expect(bundle.includes("from './useAiChat.streamCompletionPhase';")).toBe(true);
+    expect(bundle.includes('runSendTurnStreamPostCompletionPipeline(')).toBe(true);
+    expect(bundle.includes('runSendTurnStreamAgentLoopAfterPrimaryCompletion(')).toBe(true);
+    expect(bundle.includes('runSendTurnStreamComposedWorkflowAfterVerticalQuality(')).toBe(true);
     expect(code.includes("from './ai/useAiChat.rag';")).toBe(true);
     expect(code.includes("from './ai/useAiChat.confirmExecution';")).toBe(true);
     expect(code.includes("from './ai/useAiChat.agentLoopCheckpointControls';")).toBe(true);
@@ -58,9 +69,15 @@ describe('useAiChat structure invariants', () => {
     expect(code.includes('executeConfirmedToolCall(')).toBe(true);
   });
 
+  it('keeps ai/chat public surface whitelisted and pages free of internal deep imports', () => {
+    const chatIndex = fs.readFileSync(path.join(process.cwd(), 'src/ai/chat/index.ts'), 'utf8');
+    expect(chatIndex.includes('Phase D')).toBe(true);
+    expect(chatIndex.includes('export { loadSessionMemory, persistSessionMemory }')).toBe(true);
+    expect(chatIndex.includes('export { buildPromptContextBlock }')).toBe(true);
+  });
+
   it('wires send-turn orchestration to preflight, persist/stream, and stream phase modules', () => {
     const sendTurn = fs.readFileSync(path.join(HOOKS_AI, 'useAiChat.sendTurn.ts'), 'utf8');
-    expect(sendTurn.includes("from './useAiChat.sendTurnPreflight'")).toBe(true);
     expect(sendTurn.includes("from './useAiChat.sendTurnPersistAndPrimaryStream'")).toBe(true);
     expect(sendTurn.includes("from './useAiChat.sendTurnCompletion'")).toBe(true);
     expect(sendTurn.includes("from './useAiChat.sendTurnStreamPhase'")).toBe(true);

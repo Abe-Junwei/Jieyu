@@ -1,14 +1,16 @@
 import {
   buildReadyWorkspaceSurfaceControllersSlice,
   buildReadyWorkspaceSurfaceLayoutSlice,
-  buildReadyWorkspaceSurfaceOverlaysSlice,
-  buildReadyWorkspaceSurfaceWaveformSlice,
 } from './transcriptionReadyWorkspaceSurfaceNestedSlicesBuilder';
 import type { ReadyWorkspaceSurfacePropsOrchestratorInputSliceArgs } from './readyWorkspaceSurfacePropsOrchestratorInputSlice';
+import type {
+  ReadyWorkspaceSurfaceControllersSliceContract,
+  ReadyWorkspaceSurfaceOverlaysSliceContract,
+  ReadyWorkspaceSurfaceWaveformSliceContract,
+} from './readyWorkspaceSurfaceSliceContracts';
+import type { ReadyWorkspaceSidePaneSpeakerActionScopeContract } from './transcriptionReadyWorkspaceSidePaneInputBuilder';
 
 type LayoutSliceInput = Parameters<typeof buildReadyWorkspaceSurfaceLayoutSlice>[0];
-type WaveformSliceInput = Parameters<typeof buildReadyWorkspaceSurfaceWaveformSlice>[0];
-type OverlaysSliceInput = Parameters<typeof buildReadyWorkspaceSurfaceOverlaysSlice>[0];
 type ControllersSliceInput = Parameters<typeof buildReadyWorkspaceSurfaceControllersSlice>[0];
 
 export type ReadyWorkspaceSurfaceOrchestratorNestedSliceInputs = Pick<
@@ -147,7 +149,7 @@ export function buildReadyWorkspaceSurfaceOrchestratorNestedSliceInputs(
     isAiPanelCollapsed: d.isAiPanelCollapsed,
     laneLabelWidth: d.laneLabelWidth,
     isTimelineLaneHeaderCollapsed: d.isTimelineLaneHeaderCollapsed,
-    selectedMediaUrl: d.selectedMediaUrl,
+    selectedMediaUrl: d.selectedMediaUrl as string | null | undefined,
     selectedMediaIsVideo: d.selectedMediaIsVideo,
     videoLayoutMode: d.videoLayoutMode,
     videoRightPanelWidth: d.videoRightPanelWidth,
@@ -156,7 +158,7 @@ export function buildReadyWorkspaceSurfaceOrchestratorNestedSliceInputs(
   const pb = d.playbackKeyboardController;
   const player = d.player;
 
-  const waveformInput: WaveformSliceInput = {
+  const waveformInput = {
     waveformAreaRef: d.waveformAreaRef,
     snapGuide: d.snapGuide,
     segMarkStart: d.segMarkStart,
@@ -236,9 +238,9 @@ export function buildReadyWorkspaceSurfaceOrchestratorNestedSliceInputs(
     waveformSectionRef: d.waveformSectionRef,
     workspaceRef: d.workspaceRef,
     listMainRef: d.listMainRef,
-  };
+  } as unknown as ReadyWorkspaceSurfaceWaveformSliceContract;
 
-  const overlaysInput: OverlaysSliceInput = {
+  const overlaysInput = {
     ctxMenu: d.ctxMenu,
     setCtxMenu: d.setCtxMenu,
     uttOpsMenu: d.uttOpsMenu,
@@ -287,10 +289,10 @@ export function buildReadyWorkspaceSurfaceOrchestratorNestedSliceInputs(
       d.speakerController as { handleOpenSpeakerManagementPanel: unknown }
     ).handleOpenSpeakerManagementPanel,
     displayStyleControl: d.displayStyleControl,
-  };
+  } as ReadyWorkspaceSurfaceOverlaysSliceContract;
 
   const controllersInput: ControllersSliceInput = {
-    speaker: d.speakerController as ControllersSliceInput['speaker'],
+    speaker: d.speakerController as ReadyWorkspaceSurfaceControllersSliceContract['speaker'],
     trackDisplay: d.trackDisplayController,
     timeline: d.timelineController,
     batch: d.batchOperationController,
@@ -303,7 +305,7 @@ export function buildReadyWorkspaceSurfaceOrchestratorNestedSliceInputs(
     annotation: d.annotationController,
     selfCertainty: d.selfCertaintyController as ControllersSliceInput['selfCertainty'],
     speakerActionScope:
-      d.speakerActionScopeController as ControllersSliceInput['speakerActionScope'],
+      d.speakerActionScopeController as ReadyWorkspaceSidePaneSpeakerActionScopeContract,
   };
 
   return {

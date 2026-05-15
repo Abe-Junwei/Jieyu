@@ -14,7 +14,7 @@ import type {
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import type { WaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
-import { buildWorldModelSnapshot } from '../ai/chat/worldModelSnapshot';
+import { buildWorldModelSnapshot } from '../ai/chat';
 import type { LayerDocType } from '../types/jieyuDbDocTypes';
 import { resolveSegmentTimelineSourceLayer } from '~/hooks/layer/useLayerSegments';
 

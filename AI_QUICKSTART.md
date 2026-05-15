@@ -34,6 +34,7 @@ hotspots:auto 区间由 `npm run sync:ai-quickstart-hotspots` 自动重写，请
 | 改 db schema / persistence | [docs/architecture/ai-local-context-tool-governance.md](docs/architecture/ai-local-context-tool-governance.md)；写→reload→readback 验证硬规则见 [AGENTS.md](AGENTS.md) §4 | `vitest` 定向 |
 | 改 CSS / 面板视觉层级 | [copilot-instructions.md](copilot-instructions.md) §九 双层边框规则 | [docs/architecture/CSS架构与模板复用规范.md](docs/architecture/CSS架构与模板复用规范.md) |
 | 改 i18n / 用户可见文案 | [DESIGN.md](DESIGN.md) | `src/i18n/dictKeys.ts` |
+| 编排可治理性 / 深模块 / hotspot 行为测试（跨 Wave） | [AI与代码库可治理性综合整改方案-2026-05-13.md](docs/execution/plans/AI与代码库可治理性综合整改方案-2026-05-13.md) | [code-governance-plan-2026-05-06.md](docs/architecture/code-governance-plan-2026-05-06.md) |
 | 中等以上复杂度新功能（≥ 1 新 controller / 跨 ≥ 3 controller） | [docs/execution/specs/_template/](docs/execution/specs/_template/) 三件套（requirements / design / tasks） | [copilot-instructions.md](copilot-instructions.md) §五 |
 
 ## 3. 跨工具子 agent 委托决策表
@@ -115,7 +116,7 @@ Commit   commit msg 附验证证据（命令 + 摘要）
 
 - 不引入 `src/features/...` / monorepo / nx / turbo。
 - 不建 `.cursor/rules/*.mdc` 的 path-scoped `globs:`（Kimi 不支持 → 破坏三工具一致性）；想加规则就写进 [AGENTS.md](AGENTS.md) 或 [copilot-instructions.md](copilot-instructions.md)。
-- 不维护 Claude 专用入口（无 `CLAUDE.md` / 无 `.claude/`）；项目只用 Cursor / Copilot / Kimi。
+- 不维护 **Claude Code 专属工作目录** `.claude/` 作为项目真相源。三工具基线以 **`AGENTS.md`** 为准；根目录 **`CLAUDE.md` 非必需**，若存在应仅为 `AGENTS.md` 镜像，**不得**作为与 `AI_QUICKSTART.md` / `copilot-instructions.md` 冲突的第三套权威正文。
 - 不引 LangSmith / Braintrust SaaS（本地 `run-agent-evals.mjs` 够用）。
 - 不引多 agent 编排。
 - 不强制每 PR 跑 `:full` evals（`:smoke` 即可）。

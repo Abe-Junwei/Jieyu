@@ -1,12 +1,12 @@
 import type { BuildReadyWorkspaceSidePanePropsInput } from './transcriptionReadyWorkspacePropsBuilders';
 
-type SidePaneSpeakerActionScope = {
+export type ReadyWorkspaceSidePaneSpeakerActionScopeContract = {
   selectedSpeakerUnitIdsForActionsSet: BuildReadyWorkspaceSidePanePropsInput['selectedUnitIds'];
   speakerVisualByTimelineUnitId: BuildReadyWorkspaceSidePanePropsInput['speakerVisualByUnitId'];
   speakerFilterOptionsForActions: BuildReadyWorkspaceSidePanePropsInput['speakerFilterOptions'];
 };
 
-type SidePaneSpeakerController = {
+export type ReadyWorkspaceSidePaneSpeakerControllerContract = {
   handleAssignSpeakerToSelectedRouted: BuildReadyWorkspaceSidePanePropsInput['handleAssignSpeakerToSelectedRouted'];
   handleClearSpeakerOnSelectedRouted: BuildReadyWorkspaceSidePanePropsInput['handleClearSpeakerOnSelectedRouted'];
   speakerOptions: BuildReadyWorkspaceSidePanePropsInput['speakerOptions'];
@@ -38,12 +38,16 @@ type SidePaneSpeakerController = {
   confirmSpeakerDialogRouted: BuildReadyWorkspaceSidePanePropsInput['confirmSpeakerDialog'];
 };
 
-type SidePaneCollaborationCloudPanelProps = NonNullable<BuildReadyWorkspaceSidePanePropsInput['collaborationCloudPanelProps']>;
-type SidePaneCollaborationDirectory = NonNullable<SidePaneCollaborationCloudPanelProps['directory']>;
+type SidePaneCollaborationCloudPanelProps = NonNullable<
+  BuildReadyWorkspaceSidePanePropsInput['collaborationCloudPanelProps']
+>;
+type SidePaneCollaborationDirectory = NonNullable<
+  SidePaneCollaborationCloudPanelProps['directory']
+>;
 
 export type BuildReadyWorkspaceSidePanePropsInputFromControllers = {
-  speakerActionScopeController: SidePaneSpeakerActionScope;
-  speakerController: SidePaneSpeakerController;
+  speakerActionScopeController: ReadyWorkspaceSidePaneSpeakerActionScopeContract;
+  speakerController: ReadyWorkspaceSidePaneSpeakerControllerContract;
   sidePaneRows: BuildReadyWorkspaceSidePanePropsInput['sidePaneRows'];
   focusedLayerRowId: BuildReadyWorkspaceSidePanePropsInput['focusedLayerRowId'];
   flashLayerRowId: BuildReadyWorkspaceSidePanePropsInput['flashLayerRowId'];
@@ -90,20 +94,23 @@ export function buildReadyWorkspaceSidePanePropsInput(
     listProjectSnapshots: input.listProjectSnapshots,
     restoreProjectSnapshotToLocalById: input.restoreProjectSnapshotToLocalById,
     queryProjectChangeTimeline: input.queryProjectChangeTimeline,
-    ...(input.supabaseConfigured && typeof input.activeTextId === 'string' && input.activeTextId.length > 0
+    ...(input.supabaseConfigured &&
+    typeof input.activeTextId === 'string' &&
+    input.activeTextId.length > 0
       ? {
-        directory: {
-          workspaceProjectId: input.activeTextId,
-          listAccessibleProjects: input.listAccessibleCloudProjects,
-          listProjectMembers: input.listCloudProjectMembers,
-        },
-      }
+          directory: {
+            workspaceProjectId: input.activeTextId,
+            listAccessibleProjects: input.listAccessibleCloudProjects,
+            listProjectMembers: input.listCloudProjectMembers,
+          },
+        }
       : {}),
   };
 
   return {
     selectedUnitIds: input.speakerActionScopeController.selectedSpeakerUnitIdsForActionsSet,
-    handleAssignSpeakerToSelectedRouted: input.speakerController.handleAssignSpeakerToSelectedRouted,
+    handleAssignSpeakerToSelectedRouted:
+      input.speakerController.handleAssignSpeakerToSelectedRouted,
     handleClearSpeakerOnSelectedRouted: input.speakerController.handleClearSpeakerOnSelectedRouted,
     speakerOptions: input.speakerController.speakerOptions,
     speakerDraftName: input.speakerController.speakerDraftName,
@@ -146,7 +153,9 @@ export function buildReadyWorkspaceSidePanePropsInput(
     updateLayerMetadata: input.updateLayerMetadata,
     layerCreateMessage: input.layerCreateMessage,
     layerAction: input.layerAction,
-    ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
+    ...(input.defaultTranscriptionLayerId !== undefined
+      ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId }
+      : {}),
     segmentsByLayer: input.segmentsByLayer,
     segmentContentByLayer: input.segmentContentByLayer,
     unitsOnCurrentMedia: input.unitsOnCurrentMedia,

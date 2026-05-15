@@ -6,7 +6,7 @@ import {
   buildReadyWorkspaceSurfaceOverlaysSlice,
   buildReadyWorkspaceSurfaceWaveformSlice,
 } from './transcriptionReadyWorkspaceSurfaceNestedSlicesBuilder';
-import type { UseReadyWorkspaceSurfacePropsInput } from './useReadyWorkspaceSurfaceProps';
+import type { UseReadyWorkspaceSurfacePropsInput } from './readyWorkspaceSurfacePropsTypes';
 
 type LayoutSliceInput = Parameters<typeof buildReadyWorkspaceSurfaceLayoutSlice>[0];
 type WaveformSliceInput = Parameters<typeof buildReadyWorkspaceSurfaceWaveformSlice>[0];

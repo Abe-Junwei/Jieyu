@@ -9,6 +9,54 @@ source_of_truth: implementation
 
 # ReadyWorkspace：`data`（文档域）与壳层装配边界
 
+## 一页式装配导航（Orchestrator 顺序）
+
+> 目标：新会话 / agent **不必先扫平铺的 `useReadyWorkspace*` 文件名**，即可按「阶段」定位改动落点。入口与行数守卫见 `docs/architecture/code-governance-plan-2026-05-06.md` §5.1。
+
+**薄入口链**
+
+1. `TranscriptionPage.ReadyWorkspace.tsx` — chunk 入口（仅 re-export / CSS）
+2. `TranscriptionPage.ReadyWorkspace.body.tsx` — 薄 body，转发 Orchestrator
+3. `TranscriptionPage.ReadyWorkspaceOrchestrator.tsx` — **编排壳**（约 200+ 行）：只串联阶段 hook + `buildReadyWorkspace*PhaseParams`，不展开大块业务
+
+**编排壳内阶段顺序（与源码调用顺序一致）**
+
+| 顺序 | 阶段 hook | 典型职责 |
+| --- | --- | --- |
+| 1 | `useReadyWorkspaceDomainShellPhase` | `data` 最小解构、编辑路由、segment scope 等域壳 |
+| 2 | `useReadyWorkspacePreBootstrapChromePhase` | 时间轴读范围 / `timelineUnitViewIndex`、chrome ref（ADR 0020 相关 wiring） |
+| 3 | `useReadyWorkspaceReadyPhaseBootstrap` | 段创建/变更、interaction helpers、overlay 路由等 bootstrap |
+| 4 | `useReadyWorkspaceWaveformBridgePhase` | 波形桥、播放器、lasso、viewport |
+| 5 | `useReadyWorkspaceSelectionAndAiPrepPhase` | 选择与 AI 侧栏前置 |
+| 6 | `useReadyWorkspaceTimelineAssistantPlaybackPhase` | 参数来自 `buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams` |
+| 7 | `useReadyWorkspaceSidebarAndTrackPhase` | 参数来自 `buildReadyWorkspaceSidebarAndTrackPhaseParams` |
+| 8 | `useReadyWorkspaceViewModelsAndSurfacePhase` | 参数来自 `buildReadyWorkspaceViewModelsSurfacePhaseParams`，产出舞台 / overlay props |
+
+**主要产出 → 消费方（与「阶段顺序」互补）**
+
+> 强调 **返回值 / builder 产物** 最终被谁组装或渲染；不重复「谁先调用谁」。行数刻意控制，细节以源码为准。
+
+| 主要产出 | 消费方 |
+| --- | --- |
+| `TranscriptionPage.ReadyWorkspace.tsx` | Vite chunk / 路由 lazy import |
+| `TranscriptionPage.ReadyWorkspace.body.tsx` | `TranscriptionPageReadyWorkspaceOrchestrator` |
+| `useReadyWorkspaceDomainShellPhase` 返回值 | `pre` / `bootstrap` / `waveform` 与各 `buildReadyWorkspace*PhaseParams` |
+| `useReadyWorkspacePreBootstrapChromePhase` 返回值 | `bootstrap`、`waveform`、`selectionAi`、timeline / sidebar builder |
+| `useReadyWorkspaceReadyPhaseBootstrap` 返回值 | `waveform`、`selectionAi`、timeline / sidebar / view-models 链 |
+| `useReadyWorkspaceWaveformBridgePhase` 返回值 | `selectionAi`、`timeline`、`sidebar`、`view-models` 各 phase |
+| `useReadyWorkspaceSelectionAndAiPrepPhase` 返回值 | timeline / sidebar / view-models builder |
+| `buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams` | `useReadyWorkspaceTimelineAssistantPlaybackPhase` |
+| `useReadyWorkspaceTimelineSyncSetup` + `buildReadyWorkspaceTimelineInteractionInput` | `useTranscriptionTimelineInteractionController`（经 timeline assistant phase 装配） |
+| `buildReadyWorkspaceSidebarAndTrackPhaseParams` | `useReadyWorkspaceSidebarAndTrackPhase` |
+| `useReadyWorkspaceTrackEditControllers`（在 sidebar phase 内调用；入参由 builder 装配） | 侧栏与轨道编辑 UI；再汇入 view-models 链 |
+| `buildReadyWorkspaceViewModelsSurfacePhaseParams` | `useReadyWorkspaceViewModelsAndSurfacePhase` |
+| `readyWorkspaceStageProps` / `readyWorkspaceOverlaysProps` / `readyWorkspaceLayoutStyle` | `TranscriptionPageReadyWorkspaceLayout` |
+| `buildReadyWorkspaceConflictReviewDrawerProps` | `TranscriptionPageReadyWorkspaceLayout` 的冲突抽屉 props |
+
+**时间轴交互与 `data` 边界**
+
+- `useReadyWorkspaceTimelineSyncSetup` 汇总 **`domainWrite` + `hostWrite`** 交给 `buildReadyWorkspaceTimelineInteractionInput`（见上文「装配纪律」）。**禁止**在 setup 内写 `data.setSubSelectionRange` 等壳层 API。
+
 ## 实质
 
 `TranscriptionPageReadyWorkspace` 收到的 `data` 来自 **`useTranscriptionData` / `useTranscriptionDataBindings`**，只覆盖 **文档与协作域 API**（units、layers、选择、持久化写路径、`snapGuide` / `setSnapGuide` 等）。
@@ -28,6 +76,7 @@ source_of_truth: implementation
 - `src/pages/useReadyWorkspaceTimelineSyncSetup.ts` — 汇总 `domainWrite` / `hostWrite` 并调用 builder。
 - `src/pages/transcriptionReadyWorkspaceTimelineInteractionInputBuilder.ts` — `hostWrite` 键集与类型定义。
 - `src/pages/useReadyWorkspaceTrackEditControllers.ts` — Speaker 等控制器与段落域的显式入参。
+- `src/pages/readyWorkspaceSurfaceSliceContracts.ts` — **Phase B** 表面嵌套 slice 合同（overlays / waveform / `layout`↔`BuildReadyWorkspaceLayoutStyleInputFromProps` / controllers 含 stage 所需的 `handleOpenSpeakerManagementPanel`）；`useReadyWorkspaceSurfaceProps.tsx` 消费。
 
 ## 回归扫描
 

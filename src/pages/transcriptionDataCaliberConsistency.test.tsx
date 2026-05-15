@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptContext';
-import { executeLocalContextToolCall } from '../ai/chat/localContextTools';
+import { executeLocalContextToolCall } from '../ai/chat';
 import { buildTimelineUnitViewIndex } from '../hooks/transcription/timelineUnitView';
 
 describe('transcription data caliber consistency', () => {

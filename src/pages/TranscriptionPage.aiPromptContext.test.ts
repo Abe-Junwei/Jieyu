@@ -5,7 +5,7 @@ import {
   buildTranscriptionAiPromptContext,
   buildUnitTimelineDigest,
 } from './TranscriptionPage.aiPromptContext';
-import { buildPromptContextBlock } from '../ai/chat/promptContext';
+import { buildPromptContextBlock } from '../ai/chat';
 
 function makeTestLayer(
   partial: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'name'>,

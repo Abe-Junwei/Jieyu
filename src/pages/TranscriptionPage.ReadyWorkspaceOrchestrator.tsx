@@ -3,6 +3,9 @@
  *
  * Heavy ready-state hook wiring; thin chunk entry + CSS stay on `TranscriptionPage.ReadyWorkspace.tsx`;
  * 薄壳见 `TranscriptionPage.ReadyWorkspace.body.tsx` | Thin shell: {@link TranscriptionPageReadyWorkspace} in body module.
+ *
+ * 改装配 / 时间轴 `data` vs 壳层：先读 `docs/architecture/ReadyWorkspace-数据域与壳层装配边界.md`
+ *（一页式阶段顺序表、「主要产出 → 消费方」简表、`domainWrite`/`hostWrite`、`npm run audit:ready-workspace-timeline-host`）。
  */
 
 import { useSearchParams } from 'react-router-dom';

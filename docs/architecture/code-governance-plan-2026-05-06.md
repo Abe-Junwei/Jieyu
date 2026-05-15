@@ -3,7 +3,7 @@ title: 代码治理计划（修订版 v2）
 doc_type: architecture-governance-plan
 status: active
 owner: repo
-last_reviewed: 2026-05-11
+last_reviewed: 2026-05-10
 source_of_truth: code-governance-plan-2026-05-06-v2
 depends_on:
   - ../execution/governance/未落地项汇总-2026-04-24.md
@@ -357,41 +357,43 @@ export function webkitAiStateWorkerSyntaxNoisePatterns(browserName: string): Reg
 
 **当前热点（2026-05-11 文档同步，以本地 `wc -l` 为准；合并/拉取后请重跑）：**
 
-| 文件 | 当前行数 | 阈值 | 使用率 | 行动 |
-|------|---------|------|--------|------|
-| `TranscriptionPage.ReadyWorkspace.tsx`（入口） | 10 | 40 | — | 🟢 chunk 壳；重逻辑在 Orchestrator |
-| `TranscriptionPage.ReadyWorkspace.body.tsx` | 20 | 80 | 约 25% | 🟢 薄壳达标 |
-| `TranscriptionPage.ReadyWorkspaceOrchestrator.tsx` | ~231 | 2600 | 约 8.9% | 🟢 编排壳已薄；增量进阶段 hook / builder（见 **§5.1.1**） |
-| `useReadyWorkspaceReadyPhaseBootstrap.ts` | 74 | 140（ratchet） | 约 52.9% | 🟢 `UseReadyWorkspaceReadyPhaseBootstrapParams` 类型外推至 `.types.ts`，门面降至薄组装壳 |
-| `useReadyWorkspaceSurfaceProps.tsx` | 507 | 650 | 约 78.0% | 🟡 单文件 ratchet，缓冲收窄；继续监控 |
-| `useReadyWorkspaceTrackEditControllers.ts` | 336 | 450 | 约 74.7% | 🟡 单文件 ratchet，缓冲收窄；继续监控 |
-| `AiAnalysisPanel.tsx` | 243 | 2250 | 约 10.8% | 🟢 声学 Tab 等已外拆；继续监控 |
-| `VoiceAgentService.ts` | 817 | 1100 | 约 74.3% | ✅ 持续监控；软目标 ≤900 行 |
-| `VoiceAgentDictationController.ts` | 77 | 2000 | 约 3.9% | 🟢 子模块，无阈值压力 |
-| `useTranscriptionWaveformBridgeController.ts` | 460 | 700 | 约 65.7% | ✅ 已拆 `waveformBridge*.ts`；缓冲充足 |
-| `waveformBridge*.ts`（4 文件合计） | 404 | — | — | 🟢 卫星模块；单文件各自受 `pages/(?!use)` 批量（800 行）约束 |
-| `useTranscriptionData.ts` | 10 | 600 | 约 1.7% | ✅ 薄入口 |
-| `useTranscriptionDataBindings.ts` | 579 | 1500 | 约 38.6% | 🟢 hooks 批量；继续避免再膨胀 |
-| `useTranscriptionDataFoundation.ts` | 114 | 1500 | 约 7.6% | 🟢 hooks 批量 |
-| `LinguisticService.ts` | ~165 | 2000 | 低 | 🟢 **Wave 2.2 已收口**：薄委托门面；guard 上限 2000；若再膨胀优先卫星模块而非单文件堆叠 |
-| `languageCatalog/languageCatalogCore.ts` | ~8 | — | — | 🟢 Wave 2.2：薄 barrel，re-export 子模块 |
-| `languageCatalog/languageCatalogCoreMutations.ts` | ~256 | — | — | 🟢 Wave 2.2：写路径编排 |
-| `languageCatalog/languageCatalogUpsertLanguageDocExtended.ts` | ~172 | — | — | 🟢 Wave 2.2：扩展元数据 merge（濒危/地理/方言等） |
-| `LinguisticService.languageCatalog.ts` | 12 | — | — | 🟢 薄 barrel；动态 import 路径勿改 |
-| `toolCallHelpers.ts` | 690 | 1000 | 69.0% | ✅ 已完成 |
-| `localContextToolExecutors.ts` | 218 | 1000 | 约 21.8% | ✅ 已深拆分，主文件编排入口 |
-| `localContextToolFormatters.ts` | 82 | 1000 | 8.2% | 🟢 已收敛 |
-| `localToolSlotResolver.ts` | 146 | 1000 | 14.6% | 🟢 已收敛 |
-| `segmentTextParsers.ts` | 109 | — | — | 🟢 新增 |
-| `toolCallValidation.ts` | 226 | — | — | 🟢 新增 |
-| `useBatchOperationController.ts` | 112 | 130 | 约 86% | 🟢 当前低于 ceiling（以本地 `wc -l` / guard 为准） |
-| `useSpeakerActionScopeController.ts` | 214 | 250 | 约 85.6% | 🟢 |
-| `useTrackDisplayController.ts` | **225** | 260 | 约 86.5% | 🟢 类型外推至 `.types.ts`，从 100% 回落 |
-| `useWaveformAcousticOverlay.ts` | 197 | 300 | 约 65.7% | 🟢 |
-| `useAiChat.ts` | 564 | 1100（`hookRule`） | 约 51.3% | 🟡 **G4**：见 **§〇**、**§2.1**；近顶前继续外拆大块 |
-| `useReadyWorkspaceSelectionAndAiPrepPhase.ts` | 191 | 320（ratchet） | 约 59.7% | 🟢 `SelectionAndAiPrepExtras` / `Result` 等类型外推至 `.types.ts`，缓冲充足 |
-| `useReadyWorkspaceSegmentMutationCreationCluster.ts` | 114 | 160（ratchet） | 约 71.3% | 🟢 `UseReadyWorkspaceSegmentMutationCreationClusterParams` 类型外推至 `.types.ts` |
-| `useReadyWorkspaceUnitOpsAndOverlayCluster.ts` | 110 | 150（ratchet） | 约 73.3% | 🟢 `UseReadyWorkspaceUnitOpsAndOverlayClusterParams` 类型外推至 `.types.ts` |
+> **行为测试（Phase E / §十）**：`无` = 尚无专项 Vitest 行为文件或仅结构/装配断言；`部分` = 有定向行为用例但未覆盖主要风险分支；`充分` = 同目录 `*.test.tsx` 等已覆盖多条关键路由/回归。🟡 及以上风险行**必须**填三档之一；其余填 `—`（本轮未单列清点）。
+
+| 文件 | 当前行数 | 阈值 | 使用率 | 行动 | 行为测试 |
+|------|---------|------|--------|------|----------|
+| `TranscriptionPage.ReadyWorkspace.tsx`（入口） | 10 | 40 | — | 🟢 chunk 壳；重逻辑在 Orchestrator | — |
+| `TranscriptionPage.ReadyWorkspace.body.tsx` | 20 | 80 | 约 25% | 🟢 薄壳达标 | — |
+| `TranscriptionPage.ReadyWorkspaceOrchestrator.tsx` | ~231 | 2600 | 约 8.9% | 🟢 编排壳已薄；增量进阶段 hook / builder（见 **§5.1.1**） | — |
+| `useReadyWorkspaceReadyPhaseBootstrap.ts` | 74 | 140（ratchet） | 约 52.9% | 🟢 `UseReadyWorkspaceReadyPhaseBootstrapParams` 类型外推至 `.types.ts`，门面降至薄组装壳 | — |
+| `useReadyWorkspaceSurfaceProps.tsx` | 507 | 650 | 约 78.0% | 🟡 单文件 ratchet，缓冲收窄；继续监控 | 部分（ReadyWorkspace 装配链结构测试为主） |
+| `useReadyWorkspaceTrackEditControllers.ts` | 336 | 450 | 约 74.7% | 🟡 单文件 ratchet，缓冲收窄；继续监控 | 部分（装配链结构测试为主） |
+| `AiAnalysisPanel.tsx` | 243 | 2250 | 约 10.8% | 🟢 声学 Tab 等已外拆；继续监控 | — |
+| `VoiceAgentService.ts` | 817 | 1100 | 约 74.3% | ✅ 持续监控；软目标 ≤900 行 | — |
+| `VoiceAgentDictationController.ts` | 77 | 2000 | 约 3.9% | 🟢 子模块，无阈值压力 | — |
+| `useTranscriptionWaveformBridgeController.ts` | 460 | 700 | 约 65.7% | ✅ 已拆 `waveformBridge*.ts`；缓冲充足 | — |
+| `waveformBridge*.ts`（4 文件合计） | 404 | — | — | 🟢 卫星模块；单文件各自受 `pages/(?!use)` 批量（800 行）约束 | — |
+| `useTranscriptionData.ts` | 10 | 600 | 约 1.7% | ✅ 薄入口 | — |
+| `useTranscriptionDataBindings.ts` | 579 | 1500 | 约 38.6% | 🟢 hooks 批量；继续避免再膨胀 | — |
+| `useTranscriptionDataFoundation.ts` | 114 | 1500 | 约 7.6% | 🟢 hooks 批量 | — |
+| `LinguisticService.ts` | ~165 | 2000 | 低 | 🟢 **Wave 2.2 已收口**：薄委托门面；guard 上限 2000；若再膨胀优先卫星模块而非单文件堆叠 | — |
+| `languageCatalog/languageCatalogCore.ts` | ~8 | — | — | 🟢 Wave 2.2：薄 barrel，re-export 子模块 | — |
+| `languageCatalog/languageCatalogCoreMutations.ts` | ~256 | — | — | 🟢 Wave 2.2：写路径编排 | — |
+| `languageCatalog/languageCatalogUpsertLanguageDocExtended.ts` | ~172 | — | — | 🟢 Wave 2.2：扩展元数据 merge（濒危/地理/方言等） | — |
+| `LinguisticService.languageCatalog.ts` | 12 | — | — | 🟢 薄 barrel；动态 import 路径勿改 | — |
+| `toolCallHelpers.ts` | 690 | 1000 | 69.0% | ✅ 已完成 | — |
+| `localContextToolExecutors.ts` | 218 | 1000 | 约 21.8% | ✅ 已深拆分，主文件编排入口 | — |
+| `localContextToolFormatters.ts` | 82 | 1000 | 8.2% | 🟢 已收敛 | — |
+| `localToolSlotResolver.ts` | 146 | 1000 | 14.6% | 🟢 已收敛 | — |
+| `segmentTextParsers.ts` | 109 | — | — | 🟢 新增 | — |
+| `toolCallValidation.ts` | 226 | — | — | 🟢 新增 | — |
+| `useBatchOperationController.ts` | 112 | 130 | 约 86% | 🟢 当前低于 ceiling（以本地 `wc -l` / guard 为准） | — |
+| `useSpeakerActionScopeController.ts` | 214 | 250 | 约 85.6% | 🟢 | — |
+| `useTrackDisplayController.ts` | **225** | 260 | 约 86.5% | 🟢 类型外推至 `.types.ts`，从 100% 回落 | — |
+| `useWaveformAcousticOverlay.ts` | 197 | 300 | 约 65.7% | 🟢 | — |
+| `useAiChat.ts` | 564 | 1100（`hookRule`） | 约 51.3% | 🟡 **G4**：见 **§〇**、**§2.1**；近顶前继续外拆大块 | 充分（`useAiChat.*` / `src/hooks/ai` 定向 Vitest） |
+| `useReadyWorkspaceSelectionAndAiPrepPhase.ts` | 191 | 320（ratchet） | 约 59.7% | 🟢 `SelectionAndAiPrepExtras` / `Result` 等类型外推至 `.types.ts`，缓冲充足 | — |
+| `useReadyWorkspaceSegmentMutationCreationCluster.ts` | 114 | 160（ratchet） | 约 71.3% | 🟢 `UseReadyWorkspaceSegmentMutationCreationClusterParams` 类型外推至 `.types.ts` | — |
+| `useReadyWorkspaceUnitOpsAndOverlayCluster.ts` | 110 | 150（ratchet） | 约 73.3% | 🟢 `UseReadyWorkspaceUnitOpsAndOverlayClusterParams` 类型外推至 `.types.ts` | — |
 
 > 注：当前 `^src/ai/chat/.*\.(ts|tsx)$` 批量规则 `excludeFiles` 仅包含 `toolCallHelpers.ts`。`localContextToolExecutors.ts`、`localContextToolFormatters.ts`、`localToolSlotResolver.ts` 均按批量规则（maxLines: 1000）治理；本轮已删除两条 1100 临时 ratchet，消除双口径。
 
@@ -399,23 +401,23 @@ export function webkitAiStateWorkerSyntaxNoisePatterns(browserName: string): Reg
 
 ### 10.1 命名 page controller 利用率快照（接入 §九 #11 SOP）
 
-> 数据来源：`npm run check:architecture-guard:core` WARN（`pageControllerRule` 默认 `warnAtRatio: 0.85`）。**🔴 ≥95%、🟡 ≥85%**；🟢 列入计划仅作监控不在此罗列。增量 PR 命中 🔴 的文件须**先**外拆卫星 / 阶段，再合入；若评审认定不可拆，需在 PR 描述中说明并调 `rules.pages.mjs` ratchet（不接受静默 +1）。
+> 数据来源：`npm run check:architecture-guard:core` WARN（`pageControllerRule` 默认 `warnAtRatio: 0.85`）。**🔴 ≥95%、🟡 ≥85%**；🟢 列入计划仅作监控不在此罗列。增量 PR 命中 🔴 的文件须**先**外拆卫星 / 阶段，再合入；若评审认定不可拆，需在 PR 描述中说明并调 `rules.pages.mjs` ratchet（不接受静默 +1）。**行为测试**列语义见 §十表前说明。
 
-| Controller | 行数 | 上限 | 利用率 | 备注 |
-|------|------|------|--------|------|
-| `useTranscriptionWorkspaceLayoutController` | **436** | 470 | 约 **93%** 🟡 | `useCallback` 9/10、`useEffect` 11/12；类型外推至 `.types.ts` |
-| `useTranscriptionTimelineInteractionController` | 550 | 560 | **98%** 🔴 | `useCallback` 17/20 |
-| `useTranscriptionSegmentMutationController` | **592** | 660 | 约 **90%** 🟡 | 类型外推至 `.types.ts`，工具函数外推至 `.utils.ts` |
-| `useTranscriptionAssistantController` | 296 | 305 | **97%** 🔴 | `useCallback` 3/3、`useEffect` 1/1 |
-| `useTranscriptionAiController` | 600 | 620 | **97%** 🔴 | `useCallback` 7/8 |
-| `useTranscriptionShellController` | **314** | 410 | 约 **77%** 🟢 | `useEffect` 6/7；类型外推至 `.types.ts` |
-| `useSpeakerActionRoutingController` | 1060 | 1100 | **96%** 🔴 | `useCallback` 19/22、`useEffect` 1/1 |
-| `useTranscriptionSegmentBridgeController` | 249 | 260 | **96%** 🔴 | `useEffect` 2/2 |
-| `useWaveformRuntimeController` | 125 | 130 | **96%** 🔴 | `useCallback` 1/1、`useEffect` 3/3 |
-| `useTranscriptionTimelineController` | 209 | 220 | **95%** 🔴 | `useMemo` 7/7 |
-| `useTranscriptionProjectMediaController` | 276 | 300 | 92% 🟡 | `useCallback` 7/8、`useMemo` 1/1 |
-| `useBatchOperationController` | 113 | 130 | 87% 🟡 | — |
-| `useSpeakerActionScopeController` | 215 | 250 | 86% 🟡 | `useCallback` 4/4 |
+| Controller | 行数 | 上限 | 利用率 | 备注 | 行为测试 |
+|------|------|------|--------|------|----------|
+| `useTranscriptionWorkspaceLayoutController` | **436** | 470 | 约 **93%** 🟡 | `useCallback` 9/10、`useEffect` 11/12；类型外推至 `.types.ts` | 充分 |
+| `useTranscriptionTimelineInteractionController` | 550 | 560 | **98%** 🔴 | `useCallback` 17/20 | 充分 |
+| `useTranscriptionSegmentMutationController` | **592** | 660 | 约 **90%** 🟡 | 类型外推至 `.types.ts`，工具函数外推至 `.utils.ts` | 充分 |
+| `useTranscriptionAssistantController` | 296 | 305 | **97%** 🔴 | `useCallback` 3/3、`useEffect` 1/1 | 充分 |
+| `useTranscriptionAiController` | 600 | 620 | **97%** 🔴 | `useCallback` 7/8 | 充分 |
+| `useTranscriptionShellController` | **314** | 410 | 约 **77%** 🟢 | `useEffect` 6/7；类型外推至 `.types.ts` | — |
+| `useSpeakerActionRoutingController` | 1060 | 1100 | **96%** 🔴 | `useCallback` 19/22、`useEffect` 1/1 | 充分 |
+| `useTranscriptionSegmentBridgeController` | 249 | 260 | **96%** 🔴 | `useEffect` 2/2 | 充分（`useTranscriptionSegmentBridgeController.test.tsx`） |
+| `useWaveformRuntimeController` | 125 | 130 | **96%** 🔴 | `useCallback` 1/1、`useEffect` 3/3 | 充分 |
+| `useTranscriptionTimelineController` | 209 | 220 | **95%** 🔴 | `useMemo` 7/7 | 部分（专项文件用例较少，优先补关键派生分支） |
+| `useTranscriptionProjectMediaController` | 276 | 300 | 92% 🟡 | `useCallback` 7/8、`useMemo` 1/1 | 充分 |
+| `useBatchOperationController` | 113 | 130 | 87% 🟡 | — | 充分 |
+| `useSpeakerActionScopeController` | 215 | 250 | 86% 🟡 | `useCallback` 4/4 | 部分 |
 
 > 完整 WARN 列表（含 `useTrackEntityStateController`、`useWaveformSelectionController` 等仅在 hook 计数维度顶格的项）以最近一次 `npm run check:architecture-guard:core` 输出为准。
 

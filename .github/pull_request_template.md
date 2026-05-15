@@ -21,6 +21,11 @@
 - [ ] 若影响转写页时间轴，已运行 `npm run gate:timeline-phase1`
 - [ ] 未新增 `check:architecture-guard` hard failure
 
+## ReadyWorkspace 装配链 | ReadyWorkspace assembly
+
+- [ ] 若本次改动 **ReadyWorkspace 编排或时间轴同步**：已在 PR 描述中写明 **改动的阶段 hook / `buildReadyWorkspace*PhaseParams` / `useReadyWorkspaceTimelineSyncSetup` 的 `domainWrite`·`hostWrite` 哪一侧**（或勾选 **N/A**）
+- [ ] 已对照 [ReadyWorkspace-数据域与壳层装配边界.md](docs/architecture/ReadyWorkspace-数据域与壳层装配边界.md) 一页式导航，**未**把波形 / UI state / segment scope API 从 `data.` 误接（`npm run audit:ready-workspace-timeline-host`）
+
 ## Timeline 验收 | Timeline Validation
 
 - [ ] 若影响转写页时间轴，已按执行脚本完成手工冒烟：`docs/execution/手工验收执行脚本-转写页时间轴治理门禁-2026-04-03.md`
