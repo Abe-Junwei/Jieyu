@@ -406,6 +406,7 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
     setMessages,
     reflectionResult,
     composedReflectionRetryBlob,
+    locale: input.toolFeedbackLocaleRef.current,
   });
 
   if (resolution.status === 'done') {

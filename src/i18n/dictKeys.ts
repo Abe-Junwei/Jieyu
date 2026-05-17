@@ -2713,7 +2713,9 @@ export const DICT_KEYS = [
   'msg.ai.vertical.workflow.elanFlexCompatibility',
   'msg.ai.vertical.composed.annotationQaThenLexemeCandidates',
   'msg.ai.vertical.composed.segmentQaThenAnnotationQaThenLexemeCandidates',
+  'msg.ai.vertical.composed.markdown.annotationAndLexemeCombined',
+  'msg.ai.vertical.composed.markdown.annotationWithLexemePendingRetry',
+  'msg.ai.vertical.composed.markdown.lexemePendingRetryLine',
 ] as const;
 
 export type DictKey = (typeof DICT_KEYS)[number];
-

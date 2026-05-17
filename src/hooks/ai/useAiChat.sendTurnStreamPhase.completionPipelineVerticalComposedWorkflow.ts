@@ -13,6 +13,7 @@ import {
   SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
 } from '../../ai/vertical/composedWorkflowTemplates';
 import { createLogger } from '../../observability/logger';
+import { t, tf, type Locale } from '../../i18n';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
 import type { PersistOpeningTurnAndBuildPromptContextResult } from './useAiChat.sendPersistTurnAndBuildPromptContext';
@@ -37,6 +38,7 @@ export async function runSendTurnStreamComposedWorkflowAfterVerticalQuality(opts
   setMessages: Dispatch<SetStateAction<UiChatMessage[]>>;
   reflectionResult: SendTurnStreamVerticalReflectionResult;
   composedReflectionRetryBlob: ComposedReflectionRetryBlob | undefined;
+  locale: Locale;
 }): Promise<void> {
   const {
     db,
@@ -49,6 +51,7 @@ export async function runSendTurnStreamComposedWorkflowAfterVerticalQuality(opts
     setMessages,
     reflectionResult,
     composedReflectionRetryBlob,
+    locale,
   } = opts;
 
   const composedState = sessionMemoryRef.current.composedWorkflowState;
@@ -120,7 +123,18 @@ export async function runSendTurnStreamComposedWorkflowAfterVerticalQuality(opts
     persistSessionMemory(sessionMemoryRef.current);
 
     if (parseResult && step1Result && step2Result) {
-      const combinedContent = `## 标注审校\n\n${step1Result}\n\n---\n\n## 候选词建议\n\n${step2Result}`;
+      const annotationHeading = t(locale, 'msg.ai.vertical.workflow.annotationQa');
+      const lexemeHeading = t(locale, 'msg.ai.vertical.workflow.lexemeCandidates');
+      const combinedContent = tf(
+        locale,
+        'msg.ai.vertical.composed.markdown.annotationAndLexemeCombined',
+        {
+          annotationHeading,
+          lexemeHeading,
+          step1: step1Result,
+          step2: step2Result,
+        },
+      );
       resolution.content = combinedContent;
       flushSync(() => {
         setMessages((prev) =>
@@ -130,7 +144,17 @@ export async function runSendTurnStreamComposedWorkflowAfterVerticalQuality(opts
       queueFlushAssistantDraft(combinedContent, true);
       await awaitQueuedPersistence();
     } else if (step1Result) {
-      const partialContent = `## 标注审校\n\n${step1Result}\n\n---\n\n*候选词建议未能自动完成，正在尝试重试……*`;
+      const annotationHeading = t(locale, 'msg.ai.vertical.workflow.annotationQa');
+      const pendingLine = t(locale, 'msg.ai.vertical.composed.markdown.lexemePendingRetryLine');
+      const partialContent = tf(
+        locale,
+        'msg.ai.vertical.composed.markdown.annotationWithLexemePendingRetry',
+        {
+          annotationHeading,
+          step1: step1Result,
+          pendingLine,
+        },
+      );
       resolution.content = partialContent;
       flushSync(() => {
         setMessages((prev) =>
