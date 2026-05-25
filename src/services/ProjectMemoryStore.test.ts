@@ -460,6 +460,28 @@ describe('ProjectMemoryStore', () => {
       expect(results.length).toBeLessThanOrEqual(3);
       store.dispose();
     });
+
+    it('切换项目时即使 updatedAt 相同也不复用上一项目的 RAG 索引 | does not reuse RAG index across projects with same updatedAt', async () => {
+      const { projectMemoryStore: store } = await freshModule();
+      await store.loadProject('proj-a');
+      await store.confirmTerm('leakterm', 'from project A', 'en');
+      const sharedUpdatedAt = store.getMemory()!.updatedAt;
+      expect(store.getRagContextVector('leakterm', { minScore: 0 }).length).toBeGreaterThan(0);
+
+      fakeIdb.store.set('proj-b', {
+        projectId: 'proj-b',
+        terms: [],
+        phrasePatterns: [],
+        speakers: [],
+        domainVocabulary: [],
+        updatedAt: sharedUpdatedAt,
+      });
+
+      await store.loadProject('proj-b');
+      expect(store.getMemory()?.updatedAt).toBe(sharedUpdatedAt);
+      expect(store.getRagContextVector('leakterm', { minScore: 0 })).toEqual([]);
+      store.dispose();
+    });
   });
 
   // ── dispose / listener ────────────────────────────────────────────────────
