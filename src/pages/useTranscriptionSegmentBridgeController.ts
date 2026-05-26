@@ -23,7 +23,7 @@ import { fireAndForget } from '../utils/fireAndForget';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 
 interface SegmentUndoRefValue {
-  snapshotLayerSegments?: () => LayerSegmentGraphSnapshot;
+  snapshotLayerSegments?: () => LayerSegmentGraphSnapshot | undefined;
   restoreLayerSegments?: (
     units: LayerUnitDocType[],
     contents: LayerUnitContentDocType[],
@@ -102,6 +102,8 @@ export function useTranscriptionSegmentBridgeController(
     contents: [],
     links: [],
   });
+  /** False until the first `refreshSegmentUndoSnapshot` completes for the current layer scope. */
+  const segmentUndoSnapshotReadyRef = useRef(false);
   const segmentUndoSnapshotRequestIdRef = useRef(0);
 
   const resolveSegmentRoutingForLayer = useCallback(
@@ -128,9 +130,11 @@ export function useTranscriptionSegmentBridgeController(
   const refreshSegmentUndoSnapshot = useCallback(async () => {
     const requestId = segmentUndoSnapshotRequestIdRef.current + 1;
     segmentUndoSnapshotRequestIdRef.current = requestId;
+    segmentUndoSnapshotReadyRef.current = false;
     if (input.independentLayerIds.size === 0) {
       if (segmentUndoSnapshotRequestIdRef.current === requestId) {
         segmentUndoSnapshotRef.current = { units: [], contents: [], links: [] };
+        segmentUndoSnapshotReadyRef.current = true;
       }
       return;
     }
@@ -138,6 +142,7 @@ export function useTranscriptionSegmentBridgeController(
     const snapshot = await snapshotLayerSegmentGraphByLayerIds(db, [...input.independentLayerIds]);
     if (segmentUndoSnapshotRequestIdRef.current !== requestId) return;
     segmentUndoSnapshotRef.current = snapshot;
+    segmentUndoSnapshotReadyRef.current = true;
   }, [input.independentLayerIds]);
 
   useEffect(() => {
@@ -148,16 +153,20 @@ export function useTranscriptionSegmentBridgeController(
 
     return () => {
       segmentUndoSnapshotRequestIdRef.current += 1;
+      segmentUndoSnapshotReadyRef.current = false;
     };
   }, [refreshSegmentUndoSnapshot]);
 
   useEffect(() => {
     input.segmentUndoRef.current = {
-      snapshotLayerSegments: () => ({
-        units: [...segmentUndoSnapshotRef.current.units],
-        contents: [...segmentUndoSnapshotRef.current.contents],
-        links: [...segmentUndoSnapshotRef.current.links],
-      }),
+      snapshotLayerSegments: () => {
+        if (!segmentUndoSnapshotReadyRef.current) return undefined;
+        return {
+          units: [...segmentUndoSnapshotRef.current.units],
+          contents: [...segmentUndoSnapshotRef.current.contents],
+          links: [...segmentUndoSnapshotRef.current.links],
+        };
+      },
       restoreLayerSegments: async (units, contents, links) => {
         const db = await getDb();
         await restoreLayerSegmentGraphSnapshot(db, { units, contents, links }, [
