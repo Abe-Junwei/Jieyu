@@ -1,12 +1,18 @@
 /**
- * Phase D — 受控公共表面（白名单 re-export，≤10 符号）。
+ * Phase D — 受控公共表面（白名单 re-export）。
  *
- * - 禁止在本文件做「全树」barrel；新增对外符号须保持 ≤10，并同步更新
+ * - 禁止在本文件做「全树」barrel；新增对外符号须同步更新
  *   `scripts/check-ai-chat-public-surface.mjs` 中的白名单。
  * - 内部实现请放在子模块；未来若引入 internal 子树（脚本以 glob 匹配），页面层禁止深层穿透导入（由脚本门禁）。
  */
 
-export { loadSessionMemory, persistSessionMemory } from './sessionMemory';
+export {
+  bindSessionMemoryConversation,
+  loadSessionMemory,
+  loadSessionMemoryAsync,
+  persistSessionMemory,
+  persistSessionMemoryAsync,
+} from './sessionMemory';
 export { resetSessionMemoryForClear } from './resetSessionMemoryForClear';
 export {
   completeAgentLoopCheckpointTask,

@@ -1,6 +1,6 @@
 /**
  * Phase D1 — `src/ai/chat` 公共表面与页面穿透门禁：
- * - `src/ai/chat/index.ts` 导出符号必须与下方白名单一致（≤10）。
+ * - `src/ai/chat/index.ts` 导出符号必须与下方白名单一致。
  * - `src/pages/**` 不得从 `.../ai/chat/.../internal/...` 导入（预留内部目录契约）。
  */
 
@@ -16,8 +16,11 @@ const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 
 /** 与 `src/ai/chat/index.ts` 中 `export { ... }` 名称保持一致。 */
 const EXPECTED_EXPORTS = new Set([
+  'bindSessionMemoryConversation',
   'loadSessionMemory',
+  'loadSessionMemoryAsync',
   'persistSessionMemory',
+  'persistSessionMemoryAsync',
   'resetSessionMemoryForClear',
   'completeAgentLoopCheckpointTask',
   'persistAgentLoopCheckpointTask',

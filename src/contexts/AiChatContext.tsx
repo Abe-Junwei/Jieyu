@@ -21,6 +21,7 @@ import type {
 import type { AiRecommendationEvent } from '../hooks/ai/useAiChat.types';
 import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
 import type { AdoptionItem } from '../ai/vertical/adoptionQueue';
+import type { AiConversationManagementApi } from '../hooks/ai/aiConversationManager.types';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,11 @@ export interface AiChatContextValue {
   onSendAiMessage: ((text: string) => Promise<void>) | undefined;
   onStopAiMessage: (() => void) | undefined;
   onClearAiMessages: (() => void) | undefined;
+  /** §9.3 — multi-session APIs when `featureFlags.aiConversationManagement` is on. */
+  aiConversationManagement?: AiConversationManagementApi | null;
+  onStartNewConversation?: (() => void | Promise<void>) | undefined;
+  onSwitchConversation?: ((conversationId: string) => void | Promise<void>) | undefined;
+  onClearCurrentConversation?: (() => void) | undefined;
   onToggleAiMessagePin: ((messageId: string) => void) | undefined;
   onDeactivateAiSessionDirective: ((directiveId: string) => void) | undefined;
   onPruneAiSessionDirectivesBySourceMessage: ((sourceMessageId: string) => void) | undefined;
@@ -132,6 +138,10 @@ export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {
   onSendAiMessage: undefined,
   onStopAiMessage: undefined,
   onClearAiMessages: undefined,
+  aiConversationManagement: null,
+  onStartNewConversation: undefined,
+  onSwitchConversation: undefined,
+  onClearCurrentConversation: undefined,
   onToggleAiMessagePin: undefined,
   onDeactivateAiSessionDirective: undefined,
   onPruneAiSessionDirectivesBySourceMessage: undefined,

@@ -5,6 +5,17 @@ import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamComp
 import type { AuditLogDocType } from '../../db/types';
 import { runAgentLoop } from './useAiChat.agentLoopRunner';
 
+vi.mock('../../ai/config/featureFlags', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('../../ai/config/featureFlags')>();
+  return {
+    ...mod,
+    featureFlags: {
+      ...mod.featureFlags,
+      aiAgentLoopClosedLoopReplanningEnabled: true,
+    },
+  };
+});
+
 function streamCompletionEnvOnly(): Omit<
   ResolveAiChatStreamCompletionParams,
   'assistantId' | 'assistantContent' | 'userText' | 'aiContext'
@@ -206,5 +217,289 @@ describe('runAgentLoop coordination lite', () => {
         canRunInParallel: true,
       },
     });
+  });
+
+  it('closed-loop replanning: search zero results clarifies without entering continuation stream', async () => {
+    const orchestrator = { sendMessage: vi.fn() };
+    let taskSession: AiTaskSession = {
+      id: 'task-1',
+      status: 'executing',
+      updatedAt: '2026-04-25T00:00:00.000Z',
+    };
+    const setTaskSession = vi.fn((next) => {
+      taskSession = typeof next === 'function' ? next(taskSession) : next;
+    });
+    const setMetrics = vi.fn();
+    const result = await runAgentLoop(
+      {
+        assistantId: 'ast-search-zero',
+        agentLoopSourceUserText: 'find tone consonant examples',
+        history: [],
+        historyCharBudget: 1000,
+        systemPrompt: 'system',
+        aiContext: null,
+        signal: new AbortController().signal,
+        routingPlan: {
+          queryFamily: 'search',
+          selectedTools: ['search_units'],
+          scope: 'current_scope',
+        },
+        aiChatAgentLoopEnabled: true,
+        getSessionMemory: () => ({}),
+        setSessionMemory: vi.fn(),
+        getSettings: () => ({ model: 'mock-model' }),
+        getLocaleIsZhCn: () => true,
+        getAiContext: () => null,
+        getTaskSession: () => taskSession,
+        setTaskSession,
+        setMetrics,
+        persistSessionMemory: vi.fn(),
+        coordinationLiteEnabled: false,
+        buildStreamCompletionEnv: streamCompletionEnvOnly,
+        orchestrator,
+        insertAuditLog: vi.fn(async () => {}),
+      },
+      {
+        resolvedContent: 'searching…',
+        resolvedStatus: 'done',
+        resolvedErrorMessage: undefined,
+        resolvedConnectionErrorMessage: undefined,
+        resolvedLocalToolResults: [
+          { ok: true, name: 'search_units', result: { count: 0, matches: [] } },
+        ],
+        rawAssistantContentForLoop: 'searching…',
+        assistantReasoningContent: '',
+        reportedInputTokens: 0,
+        totalOutputTokens: 0,
+        startStep: 1,
+      },
+    );
+
+    expect(orchestrator.sendMessage).not.toHaveBeenCalled();
+    expect(result.loopExecuted).toBe(false);
+    expect(result.resolvedStatus).toBe('done');
+    expect(result.resolvedContent).toContain('未找到匹配的句段');
+    expect(result.resolvedLocalToolResults).toBeUndefined();
+    expect(setTaskSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'waiting_clarify',
+        toolName: 'search_units',
+        clarifyReason: 'query_ambiguous',
+      }),
+    );
+    expect(setMetrics).toHaveBeenCalled();
+  });
+
+  it('closed-loop replanning: abort appends retryable explainability', async () => {
+    const result = await runAgentLoop(
+      {
+        assistantId: 'ast-abort',
+        agentLoopSourceUserText: 'list all layers',
+        history: [],
+        historyCharBudget: 1000,
+        systemPrompt: 'system',
+        aiContext: null,
+        signal: new AbortController().signal,
+        routingPlan: { queryFamily: 'unknown', selectedTools: ['list_layers'], scope: 'project' },
+        aiChatAgentLoopEnabled: true,
+        getSessionMemory: () => ({}),
+        setSessionMemory: vi.fn(),
+        getSettings: () => ({ model: 'mock-model' }),
+        getLocaleIsZhCn: () => true,
+        getAiContext: () => null,
+        getTaskSession: () => ({
+          id: 'task-1',
+          status: 'executing',
+          updatedAt: '2026-04-25T00:00:00.000Z',
+        }),
+        setTaskSession: vi.fn(),
+        setMetrics: vi.fn(),
+        persistSessionMemory: vi.fn(),
+        coordinationLiteEnabled: false,
+        buildStreamCompletionEnv: streamCompletionEnvOnly,
+        orchestrator: { sendMessage: vi.fn() },
+        insertAuditLog: vi.fn(async () => {}),
+      },
+      {
+        resolvedContent: 'partial',
+        resolvedStatus: 'done',
+        resolvedErrorMessage: undefined,
+        resolvedConnectionErrorMessage: undefined,
+        resolvedLocalToolResults: [
+          { ok: false, name: 'list_layers', result: null, error: 'database unavailable' },
+        ],
+        rawAssistantContentForLoop: 'partial',
+        assistantReasoningContent: '',
+        reportedInputTokens: 0,
+        totalOutputTokens: 0,
+        startStep: 1,
+      },
+    );
+
+    expect(result.resolvedContent).toContain('暂时失败');
+    expect(result.loopExecuted).toBe(false);
+  });
+
+  it('closed-loop replanning: max-steps ceiling appends explainability without continuation', async () => {
+    const orchestrator = { sendMessage: vi.fn() };
+    const result = await runAgentLoop(
+      {
+        assistantId: 'ast-max-steps',
+        agentLoopSourceUserText: 'continue analysis',
+        history: [],
+        historyCharBudget: 8000,
+        systemPrompt: 'system',
+        aiContext: null,
+        signal: new AbortController().signal,
+        routingPlan: { queryFamily: 'unknown', selectedTools: ['list_layers'], scope: 'project' },
+        aiChatAgentLoopEnabled: true,
+        getSessionMemory: () => ({}),
+        setSessionMemory: vi.fn(),
+        getSettings: () => ({ model: 'mock-model' }),
+        getLocaleIsZhCn: () => true,
+        getAiContext: () => null,
+        getTaskSession: () => ({
+          id: 'task-1',
+          status: 'executing',
+          updatedAt: '2026-04-25T00:00:00.000Z',
+        }),
+        setTaskSession: vi.fn(),
+        setMetrics: vi.fn(),
+        persistSessionMemory: vi.fn(),
+        coordinationLiteEnabled: false,
+        buildStreamCompletionEnv: streamCompletionEnvOnly,
+        orchestrator,
+        insertAuditLog: vi.fn(async () => {}),
+      },
+      {
+        resolvedContent: 'step 6 payload',
+        resolvedStatus: 'done',
+        resolvedErrorMessage: undefined,
+        resolvedConnectionErrorMessage: undefined,
+        resolvedLocalToolResults: [
+          { ok: true, name: 'list_layers', result: { layers: [{ id: 'l1' }] } },
+        ],
+        rawAssistantContentForLoop: 'step 6 payload',
+        assistantReasoningContent: '',
+        reportedInputTokens: 0,
+        totalOutputTokens: 0,
+        startStep: 6,
+      },
+    );
+
+    expect(orchestrator.sendMessage).not.toHaveBeenCalled();
+    expect(result.resolvedContent).toContain('多步推理已达到上限');
+  });
+
+  it('closed-loop replanning: detail unit not found replans with user guidance appended', async () => {
+    const orchestrator = {
+      sendMessage: vi.fn(() => ({
+        stream: (async function* () {
+          yield { delta: 'retry search', done: true };
+        })(),
+      })),
+    };
+    const result = await runAgentLoop(
+      {
+        assistantId: 'ast-detail-replan',
+        agentLoopSourceUserText: 'show unit seg-404',
+        history: [],
+        historyCharBudget: 4000,
+        systemPrompt: 'system',
+        aiContext: null,
+        signal: new AbortController().signal,
+        routingPlan: {
+          queryFamily: 'detail',
+          selectedTools: ['get_unit_detail'],
+          scope: 'current_scope',
+        },
+        aiChatAgentLoopEnabled: true,
+        getSessionMemory: () => ({}),
+        setSessionMemory: vi.fn(),
+        getSettings: () => ({ model: 'mock-model' }),
+        getLocaleIsZhCn: () => true,
+        getAiContext: () => null,
+        getTaskSession: () => ({
+          id: 'task-1',
+          status: 'executing',
+          updatedAt: '2026-04-25T00:00:00.000Z',
+        }),
+        setTaskSession: vi.fn(),
+        setMetrics: vi.fn(),
+        persistSessionMemory: vi.fn(),
+        coordinationLiteEnabled: false,
+        buildStreamCompletionEnv: streamCompletionEnvOnly,
+        orchestrator,
+        insertAuditLog: vi.fn(async () => {}),
+      },
+      {
+        resolvedContent: 'fetching detail…',
+        resolvedStatus: 'done',
+        resolvedErrorMessage: undefined,
+        resolvedConnectionErrorMessage: undefined,
+        resolvedLocalToolResults: [
+          { ok: false, name: 'get_unit_detail', result: null, error: 'unit not found: seg-404' },
+        ],
+        rawAssistantContentForLoop: 'fetching detail…',
+        assistantReasoningContent: '',
+        reportedInputTokens: 100,
+        totalOutputTokens: 0,
+        startStep: 1,
+      },
+    );
+
+    expect(result.resolvedContent).toContain('未找到指定句段');
+    expect(orchestrator.sendMessage).toHaveBeenCalled();
+    expect(result.loopExecuted).toBe(true);
+  });
+
+  it('closed-loop replanning: abort appends explainability even when stream ended in error', async () => {
+    const result = await runAgentLoop(
+      {
+        assistantId: 'ast-abort-error',
+        agentLoopSourceUserText: 'list all layers',
+        history: [],
+        historyCharBudget: 1000,
+        systemPrompt: 'system',
+        aiContext: null,
+        signal: new AbortController().signal,
+        routingPlan: { queryFamily: 'unknown', selectedTools: ['list_layers'], scope: 'project' },
+        aiChatAgentLoopEnabled: true,
+        getSessionMemory: () => ({}),
+        setSessionMemory: vi.fn(),
+        getSettings: () => ({ model: 'mock-model' }),
+        getLocaleIsZhCn: () => true,
+        getAiContext: () => null,
+        getTaskSession: () => ({
+          id: 'task-1',
+          status: 'executing',
+          updatedAt: '2026-04-25T00:00:00.000Z',
+        }),
+        setTaskSession: vi.fn(),
+        setMetrics: vi.fn(),
+        persistSessionMemory: vi.fn(),
+        coordinationLiteEnabled: false,
+        buildStreamCompletionEnv: streamCompletionEnvOnly,
+        orchestrator: { sendMessage: vi.fn() },
+        insertAuditLog: vi.fn(async () => {}),
+      },
+      {
+        resolvedContent: '',
+        resolvedStatus: 'error',
+        resolvedErrorMessage: 'local context tool batch failed',
+        resolvedConnectionErrorMessage: undefined,
+        resolvedLocalToolResults: [
+          { ok: false, name: 'list_layers', result: null, error: 'database unavailable' },
+        ],
+        rawAssistantContentForLoop: '',
+        assistantReasoningContent: '',
+        reportedInputTokens: 0,
+        totalOutputTokens: 0,
+        startStep: 1,
+      },
+    );
+
+    expect(result.resolvedContent).toContain('暂时失败');
+    expect(result.loopExecuted).toBe(false);
   });
 });

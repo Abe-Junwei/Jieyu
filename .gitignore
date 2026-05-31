@@ -20,6 +20,10 @@ coverage/
 # Playwright run artifacts (screenshots / videos / traces from test:e2e*)
 test-results/
 
+# Release gate run logs (regenerate via npm run report:release-evidence*)
+docs/execution/release-gates/release-evidence/logs/*
+!docs/execution/release-gates/release-evidence/logs/.gitkeep
+
 # IDE and OS
 .idea/
 .cursor/

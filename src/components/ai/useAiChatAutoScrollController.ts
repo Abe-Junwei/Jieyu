@@ -5,14 +5,17 @@ export function useAiChatAutoScrollController({
   aiIsStreaming,
   messagesLength,
   streamingThreadScrollSignature,
+  enabled = true,
 }: {
   messageViewportRef: RefObject<HTMLDivElement | null>;
   aiIsStreaming: boolean | undefined;
   messagesLength: number;
   streamingThreadScrollSignature: number;
+  /** G1g: virtualized thread handles stick-to-bottom via `useAiChatMessageThreadVirtualizer`. */
+  enabled?: boolean;
 }) {
   useEffect(() => {
-    if (messagesLength === 0) return;
+    if (!enabled || messagesLength === 0) return;
     const viewport = messageViewportRef.current;
     if (!viewport) return;
     if (typeof window === 'undefined') {
@@ -29,5 +32,5 @@ export function useAiChatAutoScrollController({
     });
 
     return () => window.cancelAnimationFrame(rafId);
-  }, [aiIsStreaming, messageViewportRef, messagesLength, streamingThreadScrollSignature]);
+  }, [aiIsStreaming, enabled, messageViewportRef, messagesLength, streamingThreadScrollSignature]);
 }

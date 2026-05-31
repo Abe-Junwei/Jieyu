@@ -46,6 +46,7 @@ import {
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import { newMessageId, nowIso } from './useAiChat.helpers';
 import { persistUserMessage, persistAssistantPlaceholder } from './useAiChat.sendTurnPersistPhase';
+import { scheduleConversationTitlePatch } from './patchConversationTitleMvp';
 import { normalizeLocale, type Locale } from '../../i18n';
 import {
   ragCandidateSourceIdsForSegmentQa,
@@ -130,6 +131,10 @@ export async function persistOpeningTurnAndBuildPromptContext(
     content: input.userMsg.content,
     timestamp: userTimestamp,
   });
+  scheduleConversationTitlePatch(activeConversationId, input.userMsg.content, {
+    locale: input.getToolFeedbackLocale(),
+    settings,
+  });
   const assistantTimestamp = nowIso();
   await persistAssistantPlaceholder(db, {
     id: input.assistantId,
@@ -143,9 +148,7 @@ export async function persistOpeningTurnAndBuildPromptContext(
     .findOne({ selector: { id: activeConversationId } })
     .exec();
   if (conversation) {
-    const row = conversation.toJSON();
-    await db.collections.ai_conversations.insert({
-      ...row,
+    await db.collections.ai_conversations.update(activeConversationId, {
       providerId: input.providerId,
       model: settings.model || input.providerId,
       updatedAt: nowIso(),

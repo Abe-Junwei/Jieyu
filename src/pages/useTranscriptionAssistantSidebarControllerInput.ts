@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
+import type { AiConversationManagementApi } from '../hooks/ai/aiConversationManager.types';
 import type { UseTranscriptionRuntimePropsInput } from './useTranscriptionRuntimeProps';
 import type {
   AssistantSidebarObserverRecommendationInput,
@@ -39,6 +40,7 @@ export interface UseTranscriptionAssistantSidebarControllerInputArgs {
     send: AiChatContextValue['onSendAiMessage'];
     stop: AiChatContextValue['onStopAiMessage'];
     clear: AiChatContextValue['onClearAiMessages'];
+    conversationManagement: AiConversationManagementApi | null;
     toggleMessagePinned?: AiChatContextValue['onToggleAiMessagePin'];
     deactivateSessionDirective?: AiChatContextValue['onDeactivateAiSessionDirective'];
     pruneSessionDirectivesBySourceMessage?: AiChatContextValue['onPruneAiSessionDirectivesBySourceMessage'];
@@ -118,7 +120,23 @@ export function useTranscriptionAssistantSidebarControllerInput({
       onTestAiConnection: aiChat.testConnection,
       onSendAiMessage: aiChat.send,
       onStopAiMessage: aiChat.stop,
-      onClearAiMessages: aiChat.clear,
+      onClearAiMessages: aiChat.conversationManagement?.enabled
+        ? aiChat.conversationManagement.clearCurrentConversation
+        : aiChat.clear,
+      aiConversationManagement: aiChat.conversationManagement,
+      onStartNewConversation: aiChat.conversationManagement?.enabled
+        ? async () => {
+            await aiChat.conversationManagement!.startNewConversation();
+          }
+        : undefined,
+      onSwitchConversation: aiChat.conversationManagement?.enabled
+        ? async (conversationId: string) => {
+            await aiChat.conversationManagement!.switchConversation(conversationId);
+          }
+        : undefined,
+      onClearCurrentConversation: aiChat.conversationManagement?.enabled
+        ? aiChat.conversationManagement.clearCurrentConversation
+        : undefined,
       onToggleAiMessagePin: aiChat.toggleMessagePinned,
       onDeactivateAiSessionDirective: aiChat.deactivateSessionDirective,
       onPruneAiSessionDirectivesBySourceMessage: aiChat.pruneSessionDirectivesBySourceMessage,

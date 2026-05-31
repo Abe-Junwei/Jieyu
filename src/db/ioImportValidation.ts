@@ -3,6 +3,7 @@ import type {
   AbbreviationDocType,
   AiConversationDoc,
   AiMessageDoc,
+  AiSessionMemoryDoc,
   AiTaskDoc,
   AiTaskSnapshotDocType,
   AnchorDocType,
@@ -51,6 +52,7 @@ import {
   validateAbbreviationDoc,
   validateAiConversationDoc,
   validateAiMessageDoc,
+  validateAiSessionMemoryDoc,
   validateAiTaskDoc,
   validateAiTaskSnapshotDoc,
   validateAnchorDoc,
@@ -121,6 +123,7 @@ const validatorByCollection = {
   embeddings: (value: unknown) => validateEmbeddingDoc(value as EmbeddingDoc),
   ai_conversations: (value: unknown) => validateAiConversationDoc(value as AiConversationDoc),
   ai_messages: (value: unknown) => validateAiMessageDoc(value as AiMessageDoc),
+  ai_session_memories: (value: unknown) => validateAiSessionMemoryDoc(value as AiSessionMemoryDoc),
   languages: (value: unknown) => validateLanguageDoc(value as LanguageDocType),
   language_display_names: (value: unknown) =>
     validateLanguageDisplayNameDoc(value as LanguageDisplayNameDocType),

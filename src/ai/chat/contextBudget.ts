@@ -6,6 +6,8 @@ const RESERVED_OUTPUT_RATIO = 0.3;
 const CHARS_PER_TOKEN_ESTIMATE = 4;
 const MIN_CONTEXT_CHARS = 1200;
 const MIN_HISTORY_CHARS = 6000;
+/** Agent loop 动态预算下限：保证 trimHistoryByChars 至少保留 ~2 轮对话。 */
+export const AGENT_LOOP_MIN_HISTORY_CHAR_BUDGET = 1200;
 /** Upper bound for [CONTEXT] block sizing from usable input tokens (chars ≈ tokens × 4). */
 const MAX_CONTEXT_CHARS_FROM_USABLE_CAP = 100_000;
 
@@ -166,8 +168,9 @@ export async function resolveContextCharBudgets(input: {
     Math.min(MAX_CONTEXT_CHARS_FROM_USABLE_CAP, tokensToChars(tokenBudget.usableInputTokens)),
   );
   const maxContextChars = input.maxContextCharsOverride ?? derivedMaxContextChars;
-  const historyCharBudget = input.historyCharBudgetOverride
-    ?? Math.max(MIN_HISTORY_CHARS, tokensToChars(tokenBudget.historyBudgetTokens));
+  const historyCharBudget =
+    input.historyCharBudgetOverride ??
+    Math.max(MIN_HISTORY_CHARS, tokensToChars(tokenBudget.historyBudgetTokens));
 
   return {
     ...tokenBudget,
@@ -182,4 +185,38 @@ export async function resolveContextCharBudgets(input: {
 export function resetProviderContextLimitsCacheForTests(): void {
   limitsCache = null;
   loadPromise = null;
+}
+
+/**
+ * Agent loop 每步按剩余步数比例收缩 history char 预算（spec §2.3）。
+ * remainingRatio = estimateRemaining / (maxSteps × perStepInputTokens)，落在 [0, 1]。
+ */
+export function recalculateStepHistoryCharBudget(input: {
+  baseHistoryCharBudget: number;
+  historyBudgetTokens: number;
+  perStepInputTokens: number;
+  step: number;
+  maxSteps: number;
+  minCharBudget?: number;
+}): number {
+  const { baseHistoryCharBudget, historyBudgetTokens, perStepInputTokens, step, maxSteps } = input;
+  const minCharBudget = input.minCharBudget ?? AGENT_LOOP_MIN_HISTORY_CHAR_BUDGET;
+  const perStepEstimate = Math.max(1, perStepInputTokens);
+  const remainingSteps = Math.max(0, maxSteps - step);
+  const estimateRemaining = perStepEstimate * remainingSteps;
+  const totalEstimate = perStepEstimate * maxSteps;
+  const remainingRatio = Math.min(1, estimateRemaining / totalEstimate);
+
+  const fromTokenBudget = Math.floor(
+    historyBudgetTokens * CHARS_PER_TOKEN_ESTIMATE * remainingRatio,
+  );
+  const fromBase = Math.floor(baseHistoryCharBudget * remainingRatio);
+  const scaled = Math.min(baseHistoryCharBudget, Math.max(fromTokenBudget, fromBase));
+
+  return Math.max(minCharBudget, scaled);
+}
+
+/** 由 opening 传入的 historyCharBudget 反推 historyBudgetTokens（tokens ≈ chars / 4）。 */
+export function historyBudgetTokensFromCharBudget(historyCharBudget: number): number {
+  return Math.max(1, Math.floor(historyCharBudget / CHARS_PER_TOKEN_ESTIMATE));
 }

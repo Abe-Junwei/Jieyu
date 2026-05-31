@@ -235,8 +235,27 @@
   height: 18px;
   cursor: nwse-resize;
   touch-action: none;
-  background:
-    linear-gradient(135deg, transparent 55%, color-mix(in srgb, var(--text-tertiary) 48%, transparent) 55%, color-mix(in srgb, var(--text-tertiary) 48%, transparent) 62%, transparent 62%);
+  background: linear-gradient(
+    135deg,
+    transparent 55%,
+    color-mix(in srgb, var(--text-tertiary) 48%, transparent) 55%,
+    color-mix(in srgb, var(--text-tertiary) 48%, transparent) 62%,
+    transparent 62%
+  );
+}
+
+.transcription-chat-window-conversation-anchor {
+  min-width: 0;
+}
+
+.transcription-chat-window-conversation-anchor .ai-chat-conversation-title-btn.is-floating {
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  font-weight: 600;
+  padding: 0;
+}
+
+.transcription-chat-window-conversation-anchor .ai-conversation-list-popover {
+  z-index: calc(var(--z-overlay-base, 40) + 2);
 }
 
 @keyframes chat-window-enter {

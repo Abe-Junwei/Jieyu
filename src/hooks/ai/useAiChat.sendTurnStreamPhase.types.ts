@@ -34,6 +34,7 @@ import type {
   VerticalWorkflowOutputEnvelopeV0,
   VerticalWorkflowSelectionV0,
 } from '../../ai/vertical/verticalWorkflowSelection';
+import type { ConversationGenerationRef } from '../../ai/chat/conversationGeneration';
 
 export type SendTurnStreamPhaseState = {
   assistantContent: string;
@@ -88,6 +89,8 @@ export type RunAiChatSendTurnStreamPhaseInput = Readonly<{
   timeoutHandle: number | NodeJS.Timeout | null;
   sendStartedAtMs: number;
   aiMetricTags: MetricTags;
+  conversationGenerationRef: ConversationGenerationRef;
+  streamGenerationAtStart: number;
   queueFlushAssistantDraft: (content: string, force?: boolean) => void;
   awaitQueuedPersistence: () => Promise<void>;
   finalizeAssistantMessage: (

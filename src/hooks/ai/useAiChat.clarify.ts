@@ -30,7 +30,7 @@ export function resolveClarifyFastPathCall({
   ) {
     const langPatch = extractClarifyLanguagePatch(userText);
     if (langPatch) {
-      return { name: taskSession.toolName, arguments: langPatch };
+      return { name: taskSession.toolName as AiChatToolName, arguments: langPatch };
     }
   }
 

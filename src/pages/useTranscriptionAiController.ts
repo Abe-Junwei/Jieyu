@@ -44,6 +44,7 @@ import {
 import type { ParsedVerticalWorkflowAuditEntry } from '../ai/vertical/verticalWorkflowAudit';
 import { useTranscriptionAiAcousticBatchRanges } from './useTranscriptionAiAcousticBatchRanges';
 import { useTranscriptionAiAudioTimeRef } from './useTranscriptionAiAudioTimeRef';
+import { featureFlags } from '../ai/config/featureFlags';
 export type {
   UseTranscriptionAiControllerInput,
   UseTranscriptionAiControllerResult,
@@ -183,10 +184,6 @@ export function useTranscriptionAiController(
       ? { providerPreference: input.acousticProviderPreference }
       : {}),
   });
-
-  const refreshAiToolDecisionLogs = useCallback(async () => {
-    await refreshRecentAiToolDecisionLogs({ setAiToolDecisionLogs, setAiSidebarError });
-  }, [setAiSidebarError]);
 
   const segmentTargetScopeUnits = resolveAiSegmentTargetScopeUnits({
     units: allUnitsAsUnits,
@@ -465,6 +462,9 @@ export function useTranscriptionAiController(
   const onAiAssistantMessageCompleteRef = useLatest(input.onAiAssistantMessageComplete);
 
   const aiChat = useAiChat({
+    ...(typeof input.activeTextId === 'string' && input.activeTextId.trim().length > 0
+      ? { textId: input.activeTextId.trim() }
+      : {}),
     onToolCall: handleAiToolCall,
     onToolRiskCheck: handleAiToolRiskCheck,
     preparePendingToolCall: materializeAiToolCall,
@@ -488,6 +488,16 @@ export function useTranscriptionAiController(
       : {}),
   });
 
+  const refreshAiToolDecisionLogs = useCallback(async () => {
+    await refreshRecentAiToolDecisionLogs({
+      setAiToolDecisionLogs,
+      setAiSidebarError,
+      ...(featureFlags.aiConversationManagement && aiChat.conversationId
+        ? { conversationId: aiChat.conversationId }
+        : {}),
+    });
+  }, [aiChat.conversationId, setAiSidebarError]);
+
   const latestAssistantAuditFingerprint = (() => {
     const sourceMessages = aiChat.messages ?? [];
     for (let index = sourceMessages.length - 1; index >= 0; index -= 1) {
@@ -508,13 +518,18 @@ export function useTranscriptionAiController(
 
   useEffect(() => {
     fireAndForget(
-      refreshRecentAiVerticalWorkflowAuditEntries({ setAiVerticalWorkflowAuditEntries }),
+      refreshRecentAiVerticalWorkflowAuditEntries({
+        setAiVerticalWorkflowAuditEntries,
+        ...(featureFlags.aiConversationManagement && aiChat.conversationId
+          ? { conversationId: aiChat.conversationId }
+          : {}),
+      }),
       {
         context: 'src/pages/useTranscriptionAiController.ts:L347',
         policy: 'background-quiet',
       },
     );
-  }, [latestAssistantAuditFingerprint]);
+  }, [aiChat.conversationId, latestAssistantAuditFingerprint]);
 
   const {
     lexemeMatches,

@@ -250,6 +250,10 @@ export type AiChatCardMessages = {
   showReasoning: string;
   showConversationSummary: string;
   hideConversationSummary: string;
+  showRunTimeline: string;
+  hideRunTimeline: string;
+  runTimelineToolDecision: string;
+  runTimelineVerticalWorkflow: string;
   conversationSummaryTitle: string;
   summaryCoveredTurns: (turnCount: number) => string;
   summaryQualityWarning: (similarity: number, threshold: number) => string;
@@ -316,6 +320,11 @@ export type AiChatCardMessages = {
   webllmWarmupPhaseReady: string;
   agentLoopProgress: (step: number, maxSteps: number) => string;
   tokenBudgetWarning: (estimatedTokens: number) => string;
+  agentLoopSearchNoResults: () => string;
+  agentLoopToolValidationError: () => string;
+  agentLoopToolRetryableError: () => string;
+  agentLoopMaxStepsReached: () => string;
+  agentLoopDetailUnitNotFound: () => string;
   recommendedInputPlaceholder: (input: RecommendedPlaceholderInput) => string;
 };
 
@@ -387,6 +396,10 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       showReasoning: '\u25bc \u67e5\u770b\u63a8\u7406',
       showConversationSummary: '\u67e5\u770b\u5bf9\u8bdd\u6458\u8981',
       hideConversationSummary: '\u6536\u8d77\u5bf9\u8bdd\u6458\u8981',
+      showRunTimeline: '\u67e5\u770b Run \u65f6\u95f4\u7ebf',
+      hideRunTimeline: '\u6536\u8d77 Run \u65f6\u95f4\u7ebf',
+      runTimelineToolDecision: '\u5de5\u5177\u51b3\u7b56',
+      runTimelineVerticalWorkflow: '\u5782\u76f4\u5de5\u4f5c\u6d41',
       conversationSummaryTitle: '\u5bf9\u8bdd\u6458\u8981\u94fe',
       summaryCoveredTurns: (turnCount) => `\u5df2\u8986\u76d6 ${turnCount} \u8f6e`,
       summaryQualityWarning: (similarity, threshold) =>
@@ -458,6 +471,16 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       agentLoopProgress: (step, maxSteps) => `\u591a\u6b65\u63a8\u7406 ${step}/${maxSteps}`,
       tokenBudgetWarning: (estimatedTokens) =>
         `\n\n如需我继续完成这项查询，请回复“继续”。预计还需约 ${estimatedTokens} tokens。`,
+      agentLoopSearchNoResults: () =>
+        '未找到匹配的句段。请尝试更具体的关键词、缩小范围，或确认当前选区/轨道是否正确。',
+      agentLoopToolValidationError: () =>
+        '工具参数不完整或无效。请补充必要信息（例如句段 ID、搜索词）后重试。',
+      agentLoopToolRetryableError: () =>
+        '工具调用暂时失败（网络或服务繁忙）。请稍后重试，或缩小查询范围后再问。',
+      agentLoopMaxStepsReached: () =>
+        '多步推理已达到上限。如需继续，请回复「继续」或把问题拆成更小的步骤。',
+      agentLoopDetailUnitNotFound: () =>
+        '未找到指定句段。你可以改用搜索关键词，或先选中时间轴上的句段后再提问。',
       recommendedInputPlaceholder: (input) => buildRecommendedPlaceholder('zh-CN', input),
     };
   }
@@ -523,6 +546,10 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     showReasoning: '\u25bc Show reasoning',
     showConversationSummary: 'View summary',
     hideConversationSummary: 'Hide summary',
+    showRunTimeline: 'View run timeline',
+    hideRunTimeline: 'Hide run timeline',
+    runTimelineToolDecision: 'Tool decision',
+    runTimelineVerticalWorkflow: 'Vertical workflow',
     conversationSummaryTitle: 'Conversation summary chain',
     summaryCoveredTurns: (turnCount) => `Covers ${turnCount} turns`,
     summaryQualityWarning: (similarity, threshold) =>
@@ -591,6 +618,16 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     agentLoopProgress: (step, maxSteps) => `Agent loop ${step}/${maxSteps}`,
     tokenBudgetWarning: (estimatedTokens) =>
       `\n\nIf you want me to continue this lookup, reply "continue". Estimated remaining cost is ~${estimatedTokens} tokens.`,
+    agentLoopSearchNoResults: () =>
+      'No matching units were found. Try a more specific query, narrow the scope, or check the current selection/track.',
+    agentLoopToolValidationError: () =>
+      'Tool arguments are incomplete or invalid. Please provide the required details (e.g. unit id or search query) and try again.',
+    agentLoopToolRetryableError: () =>
+      'A tool call failed temporarily (network or service busy). Retry shortly, or narrow your query and ask again.',
+    agentLoopMaxStepsReached: () =>
+      'The multi-step reasoning limit was reached. Reply "continue" or break your question into smaller steps.',
+    agentLoopDetailUnitNotFound: () =>
+      'The requested unit was not found. Try a search query, or select a unit on the timeline first.',
     recommendedInputPlaceholder: (input) => buildRecommendedPlaceholder('en-US', input),
   };
 }

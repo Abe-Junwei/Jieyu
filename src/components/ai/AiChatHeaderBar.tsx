@@ -1,6 +1,10 @@
+import { useCallback, useRef } from 'react';
+import { t, type Locale } from '../../i18n';
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE } from '../../utils/jieyuMaterialIcon';
 import type { AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
+import type { AiConversationManagementApi } from '../../hooks/ai/aiConversationManager.types';
+import { AiConversationListPopover } from './AiConversationListPopover';
 
 type ProviderGroup = {
   label: string;
@@ -8,6 +12,7 @@ type ProviderGroup = {
 };
 
 export function AiChatHeaderBar({
+  locale,
   chatTitle,
   toolFeedbackStyleResolved,
   cardMessages,
@@ -20,7 +25,15 @@ export function AiChatHeaderBar({
   showProviderConfigButton,
   showProviderConfig,
   onToggleProviderConfig,
+  aiConversationManagement,
+  conversationListOpen = false,
+  onConversationListOpenChange,
+  onStartNewConversation,
+  onSwitchConversation,
+  conversationListGroupLabel,
+  archivedConversationListGroupLabel,
 }: {
+  locale: Locale;
   chatTitle: string;
   toolFeedbackStyleResolved: AiToolFeedbackStyle;
   cardMessages: {
@@ -39,17 +52,76 @@ export function AiChatHeaderBar({
   showProviderConfigButton: boolean;
   showProviderConfig: boolean;
   onToggleProviderConfig: () => void;
+  aiConversationManagement?: AiConversationManagementApi | null;
+  conversationListOpen?: boolean;
+  onConversationListOpenChange?: (open: boolean) => void;
+  onStartNewConversation?: () => void | Promise<void>;
+  onSwitchConversation?: (conversationId: string) => void | Promise<void>;
+  conversationListGroupLabel?: string;
+  archivedConversationListGroupLabel?: string;
 }) {
-  return (
+  const titleButtonRef = useRef<HTMLButtonElement | null>(null);
+  const conversationEnabled = aiConversationManagement?.enabled === true;
+
+  const toggleConversationList = useCallback(() => {
+    if (!onConversationListOpenChange) return;
+    const next = !conversationListOpen;
+    onConversationListOpenChange(next);
+    if (next) {
+      void aiConversationManagement?.refreshConversations();
+    }
+  }, [aiConversationManagement, conversationListOpen, onConversationListOpenChange]);
+
+  const closeConversationList = useCallback(() => {
+    onConversationListOpenChange?.(false);
+  }, [onConversationListOpenChange]);
+
+  const headerInner = (
     <div className="ai-chat-header">
       <div className="ai-chat-header-left">
         <div className="ai-chat-header-info">
           <div className="ai-chat-header-title-row">
-            <span className="ai-chat-header-title">{chatTitle}</span>
+            {conversationEnabled ? (
+              <div className="ai-chat-conversation-chrome">
+                <button
+                  type="button"
+                  className="icon-btn ai-chat-conversation-list-btn"
+                  onClick={toggleConversationList}
+                  aria-expanded={conversationListOpen}
+                  aria-haspopup="dialog"
+                  aria-label={t(locale, 'ai.chat.conversationList.openList')}
+                >
+                  <MaterialSymbol name="format_list_bulleted" className={JIEYU_MATERIAL_INLINE} />
+                </button>
+                <button
+                  ref={titleButtonRef}
+                  type="button"
+                  className="ai-chat-conversation-title-btn"
+                  onClick={toggleConversationList}
+                  aria-expanded={conversationListOpen}
+                  aria-haspopup="dialog"
+                  aria-label={t(locale, 'ai.chat.conversationList.titleButton')}
+                  title={chatTitle}
+                >
+                  <span className="ai-chat-conversation-title-text">{chatTitle}</span>
+                  <MaterialSymbol
+                    name="expand_more"
+                    className={JIEYU_MATERIAL_INLINE}
+                    aria-hidden
+                  />
+                </button>
+              </div>
+            ) : (
+              <span className="ai-chat-header-title">{chatTitle}</span>
+            )}
           </div>
         </div>
         <div className="ai-chat-header-tools">
-          <div className="transcription-ai-mode-switch" role="group" aria-label={cardMessages.toolFeedbackStyle}>
+          <div
+            className="transcription-ai-mode-switch"
+            role="group"
+            aria-label={cardMessages.toolFeedbackStyle}
+          >
             <button
               type="button"
               className={`transcription-ai-mode-btn ${toolFeedbackStyleResolved === 'detailed' ? 'is-active' : ''}`}
@@ -82,14 +154,18 @@ export function AiChatHeaderBar({
           <select
             className="ai-chat-provider-select"
             value={aiChatSettings?.providerKind ?? 'mock'}
-            onChange={(e) => onUpdateAiChatSettings?.({
-              providerKind: e.currentTarget.value as AiChatSettings['providerKind'],
-            })}
+            onChange={(e) =>
+              onUpdateAiChatSettings?.({
+                providerKind: e.currentTarget.value as AiChatSettings['providerKind'],
+              })
+            }
           >
             {providerGroups.map((group) => (
               <optgroup key={group.label} label={group.label}>
                 {group.items.map((provider) => (
-                  <option key={provider.kind} value={provider.kind}>{provider.label}</option>
+                  <option key={provider.kind} value={provider.kind}>
+                    {provider.label}
+                  </option>
                 ))}
               </optgroup>
             ))}
@@ -98,8 +174,16 @@ export function AiChatHeaderBar({
             <button
               type="button"
               className="icon-btn ai-chat-header-config-btn"
-              aria-label={showProviderConfig ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
-              title={showProviderConfig ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
+              aria-label={
+                showProviderConfig
+                  ? cardMessages.hideProviderConfig
+                  : cardMessages.openProviderConfig
+              }
+              title={
+                showProviderConfig
+                  ? cardMessages.hideProviderConfig
+                  : cardMessages.openProviderConfig
+              }
               onClick={onToggleProviderConfig}
             >
               <MaterialSymbol name="settings" className={JIEYU_MATERIAL_INLINE} />
@@ -107,6 +191,35 @@ export function AiChatHeaderBar({
           )}
         </div>
       </div>
+    </div>
+  );
+
+  if (!conversationEnabled || !aiConversationManagement) {
+    return headerInner;
+  }
+
+  return (
+    <div className="ai-chat-header-anchor">
+      {headerInner}
+      {conversationListOpen &&
+      onStartNewConversation &&
+      onSwitchConversation &&
+      conversationListGroupLabel &&
+      archivedConversationListGroupLabel ? (
+        <AiConversationListPopover
+          locale={locale}
+          management={aiConversationManagement}
+          groupLabel={conversationListGroupLabel}
+          archivedGroupLabel={archivedConversationListGroupLabel}
+          onStartNewConversation={async () => {
+            await onStartNewConversation();
+            closeConversationList();
+          }}
+          onSelectConversation={onSwitchConversation}
+          onClose={closeConversationList}
+          titleButtonRef={titleButtonRef}
+        />
+      ) : null}
     </div>
   );
 }

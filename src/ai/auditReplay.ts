@@ -6,8 +6,21 @@ import {
   type ParsedVerticalWorkflowAuditEntry,
 } from './vertical/verticalWorkflowAudit';
 import { createLogger } from '../observability/logger';
+import { getDb } from '../db';
 
 const log = createLogger('auditReplay');
+
+export type AuditReplayListOptions = Readonly<{
+  limit?: number;
+  /** G3a: when set, only rows whose `documentId` is a message in this conversation. */
+  conversationId?: string;
+}>;
+
+async function loadMessageIdsForConversation(conversationId: string): Promise<Set<string>> {
+  const db = await getDb();
+  const rows = await db.collections.ai_messages.findByIndex('conversationId', conversationId);
+  return new Set(rows.map((row) => row.id));
+}
 
 type AuditSource = 'human' | 'ai' | 'system';
 
@@ -121,7 +134,12 @@ function parseDecisionMetadata(raw: string | undefined): ToolDecisionAuditMetada
 /**
  * 读取最近工具决策日志，供 UI 面板展示 | Read recent tool decision logs for UI surfaces
  */
-export async function listRecentAiToolDecisionLogs(limit = 6): Promise<AiToolDecisionLogItem[]> {
+export async function listRecentAiToolDecisionLogs(
+  limit = 6,
+  options?: AuditReplayListOptions,
+): Promise<AiToolDecisionLogItem[]> {
+  const resolvedLimit = options?.limit ?? limit;
+  const fetchLimit = options?.conversationId ? Math.max(resolvedLimit * 12, 48) : resolvedLimit;
   const rows = await appDb.audit_logs
     .where('[collection+field+timestamp]')
     .between(
@@ -129,16 +147,29 @@ export async function listRecentAiToolDecisionLogs(limit = 6): Promise<AiToolDec
       ['ai_messages', 'ai_tool_call_decision', '\uffff'],
     )
     .reverse()
-    .limit(limit)
+    .limit(fetchLimit)
     .toArray();
 
-  return rows.map((item) => mapAuditRowToAiToolDecisionLog(item));
+  if (!options?.conversationId) {
+    return rows.slice(0, resolvedLimit).map((item) => mapAuditRowToAiToolDecisionLog(item));
+  }
+
+  const messageIds = await loadMessageIdsForConversation(options.conversationId);
+  return rows
+    .filter((row) => messageIds.has(row.documentId))
+    .slice(0, resolvedLimit)
+    .map((item) => mapAuditRowToAiToolDecisionLog(item));
 }
 
 /**
  * 读取最近 vertical workflow 审计记录，供 UI 消费 | Read recent vertical workflow audit rows for UI surfaces
  */
-export async function listRecentAiVerticalWorkflowAuditEntries(limit = 16): Promise<ParsedVerticalWorkflowAuditEntry[]> {
+export async function listRecentAiVerticalWorkflowAuditEntries(
+  limit = 16,
+  options?: AuditReplayListOptions,
+): Promise<ParsedVerticalWorkflowAuditEntry[]> {
+  const resolvedLimit = options?.limit ?? limit;
+  const fetchLimit = options?.conversationId ? Math.max(resolvedLimit * 12, 48) : resolvedLimit;
   const rows = await appDb.audit_logs
     .where('[collection+field+timestamp]')
     .between(
@@ -146,10 +177,16 @@ export async function listRecentAiVerticalWorkflowAuditEntries(limit = 16): Prom
       ['ai_messages', AI_VERTICAL_WORKFLOW_RESULT_AUDIT_FIELD, '\uffff'],
     )
     .reverse()
-    .limit(limit)
+    .limit(fetchLimit)
     .toArray();
 
+  const messageIds = options?.conversationId
+    ? await loadMessageIdsForConversation(options.conversationId)
+    : null;
+
   return rows
+    .filter((row) => (messageIds ? messageIds.has(row.documentId) : true))
+    .slice(0, resolvedLimit)
     .map((item) => parseVerticalWorkflowAuditEntry(item))
     .filter((item): item is ParsedVerticalWorkflowAuditEntry => item !== null);
 }
@@ -157,19 +194,16 @@ export async function listRecentAiVerticalWorkflowAuditEntries(limit = 16): Prom
 /**
  * 按 requestId 组装工具调用回放快照 | Build a replay bundle for one tool requestId
  */
-export async function loadAiToolReplayBundle(requestId: string): Promise<AiToolReplayBundle | null> {
-  const rows = (await appDb.audit_logs
-    .where('requestId')
-    .equals(requestId)
-    .toArray())
+export async function loadAiToolReplayBundle(
+  requestId: string,
+): Promise<AiToolReplayBundle | null> {
+  const rows = (await appDb.audit_logs.where('requestId').equals(requestId).toArray())
     .filter((row) => row.collection === 'ai_messages')
     .sort(compareIsoTimestampAsc);
 
   if (rows.length === 0) return null;
 
-  const intentRow = rows
-    .filter((row) => row.field === 'ai_tool_call_intent')
-    .slice(-1)[0];
+  const intentRow = rows.filter((row) => row.field === 'ai_tool_call_intent').slice(-1)[0];
   const intentMetadata = parseIntentMetadata(intentRow?.metadataJson);
   const intentAssessment = safeParseJson(intentRow?.newValue);
 
@@ -183,7 +217,9 @@ export async function loadAiToolReplayBundle(requestId: string): Promise<AiToolR
         source: row.source,
         ...(typeof metadata?.executed === 'boolean' ? { executed: metadata.executed } : {}),
         ...(typeof metadata?.message === 'string' ? { message: metadata.message } : {}),
-        ...(typeof metadata?.assistantMessageId === 'string' ? { assistantMessageId: metadata.assistantMessageId } : {}),
+        ...(typeof metadata?.assistantMessageId === 'string'
+          ? { assistantMessageId: metadata.assistantMessageId }
+          : {}),
         ...(metadata?.toolCall ? { toolCall: metadata.toolCall } : {}),
         ...(metadata?.context ? { context: metadata.context } : {}),
       } satisfies AiToolReplayDecision;
@@ -191,13 +227,16 @@ export async function loadAiToolReplayBundle(requestId: string): Promise<AiToolR
 
   const latestDecision = decisions[decisions.length - 1];
   const toolCall = latestDecision?.toolCall ?? intentMetadata?.toolCall;
-  const toolName = latestDecision?.toolName ?? (typeof toolCall?.name === 'string' ? toolCall.name : '');
+  const toolName =
+    latestDecision?.toolName ?? (typeof toolCall?.name === 'string' ? toolCall.name : '');
   const context = latestDecision?.context ?? intentMetadata?.context;
-  const assistantMessageId = latestDecision?.assistantMessageId ?? intentMetadata?.assistantMessageId;
-  const replayable = typeof toolCall?.name === 'string'
-    && toolCall.name.trim().length > 0
-    && !!toolCall.arguments
-    && typeof toolCall.arguments === 'object';
+  const assistantMessageId =
+    latestDecision?.assistantMessageId ?? intentMetadata?.assistantMessageId;
+  const replayable =
+    typeof toolCall?.name === 'string' &&
+    toolCall.name.trim().length > 0 &&
+    !!toolCall.arguments &&
+    typeof toolCall.arguments === 'object';
 
   return {
     requestId,
@@ -236,18 +275,26 @@ export function buildAiToolGoldenSnapshot(bundle: AiToolReplayBundle): AiToolGol
       timestamp: item.timestamp,
       ...(item.message ? { message: item.message } : {}),
     })),
-    ...(bundle.latestDecision ? {
-      latestDecision: {
-        decision: bundle.latestDecision.decision,
-        ...(bundle.latestDecision.reason ? { reason: bundle.latestDecision.reason } : {}),
-        ...(bundle.latestDecision.reasonLabelEn ? { reasonLabelEn: bundle.latestDecision.reasonLabelEn } : {}),
-        ...(bundle.latestDecision.reasonLabelZh ? { reasonLabelZh: bundle.latestDecision.reasonLabelZh } : {}),
-        ...(typeof bundle.latestDecision.executed === 'boolean' ? { executed: bundle.latestDecision.executed } : {}),
-        source: bundle.latestDecision.source,
-        timestamp: bundle.latestDecision.timestamp,
-        ...(bundle.latestDecision.message ? { message: bundle.latestDecision.message } : {}),
-      },
-    } : {}),
+    ...(bundle.latestDecision
+      ? {
+          latestDecision: {
+            decision: bundle.latestDecision.decision,
+            ...(bundle.latestDecision.reason ? { reason: bundle.latestDecision.reason } : {}),
+            ...(bundle.latestDecision.reasonLabelEn
+              ? { reasonLabelEn: bundle.latestDecision.reasonLabelEn }
+              : {}),
+            ...(bundle.latestDecision.reasonLabelZh
+              ? { reasonLabelZh: bundle.latestDecision.reasonLabelZh }
+              : {}),
+            ...(typeof bundle.latestDecision.executed === 'boolean'
+              ? { executed: bundle.latestDecision.executed }
+              : {}),
+            source: bundle.latestDecision.source,
+            timestamp: bundle.latestDecision.timestamp,
+            ...(bundle.latestDecision.message ? { message: bundle.latestDecision.message } : {}),
+          },
+        }
+      : {}),
   };
 }
 
@@ -298,8 +345,16 @@ export function diffAiToolSnapshot(
   const fields: AiToolSnapshotField[] = [
     field('toolName', baseline.toolName, live.toolName),
     field('replayable', baseline.replayable, live.replayable),
-    field('latestDecision.decision', baseline.latestDecision?.decision, live.latestDecision?.decision),
-    field('latestDecision.executed', baseline.latestDecision?.executed, live.latestDecision?.executed),
+    field(
+      'latestDecision.decision',
+      baseline.latestDecision?.decision,
+      live.latestDecision?.decision,
+    ),
+    field(
+      'latestDecision.executed',
+      baseline.latestDecision?.executed,
+      live.latestDecision?.executed,
+    ),
     field('latestDecision.reason', baseline.latestDecision?.reason, live.latestDecision?.reason),
     field('decisions.length', baseline.decisions.length, live.decisions.length),
     field('toolCall.name', baseline.toolCall?.name, live.toolCall?.name),

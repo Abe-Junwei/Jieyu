@@ -76,6 +76,8 @@ import { AiAdoptionQueuePanel } from './AiAdoptionQueuePanel';
 import { useAiChatRecommendationController } from './useAiChatRecommendationController';
 import { useAiChatAlertBarState } from './useAiChatAlertBarState';
 import { useAiChatComposerGuardState } from './useAiChatComposerGuardState';
+import { resolveAiChatConversationTitle } from '../../hooks/ai/aiChatConversationTitle';
+import { shouldVirtualizeAiChatTurns } from './useAiChatMessageThreadVirtualizer';
 
 type AiChatCardProps = {
   embedded?: boolean;
@@ -133,6 +135,9 @@ export function AiChatCard({
     onSendAiMessage,
     onStopAiMessage,
     onClearAiMessages,
+    aiConversationManagement,
+    onStartNewConversation,
+    onSwitchConversation,
     onToggleAiMessagePin,
     onDeactivateAiSessionDirective,
     onPruneAiSessionDirectivesBySourceMessage,
@@ -155,6 +160,7 @@ export function AiChatCard({
 
   const [chatInput, setChatInput] = useState('');
   const [localShowProviderConfig, setLocalShowProviderConfig] = useState(false);
+  const [conversationListOpen, setConversationListOpen] = useState(false);
   const [testConnectionPending, setTestConnectionPending] = useState(false);
   const [showPromptLab, setShowPromptLab] = useState(false);
   const [selectedReplayBundle, setSelectedReplayBundle] = useState<AiToolReplayBundle | null>(null);
@@ -356,12 +362,21 @@ export function AiChatCard({
   const showProviderConfig = providerConfigOpen ?? localShowProviderConfig;
   const toggleProviderConfig = useCallback(() => {
     const next = !showProviderConfig;
+    if (next) {
+      setConversationListOpen(false);
+    }
     if (onProviderConfigOpenChange) {
       onProviderConfigOpenChange(next);
       return;
     }
     setLocalShowProviderConfig(next);
   }, [onProviderConfigOpenChange, showProviderConfig]);
+
+  useEffect(() => {
+    if (showProviderConfig) {
+      setConversationListOpen(false);
+    }
+  }, [showProviderConfig]);
   const sessionAdaptiveInputProfile =
     aiSessionMemory?.preferences?.adaptiveInputProfile ?? aiSessionMemory?.adaptiveInputProfile;
   const sessionLastToolName =
@@ -634,9 +649,17 @@ export function AiChatCard({
   });
 
   const chatTitle = useMemo(
-    () => t(locale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, ''),
-    [locale],
+    () =>
+      resolveAiChatConversationTitle(
+        locale,
+        aiConversationManagement,
+        aiConversationId,
+        aiMessages ?? [],
+      ),
+    [aiConversationId, aiConversationManagement, aiMessages, locale],
   );
+  const conversationListGroupLabel = t(locale, 'ai.chat.conversationList.groupCurrentText');
+  const archivedConversationListGroupLabel = t(locale, 'ai.chat.conversationList.archivedGroup');
   const messages = useMemo(() => aiMessages ?? [], [aiMessages]);
 
   // PR-P4-3: Derive adoption items from vertical workflow audit entries（证据占位与助手 citations / envelope 对齐）
@@ -914,11 +937,14 @@ export function AiChatCard({
     return [...newestTurns].reverse();
   }, [messages]);
 
+  const virtualizeMessageTurns = shouldVirtualizeAiChatTurns(turns.length);
+
   useAiChatAutoScrollController({
     messageViewportRef,
     aiIsStreaming,
     messagesLength: messages.length,
     streamingThreadScrollSignature,
+    enabled: !virtualizeMessageTurns,
   });
 
   // P0: count active alerts for the alert bar
@@ -950,6 +976,7 @@ export function AiChatCard({
   const [showReplayDetailPanel, setShowReplayDetailPanel] = useState(false);
   const [showConversationSummary, setShowConversationSummary] = useState(false);
   const [showVerticalWorkflowDetail, setShowVerticalWorkflowDetail] = useState(false);
+  const [showRunTimeline, setShowRunTimeline] = useState(false);
   const [dismissedErrorWarning, setDismissedErrorWarning] = useState(false);
   const {
     latestVerticalWorkflowEntry,
@@ -1116,6 +1143,7 @@ export function AiChatCard({
       {showHeader && (
         <>
           <AiChatHeaderBar
+            locale={locale}
             chatTitle={chatTitle}
             toolFeedbackStyleResolved={toolFeedbackStyleResolved}
             cardMessages={cardMessages}
@@ -1128,6 +1156,13 @@ export function AiChatCard({
             showProviderConfigButton={showProviderConfigButton}
             showProviderConfig={showProviderConfig}
             onToggleProviderConfig={toggleProviderConfig}
+            {...(aiConversationManagement ? { aiConversationManagement } : {})}
+            conversationListOpen={conversationListOpen}
+            onConversationListOpenChange={setConversationListOpen}
+            {...(onStartNewConversation ? { onStartNewConversation } : {})}
+            {...(onSwitchConversation ? { onSwitchConversation } : {})}
+            conversationListGroupLabel={conversationListGroupLabel}
+            archivedConversationListGroupLabel={archivedConversationListGroupLabel}
           />
         </>
       )}
@@ -1202,8 +1237,11 @@ export function AiChatCard({
             toggleReasoning={toggleReasoning}
             activateCitation={activateCitation}
             onClearAiMessages={onClearAiMessages}
+            clearConversationLabel={aiConversationManagement?.enabled === true}
+            virtualizeTurns={virtualizeMessageTurns}
+            aiIsStreaming={Boolean(aiIsStreaming)}
+            streamingThreadScrollSignature={streamingThreadScrollSignature}
             isZh={isZh}
-            aiIsStreaming={aiIsStreaming}
             errorWarningText={errorWarningText}
             dismissedErrorWarning={dismissedErrorWarning}
             alertCount={alertCount}
@@ -1233,6 +1271,10 @@ export function AiChatCard({
             onCreateSourceSet={handleCreateSourceSet}
             onAddSourceSetMember={handleAddSourceSetMember}
             onRemoveSourceSetMember={handleRemoveSourceSetMember}
+            aiConversationManagementEnabled={aiConversationManagement?.enabled === true}
+            showRunTimeline={showRunTimeline}
+            setShowRunTimeline={setShowRunTimeline}
+            aiVerticalWorkflowAuditEntries={aiVerticalWorkflowAuditEntries}
           />
 
           <AiAdoptionQueuePanel

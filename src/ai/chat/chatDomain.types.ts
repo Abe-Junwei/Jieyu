@@ -12,6 +12,7 @@ import type { ComposedWorkflowState } from '../vertical/composedWorkflowTemplate
 import type { DegradationScenario } from './degradationManualOverride';
 import type { WorkflowExplainabilityV0 } from './workflowExplainability';
 import type { AdoptionItem } from '../vertical/adoptionQueue';
+import type { LocalContextToolName } from './localContextToolTypes';
 
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
@@ -93,7 +94,7 @@ export interface AiTaskTraceEntry {
 export interface AiTaskSession {
   id: string;
   status: 'idle' | 'waiting_clarify' | 'waiting_confirm' | 'executing' | 'explaining';
-  toolName?: AiChatToolName;
+  toolName?: AiChatToolName | LocalContextToolName;
   clarifyReason?: AiTaskClarifyReason;
   candidates?: AiClarifyCandidate[];
   step?: number;
@@ -689,6 +690,8 @@ export interface AiContextDebugSnapshot {
 }
 
 export interface UseAiChatOptions {
+  /** Scope conversations to a transcription project (`textId`); see G1c. */
+  textId?: string;
   onToolCall?: (call: AiChatToolCall) => Promise<AiChatToolResult> | AiChatToolResult;
   onToolRiskCheck?: (
     call: AiChatToolCall,

@@ -12,6 +12,7 @@ import type {
   PendingAiToolCall,
   UiChatMessage,
 } from '../../ai/chat/chatDomain.types';
+import type { AiConversationManagementApi } from './aiConversationManager.types';
 
 export * from '../../ai/chat/chatDomain.types';
 
@@ -48,4 +49,6 @@ export interface UseAiChatReturn {
   toggleMessagePinned: (messageId: string) => void;
   deactivateSessionDirective: (directiveId: string) => void;
   pruneSessionDirectivesBySourceMessage: (sourceMessageId: string) => void;
+  /** Present when `featureFlags.aiConversationManagement` is true (§9.3). */
+  conversationManagement: AiConversationManagementApi | null;
 }

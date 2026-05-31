@@ -64,6 +64,7 @@ hotspots:auto 区间由 `npm run sync:ai-quickstart-hotspots` 自动重写，请
 - `npm run check:architecture-guard` — 编排层 / controller 边界 / 复杂度上限
 - `npm run check:agent-evals:smoke`（pre-merge）/ `:full`（AI 改动） — 典型 AI 失误
 - `npm run check:docs-governance` — 文档放错位置
+- `npm run check:dev-agent-workflow-verify` — SDD 触发 vs spec 活动 + Research 填实（Cursor stop hook 也会跑）
 - `npm run check:plans-frontmatter` — plans frontmatter 完整性
 - `npm run check:current-state-freshness` — 现状文档 staleness（90d WARN / 180d FAIL）
 
@@ -101,21 +102,28 @@ hotspots:auto 区间由 `npm run sync:ai-quickstart-hotspots` 自动重写，请
 ## 6. 工作流速记（详见 [copilot-instructions.md](copilot-instructions.md) §五）
 
 ```
-Explore  仅读，产出"已读事实"清单            Cursor Plan/Ask · Kimi --explore · Copilot Chat ask
+Explore  仅读本仓库，产出"已读事实"清单         Cursor Plan/Ask · Kimi --explore · Copilot Chat ask
    ↓
-Plan     产出落位 + 验证方式，等用户确认
+Research 向外调研业内成熟方案（新功能才强制）    Cursor WebSearch+context7 · Kimi web · Copilot web
+         同类产品/标杆 · best practice/规范 · 公认不可行 · 潜在坑 → 复用/适配/自研结论
+   ↓
+Plan     产出落位 + 验证方式（承接 Research 结论），等用户确认
    ↓
 Implement 执行；逐步 typecheck / 定向 vitest
    ↓
 Commit   commit msg 附验证证据（命令 + 摘要）
 ```
 
-单文件 ≤ 10 行小修复可跳过 Explore；Commit 验证证据不可省。
+**Plan 确认前 checklist**（SDD 触发见 [copilot-instructions.md](copilot-instructions.md) §5.2.1）：spec 三件套齐 → `design.md` §1 Research 填实（非占位符）→ 落位路径 + `npm run`/`vitest` 命令 → **用户确认 Plan** 后再 Implement。
+
+**Cursor stop hook 自动 verify**（改过 `src/**/*.ts(x)`、`docs/execution/specs/`、`scripts/check-*.{mjs,cjs}` 或 `AGENTS.md` / `AI_QUICKSTART.md` / `copilot-instructions.md`）：`typecheck` → `check:agent-evals:smoke` → `check:dev-agent-workflow-verify`。
+
+单文件 ≤ 10 行小修复可跳过 Explore + Research；新功能未做 Research 不得进入 Plan；Commit 验证证据不可省。完整 Research 维度见 [copilot-instructions.md](copilot-instructions.md) §5.1.5。
 
 ## 7. 不要做（与外部模板的差异）
 
 - 不引入 `src/features/...` / monorepo / nx / turbo。
-- 不建 `.cursor/rules/*.mdc` 的 path-scoped `globs:`（Kimi 不支持 → 破坏三工具一致性）；想加规则就写进 [AGENTS.md](AGENTS.md) 或 [copilot-instructions.md](copilot-instructions.md)。
+- 不在 path-scoped `.cursor/rules/*.mdc` 里**分叉/内联规则正文**。允许 Cursor-only 的 path-scoped `globs:` 规则，但**仅作纯指针**（指向 AGENTS.md / copilot-instructions.md / docs 的 canonical 章节，≤ 10 行）；Kimi 遇到 `globs:` 是惰性忽略（非破坏），故不违反三工具一致。任何**权威规则正文**仍只写进 [AGENTS.md](AGENTS.md) 或 [copilot-instructions.md](copilot-instructions.md)。现有纯指针规则：`path-css-panels` / `path-pages-orchestration` / `path-ai-messages` / `path-db-persistence`。
 - 不维护 **Claude Code 专属工作目录** `.claude/` 作为项目真相源。三工具基线以 **`AGENTS.md`** 为准；根目录 **`CLAUDE.md` 非必需**，若存在应仅为 `AGENTS.md` 镜像，**不得**作为与 `AI_QUICKSTART.md` / `copilot-instructions.md` 冲突的第三套权威正文。
 - 不引 LangSmith / Braintrust SaaS（本地 `run-agent-evals.mjs` 够用）。
 - 不引多 agent 编排。

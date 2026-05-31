@@ -19,6 +19,7 @@ import type {
   SendTurnDbConversationHolder,
   SendTurnPreflightContext,
 } from './useAiChat.sendTurnPreflight';
+import { createConversationGenerationRef } from '../../ai/chat/conversationGeneration';
 import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
 import { runAiChatSendTurnPersistAndPrimaryStream } from './useAiChat.sendTurnPersistAndPrimaryStream';
 
@@ -78,6 +79,7 @@ function makePreflight(): SendTurnPreflightContext {
     effectiveUserText: 'hello',
     verticalWorkflowSelection: null,
     verticalOutputEnvelopeSeed: null,
+    streamGenerationAtStart: 0,
   };
 }
 
@@ -177,6 +179,7 @@ function makeSendTurnArgs(
     bumpMetric: noop,
     resolveAgentLoopResumeCheckpoint: vi.fn(async () => null),
     clearPendingAgentLoopCheckpoint: noop,
+    conversationGenerationRef: { current: createConversationGenerationRef(0) },
   };
 }
 

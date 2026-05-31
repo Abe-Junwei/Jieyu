@@ -89,6 +89,8 @@ export type SendTurnPreflightContext = Readonly<{
   verticalOutputEnvelopeSeed: VerticalWorkflowOutputEnvelopeV0 | null;
   /** One id per user send attempt; use with `logSendTurnPhase` when localStorage debug is on. */
   correlationId: string;
+  /** G0c: generation captured immediately before seeding user/assistant UI rows. */
+  streamGenerationAtStart: number;
 }>;
 
 /** Returns null when the turn should not proceed (caller already updated UI / errors). */
@@ -122,6 +124,7 @@ export async function runAiChatSendTurnPreflight(
     sendPreflightSessionSidecarSandboxProfileOverride,
     activeConversationId,
     ensureConversation,
+    conversationGenerationRef,
   } = args;
 
   if (!flags.aiChatEnabled) {
@@ -200,6 +203,7 @@ export async function runAiChatSendTurnPreflight(
     reasoningContent: '',
   };
 
+  const streamGenerationAtStart = conversationGenerationRef.current.current;
   setMessages((prev) => [userMsg, assistantSeed, ...prev]);
   setIsStreaming(true);
 
@@ -248,6 +252,8 @@ export async function runAiChatSendTurnPreflight(
       streamPersistIntervalMsRef,
       getDbRef: () => dbConversation.dbRef,
       getActiveConversationId: () => dbConversation.activeConversationId,
+      conversationGenerationRef: conversationGenerationRef.current,
+      streamGenerationAtStart,
     });
 
   const commitPrimaryStreamUsage = () => {
@@ -372,5 +378,6 @@ export async function runAiChatSendTurnPreflight(
     effectiveUserText,
     verticalWorkflowSelection,
     verticalOutputEnvelopeSeed,
+    streamGenerationAtStart,
   };
 }

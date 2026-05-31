@@ -1,5 +1,10 @@
-import { buildAgentLoopContinuationToolPayload, type LocalContextToolResult } from './localContextTools';
+import {
+  buildAgentLoopContinuationToolPayload,
+  type LocalContextToolResult,
+} from './localContextTools';
 import type { LocalToolMetric } from './chatDomain.types';
+import type { ReplanningDecision } from './agentLoopReplanning';
+import { featureFlags } from '../config/featureFlags';
 import { generateTraceId } from '../../observability/aiTrace';
 
 /** Same guidance as `formatLocalContextToolResultMessage` when structured shrink still leaves gaps. */
@@ -41,7 +46,9 @@ export function buildAgentLoopStepTraceTags(
     step,
     ...(taskState?.queryFamily ? { queryFamily: taskState.queryFamily } : {}),
     ...(taskState?.scope ? { scope: taskState.scope } : {}),
-    ...(Array.isArray(taskState?.selectedTools) ? { selectedToolCount: taskState.selectedTools.length } : {}),
+    ...(Array.isArray(taskState?.selectedTools)
+      ? { selectedToolCount: taskState.selectedTools.length }
+      : {}),
   };
 }
 
@@ -61,24 +68,28 @@ function resolveMetricValue(result: LocalContextToolResult): number | undefined 
 }
 
 function isKnownMetric(value: unknown): value is LocalToolMetric {
-  return value === 'unit_count'
-    || value === 'speaker_count'
-    || value === 'translation_layer_count'
-    || value === 'ai_confidence_avg'
-    || value === 'untranscribed_count'
-    || value === 'missing_speaker_count';
+  return (
+    value === 'unit_count' ||
+    value === 'speaker_count' ||
+    value === 'translation_layer_count' ||
+    value === 'ai_confidence_avg' ||
+    value === 'untranscribed_count' ||
+    value === 'missing_speaker_count'
+  );
 }
 
 function resolveRequestedMetric(result: LocalContextToolResult): LocalToolMetric | undefined {
   if (!result.ok) return undefined;
   const body = asObjectRecord(result.result);
   if (!body) return undefined;
-  const requestedMetric = typeof body.requestedMetric === 'string' ? body.requestedMetric : undefined;
+  const requestedMetric =
+    typeof body.requestedMetric === 'string' ? body.requestedMetric : undefined;
   if (isKnownMetric(requestedMetric)) {
     return requestedMetric;
   }
   const meta = asObjectRecord(body.meta);
-  const metaRequested = meta && typeof meta.requestedMetric === 'string' ? meta.requestedMetric : undefined;
+  const metaRequested =
+    meta && typeof meta.requestedMetric === 'string' ? meta.requestedMetric : undefined;
   if (isKnownMetric(metaRequested)) {
     return metaRequested;
   }
@@ -91,7 +102,8 @@ function isAnswerReadyForMetricQuery(
 ): boolean {
   if (!isKnownMetric(metric)) return false;
   return localToolResults.some((item) => {
-    if (!item.ok || (item.name !== 'diagnose_quality' && item.name !== 'get_project_stats')) return false;
+    if (!item.ok || (item.name !== 'diagnose_quality' && item.name !== 'get_project_stats'))
+      return false;
     const value = resolveMetricValue(item);
     if (value === undefined) return false;
     return resolveRequestedMetric(item) === metric;
@@ -99,14 +111,33 @@ function isAnswerReadyForMetricQuery(
 }
 
 function isAnswerReadyForDetailQuery(localToolResults: LocalContextToolResult[]): boolean {
-  return localToolResults.some((item) => item.ok && (
-    item.name === 'get_unit_detail'
-    || item.name === 'get_unit_linguistic_memory'
-  ));
+  return localToolResults.some(
+    (item) =>
+      item.ok && (item.name === 'get_unit_detail' || item.name === 'get_unit_linguistic_memory'),
+  );
 }
 
-function isAnswerReadyForSearchQuery(localToolResults: LocalContextToolResult[]): boolean {
-  return localToolResults.some((item) => item.ok && item.name === 'search_units');
+function isAnswerReadyForSearchQuery(
+  localToolResults: LocalContextToolResult[],
+  requirePositiveCount = false,
+): boolean {
+  return localToolResults.some((item) => {
+    if (!item.ok || item.name !== 'search_units') return false;
+    if (!requirePositiveCount) return true;
+    const body = asObjectRecord(item.result);
+    if (body && typeof body.count === 'number') return body.count > 0;
+    if (body && Array.isArray(body.matches)) return body.matches.length > 0;
+    return false;
+  });
+}
+
+export interface ShouldContinueAgentLoopOptions {
+  /** 闭环重规划开启时传入 evaluateReplanningNeed 结果 */
+  replanningDecision?: ReplanningDecision;
+  /** 覆盖 feature flag（单测用） */
+  closedLoopReplanningEnabled?: boolean;
+  /** 搜索早停修复：search 须 count>0 才算 answer-ready（默认跟随 feature flag） */
+  requireSearchHitCount?: boolean;
 }
 
 function isTaskStateObject(value: unknown): value is AgentLoopTaskState {
@@ -119,19 +150,38 @@ export function shouldContinueAgentLoop(
   config: AgentLoopConfig,
   localToolResults: LocalContextToolResult[] | undefined,
   metricOrTaskState?: LocalToolMetric | AgentLoopTaskState,
+  options?: ShouldContinueAgentLoopOptions,
 ): boolean {
   const taskState = isTaskStateObject(metricOrTaskState) ? metricOrTaskState : undefined;
   const metric = isTaskStateObject(metricOrTaskState)
     ? metricOrTaskState.requestedMetric
     : metricOrTaskState;
+  const replanning = options?.replanningDecision;
+  const replanningEnabled =
+    options?.closedLoopReplanningEnabled ?? featureFlags.aiAgentLoopClosedLoopReplanningEnabled;
+  const requireSearchHitCount = options?.requireSearchHitCount ?? replanningEnabled;
 
   if (taskState?.answerReady === true) return false;
   if (taskState?.executionState === 'answer_ready') return false;
   if (!localToolResults || localToolResults.length === 0) return false;
-  if (localToolResults.some((item) => !item.ok)) return false;
 
-  if (taskState?.queryFamily === 'search' && isAnswerReadyForSearchQuery(localToolResults)) return false;
-  if (taskState?.queryFamily === 'detail' && isAnswerReadyForDetailQuery(localToolResults)) return false;
+  if (replanningEnabled && replanning) {
+    if (replanning.action === 'abort' || replanning.action === 'clarify') return false;
+    if (replanning.action !== 'replan' && localToolResults.some((item) => !item.ok)) {
+      return false;
+    }
+  } else if (localToolResults.some((item) => !item.ok)) {
+    return false;
+  }
+
+  if (
+    taskState?.queryFamily === 'search' &&
+    isAnswerReadyForSearchQuery(localToolResults, requireSearchHitCount)
+  ) {
+    return false;
+  }
+  if (taskState?.queryFamily === 'detail' && isAnswerReadyForDetailQuery(localToolResults))
+    return false;
   if (isAnswerReadyForMetricQuery(metric, localToolResults)) return false;
   if (isAnswerReadyForDetailQuery(localToolResults)) return false;
   return step < config.maxSteps;

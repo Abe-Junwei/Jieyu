@@ -137,9 +137,9 @@ AI 生成代码时，必须优先模仿仓库中的真实范式，而不是套�
 
 如果新逻辑和上述模式相似，优先延续这些边界，而不是重新发明目录结构。
 
-## 五、新任务的默认工作流（Explore → Plan → Implement → Commit）
+## 五、新任务的默认工作流（Explore → Research → Plan → Implement → Commit）
 
-中等及以上复杂度任务必须按四阶段推进；小修复（单文件 ≤ 10 行）可跳过 Explore 但 Commit 阶段的验证证据不可省。
+中等及以上复杂度任务必须按五阶段推进；**Research 阶段仅在"新功能 / 新交互 / 新算法 / 新存储 / 新集成 / 新架构"时强制**（即"成熟方案优先"原则适用的场景），纯 bug 修复 / UI 微调 / 既有逻辑重构可跳过 Research。小修复（单文件 ≤ 10 行）可跳过 Explore + Research，但 Commit 阶段的验证证据不可省。
 
 ### 5.1 Explore（仅读不改）
 
@@ -162,12 +162,38 @@ AI 生成代码时，必须优先模仿仓库中的真实范式，而不是套�
 3. 与本次改动冲突的硬约束（编排层 / ReadyWorkspace / 双层边框 / hotspot ratchet 等）
 4. 已确认的假设 vs 待澄清问题
 
+### 5.1.5 Research（业内成熟方案调研 — 新功能 / 新能力 / 新算法 / 新集成时）
+
+**目标**：进入 Plan 之前，先把"业内 / 同类产品怎么做"摸清，避免闭门造车与踩已知坑。本阶段是 [AGENTS.md](AGENTS.md)「成熟方案优先」原则从一句话升级为**有产出、可被 Plan 承接的门禁阶段**。
+
+**触发（分两层，避免靠模糊判断"是不是新功能"）**：
+- **机器强制层（L3，可被守卫拦截）**：任一 §5.2.1 SDD 触发条件命中（≥ 1 新 controller / ≥ 1 新 service / 跨 ≥ 3 controller / 触 schema 迁移 / 新 feature flag）→ **必须**做 Research 并写入 spec `design.md` §1；`npm run check:spec-research-filled` 会拦截"非 draft 但 §1 仍留模板占位符"；`npm run check:dev-agent-workflow-verify` 会在 diff 出现 SDD 信号却无 spec 活动时拦截（Cursor stop hook 亦会跑）。
+- **人工闸门层（L2）**：其余"成熟方案优先"场景（新交互 / 算法 / 集成 / 架构但未触发 SDD）仍应做 Research，由 Plan 评审时人工把关（无产物，机器查不到）。
+
+Explore（仅读本仓库）回答"我们现在有什么"；Research（向外调研）回答"业内成熟做法是什么"，两者共同喂给 Plan。
+
+**调研维度（综合后产出，缺一不可视为未完成）**：
+1. **同类产品 / 标杆实现**：该功能在业内产品、知名开源项目、框架原生模式里如何实现。
+2. **业内 best practice / 事实标准 / 规范**：相关库、协议、W3C / ISO / 领域规范。
+3. **公认不可行 / 反模式 / 已弃用方案**：以及"为什么不行"（避免重蹈覆辙）。
+4. **潜在的坑**：边界条件、性能 / 兼容性 / 隐私陷阱、长期维护成本、许可与体积成本（新增依赖时）。
+5. **候选方案对比 + 倾向结论**：复用 / 适配 / 自研，附理由、代价与已知坑规避。
+
+**三工具对应模式**：
+- Cursor：WebSearch + context7（库文档）+ 可委托 `Task` subagent_type=`explore` / `generalPurpose`
+- Kimi-cli：web / search tool + 主 agent
+- GitHub Copilot：主 chat web search
+
+**产出**：一段 ≤ 20 行的"调研综述"，直接承接到 §5.2 Plan 的「成熟方案结论」字段；**SDD 触发时**写入 spec 的 [design.md](docs/execution/specs/_template/design.md) §1「成熟方案扫描 / Research」（不强制新增独立 `research.md`，除非调研体量大）。
+
+**与 mature-solution-first 的关系**：只有在本阶段明确说明"复用不适合"后，才允许自研；新增依赖必须在产出里说明维护、体积、许可与集成成本。
+
 ### 5.2 Plan（产出落位 + 验证方式，等用户确认）
 
 **目标**：把"做什么"落到具体文件 + 具体验证命令，等用户拍板后才进入 Implement。
 
 **Plan 必含字段**：
-1. 成熟方案扫描结论：复用 / 适配 / 自研，以及理由
+1. 成熟方案结论（承接 §5.1.5 Research 综述）：复用 / 适配 / 自研 + 理由 + 已知坑规避；新功能未做 Research 不得进入 Plan
 2. 新增逻辑类别归属：`state / derived / effect / actions / routing`
 3. 落位文件清单：`src/pages/useXxxController.ts`、`src/services/XxxService.ts`、`src/hooks/...` 等具体路径
 4. 拆分边界：哪些进 controller、哪些进 service、UI 保留哪些

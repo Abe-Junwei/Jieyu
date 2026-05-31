@@ -29,6 +29,8 @@ import {
   OPEN_APPROVAL_CENTER_EVENT,
   REQUEST_AGENT_LOOP_RESUME_EVENT,
 } from '../ai/tasks/taskRefreshEvents';
+import { resolveAiChatConversationTitle } from '../hooks/ai/aiChatConversationTitle';
+import { AiConversationListPopover } from '../components/ai/AiConversationListPopover';
 
 const AiChatCard = lazy(async () =>
   import('../components/ai/AiChatCard').then((module) => ({
@@ -129,6 +131,8 @@ export function TranscriptionPageChatWindow({
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [providerConfigOpen, setProviderConfigOpen] = useState(false);
+  const [conversationListOpen, setConversationListOpen] = useState(false);
+  const floatingTitleButtonRef = useRef<HTMLButtonElement | null>(null);
   const dragStartRef = useRef<{
     pointerX: number;
     pointerY: number;
@@ -150,7 +154,24 @@ export function TranscriptionPageChatWindow({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const dialogId = useId();
   const windowTitleId = `${dialogId}-title`;
-  const title = t(uiLocale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, '');
+  const conversationManagement =
+    aiChatState.aiConversationManagement?.enabled === true
+      ? aiChatState.aiConversationManagement
+      : null;
+  const conversationManagementEnabled = conversationManagement !== null;
+  const chatTitle = useMemo(
+    () =>
+      resolveAiChatConversationTitle(
+        uiLocale,
+        conversationManagement,
+        aiChatState.aiConversationId,
+        aiChatState.aiMessages ?? [],
+      ),
+    [aiChatState.aiConversationId, aiChatState.aiMessages, conversationManagement, uiLocale],
+  );
+  const title = chatTitle;
+  const conversationListGroupLabel = t(uiLocale, 'ai.chat.conversationList.groupCurrentText');
+  const archivedConversationListGroupLabel = t(uiLocale, 'ai.chat.conversationList.archivedGroup');
   const aiAssistantHubContextValue = useMemo(
     () => pickAiAssistantHubContextValue(aiChatState, DORMANT_VOICE_CONTEXT_FOR_CHAT_WINDOW),
     [aiChatState],
@@ -488,9 +509,88 @@ export function TranscriptionPageChatWindow({
             onPointerCancel={stopDragging}
           >
             <div className="transcription-chat-window-header-meta">
-              <div id={windowTitleId} className="transcription-chat-window-title">
-                {title}
-              </div>
+              {conversationManagementEnabled ? (
+                <div className="ai-chat-header-anchor transcription-chat-window-conversation-anchor">
+                  <div className="ai-chat-conversation-chrome is-floating">
+                    <button
+                      type="button"
+                      className="icon-btn ai-chat-conversation-list-btn"
+                      onClick={() => {
+                        setConversationListOpen((prev) => {
+                          const next = !prev;
+                          if (next) {
+                            void conversationManagement.refreshConversations();
+                          }
+                          return next;
+                        });
+                        if (providerConfigOpen) {
+                          setProviderConfigOpen(false);
+                        }
+                      }}
+                      aria-expanded={conversationListOpen}
+                      aria-haspopup="dialog"
+                      aria-label={t(uiLocale, 'ai.chat.conversationList.openList')}
+                    >
+                      <MaterialSymbol
+                        name="format_list_bulleted"
+                        className={JIEYU_MATERIAL_INLINE}
+                      />
+                    </button>
+                    <button
+                      ref={floatingTitleButtonRef}
+                      type="button"
+                      className="ai-chat-conversation-title-btn is-floating"
+                      onClick={() => {
+                        setConversationListOpen((prev) => {
+                          const next = !prev;
+                          if (next) {
+                            void conversationManagement.refreshConversations();
+                          }
+                          return next;
+                        });
+                        if (providerConfigOpen) {
+                          setProviderConfigOpen(false);
+                        }
+                      }}
+                      aria-expanded={conversationListOpen}
+                      aria-haspopup="dialog"
+                      aria-label={t(uiLocale, 'ai.chat.conversationList.titleButton')}
+                      title={chatTitle}
+                    >
+                      <span id={windowTitleId} className="ai-chat-conversation-title-text">
+                        {chatTitle}
+                      </span>
+                      <MaterialSymbol
+                        name="expand_more"
+                        className={JIEYU_MATERIAL_INLINE}
+                        aria-hidden
+                      />
+                    </button>
+                  </div>
+                  {conversationListOpen ? (
+                    <AiConversationListPopover
+                      locale={uiLocale}
+                      management={conversationManagement}
+                      groupLabel={conversationListGroupLabel}
+                      archivedGroupLabel={archivedConversationListGroupLabel}
+                      onStartNewConversation={async () => {
+                        await aiChatState.onStartNewConversation?.();
+                        setConversationListOpen(false);
+                      }}
+                      onSelectConversation={async (conversationId) => {
+                        await aiChatState.onSwitchConversation?.(conversationId);
+                        setConversationListOpen(false);
+                      }}
+                      onClose={() => setConversationListOpen(false)}
+                      titleButtonRef={floatingTitleButtonRef}
+                    />
+                  ) : null}
+                </div>
+              ) : (
+                <div id={windowTitleId} className="transcription-chat-window-title">
+                  {title}
+                </div>
+              )}
               <div className="transcription-chat-window-subtitle">
                 {providerKind} · {connectionStatus} ·{' '}
                 {isZh ? `\u9489\u4f4f ${pinnedCount}` : `Pinned ${pinnedCount}`}
@@ -561,7 +661,15 @@ export function TranscriptionPageChatWindow({
                 <button
                   type="button"
                   className="transcription-chat-window-head-btn transcription-chat-window-config-btn"
-                  onClick={() => setProviderConfigOpen((prev) => !prev)}
+                  onClick={() => {
+                    setProviderConfigOpen((prev) => {
+                      const next = !prev;
+                      if (next) {
+                        setConversationListOpen(false);
+                      }
+                      return next;
+                    });
+                  }}
                   aria-label={
                     providerConfigOpen
                       ? cardMessages.hideProviderConfig
@@ -575,15 +683,17 @@ export function TranscriptionPageChatWindow({
                 >
                   <MaterialSymbol name="settings" className={JIEYU_MATERIAL_INLINE} />
                 </button>
-                <button
-                  type="button"
-                  className="transcription-chat-window-head-btn"
-                  onClick={() => aiChatState.onClearAiMessages?.()}
-                  aria-label={isZh ? '\u6e05\u7a7a\u4f1a\u8bdd' : 'Clear chat'}
-                  title={isZh ? '\u6e05\u7a7a\u4f1a\u8bdd' : 'Clear chat'}
-                >
-                  {isZh ? '\u6e05\u7a7a' : 'Clear'}
-                </button>
+                {!conversationManagementEnabled ? (
+                  <button
+                    type="button"
+                    className="transcription-chat-window-head-btn"
+                    onClick={() => aiChatState.onClearAiMessages?.()}
+                    aria-label={t(uiLocale, 'ai.chat.clear')}
+                    title={t(uiLocale, 'ai.chat.clear')}
+                  >
+                    {t(uiLocale, 'ai.chat.clear')}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="transcription-chat-window-head-btn"

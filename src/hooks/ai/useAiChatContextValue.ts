@@ -37,6 +37,18 @@ export function pickAiChatContextValue(P: AiChatContextSource): AiChatContextVal
     onSendAiMessage: P.onSendAiMessage,
     onStopAiMessage: P.onStopAiMessage,
     onClearAiMessages: P.onClearAiMessages,
+    ...(P.aiConversationManagement !== undefined
+      ? { aiConversationManagement: P.aiConversationManagement }
+      : {}),
+    ...(P.onStartNewConversation !== undefined
+      ? { onStartNewConversation: P.onStartNewConversation }
+      : {}),
+    ...(P.onSwitchConversation !== undefined
+      ? { onSwitchConversation: P.onSwitchConversation }
+      : {}),
+    ...(P.onClearCurrentConversation !== undefined
+      ? { onClearCurrentConversation: P.onClearCurrentConversation }
+      : {}),
     onToggleAiMessagePin: P.onToggleAiMessagePin,
     onDeactivateAiSessionDirective: P.onDeactivateAiSessionDirective,
     onPruneAiSessionDirectivesBySourceMessage: P.onPruneAiSessionDirectivesBySourceMessage,

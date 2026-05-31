@@ -1,0 +1,12 @@
+---
+description: AI formatter 文案 vs UI 文案分层 canonical 指针
+globs: src/ai/messages/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# 改 src/ai/messages/** 时
+
+仅为指针，正文以 canonical 为准（不在此分叉规则）：
+
+- 模型/工具输出的**固定句式**放这里；**用户可见 UI 文案**走 `src/i18n` 的 `dictKeys` / 字典，**两套命名空间不混用** → `AGENTS.md`「AI formatter 文案 vs UI 文案分层」。
+- 机器守卫：`node scripts/check-ai-messages-isolation.mjs`；`npm run check:agent-evals:smoke` 含 ai-messages-isolation case。

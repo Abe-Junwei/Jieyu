@@ -5,6 +5,9 @@ import { DICT_KEYS, type DictKey } from './dictKeys';
 
 export type Locale = 'zh-CN' | 'en-US';
 
+/** Registered UI locales; extend when adding `Locale` variants. */
+export const APP_LOCALES: readonly Locale[] = ['zh-CN', 'en-US'];
+
 export const LOCALE_PREFERENCE_STORAGE_KEY = 'jieyu.locale';
 
 const LocaleContext = createContext<Locale | null>(null);

@@ -85,8 +85,7 @@ export async function flushAssistantContent(
     .findOne({ selector: { id: assistantId } })
     .exec();
   if (!existing) return;
-  await db.collections.ai_messages.insert({
-    ...existing.toJSON(),
+  await db.collections.ai_messages.update(assistantId, {
     content,
     updatedAt: nowIso(),
   });
@@ -110,23 +109,33 @@ export async function finalizeAssistantMessageInDb(
   row: AiMessageDoc,
   input: Omit<FinalizeAssistantMessageInput, 'assistantId'>,
 ): Promise<void> {
-  await db.collections.ai_messages.insert({
-    ...row,
+  const patch: Partial<AiMessageDoc> = {
     content: input.content,
     status: input.status,
-    ...(input.errorMessage !== undefined ? { errorMessage: input.errorMessage } : {}),
-    ...(input.citations !== undefined ? { citations: input.citations } : {}),
-    ...(input.reasoningContent !== undefined ? { reasoningContent: input.reasoningContent } : {}),
-    ...(input.contextSnapshot !== undefined ? { contextSnapshot: input.contextSnapshot } : {}),
-    ...(input.sourceScopeSummary !== undefined
-      ? { sourceScopeSummary: input.sourceScopeSummary }
-      : {}),
-    ...(input.reflectionChecks !== undefined ? { reflectionChecks: input.reflectionChecks } : {}),
-    ...(input.compatibilityReport !== undefined
-      ? { compatibilityReport: input.compatibilityReport }
-      : {}),
     updatedAt: nowIso(),
-  } as AiMessageDoc);
+  };
+  if (input.errorMessage !== undefined) patch.errorMessage = input.errorMessage;
+  if (input.citations !== undefined) patch.citations = input.citations;
+  if (input.reasoningContent !== undefined) patch.reasoningContent = input.reasoningContent;
+  if (input.contextSnapshot !== undefined && input.contextSnapshot !== null) {
+    patch.contextSnapshot = input.contextSnapshot as Record<string, unknown>;
+  }
+  if (input.sourceScopeSummary != null) {
+    patch.sourceScopeSummary = input.sourceScopeSummary as NonNullable<
+      AiMessageDoc['sourceScopeSummary']
+    >;
+  }
+  if (input.reflectionChecks != null) {
+    patch.reflectionChecks = input.reflectionChecks as NonNullable<
+      AiMessageDoc['reflectionChecks']
+    >;
+  }
+  if (input.compatibilityReport != null) {
+    patch.compatibilityReport = input.compatibilityReport as NonNullable<
+      AiMessageDoc['compatibilityReport']
+    >;
+  }
+  await db.collections.ai_messages.update(row.id, patch);
 }
 
 export async function updateAssistantRetryMeta(

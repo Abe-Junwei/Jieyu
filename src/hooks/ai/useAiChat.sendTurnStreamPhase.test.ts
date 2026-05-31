@@ -21,6 +21,10 @@ import type {
 } from './useAiChat.types';
 import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
 import { runAgentLoop, type AgentLoopRunnerResult } from './useAiChat.agentLoopRunner';
+import {
+  bumpConversationGeneration,
+  createConversationGenerationRef,
+} from '../../ai/chat/conversationGeneration';
 import { createAssistantStream, type AssistantStreamChunk } from './useAiChat.streamFactory';
 
 vi.mock('react-dom', () => ({
@@ -127,6 +131,8 @@ function buildBaseInput(
     timeoutHandle: null,
     sendStartedAtMs: 0,
     aiMetricTags: createMetricTags('ai-chat', { provider: 'mock', model: 'mock' }),
+    conversationGenerationRef: createConversationGenerationRef(0),
+    streamGenerationAtStart: 0,
     queueFlushAssistantDraft: vi.fn(),
     awaitQueuedPersistence: noopAsync,
     finalizeAssistantMessage: noopAsync,
@@ -191,6 +197,39 @@ describe('runAiChatSendTurnStreamPhase', () => {
       totalOutputTokens: 0,
       reportedInputTokens: 0,
     } as AgentLoopRunnerResult);
+  });
+
+  it('skips stream delta UI updates after conversation generation bump (G0c)', async () => {
+    const generationRef = createConversationGenerationRef(0);
+    const streamGenerationAtStart = generationRef.current;
+    const setMessages = vi.fn();
+
+    async function* deltas(): AsyncGenerator<AssistantStreamChunk> {
+      yield { delta: 'before-clear' };
+      bumpConversationGeneration(generationRef);
+      yield { delta: 'after-clear' };
+      yield { done: true };
+    }
+
+    const input = buildBaseInput({
+      setMessages: setMessages as unknown as Dispatch<SetStateAction<UiChatMessage[]>>,
+      conversationGenerationRef: generationRef,
+      streamGenerationAtStart,
+      stream: deltas(),
+    });
+
+    await runAiChatSendTurnStreamPhase(input);
+
+    expect(setMessages).toHaveBeenCalledTimes(1);
+    const firstUpdater = setMessages.mock.calls[0]?.[0];
+    expect(typeof firstUpdater).toBe('function');
+    if (typeof firstUpdater === 'function') {
+      const assistantId = input.assistantId;
+      const next = firstUpdater([
+        { id: assistantId, role: 'assistant', content: '', status: 'streaming' },
+      ]);
+      expect(next.find((m: UiChatMessage) => m.id === assistantId)?.content).toBe('before-clear');
+    }
   });
 
   it('finalizes an empty stream as done without calling completion helpers', async () => {

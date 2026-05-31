@@ -3,7 +3,7 @@ title: execution/plans 文档索引（自动生成）
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-05-15
+last_reviewed: 2026-05-17
 source_of_truth: execution-plan-index
 ---
 
@@ -12,11 +12,12 @@ source_of_truth: execution-plan-index
 > 本文件由 `npm run generate:plans-readme` 自动生成，**请勿手改**。新增/收口 plan 后重跑该命令。
 > SSoT：每份 plan 的 YAML frontmatter `status` 字段（守卫：`npm run check:plans-frontmatter`）。
 
-## Active（64）
+## Active（65）
 
 | status | title | last_reviewed |
 | --- | --- | --- |
-| active | [AI 与代码库可治理性综合整改方案-2026-05-13](./AI与代码库可治理性综合整改方案-2026-05-13.md) | 2026-05-15 |
+| active | [AI 与代码库可治理性综合整改方案-2026-05-13](./AI与代码库可治理性综合整改方案-2026-05-13.md) | 2026-05-16 |
+| completed | [AI 对话会话管理落地方案-2026-05-16](./AI对话会话管理落地方案-2026-05-16.md) | 2026-05-18 |
 | active | [单人 AI 协作改进计划 — best practice 对照与跨工具统一（v4 落地版）](./单人AI协作改进计划-best-practice-跨工具对照-2026-05-13.md) | 2026-05-13 |
 | active | [单人AI协作改进计划-拍板决策-2026-05-11](./单人AI协作改进计划-拍板决策-2026-05-11.md) | 2026-05-13 |
 | active | [16周执行版路线图-2026-04-12](./16周执行版路线图-2026-04-12.md) | 2026-05-12 |

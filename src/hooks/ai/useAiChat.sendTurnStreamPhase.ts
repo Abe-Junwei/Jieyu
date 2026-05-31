@@ -3,6 +3,7 @@
  */
 
 import { flushSync } from 'react-dom';
+import { shouldApplyStreamUiUpdate } from '../../ai/chat/conversationGeneration';
 import { formatConnectionHealthyMessage } from '../../ai/messages';
 import { mergeTokenUsage } from '../../ai/providers/tokenUsage';
 import { recordDurationMetric } from '../../observability/metrics';
@@ -46,7 +47,12 @@ export async function runAiChatSendTurnStreamPhase(
     controller,
     verticalWorkflowSelection,
     verticalOutputEnvelopeSeed,
+    conversationGenerationRef,
+    streamGenerationAtStart,
   } = input;
+
+  const canUpdateStreamUi = () =>
+    shouldApplyStreamUiUpdate(conversationGenerationRef, streamGenerationAtStart);
 
   const { aiContext, memoryRecallShape, ragCitations, db } = opening;
 
@@ -102,38 +108,47 @@ export async function runAiChatSendTurnStreamPhase(
     if ((chunk.delta ?? '').length > 0) {
       const delta = chunk.delta ?? '';
       s.assistantContent += delta;
-      flushSync(() => {
+      if (canUpdateStreamUi()) {
+        flushSync(() => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantId
+                ? {
+                    ...msg,
+                    content: msg.content + delta,
+                    ...(s.assistantThinking ? { thinking: false } : {}),
+                  }
+                : msg,
+            ),
+          );
+        });
+        queueFlushAssistantDraft(s.assistantContent);
+      }
+    }
+
+    if (chunk.thinking && !chunk.delta) {
+      s.assistantThinking = true;
+      if (canUpdateStreamUi()) {
+        setMessages((prev) =>
+          prev.map((msg) => (msg.id === assistantId ? { ...msg, thinking: true } : msg)),
+        );
+      }
+    }
+
+    if (chunk.reasoningContent && chunk.reasoningContent.length > 0) {
+      s.assistantReasoningContent += chunk.reasoningContent;
+      if (canUpdateStreamUi()) {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantId
               ? {
                   ...msg,
-                  content: msg.content + delta,
-                  ...(s.assistantThinking ? { thinking: false } : {}),
+                  reasoningContent: (msg.reasoningContent ?? '') + chunk.reasoningContent,
                 }
               : msg,
           ),
         );
-      });
-      queueFlushAssistantDraft(s.assistantContent);
-    }
-
-    if (chunk.thinking && !chunk.delta) {
-      s.assistantThinking = true;
-      setMessages((prev) =>
-        prev.map((msg) => (msg.id === assistantId ? { ...msg, thinking: true } : msg)),
-      );
-    }
-
-    if (chunk.reasoningContent && chunk.reasoningContent.length > 0) {
-      s.assistantReasoningContent += chunk.reasoningContent;
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantId
-            ? { ...msg, reasoningContent: (msg.reasoningContent ?? '') + chunk.reasoningContent }
-            : msg,
-        ),
-      );
+      }
     }
 
     if (chunk.usage) {

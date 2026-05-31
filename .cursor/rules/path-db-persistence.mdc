@@ -1,0 +1,13 @@
+---
+description: DB 持久化"写→reload→readback"验证与 schema 迁移 canonical 指针
+globs: src/db/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# 改 src/db/** （schema / persistence）时
+
+仅为指针，正文以 canonical 为准（不在此分叉规则）：
+
+- **持久化验证硬规则**：写入路径需 写→reload/requery→readback 复验（targeted test / repro / runtime trace），不得只看字段存在 → `AGENTS.md` §4。
+- **schema 迁移触发 SDD 三件套** → `docs/execution/specs/_template/`；触发条件见 `copilot-instructions.md` §5.2.1。
+- 本地上下文工具治理 → `docs/architecture/ai-local-context-tool-governance.md`。

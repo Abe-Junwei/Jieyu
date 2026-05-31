@@ -29,7 +29,7 @@ depends_on:
 - GitHub Copilot：官方支持（Copilot priority stack 第 4 位）
 - Kimi-cli：通过 `${KIMI_AGENTS_MD}` 模板变量自动注入 system prompt
 
-**Path-scoped 规则**：Cursor 与 Copilot 各自支持但 Kimi 不支持（[Moonshot Issue #1747](https://github.com/MoonshotAI/kimi-cli) 仍是 feature request）→ **本方案不引入任何 path-scoped 规则**，避免破坏三工具一致性。
+**Path-scoped 规则**：Cursor 与 Copilot 各自支持但 Kimi 不支持（[Moonshot Issue #1747](https://github.com/MoonshotAI/kimi-cli) 仍是 feature request）。**修订（2026-06-01）**：Kimi 遇到 `globs:` 是惰性忽略而非破坏，故允许 Cursor-only 的 path-scoped 规则作为**纯指针层**（≤ 10 行、只指向 canonical、不分叉正文），提升主力工具 Cursor 的上下文定位；**权威规则正文仍只在 AGENTS.md / copilot-instructions.md**。已落地 4 个纯指针规则：`path-css-panels` / `path-pages-orchestration` / `path-ai-messages` / `path-db-persistence`。
 
 **Cursor-only 增强**（保留，作为指针层）：
 
@@ -87,7 +87,7 @@ check:agent-evals:full              # 完整 case（AI 改动 / release 前）
 ## 五、刻意不做（与外部 best practice 主动对比）
 
 - 不维护 Claude 专用入口（无 `CLAUDE.md` / 无 `.claude/`）。
-- 不建 path-scoped 规则文件（Kimi 不支持，违反三工具一致原则）。
+- 不在 path-scoped 规则里分叉/内联规则正文（仅允许纯指针；见 §二修订）。
 - 不保留 `.github/copilot-instructions.md`（与 AGENTS.md 重复）。
 - 不引 LangSmith / Braintrust SaaS（与拍板 7A 一致；本地 `run-agent-evals.mjs` 够用）。
 - 不照搬 Pieter Levels 零单元测试（Jieyu 规模远超 indie 工具）。

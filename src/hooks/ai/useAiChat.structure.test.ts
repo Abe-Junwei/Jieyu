@@ -72,7 +72,9 @@ describe('useAiChat structure invariants', () => {
   it('keeps ai/chat public surface whitelisted and pages free of internal deep imports', () => {
     const chatIndex = fs.readFileSync(path.join(process.cwd(), 'src/ai/chat/index.ts'), 'utf8');
     expect(chatIndex.includes('Phase D')).toBe(true);
-    expect(chatIndex.includes('export { loadSessionMemory, persistSessionMemory }')).toBe(true);
+    expect(chatIndex.includes('loadSessionMemory')).toBe(true);
+    expect(chatIndex.includes('persistSessionMemory')).toBe(true);
+    expect(chatIndex.includes('bindSessionMemoryConversation')).toBe(true);
     expect(chatIndex.includes('export { buildPromptContextBlock }')).toBe(true);
   });
 

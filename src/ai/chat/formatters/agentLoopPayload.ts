@@ -12,6 +12,8 @@ import {
   AI_LOCAL_TOOL_RESULT_CHAR_BUDGET,
 } from '../../../hooks/ai/useAiChat.config';
 import { createMetricTags, recordMetric } from '../../../observability/metrics';
+import { featureFlags } from '../../config/featureFlags';
+import { assessToolResultQuality, type ToolResultQualityEntry } from '../agentLoopResultQuality';
 import type { LocalContextToolResult } from '../localContextToolTypes';
 
 /** @see AI_LOCAL_TOOL_RESULT_CHAR_BUDGET in `useAiChat.config.ts` */
@@ -53,12 +55,15 @@ function agentLoopContinuationPayloadJson(
   cappedUserRequest: string,
   results: LocalContextToolResult[],
   step: number,
+  quality?: ToolResultQualityEntry[],
 ): string {
   return JSON.stringify({
     type: 'local_tool_result',
     step,
     originalUserRequest: cappedUserRequest,
     results,
+    // verify 步（flag 后）：仅当有质量标注时附带，关闭时整体省略 → 输出与现网一致。
+    ...(quality && quality.length > 0 ? { quality } : {}),
   });
 }
 
@@ -151,11 +156,18 @@ export function buildAgentLoopContinuationToolPayload(
       : `${originalUserText.slice(0, AI_AGENT_LOOP_USER_REQUEST_MAX_CHARS)}…`;
   const userRequestWasCapped = cappedUserRequest !== originalUserText;
 
+  // verify 步（flag 后）：从原始结果（非截断副本）算一次质量标注，保持稳定。
+  // flag 关闭时为 undefined → payload 整体省略 quality 字段 → 输出与现网逐字节一致。
+  const quality = featureFlags.aiAgentLoopToolResultQualityGateEnabled
+    ? assessToolResultQuality(localToolResults)
+    : undefined;
+
   const working = cloneLocalToolResultsForAgentLoop(localToolResults);
   const originalPayloadChars = agentLoopContinuationPayloadJson(
     cappedUserRequest,
     working,
     step,
+    quality,
   ).length;
   if (originalPayloadChars <= charBudget) {
     if (userRequestWasCapped) {
@@ -169,7 +181,7 @@ export function buildAgentLoopContinuationToolPayload(
       });
     }
     return {
-      payloadJson: agentLoopContinuationPayloadJson(cappedUserRequest, working, step),
+      payloadJson: agentLoopContinuationPayloadJson(cappedUserRequest, working, step, quality),
       truncated: userRequestWasCapped,
       originalPayloadChars,
       cappedUserRequest,
@@ -179,7 +191,8 @@ export function buildAgentLoopContinuationToolPayload(
   let truncated = userRequestWasCapped;
   let steps = 0;
   while (
-    agentLoopContinuationPayloadJson(cappedUserRequest, working, step).length > charBudget &&
+    agentLoopContinuationPayloadJson(cappedUserRequest, working, step, quality).length >
+      charBudget &&
     steps < AI_AGENT_LOOP_PAYLOAD_SHRINK_MAX_STEPS
   ) {
     steps += 1;
@@ -189,15 +202,19 @@ export function buildAgentLoopContinuationToolPayload(
     break;
   }
 
-  if (agentLoopContinuationPayloadJson(cappedUserRequest, working, step).length > charBudget) {
+  if (
+    agentLoopContinuationPayloadJson(cappedUserRequest, working, step, quality).length > charBudget
+  ) {
     truncated = true;
     truncateDeepStringsForAgentLoop(working, AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS1);
   }
-  if (agentLoopContinuationPayloadJson(cappedUserRequest, working, step).length > charBudget) {
+  if (
+    agentLoopContinuationPayloadJson(cappedUserRequest, working, step, quality).length > charBudget
+  ) {
     truncateDeepStringsForAgentLoop(working, AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS2);
   }
 
-  const finalJson = agentLoopContinuationPayloadJson(cappedUserRequest, working, step);
+  const finalJson = agentLoopContinuationPayloadJson(cappedUserRequest, working, step, quality);
   if (finalJson.length > charBudget) {
     truncated = true;
     const minimal: LocalContextToolResult[] = working.map((r) => ({
@@ -206,7 +223,12 @@ export function buildAgentLoopContinuationToolPayload(
       result: r.ok ? { _agentLoopPayloadTooLarge: true, tool: r.name } : r.result,
       ...(r.error !== undefined ? { error: r.error } : {}),
     }));
-    const fallbackJson = agentLoopContinuationPayloadJson(cappedUserRequest, minimal, step);
+    const fallbackJson = agentLoopContinuationPayloadJson(
+      cappedUserRequest,
+      minimal,
+      step,
+      quality,
+    );
     recordMetric({
       id: 'ai.local_tool_result_truncated',
       value: 1,

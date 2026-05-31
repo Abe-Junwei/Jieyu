@@ -15,6 +15,7 @@ import { featureFlags } from '../../ai/config/featureFlags';
 import { getDefaultAiChatSettings } from '../../ai/providers/providerCatalog';
 import { isAiChatSendBlockedByAssistantDialogue } from './useAiChat.assistantDialogueSendGate';
 import { runAiChatSendTurnPreflight } from './useAiChat.sendTurnPreflight';
+import { createConversationGenerationRef } from '../../ai/chat/conversationGeneration';
 import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
 import type {
   AiInteractionMetrics,
@@ -106,6 +107,7 @@ function makeArgs(over: Partial<RunAiChatSendTurnArgs> = {}): RunAiChatSendTurnA
     bumpMetric: noop,
     resolveAgentLoopResumeCheckpoint: vi.fn(async () => null),
     clearPendingAgentLoopCheckpoint: noop,
+    conversationGenerationRef: { current: createConversationGenerationRef(0) },
     ...over,
   };
 }

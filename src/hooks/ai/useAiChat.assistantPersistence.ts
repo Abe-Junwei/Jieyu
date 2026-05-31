@@ -8,6 +8,10 @@ import {
   flushAssistantContent,
   finalizeAssistantMessageInDb,
 } from './useAiChat.sendTurnPersistPhase';
+import {
+  isConversationGenerationStale,
+  type ConversationGenerationRef,
+} from '../../ai/chat/conversationGeneration';
 
 interface RefLike<T> {
   current: T;
@@ -22,6 +26,8 @@ interface CreateAssistantPersistenceHelpersOptions {
   streamPersistIntervalMsRef: RefLike<number>;
   getDbRef: () => AiChatDb | null;
   getActiveConversationId: () => string | null;
+  conversationGenerationRef?: ConversationGenerationRef;
+  streamGenerationAtStart?: number;
 }
 
 export function createAssistantPersistenceHelpers({
@@ -31,7 +37,11 @@ export function createAssistantPersistenceHelpers({
   streamPersistIntervalMsRef,
   getDbRef,
   getActiveConversationId,
+  conversationGenerationRef,
+  streamGenerationAtStart = 0,
 }: CreateAssistantPersistenceHelpersOptions) {
+  const isStreamGenerationStale = () =>
+    isConversationGenerationStale(conversationGenerationRef, streamGenerationAtStart);
   let lastPersistedAssistantContent = '';
   let lastPersistedAt = 0;
 
@@ -47,13 +57,13 @@ export function createAssistantPersistenceHelpers({
       .exec();
     if (!conversation) return;
 
-    await dbRef.collections.ai_conversations.insert({
-      ...conversation.toJSON(),
+    await dbRef.collections.ai_conversations.update(activeConversationId, {
       updatedAt: nowIso(),
     });
   };
 
   const flushAssistantDraft = async (content: string, force = false): Promise<void> => {
+    if (isStreamGenerationStale()) return;
     const dbRef = getDbRef();
     if (!dbRef) return;
     if (content === lastPersistedAssistantContent) return;
@@ -91,6 +101,8 @@ export function createAssistantPersistenceHelpers({
       compatibilityReport?: UiChatMessage['compatibilityReport'];
     },
   ) => {
+    if (isStreamGenerationStale()) return;
+
     setMessages((prev) =>
       prev.map((msg) => {
         if (msg.id !== assistantId) return msg;

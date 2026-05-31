@@ -41,7 +41,11 @@
   cursor: pointer;
   position: relative;
   z-index: var(--z-raised);
-  transition: background var(--rail-motion), border-color var(--rail-motion), color var(--rail-motion), box-shadow var(--rail-motion);
+  transition:
+    background var(--rail-motion),
+    border-color var(--rail-motion),
+    color var(--rail-motion),
+    box-shadow var(--rail-motion);
 }
 
 .ai-chat-decision-panel-head,
@@ -61,7 +65,10 @@
   line-height: 1;
   color: var(--state-info-solid);
   opacity: 0.85;
-  transition: transform var(--rail-motion), opacity var(--rail-motion), color var(--rail-motion);
+  transition:
+    transform var(--rail-motion),
+    opacity var(--rail-motion),
+    color var(--rail-motion);
   pointer-events: none;
 }
 
@@ -97,12 +104,19 @@
 .ai-chat-voice-drawer-body {
   overflow: hidden;
   --ai-fold-head-border: color-mix(in srgb, var(--state-info-solid) 18%, transparent);
-  --ai-fold-head-shadow: 0 1px 2px color-mix(in srgb, var(--state-info-solid) 6%, transparent), inset 0 1px 0 color-mix(in srgb, white 46%, transparent);
+  --ai-fold-head-shadow:
+    0 1px 2px color-mix(in srgb, var(--state-info-solid) 6%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 46%, transparent);
   opacity: 0;
   background: color-mix(in srgb, var(--state-info-bg) 42%, transparent);
   -webkit-backdrop-filter: blur(4px);
-  --ai-fold-head-hover-shadow: 0 6px 16px color-mix(in srgb, var(--state-info-solid) 8%, transparent), inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
-  transition: max-height var(--ai-fold-expand-duration) var(--ai-fold-ease), padding var(--ai-fold-expand-duration) var(--ai-fold-ease), opacity var(--ai-fold-fade-duration) var(--ai-fold-ease);
+  --ai-fold-head-hover-shadow:
+    0 6px 16px color-mix(in srgb, var(--state-info-solid) 8%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
+  transition:
+    max-height var(--ai-fold-expand-duration) var(--ai-fold-ease),
+    padding var(--ai-fold-expand-duration) var(--ai-fold-ease),
+    opacity var(--ai-fold-fade-duration) var(--ai-fold-ease);
 }
 .ai-chat-voice-drawer.is-open .ai-chat-voice-drawer-body {
   max-height: var(--ai-voice-drawer-max-height, clamp(140px, 36vh, 380px));
@@ -124,7 +138,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--state-info-bg) 90%, transparent), color-mix(in srgb, var(--state-info-bg) 0%, transparent));
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--state-info-bg) 90%, transparent),
+    color-mix(in srgb, var(--state-info-bg) 0%, transparent)
+  );
 }
 
 .ai-chat-voice-drawer-resizer::before,
@@ -134,7 +152,9 @@
   height: calc(3px * var(--ui-font-scale, 1));
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--state-info-solid) 38%, transparent);
-  transition: background var(--rail-motion), width var(--rail-motion);
+  transition:
+    background var(--rail-motion),
+    width var(--rail-motion);
 }
 
 .ai-chat-voice-drawer-resizer:hover::before,
@@ -156,14 +176,19 @@
 .ai-chat-decision-panel-head {
   --ai-fold-head-bg: color-mix(in srgb, var(--state-info-bg) 50%, transparent);
   --ai-fold-head-border: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
-  --ai-fold-head-shadow: 0 1px 2px color-mix(in srgb, var(--state-info-solid) 5%, transparent), inset 0 1px 0 color-mix(in srgb, white 42%, transparent);
+  --ai-fold-head-shadow:
+    0 1px 2px color-mix(in srgb, var(--state-info-solid) 5%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 42%, transparent);
   --ai-fold-head-color: var(--state-info-solid);
   --ai-fold-head-hover-bg: color-mix(in srgb, var(--state-info-bg) 58%, transparent);
   --ai-fold-head-hover-border: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
-  --ai-fold-head-hover-shadow: 0 6px 14px color-mix(in srgb, var(--state-info-solid) 7%, transparent), inset 0 1px 0 color-mix(in srgb, white 48%, transparent);
+  --ai-fold-head-hover-shadow:
+    0 6px 14px color-mix(in srgb, var(--state-info-solid) 7%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 48%, transparent);
   --ai-fold-head-open-bg: color-mix(in srgb, var(--state-info-bg) 62%, transparent);
   --ai-fold-head-open-border: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
-  --ai-fold-head-open-shadow: var(--shadow-md), inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
+  --ai-fold-head-open-shadow:
+    var(--shadow-md), inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
 }
 
 .ai-chat-prompt-lab-panel {
@@ -182,14 +207,19 @@
 .ai-chat-prompt-lab-panel-head {
   --ai-fold-head-bg: color-mix(in srgb, var(--surface-panel) 74%, transparent);
   --ai-fold-head-border: color-mix(in srgb, var(--text-tertiary) 20%, transparent);
-  --ai-fold-head-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 4%, transparent), inset 0 1px 0 color-mix(in srgb, white 42%, transparent);
+  --ai-fold-head-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-color) 4%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 42%, transparent);
   --ai-fold-head-color: var(--text-primary);
   --ai-fold-head-hover-bg: color-mix(in srgb, var(--surface-panel) 88%, transparent);
   --ai-fold-head-hover-border: color-mix(in srgb, var(--text-tertiary) 28%, transparent);
-  --ai-fold-head-hover-shadow: 0 6px 14px color-mix(in srgb, var(--shadow-color) 5%, transparent), inset 0 1px 0 color-mix(in srgb, white 48%, transparent);
+  --ai-fold-head-hover-shadow:
+    0 6px 14px color-mix(in srgb, var(--shadow-color) 5%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 48%, transparent);
   --ai-fold-head-open-bg: color-mix(in srgb, var(--surface-panel) 96%, transparent);
   --ai-fold-head-open-border: color-mix(in srgb, var(--text-tertiary) 30%, transparent);
-  --ai-fold-head-open-shadow: var(--shadow-md), inset 0 1px 0 color-mix(in srgb, white 54%, transparent);
+  --ai-fold-head-open-shadow:
+    var(--shadow-md), inset 0 1px 0 color-mix(in srgb, white 54%, transparent);
 }
 
 .ai-chat-prompt-lab-panel-title {
@@ -204,7 +234,10 @@
   max-height: 0;
   padding: 0 8px;
   opacity: 0;
-  transition: max-height var(--ai-fold-expand-duration) var(--ai-fold-ease), padding var(--ai-fold-expand-duration) var(--ai-fold-ease), opacity var(--ai-fold-fade-duration) var(--ai-fold-ease);
+  transition:
+    max-height var(--ai-fold-expand-duration) var(--ai-fold-ease),
+    padding var(--ai-fold-expand-duration) var(--ai-fold-ease),
+    opacity var(--ai-fold-fade-duration) var(--ai-fold-ease);
 }
 
 .ai-chat-prompt-lab-panel.is-open .ai-chat-prompt-lab-panel-body {
@@ -246,7 +279,11 @@
   height: 0;
   padding: 0 8px;
   opacity: 0;
-  transition: max-height var(--ai-fold-expand-duration) var(--ai-fold-ease), height var(--ai-fold-expand-duration) var(--ai-fold-ease), padding var(--ai-fold-expand-duration) var(--ai-fold-ease), opacity var(--ai-fold-fade-duration) var(--ai-fold-ease);
+  transition:
+    max-height var(--ai-fold-expand-duration) var(--ai-fold-ease),
+    height var(--ai-fold-expand-duration) var(--ai-fold-ease),
+    padding var(--ai-fold-expand-duration) var(--ai-fold-ease),
+    opacity var(--ai-fold-fade-duration) var(--ai-fold-ease);
 }
 
 .ai-chat-decision-panel.is-open .ai-chat-decision-panel-body {
@@ -418,7 +455,6 @@
   }
 }
 
-
 .ai-chat-decision-item:last-child {
   border-bottom: 0;
   padding-bottom: 0;
@@ -558,9 +594,10 @@
 }
 
 @media (max-width: 1024px) {
-
-  [data-ai-analysis-panel] .transcription-assistant-hub-tab:hover:not(.transcription-assistant-hub-tab-active),
-  [data-ai-analysis-panel] .transcription-assistant-hub-tab:focus-visible:not(.transcription-assistant-hub-tab-active) {
+  [data-ai-analysis-panel]
+    .transcription-assistant-hub-tab:hover:not(.transcription-assistant-hub-tab-active),
+  [data-ai-analysis-panel]
+    .transcription-assistant-hub-tab:focus-visible:not(.transcription-assistant-hub-tab-active) {
     color: var(--tab-hover);
     background: color-mix(in srgb, var(--text-tertiary) 8%, transparent);
   }
@@ -628,7 +665,9 @@
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
-  transition: background 0.16s ease, color 0.16s ease;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
 }
 
 /* :hover 特异性会压过后面的 .is-active，导致指针停在按钮上时一直像「没切过去」 */
@@ -647,7 +686,11 @@
   margin: 8px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 96%, transparent), color-mix(in srgb, var(--surface-header) 84%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-panel) 96%, transparent),
+    color-mix(in srgb, var(--surface-header) 84%, transparent)
+  );
   padding: 8px;
   position: relative;
   display: flex;
@@ -690,7 +733,11 @@
 .transcription-ai-assistant-head {
   padding: 8px 10px;
   border-bottom: 1px solid var(--border-soft);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 94%, transparent), color-mix(in srgb, var(--surface-header) 74%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-header) 94%, transparent),
+    color-mix(in srgb, var(--surface-header) 74%, transparent)
+  );
 }
 
 .transcription-ai-assistant-tag-active {
@@ -877,7 +924,9 @@
   letter-spacing: 0.035em;
   line-height: 1.12;
   text-rendering: geometricPrecision;
-  font-feature-settings: "liga" 1, "calt" 1;
+  font-feature-settings:
+    'liga' 1,
+    'calt' 1;
 }
 
 .ai-chat-header-tools {
@@ -909,7 +958,10 @@
   background: color-mix(in srgb, var(--surface-panel) 86%, transparent);
   color: var(--text-secondary);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 4%, transparent);
-  transition: color 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+  transition:
+    color 0.14s ease,
+    background 0.14s ease,
+    border-color 0.14s ease;
 }
 
 .ai-chat-header-config-btn:hover {
@@ -933,7 +985,10 @@
   line-height: 1.2;
   outline: none;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 3%, transparent);
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s;
 }
 
 .ai-chat-provider-select option,
@@ -959,11 +1014,19 @@ select.ai-cfg-input {
   line-height: 1.25;
   padding-right: 34px;
   background-image:
-    linear-gradient(180deg, color-mix(in srgb, var(--text-tertiary) 26%, transparent), color-mix(in srgb, var(--text-tertiary) 12%, transparent)),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--text-tertiary) 26%, transparent),
+      color-mix(in srgb, var(--text-tertiary) 12%, transparent)
+    ),
     var(--select-caret-icon);
   background-repeat: no-repeat;
-  background-position: calc(100% - 26px) 50%, calc(100% - 10px) 50%;
-  background-size: 1px 14px, 10px 10px;
+  background-position:
+    calc(100% - 26px) 50%,
+    calc(100% - 10px) 50%;
+  background-size:
+    1px 14px,
+    10px 10px;
 }
 
 .ai-chat-input {
@@ -980,7 +1043,9 @@ select.ai-cfg-input {
   box-sizing: border-box;
   outline: none;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .ai-chat-input:focus {
@@ -998,9 +1063,9 @@ select.ai-cfg-input {
   animation: aiChatInputPulse 2.2s ease-in-out infinite;
 }
 
-
 @keyframes aiChatInputPulse {
-  0%, 100% {
+  0%,
+  100% {
     border-color: color-mix(in srgb, var(--header-accent) 28%, transparent);
     box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent);
   }
@@ -1269,7 +1334,6 @@ select.ai-cfg-input {
   box-shadow: 0 1px 0 color-mix(in srgb, var(--shadow-color) 20%, transparent);
 }
 
-
 :root[data-theme='dark'] .ai-chat-header-config-btn {
   border-color: var(--border-soft);
   background: color-mix(in srgb, var(--surface-panel) 80%, transparent);
@@ -1291,7 +1355,6 @@ select.ai-cfg-input {
   border-color: color-mix(in srgb, var(--text-tertiary) 20%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--surface-panel) 95%, transparent);
 }
-
 
 .transcription-ai-tag {
   padding: 2px 6px;
@@ -1401,7 +1464,10 @@ select.ai-cfg-input {
   animation: toastSlideIn 0.25s ease-out;
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 0.26s ease, transform 0.26s ease, filter 0.26s ease;
+  transition:
+    opacity 0.26s ease,
+    transform 0.26s ease,
+    filter 0.26s ease;
 }
 
 .transcription-toast-exiting {
@@ -1446,7 +1512,9 @@ select.ai-cfg-input {
   background: var(--state-info-bg);
   color: var(--state-info-solid);
   border: 1px solid var(--state-info-border);
-  animation: toastSlideIn 0.25s ease-out, inspectorPulse 1.4s ease-in-out infinite;
+  animation:
+    toastSlideIn 0.25s ease-out,
+    inspectorPulse 1.4s ease-in-out infinite;
 }
 
 .toast-routing {
@@ -1474,14 +1542,15 @@ select.ai-cfg-input {
   }
 }
 
-
 .audio-drop-zone {
   border: 2px dashed var(--border-color, var(--border-soft));
   border-radius: var(--radius-lg);
   padding: 28px 16px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
   color: var(--text-secondary, var(--text-secondary));
   display: flex;
   flex-direction: column;
@@ -1500,7 +1569,6 @@ select.ai-cfg-input {
   color: var(--text-primary, var(--text-primary));
   background: color-mix(in srgb, var(--state-info-solid) 4%, transparent);
 }
-
 
 /* -- Zoom slider bar -- */
 .waveform-zoom-bar {
@@ -1795,4 +1863,228 @@ select.ai-cfg-input {
 .transcription-ai-mode-btn:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
   outline-offset: 2px;
+}
+
+/* ── Conversation list (G1f) ───────────────────────────────────────── */
+.ai-chat-header-anchor {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-chat-conversation-chrome {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ai-chat-conversation-list-btn {
+  flex-shrink: 0;
+}
+
+.ai-chat-conversation-title-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--header-brand-font), var(--font-chat);
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  line-height: 1.12;
+  cursor: pointer;
+}
+
+.ai-chat-conversation-title-btn:hover {
+  background: color-mix(in srgb, var(--surface-header) 70%, transparent);
+}
+
+.ai-chat-conversation-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.ai-conversation-list-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: var(--z-overlay-base, 40);
+  background: var(--surface-panel);
+  border-bottom: 1px solid var(--border-soft);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+  max-height: min(420px, 60vh);
+  overflow-y: auto;
+}
+
+.ai-conversation-list-popover-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 55%, transparent);
+}
+
+.ai-conversation-list-new-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-header) 82%, transparent);
+  color: var(--text-primary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  cursor: pointer;
+}
+
+.ai-conversation-list-search {
+  flex: 1;
+  min-width: 0;
+  opacity: 0.65;
+}
+
+.ai-conversation-list-empty {
+  padding: 12px 10px;
+  margin: 0;
+}
+
+.ai-conversation-list-group {
+  padding: 4px 0 8px;
+}
+
+.ai-conversation-list-group-label {
+  margin: 0;
+  padding: 6px 10px 4px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ai-conversation-list-group-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-conversation-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-conversation-list-item:hover {
+  background: color-mix(in srgb, var(--surface-header) 65%, transparent);
+}
+
+.ai-conversation-list-item.is-active {
+  background: color-mix(in srgb, var(--header-accent, var(--accent)) 12%, var(--surface-panel));
+}
+
+.ai-conversation-list-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+}
+
+.ai-conversation-list-item-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.ai-conversation-list-item-row.is-active .ai-conversation-list-item {
+  background: color-mix(in srgb, var(--header-accent, var(--accent)) 12%, var(--surface-panel));
+}
+
+.ai-conversation-list-item-row .ai-conversation-list-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-conversation-list-popover-meta {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 10px 6px;
+}
+
+.ai-conversation-list-view-archived-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ai-conversation-list-search:not(:disabled) {
+  opacity: 1;
+}
+
+.ai-conversation-action-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ai-conversation-action-menu-popover {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  z-index: calc(var(--z-overlay-base, 40) + 2);
+  min-width: 120px;
+  padding: 4px;
+  background: var(--surface-panel);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+}
+
+.ai-conversation-action-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.ai-conversation-action-menu-item:hover {
+  background: color-mix(in srgb, var(--surface-header) 70%, transparent);
+}
+
+.ai-conversation-action-menu-item-danger {
+  color: var(--state-danger-solid, #b42318);
+}
+
+.ai-conversation-delete-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ai-conversation-delete-dialog-title {
+  font-weight: 600;
 }

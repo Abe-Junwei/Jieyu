@@ -16,6 +16,18 @@ import {
   shouldContinueAgentLoop,
   shouldWarnTokenBudget,
 } from './agentLoop';
+import {
+  appendAgentLoopExplainability,
+  type AgentLoopExplainabilityMessageKey,
+} from './agentLoopExplainability';
+import { resolveAgentLoopClarifyTaskPatch } from './agentLoopClarify';
+import { evaluateReplanningNeed, type ReplanningDecision } from './agentLoopReplanning';
+import { classifyAgentLoopToolFailure } from './agentLoopResultQuality';
+import {
+  historyBudgetTokensFromCharBudget,
+  recalculateStepHistoryCharBudget,
+} from './contextBudget';
+import { featureFlags } from '../config/featureFlags';
 import { trimHistoryByChars, type HistoryChatMessage } from './historyTrim';
 import { getAiChatCardMessages } from '../../i18n/messages';
 import { createAssistantStream } from '../../hooks/ai/useAiChat.streamFactory';
@@ -153,17 +165,22 @@ export async function runAgentLoop(
 
   let loopStep = initial.startStep;
   let loopExecuted = false;
+  let currentRoutingPlan = deps.routingPlan;
+  let lastLoopExitReason: 'max_steps' | 'abort' | undefined;
+  let pendingExplainabilityKey: AgentLoopExplainabilityMessageKey | undefined;
+  const baseHistoryCharBudget = deps.historyCharBudget;
+  const historyBudgetTokens = historyBudgetTokensFromCharBudget(baseHistoryCharBudget);
   const agentLoopTraceContext = createAgentLoopTraceContext();
   const coordinationSession = deps.coordinationLiteEnabled ? new CoordinationLiteSession() : null;
 
   const getLoopStepTaskState = () => {
     const mem = deps.getSessionMemory();
     const loopRequestedMetric =
-      deps.routingPlan.requestedMetric ?? mem.localToolState?.lastFrame?.metric;
+      currentRoutingPlan.requestedMetric ?? mem.localToolState?.lastFrame?.metric;
     const loopTaskStateBase = {
-      queryFamily: deps.routingPlan.queryFamily,
-      scope: deps.routingPlan.scope,
-      selectedTools: deps.routingPlan.selectedTools,
+      queryFamily: currentRoutingPlan.queryFamily,
+      scope: currentRoutingPlan.scope,
+      selectedTools: currentRoutingPlan.selectedTools,
       answerReady:
         resolvedStatus === 'done' &&
         (!resolvedLocalToolResults || resolvedLocalToolResults.length === 0),
@@ -174,23 +191,79 @@ export async function runAgentLoop(
       : loopTaskStateBase;
   };
 
-  // ── 循环守卫 | Loop guard ──
-  const shouldContinueWithTaskState = (): boolean => {
-    const loopTaskState = getLoopStepTaskState();
-    return (
-      deps.aiChatAgentLoopEnabled &&
-      shouldContinueAgentLoop(
-        loopStep,
-        DEFAULT_AGENT_LOOP_CONFIG,
+  // ── 循环守卫 | Loop guard（先 replanning，再 shouldContinue；spec §2.1 顺序）──
+  const shouldEnterNextLoopIteration = (): boolean => {
+    if (!deps.aiChatAgentLoopEnabled || deps.signal.aborted) return false;
+    if (!resolvedLocalToolResults || resolvedLocalToolResults.length === 0) return false;
+
+    let replanningDecision: ReplanningDecision | undefined;
+    if (featureFlags.aiAgentLoopClosedLoopReplanningEnabled) {
+      replanningDecision = evaluateReplanningNeed(
+        currentRoutingPlan,
         resolvedLocalToolResults,
-        loopTaskState,
-      ) &&
-      !deps.signal.aborted
+        loopStep,
+        DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
+      );
+      if (replanningDecision.action === 'replan' && replanningDecision.newPlan) {
+        currentRoutingPlan = replanningDecision.newPlan;
+        if (replanningDecision.reason === 'detail_unit_not_found') {
+          pendingExplainabilityKey = 'agentLoopDetailUnitNotFound';
+        }
+      } else if (replanningDecision.action === 'clarify') {
+        resolvedContent = appendAgentLoopExplainability(
+          resolvedContent,
+          replanningDecision.messageKey,
+          deps.getLocaleIsZhCn(),
+        );
+        const clarifyPatch = resolveAgentLoopClarifyTaskPatch(
+          replanningDecision,
+          resolvedLocalToolResults,
+          loopStep,
+        );
+        if (clarifyPatch) {
+          deps.setMetrics((prev) => ({ ...prev, clarifyCount: prev.clarifyCount + 1 }));
+          deps.setTaskSession({
+            id: deps.getTaskSession().id,
+            ...clarifyPatch,
+            updatedAt: nowIso(),
+          });
+        }
+        resolvedStatus = 'done';
+        resolvedLocalToolResults = undefined;
+        return false;
+      } else if (replanningDecision.action === 'abort') {
+        lastLoopExitReason = 'abort';
+        return false;
+      }
+    }
+
+    const loopTaskState = getLoopStepTaskState();
+    const continueOptions = featureFlags.aiAgentLoopClosedLoopReplanningEnabled
+      ? {
+          closedLoopReplanningEnabled: true as const,
+          ...(replanningDecision !== undefined ? { replanningDecision } : {}),
+        }
+      : undefined;
+    const wouldContinue = shouldContinueAgentLoop(
+      loopStep,
+      DEFAULT_AGENT_LOOP_CONFIG,
+      resolvedLocalToolResults,
+      loopTaskState,
+      continueOptions,
     );
+    if (
+      !wouldContinue &&
+      loopStep >= DEFAULT_AGENT_LOOP_CONFIG.maxSteps &&
+      resolvedLocalToolResults &&
+      resolvedLocalToolResults.length > 0
+    ) {
+      lastLoopExitReason = 'max_steps';
+    }
+    return wouldContinue;
   };
 
   // ── 主循环 | Main loop ──
-  while (shouldContinueWithTaskState()) {
+  while (shouldEnterNextLoopIteration()) {
     loopExecuted = true;
     const stepTaskState = getLoopStepTaskState();
     const stepSpan = startAiTraceSpan({
@@ -217,12 +290,6 @@ export async function runAgentLoop(
         resolvedLocalToolResults!,
         loopStep,
       );
-      const continuationHistory = trimHistoryByChars(
-        [...deps.history, { role: 'assistant' as const, content: rawAssistantContentForLoop }],
-        deps.historyCharBudget,
-        3,
-        deps.getSessionMemory().conversationSummary,
-      );
       const fallbackPerStepInputTokens = Math.max(
         1,
         Math.ceil(Math.max(continuationUserText.length, deps.agentLoopSourceUserText.length) / 4),
@@ -234,6 +301,23 @@ export async function runAgentLoop(
               Math.ceil(reportedInputTokens / Math.max(1, loopStep - initial.startStep + 1)),
             )
           : fallbackPerStepInputTokens;
+
+      const stepHistoryCharBudget = featureFlags.aiAgentLoopContextBudgetRecalculationEnabled
+        ? recalculateStepHistoryCharBudget({
+            baseHistoryCharBudget,
+            historyBudgetTokens,
+            perStepInputTokens: observedPerStepInputTokens,
+            step: loopStep,
+            maxSteps: DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
+          })
+        : deps.historyCharBudget;
+
+      const continuationHistory = trimHistoryByChars(
+        [...deps.history, { role: 'assistant' as const, content: rawAssistantContentForLoop }],
+        stepHistoryCharBudget,
+        3,
+        deps.getSessionMemory().conversationSummary,
+      );
       const estimatedRemainingTokens = estimateRemainingLoopTokens(
         observedPerStepInputTokens,
         loopStep,
@@ -372,7 +456,7 @@ export async function runAgentLoop(
         const phase = inferCoordinationPhase({
           finalStatus: continuationResult.finalStatus,
           nextLocalToolCount: continuationResult.localToolResults?.length ?? 0,
-          selectedToolCount: deps.routingPlan.selectedTools.length,
+          selectedToolCount: currentRoutingPlan.selectedTools.length,
         });
         const notification: CoordinationNotification = {
           taskId: `${deps.assistantId}_loop_${loopStep}`,
@@ -423,6 +507,30 @@ export async function runAgentLoop(
       const message = error instanceof Error ? error.message : String(error);
       stepSpan.endWithError(message);
       throw error;
+    }
+  }
+
+  if (featureFlags.aiAgentLoopClosedLoopReplanningEnabled) {
+    if (pendingExplainabilityKey) {
+      resolvedContent = appendAgentLoopExplainability(
+        resolvedContent,
+        pendingExplainabilityKey,
+        deps.getLocaleIsZhCn(),
+      );
+    }
+    if (lastLoopExitReason === 'max_steps') {
+      resolvedContent = appendAgentLoopExplainability(
+        resolvedContent,
+        'agentLoopMaxStepsReached',
+        deps.getLocaleIsZhCn(),
+      );
+    } else if (lastLoopExitReason === 'abort') {
+      const failure = classifyAgentLoopToolFailure(resolvedLocalToolResults);
+      resolvedContent = appendAgentLoopExplainability(
+        resolvedContent,
+        failure?.messageKey ?? 'agentLoopToolRetryableError',
+        deps.getLocaleIsZhCn(),
+      );
     }
   }
 

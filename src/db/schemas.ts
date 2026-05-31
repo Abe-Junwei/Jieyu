@@ -18,6 +18,7 @@ import type {
   EmbeddingDoc,
   AiConversationDoc,
   AiMessageDoc,
+  AiSessionMemoryDoc,
   ProjectAiMemoryDoc,
   McpToolCallAuditDoc,
   LanguageDocType,
@@ -262,6 +263,7 @@ const aiConversationDocSchema = z.object({
   providerId: z.string().min(1),
   model: z.string().min(1),
   archived: z.boolean().optional(),
+  clearedAt: isoDateSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
@@ -322,6 +324,25 @@ const aiMessageDocSchema = z.object({
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
+
+const aiSessionMemoryPayloadSchema = z.record(z.string(), z.unknown());
+
+const aiSessionMemoryDocSchema = z
+  .object({
+    id: z.string().min(1),
+    conversationId: z.string().min(1),
+    payload: aiSessionMemoryPayloadSchema,
+    updatedAt: isoDateSchema,
+  })
+  .superRefine((doc, ctx) => {
+    if (doc.id !== doc.conversationId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'id must match conversationId',
+        path: ['id'],
+      });
+    }
+  });
 
 const projectAiMemoryDocSchema = z.object({
   id: z.string().min(1),
@@ -1338,6 +1359,10 @@ export function validateAiConversationDoc(doc: AiConversationDoc): void {
 
 export function validateAiMessageDoc(doc: AiMessageDoc): void {
   aiMessageDocSchema.parse(doc);
+}
+
+export function validateAiSessionMemoryDoc(doc: AiSessionMemoryDoc): void {
+  aiSessionMemoryDocSchema.parse(doc);
 }
 
 export function validateProjectAiMemoryDoc(doc: ProjectAiMemoryDoc): void {

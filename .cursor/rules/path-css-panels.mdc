@@ -1,0 +1,13 @@
+---
+description: CSS 面板视觉层级（双层边框）canonical 指针
+globs: src/styles/**/*.css
+alwaysApply: false
+---
+
+# 改 CSS / 面板视觉层级时
+
+仅为指针，正文以 canonical 为准（不在此分叉规则）：
+
+- **双层可见容器边框规则** → `copilot-instructions.md` §九（同一视觉路径最多 2 层带 `border` 容器，第 3 层起改用背景色差异 / 间距 / 圆角；状态边框与原生控件除外）。
+- CSS 架构与模板复用 → `docs/architecture/CSS架构与模板复用规范.md`。
+- 机器守卫：`npm run check:css-layer-boundary` / `npm run check:css-architecture`。

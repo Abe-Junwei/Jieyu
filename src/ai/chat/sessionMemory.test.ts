@@ -1,12 +1,83 @@
 // @vitest-environment jsdom
+import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getDb, resetJieyuDatabaseSingletonForTests } from '../../db';
 import { buildUserDirectivePrompt } from './userDirectivePrompt';
-import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, deactivateSessionDirective, loadSessionMemory, patchSessionMemoryPreferences, pruneDirectiveLedgerBySourceMessage, setSessionMemoryMessagePinned, updateConversationSummaryMemory } from './sessionMemory';
+import {
+  bindSessionMemoryConversation,
+  buildSessionMemoryPromptDigest,
+  clearConversationSummaryMemory,
+  deactivateSessionDirective,
+  loadSessionMemory,
+  loadSessionMemoryAsync,
+  patchSessionMemoryPreferences,
+  persistSessionMemoryAsync,
+  pruneDirectiveLedgerBySourceMessage,
+  resetSessionMemoryStoreForTests,
+  setSessionMemoryMessagePinned,
+  updateConversationSummaryMemory,
+} from './sessionMemory';
+
+describe('sessionMemory Dexie store (G1a)', () => {
+  beforeEach(async () => {
+    await resetJieyuDatabaseSingletonForTests();
+    resetSessionMemoryStoreForTests();
+    window.localStorage.clear();
+  });
+
+  it('persists and loads per conversationId from Dexie', async () => {
+    const conversationId = 'conv-dexie-1';
+    bindSessionMemoryConversation(conversationId);
+    await persistSessionMemoryAsync(conversationId, {
+      preferences: { lastLanguage: 'cmn' },
+    });
+
+    resetSessionMemoryStoreForTests();
+    bindSessionMemoryConversation(conversationId);
+    const loaded = await loadSessionMemoryAsync(conversationId);
+    expect(loaded.preferences?.lastLanguage).toBe('cmn');
+  });
+
+  it('migrates legacy localStorage into Dexie for active conversation', async () => {
+    window.localStorage.setItem(
+      'jieyu.aiChat.sessionMemory',
+      JSON.stringify({ lastLanguage: 'eng', lastToolName: 'set_transcription_text' }),
+    );
+    const conversationId = 'conv-migrate-1';
+    resetSessionMemoryStoreForTests();
+    bindSessionMemoryConversation(conversationId);
+
+    const loaded = await loadSessionMemoryAsync(conversationId);
+    expect(loaded.preferences?.lastLanguage).toBe('eng');
+    expect(window.localStorage.getItem('jieyu.aiChat.sessionMemory')).toBeNull();
+
+    const db = await getDb();
+    const row = await db.collections.ai_session_memories
+      .findOne({ selector: { conversationId } })
+      .exec();
+    expect(row?.toJSON().payload).toMatchObject({ lastLanguage: 'eng' });
+    expect(window.localStorage.getItem('jieyu.aiChat.sessionMemory.migrated.v1')).toBe('1');
+  });
+
+  it('loads from Dexie when legacy localStorage was cleared by another tab', async () => {
+    const conversationId = 'conv-cross-tab';
+    await persistSessionMemoryAsync(conversationId, {
+      preferences: { lastLanguage: 'yue' },
+    });
+    resetSessionMemoryStoreForTests();
+    window.localStorage.setItem('jieyu.aiChat.sessionMemory.migrated.v1', '1');
+    bindSessionMemoryConversation(conversationId);
+
+    const loaded = await loadSessionMemoryAsync(conversationId);
+    expect(loaded.preferences?.lastLanguage).toBe('yue');
+  });
+});
 
 describe('sessionMemory P2 helpers', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-25T00:00:00.000Z'));
+    resetSessionMemoryStoreForTests();
     window.localStorage.clear();
   });
   afterEach(() => {
@@ -14,11 +85,14 @@ describe('sessionMemory P2 helpers', () => {
   });
 
   it('patches layered preferences and keeps legacy flat aliases', () => {
-    const next = patchSessionMemoryPreferences({}, {
-      lastLanguage: 'cmn',
-      lastLayerId: 'layer-a',
-      lastToolName: 'delete_layer',
-    });
+    const next = patchSessionMemoryPreferences(
+      {},
+      {
+        lastLanguage: 'cmn',
+        lastLayerId: 'layer-a',
+        lastToolName: 'delete_layer',
+      },
+    );
 
     expect(next.preferences?.lastLanguage).toBe('cmn');
     expect(next.preferences?.lastLayerId).toBe('layer-a');
@@ -29,10 +103,13 @@ describe('sessionMemory P2 helpers', () => {
   });
 
   it('loads legacy storage into layered preferences', () => {
-    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify({
-      lastLanguage: 'eng',
-      lastToolName: 'set_transcription_text',
-    }));
+    window.localStorage.setItem(
+      'jieyu.aiChat.sessionMemory',
+      JSON.stringify({
+        lastLanguage: 'eng',
+        lastToolName: 'set_transcription_text',
+      }),
+    );
 
     const loaded = loadSessionMemory();
     expect(loaded.preferences?.lastLanguage).toBe('eng');
@@ -40,13 +117,16 @@ describe('sessionMemory P2 helpers', () => {
   });
 
   it('normalizes local tool state from storage', () => {
-    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify({
-      localToolState: {
-        lastIntent: 'unit.search',
-        lastQuery: '  你好  ',
-        lastResultUnitIds: ['utt-1', '', 'utt-2'],
-      },
-    }));
+    window.localStorage.setItem(
+      'jieyu.aiChat.sessionMemory',
+      JSON.stringify({
+        localToolState: {
+          lastIntent: 'unit.search',
+          lastQuery: '  你好  ',
+          lastResultUnitIds: ['utt-1', '', 'utt-2'],
+        },
+      }),
+    );
     const loaded = loadSessionMemory();
     expect(loaded.localToolState?.lastIntent).toBe('unit.search');
     expect(loaded.localToolState?.lastQuery).toBe('你好');
@@ -54,15 +134,18 @@ describe('sessionMemory P2 helpers', () => {
   });
 
   it('normalizes pending agent loop checkpoint from storage', () => {
-    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify({
-      pendingAgentLoopCheckpoint: {
-        kind: 'token_budget_warning',
-        originalUserText: '  how many speakers are there in the project  ',
-        continuationInput: '  __LOCAL_TOOL_RESULT__  ',
-        step: 1.9,
-        taskId: ' task_agent_loop_1 ',
-      },
-    }));
+    window.localStorage.setItem(
+      'jieyu.aiChat.sessionMemory',
+      JSON.stringify({
+        pendingAgentLoopCheckpoint: {
+          kind: 'token_budget_warning',
+          originalUserText: '  how many speakers are there in the project  ',
+          continuationInput: '  __LOCAL_TOOL_RESULT__  ',
+          step: 1.9,
+          taskId: ' task_agent_loop_1 ',
+        },
+      }),
+    );
     const loaded = loadSessionMemory();
     expect(loaded.pendingAgentLoopCheckpoint).toMatchObject({
       kind: 'token_budget_warning',
@@ -74,21 +157,24 @@ describe('sessionMemory P2 helpers', () => {
   });
 
   it('normalizes persisted semantic stats frame from storage', () => {
-    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify({
-      localToolState: {
-        lastIntent: 'stats.get',
-        lastScope: 'project',
-        lastFrame: {
-          domain: 'project_stats',
-          questionKind: 'count',
-          metric: 'speaker_count',
-          metricCategory: 'total',
-          scope: 'project',
-          isQualityGapQuestion: false,
-          source: 'tool',
+    window.localStorage.setItem(
+      'jieyu.aiChat.sessionMemory',
+      JSON.stringify({
+        localToolState: {
+          lastIntent: 'stats.get',
+          lastScope: 'project',
+          lastFrame: {
+            domain: 'project_stats',
+            questionKind: 'count',
+            metric: 'speaker_count',
+            metricCategory: 'total',
+            scope: 'project',
+            isQualityGapQuestion: false,
+            source: 'tool',
+          },
         },
-      },
-    }));
+      }),
+    );
     const loaded = loadSessionMemory();
     expect(loaded.localToolState?.lastIntent).toBe('stats.get');
     expect(loaded.localToolState?.lastFrame).toMatchObject({
@@ -121,13 +207,19 @@ describe('sessionMemory P2 helpers', () => {
   });
 
   it('builds a compact session-memory digest for tier-2 prompt context', () => {
-    const memory = updateConversationSummaryMemory({}, '用户关注漏译与对齐', 4, { similarityScore: 0.9 });
+    const memory = updateConversationSummaryMemory({}, '用户关注漏译与对齐', 4, {
+      similarityScore: 0.9,
+    });
     const digest = buildSessionMemoryPromptDigest(memory, 500);
     expect(digest).toContain('rollingSummary=');
     expect(digest).toContain('用户关注漏译与对齐');
 
     const withChain = updateConversationSummaryMemory(
-      { summaryChain: [{ id: 'a', summary: 'older theme', coveredTurnCount: 2, createdAt: '2026-01-01' }] },
+      {
+        summaryChain: [
+          { id: 'a', summary: 'older theme', coveredTurnCount: 2, createdAt: '2026-01-01' },
+        ],
+      },
       'newer theme',
       3,
     );
@@ -136,31 +228,34 @@ describe('sessionMemory P2 helpers', () => {
   });
 
   it('prunes expired session directives and ledger entries when loading', () => {
-    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify({
-      sessionDirectives: [
-        {
-          id: 'expired-dir',
-          text: '过期的本轮规则',
-          category: 'session',
-          createdAt: '1970-01-01T00:00:00.000Z',
-          expiresAt: '1970-01-01T00:00:00.000Z',
-          source: 'background_extracted',
-        },
-      ],
-      directiveLedger: [
-        {
-          id: 'expired-ledger',
-          category: 'session',
-          scope: 'session',
-          text: '过期的本轮规则',
-          action: 'accepted',
-          source: 'background_extracted',
-          confidence: 0.9,
-          createdAt: '1970-01-01T00:00:00.000Z',
-          expiresAt: '1970-01-01T00:00:00.000Z',
-        },
-      ],
-    }));
+    window.localStorage.setItem(
+      'jieyu.aiChat.sessionMemory',
+      JSON.stringify({
+        sessionDirectives: [
+          {
+            id: 'expired-dir',
+            text: '过期的本轮规则',
+            category: 'session',
+            createdAt: '1970-01-01T00:00:00.000Z',
+            expiresAt: '1970-01-01T00:00:00.000Z',
+            source: 'background_extracted',
+          },
+        ],
+        directiveLedger: [
+          {
+            id: 'expired-ledger',
+            category: 'session',
+            scope: 'session',
+            text: '过期的本轮规则',
+            action: 'accepted',
+            source: 'background_extracted',
+            confidence: 0.9,
+            createdAt: '1970-01-01T00:00:00.000Z',
+            expiresAt: '1970-01-01T00:00:00.000Z',
+          },
+        ],
+      }),
+    );
     const loaded = loadSessionMemory();
     expect(loaded.sessionDirectives).toBeUndefined();
     expect(loaded.directiveLedger).toBeUndefined();

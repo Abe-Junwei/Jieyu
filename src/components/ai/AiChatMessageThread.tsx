@@ -1,49 +1,56 @@
-import { type RefObject } from 'react';
+import { type CSSProperties, type RefObject } from 'react';
 import { t } from '../../i18n';
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE_TIGHT } from '../../utils/jieyuMaterialIcon';
-import { AiChatAssistantMessage } from './AiChatAssistantMessage';
-import type { DegradationScenario } from '../../ai/chat/degradationManualOverride';
-import type { WorkflowExplainabilityV0 } from '../../ai/chat/workflowExplainability';
+import { AiChatTurnRow, type AiChatTurnRowData } from './AiChatTurnRow';
+import {
+  shouldVirtualizeAiChatTurns,
+  useAiChatMessageThreadVirtualizer,
+} from './useAiChatMessageThreadVirtualizer';
 
-type UserMessage = {
-  id: string;
-  status?: 'streaming' | 'done' | 'aborted' | 'error';
-  content?: string;
+type TurnRowRenderProps = {
+  locale: Parameters<typeof t>[0];
+  isZh: boolean;
+  cardMessages: Parameters<typeof AiChatTurnRow>[0]['cardMessages'];
+  pinnedMessageIdSet: Set<string>;
+  expandedReasoningIds: Set<string>;
+  copiedMessageId: string | null;
+  canToggleMessagePin: boolean;
+  canActivateCitation: boolean;
+  onToggleMessagePin: (messageId: string, isPinned: boolean) => void;
+  onCopyAssistantMessage: (messageId: string, content: string) => void;
+  onToggleReasoning: (messageId: string) => void;
+  onActivateCitation: (
+    citation: { type: 'note' | 'unit' | 'pdf' | 'schema'; refId: string },
+    rawCitation?: { snippet?: string },
+  ) => void;
+  feedbackRatings?: Record<string, 'thumbs_up' | 'thumbs_down'>;
+  onFeedbackRate?: (messageId: string, rating: 'thumbs_up' | 'thumbs_down') => void;
 };
 
-type AssistantMessage = {
-  id: string;
-  status?: 'streaming' | 'done' | 'aborted' | 'error';
-  content?: string;
-  reasoningContent?: string;
-  citations?: Array<{ type: 'note' | 'unit' | 'pdf' | 'schema'; refId: string; label?: string; snippet?: string; confidence?: number; reasonCode?: string }>;
-  generationSource?: 'llm' | 'local';
-  generationModel?: string;
-  thinking?: boolean;
-  degradationScenarios?: DegradationScenario[];
-  sourceScopeSummary?: {
-    evidenceCount: number;
-    sourceTypeBreakdown: Record<string, number>;
-    scopeLabel: string;
-  };
-  workflowExplainability?: WorkflowExplainabilityV0;
-  reflectionChecks?: Array<{ name: string; passed: boolean }>;
-  compatibilityReport?: {
-    reportId: string;
-    findings: Array<{
-      findingId: string;
-      kind: string;
-      severity: 'info' | 'warning' | 'error';
-      title: string;
-      description: string;
-      recommendedAction: string;
-      evidenceCount: number;
-    }>;
-    summary: string;
-    exportTargets: string[];
-  };
-};
+function renderTurnRow(turn: AiChatTurnRowData, turnIndex: number, props: TurnRowRenderProps) {
+  return (
+    <AiChatTurnRow
+      key={`${turn.assistant?.id ?? 'na'}-${turn.user?.id ?? 'nu'}`}
+      locale={props.locale}
+      isZh={props.isZh}
+      turn={turn}
+      turnIndex={turnIndex}
+      cardMessages={props.cardMessages}
+      pinnedMessageIdSet={props.pinnedMessageIdSet}
+      expandedReasoningIds={props.expandedReasoningIds}
+      copiedMessageId={props.copiedMessageId}
+      canToggleMessagePin={props.canToggleMessagePin}
+      canActivateCitation={props.canActivateCitation}
+      onToggleMessagePin={props.onToggleMessagePin}
+      onCopyAssistantMessage={props.onCopyAssistantMessage}
+      onToggleReasoning={props.onToggleReasoning}
+      onActivateCitation={props.onActivateCitation}
+      {...(props.feedbackRatings !== undefined ? { feedbackRatings: props.feedbackRatings } : {})}
+      {...(props.onFeedbackRate !== undefined ? { onFeedbackRate: props.onFeedbackRate } : {})}
+    />
+  );
+}
 
 export function AiChatMessageThread({
   locale,
@@ -62,38 +69,18 @@ export function AiChatMessageThread({
   onToggleReasoning,
   onActivateCitation,
   onClearAiMessages,
+  clearConversationLabel = false,
+  virtualizeTurns,
+  aiIsStreaming,
+  streamingThreadScrollSignature = 0,
   feedbackRatings,
   onFeedbackRate,
 }: {
   locale: Parameters<typeof t>[0];
-  cardMessages: {
-    aborted: string;
-    unpinMessage: string;
-    pinMessage: string;
-    pinnedMessagesTitle: string;
-    reasoning: string;
-    hideReasoning: string;
-    showReasoning: string;
-    copied: string;
-    copy: string;
-    aiGenerated: string;
-    generatedByModel: (model: string) => string;
-    evidenceTitle: string;
-    evidenceSourceLabel: string;
-    evidenceQuoteLabel: string;
-    evidenceConfidenceLabel: (confidencePercent: string) => string;
-    evidenceJump: string;
-    sourceScopeSummary: (count: number, scopeLabel: string) => string;
-    workflowExplainabilitySrOnly: (
-      headlineKey: 'assistant_error' | 'degraded_response' | 'scope_summary_only',
-      detailsJoined: string,
-    ) => string;
-    parsingToolCall: string;
-    thinking: string;
-  };
+  cardMessages: TurnRowRenderProps['cardMessages'] & { pinnedMessagesTitle: string };
   messageViewportRef: RefObject<HTMLDivElement | null>;
-  messages: Array<UserMessage | AssistantMessage>;
-  turns: Array<{ assistant?: AssistantMessage; user?: UserMessage }>;
+  messages: Array<{ id: string; role?: string }>;
+  turns: AiChatTurnRowData[];
   pinnedMessageIdSet: Set<string>;
   pinnedSummaryItems: Array<{ messageId: string; summary: string }>;
   expandedReasoningIds: Set<string>;
@@ -103,95 +90,108 @@ export function AiChatMessageThread({
   onToggleMessagePin: (messageId: string, isPinned: boolean) => void;
   onCopyAssistantMessage: (messageId: string, content: string) => void;
   onToggleReasoning: (messageId: string) => void;
-  onActivateCitation: (citation: { type: 'note' | 'unit' | 'pdf' | 'schema'; refId: string }, rawCitation?: { snippet?: string }) => void;
+  onActivateCitation: (
+    citation: { type: 'note' | 'unit' | 'pdf' | 'schema'; refId: string },
+    rawCitation?: { snippet?: string },
+  ) => void;
   onClearAiMessages: (() => void) | undefined;
+  clearConversationLabel?: boolean;
+  /** When omitted, derives from turn count (G1g threshold). */
+  virtualizeTurns?: boolean;
+  aiIsStreaming?: boolean;
+  streamingThreadScrollSignature?: number;
   feedbackRatings?: Record<string, 'thumbs_up' | 'thumbs_down'>;
   onFeedbackRate?: (messageId: string, rating: 'thumbs_up' | 'thumbs_down') => void;
 }) {
   const isZh = locale === 'zh-CN';
+  const useVirtualization = virtualizeTurns ?? shouldVirtualizeAiChatTurns(turns.length);
+
+  const { turnVirtualizer } = useAiChatMessageThreadVirtualizer({
+    enabled: useVirtualization,
+    turns,
+    messageViewportRef,
+    messagesLength: messages.length,
+    streamingThreadScrollSignature,
+    aiIsStreaming,
+  });
+
+  const turnRowProps: TurnRowRenderProps = {
+    locale,
+    isZh,
+    cardMessages,
+    pinnedMessageIdSet,
+    expandedReasoningIds,
+    copiedMessageId,
+    canToggleMessagePin,
+    canActivateCitation,
+    onToggleMessagePin,
+    onCopyAssistantMessage,
+    onToggleReasoning,
+    onActivateCitation,
+    ...(feedbackRatings !== undefined ? { feedbackRatings } : {}),
+    ...(onFeedbackRate !== undefined ? { onFeedbackRate } : {}),
+  };
+
+  const virtualListStyle: CSSProperties = {
+    height: `${turnVirtualizer.getTotalSize()}px`,
+    position: 'relative',
+    width: '100%',
+  };
+
   return (
     <>
       <div ref={messageViewportRef} className="ai-chat-message-viewport">
         {messages.length === 0 ? (
           <p className="small-text">{t(locale, 'ai.chat.noMessages')}</p>
+        ) : useVirtualization ? (
+          <div className="ai-chat-message-canvas ai-chat-message-canvas-virtual">
+            <div style={virtualListStyle}>
+              {turnVirtualizer.getVirtualItems().map((virtualRow) => {
+                const turn = turns[virtualRow.index];
+                if (!turn) return null;
+                const rowStyle: CSSProperties = {
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualRow.start}px)`,
+                };
+                return (
+                  <div
+                    key={virtualRow.key}
+                    data-index={virtualRow.index}
+                    ref={turnVirtualizer.measureElement}
+                    className="ai-chat-turn-virtual-row"
+                    style={rowStyle}
+                  >
+                    {renderTurnRow(turn, virtualRow.index, turnRowProps)}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ) : (
           <div className="ai-chat-message-canvas">
-            {turns.map((turn, index) => {
-              const assistantMsg = turn.assistant;
-              const userMsg = turn.user;
-              if (!assistantMsg && !userMsg) return null;
-              const userContent = userMsg
-                ? (userMsg.content || (userMsg.status === 'streaming' ? '...' : (userMsg.status === 'aborted' ? cardMessages.aborted : '')))
-                : '';
-              const isUserPinned = pinnedMessageIdSet.has(userMsg?.id ?? '');
-
-              return (
-                <div
-                  key={`${assistantMsg?.id ?? 'na'}-${userMsg?.id ?? 'nu'}`}
-                  className="ai-chat-turn"
-                  data-index={index}
-                >
-                  {userMsg && (
-                    <div className="ai-chat-message-bubble ai-chat-message-user">
-                      <div className="ai-chat-message-surface">
-                        <span className="ai-chat-message-content">{userContent}</span>
-                        {canToggleMessagePin && (
-                        <div className="ai-chat-message-actions">
-                          <button
-                            type="button"
-                            className={`ai-chat-message-action-btn ai-chat-message-pin-btn ${isUserPinned ? 'is-active' : ''}`}
-                            onClick={() => onToggleMessagePin(userMsg.id, isUserPinned)}
-                            aria-label={isUserPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
-                            title={isUserPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
-                          >
-                            <MaterialSymbol
-                              name={isUserPinned ? 'close' : 'push_pin'}
-                              className={JIEYU_MATERIAL_INLINE_TIGHT}
-                            />
-                          </button>
-                        </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {assistantMsg && (
-                    <AiChatAssistantMessage
-                      assistantMsg={assistantMsg}
-                      locale={locale}
-                      isZh={isZh}
-                      cardMessages={cardMessages}
-                      expandedReasoningIds={expandedReasoningIds}
-                      copiedMessageId={copiedMessageId}
-                      pinnedMessageIdSet={pinnedMessageIdSet}
-                      canToggleMessagePin={canToggleMessagePin}
-                      canActivateCitation={canActivateCitation}
-                      onToggleMessagePin={onToggleMessagePin}
-                      onCopyAssistantMessage={onCopyAssistantMessage}
-                      onToggleReasoning={onToggleReasoning}
-                      onActivateCitation={onActivateCitation}
-                      {...(feedbackRatings !== undefined ? { feedbackRatings } : {})}
-                      {...(onFeedbackRate !== undefined ? { onFeedbackRate } : {})}
-                    />
-                  )}
-                </div>
-              );
-            })}
+            {turns.map((turn, index) => renderTurnRow(turn, index, turnRowProps))}
           </div>
         )}
-        {messages.length > 0 && onClearAiMessages && (
+        {messages.length > 0 && onClearAiMessages ? (
           <div className="ai-chat-message-toolbar">
             <button
               type="button"
               className="ai-chat-clear-inline-text"
               onClick={() => onClearAiMessages?.()}
             >
-              {t(locale, 'ai.chat.clear')}
+              {t(locale, clearConversationLabel ? 'ai.chat.clearCurrent' : 'ai.chat.clear')}
             </button>
           </div>
-        )}
+        ) : null}
       </div>
-      {pinnedSummaryItems.length > 0 && (
-        <section className="ai-chat-pinned-summary-panel" aria-label={cardMessages.pinnedMessagesTitle}>
+      {pinnedSummaryItems.length > 0 ? (
+        <section
+          className="ai-chat-pinned-summary-panel"
+          aria-label={cardMessages.pinnedMessagesTitle}
+        >
           <div className="ai-chat-pinned-summary-list">
             {pinnedSummaryItems.map((item) => (
               <article key={item.messageId} className="ai-chat-pinned-summary-item">
@@ -210,7 +210,7 @@ export function AiChatMessageThread({
             ))}
           </div>
         </section>
-      )}
+      ) : null}
     </>
   );
 }

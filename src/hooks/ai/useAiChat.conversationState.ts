@@ -8,11 +8,17 @@ import {
 import { newMessageId, nowIso } from './useAiChat.helpers';
 import type { UiChatMessage } from './useAiChat.types';
 import { parseWorkflowExplainabilityFromContextSnapshot } from '../../ai/chat/workflowExplainability';
+import {
+  fetchAllConversationRows,
+  pickLatestConversationInScope,
+  sortConversationsByUpdatedAtDesc,
+} from './aiConversationManager.helpers';
 
 interface UseAiChatConversationStateOptions {
   locale: Locale;
   providerId: string;
   model: string;
+  textId?: string;
   onHistoryLoaded: (messages: UiChatMessage[]) => void;
   onHistoryLoadError: (message: string) => void;
 }
@@ -77,10 +83,21 @@ function mapHistoryRowsToUiMessages(
   });
 }
 
+export async function loadConversationUiMessages(conversationId: string): Promise<UiChatMessage[]> {
+  const db = await getDb();
+  const rows = (await db.collections.ai_messages.findByIndex('conversationId', conversationId))
+    .map((doc) => doc.toJSON())
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+  const chatRows = rows.filter((row) => row.role === 'user' || row.role === 'assistant');
+  return mapHistoryRowsToUiMessages(chatRows).reverse();
+}
+
 export function useAiChatConversationState({
   locale,
   providerId,
   model,
+  textId,
   onHistoryLoaded,
   onHistoryLoadError,
 }: UseAiChatConversationStateOptions) {
@@ -97,15 +114,13 @@ export function useAiChatConversationState({
     if (conversationIdRef.current) return conversationIdRef.current;
 
     const db = await getDb();
-    const existingRows = (await db.collections.ai_conversations.find().exec())
-      .map((doc) => doc.toJSON())
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const existingRows = await fetchAllConversationRows();
+    const latestInScope = pickLatestConversationInScope(existingRows, textId);
 
-    if (existingRows.length > 0) {
-      const recentId = existingRows[0]!.id;
-      conversationIdRef.current = recentId;
-      setConversationId(recentId);
-      return recentId;
+    if (latestInScope) {
+      conversationIdRef.current = latestInScope.id;
+      setConversationId(latestInScope.id);
+      return latestInScope.id;
     }
 
     const id = newMessageId('conv');
@@ -116,13 +131,14 @@ export function useAiChatConversationState({
       mode: 'assistant',
       providerId,
       model: model || providerId,
+      ...(textId ? { textId } : {}),
       createdAt: timestamp,
       updatedAt: timestamp,
     });
     conversationIdRef.current = id;
     setConversationId(id);
     return id;
-  }, [locale, model, providerId]);
+  }, [locale, model, providerId, textId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,8 +155,7 @@ export function useAiChatConversationState({
           await Promise.all(
             zombieStreamingRows.map(async (doc) => {
               const row = doc.toJSON();
-              await db.collections.ai_messages.insert({
-                ...row,
+              await db.collections.ai_messages.update(row.id, {
                 status: 'aborted',
                 errorMessage: row.errorMessage ?? formatRecoveredInterruptedMessage(),
                 updatedAt: now,
@@ -149,30 +164,21 @@ export function useAiChatConversationState({
           );
         }
 
-        const conversations = (await db.collections.ai_conversations.find().exec())
-          .map((doc) => doc.toJSON())
-          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+        const conversations = sortConversationsByUpdatedAtDesc(await fetchAllConversationRows());
+        const latest = pickLatestConversationInScope(conversations, textId);
 
         if (cancelled) return;
-        if (conversations.length === 0) {
+        if (!latest) {
           setIsBootstrapping(false);
           return;
         }
 
-        const latest = conversations[0]!;
         conversationIdRef.current = latest.id;
         setConversationId(latest.id);
-        const rows = (await db.collections.ai_messages.findByIndex('conversationId', latest.id))
-          .map((doc) => doc.toJSON())
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        const uiMessages = await loadConversationUiMessages(latest.id);
 
         if (!cancelled) {
-          // UI renders newest-first to keep latest dialog always visible at top.
-          onHistoryLoaded(
-            mapHistoryRowsToUiMessages(rows)
-              .filter((row) => row.role === 'user' || row.role === 'assistant')
-              .reverse(),
-          );
+          onHistoryLoaded(uiMessages);
         }
       } catch (error) {
         if (!cancelled) {
@@ -191,11 +197,12 @@ export function useAiChatConversationState({
     return () => {
       cancelled = true;
     };
-  }, [onHistoryLoadError, onHistoryLoaded]);
+  }, [onHistoryLoadError, onHistoryLoaded, textId]);
 
   return {
     conversationId,
     conversationIdRef,
+    setConversationId,
     isBootstrapping,
     ensureConversation,
   };

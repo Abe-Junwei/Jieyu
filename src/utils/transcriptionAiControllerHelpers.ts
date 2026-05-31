@@ -60,6 +60,7 @@ export async function bridgeTextForLayerTargetWithFallback(input: {
 }
 
 export async function refreshRecentAiToolDecisionLogs(input: {
+  conversationId?: string | null;
   setAiToolDecisionLogs: Dispatch<
     SetStateAction<
       Array<{
@@ -81,7 +82,11 @@ export async function refreshRecentAiToolDecisionLogs(input: {
   setAiSidebarError: Dispatch<SetStateAction<string | null>>;
 }): Promise<void> {
   try {
-    const normalized = await listRecentAiToolDecisionLogs(6);
+    const normalized = await listRecentAiToolDecisionLogs(6, {
+      ...(input.conversationId != null && input.conversationId !== ''
+        ? { conversationId: input.conversationId }
+        : {}),
+    });
     input.setAiToolDecisionLogs(normalized);
     input.setAiSidebarError((prev) =>
       prev !== null && prev.startsWith(TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX) ? null : prev,
@@ -93,10 +98,15 @@ export async function refreshRecentAiToolDecisionLogs(input: {
 }
 
 export async function refreshRecentAiVerticalWorkflowAuditEntries(input: {
+  conversationId?: string | null;
   setAiVerticalWorkflowAuditEntries: Dispatch<SetStateAction<ParsedVerticalWorkflowAuditEntry[]>>;
 }): Promise<void> {
   try {
-    const entries = await listRecentAiVerticalWorkflowAuditEntries(24);
+    const entries = await listRecentAiVerticalWorkflowAuditEntries(24, {
+      ...(input.conversationId != null && input.conversationId !== ''
+        ? { conversationId: input.conversationId }
+        : {}),
+    });
     input.setAiVerticalWorkflowAuditEntries(entries);
   } catch (error) {
     log.error('refreshRecentAiVerticalWorkflowAuditEntries failed', { err: error });

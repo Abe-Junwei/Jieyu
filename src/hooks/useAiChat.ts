@@ -30,6 +30,11 @@ import { resolveAiChatResponsePolicy } from './ai/useAiChat.responsePolicy';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { loadSessionMemory, persistSessionMemory } from '../ai/chat/sessionMemory';
 import { resetSessionMemoryForClear } from '../ai/chat/resetSessionMemoryForClear';
+import {
+  bumpConversationGeneration,
+  createConversationGenerationRef,
+} from '../ai/chat/conversationGeneration';
+import { useAiChatConversationManager } from './ai/useAiChatConversationManager';
 import { resolveComposedWorkflowReflectionRetry } from '../ai/chat/composedWorkflowRetry';
 import { buildStep2RetryPrompt } from '../ai/vertical/composedWorkflowTemplates';
 import { useAgentLoopSessionMemoryDexieReconcile } from './ai/useAiChat.agentLoopDexieReconcile';
@@ -190,6 +195,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   }, []);
   const abortRef = useRef<AbortController | null>(null);
   const localToolCallCountRef = useRef(0);
+  const conversationGenerationRef = useRef(createConversationGenerationRef(0));
 
   const { provider, fallbackProvider } = useMemo(
     () => ({
@@ -234,14 +240,47 @@ export function useAiChat(options?: UseAiChatOptions) {
     };
   }, [settings]);
 
-  const { conversationId, conversationIdRef, isBootstrapping, ensureConversation } =
-    useAiChatConversationState({
-      locale,
-      providerId: provider.id,
-      model: settings.model,
-      onHistoryLoaded: setMessages,
-      onHistoryLoadError: setLastError,
-    });
+  const {
+    conversationId,
+    conversationIdRef,
+    setConversationId,
+    isBootstrapping,
+    ensureConversation,
+  } = useAiChatConversationState({
+    locale,
+    providerId: provider.id,
+    model: settings.model,
+    ...(options?.textId ? { textId: options.textId } : {}),
+    onHistoryLoaded: setMessages,
+    onHistoryLoadError: setLastError,
+  });
+
+  const resetChatUiState = useCallback(() => {
+    setLastError(null);
+    setPendingToolCall(null);
+    setMetrics({ ...INITIAL_METRICS });
+    setTaskSession(createIdleTaskSession());
+  }, []);
+
+  const abortActiveStream = useCallback(() => {
+    abortAiChatStream(abortRef, setIsStreaming);
+  }, []);
+
+  const conversationManagement = useAiChatConversationManager({
+    enabled: featureFlags.aiConversationManagement,
+    locale,
+    providerId: provider.id,
+    model: settings.model,
+    ...(options?.textId ? { textId: options.textId } : {}),
+    conversationId,
+    conversationIdRef,
+    setConversationId,
+    conversationGenerationRef,
+    abortActiveStream,
+    resetChatUiState,
+    setMessages,
+    sessionMemoryRef,
+  });
 
   const {
     clearPendingAgentLoopCheckpoint,
@@ -420,6 +459,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         bumpMetric,
         resolveAgentLoopResumeCheckpoint,
         clearPendingAgentLoopCheckpoint,
+        conversationGenerationRef,
       } satisfies Omit<RunAiChatSendTurnArgs, 'userText'>;
 
       await runAiChatSendTurn({
@@ -477,6 +517,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       provider,
       ragContextTimeoutMsRef,
       resolveAgentLoopResumeCheckpoint,
+      conversationGenerationRef,
       sessionTokenBudget,
       setConnectionTestMessage,
       setConnectionTestStatus,
@@ -493,7 +534,13 @@ export function useAiChat(options?: UseAiChatOptions) {
 
   const clear = useCallback(() => {
     if (clearInFlightRef.current) return;
+    if (featureFlags.aiConversationManagement && conversationManagement) {
+      conversationManagement.clearCurrentConversation();
+      return;
+    }
     clearInFlightRef.current = true;
+    bumpConversationGeneration(conversationGenerationRef.current);
+    abortActiveStream();
     sessionMemoryRef.current = resetSessionMemoryForClear(sessionMemoryRef.current);
     void (async () => {
       try {
@@ -527,7 +574,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       conversationId ?? null,
       runClearPersistenceCleanup,
     );
-  }, [conversationId, runClearPersistenceCleanup]);
+  }, [abortActiveStream, conversationId, conversationManagement, runClearPersistenceCleanup]);
 
   return {
     messages,
@@ -560,5 +607,6 @@ export function useAiChat(options?: UseAiChatOptions) {
     toggleMessagePinned,
     deactivateSessionDirective,
     pruneSessionDirectivesBySourceMessage,
+    conversationManagement,
   };
 }

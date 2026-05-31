@@ -2,6 +2,8 @@ import type { ComponentProps, Dispatch, SetStateAction } from 'react';
 import type { AiSessionMemory, AiTaskSession } from '../../hooks/useAiChat';
 import { t } from '../../i18n';
 import { AiChatSummaryPanels } from './AiChatSummaryPanels';
+import { AiChatRunTimelinePanel } from './AiChatRunTimelinePanel';
+import type { ParsedVerticalWorkflowAuditEntry } from '../../ai/vertical/verticalWorkflowAudit';
 import { AiChatMessageThread } from './AiChatMessageThread';
 import { AiChatAlertsPanel } from './AiChatAlertsPanel';
 import { AiChatCandidateChips } from './AiChatCandidateChips';
@@ -13,15 +15,19 @@ type MessageThreadProps = ComponentProps<typeof AiChatMessageThread>;
 type AlertsPanelProps = ComponentProps<typeof AiChatAlertsPanel>;
 type CandidateChipsProps = ComponentProps<typeof AiChatCandidateChips>;
 
-type AiChatInteractionShellProps =
-  Omit<SummaryPanelProps,
-    | 'onToggleConversationSummary'
-    | 'onToggleVerticalWorkflowDetail'
-    | 'onOpenLatestVerticalWorkflowReplay'
-    | 'onCopyLatestVerticalWorkflowRequestId'
-  >
-  & Omit<MessageThreadProps, 'onToggleMessagePin' | 'onCopyAssistantMessage' | 'onToggleReasoning' | 'onActivateCitation'>
-  & Omit<AlertsPanelProps,
+type AiChatInteractionShellProps = Omit<
+  SummaryPanelProps,
+  | 'onToggleConversationSummary'
+  | 'onToggleVerticalWorkflowDetail'
+  | 'onOpenLatestVerticalWorkflowReplay'
+  | 'onCopyLatestVerticalWorkflowRequestId'
+> &
+  Omit<
+    MessageThreadProps,
+    'onToggleMessagePin' | 'onCopyAssistantMessage' | 'onToggleReasoning' | 'onActivateCitation'
+  > &
+  Omit<
+    AlertsPanelProps,
     | 'debugUiShowAll'
     | 'aiIsStreaming'
     | 'aiPendingAgentLoopCheckpoint'
@@ -37,8 +43,7 @@ type AiChatInteractionShellProps =
     | 'onVoiceDismissDisambiguation'
     | 'onVoiceConfirmPending'
     | 'onVoiceCancelPending'
-  >
-  & {
+  > & {
     setShowConversationSummary: Dispatch<SetStateAction<boolean>>;
     setShowVerticalWorkflowDetail: Dispatch<SetStateAction<boolean>>;
     openLatestVerticalWorkflowReplay: SummaryPanelProps['onOpenLatestVerticalWorkflowReplay'];
@@ -67,8 +72,15 @@ type AiChatInteractionShellProps =
     activeSourceSetId?: string | null;
     onSelectSourceSet?: (id: string) => void;
     onCreateSourceSet?: () => void;
-    onAddSourceSetMember?: (setId: string, member: { id: string; type: SourceSetMemberType; label?: string }) => void;
+    onAddSourceSetMember?: (
+      setId: string,
+      member: { id: string; type: SourceSetMemberType; label?: string },
+    ) => void;
     onRemoveSourceSetMember?: (setId: string, memberId: string) => void;
+    aiConversationManagementEnabled?: boolean;
+    showRunTimeline?: boolean;
+    setShowRunTimeline?: Dispatch<SetStateAction<boolean>>;
+    aiVerticalWorkflowAuditEntries?: ParsedVerticalWorkflowAuditEntry[];
   };
 
 export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
@@ -107,8 +119,11 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
     toggleReasoning,
     activateCitation,
     onClearAiMessages,
-    isZh,
+    clearConversationLabel,
+    virtualizeTurns,
     aiIsStreaming,
+    streamingThreadScrollSignature,
+    isZh,
     errorWarningText,
     dismissedErrorWarning,
     alertCount,
@@ -138,6 +153,10 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
     onCreateSourceSet,
     onAddSourceSetMember,
     onRemoveSourceSetMember,
+    aiConversationManagementEnabled = false,
+    showRunTimeline = false,
+    setShowRunTimeline,
+    aiVerticalWorkflowAuditEntries = [],
   } = props;
 
   return (
@@ -153,6 +172,15 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
           onRemoveMember={onRemoveSourceSetMember}
         />
       )}
+      {aiConversationManagementEnabled ? (
+        <AiChatRunTimelinePanel
+          cardMessages={cardMessages}
+          showPanel={showRunTimeline}
+          onTogglePanel={() => setShowRunTimeline?.((prev) => !prev)}
+          aiToolDecisionLogs={aiToolDecisionLogs ?? []}
+          aiVerticalWorkflowAuditEntries={aiVerticalWorkflowAuditEntries}
+        />
+      ) : null}
       <AiChatSummaryPanels
         locale={locale}
         cardMessages={cardMessages}
@@ -164,11 +192,17 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
         latestVerticalWorkflowSummary={latestVerticalWorkflowSummary}
         latestVerticalWorkflowEntry={latestVerticalWorkflowEntry}
         latestVerticalWorkflowSelectionSummary={latestVerticalWorkflowSelectionSummary}
-        latestVerticalWorkflowSelectionKeywordSummary={latestVerticalWorkflowSelectionKeywordSummary}
-        latestVerticalWorkflowSelectionConfidenceSummary={latestVerticalWorkflowSelectionConfidenceSummary}
+        latestVerticalWorkflowSelectionKeywordSummary={
+          latestVerticalWorkflowSelectionKeywordSummary
+        }
+        latestVerticalWorkflowSelectionConfidenceSummary={
+          latestVerticalWorkflowSelectionConfidenceSummary
+        }
         latestVerticalWorkflowRequestId={latestVerticalWorkflowRequestId}
         showVerticalWorkflowDetail={showVerticalWorkflowDetail}
-        onToggleVerticalWorkflowDetail={() => setShowVerticalWorkflowDetail((prev: boolean) => !prev)}
+        onToggleVerticalWorkflowDetail={() =>
+          setShowVerticalWorkflowDetail((prev: boolean) => !prev)
+        }
         isLatestVerticalReplayLoading={isLatestVerticalReplayLoading}
         isLatestVerticalReplaySelected={isLatestVerticalReplaySelected}
         copiedVerticalWorkflowRequestId={copiedVerticalWorkflowRequestId}
@@ -192,6 +226,10 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
         onToggleReasoning={toggleReasoning}
         onActivateCitation={activateCitation}
         onClearAiMessages={onClearAiMessages}
+        {...(clearConversationLabel !== undefined ? { clearConversationLabel } : {})}
+        {...(virtualizeTurns !== undefined ? { virtualizeTurns } : {})}
+        {...(aiIsStreaming !== undefined ? { aiIsStreaming: Boolean(aiIsStreaming) } : {})}
+        streamingThreadScrollSignature={streamingThreadScrollSignature ?? 0}
       />
 
       <AiChatAlertsPanel
@@ -224,15 +262,16 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
         {...(persistLayerRecoveryActions !== undefined ? { persistLayerRecoveryActions } : {})}
       />
 
-      {aiTaskSession?.status === 'waiting_clarify' && (aiTaskSession.candidates ?? []).length > 0 && (
-        <AiChatCandidateChips
-          isZh={isZh}
-          aiIsStreaming={Boolean(aiIsStreaming)}
-          debugUiShowAll={false}
-          candidates={rankedClarifyCandidates}
-          onSendAiMessage={onSendAiMessage}
-        />
-      )}
+      {aiTaskSession?.status === 'waiting_clarify' &&
+        (aiTaskSession.candidates ?? []).length > 0 && (
+          <AiChatCandidateChips
+            isZh={isZh}
+            aiIsStreaming={Boolean(aiIsStreaming)}
+            debugUiShowAll={false}
+            candidates={rankedClarifyCandidates}
+            onSendAiMessage={onSendAiMessage}
+          />
+        )}
     </>
   );
 }

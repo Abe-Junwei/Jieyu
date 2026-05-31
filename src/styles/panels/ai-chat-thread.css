@@ -16,6 +16,69 @@
   background: color-mix(in srgb, var(--surface-header) 76%, var(--surface-panel));
 }
 
+.ai-chat-run-timeline-panel {
+  margin: 0 0 var(--space-3, 10px);
+  padding: var(--space-3, 10px) var(--space-4, 12px);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--surface-header) 68%, var(--surface-panel));
+}
+
+.ai-chat-run-timeline-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text-primary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ai-chat-run-timeline-count {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.ai-chat-run-timeline-list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.ai-chat-run-timeline-item {
+  padding: 8px 10px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
+}
+
+.ai-chat-run-timeline-item-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
+  color: var(--text-secondary);
+}
+
+.ai-chat-run-timeline-title {
+  margin: 4px 0 0;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  color: var(--text-primary);
+}
+
+.ai-chat-run-timeline-detail,
+.ai-chat-run-timeline-request-id {
+  margin: 2px 0 0;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
 .ai-chat-summary-header-row {
   display: flex;
   gap: 10px;
@@ -306,7 +369,10 @@
   text-decoration-color: color-mix(in srgb, var(--text-secondary) 68%, transparent);
   text-underline-offset: 2px;
   text-shadow: 0 1px 0 color-mix(in srgb, var(--surface-panel) 94%, transparent);
-  transition: color var(--rail-motion), opacity var(--rail-motion), text-decoration-color var(--rail-motion);
+  transition:
+    color var(--rail-motion),
+    opacity var(--rail-motion),
+    text-decoration-color var(--rail-motion);
   opacity: 0.96;
 }
 
@@ -323,6 +389,23 @@
   padding-bottom: 18px;
   display: grid;
   gap: 20px;
+}
+
+/* G1g: bottom-anchored turn virtualizer (newest turns near viewport bottom). */
+.ai-chat-message-canvas-virtual {
+  display: block;
+  position: relative;
+}
+
+.ai-chat-turn-virtual-row {
+  display: block;
+  width: 100%;
+  padding-bottom: 20px;
+}
+
+.ai-chat-turn-virtual-row .ai-chat-turn {
+  display: grid;
+  gap: 10px;
 }
 
 .ai-chat-turn {
@@ -353,7 +436,9 @@
   border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
   border: 1px solid color-mix(in srgb, var(--border-soft) 54%, transparent);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--shadow-color) 2%, transparent), var(--shadow-md);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--shadow-color) 2%, transparent),
+    var(--shadow-md);
   white-space: pre-wrap;
 }
 
@@ -387,7 +472,9 @@
   border-radius: var(--radius-2xl) var(--radius-2xl) var(--radius-2xl) var(--radius-sm);
   background: color-mix(in srgb, var(--surface-header) 92%, var(--surface-panel));
   border-color: color-mix(in srgb, var(--border-soft) 24%, transparent);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--shadow-color) 1%, transparent), var(--shadow-md);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--shadow-color) 1%, transparent),
+    var(--shadow-md);
 }
 
 .ai-chat-source-scope-summary {
@@ -912,7 +999,9 @@
   opacity: 0;
   pointer-events: none;
   transform: translateY(2px);
-  transition: opacity 0.16s ease, transform 0.16s ease;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
 }
 
 .ai-chat-message-bubble:hover .ai-chat-message-actions,
@@ -958,7 +1047,10 @@
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--text-secondary) 46%, transparent);
   text-underline-offset: 2px;
-  transition: color var(--rail-motion), text-decoration-color var(--rail-motion), opacity var(--rail-motion);
+  transition:
+    color var(--rail-motion),
+    text-decoration-color var(--rail-motion),
+    opacity var(--rail-motion);
   opacity: 0.84;
 }
 
@@ -1177,9 +1269,10 @@
 :root[data-theme='dark'] .ai-chat-message-assistant .ai-chat-message-surface {
   background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
   border-color: color-mix(in srgb, var(--border-soft) 18%, transparent);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--surface-panel) 4%, transparent), 0 16px 38px color-mix(in srgb, var(--shadow-color) 24%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--surface-panel) 4%, transparent),
+    0 16px 38px color-mix(in srgb, var(--shadow-color) 24%, transparent);
 }
-
 
 :root[data-theme='dark'] .ai-chat-message-content {
   color: var(--text-primary);

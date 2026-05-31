@@ -23,6 +23,7 @@ import { runAiChatSendTurnPersistAndPrimaryStream } from './useAiChat.sendTurnPe
 import { runAiChatSendTurnStreamPhase } from './useAiChat.sendTurnStreamPhase';
 import { finalizeSendTurnStream, handleSendTurnStreamCatch } from './useAiChat.sendTurnCompletion';
 import { logSendTurnPhase } from './useAiChat.sendTurnCorrelation';
+import { createConversationGenerationRef } from '../../ai/chat/conversationGeneration';
 import { runAiChatSendTurn } from './useAiChat.sendTurn';
 
 vi.mock('./useAiChat.sendTurnPreflight', () => ({
@@ -138,6 +139,7 @@ function makeSendTurnArgs(over: Partial<RunAiChatSendTurnArgs> = {}): RunAiChatS
     bumpMetric: noop,
     resolveAgentLoopResumeCheckpoint: vi.fn(async () => null),
     clearPendingAgentLoopCheckpoint: noop,
+    conversationGenerationRef: { current: createConversationGenerationRef(0) },
     ...over,
   };
 }
@@ -175,6 +177,7 @@ function preflightStub(controller: AbortController): SendTurnPreflightContext {
     effectiveUserText: 'hello',
     verticalWorkflowSelection: null,
     verticalOutputEnvelopeSeed: null,
+    streamGenerationAtStart: 0,
   };
 }
 

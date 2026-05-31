@@ -19,6 +19,7 @@ import type {
   EmbeddingDoc,
   AiConversationDoc,
   AiMessageDoc,
+  AiSessionMemoryDoc,
   ProjectAiMemoryDoc,
   McpToolCallAuditDoc,
   LanguageDocType,
@@ -69,6 +70,7 @@ import {
   validateEmbeddingDoc,
   validateAiConversationDoc,
   validateAiMessageDoc,
+  validateAiSessionMemoryDoc,
   validateProjectAiMemoryDoc,
   validateMcpToolCallAuditDoc,
   validateLanguageDoc,
@@ -133,7 +135,7 @@ export const JIEYU_DEXIE_DB_NAME = 'jieyudb_v2' as const;
  * 须与 `JieyuDexie` 构造器内**最高**的 `this.version(…)` 号一致，供健康检查 / 迁移回放测试（ARCH-5）。
  * Must match the highest `this.version(…)` in `JieyuDexie` — health + migration-replay (ARCH-5).
  */
-export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 49;
+export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 50;
 
 export function buildSegmentationV2BackfillRows(input: {
   units: LayerUnitDocType[];
@@ -395,6 +397,7 @@ export class JieyuDexie extends Dexie {
   embeddings!: Table<EmbeddingDoc, string>;
   ai_conversations!: Table<AiConversationDoc, string>;
   ai_messages!: Table<AiMessageDoc, string>;
+  ai_session_memories!: Table<AiSessionMemoryDoc, string>;
   project_ai_memories!: Table<ProjectAiMemoryDoc, string>;
   mcp_tool_call_audits!: Table<McpToolCallAuditDoc, string>;
   languages!: Table<LanguageDocType, string>;
@@ -1450,6 +1453,11 @@ export class JieyuDexie extends Dexie {
     this.version(49).stores({
       ai_source_sets: 'id, status, boundSessionId, updatedAt',
     });
+
+    // v50: per-conversation session memory (G1a) + AiConversationDoc.clearedAt field (G1e schema only).
+    this.version(50).stores({
+      ai_session_memories: 'conversationId, updatedAt',
+    });
   }
 }
 
@@ -1626,6 +1634,10 @@ async function _createDb(): Promise<JieyuDatabase> {
     embeddings: new DexieCollectionAdapter(dexie.embeddings, validateEmbeddingDoc),
     ai_conversations: new DexieCollectionAdapter(dexie.ai_conversations, validateAiConversationDoc),
     ai_messages: new DexieCollectionAdapter(dexie.ai_messages, validateAiMessageDoc),
+    ai_session_memories: new DexieCollectionAdapter(
+      dexie.ai_session_memories,
+      validateAiSessionMemoryDoc,
+    ),
     project_ai_memories: new DexieCollectionAdapter(
       dexie.project_ai_memories,
       validateProjectAiMemoryDoc,

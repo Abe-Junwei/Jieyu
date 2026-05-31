@@ -1,10 +1,13 @@
 // 系统功能开关 | System feature flags
 type FeatureFlagDeploymentEnvironment = 'local' | 'dogfood' | 'staging' | 'prod';
 
-function normalizeFeatureFlagDeploymentEnvironment(rawValue: string | undefined): FeatureFlagDeploymentEnvironment {
+function normalizeFeatureFlagDeploymentEnvironment(
+  rawValue: string | undefined,
+): FeatureFlagDeploymentEnvironment {
   const normalized = rawValue?.trim().toLowerCase();
   if (!normalized) return import.meta.env.DEV ? 'local' : 'prod';
-  if (normalized === 'development' || normalized === 'dev' || normalized === 'local') return 'local';
+  if (normalized === 'development' || normalized === 'dev' || normalized === 'local')
+    return 'local';
   if (normalized === 'production' || normalized === 'prod') return 'prod';
   if (normalized === 'dogfood') return 'dogfood';
   if (normalized === 'staging') return 'staging';
@@ -23,14 +26,14 @@ const featureFlagDeploymentEnvironment = normalizeFeatureFlagDeploymentEnvironme
   import.meta.env.VITE_M5_OBSERVABILITY_ENV ?? import.meta.env.MODE,
 );
 
-const aiBackgroundToolSandboxEnabledDefault = featureFlagDeploymentEnvironment === 'dogfood'
-  || featureFlagDeploymentEnvironment === 'staging';
+const aiBackgroundToolSandboxEnabledDefault =
+  featureFlagDeploymentEnvironment === 'dogfood' || featureFlagDeploymentEnvironment === 'staging';
 
-const aiBackgroundMemorySessionWriteQuotaEnabledDefault = featureFlagDeploymentEnvironment === 'dogfood'
-  || featureFlagDeploymentEnvironment === 'staging';
+const aiBackgroundMemorySessionWriteQuotaEnabledDefault =
+  featureFlagDeploymentEnvironment === 'dogfood' || featureFlagDeploymentEnvironment === 'staging';
 
-const aiToolCallExecutorAutoRetryEnabledDefault = featureFlagDeploymentEnvironment === 'dogfood'
-  || featureFlagDeploymentEnvironment === 'staging';
+const aiToolCallExecutorAutoRetryEnabledDefault =
+  featureFlagDeploymentEnvironment === 'dogfood' || featureFlagDeploymentEnvironment === 'staging';
 
 const aiBackgroundToolSandboxEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED,
@@ -46,6 +49,22 @@ const aiToolCallExecutorAutoRetryEnabledFromEnv = readOptionalBooleanFlag(
 
 const aiMcpServerEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_MCP_SERVER_ENABLED,
+);
+
+const aiConversationManagementFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_CONVERSATION_MANAGEMENT_ENABLED,
+);
+
+const aiAgentLoopToolResultQualityGateEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_AGENT_LOOP_TOOL_RESULT_QUALITY_GATE_ENABLED,
+);
+
+const aiAgentLoopClosedLoopReplanningEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_AGENT_LOOP_CLOSED_LOOP_REPLANNING_ENABLED,
+);
+
+const aiAgentLoopContextBudgetRecalculationEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_AGENT_LOOP_CONTEXT_BUDGET_RECALCULATION_ENABLED,
 );
 
 export const featureFlags = {
@@ -68,12 +87,14 @@ export const featureFlags = {
   /** C 阶段：意图多候选与置信门控（dogfood 已启用）| C-stage intent confidence gate (dogfood enabled) */
   aiIntentConfidenceGateEnabled: true,
   /** C 阶段：后台任务工具沙箱（默认关闭；当前接入后台记忆抽取路径）| C-stage background task sandbox (off by default; wired for background memory extraction) */
-  aiBackgroundToolSandboxEnabled: aiBackgroundToolSandboxEnabledFromEnv ?? aiBackgroundToolSandboxEnabledDefault,
+  aiBackgroundToolSandboxEnabled:
+    aiBackgroundToolSandboxEnabledFromEnv ?? aiBackgroundToolSandboxEnabledDefault,
   /** C 阶段：后台记忆抽取（dogfood 已启用）| C-stage background memory extractor (dogfood enabled) */
   aiBackgroundMemoryExtractorEnabled: true,
   /** T2-c：每会话（每 conversationId，内存计数）后台记忆 flush 成功写入次数上限；默认关闭 | Per-conversation in-memory cap on successful background memory write flushes */
   aiBackgroundMemorySessionWriteQuotaEnabled:
-    aiBackgroundMemorySessionWriteQuotaEnabledFromEnv ?? aiBackgroundMemorySessionWriteQuotaEnabledDefault,
+    aiBackgroundMemorySessionWriteQuotaEnabledFromEnv ??
+    aiBackgroundMemorySessionWriteQuotaEnabledDefault,
   /** 与 aiBackgroundMemorySessionWriteQuotaEnabled 配套；<=0 视为不启用 | Max successful write flushes per conversation when quota flag is on */
   aiBackgroundMemorySessionWriteQuotaMax: 12,
   /** C 阶段：扩展信任、配额与健康度治理（dogfood 已启用）| C-stage extension trust governance (dogfood enabled) */
@@ -92,4 +113,22 @@ export const featureFlags = {
   corpusLibraryLabEnabled: false,
   /** P1b: MCP Server 只读工具开关（默认关闭；staging/dogfood 可手动开启） */
   aiMcpServerEnabled: aiMcpServerEnabledFromEnv ?? false,
+  /** G1 多会话目录 + clearCurrent / startNew（PR-6 起默认开启；可用 env 覆盖） */
+  aiConversationManagement: aiConversationManagementFromEnv ?? true,
+  /**
+   * Agent loop verify 步（Result Quality Gate）：在 continuation payload 中附带工具结果质量标注
+   * （empty_result / search_no_results / tool_failed），让模型不基于空证据收敛或编造。
+   * 默认 false，关闭时 continuation 输出与现网逐字节一致；见 spec ai-agent-loop-reliability-improvements §2.2。
+   */
+  aiAgentLoopToolResultQualityGateEnabled: aiAgentLoopToolResultQualityGateEnabledFromEnv ?? false,
+  /**
+   * Agent loop 闭环重规划（P0）：工具结果后 evaluateReplanningNeed，纠正 queryFamily 误判 /
+   * 搜索 0 条早停 / detail 不存在改走 search。默认 false；见 spec ai-agent-loop-reliability §2.1。
+   */
+  aiAgentLoopClosedLoopReplanningEnabled: aiAgentLoopClosedLoopReplanningEnabledFromEnv ?? false,
+  /**
+   * Agent loop 每步按剩余步数动态收缩 history char 预算（spec §2.3）。默认 false。
+   */
+  aiAgentLoopContextBudgetRecalculationEnabled:
+    aiAgentLoopContextBudgetRecalculationEnabledFromEnv ?? false,
 } as const;

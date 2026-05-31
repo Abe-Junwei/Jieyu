@@ -1,0 +1,18 @@
+# Cursor 索引排除（仅挡语义索引/检索；AI 仍可按需 Read）
+# 目的：把"生成物 / 数据快照 / 历史归档 / 基线"移出检索召回，
+# 提升全 AI 实现时的上下文信噪比。不影响 git、不影响显式打开/读取。
+
+# 大体量数据与发布证据快照
+public/data/**
+docs/execution/release-gates/release-evidence/**
+docs/execution/archive/**
+
+# 各类基线 / 白名单 / 自动报告 JSON（人不直接读、检索价值低）
+scripts/**/*-baseline.json
+scripts/agent-evals/cases/**
+**/*.publish-whitelist*.json
+**/orthography-*-report*.json
+
+# 动画与测试产物
+src/assets/lottie/**
+test-results/**

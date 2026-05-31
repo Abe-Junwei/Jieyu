@@ -1,5 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { computeContextBudget, computeConversationSummaryMaxChars, computeSessionMemoryDigestMaxChars, computeTier1ContextFloorChars, loadProviderContextLimits, resetProviderContextLimitsCacheForTests, resolveContextCharBudgets } from './contextBudget';
+import {
+  AGENT_LOOP_MIN_HISTORY_CHAR_BUDGET,
+  computeContextBudget,
+  computeConversationSummaryMaxChars,
+  computeSessionMemoryDigestMaxChars,
+  computeTier1ContextFloorChars,
+  historyBudgetTokensFromCharBudget,
+  loadProviderContextLimits,
+  recalculateStepHistoryCharBudget,
+  resetProviderContextLimitsCacheForTests,
+  resolveContextCharBudgets,
+} from './contextBudget';
 
 describe('contextBudget', () => {
   afterEach(() => {
@@ -30,12 +41,15 @@ describe('contextBudget', () => {
   });
 
   it('loads provider limits from runtime JSON and merges fallback defaults', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        'deepseek-chat': 32_000,
-      }),
-    })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          'deepseek-chat': 32_000,
+        }),
+      })),
+    );
 
     const limits = await loadProviderContextLimits();
 
@@ -44,12 +58,15 @@ describe('contextBudget', () => {
   });
 
   it('keeps explicit char overrides higher priority than dynamic budgets', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        'deepseek-chat': 64_000,
-      }),
-    })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          'deepseek-chat': 64_000,
+        }),
+      })),
+    );
 
     const budgets = await resolveContextCharBudgets({
       providerKind: 'deepseek',
@@ -72,10 +89,13 @@ describe('contextBudget', () => {
   });
 
   it('derives maxContextChars from usable input tokens with a safety cap', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: false,
-      json: async () => ({}),
-    })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        json: async () => ({}),
+      })),
+    );
 
     const highCap = await resolveContextCharBudgets({
       providerKind: 'gemini',
@@ -90,5 +110,37 @@ describe('contextBudget', () => {
     });
     expect(modest.usableInputTokens).toBe(11_200);
     expect(modest.maxContextChars).toBe(44_800);
+  });
+
+  it('recalculateStepHistoryCharBudget shrinks budget as loop step advances', () => {
+    const base = 8000;
+    const tokens = historyBudgetTokensFromCharBudget(base);
+    const early = recalculateStepHistoryCharBudget({
+      baseHistoryCharBudget: base,
+      historyBudgetTokens: tokens,
+      perStepInputTokens: 1000,
+      step: 1,
+      maxSteps: 6,
+    });
+    const late = recalculateStepHistoryCharBudget({
+      baseHistoryCharBudget: base,
+      historyBudgetTokens: tokens,
+      perStepInputTokens: 1000,
+      step: 5,
+      maxSteps: 6,
+    });
+    expect(early).toBeGreaterThan(late);
+    expect(late).toBeGreaterThanOrEqual(AGENT_LOOP_MIN_HISTORY_CHAR_BUDGET);
+  });
+
+  it('never shrinks below AGENT_LOOP_MIN_HISTORY_CHAR_BUDGET', () => {
+    const budget = recalculateStepHistoryCharBudget({
+      baseHistoryCharBudget: 2000,
+      historyBudgetTokens: 500,
+      perStepInputTokens: 500,
+      step: 6,
+      maxSteps: 6,
+    });
+    expect(budget).toBe(AGENT_LOOP_MIN_HISTORY_CHAR_BUDGET);
   });
 });

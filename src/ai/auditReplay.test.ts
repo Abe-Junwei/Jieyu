@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { db } from '../db';
-import { buildAiToolGoldenSnapshot, diffAiToolSnapshot, listRecentAiToolDecisionLogs, loadAiToolReplayBundle, serializeAiToolGoldenSnapshot } from './auditReplay';
+import { db, getDb } from '../db';
+import {
+  buildAiToolGoldenSnapshot,
+  diffAiToolSnapshot,
+  listRecentAiToolDecisionLogs,
+  loadAiToolReplayBundle,
+  serializeAiToolGoldenSnapshot,
+} from './auditReplay';
 
 async function clearAuditLogs(): Promise<void> {
   await db.audit_logs.clear();
@@ -176,7 +182,10 @@ describe('audit replay helpers', () => {
           schemaVersion: 1,
           phase: 'intent',
           requestId: 'toolreq_export_1',
-          toolCall: { name: 'set_translation_text', arguments: { unitId: 'u1', layerId: 'trl-1', text: '你好' } },
+          toolCall: {
+            name: 'set_translation_text',
+            arguments: { unitId: 'u1', layerId: 'trl-1', text: '你好' },
+          },
           context: { userText: '补一条翻译' },
         }),
       },
@@ -196,7 +205,10 @@ describe('audit replay helpers', () => {
           phase: 'decision',
           requestId: 'toolreq_export_1',
           source: 'ai',
-          toolCall: { name: 'set_translation_text', arguments: { unitId: 'u1', layerId: 'trl-1', text: '你好' } },
+          toolCall: {
+            name: 'set_translation_text',
+            arguments: { unitId: 'u1', layerId: 'trl-1', text: '你好' },
+          },
           context: { userText: '补一条翻译' },
           executed: true,
           outcome: 'auto_confirmed',
@@ -213,9 +225,13 @@ describe('audit replay helpers', () => {
     expect(snapshot.requestId).toBe('toolreq_export_1');
     expect(snapshot.toolName).toBe('set_translation_text');
     expect(snapshot.latestDecision?.decision).toBe('auto_confirmed');
-    expect(snapshot.latestDecision?.reasonLabelEn).toBe('User preference requires confirmation before execution.');
+    expect(snapshot.latestDecision?.reasonLabelEn).toBe(
+      'User preference requires confirmation before execution.',
+    );
     expect(snapshot.latestDecision?.reasonLabelZh).toBe('用户偏好要求先确认再执行');
-    expect(snapshot.decisions[0]?.reasonLabelEn).toBe('User preference requires confirmation before execution.');
+    expect(snapshot.decisions[0]?.reasonLabelEn).toBe(
+      'User preference requires confirmation before execution.',
+    );
 
     const serialized = serializeAiToolGoldenSnapshot(bundle!);
     expect(JSON.parse(serialized)).toMatchObject({
@@ -300,7 +316,14 @@ describe('audit replay helpers', () => {
 
     // 基准快照：手工构造一个 toolName 不同的快照 | Baseline: manually craft a snapshot with different toolName
     const baselineSnapshot = buildAiToolGoldenSnapshot(bundle!);
-    const alteredBaseline = { ...baselineSnapshot, toolName: 'set_transcription_text', decisions: [{ ...baselineSnapshot.decisions[0]!, decision: 'confirmed' }], ...(baselineSnapshot.latestDecision ? { latestDecision: { ...baselineSnapshot.latestDecision, decision: 'confirmed' } } : {}) };
+    const alteredBaseline = {
+      ...baselineSnapshot,
+      toolName: 'set_transcription_text',
+      decisions: [{ ...baselineSnapshot.decisions[0]!, decision: 'confirmed' }],
+      ...(baselineSnapshot.latestDecision
+        ? { latestDecision: { ...baselineSnapshot.latestDecision, decision: 'confirmed' } }
+        : {}),
+    };
 
     const diff = diffAiToolSnapshot(alteredBaseline, bundle!);
 
@@ -308,5 +331,59 @@ describe('audit replay helpers', () => {
     const changedLabels = diff.fields.filter((f) => f.changed).map((f) => f.label);
     expect(changedLabels).toContain('toolName');
     expect(changedLabels).toContain('latestDecision.decision');
+  });
+
+  it('filters tool decision logs by conversationId via assistant message ids (G3a)', async () => {
+    const engineDb = await getDb();
+    const timestamp = '2026-03-21T12:00:00.000Z';
+    await engineDb.collections.ai_messages.insert({
+      id: 'msg-conv-a',
+      conversationId: 'conv-a',
+      role: 'assistant',
+      content: '',
+      status: 'done',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    await engineDb.collections.ai_messages.insert({
+      id: 'msg-conv-b',
+      conversationId: 'conv-b',
+      role: 'assistant',
+      content: '',
+      status: 'done',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    await db.audit_logs.bulkPut([
+      {
+        id: 'decision-conv-a',
+        collection: 'ai_messages',
+        documentId: 'msg-conv-a',
+        action: 'update' as const,
+        field: 'ai_tool_call_decision',
+        oldValue: 'pending:set_transcription_text',
+        newValue: 'auto_confirmed:set_transcription_text',
+        source: 'ai' as const,
+        timestamp: '2026-03-21T12:00:00.000Z',
+        requestId: 'toolreq_conv_a',
+      },
+      {
+        id: 'decision-conv-b',
+        collection: 'ai_messages',
+        documentId: 'msg-conv-b',
+        action: 'update' as const,
+        field: 'ai_tool_call_decision',
+        oldValue: 'pending:delete_layer',
+        newValue: 'cancelled:delete_layer',
+        source: 'human' as const,
+        timestamp: '2026-03-21T12:00:01.000Z',
+        requestId: 'toolreq_conv_b',
+      },
+    ]);
+
+    const scoped = await listRecentAiToolDecisionLogs(10, { conversationId: 'conv-a' });
+    expect(scoped).toHaveLength(1);
+    expect(scoped[0]?.id).toBe('decision-conv-a');
   });
 });

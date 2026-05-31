@@ -21,7 +21,7 @@ Behavioral guidelines below are adapted from [forrestchang/andrej-karpathy-skill
 - **ReadyWorkspace 装配**：波形 / UI state / segment scope 的 API **不得**从 `useTranscriptionData` 的 `data` 上取；见 [docs/architecture/ReadyWorkspace-数据域与壳层装配边界.md](docs/architecture/ReadyWorkspace-数据域与壳层装配边界.md)；门禁含于 `npm run check:architecture-guard`（`audit:ready-workspace-timeline-host`）。
 - **docs 落位与治理**：[.cursor/rules/jieyu-docs-governance.mdc](.cursor/rules/jieyu-docs-governance.mdc) 与 `npm run check:docs-governance`。
 - **当 docs 与代码冲突时**：优先 [docs/architecture/](docs/architecture/) 与代码为当前真相；历史规划只作上下文。
-- **成熟方案优先**：新增功能 / 交互 / 算法 / 存储 / 集成 / 架构前，先调研业内成熟实现（库 / 规范 / 框架原生模式 / 仓库既有模块）；只有明确说明复用不适合后才自行设计。新增依赖必须说明维护、体积、许可与集成成本。
+- **成熟方案优先**：新增功能 / 交互 / 算法 / 存储 / 集成 / 架构前，先调研业内成熟实现（库 / 规范 / 框架原生模式 / 仓库既有模块）；只有明确说明复用不适合后才自行设计。新增依赖必须说明维护、体积、许可与集成成本。**此原则的执行载体是工作流的 Research 阶段（见 [copilot-instructions.md](copilot-instructions.md) §5.1.5）：新功能未做 Research 不得进入 Plan。**
 - **桌面端浏览器支持**：[docs/architecture/桌面端浏览器支持策略.md](docs/architecture/桌面端浏览器支持策略.md)；新或敏感的浏览器 API 用特性检测；行为差异需扩 E2E（`npm run test:e2e`；本地快环 `npm run test:e2e:chromium`）。
 - **UI / Stitch handoff**：视觉工作先读 [DESIGN.md](DESIGN.md) 与 [src/styles/tokens.css](src/styles/tokens.css)；颜色映射语义 token；用户可见文案走 `dictKeys` / 字典，不留设计稿原文。
 - **AI formatter 文案 vs UI 文案分层**：模型/工具输出固定句式放 `src/ai/messages/`，与界面字典不混命名空间。
@@ -107,15 +107,16 @@ For multi-step tasks, state a brief plan:
 3. [Step] → verify: [check]
 ```
 
-## 工作流（Explore → Plan → Implement → Commit）
+## 工作流（Explore → Research → Plan → Implement → Commit）
 
 完整定义见 [copilot-instructions.md](copilot-instructions.md) §五。要点：
 
-- **Explore**：仅读 src/ / docs/adr/ / docs/architecture/，产出已读事实清单。Cursor → Plan/Ask mode；Kimi → `--explore`；Copilot → Chat ask。
-- **Plan**：产出落位 + 验证方式；用户确认后才切到实施。
+- **Explore**：仅读 src/ / docs/adr/ / docs/architecture/，产出已读事实清单（"我们现在有什么"）。Cursor → Plan/Ask mode；Kimi → `--explore`；Copilot → Chat ask。
+- **Research**（新功能 / 新交互 / 新算法 / 新存储 / 新集成 / 新架构时强制）：向外调研业内成熟做法（"业内怎么做"）——同类产品 / 标杆实现、best practice / 规范、公认不可行方案、潜在的坑，综合出复用/适配/自研结论后再进 Plan。Cursor → WebSearch + context7；Kimi → web/search tool；Copilot → chat web search。详见 §5.1.5。
+- **Plan**：产出落位 + 验证方式（承接 Research 结论）；用户确认后才切到实施。
 - **Implement**：执行 plan；逐步 typecheck / 定向 vitest 验证。
 - **Commit**：commit msg 附验证证据。
-- 单文件 ≤ 10 行小修复可跳过 Explore，但 Commit 验证证据不可省。
+- 单文件 ≤ 10 行小修复可跳过 Explore + Research，但 Commit 验证证据不可省。
 
 ## 机器守卫兜底（工具无关，最后一道防线）
 
@@ -124,6 +125,7 @@ For multi-step tasks, state a brief plan:
 - `npm run check:architecture-guard` — 编排层 / controller 边界 / 复杂度上限
 - `npm run check:agent-evals[:smoke]` — 典型 AI 失误（错读路径、业务逻辑落到编排层、UI 文案落到 `src/ai/messages/`）
 - `npm run check:docs-governance` — 文档放错位置
+- `npm run check:dev-agent-workflow-verify` — SDD diff 启发式 + spec Research 填实（仅 dev-agent 配置改动时自举豁免）
 - `npm run typecheck` + 定向 `vitest` — 正确性回归
 
 合并门槛与子 agent 委托决策见 [AI_QUICKSTART.md](AI_QUICKSTART.md)。

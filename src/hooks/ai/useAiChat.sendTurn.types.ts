@@ -23,6 +23,7 @@ import type {
   UseAiChatOptions,
 } from './useAiChat.types';
 import type { BackgroundToolSandboxProfile } from '../../ai/sandbox/backgroundToolSandbox';
+import type { ConversationGenerationRef } from '../../ai/chat/conversationGeneration';
 import type { AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
 
 /** Tool-intent audit payload shape (mirrors useAiChat.toolAudit local type). */
@@ -83,6 +84,8 @@ export type RunAiChatSendTurnArgs = Readonly<{
   localToolCallCountRef: MutableRefObject<number>;
   streamPersistIntervalMsRef: MutableRefObject<number>;
   backgroundMemoryRuntimeRef: MutableRefObject<AiChatBackgroundMemoryRuntime | null>;
+  /** G0c: bump on clear; stream captures value at preflight before seeding UI messages. */
+  conversationGenerationRef: MutableRefObject<ConversationGenerationRef>;
 
   writeToolDecisionAuditLog: (
     assistantMessageId: string,

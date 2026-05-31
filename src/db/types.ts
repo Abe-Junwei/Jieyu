@@ -120,7 +120,6 @@ interface UnitWord {
   provenance?: ProvenanceEnvelope;
 }
 
-
 /** Canonical token entity (v17+), independent of unit.words cache. */
 export interface UnitTokenDocType {
   id: string;
@@ -232,7 +231,14 @@ export interface AiTaskDoc {
   updatedAt: string;
 }
 
-export type EmbeddingSourceType = 'unit' | 'token' | 'morpheme' | 'lexeme' | 'note' | 'pdf' | 'schema';
+export type EmbeddingSourceType =
+  | 'unit'
+  | 'token'
+  | 'morpheme'
+  | 'lexeme'
+  | 'note'
+  | 'pdf'
+  | 'schema';
 
 export interface EmbeddingDoc {
   id: string;
@@ -255,7 +261,17 @@ export interface AiConversationDoc {
   providerId: string;
   model: string;
   archived?: boolean;
+  /** ISO timestamp when the user cleared the thread; distinct from `archived` (G1e). */
+  clearedAt?: string;
   createdAt: string;
+  updatedAt: string;
+}
+
+/** Per-conversation session memory row (G1a); Dexie PK is `conversationId` (`id` mirrors it for adapters). */
+export interface AiSessionMemoryDoc {
+  id: string;
+  conversationId: string;
+  payload: import('../ai/chat/chatDomain.types').AiSessionMemory;
   updatedAt: string;
 }
 
@@ -312,10 +328,21 @@ export interface AiMessageDoc {
   updatedAt: string;
 }
 
-export type LanguageCatalogSourceType = 'built-in-generated' | 'built-in-reviewed' | 'user-override' | 'user-custom';
+export type LanguageCatalogSourceType =
+  | 'built-in-generated'
+  | 'built-in-reviewed'
+  | 'user-override'
+  | 'user-custom';
 export type LanguageCatalogReviewStatus = 'needs-review' | 'verified';
 export type LanguageCatalogVisibility = 'visible' | 'hidden';
-export type LanguageDisplayNameRole = 'preferred' | 'autonym' | 'exonym' | 'historical' | 'menu' | 'academic' | 'search';
+export type LanguageDisplayNameRole =
+  | 'preferred'
+  | 'autonym'
+  | 'exonym'
+  | 'historical'
+  | 'menu'
+  | 'academic'
+  | 'search';
 type LanguageAliasType = 'search' | 'display' | 'legacy' | 'short' | 'variant';
 export type LanguageCatalogHistoryAction = 'create' | 'update' | 'delete';
 
@@ -346,7 +373,13 @@ export interface LanguageDocType {
     | 'severely_endangered'
     | 'critically_endangered'
     | 'extinct';
-  aesStatus?: 'not_endangered' | 'threatened' | 'shifting' | 'moribund' | 'nearly_extinct' | 'extinct';
+  aesStatus?:
+    | 'not_endangered'
+    | 'threatened'
+    | 'shifting'
+    | 'moribund'
+    | 'nearly_extinct'
+    | 'extinct';
   endangermentSource?: string;
   endangermentAssessmentYear?: number;
   speakerCountL1?: number;
@@ -358,9 +391,25 @@ export interface LanguageDocType {
   /** User override for CLDR official-status territory list (ISO 3166-1 alpha-2 or labels); empty/absent uses baseline. */
   countriesOfficial?: string[];
   macroarea?: 'Africa' | 'Eurasia' | 'Papunesia' | 'Australia' | 'North America' | 'South America';
-  administrativeDivisions?: { country?: string; province?: string; city?: string; county?: string; township?: string; village?: string; freeText?: string }[];
+  administrativeDivisions?: {
+    country?: string;
+    province?: string;
+    city?: string;
+    county?: string;
+    township?: string;
+    village?: string;
+    freeText?: string;
+  }[];
   intergenerationalTransmission?: 'all_ages' | 'adults_only' | 'elderly_only' | 'very_few' | 'none';
-  domains?: ('home' | 'education' | 'government' | 'media' | 'religion' | 'commerce' | 'literature')[];
+  domains?: (
+    | 'home'
+    | 'education'
+    | 'government'
+    | 'media'
+    | 'religion'
+    | 'commerce'
+    | 'literature'
+  )[];
   officialStatus?: 'national' | 'regional' | 'recognized_minority' | 'none';
   egids?: string;
   documentationLevel?: 'undocumented' | 'marginally' | 'fragmentary' | 'fair' | 'well_documented';
@@ -471,7 +520,13 @@ export interface OrthographyDocType {
   catalogMetadata?: {
     catalogSource?: 'user' | 'built-in-reviewed' | 'built-in-generated';
     source?: string;
-    reviewStatus?: 'needs-review' | 'verified-primary' | 'verified-secondary' | 'historical' | 'legacy' | 'experimental';
+    reviewStatus?:
+      | 'needs-review'
+      | 'verified-primary'
+      | 'verified-secondary'
+      | 'historical'
+      | 'legacy'
+      | 'experimental';
     priority?: 'primary' | 'secondary';
     seedKind?: string;
   };
@@ -707,17 +762,26 @@ export function layerTranscriptionTreeParentId(layer: LayerDocType): string | un
 /** 持久化/合并时去掉翻译层上的非法 `parentLayerId` 键（若存在）| Strip stale parent key on translation rows */
 export function stripForbiddenTranslationParentLayerId(layer: LayerDocType): LayerDocType {
   if (layer.layerType !== 'translation') return layer;
-  if (!('parentLayerId' in layer) || (layer as Record<string, unknown>).parentLayerId === undefined) {
+  if (
+    !('parentLayerId' in layer) ||
+    (layer as Record<string, unknown>).parentLayerId === undefined
+  ) {
     return layer;
   }
-  const { parentLayerId: _removed, ...rest } = layer as TranslationLayerDocType & { parentLayerId?: string };
+  const { parentLayerId: _removed, ...rest } = layer as TranslationLayerDocType & {
+    parentLayerId?: string;
+  };
   return rest as TranslationLayerDocType;
 }
 
 type LayerUnitType = 'unit' | 'segment';
 export type LayerUnitStatus = 'raw' | 'transcribed' | 'translated' | 'glossed' | 'verified';
 export type LayerContentRole = 'primary_text' | 'translation' | 'gloss' | 'note' | 'audio_ref';
-type UnitRelationType = 'aligned_to' | 'derived_from' | 'linked_reference' | 'analysis_graph_candidate';
+type UnitRelationType =
+  | 'aligned_to'
+  | 'derived_from'
+  | 'linked_reference'
+  | 'analysis_graph_candidate';
 export type UnitRelationLinkType = 'equivalent' | 'projection' | 'bridge' | 'time_subdivision';
 
 /**
@@ -852,7 +916,11 @@ export interface LayerLinkDocType {
   createdAt: string;
 }
 
-export type TierType = 'time-aligned' | 'time-subdivision' | 'symbolic-subdivision' | 'symbolic-association';
+export type TierType =
+  | 'time-aligned'
+  | 'time-subdivision'
+  | 'symbolic-subdivision'
+  | 'symbolic-association';
 type TierContentType = 'transcription' | 'translation' | 'gloss' | 'pos' | 'note' | 'custom';
 
 export interface TierDefinitionDocType {
@@ -969,7 +1037,13 @@ export type NoteTargetType =
   | 'morpheme'
   | 'annotation';
 
-export type NoteCategory = 'comment' | 'question' | 'todo' | 'linguistic' | 'fieldwork' | 'correction';
+export type NoteCategory =
+  | 'comment'
+  | 'question'
+  | 'todo'
+  | 'linguistic'
+  | 'fieldwork'
+  | 'correction';
 
 export interface UserNoteDocType {
   id: string;
@@ -1013,7 +1087,11 @@ export interface SegmentMetaDocType {
   updatedAt: string;
 }
 
-export type SegmentQualityIssueKey = 'empty_text' | 'missing_speaker' | 'low_ai_confidence' | 'todo_note';
+export type SegmentQualityIssueKey =
+  | 'empty_text'
+  | 'missing_speaker'
+  | 'low_ai_confidence'
+  | 'todo_note';
 export type SegmentQualitySeverity = 'ok' | 'warning' | 'critical';
 
 export interface SegmentQualitySnapshotDocType {
@@ -1184,7 +1262,10 @@ export type CollectionAdapter<T extends { id: string }> = {
   find: () => { exec: () => Promise<Array<JieyuDoc<T>>> };
   findOne: (args: { selector: Selector<T> }) => { exec: () => Promise<JieyuDoc<T> | null> };
   findByIndex: (indexName: string, value: string | number) => Promise<Array<JieyuDoc<T>>>;
-  findByIndexAnyOf: (indexName: string, values: readonly (string | number)[]) => Promise<Array<JieyuDoc<T>>>;
+  findByIndexAnyOf: (
+    indexName: string,
+    values: readonly (string | number)[],
+  ) => Promise<Array<JieyuDoc<T>>>;
   insert: (doc: T) => Promise<JieyuDoc<T>>;
   remove: (id: string) => Promise<void>;
   bulkInsert: (docs: T[]) => Promise<void>;
@@ -1236,6 +1317,7 @@ export type JieyuCollections = {
   language_asset_overviews: CollectionAdapter<LanguageAssetOverviewDocType>;
   ai_task_snapshots: CollectionAdapter<AiTaskSnapshotDocType>;
   track_entities: CollectionAdapter<TrackEntityDocType>;
+  ai_session_memories: CollectionAdapter<AiSessionMemoryDoc>;
   project_ai_memories: CollectionAdapter<ProjectAiMemoryDoc>;
   mcp_tool_call_audits: CollectionAdapter<McpToolCallAuditDoc>;
   ai_source_sets: CollectionAdapter<AiSourceSetDoc>;

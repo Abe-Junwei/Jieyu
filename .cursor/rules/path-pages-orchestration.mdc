@@ -1,0 +1,14 @@
+---
+description: 页面/Orchestrator 编排层边界与 controller 落位 canonical 指针
+globs: src/pages/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# 改页面 / Orchestrator / controller 时
+
+仅为指针，正文以 canonical 为准（不在此分叉规则）：
+
+- **编排层只做组装，不承载重业务逻辑**；下沉目标按职责选纯函数 / service / controller hook → `copilot-instructions.md` §一 / §三。
+- **复杂度阈值**：单 hook > 300 行，或 `useEffect/useMemo/useCallback` 合计 > 12 个必须拆 → §二。
+- **落位顺序**：先 controller/service 再接 UI；中等以上复杂度先定落位文件 → §五。页面专属 controller 放 `src/pages/useXxxController.ts`。
+- 机器守卫：`npm run check:architecture-guard`。

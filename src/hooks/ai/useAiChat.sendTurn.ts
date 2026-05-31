@@ -143,6 +143,8 @@ export async function runAiChatSendTurn(args: RunAiChatSendTurnArgs): Promise<vo
       queueFlushAssistantDraft,
       awaitQueuedPersistence,
       finalizeAssistantMessage,
+      conversationGenerationRef: args.conversationGenerationRef.current,
+      streamGenerationAtStart: preflight.streamGenerationAtStart,
       provider,
       flags,
       orchestrator,
