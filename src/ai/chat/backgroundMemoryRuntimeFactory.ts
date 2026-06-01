@@ -9,7 +9,11 @@ import {
   type AiChatBackgroundMemoryRuntime,
 } from '../../hooks/ai/useAiChat.backgroundMemory';
 import { featureFlags } from '../config/featureFlags';
-import { persistSessionMemory } from './sessionMemory';
+import {
+  getBoundSessionMemoryConversationId,
+  loadSessionMemoryAsync,
+  persistSessionMemoryAsync,
+} from './sessionMemory';
 import type { AiSessionMemory } from './chatDomain.types';
 
 export function createBackgroundMemoryRuntime(
@@ -29,7 +33,13 @@ export function createBackgroundMemoryRuntime(
     setSessionMemory: (nextMemory) => {
       sessionMemoryRef.current = nextMemory;
     },
-    persistSessionMemory,
+    persistSessionMemory: (conversationId, nextMemory) => {
+      void persistSessionMemoryAsync(conversationId, nextMemory);
+      if (getBoundSessionMemoryConversationId() === conversationId) {
+        sessionMemoryRef.current = nextMemory;
+      }
+    },
+    loadSessionMemoryForConversation: loadSessionMemoryAsync,
     getProjectId: () => getContextRef.current?.()?.shortTerm?.workspaceTextId ?? null,
   });
 }

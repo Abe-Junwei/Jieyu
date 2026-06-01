@@ -49,7 +49,9 @@ export interface CreateAiChatBackgroundMemoryRuntimeParams {
   flushQuotaMaxCompletedWriteFlushesPerConversation?: number;
   getSessionMemory: () => AiSessionMemory;
   setSessionMemory: (next: AiSessionMemory) => void;
-  persistSessionMemory: (next: AiSessionMemory) => void;
+  /** Persist to the extraction task's conversation, not the UI-bound active conversation. */
+  persistSessionMemory: (conversationId: string, next: AiSessionMemory) => void;
+  loadSessionMemoryForConversation: (conversationId: string) => Promise<AiSessionMemory>;
   /** PR-11: project-level AI memory persistence; when present, background facts are also written to localStorage. */
   getProjectId?: () => string | null | undefined;
 }
@@ -166,26 +168,21 @@ export function createAiChatBackgroundMemoryRuntime(
     sandboxDecision,
     ...(flushQuotaGate ? { flushQuotaGate } : {}),
     extractFacts: extractBackgroundMemoryFacts,
-    writeFacts: (facts, input) => {
+    writeFacts: async (facts, input) => {
       const directives = extractUserDirectives({
         userText: input.userText,
         source: 'background_extracted',
         sourceMessageId: input.userMessageId ?? input.assistantMessageId,
       });
-      lastDirectiveApplication = applyUserDirectivesToSessionMemory(
-        params.getSessionMemory(),
-        directives,
-      );
+      const baseMemory = await params.loadSessionMemoryForConversation(input.conversationId);
+      lastDirectiveApplication = applyUserDirectivesToSessionMemory(baseMemory, directives);
       const { nextMemory, writtenCount } = appendBackgroundFactsToSessionMemory(
         lastDirectiveApplication.nextMemory,
         facts,
       );
-      if (writtenCount > 0) {
-        params.setSessionMemory(nextMemory);
-        params.persistSessionMemory(nextMemory);
-      } else if (lastDirectiveApplication.ledgerEntries.length > 0) {
-        params.setSessionMemory(lastDirectiveApplication.nextMemory);
-        params.persistSessionMemory(lastDirectiveApplication.nextMemory);
+      const memoryToPersist = writtenCount > 0 ? nextMemory : lastDirectiveApplication.nextMemory;
+      if (writtenCount > 0 || lastDirectiveApplication.ledgerEntries.length > 0) {
+        params.persistSessionMemory(input.conversationId, memoryToPersist);
       }
       // PR-11: also write to project-level localStorage when projectId is available
       const projectId = params.getProjectId?.();

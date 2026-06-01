@@ -10,6 +10,7 @@ import {
 
 export {
   bindSessionMemoryConversation,
+  getBoundSessionMemoryConversationId,
   loadSessionMemory,
   loadSessionMemoryAsync,
   persistSessionMemory,
