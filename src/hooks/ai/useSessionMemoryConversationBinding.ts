@@ -1,6 +1,10 @@
 import { useEffect, useState, type MutableRefObject } from 'react';
 import { createLogger } from '../../observability/logger';
-import { bindSessionMemoryConversation, loadSessionMemoryAsync } from '../../ai/chat/sessionMemory';
+import {
+  bindSessionMemoryConversation,
+  loadSessionMemory,
+  loadSessionMemoryAsync,
+} from '../../ai/chat/sessionMemory';
 import type { AiSessionMemory } from './useAiChat.types';
 
 const log = createLogger('useSessionMemoryConversationBinding');
@@ -23,6 +27,9 @@ export function useSessionMemoryConversationBinding(
       setHydrationGeneration((generation) => generation + 1);
       return;
     }
+
+    // Drop previous conversation ref immediately; sync read uses per-conversation cache only.
+    sessionMemoryRef.current = loadSessionMemory();
 
     let cancelled = false;
     void loadSessionMemoryAsync(conversationId)
