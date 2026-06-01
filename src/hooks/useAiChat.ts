@@ -28,7 +28,7 @@ import type { AiChatBackgroundMemoryRuntime } from './ai/useAiChat.backgroundMem
 import { resolveAiChatResponsePolicy } from './ai/useAiChat.responsePolicy';
 
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
-import { loadSessionMemory, persistSessionMemory } from '../ai/chat/sessionMemory';
+import { persistSessionMemory } from '../ai/chat/sessionMemory';
 import { resetSessionMemoryForClear } from '../ai/chat/resetSessionMemoryForClear';
 import {
   bumpConversationGeneration,
@@ -38,6 +38,7 @@ import { useAiChatConversationManager } from './ai/useAiChatConversationManager'
 import { resolveComposedWorkflowReflectionRetry } from '../ai/chat/composedWorkflowRetry';
 import { buildStep2RetryPrompt } from '../ai/vertical/composedWorkflowTemplates';
 import { useAgentLoopSessionMemoryDexieReconcile } from './ai/useAiChat.agentLoopDexieReconcile';
+import { useSessionMemoryConversationBinding } from './ai/useSessionMemoryConversationBinding';
 import {
   abortAiChatStream,
   createApplyAssistantMessageResultWrapper,
@@ -171,8 +172,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   const [taskSession, setTaskSession] = useState<AiTaskSession>(() => createIdleTaskSession());
   const [metrics, setMetrics] = useState<AiInteractionMetrics>({ ...INITIAL_METRICS });
   const metricsRef = useLatest(metrics);
-  const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());
-  useAgentLoopSessionMemoryDexieReconcile(sessionMemoryRef);
+  const sessionMemoryRef = useRef<AiSessionMemory>({});
 
   // 用 useLatest 包装 send 内部读取的频繁变更值，减少 send 的依赖数组长度，
   // 避免长依赖数组导致的闭包重建风险（如 settings.model 变更时全量重建）。
@@ -254,6 +254,16 @@ export function useAiChat(options?: UseAiChatOptions) {
     onHistoryLoaded: setMessages,
     onHistoryLoadError: setLastError,
   });
+
+  const sessionMemoryHydrationGeneration = useSessionMemoryConversationBinding(
+    conversationId,
+    sessionMemoryRef,
+  );
+  useAgentLoopSessionMemoryDexieReconcile(
+    sessionMemoryRef,
+    conversationId,
+    sessionMemoryHydrationGeneration,
+  );
 
   const resetChatUiState = useCallback(() => {
     setLastError(null);

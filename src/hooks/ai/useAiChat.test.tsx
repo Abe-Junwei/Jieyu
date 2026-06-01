@@ -11,6 +11,11 @@ import {
   publishAssistantDialogueVoiceLayer,
   resetAssistantDialogueStateForTests,
 } from '../../services/assistantDialogueState';
+import {
+  readDexieSessionMemory,
+  seedAiChatConversationWithSessionMemory,
+  waitForDexieSessionMemory,
+} from './useAiChat.testSessionMemoryDexie.helpers';
 
 let lastSystemPrompt = '';
 const outputCapRetryAttemptByPrompt = new Map<string, number>();
@@ -404,6 +409,7 @@ async function clearAiTables(): Promise<void> {
     db.ai_conversations.clear(),
     db.ai_tasks.clear(),
     db.audit_logs.clear(),
+    db.ai_session_memories.clear(),
   ]);
 }
 
@@ -2968,11 +2974,14 @@ describe('useAiChat abort and recovery', () => {
     expect(warnedAssistant?.content).not.toContain('```json');
     expect(warnedAssistant?.content).not.toContain('"tool_call"');
 
-    const storedBefore = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      pendingAgentLoopCheckpoint?: { step?: number };
-    };
+    await waitFor(() => {
+      expect(result.current.conversationId).toBeTruthy();
+    });
+    const conversationId = result.current.conversationId!;
+    const storedBefore = await waitForDexieSessionMemory(
+      conversationId,
+      (mem) => mem.pendingAgentLoopCheckpoint?.step === 1,
+    );
     expect(storedBefore.pendingAgentLoopCheckpoint?.step).toBe(1);
 
     await act(async () => {
@@ -2986,11 +2995,7 @@ describe('useAiChat abort and recovery', () => {
     const resumedAssistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(resumedAssistant?.content).toContain('基于本地上下文，这是下一步回复。');
 
-    const storedAfter = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      pendingAgentLoopCheckpoint?: unknown;
-    };
+    const storedAfter = await readDexieSessionMemory(conversationId);
     expect(storedAfter.pendingAgentLoopCheckpoint).toBeUndefined();
   });
 
@@ -3020,11 +3025,13 @@ describe('useAiChat abort and recovery', () => {
       expect(result.current.isStreaming).toBe(false);
     });
 
-    const storedBefore = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      pendingAgentLoopCheckpoint?: { taskId?: string };
-    };
+    await waitFor(() => {
+      expect(result.current.conversationId).toBeTruthy();
+    });
+    const conversationId = result.current.conversationId!;
+    const storedBefore = await waitForDexieSessionMemory(conversationId, (mem) =>
+      Boolean(mem.pendingAgentLoopCheckpoint?.taskId),
+    );
     const taskId = storedBefore.pendingAgentLoopCheckpoint?.taskId;
     expect(taskId).toBeTruthy();
 
@@ -3085,11 +3092,13 @@ describe('useAiChat abort and recovery', () => {
       expect(firstRuntime.result.current.isStreaming).toBe(false);
     });
 
-    const storedBefore = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      pendingAgentLoopCheckpoint?: { taskId?: string };
-    };
+    await waitFor(() => {
+      expect(firstRuntime.result.current.conversationId).toBeTruthy();
+    });
+    const conversationId = firstRuntime.result.current.conversationId!;
+    const storedBefore = await waitForDexieSessionMemory(conversationId, (mem) =>
+      Boolean(mem.pendingAgentLoopCheckpoint?.taskId),
+    );
     const taskId = storedBefore.pendingAgentLoopCheckpoint?.taskId;
     expect(taskId).toBeTruthy();
 
@@ -3110,7 +3119,7 @@ describe('useAiChat abort and recovery', () => {
     });
 
     firstRuntime.unmount();
-    window.localStorage.removeItem('jieyu.aiChat.sessionMemory');
+    await db.ai_session_memories.delete(conversationId);
 
     const restartedRuntime = renderHook(() =>
       useAiChat({
@@ -3149,6 +3158,8 @@ describe('useAiChat abort and recovery', () => {
   });
 
   it('hydrates sessionMemory.pendingAgentLoopCheckpoint from ai_tasks on mount when local session is empty (T1-c)', async () => {
+    await seedAiChatConversationWithSessionMemory({});
+
     const taskId = await persistAgentLoopCheckpointTask({
       targetId: 'assistant-hydrate-mount',
       checkpoint: {
@@ -3173,17 +3184,15 @@ describe('useAiChat abort and recovery', () => {
       );
     });
 
-    const stored = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      pendingAgentLoopCheckpoint?: { taskId?: string; originalUserText?: string };
-    };
+    const conversationId = result.current.conversationId!;
+    const stored = await readDexieSessionMemory(conversationId);
     expect(stored.pendingAgentLoopCheckpoint?.taskId).toBe(taskId);
     expect(stored.pendingAgentLoopCheckpoint?.originalUserText).toBe('hydrate-me');
   });
 
   it('converging mounts: two useAiChat hooks surface the same latest durable checkpoint (T1-c)', async () => {
-    window.localStorage.removeItem('jieyu.aiChat.sessionMemory');
+    await seedAiChatConversationWithSessionMemory({});
+
     const olderId = await persistAgentLoopCheckpointTask({
       targetId: 'assistant-dual-old',
       checkpoint: {
@@ -3253,11 +3262,13 @@ describe('useAiChat abort and recovery', () => {
       expect(result.current.isStreaming).toBe(false);
     });
 
-    const storedBefore = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      pendingAgentLoopCheckpoint?: { taskId?: string };
-    };
+    await waitFor(() => {
+      expect(result.current.conversationId).toBeTruthy();
+    });
+    const conversationId = result.current.conversationId!;
+    const storedBefore = await waitForDexieSessionMemory(conversationId, (mem) =>
+      Boolean(mem.pendingAgentLoopCheckpoint?.taskId),
+    );
     const taskId = storedBefore.pendingAgentLoopCheckpoint?.taskId;
     expect(taskId).toBeTruthy();
 
@@ -3265,11 +3276,7 @@ describe('useAiChat abort and recovery', () => {
       await result.current.dismissPendingAgentLoopCheckpoint();
     });
 
-    const storedAfter = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      pendingAgentLoopCheckpoint?: unknown;
-    };
+    const storedAfter = await readDexieSessionMemory(conversationId);
     expect(storedAfter.pendingAgentLoopCheckpoint).toBeUndefined();
 
     await waitFor(async () => {
@@ -3308,32 +3315,26 @@ describe('useAiChat abort and recovery', () => {
       expect(result.current.isStreaming).toBe(false);
     });
 
-    const storedBefore = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      pendingAgentLoopCheckpoint?: { taskId?: string };
-    };
+    await waitFor(() => {
+      expect(result.current.conversationId).toBeTruthy();
+    });
+    const conversationId = result.current.conversationId!;
+    const storedBefore = await waitForDexieSessionMemory(conversationId, (mem) =>
+      Boolean(mem.pendingAgentLoopCheckpoint?.taskId),
+    );
     const taskId = storedBefore.pendingAgentLoopCheckpoint?.taskId;
     expect(taskId).toBeTruthy();
 
     act(() => {
       result.current.clearPendingAgentLoopCheckpointIfTaskIdMatches(`${taskId}wrong`);
     });
-    const storedNoop = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      pendingAgentLoopCheckpoint?: { taskId?: string };
-    };
+    const storedNoop = await readDexieSessionMemory(conversationId);
     expect(storedNoop.pendingAgentLoopCheckpoint?.taskId).toBe(taskId);
 
     act(() => {
       result.current.clearPendingAgentLoopCheckpointIfTaskIdMatches(taskId!);
     });
-    const storedAfter = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      pendingAgentLoopCheckpoint?: unknown;
-    };
+    const storedAfter = await readDexieSessionMemory(conversationId);
     expect(storedAfter.pendingAgentLoopCheckpoint).toBeUndefined();
   });
 
@@ -4322,7 +4323,6 @@ describe('useAiChat — deactivateSessionDirective integration', () => {
     lastSystemPrompt = '';
     outputCapRetryAttemptByPrompt.clear();
     clearAiLocalStorage();
-    window.localStorage.removeItem('jieyu.aiChat.sessionMemory');
     (featureFlags as { aiChatGrayMode: boolean; aiChatRollbackMode: boolean }).aiChatGrayMode =
       false;
     (featureFlags as { aiChatGrayMode: boolean; aiChatRollbackMode: boolean }).aiChatRollbackMode =
@@ -4338,7 +4338,6 @@ describe('useAiChat — deactivateSessionDirective integration', () => {
       false;
     (featureFlags as { aiChatGrayMode: boolean; aiChatRollbackMode: boolean }).aiChatRollbackMode =
       false;
-    window.localStorage.removeItem('jieyu.aiChat.sessionMemory');
     clearAiLocalStorage();
     await clearAiTables();
   });
@@ -4361,15 +4360,15 @@ describe('useAiChat — deactivateSessionDirective integration', () => {
         },
       ],
     };
-    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify(memorySeed));
+    const seededConversationId = await seedAiChatConversationWithSessionMemory(memorySeed);
 
     const { result } = renderHook(() => useAiChat());
 
     await waitFor(() => {
       expect(result.current.isBootstrapping).toBe(false);
+      expect(result.current.conversationId).toBe(seededConversationId);
+      expect(result.current.sessionMemory.responsePreferences?.style).toBe('concise');
     });
-
-    expect(result.current.sessionMemory.responsePreferences?.style).toBe('concise');
 
     await act(async () => {
       result.current.deactivateSessionDirective('dir-ledg-hook-1');
@@ -4381,12 +4380,7 @@ describe('useAiChat — deactivateSessionDirective integration', () => {
     );
     expect(ledgerEntry?.action).toBe('superseded');
 
-    const stored = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      responsePreferences?: { style?: string };
-      directiveLedger?: Array<{ id: string; action: string }>;
-    };
+    const stored = await readDexieSessionMemory(seededConversationId);
     expect(stored.responsePreferences).toBeUndefined();
     expect(stored.directiveLedger?.find((e) => e.id === 'dir-ledg-hook-1')?.action).toBe(
       'superseded',
@@ -4411,15 +4405,15 @@ describe('useAiChat — deactivateSessionDirective integration', () => {
         },
       ],
     };
-    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify(memorySeed));
+    const seededConversationId = await seedAiChatConversationWithSessionMemory(memorySeed);
 
     const { result } = renderHook(() => useAiChat());
 
     await waitFor(() => {
       expect(result.current.isBootstrapping).toBe(false);
+      expect(result.current.conversationId).toBe(seededConversationId);
+      expect(result.current.sessionMemory.toolPreferences?.preferLocalReads).toBe(true);
     });
-
-    expect(result.current.sessionMemory.toolPreferences?.preferLocalReads).toBe(true);
 
     await act(async () => {
       result.current.deactivateSessionDirective('dir-ledg-hook-tool-1');
@@ -4431,12 +4425,7 @@ describe('useAiChat — deactivateSessionDirective integration', () => {
     );
     expect(ledgerEntry?.action).toBe('superseded');
 
-    const stored = JSON.parse(
-      window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}',
-    ) as {
-      toolPreferences?: { preferLocalReads?: boolean };
-      directiveLedger?: Array<{ id: string; action: string }>;
-    };
+    const stored = await readDexieSessionMemory(seededConversationId);
     expect(stored.toolPreferences).toBeUndefined();
     expect(stored.directiveLedger?.find((e) => e.id === 'dir-ledg-hook-tool-1')?.action).toBe(
       'superseded',
