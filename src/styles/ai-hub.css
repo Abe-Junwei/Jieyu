@@ -2080,7 +2080,7 @@ select.ai-cfg-input {
 }
 
 .ai-conversation-action-menu-item-danger {
-  color: var(--state-danger-solid, #b42318);
+  color: var(--state-danger-solid);
 }
 
 .ai-conversation-delete-dialog-actions {
