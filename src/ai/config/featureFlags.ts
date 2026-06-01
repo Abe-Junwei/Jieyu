@@ -55,6 +55,10 @@ const aiConversationManagementFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_CONVERSATION_MANAGEMENT_ENABLED,
 );
 
+const collaborationCloudEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_COLLABORATION_CLOUD_ENABLED,
+);
+
 const aiAgentLoopToolResultQualityGateEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_AGENT_LOOP_TOOL_RESULT_QUALITY_GATE_ENABLED,
 );
@@ -115,6 +119,11 @@ export const featureFlags = {
   aiMcpServerEnabled: aiMcpServerEnabledFromEnv ?? false,
   /** G1 多会话目录 + clearCurrent / startNew（PR-6 起默认开启；可用 env 覆盖） */
   aiConversationManagement: aiConversationManagementFromEnv ?? true,
+  /**
+   * 协作云同步总开关（Realtime / outbound queue / presence / 云端目录）。
+   * 默认 true 保持现网行为；设为 false 可全局关闭协同写路径与 bridge 订阅。
+   */
+  collaborationCloudEnabled: collaborationCloudEnabledFromEnv ?? true,
   /**
    * Agent loop verify 步（Result Quality Gate）：在 continuation payload 中附带工具结果质量标注
    * （empty_result / search_no_results / tool_failed），让模型不基于空证据收敛或编造。
