@@ -18,6 +18,8 @@ interface WorkerPoolEntry {
   readonly id: string;
   readonly label: string;
   readonly worker: Worker;
+  /** Service-owned worker: pool monitors only; lifecycle/restart stays with the owner. */
+  readonly ownerManaged: boolean;
   state: WorkerLifecycleState;
   /** 自增重启计数 | Incremented on each restart */
   restartCount: number;
@@ -71,6 +73,7 @@ class WorkerPoolImpl {
       id,
       label,
       worker,
+      ownerManaged: existingWorker != null,
       state: 'idle',
       restartCount: 0,
       lastHeartbeatAt: Date.now(),
@@ -185,6 +188,12 @@ class WorkerPoolImpl {
   }
 
   private attemptRestart(entry: WorkerPoolEntry): void {
+    if (entry.ownerManaged) {
+      log.warn(
+        `[WorkerPool] "${entry.label}" is owner-managed; skipping auto-restart (service must recover)`,
+      );
+      return;
+    }
     if (entry.restartCount >= MAX_AUTO_RESTARTS) {
       log.error(
         `[WorkerPool] "${entry.label}" exceeded max restarts (${MAX_AUTO_RESTARTS}), giving up`,

@@ -24,6 +24,8 @@ export function useSessionMemoryConversationBinding(
       return;
     }
 
+    sessionMemoryRef.current = {};
+
     let cancelled = false;
     void loadSessionMemoryAsync(conversationId)
       .then((memory) => {

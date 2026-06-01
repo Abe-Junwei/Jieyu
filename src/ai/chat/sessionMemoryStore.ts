@@ -8,7 +8,9 @@ const log = createLogger('aiChatSessionMemoryStore');
 const MAX_MEMORY_CACHE_ENTRIES = 32;
 
 const memoryCache = new Map<string, AiSessionMemory>();
+const pendingPersistByConversation = new Map<string, AiSessionMemory>();
 let activeConversationId: string | null = null;
+let hydratedConversationId: string | null = null;
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -26,23 +28,50 @@ function touchMemoryCache(conversationId: string, payload: AiSessionMemory): voi
   }
 }
 
+function markConversationHydrated(conversationId: string): void {
+  hydratedConversationId = conversationId;
+  const pending = pendingPersistByConversation.get(conversationId);
+  if (pending === undefined) return;
+  pendingPersistByConversation.delete(conversationId);
+  const baseline = memoryCache.get(conversationId) ?? {};
+  void persistSessionMemoryAsync(
+    conversationId,
+    normalizeSessionMemory({ ...baseline, ...pending }),
+  );
+}
+
 /** Binds sync load/persist to a conversation; call when `conversationId` changes (G1a). */
 export function bindSessionMemoryConversation(conversationId: string | null): void {
+  if (conversationId !== activeConversationId) {
+    if (activeConversationId) {
+      pendingPersistByConversation.delete(activeConversationId);
+    }
+    if (conversationId) {
+      pendingPersistByConversation.delete(conversationId);
+    }
+  }
   activeConversationId = conversationId;
+  if (conversationId !== hydratedConversationId) {
+    hydratedConversationId = null;
+  }
 }
 
 /** Test-only: reset in-memory session memory store between cases. */
 export function resetSessionMemoryStoreForTests(): void {
   memoryCache.clear();
+  pendingPersistByConversation.clear();
   activeConversationId = null;
+  hydratedConversationId = null;
 }
 
 export async function loadSessionMemoryAsync(conversationId: string): Promise<AiSessionMemory> {
   if (typeof window === 'undefined') return {};
-  const cached = memoryCache.get(conversationId);
-  if (cached !== undefined) {
-    touchMemoryCache(conversationId, cached);
-    return cached;
+  if (hydratedConversationId === conversationId) {
+    const cached = memoryCache.get(conversationId);
+    if (cached !== undefined) {
+      touchMemoryCache(conversationId, cached);
+      return cached;
+    }
   }
 
   try {
@@ -53,6 +82,7 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
     if (row) {
       const payload = normalizeSessionMemory(row.toJSON().payload ?? {});
       touchMemoryCache(conversationId, payload);
+      markConversationHydrated(conversationId);
       return payload;
     }
   } catch (error) {
@@ -64,6 +94,7 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
 
   const empty: AiSessionMemory = {};
   touchMemoryCache(conversationId, empty);
+  markConversationHydrated(conversationId);
   return empty;
 }
 
@@ -105,5 +136,9 @@ export function persistSessionMemory(mem: AiSessionMemory): void {
     return;
   }
   touchMemoryCache(activeConversationId, normalized);
+  if (hydratedConversationId !== activeConversationId) {
+    pendingPersistByConversation.set(activeConversationId, normalized);
+    return;
+  }
   void persistSessionMemoryAsync(activeConversationId, normalized);
 }
