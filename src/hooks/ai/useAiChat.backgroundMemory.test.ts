@@ -9,6 +9,12 @@ import {
 import type { AiSessionMemory } from './useAiChat.types';
 import type { AuditLogDocType } from '../../db/types';
 
+function memoryLoader(
+  getMemory: () => AiSessionMemory,
+): (conversationId: string) => Promise<AiSessionMemory> {
+  return async () => getMemory();
+}
+
 describe('useAiChat.backgroundMemory', () => {
   it('does not duplicate explicit user directives as project facts', () => {
     const facts = extractBackgroundMemoryFacts({
@@ -44,7 +50,7 @@ describe('useAiChat.backgroundMemory', () => {
 
   it('schedules, flushes and emits background extraction audit logs', async () => {
     let memory: AiSessionMemory = {};
-    const persisted = vi.fn<(next: AiSessionMemory) => void>();
+    const persisted = vi.fn<(conversationId: string, next: AiSessionMemory) => void>();
     const insertAuditLog = vi.fn<(entry: AuditLogDocType) => Promise<void>>(async () => {});
     const runtime = createAiChatBackgroundMemoryRuntime({
       enabled: true,
@@ -52,7 +58,11 @@ describe('useAiChat.backgroundMemory', () => {
       setSessionMemory: (next) => {
         memory = next;
       },
-      persistSessionMemory: persisted,
+      persistSessionMemory: (conversationId, next) => {
+        memory = next;
+        persisted(conversationId, next);
+      },
+      loadSessionMemoryForConversation: memoryLoader(() => memory),
     });
 
     const scheduled = runtime.extractor.schedule({
@@ -86,7 +96,7 @@ describe('useAiChat.backgroundMemory', () => {
 
   it('keeps background extraction behavior when sandbox flag is disabled', async () => {
     let memory: AiSessionMemory = {};
-    const persisted = vi.fn<(next: AiSessionMemory) => void>();
+    const persisted = vi.fn<(conversationId: string, next: AiSessionMemory) => void>();
     const insertAuditLog = vi.fn<(entry: AuditLogDocType) => Promise<void>>(async () => {});
     const runtime = createAiChatBackgroundMemoryRuntime({
       enabled: true,
@@ -96,7 +106,11 @@ describe('useAiChat.backgroundMemory', () => {
       setSessionMemory: (next) => {
         memory = next;
       },
-      persistSessionMemory: persisted,
+      persistSessionMemory: (conversationId, next) => {
+        memory = next;
+        persisted(conversationId, next);
+      },
+      loadSessionMemoryForConversation: memoryLoader(() => memory),
     });
     runtime.extractor.schedule({
       conversationId: 'conv-1',
@@ -122,7 +136,7 @@ describe('useAiChat.backgroundMemory', () => {
 
   it('skips background extraction when sandbox profile requires approval', async () => {
     let memory: AiSessionMemory = {};
-    const persisted = vi.fn<(next: AiSessionMemory) => void>();
+    const persisted = vi.fn<(conversationId: string, next: AiSessionMemory) => void>();
     const insertAuditLog = vi.fn<(entry: AuditLogDocType) => Promise<void>>(async () => {});
     const runtime = createAiChatBackgroundMemoryRuntime({
       enabled: true,
@@ -133,6 +147,7 @@ describe('useAiChat.backgroundMemory', () => {
         memory = next;
       },
       persistSessionMemory: persisted,
+      loadSessionMemoryForConversation: memoryLoader(() => memory),
     });
     runtime.extractor.schedule({
       conversationId: 'conv-1',
@@ -171,6 +186,7 @@ describe('useAiChat.backgroundMemory', () => {
         memory = next;
       },
       persistSessionMemory: vi.fn(),
+      loadSessionMemoryForConversation: memoryLoader(() => memory),
     });
     runtime.extractor.schedule({
       conversationId: 'conv-1',
@@ -190,6 +206,7 @@ describe('useAiChat.backgroundMemory', () => {
       getSessionMemory: () => memory,
       setSessionMemory: () => {},
       persistSessionMemory: vi.fn(),
+      loadSessionMemoryForConversation: memoryLoader(() => memory),
     });
     skippedRuntime.extractor.schedule({
       conversationId: 'conv-1',
@@ -210,7 +227,7 @@ describe('useAiChat.backgroundMemory', () => {
 
   it('skips background flush when session write quota is enabled and exceeded', async () => {
     let memory: AiSessionMemory = {};
-    const persisted = vi.fn<(next: AiSessionMemory) => void>();
+    const persisted = vi.fn<(conversationId: string, next: AiSessionMemory) => void>();
     const insertAuditLog = vi.fn<(entry: AuditLogDocType) => Promise<void>>(async () => {});
     const runtime = createAiChatBackgroundMemoryRuntime({
       enabled: true,
@@ -220,7 +237,11 @@ describe('useAiChat.backgroundMemory', () => {
       setSessionMemory: (next) => {
         memory = next;
       },
-      persistSessionMemory: persisted,
+      persistSessionMemory: (conversationId, next) => {
+        memory = next;
+        persisted(conversationId, next);
+      },
+      loadSessionMemoryForConversation: memoryLoader(() => memory),
     });
 
     runtime.extractor.schedule({
@@ -253,5 +274,47 @@ describe('useAiChat.backgroundMemory', () => {
     expect(skippedMetadata.some((m) => m.skippedReason === 'session-write-quota-exceeded')).toBe(
       true,
     );
+  });
+
+  it('persists background memory to the scheduled conversation id, not the UI-bound conversation', async () => {
+    const convA: AiSessionMemory = { preferences: { lastLanguage: 'cmn' } };
+    const convB: AiSessionMemory = { preferences: { lastLanguage: 'eng' } };
+    const memoryByConversation = new Map<string, AiSessionMemory>([
+      ['conv-a', { ...convA }],
+      ['conv-b', { ...convB }],
+    ]);
+    let uiMemory: AiSessionMemory = { ...convB };
+    const persisted = vi.fn<(conversationId: string, next: AiSessionMemory) => void>();
+    const runtime = createAiChatBackgroundMemoryRuntime({
+      enabled: true,
+      getSessionMemory: () => uiMemory,
+      setSessionMemory: (next) => {
+        uiMemory = next;
+      },
+      persistSessionMemory: (conversationId, next) => {
+        persisted(conversationId, next);
+        memoryByConversation.set(conversationId, next);
+      },
+      loadSessionMemoryForConversation: async (conversationId) => ({
+        ...(memoryByConversation.get(conversationId) ?? {}),
+      }),
+    });
+
+    runtime.extractor.schedule({
+      conversationId: 'conv-a',
+      assistantMessageId: 'ast-a',
+      userMessageId: 'usr-a',
+      userText: '请记住：默认用中文解释',
+      assistantText: '好的。',
+      actorId: 'ai-chat',
+    });
+    await flushBackgroundMemoryExtractor(runtime, async () => {});
+
+    expect(persisted).toHaveBeenCalledWith(
+      'conv-a',
+      expect.objectContaining({ responsePreferences: { language: 'zh-CN' } }),
+    );
+    expect(uiMemory.preferences?.lastLanguage).toBe('eng');
+    expect(memoryByConversation.get('conv-a')?.responsePreferences?.language).toBe('zh-CN');
   });
 });
