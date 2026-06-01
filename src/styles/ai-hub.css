@@ -1902,7 +1902,8 @@ select.ai-cfg-input {
   cursor: pointer;
 }
 
-.ai-chat-conversation-title-btn:hover {
+.ai-chat-conversation-title-btn:hover,
+.ai-chat-conversation-title-btn:focus-visible {
   background: color-mix(in srgb, var(--surface-header) 70%, transparent);
 }
 
@@ -2075,7 +2076,8 @@ select.ai-cfg-input {
   border-radius: var(--radius-sm);
 }
 
-.ai-conversation-action-menu-item:hover {
+.ai-conversation-action-menu-item:hover,
+.ai-conversation-action-menu-item:focus-visible {
   background: color-mix(in srgb, var(--surface-header) 70%, transparent);
 }
 
