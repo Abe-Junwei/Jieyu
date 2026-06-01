@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db';
 import { JIEYU_DEXIE_DB_NAME } from '../../db/engine';
 import { useTranscriptionRecoverySnapshotScheduler } from './useTranscriptionRecovery';
 
@@ -21,8 +22,14 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
     mockSaveRecoverySnapshot.mockResolvedValue(undefined);
   });
 
+  const unitsRef = { current: [] as LayerUnitDocType[] };
+  const translationsRef = { current: [] as LayerUnitContentDocType[] };
+  const layersRef = { current: [] as LayerDocType[] };
+
   it('should expose scheduler state refs and recoverySave API', () => {
-    const { result } = renderHook(() => useTranscriptionRecoverySnapshotScheduler());
+    const { result } = renderHook(() =>
+      useTranscriptionRecoverySnapshotScheduler({ unitsRef, translationsRef, layersRef }),
+    );
 
     expect(result.current.dbNameRef.current).toBeUndefined();
     expect(result.current.dirtyRef.current).toBe(false);
@@ -31,7 +38,9 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
   });
 
   it('should persist snapshot only when dirty=true and dbName exists', async () => {
-    const { result } = renderHook(() => useTranscriptionRecoverySnapshotScheduler());
+    const { result } = renderHook(() =>
+      useTranscriptionRecoverySnapshotScheduler({ unitsRef, translationsRef, layersRef }),
+    );
 
     await act(async () => {
       result.current.scheduleRecoverySave();
@@ -47,6 +56,10 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
       vi.advanceTimersByTime(3100);
     });
 
-    expect(mockSaveRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME);
+    expect(mockSaveRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME, {
+      units: unitsRef.current,
+      translations: translationsRef.current,
+      layers: layersRef.current,
+    });
   });
 });

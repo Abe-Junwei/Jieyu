@@ -25,6 +25,13 @@ export type SaveRecoverySnapshotOptions = {
   maxSerializedUtf8Bytes?: number;
 };
 
+/** In-memory layer graph not yet flushed to Dexie; merged over DB export when saving recovery. */
+export type SaveRecoverySnapshotOverlay = {
+  units: LayerUnitDocType[];
+  translations: LayerUnitContentDocType[];
+  layers: LayerDocType[];
+};
+
 interface LegacyRecoveryRow {
   dbName: string;
   schemaVersion: number;
@@ -109,11 +116,30 @@ async function dropCorruptedRecoverySnapshot(dbName: string): Promise<null> {
   return null;
 }
 
+function applyRecoveryOverlay(
+  snapshot: RecoveryDatabaseSnapshot,
+  overlay: SaveRecoverySnapshotOverlay,
+): RecoveryDatabaseSnapshot {
+  return {
+    ...snapshot,
+    collections: {
+      ...snapshot.collections,
+      layer_units: overlay.units,
+      layer_unit_contents: overlay.translations,
+      layers: overlay.layers,
+    },
+  };
+}
+
 export async function saveRecoverySnapshot(
   dbName: string,
+  overlay?: SaveRecoverySnapshotOverlay,
   options?: SaveRecoverySnapshotOptions,
 ): Promise<void> {
-  const snapshot = await exportRecoveryDatabaseAsJson();
+  let snapshot = await exportRecoveryDatabaseAsJson();
+  if (overlay) {
+    snapshot = applyRecoveryOverlay(snapshot, overlay);
+  }
   const snapshotJson = JSON.stringify(snapshot);
   const maxBytes =
     options?.maxSerializedUtf8Bytes ?? DEFAULT_RECOVERY_SNAPSHOT_MAX_SERIALIZED_UTF8_BYTES;

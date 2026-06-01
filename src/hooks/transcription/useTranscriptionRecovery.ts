@@ -1,9 +1,21 @@
 import { useRef } from 'react';
+import type { MutableRefObject } from 'react';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db';
 import { saveRecoverySnapshot } from '../../services/SnapshotService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { useDebouncedCallback } from '../ui/useDebouncedCallback';
 
-export function useTranscriptionRecoverySnapshotScheduler() {
+type Params = {
+  unitsRef: MutableRefObject<LayerUnitDocType[]>;
+  translationsRef: MutableRefObject<LayerUnitContentDocType[]>;
+  layersRef: MutableRefObject<LayerDocType[]>;
+};
+
+export function useTranscriptionRecoverySnapshotScheduler({
+  unitsRef,
+  translationsRef,
+  layersRef,
+}: Params) {
   const dbNameRef = useRef<string | undefined>(undefined);
   const dirtyRef = useRef(false);
 
@@ -11,10 +23,14 @@ export function useTranscriptionRecoverySnapshotScheduler() {
     if (!dirtyRef.current) return;
     const name = dbNameRef.current;
     if (!name) return;
-    fireAndForget(saveRecoverySnapshot(name), {
-      context: 'src/hooks/transcription/useTranscriptionRecovery.ts:L16',
-      policy: 'background',
-    });
+    fireAndForget(
+      saveRecoverySnapshot(name, {
+        units: unitsRef.current,
+        translations: translationsRef.current,
+        layers: layersRef.current,
+      }),
+      { context: 'src/hooks/transcription/useTranscriptionRecovery.ts:L26', policy: 'background' },
+    );
   }, 3000);
 
   const scheduleRecoverySave = recoverySave.run;
