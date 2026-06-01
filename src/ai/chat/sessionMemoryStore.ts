@@ -30,6 +30,10 @@ function touchMemoryCache(conversationId: string, payload: AiSessionMemory): voi
   }
 }
 
+function isEmptySessionMemoryPayload(payload: AiSessionMemory): boolean {
+  return Object.keys(normalizeSessionMemory(payload)).length === 0;
+}
+
 function isLegacySessionMemoryMigrationMarkedComplete(): boolean {
   if (typeof window === 'undefined') return false;
   return window.localStorage.getItem(LEGACY_SESSION_MEMORY_MIGRATED_KEY) === '1';
@@ -115,8 +119,11 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
       .exec();
     if (row) {
       const payload = normalizeSessionMemory(row.toJSON().payload ?? {});
-      touchMemoryCache(conversationId, payload);
-      return payload;
+      // Empty Dexie rows (e.g. startNewConversation seed) must not block legacy migration.
+      if (!isEmptySessionMemoryPayload(payload)) {
+        touchMemoryCache(conversationId, payload);
+        return payload;
+      }
     }
   } catch (error) {
     log.warn('Failed to load AI session memory from Dexie', {

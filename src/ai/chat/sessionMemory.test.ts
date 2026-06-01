@@ -39,6 +39,21 @@ describe('sessionMemory Dexie store (G1a)', () => {
     expect(loaded.preferences?.lastLanguage).toBe('cmn');
   });
 
+  it('migrates legacy localStorage when Dexie already has an empty row for the conversation', async () => {
+    const conversationId = 'conv-empty-row-migrate';
+    await persistSessionMemoryAsync(conversationId, {});
+    window.localStorage.setItem(
+      'jieyu.aiChat.sessionMemory',
+      JSON.stringify({ lastLanguage: 'eng', lastToolName: 'set_transcription_text' }),
+    );
+    resetSessionMemoryStoreForTests();
+    bindSessionMemoryConversation(conversationId);
+
+    const loaded = await loadSessionMemoryAsync(conversationId);
+    expect(loaded.preferences?.lastLanguage).toBe('eng');
+    expect(window.localStorage.getItem('jieyu.aiChat.sessionMemory')).toBeNull();
+  });
+
   it('migrates legacy localStorage into Dexie for active conversation', async () => {
     window.localStorage.setItem(
       'jieyu.aiChat.sessionMemory',
