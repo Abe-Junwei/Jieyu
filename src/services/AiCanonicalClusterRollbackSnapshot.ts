@@ -4,7 +4,7 @@
  */
 import type { Table } from 'dexie';
 import { invalidateUnitEmbeddings } from '../ai/embeddings/EmbeddingInvalidationService';
-import { SegmentMetaService } from './SegmentMetaService';
+import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
 import type {
   AnchorDocType,
   JieyuDatabase,
@@ -15,7 +15,10 @@ import type {
   UnitTokenDocType,
   UserNoteDocType,
 } from '../db';
-import { dexieStoresForLayerSegmentGraphRw, dexieStoresForRemoveUnitCascadeRw } from '../db/dexieTranscriptionGraphStores';
+import {
+  dexieStoresForLayerSegmentGraphRw,
+  dexieStoresForRemoveUnitCascadeRw,
+} from '../db/dexieTranscriptionGraphStores';
 import { withTransaction } from '../db/withTransaction';
 import {
   bulkUpsertLayerUnitContents,
@@ -40,7 +43,10 @@ function uniqueIds(ids: readonly string[]): string[] {
  * Default 4000; see `docs/architecture/ai-propose-changes-rollback-scale.md`.
  */
 export function getAiStructuralRollbackMaxSelectionIds(): number {
-  const raw = typeof process !== 'undefined' ? process.env.JIEYU_AI_STRUCTURAL_ROLLBACK_MAX_SELECTION_IDS : undefined;
+  const raw =
+    typeof process !== 'undefined'
+      ? process.env.JIEYU_AI_STRUCTURAL_ROLLBACK_MAX_SELECTION_IDS
+      : undefined;
   const n = raw != null && String(raw).trim() !== '' ? Number(raw) : NaN;
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 4000;
 }
@@ -110,21 +116,31 @@ export async function captureAiCanonicalClusterRollbackSnapshot(
     ...tokenIds.map((id) => ['token', id] as [string, string]),
     ...morphIds.map((id) => ['morpheme', id] as [string, string]),
   ];
-  const tokenLexemeLinks = linkTargets.length === 0
-    ? []
-    : await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(linkTargets).toArray();
+  const tokenLexemeLinks =
+    linkTargets.length === 0
+      ? []
+      : await db.dexie.token_lexeme_links
+          .where('[targetType+targetId]')
+          .anyOf(linkTargets)
+          .toArray();
 
   const anchorIds = new Set<string>();
   for (const row of canonicalUnits) {
     if (row.startAnchorId) anchorIds.add(row.startAnchorId);
     if (row.endAnchorId) anchorIds.add(row.endAnchorId);
   }
-  const anchors = anchorIds.size === 0
-    ? []
-    : (await db.dexie.anchors.bulkGet([...anchorIds])).filter((a): a is AnchorDocType => Boolean(a));
+  const anchors =
+    anchorIds.size === 0
+      ? []
+      : (await db.dexie.anchors.bulkGet([...anchorIds])).filter((a): a is AnchorDocType =>
+          Boolean(a),
+        );
 
   const noteTargets = ids.map((id) => ['unit', id] as [string, string]);
-  const userNotes = await db.dexie.user_notes.where('[targetType+targetId]').anyOf(noteTargets).toArray();
+  const userNotes = await db.dexie.user_notes
+    .where('[targetType+targetId]')
+    .anyOf(noteTargets)
+    .toArray();
 
   return {
     canonicalUnitIds: ids,
@@ -197,7 +213,10 @@ export async function restoreAiCanonicalClusterRollbackSnapshot(
         ...snapshot.morphemes.map((m) => ['morpheme', m.id] as [string, string]),
       ];
       if (linkTargets.length > 0) {
-        await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(linkTargets).delete();
+        await db.dexie.token_lexeme_links
+          .where('[targetType+targetId]')
+          .anyOf(linkTargets)
+          .delete();
       }
       if (snapshot.tokenLexemeLinks.length > 0) {
         await db.dexie.token_lexeme_links.bulkPut(snapshot.tokenLexemeLinks);
@@ -214,11 +233,6 @@ export async function restoreAiCanonicalClusterRollbackSnapshot(
 
   await invalidateUnitEmbeddings(db, ids);
 
-  const metaIds = uniqueIds([
-    ...ids,
-    ...snapshot.segmentGraph.units.map((u) => u.id),
-  ]);
-  void SegmentMetaService.syncForUnitIds(metaIds).catch(() => {
-    // Same fire-and-forget posture as removeUnitCascade | SegmentMeta refresh must not block rollback.
-  });
+  const metaIds = uniqueIds([...ids, ...snapshot.segmentGraph.units.map((u) => u.id)]);
+  scheduleSegmentMetaSyncForUnitIds(metaIds, 'AiCanonicalClusterRollbackSnapshot.restore');
 }

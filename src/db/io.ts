@@ -79,6 +79,46 @@ export async function exportDatabaseAsJson(): Promise<{
 
 import { markBackupCompleted } from '../utils/backupExportTimestamp';
 
+/** Collections included in runtime crash-recovery snapshots (transcription core). */
+export const RECOVERY_EXPORT_COLLECTIONS = [
+  'texts',
+  'media_items',
+  'layers',
+  'layer_links',
+  'layer_units',
+  'layer_unit_contents',
+  'segment_meta',
+  'unit_relations',
+  'unit_tokens',
+  'unit_morphemes',
+  'speakers',
+  'notes',
+  'user_notes',
+  'anchors',
+] as const;
+
+export async function exportRecoveryDatabaseAsJson(): Promise<{
+  schemaVersion: number;
+  exportedAt: string;
+  dbName: string;
+  collections: Record<string, unknown[]>;
+}> {
+  const full = await exportDatabaseAsJson();
+  const collections: Record<string, unknown[]> = {};
+  for (const name of RECOVERY_EXPORT_COLLECTIONS) {
+    const rows = full.collections[name];
+    if (Array.isArray(rows)) {
+      collections[name] = rows;
+    }
+  }
+  return {
+    schemaVersion: full.schemaVersion,
+    exportedAt: full.exportedAt,
+    dbName: full.dbName,
+    collections,
+  };
+}
+
 export async function downloadDatabaseAsJson(filename?: string): Promise<void> {
   if (typeof window === 'undefined') {
     throw new Error('downloadDatabaseAsJson can only run in browser context');

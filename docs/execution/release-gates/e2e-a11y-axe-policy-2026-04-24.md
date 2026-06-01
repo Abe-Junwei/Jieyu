@@ -3,7 +3,7 @@ title: E2E 可访问性（Axe）门禁策略
 doc_type: execution-release-gates
 status: active
 owner: repo
-last_reviewed: 2026-04-24
+last_reviewed: 2026-06-01
 source_of_truth: e2e-a11y-axe-policy
 ---
 
@@ -21,6 +21,7 @@ source_of_truth: e2e-a11y-axe-policy
 - **范围（`AxeBuilder.include`）**：
   - 首页 `/`：`nav` 与 `main` 均在 **`locator` 可见**（各最长 15s）后再 `include` 扫描，避免壳层异步挂载导致「include 无匹配」flake。
   - 转写页 `/transcription`：在 `transcription-workspace-screen` 可见后，对 `[data-testid="transcription-workspace-screen"]` 与 `.left-rail-project-hub-root` 扫描。
+  - 转写页 AI 侧栏 composer：通过 `tests/e2e/_helpers/expandTranscriptionAiPanel.ts` 展开默认折叠的 AI 面板后，对 `[data-testid="ai-chat-composer-input"]` 扫描（最长 60s 等待挂载）。
 
 ## 与「关键路径」E2E 的关系
 

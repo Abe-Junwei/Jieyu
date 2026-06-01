@@ -1,6 +1,6 @@
 type PreMigrationBackupResult = 'created' | 'skipped' | 'failed';
 
-type PreMigrationBackupSnapshot = {
+export type PreMigrationBackupSnapshot = {
   id: string;
   dbName: string;
   fromVersion: number;
@@ -189,4 +189,121 @@ export async function createPreMigrationBackupSnapshot(
   } finally {
     sourceDb?.close();
   }
+}
+
+async function openBackupDbReadonly(): Promise<IDBDatabase> {
+  return openIndexedDb(
+    PRE_MIGRATION_BACKUP_DB_NAME,
+    PRE_MIGRATION_BACKUP_SCHEMA_VERSION,
+    (upgradeDb) => {
+      if (!upgradeDb.objectStoreNames.contains(PRE_MIGRATION_BACKUP_STORE_NAME)) {
+        upgradeDb.createObjectStore(PRE_MIGRATION_BACKUP_STORE_NAME, { keyPath: 'id' });
+      }
+    },
+  );
+}
+
+async function readAllBackupSnapshots(): Promise<PreMigrationBackupSnapshot[]> {
+  if (typeof indexedDB === 'undefined') return [];
+  const db = await openBackupDbReadonly();
+  try {
+    const tx = db.transaction(PRE_MIGRATION_BACKUP_STORE_NAME, 'readonly');
+    const rows = await requestToPromise(tx.objectStore(PRE_MIGRATION_BACKUP_STORE_NAME).getAll());
+    await transactionDone(tx);
+    return rows as PreMigrationBackupSnapshot[];
+  } finally {
+    db.close();
+  }
+}
+
+export async function listPreMigrationBackups(
+  dbName: string,
+): Promise<PreMigrationBackupSnapshot[]> {
+  return (await readAllBackupSnapshots())
+    .filter((row) => row.dbName === dbName)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export async function getLatestPreMigrationBackup(
+  dbName: string,
+): Promise<PreMigrationBackupSnapshot | null> {
+  const rows = await listPreMigrationBackups(dbName);
+  return rows[0] ?? null;
+}
+
+export async function getPreMigrationBackupById(
+  snapshotId: string,
+): Promise<PreMigrationBackupSnapshot | null> {
+  if (typeof indexedDB === 'undefined') return null;
+  const db = await openBackupDbReadonly();
+  try {
+    const tx = db.transaction(PRE_MIGRATION_BACKUP_STORE_NAME, 'readonly');
+    const row = await requestToPromise(
+      tx.objectStore(PRE_MIGRATION_BACKUP_STORE_NAME).get(snapshotId),
+    );
+    await transactionDone(tx);
+    return (row as PreMigrationBackupSnapshot | undefined) ?? null;
+  } finally {
+    db.close();
+  }
+}
+
+function inferObjectStoreKeyPath(rows: unknown[]): string {
+  if (rows.length === 0) return 'id';
+  const row = rows[0] as Record<string, unknown>;
+  if (typeof row.id === 'string' || typeof row.id === 'number') return 'id';
+  if (typeof row.dbName === 'string') return 'dbName';
+  const keys = Object.keys(row);
+  return keys[0] ?? 'id';
+}
+
+function deleteIndexedDb(dbName: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('indexedDB unavailable'));
+      return;
+    }
+    const request = indexedDB.deleteDatabase(dbName);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error ?? new Error(`failed to delete ${dbName}`));
+    request.onblocked = () => reject(new Error(`delete blocked for ${dbName}`));
+  });
+}
+
+/**
+ * Restores a pre-migration snapshot back into the source database at `fromVersion`.
+ * Clears the migration marker so a fresh backup can be taken before the next upgrade attempt.
+ */
+export async function restorePreMigrationBackup(
+  snapshotId: string,
+): Promise<'restored' | 'not_found'> {
+  const snapshot = await getPreMigrationBackupById(snapshotId);
+  if (!snapshot) return 'not_found';
+
+  await deleteIndexedDb(snapshot.dbName);
+
+  const db = await openIndexedDb(snapshot.dbName, snapshot.fromVersion, (upgradeDb) => {
+    for (const [storeName, rows] of Object.entries(snapshot.collections)) {
+      if (!upgradeDb.objectStoreNames.contains(storeName)) {
+        upgradeDb.createObjectStore(storeName, { keyPath: inferObjectStoreKeyPath(rows) });
+      }
+    }
+  });
+
+  try {
+    for (const [storeName, rows] of Object.entries(snapshot.collections)) {
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      for (const row of rows) {
+        store.put(row);
+      }
+      await transactionDone(tx);
+    }
+  } finally {
+    db.close();
+  }
+
+  removeLocalStorageKey(makeMarkerKey(snapshot.dbName, snapshot.fromVersion, snapshot.toVersion));
+  removeLocalStorageKey(makeFailureKey(snapshot.dbName, snapshot.fromVersion, snapshot.toVersion));
+  return 'restored';
 }

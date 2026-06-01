@@ -55,10 +55,7 @@ export function recordManagedWorkerError(
 }
 
 export function markManagedWorkerTerminated(id: string): void {
-  const e = entries.get(id);
-  if (!e) return;
-  e.state = 'terminated';
-  e.terminatedAtMs = Date.now();
+  entries.delete(id);
 }
 
 export function getManagedWorkerRegistrySnapshot(): readonly ManagedWorkerRegistryEntry[] {

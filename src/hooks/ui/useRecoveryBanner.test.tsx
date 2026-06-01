@@ -1,15 +1,35 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { RECOVERY_SCHEMA_VERSION, type RecoveryData } from '../../services/SnapshotService';
 import { useRecoveryBanner } from './useRecoveryBanner';
+
+function makeRecoveryData(
+  units: unknown[],
+  translations: unknown[],
+  layers: unknown[],
+): RecoveryData {
+  return {
+    schemaVersion: RECOVERY_SCHEMA_VERSION,
+    timestamp: Date.now(),
+    snapshot: {
+      schemaVersion: 4,
+      exportedAt: '2026-06-01T00:00:00.000Z',
+      dbName: 'jieyudb_v2',
+      collections: {
+        layer_units: units,
+        layer_unit_contents: translations,
+        layers,
+      },
+    },
+  };
+}
 
 describe('useRecoveryBanner', () => {
   it('does not re-open banner after dismiss when lengths change', async () => {
-    const checkRecovery = vi.fn(async () => ({
-      units: [{ id: 'u1' }, { id: 'u2' }],
-      translations: [{ id: 't1' }],
-      layers: [{ id: 'l1' }],
-    }));
+    const checkRecovery = vi.fn(async () =>
+      makeRecoveryData([{ id: 'u1' }, { id: 'u2' }], [{ id: 't1' }], [{ id: 'l1' }]),
+    );
 
     const { result, rerender } = renderHook(
       (props: {
@@ -58,11 +78,7 @@ describe('useRecoveryBanner', () => {
   });
 
   it('hides banner after successful apply and forwards dismiss callback', async () => {
-    const snapshot = {
-      units: [{ id: 'u1' }],
-      translations: [],
-      layers: [],
-    };
+    const snapshot = makeRecoveryData([{ id: 'u1' }], [], []);
     const checkRecovery = vi.fn(async () => snapshot);
     const applyRecovery = vi.fn(async () => true);
     const dismissRecovery = vi.fn(async () => {});

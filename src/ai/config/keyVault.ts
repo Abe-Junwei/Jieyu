@@ -50,6 +50,11 @@ function byteArrayToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return buffer.slice(byteOffset, byteOffset + byteLength) as ArrayBuffer;
 }
 
+/**
+ * Local-first threat model (ADR 0031): passphrase is origin-scoped, not user-supplied.
+ * Protects API keys against casual localStorage/disk inspection on the same machine;
+ * does NOT resist same-origin XSS or a user who can read origin + fixed suffix.
+ */
 async function deriveAiSettingsCryptoKey(salt: Uint8Array): Promise<CryptoKey> {
   const passphrase = `${window.location.origin}|jieyu.aiChat.settings`;
   const keyMaterial = await window.crypto.subtle.importKey(
@@ -101,7 +106,12 @@ async function encryptAiChatSettings(rawSettings: AiChatSettings): Promise<strin
 async function decryptAiChatSettings(rawSecurePayload: string): Promise<AiChatSettings | null> {
   try {
     const parsed = JSON.parse(rawSecurePayload) as Partial<AiChatSecureEnvelopeV1>;
-    if (parsed.v !== AI_CHAT_SETTINGS_SECURE_VERSION || !parsed.salt || !parsed.iv || !parsed.cipher) {
+    if (
+      parsed.v !== AI_CHAT_SETTINGS_SECURE_VERSION ||
+      !parsed.salt ||
+      !parsed.iv ||
+      !parsed.cipher
+    ) {
       return null;
     }
 

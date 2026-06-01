@@ -3,8 +3,10 @@
  * layout / stage). Public entry remains `useReadyWorkspaceSurfaceProps` in `useReadyWorkspaceSurfaceProps.tsx`.
  */
 
-import { hasSupabaseBrowserClientConfig } from '../integrations/supabase/client';
+import type { CollaborationProtocolGuardEvaluation } from '../collaboration/cloud/collaborationProtocolGuard';
+import { isCollaborationCloudSurfaceActive } from '../collaboration/cloud/collaborationCloudFeatureGate';
 import { CollaborationCloudReadOnlyBanner } from '../components/transcription/CollaborationCloudReadOnlyBanner';
+import type { Locale } from '../i18n';
 import {
   buildReadyWorkspaceSidePaneProps,
   buildReadyWorkspaceWaveformContentProps,
@@ -19,6 +21,7 @@ import {
   buildReadyWorkspaceLayoutStyleInput,
   buildReadyWorkspaceStagePropsInput,
 } from './transcriptionReadyWorkspaceSurfaceInputBuilder';
+import type { BuildReadyWorkspaceSidePanePropsInputFromControllers } from './transcriptionReadyWorkspaceSidePaneInputBuilder';
 import type { BuildReadyWorkspaceOverlaysPropsInputFromControllers } from './transcriptionReadyWorkspaceOverlaysInputBuilder';
 import type { BuildReadyWorkspaceStagePropsInputFromControllers } from './transcriptionReadyWorkspaceStagePropsInputBuilder';
 import type { BuildReadyWorkspaceWaveformContentPropsInputFromControllers } from './transcriptionReadyWorkspaceWaveformInputBuilder';
@@ -27,63 +30,101 @@ import type {
   UseReadyWorkspaceSurfacePropsResult,
 } from './readyWorkspaceSurfacePropsTypes';
 
+function isTranscriptionLayerRow(layer: unknown): layer is { layerType: 'transcription' } {
+  return (
+    typeof layer === 'object' &&
+    layer !== null &&
+    (layer as { layerType?: string }).layerType === 'transcription'
+  );
+}
+
+function asCollaborationProtocolGuard(value: unknown): CollaborationProtocolGuardEvaluation {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as CollaborationProtocolGuardEvaluation).cloudWritesDisabled === 'boolean' &&
+    Array.isArray((value as CollaborationProtocolGuardEvaluation).reasons)
+  ) {
+    return value as CollaborationProtocolGuardEvaluation;
+  }
+  return { cloudWritesDisabled: false, reasons: [], outboundProtocolVersion: 1 };
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 export function assembleReadyWorkspaceSurfacePropsBundle(
   input: UseReadyWorkspaceSurfacePropsInput,
 ): UseReadyWorkspaceSurfacePropsResult {
   const { overlays: o, controllers: c, layout: l, waveform: w } = input;
-  const i = input as any;
   const timelineCtl = c.timeline as Record<string, unknown> | null | undefined;
   const batchCtl = c.batch as Record<string, unknown> | null | undefined;
   const selfCertaintyCtl = c.selfCertainty as Record<string, unknown> | null | undefined;
+  const playerBridge = asRecord(input.player);
+  const assistantSidebarController = asRecord(input.assistantSidebarController);
+  const assistantRuntimeProps = asRecord(assistantSidebarController?.assistantRuntimeProps);
+  const readyWorkspaceViewModels = asRecord(input.readyWorkspaceViewModels);
+  const readyWorkspaceToolbarProps = asRecord(readyWorkspaceViewModels?.toolbarProps);
+  const axisStatusController = asRecord(input.readyWorkspaceAxisStatusController);
+  const timelineResizeController = asRecord(input.timelineResizeController);
+  const deferredAiRuntime = asRecord(input.deferredAiRuntime);
+  const assistantController = asRecord(input.assistantController);
+  const workspacePanelEffectsController = asRecord(input.workspacePanelEffectsController);
+  const zoomToPercent = input.zoomToPercent as (
+    percent: number,
+    anchor: undefined,
+    mode: 'fit-all' | 'fit-selection' | 'custom',
+  ) => void;
 
   const readyWorkspaceSidePaneProps = buildReadyWorkspaceSidePaneProps(
     buildReadyWorkspaceSidePanePropsInput({
       speakerActionScopeController: c.speakerActionScope,
       speakerController: c.speaker,
-      sidePaneRows: i.orderedLayers,
-      focusedLayerRowId: i.focusedLayerRowId,
-      flashLayerRowId: i.flashLayerRowId,
-      onFocusLayer: i.handleFocusLayerRow,
-      transcriptionLayers: i.orderedLayers.filter(
-        (layer: any) => layer.layerType === 'transcription',
-      ),
-      layerLinks: i.layerLinks,
-      toggleLayerLink: i.toggleLayerLink,
-      deletableLayers: i.deletableLayers,
-      updateLayerMetadata: i.updateLayerMetadata,
-      layerCreateMessage: i.layerCreateMessage,
-      layerAction: i.layerAction,
-      ...(i.defaultTranscriptionLayerId !== undefined
-        ? { defaultTranscriptionLayerId: i.defaultTranscriptionLayerId }
+      sidePaneRows: input.orderedLayers,
+      focusedLayerRowId: input.focusedLayerRowId,
+      flashLayerRowId: input.flashLayerRowId,
+      onFocusLayer: input.handleFocusLayerRow,
+      transcriptionLayers: input.orderedLayers.filter(isTranscriptionLayerRow),
+      layerLinks: input.layerLinks,
+      toggleLayerLink: input.toggleLayerLink,
+      deletableLayers: input.deletableLayers,
+      updateLayerMetadata: input.updateLayerMetadata,
+      layerCreateMessage: input.layerCreateMessage,
+      layerAction: input.layerAction,
+      ...(input.defaultTranscriptionLayerId !== undefined
+        ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId }
         : {}),
-      segmentsByLayer: i.segmentsByLayer,
-      segmentContentByLayer: i.segmentContentByLayer,
-      unitsOnCurrentMedia: i.unitsOnCurrentMedia,
-      speakers: i.speakers,
-      listProjectAssets: i.listProjectAssets,
-      removeProjectAsset: i.removeProjectAsset,
-      getProjectAssetSignedUrl: i.getProjectAssetSignedUrl,
-      listProjectSnapshots: i.listProjectSnapshots,
-      restoreProjectSnapshotToLocalById: i.restoreProjectSnapshotToLocalById,
-      queryProjectChangeTimeline: i.queryProjectChangeTimeline,
-      supabaseConfigured: hasSupabaseBrowserClientConfig(),
-      activeTextId: i.activeTextId,
-      listAccessibleCloudProjects: i.listAccessibleCloudProjects,
-      listCloudProjectMembers: i.listCloudProjectMembers,
-      getUnitTextForLayer: i.getUnitTextForLayer,
-      onSelectTimelineUnit: i.selectTimelineUnit,
-      onReorderLayers: i.reorderLayers,
-      locale: i.locale,
-      verticalViewActive: i.verticalViewActive,
-      translationLayerCount: i.translationLayers.length,
-      onSelectWorkspaceHorizontalLayout: i.onSelectWorkspaceHorizontalLayout,
-      onSelectWorkspaceVerticalLayout: i.onSelectWorkspaceVerticalLayout,
-    } as any),
+      segmentsByLayer: input.segmentsByLayer,
+      segmentContentByLayer: input.segmentContentByLayer,
+      unitsOnCurrentMedia: input.unitsOnCurrentMedia,
+      speakers: input.speakers,
+      listProjectAssets: input.listProjectAssets,
+      removeProjectAsset: input.removeProjectAsset,
+      getProjectAssetSignedUrl: input.getProjectAssetSignedUrl,
+      listProjectSnapshots: input.listProjectSnapshots,
+      restoreProjectSnapshotToLocalById: input.restoreProjectSnapshotToLocalById,
+      queryProjectChangeTimeline: input.queryProjectChangeTimeline,
+      supabaseConfigured: isCollaborationCloudSurfaceActive(),
+      activeTextId: input.activeTextId,
+      listAccessibleCloudProjects: input.listAccessibleCloudProjects,
+      listCloudProjectMembers: input.listCloudProjectMembers,
+      getUnitTextForLayer: input.getUnitTextForLayer,
+      onSelectTimelineUnit: input.selectTimelineUnit,
+      onReorderLayers: input.reorderLayers,
+      locale: input.locale,
+      verticalViewActive: input.verticalViewActive,
+      translationLayerCount: input.translationLayers.length,
+      onSelectWorkspaceHorizontalLayout: input.onSelectWorkspaceHorizontalLayout,
+      onSelectWorkspaceVerticalLayout: input.onSelectWorkspaceVerticalLayout,
+    } as unknown as BuildReadyWorkspaceSidePanePropsInputFromControllers),
   );
 
   const readyWorkspaceWaveformContentProps = buildReadyWorkspaceWaveformContentProps(
     buildReadyWorkspaceWaveformContentPropsInput({
-      locale: i.locale,
+      locale: input.locale,
       waveformAreaRef: w.waveformAreaRef,
       snapGuideNearSide: w.snapGuide?.nearSide,
       segMarkStart: w.segMarkStart,
@@ -96,10 +137,10 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       handleWaveformAreaMouseLeave: w.handleWaveformAreaMouseLeave,
       handleWaveformAreaWheel: w.handleWaveformAreaWheel,
       hoverTime: w.hoverTime,
-      unitsOnCurrentMedia: i.unitsOnCurrentMedia,
-      getUnitTextForLayer: i.getUnitTextForLayer,
+      unitsOnCurrentMedia: input.unitsOnCurrentMedia,
+      getUnitTextForLayer: input.getUnitTextForLayer,
       waveformHoverPreviewProps: w.waveformHoverPreviewProps,
-      selectedMediaUrl: i.selectedMediaUrl,
+      selectedMediaUrl: input.selectedMediaUrl,
       zoomPercent: w.zoomPercent,
       snapEnabled: w.snapEnabled,
       toggleSnapEnabled: w.toggleSnapEnabled,
@@ -140,7 +181,7 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       handleSpectrogramMouseMove: w.handleSpectrogramMouseMove,
       handleSpectrogramMouseLeave: w.handleSpectrogramMouseLeave,
       handleSpectrogramClick: w.handleSpectrogramClick,
-      setNotePopover: i.setNotePopover,
+      setNotePopover: input.setNotePopover,
       selectedWaveformTimelineItem: w.selectedWaveformTimelineItem,
       playerInstanceGetWidth: w.playerInstanceGetWidth,
       waveformScrollLeft: w.waveformScrollLeft,
@@ -157,13 +198,13 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
         nearSide: w.snapGuide?.nearSide,
       },
       playerBridge: {
-        spectrogramRef: i.player?.spectrogramRef,
-        waveformRef: i.player?.waveformRef,
-        seekTo: i.player?.seekTo,
-        playRegion: i.player?.playRegion,
-        duration: i.player?.duration,
-        isReady: i.player?.isReady,
-        isPlaying: i.player?.isPlaying,
+        spectrogramRef: playerBridge?.spectrogramRef,
+        waveformRef: playerBridge?.waveformRef,
+        seekTo: playerBridge?.seekTo,
+        playRegion: playerBridge?.playRegion,
+        duration: playerBridge?.duration,
+        isReady: playerBridge?.isReady,
+        isPlaying: playerBridge?.isPlaying,
       },
       timelineViewportProjection: {
         rulerView: w.timelineViewportProjection?.rulerView,
@@ -237,39 +278,39 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
 
   const readyWorkspaceStageProps = buildReadyWorkspaceStageProps(
     buildReadyWorkspaceStagePropsInput({
-      assistantFrame: i.assistantSidebarController?.assistantRuntimeProps?.frame,
-      shouldRenderRecoveryBanner: i.readyWorkspaceRenderController?.shouldRenderRecoveryBanner,
-      recoveryAvailable: i.recoveryAvailable,
-      recoveryDiffSummary: i.recoveryDiffSummary,
-      onApplyRecoveryBanner: i.applyRecoveryBanner,
-      onDismissRecoveryBanner: i.dismissRecoveryBanner,
+      assistantFrame: assistantRuntimeProps?.frame,
+      shouldRenderRecoveryBanner: input.readyWorkspaceRenderController?.shouldRenderRecoveryBanner,
+      recoveryAvailable: input.recoveryAvailable,
+      recoveryDiffSummary: input.recoveryDiffSummary,
+      onApplyRecoveryBanner: input.applyRecoveryBanner,
+      onDismissRecoveryBanner: input.dismissRecoveryBanner,
       collaborationCloudStatusSlot: (
         <CollaborationCloudReadOnlyBanner
-          locale={i.locale as any}
-          guard={i.collaborationProtocolGuard as any}
+          locale={input.locale as Locale}
+          guard={asCollaborationProtocolGuard(input.collaborationProtocolGuard)}
         />
       ),
-      toolbarProps: i.toolbarPropsWithCollaboration,
-      observerStage: i.observerResult?.stage,
-      recommendations: i.actionableObserverRecommendations || [],
-      onExecuteRecommendation: i.handleExecuteObserverRecommendation,
-      acousticRuntimeStatus: i.deferredAiRuntime?.acousticRuntimeStatus,
-      vadCacheStatus: i.vadCacheStatus,
-      currentProjectLabel: i.readyWorkspaceViewModels?.toolbarProps?.filename,
-      ...(i.selectedTimelineMedia !== undefined
-        ? { selectedTimelineMedia: i.selectedTimelineMedia }
+      toolbarProps: input.toolbarPropsWithCollaboration,
+      observerStage: input.observerResult?.stage,
+      recommendations: (input.actionableObserverRecommendations as unknown[] | null) ?? [],
+      onExecuteRecommendation: input.handleExecuteObserverRecommendation,
+      acousticRuntimeStatus: deferredAiRuntime?.acousticRuntimeStatus,
+      vadCacheStatus: input.vadCacheStatus,
+      currentProjectLabel: readyWorkspaceToolbarProps?.filename,
+      ...(input.selectedTimelineMedia !== undefined
+        ? { selectedTimelineMedia: input.selectedTimelineMedia }
         : {}),
-      activeTextTimelineMode: i.activeTextTimelineMode,
-      activeTextTimeMapping: i.activeTextTimeMapping,
-      canDeleteProject: Boolean(i.activeTextId),
-      ...(i.selectedMediaUrl !== undefined ? { selectedMediaUrl: i.selectedMediaUrl } : {}),
-      setShowProjectSetup: i.setShowProjectSetup,
-      setShowAudioImport: i.setShowAudioImport,
+      activeTextTimelineMode: input.activeTextTimelineMode,
+      activeTextTimeMapping: input.activeTextTimeMapping,
+      canDeleteProject: Boolean(input.activeTextId),
+      ...(input.selectedMediaUrl !== undefined ? { selectedMediaUrl: input.selectedMediaUrl } : {}),
+      setShowProjectSetup: input.setShowProjectSetup,
+      setShowAudioImport: input.setShowAudioImport,
       speakerController: c.speaker,
       projectMediaController: c.projectMedia,
       importExportController: c.importExport,
-      applyTextTimeMapping: i.applyTextTimeMapping,
-      ...(i.segmentScopeMediaId ? { segmentScopeMediaId: i.segmentScopeMediaId } : {}),
+      applyTextTimeMapping: input.applyTextTimeMapping,
+      ...(input.segmentScopeMediaId ? { segmentScopeMediaId: input.segmentScopeMediaId } : {}),
       waveformSectionRef: w.waveformSectionRef,
       workspaceRef: w.workspaceRef,
       listMainRef: w.listMainRef,
@@ -277,67 +318,67 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       isAiPanelCollapsed: l.isAiPanelCollapsed,
       isTimelineLaneHeaderCollapsed: l.isTimelineLaneHeaderCollapsed,
       readyWorkspaceWaveformContentProps,
-      timelineTopProps: i.readyWorkspaceAxisStatusController?.timelineTopPropsWithAxisStatus,
+      timelineTopProps: axisStatusController?.timelineTopPropsWithAxisStatus,
       readyWorkspaceSidePaneProps,
-      timelineContentProps: i.readyWorkspaceViewModels?.timelineContentProps,
+      timelineContentProps: readyWorkspaceViewModels?.timelineContentProps,
       editorContextValue: timelineCtl?.editorContextValue,
-      aiPanelContextValue: i.assistantController?.aiPanelContextValue,
-      onLassoPointerDown: i.handleLassoPointerDown,
-      onLassoPointerMove: i.handleLassoPointerMove,
-      onLassoPointerUp: i.handleLassoPointerUp,
-      onTimelineScroll: i.handleTimelineScroll,
-      timelineResizeTooltip: i.timelineResizeController?.timelineResizeTooltip,
-      formatTime: i.formatTime,
-      timelineViewportProjection: i.timelineViewportProjection,
-      snapEnabled: i.snapEnabled,
-      autoScrollEnabled: i.autoScrollEnabled,
-      activeWaveformRegionId: i.selectedWaveformRegionId,
-      waveformTimelineItems: i.waveformTimelineItems,
+      aiPanelContextValue: assistantController?.aiPanelContextValue,
+      onLassoPointerDown: input.handleLassoPointerDown,
+      onLassoPointerMove: input.handleLassoPointerMove,
+      onLassoPointerUp: input.handleLassoPointerUp,
+      onTimelineScroll: input.handleTimelineScroll,
+      timelineResizeTooltip: timelineResizeController?.timelineResizeTooltip,
+      formatTime: input.formatTime,
+      timelineViewportProjection: input.timelineViewportProjection,
+      snapEnabled: input.snapEnabled,
+      autoScrollEnabled: input.autoScrollEnabled,
+      activeWaveformRegionId: input.selectedWaveformRegionId,
+      waveformTimelineItems: input.waveformTimelineItems,
       onZoomToPercent: (percent: number, mode: 'fit-all' | 'fit-selection' | 'custom') =>
-        i.zoomToPercent(percent, undefined, mode),
-      onZoomToUnit: i.zoomToUnit,
-      onSnapEnabledChange: i.setSnapEnabled,
-      onAutoScrollEnabledChange: i.setAutoScrollEnabled,
-      canUndo: i.canUndo,
-      canRedo: i.canRedo,
-      undoLabel: i.undoLabel,
-      undoHistory: i.undoHistory,
-      isHistoryVisible: i.showUndoHistory,
-      onToggleHistoryVisible: i.setShowUndoHistory,
-      selectedTimelineUnit: i.selectedTimelineUnit,
-      activeTimelineUnitId: i.activeTimelineUnitId,
-      recordTimelineEdit: i.recordTimelineEdit,
-      undoToHistoryIndex: i.undoToHistoryIndex,
-      redo: i.redo,
-      locale: i.locale,
-      setIsAiPanelCollapsed: i.setIsAiPanelCollapsed,
-      handleAiPanelResizeStart: i.workspacePanelEffectsController?.handleAiPanelResizeStart,
-      handleAiPanelToggle: i.handleAiPanelToggle,
-      assistantBridgeControllerInput: i.assistantBridgeControllerInput,
-      onRuntimeStateChange: i.handleDeferredAiRuntimeChange,
-      aiSidebarProps: i.readyWorkspaceViewModels?.aiSidebarProps,
-      shouldRenderAiSidebar: i.readyWorkspaceRenderController?.shouldRenderAiSidebar,
-      dialogsProps: i.readyWorkspaceViewModels?.dialogsProps,
-      shouldRenderDialogs: i.readyWorkspaceRenderController?.shouldRenderDialogs,
-      pdfRuntimeProps: i.assistantSidebarController?.pdfRuntimeProps,
-      shouldRenderPdfRuntime: i.readyWorkspaceRenderController?.shouldRenderPdfRuntime,
-      shouldRenderBatchOps: i.readyWorkspaceRenderController?.shouldRenderBatchOps,
-      showBatchOperationPanel: i.showBatchOperationPanel,
-      selectedUnitIds: i.selectedUnitIds,
+        zoomToPercent(percent, undefined, mode),
+      onZoomToUnit: input.zoomToUnit,
+      onSnapEnabledChange: input.setSnapEnabled,
+      onAutoScrollEnabledChange: input.setAutoScrollEnabled,
+      canUndo: input.canUndo,
+      canRedo: input.canRedo,
+      undoLabel: input.undoLabel,
+      undoHistory: input.undoHistory,
+      isHistoryVisible: input.showUndoHistory,
+      onToggleHistoryVisible: input.setShowUndoHistory,
+      selectedTimelineUnit: input.selectedTimelineUnit,
+      activeTimelineUnitId: input.activeTimelineUnitId,
+      recordTimelineEdit: input.recordTimelineEdit,
+      undoToHistoryIndex: input.undoToHistoryIndex,
+      redo: input.redo,
+      locale: input.locale,
+      setIsAiPanelCollapsed: input.setIsAiPanelCollapsed,
+      handleAiPanelResizeStart: workspacePanelEffectsController?.handleAiPanelResizeStart,
+      handleAiPanelToggle: input.handleAiPanelToggle,
+      assistantBridgeControllerInput: input.assistantBridgeControllerInput,
+      onRuntimeStateChange: input.handleDeferredAiRuntimeChange,
+      aiSidebarProps: readyWorkspaceViewModels?.aiSidebarProps,
+      shouldRenderAiSidebar: input.readyWorkspaceRenderController?.shouldRenderAiSidebar,
+      dialogsProps: readyWorkspaceViewModels?.dialogsProps,
+      shouldRenderDialogs: input.readyWorkspaceRenderController?.shouldRenderDialogs,
+      pdfRuntimeProps: assistantSidebarController?.pdfRuntimeProps,
+      shouldRenderPdfRuntime: input.readyWorkspaceRenderController?.shouldRenderPdfRuntime,
+      shouldRenderBatchOps: input.readyWorkspaceRenderController?.shouldRenderBatchOps,
+      showBatchOperationPanel: input.showBatchOperationPanel,
+      selectedUnitIds: input.selectedUnitIds,
       selectedBatchUnits: batchCtl?.selectedBatchUnits,
-      unitsOnCurrentMedia: i.unitsOnCurrentMedia,
+      unitsOnCurrentMedia: input.unitsOnCurrentMedia,
       selectedBatchUnitTextById: timelineCtl?.selectedBatchUnitTextById,
       batchPreviewLayerOptions: timelineCtl?.batchPreviewLayerOptions,
       batchPreviewTextByLayerId: timelineCtl?.batchPreviewTextByLayerId,
-      batchPreviewTextPropsByLayerId: i.batchPreviewTextPropsByLayerId,
+      batchPreviewTextPropsByLayerId: input.batchPreviewTextPropsByLayerId,
       defaultBatchPreviewLayerId: timelineCtl?.defaultBatchPreviewLayerId,
-      onCloseBatchOps: () => i.setShowBatchOperationPanel(false),
+      onCloseBatchOps: () => input.setShowBatchOperationPanel(false),
       onBatchOffset: batchCtl?.handleBatchOffset,
       onBatchScale: batchCtl?.handleBatchScale,
       onBatchSplitByRegex: batchCtl?.handleBatchSplitByRegex,
       onBatchMerge: batchCtl?.handleBatchMerge,
-      onBatchJumpToUnit: i.selectUnit,
-    } as BuildReadyWorkspaceStagePropsInputFromControllers),
+      onBatchJumpToUnit: input.selectUnit,
+    } as unknown as BuildReadyWorkspaceStagePropsInputFromControllers),
   );
 
   return {

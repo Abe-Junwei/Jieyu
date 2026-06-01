@@ -1,6 +1,8 @@
+import { useRef } from 'react';
 import type { ReactElement } from 'react';
 import type { Locale } from '../i18n';
 import { getAppDataResilienceMessages } from '../i18n/messages';
+import { useFocusTrap } from '../hooks/ui/useFocusTrap';
 
 export type DbMigrationOverlayProps = {
   locale: Locale;
@@ -14,13 +16,17 @@ export type DbMigrationOverlayProps = {
  */
 export function DbMigrationOverlay(props: DbMigrationOverlayProps): ReactElement {
   const msg = getAppDataResilienceMessages(props.locale);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(overlayRef, true);
 
   return (
     <div
+      ref={overlayRef}
       className="db-migration-overlay"
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="db-migration-overlay-title"
+      tabIndex={-1}
     >
       <div className="db-migration-overlay-panel">
         <h2 id="db-migration-overlay-title" className="db-migration-overlay-title">

@@ -951,6 +951,10 @@
 }
 
 /* 流式按词渐入（StreamWordsText）；减弱动效见 prefers-reduced-motion */
+.ai-chat-stream-words-live {
+  display: inline;
+}
+
 .ai-chat-stream-word {
   animation: ai-chat-stream-word-in 0.38s ease-out both;
 }

@@ -19,7 +19,7 @@ import {
   isMediaItemPlaceholderRow,
   MEDIA_TIMELINE_KIND_PLACEHOLDER,
 } from '../utils/mediaItemTimelineKind';
-import { SegmentMetaService } from './SegmentMetaService';
+import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
 
 type JieyuDbInstance = Awaited<ReturnType<typeof getDb>>;
 
@@ -47,8 +47,14 @@ async function removeNotesForUnitIds(
   };
 
   await deleteByTarget('unit', ids);
-  await deleteByTarget('token', tokens.map((token) => token.id));
-  await deleteByTarget('morpheme', morphemes.map((morpheme) => morpheme.id));
+  await deleteByTarget(
+    'token',
+    tokens.map((token) => token.id),
+  );
+  await deleteByTarget(
+    'morpheme',
+    morphemes.map((morpheme) => morpheme.id),
+  );
 }
 
 export async function deleteProjectCascade(textId: string): Promise<void> {
@@ -59,7 +65,11 @@ export async function deleteProjectCascade(textId: string): Promise<void> {
     'rw',
     [...dexieStoresForDeleteProjectByTextIdCascadeRw(db)],
     async () => {
-      const allUtts = await db.dexie.layer_units.where('textId').equals(textId).filter((u) => u.unitType === 'unit').toArray();
+      const allUtts = await db.dexie.layer_units
+        .where('textId')
+        .equals(textId)
+        .filter((u) => u.unitType === 'unit')
+        .toArray();
       const uttIds = allUtts.map((u) => u.id);
 
       await removeNotesForUnitIds(db, uttIds);
@@ -68,7 +78,9 @@ export async function deleteProjectCascade(textId: string): Promise<void> {
       for (const uttId of uttIds) {
         const tokens = await db.dexie.unit_tokens.where('unitId').equals(uttId).toArray();
         const tokenIds = tokens.map((t) => t.id);
-        const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(uttId).toArray()).map((m) => m.id);
+        const morphemeIds = (
+          await db.dexie.unit_morphemes.where('unitId').equals(uttId).toArray()
+        ).map((m) => m.id);
         await deleteLayerSegmentGraphByUnitIds(db, [uttId]);
         if (tokenIds.length > 0 || morphemeIds.length > 0) {
           const targets: Array<[string, string]> = [
@@ -146,34 +158,52 @@ export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void
         .map((row) => row.id);
       const relatedUnits = await LayerSegmentQueryService.listUnitsByMediaId(mediaId);
       if (siblingPlaceholderIds.length > 0) {
-        const siblingUnits = await LayerSegmentQueryService.listUnitsByMediaIds(siblingPlaceholderIds);
+        const siblingUnits =
+          await LayerSegmentQueryService.listUnitsByMediaIds(siblingPlaceholderIds);
         if (siblingUnits.length > 0) {
-          const reassignedUnits = await LayerUnitSegmentWriteService.reassignUnitsToMediaId(db, siblingUnits, mediaId, now);
+          const reassignedUnits = await LayerUnitSegmentWriteService.reassignUnitsToMediaId(
+            db,
+            siblingUnits,
+            mediaId,
+            now,
+          );
           relatedUnits.push(...reassignedUnits);
         }
         await db.dexie.media_items.bulkDelete(siblingPlaceholderIds);
       }
       const maxUnitEnd = relatedUnits.reduce((maxValue, unit) => {
-        const endTime = typeof unit.endTime === 'number' && Number.isFinite(unit.endTime) ? unit.endTime : 0;
+        const endTime =
+          typeof unit.endTime === 'number' && Number.isFinite(unit.endTime) ? unit.endTime : 0;
         return Math.max(maxValue, endTime);
       }, 0);
       const existingMetadata = text?.metadata as { logicalDurationSec?: unknown } | undefined;
-      const existingLogicalDurationSec = typeof existingMetadata?.logicalDurationSec === 'number'
-        && Number.isFinite(existingMetadata.logicalDurationSec)
-        ? existingMetadata.logicalDurationSec
-        : 0;
-      const logicalDurationSec = Math.max(media.duration ?? 0, maxUnitEnd, existingLogicalDurationSec, 1);
+      const existingLogicalDurationSec =
+        typeof existingMetadata?.logicalDurationSec === 'number' &&
+        Number.isFinite(existingMetadata.logicalDurationSec)
+          ? existingMetadata.logicalDurationSec
+          : 0;
+      const logicalDurationSec = Math.max(
+        media.duration ?? 0,
+        maxUnitEnd,
+        existingLogicalDurationSec,
+        1,
+      );
       const previousDetails = (media.details as Record<string, unknown> | undefined) ?? {};
-      const { audioBlob: _audioBlob, timelineKind: _prevTimelineKind, ...remainingDetails } = previousDetails;
+      const {
+        audioBlob: _audioBlob,
+        timelineKind: _prevTimelineKind,
+        ...remainingDetails
+      } = previousDetails;
 
       const textMeta = (text?.metadata as Record<string, unknown> | undefined) ?? {};
       const hasTimedUnits = relatedUnits.length > 0;
       /** 互操作标签：由「是否存在时间对齐语段」推断，不再读 `texts.metadata.timelineMode` 做运行时门控。 */
       const preservedTimelineMode = hasTimedUnits ? 'media' : 'document';
       const placeholderDetailTimelineMode = preservedTimelineMode;
-      const preservedTimebaseLabel = typeof textMeta.timebaseLabel === 'string' && textMeta.timebaseLabel.trim().length > 0
-        ? textMeta.timebaseLabel.trim()
-        : 'logical-second';
+      const preservedTimebaseLabel =
+        typeof textMeta.timebaseLabel === 'string' && textMeta.timebaseLabel.trim().length > 0
+          ? textMeta.timebaseLabel.trim()
+          : 'logical-second';
 
       const placeholderMedia: MediaItemDocType = {
         id: media.id,
@@ -200,7 +230,8 @@ export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void
             ...(text.metadata ?? {}),
             timelineMode: preservedTimelineMode,
             logicalDurationSec,
-            timebaseLabel: preservedTimelineMode === 'media' ? preservedTimebaseLabel : 'logical-second',
+            timebaseLabel:
+              preservedTimelineMode === 'media' ? preservedTimebaseLabel : 'logical-second',
           },
           updatedAt: now,
         });
@@ -223,7 +254,9 @@ export async function removeUnitCascade(unitId: string): Promise<void> {
       const utt = await db.dexie.layer_units.get(unitId);
       const tokens = await db.dexie.unit_tokens.where('unitId').equals(unitId).toArray();
       const tokenIds = tokens.map((t) => t.id);
-      const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()).map((m) => m.id);
+      const morphemeIds = (
+        await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()
+      ).map((m) => m.id);
 
       await deleteLayerSegmentGraphByUnitIds(db, [unitId]);
       if (tokenIds.length > 0 || morphemeIds.length > 0) {
@@ -244,9 +277,7 @@ export async function removeUnitCascade(unitId: string): Promise<void> {
     },
     { label: 'LinguisticService.cleanup.removeUnitCascade' },
   );
-  void SegmentMetaService.syncForUnitIds([unitId]).catch(() => {
-    // SegmentMeta 为统一读模型，删除后的刷新失败不应阻塞主流程 | SegmentMeta refresh failures must not block the main flow.
-  });
+  scheduleSegmentMetaSyncForUnitIds([unitId], 'LinguisticService.cleanup.removeUnitCascade');
 }
 
 export async function removeUnitsBatchCascade(unitIds: readonly string[]): Promise<void> {
@@ -260,9 +291,10 @@ export async function removeUnitsBatchCascade(unitIds: readonly string[]): Promi
     [...dexieStoresForRemoveUnitCascadeRw(db)],
     async () => {
       const bulkRows = await db.dexie.layer_units.bulkGet(ids);
-      const utts = bulkRows.filter((row): row is LayerUnitDocType & { unitType: 'unit' } => (
-        row != null && row.unitType === 'unit'
-      ));
+      const utts = bulkRows.filter(
+        (row): row is LayerUnitDocType & { unitType: 'unit' } =>
+          row != null && row.unitType === 'unit',
+      );
 
       await removeNotesForUnitIds(db, ids);
       await invalidateUnitEmbeddings(db, ids);
@@ -270,7 +302,9 @@ export async function removeUnitsBatchCascade(unitIds: readonly string[]): Promi
       for (const unitId of ids) {
         const tokens = await db.dexie.unit_tokens.where('unitId').equals(unitId).toArray();
         const tokenIds = tokens.map((t) => t.id);
-        const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()).map((m) => m.id);
+        const morphemeIds = (
+          await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()
+        ).map((m) => m.id);
         await deleteLayerSegmentGraphByUnitIds(db, [unitId]);
         if (tokenIds.length > 0 || morphemeIds.length > 0) {
           const targets: Array<[string, string]> = [
@@ -297,7 +331,5 @@ export async function removeUnitsBatchCascade(unitIds: readonly string[]): Promi
     },
     { label: 'LinguisticService.cleanup.removeUnitsBatchCascade' },
   );
-  void SegmentMetaService.syncForUnitIds(ids).catch(() => {
-    // SegmentMeta 为统一读模型，批量删除后的刷新失败不应阻塞主流程 | SegmentMeta refresh failures must not block the main flow.
-  });
+  scheduleSegmentMetaSyncForUnitIds(ids, 'LinguisticService.cleanup.removeUnitsCascade');
 }

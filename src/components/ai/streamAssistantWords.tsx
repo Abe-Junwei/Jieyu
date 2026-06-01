@@ -104,9 +104,12 @@ export function StreamWordsText({
     streamAssistantPrevByKey.set(streamKey, text);
   }, [streamKey, text]);
 
-  useLayoutEffect(() => () => {
-    streamAssistantPrevByKey.delete(streamKey);
-  }, [streamKey]);
+  useLayoutEffect(
+    () => () => {
+      streamAssistantPrevByKey.delete(streamKey);
+    },
+    [streamKey],
+  );
 
   const tailCut = useMemo(
     () => computeStreamTailSliceCut(slices, maxTailWords),
@@ -117,7 +120,7 @@ export function StreamWordsText({
   const headPlain = headSlices.length > 0 ? headSlices.map((s) => s.segment).join('') : null;
 
   return (
-    <>
+    <span aria-live="polite" aria-atomic="false" className="ai-chat-stream-words-live">
       {headPlain !== null ? headPlain : null}
       {tailSlices.map((s) => {
         // 仅「整词起点」已在新后缀内时渐入，避免同一英文词随 delta 变长时重复闪动画
@@ -132,6 +135,6 @@ export function StreamWordsText({
         }
         return <Fragment key={key}>{s.segment}</Fragment>;
       })}
-    </>
+    </span>
   );
 }

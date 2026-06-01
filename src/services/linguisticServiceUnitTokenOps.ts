@@ -18,7 +18,7 @@ import {
   upsertUnitLayerUnit,
 } from './LayerSegmentGraphService';
 import { enforceTimeSubdivisionParentBounds } from './LayerSegmentationTextService';
-import { SegmentMetaService } from './SegmentMetaService';
+import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
 
 export async function saveUnit(data: LayerUnitDocType): Promise<string> {
   const db = await getDb();
@@ -34,9 +34,7 @@ export async function saveUnit(data: LayerUnitDocType): Promise<string> {
   if (hasEmbeddedDefaultTextChanged(existing, normalized)) {
     await invalidateUnitEmbeddings(db, [normalized.id]);
   }
-  void SegmentMetaService.syncForUnitIds([normalized.id]).catch(() => {
-    // SegmentMeta 为统一读模型，刷新失败不应阻塞保存 | SegmentMeta is a shared read model; refresh failures must not block saves.
-  });
+  scheduleSegmentMetaSyncForUnitIds([normalized.id], 'linguisticServiceUnitTokenOps.saveUnit');
   return normalized.id;
 }
 
@@ -56,9 +54,10 @@ export async function saveUnitsBatch(items: LayerUnitDocType[]): Promise<void> {
   if (changedUnitIds.length > 0) {
     await invalidateUnitEmbeddings(db, changedUnitIds);
   }
-  void SegmentMetaService.syncForUnitIds(normalized.map((item) => item.id)).catch(() => {
-    // SegmentMeta 为统一读模型，刷新失败不应阻塞批量保存 | SegmentMeta is a shared read model; refresh failures must not block batch saves.
-  });
+  scheduleSegmentMetaSyncForUnitIds(
+    normalized.map((item) => item.id),
+    'linguisticServiceUnitTokenOps.saveUnits',
+  );
 }
 
 export async function getTokensByUnitId(unitId: string): Promise<UnitTokenDocType[]> {

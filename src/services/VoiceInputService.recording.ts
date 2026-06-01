@@ -7,7 +7,10 @@
 
 import type { SttResult, SttEngine, CommercialSttProvider } from './VoiceInputService.types';
 import type { SttEnhancementConfig, SttEnhancementProvider } from './stt/enhancementRegistry';
-import { buildWhisperTranscriptionEndpoints, createTranscriptionTimeoutController } from './VoiceInputService.probes';
+import {
+  buildWhisperTranscriptionEndpoints,
+  createTranscriptionTimeoutController,
+} from './VoiceInputService.probes';
 import type { WhisperXVadService } from './vad/WhisperXVadService';
 import { tryParseVerboseResponse, computeWhisperConfidence } from './stt/sttConfidence';
 import { createLogger } from '../observability/logger';
@@ -15,10 +18,16 @@ import { decodeEscapedUnicode } from '../utils/decodeEscapedUnicode';
 
 const log = createLogger('VoiceInputService.recording');
 const STT_TRANSCRIPTION_TIMEOUT_MS = 20_000;
-const RECORDING_START_FAILED_MESSAGE = decodeEscapedUnicode('\\u5f55\\u97f3\\u542f\\u52a8\\u5931\\u8d25');
-const RECORDING_STOP_FAILED_MESSAGE = decodeEscapedUnicode('\\u5f55\\u97f3\\u505c\\u6b62\\u5931\\u8d25');
+const RECORDING_START_FAILED_MESSAGE = decodeEscapedUnicode(
+  '\\u5f55\\u97f3\\u542f\\u52a8\\u5931\\u8d25',
+);
+const RECORDING_STOP_FAILED_MESSAGE = decodeEscapedUnicode(
+  '\\u5f55\\u97f3\\u505c\\u6b62\\u5931\\u8d25',
+);
 const STT_TRANSCRIPTION_FAILED_MESSAGE = decodeEscapedUnicode('STT \\u8f6c\\u5199\\u5931\\u8d25');
-const WHISPER_SERVER_TRANSCRIPTION_FAILED_PREFIX = decodeEscapedUnicode('whisper-server \\u8f6c\\u5199\\u5931\\u8d25. \\u5df2\\u5c1d\\u8bd5:\n');
+const WHISPER_SERVER_TRANSCRIPTION_FAILED_PREFIX = decodeEscapedUnicode(
+  'whisper-server \\u8f6c\\u5199\\u5931\\u8d25. \\u5df2\\u5c1d\\u8bd5:\n',
+);
 
 export interface RecordingCallbacks {
   emitResult: (result: SttResult) => void;
@@ -76,27 +85,35 @@ export class RecordingExecutor {
       };
       recorder.onerror = (event) => {
         const err = (event as unknown as { error?: string }).error;
-        this.callbacks.emitError(`MediaRecorder error: ${typeof err === 'string' ? err : (err ?? 'unknown')}`);
+        this.callbacks.emitError(
+          `MediaRecorder error: ${typeof err === 'string' ? err : (err ?? 'unknown')}`,
+        );
       };
       this.mediaRecorder = recorder;
       recorder.start(100); // chunk every 100ms for responsive stop
       this._isRecording = true;
     } catch (err) {
+      this.mediaStream?.getTracks().forEach((track) => track.stop());
+      this.mediaStream = null;
+      this.mediaRecorder = null;
       const message = err instanceof Error ? err.message : RECORDING_START_FAILED_MESSAGE;
       this.callbacks.emitError(message);
       throw new Error(message);
     }
   }
 
-  async stopRecording(currentEngine: SttEngine, config: {
-    whisperServerUrl?: string;
-    whisperServerModel?: string;
-    lang: string;
-    sttEnhancement?: SttEnhancementProvider;
-    sttEnhancementConfig?: SttEnhancementConfig;
-    commercialFallback?: CommercialSttProvider;
-    mediaId?: string;
-  }): Promise<void> {
+  async stopRecording(
+    currentEngine: SttEngine,
+    config: {
+      whisperServerUrl?: string;
+      whisperServerModel?: string;
+      lang: string;
+      sttEnhancement?: SttEnhancementProvider;
+      sttEnhancementConfig?: SttEnhancementConfig;
+      commercialFallback?: CommercialSttProvider;
+      mediaId?: string;
+    },
+  ): Promise<void> {
     // Re-entrant guard: if a stop is already in flight, await it instead of racing
     if (this._stopRecordingPromise) {
       await this._stopRecordingPromise;
@@ -116,7 +133,11 @@ export class RecordingExecutor {
   dispose(): void {
     this._isRecording = false;
     if (this.mediaRecorder) {
-      try { this.mediaRecorder.stop(); } catch { /* ignore */ }
+      try {
+        this.mediaRecorder.stop();
+      } catch {
+        /* ignore */
+      }
       this.mediaRecorder = null;
     }
     if (this.mediaStream) {
@@ -129,15 +150,18 @@ export class RecordingExecutor {
 
   // ── Internal | 内部实现 ──────────────────────────────────────────────────
 
-  private async _stopRecordingInternal(currentEngine: SttEngine, config: {
-    whisperServerUrl?: string;
-    whisperServerModel?: string;
-    lang: string;
-    sttEnhancement?: SttEnhancementProvider;
-    sttEnhancementConfig?: SttEnhancementConfig;
-    commercialFallback?: CommercialSttProvider;
-    mediaId?: string;
-  }): Promise<void> {
+  private async _stopRecordingInternal(
+    currentEngine: SttEngine,
+    config: {
+      whisperServerUrl?: string;
+      whisperServerModel?: string;
+      lang: string;
+      sttEnhancement?: SttEnhancementProvider;
+      sttEnhancementConfig?: SttEnhancementConfig;
+      commercialFallback?: CommercialSttProvider;
+      mediaId?: string;
+    },
+  ): Promise<void> {
     const recorder = this.mediaRecorder;
     if (!recorder) return;
     const stream = this.mediaStream;
@@ -185,7 +209,6 @@ export class RecordingExecutor {
     const audioBlob = new Blob(this.recordedChunks, { type: 'audio/webm' });
     this.recordedChunks = [];
 
-
     // VAD 预处理：若 VAD 服务可用且引擎为 whisper-local，先检测是否包含语音（带缓存）
     // VAD pre-check: if VAD service is available and engine is whisper-local, verify speech presence (with cache)
     if (this._vadService && currentEngine === 'whisper-local') {
@@ -224,7 +247,13 @@ export class RecordingExecutor {
         });
         if (segments.length === 0) {
           log.debug('VAD: no speech detected, skipping STT');
-          this.callbacks.emitResult({ text: '', isFinal: true, confidence: 0, lang: config.lang, engine: currentEngine });
+          this.callbacks.emitResult({
+            text: '',
+            isFinal: true,
+            confidence: 0,
+            lang: config.lang,
+            engine: currentEngine,
+          });
           return;
         }
       } catch (vadErr) {
@@ -249,7 +278,11 @@ export class RecordingExecutor {
     // fall back to the other if unavailable.
     if (currentEngine === 'commercial' && config.commercialFallback) {
       try {
-        const commercialResult = await this.runCommercialTranscription(config.commercialFallback, audioBlob, config.lang);
+        const commercialResult = await this.runCommercialTranscription(
+          config.commercialFallback,
+          audioBlob,
+          config.lang,
+        );
         this.callbacks.emitResult(await this.applyEnhancement(commercialResult, audioBlob, config));
         return;
       } catch (err) {
@@ -263,14 +296,18 @@ export class RecordingExecutor {
     await this._transcribeWithWhisperServerFallback(audioBlob, null, config);
   }
 
-  private async _transcribeWithWhisperServerFallback(audioBlob: Blob, lastError: unknown, config: {
-    whisperServerUrl?: string;
-    whisperServerModel?: string;
-    lang: string;
-    sttEnhancement?: SttEnhancementProvider;
-    sttEnhancementConfig?: SttEnhancementConfig;
-    commercialFallback?: CommercialSttProvider;
-  }): Promise<void> {
+  private async _transcribeWithWhisperServerFallback(
+    audioBlob: Blob,
+    lastError: unknown,
+    config: {
+      whisperServerUrl?: string;
+      whisperServerModel?: string;
+      lang: string;
+      sttEnhancement?: SttEnhancementProvider;
+      sttEnhancementConfig?: SttEnhancementConfig;
+      commercialFallback?: CommercialSttProvider;
+    },
+  ): Promise<void> {
     const baseUrl = config.whisperServerUrl?.replace(/\/+$/, '') ?? 'http://localhost:3040';
     const model = config.whisperServerModel ?? 'ggml-distil-whisper-large-v3.bin';
 
@@ -280,16 +317,26 @@ export class RecordingExecutor {
     } catch (err) {
       if (config.commercialFallback) {
         try {
-          const commercialResult = await this.runCommercialTranscription(config.commercialFallback, audioBlob, config.lang);
-          this.callbacks.emitResult(await this.applyEnhancement(commercialResult, audioBlob, config));
+          const commercialResult = await this.runCommercialTranscription(
+            config.commercialFallback,
+            audioBlob,
+            config.lang,
+          );
+          this.callbacks.emitResult(
+            await this.applyEnhancement(commercialResult, audioBlob, config),
+          );
           return;
         } catch (fallbackErr) {
           log.warn('commercial fallback transcription failed', { fallbackErr });
-          this.callbacks.emitError(lastError instanceof Error ? lastError.message : STT_TRANSCRIPTION_FAILED_MESSAGE);
+          this.callbacks.emitError(
+            lastError instanceof Error ? lastError.message : STT_TRANSCRIPTION_FAILED_MESSAGE,
+          );
           return;
         }
       }
-      this.callbacks.emitError(err instanceof Error ? err.message : STT_TRANSCRIPTION_FAILED_MESSAGE);
+      this.callbacks.emitError(
+        err instanceof Error ? err.message : STT_TRANSCRIPTION_FAILED_MESSAGE,
+      );
     }
   }
 
@@ -303,7 +350,9 @@ export class RecordingExecutor {
       return await provider.transcribe(audioBlob, lang, { signal: controller.signal });
     } catch (error) {
       if (controller.signal.aborted) {
-        throw new Error(`${provider.label} transcription timed out after ${STT_TRANSCRIPTION_TIMEOUT_MS}ms`);
+        throw new Error(
+          `${provider.label} transcription timed out after ${STT_TRANSCRIPTION_TIMEOUT_MS}ms`,
+        );
       }
       throw error;
     } finally {
@@ -336,12 +385,15 @@ export class RecordingExecutor {
         });
 
         if (!resp.ok) {
-          const text = await resp.text().catch((e) => { log.warn('VoiceInput STT: failed to read error response body', { err: e }); return ''; });
+          const text = await resp.text().catch((e) => {
+            log.warn('VoiceInput STT: failed to read error response body', { err: e });
+            return '';
+          });
           failures.push(`${endpoint} -> ${resp.status} ${text}`.trim());
           continue;
         }
 
-        const json = await resp.json() as Record<string, unknown>;
+        const json = (await resp.json()) as Record<string, unknown>;
         const verbose = tryParseVerboseResponse(json);
         const confidence = verbose ? computeWhisperConfidence(verbose) : 1.0;
         return {
@@ -381,11 +433,14 @@ export class RecordingExecutor {
     }
 
     try {
-      const enhancement = await config.sttEnhancement.enhance({
-        transcriptText: result.text,
-        lang: config.lang,
-        audioBlob,
-      }, config.sttEnhancementConfig ?? {});
+      const enhancement = await config.sttEnhancement.enhance(
+        {
+          transcriptText: result.text,
+          lang: config.lang,
+          audioBlob,
+        },
+        config.sttEnhancementConfig ?? {},
+      );
 
       return {
         ...result,
@@ -395,7 +450,9 @@ export class RecordingExecutor {
           kind: config.sttEnhancement.kind,
           applied: true,
           ...(enhancement.wordTimings ? { wordTimingCount: enhancement.wordTimings.length } : {}),
-          ...(enhancement.speakerTurns ? { speakerTurnCount: enhancement.speakerTurns.length } : {}),
+          ...(enhancement.speakerTurns
+            ? { speakerTurnCount: enhancement.speakerTurns.length }
+            : {}),
         },
       };
     } catch (error) {

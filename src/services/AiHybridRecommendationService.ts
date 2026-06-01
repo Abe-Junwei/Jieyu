@@ -2,8 +2,19 @@ import { createAiChatProvider, type AiChatSettings } from '../ai/providers/provi
 import type { ChatMessage } from '../ai/providers/LLMProvider';
 import type { Locale } from '../i18n';
 import type { AiChatHybridFallbackInput } from '../i18n/messages';
-import type { AiAdaptiveIntent, AiAdaptiveResponseStyle, AiConnectionTestStatus, AiRecommendationSource, AiRecommendationTelemetry } from '../ai/chat/chatDomain.types';
-import { AI_HYBRID_RECOMMENDATION_CONFIG, createAiHybridRecommendationConfig, type AiHybridRecommendationConfigPatch, type AiHybridRecommendationServiceConfig } from './AiHybridRecommendationConfig';
+import type {
+  AiAdaptiveIntent,
+  AiAdaptiveResponseStyle,
+  AiConnectionTestStatus,
+  AiRecommendationSource,
+  AiRecommendationTelemetry,
+} from '../ai/chat/chatDomain.types';
+import {
+  AI_HYBRID_RECOMMENDATION_CONFIG,
+  createAiHybridRecommendationConfig,
+  type AiHybridRecommendationConfigPatch,
+  type AiHybridRecommendationServiceConfig,
+} from './AiHybridRecommendationConfig';
 import { createLogger } from '../observability/logger';
 
 const log = createLogger('AiHybridRecommendationService');
@@ -50,13 +61,20 @@ interface AiHybridRecommendationDependencies {
 }
 
 function compactText(text: string | null | undefined, max = 80): string {
-  const normalized = String(text ?? '').replace(/\s+/g, ' ').trim();
+  const normalized = String(text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!normalized) return '';
-  return normalized.length <= max ? normalized : `${normalized.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+  return normalized.length <= max
+    ? normalized
+    : `${normalized.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
 function normalizePromptText(text: string | null | undefined): string {
-  return String(text ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+  return String(text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
 }
 
 function sanitizeRecommendationPrompt(prompt: string, locale: Locale): string {
@@ -81,11 +99,13 @@ function extractJsonCandidate(text: string): string | null {
 
   const firstBrace = text.indexOf('{');
   const lastBrace = text.lastIndexOf('}');
-  if (firstBrace >= 0 && lastBrace > firstBrace) return text.slice(firstBrace, lastBrace + 1).trim();
+  if (firstBrace >= 0 && lastBrace > firstBrace)
+    return text.slice(firstBrace, lastBrace + 1).trim();
 
   const firstBracket = text.indexOf('[');
   const lastBracket = text.lastIndexOf(']');
-  if (firstBracket >= 0 && lastBracket > firstBracket) return text.slice(firstBracket, lastBracket + 1).trim();
+  if (firstBracket >= 0 && lastBracket > firstBracket)
+    return text.slice(firstBracket, lastBracket + 1).trim();
 
   return null;
 }
@@ -96,6 +116,8 @@ export class AiHybridRecommendationService {
   private readonly dependencies: AiHybridRecommendationDependencies;
 
   private readonly cache = new Map<string, AiHybridRecommendationCacheEntry>();
+
+  private static readonly MAX_CACHE_ENTRIES = 64;
 
   private readonly remoteRequestTimestamps: number[] = [];
 
@@ -127,7 +149,9 @@ export class AiHybridRecommendationService {
       input.recommendationTelemetry,
     ).slice(0, 1);
     const refinementSignature = this.buildRefinementSignature(input);
-    const cachedItems = llmCooldownActive ? null : this.getCachedRecommendations(refinementSignature);
+    const cachedItems = llmCooldownActive
+      ? null
+      : this.getCachedRecommendations(refinementSignature);
 
     return {
       displaySignature: JSON.stringify({
@@ -167,23 +191,30 @@ export class AiHybridRecommendationService {
     if (tracked.observerStage) snapshot.stage = input.observerStage ?? null;
     if (tracked.task) snapshot.task = input.aiCurrentTask ?? null;
     if (tracked.rowBucket) {
-      snapshot.rowBucket = input.rowNumber != null
-        ? Math.floor(input.rowNumber / Math.max(1, this.config.significance.rowBucketSize))
-        : null;
+      snapshot.rowBucket =
+        input.rowNumber != null
+          ? Math.floor(input.rowNumber / Math.max(1, this.config.significance.rowBucketSize))
+          : null;
     }
     if (tracked.selectedUnitKind) snapshot.unit = input.selectedUnitKind ?? null;
     if (tracked.selectedLayerType) snapshot.layer = input.selectedLayerType ?? null;
     if (tracked.selectedTimeRangeLabel) snapshot.range = input.selectedTimeRangeLabel ?? null;
     if (tracked.selectedText) {
-      snapshot.text = compactText(input.selectedText, this.config.significance.selectedTextMaxLength);
+      snapshot.text = compactText(
+        input.selectedText,
+        this.config.significance.selectedTextMaxLength,
+      );
     }
     if (tracked.lastToolName) snapshot.lastToolName = input.lastToolName ?? null;
     if (tracked.preferredMode) snapshot.preferredMode = input.preferredMode ?? null;
-    if (tracked.confirmationThreshold) snapshot.confirmationThreshold = input.confirmationThreshold ?? null;
+    if (tracked.confirmationThreshold)
+      snapshot.confirmationThreshold = input.confirmationThreshold ?? null;
     if (tracked.adaptiveIntent) snapshot.adaptiveIntent = input.adaptiveIntent ?? null;
-    if (tracked.adaptiveResponseStyle) snapshot.adaptiveResponseStyle = input.adaptiveResponseStyle ?? null;
+    if (tracked.adaptiveResponseStyle)
+      snapshot.adaptiveResponseStyle = input.adaptiveResponseStyle ?? null;
     if (tracked.adaptiveKeywords) {
-      snapshot.adaptiveKeywords = input.adaptiveKeywords?.slice(0, this.config.significance.adaptiveKeywordLimit) ?? [];
+      snapshot.adaptiveKeywords =
+        input.adaptiveKeywords?.slice(0, this.config.significance.adaptiveKeywordLimit) ?? [];
     }
     if (tracked.providerKind) snapshot.providerKind = input.aiChatSettings?.providerKind ?? 'mock';
     if (tracked.model) snapshot.model = input.aiChatSettings?.model ?? '';
@@ -209,13 +240,17 @@ export class AiHybridRecommendationService {
     const scored = uniquePrompts.map((prompt, index) => {
       const promptStats = this.collectPromptStats(prompt, source, telemetry);
       const repeatedIgnores = Math.max(0, promptStats.shownCount - promptStats.acceptedCount);
-      const suppressionPenalty = Math.max(0, repeatedIgnores - 1) * this.config.suppression.repeatedIgnorePenalty;
-      const shouldApplyRepeatPenalty = promptStats.wasLastShownWithoutAcceptance && promptStats.shownCount >= 2;
-      const score = 100 - (index * 5)
-        + (promptStats.acceptedExactCount * this.config.suppression.exactAcceptanceBoost)
-        + (promptStats.acceptedEditedCount * this.config.suppression.editedAcceptanceBoost)
-        - suppressionPenalty
-        - (shouldApplyRepeatPenalty ? this.config.suppression.repeatPenalty : 0);
+      const suppressionPenalty =
+        Math.max(0, repeatedIgnores - 1) * this.config.suppression.repeatedIgnorePenalty;
+      const shouldApplyRepeatPenalty =
+        promptStats.wasLastShownWithoutAcceptance && promptStats.shownCount >= 2;
+      const score =
+        100 -
+        index * 5 +
+        promptStats.acceptedExactCount * this.config.suppression.exactAcceptanceBoost +
+        promptStats.acceptedEditedCount * this.config.suppression.editedAcceptanceBoost -
+        suppressionPenalty -
+        (shouldApplyRepeatPenalty ? this.config.suppression.repeatPenalty : 0);
 
       return {
         prompt,
@@ -225,9 +260,9 @@ export class AiHybridRecommendationService {
       };
     });
 
-    const ranked = (scored.some((item) => !item.suppressed)
-      ? scored.filter((item) => !item.suppressed)
-      : scored)
+    const ranked = (
+      scored.some((item) => !item.suppressed) ? scored.filter((item) => !item.suppressed) : scored
+    )
       .sort((left, right) => right.score - left.score)
       .map((item, index) => ({
         id: `${source}-${index}-${item.prompt}`,
@@ -242,7 +277,7 @@ export class AiHybridRecommendationService {
   getCachedRecommendations(signature: string): AiHybridRecommendation[] | null {
     const cached = this.cache.get(signature);
     if (!cached) return null;
-    if ((this.dependencies.now() - cached.createdAt) >= this.config.cacheTtlMs) {
+    if (this.dependencies.now() - cached.createdAt >= this.config.cacheTtlMs) {
       this.cache.delete(signature);
       return null;
     }
@@ -254,15 +289,35 @@ export class AiHybridRecommendationService {
       items,
       createdAt: this.dependencies.now(),
     });
+    this.evictCacheIfNeeded();
+  }
+
+  private evictCacheIfNeeded(): void {
+    while (this.cache.size > AiHybridRecommendationService.MAX_CACHE_ENTRIES) {
+      let oldestKey: string | null = null;
+      let oldestCreatedAt = Number.POSITIVE_INFINITY;
+      for (const [key, entry] of this.cache.entries()) {
+        if (entry.createdAt < oldestCreatedAt) {
+          oldestCreatedAt = entry.createdAt;
+          oldestKey = key;
+        }
+      }
+      if (!oldestKey) return;
+      this.cache.delete(oldestKey);
+    }
   }
 
   shouldUseRemoteRefinement(input: AiHybridRecommendationInput): boolean {
     if (!input.enabled || !input.composerIdle || !input.aiChatSettings) return false;
     if (input.aiChatSettings.providerKind === 'mock') return false;
-    if (input.connectionTestStatus === 'error' || input.connectionTestStatus === 'testing') return false;
-    if (input.aiChatSettings.providerKind !== 'ollama'
-      && input.aiChatSettings.providerKind !== 'webllm'
-      && input.connectionTestStatus !== 'success') return false;
+    if (input.connectionTestStatus === 'error' || input.connectionTestStatus === 'testing')
+      return false;
+    if (
+      input.aiChatSettings.providerKind !== 'ollama' &&
+      input.aiChatSettings.providerKind !== 'webllm' &&
+      input.connectionTestStatus !== 'success'
+    )
+      return false;
     if (this.isRemoteCooldownActive(input.recommendationTelemetry)) return false;
     return true;
   }
@@ -270,8 +325,8 @@ export class AiHybridRecommendationService {
   consumeRemoteBudget(): boolean {
     const now = this.dependencies.now();
     while (
-      this.remoteRequestTimestamps.length > 0
-      && now - this.remoteRequestTimestamps[0]! > this.config.remoteBudgetWindowMs
+      this.remoteRequestTimestamps.length > 0 &&
+      now - this.remoteRequestTimestamps[0]! > this.config.remoteBudgetWindowMs
     ) {
       this.remoteRequestTimestamps.shift();
     }
@@ -292,7 +347,13 @@ export class AiHybridRecommendationService {
     const provider = this.dependencies.createProvider(input.aiChatSettings);
     const messages: ChatMessage[] = [
       { role: 'system', content: this.buildSystemPrompt(input.locale) },
-      { role: 'user', content: this.buildUserPrompt(input, fallbackItems.map((item) => item.prompt)) },
+      {
+        role: 'user',
+        content: this.buildUserPrompt(
+          input,
+          fallbackItems.map((item) => item.prompt),
+        ),
+      },
     ];
 
     let rawResponse = '';
@@ -311,7 +372,12 @@ export class AiHybridRecommendationService {
 
     const prompts = this.parseLlmRecommendationText(rawResponse);
     if (prompts.length === 0) return null;
-    const items = this.buildRecommendationItems(prompts, 'llm', input.locale, input.recommendationTelemetry).slice(0, 1);
+    const items = this.buildRecommendationItems(
+      prompts,
+      'llm',
+      input.locale,
+      input.recommendationTelemetry,
+    ).slice(0, 1);
     return items.length > 0 ? items : null;
   }
 
@@ -323,21 +389,26 @@ export class AiHybridRecommendationService {
       const parsed: unknown = JSON.parse(candidate);
       const suggestions = Array.isArray(parsed)
         ? parsed
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as { suggestions?: unknown[] }).suggestions)
+        : parsed &&
+            typeof parsed === 'object' &&
+            Array.isArray((parsed as { suggestions?: unknown[] }).suggestions)
           ? (parsed as { suggestions: unknown[] }).suggestions
-          : []);
+          : [];
 
-      return suggestions.flatMap((item) => {
-        if (typeof item === 'string') return [item.trim()];
-        if (!item || typeof item !== 'object') return [];
-        const record = item as { label?: unknown; prompt?: unknown };
-        const prompt = typeof record.prompt === 'string'
-          ? record.prompt.trim()
-          : typeof record.label === 'string'
-            ? record.label.trim()
-            : '';
-        return prompt ? [prompt] : [];
-      }).filter(Boolean);
+      return suggestions
+        .flatMap((item) => {
+          if (typeof item === 'string') return [item.trim()];
+          if (!item || typeof item !== 'object') return [];
+          const record = item as { label?: unknown; prompt?: unknown };
+          const prompt =
+            typeof record.prompt === 'string'
+              ? record.prompt.trim()
+              : typeof record.label === 'string'
+                ? record.label.trim()
+                : '';
+          return prompt ? [prompt] : [];
+        })
+        .filter(Boolean);
     } catch (e) {
       log.warn('failed to collect recommendation prompts', { err: e });
       return [];
@@ -375,7 +446,8 @@ export class AiHybridRecommendationService {
 
     const acceptedCount = acceptedExactCount + acceptedEditedCount;
     const wasLastShownPrompt = normalizePromptText(telemetry?.lastShownPrompt) === normalizedPrompt;
-    const wasLastAcceptedPrompt = normalizePromptText(telemetry?.lastAcceptedPrompt) === normalizedPrompt;
+    const wasLastAcceptedPrompt =
+      normalizePromptText(telemetry?.lastAcceptedPrompt) === normalizedPrompt;
 
     return {
       shownCount,
@@ -391,12 +463,15 @@ export class AiHybridRecommendationService {
     return (telemetry?.recentEvents ?? []).filter((event) => {
       const timestamp = Date.parse(event.timestamp);
       if (!Number.isFinite(timestamp)) return true;
-      return (now - timestamp) <= windowMs;
+      return now - timestamp <= windowMs;
     });
   }
 
   private isRemoteCooldownActive(telemetry?: AiRecommendationTelemetry): boolean {
-    const recentEvents = this.getRecentEvents(telemetry, this.config.suppression.llmCooldownWindowMs);
+    const recentEvents = this.getRecentEvents(
+      telemetry,
+      this.config.suppression.llmCooldownWindowMs,
+    );
     let consecutiveIgnoredLlmShows = 0;
 
     for (let index = recentEvents.length - 1; index >= 0; index -= 1) {
@@ -427,7 +502,7 @@ export class AiHybridRecommendationService {
     }
 
     return [
-      'You are Jieyu\'s AI chat recommendation engine.',
+      "You are Jieyu's AI chat recommendation engine.",
       'Generate exactly one next prompt the user can send right now.',
       'Use the current page, selection, task stage, completion progress, and prior prompt habits.',
       'Return JSON only. No markdown. No explanation.',
@@ -439,10 +514,7 @@ export class AiHybridRecommendationService {
     ].join('\n');
   }
 
-  private buildUserPrompt(
-    input: AiHybridRecommendationInput,
-    fallbackPrompts: string[],
-  ): string {
+  private buildUserPrompt(input: AiHybridRecommendationInput, fallbackPrompts: string[]): string {
     const lines = [
       `page=${input.page ?? 'other'}`,
       `observerStage=${input.observerStage ?? 'unknown'}`,
@@ -534,4 +606,6 @@ export class AiHybridRecommendationService {
   }
 }
 
-export const aiHybridRecommendationService = new AiHybridRecommendationService(AI_HYBRID_RECOMMENDATION_CONFIG);
+export const aiHybridRecommendationService = new AiHybridRecommendationService(
+  AI_HYBRID_RECOMMENDATION_CONFIG,
+);
