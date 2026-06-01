@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
+import { waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb, resetJieyuDatabaseSingletonForTests } from '../../db';
 import { buildUserDirectivePrompt } from './userDirectivePrompt';
@@ -58,6 +59,32 @@ describe('sessionMemory Dexie store (G1a)', () => {
     expect(loadSessionMemory().preferences?.lastLanguage).toBe('eng');
     bindSessionMemoryConversation(null);
     expect(loadSessionMemory()).toEqual({});
+  });
+
+  it('flushes pending sync persist when switching conversations before hydration completes', async () => {
+    const conversationA = 'conv-switch-pending-a';
+    const conversationB = 'conv-switch-pending-b';
+    await persistSessionMemoryAsync(conversationA, {
+      preferences: { lastLanguage: 'cmn' },
+    });
+
+    resetSessionMemoryStoreForTests();
+    bindSessionMemoryConversation(conversationA);
+    persistSessionMemory({
+      preferences: { lastLanguage: 'yue' },
+      responsePreferences: { style: 'concise' },
+    });
+
+    bindSessionMemoryConversation(conversationB);
+
+    const db = await getDb();
+    await waitFor(async () => {
+      const rowA = await db.collections.ai_session_memories
+        .findOne({ selector: { conversationId: conversationA } })
+        .exec();
+      expect(rowA?.toJSON().payload.preferences?.lastLanguage).toBe('yue');
+      expect(rowA?.toJSON().payload.responsePreferences?.style).toBe('concise');
+    });
   });
 
   it('defers sync persist until hydration and does not clobber Dexie with stale empty snapshot', async () => {
