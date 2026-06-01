@@ -254,7 +254,6 @@ export async function getPreMigrationBackupForMigration(
   const rows = await listPreMigrationBackups(dbName);
   return rows.find((row) => row.fromVersion === fromVersion && row.toVersion === toVersion) ?? null;
 }
-
 export async function getPreMigrationBackupById(
   snapshotId: string,
 ): Promise<PreMigrationBackupSnapshot | null> {
