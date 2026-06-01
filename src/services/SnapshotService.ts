@@ -118,6 +118,19 @@ async function dropCorruptedRecoverySnapshot(dbName: string): Promise<null> {
   return null;
 }
 
+function mergeDocsById<T extends { id: string }>(baseRows: unknown, liveRows: T[]): T[] {
+  const base = Array.isArray(baseRows) ? (baseRows as T[]) : [];
+  const byId = new Map(base.map((row) => [row.id, row]));
+  for (const row of liveRows) {
+    byId.set(row.id, row);
+  }
+  return [...byId.values()];
+}
+
+/**
+ * Overlay in-memory edits onto the DB export without dropping rows that only exist in IDB
+ * (e.g. segment-type `layer_units` are not held in React `unitsRef`).
+ */
 function withLiveLayerGraphOverlay(
   snapshot: RecoveryDatabaseSnapshot,
   liveLayerGraph: NonNullable<SaveRecoverySnapshotOptions['liveLayerGraph']>,
@@ -126,9 +139,12 @@ function withLiveLayerGraphOverlay(
     ...snapshot,
     collections: {
       ...snapshot.collections,
-      layer_units: liveLayerGraph.layer_units,
-      layer_unit_contents: liveLayerGraph.layer_unit_contents,
-      layers: liveLayerGraph.layers,
+      layer_units: mergeDocsById(snapshot.collections['layer_units'], liveLayerGraph.layer_units),
+      layer_unit_contents: mergeDocsById(
+        snapshot.collections['layer_unit_contents'],
+        liveLayerGraph.layer_unit_contents,
+      ),
+      layers: mergeDocsById(snapshot.collections['layers'], liveLayerGraph.layers),
     },
   };
 }
