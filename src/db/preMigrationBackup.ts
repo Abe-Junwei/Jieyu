@@ -293,6 +293,12 @@ function deleteIndexedDb(dbName: string): Promise<void> {
   });
 }
 
+/** True when a failed migration open may have left a corrupt DB worth restoring from backup. */
+export function shouldAttemptPreMigrationRestore(err: unknown): boolean {
+  if (err instanceof Error && /blocked/i.test(err.message)) return false;
+  return true;
+}
+
 /**
  * Restores a pre-migration snapshot back into the source database at `fromVersion`.
  * Clears the migration marker so a fresh backup can be taken before the next upgrade attempt.
