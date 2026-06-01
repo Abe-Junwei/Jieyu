@@ -82,6 +82,35 @@ describe('sessionMemory Dexie store (G1a)', () => {
     bindSessionMemoryConversation(null);
     expect(loadSessionMemory()).toEqual({});
   });
+
+  it('defers sync persist until hydration and does not clobber Dexie with stale empty snapshot', async () => {
+    const conversationId = 'conv-hydration-gate';
+    await persistSessionMemoryAsync(conversationId, {
+      preferences: { lastLanguage: 'cmn' },
+      responsePreferences: { style: 'concise' },
+    });
+
+    resetSessionMemoryStoreForTests();
+    bindSessionMemoryConversation(conversationId);
+    persistSessionMemory({});
+
+    const db = await getDb();
+    const rowBeforeHydration = await db.collections.ai_session_memories
+      .findOne({ selector: { conversationId } })
+      .exec();
+    expect(rowBeforeHydration?.toJSON().payload.preferences?.lastLanguage).toBe('cmn');
+    expect(rowBeforeHydration?.toJSON().payload.responsePreferences?.style).toBe('concise');
+
+    const loaded = await loadSessionMemoryAsync(conversationId);
+    expect(loaded.preferences?.lastLanguage).toBe('cmn');
+    expect(loaded.responsePreferences?.style).toBe('concise');
+
+    const rowAfterHydration = await db.collections.ai_session_memories
+      .findOne({ selector: { conversationId } })
+      .exec();
+    expect(rowAfterHydration?.toJSON().payload.preferences?.lastLanguage).toBe('cmn');
+    expect(rowAfterHydration?.toJSON().payload.responsePreferences?.style).toBe('concise');
+  });
 });
 
 describe('sessionMemory P2 helpers', () => {

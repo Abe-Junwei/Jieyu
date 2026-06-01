@@ -3,6 +3,7 @@ import { getWorkerPool } from './WorkerPool';
 
 describe('WorkerPool', () => {
   afterEach(() => {
+    vi.useRealTimers();
     getWorkerPool().destroy();
   });
 
@@ -47,6 +48,28 @@ describe('WorkerPool', () => {
 
     expect(factory.mock.calls.length).toBe(factoryCallsAfterRegister);
     expect(worker.terminate).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('does not auto-restart owner-managed workers on heartbeat timeout', () => {
+    vi.useFakeTimers();
+    const terminate = vi.fn();
+    const existing = {
+      postMessage: vi.fn(),
+      terminate,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as Worker;
+    const factory = vi.fn(
+      () => ({ postMessage: vi.fn(), terminate: vi.fn() }) as unknown as Worker,
+    );
+
+    getWorkerPool().register('owner-managed', 'OwnerManaged', factory, existing);
+
+    vi.advanceTimersByTime(60_000);
+
+    expect(terminate).not.toHaveBeenCalled();
+    expect(factory).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
 });
