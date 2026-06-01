@@ -121,6 +121,11 @@ export function getBoundSessionMemoryConversationId(): string | null {
   return activeConversationId;
 }
 
+/** Returns the conversation id currently bound for sync persist (null when unbound). */
+export function getBoundSessionMemoryConversationId(): string | null {
+  return activeConversationId;
+}
+
 /** Test-only: reset in-memory session memory store between cases. */
 export function resetSessionMemoryStoreForTests(): void {
   memoryCache.clear();
