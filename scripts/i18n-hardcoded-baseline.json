@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-05-11T23:17:37.105Z",
+  "generatedAt": "2026-06-01T07:46:19.413Z",
   "scannerVersion": 2,
-  "totalHits": 247,
+  "totalHits": 225,
   "files": {
     "src/ai/chat/executors/toolPayload.ts": 1,
     "src/ai/chat/formatters/agentLoopPayload.ts": 1,
@@ -13,12 +13,6 @@
     "src/ai/eval/userFeedback.ts": 13,
     "src/ai/vertical/composedWorkflowTemplates.ts": 6,
     "src/components/transcription/toolbar/ObserverStatus.tsx": 1,
-    "src/hooks/ai/useAiChat.confirmExecution.ts": 7,
-    "src/hooks/ai/useAiChat.rag.ts": 3,
-    "src/hooks/ai/useAiChat.sendTurnStreamPhase.ts": 2,
-    "src/hooks/ai/useAiChat.streamCompletion.ts": 8,
-    "src/hooks/orthography/useOrthographyPicker.ts": 1,
-    "src/hooks/transcription/useTranscriptionLayerActions.ts": 1,
     "src/hooks/transcription/useTranscriptionTimelineVerticalChrome.ts": 8,
     "src/services/VoiceAgentService.startFlow.ts": 1,
     "src/services/VoiceAgentService.wakeWordFailure.ts": 2,
