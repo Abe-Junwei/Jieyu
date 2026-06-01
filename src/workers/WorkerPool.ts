@@ -57,11 +57,16 @@ class WorkerPoolImpl {
    * 注册一个 Worker 到池中。如果该 id 已有 Worker，先销毁旧的。
    * Register a worker in the pool. If an existing worker has the same id, it is terminated first.
    */
-  register(id: string, label: string, factory: () => Worker): WorkerPoolEntry {
+  register(
+    id: string,
+    label: string,
+    factory: () => Worker,
+    existingWorker?: Worker,
+  ): WorkerPoolEntry {
     this.deregister(id);
     this.createWorker.set(id, factory);
 
-    const worker = factory();
+    const worker = existingWorker ?? factory();
     const entry: WorkerPoolEntry = {
       id,
       label,
@@ -85,7 +90,11 @@ class WorkerPoolImpl {
     if (!entry) return;
     this.silence(entry);
     entry.state = 'terminated';
-    try { entry.worker.terminate(); } catch { /* already gone */ }
+    try {
+      entry.worker.terminate();
+    } catch {
+      /* already gone */
+    }
     this.createWorker.delete(id);
     this.entries.delete(id);
     log.info(`[WorkerPool] deregistered "${entry.label}" (id=${id})`);
@@ -110,13 +119,24 @@ class WorkerPoolImpl {
 
   /** 获取统计信息 | Get stats */
   stats(): WorkerPoolStats {
-    let idle = 0, busy = 0, crashed = 0, terminated = 0;
+    let idle = 0,
+      busy = 0,
+      crashed = 0,
+      terminated = 0;
     for (const e of this.entries.values()) {
       switch (e.state) {
-        case 'idle': idle++; break;
-        case 'busy': busy++; break;
-        case 'crashed': crashed++; break;
-        case 'terminated': terminated++; break;
+        case 'idle':
+          idle++;
+          break;
+        case 'busy':
+          busy++;
+          break;
+        case 'crashed':
+          crashed++;
+          break;
+        case 'terminated':
+          terminated++;
+          break;
       }
     }
     return { total: this.entries.size, idle, busy, crashed, terminated };
@@ -177,7 +197,11 @@ class WorkerPoolImpl {
 
     setTimeout(() => {
       if (entry.state === 'terminated') return;
-      try { entry.worker.terminate(); } catch { /* already dead */ }
+      try {
+        entry.worker.terminate();
+      } catch {
+        /* already dead */
+      }
       const newWorker = factory();
       entry.restartCount += 1;
       // 替换 worker 引用 | Replace worker reference
@@ -204,8 +228,8 @@ class WorkerPoolImpl {
         }
         // 检查超时 | Check timeout
         if (
-          entry.state !== 'crashed'
-          && Date.now() - entry.lastHeartbeatAt > HEARTBEAT_TIMEOUT_MS
+          entry.state !== 'crashed' &&
+          Date.now() - entry.lastHeartbeatAt > HEARTBEAT_TIMEOUT_MS
         ) {
           entry.state = 'crashed';
           log.warn(`[WorkerPool] "${entry.label}" heartbeat timeout`);
@@ -234,4 +258,3 @@ export function getWorkerPool(): WorkerPoolImpl {
   }
   return instance;
 }
-

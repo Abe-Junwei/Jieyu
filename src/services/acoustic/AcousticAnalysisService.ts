@@ -3,9 +3,25 @@ import { createLogger } from '../../observability/logger';
 import { nextPhysicalWorkerId } from '../../observability/managedWorkerRegistry';
 import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
 import { getWorkerPool } from '../../workers/WorkerPool';
-import { buildAcousticCacheKey, DEFAULT_ACOUSTIC_ANALYSIS_CONFIG, type AcousticAnalysisConfig, type AcousticAnalysisProgress, type AcousticFeatureResult } from '../../utils/acousticOverlayTypes';
+import {
+  buildAcousticCacheKey,
+  DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
+  type AcousticAnalysisConfig,
+  type AcousticAnalysisProgress,
+  type AcousticFeatureResult,
+} from '../../utils/acousticOverlayTypes';
 import { acousticAnalysisCacheDB } from './AcousticAnalysisCacheDB';
-import { isAllowedExternalProviderEndpoint, type AcousticProviderAnalyzeInput, type AcousticProviderRuntimeConfig, type ExternalAcousticProviderConfig, LOCAL_ACOUSTIC_PROVIDER_DEFINITION, resolveAcousticProviderRuntimeConfig, resolveAcousticProviderState, type ResolvedAcousticProviderState } from './acousticProviderContract';
+import { VAD_AUTO_WARM_MAX_BYTES } from '../vad/VadMediaCacheService';
+import {
+  isAllowedExternalProviderEndpoint,
+  type AcousticProviderAnalyzeInput,
+  type AcousticProviderRuntimeConfig,
+  type ExternalAcousticProviderConfig,
+  LOCAL_ACOUSTIC_PROVIDER_DEFINITION,
+  resolveAcousticProviderRuntimeConfig,
+  resolveAcousticProviderState,
+  type ResolvedAcousticProviderState,
+} from './acousticProviderContract';
 
 const log = createLogger('AcousticAnalysisService');
 
@@ -13,6 +29,7 @@ interface AudioResponseLike {
   ok: boolean;
   status?: number;
   arrayBuffer: () => Promise<ArrayBuffer>;
+  headers?: { get?: (name: string) => string | null };
 }
 
 interface AudioContextLike {
@@ -62,7 +79,10 @@ interface AcousticWorkerHeartbeatPong {
   type: 'workerpool:pong';
 }
 
-type AcousticWorkerResponse = AcousticWorkerProgress | AcousticWorkerResult | AcousticWorkerHeartbeatPong;
+type AcousticWorkerResponse =
+  | AcousticWorkerProgress
+  | AcousticWorkerResult
+  | AcousticWorkerHeartbeatPong;
 
 interface AnalyzeRequestOptions {
   signal?: AbortSignal;
@@ -93,10 +113,12 @@ interface AcousticAnalysisServiceOptions {
   audioContextFactory?: () => AudioContextLike;
   workerFactory?: () => WorkerLike;
   providerRuntimeConfigResolver?: () => AcousticProviderRuntimeConfig;
-  externalProviderAnalyze?: (input: AcousticProviderAnalyzeInput & {
-    providerId: string;
-    externalConfig: ExternalAcousticProviderConfig;
-  }) => Promise<AcousticFeatureResult>;
+  externalProviderAnalyze?: (
+    input: AcousticProviderAnalyzeInput & {
+      providerId: string;
+      externalConfig: ExternalAcousticProviderConfig;
+    },
+  ) => Promise<AcousticFeatureResult>;
   now?: () => number;
 }
 
@@ -110,7 +132,10 @@ const MAX_CACHE_ENTRIES = 8;
 const MAX_EXTERNAL_PROVIDER_PCM_BYTES = 64 * 1024 * 1024;
 
 function createBrowserAudioContext(): AudioContextLike {
-  const AudioContextCtor = window.AudioContext ?? (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const AudioContextCtor =
+    window.AudioContext ??
+    (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
   if (!AudioContextCtor) {
     throw new Error('AudioContext unavailable');
   }
@@ -162,13 +187,15 @@ function wrapPromiseWithSignal<T>(promise: Promise<T>, signal?: AbortSignal): Pr
       reject(createAbortError());
     };
     signal.addEventListener('abort', handleAbort, { once: true });
-    promise.then((value) => {
-      signal.removeEventListener('abort', handleAbort);
-      resolve(value);
-    }).catch((error) => {
-      signal.removeEventListener('abort', handleAbort);
-      reject(error);
-    });
+    promise
+      .then((value) => {
+        signal.removeEventListener('abort', handleAbort);
+        resolve(value);
+      })
+      .catch((error) => {
+        signal.removeEventListener('abort', handleAbort);
+        reject(error);
+      });
   });
 }
 
@@ -204,7 +231,11 @@ export class AcousticAnalysisService {
   }
 
   /** 轻量资源快照，供调试 / 遥测，不做网络 I/O。 */
-  getResourceHealthSnapshot(): { memoryCacheSize: number; hasWorker: boolean; pendingDeduplicationKeys: number } {
+  getResourceHealthSnapshot(): {
+    memoryCacheSize: number;
+    hasWorker: boolean;
+    pendingDeduplicationKeys: number;
+  } {
     return {
       memoryCacheSize: this.cache.size,
       hasWorker: this.worker != null,
@@ -212,7 +243,13 @@ export class AcousticAnalysisService {
     };
   }
 
-  static getHealthSnapshot(): { ok: true; initialized: boolean; memoryCacheSize: number; hasWorker: boolean; pendingDeduplicationKeys: number } {
+  static getHealthSnapshot(): {
+    ok: true;
+    initialized: boolean;
+    memoryCacheSize: number;
+    hasWorker: boolean;
+    pendingDeduplicationKeys: number;
+  } {
     if (!AcousticAnalysisService.instance) {
       return {
         ok: true,
@@ -235,25 +272,39 @@ export class AcousticAnalysisService {
   private readonly fetchImpl: AcousticAnalysisServiceOptions['fetchImpl'];
   private readonly audioContextFactory: AcousticAnalysisServiceOptions['audioContextFactory'];
   private readonly workerFactory: AcousticAnalysisServiceOptions['workerFactory'];
-  private readonly providerRuntimeConfigResolver: NonNullable<AcousticAnalysisServiceOptions['providerRuntimeConfigResolver']>;
-  private readonly externalProviderAnalyzeImpl: NonNullable<AcousticAnalysisServiceOptions['externalProviderAnalyze']>;
+  private readonly providerRuntimeConfigResolver: NonNullable<
+    AcousticAnalysisServiceOptions['providerRuntimeConfigResolver']
+  >;
+  private readonly externalProviderAnalyzeImpl: NonNullable<
+    AcousticAnalysisServiceOptions['externalProviderAnalyze']
+  >;
   private readonly now: NonNullable<AcousticAnalysisServiceOptions['now']>;
   private worker: WorkerLike | null = null;
   private acousticWorkerTrackingRelease: (() => void) | null = null;
-  private readonly pendingWorkerRequests = new PendingWorkerRequestStore<AcousticFeatureResult, AcousticAnalysisProgress>();
+  private readonly pendingWorkerRequests = new PendingWorkerRequestStore<
+    AcousticFeatureResult,
+    AcousticAnalysisProgress
+  >();
+  private disposed = false;
 
   constructor(options: AcousticAnalysisServiceOptions = {}) {
-    this.fetchImpl = options.fetchImpl ?? (async (input: string) => {
-      const response = await fetch(input);
-      return response as AudioResponseLike;
-    });
+    this.fetchImpl =
+      options.fetchImpl ??
+      (async (input: string) => {
+        const response = await fetch(input);
+        return response as AudioResponseLike;
+      });
     this.audioContextFactory = options.audioContextFactory ?? createBrowserAudioContext;
-    this.workerFactory = options.workerFactory ?? (() => new Worker(
-      new URL('./acousticAnalysis.worker.ts', import.meta.url),
-      { type: 'module' },
-    ) as unknown as WorkerLike);
-    this.providerRuntimeConfigResolver = options.providerRuntimeConfigResolver ?? resolveAcousticProviderRuntimeConfig;
-    this.externalProviderAnalyzeImpl = options.externalProviderAnalyze ?? this.analyzeWithExternalProvider.bind(this);
+    this.workerFactory =
+      options.workerFactory ??
+      (() =>
+        new Worker(new URL('./acousticAnalysis.worker.ts', import.meta.url), {
+          type: 'module',
+        }) as unknown as WorkerLike);
+    this.providerRuntimeConfigResolver =
+      options.providerRuntimeConfigResolver ?? resolveAcousticProviderRuntimeConfig;
+    this.externalProviderAnalyzeImpl =
+      options.externalProviderAnalyze ?? this.analyzeWithExternalProvider.bind(this);
     this.now = options.now ?? Date.now;
   }
 
@@ -279,40 +330,56 @@ export class AcousticAnalysisService {
     const providerCacheScope = this.buildProviderCacheScope(providerState, runtimeConfig);
     const providerAwareMediaKey = `${input.mediaKey}::${providerCacheScope}`;
     const cacheKey = buildAcousticCacheKey(providerAwareMediaKey, config);
-    return this.runCachedAnalysis(cacheKey, input.mediaKey, async (options) => {
-      if (providerState.fellBackToLocal) {
-        log.info('Acoustic provider unavailable, falling back to local provider', {
-          requestedProviderId: providerState.requestedProviderId,
-          effectiveProviderId: providerState.effectiveProviderId,
-          reason: providerState.fallbackReason,
-        });
-      }
-      let audioContext: AudioContextLike | null = null;
-      try {
-        if (options.signal?.aborted) {
-          throw createAbortError();
+    return this.runCachedAnalysis(
+      cacheKey,
+      input.mediaKey,
+      async (options) => {
+        if (providerState.fellBackToLocal) {
+          log.info('Acoustic provider unavailable, falling back to local provider', {
+            requestedProviderId: providerState.requestedProviderId,
+            effectiveProviderId: providerState.effectiveProviderId,
+            reason: providerState.fallbackReason,
+          });
         }
-        const response = await this.fetchImpl?.(input.mediaUrl);
-        if (!response?.ok) {
-          throw new Error(`Failed to fetch audio: ${response?.status ?? 'unknown'}`);
+        let audioContext: AudioContextLike | null = null;
+        try {
+          if (options.signal?.aborted) {
+            throw createAbortError();
+          }
+          const response = await this.fetchImpl?.(input.mediaUrl);
+          if (!response?.ok) {
+            throw new Error(`Failed to fetch audio: ${response?.status ?? 'unknown'}`);
+          }
+          const contentLength = Number(response.headers?.get?.('content-length') ?? 0);
+          if (contentLength > VAD_AUTO_WARM_MAX_BYTES) {
+            throw new Error(
+              `Audio media exceeds decode size limit (${contentLength} bytes, max ${VAD_AUTO_WARM_MAX_BYTES})`,
+            );
+          }
+          const audioBytes = await response.arrayBuffer();
+          if (audioBytes.byteLength > VAD_AUTO_WARM_MAX_BYTES) {
+            throw new Error(
+              `Audio media exceeds decode size limit (${audioBytes.byteLength} bytes, max ${VAD_AUTO_WARM_MAX_BYTES})`,
+            );
+          }
+          audioContext = this.audioContextFactory?.() ?? createBrowserAudioContext();
+          const audioBuffer = await audioContext.decodeAudioData(audioBytes);
+          return this.performAnalyzeAudioBuffer({
+            mediaKey: input.mediaKey,
+            audioBuffer,
+            config,
+            providerId: providerState.requestedProviderId,
+            runtimeConfig,
+            providerState,
+            ...(options.signal ? { signal: options.signal } : {}),
+            ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+          });
+        } finally {
+          await closeAudioContext(audioContext);
         }
-        const audioBytes = await response.arrayBuffer();
-        audioContext = this.audioContextFactory?.() ?? createBrowserAudioContext();
-        const audioBuffer = await audioContext.decodeAudioData(audioBytes);
-        return this.performAnalyzeAudioBuffer({
-          mediaKey: input.mediaKey,
-          audioBuffer,
-          config,
-          providerId: providerState.requestedProviderId,
-          runtimeConfig,
-          providerState,
-          ...(options.signal ? { signal: options.signal } : {}),
-          ...(options.onProgress ? { onProgress: options.onProgress } : {}),
-        });
-      } finally {
-        await closeAudioContext(audioContext);
-      }
-    }, input);
+      },
+      input,
+    );
   }
 
   async analyzeAudioBuffer(input: AnalyzeAudioBufferInput): Promise<AcousticFeatureResult> {
@@ -322,20 +389,28 @@ export class AcousticAnalysisService {
     const providerCacheScope = this.buildProviderCacheScope(providerState, runtimeConfig);
     const providerAwareMediaKey = `${input.mediaKey}::${providerCacheScope}`;
     const cacheKey = buildAcousticCacheKey(providerAwareMediaKey, config);
-    return this.runCachedAnalysis(cacheKey, input.mediaKey, (options) => this.performAnalyzeAudioBuffer({
-      mediaKey: input.mediaKey,
-      audioBuffer: input.audioBuffer,
-      config,
-      providerId: providerState.requestedProviderId,
-      runtimeConfig,
-      providerState,
-      ...(options.signal ? { signal: options.signal } : {}),
-      ...(options.onProgress ? { onProgress: options.onProgress } : {}),
-    }), input);
+    return this.runCachedAnalysis(
+      cacheKey,
+      input.mediaKey,
+      (options) =>
+        this.performAnalyzeAudioBuffer({
+          mediaKey: input.mediaKey,
+          audioBuffer: input.audioBuffer,
+          config,
+          providerId: providerState.requestedProviderId,
+          runtimeConfig,
+          providerState,
+          ...(options.signal ? { signal: options.signal } : {}),
+          ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+        }),
+      input,
+    );
   }
 
   resolveProviderState(preferredProviderId?: string | null): ResolvedAcousticProviderState {
-    return resolveAcousticProviderState(preferredProviderId, { runtimeConfig: this.resolveRuntimeConfig() });
+    return resolveAcousticProviderState(preferredProviderId, {
+      runtimeConfig: this.resolveRuntimeConfig(),
+    });
   }
 
   private async runCachedAnalysis(
@@ -344,6 +419,9 @@ export class AcousticAnalysisService {
     runner: (options: AnalyzeRequestOptions) => Promise<AcousticFeatureResult>,
     options: AnalyzeRequestOptions,
   ): Promise<AcousticFeatureResult> {
+    if (this.disposed) {
+      throw new Error('Acoustic analysis service disposed');
+    }
     if (options.signal?.aborted) {
       throw createAbortError();
     }
@@ -356,7 +434,9 @@ export class AcousticAnalysisService {
 
     const task = (async () => {
       const result = await runner(options);
-      await this.setCached(cacheKey, mediaKey, result);
+      if (!this.disposed) {
+        await this.setCached(cacheKey, mediaKey, result);
+      }
       return result;
     })().finally(() => {
       this.pending.delete(cacheKey);
@@ -369,7 +449,10 @@ export class AcousticAnalysisService {
     return task;
   }
 
-  private async dispatchToWorker(request: AcousticAnalyzeWorkerRequest, options: AnalyzeRequestOptions = {}): Promise<AcousticFeatureResult> {
+  private async dispatchToWorker(
+    request: AcousticAnalyzeWorkerRequest,
+    options: AnalyzeRequestOptions = {},
+  ): Promise<AcousticFeatureResult> {
     if (options.signal?.aborted) {
       throw createAbortError();
     }
@@ -383,24 +466,34 @@ export class AcousticAnalysisService {
       options.signal.addEventListener('abort', abortListener, { once: true });
     }
 
-    return this.pendingWorkerRequests.track(request.requestId, () => {
-      try {
-        if (request.pcm.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
-          throw new Error(`Local acoustic worker payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`);
-        }
-        worker.postMessage(request, [request.pcm.buffer]);
-      } catch (error) {
-        this.resetWorker();
-        throw error instanceof Error ? error : new Error(String(error));
-      }
-    }, {
-      ...(options.onProgress ? { onProgress: options.onProgress } : {}),
-    }).finally(() => {
-      options.signal?.removeEventListener('abort', abortListener);
-    });
+    return this.pendingWorkerRequests
+      .track(
+        request.requestId,
+        () => {
+          try {
+            if (request.pcm.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
+              throw new Error(
+                `Local acoustic worker payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`,
+              );
+            }
+            worker.postMessage(request, [request.pcm.buffer]);
+          } catch (error) {
+            this.resetWorker();
+            throw error instanceof Error ? error : new Error(String(error));
+          }
+        },
+        {
+          ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+        },
+      )
+      .finally(() => {
+        options.signal?.removeEventListener('abort', abortListener);
+      });
   }
 
-  private async performAnalyzeAudioBuffer(input: AnalyzeAudioBufferExecutionInput): Promise<AcousticFeatureResult> {
+  private async performAnalyzeAudioBuffer(
+    input: AnalyzeAudioBufferExecutionInput,
+  ): Promise<AcousticFeatureResult> {
     const config = normalizeConfig(input.config);
     const runtimeConfig = input.runtimeConfig;
     const providerState = input.providerState;
@@ -421,12 +514,17 @@ export class AcousticAnalysisService {
           providerId: providerState.effectiveProviderId,
           externalConfig: runtimeConfig.externalProvider,
           ...(input.signal ? { signal: input.signal } : {}),
-          ...(input.onProgress ? { onProgress: (processedFrames, totalFrames) => input.onProgress?.({
-            phase: 'analyzing',
-            processedFrames,
-            totalFrames,
-            ratio: totalFrames > 0 ? processedFrames / totalFrames : 0,
-          }) } : {}),
+          ...(input.onProgress
+            ? {
+                onProgress: (processedFrames, totalFrames) =>
+                  input.onProgress?.({
+                    phase: 'analyzing',
+                    processedFrames,
+                    totalFrames,
+                    ratio: totalFrames > 0 ? processedFrames / totalFrames : 0,
+                  }),
+              }
+            : {}),
         });
       } catch (error) {
         log.warn('External acoustic provider failed, falling back to local provider', {
@@ -437,26 +535,33 @@ export class AcousticAnalysisService {
       }
     }
 
-    return this.dispatchToWorker({
-      requestId: buildRequestId(),
-      type: 'analyze',
-      mediaKey: input.mediaKey,
-      pcm: mono,
-      sampleRate: input.audioBuffer.sampleRate,
-      config,
-    }, input);
+    return this.dispatchToWorker(
+      {
+        requestId: buildRequestId(),
+        type: 'analyze',
+        mediaKey: input.mediaKey,
+        pcm: mono,
+        sampleRate: input.audioBuffer.sampleRate,
+        config,
+      },
+      input,
+    );
   }
 
-  private async analyzeWithExternalProvider(input: AcousticProviderAnalyzeInput & {
-    providerId: string;
-    externalConfig: ExternalAcousticProviderConfig;
-  }): Promise<AcousticFeatureResult> {
+  private async analyzeWithExternalProvider(
+    input: AcousticProviderAnalyzeInput & {
+      providerId: string;
+      externalConfig: ExternalAcousticProviderConfig;
+    },
+  ): Promise<AcousticFeatureResult> {
     const endpoint = input.externalConfig.endpoint?.trim();
     if (!endpoint) {
       throw new Error('External provider endpoint is not configured.');
     }
     if (!isAllowedExternalProviderEndpoint(endpoint)) {
-      throw new Error('External provider endpoint must use HTTPS. HTTP is allowed only for localhost.');
+      throw new Error(
+        'External provider endpoint must use HTTPS. HTTP is allowed only for localhost.',
+      );
     }
 
     const timeoutController = new AbortController();
@@ -478,11 +583,15 @@ export class AcousticAnalysisService {
     };
     try {
       if (input.pcm.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
-        throw new Error(`External provider payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`);
+        throw new Error(
+          `External provider payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`,
+        );
       }
 
       const pcmArrayBuffer = new ArrayBuffer(input.pcm.byteLength);
-      new Uint8Array(pcmArrayBuffer).set(new Uint8Array(input.pcm.buffer, input.pcm.byteOffset, input.pcm.byteLength));
+      new Uint8Array(pcmArrayBuffer).set(
+        new Uint8Array(input.pcm.buffer, input.pcm.byteOffset, input.pcm.byteLength),
+      );
       const metadata = {
         mediaKey: input.mediaKey,
         providerId: input.providerId,
@@ -491,7 +600,11 @@ export class AcousticAnalysisService {
       };
       const formData = new FormData();
       formData.set('metadata', JSON.stringify(metadata));
-      formData.set('pcm_f32le', new Blob([pcmArrayBuffer], { type: 'application/octet-stream' }), `${input.mediaKey}.f32`);
+      formData.set(
+        'pcm_f32le',
+        new Blob([pcmArrayBuffer], { type: 'application/octet-stream' }),
+        `${input.mediaKey}.f32`,
+      );
 
       const request = (async () => {
         const response = await fetch(endpoint, {
@@ -499,7 +612,9 @@ export class AcousticAnalysisService {
           headers: {
             accept: 'application/json',
             'x-jieyu-acoustic-wire-format': 'multipart-f32-v1',
-            ...(input.externalConfig.apiKey ? { authorization: `Bearer ${input.externalConfig.apiKey}` } : {}),
+            ...(input.externalConfig.apiKey
+              ? { authorization: `Bearer ${input.externalConfig.apiKey}` }
+              : {}),
           },
           body: formData,
           signal: timeoutController.signal,
@@ -527,16 +642,31 @@ export class AcousticAnalysisService {
 
   private ensureWorker(): WorkerLike {
     if (!this.worker) {
-      this.worker = this.workerFactory?.() ?? (new Worker(new URL('./acousticAnalysis.worker.ts', import.meta.url), { type: 'module' }) as unknown as WorkerLike);
-      this.acousticWorkerTrackingRelease = trackBrowserWorkerLifecycle(this.worker as unknown as Worker, {
-        id: nextPhysicalWorkerId('acousticAnalysis'),
-        source: 'AcousticAnalysisService',
-      });
+      this.worker =
+        this.workerFactory?.() ??
+        (new Worker(new URL('./acousticAnalysis.worker.ts', import.meta.url), {
+          type: 'module',
+        }) as unknown as WorkerLike);
+      this.acousticWorkerTrackingRelease = trackBrowserWorkerLifecycle(
+        this.worker as unknown as Worker,
+        {
+          id: nextPhysicalWorkerId('acousticAnalysis'),
+          source: 'AcousticAnalysisService',
+        },
+      );
       const pooledWorkerFactory = this.workerFactory
         ? () => this.workerFactory!() as unknown as Worker
-        : () => new Worker(new URL('./acousticAnalysis.worker.ts', import.meta.url), { type: 'module' });
+        : () =>
+            new Worker(new URL('./acousticAnalysis.worker.ts', import.meta.url), {
+              type: 'module',
+            });
       try {
-        getWorkerPool().register('acousticAnalysis', 'AcousticAnalysis', pooledWorkerFactory);
+        getWorkerPool().register(
+          'acousticAnalysis',
+          'AcousticAnalysis',
+          pooledWorkerFactory,
+          this.worker as unknown as Worker,
+        );
       } catch (error) {
         log.debug('WorkerPool registration skipped', {
           reason: error instanceof Error ? error.message : String(error),
@@ -563,7 +693,10 @@ export class AcousticAnalysisService {
         }
 
         if (!payload.ok || !payload.result) {
-          this.pendingWorkerRequests.reject(payload.requestId, new Error(payload.error ?? 'Acoustic analysis failed'));
+          this.pendingWorkerRequests.reject(
+            payload.requestId,
+            new Error(payload.error ?? 'Acoustic analysis failed'),
+          );
           return;
         }
 
@@ -594,7 +727,12 @@ export class AcousticAnalysisService {
     this.worker = null;
   }
 
-  private async setCached(cacheKey: string, mediaKey: string, result: AcousticFeatureResult): Promise<void> {
+  private async setCached(
+    cacheKey: string,
+    mediaKey: string,
+    result: AcousticFeatureResult,
+  ): Promise<void> {
+    if (this.disposed) return;
     this.cache.set(cacheKey, {
       result,
       cachedAt: this.now(),
@@ -644,6 +782,7 @@ export class AcousticAnalysisService {
   }
 
   dispose(): void {
+    this.disposed = true;
     const disposedError = new Error('Acoustic analysis service disposed');
     this.pendingWorkerRequests.rejectAll(disposedError);
     this.resetWorker();

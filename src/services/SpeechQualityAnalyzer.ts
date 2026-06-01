@@ -47,8 +47,8 @@ export interface SpeechQualityAnalyzerConfig {
   /** SNR threshold for quality levels (dB) */
   snrThresholds?: {
     excellent?: number; // > 25 dB
-    good?: number;       // > 15 dB
-    fair?: number;       // > 5 dB
+    good?: number; // > 15 dB
+    fair?: number; // > 5 dB
     // < 5 dB = poor
   };
 }
@@ -97,6 +97,7 @@ export class SpeechQualityAnalyzer {
   private _rafId: number | null = null;
   private _active = false;
   private _sessionRecords: SegmentQualityRecord[] = [];
+  private static readonly MAX_SESSION_RECORDS = 300;
 
   private constructor() {
     this._config = {
@@ -114,15 +115,15 @@ export class SpeechQualityAnalyzer {
   }
 
   get currentMetrics(): AudioQualityMetrics | null {
-    return this._analyser && this._buffer
-      ? this._analyzeFrame()
-      : null;
+    return this._analyser && this._buffer ? this._analyzeFrame() : null;
   }
 
   /** Subscribe to real-time quality metrics (called ~60fps while active) */
   onMetrics(callback: (m: AudioQualityMetrics) => void): () => void {
     this._listeners.add(callback);
-    return () => { this._listeners.delete(callback); };
+    return () => {
+      this._listeners.delete(callback);
+    };
   }
 
   /**
@@ -186,14 +187,17 @@ export class SpeechQualityAnalyzer {
   recordSegmentQuality(segmentId: string): SegmentQualityRecord | null {
     if (this._speechHistory.length === 0) return null;
 
-    const speechActiveRatio = this._speechHistory.filter(Boolean).length / this._speechHistory.length;
+    const speechActiveRatio =
+      this._speechHistory.filter(Boolean).length / this._speechHistory.length;
     // 使用累积历史均值而非瞬时帧值 | Use accumulated history averages instead of instant frame values
-    const avgSnrDb = this._snrHistory.length > 0
-      ? this._snrHistory.reduce((a, b) => a + b, 0) / this._snrHistory.length
-      : 0;
-    const avgQualityScore = this._qualityScoreHistory.length > 0
-      ? this._qualityScoreHistory.reduce((a, b) => a + b, 0) / this._qualityScoreHistory.length
-      : 0;
+    const avgSnrDb =
+      this._snrHistory.length > 0
+        ? this._snrHistory.reduce((a, b) => a + b, 0) / this._snrHistory.length
+        : 0;
+    const avgQualityScore =
+      this._qualityScoreHistory.length > 0
+        ? this._qualityScoreHistory.reduce((a, b) => a + b, 0) / this._qualityScoreHistory.length
+        : 0;
 
     const record: SegmentQualityRecord = {
       segmentId,
@@ -204,6 +208,12 @@ export class SpeechQualityAnalyzer {
     };
 
     this._sessionRecords.push(record);
+    if (this._sessionRecords.length > SpeechQualityAnalyzer.MAX_SESSION_RECORDS) {
+      this._sessionRecords.splice(
+        0,
+        this._sessionRecords.length - SpeechQualityAnalyzer.MAX_SESSION_RECORDS,
+      );
+    }
     // 清空累积历史，为下一句段重新累积 | Clear accumulated history for next segment
     this._snrHistory = [];
     this._qualityScoreHistory = [];
@@ -217,7 +227,11 @@ export class SpeechQualityAnalyzer {
   }
 
   /** Get summary statistics for the current session */
-  getSessionSummary(): { avgSnrDb: number; avgQualityScore: number; segmentsAnalyzed: number } | null {
+  getSessionSummary(): {
+    avgSnrDb: number;
+    avgQualityScore: number;
+    segmentsAnalyzed: number;
+  } | null {
     if (this._sessionRecords.length === 0) return null;
     const sum = this._sessionRecords.reduce(
       (acc, r) => ({
@@ -289,22 +303,23 @@ export class SpeechQualityAnalyzer {
 
     // Compute noise level from median of noise floor
     const sortedNoise = [...this._noiseFloor].sort((a, b) => a - b);
-    const noiseLevel = sortedNoise.length > 0
-      ? sortedNoise[Math.floor(sortedNoise.length / 2)] ?? 0
-      : 0.001;
+    const noiseLevel =
+      sortedNoise.length > 0 ? (sortedNoise[Math.floor(sortedNoise.length / 2)] ?? 0) : 0.001;
 
     // Signal level is the overall RMS
     const signalLevel = Math.min(rms * 5, 1); // scale to 0-1 roughly
     const noiseLevelNorm = Math.min(noiseLevel * 5, 1);
 
     // SNR in dB
-    const snrDb = noiseLevel > 0
-      ? Math.max(-10, Math.min(40, 20 * Math.log10(signalLevel / noiseLevelNorm + 0.001)))
-      : 40;
+    const snrDb =
+      noiseLevel > 0
+        ? Math.max(-10, Math.min(40, 20 * Math.log10(signalLevel / noiseLevelNorm + 0.001)))
+        : 40;
 
     const speechActive = rms >= this._config.speechThreshold;
     this._speechHistory.push(speechActive);
-    if (this._speechHistory.length > 300) { // ~5 seconds at 60fps
+    if (this._speechHistory.length > 300) {
+      // ~5 seconds at 60fps
       this._speechHistory.shift();
     }
 
@@ -322,10 +337,14 @@ export class SpeechQualityAnalyzer {
 
   private _computeQualityScore(snrDb: number, speechActive: boolean): number {
     const { snrThresholds: t } = this._config;
-    const snrScore = snrDb >= (t.excellent ?? 25) ? 1
-      : snrDb >= (t.good ?? 15) ? 0.8
-      : snrDb >= (t.fair ?? 5) ? 0.5
-      : 0.2;
+    const snrScore =
+      snrDb >= (t.excellent ?? 25)
+        ? 1
+        : snrDb >= (t.good ?? 15)
+          ? 0.8
+          : snrDb >= (t.fair ?? 5)
+            ? 0.5
+            : 0.2;
 
     const activityBonus = speechActive ? 0.1 : 0;
     return Math.min(snrScore + activityBonus, 1);

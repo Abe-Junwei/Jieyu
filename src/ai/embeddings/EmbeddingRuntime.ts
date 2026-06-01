@@ -87,7 +87,10 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
 
   private terminated = false;
 
-  private readonly pending = new PendingWorkerRequestStore<WorkerResultMessage, EmbeddingRuntimeProgress>();
+  private readonly pending = new PendingWorkerRequestStore<
+    WorkerResultMessage,
+    EmbeddingRuntimeProgress
+  >();
 
   constructor() {
     this.worker = this.createWorker();
@@ -95,11 +98,15 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
 
   async preload(options: EmbeddingRuntimeOptions): Promise<void> {
     await this.runWithRetry(
-      () => this.postRequest({
-        requestId: newRequestId('embed_preload'),
-        type: 'preload',
-        modelId: options.modelId,
-      }, options.onProgress),
+      () =>
+        this.postRequest(
+          {
+            requestId: newRequestId('embed_preload'),
+            type: 'preload',
+            modelId: options.modelId,
+          },
+          options.onProgress,
+        ),
       normalizeRetries(options.retries),
     );
   }
@@ -108,13 +115,17 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
     if (texts.length === 0) return [];
 
     const result = await this.runWithRetry(
-      () => this.postRequest({
-        requestId: newRequestId('embed_run'),
-        type: 'embed',
-        modelId: options.modelId,
-        texts,
-        ...(options.dimension !== undefined && { dimension: options.dimension }),
-      }, options.onProgress),
+      () =>
+        this.postRequest(
+          {
+            requestId: newRequestId('embed_run'),
+            type: 'embed',
+            modelId: options.modelId,
+            texts,
+            ...(options.dimension !== undefined && { dimension: options.dimension }),
+          },
+          options.onProgress,
+        ),
       normalizeRetries(options.retries),
     );
 
@@ -139,7 +150,10 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
     throw lastError instanceof Error ? lastError : new Error('Embedding runtime request failed');
   }
 
-  private postRequest(request: WorkerRequest, onProgress?: (progress: EmbeddingRuntimeProgress) => void): Promise<WorkerResultMessage> {
+  private postRequest(
+    request: WorkerRequest,
+    onProgress?: (progress: EmbeddingRuntimeProgress) => void,
+  ): Promise<WorkerResultMessage> {
     const worker = this.ensureWorker();
     return this.pending.track(
       request.requestId,
@@ -181,9 +195,12 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
     });
     const worker = spawned.worker;
     this.workerTrackingRelease = spawned.release;
-    getWorkerPool().register('embedding', 'Embedding', () => new Worker(
-      new URL('./embedding.worker.ts', import.meta.url), { type: 'module' },
-    ));
+    getWorkerPool().register(
+      'embedding',
+      'Embedding',
+      () => new Worker(new URL('./embedding.worker.ts', import.meta.url), { type: 'module' }),
+      worker,
+    );
     worker.onmessage = (event: MessageEvent<WorkerResponseMessage | WorkerPoolPongMessage>) => {
       const payload = event.data;
       if (payload.type === 'workerpool:pong') return;
@@ -197,7 +214,10 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
       if (payload.ok) {
         this.pending.resolve(payload.requestId, payload);
       } else {
-        this.pending.reject(payload.requestId, new Error(payload.error ?? 'Embedding worker request failed'));
+        this.pending.reject(
+          payload.requestId,
+          new Error(payload.error ?? 'Embedding worker request failed'),
+        );
       }
     };
 
