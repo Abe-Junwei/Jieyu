@@ -101,6 +101,27 @@ describe('reconcilePendingAgentLoopCheckpointFromDexie', () => {
     expect(next.pendingAgentLoopCheckpoint?.originalUserText).toBe('new-tab');
   });
 
+  it('skips global latest hydrate when allowGlobalHydrate is false', async () => {
+    await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-no-global',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'other-conv',
+        continuationInput: 'payload',
+        step: 1,
+        createdAt: '2026-05-01T00:00:00.000Z',
+      },
+    });
+
+    const next = await reconcilePendingAgentLoopCheckpointFromDexie(
+      {},
+      {
+        allowGlobalHydrate: false,
+      },
+    );
+    expect(next.pendingAgentLoopCheckpoint).toBeUndefined();
+  });
+
   it('returns same reference when session checkpoint already matches durable row', async () => {
     const taskId = await persistAgentLoopCheckpointTask({
       targetId: 'assistant-same',

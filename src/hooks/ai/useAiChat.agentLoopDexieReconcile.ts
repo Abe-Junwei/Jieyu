@@ -1,4 +1,4 @@
-import { useEffect, useState, type MutableRefObject } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { loadSessionMemoryAsync, persistSessionMemoryAsync } from '../../ai/chat/sessionMemory';
 import { reconcilePendingAgentLoopCheckpointFromDexie } from '../../ai/chat/reconcileAgentLoopSessionMemoryFromDexie';
 import { useLatest } from '../ui/useLatest';
@@ -12,6 +12,8 @@ export function useAgentLoopSessionMemoryDexieReconcile(
 ): void {
   const [, setSessionMemoryRenderNonce] = useState(0);
   const conversationIdRef = useLatest(conversationId);
+  /** Global latest checkpoint hydrate is mount-only; conversation switches must not pull another row's handoff. */
+  const allowGlobalHydrateRef = useRef(true);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const activeConversationId = conversationIdRef.current;
@@ -23,8 +25,14 @@ export function useAgentLoopSessionMemoryDexieReconcile(
       try {
         const hydrated = await loadSessionMemoryAsync(activeConversationId);
         if (cancelled) return;
-        const next = await reconcilePendingAgentLoopCheckpointFromDexie(hydrated);
+        const allowGlobalHydrate = allowGlobalHydrateRef.current;
+        const next = await reconcilePendingAgentLoopCheckpointFromDexie(hydrated, {
+          allowGlobalHydrate,
+        });
         if (cancelled) return;
+        if (allowGlobalHydrate) {
+          allowGlobalHydrateRef.current = false;
+        }
         if (next === hydrated) return;
         sessionMemoryRef.current = next;
         await persistSessionMemoryAsync(activeConversationId, next);
