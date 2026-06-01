@@ -135,11 +135,24 @@ export function useRecording({
     recorder.stop();
   }, []);
 
-  // Cleanup on unmount
+  // Cleanup on unmount: release mic/recorder without persisting a partial capture.
   useEffect(() => {
     return () => {
-      recorderRef.current?.stop();
+      const recorder = recorderRef.current;
+      if (recorder) {
+        recorder.onstop = null;
+        if (recorder.state === 'recording') {
+          try {
+            recorder.stop();
+          } catch {
+            /* already stopped */
+          }
+        }
+        recorderRef.current = null;
+      }
+      chunksRef.current = [];
       streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     };
   }, []);
 

@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { recordingStartFailureDictKey } from './useRecording';
+// @vitest-environment jsdom
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { recordingStartFailureDictKey, useRecording } from './useRecording';
 
 describe('recordingStartFailureDictKey', () => {
   it('maps NotAllowedError to mic permission key', () => {
@@ -26,5 +29,78 @@ describe('recordingStartFailureDictKey', () => {
     expect(recordingStartFailureDictKey(new Error('network'))).toBe(
       'transcription.timeline.audio.error.startFailed',
     );
+  });
+});
+
+describe('useRecording unmount cleanup', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does not persist voice translation when unmounted during recording', async () => {
+    const saveVoiceTranslation = vi.fn().mockResolvedValue(undefined);
+    const setSaveState = vi.fn();
+    const selectUnit = vi.fn();
+    const manualSelectTsRef = { current: 0 };
+
+    const trackStop = vi.fn();
+    let lastRecorder: { stop: ReturnType<typeof vi.fn>; onstop: (() => void) | null } | null = null;
+
+    class MockMediaRecorder {
+      static isTypeSupported = () => false;
+
+      state = 'inactive';
+      mimeType = 'audio/webm';
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      stop = vi.fn(() => {
+        this.state = 'inactive';
+      });
+
+      constructor(_stream: MediaStream) {
+        lastRecorder = this as { stop: ReturnType<typeof vi.fn>; onstop: (() => void) | null };
+      }
+
+      start() {
+        this.state = 'recording';
+      }
+    }
+
+    vi.stubGlobal('MediaRecorder', MockMediaRecorder);
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [{ stop: trackStop }],
+        }),
+      },
+    });
+
+    const { result, unmount } = renderHook(() =>
+      useRecording({
+        saveVoiceTranslation,
+        setSaveState,
+        selectUnit,
+        manualSelectTsRef,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startRecordingForUnit(
+        { id: 'u1', layerId: 'l1' } as never,
+        { id: 'l1', modality: 'audio' } as never,
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.recording).toBe(true);
+    });
+
+    unmount();
+
+    expect(lastRecorder).not.toBeNull();
+    expect(lastRecorder!.stop).toHaveBeenCalled();
+    expect(lastRecorder!.onstop).toBeNull();
+    expect(saveVoiceTranslation).not.toHaveBeenCalled();
+    expect(trackStop).toHaveBeenCalled();
   });
 });
