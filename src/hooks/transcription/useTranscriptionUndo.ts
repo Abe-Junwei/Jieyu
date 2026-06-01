@@ -64,11 +64,14 @@ function getHistoryActionLabel(locale: Locale, action: 'undo' | 'redo'): string 
 
 /** 独立边界层 segment 快照/恢复回调 | Segment snapshot/restore callbacks for independent boundary layers */
 export type SegmentUndoCallbacks = {
-  snapshotLayerSegments: () => {
-    units: LayerUnitDocType[];
-    contents: LayerUnitContentDocType[];
-    links: UnitRelationDocType[];
-  };
+  /** Undefined until the segment undo baseline has finished loading for the current scope. */
+  snapshotLayerSegments: () =>
+    | {
+        units: LayerUnitDocType[];
+        contents: LayerUnitContentDocType[];
+        links: UnitRelationDocType[];
+      }
+    | undefined;
   restoreLayerSegments: (
     units: LayerUnitDocType[],
     contents: LayerUnitContentDocType[],
@@ -208,7 +211,7 @@ export function useTranscriptionUndo({
       await syncToDb(entry.units, entry.translations, entry.speakers ?? [], {
         conflictGuard: true,
       });
-      if (entry.layerSegmentUnits && segmentUndoRef.current) {
+      if (entry.layerSegmentUnits !== undefined && segmentUndoRef.current) {
         await segmentUndoRef.current.restoreLayerSegments(
           entry.layerSegmentUnits,
           entry.layerSegmentUnitContents ?? [],
@@ -287,7 +290,7 @@ export function useTranscriptionUndo({
             layers: [...(above.layers ?? layersRef.current)],
             layerLinks: [...(above.layerLinks ?? layerLinksRef.current)],
             speakers: [...(above.speakers ?? speakersRef.current)],
-            ...(above.layerSegmentUnits
+            ...(above.layerSegmentUnits !== undefined
               ? {
                   layerSegmentUnits: above.layerSegmentUnits,
                   layerSegmentUnitContents: above.layerSegmentUnitContents ?? [],
@@ -305,7 +308,7 @@ export function useTranscriptionUndo({
         await syncToDb(targetEntry.units, targetEntry.translations, targetEntry.speakers ?? [], {
           conflictGuard: true,
         });
-        if (targetEntry.layerSegmentUnits && segmentUndoRef.current) {
+        if (targetEntry.layerSegmentUnits !== undefined && segmentUndoRef.current) {
           await segmentUndoRef.current.restoreLayerSegments(
             targetEntry.layerSegmentUnits,
             targetEntry.layerSegmentUnitContents ?? [],
@@ -375,7 +378,7 @@ export function useTranscriptionUndo({
       await syncToDb(entry.units, entry.translations, entry.speakers ?? [], {
         conflictGuard: true,
       });
-      if (entry.layerSegmentUnits && segmentUndoRef.current) {
+      if (entry.layerSegmentUnits !== undefined && segmentUndoRef.current) {
         await segmentUndoRef.current.restoreLayerSegments(
           entry.layerSegmentUnits,
           entry.layerSegmentUnitContents ?? [],

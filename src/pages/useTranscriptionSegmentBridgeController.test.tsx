@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   LayerDocType,
@@ -9,11 +9,16 @@ import type {
 import { createTimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import { useTranscriptionSegmentBridgeController } from './useTranscriptionSegmentBridgeController';
 
-const { mockUpsertSegmentContent, mockDeleteSegmentContent } = vi.hoisted(() => ({
+const {
+  mockUpsertSegmentContent,
+  mockDeleteSegmentContent,
+  mockSnapshotLayerSegmentGraphByLayerIds,
+} = vi.hoisted(() => ({
   mockUpsertSegmentContent: vi.fn(
     async (_doc: LayerUnitContentDocType): Promise<void> => undefined,
   ),
   mockDeleteSegmentContent: vi.fn(async (_id: string): Promise<void> => undefined),
+  mockSnapshotLayerSegmentGraphByLayerIds: vi.fn(),
 }));
 
 vi.mock('../app/transcriptionServicesPageAccess', () => ({
@@ -21,11 +26,8 @@ vi.mock('../app/transcriptionServicesPageAccess', () => ({
     upsertSegmentContent: (doc: LayerUnitContentDocType) => mockUpsertSegmentContent(doc),
     deleteSegmentContent: (id: string) => mockDeleteSegmentContent(id),
   },
-  snapshotLayerSegmentGraphByLayerIds: vi.fn(async () => ({
-    units: [] as LayerUnitDocType[],
-    contents: [] as LayerUnitContentDocType[],
-    links: [] as { id: string }[],
-  })),
+  snapshotLayerSegmentGraphByLayerIds: (...args: unknown[]) =>
+    mockSnapshotLayerSegmentGraphByLayerIds(...args),
   restoreLayerSegmentGraphSnapshot: vi.fn(async () => undefined),
 }));
 
@@ -87,6 +89,60 @@ function makeInput(overrides: Partial<HookInput> = {}): HookInput {
 describe('useTranscriptionSegmentBridgeController', () => {
   afterEach(() => {
     vi.clearAllMocks();
+    mockSnapshotLayerSegmentGraphByLayerIds.mockReset();
+    mockSnapshotLayerSegmentGraphByLayerIds.mockResolvedValue({
+      units: [] as LayerUnitDocType[],
+      contents: [] as LayerUnitContentDocType[],
+      links: [] as { id: string }[],
+    });
+  });
+
+  it('does not expose segment undo snapshot until async baseline load completes', async () => {
+    const layer = makeLayer('L1', 'independent_boundary');
+    const segment = makeSegment('seg-1', 'L1', 0, 10);
+    let resolveSnapshot!: (value: {
+      units: LayerUnitDocType[];
+      contents: LayerUnitContentDocType[];
+      links: { id: string }[];
+    }) => void;
+    const snapshotPromise = new Promise<{
+      units: LayerUnitDocType[];
+      contents: LayerUnitContentDocType[];
+      links: { id: string }[];
+    }>((resolve) => {
+      resolveSnapshot = resolve;
+    });
+    mockSnapshotLayerSegmentGraphByLayerIds.mockReturnValue(snapshotPromise);
+
+    const segmentUndoRef: HookInput['segmentUndoRef'] = { current: null };
+    renderHook(() =>
+      useTranscriptionSegmentBridgeController(
+        makeInput({
+          layerById: new Map([[layer.id, layer]]),
+          independentLayerIds: new Set([layer.id]),
+          segmentsByLayer: new Map([[layer.id, [segment]]]),
+          segmentUndoRef,
+        }),
+      ),
+    );
+
+    expect(segmentUndoRef.current?.snapshotLayerSegments?.()).toBeUndefined();
+
+    await act(async () => {
+      resolveSnapshot({
+        units: [segment],
+        contents: [],
+        links: [],
+      });
+      await snapshotPromise;
+    });
+
+    await waitFor(() => {
+      const snap = segmentUndoRef.current?.snapshotLayerSegments?.();
+      expect(snap).toBeDefined();
+      expect(snap?.units).toHaveLength(1);
+      expect(snap?.units[0]?.id).toBe('seg-1');
+    });
   });
 
   it('uses resolveTimelineLayerIdFallback order so timeline unit layer beats firstTranscriptionLayerId', () => {
