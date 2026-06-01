@@ -27,7 +27,9 @@ async function main() {
   for (const budget of buildBudgets) {
     const matched = assets.filter((asset) => budget.pattern.test(asset.name));
     if (matched.length === 0) {
-      console.log(`- ${budget.label}: skipped (asset not found)`);
+      const line = `- ${budget.label}: skipped (asset not found)`;
+      console.error(`${line} [FAIL]`);
+      failures.push(`${budget.label}: expected asset matching ${budget.pattern} not found in dist/assets`);
       continue;
     }
 
