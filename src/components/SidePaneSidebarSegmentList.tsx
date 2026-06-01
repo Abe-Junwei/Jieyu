@@ -19,6 +19,7 @@ import { createTimelineUnit, type TimelineUnit } from '../hooks/transcription/tr
 import { resolveSegmentTimelineSourceLayer } from '~/hooks/layer/useLayerSegments';
 import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { formatTime } from '../utils/transcriptionFormatters';
+import { createLogger } from '../observability/logger';
 import { type UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import { resolveHostUnitStrictMedia } from '../utils/segmentHostResolution';
 import {
@@ -40,6 +41,9 @@ import {
   type SegmentReviewPreset,
 } from './sidePaneSegmentListViewModel';
 import { SegmentMetaService } from '../services/SegmentMetaService';
+import { ensureSegmentMetaFreshForLayerMedia } from '../services/segmentMetaReconcile';
+
+const log = createLogger('SidePaneSidebarSegmentList');
 
 interface SidePaneSidebarSegmentListProps {
   focusedLayerRowId: string;
@@ -244,8 +248,13 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
         setSegmentMetaLoading(false);
         setSegmentMetaHydrated(true);
       },
-      error: () => {
+      error: (error) => {
         if (!cancelled) {
+          log.warn('segment_meta liveQuery failed', {
+            layerId,
+            mediaId,
+            error: error instanceof Error ? error.message : String(error),
+          });
           setSegmentMetaRows([]);
           setSegmentMetaLoading(false);
           setSegmentMetaHydrated(true);
@@ -276,7 +285,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
       return () => undefined;
     }
 
-    void SegmentMetaService.rebuildForLayerMedia(layerId, mediaId).catch(() => undefined);
+    void ensureSegmentMetaFreshForLayerMedia(layerId, mediaId, 'SidePaneSidebarSegmentList');
     return () => undefined;
   }, [
     activeMediaId,
@@ -1381,7 +1390,12 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
           ) : null}
         </div>
       </div>
-      <div ref={segmentScrollRef} className="app-side-pane-segment-list-scroll">
+      <div
+        ref={segmentScrollRef}
+        className="app-side-pane-segment-list-scroll"
+        aria-live="polite"
+        aria-relevant="additions removals"
+      >
         {filtered.length === 0 ? (
           <div className="app-side-pane-segment-list-empty">
             {segmentListLoading || segmentMetaLoading

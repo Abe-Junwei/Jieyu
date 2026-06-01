@@ -63,17 +63,10 @@ export function useTranscriptionLifecycle({
       if (name && dirtyRef.current && unitsRef.current.length > 0) {
         // Use synchronous-ish approach: navigator.sendBeacon is not suitable for IDB.
         // Instead, start the async save — the browser usually allows short IDB writes.
-        fireAndForget(
-          saveRecoverySnapshot(name, {
-            units: unitsRef.current,
-            translations: translationsRef.current,
-            layers: layersRef.current,
-          }),
-          {
-            context: 'src/hooks/transcription/useTranscriptionLifecycle.ts:L60',
-            policy: 'background',
-          },
-        );
+        fireAndForget(saveRecoverySnapshot(name), {
+          context: 'src/hooks/transcription/useTranscriptionLifecycle.ts:L60',
+          policy: 'background',
+        });
       }
     };
     window.addEventListener('beforeunload', onBeforeUnload);

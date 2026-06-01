@@ -14,7 +14,7 @@ This document states what the desktop app **does** and **does not** promise when
 ## Authoritative sources
 
 - **Durable state:** `ai_tasks` rows written by `persistAgentLoopCheckpointTask` / updated by `TaskRunner` heartbeat paths.
-- **Session UX state:** `jieyu.aiChat.sessionMemory` (`pendingAgentLoopCheckpoint`), reconciled on chat hook mount with IndexedDB (`useAgentLoopSessionMemoryDexieReconcile` → `reconcilePendingAgentLoopCheckpointFromDexie`).
+- **Session UX state:** Dexie `ai_session_memories` (`pendingAgentLoopCheckpoint` 等), keyed by `conversationId` after `useSessionMemoryConversationBinding` bind; reconciled with `ai_tasks` via `useAgentLoopSessionMemoryDexieReconcile` → `reconcilePendingAgentLoopCheckpointFromDexie`.
 - **Deferred UI bridge:** `useDeferredAiRuntimeBridge` includes `pendingAgentLoopCheckpoint` in the AI state worker slice fingerprint so sidebar / chat浮窗在冷启动水合后能立刻拿到新 `sessionMemory`（不仅依赖 settings 指纹）。
 
 ## Cold start (no session checkpoint)
@@ -31,4 +31,4 @@ On `useAiChat` mount, if session memory has **no** `pendingAgentLoopCheckpoint`,
 
 If session memory already contains `pendingAgentLoopCheckpoint.taskId`, mount reconciliation **reloads** that row from `ai_tasks`. If the row is no longer pending resumable, the checkpoint is **removed** and reconciliation **runs again** without that field so a **different** latest pending `agent_loop` row (if any) can hydrate — covering another tab completing/cancelling the old task while this tab still had a stale `taskId`.
 
-**Not promised:** live cross-tab UI sync without navigation. Tabs that stay open do not re-read `localStorage` until a remount/reload; use refresh or reopen the chat surface if another tab changed durable state.
+**Not promised:** live cross-tab UI sync without navigation. Tabs that stay open do not re-hydrate session memory until remount/reload or an in-app conversation switch; durable checkpoint state lives in `ai_tasks` / Dexie (`ai_session_memories` after bind), not localStorage.
