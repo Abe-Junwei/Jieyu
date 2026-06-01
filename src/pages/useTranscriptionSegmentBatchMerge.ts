@@ -163,6 +163,7 @@ export function useTranscriptionSegmentBatchMerge({
             }
           }
 
+          await refreshSegmentUndoSnapshot();
           pushUndo(t(locale, 'transcription.unitAction.undo.mergeSelection'));
           try {
             segmentMutationReloadGenRef.current += 1;

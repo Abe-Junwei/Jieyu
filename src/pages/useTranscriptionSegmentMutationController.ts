@@ -69,6 +69,13 @@ export function useTranscriptionSegmentMutationController(
       }),
     [activeLayerIdForEdits],
   );
+  const pushSegmentLayerUndo = useCallback(
+    async (label: string) => {
+      await refreshSegmentUndoSnapshot();
+      pushUndo(label);
+    },
+    [pushUndo, refreshSegmentUndoSnapshot],
+  );
   const mergeSelectedSegmentsRouted = useTranscriptionSegmentBatchMerge({
     activeLayerIdForEdits,
     resolveSegmentRoutingForLayer,
@@ -126,7 +133,7 @@ export function useTranscriptionSegmentMutationController(
           return undefined;
         },
         onSegmentLayer: async () => {
-          pushUndo(t(locale, 'transcription.unitAction.undo.split'));
+          await pushSegmentLayerUndo(t(locale, 'transcription.unitAction.undo.split'));
           try {
             segmentMutationReloadGenRef.current += 1;
             const postReloadToken = segmentMutationReloadGenRef.current;
@@ -166,7 +173,7 @@ export function useTranscriptionSegmentMutationController(
       activeLayerIdForEdits,
       createSegmentTarget,
       locale,
-      pushUndo,
+      pushSegmentLayerUndo,
       recordTimelineEdit,
       refreshSegmentUndoSnapshot,
       reloadSegments,
@@ -232,7 +239,7 @@ export function useTranscriptionSegmentMutationController(
               return;
             }
           }
-          pushUndo(t(locale, 'transcription.unitAction.undo.mergePrevious'));
+          await pushSegmentLayerUndo(t(locale, 'transcription.unitAction.undo.mergePrevious'));
           try {
             segmentMutationReloadGenRef.current += 1;
             const postReloadToken = segmentMutationReloadGenRef.current;
@@ -268,7 +275,7 @@ export function useTranscriptionSegmentMutationController(
       createSegmentTarget,
       locale,
       mergeWithPrevious,
-      pushUndo,
+      pushSegmentLayerUndo,
       recordTimelineEdit,
       refreshSegmentUndoSnapshot,
       reloadSegments,
@@ -335,7 +342,7 @@ export function useTranscriptionSegmentMutationController(
               return;
             }
           }
-          pushUndo(t(locale, 'transcription.unitAction.undo.mergeNext'));
+          await pushSegmentLayerUndo(t(locale, 'transcription.unitAction.undo.mergeNext'));
           try {
             segmentMutationReloadGenRef.current += 1;
             const postReloadToken = segmentMutationReloadGenRef.current;
@@ -371,7 +378,7 @@ export function useTranscriptionSegmentMutationController(
       createSegmentTarget,
       locale,
       mergeWithNext,
-      pushUndo,
+      pushSegmentLayerUndo,
       recordTimelineEdit,
       refreshSegmentUndoSnapshot,
       reloadSegments,
@@ -402,7 +409,7 @@ export function useTranscriptionSegmentMutationController(
           }
         },
         onSegmentLayer: async () => {
-          pushUndo(t(locale, 'transcription.unitAction.undo.delete'));
+          await pushSegmentLayerUndo(t(locale, 'transcription.unitAction.undo.delete'));
           try {
             segmentMutationReloadGenRef.current += 1;
             const postReloadToken = segmentMutationReloadGenRef.current;
@@ -432,7 +439,7 @@ export function useTranscriptionSegmentMutationController(
       activeLayerIdForEdits,
       deleteUnit,
       locale,
-      pushUndo,
+      pushSegmentLayerUndo,
       recordTimelineEdit,
       refreshSegmentUndoSnapshot,
       reloadSegments,
@@ -473,7 +480,7 @@ export function useTranscriptionSegmentMutationController(
         onSegmentLayer: async () => {
           if (ids.size === 0) return;
           try {
-            pushUndo(t(locale, 'transcription.unitAction.undo.deleteSelection'));
+            await pushSegmentLayerUndo(t(locale, 'transcription.unitAction.undo.deleteSelection'));
             segmentMutationReloadGenRef.current += 1;
             const postReloadToken = segmentMutationReloadGenRef.current;
             await transcriptionAppService.deleteSegments([...ids]);
@@ -511,7 +518,7 @@ export function useTranscriptionSegmentMutationController(
       activeLayerIdForEdits,
       deleteSelectedUnits,
       locale,
-      pushUndo,
+      pushSegmentLayerUndo,
       recordTimelineEdit,
       refreshSegmentUndoSnapshot,
       reloadSegments,

@@ -52,6 +52,12 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
       .exec();
     if (row) {
       const payload = normalizeSessionMemory(row.toJSON().payload ?? {});
+      // Concurrent persist may have updated the cache while this Dexie read was in flight.
+      const cachedAfterRead = memoryCache.get(conversationId);
+      if (cachedAfterRead !== undefined) {
+        touchMemoryCache(conversationId, cachedAfterRead);
+        return cachedAfterRead;
+      }
       touchMemoryCache(conversationId, payload);
       return payload;
     }
@@ -60,6 +66,12 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
       conversationId,
       error: error instanceof Error ? error.message : String(error),
     });
+  }
+
+  const cachedAfterRead = memoryCache.get(conversationId);
+  if (cachedAfterRead !== undefined) {
+    touchMemoryCache(conversationId, cachedAfterRead);
+    return cachedAfterRead;
   }
 
   const empty: AiSessionMemory = {};
