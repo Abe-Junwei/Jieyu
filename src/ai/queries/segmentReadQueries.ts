@@ -6,7 +6,6 @@
  */
 
 import { SegmentMetaService } from '../../services/SegmentMetaService';
-import { ensureSegmentMetaFreshForLayerMedia } from '../../services/segmentMetaReconcile';
 import { WorkspaceReadModelService } from '../../services/WorkspaceReadModelService';
 import { getDb, type SegmentMetaDocType } from '../../db';
 import { listUnitTextsByUnit } from '../../services/LayerSegmentationTextService';
@@ -114,7 +113,9 @@ export async function listSegmentSummaries(
   let rows: SegmentMetaDocType[] = [];
 
   if (scope.layerId && scope.mediaId) {
-    await ensureSegmentMetaFreshForLayerMedia(scope.layerId, scope.mediaId, 'listSegmentSummaries');
+    // MCP list path must not rely on count-only drift: failed best-effort sync can leave
+    // stale text with matching row counts. Unconditional rebuild matches pre-refactor behavior.
+    await SegmentMetaService.rebuildForLayerMedia(scope.layerId, scope.mediaId);
     rows = await SegmentMetaService.listByLayerMedia(scope.layerId, scope.mediaId);
   } else if (scope.mediaId) {
     rows = await SegmentMetaService.listByMediaId(scope.mediaId);
@@ -148,6 +149,7 @@ export async function getSegmentDetail(
   let rows: SegmentMetaDocType[] = [];
 
   if (scope.layerId && scope.mediaId) {
+    await SegmentMetaService.rebuildForLayerMedia(scope.layerId, scope.mediaId);
     rows = await SegmentMetaService.listByLayerMedia(scope.layerId, scope.mediaId);
   } else if (scope.mediaId) {
     rows = await SegmentMetaService.listByMediaId(scope.mediaId);
