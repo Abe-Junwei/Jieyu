@@ -69,4 +69,13 @@ export {
 export { withTransaction } from './withTransaction';
 
 // ── 库完整性 / 单例健康（F-2, ARCH-4）| DB integrity & singleton health ──
-export { jieyuDatabaseSingletonHealthCheck, probeJieyuDatabaseIntegrity } from './dbIntegrityProbe';
+export {
+  jieyuDatabaseSingletonHealthCheck,
+  probeJieyuDatabaseIntegrity,
+  runJieyuDatabaseDeepDiagnostics,
+} from './dbIntegrityProbe';
+export type {
+  DbIntegrityDeepDiagnosticReport,
+  DbIntegrityReferenceDiagnostic,
+  DbIntegrityReferenceIssue,
+} from './dbIntegrityProbe';

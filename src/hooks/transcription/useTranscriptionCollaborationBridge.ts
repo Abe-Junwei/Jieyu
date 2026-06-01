@@ -81,6 +81,10 @@ function requireBridgeInstance(bridge: CollaborationSyncBridge | null): Collabor
   return bridge;
 }
 
+function canUseLocalEmptyReadFallback(enabled: boolean, projectId: string): boolean {
+  return !enabled || !projectId || !hasSupabaseBrowserClientConfig();
+}
+
 const DEFAULT_PROTOCOL_GUARD: CollaborationProtocolGuardEvaluation = {
   cloudWritesDisabled: false,
   reasons: [],
@@ -401,9 +405,12 @@ export function useTranscriptionCollaborationBridge({
 
   const listProjectAssets = useCallback(
     async (input: ListProjectAssetsInput = {}): Promise<CollaborationAssetRecord[]> => {
+      if (!bridgeRef.current && canUseLocalEmptyReadFallback(enabled, normalizedProjectId)) {
+        return [];
+      }
       return requireBridgeInstance(bridgeRef.current).listProjectAssets(input);
     },
-    [],
+    [enabled, normalizedProjectId],
   );
 
   const removeProjectAsset = useCallback(async (assetId: string): Promise<void> => {
@@ -443,9 +450,12 @@ export function useTranscriptionCollaborationBridge({
     async (
       input: ListProjectSnapshotsInput = {},
     ): Promise<CollaborationProjectSnapshotRecord[]> => {
+      if (!bridgeRef.current && canUseLocalEmptyReadFallback(enabled, normalizedProjectId)) {
+        return [];
+      }
       return requireBridgeInstance(bridgeRef.current).listProjectSnapshots(input);
     },
-    [],
+    [enabled, normalizedProjectId],
   );
 
   const restoreProjectSnapshotById = useCallback(
@@ -459,9 +469,12 @@ export function useTranscriptionCollaborationBridge({
 
   const queryProjectChangeTimeline = useCallback(
     async (input: QueryProjectTimelineInput = {}): Promise<ChangeTimelineResult> => {
+      if (!bridgeRef.current && canUseLocalEmptyReadFallback(enabled, normalizedProjectId)) {
+        return { changes: [], total: 0 };
+      }
       return requireBridgeInstance(bridgeRef.current).queryProjectChangeTimeline(input);
     },
-    [],
+    [enabled, normalizedProjectId],
   );
 
   const queryProjectEntityHistory = useCallback(

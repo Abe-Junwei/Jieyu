@@ -8,11 +8,16 @@ import {
   type LayerUnitContentViewDocType,
   type LayerSegmentViewDocType,
 } from '../db';
-import { deleteLayerSegmentGraphBySegmentIds, deleteLayerSegmentGraphByUnitIds, findOrphanSegmentIds, listSegmentContentsByIds } from './LayerSegmentGraphService';
+import {
+  deleteLayerSegmentGraphBySegmentIds,
+  deleteLayerSegmentGraphByUnitIds,
+  findOrphanSegmentIds,
+  listSegmentContentsByIds,
+} from './LayerSegmentGraphService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
-import { SegmentMetaService } from './SegmentMetaService';
+import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
 
 const UNKNOWN_MEDIA_ID = '__unknown_media__';
 
@@ -99,7 +104,10 @@ async function listSegmentIdsOrphanedAfterRemovingContents(
       db,
       'r',
       [...dexieStoresForLayerUnitsAndContentsRw(db)],
-      async () => (db.dexie.layer_unit_contents.where('unitId').equals(segId).primaryKeys()) as Promise<string[]>,
+      async () =>
+        db.dexie.layer_unit_contents.where('unitId').equals(segId).primaryKeys() as Promise<
+          string[]
+        >,
       { label: 'LayerSegmentationTextService.listSegmentIdsOrphanedAfterRemovingContents.read' },
     );
     if (allIds.length === 0) {
@@ -113,7 +121,11 @@ async function listSegmentIdsOrphanedAfterRemovingContents(
   return orphan;
 }
 
-export function getSegmentationV2Ids(layerId: string | undefined, unitId: string, translationId: string): {
+export function getSegmentationV2Ids(
+  layerId: string | undefined,
+  unitId: string,
+  translationId: string,
+): {
   segmentId: string;
   segmentContentId: string;
 } {
@@ -130,7 +142,8 @@ export async function syncUnitTextToSegmentationV2(
 ): Promise<void> {
   const now = new Date().toISOString();
   const layerId = translation.layerId?.trim() || '';
-  const translationMediaRefId = translation.mediaRefId?.trim() || translation.translationAudioMediaId?.trim() || '';
+  const translationMediaRefId =
+    translation.mediaRefId?.trim() || translation.translationAudioMediaId?.trim() || '';
   const ids = getSegmentationV2Ids(layerId, unit.id, translation.id);
 
   const segmentDoc: LayerUnitDocType = {
@@ -173,22 +186,28 @@ export async function syncUnitTextToSegmentationV2(
   };
 
   // 事务保护：删旧 content + 写 segment + 写 content 必须原子执行 | Transaction: stale delete + segment upsert + content upsert must be atomic
-  await withTransaction(db, 'rw', [...dexieStoresForLayerUnitsAndContentsRw(db)], async () => {
-    const staleContentIds = getSegmentContentCandidateIds(translation.id)
-      .filter((id) => id !== ids.segmentContentId);
-    if (staleContentIds.length > 0) {
-      await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, staleContentIds);
-    }
+  await withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForLayerUnitsAndContentsRw(db)],
+    async () => {
+      const staleContentIds = getSegmentContentCandidateIds(translation.id).filter(
+        (id) => id !== ids.segmentContentId,
+      );
+      if (staleContentIds.length > 0) {
+        await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, staleContentIds);
+      }
 
-    await LayerUnitSegmentWriteService.upsertSegments(db, [segmentDoc]);
-    await LayerUnitSegmentWriteService.upsertSegmentContents(db, [contentDoc]);
-  }, { label: 'LayerSegmentationTextService.syncUnitTextToSegmentationV2' });
+      await LayerUnitSegmentWriteService.upsertSegments(db, [segmentDoc]);
+      await LayerUnitSegmentWriteService.upsertSegmentContents(db, [contentDoc]);
+    },
+    { label: 'LayerSegmentationTextService.syncUnitTextToSegmentationV2' },
+  );
 
-  try {
-    await SegmentMetaService.syncForUnitIds([unit.id, ids.segmentId]);
-  } catch {
-    // 语段读模型刷新失败不应阻塞文本保存 | Segment read-model refresh must not block text saves.
-  }
+  scheduleSegmentMetaSyncForUnitIds(
+    [unit.id, ids.segmentId],
+    'LayerSegmentationTextService.syncUnitTextToSegmentationV2',
+  );
 }
 
 export async function removeUnitTextFromSegmentationV2(
@@ -227,11 +246,10 @@ export async function removeUnitTextFromSegmentationV2(
   }
 
   if (affectedSegmentIds.length > 0) {
-    try {
-      await SegmentMetaService.syncForUnitIds(affectedSegmentIds);
-    } catch {
-      // 语段读模型刷新失败不应阻塞文本删除 | Segment read-model refresh must not block text removal.
-    }
+    scheduleSegmentMetaSyncForUnitIds(
+      affectedSegmentIds,
+      'LayerSegmentationTextService.removeUnitTextFromSegmentationV2',
+    );
   }
 }
 
@@ -286,9 +304,15 @@ export async function removeUnitCascadeFromSegmentationV2(
   unitId: string,
 ): Promise<void> {
   // 事务保护：级联删除 content → segment → links 必须原子执行 | Transaction: cascade delete must be atomic
-  await withTransaction(db, 'rw', [...dexieStoresForLayerSegmentGraphRw(db)], async () => {
-    await deleteLayerSegmentGraphByUnitIds(db, [unitId]);
-  }, { label: 'LayerSegmentationTextService.removeUnitCascadeFromSegmentationV2' });
+  await withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForLayerSegmentGraphRw(db)],
+    async () => {
+      await deleteLayerSegmentGraphByUnitIds(db, [unitId]);
+    },
+    { label: 'LayerSegmentationTextService.removeUnitCascadeFromSegmentationV2' },
+  );
 }
 
 /**
@@ -305,16 +329,20 @@ export async function enforceTimeSubdivisionParentBounds(
   parentEndTime: number,
   minSpan = 0.05,
 ): Promise<{ clippedCount: number; deletedCount: number }> {
-  const childSegmentIds = uniqueIds(await LayerUnitRelationQueryService.listResidualAwareTimeSubdivisionChildUnitIds(
-    [parentUnitId],
-    db,
-  ));
+  const childSegmentIds = uniqueIds(
+    await LayerUnitRelationQueryService.listResidualAwareTimeSubdivisionChildUnitIds(
+      [parentUnitId],
+      db,
+    ),
+  );
   if (childSegmentIds.length === 0) {
     return { clippedCount: 0, deletedCount: 0 };
   }
 
   const segmentById = new Map(
-    (await LayerSegmentQueryService.listSegmentsByIds(childSegmentIds)).map((segment) => [segment.id, segment] as const),
+    (await LayerSegmentQueryService.listSegmentsByIds(childSegmentIds)).map(
+      (segment) => [segment.id, segment] as const,
+    ),
   );
 
   let clippedCount = 0;
@@ -342,21 +370,27 @@ export async function enforceTimeSubdivisionParentBounds(
 
     if (nextStart !== segment.startTime || nextEnd !== segment.endTime) {
       clippedCount += 1;
-      await LayerUnitSegmentWriteService.upsertSegments(db, [{
-        ...segment,
-        startTime: nextStart,
-        endTime: nextEnd,
-        updatedAt: new Date().toISOString(),
-      }]);
+      await LayerUnitSegmentWriteService.upsertSegments(db, [
+        {
+          ...segment,
+          startTime: nextStart,
+          endTime: nextEnd,
+          updatedAt: new Date().toISOString(),
+        },
+      ]);
     }
   }
 
   return { clippedCount, deletedCount };
 }
 
-export async function listUnitTextsFromSegmentation(db: JieyuDatabase): Promise<LayerUnitContentViewDocType[]> {
+export async function listUnitTextsFromSegmentation(
+  db: JieyuDatabase,
+): Promise<LayerUnitContentViewDocType[]> {
   void db;
-  const segments = (await LayerSegmentQueryService.listAllSegments()).filter((segment) => Boolean(segment.unitId));
+  const segments = (await LayerSegmentQueryService.listAllSegments()).filter((segment) =>
+    Boolean(segment.unitId),
+  );
   if (segments.length === 0) {
     return [];
   }

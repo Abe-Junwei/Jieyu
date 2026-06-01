@@ -30,6 +30,10 @@ import { useLocale, type Locale } from '../i18n';
 import { getCollaborationCloudPanelMessages } from '../i18n/messages';
 import { getSidePaneSidebarMessages } from '../i18n/messages';
 import { ModalPanel } from './ui';
+import {
+  addCollaborationCloudPanelOpenListener,
+  consumePendingCollaborationCloudPanelOpen,
+} from '../utils/collaborationCloudPanelEvents';
 import { useLayerDeleteConfirm } from '~/hooks/layer/useLayerDeleteConfirm';
 import { useSidePaneSidebarDrag } from '~/hooks/sidePane/useSidePaneSidebarDrag';
 import { buildLayerBundles } from '../services/LayerOrderingService';
@@ -114,8 +118,11 @@ export function SidePaneSidebar({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleOpen = () => setIsCollaborationPanelOpen(true);
-    window.addEventListener('jieyu:open-collaboration-cloud-panel', handleOpen);
-    return () => window.removeEventListener('jieyu:open-collaboration-cloud-panel', handleOpen);
+    const cleanup = addCollaborationCloudPanelOpenListener(window, handleOpen);
+    if (consumePendingCollaborationCloudPanelOpen(window)) {
+      handleOpen();
+    }
+    return cleanup;
   }, []);
 
   // ── Speaker management context ───────────────────────────────────────────────

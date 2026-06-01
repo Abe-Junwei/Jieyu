@@ -12,6 +12,10 @@ export type AppDataResilienceMessages = {
   dbOpenTitle: string;
   dbOpenIntro: string;
   dbOpenRecovery: string;
+  dbOpenRestoreFromBackup: string;
+  dbOpenRestoreSuccess: string;
+  dbOpenRestoreNotFound: string;
+  dbOpenRestoreFailed: string;
   dbMigrationTitle: string;
   dbMigrationIntro: string;
   dbMigrationVersionHint: string;
@@ -40,6 +44,10 @@ export function getAppDataResilienceMessages(locale: Locale): AppDataResilienceM
     dbOpenTitle: t(l, 'msg.appData.dbOpenTitle'),
     dbOpenIntro: t(l, 'msg.appData.dbOpenIntro'),
     dbOpenRecovery: t(l, 'msg.appData.dbOpenRecovery'),
+    dbOpenRestoreFromBackup: t(l, 'msg.appData.dbOpenRestoreFromBackup'),
+    dbOpenRestoreSuccess: t(l, 'msg.appData.dbOpenRestoreSuccess'),
+    dbOpenRestoreNotFound: t(l, 'msg.appData.dbOpenRestoreNotFound'),
+    dbOpenRestoreFailed: t(l, 'msg.appData.dbOpenRestoreFailed'),
     dbMigrationTitle: t(l, 'msg.appData.dbMigrationTitle'),
     dbMigrationIntro: t(l, 'msg.appData.dbMigrationIntro'),
     dbMigrationVersionHint: t(l, 'msg.appData.dbMigrationVersionHint'),

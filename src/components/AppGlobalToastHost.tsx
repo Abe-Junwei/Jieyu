@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { APP_GLOBAL_TOAST_EVENT, type AppGlobalToastDetail } from '../utils/appGlobalToast';
 import type { ToastVariant } from '../contexts/ToastContext';
-import '../styles/ai-hub.css';
 
 const DEDUP_MS = 4000;
 
@@ -59,12 +58,12 @@ export function AppGlobalToastHost(): React.ReactNode {
   }
 
   return (
-    <div className="transcription-toast-container app-global-toast-host" role="status" aria-live="polite">
-      <div
-        className={`transcription-toast toast-${variant}`}
-        onClick={dismiss}
-        title="Dismiss"
-      >
+    <div
+      className="transcription-toast-container app-global-toast-host"
+      role="status"
+      aria-live="polite"
+    >
+      <div className={`transcription-toast toast-${variant}`} onClick={dismiss} title="Dismiss">
         {message}
       </div>
     </div>

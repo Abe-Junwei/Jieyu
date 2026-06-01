@@ -150,7 +150,7 @@ describe('useTranscriptionCollaborationBridge', () => {
   it('无配置时降级，不启动桥接 | degrades without config and does not start bridge', async () => {
     hasConfig.mockReturnValue(false);
 
-    renderHook(() =>
+    const { result } = renderHook(() =>
       useTranscriptionCollaborationBridge({
         enabled: true,
         projectId: 'project-1',
@@ -160,6 +160,13 @@ describe('useTranscriptionCollaborationBridge', () => {
     await waitFor(() => {
       expect(bridgeCtorCalls).toHaveLength(0);
       expect(bridgeStart).not.toHaveBeenCalled();
+    });
+
+    await expect(result.current.listProjectAssets()).resolves.toEqual([]);
+    await expect(result.current.listProjectSnapshots()).resolves.toEqual([]);
+    await expect(result.current.queryProjectChangeTimeline()).resolves.toEqual({
+      changes: [],
+      total: 0,
     });
   });
 

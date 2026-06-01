@@ -1,0 +1,108 @@
+/* 全局 Toast 组件样式 | Global toast component styles */
+.transcription-toast-container {
+  position: fixed;
+  display: flex;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: calc(var(--z-context-menu) + 2);
+  background: transparent;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+.transcription-toast {
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-weight: 600;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+  pointer-events: auto;
+  animation: toastSlideIn 0.25s ease-out;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.26s ease,
+    transform 0.26s ease,
+    filter 0.26s ease;
+}
+
+.transcription-toast-exiting {
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+  filter: saturate(0.92);
+}
+
+.toast-info {
+  background: var(--state-info-bg);
+  color: var(--state-info-text);
+  border: 1px solid var(--state-info-border);
+}
+
+.toast-success {
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+  border: 1px solid var(--state-success-border);
+}
+
+.toast-error {
+  background: var(--state-danger-bg);
+  color: var(--state-danger-text);
+  border: 1px solid var(--state-danger-border);
+}
+
+.toast-warning,
+.toast-recording,
+.toast-ai-thinking {
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+  border: 1px solid var(--state-warning-border);
+}
+
+.toast-listening {
+  background: var(--state-info-bg);
+  color: var(--state-info-solid);
+  border: 1px solid var(--state-info-border);
+  animation:
+    toastSlideIn 0.25s ease-out,
+    toastAttentionPulse 1.4s ease-in-out infinite;
+}
+
+.toast-routing {
+  background: var(--surface-elevated);
+  color: var(--state-info-solid);
+  border: 1px solid var(--state-info-border);
+  animation: toastSlideIn 0.25s ease-out;
+}
+
+.toast-executing {
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+  border: 1px solid var(--state-warning-border);
+  animation: toastSlideIn 0.25s ease-out;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toastAttentionPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--state-warning-solid) 25%, transparent);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--state-warning-solid) 6%, transparent);
+  }
+}

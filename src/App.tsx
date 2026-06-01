@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AppGlobalToastHost } from './components/AppGlobalToastHost';
+import { AppOfflineStatusBanner } from './components/AppOfflineStatusBanner';
 import { DbIntegrityBlockingOverlay } from './components/DbIntegrityBlockingOverlay';
 import { DbMigrationOverlay } from './components/DbMigrationOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -40,6 +41,7 @@ import {
   type Locale,
 } from './i18n';
 import { getCollaborationCloudPanelMessages } from './i18n/messages';
+import { requestCollaborationCloudPanelOpen } from './utils/collaborationCloudPanelEvents';
 import { LeftRailResourcesMenu } from './components/LeftRailResourcesMenu';
 import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './components/transcription/TranscriptionLeftRailLayerActions';
 import { MaterialSymbol, ModalPanel } from './components/ui';
@@ -51,7 +53,6 @@ import {
 import { syncDocumentDataTheme, THEME_MODE_STORAGE_KEY } from './utils/theme';
 import { type IconEffect, getIconEffect, setIconEffect } from './utils/iconEffect';
 import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspaceRoute';
-import { ensureLanguageTagMappingsLoaded } from './utils/langMapping';
 import { JIEYU_MATERIAL_NAV, type LeftRailNavIconName } from './utils/jieyuMaterialIcon';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
@@ -321,10 +322,6 @@ export function App() {
         document.documentElement.setAttribute('data-motion-ready', '');
       });
     });
-  }, []);
-
-  useEffect(() => {
-    void ensureLanguageTagMappingsLoaded();
   }, []);
 
   const [isSidePaneCollapsed, setIsSidePaneCollapsed] = useState<boolean>(
@@ -669,7 +666,7 @@ export function App() {
   const handleSettingsClose = useCallback(() => setIsSettingsOpen(false), []);
   const handleCollaborationEntryOpen = useCallback(() => {
     if (!isTranscriptionRoute || typeof window === 'undefined') return;
-    window.dispatchEvent(new Event('jieyu:open-collaboration-cloud-panel'));
+    requestCollaborationCloudPanelOpen(window);
   }, [isTranscriptionRoute]);
 
   const shellStyle = useMemo(
@@ -717,6 +714,7 @@ export function App() {
             className={`app-shell ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
             {...shellStyleProps}
           >
+            <AppOfflineStatusBanner locale={locale} />
             <div ref={shellBodyRef} className="app-shell-body">
               <aside
                 className="app-left-rail"
@@ -906,6 +904,7 @@ export function App() {
                 onReload={dbOverlayHandlers.onReload}
                 onRetry={dbOverlayHandlers.onRetry}
                 onContinueSession={dbOverlayHandlers.onContinueSession}
+                onRestoreFromBackup={dbOverlayHandlers.onRestoreFromBackup}
               />
             ) : null}
             <SettingsModal

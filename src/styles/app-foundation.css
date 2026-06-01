@@ -4,12 +4,13 @@
  * ─────────────────────────────────────────────────────────── */
 @layer reset, tokens, foundation, theme, components, overrides;
 
-@import './global.css';         /* layer: reset (implicitly uses default) */
-@import './foundation/material-jieyu.css';         /* components — Material Symbols 尺寸封装 */
-@import './foundation/icon-effect-motion.css';     /* components — data-icon-effect=motion 时交互增强 */
-@import './foundation/control-primitives.css';    /* components */
-@import './pages/app-shell-layout.css';           /* components */
-@import './foundation/dialog-shell.css';          /* components */
-@import './foundation/panel-primitives.css';      /* components */
-@import './foundation/panel-design-presets.css';  /* theme */
+@import './global.css'; /* layer: reset (implicitly uses default) */
+@import './foundation/material-jieyu.css'; /* components — Material Symbols 尺寸封装 */
+@import './foundation/icon-effect-motion.css'; /* components — data-icon-effect=motion 时交互增强 */
+@import './foundation/control-primitives.css'; /* components */
+@import './foundation/global-toast.css'; /* components */
+@import './pages/app-shell-layout.css'; /* components */
+@import './foundation/dialog-shell.css'; /* components */
+@import './foundation/panel-primitives.css'; /* components */
+@import './foundation/panel-design-presets.css'; /* theme */
 @import './foundation/language-asset-section-contract.css'; /* components */

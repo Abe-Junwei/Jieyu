@@ -129,6 +129,7 @@ import {
   restorePreMigrationBackup,
   shouldAutoRestoreAfterMigrationOpenFailure,
 } from './preMigrationBackup';
+import { spotCheckJieyuDatabaseAfterMigration } from './dbIntegrityProbe';
 import { createLogger } from '../observability/logger';
 
 const dbEngineLog = createLogger('db.engine');
@@ -1765,6 +1766,32 @@ async function _createDb(): Promise<JieyuDatabase> {
     track_entities: new DexieCollectionAdapter(dexie.track_entities, validateTrackEntityDoc),
     ai_source_sets: new DexieCollectionAdapter(dexie.ai_source_sets, validateAiSourceSetDoc),
   };
+
+  if (migrationNeeded) {
+    try {
+      const spotCheck = await spotCheckJieyuDatabaseAfterMigration({
+        name: dexie.name,
+        dexie,
+        collections,
+        close: async () => {
+          dexie.close();
+        },
+      });
+      if (!spotCheck.ok) {
+        dbEngineLog.error('post-migration spot-check failed', {
+          reason: spotCheck.reason,
+          fromVersion: currentVersion,
+          toVersion: JIEYU_DEXIE_TARGET_SCHEMA_VERSION,
+        });
+      }
+    } catch (spotCheckErr) {
+      dbEngineLog.error('post-migration spot-check threw unexpectedly', {
+        err: spotCheckErr instanceof Error ? spotCheckErr.message : String(spotCheckErr),
+        fromVersion: currentVersion,
+        toVersion: JIEYU_DEXIE_TARGET_SCHEMA_VERSION,
+      });
+    }
+  }
 
   return {
     name: dexie.name,
