@@ -466,6 +466,7 @@ export class AcousticAnalysisService {
       options.signal.addEventListener('abort', abortListener, { once: true });
     }
 
+    getWorkerPool().markBusy('acousticAnalysis');
     return this.pendingWorkerRequests
       .track(
         request.requestId,
@@ -487,6 +488,7 @@ export class AcousticAnalysisService {
         },
       )
       .finally(() => {
+        getWorkerPool().markIdle('acousticAnalysis');
         options.signal?.removeEventListener('abort', abortListener);
       });
   }

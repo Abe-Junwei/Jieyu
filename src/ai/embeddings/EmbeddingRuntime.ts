@@ -155,22 +155,27 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
     onProgress?: (progress: EmbeddingRuntimeProgress) => void,
   ): Promise<WorkerResultMessage> {
     const worker = this.ensureWorker();
-    return this.pending.track(
-      request.requestId,
-      () => {
-        try {
-          worker.postMessage(request);
-        } catch (error) {
-          this.restartWorker();
-          throw error instanceof Error ? error : new Error(String(error));
-        }
-      },
-      {
-        timeoutMs: 60_000,
-        timeoutMessage: `Embedding request timed out after 60s (${request.requestId})`,
-        ...(onProgress ? { onProgress } : {}),
-      },
-    );
+    getWorkerPool().markBusy('embedding');
+    return this.pending
+      .track(
+        request.requestId,
+        () => {
+          try {
+            worker.postMessage(request);
+          } catch (error) {
+            this.restartWorker();
+            throw error instanceof Error ? error : new Error(String(error));
+          }
+        },
+        {
+          timeoutMs: 60_000,
+          timeoutMessage: `Embedding request timed out after 60s (${request.requestId})`,
+          ...(onProgress ? { onProgress } : {}),
+        },
+      )
+      .finally(() => {
+        getWorkerPool().markIdle('embedding');
+      });
   }
 
   private ensureWorker(): Worker {

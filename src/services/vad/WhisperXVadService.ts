@@ -237,6 +237,7 @@ export class WhisperXVadService {
     };
     options.signal?.addEventListener('abort', abortListener, { once: true });
 
+    getWorkerPool().markBusy('vadWhisperX');
     try {
       return await this.pendingRequests.track(
         id,
@@ -263,6 +264,7 @@ export class WhisperXVadService {
       this.resetWorker();
       return detectVadSegments(buffer).map((s) => ({ start: s.start, end: s.end }));
     } finally {
+      getWorkerPool().markIdle('vadWhisperX');
       options.signal?.removeEventListener('abort', abortListener);
     }
   }
@@ -291,15 +293,20 @@ export class WhisperXVadService {
     const worker = this.worker;
     const pendingRequests = this.pendingRequests;
 
-    const resultPromise = pendingRequests.track(
-      id,
-      () => {
-        worker.postMessage({ type: 'detect-stream-start', id, sampleRate });
-      },
-      {
-        ...(options?.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
-      },
-    );
+    getWorkerPool().markBusy('vadWhisperX');
+    const resultPromise = pendingRequests
+      .track(
+        id,
+        () => {
+          worker.postMessage({ type: 'detect-stream-start', id, sampleRate });
+        },
+        {
+          ...(options?.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
+        },
+      )
+      .finally(() => {
+        getWorkerPool().markIdle('vadWhisperX');
+      });
 
     const abortListener = options?.signal
       ? () => {
