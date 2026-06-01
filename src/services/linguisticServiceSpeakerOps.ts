@@ -9,7 +9,7 @@ import {
 } from './LayerSegmentGraphService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
-import { SegmentMetaService } from './SegmentMetaService';
+import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
 
 export async function getSpeakers(): Promise<SpeakerDocType[]> {
   const db = await getDb();
@@ -289,12 +289,10 @@ export async function deleteSpeaker(
     }
   }
 
-  void SegmentMetaService.syncForUnitIds([
-    ...units.map((row) => row.id),
-    ...segments.map((row) => row.id),
-  ]).catch(() => {
-    // SegmentMeta 为统一读模型，说话人同步失败不应阻塞删除流程 | SegmentMeta is a shared read model; speaker-sync failures must not block deletion.
-  });
+  scheduleSegmentMetaSyncForUnitIds(
+    [...units.map((row) => row.id), ...segments.map((row) => row.id)],
+    'linguisticServiceSpeakerOps.deleteSpeaker',
+  );
   await db.collections.speakers.remove(id);
   return affectedCount;
 }
@@ -341,9 +339,10 @@ export async function assignSpeakerToUnits(
   });
 
   await bulkUpsertUnitLayerUnits(db, updates);
-  void SegmentMetaService.syncForUnitIds(updates.map((row) => row.id)).catch(() => {
-    // SegmentMeta 为统一读模型，说话人同步失败不应阻塞主流程 | SegmentMeta is a shared read model; speaker-sync failures must not block the primary flow.
-  });
+  scheduleSegmentMetaSyncForUnitIds(
+    updates.map((row) => row.id),
+    'linguisticServiceSpeakerOps.renameSpeaker',
+  );
   return updates.length;
 }
 
@@ -387,8 +386,9 @@ export async function assignSpeakerToSegments(
   });
 
   await LayerUnitSegmentWriteService.upsertSegments(db, updates);
-  void SegmentMetaService.syncForUnitIds(updates.map((row) => row.id)).catch(() => {
-    // SegmentMeta 为统一读模型，说话人同步失败不应阻塞主流程 | SegmentMeta is a shared read model; speaker-sync failures must not block the primary flow.
-  });
+  scheduleSegmentMetaSyncForUnitIds(
+    updates.map((row) => row.id),
+    'linguisticServiceSpeakerOps.renameSpeaker',
+  );
   return updates.length;
 }

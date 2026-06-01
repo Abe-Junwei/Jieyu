@@ -1,3 +1,4 @@
+import { featureFlags } from '../../ai/config/featureFlags';
 import type {
   CollaborationCloudDirectoryMember,
   CollaborationCloudDirectoryProject,
@@ -8,7 +9,7 @@ import {
 } from './collaborationSupabaseFacade';
 
 export async function listAccessibleCloudProjects(): Promise<CollaborationCloudDirectoryProject[]> {
-  if (!hasSupabaseBrowserClientConfig()) return [];
+  if (!featureFlags.collaborationCloudEnabled || !hasSupabaseBrowserClientConfig()) return [];
   const client = getSupabaseBrowserClient();
   const { data, error } = await client
     .from('projects')
@@ -32,7 +33,7 @@ export async function listAccessibleCloudProjects(): Promise<CollaborationCloudD
 export async function listCloudProjectMembers(
   projectId: string,
 ): Promise<CollaborationCloudDirectoryMember[]> {
-  if (!hasSupabaseBrowserClientConfig()) return [];
+  if (!featureFlags.collaborationCloudEnabled || !hasSupabaseBrowserClientConfig()) return [];
   const client = getSupabaseBrowserClient();
   const { data, error } = await client
     .from('project_members')

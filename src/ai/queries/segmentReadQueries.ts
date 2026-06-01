@@ -6,6 +6,7 @@
  */
 
 import { SegmentMetaService } from '../../services/SegmentMetaService';
+import { ensureSegmentMetaFreshForLayerMedia } from '../../services/segmentMetaReconcile';
 import { WorkspaceReadModelService } from '../../services/WorkspaceReadModelService';
 import { getDb, type SegmentMetaDocType } from '../../db';
 import { listUnitTextsByUnit } from '../../services/LayerSegmentationTextService';
@@ -76,7 +77,10 @@ function mapSegmentMetaToSummary(row: SegmentMetaDocType): SegmentSummary {
   };
 }
 
-function filterRowsByScope(rows: SegmentMetaDocType[], scope: SegmentReadQueryScope): SegmentMetaDocType[] {
+function filterRowsByScope(
+  rows: SegmentMetaDocType[],
+  scope: SegmentReadQueryScope,
+): SegmentMetaDocType[] {
   return rows.filter((row) => {
     if (scope.textId && row.textId !== scope.textId) return false;
     if (scope.mediaId && row.mediaId !== scope.mediaId) return false;
@@ -87,7 +91,9 @@ function filterRowsByScope(rows: SegmentMetaDocType[], scope: SegmentReadQuerySc
 
 function readFirstMultilangText(value: unknown): string {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
-  const first = Object.values(value as Record<string, unknown>).find((entry) => typeof entry === 'string');
+  const first = Object.values(value as Record<string, unknown>).find(
+    (entry) => typeof entry === 'string',
+  );
   return typeof first === 'string' ? first : '';
 }
 
@@ -108,7 +114,7 @@ export async function listSegmentSummaries(
   let rows: SegmentMetaDocType[] = [];
 
   if (scope.layerId && scope.mediaId) {
-    await SegmentMetaService.rebuildForLayerMedia(scope.layerId, scope.mediaId);
+    await ensureSegmentMetaFreshForLayerMedia(scope.layerId, scope.mediaId, 'listSegmentSummaries');
     rows = await SegmentMetaService.listByLayerMedia(scope.layerId, scope.mediaId);
   } else if (scope.mediaId) {
     rows = await SegmentMetaService.listByMediaId(scope.mediaId);
@@ -167,26 +173,39 @@ export async function getSegmentDetail(
 
     const layerSeen = new Set<string>();
     layers = unitTexts.flatMap((row) => {
-      const layerId = typeof row.layerId === 'string' && row.layerId.trim().length > 0 ? row.layerId : hit.layerId;
-      const type = typeof row.contentRole === 'string' && row.contentRole.trim().length > 0 ? row.contentRole : 'primary_text';
-      const text = typeof row.text === 'string' && row.text.trim().length > 0 ? row.text : undefined;
+      const layerId =
+        typeof row.layerId === 'string' && row.layerId.trim().length > 0
+          ? row.layerId
+          : hit.layerId;
+      const type =
+        typeof row.contentRole === 'string' && row.contentRole.trim().length > 0
+          ? row.contentRole
+          : 'primary_text';
+      const text =
+        typeof row.text === 'string' && row.text.trim().length > 0 ? row.text : undefined;
       const key = `${layerId}::${type}::${text ?? ''}`;
       if (layerSeen.has(key)) return [];
       layerSeen.add(key);
-      return [{
-        layerId,
-        type,
-        ...(text ? { text } : {}),
-      }];
+      return [
+        {
+          layerId,
+          type,
+          ...(text ? { text } : {}),
+        },
+      ];
     });
 
     translations = unitTexts
       .filter((row) => typeof row.text === 'string' && row.text.trim().length > 0)
       .map((row) => ({
         id: row.id,
-        ...(typeof row.layerId === 'string' && row.layerId.trim().length > 0 ? { layerId: row.layerId } : {}),
+        ...(typeof row.layerId === 'string' && row.layerId.trim().length > 0
+          ? { layerId: row.layerId }
+          : {}),
         text: row.text!,
-        ...(typeof row.modality === 'string' && row.modality.trim().length > 0 ? { modality: row.modality } : {}),
+        ...(typeof row.modality === 'string' && row.modality.trim().length > 0
+          ? { modality: row.modality }
+          : {}),
       }));
 
     annotations = unitNotes
@@ -245,15 +264,16 @@ export async function diagnoseProjectQuality(
   const scopeType = scope.layerId ? 'layer' : scope.mediaId ? 'media' : 'project';
   const scopeKey = scope.layerId ?? scope.mediaId ?? textId;
   if (scopeKey) {
-    const stats = await WorkspaceReadModelService.getScopeStats(scopeType, scopeKey, textId || undefined);
+    const stats = await WorkspaceReadModelService.getScopeStats(
+      scopeType,
+      scopeKey,
+      textId || undefined,
+    );
     translationLayers = stats?.translationLayerCount ?? 0;
   }
 
-  const scopeLabel = scope.layerId && scope.mediaId
-    ? 'layer_media'
-    : scope.mediaId
-      ? 'current_media'
-      : 'project';
+  const scopeLabel =
+    scope.layerId && scope.mediaId ? 'layer_media' : scope.mediaId ? 'current_media' : 'project';
 
   const totalSegments = summary.totalUnitsInScope;
   const untranscribedSegments = summary.breakdown.emptyTextCount;
@@ -263,10 +283,14 @@ export async function diagnoseProjectQuality(
 
   const recommendations: string[] = [];
   if (untranscribedSegments > 0) {
-    recommendations.push(`${untranscribedSegments} segments remain untranscribed; consider batch transcription.`);
+    recommendations.push(
+      `${untranscribedSegments} segments remain untranscribed; consider batch transcription.`,
+    );
   }
   if (segmentsMissingSpeaker > 0) {
-    recommendations.push(`${segmentsMissingSpeaker} segments are missing speaker labels; review speaker assignment.`);
+    recommendations.push(
+      `${segmentsMissingSpeaker} segments are missing speaker labels; review speaker assignment.`,
+    );
   }
   if (recommendations.length === 0) {
     recommendations.push('No obvious quality issues detected.');

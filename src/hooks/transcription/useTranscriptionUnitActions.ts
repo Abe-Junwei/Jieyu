@@ -23,7 +23,7 @@ import {
 import { useTranscriptionVoiceTranslationActions } from './useTranscriptionVoiceTranslationActions';
 
 import { LayerUnitSegmentWriteService } from '../../services/LayerUnitSegmentWriteService';
-import { SegmentMetaService } from '../../services/SegmentMetaService';
+import { scheduleSegmentMetaSyncForUnitIds } from '../../services/segmentMetaSyncBestEffort';
 import { t, useLocale } from '../../i18n';
 import { getUndoLabel } from './useTranscriptionUnitActions.helpers';
 import { createTranscriptionUnitBatchActions } from './useTranscriptionUnitActions.batchActions';
@@ -585,9 +585,10 @@ export function useTranscriptionUnitActions({
 
       if (updatedSegments.length > 0) {
         await LayerUnitSegmentWriteService.upsertSegments(db, updatedSegments);
-        void SegmentMetaService.syncForUnitIds(updatedSegments.map((item) => item.id)).catch(() => {
-          // SegmentMeta 为统一读模型；刷新失败不应阻塞 per-layer 字段保存 | SegmentMeta is a shared read model.
-        });
+        scheduleSegmentMetaSyncForUnitIds(
+          updatedSegments.map((item) => item.id),
+          'useTranscriptionUnitActions.savePerLayerFields',
+        );
       }
 
       const doneKey = perLayerPatchTouchesOnlySelfCertainty(patch)
