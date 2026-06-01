@@ -231,6 +231,20 @@ export async function getLatestPreMigrationBackup(
   return rows[0] ?? null;
 }
 
+/**
+ * Only corruption-class IndexedDB open failures should trigger destructive pre-migration restore.
+ * Dexie upgrade hook errors roll back the transaction (data intact); blocked tabs must not delete the DB.
+ */
+export function shouldAutoRestoreAfterMigrationOpenFailure(err: unknown): boolean {
+  if (err instanceof Error && err.message.toLowerCase().includes('blocked')) {
+    return false;
+  }
+  if (err instanceof DOMException) {
+    return err.name === 'AbortError' || err.name === 'UnknownError';
+  }
+  return false;
+}
+
 export async function getPreMigrationBackupById(
   snapshotId: string,
 ): Promise<PreMigrationBackupSnapshot | null> {
