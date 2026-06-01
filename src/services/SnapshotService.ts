@@ -23,6 +23,15 @@ const utf8Encoder = new TextEncoder();
 export type SaveRecoverySnapshotOptions = {
   /** Tests: lower ceiling to assert skip behavior without multi-megabyte fixtures. */
   maxSerializedUtf8Bytes?: number;
+  /**
+   * In-memory transcription core rows to merge over the DB export (e.g. `beforeunload`
+   * while `dirtyRef` is still true and IndexedDB may lag React refs).
+   */
+  liveOverlay?: {
+    layer_units?: LayerUnitDocType[];
+    layer_unit_contents?: LayerUnitContentDocType[];
+    layers?: LayerDocType[];
+  };
 };
 
 interface LegacyRecoveryRow {
@@ -114,6 +123,16 @@ export async function saveRecoverySnapshot(
   options?: SaveRecoverySnapshotOptions,
 ): Promise<void> {
   const snapshot = await exportRecoveryDatabaseAsJson();
+  const overlay = options?.liveOverlay;
+  if (overlay?.layer_units) {
+    snapshot.collections['layer_units'] = overlay.layer_units;
+  }
+  if (overlay?.layer_unit_contents) {
+    snapshot.collections['layer_unit_contents'] = overlay.layer_unit_contents;
+  }
+  if (overlay?.layers) {
+    snapshot.collections['layers'] = overlay.layers;
+  }
   const snapshotJson = JSON.stringify(snapshot);
   const maxBytes =
     options?.maxSerializedUtf8Bytes ?? DEFAULT_RECOVERY_SNAPSHOT_MAX_SERIALIZED_UTF8_BYTES;
