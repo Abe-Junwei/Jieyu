@@ -131,8 +131,8 @@ class ProjectMemoryStore {
   private _listeners = new Set<(m: ProjectMemory) => void>();
   // 缓存 IndexedDB 连接避免频繁 open() | Cache IndexedDB connection to avoid repeated open()
   private _dbPromise: Promise<IDBDatabase> | null = null;
-  /** Rebuild when `ProjectMemory.updatedAt` changes | Rebuild when memory mutates */
-  private _ragSearchIndexVersion = -1;
+  /** Rebuild when project or `ProjectMemory.updatedAt` changes | Rebuild when memory mutates or project switches */
+  private _ragSearchIndexVersion: string | null = null;
   private _ragMiniSearch: MiniSearch | null = null;
   private readonly _ragDocsById = new Map<
     string,
@@ -140,6 +140,16 @@ class ProjectMemoryStore {
   >();
 
   private constructor() {}
+
+  private _invalidateRagSearchIndex(): void {
+    this._ragMiniSearch = null;
+    this._ragSearchIndexVersion = null;
+    this._ragDocsById.clear();
+  }
+
+  private _ragSearchIndexCacheKey(memory: ProjectMemory): string {
+    return `${memory.projectId}:${memory.updatedAt}`;
+  }
 
   // ── Public API ───────────────────────────────────────────────────────────
 
@@ -158,6 +168,7 @@ class ProjectMemoryStore {
       this._memory = createEmptyMemory(projectId);
     }
 
+    this._invalidateRagSearchIndex();
     this._notifyListeners();
     return this._memory;
   }
@@ -188,9 +199,7 @@ class ProjectMemoryStore {
     this._listeners.clear();
     this._memory = null;
     this._currentProjectId = null;
-    this._ragMiniSearch = null;
-    this._ragSearchIndexVersion = -1;
-    this._ragDocsById.clear();
+    this._invalidateRagSearchIndex();
     const dbPromise = this._dbPromise;
     this._dbPromise = null;
     void dbPromise
@@ -456,7 +465,8 @@ class ProjectMemoryStore {
 
     if (docs.length === 0) return [];
 
-    if (this._ragSearchIndexVersion !== this._memory.updatedAt) {
+    const ragIndexCacheKey = this._ragSearchIndexCacheKey(this._memory);
+    if (this._ragSearchIndexVersion !== ragIndexCacheKey) {
       this._ragDocsById.clear();
       for (const d of docs) {
         this._ragDocsById.set(d.id, d);
@@ -482,7 +492,7 @@ class ProjectMemoryStore {
 
       miniSearch.addAll(docs);
       this._ragMiniSearch = miniSearch;
-      this._ragSearchIndexVersion = this._memory.updatedAt;
+      this._ragSearchIndexVersion = ragIndexCacheKey;
     }
 
     const miniSearch = this._ragMiniSearch!;
