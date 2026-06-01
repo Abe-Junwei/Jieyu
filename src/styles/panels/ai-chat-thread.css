@@ -65,6 +65,11 @@
   color: var(--text-secondary);
 }
 
+.ai-chat-run-timeline-kind {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .ai-chat-run-timeline-title {
   margin: 4px 0 0;
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));

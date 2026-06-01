@@ -2046,6 +2046,10 @@ select.ai-cfg-input {
   flex-shrink: 0;
 }
 
+.ai-conversation-action-menu-trigger {
+  flex-shrink: 0;
+}
+
 .ai-conversation-action-menu-popover {
   position: absolute;
   top: calc(100% + 2px);
