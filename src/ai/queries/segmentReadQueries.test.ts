@@ -85,7 +85,8 @@ describe('listSegmentSummaries', () => {
     expect(mockedSegmentMeta.listByMediaId).toHaveBeenCalledWith('media-1');
   });
 
-  it('rebuilds and returns segment summaries for layer+media scope', async () => {
+  it('always rebuilds segment_meta for layer+media scope (stale rows can share counts)', async () => {
+    mockedSegmentMeta.rebuildForLayerMedia.mockResolvedValue([]);
     mockedSegmentMeta.listByLayerMedia.mockResolvedValue([
       makeSegmentMetaDoc({ segmentId: 'seg-001', layerId: 'layer-1', mediaId: 'media-1' }),
     ]);
@@ -122,7 +123,12 @@ describe('getSegmentDetail', () => {
 
   it('finds segment by id in project scope', async () => {
     mockedSegmentMeta.listAll.mockResolvedValue([
-      makeSegmentMetaDoc({ segmentId: 'seg-001', layerId: 'layer-1', textId: 'text-1', text: 'hello' }),
+      makeSegmentMetaDoc({
+        segmentId: 'seg-001',
+        layerId: 'layer-1',
+        textId: 'text-1',
+        text: 'hello',
+      }),
     ]);
 
     const result = await getSegmentDetail('seg-001', {});
