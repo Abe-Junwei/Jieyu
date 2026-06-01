@@ -19,6 +19,12 @@ interface WorkerPoolEntry {
   readonly label: string;
   readonly worker: Worker;
   state: WorkerLifecycleState;
+  /**
+   * 业务层传入 existingWorker 时由服务负责 terminate/restart；
+   * 池仅发心跳，不得静默替换 Worker 实例（否则服务仍持有已 terminate 的引用）。
+   * When register() receives existingWorker, the owning service handles restart — pool must not replace the instance.
+   */
+  readonly serviceOwned: boolean;
   /** 自增重启计数 | Incremented on each restart */
   restartCount: number;
   /** 最后一次心跳时间 | Last heartbeat timestamp */
@@ -72,6 +78,7 @@ class WorkerPoolImpl {
       label,
       worker,
       state: 'idle',
+      serviceOwned: existingWorker !== undefined,
       restartCount: 0,
       lastHeartbeatAt: Date.now(),
       lastError: null,
@@ -185,6 +192,12 @@ class WorkerPoolImpl {
   }
 
   private attemptRestart(entry: WorkerPoolEntry): void {
+    if (entry.serviceOwned) {
+      log.warn(
+        `[WorkerPool] "${entry.label}" needs attention but restart is owned by the service layer`,
+      );
+      return;
+    }
     if (entry.restartCount >= MAX_AUTO_RESTARTS) {
       log.error(
         `[WorkerPool] "${entry.label}" exceeded max restarts (${MAX_AUTO_RESTARTS}), giving up`,
@@ -231,6 +244,12 @@ class WorkerPoolImpl {
           entry.state !== 'crashed' &&
           Date.now() - entry.lastHeartbeatAt > HEARTBEAT_TIMEOUT_MS
         ) {
+          if (entry.serviceOwned) {
+            log.warn(
+              `[WorkerPool] "${entry.label}" heartbeat timeout (service-owned; not auto-restarting)`,
+            );
+            continue;
+          }
           entry.state = 'crashed';
           log.warn(`[WorkerPool] "${entry.label}" heartbeat timeout`);
           this.attemptRestart(entry);

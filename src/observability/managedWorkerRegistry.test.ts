@@ -47,19 +47,13 @@ describe('managedWorkerRegistry', () => {
     markManagedWorkerTerminated('w-x');
     recordManagedWorkerError('w-x', 'error', 'late');
 
-    const [e] = getManagedWorkerRegistrySnapshot();
-    expect(e!.errorEventCount).toBe(0);
+    expect(getManagedWorkerRegistrySnapshot()).toHaveLength(0);
   });
 
-  it('markManagedWorkerTerminated sets state and timestamp', () => {
-    const before = Date.now();
+  it('markManagedWorkerTerminated removes the registry entry', () => {
     registerManagedWorker('w-t', 'src');
     markManagedWorkerTerminated('w-t');
-    const after = Date.now();
 
-    const [e] = getManagedWorkerRegistrySnapshot();
-    expect(e!.state).toBe('terminated');
-    expect(e!.terminatedAtMs).toBeGreaterThanOrEqual(before);
-    expect(e!.terminatedAtMs).toBeLessThanOrEqual(after);
+    expect(getManagedWorkerRegistrySnapshot()).toHaveLength(0);
   });
 });
