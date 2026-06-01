@@ -77,7 +77,10 @@ export class WhisperXVadService {
   private worker: Worker | null = null;
   private vadWorkerTrackingRelease: (() => void) | null = null;
   private ready = false;
-  private readonly pendingRequests = new PendingWorkerRequestStore<SpeechSegment[], WhisperXVadProgress>();
+  private readonly pendingRequests = new PendingWorkerRequestStore<
+    SpeechSegment[],
+    WhisperXVadProgress
+  >();
 
   constructor(private readonly options: WhisperXVadOptions = {}) {}
 
@@ -108,20 +111,35 @@ export class WhisperXVadService {
         this.worker = spawned.worker;
         this.vadWorkerTrackingRelease?.();
         this.vadWorkerTrackingRelease = spawned.release;
-        getWorkerPool().register('vadWhisperX', 'VAD (Silero)', () => new Worker(
-          new URL('../../workers/vadWorker.ts', import.meta.url),
-          { type: 'module' },
-        ));
+        getWorkerPool().register(
+          'vadWhisperX',
+          'VAD (Silero)',
+          () =>
+            new Worker(new URL('../../workers/vadWorker.ts', import.meta.url), { type: 'module' }),
+          spawned.worker,
+        );
       } catch (err) {
         clearTimeout(timer);
-        reject(new Error(`WhisperXVadService: Failed to create Worker — ${err instanceof Error ? err.message : String(err)}`));
+        reject(
+          new Error(
+            `WhisperXVadService: Failed to create Worker — ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
         return;
       }
 
       this.worker.onmessage = (event: MessageEvent) => {
         // WorkerPool 心跳 | Heartbeat passthrough
         if (event.data?.type === 'workerpool:pong') return;
-        const msg = event.data as { type: string; id?: string; segments?: VadWorkerSegment[]; message?: string; processedFrames?: number; totalFrames?: number; ratio?: number };
+        const msg = event.data as {
+          type: string;
+          id?: string;
+          segments?: VadWorkerSegment[];
+          message?: string;
+          processedFrames?: number;
+          totalFrames?: number;
+          ratio?: number;
+        };
 
         if (msg.type === 'ready') {
           clearTimeout(timer);
@@ -141,11 +159,14 @@ export class WhisperXVadService {
         }
 
         if (msg.type === 'result' && msg.id) {
-          this.pendingRequests.resolve(msg.id, (msg.segments ?? []).map((s) => ({
-            start: s.start,
-            end: s.end,
-            confidence: s.confidence,
-          })));
+          this.pendingRequests.resolve(
+            msg.id,
+            (msg.segments ?? []).map((s) => ({
+              start: s.start,
+              end: s.end,
+              confidence: s.confidence,
+            })),
+          );
           return;
         }
 
@@ -193,7 +214,10 @@ export class WhisperXVadService {
    * Detects speech segments in an AudioBuffer.
    * Falls back to energy-based detection if the Worker is unavailable.
    */
-  async detectSpeechSegments(buffer: AudioBuffer, options: DetectSpeechSegmentsOptions = {}): Promise<SpeechSegment[]> {
+  async detectSpeechSegments(
+    buffer: AudioBuffer,
+    options: DetectSpeechSegmentsOptions = {},
+  ): Promise<SpeechSegment[]> {
     if (!this.ready || !this.worker) {
       log.debug('VAD Worker not ready, falling back to energy-based VAD');
       return detectVadSegments(buffer).map((s) => ({ start: s.start, end: s.end }));
@@ -214,14 +238,17 @@ export class WhisperXVadService {
     options.signal?.addEventListener('abort', abortListener, { once: true });
 
     try {
-      return await this.pendingRequests.track(id, () => {
-        this.worker!.postMessage(
-          { type: 'detect', id, pcm, sampleRate: buffer.sampleRate },
-          [pcm.buffer],
-        );
-      }, {
-        ...(options.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
-      });
+      return await this.pendingRequests.track(
+        id,
+        () => {
+          this.worker!.postMessage({ type: 'detect', id, pcm, sampleRate: buffer.sampleRate }, [
+            pcm.buffer,
+          ]);
+        },
+        {
+          ...(options.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
+        },
+      );
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         throw error;
@@ -252,7 +279,10 @@ export class WhisperXVadService {
    * Start a streaming VAD detection session. Caller sends PCM chunks, gets all segments at the end.
    * Throws if Worker is not initialized (streaming mode doesn't support energy fallback).
    */
-  startStreamingDetection(sampleRate: number, options?: DetectSpeechSegmentsOptions): StreamingVadSession {
+  startStreamingDetection(
+    sampleRate: number,
+    options?: DetectSpeechSegmentsOptions,
+  ): StreamingVadSession {
     if (!this.ready || !this.worker) {
       throw new Error('WhisperXVadService: Worker not ready for streaming detection');
     }
@@ -261,16 +291,22 @@ export class WhisperXVadService {
     const worker = this.worker;
     const pendingRequests = this.pendingRequests;
 
-    const resultPromise = pendingRequests.track(id, () => {
-      worker.postMessage({ type: 'detect-stream-start', id, sampleRate });
-    }, {
-      ...(options?.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
-    });
+    const resultPromise = pendingRequests.track(
+      id,
+      () => {
+        worker.postMessage({ type: 'detect-stream-start', id, sampleRate });
+      },
+      {
+        ...(options?.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
+      },
+    );
 
-    const abortListener = options?.signal ? () => {
-      pendingRequests.reject(id, createAbortError());
-      worker.postMessage({ type: 'cancel', id });
-    } : undefined;
+    const abortListener = options?.signal
+      ? () => {
+          pendingRequests.reject(id, createAbortError());
+          worker.postMessage({ type: 'cancel', id });
+        }
+      : undefined;
 
     if (abortListener && options?.signal) {
       options.signal.addEventListener('abort', abortListener, { once: true });
@@ -287,10 +323,7 @@ export class WhisperXVadService {
     return {
       sendChunk(pcm: Float32Array): void {
         if (cancelled) return;
-        worker.postMessage(
-          { type: 'detect-stream-chunk', id, pcm },
-          [pcm.buffer],
-        );
+        worker.postMessage({ type: 'detect-stream-chunk', id, pcm }, [pcm.buffer]);
       },
       async finish(): Promise<SpeechSegment[]> {
         if (cancelled) {
