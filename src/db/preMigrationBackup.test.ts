@@ -7,6 +7,7 @@ import {
   createPreMigrationBackupSnapshot,
   getLatestPreMigrationBackup,
   restorePreMigrationBackup,
+  shouldAutoRestoreAfterMigrationOpenFailure,
 } from './preMigrationBackup';
 
 type MemoryStorage = {
@@ -53,6 +54,29 @@ function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
     request.onerror = () => reject(request.error ?? new Error('idb request failed'));
   });
 }
+
+describe('shouldAutoRestoreAfterMigrationOpenFailure', () => {
+  it('allows restore only for corruption-class DOMException errors', () => {
+    expect(
+      shouldAutoRestoreAfterMigrationOpenFailure(new DOMException('abort', 'AbortError')),
+    ).toBe(true);
+    expect(
+      shouldAutoRestoreAfterMigrationOpenFailure(new DOMException('unknown', 'UnknownError')),
+    ).toBe(true);
+    expect(
+      shouldAutoRestoreAfterMigrationOpenFailure(new DOMException('quota', 'QuotaExceededError')),
+    ).toBe(false);
+  });
+
+  it('rejects blocked tabs and rolled-back migration hook failures', () => {
+    expect(
+      shouldAutoRestoreAfterMigrationOpenFailure(new Error('open blocked for jieyudb_v2')),
+    ).toBe(false);
+    expect(shouldAutoRestoreAfterMigrationOpenFailure(new Error('upgrade hook failed'))).toBe(
+      false,
+    );
+  });
+});
 
 describe('createPreMigrationBackupSnapshot', () => {
   const createdDbNames: string[] = [];
