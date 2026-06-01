@@ -51,6 +51,7 @@ import {
 import { syncDocumentDataTheme, THEME_MODE_STORAGE_KEY } from './utils/theme';
 import { type IconEffect, getIconEffect, setIconEffect } from './utils/iconEffect';
 import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspaceRoute';
+import { ensureLanguageTagMappingsLoaded } from './utils/langMapping';
 import { JIEYU_MATERIAL_NAV, type LeftRailNavIconName } from './utils/jieyuMaterialIcon';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
@@ -320,6 +321,10 @@ export function App() {
         document.documentElement.setAttribute('data-motion-ready', '');
       });
     });
+  }, []);
+
+  useEffect(() => {
+    void ensureLanguageTagMappingsLoaded();
   }, []);
 
   const [isSidePaneCollapsed, setIsSidePaneCollapsed] = useState<boolean>(
