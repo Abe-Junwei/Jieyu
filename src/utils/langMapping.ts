@@ -43,6 +43,7 @@ export async function ensureLanguageTagMappingsLoaded(): Promise<void> {
     .then((r) => r.json())
     .then((data: LanguageTagMappings) => {
       languageTagMappingsCache = data;
+      invalidateLanguageTagMappingsDerivedCaches();
     })
     .catch(() => {
       // graceful degradation: keep empty default so catalog functions don't throw
@@ -56,6 +57,14 @@ export async function ensureLanguageTagMappingsLoaded(): Promise<void> {
 /** Test-only: inject mappings without going through fetch. */
 export function hydrateLanguageTagMappingsForTests(data: LanguageTagMappings): void {
   languageTagMappingsCache = data;
+  invalidateLanguageTagMappingsDerivedCaches();
+}
+
+/** Test-only: simulate cold start before language-tag-mappings.json is available. */
+export function resetLanguageTagMappingsCacheForTests(): void {
+  languageTagMappingsCache = undefined;
+  languageTagMappingsLoadPromise = null;
+  invalidateLanguageTagMappingsDerivedCaches();
 }
 
 import { listIso639_3Seeds, registerIso6393DerivedInvalidator } from '../data/iso6393Seed';
@@ -543,8 +552,17 @@ function getIso639IsoMaps(): Iso639IsoMaps {
 
 function invalidateLangMappingIso639Caches(): void {
   iso6393SeedIndexes = undefined;
+  invalidateLanguageTagMappingsDerivedCaches();
+}
+
+function invalidateLanguageTagMappingsDerivedCaches(): void {
   iso639IsoMaps = undefined;
   _languageCatalogByCode = undefined;
+  _visibleMergedLanguageCatalogCache = undefined;
+  _allMergedLanguageCatalogCache = undefined;
+  SEARCH_LANGUAGE_CACHE_SIGNATURE = '';
+  SEARCH_LANGUAGE_INDEX_CACHE.clear();
+  SEARCH_LANGUAGE_RESULT_CACHE.clear();
 }
 
 registerIso6393DerivedInvalidator(invalidateLangMappingIso639Caches);

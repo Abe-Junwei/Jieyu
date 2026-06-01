@@ -11,6 +11,7 @@ import {
   sanitizeLanguageCodeInput,
   searchLanguageCatalog,
   hydrateLanguageTagMappingsForTests,
+  resetLanguageTagMappingsCacheForTests,
 } from './langMapping';
 import languageTagMappingsRaw from '../../public/data/language-support/language-tag-mappings.json';
 import {
@@ -102,6 +103,19 @@ describe('langMapping input helpers', () => {
 
     expect(resolved.status).toBe('resolved');
     expect(resolved.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining('建议改用 apc')]),
+    );
+  });
+
+  it('rebuilds deprecated-code guidance after tag mappings hydrate invalidates catalog cache', () => {
+    resetLanguageTagMappingsCacheForTests();
+    const beforeMappings = resolveLanguageCodeInput('ajp', 'zh-CN');
+    expect(beforeMappings.status).toBe('resolved');
+    expect(beforeMappings.warnings.some((warning) => warning.includes('建议改用'))).toBe(false);
+
+    hydrateLanguageTagMappingsForTests(languageTagMappingsRaw);
+    const afterMappings = resolveLanguageCodeInput('ajp', 'zh-CN');
+    expect(afterMappings.warnings).toEqual(
       expect.arrayContaining([expect.stringContaining('建议改用 apc')]),
     );
   });
