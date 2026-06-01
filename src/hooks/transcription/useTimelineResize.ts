@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { snapToZeroCrossing } from '../../services/AudioAnalysisService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import type { SnapGuide } from '../useTranscriptionData';
@@ -97,6 +97,22 @@ export function useTimelineResize({
 }: UseTimelineResizeParams) {
   const [timelineResizeTooltip, setTimelineResizeTooltip] = useState<TimelineResizeTooltip>(null);
   const timelineResizeDragRef = useRef<ResizeDragState>(null);
+  const activeListenersRef = useRef<{
+    onMove: (ev: PointerEvent) => void;
+    onUp: () => void;
+  } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      const listeners = activeListenersRef.current;
+      if (listeners) {
+        window.removeEventListener('pointermove', listeners.onMove);
+        window.removeEventListener('pointerup', listeners.onUp);
+        window.removeEventListener('pointercancel', listeners.onUp);
+        activeListenersRef.current = null;
+      }
+    };
+  }, []);
 
   const startTimelineResizeDrag = useCallback(
     (
@@ -240,6 +256,7 @@ export function useTimelineResize({
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
+        activeListenersRef.current = null;
 
         if (!drag) return;
 
@@ -272,6 +289,7 @@ export function useTimelineResize({
         );
       };
 
+      activeListenersRef.current = { onMove, onUp };
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);

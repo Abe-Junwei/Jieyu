@@ -117,6 +117,9 @@ export function useRecording({
         recorder.start();
         setRecording(true);
       } catch (error) {
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        recorderRef.current = null;
         setRecording(false);
         setRecordingUnitId(null);
         setRecordingLayerId(null);
@@ -135,6 +138,7 @@ export function useRecording({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      recorderRef.current?.stop();
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);

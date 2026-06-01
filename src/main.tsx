@@ -13,6 +13,29 @@ import './styles/app-foundation.css';
 
 const log = createLogger('main');
 
+function initGlobalErrorHandlers(): void {
+  if (typeof window === 'undefined') return;
+
+  window.addEventListener('error', (event) => {
+    log.error('Uncaught error', {
+      message: event.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      error: event.error instanceof Error ? event.error.message : String(event.error ?? ''),
+    });
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    log.error('Unhandled promise rejection', {
+      reason: reason instanceof Error ? reason.message : String(reason),
+    });
+  });
+}
+
+initGlobalErrorHandlers();
+
 void initOtelForReleaseStage();
 void initSentryForReleaseStage();
 initLcpMetricObserver();
@@ -21,11 +44,13 @@ initIconEffect(); // 图标效果 material / motion | Icon effect preference
 
 void (async () => {
   try {
-    const [{ ensureIso6393SeedsLoaded }, langCache] = await Promise.all([
-      import('./data/iso6393Seed'),
-      import('./data/languageCatalogRuntimeCache'),
-    ]);
-    await ensureIso6393SeedsLoaded();
+    const [{ ensureIso6393SeedsLoaded }, langCache, { ensureLanguageTagMappingsLoaded }] =
+      await Promise.all([
+        import('./data/iso6393Seed'),
+        import('./data/languageCatalogRuntimeCache'),
+        import('./utils/langMapping'),
+      ]);
+    await Promise.all([ensureIso6393SeedsLoaded(), ensureLanguageTagMappingsLoaded()]);
     try {
       const baseline = await langCache.fetchLanguageCatalogBaselineRuntimeCache();
       langCache.primeLanguageCatalogRuntimeCacheForSession(baseline);
@@ -78,7 +103,10 @@ void (async () => {
       import('./services/vad/VadMediaBackend.browser'),
     ]);
   } catch (error) {
-    log.warn('i18n preload or VAD backend failed; mounting with zh-CN / VAD fallback if applicable', { err: error });
+    log.warn(
+      'i18n preload or VAD backend failed; mounting with zh-CN / VAD fallback if applicable',
+      { err: error },
+    );
   }
   mountApp();
 })();
