@@ -5,6 +5,8 @@ import {
   PRE_MIGRATION_BACKUP_DB_NAME,
   PRE_MIGRATION_BACKUP_STORE_NAME,
   createPreMigrationBackupSnapshot,
+  getLatestPreMigrationBackup,
+  restorePreMigrationBackup,
 } from './preMigrationBackup';
 
 type MemoryStorage = {
@@ -30,7 +32,11 @@ function createMemoryStorage(): MemoryStorage {
   };
 }
 
-function openDb(name: string, version: number, onUpgrade: (db: IDBDatabase) => void): Promise<IDBDatabase> {
+function openDb(
+  name: string,
+  version: number,
+  onUpgrade: (db: IDBDatabase) => void,
+): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(name, version);
     request.onupgradeneeded = () => {
@@ -93,7 +99,9 @@ describe('createPreMigrationBackupSnapshot', () => {
       // noop
     });
     const readTx = backup.transaction(PRE_MIGRATION_BACKUP_STORE_NAME, 'readonly');
-    const rows = await requestToPromise(readTx.objectStore(PRE_MIGRATION_BACKUP_STORE_NAME).getAll());
+    const rows = await requestToPromise(
+      readTx.objectStore(PRE_MIGRATION_BACKUP_STORE_NAME).getAll(),
+    );
     backup.close();
 
     expect(rows).toHaveLength(1);
@@ -140,5 +148,51 @@ describe('createPreMigrationBackupSnapshot', () => {
 
     expect(first).toBe('created');
     expect(second).toBe('skipped');
+  });
+
+  it('restores source database collections from backup snapshot', async () => {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: storage,
+      configurable: true,
+      writable: true,
+    });
+
+    const sourceDbName = `jieyu_pre_migration_restore_${Date.now()}`;
+    createdDbNames.push(sourceDbName, PRE_MIGRATION_BACKUP_DB_NAME);
+
+    const source = await openDb(sourceDbName, 2, (db) => {
+      if (!db.objectStoreNames.contains('texts')) {
+        db.createObjectStore('texts', { keyPath: 'id' });
+      }
+    });
+    const writeTx = source.transaction('texts', 'readwrite');
+    writeTx.objectStore('texts').put({ id: 't1', value: 'restore-me' });
+    await new Promise<void>((resolve, reject) => {
+      writeTx.oncomplete = () => resolve();
+      writeTx.onerror = () => reject(writeTx.error ?? new Error('write failed'));
+      writeTx.onabort = () => reject(writeTx.error ?? new Error('write aborted'));
+    });
+    source.close();
+
+    const created = await createPreMigrationBackupSnapshot({
+      dbName: sourceDbName,
+      fromVersion: 2,
+      toVersion: 3,
+    });
+    expect(created).toBe('created');
+
+    const snapshot = await getLatestPreMigrationBackup(sourceDbName);
+    expect(snapshot).not.toBeNull();
+
+    await Dexie.delete(sourceDbName);
+
+    const restored = await restorePreMigrationBackup(snapshot!.id);
+    expect(restored).toBe('restored');
+
+    const reopened = await openDb(sourceDbName, 2, () => undefined);
+    const readTx = reopened.transaction('texts', 'readonly');
+    const rows = await requestToPromise(readTx.objectStore('texts').getAll());
+    reopened.close();
+    expect(rows).toEqual([{ id: 't1', value: 'restore-me' }]);
   });
 });

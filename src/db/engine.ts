@@ -123,7 +123,14 @@ import {
   reportDexieIndexedQueryFallback,
   reportUnexpectedDexieQueryError,
 } from './adapterDexieQueryErrors';
-import { createPreMigrationBackupSnapshot } from './preMigrationBackup';
+import {
+  createPreMigrationBackupSnapshot,
+  getLatestPreMigrationBackup,
+  restorePreMigrationBackup,
+} from './preMigrationBackup';
+import { createLogger } from '../observability/logger';
+
+const dbEngineLog = createLogger('db.engine');
 
 /**
  * IndexedDB 物理库名。绿场重置时抬升后缀，使旧库 `jieyudb` 留在磁盘但应用不再打开。
@@ -1575,39 +1582,70 @@ async function _createDb(): Promise<JieyuDatabase> {
   const migrationNeeded = currentVersion > 0 && currentVersion < JIEYU_DEXIE_TARGET_SCHEMA_VERSION;
   if (migrationNeeded) {
     dispatchDbMigrationStartEvent({ from: currentVersion, to: JIEYU_DEXIE_TARGET_SCHEMA_VERSION });
-    // ARCH-5 实际收口：迁移前自动快照（独立备份库），失败不阻断升级但会重试。
-    // ARCH-5 closure: create a pre-migration snapshot in a dedicated backup DB; failures are best-effort.
-    await createPreMigrationBackupSnapshot({
+    const backupResult = await createPreMigrationBackupSnapshot({
       dbName: JIEYU_DEXIE_DB_NAME,
       fromVersion: currentVersion,
       toVersion: JIEYU_DEXIE_TARGET_SCHEMA_VERSION,
     });
+    if (backupResult === 'failed') {
+      dbEngineLog.warn('pre-migration backup failed; continuing schema upgrade', {
+        dbName: JIEYU_DEXIE_DB_NAME,
+        fromVersion: currentVersion,
+        toVersion: JIEYU_DEXIE_TARGET_SCHEMA_VERSION,
+      });
+    }
   }
+  let recoveredAfterMigrationFailure = false;
   try {
     await dexie.open();
   } catch (err) {
-    let recoveryHint: JieyuDatabaseOpenError['recoveryHint'] = 'unknown';
-    let message = 'Unable to open the local database; stored data may be corrupted.';
-    if (err instanceof DOMException) {
-      if (err.name === 'AbortError' || err.name === 'UnknownError') {
-        recoveryHint = 'corrupted';
-        message =
-          'The database file may be corrupted or unsupported by this browser version. Export a backup before resetting.';
-      }
-    } else if (err instanceof Error) {
-      if (err.message.includes('blocked')) {
-        recoveryHint = 'blocked';
-        message = 'The database is blocked by another tab. Close other Jieyu windows and refresh.';
-      }
-    }
-    const openError = new JieyuDatabaseOpenError(message, err, recoveryHint);
-    dispatchDatabaseOpenFailureEvent(openError);
     if (migrationNeeded) {
-      // 迁移失败时也需要关闭进度遮罩 | Also dismiss the migration overlay on failure
-      dispatchDbMigrationDoneEvent();
+      const latestBackup = await getLatestPreMigrationBackup(JIEYU_DEXIE_DB_NAME);
+      if (latestBackup) {
+        try {
+          const restored = await restorePreMigrationBackup(latestBackup.id);
+          if (restored === 'restored') {
+            dbEngineLog.warn('migration failed; restored pre-migration backup and retrying open', {
+              snapshotId: latestBackup.id,
+              fromVersion: latestBackup.fromVersion,
+              toVersion: latestBackup.toVersion,
+            });
+            await dexie.open();
+            recoveredAfterMigrationFailure = true;
+          }
+        } catch (restoreErr) {
+          dbEngineLog.error('pre-migration restore retry failed', {
+            err: restoreErr instanceof Error ? restoreErr.message : String(restoreErr),
+            snapshotId: latestBackup.id,
+          });
+        }
+      }
     }
-    delete globalWithDb.__jieyuDbPromise__;
-    throw openError;
+    if (!recoveredAfterMigrationFailure) {
+      let recoveryHint: JieyuDatabaseOpenError['recoveryHint'] = 'unknown';
+      let message = 'Unable to open the local database; stored data may be corrupted.';
+      if (err instanceof DOMException) {
+        if (err.name === 'AbortError' || err.name === 'UnknownError') {
+          recoveryHint = 'corrupted';
+          message =
+            'The database file may be corrupted or unsupported by this browser version. Export a backup before resetting.';
+        }
+      } else if (err instanceof Error) {
+        if (err.message.includes('blocked')) {
+          recoveryHint = 'blocked';
+          message =
+            'The database is blocked by another tab. Close other Jieyu windows and refresh.';
+        }
+      }
+      const openError = new JieyuDatabaseOpenError(message, err, recoveryHint);
+      dispatchDatabaseOpenFailureEvent(openError);
+      if (migrationNeeded) {
+        // 迁移失败时也需要关闭进度遮罩 | Also dismiss the migration overlay on failure
+        dispatchDbMigrationDoneEvent();
+      }
+      delete globalWithDb.__jieyuDbPromise__;
+      throw openError;
+    }
   }
   if (migrationNeeded) {
     dispatchDbMigrationDoneEvent();

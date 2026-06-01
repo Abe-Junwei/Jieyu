@@ -1,12 +1,38 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerUnitDocType } from '../db';
 import { JIEYU_DEXIE_DB_NAME } from '../db/engine';
-import { clearRecoverySnapshot, getRecoverySnapshot, saveRecoverySnapshot } from './SnapshotService';
+import {
+  RECOVERY_SCHEMA_VERSION,
+  clearRecoverySnapshot,
+  getRecoveryLayerUnits,
+  getRecoverySnapshot,
+  saveRecoverySnapshot,
+} from './SnapshotService';
+
+const { mockExportRecoveryDatabaseAsJson } = vi.hoisted(() => ({
+  mockExportRecoveryDatabaseAsJson: vi.fn<
+    () => Promise<Awaited<ReturnType<typeof import('../db/io').exportRecoveryDatabaseAsJson>>>
+  >(async () => ({
+    schemaVersion: 4,
+    exportedAt: '2026-06-01T00:00:00.000Z',
+    dbName: JIEYU_DEXIE_DB_NAME,
+    collections: {
+      layer_units: [],
+      layer_unit_contents: [],
+      layers: [],
+    },
+  })),
+}));
+
+vi.mock('../db/io', () => ({
+  exportRecoveryDatabaseAsJson: mockExportRecoveryDatabaseAsJson,
+}));
 
 describe('SnapshotService', () => {
   beforeEach(async () => {
+    mockExportRecoveryDatabaseAsJson.mockClear();
     await clearRecoverySnapshot(JIEYU_DEXIE_DB_NAME);
   });
 
@@ -17,11 +43,9 @@ describe('SnapshotService', () => {
 
     await db.table('snapshots').put({
       dbName: JIEYU_DEXIE_DB_NAME,
-      schemaVersion: 1,
+      schemaVersion: RECOVERY_SCHEMA_VERSION,
       timestamp: Date.now(),
-      units: 'undefined',
-      translations: '[]',
-      layers: '[]',
+      snapshotJson: '{not-json',
     });
 
     await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toBeNull();
@@ -31,84 +55,76 @@ describe('SnapshotService', () => {
     await Dexie.delete('jieyu_recovery');
   });
 
-  it('normalizes missing arrays while saving recovery snapshots', async () => {
-    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, {
-      units: undefined as unknown as [],
-      translations: undefined as unknown as [],
-      layers: undefined as unknown as [],
-    });
+  it('reads legacy v1 snapshots by converting them to import-compatible shape', async () => {
+    const db = new Dexie('jieyu_recovery');
+    db.version(1).stores({ snapshots: 'dbName' });
+    await db.open();
 
-    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toMatchObject({
-      units: [],
-      translations: [],
-      layers: [],
-    });
-  });
-
-  it('skips persist when combined serialized UTF-8 size exceeds the configured limit', async () => {
-    const now = '2026-01-01T00:00:00.000Z';
-    const unit = {
-      id: 'u1',
-      textId: 't1',
-      mediaId: 'm1',
-      layerId: 'l1',
-      unitType: 'unit',
-      startTime: 0,
-      endTime: 1,
-      transcription: { default: 'x'.repeat(400) },
-      createdAt: now,
-      updatedAt: now,
-    } as LayerUnitDocType;
-
-    await saveRecoverySnapshot(
-      JIEYU_DEXIE_DB_NAME,
-      { units: [unit], translations: [], layers: [] },
-      { maxSerializedUtf8Bytes: 120 },
-    );
-
-    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toBeNull();
-  });
-
-  it('clears an older snapshot when a newer oversized snapshot is skipped', async () => {
-    const now = '2026-01-01T00:00:00.000Z';
-
-    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, {
-      units: [{
-        id: 'u-small',
-        textId: 't1',
-        mediaId: 'm1',
-        layerId: 'l1',
-        unitType: 'unit',
-        startTime: 0,
-        endTime: 1,
-        createdAt: now,
-        updatedAt: now,
-      } as LayerUnitDocType],
-      translations: [],
-      layers: [],
-    });
-
-    await saveRecoverySnapshot(
-      JIEYU_DEXIE_DB_NAME,
-      {
-        units: [{
-          id: 'u-big',
+    await db.table('snapshots').put({
+      dbName: JIEYU_DEXIE_DB_NAME,
+      schemaVersion: 1,
+      timestamp: Date.now(),
+      units: JSON.stringify([
+        {
+          id: 'u1',
           textId: 't1',
           mediaId: 'm1',
           layerId: 'l1',
           unitType: 'unit',
           startTime: 0,
           endTime: 1,
-          transcription: { default: 'x'.repeat(400) },
-          createdAt: now,
-          updatedAt: now,
-        } as LayerUnitDocType],
-        translations: [],
-        layers: [],
-      },
-      { maxSerializedUtf8Bytes: 120 },
-    );
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        } satisfies LayerUnitDocType,
+      ]),
+      translations: '[]',
+      layers: '[]',
+    });
 
+    const snap = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME);
+    expect(snap?.schemaVersion).toBe(RECOVERY_SCHEMA_VERSION);
+    expect(getRecoveryLayerUnits(snap!)).toHaveLength(1);
+
+    db.close();
+    await Dexie.delete('jieyu_recovery');
+  });
+
+  it('skips persist when combined serialized UTF-8 size exceeds the configured limit', async () => {
+    mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce({
+      schemaVersion: 4,
+      exportedAt: '2026-06-01T00:00:00.000Z',
+      dbName: JIEYU_DEXIE_DB_NAME,
+      collections: {
+        layer_units: [
+          {
+            id: 'u1',
+            textId: 't1',
+            mediaId: 'm1',
+            layerId: 'l1',
+            unitType: 'unit',
+            startTime: 0,
+            endTime: 1,
+            transcription: { default: 'x'.repeat(400) },
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          } satisfies LayerUnitDocType,
+        ],
+      },
+    });
+
+    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { maxSerializedUtf8Bytes: 120 });
     await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toBeNull();
+  });
+
+  it('persists v2 recovery snapshots from exportRecoveryDatabaseAsJson', async () => {
+    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME);
+    expect(mockExportRecoveryDatabaseAsJson).toHaveBeenCalledTimes(1);
+    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toMatchObject({
+      schemaVersion: RECOVERY_SCHEMA_VERSION,
+      snapshot: {
+        schemaVersion: 4,
+        dbName: JIEYU_DEXIE_DB_NAME,
+      },
+    });
   });
 });

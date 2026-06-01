@@ -3,7 +3,7 @@ title: AI_QUICKSTART — 解语跨工具 AI 上手指引
 doc_type: agent-quickstart
 status: active
 owner: repo
-last_reviewed: 2026-05-13
+last_reviewed: 2026-06-01
 applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ---
 
@@ -31,6 +31,7 @@ hotspots:auto 区间由 `npm run sync:ai-quickstart-hotspots` 自动重写，请
 | 改 ReadyWorkspace / 侧栏 / 媒体生命周期 | [ReadyWorkspace-数据域与壳层装配边界.md](docs/architecture/ReadyWorkspace-数据域与壳层装配边界.md) | [仓库现状与代码地图.md](docs/architecture/仓库现状与代码地图.md) |
 | 改页面 controller / orchestrator | [copilot-instructions.md](copilot-instructions.md) §一 / §三 / §五 | [code-governance-plan-2026-05-06.md](docs/architecture/code-governance-plan-2026-05-06.md) |
 | 改 AI chat / tool / message formatter | `src/ai/messages/` 与 `src/ai/chat/`；UI 文案 vs formatter 分层见 [copilot-instructions.md](copilot-instructions.md) 权威范围段 | smoke evals 见 §4 |
+| Agent 运行时架构 / 写 gate / Runner / workflow | [Agent运行时架构补强-本地优先落地方案](docs/execution/plans/Agent运行时架构补强-本地优先落地方案-2026-06-01.md) · [主路线图 A6–A14](docs/execution/plans/解语-主路线图-master-roadmap-2026-06-01.md) | [ai-agent-runtime-security-local-first.md](docs/architecture/ai-agent-runtime-security-local-first.md) · [ai-agent-runtime-runner-model.md](docs/architecture/ai-agent-runtime-runner-model.md) |
 | 改 db schema / persistence | [docs/architecture/ai-local-context-tool-governance.md](docs/architecture/ai-local-context-tool-governance.md)；写→reload→readback 验证硬规则见 [AGENTS.md](AGENTS.md) §4 | `vitest` 定向 |
 | 改 CSS / 面板视觉层级 | [copilot-instructions.md](copilot-instructions.md) §九 双层边框规则 | [docs/architecture/CSS架构与模板复用规范.md](docs/architecture/CSS架构与模板复用规范.md) |
 | 改 i18n / 用户可见文案 | [DESIGN.md](DESIGN.md) | `src/i18n/dictKeys.ts` |

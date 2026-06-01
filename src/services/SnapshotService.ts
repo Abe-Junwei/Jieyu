@@ -1,48 +1,47 @@
 import Dexie, { type Table } from 'dexie';
-import type { LayerUnitDocType, LayerUnitContentDocType, LayerDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
+import { exportRecoveryDatabaseAsJson } from '../db/io';
 import { createLogger } from '../observability/logger';
 
 const log = createLogger('SnapshotService');
 
-// ---- Types ----
+export const RECOVERY_SCHEMA_VERSION = 2;
 
-interface RecoveryRow {
-  /** Primary key — the main Dexie database name (see `JIEYU_DEXIE_DB_NAME` in `src/db/engine.ts`) */
-  dbName: string;
-  schemaVersion: number;
-  timestamp: number;
-  units: string;     // JSON-stringified array
-  translations: string;   // JSON-stringified array
-  layers: string;         // JSON-stringified array
-}
+/** Matches `exportDatabaseAsJson` / `importDatabaseFromJson` snapshot shape (schemaVersion 4). */
+export type RecoveryDatabaseSnapshot = Awaited<ReturnType<typeof exportRecoveryDatabaseAsJson>>;
 
 export interface RecoveryData {
-  schemaVersion: number;
+  schemaVersion: typeof RECOVERY_SCHEMA_VERSION;
   timestamp: number;
-  units: LayerUnitDocType[];
-  translations: LayerUnitContentDocType[];
-  layers: LayerDocType[];
+  snapshot: RecoveryDatabaseSnapshot;
 }
 
-const RECOVERY_SCHEMA_VERSION = 1;
-
-/** Combined UTF-8 size of serialized units + translations + layers; larger payloads skip persist. */
 const DEFAULT_RECOVERY_SNAPSHOT_MAX_SERIALIZED_UTF8_BYTES = 8 * 1024 * 1024;
 
 const utf8Encoder = new TextEncoder();
-
-function combinedSerializedUtf8Length(units: string, translations: string, layers: string): number {
-  return utf8Encoder.encode(units).byteLength
-    + utf8Encoder.encode(translations).byteLength
-    + utf8Encoder.encode(layers).byteLength;
-}
 
 export type SaveRecoverySnapshotOptions = {
   /** Tests: lower ceiling to assert skip behavior without multi-megabyte fixtures. */
   maxSerializedUtf8Bytes?: number;
 };
 
-// ---- Private Dexie DB (separate from main db) ----
+interface LegacyRecoveryRow {
+  dbName: string;
+  schemaVersion: number;
+  timestamp: number;
+  units: string;
+  translations: string;
+  layers: string;
+}
+
+interface RecoveryRowV2 {
+  dbName: string;
+  schemaVersion: typeof RECOVERY_SCHEMA_VERSION;
+  timestamp: number;
+  snapshotJson: string;
+}
+
+type RecoveryRow = LegacyRecoveryRow | RecoveryRowV2;
 
 class RecoveryDexie extends Dexie {
   snapshots!: Table<RecoveryRow, string>;
@@ -58,8 +57,46 @@ function getRecoveryDb(): RecoveryDexie {
   return _recoveryDb;
 }
 
-function serializeRecoveryArray<T>(value: T[] | undefined): string {
-  return JSON.stringify(Array.isArray(value) ? value : []);
+function isLegacyRecoveryRow(row: RecoveryRow): row is LegacyRecoveryRow {
+  return row.schemaVersion === 1 && 'units' in row;
+}
+
+function isRecoveryRowV2(row: RecoveryRow): row is RecoveryRowV2 {
+  return row.schemaVersion === RECOVERY_SCHEMA_VERSION && 'snapshotJson' in row;
+}
+
+function layerUnitsFromSnapshot(snapshot: RecoveryDatabaseSnapshot): LayerUnitDocType[] {
+  const rows = snapshot.collections['layer_units'];
+  return Array.isArray(rows) ? (rows as LayerUnitDocType[]) : [];
+}
+
+function convertLegacyRowToRecoveryData(row: LegacyRecoveryRow): RecoveryData | null {
+  try {
+    const units = JSON.parse(
+      typeof row.units === 'string' ? row.units : '[]',
+    ) as LayerUnitDocType[];
+    const translations = JSON.parse(typeof row.translations === 'string' ? row.translations : '[]');
+    const layers = JSON.parse(typeof row.layers === 'string' ? row.layers : '[]');
+    if (!Array.isArray(units) || !Array.isArray(translations) || !Array.isArray(layers)) {
+      return null;
+    }
+    return {
+      schemaVersion: RECOVERY_SCHEMA_VERSION,
+      timestamp: row.timestamp,
+      snapshot: {
+        schemaVersion: 4,
+        exportedAt: new Date(row.timestamp).toISOString(),
+        dbName: row.dbName,
+        collections: {
+          layer_units: units,
+          layer_unit_contents: translations,
+          layers,
+        },
+      },
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function dropCorruptedRecoverySnapshot(dbName: string): Promise<null> {
@@ -67,30 +104,25 @@ async function dropCorruptedRecoverySnapshot(dbName: string): Promise<null> {
     const db = getRecoveryDb();
     await db.snapshots.delete(dbName);
   } catch {
-    // 忽略兜底清理失败，避免恢复流程再次抛错 | Ignore cleanup failures to keep recovery non-blocking.
+    // ignore cleanup failures
   }
   return null;
 }
 
-// ---- Public API ----
-
 export async function saveRecoverySnapshot(
   dbName: string,
-  data: {
-    units: LayerUnitDocType[];
-    translations: LayerUnitContentDocType[];
-    layers: LayerDocType[];
-  },
   options?: SaveRecoverySnapshotOptions,
 ): Promise<void> {
-  const units = serializeRecoveryArray(data.units);
-  const translations = serializeRecoveryArray(data.translations);
-  const layers = serializeRecoveryArray(data.layers);
-  const maxBytes = options?.maxSerializedUtf8Bytes ?? DEFAULT_RECOVERY_SNAPSHOT_MAX_SERIALIZED_UTF8_BYTES;
-  const total = combinedSerializedUtf8Length(units, translations, layers);
+  const snapshot = await exportRecoveryDatabaseAsJson();
+  const snapshotJson = JSON.stringify(snapshot);
+  const maxBytes =
+    options?.maxSerializedUtf8Bytes ?? DEFAULT_RECOVERY_SNAPSHOT_MAX_SERIALIZED_UTF8_BYTES;
+  const total = utf8Encoder.encode(snapshotJson).byteLength;
   if (total > maxBytes) {
-    log.debug('saveRecoverySnapshot skipped: serialized UTF-8 size exceeds limit', { total, maxBytes });
-    // 超限时清掉旧快照，避免后续恢复到陈旧状态 | Clear any older snapshot to avoid stale crash recovery.
+    log.debug('saveRecoverySnapshot skipped: serialized UTF-8 size exceeds limit', {
+      total,
+      maxBytes,
+    });
     await clearRecoverySnapshot(dbName);
     return;
   }
@@ -100,9 +132,7 @@ export async function saveRecoverySnapshot(
     dbName,
     schemaVersion: RECOVERY_SCHEMA_VERSION,
     timestamp: Date.now(),
-    units,
-    translations,
-    layers,
+    snapshotJson,
   });
 }
 
@@ -110,26 +140,42 @@ export async function getRecoverySnapshot(dbName: string): Promise<RecoveryData 
   const db = getRecoveryDb();
   const row = await db.snapshots.get(dbName);
   if (!row) return null;
-  if (row.schemaVersion !== RECOVERY_SCHEMA_VERSION) return dropCorruptedRecoverySnapshot(dbName);
-  try {
-    const units = JSON.parse(typeof row.units === 'string' ? row.units : '[]') as LayerUnitDocType[];
-    const translations = JSON.parse(typeof row.translations === 'string' ? row.translations : '[]') as LayerUnitContentDocType[];
-    const layers = JSON.parse(typeof row.layers === 'string' ? row.layers : '[]') as LayerDocType[];
 
-    if (!Array.isArray(units) || !Array.isArray(translations) || !Array.isArray(layers)) {
+  if (isLegacyRecoveryRow(row)) {
+    const converted = convertLegacyRowToRecoveryData(row);
+    if (!converted) return dropCorruptedRecoverySnapshot(dbName);
+    return converted;
+  }
+
+  if (!isRecoveryRowV2(row)) return dropCorruptedRecoverySnapshot(dbName);
+
+  try {
+    const parsed = JSON.parse(row.snapshotJson) as RecoveryDatabaseSnapshot;
+    if (!parsed || typeof parsed !== 'object' || !parsed.collections) {
       return dropCorruptedRecoverySnapshot(dbName);
     }
-
     return {
-      schemaVersion: row.schemaVersion,
+      schemaVersion: RECOVERY_SCHEMA_VERSION,
       timestamp: row.timestamp,
-      units,
-      translations,
-      layers,
+      snapshot: parsed,
     };
   } catch {
     return dropCorruptedRecoverySnapshot(dbName);
   }
+}
+
+export function getRecoveryLayerUnits(data: RecoveryData): LayerUnitDocType[] {
+  return layerUnitsFromSnapshot(data.snapshot);
+}
+
+export function getRecoveryLayerContents(data: RecoveryData): LayerUnitContentDocType[] {
+  const rows = data.snapshot.collections['layer_unit_contents'];
+  return Array.isArray(rows) ? (rows as LayerUnitContentDocType[]) : [];
+}
+
+export function getRecoveryLayers(data: RecoveryData): LayerDocType[] {
+  const rows = data.snapshot.collections['layers'];
+  return Array.isArray(rows) ? (rows as LayerDocType[]) : [];
 }
 
 export async function clearRecoverySnapshot(dbName: string): Promise<void> {

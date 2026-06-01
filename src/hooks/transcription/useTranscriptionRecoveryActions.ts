@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
-import { getDb } from '../../db';
-import type { LayerDocType, LayerUnitDocType } from '../../db';
-import { LinguisticService } from '../../services/LinguisticService';
+import { getDb, importDatabaseFromJson } from '../../db';
+import type { LayerUnitDocType } from '../../db';
 import {
   clearRecoverySnapshot,
+  getRecoveryLayerUnits,
   getRecoverySnapshot,
   type RecoveryData,
 } from '../../services/SnapshotService';
@@ -11,7 +11,6 @@ import { fireAndForget } from '../../utils/fireAndForget';
 import type { SaveState } from './transcriptionTypes';
 import { createLogger } from '../../observability/logger';
 import { reportActionError } from '../../utils/actionErrorReporter';
-import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { listUnitDocsFromCanonicalLayerUnits } from '../../services/LayerSegmentGraphService';
 
 const log = createLogger('useTranscriptionRecoveryActions');
@@ -42,7 +41,8 @@ export function useTranscriptionRecoveryActions({
     const name = dbNameRef.current;
     if (!name) return null;
     const snap = await getRecoverySnapshot(name);
-    if (!snap || snap.units.length === 0) return null;
+    const recoveryUnits = snap ? getRecoveryLayerUnits(snap) : [];
+    if (!snap || recoveryUnits.length === 0) return null;
 
     const latestUpdatedAt = unitsRef.current.reduce((max, u) => {
       const t = new Date(u.updatedAt).getTime();
@@ -62,10 +62,10 @@ export function useTranscriptionRecoveryActions({
     async (data: RecoveryData): Promise<boolean> => {
       try {
         await runWithDbMutex(async () => {
-          const db = await getDb();
           if (unitsRef.current.length > 0) {
             const expectedById = new Map(unitsRef.current.map((u) => [u.id, u.updatedAt] as const));
             const ids = unitsRef.current.map((u) => u.id);
+            const db = await getDb();
             const persistedUnits = await listUnitDocsFromCanonicalLayerUnits(db);
             const persistedById = new Map(
               persistedUnits
@@ -86,31 +86,14 @@ export function useTranscriptionRecoveryActions({
             }
           }
 
-          const recoveryTextId = data.units[0]?.textId ?? unitsRef.current[0]?.textId;
-
-          for (const u of data.units) await LinguisticService.units.save(u);
-          for (const t of data.translations) {
-            const owner = data.units.find((item) => item.id === t.unitId);
-            if (owner) {
-              await syncUnitTextToSegmentationV2(db, owner, t);
-            }
-          }
-          for (const l of data.layers) {
-            const normalizedTextId = l.textId ?? recoveryTextId;
-            if (!normalizedTextId) continue;
-            const normalizedLayer: LayerDocType = {
-              ...l,
-              textId: normalizedTextId,
-            };
-            await db.collections.layers.insert(normalizedLayer);
-          }
+          await importDatabaseFromJson(data.snapshot, { strategy: 'upsert' });
         });
 
         await loadSnapshot();
         const name = dbNameRef.current;
         if (name) {
           fireAndForget(clearRecoverySnapshot(name), {
-            context: 'src/hooks/transcription/useTranscriptionRecoveryActions.ts:L105',
+            context: 'src/hooks/transcription/useTranscriptionRecoveryActions.ts:L88',
             policy: 'background',
           });
         }

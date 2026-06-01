@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- 安全基线：限制资源来源，降低 XSS 后数据外泄面 | Security baseline: restrict resource origins to reduce XSS exfiltration surface -->
-    <!-- HIGH-13：收紧 img；connect 枚举常用默认域 + 保留 https/wss 以兼容 BYO/OTEL/自托管。`frame-ancestors` 只能走 HTTP 响应头，不能放 meta | Tighten img; list common connect hosts; keep https:/wss: for custom endpoints. `frame-ancestors` must be delivered via HTTP response headers, not meta. -->
+    <!-- HIGH-13：connect-src 仅枚举已知默认域（无 https:/wss: 通配符）；自托管 OTEL/BYO API 需在部署层追加 connect-src 或通过 HTTP 响应头覆盖 meta。`frame-ancestors` 只能走 HTTP 响应头 | connect-src lists known hosts only; custom OTLP/BYO endpoints need deploy-time CSP extension. -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
       script-src  'self' 'wasm-unsafe-eval';
@@ -29,7 +29,8 @@
         https://api.anthropic.com
         https://dashscope.aliyuncs.com
         https://webservice.bas.uni-muenchen.de
-        https: wss:;
+        https://huggingface.co
+        https://cdn-lfs.huggingface.co;
       worker-src  'self' blob:;
       child-src   'self' blob:;
       object-src  'none';

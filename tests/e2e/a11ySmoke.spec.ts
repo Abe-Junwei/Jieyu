@@ -4,6 +4,7 @@
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { expandTranscriptionAiPanel } from './_helpers/expandTranscriptionAiPanel';
 
 test.describe('Accessibility smoke | Axe', () => {
   test('home: primary nav has no axe violations', async ({ page }) => {
@@ -26,6 +27,15 @@ test.describe('Accessibility smoke | Axe', () => {
     const { violations } = await new AxeBuilder({ page })
       .include('[data-testid="transcription-workspace-screen"]')
       .include('.left-rail-project-hub-root')
+      .analyze();
+    expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
+  });
+
+  test('transcription: ai chat composer has no axe violations when attached', async ({ page }) => {
+    await expandTranscriptionAiPanel(page);
+    await expect(page.getByTestId('ai-chat-composer-input')).toBeAttached({ timeout: 60_000 });
+    const { violations } = await new AxeBuilder({ page })
+      .include('[data-testid="ai-chat-composer-input"]')
       .analyze();
     expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
   });

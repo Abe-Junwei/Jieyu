@@ -58,6 +58,12 @@ source_of_truth: current-state-index
 - [ai-execution-capability-strategy-matrix-v0.md](./ai-execution-capability-strategy-matrix-v0.md)
   - 用途：执行层 capability 策略矩阵 v0（scope / trust / quota 与 `toolPreferences` / `safetyPreferences`、主链 pipeline、后台 sandbox 的优先级与代码锚点；T2-a）。
 
+- [ai-agent-runtime-security-local-first.md](./ai-agent-runtime-security-local-first.md)
+  - 用途：Agent 运行时安全本地优先策略（Last Mile 写 gate、semantic guard、agentRunId 审计）；排期见主路线图 A6–A14 与 [架构补强落地方案](../execution/plans/Agent运行时架构补强-本地优先落地方案-2026-06-01.md)。
+
+- [ai-agent-runtime-runner-model.md](./ai-agent-runtime-runner-model.md)
+  - 用途：自研 Runner / Catalog / Callback 模型（借 ADK 模式、非 ADK 依赖）；`commitToolEffects` 唯一提交点；与 A10–A14 对齐。
+
 - [ai-change-transaction-preview-v1.md](./ai-change-transaction-preview-v1.md)
   - 用途：变更事务预览 DTO v1（`AiChangeTransactionPreviewV1` / `buildAiChangeTransactionPreviewV1`）；与 `AiChangeSet` 对齐；T3-a。
 
@@ -82,9 +88,6 @@ source_of_truth: current-state-index
 
 - [ReadyWorkspace-数据域与壳层装配边界.md](./ReadyWorkspace-数据域与壳层装配边界.md)
   - 用途：`useTranscriptionData`（`data`）与波形桥 / UI state / segment scope 的职责边界；时间轴交互 `domainWrite`+`hostWrite` 装配纪律，防止 `data.xxx` 壳层误接导致的运行期 `undefined`。
-
-- [如是我闻-独立新仓库与-Jieyu-对齐策略.md](./如是我闻-独立新仓库与-Jieyu-对齐策略.md)
-  - 用途：**如是我闻分仓**时如何借鉴 Jieyu 规范与代码白名单、如何规避已知反模式；与 [`docs/execution/plans/如是我闻-本地版改进计划书-2026-05-11.md`](../execution/plans/如是我闻-本地版改进计划书-2026-05-11.md) 配套。
 
 ## 收录原则
 

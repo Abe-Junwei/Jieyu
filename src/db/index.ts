@@ -60,14 +60,13 @@ export {
 // ── 导入 / 导出 | Import / export ──
 export {
   exportDatabaseAsJson,
+  exportRecoveryDatabaseAsJson,
   downloadDatabaseAsJson,
   importDatabaseFromJson,
 } from './io';
 
 // ── 事务门面 | Transaction facade ──
-export {
-  withTransaction,
-} from './withTransaction';
+export { withTransaction } from './withTransaction';
 
 // ── 库完整性 / 单例健康（F-2, ARCH-4）| DB integrity & singleton health ──
 export { jieyuDatabaseSingletonHealthCheck, probeJieyuDatabaseIntegrity } from './dbIntegrityProbe';

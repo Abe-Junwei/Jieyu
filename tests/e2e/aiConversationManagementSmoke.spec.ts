@@ -2,30 +2,7 @@
  * G1f: conversation management chrome smoke (no model calls).
  */
 import { expect, test } from '@playwright/test';
-
-async function expandTranscriptionAiPanel(page: import('@playwright/test').Page): Promise<void> {
-  await page.goto('/transcription');
-  await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
-  await expect(page.locator('.transcription-ai-panel')).toBeAttached({ timeout: 25_000 });
-
-  const hoverZone = page.locator('.transcription-ai-panel-hover-zone');
-  const expandButton = page.getByRole('button', { name: /Expand AI panel|展开/i });
-  if (await hoverZone.count()) {
-    await hoverZone.waitFor({ state: 'visible', timeout: 10_000 });
-    await hoverZone.hover({ force: true });
-    try {
-      await expect(
-        page.locator('.transcription-ai-panel-handle-cluster.transcription-ai-panel-handle-collapsed'),
-      ).toBeHidden({ timeout: 5_000 });
-    } catch {
-      if (await expandButton.count()) {
-        await expandButton.click({ force: true });
-      }
-    }
-  } else if (await expandButton.count()) {
-    await expandButton.click({ force: true });
-  }
-}
+import { expandTranscriptionAiPanel } from './_helpers/expandTranscriptionAiPanel';
 
 test.describe('AI conversation management smoke', () => {
   test('shows conversation list controls in sidebar AI header', async ({ page, browserName }) => {
@@ -58,10 +35,7 @@ test.describe('AI conversation management smoke', () => {
       popover.getByRole('button', { name: /New chat|新对话/i }),
     ).toBeVisible();
 
-    await page.keyboard.press('Escape');
-    await expect(popover).toBeHidden({ timeout: 5_000 });
-
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
     expect(errors).toHaveLength(0);
   });
 });

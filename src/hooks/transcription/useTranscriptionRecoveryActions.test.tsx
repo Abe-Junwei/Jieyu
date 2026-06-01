@@ -1,45 +1,33 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import type { RecoveryData } from '../../services/SnapshotService';
+import { RECOVERY_SCHEMA_VERSION, type RecoveryData } from '../../services/SnapshotService';
 import type { LayerUnitDocType } from '../../db';
 import { JIEYU_DEXIE_DB_NAME } from '../../db/engine';
 import { useTranscriptionRecoveryActions } from './useTranscriptionRecoveryActions';
 
 const {
   mockListUnitDocsFromCanonicalLayerUnits,
-  mockInsertTranslationLayer,
-  mockSaveUnit,
   mockClearRecoverySnapshot,
-  mockSyncUnitTextToSegmentationV2,
+  mockImportDatabaseFromJson,
 } = vi.hoisted(() => ({
   mockListUnitDocsFromCanonicalLayerUnits: vi.fn(async () => [] as LayerUnitDocType[]),
-  mockInsertTranslationLayer: vi.fn(),
-  mockSaveUnit: vi.fn(),
   mockClearRecoverySnapshot: vi.fn(),
-  mockSyncUnitTextToSegmentationV2: vi.fn(async () => undefined),
+  mockImportDatabaseFromJson: vi.fn(async () => ({
+    importedAt: '2026-06-01T00:00:00.000Z',
+    strategy: 'upsert',
+    collections: {},
+    ignoredCollections: [],
+  })),
 }));
 
 vi.mock('../../db', () => ({
-  getDb: vi.fn(async () => ({
-    collections: {
-      layers: {
-        insert: mockInsertTranslationLayer,
-      },
-    },
-  })),
+  getDb: vi.fn(async () => ({})),
+  importDatabaseFromJson: mockImportDatabaseFromJson,
 }));
 
 vi.mock('../../services/LayerSegmentGraphService', () => ({
   listUnitDocsFromCanonicalLayerUnits: mockListUnitDocsFromCanonicalLayerUnits,
-}));
-
-vi.mock('../../services/LinguisticService', () => ({
-  LinguisticService: {
-    units: {
-      save: mockSaveUnit,
-    },
-  },
 }));
 
 vi.mock('../../services/SnapshotService', async () => {
@@ -50,10 +38,6 @@ vi.mock('../../services/SnapshotService', async () => {
     getRecoverySnapshot: vi.fn(),
   };
 });
-
-vi.mock('../../services/LayerSegmentationTextService', () => ({
-  syncUnitTextToSegmentationV2: mockSyncUnitTextToSegmentationV2,
-}));
 
 function makeUnit(id: string, updatedAt: string): LayerUnitDocType {
   return {
@@ -70,22 +54,29 @@ function makeUnit(id: string, updatedAt: string): LayerUnitDocType {
 
 function makeRecoveryDataWithTranslation(units: LayerUnitDocType[]): RecoveryData {
   return {
-    schemaVersion: 1,
+    schemaVersion: RECOVERY_SCHEMA_VERSION,
     timestamp: Date.now(),
-    units,
-    translations: [
-      {
-        id: 'utr-1',
-        unitId: units[0]?.id ?? 'utt-1',
-        layerId: 'layer-1',
-        modality: 'text',
-        text: 'hello',
-        sourceType: 'human',
-        createdAt: '2026-03-23T20:00:00.000Z',
-        updatedAt: '2026-03-23T20:00:00.000Z',
+    snapshot: {
+      schemaVersion: 4,
+      exportedAt: '2026-06-01T00:00:00.000Z',
+      dbName: JIEYU_DEXIE_DB_NAME,
+      collections: {
+        layer_units: units,
+        layer_unit_contents: [
+          {
+            id: 'utr-1',
+            unitId: units[0]?.id ?? 'utt-1',
+            layerId: 'layer-1',
+            modality: 'text',
+            text: 'hello',
+            sourceType: 'human',
+            createdAt: '2026-03-23T20:00:00.000Z',
+            updatedAt: '2026-03-23T20:00:00.000Z',
+          },
+        ],
+        layers: [],
       },
-    ],
-    layers: [],
+    },
   };
 }
 
@@ -93,10 +84,7 @@ describe('useTranscriptionRecoveryActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListUnitDocsFromCanonicalLayerUnits.mockResolvedValue([]);
-    mockInsertTranslationLayer.mockResolvedValue(undefined);
-    mockSaveUnit.mockResolvedValue(undefined);
     mockClearRecoverySnapshot.mockResolvedValue(undefined);
-    mockSyncUnitTextToSegmentationV2.mockResolvedValue(undefined);
   });
 
   it('applyRecovery conflict should return false and set friendly saveState error', async () => {
@@ -136,11 +124,13 @@ describe('useTranscriptionRecoveryActions', () => {
     );
     expect(loadSnapshot).not.toHaveBeenCalled();
     expect(mockClearRecoverySnapshot).not.toHaveBeenCalled();
+    expect(mockImportDatabaseFromJson).not.toHaveBeenCalled();
   });
 
   it('applyRecovery success should return true and clear recovery snapshot', async () => {
     const currentUtt = makeUnit('utt-1', '2026-03-23T20:00:00.000Z');
     mockListUnitDocsFromCanonicalLayerUnits.mockResolvedValueOnce([{ ...currentUtt }]);
+    const recoveryData = makeRecoveryDataWithTranslation([currentUtt]);
 
     const dbNameRef = { current: JIEYU_DEXIE_DB_NAME };
     const unitsRef = { current: [currentUtt] };
@@ -160,17 +150,15 @@ describe('useTranscriptionRecoveryActions', () => {
 
     let ok = false;
     await act(async () => {
-      ok = await result.current.applyRecovery(makeRecoveryDataWithTranslation([currentUtt]));
+      ok = await result.current.applyRecovery(recoveryData);
     });
 
     expect(ok).toBe(true);
+    expect(mockImportDatabaseFromJson).toHaveBeenCalledWith(recoveryData.snapshot, {
+      strategy: 'upsert',
+    });
     expect(loadSnapshot).toHaveBeenCalledTimes(1);
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'done', message: '已从崩溃恢复数据中还原' });
     expect(mockClearRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME);
-    expect(mockSyncUnitTextToSegmentationV2).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ id: 'utt-1' }),
-      expect.objectContaining({ id: 'utr-1', unitId: 'utt-1' }),
-    );
   });
 });

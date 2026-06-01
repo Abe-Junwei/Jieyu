@@ -1,5 +1,12 @@
+// @vitest-environment jsdom
+import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
-import { computeStreamTailSliceCut, sliceAssistantStreamText } from './streamAssistantWords';
+import { render } from '@testing-library/react';
+import {
+  computeStreamTailSliceCut,
+  sliceAssistantStreamText,
+  StreamWordsText,
+} from './streamAssistantWords';
 
 describe('sliceAssistantStreamText', () => {
   it('returns empty array for empty string', () => {
@@ -42,5 +49,21 @@ describe('computeStreamTailSliceCut', () => {
     const head = slices.slice(0, cut);
     const headWords = head.filter((s) => s.isWord).length;
     expect(headWords + tailWords).toBe(100);
+  });
+});
+
+describe('StreamWordsText a11y', () => {
+  it('wraps streaming output in aria-live polite region', () => {
+    const { container } = render(
+      createElement(StreamWordsText, {
+        streamKey: 'test-stream',
+        text: 'hello',
+        locale: 'en-US',
+      }),
+    );
+    const live = container.querySelector('.ai-chat-stream-words-live');
+    expect(live).not.toBeNull();
+    expect(live?.getAttribute('aria-live')).toBe('polite');
+    expect(live?.getAttribute('aria-atomic')).toBe('false');
   });
 });

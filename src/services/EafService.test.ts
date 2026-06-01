@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, LayerLinkDocType, LayerUnitDocType, OrthographyDocType, LayerUnitContentDocType } from '../db';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerUnitDocType,
+  OrthographyDocType,
+  LayerUnitContentDocType,
+} from '../db';
 import { exportToEaf, importFromEaf } from './EafService';
 
 const NOW = '2026-03-26T00:00:00.000Z';
@@ -51,15 +57,17 @@ describe('EafService export', () => {
       },
     ];
 
-    const layerLinksTrlInd: LayerLinkDocType[] = [{
-      id: 'link-trl-ind',
-      layerId: 'layer_trl_ind',
-      transcriptionLayerKey: 'trc_zh',
-      hostTranscriptionLayerId: 'layer_trc',
-      linkType: 'free',
-      isPreferred: true,
-      createdAt: NOW,
-    }];
+    const layerLinksTrlInd: LayerLinkDocType[] = [
+      {
+        id: 'link-trl-ind',
+        layerId: 'layer_trl_ind',
+        transcriptionLayerKey: 'trc_zh',
+        hostTranscriptionLayerId: 'layer_trc',
+        linkType: 'free',
+        isPreferred: true,
+        createdAt: NOW,
+      },
+    ];
 
     const translations: LayerUnitContentDocType[] = [
       {
@@ -95,30 +103,33 @@ describe('EafService export', () => {
     ];
 
     const layerSegments = new Map<string, LayerUnitDocType[]>([
-      ['layer_trl_ind', [
-        {
-          id: 'seg_1',
-          textId: 'text_1',
-          mediaId: 'media_1',
-          layerId: 'layer_trl_ind',
-          unitId: 'utt_1',
-          startTime: 1.0,
-          endTime: 1.5,
-          createdAt: NOW,
-          updatedAt: NOW,
-        },
-        {
-          id: 'seg_2',
-          textId: 'text_1',
-          mediaId: 'media_1',
-          layerId: 'layer_trl_ind',
-          unitId: 'utt_1',
-          startTime: 1.5,
-          endTime: 2.0,
-          createdAt: NOW,
-          updatedAt: NOW,
-        },
-      ]],
+      [
+        'layer_trl_ind',
+        [
+          {
+            id: 'seg_1',
+            textId: 'text_1',
+            mediaId: 'media_1',
+            layerId: 'layer_trl_ind',
+            unitId: 'utt_1',
+            startTime: 1.0,
+            endTime: 1.5,
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+          {
+            id: 'seg_2',
+            textId: 'text_1',
+            mediaId: 'media_1',
+            layerId: 'layer_trl_ind',
+            unitId: 'utt_1',
+            startTime: 1.5,
+            endTime: 2.0,
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+      ],
     ]);
 
     const xml = exportToEaf({
@@ -135,7 +146,8 @@ describe('EafService export', () => {
 
     // default transcription has 1 ALIGNABLE_ANNOTATION, translation tier should add 2 more.
     // 默认转写层有 1 条 ALIGNABLE_ANNOTATION，翻译层应再增加 2 条。
-    const translationAlignableCount = (translationTierXml.match(/<ALIGNABLE_ANNOTATION /g) ?? []).length;
+    const translationAlignableCount = (translationTierXml.match(/<ALIGNABLE_ANNOTATION /g) ?? [])
+      .length;
     expect(translationAlignableCount).toBe(2);
     expect(translationTierXml).toContain('hello');
     expect(translationTierXml).toContain('world');
@@ -234,15 +246,17 @@ describe('EafService export', () => {
       layers,
       orthographies,
       translations,
-      layerLinks: [{
-        id: 'link-trl-ortho',
-        layerId: 'layer_trl',
-        transcriptionLayerKey: 'trc_ar',
-        hostTranscriptionLayerId: 'layer_trc',
-        linkType: 'free',
-        isPreferred: true,
-        createdAt: NOW,
-      }],
+      layerLinks: [
+        {
+          id: 'link-trl-ortho',
+          layerId: 'layer_trl',
+          transcriptionLayerKey: 'trc_ar',
+          hostTranscriptionLayerId: 'layer_trc',
+          linkType: 'free',
+          isPreferred: true,
+          createdAt: NOW,
+        },
+      ],
     });
 
     expect(xml).toContain('jieyu:layer-meta:default');
@@ -334,15 +348,17 @@ describe('EafService export', () => {
       units,
       layers,
       translations,
-      layerLinks: [{
-        id: 'link-trl-notes',
-        layerId: 'layer_trl',
-        transcriptionLayerKey: 'trc_zh',
-        hostTranscriptionLayerId: 'layer_trc',
-        linkType: 'free',
-        isPreferred: true,
-        createdAt: NOW,
-      }],
+      layerLinks: [
+        {
+          id: 'link-trl-notes',
+          layerId: 'layer_trl',
+          transcriptionLayerKey: 'trc_zh',
+          hostTranscriptionLayerId: 'layer_trc',
+          linkType: 'free',
+          isPreferred: true,
+          createdAt: NOW,
+        },
+      ],
     });
 
     expect(xml).toContain('TIER_ID="English Tier Name"');
@@ -432,9 +448,36 @@ describe('EafService logical timeline round-trip', () => {
     ];
 
     const translations: LayerUnitContentDocType[] = [
-      { id: 't1', unitId: 'utt_mid', layerId: 'layer_trc', modality: 'text', text: 'mid', sourceType: 'human', createdAt: NOW, updatedAt: NOW },
-      { id: 't2', unitId: 'utt_first', layerId: 'layer_trc', modality: 'text', text: 'first', sourceType: 'human', createdAt: NOW, updatedAt: NOW },
-      { id: 't3', unitId: 'utt_gap', layerId: 'layer_trc', modality: 'text', text: 'gap', sourceType: 'human', createdAt: NOW, updatedAt: NOW },
+      {
+        id: 't1',
+        unitId: 'utt_mid',
+        layerId: 'layer_trc',
+        modality: 'text',
+        text: 'mid',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 't2',
+        unitId: 'utt_first',
+        layerId: 'layer_trc',
+        modality: 'text',
+        text: 'first',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 't3',
+        unitId: 'utt_gap',
+        layerId: 'layer_trc',
+        modality: 'text',
+        text: 'gap',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
     ];
 
     const xml = exportToEaf({
@@ -453,5 +496,51 @@ describe('EafService logical timeline round-trip', () => {
       [5, 6.125, 'gap'],
       [10.25, 12.5, 'mid'],
     ]);
+  });
+
+  it('preserves Arabic annotation text through export and import round-trip', () => {
+    const arabic = 'مرحبا بالعالم';
+    const arabicLayer: LayerDocType = {
+      id: 'layer_trc',
+      textId: 'text_1',
+      key: 'trc_ar',
+      name: { zho: '阿拉伯语转写' },
+      layerType: 'transcription',
+      languageId: 'ara',
+      modality: 'text',
+      acceptsAudio: false,
+      isDefault: true,
+      sortOrder: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const units: LayerUnitDocType[] = [
+      {
+        id: 'utt_ar',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        startTime: 0,
+        endTime: 2,
+        transcription: { default: arabic },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const translations: LayerUnitContentDocType[] = [
+      {
+        id: 'utr_ar',
+        unitId: 'utt_ar',
+        layerId: arabicLayer.id,
+        modality: 'text',
+        text: arabic,
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+
+    const xml = exportToEaf({ units, layers: [arabicLayer], translations });
+    const imported = importFromEaf(xml);
+    expect(imported.units[0]?.transcription).toBe(arabic);
   });
 });

@@ -1,25 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fireAndForget } from '../../utils/fireAndForget';
+import type { RecoveryData } from '../../services/SnapshotService';
+import {
+  getRecoveryLayerContents,
+  getRecoveryLayers,
+  getRecoveryLayerUnits,
+} from '../../services/SnapshotService';
 
 type UseRecoveryBannerParams = {
   phase: string;
   unitsLength: number;
   translationsLength: number;
   layersLength: number;
-  checkRecovery: () => Promise<{
-    units: unknown[];
-    translations: unknown[];
-    layers: unknown[];
-  } | null>;
+  checkRecovery: () => Promise<RecoveryData | null>;
+  applyRecovery?: (snapshot: RecoveryData) => Promise<boolean>;
+  dismissRecovery?: () => Promise<void>;
 };
 
-export function useRecoveryBanner<
-  TSnapshot extends {
-    units: unknown[];
-    translations: unknown[];
-    layers: unknown[];
-  } | null,
->({
+export function useRecoveryBanner({
   phase,
   unitsLength,
   translationsLength,
@@ -27,18 +25,14 @@ export function useRecoveryBanner<
   checkRecovery,
   applyRecovery,
   dismissRecovery,
-}: Omit<UseRecoveryBannerParams, 'checkRecovery'> & {
-  checkRecovery: () => Promise<TSnapshot>;
-  applyRecovery?: (snapshot: NonNullable<TSnapshot>) => Promise<boolean>;
-  dismissRecovery?: () => Promise<void>;
-}) {
+}: UseRecoveryBannerParams) {
   const [recoveryAvailable, setRecoveryAvailable] = useState(false);
   const [recoveryDiffSummary, setRecoveryDiffSummary] = useState<{
     units: number;
     translations: number;
     layers: number;
   } | null>(null);
-  const recoveryDataRef = useRef<TSnapshot>(null as TSnapshot);
+  const recoveryDataRef = useRef<RecoveryData | null>(null);
   const dismissedRef = useRef(false);
   const currentLengthsRef = useRef({
     units: unitsLength,
@@ -66,11 +60,14 @@ export function useRecoveryBanner<
       checkRecovery().then((snap) => {
         if (cancelled || !snap) return;
         const currentLengths = currentLengthsRef.current;
+        const recoveryUnits = getRecoveryLayerUnits(snap);
+        const recoveryTranslations = getRecoveryLayerContents(snap);
+        const recoveryLayers = getRecoveryLayers(snap);
         recoveryDataRef.current = snap;
         setRecoveryDiffSummary({
-          units: Math.max(0, snap.units.length - currentLengths.units),
-          translations: Math.max(0, snap.translations.length - currentLengths.translations),
-          layers: Math.max(0, snap.layers.length - currentLengths.layers),
+          units: Math.max(0, recoveryUnits.length - currentLengths.units),
+          translations: Math.max(0, recoveryTranslations.length - currentLengths.translations),
+          layers: Math.max(0, recoveryLayers.length - currentLengths.layers),
         });
         setRecoveryAvailable(true);
       }),
@@ -93,7 +90,7 @@ export function useRecoveryBanner<
 
     fireAndForget(
       (async () => {
-        const ok = await applyRecovery(snap as NonNullable<TSnapshot>);
+        const ok = await applyRecovery(snap);
         if (ok) hideRecoveryBanner();
       })(),
       { context: 'src/hooks/ui/useRecoveryBanner.ts:L83', policy: 'user-visible' },
