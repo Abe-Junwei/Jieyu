@@ -24,6 +24,9 @@ export function useSessionMemoryConversationBinding(
       return;
     }
 
+    // Prevent stale in-memory state from the previous conversation leaking into persist paths.
+    sessionMemoryRef.current = {};
+
     let cancelled = false;
     void loadSessionMemoryAsync(conversationId)
       .then((memory) => {
