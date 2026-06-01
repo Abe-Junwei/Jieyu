@@ -1604,6 +1604,9 @@ async function _createDb(): Promise<JieyuDatabase> {
       const latestBackup = await getLatestPreMigrationBackup(JIEYU_DEXIE_DB_NAME);
       if (latestBackup) {
         try {
+          if (dexie.isOpen()) {
+            dexie.close();
+          }
           const restored = await restorePreMigrationBackup(latestBackup.id);
           if (restored === 'restored') {
             dbEngineLog.warn('migration failed; restored pre-migration backup and retrying open', {

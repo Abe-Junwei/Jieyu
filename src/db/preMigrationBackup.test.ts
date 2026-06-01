@@ -174,6 +174,56 @@ describe('createPreMigrationBackupSnapshot', () => {
     expect(second).toBe('skipped');
   });
 
+  it('restorePreMigrationBackup can delete source DB after the holder connection is closed', async () => {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: storage,
+      configurable: true,
+      writable: true,
+    });
+
+    const sourceDbName = `jieyu_pre_migration_blocked_${Date.now()}`;
+    createdDbNames.push(sourceDbName, PRE_MIGRATION_BACKUP_DB_NAME);
+
+    const heldOpen = await openDb(sourceDbName, 1, (db) => {
+      if (!db.objectStoreNames.contains('texts')) {
+        db.createObjectStore('texts', { keyPath: 'id' });
+      }
+    });
+    const writeTx = heldOpen.transaction('texts', 'readwrite');
+    writeTx.objectStore('texts').put({ id: 't1', value: 'held' });
+    await new Promise<void>((resolve, reject) => {
+      writeTx.oncomplete = () => resolve();
+      writeTx.onerror = () => reject(writeTx.error ?? new Error('write failed'));
+      writeTx.onabort = () => reject(writeTx.error ?? new Error('write aborted'));
+    });
+
+    const created = await createPreMigrationBackupSnapshot({
+      dbName: sourceDbName,
+      fromVersion: 1,
+      toVersion: 2,
+    });
+    expect(created).toBe('created');
+    const snapshot = await getLatestPreMigrationBackup(sourceDbName);
+    expect(snapshot).not.toBeNull();
+
+    let deleteBlocked = false;
+    const deleteAttempt = new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(sourceDbName);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error ?? new Error('delete failed'));
+      request.onblocked = () => {
+        deleteBlocked = true;
+        resolve();
+      };
+    });
+    await deleteAttempt;
+    expect(deleteBlocked).toBe(true);
+
+    heldOpen.close();
+    const restored = await restorePreMigrationBackup(snapshot!.id);
+    expect(restored).toBe('restored');
+  });
+
   it('restores source database collections from backup snapshot', async () => {
     Object.defineProperty(globalThis, 'localStorage', {
       value: storage,
