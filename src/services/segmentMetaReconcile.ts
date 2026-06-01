@@ -1,6 +1,6 @@
 import { createLogger } from '../observability/logger';
-import { getDb } from '../db';
 import { SegmentMetaService } from './SegmentMetaService';
+import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 
 const log = createLogger('segmentMetaReconcile');
 
@@ -13,11 +13,7 @@ export interface SegmentMetaDriftReport {
 }
 
 async function countExpectedSegmentRows(layerId: string, mediaId: string): Promise<number> {
-  const db = await getDb();
-  const unitRows = await db.dexie.layer_units
-    .where('[layerId+mediaId]')
-    .equals([layerId, mediaId])
-    .toArray();
+  const unitRows = await LayerSegmentQueryService.listUnitsByLayerMedia(layerId, mediaId);
   return unitRows.filter((row) => row.unitType === 'segment' || row.unitType === 'unit').length;
 }
 

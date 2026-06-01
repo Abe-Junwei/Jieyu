@@ -203,6 +203,20 @@ export class LayerSegmentQueryService {
     });
   }
 
+  static async listUnitsByLayerMedia(layerId: string, mediaId: string): Promise<LayerUnitDocType[]> {
+    const normalizedLayerId = layerId.trim();
+    const normalizedMediaId = mediaId.trim();
+    if (!normalizedLayerId || !normalizedMediaId) return [];
+
+    return runQueryWithCompatibleTransaction(['layer_units'], async () => {
+      const db = await getDb();
+      return db.dexie.layer_units
+        .where('[layerId+mediaId]')
+        .equals([normalizedLayerId, normalizedMediaId])
+        .toArray();
+    });
+  }
+
   static async listSegmentsByIds(
     segmentIds: readonly string[],
   ): Promise<LayerSegmentViewDocType[]> {
