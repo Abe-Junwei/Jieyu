@@ -35,7 +35,11 @@ export function useTranscriptionDataFoundation() {
   });
 
   const { dbNameRef, dirtyRef, recoverySave, scheduleRecoverySave } =
-    useTranscriptionRecoverySnapshotScheduler();
+    useTranscriptionRecoverySnapshotScheduler({
+      unitsRef,
+      translationsRef,
+      layersRef,
+    });
 
   const { createAnchor, pruneOrphanAnchors, updateAnchorTime } = useTranscriptionAnchorActions({
     anchorsRef,

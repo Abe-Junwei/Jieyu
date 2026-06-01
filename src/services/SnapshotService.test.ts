@@ -127,4 +127,40 @@ describe('SnapshotService', () => {
       },
     });
   });
+
+  it('overlays in-memory layer graph on top of the DB export', async () => {
+    mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce({
+      schemaVersion: 4,
+      exportedAt: '2026-06-01T00:00:00.000Z',
+      dbName: JIEYU_DEXIE_DB_NAME,
+      collections: {
+        layer_units: [],
+        layer_unit_contents: [],
+        layers: [],
+      },
+    });
+
+    const liveUnit: LayerUnitDocType = {
+      id: 'u-live',
+      textId: 't1',
+      mediaId: 'm1',
+      layerId: 'l1',
+      unitType: 'unit',
+      startTime: 0,
+      endTime: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, {
+      liveLayerGraph: {
+        layer_units: [liveUnit],
+        layer_unit_contents: [],
+        layers: [],
+      },
+    });
+
+    const snap = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME);
+    expect(getRecoveryLayerUnits(snap!)).toEqual([liveUnit]);
+  });
 });

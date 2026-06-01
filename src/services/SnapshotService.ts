@@ -23,6 +23,15 @@ const utf8Encoder = new TextEncoder();
 export type SaveRecoverySnapshotOptions = {
   /** Tests: lower ceiling to assert skip behavior without multi-megabyte fixtures. */
   maxSerializedUtf8Bytes?: number;
+  /**
+   * In-memory layer graph to overlay on the DB export.
+   * Required when edits are dirty but not yet flushed to IndexedDB (e.g. after pushUndo).
+   */
+  liveLayerGraph?: {
+    layer_units: LayerUnitDocType[];
+    layer_unit_contents: LayerUnitContentDocType[];
+    layers: LayerDocType[];
+  };
 };
 
 interface LegacyRecoveryRow {
@@ -109,11 +118,29 @@ async function dropCorruptedRecoverySnapshot(dbName: string): Promise<null> {
   return null;
 }
 
+function withLiveLayerGraphOverlay(
+  snapshot: RecoveryDatabaseSnapshot,
+  liveLayerGraph: NonNullable<SaveRecoverySnapshotOptions['liveLayerGraph']>,
+): RecoveryDatabaseSnapshot {
+  return {
+    ...snapshot,
+    collections: {
+      ...snapshot.collections,
+      layer_units: liveLayerGraph.layer_units,
+      layer_unit_contents: liveLayerGraph.layer_unit_contents,
+      layers: liveLayerGraph.layers,
+    },
+  };
+}
+
 export async function saveRecoverySnapshot(
   dbName: string,
   options?: SaveRecoverySnapshotOptions,
 ): Promise<void> {
-  const snapshot = await exportRecoveryDatabaseAsJson();
+  let snapshot = await exportRecoveryDatabaseAsJson();
+  if (options?.liveLayerGraph) {
+    snapshot = withLiveLayerGraphOverlay(snapshot, options.liveLayerGraph);
+  }
   const snapshotJson = JSON.stringify(snapshot);
   const maxBytes =
     options?.maxSerializedUtf8Bytes ?? DEFAULT_RECOVERY_SNAPSHOT_MAX_SERIALIZED_UTF8_BYTES;

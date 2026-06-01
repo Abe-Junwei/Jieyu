@@ -7,6 +7,7 @@ import {
   createPreMigrationBackupSnapshot,
   getLatestPreMigrationBackup,
   restorePreMigrationBackup,
+  shouldAttemptPreMigrationRestore,
 } from './preMigrationBackup';
 
 type MemoryStorage = {
@@ -53,6 +54,16 @@ function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
     request.onerror = () => reject(request.error ?? new Error('idb request failed'));
   });
 }
+
+describe('shouldAttemptPreMigrationRestore', () => {
+  it('returns false when another tab blocks the database', () => {
+    expect(shouldAttemptPreMigrationRestore(new Error('Database blocked'))).toBe(false);
+  });
+
+  it('returns true for migration corruption errors', () => {
+    expect(shouldAttemptPreMigrationRestore(new DOMException('abort', 'AbortError'))).toBe(true);
+  });
+});
 
 describe('createPreMigrationBackupSnapshot', () => {
   const createdDbNames: string[] = [];
