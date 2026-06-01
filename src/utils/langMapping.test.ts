@@ -1,6 +1,26 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { formatLanguageDisplayName, formatLanguageCatalogMatch, getLanguageDisplayNames, isDeferredLanguageCodeDraft, pickAutoFillLanguageMatch, resolveLanguageCodeInput, resolveLanguageQuery, resolveLanguageCodeInputChange, sanitizeLanguageCodeInput, searchLanguageCatalog } from './langMapping';
-import { clearLanguageCatalogRuntimeCache, writeLanguageCatalogRuntimeCache } from '../data/languageCatalogRuntimeCache';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import {
+  formatLanguageDisplayName,
+  formatLanguageCatalogMatch,
+  getLanguageDisplayNames,
+  isDeferredLanguageCodeDraft,
+  pickAutoFillLanguageMatch,
+  resolveLanguageCodeInput,
+  resolveLanguageQuery,
+  resolveLanguageCodeInputChange,
+  sanitizeLanguageCodeInput,
+  searchLanguageCatalog,
+  hydrateLanguageTagMappingsForTests,
+} from './langMapping';
+import languageTagMappingsRaw from '../../public/data/language-support/language-tag-mappings.json';
+import {
+  clearLanguageCatalogRuntimeCache,
+  writeLanguageCatalogRuntimeCache,
+} from '../data/languageCatalogRuntimeCache';
+
+beforeAll(() => {
+  hydrateLanguageTagMappingsForTests(languageTagMappingsRaw);
+});
 
 afterEach(() => {
   clearLanguageCatalogRuntimeCache();
@@ -81,9 +101,9 @@ describe('langMapping input helpers', () => {
     const resolved = resolveLanguageCodeInput('ajp', 'zh-CN');
 
     expect(resolved.status).toBe('resolved');
-    expect(resolved.warnings).toEqual(expect.arrayContaining([
-      expect.stringContaining('建议改用 apc'),
-    ]));
+    expect(resolved.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining('建议改用 apc')]),
+    );
   });
 
   it('picks an exact auto-fill match when the language name is unambiguous', () => {
@@ -195,10 +215,18 @@ describe('langMapping input helpers', () => {
   });
 
   it('orders the remaining labels by matched-label kind for input-first display', () => {
-    expect(formatLanguageDisplayName('fra', 'zh-CN', 'input-first', 'French', 'english')).toBe('French · 法语 · français');
-    expect(formatLanguageDisplayName('fra', 'zh-CN', 'input-first', 'français', 'native')).toBe('français · 法语 · French');
-    expect(formatLanguageDisplayName('fra', 'en-US', 'input-first', 'French', 'english')).toBe('French · français');
-    expect(formatLanguageDisplayName('fra', 'en-US', 'input-first', 'français', 'native')).toBe('français · French');
+    expect(formatLanguageDisplayName('fra', 'zh-CN', 'input-first', 'French', 'english')).toBe(
+      'French · 法语 · français',
+    );
+    expect(formatLanguageDisplayName('fra', 'zh-CN', 'input-first', 'français', 'native')).toBe(
+      'français · 法语 · French',
+    );
+    expect(formatLanguageDisplayName('fra', 'en-US', 'input-first', 'French', 'english')).toBe(
+      'French · français',
+    );
+    expect(formatLanguageDisplayName('fra', 'en-US', 'input-first', 'français', 'native')).toBe(
+      'français · French',
+    );
   });
 
   it('supports French query-locale display and lookup as an extension locale', () => {
@@ -262,7 +290,7 @@ describe('langMapping input helpers', () => {
         },
       },
       aliasToId: {
-        '示例别名': 'user:demo-language',
+        示例别名: 'user:demo-language',
       },
       lookupToId: {
         demo: 'user:demo-language',
@@ -307,6 +335,8 @@ describe('langMapping input helpers', () => {
 
     expect(resolveLanguageQuery('english')).toBeUndefined();
     expect(resolveLanguageCodeInput('eng', 'zh-CN')).toEqual({ status: 'invalid', warnings: [] });
-    expect(searchLanguageCatalog('English', 'en-US', 5).some((match) => match.entry.iso6393 === 'eng')).toBe(false);
+    expect(
+      searchLanguageCatalog('English', 'en-US', 5).some((match) => match.entry.iso6393 === 'eng'),
+    ).toBe(false);
   });
 });

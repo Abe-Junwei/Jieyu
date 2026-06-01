@@ -1902,7 +1902,8 @@ select.ai-cfg-input {
   cursor: pointer;
 }
 
-.ai-chat-conversation-title-btn:hover {
+.ai-chat-conversation-title-btn:hover,
+.ai-chat-conversation-title-btn:focus-visible {
   background: color-mix(in srgb, var(--surface-header) 70%, transparent);
 }
 
@@ -2046,6 +2047,10 @@ select.ai-cfg-input {
   flex-shrink: 0;
 }
 
+.ai-conversation-action-menu-trigger {
+  flex-shrink: 0;
+}
+
 .ai-conversation-action-menu-popover {
   position: absolute;
   top: calc(100% + 2px);
@@ -2071,12 +2076,13 @@ select.ai-cfg-input {
   border-radius: var(--radius-sm);
 }
 
-.ai-conversation-action-menu-item:hover {
+.ai-conversation-action-menu-item:hover,
+.ai-conversation-action-menu-item:focus-visible {
   background: color-mix(in srgb, var(--surface-header) 70%, transparent);
 }
 
 .ai-conversation-action-menu-item-danger {
-  color: var(--state-danger-solid, #b42318);
+  color: var(--state-danger-solid);
 }
 
 .ai-conversation-delete-dialog-actions {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-31T17:53:55.917Z",
+  "generatedAt": "2026-06-01T07:38:02.790Z",
   "mode": "enforce",
   "suite": {
     "suiteId": "jieyu-agent-evals-v1",
@@ -22,8 +22,8 @@
     "missingTrajectorySignals": [],
     "auditTracePassed": true,
     "thresholdPassed": true,
-    "startedAt": "2026-05-31T17:53:38.444Z",
-    "endedAt": "2026-05-31T17:53:55.917Z"
+    "startedAt": "2026-06-01T07:37:46.587Z",
+    "endedAt": "2026-06-01T07:38:02.790Z"
   },
   "cases": [
     {
@@ -35,9 +35,9 @@
       "command": "npm run typecheck",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-31T17:53:38.445Z",
-      "endedAt": "2026-05-31T17:53:55.175Z",
-      "elapsedMs": 16730,
+      "startedAt": "2026-06-01T07:37:46.588Z",
+      "endedAt": "2026-06-01T07:38:02.087Z",
+      "elapsedMs": 15499,
       "stdout": "\n> jieyu@1.1.0 typecheck\n> tsc --noEmit\n\n",
       "stderr": ""
     },
@@ -50,11 +50,11 @@
       "command": "npm run check:architecture-guard:core",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-31T17:53:55.176Z",
-      "endedAt": "2026-05-31T17:53:55.835Z",
-      "elapsedMs": 659,
+      "startedAt": "2026-06-01T07:38:02.087Z",
+      "endedAt": "2026-06-01T07:38:02.708Z",
+      "elapsedMs": 621,
       "stdout": "\n> jieyu@1.1.0 check:architecture-guard:core\n> node scripts/check-architecture-guard.mjs\n\n[check-architecture-guard] OK: guarded files stayed within architecture ceilings.\n",
-      "stderr": "[check-architecture-guard] WARN: 2 hotspot(s) approaching ceilings.\n- src/ai/chat/sessionMemory.ts: line count 973/1000 reached 97% of ceiling\n- src/pages/TranscriptionPage.ChatWindow.tsx: line count 756/800 reached 95% of ceiling\n"
+      "stderr": "[check-architecture-guard] WARN: 1 hotspot(s) approaching ceilings.\n- src/pages/TranscriptionPage.ChatWindow.tsx: line count 766/800 reached 96% of ceiling\n"
     },
     {
       "id": "ai-messages-isolation",
@@ -65,8 +65,8 @@
       "command": "node scripts/check-ai-messages-isolation.mjs",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-31T17:53:55.835Z",
-      "endedAt": "2026-05-31T17:53:55.917Z",
+      "startedAt": "2026-06-01T07:38:02.708Z",
+      "endedAt": "2026-06-01T07:38:02.790Z",
       "elapsedMs": 82,
       "stdout": "[check-ai-messages-isolation] OK: src/ai/messages/ keeps formatter copy isolated from UI i18n.\n",
       "stderr": ""

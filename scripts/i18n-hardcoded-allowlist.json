@@ -53,6 +53,7 @@
     { "pathPrefix": "src/utils/validationErrorReporter.ts", "reason": "runtime-template-message" },
 
     { "pathPrefix": "src/hooks/ai/useAiChat.rag.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/hooks/ai/conversationTitleLlm.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/hooks/orthography/useOrthographyPicker.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/hooks/transcription/useTranscriptionLayerActions.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/components/ai/aiChatAdaptiveRanking.ts", "reason": "data-dictionary" },

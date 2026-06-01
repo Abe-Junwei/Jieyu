@@ -7,9 +7,7 @@
  * @see docs/execution/archive/historical-root-docs/规划-语音智能体架构设计方案-2026-03-18-legacy-snapshot-2026-05-07.md §14.2 I6（languageId → BCP-47）
  */
 
-import languageTagMappingsRaw from '../../public/data/language-support/language-tag-mappings.json';
-
-const languageTagMappings = languageTagMappingsRaw as {
+type LanguageTagMappings = {
   version: string;
   builtAt: string;
   macroLanguageMembers: Record<string, string[]>;
@@ -19,6 +17,47 @@ const languageTagMappings = languageTagMappingsRaw as {
     { descriptions?: string[]; deprecated?: boolean; suppressScript?: string }
   >;
 };
+
+let languageTagMappingsCache: LanguageTagMappings | undefined;
+let languageTagMappingsLoadPromise: Promise<void> | null = null;
+
+function getLanguageTagMappings(): LanguageTagMappings {
+  return (
+    languageTagMappingsCache ?? {
+      version: '',
+      builtAt: '',
+      macroLanguageMembers: {},
+      preferredSubtag: {},
+      subtagDetails: {},
+    }
+  );
+}
+
+/** Preload language tag mappings JSON asynchronously to avoid blocking the entry chunk. */
+export async function ensureLanguageTagMappingsLoaded(): Promise<void> {
+  if (languageTagMappingsCache) return;
+  if (languageTagMappingsLoadPromise) return languageTagMappingsLoadPromise;
+  languageTagMappingsLoadPromise = fetch('/data/language-support/language-tag-mappings.json', {
+    cache: 'force-cache',
+  })
+    .then((r) => r.json())
+    .then((data: LanguageTagMappings) => {
+      languageTagMappingsCache = data;
+    })
+    .catch(() => {
+      // graceful degradation: keep empty default so catalog functions don't throw
+    })
+    .finally(() => {
+      languageTagMappingsLoadPromise = null;
+    });
+  return languageTagMappingsLoadPromise;
+}
+
+/** Test-only: inject mappings without going through fetch. */
+export function hydrateLanguageTagMappingsForTests(data: LanguageTagMappings): void {
+  languageTagMappingsCache = data;
+}
+
 import { listIso639_3Seeds, registerIso6393DerivedInvalidator } from '../data/iso6393Seed';
 import {
   getLanguageAliasCodeFromCatalog,
@@ -489,7 +528,7 @@ function getIso639IsoMaps(): Iso639IsoMaps {
     const macroByCode: Record<string, string> = {};
     for (const entry of seeds) {
       const macroCode = entry.iso6393.toLowerCase();
-      const members = languageTagMappings.macroLanguageMembers[macroCode];
+      const members = getLanguageTagMappings().macroLanguageMembers[macroCode];
       if (!members) continue;
       for (const memberCode of members) {
         if (!(memberCode in macroByCode)) {
@@ -518,7 +557,7 @@ function getLanguageCatalogByCode(): Readonly<Record<string, LanguageCatalogEntr
   for (const entry of listIso639_3Seeds()) {
     const code = entry.iso6393.toLowerCase();
     if (code.length === 0) continue;
-    const preferred = languageTagMappings.preferredSubtag[code];
+    const preferred = getLanguageTagMappings().preferredSubtag[code];
     const maps = getIso639IsoMaps();
     const preferredIso6393 =
       preferred !== undefined && preferred.length > 0
@@ -527,7 +566,7 @@ function getLanguageCatalogByCode(): Readonly<Record<string, LanguageCatalogEntr
           (isKnownIso639_3Code(preferred) ? preferred : undefined))
         : undefined;
     const zhDisplayName = getLanguageLocalDisplayNameFromCatalog(code, 'zh-CN');
-    const suppressScript = languageTagMappings.subtagDetails[code]?.suppressScript;
+    const suppressScript = getLanguageTagMappings().subtagDetails[code]?.suppressScript;
     const macroLanguageCode = maps.macroByCode[code];
     map[code] = {
       languageId: code,
@@ -556,13 +595,13 @@ function getLanguageCatalogByCode(): Readonly<Record<string, LanguageCatalogEntr
           [
             entry.name,
             entry.invertedName,
-            ...(languageTagMappings.subtagDetails[code]?.descriptions ?? []),
+            ...(getLanguageTagMappings().subtagDetails[code]?.descriptions ?? []),
           ].filter(
             (value): value is string => typeof value === 'string' && value.trim().length > 0,
           ),
         ),
       ),
-      deprecated: languageTagMappings.subtagDetails[code]?.deprecated ?? false,
+      deprecated: getLanguageTagMappings().subtagDetails[code]?.deprecated ?? false,
       ...(preferredIso6393 !== undefined && preferredIso6393 !== code ? { preferredIso6393 } : {}),
       ...(suppressScript !== undefined && suppressScript.length > 0 ? { suppressScript } : {}),
       ...(macroLanguageCode !== undefined && macroLanguageCode.length > 0

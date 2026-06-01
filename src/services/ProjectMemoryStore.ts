@@ -93,6 +93,14 @@ interface GetRagContextVectorOptions {
 
 // ── Default ────────────────────────────────────────────────────────────────────
 
+const MAX_MEMORY_LIST_ENTRIES = 200;
+
+function trimMemoryListByRecency<T>(items: T[], pickTimestamp: (item: T) => number): void {
+  if (items.length <= MAX_MEMORY_LIST_ENTRIES) return;
+  items.sort((a, b) => pickTimestamp(b) - pickTimestamp(a));
+  items.splice(MAX_MEMORY_LIST_ENTRIES);
+}
+
 function createEmptyMemory(projectId: string): ProjectMemory {
   return {
     projectId,
@@ -235,6 +243,8 @@ class ProjectMemoryStore {
       });
     }
 
+    trimMemoryListByRecency(this._memory.terms, (t) => t.lastUsedAt);
+
     this._memory.updatedAt = Date.now();
     await this._persist();
     this._notifyListeners();
@@ -323,6 +333,8 @@ class ProjectMemoryStore {
       });
     }
 
+    trimMemoryListByRecency(this._memory.speakers, (s) => s.lastSeenAt);
+
     this._memory.updatedAt = Date.now();
     await this._persist();
     this._notifyListeners();
@@ -356,6 +368,8 @@ class ProjectMemoryStore {
     } else {
       this._memory.domainVocabulary.push({ domain, terms, addedAt: Date.now(), source });
     }
+
+    trimMemoryListByRecency(this._memory.domainVocabulary, (d) => d.addedAt);
 
     this._memory.updatedAt = Date.now();
     await this._persist();
@@ -579,7 +593,13 @@ class ProjectMemoryStore {
             const store = tx.objectStore('projectMemory');
             const getReq = store.get(projectId);
             getReq.onsuccess = () => resolve(getReq.result ?? null);
-            getReq.onerror = () => resolve(null);
+            getReq.onerror = () => {
+              log.warn('ProjectMemoryStore: IndexedDB get failed', {
+                projectId,
+                error: getReq.error?.message ?? String(getReq.error),
+              });
+              resolve(null);
+            };
           }),
       );
     } catch (err) {
