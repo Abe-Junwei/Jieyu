@@ -71,12 +71,12 @@ export function DialogShell({
       {hasHeader ? (
         <div className={joinClassNames('dialog-header', headerClassName)} {...headerProps}>
           {title !== undefined ? (
-            <h3
+            <h2
               id={titleHeadingId}
               className={joinClassNames('dialog-shell__title', titleClassName)}
             >
               {title}
-            </h3>
+            </h2>
           ) : (
             <span />
           )}

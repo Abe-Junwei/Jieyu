@@ -235,11 +235,11 @@ export async function executeConfirmedToolCall({
       toNaturalToolFailure(
         locale,
         call.name,
-        formatDuplicateRequestIgnoredDetail(),
+        formatDuplicateRequestIgnoredDetail(locale),
         toolFeedbackStyle,
       ),
       'error',
-      formatDuplicateRequestIgnoredError(),
+      formatDuplicateRequestIgnoredError(locale),
     );
     await writeToolDecisionAuditLog(
       assistantMessageId,
@@ -254,7 +254,7 @@ export async function executeConfirmedToolCall({
         'human',
         'confirm_failed',
         false,
-        formatDuplicateRequestIgnoredError(),
+        formatDuplicateRequestIgnoredError(locale),
         'duplicate_requestId',
       ),
     );
@@ -268,7 +268,7 @@ export async function executeConfirmedToolCall({
 
   const dryRun = dryRunToolCallForConfirm(call);
   if (!dryRun.ok) {
-    const invalidArgsText = formatInvalidArgsError(dryRun.message);
+    const invalidArgsText = formatInvalidArgsError(dryRun.message, locale);
     await applyAssistantMessageResult(
       assistantMessageId,
       toNaturalToolFailure(locale, call.name, invalidArgsText, toolFeedbackStyle),
@@ -344,13 +344,13 @@ export async function executeConfirmedToolCall({
   }
 
   if (!onToolCall) {
-    const noExecutorMessage = formatNoExecutorInternalError();
+    const noExecutorMessage = formatNoExecutorInternalError(locale);
     await applyAssistantMessageResult(
       assistantMessageId,
       toNaturalToolFailure(
         locale,
         call.name,
-        formatNoExecutorToolFailureDetail(),
+        formatNoExecutorToolFailureDetail(locale),
         toolFeedbackStyle,
       ),
       'error',
@@ -437,7 +437,7 @@ export async function executeConfirmedToolCall({
       }
       const execDurationMsErr = Math.round(performance.now() - execStart);
       const toolErrorText =
-        lastThrow instanceof Error ? lastThrow.message : formatToolExecutionFallbackError();
+        lastThrow instanceof Error ? lastThrow.message : formatToolExecutionFallbackError(locale);
       await applyAssistantMessageResult(
         assistantMessageId,
         toNaturalToolFailure(locale, call.name, toolErrorText, toolFeedbackStyle),
@@ -624,11 +624,11 @@ export async function executeConfirmedProposedChangeBatch({
       toNaturalToolFailure(
         locale,
         parentCall.name,
-        formatDuplicateRequestIgnoredDetail(),
+        formatDuplicateRequestIgnoredDetail(locale),
         toolFeedbackStyle,
       ),
       'error',
-      formatDuplicateRequestIgnoredError(),
+      formatDuplicateRequestIgnoredError(locale),
     );
     await writeToolDecisionAuditLog(
       assistantMessageId,
@@ -643,7 +643,7 @@ export async function executeConfirmedProposedChangeBatch({
         'human',
         'confirm_failed',
         false,
-        formatDuplicateRequestIgnoredError(),
+        formatDuplicateRequestIgnoredError(locale),
         'duplicate_requestId',
       ),
     );
@@ -698,13 +698,13 @@ export async function executeConfirmedProposedChangeBatch({
   }
 
   if (!onToolCall) {
-    const noExecutorMessage = formatNoExecutorInternalError();
+    const noExecutorMessage = formatNoExecutorInternalError(locale);
     await applyAssistantMessageResult(
       assistantMessageId,
       toNaturalToolFailure(
         locale,
         parentCall.name,
-        formatNoExecutorToolFailureDetail(),
+        formatNoExecutorToolFailureDetail(locale),
         toolFeedbackStyle,
       ),
       'error',
@@ -745,7 +745,7 @@ export async function executeConfirmedProposedChangeBatch({
       currentChildName = child.name;
       const childDryRun = dryRunToolCallForConfirm(child);
       if (!childDryRun.ok) {
-        const invalidArgsText = formatInvalidArgsError(childDryRun.message);
+        const invalidArgsText = formatInvalidArgsError(childDryRun.message, locale);
         const rb = await runProposeChangeRollbacks(rollbacks);
         const detail = appendProposeRollbackStatus(
           locale,
@@ -882,7 +882,7 @@ export async function executeConfirmedProposedChangeBatch({
   } catch (error) {
     const execDurationMsErr = Math.round(performance.now() - execStart);
     const toolErrorText =
-      error instanceof Error ? error.message : formatToolExecutionFallbackError();
+      error instanceof Error ? error.message : formatToolExecutionFallbackError(locale);
     const rb = await runProposeChangeRollbacks(rollbacks);
     const detail = appendProposeRollbackStatus(
       locale,

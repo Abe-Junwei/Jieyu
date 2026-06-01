@@ -44,13 +44,11 @@ initIconEffect(); // 图标效果 material / motion | Icon effect preference
 
 void (async () => {
   try {
-    const [{ ensureIso6393SeedsLoaded }, langCache, { ensureLanguageTagMappingsLoaded }] =
-      await Promise.all([
-        import('./data/iso6393Seed'),
-        import('./data/languageCatalogRuntimeCache'),
-        import('./utils/langMapping'),
-      ]);
-    await Promise.all([ensureIso6393SeedsLoaded(), ensureLanguageTagMappingsLoaded()]);
+    const [{ ensureIso6393SeedsLoaded }, langCache] = await Promise.all([
+      import('./data/iso6393Seed'),
+      import('./data/languageCatalogRuntimeCache'),
+    ]);
+    await ensureIso6393SeedsLoaded();
     try {
       const baseline = await langCache.fetchLanguageCatalogBaselineRuntimeCache();
       langCache.primeLanguageCatalogRuntimeCacheForSession(baseline);

@@ -74,7 +74,7 @@ export function resolveToolIntentOutcome({
       status: 'explaining',
       updatedAt: now,
     });
-    return toNaturalNonActionFallback(userText, toolFeedbackStyle);
+    return toNaturalNonActionFallback(locale, userText, toolFeedbackStyle);
   }
 
   if (intentAssessment.decision === 'cancel') {
@@ -104,7 +104,13 @@ export function resolveToolIntentOutcome({
       ...(candidates.length > 0 ? { candidates } : {}),
       updatedAt: now,
     });
-    return toNaturalTargetClarify(toolCallName, plannerReason, toolFeedbackStyle, candidates);
+    return toNaturalTargetClarify(
+      locale,
+      toolCallName,
+      plannerReason,
+      toolFeedbackStyle,
+      candidates,
+    );
   }
 
   if (intentAssessment.decision === 'clarify') {
@@ -116,7 +122,7 @@ export function resolveToolIntentOutcome({
       toolName: toolCallName,
       updatedAt: now,
     });
-    return toNaturalActionClarify(toolCallName, toolFeedbackStyle);
+    return toNaturalActionClarify(locale, toolCallName, toolFeedbackStyle);
   }
 
   return null;

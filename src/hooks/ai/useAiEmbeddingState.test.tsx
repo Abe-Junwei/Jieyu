@@ -79,6 +79,89 @@ function makeServices() {
 }
 
 describe('useAiEmbeddingState', () => {
+  it('does not terminate an in-flight embedding build when service instances change identity', async () => {
+    const firstServices = makeServices();
+    const nextServices = makeServices();
+    let resolveBuild: (
+      value: Awaited<ReturnType<typeof firstServices.embeddingService.buildEmbeddings>>,
+    ) => void = () => {};
+    firstServices.embeddingService.buildEmbeddings.mockReturnValue(
+      new Promise((resolve) => {
+        resolveBuild = resolve;
+      }),
+    );
+
+    const unit = { id: 'utt-1', startTime: 0, endTime: 1 };
+    const { result, rerender } = renderHook(
+      ({ services }) =>
+        useAiEmbeddingState({
+          locale: 'zh-CN',
+          enabled: true,
+          taskRunner: services.taskRunner,
+          embeddingService: services.embeddingService,
+          embeddingSearchService: services.embeddingSearchService,
+          selectedUnit: unit,
+          unitsOnCurrentMedia: [unit],
+          getUnitTextForLayer: () => 'target text',
+          formatTime: (seconds: number) => String(seconds),
+        }),
+      { initialProps: { services: firstServices } },
+    );
+
+    let buildPromise: Promise<void> | undefined;
+    await act(async () => {
+      buildPromise = result.current.handleBuildUnitEmbeddings();
+    });
+
+    rerender({ services: nextServices });
+
+    expect(firstServices.embeddingService.terminate).not.toHaveBeenCalled();
+    expect(firstServices.embeddingSearchService.terminate).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveBuild({
+        taskId: 'embed-task-1',
+        total: 1,
+        generated: 1,
+        skipped: 0,
+        modelId: 'model-a',
+        modelVersion: '2026-03',
+      });
+      await buildPromise;
+    });
+
+    expect(result.current.aiEmbeddingLastResult?.taskId).toBe('embed-task-1');
+  });
+
+  it('terminates all seen embedding service instances on unmount', () => {
+    const firstServices = makeServices();
+    const nextServices = makeServices();
+    const unit = { id: 'utt-1', startTime: 0, endTime: 1 };
+    const { rerender, unmount } = renderHook(
+      ({ services }) =>
+        useAiEmbeddingState({
+          locale: 'zh-CN',
+          enabled: true,
+          taskRunner: services.taskRunner,
+          embeddingService: services.embeddingService,
+          embeddingSearchService: services.embeddingSearchService,
+          selectedUnit: unit,
+          unitsOnCurrentMedia: [unit],
+          getUnitTextForLayer: () => 'target text',
+          formatTime: (seconds: number) => String(seconds),
+        }),
+      { initialProps: { services: firstServices } },
+    );
+
+    rerender({ services: nextServices });
+    unmount();
+
+    expect(firstServices.embeddingService.terminate).toHaveBeenCalledTimes(1);
+    expect(firstServices.embeddingSearchService.terminate).toHaveBeenCalledTimes(1);
+    expect(nextServices.embeddingService.terminate).toHaveBeenCalledTimes(1);
+    expect(nextServices.embeddingSearchService.terminate).toHaveBeenCalledTimes(1);
+  });
+
   it('does not start polling when disabled', () => {
     const setIntervalSpy = vi.spyOn(window, 'setInterval');
     const addEventListenerSpy = vi.spyOn(document, 'addEventListener');

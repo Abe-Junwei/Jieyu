@@ -5,6 +5,7 @@ import {
   formatConnectionProbeNoContentError,
   formatConnectionProbeSuccessMessage,
 } from '../../ai/messages';
+import type { Locale } from '../../i18n';
 import type { AiConnectionTestStatus } from './useAiChat.types';
 
 interface UseAiChatConnectionProbeOptions {
@@ -14,6 +15,7 @@ interface UseAiChatConnectionProbeOptions {
   apiKey: string;
   isBootstrapping: boolean;
   isStreaming: boolean;
+  locale: Locale;
   autoProbeIntervalMs: number;
   autoConnectionProbeEnabled?: boolean;
 }
@@ -25,6 +27,7 @@ export function useAiChatConnectionProbe({
   apiKey,
   isBootstrapping,
   isStreaming,
+  locale,
   autoProbeIntervalMs,
   autoConnectionProbeEnabled = true,
 }: UseAiChatConnectionProbeOptions) {
@@ -79,12 +82,14 @@ export function useAiChatConnectionProbe({
 
         const acceptChunkOnly = provider.id === 'ollama';
         if (!receivedAnyResponse && !(acceptChunkOnly && receivedAnyChunk)) {
-          throw new Error(formatConnectionProbeNoContentError());
+          throw new Error(formatConnectionProbeNoContentError(locale));
         }
 
         if (!isActiveProbe()) return;
         setConnectionTestStatus('success');
-        setConnectionTestMessage(formatConnectionProbeSuccessMessage(provider.label, showTesting));
+        setConnectionTestMessage(
+          formatConnectionProbeSuccessMessage(provider.label, showTesting, locale),
+        );
       } catch (error) {
         if (!isActiveProbe()) return;
         if (
@@ -105,7 +110,7 @@ export function useAiChatConnectionProbe({
         }
       }
     },
-    [model, provider, resetConnectionProbe],
+    [locale, model, provider, resetConnectionProbe],
   );
 
   const testConnection = useCallback(async () => {

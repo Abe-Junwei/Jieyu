@@ -37,6 +37,7 @@ function makeCompletionBundle(
     messagesRef: { current: [assistantMessage()] },
     onMessageCompleteRef: { current: vi.fn() },
     abortRef: { current: controller },
+    toolFeedbackLocaleRef: { current: 'zh-CN' },
     assistantId,
     controller,
     phaseState,
@@ -77,6 +78,30 @@ describe('handleSendTurnStreamCatch', () => {
       expect.any(String),
     );
     expect(bundle.setLastError).not.toHaveBeenCalled();
+  });
+
+  it('uses English timeout and abort copy when feedback locale is en-US', async () => {
+    const timeoutBundle = makeCompletionBundle({
+      timedOutBeforeFirstChunk: { current: true },
+      toolFeedbackLocaleRef: { current: 'en-US' },
+    });
+    await handleSendTurnStreamCatch(timeoutBundle, new DOMException('Aborted', 'AbortError'));
+    expect(timeoutBundle.finalizeAssistantMessage).toHaveBeenCalledWith(
+      'error',
+      'partial body',
+      expect.stringContaining('timed out'),
+    );
+
+    const abortBundle = makeCompletionBundle({
+      timedOutBeforeFirstChunk: { current: false },
+      toolFeedbackLocaleRef: { current: 'en-US' },
+    });
+    await handleSendTurnStreamCatch(abortBundle, new DOMException('Aborted', 'AbortError'));
+    expect(abortBundle.finalizeAssistantMessage).toHaveBeenCalledWith(
+      'aborted',
+      'partial body',
+      'Interrupted',
+    );
   });
 
   it('maps non-abort errors through provider normalization', async () => {

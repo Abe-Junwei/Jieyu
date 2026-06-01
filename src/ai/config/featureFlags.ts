@@ -47,10 +47,6 @@ const aiToolCallExecutorAutoRetryEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_TOOL_CALL_EXECUTOR_AUTO_RETRY_ENABLED,
 );
 
-const aiMcpServerEnabledFromEnv = readOptionalBooleanFlag(
-  import.meta.env.VITE_AI_MCP_SERVER_ENABLED,
-);
-
 const aiConversationManagementFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_CONVERSATION_MANAGEMENT_ENABLED,
 );
@@ -74,8 +70,6 @@ const aiAgentLoopContextBudgetRecalculationEnabledFromEnv = readOptionalBooleanF
 export const featureFlags = {
   aiChatEnabled: true,
   voiceAgentEnabled: true,
-  /** 单主轴模式：所有时间编辑统一作用于 unit 主轴 | Single-axis mode: all timing edits target the unit axis */
-  singleAxisUnitMode: true,
   /** AI 聊天灰度模式开关 | AI chat gray mode toggle */
   aiChatGrayMode: false,
   /** AI 聊天回滚模式开关 | AI chat rollback mode toggle */
@@ -113,10 +107,6 @@ export const featureFlags = {
    */
   aiToolCallExecutorAutoRetryEnabled:
     aiToolCallExecutorAutoRetryEnabledFromEnv ?? aiToolCallExecutorAutoRetryEnabledDefault,
-  /** 语料库实验室壳开关 | Corpus library lab shell toggle */
-  corpusLibraryLabEnabled: false,
-  /** P1b: MCP Server 只读工具开关（默认关闭；staging/dogfood 可手动开启） */
-  aiMcpServerEnabled: aiMcpServerEnabledFromEnv ?? false,
   /** G1 多会话目录 + clearCurrent / startNew（PR-6 起默认开启；可用 env 覆盖） */
   aiConversationManagement: aiConversationManagementFromEnv ?? true,
   /**

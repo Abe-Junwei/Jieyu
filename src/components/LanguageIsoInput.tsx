@@ -1,13 +1,32 @@
 import { useEffect, useId, useMemo, useReducer, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
-import { formatLanguageCatalogMatch, getLanguageCatalogEntry, type LanguageCatalogMatch, type LanguageCatalogMatchSource, type LanguageSearchLocale } from '../utils/langMapping';
+import {
+  ensureLanguageTagMappingsLoaded,
+  formatLanguageCatalogMatch,
+  getLanguageCatalogEntry,
+  type LanguageCatalogMatch,
+  type LanguageCatalogMatchSource,
+  type LanguageSearchLocale,
+} from '../utils/langMapping';
 import type { ResolveLanguageDisplayName } from '../utils/languageDisplayNameResolver';
 import type { LanguageIsoInputValue } from '../utils/languageInputTypes';
-import { createLanguageInputModel, MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS, reduceLanguageInput, selectCommittedLanguageInputValue, selectLanguageInputAssistState, selectPresentedLanguageInputValue, serializeLanguageInputValue } from '../utils/languageInputReducer';
+import {
+  createLanguageInputModel,
+  MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS,
+  reduceLanguageInput,
+  selectCommittedLanguageInputValue,
+  selectLanguageInputAssistState,
+  selectPresentedLanguageInputValue,
+  serializeLanguageInputValue,
+} from '../utils/languageInputReducer';
 import { getLanguageInputMessages } from '../i18n/messages';
 import type { Locale } from '../i18n/index';
 import { PanelFeedback } from './ui';
-import { type LanguageCatalogSearchScope, searchLanguageCatalogSuggestions, type LanguageCatalogSearchSuggestion } from '../services/LanguageCatalogSearchService';
+import {
+  type LanguageCatalogSearchScope,
+  searchLanguageCatalogSuggestions,
+  type LanguageCatalogSearchSuggestion,
+} from '../services/LanguageCatalogSearchService';
 
 export type { LanguageIsoInputValue } from '../utils/languageInputTypes';
 
@@ -36,8 +55,11 @@ function mapSearchSuggestionSource(matchSource: string): LanguageCatalogMatchSou
   return 'contains';
 }
 
-function toLanguageCatalogMatch(suggestion: LanguageCatalogSearchSuggestion): LanguageCatalogMatch | null {
-  const entry = getLanguageCatalogEntry(suggestion.id) ?? getLanguageCatalogEntry(suggestion.languageCode);
+function toLanguageCatalogMatch(
+  suggestion: LanguageCatalogSearchSuggestion,
+): LanguageCatalogMatch | null {
+  const entry =
+    getLanguageCatalogEntry(suggestion.id) ?? getLanguageCatalogEntry(suggestion.languageCode);
   if (!entry) {
     return null;
   }
@@ -104,7 +126,10 @@ export function LanguageIsoInput({
   const serializedIncomingValue = serializeLanguageInputValue(value);
   const resolverOptions = resolveLanguageDisplayName ? { resolveLanguageDisplayName } : {};
   const [model, dispatch] = useReducer(
-    (state: ReturnType<typeof createLanguageInputModel>, action: Parameters<typeof reduceLanguageInput>[1]) => reduceLanguageInput(state, action, locale, resolverOptions),
+    (
+      state: ReturnType<typeof createLanguageInputModel>,
+      action: Parameters<typeof reduceLanguageInput>[1],
+    ) => reduceLanguageInput(state, action, locale, resolverOptions),
     value,
     (initialValue) => createLanguageInputModel(initialValue, locale, resolverOptions),
   );
@@ -133,17 +158,22 @@ export function LanguageIsoInput({
   const hasExternalError = Boolean(error);
   const visibleCodeError = error || (!suppressCodeError ? assistState.codeError : '');
   const hasFeedbackContent = Boolean(
-    assistState.detectedTagSummary
-    || assistState.ambiguityHint
-    || assistState.warning
-    || visibleCodeError,
+    assistState.detectedTagSummary ||
+    assistState.ambiguityHint ||
+    assistState.warning ||
+    visibleCodeError,
   );
   const codeErrorId = `${fieldIdPrefix}-language-code-error`;
   const committedValueKey = serializeLanguageInputValue(committedValue);
 
   useEffect(() => {
     const activeNameQuery = model.draft.activeField === 'name' ? model.draft.nameInput.trim() : '';
-    if (!activeNameQuery || disabled || model.status === 'selected' || model.draft.codeInput.trim().length > 0) {
+    if (
+      !activeNameQuery ||
+      disabled ||
+      model.status === 'selected' ||
+      model.draft.codeInput.trim().length > 0
+    ) {
       return;
     }
 
@@ -151,6 +181,7 @@ export function LanguageIsoInput({
     const timerId = window.setTimeout(() => {
       void (async () => {
         try {
+          await ensureLanguageTagMappingsLoaded();
           const suggestions = await searchLanguageCatalogSuggestions({
             query: activeNameQuery,
             locale,
@@ -188,18 +219,34 @@ export function LanguageIsoInput({
       cancelled = true;
       window.clearTimeout(timerId);
     };
-  }, [disabled, locale, model.draft.activeField, model.draft.codeInput, model.draft.nameInput, model.status, searchScope]);
+  }, [
+    disabled,
+    locale,
+    model.draft.activeField,
+    model.draft.codeInput,
+    model.draft.nameInput,
+    model.status,
+    searchScope,
+  ]);
 
   useEffect(() => {
     const localeChanged = locale !== lastSeenLocaleRef.current;
     const resolverChanged = resolveLanguageDisplayName !== lastSeenResolverRef.current;
-    if (!localeChanged && !resolverChanged && serializedIncomingValue === lastSeenValueKeyRef.current) {
+    if (
+      !localeChanged &&
+      !resolverChanged &&
+      serializedIncomingValue === lastSeenValueKeyRef.current
+    ) {
       return;
     }
     lastSeenValueKeyRef.current = serializedIncomingValue;
     lastSeenLocaleRef.current = locale;
     lastSeenResolverRef.current = resolveLanguageDisplayName;
-    if (!localeChanged && !resolverChanged && serializedIncomingValue === lastNotifiedCommittedKeyRef.current) {
+    if (
+      !localeChanged &&
+      !resolverChanged &&
+      serializedIncomingValue === lastNotifiedCommittedKeyRef.current
+    ) {
       return;
     }
     dispatch({ type: 'externalValueSynced', value });
@@ -254,17 +301,27 @@ export function LanguageIsoInput({
       return;
     }
 
-    if (event.key === 'Enter' && model.activeSuggestionIndex >= 0 && model.activeSuggestionIndex < suggestionCount) {
+    if (
+      event.key === 'Enter' &&
+      model.activeSuggestionIndex >= 0 &&
+      model.activeSuggestionIndex < suggestionCount
+    ) {
       event.preventDefault();
-      dispatch({ type: 'nameSuggestionCommitted', index: model.activeSuggestionIndex, source: 'enter' });
+      dispatch({
+        type: 'nameSuggestionCommitted',
+        index: model.activeSuggestionIndex,
+        source: 'enter',
+      });
     }
   };
 
   const languageNameInputId = `${fieldIdPrefix}-language-name`;
   const suggestionListId = `${fieldIdPrefix}-language-suggestions`;
-  const activeSuggestionId = model.activeSuggestionIndex >= 0 && model.activeSuggestionIndex < visibleSuggestionMatches.length
-    ? `${fieldIdPrefix}-language-suggestion-${model.activeSuggestionIndex}`
-    : undefined;
+  const activeSuggestionId =
+    model.activeSuggestionIndex >= 0 &&
+    model.activeSuggestionIndex < visibleSuggestionMatches.length
+      ? `${fieldIdPrefix}-language-suggestion-${model.activeSuggestionIndex}`
+      : undefined;
 
   const handleLanguageNameChange = (event: ChangeEvent<HTMLInputElement>) => {
     dispatch({ type: 'nameChanged', value: event.target.value });
@@ -302,7 +359,11 @@ export function LanguageIsoInput({
       // 有高亮项 → 提交高亮项 | Has highlight → commit highlighted item
       if (model.activeSuggestionIndex >= 0 && model.activeSuggestionIndex < suggestionCount) {
         event.preventDefault();
-        dispatch({ type: 'nameSuggestionCommitted', index: model.activeSuggestionIndex, source: 'enter' });
+        dispatch({
+          type: 'nameSuggestionCommitted',
+          index: model.activeSuggestionIndex,
+          source: 'enter',
+        });
         return;
       }
       // 仅一个候选项 → 直接提交 | Single suggestion → commit directly
@@ -332,11 +393,15 @@ export function LanguageIsoInput({
     'language-iso-input',
     languageAssetIdField ? 'language-iso-input--with-asset-id' : '',
     className,
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const controlInputCls = ['input', 'panel-input', controlInputClassName].filter(Boolean).join(' ');
   const assetIdInputCls = languageAssetIdField
-    ? ['input', 'panel-input', languageAssetIdField.inputClassName ?? controlInputClassName].filter(Boolean).join(' ')
+    ? ['input', 'panel-input', languageAssetIdField.inputClassName ?? controlInputClassName]
+        .filter(Boolean)
+        .join(' ')
     : '';
 
   return (
@@ -344,7 +409,10 @@ export function LanguageIsoInput({
       <div className="language-iso-input-anchor">
         <div className="language-iso-input-grid">
           <label className="dialog-field">
-            <span>{nameLabel}{required ? ' *' : ''}</span>
+            <span>
+              {nameLabel}
+              {required ? ' *' : ''}
+            </span>
             <input
               id={languageNameInputId}
               className={controlInputCls}
@@ -366,7 +434,10 @@ export function LanguageIsoInput({
             />
           </label>
           <label className="dialog-field">
-            <span>{codeLabel}{required ? ' *' : ''}</span>
+            <span>
+              {codeLabel}
+              {required ? ' *' : ''}
+            </span>
             <input
               id={`${fieldIdPrefix}-language-code`}
               ref={languageCodeInputRef}
@@ -410,32 +481,32 @@ export function LanguageIsoInput({
           className={`language-iso-input-suggestions${hasVisibleSuggestions ? '' : ' is-empty'}`}
           {...(hasVisibleSuggestions
             ? {
-              id: suggestionListId,
-              role: 'listbox' as const,
-              'aria-label': nameLabel,
-              'aria-labelledby': languageNameInputId,
-            }
+                id: suggestionListId,
+                role: 'listbox' as const,
+                'aria-label': nameLabel,
+                'aria-labelledby': languageNameInputId,
+              }
             : { 'aria-hidden': 'true' as const })}
         >
           {hasVisibleSuggestions
             ? visibleSuggestionMatches.map((match, index) => (
-              <div
-                id={`${fieldIdPrefix}-language-suggestion-${index}`}
-                key={`${match.entry.iso6393}-${index}`}
-                role="option"
-                aria-selected={model.activeSuggestionIndex === index}
-                aria-disabled={disabled ? 'true' : undefined}
-                className={`language-iso-input-suggestion${model.activeSuggestionIndex === index ? ' is-active' : ''}`}
-                onMouseEnter={() => dispatch({ type: 'nameSuggestionHovered', index })}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  commitSuggestionByClick(index);
-                }}
-                onClick={() => commitSuggestionByClick(index)}
-              >
-                {formatLanguageCatalogMatch(match, locale)}
-              </div>
-            ))
+                <div
+                  id={`${fieldIdPrefix}-language-suggestion-${index}`}
+                  key={`${match.entry.iso6393}-${index}`}
+                  role="option"
+                  aria-selected={model.activeSuggestionIndex === index}
+                  aria-disabled={disabled ? 'true' : undefined}
+                  className={`language-iso-input-suggestion${model.activeSuggestionIndex === index ? ' is-active' : ''}`}
+                  onMouseEnter={() => dispatch({ type: 'nameSuggestionHovered', index })}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    commitSuggestionByClick(index);
+                  }}
+                  onClick={() => commitSuggestionByClick(index)}
+                >
+                  {formatLanguageCatalogMatch(match, locale)}
+                </div>
+              ))
             : null}
         </div>
       </div>
@@ -451,7 +522,11 @@ export function LanguageIsoInput({
 
           {assistState.ambiguityHint && <p className="dialog-hint">{assistState.ambiguityHint}</p>}
           {assistState.warning && <p className="dialog-hint">{assistState.warning}</p>}
-          {visibleCodeError && <PanelFeedback id={codeErrorId} level="error">{visibleCodeError}</PanelFeedback>}
+          {visibleCodeError && (
+            <PanelFeedback id={codeErrorId} level="error">
+              {visibleCodeError}
+            </PanelFeedback>
+          )}
         </div>
       ) : null}
     </div>

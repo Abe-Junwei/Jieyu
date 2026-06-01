@@ -75,11 +75,11 @@ export async function executeAutoToolCall({
   shouldBumpRecovery,
 }: ExecuteAutoToolCallParams): Promise<ExecuteAutoToolCallResult> {
   if (!onToolCall) {
-    const finalErrorMessage = formatNoExecutorInternalError();
+    const finalErrorMessage = formatNoExecutorInternalError(locale);
     const finalContent = toNaturalToolFailure(
       locale,
       toolCall.name,
-      formatNoExecutorToolFailureDetail(),
+      formatNoExecutorToolFailureDetail(locale),
       toolFeedbackStyle,
     );
     await writeToolDecisionAuditLog(
@@ -174,7 +174,7 @@ export async function executeAutoToolCall({
   } catch (error) {
     const autoExecDurationMsErr = Math.round(performance.now() - autoExecStart);
     const toolErrorText =
-      error instanceof Error ? error.message : formatToolExecutionFallbackError();
+      error instanceof Error ? error.message : formatToolExecutionFallbackError(locale);
     const finalContent = toNaturalToolFailure(
       locale,
       toolCall.name,

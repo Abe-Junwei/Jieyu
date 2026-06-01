@@ -7,12 +7,17 @@ import { REQUEST_EMBEDDING_TASK_FOCUS_EVENT } from '../ai/tasks/taskRefreshEvent
 import { TranscriptionPageAnalysisRuntime } from './TranscriptionPage.AnalysisRuntime';
 import type { TranscriptionPageAnalysisRuntimeProps } from './TranscriptionPage.runtimeContracts';
 
-const { mockNotifyOpenApprovalCenter, mockNotifyRequestAgentLoopResume, mockUseAiEmbeddingState } =
-  vi.hoisted(() => ({
-    mockNotifyOpenApprovalCenter: vi.fn(),
-    mockNotifyRequestAgentLoopResume: vi.fn(),
-    mockUseAiEmbeddingState: vi.fn(),
-  }));
+const {
+  mockCreateDeferredEmbeddingRuntime,
+  mockNotifyOpenApprovalCenter,
+  mockNotifyRequestAgentLoopResume,
+  mockUseAiEmbeddingState,
+} = vi.hoisted(() => ({
+  mockCreateDeferredEmbeddingRuntime: vi.fn(),
+  mockNotifyOpenApprovalCenter: vi.fn(),
+  mockNotifyRequestAgentLoopResume: vi.fn(),
+  mockUseAiEmbeddingState: vi.fn(),
+}));
 
 vi.mock('../ai/tasks/taskRefreshEvents', async () => {
   const actual = await vi.importActual<typeof import('../ai/tasks/taskRefreshEvents')>(
@@ -40,43 +45,64 @@ vi.mock('./TranscriptionPage.helpers', () => ({
   saveEmbeddingProviderConfig: vi.fn(),
 }));
 
-vi.mock('../ai/embeddings/DeferredEmbeddingRuntime', () => ({
-  createDeferredEmbeddingRuntime: () => ({
-    embeddingService: {
-      terminate: () => undefined,
-      buildEmbeddings: async () => ({
-        taskId: 'x',
-        total: 0,
-        generated: 0,
-        skipped: 0,
-        modelId: 'm',
-        modelVersion: 'v',
-      }),
-      buildNotesEmbeddings: async () => ({
-        taskId: 'x',
-        total: 0,
-        generated: 0,
-        skipped: 0,
-        modelId: 'm',
-        modelVersion: 'v',
-      }),
-      buildPdfEmbeddings: async () => ({
-        taskId: 'x',
-        total: 0,
-        generated: 0,
-        skipped: 0,
-        modelId: 'm',
-        modelVersion: 'v',
-      }),
-    },
-    embeddingSearchService: {
-      terminate: () => undefined,
-      searchSimilarUnits: async () => ({ matches: [] }),
-      searchMultiSource: async () => ({ matches: [] }),
-      searchMultiSourceHybrid: async () => ({ matches: [] }),
-    },
-  }),
+mockCreateDeferredEmbeddingRuntime.mockImplementation(() => ({
+  embeddingService: {
+    terminate: () => undefined,
+    buildEmbeddings: async () => ({
+      taskId: 'x',
+      total: 0,
+      generated: 0,
+      skipped: 0,
+      modelId: 'm',
+      modelVersion: 'v',
+    }),
+    buildNotesEmbeddings: async () => ({
+      taskId: 'x',
+      total: 0,
+      generated: 0,
+      skipped: 0,
+      modelId: 'm',
+      modelVersion: 'v',
+    }),
+    buildPdfEmbeddings: async () => ({
+      taskId: 'x',
+      total: 0,
+      generated: 0,
+      skipped: 0,
+      modelId: 'm',
+      modelVersion: 'v',
+    }),
+  },
+  embeddingSearchService: {
+    terminate: () => undefined,
+    searchSimilarUnits: async () => ({ matches: [] }),
+    searchMultiSource: async () => ({ matches: [] }),
+    searchMultiSourceHybrid: async () => ({ matches: [] }),
+  },
 }));
+
+vi.mock('../ai/embeddings/DeferredEmbeddingRuntime', () => ({
+  createDeferredEmbeddingRuntime: mockCreateDeferredEmbeddingRuntime,
+}));
+
+function mockEmbeddingState(): void {
+  mockUseAiEmbeddingState.mockReturnValue({
+    aiEmbeddingBusy: false,
+    aiEmbeddingProgressLabel: null,
+    aiEmbeddingLastResult: null,
+    aiEmbeddingTasks: [],
+    aiEmbeddingMatches: [],
+    aiEmbeddingLastError: null,
+    aiEmbeddingWarning: null,
+    refreshEmbeddingTasks: async () => undefined,
+    handleCancelAiTask: async () => undefined,
+    handleRetryAiTask: async () => undefined,
+    handleBuildUnitEmbeddings: async () => undefined,
+    handleBuildNotesEmbeddings: async () => undefined,
+    handleBuildPdfEmbeddings: async () => undefined,
+    handleFindSimilarUnits: async () => undefined,
+  });
+}
 
 function makeProps(): TranscriptionPageAnalysisRuntimeProps {
   return {
@@ -114,6 +140,50 @@ afterEach(() => {
 });
 
 describe('TranscriptionPageAnalysisRuntime resume bridge', () => {
+  it('keeps deferred embedding runtime stable when provider config values are unchanged', () => {
+    mockEmbeddingState();
+    const initialProps = makeProps();
+    const { rerender } = render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionPageAnalysisRuntime
+          panel={initialProps.panel}
+          embedding={initialProps.embedding}
+        />
+      </LocaleProvider>,
+    );
+
+    expect(mockCreateDeferredEmbeddingRuntime).toHaveBeenCalledTimes(1);
+
+    const equivalentProps = makeProps();
+    equivalentProps.embedding.provider.config.embeddingProviderConfig = { kind: 'local' };
+    rerender(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionPageAnalysisRuntime
+          panel={equivalentProps.panel}
+          embedding={equivalentProps.embedding}
+        />
+      </LocaleProvider>,
+    );
+
+    expect(mockCreateDeferredEmbeddingRuntime).toHaveBeenCalledTimes(1);
+
+    const changedProps = makeProps();
+    changedProps.embedding.provider.config.embeddingProviderConfig = {
+      kind: 'local',
+      model: 'next-model',
+    };
+    rerender(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionPageAnalysisRuntime
+          panel={changedProps.panel}
+          embedding={changedProps.embedding}
+        />
+      </LocaleProvider>,
+    );
+
+    expect(mockCreateDeferredEmbeddingRuntime).toHaveBeenCalledTimes(2);
+  });
+
   it('dispatches approval + targeted resume events when clicking resume on agent_loop task card', () => {
     mockUseAiEmbeddingState.mockReturnValue({
       aiEmbeddingBusy: false,

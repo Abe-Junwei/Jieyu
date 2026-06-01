@@ -3,9 +3,11 @@
  * Used by `structuredAnswer.ts`; keep separate from `src/i18n` UI strings (拍板 6B).
  */
 
-/** Empty structured-bits fallback when locale resolves to Chinese. */
-export const STRUCTURED_ANSWER_EMPTY_ZH = '当前没有额外的结构化证据。';
+import type { Locale } from '../../i18n';
 
-/** Empty structured-bits fallback for non-Chinese locales. */
-export const STRUCTURED_ANSWER_EMPTY_EN =
-  'There is no additional structured evidence in this result.';
+/** Empty structured-bits fallback selected by assistant feedback locale. */
+export function formatStructuredAnswerEmpty(locale?: Locale | string): string {
+  return locale === 'en-US'
+    ? 'There is no additional structured evidence in this result.'
+    : '当前没有额外的结构化证据。';
+}

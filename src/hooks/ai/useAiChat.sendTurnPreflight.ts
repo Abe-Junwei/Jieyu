@@ -111,6 +111,7 @@ export async function runAiChatSendTurnPreflight(
     setConnectionTestMessage,
     metricsRef,
     pendingToolCallRef,
+    toolFeedbackLocaleRef,
     sessionMemoryRef,
     settingsRef,
     streamPersistIntervalMsRef,
@@ -128,19 +129,19 @@ export async function runAiChatSendTurnPreflight(
   } = args;
 
   if (!flags.aiChatEnabled) {
-    setLastError(formatAiChatDisabledError());
+    setLastError(formatAiChatDisabledError(toolFeedbackLocaleRef.current));
     return null;
   }
 
   if (isStreaming) {
-    setLastError(formatStreamingBusyError());
+    setLastError(formatStreamingBusyError(toolFeedbackLocaleRef.current));
     return null;
   }
 
   const trimmed = userText.trim();
   if (trimmed.length === 0) return null;
   if (isAiChatSendBlockedByAssistantDialogue(pendingToolCallRef.current)) {
-    setLastError(formatPendingConfirmationBlockedError());
+    setLastError(formatPendingConfirmationBlockedError(toolFeedbackLocaleRef.current));
     return null;
   }
 
@@ -164,6 +165,7 @@ export async function runAiChatSendTurnPreflight(
         sessionTokenBudget,
         currentSessionTokens,
         estimatedInputTokens,
+        toolFeedbackLocaleRef.current,
       ),
     );
     return null;

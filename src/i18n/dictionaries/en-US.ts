@@ -39,6 +39,8 @@ export const enUSDictionary = {
   'app.errorBoundary.title': 'Application Error',
   'app.errorBoundary.retry': 'Retry',
   'app.errorBoundary.reload': 'Reload Page',
+  'app.offlineStatus.message':
+    'Offline. Local data remains available; cloud sync will resume after reconnection.',
   'app.sidePane.defaultTitle': 'Workspace',
   'app.sidePane.defaultSubtitle': 'Unified workspace entry',
   'app.sidePane.emptyDesc':
@@ -2790,6 +2792,10 @@ export const enUSDictionary = {
     'The browser could not open this app’s IndexedDB. Transcription and other local-data features may not work until the database opens.',
   'msg.appData.dbOpenRecovery':
     'Try: clear site data for this origin in browser settings, then reload; check free disk space; use a private window to rule out extensions; or use a supported desktop browser. If you rely on an exported .jym / .jyt, keep that backup in a safe place before clearing data.',
+  'msg.appData.dbOpenRestoreFromBackup': 'Restore from pre-migration backup',
+  'msg.appData.dbOpenRestoreSuccess': 'Restored successfully. Reloading…',
+  'msg.appData.dbOpenRestoreNotFound': 'No pre-migration backup found',
+  'msg.appData.dbOpenRestoreFailed': 'Restore failed; try another method',
   'msg.appData.settingsBackupReminderLabel': 'Periodic full backup reminder',
   'msg.appData.settingsBackupReminderHint':
     'When enabled, shows a toast if you have not exported a .jym/.jyt archive for a long time (at most about once per 24h while overdue).',

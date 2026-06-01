@@ -36,6 +36,7 @@ export const zhCNDictionary = {
   'app.errorBoundary.title': '应用出错',
   'app.errorBoundary.retry': '重试',
   'app.errorBoundary.reload': '重载页面',
+  'app.offlineStatus.message': '当前离线。本地数据仍可使用，云同步会在恢复联网后继续。',
   'app.sidePane.defaultTitle': '工作台',
   'app.sidePane.defaultSubtitle': '统一工作台入口',
   'app.sidePane.emptyDesc': '当前工作区暂未接入左侧功能面板，后续页面可按路由逐步注册。',
@@ -2539,6 +2540,10 @@ export const zhCNDictionary = {
     '浏览器未能打开本应用的 IndexedDB。在未成功打开前，转写等依赖本地数据的功能可能无法使用。',
   'msg.appData.dbOpenRecovery':
     '可尝试：在浏览器设置中为本站点清理存储/站点数据后重试；检查磁盘空间是否不足；在无痕窗口排除扩展干扰；或换用支持的桌面浏览器。若已导出过 .jym / .jyt，清理前请先备份到安全位置。',
+  'msg.appData.dbOpenRestoreFromBackup': '从迁移前备份恢复',
+  'msg.appData.dbOpenRestoreSuccess': '恢复成功，正在重载页面…',
+  'msg.appData.dbOpenRestoreNotFound': '未找到迁移前备份',
+  'msg.appData.dbOpenRestoreFailed': '恢复失败，请尝试其他方式',
   'msg.appData.settingsBackupReminderLabel': '定期提醒导出全量备份',
   'msg.appData.settingsBackupReminderHint':
     '开启后，若长期未导出 .jym/.jyt，将以 Toast 提示（每条约 24 小时最多一次）。',

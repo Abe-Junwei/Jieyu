@@ -21,6 +21,7 @@ export type SendTurnCompletionBundle = Readonly<
     | 'messagesRef'
     | 'onMessageCompleteRef'
     | 'abortRef'
+    | 'toolFeedbackLocaleRef'
   > & {
     assistantId: string;
     controller: AbortController;
@@ -52,12 +53,17 @@ export async function handleSendTurnStreamCatch(
     setConnectionTestMessage,
     phaseState,
     commitPrimaryStreamUsage,
+    toolFeedbackLocaleRef,
   } = bundle;
 
   if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
     if (timedOutBeforeFirstChunk.current) {
       const isLongThinkProvider = provider.id === 'deepseek' || provider.id === 'minimax';
-      const timeoutMessage = formatFirstChunkTimeoutError(isLongThinkProvider, provider.label);
+      const timeoutMessage = formatFirstChunkTimeoutError(
+        isLongThinkProvider,
+        provider.label,
+        toolFeedbackLocaleRef.current,
+      );
       const timeoutContent =
         messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
       await awaitQueuedPersistence();
@@ -77,7 +83,11 @@ export async function handleSendTurnStreamCatch(
     const abortedContent = abortedMsg?.content ?? '';
     commitPrimaryStreamUsage();
     await awaitQueuedPersistence();
-    await finalizeAssistantMessage('aborted', abortedContent, formatAbortedMessage());
+    await finalizeAssistantMessage(
+      'aborted',
+      abortedContent,
+      formatAbortedMessage(toolFeedbackLocaleRef.current),
+    );
     return;
   }
 

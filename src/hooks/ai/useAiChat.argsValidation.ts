@@ -40,7 +40,7 @@ export async function handleInvalidToolArguments({
   auditContext,
   writeToolDecisionAuditLog,
 }: HandleInvalidToolArgumentsParams): Promise<{ finalContent: string; finalErrorMessage: string }> {
-  const finalErrorMessage = formatInvalidArgsError(argsValidationError);
+  const finalErrorMessage = formatInvalidArgsError(argsValidationError, locale);
   const finalContent = toNaturalToolFailure(
     locale,
     toolCall.name,

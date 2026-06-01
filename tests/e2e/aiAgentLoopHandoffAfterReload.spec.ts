@@ -6,6 +6,28 @@
 import { test, expect } from '@playwright/test';
 
 const E2E_TASK_ID = 'e2e_t1c_agent_loop_handoff';
+const E2E_CONVERSATION_ID = 'e2e_t1c_agent_loop_conversation';
+
+async function waitForPendingCheckpointHydrated(page: import('@playwright/test').Page): Promise<void> {
+  await page.waitForFunction(
+    async (conversationId) => {
+      try {
+        const dexie = (globalThis as unknown as {
+          __jieyuDexie__?: {
+            ai_session_memories: { get: (k: string) => Promise<{ payload?: { pendingAgentLoopCheckpoint?: { taskId?: string } } } | undefined> };
+          };
+        }).__jieyuDexie__;
+        if (!dexie) return false;
+        const row = await dexie.ai_session_memories.get(conversationId);
+        return Boolean(row?.payload?.pendingAgentLoopCheckpoint?.taskId);
+      } catch {
+        return false;
+      }
+    },
+    E2E_CONVERSATION_ID,
+    { timeout: 25_000 },
+  );
+}
 
 async function seedPendingAgentLoopTask(page: import('@playwright/test').Page): Promise<void> {
   await page.waitForFunction(
@@ -17,11 +39,24 @@ async function seedPendingAgentLoopTask(page: import('@playwright/test').Page): 
       __jieyuDexie__: {
         open: () => Promise<unknown>;
         ai_tasks: { delete: (k: string) => Promise<unknown>; put: (row: Record<string, unknown>) => Promise<string> };
+        ai_conversations: { delete: (k: string) => Promise<unknown>; put: (row: Record<string, unknown>) => Promise<string> };
+        ai_session_memories: { delete: (k: string) => Promise<unknown> };
       };
     }).__jieyuDexie__;
     await dexie.open();
     await dexie.ai_tasks.delete(taskId).catch(() => undefined);
+    await dexie.ai_conversations.delete('e2e_t1c_agent_loop_conversation').catch(() => undefined);
+    await dexie.ai_session_memories.delete('e2e_t1c_agent_loop_conversation').catch(() => undefined);
     const ts = new Date().toISOString();
+    await dexie.ai_conversations.put({
+      id: 'e2e_t1c_agent_loop_conversation',
+      title: 'E2E agent loop handoff',
+      mode: 'assistant',
+      providerId: 'mock',
+      model: 'mock',
+      createdAt: ts,
+      updatedAt: ts,
+    });
     const checkpointJson = JSON.stringify({
       kind: 'agent_loop_token_budget_warning',
       data: {
@@ -48,6 +83,7 @@ async function seedPendingAgentLoopTask(page: import('@playwright/test').Page): 
       updatedAt: ts,
     });
     window.localStorage.removeItem('jieyu.aiChat.sessionMemory');
+    window.localStorage.removeItem('jieyu.aiChat.sessionMemory.migrated.v1');
     window.localStorage.removeItem('jieyu.aiChatWindow.v1');
   }, E2E_TASK_ID);
 }
@@ -55,11 +91,18 @@ async function seedPendingAgentLoopTask(page: import('@playwright/test').Page): 
 async function cleanupE2ETask(page: import('@playwright/test').Page): Promise<void> {
   await page.evaluate(async (taskId) => {
     const dexie = (globalThis as unknown as {
-      __jieyuDexie__?: { open: () => Promise<unknown>; ai_tasks: { delete: (k: string) => Promise<unknown> } };
+      __jieyuDexie__?: {
+        open: () => Promise<unknown>;
+        ai_tasks: { delete: (k: string) => Promise<unknown> };
+        ai_conversations: { delete: (k: string) => Promise<unknown> };
+        ai_session_memories: { delete: (k: string) => Promise<unknown> };
+      };
     }).__jieyuDexie__;
     if (!dexie) return;
     await dexie.open();
     await dexie.ai_tasks.delete(taskId).catch(() => undefined);
+    await dexie.ai_session_memories.delete('e2e_t1c_agent_loop_conversation').catch(() => undefined);
+    await dexie.ai_conversations.delete('e2e_t1c_agent_loop_conversation').catch(() => undefined);
   }, E2E_TASK_ID);
 }
 
@@ -71,18 +114,7 @@ test.describe('T1-c AI agent loop handoff after reload', () => {
     await seedPendingAgentLoopTask(page);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
-    await page.waitForFunction(
-      () => {
-        try {
-          const raw = window.localStorage.getItem('jieyu.aiChat.sessionMemory');
-          if (!raw) return false;
-          return Boolean((JSON.parse(raw) as { pendingAgentLoopCheckpoint?: { taskId?: string } }).pendingAgentLoopCheckpoint?.taskId);
-        } catch {
-          return false;
-        }
-      },
-      { timeout: 25_000 },
-    );
+    await waitForPendingCheckpointHydrated(page);
 
     const chatTrigger = page.locator('.transcription-chat-window-trigger:not(.is-hidden)');
     await expect(chatTrigger).toBeVisible({ timeout: 15_000 });
@@ -106,18 +138,7 @@ test.describe('T1-c AI agent loop handoff after reload', () => {
       await expect(pageB.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
       await pageB.reload({ waitUntil: 'domcontentloaded' });
       await expect(pageB.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
-      await pageB.waitForFunction(
-        () => {
-          try {
-            const raw = window.localStorage.getItem('jieyu.aiChat.sessionMemory');
-            if (!raw) return false;
-            return Boolean((JSON.parse(raw) as { pendingAgentLoopCheckpoint?: { taskId?: string } }).pendingAgentLoopCheckpoint?.taskId);
-          } catch {
-            return false;
-          }
-        },
-        { timeout: 25_000 },
-      );
+      await waitForPendingCheckpointHydrated(pageB);
 
       const chatTriggerB = pageB.locator('.transcription-chat-window-trigger:not(.is-hidden)');
       await expect(chatTriggerB).toBeVisible({ timeout: 15_000 });

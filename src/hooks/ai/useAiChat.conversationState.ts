@@ -157,7 +157,7 @@ export function useAiChatConversationState({
               const row = doc.toJSON();
               await db.collections.ai_messages.update(row.id, {
                 status: 'aborted',
-                errorMessage: row.errorMessage ?? formatRecoveredInterruptedMessage(),
+                errorMessage: row.errorMessage ?? formatRecoveredInterruptedMessage(locale),
                 updatedAt: now,
               });
             }),
@@ -183,7 +183,7 @@ export function useAiChatConversationState({
       } catch (error) {
         if (!cancelled) {
           onHistoryLoadError(
-            error instanceof Error ? error.message : formatHistoryLoadFailedFallbackError(),
+            error instanceof Error ? error.message : formatHistoryLoadFailedFallbackError(locale),
           );
         }
       } finally {
@@ -197,7 +197,7 @@ export function useAiChatConversationState({
     return () => {
       cancelled = true;
     };
-  }, [onHistoryLoadError, onHistoryLoaded, textId]);
+  }, [locale, onHistoryLoadError, onHistoryLoaded, textId]);
 
   return {
     conversationId,

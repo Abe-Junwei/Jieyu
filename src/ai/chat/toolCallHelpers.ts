@@ -591,27 +591,34 @@ export function toNaturalToolCancelled(
   return formatToolCancelledMessage(locale, toToolActionLabel(callName), style);
 }
 
-export function toNaturalNonActionFallback(userText: string, style: AiToolFeedbackStyle): string {
-  return formatNonActionFallback(userText, style);
+export function toNaturalNonActionFallback(
+  locale: Locale,
+  userText: string,
+  style: AiToolFeedbackStyle,
+): string {
+  return formatNonActionFallback(userText, style, locale);
 }
 
 export function toNaturalActionClarify(
+  locale: Locale,
   callName: AiChatToolName,
   style: AiToolFeedbackStyle,
 ): string {
-  return formatActionClarify(toToolActionLabel(callName), style);
+  return formatActionClarify(toToolActionLabel(callName), style, locale);
 }
 
 export function toNaturalTargetClarify(
+  locale: Locale,
   callName: AiChatToolName,
   reason: ToolPlannerClarifyReason | undefined,
   style: AiToolFeedbackStyle,
   candidates: AiClarifyCandidate[] = [],
 ): string {
-  return formatTargetClarify(toToolActionLabel(callName), reason, style, candidates);
+  return formatTargetClarify(toToolActionLabel(callName), reason, style, candidates, locale);
 }
 
 export function normalizeUnsupportedToolCallJson(
+  locale: Locale,
   content: string,
   userText: string,
   style: AiToolFeedbackStyle,
@@ -622,17 +629,21 @@ export function normalizeUnsupportedToolCallJson(
 
   const actionLabel = inferFallbackActionLabel(userText, rawCall.name);
   if (looksLikeSegmentScopedTool(rawCall.name, rawCall.arguments)) {
-    return formatTargetClarify(actionLabel, 'missing-unit-target', style);
+    return formatTargetClarify(actionLabel, 'missing-unit-target', style, [], locale);
   }
-  return formatActionClarify(actionLabel, style);
+  return formatActionClarify(actionLabel, style, locale);
 }
 
-export function normalizeLegacyRiskNarration(content: string, style: AiToolFeedbackStyle): string {
+export function normalizeLegacyRiskNarration(
+  locale: Locale,
+  content: string,
+  style: AiToolFeedbackStyle,
+): string {
   const legacyCall = parseLegacyNarratedToolCall(content);
   if (!legacyCall) return content;
   const normalizedName = legacyCall.name;
   if (!normalizedName) return content;
-  return toNaturalActionClarify(normalizedName, style);
+  return toNaturalActionClarify(locale, normalizedName, style);
 }
 
 function looksLikeJsonishAssistantReply(content: string): boolean {
@@ -649,6 +660,7 @@ function looksLikeJsonishAssistantReply(content: string): boolean {
 }
 
 export function normalizeJsonishAssistantReply(
+  locale: Locale,
   content: string,
   userText: string,
   style: AiToolFeedbackStyle,
@@ -659,12 +671,12 @@ export function normalizeJsonishAssistantReply(
   if (rawCall) {
     const actionLabel = inferFallbackActionLabel(userText, rawCall.name);
     if (looksLikeSegmentScopedTool(rawCall.name, rawCall.arguments)) {
-      return formatTargetClarify(actionLabel, 'missing-unit-target', style);
+      return formatTargetClarify(actionLabel, 'missing-unit-target', style, [], locale);
     }
-    return formatActionClarify(actionLabel, style);
+    return formatActionClarify(actionLabel, style, locale);
   }
 
-  return formatNonActionFallback(userText, style);
+  return formatNonActionFallback(userText, style, locale);
 }
 
 export function isAmbiguousTargetRiskSummary(summary: string): boolean {

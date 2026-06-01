@@ -322,6 +322,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     apiKey: settings.apiKey,
     isBootstrapping,
     isStreaming,
+    locale,
     autoProbeIntervalMs,
     autoConnectionProbeEnabled,
   });

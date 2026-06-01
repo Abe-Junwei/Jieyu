@@ -311,9 +311,9 @@ export async function resolveAiChatStreamCompletion({
   resolveFreshAiContext,
 }: ResolveAiChatStreamCompletionParams): Promise<ResolveAiChatStreamCompletionResult> {
   if (assistantContent.trim().length === 0) {
-    const finalErrorMessage = formatEmptyModelResponseError();
+    const finalErrorMessage = formatEmptyModelResponseError(toolFeedbackLocale);
     return {
-      finalContent: formatEmptyModelReply(),
+      finalContent: formatEmptyModelReply(toolFeedbackLocale),
       finalStatus: 'error',
       finalErrorMessage,
       connectionErrorMessage: finalErrorMessage,
@@ -592,6 +592,7 @@ export async function resolveAiChatStreamCompletion({
     finalErrorMessage = toolDecisionResult.finalErrorMessage;
   } else {
     const normalizedUnsupported = normalizeUnsupportedToolCallJson(
+      toolFeedbackLocale,
       finalContent,
       userText,
       toolFeedbackStyle,
@@ -599,12 +600,20 @@ export async function resolveAiChatStreamCompletion({
     if (normalizedUnsupported) {
       finalContent = normalizedUnsupported;
     } else {
-      const normalizedLegacy = normalizeLegacyRiskNarration(finalContent, toolFeedbackStyle);
+      const normalizedLegacy = normalizeLegacyRiskNarration(
+        toolFeedbackLocale,
+        finalContent,
+        toolFeedbackStyle,
+      );
       finalContent =
         normalizedLegacy !== finalContent
           ? normalizedLegacy
-          : (normalizeJsonishAssistantReply(finalContent, userText, toolFeedbackStyle) ??
-            normalizedLegacy);
+          : (normalizeJsonishAssistantReply(
+              toolFeedbackLocale,
+              finalContent,
+              userText,
+              toolFeedbackStyle,
+            ) ?? normalizedLegacy);
     }
   }
 

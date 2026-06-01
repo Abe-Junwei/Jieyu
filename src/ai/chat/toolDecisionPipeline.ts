@@ -251,11 +251,11 @@ export async function resolveToolDecisionPipeline({
   }
 
   if (await hasPersistedExecutionForRequest(toolCall.requestId ?? '')) {
-    const finalErrorMessage = formatDuplicateRequestIgnoredError();
+    const finalErrorMessage = formatDuplicateRequestIgnoredError(locale);
     const finalContent = toNaturalToolFailure(
       locale,
       toolCall.name,
-      formatDuplicateRequestIgnoredDetail(),
+      formatDuplicateRequestIgnoredDetail(locale),
       toolFeedbackStyle,
     );
     await writeToolDecisionAuditLog(

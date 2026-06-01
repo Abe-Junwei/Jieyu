@@ -98,6 +98,7 @@ export async function runAiChatSendTurn(args: RunAiChatSendTurnArgs): Promise<vo
     messagesRef,
     onMessageCompleteRef,
     abortRef,
+    toolFeedbackLocaleRef,
     assistantId,
     controller,
     phaseState,

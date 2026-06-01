@@ -214,8 +214,17 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
   const refreshQueuedRef = useRef(false);
   const refreshTimerRef = useRef<number | null>(null);
   const lastRefreshAtRef = useRef(0);
+  const embeddingServicesRef = useRef(new Set<EmbeddingServiceLike>());
+  const embeddingSearchServicesRef = useRef(new Set<EmbeddingSearchServiceLike>());
 
   useEffect(() => {
+    embeddingServicesRef.current.add(embeddingService);
+    embeddingSearchServicesRef.current.add(embeddingSearchService);
+  }, [embeddingSearchService, embeddingService]);
+
+  useEffect(() => {
+    const embeddingServices = embeddingServicesRef.current;
+    const embeddingSearchServices = embeddingSearchServicesRef.current;
     return () => {
       isMountedRef.current = false;
       activeRequestIdRef.current += 1;
@@ -223,10 +232,14 @@ export function useAiEmbeddingState<TUnit extends UnitLike>({
         window.clearTimeout(refreshTimerRef.current);
         refreshTimerRef.current = null;
       }
-      embeddingService.terminate();
-      embeddingSearchService.terminate();
+      for (const service of embeddingServices) {
+        service.terminate();
+      }
+      for (const service of embeddingSearchServices) {
+        service.terminate();
+      }
     };
-  }, [embeddingSearchService, embeddingService]);
+  }, []);
 
   const beginRequest = (): number => {
     activeRequestIdRef.current += 1;

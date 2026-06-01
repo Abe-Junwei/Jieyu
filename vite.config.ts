@@ -324,6 +324,12 @@ export default defineConfig({
     reportCompressedSize: true,
     sourcemap: enableSentrySourceMaps ? 'hidden' : false,
     chunkSizeWarningLimit: 1400,
+    modulePreload: {
+      resolveDependencies(_url, deps) {
+        // 语言映射 runtime 保持按需加载，避免首屏 modulepreload 抢占带宽 | Keep language mapping runtime demand-loaded instead of first-screen modulepreload
+        return deps.filter((dep) => !dep.includes('language-mapping-runtime-'));
+      },
+    },
     rollupOptions: {
       input: {
         main: resolve(repoRoot, 'index.html'),

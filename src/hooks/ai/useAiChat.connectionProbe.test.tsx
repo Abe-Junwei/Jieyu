@@ -33,6 +33,7 @@ describe('useAiChatConnectionProbe', () => {
         apiKey: 'sk-test',
         isBootstrapping: false,
         isStreaming: false,
+        locale: 'zh-CN',
         autoProbeIntervalMs: 60_000,
       }),
     );

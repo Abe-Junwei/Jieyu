@@ -12,10 +12,7 @@ import {
   summarizeLocalContextToolResult,
   humanizeScope,
 } from './summarizers';
-import {
-  STRUCTURED_ANSWER_EMPTY_EN,
-  STRUCTURED_ANSWER_EMPTY_ZH,
-} from '../../messages/structuredAnswerCopy';
+import { formatStructuredAnswerEmpty } from '../../messages/structuredAnswerCopy';
 
 function previewPlainText(value: unknown, maxChars = 48): string {
   if (typeof value !== 'string') return '';
@@ -26,11 +23,7 @@ function previewPlainText(value: unknown, maxChars = 48): string {
 
 function joinStructuredBits(bits: string[], locale?: string): string {
   const zh = isZhLocale(locale);
-  return bits.length > 0
-    ? bits.join(zh ? '；' : '; ')
-    : zh
-      ? STRUCTURED_ANSWER_EMPTY_ZH
-      : STRUCTURED_ANSWER_EMPTY_EN;
+  return bits.length > 0 ? bits.join(zh ? '；' : '; ') : formatStructuredAnswerEmpty(locale);
 }
 
 function buildLocalToolEvidenceText(result: LocalContextToolResult, locale?: string): string {

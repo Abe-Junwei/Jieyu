@@ -123,7 +123,37 @@ export function normalizeOutputTokenRetryCap(
 }
 
 export function estimateTokensFromText(content: string): number {
-  return Math.max(1, Math.ceil(content.trim().length / 4));
+  const trimmed = content.trim();
+  if (!trimmed) return 1;
+
+  let estimated = 0;
+  let nonCjkRunLength = 0;
+  const flushNonCjkRun = () => {
+    if (nonCjkRunLength <= 0) return;
+    estimated += Math.ceil(nonCjkRunLength / 4);
+    nonCjkRunLength = 0;
+  };
+
+  for (const char of trimmed) {
+    const codePoint = char.codePointAt(0) ?? 0;
+    if (codePoint < 32 || codePoint === 127) continue;
+    const isCjkLike =
+      (codePoint >= 0x4e00 && codePoint <= 0x9fff) ||
+      (codePoint >= 0x3400 && codePoint <= 0x4dbf) ||
+      (codePoint >= 0xf900 && codePoint <= 0xfaff) ||
+      (codePoint >= 0x3040 && codePoint <= 0x30ff) ||
+      (codePoint >= 0x3100 && codePoint <= 0x312f) ||
+      (codePoint >= 0xac00 && codePoint <= 0xd7af);
+    if (isCjkLike) {
+      flushNonCjkRun();
+      estimated += 1;
+      continue;
+    }
+    nonCjkRunLength += 1;
+  }
+
+  flushNonCjkRun();
+  return Math.max(1, estimated);
 }
 
 export function withTimeout<T>(

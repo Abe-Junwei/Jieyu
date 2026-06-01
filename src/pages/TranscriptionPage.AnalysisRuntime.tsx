@@ -13,7 +13,16 @@ import { saveEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { AiAnalysisPanel } from '../components/AiAnalysisPanel';
 import { fireAndForget } from '../utils/fireAndForget';
 import { createDeferredEmbeddingRuntime } from '../ai/embeddings/DeferredEmbeddingRuntime';
-import type { TranscriptionPageAnalysisRuntimeProps } from './TranscriptionPage.runtimeContracts';
+import type {
+  TranscriptionPageAnalysisRuntimeProps,
+  TranscriptionPageEmbeddingProviderConfig,
+} from './TranscriptionPage.runtimeContracts';
+
+function buildEmbeddingProviderConfigKey(config: TranscriptionPageEmbeddingProviderConfig): string {
+  return [config.kind, config.baseUrl ?? '', config.model ?? '', config.apiKey ?? ''].join(
+    '\u001f',
+  );
+}
 
 export function TranscriptionPageAnalysisRuntime({
   panel,
@@ -21,13 +30,18 @@ export function TranscriptionPageAnalysisRuntime({
 }: TranscriptionPageAnalysisRuntimeProps) {
   const embeddingTasksHydratedRef = useRef(false);
   const taskRunner = useMemo(() => getGlobalTaskRunner(), []);
+  const embeddingProviderConfigKey = buildEmbeddingProviderConfigKey(
+    embedding.provider.config.embeddingProviderConfig,
+  );
+  const embeddingProviderConfigRef = useRef(embedding.provider.config.embeddingProviderConfig);
+
+  useEffect(() => {
+    embeddingProviderConfigRef.current = embedding.provider.config.embeddingProviderConfig;
+  }, [embeddingProviderConfigKey, embedding.provider.config.embeddingProviderConfig]);
+
   const deferredEmbeddingRuntime = useMemo(
-    () =>
-      createDeferredEmbeddingRuntime(
-        () => embedding.provider.config.embeddingProviderConfig,
-        taskRunner,
-      ),
-    [embedding.provider.config.embeddingProviderConfig, taskRunner],
+    () => createDeferredEmbeddingRuntime(() => embeddingProviderConfigRef.current, taskRunner),
+    [taskRunner],
   );
 
   useEffect(() => {

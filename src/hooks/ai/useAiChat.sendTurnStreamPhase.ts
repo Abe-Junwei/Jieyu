@@ -49,6 +49,7 @@ export async function runAiChatSendTurnStreamPhase(
     verticalOutputEnvelopeSeed,
     conversationGenerationRef,
     streamGenerationAtStart,
+    toolFeedbackLocaleRef,
   } = input;
 
   const canUpdateStreamUi = () =>
@@ -78,7 +79,9 @@ export async function runAiChatSendTurnStreamPhase(
       if (shouldTrackRemoteStatus && !s.connectionMarkedSuccess) {
         s.connectionMarkedSuccess = true;
         setConnectionTestStatus('success');
-        setConnectionTestMessage(formatConnectionHealthyMessage(provider.label));
+        setConnectionTestMessage(
+          formatConnectionHealthyMessage(provider.label, toolFeedbackLocaleRef.current),
+        );
       }
       if (timeoutHandle !== null && typeof window !== 'undefined') {
         window.clearTimeout(timeoutHandle);
