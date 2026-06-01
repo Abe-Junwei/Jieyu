@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetJieyuDatabaseSingletonForTests } from '../../db';
+import { getDb, resetJieyuDatabaseSingletonForTests } from '../../db';
 import { buildUserDirectivePrompt } from './userDirectivePrompt';
 import {
   bindSessionMemoryConversation,
@@ -23,6 +23,7 @@ describe('sessionMemory Dexie store (G1a)', () => {
   beforeEach(async () => {
     await resetJieyuDatabaseSingletonForTests();
     resetSessionMemoryStoreForTests();
+    window.localStorage.clear();
   });
 
   it('persists and loads per conversationId from Dexie', async () => {
@@ -38,12 +39,34 @@ describe('sessionMemory Dexie store (G1a)', () => {
     expect(loaded.preferences?.lastLanguage).toBe('cmn');
   });
 
-  it('loads from Dexie after cache reset', async () => {
+  it('migrates legacy localStorage into Dexie for active conversation', async () => {
+    window.localStorage.setItem(
+      'jieyu.aiChat.sessionMemory',
+      JSON.stringify({ lastLanguage: 'eng', lastToolName: 'set_transcription_text' }),
+    );
+    const conversationId = 'conv-migrate-1';
+    resetSessionMemoryStoreForTests();
+    bindSessionMemoryConversation(conversationId);
+
+    const loaded = await loadSessionMemoryAsync(conversationId);
+    expect(loaded.preferences?.lastLanguage).toBe('eng');
+    expect(window.localStorage.getItem('jieyu.aiChat.sessionMemory')).toBeNull();
+
+    const db = await getDb();
+    const row = await db.collections.ai_session_memories
+      .findOne({ selector: { conversationId } })
+      .exec();
+    expect(row?.toJSON().payload).toMatchObject({ lastLanguage: 'eng' });
+    expect(window.localStorage.getItem('jieyu.aiChat.sessionMemory.migrated.v1')).toBe('1');
+  });
+
+  it('loads from Dexie when legacy localStorage was cleared by another tab', async () => {
     const conversationId = 'conv-cross-tab';
     await persistSessionMemoryAsync(conversationId, {
       preferences: { lastLanguage: 'yue' },
     });
     resetSessionMemoryStoreForTests();
+    window.localStorage.setItem('jieyu.aiChat.sessionMemory.migrated.v1', '1');
     bindSessionMemoryConversation(conversationId);
 
     const loaded = await loadSessionMemoryAsync(conversationId);
@@ -66,6 +89,7 @@ describe('sessionMemory P2 helpers', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-25T00:00:00.000Z'));
     resetSessionMemoryStoreForTests();
+    window.localStorage.clear();
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -95,6 +119,20 @@ describe('sessionMemory P2 helpers', () => {
       lastLanguage: 'eng',
       lastToolName: 'set_transcription_text',
     });
+
+    const loaded = loadSessionMemory();
+    expect(loaded.preferences?.lastLanguage).toBe('eng');
+    expect(loaded.preferences?.lastToolName).toBe('set_transcription_text');
+  });
+
+  it('loads legacy storage into layered preferences when conversation is not bound', () => {
+    window.localStorage.setItem(
+      'jieyu.aiChat.sessionMemory',
+      JSON.stringify({
+        lastLanguage: 'eng',
+        lastToolName: 'set_transcription_text',
+      }),
+    );
 
     const loaded = loadSessionMemory();
     expect(loaded.preferences?.lastLanguage).toBe('eng');

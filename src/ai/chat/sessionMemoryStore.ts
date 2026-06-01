@@ -5,6 +5,10 @@ import { normalizeSessionMemory } from './sessionMemoryNormalize';
 
 const log = createLogger('aiChatSessionMemoryStore');
 
+const AI_SESSION_MEMORY_STORAGE_KEY = 'jieyu.aiChat.sessionMemory';
+/** Cross-tab: legacy localStorage migration completed (G2e). */
+const LEGACY_SESSION_MEMORY_MIGRATED_KEY = 'jieyu.aiChat.sessionMemory.migrated.v1';
+
 const MAX_MEMORY_CACHE_ENTRIES = 32;
 
 const memoryCache = new Map<string, AiSessionMemory>();
@@ -26,6 +30,62 @@ function touchMemoryCache(conversationId: string, payload: AiSessionMemory): voi
   }
 }
 
+function isLegacySessionMemoryMigrationMarkedComplete(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(LEGACY_SESSION_MEMORY_MIGRATED_KEY) === '1';
+}
+
+function markLegacySessionMemoryMigrationComplete(): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(LEGACY_SESSION_MEMORY_MIGRATED_KEY, '1');
+}
+
+function readLegacySessionMemoryFromLocalStorage(): AiSessionMemory | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(AI_SESSION_MEMORY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AiSessionMemory;
+    if (!parsed || typeof parsed !== 'object') return null;
+    return normalizeSessionMemory(parsed);
+  } catch (error) {
+    log.warn('Failed to load legacy AI session memory from localStorage', {
+      storageKey: AI_SESSION_MEMORY_STORAGE_KEY,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+function removeLegacySessionMemoryFromLocalStorage(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(AI_SESSION_MEMORY_STORAGE_KEY);
+  } catch {
+    // best-effort
+  }
+}
+
+async function migrateLegacySessionMemoryToDexie(
+  conversationId: string,
+): Promise<AiSessionMemory | null> {
+  if (isLegacySessionMemoryMigrationMarkedComplete()) return null;
+  const legacy = readLegacySessionMemoryFromLocalStorage();
+  if (!legacy) return null;
+  try {
+    await persistSessionMemoryAsync(conversationId, legacy);
+    markLegacySessionMemoryMigrationComplete();
+    removeLegacySessionMemoryFromLocalStorage();
+    return legacy;
+  } catch (error) {
+    log.warn('Failed to migrate legacy session memory to Dexie', {
+      conversationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return legacy;
+  }
+}
+
 /** Binds sync load/persist to a conversation; call when `conversationId` changes (G1a). */
 export function bindSessionMemoryConversation(conversationId: string | null): void {
   activeConversationId = conversationId;
@@ -35,6 +95,9 @@ export function bindSessionMemoryConversation(conversationId: string | null): vo
 export function resetSessionMemoryStoreForTests(): void {
   memoryCache.clear();
   activeConversationId = null;
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(LEGACY_SESSION_MEMORY_MIGRATED_KEY);
+  }
 }
 
 export async function loadSessionMemoryAsync(conversationId: string): Promise<AiSessionMemory> {
@@ -57,6 +120,30 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
     }
   } catch (error) {
     log.warn('Failed to load AI session memory from Dexie', {
+      conversationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  const migrated = await migrateLegacySessionMemoryToDexie(conversationId);
+  if (migrated) {
+    touchMemoryCache(conversationId, migrated);
+    return migrated;
+  }
+
+  // Cross-tab: another tab may have migrated to Dexie and cleared legacy localStorage.
+  try {
+    const db = await getDb();
+    const retryRow = await db.collections.ai_session_memories
+      .findOne({ selector: { conversationId } })
+      .exec();
+    if (retryRow) {
+      const payload = normalizeSessionMemory(retryRow.toJSON().payload ?? {});
+      touchMemoryCache(conversationId, payload);
+      return payload;
+    }
+  } catch (error) {
+    log.warn('Failed to re-read AI session memory from Dexie after legacy migration', {
       conversationId,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -93,7 +180,7 @@ export async function persistSessionMemoryAsync(
 
 export function loadSessionMemory(): AiSessionMemory {
   if (!activeConversationId) {
-    return {};
+    return readLegacySessionMemoryFromLocalStorage() ?? {};
   }
   return memoryCache.get(activeConversationId) ?? {};
 }
