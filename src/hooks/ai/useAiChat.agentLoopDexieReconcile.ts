@@ -1,5 +1,5 @@
 import { useEffect, useState, type MutableRefObject } from 'react';
-import { persistSessionMemory } from '../../ai/chat/sessionMemory';
+import { loadSessionMemoryAsync, persistSessionMemoryAsync } from '../../ai/chat/sessionMemory';
 import { reconcilePendingAgentLoopCheckpointFromDexie } from '../../ai/chat/reconcileAgentLoopSessionMemoryFromDexie';
 import { useLatest } from '../ui/useLatest';
 import type { AiSessionMemory } from './useAiChat.types';
@@ -14,20 +14,23 @@ export function useAgentLoopSessionMemoryDexieReconcile(
   const conversationIdRef = useLatest(conversationId);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const conversationIdAtStart = conversationIdRef.current;
-    if (!conversationIdAtStart) return;
+    const activeConversationId = conversationIdRef.current;
+    if (!activeConversationId) return;
+    // Wait until binding has completed at least one Dexie hydrate for this mount/switch.
+    if (hydrationGeneration === 0) return;
     let cancelled = false;
     void (async () => {
       try {
-        const next = await reconcilePendingAgentLoopCheckpointFromDexie(sessionMemoryRef.current);
+        const hydrated = await loadSessionMemoryAsync(activeConversationId);
         if (cancelled) return;
-        if (conversationIdRef.current !== conversationIdAtStart) return;
-        if (next === sessionMemoryRef.current) return;
+        if (conversationIdRef.current !== activeConversationId) return;
+        const next = await reconcilePendingAgentLoopCheckpointFromDexie(hydrated);
+        if (cancelled) return;
+        if (conversationIdRef.current !== activeConversationId) return;
+        if (next === hydrated) return;
         sessionMemoryRef.current = next;
-        // Avoid clobbering a seeded Dexie row with an empty reconcile snapshot (cold-start race).
-        if (Object.keys(next).length > 0) {
-          persistSessionMemory(next);
-        }
+        await persistSessionMemoryAsync(activeConversationId, next);
+        if (conversationIdRef.current !== activeConversationId) return;
         setSessionMemoryRenderNonce((n) => n + 1);
       } catch {
         // Dexie 不可用时跳过冷启动水合 | Skip cold-start hydration when IndexedDB is unavailable
