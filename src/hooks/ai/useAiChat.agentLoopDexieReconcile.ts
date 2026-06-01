@@ -22,10 +22,10 @@ export function useAgentLoopSessionMemoryDexieReconcile(
         if (cancelled) return;
         if (next === sessionMemoryRef.current) return;
         sessionMemoryRef.current = next;
-        // Avoid clobbering a seeded Dexie row with an empty reconcile snapshot (cold-start race).
-        if (Object.keys(next).length > 0) {
-          persistSessionMemory(next);
-        }
+        // Always persist reconcile deltas (including clearing a stale checkpoint to {}).
+        // Hydration generation gates this effect until Dexie hydrate completes, so we do not
+        // clobber a not-yet-loaded row during cold start.
+        persistSessionMemory(next);
         setSessionMemoryRenderNonce((n) => n + 1);
       } catch {
         // Dexie 不可用时跳过冷启动水合 | Skip cold-start hydration when IndexedDB is unavailable
