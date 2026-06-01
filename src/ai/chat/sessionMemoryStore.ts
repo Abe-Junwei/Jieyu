@@ -68,6 +68,49 @@ function removeLegacySessionMemoryFromLocalStorage(): void {
   }
 }
 
+async function readSessionMemoryBaselineFromDexie(
+  conversationId: string,
+): Promise<AiSessionMemory> {
+  try {
+    const db = await getDb();
+    const row = await db.collections.ai_session_memories
+      .findOne({ selector: { conversationId } })
+      .exec();
+    if (row) {
+      return normalizeSessionMemory(row.toJSON().payload ?? {});
+    }
+  } catch (error) {
+    log.warn('Failed to read session memory baseline for pending flush', {
+      conversationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  return {};
+}
+
+async function flushPendingSessionMemoryForConversationAsync(
+  conversationId: string,
+): Promise<void> {
+  const pending = pendingPersistByConversation.get(conversationId);
+  if (pending === undefined) return;
+  pendingPersistByConversation.delete(conversationId);
+
+  const baseline =
+    hydratedConversationId === conversationId
+      ? (memoryCache.get(conversationId) ?? {})
+      : await readSessionMemoryBaselineFromDexie(conversationId);
+
+  await persistSessionMemoryAsync(
+    conversationId,
+    normalizeSessionMemory({ ...baseline, ...pending }),
+  );
+}
+
+function flushPendingSessionMemoryForConversation(conversationId: string): void {
+  if (!pendingPersistByConversation.has(conversationId)) return;
+  void flushPendingSessionMemoryForConversationAsync(conversationId);
+}
+
 async function migrateLegacySessionMemoryToDexie(
   conversationId: string,
 ): Promise<AiSessionMemory | null> {
@@ -104,10 +147,7 @@ function markConversationHydrated(conversationId: string): void {
 export function bindSessionMemoryConversation(conversationId: string | null): void {
   if (conversationId !== activeConversationId) {
     if (activeConversationId) {
-      pendingPersistByConversation.delete(activeConversationId);
-    }
-    if (conversationId) {
-      pendingPersistByConversation.delete(conversationId);
+      flushPendingSessionMemoryForConversation(activeConversationId);
     }
   }
   activeConversationId = conversationId;
