@@ -92,7 +92,6 @@ export const RECOVERY_EXPORT_COLLECTIONS = [
   'unit_tokens',
   'unit_morphemes',
   'speakers',
-  'notes',
   'user_notes',
   'anchors',
 ] as const;
