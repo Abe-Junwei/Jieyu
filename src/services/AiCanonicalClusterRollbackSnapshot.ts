@@ -4,7 +4,7 @@
  */
 import type { Table } from 'dexie';
 import { invalidateUnitEmbeddings } from '../ai/embeddings/EmbeddingInvalidationService';
-import { SegmentMetaService } from './SegmentMetaService';
+import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
 import type {
   AnchorDocType,
   JieyuDatabase,
@@ -234,7 +234,5 @@ export async function restoreAiCanonicalClusterRollbackSnapshot(
   await invalidateUnitEmbeddings(db, ids);
 
   const metaIds = uniqueIds([...ids, ...snapshot.segmentGraph.units.map((u) => u.id)]);
-  void SegmentMetaService.syncForUnitIds(metaIds).catch(() => {
-    // Same fire-and-forget posture as removeUnitCascade | SegmentMeta refresh must not block rollback.
-  });
+  scheduleSegmentMetaSyncForUnitIds(metaIds, 'AiCanonicalClusterRollbackSnapshot.restore');
 }
