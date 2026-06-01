@@ -65,7 +65,7 @@ export function useTranscriptionLifecycle({
         // Instead, start the async save — the browser usually allows short IDB writes.
         fireAndForget(
           saveRecoverySnapshot(name, {
-            liveOverlay: {
+            liveLayerGraph: {
               layer_units: unitsRef.current,
               layer_unit_contents: translationsRef.current,
               layers: layersRef.current,

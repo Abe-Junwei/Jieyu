@@ -128,18 +128,7 @@ describe('SnapshotService', () => {
     });
   });
 
-  it('merges liveOverlay transcription rows over the DB export', async () => {
-    const liveUnit: LayerUnitDocType = {
-      id: 'u-live',
-      textId: 't1',
-      mediaId: 'm1',
-      layerId: 'l1',
-      unitType: 'unit',
-      startTime: 0,
-      endTime: 1,
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    };
+  it('overlays in-memory layer graph on top of the DB export', async () => {
     mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce({
       schemaVersion: 4,
       exportedAt: '2026-06-01T00:00:00.000Z',
@@ -151,8 +140,24 @@ describe('SnapshotService', () => {
       },
     });
 
+    const liveUnit: LayerUnitDocType = {
+      id: 'u-live',
+      textId: 't1',
+      mediaId: 'm1',
+      layerId: 'l1',
+      unitType: 'unit',
+      startTime: 0,
+      endTime: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
     await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, {
-      liveOverlay: { layer_units: [liveUnit] },
+      liveLayerGraph: {
+        layer_units: [liveUnit],
+        layer_unit_contents: [],
+        layers: [],
+      },
     });
 
     const snap = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME);

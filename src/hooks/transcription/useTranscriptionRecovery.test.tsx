@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../../db';
 import { JIEYU_DEXIE_DB_NAME } from '../../db/engine';
 import { useTranscriptionRecoverySnapshotScheduler } from './useTranscriptionRecovery';
 
@@ -14,6 +15,12 @@ vi.mock('../../services/SnapshotService', async () => {
   };
 });
 
+const schedulerRefs = () => ({
+  unitsRef: { current: [] as LayerUnitDocType[] },
+  translationsRef: { current: [] as LayerUnitContentDocType[] },
+  layersRef: { current: [] as LayerDocType[] },
+});
+
 describe('useTranscriptionRecoverySnapshotScheduler', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -22,7 +29,7 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
   });
 
   it('should expose scheduler state refs and recoverySave API', () => {
-    const { result } = renderHook(() => useTranscriptionRecoverySnapshotScheduler());
+    const { result } = renderHook(() => useTranscriptionRecoverySnapshotScheduler(schedulerRefs()));
 
     expect(result.current.dbNameRef.current).toBeUndefined();
     expect(result.current.dirtyRef.current).toBe(false);
@@ -31,7 +38,8 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
   });
 
   it('should persist snapshot only when dirty=true and dbName exists', async () => {
-    const { result } = renderHook(() => useTranscriptionRecoverySnapshotScheduler());
+    const refs = schedulerRefs();
+    const { result } = renderHook(() => useTranscriptionRecoverySnapshotScheduler(refs));
 
     await act(async () => {
       result.current.scheduleRecoverySave();
@@ -47,6 +55,12 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
       vi.advanceTimersByTime(3100);
     });
 
-    expect(mockSaveRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME);
+    expect(mockSaveRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME, {
+      liveLayerGraph: {
+        layer_units: refs.unitsRef.current,
+        layer_unit_contents: refs.translationsRef.current,
+        layers: refs.layersRef.current,
+      },
+    });
   });
 });

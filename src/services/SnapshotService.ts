@@ -24,13 +24,13 @@ export type SaveRecoverySnapshotOptions = {
   /** Tests: lower ceiling to assert skip behavior without multi-megabyte fixtures. */
   maxSerializedUtf8Bytes?: number;
   /**
-   * In-memory transcription core rows to merge over the DB export (e.g. `beforeunload`
-   * while `dirtyRef` is still true and IndexedDB may lag React refs).
+   * In-memory layer graph to overlay on the DB export.
+   * Required when edits are dirty but not yet flushed to IndexedDB (e.g. after pushUndo).
    */
-  liveOverlay?: {
-    layer_units?: LayerUnitDocType[];
-    layer_unit_contents?: LayerUnitContentDocType[];
-    layers?: LayerDocType[];
+  liveLayerGraph?: {
+    layer_units: LayerUnitDocType[];
+    layer_unit_contents: LayerUnitContentDocType[];
+    layers: LayerDocType[];
   };
 };
 
@@ -118,20 +118,28 @@ async function dropCorruptedRecoverySnapshot(dbName: string): Promise<null> {
   return null;
 }
 
+function withLiveLayerGraphOverlay(
+  snapshot: RecoveryDatabaseSnapshot,
+  liveLayerGraph: NonNullable<SaveRecoverySnapshotOptions['liveLayerGraph']>,
+): RecoveryDatabaseSnapshot {
+  return {
+    ...snapshot,
+    collections: {
+      ...snapshot.collections,
+      layer_units: liveLayerGraph.layer_units,
+      layer_unit_contents: liveLayerGraph.layer_unit_contents,
+      layers: liveLayerGraph.layers,
+    },
+  };
+}
+
 export async function saveRecoverySnapshot(
   dbName: string,
   options?: SaveRecoverySnapshotOptions,
 ): Promise<void> {
-  const snapshot = await exportRecoveryDatabaseAsJson();
-  const overlay = options?.liveOverlay;
-  if (overlay?.layer_units) {
-    snapshot.collections['layer_units'] = overlay.layer_units;
-  }
-  if (overlay?.layer_unit_contents) {
-    snapshot.collections['layer_unit_contents'] = overlay.layer_unit_contents;
-  }
-  if (overlay?.layers) {
-    snapshot.collections['layers'] = overlay.layers;
+  let snapshot = await exportRecoveryDatabaseAsJson();
+  if (options?.liveLayerGraph) {
+    snapshot = withLiveLayerGraphOverlay(snapshot, options.liveLayerGraph);
   }
   const snapshotJson = JSON.stringify(snapshot);
   const maxBytes =
