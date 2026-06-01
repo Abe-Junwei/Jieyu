@@ -52,6 +52,8 @@ const RESTART_BACKOFF_MS = 3000;
 
 class WorkerPoolImpl {
   private readonly entries = new Map<string, WorkerPoolEntry>();
+  /** In-flight owner requests per worker id; heartbeat skips restart while > 0 */
+  private readonly busyRefCounts = new Map<string, number>();
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private readonly createWorker: Map<string, () => Worker> = new Map();
 
@@ -100,6 +102,7 @@ class WorkerPoolImpl {
     }
     this.createWorker.delete(id);
     this.entries.delete(id);
+    this.busyRefCounts.delete(id);
     log.info(`[WorkerPool] deregistered "${entry.label}" (id=${id})`);
   }
 
@@ -108,16 +111,26 @@ class WorkerPoolImpl {
     return this.entries.get(id);
   }
 
-  /** 标记 Worker 忙碌 | Mark worker as busy */
+  /** 标记 Worker 忙碌 | Mark worker as busy (ref-counted for overlapping requests) */
   markBusy(id: string): void {
     const entry = this.entries.get(id);
-    if (entry && entry.state === 'idle') entry.state = 'busy';
+    if (!entry) return;
+    const next = (this.busyRefCounts.get(id) ?? 0) + 1;
+    this.busyRefCounts.set(id, next);
+    if (entry.state === 'idle') entry.state = 'busy';
   }
 
-  /** 标记 Worker 空闲 | Mark worker as idle */
+  /** 标记 Worker 空闲 | Mark worker as idle when the last in-flight request completes */
   markIdle(id: string): void {
     const entry = this.entries.get(id);
-    if (entry && entry.state === 'busy') entry.state = 'idle';
+    if (!entry) return;
+    const current = this.busyRefCounts.get(id) ?? 0;
+    if (current <= 1) {
+      this.busyRefCounts.delete(id);
+      if (entry.state === 'busy') entry.state = 'idle';
+      return;
+    }
+    this.busyRefCounts.set(id, current - 1);
   }
 
   /** 获取统计信息 | Get stats */

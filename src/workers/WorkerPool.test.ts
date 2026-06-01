@@ -72,4 +72,32 @@ describe('WorkerPool', () => {
     expect(factory).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  it('keeps worker busy until all overlapping requests complete', () => {
+    vi.useFakeTimers();
+    const worker = {
+      postMessage: vi.fn(),
+      terminate: vi.fn(),
+      addEventListener: vi.fn(),
+    } as unknown as Worker;
+    const factory = vi.fn(() => worker);
+
+    getWorkerPool().register('overlap-id', 'Overlap', factory, worker);
+    const entry = getWorkerPool().get('overlap-id');
+    expect(entry).toBeDefined();
+    entry!.lastHeartbeatAt = Date.now() - 60_000;
+
+    getWorkerPool().markBusy('overlap-id');
+    getWorkerPool().markBusy('overlap-id');
+    getWorkerPool().markIdle('overlap-id');
+
+    vi.advanceTimersByTime(20_000);
+    expect(worker.terminate).not.toHaveBeenCalled();
+
+    getWorkerPool().markIdle('overlap-id');
+    vi.advanceTimersByTime(20_000);
+    expect(factory.mock.calls.length).toBeGreaterThan(0);
+    expect(worker.terminate).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
 });

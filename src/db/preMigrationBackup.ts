@@ -302,6 +302,9 @@ export function shouldAttemptPreMigrationRestore(err: unknown): boolean {
 /**
  * Restores a pre-migration snapshot back into the source database at `fromVersion`.
  * Clears the migration marker so a fresh backup can be taken before the next upgrade attempt.
+ *
+ * Populates a staging database first so production data is not deleted until the snapshot
+ * is known to replay successfully.
  */
 export async function restorePreMigrationBackup(
   snapshotId: string,
@@ -309,9 +312,36 @@ export async function restorePreMigrationBackup(
   const snapshot = await getPreMigrationBackupById(snapshotId);
   if (!snapshot) return 'not_found';
 
-  await deleteIndexedDb(snapshot.dbName);
+  const stagingDbName = `${snapshot.dbName}__jieyu_restore_staging`;
+  try {
+    try {
+      await deleteIndexedDb(stagingDbName);
+    } catch {
+      // ignore stale staging cleanup failures
+    }
 
-  const db = await openIndexedDb(snapshot.dbName, snapshot.fromVersion, (upgradeDb) => {
+    await populateDatabaseFromSnapshot(stagingDbName, snapshot);
+
+    await deleteIndexedDb(snapshot.dbName);
+    await populateDatabaseFromSnapshot(snapshot.dbName, snapshot);
+  } finally {
+    try {
+      await deleteIndexedDb(stagingDbName);
+    } catch {
+      // ignore staging cleanup failures
+    }
+  }
+
+  removeLocalStorageKey(makeMarkerKey(snapshot.dbName, snapshot.fromVersion, snapshot.toVersion));
+  removeLocalStorageKey(makeFailureKey(snapshot.dbName, snapshot.fromVersion, snapshot.toVersion));
+  return 'restored';
+}
+
+async function populateDatabaseFromSnapshot(
+  dbName: string,
+  snapshot: PreMigrationBackupSnapshot,
+): Promise<void> {
+  const db = await openIndexedDb(dbName, snapshot.fromVersion, (upgradeDb) => {
     for (const [storeName, rows] of Object.entries(snapshot.collections)) {
       if (!upgradeDb.objectStoreNames.contains(storeName)) {
         upgradeDb.createObjectStore(storeName, { keyPath: inferObjectStoreKeyPath(rows) });
@@ -331,8 +361,4 @@ export async function restorePreMigrationBackup(
   } finally {
     db.close();
   }
-
-  removeLocalStorageKey(makeMarkerKey(snapshot.dbName, snapshot.fromVersion, snapshot.toVersion));
-  removeLocalStorageKey(makeFailureKey(snapshot.dbName, snapshot.fromVersion, snapshot.toVersion));
-  return 'restored';
 }
