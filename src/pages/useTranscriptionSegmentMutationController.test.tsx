@@ -234,7 +234,7 @@ describe('useTranscriptionSegmentMutationController', () => {
     });
 
     expect(reloadSegments).not.toHaveBeenCalled();
-    expect(refreshSegmentUndoSnapshot).not.toHaveBeenCalled();
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalledTimes(1);
     expect(selectTimelineUnit).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
