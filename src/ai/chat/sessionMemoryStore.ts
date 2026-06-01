@@ -160,6 +160,14 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
     });
   }
 
+  // If a persist completed while Dexie read was in flight, honor the freshest in-memory payload.
+  const inMemoryUpdated = memoryCache.get(conversationId);
+  if (inMemoryUpdated !== undefined) {
+    touchMemoryCache(conversationId, inMemoryUpdated);
+    markConversationHydrated(conversationId);
+    return inMemoryUpdated;
+  }
+
   const migrated = await migrateLegacySessionMemoryToDexie(conversationId);
   if (migrated) {
     touchMemoryCache(conversationId, migrated);

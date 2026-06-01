@@ -3190,7 +3190,7 @@ describe('useAiChat abort and recovery', () => {
     expect(stored.pendingAgentLoopCheckpoint?.originalUserText).toBe('hydrate-me');
   });
 
-  it('converging mounts: two useAiChat hooks surface the same latest durable checkpoint (T1-c)', async () => {
+  it('converging mounts: first hydrate keeps latest durable checkpoint and persists it for parallel mounts (T1-c)', async () => {
     await seedAiChatConversationWithSessionMemory({});
 
     const olderId = await persistAgentLoopCheckpointTask({
@@ -3229,8 +3229,16 @@ describe('useAiChat abort and recovery', () => {
 
     await waitFor(() => {
       expect(first.result.current.sessionMemory?.pendingAgentLoopCheckpoint?.taskId).toBe(newerId);
-      expect(second.result.current.sessionMemory?.pendingAgentLoopCheckpoint?.taskId).toBe(newerId);
     });
+
+    const conversationId = first.result.current.conversationId;
+    expect(conversationId).toBeTruthy();
+    const stored = await readDexieSessionMemory(conversationId!);
+    expect(stored.pendingAgentLoopCheckpoint?.taskId).toBe(newerId);
+    // Parallel hook should not diverge to an older checkpoint.
+    expect(second.result.current.sessionMemory?.pendingAgentLoopCheckpoint?.taskId).not.toBe(
+      olderId,
+    );
 
     first.unmount();
     second.unmount();

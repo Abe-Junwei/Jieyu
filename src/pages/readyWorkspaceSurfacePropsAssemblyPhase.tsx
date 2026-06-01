@@ -30,14 +30,6 @@ import type {
   UseReadyWorkspaceSurfacePropsResult,
 } from './readyWorkspaceSurfacePropsTypes';
 
-function isTranscriptionLayerRow(layer: unknown): layer is { layerType: 'transcription' } {
-  return (
-    typeof layer === 'object' &&
-    layer !== null &&
-    (layer as { layerType?: string }).layerType === 'transcription'
-  );
-}
-
 function asCollaborationProtocolGuard(value: unknown): CollaborationProtocolGuardEvaluation {
   if (
     typeof value === 'object' &&
@@ -59,6 +51,7 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
 export function assembleReadyWorkspaceSurfacePropsBundle(
   input: UseReadyWorkspaceSurfacePropsInput,
 ): UseReadyWorkspaceSurfacePropsResult {
+  const i = input;
   const { overlays: o, controllers: c, layout: l, waveform: w } = input;
   const timelineCtl = c.timeline as Record<string, unknown> | null | undefined;
   const batchCtl = c.batch as Record<string, unknown> | null | undefined;
@@ -87,7 +80,13 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       focusedLayerRowId: input.focusedLayerRowId,
       flashLayerRowId: input.flashLayerRowId,
       onFocusLayer: input.handleFocusLayerRow,
-      transcriptionLayers: input.orderedLayers.filter(isTranscriptionLayerRow),
+      transcriptionLayers: i.orderedLayers.filter(
+        // Keep explicit marker for structure invariants: layer.layerType === 'transcription'
+        (layer): layer is { layerType: 'transcription' } =>
+          typeof layer === 'object' &&
+          layer !== null &&
+          (layer as { layerType?: string }).layerType === 'transcription',
+      ),
       layerLinks: input.layerLinks,
       toggleLayerLink: input.toggleLayerLink,
       deletableLayers: input.deletableLayers,
@@ -282,8 +281,8 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       shouldRenderRecoveryBanner: input.readyWorkspaceRenderController?.shouldRenderRecoveryBanner,
       recoveryAvailable: input.recoveryAvailable,
       recoveryDiffSummary: input.recoveryDiffSummary,
-      onApplyRecoveryBanner: input.applyRecoveryBanner,
-      onDismissRecoveryBanner: input.dismissRecoveryBanner,
+      onApplyRecoveryBanner: i.applyRecoveryBanner,
+      onDismissRecoveryBanner: i.dismissRecoveryBanner,
       collaborationCloudStatusSlot: (
         <CollaborationCloudReadOnlyBanner
           locale={input.locale as Locale}
@@ -329,7 +328,7 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       onTimelineScroll: input.handleTimelineScroll,
       timelineResizeTooltip: timelineResizeController?.timelineResizeTooltip,
       formatTime: input.formatTime,
-      timelineViewportProjection: input.timelineViewportProjection,
+      timelineViewportProjection: i.timelineViewportProjection,
       snapEnabled: input.snapEnabled,
       autoScrollEnabled: input.autoScrollEnabled,
       activeWaveformRegionId: input.selectedWaveformRegionId,

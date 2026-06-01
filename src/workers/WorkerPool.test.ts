@@ -82,7 +82,7 @@ describe('WorkerPool', () => {
     } as unknown as Worker;
     const factory = vi.fn(() => worker);
 
-    getWorkerPool().register('overlap-id', 'Overlap', factory, worker);
+    getWorkerPool().register('overlap-id', 'Overlap', factory);
     const entry = getWorkerPool().get('overlap-id');
     expect(entry).toBeDefined();
     entry!.lastHeartbeatAt = Date.now() - 60_000;

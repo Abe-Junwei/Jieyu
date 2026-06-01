@@ -54,7 +54,11 @@ export const MAX_CONVERSATION_LIST_ROWS = 200;
 
 export async function fetchAllConversationRows(): Promise<AiConversationDoc[]> {
   const db = await getDb();
-  return db.dexie.ai_conversations
+  const aiConversationsTable = db.dexie?.ai_conversations;
+  if (!aiConversationsTable) {
+    return [];
+  }
+  return aiConversationsTable
     .orderBy('updatedAt')
     .reverse()
     .limit(MAX_CONVERSATION_LIST_ROWS)
