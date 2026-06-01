@@ -6,6 +6,7 @@ import {
   PRE_MIGRATION_BACKUP_STORE_NAME,
   createPreMigrationBackupSnapshot,
   getLatestPreMigrationBackup,
+  getPreMigrationBackupForMigration,
   restorePreMigrationBackup,
 } from './preMigrationBackup';
 
@@ -148,6 +149,55 @@ describe('createPreMigrationBackupSnapshot', () => {
 
     expect(first).toBe('created');
     expect(second).toBe('skipped');
+  });
+
+  it('getPreMigrationBackupForMigration returns only backups matching the migration window', async () => {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: storage,
+      configurable: true,
+      writable: true,
+    });
+
+    const sourceDbName = `jieyu_pre_migration_window_${Date.now()}`;
+    createdDbNames.push(sourceDbName, PRE_MIGRATION_BACKUP_DB_NAME);
+
+    const openSource = async (version: number) => {
+      const db = await openDb(sourceDbName, version, (idb) => {
+        if (!idb.objectStoreNames.contains('layers')) {
+          idb.createObjectStore('layers', { keyPath: 'id' });
+        }
+      });
+      db.close();
+    };
+
+    await openSource(2);
+    const older = await createPreMigrationBackupSnapshot({
+      dbName: sourceDbName,
+      fromVersion: 2,
+      toVersion: 3,
+    });
+    expect(older).toBe('created');
+
+    storage.clear();
+
+    await openSource(3);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const newer = await createPreMigrationBackupSnapshot({
+      dbName: sourceDbName,
+      fromVersion: 3,
+      toVersion: 4,
+    });
+    expect(newer).toBe('created');
+
+    expect(await getPreMigrationBackupForMigration(sourceDbName, 3, 4)).toMatchObject({
+      fromVersion: 3,
+      toVersion: 4,
+    });
+    expect(await getPreMigrationBackupForMigration(sourceDbName, 2, 3)).toMatchObject({
+      fromVersion: 2,
+      toVersion: 3,
+    });
+    expect(await getPreMigrationBackupForMigration(sourceDbName, 9, 10)).toBeNull();
   });
 
   it('restores source database collections from backup snapshot', async () => {

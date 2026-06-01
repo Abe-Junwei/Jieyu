@@ -125,7 +125,7 @@ import {
 } from './adapterDexieQueryErrors';
 import {
   createPreMigrationBackupSnapshot,
-  getLatestPreMigrationBackup,
+  getPreMigrationBackupForMigration,
   restorePreMigrationBackup,
 } from './preMigrationBackup';
 import { createLogger } from '../observability/logger';
@@ -1600,15 +1600,19 @@ async function _createDb(): Promise<JieyuDatabase> {
     await dexie.open();
   } catch (err) {
     if (migrationNeeded) {
-      const latestBackup = await getLatestPreMigrationBackup(JIEYU_DEXIE_DB_NAME);
-      if (latestBackup) {
+      const migrationBackup = await getPreMigrationBackupForMigration(
+        JIEYU_DEXIE_DB_NAME,
+        currentVersion,
+        JIEYU_DEXIE_TARGET_SCHEMA_VERSION,
+      );
+      if (migrationBackup) {
         try {
-          const restored = await restorePreMigrationBackup(latestBackup.id);
+          const restored = await restorePreMigrationBackup(migrationBackup.id);
           if (restored === 'restored') {
             dbEngineLog.warn('migration failed; restored pre-migration backup and retrying open', {
-              snapshotId: latestBackup.id,
-              fromVersion: latestBackup.fromVersion,
-              toVersion: latestBackup.toVersion,
+              snapshotId: migrationBackup.id,
+              fromVersion: migrationBackup.fromVersion,
+              toVersion: migrationBackup.toVersion,
             });
             await dexie.open();
             recoveredAfterMigrationFailure = true;
@@ -1616,7 +1620,7 @@ async function _createDb(): Promise<JieyuDatabase> {
         } catch (restoreErr) {
           dbEngineLog.error('pre-migration restore retry failed', {
             err: restoreErr instanceof Error ? restoreErr.message : String(restoreErr),
-            snapshotId: latestBackup.id,
+            snapshotId: migrationBackup.id,
           });
         }
       }

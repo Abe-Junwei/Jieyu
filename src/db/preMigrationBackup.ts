@@ -231,6 +231,16 @@ export async function getLatestPreMigrationBackup(
   return rows[0] ?? null;
 }
 
+/** Newest backup for a specific migration window (avoids restoring stale older snapshots). */
+export async function getPreMigrationBackupForMigration(
+  dbName: string,
+  fromVersion: number,
+  toVersion: number,
+): Promise<PreMigrationBackupSnapshot | null> {
+  const rows = await listPreMigrationBackups(dbName);
+  return rows.find((row) => row.fromVersion === fromVersion && row.toVersion === toVersion) ?? null;
+}
+
 export async function getPreMigrationBackupById(
   snapshotId: string,
 ): Promise<PreMigrationBackupSnapshot | null> {
