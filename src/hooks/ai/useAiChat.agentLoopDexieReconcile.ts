@@ -14,12 +14,14 @@ export function useAgentLoopSessionMemoryDexieReconcile(
   const conversationIdRef = useLatest(conversationId);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!conversationIdRef.current) return;
+    const conversationIdAtStart = conversationIdRef.current;
+    if (!conversationIdAtStart) return;
     let cancelled = false;
     void (async () => {
       try {
         const next = await reconcilePendingAgentLoopCheckpointFromDexie(sessionMemoryRef.current);
         if (cancelled) return;
+        if (conversationIdRef.current !== conversationIdAtStart) return;
         if (next === sessionMemoryRef.current) return;
         sessionMemoryRef.current = next;
         // Avoid clobbering a seeded Dexie row with an empty reconcile snapshot (cold-start race).
@@ -34,6 +36,6 @@ export function useAgentLoopSessionMemoryDexieReconcile(
     return () => {
       cancelled = true;
     };
-    // Run after binding hydration bumps generation, not on raw conversationId churn.
+    // Run after binding hydration bumps generation; cancel when conversation changes mid-flight.
   }, [hydrationGeneration, sessionMemoryRef, conversationIdRef]);
 }

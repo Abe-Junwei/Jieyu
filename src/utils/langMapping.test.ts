@@ -1,10 +1,12 @@
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
+  ensureLanguageTagMappingsLoaded,
   formatLanguageDisplayName,
   formatLanguageCatalogMatch,
   getLanguageDisplayNames,
   isDeferredLanguageCodeDraft,
   pickAutoFillLanguageMatch,
+  resetLanguageTagMappingsCacheForTests,
   resolveLanguageCodeInput,
   resolveLanguageQuery,
   resolveLanguageCodeInputChange,
@@ -24,6 +26,34 @@ beforeAll(() => {
 
 afterEach(() => {
   clearLanguageCatalogRuntimeCache();
+  resetLanguageTagMappingsCacheForTests();
+  hydrateLanguageTagMappingsForTests(languageTagMappingsRaw);
+});
+
+describe('ensureLanguageTagMappingsLoaded', () => {
+  it('rebuilds catalog guidance after async JSON preload', async () => {
+    resetLanguageTagMappingsCacheForTests();
+    clearLanguageCatalogRuntimeCache();
+
+    const before = resolveLanguageCodeInput('ajp', 'zh-CN');
+    expect(before.warnings.some((warning) => warning.includes('建议改用 apc'))).toBe(false);
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => languageTagMappingsRaw,
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await ensureLanguageTagMappingsLoaded();
+
+    const after = resolveLanguageCodeInput('ajp', 'zh-CN');
+    expect(after.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining('建议改用 apc')]),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    vi.unstubAllGlobals();
+  });
 });
 
 describe('langMapping input helpers', () => {

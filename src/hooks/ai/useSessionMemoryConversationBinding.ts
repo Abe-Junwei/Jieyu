@@ -1,4 +1,4 @@
-import { useEffect, useState, type MutableRefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject } from 'react';
 import { createLogger } from '../../observability/logger';
 import { bindSessionMemoryConversation, loadSessionMemoryAsync } from '../../ai/chat/sessionMemory';
 import type { AiSessionMemory } from './useAiChat.types';
@@ -14,12 +14,24 @@ export function useSessionMemoryConversationBinding(
   sessionMemoryRef: MutableRefObject<AiSessionMemory>,
 ): number {
   const [hydrationGeneration, setHydrationGeneration] = useState(0);
+  const previousConversationIdRef = useRef<string | null>(null);
+
+  // Clear stale memory on conversation switch (not initial mount) before passive effects run.
+  useLayoutEffect(() => {
+    bindSessionMemoryConversation(conversationId);
+    const previousConversationId = previousConversationIdRef.current;
+    previousConversationIdRef.current = conversationId;
+    if (conversationId === null) {
+      sessionMemoryRef.current = {};
+      return;
+    }
+    if (previousConversationId !== null && previousConversationId !== conversationId) {
+      sessionMemoryRef.current = {};
+    }
+  }, [conversationId, sessionMemoryRef]);
 
   useEffect(() => {
-    bindSessionMemoryConversation(conversationId);
-
     if (!conversationId) {
-      sessionMemoryRef.current = {};
       setHydrationGeneration((generation) => generation + 1);
       return;
     }

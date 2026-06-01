@@ -112,6 +112,7 @@ export function useAiChatConversationManager(
       conversationIdRef.current = nextConversationId;
       setConversationId(nextConversationId);
       bindSessionMemoryConversation(nextConversationId);
+      sessionMemoryRef.current = {};
       const [uiMessages, sessionMemory] = await Promise.all([
         loadConversationUiMessages(nextConversationId),
         loadSessionMemoryAsync(nextConversationId),

@@ -43,6 +43,7 @@ export async function ensureLanguageTagMappingsLoaded(): Promise<void> {
     .then((r) => r.json())
     .then((data: LanguageTagMappings) => {
       languageTagMappingsCache = data;
+      invalidateLangMappingIso639Caches();
     })
     .catch(() => {
       // graceful degradation: keep empty default so catalog functions don't throw
@@ -56,6 +57,14 @@ export async function ensureLanguageTagMappingsLoaded(): Promise<void> {
 /** Test-only: inject mappings without going through fetch. */
 export function hydrateLanguageTagMappingsForTests(data: LanguageTagMappings): void {
   languageTagMappingsCache = data;
+  invalidateLangMappingIso639Caches();
+}
+
+/** Test-only: reset async mapping cache between cases. */
+export function resetLanguageTagMappingsCacheForTests(): void {
+  languageTagMappingsCache = undefined;
+  languageTagMappingsLoadPromise = null;
+  invalidateLangMappingIso639Caches();
 }
 
 import { listIso639_3Seeds, registerIso6393DerivedInvalidator } from '../data/iso6393Seed';
@@ -545,6 +554,8 @@ function invalidateLangMappingIso639Caches(): void {
   iso6393SeedIndexes = undefined;
   iso639IsoMaps = undefined;
   _languageCatalogByCode = undefined;
+  _visibleMergedLanguageCatalogCache = undefined;
+  _allMergedLanguageCatalogCache = undefined;
 }
 
 registerIso6393DerivedInvalidator(invalidateLangMappingIso639Caches);
