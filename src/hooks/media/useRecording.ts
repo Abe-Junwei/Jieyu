@@ -57,6 +57,8 @@ export function useRecording({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  /** Set on unmount while still recording so `onstop` releases hardware without saving. */
+  const discardPendingCaptureRef = useRef(false);
 
   const startRecordingForUnit = useCallback(
     async (unit: LayerUnitDocType, layer: LayerDocType) => {
@@ -68,6 +70,7 @@ export function useRecording({
       }
 
       try {
+        discardPendingCaptureRef.current = false;
         setRecordingError('');
         setSaveState({ kind: 'idle' });
         manualSelectTsRef.current = Date.now();
@@ -93,9 +96,11 @@ export function useRecording({
 
         recorder.onstop = async () => {
           try {
-            setSaveState({ kind: 'saving' });
-            const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-            await saveVoiceTranslation(blob, unit, layer);
+            if (!discardPendingCaptureRef.current) {
+              setSaveState({ kind: 'saving' });
+              const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+              await saveVoiceTranslation(blob, unit, layer);
+            }
           } catch (error) {
             setSaveState({
               kind: 'error',
@@ -139,20 +144,18 @@ export function useRecording({
   useEffect(() => {
     return () => {
       const recorder = recorderRef.current;
-      if (recorder) {
-        recorder.onstop = null;
-        if (recorder.state === 'recording') {
-          try {
-            recorder.stop();
-          } catch {
-            /* already stopped */
-          }
+      if (recorder?.state === 'recording') {
+        discardPendingCaptureRef.current = true;
+        try {
+          recorder.stop();
+        } catch {
+          /* already stopped */
         }
-        recorderRef.current = null;
+        chunksRef.current = [];
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
       }
-      chunksRef.current = [];
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
+      recorderRef.current = null;
     };
   }, []);
 

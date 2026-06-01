@@ -55,6 +55,9 @@ describe('useRecording unmount cleanup', () => {
       onstop: (() => void) | null = null;
       stop = vi.fn(() => {
         this.state = 'inactive';
+        queueMicrotask(() => {
+          this.onstop?.();
+        });
       });
 
       constructor(_stream: MediaStream) {
@@ -99,8 +102,69 @@ describe('useRecording unmount cleanup', () => {
 
     expect(lastRecorder).not.toBeNull();
     expect(lastRecorder!.stop).toHaveBeenCalled();
-    expect(lastRecorder!.onstop).toBeNull();
     expect(saveVoiceTranslation).not.toHaveBeenCalled();
     expect(trackStop).toHaveBeenCalled();
+  });
+
+  it('persists voice translation when stopped then unmounted before onstop runs', async () => {
+    const saveVoiceTranslation = vi.fn().mockResolvedValue(undefined);
+    const setSaveState = vi.fn();
+    const selectUnit = vi.fn();
+    const manualSelectTsRef = { current: 0 };
+
+    class MockMediaRecorder {
+      static isTypeSupported = () => false;
+
+      state = 'inactive';
+      mimeType = 'audio/webm';
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      stop = vi.fn(() => {
+        this.state = 'inactive';
+        queueMicrotask(() => {
+          this.onstop?.();
+        });
+      });
+
+      constructor(_stream: MediaStream) {}
+
+      start() {
+        this.state = 'recording';
+      }
+    }
+
+    vi.stubGlobal('MediaRecorder', MockMediaRecorder);
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [{ stop: vi.fn() }],
+        }),
+      },
+    });
+
+    const { result, unmount } = renderHook(() =>
+      useRecording({
+        saveVoiceTranslation,
+        setSaveState,
+        selectUnit,
+        manualSelectTsRef,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startRecordingForUnit(
+        { id: 'u1', layerId: 'l1' } as never,
+        { id: 'l1', modality: 'audio' } as never,
+      );
+    });
+
+    act(() => {
+      result.current.stopRecording();
+      unmount();
+    });
+
+    await waitFor(() => {
+      expect(saveVoiceTranslation).toHaveBeenCalledTimes(1);
+    });
   });
 });
