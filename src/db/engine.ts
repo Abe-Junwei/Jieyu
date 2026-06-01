@@ -127,6 +127,7 @@ import {
   createPreMigrationBackupSnapshot,
   getLatestPreMigrationBackup,
   restorePreMigrationBackup,
+  shouldAutoRestoreAfterMigrationOpenFailure,
 } from './preMigrationBackup';
 import { createLogger } from '../observability/logger';
 
@@ -1599,7 +1600,7 @@ async function _createDb(): Promise<JieyuDatabase> {
   try {
     await dexie.open();
   } catch (err) {
-    if (migrationNeeded) {
+    if (migrationNeeded && shouldAutoRestoreAfterMigrationOpenFailure(err)) {
       const latestBackup = await getLatestPreMigrationBackup(JIEYU_DEXIE_DB_NAME);
       if (latestBackup) {
         try {
