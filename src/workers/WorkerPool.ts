@@ -226,9 +226,10 @@ class WorkerPoolImpl {
         } catch {
           // Worker 可能已关闭 | Worker may already be closed
         }
-        // 检查超时 | Check timeout
+        // 检查超时 | Check timeout (skip while owner marked worker busy on long jobs)
         if (
           entry.state !== 'crashed' &&
+          entry.state !== 'busy' &&
           Date.now() - entry.lastHeartbeatAt > HEARTBEAT_TIMEOUT_MS
         ) {
           entry.state = 'crashed';
