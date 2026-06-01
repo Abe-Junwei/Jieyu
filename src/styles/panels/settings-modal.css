@@ -49,7 +49,9 @@
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: border-color var(--duration-instant), box-shadow var(--duration-instant);
+  transition:
+    border-color var(--duration-instant),
+    box-shadow var(--duration-instant);
 }
 
 .theme-card:hover {
@@ -86,92 +88,92 @@
 
 .theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-default {
   --theme-preview-accent: #333333;
-  --theme-preview-bg: #F5F5F5;
+  --theme-preview-bg: #f5f5f5;
 }
 
 .theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-default {
-  --theme-preview-accent: #EDEDED;
+  --theme-preview-accent: #ededed;
   --theme-preview-bg: #111111;
 }
 
 .theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-mogao {
-  --theme-preview-accent: #4B644B;
-  --theme-preview-bg: #D9B48F;
+  --theme-preview-accent: #4b644b;
+  --theme-preview-bg: #d9b48f;
 }
 
 .theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-mogao {
-  --theme-preview-accent: #E8C7A6;
-  --theme-preview-bg: #2A1E1A;
+  --theme-preview-accent: #e8c7a6;
+  --theme-preview-bg: #2a1e1a;
 }
 
 .theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-qinglv {
-  --theme-preview-accent: #224C44;
-  --theme-preview-bg: #E8EFEE;
+  --theme-preview-accent: #224c44;
+  --theme-preview-bg: #e8efee;
 }
 
 .theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-qinglv {
-  --theme-preview-accent: #D9E9E5;
-  --theme-preview-bg: #0F2320;
+  --theme-preview-accent: #d9e9e5;
+  --theme-preview-bg: #0f2320;
 }
 
 .theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-digital {
-  --theme-preview-accent: #1A237E;
-  --theme-preview-bg: #EEF3F6;
+  --theme-preview-accent: #1a237e;
+  --theme-preview-bg: #eef3f6;
 }
 
 .theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-digital {
-  --theme-preview-accent: #E2E7FF;
-  --theme-preview-bg: #0E1628;
+  --theme-preview-accent: #e2e7ff;
+  --theme-preview-bg: #0e1628;
 }
 
 .theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-mural {
   --theme-preview-accent: #283593;
-  --theme-preview-bg: #F4F0EA;
+  --theme-preview-bg: #f4f0ea;
 }
 
 .theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-mural {
-  --theme-preview-accent: #E3E8FF;
-  --theme-preview-bg: #1B1F3D;
+  --theme-preview-accent: #e3e8ff;
+  --theme-preview-bg: #1b1f3d;
 }
 
 .theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-mogao-narrative {
-  --theme-preview-accent: #1C2B4B;
-  --theme-preview-bg: #FBF8F2;
+  --theme-preview-accent: #1c2b4b;
+  --theme-preview-bg: #fbf8f2;
 }
 
 .theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-mogao-narrative {
-  --theme-preview-accent: #E6E9ED;
-  --theme-preview-bg: #0B1D33;
+  --theme-preview-accent: #e6e9ed;
+  --theme-preview-bg: #0b1d33;
 }
 
 .theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-palace-vermilion {
   --theme-preview-accent: #923131;
-  --theme-preview-bg: #EDE6DA;
+  --theme-preview-bg: #ede6da;
 }
 
 .theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-palace-vermilion {
-  --theme-preview-accent: #EDE6DA;
-  --theme-preview-bg: #2C2C2C;
+  --theme-preview-accent: #ede6da;
+  --theme-preview-bg: #2c2c2c;
 }
 
 .theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-jiangnan-mist {
   --theme-preview-accent: #425066;
-  --theme-preview-bg: #E8EEF3;
+  --theme-preview-bg: #e8eef3;
 }
 
 .theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-jiangnan-mist {
-  --theme-preview-accent: #E8EEF3;
-  --theme-preview-bg: #1E2833;
+  --theme-preview-accent: #e8eef3;
+  --theme-preview-bg: #1e2833;
 }
 
 .theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-google-light-modern {
-  --theme-preview-accent: #1A73E8;
-  --theme-preview-bg: #F8F9FA;
+  --theme-preview-accent: #1a73e8;
+  --theme-preview-bg: #f8f9fa;
 }
 
 .theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-google-light-modern {
-  --theme-preview-accent: #60A5FA;
-  --theme-preview-bg: #0F172A;
+  --theme-preview-accent: #60a5fa;
+  --theme-preview-bg: #0f172a;
 }
 
 .theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-solarized-dark {
@@ -185,12 +187,12 @@
 }
 
 .theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-antigravity {
-  --theme-preview-accent: #1A1A1A;
-  --theme-preview-bg: #FFFFFF;
+  --theme-preview-accent: #1a1a1a;
+  --theme-preview-bg: #ffffff;
 }
 
 .theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-antigravity {
-  --theme-preview-accent: #EDEDED;
+  --theme-preview-accent: #ededed;
   --theme-preview-bg: #111111;
 }
 
@@ -237,7 +239,10 @@
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
-  transition: border-color var(--duration-instant), box-shadow var(--duration-instant), background var(--duration-instant);
+  transition:
+    border-color var(--duration-instant),
+    box-shadow var(--duration-instant),
+    background var(--duration-instant);
 }
 
 .theme-accent-chip:hover {
@@ -262,7 +267,15 @@
 
 .theme-accent-chip-swatch-default {
   background:
-    linear-gradient(140deg, color-mix(in srgb, var(--text-secondary) 68%, transparent) 0%, color-mix(in srgb, var(--text-secondary) 68%, transparent) 47%, transparent 47%, transparent 53%, color-mix(in srgb, var(--text-secondary) 68%, transparent) 53%, color-mix(in srgb, var(--text-secondary) 68%, transparent) 100%),
+    linear-gradient(
+      140deg,
+      color-mix(in srgb, var(--text-secondary) 68%, transparent) 0%,
+      color-mix(in srgb, var(--text-secondary) 68%, transparent) 47%,
+      transparent 47%,
+      transparent 53%,
+      color-mix(in srgb, var(--text-secondary) 68%, transparent) 53%,
+      color-mix(in srgb, var(--text-secondary) 68%, transparent) 100%
+    ),
     color-mix(in srgb, var(--surface-panel) 88%, var(--border-soft) 12%);
 }
 
@@ -336,9 +349,13 @@
 }
 
 .settings-tab-bar .panel-edge-nav-row-active .panel-edge-nav-btn,
-.settings-tab-bar .panel-edge-nav-btn[aria-selected="true"] {
+.settings-tab-bar .panel-edge-nav-btn[aria-selected='true'] {
   color: var(--header-accent);
-  background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-2, 16%), var(--surface-panel));
+  background: color-mix(
+    in srgb,
+    var(--header-accent) var(--theme-opacity-2, 16%),
+    var(--surface-panel)
+  );
 }
 
 .settings-tab-bar .panel-edge-nav-btn:hover {
@@ -475,7 +492,9 @@
   color: var(--text-secondary);
   background: var(--surface-panel);
   border-right: 1px solid var(--border-soft);
-  transition: background var(--shell-motion-fast, 140ms), color var(--shell-motion-fast, 140ms);
+  transition:
+    background var(--shell-motion-fast, 140ms),
+    color var(--shell-motion-fast, 140ms);
 }
 
 .settings-option-btn:last-child {
@@ -487,7 +506,7 @@
   color: var(--text-primary);
 }
 
-.settings-option-btn[aria-pressed="true"] {
+.settings-option-btn[aria-pressed='true'] {
   background: var(--header-accent);
   color: var(--text-on-solid);
 }
@@ -633,7 +652,9 @@
   border: 1px solid transparent;
   border-radius: 4px;
   padding: 2px 6px;
-  transition: border-color var(--shell-motion-fast, 140ms), background var(--shell-motion-fast, 140ms);
+  transition:
+    border-color var(--shell-motion-fast, 140ms),
+    background var(--shell-motion-fast, 140ms);
 }
 
 .shortcuts-kbd-editable:hover {
@@ -684,8 +705,13 @@
 }
 
 @keyframes settings-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* ── AI 设置 | AI settings ── */
@@ -747,8 +773,14 @@
 }
 
 @keyframes settings-flash-in {
-  from { opacity: 0; transform: translateY(-2px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── 数据管理 | Data management ── */
@@ -790,6 +822,31 @@
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid color-mix(in srgb, var(--border-soft) 50%, transparent);
+}
+
+.settings-primary-btn {
+  all: unset;
+  cursor: pointer;
+  padding: 6px 14px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  font-weight: 600;
+  color: var(--text-on-dark);
+  background: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 6px;
+  transition:
+    background var(--shell-motion-fast, 140ms),
+    border-color var(--shell-motion-fast, 140ms);
+}
+
+.settings-primary-btn:hover {
+  background: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
+}
+
+.settings-primary-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .settings-danger-btn {
@@ -898,7 +955,7 @@
   }
 
   .settings-tab-bar .panel-edge-nav-row-active .panel-edge-nav-btn,
-  .settings-tab-bar .panel-edge-nav-btn[aria-selected="true"] {
+  .settings-tab-bar .panel-edge-nav-btn[aria-selected='true'] {
     border-left-color: transparent;
     border-bottom-color: var(--header-accent);
   }

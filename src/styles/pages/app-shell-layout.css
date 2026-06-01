@@ -7,6 +7,26 @@
   overflow: hidden;
 }
 
+.app-offline-status {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--state-warning-border);
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.app-offline-status-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
 .app-shell-body {
   position: relative;
   flex: 1;
@@ -143,7 +163,9 @@
   flex-direction: column;
   overflow-x: visible;
   overflow-y: hidden;
-  transition: width var(--shell-motion-base) ease, border-color var(--shell-motion-fast) ease;
+  transition:
+    width var(--shell-motion-base) ease,
+    border-color var(--shell-motion-fast) ease;
 }
 
 .app-side-pane-transcription {
@@ -185,7 +207,12 @@
   cursor: pointer;
   z-index: calc(var(--z-popover) + 1);
   opacity: 0.92;
-  transition: transform var(--shell-motion-base) ease, background-color var(--shell-motion-fast) ease, border-color var(--shell-motion-fast) ease, color var(--shell-motion-fast) ease, opacity var(--shell-motion-fast) ease;
+  transition:
+    transform var(--shell-motion-base) ease,
+    background-color var(--shell-motion-fast) ease,
+    border-color var(--shell-motion-fast) ease,
+    color var(--shell-motion-fast) ease,
+    opacity var(--shell-motion-fast) ease;
 }
 
 .app-side-pane-handle-cluster {
@@ -209,7 +236,9 @@
   right: 0;
   width: 12px;
   cursor: pointer;
-  transition: width var(--shell-motion-fast) ease, right var(--shell-motion-fast) ease;
+  transition:
+    width var(--shell-motion-fast) ease,
+    right var(--shell-motion-fast) ease;
 }
 
 .app-side-pane-resizer {
@@ -254,7 +283,9 @@
   width: 1px;
   transform: translateX(-50%);
   background: color-mix(in srgb, var(--text-tertiary) 32%, transparent);
-  transition: background-color var(--shell-motion-fast) ease, box-shadow var(--shell-motion-fast) ease;
+  transition:
+    background-color var(--shell-motion-fast) ease,
+    box-shadow var(--shell-motion-fast) ease;
 }
 
 .app-side-pane-resizer:hover::before {
@@ -425,7 +456,9 @@
   background: transparent;
   padding: 9px 10px;
   cursor: pointer;
-  transition: background-color var(--shell-motion-fast) ease, border-color var(--shell-motion-fast) ease;
+  transition:
+    background-color var(--shell-motion-fast) ease,
+    border-color var(--shell-motion-fast) ease;
 }
 
 .app-side-pane-group-toggle:hover {
@@ -449,7 +482,10 @@
   padding: 8px 10px;
   background: transparent;
   color: var(--text-secondary);
-  transition: border-color var(--shell-motion-fast) ease, background-color var(--shell-motion-fast) ease, color var(--shell-motion-fast) ease;
+  transition:
+    border-color var(--shell-motion-fast) ease,
+    background-color var(--shell-motion-fast) ease,
+    color var(--shell-motion-fast) ease;
 }
 
 .side-pane-nav-link:hover {
@@ -489,14 +525,15 @@
 }
 
 .app-side-pane-feature-nav .side-pane-nav-link:hover,
-.app-side-pane-feature-nav .side-pane-nav-link[aria-current="page"] {
+.app-side-pane-feature-nav .side-pane-nav-link[aria-current='page'] {
   color: var(--text-primary);
   border-color: transparent;
   background: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2, 16%), transparent);
 }
 
 .app-side-pane-feature-nav .side-pane-nav-link:focus-visible {
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4, 56%), transparent);
+  box-shadow: inset 0 0 0 1.5px
+    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4, 56%), transparent);
 }
 
 .left-rail-btn {
@@ -519,7 +556,10 @@
   font-weight: 600;
   text-align: center;
   padding: 6px 4px;
-  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 /* 左侧栏按钮文案隐藏，仅保留图标 | Hide left-rail button labels and keep icon-only rail */
@@ -586,7 +626,9 @@
   --jieyu-material-wght: 320;
   padding: 4px;
   border-radius: 8px;
-  transition: background-color 0.18s ease, color 0.18s ease;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
 }
 
 /* 未选中项悬停反馈 | Hover feedback for inactive nav items */
@@ -641,7 +683,6 @@
   .app-left-rail-primary .left-rail-btn {
     min-height: 52px;
   }
-
 }
 
 @media (max-width: 640px) {
@@ -667,7 +708,6 @@
   .app-left-rail-primary .left-rail-btn-active {
     border-color: color-mix(in srgb, var(--state-info-solid) 32%, var(--divider-base));
   }
-
 }
 /* ── 首屏过渡抑制：避免初始挂载时的布局过渡产生 CLS | Suppress layout transitions on initial mount to prevent CLS ── */
 :root:not([data-motion-ready]) .app-side-pane,
