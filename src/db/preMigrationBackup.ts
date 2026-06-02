@@ -313,6 +313,7 @@ export async function restorePreMigrationBackup(
   if (!snapshot) return 'not_found';
 
   const stagingDbName = `${snapshot.dbName}__jieyu_restore_staging`;
+  let productionRestored = false;
   try {
     try {
       await deleteIndexedDb(stagingDbName);
@@ -322,13 +323,22 @@ export async function restorePreMigrationBackup(
 
     await populateDatabaseFromSnapshot(stagingDbName, snapshot);
 
-    await deleteIndexedDb(snapshot.dbName);
-    await populateDatabaseFromSnapshot(snapshot.dbName, snapshot);
-  } finally {
     try {
-      await deleteIndexedDb(stagingDbName);
+      await deleteIndexedDb(snapshot.dbName);
+      await populateDatabaseFromSnapshot(snapshot.dbName, snapshot);
+      productionRestored = true;
     } catch {
-      // ignore staging cleanup failures
+      // Production DB may be empty after delete; retry from the in-memory snapshot before giving up.
+      await populateDatabaseFromSnapshot(snapshot.dbName, snapshot);
+      productionRestored = true;
+    }
+  } finally {
+    if (productionRestored) {
+      try {
+        await deleteIndexedDb(stagingDbName);
+      } catch {
+        // ignore staging cleanup failures
+      }
     }
   }
 

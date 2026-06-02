@@ -166,7 +166,6 @@ export async function saveRecoverySnapshot(
       total,
       maxBytes,
     });
-    await clearRecoverySnapshot(dbName);
     return;
   }
 
