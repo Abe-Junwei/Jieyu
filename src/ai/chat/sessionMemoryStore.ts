@@ -12,6 +12,7 @@ const LEGACY_SESSION_MEMORY_MIGRATED_KEY = 'jieyu.aiChat.sessionMemory.migrated.
 const MAX_MEMORY_CACHE_ENTRIES = 32;
 
 const memoryCache = new Map<string, AiSessionMemory>();
+const cacheRevisionByConversation = new Map<string, number>();
 const pendingPersistByConversation = new Map<string, AiSessionMemory>();
 let activeConversationId: string | null = null;
 let hydratedConversationId: string | null = null;
@@ -25,6 +26,10 @@ function touchMemoryCache(conversationId: string, payload: AiSessionMemory): voi
     memoryCache.delete(conversationId);
   }
   memoryCache.set(conversationId, payload);
+  cacheRevisionByConversation.set(
+    conversationId,
+    (cacheRevisionByConversation.get(conversationId) ?? 0) + 1,
+  );
   while (memoryCache.size > MAX_MEMORY_CACHE_ENTRIES) {
     const oldestKey = memoryCache.keys().next().value;
     if (oldestKey === undefined) break;
@@ -132,6 +137,8 @@ async function migrateLegacySessionMemoryToDexie(
 }
 
 function markConversationHydrated(conversationId: string): void {
+  // Ignore stale in-flight loads after the user switched to another conversation.
+  if (conversationId !== activeConversationId) return;
   hydratedConversationId = conversationId;
   const pending = pendingPersistByConversation.get(conversationId);
   if (pending === undefined) return;
@@ -141,6 +148,22 @@ function markConversationHydrated(conversationId: string): void {
     conversationId,
     normalizeSessionMemory({ ...baseline, ...pending }),
   );
+}
+
+function resolveLoadedMemoryPayload(
+  conversationId: string,
+  dexiePayload: AiSessionMemory,
+  loadStartedRevision: number,
+): AiSessionMemory {
+  const currentRevision = cacheRevisionByConversation.get(conversationId) ?? 0;
+  if (currentRevision > loadStartedRevision) {
+    const inMemoryUpdated = memoryCache.get(conversationId);
+    if (inMemoryUpdated !== undefined) {
+      return inMemoryUpdated;
+    }
+  }
+  touchMemoryCache(conversationId, dexiePayload);
+  return dexiePayload;
 }
 
 /** Binds sync load/persist to a conversation; call when `conversationId` changes (G1a). */
@@ -164,6 +187,7 @@ export function getBoundSessionMemoryConversationId(): string | null {
 /** Test-only: reset in-memory session memory store between cases. */
 export function resetSessionMemoryStoreForTests(): void {
   memoryCache.clear();
+  cacheRevisionByConversation.clear();
   pendingPersistByConversation.clear();
   activeConversationId = null;
   hydratedConversationId = null;
@@ -174,6 +198,7 @@ export function resetSessionMemoryStoreForTests(): void {
 
 export async function loadSessionMemoryAsync(conversationId: string): Promise<AiSessionMemory> {
   if (typeof window === 'undefined') return {};
+  const loadStartedRevision = cacheRevisionByConversation.get(conversationId) ?? 0;
   if (hydratedConversationId === conversationId) {
     const cached = memoryCache.get(conversationId);
     if (cached !== undefined) {
@@ -188,8 +213,11 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
       .findOne({ selector: { conversationId } })
       .exec();
     if (row) {
-      const payload = normalizeSessionMemory(row.toJSON().payload ?? {});
-      touchMemoryCache(conversationId, payload);
+      const payload = resolveLoadedMemoryPayload(
+        conversationId,
+        normalizeSessionMemory(row.toJSON().payload ?? {}),
+        loadStartedRevision,
+      );
       markConversationHydrated(conversationId);
       return payload;
     }
@@ -202,8 +230,10 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
 
   // If a persist completed while Dexie read was in flight, honor the freshest in-memory payload.
   const inMemoryUpdated = memoryCache.get(conversationId);
-  if (inMemoryUpdated !== undefined) {
-    touchMemoryCache(conversationId, inMemoryUpdated);
+  if (
+    inMemoryUpdated !== undefined &&
+    (cacheRevisionByConversation.get(conversationId) ?? 0) > loadStartedRevision
+  ) {
     markConversationHydrated(conversationId);
     return inMemoryUpdated;
   }
@@ -221,9 +251,11 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
       .findOne({ selector: { conversationId } })
       .exec();
     if (retryRow) {
-      const payload = normalizeSessionMemory(retryRow.toJSON().payload ?? {});
-      touchMemoryCache(conversationId, payload);
-      return payload;
+      return resolveLoadedMemoryPayload(
+        conversationId,
+        normalizeSessionMemory(retryRow.toJSON().payload ?? {}),
+        loadStartedRevision,
+      );
     }
   } catch (error) {
     log.warn('Failed to re-read AI session memory from Dexie after legacy migration', {
