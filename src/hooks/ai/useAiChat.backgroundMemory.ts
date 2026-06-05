@@ -52,6 +52,8 @@ export interface CreateAiChatBackgroundMemoryRuntimeParams {
   /** Persist to the extraction task's conversation, not the UI-bound active conversation. */
   persistSessionMemory: (conversationId: string, next: AiSessionMemory) => void;
   loadSessionMemoryForConversation: (conversationId: string) => Promise<AiSessionMemory>;
+  /** When extraction targets the UI-bound conversation, prefer live ref over async Dexie load. */
+  getBoundConversationId?: () => string | null;
   /** PR-11: project-level AI memory persistence; when present, background facts are also written to localStorage. */
   getProjectId?: () => string | null | undefined;
 }
@@ -174,7 +176,11 @@ export function createAiChatBackgroundMemoryRuntime(
         source: 'background_extracted',
         sourceMessageId: input.userMessageId ?? input.assistantMessageId,
       });
-      const baseMemory = await params.loadSessionMemoryForConversation(input.conversationId);
+      const boundConversationId = params.getBoundConversationId?.() ?? null;
+      const baseMemory =
+        boundConversationId === input.conversationId
+          ? params.getSessionMemory()
+          : await params.loadSessionMemoryForConversation(input.conversationId);
       lastDirectiveApplication = applyUserDirectivesToSessionMemory(baseMemory, directives);
       const { nextMemory, writtenCount } = appendBackgroundFactsToSessionMemory(
         lastDirectiveApplication.nextMemory,
