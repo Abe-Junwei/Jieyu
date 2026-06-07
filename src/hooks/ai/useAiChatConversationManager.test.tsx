@@ -119,7 +119,14 @@ describe('useAiChatConversationManager', () => {
       conversationIdRef.current = id;
     });
     const setMessages = vi.fn() as unknown as Dispatch<SetStateAction<UiChatMessage[]>>;
-    const sessionMemoryRef = { current: { lastLanguage: 'cmn' } };
+    const sessionMemoryRef = {
+      current: {
+        lastLanguage: 'cmn',
+        conversationSummary: 'prior summary',
+        summaryTurnCount: 3,
+        responsePreferences: { style: 'concise' as const },
+      },
+    };
 
     const { result } = renderHook(() =>
       useAiChatConversationManager({
@@ -153,6 +160,15 @@ describe('useAiChatConversationManager', () => {
       expect(conv?.toJSON().clearedAt).toBeTruthy();
       const messages = await db.collections.ai_messages.findByIndex('conversationId', 'conv-clear');
       expect(messages).toHaveLength(0);
+      const memory = await db.collections.ai_session_memories
+        .findOne({ selector: { conversationId: 'conv-clear' } })
+        .exec();
+      expect(memory?.toJSON().payload).toMatchObject({
+        lastLanguage: 'cmn',
+        responsePreferences: { style: 'concise' },
+        summaryTurnCount: 0,
+      });
+      expect(memory?.toJSON().payload).not.toHaveProperty('conversationSummary');
     });
 
     await waitFor(() => {

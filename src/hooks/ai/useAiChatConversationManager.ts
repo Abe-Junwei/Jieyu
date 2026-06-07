@@ -215,6 +215,7 @@ export function useAiChatConversationManager(
 
   const clearCurrentConversation = useCallback(() => {
     const activeId = conversationIdRef.current;
+    const memoryBeforeDetach = sessionMemoryRef.current;
     detachActiveConversationUi();
 
     if (!activeId) return;
@@ -232,8 +233,7 @@ export function useAiChatConversationManager(
           });
         }
         await db.collections.ai_messages.removeBySelector({ conversationId: activeId });
-        const clearedMemory = clearSessionMemoryFastPath(sessionMemoryRef.current);
-        sessionMemoryRef.current = clearedMemory;
+        const clearedMemory = clearSessionMemoryFastPath(memoryBeforeDetach);
         await persistSessionMemoryAsync(activeId, clearedMemory);
       } catch (error) {
         log.warn('clearCurrentConversation persistence failed', {

@@ -17,10 +17,14 @@ vi.mock('../utils/appGlobalToast', () => ({
   dispatchAppGlobalToast: dispatchAppGlobalToastMock,
 }));
 
-vi.mock('../db/preMigrationBackup', () => ({
-  getPreMigrationBackupForMigration: getPreMigrationBackupForMigrationMock,
-  restorePreMigrationBackup: restorePreMigrationBackupMock,
-}));
+vi.mock('../db/preMigrationBackup', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../db/preMigrationBackup')>();
+  return {
+    ...actual,
+    getPreMigrationBackupForMigration: getPreMigrationBackupForMigrationMock,
+    restorePreMigrationBackup: restorePreMigrationBackupMock,
+  };
+});
 
 afterEach(() => {
   dispatchAppGlobalToastMock.mockReset();
@@ -41,7 +45,12 @@ describe('useAppDataResilienceEffects', () => {
     });
     act(() => {
       window.dispatchEvent(
-        new CustomEvent('jieyu:db-open-failed', { detail: new Error('open failed') }),
+        new CustomEvent('jieyu:db-open-failed', {
+          detail: {
+            cause: new DOMException('abort', 'AbortError'),
+            recoveryHint: 'corrupted',
+          },
+        }),
       );
       window.dispatchEvent(new CustomEvent('jieyu:db-migration-done'));
     });
@@ -54,6 +63,29 @@ describe('useAppDataResilienceEffects', () => {
 
     expect(getPreMigrationBackupForMigrationMock).toHaveBeenCalledWith('jieyudb_v2', 49, 50);
     expect(restorePreMigrationBackupMock).toHaveBeenCalledWith('backup-1');
+  });
+
+  it('does not offer manual restore when migration open failed due to blocked tab', async () => {
+    const { result } = renderHook(() => useAppDataResilienceEffects('zh-CN'));
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('jieyu:db-migrating', { detail: { from: 49, to: 50 } }));
+    });
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('jieyu:db-open-failed', {
+          detail: {
+            cause: new Error('open blocked for jieyudb_v2'),
+            recoveryHint: 'blocked',
+          },
+        }),
+      );
+      window.dispatchEvent(new CustomEvent('jieyu:db-migration-done'));
+    });
+
+    await waitFor(() => expect(result.current.dbMigration).toEqual({ kind: 'idle' }));
+    expect(result.current.dbOverlayHandlers.onRestoreFromBackup).toBeUndefined();
+    expect(getPreMigrationBackupForMigrationMock).not.toHaveBeenCalled();
   });
 
   it('does not use a successful migration as a later restore target', async () => {
