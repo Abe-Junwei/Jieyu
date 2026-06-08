@@ -215,6 +215,7 @@ export function useAiChatConversationManager(
 
   const clearCurrentConversation = useCallback(() => {
     const activeId = conversationIdRef.current;
+    const memoryBeforeClear = sessionMemoryRef.current;
     detachActiveConversationUi();
 
     if (!activeId) return;
@@ -232,7 +233,7 @@ export function useAiChatConversationManager(
           });
         }
         await db.collections.ai_messages.removeBySelector({ conversationId: activeId });
-        const clearedMemory = clearSessionMemoryFastPath(sessionMemoryRef.current);
+        const clearedMemory = clearSessionMemoryFastPath(memoryBeforeClear);
         sessionMemoryRef.current = clearedMemory;
         await persistSessionMemoryAsync(activeId, clearedMemory);
       } catch (error) {

@@ -153,6 +153,13 @@ describe('useAiChatConversationManager', () => {
       expect(conv?.toJSON().clearedAt).toBeTruthy();
       const messages = await db.collections.ai_messages.findByIndex('conversationId', 'conv-clear');
       expect(messages).toHaveLength(0);
+      const memoryRow = await db.collections.ai_session_memories
+        .findOne({ selector: { conversationId: 'conv-clear' } })
+        .exec();
+      expect(memoryRow?.toJSON().payload).toMatchObject({
+        lastLanguage: 'cmn',
+        summaryTurnCount: 0,
+      });
     });
 
     await waitFor(() => {
