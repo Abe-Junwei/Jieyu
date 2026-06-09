@@ -32,6 +32,7 @@ export const architectureGuardPreCssPatternRules = [
       'src/pages/useTranscriptionChatWindowController.ts',
       'src/pages/useTranscriptionChatWindowLayout.ts',
       'src/pages/useSpeakerActionSegmentMutationCluster.ts',
+      'src/pages/useSpeakerActionMixedSelectionMutationCluster.ts',
       'src/pages/useSpeakerActionFilterRoutingHandlers.ts',
       'src/pages/useSpeakerActionSelectionRoutingHandlers.ts',
       'src/pages/useSpeakerActionRoutingHandlers.ts',

@@ -24,6 +24,7 @@ import {
   type SpeakerTranslate,
 } from '../hooks/speakerManagement/speakerI18n';
 import { createMetricTags, recordMetric } from '../observability/metrics';
+import { useSpeakerActionMixedSelectionMutationCluster } from './useSpeakerActionMixedSelectionMutationCluster';
 import { useSpeakerActionSegmentMutationCluster } from './useSpeakerActionSegmentMutationCluster';
 import { useSpeakerActionRoutingHandlers } from './useSpeakerActionRoutingHandlers';
 
@@ -280,33 +281,47 @@ export function useSpeakerActionRoutingController({
     setBatchSpeakerId(allSame ? firstSpeakerId : '');
   }, [selectedBatchSegmentsForSpeakerActions, selectedBatchUnits, setBatchSpeakerId]);
 
-  const {
-    handleAssignSpeakerToSegments,
-    createSpeakerAndAssignToSegments,
-    applySpeakerToMixedSelection,
-    createSpeakerAndAssignToMixedSelection,
-  } = useSpeakerActionSegmentMutationCluster({
-    speakerSavingRouted,
-    selectedBatchSegmentsForSpeakerActions,
-    selectedStandaloneUnitIdsForSpeakerActions,
-    speakerOptions,
-    speakerByIdMap,
-    recordMixedSpeakerSelectionApply,
-    pushUndo,
-    undo,
-    reloadSegments,
-    refreshSegmentUndoSnapshot,
-    refreshSpeakerReferenceStats,
-    refreshSpeakers,
-    updateSegmentsLocally,
-    setBatchSpeakerId,
-    setSpeakerDraftName,
-    setSaveState,
-    setUnits,
-    setSpeakers,
-    t,
-    tf,
-  });
+  const { handleAssignSpeakerToSegments, createSpeakerAndAssignToSegments } =
+    useSpeakerActionSegmentMutationCluster({
+      speakerSavingRouted,
+      speakerOptions,
+      pushUndo,
+      undo,
+      reloadSegments,
+      refreshSegmentUndoSnapshot,
+      refreshSpeakerReferenceStats,
+      refreshSpeakers,
+      updateSegmentsLocally,
+      setBatchSpeakerId,
+      setSpeakerDraftName,
+      setSaveState,
+      t,
+      tf,
+    });
+
+  const { applySpeakerToMixedSelection, createSpeakerAndAssignToMixedSelection } =
+    useSpeakerActionMixedSelectionMutationCluster({
+      speakerSavingRouted,
+      selectedBatchSegmentsForSpeakerActions,
+      selectedStandaloneUnitIdsForSpeakerActions,
+      speakerOptions,
+      speakerByIdMap,
+      recordMixedSpeakerSelectionApply,
+      pushUndo,
+      undo,
+      reloadSegments,
+      refreshSegmentUndoSnapshot,
+      refreshSpeakerReferenceStats,
+      refreshSpeakers,
+      updateSegmentsLocally,
+      setBatchSpeakerId,
+      setSpeakerDraftName,
+      setSaveState,
+      setUnits,
+      setSpeakers,
+      t,
+      tf,
+    });
 
   const handlers = useSpeakerActionRoutingHandlers({
     activeSpeakerManagementLayer,

@@ -93,6 +93,6 @@ describe('speakerActionRoutingHandlers.helpers', () => {
         updatedSegments: 1,
         updatedUnits: 0,
       }),
-    ).toThrow('未找到可更新的语段');
+    ).toThrow('No updatable units found for speaker assignment');
   });
 });

@@ -10,6 +10,7 @@ export const architectureGuardPostCssPatternRules = [
       'src/pages/useReadyWorkspaceSurfaceProps.tsx',
       'src/pages/useReadyWorkspaceTrackEditControllers.ts',
       'src/pages/useSpeakerActionSegmentMutationCluster.ts',
+      'src/pages/useSpeakerActionMixedSelectionMutationCluster.ts',
       'src/pages/useSpeakerActionFilterRoutingHandlers.ts',
       'src/pages/useSpeakerActionSelectionRoutingHandlers.ts',
       'src/pages/useSpeakerActionRoutingHandlers.ts',

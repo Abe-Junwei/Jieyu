@@ -2,6 +2,7 @@ import type {
   LayerDocType,
   LayerUnitContentDocType,
   LayerUnitDocType,
+  SpeakerDocType,
 } from '../types/jieyuDbDocTypes';
 import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import type { SpeakerActionDialogState } from '../hooks/speakerManagement/types';
@@ -21,6 +22,22 @@ import { reportValidationError } from '../utils/validationErrorReporter';
 
 type SegmentUpdater = (segment: LayerUnitDocType) => LayerUnitDocType;
 
+export const SPEAKER_ASSIGNMENT_NO_SEGMENTS_MESSAGE =
+  'No updatable segments found for speaker assignment';
+export const SPEAKER_ASSIGNMENT_NO_UNITS_MESSAGE =
+  'No updatable units found for speaker assignment';
+
+export function findSpeakerOptionByNormalizedName(
+  speakerOptions: ReadonlyArray<SpeakerDocType>,
+  rawName: string,
+): SpeakerDocType | undefined {
+  const normalizedName = rawName.trim().toLocaleLowerCase('zh-Hans-CN');
+  if (!normalizedName) return undefined;
+  return speakerOptions.find(
+    (speaker) => speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName,
+  );
+}
+
 export async function pushSpeakerUndoWithFreshSegmentSnapshot(input: {
   label: string;
   pushUndo: (label: string) => void;
@@ -37,10 +54,10 @@ export function assertSpeakerAssignmentUpdatedCounts(input: {
   updatedUnits: number;
 }): void {
   if (input.targetSegmentCount > 0 && input.updatedSegments === 0) {
-    throw new Error('未找到可更新的句段');
+    throw new Error(SPEAKER_ASSIGNMENT_NO_SEGMENTS_MESSAGE);
   }
   if (input.targetUnitCount > 0 && input.updatedUnits === 0) {
-    throw new Error('未找到可更新的语段');
+    throw new Error(SPEAKER_ASSIGNMENT_NO_UNITS_MESSAGE);
   }
 }
 

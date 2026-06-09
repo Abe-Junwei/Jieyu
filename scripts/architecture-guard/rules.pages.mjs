@@ -132,6 +132,7 @@ export const architectureGuardPageControllerRules = [
       /selectedUnitIdsForSpeakerActions\.filter\(\(id\) => !segmentByIdForSpeakerActions\.has\(id\)\)/,
       /recordMetric\(\{\s*id:\s*'business\.transcription\.speaker_mixed_selection_apply_count'/,
       /useSpeakerActionSegmentMutationCluster\(\{/,
+      /useSpeakerActionMixedSelectionMutationCluster\(\{/,
       /useSpeakerActionRoutingHandlers\(\{/,
     ],
     forbiddenRegexes: [
@@ -145,6 +146,14 @@ export const architectureGuardPageControllerRules = [
     maxUseMemoDecls: 0,
     maxUseEffects: 0,
     requiredRegexes: [/export function useSpeakerActionSegmentMutationCluster\(/],
+    warnAtRatio: 0.85,
+  }),
+  pageControllerRule('useSpeakerActionMixedSelectionMutationCluster', {
+    maxLines: 280,
+    maxUseCallbackDecls: 4,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 0,
+    requiredRegexes: [/export function useSpeakerActionMixedSelectionMutationCluster\(/],
     warnAtRatio: 0.85,
   }),
   pageControllerRule('useSpeakerActionSelectionRoutingHandlers', {

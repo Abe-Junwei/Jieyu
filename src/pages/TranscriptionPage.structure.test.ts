@@ -1319,11 +1319,11 @@ describe('TranscriptionPage structure invariants', () => {
       'src/pages/useSpeakerActionRoutingController.ts',
     );
     const routingHookCode = fs.readFileSync(routingHookPath, 'utf8');
-    const segmentMutationClusterPath = path.resolve(
+    const mixedMutationClusterPath = path.resolve(
       process.cwd(),
-      'src/pages/useSpeakerActionSegmentMutationCluster.ts',
+      'src/pages/useSpeakerActionMixedSelectionMutationCluster.ts',
     );
-    const segmentMutationClusterCode = fs.readFileSync(segmentMutationClusterPath, 'utf8');
+    const mixedMutationClusterCode = fs.readFileSync(mixedMutationClusterPath, 'utf8');
     const selectionRoutingHandlersPath = path.resolve(
       process.cwd(),
       'src/pages/useSpeakerActionSelectionRoutingHandlers.ts',
@@ -1353,9 +1353,9 @@ describe('TranscriptionPage structure invariants', () => {
       true,
     );
     expect(
-      segmentMutationClusterCode.includes('const applySpeakerToMixedSelection = useCallback('),
+      mixedMutationClusterCode.includes('const applySpeakerToMixedSelection = useCallback('),
     ).toBe(true);
-    expect(segmentMutationClusterCode.includes('async (speakerId?: string) => {')).toBe(true);
+    expect(mixedMutationClusterCode.includes('async (speakerId?: string) => {')).toBe(true);
     expect(
       selectionRoutingHandlersCode.includes('selectedBatchSegmentsForSpeakerActions.length > 0 &&'),
     ).toBe(true);
