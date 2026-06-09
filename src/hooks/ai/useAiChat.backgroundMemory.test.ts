@@ -276,6 +276,46 @@ describe('useAiChat.backgroundMemory', () => {
     );
   });
 
+  it('preserves live session memory edits when background extraction targets bound conversation', async () => {
+    let memory: AiSessionMemory = {
+      pinnedMessageIds: ['msg-user'],
+      preferences: { lastLanguage: 'eng' },
+    };
+    const persisted = vi.fn<(conversationId: string, next: AiSessionMemory) => void>();
+    const runtime = createAiChatBackgroundMemoryRuntime({
+      enabled: true,
+      getSessionMemory: () => memory,
+      setSessionMemory: (next) => {
+        memory = next;
+      },
+      persistSessionMemory: (conversationId, next) => {
+        memory = next;
+        persisted(conversationId, next);
+      },
+      getBoundConversationId: () => 'conv-1',
+      loadSessionMemoryForConversation: async () => ({
+        preferences: { lastLanguage: 'cmn' },
+      }),
+    });
+
+    runtime.extractor.schedule({
+      conversationId: 'conv-1',
+      assistantMessageId: 'ast-1',
+      userMessageId: 'usr-1',
+      userText: '请记住：默认用中文解释',
+      assistantText: '好的。',
+      actorId: 'ai-chat',
+    });
+    await flushBackgroundMemoryExtractor(runtime, async () => {});
+
+    expect(memory.pinnedMessageIds).toEqual(['msg-user']);
+    expect(memory.responsePreferences?.language).toBe('zh-CN');
+    expect(persisted).toHaveBeenCalledWith(
+      'conv-1',
+      expect.objectContaining({ pinnedMessageIds: ['msg-user'] }),
+    );
+  });
+
   it('persists background memory to the scheduled conversation id, not the UI-bound conversation', async () => {
     const convA: AiSessionMemory = { preferences: { lastLanguage: 'cmn' } };
     const convB: AiSessionMemory = { preferences: { lastLanguage: 'eng' } };

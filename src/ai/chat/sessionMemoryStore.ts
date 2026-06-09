@@ -14,8 +14,11 @@ const MAX_MEMORY_CACHE_ENTRIES = 32;
 const memoryCache = new Map<string, AiSessionMemory>();
 const cacheRevisionByConversation = new Map<string, number>();
 const pendingPersistByConversation = new Map<string, AiSessionMemory>();
+const persistChainsByConversation = new Map<string, Promise<void>>();
 let activeConversationId: string | null = null;
 let hydratedConversationId: string | null = null;
+/** Incremented on every bind; stale loadSessionMemoryAsync completions must not mutate hydration. */
+let bindGeneration = 0;
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -136,9 +139,12 @@ async function migrateLegacySessionMemoryToDexie(
   }
 }
 
-function markConversationHydrated(conversationId: string): void {
-  // Ignore stale in-flight loads after the user switched to another conversation.
-  if (conversationId !== activeConversationId) return;
+function isLoadStillValid(conversationId: string, capturedBindGeneration: number): boolean {
+  return capturedBindGeneration === bindGeneration && activeConversationId === conversationId;
+}
+
+function markConversationHydrated(conversationId: string, capturedBindGeneration: number): void {
+  if (!isLoadStillValid(conversationId, capturedBindGeneration)) return;
   hydratedConversationId = conversationId;
   const pending = pendingPersistByConversation.get(conversationId);
   if (pending === undefined) return;
@@ -174,6 +180,7 @@ export function bindSessionMemoryConversation(conversationId: string | null): vo
     }
   }
   activeConversationId = conversationId;
+  bindGeneration += 1;
   if (conversationId !== hydratedConversationId) {
     hydratedConversationId = null;
   }
@@ -189,8 +196,10 @@ export function resetSessionMemoryStoreForTests(): void {
   memoryCache.clear();
   cacheRevisionByConversation.clear();
   pendingPersistByConversation.clear();
+  persistChainsByConversation.clear();
   activeConversationId = null;
   hydratedConversationId = null;
+  bindGeneration = 0;
   if (typeof window !== 'undefined') {
     window.localStorage.removeItem(LEGACY_SESSION_MEMORY_MIGRATED_KEY);
   }
@@ -199,6 +208,7 @@ export function resetSessionMemoryStoreForTests(): void {
 export async function loadSessionMemoryAsync(conversationId: string): Promise<AiSessionMemory> {
   if (typeof window === 'undefined') return {};
   const loadStartedRevision = cacheRevisionByConversation.get(conversationId) ?? 0;
+  const capturedBindGeneration = bindGeneration;
   if (hydratedConversationId === conversationId) {
     const cached = memoryCache.get(conversationId);
     if (cached !== undefined) {
@@ -213,12 +223,15 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
       .findOne({ selector: { conversationId } })
       .exec();
     if (row) {
-      const payload = resolveLoadedMemoryPayload(
-        conversationId,
-        normalizeSessionMemory(row.toJSON().payload ?? {}),
-        loadStartedRevision,
-      );
-      markConversationHydrated(conversationId);
+      const dexiePayload = normalizeSessionMemory(row.toJSON().payload ?? {});
+      if (!isLoadStillValid(conversationId, capturedBindGeneration)) {
+        return memoryCache.get(conversationId) ?? dexiePayload;
+      }
+      const payload = resolveLoadedMemoryPayload(conversationId, dexiePayload, loadStartedRevision);
+      if (!isLoadStillValid(conversationId, capturedBindGeneration)) {
+        return memoryCache.get(conversationId) ?? payload;
+      }
+      markConversationHydrated(conversationId, capturedBindGeneration);
       return payload;
     }
   } catch (error) {
@@ -228,34 +241,45 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
     });
   }
 
-  // If a persist completed while Dexie read was in flight, honor the freshest in-memory payload.
   const inMemoryUpdated = memoryCache.get(conversationId);
   if (
     inMemoryUpdated !== undefined &&
     (cacheRevisionByConversation.get(conversationId) ?? 0) > loadStartedRevision
   ) {
-    markConversationHydrated(conversationId);
+    if (!isLoadStillValid(conversationId, capturedBindGeneration)) {
+      return inMemoryUpdated;
+    }
+    touchMemoryCache(conversationId, inMemoryUpdated);
+    markConversationHydrated(conversationId, capturedBindGeneration);
     return inMemoryUpdated;
   }
 
   const migrated = await migrateLegacySessionMemoryToDexie(conversationId);
   if (migrated) {
+    if (!isLoadStillValid(conversationId, capturedBindGeneration)) {
+      return memoryCache.get(conversationId) ?? migrated;
+    }
     touchMemoryCache(conversationId, migrated);
+    markConversationHydrated(conversationId, capturedBindGeneration);
     return migrated;
   }
 
-  // Cross-tab: another tab may have migrated to Dexie and cleared legacy localStorage.
   try {
     const db = await getDb();
     const retryRow = await db.collections.ai_session_memories
       .findOne({ selector: { conversationId } })
       .exec();
     if (retryRow) {
-      return resolveLoadedMemoryPayload(
-        conversationId,
-        normalizeSessionMemory(retryRow.toJSON().payload ?? {}),
-        loadStartedRevision,
-      );
+      const dexiePayload = normalizeSessionMemory(retryRow.toJSON().payload ?? {});
+      if (!isLoadStillValid(conversationId, capturedBindGeneration)) {
+        return memoryCache.get(conversationId) ?? dexiePayload;
+      }
+      const payload = resolveLoadedMemoryPayload(conversationId, dexiePayload, loadStartedRevision);
+      if (!isLoadStillValid(conversationId, capturedBindGeneration)) {
+        return memoryCache.get(conversationId) ?? payload;
+      }
+      markConversationHydrated(conversationId, capturedBindGeneration);
+      return payload;
     }
   } catch (error) {
     log.warn('Failed to re-read AI session memory from Dexie after legacy migration', {
@@ -265,9 +289,25 @@ export async function loadSessionMemoryAsync(conversationId: string): Promise<Ai
   }
 
   const empty: AiSessionMemory = {};
+  if (!isLoadStillValid(conversationId, capturedBindGeneration)) {
+    return memoryCache.get(conversationId) ?? empty;
+  }
   touchMemoryCache(conversationId, empty);
-  markConversationHydrated(conversationId);
+  markConversationHydrated(conversationId, capturedBindGeneration);
   return empty;
+}
+
+async function writeSessionMemoryToDexie(
+  conversationId: string,
+  payload: AiSessionMemory,
+): Promise<void> {
+  const db = await getDb();
+  await db.collections.ai_session_memories.insert({
+    id: conversationId,
+    conversationId,
+    payload,
+    updatedAt: nowIso(),
+  });
 }
 
 export async function persistSessionMemoryAsync(
@@ -277,20 +317,26 @@ export async function persistSessionMemoryAsync(
   if (typeof window === 'undefined') return;
   const payload = normalizeSessionMemory(mem);
   touchMemoryCache(conversationId, payload);
-  try {
-    const db = await getDb();
-    // CollectionAdapter.insert delegates to Dexie table.put (upsert by primary key).
-    await db.collections.ai_session_memories.insert({
-      id: conversationId,
-      conversationId,
-      payload,
-      updatedAt: nowIso(),
+
+  const previous = persistChainsByConversation.get(conversationId) ?? Promise.resolve();
+  const next = previous
+    .catch(() => {
+      // Keep the chain alive after a failed write.
+    })
+    .then(async () => {
+      try {
+        await writeSessionMemoryToDexie(conversationId, payload);
+      } catch (error) {
+        log.warn('Failed to persist AI session memory to Dexie', {
+          conversationId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     });
-  } catch (error) {
-    log.warn('Failed to persist AI session memory to Dexie', {
-      conversationId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+  persistChainsByConversation.set(conversationId, next);
+  await next;
+  if (persistChainsByConversation.get(conversationId) === next) {
+    persistChainsByConversation.delete(conversationId);
   }
 }
 

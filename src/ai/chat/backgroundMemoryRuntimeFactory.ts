@@ -40,6 +40,7 @@ export function createBackgroundMemoryRuntime(
       }
     },
     loadSessionMemoryForConversation: loadSessionMemoryAsync,
+    getBoundConversationId: getBoundSessionMemoryConversationId,
     getProjectId: () => getContextRef.current?.()?.shortTerm?.workspaceTextId ?? null,
   });
 }
