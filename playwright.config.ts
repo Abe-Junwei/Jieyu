@@ -29,9 +29,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build && npm run preview',
+    // CI workflows (e2e-pr, nightly) run `npm run build` before Playwright; avoid a second build inside the 30s webServer budget.
+    command: process.env.CI ? 'npm run preview' : 'npm run build && npm run preview',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
+    timeout: process.env.CI ? 60_000 : 180_000,
   },
 });
