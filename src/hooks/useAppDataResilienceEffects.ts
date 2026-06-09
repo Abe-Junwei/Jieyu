@@ -16,6 +16,7 @@ import {
 } from '../utils/dbIntegrityPreference';
 import { dispatchAppGlobalToast } from '../utils/appGlobalToast';
 import { JIEYU_DEXIE_DB_NAME } from '../db/engine';
+import { shouldAutoRestoreAfterMigrationOpenFailure } from '../db/preMigrationBackup';
 
 const BACKUP_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const E2E_DB_OPEN_FAILED_EVENT = 'jieyu:e2e-db-open-failed';
@@ -26,6 +27,10 @@ export type DbMigrationState = { kind: 'idle' } | { kind: 'migrating'; from: num
 
 type PreMigrationRestoreTarget = { from: number; to: number };
 type E2eDbOpenFailedDetail = { reason?: string; from?: number; to?: number };
+type DbOpenFailedDetail = {
+  cause?: unknown;
+  recoveryHint?: 'corrupted' | 'blocked' | 'unknown';
+};
 
 export type DbIntegrityOverlayHandlers = {
   onReload: () => void;
@@ -73,11 +78,15 @@ export function useAppDataResilienceEffects(locale: Locale): {
       activeMigrationRef.current = null;
       setDbMigration({ kind: 'idle' });
     };
-    const onOpenFailed = () => {
+    const onOpenFailed = (ev: Event) => {
       const activeMigration = activeMigrationRef.current;
-      if (activeMigration) {
-        setPreMigrationRestoreTarget(activeMigration);
-      }
+      if (!activeMigration) return;
+      const detail = (ev as CustomEvent<DbOpenFailedDetail>).detail;
+      if (detail?.recoveryHint === 'blocked') return;
+      const cause =
+        detail && typeof detail === 'object' && 'cause' in detail ? detail.cause : detail;
+      if (!shouldAutoRestoreAfterMigrationOpenFailure(cause)) return;
+      setPreMigrationRestoreTarget(activeMigration);
     };
 
     window.addEventListener('jieyu:db-migrating', onMigrating);
