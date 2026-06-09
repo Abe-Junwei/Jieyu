@@ -160,15 +160,15 @@ describe('useAiChatConversationManager', () => {
       expect(conv?.toJSON().clearedAt).toBeTruthy();
       const messages = await db.collections.ai_messages.findByIndex('conversationId', 'conv-clear');
       expect(messages).toHaveLength(0);
-      const memory = await db.collections.ai_session_memories
+      const memoryRow = await db.collections.ai_session_memories
         .findOne({ selector: { conversationId: 'conv-clear' } })
         .exec();
-      expect(memory?.toJSON().payload).toMatchObject({
+      expect(memoryRow?.toJSON().payload).toMatchObject({
         lastLanguage: 'cmn',
         responsePreferences: { style: 'concise' },
         summaryTurnCount: 0,
       });
-      expect(memory?.toJSON().payload).not.toHaveProperty('conversationSummary');
+      expect(memoryRow?.toJSON().payload).not.toHaveProperty('conversationSummary');
     });
 
     await waitFor(() => {

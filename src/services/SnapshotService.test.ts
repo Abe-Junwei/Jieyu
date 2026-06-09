@@ -116,7 +116,7 @@ describe('SnapshotService', () => {
     await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toBeNull();
   });
 
-  it('keeps an existing recovery snapshot when a later save exceeds the size limit', async () => {
+  it('preserves an existing recovery snapshot when a new save exceeds the size limit', async () => {
     const smallUnit: LayerUnitDocType = {
       id: 'u-small',
       textId: 't1',
@@ -137,6 +137,8 @@ describe('SnapshotService', () => {
       collections: { layer_units: [smallUnit] },
     });
     await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME);
+    const existing = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME);
+    expect(existing).not.toBeNull();
 
     mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce({
       schemaVersion: 4,
@@ -151,11 +153,9 @@ describe('SnapshotService', () => {
         ],
       },
     });
-    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { maxSerializedUtf8Bytes: 120 });
 
-    const snap = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME);
-    expect(snap).not.toBeNull();
-    expect(getRecoveryLayerUnits(snap!)).toEqual([smallUnit]);
+    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME, { maxSerializedUtf8Bytes: 120 });
+    await expect(getRecoverySnapshot(JIEYU_DEXIE_DB_NAME)).resolves.toEqual(existing);
   });
 
   it('persists v2 recovery snapshots from exportRecoveryDatabaseAsJson', async () => {
