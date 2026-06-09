@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import {
+  assertSpeakerAssignmentUpdatedCounts,
   buildSegmentSpeakerExportRows,
   getSegmentIdsForSpeakerKey,
 } from './speakerActionRoutingHandlers.helpers';
@@ -82,5 +83,16 @@ describe('speakerActionRoutingHandlers.helpers', () => {
     });
     expect(rows[0]).toContain('alpha');
     expect(rows[1]).toContain('beta');
+  });
+
+  it('rejects mixed speaker assignment when unit targets resolve to zero rows', () => {
+    expect(() =>
+      assertSpeakerAssignmentUpdatedCounts({
+        targetSegmentCount: 1,
+        targetUnitCount: 1,
+        updatedSegments: 1,
+        updatedUnits: 0,
+      }),
+    ).toThrow('未找到可更新的语段');
   });
 });

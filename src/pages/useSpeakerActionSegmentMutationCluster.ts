@@ -16,6 +16,10 @@ import {
 } from '../hooks/speakerManagement/speakerI18n';
 import { LinguisticService } from '../app/languageAssetPageAccess';
 import { reportActionError } from '../utils/actionErrorReporter';
+import {
+  assertSpeakerAssignmentUpdatedCounts,
+  pushSpeakerUndoWithFreshSegmentSnapshot,
+} from './speakerActionRoutingHandlers.helpers';
 
 type SegmentUpdater = (segment: LayerUnitDocType) => LayerUnitDocType;
 
@@ -87,8 +91,15 @@ export function useSpeakerActionSegmentMutationCluster({
       if (targetIds.length === 0 || speakerSavingRouted) return;
 
       try {
-        pushUndo(getSpeakerUndoLabel('assign', t));
+        await pushSpeakerUndoWithFreshSegmentSnapshot({
+          label: getSpeakerUndoLabel('assign', t),
+          pushUndo,
+          refreshSegmentUndoSnapshot,
+        });
         const updated = await LinguisticService.speakers.assignToSegments(targetIds, speakerId);
+        if (targetIds.length > 0 && updated === 0) {
+          throw new Error('未找到可更新的句段');
+        }
         const now = new Date().toISOString();
         updateSegmentsLocally(targetIds, (segment) => {
           if (speakerId) {
@@ -146,7 +157,11 @@ export function useSpeakerActionSegmentMutationCluster({
       let undoPushed = false;
       try {
         const existing = findExistingSpeakerEntityByName(trimmedName);
-        pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
+        await pushSpeakerUndoWithFreshSegmentSnapshot({
+          label: getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t),
+          pushUndo,
+          refreshSegmentUndoSnapshot,
+        });
         undoPushed = true;
         const targetSpeaker =
           existing ?? (await LinguisticService.speakers.create({ name: trimmedName }));
@@ -154,6 +169,9 @@ export function useSpeakerActionSegmentMutationCluster({
           targetIds,
           targetSpeaker.id,
         );
+        if (targetIds.length > 0 && updated === 0) {
+          throw new Error('未找到可更新的句段');
+        }
         const now = new Date().toISOString();
         updateSegmentsLocally(targetIds, (segment) => ({
           ...segment,
@@ -217,7 +235,11 @@ export function useSpeakerActionSegmentMutationCluster({
       const speaker = normalizedSpeakerId ? speakerByIdMap.get(normalizedSpeakerId) : undefined;
       let undoPushed = false;
       try {
-        pushUndo(getSpeakerUndoLabel('assign', t));
+        await pushSpeakerUndoWithFreshSegmentSnapshot({
+          label: getSpeakerUndoLabel('assign', t),
+          pushUndo,
+          refreshSegmentUndoSnapshot,
+        });
         undoPushed = true;
         const [updatedSegments, updatedUnits] = await Promise.all([
           targetSegmentIds.length > 0
@@ -227,6 +249,12 @@ export function useSpeakerActionSegmentMutationCluster({
             ? LinguisticService.speakers.assignToUnits(targetUnitIds, normalizedSpeakerId)
             : Promise.resolve(0),
         ]);
+        assertSpeakerAssignmentUpdatedCounts({
+          targetSegmentCount: targetSegmentIds.length,
+          targetUnitCount: targetUnitIds.length,
+          updatedSegments,
+          updatedUnits,
+        });
         const now = new Date().toISOString();
         if (targetSegmentIds.length > 0) {
           updateSegmentsLocally(targetSegmentIds, (segment) => {
@@ -298,7 +326,11 @@ export function useSpeakerActionSegmentMutationCluster({
       try {
         recordMixedSpeakerSelectionApply('create');
         const existing = findExistingSpeakerEntityByName(trimmedName);
-        pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
+        await pushSpeakerUndoWithFreshSegmentSnapshot({
+          label: getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t),
+          pushUndo,
+          refreshSegmentUndoSnapshot,
+        });
         undoPushed = true;
         const targetSpeaker =
           existing ?? (await LinguisticService.speakers.create({ name: trimmedName }));
@@ -310,6 +342,12 @@ export function useSpeakerActionSegmentMutationCluster({
             ? LinguisticService.speakers.assignToUnits(targetUnitIds, targetSpeaker.id)
             : Promise.resolve(0),
         ]);
+        assertSpeakerAssignmentUpdatedCounts({
+          targetSegmentCount: targetSegmentIds.length,
+          targetUnitCount: targetUnitIds.length,
+          updatedSegments,
+          updatedUnits,
+        });
         const now = new Date().toISOString();
         if (targetSegmentIds.length > 0) {
           updateSegmentsLocally(targetSegmentIds, (segment) => ({

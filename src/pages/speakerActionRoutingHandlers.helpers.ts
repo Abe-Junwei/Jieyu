@@ -21,6 +21,29 @@ import { reportValidationError } from '../utils/validationErrorReporter';
 
 type SegmentUpdater = (segment: LayerUnitDocType) => LayerUnitDocType;
 
+export async function pushSpeakerUndoWithFreshSegmentSnapshot(input: {
+  label: string;
+  pushUndo: (label: string) => void;
+  refreshSegmentUndoSnapshot: () => Promise<void>;
+}): Promise<void> {
+  await input.refreshSegmentUndoSnapshot();
+  input.pushUndo(input.label);
+}
+
+export function assertSpeakerAssignmentUpdatedCounts(input: {
+  targetSegmentCount: number;
+  targetUnitCount: number;
+  updatedSegments: number;
+  updatedUnits: number;
+}): void {
+  if (input.targetSegmentCount > 0 && input.updatedSegments === 0) {
+    throw new Error('未找到可更新的句段');
+  }
+  if (input.targetUnitCount > 0 && input.updatedUnits === 0) {
+    throw new Error('未找到可更新的语段');
+  }
+}
+
 export function getSegmentIdsForSpeakerKey(input: {
   activeSpeakerManagementLayer: LayerDocType | null;
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]>;
@@ -122,7 +145,11 @@ export async function executeSegmentSpeakerClearDialog(input: {
 
   let undoPushed = false;
   try {
-    input.pushUndo(getSpeakerUndoLabel('clearTag', input.t));
+    await pushSpeakerUndoWithFreshSegmentSnapshot({
+      label: getSpeakerUndoLabel('clearTag', input.t),
+      pushUndo: input.pushUndo,
+      refreshSegmentUndoSnapshot: input.refreshSegmentUndoSnapshot,
+    });
     undoPushed = true;
     const cleared = await LinguisticService.speakers.assignToSegments(ids, undefined);
     const now = new Date().toISOString();

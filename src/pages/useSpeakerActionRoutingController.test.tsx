@@ -489,4 +489,113 @@ describe('useSpeakerActionRoutingController', () => {
     assignSpeakerToSegments.mockRestore();
     assignSpeakerToUnits.mockRestore();
   });
+
+  it('refreshes segment undo snapshot before mixed speaker assignment', async () => {
+    const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
+    const pushUndo = vi.fn();
+    vi.spyOn(LinguisticService.speakers, 'assignToSegments').mockResolvedValue(1);
+    vi.spyOn(LinguisticService.speakers, 'assignToUnits').mockResolvedValue(1);
+    const { result } = renderHook(() =>
+      useSpeakerActionRoutingController(
+        createBaseInput({
+          batchSpeakerId: 'spk-a',
+          refreshSegmentUndoSnapshot,
+          pushUndo,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.handleAssignSpeakerToSelectedRouted();
+    });
+
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
+    const refreshOrder = refreshSegmentUndoSnapshot.mock.invocationCallOrder[0]!;
+    const pushOrder = pushUndo.mock.invocationCallOrder[0]!;
+    expect(refreshOrder).toBeLessThan(pushOrder);
+
+    vi.restoreAllMocks();
+  });
+
+  it('rolls back mixed speaker assignment when unit update fails after segments succeed', async () => {
+    const assignSpeakerToSegments = vi
+      .spyOn(LinguisticService.speakers, 'assignToSegments')
+      .mockResolvedValue(1);
+    const assignSpeakerToUnits = vi
+      .spyOn(LinguisticService.speakers, 'assignToUnits')
+      .mockRejectedValue(new Error('unit write failed'));
+    const undo = vi.fn(async () => undefined);
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const { result } = renderHook(() =>
+      useSpeakerActionRoutingController(
+        createBaseInput({
+          batchSpeakerId: 'spk-a',
+          selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
+          selectedUnitIdsForSpeakerActions: ['seg-1', 'utt-1'],
+          segmentByIdForSpeakerActions: new Map([
+            ['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)],
+          ]),
+          undo,
+          setSaveState,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.handleAssignSpeakerToSelectedRouted();
+    });
+
+    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-a');
+    expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-a');
+    expect(undo).toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'error',
+        message: '说话人指派失败：unit write failed',
+      }),
+    );
+
+    assignSpeakerToSegments.mockRestore();
+    assignSpeakerToUnits.mockRestore();
+  });
+
+  it('reports error when mixed selection unit targets resolve to zero rows', async () => {
+    const assignSpeakerToSegments = vi
+      .spyOn(LinguisticService.speakers, 'assignToSegments')
+      .mockResolvedValue(1);
+    const assignSpeakerToUnits = vi
+      .spyOn(LinguisticService.speakers, 'assignToUnits')
+      .mockResolvedValue(0);
+    const undo = vi.fn(async () => undefined);
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const { result } = renderHook(() =>
+      useSpeakerActionRoutingController(
+        createBaseInput({
+          batchSpeakerId: 'spk-a',
+          selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
+          selectedUnitIdsForSpeakerActions: ['seg-1', 'utt-1'],
+          segmentByIdForSpeakerActions: new Map([
+            ['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)],
+          ]),
+          undo,
+          setSaveState,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.handleAssignSpeakerToSelectedRouted();
+    });
+
+    expect(undo).toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'error',
+        message: '说话人指派失败：未找到可更新的语段',
+      }),
+    );
+
+    assignSpeakerToSegments.mockRestore();
+    assignSpeakerToUnits.mockRestore();
+  });
 });
