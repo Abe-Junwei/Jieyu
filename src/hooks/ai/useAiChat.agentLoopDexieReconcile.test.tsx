@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { persistAgentLoopCheckpointTask } from '../../ai/chat/agentLoopCheckpoint';
+import * as reconcileModule from '../../ai/chat/reconcileAgentLoopSessionMemoryFromDexie';
 import {
+  bindSessionMemoryConversation,
+  persistSessionMemory,
   persistSessionMemoryAsync,
   resetSessionMemoryStoreForTests,
 } from '../../ai/chat/sessionMemory';
@@ -93,5 +96,78 @@ describe('useAgentLoopSessionMemoryDexieReconcile', () => {
     const storedB = await readDexieSessionMemory('conv-b');
     expect(storedB.pendingAgentLoopCheckpoint).toBeUndefined();
     expect(storedB.preferences?.lastLanguage).toBe('eng');
+  });
+
+  it('does not clobber user session memory mutations during async reconcile', async () => {
+    await persistSessionMemoryAsync('conv-reconcile-race', {
+      preferences: { lastLanguage: 'cmn' },
+    });
+
+    let releaseReconcile!: () => void;
+    const reconcileGate = new Promise<void>((resolve) => {
+      releaseReconcile = resolve;
+    });
+
+    vi.spyOn(reconcileModule, 'reconcilePendingAgentLoopCheckpointFromDexie').mockImplementation(
+      async (base) => {
+        await reconcileGate;
+        return {
+          ...base,
+          pendingAgentLoopCheckpoint: {
+            kind: 'token_budget_warning',
+            originalUserText: 'checkpoint',
+            continuationInput: 'payload',
+            step: 1,
+            createdAt: '2026-05-01T00:00:00.000Z',
+          },
+        };
+      },
+    );
+
+    const sessionMemoryRef = {
+      current: {} as AiSessionMemory,
+    };
+
+    renderHook(() => {
+      const hydrationGeneration = useSessionMemoryConversationBinding(
+        'conv-reconcile-race',
+        sessionMemoryRef,
+      );
+      useAgentLoopSessionMemoryDexieReconcile(
+        sessionMemoryRef,
+        'conv-reconcile-race',
+        hydrationGeneration,
+      );
+      return hydrationGeneration;
+    });
+
+    await waitFor(() => {
+      expect(sessionMemoryRef.current.preferences?.lastLanguage).toBe('cmn');
+    });
+
+    bindSessionMemoryConversation('conv-reconcile-race');
+    persistSessionMemory({
+      preferences: { lastLanguage: 'yue' },
+      responsePreferences: { style: 'concise' },
+    });
+    sessionMemoryRef.current = {
+      preferences: { lastLanguage: 'yue' },
+      responsePreferences: { style: 'concise' },
+    };
+
+    releaseReconcile();
+
+    await waitFor(async () => {
+      const stored = await readDexieSessionMemory('conv-reconcile-race');
+      expect(stored.preferences?.lastLanguage).toBe('yue');
+      expect(stored.responsePreferences?.style).toBe('concise');
+      expect(stored.pendingAgentLoopCheckpoint?.originalUserText).toBe('checkpoint');
+    });
+
+    expect(sessionMemoryRef.current.preferences?.lastLanguage).toBe('yue');
+    expect(sessionMemoryRef.current.responsePreferences?.style).toBe('concise');
+    expect(sessionMemoryRef.current.pendingAgentLoopCheckpoint?.originalUserText).toBe(
+      'checkpoint',
+    );
   });
 });

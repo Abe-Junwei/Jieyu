@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
-import { loadSessionMemoryAsync, persistSessionMemoryAsync } from '../../ai/chat/sessionMemory';
+import { persistSessionMemoryAsync } from '../../ai/chat/sessionMemory';
 import { reconcilePendingAgentLoopCheckpointFromDexie } from '../../ai/chat/reconcileAgentLoopSessionMemoryFromDexie';
 import { useLatest } from '../ui/useLatest';
 import type { AiSessionMemory } from './useAiChat.types';
@@ -23,11 +23,10 @@ export function useAgentLoopSessionMemoryDexieReconcile(
     let cancelled = false;
     void (async () => {
       try {
-        const hydrated = await loadSessionMemoryAsync(activeConversationId);
-        if (cancelled) return;
         if (conversationIdRef.current !== activeConversationId) return;
         const allowGlobalHydrate = allowGlobalHydrateRef.current;
-        const next = await reconcilePendingAgentLoopCheckpointFromDexie(hydrated, {
+        const reconcileBase = sessionMemoryRef.current;
+        const next = await reconcilePendingAgentLoopCheckpointFromDexie(reconcileBase, {
           allowGlobalHydrate,
         });
         if (cancelled) return;
@@ -35,9 +34,20 @@ export function useAgentLoopSessionMemoryDexieReconcile(
         if (allowGlobalHydrate) {
           allowGlobalHydrateRef.current = false;
         }
-        if (next === hydrated) return;
-        sessionMemoryRef.current = next;
-        await persistSessionMemoryAsync(activeConversationId, next);
+        const latestRef = sessionMemoryRef.current;
+        if (latestRef !== reconcileBase) {
+          const merged = await reconcilePendingAgentLoopCheckpointFromDexie(latestRef, {
+            allowGlobalHydrate: false,
+          });
+          if (merged === latestRef) return;
+          sessionMemoryRef.current = merged;
+          await persistSessionMemoryAsync(activeConversationId, merged);
+        } else if (next !== reconcileBase) {
+          sessionMemoryRef.current = next;
+          await persistSessionMemoryAsync(activeConversationId, next);
+        } else {
+          return;
+        }
         if (conversationIdRef.current !== activeConversationId) return;
         setSessionMemoryRenderNonce((n) => n + 1);
       } catch {
