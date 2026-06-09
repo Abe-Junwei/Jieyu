@@ -543,4 +543,39 @@ describe('EafService logical timeline round-trip', () => {
     const imported = importFromEaf(xml);
     expect(imported.units[0]?.transcription).toBe(arabic);
   });
+
+  it('preserves sub-second EAF timecodes at millisecond precision', () => {
+    const units: LayerUnitDocType[] = [
+      {
+        id: 'utt_precise',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        startTime: 0.125,
+        endTime: 1.875,
+        transcription: { default: 'precise' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const translations: LayerUnitContentDocType[] = [
+      {
+        id: 'utr_precise',
+        unitId: 'utt_precise',
+        layerId: layer.id,
+        modality: 'text',
+        text: 'precise',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+
+    const xml = exportToEaf({ units, layers: [layer], translations });
+    expect(xml).toContain('TIME_VALUE="125"');
+    expect(xml).toContain('TIME_VALUE="1875"');
+
+    const imported = importFromEaf(xml);
+    expect(imported.units[0]?.startTime).toBe(0.125);
+    expect(imported.units[0]?.endTime).toBe(1.875);
+  });
 });

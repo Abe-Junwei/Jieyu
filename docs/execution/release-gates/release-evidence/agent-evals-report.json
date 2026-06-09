@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-15T03:40:04.251Z",
+  "generatedAt": "2026-06-09T01:52:01.874Z",
   "mode": "enforce",
   "suite": {
     "suiteId": "jieyu-agent-evals-v1",
@@ -9,13 +9,13 @@
     "suitePath": "scripts/agent-evals/suite.v1.json"
   },
   "summary": {
-    "total": 16,
-    "passed": 16,
+    "total": 17,
+    "passed": 17,
     "failed": 0,
     "passRate": 1,
     "requiredPassRate": 0.9,
     "maxFailedCases": 0,
-    "coveredGoldenTasks": 81,
+    "coveredGoldenTasks": 83,
     "requiredGoldenTasksMin": 30,
     "coveredTrajectorySignals": [
       "tool_selection",
@@ -34,19 +34,27 @@
     "missingTrajectorySignals": [],
     "auditTracePassed": true,
     "thresholdPassed": true,
-    "startedAt": "2026-05-15T03:39:25.081Z",
-    "endedAt": "2026-05-15T03:40:04.251Z"
+    "startedAt": "2026-06-09T01:51:24.494Z",
+    "endedAt": "2026-06-09T01:52:01.874Z"
   },
   "auditTrace": {
     "enabled": true,
-    "path": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
-    "rowCount": 6,
-    "decisionRowCount": 1,
-    "metadataDecisionRowCount": 1,
-    "schemaV1DecisionRowCount": 1,
+    "path": "/Users/junwei/开发/Jieyu/docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+    "rowCount": 7,
+    "decisionRowCount": 2,
+    "metadataDecisionRowCount": 2,
+    "schemaV1DecisionRowCount": 2,
     "t4PartialProgressDecisionRowCount": 1,
     "t4ProposeRollbackDecisionRowCount": 1,
     "parseErrorCount": 0,
+    "trajectorySignalsFromAudit": [
+      "tool_selection",
+      "gate_correctness",
+      "audit_traceability",
+      "approval_explainability",
+      "recovery_path"
+    ],
+    "missingTrajectorySignalsFromAudit": [],
     "passed": true,
     "failureReasons": []
   },
@@ -60,11 +68,11 @@
       "command": "npm run typecheck",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:25.082Z",
-      "endedAt": "2026-05-15T03:39:36.538Z",
-      "elapsedMs": 11456,
-      "stdout": "",
-      "stderr": ""
+      "startedAt": "2026-06-09T01:51:24.495Z",
+      "endedAt": "2026-06-09T01:51:35.805Z",
+      "elapsedMs": 11310,
+      "stdout": "\n> jieyu@1.1.0 typecheck\n> tsc --noEmit\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
     },
     {
       "id": "architecture-guard-core",
@@ -75,11 +83,11 @@
       "command": "npm run check:architecture-guard:core",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:36.538Z",
-      "endedAt": "2026-05-15T03:39:36.988Z",
-      "elapsedMs": 450,
-      "stdout": "[check-architecture-guard] OK: guarded files stayed within architecture ceilings.\n",
-      "stderr": ""
+      "startedAt": "2026-06-09T01:51:35.805Z",
+      "endedAt": "2026-06-09T01:51:36.281Z",
+      "elapsedMs": 476,
+      "stdout": "\n> jieyu@1.1.0 check:architecture-guard:core\n> node scripts/check-architecture-guard.mjs\n\n[check-architecture-guard] OK: guarded files stayed within architecture ceilings.\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n[check-architecture-guard] WARN: 14 hotspot(s) approaching ceilings.\n- src/hooks/voice/useVoiceInteractionSummaries.ts: line count 182/200 reached 91% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useMemo declarations 5/5 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useEffect count 2/2 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: line count 115/120 reached 96% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useMemo declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useEffect count 3/3 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useCallback declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useEffect count 2/2 reached 100% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: line count 401/420 reached 95% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: useEffect count 1/1 reached 100% of ceiling\n- src/pages/useSpeakerActionSegmentMutationCluster.ts: line count 383/400 reached 96% of ceiling\n- src/pages/useSpeakerActionSelectionRoutingHandlers.ts: line count 190/220 reached 86% of ceiling\n- src/pages/useSpeakerActionFilterRoutingHandlers.ts: line count 216/240 reached 90% of ceiling\n- src/pages/useSpeakerActionRoutingHandlers.ts: line count 242/280 reached 86% of ceiling\n"
     },
     {
       "id": "ai-messages-isolation",
@@ -90,9 +98,9 @@
       "command": "node scripts/check-ai-messages-isolation.mjs",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:36.988Z",
-      "endedAt": "2026-05-15T03:39:37.043Z",
-      "elapsedMs": 55,
+      "startedAt": "2026-06-09T01:51:36.281Z",
+      "endedAt": "2026-06-09T01:51:36.337Z",
+      "elapsedMs": 56,
       "stdout": "[check-ai-messages-isolation] OK: src/ai/messages/ keeps formatter copy isolated from UI i18n.\n",
       "stderr": ""
     },
@@ -109,11 +117,11 @@
       "command": "npx vitest run src/ai/memory/userDirectiveExtractor.test.ts src/hooks/ai/useAiChat.responsePolicy.test.ts src/hooks/ai/useAiChat.backgroundMemory.test.ts src/hooks/ai/useAiChat.toolDecisionPipeline.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:37.043Z",
-      "endedAt": "2026-05-15T03:39:38.498Z",
-      "elapsedMs": 1455,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/hooks/ai/useAiChat.responsePolicy.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/memory/userDirectiveExtractor.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/ai/useAiChat.backgroundMemory.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/ai/useAiChat.toolDecisionPipeline.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:39:37\n\u001b[2m   Duration \u001b[22m 737ms\u001b[2m (transform 794ms, setup 665ms, import 713ms, tests 22ms, environment 0ms)\u001b[22m\n\n",
-      "stderr": ""
+      "startedAt": "2026-06-09T01:51:36.337Z",
+      "endedAt": "2026-06-09T01:51:37.617Z",
+      "elapsedMs": 1280,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ src/hooks/ai/useAiChat.responsePolicy.test.ts (2 tests) 2ms\n ✓ src/ai/memory/userDirectiveExtractor.test.ts (2 tests) 5ms\n ✓ src/hooks/ai/useAiChat.backgroundMemory.test.ts (8 tests) 10ms\n ✓ src/hooks/ai/useAiChat.toolDecisionPipeline.test.ts (2 tests) 5ms\n\n Test Files  4 passed (4)\n      Tests  14 passed (14)\n   Start at  09:51:36\n   Duration  664ms (transform 742ms, setup 679ms, import 567ms, tests 23ms, environment 0ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
     },
     {
       "id": "prompt-memory",
@@ -127,11 +135,11 @@
       "command": "npx vitest run src/ai/chat/sessionMemory.test.ts src/ai/chat/promptContext.tiered.test.ts src/hooks/ai/useAiChat.streamCompletion.test.ts src/hooks/ai/useAiChat.agentLoopRunner.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:38.498Z",
-      "endedAt": "2026-05-15T03:39:40.131Z",
-      "elapsedMs": 1633,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/chat/sessionMemory.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/chat/promptContext.tiered.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/ai/useAiChat.agentLoopRunner.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/ai/useAiChat.streamCompletion.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m40 passed\u001b[39m\u001b[22m\u001b[90m (40)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:39:38\n\u001b[2m   Duration \u001b[22m 858ms\u001b[2m (transform 1.31s, setup 686ms, import 1.68s, tests 26ms, environment 359ms)\u001b[22m\n\n",
-      "stderr": "(node:4211) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+      "startedAt": "2026-06-09T01:51:37.618Z",
+      "endedAt": "2026-06-09T01:51:39.150Z",
+      "elapsedMs": 1532,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/chat/promptContext.tiered.test.ts (3 tests) 2ms\n ✓ src/ai/chat/sessionMemory.test.ts (22 tests) 27ms\n ✓ src/hooks/ai/useAiChat.streamCompletion.test.ts (19 tests) 11ms\n ✓ src/hooks/ai/useAiChat.agentLoopRunner.test.ts (7 tests) 9ms\n\n Test Files  4 passed (4)\n      Tests  51 passed (51)\n   Start at  09:51:38\n   Duration  902ms (transform 1.52s, setup 677ms, import 2.08s, tests 50ms, environment 278ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n(node:48486) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     },
     {
       "id": "release-evidence",
@@ -144,11 +152,11 @@
       "command": "npx vitest run scripts/generate-release-evidence-bundle.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:40.131Z",
-      "endedAt": "2026-05-15T03:39:42.646Z",
-      "elapsedMs": 2515,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m scripts/generate-release-evidence-bundle.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 1522\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:39:40\n\u001b[2m   Duration \u001b[22m 1.76s\u001b[2m (transform 116ms, setup 174ms, import 13ms, tests 1.52s, environment 0ms)\u001b[22m\n\n",
-      "stderr": ""
+      "startedAt": "2026-06-09T01:51:39.150Z",
+      "endedAt": "2026-06-09T01:51:41.399Z",
+      "elapsedMs": 2249,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ scripts/generate-release-evidence-bundle.test.ts (18 tests) 1429ms\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  09:51:39\n   Duration  1.65s (transform 107ms, setup 153ms, import 14ms, tests 1.43s, environment 0ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
     },
     {
       "id": "approval-center-ui-alerts",
@@ -163,11 +171,11 @@
       "command": "npx vitest run src/components/ai/AiChatAlertsPanel.test.tsx",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:42.646Z",
-      "endedAt": "2026-05-15T03:39:44.112Z",
-      "elapsedMs": 1466,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatAlertsPanel.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 114\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m10 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:39:43\n\u001b[2m   Duration \u001b[22m 736ms\u001b[2m (transform 180ms, setup 158ms, import 133ms, tests 114ms, environment 272ms)\u001b[22m\n\n",
-      "stderr": "(node:4839) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+      "startedAt": "2026-06-09T01:51:41.399Z",
+      "endedAt": "2026-06-09T01:51:42.725Z",
+      "elapsedMs": 1326,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ src/components/ai/AiChatAlertsPanel.test.tsx (10 tests) 116ms\n\n Test Files  1 passed (1)\n      Tests  10 passed (10)\n   Start at  09:51:41\n   Duration  710ms (transform 182ms, setup 161ms, import 122ms, tests 116ms, environment 256ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n(node:48899) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     },
     {
       "id": "approval-center-ui-composer",
@@ -182,11 +190,11 @@
       "command": "npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"renders directive console MVP and allows deactivating one directive\" && npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"shows decision explanation message and reason in decision panel\" && npx vitest run src/components/ai/AiChatCard.input.test.tsx -t \"keeps the AI decision panel collapsed by default\"",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:44.113Z",
-      "endedAt": "2026-05-15T03:39:49.583Z",
-      "elapsedMs": 5470,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatCard.input.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[33m7 skipped\u001b[39m\u001b[2m)\u001b[22m\u001b[32m 100\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m7 skipped\u001b[39m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:39:44\n\u001b[2m   Duration \u001b[22m 1.23s\u001b[2m (transform 524ms, setup 171ms, import 654ms, tests 100ms, environment 250ms)\u001b[22m\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[2m\u001b[90m↓\u001b[39m\u001b[22m src/components/ai/AiChatCard.input.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[33m8 skipped\u001b[39m\u001b[2m)\u001b[22m\n\n\u001b[2m Test Files \u001b[22m \u001b[33m1 skipped\u001b[39m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[33m8 skipped\u001b[39m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:39:46\n\u001b[2m   Duration \u001b[22m 1.09s\u001b[2m (transform 485ms, setup 172ms, import 607ms, tests 0ms, environment 248ms)\u001b[22m\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[2m\u001b[90m↓\u001b[39m\u001b[22m src/components/ai/AiChatCard.input.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[33m8 skipped\u001b[39m\u001b[2m)\u001b[22m\n\n\u001b[2m Test Files \u001b[22m \u001b[33m1 skipped\u001b[39m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[33m8 skipped\u001b[39m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:39:48\n\u001b[2m   Duration \u001b[22m 1.08s\u001b[2m (transform 473ms, setup 170ms, import 601ms, tests 0ms, environment 257ms)\u001b[22m\n\n",
-      "stderr": "(node:4891) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:4939) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:5006) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+      "startedAt": "2026-06-09T01:51:42.725Z",
+      "endedAt": "2026-06-09T01:51:47.835Z",
+      "elapsedMs": 5110,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ src/components/ai/AiChatCard.input.test.tsx (8 tests | 7 skipped) 101ms\n\n Test Files  1 passed (1)\n      Tests  1 passed | 7 skipped (8)\n   Start at  09:51:43\n   Duration  1.17s (transform 488ms, setup 166ms, import 601ms, tests 101ms, environment 247ms)\n\n\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ↓ src/components/ai/AiChatCard.input.test.tsx (8 tests | 8 skipped)\n\n Test Files  1 skipped (1)\n      Tests  8 skipped (8)\n   Start at  09:51:44\n   Duration  1.04s (transform 454ms, setup 163ms, import 573ms, tests 0ms, environment 251ms)\n\n\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ↓ src/components/ai/AiChatCard.input.test.tsx (8 tests | 8 skipped)\n\n Test Files  1 skipped (1)\n      Tests  8 skipped (8)\n   Start at  09:51:46\n   Duration  1.04s (transform 457ms, setup 155ms, import 579ms, tests 0ms, environment 252ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n(node:48927) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\nnpm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n(node:48955) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\nnpm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n(node:48983) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     },
     {
       "id": "taskrunner-recovery",
@@ -199,11 +207,11 @@
       "command": "npx vitest run src/ai/tasks/TaskRunner.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:49.583Z",
-      "endedAt": "2026-05-15T03:39:56.182Z",
-      "elapsedMs": 6599,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/tasks/TaskRunner.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5134\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:39:50\n\u001b[2m   Duration \u001b[22m 5.88s\u001b[2m (transform 222ms, setup 165ms, import 280ms, tests 5.13s, environment 247ms)\u001b[22m\n\n",
-      "stderr": "(node:5051) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+      "startedAt": "2026-06-09T01:51:47.835Z",
+      "endedAt": "2026-06-09T01:51:54.335Z",
+      "elapsedMs": 6500,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/tasks/TaskRunner.test.ts (18 tests) 5157ms\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  09:51:48\n   Duration  5.86s (transform 188ms, setup 157ms, import 237ms, tests 5.16s, environment 248ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n(node:49011) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     },
     {
       "id": "vertical-workflow-reflections",
@@ -217,11 +225,11 @@
       "command": "npx vitest run src/ai/vertical/segmentQaReflection.test.ts src/ai/vertical/annotationQaReflection.test.ts src/ai/vertical/lexemeCandidatesReflection.test.ts src/ai/vertical/elanFlexCompatibilityWorkflow.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:56.182Z",
-      "endedAt": "2026-05-15T03:39:57.585Z",
-      "elapsedMs": 1403,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/vertical/elanFlexCompatibilityWorkflow.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/lexemeCandidatesReflection.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/segmentQaReflection.test.ts \u001b[2m(\u001b[22m\u001b[2m20 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/annotationQaReflection.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m63 passed\u001b[39m\u001b[22m\u001b[90m (63)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:39:56\n\u001b[2m   Duration \u001b[22m 558ms\u001b[2m (transform 411ms, setup 721ms, import 34ms, tests 14ms, environment 910ms)\u001b[22m\n\n",
-      "stderr": "(node:5101) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:5101) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:5101) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+      "startedAt": "2026-06-09T01:51:54.335Z",
+      "endedAt": "2026-06-09T01:51:55.478Z",
+      "elapsedMs": 1143,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/vertical/elanFlexCompatibilityWorkflow.test.ts (21 tests) 5ms\n ✓ src/ai/vertical/annotationQaReflection.test.ts (11 tests) 3ms\n ✓ src/ai/vertical/segmentQaReflection.test.ts (20 tests) 3ms\n ✓ src/ai/vertical/lexemeCandidatesReflection.test.ts (11 tests) 3ms\n\n Test Files  4 passed (4)\n      Tests  63 passed (63)\n   Start at  09:51:54\n   Duration  499ms (transform 381ms, setup 609ms, import 38ms, tests 14ms, environment 844ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n(node:49044) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:49044) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:49044) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     },
     {
       "id": "vertical-workflow-adoption-queue",
@@ -235,11 +243,11 @@
       "command": "npx vitest run src/ai/vertical/adoptionQueue.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:57.585Z",
-      "endedAt": "2026-05-15T03:39:58.895Z",
-      "elapsedMs": 1310,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/vertical/adoptionQueue.test.ts \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m17 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:39:58\n\u001b[2m   Duration \u001b[22m 481ms\u001b[2m (transform 105ms, setup 159ms, import 6ms, tests 4ms, environment 259ms)\u001b[22m\n\n",
-      "stderr": "(node:5149) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+      "startedAt": "2026-06-09T01:51:55.478Z",
+      "endedAt": "2026-06-09T01:51:56.551Z",
+      "elapsedMs": 1073,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/vertical/adoptionQueue.test.ts (17 tests) 4ms\n\n Test Files  1 passed (1)\n      Tests  17 passed (17)\n   Start at  09:51:55\n   Duration  466ms (transform 104ms, setup 156ms, import 5ms, tests 4ms, environment 245ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n(node:49071) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
     },
     {
       "id": "vertical-workflow-source-set",
@@ -253,11 +261,11 @@
       "command": "npx vitest run src/ai/vertical/corpusSourceSet.test.ts src/ai/vertical/sourceResolver.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:58.895Z",
-      "endedAt": "2026-05-15T03:39:59.805Z",
-      "elapsedMs": 910,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/vertical/corpusSourceSet.test.ts \u001b[2m(\u001b[22m\u001b[2m24 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/sourceResolver.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (2)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m39 passed\u001b[39m\u001b[22m\u001b[90m (39)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:39:59\n\u001b[2m   Duration \u001b[22m 235ms\u001b[2m (transform 213ms, setup 328ms, import 20ms, tests 8ms, environment 0ms)\u001b[22m\n\n",
-      "stderr": ""
+      "startedAt": "2026-06-09T01:51:56.551Z",
+      "endedAt": "2026-06-09T01:51:57.430Z",
+      "elapsedMs": 879,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/vertical/sourceResolver.test.ts (15 tests) 3ms\n ✓ src/ai/vertical/corpusSourceSet.test.ts (24 tests) 4ms\n\n Test Files  2 passed (2)\n      Tests  39 passed (39)\n   Start at  09:51:57\n   Duration  237ms (transform 215ms, setup 330ms, import 21ms, tests 8ms, environment 0ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
     },
     {
       "id": "vertical-workflow-registry",
@@ -271,11 +279,32 @@
       "command": "npx vitest run src/ai/vertical/verticalWorkflowRegistry.test.ts src/ai/vertical/verticalP0.test.ts src/ai/vertical/verticalWorkflowSelection.test.ts src/ai/vertical/verticalWorkflowAudit.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:39:59.805Z",
-      "endedAt": "2026-05-15T03:40:00.894Z",
-      "elapsedMs": 1089,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/vertical/verticalWorkflowRegistry.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/verticalWorkflowSelection.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/verticalWorkflowAudit.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/verticalP0.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:40:00\n\u001b[2m   Duration \u001b[22m 370ms\u001b[2m (transform 506ms, setup 684ms, import 156ms, tests 10ms, environment 0ms)\u001b[22m\n\n",
-      "stderr": ""
+      "startedAt": "2026-06-09T01:51:57.430Z",
+      "endedAt": "2026-06-09T01:51:58.362Z",
+      "elapsedMs": 932,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/vertical/verticalWorkflowRegistry.test.ts (5 tests) 3ms\n ✓ src/ai/vertical/verticalWorkflowAudit.test.ts (3 tests) 2ms\n ✓ src/ai/vertical/verticalWorkflowSelection.test.ts (5 tests) 2ms\n ✓ src/ai/vertical/verticalP0.test.ts (5 tests) 3ms\n\n Test Files  4 passed (4)\n      Tests  18 passed (18)\n   Start at  09:51:57\n   Duration  321ms (transform 479ms, setup 674ms, import 115ms, tests 9ms, environment 0ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "id": "agent-evals-trajectory-assertions",
+      "name": "Audit NDJSON trajectory signal assertions (P3)",
+      "category": "evidence",
+      "goldenTaskCount": 2,
+      "trajectorySignals": [
+        "tool_selection",
+        "gate_correctness",
+        "recovery_path",
+        "audit_traceability",
+        "approval_explainability"
+      ],
+      "command": "npx vitest run scripts/run-agent-evals.test.ts -t \"audit trajectory assertions\"",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-06-09T01:51:58.362Z",
+      "endedAt": "2026-06-09T01:51:59.180Z",
+      "elapsedMs": 818,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ scripts/run-agent-evals.test.ts (5 tests | 4 skipped) 2ms\n\n Test Files  1 passed (1)\n      Tests  1 passed | 4 skipped (5)\n   Start at  09:51:58\n   Duration  214ms (transform 101ms, setup 154ms, import 6ms, tests 2ms, environment 0ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
     },
     {
       "id": "agent-evals-semantic-cases",
@@ -289,11 +318,11 @@
       "command": "npx vitest run scripts/agent-evals/cases/semantic-cases.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:40:00.894Z",
-      "endedAt": "2026-05-15T03:40:02.074Z",
-      "elapsedMs": 1180,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m scripts/agent-evals/cases/semantic-cases.test.ts \u001b[2m(\u001b[22m\u001b[2m59 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m59 passed\u001b[39m\u001b[22m\u001b[90m (59)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:40:01\n\u001b[2m   Duration \u001b[22m 382ms\u001b[2m (transform 202ms, setup 169ms, import 148ms, tests 5ms, environment 0ms)\u001b[22m\n\n",
-      "stderr": ""
+      "startedAt": "2026-06-09T01:51:59.180Z",
+      "endedAt": "2026-06-09T01:52:00.126Z",
+      "elapsedMs": 946,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ scripts/agent-evals/cases/semantic-cases.test.ts (60 tests) 5ms\n\n Test Files  1 passed (1)\n      Tests  60 passed (60)\n   Start at  09:51:59\n   Duration  310ms (transform 162ms, setup 160ms, import 92ms, tests 5ms, environment 0ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
     },
     {
       "id": "vertical-evidence-contracts",
@@ -306,11 +335,11 @@
       "command": "npx vitest run src/ai/vertical/evidencePacket.test.ts src/ai/vertical/evidenceSourceRef.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:40:02.074Z",
-      "endedAt": "2026-05-15T03:40:03.171Z",
-      "elapsedMs": 1097,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/vertical/evidencePacket.test.ts \u001b[2m(\u001b[22m\u001b[2m1 test\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/vertical/evidenceSourceRef.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (2)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:40:02\n\u001b[2m   Duration \u001b[22m 243ms\u001b[2m (transform 217ms, setup 348ms, import 10ms, tests 4ms, environment 0ms)\u001b[22m\n\n",
-      "stderr": ""
+      "startedAt": "2026-06-09T01:52:00.126Z",
+      "endedAt": "2026-06-09T01:52:00.950Z",
+      "elapsedMs": 824,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ src/ai/vertical/evidencePacket.test.ts (1 test) 2ms\n ✓ src/ai/vertical/evidenceSourceRef.test.ts (4 tests) 2ms\n\n Test Files  2 passed (2)\n      Tests  5 passed (5)\n   Start at  09:52:00\n   Duration  222ms (transform 201ms, setup 319ms, import 9ms, tests 4ms, environment 0ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
     },
     {
       "id": "segment-qa-assistant-message-p1",
@@ -324,11 +353,11 @@
       "command": "npx vitest run src/components/ai/AiChatAssistantMessage.test.tsx",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-05-15T03:40:03.171Z",
-      "endedAt": "2026-05-15T03:40:04.251Z",
-      "elapsedMs": 1080,
-      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.6 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatAssistantMessage.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:40:03\n\u001b[2m   Duration \u001b[22m 327ms\u001b[2m (transform 173ms, setup 171ms, import 90ms, tests 8ms, environment 0ms)\u001b[22m\n\n",
-      "stderr": ""
+      "startedAt": "2026-06-09T01:52:00.950Z",
+      "endedAt": "2026-06-09T01:52:01.874Z",
+      "elapsedMs": 924,
+      "stdout": "\n RUN  v4.1.6 /Users/junwei/开发/Jieyu\n\n ✓ src/components/ai/AiChatAssistantMessage.test.tsx (3 tests) 7ms\n\n Test Files  1 passed (1)\n      Tests  3 passed (3)\n   Start at  09:52:01\n   Duration  289ms (transform 155ms, setup 153ms, import 78ms, tests 7ms, environment 0ms)\n\n",
+      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
     }
   ]
 }

@@ -29,6 +29,12 @@ export const architectureGuardPreCssPatternRules = [
       'src/pages/useTranscriptionWorkspaceLayoutController.ts',
       'src/pages/useWaveformRuntimeController.ts',
       'src/pages/useWaveformSelectionController.ts',
+      'src/pages/useTranscriptionChatWindowController.ts',
+      'src/pages/useTranscriptionChatWindowLayout.ts',
+      'src/pages/useSpeakerActionSegmentMutationCluster.ts',
+      'src/pages/useSpeakerActionFilterRoutingHandlers.ts',
+      'src/pages/useSpeakerActionSelectionRoutingHandlers.ts',
+      'src/pages/useSpeakerActionRoutingHandlers.ts',
     ],
     maxLines: 800,
     maxUseCallbackDecls: 20,
@@ -159,6 +165,14 @@ export const architectureGuardPreCssPatternRules = [
   }),
 
 
+  {
+    file: 'src/pages/TranscriptionPage.ChatWindow.tsx',
+    maxLines: 220,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 0,
+    warnAtRatio: 0.85,
+  },
   patternRule(/^src\/pages\/(?!use).*\.(ts|tsx)$/, {
       excludeFiles: [
         'src/pages/TranscriptionPage.Orchestrator.tsx',
@@ -167,6 +181,8 @@ export const architectureGuardPreCssPatternRules = [
       'src/pages/TranscriptionPage.ReadyWorkspaceOrchestrator.tsx',
       'src/pages/buildReadyWorkspaceViewModelsSurfacePhaseParams.ts',
       'src/pages/OrthographyManagerPanel.tsx',
+      'src/pages/TranscriptionPage.ChatWindow.tsx',
+      'src/pages/TranscriptionPage.ChatWindow.Header.tsx',
     ],
     excludeRegexes: [/\.test\./, /\.structure\./],
     maxLines: 800,

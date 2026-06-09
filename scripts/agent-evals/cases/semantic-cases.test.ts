@@ -21,6 +21,8 @@ interface SemanticCase {
   category: string;
   capability: string;
   tier: 'blocking' | 'quality';
+  evalSuite?: 'regression' | 'capability';
+  outcomeVerifier?: string;
   outcome: string;
   description: string;
   input: Record<string, unknown>;
@@ -35,6 +37,31 @@ function loadCases(): SemanticCase[] {
 const allCases = loadCases();
 const blockingCases = allCases.filter((c) => c.tier === 'blocking');
 const qualityCases = allCases.filter((c) => c.tier === 'quality');
+
+function verifyOutcome(c: SemanticCase) {
+  if (!c.outcomeVerifier) return;
+  switch (c.outcomeVerifier) {
+    case 'policy_block_no_write': {
+      const toolCall = c.input.toolCall as { name: string; arguments: Record<string, unknown> };
+      const sessionMemory = c.input.sessionMemory as AiSessionMemory;
+      const decision = resolveUserDirectivePolicyDecision(toolCall, sessionMemory);
+      expect(decision.action).toBe('block');
+      break;
+    }
+    case 'workflow_segment_qa_match': {
+      const selection = selectVerticalWorkflowV0(c.input.selectWorkflowQuery as string);
+      expect(selection?.workflowId).toBe(c.expected.workflowId);
+      break;
+    }
+    case 'evidence_source_id_required': {
+      const input = c.input.evidencePacketInput as Parameters<typeof buildEvidencePacketV0>[0];
+      expect(() => buildEvidencePacketV0(input)).toThrow(/sourceId/i);
+      break;
+    }
+    default:
+      throw new Error(`unknown outcomeVerifier: ${c.outcomeVerifier}`);
+  }
+}
 
 function runCase(c: SemanticCase) {
   // ── safety / policy / adversarial ──
@@ -114,6 +141,8 @@ function runCase(c: SemanticCase) {
   }
 
   // ── i18n ──
+  verifyOutcome(c);
+
   if (c.category === 'i18n') {
     if (c.input.selectWorkflowQuery) {
       const selection = selectVerticalWorkflowV0(c.input.selectWorkflowQuery as string);
@@ -142,6 +171,15 @@ describe('agent-evals semantic cases', () => {
       runCase(c);
     });
   }
+});
+
+describe('agent-evals suite bisection', () => {
+  it('tags blocking cases as regression and quality cases as capability when evalSuite is set', () => {
+    const tagged = allCases.filter((c) => c.evalSuite);
+    expect(tagged.length).toBeGreaterThanOrEqual(3);
+    expect(tagged.filter((c) => c.evalSuite === 'regression').length).toBeGreaterThanOrEqual(2);
+    expect(tagged.filter((c) => c.evalSuite === 'capability').length).toBeGreaterThanOrEqual(1);
+  });
 });
 
 describe('agent-evals tier summary', () => {

@@ -3,6 +3,8 @@
   "category": "evidence",
   "capability": "read",
   "tier": "blocking",
+  "evalSuite": "regression",
+  "outcomeVerifier": "evidence_source_id_required",
   "outcome": "detected",
   "description": "EvidencePacket sourceId cannot be empty; empty sourceId triggers validation error.",
   "input": {

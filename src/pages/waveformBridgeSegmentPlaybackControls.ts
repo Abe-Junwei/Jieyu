@@ -48,6 +48,7 @@ export function useWaveformBridgeSegmentPlaybackControls(input: {
   } = input;
 
   const previousSelectedTimelineUnitIdRef = useRef(selectedTimelineUnitId ?? '');
+  const lastViewportSyncKeyRef = useRef<string>('');
 
   useEffect(() => {
     const currentSelectedTimelineUnitId = selectedTimelineUnitId ?? '';
@@ -64,7 +65,14 @@ export function useWaveformBridgeSegmentPlaybackControls(input: {
   const isPlayingRef = useLatest(player.isPlaying);
   useEffect(() => {
     const selectedRange = selectedTimelineUnitForTime;
-    if (!selectedRange || !player.isReady) return;
+    if (!selectedRange || !player.isReady) {
+      lastViewportSyncKeyRef.current = '';
+      return;
+    }
+    const rangeKey = `${selectedTimelineUnitId ?? ''}:${selectedRange.startTime}:${selectedRange.endTime}:${zoomMode}`;
+    if (lastViewportSyncKeyRef.current === rangeKey) {
+      return;
+    }
     if (skipSeekForIdRef.current) {
       skipSeekForIdRef.current = null;
       return;
@@ -72,10 +80,13 @@ export function useWaveformBridgeSegmentPlaybackControls(input: {
     if (isPlayingRef.current) return;
     if (zoomMode === 'fit-selection') {
       zoomToUnit(selectedRange.startTime, selectedRange.endTime);
+      lastViewportSyncKeyRef.current = rangeKey;
       return;
     }
     player.seekTo(selectedRange.startTime);
+    lastViewportSyncKeyRef.current = rangeKey;
   }, [
+    selectedTimelineUnitId,
     selectedTimelineUnitForTime,
     zoomMode,
     isPlayingRef,

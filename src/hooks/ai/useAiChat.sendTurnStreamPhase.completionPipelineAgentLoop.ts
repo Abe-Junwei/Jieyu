@@ -12,6 +12,7 @@ import { nowIso } from './useAiChat.helpers';
 import { writeVerticalWorkflowAuditLogForSendTurnStreamPhase } from './useAiChat.sendTurnStreamPhase.verticalAudit';
 import { notifyAiTasksUpdated } from '../../ai/tasks/taskRefreshEvents';
 import { resolveAiChatResponsePolicy } from './useAiChat.responsePolicy';
+import { canMarkWorkflowAnswerReady } from '../../ai/vertical/workflowCompletionChecklist';
 import type {
   RunSendTurnStreamPostCompletionPipelineArgs,
   SendTurnStreamPostAgentResolution,
@@ -52,6 +53,10 @@ export async function runSendTurnStreamAgentLoopAfterPrimaryCompletion(
   } = input;
 
   const { db, history, historyCharBudget, aiContext, routingPlan, systemPrompt } = opening;
+
+  const workflowAnswerReady = streamCompletionResult.verticalOutputEnvelopeSeed
+    ? canMarkWorkflowAnswerReady(streamCompletionResult.verticalOutputEnvelopeSeed)
+    : undefined;
 
   const loopResult = await runAgentLoop(
     {
@@ -94,6 +99,7 @@ export async function runSendTurnStreamAgentLoopAfterPrimaryCompletion(
       coordinationLiteEnabled: flags.aiCoordinationLiteEnabled,
       orchestrator,
       insertAuditLog: (entry) => db.collections.audit_logs.insert(entry),
+      ...(workflowAnswerReady !== undefined ? { workflowAnswerReady } : {}),
     },
     {
       resolvedContent: streamCompletionResult.finalContent,

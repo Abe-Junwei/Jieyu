@@ -259,6 +259,7 @@
     "check:messages-imports": "node scripts/check-message-imports.mjs",
     "report:arch2-i18n-message-modules": "node scripts/report-arch2-i18n-message-modules.mjs",
     "check:db-transaction-facade": "node scripts/check-db-transaction-facade.mjs",
+    "check:db-integrity-diagnostics": "node scripts/check-db-integrity-diagnostics.mjs --dry-run",
     "check:fire-and-forget-governance": "node scripts/check-fire-and-forget-governance.mjs",
     "check:segment-meta-sync-governance": "node scripts/check-segment-meta-sync-governance.mjs",
     "check:ai-session-sidecar-entrypoints": "node scripts/check-ai-session-sidecar-entrypoints.mjs",
@@ -266,8 +267,9 @@
     "check:tier-boundary-imports": "node scripts/check-tier-boundary-imports.mjs",
     "report:tierid-diffusion": "node scripts/report-tierid-diffusion.mjs",
     "check:tierid-diffusion": "node scripts/report-tierid-diffusion.mjs --strict --max-off-boundary=0",
-    "audit:prod": "npm audit --omit=dev",
+    "audit:prod": "npm audit --omit=dev && node scripts/check-protobufjs-version-drift.mjs",
     "audit:prod:json": "npm audit --omit=dev --json",
+    "check:protobufjs-drift": "node scripts/check-protobufjs-version-drift.mjs",
     "check:transcription-lane-read-scope": "node scripts/check-transcription-lane-read-scope.mjs",
     "stress:m18-v37-upgrade": "cross-env M18_UPGRADE_STRESS_UTTERANCES=3000 vitest run src/db/migrations/m18LinguisticUnitCutover.upgradeStress.test.ts",
     "check:timeline-cqrs-phase16-segmentation": "node scripts/check-segmentation-storage-boundary.mjs",
@@ -343,7 +345,7 @@
       "global-agent": "4.1.3"
     },
     "@opentelemetry/otlp-transformer": {
-      "protobufjs": "8.0.2"
+      "protobufjs": "8.2.0"
     }
   },
   "dependencies": {

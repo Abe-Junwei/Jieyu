@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildVerticalWorkflowOutputEnvelopeV0, selectVerticalWorkflowV0 } from './verticalWorkflowSelection';
+import {
+  buildVerticalWorkflowOutputEnvelopeV0,
+  reconcileVerticalWorkflowEnvelopeStatus,
+  selectVerticalWorkflowV0,
+} from './verticalWorkflowSelection';
 
 describe('verticalWorkflowSelection', () => {
   it('selects annotation_qa when text contains QA-style annotation keywords', () => {
@@ -33,5 +37,26 @@ describe('verticalWorkflowSelection', () => {
     expect(envelope.outputKind).toBe('qa_findings');
     expect(Array.isArray(envelope.evidencePackets)).toBe(true);
     expect(typeof envelope.generatedAt).toBe('string');
+  });
+
+  it('reconciles envelope status when reflection is flagged after preflight', () => {
+    const selection = selectVerticalWorkflowV0('请做标注 QA');
+    expect(selection).not.toBeNull();
+    const envelope = buildVerticalWorkflowOutputEnvelopeV0(selection!, [
+      {
+        schemaVersion: 0,
+        id: 'ep1',
+        sourceType: 'segment',
+        sourceId: 'seg-1',
+        quote: 'sample',
+        confidence: 0.9,
+      },
+    ]);
+    expect(envelope.status).toBe('ready');
+
+    const reconciled = reconcileVerticalWorkflowEnvelopeStatus(envelope, {
+      reflectionFlagged: true,
+    });
+    expect(reconciled.status).toBe('degraded');
   });
 });

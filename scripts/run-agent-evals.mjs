@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { evaluateTrajectorySignalsFromAudit } from './agent-evals/auditTrajectoryAssertions.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -131,12 +132,20 @@ function evaluateAuditTrace(ndjsonPath) {
     }
   }
   const t4AuditShapePassed = t4PartialProgressDecisionRowCount >= 1 && t4ProposeRollbackDecisionRowCount >= 1;
+  const trajectoryFromAudit = evaluateTrajectorySignalsFromAudit(parsed.rows, [
+    'tool_selection',
+    'gate_correctness',
+    'recovery_path',
+    'audit_traceability',
+    'approval_explainability',
+  ]);
 
   const passed = parsed.errors.length === 0
     && decisionRows.length > 0
     && metadataDecisionRows.length > 0
     && schemaV1DecisionRows.length > 0
-    && t4AuditShapePassed;
+    && t4AuditShapePassed
+    && trajectoryFromAudit.passed;
 
   const failureReasons = [];
   if (parsed.errors.length > 0) {
@@ -157,6 +166,9 @@ function evaluateAuditTrace(ndjsonPath) {
   if (schemaV1DecisionRows.length > 0 && t4ProposeRollbackDecisionRowCount < 1) {
     failureReasons.push('missing_t4_audit_propose_rollback_error_count');
   }
+  if (!trajectoryFromAudit.passed) {
+    failureReasons.push(`missing_trajectory_signals=${trajectoryFromAudit.missingSignals.join(',')}`);
+  }
 
   return {
     enabled: true,
@@ -168,6 +180,8 @@ function evaluateAuditTrace(ndjsonPath) {
     t4PartialProgressDecisionRowCount,
     t4ProposeRollbackDecisionRowCount,
     parseErrorCount: parsed.errors.length,
+    trajectorySignalsFromAudit: trajectoryFromAudit.coveredSignals,
+    missingTrajectorySignalsFromAudit: trajectoryFromAudit.missingSignals,
     passed,
     failureReasons,
   };
@@ -205,9 +219,19 @@ function main() {
     if (typeof item.tier === 'string') return [item.tier];
     return ['full'];
   };
-  const cases = tierFilter
+  const caseEvalSuite = (item) => {
+    if (typeof item.evalSuite === 'string' && item.evalSuite.trim().length > 0) {
+      return item.evalSuite.trim();
+    }
+    return 'regression';
+  };
+  const cases = (tierFilter
     ? allCases.filter((item) => caseTiers(item).includes(tierFilter))
-    : allCases;
+    : allCases
+  ).filter((item) => {
+    if (tierFilter === 'smoke') return caseEvalSuite(item) === 'regression';
+    return true;
+  });
   if (cases.length === 0) {
     process.stderr.write(`no cases match --tier=${tierFilter} in suite ${path.relative(repoRoot, suitePath)}\n`);
     process.exit(1);

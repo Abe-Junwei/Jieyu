@@ -26,8 +26,9 @@ import { formatEmptyModelReply, formatEmptyModelResponseError } from '../../ai/m
 import { generateTraceId } from '../../observability/aiTrace';
 import { createMetricTags, recordMetric } from '../../observability/metrics';
 import type { AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
-import type { Locale } from '../../i18n';
-import { resolveUserDirectivePolicyDecision } from '../../ai/policy/resolveExecutionPolicy';
+import { t, type Locale } from '../../i18n';
+import { resolveLocalContextToolPolicyDecision } from '../../ai/policy/resolveExecutionPolicy';
+import { featureFlags } from '../../ai/config/featureFlags';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
 import type {
   VerticalWorkflowOutputEnvelopeV0,
@@ -265,15 +266,11 @@ function mergeLocalToolSessionState(
 }
 
 function buildLocalToolPolicyBlockedMessage(locale: Locale): string {
-  return locale === 'zh-CN'
-    ? '已按你的偏好阻止本地工具自动执行。若你希望继续，请明确授权本轮执行。'
-    : 'Local tool execution was blocked by your directive preferences. If you want to continue, explicitly authorize this turn.';
+  return t(locale, 'ai.toolWriteGate.localPolicyBlocked');
 }
 
 function buildLocalToolPolicyConfirmMessage(locale: Locale): string {
-  return locale === 'zh-CN'
-    ? '根据你的偏好，这类工具调用需要你先确认。我已暂停自动执行。'
-    : 'Your directive preferences require confirmation before this tool call. Auto-execution is paused.';
+  return t(locale, 'ai.toolWriteGate.localPolicyConfirm');
 }
 
 export async function resolveAiChatStreamCompletion({
@@ -343,7 +340,9 @@ export async function resolveAiChatStreamCompletion({
         name: stepCall.name,
         arguments: stepCall.arguments,
       };
-      const policyDecision = resolveUserDirectivePolicyDecision(stepToolCall, rollingMemory);
+      const policyDecision = resolveLocalContextToolPolicyDecision(stepToolCall, rollingMemory, {
+        writeGateEnabled: featureFlags.aiToolWriteGateEnabled,
+      });
       if (policyDecision.action === 'block') {
         bumpMetric('failureCount');
         return {
@@ -451,7 +450,13 @@ export async function resolveAiChatStreamCompletion({
       name: resolvedCall.name,
       arguments: resolvedCall.arguments,
     };
-    const singlePolicyDecision = resolveUserDirectivePolicyDecision(singleToolCall, sessionMemory);
+    const singlePolicyDecision = resolveLocalContextToolPolicyDecision(
+      singleToolCall,
+      sessionMemory,
+      {
+        writeGateEnabled: featureFlags.aiToolWriteGateEnabled,
+      },
+    );
     if (singlePolicyDecision.action === 'block') {
       bumpMetric('failureCount');
       return {

@@ -12,13 +12,17 @@ import {
   toNaturalToolRollbackSkipped,
   validateToolCallArguments,
 } from './toolCallHelpers';
+import { featureFlags } from '../config/featureFlags';
 import { resolveUserDirectivePolicyDecision } from '../policy/resolveExecutionPolicy';
+import { formatToolWriteGateUserMessage } from '../messages/toolWriteGateFeedback';
+import { isAiToolWritePreviewRequired } from '../policy/aiToolPolicyMatrix';
+import { assertAiChatToolWriteAllowed } from '../runtime/toolWriteGate';
 import {
   formatDuplicateRequestIgnoredDetail,
   formatDuplicateRequestIgnoredError,
 } from '../messages';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
-import type { Locale } from '../../i18n';
+import { t, type Locale } from '../../i18n';
 import { buildAndAuditToolIntent } from '../../hooks/ai/useAiChat.toolIntent';
 import { resolveToolIntentOutcome } from '../../hooks/ai/useAiChat.intentResolution';
 import { handleInvalidToolArguments } from '../../hooks/ai/useAiChat.argsValidation';
@@ -331,6 +335,40 @@ export async function resolveToolDecisionPipeline({
     return { finalContent, finalStatus: 'done' };
   }
 
+  if (featureFlags.aiToolWriteGateEnabled) {
+    const writeGateDecision = assertAiChatToolWriteAllowed(toolCall, aiContext, {
+      gateEnabled: true,
+      destructiveAllowed: allowDestructiveToolCalls,
+    });
+    if (!writeGateDecision.allowed) {
+      const gateMessage = formatToolWriteGateUserMessage(locale, writeGateDecision.reasonCode);
+      const finalContent = toNaturalToolFailure(
+        locale,
+        toolCall.name,
+        gateMessage,
+        toolFeedbackStyle,
+      );
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `auto:${toolCall.name}`,
+        `policy_blocked:${toolCall.name}:${writeGateDecision.reasonCode}`,
+        'system',
+        toolCall.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          toolCall,
+          auditContext,
+          'system',
+          'policy_blocked',
+          false,
+          gateMessage,
+          writeGateDecision.reasonCode,
+        ),
+      );
+      return { finalContent, finalStatus: 'done' };
+    }
+  }
+
   if (policyDecision.action === 'confirm') {
     const executionCall = preparePendingToolCall
       ? ((await preparePendingToolCall(toolCall)) ?? undefined)
@@ -374,6 +412,59 @@ export async function resolveToolDecisionPipeline({
         false,
         policyDecision.message,
         policyDecision.reason,
+      ),
+    );
+    return {
+      finalContent: toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle),
+      finalStatus: 'done',
+    };
+  }
+
+  if (featureFlags.aiToolWriteGateEnabled && isAiToolWritePreviewRequired(toolCall.name)) {
+    const executionCall = preparePendingToolCall
+      ? ((await preparePendingToolCall(toolCall)) ?? undefined)
+      : undefined;
+    const previewSourceCall = executionCall ?? toolCall;
+    const impact = describeAndBuildPending(previewSourceCall, aiContext);
+    const readModelEpochCaptured = aiContext?.shortTerm?.timelineReadModelEpoch;
+    const previewReasonCode = 'write_gate_preview_required' as const;
+    const previewReasonLabel = t(locale, 'ai.toolWriteGate.previewConfirmationRequired');
+    setTaskSession({
+      id: taskSessionId,
+      status: 'waiting_confirm',
+      toolName: toolCall.name,
+      updatedAt: new Date().toISOString(),
+    });
+    setPendingToolCall({
+      call: toolCall,
+      ...(executionCall ? { executionCall } : {}),
+      assistantMessageId,
+      riskSummary: impact.riskSummary,
+      impactPreview: impact.impactPreview,
+      approvalMode: 'safety_gate',
+      policyReasonCode: previewReasonCode,
+      policyReasonLabel: previewReasonLabel,
+      riskTier: isDestructiveToolCall(toolCall.name) ? 'high' : 'medium',
+      previewContract: buildPreviewContract(previewSourceCall, aiContext),
+      ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
+      auditContext,
+      ...(readModelEpochCaptured !== undefined ? { readModelEpochCaptured } : {}),
+    });
+    await writeToolDecisionAuditLog(
+      assistantMessageId,
+      `auto:${toolCall.name}`,
+      `policy_pending:${toolCall.name}:${previewReasonCode}`,
+      'system',
+      toolCall.requestId,
+      buildToolDecisionAuditMetadata(
+        assistantMessageId,
+        toolCall,
+        auditContext,
+        'system',
+        'policy_pending',
+        false,
+        previewReasonLabel,
+        previewReasonCode,
       ),
     );
     return {

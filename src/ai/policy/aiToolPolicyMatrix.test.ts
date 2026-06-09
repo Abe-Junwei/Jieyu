@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AI_TOOL_POLICY_MATRIX,
+  aiToolSupportsPreview,
   getAiToolLayerLinkActionKind,
   getAiToolLayerLinkExecutionToolNames,
   getAiToolPolicy,
@@ -10,6 +11,7 @@ import {
   isAiToolSegmentExecutionWithExplicitTarget,
   isAiToolSegmentTargetMaterializationTool,
   isAiToolSegmentWriteWithExplicitTarget,
+  isAiToolWritePreviewRequired,
 } from './aiToolPolicyMatrix';
 
 describe('aiToolPolicyMatrix', () => {
@@ -35,21 +37,29 @@ describe('aiToolPolicyMatrix', () => {
   });
 
   it('ensures explicit-target tools keep non-empty audit reason codes', () => {
-    const explicitTargetPolicies = Object.values(AI_TOOL_POLICY_MATRIX).filter((policy) => policy.requiresExplicitTarget);
+    const explicitTargetPolicies = Object.values(AI_TOOL_POLICY_MATRIX).filter(
+      (policy) => policy.requiresExplicitTarget,
+    );
     expect(explicitTargetPolicies.length).toBeGreaterThan(0);
     expect(explicitTargetPolicies.every((policy) => policy.auditReasonCodes.length > 0)).toBe(true);
   });
 
   it('ensures destructive tools use host modal confirmation', () => {
-    const destructivePolicies = Object.values(AI_TOOL_POLICY_MATRIX).filter((policy) => policy.destructive);
+    const destructivePolicies = Object.values(AI_TOOL_POLICY_MATRIX).filter(
+      (policy) => policy.destructive,
+    );
     expect(destructivePolicies.length).toBeGreaterThan(0);
-    expect(destructivePolicies.every((policy) => policy.confirmationMode === 'host_modal')).toBe(true);
+    expect(destructivePolicies.every((policy) => policy.confirmationMode === 'host_modal')).toBe(
+      true,
+    );
   });
 
   it('keeps segment execution tool names aligned with explicit-target segment execution helper', () => {
     const toolNames = getAiToolSegmentExecutionToolNames();
     expect(toolNames.length).toBeGreaterThan(0);
-    expect(toolNames.every((toolName) => isAiToolSegmentExecutionWithExplicitTarget(toolName))).toBe(true);
+    expect(
+      toolNames.every((toolName) => isAiToolSegmentExecutionWithExplicitTarget(toolName)),
+    ).toBe(true);
     expect(isAiToolSegmentExecutionWithExplicitTarget('auto_gloss_unit')).toBe(true);
   });
 
@@ -64,6 +74,18 @@ describe('aiToolPolicyMatrix', () => {
     expect(toolNames.length).toBeGreaterThan(0);
     expect(toolNames.every((toolName) => isAiToolLayerLinkWithExplicitTarget(toolName))).toBe(true);
     expect(isAiToolLayerLinkWithExplicitTarget('delete_layer')).toBe(false);
+  });
+
+  it('marks write-like non-destructive tools as preview-supported', () => {
+    expect(aiToolSupportsPreview('set_transcription_text')).toBe(true);
+    expect(aiToolSupportsPreview('propose_changes')).toBe(true);
+    expect(aiToolSupportsPreview('delete_transcription_segment')).toBe(false);
+    expect(aiToolSupportsPreview('nav_to_segment')).toBe(false);
+  });
+
+  it('requires preview for auto-execute writes but not propose_changes parent flow', () => {
+    expect(isAiToolWritePreviewRequired('set_token_gloss')).toBe(true);
+    expect(isAiToolWritePreviewRequired('propose_changes')).toBe(false);
   });
 
   it('maps layer-link tools to stable action kinds', () => {

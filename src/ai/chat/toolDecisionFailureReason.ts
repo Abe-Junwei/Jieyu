@@ -27,6 +27,10 @@ const ADDITIONAL_METADATA_REASON_ORDERED = [
   'propose_changes_requires_confirmation',
   'explicit_target_write_requires_confirmation',
   'destructive_action_requires_confirmation',
+  'write_gate_preview_required',
+  'scope_target_unresolved',
+  'destructive_denied',
+  'context_unavailable',
 ] as const;
 
 type NonPersistedToolDecisionReason = (typeof NON_PERSISTED_ORDERED)[number];
@@ -35,7 +39,9 @@ export type ToolDecisionMetadataReasonCode =
   | NonPersistedToolDecisionReason
   | (typeof ADDITIONAL_METADATA_REASON_ORDERED)[number];
 
-export const NON_PERSISTED_TOOL_DECISION_REASONS: ReadonlySet<string> = new Set(NON_PERSISTED_ORDERED);
+export const NON_PERSISTED_TOOL_DECISION_REASONS: ReadonlySet<string> = new Set(
+  NON_PERSISTED_ORDERED,
+);
 
 export const TOOL_DECISION_METADATA_REASON_CODES: readonly ToolDecisionMetadataReasonCode[] = [
   ...NON_PERSISTED_ORDERED,
@@ -45,7 +51,10 @@ export const TOOL_DECISION_METADATA_REASON_CODES: readonly ToolDecisionMetadataR
 /** 史诗 T4「重试 / 澄清 / 人工接管 / 放弃」四象限运维分流（T4-c 仅对白名单 reason 做自动重试）。 */
 export type AiToolDecisionFailureTriage = 'retry' | 'clarify' | 'human' | 'abandon';
 
-export const TOOL_DECISION_REASON_FAILURE_TRIAGE: Record<ToolDecisionMetadataReasonCode, AiToolDecisionFailureTriage> = {
+export const TOOL_DECISION_REASON_FAILURE_TRIAGE: Record<
+  ToolDecisionMetadataReasonCode,
+  AiToolDecisionFailureTriage
+> = {
   invalid_args: 'clarify',
   invalid_child_args: 'clarify',
   no_executor: 'human',
@@ -64,6 +73,10 @@ export const TOOL_DECISION_REASON_FAILURE_TRIAGE: Record<ToolDecisionMetadataRea
   propose_changes_requires_confirmation: 'human',
   explicit_target_write_requires_confirmation: 'human',
   destructive_action_requires_confirmation: 'human',
+  write_gate_preview_required: 'human',
+  scope_target_unresolved: 'clarify',
+  destructive_denied: 'abandon',
+  context_unavailable: 'clarify',
 };
 
 export function isNonPersistedToolDecisionReason(reason: string | undefined | null): boolean {
@@ -83,7 +96,9 @@ export function isKnownToolDecisionMetadataReasonCode(
 /**
  * 无 `metadataJson` 时从 `newValue` 提取第三段 reason（与 `useAiChat.toolAudit` 幂等回退一致）。
  */
-export function parseCompactToolDecisionReasonFromNewValue(newValue: string | undefined | null): string | undefined {
+export function parseCompactToolDecisionReasonFromNewValue(
+  newValue: string | undefined | null,
+): string | undefined {
   const parts = String(newValue ?? '').split(':');
   const decision = parts[0] ?? '';
   if (decision !== 'confirm_failed' && decision !== 'auto_failed') return undefined;
@@ -92,7 +107,9 @@ export function parseCompactToolDecisionReasonFromNewValue(newValue: string | un
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function getToolDecisionFailureTriage(reason: string | undefined | null): AiToolDecisionFailureTriage {
+export function getToolDecisionFailureTriage(
+  reason: string | undefined | null,
+): AiToolDecisionFailureTriage {
   const code = (reason ?? '').trim();
   if (!code) return 'human';
   if (isKnownToolDecisionMetadataReasonCode(code)) {

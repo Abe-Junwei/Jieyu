@@ -74,6 +74,40 @@ describe('featureFlags environment matrix', () => {
     expect(local.aiToolCallExecutorAutoRetryEnabled).toBe(false);
   });
 
+  it('enables agent-loop reliability flags by default in dogfood and staging', async () => {
+    const dogfood = await loadFeatureFlagsWithEnv({
+      MODE: 'production',
+      VITE_M5_OBSERVABILITY_ENV: 'dogfood',
+      VITE_AI_AGENT_LOOP_CLOSED_LOOP_REPLANNING_ENABLED: undefined,
+      VITE_AI_AGENT_LOOP_TOOL_RESULT_QUALITY_GATE_ENABLED: undefined,
+      VITE_AI_AGENT_LOOP_CONTEXT_BUDGET_RECALCULATION_ENABLED: undefined,
+      VITE_AI_TOOL_WRITE_GATE_ENABLED: undefined,
+      VITE_AI_AGENT_LOOP_TOOL_RESULT_COMPACTION_ENABLED: undefined,
+    });
+
+    expect(dogfood.aiAgentLoopClosedLoopReplanningEnabled).toBe(true);
+    expect(dogfood.aiAgentLoopToolResultQualityGateEnabled).toBe(true);
+    expect(dogfood.aiAgentLoopContextBudgetRecalculationEnabled).toBe(true);
+    expect(dogfood.aiToolWriteGateEnabled).toBe(true);
+    expect(dogfood.aiAgentLoopToolResultCompactionEnabled).toBe(true);
+
+    const prod = await loadFeatureFlagsWithEnv({
+      MODE: 'production',
+      VITE_M5_OBSERVABILITY_ENV: 'production',
+      VITE_AI_AGENT_LOOP_CLOSED_LOOP_REPLANNING_ENABLED: undefined,
+      VITE_AI_AGENT_LOOP_TOOL_RESULT_QUALITY_GATE_ENABLED: undefined,
+      VITE_AI_AGENT_LOOP_CONTEXT_BUDGET_RECALCULATION_ENABLED: undefined,
+      VITE_AI_TOOL_WRITE_GATE_ENABLED: undefined,
+      VITE_AI_AGENT_LOOP_TOOL_RESULT_COMPACTION_ENABLED: undefined,
+    });
+
+    expect(prod.aiAgentLoopClosedLoopReplanningEnabled).toBe(true);
+    expect(prod.aiAgentLoopToolResultQualityGateEnabled).toBe(true);
+    expect(prod.aiAgentLoopContextBudgetRecalculationEnabled).toBe(true);
+    expect(prod.aiToolWriteGateEnabled).toBe(false);
+    expect(prod.aiAgentLoopToolResultCompactionEnabled).toBe(true);
+  });
+
   it('respects explicit env overrides over matrix defaults', async () => {
     const flags = await loadFeatureFlagsWithEnv({
       MODE: 'production',

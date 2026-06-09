@@ -1,5 +1,6 @@
 import { isDestructiveToolCall } from '../chat/toolCallHelpers';
 import type { AiChatToolCall, AiSessionMemory } from '../chat/chatDomain.types';
+import { isReadOnlyLocalContextToolName } from './localContextToolEffects';
 import {
   resolveBackgroundToolSandboxDecision,
   type BackgroundToolSandboxDecision,
@@ -15,27 +16,36 @@ export const AI_CHAT_SESSION_SIDECAR_WRITE_PATH = {
   pinnedMessageDirective: 'session-memory/pinned-message-directive',
   sendPreflightDirective: 'session-memory/send-preflight-directive',
 } as const;
-type AiChatSessionSidecarWritePath = (typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH)[keyof typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH];
+type AiChatSessionSidecarWritePath =
+  (typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH)[keyof typeof AI_CHAT_SESSION_SIDECAR_WRITE_PATH];
 
 export type PolicyShapeToolCall = { name: string; arguments: Record<string, unknown> };
 
 function isBatchToolCall(call: PolicyShapeToolCall): boolean {
-  return Object.values(call.arguments).some((value) => Array.isArray(value) && value.length > 1)
-    || call.name === 'propose_changes'
-    || call.name === 'merge_transcription_segments';
+  return (
+    Object.values(call.arguments).some((value) => Array.isArray(value) && value.length > 1) ||
+    call.name === 'propose_changes' ||
+    call.name === 'merge_transcription_segments'
+  );
 }
 
 export function isWriteLikeToolCall(call: PolicyShapeToolCall): boolean {
   if (isDestructiveToolCall(call.name as AiChatToolCall['name'])) return true;
-  return /^(create_|set_|split_|merge_|clear_|link_|unlink_|add_|remove_|switch_|auto_gloss_)/.test(call.name)
-    || call.name === 'propose_changes';
+  return (
+    /^(create_|set_|split_|merge_|clear_|link_|unlink_|add_|remove_|switch_|auto_gloss_)/.test(
+      call.name,
+    ) || call.name === 'propose_changes'
+  );
 }
 
 export type UserDirectivePolicyDecision =
   | { action: 'allow' }
   | {
       action: 'block';
-      reason: 'user_directive_never_execute' | 'user_directive_deny_destructive' | 'user_directive_deny_batch';
+      reason:
+        | 'user_directive_never_execute'
+        | 'user_directive_deny_destructive'
+        | 'user_directive_deny_batch';
       message: string;
     }
   | {
@@ -54,25 +64,31 @@ export function resolveUserDirectivePolicyDecision(
 ): UserDirectivePolicyDecision {
   const toolPreference = sessionMemory.toolPreferences?.autoExecute;
   const safetyPreferences = sessionMemory.safetyPreferences;
-  const policyBlocksDestructive = safetyPreferences?.denyDestructive === true && isDestructiveToolCall(toolCall.name as AiChatToolCall['name']);
+  const policyBlocksDestructive =
+    safetyPreferences?.denyDestructive === true &&
+    isDestructiveToolCall(toolCall.name as AiChatToolCall['name']);
   const policyBlocksBatch = safetyPreferences?.denyBatch === true && isBatchToolCall(toolCall);
-  const policyBlocksExecution = toolPreference === 'never' || policyBlocksDestructive || policyBlocksBatch;
+  const policyBlocksExecution =
+    toolPreference === 'never' || policyBlocksDestructive || policyBlocksBatch;
   if (policyBlocksExecution) {
-    const reason = toolPreference === 'never'
-      ? 'user_directive_never_execute'
-      : policyBlocksDestructive
-        ? 'user_directive_deny_destructive'
-        : 'user_directive_deny_batch';
-    const message = reason === 'user_directive_never_execute'
-      ? 'Blocked by user directive: do not execute tools automatically.'
-      : reason === 'user_directive_deny_destructive'
-        ? 'Blocked by user directive: destructive actions are disabled.'
-        : 'Blocked by user directive: batch actions are disabled.';
+    const reason =
+      toolPreference === 'never'
+        ? 'user_directive_never_execute'
+        : policyBlocksDestructive
+          ? 'user_directive_deny_destructive'
+          : 'user_directive_deny_batch';
+    const message =
+      reason === 'user_directive_never_execute'
+        ? 'Blocked by user directive: do not execute tools automatically.'
+        : reason === 'user_directive_deny_destructive'
+          ? 'Blocked by user directive: destructive actions are disabled.'
+          : 'Blocked by user directive: batch actions are disabled.';
     return { action: 'block', reason, message };
   }
 
-  const policyRequiresConfirmation = toolPreference === 'ask_first'
-    || (safetyPreferences?.requireImpactPreview === true && isWriteLikeToolCall(toolCall));
+  const policyRequiresConfirmation =
+    toolPreference === 'ask_first' ||
+    (safetyPreferences?.requireImpactPreview === true && isWriteLikeToolCall(toolCall));
   if (policyRequiresConfirmation) {
     return {
       action: 'confirm',
@@ -84,6 +100,23 @@ export function resolveUserDirectivePolicyDecision(
   return { action: 'allow' };
 }
 
+/**
+ * Local context tools: when write gate is on, readonly tools bypass ask_first / impact preview.
+ * Spec: agent-runtime-security-write-gate — auto-allow L0 reads for non-developer users.
+ */
+export function resolveLocalContextToolPolicyDecision(
+  toolCall: PolicyShapeToolCall,
+  sessionMemory: AiSessionMemory,
+  options?: { writeGateEnabled?: boolean },
+): UserDirectivePolicyDecision {
+  if (options?.writeGateEnabled) {
+    if (isReadOnlyLocalContextToolName(toolCall.name) || toolCall.name === 'batch_apply') {
+      return { action: 'allow' };
+    }
+  }
+  return resolveUserDirectivePolicyDecision(toolCall, sessionMemory);
+}
+
 export interface ResolveAiChatBackgroundMemorySandboxPolicyParams {
   sandboxEnabled: boolean;
   profile: BackgroundToolSandboxProfile;
@@ -93,9 +126,10 @@ export interface ResolveAiChatBackgroundMemorySandboxPolicyParams {
 /** Shared input for F4 session sidecar gates (pinned / send-preflight / background flush). */
 export type AiChatSessionSidecarSandboxContext = ResolveAiChatBackgroundMemorySandboxPolicyParams;
 
-export type ResolveAiChatSessionSidecarSandboxPolicyParams = ResolveAiChatBackgroundMemorySandboxPolicyParams & {
-  virtualWritePath: AiChatSessionSidecarWritePath;
-};
+export type ResolveAiChatSessionSidecarSandboxPolicyParams =
+  ResolveAiChatBackgroundMemorySandboxPolicyParams & {
+    virtualWritePath: AiChatSessionSidecarWritePath;
+  };
 
 /**
  * F4 session sidecar writes (pinned replay, send-preflight directives, background memory flush):

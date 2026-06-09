@@ -28,6 +28,9 @@ import {
   finalizeLocalContextToolResult,
   buildAcousticUnavailablePayload,
 } from './executors/toolPayload';
+import { featureFlags } from '../config/featureFlags';
+import { toToolWriteGateErrorToken } from '../messages/toolWriteGateFeedback';
+import { assertLocalContextToolAllowed } from '../runtime/toolWriteGate';
 
 export async function executeLocalContextToolCall(
   call: LocalContextToolCall,
@@ -52,6 +55,20 @@ export async function executeLocalContextToolCall(
       name: call.name,
       result: null,
       error: 'context is unavailable',
+    };
+    toolSpan.endWithError(out.error);
+    return out;
+  }
+
+  const writeGateDecision = assertLocalContextToolAllowed(call, context, {
+    gateEnabled: featureFlags.aiToolWriteGateEnabled,
+  });
+  if (!writeGateDecision.allowed) {
+    const out = {
+      ok: false,
+      name: call.name,
+      result: null,
+      error: toToolWriteGateErrorToken(writeGateDecision.reasonCode),
     };
     toolSpan.endWithError(out.error);
     return out;

@@ -31,8 +31,10 @@ source_of_truth: architecture-decision
 
 ### 3. protobufjs 供应链
 
-1. `package.json` `overrides` 在 `@opentelemetry/otlp-transformer` 嵌套路径将 `protobufjs` 钉至 **8.2.0**（不强制 onnxruntime 的 7.5.8 线升级，该线已在 7.5.8 修复 CVE）。
-2. 合并前跑 `npm audit`；若上游 OTEL 包仍拉旧版，保留顶层 override 直至依赖树干净。
+1. `package.json` `overrides` 在 `@opentelemetry/otlp-transformer` 嵌套路径将 `protobufjs` 钉至 **8.2.0**；`package-lock.json` 必须同步记录该 override 结果，避免 `npm audit` 继续按旧 lockfile 报告 OTEL 路径漏洞。
+2. `onnxruntime-web` 依赖线当前保留 `protobufjs@7.5.8`，作为已接受风险 / 待上游升级项处理；该线不得低于 **7.5.8**，若未来 npm advisory 覆盖 7.5.8 或上游发布兼容升级，再收紧门禁。
+3. `scripts/check-protobufjs-version-drift.mjs` 必须在输出中区分 `OTEL path` 与 `onnxruntime-web path`：OTEL 路径要求 **>= 8.2.0**，onnxruntime-web 路径要求 **>= 7.5.8**。
+4. 合并前跑 `npm run audit:prod`；若上游 OTEL 包仍拉旧版，保留 override 直至依赖树干净。
 
 ## 影响
 
@@ -45,10 +47,12 @@ source_of_truth: architecture-decision
 - **用户主口令**：交互与恢复成本高，留待显式产品需求。
 - **保留 connect-src 通配符**：与严格 CSP 基线冲突。
 - **protobufjs 7.5.8 降级**：与 OTEL 8.x 线不兼容，维持 8.2.0 override。
+- **强制 onnxruntime-web 线升级到 8.2.0**：当前上游依赖约束仍停在 7.x 线，强制 override 可能制造 invalid / dedupe 风险；本阶段接受 7.5.8 基线并持续跟踪上游。
 
 ## 验证
 
-- `npm audit`（protobufjs 相关项应清除或降级）
+- `npm run audit:prod`（`npm audit --omit=dev` 为 0 vulnerabilities，且 protobufjs 漂移脚本输出 OTEL / onnxruntime-web 分线结果）
+- `npm run check:protobufjs-drift`
 - `npm run typecheck`
 - `npx vitest run src/observability/otel.test.ts`
 - 手动：默认 LLM provider 请求、Supabase 协同、本地 embedding（Hugging Face CDN）仍可 connect

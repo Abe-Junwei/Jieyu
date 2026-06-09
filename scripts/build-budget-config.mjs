@@ -5,6 +5,7 @@ export const buildBudgets = [
   { label: 'pdf-vendor', pattern: /^pdf-vendor-.*\.js$/, maxBytes: 900 * 1024 },
   { label: 'transformers', pattern: /^transformers[.\-].*\.js$/, maxBytes: 860 * 1024 },
   { label: 'onnxruntime-vendor', pattern: /^ort\.bundle\.min-.*\.js$/, maxBytes: 400 * 1024 },
+  { label: 'language-mapping-runtime', pattern: /^language-mapping-runtime-.*\.js$/, maxBytes: 64 * 1024 },
   { label: 'main.css', pattern: /^main-.*\.css$/, maxBytes: 150 * 1024 },
   // May emit multiple hashed CSS files (route shell + lazy chunk); checker enforces each file <= maxBytes
   // Verified current release footprint remains within 230 KiB after the page-shell split.

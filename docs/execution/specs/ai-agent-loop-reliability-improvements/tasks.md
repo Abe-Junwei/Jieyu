@@ -26,6 +26,7 @@ source_of_truth: ai-agent-loop-reliability-improvements-spec
 | 1.6 | ✅ clarify 文案 + `waiting_clarify` taskSession（`agentLoopClarify.ts`） | `agentLoopExplainability.ts`, `agentLoopClarify.ts`, `aiChatCardMessages.ts` | runner clarify test |
 
 > **落地记录（2026-06-01）**：验证 `typecheck` 0 err；`agentLoopReplanning` + `agentLoop.replanning` + runner clarify 测试全 pass；`check:agent-evals:smoke` 3/3；`check:architecture-guard` 全绿（含 public-surface 白名单对齐）。
+> **放量（2026-06-09）**：dogfood/staging 环境默认 `true`（`aiAgentLoopReliabilityFlagsDefaultEnabled`）；prod/local 仍 `false`，可用 `VITE_AI_AGENT_LOOP_*` 覆盖。
 
 ---
 

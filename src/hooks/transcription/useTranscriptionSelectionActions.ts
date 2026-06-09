@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { normalizeSelection } from '../../utils/selectionUtils';
 import type { LayerUnitDocType } from '../../db';
 import {
@@ -8,11 +8,9 @@ import {
   type TimelineUnit,
   type TimelineUnitKind,
 } from './transcriptionTypes';
-import { createLogger } from '../../observability/logger';
 
 // 空 Set 常量：避免每次 clear 都创建新引用触发 React 渲染 | Constant empty Set: avoid creating new reference on every clear
 const EMPTY_SET: ReadonlySet<string> = new Set<string>();
-const log = createLogger('useTranscriptionSelectionActions');
 
 function hasSameSelectionIds(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
   if (left.size !== right.size) return false;
@@ -47,15 +45,13 @@ export function useTranscriptionSelectionActions({
   setSelectedUnitIds,
   setSelectedTimelineUnit,
 }: Params) {
-  const missingLayerIdLoggedSourcesRef = useRef(new Set<string>());
-
   const clearSelectionState = useCallback(() => {
     setSelectedTimelineUnit(null);
     setSelectedUnitIds(EMPTY_SET as Set<string>);
   }, [setSelectedTimelineUnit, setSelectedUnitIds]);
 
   const resolveRequiredLayerId = useCallback(
-    (rawLayerId: string, source: string): string | null => {
+    (rawLayerId: string): string | null => {
       const layerId = resolveTimelineLayerIdFallback({
         selectedLayerId: rawLayerId,
         focusedLayerId: selectedLayerIdRef.current,
@@ -64,10 +60,6 @@ export function useTranscriptionSelectionActions({
         firstTranscriptionLayerId: fallbackLayerId,
       });
       if (layerId.length > 0) return layerId;
-      if (!missingLayerIdLoggedSourcesRef.current.has(source)) {
-        missingLayerIdLoggedSourcesRef.current.add(source);
-        log.error('missing layerId', { source });
-      }
       return null;
     },
     [defaultTranscriptionLayerId, fallbackLayerId, selectedLayerIdRef, selectedTimelineUnitRef],
@@ -87,7 +79,7 @@ export function useTranscriptionSelectionActions({
         clearSelectionState();
         return;
       }
-      const layerId = resolveRequiredLayerId(input.rawLayerId, input.source);
+      const layerId = resolveRequiredLayerId(input.rawLayerId);
       if (!layerId) {
         clearSelectionState();
         return;

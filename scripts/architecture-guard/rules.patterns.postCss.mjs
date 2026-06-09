@@ -9,6 +9,11 @@ export const architectureGuardPostCssPatternRules = [
     excludeFiles: [
       'src/pages/useReadyWorkspaceSurfaceProps.tsx',
       'src/pages/useReadyWorkspaceTrackEditControllers.ts',
+      'src/pages/useSpeakerActionSegmentMutationCluster.ts',
+      'src/pages/useSpeakerActionFilterRoutingHandlers.ts',
+      'src/pages/useSpeakerActionSelectionRoutingHandlers.ts',
+      'src/pages/useSpeakerActionRoutingHandlers.ts',
+      'src/pages/useTranscriptionChatWindowLayout.ts',
     ],
     excludeRegexes: [
       /Controller\.ts$/,

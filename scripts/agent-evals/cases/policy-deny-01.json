@@ -3,6 +3,8 @@
   "category": "policy",
   "capability": "policy",
   "tier": "blocking",
+  "evalSuite": "regression",
+  "outcomeVerifier": "policy_block_no_write",
   "outcome": "deny",
   "description": "User set denyDestructive=true; any destructive tool call must be blocked regardless of autoExecute preference.",
   "input": {

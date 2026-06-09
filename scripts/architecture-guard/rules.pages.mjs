@@ -123,18 +123,61 @@ export const architectureGuardPageControllerRules = [
     ],
   }),
   pageControllerRule('useSpeakerActionRoutingController', {
-    maxLines: 1100,
-    maxUseCallbackDecls: 22,
+    maxLines: 420,
+    maxUseCallbackDecls: 6,
     maxUseMemoDecls: 8,
     maxUseEffects: 1,
     requiredRegexes: [
       /export function useSpeakerActionRoutingController\(/,
       /selectedUnitIdsForSpeakerActions\.filter\(\(id\) => !segmentByIdForSpeakerActions\.has\(id\)\)/,
       /recordMetric\(\{\s*id:\s*'business\.transcription\.speaker_mixed_selection_apply_count'/,
+      /useSpeakerActionSegmentMutationCluster\(\{/,
+      /useSpeakerActionRoutingHandlers\(\{/,
     ],
     forbiddenRegexes: [
       /selectedUnitIdsForSpeakerActionsSet/,
     ],
+    warnAtRatio: 0.85,
+  }),
+  pageControllerRule('useSpeakerActionSegmentMutationCluster', {
+    maxLines: 400,
+    maxUseCallbackDecls: 6,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 0,
+    requiredRegexes: [/export function useSpeakerActionSegmentMutationCluster\(/],
+    warnAtRatio: 0.85,
+  }),
+  pageControllerRule('useSpeakerActionSelectionRoutingHandlers', {
+    maxLines: 220,
+    maxUseCallbackDecls: 6,
+    maxUseMemoDecls: 2,
+    maxUseEffects: 0,
+    requiredRegexes: [/export function useSpeakerActionSelectionRoutingHandlers\(/],
+    warnAtRatio: 0.85,
+  }),
+  pageControllerRule('useSpeakerActionFilterRoutingHandlers', {
+    maxLines: 240,
+    maxUseCallbackDecls: 6,
+    maxUseMemoDecls: 2,
+    maxUseEffects: 0,
+    requiredRegexes: [
+      /export function useSpeakerActionFilterRoutingHandlers\(/,
+      /speakerActionRoutingHandlers\.helpers/,
+    ],
+    warnAtRatio: 0.85,
+  }),
+  pageControllerRule('useSpeakerActionRoutingHandlers', {
+    maxLines: 280,
+    maxUseCallbackDecls: 6,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 0,
+    requiredRegexes: [
+      /export function useSpeakerActionRoutingHandlers\(/,
+      /speakerActionRoutingHandlers\.helpers/,
+      /useSpeakerActionFilterRoutingHandlers\(\{/,
+      /useSpeakerActionSelectionRoutingHandlers\(\{/,
+    ],
+    warnAtRatio: 0.85,
   }),
   pageControllerRule('useSpeakerActionScopeController', {
     maxLines: 250,
@@ -288,6 +331,29 @@ export const architectureGuardPageControllerRules = [
     maxUseCallbackDecls: 0,
     maxUseMemoDecls: 0,
     maxUseEffects: 1,
+  }),
+  pageControllerRule('useTranscriptionChatWindowController', {
+    maxLines: 220,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 8,
+    maxUseEffects: 0,
+    requiredRegexes: [
+      /export function useTranscriptionChatWindowController\(/,
+      /useTranscriptionChatWindowLayout\(\{/,
+    ],
+    warnAtRatio: 0.85,
+  }),
+  pageControllerRule('useTranscriptionChatWindowLayout', {
+    maxLines: 300,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 8,
+    requiredRegexes: [
+      /export function useTranscriptionChatWindowLayout\(/,
+      /readStoredChatWindowLayout\(/,
+      /createChatWindowPointerInteractionHandlers\(/,
+    ],
+    warnAtRatio: 0.85,
   }),
 ];
 

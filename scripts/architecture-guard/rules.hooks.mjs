@@ -17,9 +17,35 @@ export const architectureGuardNamedHookRules = [
     maxUseEffects: 9,
     requiredRegexes: [
       /createTranscriptionVoiceSendToAiChat\(\{/,
+      /useVoiceInteractionSummaries\(\{/,
+      /useVoiceInteractionAssistantRuntime\(\{/,
+      /useVoiceInteractionCommercialSync\(\{/,
+    ],
+  }),
+  hookRule('useVoiceInteractionSummaries', {
+    maxLines: 200,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 5,
+    maxUseEffects: 2,
+    requiredRegexes: [
       /computeTranscriptionVoiceTargetSummary\(\{/,
       /computeTranscriptionVoiceSelectionSummary\(\{/,
     ],
+    warnAtRatio: 0.85,
+  }),
+  hookRule('useVoiceInteractionAssistantRuntime', {
+    maxLines: 120,
+    maxUseCallbackDecls: 2,
+    maxUseMemoDecls: 1,
+    maxUseEffects: 3,
+    warnAtRatio: 0.85,
+  }),
+  hookRule('useVoiceInteractionCommercialSync', {
+    maxLines: 60,
+    maxUseCallbackDecls: 1,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 2,
+    warnAtRatio: 0.85,
   }),
   hookRule('useAiChat', {
     maxLines: 1100,

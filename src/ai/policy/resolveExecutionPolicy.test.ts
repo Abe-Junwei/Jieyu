@@ -3,6 +3,7 @@ import {
   AI_CHAT_SESSION_SIDECAR_WRITE_PATH,
   resolveAiChatBackgroundMemorySandboxPolicy,
   resolveAiChatSessionSidecarSandboxPolicy,
+  resolveLocalContextToolPolicyDecision,
   resolveUserDirectivePolicyDecision,
 } from './resolveExecutionPolicy';
 
@@ -37,7 +38,39 @@ describe('resolveExecutionPolicy', () => {
         { name: 'delete_transcription_segment', arguments: { segmentId: 'u1' } },
         { safetyPreferences: { denyDestructive: true } },
       );
-      expect(decision).toMatchObject({ action: 'block', reason: 'user_directive_deny_destructive' });
+      expect(decision).toMatchObject({
+        action: 'block',
+        reason: 'user_directive_deny_destructive',
+      });
+    });
+  });
+
+  describe('resolveLocalContextToolPolicyDecision', () => {
+    it('auto-allows readonly local tools when write gate is enabled', () => {
+      const decision = resolveLocalContextToolPolicyDecision(
+        { name: 'search_units', arguments: { query: 'test' } },
+        { toolPreferences: { autoExecute: 'ask_first' } },
+        { writeGateEnabled: true },
+      );
+      expect(decision).toEqual({ action: 'allow' });
+    });
+
+    it('auto-allows batch_apply preview when write gate is enabled', () => {
+      const decision = resolveLocalContextToolPolicyDecision(
+        { name: 'batch_apply', arguments: { action: 'verify', unitIds: ['u1'] } },
+        { toolPreferences: { autoExecute: 'ask_first' } },
+        { writeGateEnabled: true },
+      );
+      expect(decision).toEqual({ action: 'allow' });
+    });
+
+    it('delegates to user directive policy when write gate is disabled', () => {
+      const decision = resolveLocalContextToolPolicyDecision(
+        { name: 'search_units', arguments: { query: 'test' } },
+        { toolPreferences: { autoExecute: 'ask_first' } },
+        { writeGateEnabled: false },
+      );
+      expect(decision.action).toBe('confirm');
     });
   });
 
@@ -75,7 +108,11 @@ describe('resolveExecutionPolicy', () => {
 
   describe('resolveAiChatSessionSidecarSandboxPolicy', () => {
     it('treats pinned-message and send-preflight paths like background extraction under restricted_write', () => {
-      const base = { sandboxEnabled: true, profile: 'restricted_write' as const, authorizedWriteDirs: ['session-memory'] };
+      const base = {
+        sandboxEnabled: true,
+        profile: 'restricted_write' as const,
+        authorizedWriteDirs: ['session-memory'],
+      };
       expect(
         resolveAiChatSessionSidecarSandboxPolicy({
           ...base,

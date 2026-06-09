@@ -1,12 +1,5 @@
 /**
- * useVoiceInteraction | \u8bed\u97f3\u4ea4\u4e92\u7f16\u6392 Hook
- *
- * \u805a\u5408 useVoiceAgent \u7684\u9875\u9762\u7ea7\u63a5\u7ebf：\u6458\u8981\u6587\u6848、AI \u6d41\u72b6\u6001\u6865\u63a5、
- * \u8bed\u97f3\u5165\u53e3\u4ea4\u4e92（\u5207\u6362/\u6309\u4f4f\u5f55\u97f3）、\u5546\u4e1a\u5f15\u64ce\u914d\u7f6e\u540c\u6b65\u4e0e\u52a9\u624b\u9762\u677f\u5c55\u5f00\u903b\u8f91。
- *
- * Aggregates page-level wiring around useVoiceAgent: summaries,
- * AI stream bridge, voice entry handlers (toggle/press-to-talk),
- * commercial engine config sync, and assistant panel expansion behavior.
+ * useVoiceInteraction | 语音交互编排 Hook
  */
 
 import {
@@ -19,9 +12,7 @@ import {
   type RefObject,
 } from 'react';
 import { useVoiceAgent } from './useVoiceAgent';
-import { applyVoiceCommercialConfigChange } from '../../utils/voiceCommercialConfigSync';
 import type { CommercialProviderKind, SttEngine } from '../../services/VoiceInputService';
-import { getActiveSttProviderMetadata } from '../../services/stt/providerMetadata';
 import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../../services/stt';
 import type { LayerDocType, LayerLinkDocType } from '../../db';
 import type {
@@ -29,29 +20,20 @@ import type {
   QuickDictationConfig,
 } from '../../services/SpeechAnnotationPipeline';
 import {
-  computeTranscriptionVoiceSelectionSummary,
-  computeTranscriptionVoiceTargetSummary,
   createTranscriptionVoiceSendToAiChat,
   type TranscriptionVoiceSelectionSnapshot,
 } from '../../services/transcriptionVoiceInteractionWiring';
-import { useLocale, t } from '../../i18n';
+import { useLocale } from '../../i18n';
 import { getVoiceInteractionMessages } from '../../i18n/messages';
-import { useGlobalContext } from '../../services/GlobalContextService';
-import { useToast } from '../../contexts/ToastContext';
-import {
-  isAssistantWebSpeechTtsSupported,
-  speakAssistantReplyWithWebSpeechTts,
-  stopAssistantWebSpeechTts,
-} from '../../utils/assistantWebSpeechTts';
-import { createLogger } from '../../observability/logger';
+import { useVoiceInteractionAssistantRuntime } from './useVoiceInteractionAssistantRuntime';
+import { useVoiceInteractionCommercialSync } from './useVoiceInteractionCommercialSync';
+import { useVoiceInteractionSummaries } from './useVoiceInteractionSummaries';
 
 interface VoiceMessageLike {
   role?: string;
   status?: string;
   content?: string;
 }
-
-const log = createLogger('useVoiceInteraction');
 
 interface VoiceSelectionLike extends TranscriptionVoiceSelectionSnapshot {}
 
@@ -75,7 +57,6 @@ interface UseVoiceInteractionOptions {
   handleResolveVoiceIntentWithLlm: NonNullable<
     Parameters<typeof useVoiceAgent>[0]['resolveIntentWithLlm']
   >;
-  /** 与转写页 AI `handleAiToolCall` 同源 */
   executeVoiceToolCall?: Parameters<typeof useVoiceAgent>[0]['executeVoiceToolCall'];
   handleVoiceDictation: NonNullable<Parameters<typeof useVoiceAgent>[0]['insertDictation']>;
   dictationPipeline?: {
@@ -106,7 +87,6 @@ interface UseVoiceInteractionOptions {
   setCommercialProviderConfig: (config: CommercialProviderConfigLike) => void;
   featureVoiceEnabled: boolean;
   toggleVoiceRef: RefObject<(() => void) | undefined>;
-  /** When set, AI stream completion is routed via `useAiChat` `onMessageComplete` (authoritative message id + body). */
   voiceAiAssistantMessageBridgeRef?: MutableRefObject<
     ((assistantMessageId: string, content: string) => void) | null
   >;
@@ -129,15 +109,6 @@ interface UseVoiceInteractionReturn {
   assistantTtsEnabled: boolean;
   assistantTtsSupported: boolean;
   onSetAssistantTtsEnabled: (on: boolean) => void;
-}
-
-function formatLanguageLabel(code: string): string {
-  try {
-    return new Intl.DisplayNames(['zh-CN', 'en'], { type: 'language' }).of(code) || code;
-  } catch (err) {
-    log.error('formatLanguageLabel failed', { code, err });
-    return code;
-  }
 }
 
 export function useVoiceInteraction({
@@ -172,39 +143,12 @@ export function useVoiceInteraction({
   voiceAiAssistantMessageBridgeRef,
 }: UseVoiceInteractionOptions): UseVoiceInteractionReturn {
   const locale = useLocale();
-  const { showToast } = useToast();
-  const { profile, updatePreference } = useGlobalContext();
-  const assistantTtsEnabled = profile.preferences.assistantTtsEnabled;
-  const onSetAssistantTtsEnabled = useCallback(
-    (on: boolean) => {
-      updatePreference('assistantTtsEnabled', on);
-    },
-    [updatePreference],
-  );
-  const assistantTtsSupported = useMemo(() => isAssistantWebSpeechTtsSupported(), []);
-  const assistantTtsUnsupportedHintShownRef = useRef(false);
   const messages = getVoiceInteractionMessages(locale);
-
-  useEffect(() => {
-    if (
-      !assistantTtsEnabled ||
-      assistantTtsSupported ||
-      assistantTtsUnsupportedHintShownRef.current
-    )
-      return;
-    assistantTtsUnsupportedHintShownRef.current = true;
-    showToast(
-      t(locale, 'transcription.voiceWidget.settings.assistantTtsUnsupported'),
-      'warning',
-      5000,
-    );
-  }, [assistantTtsEnabled, assistantTtsSupported, locale, showToast]);
   const [assistantVoiceExpanded, setAssistantVoiceExpanded] = useState(false);
   const [analysisWritebackFeedback, setAnalysisWritebackFeedback] = useState<{
     kind: 'done' | 'error';
     message: string;
   } | null>(null);
-
   const voiceAgentRef = useRef<ReturnType<typeof useVoiceAgent> | null>(null);
 
   const normalizeVoiceTaskError = useCallback((error: unknown, fallbackMessage: string): string => {
@@ -236,14 +180,7 @@ export function useVoiceInteraction({
         getVoiceAgentApi: () => voiceAgentRef.current,
         setAnalysisWritebackFeedback,
       }),
-    [
-      aiChatSend,
-      messages,
-      onVoiceAnalysisResult,
-      runVoiceTask,
-      selection.activeUnitId,
-      setAnalysisWritebackFeedback,
-    ],
+    [aiChatSend, messages, onVoiceAnalysisResult, runVoiceTask, selection.activeUnitId],
   );
 
   const voiceAgentOptions: Parameters<typeof useVoiceAgent>[0] = {
@@ -265,168 +202,42 @@ export function useVoiceInteraction({
 
   const voiceAgent = useVoiceAgent(voiceAgentOptions);
   voiceAgentRef.current = voiceAgent;
-  const isNonDictationMode = voiceAgent.mode !== 'dictation';
 
-  const voiceTargetSummary = useMemo(
-    () =>
-      computeTranscriptionVoiceTargetSummary({
-        isNonDictationMode,
-        selection,
-        layers,
-        translationLayers,
-        ...(layerLinks !== undefined ? { layerLinks } : {}),
-        ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
-        formatSidePaneLayerLabel,
-        messages,
-      }),
-    [
-      defaultTranscriptionLayerId,
-      formatSidePaneLayerLabel,
-      layers,
-      layerLinks,
-      messages,
-      selection,
-      translationLayers,
-      isNonDictationMode,
-    ],
-  );
-
-  const pushToTalkReady = useMemo(
-    () =>
-      voiceAgent.listening &&
-      !voiceAgent.isRecording &&
-      voiceAgent.agentState === 'idle' &&
-      (voiceAgent.engine === 'whisper-local' || voiceAgent.engine === 'commercial'),
-    [voiceAgent.agentState, voiceAgent.engine, voiceAgent.isRecording, voiceAgent.listening],
-  );
-
-  const voiceStatusSummary = useMemo(() => {
-    if (voiceAgent.error) {
-      return voiceAgent.error;
-    }
-    switch (voiceAgent.agentState) {
-      case 'listening':
-        return voiceAgent.mode === 'dictation' ? messages.listeningDictation : messages.listening;
-      case 'routing':
-        return messages.routing;
-      case 'executing':
-        if (voiceAgent.mode === 'dictation') return messages.executingDictation;
-        if (voiceAgent.mode === 'analysis') return messages.executingAnalysis;
-        return messages.executingAction;
-      case 'ai-thinking':
-        return messages.aiThinking;
-      case 'idle':
-      default:
-        if (isNonDictationMode && analysisWritebackFeedback) {
-          return analysisWritebackFeedback.message;
-        }
-        if (pushToTalkReady) {
-          return messages.pushToTalkReady;
-        }
-        return voiceAgent.listening ? messages.listeningIdle : messages.readyToStart;
-    }
-  }, [
-    analysisWritebackFeedback,
-    isNonDictationMode,
-    messages,
-    pushToTalkReady,
-    voiceAgent.agentState,
-    voiceAgent.error,
-    voiceAgent.listening,
-    voiceAgent.mode,
-  ]);
-
-  useEffect(() => {
-    if (voiceAgent.mode === 'dictation' && analysisWritebackFeedback) {
-      setAnalysisWritebackFeedback(null);
-    }
-  }, [analysisWritebackFeedback, voiceAgent.mode]);
-
-  useEffect(() => {
-    if (!analysisWritebackFeedback) return;
-    if (typeof window === 'undefined') return;
-    const timerId = window.setTimeout(() => {
-      setAnalysisWritebackFeedback(null);
-    }, 4500);
-    return () => window.clearTimeout(timerId);
-  }, [analysisWritebackFeedback]);
-
-  const voiceEnvironmentSummary = useMemo(() => {
-    const currentLanguage =
-      voiceCorpusLangOverride === '__auto__'
-        ? messages.autoDetectLanguage
-        : formatLanguageLabel(voiceCorpusLangOverride ?? effectiveVoiceCorpusLang);
-    const currentEngine = getActiveSttProviderMetadata(
-      voiceAgent.engine,
-      voiceAgent.commercialProviderKind,
-    ).label;
-    const detectedLanguage =
-      voiceCorpusLangOverride === '__auto__' && voiceAgent.detectedLang
-        ? messages.detectedLanguageSuffix(formatLanguageLabel(voiceAgent.detectedLang))
-        : '';
-    return `${currentLanguage} · ${currentEngine}${detectedLanguage}`;
-  }, [
+  const summaries = useVoiceInteractionSummaries({
     effectiveVoiceCorpusLang,
-    messages,
     voiceCorpusLangOverride,
-    voiceAgent.commercialProviderKind,
-    voiceAgent.detectedLang,
-    voiceAgent.engine,
-  ]);
+    selection,
+    defaultTranscriptionLayerId,
+    translationLayers,
+    layers,
+    layerLinks,
+    formatSidePaneLayerLabel,
+    formatTime,
+    messages,
+    voiceAgent,
+    analysisWritebackFeedback,
+    setAnalysisWritebackFeedback,
+  });
 
-  const voiceSelectionSummary = useMemo(
-    () =>
-      computeTranscriptionVoiceSelectionSummary({
-        selection,
-        formatTime,
-        unknownSegmentLabel: messages.unknownSegment,
-      }),
-    [formatTime, messages.unknownSegment, selection],
-  );
-
-  const prevAiStreamingRef = useRef(false);
-
-  useEffect(() => {
-    const ref = voiceAiAssistantMessageBridgeRef;
-    if (!ref) return;
-    ref.current = (_assistantMessageId, content) => {
-      voiceAgentRef.current?.notifyAiStreamFinished?.(content);
-      if (
-        featureVoiceEnabled &&
-        assistantTtsEnabled &&
-        assistantTtsSupported &&
-        content.trim().length > 0
-      ) {
-        speakAssistantReplyWithWebSpeechTts(content, locale);
-      }
-    };
-    return () => {
-      ref.current = null;
-    };
-  }, [
-    assistantTtsEnabled,
-    assistantTtsSupported,
+  const assistantRuntime = useVoiceInteractionAssistantRuntime({
     featureVoiceEnabled,
-    locale,
+    aiIsStreaming,
+    aiMessages,
+    voiceAgent,
+    voiceAgentRef,
     voiceAiAssistantMessageBridgeRef,
-  ]);
+  });
+
+  const { handleVoiceCommercialConfigChange } = useVoiceInteractionCommercialSync({
+    voiceAgent,
+    onCommercialConfigChange,
+    setCommercialProviderKind,
+    setCommercialProviderConfig,
+  });
 
   useEffect(() => {
-    const wasStreaming = prevAiStreamingRef.current;
-    const isStreaming = aiIsStreaming;
-
-    if (!wasStreaming && isStreaming) {
-      stopAssistantWebSpeechTts();
-      voiceAgent.notifyAiStreamStarted?.();
-    }
-
-    if (wasStreaming && !isStreaming && !voiceAiAssistantMessageBridgeRef) {
-      const latestAssistant = aiMessages.find((m) => m.role === 'assistant' && m.status === 'done');
-      voiceAgent.notifyAiStreamFinished?.(latestAssistant?.content);
-    }
-
-    prevAiStreamingRef.current = isStreaming;
-  }, [aiIsStreaming, aiMessages, voiceAgent, voiceAiAssistantMessageBridgeRef]);
+    toggleVoiceRef.current = featureVoiceEnabled ? voiceAgent.toggle : undefined;
+  }, [featureVoiceEnabled, toggleVoiceRef, voiceAgent.toggle]);
 
   const ensureWhisperLocalReady = useCallback(async (): Promise<boolean> => {
     const result = await voiceAgent.testWhisperLocal();
@@ -437,29 +248,6 @@ export function useVoiceInteraction({
     voiceAgent.setExternalError(null);
     return true;
   }, [voiceAgent]);
-
-  const handleVoiceCommercialConfigChange = useCallback(
-    (config: CommercialProviderConfigLike) => {
-      applyVoiceCommercialConfigChange(
-        config,
-        onCommercialConfigChange,
-        voiceAgent.setCommercialProviderConfig,
-      );
-    },
-    [onCommercialConfigChange, voiceAgent.setCommercialProviderConfig],
-  );
-
-  useEffect(() => {
-    setCommercialProviderKind(voiceAgent.commercialProviderKind);
-  }, [setCommercialProviderKind, voiceAgent.commercialProviderKind]);
-
-  useEffect(() => {
-    setCommercialProviderConfig(voiceAgent.commercialProviderConfig ?? {});
-  }, [setCommercialProviderConfig, voiceAgent.commercialProviderConfig]);
-
-  useEffect(() => {
-    toggleVoiceRef.current = featureVoiceEnabled ? voiceAgent.toggle : undefined;
-  }, [featureVoiceEnabled, toggleVoiceRef, voiceAgent.toggle]);
 
   const handleVoiceAssistantIconClick = useCallback(() => {
     runVoiceTask(async () => {
@@ -535,10 +323,10 @@ export function useVoiceInteraction({
   return {
     voiceAgent,
     assistantVoiceExpanded,
-    voiceTargetSummary,
-    voiceStatusSummary,
-    voiceEnvironmentSummary,
-    voiceSelectionSummary,
+    voiceTargetSummary: summaries.voiceTargetSummary,
+    voiceStatusSummary: summaries.voiceStatusSummary,
+    voiceEnvironmentSummary: summaries.voiceEnvironmentSummary,
+    voiceSelectionSummary: summaries.voiceSelectionSummary,
     handleVoiceCommercialConfigChange,
     handleVoiceAssistantIconClick,
     handleVoiceSwitchEngine,
@@ -546,8 +334,8 @@ export function useVoiceInteraction({
     handleMicPointerUp,
     handleAssistantVoicePanelOpen,
     handleAssistantVoicePanelToggle,
-    assistantTtsEnabled,
-    assistantTtsSupported,
-    onSetAssistantTtsEnabled,
+    assistantTtsEnabled: assistantRuntime.assistantTtsEnabled,
+    assistantTtsSupported: assistantRuntime.assistantTtsSupported,
+    onSetAssistantTtsEnabled: assistantRuntime.onSetAssistantTtsEnabled,
   };
 }

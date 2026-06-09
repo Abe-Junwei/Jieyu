@@ -130,4 +130,30 @@ test.describe('关键路径 | Critical paths', () => {
     await expect(exportSubmenu.getByRole('menuitem', { name: /JYT/i })).toBeVisible();
     await expect(exportSubmenu.getByRole('menuitem', { name: /JYM/i })).toBeVisible();
   });
+
+  test('应用壳搜索事件打开搜索定位面板 | App shell search event opens search panel', async ({ page }) => {
+    await page.goto('/transcription');
+    await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
+
+    await page.evaluate(() => {
+      window.dispatchEvent(
+        new CustomEvent('jieyu:open-search', {
+          detail: { query: 'critical-path-query', scope: 'global' },
+        }),
+      );
+    });
+
+    const searchInput = page.locator('.search-replace-overlay .search-replace-input');
+    await expect(searchInput).toBeVisible({ timeout: 10_000 });
+    await expect(searchInput).toHaveValue('critical-path-query');
+    await page.keyboard.press('Escape');
+    await expect(searchInput).toBeHidden({ timeout: 10_000 });
+  });
+
+  test('资产深链路由进入转写工作区 | Asset deep-link routes into transcription workspace', async ({ page }) => {
+    await page.goto('/assets/language-metadata?languageId=und');
+    await expect(page).toHaveURL(/\/assets\/language-metadata\?languageId=und/);
+    await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('.left-rail-project-hub-root')).toBeVisible({ timeout: 25_000 });
+  });
 });

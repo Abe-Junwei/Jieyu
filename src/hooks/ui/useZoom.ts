@@ -32,7 +32,10 @@ function syncWaveScrollToTier(
  * 输入框/局部滚动区内优先保留原生滚轮行为，避免时间轴劫持导致“有滚动条但滚不动” |
  * Preserve native wheel scrolling inside editors/local scrollers so timeline pan does not hijack them.
  */
-export function shouldBypassTimelineWheel(target: EventTarget | null): boolean {
+export function shouldBypassTimelineWheel(
+  target: EventTarget | null,
+  boundary?: Element | null,
+): boolean {
   if (!(target instanceof Element)) return false;
   if (
     target.closest(
@@ -44,6 +47,9 @@ export function shouldBypassTimelineWheel(target: EventTarget | null): boolean {
 
   let node: HTMLElement | null = target instanceof HTMLElement ? target : target.parentElement;
   while (node) {
+    if (boundary && node === boundary) {
+      break;
+    }
     const style = window.getComputedStyle(node);
     const overflowY = style.overflowY;
     if (
@@ -55,6 +61,16 @@ export function shouldBypassTimelineWheel(target: EventTarget | null): boolean {
     node = node.parentElement;
   }
   return false;
+}
+
+/**
+ * 时间轴平移采用主轴分量，避免触控板斜向手势把 X/Y 直接相加导致左右回弹 |
+ * Use dominant wheel axis for pan; summing X/Y can cause rollback on diagonal trackpad gestures.
+ */
+export function resolveTimelineWheelPanDelta(event: Pick<WheelEvent, 'deltaX' | 'deltaY'>): number {
+  const absX = Math.abs(event.deltaX);
+  const absY = Math.abs(event.deltaY);
+  return absX > absY ? event.deltaX : event.deltaY;
 }
 
 export interface UseZoomInput {
@@ -482,7 +498,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
     const onWheel = (e: WheelEvent) => {
       // Alt+滚轮保留给波形振幅调节（由上层波形容器处理）| Reserve Alt+wheel for waveform amplitude adjustment in parent container.
       if (e.altKey) return;
-      if (!e.ctrlKey && !e.metaKey && shouldBypassTimelineWheel(e.target)) {
+      if (!e.ctrlKey && !e.metaKey && shouldBypassTimelineWheel(e.target, wheelRoot)) {
         return;
       }
       const ws = playerInstanceRef.current;
@@ -499,7 +515,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
               zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
             } else {
               e.preventDefault();
-              const next = tier.scrollLeft + e.deltaY + e.deltaX;
+              const next = tier.scrollLeft + resolveTimelineWheelPanDelta(e);
               const maxScroll = Math.max(0, tier.scrollWidth - tier.clientWidth);
               tier.scrollLeft = Math.min(maxScroll, Math.max(0, next));
               onLogicalTimelineScrollSync?.(tier.scrollLeft);
@@ -516,7 +532,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
           zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
         } else {
           e.preventDefault();
-          const target = ws.getScroll() + e.deltaY + e.deltaX;
+          const target = ws.getScroll() + resolveTimelineWheelPanDelta(e);
           ws.setScroll(target);
           if (tierContainerRef.current) tierContainerRef.current.scrollLeft = target;
         }
@@ -532,7 +548,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
       } else {
         e.preventDefault();
-        const next = tier.scrollLeft + e.deltaY + e.deltaX;
+        const next = tier.scrollLeft + resolveTimelineWheelPanDelta(e);
         const maxScroll = Math.max(0, tier.scrollWidth - tier.clientWidth);
         tier.scrollLeft = Math.min(maxScroll, Math.max(0, next));
         onLogicalTimelineScrollSync?.(tier.scrollLeft);
@@ -563,7 +579,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
     const onWheel = (e: WheelEvent) => {
       // Alt+滚轮保留给波形振幅调节（由上层波形容器处理）| Reserve Alt+wheel for waveform amplitude adjustment in parent container.
       if (e.altKey) return;
-      if (!e.ctrlKey && !e.metaKey && shouldBypassTimelineWheel(e.target)) {
+      if (!e.ctrlKey && !e.metaKey && shouldBypassTimelineWheel(e.target, el)) {
         return;
       }
       const ws = playerInstanceRef.current;
@@ -578,7 +594,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
             zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
           } else {
             e.preventDefault();
-            const next = el.scrollLeft + e.deltaY + e.deltaX;
+            const next = el.scrollLeft + resolveTimelineWheelPanDelta(e);
             const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
             el.scrollLeft = Math.min(maxScroll, Math.max(0, next));
             onLogicalTimelineScrollSync?.(el.scrollLeft);
@@ -594,7 +610,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
           zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
         } else {
           e.preventDefault();
-          const target = ws.getScroll() + e.deltaY + e.deltaX;
+          const target = ws.getScroll() + resolveTimelineWheelPanDelta(e);
           ws.setScroll(target);
           if (tierContainerRef.current) tierContainerRef.current.scrollLeft = target;
         }
@@ -609,7 +625,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
       } else {
         e.preventDefault();
-        const next = el.scrollLeft + e.deltaY + e.deltaX;
+        const next = el.scrollLeft + resolveTimelineWheelPanDelta(e);
         const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
         el.scrollLeft = Math.min(maxScroll, Math.max(0, next));
         onLogicalTimelineScrollSync?.(el.scrollLeft);

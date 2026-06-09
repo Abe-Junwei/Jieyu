@@ -134,4 +134,70 @@ describe('FlexService RTL phrase round-trip', () => {
     const imported = importFromFlextext(flex);
     expect(imported.units[0]?.transcription).toBe(arabic);
   });
+
+  it('preserves mixed RTL phrase gloss text without leaking bidi isolation markers', () => {
+    const arabic = 'مرحبا بالعالم';
+    const gloss = 'hello world';
+    const sourceLayer = makeDefaultLayer();
+    sourceLayer.languageId = 'ara';
+    const glossLayer: LayerDocType = {
+      id: 'layer_gls',
+      textId: 'text_1',
+      key: 'gls_en',
+      name: { eng: 'Gloss' },
+      layerType: 'translation',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      sortOrder: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const units: LayerUnitDocType[] = [
+      {
+        id: 'utt_ar_gloss',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: sourceLayer.id,
+        unitType: 'unit',
+        startTime: 0,
+        endTime: 2,
+        transcription: { default: arabic },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const translations: LayerUnitContentDocType[] = [
+      {
+        id: 'utr_ar_source',
+        unitId: 'utt_ar_gloss',
+        layerId: sourceLayer.id,
+        modality: 'text',
+        text: arabic,
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utr_ar_gloss',
+        unitId: 'utt_ar_gloss',
+        layerId: glossLayer.id,
+        modality: 'text',
+        text: gloss,
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+
+    const flex = exportToFlextext({
+      units,
+      layers: [sourceLayer, glossLayer],
+      translations,
+      languageTag: 'ara',
+    });
+    const imported = importFromFlextext(flex);
+    expect(imported.units[0]?.transcription).toBe(arabic);
+    expect(imported.phraseGlosses.get('p1')).toBe(gloss);
+  });
 });

@@ -272,7 +272,7 @@ export function loadSessionMemory(): AiSessionMemory {
 export function persistSessionMemory(mem: AiSessionMemory): void {
   const normalized = normalizeSessionMemory(mem);
   if (!activeConversationId) {
-    log.warn('persistSessionMemory called without bound conversation; skipped Dexie write');
+    log.debug('persistSessionMemory called without bound conversation; skipped Dexie write');
     return;
   }
   touchMemoryCache(activeConversationId, normalized);

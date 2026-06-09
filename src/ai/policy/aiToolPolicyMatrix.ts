@@ -13,6 +13,8 @@ export interface AiToolPolicyEntry {
   confirmationMode: AiToolConfirmationMode;
   targetKind: AiToolTargetKind;
   auditReasonCodes: readonly string[];
+  /** A11: structured preview-diff before commit when write gate routes writes through confirm UI. */
+  supportsPreview?: boolean;
   extensionCapabilityHints?: readonly string[];
 }
 
@@ -51,7 +53,11 @@ export const AI_TOOL_POLICY_MATRIX: Record<AiChatToolName, AiToolPolicyEntry> = 
     requiresExplicitTarget: true,
     confirmationMode: 'host_modal',
     targetKind: 'segment',
-    auditReasonCodes: ['ambiguous_target', 'unresolved_delete_segment_target', 'missing_unit_target'],
+    auditReasonCodes: [
+      'ambiguous_target',
+      'unresolved_delete_segment_target',
+      'missing_unit_target',
+    ],
   },
   clear_translation_segment: {
     toolName: 'clear_translation_segment',
@@ -192,6 +198,7 @@ export const AI_TOOL_POLICY_MATRIX: Record<AiChatToolName, AiToolPolicyEntry> = 
     confirmationMode: 'pending_propose_changes',
     targetKind: 'none',
     auditReasonCodes: ['invalid_proposed_changes'],
+    supportsPreview: true,
   },
   nav_to_segment: {
     toolName: 'nav_to_segment',
@@ -380,11 +387,15 @@ const SEGMENT_EXECUTION_TOOL_NAMES: ReadonlyArray<AiChatToolName> = [
   'clear_translation_segment',
 ];
 
-const LAYER_LINK_EXECUTION_TOOL_NAMES: ReadonlyArray<AiChatToolName> = Object.values(AI_TOOL_POLICY_MATRIX)
+const LAYER_LINK_EXECUTION_TOOL_NAMES: ReadonlyArray<AiChatToolName> = Object.values(
+  AI_TOOL_POLICY_MATRIX,
+)
   .filter((policy) => policy.targetKind === 'layer_link' && policy.requiresExplicitTarget)
   .map((policy) => policy.toolName);
 
-const LAYER_LINK_EXECUTION_TOOL_NAME_SET: ReadonlySet<AiChatToolName> = new Set(LAYER_LINK_EXECUTION_TOOL_NAMES);
+const LAYER_LINK_EXECUTION_TOOL_NAME_SET: ReadonlySet<AiChatToolName> = new Set(
+  LAYER_LINK_EXECUTION_TOOL_NAMES,
+);
 
 export function getAiToolSegmentExecutionToolNames(): ReadonlyArray<AiChatToolName> {
   return SEGMENT_EXECUTION_TOOL_NAMES;
@@ -401,10 +412,16 @@ export function isAiToolSegmentExecutionWithExplicitTarget(toolName: AiChatToolN
 
 export function isAiToolLayerLinkWithExplicitTarget(toolName: AiChatToolName): boolean {
   const policy = getAiToolPolicy(toolName);
-  return policy.targetKind === 'layer_link' && policy.requiresExplicitTarget && LAYER_LINK_EXECUTION_TOOL_NAME_SET.has(toolName);
+  return (
+    policy.targetKind === 'layer_link' &&
+    policy.requiresExplicitTarget &&
+    LAYER_LINK_EXECUTION_TOOL_NAME_SET.has(toolName)
+  );
 }
 
-export function getAiToolLayerLinkActionKind(toolName: AiChatToolName): AiToolLayerLinkActionKind | null {
+export function getAiToolLayerLinkActionKind(
+  toolName: AiChatToolName,
+): AiToolLayerLinkActionKind | null {
   if (!isAiToolLayerLinkWithExplicitTarget(toolName)) return null;
   if (toolName === 'switch_preferred_host') return 'switch_preferred_host';
   if (toolName === 'link_translation_layer' || toolName === 'add_host') return 'add_host';
@@ -412,5 +429,31 @@ export function getAiToolLayerLinkActionKind(toolName: AiChatToolName): AiToolLa
 }
 
 export function isAiToolSegmentTargetMaterializationTool(toolName: AiChatToolName): boolean {
-  return isAiToolSegmentExecutionWithExplicitTarget(toolName) && toolName !== 'merge_transcription_segments';
+  return (
+    isAiToolSegmentExecutionWithExplicitTarget(toolName) &&
+    toolName !== 'merge_transcription_segments'
+  );
+}
+
+function isWriteLikeToolName(toolName: AiChatToolName): boolean {
+  if (isAiToolDestructive(toolName)) return true;
+  return (
+    /^(create_|set_|split_|merge_|clear_|link_|unlink_|add_|remove_|switch_|auto_gloss_)/.test(
+      toolName,
+    ) || toolName === 'propose_changes'
+  );
+}
+
+export function aiToolSupportsPreview(toolName: AiChatToolName): boolean {
+  const policy = getAiToolPolicy(toolName);
+  if (policy.supportsPreview !== undefined) return policy.supportsPreview;
+  if (policy.destructive || policy.confirmationMode === 'host_modal') return false;
+  return isWriteLikeToolName(toolName);
+}
+
+/** Write gate on: scope-valid writes must route through A11 preview before auto-execute. */
+export function isAiToolWritePreviewRequired(toolName: AiChatToolName): boolean {
+  const policy = getAiToolPolicy(toolName);
+  if (policy.confirmationMode === 'pending_propose_changes') return false;
+  return aiToolSupportsPreview(toolName);
 }

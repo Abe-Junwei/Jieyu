@@ -3,6 +3,7 @@
  * Extracted from localContextToolFormatters.ts
  */
 
+import { formatToolWriteGateUserError } from '../../messages/toolWriteGateFeedback';
 import type { LocalContextToolResult } from '../localContextToolTypes';
 import { normalizeProjectMetric, normalizeUnitScope } from '../localContextToolScopeNormalize';
 
@@ -342,6 +343,10 @@ export function summarizeLocalContextToolResult(
   const zh = isZhLocale(locale);
   if (!result.ok) {
     const reason = result.error ?? 'unknown_error';
+    const writeGateMessage = formatToolWriteGateUserError(locale, reason);
+    if (writeGateMessage !== reason) {
+      return writeGateMessage;
+    }
     return zh
       ? `我尝试读取相关上下文，但这一步没有成功：${reason}。请再说明一下你想查询当前音频、当前范围，还是整个项目。`
       : `I tried to read the relevant context, but this step did not succeed: ${reason}. Please tell me whether you mean the current audio, the current scope, or the whole project.`;

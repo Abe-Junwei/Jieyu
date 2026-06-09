@@ -20,6 +20,7 @@ import { judgeCitationAccuracyBatch } from '../../ai/eval/citationJudge';
 import { judgeRelevance } from '../../ai/eval/relevanceJudge';
 import { buildSourceScopeSummaryFromEvidencePackets } from '../../ai/vertical/sourceScopeSummary';
 import { buildWorkflowExplainabilityFromAssistantMessage } from '../../ai/chat/workflowExplainability';
+import { reconcileVerticalWorkflowEnvelopeStatus } from '../../ai/vertical/verticalWorkflowSelection';
 import { createLogger } from '../../observability/logger';
 import type { UiChatMessage } from './useAiChat.types';
 import type {
@@ -54,10 +55,11 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
 
   const { db, ragCitations } = opening;
   const { verticalOutputEnvelopeSeed } = streamCompletionResult;
+  let effectiveVerticalEnvelope = verticalOutputEnvelopeSeed;
 
   // PR-12 / PR-17: reflection audit + degradation scenarios for manual takeover UX
   const degradationScenarios: DegradationScenario[] = [];
-  if (verticalOutputEnvelopeSeed?.status === 'degraded') {
+  if (effectiveVerticalEnvelope?.status === 'degraded') {
     degradationScenarios.push('rag_no_results');
   }
   // PR-P4: reflection for all vertical workflows
@@ -148,6 +150,12 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
         err: reflectionError,
       });
     }
+  }
+
+  if (effectiveVerticalEnvelope && reflectionResult) {
+    effectiveVerticalEnvelope = reconcileVerticalWorkflowEnvelopeStatus(effectiveVerticalEnvelope, {
+      reflectionFlagged: reflectionResult.reflectionFlagged,
+    });
   }
 
   // PR-14/19: LLM-as-Judge — run citation and relevance judges on completed output

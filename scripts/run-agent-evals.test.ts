@@ -1,8 +1,17 @@
+import { createRequire } from 'node:module';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
+
+const require = createRequire(import.meta.url);
+const { evaluateTrajectorySignalsFromAudit } = require('./agent-evals/auditTrajectoryAssertions.mjs') as {
+  evaluateTrajectorySignalsFromAudit: (
+    rows: unknown[],
+    requiredSignals?: readonly string[],
+  ) => { passed: boolean; missingSignals: string[] };
+};
 
 function runAgentEvals(args: string[], cwd: string) {
   const scriptPath = path.join(process.cwd(), 'scripts', 'run-agent-evals.mjs');
@@ -242,5 +251,45 @@ describe('run-agent-evals audit trace assertion', () => {
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('audit trajectory assertions', () => {
+  it('covers required trajectory signals from decision audit rows', () => {
+    const rows = [
+      {
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        metadata_json: {
+          schemaVersion: 1,
+          phase: 'decision',
+          outcome: 'confirmed',
+          toolCall: { name: 'delete_transcription_segment' },
+          message: 'confirmed',
+        },
+      },
+      {
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        metadata_json: {
+          schemaVersion: 1,
+          phase: 'decision',
+          outcome: 'policy_pending',
+          toolCall: { name: 'set_transcription_text' },
+          reason: 'user_directive_confirmation_required',
+        },
+      },
+    ];
+
+    const result = evaluateTrajectorySignalsFromAudit(rows, [
+      'tool_selection',
+      'gate_correctness',
+      'recovery_path',
+      'audit_traceability',
+      'approval_explainability',
+    ]);
+
+    expect(result.passed).toBe(true);
+    expect(result.missingSignals).toEqual([]);
   });
 });

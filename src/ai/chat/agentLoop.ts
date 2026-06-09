@@ -22,6 +22,8 @@ export interface AgentLoopTaskState {
   scope?: 'project' | 'current_track' | 'current_scope';
   selectedTools?: string[];
   answerReady?: boolean;
+  /** A12: false when vertical workflow checklist is still open — blocks premature answer_ready. */
+  workflowAnswerReady?: boolean;
   executionState?: 'running' | 'waiting_clarify' | 'answer_ready' | 'error';
 }
 
@@ -163,6 +165,9 @@ export function shouldContinueAgentLoop(
 
   if (taskState?.answerReady === true) return false;
   if (taskState?.executionState === 'answer_ready') return false;
+  if (taskState?.workflowAnswerReady === false) {
+    return step < config.maxSteps;
+  }
   if (!localToolResults || localToolResults.length === 0) return false;
 
   if (replanningEnabled && replanning) {

@@ -28,6 +28,7 @@ import {
   recalculateStepHistoryCharBudget,
 } from './contextBudget';
 import { featureFlags } from '../config/featureFlags';
+import { compactAgentLoopHistoryForContinuation } from './agentLoopHistoryCompaction';
 import { trimHistoryByChars, type HistoryChatMessage } from './historyTrim';
 import { getAiChatCardMessages } from '../../i18n/messages';
 import { createAssistantStream } from '../../hooks/ai/useAiChat.streamFactory';
@@ -138,6 +139,9 @@ export interface AgentLoopRunnerDeps {
 
   // DB 审计 | DB audit
   insertAuditLog: (entry: AuditLogDocType) => Promise<unknown>;
+
+  /** A12: when false, agent loop must not treat the vertical workflow answer as ready. */
+  workflowAnswerReady?: boolean;
 }
 
 // ── 核心循环 | Core loop ───────────────────────────────────────────────────
@@ -185,6 +189,9 @@ export async function runAgentLoop(
         resolvedStatus === 'done' &&
         (!resolvedLocalToolResults || resolvedLocalToolResults.length === 0),
       executionState: resolvedStatus === 'error' ? ('error' as const) : ('running' as const),
+      ...(deps.workflowAnswerReady !== undefined
+        ? { workflowAnswerReady: deps.workflowAnswerReady }
+        : {}),
     };
     return loopRequestedMetric
       ? { ...loopTaskStateBase, requestedMetric: loopRequestedMetric }
@@ -312,8 +319,15 @@ export async function runAgentLoop(
           })
         : deps.historyCharBudget;
 
+      const loopHistoryBase: HistoryChatMessage[] = [
+        ...deps.history,
+        { role: 'assistant' as const, content: rawAssistantContentForLoop },
+      ];
+      const historyForTrim = featureFlags.aiAgentLoopToolResultCompactionEnabled
+        ? compactAgentLoopHistoryForContinuation(loopHistoryBase)
+        : loopHistoryBase;
       const continuationHistory = trimHistoryByChars(
-        [...deps.history, { role: 'assistant' as const, content: rawAssistantContentForLoop }],
+        historyForTrim,
         stepHistoryCharBudget,
         3,
         deps.getSessionMemory().conversationSummary,

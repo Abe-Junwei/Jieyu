@@ -201,11 +201,10 @@ describe('useTranscriptionSelectionActions', () => {
     expect(setSelectedUnitIds).toHaveBeenCalledWith(new Set(['utt-2']));
   });
 
-  it('logs missing layerId only once per source to avoid console spam', () => {
+  it('silently clears selection when layerId cannot be resolved', () => {
     const setSelectedTimelineUnit = vi.fn();
     const setSelectedUnitIds = vi.fn();
     const setSelectedLayerId = vi.fn();
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     const { result } = renderHook(() => {
       const selectedUnitIdRef = useRef('');
@@ -231,13 +230,9 @@ describe('useTranscriptionSelectionActions', () => {
       result.current.selectUnit('utt-3');
     });
 
-    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      '[useTranscriptionSelectionActions]',
-      'missing layerId',
-      expect.objectContaining({ source: 'setUnitSelection' }),
-    );
-    consoleErrorSpy.mockRestore();
+    expect(setSelectedTimelineUnit).toHaveBeenCalledWith(null);
+    expect(setSelectedUnitIds).toHaveBeenCalledWith(new Set());
+    expect(setSelectedLayerId).not.toHaveBeenCalled();
   });
 
   it('seeds from primary selection when toggleSegmentSelection is called with empty set (B1 fix)', () => {

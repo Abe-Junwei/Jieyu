@@ -128,6 +128,35 @@ describe('SnapshotService', () => {
     });
   });
 
+  it('preserves non-layer collections from the recovery DB export', async () => {
+    mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce({
+      schemaVersion: 4,
+      exportedAt: '2026-06-01T00:00:00.000Z',
+      dbName: JIEYU_DEXIE_DB_NAME,
+      collections: {
+        layer_units: [],
+        layer_unit_contents: [],
+        layers: [],
+        media: [{ id: 'media_1', name: 'source.wav', createdAt: '2026-01-01T00:00:00.000Z' }],
+        speakers: [{ id: 'speaker_1', name: 'Speaker 1', createdAt: '2026-01-01T00:00:00.000Z' }],
+        layer_links: [{ id: 'link_1', layerId: 'layer_trl', transcriptionLayerKey: 'trc' }],
+      },
+    });
+
+    await saveRecoverySnapshot(JIEYU_DEXIE_DB_NAME);
+
+    const snap = await getRecoverySnapshot(JIEYU_DEXIE_DB_NAME);
+    expect(snap?.snapshot.collections.media).toEqual([
+      { id: 'media_1', name: 'source.wav', createdAt: '2026-01-01T00:00:00.000Z' },
+    ]);
+    expect(snap?.snapshot.collections.speakers).toEqual([
+      { id: 'speaker_1', name: 'Speaker 1', createdAt: '2026-01-01T00:00:00.000Z' },
+    ]);
+    expect(snap?.snapshot.collections.layer_links).toEqual([
+      { id: 'link_1', layerId: 'layer_trl', transcriptionLayerKey: 'trc' },
+    ]);
+  });
+
   it('overlays in-memory layer graph on top of the DB export', async () => {
     mockExportRecoveryDatabaseAsJson.mockResolvedValueOnce({
       schemaVersion: 4,

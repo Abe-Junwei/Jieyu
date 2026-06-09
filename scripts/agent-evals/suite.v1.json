@@ -162,10 +162,27 @@
       ]
     },
     {
+      "id": "agent-evals-trajectory-assertions",
+      "name": "Audit NDJSON trajectory signal assertions (P3)",
+      "command": "npx vitest run scripts/run-agent-evals.test.ts -t \"audit trajectory assertions\"",
+      "category": "evidence",
+      "evalSuite": "regression",
+      "tiers": ["full"],
+      "goldenTaskCount": 2,
+      "trajectorySignals": [
+        "tool_selection",
+        "gate_correctness",
+        "recovery_path",
+        "audit_traceability",
+        "approval_explainability"
+      ]
+    },
+    {
       "id": "agent-evals-semantic-cases",
       "name": "Agent eval JSON semantic cases (workflow, evidence, policy, rag, i18n)",
       "command": "npx vitest run scripts/agent-evals/cases/semantic-cases.test.ts",
       "category": "workflow",
+      "evalSuite": "regression",
       "goldenTaskCount": 12,
       "trajectorySignals": [
         "gate_correctness",

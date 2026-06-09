@@ -25,6 +25,10 @@ const ADDITIONAL_METADATA_REASON_ORDERED = [
   'propose_changes_requires_confirmation',
   'explicit_target_write_requires_confirmation',
   'destructive_action_requires_confirmation',
+  'write_gate_preview_required',
+  'scope_target_unresolved',
+  'destructive_denied',
+  'context_unavailable',
 ];
 
 export const NON_PERSISTED_TOOL_DECISION_REASONS = new Set(NON_PERSISTED_ORDERED);
@@ -53,6 +57,10 @@ const TOOL_DECISION_REASON_FAILURE_TRIAGE = {
   propose_changes_requires_confirmation: 'human',
   explicit_target_write_requires_confirmation: 'human',
   destructive_action_requires_confirmation: 'human',
+  write_gate_preview_required: 'human',
+  scope_target_unresolved: 'clarify',
+  destructive_denied: 'abandon',
+  context_unavailable: 'clarify',
 };
 
 function isKnownToolDecisionMetadataReasonCode(reason) {

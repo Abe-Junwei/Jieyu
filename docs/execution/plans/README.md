@@ -3,7 +3,7 @@ title: execution/plans 文档索引（自动生成）
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-06-01
+last_reviewed: 2026-06-09
 source_of_truth: execution-plan-index
 ---
 
@@ -12,13 +12,15 @@ source_of_truth: execution-plan-index
 > 本文件由 `npm run generate:plans-readme` 自动生成，**请勿手改**。新增/收口 plan 后重跑该命令。
 > SSoT：每份 plan 的 YAML frontmatter `status` 字段（守卫：`npm run check:plans-frontmatter`）。
 
-## Active（65）
+## Active（67）
 
 | status | title | last_reviewed |
 | --- | --- | --- |
+| active | [智能体改进方案 — Anthropic Engineering 启发](./智能体改进方案-Anthropic启发-2026-06-09.md) | 2026-06-09 |
+| active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-06-09 |
 | active | [AI智能体-战略规划与下一步-2026-05-07](./AI智能体-战略规划与下一步-2026-05-07.md) | 2026-06-01 |
 | active | [Agent 运行时架构补强 — 本地优先落地方案](./Agent运行时架构补强-本地优先落地方案-2026-06-01.md) | 2026-06-01 |
-| active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-06-01 |
+| active | [代码审查问题统一修复方案（2026-06-01）](./代码审查问题统一修复方案-2026-06-01.md) | 2026-06-01 |
 | active | [AI 与代码库可治理性综合整改方案-2026-05-13](./AI与代码库可治理性综合整改方案-2026-05-13.md) | 2026-05-18 |
 | active | [单人 AI 协作改进计划 — best practice 对照与跨工具统一（v4 落地版）](./单人AI协作改进计划-best-practice-跨工具对照-2026-05-13.md) | 2026-05-13 |
 | active | [单人AI协作改进计划-拍板决策-2026-05-11](./单人AI协作改进计划-拍板决策-2026-05-11.md) | 2026-05-13 |

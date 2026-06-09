@@ -19,9 +19,8 @@ const failures = [];
 console.log('[check-architecture-guard-aggregate] Running all sub-checks (no early exit)');
 
 for (const check of checks) {
-  const result = spawnSync('npm', ['run', check.script, '--silent'], {
+  const result = spawnSync('npm', ['run', '--silent', check.script], {
     stdio: 'inherit',
-    shell: true,
   });
   if (result.status !== 0) {
     failures.push(check.label);

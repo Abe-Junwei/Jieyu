@@ -67,6 +67,22 @@ const aiAgentLoopContextBudgetRecalculationEnabledFromEnv = readOptionalBooleanF
   import.meta.env.VITE_AI_AGENT_LOOP_CONTEXT_BUDGET_RECALCULATION_ENABLED,
 );
 
+const aiToolWriteGateEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_TOOL_WRITE_GATE_ENABLED,
+);
+
+const aiAgentLoopToolResultCompactionEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_AGENT_LOOP_TOOL_RESULT_COMPACTION_ENABLED,
+);
+
+const aiAgentLoopReliabilityFlagsDefaultEnabled =
+  featureFlagDeploymentEnvironment === 'dogfood' ||
+  featureFlagDeploymentEnvironment === 'staging' ||
+  featureFlagDeploymentEnvironment === 'prod';
+
+const aiToolWriteGateDefaultEnabled =
+  featureFlagDeploymentEnvironment === 'dogfood' || featureFlagDeploymentEnvironment === 'staging';
+
 export const featureFlags = {
   aiChatEnabled: true,
   voiceAgentEnabled: true,
@@ -119,15 +135,28 @@ export const featureFlags = {
    * （empty_result / search_no_results / tool_failed），让模型不基于空证据收敛或编造。
    * 默认 false，关闭时 continuation 输出与现网逐字节一致；见 spec ai-agent-loop-reliability-improvements §2.2。
    */
-  aiAgentLoopToolResultQualityGateEnabled: aiAgentLoopToolResultQualityGateEnabledFromEnv ?? false,
+  aiAgentLoopToolResultQualityGateEnabled:
+    aiAgentLoopToolResultQualityGateEnabledFromEnv ?? aiAgentLoopReliabilityFlagsDefaultEnabled,
   /**
    * Agent loop 闭环重规划（P0）：工具结果后 evaluateReplanningNeed，纠正 queryFamily 误判 /
    * 搜索 0 条早停 / detail 不存在改走 search。默认 false；见 spec ai-agent-loop-reliability §2.1。
    */
-  aiAgentLoopClosedLoopReplanningEnabled: aiAgentLoopClosedLoopReplanningEnabledFromEnv ?? false,
+  aiAgentLoopClosedLoopReplanningEnabled:
+    aiAgentLoopClosedLoopReplanningEnabledFromEnv ?? aiAgentLoopReliabilityFlagsDefaultEnabled,
   /**
    * Agent loop 每步按剩余步数动态收缩 history char 预算（spec §2.3）。默认 false。
    */
   aiAgentLoopContextBudgetRecalculationEnabled:
-    aiAgentLoopContextBudgetRecalculationEnabledFromEnv ?? false,
+    aiAgentLoopContextBudgetRecalculationEnabledFromEnv ??
+    aiAgentLoopReliabilityFlagsDefaultEnabled,
+  /**
+   * A7 Last Mile write gate: readonly local tools auto-allow; write tools scope-checked at executor.
+   * 默认 false；dogfood/staging 可经 env 开启。见 spec agent-runtime-security-write-gate。
+   */
+  aiToolWriteGateEnabled: aiToolWriteGateEnabledFromEnv ?? aiToolWriteGateDefaultEnabled,
+  /**
+   * Agent loop 历史中的旧 tool result / 长 assistant 回合压缩（P1 compaction）。默认与可靠性 flags 同环境矩阵。
+   */
+  aiAgentLoopToolResultCompactionEnabled:
+    aiAgentLoopToolResultCompactionEnabledFromEnv ?? aiAgentLoopReliabilityFlagsDefaultEnabled,
 } as const;

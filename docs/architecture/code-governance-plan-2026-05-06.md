@@ -3,7 +3,7 @@ title: 代码治理计划（修订版 v2）
 doc_type: architecture-governance-plan
 status: active
 owner: repo
-last_reviewed: 2026-05-10
+last_reviewed: 2026-06-01
 source_of_truth: code-governance-plan-2026-05-06-v2
 depends_on:
   - ../execution/governance/未落地项汇总-2026-04-24.md
@@ -13,7 +13,7 @@ depends_on:
 
 # 代码治理计划（修订版 v2）
 
-> 状态：可执行 | 基线：**2026-05-11**（与下文 `wc -l` 快照同源） | 规划人：Agent
+> 状态：可执行 | 基线：**2026-06-01 PR-6 勘误**（与下文 `wc -l` 快照同源） | 规划人：Agent
 >
 > 本方案替代初版七波次方案，解决了与 `architecture-guard.config.mjs` 的兼容性冲突。
 >
@@ -30,7 +30,7 @@ depends_on:
 | **P1** | **Wave 2.2** Linguistic 门面 + 语言目录核心 | `LinguisticService.ts` **~165** 行（guard 上限 2000；**100% 薄委托**）；`languageCatalog/languageCatalogCore.ts` **薄 barrel**；`languageCatalogCoreMutations.ts` **~256** 行；`LinguisticService.languageCatalog.ts` 薄 barrel | **§2.2**                         | **Wave 6 前已收口**：门面维持薄委托；`languageCatalogUpsertLanguageDocExtended.ts` 仍按需子域拆分；每批 `madge --circular` + 定向 Vitest |
 | **P1** | **ARCH-7** ReadyWorkspace 编排壳       | **入口** `TranscriptionPage.ReadyWorkspace.tsx` **10** / 40；**body** `TranscriptionPage.ReadyWorkspace.body.tsx` **20** / 80（薄壳）；**编排** `TranscriptionPage.ReadyWorkspaceOrchestrator.tsx` **~231** / 2600（**8.9%，已薄**）；`useReadyWorkspaceReadyPhaseBootstrap.ts` **74** / 140（ratchet，~52.9%）；`buildReadyWorkspaceViewModelsSurfacePhaseParams.ts` **456** / 900（~50.7%） | **§5.1**、**§11.1**               | 编排壳已收敛为阶段 hook + builder 调用；增量默认进 **Orchestrator** 或阶段 hook；`npm run check:architecture-guard` 为硬门槛；事实见 **§5.1.1**                                        |
 | **P1** | **G4** `useAiChat` 与相关卫星            | `useAiChat.ts` **564** / `hookRule` **1100**（约 51.3%）；`sendTurnStreamPhase` / `confirmExecution` 等已部分外拆                                        | **§2.1**、**§11.1**              | 继续把大块迁入既有 `useAiChat.*` 卫星模块；控制 `useCallback`/`useEffect` 计数近顶前预拆                                     |
-| **P1** | **Wave 4** DB 类型与 schema            | **`✅ Wave 6 前已收口`**：`db/types.ts` **14** 行 barrel；`db/schemas/index.ts` **10** 行 barrel；实现分布在 `src/db/types/*.ts`、`src/db/schemas/*.ts`                                                                  | **§六**                           | 增量类型/schema **进域文件**；合并前 `npm run typecheck` + 相关 Dexie 测试                                                         |
+| **P1** | **Wave 4** DB 类型与 schema            | **`⚠️ 2026-06-01 勘误：未完成外迁`**：`src/db/types.ts` **1350** 行；`src/db/schemas.ts` **1542** 行；不存在 `src/db/types/` 或 `src/db/schemas/` 域目录 | **§六**                           | 禁止继续标记为已收口；后续外迁必须按域分批，并在每批后跑 `npm run typecheck` + 相关 Dexie 测试                                                         |
 | **P2** | **Wave 3** hooks 根目录平铺              | **`✅ 第一批已收口`**：`src/hooks/` 深度 1 仅 **`useAiChat.ts`**、**`useTranscriptionData.ts`**（编排入口保留根目录）；其余在 `ai/`、`transcription/`、`voice/`、`ui/`、`app/`、`db/` 等子目录                                                                                               | **§五**                           | **Wave 6 起**：新 hook 默认写入域子目录；仍禁止全量 `src/hooks/index.ts` barrel                          |
 | **P2** | **G3** 分包与 Wave 6 基建                | `language-mapping-runtime` 约 **342KB**（见 §11 历史口径）                                                                                             | **§八**、**§11.1**                 | 按需加载 / registry chunk 实验；与 Knip、体积分轨对齐                                                                |
 | **持续** | 文档链接、i18n 硬编码、guard 回归              | `report:docs-link-debt`；ledger + `i18n-hardcoded-thresholds.json`                                                                              | **§11.1～11.3**                   | 见 **§11.2** 发版命令；大 doc 搬迁后重跑 link debt                                                                |
@@ -256,17 +256,17 @@ src/hooks/
 
 ---
 
-## 六、Wave 4：类型定义外迁（4-5 周）— **✅ Wave 6 前已收口**
+## 六、Wave 4：类型定义外迁（4-5 周）— **⚠️ 2026-06-01 勘误：未完成外迁**
 
 > **优先级：** 与 **§〇 P1** 一致；巨型单文件已拆除，**增量进域文件**。
 
-### 4.1 src/db/types.ts（薄 barrel + `src/db/types/*.ts`）
+### 4.1 src/db/types.ts（当前仍为单体文件）
 
-根文件 **`src/db/types.ts`** 仅 **re-export**（约 **14** 行）；具体类型在 **`src/db/types/`**（如 `core.ts`、`annotation.ts`、`ai.ts`、`language.ts`、`layer.ts`、`audit.ts`、`system.ts` 等），随域演进。
+根文件 **`src/db/types.ts`** 当前仍为 **1350 行**单体类型文件；仓库中不存在 `src/db/types/` 域目录。此前“14 行 barrel / 已收口”表述为过期规划，不是当前事实。后续应按域分批外迁，且每批保留 `src/db/types.ts` 的兼容导出面。
 
-### 4.2 src/db/schemas（薄 barrel + `src/db/schemas/*.ts`）
+### 4.2 src/db/schemas.ts（当前仍为单体文件）
 
-原单文件 **`src/db/schemas.ts` 已移除**；**`src/db/schemas/index.ts`** 为统一 re-export（约 **10** 行）；Zod schema 与校验在 **`src/db/schemas/*.ts`**（`core`、`annotation`、`ai`、`language`、`layer`、`audit` 等）。
+**`src/db/schemas.ts`** 当前仍存在，约 **1542 行**；仓库中不存在 `src/db/schemas/` 域目录。此前“已移除 / index barrel”表述同样为过期规划。后续 schema 外迁必须先定域边界、保留校验导出兼容面，并以 `npm run typecheck` 与 Dexie / import-export 测试作为收口证据。
 
 ---
 

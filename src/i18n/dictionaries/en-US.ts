@@ -2163,6 +2163,19 @@ export const enUSDictionary = {
     'The timeline has changed; re-run the action before confirming.',
   'ai.alerts.staleReadModelConfirmBlocked':
     'The timeline changed before you confirmed, so this tool run was cancelled. Please send the request again.',
+  'ai.toolWriteGate.contextUnavailable':
+    'No active project context is available, so this tool cannot run.',
+  'ai.toolWriteGate.scopeTargetUnresolved':
+    'The write target is outside the current scope or could not be resolved to a segment/layer.',
+  'ai.toolWriteGate.destructiveDenied':
+    'Destructive actions are disabled for this session, so this tool call was blocked automatically.',
+  'ai.toolWriteGate.genericBlocked': 'This tool call was blocked by the safety policy.',
+  'ai.toolWriteGate.localPolicyBlocked':
+    'Local tool execution was blocked by your directive preferences. If you want to continue, explicitly authorize this turn.',
+  'ai.toolWriteGate.localPolicyConfirm':
+    'Your directive preferences require confirmation before this tool call. Auto-execution is paused.',
+  'ai.toolWriteGate.previewConfirmationRequired':
+    'Write action requires preview confirmation before execution.',
   'ai.alerts.agentLoopHandoffTitle': 'Agent Loop Handoff',
   'ai.alerts.agentLoopHandoffSummary':
     'A resumable checkpoint is available. Resume execution from the approval panel.',
