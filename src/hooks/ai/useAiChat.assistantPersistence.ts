@@ -45,19 +45,19 @@ export function createAssistantPersistenceHelpers({
   let lastPersistedAssistantContent = '';
   let lastPersistedAt = 0;
 
-  const updateConversationTimestamp = async () => {
+  const touchConversationTimestamp = async (conversationId?: string) => {
     const dbRef = getDbRef();
-    const activeConversationId = getActiveConversationId();
-    if (!dbRef || !activeConversationId) return;
+    const targetConversationId = conversationId ?? getActiveConversationId();
+    if (!dbRef || !targetConversationId) return;
 
     const conversation = await dbRef.collections.ai_conversations
       .findOne({
-        selector: { id: activeConversationId },
+        selector: { id: targetConversationId },
       })
       .exec();
     if (!conversation) return;
 
-    await dbRef.collections.ai_conversations.update(activeConversationId, {
+    await dbRef.collections.ai_conversations.update(targetConversationId, {
       updatedAt: nowIso(),
     });
   };
@@ -101,17 +101,33 @@ export function createAssistantPersistenceHelpers({
       compatibilityReport?: UiChatMessage['compatibilityReport'];
     },
   ) => {
-    if (isStreamGenerationStale()) return;
+    const staleGeneration = isStreamGenerationStale();
 
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id !== assistantId) return msg;
-        if (status === 'error') {
+    if (!staleGeneration) {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== assistantId) return msg;
+          if (status === 'error') {
+            return {
+              ...msg,
+              content,
+              status,
+              ...(errorMessage ? { error: errorMessage } : {}),
+              ...(citations ? { citations } : {}),
+              ...(reasoningContent ? { reasoningContent } : {}),
+              ...(options?.sourceScopeSummary
+                ? { sourceScopeSummary: options.sourceScopeSummary }
+                : {}),
+              ...(options?.reflectionChecks ? { reflectionChecks: options.reflectionChecks } : {}),
+              ...(options?.compatibilityReport
+                ? { compatibilityReport: options.compatibilityReport }
+                : {}),
+            };
+          }
           return {
             ...msg,
             content,
             status,
-            ...(errorMessage ? { error: errorMessage } : {}),
             ...(citations ? { citations } : {}),
             ...(reasoningContent ? { reasoningContent } : {}),
             ...(options?.sourceScopeSummary
@@ -122,23 +138,9 @@ export function createAssistantPersistenceHelpers({
               ? { compatibilityReport: options.compatibilityReport }
               : {}),
           };
-        }
-        return {
-          ...msg,
-          content,
-          status,
-          ...(citations ? { citations } : {}),
-          ...(reasoningContent ? { reasoningContent } : {}),
-          ...(options?.sourceScopeSummary
-            ? { sourceScopeSummary: options.sourceScopeSummary }
-            : {}),
-          ...(options?.reflectionChecks ? { reflectionChecks: options.reflectionChecks } : {}),
-          ...(options?.compatibilityReport
-            ? { compatibilityReport: options.compatibilityReport }
-            : {}),
-        };
-      }),
-    );
+        }),
+      );
+    }
 
     const dbRef = getDbRef();
     if (!dbRef) return;
@@ -148,9 +150,9 @@ export function createAssistantPersistenceHelpers({
       .exec();
     if (existing) {
       const row = existing.toJSON();
-      const explainDto = messagesRef.current.find(
-        (m) => m.id === assistantId,
-      )?.workflowExplainability;
+      const explainDto = staleGeneration
+        ? undefined
+        : messagesRef.current.find((m) => m.id === assistantId)?.workflowExplainability;
       const contextSnapshot = explainDto
         ? mergeContextSnapshotWithWorkflowExplainability(row.contextSnapshot, explainDto)
         : row.contextSnapshot;
@@ -165,9 +167,13 @@ export function createAssistantPersistenceHelpers({
         reflectionChecks: options?.reflectionChecks,
         compatibilityReport: options?.compatibilityReport,
       });
+      await touchConversationTimestamp(row.conversationId);
+      return;
     }
 
-    await updateConversationTimestamp();
+    if (!staleGeneration) {
+      await touchConversationTimestamp();
+    }
   };
 
   return {
