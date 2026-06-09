@@ -14,10 +14,14 @@ beforeEach(async () => {
   await db.segment_meta.clear();
 });
 
-function makeLayer(partial: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'name'>): LayerDocType {
+function makeLayer(
+  partial: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'name'>,
+): LayerDocType {
   const layerType = partial.layerType ?? 'transcription';
   const treeParent =
-    layerType === 'transcription' && 'parentLayerId' in partial && partial.parentLayerId !== undefined
+    layerType === 'transcription' &&
+    'parentLayerId' in partial &&
+    partial.parentLayerId !== undefined
       ? { parentLayerId: partial.parentLayerId }
       : {};
   return {
@@ -37,7 +41,12 @@ function makeLayer(partial: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'n
   };
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerUnitDocType {
+function makeSegment(
+  id: string,
+  layerId: string,
+  startTime: number,
+  endTime: number,
+): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
@@ -75,8 +84,17 @@ function makeSpeaker(id: string, name: string): SpeakerDocType {
 describe('SidePaneSidebarSegmentList', () => {
   it('shows source-layer segments for a dependent selected layer and navigates on click', async () => {
     const onSelectTimelineUnit = vi.fn();
-    const rootLayer = makeLayer({ id: 'root', name: { 'en-US': 'English' }, constraint: 'independent_boundary' });
-    const dependentLayer = makeLayer({ id: 'dependent', name: { 'en-US': 'English Translation' }, parentLayerId: 'root', constraint: 'symbolic_association' });
+    const rootLayer = makeLayer({
+      id: 'root',
+      name: { 'en-US': 'English' },
+      constraint: 'independent_boundary',
+    });
+    const dependentLayer = makeLayer({
+      id: 'dependent',
+      name: { 'en-US': 'English Translation' },
+      parentLayerId: 'root',
+      constraint: 'symbolic_association',
+    });
 
     await SegmentMetaService.upsertDocs([
       {
@@ -107,7 +125,11 @@ describe('SidePaneSidebarSegmentList', () => {
         messages={messages}
         layers={[rootLayer, dependentLayer]}
         defaultTranscriptionLayerId="root"
-        segmentsByLayer={new Map([['root', [makeSegment('seg-1', 'root', 0, 1.5), makeSegment('seg-2', 'root', 1.5, 3)]]])}
+        segmentsByLayer={
+          new Map([
+            ['root', [makeSegment('seg-1', 'root', 0, 1.5), makeSegment('seg-2', 'root', 1.5, 3)]],
+          ])
+        }
         unitsOnCurrentMedia={[]}
         onSelectTimelineUnit={onSelectTimelineUnit}
       />,
@@ -116,12 +138,25 @@ describe('SidePaneSidebarSegmentList', () => {
     const emptyRows = await screen.findAllByText('无内容');
     expect(emptyRows).toHaveLength(2);
     fireEvent.click(emptyRows[0] as HTMLElement);
-    expect(onSelectTimelineUnit).toHaveBeenCalledWith({ layerId: 'dependent', unitId: 'seg-1', kind: 'segment' });
+    expect(onSelectTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'dependent',
+      unitId: 'seg-1',
+      kind: 'segment',
+    });
   });
 
   it('does not surface source-layer certainty or status chips inside a dependent layer list', async () => {
-    const rootLayer = makeLayer({ id: 'root', name: { 'en-US': 'English' }, constraint: 'independent_boundary' });
-    const dependentLayer = makeLayer({ id: 'dependent', name: { 'en-US': 'English Translation' }, parentLayerId: 'root', constraint: 'symbolic_association' });
+    const rootLayer = makeLayer({
+      id: 'root',
+      name: { 'en-US': 'English' },
+      constraint: 'independent_boundary',
+    });
+    const dependentLayer = makeLayer({
+      id: 'dependent',
+      name: { 'en-US': 'English Translation' },
+      parentLayerId: 'root',
+      constraint: 'symbolic_association',
+    });
 
     await SegmentMetaService.upsertDocs([
       {
@@ -158,7 +193,11 @@ describe('SidePaneSidebarSegmentList', () => {
   });
 
   it('falls back to unit-kind rows for non-segment-backed layers', async () => {
-    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+    const plainLayer = makeLayer({
+      id: 'plain',
+      name: { 'en-US': 'Plain Layer' },
+      constraint: 'symbolic_association',
+    });
     const units = [makeUnit('utt-1', 0, 1), makeUnit('utt-2', 1, 2)];
 
     await SegmentMetaService.upsertDocs([
@@ -202,7 +241,11 @@ describe('SidePaneSidebarSegmentList', () => {
 
   it('renders source segments even before segment_meta has hydrated', async () => {
     const onSelectTimelineUnit = vi.fn();
-    const rootLayer = makeLayer({ id: 'root', name: { 'en-US': 'English' }, constraint: 'independent_boundary' });
+    const rootLayer = makeLayer({
+      id: 'root',
+      name: { 'en-US': 'English' },
+      constraint: 'independent_boundary',
+    });
 
     const view = render(
       <SidePaneSidebarSegmentList
@@ -210,7 +253,11 @@ describe('SidePaneSidebarSegmentList', () => {
         messages={messages}
         layers={[rootLayer]}
         defaultTranscriptionLayerId="root"
-        segmentsByLayer={new Map([['root', [makeSegment('seg-1', 'root', 0, 1.5), makeSegment('seg-2', 'root', 1.5, 3)]]])}
+        segmentsByLayer={
+          new Map([
+            ['root', [makeSegment('seg-1', 'root', 0, 1.5), makeSegment('seg-2', 'root', 1.5, 3)]],
+          ])
+        }
         unitsOnCurrentMedia={[]}
         onSelectTimelineUnit={onSelectTimelineUnit}
       />,
@@ -219,15 +266,30 @@ describe('SidePaneSidebarSegmentList', () => {
     const scoped = within(view.container);
     const emptyRows = await scoped.findAllByText('无内容');
     expect(emptyRows.length).toBeGreaterThanOrEqual(2);
-    const rowButtons = view.container.querySelectorAll<HTMLButtonElement>('.app-side-pane-segment-list-item-btn');
+    const rowButtons = view.container.querySelectorAll<HTMLButtonElement>(
+      '.app-side-pane-segment-list-item-btn',
+    );
     expect(rowButtons.length).toBeGreaterThanOrEqual(2);
     fireEvent.click(rowButtons[0] as HTMLElement);
-    expect(onSelectTimelineUnit).toHaveBeenCalledWith({ layerId: 'root', unitId: 'seg-1', kind: 'segment' });
+    expect(onSelectTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'root',
+      unitId: 'seg-1',
+      kind: 'segment',
+    });
   });
 
   it('keeps segment_meta text visible for segment-backed rows when fallback rows have no inline text', async () => {
-    const rootLayer = makeLayer({ id: 'root', name: { 'en-US': 'English' }, constraint: 'independent_boundary' });
-    const translationLayer = makeLayer({ id: 'translation', name: { 'en-US': 'Translation' }, parentLayerId: 'root', constraint: 'symbolic_association' });
+    const rootLayer = makeLayer({
+      id: 'root',
+      name: { 'en-US': 'English' },
+      constraint: 'independent_boundary',
+    });
+    const translationLayer = makeLayer({
+      id: 'translation',
+      name: { 'en-US': 'Translation' },
+      parentLayerId: 'root',
+      constraint: 'symbolic_association',
+    });
 
     await SegmentMetaService.upsertDocs([
       {
@@ -259,8 +321,17 @@ describe('SidePaneSidebarSegmentList', () => {
   });
 
   it('uses the live per-layer text resolver for segment-backed rows', async () => {
-    const rootLayer = makeLayer({ id: 'root', name: { 'en-US': 'English' }, constraint: 'independent_boundary' });
-    const translationLayer = makeLayer({ id: 'translation', name: { 'en-US': 'Translation' }, parentLayerId: 'root', constraint: 'symbolic_association' });
+    const rootLayer = makeLayer({
+      id: 'root',
+      name: { 'en-US': 'English' },
+      constraint: 'independent_boundary',
+    });
+    const translationLayer = makeLayer({
+      id: 'translation',
+      name: { 'en-US': 'Translation' },
+      parentLayerId: 'root',
+      constraint: 'symbolic_association',
+    });
 
     const view = render(
       <SidePaneSidebarSegmentList
@@ -270,9 +341,9 @@ describe('SidePaneSidebarSegmentList', () => {
         defaultTranscriptionLayerId="root"
         segmentsByLayer={new Map([['root', [makeSegment('seg-1', 'root', 0, 1)]]])}
         unitsOnCurrentMedia={[{ ...makeUnit('utt-1', 0, 1), transcription: { default: '' } }]}
-        getUnitTextForLayer={(unit, layerId) => (
+        getUnitTextForLayer={(unit, layerId) =>
           unit.id === 'utt-1' && layerId === 'translation' ? '啊啊啊' : ''
-        )}
+        }
       />,
     );
 
@@ -282,8 +353,17 @@ describe('SidePaneSidebarSegmentList', () => {
   });
 
   it('uses live segment content for segment-backed rows when the timeline text lives in segmentContentByLayer', async () => {
-    const rootLayer = makeLayer({ id: 'root', name: { 'en-US': 'English' }, constraint: 'independent_boundary' });
-    const translationLayer = makeLayer({ id: 'translation', name: { 'en-US': 'Translation' }, parentLayerId: 'root', constraint: 'symbolic_association' });
+    const rootLayer = makeLayer({
+      id: 'root',
+      name: { 'en-US': 'English' },
+      constraint: 'independent_boundary',
+    });
+    const translationLayer = makeLayer({
+      id: 'translation',
+      name: { 'en-US': 'Translation' },
+      parentLayerId: 'root',
+      constraint: 'symbolic_association',
+    });
 
     await SegmentMetaService.upsertDocs([
       {
@@ -305,18 +385,27 @@ describe('SidePaneSidebarSegmentList', () => {
         layers={[rootLayer, translationLayer]}
         defaultTranscriptionLayerId="root"
         segmentsByLayer={new Map([['root', [makeSegment('seg-1', 'root', 0, 1)]]])}
-        segmentContentByLayer={new Map([[
-          'translation',
-          new Map([['seg-1', {
-            id: 'content-1',
-            textId: 'text-1',
-            layerId: 'translation',
-            segmentId: 'seg-1',
-            text: '哆呵',
-            createdAt: '2026-04-16T00:00:00.000Z',
-            updatedAt: '2026-04-16T00:00:00.000Z',
-          }]]),
-        ]])}
+        segmentContentByLayer={
+          new Map([
+            [
+              'translation',
+              new Map([
+                [
+                  'seg-1',
+                  {
+                    id: 'content-1',
+                    textId: 'text-1',
+                    layerId: 'translation',
+                    segmentId: 'seg-1',
+                    text: '哆呵',
+                    createdAt: '2026-04-16T00:00:00.000Z',
+                    updatedAt: '2026-04-16T00:00:00.000Z',
+                  },
+                ],
+              ]),
+            ],
+          ])
+        }
         unitsOnCurrentMedia={[]}
       />,
     );
@@ -327,7 +416,11 @@ describe('SidePaneSidebarSegmentList', () => {
   });
 
   it('shows the latest edited unit text immediately while segment_meta catches up', async () => {
-    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+    const plainLayer = makeLayer({
+      id: 'plain',
+      name: { 'en-US': 'Plain Layer' },
+      constraint: 'symbolic_association',
+    });
 
     await SegmentMetaService.upsertDocs([
       {
@@ -372,7 +465,11 @@ describe('SidePaneSidebarSegmentList', () => {
   });
 
   it('builds filter facets from effective metadata and narrows the visible segment list', async () => {
-    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+    const plainLayer = makeLayer({
+      id: 'plain',
+      name: { 'en-US': 'Plain Layer' },
+      constraint: 'symbolic_association',
+    });
     const units = [
       { ...makeUnit('utt-1', 0, 1), speakerId: 'speaker-a', selfCertainty: 'certain' as const },
       { ...makeUnit('utt-2', 1, 2), speakerId: 'speaker-b', selfCertainty: 'uncertain' as const },
@@ -429,7 +526,9 @@ describe('SidePaneSidebarSegmentList', () => {
     expect(await scoped.findByText('确定')).toBeTruthy();
 
     fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
-    const filterPanel = view.container.querySelector('.app-side-pane-segment-list-filter-panel') as HTMLElement;
+    const filterPanel = view.container.querySelector(
+      '.app-side-pane-segment-list-filter-panel',
+    ) as HTMLElement;
     const panelScope = within(filterPanel);
     fireEvent.click(panelScope.getByRole('button', { name: '说话人' }));
     fireEvent.click(panelScope.getByRole('button', { name: /Alice/ }));
@@ -443,7 +542,12 @@ describe('SidePaneSidebarSegmentList', () => {
   });
 
   it('surfaces merged review presets and treats speaker gaps as content-missing only when the transcription layer is partially assigned', async () => {
-    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association', layerType: 'transcription' });
+    const plainLayer = makeLayer({
+      id: 'plain',
+      name: { 'en-US': 'Plain Layer' },
+      constraint: 'symbolic_association',
+      layerType: 'transcription',
+    });
     const speakers = [makeSpeaker('speaker-a', 'Alice')];
 
     await SegmentMetaService.upsertDocs([
@@ -497,7 +601,11 @@ describe('SidePaneSidebarSegmentList', () => {
         unitsOnCurrentMedia={[
           { ...makeUnit('utt-1', 0, 1), speakerId: 'speaker-a', transcription: { default: '甲' } },
           { ...makeUnit('utt-2', 1, 2), transcription: { default: '乙' } },
-          { ...makeUnit('utt-3', 2, 3), transcription: { default: '' }, selfCertainty: 'uncertain' as const },
+          {
+            ...makeUnit('utt-3', 2, 3),
+            transcription: { default: '' },
+            selfCertainty: 'uncertain' as const,
+          },
         ]}
       />,
     );
@@ -519,7 +627,11 @@ describe('SidePaneSidebarSegmentList', () => {
   });
 
   it('matches the keyword field against actual segment text instead of derived status labels', async () => {
-    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+    const plainLayer = makeLayer({
+      id: 'plain',
+      name: { 'en-US': 'Plain Layer' },
+      constraint: 'symbolic_association',
+    });
 
     await SegmentMetaService.upsertDocs([
       {
@@ -585,7 +697,11 @@ describe('SidePaneSidebarSegmentList', () => {
   });
 
   it('surfaces extended metadata facets from segment_meta and filters by them', async () => {
-    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+    const plainLayer = makeLayer({
+      id: 'plain',
+      name: { 'en-US': 'Plain Layer' },
+      constraint: 'symbolic_association',
+    });
     const units = [makeUnit('utt-1', 0, 1), makeUnit('utt-2', 1, 2)];
 
     await SegmentMetaService.upsertDocs([
@@ -629,7 +745,9 @@ describe('SidePaneSidebarSegmentList', () => {
     const scoped = within(view.container);
 
     fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
-    const filterPanel = view.container.querySelector('.app-side-pane-segment-list-filter-panel') as HTMLElement;
+    const filterPanel = view.container.querySelector(
+      '.app-side-pane-segment-list-filter-panel',
+    ) as HTMLElement;
     const panelScope = within(filterPanel);
     expect(panelScope.getByRole('button', { name: '内容状态' })).toBeTruthy();
     expect(panelScope.getByRole('button', { name: '标注状态' })).toBeTruthy();
@@ -647,7 +765,11 @@ describe('SidePaneSidebarSegmentList', () => {
   });
 
   it('shows compact metadata list and supports multi-select chips', async () => {
-    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+    const plainLayer = makeLayer({
+      id: 'plain',
+      name: { 'en-US': 'Plain Layer' },
+      constraint: 'symbolic_association',
+    });
 
     await SegmentMetaService.upsertDocs([
       {
@@ -682,17 +804,23 @@ describe('SidePaneSidebarSegmentList', () => {
         defaultTranscriptionLayerId="plain"
         segmentsByLayer={new Map()}
         unitsOnCurrentMedia={[
-          { ...makeUnit('utt-1', 0, 1), transcription: { default: '甲' } },
-          { ...makeUnit('utt-2', 1, 2), transcription: { default: '乙' } },
+          { ...makeUnit('utt-1', 0, 1), transcription: { default: '甲' }, status: 'verified' },
+          { ...makeUnit('utt-2', 1, 2), transcription: { default: '乙' }, status: 'raw' },
         ]}
       />,
     );
 
     const scoped = within(view.container);
     fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
-    const filterPanel = view.container.querySelector('.app-side-pane-segment-list-filter-panel') as HTMLElement;
+    const filterPanel = view.container.querySelector(
+      '.app-side-pane-segment-list-filter-panel',
+    ) as HTMLElement;
     const panelScope = within(filterPanel);
-    fireEvent.click(panelScope.getByRole('button', { name: '标注状态' }));
+    const annotationStatusCategoryLabel = messages.segmentListAnnotationStatusFilterLabel
+      .replace(/^按/, '')
+      .replace(/筛选$/, '')
+      .trim();
+    fireEvent.click(await panelScope.findByRole('button', { name: annotationStatusCategoryLabel }));
     fireEvent.click(panelScope.getByRole('button', { name: /原始/ }));
     fireEvent.click(panelScope.getByRole('button', { name: /已校验/ }));
 
@@ -701,7 +829,11 @@ describe('SidePaneSidebarSegmentList', () => {
   });
 
   it('renders selected filters as tags inside the search shell', async () => {
-    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+    const plainLayer = makeLayer({
+      id: 'plain',
+      name: { 'en-US': 'Plain Layer' },
+      constraint: 'symbolic_association',
+    });
     const speakers = [makeSpeaker('speaker-a', 'Alice')];
 
     await SegmentMetaService.upsertDocs([
@@ -726,26 +858,42 @@ describe('SidePaneSidebarSegmentList', () => {
         layers={[plainLayer]}
         defaultTranscriptionLayerId="plain"
         speakers={speakers}
-        unitsOnCurrentMedia={[{ ...makeUnit('utt-1', 0, 1), speakerId: 'speaker-a', transcription: { default: '第一句' } }]}
+        unitsOnCurrentMedia={[
+          {
+            ...makeUnit('utt-1', 0, 1),
+            speakerId: 'speaker-a',
+            transcription: { default: '第一句' },
+          },
+        ]}
       />,
     );
 
     const scoped = within(view.container);
     fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
-    const filterPanel = view.container.querySelector('.app-side-pane-segment-list-filter-panel') as HTMLElement;
+    const filterPanel = view.container.querySelector(
+      '.app-side-pane-segment-list-filter-panel',
+    ) as HTMLElement;
     const panelScope = within(filterPanel);
     fireEvent.click(panelScope.getByRole('button', { name: '说话人' }));
     fireEvent.click(panelScope.getByRole('button', { name: /Alice/ }));
 
-    const searchShell = view.container.querySelector('.app-side-pane-segment-list-search-shell') as HTMLElement;
+    const searchShell = view.container.querySelector(
+      '.app-side-pane-segment-list-search-shell',
+    ) as HTMLElement;
     const searchScope = within(searchShell);
     const tagButton = searchScope.getByRole('button', { name: 'Alice' });
     expect(tagButton.className).toContain('app-side-pane-segment-list-search-tag');
   });
 
   it('shows loading when media scope is pending and renders facet filters after context hydration', async () => {
-    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
-    const units = [{ ...makeUnit('utt-1', 0, 1), speakerId: 'speaker-a', selfCertainty: 'certain' as const }];
+    const plainLayer = makeLayer({
+      id: 'plain',
+      name: { 'en-US': 'Plain Layer' },
+      constraint: 'symbolic_association',
+    });
+    const units = [
+      { ...makeUnit('utt-1', 0, 1), speakerId: 'speaker-a', selfCertainty: 'certain' as const },
+    ];
     const speakers = [makeSpeaker('speaker-a', 'Alice')];
 
     await SegmentMetaService.upsertDocs([
@@ -791,7 +939,9 @@ describe('SidePaneSidebarSegmentList', () => {
 
     expect(await scoped.findByText('第一句')).toBeTruthy();
     fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
-    const filterPanel = view.container.querySelector('.app-side-pane-segment-list-filter-panel') as HTMLElement;
+    const filterPanel = view.container.querySelector(
+      '.app-side-pane-segment-list-filter-panel',
+    ) as HTMLElement;
     const panelScope = within(filterPanel);
     expect(panelScope.getByRole('button', { name: '说话人' })).toBeTruthy();
     expect(panelScope.getByRole('button', { name: '备注分类' })).toBeTruthy();

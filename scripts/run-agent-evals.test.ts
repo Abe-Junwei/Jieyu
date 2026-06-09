@@ -58,6 +58,8 @@ describe('run-agent-evals audit trace assertion', () => {
           schemaVersion: 1,
           phase: 'decision',
           outcome: 'confirm_failed',
+          toolCall: { name: 'propose_changes' },
+          reason: 'child_failed',
           executionProgress: { appliedCount: 1, totalCount: 2, partial: true },
           proposeRollback: { attempted: true, ok: false, errorCount: 1 },
         }),

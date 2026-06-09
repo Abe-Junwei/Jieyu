@@ -181,7 +181,7 @@ describe('TranscriptionPageAnalysisRuntime resume bridge', () => {
       </LocaleProvider>,
     );
 
-    expect(mockCreateDeferredEmbeddingRuntime).toHaveBeenCalledTimes(2);
+    expect(mockCreateDeferredEmbeddingRuntime).toHaveBeenCalledTimes(1);
   });
 
   it('dispatches approval + targeted resume events when clicking resume on agent_loop task card', () => {

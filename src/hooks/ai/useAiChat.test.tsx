@@ -3342,7 +3342,10 @@ describe('useAiChat abort and recovery', () => {
     act(() => {
       result.current.clearPendingAgentLoopCheckpointIfTaskIdMatches(taskId!);
     });
-    const storedAfter = await readDexieSessionMemory(conversationId);
+    const storedAfter = await waitForDexieSessionMemory(
+      conversationId,
+      (mem) => mem.pendingAgentLoopCheckpoint === undefined,
+    );
     expect(storedAfter.pendingAgentLoopCheckpoint).toBeUndefined();
   });
 
