@@ -64,12 +64,14 @@ export function useSpeakerActionSegmentMutationCluster({
       );
       if (targetIds.length === 0 || speakerSavingRouted) return;
 
+      let undoPushed = false;
       try {
         await pushSpeakerUndoWithFreshSegmentSnapshot({
           label: getSpeakerUndoLabel('assign', t),
           pushUndo,
           refreshSegmentUndoSnapshot,
         });
+        undoPushed = true;
         const updated = await LinguisticService.speakers.assignToSegments(targetIds, speakerId);
         assertSpeakerAssignmentUpdatedCounts({
           targetSegmentCount: targetIds.length,
@@ -95,6 +97,7 @@ export function useSpeakerActionSegmentMutationCluster({
           message: formatSpeakerAssignmentResult('segments', updated, t, tf),
         });
       } catch (error) {
+        if (undoPushed) await undo();
         reportActionError({
           error,
           ...buildSpeakerActionErrorOptions('assign', error, t, tf),
@@ -115,6 +118,7 @@ export function useSpeakerActionSegmentMutationCluster({
       speakerSavingRouted,
       t,
       tf,
+      undo,
       updateSegmentsLocally,
     ],
   );

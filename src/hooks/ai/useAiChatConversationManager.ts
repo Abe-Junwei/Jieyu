@@ -234,7 +234,6 @@ export function useAiChatConversationManager(
         }
         await db.collections.ai_messages.removeBySelector({ conversationId: activeId });
         const clearedMemory = clearSessionMemoryFastPath(memoryBeforeClear);
-        sessionMemoryRef.current = clearedMemory;
         await persistSessionMemoryAsync(activeId, clearedMemory);
       } catch (error) {
         log.warn('clearCurrentConversation persistence failed', {

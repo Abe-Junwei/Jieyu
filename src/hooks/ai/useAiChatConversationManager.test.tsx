@@ -176,6 +176,75 @@ describe('useAiChatConversationManager', () => {
     });
   });
 
+  it('clearCurrentConversation does not overwrite session memory after starting a new conversation', async () => {
+    const db = await getDb();
+    const timestamp = '2026-05-17T10:00:00.000Z';
+    await db.collections.ai_conversations.insert({
+      id: 'conv-clear-race',
+      title: 'Clear race',
+      mode: 'assistant',
+      providerId: 'mock',
+      model: 'mock',
+      textId: 'text-race-clear',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    const conversationIdRef = { current: 'conv-clear-race' as string | null };
+    const setConversationId = vi.fn((id: string | null) => {
+      conversationIdRef.current = id;
+    });
+    const setMessages = vi.fn() as unknown as Dispatch<SetStateAction<UiChatMessage[]>>;
+    const sessionMemoryRef = {
+      current: {
+        lastLanguage: 'cmn',
+        conversationSummary: 'prior summary',
+        summaryTurnCount: 3,
+        responsePreferences: { style: 'concise' as const },
+      },
+    };
+
+    const { result } = renderHook(() =>
+      useAiChatConversationManager({
+        enabled: true,
+        locale: 'zh-CN',
+        providerId: 'mock',
+        model: 'mock',
+        textId: 'text-race-clear',
+        conversationId: conversationIdRef.current,
+        conversationIdRef,
+        setConversationId,
+        conversationGenerationRef: { current: createConversationGenerationRef(0) },
+        abortActiveStream: vi.fn(),
+        resetChatUiState: vi.fn(),
+        setMessages,
+        sessionMemoryRef,
+      }),
+    );
+
+    act(() => {
+      result.current!.clearCurrentConversation();
+    });
+
+    await act(async () => {
+      await result.current!.startNewConversation();
+    });
+
+    await waitFor(async () => {
+      const memoryRow = await db.collections.ai_session_memories
+        .findOne({ selector: { conversationId: 'conv-clear-race' } })
+        .exec();
+      expect(memoryRow?.toJSON().payload).toMatchObject({
+        lastLanguage: 'cmn',
+        responsePreferences: { style: 'concise' },
+        summaryTurnCount: 0,
+      });
+    });
+
+    expect(sessionMemoryRef.current).toEqual({});
+    expect(conversationIdRef.current).not.toBe('conv-clear-race');
+  });
+
   it('archiveConversation moves row to archived list and switches away when active', async () => {
     const db = await getDb();
     const archiveScopeTextId = 'text-archive-scope';
