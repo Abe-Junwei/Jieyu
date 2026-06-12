@@ -234,7 +234,11 @@ export function useAiChatConversationManager(
         }
         await db.collections.ai_messages.removeBySelector({ conversationId: activeId });
         const clearedMemory = clearSessionMemoryFastPath(memoryBeforeClear);
-        sessionMemoryRef.current = clearedMemory;
+        // Only touch in-memory ref when this conversation is still active. After detach the id is
+        // null; starting or switching conversations before this IIFE finishes must not be clobbered.
+        if (conversationIdRef.current === activeId) {
+          sessionMemoryRef.current = clearedMemory;
+        }
         await persistSessionMemoryAsync(activeId, clearedMemory);
       } catch (error) {
         log.warn('clearCurrentConversation persistence failed', {
