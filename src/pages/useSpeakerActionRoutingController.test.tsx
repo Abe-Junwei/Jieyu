@@ -627,7 +627,7 @@ describe('useSpeakerActionRoutingController', () => {
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'error',
-        message: '说话人指派失败：未找到可更新的语段',
+        message: '说话人指派失败：No updatable units found for speaker assignment',
       }),
     );
 
