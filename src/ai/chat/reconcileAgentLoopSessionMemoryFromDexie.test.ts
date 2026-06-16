@@ -122,6 +122,62 @@ describe('reconcilePendingAgentLoopCheckpointFromDexie', () => {
     expect(next.pendingAgentLoopCheckpoint).toBeUndefined();
   });
 
+  it('scopes global hydrate to the active conversation via assistant message targetId', async () => {
+    const timestamp = '2026-05-01T00:00:00.000Z';
+    await db.ai_conversations.bulkAdd([
+      {
+        id: 'conv-a',
+        title: 'A',
+        mode: 'assistant',
+        providerId: 'mock',
+        model: 'mock',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+      {
+        id: 'conv-b',
+        title: 'B',
+        mode: 'assistant',
+        providerId: 'mock',
+        model: 'mock',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    ]);
+    await db.ai_messages.add({
+      id: 'assistant-conv-a',
+      conversationId: 'conv-a',
+      role: 'assistant',
+      content: 'handoff',
+      status: 'done',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-conv-a',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'conv-a-handoff',
+        continuationInput: 'payload-a',
+        step: 1,
+        createdAt: timestamp,
+      },
+    });
+
+    const scopedToA = await reconcilePendingAgentLoopCheckpointFromDexie(
+      {},
+      { conversationId: 'conv-a' },
+    );
+    expect(scopedToA.pendingAgentLoopCheckpoint?.originalUserText).toBe('conv-a-handoff');
+
+    const scopedToB = await reconcilePendingAgentLoopCheckpointFromDexie(
+      {},
+      { conversationId: 'conv-b' },
+    );
+    expect(scopedToB.pendingAgentLoopCheckpoint).toBeUndefined();
+  });
+
   it('returns same reference when session checkpoint already matches durable row', async () => {
     const taskId = await persistAgentLoopCheckpointTask({
       targetId: 'assistant-same',

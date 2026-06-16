@@ -28,6 +28,7 @@ export function useAgentLoopSessionMemoryDexieReconcile(
         const reconcileBase = sessionMemoryRef.current;
         const next = await reconcilePendingAgentLoopCheckpointFromDexie(reconcileBase, {
           allowGlobalHydrate,
+          conversationId: activeConversationId,
         });
         if (cancelled) return;
         if (conversationIdRef.current !== activeConversationId) return;
@@ -38,6 +39,7 @@ export function useAgentLoopSessionMemoryDexieReconcile(
         if (latestRef !== reconcileBase) {
           const merged = await reconcilePendingAgentLoopCheckpointFromDexie(latestRef, {
             allowGlobalHydrate: false,
+            conversationId: activeConversationId,
           });
           if (merged === latestRef) return;
           sessionMemoryRef.current = merged;

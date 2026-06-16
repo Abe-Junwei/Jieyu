@@ -121,6 +121,59 @@ describe('agentLoopCheckpoint', () => {
     });
   });
 
+  it('scopes latest pending checkpoint to the assistant message conversation', async () => {
+    const timestamp = '2026-04-27T00:00:00.000Z';
+    await db.ai_conversations.bulkAdd([
+      {
+        id: 'conv-a',
+        title: 'A',
+        mode: 'assistant',
+        providerId: 'mock',
+        model: 'mock',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+      {
+        id: 'conv-b',
+        title: 'B',
+        mode: 'assistant',
+        providerId: 'mock',
+        model: 'mock',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    ]);
+    await db.ai_messages.add({
+      id: 'assistant-conv-a',
+      conversationId: 'conv-a',
+      role: 'assistant',
+      content: 'handoff',
+      status: 'done',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-conv-a',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'conv-a-only',
+        continuationInput: 'payload-a',
+        step: 1,
+        createdAt: timestamp,
+      },
+    });
+
+    await expect(
+      loadLatestPendingAgentLoopCheckpoint({ conversationId: 'conv-a' }),
+    ).resolves.toMatchObject({
+      originalUserText: 'conv-a-only',
+    });
+    await expect(
+      loadLatestPendingAgentLoopCheckpoint({ conversationId: 'conv-b' }),
+    ).resolves.toBeUndefined();
+  });
+
   it('marks a consumed checkpoint task as done and non-resumable', async () => {
     const taskId = await persistAgentLoopCheckpointTask({
       targetId: 'assistant-3',

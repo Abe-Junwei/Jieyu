@@ -41,10 +41,12 @@ function parseCheckpointJson(value: string | undefined): TaskRunnerCheckpoint | 
 function isPendingResumableAgentLoopTask(
   task: Pick<AiTaskDoc, 'taskType' | 'status' | 'resumable' | 'handoffReason'>,
 ): boolean {
-  return task.taskType === 'agent_loop'
-    && task.status === 'pending'
-    && task.resumable !== false
-    && task.handoffReason === 'token_budget_warning';
+  return (
+    task.taskType === 'agent_loop' &&
+    task.status === 'pending' &&
+    task.resumable !== false &&
+    task.handoffReason === 'token_budget_warning'
+  );
 }
 
 function toAgentLoopTaskCheckpoint(
@@ -72,9 +74,10 @@ export function fromAgentLoopTaskCheckpoint(
   const data = checkpoint.data ?? {};
   const originalUserText = readString(data.originalUserText);
   const continuationInput = readString(data.continuationInput);
-  const step = typeof data.step === 'number' && Number.isFinite(data.step)
-    ? Math.max(1, Math.floor(data.step))
-    : undefined;
+  const step =
+    typeof data.step === 'number' && Number.isFinite(data.step)
+      ? Math.max(1, Math.floor(data.step))
+      : undefined;
   if (!originalUserText || !continuationInput || step === undefined) return undefined;
   return {
     kind: 'token_budget_warning',
@@ -82,7 +85,8 @@ export function fromAgentLoopTaskCheckpoint(
     originalUserText,
     continuationInput,
     step,
-    ...(typeof data.estimatedRemainingTokens === 'number' && Number.isFinite(data.estimatedRemainingTokens)
+    ...(typeof data.estimatedRemainingTokens === 'number' &&
+    Number.isFinite(data.estimatedRemainingTokens)
       ? { estimatedRemainingTokens: Math.max(0, Math.floor(data.estimatedRemainingTokens)) }
       : {}),
     createdAt: readString(data.createdAt) || checkpoint.at || nowIso(),
@@ -145,15 +149,43 @@ export async function loadPendingAgentLoopCheckpointFromTaskId(
   return fromAgentLoopTaskCheckpoint(row);
 }
 
-export async function loadLatestPendingAgentLoopCheckpoint(): Promise<AiSessionMemoryPendingAgentLoopCheckpoint | undefined> {
+export type LoadLatestPendingAgentLoopCheckpointOptions = Readonly<{
+  /** When set, only return a checkpoint whose assistant message belongs to this conversation. */
+  conversationId?: string;
+}>;
+
+async function resolveConversationIdForAgentLoopTarget(
+  targetId: string,
+): Promise<string | undefined> {
+  const normalizedTargetId = targetId.trim();
+  if (!normalizedTargetId) return undefined;
   const db = await getDb();
-  const rows = await db.collections.ai_tasks.find().exec();
-  const latestPending = rows
+  const message = await db.collections.ai_messages
+    .findOne({ selector: { id: normalizedTargetId } })
+    .exec();
+  const conversationId = message?.toJSON().conversationId?.trim();
+  return conversationId || undefined;
+}
+
+export async function loadLatestPendingAgentLoopCheckpoint(
+  options?: LoadLatestPendingAgentLoopCheckpointOptions,
+): Promise<AiSessionMemoryPendingAgentLoopCheckpoint | undefined> {
+  const scopedConversationId = options?.conversationId?.trim();
+  const db = await getDb();
+  const pendingTasks = (await db.collections.ai_tasks.find().exec())
     .map((item) => item.toJSON())
     .filter((row) => isPendingResumableAgentLoopTask(row))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
-  if (!latestPending) return undefined;
-  return fromAgentLoopTaskCheckpoint(latestPending);
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  for (const task of pendingTasks) {
+    if (scopedConversationId) {
+      const targetConversationId = await resolveConversationIdForAgentLoopTarget(task.targetId);
+      if (targetConversationId !== scopedConversationId) continue;
+    }
+    const checkpoint = fromAgentLoopTaskCheckpoint(task);
+    if (checkpoint) return checkpoint;
+  }
+  return undefined;
 }
 
 export async function completeAgentLoopCheckpointTask(taskId: string): Promise<void> {

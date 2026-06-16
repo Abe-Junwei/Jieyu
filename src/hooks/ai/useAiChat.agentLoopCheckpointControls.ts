@@ -15,8 +15,9 @@ import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
 export function useAiChatAgentLoopCheckpointControls(options: {
   sessionMemoryRef: MutableRefObject<AiSessionMemory>;
   setMessages: Dispatch<SetStateAction<UiChatMessage[]>>;
+  conversationIdRef: MutableRefObject<string | null>;
 }) {
-  const { sessionMemoryRef, setMessages } = options;
+  const { sessionMemoryRef, setMessages, conversationIdRef } = options;
 
   const clearPendingAgentLoopCheckpoint = useCallback(() => {
     if (!sessionMemoryRef.current.pendingAgentLoopCheckpoint) return;
@@ -70,9 +71,12 @@ export function useAiChatAgentLoopCheckpointControls(options: {
       if (checkpoint) return checkpoint;
 
       const requestedTaskId = consumeRequestedAgentLoopTaskIdFromSessionStorage();
+      const activeConversationId = conversationIdRef.current?.trim();
       const durableCheckpoint = requestedTaskId
         ? await loadPendingAgentLoopCheckpointFromTaskId(requestedTaskId)
-        : await loadLatestPendingAgentLoopCheckpoint();
+        : await loadLatestPendingAgentLoopCheckpoint(
+            activeConversationId ? { conversationId: activeConversationId } : undefined,
+          );
       if (!durableCheckpoint) return null;
 
       const nextMemory: AiSessionMemory = {
@@ -83,7 +87,7 @@ export function useAiChatAgentLoopCheckpointControls(options: {
       persistSessionMemory(nextMemory);
       return durableCheckpoint;
     },
-    [sessionMemoryRef],
+    [conversationIdRef, sessionMemoryRef],
   );
 
   return {

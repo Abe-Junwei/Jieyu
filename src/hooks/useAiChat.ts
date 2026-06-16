@@ -297,7 +297,11 @@ export function useAiChat(options?: UseAiChatOptions) {
     dismissPendingAgentLoopCheckpoint,
     clearPendingAgentLoopCheckpointIfTaskIdMatches,
     resolveAgentLoopResumeCheckpoint,
-  } = useAiChatAgentLoopCheckpointControls({ sessionMemoryRef, setMessages });
+  } = useAiChatAgentLoopCheckpointControls({
+    sessionMemoryRef,
+    setMessages,
+    conversationIdRef,
+  });
 
   const { toggleMessagePinned, deactivateSessionDirective, pruneSessionDirectivesBySourceMessage } =
     useAiChatDirectiveSessionControls({
