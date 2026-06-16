@@ -25,6 +25,8 @@ export type ReconcileAgentLoopSessionMemoryOptions = Readonly<{
    * Use on in-app conversation switches so another conversation's handoff is not mirrored into the active row.
    */
   allowGlobalHydrate?: boolean;
+  /** Scope global hydrate to checkpoints owned by this conversation (via assistant message targetId). */
+  conversationId?: string;
 }>;
 
 /**
@@ -56,7 +58,9 @@ export async function reconcilePendingAgentLoopCheckpointFromDexie(
   if (!allowGlobalHydrate) {
     return current;
   }
-  const latest = await loadLatestPendingAgentLoopCheckpoint();
+  const latest = await loadLatestPendingAgentLoopCheckpoint({
+    ...(options?.conversationId ? { conversationId: options.conversationId } : {}),
+  });
   if (!latest) {
     return current;
   }

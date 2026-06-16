@@ -10,7 +10,7 @@ import {
   persistSessionMemoryAsync,
   resetSessionMemoryStoreForTests,
 } from '../../ai/chat/sessionMemory';
-import { resetJieyuDatabaseSingletonForTests } from '../../db';
+import { getDb, resetJieyuDatabaseSingletonForTests } from '../../db';
 import type { AiSessionMemory } from './useAiChat.types';
 import { useAgentLoopSessionMemoryDexieReconcile } from './useAiChat.agentLoopDexieReconcile';
 import { useSessionMemoryConversationBinding } from './useSessionMemoryConversationBinding';
@@ -49,6 +49,26 @@ describe('useAgentLoopSessionMemoryDexieReconcile', () => {
   });
 
   it('does not mirror a global agent-loop handoff into another conversation on switch', async () => {
+    const timestamp = '2026-05-01T00:00:00.000Z';
+    const db = await getDb();
+    await db.collections.ai_conversations.insert({
+      id: 'conv-a',
+      title: 'A',
+      mode: 'assistant',
+      providerId: 'mock',
+      model: 'mock',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    await db.collections.ai_messages.insert({
+      id: 'assistant-conv-a',
+      conversationId: 'conv-a',
+      role: 'assistant',
+      content: 'handoff',
+      status: 'done',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
     await persistAgentLoopCheckpointTask({
       targetId: 'assistant-conv-a',
       checkpoint: {
@@ -96,6 +116,72 @@ describe('useAgentLoopSessionMemoryDexieReconcile', () => {
     const storedB = await readDexieSessionMemory('conv-b');
     expect(storedB.pendingAgentLoopCheckpoint).toBeUndefined();
     expect(storedB.preferences?.lastLanguage).toBe('eng');
+  });
+
+  it('does not mirror a global agent-loop handoff into another conversation on cold start', async () => {
+    const timestamp = '2026-05-01T00:00:00.000Z';
+    const db = await getDb();
+    await db.collections.ai_conversations.bulkInsert([
+      {
+        id: 'conv-a',
+        title: 'A',
+        mode: 'assistant',
+        providerId: 'mock',
+        model: 'mock',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+      {
+        id: 'conv-b',
+        title: 'B',
+        mode: 'assistant',
+        providerId: 'mock',
+        model: 'mock',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    ]);
+    await db.collections.ai_messages.insert({
+      id: 'assistant-conv-a-cold',
+      conversationId: 'conv-a',
+      role: 'assistant',
+      content: 'handoff',
+      status: 'done',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-conv-a-cold',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'conv-a-handoff',
+        continuationInput: 'payload-a',
+        step: 1,
+        createdAt: timestamp,
+      },
+    });
+    await persistSessionMemoryAsync('conv-b', {
+      preferences: { lastLanguage: 'eng' },
+    });
+
+    const sessionMemoryRef = {
+      current: {} as AiSessionMemory,
+    };
+
+    renderHook(() => {
+      const hydrationGeneration = useSessionMemoryConversationBinding('conv-b', sessionMemoryRef);
+      useAgentLoopSessionMemoryDexieReconcile(sessionMemoryRef, 'conv-b', hydrationGeneration);
+      return hydrationGeneration;
+    });
+
+    await waitFor(() => {
+      expect(sessionMemoryRef.current.preferences?.lastLanguage).toBe('eng');
+    });
+
+    expect(sessionMemoryRef.current.pendingAgentLoopCheckpoint).toBeUndefined();
+
+    const storedB = await readDexieSessionMemory('conv-b');
+    expect(storedB.pendingAgentLoopCheckpoint).toBeUndefined();
   });
 
   it('does not clobber user session memory mutations during async reconcile', async () => {

@@ -3158,7 +3158,17 @@ describe('useAiChat abort and recovery', () => {
   });
 
   it('hydrates sessionMemory.pendingAgentLoopCheckpoint from ai_tasks on mount when local session is empty (T1-c)', async () => {
-    await seedAiChatConversationWithSessionMemory({});
+    const seededConversationId = await seedAiChatConversationWithSessionMemory({});
+    const timestamp = '2026-05-01T12:00:00.000Z';
+    await db.ai_messages.add({
+      id: 'assistant-hydrate-mount',
+      conversationId: seededConversationId,
+      role: 'assistant',
+      content: 'handoff',
+      status: 'done',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
 
     const taskId = await persistAgentLoopCheckpointTask({
       targetId: 'assistant-hydrate-mount',
@@ -3185,13 +3195,35 @@ describe('useAiChat abort and recovery', () => {
     });
 
     const conversationId = result.current.conversationId!;
+    expect(conversationId).toBe(seededConversationId);
     const stored = await readDexieSessionMemory(conversationId);
     expect(stored.pendingAgentLoopCheckpoint?.taskId).toBe(taskId);
     expect(stored.pendingAgentLoopCheckpoint?.originalUserText).toBe('hydrate-me');
   });
 
   it('converging mounts: first hydrate keeps latest durable checkpoint and persists it for parallel mounts (T1-c)', async () => {
-    await seedAiChatConversationWithSessionMemory({});
+    const seededConversationId = await seedAiChatConversationWithSessionMemory({});
+    const timestamp = '2026-05-01T08:00:00.000Z';
+    await db.ai_messages.bulkAdd([
+      {
+        id: 'assistant-dual-old',
+        conversationId: seededConversationId,
+        role: 'assistant',
+        content: 'older',
+        status: 'done',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+      {
+        id: 'assistant-dual-new',
+        conversationId: seededConversationId,
+        role: 'assistant',
+        content: 'newer',
+        status: 'done',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    ]);
 
     const olderId = await persistAgentLoopCheckpointTask({
       targetId: 'assistant-dual-old',
@@ -3231,9 +3263,9 @@ describe('useAiChat abort and recovery', () => {
       expect(first.result.current.sessionMemory?.pendingAgentLoopCheckpoint?.taskId).toBe(newerId);
     });
 
-    const conversationId = first.result.current.conversationId;
-    expect(conversationId).toBeTruthy();
-    const stored = await readDexieSessionMemory(conversationId!);
+    const activeConversationId = first.result.current.conversationId;
+    expect(activeConversationId).toBe(seededConversationId);
+    const stored = await readDexieSessionMemory(activeConversationId!);
     expect(stored.pendingAgentLoopCheckpoint?.taskId).toBe(newerId);
     // Parallel hook should not diverge to an older checkpoint.
     expect(second.result.current.sessionMemory?.pendingAgentLoopCheckpoint?.taskId).not.toBe(
