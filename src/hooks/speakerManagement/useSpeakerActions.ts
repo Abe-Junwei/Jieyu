@@ -474,8 +474,10 @@ export function useSpeakerActions({
     if (selectedUnitIds.size === 0 && !activeUnitId) return;
     if (speakerSaving) return;
     setSpeakerSaving(true);
+    let undoPushed = false;
     try {
       data.pushUndo(getSpeakerUndoLabel('assign', t));
+      undoPushed = true;
       const speaker = batchSpeakerId ? speakerById.get(batchSpeakerId) : undefined;
       const targetIds =
         selectedUnitIds.size > 0 ? Array.from(selectedUnitIds) : activeUnitId ? [activeUnitId] : [];
@@ -492,6 +494,7 @@ export function useSpeakerActions({
         message: formatSpeakerAssignmentResult('units', updated, t, tf),
       });
     } catch (error) {
+      if (undoPushed) await data.undo();
       reportActionError({
         error,
         ...buildSpeakerActionErrorOptions('assign', error, t, tf),
@@ -524,8 +527,10 @@ export function useSpeakerActions({
       if (targetIds.length === 0 || speakerSaving) return;
 
       setSpeakerSaving(true);
+      let undoPushed = false;
       try {
         data.pushUndo(getSpeakerUndoLabel('assign', t));
+        undoPushed = true;
         const speaker = speakerId ? speakerById.get(speakerId) : undefined;
         const updated = await LinguisticService.speakers.assignToUnits(targetIds, speakerId);
         applySpeakerLocally(targetIds, speaker);
@@ -538,6 +543,7 @@ export function useSpeakerActions({
           message: formatSpeakerAssignmentResult('units', updated, t, tf),
         });
       } catch (error) {
+        if (undoPushed) await data.undo();
         reportActionError({
           error,
           ...buildSpeakerActionErrorOptions('assign', error, t, tf),

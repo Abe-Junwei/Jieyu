@@ -220,6 +220,49 @@ describe('useSpeakerActionRoutingController', () => {
     expect(handleAssignSpeakerToSelected).toHaveBeenCalled();
   });
 
+  it('rolls back segment-only speaker assignment when segment update fails', async () => {
+    const assignSpeakerToSegments = vi
+      .spyOn(LinguisticService.speakers, 'assignToSegments')
+      .mockRejectedValue(new Error('segment write failed'));
+    const assignSpeakerToUnits = vi
+      .spyOn(LinguisticService.speakers, 'assignToUnits')
+      .mockResolvedValue(1);
+    const undo = vi.fn(async () => undefined);
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const { result } = renderHook(() =>
+      useSpeakerActionRoutingController(
+        createBaseInput({
+          batchSpeakerId: 'spk-a',
+          selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
+          selectedUnitIdsForSpeakerActions: ['seg-1'],
+          segmentByIdForSpeakerActions: new Map([
+            ['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)],
+          ]),
+          selectedBatchUnits: [],
+          undo,
+          setSaveState,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.handleAssignSpeakerToSelectedRouted();
+    });
+
+    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-a');
+    expect(assignSpeakerToUnits).not.toHaveBeenCalled();
+    expect(undo).toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'error',
+        message: '说话人指派失败：segment write failed',
+      }),
+    );
+
+    assignSpeakerToSegments.mockRestore();
+    assignSpeakerToUnits.mockRestore();
+  });
+
   it('rolls back mixed speaker assignment when segment update fails', async () => {
     const assignSpeakerToSegments = vi
       .spyOn(LinguisticService.speakers, 'assignToSegments')
@@ -591,7 +634,7 @@ describe('useSpeakerActionRoutingController', () => {
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'error',
-        message: '说话人指派失败：未找到可更新的语段',
+        message: '说话人指派失败：No updatable units found for speaker assignment',
       }),
     );
 
