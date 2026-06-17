@@ -489,6 +489,7 @@ describe('useSpeakerActions dialog flows', () => {
 
   it('maps conflict-like assign error to conflict-aware message', async () => {
     const setSaveState = vi.fn();
+    const undo = vi.fn(async () => {});
     const conflictError = new Error('row changed externally');
     vi.mocked(LinguisticService.speakers.assignToUnits).mockRejectedValue(conflictError);
 
@@ -499,14 +500,19 @@ describe('useSpeakerActions dialog flows', () => {
       setSaveState,
       data: {
         pushUndo: vi.fn(),
-        undo: vi.fn(async () => {}),
+        undo,
       },
+    });
+
+    act(() => {
+      result.current.setBatchSpeakerId('speaker-1');
     });
 
     await act(async () => {
       await result.current.handleAssignSpeakerToSelected();
     });
 
+    expect(undo).toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'error',
