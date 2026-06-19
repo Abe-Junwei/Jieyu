@@ -46,6 +46,7 @@ interface ExecuteAutoToolCallParams {
   markExecutedRequestId: (requestId: string) => void;
   bumpMetric: (key: keyof AiInteractionMetrics) => void;
   shouldBumpRecovery: boolean;
+  shouldApplyTurnSideEffects?: () => boolean;
 }
 
 interface ExecuteAutoToolCallResult {
@@ -73,7 +74,26 @@ export async function executeAutoToolCall({
   markExecutedRequestId,
   bumpMetric,
   shouldBumpRecovery,
+  shouldApplyTurnSideEffects,
 }: ExecuteAutoToolCallParams): Promise<ExecuteAutoToolCallResult> {
+  if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
+    setTaskSession({
+      id: taskSessionId,
+      status: 'idle',
+      updatedAt: nowIso(),
+    });
+    return {
+      finalContent: toNaturalToolFailure(
+        locale,
+        toolCall.name,
+        formatToolExecutionFallbackError(locale),
+        toolFeedbackStyle,
+      ),
+      finalStatus: 'error',
+      finalErrorMessage: 'turn_superseded',
+    };
+  }
+
   if (!onToolCall) {
     const finalErrorMessage = formatNoExecutorInternalError(locale);
     const finalContent = toNaturalToolFailure(

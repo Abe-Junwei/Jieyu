@@ -121,6 +121,10 @@ export interface ResolveAiChatStreamCompletionParams {
    * not only the `aiContext` captured when the user message was sent.
    */
   resolveFreshAiContext?: () => AiPromptContext | null;
+  /** When false (e.g. conversation switched mid-turn), skip tool execution and in-memory session updates. */
+  shouldApplyTurnSideEffects?: () => boolean;
+  /** Conversation that started this turn; used to scope session-memory Dexie writes. */
+  turnConversationId?: string;
 }
 
 export interface ResolveAiChatStreamCompletionResult {
@@ -273,6 +277,10 @@ function buildLocalToolPolicyConfirmMessage(locale: Locale): string {
   return t(locale, 'ai.toolWriteGate.localPolicyConfirm');
 }
 
+function canApplyTurnSideEffects(shouldApplyTurnSideEffects?: () => boolean): boolean {
+  return shouldApplyTurnSideEffects === undefined || shouldApplyTurnSideEffects();
+}
+
 export async function resolveAiChatStreamCompletion({
   assistantId,
   assistantContent,
@@ -306,6 +314,7 @@ export async function resolveAiChatStreamCompletion({
   localToolCallCountRef,
   localToolTraceOptions,
   resolveFreshAiContext,
+  shouldApplyTurnSideEffects,
 }: ResolveAiChatStreamCompletionParams): Promise<ResolveAiChatStreamCompletionResult> {
   if (assistantContent.trim().length === 0) {
     const finalErrorMessage = formatEmptyModelResponseError(toolFeedbackLocale);
@@ -322,8 +331,13 @@ export async function resolveAiChatStreamCompletion({
   let finalErrorMessage: string | undefined;
   const preferredScope = sessionMemory.toolPreferences?.defaultScope;
 
+  const canApplySideEffects = canApplyTurnSideEffects(shouldApplyTurnSideEffects);
+
   const localToolCallsParsed = parseLocalContextToolCallsFromText(assistantContent);
   if (localToolCallsParsed.length > 1) {
+    if (!canApplySideEffects) {
+      return { finalContent: assistantContent, finalStatus: 'done' };
+    }
     const sharedTraceId = localToolTraceOptions?.traceId ?? generateTraceId();
     const localToolResults: LocalContextToolResult[] = [];
     let rollingMemory = sessionMemory;
@@ -438,6 +452,9 @@ export async function resolveAiChatStreamCompletion({
   }
 
   if (localToolCallsParsed.length === 1) {
+    if (!canApplySideEffects) {
+      return { finalContent: assistantContent, finalStatus: 'done' };
+    }
     const sharedTraceId = localToolTraceOptions?.traceId ?? generateTraceId();
     const { calls: singleCalls } = resolveLocalToolCalls(
       localToolCallsParsed,
@@ -558,6 +575,9 @@ export async function resolveAiChatStreamCompletion({
   const planner = parsedToolCall ? planToolCallTargets(parsedToolCall, userText, aiContext) : null;
   const toolCall = planner?.call ?? null;
   if (toolCall) {
+    if (!canApplySideEffects) {
+      return { finalContent: assistantContent, finalStatus: 'done' };
+    }
     if (!toolCall.requestId) {
       toolCall.requestId = genRequestId(toolCall, assistantId);
     }
@@ -591,6 +611,7 @@ export async function resolveAiChatStreamCompletion({
       markExecutedRequestId,
       bumpMetric,
       shouldBumpRecovery,
+      ...(shouldApplyTurnSideEffects ? { shouldApplyTurnSideEffects } : {}),
     });
     finalContent = toolDecisionResult.finalContent;
     finalStatus = toolDecisionResult.finalStatus;

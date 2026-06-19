@@ -2,7 +2,8 @@
  * Build stream-completion environment for send-turn stream phase (shared by primary stream + agent loop).
  */
 
-import { persistSessionMemory } from '../../ai/chat/sessionMemory';
+import { shouldApplyStreamUiUpdate } from '../../ai/chat/conversationGeneration';
+import { persistSessionMemoryAsync } from '../../ai/chat/sessionMemory';
 import { genRequestId } from './useAiChat.toolAudit';
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import type { RunAiChatSendTurnStreamPhaseInput } from './useAiChat.sendTurnStreamPhase.types';
@@ -37,8 +38,14 @@ export function buildSendTurnStreamCompletionEnv(
     getContextRef,
     settingsRef,
     toolDecisionModeRef,
+    conversationGenerationRef,
+    streamGenerationAtStart,
+    sendTurnConversationId,
   } = input;
   const { responsePolicy } = opening;
+
+  const shouldApplyTurnSideEffects = () =>
+    shouldApplyStreamUiUpdate(conversationGenerationRef, streamGenerationAtStart);
 
   return {
     messages: messagesRef.current,
@@ -59,9 +66,13 @@ export function buildSendTurnStreamCompletionEnv(
     writeToolIntentAuditLog,
     sessionMemory: sessionMemoryRef.current,
     updateSessionMemory: (nextMemory) => {
+      if (!shouldApplyTurnSideEffects()) return;
       sessionMemoryRef.current = nextMemory;
     },
-    persistSessionMemory,
+    persistSessionMemory: (mem) => {
+      if (!shouldApplyTurnSideEffects()) return;
+      void persistSessionMemoryAsync(sendTurnConversationId, mem);
+    },
     setTaskSession,
     getTaskSession: () => taskSessionRef.current,
     setPendingToolCall,
@@ -74,5 +85,7 @@ export function buildSendTurnStreamCompletionEnv(
     localToolCallCountRef,
     verticalWorkflowSelection,
     verticalOutputEnvelopeSeed,
+    shouldApplyTurnSideEffects,
+    turnConversationId: sendTurnConversationId,
   };
 }

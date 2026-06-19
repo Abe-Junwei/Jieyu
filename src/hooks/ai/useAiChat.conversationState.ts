@@ -14,6 +14,9 @@ import {
   sortConversationsByUpdatedAtDesc,
 } from './aiConversationManager.helpers';
 
+/** Only recover rows left in `streaming` long enough to rule out another live tab. */
+const ZOMBIE_STREAMING_STALE_MS = 2 * 60 * 1000;
+
 interface UseAiChatConversationStateOptions {
   locale: Locale;
   providerId: string;
@@ -150,10 +153,16 @@ export function useAiChatConversationState({
           'status',
           'streaming',
         );
-        if (zombieStreamingRows.length > 0) {
+        const nowMs = Date.now();
+        const staleZombieStreamingRows = zombieStreamingRows.filter((doc) => {
+          const updatedAtMs = Date.parse(doc.toJSON().updatedAt);
+          if (!Number.isFinite(updatedAtMs)) return true;
+          return nowMs - updatedAtMs > ZOMBIE_STREAMING_STALE_MS;
+        });
+        if (staleZombieStreamingRows.length > 0) {
           const now = nowIso();
           await Promise.all(
-            zombieStreamingRows.map(async (doc) => {
+            staleZombieStreamingRows.map(async (doc) => {
               const row = doc.toJSON();
               await db.collections.ai_messages.update(row.id, {
                 status: 'aborted',
