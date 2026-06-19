@@ -102,6 +102,7 @@ export interface ResolveToolDecisionPipelineParams {
   markExecutedRequestId: (requestId: string) => void;
   bumpMetric: (key: keyof AiInteractionMetrics) => void;
   shouldBumpRecovery: boolean;
+  shouldApplyTurnSideEffects?: () => boolean;
 }
 
 export interface ResolveToolDecisionPipelineResult {
@@ -142,6 +143,7 @@ export async function resolveToolDecisionPipeline({
   markExecutedRequestId,
   bumpMetric,
   shouldBumpRecovery,
+  shouldApplyTurnSideEffects,
 }: ResolveToolDecisionPipelineParams): Promise<ResolveToolDecisionPipelineResult> {
   const baseAuditContext = buildToolAuditContext(
     userText,
@@ -523,6 +525,7 @@ export async function resolveToolDecisionPipeline({
     markExecutedRequestId,
     bumpMetric,
     shouldBumpRecovery,
+    ...(shouldApplyTurnSideEffects ? { shouldApplyTurnSideEffects } : {}),
   });
 
   return {

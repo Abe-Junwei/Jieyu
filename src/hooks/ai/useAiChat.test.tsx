@@ -487,6 +487,7 @@ describe('useAiChat abort and recovery', () => {
 
   it('should convert stale streaming rows to aborted during bootstrapping', async () => {
     const now = new Date().toISOString();
+    const staleUpdatedAt = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     await db.ai_conversations.put({
       id: 'conv-zombie',
       title: 'zombie',
@@ -503,7 +504,7 @@ describe('useAiChat abort and recovery', () => {
       content: 'incomplete',
       status: 'streaming',
       createdAt: now,
-      updatedAt: now,
+      updatedAt: staleUpdatedAt,
     });
 
     const { result } = renderHook(() => useAiChat());
@@ -516,6 +517,37 @@ describe('useAiChat abort and recovery', () => {
       const zombie = await db.ai_messages.get('msg-zombie');
       expect(zombie?.status).toBe('aborted');
     });
+  });
+
+  it('should not abort recently updated streaming rows during bootstrapping', async () => {
+    const now = new Date().toISOString();
+    await db.ai_conversations.put({
+      id: 'conv-live',
+      title: 'live',
+      mode: 'assistant',
+      providerId: 'mock',
+      model: 'mock-1',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.ai_messages.put({
+      id: 'msg-live',
+      conversationId: 'conv-live',
+      role: 'assistant',
+      content: 'streaming in another tab',
+      status: 'streaming',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const { result } = renderHook(() => useAiChat());
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    const live = await db.ai_messages.get('msg-live');
+    expect(live?.status).toBe('streaming');
   });
 
   it('should preserve chat session when provider changes', async () => {
