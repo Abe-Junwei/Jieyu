@@ -6,7 +6,6 @@ import {
   completeAgentLoopCheckpointTask,
   persistAgentLoopCheckpointTask,
 } from '../../ai/chat/agentLoopCheckpoint';
-import { persistSessionMemory } from '../../ai/chat/sessionMemory';
 import { runAgentLoop } from './useAiChat.agentLoopRunner';
 import { nowIso } from './useAiChat.helpers';
 import { writeVerticalWorkflowAuditLogForSendTurnStreamPhase } from './useAiChat.sendTurnStreamPhase.verticalAudit';
@@ -58,6 +57,8 @@ export async function runSendTurnStreamAgentLoopAfterPrimaryCompletion(
     ? canMarkWorkflowAnswerReady(streamCompletionResult.verticalOutputEnvelopeSeed)
     : undefined;
 
+  const streamCompletionEnv = buildStreamCompletionEnv();
+
   const loopResult = await runAgentLoop(
     {
       assistantId,
@@ -71,7 +72,7 @@ export async function runSendTurnStreamAgentLoopAfterPrimaryCompletion(
       aiChatAgentLoopEnabled: flags.aiChatAgentLoopEnabled,
       getSessionMemory: () => sessionMemoryRef.current,
       setSessionMemory: (next) => {
-        sessionMemoryRef.current = next;
+        streamCompletionEnv.updateSessionMemory(next);
       },
       getSettings: () => settingsRef.current,
       getLocaleIsZhCn: () =>
@@ -84,7 +85,7 @@ export async function runSendTurnStreamAgentLoopAfterPrimaryCompletion(
       getTaskSession: () => taskSessionRef.current,
       setTaskSession,
       setMetrics,
-      persistSessionMemory,
+      persistSessionMemory: streamCompletionEnv.persistSessionMemory,
       persistAgentLoopCheckpoint: async (checkpoint) => {
         if (!checkpoint) return undefined;
         const taskId = await persistAgentLoopCheckpointTask({
