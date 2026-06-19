@@ -39,7 +39,7 @@ describe('resolveAiChatStreamCompletion turn side-effect guard', () => {
     const result = await resolveAiChatStreamCompletion({
       assistantId: 'ast-1',
       assistantContent:
-        '{"tool":"set_transcription_text","arguments":{"segmentId":"seg-1","text":"hi"}}',
+        '{"tool_call":{"name":"set_transcription_text","arguments":{"segmentId":"seg-1","text":"hi"}}}',
       userText: 'set text',
       aiContext: null,
       ...baseEnv({ shouldApplyTurnSideEffects: () => false }),

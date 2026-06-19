@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { buildSendTurnStreamCompletionEnv } from './useAiChat.sendTurnStreamPhase.completionEnv';
 import { createConversationGenerationRef } from '../../ai/chat/conversationGeneration';
 import type { RunAiChatSendTurnStreamPhaseInput } from './useAiChat.sendTurnStreamPhase.types';
@@ -12,6 +12,10 @@ vi.mock('../../ai/chat/sessionMemory', async (importOriginal) => {
 });
 
 import { persistSessionMemoryAsync } from '../../ai/chat/sessionMemory';
+
+beforeEach(() => {
+  vi.mocked(persistSessionMemoryAsync).mockClear();
+});
 
 function minimalStreamPhaseInput(
   overrides: Partial<RunAiChatSendTurnStreamPhaseInput> = {},
@@ -56,17 +60,17 @@ function minimalStreamPhaseInput(
     setMetrics: vi.fn(),
     setPendingToolCall: vi.fn(),
     messagesRef: { current: [] },
-    metricsRef: {
-      current: { successCount: 0, failureCount: 0, clarifyCount: 0, recoveryCount: 0 },
-    },
+    metricsRef: { current: {} } as RunAiChatSendTurnStreamPhaseInput['metricsRef'],
     sessionMemoryRef: { current: {} },
-    settingsRef: { current: { model: 'mock-1' } },
+    settingsRef: {
+      current: { model: 'mock-1' },
+    } as RunAiChatSendTurnStreamPhaseInput['settingsRef'],
     toolFeedbackLocaleRef: { current: 'en-US' },
-    getContextRef: { current: null },
+    getContextRef: { current: undefined },
     toolDecisionModeRef: { current: 'enabled' },
-    onToolRiskCheckRef: { current: null },
-    preparePendingToolCallRef: { current: null },
-    onToolCallRef: { current: null },
+    onToolRiskCheckRef: { current: undefined },
+    preparePendingToolCallRef: { current: undefined },
+    onToolCallRef: { current: undefined },
     taskSessionRef: { current: { id: 'task-1', status: 'idle', updatedAt: '' } },
     backgroundMemoryRuntimeRef: { current: null },
     allowDestructiveToolCalls: true,
@@ -87,6 +91,7 @@ describe('buildSendTurnStreamCompletionEnv', () => {
     const sessionMemoryRef = { current: { preferences: { lastLanguage: 'cmn' } } };
     const env = buildSendTurnStreamCompletionEnv(minimalStreamPhaseInput({ sessionMemoryRef }));
 
+    env.updateSessionMemory({ preferences: { lastLanguage: 'yue' } });
     env.persistSessionMemory({ preferences: { lastLanguage: 'yue' } });
 
     expect(persistSessionMemoryAsync).toHaveBeenCalledWith('conv-turn-a', {
