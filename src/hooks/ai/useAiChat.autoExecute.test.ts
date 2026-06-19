@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { executeAutoToolCall } from './useAiChat.autoExecute';
-import type { AiChatToolCall, AiSessionMemory } from './useAiChat.types';
+import type { AiChatToolCall, AiSessionMemory, ToolAuditContext } from './useAiChat.types';
 
 function baseParams(
   overrides: {
@@ -20,9 +20,9 @@ function baseParams(
       userText: 'update text',
       providerId: 'mock',
       model: 'mock-model',
-      toolDecisionMode: 'enabled' as const,
-      intentAssessment: null,
-    },
+      toolDecisionMode: 'enabled',
+      toolFeedbackStyle: 'detailed',
+    } satisfies ToolAuditContext,
     locale: 'en-US' as const,
     toolFeedbackStyle: 'detailed' as const,
     onToolCall: overrides.onToolCall ?? vi.fn(async () => ({ ok: true, message: 'updated' })),
