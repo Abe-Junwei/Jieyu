@@ -220,6 +220,42 @@ describe('useSpeakerActionRoutingController', () => {
     expect(handleAssignSpeakerToSelected).toHaveBeenCalled();
   });
 
+  it('rolls back segment-only speaker assignment when segment update fails', async () => {
+    const assignSpeakerToSegments = vi
+      .spyOn(LinguisticService.speakers, 'assignToSegments')
+      .mockRejectedValue(new Error('segment write failed'));
+    const undo = vi.fn(async () => undefined);
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const segment = makeSegment('seg-1', 'layer-seg', 0, 1, 'spk-a');
+    const { result } = renderHook(() =>
+      useSpeakerActionRoutingController(
+        createBaseInput({
+          batchSpeakerId: 'spk-a',
+          selectedBatchSegmentsForSpeakerActions: [segment],
+          selectedUnitIdsForSpeakerActions: ['seg-1'],
+          segmentByIdForSpeakerActions: new Map([['seg-1', segment]]),
+          undo,
+          setSaveState,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.handleAssignSpeakerToSelectedRouted();
+    });
+
+    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-a');
+    expect(undo).toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'error',
+        message: '说话人指派失败：segment write failed',
+      }),
+    );
+
+    assignSpeakerToSegments.mockRestore();
+  });
+
   it('rolls back mixed speaker assignment when segment update fails', async () => {
     const assignSpeakerToSegments = vi
       .spyOn(LinguisticService.speakers, 'assignToSegments')

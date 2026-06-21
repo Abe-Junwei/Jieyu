@@ -649,3 +649,51 @@ export function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory
       : {}),
   };
 }
+
+/** Deep-merge nested preference buckets when flushing pre-hydration pending writes. */
+export function mergeSessionMemoryPendingOverBaseline(
+  baseline: AiSessionMemory,
+  pending: AiSessionMemory,
+): AiSessionMemory {
+  const mergedPreferences =
+    baseline.preferences || pending.preferences
+      ? {
+          ...(baseline.preferences ?? {}),
+          ...(pending.preferences ?? {}),
+        }
+      : undefined;
+  const mergedResponsePreferences =
+    baseline.responsePreferences || pending.responsePreferences
+      ? {
+          ...(baseline.responsePreferences ?? {}),
+          ...(pending.responsePreferences ?? {}),
+        }
+      : undefined;
+  const mergedToolPreferences =
+    baseline.toolPreferences || pending.toolPreferences
+      ? {
+          ...(baseline.toolPreferences ?? {}),
+          ...(pending.toolPreferences ?? {}),
+        }
+      : undefined;
+  const mergedSafetyPreferences =
+    baseline.safetyPreferences || pending.safetyPreferences
+      ? {
+          ...(baseline.safetyPreferences ?? {}),
+          ...(pending.safetyPreferences ?? {}),
+        }
+      : undefined;
+
+  return normalizeSessionMemory({
+    ...baseline,
+    ...pending,
+    ...(mergedPreferences !== undefined ? { preferences: mergedPreferences } : {}),
+    ...(mergedResponsePreferences !== undefined
+      ? { responsePreferences: mergedResponsePreferences }
+      : {}),
+    ...(mergedToolPreferences !== undefined ? { toolPreferences: mergedToolPreferences } : {}),
+    ...(mergedSafetyPreferences !== undefined
+      ? { safetyPreferences: mergedSafetyPreferences }
+      : {}),
+  });
+}
