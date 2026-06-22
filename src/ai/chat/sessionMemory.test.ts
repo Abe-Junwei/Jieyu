@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb, resetJieyuDatabaseSingletonForTests } from '../../db';
+import { updateSessionMemoryWithPrompt } from './adaptiveInputProfile';
 import { buildUserDirectivePrompt } from './userDirectivePrompt';
 import {
   bindSessionMemoryConversation,
@@ -223,6 +224,30 @@ describe('sessionMemory Dexie store (G1a)', () => {
       .exec();
     expect(rowAfterHydration?.toJSON().payload.preferences?.lastLanguage).toBe('cmn');
     expect(rowAfterHydration?.toJSON().payload.responsePreferences?.style).toBe('concise');
+  });
+
+  it('merges pre-hydration prompt updates without clobbering stored preferences', async () => {
+    const conversationId = 'conv-hydration-prompt-merge';
+    await persistSessionMemoryAsync(conversationId, {
+      preferences: { lastLanguage: 'cmn', lastToolName: 'set_transcription_text' },
+      responsePreferences: { style: 'concise' },
+    });
+
+    resetSessionMemoryStoreForTests();
+    bindSessionMemoryConversation(conversationId);
+    persistSessionMemory(updateSessionMemoryWithPrompt({}, '请帮我翻译这段文字'));
+
+    await loadSessionMemoryAsync(conversationId);
+
+    const db = await getDb();
+    await waitFor(async () => {
+      const row = await db.collections.ai_session_memories
+        .findOne({ selector: { conversationId } })
+        .exec();
+      expect(row?.toJSON().payload.preferences?.lastLanguage).toBe('cmn');
+      expect(row?.toJSON().payload.preferences?.lastToolName).toBe('set_transcription_text');
+      expect(row?.toJSON().payload.responsePreferences?.style).toBe('concise');
+    });
   });
 });
 
