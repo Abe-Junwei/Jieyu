@@ -1,7 +1,10 @@
 import { createLogger } from '../../observability/logger';
 import { getDb } from '../../db';
 import type { AiSessionMemory } from './chatDomain.types';
-import { normalizeSessionMemory } from './sessionMemoryNormalize';
+import {
+  mergeSessionMemoryPendingOverBaseline,
+  normalizeSessionMemory,
+} from './sessionMemoryNormalize';
 
 const log = createLogger('aiChatSessionMemoryStore');
 
@@ -110,7 +113,7 @@ async function flushPendingSessionMemoryForConversationAsync(
 
   await persistSessionMemoryAsync(
     conversationId,
-    normalizeSessionMemory({ ...baseline, ...pending }),
+    mergeSessionMemoryPendingOverBaseline(baseline, pending),
   );
 }
 
@@ -152,7 +155,7 @@ function markConversationHydrated(conversationId: string, capturedBindGeneration
   const baseline = memoryCache.get(conversationId) ?? {};
   void persistSessionMemoryAsync(
     conversationId,
-    normalizeSessionMemory({ ...baseline, ...pending }),
+    mergeSessionMemoryPendingOverBaseline(baseline, pending),
   );
 }
 
