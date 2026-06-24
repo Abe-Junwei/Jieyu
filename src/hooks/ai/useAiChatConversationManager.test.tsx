@@ -176,6 +176,89 @@ describe('useAiChatConversationManager', () => {
     });
   });
 
+  it('does not poison sessionMemoryRef when a new conversation starts before clear persistence finishes', async () => {
+    const db = await getDb();
+    const timestamp = '2026-05-17T10:00:00.000Z';
+    await db.collections.ai_conversations.insert({
+      id: 'conv-clear-race',
+      title: 'Clear race',
+      mode: 'assistant',
+      providerId: 'mock',
+      model: 'mock',
+      textId: 'text-race-clear',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    const conversationIdRef = { current: 'conv-clear-race' as string | null };
+    const setConversationId = vi.fn((id: string | null) => {
+      conversationIdRef.current = id;
+    });
+    const setMessages = vi.fn() as unknown as Dispatch<SetStateAction<UiChatMessage[]>>;
+    const sessionMemoryRef = {
+      current: {
+        lastLanguage: 'cmn',
+        responsePreferences: { style: 'concise' as const },
+      },
+    };
+
+    let releaseClearMessages: (() => void) | undefined;
+    const clearMessagesGate = new Promise<void>((resolve) => {
+      releaseClearMessages = resolve;
+    });
+    const originalRemoveBySelector = db.collections.ai_messages.removeBySelector.bind(
+      db.collections.ai_messages,
+    );
+    vi.spyOn(db.collections.ai_messages, 'removeBySelector').mockImplementation(
+      async (selector) => {
+        await clearMessagesGate;
+        return originalRemoveBySelector(selector);
+      },
+    );
+
+    const { result } = renderHook(() =>
+      useAiChatConversationManager({
+        enabled: true,
+        locale: 'zh-CN',
+        providerId: 'mock',
+        model: 'mock',
+        textId: 'text-race-clear',
+        conversationId: conversationIdRef.current,
+        conversationIdRef,
+        setConversationId,
+        conversationGenerationRef: { current: createConversationGenerationRef(0) },
+        abortActiveStream: vi.fn(),
+        resetChatUiState: vi.fn(),
+        setMessages,
+        sessionMemoryRef,
+      }),
+    );
+
+    act(() => {
+      result.current!.clearCurrentConversation();
+    });
+    expect(sessionMemoryRef.current).toEqual({});
+
+    await act(async () => {
+      await result.current!.startNewConversation();
+    });
+    expect(sessionMemoryRef.current).toEqual({});
+
+    releaseClearMessages?.();
+    await waitFor(async () => {
+      const memoryRow = await db.collections.ai_session_memories
+        .findOne({ selector: { conversationId: 'conv-clear-race' } })
+        .exec();
+      expect(memoryRow?.toJSON().payload).toMatchObject({
+        lastLanguage: 'cmn',
+        responsePreferences: { style: 'concise' },
+      });
+    });
+
+    expect(sessionMemoryRef.current).toEqual({});
+    expect(conversationIdRef.current).not.toBe('conv-clear-race');
+  });
+
   it('archiveConversation moves row to archived list and switches away when active', async () => {
     const db = await getDb();
     const archiveScopeTextId = 'text-archive-scope';
