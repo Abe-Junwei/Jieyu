@@ -30,6 +30,7 @@ import { useWaveformBridgeRegionDragRaf } from './waveformBridgeRegionDragRaf';
 import { useWaveformBridgeHoverScrollRaf } from './waveformBridgeHoverScrollRaf';
 import { useWaveformBridgeTierScrollSync } from './waveformBridgeTierScrollSync';
 import { useWaveformBridgeSegmentPlaybackControls } from './waveformBridgeSegmentPlaybackControls';
+import { applyTierScrollToWaveSurfer } from '../utils/waveformTierScrollSync';
 export type { WaveformInteractionHandlerRefs } from './transcriptionWaveformBridge.types';
 
 export function useTranscriptionWaveformBridgeController(
@@ -232,6 +233,8 @@ export function useTranscriptionWaveformBridgeController(
     tierContainerRef: input.tierContainerRef,
     player,
     selectedMediaUrl: input.selectedMediaUrl,
+    documentSpanSec,
+    zoomPxPerSec,
     commitWaveformScrollLeft,
   });
 
@@ -374,8 +377,17 @@ export function useTranscriptionWaveformBridgeController(
   const handleTimelineScroll = (event: ReactUIEvent<HTMLDivElement>): void => {
     const nextScrollLeft = event.currentTarget.scrollLeft;
     const ws = player.instanceRef.current;
-    if (ws) {
-      ws.setScroll(nextScrollLeft);
+    const mediaDur = player.duration || 0;
+    if (ws && player.isReady) {
+      const overlayScrollLeft = applyTierScrollToWaveSurfer({
+        ws,
+        tierScrollLeftPx: nextScrollLeft,
+        zoomPxPerSec,
+        mediaDurSec: mediaDur,
+        documentSpanSec,
+      });
+      scheduleWaveformScrollLeft(overlayScrollLeft);
+      return;
     }
     scheduleWaveformScrollLeft(nextScrollLeft);
   };

@@ -42,6 +42,25 @@ describe('ai_session_memories Dexie table (v50)', () => {
     expect(retrieved!.toJSON().payload).toMatchObject({ lastLanguage: 'cmn' });
   });
 
+  it('can update session memory by conversationId primary key', async () => {
+    const jieyuDb = await getDb();
+    const conversationId = 'conv-mem-update';
+    await jieyuDb.collections.ai_session_memories.insert({
+      id: conversationId,
+      conversationId,
+      payload: { lastLanguage: 'cmn' },
+      updatedAt: new Date().toISOString(),
+    });
+    await jieyuDb.collections.ai_session_memories.update(conversationId, {
+      payload: { lastLanguage: 'yue' },
+      updatedAt: new Date().toISOString(),
+    });
+    const retrieved = await jieyuDb.collections.ai_session_memories
+      .findOne({ selector: { conversationId } })
+      .exec();
+    expect(retrieved?.toJSON().payload).toMatchObject({ lastLanguage: 'yue' });
+  });
+
   it('accepts AiConversationDoc.clearedAt in Zod validation', () => {
     expect(() =>
       validateAiConversationDoc({

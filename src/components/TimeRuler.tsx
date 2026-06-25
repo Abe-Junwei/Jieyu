@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { useTranscriptionPlaybackClock } from '../hooks/transcription/transcriptionPlaybackClock';
 import { t, useLocale } from '../i18n';
+import { isExtendedDocumentTimeline, syncWaveScrollToTier } from '../utils/waveformTierScrollSync';
 
 interface TimeRulerProps {
   duration: number;
@@ -224,18 +225,35 @@ export function TimeRuler({
           const el = waveCanvasRef.current;
           if (!el) return;
           const ws = instanceRef.current;
+          const tier = tierContainerRef.current;
+          const extendedTimeline = isExtendedDocumentTimeline(Math.max(dur, rulerView.end), dur);
+          const startScroll =
+            extendedTimeline && tier
+              ? tier.scrollLeft
+              : ws
+                ? ws.getScroll()
+                : (tier?.scrollLeft ?? 0);
           rulerDragRef.current = {
             dragging: false,
             startX: e.clientX,
-            startScroll: ws ? ws.getScroll() : 0,
+            startScroll,
           };
           const onMove = (ev: MouseEvent) => {
             const dx = ev.clientX - rulerDragRef.current.startX;
             if (Math.abs(dx) > 3) rulerDragRef.current.dragging = true;
-            if (rulerDragRef.current.dragging && ws) {
-              const target = rulerDragRef.current.startScroll - dx;
+            if (!rulerDragRef.current.dragging) return;
+            const target = rulerDragRef.current.startScroll - dx;
+            if (extendedTimeline && tier) {
+              const maxScroll = Math.max(0, tier.scrollWidth - tier.clientWidth);
+              tier.scrollLeft = Math.min(maxScroll, Math.max(0, target));
+              if (ws && dur > 0) {
+                syncWaveScrollToTier(ws, tier.scrollLeft, zoomPxPerSec, dur);
+              }
+              return;
+            }
+            if (ws) {
               ws.setScroll(target);
-              if (tierContainerRef.current) tierContainerRef.current.scrollLeft = target;
+              if (tier) tier.scrollLeft = target;
             }
           };
           const onUp = () => {

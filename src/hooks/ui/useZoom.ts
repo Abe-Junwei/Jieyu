@@ -5,28 +5,8 @@ import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
 } from '../transcription/transcriptionPlaybackClock';
+import { syncWaveScrollToTier } from '../../utils/waveformTierScrollSync';
 import { useLatest } from './useLatest';
-
-/** 文献秒轴 > 已解码媒体时长时：tier 为横向主滚动，把 WaveSurfer 像素滚动钳在有效波形范围内 */
-function syncWaveScrollToTier(
-  ws: WaveSurfer,
-  tierScrollLeftPx: number,
-  zoomPxPerSec: number,
-  mediaDurSec: number,
-) {
-  if (mediaDurSec <= 0 || zoomPxPerSec <= 0) return;
-  const w = ws.getWidth();
-  const wrapper = ws.getWrapper();
-  if (!wrapper) return;
-  const tSec = tierScrollLeftPx / zoomPxPerSec;
-  const maxWsScroll = Math.max(0, wrapper.scrollWidth - w);
-  if (tSec >= mediaDurSec) {
-    ws.setScroll(maxWsScroll);
-  } else {
-    const desired = Math.min(tSec * zoomPxPerSec, maxWsScroll);
-    ws.setScroll(Math.max(0, desired));
-  }
-}
 
 /**
  * 输入框/局部滚动区内优先保留原生滚轮行为，避免时间轴劫持导致“有滚动条但滚不动” |

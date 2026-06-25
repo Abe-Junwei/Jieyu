@@ -1,7 +1,11 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
 import type { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
+import {
+  applyTierScrollToWaveSurfer,
+  isExtendedDocumentTimeline,
+} from '../utils/waveformTierScrollSync';
 
-type PlayerSlice = Pick<ReturnType<typeof useWaveSurfer>, 'instanceRef' | 'isReady'>;
+type PlayerSlice = Pick<ReturnType<typeof useWaveSurfer>, 'instanceRef' | 'isReady' | 'duration'>;
 
 /**
  * Syncs tier horizontal scroll with WaveSurfer; resets tier scroll when media first attaches from empty.
@@ -10,9 +14,18 @@ export function useWaveformBridgeTierScrollSync(input: {
   tierContainerRef: RefObject<HTMLDivElement | null>;
   player: PlayerSlice;
   selectedMediaUrl: string | undefined;
+  documentSpanSec: number;
+  zoomPxPerSec: number;
   commitWaveformScrollLeft: (nextScrollLeft: number) => void;
 }): void {
-  const { tierContainerRef, player, selectedMediaUrl, commitWaveformScrollLeft } = input;
+  const {
+    tierContainerRef,
+    player,
+    selectedMediaUrl,
+    documentSpanSec,
+    zoomPxPerSec,
+    commitWaveformScrollLeft,
+  } = input;
   const previousSelectedMediaUrlForTierResetRef = useRef(selectedMediaUrl);
 
   useLayoutEffect(() => {
@@ -20,6 +33,18 @@ export function useWaveformBridgeTierScrollSync(input: {
     if (!tier) return;
     const ws = player.instanceRef.current;
     if (!ws) {
+      return;
+    }
+    const mediaDur = player.duration || 0;
+    if (isExtendedDocumentTimeline(documentSpanSec, mediaDur)) {
+      const overlayScrollLeft = applyTierScrollToWaveSurfer({
+        ws,
+        tierScrollLeftPx: tier.scrollLeft,
+        zoomPxPerSec,
+        mediaDurSec: mediaDur,
+        documentSpanSec,
+      });
+      commitWaveformScrollLeft(overlayScrollLeft);
       return;
     }
     const nextScrollLeft = ws.getScroll();
@@ -33,6 +58,9 @@ export function useWaveformBridgeTierScrollSync(input: {
     tierContainerRef,
     player.instanceRef,
     player.isReady,
+    player.duration,
+    documentSpanSec,
+    zoomPxPerSec,
   ]);
 
   useLayoutEffect(() => {

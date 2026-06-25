@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-09T02:03:10.079Z",
+  "generatedAt": "2026-06-25T12:15:04.838Z",
   "mode": "enforce",
   "suite": {
     "suiteId": "jieyu-agent-evals-v1",
@@ -22,8 +22,8 @@
     "missingTrajectorySignals": [],
     "auditTracePassed": true,
     "thresholdPassed": true,
-    "startedAt": "2026-06-09T02:02:57.575Z",
-    "endedAt": "2026-06-09T02:03:10.079Z"
+    "startedAt": "2026-06-25T12:14:45.120Z",
+    "endedAt": "2026-06-25T12:15:04.838Z"
   },
   "cases": [
     {
@@ -35,11 +35,11 @@
       "command": "npm run typecheck",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-06-09T02:02:57.576Z",
-      "endedAt": "2026-06-09T02:03:09.558Z",
-      "elapsedMs": 11982,
+      "startedAt": "2026-06-25T12:14:45.122Z",
+      "endedAt": "2026-06-25T12:15:04.069Z",
+      "elapsedMs": 18947,
       "stdout": "\n> jieyu@1.1.0 typecheck\n> tsc --noEmit\n\n",
-      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+      "stderr": ""
     },
     {
       "id": "architecture-guard-core",
@@ -50,11 +50,11 @@
       "command": "npm run check:architecture-guard:core",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-06-09T02:03:09.558Z",
-      "endedAt": "2026-06-09T02:03:10.020Z",
-      "elapsedMs": 462,
+      "startedAt": "2026-06-25T12:15:04.069Z",
+      "endedAt": "2026-06-25T12:15:04.754Z",
+      "elapsedMs": 685,
       "stdout": "\n> jieyu@1.1.0 check:architecture-guard:core\n> node scripts/check-architecture-guard.mjs\n\n[check-architecture-guard] OK: guarded files stayed within architecture ceilings.\n",
-      "stderr": "npm warn Unknown env config \"devdir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n[check-architecture-guard] WARN: 14 hotspot(s) approaching ceilings.\n- src/hooks/voice/useVoiceInteractionSummaries.ts: line count 182/200 reached 91% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useMemo declarations 5/5 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useEffect count 2/2 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: line count 115/120 reached 96% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useMemo declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useEffect count 3/3 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useCallback declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useEffect count 2/2 reached 100% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: line count 401/420 reached 95% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: useEffect count 1/1 reached 100% of ceiling\n- src/pages/useSpeakerActionSegmentMutationCluster.ts: line count 383/400 reached 96% of ceiling\n- src/pages/useSpeakerActionSelectionRoutingHandlers.ts: line count 190/220 reached 86% of ceiling\n- src/pages/useSpeakerActionFilterRoutingHandlers.ts: line count 216/240 reached 90% of ceiling\n- src/pages/useSpeakerActionRoutingHandlers.ts: line count 242/280 reached 86% of ceiling\n"
+      "stderr": "[check-architecture-guard] WARN: 14 hotspot(s) approaching ceilings.\n- src/hooks/voice/useVoiceInteractionSummaries.ts: line count 182/200 reached 91% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useMemo declarations 5/5 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useEffect count 2/2 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: line count 115/120 reached 96% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useMemo declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useEffect count 3/3 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useCallback declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useEffect count 2/2 reached 100% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: line count 416/420 reached 99% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: useEffect count 1/1 reached 100% of ceiling\n- src/pages/useSpeakerActionMixedSelectionMutationCluster.ts: line count 265/280 reached 95% of ceiling\n- src/pages/useSpeakerActionSelectionRoutingHandlers.ts: line count 190/220 reached 86% of ceiling\n- src/pages/useSpeakerActionFilterRoutingHandlers.ts: line count 216/240 reached 90% of ceiling\n- src/pages/useSpeakerActionRoutingHandlers.ts: line count 248/280 reached 89% of ceiling\n"
     },
     {
       "id": "ai-messages-isolation",
@@ -65,9 +65,9 @@
       "command": "node scripts/check-ai-messages-isolation.mjs",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-06-09T02:03:10.020Z",
-      "endedAt": "2026-06-09T02:03:10.079Z",
-      "elapsedMs": 59,
+      "startedAt": "2026-06-25T12:15:04.754Z",
+      "endedAt": "2026-06-25T12:15:04.838Z",
+      "elapsedMs": 84,
       "stdout": "[check-ai-messages-isolation] OK: src/ai/messages/ keeps formatter copy isolated from UI i18n.\n",
       "stderr": ""
     }

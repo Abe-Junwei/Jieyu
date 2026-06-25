@@ -40,6 +40,25 @@ describe('sessionMemory Dexie store (G1a)', () => {
     expect(loaded.preferences?.lastLanguage).toBe('cmn');
   });
 
+  it('overwrites Dexie row on second persist for the same conversationId (Dexie put)', async () => {
+    const conversationId = 'conv-upsert-1';
+    bindSessionMemoryConversation(conversationId);
+    await persistSessionMemoryAsync(conversationId, {
+      preferences: { lastLanguage: 'cmn' },
+    });
+    await persistSessionMemoryAsync(conversationId, {
+      preferences: { lastLanguage: 'yue' },
+      responsePreferences: { style: 'concise' },
+    });
+
+    const db = await getDb();
+    const row = await db.collections.ai_session_memories
+      .findOne({ selector: { conversationId } })
+      .exec();
+    expect(row?.toJSON().payload.preferences?.lastLanguage).toBe('yue');
+    expect(row?.toJSON().payload.responsePreferences?.style).toBe('concise');
+  });
+
   it('migrates legacy localStorage into Dexie for active conversation', async () => {
     window.localStorage.setItem(
       'jieyu.aiChat.sessionMemory',
