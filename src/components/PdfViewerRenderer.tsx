@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createLogger } from '../observability/logger';
 import { loadPdfJsRuntime } from '../services/PdfJsRuntime';
+import { buildPdfJsDocumentParams } from '../utils/pdfjs-config';
 
 type PdfDocumentProxy = import('pdfjs-dist').PDFDocumentProxy;
 
@@ -51,13 +52,19 @@ export function PdfViewerRenderer({
 
   useEffect(() => {
     let isMounted = true;
+    let loadingTask: import('pdfjs-dist').PDFDocumentLoadingTask | null = null;
     const loadPdf = async () => {
       try {
         onLoadingChange(true);
         onErrorChange(null);
         const pdfjsLib = await loadPdfJsRuntime();
-        const doc = await pdfjsLib.getDocument(url).promise;
-        if (!isMounted) return;
+        const task = pdfjsLib.getDocument(buildPdfJsDocumentParams({ url }));
+        loadingTask = task;
+        const doc = await task.promise;
+        if (!isMounted) {
+          void task.destroy?.();
+          return;
+        }
         pdfDocRef.current = doc;
         setDocumentVersion((version) => version + 1);
         onTotalPagesChange(doc.numPages);
@@ -73,6 +80,10 @@ export function PdfViewerRenderer({
     void loadPdf();
     return () => {
       isMounted = false;
+      pdfDocRef.current = null;
+      if (loadingTask?.destroy) {
+        void loadingTask.destroy();
+      }
     };
   }, [initialPage, onErrorChange, onLoadingChange, onPageResolved, onTotalPagesChange, url]);
 
@@ -121,7 +132,10 @@ export function PdfViewerRenderer({
             span.style.pointerEvents = 'auto';
             span.style.cursor = 'text';
 
-            if (highlightedTextsRef.current.size > 0 && highlightedTextsRef.current.has(item.str.trim())) {
+            if (
+              highlightedTextsRef.current.size > 0 &&
+              highlightedTextsRef.current.has(item.str.trim())
+            ) {
               span.style.backgroundColor = 'var(--state-warning-bg)';
               span.style.color = 'var(--text-primary)';
             }
@@ -176,7 +190,10 @@ export function PdfViewerRenderer({
           const textContent = await page.getTextContent();
           if (cancelled) break;
           const textItems = textContent.items.filter(isPdfTextItem) as unknown as PdfTextItem[];
-          const pageText = textItems.map((item) => item.str).join(' ').toLowerCase();
+          const pageText = textItems
+            .map((item) => item.str)
+            .join(' ')
+            .toLowerCase();
 
           if (!pageText.includes(normalizedSnippet)) continue;
 
@@ -184,7 +201,9 @@ export function PdfViewerRenderer({
           // 跨 item 边界的词组页面跳转正确，但高亮不会出现。
           // Note: per-item filter highlights only when the full snippet falls within one TextItem;
           // cross-boundary multi-word snippets still navigate to the correct page but won't be highlighted.
-          const words = textItems.filter((item) => item.str.toLowerCase().includes(normalizedSnippet));
+          const words = textItems.filter((item) =>
+            item.str.toLowerCase().includes(normalizedSnippet),
+          );
           words.forEach((word) => {
             nextHighlights.add(word.str.trim());
           });
@@ -222,14 +241,8 @@ export function PdfViewerRenderer({
   return (
     <div className="pdf-viewer-panel-renderer">
       <div className="pdf-viewer-panel-canvas-shell">
-        <canvas
-          ref={canvasRef}
-          className="pdf-viewer-panel-canvas"
-        />
-        <div
-          ref={textLayerRef}
-          className="pdf-viewer-panel-text-layer-root"
-        />
+        <canvas ref={canvasRef} className="pdf-viewer-panel-canvas" />
+        <div ref={textLayerRef} className="pdf-viewer-panel-text-layer-root" />
       </div>
     </div>
   );

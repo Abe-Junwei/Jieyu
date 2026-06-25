@@ -1,4 +1,5 @@
 import type { MediaItemDocType } from '../../db';
+import { buildPdfJsDocumentParams } from '../../utils/pdfjs-config';
 
 export type PdfTextFragment = {
   text: string;
@@ -54,24 +55,28 @@ function textFromUnknown(value: unknown): string {
 
 async function defaultParsePdfData(data: Uint8Array): Promise<PdfParsePage[]> {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const loadingTask = pdfjs.getDocument({ data, useWorkerFetch: false });
-  const document = await loadingTask.promise;
-  const pages: PdfParsePage[] = [];
+  const loadingTask = pdfjs.getDocument(buildPdfJsDocumentParams({ data, useWorkerFetch: false }));
+  try {
+    const document = await loadingTask.promise;
+    const pages: PdfParsePage[] = [];
 
-  for (let pageIndex = 1; pageIndex <= document.numPages; pageIndex += 1) {
-    const page = await document.getPage(pageIndex);
-    const content = await page.getTextContent();
-    const text = normalizeText(
-      content.items
-        .map((item) => ('str' in item && typeof item.str === 'string' ? item.str : ''))
-        .join(' '),
-    );
-    if (text) {
-      pages.push({ page: pageIndex, text });
+    for (let pageIndex = 1; pageIndex <= document.numPages; pageIndex += 1) {
+      const page = await document.getPage(pageIndex);
+      const content = await page.getTextContent();
+      const text = normalizeText(
+        content.items
+          .map((item) => ('str' in item && typeof item.str === 'string' ? item.str : ''))
+          .join(' '),
+      );
+      if (text) {
+        pages.push({ page: pageIndex, text });
+      }
     }
-  }
 
-  return pages;
+    return pages;
+  } finally {
+    void loadingTask.destroy?.();
+  }
 }
 
 async function loadPdfBinary(

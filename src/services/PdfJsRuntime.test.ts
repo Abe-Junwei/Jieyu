@@ -27,13 +27,10 @@ describe('PdfJsRuntime', () => {
   it('loads pdfjs runtime once and configures worker src', async () => {
     const { loadPdfJsRuntime } = await import('./PdfJsRuntime');
 
-    await Promise.all([
-      loadPdfJsRuntime(),
-      loadPdfJsRuntime(),
-    ]);
+    await Promise.all([loadPdfJsRuntime(), loadPdfJsRuntime()]);
 
     expect(runtimeState.importCount).toBe(1);
-    expect(mockedRuntime.GlobalWorkerOptions.workerSrc).toBe('//cdnjs.cloudflare.com/ajax/libs/pdf.js/9.9.9/pdf.worker.min.js');
+    expect(mockedRuntime.GlobalWorkerOptions.workerSrc).toContain('pdf.worker');
   });
 
   it('allows retry when loader fails once', async () => {
@@ -52,6 +49,6 @@ describe('PdfJsRuntime', () => {
     await expect(loadPdfJsRuntime(flakyLoader)).resolves.toBe(mockedRuntime);
 
     expect(flakyLoader).toHaveBeenCalledTimes(2);
-    expect(mockedRuntime.GlobalWorkerOptions.workerSrc).toBe('//cdnjs.cloudflare.com/ajax/libs/pdf.js/9.9.9/pdf.worker.min.js');
+    expect(mockedRuntime.GlobalWorkerOptions.workerSrc).toContain('pdf.worker');
   });
 });

@@ -1,6 +1,10 @@
+import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
 type PdfJsRuntimeModule = typeof import('pdfjs-dist');
 
 let pdfJsRuntimePromise: Promise<PdfJsRuntimeModule> | undefined;
+
+export const pdfJsWorkerSrc = pdfWorkerSrc;
 
 export async function loadPdfJsRuntime(
   loadModule: () => Promise<PdfJsRuntimeModule> = () => import('pdfjs-dist'),
@@ -8,7 +12,7 @@ export async function loadPdfJsRuntime(
   if (!pdfJsRuntimePromise) {
     pdfJsRuntimePromise = loadModule()
       .then((runtime) => {
-        runtime.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${runtime.version}/pdf.worker.min.js`;
+        runtime.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
         return runtime;
       })
       .catch((error) => {

@@ -80,6 +80,68 @@ function injectZodBootstrapExecBeforeMain(): Plugin {
   };
 }
 
+function copyPdfJsAssets(): Plugin {
+  const wasmSrc = resolve('node_modules/pdfjs-dist/wasm');
+  const fontsSrc = resolve('node_modules/pdfjs-dist/standard_fonts');
+  const WASM_SUFFIXES = ['.wasm', '.js'];
+  const FONT_SUFFIXES = ['.pfb', '.ttf', '.bin', '.json'];
+
+  const serveDir = (
+    urlPrefix: string,
+    srcDir: string,
+    suffixes: string[],
+  ) => (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => {
+    const rawUrl = req.url;
+    const path = rawUrl?.split('?')[0] ?? '';
+    if (!path.startsWith(urlPrefix)) {
+      next();
+      return;
+    }
+    const filename = path.slice(urlPrefix.length);
+    if (!suffixes.some((suffix) => filename.endsWith(suffix))) {
+      next();
+      return;
+    }
+    try {
+      const data = readFileSync(join(srcDir, filename));
+      if (filename.endsWith('.wasm')) {
+        res.setHeader('Content-Type', 'application/wasm');
+      } else if (filename.endsWith('.js') || filename.endsWith('.mjs')) {
+        res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+      }
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+      res.end(data);
+    } catch {
+      next();
+    }
+  };
+
+  const copyDir = (srcDir: string, outDir: string, suffixes: string[]) => {
+    try {
+      mkdirSync(outDir, { recursive: true });
+      for (const file of readdirSync(srcDir)) {
+        if (suffixes.some((suffix) => file.endsWith(suffix))) {
+          copyFileSync(join(srcDir, file), join(outDir, file));
+        }
+      }
+    } catch {
+      // pdfjs assets optional when package missing in partial installs
+    }
+  };
+
+  return {
+    name: 'copy-pdfjs-assets',
+    configureServer(server) {
+      server.middlewares.use(serveDir('/pdfjs-wasm/', wasmSrc, WASM_SUFFIXES));
+      server.middlewares.use(serveDir('/pdfjs-standard-fonts/', fontsSrc, FONT_SUFFIXES));
+    },
+    closeBundle() {
+      copyDir(wasmSrc, resolve('dist/pdfjs-wasm'), WASM_SUFFIXES);
+      copyDir(fontsSrc, resolve('dist/pdfjs-standard-fonts'), FONT_SUFFIXES);
+    },
+  };
+}
+
 function copyOnnxWasm(): Plugin {
   const wasmSrc = resolve('node_modules/onnxruntime-web/dist');
   const COPYABLE_SUFFIXES = ['.wasm', '.mjs', '.js', '.onnx_data'];
@@ -228,6 +290,8 @@ export default defineConfig({
         ],
         globIgnores: [
           '**/onnx-wasm/**',
+          '**/pdfjs-wasm/**',
+          '**/pdfjs-standard-fonts/**',
           '**/models/**',
           '**/*.{wasm,onnx}',
         ],
@@ -246,6 +310,23 @@ export default defineConfig({
               expiration: {
                 maxEntries: 140,
                 maxAgeSeconds: 7 * 24 * 60 * 60,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: ({ request, url }) => {
+              if (url.origin !== self.location.origin || request.method !== 'GET') return false;
+              return url.pathname.startsWith('/pdfjs-wasm/') || url.pathname.startsWith('/pdfjs-standard-fonts/');
+            },
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'jieyu-runtime-pdfjs-assets',
+              expiration: {
+                maxEntries: 32,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
               },
               cacheableResponse: {
                 statuses: [0, 200],
@@ -279,6 +360,7 @@ export default defineConfig({
     }),
     injectZodBootstrapExecBeforeMain(),
     copyOnnxWasm(),
+    copyPdfJsAssets(),
     // Sentry source map 上传：仅在 CI 提供凭据时启用 | Sentry source map upload: only enabled when CI provides credentials
     ...(enableSentrySourceMaps
       ? [sentryVitePlugin({
