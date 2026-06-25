@@ -52,6 +52,7 @@ test.describe('Accessibility smoke | Axe', () => {
   test('transcription: ai chat panel has no axe violations when expanded', async ({ page }) => {
     await expandTranscriptionAiPanel(page);
     await expect(page.locator('.transcription-ai-panel')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId('ai-chat-composer-input')).toHaveAttribute('aria-label', /.+/);
     const { violations } = await new AxeBuilder({ page })
       .include('.transcription-ai-panel')
       .analyze();

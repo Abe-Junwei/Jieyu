@@ -187,6 +187,7 @@ export function AiChatComposerPanel({
                 key={item.id}
                 type="button"
                 className="icon-btn ai-chat-composer-shortcut ai-chat-follow-up-chip"
+                aria-label={item.label}
                 onClick={() => submitFollowUpPrompt(item.prompt)}
               >
                 {item.label}
@@ -208,6 +209,7 @@ export function AiChatComposerPanel({
                 key={item.id}
                 type="button"
                 className="icon-btn ai-chat-composer-shortcut"
+                aria-label={item.title}
                 onClick={() => injectPromptTemplate(item.content)}
               >
                 {item.title}

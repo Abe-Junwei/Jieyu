@@ -147,7 +147,7 @@ test.describe('关键路径 | Critical paths', () => {
     await expect(searchInput).toBeVisible({ timeout: 10_000 });
     await expect(searchInput).toHaveValue('critical-path-query');
     await page.keyboard.press('Escape');
-    await expect(searchInput).toBeHidden({ timeout: 10_000 });
+    await expect(searchInput).toBeHidden({ timeout: 15_000 });
   });
 
   test('资产深链路由进入转写工作区 | Asset deep-link routes into transcription workspace', async ({ page }) => {

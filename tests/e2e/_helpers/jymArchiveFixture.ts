@@ -1,0 +1,166 @@
+import { strToU8, zipSync } from 'fflate';
+
+const NOW = '2099-01-01T00:00:00.000Z';
+
+/** 最小 JYM 归档：含 1 text + 3 layer_units（R4 S1 田野闭环探针） */
+export function buildMinimalJymArchiveBytes(): Uint8Array {
+  const manifest = {
+    formatVersion: 1,
+    kind: 'jym' as const,
+    schemaVersion: 4,
+    exportedAt: NOW,
+    dbName: 'jieyu',
+  };
+  const snapshot = {
+    schemaVersion: 4,
+    exportedAt: NOW,
+    dbName: 'jieyu',
+    collections: {
+      texts: [
+        {
+          id: 'text_r4_s1',
+          title: { default: 'R4 S1 Field Sample' },
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+      media_items: [
+        {
+          id: 'media_r4_s1',
+          textId: 'text_r4_s1',
+          filename: 'field-sample.wav',
+          isOfflineCached: false,
+          details: { mimeType: 'audio/wav', audioExportOmitted: true },
+          createdAt: NOW,
+        },
+      ],
+      layers: [
+        {
+          id: 'trc_r4_s1',
+          textId: 'text_r4_s1',
+          key: 'trc_r4_s1',
+          name: { default: 'Field transcription' },
+          layerType: 'transcription',
+          languageId: 'zho',
+          modality: 'text',
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+      tier_definitions: [
+        {
+          id: 'trc_r4_s1',
+          textId: 'text_r4_s1',
+          key: 'trc_r4_s1',
+          name: { default: 'Field transcription' },
+          tierType: 'time-aligned',
+          contentType: 'transcription',
+          languageId: 'zho',
+          modality: 'text',
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+      layer_units: [
+        {
+          id: 'utt_r4_s1',
+          textId: 'text_r4_s1',
+          mediaId: 'media_r4_s1',
+          startTime: 0,
+          endTime: 3,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+        {
+          id: 'seg_r4_s1_a',
+          textId: 'text_r4_s1',
+          mediaId: 'media_r4_s1',
+          layerId: 'trc_r4_s1',
+          unitType: 'segment',
+          parentUnitId: 'utt_r4_s1',
+          rootUnitId: 'utt_r4_s1',
+          startTime: 0,
+          endTime: 1,
+          createdAt: NOW,
+          updatedAt: NOW,
+          provenance: { actorType: 'human', method: 'manual', createdAt: NOW },
+        },
+        {
+          id: 'seg_r4_s1_b',
+          textId: 'text_r4_s1',
+          mediaId: 'media_r4_s1',
+          layerId: 'trc_r4_s1',
+          unitType: 'segment',
+          parentUnitId: 'utt_r4_s1',
+          rootUnitId: 'utt_r4_s1',
+          startTime: 1,
+          endTime: 2,
+          createdAt: NOW,
+          updatedAt: NOW,
+          provenance: { actorType: 'human', method: 'manual', createdAt: NOW },
+        },
+        {
+          id: 'seg_r4_s1_c',
+          textId: 'text_r4_s1',
+          mediaId: 'media_r4_s1',
+          layerId: 'trc_r4_s1',
+          unitType: 'segment',
+          parentUnitId: 'utt_r4_s1',
+          rootUnitId: 'utt_r4_s1',
+          startTime: 2,
+          endTime: 3,
+          createdAt: NOW,
+          updatedAt: NOW,
+          provenance: { actorType: 'human', method: 'manual', createdAt: NOW },
+        },
+      ],
+      layer_unit_contents: [
+        {
+          id: 'cnt_r4_s1_a',
+          textId: 'text_r4_s1',
+          unitId: 'seg_r4_s1_a',
+          layerId: 'trc_r4_s1',
+          contentRole: 'primary_text',
+          modality: 'text',
+          text: 'alpha',
+          sourceType: 'human',
+          createdAt: NOW,
+          updatedAt: NOW,
+          provenance: { actorType: 'human', method: 'manual', createdAt: NOW },
+        },
+        {
+          id: 'cnt_r4_s1_b',
+          textId: 'text_r4_s1',
+          unitId: 'seg_r4_s1_b',
+          layerId: 'trc_r4_s1',
+          contentRole: 'primary_text',
+          modality: 'text',
+          text: 'beta',
+          sourceType: 'human',
+          createdAt: NOW,
+          updatedAt: NOW,
+          provenance: { actorType: 'human', method: 'manual', createdAt: NOW },
+        },
+        {
+          id: 'cnt_r4_s1_c',
+          textId: 'text_r4_s1',
+          unitId: 'seg_r4_s1_c',
+          layerId: 'trc_r4_s1',
+          contentRole: 'primary_text',
+          modality: 'text',
+          text: 'gamma',
+          sourceType: 'human',
+          createdAt: NOW,
+          updatedAt: NOW,
+          provenance: { actorType: 'human', method: 'manual', createdAt: NOW },
+        },
+      ],
+    },
+  };
+
+  return zipSync({
+    mimetype: strToU8('application/x-jieyu-media'),
+    'META-INF/manifest.json': strToU8(JSON.stringify(manifest)),
+    'data/snapshot.json': strToU8(JSON.stringify(snapshot)),
+  });
+}
