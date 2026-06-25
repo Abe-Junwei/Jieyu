@@ -14,9 +14,9 @@ import { spawnSync } from 'child_process';
  * - Any instance < 7.5.8 is treated as high-risk drift.
  */
 
-const OTEL_MIN_VERSION = [8, 2, 0];
-const ONNXRUNTIME_MIN_VERSION = [7, 5, 8];
-const OTHER_MIN_VERSION = [7, 5, 8];
+const OTEL_MIN_VERSION = [8, 6, 5];
+const ONNXRUNTIME_MIN_VERSION = [7, 6, 4];
+const OTHER_MIN_VERSION = [7, 6, 4];
 
 function parseSemver(version) {
   const [major, minor, patch] = version.split('.').map(Number);
