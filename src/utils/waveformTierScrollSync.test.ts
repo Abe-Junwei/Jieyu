@@ -8,9 +8,11 @@ import {
 } from './waveformTierScrollSync';
 
 function mockWaveSurfer(input: { width?: number; scrollWidth?: number; scroll?: number }) {
-  const wrapper = {
-    scrollWidth: input.scrollWidth ?? 1000,
-  };
+  const wrapper = document.createElement('div');
+  Object.defineProperty(wrapper, 'scrollWidth', {
+    configurable: true,
+    value: input.scrollWidth ?? 1000,
+  });
   let scroll = input.scroll ?? 0;
   return {
     getWidth: () => input.width ?? 200,
