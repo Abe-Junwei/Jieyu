@@ -50,6 +50,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         playerDuration: 42,
         timelineExtentSec: 42,
         layersCount: 3,
+        currentMediaUnitCount: 0,
         locale: 'zh-CN',
         importFileRef,
         layerActionSetCreateTranscription: () => setLayerActionPanel('create-transcription'),
@@ -151,7 +152,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
     expect(result.current.workspaceAcousticChromeState).toBe('playable');
     expect(result.current.mediaLanesProps.timelineExtentSec).toBe(42);
     expect('playerDuration' in result.current.mediaLanesProps).toBe(false);
-    expect(result.current.emptyStateProps.hasSelectedMedia).toBe(true);
+    expect(result.current.emptyStateProps.policy.emptyReason).toBe('no_units_with_wave');
     expect(result.current.verticalComparisonEnabled).toBe(false);
 
     result.current.emptyStateProps.onCreateTranscriptionLayer();
@@ -220,6 +221,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
       playerDuration: 42,
       timelineExtentSec: 42,
       layersCount: 3,
+      currentMediaUnitCount: 0,
       locale: 'zh-CN' as const,
       importFileRef,
       layerActionSetCreateTranscription: () => setLayerActionPanel('create-transcription'),
@@ -317,6 +319,8 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         playerDuration: 0,
         timelineExtentSec: readModel.timeline.extentSec,
         layersCount: 2,
+        currentMediaUnitCount: 0,
+        emptyTimelinePolicy: readModel.emptyTimeline,
         locale: 'zh-CN',
         importFileRef,
         layerActionSetCreateTranscription: vi.fn(),
@@ -446,6 +450,8 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         playerDuration: 42,
         timelineExtentSec: readModel.timeline.extentSec,
         layersCount: 1,
+        currentMediaUnitCount: 0,
+        emptyTimelinePolicy: readModel.emptyTimeline,
         locale: 'zh-CN',
         importFileRef,
         layerActionSetCreateTranscription: vi.fn(),

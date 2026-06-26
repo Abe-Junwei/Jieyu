@@ -144,6 +144,7 @@ export function buildReadyWorkspaceViewModelsInput(
         importFileRef: head.importFileRef,
         layerAction: head.layerAction,
         timelineViewportProjection: head.timelineViewportProjection,
+        emptyTimelinePolicy: timelineReadModel.emptyTimeline,
       },
       { segmentRangeGesturePreviewReadModel },
       {

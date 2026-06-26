@@ -268,6 +268,7 @@ describe('buildOrchestratorViewModelsInput', () => {
         segmentRangeGesturePreviewReadModel: {
           surface: 'timeRange',
           preview: { id: 'u1', start: 1, end: 2 },
+          mode: 'timing-edit',
         },
       }),
     );

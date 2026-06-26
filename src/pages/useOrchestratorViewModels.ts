@@ -25,6 +25,8 @@ export interface UseOrchestratorViewModelsInput {
   playerDuration: number;
   timelineExtentSec: number;
   layersCount: number;
+  currentMediaUnitCount: number;
+  emptyTimelinePolicy?: import('../utils/emptyTimelinePolicy').EmptyTimelinePolicy;
   locale: Locale;
   importFileRef: RefObject<HTMLInputElement | null>;
   layerActionSetCreateTranscription: () => void;
@@ -165,6 +167,10 @@ export function useOrchestratorViewModels(
     playerDuration: input.playerDuration,
     timelineExtentSec: input.timelineExtentSec,
     layersCount: input.layersCount,
+    currentMediaUnitCount: input.currentMediaUnitCount,
+    ...(input.emptyTimelinePolicy !== undefined
+      ? { emptyTimelinePolicy: input.emptyTimelinePolicy }
+      : {}),
     locale: input.locale,
     importFileRef: input.importFileRef,
     layerActionSetCreateTranscription: input.layerActionSetCreateTranscription,

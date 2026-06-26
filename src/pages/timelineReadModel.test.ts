@@ -80,6 +80,8 @@ describe('buildTimelineReadModel', () => {
     expect(model.acoustic.shell).toBe('waveform');
     expect(model.timeline.extentSec).toBe(90);
     expect(model.selection.selectedUnitIds).toEqual(['u-1']);
+    expect(model.selectionProjection.kind).toBe('single');
+    expect(model.emptyTimeline.showEmptyChrome).toBe(true);
     expect(model.zoom.zoomPxPerSec).toBe(120);
     expect(model.zoom.documentSpanSec).toBe(90);
   });

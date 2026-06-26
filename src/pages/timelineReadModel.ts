@@ -7,6 +7,11 @@ import {
   timelineShellModeResultToAcousticState,
 } from '../utils/timelineShellMode';
 import { resolveTimelineExtentSec } from '../utils/timelineExtent';
+import { buildEmptyTimelinePolicy, type EmptyTimelinePolicy } from '../utils/emptyTimelinePolicy';
+import {
+  buildTimelineSelectionProjection,
+  type TimelineSelectionProjection,
+} from '../utils/timelineSelectionProjection';
 
 type TimelineReadModelAcousticState = 'no_media' | 'pending_decode' | 'playable';
 
@@ -23,6 +28,10 @@ export interface TimelineReadModel {
     selectedUnitIds: string[];
     activeLayerIdForEdits?: string;
   };
+  /** 阶段 F：选集只读聚合投影。 */
+  selectionProjection: TimelineSelectionProjection;
+  /** 阶段 F：空时间轴策略（CTA + 文案 reason）。 */
+  emptyTimeline: EmptyTimelinePolicy;
   zoom: {
     zoomPxPerSec?: number;
     fitPxPerSec?: number;
@@ -99,6 +108,20 @@ export function buildTimelineReadModel(input: BuildTimelineReadModelInput): Time
     ...(input.documentSpanSec !== undefined ? { documentSpanSec: input.documentSpanSec } : {}),
   });
 
+  const selectionProjection = buildTimelineSelectionProjection({
+    selectedTimelineUnit: input.selectedTimelineUnit,
+    selectedUnitIds: input.selectedUnitIds,
+    ...(input.activeLayerIdForEdits !== undefined
+      ? { activeLayerIdForEdits: input.activeLayerIdForEdits }
+      : {}),
+  });
+
+  const emptyTimeline = buildEmptyTimelinePolicy({
+    layersCount: timelineShellLayersCount,
+    hasSelectedMedia: Boolean(input.selectedMediaUrl),
+    currentMediaUnitCount: input.unitIndex.currentMediaCount,
+  });
+
   return {
     epoch: input.unitIndex.epoch,
     unitIndex: input.unitIndex,
@@ -116,6 +139,8 @@ export function buildTimelineReadModel(input: BuildTimelineReadModelInput): Time
         ? { activeLayerIdForEdits: input.activeLayerIdForEdits }
         : {}),
     },
+    selectionProjection,
+    emptyTimeline,
     zoom: {
       ...(input.zoomPxPerSec !== undefined ? { zoomPxPerSec: input.zoomPxPerSec } : {}),
       ...(input.fitPxPerSec !== undefined ? { fitPxPerSec: input.fitPxPerSec } : {}),

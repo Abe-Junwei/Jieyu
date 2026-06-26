@@ -31,7 +31,16 @@ export const timelineParityMatrixRowsZh = {
   'phase-f-range-preview-ssot': {
     labelZh: '阶段 F·1：语段范围拖建预览状态单一读模型 + 波形桥单 reducer 写者',
     verticalGapZh:
-      '`useTranscriptionWaveformBridgeController` 内 `segmentRangeGestureWriterReducer` 统一 lasso 抬升态与 Regions `timeDrag`；编排仍只读 `segmentRangeGesturePreviewReadModel`；`useLasso` 手势实现细节可继续瘦身但已不再与 `dragPreview` 双源并行。',
+      '`useTranscriptionWaveformBridgeController` 内 `segmentRangeGestureWriterReducer` 统一 lasso 抬升态与 Regions `timeDrag`；阶段 E 已批写 `setTimingEditPreview`（拖边改时 + snap）；编排仍只读 `segmentRangeGesturePreviewReadModel`。',
+  },
+  'selection-write-funnel': {
+    labelZh:
+      '阶段 F·2：选集写路径单入口（applyTimelineSelectionCommand + selectionProjection 只读）',
+    verticalGapZh:
+      '写 funnel 已接 `useTranscriptionDataBindings`；纵向对读选集仍部分走平行 handler，待后续收口。',
+  },
+  'empty-timeline-policy': {
+    labelZh: '阶段 F·3：空时间轴策略单点（EmptyTimelinePolicy → TimelineEmptyState / content VM）',
   },
   'layer-link-connector': {
     labelZh: '层连接器显示',

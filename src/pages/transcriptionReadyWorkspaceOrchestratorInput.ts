@@ -27,6 +27,7 @@ import {
 } from './transcriptionReadyWorkspacePropsBuilders';
 import type { UseOrchestratorViewModelsInput } from './useOrchestratorViewModels';
 import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
+import type { EmptyTimelinePolicy } from '../utils/emptyTimelinePolicy';
 import {
   tierLassoRectFromSegmentRangeGesturePreview,
   timeRangeDragPreviewFromSegmentRangeGesturePreview,
@@ -50,6 +51,8 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   timelineViewportProjection: TimelineViewportProjection;
   /** 阶段 F·1：wave/tier/Regions 预览互斥读模型；编排层由此派生 `lassoRect` 与 `timingDragPreview`。 */
   segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel;
+  /** 阶段 F：空时间轴策略；与 `TimelineReadModel.emptyTimeline` 同源。 */
+  emptyTimelinePolicy?: EmptyTimelinePolicy;
   timelineRenderUnits: TimelineHorizontalProjectionLaneProps['timelineRenderUnits'];
   defaultTranscriptionLayerId: TimelineHorizontalProjectionLaneProps['defaultTranscriptionLayerId'];
   textOnlyLogicalDurationSec?: number;
@@ -310,6 +313,10 @@ export function buildOrchestratorViewModelsInput(
     playerDuration: player.duration,
     timelineExtentSec,
     layersCount: layers.length,
+    currentMediaUnitCount: filteredUnitsOnCurrentMedia.length,
+    ...(input.emptyTimelinePolicy !== undefined
+      ? { emptyTimelinePolicy: input.emptyTimelinePolicy }
+      : {}),
     locale,
     importFileRef,
     layerActionSetCreateTranscription: () =>

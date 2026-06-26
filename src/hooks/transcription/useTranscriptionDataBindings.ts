@@ -17,6 +17,10 @@ import { buildCollaborationPresenceFocus } from './useTranscriptionDataCollabora
 import { useTranscriptionDataPhaseCountsEffect } from './useTranscriptionDataPhaseCountsEffect';
 import { useTranscriptionDataTextTimeMapping } from './useTranscriptionDataTextTimeMapping';
 import { useTranscriptionDataFoundation } from './useTranscriptionDataFoundation';
+import {
+  applyTimelineSelectionCommand as applyTimelineSelectionCommandImpl,
+  type TimelineSelectionCommand,
+} from '../../utils/applyTimelineSelectionCommand';
 
 type TranscriptionDataFoundationBundle = ReturnType<typeof useTranscriptionDataFoundation>;
 
@@ -418,6 +422,18 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     setSelectedTimelineUnit,
   });
 
+  const applyTimelineSelectionCommand = (command: TimelineSelectionCommand) =>
+    applyTimelineSelectionCommandImpl(command, {
+      selectTimelineUnit,
+      selectUnit,
+      selectUnitRange,
+      toggleUnitSelection,
+      toggleSegmentSelection,
+      selectSegmentRange: (anchorId, targetId, items) =>
+        selectSegmentRange(anchorId, targetId, [...items]),
+      clearUnitSelection,
+    });
+
   const stateApi = {
     state,
     setState,
@@ -510,6 +526,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     selectTimelineUnit,
     selectUnit,
     selectSegment,
+    applyTimelineSelectionCommand,
     setUnitSelection,
     toggleUnitSelection,
     selectUnitRange,

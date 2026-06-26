@@ -17,6 +17,7 @@ export function mergeReadyWorkspaceOrchestratorRawInputSlices(
     | 'importFileRef'
     | 'layerAction'
     | 'timelineViewportProjection'
+    | 'emptyTimelinePolicy'
   >,
   gesture: Pick<Raw, 'segmentRangeGesturePreviewReadModel'>,
   remainder: Omit<
@@ -31,6 +32,7 @@ export function mergeReadyWorkspaceOrchestratorRawInputSlices(
     | 'layerAction'
     | 'timelineViewportProjection'
     | 'segmentRangeGesturePreviewReadModel'
+    | 'emptyTimelinePolicy'
   >,
 ): Raw {
   return { ...mediaAndViewport, ...gesture, ...remainder };

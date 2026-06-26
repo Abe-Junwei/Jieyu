@@ -1,8 +1,7 @@
 import { useMemo, type RefObject } from 'react';
 import type { Locale } from '../i18n';
+import type { EmptyTimelinePolicy } from '../utils/emptyTimelinePolicy';
 import type {
-  TranscriptionPageTimelineContentProps,
-  TranscriptionPageTimelineEmptyStateProps,
   TranscriptionPageTimelineHorizontalMediaLanesProps,
   TranscriptionPageTimelineTextOnlyProps,
 } from './TranscriptionPage.TimelineContent.types';
@@ -16,6 +15,9 @@ import {
   resolveTimelineShellMode,
   timelineShellModeResultToAcousticState,
 } from '../utils/timelineShellMode';
+import { buildEmptyTimelinePolicy } from '../utils/emptyTimelinePolicy';
+import type { TranscriptionPageTimelineContentProps } from './TranscriptionPage.TimelineContent.types';
+import type { TranscriptionPageTimelineEmptyStateProps } from './TranscriptionPage.TimelineEmptyState';
 
 const FALLBACK_VERTICAL_PROJECTION: TimelineVerticalProjectionProps = {};
 
@@ -28,6 +30,10 @@ interface UseTranscriptionTimelineContentViewModelInput {
   locale: Locale;
   importFileRef: RefObject<HTMLInputElement | null>;
   layerActionSetCreateTranscription: () => void;
+  /** 与 `TimelineReadModel.emptyTimeline` 同源输入 | Current-media unit count for empty policy */
+  currentMediaUnitCount: number;
+  /** 可选：已由 read model 预计算的策略；缺省时本地 `buildEmptyTimelinePolicy`。 */
+  emptyTimelinePolicy?: EmptyTimelinePolicy;
   mediaLanesPropsInput: Omit<
     TranscriptionPageTimelineHorizontalMediaLanesProps,
     'timelineExtentSec'
@@ -95,20 +101,26 @@ export function useTranscriptionTimelineContentViewModel(
   const { shell: workspaceShell, acousticPending: workspaceAcousticPending } = contractShellMode;
   const workspaceAcousticChromeState = timelineShellModeResultToAcousticState(globalShellMode);
 
+  const emptyTimelinePolicy =
+    input.emptyTimelinePolicy ??
+    buildEmptyTimelinePolicy({
+      layersCount: effectiveLayersCount,
+      hasSelectedMedia: Boolean(input.selectedMediaUrl),
+      currentMediaUnitCount: input.currentMediaUnitCount,
+    });
+
   const emptyStateProps = useMemo<TranscriptionPageTimelineEmptyStateProps>(
     () => ({
       locale: input.locale,
-      layersCount: input.layersCount,
-      hasSelectedMedia: Boolean(input.selectedMediaUrl),
+      policy: emptyTimelinePolicy,
       onCreateTranscriptionLayer: input.layerActionSetCreateTranscription,
       onOpenImportFile: () => input.importFileRef.current?.click(),
     }),
     [
+      emptyTimelinePolicy,
       input.importFileRef,
       input.layerActionSetCreateTranscription,
-      input.layersCount,
       input.locale,
-      input.selectedMediaUrl,
     ],
   );
 
