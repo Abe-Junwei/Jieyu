@@ -7,9 +7,10 @@ import {
 } from '../transcription/transcriptionPlaybackClock';
 import { resolveViewportFrameScrollLeftPx } from '../../utils/resolveViewportFrameScrollLeftPx';
 import {
-  syncWaveScrollToTier,
-  syncWaveScrollToTierOverlayLeft,
-} from '../../utils/waveformTierScrollSync';
+  applyTimelineViewportScroll,
+  applyTimelineViewportWheelPan,
+} from '../../utils/applyTimelineViewportScroll';
+import { syncWaveScrollToTier } from '../../utils/waveformTierScrollSync';
 import { useLatest } from './useLatest';
 
 /**
@@ -152,11 +153,15 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
             if (!t2 || !c2 || !ws2) return;
             const w = Math.max(1, c2.clientWidth);
             const target = Math.max(0, anchorTime * newPxPerSec - w * frac);
-            const maxScroll = Math.max(0, t2.scrollWidth - t2.clientWidth);
-            t2.scrollLeft = Math.min(maxScroll, target);
-            onLogicalTimelineScrollSync?.(
-              syncWaveScrollToTierOverlayLeft(ws2, t2.scrollLeft, newPxPerSec, mediaDur),
-            );
+            const { viewportScrollLeftPx } = applyTimelineViewportScroll({
+              tier: t2,
+              ws: ws2,
+              documentSpanSec: docSpanSec,
+              mediaDurSec: mediaDur,
+              zoomPxPerSec: newPxPerSec,
+              targetScrollLeftPx: target,
+            });
+            onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
           });
           return;
         }
@@ -167,10 +172,18 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         setZoomMode(nextMode);
         requestAnimationFrame(() => {
           const ws2 = playerInstanceRef.current;
+          const tier = tierContainerRef.current;
           if (!ws2) return;
           const target = anchorTime * newPxPerSec - width * frac;
-          ws2.setScroll(target);
-          if (tierContainerRef.current) tierContainerRef.current.scrollLeft = target;
+          const { viewportScrollLeftPx } = applyTimelineViewportScroll({
+            tier,
+            ws: ws2,
+            documentSpanSec: docSpanSec,
+            mediaDurSec: mediaDur,
+            zoomPxPerSec: newPxPerSec,
+            targetScrollLeftPx: target,
+          });
+          onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
         });
         return;
       }
@@ -188,9 +201,15 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         if (!t || !c || !(docSpanSec > 0)) return;
         const w = Math.max(1, c.clientWidth);
         const target = Math.max(0, anchorTime * newPxPerSec - w * frac);
-        const maxScroll = Math.max(0, t.scrollWidth - t.clientWidth);
-        t.scrollLeft = Math.min(maxScroll, target);
-        onLogicalTimelineScrollSync?.(t.scrollLeft);
+        const { viewportScrollLeftPx } = applyTimelineViewportScroll({
+          tier: t,
+          ws: null,
+          documentSpanSec: docSpanSec,
+          mediaDurSec: 0,
+          zoomPxPerSec: newPxPerSec,
+          targetScrollLeftPx: target,
+        });
+        onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
       });
     },
     [
@@ -238,11 +257,15 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
             const t = tierContainerRef.current;
             const w = playerInstanceRef.current;
             if (!t || !w) return;
-            const maxScroll = Math.max(0, t.scrollWidth - t.clientWidth);
-            t.scrollLeft = Math.min(maxScroll, scrollTarget);
-            onLogicalTimelineScrollSync?.(
-              syncWaveScrollToTierOverlayLeft(w, t.scrollLeft, newPxPerSec, mediaDur),
-            );
+            const { viewportScrollLeftPx } = applyTimelineViewportScroll({
+              tier: t,
+              ws: w,
+              documentSpanSec: docSpanSec,
+              mediaDurSec: mediaDur,
+              zoomPxPerSec: newPxPerSec,
+              targetScrollLeftPx: scrollTarget,
+            });
+            onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
           };
           if (clamped === zoomPercent) {
             run();
@@ -262,8 +285,16 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         const midTime = (startTime + endTime) / 2;
         const scrollTarget = Math.max(0, midTime * newPxPerSec - width / 2);
         const applyScroll = () => {
-          ws.setScroll(scrollTarget);
-          if (tierContainerRef.current) tierContainerRef.current.scrollLeft = scrollTarget;
+          const tier = tierContainerRef.current;
+          const { viewportScrollLeftPx } = applyTimelineViewportScroll({
+            tier,
+            ws,
+            documentSpanSec: docSpanSec,
+            mediaDurSec: mediaDur,
+            zoomPxPerSec: newPxPerSec,
+            targetScrollLeftPx: scrollTarget,
+          });
+          onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
         };
         setZoomMode('fit-selection');
         if (clamped === zoomPercent) {
@@ -291,9 +322,15 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
       requestAnimationFrame(() => {
         const t = tierContainerRef.current;
         if (!t) return;
-        const maxScroll = Math.max(0, t.scrollWidth - t.clientWidth);
-        t.scrollLeft = Math.min(maxScroll, scrollTarget);
-        onLogicalTimelineScrollSync?.(t.scrollLeft);
+        const { viewportScrollLeftPx } = applyTimelineViewportScroll({
+          tier: t,
+          ws: null,
+          documentSpanSec: docSpanSec,
+          mediaDurSec: 0,
+          zoomPxPerSec: newPxPerSec,
+          targetScrollLeftPx: scrollTarget,
+        });
+        onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
       });
     },
     [
@@ -507,12 +544,15 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
               zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
             } else {
               e.preventDefault();
-              const next = tier.scrollLeft + resolveTimelineWheelPanDelta(e);
-              const maxScroll = Math.max(0, tier.scrollWidth - tier.clientWidth);
-              tier.scrollLeft = Math.min(maxScroll, Math.max(0, next));
-              onLogicalTimelineScrollSync?.(
-                syncWaveScrollToTierOverlayLeft(ws, tier.scrollLeft, zoomPxPerSec, mediaDurPan),
-              );
+              const { viewportScrollLeftPx } = applyTimelineViewportWheelPan({
+                tier,
+                ws,
+                documentSpanSec: docSpanSec,
+                mediaDurSec: mediaDurPan,
+                zoomPxPerSec,
+                deltaPx: resolveTimelineWheelPanDelta(e),
+              });
+              onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
             }
             return;
           }
@@ -525,9 +565,16 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
           zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
         } else {
           e.preventDefault();
-          const target = ws.getScroll() + resolveTimelineWheelPanDelta(e);
-          ws.setScroll(target);
-          if (tierContainerRef.current) tierContainerRef.current.scrollLeft = target;
+          const tier = tierContainerRef.current;
+          const { viewportScrollLeftPx } = applyTimelineViewportWheelPan({
+            tier,
+            ws,
+            documentSpanSec: docSpanSec,
+            mediaDurSec: mediaDurPan,
+            zoomPxPerSec,
+            deltaPx: resolveTimelineWheelPanDelta(e),
+          });
+          onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
         }
         return;
       }
@@ -541,10 +588,17 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
       } else {
         e.preventDefault();
-        const next = tier.scrollLeft + resolveTimelineWheelPanDelta(e);
-        const maxScroll = Math.max(0, tier.scrollWidth - tier.clientWidth);
-        tier.scrollLeft = Math.min(maxScroll, Math.max(0, next));
-        onLogicalTimelineScrollSync?.(tier.scrollLeft);
+        const tier = tierContainerRef.current;
+        if (!tier) return;
+        const { viewportScrollLeftPx } = applyTimelineViewportWheelPan({
+          tier,
+          ws: null,
+          documentSpanSec: docSpanSec,
+          mediaDurSec: 0,
+          zoomPxPerSec,
+          deltaPx: resolveTimelineWheelPanDelta(e),
+        });
+        onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
       }
     };
     const opts: AddEventListenerOptions = { passive: false, capture: true };
@@ -587,12 +641,15 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
             zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
           } else {
             e.preventDefault();
-            const next = el.scrollLeft + resolveTimelineWheelPanDelta(e);
-            const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-            el.scrollLeft = Math.min(maxScroll, Math.max(0, next));
-            onLogicalTimelineScrollSync?.(
-              syncWaveScrollToTierOverlayLeft(ws, el.scrollLeft, zoomPxPerSec, mediaDurPan),
-            );
+            const { viewportScrollLeftPx } = applyTimelineViewportWheelPan({
+              tier: el,
+              ws,
+              documentSpanSec: docSpanSec,
+              mediaDurSec: mediaDurPan,
+              zoomPxPerSec,
+              deltaPx: resolveTimelineWheelPanDelta(e),
+            });
+            onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
           }
           return;
         }
@@ -604,9 +661,16 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
           zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
         } else {
           e.preventDefault();
-          const target = ws.getScroll() + resolveTimelineWheelPanDelta(e);
-          ws.setScroll(target);
-          if (tierContainerRef.current) tierContainerRef.current.scrollLeft = target;
+          const tier = tierContainerRef.current;
+          const { viewportScrollLeftPx } = applyTimelineViewportWheelPan({
+            tier,
+            ws,
+            documentSpanSec: docSpanSec,
+            mediaDurSec: mediaDurPan,
+            zoomPxPerSec,
+            deltaPx: resolveTimelineWheelPanDelta(e),
+          });
+          onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
         }
         return;
       }
@@ -619,10 +683,15 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
       } else {
         e.preventDefault();
-        const next = el.scrollLeft + resolveTimelineWheelPanDelta(e);
-        const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-        el.scrollLeft = Math.min(maxScroll, Math.max(0, next));
-        onLogicalTimelineScrollSync?.(el.scrollLeft);
+        const { viewportScrollLeftPx } = applyTimelineViewportWheelPan({
+          tier: el,
+          ws: null,
+          documentSpanSec: docSpanSec,
+          mediaDurSec: 0,
+          zoomPxPerSec,
+          deltaPx: resolveTimelineWheelPanDelta(e),
+        });
+        onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
       }
     };
     el.addEventListener('wheel', onWheel, { passive: false });
@@ -655,11 +724,15 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         const rightEdge = (scrollLeft + width * 0.85) / zoomPxPerSec;
         if (t > rightEdge) {
           const target = Math.max(0, t * zoomPxPerSec - width * 0.15);
-          const maxScroll = Math.max(0, tier.scrollWidth - tier.clientWidth);
-          tier.scrollLeft = Math.min(maxScroll, target);
-          onLogicalTimelineScrollSync?.(
-            syncWaveScrollToTierOverlayLeft(ws, tier.scrollLeft, zoomPxPerSec, mediaDur),
-          );
+          const { viewportScrollLeftPx } = applyTimelineViewportScroll({
+            tier,
+            ws,
+            documentSpanSec: docSpanSec,
+            mediaDurSec: mediaDur,
+            zoomPxPerSec,
+            targetScrollLeftPx: target,
+          });
+          onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
         }
         return;
       }
@@ -670,8 +743,16 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
       const rightEdge = (scrollLeft + width * 0.85) / zoomPxPerSec;
       if (t > rightEdge) {
         const target = t * zoomPxPerSec - width * 0.15;
-        ws.setScroll(target);
-        if (tierContainerRef.current) tierContainerRef.current.scrollLeft = target;
+        const tier = tierContainerRef.current;
+        const { viewportScrollLeftPx } = applyTimelineViewportScroll({
+          tier,
+          ws,
+          documentSpanSec: docSpanSec,
+          mediaDurSec: mediaDur,
+          zoomPxPerSec,
+          targetScrollLeftPx: target,
+        });
+        onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
       }
     };
     maybeFollow();

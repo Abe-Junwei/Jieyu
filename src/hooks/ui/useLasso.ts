@@ -28,6 +28,7 @@ import {
   getTierTimelineContentPaddingToInnerOffsetPx,
   getTierTimelineInnerOriginScrollPx,
 } from '../../utils/tierTimeAxisOriginScrollPx';
+import { readWaveformScrollParentScrollLeftPx } from '../../utils/waveformScrollParentScrollPx';
 import type { TimelineViewportFrame } from '../transcription/timelineViewportTypes';
 
 export type SubSelectDrag = {
@@ -269,7 +270,8 @@ export function useLasso(input: UseLassoInput) {
       const dur = resolveWaveformDurationSec();
       if (dur <= 0) return null;
       const rect = sc.getBoundingClientRect();
-      const pxOffset = clientX - rect.left + sc.scrollLeft;
+      const scrollLeft = readWaveformScrollParentScrollLeftPx(sc);
+      const pxOffset = clientX - rect.left + scrollLeft;
       return Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
     };
 
@@ -341,7 +343,8 @@ export function useLasso(input: UseLassoInput) {
         const sc = wrapper?.parentElement;
         if (!sc || !wrapper) return;
         const rect = sc.getBoundingClientRect();
-        const pxOffset = e.clientX - rect.left + sc.scrollLeft;
+        const scrollLeft = readWaveformScrollParentScrollLeftPx(sc);
+        const pxOffset = e.clientX - rect.left + scrollLeft;
         const totalWidth = wrapper.scrollWidth;
         const dur = resolveWaveformDurationSec();
         if (dur <= 0) return;
@@ -401,7 +404,7 @@ export function useLasso(input: UseLassoInput) {
         const totalWidth = wrapper?.scrollWidth ?? 0;
         const dur = resolveWaveformDurationSec();
         if (sc && totalWidth > 0 && dur > 0) {
-          const scrollLeft = sc.scrollLeft;
+          const scrollLeft = readWaveformScrollParentScrollLeftPx(sc);
           const anchorContentX = (info.anchorTime / dur) * totalWidth;
           const currentContentX = (currentTime / dur) * totalWidth;
           ax = anchorContentX - scrollLeft;

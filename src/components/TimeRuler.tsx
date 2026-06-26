@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type WaveSurfer from 'wavesurfer.js';
 import { useTranscriptionPlaybackClock } from '../hooks/transcription/transcriptionPlaybackClock';
 import { t, useLocale } from '../i18n';
-import { isExtendedDocumentTimeline, syncWaveScrollToTier } from '../utils/waveformTierScrollSync';
+import { applyTimelineViewportScroll } from '../utils/applyTimelineViewportScroll';
+import { isExtendedDocumentTimeline } from '../utils/waveformTierScrollSync';
 import {
   buildTimeRulerTicks,
   resolveTimeRulerPxPerSec,
@@ -270,18 +271,14 @@ export function TimeRuler({
             if (Math.abs(dx) > 3) rulerDragRef.current.dragging = true;
             if (!rulerDragRef.current.dragging) return;
             const target = rulerDragRef.current.startScroll - dx;
-            if (extendedTimeline && tier) {
-              const maxScroll = Math.max(0, tier.scrollWidth - tier.clientWidth);
-              tier.scrollLeft = Math.min(maxScroll, Math.max(0, target));
-              if (ws && dur > 0) {
-                syncWaveScrollToTier(ws, tier.scrollLeft, zoomPxPerSec, dur);
-              }
-              return;
-            }
-            if (ws) {
-              ws.setScroll(target);
-              if (tier) tier.scrollLeft = target;
-            }
+            applyTimelineViewportScroll({
+              tier: tier ?? null,
+              ws: ws ?? null,
+              documentSpanSec,
+              mediaDurSec: dur,
+              zoomPxPerSec,
+              targetScrollLeftPx: target,
+            });
           };
           const onUp = () => {
             window.removeEventListener('mousemove', onMove);

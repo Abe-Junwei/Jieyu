@@ -562,7 +562,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     [waveformFocused, activeRegionIdsRef, primaryRegionIdRef],
   );
 
-  // Enable drag-selection region creation and notify external handler.
+  // 阶段 D：空区拖建/框选由 useLasso + segmentRangeGestureWriter 统一预览；禁用 RegionsPlugin 平行拖选视觉。
   useEffect(() => {
     const rp = regionsRef.current;
     if (!rp || !isReady) return;
