@@ -44,8 +44,7 @@ type BuildReadyWorkspaceTimelineInteractionWriteInput = Omit<
  */
 export const READY_WORKSPACE_TIMELINE_HOST_WRITE_KEYS = [
   'setSubSelectionRange',
-  'setDragPreview',
-  'setSnapGuide',
+  'setTimingEditPreview',
   'zoomToPercent',
   'zoomToUnit',
   'setCtxMenu',

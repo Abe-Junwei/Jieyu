@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type React from 'react';
 import { fireEvent, render, screen, renderHook, cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../../db';
@@ -157,6 +158,57 @@ describe('useTimelineAnnotationHelpers', () => {
       menuSurface: 'timeline-annotation',
       layerType: 'transcription',
     });
+  });
+
+  it('routes lane click selection through applyTimelineSelectionCommand when funnel is wired', () => {
+    const applyTimelineSelectionCommand = vi.fn();
+    const selectTimelineUnit = vi.fn();
+
+    const { result } = renderHook(() =>
+      useTimelineAnnotationHelpers({
+        manualSelectTsRef: { current: 0 },
+        player: {
+          isPlaying: false,
+          stop: vi.fn(),
+          seekTo: vi.fn(),
+        },
+        selectedTimelineUnit: null,
+        selectUnitRange: vi.fn(),
+        toggleUnitSelection: vi.fn(),
+        selectTimelineUnit,
+        applyTimelineSelectionCommand,
+        selectUnit: vi.fn(),
+        selectSegment: vi.fn(),
+        setSelectedLayerId: vi.fn(),
+        onFocusLayerRow: vi.fn(),
+        tierContainerRef: { current: null },
+        zoomPxPerSec: 100,
+        setCtxMenu: vi.fn(),
+        timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
+        navigateUnitFromInput: vi.fn(),
+        waveformAreaRef: { current: null },
+        dragPreview: null,
+        selectedUnitIds: new Set<string>(),
+        focusedLayerRowId: 'layer-input',
+        zoomToUnit: vi.fn(),
+        startTimelineResizeDrag: vi.fn(),
+        handleNoteClick: vi.fn(),
+        resolveNoteIndicatorTarget: vi.fn(() => null),
+        independentLayerIds: new Set<string>(),
+      }),
+    );
+
+    result.current.handleAnnotationClick('unit-1', 0.5, 'layer-input', {
+      shiftKey: false,
+      metaKey: false,
+      ctrlKey: false,
+    } as unknown as React.MouseEvent);
+
+    expect(applyTimelineSelectionCommand).toHaveBeenCalledWith({
+      type: 'selectTimelineUnit',
+      unit: { layerId: 'layer-input', unitId: 'unit-1', kind: 'unit' },
+    });
+    expect(selectTimelineUnit).not.toHaveBeenCalled();
   });
 
   it('routes dependent segment-backed lane context menu with segment unit kind', () => {

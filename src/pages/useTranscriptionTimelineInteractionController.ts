@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useRef } from 'react';
+import { startTransition, useCallback, useMemo, useRef } from 'react';
 import { LayerSegmentationV2Service } from '../app/transcriptionServicesPageAccess';
 import { handleTranscriptionCitationJump } from './TranscriptionPage.citationJump';
 import { snapToZeroCrossing } from '../app/transcriptionServicesPageAccess';
@@ -7,6 +7,11 @@ import { t } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { readStoredWaveformDoubleClickAction } from '../utils/transcriptionInteractionPreferences';
 import { isTranscriptionPerfDebugEnabled } from '../utils/transcriptionPerfDebug';
+import {
+  writeTimelineSelection,
+  type TimelineSelectionCommand,
+  type TimelineSelectionWriteInput,
+} from '../utils/applyTimelineSelectionCommand';
 import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
@@ -31,6 +36,30 @@ export function useTranscriptionTimelineInteractionController(
         preferredKind: input.useSegmentWaveformRegions ? 'segment' : 'unit',
       }),
     [input],
+  );
+
+  const selectionWriteDeps = useMemo(
+    (): TimelineSelectionWriteInput => ({
+      ...(input.applyTimelineSelectionCommand !== undefined
+        ? { applyTimelineSelectionCommand: input.applyTimelineSelectionCommand }
+        : {}),
+      selectTimelineUnit: input.selectTimelineUnit,
+      selectUnit: input.selectUnit,
+      selectUnitRange: input.selectUnitRange,
+      toggleUnitSelection: input.toggleUnitSelection,
+      toggleSegmentSelection: input.toggleSegmentSelection,
+      selectSegmentRange: (anchorId, targetId, items) =>
+        input.selectSegmentRange(anchorId, targetId, items as WaveformTimelineItemLike[]),
+      clearUnitSelection: input.clearUnitSelection,
+    }),
+    [input],
+  );
+
+  const writeSelection = useCallback(
+    (command: TimelineSelectionCommand) => {
+      writeTimelineSelection(command, selectionWriteDeps);
+    },
+    [selectionWriteDeps],
   );
 
   const resolveSubdivisionParentUnit = useCallback(
@@ -85,12 +114,12 @@ export function useTranscriptionTimelineInteractionController(
       const target =
         input.units.find((item) => item.id === unitId) ??
         input.waveformTimelineItems.find((item) => item.id === unitId);
-      input.selectUnit(unitId);
+      writeSelection({ type: 'selectUnit', unitId });
       if (!target) return;
       input.manualSelectTsRef.current = Date.now();
       input.player.seekTo(target.startTime);
     },
-    [input],
+    [input, writeSelection],
   );
 
   const handleJumpToCitation = useCallback(
@@ -137,7 +166,7 @@ export function useTranscriptionTimelineInteractionController(
       if (input.player.isPlaying) {
         input.player.stop();
       }
-      input.selectTimelineUnit(nextTarget);
+      writeSelection({ type: 'selectTimelineUnit', unit: nextTarget });
       input.player.seekTo(target.startTime);
       if (typeof zoomLevel === 'number' && Number.isFinite(zoomLevel)) {
         input.zoomToPercent(Math.max(100, Math.min(800, zoomLevel * 100)), 0.5, 'custom');
@@ -146,7 +175,7 @@ export function useTranscriptionTimelineInteractionController(
       }
       return true;
     },
-    [input, resolveWaveformUnitTarget],
+    [input, resolveWaveformUnitTarget, writeSelection],
   );
 
   const getNeighborBoundsRouted = useCallback(
@@ -244,7 +273,7 @@ export function useTranscriptionTimelineInteractionController(
       const shouldPreserveMultiSelection =
         input.selectedUnitIds.has(regionId) && input.selectedUnitIds.size > 1;
       if (!shouldPreserveMultiSelection) {
-        input.selectTimelineUnit(nextTarget);
+        writeSelection({ type: 'selectTimelineUnit', unit: nextTarget });
       }
 
       const ws = input.player.instanceRef.current;
@@ -280,7 +309,7 @@ export function useTranscriptionTimelineInteractionController(
         layerType,
       });
     },
-    [input, resolveWaveformUnitTarget],
+    [input, resolveWaveformUnitTarget, writeSelection],
   );
 
   const handleWaveformRegionAltPointerDown = useCallback(
@@ -309,14 +338,19 @@ export function useTranscriptionTimelineInteractionController(
               fallbackUnitId: regionId,
               selectedTimelineUnit: input.selectedTimelineUnit,
             });
-            input.selectSegmentRange(anchor, regionId, input.waveformTimelineItems);
+            writeSelection({
+              type: 'selectSegmentRange',
+              anchorId: anchor,
+              targetId: regionId,
+              waveformTimelineItems: input.waveformTimelineItems,
+            });
             return;
           }
           if (event.metaKey || event.ctrlKey) {
-            input.toggleSegmentSelection(regionId);
+            writeSelection({ type: 'toggleSegmentSelection', segmentId: regionId });
             return;
           }
-          input.selectTimelineUnit(nextTarget);
+          writeSelection({ type: 'selectTimelineUnit', unit: nextTarget });
           return;
         }
         if (event.shiftKey) {
@@ -325,17 +359,17 @@ export function useTranscriptionTimelineInteractionController(
             fallbackUnitId: regionId,
             selectedTimelineUnit: input.selectedTimelineUnit,
           });
-          input.selectUnitRange(anchor, regionId);
+          writeSelection({ type: 'selectUnitRange', startId: anchor, endId: regionId });
           return;
         }
         if (event.metaKey || event.ctrlKey) {
-          input.toggleUnitSelection(regionId);
+          writeSelection({ type: 'toggleUnitSelection', unitId: regionId });
           return;
         }
-        input.selectTimelineUnit(nextTarget);
+        writeSelection({ type: 'selectTimelineUnit', unit: nextTarget });
       });
     },
-    [input, resolveWaveformUnitTarget],
+    [input, resolveWaveformUnitTarget, writeSelection],
   );
 
   const handleWaveformRegionDoubleClick = useCallback(
@@ -376,11 +410,13 @@ export function useTranscriptionTimelineInteractionController(
         input.player.stop();
       }
       input.beginTimingGesture(regionId);
-      input.setDragPreview({ id: regionId, start, end });
       const item = input.waveformTimelineItems.find((timelineItem) => timelineItem.id === regionId);
       if (!item) return;
       const bounds = getNeighborBoundsRouted(regionId, item.mediaId, start, waveformLayerId);
-      input.setSnapGuide(input.makeSnapGuide(bounds, start, end));
+      input.setTimingEditPreview({
+        preview: { id: regionId, start, end },
+        snapGuide: input.makeSnapGuide(bounds, start, end),
+      });
     },
     [getNeighborBoundsRouted, input, waveformLayerId],
   );
@@ -388,11 +424,14 @@ export function useTranscriptionTimelineInteractionController(
   const handleWaveformRegionUpdateEnd = useCallback(
     (regionId: string, start: number, end: number) => {
       input.endTimingGesture(regionId);
-      input.setDragPreview(null);
+      input.setTimingEditPreview({ preview: null });
       input.manualSelectTsRef.current = Date.now();
       // 选区更新不阻塞拖拽结束帧 | Selection update should not block drag-end paint
       startTransition(() => {
-        input.selectTimelineUnit(resolveWaveformUnitTarget(regionId));
+        writeSelection({
+          type: 'selectTimelineUnit',
+          unit: resolveWaveformUnitTarget(regionId),
+        });
       });
 
       let finalStart = start;
@@ -410,7 +449,9 @@ export function useTranscriptionTimelineInteractionController(
       const item = input.waveformTimelineItems.find((timelineItem) => timelineItem.id === regionId);
       if (item) {
         const bounds = getNeighborBoundsRouted(regionId, item.mediaId, finalStart, waveformLayerId);
-        input.setSnapGuide(input.makeSnapGuide(bounds, finalStart, finalEnd));
+        input.setTimingEditPreview({
+          snapGuide: input.makeSnapGuide(bounds, finalStart, finalEnd),
+        });
       }
 
       const routing = waveformLayerId
@@ -444,7 +485,7 @@ export function useTranscriptionTimelineInteractionController(
               kind: 'error',
               message: t(uiLocale, 'transcription.timeline.timeSubdivisionClampExceeded'),
             });
-            input.setSnapGuide({ visible: false });
+            input.setTimingEditPreview({ snapGuide: { visible: false } });
             return;
           }
           finalStart = clampedStart;
@@ -489,6 +530,7 @@ export function useTranscriptionTimelineInteractionController(
       saveTimingRouted,
       uiLocale,
       waveformLayerId,
+      writeSelection,
     ],
   );
 
@@ -523,10 +565,13 @@ export function useTranscriptionTimelineInteractionController(
       if (!hit || hit.id === input.selectedWaveformRegionId) return;
       // WaveSurfer 原生高亮已提供即时视觉反馈，React 选区同步降为低优先级 | WaveSurfer native highlight already gives instant visual feedback; React selection sync is low-priority
       startTransition(() => {
-        input.selectTimelineUnit(resolveWaveformUnitTarget(hit!.id));
+        writeSelection({
+          type: 'selectTimelineUnit',
+          unit: resolveWaveformUnitTarget(hit!.id),
+        });
       });
     },
-    [input, resolveWaveformUnitTarget],
+    [input, resolveWaveformUnitTarget, writeSelection],
   );
 
   return {

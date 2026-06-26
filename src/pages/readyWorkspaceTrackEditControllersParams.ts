@@ -55,6 +55,10 @@ export interface UseReadyWorkspaceTrackEditControllersParams {
   toggleUnitSelection: any;
   selectUnit: any;
   selectSegment: any;
+  toggleSegmentSelection: any;
+  selectSegmentRange: any;
+  clearUnitSelection: any;
+  waveformTimelineItems: any;
   setSelectedLayerId: any;
   formatTime: any;
   getUnitSpeakerKey: any;

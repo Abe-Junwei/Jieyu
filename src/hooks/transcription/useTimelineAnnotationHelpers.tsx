@@ -1,4 +1,11 @@
-import { Fragment, startTransition, useCallback, type MouseEvent, type ReactNode } from 'react';
+import {
+  Fragment,
+  startTransition,
+  useCallback,
+  useMemo,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import type { TimelineResizeDragOptions } from './useTimelineResize';
 import {
   TimelineAnnotationItem,
@@ -24,6 +31,11 @@ import {
   resolveTranscriptionUnitTarget,
 } from '../../pages/transcriptionUnitTargetResolver';
 import { type UnitSelfCertainty } from '../../utils/unitSelfCertainty';
+import {
+  writeTimelineSelection,
+  type TimelineSelectionCommand,
+  type TimelineSelectionWriteInput,
+} from '../../utils/applyTimelineSelectionCommand';
 
 /** Rows bound into timeline annotation chrome. */
 type TimelineAnnotationBoundDoc = TimelineUnitView;
@@ -58,6 +70,16 @@ type UseTimelineAnnotationHelpersParams = {
   selectTimelineUnit?: (unit: TimelineUnit | null) => void;
   selectUnit: (id: string) => void;
   selectSegment: (id: string) => void;
+  toggleSegmentSelection?: (segmentId: string) => void;
+  selectSegmentRange?: (
+    anchorId: string,
+    targetId: string,
+    items: ReadonlyArray<{ id: string; startTime?: number; endTime?: number }>,
+  ) => void;
+  clearUnitSelection?: () => void;
+  waveformTimelineItems?: ReadonlyArray<{ id: string; startTime: number; endTime: number }>;
+  /** ReadyWorkspace：横向轨面选集写路径优先经 applyTimelineSelectionCommand。 */
+  applyTimelineSelectionCommand?: (command: TimelineSelectionCommand) => void;
   setSelectedLayerId: (id: string) => void;
   onFocusLayerRow: (id: string) => void;
   tierContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -106,6 +128,11 @@ export function useTimelineAnnotationHelpers({
   selectTimelineUnit,
   selectUnit,
   selectSegment,
+  toggleSegmentSelection,
+  selectSegmentRange,
+  clearUnitSelection,
+  waveformTimelineItems = [],
+  applyTimelineSelectionCommand,
   setSelectedLayerId,
   onFocusLayerRow,
   tierContainerRef,
@@ -130,6 +157,53 @@ export function useTimelineAnnotationHelpers({
 }: UseTimelineAnnotationHelpersParams) {
   const locale = useLocale();
 
+  const selectionWriteDeps = useMemo(
+    (): TimelineSelectionWriteInput => ({
+      ...(applyTimelineSelectionCommand !== undefined ? { applyTimelineSelectionCommand } : {}),
+      selectTimelineUnit: selectTimelineUnit ?? (() => undefined),
+      selectUnit,
+      selectUnitRange,
+      toggleUnitSelection,
+      toggleSegmentSelection: toggleSegmentSelection ?? (() => undefined),
+      selectSegmentRange:
+        selectSegmentRange ??
+        ((_anchorId: string, _targetId: string, _items: ReadonlyArray<{ id: string }>) =>
+          undefined),
+      clearUnitSelection: clearUnitSelection ?? (() => undefined),
+    }),
+    [
+      applyTimelineSelectionCommand,
+      selectTimelineUnit,
+      selectUnit,
+      selectUnitRange,
+      toggleUnitSelection,
+      toggleSegmentSelection,
+      selectSegmentRange,
+      clearUnitSelection,
+    ],
+  );
+
+  const selectTimelineUnitOrLegacy = useCallback(
+    (unit: TimelineUnit) => {
+      if (applyTimelineSelectionCommand || selectTimelineUnit) {
+        writeTimelineSelection({ type: 'selectTimelineUnit', unit }, selectionWriteDeps);
+        return;
+      }
+      if (unit.kind === 'segment') {
+        selectSegment(unit.unitId);
+      } else {
+        selectUnit(unit.unitId);
+      }
+    },
+    [
+      applyTimelineSelectionCommand,
+      selectSegment,
+      selectTimelineUnit,
+      selectUnit,
+      selectionWriteDeps,
+    ],
+  );
+
   const handleAnnotationClick = useCallback(
     (
       uttId: string,
@@ -149,10 +223,28 @@ export function useTimelineAnnotationHelpers({
           independentLayerIds,
         });
         if (targetUnit.kind === 'segment') {
-          if (selectTimelineUnit) {
-            selectTimelineUnit(targetUnit);
+          const segmentAnchor = resolveTranscriptionSelectionAnchor({
+            expectedKind: 'segment',
+            fallbackUnitId: uttId,
+            selectedTimelineUnit,
+          });
+          if (e.shiftKey && segmentAnchor) {
+            writeTimelineSelection(
+              {
+                type: 'selectSegmentRange',
+                anchorId: segmentAnchor,
+                targetId: uttId,
+                waveformTimelineItems,
+              },
+              selectionWriteDeps,
+            );
+          } else if (e.metaKey || e.ctrlKey) {
+            writeTimelineSelection(
+              { type: 'toggleSegmentSelection', segmentId: uttId },
+              selectionWriteDeps,
+            );
           } else {
-            selectSegment(uttId);
+            selectTimelineUnitOrLegacy(targetUnit);
           }
           player.seekTo(uttStartTime);
           setSelectedLayerId(layerId);
@@ -165,9 +257,15 @@ export function useTimelineAnnotationHelpers({
           selectedTimelineUnit,
         });
         if (e.shiftKey && selectedUnitUnitId) {
-          selectUnitRange(selectedUnitUnitId, uttId);
+          writeTimelineSelection(
+            { type: 'selectUnitRange', startId: selectedUnitUnitId, endId: uttId },
+            selectionWriteDeps,
+          );
         } else if (e.metaKey || e.ctrlKey) {
-          toggleUnitSelection(uttId);
+          writeTimelineSelection(
+            { type: 'toggleUnitSelection', unitId: uttId },
+            selectionWriteDeps,
+          );
         } else if (
           selectedUnitUnitId === uttId &&
           overlapCycleItems &&
@@ -176,7 +274,7 @@ export function useTimelineAnnotationHelpers({
           const index = overlapCycleItems.findIndex((item) => item.id === uttId);
           const next = overlapCycleItems[(index + 1) % overlapCycleItems.length];
           if (next) {
-            selectUnit(next.id);
+            writeTimelineSelection({ type: 'selectUnit', unitId: next.id }, selectionWriteDeps);
             player.seekTo(next.startTime);
             onOverlapCycleToast?.(
               Math.max(1, ((index + 1) % overlapCycleItems.length) + 1),
@@ -185,11 +283,7 @@ export function useTimelineAnnotationHelpers({
             );
           }
         } else {
-          if (selectTimelineUnit) {
-            selectTimelineUnit(targetUnit);
-          } else {
-            selectUnit(uttId);
-          }
+          selectTimelineUnitOrLegacy(targetUnit);
           player.seekTo(uttStartTime);
         }
         setSelectedLayerId(layerId);
@@ -200,15 +294,13 @@ export function useTimelineAnnotationHelpers({
       independentLayerIds,
       manualSelectTsRef,
       player,
-      selectUnitRange,
+      selectionWriteDeps,
       selectedTimelineUnit,
-      toggleUnitSelection,
-      selectUnit,
-      selectTimelineUnit,
-      selectSegment,
+      selectTimelineUnitOrLegacy,
       setSelectedLayerId,
       onFocusLayerRow,
       onOverlapCycleToast,
+      waveformTimelineItems,
     ],
   );
 
@@ -226,19 +318,7 @@ export function useTimelineAnnotationHelpers({
       });
       const shouldPreserveMultiSelection = selectedUnitIds.has(uttId) && selectedUnitIds.size > 1;
       if (!shouldPreserveMultiSelection) {
-        if (targetUnit.kind === 'segment') {
-          if (selectTimelineUnit) {
-            selectTimelineUnit(targetUnit);
-          } else {
-            selectSegment(uttId);
-          }
-        } else {
-          if (selectTimelineUnit) {
-            selectTimelineUnit(targetUnit);
-          } else {
-            selectUnit(uttId);
-          }
-        }
+        selectTimelineUnitOrLegacy(targetUnit);
       }
       setSelectedLayerId(layerId);
       onFocusLayerRow(layerId);
@@ -271,9 +351,7 @@ export function useTimelineAnnotationHelpers({
       manualSelectTsRef,
       player,
       selectedUnitIds,
-      selectTimelineUnit,
-      selectUnit,
-      selectSegment,
+      selectTimelineUnitOrLegacy,
       setSelectedLayerId,
       onFocusLayerRow,
       tierContainerRef,

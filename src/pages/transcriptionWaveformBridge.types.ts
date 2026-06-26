@@ -171,9 +171,10 @@ export interface UseTranscriptionWaveformBridgeControllerResult {
   segMarkStart: number | null;
   setSegMarkStart: Dispatch<SetStateAction<number | null>>;
   dragPreview: { id: string; start: number; end: number } | null;
-  setDragPreview: Dispatch<SetStateAction<{ id: string; start: number; end: number } | null>>;
   snapGuide: SnapGuide;
-  setSnapGuide: Dispatch<SetStateAction<SnapGuide>>;
+  setTimingEditPreview: (
+    patch: import('../utils/segmentRangeGesturePreviewWriter').TimingEditPreviewPatch,
+  ) => void;
   skipSeekForIdRef: MutableRefObject<string | null>;
   creatingSegmentRef: MutableRefObject<boolean>;
   markingModeRef: MutableRefObject<boolean>;

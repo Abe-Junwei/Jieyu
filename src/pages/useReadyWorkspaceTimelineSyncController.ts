@@ -40,8 +40,7 @@ export function useReadyWorkspaceTimelineSyncController(
     getNeighborBounds: interactionController.getNeighborBoundsRouted,
     makeSnapGuide: input.interactionInput.makeSnapGuide,
     snapEnabled: input.interactionInput.snapEnabled,
-    setSnapGuide: input.interactionInput.setSnapGuide,
-    setDragPreview: input.interactionInput.setDragPreview,
+    setTimingEditPreview: input.interactionInput.setTimingEditPreview,
     saveUnitTiming: interactionController.saveTimingRouted,
     ...(input.interactionInput.segmentsByLayer !== undefined
       ? { segmentsByLayer: new Map(input.interactionInput.segmentsByLayer) }

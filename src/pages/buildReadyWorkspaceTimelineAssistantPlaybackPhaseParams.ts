@@ -115,8 +115,7 @@ export function buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams(
 
   const {
     setSubSelectionRange,
-    setDragPreview,
-    setSnapGuide,
+    setTimingEditPreview,
     zoomToPercent,
     zoomToUnit,
     player,
@@ -163,8 +162,7 @@ export function buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams(
     timelineSync: {
       data,
       setSubSelectionRange,
-      setDragPreview,
-      setSnapGuide,
+      setTimingEditPreview,
       zoomToPercent,
       zoomToUnit,
       setCtxMenu,

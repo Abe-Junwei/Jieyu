@@ -138,6 +138,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     selectSegmentRange: vi.fn(),
     toggleUnitSelection: vi.fn(),
     selectUnitRange: vi.fn(),
+    clearUnitSelection: vi.fn(),
     setSubSelectionRange: vi.fn(),
     subSelectDragRef: { current: null },
     waveCanvasRef: { current: waveCanvas },
@@ -165,8 +166,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     endTimingGesture: vi.fn(),
     makeSnapGuide: vi.fn((bounds, start, end) => ({ visible: true, start, end, bounds })),
     snapEnabled: false,
-    setSnapGuide: vi.fn(),
-    setDragPreview: vi.fn(),
+    setTimingEditPreview: vi.fn(),
     creatingSegmentRef: { current: false },
     markingModeRef: { current: false },
     setCtxMenu: vi.fn(),
@@ -494,8 +494,7 @@ describe('useTranscriptionTimelineInteractionController', () => {
   it('updates drag preview and auto-selects waveform items during playback time updates', () => {
     const stop = vi.fn();
     const beginTimingGesture = vi.fn();
-    const setDragPreview = vi.fn();
-    const setSnapGuide = vi.fn();
+    const setTimingEditPreview = vi.fn();
     const makeSnapGuide = vi.fn((bounds, start, end) => ({ visible: true, start, end, bounds }));
     const selectTimelineUnit = vi.fn();
     const { result } = renderHook(() =>
@@ -508,8 +507,7 @@ describe('useTranscriptionTimelineInteractionController', () => {
             instanceRef: { current: createWaveformInstance() },
           },
           beginTimingGesture,
-          setDragPreview,
-          setSnapGuide,
+          setTimingEditPreview,
           makeSnapGuide,
           selectTimelineUnit,
           selectedWaveformRegionId: 'seg-2',
@@ -524,9 +522,11 @@ describe('useTranscriptionTimelineInteractionController', () => {
 
     expect(stop).toHaveBeenCalled();
     expect(beginTimingGesture).toHaveBeenCalledWith('seg-1');
-    expect(setDragPreview).toHaveBeenCalledWith({ id: 'seg-1', start: 1.2, end: 1.9 });
+    expect(setTimingEditPreview).toHaveBeenCalledWith({
+      preview: { id: 'seg-1', start: 1.2, end: 1.9 },
+      snapGuide: expect.objectContaining({ visible: true, start: 1.2, end: 1.9 }),
+    });
     expect(makeSnapGuide).toHaveBeenCalled();
-    expect(setSnapGuide).toHaveBeenCalled();
     expect(selectTimelineUnit).toHaveBeenCalledWith({
       layerId: 'layer-main',
       unitId: 'seg-1',
@@ -537,13 +537,13 @@ describe('useTranscriptionTimelineInteractionController', () => {
   it('blocks waveform time-subdivision resize when dragged beyond parent unit bounds', () => {
     mockUpdateSegment.mockClear();
     const setSaveState = vi.fn();
-    const setSnapGuide = vi.fn();
+    const setTimingEditPreview = vi.fn();
     const { result } = renderHook(() =>
       useTranscriptionTimelineInteractionController(
         createBaseInput({
           activeLayerIdForEdits: 'layer-sub',
           setSaveState,
-          setSnapGuide,
+          setTimingEditPreview,
         }),
       ),
     );
@@ -557,7 +557,7 @@ describe('useTranscriptionTimelineInteractionController', () => {
       kind: 'error',
       message: '无法将时间细分区间拖动到父句段范围之外。',
     });
-    expect(setSnapGuide).toHaveBeenCalledWith({ visible: false });
+    expect(setTimingEditPreview).toHaveBeenCalledWith({ snapGuide: { visible: false } });
   });
 
   it('clamps time-subdivision saves to parent unit bounds', async () => {
@@ -632,5 +632,34 @@ describe('useTranscriptionTimelineInteractionController', () => {
       kind: 'error',
       message: '无法将时间细分区间拖动到父句段范围之外。',
     });
+  });
+
+  it('routes waveform region click selection through applyTimelineSelectionCommand when funnel is wired', () => {
+    const applyTimelineSelectionCommand = vi.fn();
+    const selectTimelineUnit = vi.fn();
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          applyTimelineSelectionCommand,
+          selectTimelineUnit,
+          useSegmentWaveformRegions: false,
+          waveformTimelineItems: [{ id: 'utt-1', startTime: 0, endTime: 5, mediaId: 'media-1' }],
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleWaveformRegionClick('utt-1', 1, {
+        shiftKey: false,
+        metaKey: false,
+        ctrlKey: false,
+      } as MouseEvent);
+    });
+
+    expect(applyTimelineSelectionCommand).toHaveBeenCalledWith({
+      type: 'selectTimelineUnit',
+      unit: { layerId: 'layer-main', unitId: 'utt-1', kind: 'unit' },
+    });
+    expect(selectTimelineUnit).not.toHaveBeenCalled();
   });
 });

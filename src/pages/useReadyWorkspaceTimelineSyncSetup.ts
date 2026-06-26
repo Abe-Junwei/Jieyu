@@ -1,5 +1,4 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { SnapGuide } from '../hooks/transcription/transcriptionTypes';
 import type { UseTranscriptionTimelineInteractionControllerInput } from '../types/useTranscriptionTimelineInteractionController.types';
 import {
   buildReadyWorkspaceTimelineInteractionInput,
@@ -15,11 +14,11 @@ import { useReadyWorkspaceTimelineSyncController } from './useReadyWorkspaceTime
 export interface UseReadyWorkspaceTimelineSyncSetupParams {
   data: ReturnType<typeof import('../hooks/useTranscriptionData').useTranscriptionData>;
   /** 来自波形桥 `useSegmentRangeGesturePreviewWriter`，不在 `useTranscriptionData` 上。 */
-  setSnapGuide: Dispatch<SetStateAction<SnapGuide>>;
+  setTimingEditPreview: (
+    patch: import('../utils/segmentRangeGesturePreviewWriter').TimingEditPreviewPatch,
+  ) => void;
   /** 来自波形桥 `useReadyWorkspaceWaveformBridgeController`，不在 `useTranscriptionData` 上。 */
   setSubSelectionRange: Dispatch<SetStateAction<{ start: number; end: number } | null>>;
-  /** 来自波形桥；拖拽语段边界时 `handleWaveformRegionUpdate` 需要。 */
-  setDragPreview: Dispatch<SetStateAction<{ id: string; start: number; end: number } | null>>;
   /** 来自波形桥 `useTimelineViewport` 路径，不在 `data` 上。 */
   zoomToPercent: UseTranscriptionTimelineInteractionControllerInput['zoomToPercent'];
   zoomToUnit: UseTranscriptionTimelineInteractionControllerInput['zoomToUnit'];
@@ -63,8 +62,7 @@ export function useReadyWorkspaceTimelineSyncSetup(
   const {
     data,
     setSubSelectionRange,
-    setDragPreview,
-    setSnapGuide,
+    setTimingEditPreview,
     zoomToPercent,
     zoomToUnit,
     setCtxMenu,
@@ -132,6 +130,8 @@ export function useReadyWorkspaceTimelineSyncSetup(
       onOpenPdfPreviewRequest: openPdfPreviewRequest,
       runSplitAtTime,
       selectTimelineUnit: data.selectTimelineUnit,
+      applyTimelineSelectionCommand: data.applyTimelineSelectionCommand,
+      clearUnitSelection: data.clearUnitSelection,
       toggleSegmentSelection: data.toggleSegmentSelection,
       selectSegmentRange: data.selectSegmentRange,
       toggleUnitSelection: data.toggleUnitSelection,
@@ -146,8 +146,7 @@ export function useReadyWorkspaceTimelineSyncSetup(
     },
     hostWrite: {
       setSubSelectionRange,
-      setDragPreview,
-      setSnapGuide,
+      setTimingEditPreview,
       zoomToPercent,
       zoomToUnit,
       setCtxMenu,

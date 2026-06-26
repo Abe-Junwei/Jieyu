@@ -1,4 +1,4 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
+import type { MutableRefObject } from 'react';
 import type { LayerDocType, LayerUnitDocType } from '../db';
 import type {
   TranscriptionCtxMenuLayerType,
@@ -6,6 +6,8 @@ import type {
 } from '../pages/TranscriptionPage.UIState';
 import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { SnapGuide } from '../hooks/useTranscriptionData';
+import type { TimingEditPreviewPatch } from '../utils/segmentRangeGesturePreviewWriter';
+import type { TimelineSelectionCommand } from '../utils/applyTimelineSelectionCommand';
 
 type ContextMenuUnitKind = 'segment' | 'unit';
 
@@ -82,6 +84,8 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   activeLayerIdForEdits: string;
   useSegmentWaveformRegions: boolean;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
+  applyTimelineSelectionCommand?: (command: TimelineSelectionCommand) => void;
+  clearUnitSelection: () => void;
   selectedTimelineUnit: TimelineUnit | null;
   toggleSegmentSelection: (segmentId: string) => void;
   selectSegmentRange: (
@@ -125,8 +129,7 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
     end: number,
   ) => SnapGuide;
   snapEnabled: boolean;
-  setSnapGuide: Dispatch<SetStateAction<SnapGuide>>;
-  setDragPreview: Dispatch<SetStateAction<{ id: string; start: number; end: number } | null>>;
+  setTimingEditPreview: (patch: TimingEditPreviewPatch) => void;
   creatingSegmentRef: MutableRefObject<boolean>;
   markingModeRef: MutableRefObject<boolean>;
   setCtxMenu: (state: ContextMenuStateLike | null) => void;
