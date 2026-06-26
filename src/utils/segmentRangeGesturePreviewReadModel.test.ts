@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSegmentRangeGesturePreviewReadModel,
+  subSelectPreviewPxFromSegmentRangeGesturePreview,
   tierLassoRectFromSegmentRangeGesturePreview,
   timeRangeDragPreviewFromSegmentRangeGesturePreview,
   waveLassoOverlayFromSegmentRangeGesturePreview,
@@ -45,6 +46,36 @@ describe('buildSegmentRangeGesturePreviewReadModel', () => {
       surface: 'timeRange',
       preview: time,
       mode: 'range',
+    });
+  });
+
+  it('uses sub-select preview when lasso and time-range are inactive', () => {
+    expect(
+      buildSegmentRangeGesturePreviewReadModel(null, 0, null, null, null, { start: 1, end: 3 }),
+    ).toEqual({
+      surface: 'subSelect',
+      start: 1,
+      end: 3,
+    });
+  });
+
+  it('prefers tier lasso over sub-select preview', () => {
+    expect(
+      buildSegmentRangeGesturePreviewReadModel(null, 0, tier, null, null, { start: 1, end: 3 }),
+    ).toEqual({
+      surface: 'tier',
+      rect: tier,
+    });
+  });
+
+  it('maps subSelect surface to waveform pixel span', () => {
+    const m = buildSegmentRangeGesturePreviewReadModel(null, 0, null, null, null, {
+      start: 2,
+      end: 5,
+    });
+    expect(subSelectPreviewPxFromSegmentRangeGesturePreview(m, 100)).toEqual({
+      leftPx: 200,
+      widthPx: 300,
     });
   });
 

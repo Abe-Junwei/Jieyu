@@ -85,11 +85,30 @@ describe('segmentRangeGestureWriterReducer', () => {
       timeDrag: { id: 'u', start: 0, end: 9 },
       snapGuide: initialSegmentRangeGestureWriterState.snapGuide,
       previewMode: 'timing-edit' as const,
+      subSelectPreview: null,
     };
     expect(segmentRangeGestureReadModelFromWriterState(s)).toEqual({
       surface: 'wave',
       rect: { x: 1, y: 2, w: 3, h: 4, mode: 'select', hitCount: 0 },
       hintCount: 1,
+    });
+  });
+
+  it('stores sub-select preview and clears conflicting lasso/time drag', () => {
+    let s = segmentRangeGestureWriterReducer(initialSegmentRangeGestureWriterState, {
+      type: 'timeDrag',
+      update: { id: 'a', start: 1, end: 2 },
+    });
+    s = segmentRangeGestureWriterReducer(s, {
+      type: 'subSelect',
+      update: { start: 0.5, end: 1.5 },
+    });
+    expect(s.subSelectPreview).toEqual({ start: 0.5, end: 1.5 });
+    expect(s.timeDrag).toBeNull();
+    expect(segmentRangeGestureReadModelFromWriterState(s)).toEqual({
+      surface: 'subSelect',
+      start: 0.5,
+      end: 1.5,
     });
   });
 });

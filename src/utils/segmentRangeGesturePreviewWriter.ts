@@ -26,11 +26,14 @@ export type LassoSurfacePreview =
   | { surface: 'tier'; rect: TierLassoPreviewRect }
   | { surface: 'wave'; rect: WaveLassoPreviewRect; hintCount: number };
 
+export type SubSelectPreviewRange = { start: number; end: number };
+
 export type SegmentRangeGestureWriterState = {
   lasso: LassoSurfacePreview;
   timeDrag: TimeRangeDragPreview | null;
   snapGuide: SnapGuide;
   previewMode: SegmentRangeGesturePreviewMode | null;
+  subSelectPreview: SubSelectPreviewRange | null;
 };
 
 export const initialSegmentRangeGestureWriterState: SegmentRangeGestureWriterState = {
@@ -38,6 +41,7 @@ export const initialSegmentRangeGestureWriterState: SegmentRangeGestureWriterSta
   timeDrag: null,
   snapGuide: initialSegmentRangeGestureSnapGuide,
   previewMode: null,
+  subSelectPreview: null,
 };
 
 /** 阶段 E：改时预览与 snap 同批写入 patch | Batched timing-edit preview + snap guide patch. */
@@ -50,7 +54,8 @@ export type SegmentRangeGestureWriterAction =
   | { type: 'lasso'; update: SetStateAction<LassoSurfacePreview> }
   | { type: 'timeDrag'; update: SetStateAction<TimeRangeDragPreview | null> }
   | { type: 'snapGuide'; update: SetStateAction<SnapGuide> }
-  | { type: 'timingEdit'; patch: TimingEditPreviewPatch };
+  | { type: 'timingEdit'; patch: TimingEditPreviewPatch }
+  | { type: 'subSelect'; update: SetStateAction<SubSelectPreviewRange | null> };
 
 function applyTimingEditPatch(
   state: SegmentRangeGestureWriterState,
@@ -73,6 +78,7 @@ function applyTimingEditPatch(
         timeDrag: preview,
         previewMode: 'timing-edit',
         lasso: { surface: 'none' },
+        subSelectPreview: null,
       };
     }
   }
@@ -98,6 +104,7 @@ export function segmentRangeGestureWriterReducer(
           timeDrag: null,
           snapGuide: initialSegmentRangeGestureSnapGuide,
           previewMode: null,
+          subSelectPreview: null,
         };
       }
       return { ...state, lasso: next };
@@ -109,7 +116,7 @@ export function segmentRangeGestureWriterReducer(
         ...state,
         timeDrag: next,
         previewMode: next ? 'range' : null,
-        ...(next ? { lasso: { surface: 'none' as const } } : {}),
+        ...(next ? { lasso: { surface: 'none' as const }, subSelectPreview: null } : {}),
       };
     }
     case 'snapGuide': {
@@ -119,6 +126,21 @@ export function segmentRangeGestureWriterReducer(
     }
     case 'timingEdit':
       return applyTimingEditPatch(state, action.patch);
+    case 'subSelect': {
+      const next =
+        typeof action.update === 'function' ? action.update(state.subSelectPreview) : action.update;
+      if (next === null) {
+        return { ...state, subSelectPreview: null };
+      }
+      return {
+        ...state,
+        subSelectPreview: next,
+        lasso: { surface: 'none' },
+        timeDrag: null,
+        snapGuide: initialSegmentRangeGestureSnapGuide,
+        previewMode: null,
+      };
+    }
     default:
       return state;
   }
@@ -148,5 +170,6 @@ export function segmentRangeGestureReadModelFromWriterState(
     lassoRect,
     state.timeDrag,
     state.previewMode,
+    state.subSelectPreview,
   );
 }

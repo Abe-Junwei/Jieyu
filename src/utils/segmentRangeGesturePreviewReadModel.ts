@@ -23,11 +23,11 @@ export type SegmentRangeGesturePreviewReadModel =
   | { surface: 'none' }
   | { surface: 'wave'; rect: WaveLassoPreviewRect; hintCount: number }
   | { surface: 'tier'; rect: TierLassoPreviewRect }
+  | { surface: 'subSelect'; start: number; end: number }
   | { surface: 'timeRange'; preview: TimeRangeDragPreview; mode: SegmentRangeGesturePreviewMode };
 
 /**
- * 预览互斥优先级：wave 框选/拖建 > tier 套索 > Regions/resize 时间预览。
- * （与 `useLasso` 内指针会话设计一致：同会话下通常只有一路为真。）
+ * 预览互斥优先级：wave 框选/拖建 > tier 套索 > 子选区 > Regions/resize 时间预览。
  */
 export function buildSegmentRangeGesturePreviewReadModel(
   waveLassoRect: WaveLassoPreviewRect | null,
@@ -35,12 +35,16 @@ export function buildSegmentRangeGesturePreviewReadModel(
   lassoRect: TierLassoPreviewRect | null,
   dragPreview: TimeRangeDragPreview | null,
   previewMode: SegmentRangeGesturePreviewMode | null = null,
+  subSelectPreview: { start: number; end: number } | null = null,
 ): SegmentRangeGesturePreviewReadModel {
   if (waveLassoRect) {
     return { surface: 'wave', rect: waveLassoRect, hintCount: waveLassoHintCount };
   }
   if (lassoRect) {
     return { surface: 'tier', rect: lassoRect };
+  }
+  if (subSelectPreview) {
+    return { surface: 'subSelect', start: subSelectPreview.start, end: subSelectPreview.end };
   }
   if (dragPreview) {
     return {
@@ -84,4 +88,18 @@ export function waveLassoOverlayFromSegmentRangeGesturePreview(
   if (model.surface !== 'wave') return null;
   const { x, y, w, h, mode } = model.rect;
   return { x, y, w, h, mode, hintCount: model.hintCount };
+}
+
+/** 子选区拖建预览（秒）→ 波形内容坐标像素。 */
+export function subSelectPreviewPxFromSegmentRangeGesturePreview(
+  model: SegmentRangeGesturePreviewReadModel,
+  zoomPxPerSec: number,
+): { leftPx: number; widthPx: number } | null {
+  if (model.surface !== 'subSelect' || zoomPxPerSec <= 0) return null;
+  const start = Math.min(model.start, model.end);
+  const end = Math.max(model.start, model.end);
+  return {
+    leftPx: start * zoomPxPerSec,
+    widthPx: Math.max(0, (end - start) * zoomPxPerSec),
+  };
 }

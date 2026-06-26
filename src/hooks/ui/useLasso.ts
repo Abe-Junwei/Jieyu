@@ -65,6 +65,8 @@ interface UseLassoInput {
   /** 由波形桥 `useReducer` 抬升的套索预览（与 `timeDrag` 同一写者）；不传则回退到 hook 内 `useState`。 */
   liftedLassoPreview?: LassoSurfacePreview;
   setLiftedLassoPreview?: Dispatch<SetStateAction<LassoSurfacePreview>>;
+  /** 子选区拖建预览（波形桥 reducer）；不传则跳过 React overlay 预览。 */
+  setSubSelectPreview?: Dispatch<SetStateAction<{ start: number; end: number } | null>>;
   /**
    * 与 `useTranscriptionWaveformBridgeController` 中 `lastDurationRef` 一致：解码时长为 0 时用语义轴秒数做像素↔时间换算，
    * 避免无声学/占位媒体下波形空拖整段静默 return。
@@ -103,6 +105,7 @@ export function useLasso(input: UseLassoInput) {
     tierTimelineLassoSuppressed = false,
     liftedLassoPreview: liftedLassoPreviewInput,
     setLiftedLassoPreview: setLiftedLassoPreviewInput,
+    setSubSelectPreview,
     waveformMappingDurationSec,
     tierIndependentSegmentCreateRangeClamp,
     tierLassoMode = 'default',
@@ -115,9 +118,6 @@ export function useLasso(input: UseLassoInput) {
   });
   const timeRangePreview = liftedLassoPreviewInput ?? internalLassoPreview;
   const setTimeRangePreview = setLiftedLassoPreviewInput ?? setInternalLassoPreview;
-
-  // ---- Sub-selection internal refs ----
-  const subSelectPreviewRef = useRef<HTMLDivElement | null>(null);
 
   // ---- Internal refs ----
   const lassoRef = useRef<{
@@ -354,24 +354,7 @@ export function useLasso(input: UseLassoInput) {
         if (!sub.active && Math.abs(currentTime - sub.anchorTime) < 0.01) return;
         sub.active = true;
 
-        // Direct DOM preview for responsiveness
-        if (!subSelectPreviewRef.current) {
-          const div = document.createElement('div');
-          div.style.position = 'absolute';
-          div.style.top = '0';
-          div.style.height = '100%';
-          div.style.backgroundColor =
-            'color-mix(in srgb, var(--state-success-solid) 30%, transparent)';
-          div.style.pointerEvents = 'none';
-          div.style.zIndex = '5';
-          sc.style.position = 'relative';
-          sc.appendChild(div);
-          subSelectPreviewRef.current = div;
-        }
-        const leftPx = dragStart * (totalWidth / dur);
-        const widthPx = (dragEnd - dragStart) * (totalWidth / dur);
-        subSelectPreviewRef.current.style.left = `${leftPx}px`;
-        subSelectPreviewRef.current.style.width = `${widthPx}px`;
+        setSubSelectPreview?.({ start: dragStart, end: dragEnd });
         return;
       }
 
@@ -462,11 +445,7 @@ export function useLasso(input: UseLassoInput) {
       const sub = subSelectDragRef.current;
       if (sub) {
         subSelectDragRef.current = null;
-        // Remove direct DOM preview
-        if (subSelectPreviewRef.current) {
-          subSelectPreviewRef.current.remove();
-          subSelectPreviewRef.current = null;
-        }
+        setSubSelectPreview?.(null);
         if (sub.active) {
           // Compute final range
           const ws = playerInstanceRef.current;
@@ -533,10 +512,7 @@ export function useLasso(input: UseLassoInput) {
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', onPointerUp);
-      if (subSelectPreviewRef.current) {
-        subSelectPreviewRef.current.remove();
-        subSelectPreviewRef.current = null;
-      }
+      setSubSelectPreview?.(null);
     };
   }, [
     selectedMediaUrl,
@@ -550,6 +526,7 @@ export function useLasso(input: UseLassoInput) {
     playerInstanceRef,
     selectedUnitIdsRef,
     setSubSelectionRange,
+    setSubSelectPreview,
     setTimeRangePreview,
     subSelectDragRef,
     timelineHitIndexRef,

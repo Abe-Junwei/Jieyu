@@ -50,6 +50,27 @@ export function WaveLassoPreviewOverlay(props: { overlay: WaveLassoOverlay; loca
   );
 }
 
+export function WaveSubSelectPreviewOverlay(props: { leftPx: number; widthPx: number }) {
+  const { leftPx, widthPx } = props;
+  if (widthPx <= 0) return null;
+  return (
+    <div
+      className="waveform-subselect-preview"
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        top: 0,
+        height: '100%',
+        left: `${leftPx}px`,
+        width: `${widthPx}px`,
+        backgroundColor: 'color-mix(in srgb, var(--state-success-solid) 30%, transparent)',
+        pointerEvents: 'none',
+        zIndex: 5,
+      }}
+    />
+  );
+}
+
 /** 阶段 D：tier / wave 套索预览统一渲染入口（读模型 surface 分支）。 */
 export function SegmentRangeLassoPreviewOverlay(props: {
   model: SegmentRangeGesturePreviewReadModel;

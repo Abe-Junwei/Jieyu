@@ -4,6 +4,7 @@ import type { SnapGuide } from './transcriptionTypes';
 import type { TimeRangeDragPreview } from '../../utils/segmentRangeGesturePreviewReadModel';
 import type {
   LassoSurfacePreview,
+  SubSelectPreviewRange,
   TimingEditPreviewPatch,
 } from '../../utils/segmentRangeGesturePreviewWriter';
 import {
@@ -39,6 +40,13 @@ export function useSegmentRangeGesturePreviewWriter() {
     dispatchGestureWriter({ type: 'timingEdit', patch });
   }, []);
 
+  const setSubSelectPreview = useCallback(
+    (update: SetStateAction<SubSelectPreviewRange | null>) => {
+      dispatchGestureWriter({ type: 'subSelect', update });
+    },
+    [],
+  );
+
   const dragPreview = gestureWriter.timeDrag;
   const snapGuide = gestureWriter.snapGuide;
 
@@ -54,6 +62,7 @@ export function useSegmentRangeGesturePreviewWriter() {
     setDragPreview,
     setSnapGuide,
     setTimingEditPreview,
+    setSubSelectPreview,
     dragPreview,
     snapGuide,
     segmentRangeGesturePreviewReadModel,

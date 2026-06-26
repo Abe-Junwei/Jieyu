@@ -5,12 +5,10 @@ import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
 } from '../transcription/transcriptionPlaybackClock';
-import { resolveViewportFrameScrollLeftPx } from '../../utils/resolveViewportFrameScrollLeftPx';
 import {
   applyTimelineViewportScroll,
   applyTimelineViewportWheelPan,
 } from '../../utils/applyTimelineViewportScroll';
-import { syncWaveScrollToTier } from '../../utils/waveformTierScrollSync';
 import { useLatest } from './useLatest';
 
 /**
@@ -399,24 +397,29 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
             end: Math.min(span, ((scrollLeft + clientWidth) / totalWidth) * span),
           };
         };
-        const resolveViewportScrollLeftPx = (tierScrollLeftPx: number) =>
-          resolveViewportFrameScrollLeftPx({
+        const syncRulerFromTier = () => {
+          const { tierScrollLeftPx, viewportScrollLeftPx } = applyTimelineViewportScroll({
+            tier,
+            ws,
             documentSpanSec: docSpanSec,
             mediaDurSec: dur,
-            tierScrollLeftPx,
-            waveformScrollLeftPx: ws.getScroll(),
+            zoomPxPerSec,
+            targetScrollLeftPx: tier.scrollLeft,
           });
-        const syncRulerFromTier = () => {
-          const scrollLeft = tier.scrollLeft;
-          syncWaveScrollToTier(ws, scrollLeft, zoomPxPerSec, dur);
-          scheduleRulerView(rulerFromTier(scrollLeft), resolveViewportScrollLeftPx(scrollLeft));
+          scheduleRulerView(rulerFromTier(tierScrollLeftPx), viewportScrollLeftPx);
         };
         {
-          const sl = tier.scrollLeft;
-          setRulerView(rulerFromTier(sl));
+          const { tierScrollLeftPx, viewportScrollLeftPx } = applyTimelineViewportScroll({
+            tier,
+            ws,
+            documentSpanSec: docSpanSec,
+            mediaDurSec: dur,
+            zoomPxPerSec,
+            targetScrollLeftPx: tier.scrollLeft,
+          });
+          setRulerView(rulerFromTier(tierScrollLeftPx));
+          onBatchedRulerFrameScrollLeft?.(viewportScrollLeftPx);
         }
-        syncWaveScrollToTier(ws, tier.scrollLeft, zoomPxPerSec, dur);
-        onBatchedRulerFrameScrollLeft?.(resolveViewportScrollLeftPx(tier.scrollLeft));
         tier.addEventListener('scroll', syncRulerFromTier, { passive: true });
         return () => {
           cancelRulerRaf();

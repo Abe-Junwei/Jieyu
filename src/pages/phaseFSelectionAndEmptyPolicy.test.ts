@@ -3,7 +3,7 @@ import { TIMELINE_PARITY_MATRIX, TIMELINE_PARITY_MATRIX_VERSION } from './timeli
 
 describe('phaseFSelectionAndEmptyPolicyParity', () => {
   it('locks matrix version for phase F selection + empty policy drift', () => {
-    expect(TIMELINE_PARITY_MATRIX_VERSION).toBe(32);
+    expect(TIMELINE_PARITY_MATRIX_VERSION).toBe(33);
   });
 
   it('declares selection-write-funnel row with applyTimelineSelectionCommand anchor', () => {

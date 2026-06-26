@@ -36,7 +36,10 @@ import { formatTime } from '../utils/transcriptionFormatters';
 import { mapAcousticToTimelineChrome } from '../utils/mapAcousticToTimelineChrome';
 import { docSecToContentLeftPx } from '../utils/viewportFrameToScreenRange';
 import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
-import { waveLassoOverlayFromSegmentRangeGesturePreview } from '../utils/segmentRangeGesturePreviewReadModel';
+import {
+  subSelectPreviewPxFromSegmentRangeGesturePreview,
+  waveLassoOverlayFromSegmentRangeGesturePreview,
+} from '../utils/segmentRangeGesturePreviewReadModel';
 
 interface WaveformNoteIndicator {
   uttId: string;
@@ -252,6 +255,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     playerSeekTo,
     playerPlayRegion,
     segmentRangeGesturePreviewReadModel,
+    zoomPxPerSec,
     waveformNoteIndicators,
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
@@ -289,6 +293,10 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
 
   const waveLassoOverlay = waveLassoOverlayFromSegmentRangeGesturePreview(
     segmentRangeGesturePreviewReadModel,
+  );
+  const subSelectPreviewPx = subSelectPreviewPxFromSegmentRangeGesturePreview(
+    segmentRangeGesturePreviewReadModel,
+    zoomPxPerSec,
   );
 
   const effectiveWaveCanvasRef = acousticStrip?.waveCanvasRef ?? waveCanvasRef;
@@ -495,6 +503,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
         acousticOverlayLoading={acousticOverlayLoading}
         hasActiveReadout={activeReadout != null}
         waveLassoOverlay={waveLassoOverlay}
+        subSelectPreviewPx={subSelectPreviewPx}
         waveformOverlayTranslateX={waveformOverlayTranslateX}
         waveformNoteIndicators={waveformNoteIndicators}
         onOpenWaveformNotePopover={handleWaveformNotePopoverOpen}
@@ -523,6 +532,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
       handleWaveformNotePopoverOpen,
       waveformOverlayTranslateX,
       waveLassoOverlay,
+      subSelectPreviewPx,
     ],
   );
 

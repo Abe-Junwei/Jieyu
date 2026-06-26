@@ -90,6 +90,7 @@ export function useTranscriptionWaveformBridgeController(
     gestureWriter,
     setLiftedLassoPreview,
     setTimingEditPreview,
+    setSubSelectPreview,
     dragPreview,
     snapGuide,
     segmentRangeGesturePreviewReadModel,
@@ -400,6 +401,7 @@ export function useTranscriptionWaveformBridgeController(
     ...(input.tierTimelineLassoSuppressed ? { tierTimelineLassoSuppressed: true } : {}),
     liftedLassoPreview: gestureWriter.lasso,
     setLiftedLassoPreview,
+    setSubSelectPreview,
     waveformMappingDurationSec: documentSpanSec,
     ...(input.tierIndependentSegmentCreateRangeClamp
       ? { tierIndependentSegmentCreateRangeClamp: input.tierIndependentSegmentCreateRangeClamp }

@@ -2319,7 +2319,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(matrixCode.includes("id: 'timeline-extent-single-source'")).toBe(true);
     expect(matrixCode.includes("id: 'segment-range-gesture-single-surface'")).toBe(true);
     expect(matrixCode.includes("id: 'phase-f-range-preview-ssot'")).toBe(true);
-    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 32')).toBe(true);
+    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 33')).toBe(true);
   });
 
   it('keeps media lanes layout on timelineExtentSec without playerDuration fallback', () => {
@@ -2477,13 +2477,17 @@ describe('TranscriptionPage structure invariants', () => {
   it('routes viewport scroll writes through applyTimelineViewportScroll in zoom and ruler', () => {
     const zoomPath = path.resolve(process.cwd(), 'src/hooks/ui/useZoom.ts');
     const rulerPath = path.resolve(process.cwd(), 'src/components/TimeRuler.tsx');
+    const bridgeSyncPath = path.resolve(process.cwd(), 'src/pages/waveformBridgeTierScrollSync.ts');
     const scrollUtilPath = path.resolve(process.cwd(), 'src/utils/applyTimelineViewportScroll.ts');
     const zoomCode = fs.readFileSync(zoomPath, 'utf8');
     const rulerCode = fs.readFileSync(rulerPath, 'utf8');
+    const bridgeSyncCode = fs.readFileSync(bridgeSyncPath, 'utf8');
     expect(fs.existsSync(scrollUtilPath)).toBe(true);
     expect(zoomCode.includes('applyTimelineViewportWheelPan')).toBe(true);
     expect(zoomCode.includes('applyTimelineViewportScroll')).toBe(true);
     expect(rulerCode.includes('applyTimelineViewportScroll')).toBe(true);
+    expect(bridgeSyncCode.includes('applyTimelineViewportScroll')).toBe(true);
+    expect(bridgeSyncCode.includes('applyTierScrollToWaveSurfer')).toBe(false);
   });
 
   it('unifies lasso preview overlay and disables RegionsPlugin empty drag selection', () => {
@@ -2518,7 +2522,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('docSecToContentLeftPx')).toBe(true);
     expect(orchestratorCode.includes('regionActionViewportFrame.scrollLeftPx')).toBe(true);
     expect(orchestratorCode.includes('-waveformScrollLeft')).toBe(false);
-    expect(zoomCode.includes('resolveViewportFrameScrollLeftPx')).toBe(true);
+    expect(zoomCode.includes('applyTimelineViewportScroll')).toBe(true);
   });
 
   it('maps acoustic shell chrome only through mapAcousticToTimelineChrome in lanes host', () => {

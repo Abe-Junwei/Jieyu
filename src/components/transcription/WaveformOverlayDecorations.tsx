@@ -1,6 +1,9 @@
 import React from 'react';
 
-import { WaveLassoPreviewOverlay } from './SegmentRangeLassoPreviewOverlay';
+import {
+  WaveLassoPreviewOverlay,
+  WaveSubSelectPreviewOverlay,
+} from './SegmentRangeLassoPreviewOverlay';
 import { t, tf, type Locale } from '../../i18n';
 import type { AcousticOverlayMode } from '../../utils/acousticOverlayTypes';
 import { NoteDocumentIcon } from '../NoteDocumentIcon';
@@ -52,6 +55,7 @@ interface WaveformOverlayDecorationsProps {
 
   hasActiveReadout: boolean;
   waveLassoOverlay: WaveLassoOverlay;
+  subSelectPreviewPx: { leftPx: number; widthPx: number } | null;
   waveformOverlayTranslateX: number;
 
   waveformNoteIndicators: WaveformNoteIndicator[];
@@ -86,12 +90,20 @@ export const WaveformOverlayDecorations = React.memo(function WaveformOverlayDec
     acousticOverlayLoading,
     hasActiveReadout,
     waveLassoOverlay,
+    subSelectPreviewPx,
     waveformOverlayTranslateX,
     waveformNoteIndicators,
     onOpenWaveformNotePopover,
   } = props;
 
   const noteIndicatorLayerRef = React.useRef<HTMLDivElement | null>(null);
+
+  const subSelectLayerRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useLayoutEffect(() => {
+    if (!subSelectLayerRef.current) return;
+    subSelectLayerRef.current.style.transform = `translateX(${waveformOverlayTranslateX}px)`;
+  }, [waveformOverlayTranslateX]);
 
   React.useLayoutEffect(() => {
     if (!noteIndicatorLayerRef.current) return;
@@ -238,6 +250,12 @@ export const WaveformOverlayDecorations = React.memo(function WaveformOverlayDec
 
       {waveLassoOverlay ? (
         <WaveLassoPreviewOverlay overlay={waveLassoOverlay} locale={locale} />
+      ) : null}
+
+      {subSelectPreviewPx ? (
+        <div ref={subSelectLayerRef} className="waveform-subselect-preview-layer">
+          <WaveSubSelectPreviewOverlay {...subSelectPreviewPx} />
+        </div>
       ) : null}
 
       <div ref={noteIndicatorLayerRef} className="waveform-note-indicator-layer">

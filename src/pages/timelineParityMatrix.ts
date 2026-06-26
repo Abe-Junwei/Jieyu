@@ -39,12 +39,13 @@
  * 版本 30：阶段 F·3 — 波形 `useTranscriptionTimelineInteractionController` 选集写路径经同一 funnel。
  * 版本 31：阶段 B 完成 — `applyTimelineViewportScroll` 收敛 wheel/ruler/跟随写路径；阶段 D — 套索 overlay 统一组件 + 禁用 RegionsPlugin 拖选视觉。
  * 版本 32：审查修复 — `useLasso` 波形套索时间坐标回退 WS scroll-parent；轨面 segment shift/meta 经 `writeTimelineSelection`；`timeDrag` previewMode 语义修正。
+ * 版本 33：阶段 B 收尾 — tier scroll 镜像经 `applyTimelineViewportScroll`；阶段 D — 子选区预览进 gesture reducer + React overlay。
  */
 
 import type { TimelineParityMatrixRowId } from '../i18n/messages';
 import { timelineParityMatrixRowsZh } from '../i18n/messages';
 
-export const TIMELINE_PARITY_MATRIX_VERSION = 32 as const;
+export const TIMELINE_PARITY_MATRIX_VERSION = 33 as const;
 
 type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
 

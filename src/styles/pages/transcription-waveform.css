@@ -179,15 +179,24 @@
 }
 
 @keyframes segMarkPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 .transcription-waveform-area-snapping::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--state-warning-solid) 14%, transparent), transparent 58%);
+  background: radial-gradient(
+    circle at 50% 0%,
+    color-mix(in srgb, var(--state-warning-solid) 14%, transparent),
+    transparent 58%
+  );
   animation: snapGlow 0.85s ease-in-out infinite;
 }
 
@@ -228,7 +237,9 @@
   background: color-mix(in srgb, var(--surface-panel) 92%, transparent);
   border: 1px solid color-mix(in srgb, var(--text-tertiary) 38%, transparent);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 8%, transparent);
-  transition: opacity 0.12s ease, transform 0.12s ease;
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
 }
 
 .wave-lasso-rect-select {
@@ -261,6 +272,14 @@
   inset: 0;
   pointer-events: none;
   z-index: 6;
+}
+
+.waveform-subselect-preview-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
 }
 
 .waveform-note-indicator-icon {
@@ -299,7 +318,12 @@
   padding: 0;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent);
   opacity: 0.96;
-  transition: opacity 0.14s, background 0.14s, color 0.14s, border-color 0.14s, box-shadow 0.14s;
+  transition:
+    opacity 0.14s,
+    background 0.14s,
+    color 0.14s,
+    border-color 0.14s,
+    box-shadow 0.14s;
 }
 
 .region-action-btn svg {
@@ -404,7 +428,9 @@
   cursor: default;
   border-radius: var(--radius-xs);
   padding: 1px 3px;
-  transition: background 0.14s, color 0.14s;
+  transition:
+    background 0.14s,
+    color 0.14s;
 }
 
 .segment-speed-label-reset {

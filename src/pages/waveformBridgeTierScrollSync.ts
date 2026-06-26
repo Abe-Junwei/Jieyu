@@ -1,10 +1,8 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
 import type { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
 import { useLatest } from '../hooks/ui/useLatest';
-import {
-  applyTierScrollToWaveSurfer,
-  isExtendedDocumentTimeline,
-} from '../utils/waveformTierScrollSync';
+import { applyTimelineViewportScroll } from '../utils/applyTimelineViewportScroll';
+import { isExtendedDocumentTimeline } from '../utils/waveformTierScrollSync';
 
 type PlayerSlice = Pick<ReturnType<typeof useWaveSurfer>, 'instanceRef' | 'isReady' | 'duration'>;
 
@@ -42,24 +40,19 @@ export function useWaveformBridgeTierScrollSync(input: {
     }
     const mediaDur = player.duration || 0;
     const zoomPxPerSecLive = zoomPxPerSecRef.current;
-    if (isExtendedDocumentTimeline(documentSpanSec, mediaDur)) {
-      const overlayScrollLeft = applyTierScrollToWaveSurfer({
-        ws,
-        tierScrollLeftPx: tier.scrollLeft,
-        zoomPxPerSec: zoomPxPerSecLive,
-        mediaDurSec: mediaDur,
-        documentSpanSec,
-      });
-      commitWaveformScrollLeft(overlayScrollLeft);
-      onTierScrollLeftPx?.(tier.scrollLeft);
-      return;
-    }
-    const nextScrollLeft = ws.getScroll();
-    if (Math.abs(tier.scrollLeft - nextScrollLeft) > 0.5) {
-      tier.scrollLeft = nextScrollLeft;
-    }
-    commitWaveformScrollLeft(nextScrollLeft);
-    onTierScrollLeftPx?.(tier.scrollLeft);
+    const targetScrollLeftPx = isExtendedDocumentTimeline(documentSpanSec, mediaDur)
+      ? tier.scrollLeft
+      : ws.getScroll();
+    const { waveformScrollLeftPx, tierScrollLeftPx } = applyTimelineViewportScroll({
+      tier,
+      ws,
+      documentSpanSec,
+      mediaDurSec: mediaDur,
+      zoomPxPerSec: zoomPxPerSecLive,
+      targetScrollLeftPx,
+    });
+    commitWaveformScrollLeft(waveformScrollLeftPx);
+    onTierScrollLeftPx?.(tierScrollLeftPx);
   }, [
     commitWaveformScrollLeft,
     onTierScrollLeftPx,
@@ -80,16 +73,25 @@ export function useWaveformBridgeTierScrollSync(input: {
     const nowHas = typeof cur === 'string' && cur.trim() !== '';
     if (!wasEmpty || !nowHas) return;
     const tier = tierContainerRef.current;
-    if (tier) tier.scrollLeft = 0;
     const ws = player.instanceRef.current;
-    if (ws) ws.setScroll(0);
-    commitWaveformScrollLeft(0);
-    onTierScrollLeftPx?.(0);
+    const { waveformScrollLeftPx, tierScrollLeftPx } = applyTimelineViewportScroll({
+      tier,
+      ws,
+      documentSpanSec,
+      mediaDurSec: player.duration || 0,
+      zoomPxPerSec: zoomPxPerSecRef.current,
+      targetScrollLeftPx: 0,
+    });
+    commitWaveformScrollLeft(waveformScrollLeftPx);
+    onTierScrollLeftPx?.(tierScrollLeftPx);
   }, [
     selectedMediaUrl,
     tierContainerRef,
     player.instanceRef,
+    player.duration,
+    documentSpanSec,
     commitWaveformScrollLeft,
     onTierScrollLeftPx,
+    zoomPxPerSecRef,
   ]);
 }
