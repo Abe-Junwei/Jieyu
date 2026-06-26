@@ -2319,7 +2319,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(matrixCode.includes("id: 'timeline-extent-single-source'")).toBe(true);
     expect(matrixCode.includes("id: 'segment-range-gesture-single-surface'")).toBe(true);
     expect(matrixCode.includes("id: 'phase-f-range-preview-ssot'")).toBe(true);
-    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 26')).toBe(true);
+    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 32')).toBe(true);
   });
 
   it('keeps media lanes layout on timelineExtentSec without playerDuration fallback', () => {
@@ -2409,7 +2409,7 @@ describe('TranscriptionPage structure invariants', () => {
     );
   });
 
-  it('routes snap guide writes through segment-range gesture writer host slice', () => {
+  it('routes timing-edit preview writes through batched setTimingEditPreview host slice', () => {
     const hostWritePath = path.resolve(
       process.cwd(),
       'src/pages/transcriptionReadyWorkspaceTimelineInteractionInputBuilder.ts',
@@ -2418,18 +2418,93 @@ describe('TranscriptionPage structure invariants', () => {
       process.cwd(),
       'src/pages/useReadyWorkspaceTimelineSyncSetup.ts',
     );
+    const resizePath = path.resolve(process.cwd(), 'src/hooks/transcription/useTimelineResize.ts');
     const nestedSlicesPath = path.resolve(
       process.cwd(),
       'src/pages/readyWorkspaceSurfaceNestedOrchestratorSlices.ts',
     );
     const hostWriteCode = fs.readFileSync(hostWritePath, 'utf8');
     const syncSetupCode = fs.readFileSync(syncSetupPath, 'utf8');
+    const resizeCode = fs.readFileSync(resizePath, 'utf8');
     const nestedSlicesCode = fs.readFileSync(nestedSlicesPath, 'utf8');
-    expect(hostWriteCode.includes("'setSnapGuide'")).toBe(true);
-    expect(syncSetupCode.includes('setSnapGuide,')).toBe(true);
+    expect(hostWriteCode.includes("'setTimingEditPreview'")).toBe(true);
+    expect(hostWriteCode.includes("'setSnapGuide'")).toBe(false);
+    expect(syncSetupCode.includes('setTimingEditPreview,')).toBe(true);
     expect(syncSetupCode.includes('setSnapGuide: data.setSnapGuide')).toBe(false);
+    expect(resizeCode.includes('setTimingEditPreview')).toBe(true);
+    expect(resizeCode.includes('setDragPreview')).toBe(false);
     expect(nestedSlicesCode.includes('snapGuide: deps.waveform.snapGuide')).toBe(true);
     expect(nestedSlicesCode.includes('snapGuide: deps.data.snapGuide')).toBe(false);
+  });
+
+  it('routes horizontal lane selection writes through applyTimelineSelectionCommand in RW track edit', () => {
+    const trackEditPath = path.resolve(
+      process.cwd(),
+      'src/pages/useReadyWorkspaceTrackEditControllers.ts',
+    );
+    const helpersPath = path.resolve(
+      process.cwd(),
+      'src/hooks/transcription/useTimelineAnnotationHelpers.tsx',
+    );
+    const trackEditCode = fs.readFileSync(trackEditPath, 'utf8');
+    const helpersCode = fs.readFileSync(helpersPath, 'utf8');
+    expect(
+      trackEditCode.includes('applyTimelineSelectionCommand: data.applyTimelineSelectionCommand'),
+    ).toBe(true);
+    expect(helpersCode.includes('writeTimelineSelection')).toBe(true);
+    expect(helpersCode.includes('applyTimelineSelectionCommand')).toBe(true);
+  });
+
+  it('routes waveform interaction selection writes through writeTimelineSelection funnel', () => {
+    const interactionPath = path.resolve(
+      process.cwd(),
+      'src/pages/useTranscriptionTimelineInteractionController.ts',
+    );
+    const syncSetupPath = path.resolve(
+      process.cwd(),
+      'src/pages/useReadyWorkspaceTimelineSyncSetup.ts',
+    );
+    const interactionCode = fs.readFileSync(interactionPath, 'utf8');
+    const syncSetupCode = fs.readFileSync(syncSetupPath, 'utf8');
+    expect(interactionCode.includes('writeTimelineSelection')).toBe(true);
+    expect(interactionCode.includes('writeSelection({ type:')).toBe(true);
+    expect(interactionCode.includes('input.selectTimelineUnit(')).toBe(false);
+    expect(
+      syncSetupCode.includes('applyTimelineSelectionCommand: data.applyTimelineSelectionCommand'),
+    ).toBe(true);
+  });
+
+  it('routes viewport scroll writes through applyTimelineViewportScroll in zoom and ruler', () => {
+    const zoomPath = path.resolve(process.cwd(), 'src/hooks/ui/useZoom.ts');
+    const rulerPath = path.resolve(process.cwd(), 'src/components/TimeRuler.tsx');
+    const scrollUtilPath = path.resolve(process.cwd(), 'src/utils/applyTimelineViewportScroll.ts');
+    const zoomCode = fs.readFileSync(zoomPath, 'utf8');
+    const rulerCode = fs.readFileSync(rulerPath, 'utf8');
+    expect(fs.existsSync(scrollUtilPath)).toBe(true);
+    expect(zoomCode.includes('applyTimelineViewportWheelPan')).toBe(true);
+    expect(zoomCode.includes('applyTimelineViewportScroll')).toBe(true);
+    expect(rulerCode.includes('applyTimelineViewportScroll')).toBe(true);
+  });
+
+  it('unifies lasso preview overlay and disables RegionsPlugin empty drag selection', () => {
+    const lanesPath = path.resolve(
+      process.cwd(),
+      'src/components/TranscriptionTimelineHorizontalMediaLanes.tsx',
+    );
+    const waveOverlayPath = path.resolve(
+      process.cwd(),
+      'src/components/transcription/WaveformOverlayDecorations.tsx',
+    );
+    const bridgePath = path.resolve(
+      process.cwd(),
+      'src/pages/useTranscriptionWaveformBridgeController.ts',
+    );
+    const lanesCode = fs.readFileSync(lanesPath, 'utf8');
+    const waveOverlayCode = fs.readFileSync(waveOverlayPath, 'utf8');
+    const bridgeCode = fs.readFileSync(bridgePath, 'utf8');
+    expect(lanesCode.includes('TierLassoPreviewOverlay')).toBe(true);
+    expect(waveOverlayCode.includes('WaveLassoPreviewOverlay')).toBe(true);
+    expect(bridgeCode.includes('enableEmptyDragCreate: false')).toBe(true);
   });
 
   it('routes waveform overlay scroll through viewportFrame authority', () => {

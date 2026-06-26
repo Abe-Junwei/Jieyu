@@ -8,7 +8,7 @@ import { TIMELINE_PARITY_MATRIX, TIMELINE_PARITY_MATRIX_VERSION } from './timeli
  */
 describe('segmentRangeGestureParity', () => {
   it('locks matrix version for phase F contract drift', () => {
-    expect(TIMELINE_PARITY_MATRIX_VERSION).toBe(26);
+    expect(TIMELINE_PARITY_MATRIX_VERSION).toBe(32);
   });
 
   it('declares segment-range-gesture-single-surface parity targets', () => {

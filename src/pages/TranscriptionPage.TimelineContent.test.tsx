@@ -3,6 +3,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TranscriptionPageTimelineContent } from './TranscriptionPage.TimelineContent';
+import { buildEmptyTimelinePolicy } from '../utils/emptyTimelinePolicy';
 
 const { mediaLanesSpy, comparisonSpy } = vi.hoisted(() => ({
   mediaLanesSpy: vi.fn(),
@@ -37,8 +38,17 @@ describe('TranscriptionPageTimelineContent', () => {
         verticalComparisonEnabled
         mediaLanesProps={{} as never}
         textOnlyProps={{ verticalViewEnabled: true } as never}
-        emptyStateProps={{ locale: 'zh-CN', layersCount: 2, hasSelectedMedia: true, onCreateTranscriptionLayer: vi.fn(), onOpenImportFile: vi.fn() }}
-      />, 
+        emptyStateProps={{
+          locale: 'zh-CN',
+          policy: buildEmptyTimelinePolicy({
+            layersCount: 2,
+            hasSelectedMedia: true,
+            currentMediaUnitCount: 0,
+          }),
+          onCreateTranscriptionLayer: vi.fn(),
+          onOpenImportFile: vi.fn(),
+        }}
+      />,
     );
 
     expect(screen.getByTestId('vertical-timeline-shell-mock')).toBeTruthy();
@@ -53,12 +63,23 @@ describe('TranscriptionPageTimelineContent', () => {
         workspaceAcousticChromeState="playable"
         verticalComparisonEnabled
         mediaLanesProps={{} as never}
-        textOnlyProps={{
-          verticalViewEnabled: true,
-          transcriptionLayers: [{ id: 'layer-1' }] as never,
-          translationLayers: [],
-        } as never}
-        emptyStateProps={{ locale: 'zh-CN', layersCount: 0, hasSelectedMedia: true, onCreateTranscriptionLayer: vi.fn(), onOpenImportFile: vi.fn() }}
+        textOnlyProps={
+          {
+            verticalViewEnabled: true,
+            transcriptionLayers: [{ id: 'layer-1' }] as never,
+            translationLayers: [],
+          } as never
+        }
+        emptyStateProps={{
+          locale: 'zh-CN',
+          policy: buildEmptyTimelinePolicy({
+            layersCount: 0,
+            hasSelectedMedia: true,
+            currentMediaUnitCount: 0,
+          }),
+          onCreateTranscriptionLayer: vi.fn(),
+          onOpenImportFile: vi.fn(),
+        }}
       />,
     );
 

@@ -23,6 +23,7 @@ import {
   DEFAULT_TIMELINE_LANE_HEIGHT,
   useTimelineLaneHeightResize,
 } from '../hooks/transcription/useTimelineLaneHeightResize';
+import { TierLassoPreviewOverlay } from './transcription/SegmentRangeLassoPreviewOverlay';
 import { t, useLocale } from '../i18n';
 import { useLayerDeleteConfirm } from '~/hooks/layer/useLayerDeleteConfirm';
 import {
@@ -543,19 +544,7 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
           minWidth: 0,
         }}
       >
-        {lassoRect && (
-          <svg className="timeline-lasso-overlay" aria-hidden="true">
-            <rect
-              className="timeline-lasso-rect"
-              x={lassoRect.x}
-              y={lassoRect.y}
-              width={lassoRect.w}
-              height={lassoRect.h}
-              rx={2}
-              ry={2}
-            />
-          </svg>
-        )}
+        {lassoRect ? <TierLassoPreviewOverlay rect={lassoRect} /> : null}
         {allLayersOrdered.map((layer, idx) => {
           if (layer.layerType === 'transcription') {
             const segmentSourceLayer = resolveSegmentTimelineSourceLayer(

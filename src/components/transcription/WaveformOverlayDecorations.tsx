@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { WaveLassoPreviewOverlay } from './SegmentRangeLassoPreviewOverlay';
 import { t, tf, type Locale } from '../../i18n';
 import type { AcousticOverlayMode } from '../../utils/acousticOverlayTypes';
 import { NoteDocumentIcon } from '../NoteDocumentIcon';
@@ -54,10 +55,17 @@ interface WaveformOverlayDecorationsProps {
   waveformOverlayTranslateX: number;
 
   waveformNoteIndicators: WaveformNoteIndicator[];
-  onOpenWaveformNotePopover: (input: { x: number; y: number; uttId: string; layerId?: string }) => void;
+  onOpenWaveformNotePopover: (input: {
+    x: number;
+    y: number;
+    uttId: string;
+    layerId?: string;
+  }) => void;
 }
 
-export const WaveformOverlayDecorations = React.memo(function WaveformOverlayDecorations(props: WaveformOverlayDecorationsProps) {
+export const WaveformOverlayDecorations = React.memo(function WaveformOverlayDecorations(
+  props: WaveformOverlayDecorationsProps,
+) {
   const {
     locale,
     waveformGuideOverlayWidth,
@@ -90,31 +98,43 @@ export const WaveformOverlayDecorations = React.memo(function WaveformOverlayDec
     noteIndicatorLayerRef.current.style.transform = `translateX(${waveformOverlayTranslateX}px)`;
   }, [waveformOverlayTranslateX]);
 
-  const waveformNoteIndicatorNodes = React.useMemo(() => waveformNoteIndicators.map(({ uttId, leftPx, widthPx, count, layerId }) => (
-    <div
-      key={`note-${uttId}`}
-      className="waveform-note-indicator-trigger"
-      ref={(node) => {
-        if (!node) return;
-        node.style.left = `${leftPx + widthPx - 22}px`;
-      }}
-      onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onOpenWaveformNotePopover({ x: e.clientX, y: e.clientY, uttId, ...(layerId ? { layerId } : {}) });
-      }}
-    >
-      <NoteDocumentIcon
-        className="waveform-note-indicator-icon"
-        ariaLabel={tf(locale, 'transcription.notes.count', { count })}
-        title={tf(locale, 'transcription.notes.count', { count })}
-      />
-    </div>
-  )), [locale, onOpenWaveformNotePopover, waveformNoteIndicators]);
+  const waveformNoteIndicatorNodes = React.useMemo(
+    () =>
+      waveformNoteIndicators.map(({ uttId, leftPx, widthPx, count, layerId }) => (
+        <div
+          key={`note-${uttId}`}
+          className="waveform-note-indicator-trigger"
+          ref={(node) => {
+            if (!node) return;
+            node.style.left = `${leftPx + widthPx - 22}px`;
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenWaveformNotePopover({
+              x: e.clientX,
+              y: e.clientY,
+              uttId,
+              ...(layerId ? { layerId } : {}),
+            });
+          }}
+        >
+          <NoteDocumentIcon
+            className="waveform-note-indicator-icon"
+            ariaLabel={tf(locale, 'transcription.notes.count', { count })}
+            title={tf(locale, 'transcription.notes.count', { count })}
+          />
+        </div>
+      )),
+    [locale, onOpenWaveformNotePopover, waveformNoteIndicators],
+  );
 
   return (
     <>
-      {(shouldRenderSelectedHotspot || snapGuideLeftPx != null || snapGuideRightPx != null) ? (
+      {shouldRenderSelectedHotspot || snapGuideLeftPx != null || snapGuideRightPx != null ? (
         <svg
           className="waveform-guide-overlay"
           viewBox={`0 0 ${waveformGuideOverlayWidth} ${waveformGuideOverlayHeight}`}
@@ -178,10 +198,16 @@ export const WaveformOverlayDecorations = React.memo(function WaveformOverlayDec
             preserveAspectRatio="none"
           >
             {acousticOverlayIntensityPath ? (
-              <path className="waveform-acoustic-path waveform-acoustic-path-intensity" d={acousticOverlayIntensityPath} />
+              <path
+                className="waveform-acoustic-path waveform-acoustic-path-intensity"
+                d={acousticOverlayIntensityPath}
+              />
             ) : null}
             {acousticOverlayF0Path ? (
-              <path className="waveform-acoustic-path waveform-acoustic-path-f0" d={acousticOverlayF0Path} />
+              <path
+                className="waveform-acoustic-path waveform-acoustic-path-f0"
+                d={acousticOverlayF0Path}
+              />
             ) : null}
           </svg>
           <div className="waveform-acoustic-legend">
@@ -192,16 +218,18 @@ export const WaveformOverlayDecorations = React.memo(function WaveformOverlayDec
             ) : null}
             {!hasActiveReadout && acousticOverlayMode !== 'intensity' ? (
               <span className="waveform-acoustic-chip waveform-acoustic-chip-f0">
-                {t(locale, 'transcription.wave.acoustic.f0')}
-                {' '}
-                {acousticOverlayVisibleSummary?.f0MeanHz != null ? `${Math.round(acousticOverlayVisibleSummary.f0MeanHz)} Hz` : '—'}
+                {t(locale, 'transcription.wave.acoustic.f0')}{' '}
+                {acousticOverlayVisibleSummary?.f0MeanHz != null
+                  ? `${Math.round(acousticOverlayVisibleSummary.f0MeanHz)} Hz`
+                  : '—'}
               </span>
             ) : null}
             {!hasActiveReadout && acousticOverlayMode !== 'f0' ? (
               <span className="waveform-acoustic-chip waveform-acoustic-chip-intensity">
-                {t(locale, 'transcription.wave.acoustic.intensity')}
-                {' '}
-                {acousticOverlayVisibleSummary?.intensityPeakDb != null ? `${acousticOverlayVisibleSummary.intensityPeakDb.toFixed(1)} dB` : '—'}
+                {t(locale, 'transcription.wave.acoustic.intensity')}{' '}
+                {acousticOverlayVisibleSummary?.intensityPeakDb != null
+                  ? `${acousticOverlayVisibleSummary.intensityPeakDb.toFixed(1)} dB`
+                  : '—'}
               </span>
             ) : null}
           </div>
@@ -209,29 +237,7 @@ export const WaveformOverlayDecorations = React.memo(function WaveformOverlayDec
       ) : null}
 
       {waveLassoOverlay ? (
-        <svg className="wave-lasso-overlay" aria-hidden="true">
-          <rect
-            className={`wave-lasso-rect ${waveLassoOverlay.mode === 'create' ? 'wave-lasso-rect-create' : 'wave-lasso-rect-select'}`}
-            x={waveLassoOverlay.x}
-            y={waveLassoOverlay.y}
-            width={Math.max(2, waveLassoOverlay.w)}
-            height={Math.max(2, waveLassoOverlay.h)}
-            rx={waveLassoOverlay.mode === 'create' ? 0 : 2}
-            ry={waveLassoOverlay.mode === 'create' ? 0 : 2}
-          />
-          {waveLassoOverlay.mode === 'select' ? (
-            <foreignObject
-              x={waveLassoOverlay.x + 8}
-              y={waveLassoOverlay.y + 8}
-              width={172}
-              height={28}
-            >
-              <div className="wave-lasso-hint">
-                {tf(locale, 'transcription.wave.selectionHint', { count: waveLassoOverlay.hintCount })}
-              </div>
-            </foreignObject>
-          ) : null}
-        </svg>
+        <WaveLassoPreviewOverlay overlay={waveLassoOverlay} locale={locale} />
       ) : null}
 
       <div ref={noteIndicatorLayerRef} className="waveform-note-indicator-layer">

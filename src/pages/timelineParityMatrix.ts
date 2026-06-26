@@ -32,13 +32,19 @@
  * 版本 23：阶段 C — `acoustic-shell-chrome-map`（lanes 只消费 mapper 输出的 class）。
  * 版本 24：阶段 A2 — bridge `fitSpanSec` / viewport sizing 与 `timeline.extentSec` 同源（`readyWorkspaceTimelineExtents`）。
  * 版本 25：阶段 B2 — `useZoom` extended-document ruler batch 接 `resolveViewportFrameScrollLeftPx`；overlay/hotspot 接 `viewportFrame`。
- * 版本 26：阶段 D′/E — `snapGuide` 并入 `segmentRangeGestureWriterReducer`；ReadyWorkspace 改时预览写者单源。
+ * 版本 26：阶段 D′ — `snapGuide` 并入 `segmentRangeGestureWriterReducer`；ReadyWorkspace 改时预览写者单源。
+ * 版本 27：阶段 E — `timingEdit` 批写 patch（拖边改时 + snap 同 dispatch）；读模型 `timeRange.mode`；hostWrite 收敛为 `setTimingEditPreview`。
+ * 版本 28：阶段 F — `selectionProjection` + `emptyTimeline` 读模型；`applyTimelineSelectionCommand` 写 funnel；`EmptyTimelinePolicy` 驱动空壳。
+ * 版本 29：阶段 F·2 — 横向轨面 `useTimelineAnnotationHelpers` 选集写路径经 `writeTimelineSelection` → `applyTimelineSelectionCommand`。
+ * 版本 30：阶段 F·3 — 波形 `useTranscriptionTimelineInteractionController` 选集写路径经同一 funnel。
+ * 版本 31：阶段 B 完成 — `applyTimelineViewportScroll` 收敛 wheel/ruler/跟随写路径；阶段 D — 套索 overlay 统一组件 + 禁用 RegionsPlugin 拖选视觉。
+ * 版本 32：审查修复 — `useLasso` 波形套索时间坐标回退 WS scroll-parent；轨面 segment shift/meta 经 `writeTimelineSelection`；`timeDrag` previewMode 语义修正。
  */
 
 import type { TimelineParityMatrixRowId } from '../i18n/messages';
 import { timelineParityMatrixRowsZh } from '../i18n/messages';
 
-export const TIMELINE_PARITY_MATRIX_VERSION = 26 as const;
+export const TIMELINE_PARITY_MATRIX_VERSION = 32 as const;
 
 type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
 
@@ -102,6 +108,8 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
       'src/utils/viewportFrameToDocRange.test.ts',
       'src/utils/viewportFrameToScreenRange.test.ts',
       'src/utils/resolveViewportFrameScrollLeftPx.test.ts',
+      'src/utils/applyTimelineViewportScroll.test.ts',
+      'src/utils/waveformScrollParentScrollPx.test.ts',
       'src/hooks/ui/useZoom.test.ts',
       'src/pages/waveformBridgeTierScrollSync.test.ts',
       'src/hooks/ui/useLasso.test.tsx',
@@ -145,6 +153,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
       'src/pages/segmentRangeGestureParity.test.ts',
       'src/pages/TranscriptionPage.structure.test.ts',
       'src/hooks/ui/useLasso.test.tsx',
+      'src/components/transcription/SegmentRangeLassoPreviewOverlay.tsx',
     ],
   },
   {
@@ -158,6 +167,31 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
       'src/hooks/transcription/useSegmentRangeGesturePreviewWriter.test.ts',
       'src/pages/segmentRangeGestureParity.test.ts',
       'src/pages/timelineParityMatrix.test.ts',
+    ],
+  },
+  {
+    id: 'selection-write-funnel',
+    ...rowParts('selection-write-funnel'),
+    parity: { waveform: 'full', textOnly: 'full', vertical: 'partial' },
+    testAnchors: [
+      'src/pages/phaseFSelectionAndEmptyPolicy.test.ts',
+      'src/utils/applyTimelineSelectionCommand.test.ts',
+      'src/utils/timelineSelectionProjection.test.ts',
+      'src/pages/timelineReadModel.test.ts',
+      'src/hooks/transcription/useTimelineAnnotationHelpers.test.tsx',
+      'src/pages/useTranscriptionTimelineInteractionController.test.tsx',
+      'src/pages/TranscriptionPage.structure.test.ts',
+    ],
+  },
+  {
+    id: 'empty-timeline-policy',
+    ...rowParts('empty-timeline-policy'),
+    parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
+    testAnchors: [
+      'src/pages/phaseFSelectionAndEmptyPolicy.test.ts',
+      'src/utils/emptyTimelinePolicy.test.ts',
+      'src/pages/TranscriptionPage.TimelineEmptyState.test.tsx',
+      'src/pages/useTranscriptionTimelineContentViewModel.test.tsx',
     ],
   },
   {
