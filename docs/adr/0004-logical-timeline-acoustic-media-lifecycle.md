@@ -69,6 +69,10 @@ Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现
 | **C. 自动扩展逻辑轴** | 仅扩展 `logicalDurationSec`/占位 duration，**不**拉长声学文件；用于避免标尺比文件短 | 可与 B 并用 |
 | **D. 用户显式「缩放时间轴」** | 批量乘系数使 `maxEnd ≤ 文件时长`（类 Praat Scale times） | 独立操作，非默认导入副作用 |
 
+**实现记录（导入冻结仅作用于持久化逻辑时长，2026-06-26 修订）**：`importAudio` 在已有 `logicalDurationSec > 0` 时不再因更长声学抬高逻辑轴；互操作导入 metadata 经 `mergeImportedTimelineMetadata` 钳制——即**冻结只作用于持久化的 `logicalDurationSec`**。**显示跨度不冻结**：`resolveTimelineBindingExtentSec` 取 `max(文献, 声学)`，更长声学时铺轨 / 标尺 / 建段上界跟到完整声学时长（波形完整可见可滚），播放亦覆盖完整媒体（不再以文献跨度钳制 seek/timeupdate）。显式扩展仍走 `expandTextLogicalDurationToAtLeast`。**例外**：占位删音后再绑**更短**声学仍走 ADR-0019 压缩；**更长**声学导入不抬高已冻结逻辑轴（但完整显示 / 播放）。
+
+> 修订原因：初版（2026-06-26 上午）把显示跨度也钳在文献轴内，导致更长声学被截断、波形 / 标尺无法到达声学尾部。按用户反馈改为「完整显示波形，仅不延伸持久化文本时长」。
+
 **冻结结论**：阶段 1 起，导入路径**不得**在未经用户确认的情况下对全体语段做 **D 类缩放**；若实现 **A**，须在 UI 与 i18n 中说明原因。
 
 **更新（ADR-0019）**：占位行**首次**晋升为可播放声学轨（`importAudio` 占位合并路径）且 `L > 文件时长` 时，允许对该 `mediaId` 上坐标做自动线性缩放 + 平移；见 [0019-first-acoustic-import-time-remap.md](./0019-first-acoustic-import-time-remap.md)。

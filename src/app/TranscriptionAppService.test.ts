@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createTranscriptionAppService, type TranscriptionAppServiceDeps } from './TranscriptionAppService';
+import {
+  createTranscriptionAppService,
+  type TranscriptionAppServiceDeps,
+} from './TranscriptionAppService';
 
-function createDeps(overrides: Partial<TranscriptionAppServiceDeps> = {}): TranscriptionAppServiceDeps {
+function createDeps(
+  overrides: Partial<TranscriptionAppServiceDeps> = {},
+): TranscriptionAppServiceDeps {
   const deps: TranscriptionAppServiceDeps = {
     createProject: vi.fn(async () => ({ textId: 'text-1' })),
     createPlaceholderMedia: vi.fn(async () => ({
@@ -15,14 +20,18 @@ function createDeps(overrides: Partial<TranscriptionAppServiceDeps> = {}): Trans
     })),
     importAudio: vi.fn(async () => ({ mediaId: 'media-1' })),
     expandTextLogicalDurationToAtLeast: vi.fn(async () => undefined),
+    setTextLogicalDurationSec: vi.fn(async () => undefined),
     deleteProject: vi.fn(async () => undefined),
     deleteAudio: vi.fn(async () => undefined),
     deleteSegments: vi.fn(async () => undefined),
-    splitSegment: vi.fn(async () => ({
-      first: { id: 'seg-left' },
-      second: { id: 'seg-right' },
-    } as { first: { id: string }; second: { id: string } })),
-    mergeAdjacentSegments: vi.fn(async () => ({ id: 'seg-merged' } as { id: string })),
+    splitSegment: vi.fn(
+      async () =>
+        ({
+          first: { id: 'seg-left' },
+          second: { id: 'seg-right' },
+        }) as { first: { id: string }; second: { id: string } },
+    ),
+    mergeAdjacentSegments: vi.fn(async () => ({ id: 'seg-merged' }) as { id: string }),
     deleteSegment: vi.fn(async () => undefined),
     updateTextTimeMapping: vi.fn(async () => ({
       id: 'text-1',
@@ -39,7 +48,7 @@ function createDeps(overrides: Partial<TranscriptionAppServiceDeps> = {}): Trans
       offsetSec: 3,
       scale: 1.2,
     })),
-    loadAudioBuffer: vi.fn(async () => ({ duration: 3 } as AudioBuffer)),
+    loadAudioBuffer: vi.fn(async () => ({ duration: 3 }) as AudioBuffer),
     detectVadSegments: vi.fn(() => [{ start: 0.1, end: 0.9 }]),
     ensureVadCacheForMedia: vi.fn(async () => null),
     vadAutoWarmMaxBytes: 100,
@@ -106,8 +115,11 @@ describe('TranscriptionAppService', () => {
   it('falls back to decode+energy VAD when cache is unavailable', async () => {
     const deps = createDeps({
       ensureVadCacheForMedia: vi.fn(async () => null),
-      loadAudioBuffer: vi.fn(async () => ({ duration: 5 } as AudioBuffer)),
-      detectVadSegments: vi.fn(() => [{ start: 0.2, end: 0.8 }, { start: 1.1, end: 2.4 }]),
+      loadAudioBuffer: vi.fn(async () => ({ duration: 5 }) as AudioBuffer),
+      detectVadSegments: vi.fn(() => [
+        { start: 0.2, end: 0.8 },
+        { start: 1.1, end: 2.4 },
+      ]),
     });
     const service = createTranscriptionAppService(deps);
 
@@ -117,7 +129,10 @@ describe('TranscriptionAppService', () => {
     });
 
     expect(deps.loadAudioBuffer).toHaveBeenCalledWith('https://example.com/demo.wav');
-    expect(segments).toEqual([{ start: 0.2, end: 0.8 }, { start: 1.1, end: 2.4 }]);
+    expect(segments).toEqual([
+      { start: 0.2, end: 0.8 },
+      { start: 1.1, end: 2.4 },
+    ]);
   });
 
   it('forwards project/media and segment operations to underlying dependencies', async () => {

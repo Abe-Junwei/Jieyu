@@ -22,6 +22,7 @@ function TierLassoHarness(props: {
   const playerRef = useRef<WaveSurfer | null>(null);
   const skipSeekForIdRef = useRef<string | null>(null);
   const subSelectDragRef = useRef<SubSelectDrag | null>(null);
+  const pxPerDocSec = props.zoomPxPerSec ?? 10;
 
   const lasso = useLasso({
     waveCanvasRef,
@@ -32,7 +33,7 @@ function TierLassoHarness(props: {
     timelineItems: props.timelineItems ?? [{ id: 'u1', startTime: 0, endTime: 10 }],
     selectedUnitIds: new Set(['u1']),
     selectedUnitId: 'u1',
-    zoomPxPerSec: props.zoomPxPerSec ?? 10,
+    viewportFrame: { pxPerDocSec },
     skipSeekForIdRef,
     clearUnitSelection: props.clearUnitSelection,
     createUnitFromSelection: props.createUnitFromSelection ?? vi.fn(async () => {}),
@@ -116,7 +117,7 @@ function WaveformLassoHarness(props: {
     timelineItems: [],
     selectedUnitIds: new Set(),
     selectedUnitId: '',
-    zoomPxPerSec: 10,
+    viewportFrame: { pxPerDocSec: 10 },
     skipSeekForIdRef,
     clearUnitSelection: props.clearUnitSelection,
     createUnitFromSelection: props.createUnitFromSelection ?? vi.fn(async () => {}),

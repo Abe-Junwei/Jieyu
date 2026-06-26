@@ -46,7 +46,6 @@ export type BuildSharedLanePropsInput = TimelineHostSharedLaneProps & {
 
 export type BuiltSharedLaneProps = Omit<
   HorizontalMediaLanesProps,
-  | 'playerDuration'
   | 'timelineExtentSec'
   | 'zoomPxPerSec'
   | 'lassoRect'

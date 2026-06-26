@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import type { GenericPlugin } from 'wavesurfer.js/dist/base-plugin.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
+import { useLatest } from '../ui/useLatest';
 import {
   evaluateSegmentTimeUpdateGuard,
   type SegmentSeekGuard,
@@ -19,7 +20,7 @@ import {
   getTranscriptionPlaybackClockSnapshot,
   setTranscriptionPlaybackClock,
 } from '../transcription/transcriptionPlaybackClock';
-import { useLatest } from '../ui/useLatest';
+import { clampTimeToPlaybackCap } from '../../utils/timelineBindingExtent';
 
 const log = createLogger('useWaveSurfer');
 
@@ -88,6 +89,8 @@ export interface UseWaveSurferOptions {
   ) => void;
   /** Whether WaveSurfer should auto-scroll/center during playback */
   autoScrollDuringPlayback?: boolean;
+  /** 播放/seek 上界（秒）；声学超出冻结文献跨度时钳制播放。 */
+  playbackExtentSec?: number;
   /** WaveSurfer 波形区高度（像素）| Waveform canvas height in pixels */
   waveformHeight?: number;
   /** 波形增益倍率（1 = 默认，>1 峰值放大）| Amplitude scale multiplier via barHeight */
@@ -255,7 +258,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         autoScroll: currentOptions.autoScrollDuringPlayback !== false,
         autoCenter: currentOptions.autoScrollDuringPlayback !== false,
         plugins,
-        minPxPerSec: currentOptions.zoomLevel ?? 40,
+        minPxPerSec: currentOptions.zoomLevel ?? 1,
         barWidth: visualStylePreset.barWidth,
         barHeight: currentOptions.amplitudeScale ?? 1,
         barGap: visualStylePreset.barGap,
@@ -294,7 +297,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
 
       const kickLayoutZoom = () => {
         if (disposed || instanceRef.current !== ws) return;
-        const z = cbRef.current.zoomLevel ?? 40;
+        const z = cbRef.current.zoomLevel ?? 1;
         try {
           if (ws.getDecodedData()) ws.zoom(z);
         } catch {
@@ -423,6 +426,19 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
           return;
         }
 
+        const mediaDur = ws.getDuration() || 0;
+        const playbackCap = clampTimeToPlaybackCap(
+          time,
+          mediaDur,
+          cbRef.current.playbackExtentSec ?? 0,
+        );
+        if (time > playbackCap + 1e-4) {
+          ws.pause();
+          commitPlaybackVisualRef.current?.(playbackCap, true);
+          ws.setTime(playbackCap);
+          return;
+        }
+
         latestPlaybackTimeRef.current = time;
         schedulePlaybackVisualRef.current?.();
       });
@@ -450,7 +466,13 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
           return;
         }
         setIsPlaying(false);
-        commitPlaybackVisualRef.current?.(ws.getDuration() || 0, false);
+        const mediaDur = ws.getDuration() || 0;
+        const endCap = clampTimeToPlaybackCap(
+          mediaDur,
+          mediaDur,
+          cbRef.current.playbackExtentSec ?? 0,
+        );
+        commitPlaybackVisualRef.current?.(endCap, false);
       });
     })(); // end async IIFE
 
@@ -928,20 +950,31 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     }
   }, []);
 
-  const seekBySeconds = useCallback((delta: number) => {
-    const ws = instanceRef.current;
-    if (!ws) return;
-    const next = Math.max(0, Math.min((ws.getCurrentTime() || 0) + delta, ws.getDuration() || 0));
-    ws.setTime(next);
-  }, []);
+  const seekBySeconds = useCallback(
+    (delta: number) => {
+      const ws = instanceRef.current;
+      if (!ws) return;
+      const dur = ws.getDuration() || 0;
+      const next = clampTimeToPlaybackCap(
+        (ws.getCurrentTime() || 0) + delta,
+        dur,
+        cbRef.current.playbackExtentSec ?? 0,
+      );
+      ws.setTime(next);
+    },
+    [cbRef],
+  );
 
-  const seekTo = useCallback((time: number) => {
-    const ws = instanceRef.current;
-    if (!ws) return;
-    const dur = ws.getDuration() || 0;
-    if (dur <= 0) return;
-    ws.setTime(Math.max(0, Math.min(time, dur)));
-  }, []);
+  const seekTo = useCallback(
+    (time: number) => {
+      const ws = instanceRef.current;
+      if (!ws) return;
+      const dur = ws.getDuration() || 0;
+      if (dur <= 0) return;
+      ws.setTime(clampTimeToPlaybackCap(time, dur, cbRef.current.playbackExtentSec ?? 0));
+    },
+    [cbRef],
+  );
 
   // 缩放级别变化时动态 zoom | Dynamically zoom waveform when zoom level changes
   useEffect(() => {

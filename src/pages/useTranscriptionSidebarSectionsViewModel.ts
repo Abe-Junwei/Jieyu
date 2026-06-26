@@ -1,9 +1,16 @@
 import { useEffect, useMemo } from 'react';
 import type { TranscriptionPageAiSidebarProps } from './TranscriptionPage.AiSidebar';
-import type { TranscriptionPageAnalysisRuntimeProps, TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
+import type {
+  TranscriptionPageAnalysisRuntimeProps,
+  TranscriptionPageAssistantRuntimeProps,
+} from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionPageDialogsProps } from './TranscriptionPage.Dialogs';
+import type { AudioImportTimelineMismatchContext } from './transcriptionAudioImportTypes';
+import type { PendingAudioImportSelection } from '../types/useTranscriptionProjectMediaController.types';
 
 type AudioImportDisposition = TranscriptionPageDialogsProps['audioImportDisposition'];
+type AnnotationImportMismatchDialogBinding =
+  TranscriptionPageDialogsProps['annotationImportMismatchDialog'];
 
 export interface UseTranscriptionSidebarSectionsViewModelInput {
   locale: string;
@@ -23,10 +30,19 @@ export interface UseTranscriptionSidebarSectionsViewModelInput {
   updateSpeakerDialogTargetKey: (key: string) => void;
   showProjectSetup: boolean;
   setShowProjectSetup: (value: boolean) => void;
-  handleProjectSetupSubmit: (input: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
+  handleProjectSetupSubmit: (input: {
+    primaryTitle: string;
+    englishFallbackTitle: string;
+    primaryLanguageId: string;
+    primaryOrthographyId?: string;
+  }) => Promise<void>;
   showAudioImport: boolean;
   setShowAudioImport: (value: boolean) => void;
   audioImportDisposition: AudioImportDisposition;
+  audioImportTimelineMismatch: AudioImportTimelineMismatchContext;
+  pendingAudioImportSelection: PendingAudioImportSelection | null;
+  clearPendingAudioImportSelection: () => void;
+  annotationImportMismatchDialog?: AnnotationImportMismatchDialogBinding | null;
   handleAudioImport: TranscriptionPageDialogsProps['onImportAudio'];
   mediaFileInputRef: React.RefObject<HTMLInputElement | null>;
   handleDirectMediaImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -53,10 +69,12 @@ export function countAssistantAttentionSignals(input: {
   selectedTranslationGapCount: number;
   aiSidebarError: string | null;
 }): number {
-  return Number(input.hasPendingToolCall)
-    + Number(input.selectedAiWarning)
-    + Number(input.selectedTranslationGapCount > 0)
-    + Number(Boolean(input.aiSidebarError?.trim()));
+  return (
+    Number(input.hasPendingToolCall) +
+    Number(input.selectedAiWarning) +
+    Number(input.selectedTranslationGapCount > 0) +
+    Number(Boolean(input.aiSidebarError?.trim()))
+  );
 }
 
 export function useTranscriptionSidebarSectionsViewModel(
@@ -84,6 +102,10 @@ export function useTranscriptionSidebarSectionsViewModel(
     showAudioImport,
     setShowAudioImport,
     audioImportDisposition,
+    audioImportTimelineMismatch,
+    pendingAudioImportSelection,
+    clearPendingAudioImportSelection,
+    annotationImportMismatchDialog,
     handleAudioImport,
     mediaFileInputRef,
     handleDirectMediaImport,
@@ -100,54 +122,111 @@ export function useTranscriptionSidebarSectionsViewModel(
   } = input;
 
   useEffect(() => {
-    if (assistantRuntimeProps.aiChatContextValue.aiPendingToolCall && hubSidebarTab !== 'assistant') {
+    if (
+      assistantRuntimeProps.aiChatContextValue.aiPendingToolCall &&
+      hubSidebarTab !== 'assistant'
+    ) {
       setHubSidebarTab('assistant');
     }
   }, [assistantRuntimeProps.aiChatContextValue.aiPendingToolCall, hubSidebarTab, setHubSidebarTab]);
 
-  const aiSidebarProps = useMemo<TranscriptionPageAiSidebarProps>(() => ({
-    locale,
-    isAiPanelCollapsed,
-    hubSidebarTab,
-    onHubSidebarTabChange: setHubSidebarTab,
-    assistantRuntimeProps,
-    analysisRuntimeProps,
-    assistantAttentionCount: countAssistantAttentionSignals({
-      hasPendingToolCall: Boolean(assistantRuntimeProps.aiChatContextValue.aiPendingToolCall),
+  const aiSidebarProps = useMemo<TranscriptionPageAiSidebarProps>(
+    () => ({
+      locale,
+      isAiPanelCollapsed,
+      hubSidebarTab,
+      onHubSidebarTabChange: setHubSidebarTab,
+      assistantRuntimeProps,
+      analysisRuntimeProps,
+      assistantAttentionCount: countAssistantAttentionSignals({
+        hasPendingToolCall: Boolean(assistantRuntimeProps.aiChatContextValue.aiPendingToolCall),
+        selectedAiWarning,
+        selectedTranslationGapCount,
+        aiSidebarError,
+      }),
+    }),
+    [
+      analysisRuntimeProps,
+      aiSidebarError,
+      assistantRuntimeProps,
+      hubSidebarTab,
+      isAiPanelCollapsed,
+      locale,
       selectedAiWarning,
       selectedTranslationGapCount,
-      aiSidebarError,
-    }),
-  }), [analysisRuntimeProps, aiSidebarError, assistantRuntimeProps, hubSidebarTab, isAiPanelCollapsed, locale, selectedAiWarning, selectedTranslationGapCount, setHubSidebarTab]);
+      setHubSidebarTab,
+    ],
+  );
 
-  const dialogsProps = useMemo<TranscriptionPageDialogsProps>(() => ({
-    locale,
-    speakerDialogState,
-    speakerSaving,
-    onCloseSpeakerDialog: closeSpeakerDialog,
-    onConfirmSpeakerDialog: confirmSpeakerDialog,
-    onDraftNameChange: updateSpeakerDialogDraftName,
-    onTargetSpeakerChange: updateSpeakerDialogTargetKey,
-    showProjectSetup,
-    onCloseProjectSetup: () => setShowProjectSetup(false),
-    onSubmitProjectSetup: handleProjectSetupSubmit,
-    showAudioImport,
-    onCloseAudioImport: () => setShowAudioImport(false),
-    audioImportDisposition,
-    onImportAudio: handleAudioImport,
-    mediaFileInputRef,
-    onDirectMediaImport: handleDirectMediaImport,
-    audioDeleteConfirm,
-    onCancelAudioDelete: () => setAudioDeleteConfirm(null),
-    onConfirmAudioDelete: handleConfirmAudioDelete,
-    projectDeleteConfirm,
-    onCancelProjectDelete: () => setProjectDeleteConfirm(false),
-    onConfirmProjectDelete: handleConfirmProjectDelete,
-    showShortcuts,
-    onCloseShortcuts: closeShortcuts,
-    isFocusMode,
-    onExitFocusMode: exitFocusMode,
-  }), [audioDeleteConfirm, audioImportDisposition, closeShortcuts, closeSpeakerDialog, confirmSpeakerDialog, exitFocusMode, handleAudioImport, handleConfirmAudioDelete, handleConfirmProjectDelete, handleDirectMediaImport, handleProjectSetupSubmit, isFocusMode, locale, mediaFileInputRef, projectDeleteConfirm, setAudioDeleteConfirm, setProjectDeleteConfirm, setShowAudioImport, setShowProjectSetup, showAudioImport, showProjectSetup, showShortcuts, speakerDialogState, speakerSaving, updateSpeakerDialogDraftName, updateSpeakerDialogTargetKey]);
+  const dialogsProps = useMemo<TranscriptionPageDialogsProps>(
+    () => ({
+      locale,
+      speakerDialogState,
+      speakerSaving,
+      onCloseSpeakerDialog: closeSpeakerDialog,
+      onConfirmSpeakerDialog: confirmSpeakerDialog,
+      onDraftNameChange: updateSpeakerDialogDraftName,
+      onTargetSpeakerChange: updateSpeakerDialogTargetKey,
+      showProjectSetup,
+      onCloseProjectSetup: () => setShowProjectSetup(false),
+      onSubmitProjectSetup: handleProjectSetupSubmit,
+      showAudioImport,
+      onCloseAudioImport: () => {
+        clearPendingAudioImportSelection();
+        setShowAudioImport(false);
+      },
+      audioImportDisposition,
+      audioImportTimelineMismatch,
+      ...(pendingAudioImportSelection ? { pendingAudioImportSelection } : {}),
+      onConsumePendingAudioImportSelection: clearPendingAudioImportSelection,
+      ...(annotationImportMismatchDialog ? { annotationImportMismatchDialog } : {}),
+      onImportAudio: handleAudioImport,
+      mediaFileInputRef,
+      onDirectMediaImport: handleDirectMediaImport,
+      audioDeleteConfirm,
+      onCancelAudioDelete: () => setAudioDeleteConfirm(null),
+      onConfirmAudioDelete: handleConfirmAudioDelete,
+      projectDeleteConfirm,
+      onCancelProjectDelete: () => setProjectDeleteConfirm(false),
+      onConfirmProjectDelete: handleConfirmProjectDelete,
+      showShortcuts,
+      onCloseShortcuts: closeShortcuts,
+      isFocusMode,
+      onExitFocusMode: exitFocusMode,
+    }),
+    [
+      audioDeleteConfirm,
+      audioImportDisposition,
+      audioImportTimelineMismatch,
+      annotationImportMismatchDialog,
+      clearPendingAudioImportSelection,
+      closeShortcuts,
+      closeSpeakerDialog,
+      confirmSpeakerDialog,
+      exitFocusMode,
+      handleAudioImport,
+      handleConfirmAudioDelete,
+      handleConfirmProjectDelete,
+      handleDirectMediaImport,
+      handleProjectSetupSubmit,
+      isFocusMode,
+      locale,
+      mediaFileInputRef,
+      pendingAudioImportSelection,
+      projectDeleteConfirm,
+      setAudioDeleteConfirm,
+      setProjectDeleteConfirm,
+      setShowAudioImport,
+      setShowProjectSetup,
+      showAudioImport,
+      showProjectSetup,
+      showShortcuts,
+      speakerDialogState,
+      speakerSaving,
+      updateSpeakerDialogDraftName,
+      updateSpeakerDialogTargetKey,
+    ],
+  );
 
   return {
     aiSidebarProps,

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
 import type { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
+import { useLatest } from '../hooks/ui/useLatest';
 import {
   applyTierScrollToWaveSurfer,
   isExtendedDocumentTimeline,
@@ -17,6 +18,7 @@ export function useWaveformBridgeTierScrollSync(input: {
   documentSpanSec: number;
   zoomPxPerSec: number;
   commitWaveformScrollLeft: (nextScrollLeft: number) => void;
+  onTierScrollLeftPx?: (nextScrollLeft: number) => void;
 }): void {
   const {
     tierContainerRef,
@@ -25,26 +27,31 @@ export function useWaveformBridgeTierScrollSync(input: {
     documentSpanSec,
     zoomPxPerSec,
     commitWaveformScrollLeft,
+    onTierScrollLeftPx,
   } = input;
   const previousSelectedMediaUrlForTierResetRef = useRef(selectedMediaUrl);
+  const zoomPxPerSecRef = useLatest(zoomPxPerSec);
 
   useLayoutEffect(() => {
     const tier = tierContainerRef.current;
     if (!tier) return;
     const ws = player.instanceRef.current;
     if (!ws) {
+      onTierScrollLeftPx?.(tier.scrollLeft);
       return;
     }
     const mediaDur = player.duration || 0;
+    const zoomPxPerSecLive = zoomPxPerSecRef.current;
     if (isExtendedDocumentTimeline(documentSpanSec, mediaDur)) {
       const overlayScrollLeft = applyTierScrollToWaveSurfer({
         ws,
         tierScrollLeftPx: tier.scrollLeft,
-        zoomPxPerSec,
+        zoomPxPerSec: zoomPxPerSecLive,
         mediaDurSec: mediaDur,
         documentSpanSec,
       });
       commitWaveformScrollLeft(overlayScrollLeft);
+      onTierScrollLeftPx?.(tier.scrollLeft);
       return;
     }
     const nextScrollLeft = ws.getScroll();
@@ -52,15 +59,17 @@ export function useWaveformBridgeTierScrollSync(input: {
       tier.scrollLeft = nextScrollLeft;
     }
     commitWaveformScrollLeft(nextScrollLeft);
+    onTierScrollLeftPx?.(tier.scrollLeft);
   }, [
     commitWaveformScrollLeft,
+    onTierScrollLeftPx,
     selectedMediaUrl,
     tierContainerRef,
     player.instanceRef,
     player.isReady,
     player.duration,
     documentSpanSec,
-    zoomPxPerSec,
+    zoomPxPerSecRef,
   ]);
 
   useLayoutEffect(() => {
@@ -75,5 +84,12 @@ export function useWaveformBridgeTierScrollSync(input: {
     const ws = player.instanceRef.current;
     if (ws) ws.setScroll(0);
     commitWaveformScrollLeft(0);
-  }, [selectedMediaUrl, tierContainerRef, player.instanceRef, commitWaveformScrollLeft]);
+    onTierScrollLeftPx?.(0);
+  }, [
+    selectedMediaUrl,
+    tierContainerRef,
+    player.instanceRef,
+    commitWaveformScrollLeft,
+    onTierScrollLeftPx,
+  ]);
 }

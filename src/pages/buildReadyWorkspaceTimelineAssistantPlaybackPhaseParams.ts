@@ -339,6 +339,7 @@ export function buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams(
         selectTimelineUnit: data.selectTimelineUnit,
         locale,
         tfB,
+        activeTextTimeMapping: domainShell.activeTextTimeMapping,
         transcriptionLayers: data.transcriptionLayers,
         translationLayers,
         translationTextByLayer: data.translationTextByLayer,

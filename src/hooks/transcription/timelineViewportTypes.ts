@@ -19,7 +19,7 @@ interface TimelineViewportScalars {
   fitPxPerSec: number;
 }
 
-interface TimelineViewportFrame {
+export interface TimelineViewportFrame {
   scrollLeftPx: number;
   pxPerDocSec: number;
   visibleStartSec: number;

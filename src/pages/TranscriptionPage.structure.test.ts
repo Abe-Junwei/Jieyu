@@ -1684,20 +1684,18 @@ describe('TranscriptionPage structure invariants', () => {
     ).toBe(true);
 
     expect(
-      sidebarHookCode.includes(
-        'const aiSidebarProps = useMemo<TranscriptionPageAiSidebarProps>(() => ({',
-      ),
+      sidebarHookCode.includes('const aiSidebarProps = useMemo<TranscriptionPageAiSidebarProps>'),
     ).toBe(true);
+    expect(sidebarHookCode.includes('() => ({')).toBe(true);
     expect(
       sidebarHookCode.includes('assistantRuntimeProps.aiChatContextValue.aiPendingToolCall'),
     ).toBe(true);
     expect(sidebarHookCode.includes('countAssistantAttentionSignals({')).toBe(true);
     expect(sidebarHookCode.includes("setHubSidebarTab('assistant');")).toBe(true);
     expect(
-      sidebarHookCode.includes(
-        'const dialogsProps = useMemo<TranscriptionPageDialogsProps>(() => ({',
-      ),
+      sidebarHookCode.includes('const dialogsProps = useMemo<TranscriptionPageDialogsProps>'),
     ).toBe(true);
+    expect(sidebarHookCode.includes('() => ({')).toBe(true);
     expect(aiSidebarCode.includes('shouldRenderRuntime = true')).toBe(true);
     expect(aiSidebarCode.includes('shouldRenderRuntime ? (')).toBe(true);
     expect(aiSidebarCode.includes('<AssistantRuntime {...assistantRuntimeProps} />')).toBe(true);
@@ -2318,9 +2316,52 @@ describe('TranscriptionPage structure invariants', () => {
     const matrixPath = path.resolve(process.cwd(), 'src/pages/timelineParityMatrix.ts');
     const matrixCode = fs.readFileSync(matrixPath, 'utf8');
     expect(matrixCode.includes("id: 'timeline-shell-layers-count-single-source'")).toBe(true);
+    expect(matrixCode.includes("id: 'timeline-extent-single-source'")).toBe(true);
     expect(matrixCode.includes("id: 'segment-range-gesture-single-surface'")).toBe(true);
     expect(matrixCode.includes("id: 'phase-f-range-preview-ssot'")).toBe(true);
-    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 18')).toBe(true);
+    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 20')).toBe(true);
+  });
+
+  it('keeps media lanes layout on timelineExtentSec without playerDuration fallback', () => {
+    const lanesPath = path.resolve(
+      process.cwd(),
+      'src/components/TranscriptionTimelineHorizontalMediaLanes.tsx',
+    );
+    const vmPath = path.resolve(
+      process.cwd(),
+      'src/pages/useTranscriptionTimelineContentViewModel.ts',
+    );
+    const orchestratorInputPath = path.resolve(
+      process.cwd(),
+      'src/pages/transcriptionReadyWorkspaceOrchestratorInput.ts',
+    );
+    const vmInputBuilderPath = path.resolve(
+      process.cwd(),
+      'src/pages/readyWorkspaceViewModelsInputBuilder.ts',
+    );
+    const lanesCode = fs.readFileSync(lanesPath, 'utf8');
+    const vmCode = fs.readFileSync(vmPath, 'utf8');
+    const orchestratorInputCode = fs.readFileSync(orchestratorInputPath, 'utf8');
+    const vmInputBuilderCode = fs.readFileSync(vmInputBuilderPath, 'utf8');
+    expect(lanesCode.includes('timelineExtentSec ?? playerDuration')).toBe(false);
+    expect(lanesCode.includes('timelineExtentSec: number')).toBe(true);
+    expect(vmCode.includes("'playerDuration' | 'timelineExtentSec'")).toBe(false);
+    expect(orchestratorInputCode.includes('timelineExtentSec,')).toBe(true);
+    expect(
+      vmInputBuilderCode.includes('timelineExtentSec: timelineReadModel.timeline.extentSec'),
+    ).toBe(true);
+  });
+
+  it('routes lasso time mapping through viewportFrame on the waveform bridge', () => {
+    const bridgePath = path.resolve(
+      process.cwd(),
+      'src/pages/useTranscriptionWaveformBridgeController.ts',
+    );
+    const bridgeCode = fs.readFileSync(bridgePath, 'utf8');
+    expect(bridgeCode.includes('viewportFrame: timelineViewportProjection.viewportFrame')).toBe(
+      true,
+    );
+    expect(bridgeCode.includes('resolveViewportFrameScrollLeftPx')).toBe(true);
   });
 
   it('keeps orchestration playback facts bound to acoustic.globalState', () => {

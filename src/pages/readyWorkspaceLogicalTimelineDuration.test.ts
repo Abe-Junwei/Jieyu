@@ -12,7 +12,23 @@ describe('computeLogicalTimelineDurationForZoom', () => {
     expect(computeLogicalTimelineDurationForZoom(undefined, [])).toBe(1800);
   });
 
-  it('空轨无 metadata 时可用解码声学秒替代 1800 回退（与导入音频后铺轨一致）', () => {
-    expect(computeLogicalTimelineDurationForZoom(undefined, [], { acousticTimelineAnchorSec: 88 })).toBe(88);
+  it('空轨无 metadata 时可用解码声学秒替代 1800 回退（绿场铺轨）', () => {
+    expect(
+      computeLogicalTimelineDurationForZoom(undefined, [], { acousticTimelineAnchorSec: 88 }),
+    ).toBe(88);
+  });
+
+  it('已有 logicalDurationSec 时不因 acoustic anchor 抬高文献轴', () => {
+    expect(
+      computeLogicalTimelineDurationForZoom(1800, [{ endTime: 100 }], {
+        acousticTimelineAnchorSec: 6700,
+      }),
+    ).toBe(1800);
+  });
+
+  it('默认 1800s 空白画布在解码后优先用声学秒', () => {
+    expect(
+      computeLogicalTimelineDurationForZoom(1800, [], { acousticTimelineAnchorSec: 180 }),
+    ).toBe(180);
   });
 });

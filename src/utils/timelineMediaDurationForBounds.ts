@@ -1,5 +1,6 @@
 import type { MediaItemDocType } from '../db';
 import { isMediaItemPlaceholderRow } from './mediaItemTimelineKind';
+import { resolveTimelineBindingExtentSec } from './timelineBindingExtent';
 
 /** 建段钳制：需能识别占位行（正 `duration` 的占位仍视为无声学上界）。 */
 export type MediaDurationBoundsInput = Pick<MediaItemDocType, 'duration' | 'details' | 'filename'>;
@@ -24,19 +25,27 @@ export function mediaDurationSecForTimeBounds(
 /**
  * 独立语段拖建/「下一段」间隙钳制上界：在有限媒体时长下，与当前文献逻辑轴跨度取 max，
  * 避免「时间轴像素轴 = logicalDuration」而 `media.duration` 更短时，选区被压到已有语段上误报重叠。
+ * 当文献轴已确立且短于声学时，以文献绑定跨度为准（不因更长声学抬高上界）。
  */
 export function independentSegmentInsertionUpperBoundSec(
   media: MediaDurationBoundsInput | null | undefined,
   documentSpanSec?: number | null,
 ): number {
+  const logicalCap =
+    typeof documentSpanSec === 'number' && Number.isFinite(documentSpanSec) && documentSpanSec > 0
+      ? documentSpanSec
+      : 0;
   const mediaCap = mediaDurationSecForTimeBounds(media);
-  const logicalCap = typeof documentSpanSec === 'number'
-    && Number.isFinite(documentSpanSec)
-    && documentSpanSec > 0
-    ? documentSpanSec
-    : 0;
   if (mediaCap === Number.POSITIVE_INFINITY) {
     return Number.POSITIVE_INFINITY;
   }
-  return Math.max(mediaCap, logicalCap);
+  if (logicalCap > 0) {
+    return resolveTimelineBindingExtentSec({
+      documentSpanSec: logicalCap,
+      acousticDurationSec: mediaCap,
+      hasMediaUrl: true,
+      globalPlaybackReady: true,
+    });
+  }
+  return mediaCap;
 }

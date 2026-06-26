@@ -43,7 +43,6 @@ export type TimelineHostSharedLaneProps = Pick<
 /** 多轨横向宿主上由标尺/视窗/注解渲染承担的字段（与 `BuiltSharedLaneProps` 的 Omit 列表一致）。 */
 export type TimelineHorizontalProjectionLaneProps = Pick<
   TranscriptionPageTimelineHorizontalMediaLanesProps,
-  | 'playerDuration'
   | 'zoomPxPerSec'
   | 'lassoRect'
   | 'timelineRenderUnits'

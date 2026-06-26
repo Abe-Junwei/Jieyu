@@ -207,6 +207,7 @@ type TimelineHeaderSectionProps = {
   /** 省略时 TimeRuler 订阅 `transcriptionPlaybackClock` */
   currentTime?: number;
   zoomPxPerSec: number;
+  documentSpanSec: number;
   isLaneHeaderCollapsed: boolean;
   onToggleLaneHeader: () => void;
   instanceRef: RefObject<WaveSurfer | null>;
@@ -224,6 +225,7 @@ export function TimelineHeaderSection({
   isReady,
   currentTime,
   zoomPxPerSec,
+  documentSpanSec,
   isLaneHeaderCollapsed,
   onToggleLaneHeader,
   instanceRef,
@@ -243,6 +245,7 @@ export function TimelineHeaderSection({
       {...(typeof currentTime === 'number' ? { currentTime } : {})}
       rulerView={rulerView}
       zoomPxPerSec={zoomPxPerSec}
+      documentSpanSec={documentSpanSec}
       isLaneHeaderCollapsed={isLaneHeaderCollapsed}
       onToggleLaneHeader={onToggleLaneHeader}
       seekTo={onSeek}

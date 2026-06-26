@@ -100,6 +100,7 @@ export const LinguisticService = {
     createPlaceholder: linguisticServiceMediaImport.createPlaceholderMedia,
     expandTextLogicalDurationToAtLeast:
       linguisticServiceMediaImport.expandTextLogicalDurationToAtLeast,
+    setTextLogicalDurationSec: linguisticServiceMediaImport.setTextLogicalDurationSec,
   },
   database: {
     exportToJSON: linguisticServiceDatabaseIo.exportToJSON,

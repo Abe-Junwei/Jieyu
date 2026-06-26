@@ -7,7 +7,7 @@ import { TIMELINE_PARITY_MATRIX, TIMELINE_PARITY_MATRIX_VERSION } from './timeli
  */
 describe('phaseFRangePreviewSsotParity', () => {
   it('locks matrix version for phase F·1 SSOT contract drift', () => {
-    expect(TIMELINE_PARITY_MATRIX_VERSION).toBe(18);
+    expect(TIMELINE_PARITY_MATRIX_VERSION).toBe(20);
   });
 
   it('declares phase-f-range-preview-ssot as full parity with regression anchors', () => {

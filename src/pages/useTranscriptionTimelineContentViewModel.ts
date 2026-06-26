@@ -30,7 +30,7 @@ interface UseTranscriptionTimelineContentViewModelInput {
   layerActionSetCreateTranscription: () => void;
   mediaLanesPropsInput: Omit<
     TranscriptionPageTimelineHorizontalMediaLanesProps,
-    'playerDuration' | 'timelineExtentSec'
+    'timelineExtentSec'
   >;
   /** 工作区 panel 合同，不含纵向投影字段（见 `verticalProjection`）。 */
   textOnlyPropsInput: TranscriptionPageTimelineWorkspacePanelPropsWithoutVertical;
@@ -43,11 +43,10 @@ export function useTranscriptionTimelineContentViewModel(
 ): TranscriptionPageTimelineContentProps {
   const mediaLanesProps = useMemo<TranscriptionPageTimelineHorizontalMediaLanesProps>(
     () => ({
-      playerDuration: input.playerDuration,
       timelineExtentSec: input.timelineExtentSec,
       ...input.mediaLanesPropsInput,
     }),
-    [input.mediaLanesPropsInput, input.playerDuration, input.timelineExtentSec],
+    [input.mediaLanesPropsInput, input.timelineExtentSec],
   );
 
   const verticalProjection = input.verticalProjection ?? FALLBACK_VERTICAL_PROJECTION;

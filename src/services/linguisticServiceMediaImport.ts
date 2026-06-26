@@ -7,6 +7,10 @@ import {
   MEDIA_TIMELINE_KIND_PLACEHOLDER,
 } from '../utils/mediaItemTimelineKind';
 import { remapLayerUnitsAndAnchorsForFirstAcousticImport } from '../utils/remapLayerUnitsForFirstAcousticImport';
+import {
+  maxTimedUnitEndSec,
+  resolveLogicalDurationAfterAcousticImport,
+} from '../utils/timelineLogicalDurationSync';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 
@@ -51,7 +55,7 @@ export async function importAudio(input: {
       !isAuxiliaryRecordingMediaRow(row),
   );
 
-  const refreshMediaTimelineMetadata = async (_mediaId: string) => {
+  const refreshMediaTimelineMetadata = async (mediaIdForUnits: string) => {
     const textRow = await db.dexie.texts.get(input.textId);
     if (!textRow) return;
     const rowMeta = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
@@ -59,7 +63,14 @@ export async function importAudio(input: {
       typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
         ? rowMeta.logicalDurationSec
         : 0;
-    const nextLogical = Math.max(prevLogical, input.duration);
+    const relatedUnits = await LayerSegmentQueryService.listUnitsByMediaId(mediaIdForUnits);
+    const maxUnitEnd = maxTimedUnitEndSec(relatedUnits);
+    const nextLogical = resolveLogicalDurationAfterAcousticImport({
+      prevLogicalSec: prevLogical,
+      acousticDurationSec: input.duration,
+      maxUnitEndSec: maxUnitEnd,
+      didRemap: false,
+    });
     await db.dexie.texts.put({
       ...textRow,
       metadata: {
@@ -205,9 +216,12 @@ export async function importAudio(input: {
           Number.isFinite(rowMetaAfter.logicalDurationSec)
             ? rowMetaAfter.logicalDurationSec
             : 0;
-        const nextLogicalAfter = remapResult.didRemap
-          ? Math.max(input.duration, remapResult.maxUnitEnd, 1)
-          : Math.max(prevLogicalAfter, input.duration);
+        const nextLogicalAfter = resolveLogicalDurationAfterAcousticImport({
+          prevLogicalSec: prevLogicalAfter,
+          acousticDurationSec: input.duration,
+          maxUnitEndSec: remapResult.maxUnitEnd,
+          didRemap: remapResult.didRemap,
+        });
         await db.dexie.texts.put({
           ...textRowAfterPut,
           metadata: {
@@ -286,6 +300,36 @@ export async function expandTextLogicalDurationToAtLeast(input: {
     metadata: {
       ...rowMeta,
       logicalDurationSec: next,
+    },
+    updatedAt: now,
+  });
+}
+
+/** 空白时间轴导入时写入 `logicalDurationSec`（可小于既有默认 1800s）。 */
+export async function setTextLogicalDurationSec(input: {
+  textId: string;
+  logicalDurationSec: number;
+}): Promise<void> {
+  const db = await getDb();
+  const textRow = await db.dexie.texts.get(input.textId);
+  if (!textRow) return;
+  const nextSec =
+    Number.isFinite(input.logicalDurationSec) && input.logicalDurationSec > 0
+      ? input.logicalDurationSec
+      : 0;
+  if (nextSec <= 0) return;
+  const rowMeta = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
+  const prev =
+    typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
+      ? rowMeta.logicalDurationSec
+      : 0;
+  if (nextSec === prev) return;
+  const now = new Date().toISOString();
+  await db.dexie.texts.put({
+    ...textRow,
+    metadata: {
+      ...rowMeta,
+      logicalDurationSec: nextSec,
     },
     updatedAt: now,
   });

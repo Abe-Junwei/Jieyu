@@ -28,19 +28,37 @@ export interface UseOrchestratorViewModelsInput {
   locale: Locale;
   importFileRef: RefObject<HTMLInputElement | null>;
   layerActionSetCreateTranscription: () => void;
-  mediaLanesPropsInput: Parameters<typeof useTranscriptionTimelineContentViewModel>[0]['mediaLanesPropsInput'];
-  textOnlyPropsInput: Parameters<typeof useTranscriptionTimelineContentViewModel>[0]['textOnlyPropsInput'];
-  verticalProjection?: Parameters<typeof useTranscriptionTimelineContentViewModel>[0]['verticalProjection'];
+  mediaLanesPropsInput: Parameters<
+    typeof useTranscriptionTimelineContentViewModel
+  >[0]['mediaLanesPropsInput'];
+  textOnlyPropsInput: Parameters<
+    typeof useTranscriptionTimelineContentViewModel
+  >[0]['textOnlyPropsInput'];
+  verticalProjection?: Parameters<
+    typeof useTranscriptionTimelineContentViewModel
+  >[0]['verticalProjection'];
 
   // ── SectionViewModelsInput deps ──
   selectedTimelineMediaFilename: string | null;
   player: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['player'];
-  waveformDisplayMode: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['waveformDisplayMode'];
-  setWaveformDisplayMode: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setWaveformDisplayMode'];
-  waveformVisualStyle: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['waveformVisualStyle'];
-  setWaveformVisualStyle: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setWaveformVisualStyle'];
-  acousticOverlayMode: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['acousticOverlayMode'];
-  setAcousticOverlayMode: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setAcousticOverlayMode'];
+  waveformDisplayMode: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['waveformDisplayMode'];
+  setWaveformDisplayMode: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['setWaveformDisplayMode'];
+  waveformVisualStyle: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['waveformVisualStyle'];
+  setWaveformVisualStyle: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['setWaveformVisualStyle'];
+  acousticOverlayMode: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['acousticOverlayMode'];
+  setAcousticOverlayMode: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['setAcousticOverlayMode'];
   globalLoopPlayback: boolean;
   setGlobalLoopPlayback: (v: boolean) => void;
   handleGlobalPlayPauseAction: () => void;
@@ -49,7 +67,9 @@ export interface UseOrchestratorViewModelsInput {
   undoLabel: string;
   hasSelectedTimelineMedia: boolean;
   hasActiveTextId: boolean;
-  selectedTimelineUnit: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['selectedTimelineUnit'];
+  selectedTimelineUnit: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['selectedTimelineUnit'];
   notePopoverOpen: boolean;
   showExportMenu: boolean;
   exportMenuRef: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['exportMenuRef'];
@@ -62,45 +82,76 @@ export interface UseOrchestratorViewModelsInput {
   handleDeleteCurrentProject: () => void;
   toggleNotes: () => void;
   setUttOpsMenu: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setUttOpsMenu'];
-  handleAutoSegment: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleAutoSegment'];
+  handleAutoSegment: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['handleAutoSegment'];
   autoSegmentBusy: boolean;
-  setShowExportMenu: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setShowExportMenu'];
+  setShowExportMenu: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['setShowExportMenu'];
   handleExportEaf: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleExportEaf'];
-  handleExportTextGrid: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleExportTextGrid'];
+  handleExportTextGrid: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['handleExportTextGrid'];
   handleExportTrs: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleExportTrs'];
-  handleExportFlextext: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleExportFlextext'];
-  handleExportToolbox: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleExportToolbox'];
+  handleExportFlextext: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['handleExportFlextext'];
+  handleExportToolbox: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['handleExportToolbox'];
   handleExportJyt: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleExportJyt'];
   handleExportJym: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleExportJym'];
-  handleImportFile: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleImportFile'];
-  unitsOnCurrentMedia: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['unitsOnCurrentMedia'];
+  handleImportFile: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['handleImportFile'];
+  unitsOnCurrentMedia: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['unitsOnCurrentMedia'];
   rulerView: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['rulerView'];
+  documentSpanSec: number;
   zoomPxPerSec: number;
   isTimelineLaneHeaderCollapsed: boolean;
   toggleTimelineLaneHeader: () => void;
   waveCanvasRef: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['waveCanvasRef'];
-  tierContainerRef: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['tierContainerRef'];
+  tierContainerRef: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['tierContainerRef'];
   showSearch: boolean;
   searchableItems: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['searchableItems'];
   orthographies: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['orthographies'];
-  activeLayerIdForEdits: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['activeLayerIdForEdits'];
+  activeLayerIdForEdits: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['activeLayerIdForEdits'];
   activeTimelineUnitId: string;
-  searchOverlayRequest: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['searchOverlayRequest'];
-  manualSelectTsRef: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['manualSelectTsRef'];
+  searchOverlayRequest: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['searchOverlayRequest'];
+  manualSelectTsRef: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['manualSelectTsRef'];
   selectUnit: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['selectUnit'];
-  handleSearchReplace: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleSearchReplace'];
+  handleSearchReplace: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['handleSearchReplace'];
   setShowSearch: (v: boolean) => void;
-  setSearchOverlayRequest: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setSearchOverlayRequest'];
+  setSearchOverlayRequest: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['setSearchOverlayRequest'];
 
   // ── SidebarSections deps ──
-  sidebarSectionsInput: Parameters<typeof useTranscriptionSectionViewModels>[0]['sidebarSectionsInput'];
+  sidebarSectionsInput: Parameters<
+    typeof useTranscriptionSectionViewModels
+  >[0]['sidebarSectionsInput'];
 }
 
 export interface UseOrchestratorViewModelsResult {
   timelineContentViewModel: TranscriptionPageTimelineContentProps;
   toolbarProps: ReturnType<typeof useTranscriptionSectionViewModels>['toolbarProps'];
   timelineTopProps: ReturnType<typeof useTranscriptionSectionViewModels>['timelineTopProps'];
-  timelineContentProps: ReturnType<typeof useTranscriptionSectionViewModels>['timelineContentProps'];
+  timelineContentProps: ReturnType<
+    typeof useTranscriptionSectionViewModels
+  >['timelineContentProps'];
   aiSidebarProps: ReturnType<typeof useTranscriptionSectionViewModels>['aiSidebarProps'];
   dialogsProps: ReturnType<typeof useTranscriptionSectionViewModels>['dialogsProps'];
 }
@@ -119,7 +170,9 @@ export function useOrchestratorViewModels(
     layerActionSetCreateTranscription: input.layerActionSetCreateTranscription,
     mediaLanesPropsInput: input.mediaLanesPropsInput,
     textOnlyPropsInput: input.textOnlyPropsInput,
-    ...(input.verticalProjection !== undefined ? { verticalProjection: input.verticalProjection } : {}),
+    ...(input.verticalProjection !== undefined
+      ? { verticalProjection: input.verticalProjection }
+      : {}),
   });
 
   const sectionViewModelsInput = useTranscriptionSectionViewModelsInput({
@@ -169,6 +222,7 @@ export function useOrchestratorViewModels(
     handleImportFile: input.handleImportFile,
     unitsOnCurrentMedia: input.unitsOnCurrentMedia,
     rulerView: input.rulerView,
+    documentSpanSec: input.documentSpanSec,
     zoomPxPerSec: input.zoomPxPerSec,
     isTimelineLaneHeaderCollapsed: input.isTimelineLaneHeaderCollapsed,
     toggleTimelineLaneHeader: input.toggleTimelineLaneHeader,
@@ -188,16 +242,11 @@ export function useOrchestratorViewModels(
     timelineContentProps: timelineContentViewModel,
   });
 
-  const {
-    toolbarProps,
-    timelineTopProps,
-    timelineContentProps,
-    aiSidebarProps,
-    dialogsProps,
-  } = useTranscriptionSectionViewModels({
-    ...sectionViewModelsInput,
-    sidebarSectionsInput: input.sidebarSectionsInput,
-  });
+  const { toolbarProps, timelineTopProps, timelineContentProps, aiSidebarProps, dialogsProps } =
+    useTranscriptionSectionViewModels({
+      ...sectionViewModelsInput,
+      sidebarSectionsInput: input.sidebarSectionsInput,
+    });
 
   return {
     timelineContentViewModel,

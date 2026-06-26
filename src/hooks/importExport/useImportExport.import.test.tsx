@@ -231,7 +231,158 @@ describe('useImportExport - import success under stop-write', () => {
     expect(savedText?.metadata).toEqual(
       expect.objectContaining({
         timelineMode: 'document',
+        logicalDurationSec: 1,
+        timebaseLabel: 'logical-second',
+      }),
+    );
+  });
+
+  it('caps imported logical timeline metadata to established acoustic duration', async () => {
+    const j = await getDb();
+    await j.dexie.texts.put({
+      id: 'text-import-cap',
+      title: { zho: '声学项目' },
+      metadata: { timelineMode: 'media' },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await j.dexie.media_items.put({
+      id: 'media-import-cap',
+      textId: 'text-import-cap',
+      filename: 'clip.wav',
+      duration: 200,
+      details: { audioBlob: new Blob(['x'], { type: 'audio/wav' }), timelineKind: 'acoustic' },
+      isOfflineCached: true,
+      createdAt: NOW,
+    });
+
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-import-cap',
+      textId: 'text-import-cap',
+      key: 'trc_default_import_cap',
+      name: { zho: '默认转写层' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: 'dummy textgrid',
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    mockImportFromTextGrid.mockReturnValueOnce({
+      units: [{ startTime: 0, endTime: 1, transcription: 'x' }],
+      additionalTiers: new Map(),
+      transcriptionTierName: undefined,
+      timelineMetadata: {
+        timelineMode: 'document',
         logicalDurationSec: 1800,
+        timebaseLabel: 'logical-second',
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useImportExport({
+        activeTextId: 'text-import-cap',
+        getActiveTextId: vi.fn(async () => 'text-import-cap'),
+        selectedUnitMedia: undefined,
+        unitsOnCurrentMedia: [],
+        anchors: [],
+        layers: [defaultLayer],
+        translations: [],
+        defaultTranscriptionLayerId: defaultLayer.id,
+        loadSnapshot: vi.fn(async () => undefined),
+        setSaveState: vi.fn(),
+      }),
+    );
+
+    expect(await j.dexie.media_items.where('textId').equals('text-import-cap').count()).toBe(1);
+
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'demo.textgrid', { type: 'text/plain' }),
+      );
+    });
+
+    const savedText = await j.dexie.texts.get('text-import-cap');
+    expect(savedText?.metadata).toEqual(
+      expect.objectContaining({
+        logicalDurationSec: 200,
+        timebaseLabel: 'logical-second',
+      }),
+    );
+  });
+
+  it('tightens greenfield imported logical metadata to parsed units max end', async () => {
+    const j = await getDb();
+    await j.dexie.texts.put({
+      id: 'text-import-greenfield',
+      title: { zho: '空项目' },
+      metadata: {},
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-import-greenfield',
+      textId: 'text-import-greenfield',
+      key: 'trc_default_import_greenfield',
+      name: { zho: '默认转写层' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: 'dummy textgrid',
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+    mockImportFromTextGrid.mockReturnValueOnce({
+      units: [{ startTime: 0, endTime: 42, transcription: 'x' }],
+      additionalTiers: new Map(),
+      transcriptionTierName: undefined,
+      timelineMetadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 1800,
+        timebaseLabel: 'logical-second',
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useImportExport({
+        activeTextId: 'text-import-greenfield',
+        getActiveTextId: vi.fn(async () => 'text-import-greenfield'),
+        selectedUnitMedia: undefined,
+        unitsOnCurrentMedia: [],
+        anchors: [],
+        layers: [defaultLayer],
+        translations: [],
+        defaultTranscriptionLayerId: defaultLayer.id,
+        loadSnapshot: vi.fn(async () => undefined),
+        setSaveState: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'demo.textgrid', { type: 'text/plain' }),
+      );
+    });
+
+    const savedText = await j.dexie.texts.get('text-import-greenfield');
+    expect(savedText?.metadata).toEqual(
+      expect.objectContaining({
+        logicalDurationSec: 42,
         timebaseLabel: 'logical-second',
       }),
     );

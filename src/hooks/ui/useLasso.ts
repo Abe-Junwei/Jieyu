@@ -28,6 +28,7 @@ import {
   getTierTimelineContentPaddingToInnerOffsetPx,
   getTierTimelineInnerOriginScrollPx,
 } from '../../utils/tierTimeAxisOriginScrollPx';
+import type { TimelineViewportFrame } from '../transcription/timelineViewportTypes';
 
 export type SubSelectDrag = {
   active: boolean;
@@ -46,7 +47,7 @@ interface UseLassoInput {
   timelineItems: Array<{ id: string; startTime: number; endTime: number }>;
   selectedUnitIds: Set<string>;
   selectedUnitId: string;
-  zoomPxPerSec: number;
+  viewportFrame: Pick<TimelineViewportFrame, 'pxPerDocSec'>;
   skipSeekForIdRef: React.MutableRefObject<string | null>;
   clearUnitSelection: () => void;
   createUnitFromSelection: (start: number, end: number) => Promise<void>;
@@ -89,7 +90,7 @@ export function useLasso(input: UseLassoInput) {
     timelineItems,
     selectedUnitIds,
     selectedUnitId,
-    zoomPxPerSec,
+    viewportFrame,
     skipSeekForIdRef,
     clearUnitSelection,
     createUnitFromSelection,
@@ -105,6 +106,7 @@ export function useLasso(input: UseLassoInput) {
     tierIndependentSegmentCreateRangeClamp,
     tierLassoMode = 'default',
   } = input;
+  const pxPerDocSec = viewportFrame.pxPerDocSec;
 
   // ---- Lasso state（可抬升到波形桥 reducer，与 Regions 时间预览同一写路径）----
   const [internalLassoPreview, setInternalLassoPreview] = useState<LassoSurfacePreview>({
@@ -586,7 +588,7 @@ export function useLasso(input: UseLassoInput) {
     const pad =
       tc instanceof HTMLElement ? getTierTimelineContentPaddingToInnerOffsetPx(tc) : { x: 0, y: 0 };
 
-    if (zoomPxPerSec > 0) {
+    if (pxPerDocSec > 0) {
       const outcome = computeLassoOutcome(
         timelineItems,
         pending.tStart,
@@ -642,7 +644,7 @@ export function useLasso(input: UseLassoInput) {
     tierContainerRef,
     tierIndependentSegmentCreateRangeClamp,
     timelineItems,
-    zoomPxPerSec,
+    pxPerDocSec,
   ]);
 
   const handleLassoPointerDown = useCallback(
@@ -714,7 +716,7 @@ export function useLasso(input: UseLassoInput) {
       const top = Math.min(ay, cy);
       const height = Math.abs(cy - ay);
 
-      const range = viewportFrameToDocRange({ pxPerDocSec: zoomPxPerSec }, left, width);
+      const range = viewportFrameToDocRange({ pxPerDocSec }, left, width);
       pendingTimelineLassoMoveRef.current = {
         left,
         top,
@@ -730,7 +732,7 @@ export function useLasso(input: UseLassoInput) {
         });
       }
     },
-    [flushTimelineLassoMove, tierContainerRef, zoomPxPerSec],
+    [flushTimelineLassoMove, tierContainerRef, pxPerDocSec],
   );
 
   const handleLassoPointerUp = useCallback(

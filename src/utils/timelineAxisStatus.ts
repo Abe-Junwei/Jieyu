@@ -4,7 +4,6 @@
 import type { LayerUnitDocType, MediaItemDocType } from '../db';
 import { isMediaItemPlaceholderRow } from './mediaItemTimelineKind';
 import { resolveTimelineShellMode } from './timelineShellMode';
-
 export type TimelineAxisMediaHint =
   | { kind: 'hidden' }
   | { kind: 'acoustic_decoding' }
@@ -24,8 +23,11 @@ export function shouldShowLogicalAxisLengthOnAxisStrip(input: {
   return input.hintKind === 'no_playable_media';
 }
 
-export function maxUnitEndTimeSec(units: ReadonlyArray<Pick<LayerUnitDocType, 'endTime'>>): number {
-  return units.reduce((m, u) => (Number.isFinite(u.endTime) ? Math.max(m, u.endTime) : m), 0);
+export function maxUnitEndTimeSec(units: ReadonlyArray<{ endTime?: number }>): number {
+  return units.reduce((m, u) => {
+    const t = u.endTime;
+    return typeof t === 'number' && Number.isFinite(t) ? Math.max(m, t) : m;
+  }, 0);
 }
 
 export interface ResolveTimelineAxisStatusInput {

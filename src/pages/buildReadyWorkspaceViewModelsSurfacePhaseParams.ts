@@ -336,7 +336,7 @@ export function buildReadyWorkspaceViewModelsSurfacePhaseParams(
       playerDuration: player.duration,
       acousticState: timelineReadModel.acoustic.globalState,
       selectedTimelineMedia: selectedTimelineMedia ?? null,
-      unitsOnCurrentMedia,
+      unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
       hiddenByMediaFilterCount,
       activeTextId,
       activeTextTimeMapping,

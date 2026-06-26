@@ -1,43 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
-import { useMediaImport } from './useMediaImport';
-
-const mockCreateProject = vi.hoisted(() => vi.fn());
-const mockImportAudio = vi.hoisted(() => vi.fn());
-const mockGetTranscriptionAppService = vi.hoisted(() =>
-  vi.fn(() => ({
-    createProject: mockCreateProject,
-    importAudio: mockImportAudio,
-  })),
-);
-
-vi.mock('../../app/index', () => ({
-  getTranscriptionAppService: () => mockGetTranscriptionAppService(),
-}));
-
-function createInput() {
-  return {
-    activeTextId: 'text-1',
-    getActiveTextId: vi.fn(async () => 'text-1'),
-    addMediaItem: vi.fn(),
-    setSaveState: vi.fn(),
-    setActiveTextId: vi.fn(),
-    tf: (key: string, opts?: Record<string, unknown>) => {
-      if (key === 'transcription.importExport.conflict') {
-        return 'conflict-message';
-      }
-      if (key === 'transcription.action.audioImportFailed') {
-        return `audio-import-failed: ${String(opts?.message ?? '')}`;
-      }
-      if (key === 'transcription.action.audioImported') {
-        return `audio-imported: ${String(opts?.filename ?? '')}`;
-      }
-      return key;
-    },
-  };
-}
+import { readMediaFileFromInput } from './readMediaFileFromInput';
 
 function installMediaMetadataMock(duration = 12.5) {
   const originalCreateElement = document.createElement.bind(document);
@@ -74,110 +38,35 @@ function createChangeEvent(file: File) {
     writable: true,
     value: file.name,
   });
-  return {
-    event: { target: input } as React.ChangeEvent<HTMLInputElement>,
-    input,
-  };
+  return { target: input } as React.ChangeEvent<HTMLInputElement>;
 }
 
-describe('useMediaImport', () => {
+describe('readMediaFileFromInput', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    mockCreateProject.mockReset();
-    mockImportAudio.mockReset();
-    mockGetTranscriptionAppService.mockClear();
     installMediaMetadataMock();
   });
 
-  it('surfaces import errors via saveState and clears file input', async () => {
-    const input = createInput();
-    mockImportAudio.mockRejectedValueOnce(new Error('disk full'));
-
-    const { result } = renderHook(() => useMediaImport(input));
+  it('returns file and duration for audio', async () => {
     const file = new File(['demo'], 'demo.wav', { type: 'audio/wav' });
-    const { event, input: fileInput } = createChangeEvent(file);
-
-    await act(async () => {
-      await result.current.handleDirectMediaImport(event);
-    });
-
-    expect(input.setSaveState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'error',
-        message: 'audio-import-failed: disk full',
-        errorMeta: expect.objectContaining({
-          category: 'action',
-          action: 'transcription.toolbar.importAudio',
-        }),
-      }),
-    );
-    expect(mockGetTranscriptionAppService).toHaveBeenCalledTimes(1);
-    expect(fileInput.value).toBe('');
-    expect(input.addMediaItem).not.toHaveBeenCalled();
+    const result = await readMediaFileFromInput(createChangeEvent(file));
+    expect(result).toEqual({ file, duration: 12.5 });
   });
 
-  it('maps conflict-like errors to shared conflict message and clears file input', async () => {
-    const input = createInput();
-    const conflict = new Error('row changed externally');
-    conflict.name = 'TranscriptionPersistenceConflictError';
-    mockImportAudio.mockRejectedValueOnce(conflict);
-
-    const { result } = renderHook(() => useMediaImport(input));
-    const file = new File(['demo'], 'demo.wav', { type: 'audio/wav' });
-    const { event, input: fileInput } = createChangeEvent(file);
-
-    await act(async () => {
-      await result.current.handleDirectMediaImport(event);
-    });
-
-    expect(input.setSaveState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'error',
-        message: 'conflict-message',
-        errorMeta: expect.objectContaining({
-          category: 'conflict',
-          action: 'transcription.toolbar.importAudio',
-        }),
-      }),
-    );
-    expect(mockGetTranscriptionAppService).toHaveBeenCalledTimes(1);
-    expect(fileInput.value).toBe('');
+  it('returns null for non-media files', async () => {
+    const file = new File(['x'], 'notes.txt', { type: 'text/plain' });
+    const result = await readMediaFileFromInput(createChangeEvent(file));
+    expect(result).toBeNull();
   });
+});
 
-  it('creates project through app service when no active text exists', async () => {
-    const input = {
-      ...createInput(),
-      activeTextId: null,
-      getActiveTextId: vi.fn(async () => null),
-    };
-    mockCreateProject.mockResolvedValueOnce({ textId: 'text-new' });
-    mockImportAudio.mockResolvedValueOnce({ mediaId: 'media-new' });
-
-    const { result } = renderHook(() => useMediaImport(input));
-    const file = new File(['demo'], 'new-project.wav', { type: 'audio/wav' });
-    const { event } = createChangeEvent(file);
-
-    await act(async () => {
-      await result.current.handleDirectMediaImport(event);
-    });
-
-    expect(mockCreateProject).toHaveBeenCalledWith({
-      primaryTitle: 'new-project',
-      englishFallbackTitle: 'new-project',
-      primaryLanguageId: 'und',
-    });
-    expect(input.setActiveTextId).toHaveBeenCalledWith('text-new');
-    expect(mockImportAudio).toHaveBeenCalledWith(
-      expect.objectContaining({
-        textId: 'text-new',
-        filename: 'new-project.wav',
-      }),
+describe('useMediaImport', () => {
+  it('exposes mediaFileInputRef only', async () => {
+    const { useMediaImport } = await import('./useMediaImport');
+    const { result } = await import('@testing-library/react').then(({ renderHook }) =>
+      renderHook(() => useMediaImport()),
     );
-    expect(input.addMediaItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'media-new',
-        textId: 'text-new',
-      }),
-    );
+    expect(result.current.mediaFileInputRef).toBeDefined();
+    expect(result.current).not.toHaveProperty('handleDirectMediaImport');
   });
 });

@@ -7,8 +7,12 @@ export const timelineParityMatrixRowsZh = {
   'timeline-shell-layers-count-single-source': {
     labelZh: '壳层 layersCount 单源（read model 与 timeline content VM 口径一致）',
   },
+  'timeline-extent-single-source': {
+    labelZh: '时间轴跨度单源（timelineExtentSec → lanes 宽度；max(文献, 声学) 显示规则）',
+  },
   'timeline-viewport-single-writer': {
-    labelZh: '视口投影单路径（useTimelineViewport → read model / orchestrator / stage）',
+    labelZh:
+      '视口投影单路径（useTimelineViewport → read model / orchestrator / viewportFrame 消费）',
   },
   'host-vertical-projection-input': {
     labelZh: '纵向投影编排入参（与 workspace panel 合同解耦，§5.6 L 第二阶段）',

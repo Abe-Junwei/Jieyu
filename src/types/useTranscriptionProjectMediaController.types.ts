@@ -1,16 +1,19 @@
 import type {
   LayerDocType,
-  MediaItemDocType,
   LayerUnitDocType,
   LayerUnitContentDocType,
+  MediaItemDocType,
 } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { Locale } from '../i18n';
 import type {
   AudioImportDisposition,
+  AudioImportTimelineMismatchContext,
   TranscriptionAudioImportOptions,
 } from '../pages/transcriptionAudioImportTypes';
 import type { SearchableItem } from '../utils/searchReplaceUtils';
+
+export type PendingAudioImportSelection = { file: File; duration: number };
 
 export interface UseTranscriptionProjectMediaControllerInput {
   activeTextId: string | null;
@@ -33,6 +36,7 @@ export interface UseTranscriptionProjectMediaControllerInput {
   translationLayers: Array<Pick<LayerDocType, 'id' | 'languageId' | 'orthographyId'>>;
   translationTextByLayer: ReadonlyMap<string, Map<string, LayerUnitContentDocType>>;
   getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
+  activeTextTimeMapping?: { logicalDurationSec?: number } | null;
 }
 
 export interface UseTranscriptionProjectMediaControllerResult {
@@ -58,6 +62,9 @@ export interface UseTranscriptionProjectMediaControllerResult {
     duration: number,
     options?: TranscriptionAudioImportOptions,
   ) => Promise<void>;
+  audioImportTimelineMismatch: AudioImportTimelineMismatchContext;
+  pendingAudioImportSelection: PendingAudioImportSelection | null;
+  clearPendingAudioImportSelection: () => void;
   searchableItems: SearchableItem[];
   setAudioDeleteConfirm: React.Dispatch<React.SetStateAction<{ filename: string } | null>>;
   setProjectDeleteConfirm: React.Dispatch<React.SetStateAction<boolean>>;

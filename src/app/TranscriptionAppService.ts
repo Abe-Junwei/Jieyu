@@ -129,6 +129,7 @@ export interface ITranscriptionAppServiceGateway {
   createPlaceholderMedia(request: CreatePlaceholderMediaRequest): Promise<MediaItemDocType>;
   importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }>;
   expandTextLogicalDurationToAtLeast(request: ExpandTextLogicalDurationRequest): Promise<void>;
+  setTextLogicalDurationSec(request: { textId: string; logicalDurationSec: number }): Promise<void>;
   updateTextTimeMapping(
     request: Parameters<typeof LinguisticService.timeline.updateTimeMapping>[0],
   ): Promise<TextDocType>;
@@ -148,6 +149,7 @@ export interface TranscriptionAppServiceDeps {
   createPlaceholderMedia: typeof LinguisticService.media.createPlaceholder;
   importAudio: typeof LinguisticService.media.importAudio;
   expandTextLogicalDurationToAtLeast: typeof LinguisticService.media.expandTextLogicalDurationToAtLeast;
+  setTextLogicalDurationSec: typeof LinguisticService.media.setTextLogicalDurationSec;
   updateTextTimeMapping: typeof LinguisticService.timeline.updateTimeMapping;
   previewTextTimeMapping: typeof LinguisticService.timeline.previewTimeMapping;
   deleteProject: typeof LinguisticService.cleanup.deleteProject;
@@ -168,6 +170,8 @@ const defaultDeps: TranscriptionAppServiceDeps = {
   importAudio: LinguisticService.media.importAudio.bind(LinguisticService),
   expandTextLogicalDurationToAtLeast:
     LinguisticService.media.expandTextLogicalDurationToAtLeast.bind(LinguisticService),
+  setTextLogicalDurationSec:
+    LinguisticService.media.setTextLogicalDurationSec.bind(LinguisticService),
   updateTextTimeMapping: LinguisticService.timeline.updateTimeMapping.bind(LinguisticService),
   previewTextTimeMapping: LinguisticService.timeline.previewTimeMapping.bind(LinguisticService),
   deleteProject: LinguisticService.cleanup.deleteProject.bind(LinguisticService),
@@ -235,6 +239,13 @@ export function createTranscriptionAppService(
       request: ExpandTextLogicalDurationRequest,
     ): Promise<void> {
       await deps.expandTextLogicalDurationToAtLeast(request);
+    },
+
+    async setTextLogicalDurationSec(request: {
+      textId: string;
+      logicalDurationSec: number;
+    }): Promise<void> {
+      await deps.setTextLogicalDurationSec(request);
     },
 
     async updateTextTimeMapping(

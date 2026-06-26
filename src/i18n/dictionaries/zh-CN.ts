@@ -903,6 +903,9 @@ export const zhCNDictionary = {
   'transcription.timelineAxisStatus.noAcousticBlob': '当前媒体行无可解码播放的数据',
   'transcription.timelineAxisStatus.segmentsBeyondAcoustic':
     '语段最晚结束 {maxEnd}，超过当前媒体可播时长 {acoustic}；超出区间无法在该媒体可播范围内与播放对齐。',
+  'transcription.timelineAxisStatus.acousticLongerThanLogical':
+    '当前媒体可播 {acoustic}，长于文献/逻辑轴 {logicalSpan}。语段时间不变。点击下方可将逻辑轴对齐至媒体长度并关闭本提示。',
+  'transcription.timelineAxisStatus.expandLogicalToAcousticButton': '对齐逻辑轴至媒体长度',
   'transcription.timelineAxisStatus.expandLogicalButton': '扩展逻辑轴',
   'transcription.timelineAxisStatus.expandLogicalBusy': '扩展中…',
   'transcription.timelineAxisStatus.expandLogicalSuccess':
@@ -1616,6 +1619,16 @@ export const zhCNDictionary = {
   'transcription.importDialog.importModeAdd': '新增一条媒体轨',
   'transcription.importDialog.importModeAddHint':
     '新建独立媒体行；时间线上的语段仍挂在当前所选媒体上，需自行切换媒体后再对齐。',
+  'transcription.importDialog.mismatchAcousticLongerThanLogical':
+    '所选文件时长 {acoustic}，长于当前逻辑轴 {logicalSpan}。确认后将保持语段时间不变，并自动扩展逻辑轴以对齐。',
+  'transcription.importDialog.mismatchAcousticShorterThanSegments':
+    '所选文件仅 {acoustic}，但语段最晚结束于 {maxEnd}。导入不会截断语段；超出部分可能无法与播放对齐。',
+  'transcription.importDialog.mismatchFirstAcousticBindWillRemap':
+    '所选文件仅 {acoustic}，但语段最晚结束于 {maxEnd}。首次绑定媒体时，语段起止时间将按比例压缩至文件长度内。',
+  'transcription.importDialog.mismatchDocumentLongerThanEstablished':
+    '所选文件声明的时间轴为 {incoming}，长于当前项目跨度 {established}。确认后将保持语段时间不变，并自动扩展逻辑轴。',
+  'transcription.importDialog.mismatchTitle': '时间轴长度不一致',
+  'transcription.importDialog.mismatchAcknowledge': '我已了解，继续导入',
   'transcription.importExport.exportDone.eaf': 'EAF 已导出。',
   'transcription.importExport.exportDone.textgrid': 'TextGrid 已导出。',
   'transcription.importExport.exportDone.trs': 'TRS 已导出。',

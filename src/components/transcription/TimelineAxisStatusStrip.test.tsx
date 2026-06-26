@@ -12,7 +12,9 @@ describe('TimelineAxisStatusStrip', () => {
       />,
     );
 
-    expect(container.querySelector('.timeline-axis-status-strip__icon')?.textContent).toBe('link_off');
+    expect(container.querySelector('.timeline-axis-status-strip__icon')?.textContent).toBe(
+      'link_off',
+    );
     expect(screen.queryByText(/document-placeholder/i)).toBeNull();
   });
 

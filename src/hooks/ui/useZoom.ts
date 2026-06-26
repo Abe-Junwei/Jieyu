@@ -5,7 +5,10 @@ import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
 } from '../transcription/transcriptionPlaybackClock';
-import { syncWaveScrollToTier } from '../../utils/waveformTierScrollSync';
+import {
+  syncWaveScrollToTier,
+  syncWaveScrollToTierOverlayLeft,
+} from '../../utils/waveformTierScrollSync';
 import { useLatest } from './useLatest';
 
 /**
@@ -150,8 +153,9 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
             const target = Math.max(0, anchorTime * newPxPerSec - w * frac);
             const maxScroll = Math.max(0, t2.scrollWidth - t2.clientWidth);
             t2.scrollLeft = Math.min(maxScroll, target);
-            onLogicalTimelineScrollSync?.(t2.scrollLeft);
-            syncWaveScrollToTier(ws2, t2.scrollLeft, newPxPerSec, mediaDur);
+            onLogicalTimelineScrollSync?.(
+              syncWaveScrollToTierOverlayLeft(ws2, t2.scrollLeft, newPxPerSec, mediaDur),
+            );
           });
           return;
         }
@@ -235,8 +239,9 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
             if (!t || !w) return;
             const maxScroll = Math.max(0, t.scrollWidth - t.clientWidth);
             t.scrollLeft = Math.min(maxScroll, scrollTarget);
-            onLogicalTimelineScrollSync?.(t.scrollLeft);
-            syncWaveScrollToTier(w, t.scrollLeft, newPxPerSec, mediaDur);
+            onLogicalTimelineScrollSync?.(
+              syncWaveScrollToTierOverlayLeft(w, t.scrollLeft, newPxPerSec, mediaDur),
+            );
           };
           if (clamped === zoomPercent) {
             run();
@@ -498,8 +503,9 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
               const next = tier.scrollLeft + resolveTimelineWheelPanDelta(e);
               const maxScroll = Math.max(0, tier.scrollWidth - tier.clientWidth);
               tier.scrollLeft = Math.min(maxScroll, Math.max(0, next));
-              onLogicalTimelineScrollSync?.(tier.scrollLeft);
-              syncWaveScrollToTier(ws, tier.scrollLeft, zoomPxPerSec, mediaDurPan);
+              onLogicalTimelineScrollSync?.(
+                syncWaveScrollToTierOverlayLeft(ws, tier.scrollLeft, zoomPxPerSec, mediaDurPan),
+              );
             }
             return;
           }
@@ -577,8 +583,9 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
             const next = el.scrollLeft + resolveTimelineWheelPanDelta(e);
             const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
             el.scrollLeft = Math.min(maxScroll, Math.max(0, next));
-            onLogicalTimelineScrollSync?.(el.scrollLeft);
-            syncWaveScrollToTier(ws, el.scrollLeft, zoomPxPerSec, mediaDurPan);
+            onLogicalTimelineScrollSync?.(
+              syncWaveScrollToTierOverlayLeft(ws, el.scrollLeft, zoomPxPerSec, mediaDurPan),
+            );
           }
           return;
         }
@@ -643,8 +650,9 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
           const target = Math.max(0, t * zoomPxPerSec - width * 0.15);
           const maxScroll = Math.max(0, tier.scrollWidth - tier.clientWidth);
           tier.scrollLeft = Math.min(maxScroll, target);
-          onLogicalTimelineScrollSync?.(tier.scrollLeft);
-          syncWaveScrollToTier(ws, tier.scrollLeft, zoomPxPerSec, mediaDur);
+          onLogicalTimelineScrollSync?.(
+            syncWaveScrollToTierOverlayLeft(ws, tier.scrollLeft, zoomPxPerSec, mediaDur),
+          );
         }
         return;
       }

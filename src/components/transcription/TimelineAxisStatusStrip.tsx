@@ -1,10 +1,50 @@
+import type { ReactNode } from 'react';
 import type { Locale } from '../../i18n';
 import { t, tf } from '../../i18n';
 import { formatTime } from '../../utils/transcriptionFormatters';
-import { shouldShowLogicalAxisLengthOnAxisStrip, type TimelineAxisMediaHint } from '../../utils/timelineAxisStatus';
+import {
+  shouldShowLogicalAxisLengthOnAxisStrip,
+  type TimelineAxisMediaHint,
+} from '../../utils/timelineAxisStatus';
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { PanelButton } from '../ui/PanelButton';
 import { JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
+
+function renderSegmentsBeyondAcousticLine(
+  locale: Locale,
+  acousticSec: number,
+  maxUnitEndSec: number,
+  expandLogical: TimelineAxisStatusStripProps['expandLogical'],
+): ReactNode {
+  return (
+    <span className="timeline-axis-status-strip__item timeline-axis-status-strip--warn timeline-axis-status-strip__duration-short">
+      <MaterialSymbol
+        name="warning"
+        className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
+      />
+      {tf(locale, 'transcription.timelineAxisStatus.segmentsBeyondAcoustic', {
+        acoustic: formatTime(acousticSec),
+        maxEnd: formatTime(maxUnitEndSec),
+      })}
+      {expandLogical ? (
+        <PanelButton
+          variant="ghost"
+          size="sm"
+          className="timeline-axis-status-strip__action"
+          disabled={expandLogical.busy}
+          onClick={() => {
+            expandLogical.onPress();
+          }}
+        >
+          {expandLogical.busy
+            ? t(locale, 'transcription.timelineAxisStatus.expandLogicalBusy')
+            : t(locale, 'transcription.timelineAxisStatus.expandLogicalButton')}
+        </PanelButton>
+      ) : null}
+    </span>
+  );
+}
+
 export type TimelineAxisStatusStripProps = {
   locale: Locale;
   hint: TimelineAxisMediaHint;
@@ -23,9 +63,10 @@ export function TimelineAxisStatusStrip({
   hiddenByMediaFilterCount,
   expandLogical,
 }: TimelineAxisStatusStripProps) {
-  const showHiddenByMediaFilter = typeof hiddenByMediaFilterCount === 'number'
-    && Number.isFinite(hiddenByMediaFilterCount)
-    && hiddenByMediaFilterCount > 0;
+  const showHiddenByMediaFilter =
+    typeof hiddenByMediaFilterCount === 'number' &&
+    Number.isFinite(hiddenByMediaFilterCount) &&
+    hiddenByMediaFilterCount > 0;
   if (hint.kind === 'hidden' && !showHiddenByMediaFilter) return null;
 
   const showLogical = shouldShowLogicalAxisLengthOnAxisStrip({
@@ -38,7 +79,10 @@ export function TimelineAxisStatusStrip({
       case 'acoustic_decoding':
         return (
           <span className="timeline-axis-status-strip__item timeline-axis-status-strip--info">
-            <MaterialSymbol name="hourglass_empty" className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`} />
+            <MaterialSymbol
+              name="hourglass_empty"
+              className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
+            />
             {t(locale, 'transcription.timelineAxisStatus.acousticDecoding')}
           </span>
         );
@@ -55,27 +99,11 @@ export function TimelineAxisStatusStrip({
           </span>
         );
       case 'duration_short':
-        return (
-          <span className="timeline-axis-status-strip__item timeline-axis-status-strip--warn timeline-axis-status-strip__duration-short">
-            <MaterialSymbol name="warning" className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`} />
-            {tf(locale, 'transcription.timelineAxisStatus.segmentsBeyondAcoustic', {
-              acoustic: formatTime(hint.acousticSec),
-              maxEnd: formatTime(hint.maxUnitEndSec),
-            })}
-            {expandLogical ? (
-              <PanelButton
-                variant="ghost"
-                size="sm"
-                className="timeline-axis-status-strip__action"
-                disabled={expandLogical.busy}
-                onClick={() => { expandLogical.onPress(); }}
-              >
-                {expandLogical.busy
-                  ? t(locale, 'transcription.timelineAxisStatus.expandLogicalBusy')
-                  : t(locale, 'transcription.timelineAxisStatus.expandLogicalButton')}
-              </PanelButton>
-            ) : null}
-          </span>
+        return renderSegmentsBeyondAcousticLine(
+          locale,
+          hint.acousticSec,
+          hint.maxUnitEndSec,
+          expandLogical,
         );
       case 'acoustic_ok':
         return null;
@@ -86,7 +114,10 @@ export function TimelineAxisStatusStrip({
 
   const logicalLine = showLogical ? (
     <span className="timeline-axis-status-strip__item">
-      <MaterialSymbol name="straighten" className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`} />
+      <MaterialSymbol
+        name="straighten"
+        className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
+      />
       {tf(locale, 'transcription.timelineAxisStatus.logicalAxisLength', {
         duration: formatTime(logicalDurationSec as number),
       })}
@@ -95,7 +126,10 @@ export function TimelineAxisStatusStrip({
 
   const hiddenLine = showHiddenByMediaFilter ? (
     <span className="timeline-axis-status-strip__item timeline-axis-status-strip--warn">
-      <MaterialSymbol name="visibility_off" className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`} />
+      <MaterialSymbol
+        name="visibility_off"
+        className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
+      />
       {tf(locale, 'transcription.timelineAxisStatus.hiddenByMediaFilter', {
         count: String(hiddenByMediaFilterCount),
       })}

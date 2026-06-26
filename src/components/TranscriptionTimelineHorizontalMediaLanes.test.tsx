@@ -172,6 +172,42 @@ function makeUnit(
   } as LayerUnitDocType;
 }
 
+describe('TranscriptionTimelineHorizontalMediaLanes layout extent', () => {
+  afterEach(() => {
+    cleanup();
+    timelineLaneHeaderMock.mockClear();
+  });
+
+  it('uses timelineExtentSec alone for timeline content width', () => {
+    const layer = makeLayer('trc-extent');
+    const { container } = render(
+      <TranscriptionTimelineHorizontalMediaLanes
+        timelineExtentSec={30}
+        zoomPxPerSec={10}
+        timelineContentGutterPx={64}
+        lassoRect={null}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUnits={[]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={() => null}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    const content = container.querySelector('.timeline-content') as HTMLElement | null;
+    expect(content).not.toBeNull();
+    expect(content?.style.width).toBe(`${30 * 10 + 64}px`);
+  });
+});
+
 describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -192,7 +228,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[transcriptionLayer]}
@@ -228,7 +264,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[layer]}
@@ -287,7 +323,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     const { container } = render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[layer]}
@@ -345,7 +381,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     const { container } = render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[layer]}
@@ -409,7 +445,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[layer]}
@@ -463,7 +499,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     const { container } = render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[trcHost]}
@@ -519,7 +555,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[]}
@@ -590,7 +626,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     const { rerender } = render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[parentLayer, childLayer]}
@@ -635,7 +671,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     rerender(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[parentLayer, childLayer]}
@@ -703,7 +739,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[parentLayer, childLayer]}
@@ -771,7 +807,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     const { container } = render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[layer]}
@@ -822,7 +858,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[layer]}
@@ -855,7 +891,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[layer]}
@@ -892,7 +928,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     const { rerender } = render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[layer]}
@@ -921,7 +957,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     rerender(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[layer]}
@@ -984,7 +1020,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[layer]}
@@ -1112,7 +1148,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[transcriptionLayer]}
@@ -1191,7 +1227,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[transcriptionLayer]}
@@ -1303,7 +1339,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
 
     render(
       <TranscriptionTimelineHorizontalMediaLanes
-        playerDuration={20}
+        timelineExtentSec={20}
         zoomPxPerSec={100}
         lassoRect={null}
         transcriptionLayers={[transcriptionLayer]}

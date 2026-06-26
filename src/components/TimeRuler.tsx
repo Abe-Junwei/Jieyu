@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { useTranscriptionPlaybackClock } from '../hooks/transcription/transcriptionPlaybackClock';
 import { t, useLocale } from '../i18n';
 import { isExtendedDocumentTimeline, syncWaveScrollToTier } from '../utils/waveformTierScrollSync';
+import {
+  buildTimeRulerTicks,
+  resolveTimeRulerPxPerSec,
+  resolveTimeRulerSpanSec,
+} from '../utils/timeRulerTicks';
 
 interface TimeRulerProps {
   duration: number;
@@ -10,6 +15,7 @@ interface TimeRulerProps {
   currentTime?: number;
   rulerView: { start: number; end: number };
   zoomPxPerSec: number;
+  documentSpanSec: number;
   isLaneHeaderCollapsed: boolean;
   onToggleLaneHeader: () => void;
   seekTo: (time: number) => void;
@@ -65,6 +71,7 @@ export function TimeRuler({
   instanceRef,
   waveCanvasRef,
   tierContainerRef,
+  documentSpanSec,
   onWaveformResizeStart,
   isResizingWaveform,
 }: TimeRulerProps) {
@@ -97,16 +104,37 @@ export function TimeRuler({
   }, []);
 
   const dur = duration;
+  const timelineSpanSec = resolveTimeRulerSpanSec(dur, documentSpanSec);
   const { start, end } = rulerView;
   const windowSec = end - start;
 
+  const [viewWidthPx, setViewWidthPx] = useState(0);
+  useLayoutEffect(() => {
+    const el = waveCanvasRef.current;
+    if (!el) return undefined;
+    const measure = () => {
+      setViewWidthPx(Math.max(0, el.clientWidth));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+    };
+  }, [waveCanvasRef, windowSec]);
+
   const { majorStep, minorStep, fmtLabel } = useMemo(() => {
-    const approxPxPerSec = Math.max(zoomPxPerSec, 1);
+    const approxPxPerSec = resolveTimeRulerPxPerSec({
+      zoomPxPerSec,
+      windowSec,
+      viewWidthPx,
+    });
     const nextMajorStep = NICE_STEPS.find((s) => s * approxPxPerSec >= 120) ?? 600;
     const subDiv = SUB_DIVS.find((d) => (nextMajorStep / d) * approxPxPerSec >= 28) ?? 1;
     const nextMinorStep = nextMajorStep / subDiv;
     const showMs = nextMajorStep < 1;
-    const showHour = dur >= 3600;
+    const showHour = timelineSpanSec >= 3600;
     const formatter = (t: number) => {
       const h = Math.floor(t / 3600);
       const m = Math.floor((t % 3600) / 60);
@@ -134,20 +162,19 @@ export function TimeRuler({
       minorStep: nextMinorStep,
       fmtLabel: formatter,
     };
-  }, [dur, zoomPxPerSec]);
+  }, [timelineSpanSec, viewWidthPx, windowSec, zoomPxPerSec]);
 
-  const ticks = useMemo(() => {
-    const nextTicks: Array<{ time: number; kind: 'major' | 'minor' }> = [];
-    const t0 = Math.max(0, Math.floor(start / minorStep) * minorStep);
-    for (let t = t0; t <= Math.min(end, dur) + 1e-9; t += minorStep) {
-      const rounded = Math.round(t * 1e6) / 1e6;
-      if (rounded > dur) break;
-      const ratio = rounded / majorStep;
-      const isMajor = Math.abs(ratio - Math.round(ratio)) < 1e-6;
-      nextTicks.push({ time: rounded, kind: isMajor ? 'major' : 'minor' });
-    }
-    return nextTicks;
-  }, [dur, end, majorStep, minorStep, start]);
+  const ticks = useMemo(
+    () =>
+      buildTimeRulerTicks({
+        start,
+        end,
+        timelineSpanSec,
+        minorStep,
+        majorStep,
+      }),
+    [end, majorStep, minorStep, start, timelineSpanSec],
+  );
 
   const tickMarks = useMemo(
     () =>
@@ -183,8 +210,8 @@ export function TimeRuler({
     [dur, seekTo],
   );
 
-  const overviewViewportLeft = `${(Math.max(0, start) / dur) * 100}%`;
-  const overviewViewportWidth = `${Math.max(0.8, ((Math.min(dur, end) - Math.max(0, start)) / dur) * 100)}%`;
+  const overviewViewportLeft = `${(Math.max(0, start) / timelineSpanSec) * 100}%`;
+  const overviewViewportWidth = `${Math.max(0.8, ((Math.min(timelineSpanSec, end) - Math.max(0, start)) / timelineSpanSec) * 100)}%`;
 
   if (windowSec <= 0) {
     return <div className="time-ruler" />;
@@ -226,7 +253,7 @@ export function TimeRuler({
           if (!el) return;
           const ws = instanceRef.current;
           const tier = tierContainerRef.current;
-          const extendedTimeline = isExtendedDocumentTimeline(Math.max(dur, rulerView.end), dur);
+          const extendedTimeline = isExtendedDocumentTimeline(documentSpanSec, dur);
           const startScroll =
             extendedTimeline && tier
               ? tier.scrollLeft

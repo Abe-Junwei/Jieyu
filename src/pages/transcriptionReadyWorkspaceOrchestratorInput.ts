@@ -18,6 +18,8 @@ import type {
   TranscriptionPageAnalysisRuntimeProps,
 } from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionPageDialogsProps } from './TranscriptionPage.Dialogs';
+import type { AudioImportTimelineMismatchContext } from './transcriptionAudioImportTypes';
+import type { PendingAudioImportSelection } from '../types/useTranscriptionProjectMediaController.types';
 import type { UseTranscriptionSectionViewModelsInput } from './transcriptionSectionViewModelTypes';
 import {
   dropUndefinedKeys,
@@ -149,6 +151,10 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   showAudioImport: boolean;
   handleAudioImport: TranscriptionPageDialogsProps['onImportAudio'];
   audioImportDisposition: TranscriptionPageDialogsProps['audioImportDisposition'];
+  audioImportTimelineMismatch: AudioImportTimelineMismatchContext;
+  pendingAudioImportSelection: PendingAudioImportSelection | null;
+  clearPendingAudioImportSelection: () => void;
+  annotationImportMismatchDialog?: TranscriptionPageDialogsProps['annotationImportMismatchDialog'];
   mediaFileInputRef: RefObject<HTMLInputElement | null>;
   handleDirectMediaImport: (e: ChangeEvent<HTMLInputElement>) => void;
   audioDeleteConfirm: { filename: string } | null;
@@ -270,6 +276,10 @@ export function buildOrchestratorViewModelsInput(
     showAudioImport,
     handleAudioImport,
     audioImportDisposition,
+    audioImportTimelineMismatch,
+    pendingAudioImportSelection,
+    clearPendingAudioImportSelection,
+    annotationImportMismatchDialog,
     mediaFileInputRef,
     handleDirectMediaImport,
     audioDeleteConfirm,
@@ -386,6 +396,7 @@ export function buildOrchestratorViewModelsInput(
     handleImportFile,
     unitsOnCurrentMedia,
     rulerView: rulerView ?? null,
+    documentSpanSec: timelineViewportProjection.documentSpanSec,
     zoomPxPerSec,
     isTimelineLaneHeaderCollapsed,
     toggleTimelineLaneHeader,
@@ -425,6 +436,10 @@ export function buildOrchestratorViewModelsInput(
       setShowAudioImport,
       handleAudioImport,
       audioImportDisposition,
+      audioImportTimelineMismatch,
+      pendingAudioImportSelection,
+      clearPendingAudioImportSelection,
+      ...(annotationImportMismatchDialog ? { annotationImportMismatchDialog } : {}),
       mediaFileInputRef,
       handleDirectMediaImport,
       audioDeleteConfirm,

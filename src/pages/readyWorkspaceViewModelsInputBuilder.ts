@@ -96,6 +96,10 @@ type ReadyWorkspaceOrchestratorRawWorkspaceTailFields = Pick<
   | 'showAudioImport'
   | 'handleAudioImport'
   | 'audioImportDisposition'
+  | 'audioImportTimelineMismatch'
+  | 'pendingAudioImportSelection'
+  | 'clearPendingAudioImportSelection'
+  | 'annotationImportMismatchDialog'
   | 'mediaFileInputRef'
   | 'handleDirectMediaImport'
   | 'audioDeleteConfirm'
@@ -125,7 +129,8 @@ export type BuildReadyWorkspaceViewModelsInputArgs = {
 export function buildReadyWorkspaceViewModelsInput(
   args: BuildReadyWorkspaceViewModelsInputArgs,
 ): UseReadyWorkspaceViewModelsInput {
-  const { lane, head, timelineReadModel, segmentRangeGesturePreviewReadModel, annotation, tail } = args;
+  const { lane, head, timelineReadModel, segmentRangeGesturePreviewReadModel, annotation, tail } =
+    args;
   return {
     lanePropsInput: lane,
     orchestratorRawInput: mergeReadyWorkspaceOrchestratorRawInputSlices(

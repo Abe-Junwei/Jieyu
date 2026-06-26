@@ -13,6 +13,9 @@ import { t, tf, useLocale } from '../../i18n';
 import { createLogger } from '../../observability/logger';
 import { recordFullProjectArchiveExportCompleted } from '../../utils/backupExportReminderState';
 import { useOrthographies } from '../orthography/useOrthographies';
+import { isImportMismatchRequiresAckError } from '../../utils/timelineImportMismatchAckError';
+import type { TimelineImportMismatchNotice } from '../../utils/timelineImportMismatch';
+import type { AnnotationImportBridgeStrategy } from './useImportExport.annotationImport';
 
 type ExportSupportModules = {
   layerSegmentQueryService: typeof import('../../services/LayerSegmentQueryService');
@@ -135,6 +138,14 @@ export function useImportExport(input: UseImportExportInput) {
     loadSnapshot,
     setSaveState,
   } = input;
+
+  const [pendingAnnotationImport, setPendingAnnotationImport] = useState<{
+    file: File;
+    fileName: string;
+    strategy?: AnnotationImportBridgeStrategy;
+    notices: TimelineImportMismatchNotice[];
+  } | null>(null);
+  const [annotationImportMismatchBusy, setAnnotationImportMismatchBusy] = useState(false);
 
   const segmentExportMediaId = useMemo(() => {
     const fromScope = segmentScopeMediaId?.trim() ?? '';
@@ -800,7 +811,20 @@ export function useImportExport(input: UseImportExportInput) {
           locale,
           normalizeSpeakerLookupKey,
         });
-      return importFile(file, importWriteStrategy);
+      try {
+        return await importFile(file, importWriteStrategy);
+      } catch (err) {
+        if (isImportMismatchRequiresAckError(err)) {
+          setPendingAnnotationImport({
+            file,
+            ...(importWriteStrategy !== undefined ? { strategy: importWriteStrategy } : {}),
+            notices: [...err.notices],
+            fileName: err.fileName,
+          });
+          return;
+        }
+        throw err;
+      }
     },
     [
       activeTextId,
@@ -815,6 +839,50 @@ export function useImportExport(input: UseImportExportInput) {
       setSaveState,
     ],
   );
+
+  const cancelAnnotationImportMismatch = useCallback(() => {
+    setPendingAnnotationImport(null);
+  }, []);
+
+  const confirmAnnotationImportMismatch = useCallback(async () => {
+    if (!pendingAnnotationImport) return;
+    setAnnotationImportMismatchBusy(true);
+    try {
+      const importHandlersModule = await loadImportHandlersModule(importHandlersModuleRef);
+      const { handleImportFile: importFile } =
+        importHandlersModule.createImportExportImportHandlers({
+          activeTextId,
+          getActiveTextId,
+          selectedUnitMedia,
+          activeTimelineMediaItem,
+          segmentScopeMediaId,
+          layers,
+          defaultTranscriptionLayerId,
+          loadSnapshot,
+          setSaveState,
+          locale,
+          normalizeSpeakerLookupKey,
+        });
+      await importFile(pendingAnnotationImport.file, pendingAnnotationImport.strategy, {
+        mismatchAcknowledged: true,
+      });
+      setPendingAnnotationImport(null);
+    } finally {
+      setAnnotationImportMismatchBusy(false);
+    }
+  }, [
+    activeTextId,
+    activeTimelineMediaItem,
+    defaultTranscriptionLayerId,
+    getActiveTextId,
+    layers,
+    loadSnapshot,
+    locale,
+    pendingAnnotationImport,
+    segmentScopeMediaId,
+    selectedUnitMedia,
+    setSaveState,
+  ]);
 
   return {
     importFileRef,
@@ -831,5 +899,15 @@ export function useImportExport(input: UseImportExportInput) {
     previewProjectArchiveImport: archiveImportActions.previewProjectArchiveImport,
     importProjectArchive: archiveImportActions.importProjectArchive,
     handleImportFile,
+    annotationImportMismatchDialog: pendingAnnotationImport
+      ? {
+          isOpen: true,
+          fileName: pendingAnnotationImport.fileName,
+          notices: pendingAnnotationImport.notices,
+          busy: annotationImportMismatchBusy,
+          onClose: cancelAnnotationImportMismatch,
+          onConfirm: confirmAnnotationImportMismatch,
+        }
+      : null,
   };
 }

@@ -26,6 +26,7 @@ interface CreateTranscriptionTimelineTopPropsInput {
   };
   unitsOnCurrentMedia: LayerUnitDocType[];
   rulerView: { start: number; end: number } | null;
+  documentSpanSec: number;
   zoomPxPerSec: number;
   isTimelineLaneHeaderCollapsed: boolean;
   toggleTimelineLaneHeader: () => void;
@@ -57,6 +58,7 @@ export function createTranscriptionTimelineTopProps(
       duration: input.player.duration,
       units: input.unitsOnCurrentMedia,
       rulerView: input.rulerView,
+      documentSpanSec: input.documentSpanSec,
       onSeek: (time) => {
         recordTimelineSeekTelemetryThrottled();
         input.player.seekTo(time);

@@ -982,6 +982,9 @@ export const enUSDictionary = {
     'No decodable playable data on the selected media row',
   'transcription.timelineAxisStatus.segmentsBeyondAcoustic':
     'Latest segment ends at {maxEnd}, beyond the playable media duration {acoustic}; overrun cannot align to playback within that span.',
+  'transcription.timelineAxisStatus.acousticLongerThanLogical':
+    'Playable media is {acoustic}, longer than the logical text axis {logicalSpan}. Segment times are unchanged. Click below to align the logical axis to the media length and dismiss this notice.',
+  'transcription.timelineAxisStatus.expandLogicalToAcousticButton': 'Align logical axis to media',
   'transcription.timelineAxisStatus.expandLogicalButton': 'Expand logical axis',
   'transcription.timelineAxisStatus.expandLogicalBusy': 'Expanding…',
   'transcription.timelineAxisStatus.expandLogicalSuccess':
@@ -1751,6 +1754,16 @@ export const enUSDictionary = {
   'transcription.importDialog.importModeAdd': 'Add a new media track',
   'transcription.importDialog.importModeAddHint':
     'Creates a separate media row. Existing segments stay on the currently selected media until you switch tracks.',
+  'transcription.importDialog.mismatchAcousticLongerThanLogical':
+    'This file is {acoustic} long, longer than the current logical text axis ({logicalSpan}). After you confirm, import will keep segment times and automatically extend the logical axis to match.',
+  'transcription.importDialog.mismatchAcousticShorterThanSegments':
+    'This file is only {acoustic} long, but segments extend to {maxEnd}. Import will not trim segments; playback may not cover the overrun.',
+  'transcription.importDialog.mismatchFirstAcousticBindWillRemap':
+    'This file is only {acoustic} long, but segments extend to {maxEnd}. On first media bind, segment start/end times will be proportionally compressed to fit the file.',
+  'transcription.importDialog.mismatchDocumentLongerThanEstablished':
+    'This file declares a timeline of {incoming}, longer than the current project span ({established}). After you confirm, import will keep segment times and automatically extend the logical axis.',
+  'transcription.importDialog.mismatchTitle': 'Timeline length mismatch',
+  'transcription.importDialog.mismatchAcknowledge': 'I understand and want to continue importing',
   'transcription.importExport.exportDone.eaf': 'EAF exported.',
   'transcription.importExport.exportDone.textgrid': 'TextGrid exported.',
   'transcription.importExport.exportDone.trs': 'TRS exported.',

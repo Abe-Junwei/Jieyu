@@ -25,12 +25,14 @@
  * 版本 16：`phase-f-range-preview-ssot` 读模型贯通编排（tier `lassoRect` / 文本 `timingDragPreview`）与 `OrchestratorWaveformContent` 主波形套索渲染。
  * 版本 17：波形桥 `segmentRangeGestureWriterReducer` 单写者（lasso 预览抬升 + Regions `timeDrag` 同 reducer）；`segmentRangeGesturePreviewWriter.test.ts` 锚点。
  * 版本 18：`useSegmentRangeGesturePreviewWriter` 抽离 hooks；ReadyWorkspace 编排 timeline/annotation 头外提 `buildOrchestratorRawTimelineAnnotationCluster`。
+ * 版本 19：阶段 A **`timeline-extent-single-source`**（lanes 宽度只读 `timelineExtentSec`；§3.1 RM↔VM 壳态对照测试加固）。
+ * 版本 20：阶段 B **`timeline-viewport-single-writer`** 锚点扩展（`viewportFrame` 消费 + tier-primary scroll 投影）。
  */
 
 import type { TimelineParityMatrixRowId } from '../i18n/messages';
 import { timelineParityMatrixRowsZh } from '../i18n/messages';
 
-export const TIMELINE_PARITY_MATRIX_VERSION = 18 as const;
+export const TIMELINE_PARITY_MATRIX_VERSION = 20 as const;
 
 type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
 
@@ -73,11 +75,27 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     ],
   },
   {
+    id: 'timeline-extent-single-source',
+    ...rowParts('timeline-extent-single-source'),
+    parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
+    testAnchors: [
+      'src/utils/timelineExtent.test.ts',
+      'src/pages/timelineReadModel.test.ts',
+      'src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx',
+      'src/pages/transcriptionReadyWorkspaceOrchestratorInput.test.ts',
+      'src/pages/TranscriptionPage.structure.test.ts',
+    ],
+  },
+  {
     id: 'timeline-viewport-single-writer',
     ...rowParts('timeline-viewport-single-writer'),
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
     testAnchors: [
       'src/hooks/transcription/useTimelineViewport.test.ts',
+      'src/utils/viewportFrameToDocRange.test.ts',
+      'src/utils/resolveViewportFrameScrollLeftPx.test.ts',
+      'src/pages/waveformBridgeTierScrollSync.test.ts',
+      'src/hooks/ui/useLasso.test.tsx',
       'src/pages/TranscriptionPage.structure.test.ts',
     ],
   },

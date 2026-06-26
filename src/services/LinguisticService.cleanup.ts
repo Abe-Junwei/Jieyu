@@ -19,9 +19,60 @@ import {
   isMediaItemPlaceholderRow,
   MEDIA_TIMELINE_KIND_PLACEHOLDER,
 } from '../utils/mediaItemTimelineKind';
+import {
+  hasEstablishedTimedUnits,
+  maxTimedUnitEndSec,
+  resolveLogicalDurationSecAfterTimedContentChange,
+} from '../utils/timelineLogicalDurationSync';
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
 
 type JieyuDbInstance = Awaited<ReturnType<typeof getDb>>;
+
+async function syncTextLogicalDurationFromTimedUnitsInTransaction(
+  db: JieyuDbInstance,
+  textId: string,
+  now: string,
+): Promise<void> {
+  const unitRows = await db.dexie.layer_units
+    .where('textId')
+    .equals(textId)
+    .filter((unit) => unit.unitType === 'unit')
+    .toArray();
+  const maxUnitEnd = maxTimedUnitEndSec(unitRows);
+  const hasTimedUnits = hasEstablishedTimedUnits(unitRows);
+  const text = await db.dexie.texts.get(textId);
+  if (!text) return;
+  const rowMeta = (text.metadata as Record<string, unknown> | undefined) ?? {};
+  const existingLogicalDurationSec =
+    typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
+      ? rowMeta.logicalDurationSec
+      : 0;
+  const logicalDurationSec = resolveLogicalDurationSecAfterTimedContentChange({
+    maxUnitEndSec: maxUnitEnd,
+    existingLogicalDurationSec,
+    hasTimedUnits,
+  });
+  if (logicalDurationSec === existingLogicalDurationSec) return;
+
+  await db.dexie.texts.put({
+    ...text,
+    metadata: {
+      ...rowMeta,
+      logicalDurationSec,
+      ...(hasTimedUnits ? {} : { timelineMode: 'document' }),
+    },
+    updatedAt: now,
+  });
+
+  const mediaRows = await db.dexie.media_items.where('textId').equals(textId).toArray();
+  for (const row of mediaRows) {
+    if (!isMediaItemPlaceholderRow(row)) continue;
+    await db.dexie.media_items.put({
+      ...row,
+      ...(logicalDurationSec > 0 ? { duration: logicalDurationSec } : {}),
+    });
+  }
+}
 
 async function removeNotesForUnitIds(
   db: JieyuDbInstance,
@@ -171,23 +222,19 @@ export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void
         }
         await db.dexie.media_items.bulkDelete(siblingPlaceholderIds);
       }
-      const maxUnitEnd = relatedUnits.reduce((maxValue, unit) => {
-        const endTime =
-          typeof unit.endTime === 'number' && Number.isFinite(unit.endTime) ? unit.endTime : 0;
-        return Math.max(maxValue, endTime);
-      }, 0);
+      const maxUnitEnd = maxTimedUnitEndSec(relatedUnits);
       const existingMetadata = text?.metadata as { logicalDurationSec?: unknown } | undefined;
       const existingLogicalDurationSec =
         typeof existingMetadata?.logicalDurationSec === 'number' &&
         Number.isFinite(existingMetadata.logicalDurationSec)
           ? existingMetadata.logicalDurationSec
           : 0;
-      const logicalDurationSec = Math.max(
-        media.duration ?? 0,
-        maxUnitEnd,
+      const hasTimedUnits = hasEstablishedTimedUnits(relatedUnits);
+      const logicalDurationSec = resolveLogicalDurationSecAfterTimedContentChange({
+        maxUnitEndSec: maxUnitEnd,
         existingLogicalDurationSec,
-        1,
-      );
+        hasTimedUnits,
+      });
       const previousDetails = (media.details as Record<string, unknown> | undefined) ?? {};
       const {
         audioBlob: _audioBlob,
@@ -196,7 +243,6 @@ export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void
       } = previousDetails;
 
       const textMeta = (text?.metadata as Record<string, unknown> | undefined) ?? {};
-      const hasTimedUnits = relatedUnits.length > 0;
       /** 互操作标签：由「是否存在时间对齐语段」推断，不再读 `texts.metadata.timelineMode` 做运行时门控。 */
       const preservedTimelineMode = hasTimedUnits ? 'media' : 'document';
       const placeholderDetailTimelineMode = preservedTimelineMode;
@@ -243,6 +289,9 @@ export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void
 
 export async function removeUnitCascade(unitId: string): Promise<void> {
   const db = await getDb();
+  const now = new Date().toISOString();
+  const unitBeforeDelete = await db.dexie.layer_units.get(unitId);
+  const textId = unitBeforeDelete?.textId?.trim() ?? '';
   await withTransaction(
     db,
     'rw',
@@ -277,6 +326,17 @@ export async function removeUnitCascade(unitId: string): Promise<void> {
     },
     { label: 'LinguisticService.cleanup.removeUnitCascade' },
   );
+  if (textId) {
+    await withTransaction(
+      db,
+      'rw',
+      [...dexieStoresForDeleteAudioKeepTimeline(db)],
+      async () => {
+        await syncTextLogicalDurationFromTimedUnitsInTransaction(db, textId, now);
+      },
+      { label: 'LinguisticService.cleanup.syncLogicalDurationAfterRemoveUnit' },
+    );
+  }
   scheduleSegmentMetaSyncForUnitIds([unitId], 'LinguisticService.cleanup.removeUnitCascade');
 }
 
@@ -285,6 +345,16 @@ export async function removeUnitsBatchCascade(unitIds: readonly string[]): Promi
   if (ids.length === 0) return;
 
   const db = await getDb();
+  const now = new Date().toISOString();
+  const bulkRowsBeforeDelete = await db.dexie.layer_units.bulkGet(ids);
+  const textIdsToSync = [
+    ...new Set(
+      bulkRowsBeforeDelete
+        .filter((row): row is LayerUnitDocType => row != null)
+        .map((utt) => utt.textId.trim())
+        .filter(Boolean),
+    ),
+  ];
   await withTransaction(
     db,
     'rw',
@@ -331,5 +401,18 @@ export async function removeUnitsBatchCascade(unitIds: readonly string[]): Promi
     },
     { label: 'LinguisticService.cleanup.removeUnitsBatchCascade' },
   );
+  if (textIdsToSync.length > 0) {
+    await withTransaction(
+      db,
+      'rw',
+      [...dexieStoresForDeleteAudioKeepTimeline(db)],
+      async () => {
+        for (const textId of textIdsToSync) {
+          await syncTextLogicalDurationFromTimedUnitsInTransaction(db, textId, now);
+        }
+      },
+      { label: 'LinguisticService.cleanup.syncLogicalDurationAfterRemoveUnitsBatch' },
+    );
+  }
   scheduleSegmentMetaSyncForUnitIds(ids, 'LinguisticService.cleanup.removeUnitsCascade');
 }

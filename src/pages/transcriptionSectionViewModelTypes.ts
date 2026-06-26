@@ -72,6 +72,7 @@ export interface UseTranscriptionSectionViewModelsInput {
   handleImportFile: (file: File) => Promise<void>;
   unitsOnCurrentMedia: LayerUnitDocType[];
   rulerView: { start: number; end: number } | null;
+  documentSpanSec: number;
   zoomPxPerSec: number;
   isTimelineLaneHeaderCollapsed: boolean;
   toggleTimelineLaneHeader: () => void;

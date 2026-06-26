@@ -130,4 +130,91 @@ describe('AudioImportDialog', () => {
       expect(onImport).toHaveBeenCalledWith(file, 30, { mode: 'add' });
     });
   });
+
+  it('shows mismatch notice when import file is longer than logical axis', async () => {
+    installMediaMetadataMock(6700);
+    renderWithLocale(
+      <AudioImportDialog
+        isOpen
+        onClose={vi.fn()}
+        disposition={{ kind: 'simple' }}
+        timelineMismatch={{
+          logicalDurationSecFromMapping: 1800,
+          unitsOnCurrentMedia: [{ endTime: 1500 }],
+        }}
+        onImport={vi.fn(async () => undefined)}
+      />,
+    );
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [new File(['audio'], 'long.wav', { type: 'audio/wav' })] },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/长于当前逻辑轴|longer than the current logical text axis/i),
+      ).toBeTruthy();
+    });
+
+    expect(screen.getByRole('button', { name: '确认导入' }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByRole('checkbox'));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '确认导入' }).hasAttribute('disabled')).toBe(false);
+    });
+  });
+
+  it('shows mismatch notice for short logical axis without timed units', async () => {
+    installMediaMetadataMock(6700);
+    renderWithLocale(
+      <AudioImportDialog
+        isOpen
+        onClose={vi.fn()}
+        disposition={{ kind: 'simple' }}
+        timelineMismatch={{
+          logicalDurationSecFromMapping: 400,
+          unitsOnCurrentMedia: [],
+        }}
+        onImport={vi.fn(async () => undefined)}
+      />,
+    );
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [new File(['audio'], 'long.wav', { type: 'audio/wav' })] },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/长于当前逻辑轴|longer than the current logical text axis/i),
+      ).toBeTruthy();
+    });
+    expect(screen.getByRole('button', { name: '确认导入' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('does not show remap warning when segments already fit shorter file', async () => {
+    installMediaMetadataMock(180);
+    renderWithLocale(
+      <AudioImportDialog
+        isOpen
+        onClose={vi.fn()}
+        disposition={{ kind: 'simple' }}
+        timelineMismatch={{
+          logicalDurationSecFromMapping: 400,
+          unitsOnCurrentMedia: [{ endTime: 80 }],
+        }}
+        onImport={vi.fn(async () => undefined)}
+      />,
+    );
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [new File(['audio'], 'short.wav', { type: 'audio/wav' })] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '确认导入' }).hasAttribute('disabled')).toBe(false);
+    });
+    expect(screen.queryByText(/按比例压缩|proportionally compressed/i)).toBeNull();
+  });
 });

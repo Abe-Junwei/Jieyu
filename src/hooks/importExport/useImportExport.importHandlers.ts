@@ -28,6 +28,16 @@ import { newId, humanizeTierName } from '../../utils/transcriptionFormatters';
 import { createLogger } from '../../observability/logger';
 import { toErrorMessage } from '../../utils/saveStateError';
 import { reportActionError } from '../../utils/actionErrorReporter';
+import { mergeImportedTimelineMetadata } from '../../utils/timelineBindingExtent';
+import { assessAnnotationImportMismatch } from '../../utils/timelineImportMismatch';
+import {
+  resolveEstablishedAcousticDurationSec,
+  resolveEstablishedDocumentSpanSec,
+  resolveImportedUnitsMaxEndSec,
+} from '../../utils/timelineImportSpanCaps';
+import { ImportMismatchRequiresAckError } from '../../utils/timelineImportMismatchAckError';
+import { resolvePostImportLogicalExpandTargetSec } from '../../utils/timelineImportPostApply';
+import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { loadOrthographyRuntime } from '../../utils/loadOrthographyRuntime';
 import { importAdditionalTiers } from './useImportExport.additionalTierHandlers';
@@ -51,6 +61,10 @@ import {
 } from './useImportExport.layerTreeParentField';
 
 const log = createLogger('useImportExport');
+
+export type ImportExportImportHandlerOptions = {
+  mismatchAcknowledged?: boolean;
+};
 
 type UseImportExportImportHandlersInput = {
   activeTextId: string | null;
@@ -86,6 +100,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
   const handleImportFile = async (
     file: File,
     importWriteStrategy: AnnotationImportBridgeStrategy = DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
+    importOptions?: ImportExportImportHandlerOptions,
   ) => {
     const name = file.name.toLowerCase();
     const isJieyuArchive = name.endsWith('.jym') || name.endsWith('.jyt');
@@ -196,18 +211,51 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
 
       const db = await getDb();
       const now = new Date().toISOString();
-      if (importedTimelineMetadata) {
-        const currentText = await db.dexie.texts.get(importTextId);
-        if (currentText) {
-          await db.dexie.texts.put({
-            ...currentText,
-            metadata: {
-              ...(currentText.metadata ?? {}),
-              ...importedTimelineMetadata,
+      const currentText = await db.dexie.texts.get(importTextId);
+      let establishedDocumentSpanSec = 0;
+      let establishedAcousticSec = 0;
+      if (currentText) {
+        const mediaRows = await db.dexie.media_items.where('textId').equals(importTextId).toArray();
+        const mediaIds = mediaRows.map((row) => row.id);
+        const unitsOnText =
+          mediaIds.length > 0 ? await LayerSegmentQueryService.listUnitsByMediaIds(mediaIds) : [];
+        establishedDocumentSpanSec = resolveEstablishedDocumentSpanSec(
+          (currentText.metadata as Record<string, unknown> | undefined) ?? {},
+          unitsOnText,
+        );
+        establishedAcousticSec = resolveEstablishedAcousticDurationSec(mediaRows);
+      }
+      const importedUnitsMaxEndSec = resolveImportedUnitsMaxEndSec(parsedUnits);
+      const importedLogicalDurationSec =
+        typeof importedTimelineMetadata?.logicalDurationSec === 'number' &&
+        Number.isFinite(importedTimelineMetadata.logicalDurationSec) &&
+        importedTimelineMetadata.logicalDurationSec > 0
+          ? importedTimelineMetadata.logicalDurationSec
+          : undefined;
+      const mismatchNotices = assessAnnotationImportMismatch({
+        establishedDocumentSpanSec,
+        establishedAcousticSec,
+        importedUnitsMaxEndSec,
+        ...(importedLogicalDurationSec !== undefined ? { importedLogicalDurationSec } : {}),
+      });
+      if (mismatchNotices.length > 0 && !importOptions?.mismatchAcknowledged) {
+        throw new ImportMismatchRequiresAckError(file.name, mismatchNotices);
+      }
+
+      if (importedTimelineMetadata && currentText) {
+        await db.dexie.texts.put({
+          ...currentText,
+          metadata: mergeImportedTimelineMetadata(
+            (currentText.metadata as Record<string, unknown> | undefined) ?? {},
+            importedTimelineMetadata,
+            {
+              establishedDocumentSpanSec,
+              establishedAcousticSec,
+              importedUnitsMaxEndSec,
             },
-            updatedAt: now,
-          });
-        }
+          ),
+          updatedAt: now,
+        });
       }
       const layersAfterImport: LayerDocType[] = [...layers];
       const layerById = new Map(layersAfterImport.map((layer) => [layer.id, layer] as const));
@@ -748,6 +796,15 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       if (layerConstraintIssues.length > 0) {
         log.warn('layer constraint validation found issues', { layerConstraintIssues });
       }
+      if (importOptions?.mismatchAcknowledged) {
+        const expandTarget = resolvePostImportLogicalExpandTargetSec(mismatchNotices);
+        if (expandTarget != null && expandTarget > 0) {
+          await LinguisticService.media.expandTextLogicalDurationToAtLeast({
+            textId: importTextId,
+            minLogicalDurationSec: expandTarget,
+          });
+        }
+      }
       await loadSnapshot();
       const importDoneMessage =
         tierCount > 0
@@ -805,6 +862,9 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         ].join(' '),
       });
     } catch (err) {
+      if (err instanceof ImportMismatchRequiresAckError) {
+        throw err;
+      }
       const rawMessage = toErrorMessage(err);
       log.error('Import file failed', {
         fileName: file.name,

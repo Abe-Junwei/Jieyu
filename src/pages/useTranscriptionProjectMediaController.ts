@@ -17,6 +17,13 @@ import type {
   UseTranscriptionProjectMediaControllerResult,
 } from '../types/useTranscriptionProjectMediaController.types';
 import type { TranscriptionAudioImportOptions } from './transcriptionAudioImportTypes';
+import { readMediaFileFromInput } from '~/hooks/media/readMediaFileFromInput';
+import {
+  assessTimelineImportMismatch,
+  resolveAudioImportWillRemapOnFirstBind,
+} from '../utils/timelineImportMismatch';
+import { hasEstablishedTimedUnits } from '../utils/timelineLogicalDurationSync';
+import type { PendingAudioImportSelection } from '../types/useTranscriptionProjectMediaController.types';
 const log = createLogger('useTranscriptionProjectMediaController');
 
 export function useTranscriptionProjectMediaController(
@@ -43,11 +50,28 @@ export function useTranscriptionProjectMediaController(
     translationLayers,
     translationTextByLayer,
     getUnitTextForLayer,
+    activeTextTimeMapping,
   } = input;
 
   const [audioDeleteConfirm, setAudioDeleteConfirm] = useState<{ filename: string } | null>(null);
   const [projectDeleteConfirm, setProjectDeleteConfirm] = useState(false);
   const [autoSegmentBusy, setAutoSegmentBusy] = useState(false);
+  const [pendingAudioImportSelection, setPendingAudioImportSelection] =
+    useState<PendingAudioImportSelection | null>(null);
+
+  const audioImportTimelineMismatch = useMemo(
+    () => ({
+      unitsOnCurrentMedia,
+      ...(typeof activeTextTimeMapping?.logicalDurationSec === 'number'
+        ? { logicalDurationSecFromMapping: activeTextTimeMapping.logicalDurationSec }
+        : {}),
+    }),
+    [activeTextTimeMapping?.logicalDurationSec, unitsOnCurrentMedia],
+  );
+
+  const clearPendingAudioImportSelection = useCallback(() => {
+    setPendingAudioImportSelection(null);
+  }, []);
 
   const audioImportDisposition = useMemo(
     () =>
@@ -59,14 +83,7 @@ export function useTranscriptionProjectMediaController(
     [activeTextId, mediaItems, selectedTimelineMedia],
   );
 
-  const { mediaFileInputRef, handleDirectMediaImport } = useMediaImport({
-    activeTextId,
-    getActiveTextId,
-    addMediaItem,
-    setSaveState,
-    setActiveTextId: (id) => setActiveTextId(id),
-    tf: tfB,
-  });
+  const { mediaFileInputRef } = useMediaImport();
 
   const selectedMediaDetails = selectedTimelineMedia?.details as
     | Record<string, unknown>
@@ -149,6 +166,8 @@ export function useTranscriptionProjectMediaController(
           await transcriptionAppService.deleteAudio(media.id);
           await loadSnapshot();
           selectTimelineUnit(null);
+          clearPendingAudioImportSelection();
+          setShowAudioImport(false);
           setSaveState({ kind: 'done', message: t(locale, 'transcription.action.audioDeleted') });
         } catch (error) {
           log.error('Failed to delete current audio', {
@@ -173,11 +192,13 @@ export function useTranscriptionProjectMediaController(
       },
     );
   }, [
+    clearPendingAudioImportSelection,
     loadSnapshot,
     locale,
     selectTimelineUnit,
     selectedTimelineMedia,
     setSaveState,
+    setShowAudioImport,
     tfB,
     transcriptionAppService,
   ]);
@@ -197,6 +218,8 @@ export function useTranscriptionProjectMediaController(
           await transcriptionAppService.deleteProject(currentActiveTextId);
           setActiveTextId(null);
           selectTimelineUnit(null);
+          clearPendingAudioImportSelection();
+          setShowAudioImport(false);
           await loadSnapshot();
           setSaveState({ kind: 'done', message: t(locale, 'transcription.action.projectDeleted') });
         } catch (error) {
@@ -223,11 +246,13 @@ export function useTranscriptionProjectMediaController(
     );
   }, [
     activeTextId,
+    clearPendingAudioImportSelection,
     loadSnapshot,
     locale,
     selectTimelineUnit,
     setActiveTextId,
     setSaveState,
+    setShowAudioImport,
     tfB,
     transcriptionAppService,
   ]);
@@ -289,6 +314,28 @@ export function useTranscriptionProjectMediaController(
           createdAt: new Date().toISOString(),
         } as MediaItemDocType),
       );
+      if (options?.mismatchAcknowledged) {
+        const expandTarget = Math.max(
+          duration,
+          typeof options.postImportExpandLogicalToSec === 'number' &&
+            Number.isFinite(options.postImportExpandLogicalToSec)
+            ? options.postImportExpandLogicalToSec
+            : 0,
+        );
+        if (expandTarget > 0) {
+          await transcriptionAppService.expandTextLogicalDurationToAtLeast({
+            textId,
+            minLogicalDurationSec: expandTarget,
+          });
+        }
+      } else if (!hasEstablishedTimedUnits(unitsOnCurrentMedia) && duration > 0) {
+        await transcriptionAppService.setTextLogicalDurationSec({
+          textId,
+          logicalDurationSec: duration,
+        });
+      }
+      await loadSnapshot();
+      clearPendingAudioImportSelection();
       setSaveState({
         kind: 'done',
         message: tfB('transcription.action.audioImported', { filename: file.name }),
@@ -298,11 +345,67 @@ export function useTranscriptionProjectMediaController(
       activeTextId,
       addMediaItem,
       audioImportDisposition,
+      clearPendingAudioImportSelection,
       getActiveTextId,
+      loadSnapshot,
       setActiveTextId,
       setSaveState,
       tfB,
       transcriptionAppService,
+      unitsOnCurrentMedia,
+    ],
+  );
+
+  const handleDirectMediaImport = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selection = await readMediaFileFromInput(event);
+      if (!selection) return;
+
+      const notices = assessTimelineImportMismatch({
+        importAcousticSec: selection.duration,
+        unitsOnCurrentMedia: audioImportTimelineMismatch.unitsOnCurrentMedia,
+        willRemapOnFirstAcousticBind: resolveAudioImportWillRemapOnFirstBind({
+          disposition: audioImportDisposition,
+        }),
+        ...(typeof audioImportTimelineMismatch.logicalDurationSecFromMapping === 'number'
+          ? {
+              logicalDurationSecFromMapping:
+                audioImportTimelineMismatch.logicalDurationSecFromMapping,
+            }
+          : {}),
+      });
+
+      if (notices.length > 0) {
+        setPendingAudioImportSelection(selection);
+        setShowAudioImport(true);
+        return;
+      }
+
+      try {
+        await handleAudioImport(selection.file, selection.duration);
+      } catch (error) {
+        reportActionError({
+          actionLabel: tfB('transcription.toolbar.importAudio'),
+          error,
+          conflictNames: ['TranscriptionPersistenceConflictError', 'RecoveryApplyConflictError'],
+          conflictI18nKey: 'transcription.importExport.conflict',
+          fallbackI18nKey: 'transcription.action.audioImportFailed',
+          conflictMessage: tfB('transcription.importExport.conflict'),
+          fallbackMessage: tfB('transcription.action.audioImportFailed', {
+            message: error instanceof Error ? error.message : String(error),
+          }),
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+      }
+    },
+    [
+      audioImportDisposition,
+      audioImportTimelineMismatch,
+      handleAudioImport,
+      setSaveState,
+      setShowAudioImport,
+      tfB,
     ],
   );
 
@@ -338,6 +441,9 @@ export function useTranscriptionProjectMediaController(
     handleConfirmProjectDelete,
     handleProjectSetupSubmit,
     handleAudioImport,
+    audioImportTimelineMismatch,
+    pendingAudioImportSelection,
+    clearPendingAudioImportSelection,
     searchableItems,
     setAudioDeleteConfirm,
     setProjectDeleteConfirm,

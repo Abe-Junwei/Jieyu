@@ -2053,6 +2053,58 @@ describe('LinguisticService smoke tests', () => {
     ).toBe(0);
   });
 
+  it('removeUnitsBatch syncs logical duration when last timed units are removed (post delete-audio)', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_batch_logical_sync';
+    await seedDefaultTranscriptionLayerForText(textId, 'layer_trc_batch_logical', now);
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Post-audio delete' },
+      metadata: {
+        timelineMode: 'media',
+        logicalDurationSec: 120,
+        timebaseLabel: 'logical-second',
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.media_items.put({
+      id: 'media_batch_logical_placeholder',
+      textId,
+      filename: 'document-placeholder.track',
+      duration: 120,
+      details: { placeholder: true, timelineMode: 'media' },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+    await LinguisticService.units.saveBatch([
+      {
+        id: 'utt_batch_logical',
+        textId,
+        mediaId: 'media_batch_logical_placeholder',
+        startTime: 0,
+        endTime: 60,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    await expect(
+      LinguisticService.cleanup.removeUnitsBatch(['utt_batch_logical']),
+    ).resolves.toBeUndefined();
+
+    const textAfter = await db.texts.get(textId);
+    expect(
+      (textAfter?.metadata as { logicalDurationSec?: number } | undefined)?.logicalDurationSec,
+    ).toBe(1800);
+    expect((textAfter?.metadata as { timelineMode?: string } | undefined)?.timelineMode).toBe(
+      'document',
+    );
+    const mediaAfter = await db.media_items.get('media_batch_logical_placeholder');
+    expect(mediaAfter?.duration).toBe(1800);
+  });
+
   it('saveUnitsBatch rolls back canonical unit and content writes when primary_text batch persistence fails (ARCH-3)', async () => {
     const now = new Date().toISOString();
     const textId = 'text_arch3_save_batch';
@@ -2672,14 +2724,14 @@ describe('LinguisticService smoke tests', () => {
       expect.objectContaining({
         metadata: expect.objectContaining({
           timelineMode: 'media',
-          logicalDurationSec: 30,
+          logicalDurationSec: 60,
         }),
       }),
     );
     await expect(db.layer_units.get('utt_media_rt')).resolves.toEqual(
       expect.objectContaining({
         startTime: 0,
-        endTime: 2.5,
+        endTime: 5,
       }),
     );
     await expect(db.media_items.get('media_media_rt')).resolves.toEqual(
@@ -2927,6 +2979,197 @@ describe('LinguisticService smoke tests', () => {
         duration: 12,
         details: expect.objectContaining({ timelineKind: 'acoustic' }),
       }),
+    );
+  });
+
+  it('importAudio does not remap segments when only logicalDurationSec exceeds shorter acoustic', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_import_logical_only_longer';
+    const layerId = 'layer_trc_import_logical_only_longer';
+    const mediaId = 'media_import_logical_only_longer';
+    await seedDefaultTranscriptionLayerForText(textId, layerId, now);
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Logical only longer' },
+      metadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 400,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.media_items.put({
+      id: mediaId,
+      textId,
+      filename: 'document-placeholder.track',
+      duration: 400,
+      details: { placeholder: true, timelineMode: 'document' },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+    await LinguisticService.units.save({
+      id: 'utt_import_logical_only_longer',
+      textId,
+      mediaId,
+      startTime: 10,
+      endTime: 80,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await LinguisticService.media.importAudio({
+      textId,
+      audioBlob: new Blob(['short'], { type: 'audio/wav' }),
+      filename: 'short.wav',
+      duration: 180,
+    });
+
+    await expect(db.layer_units.get('utt_import_logical_only_longer')).resolves.toEqual(
+      expect.objectContaining({ startTime: 10, endTime: 80 }),
+    );
+    await expect(db.texts.get(textId)).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ logicalDurationSec: 400 }),
+      }),
+    );
+  });
+
+  it('importAudio does not extend logicalDurationSec when longer acoustic binds existing document axis', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_import_longer_audio';
+    const layerId = 'layer_trc_import_longer_audio';
+    const mediaId = 'media_import_longer_audio';
+    await seedDefaultTranscriptionLayerForText(textId, layerId, now);
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Longer audio import' },
+      metadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 200,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.media_items.put({
+      id: mediaId,
+      textId,
+      filename: 'document-placeholder.track',
+      duration: 200,
+      details: { placeholder: true, timelineMode: 'document' },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+    await LinguisticService.units.save({
+      id: 'utt_import_longer_audio',
+      textId,
+      mediaId,
+      startTime: 10,
+      endTime: 80,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await LinguisticService.media.importAudio({
+      textId,
+      audioBlob: new Blob(['long'], { type: 'audio/wav' }),
+      filename: 'long.wav',
+      duration: 300,
+    });
+
+    await expect(db.texts.get(textId)).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ logicalDurationSec: 200 }),
+      }),
+    );
+    await expect(db.media_items.get(mediaId)).resolves.toEqual(
+      expect.objectContaining({
+        filename: 'long.wav',
+        duration: 300,
+      }),
+    );
+    await expect(db.layer_units.get('utt_import_longer_audio')).resolves.toEqual(
+      expect.objectContaining({ startTime: 10, endTime: 80 }),
+    );
+  });
+
+  it('importAudio aligns default blank logicalDurationSec to acoustic duration', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_import_blank_default_axis';
+    const layerId = 'layer_trc_import_blank_default_axis';
+    const mediaId = 'media_import_blank_default_axis';
+    await seedDefaultTranscriptionLayerForText(textId, layerId, now);
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Blank default axis' },
+      metadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 1800,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.media_items.put({
+      id: mediaId,
+      textId,
+      filename: 'document-placeholder.track',
+      duration: 1800,
+      details: { placeholder: true, timelineMode: 'document' },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+
+    await LinguisticService.media.importAudio({
+      textId,
+      audioBlob: new Blob(['short'], { type: 'audio/wav' }),
+      filename: 'three-min.wav',
+      duration: 180,
+    });
+
+    await expect(db.texts.get(textId)).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ logicalDurationSec: 180, timelineMode: 'media' }),
+      }),
+    );
+  });
+
+  it('importAudio importMode replace keeps logicalDurationSec when replacing with longer acoustic', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_import_replace_longer';
+    const layerId = 'layer_trc_import_replace_longer';
+    await seedDefaultTranscriptionLayerForText(textId, layerId, now);
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Replace longer' },
+      metadata: { timelineMode: 'media', logicalDurationSec: 80 },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.media_items.put({
+      id: 'media_replace_longer',
+      textId,
+      filename: 'old.wav',
+      duration: 60,
+      details: { audioBlob: new Blob(['old'], { type: 'audio/wav' }), timelineKind: 'acoustic' },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+
+    await LinguisticService.media.importAudio({
+      textId,
+      audioBlob: new Blob(['new'], { type: 'audio/wav' }),
+      filename: 'new.wav',
+      duration: 120,
+      importMode: 'replace',
+      replaceMediaId: 'media_replace_longer',
+    });
+
+    await expect(db.texts.get(textId)).resolves.toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ logicalDurationSec: 80 }),
+      }),
+    );
+    await expect(db.media_items.get('media_replace_longer')).resolves.toEqual(
+      expect.objectContaining({ duration: 120 }),
     );
   });
 

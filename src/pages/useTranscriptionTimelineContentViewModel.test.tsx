@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TimelineUnitViewIndex } from '../hooks/transcription/timelineUnitView';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineVerticalProjectionProps } from './timelineHostProjectionTypes';
+import { buildTimelineReadModel } from './timelineReadModel';
 import { useTranscriptionTimelineContentViewModel } from './useTranscriptionTimelineContentViewModel';
 
 function createEmptySpeakerLayerLayout(): SpeakerLayerLayoutResult {
@@ -148,8 +149,8 @@ describe('useTranscriptionTimelineContentViewModel', () => {
     expect(result.current.workspaceShell).toBe('waveform');
     expect(result.current.workspaceAcousticPending).toBe(false);
     expect(result.current.workspaceAcousticChromeState).toBe('playable');
-    expect(result.current.mediaLanesProps.playerDuration).toBe(42);
     expect(result.current.mediaLanesProps.timelineExtentSec).toBe(42);
+    expect('playerDuration' in result.current.mediaLanesProps).toBe(false);
     expect(result.current.emptyStateProps.hasSelectedMedia).toBe(true);
     expect(result.current.verticalComparisonEnabled).toBe(false);
 
@@ -286,6 +287,268 @@ describe('useTranscriptionTimelineContentViewModel', () => {
     expect(result.current.verticalComparisonEnabled).toBe(true);
     expect(result.current.workspaceShell).toBe('text-only');
     expect(result.current.workspaceAcousticPending).toBe(false);
+    expect(result.current.workspaceAcousticChromeState).toBe('playable');
+  });
+
+  it('matches buildTimelineReadModel shell when layers exist but unit index is empty', () => {
+    const importFileRef = { current: null };
+    const speakerLayerLayout = createEmptySpeakerLayerLayout();
+    const unitIndex = createEmptyTimelineUnitViewIndex();
+    const stubLayer = { id: 'tr-1' } as import('../db').LayerDocType;
+    const stubTranslation = { id: 'tl-1' } as import('../db').LayerDocType;
+
+    const readModel = buildTimelineReadModel({
+      unitIndex,
+      transcriptionLayerIds: ['tr-1'],
+      translationLayerIds: ['tl-1'],
+      orchestratorLayersCount: 2,
+      selectedTimelineUnit: null,
+      selectedUnitIds: [],
+      selectedMediaUrl: 'blob:pending',
+      playerIsReady: false,
+      playerDuration: 0,
+      documentSpanSec: 120,
+    });
+
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineContentViewModel({
+        selectedMediaUrl: 'blob:pending',
+        playerIsReady: false,
+        playerDuration: 0,
+        timelineExtentSec: readModel.timeline.extentSec,
+        layersCount: 2,
+        locale: 'zh-CN',
+        importFileRef,
+        layerActionSetCreateTranscription: vi.fn(),
+        mediaLanesPropsInput: {
+          zoomPxPerSec: 50,
+          timelineContentGutterPx: 64,
+          lassoRect: null,
+          transcriptionLayers: [stubLayer],
+          translationLayers: [stubTranslation],
+          timelineUnitViewIndex: unitIndex,
+          timelineRenderUnits: [],
+          flashLayerRowId: '',
+          focusedLayerRowId: '',
+          activeUnitId: '',
+          selectedTimelineUnit: null,
+          defaultTranscriptionLayerId: '',
+          renderAnnotationItem: () => null,
+          allLayersOrdered: [],
+          onReorderLayers: vi.fn(),
+          deletableLayers: [],
+          onFocusLayer: vi.fn(),
+          layerLinks: [],
+          showConnectors: true,
+          onToggleConnectors: vi.fn(),
+          laneHeights: {},
+          onLaneHeightChange: vi.fn(),
+          trackDisplayMode: 'single',
+          onToggleTrackDisplayMode: vi.fn(),
+          onSetTrackDisplayMode: vi.fn(),
+          laneLockMap: {},
+          onLockSelectedSpeakersToLane: vi.fn(),
+          onUnlockSelectedSpeakers: vi.fn(),
+          onResetTrackAutoLayout: vi.fn(),
+          selectedSpeakerNamesForLock: [],
+          speakerSortKeyById: {},
+          speakerLayerLayout,
+          onLaneLabelWidthResize: vi.fn(),
+          segmentsByLayer: new Map(),
+          segmentContentByLayer: new Map(),
+          saveSegmentContentForLayer: vi.fn(),
+          translationAudioByLayer: new Map(),
+          mediaItems: [],
+          recording: false,
+          recordingUnitId: null,
+          recordingLayerId: null,
+          startRecordingForUnit: vi.fn(),
+          stopRecording: vi.fn(),
+          deleteVoiceTranslation: vi.fn(),
+        },
+        textOnlyPropsInput: {
+          transcriptionLayers: [stubLayer],
+          translationLayers: [stubTranslation],
+          unitsOnCurrentMedia: [],
+          segmentsByLayer: new Map(),
+          segmentContentByLayer: new Map(),
+          saveSegmentContentForLayer: vi.fn(),
+          selectedTimelineUnit: null,
+          flashLayerRowId: '',
+          focusedLayerRowId: '',
+          defaultTranscriptionLayerId: '',
+          scrollContainerRef: { current: null },
+          handleAnnotationClick: vi.fn(),
+          allLayersOrdered: [],
+          onReorderLayers: vi.fn(),
+          deletableLayers: [],
+          onFocusLayer: vi.fn(),
+          navigateUnitFromInput: vi.fn(),
+          layerLinks: [],
+          showConnectors: true,
+          onToggleConnectors: vi.fn(),
+          laneHeights: {},
+          onLaneHeightChange: vi.fn(),
+          trackDisplayMode: 'single',
+          onToggleTrackDisplayMode: vi.fn(),
+          onSetTrackDisplayMode: vi.fn(),
+          laneLockMap: {},
+          onLockSelectedSpeakersToLane: vi.fn(),
+          onUnlockSelectedSpeakers: vi.fn(),
+          onResetTrackAutoLayout: vi.fn(),
+          selectedSpeakerNamesForLock: [],
+          speakerLayerLayout,
+          activeUnitId: '',
+          speakerVisualByUnitId: {},
+          onLaneLabelWidthResize: vi.fn(),
+          translationAudioByLayer: new Map(),
+          mediaItems: [],
+          recording: false,
+          recordingUnitId: null,
+          recordingLayerId: null,
+          startRecordingForUnit: vi.fn(),
+          stopRecording: vi.fn(),
+          deleteVoiceTranslation: vi.fn(),
+        },
+      }),
+    );
+
+    expect(result.current.workspaceShell).toBe(readModel.acoustic.shell);
+    expect(result.current.workspaceAcousticPending).toBe(
+      readModel.acoustic.state === 'pending_decode',
+    );
+    expect(result.current.workspaceAcousticChromeState).toBe(readModel.acoustic.globalState);
+  });
+
+  it('matches buildTimelineReadModel contract vs global shell under vertical view', () => {
+    const importFileRef = { current: null };
+    const speakerLayerLayout = createEmptySpeakerLayerLayout();
+    const unitIndex = createEmptyTimelineUnitViewIndex();
+    const stubLayer = { id: 'tr-1' } as import('../db').LayerDocType;
+
+    const readModel = buildTimelineReadModel({
+      unitIndex,
+      transcriptionLayerIds: ['tr-1'],
+      translationLayerIds: [],
+      orchestratorLayersCount: 1,
+      selectedTimelineUnit: null,
+      selectedUnitIds: [],
+      selectedMediaUrl: 'blob:ready',
+      playerIsReady: true,
+      playerDuration: 42,
+      verticalViewEnabled: true,
+    });
+
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineContentViewModel({
+        selectedMediaUrl: 'blob:ready',
+        playerIsReady: true,
+        playerDuration: 42,
+        timelineExtentSec: readModel.timeline.extentSec,
+        layersCount: 1,
+        locale: 'zh-CN',
+        importFileRef,
+        layerActionSetCreateTranscription: vi.fn(),
+        mediaLanesPropsInput: {
+          zoomPxPerSec: 50,
+          timelineContentGutterPx: 64,
+          lassoRect: null,
+          transcriptionLayers: [stubLayer],
+          translationLayers: [],
+          timelineUnitViewIndex: unitIndex,
+          timelineRenderUnits: [],
+          flashLayerRowId: '',
+          focusedLayerRowId: '',
+          activeUnitId: '',
+          selectedTimelineUnit: null,
+          defaultTranscriptionLayerId: '',
+          renderAnnotationItem: () => null,
+          allLayersOrdered: [],
+          onReorderLayers: vi.fn(),
+          deletableLayers: [],
+          onFocusLayer: vi.fn(),
+          layerLinks: [],
+          showConnectors: true,
+          onToggleConnectors: vi.fn(),
+          laneHeights: {},
+          onLaneHeightChange: vi.fn(),
+          trackDisplayMode: 'single',
+          onToggleTrackDisplayMode: vi.fn(),
+          onSetTrackDisplayMode: vi.fn(),
+          laneLockMap: {},
+          onLockSelectedSpeakersToLane: vi.fn(),
+          onUnlockSelectedSpeakers: vi.fn(),
+          onResetTrackAutoLayout: vi.fn(),
+          selectedSpeakerNamesForLock: [],
+          speakerSortKeyById: {},
+          speakerLayerLayout,
+          onLaneLabelWidthResize: vi.fn(),
+          segmentsByLayer: new Map(),
+          segmentContentByLayer: new Map(),
+          saveSegmentContentForLayer: vi.fn(),
+          translationAudioByLayer: new Map(),
+          mediaItems: [],
+          recording: false,
+          recordingUnitId: null,
+          recordingLayerId: null,
+          startRecordingForUnit: vi.fn(),
+          stopRecording: vi.fn(),
+          deleteVoiceTranslation: vi.fn(),
+        },
+        textOnlyPropsInput: {
+          transcriptionLayers: [stubLayer],
+          translationLayers: [],
+          unitsOnCurrentMedia: [],
+          segmentsByLayer: new Map(),
+          segmentContentByLayer: new Map(),
+          saveSegmentContentForLayer: vi.fn(),
+          selectedTimelineUnit: null,
+          flashLayerRowId: '',
+          focusedLayerRowId: '',
+          defaultTranscriptionLayerId: '',
+          scrollContainerRef: { current: null },
+          handleAnnotationClick: vi.fn(),
+          allLayersOrdered: [],
+          onReorderLayers: vi.fn(),
+          deletableLayers: [],
+          onFocusLayer: vi.fn(),
+          navigateUnitFromInput: vi.fn(),
+          layerLinks: [],
+          showConnectors: true,
+          onToggleConnectors: vi.fn(),
+          laneHeights: {},
+          onLaneHeightChange: vi.fn(),
+          trackDisplayMode: 'single',
+          onToggleTrackDisplayMode: vi.fn(),
+          onSetTrackDisplayMode: vi.fn(),
+          laneLockMap: {},
+          onLockSelectedSpeakersToLane: vi.fn(),
+          onUnlockSelectedSpeakers: vi.fn(),
+          onResetTrackAutoLayout: vi.fn(),
+          selectedSpeakerNamesForLock: [],
+          speakerLayerLayout,
+          activeUnitId: '',
+          speakerVisualByUnitId: {},
+          onLaneLabelWidthResize: vi.fn(),
+          translationAudioByLayer: new Map(),
+          mediaItems: [],
+          recording: false,
+          recordingUnitId: null,
+          recordingLayerId: null,
+          startRecordingForUnit: vi.fn(),
+          stopRecording: vi.fn(),
+          deleteVoiceTranslation: vi.fn(),
+        },
+        verticalProjection: { verticalViewEnabled: true },
+      }),
+    );
+
+    expect(result.current.workspaceShell).toBe(readModel.acoustic.shell);
+    expect(result.current.workspaceAcousticPending).toBe(
+      readModel.acoustic.state === 'pending_decode',
+    );
+    expect(result.current.workspaceAcousticChromeState).toBe(readModel.acoustic.globalState);
+    expect(result.current.workspaceShell).toBe('text-only');
     expect(result.current.workspaceAcousticChromeState).toBe('playable');
   });
 });

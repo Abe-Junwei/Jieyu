@@ -16,8 +16,9 @@ function roundTimeSec(t: number): number {
 }
 
 /**
- * 占位首次绑定真实声学且「逻辑跨度 L」大于文件时长时：对同一 `mediaId` 下
+ * 占位首次绑定真实声学且语段最晚结束 **超出** 文件时长时：对同一 `mediaId` 下
  * `layer_units` 与 `anchors` 的绝对秒做 scale + 平移，使内容落入 `[0, duration]`（右端钳制）。
+ * 仅 metadata `logicalDurationSec` 偏长、语段已在文件内时 **不** remap。
  */
 export async function remapLayerUnitsAndAnchorsForFirstAcousticImport(input: {
   db: JieyuDatabase;
@@ -30,26 +31,31 @@ export async function remapLayerUnitsAndAnchorsForFirstAcousticImport(input: {
   const duration = acousticDurationSec;
   const units = await LayerSegmentQueryService.listUnitsByMediaId(mediaId, db);
   if (!(duration > EPS)) {
-    const maxEnd = units.reduce((m, u) => Math.max(m, typeof u.endTime === 'number' && Number.isFinite(u.endTime) ? u.endTime : 0), 0);
+    const maxEnd = units.reduce(
+      (m, u) =>
+        Math.max(m, typeof u.endTime === 'number' && Number.isFinite(u.endTime) ? u.endTime : 0),
+      0,
+    );
     return { didRemap: false, maxUnitEnd: maxEnd };
   }
 
   const textRow = await db.dexie.texts.get(textId);
   const rowMeta = (textRow?.metadata as Record<string, unknown> | undefined) ?? {};
-  const logicalSec = typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
-    ? rowMeta.logicalDurationSec
-    : 0;
+  const logicalSec =
+    typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
+      ? rowMeta.logicalDurationSec
+      : 0;
 
   let maxEnd = 0;
   for (const u of units) {
     const e = typeof u.endTime === 'number' && Number.isFinite(u.endTime) ? u.endTime : 0;
     maxEnd = Math.max(maxEnd, e);
   }
-  const L = Math.max(maxEnd, logicalSec);
-  if (!(L > duration + EPS)) {
+  if (!(maxEnd > duration + EPS)) {
     return { didRemap: false, maxUnitEnd: maxEnd };
   }
 
+  const L = Math.max(maxEnd, logicalSec);
   const scale = duration / L;
   const mappedStarts = units.map((u) => {
     const st = typeof u.startTime === 'number' && Number.isFinite(u.startTime) ? u.startTime : 0;

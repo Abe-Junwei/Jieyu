@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { countAssistantAttentionSignals, useTranscriptionSidebarSectionsViewModel } from './useTranscriptionSidebarSectionsViewModel';
+import {
+  countAssistantAttentionSignals,
+  useTranscriptionSidebarSectionsViewModel,
+} from './useTranscriptionSidebarSectionsViewModel';
 
 type HookInput = Parameters<typeof useTranscriptionSidebarSectionsViewModel>[0];
 
@@ -39,6 +42,9 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     showAudioImport: false,
     setShowAudioImport: vi.fn(),
     audioImportDisposition: { kind: 'simple' },
+    audioImportTimelineMismatch: { unitsOnCurrentMedia: [] },
+    pendingAudioImportSelection: null,
+    clearPendingAudioImportSelection: vi.fn(),
     handleAudioImport: vi.fn(async () => undefined),
     mediaFileInputRef: { current: null },
     handleDirectMediaImport: vi.fn(),
@@ -58,28 +64,34 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
 
 describe('useTranscriptionSidebarSectionsViewModel', () => {
   it('counts assistant attention from all mainline signals', () => {
-    expect(countAssistantAttentionSignals({
-      hasPendingToolCall: true,
-      selectedAiWarning: true,
-      selectedTranslationGapCount: 2,
-      aiSidebarError: 'provider offline',
-    })).toBe(4);
+    expect(
+      countAssistantAttentionSignals({
+        hasPendingToolCall: true,
+        selectedAiWarning: true,
+        selectedTranslationGapCount: 2,
+        aiSidebarError: 'provider offline',
+      }),
+    ).toBe(4);
   });
 
   it('switches back to assistant when a tool confirmation appears', async () => {
     const setHubSidebarTab = vi.fn();
-    renderHook(() => useTranscriptionSidebarSectionsViewModel(createBaseInput({
-      setHubSidebarTab,
-      assistantRuntimeProps: {
-        locale: 'zh-CN',
-        aiChatContextValue: {
-          aiPendingToolCall: {
-            assistantMessageId: 'msg-1',
-            call: { id: 'call-1', name: 'delete_transcription_segment', arguments: {} },
-          },
-        },
-      } as unknown as HookInput['assistantRuntimeProps'],
-    })));
+    renderHook(() =>
+      useTranscriptionSidebarSectionsViewModel(
+        createBaseInput({
+          setHubSidebarTab,
+          assistantRuntimeProps: {
+            locale: 'zh-CN',
+            aiChatContextValue: {
+              aiPendingToolCall: {
+                assistantMessageId: 'msg-1',
+                call: { id: 'call-1', name: 'delete_transcription_segment', arguments: {} },
+              },
+            },
+          } as unknown as HookInput['assistantRuntimeProps'],
+        }),
+      ),
+    );
 
     await waitFor(() => {
       expect(setHubSidebarTab).toHaveBeenCalledWith('assistant');
@@ -87,23 +99,27 @@ describe('useTranscriptionSidebarSectionsViewModel', () => {
   });
 
   it('keeps assistant attention count for current sidebar signals', () => {
-    const { result } = renderHook(() => useTranscriptionSidebarSectionsViewModel(createBaseInput({
-      assistantRuntimeProps: {
-        locale: 'zh-CN',
-        aiChatContextValue: {
-          aiPendingToolCall: null,
-          aiTaskSession: {
-            id: 'task-1',
-            status: 'waiting_confirm',
-            toolName: 'set_translation_text',
-            updatedAt: '2026-03-30T00:00:00.000Z',
-          },
-          aiInteractionMetrics: null,
-          aiToolDecisionLogs: [],
-        },
-      } as unknown as HookInput['assistantRuntimeProps'],
-      selectedTranslationGapCount: 2,
-    })));
+    const { result } = renderHook(() =>
+      useTranscriptionSidebarSectionsViewModel(
+        createBaseInput({
+          assistantRuntimeProps: {
+            locale: 'zh-CN',
+            aiChatContextValue: {
+              aiPendingToolCall: null,
+              aiTaskSession: {
+                id: 'task-1',
+                status: 'waiting_confirm',
+                toolName: 'set_translation_text',
+                updatedAt: '2026-03-30T00:00:00.000Z',
+              },
+              aiInteractionMetrics: null,
+              aiToolDecisionLogs: [],
+            },
+          } as unknown as HookInput['assistantRuntimeProps'],
+          selectedTranslationGapCount: 2,
+        }),
+      ),
+    );
 
     expect(result.current.aiSidebarProps.assistantAttentionCount).toBe(1);
   });

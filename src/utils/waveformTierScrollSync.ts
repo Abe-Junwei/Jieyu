@@ -42,3 +42,14 @@ export function applyTierScrollToWaveSurfer(input: {
   ws.setScroll(tierScrollLeftPx);
   return tierScrollLeftPx;
 }
+
+/** tier 主滚动后同步 WaveSurfer，并返回 overlay 应使用的像素 scrollLeft。 */
+export function syncWaveScrollToTierOverlayLeft(
+  ws: WaveSurfer,
+  tierScrollLeftPx: number,
+  zoomPxPerSec: number,
+  mediaDurSec: number,
+): number {
+  syncWaveScrollToTier(ws, tierScrollLeftPx, zoomPxPerSec, mediaDurSec);
+  return ws.getScroll();
+}

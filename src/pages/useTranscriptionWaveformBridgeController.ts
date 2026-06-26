@@ -7,6 +7,10 @@ import {
   type UIEvent as ReactUIEvent,
 } from 'react';
 import { computeLogicalTimelineDurationForZoom } from './readyWorkspaceLogicalTimelineDuration';
+import { DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC } from '../utils/timelineExtentConstants';
+import { resolveTimelineFitSpanSec } from '../utils/timelineBindingExtent';
+import { resolveViewportFrameScrollLeftPx } from '../utils/resolveViewportFrameScrollLeftPx';
+import { DEFAULT_WAVE_CANVAS_WIDTH } from '../utils/waveformViewportSizing';
 import { useLasso, type SubSelectDrag } from '../hooks/ui/useLasso';
 import { useSegmentRangeGesturePreviewWriter } from '../hooks/transcription/useSegmentRangeGesturePreviewWriter';
 import { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
@@ -105,9 +109,24 @@ export function useTranscriptionWaveformBridgeController(
     selectedUnitIds: input.selectedUnitIds,
   });
 
-  const [waveformZoomPxPerSec, setWaveformZoomPxPerSec] = useState(40);
-  const isFitZoomMode = input.zoomMode === 'fit-all' || input.zoomMode === 'fit-selection';
-  const shouldDisableAutoScroll = segmentLoopPlayback && isFitZoomMode;
+  const provisionalDocumentSpan = useMemo(
+    () =>
+      computeLogicalTimelineDurationForZoom(
+        input.activeTextTimeLogicalDurationSec,
+        input.unitsOnCurrentMedia,
+      ),
+    [input.activeTextTimeLogicalDurationSec, input.unitsOnCurrentMedia],
+  );
+
+  const estimatedFitPxPerSec = useMemo(() => {
+    const span =
+      provisionalDocumentSpan > 0
+        ? provisionalDocumentSpan
+        : DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC;
+    return DEFAULT_WAVE_CANVAS_WIDTH / span;
+  }, [provisionalDocumentSpan]);
+
+  const [waveformZoomPxPerSec, setWaveformZoomPxPerSec] = useState(estimatedFitPxPerSec);
 
   const { onRegionUpdate, onRegionUpdateEnd } = useWaveformBridgeRegionDragRaf(
     handleWaveformRegionUpdateRef,
@@ -123,7 +142,8 @@ export function useTranscriptionWaveformBridgeController(
     segmentLoop: segmentLoopPlayback,
     globalLoop: globalLoopPlayback,
     segmentPlaybackRate,
-    autoScrollDuringPlayback: !shouldDisableAutoScroll,
+    // 播放跟随由 useZoom.maybeFollow 统一处理；WaveSurfer autoScroll 会与 tier 主滚动抢控制权
+    autoScrollDuringPlayback: false,
     enableEmptyDragCreate: useSegmentWaveformRegions,
     zoomLevel: waveformZoomPxPerSec,
     startMarker: segMarkStart ?? undefined,
@@ -154,19 +174,35 @@ export function useTranscriptionWaveformBridgeController(
     },
   });
 
-  const documentSpanSec = useMemo(() => {
-    const anchor = player.isReady && player.duration > 0 ? player.duration : 0;
-    return computeLogicalTimelineDurationForZoom(
+  const documentSpanWithoutAcousticAnchor = useMemo(
+    () =>
+      computeLogicalTimelineDurationForZoom(
+        input.activeTextTimeLogicalDurationSec,
+        input.unitsOnCurrentMedia,
+        player.isReady && player.duration > 0
+          ? { acousticTimelineAnchorSec: player.duration }
+          : undefined,
+      ),
+    [
       input.activeTextTimeLogicalDurationSec,
       input.unitsOnCurrentMedia,
-      anchor > 0 ? { acousticTimelineAnchorSec: anchor } : undefined,
-    );
-  }, [
-    input.activeTextTimeLogicalDurationSec,
-    input.unitsOnCurrentMedia,
-    player.isReady,
-    player.duration,
-  ]);
+      player.duration,
+      player.isReady,
+    ],
+  );
+
+  const documentSpanSec = documentSpanWithoutAcousticAnchor;
+
+  const fitSpanSec = useMemo(() => {
+    const hasMedia =
+      typeof input.selectedMediaUrl === 'string' && input.selectedMediaUrl.trim().length > 0;
+    return resolveTimelineFitSpanSec({
+      documentSpanSec: documentSpanWithoutAcousticAnchor,
+      acousticDurationSec: player.isReady && player.duration > 0 ? player.duration : 0,
+      hasMediaUrl: hasMedia,
+      globalPlaybackReady: player.isReady,
+    });
+  }, [documentSpanWithoutAcousticAnchor, input.selectedMediaUrl, player.isReady, player.duration]);
 
   const waveformViewportSizingInput: UseWaveformViewportSizingInput = {
     tierContainerRef: input.tierContainerRef,
@@ -188,7 +224,7 @@ export function useTranscriptionWaveformBridgeController(
     useWaveformViewportSizing(waveformViewportSizingInput);
 
   const fitPxPerSec =
-    documentSpanSec > 0 && Number.isFinite(documentSpanSec) ? containerWidth / documentSpanSec : 40;
+    fitSpanSec > 0 && Number.isFinite(fitSpanSec) ? containerWidth / fitSpanSec : 40;
   const maxZoomPercent = Math.max(200, Math.ceil((2000 / fitPxPerSec) * 100));
   const zoomPxPerSec = Math.max(1e-9, fitPxPerSec * (zoomPercent / 100));
   useLayoutEffect(() => {
@@ -201,6 +237,7 @@ export function useTranscriptionWaveformBridgeController(
       zoomPxPerSec,
       fitPxPerSec,
       documentSpanSec,
+      fitSpanSec,
       containerWidth,
       waveCanvasClientWidth,
       tierAxisMergedPx: rawTierAxisForFitPx,
@@ -210,6 +247,7 @@ export function useTranscriptionWaveformBridgeController(
     containerWidth,
     documentSpanSec,
     fitPxPerSec,
+    fitSpanSec,
     rawTierAxisForFitPx,
     tierTimeAxisForFitPx,
     waveCanvasClientWidth,
@@ -225,9 +263,23 @@ export function useTranscriptionWaveformBridgeController(
     handleWaveformAreaMouseLeave,
   } = useWaveformBridgeHoverScrollRaf({
     waveCanvasRef,
+    tierContainerRef: input.tierContainerRef,
     player,
     zoomPxPerSec,
+    documentSpanSec,
   });
+
+  const [tierScrollLeftPx, setTierScrollLeftPx] = useState(0);
+  const viewportScrollLeftPx = useMemo(
+    () =>
+      resolveViewportFrameScrollLeftPx({
+        documentSpanSec,
+        mediaDurSec: player.duration || 0,
+        tierScrollLeftPx,
+        waveformScrollLeftPx: waveformScrollLeft,
+      }),
+    [documentSpanSec, player.duration, tierScrollLeftPx, waveformScrollLeft],
+  );
 
   useWaveformBridgeTierScrollSync({
     tierContainerRef: input.tierContainerRef,
@@ -236,6 +288,7 @@ export function useTranscriptionWaveformBridgeController(
     documentSpanSec,
     zoomPxPerSec,
     commitWaveformScrollLeft,
+    onTierScrollLeftPx: setTierScrollLeftPx,
   });
 
   const { waveformNoteIndicators, waveformLowConfidenceOverlays, waveformOverlapOverlays } =
@@ -275,41 +328,6 @@ export function useTranscriptionWaveformBridgeController(
   });
 
   const {
-    waveLassoRect,
-    waveLassoHintCount,
-    lassoRect,
-    handleLassoPointerDown,
-    handleLassoPointerMove,
-    handleLassoPointerUp,
-  } = useLasso({
-    waveCanvasRef,
-    tierContainerRef: input.tierContainerRef,
-    playerInstanceRef: player.instanceRef,
-    playerIsReady: player.isReady,
-    selectedMediaUrl: input.selectedMediaUrl,
-    timelineItems: waveformTimelineItems,
-    selectedUnitIds: input.selectedUnitIds,
-    selectedUnitId: selectedWaveformRegionId,
-    zoomPxPerSec,
-    skipSeekForIdRef,
-    clearUnitSelection: input.clearUnitSelection,
-    createUnitFromSelection: input.createUnitFromSelection,
-    setUnitSelection: input.setUnitSelection,
-    playerSeekTo: player.seekTo,
-    subSelectionRange,
-    setSubSelectionRange,
-    subSelectDragRef,
-    ...(input.tierTimelineLassoSuppressed ? { tierTimelineLassoSuppressed: true } : {}),
-    liftedLassoPreview: gestureWriter.lasso,
-    setLiftedLassoPreview,
-    waveformMappingDurationSec: documentSpanSec,
-    ...(input.tierIndependentSegmentCreateRangeClamp
-      ? { tierIndependentSegmentCreateRangeClamp: input.tierIndependentSegmentCreateRangeClamp }
-      : {}),
-    tierLassoMode: input.selectedMediaUrl ? 'default' : 'noMediaTextCreate',
-  });
-
-  const {
     projection: timelineViewportProjection,
     zoomToPercent,
     zoomToUnit,
@@ -331,9 +349,44 @@ export function useTranscriptionWaveformBridgeController(
     documentSpanSec,
     onLogicalTimelineScrollSync: scheduleWaveformScrollLeft,
     onBatchedRulerFrameScrollLeft: commitWaveformScrollLeft,
-    waveformScrollLeft,
+    waveformScrollLeft: viewportScrollLeftPx,
   });
   const { rulerView } = timelineViewportProjection;
+
+  const {
+    waveLassoRect,
+    waveLassoHintCount,
+    lassoRect,
+    handleLassoPointerDown,
+    handleLassoPointerMove,
+    handleLassoPointerUp,
+  } = useLasso({
+    waveCanvasRef,
+    tierContainerRef: input.tierContainerRef,
+    playerInstanceRef: player.instanceRef,
+    playerIsReady: player.isReady,
+    selectedMediaUrl: input.selectedMediaUrl,
+    timelineItems: waveformTimelineItems,
+    selectedUnitIds: input.selectedUnitIds,
+    selectedUnitId: selectedWaveformRegionId,
+    viewportFrame: timelineViewportProjection.viewportFrame,
+    skipSeekForIdRef,
+    clearUnitSelection: input.clearUnitSelection,
+    createUnitFromSelection: input.createUnitFromSelection,
+    setUnitSelection: input.setUnitSelection,
+    playerSeekTo: player.seekTo,
+    subSelectionRange,
+    setSubSelectionRange,
+    subSelectDragRef,
+    ...(input.tierTimelineLassoSuppressed ? { tierTimelineLassoSuppressed: true } : {}),
+    liftedLassoPreview: gestureWriter.lasso,
+    setLiftedLassoPreview,
+    waveformMappingDurationSec: documentSpanSec,
+    ...(input.tierIndependentSegmentCreateRangeClamp
+      ? { tierIndependentSegmentCreateRangeClamp: input.tierIndependentSegmentCreateRangeClamp }
+      : {}),
+    tierLassoMode: input.selectedMediaUrl ? 'default' : 'noMediaTextCreate',
+  });
 
   const {
     handleSegmentPlaybackRateChange,
@@ -376,6 +429,7 @@ export function useTranscriptionWaveformBridgeController(
 
   const handleTimelineScroll = (event: ReactUIEvent<HTMLDivElement>): void => {
     const nextScrollLeft = event.currentTarget.scrollLeft;
+    setTierScrollLeftPx(nextScrollLeft);
     const ws = player.instanceRef.current;
     const mediaDur = player.duration || 0;
     if (ws && player.isReady) {

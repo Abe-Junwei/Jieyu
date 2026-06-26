@@ -30,6 +30,10 @@ type TailSliceInjectedKeys =
   | 'handleProjectSetupSubmit'
   | 'handleAudioImport'
   | 'audioImportDisposition'
+  | 'audioImportTimelineMismatch'
+  | 'pendingAudioImportSelection'
+  | 'clearPendingAudioImportSelection'
+  | 'annotationImportMismatchDialog'
   | 'mediaFileInputRef'
   | 'audioDeleteConfirm'
   | 'setAudioDeleteConfirm'
@@ -101,6 +105,10 @@ export function buildReadyWorkspaceViewModelsTailSlice(
     handleProjectSetupSubmit: projectMediaController.handleProjectSetupSubmit,
     handleAudioImport: projectMediaController.handleAudioImport,
     audioImportDisposition: projectMediaController.audioImportDisposition,
+    audioImportTimelineMismatch: projectMediaController.audioImportTimelineMismatch,
+    pendingAudioImportSelection: projectMediaController.pendingAudioImportSelection,
+    clearPendingAudioImportSelection: projectMediaController.clearPendingAudioImportSelection,
+    annotationImportMismatchDialog: importExportController.annotationImportMismatchDialog,
     mediaFileInputRef: projectMediaController.mediaFileInputRef,
     audioDeleteConfirm: projectMediaController.audioDeleteConfirm,
     setAudioDeleteConfirm: projectMediaController.setAudioDeleteConfirm,

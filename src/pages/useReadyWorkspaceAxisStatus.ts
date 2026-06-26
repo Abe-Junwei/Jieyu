@@ -7,17 +7,19 @@
  * main ready-workspace component for easier review and a smaller surface area.
  */
 
-import {
-  useCallback,
-  useMemo,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from 'react';
+import { useCallback, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { TimelineAxisStatusStripProps } from '../components/transcription/TimelineAxisStatusStrip';
 import { t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { getTranscriptionAppService } from '../app/index';
-import { resolveTimelineAxisStatus, shouldShowLogicalAxisLengthOnAxisStrip } from '../utils/timelineAxisStatus';
+import {
+  resolveTimelineAxisStatus,
+  shouldShowLogicalAxisLengthOnAxisStrip,
+} from '../utils/timelineAxisStatus';
+import {
+  hintSupportsExpandLogical,
+  resolveExpandLogicalTargetSec,
+} from '../utils/timelineAxisStatusExpand';
 import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
 
 type AxisStatusRuntimeInput = Parameters<typeof resolveTimelineAxisStatus>[0];
@@ -26,7 +28,9 @@ type TimelineTopPropsBase = {
   headerProps?: Record<string, unknown>;
 };
 
-type ReadyWorkspaceAxisStatusInput<TTimelineTopProps extends TimelineTopPropsBase = TimelineTopPropsBase> = {
+type ReadyWorkspaceAxisStatusInput<
+  TTimelineTopProps extends TimelineTopPropsBase = TimelineTopPropsBase,
+> = {
   timelineTopProps: TTimelineTopProps;
   selectedMediaUrl: AxisStatusRuntimeInput['selectedMediaUrl'];
   isResizingWaveform: boolean;
@@ -43,7 +47,9 @@ type ReadyWorkspaceAxisStatusInput<TTimelineTopProps extends TimelineTopPropsBas
   activeTextTimelineMode?: TimelineAxisStatusStripProps['timelineMode'];
   locale: Parameters<typeof t>[0];
   loadSnapshot: () => Promise<void>;
-  setSaveState: (state: { kind: 'done'; message: string } | { kind: 'error'; message: string }) => void;
+  setSaveState: (
+    state: { kind: 'done'; message: string } | { kind: 'error'; message: string },
+  ) => void;
 };
 
 export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTopPropsBase>(
@@ -52,11 +58,11 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
   logicalExpandBusy: boolean;
   timelineTopPropsWithAxisStatus: TTimelineTopProps & { axisStatus?: TimelineAxisStatusStripProps };
 };
-export function useReadyWorkspaceAxisStatus(
-  input: ReadyWorkspaceAxisStatusInput,
-): {
+export function useReadyWorkspaceAxisStatus(input: ReadyWorkspaceAxisStatusInput): {
   logicalExpandBusy: boolean;
-  timelineTopPropsWithAxisStatus: TimelineTopPropsBase & { axisStatus?: TimelineAxisStatusStripProps };
+  timelineTopPropsWithAxisStatus: TimelineTopPropsBase & {
+    axisStatus?: TimelineAxisStatusStripProps;
+  };
 };
 export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTopPropsBase>(
   input: ReadyWorkspaceAxisStatusInput<TTimelineTopProps>,
@@ -93,29 +99,35 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
       selectedTimelineMedia: selectedTimelineMedia ?? null,
       unitsOnCurrentMedia,
     });
-    if (hint.kind !== 'duration_short' || !activeTextId) return;
-    const minSec = hint.maxUnitEndSec;
-    if (!Number.isFinite(minSec) || minSec <= 0) return;
+    if (!hintSupportsExpandLogical(hint) || !activeTextId) return;
+    const minSec = resolveExpandLogicalTargetSec(hint);
+    if (minSec === null || !Number.isFinite(minSec) || minSec <= 0) return;
 
-    fireAndForget((async () => {
-      setLogicalExpandBusy(true);
-      try {
-        await getTranscriptionAppService().expandTextLogicalDurationToAtLeast({
-          textId: activeTextId,
-          minLogicalDurationSec: minSec,
-        });
-        await loadSnapshot();
-        setSaveState({ kind: 'done', message: t(locale, 'transcription.timelineAxisStatus.expandLogicalSuccess') });
-      } catch (e) {
-        const detail = e instanceof Error ? e.message : String(e);
-        setSaveState({
-          kind: 'error',
-          message: tf(locale, 'transcription.timelineAxisStatus.expandLogicalError', { detail }),
-        });
-      } finally {
-        setLogicalExpandBusy(false);
-      }
-    })(), { context: 'src/pages/useReadyWorkspaceAxisStatus.ts:L99', policy: 'user-visible' });
+    fireAndForget(
+      (async () => {
+        setLogicalExpandBusy(true);
+        try {
+          await getTranscriptionAppService().expandTextLogicalDurationToAtLeast({
+            textId: activeTextId,
+            minLogicalDurationSec: minSec,
+          });
+          await loadSnapshot();
+          setSaveState({
+            kind: 'done',
+            message: t(locale, 'transcription.timelineAxisStatus.expandLogicalSuccess'),
+          });
+        } catch (e) {
+          const detail = e instanceof Error ? e.message : String(e);
+          setSaveState({
+            kind: 'error',
+            message: tf(locale, 'transcription.timelineAxisStatus.expandLogicalError', { detail }),
+          });
+        } finally {
+          setLogicalExpandBusy(false);
+        }
+      })(),
+      { context: 'src/pages/useReadyWorkspaceAxisStatus.ts:L99', policy: 'user-visible' },
+    );
   }, [
     activeTextId,
     layersCount,
@@ -130,17 +142,22 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
     unitsOnCurrentMedia,
   ]);
 
-  const handleWaveformResizeStartWithTelemetry = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    recordTranscriptionKeyboardAction('timelineWaveformResizeStart');
-    handleWaveformResizeStart(event);
-  }, [handleWaveformResizeStart]);
+  const handleWaveformResizeStartWithTelemetry = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      recordTranscriptionKeyboardAction('timelineWaveformResizeStart');
+      handleWaveformResizeStart(event);
+    },
+    [handleWaveformResizeStart],
+  );
 
   const timelineTopPropsWithAxisStatus = useMemo(() => {
     const withResize = {
       ...timelineTopProps,
       headerProps: {
         ...timelineTopProps.headerProps,
-        ...(selectedMediaUrl ? { onWaveformResizeStart: handleWaveformResizeStartWithTelemetry } : {}),
+        ...(selectedMediaUrl
+          ? { onWaveformResizeStart: handleWaveformResizeStartWithTelemetry }
+          : {}),
         isResizingWaveform,
       },
     };
@@ -154,16 +171,18 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
       unitsOnCurrentMedia,
     });
     let axisStatus: TimelineAxisStatusStripProps | null = null;
-    const hiddenCount = typeof hiddenByMediaFilterCount === 'number'
-      && Number.isFinite(hiddenByMediaFilterCount)
-      && hiddenByMediaFilterCount > 0
-      ? Math.trunc(hiddenByMediaFilterCount)
-      : 0;
+    const hiddenCount =
+      typeof hiddenByMediaFilterCount === 'number' &&
+      Number.isFinite(hiddenByMediaFilterCount) &&
+      hiddenByMediaFilterCount > 0
+        ? Math.trunc(hiddenByMediaFilterCount)
+        : 0;
     if (hint.kind !== 'hidden' || hiddenCount > 0) {
       const logicalDurationSec = activeTextTimeMapping?.logicalDurationSec;
-      const logicalOk = typeof logicalDurationSec === 'number'
-        && Number.isFinite(logicalDurationSec)
-        && logicalDurationSec > 0;
+      const logicalOk =
+        typeof logicalDurationSec === 'number' &&
+        Number.isFinite(logicalDurationSec) &&
+        logicalDurationSec > 0;
       const showLogical = shouldShowLogicalAxisLengthOnAxisStrip({
         ...(logicalOk ? { logicalDurationSec } : {}),
         hintKind: hint.kind,
@@ -175,16 +194,16 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
           ...(logicalOk ? { logicalDurationSec } : {}),
           ...(hiddenCount > 0 ? { hiddenByMediaFilterCount: hiddenCount } : {}),
           ...(activeTextTimelineMode ? { timelineMode: activeTextTimelineMode } : {}),
-          ...(hint.kind === 'duration_short' && activeTextId
+          ...(hintSupportsExpandLogical(hint) && activeTextId
             ? {
-              expandLogical: {
-                busy: logicalExpandBusy,
-                onPress: () => {
-                  recordTranscriptionKeyboardAction('timelineAxisExpandLogicalDuration');
-                  expandLogicalDurationFromAxisStatus();
+                expandLogical: {
+                  busy: logicalExpandBusy,
+                  onPress: () => {
+                    recordTranscriptionKeyboardAction('timelineAxisExpandLogicalDuration');
+                    expandLogicalDurationFromAxisStatus();
+                  },
                 },
-              },
-            }
+              }
             : {}),
         };
       }

@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TranscriptionReadyWorkspaceOrchestratorRawInput } from './transcriptionReadyWorkspaceOrchestratorInput';
 import { buildOrchestratorViewModelsInput } from './transcriptionReadyWorkspaceOrchestratorInput';
 
-function makeInput(overrides?: Partial<TranscriptionReadyWorkspaceOrchestratorRawInput>): TranscriptionReadyWorkspaceOrchestratorRawInput {
+function makeInput(
+  overrides?: Partial<TranscriptionReadyWorkspaceOrchestratorRawInput>,
+): TranscriptionReadyWorkspaceOrchestratorRawInput {
   const base = {
     selectedMediaUrl: 'blob:test',
     playableAcoustic: true,
@@ -211,7 +213,10 @@ function makeInput(overrides?: Partial<TranscriptionReadyWorkspaceOrchestratorRa
     handleProjectSetupSubmit: vi.fn(async () => {}),
     showAudioImport: false,
     handleAudioImport: vi.fn(),
-    audioImportDisposition: null,
+    audioImportDisposition: { kind: 'simple' },
+    audioImportTimelineMismatch: { unitsOnCurrentMedia: [] },
+    pendingAudioImportSelection: null,
+    clearPendingAudioImportSelection: vi.fn(),
     mediaFileInputRef: { current: null },
     handleDirectMediaImport: vi.fn(),
     audioDeleteConfirm: null,
@@ -248,17 +253,24 @@ describe('buildOrchestratorViewModelsInput', () => {
   });
 
   it('derives media lane lassoRect from segment-range gesture preview read model', () => {
-    const result = buildOrchestratorViewModelsInput(makeInput({
-      segmentRangeGesturePreviewReadModel: { surface: 'tier', rect: { x: 1, y: 2, w: 3, h: 4 } },
-    }));
+    const result = buildOrchestratorViewModelsInput(
+      makeInput({
+        segmentRangeGesturePreviewReadModel: { surface: 'tier', rect: { x: 1, y: 2, w: 3, h: 4 } },
+      }),
+    );
     const media = result.mediaLanesPropsInput as Record<string, unknown>;
     expect(media.lassoRect).toEqual({ x: 1, y: 2, w: 3, h: 4 });
   });
 
   it('derives text-only timingDragPreview from timeRange surface', () => {
-    const result = buildOrchestratorViewModelsInput(makeInput({
-      segmentRangeGesturePreviewReadModel: { surface: 'timeRange', preview: { id: 'u1', start: 1, end: 2 } },
-    }));
+    const result = buildOrchestratorViewModelsInput(
+      makeInput({
+        segmentRangeGesturePreviewReadModel: {
+          surface: 'timeRange',
+          preview: { id: 'u1', start: 1, end: 2 },
+        },
+      }),
+    );
     const textOnly = result.textOnlyPropsInput as Record<string, unknown>;
     expect(textOnly.timingDragPreview).toEqual({ id: 'u1', start: 1, end: 2 });
   });

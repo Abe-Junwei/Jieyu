@@ -5,6 +5,7 @@ import {
   applyTierScrollToWaveSurfer,
   isExtendedDocumentTimeline,
   syncWaveScrollToTier,
+  syncWaveScrollToTierOverlayLeft,
 } from './waveformTierScrollSync';
 
 function mockWaveSurfer(input: { width?: number; scrollWidth?: number; scroll?: number }) {
@@ -47,6 +48,25 @@ describe('syncWaveScrollToTier', () => {
     syncWaveScrollToTier(ws as never, 250, 10, 60);
     expect(ws.setScroll).toHaveBeenCalledWith(250);
   });
+
+  it('must not treat visible ruler window end as document span (TimeRuler regression)', () => {
+    const mediaDurSec = 60;
+    const documentSpanSec = 120;
+    const visibleRulerEndSec = 30;
+    expect(isExtendedDocumentTimeline(documentSpanSec, mediaDurSec)).toBe(true);
+    expect(isExtendedDocumentTimeline(Math.max(mediaDurSec, visibleRulerEndSec), mediaDurSec)).toBe(
+      false,
+    );
+  });
+});
+
+describe('syncWaveScrollToTierOverlayLeft', () => {
+  it('returns clamped WaveSurfer scroll for overlay state, not raw tier pixels', () => {
+    const ws = mockWaveSurfer({ width: 200, scrollWidth: 1000 });
+    const overlayLeft = syncWaveScrollToTierOverlayLeft(ws as never, 900, 10, 60);
+    expect(ws.setScroll).toHaveBeenCalledWith(800);
+    expect(overlayLeft).toBe(800);
+  });
 });
 
 describe('applyTierScrollToWaveSurfer', () => {
@@ -74,5 +94,19 @@ describe('applyTierScrollToWaveSurfer', () => {
     });
     expect(ws.setScroll).toHaveBeenCalledWith(320);
     expect(overlayScrollLeft).toBe(320);
+  });
+
+  it('passes tier scroll through when acoustic is longer than the document axis', () => {
+    // 声学更长：非 extended-document，WaveSurfer 主导，波形完整可滚（不钳在文献轴内）。
+    const ws = mockWaveSurfer({ width: 200, scrollWidth: 67000 });
+    const overlayScrollLeft = applyTierScrollToWaveSurfer({
+      ws: ws as never,
+      tierScrollLeftPx: 5000,
+      zoomPxPerSec: 10,
+      mediaDurSec: 6700,
+      documentSpanSec: 1800,
+    });
+    expect(ws.setScroll).toHaveBeenCalledWith(5000);
+    expect(overlayScrollLeft).toBe(5000);
   });
 });
