@@ -170,6 +170,7 @@ export function useTimelineAnnotationHelpers({
         ((_anchorId: string, _targetId: string, _items: ReadonlyArray<{ id: string }>) =>
           undefined),
       clearUnitSelection: clearUnitSelection ?? (() => undefined),
+      selectAllUnits: () => undefined,
     }),
     [
       applyTimelineSelectionCommand,

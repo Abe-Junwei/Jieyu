@@ -51,6 +51,7 @@ export function useTranscriptionTimelineInteractionController(
       selectSegmentRange: (anchorId, targetId, items) =>
         input.selectSegmentRange(anchorId, targetId, items as WaveformTimelineItemLike[]),
       clearUnitSelection: input.clearUnitSelection,
+      selectAllUnits: () => undefined,
     }),
     [input],
   );

@@ -432,6 +432,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
       selectSegmentRange: (anchorId, targetId, items) =>
         selectSegmentRange(anchorId, targetId, [...items]),
       clearUnitSelection,
+      selectAllUnits,
     });
 
   const stateApi = {

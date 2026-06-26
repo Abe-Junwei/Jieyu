@@ -18,7 +18,8 @@ export type TimelineSelectionCommand =
       targetId: string;
       waveformTimelineItems: ReadonlyArray<TimelineSelectionWaveformItem>;
     }
-  | { type: 'clear' };
+  | { type: 'clear' }
+  | { type: 'selectAll' };
 
 export type TimelineSelectionCommandDeps = {
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
@@ -32,6 +33,7 @@ export type TimelineSelectionCommandDeps = {
     items: ReadonlyArray<{ id: string }>,
   ) => void;
   clearUnitSelection: () => void;
+  selectAllUnits: () => void;
 };
 
 /** 阶段 F：选集写路径单入口（薄 funnel，委托既有 selection actions）。 */
@@ -60,6 +62,9 @@ export function applyTimelineSelectionCommand(
       return;
     case 'clear':
       deps.clearUnitSelection();
+      return;
+    case 'selectAll':
+      deps.selectAllUnits();
       return;
     default: {
       const _exhaustive: never = command;

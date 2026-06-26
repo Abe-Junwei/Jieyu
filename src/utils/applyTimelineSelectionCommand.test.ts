@@ -16,6 +16,7 @@ function createDeps(
     toggleSegmentSelection: vi.fn(),
     selectSegmentRange: vi.fn(),
     clearUnitSelection: vi.fn(),
+    selectAllUnits: vi.fn(),
     ...overrides,
   };
 }
@@ -56,6 +57,12 @@ describe('applyTimelineSelectionCommand', () => {
     );
     expect(toggleSegmentSelection).toHaveBeenCalledWith('s1');
     expect(selectSegmentRange).toHaveBeenCalledWith('s1', 's2', items);
+  });
+
+  it('routes selectAll to selectAllUnits', () => {
+    const selectAllUnits = vi.fn();
+    applyTimelineSelectionCommand({ type: 'selectAll' }, createDeps({ selectAllUnits }));
+    expect(selectAllUnits).toHaveBeenCalledTimes(1);
   });
 });
 

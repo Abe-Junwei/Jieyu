@@ -129,9 +129,10 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         toggleSegmentSelection: () => undefined,
         selectSegmentRange: () => undefined,
         clearUnitSelection: () => undefined,
+        selectAllUnits,
       });
     },
-    [applyTimelineSelectionCommand, selectTimelineUnit, selectUnit],
+    [applyTimelineSelectionCommand, selectTimelineUnit, selectUnit, selectAllUnits],
   );
 
   // Segment-focused play action
@@ -233,7 +234,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         runSelectAfter(activeSelectionId);
       },
       selectAll: () => {
-        selectAllUnits();
+        writeSelection({ type: 'selectAll' });
       },
       stepBack: () => {
         if (player.isPlaying) player.stop();
@@ -351,7 +352,6 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     runSelectBefore,
     runSplitAtTime,
     segMarkStart,
-    selectAllUnits,
     writeSelection,
     selectedMediaUrl,
     selectedUnitIds,
