@@ -252,14 +252,15 @@ describe('buildOrchestratorViewModelsInput', () => {
     expect(textOnly.textTimelineZoomPxPerSec).toBeUndefined();
   });
 
-  it('derives media lane lassoRect from segment-range gesture preview read model', () => {
+  it('passes segment-range gesture preview read model to media lanes', () => {
+    const model = { surface: 'tier' as const, rect: { x: 1, y: 2, w: 3, h: 4 } };
     const result = buildOrchestratorViewModelsInput(
       makeInput({
-        segmentRangeGesturePreviewReadModel: { surface: 'tier', rect: { x: 1, y: 2, w: 3, h: 4 } },
+        segmentRangeGesturePreviewReadModel: model,
       }),
     );
     const media = result.mediaLanesPropsInput as Record<string, unknown>;
-    expect(media.lassoRect).toEqual({ x: 1, y: 2, w: 3, h: 4 });
+    expect(media.segmentRangeGesturePreviewReadModel).toEqual(model);
   });
 
   it('derives text-only timingDragPreview from timeRange surface', () => {

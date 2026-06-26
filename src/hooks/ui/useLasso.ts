@@ -13,7 +13,6 @@ import { viewportFrameToDocRange } from '../../utils/viewportFrameToDocRange';
 import type WaveSurfer from 'wavesurfer.js';
 import { useLatest } from './useLatest';
 import type { LassoSurfacePreview } from '../../utils/segmentRangeGesturePreviewWriter';
-import { toLegacyLassoOutputs } from '../../utils/segmentRangeGesturePreviewWriter';
 import {
   areSelectionSnapshotsEqual,
   buildTimelineHitIndex,
@@ -103,7 +102,6 @@ export function useLasso(input: UseLassoInput) {
     setSubSelectionRange,
     subSelectDragRef,
     tierTimelineLassoSuppressed = false,
-    liftedLassoPreview: liftedLassoPreviewInput,
     setLiftedLassoPreview: setLiftedLassoPreviewInput,
     setSubSelectPreview,
     waveformMappingDurationSec,
@@ -113,10 +111,9 @@ export function useLasso(input: UseLassoInput) {
   const pxPerDocSec = viewportFrame.pxPerDocSec;
 
   // ---- Lasso state（可抬升到波形桥 reducer，与 Regions 时间预览同一写路径）----
-  const [internalLassoPreview, setInternalLassoPreview] = useState<LassoSurfacePreview>({
+  const [, setInternalLassoPreview] = useState<LassoSurfacePreview>({
     surface: 'none',
   });
-  const timeRangePreview = liftedLassoPreviewInput ?? internalLassoPreview;
   const setTimeRangePreview = setLiftedLassoPreviewInput ?? setInternalLassoPreview;
 
   // ---- Internal refs ----
@@ -769,15 +766,7 @@ export function useLasso(input: UseLassoInput) {
     [],
   );
 
-  const { lassoRect, waveLassoRect, waveLassoHintCount } = useMemo(
-    () => toLegacyLassoOutputs(timeRangePreview),
-    [timeRangePreview],
-  );
-
   return {
-    waveLassoRect,
-    waveLassoHintCount,
-    lassoRect,
     handleLassoPointerDown,
     handleLassoPointerMove,
     handleLassoPointerUp,

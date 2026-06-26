@@ -1,7 +1,9 @@
 /**
- * 阶段 F·1：语段范围手势「预览」读模型（wave 套索 / tier 套索 / Regions 时间拖预览）。
- * 单一判定入口，便于后续把多路 setState 收敛为单写者 | Single precedence gate for preview SSOT.
+ * 阶段 F·1 / D：语段范围手势「预览」读模型（wave / tier 套索、子选区、改时预览）。
+ * 单一判定入口 | Single precedence gate for preview SSOT.
  */
+
+import type { LassoSurfacePreview } from './segmentRangeGesturePreviewWriter';
 
 export type WaveLassoPreviewRect = {
   x: number;
@@ -26,30 +28,34 @@ export type SegmentRangeGesturePreviewReadModel =
   | { surface: 'subSelect'; start: number; end: number }
   | { surface: 'timeRange'; preview: TimeRangeDragPreview; mode: SegmentRangeGesturePreviewMode };
 
+export type BuildSegmentRangeGesturePreviewInput = {
+  lasso: LassoSurfacePreview;
+  timeDrag: TimeRangeDragPreview | null;
+  previewMode?: SegmentRangeGesturePreviewMode | null;
+  subSelectPreview?: { start: number; end: number } | null;
+};
+
 /**
  * 预览互斥优先级：wave 框选/拖建 > tier 套索 > 子选区 > Regions/resize 时间预览。
  */
 export function buildSegmentRangeGesturePreviewReadModel(
-  waveLassoRect: WaveLassoPreviewRect | null,
-  waveLassoHintCount: number,
-  lassoRect: TierLassoPreviewRect | null,
-  dragPreview: TimeRangeDragPreview | null,
-  previewMode: SegmentRangeGesturePreviewMode | null = null,
-  subSelectPreview: { start: number; end: number } | null = null,
+  input: BuildSegmentRangeGesturePreviewInput,
 ): SegmentRangeGesturePreviewReadModel {
-  if (waveLassoRect) {
-    return { surface: 'wave', rect: waveLassoRect, hintCount: waveLassoHintCount };
+  const { lasso, timeDrag, previewMode = null, subSelectPreview = null } = input;
+
+  if (lasso.surface === 'wave') {
+    return { surface: 'wave', rect: lasso.rect, hintCount: lasso.hintCount };
   }
-  if (lassoRect) {
-    return { surface: 'tier', rect: lassoRect };
+  if (lasso.surface === 'tier') {
+    return { surface: 'tier', rect: lasso.rect };
   }
   if (subSelectPreview) {
     return { surface: 'subSelect', start: subSelectPreview.start, end: subSelectPreview.end };
   }
-  if (dragPreview) {
+  if (timeDrag) {
     return {
       surface: 'timeRange',
-      preview: dragPreview,
+      preview: timeDrag,
       mode: previewMode ?? 'timing-edit',
     };
   }

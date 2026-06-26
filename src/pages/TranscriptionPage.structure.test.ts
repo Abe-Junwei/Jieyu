@@ -2319,7 +2319,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(matrixCode.includes("id: 'timeline-extent-single-source'")).toBe(true);
     expect(matrixCode.includes("id: 'segment-range-gesture-single-surface'")).toBe(true);
     expect(matrixCode.includes("id: 'phase-f-range-preview-ssot'")).toBe(true);
-    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 33')).toBe(true);
+    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 34')).toBe(true);
   });
 
   it('keeps media lanes layout on timelineExtentSec without playerDuration fallback', () => {
@@ -2506,7 +2506,8 @@ describe('TranscriptionPage structure invariants', () => {
     const lanesCode = fs.readFileSync(lanesPath, 'utf8');
     const waveOverlayCode = fs.readFileSync(waveOverlayPath, 'utf8');
     const bridgeCode = fs.readFileSync(bridgePath, 'utf8');
-    expect(lanesCode.includes('TierLassoPreviewOverlay')).toBe(true);
+    expect(lanesCode.includes('SegmentRangeLassoPreviewOverlay')).toBe(true);
+    expect(lanesCode.includes('lassoRect')).toBe(false);
     expect(waveOverlayCode.includes('WaveLassoPreviewOverlay')).toBe(true);
     expect(bridgeCode.includes('enableEmptyDragCreate: false')).toBe(true);
   });

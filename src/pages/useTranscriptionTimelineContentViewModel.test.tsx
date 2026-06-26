@@ -57,7 +57,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         mediaLanesPropsInput: {
           zoomPxPerSec: 100,
           timelineContentGutterPx: 64,
-          lassoRect: null,
+          segmentRangeGesturePreviewReadModel: { surface: 'none' as const },
           transcriptionLayers: [],
           translationLayers: [],
           timelineUnitViewIndex: createEmptyTimelineUnitViewIndex(),
@@ -228,7 +228,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
       mediaLanesPropsInput: {
         zoomPxPerSec: 100,
         timelineContentGutterPx: 64,
-        lassoRect: null,
+        segmentRangeGesturePreviewReadModel: { surface: 'none' as const },
         transcriptionLayers: [],
         translationLayers: [],
         timelineUnitViewIndex: createEmptyTimelineUnitViewIndex(),
@@ -327,7 +327,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         mediaLanesPropsInput: {
           zoomPxPerSec: 50,
           timelineContentGutterPx: 64,
-          lassoRect: null,
+          segmentRangeGesturePreviewReadModel: { surface: 'none' as const },
           transcriptionLayers: [stubLayer],
           translationLayers: [stubTranslation],
           timelineUnitViewIndex: unitIndex,
@@ -458,7 +458,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         mediaLanesPropsInput: {
           zoomPxPerSec: 50,
           timelineContentGutterPx: 64,
-          lassoRect: null,
+          segmentRangeGesturePreviewReadModel: { surface: 'none' as const },
           transcriptionLayers: [stubLayer],
           translationLayers: [],
           timelineUnitViewIndex: unitIndex,

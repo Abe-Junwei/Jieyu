@@ -23,8 +23,9 @@ import {
   DEFAULT_TIMELINE_LANE_HEIGHT,
   useTimelineLaneHeightResize,
 } from '../hooks/transcription/useTimelineLaneHeightResize';
-import { TierLassoPreviewOverlay } from './transcription/SegmentRangeLassoPreviewOverlay';
+import { SegmentRangeLassoPreviewOverlay } from './transcription/SegmentRangeLassoPreviewOverlay';
 import { t, useLocale } from '../i18n';
+import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
 import { useLayerDeleteConfirm } from '~/hooks/layer/useLayerDeleteConfirm';
 import {
   buildSpeakerLayerLayoutWithOptions,
@@ -53,13 +54,6 @@ import type { LayerOperationActionType } from './layerOperationMenuItems';
 import { useCollapsedLayerIds } from '../hooks/transcription/useTimelineVisibilityState';
 import { listSegmentTimelineUnitsForLayer } from '../utils/timelineLaneSegmentIteration';
 import { useTimelineLaneDisplayStyleResizePreview } from '../hooks/transcription/useTimelineLaneDisplayStyleResizePreview';
-
-type LassoRect = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-};
 
 const noopToggleConnectors = () => {};
 
@@ -115,7 +109,7 @@ type TranscriptionTimelineHorizontalMediaLanesProps = {
    * 由宿主用纯数写入 `width`，避免 Safari 对嵌套 `calc`/自定义属性的解析问题 | JS sum for Safari-safe width
    */
   timelineContentGutterPx: number;
-  lassoRect: LassoRect | null;
+  segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   timelineUnitViewIndex: TimelineUnitViewIndexWithEpoch;
@@ -212,7 +206,7 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
     timelineExtentSec,
     zoomPxPerSec,
     timelineContentGutterPx,
-    lassoRect,
+    segmentRangeGesturePreviewReadModel,
     transcriptionLayers,
     translationLayers: _translationLayers,
     timelineUnitViewIndex: _timelineUnitViewIndex,
@@ -544,7 +538,13 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
           minWidth: 0,
         }}
       >
-        {lassoRect ? <TierLassoPreviewOverlay rect={lassoRect} /> : null}
+        {segmentRangeGesturePreviewReadModel.surface === 'tier' ? (
+          <SegmentRangeLassoPreviewOverlay
+            model={segmentRangeGesturePreviewReadModel}
+            surface="tier"
+            locale={locale}
+          />
+        ) : null}
         {allLayersOrdered.map((layer, idx) => {
           if (layer.layerType === 'transcription') {
             const segmentSourceLayer = resolveSegmentTimelineSourceLayer(

@@ -140,7 +140,7 @@ export interface OrchestratorWaveformContentProps {
   playerSeekTo: (time: number) => void;
   playerPlayRegion: (start: number, end: number, resume?: boolean) => void;
 
-  /** 阶段 F·1：主波形套索预览由读模型派生（与编排层 `lassoRect` / `timingDragPreview` 同源）。 */
+  /** 阶段 D：主波形套索预览由读模型派生（与 media lanes / 文本 `timingDragPreview` 同源）。 */
   segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel;
 
   // Note indicators

@@ -373,14 +373,7 @@ export function useTranscriptionWaveformBridgeController(
   });
   const { rulerView } = timelineViewportProjection;
 
-  const {
-    waveLassoRect,
-    waveLassoHintCount,
-    lassoRect,
-    handleLassoPointerDown,
-    handleLassoPointerMove,
-    handleLassoPointerUp,
-  } = useLasso({
+  const { handleLassoPointerDown, handleLassoPointerMove, handleLassoPointerUp } = useLasso({
     waveCanvasRef,
     tierContainerRef: input.tierContainerRef,
     playerInstanceRef: player.instanceRef,
@@ -496,9 +489,6 @@ export function useTranscriptionWaveformBridgeController(
     subSelectionRange,
     setSubSelectionRange,
     subSelectDragRef,
-    waveLassoRect,
-    waveLassoHintCount,
-    lassoRect,
     segmentRangeGesturePreviewReadModel,
     handleLassoPointerDown,
     handleLassoPointerMove,

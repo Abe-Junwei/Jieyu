@@ -44,7 +44,7 @@ export type TimelineHostSharedLaneProps = Pick<
 export type TimelineHorizontalProjectionLaneProps = Pick<
   TranscriptionPageTimelineHorizontalMediaLanesProps,
   | 'zoomPxPerSec'
-  | 'lassoRect'
+  | 'segmentRangeGesturePreviewReadModel'
   | 'timelineRenderUnits'
   | 'defaultTranscriptionLayerId'
   | 'renderAnnotationItem'

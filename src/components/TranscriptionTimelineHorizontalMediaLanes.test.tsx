@@ -185,7 +185,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes layout extent', () => {
         timelineExtentSec={30}
         zoomPxPerSec={10}
         timelineContentGutterPx={64}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[layer]}
         translationLayers={[]}
         timelineRenderUnits={[]}
@@ -230,7 +230,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[transcriptionLayer]}
         translationLayers={[translationLayer]}
         timelineRenderUnits={[makeUnit('u1', 0, 1, 's1')]}
@@ -266,7 +266,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[layer]}
         translationLayers={[]}
         timelineRenderUnits={[makeUnit('seg-1', 0, 2), makeUnit('utt-host', 4, 6)]}
@@ -325,7 +325,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[layer]}
         translationLayers={[]}
         timelineRenderUnits={units}
@@ -383,7 +383,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[layer]}
         translationLayers={[]}
         timelineRenderUnits={units}
@@ -447,7 +447,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[layer]}
         translationLayers={[]}
         timelineRenderUnits={units}
@@ -501,7 +501,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[trcHost]}
         translationLayers={[trLayer]}
         timelineRenderUnits={units}
@@ -557,7 +557,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[]}
         translationLayers={[translationLayer]}
         timelineRenderUnits={[makeUnit('u-main', 0, 2, 's1')]}
@@ -628,7 +628,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[parentLayer, childLayer]}
         translationLayers={[]}
         timelineRenderUnits={[makeUnit('u-main', 0, 2, 's1')]}
@@ -673,7 +673,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[parentLayer, childLayer]}
         translationLayers={[]}
         timelineRenderUnits={[makeUnit('u-main', 0, 2, 's1')]}
@@ -741,7 +741,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[parentLayer, childLayer]}
         translationLayers={[]}
         timelineRenderUnits={[makeUnit('u-main', 0, 2, 's1')]}
@@ -809,7 +809,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[layer]}
         translationLayers={[]}
         timelineRenderUnits={units}
@@ -860,7 +860,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[layer]}
         translationLayers={[]}
         timelineRenderUnits={[]}
@@ -893,7 +893,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[layer]}
         translationLayers={[]}
         timelineRenderUnits={units}
@@ -930,7 +930,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[layer]}
         translationLayers={[]}
         timelineRenderUnits={units}
@@ -959,7 +959,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[layer]}
         translationLayers={[]}
         timelineRenderUnits={units}
@@ -1022,7 +1022,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[layer]}
         translationLayers={[]}
         timelineRenderUnits={[]}
@@ -1150,7 +1150,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[transcriptionLayer]}
         translationLayers={[translationLayer]}
         timelineRenderUnits={[unit]}
@@ -1229,7 +1229,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[transcriptionLayer]}
         translationLayers={[translationLayer]}
         timelineRenderUnits={[unit]}
@@ -1341,7 +1341,7 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       <TranscriptionTimelineHorizontalMediaLanes
         timelineExtentSec={20}
         zoomPxPerSec={100}
-        lassoRect={null}
+        segmentRangeGesturePreviewReadModel={{ surface: 'none' }}
         transcriptionLayers={[transcriptionLayer]}
         translationLayers={[translationLayer]}
         timelineRenderUnits={[segmentItem]}

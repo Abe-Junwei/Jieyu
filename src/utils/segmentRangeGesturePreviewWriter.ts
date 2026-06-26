@@ -146,30 +146,13 @@ export function segmentRangeGestureWriterReducer(
   }
 }
 
-export function toLegacyLassoOutputs(preview: LassoSurfacePreview): {
-  lassoRect: TierLassoPreviewRect | null;
-  waveLassoRect: WaveLassoPreviewRect | null;
-  waveLassoHintCount: number;
-} {
-  if (preview.surface === 'tier') {
-    return { lassoRect: preview.rect, waveLassoRect: null, waveLassoHintCount: 0 };
-  }
-  if (preview.surface === 'wave') {
-    return { lassoRect: null, waveLassoRect: preview.rect, waveLassoHintCount: preview.hintCount };
-  }
-  return { lassoRect: null, waveLassoRect: null, waveLassoHintCount: 0 };
-}
-
 export function segmentRangeGestureReadModelFromWriterState(
   state: SegmentRangeGestureWriterState,
 ): SegmentRangeGesturePreviewReadModel {
-  const { waveLassoRect, lassoRect, waveLassoHintCount } = toLegacyLassoOutputs(state.lasso);
-  return buildSegmentRangeGesturePreviewReadModel(
-    waveLassoRect,
-    waveLassoHintCount,
-    lassoRect,
-    state.timeDrag,
-    state.previewMode,
-    state.subSelectPreview,
-  );
+  return buildSegmentRangeGesturePreviewReadModel({
+    lasso: state.lasso,
+    timeDrag: state.timeDrag,
+    previewMode: state.previewMode,
+    subSelectPreview: state.subSelectPreview,
+  });
 }

@@ -181,17 +181,7 @@ export interface UseTranscriptionWaveformBridgeControllerResult {
   subSelectionRange: { start: number; end: number } | null;
   setSubSelectionRange: Dispatch<SetStateAction<{ start: number; end: number } | null>>;
   subSelectDragRef: MutableRefObject<SubSelectDrag | null>;
-  waveLassoRect: {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    mode: 'select' | 'create';
-    hitCount: number;
-  } | null;
-  waveLassoHintCount: number;
-  lassoRect: { x: number; y: number; w: number; h: number } | null;
-  /** 阶段 F·1：wave/tier/Regions 预览互斥读模型（与底层 state 同源派生）。 */
+  /** 阶段 D：wave/tier/subSelect/timeRange 预览互斥读模型（与 gesture writer 同源）。 */
   segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel;
   handleLassoPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   handleLassoPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;

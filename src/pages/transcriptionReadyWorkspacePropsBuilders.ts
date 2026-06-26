@@ -48,7 +48,7 @@ export type BuiltSharedLaneProps = Omit<
   HorizontalMediaLanesProps,
   | 'timelineExtentSec'
   | 'zoomPxPerSec'
-  | 'lassoRect'
+  | 'segmentRangeGesturePreviewReadModel'
   | 'timelineRenderUnits'
   | 'defaultTranscriptionLayerId'
   | 'renderAnnotationItem'

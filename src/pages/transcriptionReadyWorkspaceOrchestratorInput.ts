@@ -28,10 +28,7 @@ import {
 import type { UseOrchestratorViewModelsInput } from './useOrchestratorViewModels';
 import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
 import type { EmptyTimelinePolicy } from '../utils/emptyTimelinePolicy';
-import {
-  tierLassoRectFromSegmentRangeGesturePreview,
-  timeRangeDragPreviewFromSegmentRangeGesturePreview,
-} from '../utils/segmentRangeGesturePreviewReadModel';
+import { timeRangeDragPreviewFromSegmentRangeGesturePreview } from '../utils/segmentRangeGesturePreviewReadModel';
 
 /**
  * TranscriptionPage.ReadyWorkspace 传入 buildOrchestratorViewModelsInput 的原始依赖包。
@@ -49,7 +46,7 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   sharedLaneProps: BuiltSharedLaneProps;
   /** Single source for zoom + ruler window (from `useTimelineViewport` via waveform bridge). */
   timelineViewportProjection: TimelineViewportProjection;
-  /** 阶段 F·1：wave/tier/Regions 预览互斥读模型；编排层由此派生 `lassoRect` 与 `timingDragPreview`。 */
+  /** 阶段 D：wave/tier/subSelect/timeRange 预览互斥读模型；编排层直传 media lanes，文本轨仍派生 timingDragPreview。 */
   segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel;
   /** 阶段 F：空时间轴策略；与 `TimelineReadModel.emptyTimeline` 同源。 */
   emptyTimelinePolicy?: EmptyTimelinePolicy;
@@ -299,9 +296,6 @@ export function buildOrchestratorViewModelsInput(
 
   const zoomPxPerSec = timelineViewportProjection.zoomPxPerSec;
   const rulerView = timelineViewportProjection.rulerView;
-  const tierLassoRect = tierLassoRectFromSegmentRangeGesturePreview(
-    segmentRangeGesturePreviewReadModel,
-  );
   const timingDragPreview = timeRangeDragPreviewFromSegmentRangeGesturePreview(
     segmentRangeGesturePreviewReadModel,
   );
@@ -324,7 +318,7 @@ export function buildOrchestratorViewModelsInput(
     mediaLanesPropsInput: dropUndefinedKeys({
       ...sharedLaneProps,
       zoomPxPerSec,
-      lassoRect: tierLassoRect,
+      segmentRangeGesturePreviewReadModel,
       timelineRenderUnits,
       defaultTranscriptionLayerId,
       renderAnnotationItem,
