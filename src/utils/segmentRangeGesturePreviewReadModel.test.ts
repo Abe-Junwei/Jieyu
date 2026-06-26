@@ -12,7 +12,9 @@ const time = { id: 'u1', start: 1, end: 2 };
 
 describe('buildSegmentRangeGesturePreviewReadModel', () => {
   it('returns none when all inputs are empty', () => {
-    expect(buildSegmentRangeGesturePreviewReadModel(null, 0, null, null)).toEqual({ surface: 'none' });
+    expect(buildSegmentRangeGesturePreviewReadModel(null, 0, null, null)).toEqual({
+      surface: 'none',
+    });
   });
 
   it('prefers wave lasso over tier and time-range previews', () => {
@@ -34,13 +36,24 @@ describe('buildSegmentRangeGesturePreviewReadModel', () => {
     expect(buildSegmentRangeGesturePreviewReadModel(null, 0, null, time)).toEqual({
       surface: 'timeRange',
       preview: time,
+      mode: 'timing-edit',
+    });
+  });
+
+  it('honors explicit preview mode on time-range surface', () => {
+    expect(buildSegmentRangeGesturePreviewReadModel(null, 0, null, time, 'range')).toEqual({
+      surface: 'timeRange',
+      preview: time,
+      mode: 'range',
     });
   });
 
   it('exposes tier rect only on tier surface', () => {
     const m = buildSegmentRangeGesturePreviewReadModel(null, 0, tier, time);
     expect(tierLassoRectFromSegmentRangeGesturePreview(m)).toEqual(tier);
-    expect(tierLassoRectFromSegmentRangeGesturePreview({ surface: 'wave', rect: wave, hintCount: 0 })).toBeNull();
+    expect(
+      tierLassoRectFromSegmentRangeGesturePreview({ surface: 'wave', rect: wave, hintCount: 0 }),
+    ).toBeNull();
   });
 
   it('exposes time-range preview only on timeRange surface', () => {
@@ -59,6 +72,8 @@ describe('buildSegmentRangeGesturePreviewReadModel', () => {
       mode: wave.mode,
       hintCount: 3,
     });
-    expect(waveLassoOverlayFromSegmentRangeGesturePreview({ surface: 'tier', rect: tier })).toBeNull();
+    expect(
+      waveLassoOverlayFromSegmentRangeGesturePreview({ surface: 'tier', rect: tier }),
+    ).toBeNull();
   });
 });

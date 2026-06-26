@@ -13,12 +13,14 @@ describe('segmentRangeGestureWriterReducer', () => {
       update: { id: 'a', start: 1, end: 2 },
     });
     expect(s.timeDrag).toEqual({ id: 'a', start: 1, end: 2 });
+    expect(s.previewMode).toBe('range');
     s = segmentRangeGestureWriterReducer(s, {
       type: 'lasso',
       update: { surface: 'tier', rect: { x: 0, y: 0, w: 1, h: 1 } },
     });
     expect(s.lasso.surface).toBe('tier');
-    expect(s.timeDrag).toEqual({ id: 'a', start: 1, end: 2 });
+    expect(s.timeDrag).toBeNull();
+    expect(s.previewMode).toBeNull();
   });
 
   it('supports functional updates', () => {
@@ -42,6 +44,37 @@ describe('segmentRangeGestureWriterReducer', () => {
     expect(s.snapGuide).toEqual({ visible: true, left: 1, right: 2, nearSide: 'left' });
   });
 
+  it('batches timing-edit preview and snap guide in one dispatch', () => {
+    const s = segmentRangeGestureWriterReducer(initialSegmentRangeGestureWriterState, {
+      type: 'timingEdit',
+      patch: {
+        preview: { id: 'u1', start: 1, end: 2 },
+        snapGuide: { visible: true, left: 1, right: 2, nearSide: 'both' },
+      },
+    });
+    expect(s.timeDrag).toEqual({ id: 'u1', start: 1, end: 2 });
+    expect(s.previewMode).toBe('timing-edit');
+    expect(s.snapGuide).toEqual({ visible: true, left: 1, right: 2, nearSide: 'both' });
+    expect(s.lasso).toEqual({ surface: 'none' });
+  });
+
+  it('clears timing-edit state when preview is null', () => {
+    let s = segmentRangeGestureWriterReducer(initialSegmentRangeGestureWriterState, {
+      type: 'timingEdit',
+      patch: {
+        preview: { id: 'u1', start: 1, end: 2 },
+        snapGuide: { visible: true, left: 1, right: 2, nearSide: 'both' },
+      },
+    });
+    s = segmentRangeGestureWriterReducer(s, {
+      type: 'timingEdit',
+      patch: { preview: null },
+    });
+    expect(s.timeDrag).toBeNull();
+    expect(s.previewMode).toBeNull();
+    expect(s.snapGuide).toEqual(initialSegmentRangeGestureWriterState.snapGuide);
+  });
+
   it('maps writer state to read model with wave precedence over time drag', () => {
     const s = {
       lasso: {
@@ -51,6 +84,7 @@ describe('segmentRangeGestureWriterReducer', () => {
       },
       timeDrag: { id: 'u', start: 0, end: 9 },
       snapGuide: initialSegmentRangeGestureWriterState.snapGuide,
+      previewMode: 'timing-edit' as const,
     };
     expect(segmentRangeGestureReadModelFromWriterState(s)).toEqual({
       surface: 'wave',

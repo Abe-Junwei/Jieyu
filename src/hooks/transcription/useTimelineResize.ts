@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { snapToZeroCrossing } from '../../services/AudioAnalysisService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import type { SnapGuide } from '../useTranscriptionData';
+import type { TimingEditPreviewPatch } from '../../utils/segmentRangeGesturePreviewWriter';
 
 type TimelineResizeTooltip = {
   x: number;
@@ -68,10 +69,7 @@ type UseTimelineResizeParams = {
     end: number,
   ) => SnapGuide;
   snapEnabled: boolean;
-  setSnapGuide: React.Dispatch<React.SetStateAction<SnapGuide>>;
-  setDragPreview: React.Dispatch<
-    React.SetStateAction<{ id: string; start: number; end: number } | null>
-  >;
+  setTimingEditPreview: (patch: TimingEditPreviewPatch) => void;
   saveUnitTiming: (unitId: string, start: number, end: number, layerId?: string) => Promise<void>;
   /** 独立边界层的 segments，按 layerId 分组 | Segments for independent-boundary layers, grouped by layerId */
   segmentsByLayer?: Map<string, Array<{ id: string; startTime: number; endTime: number }>>;
@@ -90,8 +88,7 @@ export function useTimelineResize({
   getNeighborBounds,
   makeSnapGuide,
   snapEnabled,
-  setSnapGuide,
-  setDragPreview,
+  setTimingEditPreview,
   saveUnitTiming,
   segmentsByLayer,
 }: UseTimelineResizeParams) {
@@ -166,7 +163,19 @@ export function useTimelineResize({
         latestEnd: unit.endTime,
         zoomPxPerSec: effectiveZoom,
       };
-      setDragPreview({ id: unit.id, start: unit.startTime, end: unit.endTime });
+      setTimingEditPreview({
+        preview: { id: unit.id, start: unit.startTime, end: unit.endTime },
+        snapGuide: makeSnapGuide(
+          getNeighborBounds(
+            resolvedSegmentId ?? unit.id,
+            unit.mediaId ?? '',
+            unit.startTime,
+            layerId,
+          ),
+          unit.startTime,
+          unit.endTime,
+        ),
+      });
       setTimelineResizeTooltip({
         x: event.clientX,
         y: event.clientY,
@@ -232,21 +241,22 @@ export function useTimelineResize({
 
         drag.latestStart = nextStart;
         drag.latestEnd = nextEnd;
-        setDragPreview({ id: drag.unitId, start: nextStart, end: nextEnd });
-        setTimelineResizeTooltip({
-          x: ev.clientX,
-          y: ev.clientY,
-          start: nextStart,
-          end: nextEnd,
-        });
-
         const liveBounds = getNeighborBounds(
           drag.segmentId ?? drag.unitId,
           drag.mediaId,
           nextStart,
           drag.layerId,
         );
-        setSnapGuide(makeSnapGuide(liveBounds, nextStart, nextEnd));
+        setTimingEditPreview({
+          preview: { id: drag.unitId, start: nextStart, end: nextEnd },
+          snapGuide: makeSnapGuide(liveBounds, nextStart, nextEnd),
+        });
+        setTimelineResizeTooltip({
+          x: ev.clientX,
+          y: ev.clientY,
+          start: nextStart,
+          end: nextEnd,
+        });
       };
 
       const onUp = () => {
@@ -272,7 +282,7 @@ export function useTimelineResize({
           }
         }
 
-        setDragPreview(null);
+        setTimingEditPreview({ preview: null });
         setTimelineResizeTooltip(null);
         endTimingGesture(drag.unitId);
 
@@ -282,7 +292,9 @@ export function useTimelineResize({
           finalStart,
           drag.layerId,
         );
-        setSnapGuide(makeSnapGuide(bounds, finalStart, finalEnd));
+        setTimingEditPreview({
+          snapGuide: makeSnapGuide(bounds, finalStart, finalEnd),
+        });
         fireAndForget(
           saveUnitTiming(drag.segmentId ?? drag.unitId, finalStart, finalEnd, drag.layerId),
           { context: 'src/hooks/transcription/useTimelineResize.ts:L237', policy: 'user-visible' },
@@ -304,8 +316,7 @@ export function useTimelineResize({
       setFocusedLayerRowId,
       beginTimingGesture,
       getNeighborBounds,
-      setDragPreview,
-      setSnapGuide,
+      setTimingEditPreview,
       makeSnapGuide,
       snapEnabled,
       endTimingGesture,

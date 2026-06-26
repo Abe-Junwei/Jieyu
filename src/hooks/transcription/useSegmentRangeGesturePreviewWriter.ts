@@ -1,13 +1,18 @@
-import { useMemo, useReducer } from 'react';
+import { useCallback, useMemo, useReducer } from 'react';
 import type { SetStateAction } from 'react';
 import type { SnapGuide } from './transcriptionTypes';
 import type { TimeRangeDragPreview } from '../../utils/segmentRangeGesturePreviewReadModel';
-import type { LassoSurfacePreview } from '../../utils/segmentRangeGesturePreviewWriter';
+import type {
+  LassoSurfacePreview,
+  TimingEditPreviewPatch,
+} from '../../utils/segmentRangeGesturePreviewWriter';
 import {
   initialSegmentRangeGestureWriterState,
   segmentRangeGestureReadModelFromWriterState,
   segmentRangeGestureWriterReducer,
 } from '../../utils/segmentRangeGesturePreviewWriter';
+
+export type { TimingEditPreviewPatch } from '../../utils/segmentRangeGesturePreviewWriter';
 
 /**
  * 波形桥专用：语段范围手势预览（lasso 抬升 + Regions 时间拖）单 reducer，供 `useTranscriptionWaveformBridgeController` 复用。
@@ -18,20 +23,21 @@ export function useSegmentRangeGesturePreviewWriter() {
     initialSegmentRangeGestureWriterState,
   );
 
-  const { setLiftedLassoPreview, setDragPreview, setSnapGuide } = useMemo(
-    () => ({
-      setLiftedLassoPreview: (update: SetStateAction<LassoSurfacePreview>) => {
-        dispatchGestureWriter({ type: 'lasso', update });
-      },
-      setDragPreview: (update: SetStateAction<TimeRangeDragPreview | null>) => {
-        dispatchGestureWriter({ type: 'timeDrag', update });
-      },
-      setSnapGuide: (update: SetStateAction<SnapGuide>) => {
-        dispatchGestureWriter({ type: 'snapGuide', update });
-      },
-    }),
-    [dispatchGestureWriter],
-  );
+  const setLiftedLassoPreview = useCallback((update: SetStateAction<LassoSurfacePreview>) => {
+    dispatchGestureWriter({ type: 'lasso', update });
+  }, []);
+
+  const setDragPreview = useCallback((update: SetStateAction<TimeRangeDragPreview | null>) => {
+    dispatchGestureWriter({ type: 'timeDrag', update });
+  }, []);
+
+  const setSnapGuide = useCallback((update: SetStateAction<SnapGuide>) => {
+    dispatchGestureWriter({ type: 'snapGuide', update });
+  }, []);
+
+  const setTimingEditPreview = useCallback((patch: TimingEditPreviewPatch) => {
+    dispatchGestureWriter({ type: 'timingEdit', patch });
+  }, []);
 
   const dragPreview = gestureWriter.timeDrag;
   const snapGuide = gestureWriter.snapGuide;
@@ -47,6 +53,7 @@ export function useSegmentRangeGesturePreviewWriter() {
     setLiftedLassoPreview,
     setDragPreview,
     setSnapGuide,
+    setTimingEditPreview,
     dragPreview,
     snapGuide,
     segmentRangeGesturePreviewReadModel,

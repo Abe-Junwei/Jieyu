@@ -15,19 +15,29 @@ describe('useSegmentRangeGesturePreviewWriter', () => {
     expect(result.current.segmentRangeGesturePreviewReadModel).toEqual({
       surface: 'timeRange',
       preview: { id: 'u1', start: 1, end: 2 },
+      mode: 'timing-edit',
     });
   });
 
-  it('updates snap guide alongside time drag preview', () => {
+  it('batches timing-edit preview and snap guide', () => {
     const { result } = renderHook(() => useSegmentRangeGesturePreviewWriter());
     act(() => {
-      result.current.setSnapGuide({ visible: true, left: 0.5, right: 1.5, nearSide: 'both' });
+      result.current.setTimingEditPreview({
+        preview: { id: 'u1', start: 1, end: 2 },
+        snapGuide: { visible: true, left: 0.5, right: 1.5, nearSide: 'both' },
+      });
     });
+    expect(result.current.dragPreview).toEqual({ id: 'u1', start: 1, end: 2 });
     expect(result.current.snapGuide).toEqual({
       visible: true,
       left: 0.5,
       right: 1.5,
       nearSide: 'both',
+    });
+    expect(result.current.segmentRangeGesturePreviewReadModel).toEqual({
+      surface: 'timeRange',
+      preview: { id: 'u1', start: 1, end: 2 },
+      mode: 'timing-edit',
     });
   });
 });
