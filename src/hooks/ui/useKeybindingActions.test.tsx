@@ -336,4 +336,79 @@ describe('useKeybindingActions segment routing', () => {
     });
     expect(selectUnit).toHaveBeenCalledWith('seg-b');
   });
+
+  it('routes navigateUnitFromInput through applyTimelineSelectionCommand when funnel is wired', () => {
+    const applyTimelineSelectionCommand = vi.fn();
+    const selectUnit = vi.fn();
+    const units = [
+      makeTimelineUnit({ id: 'u1', startTime: 0, endTime: 1, kind: 'unit' }),
+      makeTimelineUnit({ id: 'u2', startTime: 1, endTime: 2, kind: 'unit' }),
+    ];
+
+    const { result } = renderHook(() => {
+      const waveformAreaRef = useRef<HTMLDivElement | null>(null);
+      return useKeybindingActions({
+        player: {
+          isReady: true,
+          isPlaying: false,
+          playbackRate: 1,
+          instanceRef: { current: null },
+          stop: vi.fn(),
+          playRegion: vi.fn(),
+          togglePlayback: vi.fn(),
+          seekBySeconds: vi.fn(),
+        },
+        subSelectionRange: null,
+        setSubSelectionRange: vi.fn(),
+        selectedUnit: undefined,
+        selectedTimelineUnit: { layerId: 'layer-1', unitId: 'u1', kind: 'unit' },
+        selectedUnitIds: new Set(['u1']),
+        selectedMediaUrl: 'blob:test',
+        segMarkStart: null,
+        setSegMarkStart: vi.fn(),
+        segmentLoopPlayback: false,
+        setSegmentLoopPlayback: vi.fn(),
+        timelineUnitsOnCurrentMedia: units,
+        markingModeRef: { current: false },
+        skipSeekForIdRef: { current: null },
+        creatingSegmentRef: { current: false },
+        manualSelectTsRef: { current: 0 },
+        waveformAreaRef,
+        createUnitFromSelection: vi.fn(async () => undefined),
+        applyTimelineSelectionCommand,
+        selectUnit,
+        selectAllUnits: vi.fn(),
+        runDeleteSelection: vi.fn(),
+        runMergePrev: vi.fn(),
+        runMergeNext: vi.fn(),
+        runSplitAtTime: vi.fn(),
+        runSelectBefore: vi.fn(),
+        runSelectAfter: vi.fn(),
+        undo: vi.fn(async () => undefined),
+        redo: vi.fn(async () => undefined),
+        setShowSearch: vi.fn(),
+        toggleNotes: vi.fn(),
+      });
+    });
+
+    const textarea = document.createElement('textarea');
+    document.body.appendChild(textarea);
+    act(() => {
+      result.current.navigateUnitFromInput(
+        {
+          preventDefault: vi.fn(),
+          target: textarea,
+          shiftKey: false,
+        } as unknown as React.KeyboardEvent<HTMLTextAreaElement>,
+        1,
+      );
+    });
+
+    expect(applyTimelineSelectionCommand).toHaveBeenCalledWith({
+      type: 'selectUnit',
+      unitId: 'u2',
+    });
+    expect(selectUnit).not.toHaveBeenCalled();
+    textarea.remove();
+  });
 });

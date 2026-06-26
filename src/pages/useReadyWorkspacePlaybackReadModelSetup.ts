@@ -102,6 +102,7 @@ export function useReadyWorkspacePlaybackReadModelSetup(
     waveformAreaRef: waveformBridge.waveformAreaRef,
     createUnitFromSelection: createUnitFromSelectionRouted,
     selectTimelineUnit: data.selectTimelineUnit,
+    applyTimelineSelectionCommand: data.applyTimelineSelectionCommand,
     selectUnit: data.selectUnit,
     selectAllUnits: data.selectAllUnits,
     runDeleteSelection,

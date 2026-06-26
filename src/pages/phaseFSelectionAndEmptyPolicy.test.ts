@@ -3,7 +3,7 @@ import { TIMELINE_PARITY_MATRIX, TIMELINE_PARITY_MATRIX_VERSION } from './timeli
 
 describe('phaseFSelectionAndEmptyPolicyParity', () => {
   it('locks matrix version for phase F selection + empty policy drift', () => {
-    expect(TIMELINE_PARITY_MATRIX_VERSION).toBe(34);
+    expect(TIMELINE_PARITY_MATRIX_VERSION).toBe(35);
   });
 
   it('declares selection-write-funnel row with applyTimelineSelectionCommand anchor', () => {
@@ -12,6 +12,7 @@ describe('phaseFSelectionAndEmptyPolicyParity', () => {
     if (!row) return;
     expect(row.parity.waveform).toBe('full');
     expect(row.parity.textOnly).toBe('full');
+    expect(row.parity.vertical).toBe('full');
     expect(row.testAnchors).toContain('src/utils/applyTimelineSelectionCommand.test.ts');
     expect(row.testAnchors).toContain('src/utils/timelineSelectionProjection.test.ts');
     expect(row.testAnchors).toContain('src/pages/timelineReadModel.test.ts');

@@ -41,12 +41,13 @@
  * 版本 32：审查修复 — `useLasso` 波形套索时间坐标回退 WS scroll-parent；轨面 segment shift/meta 经 `writeTimelineSelection`；`timeDrag` previewMode 语义修正。
  * 版本 33：阶段 B 收尾 — tier scroll 镜像经 `applyTimelineViewportScroll`；阶段 D — 子选区预览进 gesture reducer + React overlay。
  * 版本 34：阶段 D 完成 — 移除 legacy `lassoRect` / `waveLassoRect`；media lanes 直消费 `segmentRangeGesturePreviewReadModel`。
+ * 版本 35：阶段 F·4 — 键盘/纵向 Tab 选集经 `writeTimelineSelection`；`selection-write-funnel` 纵向 parity 升为 full。
  */
 
 import type { TimelineParityMatrixRowId } from '../i18n/messages';
 import { timelineParityMatrixRowsZh } from '../i18n/messages';
 
-export const TIMELINE_PARITY_MATRIX_VERSION = 34 as const;
+export const TIMELINE_PARITY_MATRIX_VERSION = 35 as const;
 
 type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
 
@@ -174,7 +175,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
   {
     id: 'selection-write-funnel',
     ...rowParts('selection-write-funnel'),
-    parity: { waveform: 'full', textOnly: 'full', vertical: 'partial' },
+    parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
     testAnchors: [
       'src/pages/phaseFSelectionAndEmptyPolicy.test.ts',
       'src/utils/applyTimelineSelectionCommand.test.ts',
@@ -182,6 +183,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
       'src/pages/timelineReadModel.test.ts',
       'src/hooks/transcription/useTimelineAnnotationHelpers.test.tsx',
       'src/pages/useTranscriptionTimelineInteractionController.test.tsx',
+      'src/hooks/ui/useKeybindingActions.test.tsx',
       'src/pages/TranscriptionPage.structure.test.ts',
     ],
   },

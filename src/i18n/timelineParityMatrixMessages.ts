@@ -35,9 +35,9 @@ export const timelineParityMatrixRowsZh = {
   },
   'selection-write-funnel': {
     labelZh:
-      '阶段 F·2：选集写路径单入口（applyTimelineSelectionCommand + selectionProjection 只读）',
+      '阶段 F·2–F·4：选集写路径单入口（applyTimelineSelectionCommand + selectionProjection 只读）',
     verticalGapZh:
-      '写 funnel 已接 `useTranscriptionDataBindings`；纵向对读选集仍部分走平行 handler，待后续收口。',
+      '横向轨面、波形 interaction、键盘/纵向 Tab（`useKeybindingActions.navigateUnitFromInput`）均经 `writeTimelineSelection`；`useTranscriptionDataBindings` 导出 funnel。',
   },
   'empty-timeline-policy': {
     labelZh: '阶段 F·3：空时间轴策略单点（EmptyTimelinePolicy → TimelineEmptyState / content VM）',

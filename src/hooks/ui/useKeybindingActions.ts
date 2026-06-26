@@ -9,6 +9,10 @@ import {
 } from '../../services/KeybindingService';
 import { recordTranscriptionKeyboardAction } from '../../utils/transcriptionKeyboardActionTelemetry';
 import { fireAndForget } from '../../utils/fireAndForget';
+import {
+  writeTimelineSelection,
+  type TimelineSelectionCommand,
+} from '../../utils/applyTimelineSelectionCommand';
 
 function isEditableTarget(target: EventTarget | null): boolean {
   const element = target instanceof HTMLElement ? target : null;
@@ -56,6 +60,8 @@ interface UseKeybindingActionsInput {
     options?: { selectionBehavior?: 'select-created' | 'keep-current' },
   ) => Promise<void>;
   selectTimelineUnit?: (unit: TimelineUnit | null) => void;
+  /** ReadyWorkspace：键盘/纵向 Tab 选集优先经 applyTimelineSelectionCommand。 */
+  applyTimelineSelectionCommand?: (command: TimelineSelectionCommand) => void;
   selectUnit: (id: string) => void;
   selectAllUnits: () => void;
   runDeleteSelection: (id: string, ids: Set<string>) => void;
@@ -94,6 +100,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     waveformAreaRef,
     createUnitFromSelection,
     selectTimelineUnit,
+    applyTimelineSelectionCommand,
     selectUnit,
     selectAllUnits,
     runDeleteSelection,
@@ -110,6 +117,22 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
   } = input;
 
   const keymap = useMemo(() => getEffectiveKeymap(), []);
+
+  const writeSelection = useCallback(
+    (command: TimelineSelectionCommand) => {
+      writeTimelineSelection(command, {
+        ...(applyTimelineSelectionCommand !== undefined ? { applyTimelineSelectionCommand } : {}),
+        selectTimelineUnit: selectTimelineUnit ?? (() => undefined),
+        selectUnit,
+        selectUnitRange: () => undefined,
+        toggleUnitSelection: () => undefined,
+        toggleSegmentSelection: () => undefined,
+        selectSegmentRange: () => undefined,
+        clearUnitSelection: () => undefined,
+      });
+    },
+    [applyTimelineSelectionCommand, selectTimelineUnit, selectUnit],
+  );
 
   // Segment-focused play action
   const handlePlayPauseAction = useCallback(() => {
@@ -164,7 +187,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
             skipSeekForIdRef.current = '__next_created__';
             creatingSegmentRef.current = true;
             if (markingModeRef.current) {
-              selectTimelineUnit?.(null);
+              writeSelection({ type: 'selectTimelineUnit', unit: null });
             }
             fireAndForget(
               createUnitFromSelection(s, end, {
@@ -229,7 +252,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
           if (player.isPlaying) {
             player.stop();
           }
-          selectUnit(target.id);
+          writeSelection({ type: 'selectUnit', unitId: target.id });
           const focusFrom = e.target instanceof HTMLElement ? e.target : null;
           const el = focusFrom?.closest('[tabindex]') as HTMLElement | null;
           if (el) requestAnimationFrame(() => el.focus());
@@ -244,7 +267,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
           if (player.isPlaying) {
             player.stop();
           }
-          selectUnit(target.id);
+          writeSelection({ type: 'selectUnit', unitId: target.id });
           const focusFrom = e.target instanceof HTMLElement ? e.target : null;
           const el = focusFrom?.closest('[tabindex]') as HTMLElement | null;
           if (el) requestAnimationFrame(() => el.focus());
@@ -256,7 +279,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         const target = timelineUnitsOnCurrentMedia[idx + 1];
         if (target) {
           manualSelectTsRef.current = Date.now();
-          selectUnit(target.id);
+          writeSelection({ type: 'selectUnit', unitId: target.id });
           if (player.isReady) player.playRegion(target.startTime, target.endTime);
         }
       },
@@ -266,7 +289,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         const target = timelineUnitsOnCurrentMedia[idx - 1];
         if (target) {
           manualSelectTsRef.current = Date.now();
-          selectUnit(target.id);
+          writeSelection({ type: 'selectUnit', unitId: target.id });
           if (player.isReady) player.playRegion(target.startTime, target.endTime);
         }
       },
@@ -285,7 +308,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         if (target) {
           manualSelectTsRef.current = Date.now();
           if (player.isPlaying) player.stop();
-          selectUnit(target.u.id);
+          writeSelection({ type: 'selectUnit', unitId: target.u.id });
           if (player.isReady) player.playRegion(target.u.startTime, target.u.endTime);
         }
       },
@@ -305,7 +328,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         if (target) {
           manualSelectTsRef.current = Date.now();
           if (player.isPlaying) player.stop();
-          selectUnit(target.u.id);
+          writeSelection({ type: 'selectUnit', unitId: target.u.id });
           if (player.isReady) player.playRegion(target.u.startTime, target.u.endTime);
         }
       },
@@ -329,8 +352,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     runSplitAtTime,
     segMarkStart,
     selectAllUnits,
-    selectTimelineUnit,
-    selectUnit,
+    writeSelection,
     selectedMediaUrl,
     selectedUnitIds,
     setSegMarkStart,
@@ -384,12 +406,12 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       const target = timelineUnitsOnCurrentMedia[idx + direction];
       if (target) {
         manualSelectTsRef.current = Date.now();
-        selectUnit(target.id);
+        writeSelection({ type: 'selectUnit', unitId: target.id });
         if (player.isReady) player.playRegion(target.startTime, target.endTime);
         recordTranscriptionKeyboardAction(direction === 1 ? 'navNext' : 'navPrev');
       }
     },
-    [timelineUnitsOnCurrentMedia, navFocusUnitId, selectUnit, player, manualSelectTsRef],
+    [timelineUnitsOnCurrentMedia, navFocusUnitId, writeSelection, player, manualSelectTsRef],
   );
 
   // Waveform keydown via keybinding dispatch
@@ -458,7 +480,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
           if (!target) break;
           manualSelectTsRef.current = Date.now();
           if (player.isPlaying) player.stop();
-          selectUnit(target.id);
+          writeSelection({ type: 'selectUnit', unitId: target.id });
           if (player.isReady) player.playRegion(target.startTime, target.endTime);
           break;
         }
@@ -472,7 +494,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       setShowSearch,
       toggleNotes,
       timelineUnitsOnCurrentMedia,
-      selectUnit,
+      writeSelection,
       player,
       manualSelectTsRef,
     ],

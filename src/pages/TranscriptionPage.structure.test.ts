@@ -2319,7 +2319,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(matrixCode.includes("id: 'timeline-extent-single-source'")).toBe(true);
     expect(matrixCode.includes("id: 'segment-range-gesture-single-surface'")).toBe(true);
     expect(matrixCode.includes("id: 'phase-f-range-preview-ssot'")).toBe(true);
-    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 34')).toBe(true);
+    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 35')).toBe(true);
   });
 
   it('keeps media lanes layout on timelineExtentSec without playerDuration fallback', () => {
@@ -2471,6 +2471,24 @@ describe('TranscriptionPage structure invariants', () => {
     expect(interactionCode.includes('input.selectTimelineUnit(')).toBe(false);
     expect(
       syncSetupCode.includes('applyTimelineSelectionCommand: data.applyTimelineSelectionCommand'),
+    ).toBe(true);
+  });
+
+  it('routes keyboard and vertical Tab selection through writeTimelineSelection funnel', () => {
+    const keybindingPath = path.resolve(process.cwd(), 'src/hooks/ui/useKeybindingActions.ts');
+    const playbackSetupPath = path.resolve(
+      process.cwd(),
+      'src/pages/useReadyWorkspacePlaybackReadModelSetup.ts',
+    );
+    const keybindingCode = fs.readFileSync(keybindingPath, 'utf8');
+    const playbackSetupCode = fs.readFileSync(playbackSetupPath, 'utf8');
+    expect(keybindingCode.includes('writeTimelineSelection')).toBe(true);
+    expect(keybindingCode.includes('writeSelection({ type:')).toBe(true);
+    expect(keybindingCode.includes('selectUnit(')).toBe(false);
+    expect(
+      playbackSetupCode.includes(
+        'applyTimelineSelectionCommand: data.applyTimelineSelectionCommand',
+      ),
     ).toBe(true);
   });
 
