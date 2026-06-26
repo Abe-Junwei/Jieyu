@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
+import type { SnapGuide } from '../hooks/transcription/transcriptionTypes';
 import type { UseTranscriptionTimelineInteractionControllerInput } from '../types/useTranscriptionTimelineInteractionController.types';
 import {
   buildReadyWorkspaceTimelineInteractionInput,
@@ -13,6 +14,8 @@ import { useReadyWorkspaceTimelineSyncController } from './useReadyWorkspaceTime
  */
 export interface UseReadyWorkspaceTimelineSyncSetupParams {
   data: ReturnType<typeof import('../hooks/useTranscriptionData').useTranscriptionData>;
+  /** 来自波形桥 `useSegmentRangeGesturePreviewWriter`，不在 `useTranscriptionData` 上。 */
+  setSnapGuide: Dispatch<SetStateAction<SnapGuide>>;
   /** 来自波形桥 `useReadyWorkspaceWaveformBridgeController`，不在 `useTranscriptionData` 上。 */
   setSubSelectionRange: Dispatch<SetStateAction<{ start: number; end: number } | null>>;
   /** 来自波形桥；拖拽语段边界时 `handleWaveformRegionUpdate` 需要。 */
@@ -61,6 +64,7 @@ export function useReadyWorkspaceTimelineSyncSetup(
     data,
     setSubSelectionRange,
     setDragPreview,
+    setSnapGuide,
     zoomToPercent,
     zoomToUnit,
     setCtxMenu,
@@ -138,12 +142,12 @@ export function useReadyWorkspaceTimelineSyncSetup(
       beginTimingGesture: data.beginTimingGesture,
       endTimingGesture: data.endTimingGesture,
       makeSnapGuide: data.makeSnapGuide,
-      setSnapGuide: data.setSnapGuide,
       createUnitFromSelection: createUnitFromSelectionRouted,
     },
     hostWrite: {
       setSubSelectionRange,
       setDragPreview,
+      setSnapGuide,
       zoomToPercent,
       zoomToUnit,
       setCtxMenu,

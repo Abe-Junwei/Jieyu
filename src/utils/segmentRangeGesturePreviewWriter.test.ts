@@ -33,6 +33,15 @@ describe('segmentRangeGestureWriterReducer', () => {
     expect(s.timeDrag).toEqual({ id: 'x', start: 0, end: 3 });
   });
 
+  it('updates snap guide on the same reducer', () => {
+    let s = initialSegmentRangeGestureWriterState;
+    s = segmentRangeGestureWriterReducer(s, {
+      type: 'snapGuide',
+      update: { visible: true, left: 1, right: 2, nearSide: 'left' },
+    });
+    expect(s.snapGuide).toEqual({ visible: true, left: 1, right: 2, nearSide: 'left' });
+  });
+
   it('maps writer state to read model with wave precedence over time drag', () => {
     const s = {
       lasso: {
@@ -41,6 +50,7 @@ describe('segmentRangeGestureWriterReducer', () => {
         hintCount: 1,
       },
       timeDrag: { id: 'u', start: 0, end: 9 },
+      snapGuide: initialSegmentRangeGestureWriterState.snapGuide,
     };
     expect(segmentRangeGestureReadModelFromWriterState(s)).toEqual({
       surface: 'wave',

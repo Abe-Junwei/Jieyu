@@ -32,12 +32,13 @@
  * 版本 23：阶段 C — `acoustic-shell-chrome-map`（lanes 只消费 mapper 输出的 class）。
  * 版本 24：阶段 A2 — bridge `fitSpanSec` / viewport sizing 与 `timeline.extentSec` 同源（`readyWorkspaceTimelineExtents`）。
  * 版本 25：阶段 B2 — `useZoom` extended-document ruler batch 接 `resolveViewportFrameScrollLeftPx`；overlay/hotspot 接 `viewportFrame`。
+ * 版本 26：阶段 D′/E — `snapGuide` 并入 `segmentRangeGestureWriterReducer`；ReadyWorkspace 改时预览写者单源。
  */
 
 import type { TimelineParityMatrixRowId } from '../i18n/messages';
 import { timelineParityMatrixRowsZh } from '../i18n/messages';
 
-export const TIMELINE_PARITY_MATRIX_VERSION = 25 as const;
+export const TIMELINE_PARITY_MATRIX_VERSION = 26 as const;
 
 type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
 

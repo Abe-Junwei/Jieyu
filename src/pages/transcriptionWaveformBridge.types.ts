@@ -16,6 +16,7 @@ import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { TimelineUnitViewIndexWithEpoch } from '../hooks/transcription/useTimelineUnitViewIndex';
 import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
+import type { SnapGuide } from '../hooks/transcription/transcriptionTypes';
 
 interface TimeRangeLike {
   startTime: number;
@@ -171,6 +172,8 @@ export interface UseTranscriptionWaveformBridgeControllerResult {
   setSegMarkStart: Dispatch<SetStateAction<number | null>>;
   dragPreview: { id: string; start: number; end: number } | null;
   setDragPreview: Dispatch<SetStateAction<{ id: string; start: number; end: number } | null>>;
+  snapGuide: SnapGuide;
+  setSnapGuide: Dispatch<SetStateAction<SnapGuide>>;
   skipSeekForIdRef: MutableRefObject<string | null>;
   creatingSegmentRef: MutableRefObject<boolean>;
   markingModeRef: MutableRefObject<boolean>;

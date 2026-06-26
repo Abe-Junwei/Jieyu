@@ -90,7 +90,9 @@ export function useTranscriptionWaveformBridgeController(
     gestureWriter,
     setLiftedLassoPreview,
     setDragPreview,
+    setSnapGuide,
     dragPreview,
+    snapGuide,
     segmentRangeGesturePreviewReadModel,
   } = useSegmentRangeGesturePreviewWriter();
   const {
@@ -486,6 +488,8 @@ export function useTranscriptionWaveformBridgeController(
     setSegMarkStart,
     dragPreview,
     setDragPreview,
+    snapGuide,
+    setSnapGuide,
     skipSeekForIdRef,
     creatingSegmentRef,
     markingModeRef,

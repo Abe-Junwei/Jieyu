@@ -18,7 +18,7 @@ export function buildReadyWorkspaceSurfaceNestedOrchestratorSlices(
     videoLayoutMode: deps.pre.videoLayoutMode,
     videoRightPanelWidth: deps.pre.videoRightPanelWidth,
     waveformAreaRef: deps.waveform.waveformAreaRef,
-    snapGuide: deps.data.snapGuide,
+    snapGuide: deps.waveform.snapGuide,
     segMarkStart: deps.waveform.segMarkStart,
     isResizingWaveform: deps.pre.isResizingWaveform,
     waveformHeight: deps.pre.waveformHeight,

@@ -17,4 +17,17 @@ describe('useSegmentRangeGesturePreviewWriter', () => {
       preview: { id: 'u1', start: 1, end: 2 },
     });
   });
+
+  it('updates snap guide alongside time drag preview', () => {
+    const { result } = renderHook(() => useSegmentRangeGesturePreviewWriter());
+    act(() => {
+      result.current.setSnapGuide({ visible: true, left: 0.5, right: 1.5, nearSide: 'both' });
+    });
+    expect(result.current.snapGuide).toEqual({
+      visible: true,
+      left: 0.5,
+      right: 1.5,
+      nearSide: 'both',
+    });
+  });
 });

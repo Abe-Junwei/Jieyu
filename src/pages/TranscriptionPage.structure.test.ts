@@ -2319,7 +2319,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(matrixCode.includes("id: 'timeline-extent-single-source'")).toBe(true);
     expect(matrixCode.includes("id: 'segment-range-gesture-single-surface'")).toBe(true);
     expect(matrixCode.includes("id: 'phase-f-range-preview-ssot'")).toBe(true);
-    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 25')).toBe(true);
+    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 26')).toBe(true);
   });
 
   it('keeps media lanes layout on timelineExtentSec without playerDuration fallback', () => {
@@ -2407,6 +2407,29 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('regionActionViewportFrame={regionActionViewportFrame}')).toBe(
       true,
     );
+  });
+
+  it('routes snap guide writes through segment-range gesture writer host slice', () => {
+    const hostWritePath = path.resolve(
+      process.cwd(),
+      'src/pages/transcriptionReadyWorkspaceTimelineInteractionInputBuilder.ts',
+    );
+    const syncSetupPath = path.resolve(
+      process.cwd(),
+      'src/pages/useReadyWorkspaceTimelineSyncSetup.ts',
+    );
+    const nestedSlicesPath = path.resolve(
+      process.cwd(),
+      'src/pages/readyWorkspaceSurfaceNestedOrchestratorSlices.ts',
+    );
+    const hostWriteCode = fs.readFileSync(hostWritePath, 'utf8');
+    const syncSetupCode = fs.readFileSync(syncSetupPath, 'utf8');
+    const nestedSlicesCode = fs.readFileSync(nestedSlicesPath, 'utf8');
+    expect(hostWriteCode.includes("'setSnapGuide'")).toBe(true);
+    expect(syncSetupCode.includes('setSnapGuide,')).toBe(true);
+    expect(syncSetupCode.includes('setSnapGuide: data.setSnapGuide')).toBe(false);
+    expect(nestedSlicesCode.includes('snapGuide: deps.waveform.snapGuide')).toBe(true);
+    expect(nestedSlicesCode.includes('snapGuide: deps.data.snapGuide')).toBe(false);
   });
 
   it('routes waveform overlay scroll through viewportFrame authority', () => {

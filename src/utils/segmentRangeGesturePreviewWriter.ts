@@ -1,9 +1,12 @@
 import type { SetStateAction } from 'react';
+import type { SnapGuide } from '../hooks/transcription/transcriptionTypes';
 import {
   buildSegmentRangeGesturePreviewReadModel,
   type SegmentRangeGesturePreviewReadModel,
   type TimeRangeDragPreview,
 } from './segmentRangeGesturePreviewReadModel';
+
+export const initialSegmentRangeGestureSnapGuide: SnapGuide = { visible: false };
 
 export type TierLassoPreviewRect = { x: number; y: number; w: number; h: number };
 
@@ -25,16 +28,19 @@ export type LassoSurfacePreview =
 export type SegmentRangeGestureWriterState = {
   lasso: LassoSurfacePreview;
   timeDrag: TimeRangeDragPreview | null;
+  snapGuide: SnapGuide;
 };
 
 export const initialSegmentRangeGestureWriterState: SegmentRangeGestureWriterState = {
   lasso: { surface: 'none' },
   timeDrag: null,
+  snapGuide: initialSegmentRangeGestureSnapGuide,
 };
 
 export type SegmentRangeGestureWriterAction =
   | { type: 'lasso'; update: SetStateAction<LassoSurfacePreview> }
-  | { type: 'timeDrag'; update: SetStateAction<TimeRangeDragPreview | null> };
+  | { type: 'timeDrag'; update: SetStateAction<TimeRangeDragPreview | null> }
+  | { type: 'snapGuide'; update: SetStateAction<SnapGuide> };
 
 export function segmentRangeGestureWriterReducer(
   state: SegmentRangeGestureWriterState,
@@ -46,8 +52,14 @@ export function segmentRangeGestureWriterReducer(
       return { ...state, lasso: next };
     }
     case 'timeDrag': {
-      const next = typeof action.update === 'function' ? action.update(state.timeDrag) : action.update;
+      const next =
+        typeof action.update === 'function' ? action.update(state.timeDrag) : action.update;
       return { ...state, timeDrag: next };
+    }
+    case 'snapGuide': {
+      const next =
+        typeof action.update === 'function' ? action.update(state.snapGuide) : action.update;
+      return { ...state, snapGuide: next };
     }
     default:
       return state;
@@ -72,5 +84,10 @@ export function segmentRangeGestureReadModelFromWriterState(
   state: SegmentRangeGestureWriterState,
 ): SegmentRangeGesturePreviewReadModel {
   const { waveLassoRect, lassoRect, waveLassoHintCount } = toLegacyLassoOutputs(state.lasso);
-  return buildSegmentRangeGesturePreviewReadModel(waveLassoRect, waveLassoHintCount, lassoRect, state.timeDrag);
+  return buildSegmentRangeGesturePreviewReadModel(
+    waveLassoRect,
+    waveLassoHintCount,
+    lassoRect,
+    state.timeDrag,
+  );
 }
