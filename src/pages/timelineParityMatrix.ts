@@ -30,12 +30,14 @@
  * 版本 21：§3.2 link 全量择优锚点登记（`useLayerSegments.test.ts` → `layer-link-connector`）。
  * 版本 22：阶段 B overlay — `RegionActionOverlay` 接 `viewportFrame.scrollLeftPx`（`viewportFrameToScreenRange`）。
  * 版本 23：阶段 C — `acoustic-shell-chrome-map`（lanes 只消费 mapper 输出的 class）。
+ * 版本 24：阶段 A2 — bridge `fitSpanSec` / viewport sizing 与 `timeline.extentSec` 同源（`readyWorkspaceTimelineExtents`）。
+ * 版本 25：阶段 B2 — `useZoom` extended-document ruler batch 接 `resolveViewportFrameScrollLeftPx`；overlay/hotspot 接 `viewportFrame`。
  */
 
 import type { TimelineParityMatrixRowId } from '../i18n/messages';
 import { timelineParityMatrixRowsZh } from '../i18n/messages';
 
-export const TIMELINE_PARITY_MATRIX_VERSION = 23 as const;
+export const TIMELINE_PARITY_MATRIX_VERSION = 25 as const;
 
 type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
 
@@ -83,6 +85,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
     testAnchors: [
       'src/utils/timelineExtent.test.ts',
+      'src/pages/readyWorkspaceTimelineExtents.test.ts',
       'src/pages/timelineReadModel.test.ts',
       'src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx',
       'src/pages/transcriptionReadyWorkspaceOrchestratorInput.test.ts',
@@ -98,6 +101,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
       'src/utils/viewportFrameToDocRange.test.ts',
       'src/utils/viewportFrameToScreenRange.test.ts',
       'src/utils/resolveViewportFrameScrollLeftPx.test.ts',
+      'src/hooks/ui/useZoom.test.ts',
       'src/pages/waveformBridgeTierScrollSync.test.ts',
       'src/hooks/ui/useLasso.test.tsx',
       'src/pages/TranscriptionPage.structure.test.ts',

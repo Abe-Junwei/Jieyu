@@ -28,9 +28,10 @@ export interface UseWaveformViewportSizingInput {
   waveCanvasRef: RefObject<HTMLDivElement | null>;
   waveformAreaRef: RefObject<HTMLDivElement | null>;
   documentSpanSec: number;
+  /** 与 `timelineReadModel.timeline.extentSec` / bridge `fitSpanSec` 同源，驱动 canvas 重测。 */
+  fitSpanSec: number;
   timelineUnitViewEpoch: number;
   playerIsReady: boolean;
-  playerDuration: number;
 }
 
 interface UseWaveformViewportSizingResult {
@@ -87,12 +88,7 @@ export function useWaveformViewportSizing(
 
   useLayoutEffect(() => {
     remeasureWaveCanvasLayoutRef.current?.();
-  }, [
-    input.documentSpanSec,
-    input.timelineUnitViewEpoch,
-    input.playerIsReady,
-    input.playerDuration,
-  ]);
+  }, [input.documentSpanSec, input.fitSpanSec, input.timelineUnitViewEpoch, input.playerIsReady]);
 
   return {
     containerWidth,

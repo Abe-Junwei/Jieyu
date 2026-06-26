@@ -34,6 +34,7 @@ import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { formatTime } from '../utils/transcriptionFormatters';
 import { mapAcousticToTimelineChrome } from '../utils/mapAcousticToTimelineChrome';
+import { docSecToContentLeftPx } from '../utils/viewportFrameToScreenRange';
 import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
 import { waveLassoOverlayFromSegmentRangeGesturePreview } from '../utils/segmentRangeGesturePreviewReadModel';
 
@@ -277,8 +278,6 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     playerIsReady,
     playerIsPlaying,
     playerInstanceGetWidth,
-    zoomPxPerSec,
-    waveformScrollLeft,
     regionActionViewportFrame,
     segmentPlaybackRate,
     handleSegmentPlaybackRateChange,
@@ -388,9 +387,9 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
   );
   const selectedHotspotLeftPx =
     typeof selectedHotspotTimeSec === 'number'
-      ? selectedHotspotTimeSec * zoomPxPerSec - waveformScrollLeft
+      ? docSecToContentLeftPx(selectedHotspotTimeSec, regionActionViewportFrame)
       : null;
-  const waveformOverlayTranslateX = -waveformScrollLeft;
+  const waveformOverlayTranslateX = -regionActionViewportFrame.scrollLeftPx;
   const waveformGuideOverlayWidth = Math.max(1, acousticOverlayViewportWidth);
   const waveformGuideOverlayHeight = Math.max(1, waveformHeight);
   const waveformGuideLabelY = Math.max(1, Math.min(14, waveformGuideOverlayHeight - 1));

@@ -2319,7 +2319,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(matrixCode.includes("id: 'timeline-extent-single-source'")).toBe(true);
     expect(matrixCode.includes("id: 'segment-range-gesture-single-surface'")).toBe(true);
     expect(matrixCode.includes("id: 'phase-f-range-preview-ssot'")).toBe(true);
-    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 23')).toBe(true);
+    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 25')).toBe(true);
   });
 
   it('keeps media lanes layout on timelineExtentSec without playerDuration fallback', () => {
@@ -2363,6 +2363,26 @@ describe('TranscriptionPage structure invariants', () => {
     expect(bridgeCode.includes('playbackExtentSec,')).toBe(true);
   });
 
+  it('keeps bridge fit span on readyWorkspaceTimelineExtents shared with read model', () => {
+    const bridgePath = path.resolve(
+      process.cwd(),
+      'src/pages/useTranscriptionWaveformBridgeController.ts',
+    );
+    const sizingPath = path.resolve(process.cwd(), 'src/pages/useWaveformViewportSizing.ts');
+    const playbackPhasePath = path.resolve(
+      process.cwd(),
+      'src/pages/buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams.ts',
+    );
+    const bridgeCode = fs.readFileSync(bridgePath, 'utf8');
+    const sizingCode = fs.readFileSync(sizingPath, 'utf8');
+    const playbackPhaseCode = fs.readFileSync(playbackPhasePath, 'utf8');
+    expect(bridgeCode.includes('resolveReadyWorkspaceTimelineExtentSec')).toBe(true);
+    expect(bridgeCode.includes('resolveTimelineFitSpanSec')).toBe(false);
+    expect(sizingCode.includes('fitSpanSec')).toBe(true);
+    expect(sizingCode.includes('input.playerDuration')).toBe(false);
+    expect(playbackPhaseCode.includes('documentSpanSec: waveform.documentSpanSec')).toBe(true);
+  });
+
   it('routes region action overlay through viewportFrame scroll authority', () => {
     const overlayPath = path.resolve(
       process.cwd(),
@@ -2387,6 +2407,20 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('regionActionViewportFrame={regionActionViewportFrame}')).toBe(
       true,
     );
+  });
+
+  it('routes waveform overlay scroll through viewportFrame authority', () => {
+    const orchestratorPath = path.resolve(
+      process.cwd(),
+      'src/pages/OrchestratorWaveformContent.tsx',
+    );
+    const zoomPath = path.resolve(process.cwd(), 'src/hooks/ui/useZoom.ts');
+    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const zoomCode = fs.readFileSync(zoomPath, 'utf8');
+    expect(orchestratorCode.includes('docSecToContentLeftPx')).toBe(true);
+    expect(orchestratorCode.includes('regionActionViewportFrame.scrollLeftPx')).toBe(true);
+    expect(orchestratorCode.includes('-waveformScrollLeft')).toBe(false);
+    expect(zoomCode.includes('resolveViewportFrameScrollLeftPx')).toBe(true);
   });
 
   it('maps acoustic shell chrome only through mapAcousticToTimelineChrome in lanes host', () => {

@@ -13,7 +13,7 @@ import { useWaveformRuntimeController } from './useWaveformRuntimeController';
 import { useReadyWorkspaceDomainShellPhase } from './useReadyWorkspaceDomainShellPhase';
 import { useReadyWorkspaceVerticalPaneFocusEffect } from './useReadyWorkspaceVerticalPaneFocusEffect';
 import { useReadyWorkspaceVoiceAssistantBridgeRefs } from './useReadyWorkspaceVoiceAssistantBridgeRefs';
-import { computeLogicalTimelineDurationForZoom } from './readyWorkspaceLogicalTimelineDuration';
+import { resolveReadyWorkspaceDocumentSpanSec } from './readyWorkspaceTimelineExtents';
 import {
   computeTimelineContentGutterPx,
   computeVerticalComparisonEnabled,
@@ -280,10 +280,13 @@ export function useReadyWorkspacePreBootstrapChromePhase(
   });
 
   const documentSpanSecFromBridgeRef = useRef(
-    computeLogicalTimelineDurationForZoom(
-      activeTextLogicalDurationSecForBridge,
+    resolveReadyWorkspaceDocumentSpanSec({
       unitsOnCurrentMedia,
-    ),
+      ...(typeof activeTextLogicalDurationSecForBridge === 'number' &&
+      Number.isFinite(activeTextLogicalDurationSecForBridge)
+        ? { activeTextTimeLogicalDurationSec: activeTextLogicalDurationSecForBridge }
+        : {}),
+    }),
   );
 
   return {

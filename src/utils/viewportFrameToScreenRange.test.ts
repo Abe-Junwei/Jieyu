@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { docSecRangeToContentPx } from './viewportFrameToScreenRange';
+import { docSecRangeToContentPx, docSecToContentLeftPx } from './viewportFrameToScreenRange';
 
 describe('docSecRangeToContentPx', () => {
   it('maps doc seconds to content pixels with tier-primary scroll', () => {
@@ -21,5 +21,17 @@ describe('docSecRangeToContentPx', () => {
       leftPx: 0,
       widthPx: 0,
     });
+  });
+});
+
+describe('docSecToContentLeftPx', () => {
+  it('maps a single document second to content left', () => {
+    expect(docSecToContentLeftPx(5, { pxPerDocSec: 10, scrollLeftPx: 30 })).toBe(20);
+  });
+});
+
+describe('docSecToContentLeftPx', () => {
+  it('maps a single document second to content left', () => {
+    expect(docSecToContentLeftPx(5, { pxPerDocSec: 10, scrollLeftPx: 30 })).toBe(20);
   });
 });

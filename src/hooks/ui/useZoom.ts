@@ -5,6 +5,7 @@ import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
 } from '../transcription/transcriptionPlaybackClock';
+import { resolveViewportFrameScrollLeftPx } from '../../utils/resolveViewportFrameScrollLeftPx';
 import {
   syncWaveScrollToTier,
   syncWaveScrollToTierOverlayLeft,
@@ -361,18 +362,24 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
             end: Math.min(span, ((scrollLeft + clientWidth) / totalWidth) * span),
           };
         };
+        const resolveViewportScrollLeftPx = (tierScrollLeftPx: number) =>
+          resolveViewportFrameScrollLeftPx({
+            documentSpanSec: docSpanSec,
+            mediaDurSec: dur,
+            tierScrollLeftPx,
+            waveformScrollLeftPx: ws.getScroll(),
+          });
         const syncRulerFromTier = () => {
           const scrollLeft = tier.scrollLeft;
           syncWaveScrollToTier(ws, scrollLeft, zoomPxPerSec, dur);
-          const waveSl = ws.getScroll();
-          scheduleRulerView(rulerFromTier(scrollLeft), waveSl);
+          scheduleRulerView(rulerFromTier(scrollLeft), resolveViewportScrollLeftPx(scrollLeft));
         };
         {
           const sl = tier.scrollLeft;
           setRulerView(rulerFromTier(sl));
         }
         syncWaveScrollToTier(ws, tier.scrollLeft, zoomPxPerSec, dur);
-        onBatchedRulerFrameScrollLeft?.(ws.getScroll());
+        onBatchedRulerFrameScrollLeft?.(resolveViewportScrollLeftPx(tier.scrollLeft));
         tier.addEventListener('scroll', syncRulerFromTier, { passive: true });
         return () => {
           cancelRulerRaf();

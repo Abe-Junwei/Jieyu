@@ -4,6 +4,11 @@ export interface ViewportFrameScrollLike {
 }
 
 /** Map document-second range to content-space pixels (tier scroll authority). */
+/** Map a document-second position to content-space X (tier-primary scroll authority). */
+export function docSecToContentLeftPx(timeSec: number, frame: ViewportFrameScrollLike): number {
+  return docSecRangeToContentPx(timeSec, timeSec, frame).leftPx;
+}
+
 export function docSecRangeToContentPx(
   startSec: number,
   endSec: number,

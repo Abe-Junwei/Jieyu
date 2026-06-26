@@ -300,7 +300,7 @@ export function buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams(
       splitAtTimeRef,
       zoomToSegmentRef,
       activeLayerIdForEdits,
-      documentSpanSecFromBridgeRef: pre.documentSpanSecFromBridgeRef,
+      documentSpanSec: waveform.documentSpanSec,
       toggleNotes: pre.toggleNotes,
       setShowSearch: domainShell.setShowSearch,
     },

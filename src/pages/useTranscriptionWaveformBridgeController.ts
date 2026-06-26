@@ -6,9 +6,13 @@ import {
   useState,
   type UIEvent as ReactUIEvent,
 } from 'react';
-import { computeLogicalTimelineDurationForZoom } from './readyWorkspaceLogicalTimelineDuration';
 import { DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC } from '../utils/timelineExtentConstants';
-import { resolveTimelineFitSpanSec, resolvePlaybackCapSec } from '../utils/timelineBindingExtent';
+import { resolvePlaybackCapSec } from '../utils/timelineBindingExtent';
+import {
+  resolveReadyWorkspaceDocumentSpanSec,
+  resolveReadyWorkspaceGlobalPlayableAcoustic,
+  resolveReadyWorkspaceTimelineExtentSec,
+} from './readyWorkspaceTimelineExtents';
 import { resolveViewportFrameScrollLeftPx } from '../utils/resolveViewportFrameScrollLeftPx';
 import { DEFAULT_WAVE_CANVAS_WIDTH } from '../utils/waveformViewportSizing';
 import { useLasso, type SubSelectDrag } from '../hooks/ui/useLasso';
@@ -111,10 +115,13 @@ export function useTranscriptionWaveformBridgeController(
 
   const provisionalDocumentSpan = useMemo(
     () =>
-      computeLogicalTimelineDurationForZoom(
-        input.activeTextTimeLogicalDurationSec,
-        input.unitsOnCurrentMedia,
-      ),
+      resolveReadyWorkspaceDocumentSpanSec({
+        unitsOnCurrentMedia: input.unitsOnCurrentMedia,
+        ...(typeof input.activeTextTimeLogicalDurationSec === 'number' &&
+        Number.isFinite(input.activeTextTimeLogicalDurationSec)
+          ? { activeTextTimeLogicalDurationSec: input.activeTextTimeLogicalDurationSec }
+          : {}),
+      }),
     [input.activeTextTimeLogicalDurationSec, input.unitsOnCurrentMedia],
   );
 
@@ -176,15 +183,18 @@ export function useTranscriptionWaveformBridgeController(
     },
   });
 
-  const documentSpanWithoutAcousticAnchor = useMemo(
+  const documentSpanSec = useMemo(
     () =>
-      computeLogicalTimelineDurationForZoom(
-        input.activeTextTimeLogicalDurationSec,
-        input.unitsOnCurrentMedia,
-        player.isReady && player.duration > 0
+      resolveReadyWorkspaceDocumentSpanSec({
+        unitsOnCurrentMedia: input.unitsOnCurrentMedia,
+        ...(typeof input.activeTextTimeLogicalDurationSec === 'number' &&
+        Number.isFinite(input.activeTextTimeLogicalDurationSec)
+          ? { activeTextTimeLogicalDurationSec: input.activeTextTimeLogicalDurationSec }
+          : {}),
+        ...(player.isReady && player.duration > 0
           ? { acousticTimelineAnchorSec: player.duration }
-          : undefined,
-      ),
+          : {}),
+      }),
     [
       input.activeTextTimeLogicalDurationSec,
       input.unitsOnCurrentMedia,
@@ -193,18 +203,19 @@ export function useTranscriptionWaveformBridgeController(
     ],
   );
 
-  const documentSpanSec = documentSpanWithoutAcousticAnchor;
-
   const fitSpanSec = useMemo(() => {
-    const hasMedia =
-      typeof input.selectedMediaUrl === 'string' && input.selectedMediaUrl.trim().length > 0;
-    return resolveTimelineFitSpanSec({
-      documentSpanSec: documentSpanWithoutAcousticAnchor,
-      acousticDurationSec: player.isReady && player.duration > 0 ? player.duration : 0,
-      hasMediaUrl: hasMedia,
-      globalPlaybackReady: player.isReady,
+    const globalPlayableAcoustic = resolveReadyWorkspaceGlobalPlayableAcoustic({
+      ...(input.selectedMediaUrl !== undefined ? { selectedMediaUrl: input.selectedMediaUrl } : {}),
+      playerIsReady: player.isReady,
+      playerDuration: player.duration,
     });
-  }, [documentSpanWithoutAcousticAnchor, input.selectedMediaUrl, player.isReady, player.duration]);
+    return resolveReadyWorkspaceTimelineExtentSec({
+      documentSpanSec,
+      ...(input.selectedMediaUrl !== undefined ? { selectedMediaUrl: input.selectedMediaUrl } : {}),
+      globalPlayableAcoustic,
+      playerDuration: player.duration,
+    });
+  }, [documentSpanSec, input.selectedMediaUrl, player.isReady, player.duration]);
 
   useLayoutEffect(() => {
     const nextCap = resolvePlaybackCapSec(player.duration, fitSpanSec);
@@ -216,9 +227,9 @@ export function useTranscriptionWaveformBridgeController(
     waveCanvasRef,
     waveformAreaRef,
     documentSpanSec,
+    fitSpanSec,
     timelineUnitViewEpoch: input.timelineUnitViewIndex.epoch,
     playerIsReady: player.isReady,
-    playerDuration: player.duration,
   };
   if (input.selectedMediaUrl !== undefined) {
     waveformViewportSizingInput.selectedMediaUrl = input.selectedMediaUrl;

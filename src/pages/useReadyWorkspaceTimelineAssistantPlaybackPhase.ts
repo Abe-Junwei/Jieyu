@@ -1,5 +1,3 @@
-import type { MutableRefObject } from 'react';
-
 import type { UseTranscriptionAssistantControllerInput } from './transcriptionAssistantController.types';
 import { buildReadyWorkspaceAudioCaptureControllerInput } from './transcriptionReadyWorkspaceDomainInputBuilder';
 import { useTranscriptionAssistantController } from './useTranscriptionAssistantController';
@@ -16,7 +14,7 @@ export interface UseReadyWorkspaceTimelineAssistantPlaybackPhaseParams {
     UseReadyWorkspacePlaybackReadModelSetupParams,
     'timelineSyncController' | 'documentSpanSec'
   > & {
-    documentSpanSecFromBridgeRef: MutableRefObject<number>;
+    documentSpanSec: number;
   };
   audioCaptureBuild: Parameters<typeof buildReadyWorkspaceAudioCaptureControllerInput>[0];
 }
@@ -29,11 +27,9 @@ export function useReadyWorkspaceTimelineAssistantPlaybackPhase(
   const timelineSyncController = useReadyWorkspaceTimelineSyncSetup(timelineSync);
   const assistantController = useTranscriptionAssistantController(assistant);
 
-  const { documentSpanSecFromBridgeRef, ...playbackRest } = playback;
   const { playbackKeyboardController, timelineReadModel } = useReadyWorkspacePlaybackReadModelSetup(
     {
-      ...playbackRest,
-      documentSpanSec: documentSpanSecFromBridgeRef.current,
+      ...playback,
       timelineSyncController,
     },
   );
