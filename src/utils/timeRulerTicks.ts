@@ -1,6 +1,6 @@
 import { resolveTimelineBindingExtentSec } from './timelineBindingExtent';
 
-/** 标尺刻度与 overview 共用的绑定跨度（秒）；文献轴已确立时不因更长声学拉长。 */
+/** 标尺刻度与 overview 共用的绑定跨度（秒）；`max(文献, 声学)`，与 `resolveTimelineBindingExtentSec` 同源。 */
 export function resolveTimeRulerSpanSec(mediaDurSec: number, documentSpanSec: number): number {
   const media = mediaDurSec > 0 ? mediaDurSec : 0;
   const doc =

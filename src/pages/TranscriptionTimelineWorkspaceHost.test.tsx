@@ -5,10 +5,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TranscriptionTimelineWorkspaceHost } from './TranscriptionTimelineWorkspaceHost';
 
 vi.mock('../components/TranscriptionTimelineHorizontalMediaLanes', () => ({
-  TranscriptionTimelineHorizontalMediaLanes: (props: { acousticShellPending?: boolean }) => (
+  TranscriptionTimelineHorizontalMediaLanes: (props: {
+    timelineChromeClassNames?: readonly string[];
+  }) => (
     <div
       data-testid="workspace-host-waveform"
-      data-acoustic-shell-pending={props.acousticShellPending === true ? '1' : '0'}
+      data-chrome-classes={(props.timelineChromeClassNames ?? []).join(' ')}
     >
       waveform
     </div>
@@ -58,12 +60,12 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
     );
 
     expect(screen.getByTestId('workspace-host-waveform')).toBeTruthy();
-    expect(
-      screen.getByTestId('workspace-host-waveform').getAttribute('data-acoustic-shell-pending'),
-    ).toBe('0');
+    expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-chrome-classes')).toBe(
+      '',
+    );
   });
 
-  it('passes acousticShellPending when text-only shell and global chrome is pending_decode', () => {
+  it('passes mapper chrome classes when text-only shell and global chrome is pending_decode', () => {
     render(
       <TranscriptionTimelineWorkspaceHost
         verticalComparisonEnabled={false}
@@ -75,9 +77,9 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
       />,
     );
 
-    expect(
-      screen.getByTestId('workspace-host-waveform').getAttribute('data-acoustic-shell-pending'),
-    ).toBe('1');
+    expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-chrome-classes')).toBe(
+      'timeline-content-text-only timeline-content-acoustic-pending',
+    );
   });
 
   it('text-only contract shell + global playable: no tier pending chrome', () => {
@@ -92,9 +94,9 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
       />,
     );
 
-    expect(
-      screen.getByTestId('workspace-host-waveform').getAttribute('data-acoustic-shell-pending'),
-    ).toBe('0');
+    expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-chrome-classes')).toBe(
+      '',
+    );
   });
 
   it('renders empty shell fallback', () => {

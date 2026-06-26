@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { computeLogicalTimelineDurationForZoom } from './readyWorkspaceLogicalTimelineDuration';
 import { DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC } from '../utils/timelineExtentConstants';
-import { resolveTimelineFitSpanSec } from '../utils/timelineBindingExtent';
+import { resolveTimelineFitSpanSec, resolvePlaybackCapSec } from '../utils/timelineBindingExtent';
 import { resolveViewportFrameScrollLeftPx } from '../utils/resolveViewportFrameScrollLeftPx';
 import { DEFAULT_WAVE_CANVAS_WIDTH } from '../utils/waveformViewportSizing';
 import { useLasso, type SubSelectDrag } from '../hooks/ui/useLasso';
@@ -127,6 +127,7 @@ export function useTranscriptionWaveformBridgeController(
   }, [provisionalDocumentSpan]);
 
   const [waveformZoomPxPerSec, setWaveformZoomPxPerSec] = useState(estimatedFitPxPerSec);
+  const [playbackExtentSec, setPlaybackExtentSec] = useState(0);
 
   const { onRegionUpdate, onRegionUpdateEnd } = useWaveformBridgeRegionDragRaf(
     handleWaveformRegionUpdateRef,
@@ -144,6 +145,7 @@ export function useTranscriptionWaveformBridgeController(
     segmentPlaybackRate,
     // 播放跟随由 useZoom.maybeFollow 统一处理；WaveSurfer autoScroll 会与 tier 主滚动抢控制权
     autoScrollDuringPlayback: false,
+    playbackExtentSec,
     enableEmptyDragCreate: useSegmentWaveformRegions,
     zoomLevel: waveformZoomPxPerSec,
     startMarker: segMarkStart ?? undefined,
@@ -203,6 +205,11 @@ export function useTranscriptionWaveformBridgeController(
       globalPlaybackReady: player.isReady,
     });
   }, [documentSpanWithoutAcousticAnchor, input.selectedMediaUrl, player.isReady, player.duration]);
+
+  useLayoutEffect(() => {
+    const nextCap = resolvePlaybackCapSec(player.duration, fitSpanSec);
+    setPlaybackExtentSec((prev) => (prev === nextCap ? prev : nextCap));
+  }, [player.duration, fitSpanSec, player.isReady]);
 
   const waveformViewportSizingInput: UseWaveformViewportSizingInput = {
     tierContainerRef: input.tierContainerRef,

@@ -55,6 +55,7 @@ export type BuildReadyWorkspaceWaveformContentPropsInputFromControllers = Omit<
   timelineViewportProjection: {
     rulerView: BuildReadyWorkspaceWaveformContentPropsInput['rulerView'];
     zoomPxPerSec: BuildReadyWorkspaceWaveformContentPropsInput['zoomPxPerSec'];
+    viewportFrame: BuildReadyWorkspaceWaveformContentPropsInput['regionActionViewportFrame'];
   };
   mediaFileInputRef: BuildReadyWorkspaceWaveformContentPropsInput['mediaFileInputRef'];
 };
@@ -88,6 +89,7 @@ export function buildReadyWorkspaceWaveformContentPropsInput(
     playerIsReady: input.playerBridge.isReady,
     playerIsPlaying: input.playerBridge.isPlaying,
     zoomPxPerSec: input.timelineViewportProjection.zoomPxPerSec,
+    regionActionViewportFrame: input.timelineViewportProjection.viewportFrame,
     mediaFileInputRef: input.mediaFileInputRef,
   };
 }

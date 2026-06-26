@@ -180,6 +180,11 @@ export interface OrchestratorWaveformContentProps {
   playerInstanceGetWidth: () => number;
   zoomPxPerSec: number;
   waveformScrollLeft: number;
+  /** Tier-primary scroll authority for region action overlay positioning. */
+  regionActionViewportFrame: {
+    pxPerDocSec: number;
+    scrollLeftPx: number;
+  };
   segmentPlaybackRate: number;
   handleSegmentPlaybackRateChange: (rate: number) => void;
   handleToggleSelectedWaveformLoop: () => void;
@@ -274,6 +279,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     playerInstanceGetWidth,
     zoomPxPerSec,
     waveformScrollLeft,
+    regionActionViewportFrame,
     segmentPlaybackRate,
     handleSegmentPlaybackRateChange,
     handleToggleSelectedWaveformLoop,
@@ -596,8 +602,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                 selectedMediaIsVideo={selectedMediaIsVideo}
                 selectedWaveformTimelineItem={selectedWaveformTimelineItem}
                 playerIsReady={playerIsReady}
-                zoomPxPerSec={zoomPxPerSec}
-                waveformScrollLeft={waveformScrollLeft}
+                regionActionViewportFrame={regionActionViewportFrame}
                 playerInstanceGetWidth={playerInstanceGetWidth}
                 playerIsPlaying={playerIsPlaying}
                 segmentPlaybackRate={segmentPlaybackRate}

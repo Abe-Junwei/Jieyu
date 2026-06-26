@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { RegionActionOverlay } from './RegionActionOverlay';
+import type { ViewportFrameScrollLike } from '../../utils/viewportFrameToScreenRange';
 
 interface SelectedWaveformTimelineItem {
   startTime: number;
@@ -12,8 +13,7 @@ interface WaveformRegionActionLayerProps {
   selectedMediaIsVideo: boolean;
   selectedWaveformTimelineItem: SelectedWaveformTimelineItem | null;
   playerIsReady: boolean;
-  zoomPxPerSec: number;
-  waveformScrollLeft: number;
+  regionActionViewportFrame: ViewportFrameScrollLike;
   playerInstanceGetWidth: () => number;
   playerIsPlaying: boolean;
   segmentPlaybackRate: number;
@@ -23,13 +23,14 @@ interface WaveformRegionActionLayerProps {
   handleToggleSelectedWaveformPlay: () => void;
 }
 
-export const WaveformRegionActionLayer = React.memo(function WaveformRegionActionLayer(props: WaveformRegionActionLayerProps) {
+export const WaveformRegionActionLayer = React.memo(function WaveformRegionActionLayer(
+  props: WaveformRegionActionLayerProps,
+) {
   const {
     selectedMediaIsVideo,
     selectedWaveformTimelineItem,
     playerIsReady,
-    zoomPxPerSec,
-    waveformScrollLeft,
+    regionActionViewportFrame,
     playerInstanceGetWidth,
     playerIsPlaying,
     segmentPlaybackRate,
@@ -47,8 +48,7 @@ export const WaveformRegionActionLayer = React.memo(function WaveformRegionActio
     <RegionActionOverlay
       unitStartTime={selectedWaveformTimelineItem.startTime}
       unitEndTime={selectedWaveformTimelineItem.endTime}
-      zoomPxPerSec={zoomPxPerSec}
-      scrollLeft={waveformScrollLeft}
+      viewportFrame={regionActionViewportFrame}
       waveAreaWidth={playerInstanceGetWidth()}
       isPlaying={playerIsPlaying}
       segmentPlaybackRate={segmentPlaybackRate}

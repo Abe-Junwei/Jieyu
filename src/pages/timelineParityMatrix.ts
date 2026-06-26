@@ -27,12 +27,15 @@
  * 版本 18：`useSegmentRangeGesturePreviewWriter` 抽离 hooks；ReadyWorkspace 编排 timeline/annotation 头外提 `buildOrchestratorRawTimelineAnnotationCluster`。
  * 版本 19：阶段 A **`timeline-extent-single-source`**（lanes 宽度只读 `timelineExtentSec`；§3.1 RM↔VM 壳态对照测试加固）。
  * 版本 20：阶段 B **`timeline-viewport-single-writer`** 锚点扩展（`viewportFrame` 消费 + tier-primary scroll 投影）。
+ * 版本 21：§3.2 link 全量择优锚点登记（`useLayerSegments.test.ts` → `layer-link-connector`）。
+ * 版本 22：阶段 B overlay — `RegionActionOverlay` 接 `viewportFrame.scrollLeftPx`（`viewportFrameToScreenRange`）。
+ * 版本 23：阶段 C — `acoustic-shell-chrome-map`（lanes 只消费 mapper 输出的 class）。
  */
 
 import type { TimelineParityMatrixRowId } from '../i18n/messages';
 import { timelineParityMatrixRowsZh } from '../i18n/messages';
 
-export const TIMELINE_PARITY_MATRIX_VERSION = 20 as const;
+export const TIMELINE_PARITY_MATRIX_VERSION = 23 as const;
 
 type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
 
@@ -93,9 +96,20 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     testAnchors: [
       'src/hooks/transcription/useTimelineViewport.test.ts',
       'src/utils/viewportFrameToDocRange.test.ts',
+      'src/utils/viewportFrameToScreenRange.test.ts',
       'src/utils/resolveViewportFrameScrollLeftPx.test.ts',
       'src/pages/waveformBridgeTierScrollSync.test.ts',
       'src/hooks/ui/useLasso.test.tsx',
+      'src/pages/TranscriptionPage.structure.test.ts',
+    ],
+  },
+  {
+    id: 'acoustic-shell-chrome-map',
+    ...rowParts('acoustic-shell-chrome-map'),
+    parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
+    testAnchors: [
+      'src/utils/mapAcousticToTimelineChrome.test.ts',
+      'src/pages/TranscriptionTimelineWorkspaceHost.test.tsx',
       'src/pages/TranscriptionPage.structure.test.ts',
     ],
   },
@@ -146,6 +160,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     ...rowParts('layer-link-connector'),
     parity: { waveform: 'full', textOnly: 'partial', vertical: 'partial' },
     testAnchors: [
+      'src/hooks/layer/useLayerSegments.test.ts',
       'src/components/TimelineLaneHeader.test.tsx',
       'src/components/TranscriptionTimelineVerticalView.suite-a.test.tsx',
       'src/components/TranscriptionTimelineVerticalView.suite-b.test.tsx',

@@ -9,15 +9,18 @@ import type { FC } from 'react';
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE_TIGHT } from '../../utils/jieyuMaterialIcon';
 import { t, tf, useLocale } from '../../i18n';
+import {
+  docSecRangeToContentPx,
+  type ViewportFrameScrollLike,
+} from '../../utils/viewportFrameToScreenRange';
 
 export interface RegionActionOverlayProps {
   // 语段几何坐标（秒） | Region geometry (seconds)
   unitStartTime: number;
   unitEndTime: number;
 
-  // 缩放与滚动 | Zoom and scroll
-  zoomPxPerSec: number;
-  scrollLeft: number;
+  /** Authoritative viewport frame for doc-second → content px (tier-primary scroll). */
+  viewportFrame: ViewportFrameScrollLike;
   waveAreaWidth: number;
 
   // 播放状态 | Playback state
@@ -35,8 +38,7 @@ export interface RegionActionOverlayProps {
 export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
   unitStartTime,
   unitEndTime,
-  zoomPxPerSec,
-  scrollLeft,
+  viewportFrame,
   waveAreaWidth,
   isPlaying,
   segmentPlaybackRate,
@@ -46,8 +48,7 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
   onToggleLoop,
   onTogglePlay,
 }) => {
-  const leftPx = unitStartTime * zoomPxPerSec - scrollLeft;
-  const widthPx = (unitEndTime - unitStartTime) * zoomPxPerSec;
+  const { leftPx, widthPx } = docSecRangeToContentPx(unitStartTime, unitEndTime, viewportFrame);
 
   const locale = useLocale();
 

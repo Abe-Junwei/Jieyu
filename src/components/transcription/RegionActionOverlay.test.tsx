@@ -37,8 +37,7 @@ describe('RegionActionOverlay', () => {
   const defaultProps = {
     unitStartTime: 10,
     unitEndTime: 20,
-    zoomPxPerSec: 50,
-    scrollLeft: 0,
+    viewportFrame: { pxPerDocSec: 50, scrollLeftPx: 0 },
     waveAreaWidth: 800,
     isPlaying: false,
     segmentPlaybackRate: 1,
@@ -59,8 +58,7 @@ describe('RegionActionOverlay', () => {
       ...defaultProps,
       unitStartTime: 1,
       unitEndTime: 12,
-      zoomPxPerSec: 20,
-      scrollLeft: 40,
+      viewportFrame: { pxPerDocSec: 20, scrollLeftPx: 40 },
     };
     const { container } = render(<RegionActionOverlay {...props} />);
 
@@ -76,12 +74,24 @@ describe('RegionActionOverlay', () => {
     expect(within(overlay).getByTitle(/播放速度 1\.00/)).toBeTruthy();
   });
 
+  it('positions with tier-primary scrollLeftPx (extended-document authority)', () => {
+    const props = {
+      ...defaultProps,
+      unitStartTime: 10,
+      unitEndTime: 20,
+      viewportFrame: { pxPerDocSec: 50, scrollLeftPx: 200 },
+    };
+    const { container } = render(<RegionActionOverlay {...props} />);
+    const overlay = container.querySelector('.region-action-overlay') as HTMLDivElement;
+    expect(overlay.style.left).toBe('300px');
+  });
+
   it('does not render when region is completely left of visible area', () => {
     const props = {
       ...defaultProps,
       unitStartTime: -100,
       unitEndTime: -50,
-      scrollLeft: 0,
+      viewportFrame: { pxPerDocSec: 50, scrollLeftPx: 0 },
     };
     const { container } = render(<RegionActionOverlay {...props} />);
     expect(container.querySelector('.region-action-overlay')).toBeNull();
@@ -92,7 +102,7 @@ describe('RegionActionOverlay', () => {
       ...defaultProps,
       unitStartTime: 1000,
       unitEndTime: 2000,
-      scrollLeft: 0,
+      viewportFrame: { pxPerDocSec: 50, scrollLeftPx: 0 },
     };
     const { container } = render(<RegionActionOverlay {...props} />);
     expect(container.querySelector('.region-action-overlay')).toBeNull();
@@ -101,7 +111,7 @@ describe('RegionActionOverlay', () => {
   it('shows speed slider when region width >= 160px', () => {
     const props = {
       ...defaultProps,
-      zoomPxPerSec: 20, // 10s * 20 = 200px width, >= 160
+      viewportFrame: { pxPerDocSec: 20, scrollLeftPx: 0 },
     };
     const { container } = render(<RegionActionOverlay {...props} />);
     expect(container.querySelector('.segment-speed-control')).toBeTruthy();
@@ -110,7 +120,7 @@ describe('RegionActionOverlay', () => {
   it('hides speed slider when region width < 160px', () => {
     const props = {
       ...defaultProps,
-      zoomPxPerSec: 10, // 10s * 10 = 100px width, < 160
+      viewportFrame: { pxPerDocSec: 10, scrollLeftPx: 0 },
     };
     const { container } = render(<RegionActionOverlay {...props} />);
     expect(container.querySelector('.segment-speed-control')).toBeNull();
@@ -119,7 +129,7 @@ describe('RegionActionOverlay', () => {
   it('shows loop button when region width >= 72px', () => {
     const props = {
       ...defaultProps,
-      zoomPxPerSec: 10, // 10s * 10 = 100px width, >= 72
+      viewportFrame: { pxPerDocSec: 10, scrollLeftPx: 0 },
     };
     const { container } = render(<RegionActionOverlay {...props} />);
     expect(container.querySelector('.region-action-btn')).toBeTruthy();
@@ -129,8 +139,8 @@ describe('RegionActionOverlay', () => {
     const props = {
       ...defaultProps,
       unitStartTime: 10,
-      unitEndTime: 15, // 5s * 10 = 50px width, < 72
-      zoomPxPerSec: 10,
+      unitEndTime: 15,
+      viewportFrame: { pxPerDocSec: 10, scrollLeftPx: 0 },
     };
     const { container } = render(<RegionActionOverlay {...props} />);
     const overlay = container.querySelector('.region-action-overlay') as HTMLElement;
@@ -142,7 +152,7 @@ describe('RegionActionOverlay', () => {
     const onToggleLoop = vi.fn();
     const props = {
       ...defaultProps,
-      zoomPxPerSec: 20, // >= 72px
+      viewportFrame: { pxPerDocSec: 20, scrollLeftPx: 0 },
       onToggleLoop,
     };
     const { container } = render(<RegionActionOverlay {...props} />);
@@ -168,7 +178,7 @@ describe('RegionActionOverlay', () => {
     const onPlaybackRateChange = vi.fn();
     const props = {
       ...defaultProps,
-      zoomPxPerSec: 20, // >= 160px so speed slider shows
+      viewportFrame: { pxPerDocSec: 20, scrollLeftPx: 0 },
       onPlaybackRateChange,
     };
     const { container } = render(<RegionActionOverlay {...props} />);
@@ -179,7 +189,6 @@ describe('RegionActionOverlay', () => {
 
   it('renders play icon when not playing', () => {
     const { container } = render(<RegionActionOverlay {...defaultProps} isPlaying={false} />);
-    // The play button should have Play icon (Square when playing, Play when not)
     const buttons = container.querySelectorAll('.region-action-btn');
     expect(buttons.length).toBeGreaterThan(0);
   });
@@ -193,7 +202,7 @@ describe('RegionActionOverlay', () => {
   it('loop button has active class when segmentLoopPlayback is true', () => {
     const props = {
       ...defaultProps,
-      zoomPxPerSec: 20, // >= 72px
+      viewportFrame: { pxPerDocSec: 20, scrollLeftPx: 0 },
       segmentLoopPlayback: true,
     };
     const { container } = render(<RegionActionOverlay {...props} />);
@@ -204,10 +213,9 @@ describe('RegionActionOverlay', () => {
   it('handles scroll offset correctly', () => {
     const props = {
       ...defaultProps,
-      scrollLeft: 200,
-      unitStartTime: 10, // 10s * 50 = 500px, - 200 = 300px (visible)
-      unitEndTime: 20, // 20s * 50 = 1000px, - 200 = 800px (visible)
-      zoomPxPerSec: 50,
+      viewportFrame: { pxPerDocSec: 50, scrollLeftPx: 200 },
+      unitStartTime: 10,
+      unitEndTime: 20,
     };
     const { container } = render(<RegionActionOverlay {...props} />);
     expect(container.querySelector('.region-action-overlay')).toBeTruthy();

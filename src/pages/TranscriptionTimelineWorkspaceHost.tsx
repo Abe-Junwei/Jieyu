@@ -1,4 +1,8 @@
-import type { TranscriptionPageTimelineEmptyStateProps, TranscriptionPageTimelineHorizontalMediaLanesProps, TimelineWorkspaceHostShell } from './TranscriptionPage.TimelineContent.types';
+import type {
+  TranscriptionPageTimelineEmptyStateProps,
+  TranscriptionPageTimelineHorizontalMediaLanesProps,
+  TimelineWorkspaceHostShell,
+} from './TranscriptionPage.TimelineContent.types';
 import type {
   TranscriptionTimelineWorkspacePanelProps,
   TranscriptionTimelineVerticalViewInput,
@@ -20,10 +24,14 @@ export interface TranscriptionTimelineWorkspaceHostProps {
 }
 
 function omitUndefined<T extends Record<string, unknown>>(value: T): Partial<T> {
-  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as Partial<T>;
+  return Object.fromEntries(
+    Object.entries(value).filter(([, item]) => item !== undefined),
+  ) as Partial<T>;
 }
 
-function buildVerticalViewInput(props: TranscriptionTimelineWorkspacePanelProps): TranscriptionTimelineVerticalViewInput {
+function buildVerticalViewInput(
+  props: TranscriptionTimelineWorkspacePanelProps,
+): TranscriptionTimelineVerticalViewInput {
   return {
     transcriptionLayers: props.transcriptionLayers,
     translationLayers: props.translationLayers,
@@ -92,7 +100,6 @@ export function TranscriptionTimelineWorkspaceHost({
     return (
       <TranscriptionTimelineHorizontalMediaLanes
         {...mediaLanesProps}
-        acousticShellPending={timelineChrome.acousticShellPending}
         timelineChromeClassNames={timelineChrome.timelineContentClassNames}
       />
     );

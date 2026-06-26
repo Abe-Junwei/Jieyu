@@ -184,6 +184,10 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       selectedWaveformTimelineItem: w.selectedWaveformTimelineItem,
       playerInstanceGetWidth: w.playerInstanceGetWidth,
       waveformScrollLeft: w.waveformScrollLeft,
+      regionActionViewportFrame: w.timelineViewportProjection?.viewportFrame ?? {
+        pxPerDocSec: w.timelineViewportProjection?.zoomPxPerSec ?? 0,
+        scrollLeftPx: 0,
+      },
       segmentPlaybackRate: w.segmentPlaybackRate,
       handleSegmentPlaybackRateChange: w.handleSegmentPlaybackRateChange,
       handleToggleSelectedWaveformLoop: w.handleToggleSelectedWaveformLoop,
@@ -208,6 +212,7 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       timelineViewportProjection: {
         rulerView: w.timelineViewportProjection?.rulerView,
         zoomPxPerSec: w.timelineViewportProjection?.zoomPxPerSec,
+        viewportFrame: w.timelineViewportProjection?.viewportFrame,
       },
       mediaFileInputRef: w.mediaFileInputRef,
       acousticStrip: w.acousticStrip,

@@ -2319,7 +2319,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(matrixCode.includes("id: 'timeline-extent-single-source'")).toBe(true);
     expect(matrixCode.includes("id: 'segment-range-gesture-single-surface'")).toBe(true);
     expect(matrixCode.includes("id: 'phase-f-range-preview-ssot'")).toBe(true);
-    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 20')).toBe(true);
+    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 23')).toBe(true);
   });
 
   it('keeps media lanes layout on timelineExtentSec without playerDuration fallback', () => {
@@ -2349,6 +2349,62 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorInputCode.includes('timelineExtentSec,')).toBe(true);
     expect(
       vmInputBuilderCode.includes('timelineExtentSec: timelineReadModel.timeline.extentSec'),
+    ).toBe(true);
+  });
+
+  it('wires playbackExtentSec from resolvePlaybackCapSec on the waveform bridge', () => {
+    const bridgePath = path.resolve(
+      process.cwd(),
+      'src/pages/useTranscriptionWaveformBridgeController.ts',
+    );
+    const bridgeCode = fs.readFileSync(bridgePath, 'utf8');
+    expect(bridgeCode.includes('playbackExtentSec')).toBe(true);
+    expect(bridgeCode.includes('resolvePlaybackCapSec')).toBe(true);
+    expect(bridgeCode.includes('playbackExtentSec,')).toBe(true);
+  });
+
+  it('routes region action overlay through viewportFrame scroll authority', () => {
+    const overlayPath = path.resolve(
+      process.cwd(),
+      'src/components/transcription/RegionActionOverlay.tsx',
+    );
+    const layerPath = path.resolve(
+      process.cwd(),
+      'src/components/transcription/WaveformRegionActionLayer.tsx',
+    );
+    const orchestratorPath = path.resolve(
+      process.cwd(),
+      'src/pages/OrchestratorWaveformContent.tsx',
+    );
+    const overlayCode = fs.readFileSync(overlayPath, 'utf8');
+    const layerCode = fs.readFileSync(layerPath, 'utf8');
+    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    expect(overlayCode.includes('docSecRangeToContentPx')).toBe(true);
+    expect(overlayCode.includes('viewportFrame')).toBe(true);
+    expect(overlayCode.includes('zoomPxPerSec')).toBe(false);
+    expect(layerCode.includes('regionActionViewportFrame')).toBe(true);
+    expect(layerCode.includes('waveformScrollLeft')).toBe(false);
+    expect(orchestratorCode.includes('regionActionViewportFrame={regionActionViewportFrame}')).toBe(
+      true,
+    );
+  });
+
+  it('maps acoustic shell chrome only through mapAcousticToTimelineChrome in lanes host', () => {
+    const lanesPath = path.resolve(
+      process.cwd(),
+      'src/components/TranscriptionTimelineHorizontalMediaLanes.tsx',
+    );
+    const hostPath = path.resolve(
+      process.cwd(),
+      'src/pages/TranscriptionTimelineWorkspaceHost.tsx',
+    );
+    const lanesCode = fs.readFileSync(lanesPath, 'utf8');
+    const hostCode = fs.readFileSync(hostPath, 'utf8');
+    expect(lanesCode.includes('timeline-content-text-only')).toBe(false);
+    expect(lanesCode.includes('acousticShellPending')).toBe(false);
+    expect(hostCode.includes('mapAcousticToTimelineChrome')).toBe(true);
+    expect(
+      hostCode.includes('timelineChromeClassNames={timelineChrome.timelineContentClassNames}'),
     ).toBe(true);
   });
 

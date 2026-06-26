@@ -14,6 +14,9 @@ export const timelineParityMatrixRowsZh = {
     labelZh:
       '视口投影单路径（useTimelineViewport → read model / orchestrator / viewportFrame 消费）',
   },
+  'acoustic-shell-chrome-map': {
+    labelZh: '声学壳 chrome 单映射（mapAcousticToTimelineChrome → lanes；禁止 lanes 内联拼 class）',
+  },
   'host-vertical-projection-input': {
     labelZh: '纵向投影编排入参（与 workspace panel 合同解耦，§5.6 L 第二阶段）',
   },
