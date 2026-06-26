@@ -153,6 +153,7 @@ export function AiChatHeaderBar({
           />
           <select
             className="ai-chat-provider-select"
+            aria-label={t(locale, 'ai.chat.provider')}
             value={aiChatSettings?.providerKind ?? 'mock'}
             onChange={(e) =>
               onUpdateAiChatSettings?.({

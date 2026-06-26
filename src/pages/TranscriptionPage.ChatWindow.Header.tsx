@@ -193,6 +193,7 @@ export function TranscriptionPageChatWindowHeader({
             />
             <select
               className="ai-chat-provider-select"
+              aria-label={t(uiLocale, 'ai.chat.provider')}
               value={aiChatState.aiChatSettings?.providerKind ?? 'mock'}
               onChange={(event) =>
                 aiChatState.onUpdateAiChatSettings?.({
