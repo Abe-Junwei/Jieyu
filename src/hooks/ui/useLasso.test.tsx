@@ -80,6 +80,8 @@ function WaveformLassoHarness(props: {
   clearUnitSelection: () => void;
   createUnitFromSelection?: (start: number, end: number) => Promise<void>;
   waveformMappingDurationSec: number;
+  mediaDurationSec?: number;
+  tierScrollLeftPx?: number;
 }) {
   const waveCanvasRef = useRef<HTMLDivElement>(null);
   const tierRef = useRef<HTMLDivElement>(null);
@@ -99,10 +101,10 @@ function WaveformLassoHarness(props: {
     Object.defineProperty(wrapper, 'scrollWidth', { configurable: true, value: 800 });
     scrollParent.appendChild(wrapper);
     return {
-      getDuration: () => 0,
+      getDuration: () => props.mediaDurationSec ?? 0,
       getWrapper: () => wrapper,
     } as unknown as WaveSurfer;
-  }, []);
+  }, [props.mediaDurationSec]);
 
   if (playerRef.current === null) {
     playerRef.current = mockWs;
@@ -130,7 +132,7 @@ function WaveformLassoHarness(props: {
   });
 
   return (
-    <div ref={tierRef} data-testid="timeline-scroll">
+    <div ref={tierRef} data-testid="wave-lasso-tier" style={{ overflow: 'auto' }}>
       <div
         ref={waveCanvasRef}
         data-testid="wave-lasso-canvas"
@@ -528,5 +530,45 @@ describe('useLasso — 波形映射与语义轴对齐', () => {
     const [start, end] = createUnitFromSelection.mock.calls[0] ?? [];
     expect(start).toBeCloseTo(12.5, 5);
     expect(end).toBeCloseTo(50, 5);
+  });
+
+  it('extended document timeline uses tier scroll for wave lasso create times', () => {
+    const createUnitFromSelection = vi.fn(async (_startSec: number, _endSec: number) => {});
+    const { container } = render(
+      <WaveformLassoHarness
+        clearUnitSelection={clearUnitSelection}
+        createUnitFromSelection={createUnitFromSelection}
+        waveformMappingDurationSec={120}
+        mediaDurationSec={60}
+      />,
+    );
+    const tier = container.querySelector('[data-testid="wave-lasso-tier"]') as HTMLElement;
+    const wave = container.querySelector('[data-testid="wave-lasso-canvas"]') as HTMLElement;
+    expect(tier).toBeTruthy();
+    expect(wave).toBeTruthy();
+    Object.defineProperty(tier, 'scrollLeft', { value: 600, writable: true, configurable: true });
+    vi.spyOn(wave, 'getBoundingClientRect').mockReturnValue(rect800x100);
+    wave.setPointerCapture = vi.fn();
+
+    fireEvent.pointerDown(wave, {
+      clientX: 100,
+      clientY: 50,
+      button: 0,
+      buttons: 1,
+      pointerId: 71,
+    });
+    fireEvent.pointerMove(wave, {
+      clientX: 200,
+      clientY: 80,
+      button: 0,
+      buttons: 1,
+      pointerId: 71,
+    });
+    fireEvent.pointerUp(wave, { clientX: 200, clientY: 80, button: 0, buttons: 0, pointerId: 71 });
+
+    expect(createUnitFromSelection).toHaveBeenCalledTimes(1);
+    const [start, end] = createUnitFromSelection.mock.calls[0] ?? [];
+    expect(start).toBeCloseTo(70, 5);
+    expect(end).toBeCloseTo(80, 5);
   });
 });
