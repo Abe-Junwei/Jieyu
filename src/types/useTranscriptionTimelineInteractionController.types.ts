@@ -134,6 +134,12 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   markingModeRef: MutableRefObject<boolean>;
   setCtxMenu: (state: ContextMenuStateLike | null) => void;
   createUnitFromSelection: (start: number, end: number) => Promise<void>;
+  /** ReadyWorkspace：文献轴跨度；与波形桥 `documentSpanSec` 一致。 */
+  documentSpanSec?: number;
+  /** ReadyWorkspace：横向缩放 px/s；与波形桥 `zoomPxPerSec` 一致。 */
+  zoomPxPerSec?: number;
+  /** ReadyWorkspace：tier 主滚动容器；extended document 时 split 坐标换算需要。 */
+  tierContainerRef?: MutableRefObject<HTMLElement | null>;
 }
 
 export interface UseTranscriptionTimelineInteractionControllerResult {

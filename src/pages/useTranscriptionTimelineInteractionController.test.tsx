@@ -285,6 +285,36 @@ describe('useTranscriptionTimelineInteractionController', () => {
     );
   });
 
+  it('uses tier scroll for context-menu split time on extended document timelines', () => {
+    const tierContainer = document.createElement('div');
+    Object.defineProperty(tierContainer, 'scrollLeft', {
+      configurable: true,
+      value: 600,
+      writable: true,
+    });
+    const setCtxMenu = vi.fn();
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          setCtxMenu,
+          documentSpanSec: 120,
+          zoomPxPerSec: 10,
+          tierContainerRef: { current: tierContainer },
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleWaveformRegionContextMenu('seg-1', 100, 24);
+    });
+
+    expect(setCtxMenu).toHaveBeenCalledWith(
+      expect.objectContaining({
+        splitTime: 70,
+      }),
+    );
+  });
+
   it('keeps dependent layer id when opening waveform context menu in segment-backed mode', () => {
     const selectTimelineUnit = vi.fn();
     const setCtxMenu = vi.fn();
