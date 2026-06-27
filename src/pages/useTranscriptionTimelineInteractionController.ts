@@ -12,6 +12,7 @@ import {
   type TimelineSelectionCommand,
   type TimelineSelectionWriteInput,
 } from '../utils/applyTimelineSelectionCommand';
+import { resolveWaveformPointerClientXToDocSec } from '../utils/waveformPointerClientXToDocSec';
 import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
@@ -280,14 +281,45 @@ export function useTranscriptionTimelineInteractionController(
       const ws = input.player.instanceRef.current;
       let splitTime = ws?.getCurrentTime() ?? 0;
       if (ws) {
-        const wrapper = ws.getWrapper();
-        const scrollParent = wrapper?.parentElement;
-        if (wrapper && scrollParent) {
-          const rect = scrollParent.getBoundingClientRect();
-          const pxOffset = x - rect.left + scrollParent.scrollLeft;
-          const totalWidth = wrapper.scrollWidth;
-          const duration = ws.getDuration() || 1;
-          splitTime = Math.max(0, Math.min(duration, (pxOffset / totalWidth) * duration));
+        const waveCanvas = input.waveCanvasRef.current;
+        const documentSpanSec =
+          typeof input.documentSpanSec === 'number' &&
+          Number.isFinite(input.documentSpanSec) &&
+          input.documentSpanSec > 0
+            ? input.documentSpanSec
+            : ws.getDuration();
+        const zoomPxPerSec =
+          typeof input.zoomPxPerSec === 'number' &&
+          Number.isFinite(input.zoomPxPerSec) &&
+          input.zoomPxPerSec > 0
+            ? input.zoomPxPerSec
+            : 0;
+        const viewportRectLeftPx =
+          waveCanvas?.getBoundingClientRect().left ??
+          ws.getWrapper()?.parentElement?.getBoundingClientRect().left;
+        if (typeof viewportRectLeftPx === 'number' && zoomPxPerSec > 0) {
+          const mapped = resolveWaveformPointerClientXToDocSec({
+            clientX: x,
+            viewportRectLeftPx,
+            ws,
+            tierScrollLeftPx: input.tierContainerRef?.current?.scrollLeft ?? 0,
+            documentSpanSec,
+            pxPerDocSec: zoomPxPerSec,
+            logicalDurationSec: documentSpanSec,
+          });
+          if (mapped !== null) {
+            splitTime = mapped;
+          }
+        } else {
+          const wrapper = ws.getWrapper();
+          const scrollParent = wrapper?.parentElement;
+          if (wrapper && scrollParent) {
+            const rect = scrollParent.getBoundingClientRect();
+            const pxOffset = x - rect.left + scrollParent.scrollLeft;
+            const totalWidth = wrapper.scrollWidth;
+            const duration = ws.getDuration() || 1;
+            splitTime = Math.max(0, Math.min(duration, (pxOffset / totalWidth) * duration));
+          }
         }
       }
 
