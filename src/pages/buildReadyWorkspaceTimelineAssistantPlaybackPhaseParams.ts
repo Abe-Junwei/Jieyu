@@ -177,6 +177,7 @@ export function buildReadyWorkspaceTimelineAssistantPlaybackPhaseParams(
       selectedTimelineUnit,
       subSelectDragRef,
       waveCanvasRef,
+      tierContainerRef: pre.tierContainerRef,
       resolveSegmentRoutingForLayer,
       segmentsByLayer,
       unitsOnCurrentMedia,
