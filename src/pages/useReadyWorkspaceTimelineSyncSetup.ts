@@ -26,6 +26,8 @@ export interface UseReadyWorkspaceTimelineSyncSetupParams {
   setCtxMenu: UseTranscriptionTimelineInteractionControllerInput['setCtxMenu'];
   /** 来自 `useReadyWorkspaceSegmentScope`（或等价段落读模型），不在 `data` 上。 */
   reloadSegments: UseTranscriptionTimelineInteractionControllerInput['reloadSegments'];
+  /** 来自 `useTranscriptionSegmentBridgeController`，timing 写入后刷新 segment undo 基线。 */
+  refreshSegmentUndoSnapshot?: UseTranscriptionTimelineInteractionControllerInput['refreshSegmentUndoSnapshot'];
   locale: string;
   manualSelectTsRef: any;
   player: any;
@@ -67,6 +69,7 @@ export function useReadyWorkspaceTimelineSyncSetup(
     zoomToUnit,
     setCtxMenu,
     reloadSegments,
+    refreshSegmentUndoSnapshot,
     locale,
     manualSelectTsRef,
     player,
@@ -143,6 +146,7 @@ export function useReadyWorkspaceTimelineSyncSetup(
       endTimingGesture: data.endTimingGesture,
       makeSnapGuide: data.makeSnapGuide,
       createUnitFromSelection: createUnitFromSelectionRouted,
+      ...(refreshSegmentUndoSnapshot !== undefined ? { refreshSegmentUndoSnapshot } : {}),
     },
     hostWrite: {
       setSubSelectionRange,

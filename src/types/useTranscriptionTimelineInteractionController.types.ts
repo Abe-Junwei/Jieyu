@@ -117,6 +117,8 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
     probeStart: number,
   ) => { left: number; right: number | undefined };
   reloadSegments: () => Promise<void>;
+  /** 段时序写入后刷新 segment undo 基线，避免连续 timing 手势 pushUndo 捕获陈旧快照。 */
+  refreshSegmentUndoSnapshot?: () => Promise<void>;
   saveUnitTiming: (id: string, start: number, end: number) => Promise<void>;
   setSaveState: (state: { kind: 'done' | 'error'; message: string }) => void;
   selectedUnitIds: Set<string>;

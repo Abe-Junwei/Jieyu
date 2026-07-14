@@ -560,6 +560,37 @@ describe('useTranscriptionTimelineInteractionController', () => {
     expect(setTimingEditPreview).toHaveBeenCalledWith({ snapGuide: { visible: false } });
   });
 
+  it('refreshes segment undo snapshot after routed segment timing save', async () => {
+    mockUpdateSegment.mockClear();
+    const reloadSegments = vi.fn(async () => undefined);
+    const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          reloadSegments,
+          refreshSegmentUndoSnapshot,
+          segmentsByLayer: new Map([
+            [
+              'layer-sub',
+              [
+                makeSegment('seg-1', 'layer-sub', 0, 2, 'utt-1'),
+                makeSegment('seg-2', 'layer-sub', 3, 4, 'utt-1'),
+              ],
+            ],
+          ]),
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.saveTimingRouted('seg-1', 0.5, 1.5, 'layer-sub');
+    });
+
+    expect(mockUpdateSegment).toHaveBeenCalled();
+    expect(reloadSegments).toHaveBeenCalled();
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
+  });
+
   it('clamps time-subdivision saves to parent unit bounds', async () => {
     mockUpdateSegment.mockClear();
     const reloadSegments = vi.fn(async () => undefined);

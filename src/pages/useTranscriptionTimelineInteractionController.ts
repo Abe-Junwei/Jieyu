@@ -251,6 +251,7 @@ export function useTranscriptionTimelineInteractionController(
             updatedAt: new Date().toISOString(),
           });
           await input.reloadSegments();
+          await input.refreshSegmentUndoSnapshot?.();
           if (subdivisionClampedInResize) {
             input.setSaveState({
               kind: 'done',
@@ -503,6 +504,7 @@ export function useTranscriptionTimelineInteractionController(
               updatedAt: new Date().toISOString(),
             });
             await input.reloadSegments();
+            await input.refreshSegmentUndoSnapshot?.();
             if (subdivisionClampedInRegionUpdate) {
               input.setSaveState({
                 kind: 'done',
