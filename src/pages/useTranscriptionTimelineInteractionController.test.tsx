@@ -285,6 +285,36 @@ describe('useTranscriptionTimelineInteractionController', () => {
     );
   });
 
+  it('uses tier scroll for context-menu split time on extended document timelines', () => {
+    const tierContainer = document.createElement('div');
+    Object.defineProperty(tierContainer, 'scrollLeft', {
+      configurable: true,
+      value: 600,
+      writable: true,
+    });
+    const setCtxMenu = vi.fn();
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          setCtxMenu,
+          documentSpanSec: 120,
+          zoomPxPerSec: 10,
+          tierContainerRef: { current: tierContainer },
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleWaveformRegionContextMenu('seg-1', 100, 24);
+    });
+
+    expect(setCtxMenu).toHaveBeenCalledWith(
+      expect.objectContaining({
+        splitTime: 70,
+      }),
+    );
+  });
+
   it('keeps dependent layer id when opening waveform context menu in segment-backed mode', () => {
     const selectTimelineUnit = vi.fn();
     const setCtxMenu = vi.fn();
@@ -558,6 +588,37 @@ describe('useTranscriptionTimelineInteractionController', () => {
       message: '无法将时间细分区间拖动到父句段范围之外。',
     });
     expect(setTimingEditPreview).toHaveBeenCalledWith({ snapGuide: { visible: false } });
+  });
+
+  it('refreshes segment undo snapshot after routed segment timing save', async () => {
+    mockUpdateSegment.mockClear();
+    const reloadSegments = vi.fn(async () => undefined);
+    const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          reloadSegments,
+          refreshSegmentUndoSnapshot,
+          segmentsByLayer: new Map([
+            [
+              'layer-sub',
+              [
+                makeSegment('seg-1', 'layer-sub', 0, 2, 'utt-1'),
+                makeSegment('seg-2', 'layer-sub', 3, 4, 'utt-1'),
+              ],
+            ],
+          ]),
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.saveTimingRouted('seg-1', 0.5, 1.5, 'layer-sub');
+    });
+
+    expect(mockUpdateSegment).toHaveBeenCalled();
+    expect(reloadSegments).toHaveBeenCalled();
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
   });
 
   it('clamps time-subdivision saves to parent unit bounds', async () => {

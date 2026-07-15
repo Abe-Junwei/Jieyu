@@ -26,6 +26,8 @@ export interface UseReadyWorkspaceTimelineSyncSetupParams {
   setCtxMenu: UseTranscriptionTimelineInteractionControllerInput['setCtxMenu'];
   /** 来自 `useReadyWorkspaceSegmentScope`（或等价段落读模型），不在 `data` 上。 */
   reloadSegments: UseTranscriptionTimelineInteractionControllerInput['reloadSegments'];
+  /** 来自 `useTranscriptionSegmentBridgeController`，timing 写入后刷新 segment undo 基线。 */
+  refreshSegmentUndoSnapshot?: UseTranscriptionTimelineInteractionControllerInput['refreshSegmentUndoSnapshot'];
   locale: string;
   manualSelectTsRef: any;
   player: any;
@@ -36,6 +38,7 @@ export interface UseReadyWorkspaceTimelineSyncSetupParams {
   selectedTimelineUnit: any;
   subSelectDragRef: any;
   waveCanvasRef: any;
+  tierContainerRef: any;
   resolveSegmentRoutingForLayer: any;
   segmentsByLayer: any;
   unitsOnCurrentMedia: any;
@@ -67,6 +70,7 @@ export function useReadyWorkspaceTimelineSyncSetup(
     zoomToUnit,
     setCtxMenu,
     reloadSegments,
+    refreshSegmentUndoSnapshot,
     locale,
     manualSelectTsRef,
     player,
@@ -77,6 +81,7 @@ export function useReadyWorkspaceTimelineSyncSetup(
     selectedTimelineUnit,
     subSelectDragRef,
     waveCanvasRef,
+    tierContainerRef,
     resolveSegmentRoutingForLayer,
     segmentsByLayer,
     unitsOnCurrentMedia,
@@ -97,67 +102,73 @@ export function useReadyWorkspaceTimelineSyncSetup(
     timelineViewportProjection,
   } = params;
 
-  const timelineInteractionInput = buildReadyWorkspaceTimelineInteractionInput({
-    readInput: {
-      layers: data.layers,
-      units: data.units,
-      manualSelectTsRef,
-      player,
-      locale,
-      sidePaneRows: data.sidePaneRows,
-      activeTimelineUnitId,
-      waveformTimelineItems,
-      activeLayerIdForEdits,
-      useSegmentWaveformRegions,
-      selectedTimelineUnit,
-      subSelectDragRef,
-      waveCanvasRef,
-      resolveSegmentRoutingForLayer,
-      segmentsByLayer,
-      unitsOnCurrentMedia,
-      selectedUnitIds,
-      selectedWaveformRegionId,
-      snapEnabled,
-      creatingSegmentRef,
-      markingModeRef,
-    },
-    domainWrite: {
-      saveUnitText: data.saveUnitText,
-      saveUnitLayerText: data.saveUnitLayerText,
-      selectUnit: data.selectUnit,
-      onSetNotePopover: setNotePopover,
-      onSetSidebarError: setAiSidebarError,
-      onOpenPdfPreviewRequest: openPdfPreviewRequest,
-      runSplitAtTime,
-      selectTimelineUnit: data.selectTimelineUnit,
-      applyTimelineSelectionCommand: data.applyTimelineSelectionCommand,
-      clearUnitSelection: data.clearUnitSelection,
-      toggleSegmentSelection: data.toggleSegmentSelection,
-      selectSegmentRange: data.selectSegmentRange,
-      toggleUnitSelection: data.toggleUnitSelection,
-      selectUnitRange: data.selectUnitRange,
-      getNeighborBounds: data.getNeighborBounds,
-      saveUnitTiming: data.saveUnitTiming,
-      setSaveState: data.setSaveState,
-      beginTimingGesture: data.beginTimingGesture,
-      endTimingGesture: data.endTimingGesture,
-      makeSnapGuide: data.makeSnapGuide,
-      createUnitFromSelection: createUnitFromSelectionRouted,
-    },
-    hostWrite: {
-      setSubSelectionRange,
-      setTimingEditPreview,
-      zoomToPercent,
-      zoomToUnit,
-      setCtxMenu,
-      reloadSegments,
-    },
-    revealSchemaLayerHandlers: {
-      setSelectedLayerId,
-      setFocusedLayerRowId,
-      setFlashLayerRowId,
-    },
-  });
+  const timelineInteractionInput = {
+    ...buildReadyWorkspaceTimelineInteractionInput({
+      readInput: {
+        layers: data.layers,
+        units: data.units,
+        manualSelectTsRef,
+        player,
+        locale,
+        sidePaneRows: data.sidePaneRows,
+        activeTimelineUnitId,
+        waveformTimelineItems,
+        activeLayerIdForEdits,
+        useSegmentWaveformRegions,
+        selectedTimelineUnit,
+        subSelectDragRef,
+        waveCanvasRef,
+        resolveSegmentRoutingForLayer,
+        segmentsByLayer,
+        unitsOnCurrentMedia,
+        selectedUnitIds,
+        selectedWaveformRegionId,
+        snapEnabled,
+        creatingSegmentRef,
+        markingModeRef,
+      },
+      domainWrite: {
+        saveUnitText: data.saveUnitText,
+        saveUnitLayerText: data.saveUnitLayerText,
+        selectUnit: data.selectUnit,
+        onSetNotePopover: setNotePopover,
+        onSetSidebarError: setAiSidebarError,
+        onOpenPdfPreviewRequest: openPdfPreviewRequest,
+        runSplitAtTime,
+        selectTimelineUnit: data.selectTimelineUnit,
+        applyTimelineSelectionCommand: data.applyTimelineSelectionCommand,
+        clearUnitSelection: data.clearUnitSelection,
+        toggleSegmentSelection: data.toggleSegmentSelection,
+        selectSegmentRange: data.selectSegmentRange,
+        toggleUnitSelection: data.toggleUnitSelection,
+        selectUnitRange: data.selectUnitRange,
+        getNeighborBounds: data.getNeighborBounds,
+        saveUnitTiming: data.saveUnitTiming,
+        setSaveState: data.setSaveState,
+        beginTimingGesture: data.beginTimingGesture,
+        endTimingGesture: data.endTimingGesture,
+        makeSnapGuide: data.makeSnapGuide,
+        createUnitFromSelection: createUnitFromSelectionRouted,
+        ...(refreshSegmentUndoSnapshot !== undefined ? { refreshSegmentUndoSnapshot } : {}),
+      },
+      hostWrite: {
+        setSubSelectionRange,
+        setTimingEditPreview,
+        zoomToPercent,
+        zoomToUnit,
+        setCtxMenu,
+        reloadSegments,
+      },
+      revealSchemaLayerHandlers: {
+        setSelectedLayerId,
+        setFocusedLayerRowId,
+        setFlashLayerRowId,
+      },
+    }),
+    documentSpanSec: timelineViewportProjection.documentSpanSec,
+    zoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
+    tierContainerRef,
+  };
 
   return useReadyWorkspaceTimelineSyncController(
     buildReadyWorkspaceTimelineSyncControllerInput({
