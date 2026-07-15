@@ -27,6 +27,7 @@ import {
   getTierTimelineContentPaddingToInnerOffsetPx,
   getTierTimelineInnerOriginScrollPx,
 } from '../../utils/tierTimeAxisOriginScrollPx';
+import { resolveWaveformPointerClientXToDocSec } from '../../utils/waveformPointerClientXToDocSec';
 import { readWaveformScrollParentScrollLeftPx } from '../../utils/waveformScrollParentScrollPx';
 import type { TimelineViewportFrame } from '../transcription/timelineViewportTypes';
 
@@ -256,20 +257,48 @@ export function useLasso(input: UseLassoInput) {
       return 0;
     };
 
-    // Convert a clientX position to audio time using WaveSurfer's actual layout.
-    const clientXToTime = (clientX: number): number | null => {
+    const resolveWaveformViewportRectLeftPx = (): number | null => {
       const ws = playerInstanceRef.current;
       const wrapper = ws?.getWrapper();
-      const sc = wrapper?.parentElement;
-      if (!wrapper || !sc) return null;
-      const totalWidth = wrapper.scrollWidth;
-      if (totalWidth <= 0) return null;
-      const dur = resolveWaveformDurationSec();
-      if (dur <= 0) return null;
-      const rect = sc.getBoundingClientRect();
-      const scrollLeft = readWaveformScrollParentScrollLeftPx(sc);
-      const pxOffset = clientX - rect.left + scrollLeft;
-      return Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+      const scrollParent = wrapper?.parentElement;
+      const waveCanvas = waveCanvasRef.current;
+      const documentSpanSec =
+        typeof waveformMappingDurationSec === 'number' &&
+        Number.isFinite(waveformMappingDurationSec) &&
+        waveformMappingDurationSec > 0
+          ? waveformMappingDurationSec
+          : 0;
+      const mediaDur = resolveWaveformDurationSec();
+      if (documentSpanSec > mediaDur && mediaDur > 0 && waveCanvas) {
+        return waveCanvas.getBoundingClientRect().left;
+      }
+      if (!scrollParent) return null;
+      return scrollParent.getBoundingClientRect().left;
+    };
+
+    // Convert a clientX position to document seconds (tier-primary on extended timelines).
+    const clientXToTime = (clientX: number): number | null => {
+      const viewportRectLeftPx = resolveWaveformViewportRectLeftPx();
+      if (viewportRectLeftPx === null) return null;
+      const documentSpanSec =
+        typeof waveformMappingDurationSec === 'number' &&
+        Number.isFinite(waveformMappingDurationSec) &&
+        waveformMappingDurationSec > 0
+          ? waveformMappingDurationSec
+          : resolveWaveformDurationSec();
+      return resolveWaveformPointerClientXToDocSec({
+        clientX,
+        viewportRectLeftPx,
+        ws: playerInstanceRef.current,
+        tierScrollLeftPx: tierContainerRef.current?.scrollLeft ?? 0,
+        documentSpanSec,
+        pxPerDocSec,
+        ...(typeof waveformMappingDurationSec === 'number' &&
+        Number.isFinite(waveformMappingDurationSec) &&
+        waveformMappingDurationSec > 0
+          ? { logicalDurationSec: waveformMappingDurationSec }
+          : {}),
+      });
     };
 
     const hitTestExistingAtClientX = (clientX: number) => {
@@ -335,17 +364,8 @@ export function useLasso(input: UseLassoInput) {
       // --- Sub-selection drag ---
       const sub = subSelectDragRef.current;
       if (sub) {
-        const ws = playerInstanceRef.current;
-        const wrapper = ws?.getWrapper();
-        const sc = wrapper?.parentElement;
-        if (!sc || !wrapper) return;
-        const rect = sc.getBoundingClientRect();
-        const scrollLeft = readWaveformScrollParentScrollLeftPx(sc);
-        const pxOffset = e.clientX - rect.left + scrollLeft;
-        const totalWidth = wrapper.scrollWidth;
-        const dur = resolveWaveformDurationSec();
-        if (dur <= 0) return;
-        const currentTime = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+        const currentTime = clientXToTime(e.clientX);
+        if (currentTime === null) return;
         const dragStart = Math.min(sub.anchorTime, currentTime);
         const dragEnd = Math.max(sub.anchorTime, currentTime);
         if (!sub.active && Math.abs(currentTime - sub.anchorTime) < 0.01) return;
@@ -444,22 +464,12 @@ export function useLasso(input: UseLassoInput) {
         subSelectDragRef.current = null;
         setSubSelectPreview?.(null);
         if (sub.active) {
-          // Compute final range
-          const ws = playerInstanceRef.current;
-          const wrapper = ws?.getWrapper();
-          const sc = wrapper?.parentElement;
-          if (sc && wrapper) {
-            const rectSc = sc.getBoundingClientRect();
-            const pxOffset = e.clientX - rectSc.left + sc.scrollLeft;
-            const totalWidth = wrapper.scrollWidth;
-            const dur = resolveWaveformDurationSec();
-            if (dur > 0) {
-              const currentTime = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
-              const s = Math.min(sub.anchorTime, currentTime);
-              const end = Math.max(sub.anchorTime, currentTime);
-              if (end - s >= 0.02) {
-                setSubSelectionRange({ start: s, end });
-              }
+          const currentTime = clientXToTime(e.clientX);
+          if (currentTime !== null) {
+            const s = Math.min(sub.anchorTime, currentTime);
+            const end = Math.max(sub.anchorTime, currentTime);
+            if (end - s >= 0.02) {
+              setSubSelectionRange({ start: s, end });
             }
           }
         }
@@ -531,6 +541,8 @@ export function useLasso(input: UseLassoInput) {
     waveCanvasRef,
     skipSeekForIdRef,
     waveformMappingDurationSec,
+    pxPerDocSec,
+    tierContainerRef,
   ]);
 
   // RAF & timer cleanup
