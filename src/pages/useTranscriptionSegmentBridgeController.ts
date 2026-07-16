@@ -215,7 +215,6 @@ export function useTranscriptionSegmentBridgeController(
     input.reloadSegmentContents,
     input.reloadSegments,
     input.segmentUndoRef,
-    refreshSegmentUndoSnapshot,
     runRefreshSegmentUndoSnapshot,
   ]);
 
