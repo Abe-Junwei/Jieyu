@@ -13,6 +13,7 @@ import {
   type TimelineSelectionWriteInput,
 } from '../utils/applyTimelineSelectionCommand';
 import { resolveWaveformPointerClientXToDocSec } from '../utils/waveformPointerClientXToDocSec';
+import { isExtendedDocumentTimeline } from '../utils/waveformTierScrollSync';
 import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
@@ -219,8 +220,60 @@ export function useTranscriptionTimelineInteractionController(
     [input, resolveSubdivisionParentUnit],
   );
 
+  const resolveWaveformClientXToDocSec = useCallback(
+    (clientX: number): number | null => {
+      const ws = input.player.instanceRef.current;
+      if (!ws) return null;
+
+      const waveCanvas = input.waveCanvasRef.current;
+      const documentSpanSec =
+        typeof input.documentSpanSec === 'number' &&
+        Number.isFinite(input.documentSpanSec) &&
+        input.documentSpanSec > 0
+          ? input.documentSpanSec
+          : ws.getDuration();
+      const mediaDurSec = ws.getDuration();
+      const zoomPxPerSec =
+        typeof input.zoomPxPerSec === 'number' &&
+        Number.isFinite(input.zoomPxPerSec) &&
+        input.zoomPxPerSec > 0
+          ? input.zoomPxPerSec
+          : 0;
+      const tierPrimary = isExtendedDocumentTimeline(documentSpanSec, mediaDurSec);
+      if (!tierPrimary && zoomPxPerSec <= 0) {
+        return null;
+      }
+      const viewportRectLeftPx =
+        waveCanvas?.getBoundingClientRect().left ??
+        ws.getWrapper()?.parentElement?.getBoundingClientRect().left;
+      if (typeof viewportRectLeftPx !== 'number') return null;
+
+      if (zoomPxPerSec > 0) {
+        return resolveWaveformPointerClientXToDocSec({
+          clientX,
+          viewportRectLeftPx,
+          ws,
+          tierScrollLeftPx: input.tierContainerRef?.current?.scrollLeft ?? 0,
+          documentSpanSec,
+          pxPerDocSec: zoomPxPerSec,
+          logicalDurationSec: documentSpanSec,
+        });
+      }
+
+      const wrapper = ws.getWrapper();
+      const scrollParent = wrapper?.parentElement;
+      if (!wrapper || !scrollParent) return null;
+      const pxOffset = clientX - viewportRectLeftPx + scrollParent.scrollLeft;
+      const totalWidth = wrapper.scrollWidth;
+      const duration = ws.getDuration() || 1;
+      return Math.max(0, Math.min(duration, (pxOffset / totalWidth) * duration));
+    },
+    [input],
+  );
+
   const saveTimingRouted = useCallback(
     async (id: string, start: number, end: number, layerId?: string) => {
+      await input.awaitTimingUndoPrep?.();
       if (layerId) {
         const routing = input.resolveSegmentRoutingForLayer(layerId);
         if (routing.segmentSourceLayer) {
@@ -281,46 +334,21 @@ export function useTranscriptionTimelineInteractionController(
 
       const ws = input.player.instanceRef.current;
       let splitTime = ws?.getCurrentTime() ?? 0;
-      if (ws) {
+      const mappedSplitTime = resolveWaveformClientXToDocSec(x);
+      if (mappedSplitTime !== null) {
+        splitTime = mappedSplitTime;
+      } else if (ws) {
         const waveCanvas = input.waveCanvasRef.current;
-        const documentSpanSec =
-          typeof input.documentSpanSec === 'number' &&
-          Number.isFinite(input.documentSpanSec) &&
-          input.documentSpanSec > 0
-            ? input.documentSpanSec
-            : ws.getDuration();
-        const zoomPxPerSec =
-          typeof input.zoomPxPerSec === 'number' &&
-          Number.isFinite(input.zoomPxPerSec) &&
-          input.zoomPxPerSec > 0
-            ? input.zoomPxPerSec
-            : 0;
         const viewportRectLeftPx =
           waveCanvas?.getBoundingClientRect().left ??
           ws.getWrapper()?.parentElement?.getBoundingClientRect().left;
-        if (typeof viewportRectLeftPx === 'number' && zoomPxPerSec > 0) {
-          const mapped = resolveWaveformPointerClientXToDocSec({
-            clientX: x,
-            viewportRectLeftPx,
-            ws,
-            tierScrollLeftPx: input.tierContainerRef?.current?.scrollLeft ?? 0,
-            documentSpanSec,
-            pxPerDocSec: zoomPxPerSec,
-            logicalDurationSec: documentSpanSec,
-          });
-          if (mapped !== null) {
-            splitTime = mapped;
-          }
-        } else {
-          const wrapper = ws.getWrapper();
-          const scrollParent = wrapper?.parentElement;
-          if (wrapper && scrollParent) {
-            const rect = scrollParent.getBoundingClientRect();
-            const pxOffset = x - rect.left + scrollParent.scrollLeft;
-            const totalWidth = wrapper.scrollWidth;
-            const duration = ws.getDuration() || 1;
-            splitTime = Math.max(0, Math.min(duration, (pxOffset / totalWidth) * duration));
-          }
+        const wrapper = ws.getWrapper();
+        const scrollParent = wrapper?.parentElement;
+        if (wrapper && scrollParent && typeof viewportRectLeftPx === 'number') {
+          const pxOffset = x - viewportRectLeftPx + scrollParent.scrollLeft;
+          const totalWidth = wrapper.scrollWidth;
+          const duration = ws.getDuration() || 1;
+          splitTime = Math.max(0, Math.min(duration, (pxOffset / totalWidth) * duration));
         }
       }
 
@@ -343,15 +371,16 @@ export function useTranscriptionTimelineInteractionController(
         layerType,
       });
     },
-    [input, resolveWaveformUnitTarget, writeSelection],
+    [input, resolveWaveformClientXToDocSec, resolveWaveformUnitTarget, writeSelection],
   );
 
   const handleWaveformRegionAltPointerDown = useCallback(
-    (regionId: string, time: number, pointerId: number, _clientX: number) => {
-      input.subSelectDragRef.current = { active: false, regionId, anchorTime: time, pointerId };
+    (regionId: string, time: number, pointerId: number, clientX: number) => {
+      const anchorTime = resolveWaveformClientXToDocSec(clientX) ?? time;
+      input.subSelectDragRef.current = { active: false, regionId, anchorTime, pointerId };
       input.waveCanvasRef.current?.setPointerCapture(pointerId);
     },
-    [input.subSelectDragRef, input.waveCanvasRef],
+    [input.subSelectDragRef, input.waveCanvasRef, resolveWaveformClientXToDocSec],
   );
 
   const handleWaveformRegionClick = useCallback(
@@ -361,7 +390,8 @@ export function useTranscriptionTimelineInteractionController(
       }
       input.setSubSelectionRange(null);
       input.manualSelectTsRef.current = Date.now();
-      input.player.seekTo(clickTime);
+      const seekTime = resolveWaveformClientXToDocSec(event.clientX) ?? clickTime;
+      input.player.seekTo(seekTime);
       // 选段级联渲染降为低优先级；WaveSurfer 已即时处理视觉高亮 | Defer selection cascade render; WaveSurfer already handles visual highlight
       const nextTarget = resolveWaveformUnitTarget(regionId);
       startTransition(() => {
@@ -403,7 +433,7 @@ export function useTranscriptionTimelineInteractionController(
         writeSelection({ type: 'selectTimelineUnit', unit: nextTarget });
       });
     },
-    [input, resolveWaveformUnitTarget, writeSelection],
+    [input, resolveWaveformClientXToDocSec, resolveWaveformUnitTarget, writeSelection],
   );
 
   const handleWaveformRegionDoubleClick = useCallback(
@@ -530,6 +560,7 @@ export function useTranscriptionTimelineInteractionController(
       if (waveformLayerId && routing?.segmentSourceLayer) {
         fireAndForget(
           (async () => {
+            await input.awaitTimingUndoPrep?.();
             await LayerSegmentationV2Service.updateSegment(regionId, {
               startTime: Number(finalStart.toFixed(3)),
               endTime: Number(finalEnd.toFixed(3)),

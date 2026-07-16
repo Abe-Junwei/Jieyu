@@ -51,12 +51,14 @@ interface UseTranscriptionSegmentBridgeControllerInput {
   reloadSegmentContents: () => Promise<void>;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
   segmentUndoRef: React.MutableRefObject<SegmentUndoRefValue | null>;
+  awaitSegmentUndoSnapshotFreshRef: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
 export interface UseTranscriptionSegmentBridgeControllerResult {
   activeLayerIdForEdits: string;
   resolveSegmentRoutingForLayer: (layerId?: string) => SegmentTimelineRoutingResult;
   refreshSegmentUndoSnapshot: () => Promise<void>;
+  awaitSegmentUndoSnapshotFresh: () => Promise<void>;
   saveSegmentContentForLayer: (segmentId: string, layerId: string, value: string) => Promise<void>;
 }
 
@@ -105,6 +107,7 @@ export function useTranscriptionSegmentBridgeController(
   /** False until the first `refreshSegmentUndoSnapshot` completes for the current layer scope. */
   const segmentUndoSnapshotReadyRef = useRef(false);
   const segmentUndoSnapshotRequestIdRef = useRef(0);
+  const segmentUndoRefreshInFlightRef = useRef<Promise<void> | null>(null);
 
   const resolveSegmentRoutingForLayer = useCallback(
     (layerId?: string): SegmentTimelineRoutingResult => {
@@ -145,8 +148,26 @@ export function useTranscriptionSegmentBridgeController(
     segmentUndoSnapshotReadyRef.current = true;
   }, [input.independentLayerIds]);
 
+  const runRefreshSegmentUndoSnapshot = useCallback(async () => {
+    const inflight = refreshSegmentUndoSnapshot();
+    segmentUndoRefreshInFlightRef.current = inflight;
+    try {
+      await inflight;
+    } finally {
+      if (segmentUndoRefreshInFlightRef.current === inflight) {
+        segmentUndoRefreshInFlightRef.current = null;
+      }
+    }
+  }, [refreshSegmentUndoSnapshot]);
+
+  const awaitSegmentUndoSnapshotFresh = useCallback(async () => {
+    if (segmentUndoRefreshInFlightRef.current) {
+      await segmentUndoRefreshInFlightRef.current;
+    }
+  }, []);
+
   useEffect(() => {
-    fireAndForget(refreshSegmentUndoSnapshot(), {
+    fireAndForget(runRefreshSegmentUndoSnapshot(), {
       context: 'src/pages/useTranscriptionSegmentBridgeController.ts:L103',
       policy: 'background-quiet',
     });
@@ -155,7 +176,14 @@ export function useTranscriptionSegmentBridgeController(
       segmentUndoSnapshotRequestIdRef.current += 1;
       segmentUndoSnapshotReadyRef.current = false;
     };
-  }, [refreshSegmentUndoSnapshot]);
+  }, [runRefreshSegmentUndoSnapshot]);
+
+  useEffect(() => {
+    input.awaitSegmentUndoSnapshotFreshRef.current = awaitSegmentUndoSnapshotFresh;
+    return () => {
+      input.awaitSegmentUndoSnapshotFreshRef.current = null;
+    };
+  }, [awaitSegmentUndoSnapshotFresh, input.awaitSegmentUndoSnapshotFreshRef]);
 
   useEffect(() => {
     input.segmentUndoRef.current = {
@@ -174,7 +202,7 @@ export function useTranscriptionSegmentBridgeController(
         ]);
         await input.reloadSegments();
         await input.reloadSegmentContents();
-        await refreshSegmentUndoSnapshot();
+        await runRefreshSegmentUndoSnapshot();
       },
     };
 
@@ -188,6 +216,7 @@ export function useTranscriptionSegmentBridgeController(
     input.reloadSegments,
     input.segmentUndoRef,
     refreshSegmentUndoSnapshot,
+    runRefreshSegmentUndoSnapshot,
   ]);
 
   const saveSegmentContentForLayer = useCallback(
@@ -238,20 +267,21 @@ export function useTranscriptionSegmentBridgeController(
       try {
         await LayerSegmentationV2Service.upsertSegmentContent(next);
         await input.reloadSegmentContents();
-        await refreshSegmentUndoSnapshot();
+        await runRefreshSegmentUndoSnapshot();
         recordSegmentSaveLatency(layerId, 'success', startedAtMs);
       } catch (error) {
         recordSegmentSaveLatency(layerId, 'error', startedAtMs);
         throw error;
       }
     },
-    [input, refreshSegmentUndoSnapshot],
+    [input, runRefreshSegmentUndoSnapshot],
   );
 
   return {
     activeLayerIdForEdits,
     resolveSegmentRoutingForLayer,
-    refreshSegmentUndoSnapshot,
+    refreshSegmentUndoSnapshot: runRefreshSegmentUndoSnapshot,
+    awaitSegmentUndoSnapshotFresh,
     saveSegmentContentForLayer,
   };
 }

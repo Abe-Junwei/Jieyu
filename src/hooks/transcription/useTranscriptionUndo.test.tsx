@@ -294,4 +294,34 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
       }),
     );
   });
+
+  it('awaits segment undo snapshot refresh before pushing timing undo', async () => {
+    let resolveRefresh!: () => void;
+    const refresh = new Promise<void>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    const awaitFresh = vi.fn(() => refresh);
+
+    const harness = setupHarness({
+      units: [makeUnit('utt-1')],
+      speakers: [],
+    });
+
+    harness.hook.result.current.awaitSegmentUndoSnapshotFreshRef.current = awaitFresh;
+
+    act(() => {
+      harness.hook.result.current.beginTimingGesture('utt-1');
+    });
+
+    expect(harness.hook.result.current.canUndo).toBe(false);
+
+    await act(async () => {
+      resolveRefresh();
+      await refresh;
+      await harness.hook.result.current.awaitTimingUndoPrep();
+    });
+
+    expect(awaitFresh).toHaveBeenCalled();
+    expect(harness.hook.result.current.canUndo).toBe(true);
+  });
 });
