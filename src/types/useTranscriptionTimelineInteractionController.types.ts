@@ -124,6 +124,7 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   selectedUnitIds: Set<string>;
   selectedWaveformRegionId: string | null;
   beginTimingGesture: (id: string) => void;
+  awaitTimingUndoPrep?: () => Promise<void>;
   endTimingGesture: (id: string) => void;
   makeSnapGuide: (
     bounds: { left: number; right: number | undefined },

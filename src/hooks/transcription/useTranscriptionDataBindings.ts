@@ -39,10 +39,12 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     pruneOrphanAnchors,
     updateAnchorTime,
     segmentUndoRef,
+    awaitSegmentUndoSnapshotFreshRef,
     timingUndoRef,
     timingGestureRef,
     pushUndo,
     beginTimingGesture,
+    awaitTimingUndoPrep,
     endTimingGesture,
     undo,
     undoToHistoryIndex,
@@ -562,6 +564,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     clearAutoSaveTimer,
     scheduleAutoSave,
     beginTimingGesture,
+    awaitTimingUndoPrep,
     endTimingGesture,
   };
 
@@ -584,6 +587,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     ...canonicalApi,
     pushUndo,
     segmentUndoRef,
+    awaitSegmentUndoSnapshotFreshRef,
     setUnits,
     setSpeakers,
     setLayers,

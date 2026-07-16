@@ -54,6 +54,7 @@ export function useReadyWorkspaceDomainShellPhase({
     defaultTranscriptionLayerId,
     transcriptionLayers,
     segmentUndoRef,
+    awaitSegmentUndoSnapshotFreshRef,
   } = data;
 
   const {
@@ -157,6 +158,7 @@ export function useReadyWorkspaceDomainShellPhase({
     reloadSegmentContents,
     selectTimelineUnit,
     segmentUndoRef,
+    awaitSegmentUndoSnapshotFreshRef,
   });
 
   return {
