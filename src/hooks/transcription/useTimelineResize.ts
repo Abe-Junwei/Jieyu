@@ -286,7 +286,6 @@ export function useTimelineResize({
 
         setTimingEditPreview({ preview: null });
         setTimelineResizeTooltip(null);
-        endTimingGesture(drag.unitId);
 
         const bounds = getNeighborBounds(
           drag.segmentId ?? drag.unitId,
@@ -300,6 +299,7 @@ export function useTimelineResize({
         fireAndForget(
           (async () => {
             await awaitTimingUndoPrep?.();
+            endTimingGesture(drag.unitId);
             await saveUnitTiming(drag.segmentId ?? drag.unitId, finalStart, finalEnd, drag.layerId);
           })(),
           { context: 'src/hooks/transcription/useTimelineResize.ts:L237', policy: 'user-visible' },

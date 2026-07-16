@@ -160,12 +160,19 @@ export function useTranscriptionUndo({
       const current = timingGestureRef.current;
       if (current.active && current.unitId === unitId) return;
       timingGestureRef.current = { active: true, unitId };
-      timingUndoPrepRef.current = (async () => {
+      const prepPromise = (async () => {
         const awaitFresh = awaitSegmentUndoSnapshotFreshRef.current;
         if (awaitFresh) await awaitFresh();
-        if (timingGestureRef.current.unitId !== unitId) return;
+        const gesture = timingGestureRef.current;
+        if (gesture.active && gesture.unitId !== unitId) return;
         pushUndo(t(locale, 'transcription.unitAction.undo.updateTiming'));
       })();
+      timingUndoPrepRef.current = prepPromise;
+      void prepPromise.finally(() => {
+        if (timingUndoPrepRef.current === prepPromise) {
+          timingUndoPrepRef.current = null;
+        }
+      });
     },
     [locale, pushUndo],
   );
@@ -180,7 +187,6 @@ export function useTranscriptionUndo({
     if (!current.active) return;
     if (unitId && current.unitId && unitId !== current.unitId) return;
     timingGestureRef.current = { active: false, unitId: null };
-    timingUndoPrepRef.current = null;
   }, []);
 
   const executeCommand = useCallback(

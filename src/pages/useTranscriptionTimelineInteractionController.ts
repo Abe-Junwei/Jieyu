@@ -487,7 +487,6 @@ export function useTranscriptionTimelineInteractionController(
 
   const handleWaveformRegionUpdateEnd = useCallback(
     (regionId: string, start: number, end: number) => {
-      input.endTimingGesture(regionId);
       input.setTimingEditPreview({ preview: null });
       input.manualSelectTsRef.current = Date.now();
       // 选区更新不阻塞拖拽结束帧 | Selection update should not block drag-end paint
@@ -550,6 +549,7 @@ export function useTranscriptionTimelineInteractionController(
               message: t(uiLocale, 'transcription.timeline.timeSubdivisionClampExceeded'),
             });
             input.setTimingEditPreview({ snapGuide: { visible: false } });
+            input.endTimingGesture(regionId);
             return;
           }
           finalStart = clampedStart;
@@ -561,6 +561,7 @@ export function useTranscriptionTimelineInteractionController(
         fireAndForget(
           (async () => {
             await input.awaitTimingUndoPrep?.();
+            input.endTimingGesture(regionId);
             await LayerSegmentationV2Service.updateSegment(regionId, {
               startTime: Number(finalStart.toFixed(3)),
               endTime: Number(finalEnd.toFixed(3)),
@@ -583,10 +584,17 @@ export function useTranscriptionTimelineInteractionController(
         return;
       }
 
-      fireAndForget(saveTimingRouted(regionId, finalStart, finalEnd, waveformLayerId), {
-        context: 'src/pages/useTranscriptionTimelineInteractionController.ts:L369',
-        policy: 'user-visible',
-      });
+      fireAndForget(
+        (async () => {
+          await input.awaitTimingUndoPrep?.();
+          input.endTimingGesture(regionId);
+          await saveTimingRouted(regionId, finalStart, finalEnd, waveformLayerId);
+        })(),
+        {
+          context: 'src/pages/useTranscriptionTimelineInteractionController.ts:L369',
+          policy: 'user-visible',
+        },
+      );
     },
     [
       getNeighborBoundsRouted,
