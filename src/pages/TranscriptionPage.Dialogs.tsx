@@ -160,7 +160,7 @@ export function TranscriptionPageDialogs({
           onClose={annotationImportMismatchDialog.onClose}
           onConfirm={() => {
             fireAndForget(Promise.resolve(annotationImportMismatchDialog.onConfirm()), {
-              context: 'src/pages/TranscriptionPage.Dialogs.tsx:annotationImportMismatch',
+              context: 'src/pages/TranscriptionPage.Dialogs.tsx:L162',
               policy: 'user-visible',
             });
           }}

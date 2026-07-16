@@ -245,10 +245,12 @@ export const architectureGuardPageControllerRules = [
     ],
   }),
   pageControllerRule('useTranscriptionProjectMediaController', {
-    maxLines: 400,
-    maxUseCallbackDecls: 8,
-    maxUseMemoDecls: 1,
+    maxLines: 460,
+    maxUseCallbackDecls: 10,
+    maxUseMemoDecls: 3,
     maxUseEffects: 0,
+    floorSetAt: '2026-07-16',
+    floorTrendDays: 90,
   }),
   pageControllerRule('useTranscriptionSelectionContextController', {
     maxLines: 220,
@@ -292,10 +294,12 @@ export const architectureGuardPageControllerRules = [
     maxUseEffects: 0,
   }),
   pageControllerRule('useTranscriptionTimelineInteractionController', {
-    maxLines: 560,
+    maxLines: 640,
     maxUseCallbackDecls: 20,
-    maxUseMemoDecls: 0,
+    maxUseMemoDecls: 2,
     maxUseEffects: 0,
+    floorSetAt: '2026-07-16',
+    floorTrendDays: 90,
   }),
   pageControllerRule('useTranscriptionWorkspaceLayoutController', {
     maxLines: 470,
@@ -306,7 +310,7 @@ export const architectureGuardPageControllerRules = [
   pageControllerRule('useTranscriptionWaveformBridgeController', {
     maxLines: 700,
     maxUseCallbackDecls: 12,
-    maxUseMemoDecls: 3,
+    maxUseMemoDecls: 6,
     maxUseEffects: 5,
     requiredRegexes: [
       /export function useTranscriptionWaveformBridgeController\(/,

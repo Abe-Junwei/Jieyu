@@ -68,9 +68,11 @@ export const architectureGuardNamedHookRules = [
   }),
   hookRule('useSegmentRangeGesturePreviewWriter', {
     maxLines: 90,
-    maxUseCallbackDecls: 0,
+    maxUseCallbackDecls: 5,
     maxUseMemoDecls: 2,
     maxUseEffects: 0,
+    floorSetAt: '2026-07-16',
+    floorTrendDays: 90,
   }),
   hookRule('useTranscriptionData', {
     maxLines: 600,

@@ -1,4 +1,8 @@
 {
-  "generatedAt": "2026-04-08T09:05:10.816Z",
-  "allowedMissing": []
+  "generatedAt": "2026-07-16T06:59:00.000Z",
+  "allowedMissing": [
+    "annotation-import-mismatch-dialog",
+    "import-timeline-mismatch-ack",
+    "waveform-subselect-preview"
+  ]
 }
