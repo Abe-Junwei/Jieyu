@@ -147,6 +147,18 @@
           "reviewedSha256": "47a7e68c22d4d0479a39a09581761e2cd9160a077e247fc56fe82886d5208f8f"
         }
       ]
+    },
+    {
+      "file": "src/components/transcription/SegmentRangeLassoPreviewOverlay.tsx",
+      "reason": "Waveform sub-selection preview overlay uses runtime left/width geometry from pointer gesture.",
+      "reviewer": "Kimi + junwei",
+      "reviewedAt": "2026-07-16",
+      "snippets": [
+        {
+          "anchor": "left: `${leftPx}px`, width: `${widthPx}px`",
+          "reviewedSha256": "d45526417bf7dbba2354a7b605b07ab9321d406a5f5604e732a91c94f616a8a1"
+        }
+      ]
     }
   ]
 }
