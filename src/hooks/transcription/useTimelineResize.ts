@@ -56,6 +56,7 @@ type UseTimelineResizeParams = {
   setSelectedLayerId: (id: string) => void;
   setFocusedLayerRowId: (id: string) => void;
   beginTimingGesture: (id: string) => void;
+  awaitTimingUndoPrep?: () => Promise<void>;
   endTimingGesture: (id: string) => void;
   getNeighborBounds: (
     unitId: string,
@@ -84,6 +85,7 @@ export function useTimelineResize({
   setSelectedLayerId,
   setFocusedLayerRowId,
   beginTimingGesture,
+  awaitTimingUndoPrep,
   endTimingGesture,
   getNeighborBounds,
   makeSnapGuide,
@@ -296,7 +298,10 @@ export function useTimelineResize({
           snapGuide: makeSnapGuide(bounds, finalStart, finalEnd),
         });
         fireAndForget(
-          saveUnitTiming(drag.segmentId ?? drag.unitId, finalStart, finalEnd, drag.layerId),
+          (async () => {
+            await awaitTimingUndoPrep?.();
+            await saveUnitTiming(drag.segmentId ?? drag.unitId, finalStart, finalEnd, drag.layerId);
+          })(),
           { context: 'src/hooks/transcription/useTimelineResize.ts:L237', policy: 'user-visible' },
         );
       };
@@ -315,6 +320,7 @@ export function useTimelineResize({
       setSelectedLayerId,
       setFocusedLayerRowId,
       beginTimingGesture,
+      awaitTimingUndoPrep,
       getNeighborBounds,
       setTimingEditPreview,
       makeSnapGuide,

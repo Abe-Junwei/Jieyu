@@ -82,6 +82,7 @@ function makeInput(overrides: Partial<HookInput> = {}): HookInput {
     reloadSegmentContents: vi.fn(async () => undefined),
     selectTimelineUnit: vi.fn(),
     segmentUndoRef: { current: null },
+    awaitSegmentUndoSnapshotFreshRef: { current: null },
     ...overrides,
   } as HookInput;
 }
