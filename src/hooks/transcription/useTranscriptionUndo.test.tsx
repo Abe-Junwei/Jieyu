@@ -324,4 +324,52 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     expect(awaitFresh).toHaveBeenCalled();
     expect(harness.hook.result.current.canUndo).toBe(true);
   });
+
+  it('still pushes timing undo after endTimingGesture when undo prep is pending', async () => {
+    let resolveRefresh!: () => void;
+    const refresh = new Promise<void>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    const awaitFresh = vi.fn(() => refresh);
+
+    const harness = setupHarness({
+      units: [makeUnit('utt-1')],
+      speakers: [],
+    });
+
+    harness.hook.result.current.awaitSegmentUndoSnapshotFreshRef.current = awaitFresh;
+
+    act(() => {
+      harness.hook.result.current.beginTimingGesture('utt-1');
+      harness.hook.result.current.endTimingGesture('utt-1');
+    });
+
+    expect(harness.hook.result.current.canUndo).toBe(false);
+
+    await act(async () => {
+      resolveRefresh();
+      await refresh;
+      await harness.hook.result.current.awaitTimingUndoPrep();
+    });
+
+    expect(harness.hook.result.current.canUndo).toBe(true);
+  });
+
+  it('pushes timing undo immediately when no segment snapshot refresh is pending', async () => {
+    const harness = setupHarness({
+      units: [makeUnit('utt-1')],
+      speakers: [],
+    });
+
+    act(() => {
+      harness.hook.result.current.beginTimingGesture('utt-1');
+      harness.hook.result.current.endTimingGesture('utt-1');
+    });
+
+    await act(async () => {
+      await harness.hook.result.current.awaitTimingUndoPrep();
+    });
+
+    expect(harness.hook.result.current.canUndo).toBe(true);
+  });
 });
