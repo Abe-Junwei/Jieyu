@@ -106,6 +106,8 @@ export function useTranscriptionUndo({
     active: false,
     unitId: null,
   });
+  const awaitSegmentUndoSnapshotFreshRef = useRef<(() => Promise<void>) | null>(null);
+  const timingUndoPrepRef = useRef<Promise<void> | null>(null);
   // 外部注入：Orchestrator 加载 segment 数据后填充 | External injection: Orchestrator populates after segment hooks are ready
   const segmentUndoRef = useRef<SegmentUndoCallbacks | null>(null);
 
@@ -158,16 +160,27 @@ export function useTranscriptionUndo({
       const current = timingGestureRef.current;
       if (current.active && current.unitId === unitId) return;
       timingGestureRef.current = { active: true, unitId };
-      pushUndo(t(locale, 'transcription.unitAction.undo.updateTiming'));
+      timingUndoPrepRef.current = (async () => {
+        const awaitFresh = awaitSegmentUndoSnapshotFreshRef.current;
+        if (awaitFresh) await awaitFresh();
+        if (timingGestureRef.current.unitId !== unitId) return;
+        pushUndo(t(locale, 'transcription.unitAction.undo.updateTiming'));
+      })();
     },
     [locale, pushUndo],
   );
+
+  const awaitTimingUndoPrep = useCallback(async () => {
+    const prep = timingUndoPrepRef.current;
+    if (prep) await prep;
+  }, []);
 
   const endTimingGesture = useCallback((unitId?: string) => {
     const current = timingGestureRef.current;
     if (!current.active) return;
     if (unitId && current.unitId && unitId !== current.unitId) return;
     timingGestureRef.current = { active: false, unitId: null };
+    timingUndoPrepRef.current = null;
   }, []);
 
   const executeCommand = useCallback(
@@ -449,11 +462,13 @@ export function useTranscriptionUndo({
 
   return {
     segmentUndoRef,
+    awaitSegmentUndoSnapshotFreshRef,
     timingUndoRef,
     timingGestureRef,
     pushUndo,
     executeCommand,
     beginTimingGesture,
+    awaitTimingUndoPrep,
     endTimingGesture,
     undo,
     undoToHistoryIndex,
