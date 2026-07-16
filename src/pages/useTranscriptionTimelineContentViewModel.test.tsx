@@ -6,6 +6,12 @@ import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineVerticalProjectionProps } from './timelineHostProjectionTypes';
 import { buildTimelineReadModel } from './timelineReadModel';
 import { useTranscriptionTimelineContentViewModel } from './useTranscriptionTimelineContentViewModel';
+import { buildTimelineSelectionProjection } from '../utils/timelineSelectionProjection';
+
+const emptySelectionProjection = buildTimelineSelectionProjection({
+  selectedTimelineUnit: null,
+  selectedUnitIds: [],
+});
 
 function createEmptySpeakerLayerLayout(): SpeakerLayerLayoutResult {
   return {
@@ -54,6 +60,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         locale: 'zh-CN',
         importFileRef,
         layerActionSetCreateTranscription: () => setLayerActionPanel('create-transcription'),
+        selectionProjection: emptySelectionProjection,
         mediaLanesPropsInput: {
           zoomPxPerSec: 100,
           timelineContentGutterPx: 64,
@@ -162,6 +169,123 @@ describe('useTranscriptionTimelineContentViewModel', () => {
     expect(click).toHaveBeenCalled();
   });
 
+  it('surfaces selectionProjection and applies focus to lane props', () => {
+    const focus = { kind: 'unit' as const, unitId: 'u1', layerId: 'l1' };
+    const projection = buildTimelineSelectionProjection({
+      selectedTimelineUnit: focus,
+      selectedUnitIds: ['u1', 'u2'],
+    });
+    const speakerLayerLayout = createEmptySpeakerLayerLayout();
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineContentViewModel({
+        selectedMediaUrl: 'blob:audio',
+        playerIsReady: true,
+        playerDuration: 42,
+        timelineExtentSec: 42,
+        layersCount: 1,
+        currentMediaUnitCount: 2,
+        locale: 'zh-CN',
+        importFileRef: { current: null },
+        layerActionSetCreateTranscription: vi.fn(),
+        selectionProjection: projection,
+        mediaLanesPropsInput: {
+          zoomPxPerSec: 100,
+          timelineContentGutterPx: 64,
+          segmentRangeGesturePreviewReadModel: { surface: 'none' as const },
+          transcriptionLayers: [],
+          translationLayers: [],
+          timelineUnitViewIndex: createEmptyTimelineUnitViewIndex(),
+          timelineRenderUnits: [],
+          flashLayerRowId: '',
+          focusedLayerRowId: '',
+          activeUnitId: '',
+          selectedTimelineUnit: null,
+          defaultTranscriptionLayerId: '',
+          renderAnnotationItem: () => null,
+          speakerSortKeyById: {},
+          allLayersOrdered: [],
+          onReorderLayers: vi.fn(),
+          deletableLayers: [],
+          onFocusLayer: vi.fn(),
+          layerLinks: [],
+          showConnectors: false,
+          onToggleConnectors: vi.fn(),
+          laneHeights: {},
+          onLaneHeightChange: vi.fn(),
+          trackDisplayMode: 'single',
+          onToggleTrackDisplayMode: vi.fn(),
+          onSetTrackDisplayMode: vi.fn(),
+          laneLockMap: {},
+          onLockSelectedSpeakersToLane: vi.fn(),
+          onUnlockSelectedSpeakers: vi.fn(),
+          onResetTrackAutoLayout: vi.fn(),
+          selectedSpeakerNamesForLock: [],
+          speakerLayerLayout,
+          onLaneLabelWidthResize: vi.fn(),
+          segmentsByLayer: new Map(),
+          segmentContentByLayer: new Map(),
+          saveSegmentContentForLayer: vi.fn(),
+          translationAudioByLayer: new Map(),
+          mediaItems: [],
+          recording: false,
+          recordingUnitId: null,
+          recordingLayerId: null,
+          startRecordingForUnit: vi.fn(),
+          stopRecording: vi.fn(),
+          deleteVoiceTranslation: vi.fn(),
+        },
+        textOnlyPropsInput: {
+          transcriptionLayers: [],
+          translationLayers: [],
+          unitsOnCurrentMedia: [],
+          segmentsByLayer: new Map(),
+          segmentContentByLayer: new Map(),
+          saveSegmentContentForLayer: vi.fn(),
+          selectedTimelineUnit: null,
+          flashLayerRowId: '',
+          focusedLayerRowId: '',
+          defaultTranscriptionLayerId: '',
+          scrollContainerRef: { current: null },
+          handleAnnotationClick: vi.fn(),
+          allLayersOrdered: [],
+          onReorderLayers: vi.fn(),
+          deletableLayers: [],
+          onFocusLayer: vi.fn(),
+          navigateUnitFromInput: vi.fn(),
+          layerLinks: [],
+          showConnectors: true,
+          onToggleConnectors: vi.fn(),
+          laneHeights: {},
+          onLaneHeightChange: vi.fn(),
+          trackDisplayMode: 'single',
+          onToggleTrackDisplayMode: vi.fn(),
+          onSetTrackDisplayMode: vi.fn(),
+          laneLockMap: {},
+          onLockSelectedSpeakersToLane: vi.fn(),
+          onUnlockSelectedSpeakers: vi.fn(),
+          onResetTrackAutoLayout: vi.fn(),
+          selectedSpeakerNamesForLock: [],
+          speakerLayerLayout,
+          activeUnitId: '',
+          speakerVisualByUnitId: {},
+          onLaneLabelWidthResize: vi.fn(),
+          translationAudioByLayer: new Map(),
+          mediaItems: [],
+          recording: false,
+          recordingUnitId: null,
+          recordingLayerId: null,
+          startRecordingForUnit: vi.fn(),
+          stopRecording: vi.fn(),
+          deleteVoiceTranslation: vi.fn(),
+        },
+      }),
+    );
+
+    expect(result.current.selectionProjection).toEqual(projection);
+    expect(result.current.mediaLanesProps.selectedTimelineUnit).toEqual(focus);
+    expect(result.current.textOnlyProps.selectedTimelineUnit).toEqual(focus);
+  });
+
   it('picks up verticalViewEnabled when verticalProjection is reused and mutated in place', () => {
     const click = vi.fn();
     const setLayerActionPanel = vi.fn();
@@ -225,6 +349,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
       locale: 'zh-CN' as const,
       importFileRef,
       layerActionSetCreateTranscription: () => setLayerActionPanel('create-transcription'),
+      selectionProjection: emptySelectionProjection,
       mediaLanesPropsInput: {
         zoomPxPerSec: 100,
         timelineContentGutterPx: 64,
@@ -324,6 +449,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         locale: 'zh-CN',
         importFileRef,
         layerActionSetCreateTranscription: vi.fn(),
+        selectionProjection: emptySelectionProjection,
         mediaLanesPropsInput: {
           zoomPxPerSec: 50,
           timelineContentGutterPx: 64,
@@ -455,6 +581,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         locale: 'zh-CN',
         importFileRef,
         layerActionSetCreateTranscription: vi.fn(),
+        selectionProjection: emptySelectionProjection,
         mediaLanesPropsInput: {
           zoomPxPerSec: 50,
           timelineContentGutterPx: 64,

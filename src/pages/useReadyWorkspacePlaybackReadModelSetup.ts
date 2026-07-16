@@ -29,7 +29,7 @@ export interface UseReadyWorkspacePlaybackReadModelSetupParams {
   runSelectBefore: any;
   runSelectAfter: any;
   timelineUnitViewIndex: any;
-  activeTextTimelineMode: any;
+  exportTimelineModeLabel: any;
   documentSpanSec: number;
   zoomPxPerSec: any;
   fitPxPerSec: any;
@@ -65,7 +65,7 @@ export function useReadyWorkspacePlaybackReadModelSetup(
     runSelectBefore,
     runSelectAfter,
     timelineUnitViewIndex,
-    activeTextTimelineMode,
+    exportTimelineModeLabel,
     documentSpanSec,
     zoomPxPerSec,
     fitPxPerSec,
@@ -150,7 +150,7 @@ export function useReadyWorkspacePlaybackReadModelSetup(
     selectedTimelineUnit,
     selectedUnitIds: Array.from(selectedUnitIds),
     ...(activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits } : {}),
-    ...(activeTextTimelineMode !== undefined ? { activeTextTimelineMode } : {}),
+    ...(exportTimelineModeLabel !== undefined ? { exportTimelineModeLabel } : {}),
     ...(documentSpanSec > 0 ? { documentSpanSec } : {}),
     ...(zoomPxPerSec !== undefined ? { zoomPxPerSec } : {}),
     ...(fitPxPerSec !== undefined ? { fitPxPerSec } : {}),

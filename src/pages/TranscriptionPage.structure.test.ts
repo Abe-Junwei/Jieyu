@@ -2319,7 +2319,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(matrixCode.includes("id: 'timeline-extent-single-source'")).toBe(true);
     expect(matrixCode.includes("id: 'segment-range-gesture-single-surface'")).toBe(true);
     expect(matrixCode.includes("id: 'phase-f-range-preview-ssot'")).toBe(true);
-    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 35')).toBe(true);
+    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 36')).toBe(true);
   });
 
   it('keeps media lanes layout on timelineExtentSec without playerDuration fallback', () => {
@@ -2352,15 +2352,27 @@ describe('TranscriptionPage structure invariants', () => {
     ).toBe(true);
   });
 
-  it('wires playbackExtentSec from resolvePlaybackCapSec on the waveform bridge', () => {
+  it('culls timeline render units on timelineExtentSec not playerDuration alone', () => {
+    const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionTimelineController.ts');
+    const trackEditPath = path.resolve(
+      process.cwd(),
+      'src/pages/useReadyWorkspaceTrackEditControllers.ts',
+    );
+    const hookCode = fs.readFileSync(hookPath, 'utf8');
+    const trackEditCode = fs.readFileSync(trackEditPath, 'utf8');
+    expect(hookCode.includes('timelineExtentSec: number')).toBe(true);
+    expect(hookCode.includes('Math.min(extentSec,')).toBe(true);
+    expect(trackEditCode.includes('timelineExtentSec,')).toBe(true);
+  });
+
+  it('does not wire playbackExtentSec clamp on the waveform bridge (stage G: full media playback)', () => {
     const bridgePath = path.resolve(
       process.cwd(),
       'src/pages/useTranscriptionWaveformBridgeController.ts',
     );
     const bridgeCode = fs.readFileSync(bridgePath, 'utf8');
-    expect(bridgeCode.includes('playbackExtentSec')).toBe(true);
-    expect(bridgeCode.includes('resolvePlaybackCapSec')).toBe(true);
-    expect(bridgeCode.includes('playbackExtentSec,')).toBe(true);
+    expect(bridgeCode.includes('playbackExtentSec')).toBe(false);
+    expect(bridgeCode.includes('resolvePlaybackCapSec')).toBe(false);
   });
 
   it('keeps bridge fit span on readyWorkspaceTimelineExtents shared with read model', () => {
@@ -2381,6 +2393,41 @@ describe('TranscriptionPage structure invariants', () => {
     expect(sizingCode.includes('fitSpanSec')).toBe(true);
     expect(sizingCode.includes('input.playerDuration')).toBe(false);
     expect(playbackPhaseCode.includes('documentSpanSec: waveform.documentSpanSec')).toBe(true);
+  });
+
+  it('does not expose legacy snapGuide on transcription data API', () => {
+    const bindingsPath = path.resolve(
+      process.cwd(),
+      'src/hooks/transcription/useTranscriptionDataBindings.ts',
+    );
+    const bindingsCode = fs.readFileSync(bindingsPath, 'utf8');
+    expect(bindingsCode.includes('snapGuide,')).toBe(false);
+    expect(bindingsCode.includes('setSnapGuide')).toBe(false);
+  });
+
+  it('surfaces selectionProjection on timeline content view model', () => {
+    const vmPath = path.resolve(
+      process.cwd(),
+      'src/pages/useTranscriptionTimelineContentViewModel.ts',
+    );
+    const vmCode = fs.readFileSync(vmPath, 'utf8');
+    expect(vmCode.includes('selectionProjection: input.selectionProjection')).toBe(true);
+    expect(vmCode.includes('input.selectionProjection.focus')).toBe(true);
+  });
+
+  it('documents exportTimelineModeLabel as display-only on shared lane props', () => {
+    const hostTypesPath = path.resolve(process.cwd(), 'src/pages/timelineHostProjectionTypes.ts');
+    const hostTypesCode = fs.readFileSync(hostTypesPath, 'utf8');
+    expect(hostTypesCode.includes("'exportTimelineModeLabel'")).toBe(true);
+    expect(hostTypesCode.includes('禁止')).toBe(true);
+    expect(hostTypesCode.includes('activeTextTimelineMode')).toBe(false);
+  });
+
+  it('does not enable RegionsPlugin enableDragSelection in useWaveSurfer', () => {
+    const waveSurferPath = path.resolve(process.cwd(), 'src/hooks/media/useWaveSurfer.ts');
+    const waveSurferCode = fs.readFileSync(waveSurferPath, 'utf8');
+    expect(waveSurferCode.includes('enableDragSelection')).toBe(false);
+    expect(waveSurferCode.includes('enableEmptyDragCreate')).toBe(false);
   });
 
   it('routes region action overlay through viewportFrame scroll authority', () => {
@@ -2527,7 +2574,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(lanesCode.includes('SegmentRangeLassoPreviewOverlay')).toBe(true);
     expect(lanesCode.includes('lassoRect')).toBe(false);
     expect(waveOverlayCode.includes('WaveLassoPreviewOverlay')).toBe(true);
-    expect(bridgeCode.includes('enableEmptyDragCreate: false')).toBe(true);
+    expect(bridgeCode.includes('enableEmptyDragCreate')).toBe(false);
   });
 
   it('routes waveform overlay scroll through viewportFrame authority', () => {

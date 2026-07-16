@@ -81,11 +81,11 @@ export interface UseTranscriptionShellControllerResult {
   setActiveTextId: React.Dispatch<React.SetStateAction<string | null>>;
   activeTextPrimaryLanguageId: string | null;
   activeTextPrimaryOrthographyId: string | null;
-  activeTextTimelineMode: 'document' | 'media' | null;
+  exportTimelineModeLabel: 'document' | 'media' | null;
   activeTextTimeMapping: TextTimeMappingSummary | null;
   getActiveTextId: () => Promise<string | null>;
   getActiveTextPrimaryLanguageId: () => Promise<string | null>;
-  getActiveTextTimelineMode: () => Promise<'document' | 'media' | null>;
+  getExportTimelineModeLabel: () => Promise<'document' | 'media' | null>;
   searchOverlayRequest: AppShellOpenSearchDetail | null;
   setSearchOverlayRequest: React.Dispatch<React.SetStateAction<AppShellOpenSearchDetail | null>>;
   openSearchFromRequest: (detail?: AppShellOpenSearchDetail) => void;

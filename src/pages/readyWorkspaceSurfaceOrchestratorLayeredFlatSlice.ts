@@ -25,7 +25,7 @@ export function buildReadyWorkspaceSurfaceOrchestratorLayeredFlatFromAssemblyInp
       selectedMediaUrl: d.selectedMediaUrl,
       segmentScopeMediaId: d.segmentScopeMediaId,
       verticalViewActive: d.verticalViewActive,
-      activeTextTimelineMode: d.activeTextTimelineMode,
+      exportTimelineModeLabel: d.exportTimelineModeLabel,
       activeTextTimeMapping: d.activeTextTimeMapping,
     },
     undo: {

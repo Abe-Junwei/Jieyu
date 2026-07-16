@@ -70,11 +70,11 @@ vi.mock('../hooks/dialogs/useDialogs', () => ({
     setActiveTextId: mockSetActiveTextId,
     activeTextPrimaryLanguageId: 'eng',
     activeTextPrimaryOrthographyId: null,
-    activeTextTimelineMode: 'document',
+    exportTimelineModeLabel: 'document',
     activeTextTimeMapping: null,
     getActiveTextId: mockGetActiveTextId,
     getActiveTextPrimaryLanguageId: vi.fn(async () => 'eng'),
-    getActiveTextTimelineMode: vi.fn(async () => 'document'),
+    getExportTimelineModeLabel: vi.fn(async () => 'document'),
   }),
 }));
 

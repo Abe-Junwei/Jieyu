@@ -20,9 +20,13 @@ import {
   getTranscriptionPlaybackClockSnapshot,
   setTranscriptionPlaybackClock,
 } from '../transcription/transcriptionPlaybackClock';
-import { clampTimeToPlaybackCap } from '../../utils/timelineBindingExtent';
 
 const log = createLogger('useWaveSurfer');
+
+function clampTimeToMediaDuration(timeSec: number, mediaDurationSec: number): number {
+  if (mediaDurationSec <= 0) return Math.max(0, timeSec);
+  return Math.max(0, Math.min(timeSec, mediaDurationSec));
+}
 
 type RegionHandle = {
   id: string;
@@ -56,8 +60,6 @@ export interface UseWaveSurferOptions {
   onRegionUpdateEnd?: (regionId: string, start: number, end: number) => void;
   /** Fires when user drag-creates a new region on empty waveform area. */
   onRegionCreate?: (start: number, end: number) => void;
-  /** Enable WaveSurfer built-in empty-drag region creation. */
-  enableEmptyDragCreate?: boolean;
   /** Fires on right-click of a region. */
   onRegionContextMenu?: (regionId: string, x: number, y: number) => void;
   /** Fires on double-click of a region. */
@@ -89,8 +91,6 @@ export interface UseWaveSurferOptions {
   ) => void;
   /** Whether WaveSurfer should auto-scroll/center during playback */
   autoScrollDuringPlayback?: boolean;
-  /** 播放/seek 上界（秒）；声学超出冻结文献跨度时钳制播放。 */
-  playbackExtentSec?: number;
   /** WaveSurfer 波形区高度（像素）| Waveform canvas height in pixels */
   waveformHeight?: number;
   /** 波形增益倍率（1 = 默认，>1 峰值放大）| Amplitude scale multiplier via barHeight */
@@ -427,11 +427,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         }
 
         const mediaDur = ws.getDuration() || 0;
-        const playbackCap = clampTimeToPlaybackCap(
-          time,
-          mediaDur,
-          cbRef.current.playbackExtentSec ?? 0,
-        );
+        const playbackCap = clampTimeToMediaDuration(time, mediaDur);
         if (time > playbackCap + 1e-4) {
           ws.pause();
           commitPlaybackVisualRef.current?.(playbackCap, true);
@@ -467,11 +463,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         }
         setIsPlaying(false);
         const mediaDur = ws.getDuration() || 0;
-        const endCap = clampTimeToPlaybackCap(
-          mediaDur,
-          mediaDur,
-          cbRef.current.playbackExtentSec ?? 0,
-        );
+        const endCap = clampTimeToMediaDuration(mediaDur, mediaDur);
         commitPlaybackVisualRef.current?.(endCap, false);
       });
     })(); // end async IIFE
@@ -562,46 +554,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     [waveformFocused, activeRegionIdsRef, primaryRegionIdRef],
   );
 
-  // 阶段 D：空区拖建/框选由 useLasso + segmentRangeGestureWriter 统一预览；禁用 RegionsPlugin 平行拖选视觉。
-  useEffect(() => {
-    const rp = regionsRef.current;
-    if (!rp || !isReady) return;
-    if (options.enableEmptyDragCreate === false) return;
-
-    const disableDragSelection = rp.enableDragSelection(
-      {
-        drag: true,
-        resize: true,
-        color: 'color-mix(in srgb, var(--state-info-solid) 24%, transparent)',
-      },
-      3,
-    );
-
-    const unsub = rp.on('region-created', (region) => {
-      if (syncingRegionsRef.current) return;
-      // Skip our own programmatic regions
-      if ((region as unknown as { id: string }).id === '__sub_selection__') return;
-      const start = Math.min(region.start, region.end);
-      const end = Math.max(region.start, region.end);
-      // If the drag-created region overlaps an existing region, silently
-      // discard it.  This happens when the user sub-range-selects inside a
-      // region: our capture handler intercepts the pointer, but WaveSurfer's
-      // enableDragSelection (inside the Shadow DOM) still fires.
-      const existing = cbRef.current.regions;
-      if (existing?.some((r) => r.end > start && r.start < end)) {
-        region.remove();
-        return;
-      }
-      cbRef.current.onRegionCreate?.(start, end);
-      region.remove();
-    });
-
-    return () => {
-      unsub();
-      disableDragSelection();
-    };
-  }, [cbRef, isReady, options.enableEmptyDragCreate]);
-
+  // 阶段 D：空区拖建/框选由 useLasso + segmentRangeGestureWriter 统一预览；不启用 RegionsPlugin 平行拖选。
   useEffect(() => {
     const rp = regionsRef.current;
     const ws = instanceRef.current;
@@ -950,31 +903,21 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     }
   }, []);
 
-  const seekBySeconds = useCallback(
-    (delta: number) => {
-      const ws = instanceRef.current;
-      if (!ws) return;
-      const dur = ws.getDuration() || 0;
-      const next = clampTimeToPlaybackCap(
-        (ws.getCurrentTime() || 0) + delta,
-        dur,
-        cbRef.current.playbackExtentSec ?? 0,
-      );
-      ws.setTime(next);
-    },
-    [cbRef],
-  );
+  const seekBySeconds = useCallback((delta: number) => {
+    const ws = instanceRef.current;
+    if (!ws) return;
+    const dur = ws.getDuration() || 0;
+    const next = clampTimeToMediaDuration((ws.getCurrentTime() || 0) + delta, dur);
+    ws.setTime(next);
+  }, []);
 
-  const seekTo = useCallback(
-    (time: number) => {
-      const ws = instanceRef.current;
-      if (!ws) return;
-      const dur = ws.getDuration() || 0;
-      if (dur <= 0) return;
-      ws.setTime(clampTimeToPlaybackCap(time, dur, cbRef.current.playbackExtentSec ?? 0));
-    },
-    [cbRef],
-  );
+  const seekTo = useCallback((time: number) => {
+    const ws = instanceRef.current;
+    if (!ws) return;
+    const dur = ws.getDuration() || 0;
+    if (dur <= 0) return;
+    ws.setTime(clampTimeToMediaDuration(time, dur));
+  }, []);
 
   // 缩放级别变化时动态 zoom | Dynamically zoom waveform when zoom level changes
   useEffect(() => {

@@ -4,6 +4,12 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TranscriptionPageTimelineContent } from './TranscriptionPage.TimelineContent';
 import { buildEmptyTimelinePolicy } from '../utils/emptyTimelinePolicy';
+import { buildTimelineSelectionProjection } from '../utils/timelineSelectionProjection';
+
+const emptySelectionProjection = buildTimelineSelectionProjection({
+  selectedTimelineUnit: null,
+  selectedUnitIds: [],
+});
 
 const { mediaLanesSpy, comparisonSpy } = vi.hoisted(() => ({
   mediaLanesSpy: vi.fn(),
@@ -36,6 +42,7 @@ describe('TranscriptionPageTimelineContent', () => {
         workspaceAcousticPending={false}
         workspaceAcousticChromeState="playable"
         verticalComparisonEnabled
+        selectionProjection={emptySelectionProjection}
         mediaLanesProps={{} as never}
         textOnlyProps={{ verticalViewEnabled: true } as never}
         emptyStateProps={{
@@ -62,6 +69,7 @@ describe('TranscriptionPageTimelineContent', () => {
         workspaceAcousticPending={false}
         workspaceAcousticChromeState="playable"
         verticalComparisonEnabled
+        selectionProjection={emptySelectionProjection}
         mediaLanesProps={{} as never}
         textOnlyProps={
           {

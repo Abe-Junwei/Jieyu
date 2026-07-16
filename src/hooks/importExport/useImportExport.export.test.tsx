@@ -82,19 +82,6 @@ vi.mock('../../utils/orthographyRuntime', () => ({
 
 const FIXED_NOW = '2026-03-26T00:00:00.000Z';
 
-function makeLegacySegment(layerId: string) {
-  return {
-    id: `seg-${layerId}`,
-    textId: 'text-1',
-    mediaId: 'media-1',
-    layerId,
-    startTime: 0.2,
-    endTime: 0.9,
-    createdAt: FIXED_NOW,
-    updatedAt: FIXED_NOW,
-  };
-}
-
 function makeLayerUnitSegment(layerId: string) {
   return {
     id: `seg-${layerId}`,
@@ -124,8 +111,7 @@ function makeLayerUnitContent(layerId: string) {
   };
 }
 
-function buildMockDb(options?: { preferLayerUnits?: boolean }) {
-  const preferLayerUnits = options?.preferLayerUnits === true;
+function buildMockDb() {
   const supportedLayerIds = new Set(['trl-ind', 'trl-sub', 'trc-sub']);
 
   return {
@@ -152,25 +138,8 @@ function buildMockDb(options?: { preferLayerUnits?: boolean }) {
           return {
             equals: vi.fn(([layerId, mediaId]: [string, string]) => ({
               toArray: vi.fn(async () => {
-                if (!preferLayerUnits || mediaId !== 'media-1' || !supportedLayerIds.has(layerId))
-                  return [];
+                if (mediaId !== 'media-1' || !supportedLayerIds.has(layerId)) return [];
                 return [makeLayerUnitSegment(layerId)];
-              }),
-            })),
-          };
-        }),
-      },
-      layer_segments: {
-        where: vi.fn((indexName: string) => {
-          if (indexName !== '[layerId+mediaId]') {
-            throw new Error(`Unexpected index: ${indexName}`);
-          }
-          return {
-            equals: vi.fn(([layerId, mediaId]: [string, string]) => ({
-              toArray: vi.fn(async () => {
-                if (preferLayerUnits || mediaId !== 'media-1' || !supportedLayerIds.has(layerId))
-                  return [];
-                return [makeLegacySegment(layerId)];
               }),
             })),
           };
@@ -184,24 +153,11 @@ function buildMockDb(options?: { preferLayerUnits?: boolean }) {
           }
           return {
             anyOf: vi.fn((unitIds: string[]) => ({
-              toArray: vi.fn(async () => {
-                if (!preferLayerUnits) return [];
-                return unitIds
+              toArray: vi.fn(async () =>
+                unitIds
                   .filter((unitId) => supportedLayerIds.has(unitId.replace(/^seg-/, '')))
-                  .map((unitId) => makeLayerUnitContent(unitId.replace(/^seg-/, '')));
-              }),
-            })),
-          };
-        }),
-      },
-      layer_segment_contents: {
-        where: vi.fn((indexName: string) => {
-          if (indexName !== 'segmentId') {
-            throw new Error(`Unexpected index: ${indexName}`);
-          }
-          return {
-            anyOf: vi.fn(() => ({
-              toArray: vi.fn(async () => []),
+                  .map((unitId) => makeLayerUnitContent(unitId.replace(/^seg-/, ''))),
+              ),
             })),
           };
         }),
@@ -320,7 +276,7 @@ function makeInput(overrides: Partial<UseImportExportInput> = {}): UseImportExpo
 describe('useImportExport - export eaf behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
+    mockGetDb.mockResolvedValue(buildMockDb());
     mockUseOrthographies.mockReturnValue([]);
     mockApplyOrthographyBridgeIfNeeded.mockImplementation(async ({ text }: { text: string }) => ({
       text: `xf:${text}`,
@@ -352,7 +308,7 @@ describe('useImportExport - export eaf behavior', () => {
   });
 
   it('prefers LayerUnit export data when legacy segment rows are absent', async () => {
-    mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
+    mockGetDb.mockResolvedValue(buildMockDb());
     const input = makeInput();
     const { result } = renderHook(() => useImportExport(input));
 
@@ -374,7 +330,7 @@ describe('useImportExport - export eaf behavior', () => {
   });
 
   it('exports EAF segment data from the canonical LayerUnit view', async () => {
-    mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
+    mockGetDb.mockResolvedValue(buildMockDb());
     const input = makeInput();
     const { result } = renderHook(() => useImportExport(input));
 
@@ -413,7 +369,7 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
   beforeEach(() => {
     vi.clearAllMocks();
     // stop-read 默认关闭后，导出基线应以 LayerUnit 视图为准 | With stop-read off, export baseline should use the LayerUnit view
-    mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
+    mockGetDb.mockResolvedValue(buildMockDb());
     mockUseOrthographies.mockReturnValue([]);
   });
 
@@ -472,7 +428,7 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
   });
 
   it('TextGrid: 旧表为空时仍从 LayerUnit 导出 segment 与文本内容 | exports segment data from LayerUnit when legacy tables are empty', async () => {
-    mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
+    mockGetDb.mockResolvedValue(buildMockDb());
     const { result } = renderHook(() => useImportExport(makeInputWithSegmentLayers()));
 
     await act(async () => {
@@ -490,7 +446,7 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
   });
 
   it('TextGrid: passes active text logical timeline metadata into export payload', async () => {
-    const dbWithTimelineMetadata = buildMockDb({ preferLayerUnits: true });
+    const dbWithTimelineMetadata = buildMockDb();
     (dbWithTimelineMetadata.dexie.texts.get as ReturnType<typeof vi.fn>).mockResolvedValue({
       metadata: {
         primaryOrthographyId: 'orth-project',

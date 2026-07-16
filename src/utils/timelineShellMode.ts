@@ -11,6 +11,12 @@ type TimelineShellKind = 'waveform' | 'text-only' | 'empty';
 
 /**
  * 与 `useTranscriptionTimelineContentViewModel` 中 `effectiveLayersCount` 同构，保证 read model 与 timeline content 壳判定输入一致。
+ *
+ * **判据（2026-06-26 文档化）**
+ * - 取 `max(orchestratorLayersCount, transcriptionLayerCount, translationLayerCount)`。
+ * - **计入**：编排 `layers` 列表长度、转写层 id 列表、翻译层 id 列表中的较大者（含仅翻译壳、含占位层若已出现在上述列表）。
+ * - **不计入**：unit 条数、segment 条数、纵向视图开关本身。
+ * - **`> 0`** → 可走 text-only 或 waveform 壳；**全 0** → empty 壳（见 `resolveTimelineShellMode`）。
  */
 export function computeEffectiveTimelineShellLayersCount(input: {
   orchestratorLayersCount: number;
@@ -43,7 +49,9 @@ export interface TimelineShellModeResult {
 /**
  * 与 `buildTimelineReadModel` 中 `resolveAcousticState` 同构：由壳层判定结果得到声学三态（供 `mapAcousticToTimelineChrome` 等消费）。
  */
-export function timelineShellModeResultToAcousticState(result: TimelineShellModeResult): TimelineAcousticState {
+export function timelineShellModeResultToAcousticState(
+  result: TimelineShellModeResult,
+): TimelineAcousticState {
   if (result.playableAcoustic) return 'playable';
   if (result.acousticPending) return 'pending_decode';
   return 'no_media';
@@ -51,9 +59,12 @@ export function timelineShellModeResultToAcousticState(result: TimelineShellMode
 
 export function resolveTimelineShellMode(input: TimelineShellModeInput): TimelineShellModeResult {
   const hasLayers = input.layersCount > 0;
-  const hasUrl = typeof input.selectedMediaUrl === 'string' && input.selectedMediaUrl.trim().length > 0;
+  const hasUrl =
+    typeof input.selectedMediaUrl === 'string' && input.selectedMediaUrl.trim().length > 0;
   const acousticPlayable = hasUrl && input.playerIsReady && input.playerDuration > 0;
-  const acousticPending = Boolean(hasUrl && hasLayers && (!input.playerIsReady || input.playerDuration <= 0));
+  const acousticPending = Boolean(
+    hasUrl && hasLayers && (!input.playerIsReady || input.playerDuration <= 0),
+  );
   const verticalViewEnabled = input.verticalViewEnabled === true;
 
   if (verticalViewEnabled && hasLayers) {

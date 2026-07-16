@@ -12,6 +12,7 @@ interface TimelineRulerViewWindow {
 
 /** Authoritative zoom scalars (today split between orchestrator input and `useZoom` input; phase C collapses to one writer). */
 interface TimelineViewportScalars {
+  /** 视口写侧主缩放标量（`useZoom` / bridge 写入；lanes props 常名 `zoomPxPerSec`）。 */
   zoomPxPerSec: number;
   documentSpanSec: number;
   zoomPercent: number;
@@ -21,6 +22,10 @@ interface TimelineViewportScalars {
 
 export interface TimelineViewportFrame {
   scrollLeftPx: number;
+  /**
+   * 文献/主标尺轴上的像素密度（秒⁻¹），由 `zoomPxPerSec` 与 tier-primary 规则派生。
+   * **命名评估（2026-06-26）**：长期 deprecate 此别名，统一对外只暴露 `zoomPxPerSec`；`viewportFrame` 消费方逐步改名后再删 `pxPerDocSec`。
+   */
   pxPerDocSec: number;
   visibleStartSec: number;
   visibleEndSec: number;

@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import type { DbState, SaveState, SnapGuide } from './transcriptionTypes';
+import type { DbState, SaveState } from './transcriptionTypes';
 
 export function useTranscriptionDbState() {
   const [state, setState] = useState<DbState>({ phase: 'loading' });
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
   const [layerCreateMessage, setLayerCreateMessage] = useState('');
-  const [snapGuide, setSnapGuide] = useState<SnapGuide>({ visible: false });
 
   return {
     state,
@@ -14,7 +13,5 @@ export function useTranscriptionDbState() {
     setSaveState,
     layerCreateMessage,
     setLayerCreateMessage,
-    snapGuide,
-    setSnapGuide,
   };
 }

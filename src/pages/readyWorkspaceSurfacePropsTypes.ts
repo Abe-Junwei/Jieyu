@@ -21,7 +21,7 @@ export interface UseReadyWorkspaceSurfacePropsInput {
   selectedMediaUrl: unknown;
   segmentScopeMediaId: unknown;
   verticalViewActive: boolean;
-  activeTextTimelineMode: unknown;
+  exportTimelineModeLabel: unknown;
   activeTextTimeMapping: unknown;
   canUndo: boolean;
   canRedo: boolean;

@@ -50,7 +50,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   vadCacheStatus: ReadyWorkspaceStageProps['vadCacheStatus'];
   currentProjectLabel: BuildReadyWorkspaceProjectHubPropsInput['currentProjectLabel'];
   selectedMediaId?: BuildReadyWorkspaceProjectHubPropsInput['selectedMediaId'];
-  activeTextTimelineMode: BuildReadyWorkspaceProjectHubPropsInput['activeTextTimelineMode'];
+  exportTimelineModeLabel: BuildReadyWorkspaceProjectHubPropsInput['exportTimelineModeLabel'];
   activeTextTimeMapping: BuildReadyWorkspaceProjectHubPropsInput['activeTextTimeMapping'];
   canDeleteProject: BuildReadyWorkspaceProjectHubPropsInput['canDeleteProject'];
   canDeleteAudio: BuildReadyWorkspaceProjectHubPropsInput['canDeleteAudio'];
@@ -233,7 +233,7 @@ export function buildReadyWorkspaceStageProps(
     projectHubProps: buildReadyWorkspaceProjectHubProps({
       currentProjectLabel: input.currentProjectLabel,
       selectedMediaId: input.selectedMediaId,
-      activeTextTimelineMode: input.activeTextTimelineMode,
+      exportTimelineModeLabel: input.exportTimelineModeLabel,
       activeTextTimeMapping: input.activeTextTimeMapping,
       canDeleteProject: input.canDeleteProject,
       canDeleteAudio: input.canDeleteAudio,

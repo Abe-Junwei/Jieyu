@@ -74,7 +74,7 @@ export function buildReadyWorkspaceViewModelsSurfacePhaseParams(
   const selectedTimelineMedia = s.selectedTimelineMedia;
   const activeTextId = s.activeTextId;
   const activeTextTimeMapping = s.activeTextTimeMapping;
-  const activeTextTimelineMode = s.activeTextTimelineMode;
+  const exportTimelineModeLabel = s.exportTimelineModeLabel;
   const saveSegmentContentForLayer = s.saveSegmentContentForLayer;
   const layerAction = s.layerAction;
   const handleFocusLayerRow = s.handleFocusLayerRow;
@@ -221,7 +221,7 @@ export function buildReadyWorkspaceViewModelsSurfacePhaseParams(
         handleTimelineLaneHeightChange,
         transcriptionTrackMode,
         handleLaneLabelWidthResizeStart,
-        activeTextTimelineMode,
+        exportTimelineModeLabel,
         mediaItems: _mediaItems,
         recording,
         recordingUnitId,
@@ -340,7 +340,7 @@ export function buildReadyWorkspaceViewModelsSurfacePhaseParams(
       hiddenByMediaFilterCount,
       activeTextId,
       activeTextTimeMapping,
-      activeTextTimelineMode,
+      exportTimelineModeLabel,
       locale,
       loadSnapshot,
       setSaveState,

@@ -100,7 +100,7 @@ function buildSegmentsByOverlapGroup(
 type TranscriptionTimelineHorizontalMediaLanesProps = {
   /** 壳层 class 映射结果（由 `mapAcousticToTimelineChrome` 生成）| Shell class mapping from shared mapper */
   timelineChromeClassNames?: readonly string[];
-  activeTextTimelineMode?: 'document' | 'media' | null;
+  exportTimelineModeLabel?: 'document' | 'media' | null;
   /** 时间轴可编辑跨度（秒）；轨面宽度唯一语义源 | Editable timeline extent in seconds (sole lane width source) */
   timelineExtentSec: number;
   zoomPxPerSec: number;
@@ -202,7 +202,7 @@ type TranscriptionTimelineHorizontalMediaLanesProps = {
 export const TranscriptionTimelineHorizontalMediaLanes = memo(
   function TranscriptionTimelineHorizontalMediaLanes({
     timelineChromeClassNames = [],
-    activeTextTimelineMode,
+    exportTimelineModeLabel,
     timelineExtentSec,
     zoomPxPerSec,
     timelineContentGutterPx,
@@ -740,7 +740,7 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
               <TimelineLaneHeader
                 layer={layer}
                 layerIndex={idx}
-                activeTextTimelineMode={activeTextTimelineMode ?? null}
+                exportTimelineModeLabel={exportTimelineModeLabel ?? null}
                 allLayers={allLayersOrdered}
                 onReorderLayers={onReorderLayers}
                 deletableLayers={deletableLayers}

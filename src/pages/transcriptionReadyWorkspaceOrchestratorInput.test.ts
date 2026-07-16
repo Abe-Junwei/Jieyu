@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TranscriptionReadyWorkspaceOrchestratorRawInput } from './transcriptionReadyWorkspaceOrchestratorInput';
 import { buildOrchestratorViewModelsInput } from './transcriptionReadyWorkspaceOrchestratorInput';
+import { buildTimelineSelectionProjection } from '../utils/timelineSelectionProjection';
 
 function makeInput(
   overrides?: Partial<TranscriptionReadyWorkspaceOrchestratorRawInput>,
@@ -27,8 +28,8 @@ function makeInput(
       languageTagByLayerId: new Map(),
       timelineViewConfigByLayerId: new Map(),
       displayStyleControl: { orthographies: [] },
-      activeTextTimelineMode: 'document',
-      setActiveTextTimelineMode: vi.fn(),
+      exportTimelineModeLabel: 'document',
+      setExportTimelineModeLabel: vi.fn(),
       activeLayerIdForEdits: null,
       waveContainerClassName: undefined,
       audioReady: true,
@@ -121,6 +122,10 @@ function makeInput(
       viewportFrame: { scrollLeftPx: 0, pxPerDocSec: 25, visibleStartSec: 0, visibleEndSec: 8 },
     },
     segmentRangeGesturePreviewReadModel: { surface: 'none' },
+    selectionProjection: buildTimelineSelectionProjection({
+      selectedTimelineUnit: null,
+      selectedUnitIds: [],
+    }),
     timelineRenderUnits: [],
     defaultTranscriptionLayerId: 'layer-1',
     textOnlyLogicalDurationSec: 200,

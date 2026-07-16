@@ -304,7 +304,7 @@ export function assembleReadyWorkspaceSurfacePropsBundle(
       ...(input.selectedTimelineMedia !== undefined
         ? { selectedTimelineMedia: input.selectedTimelineMedia }
         : {}),
-      activeTextTimelineMode: input.activeTextTimelineMode,
+      exportTimelineModeLabel: input.exportTimelineModeLabel,
       activeTextTimeMapping: input.activeTextTimeMapping,
       canDeleteProject: Boolean(input.activeTextId),
       ...(input.selectedMediaUrl !== undefined ? { selectedMediaUrl: input.selectedMediaUrl } : {}),

@@ -36,36 +36,46 @@ function makeLayer(id: string): LayerDocType {
   } as LayerDocType;
 }
 
-function renderHeader(trackModeControl?: {
-  mode: 'single' | 'multi-auto' | 'multi-locked' | 'multi-speaker-fixed';
-  onToggle: () => void;
-  onSetMode?: (nextMode: 'single' | 'multi-auto' | 'multi-locked' | 'multi-speaker-fixed') => void;
-  onLockSelectedToLane?: (laneIndex: number) => void;
-  onUnlockSelected?: () => void;
-  onResetAuto?: () => void;
-  selectedSpeakerNames?: string[];
-  lockedSpeakerCount?: number;
-  lockConflictCount?: number;
-}, options?: {
-  layer?: LayerDocType;
-  allLayers?: LayerDocType[];
-  activeTextTimelineMode?: 'document' | 'media' | null;
-  onLayerAction?: (
-    action: 'create-transcription' | 'create-translation' | 'edit-transcription-metadata' | 'edit-translation-metadata' | 'delete',
-    layerId: string,
-  ) => void;
-  displayStyleControl?: Parameters<typeof TimelineLaneHeader>[0]['displayStyleControl'];
-  speakerQuickActions?: Parameters<typeof TimelineLaneHeader>[0]['speakerQuickActions'];
-  headerMenuPreset?: Parameters<typeof TimelineLaneHeader>[0]['headerMenuPreset'];
-  layerLinks?: LayerLinkDocType[];
-}) {
+function renderHeader(
+  trackModeControl?: {
+    mode: 'single' | 'multi-auto' | 'multi-locked' | 'multi-speaker-fixed';
+    onToggle: () => void;
+    onSetMode?: (
+      nextMode: 'single' | 'multi-auto' | 'multi-locked' | 'multi-speaker-fixed',
+    ) => void;
+    onLockSelectedToLane?: (laneIndex: number) => void;
+    onUnlockSelected?: () => void;
+    onResetAuto?: () => void;
+    selectedSpeakerNames?: string[];
+    lockedSpeakerCount?: number;
+    lockConflictCount?: number;
+  },
+  options?: {
+    layer?: LayerDocType;
+    allLayers?: LayerDocType[];
+    exportTimelineModeLabel?: 'document' | 'media' | null;
+    onLayerAction?: (
+      action:
+        | 'create-transcription'
+        | 'create-translation'
+        | 'edit-transcription-metadata'
+        | 'edit-translation-metadata'
+        | 'delete',
+      layerId: string,
+    ) => void;
+    displayStyleControl?: Parameters<typeof TimelineLaneHeader>[0]['displayStyleControl'];
+    speakerQuickActions?: Parameters<typeof TimelineLaneHeader>[0]['speakerQuickActions'];
+    headerMenuPreset?: Parameters<typeof TimelineLaneHeader>[0]['headerMenuPreset'];
+    layerLinks?: LayerLinkDocType[];
+  },
+) {
   const layer = options?.layer ?? makeLayer('layer-1');
   return render(
     <LocaleProvider locale="zh-CN">
       <TimelineLaneHeader
         layer={layer}
         layerIndex={0}
-        activeTextTimelineMode={options?.activeTextTimelineMode ?? null}
+        exportTimelineModeLabel={options?.exportTimelineModeLabel ?? null}
         allLayers={options?.allLayers ?? [layer]}
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={options?.allLayers ?? [layer]}
@@ -74,8 +84,12 @@ function renderHeader(trackModeControl?: {
         onLayerAction={options?.onLayerAction ?? vi.fn()}
         onToggleCollapsed={vi.fn()}
         {...(options?.layerLinks !== undefined ? { layerLinks: options.layerLinks } : {})}
-        {...(options?.displayStyleControl ? { displayStyleControl: options.displayStyleControl } : {})}
-        {...(options?.speakerQuickActions ? { speakerQuickActions: options.speakerQuickActions } : {})}
+        {...(options?.displayStyleControl
+          ? { displayStyleControl: options.displayStyleControl }
+          : {})}
+        {...(options?.speakerQuickActions
+          ? { speakerQuickActions: options.speakerQuickActions }
+          : {})}
         {...(options?.headerMenuPreset ? { headerMenuPreset: options.headerMenuPreset } : {})}
         {...(trackModeControl ? { trackModeControl } : {})}
       />
@@ -118,7 +132,7 @@ describe('TimelineLaneHeader track mode menu', () => {
   });
 
   it('renders a manuscript timebase badge when timeline mode is document', () => {
-    renderHeader(undefined, { activeTextTimelineMode: 'document' });
+    renderHeader(undefined, { exportTimelineModeLabel: 'document' });
 
     const badge = screen.getByText(/文献时间基|Manuscript timebase/);
     expect(badge.className).toContain('timeline-lane-timebase-badge');
@@ -316,7 +330,9 @@ describe('TimelineLaneHeader track mode menu', () => {
     const _stack = view.container.querySelector('.lane-link-stack') as HTMLElement | null;
     void _stack;
     const svg = view.container.querySelector('.lane-link-stack-svg') as SVGElement | null;
-    const connectorGroup = view.container.querySelector('.lane-link-connector-svg') as SVGGElement | null;
+    const connectorGroup = view.container.querySelector(
+      '.lane-link-connector-svg',
+    ) as SVGGElement | null;
 
     expect(svg?.getAttribute('width')).toBe('36');
     expect(svg?.getAttribute('viewBox')).toBe('0 0 36 100');
@@ -328,13 +344,15 @@ describe('TimelineLaneHeader track mode menu', () => {
 
     renderHeader(undefined, {
       displayStyleControl: {
-        orthographies: [{
-          id: 'ortho-1',
-          name: { zho: '汉字' },
-          languageId: 'cmn',
-          scriptTag: 'Hans',
-          createdAt: NOW,
-        }],
+        orthographies: [
+          {
+            id: 'ortho-1',
+            name: { zho: '汉字' },
+            languageId: 'cmn',
+            scriptTag: 'Hans',
+            createdAt: NOW,
+          },
+        ],
         onUpdate,
         onReset: vi.fn(),
       },
@@ -353,13 +371,15 @@ describe('TimelineLaneHeader track mode menu', () => {
 
     renderHeader(undefined, {
       displayStyleControl: {
-        orthographies: [{
-          id: 'ortho-1',
-          name: { zho: '汉字' },
-          languageId: 'cmn',
-          scriptTag: 'Hans',
-          createdAt: NOW,
-        }],
+        orthographies: [
+          {
+            id: 'ortho-1',
+            name: { zho: '汉字' },
+            languageId: 'cmn',
+            scriptTag: 'Hans',
+            createdAt: NOW,
+          },
+        ],
         onUpdate,
         onReset: vi.fn(),
       },
@@ -390,7 +410,7 @@ describe('TimelineLaneHeader track and speaker chrome', () => {
         <TimelineLaneHeader
           layer={translationLayer}
           layerIndex={1}
-          activeTextTimelineMode={null}
+          exportTimelineModeLabel={null}
           allLayers={[parent, translationLayer]}
           onReorderLayers={vi.fn(async () => undefined)}
           deletableLayers={[parent, translationLayer]}
@@ -451,7 +471,7 @@ describe('TimelineLaneHeader track and speaker chrome', () => {
         <TimelineLaneHeader
           layer={translationLayer}
           layerIndex={1}
-          activeTextTimelineMode={null}
+          exportTimelineModeLabel={null}
           allLayers={[translationLayer]}
           onReorderLayers={vi.fn(async () => undefined)}
           deletableLayers={[translationLayer]}

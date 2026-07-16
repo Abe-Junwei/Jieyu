@@ -44,7 +44,7 @@ type ReadyWorkspaceAxisStatusInput<
   hiddenByMediaFilterCount?: number;
   activeTextId?: string | null;
   activeTextTimeMapping?: { logicalDurationSec?: number } | null;
-  activeTextTimelineMode?: TimelineAxisStatusStripProps['timelineMode'];
+  exportTimelineModeLabel?: TimelineAxisStatusStripProps['timelineMode'];
   locale: Parameters<typeof t>[0];
   loadSnapshot: () => Promise<void>;
   setSaveState: (
@@ -81,7 +81,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
     hiddenByMediaFilterCount,
     activeTextId,
     activeTextTimeMapping,
-    activeTextTimelineMode,
+    exportTimelineModeLabel,
     locale,
     loadSnapshot,
     setSaveState,
@@ -193,7 +193,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
           hint,
           ...(logicalOk ? { logicalDurationSec } : {}),
           ...(hiddenCount > 0 ? { hiddenByMediaFilterCount: hiddenCount } : {}),
-          ...(activeTextTimelineMode ? { timelineMode: activeTextTimelineMode } : {}),
+          ...(exportTimelineModeLabel ? { timelineMode: exportTimelineModeLabel } : {}),
           ...(hintSupportsExpandLogical(hint) && activeTextId
             ? {
                 expandLogical: {
@@ -212,7 +212,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
   }, [
     activeTextId,
     activeTextTimeMapping?.logicalDurationSec,
-    activeTextTimelineMode,
+    exportTimelineModeLabel,
     expandLogicalDurationFromAxisStatus,
     handleWaveformResizeStartWithTelemetry,
     isResizingWaveform,

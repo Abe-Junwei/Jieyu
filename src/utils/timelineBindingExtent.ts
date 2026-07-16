@@ -52,26 +52,6 @@ export function resolveTimelineFitSpanSec(input: TimelineBindingExtentInput): nu
   return resolveTimelineBindingExtentSec(input);
 }
 
-/** 播放/seek 上界：声学超出冻结跨度时钳在绑定跨度内。 */
-export function resolvePlaybackCapSec(mediaDurationSec: number, bindingExtentSec: number): number {
-  const media = normalizePositiveFinite(mediaDurationSec);
-  const extent = normalizePositiveFinite(bindingExtentSec);
-  if (extent <= 0) return media;
-  if (media <= 0) return extent;
-  return Math.min(media, extent);
-}
-
-export function clampTimeToPlaybackCap(
-  timeSec: number,
-  mediaDurationSec: number,
-  bindingExtentSec: number,
-): number {
-  const cap = resolvePlaybackCapSec(mediaDurationSec, bindingExtentSec);
-  const upper = cap > 0 ? cap : normalizePositiveFinite(mediaDurationSec);
-  if (upper <= 0) return Math.max(0, timeSec);
-  return Math.max(0, Math.min(timeSec, upper));
-}
-
 export interface MergeImportedTimelineMetadataCaps {
   establishedDocumentSpanSec: number;
   establishedAcousticSec: number;

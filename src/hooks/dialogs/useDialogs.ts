@@ -135,7 +135,7 @@ export function useDialogs(units: DialogUnit[]) {
   const [activeTextPrimaryOrthographyId, setActiveTextPrimaryOrthographyId] = useState<
     string | null
   >(null);
-  const [activeTextTimelineMode, setActiveTextTimelineMode] = useState<TextTimelineMode | null>(
+  const [exportTimelineModeLabel, setExportTimelineModeLabel] = useState<TextTimelineMode | null>(
     null,
   );
   const [activeTextTimeMapping, setActiveTextTimeMapping] = useState<TextTimeMappingSummary | null>(
@@ -151,7 +151,7 @@ export function useDialogs(units: DialogUnit[]) {
       setActiveTextId(first.id);
       setActiveTextPrimaryLanguageId(resolvePrimaryLanguageId(first));
       setActiveTextPrimaryOrthographyId(resolvePrimaryOrthographyId(first));
-      setActiveTextTimelineMode(resolveTimelineMode(first));
+      setExportTimelineModeLabel(resolveTimelineMode(first));
       setActiveTextTimeMapping(resolveTextTimeMapping(first));
       return first.id;
     }
@@ -168,27 +168,27 @@ export function useDialogs(units: DialogUnit[]) {
     const languageId = resolvePrimaryLanguageId(activeText);
     setActiveTextPrimaryLanguageId(languageId);
     setActiveTextPrimaryOrthographyId(resolvePrimaryOrthographyId(activeText));
-    setActiveTextTimelineMode(resolveTimelineMode(activeText));
+    setExportTimelineModeLabel(resolveTimelineMode(activeText));
     setActiveTextTimeMapping(resolveTextTimeMapping(activeText));
     if (!activeTextId) setActiveTextId(activeText.id);
     return languageId;
   }, [activeTextId, activeTextPrimaryLanguageId]);
 
-  const getActiveTextTimelineMode = useCallback(async (): Promise<TextTimelineMode | null> => {
-    if (activeTextTimelineMode) return activeTextTimelineMode;
+  const getExportTimelineModeLabel = useCallback(async (): Promise<TextTimelineMode | null> => {
+    if (exportTimelineModeLabel) return exportTimelineModeLabel;
     const texts = await LinguisticService.timeline.listTexts();
     const resolvedTextId = activeTextId ?? texts[0]?.id;
     if (!resolvedTextId) return null;
     const activeText = texts.find((text) => text.id === resolvedTextId);
     if (!activeText) return null;
     const timelineMode = resolveTimelineMode(activeText);
-    setActiveTextTimelineMode(timelineMode);
+    setExportTimelineModeLabel(timelineMode);
     setActiveTextPrimaryLanguageId(resolvePrimaryLanguageId(activeText));
     setActiveTextPrimaryOrthographyId(resolvePrimaryOrthographyId(activeText));
     setActiveTextTimeMapping(resolveTextTimeMapping(activeText));
     if (!activeTextId) setActiveTextId(activeText.id);
     return timelineMode;
-  }, [activeTextId, activeTextTimelineMode]);
+  }, [activeTextId, exportTimelineModeLabel]);
 
   /**
    * 刷新后首几帧常出现：activeTextId 刚由 units[0] 推入、但 getAllTexts 尚未返回 → activeTextTimeMapping 为 null，
@@ -199,7 +199,7 @@ export function useDialogs(units: DialogUnit[]) {
     if (!activeTextId && !firstUnitTextId) {
       setActiveTextPrimaryLanguageId(null);
       setActiveTextPrimaryOrthographyId(null);
-      setActiveTextTimelineMode(null);
+      setExportTimelineModeLabel(null);
       setActiveTextTimeMapping(null);
       return;
     }
@@ -214,7 +214,7 @@ export function useDialogs(units: DialogUnit[]) {
       if (activeText.id !== targetId) return;
       setActiveTextPrimaryLanguageId(resolvePrimaryLanguageId(activeText));
       setActiveTextPrimaryOrthographyId(resolvePrimaryOrthographyId(activeText));
-      setActiveTextTimelineMode(resolveTimelineMode(activeText));
+      setExportTimelineModeLabel(resolveTimelineMode(activeText));
       setActiveTextTimeMapping(resolveTextTimeMapping(activeText));
     });
     return () => {
@@ -235,10 +235,10 @@ export function useDialogs(units: DialogUnit[]) {
     setActiveTextId,
     activeTextPrimaryLanguageId,
     activeTextPrimaryOrthographyId,
-    activeTextTimelineMode,
+    exportTimelineModeLabel,
     activeTextTimeMapping,
     getActiveTextId,
     getActiveTextPrimaryLanguageId,
-    getActiveTextTimelineMode,
+    getExportTimelineModeLabel,
   };
 }

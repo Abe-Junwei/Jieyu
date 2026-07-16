@@ -14,7 +14,7 @@
  * 版本 5：视口单写者链路（`useTimelineViewport` → read model / orchestrator / stage zoomControls）。
  * 版本 6：`OrchestratorWaveformContent` 声学条入参收敛为 `AcousticStripContract`（read model + wave/tier DOM refs）。
  * 版本 7：P2 `timelineMode` 运行时占位/写路径收敛（`mediaItemTimelineKind` + `LinguisticService` / cleanup）。
- * 版本 8：P3 Project Hub 时间映射与导出提示不再依赖 `activeTextTimelineMode`；预览公式 `timeMappingHubPreview`。
+ * 版本 8：P3 Project Hub 时间映射与导出提示不再依赖 `exportTimelineModeLabel`；预览公式 `timeMappingHubPreview`。
  * 版本 9：G3 `TimelineLaneDraftEditorCell` 共享壳（横向 `TimelineAnnotationItem` + 纵向对读草稿格）。
  * 版本 10：G3 草稿防抖 key 单点 `timelineDraftAutoSaveKeys`；侧栏译文行接入共享壳（`bubbleClick`）。
  * 版本 11：`g3-draft-autosave-key-helpers` 增补 `TranscriptionTimelineHorizontalMediaLanes.test.tsx` 锚点（覆盖 `MediaTranslationRow` + `timelineTranslationHostDraftAutoSaveKey`）；草稿 hook / Escape 防抖 key 与 `usesOwnSegments` 对齐验收随矩阵升版。
@@ -42,12 +42,13 @@
  * 版本 33：阶段 B 收尾 — tier scroll 镜像经 `applyTimelineViewportScroll`；阶段 D — 子选区预览进 gesture reducer + React overlay。
  * 版本 34：阶段 D 完成 — 移除 legacy `lassoRect` / `waveLassoRect`；media lanes 直消费 `segmentRangeGesturePreviewReadModel`。
  * 版本 35：阶段 F·4 — 键盘/纵向 Tab 选集经 `writeTimelineSelection`；`selection-write-funnel` 纵向 parity 升为 full。
+ * 版本 36：§9 backlog 产品拍板 — 三行 partial 文案固化（纵向拖建永久不做；link/VAD textOnly·vertical intentional gap）；§9.4 下一迭代顺序更新。
  */
 
 import type { TimelineParityMatrixRowId } from '../i18n/messages';
 import { timelineParityMatrixRowsZh } from '../i18n/messages';
 
-export const TIMELINE_PARITY_MATRIX_VERSION = 35 as const;
+export const TIMELINE_PARITY_MATRIX_VERSION = 36 as const;
 
 type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
 

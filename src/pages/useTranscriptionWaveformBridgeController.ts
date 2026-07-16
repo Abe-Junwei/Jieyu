@@ -7,7 +7,6 @@ import {
   type UIEvent as ReactUIEvent,
 } from 'react';
 import { DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC } from '../utils/timelineExtentConstants';
-import { resolvePlaybackCapSec } from '../utils/timelineBindingExtent';
 import {
   resolveReadyWorkspaceDocumentSpanSec,
   resolveReadyWorkspaceGlobalPlayableAcoustic,
@@ -136,7 +135,6 @@ export function useTranscriptionWaveformBridgeController(
   }, [provisionalDocumentSpan]);
 
   const [waveformZoomPxPerSec, setWaveformZoomPxPerSec] = useState(estimatedFitPxPerSec);
-  const [playbackExtentSec, setPlaybackExtentSec] = useState(0);
 
   const { onRegionUpdate, onRegionUpdateEnd } = useWaveformBridgeRegionDragRaf(
     handleWaveformRegionUpdateRef,
@@ -154,8 +152,6 @@ export function useTranscriptionWaveformBridgeController(
     segmentPlaybackRate,
     // 播放跟随由 useZoom.maybeFollow 统一处理；WaveSurfer autoScroll 会与 tier 主滚动抢控制权
     autoScrollDuringPlayback: false,
-    playbackExtentSec,
-    enableEmptyDragCreate: false,
     zoomLevel: waveformZoomPxPerSec,
     startMarker: segMarkStart ?? undefined,
     subSelection: subSelectionRange,
@@ -218,11 +214,6 @@ export function useTranscriptionWaveformBridgeController(
       playerDuration: player.duration,
     });
   }, [documentSpanSec, input.selectedMediaUrl, player.isReady, player.duration]);
-
-  useLayoutEffect(() => {
-    const nextCap = resolvePlaybackCapSec(player.duration, fitSpanSec);
-    setPlaybackExtentSec((prev) => (prev === nextCap ? prev : nextCap));
-  }, [player.duration, fitSpanSec, player.isReady]);
 
   const waveformViewportSizingInput: UseWaveformViewportSizingInput = {
     tierContainerRef: input.tierContainerRef,

@@ -13,12 +13,7 @@ import { LinguisticService } from '../../services/LinguisticService';
 
 import type { TimingUndoState } from '../../utils/selectionUtils';
 
-import {
-  createTimelineUnit,
-  type SaveState,
-  type SnapGuide,
-  type TimelineUnit,
-} from './transcriptionTypes';
+import { createTimelineUnit, type SaveState, type TimelineUnit } from './transcriptionTypes';
 
 import { useTranscriptionVoiceTranslationActions } from './useTranscriptionVoiceTranslationActions';
 
@@ -128,7 +123,6 @@ export type TranscriptionUnitActionsParams = {
     removedUnitIds: Set<string>,
   ) => Promise<void>;
   setSaveState: (s: SaveState) => void;
-  setSnapGuide: React.Dispatch<React.SetStateAction<SnapGuide>>;
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
   setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
   setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
@@ -157,7 +151,6 @@ export function useTranscriptionUnitActions({
   updateAnchorTime,
   pruneOrphanAnchors,
   setSaveState,
-  setSnapGuide,
   setMediaItems,
   setTranslations,
   setUnits,
@@ -296,7 +289,6 @@ export function useTranscriptionUnitActions({
         timingGestureRef,
         timingUndoRef,
         updateAnchorTime,
-        setSnapGuide,
         allowOverlapInTranscription,
       }),
     [
@@ -304,7 +296,6 @@ export function useTranscriptionUnitActions({
       locale,
       pushUndo,
       setSaveState,
-      setSnapGuide,
       setUnits,
       timingGestureRef,
       timingUndoRef,

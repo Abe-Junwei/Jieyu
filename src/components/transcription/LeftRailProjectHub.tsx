@@ -48,7 +48,7 @@ interface LeftRailProjectHubProps {
    * Optional metadata from the shell; Project Hub time-mapping / export hints are **not**
    * gated on this value when `onApplyTextTimeMapping` is provided (P3).
    */
-  activeTextTimelineMode?: 'document' | 'media' | null;
+  exportTimelineModeLabel?: 'document' | 'media' | null;
   activeTextTimeMapping?: {
     offsetSec: number;
     scale: number;

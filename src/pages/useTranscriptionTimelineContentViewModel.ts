@@ -1,6 +1,7 @@
 import { useMemo, type RefObject } from 'react';
 import type { Locale } from '../i18n';
 import type { EmptyTimelinePolicy } from '../utils/emptyTimelinePolicy';
+import type { TimelineSelectionProjection } from '../utils/timelineSelectionProjection';
 import type {
   TranscriptionPageTimelineHorizontalMediaLanesProps,
   TranscriptionPageTimelineTextOnlyProps,
@@ -34,6 +35,8 @@ interface UseTranscriptionTimelineContentViewModelInput {
   currentMediaUnitCount: number;
   /** 可选：已由 read model 预计算的策略；缺省时本地 `buildEmptyTimelinePolicy`。 */
   emptyTimelinePolicy?: EmptyTimelinePolicy;
+  /** 阶段 F：选集只读投影；宿主 lane / 波形读路径消费此字段。 */
+  selectionProjection: TimelineSelectionProjection;
   mediaLanesPropsInput: Omit<
     TranscriptionPageTimelineHorizontalMediaLanesProps,
     'timelineExtentSec'
@@ -51,8 +54,10 @@ export function useTranscriptionTimelineContentViewModel(
     () => ({
       timelineExtentSec: input.timelineExtentSec,
       ...input.mediaLanesPropsInput,
+      selectedTimelineUnit:
+        input.selectionProjection.focus ?? input.mediaLanesPropsInput.selectedTimelineUnit ?? null,
     }),
-    [input.mediaLanesPropsInput, input.timelineExtentSec],
+    [input.mediaLanesPropsInput, input.selectionProjection.focus, input.timelineExtentSec],
   );
 
   const verticalProjection = input.verticalProjection ?? FALLBACK_VERTICAL_PROJECTION;
@@ -62,10 +67,13 @@ export function useTranscriptionTimelineContentViewModel(
       dropUndefinedKeys({
         ...input.textOnlyPropsInput,
         ...verticalProjection,
+        selectedTimelineUnit:
+          input.selectionProjection.focus ?? input.textOnlyPropsInput.selectedTimelineUnit ?? null,
       }) as TranscriptionPageTimelineTextOnlyProps,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Hosts may reuse `verticalProjection` and mutate fields in place without replacing the object; deps are intentional shallow fields only (see `useTranscriptionTimelineContentViewModel.test.tsx`).
     [
       input.textOnlyPropsInput,
+      input.selectionProjection.focus,
       verticalProjection.verticalViewEnabled,
       verticalProjection.verticalPaneFocus,
       verticalProjection.updateVerticalPaneFocus,
@@ -130,12 +138,14 @@ export function useTranscriptionTimelineContentViewModel(
       workspaceAcousticPending,
       workspaceAcousticChromeState,
       verticalComparisonEnabled,
+      selectionProjection: input.selectionProjection,
       mediaLanesProps,
       textOnlyProps,
       emptyStateProps,
     }),
     [
       emptyStateProps,
+      input.selectionProjection,
       mediaLanesProps,
       textOnlyProps,
       verticalComparisonEnabled,

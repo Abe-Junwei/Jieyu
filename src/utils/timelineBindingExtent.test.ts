@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clampTimeToPlaybackCap,
   mergeImportedTimelineMetadata,
-  resolvePlaybackCapSec,
   resolveTimelineBindingExtentSec,
   resolveTimelineFitSpanSec,
 } from './timelineBindingExtent';
@@ -62,23 +60,6 @@ describe('resolveTimelineFitSpanSec', () => {
         globalPlaybackReady: true,
       }),
     ).toBe(400);
-  });
-});
-
-describe('resolvePlaybackCapSec', () => {
-  it('clamps to binding extent when media is longer', () => {
-    expect(resolvePlaybackCapSec(300, 200)).toBe(200);
-  });
-
-  it('clamps to media when binding extent is longer', () => {
-    expect(resolvePlaybackCapSec(100, 400)).toBe(100);
-  });
-});
-
-describe('clampTimeToPlaybackCap', () => {
-  it('clamps seek time to binding extent', () => {
-    expect(clampTimeToPlaybackCap(250, 300, 200)).toBe(200);
-    expect(clampTimeToPlaybackCap(50, 300, 200)).toBe(50);
   });
 });
 

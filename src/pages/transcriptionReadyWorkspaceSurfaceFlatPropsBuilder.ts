@@ -9,7 +9,7 @@ export type ReadyWorkspaceSurfaceFlatLayeredContext = {
     | 'selectedMediaUrl'
     | 'segmentScopeMediaId'
     | 'verticalViewActive'
-    | 'activeTextTimelineMode'
+    | 'exportTimelineModeLabel'
     | 'activeTextTimeMapping'
   >;
   undo: Pick<

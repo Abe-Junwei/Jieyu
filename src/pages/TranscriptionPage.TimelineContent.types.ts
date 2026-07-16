@@ -1,13 +1,18 @@
 import type { ComponentProps } from 'react';
 import type { TimelineAcousticState } from '../utils/mapAcousticToTimelineChrome';
+import type { TimelineSelectionProjection } from '../utils/timelineSelectionProjection';
 import type { TranscriptionTimelineWorkspacePanelProps } from './transcriptionTimelineWorkspacePanelTypes';
 import type { TranscriptionPageTimelineEmptyState } from './TranscriptionPage.TimelineEmptyState';
 
 export type TimelineWorkspaceHostShell = 'waveform' | 'text-only' | 'empty';
-export type TranscriptionPageTimelineHorizontalMediaLanesProps = ComponentProps<typeof import('../components/TranscriptionTimelineHorizontalMediaLanes').TranscriptionTimelineHorizontalMediaLanes>;
+export type TranscriptionPageTimelineHorizontalMediaLanesProps = ComponentProps<
+  typeof import('../components/TranscriptionTimelineHorizontalMediaLanes').TranscriptionTimelineHorizontalMediaLanes
+>;
 /** 纵向对读 / 编排透传；与 `TranscriptionTimelineWorkspacePanelProps` 同形 */
 export type TranscriptionPageTimelineTextOnlyProps = TranscriptionTimelineWorkspacePanelProps;
-export type TranscriptionPageTimelineEmptyStateProps = ComponentProps<typeof TranscriptionPageTimelineEmptyState>;
+export type TranscriptionPageTimelineEmptyStateProps = ComponentProps<
+  typeof TranscriptionPageTimelineEmptyState
+>;
 
 export interface TranscriptionPageTimelineContentProps {
   workspaceShell: TimelineWorkspaceHostShell;
@@ -15,6 +20,8 @@ export interface TranscriptionPageTimelineContentProps {
   /** 与 read model `acoustic.globalState` 同源，供 tier `mapAcousticToTimelineChrome`；合同态仍见 `workspaceAcousticPending`。 */
   workspaceAcousticChromeState: TimelineAcousticState;
   verticalComparisonEnabled: boolean;
+  /** 阶段 F：选集只读投影（与 read model 同源）。 */
+  selectionProjection: TimelineSelectionProjection;
   mediaLanesProps: TranscriptionPageTimelineHorizontalMediaLanesProps;
   textOnlyProps: TranscriptionPageTimelineTextOnlyProps;
   emptyStateProps: TranscriptionPageTimelineEmptyStateProps;

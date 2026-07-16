@@ -37,6 +37,8 @@ export interface UseReadyWorkspaceTrackEditControllersParams {
   waveformAreaRef: any;
   segmentRangeGesturePreviewReadModel: any;
   timelineViewportProjection: any;
+  /** Read model `timeline.extentSec` — 视窗单元裁剪与 lanes 宽度同源 */
+  timelineExtentSec: number;
   focusedLayerRowId: any;
   zoomToUnit: any;
   startTimelineResizeDrag: any;

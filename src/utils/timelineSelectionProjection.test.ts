@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
-import { buildTimelineSelectionProjection } from './timelineSelectionProjection';
+import {
+  buildTimelineSelectionProjection,
+  timelineSelectionUnitIdsSet,
+} from './timelineSelectionProjection';
 
 describe('buildTimelineSelectionProjection', () => {
   it('marks empty selection as none', () => {
@@ -16,6 +19,18 @@ describe('buildTimelineSelectionProjection', () => {
       isMultiSelect: false,
       kind: 'none',
     });
+  });
+
+  it('derives selected unit ids from projection for host read paths', () => {
+    expect(
+      timelineSelectionUnitIdsSet({
+        focus: null,
+        selectedIds: ['a', 'b'],
+        selectionCount: 2,
+        isMultiSelect: true,
+        kind: 'multi',
+      }),
+    ).toEqual(new Set(['a', 'b']));
   });
 
   it('marks multi-select when more than one id is selected', () => {

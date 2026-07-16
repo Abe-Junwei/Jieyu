@@ -256,6 +256,7 @@ export function buildReadyWorkspaceSidebarAndTrackPhaseParams(
       waveformAreaRef,
       segmentRangeGesturePreviewReadModel,
       timelineViewportProjection,
+      timelineExtentSec: timelineReadModel.timeline.extentSec,
       focusedLayerRowId,
       zoomToUnit,
       startTimelineResizeDrag:

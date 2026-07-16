@@ -9,12 +9,16 @@ import type {
 } from './TranscriptionPage.TimelineContent.types';
 import type { TranscriptionTimelineWorkspacePanelProps } from './transcriptionTimelineWorkspacePanelTypes';
 
-/** 规划表中的「TimelineHostSharedProps」：与像素标尺/套索无关的 lane 共享字段（ReadyWorkspace `buildSharedLaneProps` 母集）。 */
+/**
+ * 规划表中的「TimelineHostSharedProps」：与像素标尺/套索无关的 lane 共享字段（ReadyWorkspace `buildSharedLaneProps` 母集）。
+ *
+ * `exportTimelineModeLabel`：**仅**导出/Hub badge 等显示标签；**禁止**参与运行时分支（占位、壳层、选集、视口等）。
+ */
 export type TimelineHostSharedLaneProps = Pick<
   TranscriptionPageTimelineHorizontalMediaLanesProps,
   | 'transcriptionLayers'
   | 'translationLayers'
-  | 'activeTextTimelineMode'
+  | 'exportTimelineModeLabel'
   | 'timelineUnitViewIndex'
   | 'segmentParentUnitLookup'
   | 'segmentsByLayer'

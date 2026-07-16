@@ -145,7 +145,9 @@ describe('LeftRailProjectHub project import dialog', () => {
   it('opens annotation import strategy dialog and passes the selected strategy', async () => {
     const { onImportAnnotationFile } = renderHub();
     const file = new File(['annotation'], 'demo.eaf', { type: 'application/xml' });
-    const input = document.querySelector('input[accept=".eaf,.textgrid,.TextGrid,.trs,.flextext,.txt,.toolbox"]') as HTMLInputElement;
+    const input = document.querySelector(
+      'input[accept=".eaf,.textgrid,.TextGrid,.trs,.flextext,.txt,.toolbox"]',
+    ) as HTMLInputElement;
 
     fireEvent.change(input, { target: { files: [file] } });
 
@@ -160,7 +162,7 @@ describe('LeftRailProjectHub project import dialog', () => {
 
   it('shows logical timeline hint and mapping preview in export submenu when time mapping is present', async () => {
     renderHub({
-      activeTextTimelineMode: 'document',
+      exportTimelineModeLabel: 'document',
       activeTextTimeMapping: {
         offsetSec: 3,
         scale: 1.2,
@@ -174,15 +176,21 @@ describe('LeftRailProjectHub project import dialog', () => {
     const exportMenuButton = exportText.closest('button') as HTMLButtonElement;
     fireEvent.mouseEnter(exportMenuButton);
 
-    const hintText = await screen.findByText('导出时间戳按项目逻辑时间轴（文献秒）标注；与解码媒体时间轴上的秒不一定一一对应。');
+    const hintText = await screen.findByText(
+      '导出时间戳按项目逻辑时间轴（文献秒）标注；与解码媒体时间轴上的秒不一定一一对应。',
+    );
     const hintButton = hintText.closest('button') as HTMLButtonElement;
     expect(hintButton.disabled).toBe(true);
-    expect(await screen.findByText('时间映射预览：文档 0.0–1800.0s → 实际 3.0–2163.0s（偏移 3.0，倍率 ×1.20，版本 2）')).toBeTruthy();
+    expect(
+      await screen.findByText(
+        '时间映射预览：文档 0.0–1800.0s → 实际 3.0–2163.0s（偏移 3.0，倍率 ×1.20，版本 2）',
+      ),
+    ).toBeTruthy();
   });
 
-  it('shows time-mapping export actions when onApply is wired even if activeTextTimelineMode is null (P3)', async () => {
+  it('shows time-mapping export actions when onApply is wired even if exportTimelineModeLabel is null (P3)', async () => {
     renderHub({
-      activeTextTimelineMode: null,
+      exportTimelineModeLabel: null,
       activeTextTimeMapping: {
         offsetSec: 0,
         scale: 1,
@@ -196,13 +204,15 @@ describe('LeftRailProjectHub project import dialog', () => {
 
     expect(await screen.findByText('校准时间映射…')).toBeTruthy();
     expect(
-      await screen.findByText('导出时间戳按项目逻辑时间轴（文献秒）标注；与解码媒体时间轴上的秒不一定一一对应。'),
+      await screen.findByText(
+        '导出时间戳按项目逻辑时间轴（文献秒）标注；与解码媒体时间轴上的秒不一定一一对应。',
+      ),
     ).toBeTruthy();
   });
 
   it('opens the time-mapping calibration dialog and saves the edited values', async () => {
     const { onApplyTextTimeMapping } = renderHub({
-      activeTextTimelineMode: 'document',
+      exportTimelineModeLabel: 'document',
       activeTextTimeMapping: {
         offsetSec: 1,
         scale: 1.1,
@@ -234,7 +244,7 @@ describe('LeftRailProjectHub project import dialog', () => {
 
   it('rolls back to the previous time-mapping snapshot when available', async () => {
     const { onApplyTextTimeMapping } = renderHub({
-      activeTextTimelineMode: 'document',
+      exportTimelineModeLabel: 'document',
       activeTextTimeMapping: {
         offsetSec: 5,
         scale: 1.5,
@@ -263,7 +273,7 @@ describe('LeftRailProjectHub project import dialog', () => {
 
   it('shows current and previous mapping entries in the calibration dialog', async () => {
     renderHub({
-      activeTextTimelineMode: 'document',
+      exportTimelineModeLabel: 'document',
       activeTextTimeMapping: {
         offsetSec: 5,
         scale: 1.5,
@@ -303,7 +313,7 @@ describe('LeftRailProjectHub project import dialog', () => {
 
   it('fills the calibration form when a history entry is clicked', async () => {
     renderHub({
-      activeTextTimelineMode: 'document',
+      exportTimelineModeLabel: 'document',
       activeTextTimeMapping: {
         offsetSec: 5,
         scale: 1.5,
@@ -339,7 +349,7 @@ describe('LeftRailProjectHub project import dialog', () => {
   it('shows source-media mismatch prompt and can reset to identity mapping', async () => {
     const { onApplyTextTimeMapping } = renderHub({
       selectedMediaId: 'media-current',
-      activeTextTimelineMode: 'document',
+      exportTimelineModeLabel: 'document',
       activeTextTimeMapping: {
         offsetSec: 5,
         scale: 1.5,
@@ -352,7 +362,11 @@ describe('LeftRailProjectHub project import dialog', () => {
     const exportText = await screen.findByText('导出');
     fireEvent.mouseEnter(exportText.closest('button') as HTMLButtonElement);
 
-    expect(await screen.findByText('映射来源媒体与当前媒体不一致（来源 media-source，当前 media-current）')).toBeTruthy();
+    expect(
+      await screen.findByText(
+        '映射来源媒体与当前媒体不一致（来源 media-source，当前 media-current）',
+      ),
+    ).toBeTruthy();
     fireEvent.click(await screen.findByText('重置为恒等映射（offset=0, scale=1）'));
 
     await waitFor(() => {
@@ -362,7 +376,7 @@ describe('LeftRailProjectHub project import dialog', () => {
 
   it('rejects negative offset in calibration dialog before applying', async () => {
     const { onApplyTextTimeMapping } = renderHub({
-      activeTextTimelineMode: 'document',
+      exportTimelineModeLabel: 'document',
       activeTextTimeMapping: {
         offsetSec: 1,
         scale: 1.1,
@@ -381,7 +395,11 @@ describe('LeftRailProjectHub project import dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: '应用映射' }));
 
     await waitFor(() => {
-      expect(showToastMock).toHaveBeenCalledWith('请输入不小于 0 的偏移秒数与大于 0 的时间倍率。', 'error', 0);
+      expect(showToastMock).toHaveBeenCalledWith(
+        '请输入不小于 0 的偏移秒数与大于 0 的时间倍率。',
+        'error',
+        0,
+      );
     });
     expect(onApplyTextTimeMapping).not.toHaveBeenCalled();
   });

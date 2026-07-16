@@ -21,7 +21,7 @@ export interface TimelineReadModel {
   layers: {
     transcriptionLayerIds: string[];
     translationLayerIds: string[];
-    activeTextTimelineMode?: 'document' | 'media' | null;
+    exportTimelineModeLabel?: 'document' | 'media' | null;
   };
   selection: {
     selectedTimelineUnit: TimelineUnit | null;
@@ -65,7 +65,7 @@ export interface BuildTimelineReadModelInput {
   selectedTimelineUnit: TimelineUnit | null;
   selectedUnitIds: string[];
   activeLayerIdForEdits?: string;
-  activeTextTimelineMode?: 'document' | 'media' | null;
+  exportTimelineModeLabel?: 'document' | 'media' | null;
   documentSpanSec?: number;
   zoomPxPerSec?: number;
   fitPxPerSec?: number;
@@ -128,8 +128,8 @@ export function buildTimelineReadModel(input: BuildTimelineReadModelInput): Time
     layers: {
       transcriptionLayerIds: input.transcriptionLayerIds,
       translationLayerIds: input.translationLayerIds,
-      ...(input.activeTextTimelineMode !== undefined
-        ? { activeTextTimelineMode: input.activeTextTimelineMode }
+      ...(input.exportTimelineModeLabel !== undefined
+        ? { exportTimelineModeLabel: input.exportTimelineModeLabel }
         : {}),
     },
     selection: {

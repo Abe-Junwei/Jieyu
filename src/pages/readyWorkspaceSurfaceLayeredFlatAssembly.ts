@@ -1,6 +1,7 @@
 import type { BuildReadyWorkspaceViewModelsSurfacePhaseDeps } from './buildReadyWorkspaceViewModelsSurfacePhaseDeps';
 import type { UseReadyWorkspaceViewModelsAndSurfacePhaseParams } from './useReadyWorkspaceViewModelsAndSurfacePhase';
 import { formatTime } from '../utils/transcriptionFormatters';
+import { timelineSelectionUnitIdsSet } from '../utils/timelineSelectionProjection';
 
 export function buildReadyWorkspaceSurfaceLayeredFlatAssembly(
   deps: BuildReadyWorkspaceViewModelsSurfacePhaseDeps,
@@ -12,7 +13,7 @@ export function buildReadyWorkspaceSurfaceLayeredFlatAssembly(
     selectedMediaUrl: deps.data.selectedMediaUrl,
     segmentScopeMediaId: deps.domainShell.segmentScopeMediaId,
     verticalViewActive: deps.pre.verticalViewActive,
-    activeTextTimelineMode: deps.domainShell.activeTextTimelineMode,
+    exportTimelineModeLabel: deps.domainShell.exportTimelineModeLabel,
     activeTextTimeMapping: deps.domainShell.activeTextTimeMapping,
     canUndo: deps.data.canUndo,
     canRedo: deps.data.canRedo,
@@ -21,14 +22,17 @@ export function buildReadyWorkspaceSurfaceLayeredFlatAssembly(
     showUndoHistory: deps.domainShell.showUndoHistory,
     setShowUndoHistory: deps.domainShell.setShowUndoHistory,
     redo: deps.data.redo,
-    selectedTimelineUnit: deps.data.selectedTimelineUnit,
+    selectedTimelineUnit:
+      deps.timeline.timelineReadModel.selectionProjection.focus ?? deps.data.selectedTimelineUnit,
     activeTimelineUnitId: deps.domainShell.activeTimelineUnitId,
     recordTimelineEdit: deps.bootstrap.recordTimelineEdit,
     undoToHistoryIndex: deps.data.undoToHistoryIndex,
     setShowProjectSetup: deps.domainShell.setShowProjectSetup,
     setShowAudioImport: deps.domainShell.setShowAudioImport,
     applyTextTimeMapping: deps.data.applyTextTimeMapping,
-    selectedUnitIds: deps.data.selectedUnitIds,
+    selectedUnitIds: timelineSelectionUnitIdsSet(
+      deps.timeline.timelineReadModel.selectionProjection,
+    ),
     batchPreviewTextPropsByLayerId: deps.pre.batchPreviewTextPropsByLayerId,
     showBatchOperationPanel: deps.pre.showBatchOperationPanel,
     setShowBatchOperationPanel: deps.pre.setShowBatchOperationPanel,

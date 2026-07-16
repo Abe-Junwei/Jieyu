@@ -441,6 +441,19 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         };
       };
 
+      const syncTierFromWaveformScroll = (targetScrollLeftPx: number) => {
+        const tier = tierContainerRef.current;
+        if (!tier) return;
+        applyTimelineViewportScroll({
+          tier,
+          ws,
+          documentSpanSec: docSpanSec,
+          mediaDurSec: dur,
+          zoomPxPerSec,
+          targetScrollLeftPx,
+        });
+      };
+
       const syncFromDom = (rulerMode: 'immediate' | 'rAF' = 'rAF') => {
         const r = readRulerFromDom();
         if (!r) return;
@@ -450,13 +463,13 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         } else {
           scheduleRulerView(r.view, r.scrollLeft);
         }
-        if (tierContainerRef.current) tierContainerRef.current.scrollLeft = r.scrollLeft;
+        syncTierFromWaveformScroll(r.scrollLeft);
       };
 
       const unsubScroll = ws.on('scroll', (startTime: number, endTime: number) => {
         const sl = ws.getScroll();
         scheduleRulerView({ start: startTime, end: endTime }, sl);
-        if (tierContainerRef.current) tierContainerRef.current.scrollLeft = sl;
+        syncTierFromWaveformScroll(sl);
       });
       const unsubZoom = ws.on('zoom', () => {
         requestAnimationFrame(() => {

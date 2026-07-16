@@ -25,7 +25,7 @@ import {
 interface TimelineLaneHeaderProps {
   layer: LayerDocType;
   layerIndex: number;
-  activeTextTimelineMode?: 'document' | 'media' | null;
+  exportTimelineModeLabel?: 'document' | 'media' | null;
   allLayers: LayerDocType[];
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
   deletableLayers: LayerDocType[];
@@ -158,7 +158,7 @@ function formatTrackModeMenuLabel(locale: Locale, mode: TranscriptionTrackDispla
 export function TimelineLaneHeader({
   layer,
   layerIndex,
-  activeTextTimelineMode,
+  exportTimelineModeLabel,
   allLayers,
   onReorderLayers,
   deletableLayers,
@@ -609,7 +609,7 @@ export function TimelineLaneHeader({
             );
           })()}
         {!isCollapsed && renderLaneLabel(layer)}
-        {!isCollapsed && layerIndex === 0 && activeTextTimelineMode === 'document' && (
+        {!isCollapsed && layerIndex === 0 && exportTimelineModeLabel === 'document' && (
           <span
             className="timeline-lane-timebase-badge"
             aria-label={messages.timelineModeDocumentBadgeAriaLabel}

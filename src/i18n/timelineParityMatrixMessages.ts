@@ -26,7 +26,7 @@ export const timelineParityMatrixRowsZh = {
   'segment-range-gesture-single-surface': {
     labelZh: '语段范围拖建单一反馈面（波形空区 / 轨面套索 / Regions 插件收敛到同一产品状态）',
     verticalGapZh:
-      '纵向对读以编辑与导航为主；tier 内轨面套索链已禁（tierTimelineLassoSuppressed），对读子树点击与清选由 useLasso 排除列表与 useLasso.test.tsx 回归覆盖；与横向轨面拖建完全等价仍待阶段 F。',
+      '【产品拍板 2026-06-26：永久不做】纵向对读以编辑与导航为主；tier 内轨面套索链已禁（tierTimelineLassoSuppressed）。横向 waveform / textOnly 已 full；纵向 partial 为 intentional gap，非待补代码。',
   },
   'phase-f-range-preview-ssot': {
     labelZh: '阶段 F·1：语段范围拖建预览状态单一读模型 + 波形桥单 reducer 写者',
@@ -43,12 +43,15 @@ export const timelineParityMatrixRowsZh = {
     labelZh: '阶段 F·3：空时间轴策略单点（EmptyTimelinePolicy → TimelineEmptyState / content VM）',
   },
   'layer-link-connector': {
-    labelZh: '层连接器显示',
-    verticalGapZh: '纵向层头已移除无解释恒灰项；连接器与多轨对齐细节仍按产品迭代。',
+    labelZh:
+      '层连接器显示（textOnly/vertical：不要求与 waveform 轨头 SVG 等价，intentional partial）',
+    verticalGapZh:
+      '【产品拍板 2026-06-26：文档化 gap】纵向层头连接器 UX 不与 waveform 完全等价；segment 宿主数据路径仍走共享 resolveSegmentTimelineSourceLayer（§3.2 全量择优）。',
   },
   'acoustic-waveform-vad': {
-    labelZh: '声学相关（波形 / overlay / VAD）',
-    verticalGapZh: '无宿主媒体或文献壳下统一降级；与 playableAcoustic / acousticPending 合同一致。',
+    labelZh: '声学相关（波形 / overlay / VAD；textOnly/vertical 不暴露 VAD，intentional partial）',
+    verticalGapZh:
+      '【产品拍板 2026-06-26：文档化降级】无 waveform 宿主时不暴露 VAD/自动分句；轴状态条仍按 playableAcoustic / acousticPending 合同降级。',
   },
   'zoom-scroll': {
     labelZh: '缩放与滚动',
@@ -60,7 +63,7 @@ export const timelineParityMatrixRowsZh = {
     labelZh: 'timelineMode 运行时收敛（占位判定不显式读 document；删音/导音元数据写路径）',
   },
   'project-hub-time-mapping-modeless': {
-    labelZh: 'Project Hub 时间映射与导出提示（不依赖 activeTextTimelineMode；预览公式单点）',
+    labelZh: 'Project Hub 时间映射与导出提示（不依赖 exportTimelineModeLabel；预览公式单点）',
   },
   'g3-lane-draft-editor-cell-shared': {
     labelZh: 'G3 lane 草稿格深共享（TimelineLaneDraftEditorCell：横向语段格 + 纵向对读）',

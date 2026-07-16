@@ -76,6 +76,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     unitsOnCurrentMedia: units,
     getUnitSpeakerKey: (unit) => unit.speakerId ?? '',
     rulerView: null,
+    timelineExtentSec: 12,
     playerDuration: 12,
     translations: [],
     selectedBatchUnits: [units[0]!],
@@ -119,6 +120,25 @@ describe('useTranscriptionTimelineController', () => {
       'utt-2',
     ]);
     expect(result.current.timelineRenderUnits.map((item) => item.id)).toEqual(['utt-2']);
+  });
+
+  it('uses timelineExtentSec (not playerDuration) as viewport cull right bound in extended-document mode', () => {
+    const units = [
+      makeUnit('before-acoustic', 50, 55, 'spk-a'),
+      makeUnit('beyond-acoustic', 150, 155, 'spk-a'),
+    ];
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineController(
+        createBaseInput({
+          unitsOnCurrentMedia: units,
+          playerDuration: 100,
+          timelineExtentSec: 200,
+          rulerView: { start: 140, end: 160 },
+        }),
+      ),
+    );
+
+    expect(result.current.timelineRenderUnits.map((item) => item.id)).toEqual(['beyond-acoustic']);
   });
 
   it('keeps latest translation audio mapping and batch/editor context composition', () => {

@@ -28,6 +28,7 @@ import {
 import type { UseOrchestratorViewModelsInput } from './useOrchestratorViewModels';
 import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
 import type { EmptyTimelinePolicy } from '../utils/emptyTimelinePolicy';
+import type { TimelineSelectionProjection } from '../utils/timelineSelectionProjection';
 import { timeRangeDragPreviewFromSegmentRangeGesturePreview } from '../utils/segmentRangeGesturePreviewReadModel';
 
 /**
@@ -50,6 +51,8 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel;
   /** 阶段 F：空时间轴策略；与 `TimelineReadModel.emptyTimeline` 同源。 */
   emptyTimelinePolicy?: EmptyTimelinePolicy;
+  /** 阶段 F：选集只读投影；宿主读路径消费此字段，勿平行解析 `selectedUnitIds`。 */
+  selectionProjection: TimelineSelectionProjection;
   timelineRenderUnits: TimelineHorizontalProjectionLaneProps['timelineRenderUnits'];
   defaultTranscriptionLayerId: TimelineHorizontalProjectionLaneProps['defaultTranscriptionLayerId'];
   textOnlyLogicalDurationSec?: number;
@@ -311,6 +314,7 @@ export function buildOrchestratorViewModelsInput(
     ...(input.emptyTimelinePolicy !== undefined
       ? { emptyTimelinePolicy: input.emptyTimelinePolicy }
       : {}),
+    selectionProjection: input.selectionProjection,
     locale,
     importFileRef,
     layerActionSetCreateTranscription: () =>

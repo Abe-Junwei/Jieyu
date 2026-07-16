@@ -1,5 +1,6 @@
 import type { BuildReadyWorkspaceViewModelsSurfacePhaseDeps } from './buildReadyWorkspaceViewModelsSurfacePhaseDeps';
 import type { UseReadyWorkspaceViewModelsAndSurfacePhaseParams } from './useReadyWorkspaceViewModelsAndSurfacePhase';
+import { timelineSelectionUnitIdsSet } from '../utils/timelineSelectionProjection';
 
 export function buildReadyWorkspaceSurfaceNestedOrchestratorSlices(
   deps: BuildReadyWorkspaceViewModelsSurfacePhaseDeps,
@@ -38,7 +39,9 @@ export function buildReadyWorkspaceSurfaceNestedOrchestratorSlices(
     handleLaneLabelWidthResizeStart: deps.pre.handleLaneLabelWidthResizeStart,
     videoPreviewHeight: deps.pre.videoPreviewHeight,
     waveformRegions: deps.waveform.waveformRegions,
-    selectedUnitIds: deps.data.selectedUnitIds,
+    selectedUnitIds: timelineSelectionUnitIdsSet(
+      deps.timeline.timelineReadModel.selectionProjection,
+    ),
     activeTimelineUnitId: deps.domainShell.activeTimelineUnitId,
     segmentLoopPlayback: deps.waveform.segmentLoopPlayback,
     subSelectionRange: deps.waveform.subSelectionRange,
@@ -90,7 +93,8 @@ export function buildReadyWorkspaceSurfaceNestedOrchestratorSlices(
     setCtxMenu: deps.pre.setCtxMenu,
     uttOpsMenu: deps.pre.uttOpsMenu,
     setUttOpsMenu: deps.pre.setUttOpsMenu,
-    selectedTimelineUnit: deps.data.selectedTimelineUnit,
+    selectedTimelineUnit:
+      deps.timeline.timelineReadModel.selectionProjection.focus ?? deps.data.selectedTimelineUnit,
     runOverlayDeleteSelection: deps.bootstrap.runOverlayDeleteSelection,
     runOverlayMergeSelection: deps.bootstrap.runOverlayMergeSelection,
     runSelectBefore: deps.bootstrap.runSelectBefore,

@@ -27,6 +27,8 @@ interface UseTranscriptionTimelineControllerInput {
   unitsOnCurrentMedia: LayerUnitDocType[];
   getUnitSpeakerKey: (unit: LayerUnitDocType) => string;
   rulerView: RulerViewLike | null;
+  /** 时间轴显示跨度（与 read model `timeline.extentSec` 同源）；视窗裁剪右边界须用此值而非仅 `playerDuration`。 */
+  timelineExtentSec: number;
   playerDuration: number;
   translations: SearchableTranslationLike[];
   selectedBatchUnits: LayerUnitDocType[];
@@ -80,17 +82,18 @@ export function useTranscriptionTimelineController(
 
   /** 视窗裁剪：减少轨上单元数量；长列表 DOM 级虚拟化见 `@tanstack/react-virtual` 路线图（TranscriptionTimelineHorizontalMediaLanes）。 */
   const timelineRenderUnits = useMemo(() => {
-    if (!input.rulerView || input.playerDuration <= 0) {
+    const extentSec = input.timelineExtentSec > 0 ? input.timelineExtentSec : input.playerDuration;
+    if (!input.rulerView || extentSec <= 0) {
       return filteredUnitsOnCurrentMedia;
     }
     const viewSpan = Math.max(0, input.rulerView.end - input.rulerView.start);
     const buffer = Math.max(1, viewSpan * 0.45);
     const left = Math.max(0, input.rulerView.start - buffer);
-    const right = Math.min(input.playerDuration, input.rulerView.end + buffer);
+    const right = Math.min(extentSec, input.rulerView.end + buffer);
     return filteredUnitsOnCurrentMedia.filter(
       (unit) => unit.endTime >= left && unit.startTime <= right,
     );
-  }, [filteredUnitsOnCurrentMedia, input.playerDuration, input.rulerView]);
+  }, [filteredUnitsOnCurrentMedia, input.timelineExtentSec, input.playerDuration, input.rulerView]);
 
   const translationAudioByLayer = useMemo(() => {
     const outer = new Map<string, Map<string, LayerUnitContentDocType>>();

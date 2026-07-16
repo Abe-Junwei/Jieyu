@@ -18,7 +18,7 @@ import {
   getUndoLabel,
   resolveProjectionLayerIdsForNewUnit,
 } from './useTranscriptionUnitActions.helpers';
-import type { SaveState, SnapGuide } from './transcriptionTypes';
+import type { SaveState } from './transcriptionTypes';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import {
   withUnitTextLayerId,
@@ -47,7 +47,6 @@ export interface TimelineMutationDeps {
     anchorId: string,
     newTime: number,
   ) => Promise<void>;
-  setSnapGuide: React.Dispatch<React.SetStateAction<SnapGuide>>;
   createAnchor: (
     db: Awaited<ReturnType<typeof getDb>>,
     mediaId: string,
@@ -82,7 +81,6 @@ export function createSaveUnitTiming(
     | 'timingGestureRef'
     | 'timingUndoRef'
     | 'updateAnchorTime'
-    | 'setSnapGuide'
     | 'allowOverlapInTranscription'
   >,
 ) {
@@ -94,7 +92,6 @@ export function createSaveUnitTiming(
     timingGestureRef,
     timingUndoRef,
     updateAnchorTime,
-    setSnapGuide,
     allowOverlapInTranscription,
   } = deps;
 
@@ -138,8 +135,6 @@ export function createSaveUnitTiming(
       : next
         ? next.startTime - gap
         : Number.POSITIVE_INFINITY;
-
-    setSnapGuide({ visible: false });
 
     if (Number.isFinite(upperBound) && upperBound - lowerBound < minSpan) {
       reportValidationError({

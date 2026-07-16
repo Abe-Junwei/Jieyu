@@ -68,7 +68,7 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
   return dropUndefinedKeys({
     transcriptionLayers: input.transcriptionLayers,
     translationLayers: input.translationLayers,
-    activeTextTimelineMode: input.activeTextTimelineMode ?? null,
+    exportTimelineModeLabel: input.exportTimelineModeLabel ?? null,
     timelineUnitViewIndex: input.timelineUnitViewIndex,
     ...(input.segmentParentUnitLookup !== undefined
       ? { segmentParentUnitLookup: input.segmentParentUnitLookup }

@@ -12,6 +12,11 @@ export type TimelineSelectionProjection = {
   activeLayerIdForEdits?: string;
 };
 
+/** 宿主/UI 读路径：由只读投影派生 Set，勿再平行维护另一份 id 集合。 */
+export function timelineSelectionUnitIdsSet(projection: TimelineSelectionProjection): Set<string> {
+  return new Set(projection.selectedIds);
+}
+
 export function buildTimelineSelectionProjection(input: {
   selectedTimelineUnit: TimelineUnit | null;
   selectedUnitIds: readonly string[];

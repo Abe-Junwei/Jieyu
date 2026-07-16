@@ -8,7 +8,7 @@ import type {
   LayerUnitContentDocType,
 } from '../../db';
 import type { TimingUndoState } from '../../utils/selectionUtils';
-import type { SaveState, SnapGuide, TimelineUnit } from './transcriptionTypes';
+import type { SaveState, TimelineUnit } from './transcriptionTypes';
 import { useTranscriptionLayerActions } from './useTranscriptionLayerActions';
 import { useTranscriptionUnitActions } from './useTranscriptionUnitActions';
 
@@ -51,7 +51,6 @@ type Params = {
   setShowLayerManager: React.Dispatch<React.SetStateAction<boolean>>;
   setSelectedLayerId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedMediaId: React.Dispatch<React.SetStateAction<string>>;
-  setSnapGuide: React.Dispatch<React.SetStateAction<SnapGuide>>;
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
   setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
   setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
@@ -90,7 +89,6 @@ export function useTranscriptionActions({
   setShowLayerManager,
   setSelectedLayerId,
   setSelectedMediaId,
-  setSnapGuide,
   setMediaItems,
   setTranslations,
   setUnits,
@@ -139,7 +137,6 @@ export function useTranscriptionActions({
     updateAnchorTime,
     pruneOrphanAnchors,
     setSaveState,
-    setSnapGuide,
     setMediaItems,
     setTranslations,
     setUnits,

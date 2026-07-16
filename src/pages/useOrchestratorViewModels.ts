@@ -8,6 +8,7 @@
 
 import type { RefObject } from 'react';
 import type { Locale } from '../i18n';
+import type { TimelineSelectionProjection } from '../utils/timelineSelectionProjection';
 import type { TranscriptionPageTimelineContentProps } from './TranscriptionPage.TimelineContent';
 import { useTranscriptionTimelineContentViewModel } from './useTranscriptionTimelineContentViewModel';
 import { useTranscriptionSectionViewModelsInput } from './useTranscriptionSectionViewModelsInput';
@@ -27,6 +28,7 @@ export interface UseOrchestratorViewModelsInput {
   layersCount: number;
   currentMediaUnitCount: number;
   emptyTimelinePolicy?: import('../utils/emptyTimelinePolicy').EmptyTimelinePolicy;
+  selectionProjection: TimelineSelectionProjection;
   locale: Locale;
   importFileRef: RefObject<HTMLInputElement | null>;
   layerActionSetCreateTranscription: () => void;
@@ -171,6 +173,7 @@ export function useOrchestratorViewModels(
     ...(input.emptyTimelinePolicy !== undefined
       ? { emptyTimelinePolicy: input.emptyTimelinePolicy }
       : {}),
+    selectionProjection: input.selectionProjection,
     locale: input.locale,
     importFileRef: input.importFileRef,
     layerActionSetCreateTranscription: input.layerActionSetCreateTranscription,

@@ -24,7 +24,7 @@ import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 export type TranscriptionTimelineWorkspacePanelProps = {
-  activeTextTimelineMode?: 'document' | 'media' | null;
+  exportTimelineModeLabel?: 'document' | 'media' | null;
   verticalViewEnabled?: boolean;
   verticalPaneFocus?: TranscriptionVerticalPaneFocusState;
   updateVerticalPaneFocus?: (patch: Partial<TranscriptionVerticalPaneFocusState>) => void;
