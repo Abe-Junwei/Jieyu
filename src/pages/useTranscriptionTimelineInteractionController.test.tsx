@@ -723,4 +723,95 @@ describe('useTranscriptionTimelineInteractionController', () => {
     });
     expect(selectTimelineUnit).not.toHaveBeenCalled();
   });
+
+  it('maps waveform region click through tier-primary coordinates when document span exceeds media', () => {
+    const seekTo = vi.fn();
+    const tierContainer = document.createElement('div');
+    Object.defineProperty(tierContainer, 'scrollLeft', {
+      configurable: true,
+      value: 1000,
+      writable: true,
+    });
+    const waveCanvas = createWaveCanvasElement();
+    Object.defineProperty(waveCanvas, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 50, top: 0, right: 450, bottom: 40, width: 400, height: 40 }),
+    });
+    const waveformInstance = createWaveformInstance();
+    waveformInstance.getDuration = vi.fn(() => 100);
+
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          documentSpanSec: 200,
+          zoomPxPerSec: 10,
+          tierContainerRef: { current: tierContainer },
+          waveCanvasRef: { current: waveCanvas },
+          player: {
+            isPlaying: false,
+            stop: vi.fn(),
+            seekTo,
+            instanceRef: { current: waveformInstance },
+          },
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleWaveformRegionClick('utt-1', 5, {
+        clientX: 250,
+        shiftKey: false,
+        metaKey: false,
+        ctrlKey: false,
+      } as MouseEvent);
+    });
+
+    expect(seekTo).toHaveBeenCalledWith(120);
+  });
+
+  it('maps alt sub-select anchor through tier-primary coordinates', () => {
+    const subSelectDragRef = { current: null as HookInput['subSelectDragRef']['current'] };
+    const tierContainer = document.createElement('div');
+    Object.defineProperty(tierContainer, 'scrollLeft', {
+      configurable: true,
+      value: 1000,
+      writable: true,
+    });
+    const waveCanvas = createWaveCanvasElement();
+    Object.defineProperty(waveCanvas, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 50, top: 0, right: 450, bottom: 40, width: 400, height: 40 }),
+    });
+    const waveformInstance = createWaveformInstance();
+    waveformInstance.getDuration = vi.fn(() => 100);
+
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          documentSpanSec: 200,
+          zoomPxPerSec: 10,
+          tierContainerRef: { current: tierContainer },
+          waveCanvasRef: { current: waveCanvas },
+          subSelectDragRef,
+          player: {
+            isPlaying: false,
+            stop: vi.fn(),
+            seekTo: vi.fn(),
+            instanceRef: { current: waveformInstance },
+          },
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleWaveformRegionAltPointerDown('utt-1', 5, 42, 250);
+    });
+
+    expect(subSelectDragRef.current).toEqual({
+      active: false,
+      regionId: 'utt-1',
+      anchorTime: 120,
+      pointerId: 42,
+    });
+  });
 });
