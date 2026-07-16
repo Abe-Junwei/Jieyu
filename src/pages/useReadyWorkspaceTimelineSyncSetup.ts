@@ -146,6 +146,7 @@ export function useReadyWorkspaceTimelineSyncSetup(
         saveUnitTiming: data.saveUnitTiming,
         setSaveState: data.setSaveState,
         beginTimingGesture: data.beginTimingGesture,
+        awaitTimingUndoPrep: data.awaitTimingUndoPrep,
         endTimingGesture: data.endTimingGesture,
         makeSnapGuide: data.makeSnapGuide,
         createUnitFromSelection: createUnitFromSelectionRouted,
