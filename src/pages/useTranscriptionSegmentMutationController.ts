@@ -503,6 +503,7 @@ export function useTranscriptionSegmentMutationController(
             recordSegmentMutationLatency('delete_selection', 'success', startedAtMs);
           } catch (error) {
             await reloadSegments();
+            await refreshSegmentUndoSnapshot();
             setSegmentMutationActionError(
               setSaveState,
               t(locale, 'transcription.unitAction.undo.deleteSelection'),

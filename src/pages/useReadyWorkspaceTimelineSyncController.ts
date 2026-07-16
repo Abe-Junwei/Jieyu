@@ -36,6 +36,9 @@ export function useReadyWorkspaceTimelineSyncController(
     setSelectedLayerId: input.resizeBridgeInput.setSelectedLayerId,
     setFocusedLayerRowId: input.resizeBridgeInput.setFocusedLayerRowId,
     beginTimingGesture: input.interactionInput.beginTimingGesture,
+    ...(input.interactionInput.awaitTimingUndoPrep
+      ? { awaitTimingUndoPrep: input.interactionInput.awaitTimingUndoPrep }
+      : {}),
     endTimingGesture: input.interactionInput.endTimingGesture,
     getNeighborBounds: interactionController.getNeighborBoundsRouted,
     makeSnapGuide: input.interactionInput.makeSnapGuide,
