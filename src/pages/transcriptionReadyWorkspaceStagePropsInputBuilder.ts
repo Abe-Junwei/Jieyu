@@ -10,6 +10,7 @@ export type BuildReadyWorkspaceStagePropsInputFromControllers = Omit<
   | 'onOpenSpeakerManagementPanel'
   | 'onDeleteCurrentProject'
   | 'onDeleteCurrentAudio'
+  | 'importFileRef'
   | 'handleImportFile'
   | 'onPreviewProjectArchiveImport'
   | 'onImportProjectArchive'
@@ -39,6 +40,7 @@ export type BuildReadyWorkspaceStagePropsInputFromControllers = Omit<
     handleDirectMediaImport: BuildReadyWorkspaceStagePropsInput['onDirectMediaImport'];
   };
   importExportController: {
+    importFileRef: BuildReadyWorkspaceStagePropsInput['importFileRef'];
     handleImportFile: BuildReadyWorkspaceStagePropsInput['handleImportFile'];
     previewProjectArchiveImport: BuildReadyWorkspaceStagePropsInput['onPreviewProjectArchiveImport'];
     importProjectArchive: BuildReadyWorkspaceStagePropsInput['onImportProjectArchive'];
@@ -84,6 +86,7 @@ export function buildReadyWorkspaceStagePropsInput(
     onOpenSpeakerManagementPanel: speakerController.handleOpenSpeakerManagementPanel,
     onDeleteCurrentProject: projectMediaController.handleDeleteCurrentProject,
     onDeleteCurrentAudio: projectMediaController.handleDeleteCurrentAudio,
+    importFileRef: importExportController.importFileRef,
     handleImportFile: importExportController.handleImportFile,
     onPreviewProjectArchiveImport: importExportController.previewProjectArchiveImport,
     onImportProjectArchive: importExportController.importProjectArchive,

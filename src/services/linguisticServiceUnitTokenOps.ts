@@ -66,10 +66,32 @@ export async function getTokensByUnitId(unitId: string): Promise<UnitTokenDocTyp
   return docs.map((doc) => doc.toJSON()).sort((a, b) => a.tokenIndex - b.tokenIndex);
 }
 
+/** Batch-load tokens for export (FLEx / Toolbox). */
+export async function listTokensByUnitIds(unitIds: readonly string[]): Promise<UnitTokenDocType[]> {
+  const ids = [...new Set(unitIds.map((id) => id.trim()).filter((id) => id.length > 0))];
+  if (ids.length === 0) return [];
+  const db = await getDb();
+  const rows = await db.dexie.unit_tokens.where('unitId').anyOf(ids).toArray();
+  return rows.sort((a, b) => a.unitId.localeCompare(b.unitId) || a.tokenIndex - b.tokenIndex);
+}
+
 export async function getMorphemesByTokenId(tokenId: string): Promise<UnitMorphemeDocType[]> {
   const db = await getDb();
   const docs = await db.collections.unit_morphemes.findByIndex('tokenId', tokenId);
   return docs.map((doc) => doc.toJSON()).sort((a, b) => a.morphemeIndex - b.morphemeIndex);
+}
+
+/** Batch-load morphemes for export (FLEx / Toolbox). */
+export async function listMorphemesByTokenIds(
+  tokenIds: readonly string[],
+): Promise<UnitMorphemeDocType[]> {
+  const ids = [...new Set(tokenIds.map((id) => id.trim()).filter((id) => id.length > 0))];
+  if (ids.length === 0) return [];
+  const db = await getDb();
+  const rows = await db.dexie.unit_morphemes.where('tokenId').anyOf(ids).toArray();
+  return rows.sort(
+    (a, b) => a.tokenId.localeCompare(b.tokenId) || a.morphemeIndex - b.morphemeIndex,
+  );
 }
 
 export async function saveToken(data: UnitTokenDocType): Promise<string> {

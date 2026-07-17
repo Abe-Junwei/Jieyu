@@ -3,8 +3,13 @@ import type {
   LayerDocType,
   LayerUnitDocType,
   LayerUnitContentDocType,
+  TokenLexemeLinkDocType,
+  UnitMorphemeDocType,
+  UnitTokenDocType,
 } from '../../db';
+import { getDb } from '../../db';
 import type { EafImportResult } from '../../services/EafService';
+import { LinguisticService } from '../../services/LinguisticService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { LayerSegmentationV2Service } from '../../services/LayerSegmentationV2Service';
@@ -16,12 +21,132 @@ import {
   writeImportLayerNameAudit,
 } from './useImportExport.importHelpers';
 
+type AdditionalTierToken = {
+  form: Record<string, string>;
+  gloss?: Record<string, string>;
+  pos?: string;
+  morphemes?: Array<{
+    form: Record<string, string>;
+    gloss?: Record<string, string>;
+    pos?: string;
+  }>;
+};
+
 type AdditionalTierAnnotation = {
   startTime: number;
   endTime: number;
   text: string;
   annotationId?: string;
+  tokens?: AdditionalTierToken[];
 };
+
+async function resolveFormLexemeId(
+  form: Record<string, string>,
+  language: string | undefined,
+  cache: Map<string, string>,
+): Promise<string | undefined> {
+  const surface =
+    (typeof form.default === 'string' && form.default.trim()) ||
+    (typeof form.eng === 'string' && form.eng.trim()) ||
+    Object.values(form)
+      .find((value) => typeof value === 'string' && value.trim())
+      ?.trim();
+  if (!surface) return undefined;
+  const lang = language?.trim() || undefined;
+  const cacheKey = `${lang ?? ''}::${surface}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  const lexemeId = await LinguisticService.lexemes.matchOrCreateByForm({
+    form: surface,
+    ...(lang ? { language: lang } : {}),
+  });
+  if (lexemeId) cache.set(cacheKey, lexemeId);
+  return lexemeId;
+}
+
+async function persistImportedTokensForHost(input: {
+  textId: string;
+  hostUnitId: string;
+  tokens: AdditionalTierToken[];
+  now: string;
+  language?: string;
+  lexemeIdByFormKey: Map<string, string>;
+}): Promise<void> {
+  const tokenRows: UnitTokenDocType[] = [];
+  const morphRows: UnitMorphemeDocType[] = [];
+  for (const [tokenIndex, token] of input.tokens.entries()) {
+    if (!token.form || typeof token.form !== 'object') continue;
+    const tokenId = newId('tok');
+    const tokenLexemeId = await resolveFormLexemeId(
+      token.form,
+      input.language,
+      input.lexemeIdByFormKey,
+    );
+    tokenRows.push({
+      id: tokenId,
+      textId: input.textId,
+      unitId: input.hostUnitId,
+      form: token.form,
+      ...(token.gloss ? { gloss: token.gloss } : {}),
+      ...(token.pos ? { pos: token.pos } : {}),
+      ...(tokenLexemeId ? { lexemeId: tokenLexemeId } : {}),
+      tokenIndex,
+      createdAt: input.now,
+      updatedAt: input.now,
+    });
+    const morphemes = Array.isArray(token.morphemes) ? token.morphemes : [];
+    for (const [morphemeIndex, morph] of morphemes.entries()) {
+      if (!morph?.form || typeof morph.form !== 'object') continue;
+      const morphLexemeId = await resolveFormLexemeId(
+        morph.form,
+        input.language,
+        input.lexemeIdByFormKey,
+      );
+      morphRows.push({
+        id: newId('morph'),
+        textId: input.textId,
+        unitId: input.hostUnitId,
+        tokenId,
+        form: morph.form,
+        ...(morph.gloss ? { gloss: morph.gloss } : {}),
+        ...(morph.pos ? { pos: morph.pos } : {}),
+        ...(morphLexemeId ? { lexemeId: morphLexemeId } : {}),
+        morphemeIndex,
+        createdAt: input.now,
+        updatedAt: input.now,
+      });
+    }
+  }
+  if (tokenRows.length > 0) await LinguisticService.units.saveTokensBatch(tokenRows);
+  if (morphRows.length > 0) await LinguisticService.units.saveMorphemesBatch(morphRows);
+  const linkRows: TokenLexemeLinkDocType[] = [];
+  for (const token of tokenRows) {
+    if (!token.lexemeId) continue;
+    linkRows.push({
+      id: newId('tll'),
+      targetType: 'token',
+      targetId: token.id,
+      lexemeId: token.lexemeId,
+      createdAt: input.now,
+      updatedAt: input.now,
+    });
+  }
+  for (const morph of morphRows) {
+    if (!morph.lexemeId) continue;
+    linkRows.push({
+      id: newId('tll'),
+      targetType: 'morpheme',
+      targetId: morph.id,
+      lexemeId: morph.lexemeId,
+      createdAt: input.now,
+      updatedAt: input.now,
+    });
+  }
+  if (linkRows.length > 0) {
+    const db = await getDb();
+    await db.dexie.token_lexeme_links.bulkPut(linkRows);
+  }
+}
 
 type InsertedUnit = {
   id: string;
@@ -70,9 +195,11 @@ export async function importAdditionalTiers(input: {
     tierName?: string;
   }) => Promise<Array<{ layerId: string; text: string }>>;
   rememberLayer: (layer: LayerDocType) => void;
+  lexemeIdByFormKey: Map<string, string>;
 }) {
   let tierCount = 0;
   let skippedIndependentTierSegmentCount = 0;
+  let droppedTranslationSegmentCount = 0;
 
   const existingTrcLayers = [
     ...input.layers.filter((layer) => layer.layerType === 'transcription'),
@@ -141,7 +268,8 @@ export async function importAdditionalTiers(input: {
         if (!annotation.text.trim()) continue;
         const annStart = Number(annotation.startTime.toFixed(3));
         const annEnd = Number(annotation.endTime.toFixed(3));
-        if (annEnd - annStart < 0.01) continue;
+        // PointTier / TextTier import as zero-duration intervals (start === end); only skip inverted ranges.
+        if (annEnd < annStart) continue;
         const writes = await input.planImportedWrites({
           text: annotation.text,
           ...(importedTierMeta?.orthographyId !== undefined
@@ -182,6 +310,16 @@ export async function importAdditionalTiers(input: {
               updatedAt: segNow,
             },
           );
+          if (Array.isArray(annotation.tokens) && annotation.tokens.length > 0) {
+            await persistImportedTokensForHost({
+              textId: importTextId,
+              hostUnitId: segId,
+              tokens: annotation.tokens,
+              now: segNow,
+              language: importedTierMeta?.languageId ?? 'und',
+              lexemeIdByFormKey: input.lexemeIdByFormKey,
+            });
+          }
         }
       }
       continue;
@@ -289,52 +427,55 @@ export async function importAdditionalTiers(input: {
         : humanizedName;
 
     for (const annotation of annotations) {
+      if (!annotation.text.trim()) continue;
       const annStart = Number(annotation.startTime.toFixed(3));
       const annEnd = Number(annotation.endTime.toFixed(3));
       const match = input.insertedUnits.find(
         (unit) =>
           Math.abs(unit.startTime - annStart) < 0.05 && Math.abs(unit.endTime - annEnd) < 0.05,
       );
-      if (match && annotation.text.trim()) {
-        const preferredHostForWrites = existingMatch
-          ? ((await resolvePreferredHostTranscriptionLayerIdForTranslationImport(
-              input.db,
-              existingMatch.id,
-            )) ?? importPreferredHostTranscriptionLayerId)
-          : importPreferredHostTranscriptionLayerId;
-        const writes = await input.planImportedWrites({
-          text: annotation.text,
-          ...(importedTierMeta?.orthographyId !== undefined
-            ? { sourceOrthographyId: importedTierMeta.orthographyId }
-            : {}),
-          ...(importedTierBridgeId !== undefined ? { bridgeId: importedTierBridgeId } : {}),
-          targetLayerId: layerId,
-          baseLabel: translationBaseLabel,
-          languageId: tierLang,
-          layerType: 'translation',
-          keyPrefix: 'trl_import_source',
-          ...(input.eafResult?.tierConstraints?.get(tierName)?.constraint
-            ? { constraint: input.eafResult.tierConstraints.get(tierName)?.constraint }
-            : {}),
-          ...(preferredHostForWrites
-            ? { preferredHostTranscriptionLayerId: preferredHostForWrites }
-            : {}),
-          tierName,
-        });
-        for (const write of writes) {
-          const doc: LayerUnitContentDocType = {
-            id: newId('utr'),
-            unitId: match.id,
-            layerId: write.layerId,
-            modality: 'text' as const,
-            text: write.text,
-            sourceType: 'human' as const,
-            ...(annotation.annotationId ? { externalRef: annotation.annotationId } : {}),
-            createdAt: input.now,
-            updatedAt: input.now,
-          };
-          await syncUnitTextToSegmentationV2(input.db, match.unit, doc);
-        }
+      if (!match) {
+        droppedTranslationSegmentCount += 1;
+        continue;
+      }
+      const preferredHostForWrites = existingMatch
+        ? ((await resolvePreferredHostTranscriptionLayerIdForTranslationImport(
+            input.db,
+            existingMatch.id,
+          )) ?? importPreferredHostTranscriptionLayerId)
+        : importPreferredHostTranscriptionLayerId;
+      const writes = await input.planImportedWrites({
+        text: annotation.text,
+        ...(importedTierMeta?.orthographyId !== undefined
+          ? { sourceOrthographyId: importedTierMeta.orthographyId }
+          : {}),
+        ...(importedTierBridgeId !== undefined ? { bridgeId: importedTierBridgeId } : {}),
+        targetLayerId: layerId,
+        baseLabel: translationBaseLabel,
+        languageId: tierLang,
+        layerType: 'translation',
+        keyPrefix: 'trl_import_source',
+        ...(input.eafResult?.tierConstraints?.get(tierName)?.constraint
+          ? { constraint: input.eafResult.tierConstraints.get(tierName)?.constraint }
+          : {}),
+        ...(preferredHostForWrites
+          ? { preferredHostTranscriptionLayerId: preferredHostForWrites }
+          : {}),
+        tierName,
+      });
+      for (const write of writes) {
+        const doc: LayerUnitContentDocType = {
+          id: newId('utr'),
+          unitId: match.id,
+          layerId: write.layerId,
+          modality: 'text' as const,
+          text: write.text,
+          sourceType: 'human' as const,
+          ...(annotation.annotationId ? { externalRef: annotation.annotationId } : {}),
+          createdAt: input.now,
+          updatedAt: input.now,
+        };
+        await syncUnitTextToSegmentationV2(input.db, match.unit, doc);
       }
     }
   }
@@ -342,5 +483,6 @@ export async function importAdditionalTiers(input: {
   return {
     tierCount,
     skippedIndependentTierSegmentCount,
+    droppedTranslationSegmentCount,
   };
 }

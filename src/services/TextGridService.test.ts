@@ -1,9 +1,20 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { exportToTextGrid, importFromTextGrid } from './TextGridService';
-import type { LayerDocType, OrthographyDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
+import type {
+  LayerDocType,
+  OrthographyDocType,
+  LayerUnitDocType,
+  LayerUnitContentDocType,
+} from '../db';
 
-function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: 'transcription' | 'translation'; key: string }): LayerDocType {
+function makeLayer(
+  overrides: Partial<LayerDocType> & {
+    id: string;
+    layerType: 'transcription' | 'translation';
+    key: string;
+  },
+): LayerDocType {
   const now = '2026-03-31T00:00:00.000Z';
   return {
     ...overrides,
@@ -36,7 +47,14 @@ function makeUnit(): LayerUnitDocType {
   } as LayerUnitDocType;
 }
 
-function makeTranslation(overrides: Partial<LayerUnitContentDocType> & { id: string; layerId: string; unitId: string; text: string }): LayerUnitContentDocType {
+function makeTranslation(
+  overrides: Partial<LayerUnitContentDocType> & {
+    id: string;
+    layerId: string;
+    unitId: string;
+    text: string;
+  },
+): LayerUnitContentDocType {
   const now = '2026-03-31T00:00:00.000Z';
   return {
     ...overrides,
@@ -51,7 +69,9 @@ function makeTranslation(overrides: Partial<LayerUnitContentDocType> & { id: str
   } as LayerUnitContentDocType;
 }
 
-function makeOrthography(overrides: Partial<OrthographyDocType> & { id: string; languageId: string }): OrthographyDocType {
+function makeOrthography(
+  overrides: Partial<OrthographyDocType> & { id: string; languageId: string },
+): OrthographyDocType {
   const now = '2026-03-31T00:00:00.000Z';
   const { id, languageId, ...restOverrides } = overrides;
   return {
@@ -87,7 +107,13 @@ describe('TextGridService tier metadata', () => {
       units: [makeUnit()],
       layers: [trc, trl],
       orthographies: [
-        makeOrthography({ id: 'ortho-ar', languageId: 'ara', scriptTag: 'Arab', regionTag: 'EG', variantTag: 'fonipa' }),
+        makeOrthography({
+          id: 'ortho-ar',
+          languageId: 'ara',
+          scriptTag: 'Arab',
+          regionTag: 'EG',
+          variantTag: 'fonipa',
+        }),
         makeOrthography({ id: 'ortho-eng', languageId: 'eng', scriptTag: 'Latn' }),
       ],
       translations: [
@@ -260,5 +286,28 @@ item []:
       [4, 4.75, 'b'],
       [9.5, 11, 'c'],
     ]);
+  });
+
+  it('imports PointTier as zero-duration intervals', () => {
+    const textGrid = `File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0
+xmax = 2
+tiers? <exists>
+size = 1
+item []:
+    item [1]:
+        class = "TextTier"
+        name = "points"
+        xmin = 0
+        xmax = 2
+        points: size = 1
+        points [1]:
+            number = 1.25
+            mark = "click"
+`;
+    const imported = importFromTextGrid(textGrid);
+    expect(imported.units).toEqual([{ startTime: 1.25, endTime: 1.25, transcription: 'click' }]);
   });
 });

@@ -9,7 +9,9 @@ import { exportToTrs, importFromTrs } from './TranscriberService';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function makeUtt(overrides: Partial<LayerUnitDocType> & { startTime: number; endTime: number }): LayerUnitDocType {
+function makeUtt(
+  overrides: Partial<LayerUnitDocType> & { startTime: number; endTime: number },
+): LayerUnitDocType {
   const { startTime, endTime, ...rest } = overrides;
   return {
     id: `u_${startTime}`,
@@ -70,8 +72,18 @@ describe('exportToTrs', () => {
   it('包含说话人与多段文本 | includes speakers and segments', () => {
     const xml = exportToTrs({
       units: [
-        makeUtt({ startTime: 0, endTime: 2, transcription: { default: 'hello' }, speakerId: 'spk1' }),
-        makeUtt({ startTime: 2, endTime: 5, transcription: { default: 'world' }, speakerId: 'spk1' }),
+        makeUtt({
+          startTime: 0,
+          endTime: 2,
+          transcription: { default: 'hello' },
+          speakerId: 'spk1',
+        }),
+        makeUtt({
+          startTime: 2,
+          endTime: 5,
+          transcription: { default: 'world' },
+          speakerId: 'spk1',
+        }),
       ],
       speakers: [{ id: 'spk1', name: 'Alice' }],
     });
@@ -84,8 +96,18 @@ describe('exportToTrs', () => {
   it('不同说话人拆分为不同 Turn | different speakers → separate Turns', () => {
     const xml = exportToTrs({
       units: [
-        makeUtt({ startTime: 0, endTime: 2, transcription: { default: 'A says' }, speakerId: 'spk1' }),
-        makeUtt({ startTime: 2, endTime: 4, transcription: { default: 'B says' }, speakerId: 'spk2' }),
+        makeUtt({
+          startTime: 0,
+          endTime: 2,
+          transcription: { default: 'A says' },
+          speakerId: 'spk1',
+        }),
+        makeUtt({
+          startTime: 2,
+          endTime: 4,
+          transcription: { default: 'B says' },
+          speakerId: 'spk2',
+        }),
       ],
       speakers: [
         { id: 'spk1', name: 'A' },
@@ -111,9 +133,7 @@ describe('exportToTrs', () => {
 
   it('无 speakerId 的 unit 生成无 speaker 属性的 Turn | no speakerId → Turn without speaker attr', () => {
     const xml = exportToTrs({
-      units: [
-        makeUtt({ startTime: 0, endTime: 1, transcription: { default: 'text' } }),
-      ],
+      units: [makeUtt({ startTime: 0, endTime: 1, transcription: { default: 'text' } })],
     });
     // Turn 应不含 speaker=
     expect(xml).toMatch(/<Turn startTime/);
@@ -127,9 +147,7 @@ describe('exportToTrs', () => {
 
   it('按正字法策略包裹 bidi 隔离符并可正确回读 | wraps bidi isolates per orthography policy and strips them on import', () => {
     const xml = exportToTrs({
-      units: [
-        makeUtt({ startTime: 0, endTime: 1.5, transcription: { default: 'مرحبا' } }),
-      ],
+      units: [makeUtt({ startTime: 0, endTime: 1.5, transcription: { default: 'مرحبا' } })],
       orthographies: [makeOrthography()],
       transcriptionLayer: makeTranscriptionLayer(),
     });
@@ -143,7 +161,12 @@ describe('exportToTrs', () => {
   it('导出并导入 Speaker xml:lang | exports and imports speaker xml:lang', () => {
     const xml = exportToTrs({
       units: [
-        makeUtt({ startTime: 0, endTime: 1, transcription: { default: 'hello' }, speakerId: 'spk1' }),
+        makeUtt({
+          startTime: 0,
+          endTime: 1,
+          transcription: { default: 'hello' },
+          speakerId: 'spk1',
+        }),
       ],
       speakers: [{ id: 'spk1', name: 'Alice', lang: 'ar' }],
     });
@@ -252,17 +275,106 @@ describe('importFromTrs', () => {
 </Trans>`;
     const result = importFromTrs(xml);
     expect(result.units[0]!.topic).toBe('intro');
+    expect(result.sectionTopics).toEqual([{ startTime: 0, endTime: 2, topic: 'intro' }]);
+  });
+
+  it('infers section topic endTime from next section or turn when attribute missing', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Trans program="test" version="1">
+  <Speakers></Speakers>
+  <Episode>
+    <Section type="report" topic="intro" startTime="0.000">
+      <Turn startTime="0.000" endTime="1.500">
+        <Sync time="0.000"/>
+        first
+      </Turn>
+    </Section>
+    <Section type="report" topic="body" startTime="1.500">
+      <Turn startTime="1.500" endTime="3.000">
+        <Sync time="1.500"/>
+        second
+      </Turn>
+    </Section>
+  </Episode>
+</Trans>`;
+    const result = importFromTrs(xml);
+    expect(result.sectionTopics).toEqual([
+      { startTime: 0, endTime: 1.5, topic: 'intro' },
+      { startTime: 1.5, endTime: 3, topic: 'body' },
+    ]);
+  });
+
+  it('parses speaker dialect/accent and preserves them on export', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Trans program="test" version="1">
+  <Speakers>
+    <Speaker id="spk1" name="Alice" xml:lang="eng" check="yes" dialect="coastal" accent="rhotic" scope="local" />
+  </Speakers>
+  <Episode>
+    <Section type="report" startTime="0.000" endTime="1.000">
+      <Turn speaker="spk1" startTime="0.000" endTime="1.000">
+        <Sync time="0.000"/>
+        hello
+      </Turn>
+    </Section>
+  </Episode>
+</Trans>`;
+    const imported = importFromTrs(xml);
+    expect(imported.speakers[0]).toMatchObject({
+      id: 'spk1',
+      name: 'Alice',
+      lang: 'eng',
+      dialect: 'coastal',
+      accent: 'rhotic',
+      check: 'yes',
+      scope: 'local',
+    });
+    const exported = exportToTrs({
+      units: [
+        {
+          id: 'u1',
+          textId: 't1',
+          startTime: 0,
+          endTime: 1,
+          speakerId: 'spk1',
+          transcription: { default: 'hello' },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      speakers: imported.speakers,
+    });
+    expect(exported).toContain('dialect="coastal"');
+    expect(exported).toContain('accent="rhotic"');
   });
 
   it('往返一致性 | round-trip consistency', () => {
     const original = [
-      makeUtt({ startTime: 0, endTime: 2, transcription: { default: 'Line one' }, speakerId: 'spk1' }),
-      makeUtt({ startTime: 2, endTime: 4.5, transcription: { default: 'Line two' }, speakerId: 'spk1' }),
-      makeUtt({ startTime: 4.5, endTime: 7, transcription: { default: 'New speaker' }, speakerId: 'spk2' }),
+      makeUtt({
+        startTime: 0,
+        endTime: 2,
+        transcription: { default: 'Line one' },
+        speakerId: 'spk1',
+      }),
+      makeUtt({
+        startTime: 2,
+        endTime: 4.5,
+        transcription: { default: 'Line two' },
+        speakerId: 'spk1',
+      }),
+      makeUtt({
+        startTime: 4.5,
+        endTime: 7,
+        transcription: { default: 'New speaker' },
+        speakerId: 'spk2',
+      }),
     ];
     const xml = exportToTrs({
       units: original,
-      speakers: [{ id: 'spk1', name: 'Alice' }, { id: 'spk2', name: 'Bob' }],
+      speakers: [
+        { id: 'spk1', name: 'Alice' },
+        { id: 'spk2', name: 'Bob' },
+      ],
     });
     const imported = importFromTrs(xml);
     expect(imported.units).toHaveLength(3);
@@ -270,5 +382,46 @@ describe('importFromTrs', () => {
     expect(imported.units[0]!.speakerId).toBe('spk1');
     expect(imported.units[2]!.speakerId).toBe('spk2');
     expect(imported.speakers).toHaveLength(2);
+  });
+
+  it('prefers canonical layer_unit_contents text over empty transcription.default', () => {
+    const units = [
+      makeUtt({
+        id: 'u1',
+        startTime: 0,
+        endTime: 1,
+        transcription: { default: '' },
+        speakerId: 'spk1',
+      }),
+    ];
+    const layer = {
+      id: 'layer_trc',
+      textId: 'text_1',
+      key: 'trc',
+      name: { eng: 'tx' },
+      layerType: 'transcription' as const,
+      languageId: 'eng',
+      modality: 'text' as const,
+      isDefault: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const xml = exportToTrs({
+      units,
+      transcriptionLayer: layer,
+      translations: [
+        {
+          id: 'c1',
+          unitId: 'u1',
+          layerId: 'layer_trc',
+          modality: 'text',
+          text: 'from contents',
+          sourceType: 'human',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+    expect(xml).toContain('from contents');
   });
 });

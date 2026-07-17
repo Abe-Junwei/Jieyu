@@ -5,13 +5,31 @@
  * which is the most common variant.
  */
 
-import type { LayerDocType, LayerSegmentViewDocType, LayerUnitContentDocType, LayerUnitContentViewDocType, LayerUnitDocType, UserNoteDocType, OrthographyDocType } from '../db';
+import type {
+  LayerDocType,
+  LayerSegmentViewDocType,
+  LayerUnitContentDocType,
+  LayerUnitContentViewDocType,
+  LayerUnitDocType,
+  UserNoteDocType,
+  OrthographyDocType,
+} from '../db';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
-import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
-import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
+import {
+  stripPlainTextBidiIsolation,
+  wrapPlainTextWithBidiIsolation,
+} from '../utils/bidiPlainText';
+import {
+  buildOrthographyInteropMetadata,
+  parseOrthographyInteropMetadata,
+  type OrthographyInteropMetadata,
+} from '../utils/orthographyInteropMetadata';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 
-type TimelineInteropMetadata = Pick<OrthographyInteropMetadata, 'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'>;
+type TimelineInteropMetadata = Pick<
+  OrthographyInteropMetadata,
+  'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'
+>;
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -37,11 +55,14 @@ export interface TextGridImportResult {
     transcription: string;
   }>;
   /** Additional tiers keyed by name */
-  additionalTiers: Map<string, Array<{
-    startTime: number;
-    endTime: number;
-    text: string;
-  }>>;
+  additionalTiers: Map<
+    string,
+    Array<{
+      startTime: number;
+      endTime: number;
+      text: string;
+    }>
+  >;
   /** Name of the first IntervalTier | 首层名称 */
   transcriptionTierName?: string;
   /** 项目级逻辑时间元数据 | Project-level logical timeline metadata */
@@ -57,7 +78,10 @@ function encodeTierNameWithMetadata(name: string, metadata?: OrthographyInteropM
   return `${name}${TEXTGRID_TIER_META_MARKER}${encodeURIComponent(JSON.stringify(metadata))}`;
 }
 
-function decodeTierNameWithMetadata(name: string): { name: string; metadata?: OrthographyInteropMetadata } {
+function decodeTierNameWithMetadata(name: string): {
+  name: string;
+  metadata?: OrthographyInteropMetadata;
+} {
   const markerIndex = name.indexOf(TEXTGRID_TIER_META_MARKER);
   if (markerIndex < 0) return { name };
   const baseName = name.slice(0, markerIndex) || name;
@@ -73,7 +97,9 @@ function decodeTierNameWithMetadata(name: string): { name: string; metadata?: Or
 
 // ── Export ───────────────────────────────────────────────────
 
-function extractTimelineMetadata(metadata?: OrthographyInteropMetadata): TimelineInteropMetadata | undefined {
+function extractTimelineMetadata(
+  metadata?: OrthographyInteropMetadata,
+): TimelineInteropMetadata | undefined {
   if (!metadata) return undefined;
   const timelineMode = metadata.timelineMode;
   const logicalDurationSec = metadata.logicalDurationSec;
@@ -91,7 +117,16 @@ function escapeTextGridString(s: string): string {
 }
 
 export function exportToTextGrid(input: TextGridExportInput): string {
-  const { units, layers, translations, orthographies, userNotes, timelineMetadata, segmentsByLayer, segmentContents } = input;
+  const {
+    units,
+    layers,
+    translations,
+    orthographies,
+    userNotes,
+    timelineMetadata,
+    segmentsByLayer,
+    segmentContents,
+  } = input;
   const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   if (sorted.length === 0) return '';
 
@@ -107,7 +142,11 @@ export function exportToTextGrid(input: TextGridExportInput): string {
   const tiers: TierEntry[] = [];
   const wrapLayerText = (text: string, layer?: LayerDocType) => {
     if (!layer?.languageId) return text;
-    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
+    const renderPolicy = resolveOrthographyRenderPolicy(
+      layer.languageId,
+      orthographies,
+      layer.orthographyId,
+    );
     return wrapPlainTextWithBidiIsolation(text, renderPolicy);
   };
 
@@ -120,7 +159,9 @@ export function exportToTextGrid(input: TextGridExportInput): string {
   const transcriptionIntervals = buildIntervalsWithGaps(
     sorted.map((u) => {
       const tr = defaultTrcId
-        ? translations.find((t) => t.unitId === u.id && t.layerId === defaultTrcId && t.modality === 'text')
+        ? translations.find(
+            (t) => t.unitId === u.id && t.layerId === defaultTrcId && t.modality === 'text',
+          )
         : undefined;
       return {
         xmin: u.startTime,
@@ -136,13 +177,17 @@ export function exportToTextGrid(input: TextGridExportInput): string {
     ...(timelineMetadata ?? {}),
   };
   tiers.push({
-    name: encodeTierNameWithMetadata('transcription', Object.keys(transcriptionTierMetadata).length > 0 ? transcriptionTierMetadata : undefined),
+    name: encodeTierNameWithMetadata(
+      'transcription',
+      Object.keys(transcriptionTierMetadata).length > 0 ? transcriptionTierMetadata : undefined,
+    ),
     intervals: transcriptionIntervals,
   });
 
   // Additional tiers: non-default transcription layers + translation layers
   const additionalLayers = layers.filter(
-    (l) => l.layerType === 'translation' || (l.layerType === 'transcription' && l.id !== defaultTrcId),
+    (l) =>
+      l.layerType === 'translation' || (l.layerType === 'transcription' && l.id !== defaultTrcId),
   );
   for (const layer of additionalLayers) {
     const tierName = encodeTierNameWithMetadata(
@@ -157,7 +202,11 @@ export function exportToTextGrid(input: TextGridExportInput): string {
     if (segs && segs.length > 0) {
       const contentMap = segmentContents?.get(layer.id);
       const intervals = buildIntervalsWithGaps(
-        segs.map((seg) => ({ xmin: seg.startTime, xmax: seg.endTime, text: wrapLayerText(contentMap?.get(seg.id)?.text ?? '', layer) })),
+        segs.map((seg) => ({
+          xmin: seg.startTime,
+          xmax: seg.endTime,
+          text: wrapLayerText(contentMap?.get(seg.id)?.text ?? '', layer),
+        })),
         globalXmin,
         globalXmax,
       );
@@ -193,10 +242,12 @@ export function exportToTextGrid(input: TextGridExportInput): string {
       sorted.map((u) => {
         const uttNotes = notesByUtt.get(u.id);
         const text = uttNotes
-          ? uttNotes.map((n) => {
-              const prefix = n.category ? `[${n.category}] ` : '';
-              return prefix + (n.content['default'] ?? Object.values(n.content)[0] ?? '');
-            }).join(' | ')
+          ? uttNotes
+              .map((n) => {
+                const prefix = n.category ? `[${n.category}] ` : '';
+                return prefix + (n.content['default'] ?? Object.values(n.content)[0] ?? '');
+              })
+              .join(' | ')
           : '';
         return { xmin: u.startTime, xmax: u.endTime, text: stripPlainTextBidiIsolation(text) };
       }),
@@ -273,7 +324,8 @@ export function importFromTextGrid(text: string): TextGridImportResult {
     return idx < lines.length ? lines[idx]!.trim() : '';
   }
   function nextLine(): string {
-    if (idx >= lines.length) throw new Error(`TextGrid parse error: unexpected end of file at line ${idx + 1}`);
+    if (idx >= lines.length)
+      throw new Error(`TextGrid parse error: unexpected end of file at line ${idx + 1}`);
     return lines[idx++]!.trim();
   }
   function readValue(prefix: string): string {
@@ -283,7 +335,8 @@ export function importFromTextGrid(text: string): TextGridImportResult {
   }
   function readNumber(prefix: string): number {
     const val = parseFloat(readValue(prefix));
-    if (!Number.isFinite(val)) throw new Error(`TextGrid parse error: invalid number for "${prefix}"`);
+    if (!Number.isFinite(val))
+      throw new Error(`TextGrid parse error: invalid number for "${prefix}"`);
     return val;
   }
   function readQuotedString(prefix: string): string {
@@ -341,23 +394,31 @@ export function importFromTextGrid(text: string): TextGridImportResult {
       }
 
       parsedTiers.push({ name: tierName, intervals });
-    } else {
-      // Skip PointTier or other types — consume lines until next item or EOF
+    } else if (tierClass === 'TextTier' || tierClass === 'PointTier') {
+      // PointTier / TextTier → zero-duration intervals so points survive import.
       const pointCount = parseInt(readValue('points: size'), 10);
       if (!Number.isFinite(pointCount) || pointCount < 0) {
         throw new Error(`TextGrid parse error: invalid point count for tier "${tierName}"`);
       }
+      const intervals: ParsedTier['intervals'] = [];
       for (let i = 0; i < pointCount; i++) {
         nextLine(); // points [n]:
-        nextLine(); // number
-        nextLine(); // mark or value
+        const number = readNumber('number');
+        const mark = stripPlainTextBidiIsolation(readQuotedString('mark'));
+        intervals.push({ xmin: number, xmax: number, text: mark });
       }
+      parsedTiers.push({ name: tierName, intervals });
+    } else {
+      throw new Error(`TextGrid parse error: unsupported tier class "${tierClass}"`);
     }
   }
 
   // Map tier 0 → units, rest → additional
   let units: TextGridImportResult['units'] = [];
-  const additionalTiers = new Map<string, Array<{ startTime: number; endTime: number; text: string }>>();
+  const additionalTiers = new Map<
+    string,
+    Array<{ startTime: number; endTime: number; text: string }>
+  >();
 
   parsedTiers.forEach((tier, i) => {
     const nonEmpty = tier.intervals

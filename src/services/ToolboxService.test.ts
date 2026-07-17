@@ -3,12 +3,18 @@
  * Unit tests for Toolbox marker-stream (.txt) import/export
  */
 import { describe, it, expect } from 'vitest';
-import { importFromToolbox, exportToToolbox } from './ToolboxService';
+import { importFromToolbox, exportToToolbox, looksLikeToolboxContent } from './ToolboxService';
 import type { LayerUnitDocType, LayerDocType, LayerUnitContentDocType } from '../db';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function makeUtt(id: string, start: number, end: number, text: string, speakerId?: string): LayerUnitDocType {
+function makeUtt(
+  id: string,
+  start: number,
+  end: number,
+  text: string,
+  speakerId?: string,
+): LayerUnitDocType {
   return {
     id,
     mediaId: 'm1',
@@ -23,7 +29,11 @@ function makeUtt(id: string, start: number, end: number, text: string, speakerId
   } as LayerUnitDocType;
 }
 
-function makeLayer(id: string, layerType: 'transcription' | 'translation', isDefault = false): LayerDocType {
+function makeLayer(
+  id: string,
+  layerType: 'transcription' | 'translation',
+  isDefault = false,
+): LayerDocType {
   return {
     id,
     textId: 'text_1',
@@ -144,10 +154,8 @@ describe('importFromToolbox', () => {
     expect(result.units[0]!.transcription).toBe('first part second part');
   });
 
-  it('空输入返回空结果 | empty input returns empty', () => {
-    const result = importFromToolbox('');
-    expect(result.units).toHaveLength(0);
-    expect(result.additionalTiers.size).toBe(0);
+  it('空输入判定为非 Toolbox | empty input is unrecognized', () => {
+    expect(() => importFromToolbox('')).toThrow('TOOLBOX_FORMAT_UNRECOGNIZED');
   });
 });
 
@@ -186,10 +194,7 @@ describe('exportToToolbox', () => {
 
   it('按 startTime 排序 | sorts by startTime', () => {
     const output = exportToToolbox({
-      units: [
-        makeUtt('u2', 3, 5, 'second'),
-        makeUtt('u1', 0, 2, 'first'),
-      ],
+      units: [makeUtt('u2', 3, 5, 'second'), makeUtt('u1', 0, 2, 'first')],
       layers: [makeLayer('l1', 'transcription', true)],
       translations: [],
     });
@@ -223,8 +228,20 @@ describe('exportToToolbox', () => {
         },
       ] as never[],
       morphemes: [
-        { id: 'm1', tokenId: 'tok1', morphemeIndex: 0, form: { default: 'I' }, gloss: { eng: '1SG' } },
-        { id: 'm2', tokenId: 'tok2', morphemeIndex: 0, form: { default: 'go' }, gloss: { eng: 'go' } },
+        {
+          id: 'm1',
+          tokenId: 'tok1',
+          morphemeIndex: 0,
+          form: { default: 'I' },
+          gloss: { eng: '1SG' },
+        },
+        {
+          id: 'm2',
+          tokenId: 'tok2',
+          morphemeIndex: 0,
+          form: { default: 'go' },
+          gloss: { eng: 'go' },
+        },
       ] as never[],
     });
     expect(output).toContain('\\mb I go');
@@ -243,7 +260,9 @@ describe('exportToToolbox', () => {
 \\tx second segment
 `;
     const imported = importFromToolbox(original);
-    const utts = imported.units.map((u, i) => makeUtt(`r${i + 1}`, u.startTime, u.endTime, u.transcription));
+    const utts = imported.units.map((u, i) =>
+      makeUtt(`r${i + 1}`, u.startTime, u.endTime, u.transcription),
+    );
     const exported = exportToToolbox({
       units: utts,
       layers: [makeLayer('l1', 'transcription', true)],
@@ -253,5 +272,70 @@ describe('exportToToolbox', () => {
     expect(reimported.units).toHaveLength(2);
     expect(reimported.units[0]!.transcription).toBe('hello world');
     expect(reimported.units[1]!.transcription).toBe('second segment');
+  });
+
+  it('rejects plain .txt without SFM markers', () => {
+    expect(looksLikeToolboxContent('just a lyric sheet\nhello world')).toBe(false);
+    expect(() => importFromToolbox('just a lyric sheet\nhello world')).toThrow(
+      'TOOLBOX_FORMAT_UNRECOGNIZED',
+    );
+  });
+
+  it('keeps \\_sh additional-layer blocks out of primary units', () => {
+    const content = `\\ref r1
+\\ts 0.000
+\\te 1.000
+\\tx primary text
+
+\\_sh v3.0 400  Extra Tier
+\\ref s1
+\\ts 0.000
+\\te 1.000
+\\tx extra text
+\\mb ex-tra
+\\ge EX-TRA
+\\ps N-N
+`;
+    const result = importFromToolbox(content);
+    expect(result.units).toHaveLength(1);
+    expect(result.units[0]?.transcription).toBe('primary text');
+    const extra = result.additionalTiers.get('Extra Tier');
+    expect(extra).toHaveLength(1);
+    expect(extra?.[0]?.text).toBe('extra text');
+    expect(extra?.[0]?.tokens).toBeDefined();
+    expect(extra?.[0]?.tokens?.[0]?.form.default).toBe('extra');
+    expect(extra?.[0]?.tokens?.[0]?.morphemes?.map((m) => m.form.default)).toEqual(['ex', 'tra']);
+  });
+
+  it('treats leading standard \\_sh database header as file header, not an extra tier', () => {
+    const content = `\\_sh v3.0 400 Text
+\\ref r1
+\\ts 0.000
+\\te 1.000
+\\tx hello world
+`;
+    const result = importFromToolbox(content);
+    expect(result.units).toHaveLength(1);
+    expect(result.units[0]?.transcription).toBe('hello world');
+    expect(result.additionalTiers.size).toBe(0);
+  });
+
+  it('keeps leading \\_sh header and still splits later \\_sh additional tiers', () => {
+    const content = `\\_sh v3.0 400 Text
+\\ref r1
+\\ts 0.000
+\\te 1.000
+\\tx primary text
+
+\\_sh v3.0 400  Extra Tier
+\\ref s1
+\\ts 0.000
+\\te 1.000
+\\tx extra text
+`;
+    const result = importFromToolbox(content);
+    expect(result.units).toHaveLength(1);
+    expect(result.units[0]?.transcription).toBe('primary text');
+    expect(result.additionalTiers.get('Extra Tier')?.[0]?.text).toBe('extra text');
   });
 });

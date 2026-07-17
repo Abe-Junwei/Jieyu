@@ -11,13 +11,26 @@
  * - \ft: free translation
  */
 
-import type { LayerUnitDocType, LayerDocType, LayerUnitContentDocType, UnitTokenDocType, UnitMorphemeDocType, OrthographyDocType } from '../db';
+import type {
+  LayerUnitDocType,
+  LayerDocType,
+  LayerUnitContentDocType,
+  UnitTokenDocType,
+  UnitMorphemeDocType,
+  OrthographyDocType,
+} from '../db';
 import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
-import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
+import {
+  stripPlainTextBidiIsolation,
+  wrapPlainTextWithBidiIsolation,
+} from '../utils/bidiPlainText';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 
-type TimelineInteropMetadata = Pick<OrthographyInteropMetadata, 'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'>;
+type TimelineInteropMetadata = Pick<
+  OrthographyInteropMetadata,
+  'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'
+>;
 
 export interface ToolboxExportInput {
   units: LayerUnitDocType[];
@@ -52,11 +65,15 @@ export interface ToolboxImportResult {
       }>;
     }>;
   }>;
-  additionalTiers: Map<string, Array<{
-    startTime: number;
-    endTime: number;
-    text: string;
-  }>>;
+  additionalTiers: Map<
+    string,
+    Array<{
+      startTime: number;
+      endTime: number;
+      text: string;
+      tokens?: ToolboxImportResult['units'][number]['tokens'];
+    }>
+  >;
 }
 
 type RawRecord = {
@@ -75,11 +92,17 @@ function splitTokens(line: string | undefined): string[] {
   return line.trim().split(/\s+/).filter(Boolean);
 }
 
-function appendTimelineHeaderMarkers(lines: string[], timelineMetadata?: TimelineInteropMetadata): void {
+function appendTimelineHeaderMarkers(
+  lines: string[],
+  timelineMetadata?: TimelineInteropMetadata,
+): void {
   if (!timelineMetadata) return;
-  if (timelineMetadata.timelineMode) lines.push(`\\_jieyu_timelineMode ${timelineMetadata.timelineMode}`);
-  if (timelineMetadata.logicalDurationSec !== undefined) lines.push(`\\_jieyu_logicalDurationSec ${timelineMetadata.logicalDurationSec}`);
-  if (timelineMetadata.timebaseLabel) lines.push(`\\_jieyu_timebaseLabel ${timelineMetadata.timebaseLabel}`);
+  if (timelineMetadata.timelineMode)
+    lines.push(`\\_jieyu_timelineMode ${timelineMetadata.timelineMode}`);
+  if (timelineMetadata.logicalDurationSec !== undefined)
+    lines.push(`\\_jieyu_logicalDurationSec ${timelineMetadata.logicalDurationSec}`);
+  if (timelineMetadata.timebaseLabel)
+    lines.push(`\\_jieyu_timebaseLabel ${timelineMetadata.timebaseLabel}`);
   if (lines.length > 0) lines.push('');
 }
 
@@ -90,10 +113,18 @@ function parseTime(value: string | undefined, fallback: number): number {
 }
 
 function splitMorphemes(wordToken: string): string[] {
-  return wordToken.split(/[-=]/).map((s) => s.trim()).filter(Boolean);
+  return wordToken
+    .split(/[-=]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
-function parseWords(tx?: string, mb?: string, ge?: string, ps?: string): Array<{
+function parseWords(
+  tx?: string,
+  mb?: string,
+  ge?: string,
+  ps?: string,
+): Array<{
   form: Record<string, string>;
   gloss?: Record<string, string>;
   morphemes?: Array<{ form: Record<string, string>; gloss?: Record<string, string>; pos?: string }>;
@@ -124,11 +155,22 @@ function parseWords(tx?: string, mb?: string, ge?: string, ps?: string): Array<{
   });
 }
 
+/** True when content looks like Toolbox/SFM marker stream (not arbitrary .txt). */
+export function looksLikeToolboxContent(content: string): boolean {
+  return /(?:^|\n)\s*\\(?:tx|ts|te|ref|mb|ft)\b/i.test(content.replace(/\r\n?/g, '\n'));
+}
+
 export function importFromToolbox(content: string): ToolboxImportResult {
+  if (!looksLikeToolboxContent(content)) {
+    throw new Error('TOOLBOX_FORMAT_UNRECOGNIZED');
+  }
+
   const normalized = content.replace(/\r\n?/g, '\n');
   const lines = normalized.split('\n');
 
-  const rawRecords: RawRecord[] = [];
+  type Block = { name: string; records: RawRecord[] };
+  const blocks: Block[] = [{ name: 'primary', records: [] }];
+  let currentBlock = blocks[0]!;
   let current: RawRecord = {};
   let lastMarker: keyof RawRecord | null = null;
   let timelineMetadata: TimelineInteropMetadata | undefined;
@@ -136,7 +178,7 @@ export function importFromToolbox(content: string): ToolboxImportResult {
   const finalizeCurrent = () => {
     const hasContent = Object.values(current).some((v) => (v ?? '').trim().length > 0);
     if (!hasContent) return;
-    rawRecords.push(current);
+    currentBlock.records.push(current);
     current = {};
     lastMarker = null;
   };
@@ -154,6 +196,26 @@ export function importFromToolbox(content: string): ToolboxImportResult {
       const marker = match[1]!.toLowerCase();
       const value = match[2] ?? '';
 
+      // Standard Toolbox/MDF files start with a database header `\_sh vX.Y NNN Type`.
+      // Only treat later `\_sh` markers as additional-layer block separators.
+      if (marker === '_sh') {
+        const isFileHeader =
+          blocks.length === 1 &&
+          currentBlock === blocks[0] &&
+          currentBlock.records.length === 0 &&
+          Object.keys(current).length === 0;
+        if (isFileHeader) {
+          lastMarker = null;
+          continue;
+        }
+        finalizeCurrent();
+        const tierName = value.replace(/^v[\d.]+\s+\d+\s+/i, '').trim() || `tier_${blocks.length}`;
+        currentBlock = { name: tierName, records: [] };
+        blocks.push(currentBlock);
+        lastMarker = null;
+        continue;
+      }
+
       if (marker === 'ref' && Object.keys(current).length > 0) {
         finalizeCurrent();
       }
@@ -161,7 +223,9 @@ export function importFromToolbox(content: string): ToolboxImportResult {
       if (marker === '_jieyu_timelinemode') {
         timelineMetadata = {
           ...(timelineMetadata ?? {}),
-          ...(value.trim() === 'document' || value.trim() === 'media' ? { timelineMode: value.trim() as 'document' | 'media' } : {}),
+          ...(value.trim() === 'document' || value.trim() === 'media'
+            ? { timelineMode: value.trim() as 'document' | 'media' }
+            : {}),
         };
         lastMarker = null;
       } else if (marker === '_jieyu_logicaldurationsec') {
@@ -177,7 +241,16 @@ export function importFromToolbox(content: string): ToolboxImportResult {
           ...(value.trim() ? { timebaseLabel: value.trim() } : {}),
         };
         lastMarker = null;
-      } else if (marker === 'ref' || marker === 'ts' || marker === 'te' || marker === 'tx' || marker === 'mb' || marker === 'ge' || marker === 'ps' || marker === 'ft') {
+      } else if (
+        marker === 'ref' ||
+        marker === 'ts' ||
+        marker === 'te' ||
+        marker === 'tx' ||
+        marker === 'mb' ||
+        marker === 'ge' ||
+        marker === 'ps' ||
+        marker === 'ft'
+      ) {
         const key = marker as keyof RawRecord;
         const prev = current[key];
         current[key] = prev ? `${prev} ${value}`.trim() : value.trim();
@@ -198,8 +271,18 @@ export function importFromToolbox(content: string): ToolboxImportResult {
 
   const units: ToolboxImportResult['units'] = [];
   const freeTranslations: Array<{ startTime: number; endTime: number; text: string }> = [];
+  const additionalTiers = new Map<
+    string,
+    Array<{
+      startTime: number;
+      endTime: number;
+      text: string;
+      tokens?: ToolboxImportResult['units'][number]['tokens'];
+    }>
+  >();
 
-  rawRecords.forEach((rec, i) => {
+  const primaryRecords = blocks[0]?.records ?? [];
+  primaryRecords.forEach((rec, i) => {
     const startTime = parseTime(rec.ts, i);
     const endTime = parseTime(rec.te, startTime + 1);
     const transcription = stripPlainTextBidiIsolation((rec.tx ?? '').trim());
@@ -220,8 +303,32 @@ export function importFromToolbox(content: string): ToolboxImportResult {
     }
   });
 
-  const additionalTiers = new Map<string, Array<{ startTime: number; endTime: number; text: string }>>();
-  if (freeTranslations.length > 0) additionalTiers.set('Toolbox Free Translation', freeTranslations);
+  if (freeTranslations.length > 0) {
+    additionalTiers.set('Toolbox Free Translation', freeTranslations);
+  }
+
+  for (const block of blocks.slice(1)) {
+    const segments: Array<{
+      startTime: number;
+      endTime: number;
+      text: string;
+      tokens?: ToolboxImportResult['units'][number]['tokens'];
+    }> = [];
+    block.records.forEach((rec, i) => {
+      const startTime = parseTime(rec.ts, i);
+      const endTime = parseTime(rec.te, startTime + 1);
+      const text = stripPlainTextBidiIsolation((rec.tx ?? '').trim());
+      if (!text) return;
+      const tokens = parseWords(rec.tx, rec.mb, rec.ge, rec.ps);
+      segments.push({
+        startTime,
+        endTime,
+        text,
+        ...(tokens.length > 0 ? { tokens } : {}),
+      });
+    });
+    if (segments.length > 0) additionalTiers.set(block.name, segments);
+  }
 
   return {
     ...(timelineMetadata ? { timelineMetadata } : {}),
@@ -249,7 +356,9 @@ function buildWordMarkers(
     }
 
     mbWords.push(morphs.map((m) => m.form.default ?? Object.values(m.form)[0] ?? '').join('-'));
-    geWords.push(morphs.map((m) => m.gloss?.eng ?? Object.values(m.gloss ?? {})[0] ?? '').join('-'));
+    geWords.push(
+      morphs.map((m) => m.gloss?.eng ?? Object.values(m.gloss ?? {})[0] ?? '').join('-'),
+    );
     psWords.push(morphs.map((m) => m.pos ?? '').join('-'));
   });
 
@@ -261,14 +370,29 @@ function buildWordMarkers(
 }
 
 export function exportToToolbox(input: ToolboxExportInput): string {
-  const { units, layers, translations, orthographies, tokens = [], morphemes = [], timelineMetadata, segmentsByLayer, segmentContents } = input;
+  const {
+    units,
+    layers,
+    translations,
+    orthographies,
+    tokens = [],
+    morphemes = [],
+    timelineMetadata,
+    segmentsByLayer,
+    segmentContents,
+  } = input;
   const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
-  const defaultTranscriptionLayer = layers.find((l) => l.layerType === 'transcription' && l.isDefault)
-    ?? layers.find((l) => l.layerType === 'transcription');
+  const defaultTranscriptionLayer =
+    layers.find((l) => l.layerType === 'transcription' && l.isDefault) ??
+    layers.find((l) => l.layerType === 'transcription');
   const firstTranslationLayer = layers.find((l) => l.layerType === 'translation');
   const wrapLayerText = (text: string, layer?: LayerDocType) => {
     if (!layer?.languageId) return text;
-    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
+    const renderPolicy = resolveOrthographyRenderPolicy(
+      layer.languageId,
+      orthographies,
+      layer.orthographyId,
+    );
     return wrapPlainTextWithBidiIsolation(text, renderPolicy);
   };
 
@@ -291,14 +415,20 @@ export function exportToToolbox(input: ToolboxExportInput): string {
   for (const list of morphemesByTokenId.values()) {
     list.sort((a, b) => a.morphemeIndex - b.morphemeIndex);
   }
-  const defaultTranscriptionLayerId = layers.find((l) => l.layerType === 'transcription' && l.isDefault)?.id
-    ?? layers.find((l) => l.layerType === 'transcription')?.id;
+  const defaultTranscriptionLayerId =
+    layers.find((l) => l.layerType === 'transcription' && l.isDefault)?.id ??
+    layers.find((l) => l.layerType === 'transcription')?.id;
 
   const transcriptionByUnitId = new Map<string, string>();
   if (defaultTranscriptionLayerId) {
     for (const t of translations) {
       const unitId = t.unitId?.trim();
-      if (unitId && t.layerId === defaultTranscriptionLayerId && t.modality === 'text' && typeof t.text === 'string') {
+      if (
+        unitId &&
+        t.layerId === defaultTranscriptionLayerId &&
+        t.modality === 'text' &&
+        typeof t.text === 'string'
+      ) {
         transcriptionByUnitId.set(unitId, t.text);
       }
     }
@@ -311,11 +441,17 @@ export function exportToToolbox(input: ToolboxExportInput): string {
 
   sorted.forEach((u, i) => {
     const ref = u.id || `r${i + 1}`;
-    const tx = wrapLayerText(transcriptionByUnitId.get(u.id) ?? u.transcription?.default ?? '', defaultTranscriptionLayer);
+    const tx = wrapLayerText(
+      transcriptionByUnitId.get(u.id) ?? u.transcription?.default ?? '',
+      defaultTranscriptionLayer,
+    );
     const unitTokens = tokensByUnitId.get(u.id) ?? [];
     const markers = buildWordMarkers(unitTokens, morphemesByTokenId);
     const ft = firstTranslationLayerId
-      ? translations.find((t) => t.unitId === u.id && t.layerId === firstTranslationLayerId && t.modality === 'text')?.text ?? ''
+      ? (translations.find(
+          (t) =>
+            t.unitId === u.id && t.layerId === firstTranslationLayerId && t.modality === 'text',
+        )?.text ?? '')
       : '';
     const wrappedFt = wrapLayerText(ft, firstTranslationLayer);
 
@@ -344,6 +480,11 @@ export function exportToToolbox(input: ToolboxExportInput): string {
         lines.push(`\\ts ${seg.startTime.toFixed(3)}`);
         lines.push(`\\te ${seg.endTime.toFixed(3)}`);
         lines.push(`\\tx ${wrapLayerText(contentMap?.get(seg.id)?.text ?? '', layer)}`);
+        const segTokens = tokensByUnitId.get(seg.id) ?? [];
+        const segMarkers = buildWordMarkers(segTokens, morphemesByTokenId);
+        if (segMarkers.mb) lines.push(`\\mb ${segMarkers.mb}`);
+        if (segMarkers.ge) lines.push(`\\ge ${segMarkers.ge}`);
+        if (segMarkers.ps) lines.push(`\\ps ${segMarkers.ps}`);
         lines.push('');
       }
     }

@@ -8,6 +8,7 @@ type ReadyWorkspaceProjectHubProps =
 export type BuildReadyWorkspaceProjectHubPropsInput = {
   currentProjectLabel: ReadyWorkspaceProjectHubProps['currentProjectLabel'];
   selectedMediaId?: ReadyWorkspaceProjectHubProps['selectedMediaId'];
+  importFileRef: ReadyWorkspaceProjectHubProps['importFileRef'];
   exportTimelineModeLabel: ReadyWorkspaceProjectHubProps['exportTimelineModeLabel'];
   activeTextTimeMapping: ReadyWorkspaceProjectHubProps['activeTextTimeMapping'];
   canDeleteProject: ReadyWorkspaceProjectHubProps['canDeleteProject'];
@@ -36,6 +37,7 @@ export function buildReadyWorkspaceProjectHubProps(
   return {
     currentProjectLabel: input.currentProjectLabel,
     selectedMediaId: input.selectedMediaId ?? null,
+    importFileRef: input.importFileRef,
     exportTimelineModeLabel: input.exportTimelineModeLabel ?? null,
     activeTextTimeMapping: input.activeTextTimeMapping ?? null,
     canDeleteProject: input.canDeleteProject,

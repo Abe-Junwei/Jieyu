@@ -79,6 +79,10 @@ describe('useImportExport - import success under stop-write', () => {
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
+      db.unit_tokens.clear(),
+      db.unit_morphemes.clear(),
+      db.lexemes.clear(),
+      db.user_notes.clear(),
       db.audit_logs.clear(),
       db.speakers.clear(),
     ]);
@@ -846,7 +850,7 @@ describe('useImportExport - import success under stop-write', () => {
     ]);
   });
 
-  it('does not assign unit speaker from tier participant automatically', async () => {
+  it('assigns unit speaker from tier PARTICIPANT on EAF import', async () => {
     const defaultLayer: LayerDocType = {
       id: 'trc-default-speaker-import',
       textId: 'text-import',
@@ -910,7 +914,93 @@ describe('useImportExport - import success under stop-write', () => {
 
     const importedUnitUnits = await db.layer_units.where('unitType').equals('unit').toArray();
     expect(importedUnitUnits).toHaveLength(1);
-    expect(importedUnitUnits[0]?.speakerId).toBeUndefined();
+    expect(importedUnitUnits[0]?.speakerId).toBe('speaker_existing_john');
+  });
+
+  it('restores Jieyu notes tier as user_notes instead of a translation layer', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-notes-import',
+      textId: 'text-import',
+      key: 'trc_default_notes_import',
+      name: { zho: '默认转写层' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000" />
+  </TIME_ORDER>
+  <TIER TIER_ID="TRC" LINGUISTIC_TYPE_REF="default-lt">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>Hello</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="notes" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="en">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>imported note</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+</ANNOTATION_DOCUMENT>`,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+
+    const setSaveState = vi.fn();
+    const { result } = renderHook(() =>
+      useImportExport({
+        activeTextId: 'text-import',
+        getActiveTextId: vi.fn(async () => 'text-import'),
+        selectedUnitMedia: undefined,
+        unitsOnCurrentMedia: [],
+        anchors: [],
+        layers: [defaultLayer],
+        translations: [],
+        defaultTranscriptionLayerId: defaultLayer.id,
+        loadSnapshot: vi.fn(async () => undefined),
+        setSaveState,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'notes.eaf', { type: 'application/xml' }),
+      );
+    });
+
+    const units = await db.layer_units.where('unitType').equals('unit').toArray();
+    expect(units).toHaveLength(1);
+    const notes = await db.user_notes.toArray();
+    expect(notes).toEqual([
+      expect.objectContaining({
+        targetType: 'unit',
+        targetId: units[0]?.id,
+        content: expect.objectContaining({ default: 'imported note' }),
+      }),
+    ]);
+    const jieyuDb = await getDb();
+    const allLayers = await jieyuDb.collections.layers.find().exec();
+    const notesLayers = allLayers.filter((layer) => {
+      const eng =
+        typeof layer.name === 'object' && layer.name !== null
+          ? ((layer.name as Record<string, string>).eng ?? '')
+          : '';
+      return eng.toLowerCase() === 'notes';
+    });
+    expect(notesLayers).toHaveLength(0);
   });
 
   it('imports independent transcription tier segments even when no units are inserted', async () => {
@@ -1172,5 +1262,317 @@ describe('useImportExport - import success under stop-write', () => {
         message: expect.stringMatching(/恢复了单宿主链路|single-host links only/i),
       }),
     );
+  });
+
+  it('persists tokens from FLEx secondary interlinear-text onto independent-boundary segments', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-flex-tokens',
+      textId: 'text-import',
+      key: 'trc_default_flex_tokens',
+      name: { zho: '默认转写层', eng: 'Default Transcription' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const independentLayer: LayerDocType = {
+      id: 'trc-independent-flex-tokens',
+      textId: 'text-import',
+      key: 'trc_independent_flex_tokens',
+      name: { zho: '附加层', eng: 'Extra Layer' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      constraint: 'independent_boundary',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayers([defaultLayer, independentLayer]);
+    await db.media_items.put({
+      id: 'media-flex-tokens',
+      textId: 'text-import',
+      filename: 'demo.wav',
+      isOfflineCached: true,
+      createdAt: NOW,
+    } as never);
+
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+<document version="2">
+  <interlinear-text guid="it1">
+    <item type="title" lang="en">Primary</item>
+    <paragraphs>
+      <paragraph guid="pg1">
+        <phrases>
+          <phrase guid="p1" begin-time-offset="0" end-time-offset="1">
+            <item type="txt" lang="en">hello</item>
+          </phrase>
+        </phrases>
+      </paragraph>
+    </paragraphs>
+  </interlinear-text>
+  <interlinear-text guid="it2">
+    <item type="title" lang="en">Extra Layer</item>
+    <paragraphs>
+      <paragraph guid="pg2">
+        <phrases>
+          <phrase guid="p2" begin-time-offset="0" end-time-offset="1">
+            <item type="txt" lang="en">extra</item>
+            <words>
+              <word guid="w1">
+                <item type="txt" lang="en">extra</item>
+                <item type="gls" lang="en">EXTRA</item>
+              </word>
+            </words>
+          </phrase>
+        </phrases>
+      </paragraph>
+    </paragraphs>
+  </interlinear-text>
+</document>`,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+
+    const { result } = renderHook(() =>
+      useImportExport({
+        activeTextId: 'text-import',
+        getActiveTextId: vi.fn(async () => 'text-import'),
+        selectedUnitMedia: {
+          id: 'media-flex-tokens',
+          textId: 'text-import',
+          filename: 'demo.wav',
+          isOfflineCached: true,
+          createdAt: NOW,
+        } as never,
+        unitsOnCurrentMedia: [],
+        anchors: [],
+        layers: [defaultLayer, independentLayer],
+        translations: [],
+        defaultTranscriptionLayerId: defaultLayer.id,
+        loadSnapshot: vi.fn(async () => undefined),
+        setSaveState: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'demo.flextext', { type: 'application/xml' }),
+      );
+    });
+
+    const segments = await db.layer_units.where('layerId').equals(independentLayer.id).toArray();
+    expect(segments).toHaveLength(1);
+    const tokens = await db.unit_tokens.where('unitId').equals(segments[0]!.id).toArray();
+    expect(tokens).toEqual([
+      expect.objectContaining({
+        form: { default: 'extra' },
+        gloss: { eng: 'EXTRA' },
+        lexemeId: expect.any(String),
+      }),
+    ]);
+    const lexeme = await db.lexemes.get(tokens[0]!.lexemeId!);
+    expect(lexeme?.lemma.default).toBe('extra');
+    expect(lexeme?.senses?.length).toBeGreaterThanOrEqual(1);
+    const links = await db.token_lexeme_links
+      .where('[targetType+targetId]')
+      .equals(['token', tokens[0]!.id])
+      .toArray();
+    expect(links).toHaveLength(1);
+    expect(links[0]?.lexemeId).toBe(tokens[0]!.lexemeId);
+  });
+
+  it('persists TRS section topics and speaker dialect/accent', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-trs-meta',
+      textId: 'text-import',
+      key: 'trc_default_trs_meta',
+      name: { zho: '默认转写层' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Trans SYSTEM "trans-14.dtd">
+<Trans program="test" version="1">
+  <Speakers>
+    <Speaker id="spk1" name="Alice" xml:lang="eng" dialect="coastal" accent="rhotic" check="yes" scope="local" />
+  </Speakers>
+  <Episode>
+    <Section type="report" topic="intro" startTime="0.000" endTime="1.000">
+      <Turn speaker="spk1" startTime="0.000" endTime="1.000">
+        <Sync time="0.000"/>
+        hello there
+      </Turn>
+    </Section>
+  </Episode>
+</Trans>`,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+
+    const { result } = renderHook(() =>
+      useImportExport({
+        activeTextId: 'text-import',
+        getActiveTextId: vi.fn(async () => 'text-import'),
+        selectedUnitMedia: undefined,
+        unitsOnCurrentMedia: [],
+        anchors: [],
+        layers: [defaultLayer],
+        translations: [],
+        defaultTranscriptionLayerId: defaultLayer.id,
+        loadSnapshot: vi.fn(async () => undefined),
+        setSaveState: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'demo.trs', { type: 'application/xml' }),
+      );
+    });
+
+    const speakers = await db.speakers.toArray();
+    expect(speakers).toEqual([
+      expect.objectContaining({
+        name: 'Alice',
+        dialect: 'coastal',
+        accent: 'rhotic',
+        languageIds: ['eng'],
+      }),
+    ]);
+    const units = await db.layer_units.where('unitType').equals('unit').toArray();
+    expect(units).toHaveLength(1);
+    expect(units[0]?.speakerId).toBe(speakers[0]?.id);
+    const notes = await db.user_notes.toArray();
+    expect(notes).toEqual([
+      expect.objectContaining({
+        targetType: 'unit',
+        targetId: units[0]?.id,
+        category: 'topic',
+        content: expect.objectContaining({ default: 'intro' }),
+      }),
+    ]);
+  });
+
+  it('persists EAF word-tier tokens and secondary MEDIA_DESCRIPTOR metadata', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-eaf-tokens',
+      textId: 'text-import',
+      key: 'trc_default_eaf_tokens',
+      name: { zho: '默认转写层' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    await db.media_items.put({
+      id: 'media-eaf-meta',
+      textId: 'text-import',
+      filename: 'primary.wav',
+      isOfflineCached: true,
+      details: { source: 'upload' },
+      createdAt: NOW,
+    } as never);
+
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
+  <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+    <MEDIA_DESCRIPTOR MEDIA_URL="primary.wav" MIME_TYPE="audio/x-wav" RELATIVE_MEDIA_URL="./primary.wav" />
+    <MEDIA_DESCRIPTOR MEDIA_URL="video.mp4" MIME_TYPE="video/mp4" RELATIVE_MEDIA_URL="./video.mp4" />
+  </HEADER>
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000" />
+  </TIME_ORDER>
+  <TIER TIER_ID="utterance" LINGUISTIC_TYPE_REF="utterance-lt">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>hello world</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="words" LINGUISTIC_TYPE_REF="words-lt" PARENT_REF="utterance">
+    <ANNOTATION>
+      <REF_ANNOTATION ANNOTATION_ID="w1" ANNOTATION_REF="a1">
+        <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+      </REF_ANNOTATION>
+    </ANNOTATION>
+    <ANNOTATION>
+      <REF_ANNOTATION ANNOTATION_ID="w2" ANNOTATION_REF="a1">
+        <ANNOTATION_VALUE>world</ANNOTATION_VALUE>
+      </REF_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="utterance-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="words-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Subdivision" GRAPHIC_REFERENCES="false" />
+</ANNOTATION_DOCUMENT>`,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+
+    const { result } = renderHook(() =>
+      useImportExport({
+        activeTextId: 'text-import',
+        getActiveTextId: vi.fn(async () => 'text-import'),
+        selectedUnitMedia: {
+          id: 'media-eaf-meta',
+          textId: 'text-import',
+          filename: 'primary.wav',
+          isOfflineCached: true,
+          details: { source: 'upload' },
+          createdAt: NOW,
+        } as never,
+        unitsOnCurrentMedia: [],
+        anchors: [],
+        layers: [defaultLayer],
+        translations: [],
+        defaultTranscriptionLayerId: defaultLayer.id,
+        loadSnapshot: vi.fn(async () => undefined),
+        setSaveState: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'words.eaf', { type: 'application/xml' }),
+      );
+    });
+
+    const media = await db.media_items.get('media-eaf-meta');
+    expect(media?.details).toEqual(
+      expect.objectContaining({
+        source: 'upload',
+        secondaryMedia: [
+          expect.objectContaining({
+            filename: 'video.mp4',
+            mimeType: 'video/mp4',
+          }),
+        ],
+      }),
+    );
+    const units = await db.layer_units.where('unitType').equals('unit').toArray();
+    expect(units).toHaveLength(1);
+    const tokens = (await db.unit_tokens.where('unitId').equals(units[0]!.id).toArray()).sort(
+      (a, b) => a.tokenIndex - b.tokenIndex,
+    );
+    expect(tokens.map((token) => token.form.default)).toEqual(['hello', 'world']);
+    expect(
+      tokens.every((token) => typeof token.lexemeId === 'string' && token.lexemeId.length > 0),
+    ).toBe(true);
+    const lexemes = await db.lexemes.toArray();
+    expect(lexemes.map((lexeme) => lexeme.lemma.default).sort()).toEqual(['hello', 'world']);
   });
 });

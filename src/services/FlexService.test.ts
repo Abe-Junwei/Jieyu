@@ -199,5 +199,87 @@ describe('FlexService RTL phrase round-trip', () => {
     const imported = importFromFlextext(flex);
     expect(imported.units[0]?.transcription).toBe(arabic);
     expect(imported.phraseGlosses.get('p1')).toBe(gloss);
+    expect(imported.units[0]?.phraseId).toBe('p1');
+  });
+
+  it('aligns phrase glosses by phrase guid, not array index', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<document version="2">
+  <interlinear-text guid="it1">
+    <paragraphs>
+      <paragraph guid="pg1">
+        <phrases>
+          <phrase guid="phrase-b" begin-time-offset="1" end-time-offset="2">
+            <item type="txt" lang="en">second</item>
+            <item type="gls" lang="en">GLOSS-B</item>
+          </phrase>
+          <phrase guid="phrase-a" begin-time-offset="0" end-time-offset="1">
+            <item type="txt" lang="en">first</item>
+            <item type="gls" lang="en">GLOSS-A</item>
+          </phrase>
+        </phrases>
+      </paragraph>
+    </paragraphs>
+  </interlinear-text>
+</document>`;
+    const imported = importFromFlextext(xml);
+    expect(imported.units.map((u) => u.phraseId)).toEqual(['phrase-b', 'phrase-a']);
+    expect(imported.phraseGlosses.get('phrase-b')).toBe('GLOSS-B');
+    expect(imported.phraseGlosses.get('phrase-a')).toBe('GLOSS-A');
+  });
+
+  it('keeps secondary interlinear-text blocks in additionalTiers', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<document version="2">
+  <interlinear-text guid="it1">
+    <item type="title" lang="en">Primary</item>
+    <paragraphs>
+      <paragraph guid="pg1">
+        <phrases>
+          <phrase guid="p1" begin-time-offset="0" end-time-offset="1">
+            <item type="txt" lang="en">hello</item>
+          </phrase>
+        </phrases>
+      </paragraph>
+    </paragraphs>
+  </interlinear-text>
+  <interlinear-text guid="it2">
+    <item type="title" lang="en">Extra Layer</item>
+    <paragraphs>
+      <paragraph guid="pg2">
+        <phrases>
+          <phrase guid="p2" begin-time-offset="0" end-time-offset="1">
+            <item type="txt" lang="en">extra word</item>
+            <words>
+              <word guid="w1">
+                <item type="txt" lang="en">extra</item>
+                <item type="gls" lang="en">EXTRA</item>
+                <morphemes>
+                  <morph guid="m1">
+                    <item type="txt" lang="en">ex</item>
+                    <item type="gls" lang="en">EX</item>
+                  </morph>
+                </morphemes>
+              </word>
+            </words>
+          </phrase>
+        </phrases>
+      </paragraph>
+    </paragraphs>
+  </interlinear-text>
+</document>`;
+    const imported = importFromFlextext(xml);
+    expect(imported.units).toHaveLength(1);
+    expect(imported.units[0]?.transcription).toBe('hello');
+    const extra = imported.additionalTiers.get('Extra Layer');
+    expect(extra).toHaveLength(1);
+    expect(extra?.[0]?.text).toBe('extra word');
+    expect(extra?.[0]?.tokens).toEqual([
+      {
+        form: { default: 'extra' },
+        gloss: { eng: 'EXTRA' },
+        morphemes: [{ form: { default: 'ex' }, gloss: { eng: 'EX' } }],
+      },
+    ]);
   });
 });

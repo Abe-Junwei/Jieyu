@@ -162,6 +162,20 @@ function buildMockDb() {
           };
         }),
       },
+      unit_tokens: {
+        where: vi.fn(() => ({
+          anyOf: vi.fn(() => ({
+            toArray: vi.fn(async () => []),
+          })),
+        })),
+      },
+      unit_morphemes: {
+        where: vi.fn(() => ({
+          anyOf: vi.fn(() => ({
+            toArray: vi.fn(async () => []),
+          })),
+        })),
+      },
     },
   };
 }

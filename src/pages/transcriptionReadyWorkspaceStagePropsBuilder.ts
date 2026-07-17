@@ -59,6 +59,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   onOpenSpeakerManagementPanel: BuildReadyWorkspaceProjectHubPropsInput['onOpenSpeakerManagementPanel'];
   onDeleteCurrentProject: BuildReadyWorkspaceProjectHubPropsInput['onDeleteCurrentProject'];
   onDeleteCurrentAudio: BuildReadyWorkspaceProjectHubPropsInput['onDeleteCurrentAudio'];
+  importFileRef: BuildReadyWorkspaceProjectHubPropsInput['importFileRef'];
   handleImportFile: BuildReadyWorkspaceProjectHubPropsInput['handleImportFile'];
   onPreviewProjectArchiveImport: BuildReadyWorkspaceProjectHubPropsInput['onPreviewProjectArchiveImport'];
   onImportProjectArchive: BuildReadyWorkspaceProjectHubPropsInput['onImportProjectArchive'];
@@ -233,6 +234,7 @@ export function buildReadyWorkspaceStageProps(
     projectHubProps: buildReadyWorkspaceProjectHubProps({
       currentProjectLabel: input.currentProjectLabel,
       selectedMediaId: input.selectedMediaId,
+      importFileRef: input.importFileRef,
       exportTimelineModeLabel: input.exportTimelineModeLabel,
       activeTextTimeMapping: input.activeTextTimeMapping,
       canDeleteProject: input.canDeleteProject,

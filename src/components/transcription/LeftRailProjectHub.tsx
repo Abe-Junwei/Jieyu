@@ -1,6 +1,6 @@
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_NAV } from '../../utils/jieyuMaterialIcon';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { useToast } from '../../contexts/ToastContext';
@@ -44,6 +44,10 @@ interface TimeMappingDialogState {
 interface LeftRailProjectHubProps {
   currentProjectLabel: string;
   selectedMediaId?: string | null;
+  /**
+   * Shared with timeline empty-state "import file" CTA so both entry points open the same picker.
+   */
+  importFileRef: RefObject<HTMLInputElement | null>;
   /**
    * Optional metadata from the shell; Project Hub time-mapping / export hints are **not**
    * gated on this value when `onApplyTextTimeMapping` is provided (P3).
@@ -108,6 +112,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const {
     currentProjectLabel,
     selectedMediaId,
+    importFileRef,
     activeTextTimeMapping,
     canDeleteProject,
     canDeleteAudio,
@@ -147,7 +152,6 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
 
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const projectArchiveInputRef = useRef<HTMLInputElement | null>(null);
-  const annotationImportInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -198,8 +202,8 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
 
   const openAnnotationImportPicker = useCallback(() => {
     recordTranscriptionKeyboardAction('toolbarOpenAnnotationImportPicker');
-    annotationImportInputRef.current?.click();
-  }, []);
+    importFileRef.current?.click();
+  }, [importFileRef]);
 
   const openTimeMappingDialog = useCallback(() => {
     recordTranscriptionKeyboardAction('toolbarOpenTextTimeMappingDialog');
@@ -712,7 +716,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         }}
       />
       <input
-        ref={annotationImportInputRef}
+        ref={importFileRef}
         type="file"
         accept=".eaf,.textgrid,.TextGrid,.trs,.flextext,.txt,.toolbox"
         aria-label={t(locale, 'transcription.projectHub.importAnnotation')}

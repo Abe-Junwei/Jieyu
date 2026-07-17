@@ -1786,6 +1786,10 @@ export const enUSDictionary = {
     'Imported {count} segments with {layers} extra layers.',
   'transcription.importExport.importDone.independentSegmentsSkippedNoMedia':
     'Skipped importing {count} independent-tier segments because no media was available.',
+  'transcription.importExport.importDone.translationsDroppedNoMatch':
+    'Skipped {count} additional-tier entries that did not align with primary-tier timing.',
+  'transcription.importExport.toolboxFormatUnrecognized':
+    'Not recognized as Toolbox/SFM: content lacks \\tx / \\ts / \\te / \\ref markers.',
   'transcription.importExport.importDone.constraintRepaired':
     'Auto-repaired {count} layer-constraint issues.',
   'transcription.importExport.importDone.constraintWarning':
@@ -1801,6 +1805,7 @@ export const enUSDictionary = {
   'transcription.importExport.conflict':
     'Import failed: data was modified by another operation. Refresh and try again.',
   'transcription.importExport.failed': 'Import failed: {message}',
+  'transcription.importExport.exportFailed': 'Export failed: {message}',
   'transcription.error.action.assignSpeakerFailed': 'Failed to assign speaker: {message}',
   'transcription.error.action.createSpeakerFailed': 'Failed to create speaker: {message}',
   'transcription.error.action.segmentSkipProcessingFailed':

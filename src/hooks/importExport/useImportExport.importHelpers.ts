@@ -157,14 +157,27 @@ export async function createImportSpeakerResolver(input: {
     if (normalized) speakerIdMap.set(normalized, speaker.id);
   };
 
-  const resolveOrCreateSpeaker = async (rawKey: string, displayName: string): Promise<string> => {
+  const resolveOrCreateSpeaker = async (
+    rawKey: string,
+    displayName: string,
+    attrs?: { dialect?: string; accent?: string; languageIds?: string[] },
+  ): Promise<string> => {
     const normalized = input.normalizeSpeakerLookupKey(displayName);
     const existing = speakerByName.get(normalized);
     if (existing) {
+      if (attrs && (attrs.dialect || attrs.accent || attrs.languageIds?.length)) {
+        const patched = await LinguisticService.speakers.patchImportAttrs(existing.id, attrs);
+        if (patched) speakerByName.set(normalized, patched);
+      }
       rememberSpeaker(rawKey, normalized, existing);
       return existing.id;
     }
-    const speaker = await LinguisticService.speakers.create({ name: displayName.trim() });
+    const speaker = await LinguisticService.speakers.create({
+      name: displayName.trim(),
+      ...(attrs?.dialect ? { dialect: attrs.dialect } : {}),
+      ...(attrs?.accent ? { accent: attrs.accent } : {}),
+      ...(attrs?.languageIds?.length ? { languageIds: attrs.languageIds } : {}),
+    });
     speakerByName.set(normalized, speaker);
     rememberSpeaker(rawKey, normalized, speaker);
     return speaker.id;

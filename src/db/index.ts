@@ -35,6 +35,7 @@ export { trackEntityDocumentId } from './trackEntityIds';
 
 export {
   dexieStoresForAiTaskSnapshotsRw,
+  dexieStoresForAnnotationImportRw,
   dexieStoresForCustomFieldDefinitionDeleteCascadeRw,
   dexieStoresForDeleteAudioKeepTimeline,
   dexieStoresForDeleteProjectByTextIdCascadeRw,

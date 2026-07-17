@@ -122,6 +122,22 @@ source_of_truth: compatibility-contract
 - 不把 provider-neutral 合同扩展成“所有 interop 结构字段总表”
 - 不在本轮引入新的外部 provider 实现
 
+## P1 标注结构元信息映射（补充）
+
+在正字法 identity 合同之外，导入路径另有一层「结构元信息」落地（不扩展本合同字段白名单）：
+
+| 源格式信号 | 可选落点 |
+| --- | --- |
+| EAF `Symbolic_Subdivision` 词层 | 父 unit 的 `unit_tokens` / `unit_morphemes`（不进 translation 层）；导出时有 tokens 则写回 `words` / `word-gloss` / `morphemes` |
+| EAF 第 2+ 个 `MEDIA_DESCRIPTOR` | 当前媒体 `details.secondaryMedia`（仅元数据，不新建媒体行） |
+| FLEx 次级 `<interlinear-text>` / Toolbox `\_sh` 块中的词/语素 | `additionalTiers[].tokens`；独立边界层 segment 上写 tokens |
+| 导入 token/morpheme `form` | `matchOrCreateByForm` → `lexemeId`（同 form+语言复用） |
+| TRS `Section@topic` | `user_notes`（`category: 'topic'`） |
+| TRS `Speaker@dialect` / `@accent` / `@xml:lang` | `SpeakerDocType.dialect` / `accent` / `languageIds` |
+
+入口：`src/services/{Eaf,Flex,Toolbox,Transcriber}Service.ts` + `src/hooks/importExport/useImportExport.importHandlers.ts`。
+明确不做：EAF CV→Tag、ADR-0022 `analysisGraph`。
+
 ## 结论
 
 当前 Jieyu 已经具备：

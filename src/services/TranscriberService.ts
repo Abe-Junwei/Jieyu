@@ -26,12 +26,23 @@
  *   Speaker[@name]                  →  speaker name
  */
 
-import type { LayerDocType, OrthographyDocType, LayerUnitDocType } from '../db';
+import type {
+  LayerDocType,
+  LayerUnitContentDocType,
+  OrthographyDocType,
+  LayerUnitDocType,
+} from '../db';
 import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
-import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
+import {
+  stripPlainTextBidiIsolation,
+  wrapPlainTextWithBidiIsolation,
+} from '../utils/bidiPlainText';
 
-type TimelineInteropMetadata = Pick<OrthographyInteropMetadata, 'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'>;
+type TimelineInteropMetadata = Pick<
+  OrthographyInteropMetadata,
+  'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'
+>;
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -40,6 +51,10 @@ export interface TrsSpeaker {
   name: string;
   /** BCP 47 language tag if present in @xml:lang or custom attribute */
   lang?: string;
+  check?: string;
+  dialect?: string;
+  accent?: string;
+  scope?: string;
 }
 
 export interface TrsExportInput {
@@ -47,6 +62,11 @@ export interface TrsExportInput {
   speakers?: TrsSpeaker[];
   orthographies?: OrthographyDocType[];
   transcriptionLayer?: LayerDocType;
+  /**
+   * Canonical default-layer text from layer_unit_contents.
+   * Preferred over legacy `unit.transcription.default` when present.
+   */
+  translations?: LayerUnitContentDocType[];
   /** Programme title written into <Trans program="..."> */
   programTitle?: string;
   /** 逻辑时间元数据（文献项目导出声明）| Logical timeline metadata for document-mode export */
@@ -68,6 +88,8 @@ export interface TrsImportResult {
     /** Section topic if present */
     topic?: string;
   }>;
+  /** Section-level topics (aggregated; preferred over per-unit topic for persistence) */
+  sectionTopics?: Array<{ startTime: number; endTime: number; topic: string }>;
 }
 
 // ── Helpers ─────────────────────────────────────────────────
@@ -89,23 +111,31 @@ function formatTime(seconds: number): string {
 function buildTimelineAttributeFragment(timelineMetadata?: TimelineInteropMetadata): string {
   if (!timelineMetadata) return '';
   const attrs = [
-    timelineMetadata.timelineMode ? ` jieyu_timeline_mode="${escapeXml(timelineMetadata.timelineMode)}"` : '',
-    timelineMetadata.logicalDurationSec !== undefined ? ` jieyu_logical_duration_sec="${escapeXml(String(timelineMetadata.logicalDurationSec))}"` : '',
-    timelineMetadata.timebaseLabel ? ` jieyu_timebase_label="${escapeXml(timelineMetadata.timebaseLabel)}"` : '',
+    timelineMetadata.timelineMode
+      ? ` jieyu_timeline_mode="${escapeXml(timelineMetadata.timelineMode)}"`
+      : '',
+    timelineMetadata.logicalDurationSec !== undefined
+      ? ` jieyu_logical_duration_sec="${escapeXml(String(timelineMetadata.logicalDurationSec))}"`
+      : '',
+    timelineMetadata.timebaseLabel
+      ? ` jieyu_timebase_label="${escapeXml(timelineMetadata.timebaseLabel)}"`
+      : '',
   ].join('');
   return attrs;
 }
 
-function readTimelineMetadataFromAttributes(element: Element | null): TimelineInteropMetadata | undefined {
+function readTimelineMetadataFromAttributes(
+  element: Element | null,
+): TimelineInteropMetadata | undefined {
   if (!element) return undefined;
   const timelineModeAttr = element.getAttribute('jieyu_timeline_mode');
-  const timelineMode = timelineModeAttr === 'document' || timelineModeAttr === 'media'
-    ? timelineModeAttr
-    : undefined;
+  const timelineMode =
+    timelineModeAttr === 'document' || timelineModeAttr === 'media' ? timelineModeAttr : undefined;
   const logicalDurationRaw = element.getAttribute('jieyu_logical_duration_sec');
-  const logicalDurationSec = logicalDurationRaw !== null && Number.isFinite(Number(logicalDurationRaw))
-    ? Number(logicalDurationRaw)
-    : undefined;
+  const logicalDurationSec =
+    logicalDurationRaw !== null && Number.isFinite(Number(logicalDurationRaw))
+      ? Number(logicalDurationRaw)
+      : undefined;
   const timebaseLabel = element.getAttribute('jieyu_timebase_label')?.trim() || undefined;
   if (!timelineMode && logicalDurationSec === undefined && !timebaseLabel) return undefined;
   return {
@@ -118,11 +148,38 @@ function readTimelineMetadataFromAttributes(element: Element | null): TimelineIn
 // ── Export ───────────────────────────────────────────────────
 
 export function exportToTrs(input: TrsExportInput): string {
-  const { units, speakers = [], orthographies, transcriptionLayer, programTitle = 'Jieyu Export', timelineMetadata } = input;
+  const {
+    units,
+    speakers = [],
+    orthographies,
+    transcriptionLayer,
+    translations,
+    programTitle = 'Jieyu Export',
+    timelineMetadata,
+  } = input;
   const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   const transcriptionRenderPolicy = transcriptionLayer?.languageId
-    ? resolveOrthographyRenderPolicy(transcriptionLayer.languageId, orthographies, transcriptionLayer.orthographyId)
+    ? resolveOrthographyRenderPolicy(
+        transcriptionLayer.languageId,
+        orthographies,
+        transcriptionLayer.orthographyId,
+      )
     : undefined;
+  const canonicalTextByUnitId = new Map<string, string>();
+  if (transcriptionLayer?.id && translations) {
+    for (const row of translations) {
+      if (
+        row.layerId === transcriptionLayer.id &&
+        row.modality === 'text' &&
+        typeof row.unitId === 'string' &&
+        row.unitId.length > 0 &&
+        typeof row.text === 'string' &&
+        row.text.trim().length > 0
+      ) {
+        canonicalTextByUnitId.set(row.unitId, row.text);
+      }
+    }
+  }
 
   // Collect distinct speaker IDs referenced by units
   const speakerIds = new Set(sorted.map((u) => u.speakerId).filter(Boolean) as string[]);
@@ -138,7 +195,7 @@ export function exportToTrs(input: TrsExportInput): string {
       (s) =>
         `    <Speaker id="${escapeXml(s.id)}" name="${escapeXml(s.name)}"${
           s.lang ? ` xml:lang="${escapeXml(s.lang)}"` : ''
-        } check="no" dialect="native" accent="" scope="local" />`,
+        } check="${escapeXml(s.check ?? 'no')}" dialect="${escapeXml(s.dialect ?? 'native')}" accent="${escapeXml(s.accent ?? '')}" scope="${escapeXml(s.scope ?? 'local')}" />`,
     )
     .join('\n');
 
@@ -167,17 +224,15 @@ export function exportToTrs(input: TrsExportInput): string {
     }
   }
 
-  const globalEnd =
-    sorted.length > 0 ? sorted[sorted.length - 1]!.endTime : 0;
+  const globalEnd = sorted.length > 0 ? sorted[sorted.length - 1]!.endTime : 0;
 
   const turnsXml = turns
     .map((turn) => {
-      const spkAttr = turn.speakerId
-        ? ` speaker="${escapeXml(turn.speakerId)}"`
-        : '';
+      const spkAttr = turn.speakerId ? ` speaker="${escapeXml(turn.speakerId)}"` : '';
       const segments = turn.units
         .map((u) => {
-          const text = wrapPlainTextWithBidiIsolation(u.transcription?.default ?? '', transcriptionRenderPolicy);
+          const rawText = canonicalTextByUnitId.get(u.id) ?? u.transcription?.default ?? '';
+          const text = wrapPlainTextWithBidiIsolation(rawText, transcriptionRenderPolicy);
           return `          <Sync time="${formatTime(u.startTime)}"/>\n          ${escapeXml(text)}`;
         })
         .join('\n');
@@ -221,14 +276,54 @@ export function importFromTrs(xmlString: string): TrsImportResult {
     const id = el.getAttribute('id');
     const name = el.getAttribute('name');
     if (!id) return;
+    const check = el.getAttribute('check')?.trim() || undefined;
+    const dialect = el.getAttribute('dialect')?.trim() || undefined;
+    const accent = el.getAttribute('accent')?.trim() || undefined;
+    const scope = el.getAttribute('scope')?.trim() || undefined;
     speakers.push({
       id,
       name: name ?? id,
       ...(el.getAttribute('xml:lang') != null && { lang: el.getAttribute('xml:lang')! }),
+      ...(check ? { check } : {}),
+      ...(dialect ? { dialect } : {}),
+      ...(accent ? { accent } : {}),
+      ...(scope ? { scope } : {}),
     });
   });
 
   const units: TrsImportResult['units'] = [];
+  const sectionTopics: NonNullable<TrsImportResult['sectionTopics']> = [];
+  const sectionEls = Array.from(doc.querySelectorAll('Section'));
+  sectionEls.forEach((section, sectionIndex) => {
+    const topic = section.getAttribute('topic')?.trim();
+    if (!topic) return;
+    const startTime = parseFloat(section.getAttribute('startTime') ?? '0');
+    const endAttr = section.getAttribute('endTime');
+    let endTime = endAttr != null && endAttr.trim() !== '' ? parseFloat(endAttr) : Number.NaN;
+    if (!Number.isFinite(endTime)) {
+      const nextSection = sectionEls[sectionIndex + 1];
+      const nextStart = nextSection
+        ? parseFloat(nextSection.getAttribute('startTime') ?? '')
+        : Number.NaN;
+      if (Number.isFinite(nextStart)) {
+        endTime = nextStart;
+      } else {
+        const turnEnds = Array.from(section.querySelectorAll('Turn')).map((turn) =>
+          parseFloat(turn.getAttribute('endTime') ?? ''),
+        );
+        const maxTurnEnd = turnEnds.reduce(
+          (max, value) => (Number.isFinite(value) && value > max ? value : max),
+          Number.NEGATIVE_INFINITY,
+        );
+        endTime = Number.isFinite(maxTurnEnd) ? maxTurnEnd : startTime;
+      }
+    }
+    sectionTopics.push({
+      startTime: Number.isFinite(startTime) ? startTime : 0,
+      endTime: Number.isFinite(endTime) ? endTime : Number.isFinite(startTime) ? startTime : 0,
+      topic,
+    });
+  });
   const timelineMetadata = readTimelineMetadataFromAttributes(doc.documentElement);
 
   // Each <Turn> contains one or more <Sync> nodes with interleaved text nodes.
@@ -257,7 +352,13 @@ export function importFromTrs(xmlString: string): TrsImportResult {
       const text = stripPlainTextBidiIsolation(collectText(childNodes).trim());
       if (text) {
         const startTime = parseFloat(turn.getAttribute('startTime') ?? '0');
-        units.push({ startTime, endTime: turnEnd, transcription: text, ...(speakerId !== undefined && { speakerId }), ...(topic !== undefined && { topic }) });
+        units.push({
+          startTime,
+          endTime: turnEnd,
+          transcription: text,
+          ...(speakerId !== undefined && { speakerId }),
+          ...(topic !== undefined && { topic }),
+        });
       }
       return;
     }
@@ -283,7 +384,13 @@ export function importFromTrs(xmlString: string): TrsImportResult {
       // Skip zero-duration or empty segments
       if (endTime <= startTime || !text) continue;
 
-      units.push({ startTime, endTime, transcription: text, ...(speakerId !== undefined && { speakerId }), ...(topic !== undefined && { topic }) });
+      units.push({
+        startTime,
+        endTime,
+        transcription: text,
+        ...(speakerId !== undefined && { speakerId }),
+        ...(topic !== undefined && { topic }),
+      });
     }
   });
 
@@ -294,6 +401,7 @@ export function importFromTrs(xmlString: string): TrsImportResult {
     speakers,
     ...(timelineMetadata ? { timelineMetadata } : {}),
     units,
+    ...(sectionTopics.length > 0 ? { sectionTopics } : {}),
   };
 }
 

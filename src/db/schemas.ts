@@ -564,6 +564,8 @@ const speakerDocSchema = z.object({
   gender: z.string().optional(),
   birthYear: z.number().int().optional(),
   languageIds: z.array(z.string()).optional(),
+  dialect: z.string().optional(),
+  accent: z.string().optional(),
   role: z.enum(['speaker', 'translator', 'annotator', 'researcher']).optional(),
   consentStatus: z.enum(['granted', 'restricted', 'anonymous']).optional(),
   accessRights: accessRightsSchema.optional(),
@@ -1153,6 +1155,7 @@ const noteCategorySchema = z.enum([
   'linguistic',
   'fieldwork',
   'correction',
+  'topic',
 ]);
 
 const userNoteDocSchema = z.object({

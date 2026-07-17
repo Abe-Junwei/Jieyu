@@ -52,11 +52,13 @@ function renderHub(overrides: Partial<Parameters<typeof LeftRailProjectHub>[0]> 
   const onImportProjectArchive = vi.fn(async () => true);
   const onImportAnnotationFile = vi.fn(async () => undefined);
   const onApplyTextTimeMapping = vi.fn(async () => undefined);
+  const importFileRef = { current: null as HTMLInputElement | null };
 
   render(
     <LocaleProvider locale="zh-CN">
       <LeftRailProjectHub
         currentProjectLabel="项目 A"
+        importFileRef={importFileRef}
         canDeleteProject
         canDeleteAudio
         onOpenProjectSetup={vi.fn()}
@@ -409,6 +411,7 @@ describe('LeftRailProjectHub project import dialog', () => {
       <LocaleProvider locale="zh-CN">
         <LeftRailProjectHub
           currentProjectLabel="项目 A"
+          importFileRef={{ current: null }}
           canDeleteProject
           canDeleteAudio
           onOpenProjectSetup={vi.fn()}

@@ -501,6 +501,10 @@ export interface SpeakerDocType {
   gender?: string;
   birthYear?: number;
   languageIds?: string[];
+  /** TRS / fieldwork dialect label | 方言标签（如 Transcriber Speaker@dialect） */
+  dialect?: string;
+  /** TRS / fieldwork accent label | 口音标签（如 Transcriber Speaker@accent） */
+  accent?: string;
   role?: 'speaker' | 'translator' | 'annotator' | 'researcher';
   consentStatus?: 'granted' | 'restricted' | 'anonymous';
   accessRights?: 'open' | 'restricted' | 'confidential';
@@ -1043,7 +1047,8 @@ export type NoteCategory =
   | 'todo'
   | 'linguistic'
   | 'fieldwork'
-  | 'correction';
+  | 'correction'
+  | 'topic';
 
 export interface UserNoteDocType {
   id: string;

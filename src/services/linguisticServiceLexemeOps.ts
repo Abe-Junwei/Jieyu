@@ -1,4 +1,5 @@
 import { getDb, runDexieIndexedQueryOrElse, type LexemeDocType } from '../db';
+import { newId } from '../utils/transcriptionFormatters';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 
 /** 词典 → 转写深链：由 `token_lexeme_links` 解析出的可跳转时间轴单元 | Lexicon → transcription deep-link row */
@@ -48,6 +49,50 @@ export async function saveLexeme(data: LexemeDocType): Promise<string> {
   const db = await getDb();
   const doc = await db.collections.lexemes.insert(data);
   return doc.primary;
+}
+
+function lemmaSurface(lexeme: LexemeDocType): string {
+  const lemma = lexeme.lemma ?? {};
+  const preferred = lemma.default ?? lemma.eng ?? lemma.zho;
+  if (typeof preferred === 'string' && preferred.trim()) return preferred.trim();
+  for (const value of Object.values(lemma)) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
+/**
+ * Import helper: reuse an existing lexeme by lemma surface (+ optional language),
+ * otherwise create a minimal lexeme row.
+ * Uses Dexie directly so it can run inside annotation-import `withTransaction`.
+ */
+export async function matchOrCreateLexemeByForm(input: {
+  form: string;
+  language?: string;
+}): Promise<string | undefined> {
+  const form = input.form.trim();
+  if (!form) return undefined;
+  const language = input.language?.trim();
+  const db = await getDb();
+  const existing = (await db.dexie.lexemes.toArray()).find((lexeme) => {
+    if (lemmaSurface(lexeme) !== form) return false;
+    if (!language) return true;
+    return (lexeme.language ?? '').trim() === language;
+  });
+  if (existing) return existing.id;
+
+  const now = new Date().toISOString();
+  const id = newId('lex');
+  await db.dexie.lexemes.put({
+    id,
+    lemma: { default: form },
+    // Schema requires ≥1 sense; import creates a placeholder gloss from the surface form.
+    senses: [{ gloss: { default: form } }],
+    ...(language ? { language } : {}),
+    createdAt: now,
+    updatedAt: now,
+  });
+  return id;
 }
 
 /**

@@ -9,6 +9,7 @@ import type {
   LayerUnitContentDocType,
 } from '../../db';
 import type { SaveState } from '../useTranscriptionData';
+import { LinguisticService } from '../../services/LinguisticService';
 import { t, tf, useLocale } from '../../i18n';
 import { createLogger } from '../../observability/logger';
 import { recordFullProjectArchiveExportCompleted } from '../../utils/backupExportReminderState';
@@ -46,6 +47,21 @@ function resolveRelevantExportSpeakerIds(
     }
   }
   return ids;
+}
+
+function collectExportUnitIds(
+  primaryUnits: Array<{ id: string }>,
+  layerSegments?: Map<string, LayerUnitDocType[]>,
+): string[] {
+  const ids = new Set<string>(primaryUnits.map((unit) => unit.id));
+  if (layerSegments) {
+    for (const segments of layerSegments.values()) {
+      for (const segment of segments) {
+        if (segment.id) ids.add(segment.id);
+      }
+    }
+  }
+  return [...ids];
 }
 
 function loadArchiveHandlersModule(
@@ -475,290 +491,365 @@ export function useImportExport(input: UseImportExportInput) {
     [serviceLoaders, loadProjectPrimaryOrthographyId, translations],
   );
 
-  const exportMenuActions = useMemo(
-    () => ({
-      handleExportEaf: async () => {
-        if (unitsOnCurrentMedia.length === 0) return;
-        const eafService = await serviceLoaders.loadEafService();
-        const userNotes = await fetchUnitNotes(unitsOnCurrentMedia.map((u) => u.id));
-        const defaultTrcLayer =
-          layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
-          layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
-          layers.find((layer) => layer.layerType === 'transcription');
-        // Query segments for time-aligned layers (translation + independent transcription)
-        // 查询时间对齐层的 segment 数据（翻译层 + 独立转写层）
-        const timeAlignedLayers = layers.filter(
-          (l) =>
-            (l.layerType === 'translation' &&
-              (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision')) ||
-            (l.layerType === 'transcription' &&
-              (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision')),
-        );
-        const exportData = (await loadSegmentExportDataForLayers(
-          timeAlignedLayers,
-          segmentExportMediaId || undefined,
-        )) as {
-          segmentsByLayer?: Map<string, import('../../db').LayerUnitDocType[]>;
-          segmentContents?: Map<string, Map<string, import('../../db').LayerUnitContentDocType>>;
-        };
-        const layerSegments = exportData.segmentsByLayer;
-        const layerSegmentContents = exportData.segmentContents;
-        const db = await getDb();
-        const layerLinks =
-          typeof db.dexie.layer_links?.toArray === 'function'
-            ? await db.dexie.layer_links.toArray()
-            : [];
-        const relevantSpeakerIds = resolveRelevantExportSpeakerIds(
-          unitsOnCurrentMedia,
-          layerSegments,
-        );
-        const speakers =
-          relevantSpeakerIds.size === 0
-            ? []
-            : (await db.dexie.speakers.toArray()).filter((speaker) =>
-                relevantSpeakerIds.has(speaker.id),
-              );
-        const exportUnits = await buildOrthographyAwareExportUnits(
-          unitsOnCurrentMedia,
-          defaultTrcLayer,
-        );
-        const timelineMetadata = await loadProjectTimelineMetadata();
-        const exportWarnings: Array<{ code: string }> = [];
-        const xml = eafService.exportToEaf({
-          ...(exportNamingMediaItem ? { mediaItem: exportNamingMediaItem } : {}),
-          units: exportUnits,
-          anchors,
-          layers,
-          layerLinks,
-          orthographies,
-          translations,
-          userNotes,
-          ...(timelineMetadata ? { timelineMetadata } : {}),
-          ...(layerSegments ? { layerSegments } : {}),
-          ...(layerSegmentContents ? { layerSegmentContents } : {}),
-          ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
-          speakers,
-          onWarning: (warning) => {
-            exportWarnings.push(warning);
-          },
-        });
-        const baseName = exportNamingMediaItem
-          ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
-          : 'export';
-        eafService.downloadEaf(xml, baseName);
-        const multiHostWarningCount = exportWarnings.filter(
-          (warning) => warning.code === 'translation-multi-host-lossy',
-        ).length;
-        const warningSuffix =
-          multiHostWarningCount > 0
-            ? ` ${tf(locale, 'transcription.importExport.exportDone.eafMultiHostWarning', { count: multiHostWarningCount })}`
-            : '';
+  const exportMenuActions = useMemo(() => {
+    const runExport = async (label: string, fn: () => Promise<void>) => {
+      try {
+        await fn();
+      } catch (err) {
+        log.error('export failed', { label, err });
         setSaveState({
-          kind: 'done',
-          message:
-            `${t(locale, 'transcription.importExport.exportDone.eaf')}${warningSuffix}`.trim(),
+          kind: 'error',
+          message: tf(locale, 'transcription.importExport.exportFailed', {
+            message: err instanceof Error ? err.message : String(err),
+          }),
         });
-        setShowExportMenu(false);
+      }
+    };
+
+    return {
+      handleExportEaf: async () => {
+        await runExport('eaf', async () => {
+          if (unitsOnCurrentMedia.length === 0) return;
+          const eafService = await serviceLoaders.loadEafService();
+          const userNotes = await fetchUnitNotes(unitsOnCurrentMedia.map((u) => u.id));
+          const defaultTrcLayer =
+            layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
+            layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
+            layers.find((layer) => layer.layerType === 'transcription');
+          // Query segments for time-aligned layers (translation + independent transcription)
+          // 查询时间对齐层的 segment 数据（翻译层 + 独立转写层）
+          const timeAlignedLayers = layers.filter(
+            (l) =>
+              (l.layerType === 'translation' &&
+                (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision')) ||
+              (l.layerType === 'transcription' &&
+                (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision')),
+          );
+          const exportData = (await loadSegmentExportDataForLayers(
+            timeAlignedLayers,
+            segmentExportMediaId || undefined,
+          )) as {
+            segmentsByLayer?: Map<string, import('../../db').LayerUnitDocType[]>;
+            segmentContents?: Map<string, Map<string, import('../../db').LayerUnitContentDocType>>;
+          };
+          const layerSegments = exportData.segmentsByLayer;
+          const layerSegmentContents = exportData.segmentContents;
+          const db = await getDb();
+          const layerLinks =
+            typeof db.dexie.layer_links?.toArray === 'function'
+              ? await db.dexie.layer_links.toArray()
+              : [];
+          const relevantSpeakerIds = resolveRelevantExportSpeakerIds(
+            unitsOnCurrentMedia,
+            layerSegments,
+          );
+          const speakers =
+            relevantSpeakerIds.size === 0
+              ? []
+              : (await db.dexie.speakers.toArray()).filter((speaker) =>
+                  relevantSpeakerIds.has(speaker.id),
+                );
+          const exportUnits = await buildOrthographyAwareExportUnits(
+            unitsOnCurrentMedia,
+            defaultTrcLayer,
+          );
+          const tokens = await LinguisticService.units.listTokensByUnitIds(
+            exportUnits.map((unit) => unit.id),
+          );
+          const morphemes = await LinguisticService.units.listMorphemesByTokenIds(
+            tokens.map((token) => token.id),
+          );
+          const timelineMetadata = await loadProjectTimelineMetadata();
+          const exportWarnings: Array<{ code: string }> = [];
+          const xml = eafService.exportToEaf({
+            ...(exportNamingMediaItem ? { mediaItem: exportNamingMediaItem } : {}),
+            units: exportUnits,
+            anchors,
+            layers,
+            layerLinks,
+            orthographies,
+            translations,
+            userNotes,
+            tokens,
+            morphemes,
+            ...(timelineMetadata ? { timelineMetadata } : {}),
+            ...(layerSegments ? { layerSegments } : {}),
+            ...(layerSegmentContents ? { layerSegmentContents } : {}),
+            ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
+            speakers,
+            onWarning: (warning) => {
+              exportWarnings.push(warning);
+            },
+          });
+          const baseName = exportNamingMediaItem
+            ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
+            : 'export';
+          eafService.downloadEaf(xml, baseName);
+          const multiHostWarningCount = exportWarnings.filter(
+            (warning) => warning.code === 'translation-multi-host-lossy',
+          ).length;
+          const warningSuffix =
+            multiHostWarningCount > 0
+              ? ` ${tf(locale, 'transcription.importExport.exportDone.eafMultiHostWarning', { count: multiHostWarningCount })}`
+              : '';
+          setSaveState({
+            kind: 'done',
+            message:
+              `${t(locale, 'transcription.importExport.exportDone.eaf')}${warningSuffix}`.trim(),
+          });
+          setShowExportMenu(false);
+        });
       },
 
       handleExportTextGrid: async () => {
-        if (unitsOnCurrentMedia.length === 0) return;
-        const textGridService = await serviceLoaders.loadTextGridService();
-        const userNotes = await fetchUnitNotes(unitsOnCurrentMedia.map((u) => u.id));
-        const exportData = await loadSegmentExportData(segmentExportMediaId || undefined);
-        const segmentsByLayer = exportData?.segmentsByLayer;
-        const segmentContents = exportData?.segmentContents;
-        const defaultTrcLayer =
-          layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
-          layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
-          layers.find((layer) => layer.layerType === 'transcription');
-        const exportUnits = await buildOrthographyAwareExportUnits(
-          unitsOnCurrentMedia,
-          defaultTrcLayer,
-        );
-        const timelineMetadata = await loadProjectTimelineMetadata();
-        const tg = textGridService.exportToTextGrid({
-          units: exportUnits,
-          layers,
-          orthographies,
-          translations,
-          userNotes,
-          ...(timelineMetadata ? { timelineMetadata } : {}),
-          ...(segmentsByLayer ? { segmentsByLayer } : {}),
-          ...(segmentContents ? { segmentContents } : {}),
+        await runExport('textgrid', async () => {
+          if (unitsOnCurrentMedia.length === 0) return;
+          const textGridService = await serviceLoaders.loadTextGridService();
+          const userNotes = await fetchUnitNotes(unitsOnCurrentMedia.map((u) => u.id));
+          const exportData = await loadSegmentExportData(segmentExportMediaId || undefined);
+          const segmentsByLayer = exportData?.segmentsByLayer;
+          const segmentContents = exportData?.segmentContents;
+          const defaultTrcLayer =
+            layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
+            layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
+            layers.find((layer) => layer.layerType === 'transcription');
+          const exportUnits = await buildOrthographyAwareExportUnits(
+            unitsOnCurrentMedia,
+            defaultTrcLayer,
+          );
+          const timelineMetadata = await loadProjectTimelineMetadata();
+          const tg = textGridService.exportToTextGrid({
+            units: exportUnits,
+            layers,
+            orthographies,
+            translations,
+            userNotes,
+            ...(timelineMetadata ? { timelineMetadata } : {}),
+            ...(segmentsByLayer ? { segmentsByLayer } : {}),
+            ...(segmentContents ? { segmentContents } : {}),
+          });
+          const baseName = exportNamingMediaItem
+            ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
+            : 'export';
+          textGridService.downloadTextGrid(tg, baseName);
+          setSaveState({
+            kind: 'done',
+            message: t(locale, 'transcription.importExport.exportDone.textgrid'),
+          });
+          setShowExportMenu(false);
         });
-        const baseName = exportNamingMediaItem
-          ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
-          : 'export';
-        textGridService.downloadTextGrid(tg, baseName);
-        setSaveState({
-          kind: 'done',
-          message: t(locale, 'transcription.importExport.exportDone.textgrid'),
-        });
-        setShowExportMenu(false);
       },
 
       handleExportTrs: async () => {
-        if (unitsOnCurrentMedia.length === 0) return;
-        const transcriberService = await serviceLoaders.loadTranscriberService();
-        const transcriptionLayer =
-          layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
-          layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
-          layers.find((layer) => layer.layerType === 'transcription');
-        const exportUnits = await buildOrthographyAwareExportUnits(
-          unitsOnCurrentMedia,
-          transcriptionLayer,
-        );
-        const timelineMetadata = await loadProjectTimelineMetadata();
-        const trs = transcriberService.exportToTrs({
-          units: exportUnits,
-          orthographies,
-          ...(timelineMetadata ? { timelineMetadata } : {}),
-          ...(transcriptionLayer !== undefined ? { transcriptionLayer } : {}),
+        await runExport('trs', async () => {
+          if (unitsOnCurrentMedia.length === 0) return;
+          const transcriberService = await serviceLoaders.loadTranscriberService();
+          const transcriptionLayer =
+            layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
+            layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
+            layers.find((layer) => layer.layerType === 'transcription');
+          const exportUnits = await buildOrthographyAwareExportUnits(
+            unitsOnCurrentMedia,
+            transcriptionLayer,
+          );
+          const timelineMetadata = await loadProjectTimelineMetadata();
+          const relevantSpeakerIds = new Set(
+            exportUnits
+              .map((unit) => unit.speakerId)
+              .filter((id): id is string => typeof id === 'string' && id.length > 0),
+          );
+          const db = await getDb();
+          const speakers =
+            relevantSpeakerIds.size === 0
+              ? []
+              : (await db.dexie.speakers.toArray())
+                  .filter((speaker) => relevantSpeakerIds.has(speaker.id))
+                  .map((speaker) => ({
+                    id: speaker.id,
+                    name: speaker.name,
+                    ...(speaker.languageIds?.[0] ? { lang: speaker.languageIds[0] } : {}),
+                    ...(speaker.dialect ? { dialect: speaker.dialect } : {}),
+                    ...(speaker.accent ? { accent: speaker.accent } : {}),
+                  }));
+          const trs = transcriberService.exportToTrs({
+            units: exportUnits,
+            speakers,
+            orthographies,
+            translations,
+            ...(timelineMetadata ? { timelineMetadata } : {}),
+            ...(transcriptionLayer !== undefined ? { transcriptionLayer } : {}),
+          });
+          const baseName = exportNamingMediaItem
+            ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
+            : 'export';
+          transcriberService.downloadTrs(trs, baseName);
+          setSaveState({
+            kind: 'done',
+            message: t(locale, 'transcription.importExport.exportDone.trs'),
+          });
+          setShowExportMenu(false);
         });
-        const baseName = exportNamingMediaItem
-          ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
-          : 'export';
-        transcriberService.downloadTrs(trs, baseName);
-        setSaveState({
-          kind: 'done',
-          message: t(locale, 'transcription.importExport.exportDone.trs'),
-        });
-        setShowExportMenu(false);
       },
 
       handleExportFlextext: async () => {
-        if (unitsOnCurrentMedia.length === 0) return;
-        const flexService = await serviceLoaders.loadFlexService();
-        const exportData2 = await loadSegmentExportData(segmentExportMediaId || undefined);
-        const segmentsByLayer = exportData2?.segmentsByLayer;
-        const segmentContents = exportData2?.segmentContents;
-        const defaultTrcLayer =
-          layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
-          layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
-          layers.find((layer) => layer.layerType === 'transcription');
-        const exportUnits = await buildOrthographyAwareExportUnits(
-          unitsOnCurrentMedia,
-          defaultTrcLayer,
-        );
-        const timelineMetadata = await loadProjectTimelineMetadata();
-        const flex = flexService.exportToFlextext({
-          units: exportUnits,
-          layers,
-          orthographies,
-          translations,
-          ...(timelineMetadata ? { timelineMetadata } : {}),
-          ...(segmentsByLayer ? { segmentsByLayer } : {}),
-          ...(segmentContents ? { segmentContents } : {}),
+        await runExport('flextext', async () => {
+          if (unitsOnCurrentMedia.length === 0) return;
+          const flexService = await serviceLoaders.loadFlexService();
+          const exportData2 = await loadSegmentExportData(segmentExportMediaId || undefined);
+          const segmentsByLayer = exportData2?.segmentsByLayer;
+          const segmentContents = exportData2?.segmentContents;
+          const defaultTrcLayer =
+            layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
+            layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
+            layers.find((layer) => layer.layerType === 'transcription');
+          const exportUnits = await buildOrthographyAwareExportUnits(
+            unitsOnCurrentMedia,
+            defaultTrcLayer,
+          );
+          const tokens = await LinguisticService.units.listTokensByUnitIds(
+            collectExportUnitIds(exportUnits, segmentsByLayer),
+          );
+          const morphemes = await LinguisticService.units.listMorphemesByTokenIds(
+            tokens.map((token) => token.id),
+          );
+          const timelineMetadata = await loadProjectTimelineMetadata();
+          const flex = flexService.exportToFlextext({
+            units: exportUnits,
+            layers,
+            orthographies,
+            translations,
+            tokens,
+            morphemes,
+            ...(timelineMetadata ? { timelineMetadata } : {}),
+            ...(segmentsByLayer ? { segmentsByLayer } : {}),
+            ...(segmentContents ? { segmentContents } : {}),
+          });
+          const baseName = exportNamingMediaItem
+            ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
+            : 'export';
+          flexService.downloadFlextext(flex, baseName);
+          setSaveState({
+            kind: 'done',
+            message: t(locale, 'transcription.importExport.exportDone.flextext'),
+          });
+          setShowExportMenu(false);
         });
-        const baseName = exportNamingMediaItem
-          ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
-          : 'export';
-        flexService.downloadFlextext(flex, baseName);
-        setSaveState({
-          kind: 'done',
-          message: t(locale, 'transcription.importExport.exportDone.flextext'),
-        });
-        setShowExportMenu(false);
       },
 
       handleExportToolbox: async () => {
-        if (unitsOnCurrentMedia.length === 0) return;
-        const toolboxService = await serviceLoaders.loadToolboxService();
-        const exportData3 = await loadSegmentExportData(segmentExportMediaId || undefined);
-        const segmentsByLayer = exportData3?.segmentsByLayer;
-        const segmentContents = exportData3?.segmentContents;
-        const defaultTrcLayer =
-          layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
-          layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
-          layers.find((layer) => layer.layerType === 'transcription');
-        const exportUnits = await buildOrthographyAwareExportUnits(
-          unitsOnCurrentMedia,
-          defaultTrcLayer,
-        );
-        const timelineMetadata = await loadProjectTimelineMetadata();
-        const toolbox = toolboxService.exportToToolbox({
-          units: exportUnits,
-          layers,
-          orthographies,
-          translations,
-          ...(timelineMetadata ? { timelineMetadata } : {}),
-          ...(segmentsByLayer ? { segmentsByLayer } : {}),
-          ...(segmentContents ? { segmentContents } : {}),
+        await runExport('toolbox', async () => {
+          if (unitsOnCurrentMedia.length === 0) return;
+          const toolboxService = await serviceLoaders.loadToolboxService();
+          const exportData3 = await loadSegmentExportData(segmentExportMediaId || undefined);
+          const segmentsByLayer = exportData3?.segmentsByLayer;
+          const segmentContents = exportData3?.segmentContents;
+          const defaultTrcLayer =
+            layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
+            layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
+            layers.find((layer) => layer.layerType === 'transcription');
+          const exportUnits = await buildOrthographyAwareExportUnits(
+            unitsOnCurrentMedia,
+            defaultTrcLayer,
+          );
+          const tokens = await LinguisticService.units.listTokensByUnitIds(
+            collectExportUnitIds(exportUnits, segmentsByLayer),
+          );
+          const morphemes = await LinguisticService.units.listMorphemesByTokenIds(
+            tokens.map((token) => token.id),
+          );
+          const timelineMetadata = await loadProjectTimelineMetadata();
+          const toolbox = toolboxService.exportToToolbox({
+            units: exportUnits,
+            layers,
+            orthographies,
+            translations,
+            tokens,
+            morphemes,
+            ...(timelineMetadata ? { timelineMetadata } : {}),
+            ...(segmentsByLayer ? { segmentsByLayer } : {}),
+            ...(segmentContents ? { segmentContents } : {}),
+          });
+          const baseName = exportNamingMediaItem
+            ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
+            : 'export';
+          toolboxService.downloadToolbox(toolbox, baseName);
+          setSaveState({
+            kind: 'done',
+            message: t(locale, 'transcription.importExport.exportDone.toolbox'),
+          });
+          setShowExportMenu(false);
         });
-        const baseName = exportNamingMediaItem
-          ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
-          : 'export';
-        toolboxService.downloadToolbox(toolbox, baseName);
-        setSaveState({
-          kind: 'done',
-          message: t(locale, 'transcription.importExport.exportDone.toolbox'),
-        });
-        setShowExportMenu(false);
       },
 
       handleExportJyt: async () => {
-        const jymService = await loadArchiveExportModule();
-        const baseName = exportNamingMediaItem
-          ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
-          : 'jieyu-project';
-        const exportOptions = confirmArchiveExport('jyt');
-        if (exportOptions === null) {
+        await runExport('jyt', async () => {
+          const jymService = await loadArchiveExportModule();
+          const baseName = exportNamingMediaItem
+            ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
+            : 'jieyu-project';
+          const exportOptions = confirmArchiveExport('jyt');
+          if (exportOptions === null) {
+            setShowExportMenu(false);
+            return;
+          }
+          await jymService.downloadJieyuArchive('jyt', baseName, exportOptions);
+          recordFullProjectArchiveExportCompleted();
+          setSaveState({
+            kind: 'done',
+            message: exportOptions.encryption
+              ? tf(locale, 'transcription.importExport.exportDone.archiveEncrypted', {
+                  kind: 'JYT',
+                })
+              : t(locale, 'transcription.importExport.exportDone.jyt'),
+          });
           setShowExportMenu(false);
-          return;
-        }
-        await jymService.downloadJieyuArchive('jyt', baseName, exportOptions);
-        recordFullProjectArchiveExportCompleted();
-        setSaveState({
-          kind: 'done',
-          message: exportOptions.encryption
-            ? tf(locale, 'transcription.importExport.exportDone.archiveEncrypted', { kind: 'JYT' })
-            : t(locale, 'transcription.importExport.exportDone.jyt'),
         });
-        setShowExportMenu(false);
       },
 
       handleExportJym: async () => {
-        const jymService = await loadArchiveExportModule();
-        const baseName = exportNamingMediaItem
-          ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
-          : 'jieyu-project';
-        const exportOptions = confirmArchiveExport('jym');
-        if (exportOptions === null) {
+        await runExport('jym', async () => {
+          const jymService = await loadArchiveExportModule();
+          const baseName = exportNamingMediaItem
+            ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
+            : 'jieyu-project';
+          const exportOptions = confirmArchiveExport('jym');
+          if (exportOptions === null) {
+            setShowExportMenu(false);
+            return;
+          }
+          await jymService.downloadJieyuArchive('jym', baseName, exportOptions);
+          recordFullProjectArchiveExportCompleted();
+          setSaveState({
+            kind: 'done',
+            message: exportOptions.encryption
+              ? tf(locale, 'transcription.importExport.exportDone.archiveEncrypted', {
+                  kind: 'JYM',
+                })
+              : t(locale, 'transcription.importExport.exportDone.jym'),
+          });
           setShowExportMenu(false);
-          return;
-        }
-        await jymService.downloadJieyuArchive('jym', baseName, exportOptions);
-        recordFullProjectArchiveExportCompleted();
-        setSaveState({
-          kind: 'done',
-          message: exportOptions.encryption
-            ? tf(locale, 'transcription.importExport.exportDone.archiveEncrypted', { kind: 'JYM' })
-            : t(locale, 'transcription.importExport.exportDone.jym'),
         });
-        setShowExportMenu(false);
       },
-    }),
-    [
-      anchors,
-      buildOrthographyAwareExportUnits,
-      confirmArchiveExport,
-      defaultTranscriptionLayerId,
-      fetchUnitNotes,
-      layers,
-      loadProjectTimelineMetadata,
-      loadSegmentExportData,
-      loadSegmentExportDataForLayers,
-      locale,
-      orthographies,
-      segmentExportMediaId,
-      exportNamingMediaItem,
-      serviceLoaders,
-      setSaveState,
-      translations,
-      unitsOnCurrentMedia,
-    ],
-  );
+    };
+  }, [
+    anchors,
+    buildOrthographyAwareExportUnits,
+    confirmArchiveExport,
+    defaultTranscriptionLayerId,
+    fetchUnitNotes,
+    layers,
+    loadProjectTimelineMetadata,
+    loadSegmentExportData,
+    loadSegmentExportDataForLayers,
+    locale,
+    orthographies,
+    segmentExportMediaId,
+    exportNamingMediaItem,
+    serviceLoaders,
+    setSaveState,
+    translations,
+    unitsOnCurrentMedia,
+  ]);
 
   const archiveImportActions = useMemo(
     () => ({

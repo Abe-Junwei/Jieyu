@@ -6,8 +6,10 @@ import type {
   LayerUnitDocType,
   OrthographyDocType,
   LayerUnitContentDocType,
+  UnitMorphemeDocType,
+  UnitTokenDocType,
 } from '../db';
-import { exportToEaf, importFromEaf } from './EafService';
+import { exportToEaf, importFromEaf, resolveEafMediaMimeType } from './EafService';
 
 const NOW = '2026-03-26T00:00:00.000Z';
 
@@ -577,5 +579,192 @@ describe('EafService logical timeline round-trip', () => {
     const imported = importFromEaf(xml);
     expect(imported.units[0]?.startTime).toBe(0.125);
     expect(imported.units[0]?.endTime).toBe(1.875);
+  });
+
+  it('binds PARTICIPANT to primary-tier units and recovers notes tier', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="test" DATE="2026-01-01T00:00:00.000Z" FORMAT="3.0" VERSION="3.0">
+  <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+    <MEDIA_DESCRIPTOR MEDIA_URL="clip.mp3" MIME_TYPE="audio/mpeg" RELATIVE_MEDIA_URL="./clip.mp3" />
+  </HEADER>
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000" />
+  </TIME_ORDER>
+  <TIER TIER_ID="tx" LINGUISTIC_TYPE_REF="default-lt" PARTICIPANT="Alice">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="notes" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="en">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>a note</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+</ANNOTATION_DOCUMENT>`;
+    const imported = importFromEaf(xml);
+    expect(imported.units[0]?.speakerId).toBe('Alice');
+    expect(imported.participants).toContain('Alice');
+    expect(imported.userNotes).toEqual([{ startTime: 0, endTime: 1, text: 'a note' }]);
+    expect(imported.translationTiers.has('notes')).toBe(false);
+  });
+
+  it('resolves MEDIA_DESCRIPTOR MIME from filename / details', () => {
+    expect(resolveEafMediaMimeType({ filename: 'a.mp3' })).toBe('audio/mpeg');
+    expect(
+      resolveEafMediaMimeType({ filename: 'a.wav', details: { mimeType: 'audio/custom' } }),
+    ).toBe('audio/custom');
+  });
+
+  it('exports Symbolic_Subdivision word tiers and re-imports unit.tokens', () => {
+    const layer: LayerDocType = {
+      id: 'layer_trc',
+      textId: 'text_1',
+      key: 'trc_zh',
+      name: { zho: '转写' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      isDefault: true,
+      sortOrder: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const units: LayerUnitDocType[] = [
+      {
+        id: 'utt_1',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        startTime: 0,
+        endTime: 2,
+        transcription: { default: 'hello world' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const translations: LayerUnitContentDocType[] = [
+      {
+        id: 'utr_1',
+        unitId: 'utt_1',
+        layerId: layer.id,
+        modality: 'text',
+        text: 'hello world',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const tokens: UnitTokenDocType[] = [
+      {
+        id: 'tok_1',
+        textId: 'text_1',
+        unitId: 'utt_1',
+        form: { default: 'hello' },
+        gloss: { eng: 'greet' },
+        tokenIndex: 0,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'tok_2',
+        textId: 'text_1',
+        unitId: 'utt_1',
+        form: { default: 'world' },
+        tokenIndex: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+    const morphemes: UnitMorphemeDocType[] = [
+      {
+        id: 'morph_1',
+        textId: 'text_1',
+        unitId: 'utt_1',
+        tokenId: 'tok_1',
+        form: { default: 'hell' },
+        gloss: { eng: 'root' },
+        morphemeIndex: 0,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+
+    const xml = exportToEaf({ units, layers: [layer], translations, tokens, morphemes });
+    expect(xml).toContain('TIER_ID="words"');
+    expect(xml).toContain('CONSTRAINTS="Symbolic_Subdivision"');
+    expect(xml).toContain('TIER_ID="word-gloss"');
+    expect(xml).toContain('TIER_ID="morphemes"');
+    expect(xml).toContain('TIER_ID="morph-gloss"');
+    expect(xml).toMatch(/PREVIOUS_ANNOTATION="w\d+"/);
+
+    const imported = importFromEaf(xml);
+    expect(imported.units[0]?.tokens).toEqual([
+      {
+        form: { default: 'hello' },
+        gloss: { eng: 'greet' },
+        morphemes: [{ form: { default: 'hell' }, gloss: { eng: 'root' } }],
+      },
+      { form: { default: 'world' } },
+    ]);
+  });
+
+  it('maps Symbolic_Subdivision word tier into unit.tokens and keeps secondary media', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="test" DATE="2026-01-01T00:00:00.000Z" FORMAT="3.0" VERSION="3.0">
+  <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+    <MEDIA_DESCRIPTOR MEDIA_URL="primary.wav" MIME_TYPE="audio/x-wav" RELATIVE_MEDIA_URL="./primary.wav" />
+    <MEDIA_DESCRIPTOR MEDIA_URL="video.mp4" MIME_TYPE="video/mp4" RELATIVE_MEDIA_URL="./video.mp4" />
+  </HEADER>
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="2000" />
+  </TIME_ORDER>
+  <TIER TIER_ID="utterance" LINGUISTIC_TYPE_REF="utterance-lt">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>hello world</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="words" LINGUISTIC_TYPE_REF="words-lt" PARENT_REF="utterance">
+    <ANNOTATION>
+      <REF_ANNOTATION ANNOTATION_ID="w1" ANNOTATION_REF="a1">
+        <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+      </REF_ANNOTATION>
+    </ANNOTATION>
+    <ANNOTATION>
+      <REF_ANNOTATION ANNOTATION_ID="w2" ANNOTATION_REF="a1">
+        <ANNOTATION_VALUE>world</ANNOTATION_VALUE>
+      </REF_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="gloss" LINGUISTIC_TYPE_REF="gloss-lt" PARENT_REF="words">
+    <ANNOTATION>
+      <REF_ANNOTATION ANNOTATION_ID="g1" ANNOTATION_REF="w1">
+        <ANNOTATION_VALUE>greet</ANNOTATION_VALUE>
+      </REF_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="utterance-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="words-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Subdivision" GRAPHIC_REFERENCES="false" />
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="gloss-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />
+</ANNOTATION_DOCUMENT>`;
+    const imported = importFromEaf(xml);
+    expect(imported.mediaFilename).toBe('primary.wav');
+    expect(imported.secondaryMedia).toEqual([
+      { filename: 'video.mp4', mimeType: 'video/mp4', url: 'video.mp4' },
+    ]);
+    expect(imported.translationTiers.has('words')).toBe(false);
+    expect(imported.translationTiers.has('gloss')).toBe(false);
+    expect(imported.units[0]?.tokens).toEqual([
+      { form: { default: 'hello' }, gloss: { eng: 'greet' } },
+      { form: { default: 'world' } },
+    ]);
   });
 });

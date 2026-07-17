@@ -1650,6 +1650,10 @@ export const zhCNDictionary = {
     '已导入 {count} 条句段，含 {layers} 个额外层。',
   'transcription.importExport.importDone.independentSegmentsSkippedNoMedia':
     '有 {count} 条独立层语段因缺少媒体而未导入。',
+  'transcription.importExport.importDone.translationsDroppedNoMatch':
+    '有 {count} 条附加层条目因时间未对齐主层而未导入。',
+  'transcription.importExport.toolboxFormatUnrecognized':
+    '无法识别为 Toolbox/SFM 文件：内容缺少 \\tx / \\ts / \\te / \\ref 等标记。',
   'transcription.importExport.importDone.constraintRepaired': '已自动修复 {count} 条层约束问题。',
   'transcription.importExport.importDone.constraintWarning':
     '检测到 {count} 条层约束兼容性问题，请在层管理中检查并修复。',
@@ -1663,6 +1667,7 @@ export const zhCNDictionary = {
   'transcription.importExport.noProject': '请先创建项目。',
   'transcription.importExport.conflict': '导入失败：检测到数据已被其他操作更新，请刷新后重试。',
   'transcription.importExport.failed': '导入失败: {message}',
+  'transcription.importExport.exportFailed': '导出失败: {message}',
   'transcription.error.action.assignSpeakerFailed': '说话人指派失败：{message}',
   'transcription.error.action.createSpeakerFailed': '创建说话人失败：{message}',
   'transcription.error.action.mergeSelectionFailed': '批量合并失败：{message}',

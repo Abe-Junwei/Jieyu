@@ -42,6 +42,7 @@ function normalizeNoteCategoryFilter(value: unknown): NoteCategory | undefined {
     'linguistic',
     'fieldwork',
     'correction',
+    'topic',
   ];
   return allowed.includes(n) ? n : undefined;
 }

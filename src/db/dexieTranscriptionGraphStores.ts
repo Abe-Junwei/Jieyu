@@ -29,6 +29,35 @@ export function dexieStoresForLayerUnitsTableRead(db: JieyuDatabase) {
   return [db.dexie.layer_units] as const;
 }
 
+/**
+ * RW: external annotation import commit (units/contents/tokens/layers/notes).
+ * Must be a superset of nested writers: LayerTierUnifiedService, syncUnitTextToSegmentationV2,
+ * createSegmentWithContentAtomic, saveTokensBatch, upsertUnitLayerUnit.
+ */
+export function dexieStoresForAnnotationImportRw(db: JieyuDatabase) {
+  return [
+    // Layers persist via TierBackedLayerCollectionAdapter → tier_definitions (no dexie.layers table).
+    db.dexie.tier_definitions,
+    db.dexie.layer_links,
+    db.dexie.layer_units,
+    db.dexie.layer_unit_contents,
+    db.dexie.unit_relations,
+    db.dexie.unit_tokens,
+    db.dexie.unit_morphemes,
+    db.dexie.lexemes,
+    db.dexie.token_lexeme_links,
+    db.dexie.user_notes,
+    db.dexie.speakers,
+    db.dexie.texts,
+    db.dexie.media_items,
+    db.dexie.embeddings,
+    db.dexie.segment_meta,
+    db.dexie.audit_logs,
+    db.dexie.orthographies,
+    db.dexie.orthography_bridges,
+  ] as const;
+}
+
 /** RW: canonical segment/unit graph — cascade deletes, snapshot restore, V2 graph ops. */
 export function dexieStoresForLayerSegmentGraphRw(db: JieyuDatabase) {
   return [db.dexie.layer_units, db.dexie.layer_unit_contents, db.dexie.unit_relations] as const;

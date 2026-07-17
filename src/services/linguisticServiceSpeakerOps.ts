@@ -91,6 +91,9 @@ export async function createSpeaker(input: {
   name: string;
   pseudonym?: string;
   role?: SpeakerDocType['role'];
+  dialect?: string;
+  accent?: string;
+  languageIds?: string[];
 }): Promise<SpeakerDocType> {
   const db = await getDb();
   const name = input.name.trim();
@@ -104,17 +107,57 @@ export async function createSpeaker(input: {
   if (duplicate) throw new Error(`\u8bf4\u8bdd\u4eba\u5df2\u5b58\u5728: ${duplicate.name}`);
 
   const now = new Date().toISOString();
+  const dialect = input.dialect?.trim();
+  const accent = input.accent?.trim();
+  const languageIds = input.languageIds?.map((id) => id.trim()).filter((id) => id.length > 0);
   const speaker: SpeakerDocType = {
     id: newId('speaker'),
     name,
     ...(input.pseudonym?.trim() ? { pseudonym: input.pseudonym.trim() } : {}),
     ...(input.role ? { role: input.role } : {}),
+    ...(dialect ? { dialect } : {}),
+    ...(accent ? { accent } : {}),
+    ...(languageIds && languageIds.length > 0 ? { languageIds } : {}),
     createdAt: now,
     updatedAt: now,
   };
 
   await db.collections.speakers.insert(speaker);
   return speaker;
+}
+
+/** Patch optional fieldwork attrs on an existing speaker (import enrichment). */
+export async function patchSpeakerImportAttrs(
+  speakerId: string,
+  attrs: { dialect?: string; accent?: string; languageIds?: string[] },
+): Promise<SpeakerDocType | undefined> {
+  const db = await getDb();
+  const id = speakerId.trim();
+  if (!id) return undefined;
+  const speakerDoc = await db.collections.speakers.findOne({ selector: { id } }).exec();
+  if (!speakerDoc) return undefined;
+  const current = speakerDoc.toJSON() as SpeakerDocType;
+  const dialect = attrs.dialect?.trim();
+  const accent = attrs.accent?.trim();
+  const languageIds = attrs.languageIds?.map((v) => v.trim()).filter((v) => v.length > 0);
+  const next: SpeakerDocType = {
+    ...current,
+    ...(dialect && !current.dialect ? { dialect } : {}),
+    ...(accent && !current.accent ? { accent } : {}),
+    ...(languageIds && languageIds.length > 0 && !current.languageIds?.length
+      ? { languageIds }
+      : {}),
+    updatedAt: new Date().toISOString(),
+  };
+  if (
+    next.dialect === current.dialect &&
+    next.accent === current.accent &&
+    JSON.stringify(next.languageIds ?? []) === JSON.stringify(current.languageIds ?? [])
+  ) {
+    return current;
+  }
+  await db.collections.speakers.insert(next);
+  return next;
 }
 
 export async function renameSpeaker(speakerId: string, nextName: string): Promise<SpeakerDocType> {
