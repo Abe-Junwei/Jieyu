@@ -16,7 +16,7 @@ import { resolveViewportFrameScrollLeftPx } from '../utils/resolveViewportFrameS
 import { DEFAULT_WAVE_CANVAS_WIDTH } from '../utils/waveformViewportSizing';
 import { useLasso, type SubSelectDrag } from '../hooks/ui/useLasso';
 import { useSegmentRangeGesturePreviewWriter } from '../hooks/transcription/useSegmentRangeGesturePreviewWriter';
-import { useWaveSurfer } from '~/hooks/media/useWaveSurfer';
+import { useWaveSurfer, type WaveformPointerMappingSnapshot } from '~/hooks/media/useWaveSurfer';
 import { useTimelineViewport } from '../hooks/transcription/useTimelineViewport';
 import { useEnsureVadCache } from '../hooks/useEnsureVadCache';
 import { useVadCachedSegments } from '../hooks/voice/useVadCachedSegments';
@@ -62,6 +62,7 @@ export function useTranscriptionWaveformBridgeController(
   const creatingSegmentRef = useRef(false);
   const markingModeRef = useRef(false);
   const subSelectDragRef = useRef<SubSelectDrag | null>(null);
+  const waveformPointerMappingRef = useRef<WaveformPointerMappingSnapshot | null>(null);
   const handleWaveformRegionAltPointerDownRef = useRef<
     ((regionId: string, time: number, pointerId: number, clientX: number) => void) | undefined
   >(undefined);
@@ -159,6 +160,7 @@ export function useTranscriptionWaveformBridgeController(
     amplitudeScale: input.amplitudeScale,
     waveformDisplayMode: input.waveformDisplayMode,
     waveformVisualStyle: input.waveformVisualStyle,
+    waveformPointerMappingRef,
     onRegionAltPointerDown: (regionId, time, pointerId, clientX) => {
       handleWaveformRegionAltPointerDownRef.current?.(regionId, time, pointerId, clientX);
     },
@@ -301,6 +303,33 @@ export function useTranscriptionWaveformBridgeController(
     commitWaveformScrollLeft,
     onTierScrollLeftPx: setTierScrollLeftPx,
   });
+
+  useLayoutEffect(() => {
+    const ws = player.instanceRef.current;
+    const wrapper = ws?.getWrapper();
+    const scrollParent = wrapper?.parentElement;
+    const mediaDur = player.duration || 0;
+    let viewportRectLeftPx: number | null = null;
+    if (documentSpanSec > mediaDur && mediaDur > 0 && waveCanvasRef.current) {
+      viewportRectLeftPx = waveCanvasRef.current.getBoundingClientRect().left;
+    } else if (scrollParent) {
+      viewportRectLeftPx = scrollParent.getBoundingClientRect().left;
+    }
+    waveformPointerMappingRef.current = {
+      documentSpanSec,
+      pxPerDocSec: zoomPxPerSec,
+      tierScrollLeftPx,
+      viewportRectLeftPx,
+      logicalDurationSec: documentSpanSec,
+    };
+  }, [
+    documentSpanSec,
+    player.duration,
+    player.instanceRef,
+    player.isReady,
+    tierScrollLeftPx,
+    zoomPxPerSec,
+  ]);
 
   const { waveformNoteIndicators, waveformLowConfidenceOverlays, waveformOverlapOverlays } =
     useWaveformSignalOverlays({
