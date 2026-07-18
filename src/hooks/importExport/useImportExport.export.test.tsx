@@ -377,6 +377,24 @@ describe('useImportExport - export eaf behavior', () => {
     }
     spy.mockRestore();
   });
+
+  it('exports EAF when canonical units are empty but segment tiers have rows', async () => {
+    const input = makeInput({ unitsOnCurrentMedia: [] });
+    const { result } = renderHook(() => useImportExport(input));
+
+    await act(async () => {
+      await result.current.handleExportEaf();
+    });
+
+    expect(mockExportToEaf).toHaveBeenCalledTimes(1);
+    const callArg = (mockExportToEaf.mock.calls as any[])[0]?.[0] as unknown as {
+      units?: unknown[];
+      layerSegments?: Map<string, unknown[]>;
+    };
+    expect(callArg?.units).toEqual([]);
+    expect(callArg?.layerSegments?.has('trl-ind')).toBe(true);
+    expect(mockDownloadEaf).toHaveBeenCalledWith('<ANNOTATION_DOCUMENT/>', 'demo');
+  });
 });
 
 describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', () => {
@@ -439,6 +457,25 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
     };
     expect(arg?.segmentsByLayer?.has('trl-sub')).toBe(true);
     expect(arg?.segmentsByLayer?.get('trl-sub')?.length).toBe(1);
+  });
+
+  it('TextGrid: exports segment-only projects when canonical units are empty', async () => {
+    const input = makeInputWithSegmentLayers();
+    input.unitsOnCurrentMedia = [];
+    const { result } = renderHook(() => useImportExport(input));
+
+    await act(async () => {
+      await result.current.handleExportTextGrid();
+    });
+
+    expect(mockExportToTextGrid).toHaveBeenCalledTimes(1);
+    const arg = (mockExportToTextGrid.mock.calls as any[])[0]?.[0] as unknown as {
+      units?: unknown[];
+      segmentsByLayer?: Map<string, unknown[]>;
+    };
+    expect(arg?.units).toEqual([]);
+    expect(arg?.segmentsByLayer?.has('trl-ind')).toBe(true);
+    expect(mockDownloadTextGrid).toHaveBeenCalledWith('File type = "ooTextFile"', 'demo');
   });
 
   it('TextGrid: 旧表为空时仍从 LayerUnit 导出 segment 与文本内容 | exports segment data from LayerUnit when legacy tables are empty', async () => {

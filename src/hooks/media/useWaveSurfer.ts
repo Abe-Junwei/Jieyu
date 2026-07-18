@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import type { GenericPlugin } from 'wavesurfer.js/dist/base-plugin.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
@@ -20,8 +20,52 @@ import {
   getTranscriptionPlaybackClockSnapshot,
   setTranscriptionPlaybackClock,
 } from '../transcription/transcriptionPlaybackClock';
+import {
+  resolveWaveformPointerClientXToDocSec,
+  type ResolveWaveformPointerClientXToDocSecInput,
+} from '../../utils/waveformPointerClientXToDocSec';
 
 const log = createLogger('useWaveSurfer');
+
+export type WaveformPointerMappingSnapshot = Pick<
+  ResolveWaveformPointerClientXToDocSecInput,
+  'documentSpanSec' | 'pxPerDocSec' | 'tierScrollLeftPx' | 'logicalDurationSec'
+> & {
+  viewportRectLeftPx: number | null;
+};
+
+function resolveRegionPointerDocSec(
+  clientX: number,
+  ws: WaveSurfer,
+  mapping: WaveformPointerMappingSnapshot | null | undefined,
+): number | null {
+  if (!mapping || mapping.viewportRectLeftPx === null) return null;
+  return resolveWaveformPointerClientXToDocSec({
+    clientX,
+    viewportRectLeftPx: mapping.viewportRectLeftPx,
+    ws,
+    tierScrollLeftPx: mapping.tierScrollLeftPx,
+    documentSpanSec: mapping.documentSpanSec,
+    pxPerDocSec: mapping.pxPerDocSec,
+    ...(mapping.logicalDurationSec !== undefined
+      ? { logicalDurationSec: mapping.logicalDurationSec }
+      : {}),
+  });
+}
+
+function resolveAcousticScrollPointerDocSec(
+  clientX: number,
+  ws: WaveSurfer,
+  viewportRectLeftPx: number,
+): number {
+  const wrapper = ws.getWrapper();
+  const scrollParent = wrapper?.parentElement;
+  if (!wrapper || !scrollParent) return 0;
+  const pxOffset = clientX - viewportRectLeftPx + scrollParent.scrollLeft;
+  const totalWidth = wrapper.scrollWidth;
+  const dur = ws.getDuration() || 1;
+  return Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+}
 
 function clampTimeToMediaDuration(timeSec: number, mediaDurationSec: number): number {
   if (mediaDurationSec <= 0) return Math.max(0, timeSec);
@@ -89,6 +133,11 @@ export interface UseWaveSurferOptions {
     pointerId: number,
     clientX: number,
   ) => void;
+  /**
+   * Host-updated snapshot for tier-primary pointer → document-sec mapping on extended timelines.
+   * When set, region click / Alt-sub-select use this instead of acoustic scroll math.
+   */
+  waveformPointerMappingRef?: MutableRefObject<WaveformPointerMappingSnapshot | null>;
   /** Whether WaveSurfer should auto-scroll/center during playback */
   autoScrollDuringPlayback?: boolean;
   /** WaveSurfer 波形区高度（像素）| Waveform canvas height in pixels */
@@ -104,6 +153,7 @@ export interface UseWaveSurferOptions {
 export function useWaveSurfer(options: UseWaveSurferOptions) {
   const { mediaUrl, regions, activeRegionIds, primaryRegionId, startMarker, waveformFocused } =
     options;
+  const waveformPointerMappingRef = options.waveformPointerMappingRef;
 
   // Mirror callbacks in a ref so the heavy init effect doesn't re-run when they change.
   const cbRef = useLatest(options);
@@ -595,15 +645,17 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
             if (!ev.altKey || ev.button !== 0) return;
             ev.stopImmediatePropagation();
             ev.preventDefault();
-            // Compute the time at the click position
             const wrapper = ws.getWrapper();
             const scrollParent = wrapper?.parentElement;
             if (!wrapper || !scrollParent) return;
             const wrapperRect = scrollParent.getBoundingClientRect();
-            const pxOffset = ev.clientX - wrapperRect.left + scrollParent.scrollLeft;
-            const totalWidth = wrapper.scrollWidth;
-            const dur = ws.getDuration() || 1;
-            const time = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+            const mapped = resolveRegionPointerDocSec(
+              ev.clientX,
+              ws,
+              waveformPointerMappingRef?.current,
+            );
+            const time =
+              mapped ?? resolveAcousticScrollPointerDocSec(ev.clientX, ws, wrapperRect.left);
             cbRef.current.onRegionAltPointerDown?.(r.id, time, ev.pointerId, ev.clientX);
           },
           { capture: true, signal: sig },
@@ -619,10 +671,13 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
           const scrollParent = wrapper?.parentElement;
           if (wrapper && scrollParent) {
             const rect = scrollParent.getBoundingClientRect();
-            const pxOffset = ev.clientX - rect.left + scrollParent.scrollLeft;
-            const totalWidth = wrapper.scrollWidth;
-            const dur = ws.getDuration() || 1;
-            clickTime = Math.max(handle.start, Math.min(handle.end, (pxOffset / totalWidth) * dur));
+            const mapped = resolveRegionPointerDocSec(
+              ev.clientX,
+              ws,
+              waveformPointerMappingRef?.current,
+            );
+            clickTime = mapped ?? resolveAcousticScrollPointerDocSec(ev.clientX, ws, rect.left);
+            clickTime = Math.max(handle.start, Math.min(handle.end, clickTime));
           }
         }
         cbRef.current.onRegionClick?.(r.id, clickTime, ev ?? new MouseEvent('click'));
@@ -752,6 +807,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     primaryRegionIdRef,
     regions,
     startMarker,
+    waveformPointerMappingRef,
   ]);
 
   // Render sub-selection highlight as a non-interactive region.
