@@ -1384,6 +1384,111 @@ describe('useImportExport - import success under stop-write', () => {
     expect(links[0]?.lexemeId).toBe(tokens[0]!.lexemeId);
   });
 
+  it('persists tokens from FLEx secondary interlinear-text onto translation-layer segments', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-flex-trl-tokens',
+      textId: 'text-import',
+      key: 'trc_default_flex_trl_tokens',
+      name: { zho: '默认转写层', eng: 'Default Transcription' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+    await db.media_items.put({
+      id: 'media-flex-trl-tokens',
+      textId: 'text-import',
+      filename: 'demo.wav',
+      isOfflineCached: true,
+      createdAt: NOW,
+    } as never);
+
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+<document version="2">
+  <interlinear-text guid="it1">
+    <item type="title" lang="en">Primary</item>
+    <paragraphs>
+      <paragraph guid="pg1">
+        <phrases>
+          <phrase guid="p1" begin-time-offset="0" end-time-offset="1">
+            <item type="txt" lang="en">hello</item>
+          </phrase>
+        </phrases>
+      </paragraph>
+    </paragraphs>
+  </interlinear-text>
+  <interlinear-text guid="it2">
+    <item type="title" lang="en">English</item>
+    <paragraphs>
+      <paragraph guid="pg2">
+        <phrases>
+          <phrase guid="p2" begin-time-offset="0" end-time-offset="1">
+            <item type="txt" lang="en">glossed</item>
+            <words>
+              <word guid="w1">
+                <item type="txt" lang="en">glossed</item>
+                <item type="gls" lang="en">GLOSSED</item>
+              </word>
+            </words>
+          </phrase>
+        </phrases>
+      </paragraph>
+    </paragraphs>
+  </interlinear-text>
+</document>`,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+
+    const { result } = renderHook(() =>
+      useImportExport({
+        activeTextId: 'text-import',
+        getActiveTextId: vi.fn(async () => 'text-import'),
+        selectedUnitMedia: {
+          id: 'media-flex-trl-tokens',
+          textId: 'text-import',
+          filename: 'demo.wav',
+          isOfflineCached: true,
+          createdAt: NOW,
+        } as never,
+        unitsOnCurrentMedia: [],
+        anchors: [],
+        layers: [defaultLayer],
+        translations: [],
+        defaultTranscriptionLayerId: defaultLayer.id,
+        loadSnapshot: vi.fn(async () => undefined),
+        setSaveState: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'demo.flextext', { type: 'application/xml' }),
+      );
+    });
+
+    const jieyuDb = await getDb();
+    const translationLayers = (await jieyuDb.collections.layers.find().exec())
+      .map((doc) => doc.toJSON())
+      .filter((layer) => layer.layerType === 'translation' && layer.textId === 'text-import');
+    expect(translationLayers).toHaveLength(1);
+    const canonicalUnits = await db.layer_units.where('unitType').equals('unit').toArray();
+    expect(canonicalUnits).toHaveLength(1);
+    const segmentId = `segv2_${translationLayers[0]!.id}_${canonicalUnits[0]!.id}`;
+    const tokens = await db.unit_tokens.where('unitId').equals(segmentId).toArray();
+    expect(tokens).toEqual([
+      expect.objectContaining({
+        form: { default: 'glossed' },
+        gloss: { eng: 'GLOSSED' },
+        lexemeId: expect.any(String),
+      }),
+    ]);
+  });
+
   it('persists TRS section topics and speaker dialect/accent', async () => {
     const defaultLayer: LayerDocType = {
       id: 'trc-default-trs-meta',

@@ -11,7 +11,10 @@ import { getDb } from '../../db';
 import type { EafImportResult } from '../../services/EafService';
 import { LinguisticService } from '../../services/LinguisticService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
-import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
+import {
+  getSegmentationV2Ids,
+  syncUnitTextToSegmentationV2,
+} from '../../services/LayerSegmentationTextService';
 import { LayerSegmentationV2Service } from '../../services/LayerSegmentationV2Service';
 import { newId, humanizeTierName } from '../../utils/transcriptionFormatters';
 import { createLogger } from '../../observability/logger';
@@ -476,6 +479,17 @@ export async function importAdditionalTiers(input: {
           updatedAt: input.now,
         };
         await syncUnitTextToSegmentationV2(input.db, match.unit, doc);
+        if (Array.isArray(annotation.tokens) && annotation.tokens.length > 0) {
+          const { segmentId } = getSegmentationV2Ids(write.layerId, match.id, doc.id);
+          await persistImportedTokensForHost({
+            textId: match.unit.textId ?? input.textId,
+            hostUnitId: segmentId,
+            tokens: annotation.tokens,
+            now: input.now,
+            language: tierLang,
+            lexemeIdByFormKey: input.lexemeIdByFormKey,
+          });
+        }
       }
     }
   }

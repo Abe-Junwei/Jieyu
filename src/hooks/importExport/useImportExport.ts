@@ -25,6 +25,15 @@ type ExportSupportModules = {
 
 const log = createLogger('useImportExport');
 
+function hasSegmentExportRows(exportData: { segmentsByLayer?: Map<string, unknown[]> }): boolean {
+  const segments = exportData.segmentsByLayer;
+  if (!segments || segments.size === 0) return false;
+  for (const rows of segments.values()) {
+    if (rows.length > 0) return true;
+  }
+  return false;
+}
+
 function normalizeSpeakerLookupKey(value: string | undefined) {
   return value?.trim().toLocaleLowerCase('zh-Hans-CN') ?? '';
 }
@@ -166,8 +175,15 @@ export function useImportExport(input: UseImportExportInput) {
   const segmentExportMediaId = useMemo(() => {
     const fromScope = segmentScopeMediaId?.trim() ?? '';
     if (fromScope.length > 0) return fromScope;
-    return unitsOnCurrentMedia[0]?.mediaId?.trim() ?? '';
-  }, [segmentScopeMediaId, unitsOnCurrentMedia]);
+    const fromUnit = unitsOnCurrentMedia[0]?.mediaId?.trim() ?? '';
+    if (fromUnit.length > 0) return fromUnit;
+    return activeTimelineMediaItem?.id?.trim() ?? selectedUnitMedia?.id?.trim() ?? '';
+  }, [
+    segmentScopeMediaId,
+    unitsOnCurrentMedia,
+    activeTimelineMediaItem?.id,
+    selectedUnitMedia?.id,
+  ]);
 
   const exportNamingMediaItem = useMemo(
     () => activeTimelineMediaItem ?? selectedUnitMedia,
@@ -509,15 +525,6 @@ export function useImportExport(input: UseImportExportInput) {
     return {
       handleExportEaf: async () => {
         await runExport('eaf', async () => {
-          if (unitsOnCurrentMedia.length === 0) return;
-          const eafService = await serviceLoaders.loadEafService();
-          const userNotes = await fetchUnitNotes(unitsOnCurrentMedia.map((u) => u.id));
-          const defaultTrcLayer =
-            layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
-            layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
-            layers.find((layer) => layer.layerType === 'transcription');
-          // Query segments for time-aligned layers (translation + independent transcription)
-          // 查询时间对齐层的 segment 数据（翻译层 + 独立转写层）
           const timeAlignedLayers = layers.filter(
             (l) =>
               (l.layerType === 'translation' &&
@@ -532,6 +539,15 @@ export function useImportExport(input: UseImportExportInput) {
             segmentsByLayer?: Map<string, import('../../db').LayerUnitDocType[]>;
             segmentContents?: Map<string, Map<string, import('../../db').LayerUnitContentDocType>>;
           };
+          if (unitsOnCurrentMedia.length === 0 && !hasSegmentExportRows(exportData)) return;
+          const eafService = await serviceLoaders.loadEafService();
+          const userNotes = await fetchUnitNotes(unitsOnCurrentMedia.map((u) => u.id));
+          const defaultTrcLayer =
+            layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
+            layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
+            layers.find((layer) => layer.layerType === 'transcription');
+          // Query segments for time-aligned layers (translation + independent transcription)
+          // 查询时间对齐层的 segment 数据（翻译层 + 独立转写层）
           const layerSegments = exportData.segmentsByLayer;
           const layerSegmentContents = exportData.segmentContents;
           const db = await getDb();
@@ -603,10 +619,10 @@ export function useImportExport(input: UseImportExportInput) {
 
       handleExportTextGrid: async () => {
         await runExport('textgrid', async () => {
-          if (unitsOnCurrentMedia.length === 0) return;
+          const exportData = await loadSegmentExportData(segmentExportMediaId || undefined);
+          if (unitsOnCurrentMedia.length === 0 && !hasSegmentExportRows(exportData)) return;
           const textGridService = await serviceLoaders.loadTextGridService();
           const userNotes = await fetchUnitNotes(unitsOnCurrentMedia.map((u) => u.id));
-          const exportData = await loadSegmentExportData(segmentExportMediaId || undefined);
           const segmentsByLayer = exportData?.segmentsByLayer;
           const segmentContents = exportData?.segmentContents;
           const defaultTrcLayer =
@@ -693,9 +709,9 @@ export function useImportExport(input: UseImportExportInput) {
 
       handleExportFlextext: async () => {
         await runExport('flextext', async () => {
-          if (unitsOnCurrentMedia.length === 0) return;
-          const flexService = await serviceLoaders.loadFlexService();
           const exportData2 = await loadSegmentExportData(segmentExportMediaId || undefined);
+          if (unitsOnCurrentMedia.length === 0 && !hasSegmentExportRows(exportData2)) return;
+          const flexService = await serviceLoaders.loadFlexService();
           const segmentsByLayer = exportData2?.segmentsByLayer;
           const segmentContents = exportData2?.segmentContents;
           const defaultTrcLayer =
@@ -738,9 +754,9 @@ export function useImportExport(input: UseImportExportInput) {
 
       handleExportToolbox: async () => {
         await runExport('toolbox', async () => {
-          if (unitsOnCurrentMedia.length === 0) return;
-          const toolboxService = await serviceLoaders.loadToolboxService();
           const exportData3 = await loadSegmentExportData(segmentExportMediaId || undefined);
+          if (unitsOnCurrentMedia.length === 0 && !hasSegmentExportRows(exportData3)) return;
+          const toolboxService = await serviceLoaders.loadToolboxService();
           const segmentsByLayer = exportData3?.segmentsByLayer;
           const segmentContents = exportData3?.segmentContents;
           const defaultTrcLayer =
