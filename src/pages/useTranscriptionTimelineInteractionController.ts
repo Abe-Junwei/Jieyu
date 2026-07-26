@@ -13,6 +13,7 @@ import {
   type TimelineSelectionWriteInput,
 } from '../utils/applyTimelineSelectionCommand';
 import { resolveWaveformPointerClientXToDocSec } from '../utils/waveformPointerClientXToDocSec';
+import { isExtendedDocumentTimeline } from '../utils/waveformTierScrollSync';
 import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
@@ -267,6 +268,25 @@ export function useTranscriptionTimelineInteractionController(
     [input, resolveSubdivisionParentUnit, uiLocale],
   );
 
+  const shouldRemapWaveformRegionPointer = useCallback((): boolean => {
+    const ws = input.player.instanceRef.current;
+    if (!ws) return false;
+    const documentSpanSec =
+      typeof input.documentSpanSec === 'number' &&
+      Number.isFinite(input.documentSpanSec) &&
+      input.documentSpanSec > 0
+        ? input.documentSpanSec
+        : 0;
+    const zoomPxPerSec =
+      typeof input.zoomPxPerSec === 'number' &&
+      Number.isFinite(input.zoomPxPerSec) &&
+      input.zoomPxPerSec > 0
+        ? input.zoomPxPerSec
+        : 0;
+    const mediaDur = ws.getDuration();
+    return zoomPxPerSec > 0 && isExtendedDocumentTimeline(documentSpanSec, mediaDur);
+  }, [input]);
+
   const resolveWaveformRegionPointerDocSec = useCallback(
     (clientX: number): number | null => {
       const ws = input.player.instanceRef.current;
@@ -352,11 +372,18 @@ export function useTranscriptionTimelineInteractionController(
 
   const handleWaveformRegionAltPointerDown = useCallback(
     (regionId: string, time: number, pointerId: number, clientX: number) => {
-      const anchorTime = resolveWaveformRegionPointerDocSec(clientX) ?? time;
+      const anchorTime = shouldRemapWaveformRegionPointer()
+        ? (resolveWaveformRegionPointerDocSec(clientX) ?? time)
+        : time;
       input.subSelectDragRef.current = { active: false, regionId, anchorTime, pointerId };
       input.waveCanvasRef.current?.setPointerCapture(pointerId);
     },
-    [input.subSelectDragRef, input.waveCanvasRef, resolveWaveformRegionPointerDocSec],
+    [
+      input.subSelectDragRef,
+      input.waveCanvasRef,
+      resolveWaveformRegionPointerDocSec,
+      shouldRemapWaveformRegionPointer,
+    ],
   );
 
   const handleWaveformRegionClick = useCallback(
@@ -366,7 +393,9 @@ export function useTranscriptionTimelineInteractionController(
       }
       input.setSubSelectionRange(null);
       input.manualSelectTsRef.current = Date.now();
-      const resolvedClickTime = resolveWaveformRegionPointerDocSec(event.clientX) ?? clickTime;
+      const resolvedClickTime = shouldRemapWaveformRegionPointer()
+        ? (resolveWaveformRegionPointerDocSec(event.clientX) ?? clickTime)
+        : clickTime;
       input.player.seekTo(resolvedClickTime);
       // 选段级联渲染降为低优先级；WaveSurfer 已即时处理视觉高亮 | Defer selection cascade render; WaveSurfer already handles visual highlight
       const nextTarget = resolveWaveformUnitTarget(regionId);
@@ -409,8 +438,16 @@ export function useTranscriptionTimelineInteractionController(
         writeSelection({ type: 'selectTimelineUnit', unit: nextTarget });
       });
     },
-    [input, resolveWaveformRegionPointerDocSec, resolveWaveformUnitTarget, writeSelection],
+    [
+      input,
+      resolveWaveformRegionPointerDocSec,
+      resolveWaveformUnitTarget,
+      shouldRemapWaveformRegionPointer,
+      writeSelection,
+    ],
   );
+
+  const handleWaveformRegionDoubleClick = useCallback(
     (_regionId: string, start: number, end: number) => {
       const preferCreateSegment = readStoredWaveformDoubleClickAction() === 'create-segment';
       if (preferCreateSegment && !input.useSegmentWaveformRegions) {
