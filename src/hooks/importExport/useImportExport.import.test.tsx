@@ -1575,4 +1575,115 @@ describe('useImportExport - import success under stop-write', () => {
     const lexemes = await db.lexemes.toArray();
     expect(lexemes.map((lexeme) => lexeme.lemma.default).sort()).toEqual(['hello', 'world']);
   });
+
+  it('imports independent-boundary translation segment annotations from EAF additional tiers', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-trl-ind',
+      textId: 'text-import',
+      key: 'trc_default_trl_ind',
+      name: { zho: '默认转写层', eng: 'Default Transcription' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const translationLayer: LayerDocType = {
+      id: 'trl-independent-import',
+      textId: 'text-import',
+      key: 'trl_independent_import',
+      name: { zho: '翻译-独立边界', eng: 'Translation Independent' },
+      layerType: 'translation',
+      languageId: 'eng',
+      modality: 'text',
+      constraint: 'independent_boundary',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayers([defaultLayer, translationLayer]);
+    await db.media_items.put({
+      id: 'media-trl-ind',
+      textId: 'text-import',
+      filename: 'demo.wav',
+      isOfflineCached: true,
+      createdAt: NOW,
+    } as never);
+
+    mockIngestTextFile.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="1000" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="2000" />
+    <TIME_SLOT TIME_SLOT_ID="ts3" TIME_VALUE="1000" />
+    <TIME_SLOT TIME_SLOT_ID="ts4" TIME_VALUE="1500" />
+    <TIME_SLOT TIME_SLOT_ID="ts5" TIME_VALUE="1500" />
+    <TIME_SLOT TIME_SLOT_ID="ts6" TIME_VALUE="2000" />
+  </TIME_ORDER>
+  <TIER TIER_ID="Default Transcription" LINGUISTIC_TYPE_REF="utterance-lt">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>hello world</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="Translation Independent" LINGUISTIC_TYPE_REF="translation-independent-lt" DEFAULT_LOCALE="en">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts3" TIME_SLOT_REF2="ts4">
+        <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a3" TIME_SLOT_REF1="ts5" TIME_SLOT_REF2="ts6">
+        <ANNOTATION_VALUE>world</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="utterance-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="translation-independent-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+</ANNOTATION_DOCUMENT>`,
+      detectedEncoding: 'utf-8',
+      confidence: 'high' as const,
+    });
+
+    const { result } = renderHook(() =>
+      useImportExport({
+        activeTextId: 'text-import',
+        getActiveTextId: vi.fn(async () => 'text-import'),
+        selectedUnitMedia: {
+          id: 'media-trl-ind',
+          textId: 'text-import',
+          filename: 'demo.wav',
+          isOfflineCached: true,
+          createdAt: NOW,
+        } as never,
+        unitsOnCurrentMedia: [],
+        anchors: [],
+        layers: [defaultLayer, translationLayer],
+        translations: [],
+        defaultTranscriptionLayerId: defaultLayer.id,
+        loadSnapshot: vi.fn(async () => undefined),
+        setSaveState: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleImportFile(
+        new File(['x'], 'trl-independent.eaf', { type: 'application/xml' }),
+      );
+    });
+
+    const importedSegments = await db.layer_units
+      .where('layerId')
+      .equals(translationLayer.id)
+      .toArray();
+    const importedContents = await db.layer_unit_contents
+      .where('layerId')
+      .equals(translationLayer.id)
+      .toArray();
+
+    expect(importedSegments).toHaveLength(2);
+    expect(importedContents.map((row) => row.text).sort()).toEqual(['hello', 'world']);
+  });
 });

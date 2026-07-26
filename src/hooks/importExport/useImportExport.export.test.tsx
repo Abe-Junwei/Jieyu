@@ -8,6 +8,7 @@ import type {
   LayerUnitContentDocType,
 } from '../../db';
 import { LayerSegmentQueryService } from '../../services/LayerSegmentQueryService';
+import { LinguisticService } from '../../services/LinguisticService';
 import { useImportExport, type UseImportExportInput } from './useImportExport';
 
 const mockExportToEaf = vi.hoisted(() => vi.fn(() => '<ANNOTATION_DOCUMENT/>'));
@@ -375,6 +376,21 @@ describe('useImportExport - export eaf behavior', () => {
     for (const call of spy.mock.calls) {
       expect(call[1]).toBe('media-2');
     }
+    spy.mockRestore();
+  });
+
+  it('loads EAF export tokens from segment ids as well as primary unit ids', async () => {
+    const spy = vi.spyOn(LinguisticService.units, 'listTokensByUnitIds');
+    const input = makeInput();
+    const { result } = renderHook(() => useImportExport(input));
+
+    await act(async () => {
+      await result.current.handleExportEaf();
+    });
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.arrayContaining(['utt-1', 'seg-trl-ind', 'seg-trc-sub']),
+    );
     spy.mockRestore();
   });
 });

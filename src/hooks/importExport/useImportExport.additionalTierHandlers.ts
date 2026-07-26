@@ -426,6 +426,98 @@ export async function importAdditionalTiers(input: {
           humanizedName)
         : humanizedName;
 
+    const tierIndependentBoundaryConstraint =
+      eafTierConstraint?.constraint === 'independent_boundary' ||
+      existingMatch?.constraint === 'independent_boundary';
+
+    if (tierIndependentBoundaryConstraint) {
+      const firstUtt = input.insertedUnits[0];
+      const importMediaId = input.mediaId ?? firstUtt?.unit.mediaId;
+      const importTextId = firstUtt?.unit.textId ?? input.textId;
+      if (!importMediaId) {
+        droppedTranslationSegmentCount += annotations.filter((annotation) =>
+          annotation.text.trim(),
+        ).length;
+        log.warn(
+          'skipped independent-boundary translation tier import: missing media, cannot restore segments',
+          {
+            tierName,
+            layerId,
+            annotationCount: annotations.length,
+          },
+        );
+        continue;
+      }
+
+      for (const annotation of annotations) {
+        if (!annotation.text.trim()) continue;
+        const annStart = Number(annotation.startTime.toFixed(3));
+        const annEnd = Number(annotation.endTime.toFixed(3));
+        if (annEnd < annStart) continue;
+
+        const parentMatch =
+          input.insertedUnits.find(
+            (inserted) =>
+              inserted.unit.startTime <= annStart + 0.05 && inserted.unit.endTime >= annEnd - 0.05,
+          ) ?? firstUtt;
+        const parentUnitId = parentMatch?.unit.id;
+        if (!parentUnitId) {
+          droppedTranslationSegmentCount += 1;
+          continue;
+        }
+
+        const writes = await input.planImportedWrites({
+          text: annotation.text,
+          ...(importedTierMeta?.orthographyId !== undefined
+            ? { sourceOrthographyId: importedTierMeta.orthographyId }
+            : {}),
+          ...(importedTierBridgeId !== undefined ? { bridgeId: importedTierBridgeId } : {}),
+          targetLayerId: layerId,
+          baseLabel: translationBaseLabel,
+          languageId: tierLang,
+          layerType: 'translation',
+          keyPrefix: 'trl_import_source',
+          constraint: 'independent_boundary',
+          ...(importPreferredHostTranscriptionLayerId
+            ? { preferredHostTranscriptionLayerId: importPreferredHostTranscriptionLayerId }
+            : {}),
+          tierName,
+        });
+        const segNow = new Date().toISOString();
+        for (const write of writes) {
+          const segId = newId('seg');
+          await LayerSegmentationV2Service.createSegmentWithContentAtomic(
+            {
+              id: segId,
+              textId: importTextId,
+              mediaId: importMediaId,
+              layerId: write.layerId,
+              unitId: parentUnitId,
+              parentUnitId: parentUnitId,
+              unitType: 'segment',
+              startTime: annStart,
+              endTime: annEnd,
+              createdAt: segNow,
+              updatedAt: segNow,
+            },
+            {
+              id: newId('sc'),
+              textId: importTextId,
+              segmentId: segId,
+              layerId: write.layerId,
+              modality: 'text',
+              text: write.text,
+              sourceType: 'human',
+              ...(annotation.annotationId ? { externalRef: annotation.annotationId } : {}),
+              createdAt: segNow,
+              updatedAt: segNow,
+            },
+          );
+        }
+      }
+      continue;
+    }
+
     for (const annotation of annotations) {
       if (!annotation.text.trim()) continue;
       const annStart = Number(annotation.startTime.toFixed(3));

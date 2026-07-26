@@ -315,6 +315,81 @@ describe('useTranscriptionTimelineInteractionController', () => {
     );
   });
 
+  it('uses tier scroll for waveform region click seek on extended document timelines', () => {
+    const tierContainer = document.createElement('div');
+    Object.defineProperty(tierContainer, 'scrollLeft', {
+      configurable: true,
+      value: 600,
+      writable: true,
+    });
+    const seekTo = vi.fn();
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          player: {
+            isPlaying: false,
+            stop: vi.fn(),
+            seekTo,
+            instanceRef: { current: createWaveformInstance() },
+          },
+          documentSpanSec: 120,
+          zoomPxPerSec: 10,
+          tierContainerRef: { current: tierContainer },
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleWaveformRegionClick(
+        'seg-1',
+        10,
+        new MouseEvent('click', { clientX: 100 }),
+      );
+    });
+
+    expect(seekTo).toHaveBeenCalledWith(70);
+  });
+
+  it('remaps Alt pointerdown anchor time on extended document timelines', () => {
+    const tierContainer = document.createElement('div');
+    Object.defineProperty(tierContainer, 'scrollLeft', {
+      configurable: true,
+      value: 600,
+      writable: true,
+    });
+    const subSelectDragRef = {
+      current: null as {
+        active: boolean;
+        regionId: string;
+        anchorTime: number;
+        pointerId: number;
+      } | null,
+    };
+    const waveCanvas = createWaveCanvasElement();
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          subSelectDragRef,
+          waveCanvasRef: { current: waveCanvas },
+          documentSpanSec: 120,
+          zoomPxPerSec: 10,
+          tierContainerRef: { current: tierContainer },
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleWaveformRegionAltPointerDown('seg-1', 10, 7, 100);
+    });
+
+    expect(subSelectDragRef.current).toEqual({
+      active: false,
+      regionId: 'seg-1',
+      anchorTime: 70,
+      pointerId: 7,
+    });
+  });
+
   it('keeps dependent layer id when opening waveform context menu in segment-backed mode', () => {
     const selectTimelineUnit = vi.fn();
     const setCtxMenu = vi.fn();

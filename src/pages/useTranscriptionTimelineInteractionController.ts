@@ -267,6 +267,51 @@ export function useTranscriptionTimelineInteractionController(
     [input, resolveSubdivisionParentUnit, uiLocale],
   );
 
+  const resolveWaveformRegionPointerDocSec = useCallback(
+    (clientX: number): number | null => {
+      const ws = input.player.instanceRef.current;
+      if (!ws) return null;
+
+      const waveCanvas = input.waveCanvasRef.current;
+      const documentSpanSec =
+        typeof input.documentSpanSec === 'number' &&
+        Number.isFinite(input.documentSpanSec) &&
+        input.documentSpanSec > 0
+          ? input.documentSpanSec
+          : ws.getDuration();
+      const zoomPxPerSec =
+        typeof input.zoomPxPerSec === 'number' &&
+        Number.isFinite(input.zoomPxPerSec) &&
+        input.zoomPxPerSec > 0
+          ? input.zoomPxPerSec
+          : 0;
+      const viewportRectLeftPx =
+        waveCanvas?.getBoundingClientRect().left ??
+        ws.getWrapper()?.parentElement?.getBoundingClientRect().left;
+      if (typeof viewportRectLeftPx === 'number' && zoomPxPerSec > 0) {
+        return resolveWaveformPointerClientXToDocSec({
+          clientX,
+          viewportRectLeftPx,
+          ws,
+          tierScrollLeftPx: input.tierContainerRef?.current?.scrollLeft ?? 0,
+          documentSpanSec,
+          pxPerDocSec: zoomPxPerSec,
+          logicalDurationSec: documentSpanSec,
+        });
+      }
+
+      const wrapper = ws.getWrapper();
+      const scrollParent = wrapper?.parentElement;
+      if (!wrapper || !scrollParent) return null;
+      const rect = scrollParent.getBoundingClientRect();
+      const pxOffset = clientX - rect.left + scrollParent.scrollLeft;
+      const totalWidth = wrapper.scrollWidth;
+      const duration = ws.getDuration() || 1;
+      return Math.max(0, Math.min(duration, (pxOffset / totalWidth) * duration));
+    },
+    [input],
+  );
+
   const handleWaveformRegionContextMenu = useCallback(
     (regionId: string, x: number, y: number) => {
       if (input.player.isPlaying) {
@@ -280,49 +325,8 @@ export function useTranscriptionTimelineInteractionController(
       }
 
       const ws = input.player.instanceRef.current;
-      let splitTime = ws?.getCurrentTime() ?? 0;
-      if (ws) {
-        const waveCanvas = input.waveCanvasRef.current;
-        const documentSpanSec =
-          typeof input.documentSpanSec === 'number' &&
-          Number.isFinite(input.documentSpanSec) &&
-          input.documentSpanSec > 0
-            ? input.documentSpanSec
-            : ws.getDuration();
-        const zoomPxPerSec =
-          typeof input.zoomPxPerSec === 'number' &&
-          Number.isFinite(input.zoomPxPerSec) &&
-          input.zoomPxPerSec > 0
-            ? input.zoomPxPerSec
-            : 0;
-        const viewportRectLeftPx =
-          waveCanvas?.getBoundingClientRect().left ??
-          ws.getWrapper()?.parentElement?.getBoundingClientRect().left;
-        if (typeof viewportRectLeftPx === 'number' && zoomPxPerSec > 0) {
-          const mapped = resolveWaveformPointerClientXToDocSec({
-            clientX: x,
-            viewportRectLeftPx,
-            ws,
-            tierScrollLeftPx: input.tierContainerRef?.current?.scrollLeft ?? 0,
-            documentSpanSec,
-            pxPerDocSec: zoomPxPerSec,
-            logicalDurationSec: documentSpanSec,
-          });
-          if (mapped !== null) {
-            splitTime = mapped;
-          }
-        } else {
-          const wrapper = ws.getWrapper();
-          const scrollParent = wrapper?.parentElement;
-          if (wrapper && scrollParent) {
-            const rect = scrollParent.getBoundingClientRect();
-            const pxOffset = x - rect.left + scrollParent.scrollLeft;
-            const totalWidth = wrapper.scrollWidth;
-            const duration = ws.getDuration() || 1;
-            splitTime = Math.max(0, Math.min(duration, (pxOffset / totalWidth) * duration));
-          }
-        }
-      }
+      const mapped = resolveWaveformRegionPointerDocSec(x);
+      let splitTime = mapped ?? ws?.getCurrentTime() ?? 0;
 
       const timelineItem = input.waveformTimelineItems.find((item) => item.id === regionId);
       const menuLayerIdFromItem =
@@ -343,15 +347,16 @@ export function useTranscriptionTimelineInteractionController(
         layerType,
       });
     },
-    [input, resolveWaveformUnitTarget, writeSelection],
+    [input, resolveWaveformRegionPointerDocSec, resolveWaveformUnitTarget, writeSelection],
   );
 
   const handleWaveformRegionAltPointerDown = useCallback(
-    (regionId: string, time: number, pointerId: number, _clientX: number) => {
-      input.subSelectDragRef.current = { active: false, regionId, anchorTime: time, pointerId };
+    (regionId: string, time: number, pointerId: number, clientX: number) => {
+      const anchorTime = resolveWaveformRegionPointerDocSec(clientX) ?? time;
+      input.subSelectDragRef.current = { active: false, regionId, anchorTime, pointerId };
       input.waveCanvasRef.current?.setPointerCapture(pointerId);
     },
-    [input.subSelectDragRef, input.waveCanvasRef],
+    [input.subSelectDragRef, input.waveCanvasRef, resolveWaveformRegionPointerDocSec],
   );
 
   const handleWaveformRegionClick = useCallback(
@@ -361,7 +366,8 @@ export function useTranscriptionTimelineInteractionController(
       }
       input.setSubSelectionRange(null);
       input.manualSelectTsRef.current = Date.now();
-      input.player.seekTo(clickTime);
+      const resolvedClickTime = resolveWaveformRegionPointerDocSec(event.clientX) ?? clickTime;
+      input.player.seekTo(resolvedClickTime);
       // 选段级联渲染降为低优先级；WaveSurfer 已即时处理视觉高亮 | Defer selection cascade render; WaveSurfer already handles visual highlight
       const nextTarget = resolveWaveformUnitTarget(regionId);
       startTransition(() => {
@@ -403,10 +409,8 @@ export function useTranscriptionTimelineInteractionController(
         writeSelection({ type: 'selectTimelineUnit', unit: nextTarget });
       });
     },
-    [input, resolveWaveformUnitTarget, writeSelection],
+    [input, resolveWaveformRegionPointerDocSec, resolveWaveformUnitTarget, writeSelection],
   );
-
-  const handleWaveformRegionDoubleClick = useCallback(
     (_regionId: string, start: number, end: number) => {
       const preferCreateSegment = readStoredWaveformDoubleClickAction() === 'create-segment';
       if (preferCreateSegment && !input.useSegmentWaveformRegions) {
