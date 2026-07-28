@@ -4,6 +4,7 @@
 
 import { flushSync } from 'react-dom';
 import { persistSessionMemory } from '../../ai/chat/sessionMemory';
+import { shouldApplyStreamUiUpdate } from '../../ai/chat/conversationGeneration';
 import { newAuditLogId, nowIso } from './useAiChat.helpers';
 import {
   advanceComposedWorkflowStateAfterParse,
@@ -14,6 +15,7 @@ import {
 } from '../../ai/vertical/composedWorkflowTemplates';
 import { createLogger } from '../../observability/logger';
 import { t, tf, type Locale } from '../../i18n';
+import type { ConversationGenerationRef } from '../../ai/chat/conversationGeneration';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
 import type { PersistOpeningTurnAndBuildPromptContextResult } from './useAiChat.sendPersistTurnAndBuildPromptContext';
@@ -39,6 +41,8 @@ export async function runSendTurnStreamComposedWorkflowAfterVerticalQuality(opts
   reflectionResult: SendTurnStreamVerticalReflectionResult;
   composedReflectionRetryBlob: ComposedReflectionRetryBlob | undefined;
   locale: Locale;
+  conversationGenerationRef: ConversationGenerationRef;
+  streamGenerationAtStart: number;
 }): Promise<void> {
   const {
     db,
@@ -52,7 +56,13 @@ export async function runSendTurnStreamComposedWorkflowAfterVerticalQuality(opts
     reflectionResult,
     composedReflectionRetryBlob,
     locale,
+    conversationGenerationRef,
+    streamGenerationAtStart,
   } = opts;
+
+  if (!shouldApplyStreamUiUpdate(conversationGenerationRef, streamGenerationAtStart)) {
+    return;
+  }
 
   const composedState = sessionMemoryRef.current.composedWorkflowState;
   if (!composedState || resolutionStatus !== 'done') return;

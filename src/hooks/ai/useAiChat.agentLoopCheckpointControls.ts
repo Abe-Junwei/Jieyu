@@ -57,8 +57,16 @@ export function useAiChatAgentLoopCheckpointControls(options: {
       if (!isAgentLoopResumeText(userText)) return null;
       const checkpoint = sessionMemoryRef.current.pendingAgentLoopCheckpoint ?? null;
       if (checkpoint?.taskId) {
-        const durableCheckpoint = await loadPendingAgentLoopCheckpointFromTaskId(checkpoint.taskId);
-        if (!durableCheckpoint) return checkpoint;
+        const activeConversationId = conversationIdRef.current?.trim();
+        const durableCheckpoint = await loadPendingAgentLoopCheckpointFromTaskId(
+          checkpoint.taskId,
+          {
+            ...(activeConversationId ? { conversationId: activeConversationId } : {}),
+          },
+        );
+        if (!durableCheckpoint) {
+          return activeConversationId ? null : checkpoint;
+        }
 
         const nextMemory: AiSessionMemory = {
           ...sessionMemoryRef.current,
@@ -73,7 +81,9 @@ export function useAiChatAgentLoopCheckpointControls(options: {
       const requestedTaskId = consumeRequestedAgentLoopTaskIdFromSessionStorage();
       const activeConversationId = conversationIdRef.current?.trim();
       const durableCheckpoint = requestedTaskId
-        ? await loadPendingAgentLoopCheckpointFromTaskId(requestedTaskId)
+        ? await loadPendingAgentLoopCheckpointFromTaskId(requestedTaskId, {
+            ...(activeConversationId ? { conversationId: activeConversationId } : {}),
+          })
         : await loadLatestPendingAgentLoopCheckpoint(
             activeConversationId ? { conversationId: activeConversationId } : undefined,
           );

@@ -136,8 +136,14 @@ export async function persistAgentLoopCheckpointTask(input: {
   return taskId;
 }
 
+export type LoadPendingAgentLoopCheckpointFromTaskIdOptions = Readonly<{
+  /** When set, only return a checkpoint whose assistant message belongs to this conversation. */
+  conversationId?: string;
+}>;
+
 export async function loadPendingAgentLoopCheckpointFromTaskId(
   taskId: string,
+  options?: LoadPendingAgentLoopCheckpointFromTaskIdOptions,
 ): Promise<AiSessionMemoryPendingAgentLoopCheckpoint | undefined> {
   const normalizedTaskId = taskId.trim();
   if (!normalizedTaskId) return undefined;
@@ -146,6 +152,11 @@ export async function loadPendingAgentLoopCheckpointFromTaskId(
   if (!task) return undefined;
   const row = task.toJSON();
   if (!isPendingResumableAgentLoopTask(row)) return undefined;
+  const scopedConversationId = options?.conversationId?.trim();
+  if (scopedConversationId) {
+    const targetConversationId = await resolveConversationIdForAgentLoopTarget(row.targetId);
+    if (targetConversationId !== scopedConversationId) return undefined;
+  }
   return fromAgentLoopTaskCheckpoint(row);
 }
 
@@ -154,7 +165,7 @@ export type LoadLatestPendingAgentLoopCheckpointOptions = Readonly<{
   conversationId?: string;
 }>;
 
-async function resolveConversationIdForAgentLoopTarget(
+export async function resolveConversationIdForAgentLoopTarget(
   targetId: string,
 ): Promise<string | undefined> {
   const normalizedTargetId = targetId.trim();
