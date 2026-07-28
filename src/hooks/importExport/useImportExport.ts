@@ -570,7 +570,7 @@ export function useImportExport(input: UseImportExportInput) {
             defaultTrcLayer,
           );
           const tokens = await LinguisticService.units.listTokensByUnitIds(
-            exportUnits.map((unit) => unit.id),
+            collectExportUnitIds(exportUnits, layerSegments),
           );
           const morphemes = await LinguisticService.units.listMorphemesByTokenIds(
             tokens.map((token) => token.id),

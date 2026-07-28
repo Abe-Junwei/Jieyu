@@ -171,7 +171,12 @@ export async function runAiChatSendTurnPreflight(
     return null;
   }
 
+  const streamGenerationAtStart = conversationGenerationRef.current.current;
+
   const resumeCheckpoint = await resolveAgentLoopResumeCheckpoint(trimmed);
+  if (conversationGenerationRef.current.current !== streamGenerationAtStart) {
+    return null;
+  }
   if (!resumeCheckpoint && sessionMemoryRef.current.pendingAgentLoopCheckpoint) {
     clearPendingAgentLoopCheckpoint();
   }
@@ -205,7 +210,6 @@ export async function runAiChatSendTurnPreflight(
     reasoningContent: '',
   };
 
-  const streamGenerationAtStart = conversationGenerationRef.current.current;
   setMessages((prev) => [userMsg, assistantSeed, ...prev]);
   setIsStreaming(true);
 

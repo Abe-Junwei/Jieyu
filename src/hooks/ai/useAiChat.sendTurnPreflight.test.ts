@@ -15,7 +15,10 @@ import { featureFlags } from '../../ai/config/featureFlags';
 import { getDefaultAiChatSettings } from '../../ai/providers/providerCatalog';
 import { isAiChatSendBlockedByAssistantDialogue } from './useAiChat.assistantDialogueSendGate';
 import { runAiChatSendTurnPreflight } from './useAiChat.sendTurnPreflight';
-import { createConversationGenerationRef } from '../../ai/chat/conversationGeneration';
+import {
+  createConversationGenerationRef,
+  bumpConversationGeneration,
+} from '../../ai/chat/conversationGeneration';
 import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
 import type {
   AiInteractionMetrics,
@@ -242,6 +245,26 @@ describe('runAiChatSendTurnPreflight', () => {
     const result = await runAiChatSendTurnPreflight(args);
     expect(result).not.toBeNull();
     expect(sessionMemoryRef.current.responsePreferences?.language).not.toBe('en');
+  });
+
+  it('returns null when conversation generation changes during resume checkpoint resolve', async () => {
+    const generationRef = createConversationGenerationRef(0);
+    const resolveAgentLoopResumeCheckpoint = vi.fn(async () => {
+      bumpConversationGeneration(generationRef);
+      return null;
+    });
+    const setMessages = vi.fn();
+    const setIsStreaming = vi.fn();
+    const args = makeArgs({
+      conversationGenerationRef: { current: generationRef },
+      resolveAgentLoopResumeCheckpoint,
+      setMessages: setMessages as unknown as Dispatch<SetStateAction<UiChatMessage[]>>,
+      setIsStreaming: setIsStreaming as unknown as Dispatch<SetStateAction<boolean>>,
+    });
+    const result = await runAiChatSendTurnPreflight(args);
+    expect(result).toBeNull();
+    expect(setMessages).not.toHaveBeenCalled();
+    expect(setIsStreaming).not.toHaveBeenCalled();
   });
 
   it('writes session sidecar sandbox audit when send-preflight directives are blocked', async () => {
