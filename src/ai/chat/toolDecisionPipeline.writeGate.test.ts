@@ -10,6 +10,7 @@ function baseParams(
     toolCall?: AiChatToolCall;
     aiContext?: AiPromptContext | null;
     sessionMemory?: AiSessionMemory;
+    shouldApplyTurnSideEffects?: () => boolean;
   } = {},
 ): Parameters<typeof resolveToolDecisionPipeline>[0] {
   const toolCall = overrides.toolCall ?? {
@@ -50,6 +51,9 @@ function baseParams(
     markExecutedRequestId: vi.fn(),
     bumpMetric: vi.fn(),
     shouldBumpRecovery: false,
+    ...(overrides.shouldApplyTurnSideEffects
+      ? { shouldApplyTurnSideEffects: overrides.shouldApplyTurnSideEffects }
+      : {}),
   };
 }
 
@@ -98,5 +102,18 @@ describe('toolDecisionPipeline write gate preview routing', () => {
     expect(result.finalStatus).toBe('done');
     expect(result.finalContent).toContain('outside the current scope');
     expect(params.setPendingToolCall).not.toHaveBeenCalled();
+  });
+
+  it('does not set pending tool confirmation when turn side effects are stale', async () => {
+    const params = baseParams({
+      shouldApplyTurnSideEffects: () => false,
+    });
+    const result = await resolveToolDecisionPipeline(params);
+
+    expect(result.finalStatus).toBe('done');
+    expect(params.setPendingToolCall).not.toHaveBeenCalled();
+    expect(params.setTaskSession).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'waiting_confirm' }),
+    );
   });
 });

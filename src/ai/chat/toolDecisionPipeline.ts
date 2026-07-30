@@ -111,6 +111,14 @@ export interface ResolveToolDecisionPipelineResult {
   finalErrorMessage?: string;
 }
 
+function turnSideEffectsStillValid(shouldApplyTurnSideEffects?: () => boolean): boolean {
+  return shouldApplyTurnSideEffects === undefined || shouldApplyTurnSideEffects();
+}
+
+function staleTurnSupersededResult(assistantContent: string): ResolveToolDecisionPipelineResult {
+  return { finalContent: assistantContent, finalStatus: 'done' };
+}
+
 /**
  * 统一处理 send 完成时的工具决策分支 | Unified tool decision pipeline for send completion
  */
@@ -375,6 +383,11 @@ export async function resolveToolDecisionPipeline({
     const executionCall = preparePendingToolCall
       ? ((await preparePendingToolCall(toolCall)) ?? undefined)
       : undefined;
+    if (!turnSideEffectsStillValid(shouldApplyTurnSideEffects)) {
+      return staleTurnSupersededResult(
+        toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle),
+      );
+    }
     const previewSourceCall = executionCall ?? toolCall;
     const impact = describeAndBuildPending(previewSourceCall, aiContext);
     const readModelEpochCaptured = aiContext?.shortTerm?.timelineReadModelEpoch;
@@ -426,6 +439,11 @@ export async function resolveToolDecisionPipeline({
     const executionCall = preparePendingToolCall
       ? ((await preparePendingToolCall(toolCall)) ?? undefined)
       : undefined;
+    if (!turnSideEffectsStillValid(shouldApplyTurnSideEffects)) {
+      return staleTurnSupersededResult(
+        toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle),
+      );
+    }
     const previewSourceCall = executionCall ?? toolCall;
     const impact = describeAndBuildPending(previewSourceCall, aiContext);
     const readModelEpochCaptured = aiContext?.shortTerm?.timelineReadModelEpoch;
@@ -492,6 +510,7 @@ export async function resolveToolDecisionPipeline({
     },
     taskSessionId,
     bumpFailureMetric: () => bumpMetric('failureCount'),
+    ...(shouldApplyTurnSideEffects ? { shouldApplyTurnSideEffects } : {}),
   });
 
   if (gateOutcome.kind === 'error') {
