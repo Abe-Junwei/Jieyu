@@ -150,6 +150,11 @@ interface ResolveDestructiveGateParams {
   setPendingToolCall: (value: PendingAiToolCall) => void;
   taskSessionId: string;
   bumpFailureMetric: () => void;
+  shouldApplyTurnSideEffects?: () => boolean;
+}
+
+function turnSideEffectsStillValid(shouldApplyTurnSideEffects?: () => boolean): boolean {
+  return shouldApplyTurnSideEffects === undefined || shouldApplyTurnSideEffects();
 }
 
 export type DestructiveGateOutcome =
@@ -175,6 +180,7 @@ export async function resolveDestructiveGate({
   setPendingToolCall,
   taskSessionId,
   bumpFailureMetric,
+  shouldApplyTurnSideEffects,
 }: ResolveDestructiveGateParams): Promise<DestructiveGateOutcome> {
   if (toolCall.name === 'propose_changes') {
     const parsed = parseProposedChildCallsFromArguments(toolCall.arguments);
@@ -214,6 +220,12 @@ export async function resolveDestructiveGate({
 
     const impact = describeAndBuildPending(toolCall, aiContext);
     const readModelEpochCaptured = aiContext?.shortTerm?.timelineReadModelEpoch;
+    if (!turnSideEffectsStillValid(shouldApplyTurnSideEffects)) {
+      return {
+        kind: 'pending',
+        finalContent: toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle),
+      };
+    }
     setTaskSession({
       id: taskSessionId,
       status: 'waiting_confirm',
@@ -394,6 +406,12 @@ export async function resolveDestructiveGate({
 
   const shouldRequireConfirmation = destructiveBlocked && (riskCheck?.requiresConfirmation ?? true);
   if (shouldRequireConfirmation) {
+    if (!turnSideEffectsStillValid(shouldApplyTurnSideEffects)) {
+      return {
+        kind: 'pending',
+        finalContent: toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle),
+      };
+    }
     const previewSourceCall = executionCall ?? toolCall;
     const impact = describeAndBuildPending(previewSourceCall, aiContext);
     const finalContent = toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle);

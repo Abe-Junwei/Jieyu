@@ -295,6 +295,7 @@ export async function importAdditionalTiers(input: {
               layerId: write.layerId,
               startTime: annStart,
               endTime: annEnd,
+              ...(annotation.annotationId ? { externalRef: annotation.annotationId } : {}),
               createdAt: segNow,
               updatedAt: segNow,
             },
