@@ -102,7 +102,11 @@ export function useTranscriptionUndo({
   const commandHistoryRef = useRef(new CommandHistory(MAX_UNDO));
   const [_undoRedoVersion, setUndoRedoVersion] = useState(0);
   const timingUndoRef = useRef<TimingUndoState | null>(null);
-  const timingGestureRef = useRef<{ active: boolean; unitId: string | null }>({
+  const timingGestureRef = useRef<{
+    active: boolean;
+    unitId: string | null;
+    undoPreparePromise?: Promise<void>;
+  }>({
     active: false,
     unitId: null,
   });
@@ -154,19 +158,32 @@ export function useTranscriptionUndo({
   );
 
   const beginTimingGesture = useCallback(
-    (unitId: string) => {
+    async (
+      unitId: string,
+      options?: { refreshSegmentUndoSnapshot?: () => Promise<void> },
+    ): Promise<void> => {
       const current = timingGestureRef.current;
-      if (current.active && current.unitId === unitId) return;
-      timingGestureRef.current = { active: true, unitId };
-      pushUndo(t(locale, 'transcription.unitAction.undo.updateTiming'));
+      if (current.active && current.unitId === unitId) {
+        if (current.undoPreparePromise) await current.undoPreparePromise;
+        return;
+      }
+      const undoPreparePromise = (async () => {
+        if (options?.refreshSegmentUndoSnapshot) {
+          await options.refreshSegmentUndoSnapshot();
+        }
+        pushUndo(t(locale, 'transcription.unitAction.undo.updateTiming'));
+      })();
+      timingGestureRef.current = { active: true, unitId, undoPreparePromise };
+      await undoPreparePromise;
     },
     [locale, pushUndo],
   );
 
-  const endTimingGesture = useCallback((unitId?: string) => {
+  const endTimingGesture = useCallback(async (unitId?: string): Promise<void> => {
     const current = timingGestureRef.current;
     if (!current.active) return;
     if (unitId && current.unitId && unitId !== current.unitId) return;
+    if (current.undoPreparePromise) await current.undoPreparePromise;
     timingGestureRef.current = { active: false, unitId: null };
   }, []);
 

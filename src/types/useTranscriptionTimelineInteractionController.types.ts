@@ -123,8 +123,11 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   setSaveState: (state: { kind: 'done' | 'error'; message: string }) => void;
   selectedUnitIds: Set<string>;
   selectedWaveformRegionId: string | null;
-  beginTimingGesture: (id: string) => void;
-  endTimingGesture: (id: string) => void;
+  beginTimingGesture: (
+    id: string,
+    options?: { refreshSegmentUndoSnapshot?: () => Promise<void> },
+  ) => Promise<void>;
+  endTimingGesture: (id: string) => Promise<void>;
   makeSnapGuide: (
     bounds: { left: number; right: number | undefined },
     start: number,

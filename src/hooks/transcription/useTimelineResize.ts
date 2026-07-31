@@ -55,8 +55,12 @@ type UseTimelineResizeParams = {
   selectSegment?: (id: string) => void;
   setSelectedLayerId: (id: string) => void;
   setFocusedLayerRowId: (id: string) => void;
-  beginTimingGesture: (id: string) => void;
-  endTimingGesture: (id: string) => void;
+  beginTimingGesture: (
+    id: string,
+    options?: { refreshSegmentUndoSnapshot?: () => Promise<void> },
+  ) => Promise<void>;
+  endTimingGesture: (id: string) => Promise<void>;
+  refreshSegmentUndoSnapshot?: () => Promise<void>;
   getNeighborBounds: (
     unitId: string,
     mediaId: string | undefined,
@@ -85,6 +89,7 @@ export function useTimelineResize({
   setFocusedLayerRowId,
   beginTimingGesture,
   endTimingGesture,
+  refreshSegmentUndoSnapshot,
   getNeighborBounds,
   makeSnapGuide,
   snapEnabled,
@@ -148,7 +153,10 @@ export function useTimelineResize({
         setFocusedLayerRowId(layerId);
       }
 
-      beginTimingGesture(unit.id);
+      void beginTimingGesture(
+        unit.id,
+        refreshSegmentUndoSnapshot !== undefined ? { refreshSegmentUndoSnapshot } : undefined,
+      );
 
       timelineResizeDragRef.current = {
         unitId: unit.id,
@@ -284,7 +292,6 @@ export function useTimelineResize({
 
         setTimingEditPreview({ preview: null });
         setTimelineResizeTooltip(null);
-        endTimingGesture(drag.unitId);
 
         const bounds = getNeighborBounds(
           drag.segmentId ?? drag.unitId,
@@ -296,7 +303,10 @@ export function useTimelineResize({
           snapGuide: makeSnapGuide(bounds, finalStart, finalEnd),
         });
         fireAndForget(
-          saveUnitTiming(drag.segmentId ?? drag.unitId, finalStart, finalEnd, drag.layerId),
+          (async () => {
+            await endTimingGesture(drag.unitId);
+            await saveUnitTiming(drag.segmentId ?? drag.unitId, finalStart, finalEnd, drag.layerId);
+          })(),
           { context: 'src/hooks/transcription/useTimelineResize.ts:L237', policy: 'user-visible' },
         );
       };
@@ -315,6 +325,7 @@ export function useTimelineResize({
       setSelectedLayerId,
       setFocusedLayerRowId,
       beginTimingGesture,
+      refreshSegmentUndoSnapshot,
       getNeighborBounds,
       setTimingEditPreview,
       makeSnapGuide,

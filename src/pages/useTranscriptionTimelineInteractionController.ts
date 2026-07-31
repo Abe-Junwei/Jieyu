@@ -443,7 +443,12 @@ export function useTranscriptionTimelineInteractionController(
       if (input.player.isPlaying) {
         input.player.stop();
       }
-      input.beginTimingGesture(regionId);
+      void input.beginTimingGesture(
+        regionId,
+        input.refreshSegmentUndoSnapshot !== undefined
+          ? { refreshSegmentUndoSnapshot: input.refreshSegmentUndoSnapshot }
+          : undefined,
+      );
       const item = input.waveformTimelineItems.find((timelineItem) => timelineItem.id === regionId);
       if (!item) return;
       const bounds = getNeighborBoundsRouted(regionId, item.mediaId, start, waveformLayerId);
@@ -457,7 +462,6 @@ export function useTranscriptionTimelineInteractionController(
 
   const handleWaveformRegionUpdateEnd = useCallback(
     (regionId: string, start: number, end: number) => {
-      input.endTimingGesture(regionId);
       input.setTimingEditPreview({ preview: null });
       input.manualSelectTsRef.current = Date.now();
       // 选区更新不阻塞拖拽结束帧 | Selection update should not block drag-end paint
@@ -530,6 +534,7 @@ export function useTranscriptionTimelineInteractionController(
       if (waveformLayerId && routing?.segmentSourceLayer) {
         fireAndForget(
           (async () => {
+            await input.endTimingGesture(regionId);
             await LayerSegmentationV2Service.updateSegment(regionId, {
               startTime: Number(finalStart.toFixed(3)),
               endTime: Number(finalEnd.toFixed(3)),
@@ -552,10 +557,16 @@ export function useTranscriptionTimelineInteractionController(
         return;
       }
 
-      fireAndForget(saveTimingRouted(regionId, finalStart, finalEnd, waveformLayerId), {
-        context: 'src/pages/useTranscriptionTimelineInteractionController.ts:L369',
-        policy: 'user-visible',
-      });
+      fireAndForget(
+        (async () => {
+          await input.endTimingGesture(regionId);
+          await saveTimingRouted(regionId, finalStart, finalEnd, waveformLayerId);
+        })(),
+        {
+          context: 'src/pages/useTranscriptionTimelineInteractionController.ts:L369',
+          policy: 'user-visible',
+        },
+      );
     },
     [
       getNeighborBoundsRouted,

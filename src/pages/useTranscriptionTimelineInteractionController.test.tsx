@@ -551,7 +551,7 @@ describe('useTranscriptionTimelineInteractionController', () => {
     });
 
     expect(stop).toHaveBeenCalled();
-    expect(beginTimingGesture).toHaveBeenCalledWith('seg-1');
+    expect(beginTimingGesture).toHaveBeenCalledWith('seg-1', undefined);
     expect(setTimingEditPreview).toHaveBeenCalledWith({
       preview: { id: 'seg-1', start: 1.2, end: 1.9 },
       snapGuide: expect.objectContaining({ visible: true, start: 1.2, end: 1.9 }),

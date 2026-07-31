@@ -295,3 +295,58 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     );
   });
 });
+
+describe('useTranscriptionUndo - timing gesture undo snapshot', () => {
+  beforeEach(() => {
+    window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
+  });
+
+  afterEach(() => {
+    window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
+  });
+
+  it('beginTimingGesture awaits refreshSegmentUndoSnapshot before pushUndo', async () => {
+    const harness = setupHarness({
+      units: [makeUnit('utt-1')],
+      speakers: [],
+    });
+    const callOrder: string[] = [];
+    let resolveRefresh: (() => void) | undefined;
+    const refreshSegmentUndoSnapshot = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+    const segmentSnapshot = {
+      units: [makeUnit('seg-1')],
+      contents: [],
+      links: [],
+    };
+    harness.hook.result.current.segmentUndoRef.current = {
+      snapshotLayerSegments: () => {
+        callOrder.push('snapshot');
+        return segmentSnapshot;
+      },
+      restoreLayerSegments: vi.fn(async () => undefined),
+    };
+
+    let beginPromise: Promise<void> | undefined;
+    act(() => {
+      beginPromise = harness.hook.result.current.beginTimingGesture('utt-1', {
+        refreshSegmentUndoSnapshot,
+      });
+    });
+
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
+    expect(callOrder).toEqual([]);
+
+    await act(async () => {
+      resolveRefresh?.();
+      await beginPromise;
+    });
+
+    expect(callOrder).toEqual(['snapshot']);
+    expect(harness.hook.result.current.canUndo).toBe(true);
+  });
+});
