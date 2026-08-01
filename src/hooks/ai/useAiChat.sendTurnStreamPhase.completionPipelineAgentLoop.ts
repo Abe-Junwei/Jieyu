@@ -132,7 +132,11 @@ export async function runSendTurnStreamAgentLoopAfterPrimaryCompletion(
   s.totalReportedOutputTokens = loopResult.totalOutputTokens;
   s.reportedInputTokens = loopResult.reportedInputTokens;
 
-  if (loopResult.loopExecuted) {
+  const canApplyTurnSideEffects =
+    streamCompletionEnv.shouldApplyTurnSideEffects === undefined ||
+    streamCompletionEnv.shouldApplyTurnSideEffects();
+
+  if (loopResult.loopExecuted && canApplyTurnSideEffects) {
     setTaskSession((prev) => {
       if (prev.status !== 'executing') return prev;
       return {
@@ -143,17 +147,19 @@ export async function runSendTurnStreamAgentLoopAfterPrimaryCompletion(
     });
   }
 
-  const stillPendingCheckpoint = sessionMemoryRef.current.pendingAgentLoopCheckpoint;
-  if (
-    !stillPendingCheckpoint ||
-    (resumeCheckpoint &&
-      stillPendingCheckpoint.createdAt === resumeCheckpoint.createdAt &&
-      stillPendingCheckpoint.step === resumeCheckpoint.step)
-  ) {
-    clearPendingAgentLoopCheckpoint();
-    if (resumeCheckpoint?.taskId) {
-      await completeAgentLoopCheckpointTask(resumeCheckpoint.taskId);
-      notifyAiTasksUpdated();
+  if (canApplyTurnSideEffects && !controller.signal.aborted) {
+    const stillPendingCheckpoint = sessionMemoryRef.current.pendingAgentLoopCheckpoint;
+    if (
+      !stillPendingCheckpoint ||
+      (resumeCheckpoint &&
+        stillPendingCheckpoint.createdAt === resumeCheckpoint.createdAt &&
+        stillPendingCheckpoint.step === resumeCheckpoint.step)
+    ) {
+      clearPendingAgentLoopCheckpoint();
+      if (resumeCheckpoint?.taskId) {
+        await completeAgentLoopCheckpointTask(resumeCheckpoint.taskId);
+        notifyAiTasksUpdated();
+      }
     }
   }
   if (resolution.connectionErrorMessage && shouldTrackRemoteStatus) {
