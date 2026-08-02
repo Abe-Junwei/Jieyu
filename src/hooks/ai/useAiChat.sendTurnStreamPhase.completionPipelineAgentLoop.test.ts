@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
+import { completeAgentLoopCheckpointTask } from '../../ai/chat/agentLoopCheckpoint';
 import { runSendTurnStreamAgentLoopAfterPrimaryCompletion } from './useAiChat.sendTurnStreamPhase.completionPipelineAgentLoop';
 import type { RunAiChatSendTurnStreamPhaseInput } from './useAiChat.sendTurnStreamPhase.types';
 import type { RunSendTurnStreamPostCompletionPipelineArgs } from './useAiChat.sendTurnStreamPhase.completionPipelineShared';
+
+vi.mock('../../ai/chat/agentLoopCheckpoint', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../ai/chat/agentLoopCheckpoint')>();
+  return {
+    ...actual,
+    completeAgentLoopCheckpointTask: vi.fn(actual.completeAgentLoopCheckpointTask),
+  };
+});
 
 type CapturedAgentLoopDeps = {
   persistSessionMemory: (memory: unknown) => void;
@@ -26,6 +35,11 @@ vi.mock('./useAiChat.agentLoopRunner', () => ({
 
 function minimalPostCompletionArgs(
   buildStreamCompletionEnv: RunSendTurnStreamPostCompletionPipelineArgs['buildStreamCompletionEnv'],
+  overrides: {
+    resumeCheckpoint?: RunAiChatSendTurnStreamPhaseInput['resumeCheckpoint'];
+    sessionMemoryRef?: { current: Record<string, unknown> };
+    controller?: AbortController;
+  } = {},
 ): RunSendTurnStreamPostCompletionPipelineArgs & {
   resolution: { content: string; status: 'done' | 'error' };
 } {
@@ -39,9 +53,9 @@ function minimalPostCompletionArgs(
         routingPlan: { queryFamily: 'unknown', selectedTools: [], scope: 'project' },
         systemPrompt: 'system',
       },
-      controller: new AbortController(),
+      controller: overrides.controller ?? new AbortController(),
       agentLoopSourceUserText: 'hello',
-      resumeCheckpoint: null,
+      resumeCheckpoint: overrides.resumeCheckpoint ?? null,
       assistantId: 'ast-1',
       shouldTrackRemoteStatus: false,
       flags: { aiChatAgentLoopEnabled: true, aiCoordinationLiteEnabled: false },
@@ -52,7 +66,7 @@ function minimalPostCompletionArgs(
       setConnectionTestMessage: vi.fn(),
       setTaskSession: vi.fn(),
       setMetrics: vi.fn(),
-      sessionMemoryRef: { current: {} },
+      sessionMemoryRef: overrides.sessionMemoryRef ?? { current: {} },
       settingsRef: { current: { model: 'mock-1' } },
       toolFeedbackLocaleRef: { current: 'en-US' },
       getContextRef: { current: undefined },
@@ -114,5 +128,56 @@ describe('runSendTurnStreamAgentLoopAfterPrimaryCompletion', () => {
     capturedAgentLoopDeps!.persistSessionMemory({ preferences: { lastLanguage: 'cmn' } });
     expect(guardedUpdate).toHaveBeenCalledWith({ preferences: { lastLanguage: 'cmn' } });
     expect(guardedPersist).toHaveBeenCalledWith({ preferences: { lastLanguage: 'cmn' } });
+  });
+
+  it('does not complete durable checkpoint when turn side effects are stale', async () => {
+    vi.mocked(completeAgentLoopCheckpointTask).mockClear();
+    const clearPendingAgentLoopCheckpoint = vi.fn();
+    const resumeCheckpoint = {
+      kind: 'token_budget_warning' as const,
+      taskId: 'task_agent_loop_stale',
+      originalUserText: 'resume me',
+      continuationInput: 'payload',
+      step: 1,
+      createdAt: '2026-08-01T00:00:00.000Z',
+    };
+    const buildStreamCompletionEnv = vi.fn(() => ({
+      messages: [],
+      providerId: 'mock',
+      model: 'mock-model',
+      toolFeedbackLocale: 'en-US' as const,
+      toolDecisionMode: 'enabled' as const,
+      toolFeedbackStyle: 'detailed' as const,
+      allowDestructiveToolCalls: true,
+      hasPersistedExecutionForRequest: async () => false,
+      writeToolDecisionAuditLog: vi.fn(async () => {}),
+      writeToolIntentAuditLog: vi.fn(async () => {}),
+      sessionMemory: {},
+      updateSessionMemory: vi.fn(),
+      persistSessionMemory: vi.fn(),
+      setTaskSession: vi.fn(),
+      setPendingToolCall: vi.fn(),
+      taskSessionId: 'task-1',
+      markExecutedRequestId: vi.fn(),
+      bumpMetric: vi.fn(),
+      shouldBumpRecovery: false,
+      genRequestId: () => 'req-1',
+      localToolCallCountRef: { current: 0 },
+      shouldApplyTurnSideEffects: () => false,
+    }));
+
+    await runSendTurnStreamAgentLoopAfterPrimaryCompletion({
+      ...minimalPostCompletionArgs(buildStreamCompletionEnv, {
+        resumeCheckpoint,
+        sessionMemoryRef: { current: {} },
+      }),
+      input: {
+        ...minimalPostCompletionArgs(buildStreamCompletionEnv, { resumeCheckpoint }).input,
+        clearPendingAgentLoopCheckpoint,
+      },
+    });
+
+    expect(clearPendingAgentLoopCheckpoint).not.toHaveBeenCalled();
+    expect(completeAgentLoopCheckpointTask).not.toHaveBeenCalled();
   });
 });

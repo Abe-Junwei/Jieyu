@@ -19,6 +19,7 @@ import {
 } from '../../ai/messages';
 import { createMetricTags, recordMetric } from '../../observability/metrics';
 import { persistSessionMemory } from '../../ai/chat/sessionMemory';
+import { isConversationGenerationStale } from '../../ai/chat/conversationGeneration';
 import {
   AI_CHAT_SESSION_SIDECAR_WRITE_PATH,
   resolveAiChatSessionSidecarSandboxPolicy,
@@ -171,7 +172,11 @@ export async function runAiChatSendTurnPreflight(
     return null;
   }
 
+  const streamGenerationAtStart = conversationGenerationRef.current.current;
   const resumeCheckpoint = await resolveAgentLoopResumeCheckpoint(trimmed);
+  if (isConversationGenerationStale(conversationGenerationRef.current, streamGenerationAtStart)) {
+    return null;
+  }
   if (!resumeCheckpoint && sessionMemoryRef.current.pendingAgentLoopCheckpoint) {
     clearPendingAgentLoopCheckpoint();
   }
@@ -205,7 +210,6 @@ export async function runAiChatSendTurnPreflight(
     reasoningContent: '',
   };
 
-  const streamGenerationAtStart = conversationGenerationRef.current.current;
   setMessages((prev) => [userMsg, assistantSeed, ...prev]);
   setIsStreaming(true);
 

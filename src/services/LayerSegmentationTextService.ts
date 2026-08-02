@@ -158,6 +158,7 @@ export async function syncUnitTextToSegmentationV2(
     endTime: unit.endTime,
     ...(unit.startAnchorId ? { startAnchorId: unit.startAnchorId } : {}),
     ...(unit.endAnchorId ? { endAnchorId: unit.endAnchorId } : {}),
+    ...(translation.externalRef ? { externalRef: translation.externalRef } : {}),
     provenance: {
       actorType: 'system',
       method: 'projection',
