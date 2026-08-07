@@ -9,6 +9,7 @@ import {
   loadLatestPendingAgentLoopCheckpoint,
   loadPendingAgentLoopCheckpointFromTaskId,
   persistAgentLoopCheckpointTask,
+  resolveAgentLoopCheckpointConversationId,
 } from './agentLoopCheckpoint';
 
 describe('agentLoopCheckpoint', () => {
@@ -172,6 +173,42 @@ describe('agentLoopCheckpoint', () => {
     await expect(
       loadLatestPendingAgentLoopCheckpoint({ conversationId: 'conv-b' }),
     ).resolves.toBeUndefined();
+  });
+
+  it('resolves conversation id for a checkpoint task via assistant message target', async () => {
+    const timestamp = '2026-04-27T00:00:00.000Z';
+    await db.ai_conversations.add({
+      id: 'conv-resolve',
+      title: 'Resolve',
+      mode: 'assistant',
+      providerId: 'mock',
+      model: 'mock',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    await db.ai_messages.add({
+      id: 'assistant-resolve',
+      conversationId: 'conv-resolve',
+      role: 'assistant',
+      content: 'handoff',
+      status: 'done',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    const taskId = await persistAgentLoopCheckpointTask({
+      targetId: 'assistant-resolve',
+      checkpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: 'continue',
+        continuationInput: 'payload',
+        step: 1,
+        createdAt: timestamp,
+      },
+    });
+
+    await expect(resolveAgentLoopCheckpointConversationId({ taskId })).resolves.toBe(
+      'conv-resolve',
+    );
   });
 
   it('marks a consumed checkpoint task as done and non-resumable', async () => {

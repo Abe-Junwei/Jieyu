@@ -460,6 +460,8 @@ export interface PendingAiToolCall {
   riskTier?: 'medium' | 'high';
   /** Timeline read-model epoch when the pending destructive tool was captured (for stale confirmation guard). */
   readModelEpochCaptured?: number;
+  /** Conversation that created this pending call; confirm must not execute after switch. */
+  conversationIdAtCapture?: string | null;
 }
 
 export interface PreviewContract {
