@@ -64,6 +64,26 @@ export function useTranscriptionTimelineInteractionController(
     [selectionWriteDeps],
   );
 
+  const persistSegmentTiming = useCallback(
+    async (id: string, start: number, end: number) => {
+      const task = async () => {
+        await LayerSegmentationV2Service.updateSegment(id, {
+          startTime: Number(start.toFixed(3)),
+          endTime: Number(end.toFixed(3)),
+          updatedAt: new Date().toISOString(),
+        });
+        await input.reloadSegments();
+        await input.refreshSegmentUndoSnapshot?.();
+      };
+      if (input.runWithDbMutex) {
+        await input.runWithDbMutex(task);
+      } else {
+        await task();
+      }
+    },
+    [input],
+  );
+
   const resolveSubdivisionParentUnit = useCallback(
     (segmentId: string, layerId: string, proposedStart?: number, proposedEnd?: number) => {
       const routing = input.resolveSegmentRoutingForLayer(layerId);
@@ -246,13 +266,7 @@ export function useTranscriptionTimelineInteractionController(
                 Math.abs(finalEnd - beforeClampEnd) > 0.0005;
             }
           }
-          await LayerSegmentationV2Service.updateSegment(id, {
-            startTime: Number(finalStart.toFixed(3)),
-            endTime: Number(finalEnd.toFixed(3)),
-            updatedAt: new Date().toISOString(),
-          });
-          await input.reloadSegments();
-          await input.refreshSegmentUndoSnapshot?.();
+          await persistSegmentTiming(id, finalStart, finalEnd);
           if (subdivisionClampedInResize) {
             input.setSaveState({
               kind: 'done',
@@ -264,7 +278,7 @@ export function useTranscriptionTimelineInteractionController(
       }
       await input.saveUnitTiming(id, start, end);
     },
-    [input, resolveSubdivisionParentUnit, uiLocale],
+    [input, persistSegmentTiming, resolveSubdivisionParentUnit, uiLocale],
   );
 
   const handleWaveformRegionContextMenu = useCallback(
@@ -530,13 +544,7 @@ export function useTranscriptionTimelineInteractionController(
       if (waveformLayerId && routing?.segmentSourceLayer) {
         fireAndForget(
           (async () => {
-            await LayerSegmentationV2Service.updateSegment(regionId, {
-              startTime: Number(finalStart.toFixed(3)),
-              endTime: Number(finalEnd.toFixed(3)),
-              updatedAt: new Date().toISOString(),
-            });
-            await input.reloadSegments();
-            await input.refreshSegmentUndoSnapshot?.();
+            await persistSegmentTiming(regionId, finalStart, finalEnd);
             if (subdivisionClampedInRegionUpdate) {
               input.setSaveState({
                 kind: 'done',
@@ -562,6 +570,7 @@ export function useTranscriptionTimelineInteractionController(
       input,
       resolveSubdivisionParentUnit,
       resolveWaveformUnitTarget,
+      persistSegmentTiming,
       saveTimingRouted,
       uiLocale,
       waveformLayerId,
