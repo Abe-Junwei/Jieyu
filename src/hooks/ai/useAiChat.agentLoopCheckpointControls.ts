@@ -3,6 +3,7 @@ import {
   cancelAgentLoopCheckpointTask,
   loadLatestPendingAgentLoopCheckpoint,
   loadPendingAgentLoopCheckpointFromTaskId,
+  resolveAgentLoopCheckpointConversationId,
 } from '../../ai/chat/agentLoopCheckpoint';
 import { persistSessionMemory } from '../../ai/chat/sessionMemory';
 import { notifyAiTasksUpdated } from '../../ai/tasks/taskRefreshEvents';
@@ -10,7 +11,11 @@ import {
   consumeRequestedAgentLoopTaskIdFromSessionStorage,
   isAgentLoopResumeText,
 } from './useAiChat.agentLoopResumeSession';
-import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
+import type {
+  AiSessionMemory,
+  AiSessionMemoryPendingAgentLoopCheckpoint,
+  UiChatMessage,
+} from './useAiChat.types';
 
 export function useAiChatAgentLoopCheckpointControls(options: {
   sessionMemoryRef: MutableRefObject<AiSessionMemory>;
@@ -55,11 +60,19 @@ export function useAiChatAgentLoopCheckpointControls(options: {
   const resolveAgentLoopResumeCheckpoint = useCallback(
     async (userText: string) => {
       if (!isAgentLoopResumeText(userText)) return null;
-      const checkpoint = sessionMemoryRef.current.pendingAgentLoopCheckpoint ?? null;
-      if (checkpoint?.taskId) {
-        const durableCheckpoint = await loadPendingAgentLoopCheckpointFromTaskId(checkpoint.taskId);
-        if (!durableCheckpoint) return checkpoint;
+      const conversationAtStart = conversationIdRef.current?.trim();
 
+      const applyCheckpointIfStillActive = async (
+        durableCheckpoint: AiSessionMemoryPendingAgentLoopCheckpoint,
+      ): Promise<AiSessionMemoryPendingAgentLoopCheckpoint | null> => {
+        if (conversationIdRef.current?.trim() !== conversationAtStart) return null;
+        if (conversationAtStart) {
+          const checkpointConversationId =
+            await resolveAgentLoopCheckpointConversationId(durableCheckpoint);
+          if (checkpointConversationId && checkpointConversationId !== conversationAtStart) {
+            return null;
+          }
+        }
         const nextMemory: AiSessionMemory = {
           ...sessionMemoryRef.current,
           pendingAgentLoopCheckpoint: durableCheckpoint,
@@ -67,25 +80,25 @@ export function useAiChatAgentLoopCheckpointControls(options: {
         sessionMemoryRef.current = nextMemory;
         persistSessionMemory(nextMemory);
         return durableCheckpoint;
+      };
+
+      const checkpoint = sessionMemoryRef.current.pendingAgentLoopCheckpoint ?? null;
+      if (checkpoint?.taskId) {
+        const durableCheckpoint = await loadPendingAgentLoopCheckpointFromTaskId(checkpoint.taskId);
+        if (!durableCheckpoint) return checkpoint;
+        return (await applyCheckpointIfStillActive(durableCheckpoint)) ?? checkpoint;
       }
       if (checkpoint) return checkpoint;
 
       const requestedTaskId = consumeRequestedAgentLoopTaskIdFromSessionStorage();
-      const activeConversationId = conversationIdRef.current?.trim();
       const durableCheckpoint = requestedTaskId
         ? await loadPendingAgentLoopCheckpointFromTaskId(requestedTaskId)
         : await loadLatestPendingAgentLoopCheckpoint(
-            activeConversationId ? { conversationId: activeConversationId } : undefined,
+            conversationAtStart ? { conversationId: conversationAtStart } : undefined,
           );
       if (!durableCheckpoint) return null;
 
-      const nextMemory: AiSessionMemory = {
-        ...sessionMemoryRef.current,
-        pendingAgentLoopCheckpoint: durableCheckpoint,
-      };
-      sessionMemoryRef.current = nextMemory;
-      persistSessionMemory(nextMemory);
-      return durableCheckpoint;
+      return applyCheckpointIfStillActive(durableCheckpoint);
     },
     [conversationIdRef, sessionMemoryRef],
   );

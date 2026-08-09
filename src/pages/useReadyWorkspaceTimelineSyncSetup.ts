@@ -143,6 +143,7 @@ export function useReadyWorkspaceTimelineSyncSetup(
         toggleUnitSelection: data.toggleUnitSelection,
         selectUnitRange: data.selectUnitRange,
         getNeighborBounds: data.getNeighborBounds,
+        runWithDbMutex: data.runWithDbMutex,
         saveUnitTiming: data.saveUnitTiming,
         runWithDbMutex: data.runWithDbMutex,
         setSaveState: data.setSaveState,

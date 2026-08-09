@@ -150,6 +150,12 @@ interface ResolveDestructiveGateParams {
   setPendingToolCall: (value: PendingAiToolCall) => void;
   taskSessionId: string;
   bumpFailureMetric: () => void;
+  shouldApplyTurnSideEffects?: () => boolean;
+  turnConversationId?: string | null;
+}
+
+function turnSideEffectsStillValid(shouldApplyTurnSideEffects?: () => boolean): boolean {
+  return shouldApplyTurnSideEffects === undefined || shouldApplyTurnSideEffects();
 }
 
 export type DestructiveGateOutcome =
@@ -175,6 +181,8 @@ export async function resolveDestructiveGate({
   setPendingToolCall,
   taskSessionId,
   bumpFailureMetric,
+  shouldApplyTurnSideEffects,
+  turnConversationId,
 }: ResolveDestructiveGateParams): Promise<DestructiveGateOutcome> {
   if (toolCall.name === 'propose_changes') {
     const parsed = parseProposedChildCallsFromArguments(toolCall.arguments);
@@ -214,6 +222,12 @@ export async function resolveDestructiveGate({
 
     const impact = describeAndBuildPending(toolCall, aiContext);
     const readModelEpochCaptured = aiContext?.shortTerm?.timelineReadModelEpoch;
+    if (!turnSideEffectsStillValid(shouldApplyTurnSideEffects)) {
+      return {
+        kind: 'pending',
+        finalContent: toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle),
+      };
+    }
     setTaskSession({
       id: taskSessionId,
       status: 'waiting_confirm',
@@ -237,6 +251,7 @@ export async function resolveDestructiveGate({
       ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
       auditContext,
       ...(readModelEpochCaptured !== undefined ? { readModelEpochCaptured } : {}),
+      ...(turnConversationId ? { conversationIdAtCapture: turnConversationId } : {}),
     });
 
     return {
@@ -394,6 +409,12 @@ export async function resolveDestructiveGate({
 
   const shouldRequireConfirmation = destructiveBlocked && (riskCheck?.requiresConfirmation ?? true);
   if (shouldRequireConfirmation) {
+    if (!turnSideEffectsStillValid(shouldApplyTurnSideEffects)) {
+      return {
+        kind: 'pending',
+        finalContent: toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle),
+      };
+    }
     const previewSourceCall = executionCall ?? toolCall;
     const impact = describeAndBuildPending(previewSourceCall, aiContext);
     const finalContent = toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle);
@@ -422,6 +443,7 @@ export async function resolveDestructiveGate({
       ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
       auditContext,
       ...(readModelEpochCaptured !== undefined ? { readModelEpochCaptured } : {}),
+      ...(turnConversationId ? { conversationIdAtCapture: turnConversationId } : {}),
     });
 
     return { kind: 'pending', finalContent };

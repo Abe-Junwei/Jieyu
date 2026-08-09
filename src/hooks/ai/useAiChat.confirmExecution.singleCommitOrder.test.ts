@@ -76,4 +76,43 @@ describe('executeConfirmedToolCall — T3-c commit order', () => {
     });
     expect(markExecutedRequestId).not.toHaveBeenCalled();
   });
+
+  it('skips side effects when conversation switched during in-flight confirm', async () => {
+    let activeConversationId = 'conv-a';
+    const shouldApplyTurnSideEffects = () => activeConversationId === 'conv-a';
+    const onToolCall = vi.fn(async () => {
+      activeConversationId = 'conv-b';
+      return { ok: true, message: 'saved' };
+    });
+    const persistSessionMemory = vi.fn();
+    const markExecutedRequestId = vi.fn();
+
+    await executeConfirmedToolCall({
+      assistantMessageId: 'asst-1',
+      call: {
+        name: 'set_transcription_text',
+        requestId: 'req-switch-1',
+        arguments: { segmentId: 'u1', text: 'hi' },
+      },
+      auditContext: buildToolAuditContext('', 'p', 'm', 'enabled', 'concise'),
+      locale: TEST_LOCALE,
+      toolFeedbackStyle: 'concise',
+      hasPersistedExecutionForRequest: async () => false,
+      applyAssistantMessageResult: vi.fn(async () => {}),
+      onToolCall,
+      writeToolDecisionAuditLog: vi.fn(async () => {}),
+      setTaskSession: vi.fn(),
+      taskSessionId: 'ts-1',
+      markExecutedRequestId,
+      sessionMemory: {},
+      updateSessionMemory: vi.fn(),
+      persistSessionMemory,
+      bumpMetric: vi.fn(),
+      shouldApplyTurnSideEffects,
+    });
+
+    expect(onToolCall).toHaveBeenCalledTimes(1);
+    expect(persistSessionMemory).not.toHaveBeenCalled();
+    expect(markExecutedRequestId).not.toHaveBeenCalled();
+  });
 });

@@ -149,6 +149,18 @@ export async function loadPendingAgentLoopCheckpointFromTaskId(
   return fromAgentLoopTaskCheckpoint(row);
 }
 
+/** Resolve the conversation that owns an agent-loop checkpoint task (via assistant message target). */
+export async function resolveAgentLoopCheckpointConversationId(
+  checkpoint: Pick<AiSessionMemoryPendingAgentLoopCheckpoint, 'taskId'>,
+): Promise<string | undefined> {
+  const taskId = checkpoint.taskId?.trim();
+  if (!taskId) return undefined;
+  const db = await getDb();
+  const task = await db.collections.ai_tasks.findOne({ selector: { id: taskId } }).exec();
+  if (!task) return undefined;
+  return resolveConversationIdForAgentLoopTarget(task.toJSON().targetId);
+}
+
 export type LoadLatestPendingAgentLoopCheckpointOptions = Readonly<{
   /** When set, only return a checkpoint whose assistant message belongs to this conversation. */
   conversationId?: string;

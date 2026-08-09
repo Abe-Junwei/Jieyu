@@ -78,6 +78,7 @@ interface ExecuteConfirmedToolCallParams {
   updateSessionMemory: (nextMemory: AiSessionMemory) => void;
   persistSessionMemory: (memory: AiSessionMemory) => void;
   bumpMetric: (key: keyof AiInteractionMetrics) => void;
+  shouldApplyTurnSideEffects?: () => boolean;
 }
 
 interface FinalizeHumanToolCallConfirmOutcomeParams {
@@ -228,6 +229,7 @@ export async function executeConfirmedToolCall({
   updateSessionMemory,
   persistSessionMemory,
   bumpMetric,
+  shouldApplyTurnSideEffects,
 }: ExecuteConfirmedToolCallParams): Promise<void> {
   if (await hasPersistedExecutionForRequest(call.requestId)) {
     await applyAssistantMessageResult(
@@ -386,8 +388,50 @@ export async function executeConfirmedToolCall({
   let lastThrow: unknown;
   for (let attempt = 0; ; attempt += 1) {
     try {
+      if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
+        const supersededMessage = 'turn_superseded';
+        await applyAssistantMessageResult(
+          assistantMessageId,
+          toNaturalToolFailure(locale, call.name, supersededMessage, toolFeedbackStyle),
+          'error',
+          supersededMessage,
+        );
+        await writeToolDecisionAuditLog(
+          assistantMessageId,
+          `pending:${call.name}`,
+          `confirm_failed:${call.name}:turn_superseded`,
+          'system',
+          call.requestId,
+          buildToolDecisionAuditMetadata(
+            assistantMessageId,
+            call,
+            auditContext,
+            'system',
+            'confirm_failed',
+            false,
+            supersededMessage,
+            'turn_superseded',
+          ),
+        );
+        setTaskSession({
+          id: taskSessionId,
+          status: 'idle',
+          updatedAt: nowIso(),
+        });
+        return;
+      }
+
       const result = await raceWithTimeout(onToolCall(call), TOOL_EXEC_TIMEOUT_MS);
       const execDurationMs = Math.round(performance.now() - execStart);
+
+      if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
+        setTaskSession({
+          id: taskSessionId,
+          status: 'idle',
+          updatedAt: nowIso(),
+        });
+        return;
+      }
 
       if (result.ok) {
         bumpMetric('successCount');
@@ -563,6 +607,7 @@ export async function executeConfirmedProposedChangeBatch({
   updateSessionMemory,
   persistSessionMemory,
   bumpMetric,
+  shouldApplyTurnSideEffects,
 }: {
   assistantMessageId: string;
   parentCall: AiChatToolCall & { requestId: string };
@@ -596,6 +641,7 @@ export async function executeConfirmedProposedChangeBatch({
   updateSessionMemory: (nextMemory: AiSessionMemory) => void;
   persistSessionMemory: (memory: AiSessionMemory) => void;
   bumpMetric: (key: keyof AiInteractionMetrics) => void;
+  shouldApplyTurnSideEffects?: () => boolean;
 }): Promise<void> {
   const finishIdle = () => {
     setTaskSession({
@@ -798,7 +844,17 @@ export async function executeConfirmedProposedChangeBatch({
         requestId: genRequestId(child, `${assistantMessageId}:propose:${i}`),
       };
 
+      if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
+        finishIdle();
+        return;
+      }
+
       const result = await raceWithTimeout(onToolCall(childWithRequestId), TOOL_EXEC_TIMEOUT_MS);
+
+      if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
+        finishIdle();
+        return;
+      }
 
       if (!result.ok) {
         const rb = await runProposeChangeRollbacks(rollbacks);

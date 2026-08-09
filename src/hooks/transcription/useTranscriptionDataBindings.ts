@@ -585,6 +585,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     ...canonicalApi,
     pushUndo,
     segmentUndoRef,
+    runWithDbMutex,
     setUnits,
     setSpeakers,
     setLayers,
