@@ -419,6 +419,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     setTaskSession,
     bumpMetric,
     getTimelineReadModelEpoch: () => getTimelineReadModelEpochRef.current?.(),
+    conversationIdRef,
   });
 
   const send = useCallback(

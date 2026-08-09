@@ -14,7 +14,7 @@ import {
   buildAiChangeSetFromPendingToolCall,
   validateChangeSetEpoch,
 } from '../../ai/changeset/AiChangeSetProtocol';
-import { persistSessionMemory } from '../../ai/chat/sessionMemory';
+import { persistSessionMemory, persistSessionMemoryAsync } from '../../ai/chat/sessionMemory';
 import {
   buildToolAuditContext,
   buildToolDecisionAuditMetadata,
@@ -62,6 +62,7 @@ interface UseAiChatPendingToolCallOptions {
   setTaskSession: React.Dispatch<React.SetStateAction<AiTaskSession>>;
   bumpMetric: (key: keyof AiInteractionMetrics, delta?: number) => void;
   getTimelineReadModelEpoch?: () => number | undefined;
+  conversationIdRef: { readonly current: string | null };
 }
 
 export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOptions) {
@@ -81,6 +82,7 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     setTaskSession,
     bumpMetric,
     getTimelineReadModelEpoch,
+    conversationIdRef,
   } = options;
   const onToolCallRef = useLatest(options.onToolCall);
   const getTimelineReadModelEpochRef = useLatest(getTimelineReadModelEpoch);
@@ -133,13 +135,6 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     }
 
     const call = pending.executionCall ?? pending.call;
-    setPendingToolCall(null);
-    setTaskSession({
-      id: taskSessionRef.current.id,
-      status: 'executing',
-      toolName: call.name,
-      updatedAt: nowIso(),
-    });
     const auditContext =
       pending.auditContext ??
       buildToolAuditContext(
@@ -149,6 +144,54 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         toolDecisionModeRef.current,
         settingsRef.current.toolFeedbackStyle,
       );
+    const originConversationId =
+      pending.conversationIdAtCapture ?? conversationIdRef.current ?? null;
+    const shouldApplyTurnSideEffects = () =>
+      originConversationId === null || conversationIdRef.current === originConversationId;
+    const persistSessionMemoryForOrigin = (memory: AiSessionMemory) => {
+      if (originConversationId) {
+        void persistSessionMemoryAsync(originConversationId, memory);
+        return;
+      }
+      persistSessionMemory(memory);
+    };
+
+    if (!shouldApplyTurnSideEffects()) {
+      const staleMessage = t(toolFeedbackLocale, 'ai.alerts.staleReadModelConfirmBlocked');
+      setTaskSession({
+        id: taskSessionRef.current.id,
+        status: 'idle',
+        updatedAt: nowIso(),
+      });
+      bumpMetric('failureCount');
+      await applyAssistantMessageResult(assistantMessageId, staleMessage, 'error', staleMessage);
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `pending:${call.name}`,
+        `confirm_failed:${call.name}:turn_superseded`,
+        'system',
+        call.requestId ?? pending.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          call,
+          auditContext,
+          'system',
+          'confirm_failed',
+          false,
+          staleMessage,
+          'turn_superseded',
+        ),
+      );
+      return;
+    }
+
+    setPendingToolCall(null);
+    setTaskSession({
+      id: taskSessionRef.current.id,
+      status: 'executing',
+      toolName: call.name,
+      updatedAt: nowIso(),
+    });
 
     // 注入 requestId | Inject requestId
     const callWithRequestId: AiChatToolCall & { requestId: string } = {
@@ -175,8 +218,9 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         updateSessionMemory: (nextMemory) => {
           sessionMemoryRef.current = nextMemory;
         },
-        persistSessionMemory,
+        persistSessionMemory: persistSessionMemoryForOrigin,
         bumpMetric,
+        shouldApplyTurnSideEffects,
       });
       return;
     }
@@ -198,8 +242,9 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
       updateSessionMemory: (nextMemory) => {
         sessionMemoryRef.current = nextMemory;
       },
-      persistSessionMemory,
+      persistSessionMemory: persistSessionMemoryForOrigin,
       bumpMetric,
+      shouldApplyTurnSideEffects,
     });
   }, [
     applyAssistantMessageResult,
@@ -218,6 +263,7 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     toolFeedbackLocale,
     toolDecisionModeRef,
     writeToolDecisionAuditLog,
+    conversationIdRef,
   ]);
 
   const cancelPendingToolCall = useCallback(async () => {
