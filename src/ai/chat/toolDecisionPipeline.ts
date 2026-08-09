@@ -103,12 +103,21 @@ export interface ResolveToolDecisionPipelineParams {
   bumpMetric: (key: keyof AiInteractionMetrics) => void;
   shouldBumpRecovery: boolean;
   shouldApplyTurnSideEffects?: () => boolean;
+  turnConversationId?: string | null;
 }
 
 export interface ResolveToolDecisionPipelineResult {
   finalContent: string;
   finalStatus: 'done' | 'error';
   finalErrorMessage?: string;
+}
+
+function turnSideEffectsStillValid(shouldApplyTurnSideEffects?: () => boolean): boolean {
+  return shouldApplyTurnSideEffects === undefined || shouldApplyTurnSideEffects();
+}
+
+function staleTurnSupersededResult(assistantContent: string): ResolveToolDecisionPipelineResult {
+  return { finalContent: assistantContent, finalStatus: 'done' };
 }
 
 /**
@@ -144,6 +153,7 @@ export async function resolveToolDecisionPipeline({
   bumpMetric,
   shouldBumpRecovery,
   shouldApplyTurnSideEffects,
+  turnConversationId,
 }: ResolveToolDecisionPipelineParams): Promise<ResolveToolDecisionPipelineResult> {
   const baseAuditContext = buildToolAuditContext(
     userText,
@@ -375,6 +385,11 @@ export async function resolveToolDecisionPipeline({
     const executionCall = preparePendingToolCall
       ? ((await preparePendingToolCall(toolCall)) ?? undefined)
       : undefined;
+    if (!turnSideEffectsStillValid(shouldApplyTurnSideEffects)) {
+      return staleTurnSupersededResult(
+        toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle),
+      );
+    }
     const previewSourceCall = executionCall ?? toolCall;
     const impact = describeAndBuildPending(previewSourceCall, aiContext);
     const readModelEpochCaptured = aiContext?.shortTerm?.timelineReadModelEpoch;
@@ -398,6 +413,7 @@ export async function resolveToolDecisionPipeline({
       ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
       auditContext,
       ...(readModelEpochCaptured !== undefined ? { readModelEpochCaptured } : {}),
+      ...(turnConversationId ? { conversationIdAtCapture: turnConversationId } : {}),
     });
     await writeToolDecisionAuditLog(
       assistantMessageId,
@@ -426,6 +442,11 @@ export async function resolveToolDecisionPipeline({
     const executionCall = preparePendingToolCall
       ? ((await preparePendingToolCall(toolCall)) ?? undefined)
       : undefined;
+    if (!turnSideEffectsStillValid(shouldApplyTurnSideEffects)) {
+      return staleTurnSupersededResult(
+        toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle),
+      );
+    }
     const previewSourceCall = executionCall ?? toolCall;
     const impact = describeAndBuildPending(previewSourceCall, aiContext);
     const readModelEpochCaptured = aiContext?.shortTerm?.timelineReadModelEpoch;
@@ -451,6 +472,7 @@ export async function resolveToolDecisionPipeline({
       ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
       auditContext,
       ...(readModelEpochCaptured !== undefined ? { readModelEpochCaptured } : {}),
+      ...(turnConversationId ? { conversationIdAtCapture: turnConversationId } : {}),
     });
     await writeToolDecisionAuditLog(
       assistantMessageId,
@@ -492,6 +514,8 @@ export async function resolveToolDecisionPipeline({
     },
     taskSessionId,
     bumpFailureMetric: () => bumpMetric('failureCount'),
+    ...(shouldApplyTurnSideEffects ? { shouldApplyTurnSideEffects } : {}),
+    ...(turnConversationId ? { turnConversationId } : {}),
   });
 
   if (gateOutcome.kind === 'error') {
