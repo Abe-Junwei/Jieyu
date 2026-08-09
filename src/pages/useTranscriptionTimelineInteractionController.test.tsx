@@ -2,6 +2,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../db';
+import { createAsyncMutex } from '../utils/asyncMutex';
 import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';
 
 const { mockUpdateSegment } = vi.hoisted(() => ({
@@ -158,6 +159,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     unitsOnCurrentMedia: units,
     getNeighborBounds: vi.fn(() => ({ left: 0.2, right: 1.8 })),
     reloadSegments: vi.fn(async () => undefined),
+    runWithDbMutex: createAsyncMutex().run,
     saveUnitTiming: vi.fn(async () => undefined),
     runWithDbMutex: vi.fn(async (task) => task()),
     setSaveState: vi.fn(),
@@ -771,6 +773,49 @@ describe('useTranscriptionTimelineInteractionController', () => {
       kind: 'error',
       message: '无法将时间细分区间拖动到父句段范围之外。',
     });
+  });
+
+  it('serializes concurrent segment timing saves through runWithDbMutex', async () => {
+    mockUpdateSegment.mockClear();
+    let inFlight = 0;
+    let maxInFlight = 0;
+    let releaseFirst: (() => void) | undefined;
+    const firstBlocked = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let callCount = 0;
+
+    mockUpdateSegment.mockImplementation(async () => {
+      callCount += 1;
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      if (callCount === 1) {
+        await firstBlocked;
+      }
+      inFlight -= 1;
+    });
+
+    const mutex = createAsyncMutex();
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          runWithDbMutex: mutex.run,
+        }),
+      ),
+    );
+
+    const firstSave = result.current.saveTimingRouted('seg-1', 0.5, 1.5, 'layer-sub');
+    const secondSave = result.current.saveTimingRouted('seg-1', 0.6, 1.6, 'layer-sub');
+
+    await act(async () => {
+      await Promise.resolve();
+      expect(maxInFlight).toBe(1);
+      releaseFirst?.();
+      await Promise.all([firstSave, secondSave]);
+    });
+
+    expect(mockUpdateSegment).toHaveBeenCalledTimes(2);
+    expect(maxInFlight).toBe(1);
   });
 
   it('routes waveform region click selection through applyTimelineSelectionCommand when funnel is wired', () => {
