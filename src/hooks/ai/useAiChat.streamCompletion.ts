@@ -315,6 +315,7 @@ export async function resolveAiChatStreamCompletion({
   localToolTraceOptions,
   resolveFreshAiContext,
   shouldApplyTurnSideEffects,
+  turnConversationId,
 }: ResolveAiChatStreamCompletionParams): Promise<ResolveAiChatStreamCompletionResult> {
   if (assistantContent.trim().length === 0) {
     const finalErrorMessage = formatEmptyModelResponseError(toolFeedbackLocale);
@@ -612,6 +613,7 @@ export async function resolveAiChatStreamCompletion({
       bumpMetric,
       shouldBumpRecovery,
       ...(shouldApplyTurnSideEffects ? { shouldApplyTurnSideEffects } : {}),
+      ...(turnConversationId ? { turnConversationId } : {}),
     });
     finalContent = toolDecisionResult.finalContent;
     finalStatus = toolDecisionResult.finalStatus;

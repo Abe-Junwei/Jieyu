@@ -136,6 +136,25 @@ export async function executeAutoToolCall({
     });
     const result = await onToolCall(toolCall);
     const autoExecDurationMs = Math.round(performance.now() - autoExecStart);
+
+    if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
+      setTaskSession({
+        id: taskSessionId,
+        status: 'idle',
+        updatedAt: nowIso(),
+      });
+      return {
+        finalContent: toNaturalToolFailure(
+          locale,
+          toolCall.name,
+          formatToolExecutionFallbackError(locale),
+          toolFeedbackStyle,
+        ),
+        finalStatus: 'error',
+        finalErrorMessage: 'turn_superseded',
+      };
+    }
+
     const finalContent = result.ok
       ? toNaturalToolSuccess(locale, toolCall.name, result.message, toolFeedbackStyle)
       : toNaturalToolFailure(locale, toolCall.name, result.message, toolFeedbackStyle);
