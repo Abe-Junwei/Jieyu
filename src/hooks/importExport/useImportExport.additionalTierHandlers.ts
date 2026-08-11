@@ -476,6 +476,16 @@ export async function importAdditionalTiers(input: {
           updatedAt: input.now,
         };
         await syncUnitTextToSegmentationV2(input.db, match.unit, doc);
+        if (Array.isArray(annotation.tokens) && annotation.tokens.length > 0) {
+          await persistImportedTokensForHost({
+            textId: match.unit.textId ?? input.textId,
+            hostUnitId: match.id,
+            tokens: annotation.tokens,
+            now: input.now,
+            language: tierLang,
+            lexemeIdByFormKey: input.lexemeIdByFormKey,
+          });
+        }
       }
     }
   }

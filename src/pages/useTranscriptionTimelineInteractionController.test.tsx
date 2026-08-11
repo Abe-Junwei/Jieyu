@@ -159,6 +159,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     getNeighborBounds: vi.fn(() => ({ left: 0.2, right: 1.8 })),
     reloadSegments: vi.fn(async () => undefined),
     saveUnitTiming: vi.fn(async () => undefined),
+    runWithDbMutex: vi.fn(async (task) => task()),
     setSaveState: vi.fn(),
     selectedUnitIds: new Set<string>(),
     selectedWaveformRegionId: null,
@@ -313,6 +314,45 @@ describe('useTranscriptionTimelineInteractionController', () => {
         splitTime: 70,
       }),
     );
+  });
+
+  it('uses tier scroll for region click seek on extended document timelines', () => {
+    const tierContainer = document.createElement('div');
+    Object.defineProperty(tierContainer, 'scrollLeft', {
+      configurable: true,
+      value: 600,
+      writable: true,
+    });
+    const seekTo = vi.fn();
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          player: {
+            isPlaying: false,
+            stop: vi.fn(),
+            seekTo,
+            instanceRef: { current: createWaveformInstance() },
+          },
+          waveformTimelineItems: [
+            { id: 'seg-ext', startTime: 65, endTime: 75, mediaId: 'media-1' },
+          ],
+          documentSpanSec: 120,
+          zoomPxPerSec: 10,
+          tierContainerRef: { current: tierContainer },
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleWaveformRegionClick('seg-ext', 1, {
+        clientX: 100,
+        shiftKey: false,
+        metaKey: false,
+        ctrlKey: false,
+      } as MouseEvent);
+    });
+
+    expect(seekTo).toHaveBeenCalledWith(70);
   });
 
   it('keeps dependent layer id when opening waveform context menu in segment-backed mode', () => {
@@ -659,6 +699,44 @@ describe('useTranscriptionTimelineInteractionController', () => {
       kind: 'done',
       message: '已按父句段边界自动修正时间细分区间。',
     });
+  });
+
+  it('routes segment timing writes through runWithDbMutex', async () => {
+    mockUpdateSegment.mockClear();
+    const mutexOrder: string[] = [];
+    const runWithDbMutex = async <T,>(task: () => Promise<T>): Promise<T> => {
+      mutexOrder.push('mutex-enter');
+      const value = await task();
+      mutexOrder.push('mutex-exit');
+      return value;
+    };
+    mockUpdateSegment.mockImplementation(async () => {
+      mutexOrder.push('updateSegment');
+    });
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          activeLayerIdForEdits: 'layer-sub',
+          runWithDbMutex,
+          segmentsByLayer: new Map([
+            [
+              'layer-sub',
+              [
+                makeSegment('seg-1', 'layer-sub', 0, 2, 'utt-1'),
+                makeSegment('seg-2', 'layer-sub', 3, 4, 'utt-1'),
+              ],
+            ],
+          ]),
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.saveTimingRouted('seg-1', 0.5, 1.5, 'layer-sub');
+    });
+
+    expect(runWithDbMutex).toBeDefined();
+    expect(mutexOrder).toEqual(['mutex-enter', 'updateSegment', 'mutex-exit']);
   });
 
   it('keeps a time-subdivision segment inside its original parent instead of jumping to the next unit', async () => {

@@ -120,6 +120,8 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   /** 段时序写入后刷新 segment undo 基线，避免连续 timing 手势 pushUndo 捕获陈旧快照。 */
   refreshSegmentUndoSnapshot?: () => Promise<void>;
   saveUnitTiming: (id: string, start: number, end: number) => Promise<void>;
+  /** Serializes segment timing writes with unit/import/cloud-sync persistence (see `useTranscriptionPersistence`). */
+  runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;
   setSaveState: (state: { kind: 'done' | 'error'; message: string }) => void;
   selectedUnitIds: Set<string>;
   selectedWaveformRegionId: string | null;
