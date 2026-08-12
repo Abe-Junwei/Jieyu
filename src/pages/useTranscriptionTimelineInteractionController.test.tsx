@@ -159,9 +159,8 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     unitsOnCurrentMedia: units,
     getNeighborBounds: vi.fn(() => ({ left: 0.2, right: 1.8 })),
     reloadSegments: vi.fn(async () => undefined),
-    runWithDbMutex: createAsyncMutex().run,
-    saveUnitTiming: vi.fn(async () => undefined),
     runWithDbMutex: vi.fn(async (task) => task()),
+    saveUnitTiming: vi.fn(async () => undefined),
     setSaveState: vi.fn(),
     selectedUnitIds: new Set<string>(),
     selectedWaveformRegionId: null,
@@ -355,6 +354,55 @@ describe('useTranscriptionTimelineInteractionController', () => {
     });
 
     expect(seekTo).toHaveBeenCalledWith(70);
+  });
+
+  it('uses tier scroll for Alt pointerdown anchor on extended document timelines', () => {
+    const tierContainer = document.createElement('div');
+    Object.defineProperty(tierContainer, 'scrollLeft', {
+      configurable: true,
+      value: 600,
+      writable: true,
+    });
+    const subSelectDragRef = {
+      current: null as {
+        active: boolean;
+        regionId: string;
+        anchorTime: number;
+        pointerId: number;
+      } | null,
+    };
+    const waveCanvas = createWaveCanvasElement();
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          player: {
+            isPlaying: false,
+            stop: vi.fn(),
+            seekTo: vi.fn(),
+            instanceRef: { current: createWaveformInstance() },
+          },
+          waveformTimelineItems: [
+            { id: 'seg-ext', startTime: 65, endTime: 75, mediaId: 'media-1' },
+          ],
+          documentSpanSec: 120,
+          zoomPxPerSec: 10,
+          tierContainerRef: { current: tierContainer },
+          subSelectDragRef,
+          waveCanvasRef: { current: waveCanvas },
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleWaveformRegionAltPointerDown('seg-ext', 1, 7, 100);
+    });
+
+    expect(subSelectDragRef.current).toEqual({
+      active: false,
+      regionId: 'seg-ext',
+      anchorTime: 70,
+      pointerId: 7,
+    });
   });
 
   it('keeps dependent layer id when opening waveform context menu in segment-backed mode', () => {

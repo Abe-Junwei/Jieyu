@@ -84,6 +84,50 @@ export function useTranscriptionTimelineInteractionController(
     [input],
   );
 
+  const resolveWaveformRegionPointerTime = useCallback(
+    (regionId: string, clientX: number, fallbackTime: number): number => {
+      const ws = input.player.instanceRef.current;
+      if (!ws) return fallbackTime;
+
+      const waveCanvas = input.waveCanvasRef.current;
+      const documentSpanSec =
+        typeof input.documentSpanSec === 'number' &&
+        Number.isFinite(input.documentSpanSec) &&
+        input.documentSpanSec > 0
+          ? input.documentSpanSec
+          : ws.getDuration();
+      const zoomPxPerSec =
+        typeof input.zoomPxPerSec === 'number' &&
+        Number.isFinite(input.zoomPxPerSec) &&
+        input.zoomPxPerSec > 0
+          ? input.zoomPxPerSec
+          : 0;
+      const viewportRectLeftPx =
+        waveCanvas?.getBoundingClientRect().left ??
+        ws.getWrapper()?.parentElement?.getBoundingClientRect().left;
+      if (typeof viewportRectLeftPx !== 'number' || zoomPxPerSec <= 0) {
+        return fallbackTime;
+      }
+
+      const mapped = resolveWaveformPointerClientXToDocSec({
+        clientX,
+        viewportRectLeftPx,
+        ws,
+        tierScrollLeftPx: input.tierContainerRef?.current?.scrollLeft ?? 0,
+        documentSpanSec,
+        pxPerDocSec: zoomPxPerSec,
+        logicalDurationSec: documentSpanSec,
+      });
+      if (mapped === null) return fallbackTime;
+
+      const timelineItem = input.waveformTimelineItems.find((item) => item.id === regionId);
+      const regionStart = timelineItem?.startTime ?? mapped;
+      const regionEnd = timelineItem?.endTime ?? mapped;
+      return Math.max(regionStart, Math.min(regionEnd, mapped));
+    },
+    [input],
+  );
+
   const resolveSubdivisionParentUnit = useCallback(
     (segmentId: string, layerId: string, proposedStart?: number, proposedEnd?: number) => {
       const routing = input.resolveSegmentRoutingForLayer(layerId);
@@ -361,11 +405,12 @@ export function useTranscriptionTimelineInteractionController(
   );
 
   const handleWaveformRegionAltPointerDown = useCallback(
-    (regionId: string, time: number, pointerId: number, _clientX: number) => {
-      input.subSelectDragRef.current = { active: false, regionId, anchorTime: time, pointerId };
+    (regionId: string, time: number, pointerId: number, clientX: number) => {
+      const anchorTime = resolveWaveformRegionPointerTime(regionId, clientX, time);
+      input.subSelectDragRef.current = { active: false, regionId, anchorTime, pointerId };
       input.waveCanvasRef.current?.setPointerCapture(pointerId);
     },
-    [input.subSelectDragRef, input.waveCanvasRef],
+    [input.subSelectDragRef, input.waveCanvasRef, resolveWaveformRegionPointerTime],
   );
 
   const handleWaveformRegionClick = useCallback(
@@ -376,43 +421,7 @@ export function useTranscriptionTimelineInteractionController(
       input.setSubSelectionRange(null);
       input.manualSelectTsRef.current = Date.now();
 
-      let seekTime = clickTime;
-      const ws = input.player.instanceRef.current;
-      if (ws && event) {
-        const waveCanvas = input.waveCanvasRef.current;
-        const documentSpanSec =
-          typeof input.documentSpanSec === 'number' &&
-          Number.isFinite(input.documentSpanSec) &&
-          input.documentSpanSec > 0
-            ? input.documentSpanSec
-            : ws.getDuration();
-        const zoomPxPerSec =
-          typeof input.zoomPxPerSec === 'number' &&
-          Number.isFinite(input.zoomPxPerSec) &&
-          input.zoomPxPerSec > 0
-            ? input.zoomPxPerSec
-            : 0;
-        const viewportRectLeftPx =
-          waveCanvas?.getBoundingClientRect().left ??
-          ws.getWrapper()?.parentElement?.getBoundingClientRect().left;
-        if (typeof viewportRectLeftPx === 'number' && zoomPxPerSec > 0) {
-          const mapped = resolveWaveformPointerClientXToDocSec({
-            clientX: event.clientX,
-            viewportRectLeftPx,
-            ws,
-            tierScrollLeftPx: input.tierContainerRef?.current?.scrollLeft ?? 0,
-            documentSpanSec,
-            pxPerDocSec: zoomPxPerSec,
-            logicalDurationSec: documentSpanSec,
-          });
-          if (mapped !== null) {
-            const timelineItem = input.waveformTimelineItems.find((item) => item.id === regionId);
-            const regionStart = timelineItem?.startTime ?? mapped;
-            const regionEnd = timelineItem?.endTime ?? mapped;
-            seekTime = Math.max(regionStart, Math.min(regionEnd, mapped));
-          }
-        }
-      }
+      let seekTime = resolveWaveformRegionPointerTime(regionId, event.clientX, clickTime);
 
       input.player.seekTo(seekTime);
       // 选段级联渲染降为低优先级；WaveSurfer 已即时处理视觉高亮 | Defer selection cascade render; WaveSurfer already handles visual highlight
@@ -456,7 +465,7 @@ export function useTranscriptionTimelineInteractionController(
         writeSelection({ type: 'selectTimelineUnit', unit: nextTarget });
       });
     },
-    [input, resolveWaveformUnitTarget, writeSelection],
+    [input, resolveWaveformUnitTarget, writeSelection, resolveWaveformRegionPointerTime],
   );
 
   const handleWaveformRegionDoubleClick = useCallback(
@@ -582,7 +591,7 @@ export function useTranscriptionTimelineInteractionController(
 
       if (waveformLayerId && routing?.segmentSourceLayer) {
         fireAndForget(
-          async () => {
+          (async () => {
             await persistSegmentTiming(regionId, finalStart, finalEnd);
             if (subdivisionClampedInRegionUpdate) {
               input.setSaveState({
@@ -590,7 +599,7 @@ export function useTranscriptionTimelineInteractionController(
                 message: t(uiLocale, 'transcription.timeline.timeSubdivisionClampAdjusted'),
               });
             }
-          },
+          })(),
           {
             context: 'src/pages/useTranscriptionTimelineInteractionController.ts:L355',
             policy: 'user-visible',
