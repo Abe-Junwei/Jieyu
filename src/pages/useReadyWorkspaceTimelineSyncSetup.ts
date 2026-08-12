@@ -145,7 +145,6 @@ export function useReadyWorkspaceTimelineSyncSetup(
         getNeighborBounds: data.getNeighborBounds,
         runWithDbMutex: data.runWithDbMutex,
         saveUnitTiming: data.saveUnitTiming,
-        runWithDbMutex: data.runWithDbMutex,
         setSaveState: data.setSaveState,
         beginTimingGesture: data.beginTimingGesture,
         endTimingGesture: data.endTimingGesture,
