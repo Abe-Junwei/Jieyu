@@ -22,6 +22,7 @@ import { buildSourceScopeSummaryFromEvidencePackets } from '../../ai/vertical/so
 import { buildWorkflowExplainabilityFromAssistantMessage } from '../../ai/chat/workflowExplainability';
 import { reconcileVerticalWorkflowEnvelopeStatus } from '../../ai/vertical/verticalWorkflowSelection';
 import { createLogger } from '../../observability/logger';
+import { shouldApplyStreamUiUpdate } from '../../ai/chat/conversationGeneration';
 import type { UiChatMessage } from './useAiChat.types';
 import type {
   RunSendTurnStreamPostCompletionPipelineArgs,
@@ -51,6 +52,8 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
     backgroundMemoryRuntimeRef,
     onPushAdoptionItemsRef,
     recordCompletionSuccessMetric,
+    conversationGenerationRef,
+    streamGenerationAtStart,
   } = input;
 
   const { db, ragCitations } = opening;
@@ -415,6 +418,9 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
     reflectionResult,
     composedReflectionRetryBlob,
     locale: input.toolFeedbackLocaleRef.current,
+    turnConversationId: sendTurnConversationId,
+    shouldApplyTurnSideEffects: () =>
+      shouldApplyStreamUiUpdate(conversationGenerationRef, streamGenerationAtStart),
   });
 
   if (resolution.status === 'done') {
