@@ -3,7 +3,7 @@
  */
 
 import { flushSync } from 'react-dom';
-import { persistSessionMemory } from '../../ai/chat/sessionMemory';
+import { persistSessionMemoryAsync } from '../../ai/chat/sessionMemory';
 import { newAuditLogId, nowIso } from './useAiChat.helpers';
 import {
   advanceComposedWorkflowStateAfterParse,
@@ -39,6 +39,8 @@ export async function runSendTurnStreamComposedWorkflowAfterVerticalQuality(opts
   reflectionResult: SendTurnStreamVerticalReflectionResult;
   composedReflectionRetryBlob: ComposedReflectionRetryBlob | undefined;
   locale: Locale;
+  turnConversationId: string;
+  shouldApplyTurnSideEffects: () => boolean;
 }): Promise<void> {
   const {
     db,
@@ -52,7 +54,11 @@ export async function runSendTurnStreamComposedWorkflowAfterVerticalQuality(opts
     reflectionResult,
     composedReflectionRetryBlob,
     locale,
+    turnConversationId,
+    shouldApplyTurnSideEffects,
   } = opts;
+
+  if (!shouldApplyTurnSideEffects()) return;
 
   const composedState = sessionMemoryRef.current.composedWorkflowState;
   if (!composedState || resolutionStatus !== 'done') return;
@@ -116,11 +122,13 @@ export async function runSendTurnStreamComposedWorkflowAfterVerticalQuality(opts
       }
     }
 
+    if (!shouldApplyTurnSideEffects()) return;
+
     sessionMemoryRef.current = {
       ...sessionMemoryRef.current,
       composedWorkflowState: effectiveNextState,
     };
-    persistSessionMemory(sessionMemoryRef.current);
+    void persistSessionMemoryAsync(turnConversationId, sessionMemoryRef.current);
 
     if (parseResult && step1Result && step2Result) {
       const annotationHeading = t(locale, 'msg.ai.vertical.workflow.annotationQa');
@@ -136,13 +144,17 @@ export async function runSendTurnStreamComposedWorkflowAfterVerticalQuality(opts
         },
       );
       resolution.content = combinedContent;
-      flushSync(() => {
-        setMessages((prev) =>
-          prev.map((msg) => (msg.id === assistantId ? { ...msg, content: combinedContent } : msg)),
-        );
-      });
-      queueFlushAssistantDraft(combinedContent, true);
-      await awaitQueuedPersistence();
+      if (shouldApplyTurnSideEffects()) {
+        flushSync(() => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantId ? { ...msg, content: combinedContent } : msg,
+            ),
+          );
+        });
+        queueFlushAssistantDraft(combinedContent, true);
+        await awaitQueuedPersistence();
+      }
     } else if (step1Result) {
       const annotationHeading = t(locale, 'msg.ai.vertical.workflow.annotationQa');
       const pendingLine = t(locale, 'msg.ai.vertical.composed.markdown.lexemePendingRetryLine');
@@ -156,13 +168,15 @@ export async function runSendTurnStreamComposedWorkflowAfterVerticalQuality(opts
         },
       );
       resolution.content = partialContent;
-      flushSync(() => {
-        setMessages((prev) =>
-          prev.map((msg) => (msg.id === assistantId ? { ...msg, content: partialContent } : msg)),
-        );
-      });
-      queueFlushAssistantDraft(partialContent, true);
-      await awaitQueuedPersistence();
+      if (shouldApplyTurnSideEffects()) {
+        flushSync(() => {
+          setMessages((prev) =>
+            prev.map((msg) => (msg.id === assistantId ? { ...msg, content: partialContent } : msg)),
+          );
+        });
+        queueFlushAssistantDraft(partialContent, true);
+        await awaitQueuedPersistence();
+      }
     }
 
     await db.collections.audit_logs.insert({
