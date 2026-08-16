@@ -29,3 +29,20 @@ export function shouldApplyStreamUiUpdate(
 ): boolean {
   return !isConversationGenerationStale(ref, capturedGeneration);
 }
+
+/** Thrown when an in-flight send turn is superseded by conversation switch/clear. */
+export class StaleConversationTurnError extends Error {
+  constructor() {
+    super('stale_conversation_turn');
+    this.name = 'StaleConversationTurnError';
+  }
+}
+
+export function throwIfConversationGenerationStale(
+  ref: ConversationGenerationRef | undefined,
+  capturedGeneration: number,
+): void {
+  if (isConversationGenerationStale(ref, capturedGeneration)) {
+    throw new StaleConversationTurnError();
+  }
+}
