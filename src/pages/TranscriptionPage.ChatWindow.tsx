@@ -1,14 +1,14 @@
 import { Suspense, lazy } from 'react';
 import { createPortal } from 'react-dom';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import '../styles/pages/ai-chat-window.css';
 import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
-import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
 import { TranscriptionPageChatWindowHeader } from './TranscriptionPage.ChatWindow.Header';
 import { useTranscriptionChatWindowController } from './useTranscriptionChatWindowController';
 
-const AiChatCard = lazy(async () =>
-  import('../components/ai/AiChatCard').then((module) => ({
-    default: module.AiChatCard,
+const AssistantRuntime = lazy(async () =>
+  import('./TranscriptionPage.AssistantRuntime').then((module) => ({
+    default: module.TranscriptionPageAssistantRuntime,
   })),
 );
 
@@ -35,6 +35,11 @@ export function TranscriptionPageChatWindow({
       >
         <span className="transcription-chat-window-trigger-dot" aria-hidden="true" />
         <span className="transcription-chat-window-trigger-label">{controller.title}</span>
+        {controller.attentionCount > 0 ? (
+          <span className="transcription-chat-window-trigger-badge">
+            {controller.attentionCount}
+          </span>
+        ) : null}
       </button>
       {controller.open && (
         <section
@@ -89,17 +94,19 @@ export function TranscriptionPageChatWindow({
           />
           {!controller.minimized && (
             <div className="transcription-chat-window-body">
-              <AiAssistantHubContext.Provider value={controller.aiAssistantHubContextValue}>
+              <ErrorBoundary>
                 <Suspense fallback={null}>
-                  <AiChatCard
-                    embedded
-                    showHeader={false}
-                    showProviderConfigButton={false}
-                    providerConfigOpen={controller.providerConfigOpen}
-                    onProviderConfigOpenChange={controller.setProviderConfigOpen}
+                  <AssistantRuntime
+                    {...assistantRuntimeProps}
+                    cardChrome={{
+                      showHeader: false,
+                      showProviderConfigButton: false,
+                      providerConfigOpen: controller.providerConfigOpen,
+                      onProviderConfigOpenChange: controller.setProviderConfigOpen,
+                    }}
                   />
                 </Suspense>
-              </AiAssistantHubContext.Provider>
+              </ErrorBoundary>
             </div>
           )}
           {!controller.minimized && (

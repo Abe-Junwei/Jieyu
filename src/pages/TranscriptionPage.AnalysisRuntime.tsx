@@ -143,6 +143,19 @@ export function TranscriptionPageAnalysisRuntime({
     [embedding.navigation, handleRetryAiTask],
   );
 
+  const autoFindConsumedRef = useRef(false);
+  useEffect(() => {
+    if (autoFindConsumedRef.current) return;
+    if (embedding.navigation.autoFindSimilar !== true) return;
+    if (!embedding.source.selectedUnit) return;
+    autoFindConsumedRef.current = true;
+    fireAndForget(handleFindSimilarUnits(), {
+      context: 'src/pages/TranscriptionPage.AnalysisRuntime.tsx:L152',
+      policy: 'user-visible',
+    });
+    embedding.navigation.onAutoFindSimilarConsumed?.();
+  }, [embedding.navigation, embedding.source.selectedUnit, handleFindSimilarUnits]);
+
   const embeddingContextValue = useEmbeddingContextValue({
     selectedUnit: embedding.source.selectedUnit,
     aiEmbeddingBusy,
@@ -181,6 +194,7 @@ export function TranscriptionPageAnalysisRuntime({
           isCollapsed={false}
           activeTab={panel.analysisTab}
           onChangeActiveTab={panel.onAnalysisTabChange}
+          {...(panel.visibleTabs !== undefined ? { visibleTabs: panel.visibleTabs } : {})}
         />
       </EmbeddingProvider>
     </div>

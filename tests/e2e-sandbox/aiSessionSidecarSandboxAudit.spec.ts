@@ -49,15 +49,14 @@ async function hasSessionSidecarAuditGateContaining(page: Page, needle: string):
 async function openTranscriptionAiComposer(page: Page): Promise<void> {
   await page.goto('/transcription');
   await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
-  await expect(page.locator('.transcription-ai-panel')).toBeAttached({ timeout: 25_000 });
 
-  const hoverZone = page.locator('.transcription-ai-panel-hover-zone');
-  if (await hoverZone.count()) {
-    await hoverZone.hover({ force: true });
-  } else {
-    await page.getByRole('button', { name: /Expand AI panel|展开/i }).click({ force: true });
+  const chatWindow = page.locator('.transcription-chat-window');
+  if (!(await chatWindow.count())) {
+    const trigger = page.locator('.transcription-chat-window-trigger:not(.is-hidden)');
+    await expect(trigger).toBeVisible({ timeout: 25_000 });
+    await trigger.click();
   }
-
+  await expect(chatWindow).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('ai-chat-composer-input')).toBeAttached({ timeout: 60_000 });
 
   await page.waitForFunction(

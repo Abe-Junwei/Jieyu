@@ -1,11 +1,11 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useState } from 'react';
 
 type UseReadyWorkspaceRenderControllerInput = {
   isAiPanelCollapsed: boolean;
   flushDeferredAiRuntime: () => void;
   aiPendingToolCall: unknown;
-  setHubSidebarTab: Dispatch<SetStateAction<'assistant' | 'analysis'>>;
-  setIsAiPanelCollapsed: Dispatch<SetStateAction<boolean>>;
+  setHubSidebarTab: (tab: 'assistant' | 'analysis') => void;
+  setIsAiPanelCollapsed: (value: boolean | ((prev: boolean) => boolean)) => void;
   showProjectSetup: boolean;
   showAudioImport: boolean;
   audioDeleteConfirm: unknown;
@@ -26,9 +26,6 @@ export function useReadyWorkspaceRenderController(input: UseReadyWorkspaceRender
   const {
     isAiPanelCollapsed,
     flushDeferredAiRuntime,
-    aiPendingToolCall,
-    setHubSidebarTab,
-    setIsAiPanelCollapsed,
     showProjectSetup,
     showAudioImport,
     audioDeleteConfirm,
@@ -47,13 +44,6 @@ export function useReadyWorkspaceRenderController(input: UseReadyWorkspaceRender
     setHasActivatedAiSidebar(true);
     flushDeferredAiRuntime();
   }, [isAiPanelCollapsed, flushDeferredAiRuntime]);
-
-  useEffect(() => {
-    if (aiPendingToolCall === null || aiPendingToolCall === undefined) return;
-    setHubSidebarTab('assistant');
-    setHasActivatedAiSidebar(true);
-    setIsAiPanelCollapsed(false);
-  }, [aiPendingToolCall, setHubSidebarTab, setIsAiPanelCollapsed]);
 
   return {
     shouldRenderAiSidebar: hasActivatedAiSidebar || !isAiPanelCollapsed,

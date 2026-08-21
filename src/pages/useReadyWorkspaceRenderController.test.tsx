@@ -41,36 +41,23 @@ describe('useReadyWorkspaceRenderController', () => {
     expect(flushDeferredAiRuntime.mock.calls.length).toBe(callsAfterMount);
   });
 
-  it('does not re-run pending-tool sidebar activation when the input object is re-created with the same pending ref', () => {
+  it('does not expand the analysis sidebar for a pending chat tool call', () => {
     const pending = { tool: 'test' };
     const setHubSidebarTab = vi.fn();
     const setIsAiPanelCollapsed = vi.fn();
-    const flushDeferredAiRuntime = vi.fn();
 
-    const { rerender } = renderHook(({ input }) => useReadyWorkspaceRenderController(input), {
-      initialProps: {
-        input: makeInput({
+    renderHook(() =>
+      useReadyWorkspaceRenderController(
+        makeInput({
           isAiPanelCollapsed: true,
-          flushDeferredAiRuntime,
           aiPendingToolCall: pending,
           setHubSidebarTab,
           setIsAiPanelCollapsed,
         }),
-      },
-    });
+      ),
+    );
 
-    const hubCallsAfterMount = setHubSidebarTab.mock.calls.length;
-    const collapseCallsAfterMount = setIsAiPanelCollapsed.mock.calls.length;
-    rerender({
-      input: makeInput({
-        isAiPanelCollapsed: true,
-        flushDeferredAiRuntime,
-        aiPendingToolCall: pending,
-        setHubSidebarTab,
-        setIsAiPanelCollapsed,
-      }),
-    });
-    expect(setHubSidebarTab.mock.calls.length).toBe(hubCallsAfterMount);
-    expect(setIsAiPanelCollapsed.mock.calls.length).toBe(collapseCallsAfterMount);
+    expect(setHubSidebarTab).not.toHaveBeenCalled();
+    expect(setIsAiPanelCollapsed).not.toHaveBeenCalled();
   });
 });

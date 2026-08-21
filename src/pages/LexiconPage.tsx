@@ -241,7 +241,9 @@ export function LexiconPage() {
             </p>
           ) : null}
           {!loading && !error && filteredLexemes.length === 0 ? (
-            <p className="lexicon-workspace-state">{t(locale, 'workspace.lexicon.emptyList')}</p>
+            <p className="lexicon-workspace-state entry-empty">
+              {t(locale, 'workspace.lexicon.emptyList')}
+            </p>
           ) : null}
 
           <div

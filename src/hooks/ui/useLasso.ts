@@ -519,7 +519,13 @@ export function useLasso(input: UseLassoInput) {
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', onPointerUp);
-      setSubSelectPreview?.(null);
+      // Only clear React preview state when a drag was actually in flight.
+      // Unconditional setState here re-enters update loops when this effect
+      // remounts due to unstable deps / parent remount storms.
+      if (subSelectDragRef.current) {
+        subSelectDragRef.current = null;
+        setSubSelectPreview?.(null);
+      }
     };
   }, [
     selectedMediaUrl,

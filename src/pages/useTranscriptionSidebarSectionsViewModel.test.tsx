@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
   countAssistantAttentionSignals,
@@ -72,30 +72,6 @@ describe('useTranscriptionSidebarSectionsViewModel', () => {
         aiSidebarError: 'provider offline',
       }),
     ).toBe(4);
-  });
-
-  it('switches back to assistant when a tool confirmation appears', async () => {
-    const setHubSidebarTab = vi.fn();
-    renderHook(() =>
-      useTranscriptionSidebarSectionsViewModel(
-        createBaseInput({
-          setHubSidebarTab,
-          assistantRuntimeProps: {
-            locale: 'zh-CN',
-            aiChatContextValue: {
-              aiPendingToolCall: {
-                assistantMessageId: 'msg-1',
-                call: { id: 'call-1', name: 'delete_transcription_segment', arguments: {} },
-              },
-            },
-          } as unknown as HookInput['assistantRuntimeProps'],
-        }),
-      ),
-    );
-
-    await waitFor(() => {
-      expect(setHubSidebarTab).toHaveBeenCalledWith('assistant');
-    });
   });
 
   it('keeps assistant attention count for current sidebar signals', () => {

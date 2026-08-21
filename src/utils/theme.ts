@@ -61,13 +61,13 @@ export interface ThemeAccentInfo {
 export const THEMES: ThemeInfo[] = [
   {
     id: 'default',
-    name: '铅印实验室',
-    subtitle: 'Monochrome Lab',
-    description: '完全依靠明度区分层级，减少色相干扰，适合高强度审计与校对。',
-    swatchLight: '#333333',
-    swatchDark: '#EDEDED',
-    bgLight: '#F5F5F5',
-    bgDark: '#111111',
+    name: '青墨纸本',
+    subtitle: 'Paper Teal',
+    description: '冷纸底与青绿主操作，柠绿只作点缀，适合长时科研校对。',
+    swatchLight: '#026370',
+    swatchDark: '#E5FF97',
+    bgLight: '#FCFCF8',
+    bgDark: '#083D44',
   },
   {
     id: 'mogao',
@@ -178,8 +178,8 @@ export const THEME_ACCENTS: ThemeAccentInfo[] = [
     id: 'default',
     labelZh: '跟随配色方案',
     labelEn: 'Follow appearance',
-    swatchLight: '#9E9E9E',
-    swatchDark: '#BDBDBD',
+    swatchLight: '#026370',
+    swatchDark: '#E5FF97',
   },
   { id: 'blue', labelZh: '蓝色', labelEn: 'Blue', swatchLight: '#0078D4', swatchDark: '#74BCFF' },
   {

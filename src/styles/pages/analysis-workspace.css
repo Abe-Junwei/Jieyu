@@ -1,0 +1,49 @@
+.analysis-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  height: 100%;
+}
+
+.analysis-workspace-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.analysis-workspace-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header) 8%);
+  width: fit-content;
+}
+
+.analysis-workspace-summary,
+.analysis-workspace-empty {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.analysis-workspace-return {
+  width: fit-content;
+  color: var(--header-accent);
+  text-decoration: none;
+}
+
+.analysis-workspace-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header) 6%);
+}
+
+.analysis-workspace-body .transcription-hub-sidebar-panel-body {
+  height: 100%;
+  min-height: 420px;
+}

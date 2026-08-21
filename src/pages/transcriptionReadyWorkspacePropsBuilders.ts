@@ -462,7 +462,7 @@ export function buildReadyWorkspaceLayoutStyle(
     '--dialog-compact-auto-width': `${input.adaptiveDialogCompactWidth}px`,
     '--dialog-wide-auto-width': `${input.adaptiveDialogWideWidth}px`,
     '--transcription-ai-width': `${input.aiPanelWidth}px`,
-    '--transcription-ai-visible-width': `${input.isAiPanelCollapsed ? 0 : input.aiPanelWidth}px`,
+    '--transcription-ai-visible-width': '0px',
     '--lane-label-width': input.isTimelineLaneHeaderCollapsed ? '0px' : `${input.laneLabelWidth}px`,
     '--video-left-panel-width':
       input.selectedMediaUrl != null &&

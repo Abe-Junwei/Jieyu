@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import type {
   LayerDocType,
@@ -238,12 +239,6 @@ export function SidePaneSidebar({
   });
   const disableCreateTranslationEntry =
     sidePaneRows.filter((layer) => layer.layerType === 'transcription').length === 0;
-  // eslint-disable-next-line no-console
-  console.log('[SidePaneSidebar] render', {
-    sidePaneRowsCount: sidePaneRows.length,
-    transcriptionCount: sidePaneRows.filter((l) => l.layerType === 'transcription').length,
-    disableCreateTranslationEntry,
-  });
   const layerLabelById = useMemo(
     () =>
       new Map(sidePaneRows.map((layer) => [layer.id, formatSidePaneLayerLabel(layer)] as const)),
@@ -465,12 +460,23 @@ export function SidePaneSidebar({
     [messages.inlinePaneAria, sidePaneActionsNode, sidePaneOverviewNode],
   );
 
+  // Register title/subtitle only. Live pane body portals into the shell slot so
+  // unstable content identity cannot notify-loop AppSidePane subscribers.
   useRegisterAppSidePane({
     title: messages.paneTitle,
     subtitle: messages.paneSubtitle,
-    content: sidePanePortaledNode,
+    content: null,
     enabled: sidePaneHost !== null,
   });
+
+  const [sidePaneBodySlot, setSidePaneBodySlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!sidePaneHost) {
+      setSidePaneBodySlot(null);
+      return;
+    }
+    setSidePaneBodySlot(document.getElementById('app-side-pane-body-slot'));
+  }, [sidePaneHost]);
 
   return (
     <SidePaneLayerProvider
@@ -490,7 +496,11 @@ export function SidePaneSidebar({
           />
         </div>
       ) : null}
-      {sidePaneHost ? null : sidePaneInlineFallbackNode}
+      {sidePaneBodySlot
+        ? createPortal(sidePanePortaledNode, sidePaneBodySlot)
+        : sidePaneHost
+          ? null
+          : sidePaneInlineFallbackNode}
       {collaborationCloudModalNode}
 
       {/* Context menu for right-click on layer items */}

@@ -369,6 +369,39 @@ describe('EafService export', () => {
     expect(xml).not.toContain('jieyu:layer-meta:中文层名');
   });
 
+  it('skips standard ELAN header properties and only parses jieyu metadata JSON', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
+    <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+        <PROPERTY NAME="URN">urn:nl-mpi-tools-elan-eaf:demo</PROPERTY>
+        <PROPERTY NAME="lastUsedAnnotationId">42</PROPERTY>
+        <MEDIA_DESCRIPTOR MEDIA_URL="file:///demo.wav" MIME_TYPE="audio/x-wav" />
+        <PROPERTY NAME="jieyu:layer-meta:default">{"languageId":"ara","orthographyId":"ortho-ar","scriptTag":"Arab","bridgeId":"xf-ar-latn"}</PROPERTY>
+    </HEADER>
+    <TIME_ORDER>
+        <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+        <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000" />
+    </TIME_ORDER>
+    <TIER TIER_ID="default" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="ara">
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+                <ANNOTATION_VALUE>marhaban</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+    </TIER>
+    <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+</ANNOTATION_DOCUMENT>`;
+
+    const result = importFromEaf(xml);
+    expect(result.units).toHaveLength(1);
+    expect(result.tierMetadata.get('default')).toEqual({
+      languageId: 'ara',
+      orthographyId: 'ortho-ar',
+      scriptTag: 'Arab',
+      bridgeId: 'xf-ar-latn',
+    });
+  });
+
   it('ignores unknown EAF tier metadata fields while preserving bridgeId on import', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">

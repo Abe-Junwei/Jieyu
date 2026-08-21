@@ -90,6 +90,8 @@ interface CreateAnalysisRuntimePropsInput {
   embeddingProviderConfig: TranscriptionPageEmbeddingProviderConfig;
   onEmbeddingProviderConfigChange: (config: TranscriptionPageEmbeddingProviderConfig) => void;
   externalErrorMessage: string | null;
+  autoFindSimilar?: boolean;
+  onAutoFindSimilarConsumed?: () => void;
 }
 
 interface CreatePdfRuntimePropsInput {
@@ -216,6 +218,10 @@ export function createAnalysisRuntimeProps(
       : {}),
     ...(input.onAgentLoopTaskRetriedFromTaskList !== undefined
       ? { onAgentLoopTaskRetriedFromTaskList: input.onAgentLoopTaskRetriedFromTaskList }
+      : {}),
+    ...(input.autoFindSimilar !== undefined ? { autoFindSimilar: input.autoFindSimilar } : {}),
+    ...(input.onAutoFindSimilarConsumed !== undefined
+      ? { onAutoFindSimilarConsumed: input.onAutoFindSimilarConsumed }
       : {}),
   };
 

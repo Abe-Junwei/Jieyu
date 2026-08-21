@@ -108,7 +108,7 @@ export function SettingsAppearanceTab({
         <OptionGroup value={themeMode} options={themeOptions} onChange={onThemeChange} />
       </SettingsSection>
 
-      <SettingsSection title="\u914d\u8272\u65b9\u6848">
+      <SettingsSection title={msg.appearanceSchemeLabel}>
         <div className="theme-grid">
           {THEMES.map((theme) => (
             <button

@@ -5,6 +5,7 @@ import type {
   LayerUnitDocType,
   LayerUnitContentDocType,
 } from '../../db';
+import { layerTextLookupUnitId } from '../../utils/recordingScopeUnitId';
 import { isUnitTimelineUnit, type TimelineUnit } from './transcriptionTypes';
 
 function sortLayersByOrder(items: LayerDocType[]) {
@@ -169,7 +170,12 @@ export function useTranscriptionDerivedData({
     (unit: LayerUnitDocType, layerId?: string) => {
       const resolvedLayerId = layerId ?? defaultTranscriptionLayerId;
       if (resolvedLayerId) {
-        const fromLayer = translationTextByLayer.get(resolvedLayerId)?.get(unit.id)?.text;
+        const lookupId = layerTextLookupUnitId(unit);
+        const fromLayer =
+          translationTextByLayer.get(resolvedLayerId)?.get(lookupId)?.text ??
+          (lookupId !== unit.id
+            ? translationTextByLayer.get(resolvedLayerId)?.get(unit.id)?.text
+            : undefined);
         if (fromLayer !== undefined) return fromLayer;
       }
       // Fallback: read from the embedded cache for the default transcription layer

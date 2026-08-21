@@ -18,6 +18,26 @@ export function recordingScopeUnitId(
 }
 
 /**
+ * Lookup key for unit-scoped layer text (`translationTextByLayer` / `saveUnitLayerText`).
+ * Symbolic translation lanes iterate host independent-boundary *segments*, but import/sync
+ * stores text under the parent utterance id — resolve segment → parent before lookup/save.
+ */
+export function layerTextLookupUnitId(
+  row:
+    | Pick<TimelineUnitView, 'kind' | 'id' | 'parentUnitId'>
+    | Pick<LayerUnitDocType, 'id' | 'parentUnitId' | 'unitType'>,
+): string {
+  if ('kind' in row) {
+    return recordingScopeUnitId(row);
+  }
+  if (row.unitType === 'segment') {
+    const parent = row.parentUnitId?.trim();
+    if (parent !== undefined && parent.length > 0) return parent;
+  }
+  return row.id;
+}
+
+/**
  * Resolves the `LayerUnitDocType` passed to `startRecordingForUnit` / voice save.
  * Independent-boundary segments have no `parentUnitId` on the timeline view; they must
  * resolve from the canonical segment graph (`segmentsByLayer`), not `unitById` alone.

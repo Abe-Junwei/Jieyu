@@ -490,10 +490,15 @@ export function LanguageMetadataWorkspacePage({
     }
   };
 
+  const sidePaneContent = useMemo(
+    () => <LanguageMetadataWorkspaceSidePane locale={locale} selectedEntry={selectedEntry} />,
+    [locale, selectedEntry],
+  );
+
   useRegisterAppSidePane({
     title: t(locale, 'workspace.languageMetadata.sidePaneTitle'),
     subtitle: selectedEntry?.localName ?? t(locale, 'workspace.languageMetadata.sidePaneSubtitle'),
-    content: <LanguageMetadataWorkspaceSidePane locale={locale} selectedEntry={selectedEntry} />,
+    content: sidePaneContent,
     enabled: registerSidePane,
   });
 

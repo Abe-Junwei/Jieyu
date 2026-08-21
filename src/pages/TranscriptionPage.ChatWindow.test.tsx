@@ -1,24 +1,31 @@
 // @vitest-environment jsdom
 
-import { act, render } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_AI_CHAT_CONTEXT_VALUE, type AiChatContextValue } from '../contexts/AiChatContext';
-import { REQUEST_AGENT_LOOP_RESUME_EVENT, type RequestAgentLoopResumeDetail } from '../ai/tasks/taskRefreshEvents';
+import {
+  REQUEST_AGENT_LOOP_RESUME_EVENT,
+  type RequestAgentLoopResumeDetail,
+} from '../ai/tasks/taskRefreshEvents';
 import { TranscriptionPageChatWindow } from './TranscriptionPage.ChatWindow';
 import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
 
-vi.mock('../components/ai/AiChatCard', () => ({
-  AiChatCard: () => null,
+vi.mock('./TranscriptionPage.AssistantRuntime', () => ({
+  TranscriptionPageAssistantRuntime: () => null,
 }));
 
-function makeAssistantRuntimeProps(aiChatOverrides: Partial<AiChatContextValue> = {}): TranscriptionPageAssistantRuntimeProps {
+function makeAssistantRuntimeProps(
+  aiChatOverrides: Partial<AiChatContextValue> = {},
+): TranscriptionPageAssistantRuntimeProps {
   return {
     aiChatContextValue: {
       ...DEFAULT_AI_CHAT_CONTEXT_VALUE,
       ...aiChatOverrides,
     },
     frame: {
-      saveState: { kind: 'idle' } as unknown as TranscriptionPageAssistantRuntimeProps['frame']['saveState'],
+      saveState: {
+        kind: 'idle',
+      } as unknown as TranscriptionPageAssistantRuntimeProps['frame']['saveState'],
       recording: false,
       recordingUnitId: null,
       recordingError: null,
@@ -84,12 +91,16 @@ describe('TranscriptionPageChatWindow agent-loop resume bridge', () => {
     });
 
     await act(async () => {
-      window.dispatchEvent(new CustomEvent<RequestAgentLoopResumeDetail>(REQUEST_AGENT_LOOP_RESUME_EVENT, {
-        detail: { taskId: 'task_agent_loop_resume_1' },
-      }));
+      window.dispatchEvent(
+        new CustomEvent<RequestAgentLoopResumeDetail>(REQUEST_AGENT_LOOP_RESUME_EVENT, {
+          detail: { taskId: 'task_agent_loop_resume_1' },
+        }),
+      );
     });
 
-    expect(window.sessionStorage.getItem('jieyu.aiChat.resumeAgentLoopTaskId')).toBe('task_agent_loop_resume_1');
+    expect(window.sessionStorage.getItem('jieyu.aiChat.resumeAgentLoopTaskId')).toBe(
+      'task_agent_loop_resume_1',
+    );
     expect(onSendAiMessage).toHaveBeenCalledTimes(1);
     expect(onSendAiMessage).toHaveBeenCalledWith('继续');
   });
@@ -111,12 +122,34 @@ describe('TranscriptionPageChatWindow agent-loop resume bridge', () => {
     });
 
     await act(async () => {
-      window.dispatchEvent(new CustomEvent<RequestAgentLoopResumeDetail>(REQUEST_AGENT_LOOP_RESUME_EVENT, {
-        detail: { taskId: 'task_agent_loop_resume_2' },
-      }));
+      window.dispatchEvent(
+        new CustomEvent<RequestAgentLoopResumeDetail>(REQUEST_AGENT_LOOP_RESUME_EVENT, {
+          detail: { taskId: 'task_agent_loop_resume_2' },
+        }),
+      );
     });
 
-    expect(window.sessionStorage.getItem('jieyu.aiChat.resumeAgentLoopTaskId')).toBe('task_agent_loop_resume_2');
+    expect(window.sessionStorage.getItem('jieyu.aiChat.resumeAgentLoopTaskId')).toBe(
+      'task_agent_loop_resume_2',
+    );
     expect(onSendAiMessage).not.toHaveBeenCalled();
+  });
+
+  it('opens the floating window when a tool confirmation appears', async () => {
+    render(
+      <TranscriptionPageChatWindow
+        locale="zh-CN"
+        assistantRuntimeProps={makeAssistantRuntimeProps({
+          aiPendingToolCall: {
+            assistantMessageId: 'msg-1',
+            call: { name: 'delete_transcription_segment', arguments: {} },
+          },
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(document.querySelector('.transcription-chat-window')).not.toBeNull();
+    });
   });
 });

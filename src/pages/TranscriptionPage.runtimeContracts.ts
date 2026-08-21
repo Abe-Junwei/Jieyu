@@ -93,11 +93,20 @@ export interface TranscriptionPageAssistantRuntimeVoiceProps {
   >;
 }
 
+export interface TranscriptionPageAssistantRuntimeCardChrome {
+  showHeader?: boolean;
+  showProviderConfigButton?: boolean;
+  providerConfigOpen?: boolean;
+  onProviderConfigOpenChange?: (open: boolean) => void;
+}
+
 export interface TranscriptionPageAssistantRuntimeProps {
   locale: string;
   aiChatContextValue: AiChatContextValue;
   frame: TranscriptionPageAssistantRuntimeFrameProps;
   voice: TranscriptionPageAssistantRuntimeVoiceProps;
+  /** Window chrome: hide the in-card header when ChatWindow already draws one. */
+  cardChrome?: TranscriptionPageAssistantRuntimeCardChrome;
 }
 
 export interface TranscriptionPageEmbeddingProviderConfig {
@@ -111,6 +120,8 @@ export interface TranscriptionPageAnalysisPanelProps {
   locale: string;
   analysisTab: AnalysisBottomTab;
   onAnalysisTabChange: (tab: AnalysisBottomTab) => void;
+  /** 分析页只挂向量/统计；转写声学检查条不走这棵 runtime。 */
+  visibleTabs?: AnalysisBottomTab[];
 }
 
 export interface TranscriptionPageAnalysisEmbeddingSourceProps {
@@ -132,6 +143,9 @@ export interface TranscriptionPageAnalysisEmbeddingNavigationProps {
   onAgentLoopTaskCancelledFromTaskList?: (taskId: string) => void;
   /** 嵌入任务列表对同一 `taskId` 重试成功后：清空匹配的 `pendingAgentLoopCheckpoint`；新 checkpoint 仍由后续 agent 写入同 task 行。 */
   onAgentLoopTaskRetriedFromTaskList?: (taskId: string) => void;
+  /** 右键「检索相似句」深链落地后自动跑一次相似检索。 */
+  autoFindSimilar?: boolean;
+  onAutoFindSimilarConsumed?: () => void;
 }
 
 export interface TranscriptionPageAnalysisEmbeddingProviderConfigProps {

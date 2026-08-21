@@ -9,7 +9,7 @@
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { expandTranscriptionAiPanel } from './_helpers/expandTranscriptionAiPanel';
+import { openTranscriptionChatWindow } from './_helpers/openTranscriptionChatWindow';
 
 test.describe('Accessibility smoke | Axe', () => {
   test('home: primary nav has no axe violations', async ({ page }) => {
@@ -49,12 +49,12 @@ test.describe('Accessibility smoke | Axe', () => {
     expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
   });
 
-  test('transcription: ai chat panel has no axe violations when expanded', async ({ page }) => {
-    await expandTranscriptionAiPanel(page);
-    await expect(page.locator('.transcription-ai-panel')).toBeVisible({ timeout: 60_000 });
+  test('transcription: ai chat window has no axe violations when open', async ({ page }) => {
+    await openTranscriptionChatWindow(page);
+    await expect(page.locator('.transcription-chat-window')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByTestId('ai-chat-composer-input')).toHaveAttribute('aria-label', /.+/);
     const { violations } = await new AxeBuilder({ page })
-      .include('.transcription-ai-panel')
+      .include('.transcription-chat-window')
       .analyze();
     expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
   });

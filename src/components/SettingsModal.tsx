@@ -4,6 +4,8 @@
  * 统一设置入口：外观、快捷键、AI、播放、数据、扩展（Phase A）、关于。
  * Unified settings: Appearance, Shortcuts, AI, Playback, Data, Extensions (Phase A), About.
  */
+import '../styles/panels/settings-modal.css';
+
 export type { SettingsModalProps } from './settings/settingsConstants';
 import { useState, useMemo, memo } from 'react';
 import { type SettingsModalProps } from './settings/settingsConstants';

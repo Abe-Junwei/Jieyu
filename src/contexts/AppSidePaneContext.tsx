@@ -1,6 +1,5 @@
 import {
   createContext,
-  isValidElement,
   useContext,
   useEffect,
   useId,
@@ -17,6 +16,14 @@ export interface AppSidePaneRegistration {
   content: ReactNode;
 }
 
+/** Store snapshot for `useSyncExternalStore` — must stay referentially stable until revision bumps. */
+type AppSidePaneStoreSnapshot = {
+  ownerId: string;
+  title?: string;
+  subtitle?: string;
+  revision: number;
+};
+
 export interface AppSidePaneHostValue {
   mountRegistration: (registration: AppSidePaneRegistration) => void;
   updateRegistrationContent: (
@@ -25,7 +32,8 @@ export interface AppSidePaneHostValue {
   ) => void;
   unmountRegistration: (ownerId: string) => void;
   subscribe: (listener: () => void) => () => void;
-  getSnapshot: () => AppSidePaneRegistration | null;
+  getSnapshot: () => AppSidePaneStoreSnapshot | null;
+  getContent: (ownerId: string) => ReactNode;
 }
 
 const AppSidePaneContext = createContext<AppSidePaneHostValue | null>(null);
@@ -35,35 +43,13 @@ function emptySidePaneSubscribe(_listener: () => void): () => void {
   return () => {};
 }
 
-function nullSidePaneSnapshot(): AppSidePaneRegistration | null {
+function nullSidePaneSnapshot(): AppSidePaneStoreSnapshot | null {
   return null;
 }
 
-/** Avoid notify storms when callers pass fresh element instances with the same type/key/props. */
-function appSidePaneReactNodeSnapshotEqual(a: ReactNode, b: ReactNode): boolean {
-  if (Object.is(a, b)) return true;
-  if (typeof a === 'string' || typeof a === 'number' || typeof a === 'boolean') {
-    return a === b;
-  }
-  if (typeof b === 'string' || typeof b === 'number' || typeof b === 'boolean') {
-    return false;
-  }
-  if (a == null || b == null) return a === b;
-  if (!isValidElement(a) || !isValidElement(b)) return false;
-  if (a.type !== b.type) return false;
-  if (a.key !== b.key) return false;
-  const ap = a.props as Record<string, unknown>;
-  const bp = b.props as Record<string, unknown>;
-  const aKeys = Object.keys(ap);
-  if (aKeys.length !== Object.keys(bp).length) return false;
-  for (const key of aKeys) {
-    if (!Object.is(ap[key], bp[key])) return false;
-  }
-  return true;
-}
-
 export function AppSidePaneProvider({ children }: { children: ReactNode }) {
-  const registrationRef = useRef<AppSidePaneRegistration | null>(null);
+  const metaRef = useRef<AppSidePaneStoreSnapshot | null>(null);
+  const contentByOwnerRef = useRef(new Map<string, ReactNode>());
   const listenersRef = useRef(new Set<() => void>());
   const pendingNotifyRef = useRef(false);
   const notifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,32 +76,59 @@ export function AppSidePaneProvider({ children }: { children: ReactNode }) {
       }, 0);
     };
 
+    const publishMeta = (
+      ownerId: string,
+      title: string | undefined,
+      subtitle: string | undefined,
+      options?: { syncNotify?: boolean },
+    ) => {
+      const prev = metaRef.current;
+      const sameOwner = prev?.ownerId === ownerId;
+      const sameTitle = sameOwner && prev?.title === title;
+      const sameSubtitle = sameOwner && prev?.subtitle === subtitle;
+      if (sameOwner && sameTitle && sameSubtitle) {
+        return false;
+      }
+      metaRef.current = {
+        ownerId,
+        ...(title !== undefined && title.length > 0 ? { title } : {}),
+        ...(subtitle !== undefined && subtitle.length > 0 ? { subtitle } : {}),
+        revision: (prev?.revision ?? 0) + 1,
+      };
+      if (options?.syncNotify === true) {
+        listenersRef.current.forEach((listener) => listener());
+      } else {
+        scheduleNotify();
+      }
+      return true;
+    };
+
     return {
       mountRegistration: (registration) => {
-        registrationRef.current = registration;
-        // 同步通知 — 保证首次挂载后订阅者立即可见 | Sync notify — subscriber sees content immediately after first mount
-        listenersRef.current.forEach((listener) => listener());
+        contentByOwnerRef.current.set(registration.ownerId, registration.content);
+        publishMeta(registration.ownerId, registration.title, registration.subtitle, {
+          syncNotify: true,
+        });
       },
       updateRegistrationContent: (ownerId, patch) => {
-        if (registrationRef.current?.ownerId !== ownerId) return;
-        const currentRegistration = registrationRef.current;
-        const nextRegistration = { ...currentRegistration, ...patch };
-        if (
-          nextRegistration.title === currentRegistration.title &&
-          nextRegistration.subtitle === currentRegistration.subtitle &&
-          appSidePaneReactNodeSnapshotEqual(nextRegistration.content, currentRegistration.content)
-        ) {
-          return;
-        }
-        // 创建新快照让 useSyncExternalStore 检测变化 | New snapshot for useSyncExternalStore change detection
-        registrationRef.current = nextRegistration;
-        // 延迟通知 — 切到下一轮任务，避免 commit 链内嵌套更新 | Defer to next task to avoid nested updates in the current commit chain
-        scheduleNotify();
+        const prevMeta = metaRef.current;
+        if (prevMeta?.ownerId !== ownerId) return;
+
+        // Always store latest content, but never bump revision for content-only changes.
+        // Unstable ReactNode identity (Maps/callbacks inside SidePane) must not notify the shell;
+        // producers that need live UI with stable title/subtitle should portal into
+        // `#app-side-pane-body-slot`. Host re-reads content when title/subtitle/owner notify.
+        contentByOwnerRef.current.set(ownerId, patch.content);
+
+        // Callers omit empty title/subtitle keys; keep previous meta when a key is absent.
+        const nextTitle = 'title' in patch ? patch.title : prevMeta.title;
+        const nextSubtitle = 'subtitle' in patch ? patch.subtitle : prevMeta.subtitle;
+        publishMeta(ownerId, nextTitle, nextSubtitle);
       },
       unmountRegistration: (ownerId) => {
-        if (registrationRef.current?.ownerId !== ownerId) return;
-        registrationRef.current = null;
-        // 同步通知 — 卸载后订阅者立即清空 | Sync notify — subscriber clears immediately after unmount
+        if (metaRef.current?.ownerId !== ownerId) return;
+        contentByOwnerRef.current.delete(ownerId);
+        metaRef.current = null;
         listenersRef.current.forEach((listener) => listener());
       },
       subscribe: (listener) => {
@@ -124,7 +137,8 @@ export function AppSidePaneProvider({ children }: { children: ReactNode }) {
           listenersRef.current.delete(listener);
         };
       },
-      getSnapshot: () => registrationRef.current,
+      getSnapshot: () => metaRef.current,
+      getContent: (ownerId) => contentByOwnerRef.current.get(ownerId) ?? null,
     };
   }, []);
 
@@ -135,14 +149,24 @@ export function useAppSidePaneHostOptional() {
   return useContext(AppSidePaneContext);
 }
 
-export function useAppSidePaneRegistrationSnapshot() {
+export function useAppSidePaneRegistrationSnapshot(): AppSidePaneRegistration | null {
   const host = useAppSidePaneHostOptional();
 
-  return useSyncExternalStore(
+  const meta = useSyncExternalStore(
     host?.subscribe ?? emptySidePaneSubscribe,
     host?.getSnapshot ?? nullSidePaneSnapshot,
     nullSidePaneSnapshot,
   );
+
+  return useMemo(() => {
+    if (!host || !meta) return null;
+    return {
+      ownerId: meta.ownerId,
+      ...(meta.title !== undefined ? { title: meta.title } : {}),
+      ...(meta.subtitle !== undefined ? { subtitle: meta.subtitle } : {}),
+      content: host.getContent(meta.ownerId),
+    };
+  }, [host, meta]);
 }
 
 export function useRegisterAppSidePane({
@@ -159,8 +183,6 @@ export function useRegisterAppSidePane({
   const host = useAppSidePaneHostOptional();
   const ownerId = useId();
 
-  // 用 ref 存最新值，避免 content 进入生命周期 effect 依赖导致每帧 unmount/mount 循环
-  // Refs to avoid content/title/subtitle in lifecycle deps — prevents unmount/mount churn
   const contentRef = useRef(content);
   const titleRef = useRef(title);
   const subtitleRef = useRef(subtitle);
@@ -168,8 +190,7 @@ export function useRegisterAppSidePane({
   titleRef.current = title;
   subtitleRef.current = subtitle;
 
-  // 挂载/卸载生命周期 — 仅在 enabled/host 变化时同步通知
-  // Mount/unmount lifecycle — sync notification only on enabled/host change
+  // Mount / unmount lifecycle — sync notify so the shell sees the first paint immediately.
   useEffect(() => {
     if (!host || !enabled) return;
 
@@ -189,18 +210,13 @@ export function useRegisterAppSidePane({
     };
   }, [enabled, host, ownerId]);
 
-  // 仅在 title/subtitle/content 引用变化时推送；`updateRegistrationContent` 内对 ReactNode 做浅比较，避免兄弟订阅者重渲染导致的新 element 实例触发无限 setState
-  // Push when title/subtitle/content change; shallow node compare inside host avoids notify loops from fresh element instances after sibling snapshot updates
+  // Push title/subtitle/content; store notifies only when title/subtitle change.
   useEffect(() => {
     if (!host || !enabled) return;
     host.updateRegistrationContent(ownerId, {
-      ...(titleRef.current !== undefined && titleRef.current.length > 0
-        ? { title: titleRef.current }
-        : {}),
-      ...(subtitleRef.current !== undefined && subtitleRef.current.length > 0
-        ? { subtitle: subtitleRef.current }
-        : {}),
-      content: contentRef.current,
+      ...(title !== undefined && title.length > 0 ? { title } : {}),
+      ...(subtitle !== undefined && subtitle.length > 0 ? { subtitle } : {}),
+      content,
     });
   }, [content, enabled, host, ownerId, subtitle, title]);
 

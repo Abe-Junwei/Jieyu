@@ -571,7 +571,7 @@ export function OrthographyBridgeWorkspacePage({
             <div className="ob-inline-actions">
               <button
                 type="button"
-                className="btn"
+                className="btn btn-ghost"
                 onClick={() => setBrowseAllWithoutProject(true)}
               >
                 {t(locale, 'workspace.orthographyBridge.filterShowAll')}
@@ -602,7 +602,9 @@ export function OrthographyBridgeWorkspacePage({
         !showUnscopedIdleState &&
         !searchText.trim() &&
         filteredOrthographies.length === 0 ? (
-          <p className="ob-state">{t(locale, 'workspace.orthographyBridge.emptyList')}</p>
+          <p className="ob-state entry-empty">
+            {t(locale, 'workspace.orthographyBridge.emptyList')}
+          </p>
         ) : null}
 
         <div

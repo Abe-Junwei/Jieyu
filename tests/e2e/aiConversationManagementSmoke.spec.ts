@@ -2,10 +2,10 @@
  * G1f: conversation management chrome smoke (no model calls).
  */
 import { expect, test } from '@playwright/test';
-import { expandTranscriptionAiPanel } from './_helpers/expandTranscriptionAiPanel';
+import { openTranscriptionChatWindow } from './_helpers/openTranscriptionChatWindow';
 
 test.describe('AI conversation management smoke', () => {
-  test('shows conversation list controls in sidebar AI header', async ({ page, browserName }) => {
+  test('shows conversation list controls in floating chat window header', async ({ page, browserName }) => {
     const errors: string[] = [];
     page.on('pageerror', (err) => {
       const message = err.message;
@@ -15,7 +15,7 @@ test.describe('AI conversation management smoke', () => {
       errors.push(message);
     });
 
-    await expandTranscriptionAiPanel(page);
+    await openTranscriptionChatWindow(page);
     await expect(page.getByTestId('ai-chat-composer-input')).toBeAttached({ timeout: 60_000 });
 
     const listButton = page.getByRole('button', {

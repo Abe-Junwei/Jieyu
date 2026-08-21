@@ -76,7 +76,66 @@ describe('buildAggregatePairedReadingTargetItemsForSourceUnit', () => {
       fallbackFocusedSourceLayerId: tr.id,
     });
     expect(items.map((x) => x.text)).toEqual(['one', 'two']);
-    expect(items.every((x) => x.anchorUnitIds.length === 1 && x.anchorUnitIds[0] === u.id)).toBe(true);
+    expect(items.every((x) => x.anchorUnitIds.length === 1 && x.anchorUnitIds[0] === u.id)).toBe(
+      true,
+    );
+  });
+
+  it('resolves symbolic translation text when the source row is a host segment', () => {
+    const now = '2026-04-23T00:00:00.000Z';
+    const tr: LayerDocType = {
+      id: 'tr-host',
+      textId: 't',
+      key: 'tr-host',
+      name: { en: 'Transcription' },
+      languageId: 'und',
+      modality: 'text',
+      createdAt: now,
+      updatedAt: now,
+      layerType: 'transcription',
+      constraint: 'independent_boundary',
+    };
+    const tl: LayerDocType = {
+      id: 'tl-free',
+      textId: 't',
+      key: 'tl-free',
+      name: { en: 'Phrase Free Translation' },
+      languageId: 'en',
+      modality: 'text',
+      createdAt: now,
+      updatedAt: now,
+      layerType: 'translation',
+      constraint: 'symbolic_association',
+    };
+    const hostUnit = unit('utt-1', tr.id);
+    const hostSegment: LayerUnitDocType = {
+      ...unit('segv2_tr-host_utt-1', tr.id),
+      unitType: 'segment',
+      parentUnitId: hostUnit.id,
+    };
+    const textMap = new Map<string, Map<string, LayerUnitContentDocType>>([
+      [tl.id, new Map([[hostUnit.id, stubContent('utr-1', 'What should I say next?')]])],
+    ]);
+    const items = buildAggregatePairedReadingTargetItemsForSourceUnit({
+      unit: hostSegment,
+      translationLayers: [tl],
+      transcriptionLayers: [tr],
+      defaultTranscriptionLayerId: tr.id,
+      layerLinks: [
+        {
+          layerId: tl.id,
+          transcriptionLayerKey: tr.key,
+          hostTranscriptionLayerId: tr.id,
+          isPreferred: true,
+        },
+      ],
+      segmentsByLayer: new Map([[tr.id, [hostSegment]]]),
+      segmentContentByLayer: undefined,
+      translationTextByLayer: textMap,
+      unitByIdForSpeaker: new Map([[hostUnit.id, hostUnit]]),
+      fallbackFocusedSourceLayerId: tr.id,
+    });
+    expect(items.map((x) => x.text)).toEqual(['What should I say next?']);
   });
 
   it('appends explicit segment items across layers with stable suffixed ids', () => {

@@ -1,13 +1,16 @@
 ---
 title: ai-assistant-presentation-modes requirements
 doc_type: execution-spec-requirements
-status: draft
+status: deferred
 owner: repo
-last_reviewed: 2026-05-17
+last_reviewed: 2026-08-21
 source_of_truth: ai-assistant-presentation-modes-spec
+superseded_by: ../../../adr/0032-transcription-ai-chat-floating-window-only.md
 ---
 
 # Requirements — AI 助手呈现样态（侧栏 ⇄ 浮窗）
+
+> 2026-08-21：当前产品按 [ADR-0032](../../../adr/0032-transcription-ai-chat-floating-window-only.md) 落地为「对话仅浮窗、分析仍在右栏」。本文描述的 docked ⇄ floating 互斥壳延后，不作为现网验收。
 
 > 关联：[AI对话会话管理落地方案](../../plans/AI对话会话管理落地方案-2026-05-16.md) G1f；取代 [ai-conversation-management/design.md](../ai-conversation-management/design.md) §2.1「双入口并存」策略。
 

@@ -3,10 +3,10 @@
  * Smoke anchor for AI chat composer shell (no model calls).
  */
 import { expect, test } from '@playwright/test';
-import { expandTranscriptionAiPanel } from './_helpers/expandTranscriptionAiPanel';
+import { openTranscriptionChatWindow } from './_helpers/openTranscriptionChatWindow';
 
 test.describe('AI chat send-turn shell smoke', () => {
-  test('转写页侧栏聊天输入壳挂载 | Transcription AI composer shell mounted', async ({ page, browserName }) => {
+  test('转写页浮窗聊天输入壳挂载 | Transcription AI composer shell mounted', async ({ page, browserName }) => {
     const errors: string[] = [];
     page.on('pageerror', (err) => {
       const message = err.message;
@@ -16,7 +16,7 @@ test.describe('AI chat send-turn shell smoke', () => {
       errors.push(message);
     });
 
-    await expandTranscriptionAiPanel(page);
+    await openTranscriptionChatWindow(page);
     await expect(page.getByTestId('ai-chat-composer-input')).toBeAttached({ timeout: 60_000 });
 
     await page.waitForTimeout(2000);

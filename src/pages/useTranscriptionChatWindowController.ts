@@ -7,16 +7,8 @@ import {
   type AiChatProviderKind,
 } from '../ai/providers/providerCatalog';
 import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
-import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../contexts/VoiceAgentContext';
-import { pickAiAssistantHubContextValue } from '../hooks/ai/useAiAssistantHubContextValue';
-import { pickVoiceAgentContextValue } from '../hooks/voice/useVoiceAgentContextValue';
 import { resolveAiChatConversationTitle } from '../hooks/ai/aiChatConversationTitle';
 import { useTranscriptionChatWindowLayout } from './useTranscriptionChatWindowLayout';
-
-/** Stable hub branch when the voice agent UI is dormant (avoids an extra `useMemo` for architecture guard ceilings). */
-const DORMANT_VOICE_CONTEXT_FOR_CHAT_WINDOW = pickVoiceAgentContextValue(
-  DEFAULT_VOICE_AGENT_CONTEXT_VALUE,
-);
 
 export interface UseTranscriptionChatWindowControllerInput {
   locale: string;
@@ -40,6 +32,7 @@ export function useTranscriptionChatWindowController({
     uiLocale,
     aiIsStreaming: aiChatState.aiIsStreaming ?? false,
     onSendAiMessage: aiChatState.onSendAiMessage,
+    pendingToolCall: aiChatState.aiPendingToolCall,
   });
 
   const conversationManagement =
@@ -60,10 +53,7 @@ export function useTranscriptionChatWindowController({
   const title = chatTitle;
   const conversationListGroupLabel = t(uiLocale, 'ai.chat.conversationList.groupCurrentText');
   const archivedConversationListGroupLabel = t(uiLocale, 'ai.chat.conversationList.archivedGroup');
-  const aiAssistantHubContextValue = useMemo(
-    () => pickAiAssistantHubContextValue(aiChatState, DORMANT_VOICE_CONTEXT_FOR_CHAT_WINDOW),
-    [aiChatState],
-  );
+  const attentionCount = Number(Boolean(aiChatState.aiPendingToolCall));
   const providerKind = aiChatState.aiChatSettings?.providerKind ?? 'mock';
   const pinnedCount = aiChatState.aiSessionMemory?.pinnedMessageIds?.length ?? 0;
   const connectionStatus = aiChatState.aiConnectionTestStatus ?? 'idle';
@@ -131,7 +121,7 @@ export function useTranscriptionChatWindowController({
   };
 
   return {
-    aiAssistantHubContextValue,
+    attentionCount,
     aiChatState,
     cardMessages,
     chatTitle,

@@ -1,15 +1,17 @@
 ---
 title: ai-assistant-presentation-modes design
 doc_type: execution-spec-design
-status: draft
+status: deferred
 owner: repo
-last_reviewed: 2026-05-17
+last_reviewed: 2026-08-21
 source_of_truth: ai-assistant-presentation-modes-spec
 depends_on:
   - ./requirements.md
 ---
 
 # Design — AI 助手呈现样态
+
+> 2026-08-21：当前产品按 [ADR-0032](../../../adr/0032-transcription-ai-chat-floating-window-only.md) 落地为「对话仅浮窗」。本文的 docked ⇄ floating 互斥壳延后。
 
 ## 1. 成熟方案扫描（借鉴点）
 

@@ -34,6 +34,7 @@ import {
   filterTranslationLayersForVerticalReadingSourceUnit,
   type VerticalReadingHostLink,
 } from '../utils/verticalReadingHostFilter';
+import { layerTextLookupUnitId } from '../utils/recordingScopeUnitId';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { buildTimelineSelfCertaintyTitle } from '../utils/timelineSelfCertainty';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
@@ -471,6 +472,19 @@ export function pairedReadingMenuText(locale: Locale, zh: string, en: string): s
   return locale === 'zh-CN' ? zh : en;
 }
 
+function lookupUnitScopedTranslationText(
+  translationTextByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>,
+  layerId: string,
+  unit: LayerUnitDocType,
+): string {
+  const byLayer = translationTextByLayer.get(layerId);
+  if (!byLayer) return '';
+  const lookupId = layerTextLookupUnitId(unit);
+  return (
+    byLayer.get(lookupId)?.text ?? (lookupId !== unit.id ? (byLayer.get(unit.id)?.text ?? '') : '')
+  );
+}
+
 export function resolvePairedReadingTargetPlainTextForLayer(
   unit: LayerUnitDocType,
   tLayer: LayerDocType,
@@ -492,14 +506,14 @@ export function resolvePairedReadingTargetPlainTextForLayer(
       unitByIdForSpeaker,
     );
     if (overlapping.length === 0) {
-      return translationTextByLayer.get(tLayer.id)?.get(unit.id)?.text ?? '';
+      return lookupUnitScopedTranslationText(translationTextByLayer, tLayer.id, unit);
     }
     return overlapping
       .map((s) => layerContent.get(s.id)?.text ?? '')
       .filter((line) => line.length > 0)
       .join('\n');
   }
-  return translationTextByLayer.get(tLayer.id)?.get(unit.id)?.text ?? '';
+  return lookupUnitScopedTranslationText(translationTextByLayer, tLayer.id, unit);
 }
 
 export function resolvePairedReadingExplicitTargetItemsForLayer(

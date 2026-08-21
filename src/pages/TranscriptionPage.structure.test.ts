@@ -1517,6 +1517,11 @@ describe('TranscriptionPage structure invariants', () => {
     const sidebarHookCode = fs.readFileSync(sidebarHookPath, 'utf8');
     const aiSidebarPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.AiSidebar.tsx');
     const aiSidebarCode = fs.readFileSync(aiSidebarPath, 'utf8');
+    const chatWindowPath = path.resolve(
+      process.cwd(),
+      'src/pages/TranscriptionPage.ChatWindow.tsx',
+    );
+    const chatWindowCode = fs.readFileSync(chatWindowPath, 'utf8');
     const assistantRuntimePath = path.resolve(
       process.cwd(),
       'src/pages/TranscriptionPage.AssistantRuntime.tsx',
@@ -1691,15 +1696,17 @@ describe('TranscriptionPage structure invariants', () => {
       sidebarHookCode.includes('assistantRuntimeProps.aiChatContextValue.aiPendingToolCall'),
     ).toBe(true);
     expect(sidebarHookCode.includes('countAssistantAttentionSignals({')).toBe(true);
-    expect(sidebarHookCode.includes("setHubSidebarTab('assistant');")).toBe(true);
+    expect(sidebarHookCode.includes("setHubSidebarTab('assistant');")).toBe(false);
     expect(
       sidebarHookCode.includes('const dialogsProps = useMemo<TranscriptionPageDialogsProps>'),
     ).toBe(true);
     expect(sidebarHookCode.includes('() => ({')).toBe(true);
     expect(aiSidebarCode.includes('shouldRenderRuntime = true')).toBe(true);
     expect(aiSidebarCode.includes('shouldRenderRuntime ? (')).toBe(true);
-    expect(aiSidebarCode.includes('<AssistantRuntime {...assistantRuntimeProps} />')).toBe(true);
+    expect(aiSidebarCode.includes('<AssistantRuntime {...assistantRuntimeProps} />')).toBe(false);
     expect(aiSidebarCode.includes('<AnalysisRuntime {...analysisRuntimeProps} />')).toBe(true);
+    expect(chatWindowCode.includes('<AssistantRuntime')).toBe(true);
+    expect(chatWindowCode.includes('showHeader: false')).toBe(true);
     expect(aiSidebarCode.includes('analysisTab={analysisTab}')).toBe(false);
     expect(aiSidebarCode.includes('aiChatContextValue={aiChatContextValue}')).toBe(false);
     expect(assistantRuntimeCode.includes("from './TranscriptionPage.runtimeContracts';")).toBe(

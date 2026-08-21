@@ -6,14 +6,16 @@
   border: 0;
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-bg));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 60%, transparent),
-              var(--shadow-card);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 60%, transparent),
+    var(--shadow-card);
 }
 
 .panel-section--emphasis {
   background: color-mix(in srgb, var(--surface-header) 86%, var(--surface-bg));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 40%, transparent),
-              var(--shadow-float);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 40%, transparent),
+    var(--shadow-float);
 }
 
 .panel-section__header {
@@ -175,7 +177,10 @@
   font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--duration-instant), color var(--duration-instant), border-color var(--duration-instant);
+  transition:
+    background var(--duration-instant),
+    color var(--duration-instant),
+    border-color var(--duration-instant);
 }
 
 .panel-button:hover:not(:disabled) {
@@ -188,14 +193,14 @@
 }
 
 .panel-button--primary {
-  border-color: color-mix(in srgb, var(--header-accent) 28%, var(--border-soft));
-  background: color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel));
-  color: var(--state-info-solid);
+  border-color: var(--header-accent);
+  background: var(--header-accent);
+  color: var(--text-on-solid);
 }
 
 .panel-button--primary:hover:not(:disabled) {
-  background: var(--state-info-solid);
-  color: var(--surface-panel);
+  background: color-mix(in srgb, var(--header-accent) 88%, var(--surface-panel));
+  color: var(--text-on-solid);
 }
 
 .panel-button--success {
@@ -254,12 +259,23 @@
   margin: 2px 0 0;
 }
 
-.panel-button--sm      { min-height: var(--btn-h-sm); }
-.panel-button--compact { min-height: var(--btn-h-compact); border-radius: var(--radius-sm); }
+.panel-button--sm {
+  min-height: var(--btn-h-sm);
+}
+.panel-button--compact {
+  min-height: var(--btn-h-compact);
+  border-radius: var(--radius-sm);
+}
 
 /* ── 表单字段修饰 | Form field modifiers ──────────────────────── */
-.dialog-field--half { flex: 1 1 50%; min-width: 120px; }
-.dialog-field--third { flex: 1 1 33.3%; min-width: 100px; }
+.dialog-field--half {
+  flex: 1 1 50%;
+  min-width: 120px;
+}
+.dialog-field--third {
+  flex: 1 1 33.3%;
+  min-width: 100px;
+}
 
 .dialog-field-label {
   font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
@@ -308,7 +324,9 @@
   color: var(--text-secondary);
   text-align: left;
   cursor: pointer;
-  transition: color var(--shell-motion-fast, 140ms) ease, background-color var(--shell-motion-fast, 140ms) ease;
+  transition:
+    color var(--shell-motion-fast, 140ms) ease,
+    background-color var(--shell-motion-fast, 140ms) ease;
 }
 
 .panel-edge-nav-btn:hover {
@@ -318,7 +336,8 @@
 
 .panel-edge-nav-btn:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4, 56%), transparent);
+  box-shadow: inset 0 0 0 1.5px
+    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4, 56%), transparent);
 }
 
 .panel-edge-nav-row-active {
@@ -326,8 +345,8 @@
 }
 
 .panel-edge-nav-row-active .panel-edge-nav-btn,
-.panel-edge-nav-btn[aria-selected="true"],
-.panel-edge-nav-btn[aria-current="page"] {
+.panel-edge-nav-btn[aria-selected='true'],
+.panel-edge-nav-btn[aria-current='page'] {
   color: var(--state-info-solid);
   background: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2, 16%), transparent);
 }
@@ -376,11 +395,21 @@
   flex-wrap: wrap;
 }
 
-.action-button-group--start { justify-content: flex-start; }
-.action-button-group--end { justify-content: flex-end; }
-.action-button-group--center { justify-content: center; }
-.action-button-group--space-between { justify-content: space-between; }
-.action-button-group--compact { gap: 4px; }
+.action-button-group--start {
+  justify-content: flex-start;
+}
+.action-button-group--end {
+  justify-content: flex-end;
+}
+.action-button-group--center {
+  justify-content: center;
+}
+.action-button-group--space-between {
+  justify-content: space-between;
+}
+.action-button-group--compact {
+  gap: 4px;
+}
 
 /* ── 面板状态展示 | Panel state display ───────────────────────── */
 .panel-state-display {
@@ -443,4 +472,69 @@
 .panel-button--success:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
   outline-offset: 2px;
+}
+
+/* 入口卡：首页 hero / 时间轴空态共用 | Editorial entry card shared by home hero and empty timeline */
+.entry-card {
+  position: relative;
+  overflow: hidden;
+  padding: var(--entry-card-padding, clamp(24px, 3.5vw, 36px));
+  border: var(
+    --entry-card-border,
+    1px solid color-mix(in srgb, var(--border-soft) 70%, transparent)
+  );
+  border-radius: var(--entry-card-radius, var(--radius-2xl));
+  background: var(
+    --entry-card-background,
+    color-mix(in srgb, var(--surface-panel) 96%, var(--surface-bg))
+  );
+  box-shadow: var(--entry-card-shadow, var(--shadow-sm));
+}
+
+.entry-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--header-accent);
+}
+
+.entry-card__kicker {
+  margin: 0;
+  color: var(--header-accent);
+  font-family: var(--header-brand-font, var(--font-mono));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.entry-card__title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display, var(--font-sans));
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+}
+
+.entry-card--dashed {
+  box-shadow: none;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-bg));
+}
+
+.entry-card--dashed::before {
+  content: none;
+}
+
+.entry-card--compact {
+  padding: 10px 12px;
+}
+
+.entry-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
+  line-height: 1.6;
 }

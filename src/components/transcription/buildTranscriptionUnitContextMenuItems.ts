@@ -83,6 +83,7 @@ export type BuildTranscriptionUnitContextMenuItemsInput = {
       load: () => Promise<void>;
     };
   };
+  onFindSimilarUnitsFromMenu?: (unitId: string) => void;
 };
 
 function isTranscriptionLayerContext(
@@ -121,6 +122,7 @@ export function buildTranscriptionUnitContextMenuItems(
     runMergeNext,
     runSplitAtTime,
     displayStyleControl,
+    onFindSimilarUnitsFromMenu,
   } = input;
 
   const id = ctxMenu.unitId;
@@ -165,6 +167,7 @@ export function buildTranscriptionUnitContextMenuItems(
     isSegmentUnitContext &&
     !isTranslation &&
     !restrictSkippedSegmentMenuActions;
+  const showFindSimilar = Boolean(onFindSimilarUnitsFromMenu) && multiCount <= 1 && !isTranslation;
 
   const recentSpeakerOptions = speakerFilterOptions
     .sort((left, right) => right.count - left.count)
@@ -294,6 +297,15 @@ export function buildTranscriptionUnitContextMenuItems(
             },
           },
         ];
+
+  if (showFindSimilar && onFindSimilarUnitsFromMenu) {
+    items.push({
+      label: messages.findSimilarUnits,
+      onClick: () => {
+        onFindSimilarUnitsFromMenu(id);
+      },
+    });
+  }
 
   if (showSelfCertainty && onSetUnitSelfCertaintyFromMenu) {
     const setSelfCertaintyFromMenu = onSetUnitSelfCertaintyFromMenu;

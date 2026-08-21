@@ -4,7 +4,7 @@
  * 仅负责 ready workspace 的页面拼装，不承载业务编排。| Only composes the ready workspace view and keeps business orchestration out of the page shell.
  */
 
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import type { CSSProperties, ContextType, ReactNode, RefObject } from 'react';
 import {
   TimelineRailSection,
@@ -27,10 +27,10 @@ import { t, tf, type Locale } from '../i18n';
 import { LayerActionPopover } from '../components/LayerActionPopover';
 import { ToastController } from './TranscriptionPage.ToastController';
 import { TranscriptionPageAiPanelHandle } from './TranscriptionPage.AiPanelHandle';
+import type { TranscriptionPageAiSidebarProps } from './TranscriptionPage.AiSidebar';
 import {
   RecoveryBanner,
   TranscriptionOverlays,
-  TranscriptionPageAiSidebar,
   TranscriptionPageAssistantBridge,
   TranscriptionPageBatchOps,
   TranscriptionPageChatWindow,
@@ -46,6 +46,12 @@ const OrchestratorWaveformContent = lazy(async () => {
   const mod = await import('./OrchestratorWaveformContent');
   return { default: mod.OrchestratorWaveformContent };
 });
+
+const TranscriptionPageAcousticInspector = lazy(async () =>
+  import('./TranscriptionPage.AcousticInspector').then((module) => ({
+    default: module.TranscriptionPageAcousticInspector,
+  })),
+);
 
 interface RecoveryBannerProps {
   shouldRender: boolean;
@@ -107,7 +113,7 @@ interface WorkspaceAreaProps {
   historyControlsProps: HistoryControlsProps;
   aiPanelHandleProps: React.ComponentProps<typeof TranscriptionPageAiPanelHandle>;
   assistantBridge: AssistantBridgeSectionProps;
-  aiSidebarProps: React.ComponentProps<typeof TranscriptionPageAiSidebar>;
+  aiSidebarProps: TranscriptionPageAiSidebarProps;
   shouldRenderAiSidebar: boolean;
   dialogsProps: React.ComponentProps<typeof TranscriptionPageDialogs>;
   shouldRenderDialogs: boolean;
@@ -158,12 +164,12 @@ function ReadyStageContent({
   workspaceAreaProps,
   batchOpsSection,
 }: ReadyStageProps & { locale: Locale }) {
+  const [isAcousticInspectorOpen, setIsAcousticInspectorOpen] = useState(false);
   const {
     waveformSectionRef,
     workspaceRef,
     listMainRef,
     tierContainerRef,
-    isAiPanelCollapsed,
     isTimelineLaneHeaderCollapsed,
     readyWorkspaceWaveformContentProps,
     timelineTopProps,
@@ -176,10 +182,8 @@ function ReadyStageContent({
     formatTime,
     zoomControlsProps,
     historyControlsProps,
-    aiPanelHandleProps,
     assistantBridge,
     aiSidebarProps,
-    shouldRenderAiSidebar,
     dialogsProps,
     shouldRenderDialogs,
     pdfRuntimeProps,
@@ -240,7 +244,7 @@ function ReadyStageContent({
 
       <section
         ref={workspaceRef}
-        className={`transcription-workspace ${isAiPanelCollapsed ? 'transcription-workspace-ai-collapsed' : ''}`}
+        className="transcription-workspace transcription-workspace-ai-collapsed"
       >
         <section
           className={`transcription-list-panel ${isTimelineLaneHeaderCollapsed ? 'transcription-list-panel-lane-header-collapsed' : ''}`}
@@ -308,15 +312,39 @@ function ReadyStageContent({
             </div>
           ) : null}
 
+          <AiPanelContext.Provider value={aiPanelContextValue}>
+            {isAcousticInspectorOpen ? (
+              <Suspense fallback={null}>
+                <TranscriptionPageAcousticInspector
+                  onClose={() => {
+                    setIsAcousticInspectorOpen(false);
+                  }}
+                />
+              </Suspense>
+            ) : null}
+          </AiPanelContext.Provider>
+
           <BottomToolbarSection>
             <ToolbarLeftSection>
+              <button
+                type="button"
+                className={`icon-btn${isAcousticInspectorOpen ? ' icon-btn-active' : ''}`}
+                data-testid="transcription-acoustic-inspector-toggle"
+                aria-pressed={isAcousticInspectorOpen}
+                title={t(locale, 'transcription.acousticInspector.toggle')}
+                onClick={() => {
+                  setIsAcousticInspectorOpen((open) => !open);
+                }}
+              >
+                <span className="icon-btn-label">
+                  {t(locale, 'transcription.acousticInspector.toggle')}
+                </span>
+              </button>
               <ZoomControlsSection {...zoomControlsProps} />
             </ToolbarLeftSection>
             <ToolbarRightSection {...historyControlsProps} />
           </BottomToolbarSection>
         </section>
-
-        <TranscriptionPageAiPanelHandle {...aiPanelHandleProps} />
 
         <Suspense fallback={null}>
           <TranscriptionPageAssistantBridge
@@ -325,14 +353,6 @@ function ReadyStageContent({
           />
         </Suspense>
 
-        <AiPanelContext.Provider value={aiPanelContextValue}>
-          <Suspense fallback={null}>
-            <TranscriptionPageAiSidebar
-              {...aiSidebarProps}
-              shouldRenderRuntime={shouldRenderAiSidebar}
-            />
-          </Suspense>
-        </AiPanelContext.Provider>
         <Suspense fallback={null}>
           <TranscriptionPageChatWindow
             locale={locale}

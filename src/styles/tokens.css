@@ -2,7 +2,7 @@
  * 架构：data-appearance（配色方案）+ data-theme（明暗模式）+ data-theme-accent（主题色覆盖）
  *
  * data-appearance="…|googleLightModern|solarizedDark|…" — 配色方案（完整列表见文末主题块与 theme.ts）
- *   默认（default）= 墨域数轴（纯灰度）
+ *   默认（default）= 青墨纸本（冷纸底 + 青绿主操作，取样自科研工具纸本气质）
  * data-theme="dark" — 暗色模式（不设 = 浅色）；solarizedDark 时由 JS 固定为 dark
  *
  * CSS 选择器优先级：
@@ -11,7 +11,7 @@
  *   :root[data-appearance='xxx']                   → 主题浅色（覆盖默认浅色）
  *   :root[data-appearance='xxx'][data-theme='dark'] → 主题暗色（覆盖主题浅色）
  *
- * 可用主题：default(铅印实验室) / mogao(鸣沙石窟) / qinglv(远山叠翠)
+ * 可用主题：default(青墨纸本) / mogao(鸣沙石窟) / qinglv(远山叠翠)
  *          / digital(数字青金) / mural(壁画矿脉)
  *          / mogaoNarrative(莫高窟叙事) / palaceVermilion(古建筑与朱墨) / jiangnanMist(烟雨江南)
  *          / googleLightModern(Light Modern) / solarizedDark(Solarized Dark)
@@ -29,21 +29,22 @@
 /* ── 默认浅色 | Default light ── */
 :root {
   /* ═══════════════════════════════════════════════════════
-     铅印实验室 — 纯灰度阶梯（浅色）
-     留白(#FFFFFF) → 面板灰(#F5F5F5) → 分层灰(#9E9E9E) → 正文炭灰(#333333)
+     青墨纸本 — 冷纸底 × 青绿墨（浅色）
+     纸(#FCFCF8) → 薄荷洗(#EAEBE4) → 主按钮(#026370) → 正文青墨(#083D44)
+     点缀柠绿 #E5FF97 只作次强调，不进灰阶正文
      ═══════════════════════════════════════════════════════ */
-  --gray-1:  #ffffff;
-  --gray-2:  #fafafa;
-  --gray-3:  #f5f5f5;
-  --gray-4:  #eeeeee;
-  --gray-5:  #e0e0e0;
-  --gray-6:  #cccccc;
-  --gray-7:  #b0b0b0;
-  --gray-8:  #9e9e9e;
-  --gray-9:  #757575;
-  --gray-10: #616161;
-  --gray-11: #333333;
-  --gray-12: #2b2b2b;
+  --gray-1: #ffffff;
+  --gray-2: #fcfcf8;
+  --gray-3: #f4f5ee;
+  --gray-4: #eaebe4;
+  --gray-5: #d6d8ce;
+  --gray-6: #b8bdb0;
+  --gray-7: #8a948c;
+  --gray-8: #5c706c;
+  --gray-9: #3d5554;
+  --gray-10: #1a4549;
+  --gray-11: #083d44;
+  --gray-12: #062e33;
 
   /* 语义映射 — 表面与底色 */
   --surface-bg: var(--gray-3);
@@ -62,7 +63,7 @@
   --text-primary: var(--gray-12);
   --text-secondary: var(--gray-11);
   --text-tertiary: var(--gray-9);
-  --text-on-solid: #ffffff;
+  --text-on-solid: #fcfcf8;
   --color-white: #ffffff;
 
   /* 功能色基色 */
@@ -72,16 +73,17 @@
   --red-9: #ef4444;
   --purple-9: #8b5cf6;
 
-  /* 强调色 = 玄黑 */
-  --header-accent: var(--gray-12);
+  /* 强调色 = 青绿主操作 */
+  --header-accent: #026370;
+  --theme-accent-solid: var(--header-accent);
 
-  /* Info 状态 — 从玄黑派生 */
-  --state-info-solid: var(--gray-12);
-  --state-info-text: var(--gray-12);
-  --state-info-bg: var(--gray-4);
-  --state-info-bg-strong: var(--gray-5);
-  --state-info-border: var(--gray-7);
-  --state-info-border-strong: var(--gray-8);
+  /* Info 状态 — 从青绿派生，浅底带一点柠绿洗 */
+  --state-info-solid: var(--header-accent);
+  --state-info-text: var(--gray-11);
+  --state-info-bg: color-mix(in srgb, #e5ff97 28%, var(--gray-2));
+  --state-info-bg-strong: color-mix(in srgb, #e5ff97 42%, var(--gray-2));
+  --state-info-border: color-mix(in srgb, var(--header-accent) 42%, transparent);
+  --state-info-border-strong: color-mix(in srgb, var(--header-accent) 62%, transparent);
 
   /* Success / Warning / Danger 保留最小色彩编码 */
   --state-success-solid: #16a34a;
@@ -105,19 +107,36 @@
   --state-uncertainty-border: var(--state-warning-border);
 
   --bg-info-tint: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), transparent);
-  --bg-success-tint: color-mix(in srgb, var(--state-success-solid) var(--theme-opacity-1), transparent);
-  --bg-warning-tint: color-mix(in srgb, var(--state-warning-solid) var(--theme-opacity-1), transparent);
-  --bg-danger-tint: color-mix(in srgb, var(--state-danger-solid) var(--theme-opacity-1), transparent);
+  --bg-success-tint: color-mix(
+    in srgb,
+    var(--state-success-solid) var(--theme-opacity-1),
+    transparent
+  );
+  --bg-warning-tint: color-mix(
+    in srgb,
+    var(--state-warning-solid) var(--theme-opacity-1),
+    transparent
+  );
+  --bg-danger-tint: color-mix(
+    in srgb,
+    var(--state-danger-solid) var(--theme-opacity-1),
+    transparent
+  );
 
   /* 字体 */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Noto Sans SC", "Noto Sans", "Noto Sans Arabic", "Noto Sans Devanagari", "Noto Sans Thai", "Noto Sans Tibetan", sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, "Cascadia Code", monospace;
-  --font-ipa: "Charis SIL", "Doulos SIL", "Gentium Plus", "Andika", serif;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Inter', 'Noto Sans SC', 'Noto Sans', 'Noto Sans Arabic',
+    'Noto Sans Devanagari', 'Noto Sans Thai', 'Noto Sans Tibetan', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
+  --font-ipa: 'Charis SIL', 'Doulos SIL', 'Gentium Plus', 'Andika', serif;
+  --font-display:
+    'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'Hiragino Mincho ProN', 'Noto Serif',
+    Georgia, serif;
   --font-base: var(--font-sans);
   --font-chat: var(--font-sans);
 
   /* 阴影 */
-  --shadow-color: #333333;
+  --shadow-color: #083d44;
   --shadow-xs: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent);
   --shadow-sm: 0 2px 8px color-mix(in srgb, var(--shadow-color) 8%, transparent);
   --shadow-md: 0 8px 24px color-mix(in srgb, var(--shadow-color) 12%, transparent);
@@ -165,6 +184,18 @@
   --radius-3xl: 16px;
   --radius-pill: 999px;
 
+  /* 入口卡（首页 hero / 时间轴空态）| Editorial entry card */
+  --entry-card-radius: var(--radius-2xl);
+  --entry-card-padding: clamp(24px, 3.5vw, 36px);
+  --entry-card-border: 1px solid color-mix(in srgb, var(--border-soft) 70%, transparent);
+  --entry-card-shadow: var(--shadow-sm);
+  --entry-card-background: linear-gradient(
+    118deg,
+    color-mix(in srgb, var(--surface-panel) 96%, var(--surface-bg)) 0%,
+    var(--surface-panel) 62%,
+    color-mix(in srgb, var(--state-info-bg) 48%, var(--surface-panel)) 100%
+  );
+
   /* 字号 */
   --font-size-2xs: 0.6875rem;
   --font-size-xs: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
@@ -188,7 +219,7 @@
 
   /* Shell */
   --header-brand-font: var(--font-mono);
-  --header-bg: rgba(250, 250, 250, 0.92);
+  --header-bg: rgba(252, 252, 248, 0.94);
   --header-border: var(--gray-5);
   --header-shadow: var(--shadow-xs);
   --header-height: 52px;
@@ -210,9 +241,21 @@
   --tab-underline-hover: color-mix(in srgb, var(--gray-12) 10%, transparent);
 
   --focus-ring: color-mix(in srgb, var(--gray-12) 24%, transparent);
-  --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
-  --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
-  --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
+  --focus-ring-soft: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-2),
+    transparent
+  );
+  --focus-ring-strong: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-4),
+    transparent
+  );
+  --focus-ring-glow: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-2),
+    transparent
+  );
 
   --overlay-hover-soft: color-mix(in srgb, var(--border-soft) 24%, transparent);
   --overlay-hover-muted: color-mix(in srgb, var(--border-soft) 30%, transparent);
@@ -276,10 +319,9 @@
   --timeline-segment-save-status-dot-trailing-gap: 2px;
   /* 文本轨 input：stack_right + clearance + 保存点 + 间隙 | Text lane tools reserve */
   --timeline-segment-tools-text-input-pad-end: calc(
-    var(--timeline-annotation-side-stack-right)
-    + var(--timeline-segment-tools-clearance)
-    + var(--timeline-segment-save-status-dot-size)
-    + var(--timeline-segment-save-status-dot-trailing-gap)
+    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-tools-clearance) +
+      var(--timeline-segment-save-status-dot-size) +
+      var(--timeline-segment-save-status-dot-trailing-gap)
   );
   /* 注释卡横向 padding 与文本轨不同，单独占位；须与工具条对齐 | Annotation lane (card padding differs from text-only) */
   --timeline-segment-tools-annotation-span-pad-end: 56px;
@@ -296,21 +338,19 @@
   --timeline-seg-narrow-ultra: 56px;
   /* 显示确信角标时，在「工具/input 已预留」之外再让出的宽度 | Extra when self-certainty badge */
   --timeline-segment-self-certainty-input-end-gutter: calc(
-    var(--timeline-annotation-side-stack-size)
-    + var(--timeline-annotation-side-stack-gap)
-    + 2px
+    var(--timeline-annotation-side-stack-size) + var(--timeline-annotation-side-stack-gap) + 2px
   );
   --timeline-segment-tools-text-input-pad-end-with-self-certainty: calc(
-    var(--timeline-segment-tools-text-input-pad-end)
-    + var(--timeline-segment-self-certainty-input-end-gutter)
+    var(--timeline-segment-tools-text-input-pad-end) +
+      var(--timeline-segment-self-certainty-input-end-gutter)
   );
   --timeline-segment-tools-annotation-span-pad-end-with-self-certainty: calc(
-    var(--timeline-segment-tools-annotation-span-pad-end)
-    + var(--timeline-segment-self-certainty-input-end-gutter)
+    var(--timeline-segment-tools-annotation-span-pad-end) +
+      var(--timeline-segment-self-certainty-input-end-gutter)
   );
   --timeline-segment-tools-annotation-input-pad-end-with-self-certainty: calc(
-    var(--timeline-segment-tools-annotation-input-pad-end)
-    + var(--timeline-segment-self-certainty-input-end-gutter)
+    var(--timeline-segment-tools-annotation-input-pad-end) +
+      var(--timeline-segment-self-certainty-input-end-gutter)
   );
   --z-context-menu: 180;
   --z-timeline-annotation: 190;
@@ -350,8 +390,16 @@
   --timeline-link-color-active-1: color-mix(in srgb, var(--state-success-solid) 88%, transparent);
   --timeline-link-color-2: color-mix(in srgb, var(--state-warning-text) 62%, transparent);
   --timeline-link-color-active-2: color-mix(in srgb, var(--state-warning-text) 88%, transparent);
-  --timeline-link-color-3: color-mix(in srgb, var(--state-info-solid) 52%, var(--state-danger-solid) 10%);
-  --timeline-link-color-active-3: color-mix(in srgb, var(--state-info-solid) 74%, var(--state-danger-solid) 14%);
+  --timeline-link-color-3: color-mix(
+    in srgb,
+    var(--state-info-solid) 52%,
+    var(--state-danger-solid) 10%
+  );
+  --timeline-link-color-active-3: color-mix(
+    in srgb,
+    var(--state-info-solid) 74%,
+    var(--state-danger-solid) 14%
+  );
   --timeline-link-color-4: color-mix(in srgb, var(--state-danger-solid) 62%, transparent);
   --timeline-link-color-active-4: color-mix(in srgb, var(--state-danger-solid) 88%, transparent);
   --timeline-link-color-5: color-mix(in srgb, var(--text-secondary) 62%, transparent);
@@ -361,8 +409,16 @@
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
   --timeline-label-offset: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
 
-  --ruler-top-accent-start: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
-  --ruler-top-accent-end: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), transparent);
+  --ruler-top-accent-start: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-2),
+    transparent
+  );
+  --ruler-top-accent-end: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-1),
+    transparent
+  );
 
   --divider-subtle: color-mix(in srgb, var(--border-soft) 60%, transparent);
   --divider-base: var(--border-soft);
@@ -373,24 +429,24 @@
   --popover-shadow: var(--shadow-md);
 
   --accent-primary: var(--header-accent);
-  --accent-secondary: var(--gray-9);
-  --border-accent: var(--border-soft);
+  --accent-secondary: #e5ff97;
+  --border-accent: color-mix(in srgb, var(--header-accent) 44%, transparent);
 }
 
-/* ── 默认暗色 | Default dark ── */
+/* ── 默认暗色 | Default dark — 青墨夜空 ── */
 :root[data-theme='dark'] {
-  --gray-1:  #111111;
-  --gray-2:  #151515;
-  --gray-3:  #1b1b1b;
-  --gray-4:  #2f2f2f;
-  --gray-5:  #3a3a3a;
-  --gray-6:  #4a4a4a;
-  --gray-7:  #6b6b6b;
-  --gray-8:  #8a8a8a;
-  --gray-9:  #a7a7a7;
-  --gray-10: #c8c8c8;
-  --gray-11: #e0e0e0;
-  --gray-12: #ededed;
+  --gray-1: #041a1d;
+  --gray-2: #06262b;
+  --gray-3: #083d44;
+  --gray-4: #0c4a52;
+  --gray-5: #1a5c64;
+  --gray-6: #2d737a;
+  --gray-7: #4a9198;
+  --gray-8: #6baeb4;
+  --gray-9: #9bccd0;
+  --gray-10: #c5e3e5;
+  --gray-11: #e8f3f3;
+  --gray-12: #fcfcf8;
 
   --surface-bg: var(--gray-2);
   --surface-panel: var(--gray-3);
@@ -410,11 +466,13 @@
   /* 与浅色根一致，供 color-mix / 语言资产面板等引用 | Same paper-white token as light root */
   --color-white: #ffffff;
 
-  --text-on-solid: #111111;
+  --text-on-solid: #083d44;
   --shadow-color: #000000;
 
-  --header-accent: var(--gray-11);
-  --header-bg: rgba(17, 17, 17, 0.92);
+  --header-accent: #e5ff97;
+  --theme-accent-solid: var(--header-accent);
+  --accent-secondary: #7ed4dc;
+  --header-bg: rgba(6, 38, 43, 0.94);
   --header-border: var(--gray-6);
   --header-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 
@@ -426,12 +484,12 @@
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
 
-  --state-info-solid: var(--gray-11);
-  --state-info-text: var(--gray-11);
-  --state-info-bg: color-mix(in srgb, var(--gray-11) var(--theme-opacity-1), transparent);
-  --state-info-bg-strong: color-mix(in srgb, var(--gray-11) var(--theme-opacity-2), transparent);
-  --state-info-border: color-mix(in srgb, var(--gray-11) var(--theme-opacity-3), transparent);
-  --state-info-border-strong: color-mix(in srgb, var(--gray-11) var(--theme-opacity-4), transparent);
+  --state-info-solid: var(--header-accent);
+  --state-info-text: var(--header-accent);
+  --state-info-bg: color-mix(in srgb, #e5ff97 var(--theme-opacity-1), transparent);
+  --state-info-bg-strong: color-mix(in srgb, #e5ff97 var(--theme-opacity-2), transparent);
+  --state-info-border: color-mix(in srgb, #e5ff97 var(--theme-opacity-3), transparent);
+  --state-info-border-strong: color-mix(in srgb, #e5ff97 var(--theme-opacity-4), transparent);
 
   --state-success-solid: #22c55e;
   --state-success-text: #4ade80;
@@ -449,9 +507,21 @@
   --state-danger-border: color-mix(in srgb, #ef4444 var(--theme-opacity-3), transparent);
 
   --focus-ring: color-mix(in srgb, var(--header-accent) 32%, transparent);
-  --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
-  --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
-  --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
+  --focus-ring-soft: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-2),
+    transparent
+  );
+  --focus-ring-strong: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-4),
+    transparent
+  );
+  --focus-ring-glow: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-2),
+    transparent
+  );
 
   --overlay-hover-soft: color-mix(in srgb, var(--surface-panel) 8%, transparent);
   --overlay-hover-muted: color-mix(in srgb, var(--surface-panel) 6%, transparent);
@@ -484,106 +554,106 @@
 
 /* ── 鸣沙石窟 / 敦煌风 (Mogao) ── */
 :root[data-appearance='mogao'] {
-  --gray-1: #F4E4D2;
-  --gray-2: #EFD6BD;
-  --gray-3: #E7C6A7;
-  --gray-4: #D9B48F;
-  --gray-5: #C79A72;
-  --gray-6: #B8845F;
-  --gray-7: #A06F4F;
-  --gray-8: #7D5A3C;
-  --gray-9: #6A4A33;
-  --gray-10: #5A3E2B;
-  --gray-11: #4B644B;
-  --gray-12: #3E2723;
-  --header-accent: #B35B47;
-  --accent-secondary: #7D5A3C;
-  --border-accent: #CDA77E;
-  --header-border: #CDA77E;
-  --shadow-color: #7D5A3C;
+  --gray-1: #f4e4d2;
+  --gray-2: #efd6bd;
+  --gray-3: #e7c6a7;
+  --gray-4: #d9b48f;
+  --gray-5: #c79a72;
+  --gray-6: #b8845f;
+  --gray-7: #a06f4f;
+  --gray-8: #7d5a3c;
+  --gray-9: #6a4a33;
+  --gray-10: #5a3e2b;
+  --gray-11: #4b644b;
+  --gray-12: #3e2723;
+  --header-accent: #b35b47;
+  --accent-secondary: #7d5a3c;
+  --border-accent: #cda77e;
+  --header-border: #cda77e;
+  --shadow-color: #7d5a3c;
   --header-bg: rgba(217, 180, 143, 0.94);
-  --tab-text: #5A3E2B;
-  --tab-text-muted: #6A4A33;
-  --tab-hover: color-mix(in srgb, #B35B47 14%, #EFD6BD);
-  --tab-active: color-mix(in srgb, #B35B47 20%, #E7C6A7);
-  --state-info-solid: #B35B47;
-  --state-info-text: #7D3F2F;
-  --state-info-bg: color-mix(in srgb, #B35B47 16%, #EFD6BD);
-  --state-info-bg-strong: color-mix(in srgb, #B35B47 24%, #E7C6A7);
-  --state-info-border: color-mix(in srgb, #B35B47 46%, transparent);
-  --state-info-border-strong: color-mix(in srgb, #B35B47 62%, transparent);
-  --focus-ring: color-mix(in srgb, #B35B47 28%, transparent);
-  --focus-ring-soft: color-mix(in srgb, #B35B47 20%, transparent);
-  --focus-ring-strong: color-mix(in srgb, #B35B47 42%, transparent);
-  --focus-ring-glow: color-mix(in srgb, #B35B47 26%, transparent);
+  --tab-text: #5a3e2b;
+  --tab-text-muted: #6a4a33;
+  --tab-hover: color-mix(in srgb, #b35b47 14%, #efd6bd);
+  --tab-active: color-mix(in srgb, #b35b47 20%, #e7c6a7);
+  --state-info-solid: #b35b47;
+  --state-info-text: #7d3f2f;
+  --state-info-bg: color-mix(in srgb, #b35b47 16%, #efd6bd);
+  --state-info-bg-strong: color-mix(in srgb, #b35b47 24%, #e7c6a7);
+  --state-info-border: color-mix(in srgb, #b35b47 46%, transparent);
+  --state-info-border-strong: color-mix(in srgb, #b35b47 62%, transparent);
+  --focus-ring: color-mix(in srgb, #b35b47 28%, transparent);
+  --focus-ring-soft: color-mix(in srgb, #b35b47 20%, transparent);
+  --focus-ring-strong: color-mix(in srgb, #b35b47 42%, transparent);
+  --focus-ring-glow: color-mix(in srgb, #b35b47 26%, transparent);
 }
 :root[data-appearance='mogao'][data-theme='dark'] {
-  --gray-1: #2A1E1A;
+  --gray-1: #2a1e1a;
   --gray-2: #332520;
-  --gray-3: #3E2C25;
-  --gray-4: #4A352C;
-  --gray-5: #5A4034;
-  --gray-6: #7D5A3C;
-  --gray-7: #9E7750;
-  --gray-8: #B35B47;
-  --gray-9: #C58A63;
-  --gray-10: #D7A980;
-  --gray-11: #E8C7A6;
-  --gray-12: #F2DEC9;
-  --header-accent: #B35B47;
-  --accent-secondary: #D7A980;
-  --border-accent: #7D5A3C;
-  --header-border: #7D5A3C;
+  --gray-3: #3e2c25;
+  --gray-4: #4a352c;
+  --gray-5: #5a4034;
+  --gray-6: #7d5a3c;
+  --gray-7: #9e7750;
+  --gray-8: #b35b47;
+  --gray-9: #c58a63;
+  --gray-10: #d7a980;
+  --gray-11: #e8c7a6;
+  --gray-12: #f2dec9;
+  --header-accent: #b35b47;
+  --accent-secondary: #d7a980;
+  --border-accent: #7d5a3c;
+  --header-border: #7d5a3c;
   --shadow-color: #000000;
   --header-bg: rgba(42, 30, 26, 0.96);
-  --tab-text: #E8C7A6;
-  --tab-text-muted: #C58A63;
-  --tab-hover: color-mix(in srgb, #B35B47 20%, #4A352C);
-  --tab-active: color-mix(in srgb, #B35B47 28%, #5A4034);
-  --state-info-solid: #D7A980;
-  --state-info-text: #E8C7A6;
-  --state-info-bg: color-mix(in srgb, #D7A980 16%, transparent);
-  --state-info-bg-strong: color-mix(in srgb, #D7A980 24%, transparent);
-  --state-info-border: color-mix(in srgb, #D7A980 36%, transparent);
-  --state-info-border-strong: color-mix(in srgb, #D7A980 48%, transparent);
-  --focus-ring: color-mix(in srgb, #D7A980 32%, transparent);
-  --focus-ring-soft: color-mix(in srgb, #D7A980 24%, transparent);
-  --focus-ring-strong: color-mix(in srgb, #D7A980 46%, transparent);
-  --focus-ring-glow: color-mix(in srgb, #D7A980 28%, transparent);
+  --tab-text: #e8c7a6;
+  --tab-text-muted: #c58a63;
+  --tab-hover: color-mix(in srgb, #b35b47 20%, #4a352c);
+  --tab-active: color-mix(in srgb, #b35b47 28%, #5a4034);
+  --state-info-solid: #d7a980;
+  --state-info-text: #e8c7a6;
+  --state-info-bg: color-mix(in srgb, #d7a980 16%, transparent);
+  --state-info-bg-strong: color-mix(in srgb, #d7a980 24%, transparent);
+  --state-info-border: color-mix(in srgb, #d7a980 36%, transparent);
+  --state-info-border-strong: color-mix(in srgb, #d7a980 48%, transparent);
+  --focus-ring: color-mix(in srgb, #d7a980 32%, transparent);
+  --focus-ring-soft: color-mix(in srgb, #d7a980 24%, transparent);
+  --focus-ring-strong: color-mix(in srgb, #d7a980 46%, transparent);
+  --focus-ring-glow: color-mix(in srgb, #d7a980 28%, transparent);
 }
 
 /* ── 远山叠翠 / 山水画意象 (Qinglv) ── */
 :root[data-appearance='qinglv'] {
   --gray-1: #ffffff;
-  --gray-2: #F4F8F7;
-  --gray-3: #EDF4F2;
-  --gray-4: #E8EFEE;
-  --gray-5: #D4E1DE;
-  --gray-6: #B9CCC7;
-  --gray-7: #8FB8AE;
-  --gray-8: #5F867E;
-  --gray-9: #3D655E;
-  --gray-10: #2E5750;
-  --gray-11: #224C44;
-  --gray-12: #1C3D37;
-  --header-accent: #5F867E;
-  --shadow-color: #224C44;
+  --gray-2: #f4f8f7;
+  --gray-3: #edf4f2;
+  --gray-4: #e8efee;
+  --gray-5: #d4e1de;
+  --gray-6: #b9ccc7;
+  --gray-7: #8fb8ae;
+  --gray-8: #5f867e;
+  --gray-9: #3d655e;
+  --gray-10: #2e5750;
+  --gray-11: #224c44;
+  --gray-12: #1c3d37;
+  --header-accent: #5f867e;
+  --shadow-color: #224c44;
   --header-bg: rgba(232, 239, 238, 0.94);
 }
 :root[data-appearance='qinglv'][data-theme='dark'] {
-  --gray-1: #0F2320;
-  --gray-2: #16302C;
-  --gray-3: #1C3D37;
-  --gray-4: #224C44;
-  --gray-5: #2F6057;
-  --gray-6: #3D7A6F;
-  --gray-7: #5F867E;
-  --gray-8: #8FB8AE;
-  --gray-9: #A8C9C0;
-  --gray-10: #C2DCD6;
-  --gray-11: #D9E9E5;
-  --gray-12: #EDF4F2;
-  --header-accent: #8FB8AE;
+  --gray-1: #0f2320;
+  --gray-2: #16302c;
+  --gray-3: #1c3d37;
+  --gray-4: #224c44;
+  --gray-5: #2f6057;
+  --gray-6: #3d7a6f;
+  --gray-7: #5f867e;
+  --gray-8: #8fb8ae;
+  --gray-9: #a8c9c0;
+  --gray-10: #c2dcd6;
+  --gray-11: #d9e9e5;
+  --gray-12: #edf4f2;
+  --header-accent: #8fb8ae;
   --shadow-color: #000000;
   --header-bg: rgba(15, 35, 32, 0.96);
 }
@@ -591,39 +661,39 @@
 /* ── 数字青金 (Digital) ── */
 :root[data-appearance='digital'] {
   --gray-1: #ffffff;
-  --gray-2: #F5F8FA;
-  --gray-3: #EEF3F6;
-  --gray-4: #E0E0E0;
-  --gray-5: #C7D4DC;
-  --gray-6: #9FB3C1;
-  --gray-7: #4DB6AC;
-  --gray-8: #2A7F78;
-  --gray-9: #4A2E08;
-  --gray-10: #FFB74D;
-  --gray-11: #1A237E;
-  --gray-12: #151B61;
-  --header-accent: #4DB6AC;
-  --accent-secondary: #FFB74D;
-  --border-accent: #C7D4DC;
-  --shadow-color: #1A237E;
+  --gray-2: #f5f8fa;
+  --gray-3: #eef3f6;
+  --gray-4: #e0e0e0;
+  --gray-5: #c7d4dc;
+  --gray-6: #9fb3c1;
+  --gray-7: #4db6ac;
+  --gray-8: #2a7f78;
+  --gray-9: #4a2e08;
+  --gray-10: #ffb74d;
+  --gray-11: #1a237e;
+  --gray-12: #151b61;
+  --header-accent: #4db6ac;
+  --accent-secondary: #ffb74d;
+  --border-accent: #c7d4dc;
+  --shadow-color: #1a237e;
   --header-bg: rgba(238, 243, 246, 0.94);
 }
 :root[data-appearance='digital'][data-theme='dark'] {
-  --gray-1: #0E1628;
-  --gray-2: #111C33;
+  --gray-1: #0e1628;
+  --gray-2: #111c33;
   --gray-3: #142447;
-  --gray-4: #1A237E;
-  --gray-5: #2E3E8F;
-  --gray-6: #4DB6AC;
-  --gray-7: #7BC8C0;
-  --gray-8: #9AAEC0;
-  --gray-9: #C7D4DC;
-  --gray-10: #E0E0E0;
-  --gray-11: #E2E7FF;
-  --gray-12: #F2F4FF;
-  --header-accent: #4DB6AC;
-  --accent-secondary: #FFB74D;
-  --border-accent: #2E3E8F;
+  --gray-4: #1a237e;
+  --gray-5: #2e3e8f;
+  --gray-6: #4db6ac;
+  --gray-7: #7bc8c0;
+  --gray-8: #9aaec0;
+  --gray-9: #c7d4dc;
+  --gray-10: #e0e0e0;
+  --gray-11: #e2e7ff;
+  --gray-12: #f2f4ff;
+  --header-accent: #4db6ac;
+  --accent-secondary: #ffb74d;
+  --border-accent: #2e3e8f;
   --shadow-color: #000000;
   --header-bg: rgba(14, 22, 40, 0.96);
 }
@@ -631,39 +701,39 @@
 /* ── 壁画矿脉 (Mural) ── */
 :root[data-appearance='mural'] {
   --gray-1: #ffffff;
-  --gray-2: #F8F4EE;
-  --gray-3: #F4F0EA;
-  --gray-4: #E6DCD0;
-  --gray-5: #D6CDBF;
-  --gray-6: #7986CB;
-  --gray-7: #D84315;
-  --gray-8: #FBC02D;
-  --gray-9: #4A3708;
-  --gray-10: #3B4AA4;
+  --gray-2: #f8f4ee;
+  --gray-3: #f4f0ea;
+  --gray-4: #e6dcd0;
+  --gray-5: #d6cdbf;
+  --gray-6: #7986cb;
+  --gray-7: #d84315;
+  --gray-8: #fbc02d;
+  --gray-9: #4a3708;
+  --gray-10: #3b4aa4;
   --gray-11: #283593;
-  --gray-12: #1F2A74;
-  --header-accent: #D84315;
-  --accent-secondary: #7986CB;
-  --border-accent: #D6CDBF;
+  --gray-12: #1f2a74;
+  --header-accent: #d84315;
+  --accent-secondary: #7986cb;
+  --border-accent: #d6cdbf;
   --shadow-color: #283593;
   --header-bg: rgba(244, 240, 234, 0.94);
 }
 :root[data-appearance='mural'][data-theme='dark'] {
-  --gray-1: #1B1F3D;
-  --gray-2: #232A52;
+  --gray-1: #1b1f3d;
+  --gray-2: #232a52;
   --gray-3: #283593;
-  --gray-4: #32429B;
-  --gray-5: #4B5CAD;
-  --gray-6: #7986CB;
-  --gray-7: #D84315;
-  --gray-8: #FBC02D;
-  --gray-9: #C9A95A;
-  --gray-10: #D8DDF8;
-  --gray-11: #E3E8FF;
-  --gray-12: #F0F2FD;
-  --header-accent: #D84315;
-  --accent-secondary: #7986CB;
-  --border-accent: #4B5CAD;
+  --gray-4: #32429b;
+  --gray-5: #4b5cad;
+  --gray-6: #7986cb;
+  --gray-7: #d84315;
+  --gray-8: #fbc02d;
+  --gray-9: #c9a95a;
+  --gray-10: #d8ddf8;
+  --gray-11: #e3e8ff;
+  --gray-12: #f0f2fd;
+  --header-accent: #d84315;
+  --accent-secondary: #7986cb;
+  --border-accent: #4b5cad;
   --shadow-color: #000000;
   --header-bg: rgba(27, 31, 61, 0.96);
 }
@@ -671,22 +741,22 @@
 /* ── 纯粹禅意 / Obsidian Minimal (Antigravity) ── */
 :root[data-appearance='antigravity'] {
   --gray-1: #ffffff;
-  --gray-2: #FAFAFA;
-  --gray-3: #F5F5F5;
-  --gray-4: #EEEEEE;
-  --gray-5: #E5E5E5;
-  --gray-6: #D9D9D9;
-  --gray-7: #CCCCCC;
+  --gray-2: #fafafa;
+  --gray-3: #f5f5f5;
+  --gray-4: #eeeeee;
+  --gray-5: #e5e5e5;
+  --gray-6: #d9d9d9;
+  --gray-7: #cccccc;
   /* 略加深中灰，改善白底上的次要文字对比度 | Darker mid-grays for WCAG on white */
-  --gray-8: #9E9E9E;
+  --gray-8: #9e9e9e;
   --gray-9: #757575;
-  --gray-10: #5F6368;
-  --gray-11: #3C4043;
+  --gray-10: #5f6368;
+  --gray-11: #3c4043;
   --gray-12: #202124;
 
   --header-accent: #202124;
-  --accent-secondary: #CCCCCC;
-  --border-accent: #E5E5E5;
+  --accent-secondary: #cccccc;
+  --border-accent: #e5e5e5;
 
   --shadow-color: #202124;
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -698,29 +768,29 @@
 
   --state-info-solid: #202124;
   --state-info-text: #202124;
-  --state-info-bg: #F5F5F5;
-  --state-info-bg-strong: #EEEEEE;
-  --state-info-border: #D9D9D9;
-  --state-info-border-strong: #CCCCCC;
+  --state-info-bg: #f5f5f5;
+  --state-info-bg-strong: #eeeeee;
+  --state-info-border: #d9d9d9;
+  --state-info-border-strong: #cccccc;
 }
 
 :root[data-appearance='antigravity'][data-theme='dark'] {
   --gray-1: #111111;
   --gray-2: #151515;
-  --gray-3: #1B1B1B;
-  --gray-4: #2F2F2F;
-  --gray-5: #3A3A3A;
-  --gray-6: #4A4A4A;
-  --gray-7: #6B6B6B;
-  --gray-8: #8A8A8A;
-  --gray-9: #A7A7A7;
-  --gray-10: #C8C8C8;
-  --gray-11: #E0E0E0;
-  --gray-12: #EDEDED;
+  --gray-3: #1b1b1b;
+  --gray-4: #2f2f2f;
+  --gray-5: #3a3a3a;
+  --gray-6: #4a4a4a;
+  --gray-7: #6b6b6b;
+  --gray-8: #8a8a8a;
+  --gray-9: #a7a7a7;
+  --gray-10: #c8c8c8;
+  --gray-11: #e0e0e0;
+  --gray-12: #ededed;
 
-  --header-accent: #EDEDED;
-  --accent-secondary: #8A8A8A;
-  --border-accent: #2F2F2F;
+  --header-accent: #ededed;
+  --accent-secondary: #8a8a8a;
+  --border-accent: #2f2f2f;
 
   --shadow-color: #000000;
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -730,8 +800,8 @@
 
   --header-bg: rgba(17, 17, 17, 0.92);
 
-  --state-info-solid: #EDEDED;
-  --state-info-text: #E0E0E0;
+  --state-info-solid: #ededed;
+  --state-info-text: #e0e0e0;
   --state-info-bg: rgba(237, 237, 237, 0.12);
   --state-info-bg-strong: rgba(237, 237, 237, 0.2);
   --state-info-border: rgba(237, 237, 237, 0.28);
@@ -741,79 +811,79 @@
 /* ── 莫高窟叙事 (配色稿 card11) ── */
 :root[data-appearance='mogaoNarrative'] {
   --gray-1: #ffffff;
-  --gray-2: #FBF8F2;
-  --gray-3: #F5F1E8;
-  --gray-4: #F2EEE6;
-  --gray-5: #E6E9ED;
-  --gray-6: #A9B7D0;
-  --gray-7: #5C6977;
-  --gray-8: #6B5D51;
-  --gray-9: #5B4528;
-  --gray-10: #3E2D18;
-  --gray-11: #1C2B4B;
+  --gray-2: #fbf8f2;
+  --gray-3: #f5f1e8;
+  --gray-4: #f2eee6;
+  --gray-5: #e6e9ed;
+  --gray-6: #a9b7d0;
+  --gray-7: #5c6977;
+  --gray-8: #6b5d51;
+  --gray-9: #5b4528;
+  --gray-10: #3e2d18;
+  --gray-11: #1c2b4b;
   --gray-12: #152238;
-  --header-accent: #D9A05B;
-  --accent-secondary: #A6523D;
-  --border-accent: #D9C9B3;
-  --shadow-color: #1C2B4B;
+  --header-accent: #d9a05b;
+  --accent-secondary: #a6523d;
+  --border-accent: #d9c9b3;
+  --shadow-color: #1c2b4b;
   --header-bg: rgba(251, 248, 242, 0.94);
 }
 :root[data-appearance='mogaoNarrative'][data-theme='dark'] {
-  --gray-1: #0E243F;
-  --gray-2: #0B1D33;
+  --gray-1: #0e243f;
+  --gray-2: #0b1d33;
   --gray-3: #102846;
-  --gray-4: #1C2B4B;
-  --gray-5: #2A3440;
-  --gray-6: #6B5D51;
-  --gray-7: #A9B7D0;
-  --gray-8: #B6C6DB;
-  --gray-9: #C9D8EA;
-  --gray-10: #D7E3F3;
-  --gray-11: #E7EEF8;
-  --gray-12: #E7EEF8;
-  --header-accent: #E3B04B;
-  --accent-secondary: #D4826E;
-  --border-accent: #5B4E42;
+  --gray-4: #1c2b4b;
+  --gray-5: #2a3440;
+  --gray-6: #6b5d51;
+  --gray-7: #a9b7d0;
+  --gray-8: #b6c6db;
+  --gray-9: #c9d8ea;
+  --gray-10: #d7e3f3;
+  --gray-11: #e7eef8;
+  --gray-12: #e7eef8;
+  --header-accent: #e3b04b;
+  --accent-secondary: #d4826e;
+  --border-accent: #5b4e42;
   --shadow-color: #000000;
   --header-bg: rgba(14, 36, 63, 0.96);
 }
 
 /* ── 古建筑与朱墨 (配色稿 card12) ── */
 :root[data-appearance='palaceVermilion'] {
-  --gray-1: #FFFCF7;
-  --gray-2: #F7F2EA;
-  --gray-3: #EDE6DA;
-  --gray-4: #E0D8CB;
-  --gray-5: #D4CFC4;
-  --gray-6: #BEB7A8;
-  --gray-7: #8A8278;
+  --gray-1: #fffcf7;
+  --gray-2: #f7f2ea;
+  --gray-3: #ede6da;
+  --gray-4: #e0d8cb;
+  --gray-5: #d4cfc4;
+  --gray-6: #beb7a8;
+  --gray-7: #8a8278;
   --gray-8: #923131;
-  --gray-9: #6B3030;
-  --gray-10: #2C2C2C;
-  --gray-11: #2C2C2C;
-  --gray-12: #1C1C1C;
+  --gray-9: #6b3030;
+  --gray-10: #2c2c2c;
+  --gray-11: #2c2c2c;
+  --gray-12: #1c1c1c;
   --header-accent: #923131;
-  --accent-secondary: #D4AF37;
-  --border-accent: #C4B8A8;
-  --shadow-color: #2C2C2C;
+  --accent-secondary: #d4af37;
+  --border-accent: #c4b8a8;
+  --shadow-color: #2c2c2c;
   --header-bg: rgba(237, 230, 218, 0.94);
 }
 :root[data-appearance='palaceVermilion'][data-theme='dark'] {
-  --gray-1: #1A1A1A;
+  --gray-1: #1a1a1a;
   --gray-2: #222222;
-  --gray-3: #2C2C2C;
-  --gray-4: #3A3A3A;
-  --gray-5: #4A4A4A;
-  --gray-6: #6B6560;
+  --gray-3: #2c2c2c;
+  --gray-4: #3a3a3a;
+  --gray-5: #4a4a4a;
+  --gray-6: #6b6560;
   --gray-7: #923131;
-  --gray-8: #D4AF37;
-  --gray-9: #BEB7A8;
-  --gray-10: #D4CFC4;
-  --gray-11: #EDE6DA;
-  --gray-12: #F5F0E6;
-  --header-accent: #D4AF37;
-  --accent-secondary: #E3BCBC;
-  --border-accent: #5A5248;
+  --gray-8: #d4af37;
+  --gray-9: #beb7a8;
+  --gray-10: #d4cfc4;
+  --gray-11: #ede6da;
+  --gray-12: #f5f0e6;
+  --header-accent: #d4af37;
+  --accent-secondary: #e3bcbc;
+  --border-accent: #5a5248;
   --shadow-color: #000000;
   --header-bg: rgba(26, 26, 26, 0.94);
 }
@@ -821,39 +891,39 @@
 /* ── 烟雨江南 (配色稿 card13) ── */
 :root[data-appearance='jiangnanMist'] {
   --gray-1: #ffffff;
-  --gray-2: #F4F7FA;
-  --gray-3: #E8EEF3;
-  --gray-4: #D6E0E6;
-  --gray-5: #C5D0D8;
-  --gray-6: #A8B4C2;
-  --gray-7: #8B9BB0;
-  --gray-8: #6D7F96;
-  --gray-9: #5A6B82;
+  --gray-2: #f4f7fa;
+  --gray-3: #e8eef3;
+  --gray-4: #d6e0e6;
+  --gray-5: #c5d0d8;
+  --gray-6: #a8b4c2;
+  --gray-7: #8b9bb0;
+  --gray-8: #6d7f96;
+  --gray-9: #5a6b82;
   --gray-10: #425066;
   --gray-11: #425066;
-  --gray-12: #2F3A4A;
+  --gray-12: #2f3a4a;
   --header-accent: #425066;
-  --accent-secondary: #A18594;
-  --border-accent: #B5C0CE;
+  --accent-secondary: #a18594;
+  --border-accent: #b5c0ce;
   --shadow-color: #425066;
   --header-bg: rgba(232, 238, 243, 0.94);
 }
 :root[data-appearance='jiangnanMist'][data-theme='dark'] {
-  --gray-1: #1A2229;
-  --gray-2: #1E2833;
-  --gray-3: #242F3D;
-  --gray-4: #2E3B4C;
+  --gray-1: #1a2229;
+  --gray-2: #1e2833;
+  --gray-3: #242f3d;
+  --gray-4: #2e3b4c;
   --gray-5: #425066;
-  --gray-6: #5A6B82;
-  --gray-7: #7A8BA0;
-  --gray-8: #A18594;
-  --gray-9: #B5C0CE;
-  --gray-10: #D6E0E6;
-  --gray-11: #E5ECF4;
-  --gray-12: #E8EEF3;
-  --header-accent: #B5C0CE;
-  --accent-secondary: #A18594;
-  --border-accent: #5A6B82;
+  --gray-6: #5a6b82;
+  --gray-7: #7a8ba0;
+  --gray-8: #a18594;
+  --gray-9: #b5c0ce;
+  --gray-10: #d6e0e6;
+  --gray-11: #e5ecf4;
+  --gray-12: #e8eef3;
+  --header-accent: #b5c0ce;
+  --accent-secondary: #a18594;
+  --border-accent: #5a6b82;
   --shadow-color: #000000;
   --header-bg: rgba(26, 34, 41, 0.96);
 }
@@ -909,9 +979,9 @@
   --border-soft: var(--gray-4);
   --border-strong: var(--gray-4);
 
-  --text-primary: #cbd5e1;   /* slate-300 正文默认 */
+  --text-primary: #cbd5e1; /* slate-300 正文默认 */
   --text-secondary: #e2e8f0; /* slate-200 标题/强调 */
-  --text-tertiary: #94a3b8;  /* slate-400 导航/标签 */
+  --text-tertiary: #94a3b8; /* slate-400 导航/标签 */
 
   --header-accent: #3b82f6; /* blue-500 图标/品牌 */
   --accent-secondary: #60a5fa; /* blue-400 激活态 */

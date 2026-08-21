@@ -27,6 +27,7 @@ import { ToastController } from './TranscriptionPage.ToastController';
 import { featureFlags } from '../ai/config/featureFlags';
 import { normalizeLocale, t } from '../i18n';
 import type {
+  TranscriptionPageAssistantRuntimeCardChrome,
   TranscriptionPageAssistantRuntimeFrameProps,
   TranscriptionPageAssistantRuntimeProps,
   TranscriptionPageAssistantRuntimeVoiceProps,
@@ -49,6 +50,7 @@ interface AssistantVoiceRuntimeProps {
   aiChatContextValue: AiChatContextValue;
   frame: TranscriptionPageAssistantRuntimeFrameProps;
   voice: TranscriptionPageAssistantRuntimeVoiceProps;
+  cardChrome?: TranscriptionPageAssistantRuntimeCardChrome;
   openPanelOnMount: boolean;
   startListeningOnMount: boolean;
   onInitialVoiceRequestHandled: () => void;
@@ -64,6 +66,7 @@ interface AssistantRuntimeHostProps {
     isRecording: boolean;
     error?: string | null;
   };
+  cardChrome?: TranscriptionPageAssistantRuntimeCardChrome;
   voiceDrawer?: ReactNode;
   voiceEntry?:
     | {
@@ -80,6 +83,7 @@ function AssistantRuntimeFrame({
   aiAssistantHubContextValue,
   frame,
   toastVoiceAgent,
+  cardChrome,
   voiceDrawer,
   voiceEntry,
 }: AssistantRuntimeHostProps) {
@@ -104,7 +108,19 @@ function AssistantRuntimeFrame({
         <div className="transcription-hub-assistant-chat-section">
           <ErrorBoundary>
             <Suspense fallback={null}>
-              <AiChatCard embedded voiceDrawer={voiceDrawer} voiceEntry={voiceEntry} />
+              <AiChatCard
+                embedded
+                showHeader={cardChrome?.showHeader ?? true}
+                showProviderConfigButton={cardChrome?.showProviderConfigButton ?? true}
+                {...(cardChrome?.providerConfigOpen !== undefined
+                  ? { providerConfigOpen: cardChrome.providerConfigOpen }
+                  : {})}
+                {...(cardChrome?.onProviderConfigOpenChange
+                  ? { onProviderConfigOpenChange: cardChrome.onProviderConfigOpenChange }
+                  : {})}
+                voiceDrawer={voiceDrawer}
+                voiceEntry={voiceEntry}
+              />
             </Suspense>
           </ErrorBoundary>
         </div>
@@ -118,6 +134,7 @@ function AssistantVoiceRuntime({
   aiChatContextValue,
   frame,
   voice,
+  cardChrome,
   openPanelOnMount,
   startListeningOnMount,
   onInitialVoiceRequestHandled,
@@ -356,6 +373,7 @@ function AssistantVoiceRuntime({
       aiAssistantHubContextValue={aiAssistantHubContextValue}
       frame={frame}
       toastVoiceAgent={voiceAgent}
+      {...(cardChrome !== undefined ? { cardChrome } : {})}
       voiceDrawer={voiceDrawer}
       voiceEntry={voiceEntry}
     />
@@ -367,6 +385,7 @@ export function TranscriptionPageAssistantRuntime({
   aiChatContextValue,
   frame,
   voice,
+  cardChrome,
 }: TranscriptionPageAssistantRuntimeProps) {
   const uiLocale = normalizeLocale(locale) ?? 'zh-CN';
   const [voiceRuntimeRequested, setVoiceRuntimeRequested] = useState(false);
@@ -428,6 +447,7 @@ export function TranscriptionPageAssistantRuntime({
         aiChatContextValue={aiChatContextValue}
         frame={frame}
         voice={voice}
+        {...(cardChrome !== undefined ? { cardChrome } : {})}
         openPanelOnMount={openVoicePanelOnMount}
         startListeningOnMount={startVoiceListeningOnMount}
         onInitialVoiceRequestHandled={handleInitialVoiceRequestHandled}
@@ -445,6 +465,7 @@ export function TranscriptionPageAssistantRuntime({
         listening: false,
         isRecording: false,
       }}
+      {...(cardChrome !== undefined ? { cardChrome } : {})}
       voiceEntry={dormantVoiceEntry}
     />
   );

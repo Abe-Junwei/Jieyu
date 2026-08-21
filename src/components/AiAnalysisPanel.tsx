@@ -17,18 +17,23 @@ export type {
   AnalysisBottomTab,
 } from './AiAnalysisPanel.types';
 
+const ALL_ANALYSIS_TABS: AnalysisBottomTab[] = ['embedding', 'stats', 'acoustic'];
+
 interface AiAnalysisPanelProps {
   isCollapsed: boolean;
   /** 当前激活的模式 tab（控制任务聚焦/全量视图的内容区） */
   activeTab?: AnalysisBottomTab;
   /** 切换模式 tab 回调 */
   onChangeActiveTab?: (tab: AnalysisBottomTab) => void;
+  /** 分析页隐藏声学 tab；缺省为三 tab。 */
+  visibleTabs?: AnalysisBottomTab[];
 }
 
 export const AiAnalysisPanel = memo(function AiAnalysisPanel({
   isCollapsed,
   activeTab = 'embedding',
   onChangeActiveTab,
+  visibleTabs = ALL_ANALYSIS_TABS,
 }: AiAnalysisPanelProps) {
   const locale = useLocale();
   const panel = useAiPanelContext();
@@ -45,6 +50,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
   } = panel;
 
   const acousticModel = useAiAnalysisPanelAcousticModel(panel);
+  const resolvedTab = visibleTabs.includes(activeTab) ? activeTab : (visibleTabs[0] ?? 'embedding');
 
   const shouldShow = (card: AiPanelCardKey): boolean => {
     if (!aiVisibleCards) return true;
@@ -81,15 +87,15 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
           ? t(locale, 'ai.stats.vadCacheMiss')
           : t(locale, 'ai.stats.vadCacheUnavailable');
   const activeTabLabel =
-    activeTab === 'embedding'
+    resolvedTab === 'embedding'
       ? t(locale, 'ai.header.embeddingTab')
-      : activeTab === 'acoustic'
+      : resolvedTab === 'acoustic'
         ? t(locale, 'ai.header.acousticTab')
         : t(locale, 'ai.header.statsTab');
   const activeTabDescription =
-    activeTab === 'embedding'
+    resolvedTab === 'embedding'
       ? t(locale, 'ai.header.focusModeDesc')
-      : activeTab === 'acoustic'
+      : resolvedTab === 'acoustic'
         ? t(locale, 'ai.header.acousticTabDesc')
         : t(locale, 'ai.header.allModeDesc');
 
@@ -148,7 +154,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               <PanelChip>
                 {tf(locale, 'ai.stats.translationLayer', { translationLayerCount })}
               </PanelChip>
-              {activeTab === 'acoustic' && acousticModel.acousticSummary ? (
+              {resolvedTab === 'acoustic' && acousticModel.acousticSummary ? (
                 <>
                   {acousticModel.acousticDurationSec != null ? (
                     <PanelChip>
@@ -170,8 +176,8 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
         />
 
         <div className="transcription-analysis-tab-content">
-          {activeTab === 'embedding' && shouldShow('embedding_ops') && <AiEmbeddingCard />}
-          {activeTab === 'stats' && (
+          {resolvedTab === 'embedding' && shouldShow('embedding_ops') && <AiEmbeddingCard />}
+          {resolvedTab === 'stats' && (
             <PanelSection
               className="transcription-analysis-stats-section"
               title={t(locale, 'ai.header.statsTab')}
@@ -212,9 +218,9 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               </div>
             </PanelSection>
           )}
-          {activeTab === 'acoustic' && (
+          {resolvedTab === 'acoustic' && (
             <AiAnalysisPanelAcousticTabContent
-              activeTab={activeTab}
+              activeTab={resolvedTab}
               vadCacheLabel={vadCacheLabel}
               model={acousticModel}
             />
@@ -223,11 +229,11 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
       </div>
 
       <div className="transcription-analysis-panel-footer">
-        {(['embedding', 'stats', 'acoustic'] as const).map((tab) => (
+        {visibleTabs.map((tab) => (
           <button
             key={tab}
             type="button"
-            className={`transcription-assistant-hub-tab ${activeTab === tab ? 'transcription-assistant-hub-tab-active' : ''}`}
+            className={`transcription-assistant-hub-tab ${resolvedTab === tab ? 'transcription-assistant-hub-tab-active' : ''}`}
             onClick={() => onChangeActiveTab?.(tab)}
           >
             {tab === 'embedding'

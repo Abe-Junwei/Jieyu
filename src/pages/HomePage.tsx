@@ -180,7 +180,7 @@ function ProjectCard(props: {
           </div>
         ))
       ) : (
-        <p className="home-page-empty home-page-empty-compact">
+        <p className="home-page-empty home-page-empty-compact entry-card entry-card--dashed entry-card--compact">
           {t(locale, 'app.home.noProgressData')}
         </p>
       )}
@@ -207,18 +207,21 @@ export function HomePage() {
 
   return (
     <div className="home-page panel">
-      <header className="home-page-hero">
-        <p className="home-page-hero-kicker">{t(locale, 'app.home.title')}</p>
-        <h1>{t(locale, 'app.title')}</h1>
+      <header className="home-page-hero entry-card">
+        <p className="home-page-hero-kicker entry-card__kicker">{t(locale, 'app.home.title')}</p>
+        <h1 className="entry-card__title">{t(locale, 'app.title')}</h1>
         <p className="home-page-hero-tagline">{t(locale, 'app.subtitle')}</p>
         <p>{t(locale, 'app.home.subtitle')}</p>
         <div className="home-page-hero-actions">
-          <Link className="home-page-link-btn" to={buildTranscriptionWorkspaceReturnHref()}>
+          <Link
+            className="btn btn-primary home-page-link-btn"
+            to={buildTranscriptionWorkspaceReturnHref()}
+          >
             {t(locale, 'app.home.openTranscription')}
           </Link>
           <button
             type="button"
-            className="home-page-link-btn"
+            className="btn btn-ghost home-page-link-btn"
             onClick={() => void refetch()}
             disabled={isFetching}
           >
@@ -246,7 +249,9 @@ export function HomePage() {
           </div>
         ) : null}
         {!isLoading && !isError && bundles.length === 0 ? (
-          <div className="home-page-empty">{t(locale, 'app.home.noProjects')}</div>
+          <div className="home-page-empty entry-card entry-card--dashed">
+            {t(locale, 'app.home.noProjects')}
+          </div>
         ) : null}
         {!isLoading &&
           !isError &&

@@ -142,7 +142,13 @@
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: var(--text-secondary) var(--border-soft);
-  transition: width var(--rail-motion), padding var(--rail-motion), border-color var(--rail-motion), transform var(--rail-motion), box-shadow var(--rail-motion), left var(--rail-motion);
+  transition:
+    width var(--rail-motion),
+    padding var(--rail-motion),
+    border-color var(--rail-motion),
+    transform var(--rail-motion),
+    box-shadow var(--rail-motion),
+    left var(--rail-motion);
   box-shadow: none;
   min-width: 0;
 }
@@ -325,8 +331,12 @@
   background: var(--text-secondary);
 }
 
-.video-preview-resize-dots::before { top: -5px; }
-.video-preview-resize-dots::after { bottom: -5px; }
+.video-preview-resize-dots::before {
+  top: -5px;
+}
+.video-preview-resize-dots::after {
+  bottom: -5px;
+}
 
 .video-preview-resize-handle:hover .video-preview-resize-dots,
 .video-preview-resize-handle:hover .video-preview-resize-dots::before,
@@ -438,8 +448,12 @@
   background: var(--text-secondary);
 }
 
-.video-preview-right-resize-dots::before { left: -5px; }
-.video-preview-right-resize-dots::after { right: -5px; }
+.video-preview-right-resize-dots::before {
+  left: -5px;
+}
+.video-preview-right-resize-dots::after {
+  right: -5px;
+}
 
 .video-preview-right-resize-handle:hover .video-preview-right-resize-dots,
 .video-preview-right-resize-handle:hover .video-preview-right-resize-dots::before,
@@ -484,4 +498,27 @@
   box-sizing: border-box;
   background: var(--surface-elevated);
   border-bottom: 1px solid var(--divider-base);
+}
+
+.transcription-acoustic-inspector {
+  flex: 0 0 auto;
+  max-height: 40vh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--surface-header) 88%, var(--surface-panel));
+}
+
+.transcription-acoustic-inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px;
+}
+
+.transcription-acoustic-inspector-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 0 14px 12px;
 }

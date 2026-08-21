@@ -3,8 +3,11 @@
   padding: var(--space-3, 12px) var(--space-4, 16px);
   align-items: flex-start;
   gap: var(--space-3, 10px) var(--space-4, 14px);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 94%, var(--surface-bg)), color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header)) 100%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-header) 94%, var(--surface-bg)),
+    color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header)) 100%
+  );
 }
 
 /* 统一标题右侧留白 | Shared title right padding */
@@ -89,7 +92,10 @@
   --la-body-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   --la-meta-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   --la-note-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
-  --la-unified-title-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
+  --la-unified-title-size: var(
+    --panel-typography-emphasis-title-size,
+    calc(13px * var(--ui-font-scale, 1))
+  );
   --la-field-gap: var(--space-2, 8px);
   --ws-note-size: var(--la-meta-size);
   /* 面板外壳 | Panel shell — 大圆角与间距阶梯 24px 一致（见 ADR-0023） | Large corner matches spacing scale */
@@ -99,21 +105,30 @@
   border-radius: var(--space-6);
   border: 1px solid color-mix(in srgb, var(--border-soft) 76%, transparent);
   /* LM/OM/OB 外壳高光与 tokens `--color-white` 对齐 | Chrome highlight anchor */
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 98%, var(--color-white)), color-mix(in srgb, var(--surface-header) 28%, var(--surface-panel)) 100%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-panel) 98%, var(--color-white)),
+    color-mix(in srgb, var(--surface-header) 28%, var(--surface-panel)) 100%
+  );
   box-shadow: var(--shadow-lg);
 }
 
 /* 壳内控制件以 control-primitives（.input / .btn）为主，并与下方 panel-button 规则对齐（拍板 C1 / ADR-0023） | Shell controls: .input/.btn as primary */
 /* ── 统一按钮样式 | Shared button styles ── */
 
-.la-shell :is(.panel-button--primary, .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active), .btn-active) {
+.la-shell
+  :is(.panel-button--primary, .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active), .btn-active) {
   border-color: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
   background: var(--state-info-solid);
   color: var(--surface-panel);
 }
 
-.la-shell :is(.panel-button--primary, .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active), .btn-active):is(:hover, :focus-visible):not(:disabled) {
+.la-shell
+  :is(
+    .panel-button--primary,
+    .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active),
+    .btn-active
+  ):is(:hover, :focus-visible):not(:disabled) {
   background: color-mix(in srgb, var(--state-info-solid) 90%, var(--shadow-color) 10%);
   border-color: color-mix(in srgb, var(--state-info-solid) 46%, transparent);
 }
@@ -203,15 +218,16 @@
 
 /* ── 语言资产页标题统一（LM/OM/OB） | Unified section heading for LM/OM/OB ── */
 
-.la-shell :is(
-  .lm-history-panel .panel-section__title,
-  .lm-subsection-header .panel-title-primary,
-  .ob-browser-title,
-  .ob-bridge-title,
-  .orthography-builder-panel-compact .orthography-builder-group-title,
-  .om-browser-title,
-  .om-advanced-summary > .orthography-builder-group-title
-) {
+.la-shell
+  :is(
+    .lm-history-panel .panel-section__title,
+    .lm-subsection-header .panel-title-primary,
+    .ob-browser-title,
+    .ob-bridge-title,
+    .orthography-builder-panel-compact .orthography-builder-group-title,
+    .om-browser-title,
+    .om-advanced-summary > .orthography-builder-group-title
+  ) {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -240,9 +256,21 @@
   color: var(--text-secondary);
 }
 
-.la-shell :is(.lm-state-error, .ob-state-error, .om-state-error) { color: var(--state-danger-text); }
-.la-shell :is(.lm-state-success, .om-state-success) { color: var(--state-success-text); }
-.la-shell :is(.ob-state-warning, .om-state-warning) { color: var(--state-warning-text); }
+.la-shell :is(.lm-state, .ob-state, .om-state).entry-empty {
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
+  line-height: 1.6;
+  padding: 4px 0 8px;
+}
+
+.la-shell :is(.lm-state-error, .ob-state-error, .om-state-error) {
+  color: var(--state-danger-text);
+}
+.la-shell :is(.lm-state-success, .om-state-success) {
+  color: var(--state-success-text);
+}
+.la-shell :is(.ob-state-warning, .om-state-warning) {
+  color: var(--state-warning-text);
+}
 
 /* ── 统一列表项 | Unified list item ── */
 
@@ -262,7 +290,10 @@
   -webkit-appearance: none;
   cursor: pointer;
   box-shadow: none;
-  transition: background var(--duration-instant) ease, border-color var(--duration-instant) ease, box-shadow var(--duration-instant) ease;
+  transition:
+    background var(--duration-instant) ease,
+    border-color var(--duration-instant) ease,
+    box-shadow var(--duration-instant) ease;
 }
 
 .la-shell :is(.ob-list-item, .om-list-item)::before {

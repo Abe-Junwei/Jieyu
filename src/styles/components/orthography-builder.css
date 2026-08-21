@@ -64,7 +64,12 @@
   color: var(--text-primary);
 }
 
-.orthography-builder-panel :is(.orthography-builder-control, .orthography-builder-language-input input, .script-tag-combobox input) {
+.orthography-builder-panel
+  :is(
+    .orthography-builder-control,
+    .orthography-builder-language-input input,
+    .script-tag-combobox input
+  ) {
   width: 100%;
   min-height: var(--input-h-lg);
   box-sizing: border-box;
@@ -78,7 +83,8 @@
   box-shadow: none;
 }
 
-.orthography-builder-panel :is(textarea.orthography-builder-control, textarea.orthography-builder-rule-textarea) {
+.orthography-builder-panel
+  :is(textarea.orthography-builder-control, textarea.orthography-builder-rule-textarea) {
   min-height: 84px;
   padding: 8px 10px;
 }
@@ -88,11 +94,19 @@
   -webkit-appearance: none;
   padding-right: 38px;
   background-image:
-    linear-gradient(180deg, color-mix(in srgb, var(--text-tertiary) 24%, transparent), color-mix(in srgb, var(--text-tertiary) 10%, transparent)),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--text-tertiary) 24%, transparent),
+      color-mix(in srgb, var(--text-tertiary) 10%, transparent)
+    ),
     var(--select-caret-icon);
   background-repeat: no-repeat;
-  background-position: calc(100% - 28px) 50%, calc(100% - 12px) 50%;
-  background-size: 1px 16px, 10px 10px;
+  background-position:
+    calc(100% - 28px) 50%,
+    calc(100% - 12px) 50%;
+  background-size:
+    1px 16px,
+    10px 10px;
 }
 
 .orthography-builder-panel .orthography-builder-btn {
@@ -102,25 +116,9 @@
   gap: 6px;
   min-height: var(--input-h-md);
   padding: 0 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
-  background: var(--surface-panel);
-  color: var(--panel-design-text-color, var(--text-secondary));
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.35;
-  font-weight: 600;
   box-shadow: none;
-}
-
-.orthography-builder-panel .orthography-builder-btn-ghost {
-  background: var(--surface-panel);
-  color: var(--panel-design-text-color, var(--text-secondary));
-}
-
-.orthography-builder-panel .orthography-builder-btn-primary {
-  border-color: var(--panel-design-accent-color);
-  background: var(--panel-design-accent-color);
-  color: var(--surface-panel);
 }
 
 .orthography-builder-panel :is(input, select, textarea)::placeholder {

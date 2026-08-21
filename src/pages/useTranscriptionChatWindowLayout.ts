@@ -24,12 +24,14 @@ export interface UseTranscriptionChatWindowLayoutInput {
   uiLocale: Locale;
   aiIsStreaming: boolean;
   onSendAiMessage: ((text: string) => Promise<unknown> | void) | undefined;
+  pendingToolCall?: unknown;
 }
 
 export function useTranscriptionChatWindowLayout({
   uiLocale,
   aiIsStreaming,
   onSendAiMessage,
+  pendingToolCall,
 }: UseTranscriptionChatWindowLayoutInput) {
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
@@ -51,6 +53,7 @@ export function useTranscriptionChatWindowLayout({
   const uiLocaleRef = useRef(uiLocale);
   const windowRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const lastOpenedPendingRef = useRef<unknown>(null);
   const layoutStateRef = useRef<ChatWindowPointerInteractionState>({
     open,
     minimized,
@@ -192,6 +195,18 @@ export function useTranscriptionChatWindowLayout({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [layoutInitialized]);
+
+  useEffect(() => {
+    if (!layoutInitialized) return;
+    if (pendingToolCall == null) {
+      lastOpenedPendingRef.current = null;
+      return;
+    }
+    if (lastOpenedPendingRef.current === pendingToolCall) return;
+    lastOpenedPendingRef.current = pendingToolCall;
+    setOpen(true);
+    setMinimized(false);
+  }, [layoutInitialized, pendingToolCall]);
 
   const {
     handleHeaderPointerDown,

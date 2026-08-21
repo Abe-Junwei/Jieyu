@@ -42,6 +42,20 @@
   white-space: nowrap;
 }
 
+.transcription-chat-window-trigger-badge {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--header-accent) 16%, var(--surface-panel));
+  color: var(--header-accent);
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
+  line-height: 1;
+}
+
 .transcription-chat-window-trigger.is-hidden {
   display: none;
 }

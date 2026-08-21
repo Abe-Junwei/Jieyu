@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import type { TranscriptionPageAiSidebarProps } from './TranscriptionPage.AiSidebar';
 import type {
   TranscriptionPageAnalysisRuntimeProps,
@@ -120,15 +120,6 @@ export function useTranscriptionSidebarSectionsViewModel(
     isFocusMode,
     exitFocusMode,
   } = input;
-
-  useEffect(() => {
-    if (
-      assistantRuntimeProps.aiChatContextValue.aiPendingToolCall &&
-      hubSidebarTab !== 'assistant'
-    ) {
-      setHubSidebarTab('assistant');
-    }
-  }, [assistantRuntimeProps.aiChatContextValue.aiPendingToolCall, hubSidebarTab, setHubSidebarTab]);
 
   const aiSidebarProps = useMemo<TranscriptionPageAiSidebarProps>(
     () => ({

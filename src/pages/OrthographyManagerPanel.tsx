@@ -380,7 +380,9 @@ export function OrthographyManagerPanel({
         !showUnscopedIdleState &&
         !searchText.trim() &&
         filteredOrthographies.length === 0 ? (
-          <PanelNote className="om-state">{t(locale, 'workspace.orthography.emptyList')}</PanelNote>
+          <PanelNote className="om-state entry-empty">
+            {t(locale, 'workspace.orthography.emptyList')}
+          </PanelNote>
         ) : null}
 
         <div

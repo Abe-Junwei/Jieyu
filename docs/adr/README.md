@@ -50,6 +50,9 @@ source_of_truth: decision-index
 - [0029-assistant-tts-web-speech-policy.md](./0029-assistant-tts-web-speech-policy.md)（助手 TTS：`speechSynthesis` 边界、默认关、不支持时弱提示、与流式互斥；`accepted`）
 - [0022-ai-evaluation-judge-provider-contract.md](./0022-ai-evaluation-judge-provider-contract.md)（AI 评测 JudgeProvider 契约：`JudgeProvider` / baseline vs LLM judge；`accepted`）
 - [0030-vertical-workflow-template-contract.md](./0030-vertical-workflow-template-contract.md)（垂直工作流模板：`sourceScopeSummary` 命名、MCP 空 scope 硬失败、eval 分阶段、release evidence `skipTaxonomyRollup`、dogfood 指标非门禁、`VoiceAgentService` &lt;950 行；`accepted`）
+- [0031-ai-chat-keyvault-and-csp-connect-src.md](./0031-ai-chat-keyvault-and-csp-connect-src.md)（AI Chat KeyVault 与 connect-src）
+- [0032-transcription-ai-chat-floating-window-only.md](./0032-transcription-ai-chat-floating-window-only.md)（转写页对话仅浮窗；分析右栏已由 ADR-0033 迁出；`accepted`）
+- [0033-analysis-restricted-workspace-no-transcription-dock.md](./0033-analysis-restricted-workspace-no-transcription-dock.md)（`/analysis` 受限工作台承接向量+统计；转写拆 AI 右栏；声学留在转写检查条；`accepted`）
 
 ## 建议格式
 

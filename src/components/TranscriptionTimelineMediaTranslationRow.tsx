@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/transcription/timelineUnitView';
 import {
+  layerTextLookupUnitId,
   recordingScopeUnitId,
   resolveVoiceRecordingSourceUnit,
 } from '../utils/recordingScopeUnitId';
@@ -116,11 +117,12 @@ export function TranscriptionTimelineMediaTranslationRow({
     },
     [rowCellKey, setRowSaveStatus],
   );
+  const textLookupUnitId = usesOwnSegments ? item.id : layerTextLookupUnitId(item);
   const { handleDraftFocus, handleDraftChange, handleDraftBlur } =
     useMediaTranslationLaneRowDraftAutosave({
       usesOwnSegments,
       layerId: layer.id,
-      unitId: item.id,
+      unitId: textLookupUnitId,
       draftKey,
       text,
       setTranslationDrafts,
@@ -197,7 +199,7 @@ export function TranscriptionTimelineMediaTranslationRow({
         await saveSegmentContentForLayer(item.id, layer.id, value);
         return;
       }
-      await saveUnitLayerText(item.id, value, layer.id);
+      await saveUnitLayerText(textLookupUnitId, value, layer.id);
     });
   }, [
     item.id,
@@ -207,6 +209,7 @@ export function TranscriptionTimelineMediaTranslationRow({
     saveUnitLayerText,
     setRowSaveStatus,
     text,
+    textLookupUnitId,
     usesOwnSegments,
   ]);
 

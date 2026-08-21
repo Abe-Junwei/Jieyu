@@ -1,13 +1,15 @@
 ---
 title: ai-assistant-presentation-modes tasks
 doc_type: execution-spec-tasks
-status: draft
+status: deferred
 owner: repo
-last_reviewed: 2026-05-17
+last_reviewed: 2026-08-21
 source_of_truth: ai-assistant-presentation-modes-spec
 ---
 
 # Tasks — AI 助手呈现样态
+
+> 2026-08-21：当前产品按 [ADR-0032](../../../adr/0032-transcription-ai-chat-floating-window-only.md) 落地为「对话仅浮窗」。下列 Dock/Pop-out 任务延后。
 
 > [requirements.md](requirements.md) | [design.md](design.md)
 

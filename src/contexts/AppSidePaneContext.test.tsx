@@ -3,7 +3,11 @@
 import { useMemo, useState } from 'react';
 import { cleanup, render, screen, act, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot, useRegisterAppSidePane } from './AppSidePaneContext';
+import {
+  AppSidePaneProvider,
+  useAppSidePaneRegistrationSnapshot,
+  useRegisterAppSidePane,
+} from './AppSidePaneContext';
 
 afterEach(() => {
   cleanup();
@@ -75,10 +79,12 @@ describe('AppSidePaneContext', () => {
       </AppSidePaneProvider>,
     );
 
-    // 内容更新使用延迟通知，需等待微任务处理 | Content update uses deferred notification
-    await waitFor(() => {
-      expect(screen.getByTestId('content').textContent).toContain('更新后的内容');
+    // Content-only identity changes are stored silently (no shell notify) to avoid
+    // update-depth storms from unstable ReactNode trees. Host still shows mount content.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
     });
+    expect(screen.getByTestId('content').textContent).toContain('首屏内容');
 
     rerender(
       <AppSidePaneProvider>
@@ -115,6 +121,57 @@ describe('AppSidePaneContext', () => {
     });
 
     expect(screen.getByRole('button', { name: '重渲染 1' })).toBeTruthy();
+    expect(onHostRender.mock.calls.length).toBe(renderCountAfterMount);
+  });
+
+  it('does not notify-loop when producer passes fresh elements with new callback identities', async () => {
+    const onHostRender = vi.fn();
+
+    function UnstableCallbackProbe() {
+      const [tick, setTick] = useState(0);
+      useRegisterAppSidePane({
+        title: '回调面板',
+        subtitle: 'callback identity churn',
+        // Fresh element + fresh onClick each render; visible props stay stable.
+        content: (
+          <div>
+            <span>payload</span>
+            <button type="button" onClick={() => undefined}>
+              noop
+            </button>
+          </div>
+        ),
+      });
+      return (
+        <button type="button" onClick={() => setTick((prev) => prev + 1)}>
+          bump {tick}
+        </button>
+      );
+    }
+
+    render(
+      <AppSidePaneProvider>
+        <HostSnapshotWithRenderCount onRender={onHostRender} />
+        <UnstableCallbackProbe />
+      </AppSidePaneProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('title').textContent).toBe('回调面板');
+    });
+
+    const renderCountAfterMount = onHostRender.mock.calls.length;
+
+    await act(async () => {
+      screen.getByRole('button', { name: /^bump / }).click();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    await act(async () => {
+      screen.getByRole('button', { name: /^bump / }).click();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(screen.getByRole('button', { name: 'bump 2' })).toBeTruthy();
     expect(onHostRender.mock.calls.length).toBe(renderCountAfterMount);
   });
 });

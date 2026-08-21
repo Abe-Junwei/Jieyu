@@ -45,6 +45,7 @@ describe('Transcription layout guard', () => {
     expect(mainEnd).toBeGreaterThan(mainStart);
     const mainBlock = cssCode.slice(mainStart, mainEnd + 1);
     expect(mainBlock).toContain('overflow: auto;');
+    expect(mainBlock).toContain('margin-left: var(--side-pane-width);');
 
     const paneSelector = '.app-side-pane {';
     const paneStart = cssCode.indexOf(paneSelector);

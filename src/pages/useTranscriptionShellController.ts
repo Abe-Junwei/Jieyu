@@ -112,7 +112,7 @@ export function useTranscriptionShellController(
   } = useTranscriptionAdaptiveSizing(locale);
 
   const [analysisTab, setAnalysisTab] = useState<AnalysisBottomTab>('embedding');
-  const [hubSidebarTab, setHubSidebarTab] = useState<'assistant' | 'analysis'>('assistant');
+  const [hubSidebarTab, setHubSidebarTab] = useState<'assistant' | 'analysis'>('analysis');
 
   const {
     showProjectSetup,

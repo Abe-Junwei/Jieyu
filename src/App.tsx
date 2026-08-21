@@ -206,13 +206,18 @@ function AppShellSidePane({
     sidePaneRegistration?.subtitle ??
     activeNavItem?.summary ??
     t(locale, 'app.sidePane.defaultSubtitle');
-  const sidePaneBody = sidePaneRegistration?.content ?? (
-    <div className="app-side-pane-empty-state">
-      <strong>{sidePaneTitle}</strong>
-      <span>{sidePaneSubtitle}</span>
-      <p>{t(locale, 'app.sidePane.emptyDesc')}</p>
-    </div>
-  );
+  // `content: null` means the producer portals into `#app-side-pane-body-slot`
+  // (e.g. SidePaneSidebar). Do not coalesce null with `??` empty-state.
+  const sidePaneBody =
+    sidePaneRegistration == null ? (
+      <div className="app-side-pane-empty-state entry-card entry-card--dashed entry-card--compact">
+        <strong>{sidePaneTitle}</strong>
+        <span>{sidePaneSubtitle}</span>
+        <p>{t(locale, 'app.sidePane.emptyDesc')}</p>
+      </div>
+    ) : (
+      sidePaneRegistration.content
+    );
 
   return (
     <>

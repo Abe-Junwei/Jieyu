@@ -1,39 +1,43 @@
 /* 首页：项目与声文稿进度 | Home — project & transcription record progress */
 
 .home-page {
-  max-width: 960px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 1.5rem 1.25rem 3rem;
+  padding: clamp(18px, 2.5vw, 32px) clamp(16px, 2.5vw, 28px) 48px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .home-page-hero {
-  margin-bottom: 1.75rem;
+  margin-bottom: 28px;
+}
+
+.home-page-hero .entry-card__title {
+  margin: 0 0 0.5rem;
+  font-size: clamp(28px, 3vw, 36px);
 }
 
 .home-page-hero-kicker {
-  margin: 0 0 0.25rem;
-  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0.65;
+  margin-bottom: 0.25rem;
 }
 
 .home-page-hero-tagline {
-  margin: 0 0 0.35rem;
-  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
-  opacity: 0.82;
-}
-
-.home-page-hero h1 {
-  margin: 0 0 0.35rem;
-  font-size: var(--panel-typography-display-size, calc(22px * var(--ui-font-scale, 1)));
+  max-width: 42rem;
+  margin: 0 0 0.45rem;
+  color: var(--text-primary);
+  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
   font-weight: 600;
+  opacity: 0.9;
 }
 
 .home-page-hero p {
-  margin: 0 0 1rem;
-  opacity: 0.85;
-  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
+  max-width: 44rem;
+  margin: 0 0 1.1rem;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
+  line-height: 1.65;
 }
 
 .home-page-hero-actions {
@@ -43,33 +47,15 @@
 }
 
 .home-page-link-btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.45rem 0.85rem;
-  border-radius: 0.5rem;
-  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
-  text-decoration: none;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 80%, transparent);
-  background: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
-  color: inherit;
-}
-
-.home-page-link-btn:hover {
-  border-color: var(--state-info-solid);
-}
-
-.home-page-link-btn:focus-visible {
-  border-color: var(--state-info-solid);
-  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 28%, transparent);
-  outline-offset: 2px;
+  min-height: 36px;
 }
 
 .home-project-card {
   border: 1px solid color-mix(in srgb, var(--border-soft) 70%, transparent);
-  border-radius: 0.65rem;
+  border-radius: var(--radius-xl);
   padding: 0.85rem 1rem 1rem;
   margin-bottom: 1rem;
-  background: color-mix(in srgb, var(--surface-bg) 96%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-bg));
 }
 
 .home-project-card-header {
@@ -108,6 +94,21 @@
 
 .home-project-card-meta-version {
   margin-top: 0.75rem;
+}
+
+.home-page > .panel-section {
+  gap: 16px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.home-page > .panel-section > .panel-section__header {
+  padding-inline: 2px;
+}
+
+.home-page > .panel-section .panel-section__title {
+  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
 }
 
 .home-triple {
@@ -182,9 +183,9 @@
 }
 
 .home-page-empty {
-  padding: 1.25rem 0;
-  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
-  opacity: 0.8;
+  min-height: 132px;
+  display: flex;
+  align-items: center;
 }
 
 .home-page-empty-compact {
@@ -193,6 +194,18 @@
 }
 
 @media (max-width: 520px) {
+  .home-page {
+    padding-inline: 12px;
+  }
+
+  .home-page-hero {
+    padding: 20px;
+  }
+
+  .home-page-hero .entry-card__title {
+    font-size: 28px;
+  }
+
   .home-triple-row {
     grid-template-columns: 4.5rem 1fr 2.5rem;
     font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));

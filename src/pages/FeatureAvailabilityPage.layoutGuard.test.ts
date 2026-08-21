@@ -2,11 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const PAGE_FILES = [
-  'src/pages/AnnotationPage.tsx',
-  'src/pages/AnalysisPage.tsx',
-  'src/pages/CorpusLibraryPage.tsx',
-];
+const PAGE_FILES = ['src/pages/AnnotationPage.tsx', 'src/pages/CorpusLibraryPage.tsx'];
 
 describe('Feature availability page layout guard', () => {
   it('keeps placeholder routes importing the dedicated feature availability page css', () => {
@@ -35,5 +31,13 @@ describe('Feature availability page layout guard', () => {
 
     expect(cssCode).not.toContain('.app-side-pane-feature-stack {');
     expect(cssCode).not.toContain('.feature-availability-panel {');
+  });
+
+  it('keeps analysis route on the dedicated analysis workspace', () => {
+    const pagePath = path.resolve(process.cwd(), 'src/pages/AnalysisPage.tsx');
+    const pageCode = fs.readFileSync(pagePath, 'utf8');
+    expect(pageCode).not.toContain('<FeatureAvailabilityPanel');
+    expect(pageCode).toContain("import '../styles/pages/analysis-workspace.css'");
+    expect(pageCode).toContain('useAnalysisWorkspaceController');
   });
 });

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerUnitDocType } from '../db';
-import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from './recordingScopeUnitId';
+import {
+  layerTextLookupUnitId,
+  recordingScopeUnitId,
+  resolveVoiceRecordingSourceUnit,
+} from './recordingScopeUnitId';
 
 const baseUnit = (id: string): LayerUnitDocType => ({
   id,
@@ -13,18 +17,44 @@ const baseUnit = (id: string): LayerUnitDocType => ({
 
 describe('recordingScopeUnitId', () => {
   it('uses parent id for referring segments', () => {
-    expect(recordingScopeUnitId({
-      id: 'seg-1',
-      kind: 'segment',
-      parentUnitId: 'host-a',
-    })).toBe('host-a');
+    expect(
+      recordingScopeUnitId({
+        id: 'seg-1',
+        kind: 'segment',
+        parentUnitId: 'host-a',
+      }),
+    ).toBe('host-a');
   });
 
   it('uses segment id for independent segments', () => {
-    expect(recordingScopeUnitId({
-      id: 'seg-ind',
-      kind: 'segment',
-    })).toBe('seg-ind');
+    expect(
+      recordingScopeUnitId({
+        id: 'seg-ind',
+        kind: 'segment',
+      }),
+    ).toBe('seg-ind');
+  });
+});
+
+describe('layerTextLookupUnitId', () => {
+  it('maps referring timeline segments to parent utterance id', () => {
+    expect(
+      layerTextLookupUnitId({
+        id: 'segv2_trc_utt1',
+        kind: 'segment',
+        parentUnitId: 'utt1',
+      }),
+    ).toBe('utt1');
+  });
+
+  it('maps LayerUnitDocType referring segments to parent utterance id', () => {
+    expect(
+      layerTextLookupUnitId({
+        ...baseUnit('segv2_trc_utt1'),
+        unitType: 'segment',
+        parentUnitId: 'utt1',
+      }),
+    ).toBe('utt1');
   });
 });
 

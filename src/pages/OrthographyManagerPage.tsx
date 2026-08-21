@@ -335,12 +335,8 @@ export function OrthographyManagerPage({
     return `/assets/orthography-bridges?${params.toString()}`;
   }, [fromLayerId, selectedOrthography]);
 
-  useRegisterAppSidePane({
-    title: t(locale, 'workspace.orthography.sidePaneTitle'),
-    subtitle: selectedOrthography
-      ? formatOrthographyOptionLabel(selectedOrthography, locale)
-      : t(locale, 'workspace.orthography.sidePaneSubtitle'),
-    content: (
+  const sidePaneContent = useMemo(
+    () => (
       <OrthographyManagerSidePane
         locale={locale}
         selectedOrthography={selectedOrthography}
@@ -348,6 +344,15 @@ export function OrthographyManagerPage({
         onBeforeOpenBridge={confirmDiscardDirtyDraft}
       />
     ),
+    [bridgeWorkspaceHref, confirmDiscardDirtyDraft, locale, selectedOrthography],
+  );
+
+  useRegisterAppSidePane({
+    title: t(locale, 'workspace.orthography.sidePaneTitle'),
+    subtitle: selectedOrthography
+      ? formatOrthographyOptionLabel(selectedOrthography, locale)
+      : t(locale, 'workspace.orthography.sidePaneSubtitle'),
+    content: sidePaneContent,
     enabled: registerSidePane,
   });
 

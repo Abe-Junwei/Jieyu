@@ -90,12 +90,9 @@
 }
 
 .btn-ghost:hover {
-  background: var(--btn-ghost-hover-background, var(--surface-elevated));
+  background: var(--btn-ghost-hover-background, var(--state-info-bg));
   color: var(--btn-ghost-hover-color, var(--btn-ghost-color, var(--text-primary)));
-  border-color: var(
-    --btn-ghost-hover-border-color,
-    var(--btn-ghost-border-color, var(--header-border))
-  );
+  border-color: var(--btn-ghost-hover-border-color, var(--header-accent));
 }
 
 .btn-secondary {
@@ -115,37 +112,27 @@
 }
 
 .btn-primary {
-  border-color: var(
-    --btn-primary-border-color,
-    var(--btn-border-color, color-mix(in srgb, var(--state-info-border) 92%, transparent))
-  );
-  background: var(
-    --btn-primary-background,
-    var(--btn-background, color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel)))
-  );
-  color: var(--btn-primary-color, var(--btn-color, var(--state-info-solid)));
+  border-color: var(--btn-primary-border-color, var(--header-accent));
+  background: var(--btn-primary-background, var(--header-accent));
+  color: var(--btn-primary-color, var(--text-on-solid));
 }
 
 .btn-primary:hover,
 .btn-primary:focus-visible {
-  border-color: var(
-    --btn-primary-hover-border-color,
-    var(
-      --btn-primary-border-color,
-      var(--btn-border-color, color-mix(in srgb, var(--state-info-border) 92%, transparent))
-    )
-  );
+  border-color: var(--btn-primary-hover-border-color, var(--header-accent));
   background: var(
     --btn-primary-hover-background,
-    var(
-      --btn-primary-background,
-      var(--btn-background, color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel)))
-    )
+    color-mix(in srgb, var(--header-accent) 88%, var(--surface-panel))
   );
-  color: var(
-    --btn-primary-hover-color,
-    var(--btn-primary-color, var(--btn-color, var(--state-info-solid)))
-  );
+  color: var(--btn-primary-hover-color, var(--text-on-solid));
+}
+
+a.btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .btn-danger {
@@ -249,6 +236,7 @@
 }
 
 .btn:focus-visible,
+.btn-primary:focus-visible,
 .btn-ghost:focus-visible,
 .btn-danger:focus-visible,
 .icon-btn:focus-visible,

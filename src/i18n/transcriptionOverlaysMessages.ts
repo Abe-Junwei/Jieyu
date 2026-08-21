@@ -13,6 +13,7 @@ export type TranscriptionOverlaysMessages = {
   splitFromCurrent: string;
   splitSegment: string;
   addNote: string;
+  findSimilarUnits: string;
   assignSpeakerRecent: (name: string) => string;
   assignSpeaker: (name: string) => string;
   clearSpeaker: string;
@@ -40,6 +41,7 @@ export function getTranscriptionOverlaysMessages(locale: Locale): TranscriptionO
     splitFromCurrent: t(l, 'msg.overlay.splitFromCurrent'),
     splitSegment: t(l, 'msg.overlay.splitSegment'),
     addNote: t(l, 'msg.overlay.addNote'),
+    findSimilarUnits: t(l, 'msg.overlay.findSimilarUnits'),
     assignSpeakerRecent: (name) => tf(l, 'msg.overlay.assignSpeakerRecent', { name }),
     assignSpeaker: (name) => tf(l, 'msg.overlay.assignSpeaker', { name }),
     clearSpeaker: t(l, 'msg.overlay.clearSpeaker'),

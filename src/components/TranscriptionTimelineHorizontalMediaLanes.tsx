@@ -31,7 +31,7 @@ import {
   buildSpeakerLayerLayoutWithOptions,
   type SpeakerLayerLayoutResult,
 } from '../utils/speakerLayerLayout';
-import { recordingScopeUnitId } from '../utils/recordingScopeUnitId';
+import { layerTextLookupUnitId, recordingScopeUnitId } from '../utils/recordingScopeUnitId';
 import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import {
   unitToView,
@@ -758,9 +758,10 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
               />
               {!isCollapsed &&
                 iterationUnits.map((item) => {
+                  const textLookupId = layerTextLookupUnitId(item);
                   const text = usesOwnSegments
                     ? (segmentContentByLayer?.get(layer.id)?.get(item.id)?.text ?? '')
-                    : (translationTextByLayer.get(layer.id)?.get(item.id)?.text ?? '');
+                    : (translationTextByLayer.get(layer.id)?.get(textLookupId)?.text ?? '');
                   const audioScopeId = recordingScopeUnitId(item);
                   const translationAudioEntries = translationAudioByLayer?.get(layer.id);
                   const audioTranslation =

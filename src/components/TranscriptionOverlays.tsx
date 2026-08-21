@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type {
   NoteCategory,
   MultiLangString,
@@ -26,6 +27,7 @@ import {
   resolveOrthographyRenderPolicy,
   type LocalFontEntry,
 } from '../utils/layerDisplayStyle';
+import { buildAnalysisDeepLinkHref } from '../utils/analysisUrlDeepLink';
 
 export interface TranscriptionOverlaysProps {
   ctxMenu: ContextMenuState | null;
@@ -121,6 +123,7 @@ export interface TranscriptionOverlaysProps {
 export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
   const locale = useOptionalLocale() ?? 'zh-CN';
   const messages = getTranscriptionOverlaysMessages(locale);
+  const navigate = useNavigate();
   const {
     ctxMenu,
     onCloseCtxMenu,
@@ -247,6 +250,18 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             ...(onToggleSkipProcessingFromMenu ? { onToggleSkipProcessingFromMenu } : {}),
             ...(resolveSkipProcessingState ? { resolveSkipProcessingState } : {}),
             ...(displayStyleControl ? { displayStyleControl } : {}),
+            onFindSimilarUnitsFromMenu: (unitId) => {
+              const unit = units.find((row) => row.id === unitId);
+              void navigate(
+                buildAnalysisDeepLinkHref({
+                  tab: 'embedding',
+                  unitId,
+                  ...(unit?.textId ? { textId: unit.textId } : {}),
+                  ...(unit?.mediaId ? { mediaId: unit.mediaId } : {}),
+                  intent: 'similar',
+                }),
+              );
+            },
           })}
         />
       )}

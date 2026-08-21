@@ -1103,13 +1103,18 @@ export function importFromEaf(xmlString: string): EafImportResult {
   let timelineMetadata: TimelineInteropMetadata | undefined;
   doc.querySelectorAll('HEADER > PROPERTY').forEach((property) => {
     const name = property.getAttribute('NAME') ?? '';
+    // Standard ELAN header properties (MEDIA_FILE, TIME_UNITS, …) are plain text —
+    // only Jieyu interop properties carry JSON payloads.
+    const isTimelineMeta = name === JIEYU_PROJECT_META_TIMELINE;
+    const isLayerMeta = name.startsWith(JIEYU_LAYER_META_PREFIX);
+    if (!isTimelineMeta && !isLayerMeta) return;
+
     try {
       const metadata = parseOrthographyInteropMetadata(JSON.parse(property.textContent ?? ''));
-      if (name === JIEYU_PROJECT_META_TIMELINE) {
+      if (isTimelineMeta) {
         timelineMetadata = extractTimelineMetadata(metadata);
         return;
       }
-      if (!name.startsWith(JIEYU_LAYER_META_PREFIX)) return;
       const tierId = name.slice(JIEYU_LAYER_META_PREFIX.length).trim();
       if (!tierId) return;
       if (metadata) tierMetadata.set(tierId, metadata);

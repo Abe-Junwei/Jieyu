@@ -17,8 +17,10 @@ test.describe('AI structural rollback smoke', () => {
 
     await page.goto('/transcription');
     await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
-    // 侧栏可处于折叠态（Playwright 视为 hidden），烟测只断言 DOM 挂载与无运行时错误。
-    await expect(page.locator('.transcription-ai-panel')).toBeAttached({ timeout: 25_000 });
+    await expect(page.locator('.transcription-chat-window-trigger')).toBeAttached({ timeout: 25_000 });
+    await expect(page.getByTestId('transcription-acoustic-inspector-toggle')).toBeAttached({
+      timeout: 25_000,
+    });
 
     await page.waitForTimeout(2000);
     expect(errors).toHaveLength(0);

@@ -42,8 +42,10 @@
   max-width: none;
   min-height: 0;
   margin: 0 16px 0 0;
+  margin-left: var(--side-pane-width);
   padding: 12px 16px 24px;
   overflow: auto;
+  transition: margin-left var(--shell-motion-base) ease;
 }
 
 .app-left-rail {
@@ -358,10 +360,6 @@
   display: grid;
   align-content: start;
   gap: 8px;
-  padding: 10px;
-  border: 1px dashed color-mix(in srgb, var(--text-tertiary) 35%, transparent);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--surface-header) 94%, transparent);
   color: var(--text-secondary);
 }
 
