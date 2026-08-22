@@ -563,6 +563,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     scheduleAutoSave,
     beginTimingGesture,
     endTimingGesture,
+    runWithDbMutex,
   };
 
   const undoApi = { undo, undoToHistoryIndex, redo, canUndo, canRedo, undoLabel, undoHistory };
@@ -584,6 +585,7 @@ export function useTranscriptionDataBindings(foundation: TranscriptionDataFounda
     ...canonicalApi,
     pushUndo,
     segmentUndoRef,
+    runWithDbMutex,
     setUnits,
     setSpeakers,
     setLayers,

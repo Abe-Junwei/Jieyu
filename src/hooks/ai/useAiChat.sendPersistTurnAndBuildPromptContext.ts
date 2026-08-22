@@ -26,8 +26,13 @@ import {
 import { buildUserDirectivePrompt } from '../../ai/chat/userDirectivePrompt';
 import { resolveLocalToolRoutingPlan } from '../../ai/chat/localToolSlotResolver';
 import {
+  isConversationGenerationStale,
+  StaleConversationTurnError,
+  type ConversationGenerationRef,
+} from '../../ai/chat/conversationGeneration';
+import {
   buildSessionMemoryPromptDigest,
-  persistSessionMemory,
+  persistSessionMemoryAsync,
   updateConversationSummaryMemory,
 } from '../../ai/chat/sessionMemory';
 import type { EmbeddingSearchService } from '../../ai/embeddings/EmbeddingSearchService';
@@ -97,6 +102,7 @@ export interface PersistOpeningTurnAndBuildPromptContextInput {
   taskSession: AiTaskSession;
   setMetrics: Dispatch<SetStateAction<AiInteractionMetrics>>;
   verticalWorkflowSelection: VerticalWorkflowSelectionV0 | null;
+  conversationGenerationRef?: MutableRefObject<ConversationGenerationRef>;
 }
 
 export interface PersistOpeningTurnAndBuildPromptContextResult {
@@ -123,6 +129,10 @@ export async function persistOpeningTurnAndBuildPromptContext(
 ): Promise<PersistOpeningTurnAndBuildPromptContextResult> {
   const settings = input.getSettings();
   const activeConversationId = await input.ensureConversation();
+  const turnGenerationAtStart = input.conversationGenerationRef?.current.current ?? 0;
+  const canApplyOpeningTurnEffects = () =>
+    !input.conversationGenerationRef ||
+    !isConversationGenerationStale(input.conversationGenerationRef.current, turnGenerationAtStart);
   const db = await getDb();
   const userTimestamp = nowIso();
   await persistUserMessage(db, {
@@ -194,16 +204,18 @@ export async function persistOpeningTurnAndBuildPromptContext(
     );
     if (conversationSummary) {
       const similarityScore = estimateSummaryCoverageSimilarity(olderMessages, conversationSummary);
-      input.sessionMemoryRef.current = updateConversationSummaryMemory(
-        input.sessionMemoryRef.current,
-        conversationSummary,
-        coveredTurnTarget,
-        {
-          similarityScore,
-          qualityWarningThreshold: 0.85,
-        },
-      );
-      persistSessionMemory(input.sessionMemoryRef.current);
+      if (canApplyOpeningTurnEffects()) {
+        input.sessionMemoryRef.current = updateConversationSummaryMemory(
+          input.sessionMemoryRef.current,
+          conversationSummary,
+          coveredTurnTarget,
+          {
+            similarityScore,
+            qualityWarningThreshold: 0.85,
+          },
+        );
+        void persistSessionMemoryAsync(activeConversationId, input.sessionMemoryRef.current);
+      }
     }
   }
 
@@ -258,6 +270,9 @@ export async function persistOpeningTurnAndBuildPromptContext(
       promptContext: aiContext,
       ...(ragCandidateSourceIds ? { candidateSourceIds: ragCandidateSourceIds } : {}),
     }));
+    if (!canApplyOpeningTurnEffects()) {
+      throw new StaleConversationTurnError();
+    }
   }
   contextBlock = await maybeAppendMemoryBrokerContext({
     enabled: featureFlags.aiMemoryBrokerEnabled,
@@ -274,6 +289,9 @@ export async function persistOpeningTurnAndBuildPromptContext(
       ),
     ],
   });
+  if (!canApplyOpeningTurnEffects()) {
+    throw new StaleConversationTurnError();
+  }
 
   // P5: inject active source set id into evidence packets for traceability
   const activeSourceSetId = input.sessionMemoryRef.current.activeSourceSetId;

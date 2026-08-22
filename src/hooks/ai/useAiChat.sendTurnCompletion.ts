@@ -2,6 +2,7 @@
  * Send-turn catch/finally: abort/timeout paths, provider errors, timer cleanup, metrics, onMessageComplete.
  */
 
+import { StaleConversationTurnError } from '../../ai/chat/conversationGeneration';
 import { normalizeAiProviderError } from '../../ai/providers/errorUtils';
 import { formatAbortedMessage, formatFirstChunkTimeoutError } from '../../ai/messages';
 import type { SendTurnStreamPhaseState } from './useAiChat.sendTurnStreamPhase';
@@ -55,6 +56,17 @@ export async function handleSendTurnStreamCatch(
     commitPrimaryStreamUsage,
     toolFeedbackLocaleRef,
   } = bundle;
+
+  if (error instanceof StaleConversationTurnError) {
+    if (shouldTrackRemoteStatus && !phaseState.firstChunkArrived) {
+      setConnectionTestStatus('idle');
+      setConnectionTestMessage(null);
+    }
+    commitPrimaryStreamUsage();
+    await awaitQueuedPersistence();
+    await finalizeAssistantMessage('aborted', '', '');
+    return;
+  }
 
   if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
     if (timedOutBeforeFirstChunk.current) {

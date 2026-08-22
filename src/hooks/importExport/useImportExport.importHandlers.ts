@@ -216,21 +216,6 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       let mediaId =
         segmentScopeMediaId?.trim() || activeTimelineMediaItem?.id || selectedUnitMedia?.id;
 
-      if (
-        !mediaId &&
-        eafResult &&
-        eafResult.mediaFilename &&
-        eafResult.mediaFilename !== 'unknown.wav'
-      ) {
-        const { mediaId: newMediaId } = await LinguisticService.media.importAudio({
-          textId,
-          audioBlob: new Blob([], { type: 'audio/wav' }),
-          filename: eafResult.mediaFilename,
-          duration: 0,
-        });
-        mediaId = newMediaId;
-      }
-
       const db = await getDb();
       const now = new Date().toISOString();
       const currentText = await db.dexie.texts.get(importTextId);
@@ -262,6 +247,21 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       });
       if (mismatchNotices.length > 0 && !importOptions?.mismatchAcknowledged) {
         throw new ImportMismatchRequiresAckError(file.name, mismatchNotices);
+      }
+
+      if (
+        !mediaId &&
+        eafResult &&
+        eafResult.mediaFilename &&
+        eafResult.mediaFilename !== 'unknown.wav'
+      ) {
+        const { mediaId: newMediaId } = await LinguisticService.media.importAudio({
+          textId,
+          audioBlob: new Blob([], { type: 'audio/wav' }),
+          filename: eafResult.mediaFilename,
+          duration: 0,
+        });
+        mediaId = newMediaId;
       }
 
       const layersAfterImport: LayerDocType[] = [...layers];

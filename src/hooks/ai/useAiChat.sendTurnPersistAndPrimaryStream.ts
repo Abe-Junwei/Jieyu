@@ -81,6 +81,7 @@ export async function runAiChatSendTurnPersistAndPrimaryStream(
     taskSession: taskSessionRef.current,
     setMetrics,
     verticalWorkflowSelection: preflight.verticalWorkflowSelection,
+    conversationGenerationRef: args.conversationGenerationRef,
   });
   dbConversation.dbRef = opening.db;
   dbConversation.activeConversationId = opening.activeConversationId;

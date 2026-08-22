@@ -13,6 +13,7 @@ import { LinguisticService } from '../../services/LinguisticService';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
 import { syncUnitTextToSegmentationV2 } from '../../services/LayerSegmentationTextService';
 import { LayerSegmentationV2Service } from '../../services/LayerSegmentationV2Service';
+import { LayerUnitSegmentWriteService } from '../../services/LayerUnitSegmentWriteService';
 import { newId, humanizeTierName } from '../../utils/transcriptionFormatters';
 import { createLogger } from '../../observability/logger';
 import {
@@ -295,6 +296,7 @@ export async function importAdditionalTiers(input: {
               layerId: write.layerId,
               startTime: annStart,
               endTime: annEnd,
+              ...(annotation.annotationId ? { externalRef: annotation.annotationId } : {}),
               createdAt: segNow,
               updatedAt: segNow,
             },
@@ -426,6 +428,100 @@ export async function importAdditionalTiers(input: {
           humanizedName)
         : humanizedName;
 
+    const translationConstraint = eafTierConstraint?.constraint ?? existingMatch?.constraint;
+    if (translationConstraint === 'independent_boundary') {
+      const firstUtt = input.insertedUnits[0];
+      const importMediaId = input.mediaId ?? firstUtt?.unit.mediaId;
+      const importTextId = firstUtt?.unit.textId ?? input.textId;
+      if (!importMediaId) {
+        droppedTranslationSegmentCount += annotations.filter((annotation) =>
+          annotation.text.trim(),
+        ).length;
+        log.warn(
+          'skipped independent-boundary translation tier import: missing media, cannot restore segments',
+          { tierName, layerId, annotationCount: annotations.length },
+        );
+        continue;
+      }
+
+      for (const annotation of annotations) {
+        if (!annotation.text.trim()) continue;
+        const annStart = Number(annotation.startTime.toFixed(3));
+        const annEnd = Number(annotation.endTime.toFixed(3));
+        if (annEnd < annStart) continue;
+        const parentMatch = input.insertedUnits.find(
+          (unit) => annStart >= unit.startTime - 0.05 && annEnd <= unit.endTime + 0.05,
+        );
+        if (!parentMatch) {
+          droppedTranslationSegmentCount += 1;
+          continue;
+        }
+        const preferredHostForWrites = existingMatch
+          ? ((await resolvePreferredHostTranscriptionLayerIdForTranslationImport(
+              input.db,
+              existingMatch.id,
+            )) ?? importPreferredHostTranscriptionLayerId)
+          : importPreferredHostTranscriptionLayerId;
+        const writes = await input.planImportedWrites({
+          text: annotation.text,
+          ...(importedTierMeta?.orthographyId !== undefined
+            ? { sourceOrthographyId: importedTierMeta.orthographyId }
+            : {}),
+          ...(importedTierBridgeId !== undefined ? { bridgeId: importedTierBridgeId } : {}),
+          targetLayerId: layerId,
+          baseLabel: translationBaseLabel,
+          languageId: tierLang,
+          layerType: 'translation',
+          keyPrefix: 'trl_import_source',
+          constraint: 'independent_boundary',
+          ...(preferredHostForWrites
+            ? { preferredHostTranscriptionLayerId: preferredHostForWrites }
+            : {}),
+          tierName,
+        });
+        const segNow = new Date().toISOString();
+        for (const write of writes) {
+          const segId = newId('seg');
+          await LayerSegmentationV2Service.createSegment({
+            id: segId,
+            textId: importTextId,
+            mediaId: importMediaId,
+            layerId: write.layerId,
+            unitId: parentMatch.id,
+            startTime: annStart,
+            endTime: annEnd,
+            createdAt: segNow,
+            updatedAt: segNow,
+          });
+          await LayerUnitSegmentWriteService.insertSegmentContents(input.db, [
+            {
+              id: newId('utr'),
+              textId: importTextId,
+              unitId: parentMatch.id,
+              layerId: write.layerId,
+              modality: 'text',
+              text: write.text,
+              sourceType: 'human',
+              ...(annotation.annotationId ? { externalRef: annotation.annotationId } : {}),
+              createdAt: segNow,
+              updatedAt: segNow,
+            },
+          ]);
+          if (Array.isArray(annotation.tokens) && annotation.tokens.length > 0) {
+            await persistImportedTokensForHost({
+              textId: importTextId,
+              hostUnitId: parentMatch.id,
+              tokens: annotation.tokens,
+              now: segNow,
+              language: tierLang,
+              lexemeIdByFormKey: input.lexemeIdByFormKey,
+            });
+          }
+        }
+      }
+      continue;
+    }
+
     for (const annotation of annotations) {
       if (!annotation.text.trim()) continue;
       const annStart = Number(annotation.startTime.toFixed(3));
@@ -476,6 +572,16 @@ export async function importAdditionalTiers(input: {
           updatedAt: input.now,
         };
         await syncUnitTextToSegmentationV2(input.db, match.unit, doc);
+        if (Array.isArray(annotation.tokens) && annotation.tokens.length > 0) {
+          await persistImportedTokensForHost({
+            textId: match.unit.textId ?? input.textId,
+            hostUnitId: match.id,
+            tokens: annotation.tokens,
+            now: input.now,
+            language: tierLang,
+            lexemeIdByFormKey: input.lexemeIdByFormKey,
+          });
+        }
       }
     }
   }

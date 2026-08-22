@@ -64,6 +64,70 @@ export function useTranscriptionTimelineInteractionController(
     [selectionWriteDeps],
   );
 
+  const persistSegmentTiming = useCallback(
+    async (id: string, start: number, end: number) => {
+      const task = async () => {
+        await LayerSegmentationV2Service.updateSegment(id, {
+          startTime: Number(start.toFixed(3)),
+          endTime: Number(end.toFixed(3)),
+          updatedAt: new Date().toISOString(),
+        });
+        await input.reloadSegments();
+        await input.refreshSegmentUndoSnapshot?.();
+      };
+      if (input.runWithDbMutex) {
+        await input.runWithDbMutex(task);
+      } else {
+        await task();
+      }
+    },
+    [input],
+  );
+
+  const resolveWaveformRegionPointerTime = useCallback(
+    (regionId: string, clientX: number, fallbackTime: number): number => {
+      const ws = input.player.instanceRef.current;
+      if (!ws) return fallbackTime;
+
+      const waveCanvas = input.waveCanvasRef.current;
+      const documentSpanSec =
+        typeof input.documentSpanSec === 'number' &&
+        Number.isFinite(input.documentSpanSec) &&
+        input.documentSpanSec > 0
+          ? input.documentSpanSec
+          : ws.getDuration();
+      const zoomPxPerSec =
+        typeof input.zoomPxPerSec === 'number' &&
+        Number.isFinite(input.zoomPxPerSec) &&
+        input.zoomPxPerSec > 0
+          ? input.zoomPxPerSec
+          : 0;
+      const viewportRectLeftPx =
+        waveCanvas?.getBoundingClientRect().left ??
+        ws.getWrapper()?.parentElement?.getBoundingClientRect().left;
+      if (typeof viewportRectLeftPx !== 'number' || zoomPxPerSec <= 0) {
+        return fallbackTime;
+      }
+
+      const mapped = resolveWaveformPointerClientXToDocSec({
+        clientX,
+        viewportRectLeftPx,
+        ws,
+        tierScrollLeftPx: input.tierContainerRef?.current?.scrollLeft ?? 0,
+        documentSpanSec,
+        pxPerDocSec: zoomPxPerSec,
+        logicalDurationSec: documentSpanSec,
+      });
+      if (mapped === null) return fallbackTime;
+
+      const timelineItem = input.waveformTimelineItems.find((item) => item.id === regionId);
+      const regionStart = timelineItem?.startTime ?? mapped;
+      const regionEnd = timelineItem?.endTime ?? mapped;
+      return Math.max(regionStart, Math.min(regionEnd, mapped));
+    },
+    [input],
+  );
+
   const resolveSubdivisionParentUnit = useCallback(
     (segmentId: string, layerId: string, proposedStart?: number, proposedEnd?: number) => {
       const routing = input.resolveSegmentRoutingForLayer(layerId);
@@ -246,13 +310,7 @@ export function useTranscriptionTimelineInteractionController(
                 Math.abs(finalEnd - beforeClampEnd) > 0.0005;
             }
           }
-          await LayerSegmentationV2Service.updateSegment(id, {
-            startTime: Number(finalStart.toFixed(3)),
-            endTime: Number(finalEnd.toFixed(3)),
-            updatedAt: new Date().toISOString(),
-          });
-          await input.reloadSegments();
-          await input.refreshSegmentUndoSnapshot?.();
+          await persistSegmentTiming(id, finalStart, finalEnd);
           if (subdivisionClampedInResize) {
             input.setSaveState({
               kind: 'done',
@@ -264,7 +322,7 @@ export function useTranscriptionTimelineInteractionController(
       }
       await input.saveUnitTiming(id, start, end);
     },
-    [input, resolveSubdivisionParentUnit, uiLocale],
+    [input, persistSegmentTiming, resolveSubdivisionParentUnit, uiLocale],
   );
 
   const handleWaveformRegionContextMenu = useCallback(
@@ -347,11 +405,12 @@ export function useTranscriptionTimelineInteractionController(
   );
 
   const handleWaveformRegionAltPointerDown = useCallback(
-    (regionId: string, time: number, pointerId: number, _clientX: number) => {
-      input.subSelectDragRef.current = { active: false, regionId, anchorTime: time, pointerId };
+    (regionId: string, time: number, pointerId: number, clientX: number) => {
+      const anchorTime = resolveWaveformRegionPointerTime(regionId, clientX, time);
+      input.subSelectDragRef.current = { active: false, regionId, anchorTime, pointerId };
       input.waveCanvasRef.current?.setPointerCapture(pointerId);
     },
-    [input.subSelectDragRef, input.waveCanvasRef],
+    [input.subSelectDragRef, input.waveCanvasRef, resolveWaveformRegionPointerTime],
   );
 
   const handleWaveformRegionClick = useCallback(
@@ -361,7 +420,10 @@ export function useTranscriptionTimelineInteractionController(
       }
       input.setSubSelectionRange(null);
       input.manualSelectTsRef.current = Date.now();
-      input.player.seekTo(clickTime);
+
+      let seekTime = resolveWaveformRegionPointerTime(regionId, event.clientX, clickTime);
+
+      input.player.seekTo(seekTime);
       // 选段级联渲染降为低优先级；WaveSurfer 已即时处理视觉高亮 | Defer selection cascade render; WaveSurfer already handles visual highlight
       const nextTarget = resolveWaveformUnitTarget(regionId);
       startTransition(() => {
@@ -403,7 +465,7 @@ export function useTranscriptionTimelineInteractionController(
         writeSelection({ type: 'selectTimelineUnit', unit: nextTarget });
       });
     },
-    [input, resolveWaveformUnitTarget, writeSelection],
+    [input, resolveWaveformUnitTarget, writeSelection, resolveWaveformRegionPointerTime],
   );
 
   const handleWaveformRegionDoubleClick = useCallback(
@@ -530,13 +592,7 @@ export function useTranscriptionTimelineInteractionController(
       if (waveformLayerId && routing?.segmentSourceLayer) {
         fireAndForget(
           (async () => {
-            await LayerSegmentationV2Service.updateSegment(regionId, {
-              startTime: Number(finalStart.toFixed(3)),
-              endTime: Number(finalEnd.toFixed(3)),
-              updatedAt: new Date().toISOString(),
-            });
-            await input.reloadSegments();
-            await input.refreshSegmentUndoSnapshot?.();
+            await persistSegmentTiming(regionId, finalStart, finalEnd);
             if (subdivisionClampedInRegionUpdate) {
               input.setSaveState({
                 kind: 'done',
@@ -562,6 +618,7 @@ export function useTranscriptionTimelineInteractionController(
       input,
       resolveSubdivisionParentUnit,
       resolveWaveformUnitTarget,
+      persistSegmentTiming,
       saveTimingRouted,
       uiLocale,
       waveformLayerId,
