@@ -96,6 +96,7 @@ export interface TranscriptionPageAssistantRuntimeVoiceProps {
 export interface TranscriptionPageAssistantRuntimeCardChrome {
   showHeader?: boolean;
   showProviderConfigButton?: boolean;
+  compactChrome?: boolean;
   providerConfigOpen?: boolean;
   onProviderConfigOpenChange?: (open: boolean) => void;
 }

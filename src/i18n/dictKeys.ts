@@ -1836,6 +1836,8 @@ export const DICT_KEYS = [
   'ai.header.acousticTabDesc',
   'ai.chat.title',
   'ai.chat.window.voiceUseSidebarHint',
+  'ai.chat.window.maximize',
+  'ai.chat.window.restoreSize',
   'ai.chat.defaultConversationTitle',
   'ai.chat.disabled',
   'ai.chat.persistLayerRecoveryHint',

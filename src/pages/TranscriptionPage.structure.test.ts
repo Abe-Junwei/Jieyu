@@ -821,7 +821,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(code.includes('useTranscriptionActionRefBindings({')).toBe(false);
     expect(playbackSetupCode.includes('useTranscriptionActionRefBindings({')).toBe(true);
     expect(
-      interactionHookCode.includes('await LayerSegmentationV2Service.updateSegment(regionId, {'),
+      interactionHookCode.includes('await LayerSegmentationV2Service.updateSegment(id, {'),
     ).toBe(true);
     // RegionAction 条件在 WaveformRegionActionLayer（与旧内联 `!a && b && c` 等价）| Region gating lives in layer component
     const regionActionPath = path.resolve(
@@ -1707,6 +1707,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(aiSidebarCode.includes('<AnalysisRuntime {...analysisRuntimeProps} />')).toBe(true);
     expect(chatWindowCode.includes('<AssistantRuntime')).toBe(true);
     expect(chatWindowCode.includes('showHeader: false')).toBe(true);
+    expect(chatWindowCode.includes('compactChrome: true')).toBe(true);
     expect(aiSidebarCode.includes('analysisTab={analysisTab}')).toBe(false);
     expect(aiSidebarCode.includes('aiChatContextValue={aiChatContextValue}')).toBe(false);
     expect(assistantRuntimeCode.includes("from './TranscriptionPage.runtimeContracts';")).toBe(
@@ -2137,7 +2138,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes('const handleWaveformRegionAltPointerDown = useCallback(')).toBe(true);
     expect(
       hookCode.includes(
-        '(regionId: string, time: number, pointerId: number, _clientX: number) => {',
+        '(regionId: string, time: number, pointerId: number, clientX: number) => {',
       ),
     ).toBe(true);
     expect(hookCode.includes('const handleWaveformRegionClick = useCallback(')).toBe(true);

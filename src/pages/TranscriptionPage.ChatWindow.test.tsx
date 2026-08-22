@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_AI_CHAT_CONTEXT_VALUE, type AiChatContextValue } from '../contexts/AiChatContext';
 import {
@@ -151,5 +151,41 @@ describe('TranscriptionPageChatWindow agent-loop resume bridge', () => {
     await waitFor(() => {
       expect(document.querySelector('.transcription-chat-window')).not.toBeNull();
     });
+  });
+
+  it('temporarily maximizes the floating window and restores the previous size', async () => {
+    render(
+      <TranscriptionPageChatWindow
+        locale="zh-CN"
+        assistantRuntimeProps={makeAssistantRuntimeProps()}
+      />,
+    );
+
+    fireEvent.click(
+      document.querySelector('.transcription-chat-window-trigger') as HTMLButtonElement,
+    );
+
+    await waitFor(() => {
+      expect(document.querySelector('.transcription-chat-window')).not.toBeNull();
+    });
+
+    const panel = document.querySelector('.transcription-chat-window') as HTMLElement;
+    const previousWidth = panel.style.width;
+    const maximize = document.querySelector(
+      '[data-testid="transcription-chat-window-maximize"]',
+    ) as HTMLButtonElement;
+    fireEvent.click(maximize);
+
+    await waitFor(() => {
+      expect(panel.classList.contains('is-maximized')).toBe(true);
+    });
+    expect(panel.style.width).toBe(`${window.innerWidth - 28}px`);
+    expect(panel.style.height).toBe(`${window.innerHeight - 28}px`);
+
+    fireEvent.click(maximize);
+    await waitFor(() => {
+      expect(panel.classList.contains('is-maximized')).toBe(false);
+    });
+    expect(panel.style.width).toBe(previousWidth);
   });
 });

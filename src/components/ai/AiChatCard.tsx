@@ -83,6 +83,7 @@ type AiChatCardProps = {
   embedded?: boolean;
   showHeader?: boolean;
   showProviderConfigButton?: boolean;
+  compactChrome?: boolean;
   providerConfigOpen?: boolean;
   onProviderConfigOpenChange?: ((next: boolean) => void) | undefined;
   voiceDrawer?: ReactNode | undefined;
@@ -101,6 +102,7 @@ export function AiChatCard({
   embedded = false,
   showHeader = true,
   showProviderConfigButton = true,
+  compactChrome = false,
   providerConfigOpen,
   onProviderConfigOpenChange,
   voiceDrawer,
@@ -1139,7 +1141,9 @@ export function AiChatCard({
   );
 
   return (
-    <div className={`transcription-ai-card ${embedded ? 'transcription-ai-card-embedded' : ''}`}>
+    <div
+      className={`transcription-ai-card ${embedded ? 'transcription-ai-card-embedded' : ''}${compactChrome ? ' transcription-ai-card-compact' : ''}`}
+    >
       {showHeader && (
         <>
           <AiChatHeaderBar
@@ -1200,6 +1204,7 @@ export function AiChatCard({
         <>
           <AiChatInteractionShell
             locale={locale}
+            compactChrome={compactChrome}
             cardMessages={cardMessages}
             hasConversationSummary={hasConversationSummary}
             showConversationSummary={showConversationSummary}
@@ -1285,6 +1290,7 @@ export function AiChatCard({
           />
 
           <AiChatComposerPanel
+            compactChrome={compactChrome}
             showAgentLoopProgress={showAgentLoopProgress}
             cardMessages={cardMessages}
             aiTaskSession={aiTaskSession}
@@ -1340,39 +1346,41 @@ export function AiChatCard({
             locale={locale}
           />
 
-          <div className="ai-chat-composer">
-            <AiChatDecisionPanel
-              cardMessages={cardMessages}
-              showDecisionPanel={showDecisionPanel}
-              hasDecisionLogs={hasDecisionLogs}
-              isDecisionPanelResizing={isDecisionPanelResizing}
-              decisionPanelInlineStyle={decisionPanelInlineStyle}
-              decisionPanelToggleButtonRef={decisionPanelToggleButtonRef}
-              decisionPanelBodyRef={decisionPanelBodyRef}
-              startDecisionPanelResize={startDecisionPanelResize}
-              aiToolDecisionLogs={aiToolDecisionLogs}
-              replayLoadingRequestId={replayLoadingRequestId}
-              selectedReplayBundle={selectedReplayBundle}
-              decisionReplayFocusRequestId={decisionReplayFocusRequestId}
-              decisionReplayLocatedRequestId={decisionReplayLocatedRequestId}
-              decisionItemRefs={decisionItemRefs}
-              openReplayBundle={openReplayBundle}
-              exportGoldenSnapshot={exportGoldenSnapshot}
-              replayErrorMessage={replayErrorMessage}
-              isZh={isZh}
-              showReplayDetailPanel={showReplayDetailPanel}
-              compareSnapshot={compareSnapshot}
-              snapshotDiff={snapshotDiff}
-              importFileInputRef={importFileInputRef}
-              setShowReplayDetailPanel={setShowReplayDetailPanel}
-              setSelectedReplayBundle={setSelectedReplayBundle}
-              setCompareSnapshot={setCompareSnapshot}
-              setSnapshotDiff={setSnapshotDiff}
-              importSnapshotForCompare={importSnapshotForCompare}
-              exportedSnapshotRequestId={exportedSnapshotRequestId}
-              onTogglePanel={() => setShowDecisionPanel((prev) => !prev)}
-            />
-          </div>
+          {!compactChrome ? (
+            <div className="ai-chat-composer">
+              <AiChatDecisionPanel
+                cardMessages={cardMessages}
+                showDecisionPanel={showDecisionPanel}
+                hasDecisionLogs={hasDecisionLogs}
+                isDecisionPanelResizing={isDecisionPanelResizing}
+                decisionPanelInlineStyle={decisionPanelInlineStyle}
+                decisionPanelToggleButtonRef={decisionPanelToggleButtonRef}
+                decisionPanelBodyRef={decisionPanelBodyRef}
+                startDecisionPanelResize={startDecisionPanelResize}
+                aiToolDecisionLogs={aiToolDecisionLogs}
+                replayLoadingRequestId={replayLoadingRequestId}
+                selectedReplayBundle={selectedReplayBundle}
+                decisionReplayFocusRequestId={decisionReplayFocusRequestId}
+                decisionReplayLocatedRequestId={decisionReplayLocatedRequestId}
+                decisionItemRefs={decisionItemRefs}
+                openReplayBundle={openReplayBundle}
+                exportGoldenSnapshot={exportGoldenSnapshot}
+                replayErrorMessage={replayErrorMessage}
+                isZh={isZh}
+                showReplayDetailPanel={showReplayDetailPanel}
+                compareSnapshot={compareSnapshot}
+                snapshotDiff={snapshotDiff}
+                importFileInputRef={importFileInputRef}
+                setShowReplayDetailPanel={setShowReplayDetailPanel}
+                setSelectedReplayBundle={setSelectedReplayBundle}
+                setCompareSnapshot={setCompareSnapshot}
+                setSnapshotDiff={setSnapshotDiff}
+                importSnapshotForCompare={importSnapshotForCompare}
+                exportedSnapshotRequestId={exportedSnapshotRequestId}
+                onTogglePanel={() => setShowDecisionPanel((prev) => !prev)}
+              />
+            </div>
+          ) : null}
         </>
       )}
     </div>

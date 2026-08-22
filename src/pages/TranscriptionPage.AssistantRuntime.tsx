@@ -112,6 +112,7 @@ function AssistantRuntimeFrame({
                 embedded
                 showHeader={cardChrome?.showHeader ?? true}
                 showProviderConfigButton={cardChrome?.showProviderConfigButton ?? true}
+                compactChrome={cardChrome?.compactChrome ?? false}
                 {...(cardChrome?.providerConfigOpen !== undefined
                   ? { providerConfigOpen: cardChrome.providerConfigOpen }
                   : {})}

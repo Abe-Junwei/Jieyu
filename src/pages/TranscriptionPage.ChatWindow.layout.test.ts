@@ -10,9 +10,12 @@ import {
   createChatWindowResizeSession,
   createChatWindowViewportClamps,
   getDefaultChatWindowLayout,
+  getMaximizedChatWindowLayout,
   readStoredChatWindowLayout,
   reconcileChatWindowLayoutForViewport,
   resolveChatWindowKeyboardAction,
+  resolveChatWindowMaximizeToggle,
+  resolveChatWindowPersistedRect,
   MAX_HEIGHT,
   MAX_WIDTH,
   MIN_HEIGHT,
@@ -46,6 +49,34 @@ describe('TranscriptionPage.ChatWindow.layout', () => {
     expect(layout.size.height).toBeGreaterThanOrEqual(MIN_HEIGHT);
     expect(layout.position.x).toBeGreaterThanOrEqual(14);
     expect(layout.position.y).toBeGreaterThanOrEqual(14);
+  });
+
+  it('maximizes to the viewport inset without the ordinary max-width cap', () => {
+    const layout = getMaximizedChatWindowLayout(1280, 900);
+    expect(layout.size).toEqual({ width: 1252, height: 872 });
+    expect(layout.position).toEqual({ x: 14, y: 14 });
+    expect(layout.size.width).toBeGreaterThan(MAX_WIDTH);
+  });
+
+  it('toggles maximize around a restore rect and does not persist the expanded size', () => {
+    const current = { position: { x: 40, y: 60 }, size: { width: 480, height: 640 } };
+    const maximized = resolveChatWindowMaximizeToggle(false, null, current, false, 1280, 900);
+    expect(maximized.maximized).toBe(true);
+    expect(maximized.restoreRect).toEqual(current);
+    expect(maximized.size.width).toBe(1252);
+    expect(resolveChatWindowPersistedRect(true, maximized.restoreRect, maximized)).toEqual(current);
+
+    const restored = resolveChatWindowMaximizeToggle(
+      true,
+      maximized.restoreRect,
+      maximized,
+      false,
+      1280,
+      900,
+    );
+    expect(restored.maximized).toBe(false);
+    expect(restored.size).toEqual(current.size);
+    expect(restored.position).toEqual(current.position);
   });
 
   it('snaps position to viewport edges within threshold', () => {

@@ -2055,6 +2055,8 @@ export const zhCNDictionary = {
   'ai.header.acousticTabDesc': '独立查看当前选区的声学摘要、诊断和热点导航。',
   'ai.chat.title': 'AI 对话（MVP）',
   'ai.chat.window.voiceUseSidebarHint': '语音助手与麦克风在本窗口中使用。',
+  'ai.chat.window.maximize': '放大窗口',
+  'ai.chat.window.restoreSize': '还原窗口大小',
   'ai.chat.defaultConversationTitle': '默认会话',
   'ai.chat.disabled': 'AI 对话已关闭。',
   'ai.chat.persistLayerRecoveryHint':

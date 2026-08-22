@@ -34,5 +34,7 @@ source_of_truth: decision-record
 
 ## 后续回顾点
 
-- 长回复若明显挤，再加临时放大或停靠壳，而不是默认钉回右侧。
+- 临时放大已落地：放大填满视口留白，不写入默认尺寸；关闭或刷新后回到上次普通窗几何。
+- 浮窗默认只留窗头（标题 / 状态 / 设置 / 最小 / 放大 / 关闭）+ 消息 + 输入；摘要、Run 时间线、指标、Prompt Lab、决策回放不再占主列。语料范围条仍在窗内。
+- 停靠 ⇄ 浮窗两套壳仍延后，见 `docs/execution/specs/ai-assistant-presentation-modes/`。
 - 分析表面已迁出右栏，见 [ADR-0033](./0033-analysis-restricted-workspace-no-transcription-dock.md)。

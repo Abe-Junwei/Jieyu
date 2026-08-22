@@ -24,6 +24,7 @@ type VoiceEntry = {
 };
 
 export function AiChatComposerPanel({
+  compactChrome = false,
   showAgentLoopProgress,
   cardMessages,
   aiTaskSession,
@@ -131,6 +132,7 @@ export function AiChatComposerPanel({
   startVoiceDrawerResize: (event: React.PointerEvent<HTMLDivElement>) => void;
   voiceDrawer: ReactNode | undefined;
   locale: Parameters<typeof t>[0];
+  compactChrome?: boolean;
 }) {
   const voiceDrawerStyleProps =
     voiceDrawerInlineStyle !== undefined ? { style: voiceDrawerInlineStyle } : {};
@@ -154,7 +156,7 @@ export function AiChatComposerPanel({
           {cardMessages.agentLoopProgress(aiTaskSession?.step ?? 0, aiTaskSession?.maxSteps ?? 0)}
         </div>
       )}
-      {recentTaskTrace.length > 0 && (
+      {!compactChrome && recentTaskTrace.length > 0 && (
         <div className="ai-chat-task-trace" role="status" aria-live="polite">
           <div className="ai-chat-task-trace-title">{cardMessages.taskTraceTitle}</div>
           <div className="ai-chat-task-trace-list">
@@ -196,11 +198,13 @@ export function AiChatComposerPanel({
           </div>
         </div>
       )}
-      <AiChatMetricsBar
-        isZh={isZh}
-        aiInteractionMetrics={aiInteractionMetrics}
-        aiSessionMemory={aiSessionMemory}
-      />
+      {!compactChrome ? (
+        <AiChatMetricsBar
+          isZh={isZh}
+          aiInteractionMetrics={aiInteractionMetrics}
+          aiSessionMemory={aiSessionMemory}
+        />
+      ) : null}
       {quickPromptTemplates.length > 0 && (
         <div className="ai-chat-composer-shortcuts">
           <div className="ai-chat-composer-shortcuts-list">
@@ -240,7 +244,7 @@ export function AiChatComposerPanel({
         </div>
         <button
           type="button"
-          className={`icon-btn ai-chat-composer-send-btn${aiIsStreaming ? ' is-streaming' : ''}`}
+          className={`btn btn-primary ai-chat-composer-send-btn${aiIsStreaming ? ' is-streaming' : ''}`}
           aria-label={aiIsStreaming ? cardMessages.stopGenerating : t(locale, 'ai.chat.send')}
           disabled={
             aiIsStreaming ? !onStopAiMessage : !onSendAiMessage || sharedDialogueComposerBlocked
@@ -298,48 +302,50 @@ export function AiChatComposerPanel({
         </p>
       )}
 
-      <div
-        className={`ai-chat-prompt-lab-panel ${showPromptLab ? 'is-open' : 'is-closed'}${promptTemplates.length === 0 ? ' is-empty' : ''}`}
-      >
-        <button
-          type="button"
-          className="ai-chat-prompt-lab-panel-head"
-          onClick={() => setShowPromptLab((prev) => !prev)}
-          aria-expanded={showPromptLab}
+      {!compactChrome ? (
+        <div
+          className={`ai-chat-prompt-lab-panel ${showPromptLab ? 'is-open' : 'is-closed'}${promptTemplates.length === 0 ? ' is-empty' : ''}`}
         >
-          <span className="ai-chat-prompt-lab-panel-title">
-            {cardMessages.promptLab}
-            <span className="ai-chat-decision-panel-bracket"> · </span>
-            <span className="ai-chat-decision-panel-count">
-              {promptTemplates.length}
-              {cardMessages.promptTemplateCountSuffix}
+          <button
+            type="button"
+            className="ai-chat-prompt-lab-panel-head"
+            onClick={() => setShowPromptLab((prev) => !prev)}
+            aria-expanded={showPromptLab}
+          >
+            <span className="ai-chat-prompt-lab-panel-title">
+              {cardMessages.promptLab}
+              <span className="ai-chat-decision-panel-bracket"> · </span>
+              <span className="ai-chat-decision-panel-count">
+                {promptTemplates.length}
+                {cardMessages.promptTemplateCountSuffix}
+              </span>
             </span>
-          </span>
-          <span className="ai-chat-fold-caret" aria-hidden="true">
-            ▾
-          </span>
-        </button>
-        <div className="ai-chat-prompt-lab-panel-body" aria-hidden={!showPromptLab}>
-          <AiChatPromptLabModal
-            isZh={isZh}
-            showPromptLab={showPromptLab}
-            promptTemplates={promptTemplates}
-            editingTemplateId={editingTemplateId}
-            templateTitleInput={templateTitleInput}
-            templateContentInput={templateContentInput}
-            onInjectTemplate={injectPromptTemplate}
-            onEditTemplate={editPromptTemplate}
-            onRemoveTemplate={removePromptTemplate}
-            onTemplateTitleInputChange={setTemplateTitleInput}
-            onTemplateContentInputChange={setTemplateContentInput}
-            onAppendPromptVariable={appendPromptVariable}
-            onSaveTemplate={savePromptTemplate}
-            onInjectAndClose={() => {
-              injectPromptTemplate(templateContentInput);
-            }}
-          />
+            <span className="ai-chat-fold-caret" aria-hidden="true">
+              ▾
+            </span>
+          </button>
+          <div className="ai-chat-prompt-lab-panel-body" aria-hidden={!showPromptLab}>
+            <AiChatPromptLabModal
+              isZh={isZh}
+              showPromptLab={showPromptLab}
+              promptTemplates={promptTemplates}
+              editingTemplateId={editingTemplateId}
+              templateTitleInput={templateTitleInput}
+              templateContentInput={templateContentInput}
+              onInjectTemplate={injectPromptTemplate}
+              onEditTemplate={editPromptTemplate}
+              onRemoveTemplate={removePromptTemplate}
+              onTemplateTitleInputChange={setTemplateTitleInput}
+              onTemplateContentInputChange={setTemplateContentInput}
+              onAppendPromptVariable={appendPromptVariable}
+              onSaveTemplate={savePromptTemplate}
+              onInjectAndClose={() => {
+                injectPromptTemplate(templateContentInput);
+              }}
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
       {canUseVoiceEntry && voiceEntry && (
         <div
           className={`ai-chat-voice-drawer ${voiceEntry.expanded ? 'is-open' : 'is-closed'}${isVoiceDrawerResizing ? ' is-resizing' : ''}`}

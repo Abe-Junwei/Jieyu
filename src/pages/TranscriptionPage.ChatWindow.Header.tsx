@@ -1,6 +1,5 @@
 import type { RefObject } from 'react';
 import { t, type Locale } from '../i18n';
-import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
 import type { AiConversationManagementApi } from '../hooks/ai/aiConversationManager.types';
 import { MaterialSymbol } from '../components/ui/MaterialSymbol';
@@ -10,11 +9,6 @@ import type { getAiChatCardMessages } from '../i18n/messages';
 
 type CardMessages = ReturnType<typeof getAiChatCardMessages>;
 
-type ProviderGroup = {
-  label: string;
-  items: Array<{ kind: string; label: string }>;
-};
-
 export interface TranscriptionPageChatWindowHeaderProps {
   uiLocale: Locale;
   isZh: boolean;
@@ -22,27 +16,24 @@ export interface TranscriptionPageChatWindowHeaderProps {
   chatTitle: string;
   windowTitleId: string;
   minimized: boolean;
+  maximized: boolean;
   conversationManagementEnabled: boolean;
   conversationManagement: AiConversationManagementApi | null;
   conversationListOpen: boolean;
   conversationListGroupLabel: string;
   archivedConversationListGroupLabel: string;
   floatingTitleButtonRef: RefObject<HTMLButtonElement | null>;
-  providerKind: string;
-  connectionStatus: string;
-  pinnedCount: number;
   cardMessages: CardMessages;
-  toolFeedbackStyleResolved: 'concise' | 'detailed';
   providerStatusTone: string;
   providerStatusLabel: string;
   activeProviderDefinition: { label: string };
-  providerGroups: ProviderGroup[];
   providerConfigOpen: boolean;
   aiChatState: AiChatContextValue;
   onToggleConversationList: () => void;
   onToggleProviderConfig: () => void;
   onCloseConversationList: () => void;
   onSetMinimized: (updater: (prev: boolean) => boolean) => void;
+  onToggleMaximized: () => void;
   onCloseWindow: () => void;
   onHeaderPointerDown: React.PointerEventHandler<HTMLElement>;
   onHeaderPointerMove: React.PointerEventHandler<HTMLElement>;
@@ -57,33 +48,35 @@ export function TranscriptionPageChatWindowHeader({
   chatTitle,
   windowTitleId,
   minimized,
+  maximized,
   conversationManagementEnabled,
   conversationManagement,
   conversationListOpen,
   conversationListGroupLabel,
   archivedConversationListGroupLabel,
   floatingTitleButtonRef,
-  providerKind,
-  connectionStatus,
-  pinnedCount,
   cardMessages,
-  toolFeedbackStyleResolved,
   providerStatusTone,
   providerStatusLabel,
   activeProviderDefinition,
-  providerGroups,
   providerConfigOpen,
   aiChatState,
   onToggleConversationList,
   onToggleProviderConfig,
   onCloseConversationList,
   onSetMinimized,
+  onToggleMaximized,
   onCloseWindow,
   onHeaderPointerDown,
   onHeaderPointerMove,
   onHeaderPointerUp,
   onHeaderPointerCancel,
 }: TranscriptionPageChatWindowHeaderProps) {
+  const maximizeLabel = t(
+    uiLocale,
+    maximized ? 'ai.chat.window.restoreSize' : 'ai.chat.window.maximize',
+  );
+
   return (
     <header
       className="transcription-chat-window-header"
@@ -146,73 +139,17 @@ export function TranscriptionPageChatWindowHeader({
             {title}
           </div>
         )}
-        <div className="transcription-chat-window-subtitle">
-          {providerKind} · {connectionStatus} ·{' '}
-          {isZh ? `\u9489\u4f4f ${pinnedCount}` : `Pinned ${pinnedCount}`}
-        </div>
+        <span
+          className={`ai-chat-provider-status-dot ai-chat-provider-status-dot-${providerStatusTone} ai-chat-provider-status-dot-inline`}
+          role="status"
+          aria-label={providerStatusLabel}
+          title={`${activeProviderDefinition.label} · ${providerStatusLabel}`}
+        />
       </div>
       <div
         className="transcription-chat-window-header-controls"
         onPointerDown={(event) => event.stopPropagation()}
       >
-        {!minimized && (
-          <div className="transcription-chat-window-toolbar">
-            <div
-              className="transcription-ai-mode-switch"
-              role="group"
-              aria-label={cardMessages.toolFeedbackStyle}
-            >
-              <button
-                type="button"
-                className={`transcription-ai-mode-btn ${toolFeedbackStyleResolved === 'detailed' ? 'is-active' : ''}`}
-                aria-pressed={toolFeedbackStyleResolved === 'detailed'}
-                onClick={() => {
-                  if (toolFeedbackStyleResolved === 'detailed') return;
-                  aiChatState.onUpdateAiChatSettings?.({ toolFeedbackStyle: 'detailed' });
-                }}
-              >
-                {cardMessages.detailed}
-              </button>
-              <button
-                type="button"
-                className={`transcription-ai-mode-btn ${toolFeedbackStyleResolved === 'concise' ? 'is-active' : ''}`}
-                aria-pressed={toolFeedbackStyleResolved === 'concise'}
-                onClick={() => {
-                  if (toolFeedbackStyleResolved === 'concise') return;
-                  aiChatState.onUpdateAiChatSettings?.({ toolFeedbackStyle: 'concise' });
-                }}
-              >
-                {cardMessages.concise}
-              </button>
-            </div>
-            <span
-              className={`ai-chat-provider-status-dot ai-chat-provider-status-dot-${providerStatusTone} ai-chat-provider-status-dot-inline`}
-              role="status"
-              aria-label={providerStatusLabel}
-              title={`${activeProviderDefinition.label} · ${providerStatusLabel}`}
-            />
-            <select
-              className="ai-chat-provider-select"
-              aria-label={t(uiLocale, 'ai.chat.provider')}
-              value={aiChatState.aiChatSettings?.providerKind ?? 'mock'}
-              onChange={(event) =>
-                aiChatState.onUpdateAiChatSettings?.({
-                  providerKind: event.currentTarget.value as AiChatSettings['providerKind'],
-                })
-              }
-            >
-              {providerGroups.map((group) => (
-                <optgroup key={group.label} label={group.label}>
-                  {group.items.map((provider) => (
-                    <option key={provider.kind} value={provider.kind}>
-                      {provider.label}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
-        )}
         <div className="transcription-chat-window-actions">
           <button
             type="button"
@@ -263,6 +200,22 @@ export function TranscriptionPageChatWindowHeader({
           >
             {minimized ? '▢' : '—'}
           </button>
+          {!minimized ? (
+            <button
+              type="button"
+              className="transcription-chat-window-head-btn transcription-chat-window-maximize-btn"
+              data-testid="transcription-chat-window-maximize"
+              onClick={onToggleMaximized}
+              aria-label={maximizeLabel}
+              title={maximizeLabel}
+              aria-pressed={maximized}
+            >
+              <MaterialSymbol
+                name={maximized ? 'close_fullscreen' : 'open_in_full'}
+                className={JIEYU_MATERIAL_INLINE}
+              />
+            </button>
+          ) : null}
           <button
             type="button"
             className="transcription-chat-window-close"

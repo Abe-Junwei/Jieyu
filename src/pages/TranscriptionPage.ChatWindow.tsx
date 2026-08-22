@@ -46,7 +46,7 @@ export function TranscriptionPageChatWindow({
           ref={(node) => {
             controller.windowRef.current = node;
           }}
-          className={`transcription-chat-window ${controller.dragging ? 'is-dragging' : ''} ${controller.resizing ? 'is-resizing' : ''} ${controller.minimized ? 'is-minimized' : ''}`}
+          className={`transcription-chat-window ${controller.dragging ? 'is-dragging' : ''} ${controller.resizing ? 'is-resizing' : ''} ${controller.minimized ? 'is-minimized' : ''} ${controller.maximized ? 'is-maximized' : ''}`}
           role="dialog"
           aria-modal="false"
           aria-labelledby={controller.windowTitleId}
@@ -65,27 +65,24 @@ export function TranscriptionPageChatWindow({
             chatTitle={controller.chatTitle}
             windowTitleId={controller.windowTitleId}
             minimized={controller.minimized}
+            maximized={controller.maximized}
             conversationManagementEnabled={controller.conversationManagementEnabled}
             conversationManagement={controller.conversationManagement}
             conversationListOpen={controller.conversationListOpen}
             conversationListGroupLabel={controller.conversationListGroupLabel}
             archivedConversationListGroupLabel={controller.archivedConversationListGroupLabel}
             floatingTitleButtonRef={controller.floatingTitleButtonRef}
-            providerKind={controller.providerKind}
-            connectionStatus={controller.connectionStatus}
-            pinnedCount={controller.pinnedCount}
             cardMessages={controller.cardMessages}
-            toolFeedbackStyleResolved={controller.toolFeedbackStyleResolved}
             providerStatusTone={controller.providerStatusTone}
             providerStatusLabel={controller.providerStatusLabel}
             activeProviderDefinition={controller.activeProviderDefinition}
-            providerGroups={controller.providerGroups}
             providerConfigOpen={controller.providerConfigOpen}
             aiChatState={controller.aiChatState}
             onToggleConversationList={controller.toggleConversationList}
             onToggleProviderConfig={controller.toggleProviderConfig}
             onCloseConversationList={() => controller.setConversationListOpen(false)}
             onSetMinimized={controller.setMinimized}
+            onToggleMaximized={controller.toggleMaximized}
             onCloseWindow={() => controller.setOpen(false)}
             onHeaderPointerDown={controller.handleHeaderPointerDown}
             onHeaderPointerMove={controller.handleHeaderPointerMove}
@@ -101,6 +98,7 @@ export function TranscriptionPageChatWindow({
                     cardChrome={{
                       showHeader: false,
                       showProviderConfigButton: false,
+                      compactChrome: true,
                       providerConfigOpen: controller.providerConfigOpen,
                       onProviderConfigOpenChange: controller.setProviderConfigOpen,
                     }}
@@ -109,7 +107,7 @@ export function TranscriptionPageChatWindow({
               </ErrorBoundary>
             </div>
           )}
-          {!controller.minimized && (
+          {!controller.minimized && !controller.maximized && (
             <div
               className="transcription-chat-window-resizer"
               role="presentation"

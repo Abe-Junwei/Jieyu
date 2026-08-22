@@ -1,11 +1,7 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { normalizeLocale, t, type Locale } from '../i18n';
 import { getAiChatCardMessages } from '../i18n/messages';
-import {
-  aiChatProviderDefinitions,
-  getAiChatProviderDefinition,
-  type AiChatProviderKind,
-} from '../ai/providers/providerCatalog';
+import { getAiChatProviderDefinition } from '../ai/providers/providerCatalog';
 import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import { resolveAiChatConversationTitle } from '../hooks/ai/aiChatConversationTitle';
 import { useTranscriptionChatWindowLayout } from './useTranscriptionChatWindowLayout';
@@ -54,12 +50,7 @@ export function useTranscriptionChatWindowController({
   const conversationListGroupLabel = t(uiLocale, 'ai.chat.conversationList.groupCurrentText');
   const archivedConversationListGroupLabel = t(uiLocale, 'ai.chat.conversationList.archivedGroup');
   const attentionCount = Number(Boolean(aiChatState.aiPendingToolCall));
-  const providerKind = aiChatState.aiChatSettings?.providerKind ?? 'mock';
-  const pinnedCount = aiChatState.aiSessionMemory?.pinnedMessageIds?.length ?? 0;
-  const connectionStatus = aiChatState.aiConnectionTestStatus ?? 'idle';
   const cardMessages = useMemo(() => getAiChatCardMessages(isZh), [isZh]);
-  const toolFeedbackStyleResolved: 'concise' | 'detailed' =
-    aiChatState.aiChatSettings?.toolFeedbackStyle === 'concise' ? 'concise' : 'detailed';
   const activeProviderDefinition = aiChatState.aiChatSettings
     ? getAiChatProviderDefinition(aiChatState.aiChatSettings.providerKind)
     : getAiChatProviderDefinition('mock');
@@ -74,28 +65,6 @@ export function useTranscriptionChatWindowController({
     if (kind === 'mock' || kind === 'ollama' || kind === 'webllm') return 'local';
     return 'idle';
   }, [aiChatState.aiChatSettings?.providerKind, aiChatState.aiConnectionTestStatus]);
-  const providerGroups = useMemo(() => {
-    const directKinds: AiChatProviderKind[] = [
-      'deepseek',
-      'qwen',
-      'anthropic',
-      'gemini',
-      'ollama',
-      'minimax',
-    ];
-    const compatibleKinds: AiChatProviderKind[] = ['openai-compatible'];
-    const localKinds: AiChatProviderKind[] = ['mock', 'webllm', 'custom-http'];
-    const byKind = new Map(aiChatProviderDefinitions.map((provider) => [provider.kind, provider]));
-    const pick = (kinds: AiChatProviderKind[]) =>
-      kinds
-        .map((kind) => byKind.get(kind))
-        .filter((provider): provider is NonNullable<typeof provider> => Boolean(provider));
-    return [
-      { label: cardMessages.providerGroupOfficial, items: pick(directKinds) },
-      { label: cardMessages.providerGroupCompatible, items: pick(compatibleKinds) },
-      { label: cardMessages.providerGroupLocalCustom, items: pick(localKinds) },
-    ].filter((group) => group.items.length > 0);
-  }, [cardMessages]);
 
   const toggleConversationList = () => {
     setConversationListOpen((prev) => {
@@ -125,7 +94,6 @@ export function useTranscriptionChatWindowController({
     aiChatState,
     cardMessages,
     chatTitle,
-    connectionStatus,
     conversationListGroupLabel,
     archivedConversationListGroupLabel,
     conversationListOpen,
@@ -133,10 +101,7 @@ export function useTranscriptionChatWindowController({
     conversationManagementEnabled,
     floatingTitleButtonRef,
     isZh,
-    pinnedCount,
     providerConfigOpen,
-    providerGroups,
-    providerKind,
     providerStatusLabel,
     providerStatusTone,
     activeProviderDefinition,
@@ -145,7 +110,6 @@ export function useTranscriptionChatWindowController({
     title,
     toggleConversationList,
     toggleProviderConfig,
-    toolFeedbackStyleResolved,
     uiLocale,
     windowTitleId,
     ...layout,

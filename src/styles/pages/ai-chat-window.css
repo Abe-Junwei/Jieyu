@@ -85,15 +85,19 @@
   grid-template-rows: auto;
 }
 
+.transcription-chat-window.is-maximized {
+  border-radius: var(--radius-xl);
+}
+
 .transcription-chat-window-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   min-height: 44px;
   padding: 6px 8px 6px 12px;
   border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 62%, transparent);
-  background: color-mix(in srgb, var(--surface-header) 88%, var(--surface-panel));
+  background: var(--surface-panel);
   cursor: move;
   user-select: none;
   touch-action: none;
@@ -101,8 +105,9 @@
 
 .transcription-chat-window-header-meta {
   min-width: 0;
-  display: grid;
-  gap: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .transcription-chat-window-title {
@@ -110,12 +115,6 @@
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1.2;
-}
-
-.transcription-chat-window-subtitle {
-  font-size: var(--panel-typography-caption-size, calc(10px * var(--ui-font-scale, 1)));
-  color: var(--text-secondary);
-  line-height: 1.1;
 }
 
 .transcription-chat-window-close {
@@ -141,28 +140,9 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
   gap: 6px;
   margin-left: auto;
   min-width: 0;
-}
-
-.transcription-chat-window-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-}
-
-.transcription-chat-window-toolbar .transcription-ai-mode-switch {
-  transform: scale(0.88);
-  transform-origin: left center;
-}
-
-.transcription-chat-window-toolbar .ai-chat-provider-select {
-  min-width: 9ch;
-  max-width: 16ch;
 }
 
 .transcription-chat-window-actions {
@@ -194,7 +174,8 @@
   min-width: 24px;
 }
 
-.transcription-chat-window-config-btn .jieyu-material {
+.transcription-chat-window-config-btn .jieyu-material,
+.transcription-chat-window-maximize-btn .jieyu-material {
   font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
   line-height: 1;
 }

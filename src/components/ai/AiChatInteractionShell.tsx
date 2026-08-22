@@ -81,6 +81,7 @@ type AiChatInteractionShellProps = Omit<
     showRunTimeline?: boolean;
     setShowRunTimeline?: Dispatch<SetStateAction<boolean>>;
     aiVerticalWorkflowAuditEntries?: ParsedVerticalWorkflowAuditEntry[];
+    compactChrome?: boolean;
   };
 
 export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
@@ -157,6 +158,7 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
     showRunTimeline = false,
     setShowRunTimeline,
     aiVerticalWorkflowAuditEntries = [],
+    compactChrome = false,
   } = props;
 
   return (
@@ -172,7 +174,7 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
           onRemoveMember={onRemoveSourceSetMember}
         />
       )}
-      {aiConversationManagementEnabled ? (
+      {!compactChrome && aiConversationManagementEnabled ? (
         <AiChatRunTimelinePanel
           cardMessages={cardMessages}
           showPanel={showRunTimeline}
@@ -181,34 +183,36 @@ export function AiChatInteractionShell(props: AiChatInteractionShellProps) {
           aiVerticalWorkflowAuditEntries={aiVerticalWorkflowAuditEntries}
         />
       ) : null}
-      <AiChatSummaryPanels
-        locale={locale}
-        cardMessages={cardMessages}
-        hasConversationSummary={hasConversationSummary}
-        showConversationSummary={showConversationSummary}
-        onToggleConversationSummary={() => setShowConversationSummary((prev: boolean) => !prev)}
-        summaryQualityWarning={summaryQualityWarning}
-        summaryEntries={summaryEntries}
-        latestVerticalWorkflowSummary={latestVerticalWorkflowSummary}
-        latestVerticalWorkflowEntry={latestVerticalWorkflowEntry}
-        latestVerticalWorkflowSelectionSummary={latestVerticalWorkflowSelectionSummary}
-        latestVerticalWorkflowSelectionKeywordSummary={
-          latestVerticalWorkflowSelectionKeywordSummary
-        }
-        latestVerticalWorkflowSelectionConfidenceSummary={
-          latestVerticalWorkflowSelectionConfidenceSummary
-        }
-        latestVerticalWorkflowRequestId={latestVerticalWorkflowRequestId}
-        showVerticalWorkflowDetail={showVerticalWorkflowDetail}
-        onToggleVerticalWorkflowDetail={() =>
-          setShowVerticalWorkflowDetail((prev: boolean) => !prev)
-        }
-        isLatestVerticalReplayLoading={isLatestVerticalReplayLoading}
-        isLatestVerticalReplaySelected={isLatestVerticalReplaySelected}
-        copiedVerticalWorkflowRequestId={copiedVerticalWorkflowRequestId}
-        onOpenLatestVerticalWorkflowReplay={openLatestVerticalWorkflowReplay}
-        onCopyLatestVerticalWorkflowRequestId={copyLatestVerticalWorkflowRequestId}
-      />
+      {!compactChrome ? (
+        <AiChatSummaryPanels
+          locale={locale}
+          cardMessages={cardMessages}
+          hasConversationSummary={hasConversationSummary}
+          showConversationSummary={showConversationSummary}
+          onToggleConversationSummary={() => setShowConversationSummary((prev: boolean) => !prev)}
+          summaryQualityWarning={summaryQualityWarning}
+          summaryEntries={summaryEntries}
+          latestVerticalWorkflowSummary={latestVerticalWorkflowSummary}
+          latestVerticalWorkflowEntry={latestVerticalWorkflowEntry}
+          latestVerticalWorkflowSelectionSummary={latestVerticalWorkflowSelectionSummary}
+          latestVerticalWorkflowSelectionKeywordSummary={
+            latestVerticalWorkflowSelectionKeywordSummary
+          }
+          latestVerticalWorkflowSelectionConfidenceSummary={
+            latestVerticalWorkflowSelectionConfidenceSummary
+          }
+          latestVerticalWorkflowRequestId={latestVerticalWorkflowRequestId}
+          showVerticalWorkflowDetail={showVerticalWorkflowDetail}
+          onToggleVerticalWorkflowDetail={() =>
+            setShowVerticalWorkflowDetail((prev: boolean) => !prev)
+          }
+          isLatestVerticalReplayLoading={isLatestVerticalReplayLoading}
+          isLatestVerticalReplaySelected={isLatestVerticalReplaySelected}
+          copiedVerticalWorkflowRequestId={copiedVerticalWorkflowRequestId}
+          onOpenLatestVerticalWorkflowReplay={openLatestVerticalWorkflowReplay}
+          onCopyLatestVerticalWorkflowRequestId={copyLatestVerticalWorkflowRequestId}
+        />
+      ) : null}
       <AiChatMessageThread
         locale={locale}
         cardMessages={cardMessages}

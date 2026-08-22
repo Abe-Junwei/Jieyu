@@ -7,16 +7,17 @@ import {
 import {
   AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY,
   applyChatWindowKeyboardAction,
-  clampChatWindowPosition,
-  clampChatWindowSize,
   createChatWindowPointerInteractionHandlers,
   getDefaultChatWindowLayout,
   readStoredChatWindowLayout,
   resolveChatWindowKeyboardAction,
+  resolveChatWindowMaximizeToggle,
+  resolveChatWindowPersistedRect,
+  resolveChatWindowViewportLayout,
   writeStoredChatWindowLayout,
   type ChatWindowDragSession,
-  type ChatWindowLayoutState,
   type ChatWindowPointerInteractionState,
+  type ChatWindowRect,
   type ChatWindowResizeSession,
 } from './TranscriptionPage.ChatWindow.layout';
 
@@ -35,6 +36,7 @@ export function useTranscriptionChatWindowLayout({
 }: UseTranscriptionChatWindowLayoutInput) {
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number }>(() => ({ x: 0, y: 0 }));
   const [size, setSize] = useState<{ width: number; height: number }>(() => ({
@@ -54,19 +56,23 @@ export function useTranscriptionChatWindowLayout({
   const windowRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const lastOpenedPendingRef = useRef<unknown>(null);
+  const restoreRectRef = useRef<ChatWindowRect | null>(null);
+  const maximizedRef = useRef(maximized);
   const layoutStateRef = useRef<ChatWindowPointerInteractionState>({
     open,
     minimized,
+    maximized,
     position,
     size,
   });
 
   openRef.current = open;
   minimizedRef.current = minimized;
+  maximizedRef.current = maximized;
   aiIsStreamingRef.current = aiIsStreaming;
   onSendAiMessageRef.current = onSendAiMessage;
   uiLocaleRef.current = uiLocale;
-  layoutStateRef.current = { open, minimized, position, size };
+  layoutStateRef.current = { open, minimized, maximized, position, size };
 
   const pointerHandlersRef = useRef(
     createChatWindowPointerInteractionHandlers(
@@ -105,6 +111,10 @@ export function useTranscriptionChatWindowLayout({
 
   useEffect(() => {
     if (typeof window === 'undefined' || layoutInitialized) return;
+    if (maximizedRef.current) {
+      setLayoutInitialized(true);
+      return;
+    }
     const stored = readStoredChatWindowLayout(window.innerWidth, window.innerHeight);
     if (stored) {
       if (typeof stored.open === 'boolean') setOpen(stored.open);
@@ -124,16 +134,19 @@ export function useTranscriptionChatWindowLayout({
 
   useEffect(() => {
     if (!layoutInitialized || typeof window === 'undefined') return;
-    const snapshot: ChatWindowLayoutState = {
+    const persistRect = resolveChatWindowPersistedRect(maximized, restoreRectRef.current, {
+      position,
+      size,
+    });
+    writeStoredChatWindowLayout({
       open,
       minimized,
-      x: position.x,
-      y: position.y,
-      width: size.width,
-      height: size.height,
-    };
-    writeStoredChatWindowLayout(snapshot);
-  }, [layoutInitialized, minimized, open, position.x, position.y, size.height, size.width]);
+      x: persistRect.position.x,
+      y: persistRect.position.y,
+      width: persistRect.size.width,
+      height: persistRect.size.height,
+    });
+  }, [layoutInitialized, maximized, minimized, open, position, size]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -172,25 +185,18 @@ export function useTranscriptionChatWindowLayout({
   useEffect(() => {
     if (!layoutInitialized || typeof window === 'undefined') return;
     const handleResize = () => {
-      setSize((prevSize) => {
-        const nextSize = clampChatWindowSize(
-          prevSize.width,
-          prevSize.height,
-          window.innerWidth,
-          window.innerHeight,
-        );
-        setPosition((prevPosition) =>
-          clampChatWindowPosition(
-            prevPosition.x,
-            prevPosition.y,
-            nextSize,
-            minimizedRef.current,
-            window.innerWidth,
-            window.innerHeight,
-          ),
-        );
-        return nextSize;
-      });
+      const next = resolveChatWindowViewportLayout(
+        maximizedRef.current,
+        {
+          position: layoutStateRef.current.position,
+          size: layoutStateRef.current.size,
+        },
+        minimizedRef.current,
+        window.innerWidth,
+        window.innerHeight,
+      );
+      setSize(next.size);
+      setPosition(next.position);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -222,6 +228,27 @@ export function useTranscriptionChatWindowLayout({
     setMinimized(false);
   };
 
+  const toggleMaximized = () => {
+    if (typeof window === 'undefined') return;
+    const next = resolveChatWindowMaximizeToggle(
+      maximizedRef.current,
+      restoreRectRef.current,
+      {
+        position: layoutStateRef.current.position,
+        size: layoutStateRef.current.size,
+      },
+      minimizedRef.current,
+      window.innerWidth,
+      window.innerHeight,
+    );
+    restoreRectRef.current = next.restoreRect;
+    maximizedRef.current = next.maximized;
+    setMaximized(next.maximized);
+    setMinimized(next.minimized);
+    setSize(next.size);
+    setPosition(next.position);
+  };
+
   return {
     dragging,
     handleHeaderPointerDown: (event: ReactPointerEvent<HTMLElement>) =>
@@ -234,6 +261,7 @@ export function useTranscriptionChatWindowLayout({
     handleResizePointerMove: (event: ReactPointerEvent<HTMLDivElement>) =>
       handleResizePointerMove(event),
     isMounted,
+    maximized,
     minimized,
     open,
     position,
@@ -243,6 +271,7 @@ export function useTranscriptionChatWindowLayout({
     size,
     stopDragging,
     stopResizing,
+    toggleMaximized,
     triggerRef,
     windowRef,
   };

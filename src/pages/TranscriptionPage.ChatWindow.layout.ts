@@ -4,6 +4,7 @@ export const MIN_WIDTH = 360;
 export const MIN_HEIGHT = 420;
 export const MAX_WIDTH = 720;
 export const MAX_HEIGHT = 880;
+export const MAXIMIZED_INSET = 14;
 export const AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY = 'jieyu.aiChat.resumeAgentLoopTaskId';
 
 export type ChatWindowLayoutState = {
@@ -43,6 +44,19 @@ export function clampChatWindowPosition(
   return {
     x: Math.min(Math.max(14, x), maxX),
     y: Math.min(Math.max(14, y), maxY),
+  };
+}
+
+export function getMaximizedChatWindowLayout(
+  viewportWidth: number,
+  viewportHeight: number,
+): { position: { x: number; y: number }; size: { width: number; height: number } } {
+  return {
+    size: {
+      width: Math.max(MIN_WIDTH, viewportWidth - MAXIMIZED_INSET * 2),
+      height: Math.max(MIN_HEIGHT, viewportHeight - MAXIMIZED_INSET * 2),
+    },
+    position: { x: MAXIMIZED_INSET, y: MAXIMIZED_INSET },
   };
 }
 
@@ -169,6 +183,7 @@ export type ChatWindowPointerEventLike = {
 export type ChatWindowPointerInteractionState = {
   open: boolean;
   minimized: boolean;
+  maximized: boolean;
   position: { x: number; y: number };
   size: { width: number; height: number };
 };
@@ -275,6 +290,74 @@ export function reconcileChatWindowLayoutForViewport(
   return { size, position };
 }
 
+export type ChatWindowRect = {
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+};
+
+export function resolveChatWindowPersistedRect(
+  maximized: boolean,
+  restoreRect: ChatWindowRect | null,
+  current: ChatWindowRect,
+): ChatWindowRect {
+  return maximized ? (restoreRect ?? current) : current;
+}
+
+export function resolveChatWindowViewportLayout(
+  maximized: boolean,
+  current: ChatWindowRect,
+  minimized: boolean,
+  viewportWidth: number,
+  viewportHeight: number,
+): ChatWindowRect {
+  if (maximized) {
+    return getMaximizedChatWindowLayout(viewportWidth, viewportHeight);
+  }
+  return reconcileChatWindowLayoutForViewport(
+    current.size,
+    current.position,
+    minimized,
+    viewportWidth,
+    viewportHeight,
+  );
+}
+
+export function resolveChatWindowMaximizeToggle(
+  maximized: boolean,
+  restoreRect: ChatWindowRect | null,
+  current: ChatWindowRect,
+  minimized: boolean,
+  viewportWidth: number,
+  viewportHeight: number,
+): { maximized: boolean; restoreRect: ChatWindowRect | null; minimized: boolean } & ChatWindowRect {
+  if (maximized) {
+    if (restoreRect === null) {
+      return { maximized: false, restoreRect: null, minimized, ...current };
+    }
+    return {
+      maximized: false,
+      restoreRect: null,
+      minimized,
+      ...reconcileChatWindowLayoutForViewport(
+        restoreRect.size,
+        restoreRect.position,
+        minimized,
+        viewportWidth,
+        viewportHeight,
+      ),
+    };
+  }
+  return {
+    maximized: true,
+    restoreRect: {
+      position: { ...current.position },
+      size: { ...current.size },
+    },
+    minimized: false,
+    ...getMaximizedChatWindowLayout(viewportWidth, viewportHeight),
+  };
+}
+
 export function resolveChatWindowKeyboardAction(
   open: boolean,
   minimized: boolean,
@@ -363,7 +446,7 @@ export function createChatWindowPointerInteractionHandlers(
     },
     handleResizePointerDown: (event: ChatWindowPointerEventLike) => {
       const state = getState();
-      if (!state.open || state.minimized) return;
+      if (!state.open || state.minimized || state.maximized) return;
       event.stopPropagation?.();
       refs.resizeSession.current = createChatWindowResizeSession(
         event.clientX,

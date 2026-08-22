@@ -2253,6 +2253,8 @@ export const enUSDictionary = {
   'ai.chat.title': 'AI Chat (MVP)',
   'ai.chat.window.voiceUseSidebarHint':
     'Voice assistant and microphone are available in this window.',
+  'ai.chat.window.maximize': 'Maximize window',
+  'ai.chat.window.restoreSize': 'Restore window size',
   'ai.chat.defaultConversationTitle': 'Default session',
   'ai.chat.disabled': 'AI chat is disabled.',
   'ai.chat.persistLayerRecoveryHint':
