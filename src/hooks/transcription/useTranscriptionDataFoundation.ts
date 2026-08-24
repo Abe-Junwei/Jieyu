@@ -28,7 +28,7 @@ export function useTranscriptionDataFoundation() {
     layerLinksRef,
   } = transcriptionState;
 
-  const { runWithDbMutex, syncToDb } = useTranscriptionPersistence({
+  const { runWithDbMutex, syncToDb, syncToDbCore } = useTranscriptionPersistence({
     unitsRef,
     translationsRef,
     speakersRef,
@@ -69,7 +69,8 @@ export function useTranscriptionDataFoundation() {
     speakersRef,
     dirtyRef,
     scheduleRecoverySave,
-    syncToDb,
+    syncToDbCore,
+    runWithDbMutex,
     setUnits,
     setTranslations,
     setLayers,
