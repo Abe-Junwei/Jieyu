@@ -76,7 +76,10 @@ function setupHarness(input: {
   const layerLinks = createStateRefHarness<LayerLinkDocType[]>([]);
   const speakers = createStateRefHarness<SpeakerDocType[]>(input.speakers);
   const dirtyRef = { current: false };
-  const syncToDb = vi.fn(input.syncToDbImpl ?? (async () => undefined));
+  const syncToDbCore = vi.fn(input.syncToDbImpl ?? (async () => undefined));
+  const runWithDbMutex = vi.fn(async <T,>(task: () => Promise<T>): Promise<T> => task()) as <T>(
+    task: () => Promise<T>,
+  ) => Promise<T>;
   const setSaveState = vi.fn();
   const scheduleRecoverySave = vi.fn();
 
@@ -89,7 +92,8 @@ function setupHarness(input: {
       speakersRef: speakers.ref,
       dirtyRef,
       scheduleRecoverySave,
-      syncToDb,
+      syncToDbCore,
+      runWithDbMutex,
       setUnits: units.setState,
       setTranslations: translations.setState,
       setLayers: layers.setState,
@@ -101,7 +105,8 @@ function setupHarness(input: {
 
   return {
     hook,
-    syncToDb,
+    syncToDbCore,
+    runWithDbMutex,
     setSaveState,
     units,
     speakers,
@@ -139,7 +144,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
 
     expect(harness.speakers.get()[0]?.name).toBe('Alice');
     expect(harness.units.get()[0]?.speaker).toBe('Alice');
-    expect(harness.syncToDb).toHaveBeenNthCalledWith(
+    expect(harness.syncToDbCore).toHaveBeenNthCalledWith(
       1,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1', speaker: 'Alice' })]),
       expect.any(Array),
@@ -157,7 +162,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
 
     expect(harness.speakers.get()[0]?.name).toBe('Alice Renamed');
     expect(harness.units.get()[0]?.speaker).toBe('Alice Renamed');
-    expect(harness.syncToDb).toHaveBeenNthCalledWith(
+    expect(harness.syncToDbCore).toHaveBeenNthCalledWith(
       2,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1', speaker: 'Alice Renamed' })]),
       expect.any(Array),
@@ -195,7 +200,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
 
     expect(harness.speakers.get()).toHaveLength(2);
     expect(harness.units.get().find((u) => u.id === 'utt-2')?.speakerId).toBe('spk-2');
-    expect(harness.syncToDb).toHaveBeenNthCalledWith(
+    expect(harness.syncToDbCore).toHaveBeenNthCalledWith(
       1,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-2', speakerId: 'spk-2' })]),
       expect.any(Array),
@@ -209,7 +214,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
 
     expect(harness.speakers.get()).toHaveLength(1);
     expect(harness.units.get().find((u) => u.id === 'utt-2')?.speakerId).toBe('spk-1');
-    expect(harness.syncToDb).toHaveBeenNthCalledWith(
+    expect(harness.syncToDbCore).toHaveBeenNthCalledWith(
       2,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-2', speakerId: 'spk-1' })]),
       expect.any(Array),
@@ -239,7 +244,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
 
     expect(harness.speakers.get()).toHaveLength(0);
     expect(harness.units.get()[0]?.speakerId).toBeUndefined();
-    expect(harness.syncToDb).toHaveBeenNthCalledWith(
+    expect(harness.syncToDbCore).toHaveBeenNthCalledWith(
       1,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1' })]),
       expect.any(Array),
@@ -254,7 +259,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     expect(harness.speakers.get()).toHaveLength(1);
     expect(harness.speakers.get()[0]?.id).toBe('spk-new');
     expect(harness.units.get()[0]?.speakerId).toBe('spk-new');
-    expect(harness.syncToDb).toHaveBeenNthCalledWith(
+    expect(harness.syncToDbCore).toHaveBeenNthCalledWith(
       2,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1', speakerId: 'spk-new' })]),
       expect.any(Array),
@@ -293,5 +298,33 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
         errorMeta: expect.objectContaining({ category: 'conflict', action: '撤销' }),
       }),
     );
+  });
+
+  it('undo: segment graph restore runs inside runWithDbMutex with syncToDbCore', async () => {
+    const restoreLayerSegments = vi.fn(async () => undefined);
+    const harness = setupHarness({
+      units: [makeUnit('utt-1', 'spk-1', 'Alice')],
+      speakers: [makeSpeaker('spk-1', 'Alice')],
+    });
+
+    await act(async () => {
+      harness.hook.result.current.segmentUndoRef.current = {
+        snapshotLayerSegments: () => ({
+          units: [],
+          contents: [],
+          links: [],
+        }),
+        restoreLayerSegments,
+      };
+      harness.hook.result.current.pushUndo('调整时间');
+    });
+
+    await act(async () => {
+      await harness.hook.result.current.undo();
+    });
+
+    expect(harness.runWithDbMutex).toHaveBeenCalledTimes(1);
+    expect(harness.syncToDbCore).toHaveBeenCalledTimes(1);
+    expect(restoreLayerSegments).toHaveBeenCalledTimes(1);
   });
 });
