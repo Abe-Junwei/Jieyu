@@ -44,12 +44,13 @@ type Params = {
   speakersRef: MutableRefObject<SpeakerDocType[]>;
   dirtyRef: MutableRefObject<boolean>;
   scheduleRecoverySave: () => void;
-  syncToDb: (
+  syncToDbCore: (
     targetUnits: LayerUnitDocType[],
     targetTranslations: LayerUnitContentDocType[],
     targetSpeakers: SpeakerDocType[],
     options?: { conflictGuard?: boolean },
   ) => Promise<void>;
+  runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;
   setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
   setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
   setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;
@@ -87,7 +88,8 @@ export function useTranscriptionUndo({
   speakersRef,
   dirtyRef,
   scheduleRecoverySave,
-  syncToDb,
+  syncToDbCore,
+  runWithDbMutex,
   setUnits,
   setTranslations,
   setLayers,
@@ -153,6 +155,24 @@ export function useTranscriptionUndo({
     [dirtyRef, scheduleRecoverySave, segmentUndoRef, snapshotCurrentState],
   );
 
+  const persistUndoEntryToDb = useCallback(
+    async (entry: UndoEntry) => {
+      await runWithDbMutex(async () => {
+        await syncToDbCore(entry.units, entry.translations, entry.speakers ?? [], {
+          conflictGuard: true,
+        });
+        if (entry.layerSegmentUnits !== undefined && segmentUndoRef.current) {
+          await segmentUndoRef.current.restoreLayerSegments(
+            entry.layerSegmentUnits,
+            entry.layerSegmentUnitContents ?? [],
+            entry.segmentLinks ?? [],
+          );
+        }
+      });
+    },
+    [runWithDbMutex, segmentUndoRef, syncToDbCore],
+  );
+
   const beginTimingGesture = useCallback(
     (unitId: string) => {
       const current = timingGestureRef.current;
@@ -208,16 +228,7 @@ export function useTranscriptionUndo({
     const redoEntry = snapshotCurrentState(entry.label, segSnapshot);
     redoStackRef.current.push(redoEntry);
     try {
-      await syncToDb(entry.units, entry.translations, entry.speakers ?? [], {
-        conflictGuard: true,
-      });
-      if (entry.layerSegmentUnits !== undefined && segmentUndoRef.current) {
-        await segmentUndoRef.current.restoreLayerSegments(
-          entry.layerSegmentUnits,
-          entry.layerSegmentUnitContents ?? [],
-          entry.segmentLinks ?? [],
-        );
-      }
+      await persistUndoEntryToDb(entry);
       setUnits(entry.units);
       setTranslations(entry.translations);
       if (entry.layers) setLayers(entry.layers);
@@ -257,7 +268,7 @@ export function useTranscriptionUndo({
     setTranslations,
     setUnits,
     snapshotCurrentState,
-    syncToDb,
+    persistUndoEntryToDb,
   ]);
 
   const undoToHistoryIndex = useCallback(
@@ -305,16 +316,7 @@ export function useTranscriptionUndo({
       undoStackRef.current = stack.slice(0, targetStackIndex);
 
       try {
-        await syncToDb(targetEntry.units, targetEntry.translations, targetEntry.speakers ?? [], {
-          conflictGuard: true,
-        });
-        if (targetEntry.layerSegmentUnits !== undefined && segmentUndoRef.current) {
-          await segmentUndoRef.current.restoreLayerSegments(
-            targetEntry.layerSegmentUnits,
-            targetEntry.layerSegmentUnitContents ?? [],
-            targetEntry.segmentLinks ?? [],
-          );
-        }
+        await persistUndoEntryToDb(targetEntry);
         setUnits(targetEntry.units);
         setTranslations(targetEntry.translations);
         if (targetEntry.layers) setLayers(targetEntry.layers);
@@ -364,7 +366,7 @@ export function useTranscriptionUndo({
       setUnits,
       speakersRef,
       snapshotCurrentState,
-      syncToDb,
+      persistUndoEntryToDb,
     ],
   );
 
@@ -375,16 +377,7 @@ export function useTranscriptionUndo({
     const undoEntry = snapshotCurrentState(entry.label, segSnapshot);
     undoStackRef.current.push(undoEntry);
     try {
-      await syncToDb(entry.units, entry.translations, entry.speakers ?? [], {
-        conflictGuard: true,
-      });
-      if (entry.layerSegmentUnits !== undefined && segmentUndoRef.current) {
-        await segmentUndoRef.current.restoreLayerSegments(
-          entry.layerSegmentUnits,
-          entry.layerSegmentUnitContents ?? [],
-          entry.segmentLinks ?? [],
-        );
-      }
+      await persistUndoEntryToDb(entry);
       setUnits(entry.units);
       setTranslations(entry.translations);
       if (entry.layers) setLayers(entry.layers);
@@ -424,7 +417,7 @@ export function useTranscriptionUndo({
     setTranslations,
     setUnits,
     snapshotCurrentState,
-    syncToDb,
+    persistUndoEntryToDb,
   ]);
 
   const canUndo = useMemo(() => {
