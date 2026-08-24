@@ -37,6 +37,8 @@ export interface AiChatBackgroundMemoryRuntime {
   extractor: BackgroundMemoryExtractor;
   getLastDirectiveApplication: () => UserDirectiveApplicationResult | null;
   clearLastDirectiveApplication: () => void;
+  /** Set for the duration of `flushBackgroundMemoryExtractor` to guard session memory writes. */
+  turnSideEffectsGuard: (() => boolean) | null;
 }
 
 export interface CreateAiChatBackgroundMemoryRuntimeParams {
@@ -164,6 +166,14 @@ export function createAiChatBackgroundMemoryRuntime(
         consumeSuccessfulWriteFlush: quotaState.consumeSuccessfulWriteFlush,
       }
     : undefined;
+  const runtime: AiChatBackgroundMemoryRuntime = {
+    extractor: null as unknown as BackgroundMemoryExtractor,
+    getLastDirectiveApplication: () => lastDirectiveApplication,
+    clearLastDirectiveApplication: () => {
+      lastDirectiveApplication = null;
+    },
+    turnSideEffectsGuard: null,
+  };
   const extractor = new BackgroundMemoryExtractor({
     enabled: params.enabled,
     actorId: 'ai-chat',
@@ -171,6 +181,9 @@ export function createAiChatBackgroundMemoryRuntime(
     ...(flushQuotaGate ? { flushQuotaGate } : {}),
     extractFacts: extractBackgroundMemoryFacts,
     writeFacts: async (facts, input) => {
+      if (runtime.turnSideEffectsGuard && !runtime.turnSideEffectsGuard()) {
+        return 0;
+      }
       const directives = extractUserDirectives({
         userText: input.userText,
         source: 'background_extracted',
@@ -205,25 +218,21 @@ export function createAiChatBackgroundMemoryRuntime(
       return writtenCount + lastDirectiveApplication.ledgerEntries.length;
     },
   });
-  return {
-    extractor,
-    getLastDirectiveApplication: () => lastDirectiveApplication,
-    clearLastDirectiveApplication: () => {
-      lastDirectiveApplication = null;
-    },
-  };
+  runtime.extractor = extractor;
+  return runtime;
 }
 
 export function scheduleAndFlushBackgroundMemory(
   runtime: AiChatBackgroundMemoryRuntime,
   input: BackgroundMemoryExtractionInput,
   insertAuditLog: (entry: AuditLogDocType) => Promise<unknown>,
+  shouldApplyTurnSideEffects?: () => boolean,
 ): void {
   const scheduleAudit = runtime.extractor.schedule(input);
   insertAuditLog(buildBackgroundMemoryAuditLog(scheduleAudit)).catch(() => {
     // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
   });
-  flushBackgroundMemoryExtractor(runtime, insertAuditLog).catch(() => {
+  flushBackgroundMemoryExtractor(runtime, insertAuditLog, shouldApplyTurnSideEffects).catch(() => {
     // 审计写入失败不阻断主流程 | Do not block the main flow when audit write fails.
   });
 }
@@ -313,20 +322,26 @@ function buildUserDirectiveAuditLogs(
 export async function flushBackgroundMemoryExtractor(
   runtime: AiChatBackgroundMemoryRuntime,
   insertAuditLog: (entry: AuditLogDocType) => Promise<unknown>,
+  shouldApplyTurnSideEffects?: () => boolean,
 ): Promise<void> {
-  const result = await runtime.extractor.flush();
-  if (!result) return;
-  const directiveApplication = runtime.getLastDirectiveApplication();
-  await insertAuditLog(buildBackgroundMemoryAuditLog(result, directiveApplication));
-  if (result.status !== 'completed') {
+  runtime.turnSideEffectsGuard = shouldApplyTurnSideEffects ?? null;
+  try {
+    const result = await runtime.extractor.flush();
+    if (!result) return;
+    const directiveApplication = runtime.getLastDirectiveApplication();
+    await insertAuditLog(buildBackgroundMemoryAuditLog(result, directiveApplication));
+    if (result.status !== 'completed') {
+      runtime.clearLastDirectiveApplication();
+      return;
+    }
+    for (const entry of buildUserDirectiveAuditLogs(
+      directiveApplication,
+      result.inputRange.conversationId,
+    )) {
+      await insertAuditLog(entry);
+    }
     runtime.clearLastDirectiveApplication();
-    return;
+  } finally {
+    runtime.turnSideEffectsGuard = null;
   }
-  for (const entry of buildUserDirectiveAuditLogs(
-    directiveApplication,
-    result.inputRange.conversationId,
-  )) {
-    await insertAuditLog(entry);
-  }
-  runtime.clearLastDirectiveApplication();
 }
