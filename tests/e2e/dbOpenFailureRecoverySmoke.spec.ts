@@ -9,6 +9,9 @@ test.describe('数据库 open 失败恢复入口 | DB open failure recovery entr
 
     await page.goto('/transcription');
     await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('html')).toHaveAttribute('data-jieyu-e2e-db-open-hook', '1', {
+      timeout: 20_000,
+    });
 
     await page.evaluate(() => {
       window.dispatchEvent(

@@ -341,11 +341,12 @@ describe('runAiChatSendTurnStreamPhase', () => {
     const meta = JSON.parse(payload!.metadataJson) as {
       completionPath: string;
       workflowId: string;
-      envelope: { evidencePacketCount: number };
+      envelope: { evidencePacketCount: number; status?: string };
     };
     expect(meta.completionPath).toBe('stream_done');
     expect(meta.workflowId).toBe('annotation_qa');
     expect(meta.envelope.evidencePacketCount).toBe(0);
+    expect(meta.envelope.status).toBe('degraded');
   });
 
   it('maps stream chunk errors to assistant error + lastError', async () => {

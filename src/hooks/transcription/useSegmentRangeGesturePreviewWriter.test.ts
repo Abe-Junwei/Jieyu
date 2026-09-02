@@ -15,7 +15,7 @@ describe('useSegmentRangeGesturePreviewWriter', () => {
     expect(result.current.segmentRangeGesturePreviewReadModel).toEqual({
       surface: 'timeRange',
       preview: { id: 'u1', start: 1, end: 2 },
-      mode: 'timing-edit',
+      mode: 'range',
     });
   });
 

@@ -14,6 +14,8 @@ export interface VerticalWorkflowAuditMetadataV1 {
     schemaVersion: number;
     generatedAt: string;
     evidencePacketCount: number;
+    /** Present on A4+ writes after reflection reconcile; omitted on pre-A4 rows. */
+    status?: 'ready' | 'degraded';
   };
   selection: {
     confidence: number;
@@ -39,7 +41,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function parseVerticalWorkflowAuditMetadata(raw: string | undefined): VerticalWorkflowAuditMetadataV1 | null {
+function parseVerticalWorkflowAuditMetadata(
+  raw: string | undefined,
+): VerticalWorkflowAuditMetadataV1 | null {
   if (typeof raw !== 'string' || raw.trim().length === 0) return null;
   let parsed: unknown;
   try {
@@ -70,9 +74,15 @@ function parseVerticalWorkflowAuditMetadata(raw: string | undefined): VerticalWo
   const envelopeSchemaVersion = envelope.schemaVersion;
   const envelopeGeneratedAt = envelope.generatedAt;
   const envelopeEvidencePacketCount = envelope.evidencePacketCount;
+  const envelopeStatus = envelope.status;
   if (typeof envelopeSchemaVersion !== 'number') return null;
-  if (typeof envelopeGeneratedAt !== 'string' || envelopeGeneratedAt.trim().length === 0) return null;
-  if (typeof envelopeEvidencePacketCount !== 'number' || Number.isNaN(envelopeEvidencePacketCount)) return null;
+  if (typeof envelopeGeneratedAt !== 'string' || envelopeGeneratedAt.trim().length === 0)
+    return null;
+  if (typeof envelopeEvidencePacketCount !== 'number' || Number.isNaN(envelopeEvidencePacketCount))
+    return null;
+  if (envelopeStatus !== undefined && envelopeStatus !== 'ready' && envelopeStatus !== 'degraded') {
+    return null;
+  }
 
   let parsedSelection: VerticalWorkflowAuditMetadataV1['selection'] = null;
   if (selection !== null) {
@@ -83,8 +93,10 @@ function parseVerticalWorkflowAuditMetadata(raw: string | undefined): VerticalWo
     const selectionMatchedKeyword = selection.matchedKeyword;
     if (typeof selectionConfidence !== 'number' || Number.isNaN(selectionConfidence)) return null;
     if (typeof selectionSource !== 'string' || selectionSource.trim().length === 0) return null;
-    if (typeof selectionReasonCode !== 'string' || selectionReasonCode.trim().length === 0) return null;
-    if (typeof selectionMatchedKeyword !== 'string' || selectionMatchedKeyword.trim().length === 0) return null;
+    if (typeof selectionReasonCode !== 'string' || selectionReasonCode.trim().length === 0)
+      return null;
+    if (typeof selectionMatchedKeyword !== 'string' || selectionMatchedKeyword.trim().length === 0)
+      return null;
     parsedSelection = {
       confidence: selectionConfidence,
       source: selectionSource,
@@ -105,12 +117,15 @@ function parseVerticalWorkflowAuditMetadata(raw: string | undefined): VerticalWo
       schemaVersion: envelopeSchemaVersion,
       generatedAt: envelopeGeneratedAt,
       evidencePacketCount: envelopeEvidencePacketCount,
+      ...(envelopeStatus !== undefined ? { status: envelopeStatus } : {}),
     },
     selection: parsedSelection,
   };
 }
 
-export function parseVerticalWorkflowAuditEntry(row: VerticalWorkflowAuditRow): ParsedVerticalWorkflowAuditEntry | null {
+export function parseVerticalWorkflowAuditEntry(
+  row: VerticalWorkflowAuditRow,
+): ParsedVerticalWorkflowAuditEntry | null {
   if (row.field !== AI_VERTICAL_WORKFLOW_RESULT_AUDIT_FIELD) return null;
   const metadata = parseVerticalWorkflowAuditMetadata(row.metadataJson);
   if (!metadata) return null;

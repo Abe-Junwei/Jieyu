@@ -172,11 +172,28 @@ export type ChatWindowPointerCaptureTarget = {
   setPointerCapture: (pointerId: number) => void;
 };
 
+export const CHAT_WINDOW_HEADER_INTERACTIVE_SELECTOR =
+  'button, input, select, textarea, a, [role="button"], [role="dialog"]';
+
+export function isChatWindowHeaderInteractiveTarget(target: unknown): boolean {
+  if (target == null || typeof target !== 'object') return false;
+  const closest = (target as { closest?: unknown }).closest;
+  return typeof closest === 'function'
+    ? Boolean(
+        (closest as (selector: string) => unknown).call(
+          target,
+          CHAT_WINDOW_HEADER_INTERACTIVE_SELECTOR,
+        ),
+      )
+    : false;
+}
+
 export type ChatWindowPointerEventLike = {
   clientX: number;
   clientY: number;
   pointerId: number;
   currentTarget: ChatWindowPointerCaptureTarget;
+  target?: unknown;
   stopPropagation?: () => void;
 };
 
@@ -420,6 +437,7 @@ export function createChatWindowPointerInteractionHandlers(
     handleHeaderPointerDown: (event: ChatWindowPointerEventLike) => {
       const state = getState();
       if (!state.open || state.minimized) return;
+      if (isChatWindowHeaderInteractiveTarget(event.target)) return;
       refs.dragSession.current = createChatWindowDragSession(
         event.clientX,
         event.clientY,

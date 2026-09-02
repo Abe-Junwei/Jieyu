@@ -2,7 +2,7 @@
 title: agent-runtime-security-write-gate design
 doc_type: execution-spec-design
 status: draft
-implementation_status: phase-2-3-landed-2026-06-09
+implementation_status: phase-1-4-landed-2026-09-02
 owner: ai-governance
 last_reviewed: 2026-06-09
 source_of_truth: agent-runtime-security-write-gate-spec
