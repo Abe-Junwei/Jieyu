@@ -3,7 +3,7 @@ title: 智能体改进方案 — Anthropic Engineering 启发
 doc_type: execution-plan
 status: active
 owner: ai-governance
-last_reviewed: 2026-06-09
+last_reviewed: 2026-09-02
 reconciled_with: master-roadmap-anthropic-review-2026-06-09
 source_of_truth: execution-plan
 depends_on:
@@ -180,12 +180,12 @@ Spec：[ai-agent-loop-reliability-improvements](../specs/ai-agent-loop-reliabili
 
 #### P0 DoD（A4 切片关闭）
 
-- [ ] 三 flag 默认 `true`（或文档化 staging/prod 分层）
-- [ ] `npm run typecheck` 0 err
-- [ ] `npx vitest run src/ai/chat/agentLoop*` + `useAiChat.agentLoopRunner.test.ts` 全绿
-- [ ] `npm run check:agent-evals:smoke` + `check:agent-evals:trace` 绿
-- [ ] 定向 e2e：`aiAgentLoopHandoffAfterReload` + ≥1 clarify 路径
-- [ ] [ai-agent-loop-reliability-improvements tasks](../specs/ai-agent-loop-reliability-improvements/tasks.md) 增 A4 收口记录；主路线图 A4 标 ✅
+- [x] 三 flag 默认 `true`（dogfood/staging/prod；local/DEV 仍 false，可用 `VITE_AI_AGENT_LOOP_*` 覆盖）
+- [x] `npm run typecheck` 0 err
+- [x] `npx vitest run src/ai/chat/agentLoop*` + `useAiChat.agentLoopRunner.test.ts` 全绿
+- [x] `npm run check:agent-evals:smoke` + `check:agent-evals:trace` 绿（2026-09-02：trace 17/17，auditTracePassed=true）
+- [x] 定向 e2e：`aiAgentLoopHandoffAfterReload` + ≥1 clarify 路径（chromium 3/3）
+- [x] [ai-agent-loop-reliability-improvements tasks](../specs/ai-agent-loop-reliability-improvements/tasks.md) 增 A4 收口记录；主路线图 A4 标 ✅
 
 ---
 

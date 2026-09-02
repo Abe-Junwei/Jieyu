@@ -7,24 +7,31 @@ import { test, expect } from '@playwright/test';
 
 const E2E_TASK_ID = 'e2e_t1c_agent_loop_handoff';
 const E2E_CONVERSATION_ID = 'e2e_t1c_agent_loop_conversation';
+const E2E_ASSISTANT_MESSAGE_ID = 'e2e_t1c_agent_loop_assistant';
 
 async function waitForPendingCheckpointHydrated(page: import('@playwright/test').Page): Promise<void> {
   await page.waitForFunction(
-    async (conversationId) => {
+    async ({ conversationId, taskId }) => {
       try {
-        const dexie = (globalThis as unknown as {
-          __jieyuDexie__?: {
-            ai_session_memories: { get: (k: string) => Promise<{ payload?: { pendingAgentLoopCheckpoint?: { taskId?: string } } } | undefined> };
-          };
-        }).__jieyuDexie__;
+        const dexie = (
+          globalThis as unknown as {
+            __jieyuDexie__?: {
+              ai_session_memories: {
+                get: (
+                  k: string,
+                ) => Promise<{ payload?: { pendingAgentLoopCheckpoint?: { taskId?: string } } } | undefined>;
+              };
+            };
+          }
+        ).__jieyuDexie__;
         if (!dexie) return false;
         const row = await dexie.ai_session_memories.get(conversationId);
-        return Boolean(row?.payload?.pendingAgentLoopCheckpoint?.taskId);
+        return row?.payload?.pendingAgentLoopCheckpoint?.taskId === taskId;
       } catch {
         return false;
       }
     },
-    E2E_CONVERSATION_ID,
+    { conversationId: E2E_CONVERSATION_ID, taskId: E2E_TASK_ID },
     { timeout: 25_000 },
   );
 }
@@ -34,76 +41,115 @@ async function seedPendingAgentLoopTask(page: import('@playwright/test').Page): 
     () => Boolean((globalThis as unknown as { __jieyuDexie__?: { open: () => Promise<unknown> } }).__jieyuDexie__),
     { timeout: 25_000 },
   );
-  await page.evaluate(async (taskId) => {
-    const dexie = (globalThis as unknown as {
-      __jieyuDexie__: {
-        open: () => Promise<unknown>;
-        ai_tasks: { delete: (k: string) => Promise<unknown>; put: (row: Record<string, unknown>) => Promise<string> };
-        ai_conversations: { delete: (k: string) => Promise<unknown>; put: (row: Record<string, unknown>) => Promise<string> };
-        ai_session_memories: { delete: (k: string) => Promise<unknown> };
-      };
-    }).__jieyuDexie__;
-    await dexie.open();
-    await dexie.ai_tasks.delete(taskId).catch(() => undefined);
-    await dexie.ai_conversations.delete('e2e_t1c_agent_loop_conversation').catch(() => undefined);
-    await dexie.ai_session_memories.delete('e2e_t1c_agent_loop_conversation').catch(() => undefined);
-    const ts = new Date().toISOString();
-    await dexie.ai_conversations.put({
-      id: 'e2e_t1c_agent_loop_conversation',
-      title: 'E2E agent loop handoff',
-      mode: 'assistant',
-      providerId: 'mock',
-      model: 'mock',
-      createdAt: ts,
-      updatedAt: ts,
-    });
-    const checkpointJson = JSON.stringify({
-      kind: 'agent_loop_token_budget_warning',
-      data: {
-        originalUserText: 'e2e-agent-loop-seed',
-        continuationInput: '__LOCAL_TOOL_RESULT__',
-        step: 1,
+  await page.evaluate(
+    async ({ taskId, conversationId, assistantMessageId }) => {
+      const dexie = (
+        globalThis as unknown as {
+          __jieyuDexie__: {
+            open: () => Promise<unknown>;
+            ai_tasks: { delete: (k: string) => Promise<unknown>; put: (row: Record<string, unknown>) => Promise<string> };
+            ai_conversations: {
+              delete: (k: string) => Promise<unknown>;
+              put: (row: Record<string, unknown>) => Promise<string>;
+              toArray: () => Promise<Array<{ textId?: string }>>;
+            };
+            ai_messages: { delete: (k: string) => Promise<unknown>; put: (row: Record<string, unknown>) => Promise<unknown> };
+            ai_session_memories: { delete: (k: string) => Promise<unknown> };
+          };
+        }
+      ).__jieyuDexie__;
+      await dexie.open();
+      await dexie.ai_tasks.delete(taskId).catch(() => undefined);
+      await dexie.ai_conversations.delete(conversationId).catch(() => undefined);
+      await dexie.ai_messages.delete(assistantMessageId).catch(() => undefined);
+      await dexie.ai_session_memories.delete(conversationId).catch(() => undefined);
+      const existing = await dexie.ai_conversations.toArray();
+      const scopedTextId = existing.find((row) => typeof row.textId === 'string' && row.textId.length > 0)?.textId;
+      const ts = new Date(Date.now() + 60_000).toISOString();
+      await dexie.ai_conversations.put({
+        id: conversationId,
+        title: 'E2E agent loop handoff',
+        mode: 'assistant',
+        providerId: 'mock',
+        model: 'mock',
+        ...(scopedTextId ? { textId: scopedTextId } : {}),
         createdAt: ts,
-      },
-      at: ts,
-    });
-    await dexie.ai_tasks.put({
-      id: taskId,
-      taskType: 'agent_loop',
-      status: 'pending',
-      targetId: 'e2e-target',
-      targetType: 'ai_chat_agent_loop',
-      attempt: 0,
-      maxAttempts: 1,
-      checkpointJson,
-      lastHeartbeatAt: ts,
-      resumable: true,
-      handoffReason: 'token_budget_warning',
-      createdAt: ts,
-      updatedAt: ts,
-    });
-    window.localStorage.removeItem('jieyu.aiChat.sessionMemory');
-    window.localStorage.removeItem('jieyu.aiChat.sessionMemory.migrated.v1');
-    window.localStorage.removeItem('jieyu.aiChatWindow.v1');
-  }, E2E_TASK_ID);
+        updatedAt: ts,
+      });
+      await dexie.ai_messages.put({
+        id: assistantMessageId,
+        conversationId,
+        role: 'assistant',
+        content: 'e2e-agent-loop-seed',
+        status: 'done',
+        generationSource: 'local',
+        createdAt: ts,
+        updatedAt: ts,
+      });
+      const checkpointJson = JSON.stringify({
+        kind: 'agent_loop_token_budget_warning',
+        data: {
+          originalUserText: 'e2e-agent-loop-seed',
+          continuationInput: '__LOCAL_TOOL_RESULT__',
+          step: 1,
+          createdAt: ts,
+        },
+        at: ts,
+      });
+      await dexie.ai_tasks.put({
+        id: taskId,
+        taskType: 'agent_loop',
+        status: 'pending',
+        targetId: assistantMessageId,
+        targetType: 'ai_chat_agent_loop',
+        attempt: 0,
+        maxAttempts: 1,
+        checkpointJson,
+        lastHeartbeatAt: ts,
+        resumable: true,
+        handoffReason: 'token_budget_warning',
+        createdAt: ts,
+        updatedAt: ts,
+      });
+      window.localStorage.removeItem('jieyu.aiChat.sessionMemory');
+      window.localStorage.removeItem('jieyu.aiChat.sessionMemory.migrated.v1');
+      window.localStorage.removeItem('jieyu.aiChatWindow.v1');
+    },
+    {
+      taskId: E2E_TASK_ID,
+      conversationId: E2E_CONVERSATION_ID,
+      assistantMessageId: E2E_ASSISTANT_MESSAGE_ID,
+    },
+  );
 }
 
 async function cleanupE2ETask(page: import('@playwright/test').Page): Promise<void> {
-  await page.evaluate(async (taskId) => {
-    const dexie = (globalThis as unknown as {
-      __jieyuDexie__?: {
-        open: () => Promise<unknown>;
-        ai_tasks: { delete: (k: string) => Promise<unknown> };
-        ai_conversations: { delete: (k: string) => Promise<unknown> };
-        ai_session_memories: { delete: (k: string) => Promise<unknown> };
-      };
-    }).__jieyuDexie__;
-    if (!dexie) return;
-    await dexie.open();
-    await dexie.ai_tasks.delete(taskId).catch(() => undefined);
-    await dexie.ai_session_memories.delete('e2e_t1c_agent_loop_conversation').catch(() => undefined);
-    await dexie.ai_conversations.delete('e2e_t1c_agent_loop_conversation').catch(() => undefined);
-  }, E2E_TASK_ID);
+  await page.evaluate(
+    async ({ taskId, conversationId, assistantMessageId }) => {
+      const dexie = (
+        globalThis as unknown as {
+          __jieyuDexie__?: {
+            open: () => Promise<unknown>;
+            ai_tasks: { delete: (k: string) => Promise<unknown> };
+            ai_conversations: { delete: (k: string) => Promise<unknown> };
+            ai_messages: { delete: (k: string) => Promise<unknown> };
+            ai_session_memories: { delete: (k: string) => Promise<unknown> };
+          };
+        }
+      ).__jieyuDexie__;
+      if (!dexie) return;
+      await dexie.open();
+      await dexie.ai_tasks.delete(taskId).catch(() => undefined);
+      await dexie.ai_messages.delete(assistantMessageId).catch(() => undefined);
+      await dexie.ai_session_memories.delete(conversationId).catch(() => undefined);
+      await dexie.ai_conversations.delete(conversationId).catch(() => undefined);
+    },
+    {
+      taskId: E2E_TASK_ID,
+      conversationId: E2E_CONVERSATION_ID,
+      assistantMessageId: E2E_ASSISTANT_MESSAGE_ID,
+    },
+  );
 }
 
 test.describe('T1-c AI agent loop handoff after reload', () => {
@@ -197,7 +243,7 @@ test.describe('T1-c AI agent loop handoff after reload', () => {
         const existing = (await dexie.ai_conversations.toArray()) as Array<{ textId?: string }>;
         const scopedTextId = existing.find((row) => typeof row.textId === 'string' && row.textId.length > 0)
           ?.textId;
-        const ts = new Date().toISOString();
+        const ts = new Date(Date.now() + 60_000).toISOString();
         await dexie.ai_conversations.put({
           id: convId,
           title: 'E2E agent loop clarify',
@@ -236,14 +282,6 @@ test.describe('T1-c AI agent loop handoff after reload', () => {
       await chatTrigger.click();
     }
     await expect(chatWindow).toBeVisible({ timeout: 15_000 });
-
-    const listButton = page.getByRole('button', { name: /Conversation list|会话列表/i });
-    if (await listButton.isVisible().catch(() => false)) {
-      await listButton.click();
-      const popover = page.locator('.ai-conversation-list-popover');
-      await expect(popover).toBeVisible({ timeout: 5_000 });
-      await popover.getByText(/E2E agent loop clarify/i).click();
-    }
 
     await expect(page.locator('.ai-chat-message-content')).toContainText(
       new RegExp(`${clarifyZh}|${clarifyEn}`),

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-02T07:39:01.983Z",
-  "aggregate": "5317ff1a5e8a122c779a771db4de778dfcd88395668adf931dde2a944ace9bad",
+  "generatedAt": "2026-09-02T08:02:00.075Z",
+  "aggregate": "12a97729770cd0025d9ffe24a614bb126e3174dbad4d32065d1787eb30cf2d01",
   "fileHashes": {
     "src/styles/ai-hub.css": "59eabaab3ce6f597a0588cb08a544be61cfbdf81ac2b0d00459e4bcc4dead0c9",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -19,7 +19,7 @@
     "src/styles/foundation/panel-primitives.css": "6a6b2b6dbd62d23cd5e9c1446f85d4ac70779e8e5e0373ad06df06dd65320527",
     "src/styles/foundation/waveform-display.css": "9739d58d832f258c2d6735f7c5ed63ef29d9774d1679796065fad3f7b40fbe70",
     "src/styles/global.css": "0ee9415e36311ab5f854caade2c7a8e09812e786a637bc4317a3892de8979a21",
-    "src/styles/pages/ai-chat-window.css": "b3d9873a1fd616b4497f2eae2b8c6d53478b405b065f06169b97c4379bf643e8",
+    "src/styles/pages/ai-chat-window.css": "954e5351b9308cfa4d85aacfb4cbaed9a466d4f3f4e47274dcb797f877e19145",
     "src/styles/pages/ai-sidebar-shell.css": "2d56d94491ad22b5617d1409fa8c84e67e3dfad980be26f6e9530370db5cc069",
     "src/styles/pages/analysis-workspace.css": "280ed99f046e1247d5d5e5862b790b29798ae41ce5381a3f75d3eeea6b744db9",
     "src/styles/pages/app-shell-layout.css": "d7c7c5c566a961aa9457e502041e6adac7f96b9e8c0f8ee17557a42d334c3180",
