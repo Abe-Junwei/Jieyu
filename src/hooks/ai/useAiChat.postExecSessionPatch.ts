@@ -1,13 +1,10 @@
 /**
  * 工具执行成功后的 session memory 偏好补丁 | Post-exec session memory preference patching
  *
- * autoExecute / confirmExecution / confirmBatch 三处共用的
- * "成功执行后更新 lastToolName / lastLanguage / lastLayerId" 逻辑。
- * Shared logic for updating lastToolName / lastLanguage / lastLayerId
- * after a successful tool execution across auto/confirm/batch paths.
+ * Thin wrapper around `applyChatToolPreferenceEffects` (A10 unique commit is `commitToolEffects`).
  */
 
-import { patchSessionMemoryPreferences } from '../../ai/chat/sessionMemory';
+import { applyChatToolPreferenceEffects } from '../../ai/runtime/commitToolEffects';
 import type { AiChatToolName, AiSessionMemory } from '../../ai/chat/chatDomain.types';
 
 export interface PostExecSessionPatchInput {
@@ -28,21 +25,5 @@ export function buildPostExecSessionMemory({
   language,
   layerId,
 }: PostExecSessionPatchInput): AiSessionMemory {
-  let next: AiSessionMemory = patchSessionMemoryPreferences(
-    { ...sessionMemory, lastToolName: toolName },
-    { lastToolName: toolName },
-  );
-  if (language) {
-    next = patchSessionMemoryPreferences(
-      { ...next, lastLanguage: language },
-      { lastLanguage: language },
-    );
-  }
-  if (layerId) {
-    next = patchSessionMemoryPreferences(
-      { ...next, lastLayerId: layerId },
-      { lastLayerId: layerId },
-    );
-  }
-  return next;
+  return applyChatToolPreferenceEffects(sessionMemory, toolName, language, layerId);
 }

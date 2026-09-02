@@ -3,7 +3,7 @@ title: AI Agent 运行时 Runner 模型（ADK 模式借设计 · 本地实现）
 doc_type: architecture
 status: active
 owner: ai-governance
-last_reviewed: 2026-06-01
+last_reviewed: 2026-09-02
 source_of_truth: current-state
 depends_on:
   - ./ai-agent-runtime-security-local-first.md
@@ -26,8 +26,8 @@ depends_on:
 | **Workflow agent** | `verticalWorkflowRegistry` + `composedWorkflowTemplates` | A12 |
 | **Session state** | `AiSessionMemory`（turn 内） | 已有 |
 | **Long-term memory** | `projectAiMemory` + Memory Broker + RAG | 已有 |
-| **Callbacks** | `AgentCallbackRegistry`（规划） | A9、A10 |
-| **Tool catalog** | `AI_TOOL_REGISTRY_SHADOW` → `AiToolCatalog` SSOT | A10 |
+| **Callbacks** | `AgentCallbackRegistry`（`src/ai/runtime/agentCallbacks.ts`） | A9、A10 |
+| **Tool catalog** | `AiToolCatalog` SSOT（`src/ai/catalog/aiToolCatalog.ts`）；shadow re-export | A10 |
 | **Eval** | `agent-evals` + trajectory（规划） | A14 |
 | **MCP tools** | 自研 server/client | B11、B12 |
 
@@ -71,3 +71,4 @@ User / Voice
 | 日期 | 说明 |
 | --- | --- |
 | 2026-06-01 | 初版：Runner 模型对照表；并入架构补强 A10–A14。 |
+| 2026-09-02 | Wave 2：Catalog / CallbackRegistry / `commitToolEffects` 落地；shadow 改为 re-export。 |

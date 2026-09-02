@@ -79,6 +79,7 @@ export async function runAiChatSendTurn(args: RunAiChatSendTurnArgs): Promise<vo
     effectiveUserText,
     verticalWorkflowSelection,
     correlationId,
+    agentRunId,
   } = preflight;
 
   logSendTurnPhase(correlationId, 'preflight_ok', {
@@ -178,6 +179,7 @@ export async function runAiChatSendTurn(args: RunAiChatSendTurnArgs): Promise<vo
       markExecutedRequestId,
       bumpMetric,
       localToolCallCountRef,
+      agentRunId,
     });
   } catch (error) {
     logSendTurnPhase(correlationId, 'stream_catch', {
