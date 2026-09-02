@@ -90,6 +90,8 @@
 }
 
 .transcription-chat-window-header {
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -101,6 +103,7 @@
   cursor: move;
   user-select: none;
   touch-action: none;
+  overflow: visible;
 }
 
 .transcription-chat-window-header-meta {
@@ -240,7 +243,9 @@
 }
 
 .transcription-chat-window-conversation-anchor {
+  position: relative;
   min-width: 0;
+  overflow: visible;
 }
 
 .transcription-chat-window-conversation-anchor .ai-chat-conversation-title-btn.is-floating {

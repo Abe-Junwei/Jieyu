@@ -96,4 +96,27 @@ describe('aiToolPolicyMatrix', () => {
     expect(getAiToolLayerLinkActionKind('switch_preferred_host')).toBe('switch_preferred_host');
     expect(getAiToolLayerLinkActionKind('delete_layer')).toBe(null);
   });
+
+  it('fills effect and scopeBinding for every chat tool', () => {
+    const entries = Object.values(AI_TOOL_POLICY_MATRIX);
+    expect(entries.length).toBeGreaterThan(0);
+    expect(
+      entries.every(
+        (policy) =>
+          (policy.effect === 'read' ||
+            policy.effect === 'write' ||
+            policy.effect === 'destructive') &&
+          (policy.scopeBinding === 'none' ||
+            policy.scopeBinding === 'current_selection' ||
+            policy.scopeBinding === 'current_unit' ||
+            policy.scopeBinding === 'current_layer' ||
+            policy.scopeBinding === 'current_project'),
+      ),
+    ).toBe(true);
+    expect(getAiToolPolicy('delete_layer').effect).toBe('destructive');
+    expect(getAiToolPolicy('set_token_gloss').effect).toBe('write');
+    expect(getAiToolPolicy('set_token_gloss').scopeBinding).toBe('current_unit');
+    expect(getAiToolPolicy('nav_to_time').effect).toBe('read');
+    expect(getAiToolPolicy('get_project_summary').scopeBinding).toBe('current_project');
+  });
 });

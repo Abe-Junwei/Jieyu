@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-06-10
+last_reviewed: 2026-09-02
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -87,7 +87,8 @@ A14 Eval trajectory   ─┘
 | --- | --- | --- |
 | 闭环 replanning / quality gate / context budget + **prod 默认 true** | A4（代码） | `featureFlags.ts`、`agentLoopReplanning.ts`、`contextBudget.ts` |
 | Tool result **compaction** | A4 / P1.1 | `agentLoopHistoryCompaction.ts`、`agentLoopRunner.ts` |
-| Write gate Phase 2–4 + preview routing + 审计 reason/i18n | A7（部分） | `toolWriteGate.ts`、`toolDecisionPipeline.ts` |
+| Write gate Phase 1–4 + preview routing + 审计 reason/i18n | A7（Phase 1–4 代码） | `aiToolPolicyMatrix.ts`、`localContextToolEffects.ts`、`toolWriteGate.ts`、`toolDecisionPipeline.ts` |
+| F4 sidecar 入口白名单 + 工业三开关环境矩阵 | A6 | `check-ai-session-sidecar-entrypoints.mjs`、`featureFlags.ts` |
 | `workflowCompletionChecklist` + reflection reconcile + `workflowAnswerReady` | A12（浅层） | `workflowCompletionChecklist.ts`、`completionPipelineVerticalFinalize.ts` |
 | Trajectory NDJSON 断言（**无 `agentRunId`**） | A14（浅层） | `auditTrajectoryAssertions.mjs`、`suite.v1.json` |
 | ChatWindow / speaker routing 预拆（降 hotspot） | 工程治理 | `useTranscriptionChatWindowController.ts` 等 |
@@ -96,9 +97,9 @@ A14 Eval trajectory   ─┘
 
 ```text
 Wave 1 — 证据 + 策略真源（可并行）
-  A4   放量证据收口（e2e handoff、:trace、release evidence、spec tasks 勾选）
-  A7   Phase 1：矩阵 effect/scopeBinding + catalog parity（SDD Phase 1）
-  A6   F4 Batch B/C + 工业三开关 evidence（B4 写工具硬前置）
+  A4   放量证据收口（e2e handoff、:trace、release evidence、spec tasks 勾选）← 仍为下一刀
+  A7   Phase 1：矩阵 effect/scopeBinding + catalog parity（2026-09-02 已落地；A11 preview 闭环仍开）
+  A6   F4 Batch B/C + 工业三开关 evidence（2026-09-02 已关闭）
 
 Wave 2 — Runner 枢纽 + 观测 + Context 余量
   A10  commitToolEffects + CallbackRegistry + AiToolCatalog（SDD runner-foundation）
@@ -121,7 +122,7 @@ Wave 4 — 安全外连 + 评测/长程 harness
 | 目标 | 须完成的 Agent 切片 |
 | --- | --- |
 | **A4 关闭 → 可谈 Stage B 接 AI** | **A4** 证据 ✅ |
-| **B4/B5 写工具最低** | A4 + **A6 + A7 + A10** |
+| **B4/B5 写工具最低** | A4 + **A7 + A10**（A6 已关闭） |
 | **B4 垂直 workflow 完整** | 上列 + **A8 + A11 + A12** |
 | **B7 语料 AI** | A6 + A7 + A9 + A12（完整 + **A11 + A13**） |
 | **C1 对外抽样** | A8 + A9 + A11 + A14（外连 MCP 另需 **B11**） |
@@ -166,9 +167,9 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **A3** | 声学 inspector 冻结 + 多点比较（**最小闭环·本地子集**） | ⬜ | — | L | 声学现状 §3.2；`AcousticAnalysisService`/`AcousticAnalysisCacheDB`（持久缓存 readback）+ acoustic tab UI。**范围限定**：仅冻结/比较**已进主线的本地子集**，**非**完整科研级 inspector（声学现状 Phase 4「基本未开始」，留后续切片）| 冻结点持久化 → reload → readback；多点比较渲染；定向 vitest | 是 |
 | **A4** | AI agent-loop 可靠性 + compaction 收口 | 🟡 | **W1** | **L** | spec `ai-agent-loop-reliability-improvements`；三可靠性 flag + `aiAgentLoopToolResultCompactionEnabled`。**代码**：replanning/quality/budget/compaction 已落地，dogfood/staging/prod 默认可靠性 flag 为 `true`。**本切片剩余（关 ✅）**：① `aiAgentLoopHandoffAfterReload` + clarify 路径 e2e；② `check:agent-evals:trace` + release evidence；③ reflection reconcile 后 envelope `status` 写入 vertical audit；④ spec tasks A4 收口记录 | §2.2.4 命令全绿；主路线图 A4 可标 ✅ | 已有 spec |
 | **A4b** | Context 工程余量（JIT + effort scaling） | ⬜ | **W2** | M | Anthropic P1.2/P1.3：`localToolSlotResolver` / 默认 limit·scope / concise 响应；`resolveEffectiveMaxSteps()` + flag `aiAgentLoopEffortScalingEnabled`。**依赖 A4 证据收口** | 6 步 payload 较基线降 ≥30%；eval 无「list 全项目」路径 | 视 Implement |
-| **A5** | 时间轴交互/壳层收敛剩余项 | ⬜ | — | M | [时间轴交互与壳层收敛](./时间轴交互与壳层收敛落地方案-2026-04-21.md) 未结项 | 定向 vitest + e2e:chromium + `check:architecture-guard` | 视项 |
-| **A6** | F4 Batch B/C + 工业三开关 evidence | ⬜ | **W1** | M–L | [架构补强](./Agent运行时架构补强-本地优先落地方案-2026-06-01.md) §3.1；Batch B 写 executor 登记；Batch C release evidence。**B4/B5 写工具硬前置（与 A7+A10 并列）** | `check:ai-session-sidecar-entrypoints` + `gate:release-evidence:governance:strict` 绿 | 否 |
-| **A7** | Last Mile 写 gate + per-tool policy 矩阵 v1 | 🟡 | **W1** | L | **已落地**：`toolWriteGate` Phase 2–4、`supportsPreview`、pipeline i18n（dogfood/staging write gate 默认 on）。**剩余 Phase 1**：矩阵 `effect`/`scopeBinding`；与 `LOCAL_CONTEXT_TOOL_NAMES` catalog parity；收敛 `localContextToolEffects`。SDD：[agent-runtime-security-write-gate](../specs/agent-runtime-security-write-gate/) tasks 1.1/1.2 | 超 scope 写 block + audit；只读零弹窗；写经 **A11** preview→commit | 是 |
+| **A5** | 时间轴交互/壳层收敛剩余项 | ✅ | — | M | [时间轴交互与壳层收敛](./时间轴交互与壳层收敛落地方案-2026-04-21.md)：**A–F 主链 2026-06-26 已闭合**（矩阵 v35/v36）。**剩余不属于本切片阻塞**：§9 backlog（G3 lane 行 DOM、选集 undo 批处理、timeMapping 非线性渲染） | 定向 vitest + e2e:chromium + `check:architecture-guard`（主链已过） | 视项 |
+| **A6** | F4 Batch B/C + 工业三开关 evidence | ✅ | **W1** | M–L | [架构补强](./Agent运行时架构补强-本地优先落地方案-2026-06-01.md) §3.1；Batch A 旁路已受控；Batch B = `check:ai-session-sidecar-entrypoints` 白名单；Batch C = session-sidecar + governance strict 证据门禁；工业三开关 dogfood/staging ON、prod OFF（见 [安全策略 §5](../../architecture/ai-agent-runtime-security-local-first.md)）。**B4/B5 写工具仍须 A7+A10** | `check:ai-session-sidecar-entrypoints` + `gate:release-evidence:governance:strict` 绿 | 否 |
+| **A7** | Last Mile 写 gate + per-tool policy 矩阵 v1 | 🟡 | **W1** | L | **已落地**：`toolWriteGate` Phase 2–4、`supportsPreview`、pipeline i18n（dogfood/staging write gate 默认 on）；**Phase 1（2026-09-02）**：矩阵 `effect`/`scopeBinding` + `LOCAL_CONTEXT_TOOL_POLICY` catalog parity（`localContextToolEffects` 收敛为政策表）。**剩余**：超 scope 写 block 的 B4 写工具样本仍待 A11 preview→commit | 超 scope 写 block + audit；只读零弹窗；写经 **A11** preview→commit | 是 |
 | **A8** | agentRunId + intent 审计链 | ⬜ | **W2** | M | 每 send turn 生成 `agentRunId`；贯穿 tool decision / loop step / MCP audit；`metadataJson` 含 `userTextDigest`、`sourceScopeSummary`、`workflowId` | Replay 可按 run 过滤；为 **A14** 按 run 断言前置 | 否 |
 | **A9** | 轻量本地 semantic guard（入/出站） | ⬜ | **W4** | M | `semanticGuard.ts`；挂 A10 callback；flag `aiSemanticGuardEnabled`；`trustTier`。**阻塞 B11 schema 进 LLM 前的扫描** | injection/PII 单测；`adversarial-*` eval | 是 |
 | **A10** | Runner 基座：Callback + Catalog + commitToolEffects | ⬜ | **W2** | L | A10.1–A10.4：`agentCallbacks.ts`、`aiToolCatalog.ts`、`commitToolEffects.ts`；`executeAutoToolCall` 无旁路。**A10.6** `executeReadonlyToolBatch`（可随 A12 parallel 样本）。SDD：`agent-runtime-runner-foundation/` | grep 无直写 localToolState/audit 旁路；catalog parity 绿 | 是 |
@@ -194,7 +195,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B11** | 外部 MCP trust allowlist | M | [架构补强](./Agent运行时架构补强-本地优先落地方案-2026-06-01.md) §9；`ExternalMcpTrustRegistry`；**trust 确认前 MCP schema 不得进 LLM**；首次连接经 **A9** 扫描。**依赖：A9**（Agent 轨 **Wave 4** 与 A9 同波收口） | 未登记 server deny；schema 零暴露；用户显式启用；审计 readback | 是 |
 | **B12** | MCP resources/prompts + AgentArtifactV0 | M | [架构补强](./Agent运行时架构补强-本地优先落地方案-2026-06-01.md) §10；MCP `resources/list` + `prompts/list`；`AgentArtifactV0` + AdoptionQueue。**依赖：B11 + A12** | resource URI readback；artifact 引用链；B5b 导出清单衔接 | 是 |
 | **B8** | 词典附件能力（引用式资产，P1-2） | M | `LexiconPage`、`useTranscriptionCollaborationBridge`、`useTranscriptionData` | 附件元数据持久化+回显（写→reload→readback）；删除走引用计数安全回收 | 是 |
-| **B9** | 分析页 /analysis | — | **保留占位、暂不排期**：功能方向未定；维持 `FeatureAvailabilityPanel` 占位，不投入开发。待方向明确后再立 spec 排期 | — | — |
+| **B9** | 分析页 /analysis | — | **受限工作台已落地（非产品级开放台）**：[ADR-0033](../../adr/0033-analysis-restricted-workspace-no-transcription-dock.md) 把 `/analysis` 做成向量索引 / 语料统计入口（复用 `TranscriptionPageAnalysisRuntime`，`visibleTabs`: embedding / stats），**不嵌波形、不升格为第二转写台**。完整科研分析工作台仍不排期 | — | — |
 
 ### Stage C — 对外 / 协作（拍板 1B 预留）
 
@@ -253,3 +254,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-06-01 | **据前 11 PR 修复落地审查与运行时审计修正**：①A4 粒度 M→L，明确 3 flag 切换需逐项验证（spec + agent-evals + e2e）后才可切默认，非简单改布尔值；②B4a 拆分为 B4a-1（壳+IGT 列表+键盘骨架，M）与 B4a-2（POS/gloss 编辑+保存链路+readback，L），解决「25 行占位→可写工作台」2d 装不完问题；③B5a 粒度 M→L，匹配从占位到工作集+多选+态持久化的实际工作量；④Stage B 启动前置条件增加硬阻塞：ChatWindow.tsx 阈值释放（或预拆）、A4 验证完成、实时 guard 无新增 hotspot；⑤Agent 架构门槛（A6+A7+A10）明确为「完成并归档证据后硬阻塞」；⑥B6 增加 segmentMeta 一致性策略说明（best-effort 最终一致性，UI 须兼容延迟）；⑦工程治理门槛更新：sessionMemory.ts 硬失败已消除（前 11 PR 修复），当前仅剩 ChatWindow.tsx 766/800＝96% 一项 hotspot。 |
 | 2026-06-09 | **Anthropic Engineering 审查对账**：§2 增 P1–P5 脚注（不新增 A15/A16）；A7 验收改为自动策略优先 + A11 preview-diff；A10 增 readonly batch；A12 增 workflowCompletionChecklist；A14 增 suite 二分；链 [智能体改进方案-Anthropic启发](./智能体改进方案-Anthropic启发-2026-06-09.md) §10 与 [write-gate SDD](../specs/agent-runtime-security-write-gate/)。 |
 | 2026-06-10 | **Agent 架构轨合并重排**：新增 §2.2（已落地清单 + Wave 1–4 + Stage B 解锁 + 统一验证）；§3 Stage A 增状态/波次列；新增切片 **A4b**（JIT + effort scaling）；A4/A7/A12/A14 标 🟡 与剩余 DoD；明确 [代码审查 PR-0～12](./代码审查问题统一修复方案-2026-06-01.md) 已收口、不纳入 Agent 波次；A4 硬阻塞改为「代码已放量、证据待收口」。 |
+| 2026-09-02 | **进度对账**：A5 标 ✅（时间轴 A–F 已闭，§9 为后续 backlog）；A6 标 ✅（sidecar 入口守卫 + 工业三开关环境矩阵）；A7 Phase 1 `effect`/`scopeBinding` + localContext catalog parity 落地（切片仍 🟡，待 A11）；B9 改为 ADR-0033 受限分析工作台，不再写「FeatureAvailabilityPanel 占位」。 |

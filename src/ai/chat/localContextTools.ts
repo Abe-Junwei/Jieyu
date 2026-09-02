@@ -1,5 +1,6 @@
 import { extractJsonCandidates } from './toolCallSchemas';
 import { AI_LOCAL_TOOL_RESULT_CHAR_BUDGET } from '../../hooks/ai/useAiChat.config';
+import { LOCAL_CONTEXT_TOOL_NAMES } from '../policy/localContextToolEffects';
 import type { LocalContextToolCall, LocalContextToolName } from './localContextToolTypes';
 
 export type {
@@ -7,29 +8,7 @@ export type {
   LocalContextToolResult,
   LocalToolExecutionTraceOptions,
 } from './localContextToolTypes';
-
-const LOCAL_CONTEXT_TOOL_NAMES = new Set<LocalContextToolName>([
-  'get_current_selection',
-  'list_layers',
-  'list_layer_links',
-  'get_unsaved_drafts',
-  'list_speakers',
-  'list_notes',
-  'list_notes_detail',
-  'get_visible_timeline_state',
-  'get_speaker_breakdown',
-  'get_project_stats',
-  'get_waveform_analysis',
-  'get_acoustic_summary',
-  'find_incomplete_units',
-  'diagnose_quality',
-  'batch_apply',
-  'suggest_next_action',
-  'list_units',
-  'search_units',
-  'get_unit_detail',
-  'get_unit_linguistic_memory',
-]);
+export { LOCAL_CONTEXT_TOOL_NAMES } from '../policy/localContextToolEffects';
 
 function normalizeToolName(name: string): LocalContextToolName | null {
   const normalized = name.trim().toLowerCase();

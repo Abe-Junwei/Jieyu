@@ -3,7 +3,7 @@ title: AI Agent 运行时安全 — 本地优先策略
 doc_type: architecture
 status: active
 owner: ai-governance
-last_reviewed: 2026-06-01
+last_reviewed: 2026-09-02
 source_of_truth: current-state
 depends_on:
   - ./ai-execution-capability-strategy-matrix-v0.md
@@ -79,7 +79,20 @@ Parallel:
   MCP Client (outbound) → B11 trust registry (未来)
 ```
 
-## 5. 与现有文档关系
+## 5. A6 落地口径（F4 Batch B/C + 工业三开关）
+
+截至 2026-09-02，A6 不再是从零建设：
+
+| 项 | 代码 / 门禁 | 环境默认 |
+| --- | --- | --- |
+| Batch A 旁路 | 置顶 directive + send-preflight + 后台记忆 flush 走 sandbox | — |
+| Batch B 写入口登记 | `npm run check:ai-session-sidecar-entrypoints` 白名单；新增 `applyUserDirectivesToSessionMemory` 必须先登记再接线 | — |
+| Batch C 可观测 | `npm run gate:release-evidence:session-sidecar-sandbox`；`gate:release-evidence:governance:strict` | — |
+| 工业三开关 | `aiBackgroundToolSandboxEnabled` / `aiBackgroundMemorySessionWriteQuotaEnabled` / `aiToolCallExecutorAutoRetryEnabled` | **dogfood / staging ON**；**prod / local OFF**（可用 `VITE_AI_*` 覆盖） |
+
+环境矩阵测试：`src/ai/config/featureFlags.environmentMatrix.test.ts`。
+
+## 6. 与现有文档关系
 
 | 文档 | 关系 |
 | --- | --- |
@@ -88,9 +101,10 @@ Parallel:
 | [ai-agent-architecture-risk-assessment](../execution/audits/ai-agent-architecture-risk-assessment-2026-05-17.md) | 可靠性 P0（闭环重规划）仍属 A4，与安全轨并行 |
 | [ADR-0031](../adr/0031-ai-chat-keyvault-and-csp-connect-src.md) | KeyVault / CSP 边界不因 A9 而夸大 |
 
-## 6. 修订记录
+## 7. 修订记录
 
 | 日期 | 说明 |
 | --- | --- |
 | 2026-06-01 | 初版：本地优先 Agent 运行时安全策略；切片 A6–A9 / B11 映射；并入主路线图。 |
 | 2026-06-01 | 对齐架构补强：排期扩至 A6–A14；任务真源改 [架构补强落地方案](../execution/plans/Agent运行时架构补强-本地优先落地方案-2026-06-01.md)；链 [Runner 模型](./ai-agent-runtime-runner-model.md)。 |
+| 2026-09-02 | A6 落地口径：sidecar 入口守卫 + 工业三开关环境矩阵（dogfood/staging ON、prod OFF）记入本文。 |
