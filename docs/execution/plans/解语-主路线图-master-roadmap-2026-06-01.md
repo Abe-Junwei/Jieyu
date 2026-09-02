@@ -52,7 +52,7 @@ A8 agentRunId 审计     ─┤   ├─► B8 词典附件
 A9 semantic guard      ─┤   ├─► B11 外部 MCP trust
 A10 Runner 基座        ─┤   └─► B12 MCP resources + Artifacts
 A11 UI/Event + Preview ─┤
-A12 Workflow 强化      ─┤   (B9 分析页：保留占位，暂不排期)
+A12 Workflow 强化      ─┤   (B9 分析页：ADR-0033 受限工作台已落地)
 A13 TaskRunner+Parallel─┤
 A14 Eval trajectory   ─┘
                                      │
@@ -254,4 +254,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-06-01 | **据前 11 PR 修复落地审查与运行时审计修正**：①A4 粒度 M→L，明确 3 flag 切换需逐项验证（spec + agent-evals + e2e）后才可切默认，非简单改布尔值；②B4a 拆分为 B4a-1（壳+IGT 列表+键盘骨架，M）与 B4a-2（POS/gloss 编辑+保存链路+readback，L），解决「25 行占位→可写工作台」2d 装不完问题；③B5a 粒度 M→L，匹配从占位到工作集+多选+态持久化的实际工作量；④Stage B 启动前置条件增加硬阻塞：ChatWindow.tsx 阈值释放（或预拆）、A4 验证完成、实时 guard 无新增 hotspot；⑤Agent 架构门槛（A6+A7+A10）明确为「完成并归档证据后硬阻塞」；⑥B6 增加 segmentMeta 一致性策略说明（best-effort 最终一致性，UI 须兼容延迟）；⑦工程治理门槛更新：sessionMemory.ts 硬失败已消除（前 11 PR 修复），当前仅剩 ChatWindow.tsx 766/800＝96% 一项 hotspot。 |
 | 2026-06-09 | **Anthropic Engineering 审查对账**：§2 增 P1–P5 脚注（不新增 A15/A16）；A7 验收改为自动策略优先 + A11 preview-diff；A10 增 readonly batch；A12 增 workflowCompletionChecklist；A14 增 suite 二分；链 [智能体改进方案-Anthropic启发](./智能体改进方案-Anthropic启发-2026-06-09.md) §10 与 [write-gate SDD](../specs/agent-runtime-security-write-gate/)。 |
 | 2026-06-10 | **Agent 架构轨合并重排**：新增 §2.2（已落地清单 + Wave 1–4 + Stage B 解锁 + 统一验证）；§3 Stage A 增状态/波次列；新增切片 **A4b**（JIT + effort scaling）；A4/A7/A12/A14 标 🟡 与剩余 DoD；明确 [代码审查 PR-0～12](./代码审查问题统一修复方案-2026-06-01.md) 已收口、不纳入 Agent 波次；A4 硬阻塞改为「代码已放量、证据待收口」。 |
-| 2026-09-02 | **进度对账**：A5 标 ✅（时间轴 A–F 已闭，§9 为后续 backlog）；A6 标 ✅（sidecar 入口守卫 + 工业三开关环境矩阵）；A7 Phase 1 `effect`/`scopeBinding` + localContext catalog parity 落地（切片仍 🟡，待 A11）；**A4 证据收口关闭**（handoff+clarify e2e、`:trace` 17/17、vertical envelope.status、spec 勾选）；B9 改为 ADR-0033 受限分析工作台，不再写「FeatureAvailabilityPanel 占位」。 |
+| 2026-09-02 | **进度对账**：A5 标 ✅（时间轴 A–F 已闭，§9 为后续 backlog）；A6 标 ✅（sidecar 入口守卫 + 工业三开关环境矩阵）；A7 Phase 1 `effect`/`scopeBinding` + localContext catalog parity 落地（切片仍 🟡，待 A11）；**A4 证据收口关闭**（handoff+clarify e2e、`:trace` 17/17、vertical envelope.status、spec 勾选）；B9 改为 ADR-0033 受限分析工作台（依赖图与代码地图 `/analysis` 路由条目同步，不再写「占位」）。 |
