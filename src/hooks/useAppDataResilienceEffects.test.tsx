@@ -31,6 +31,7 @@ afterEach(() => {
   getPreMigrationBackupForMigrationMock.mockReset();
   restorePreMigrationBackupMock.mockReset();
   Object.defineProperty(window.navigator, 'webdriver', { configurable: true, value: false });
+  delete document.documentElement.dataset.jieyuE2eDbOpenHook;
 });
 
 describe('useAppDataResilienceEffects', () => {
@@ -107,6 +108,8 @@ describe('useAppDataResilienceEffects', () => {
     restorePreMigrationBackupMock.mockResolvedValue('missing');
 
     const { result } = renderHook(() => useAppDataResilienceEffects('zh-CN'));
+
+    expect(document.documentElement.dataset.jieyuE2eDbOpenHook).toBe('1');
 
     act(() => {
       window.dispatchEvent(
