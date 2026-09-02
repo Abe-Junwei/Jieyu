@@ -213,6 +213,10 @@
   max-width: 28rem;
 }
 
+.timeline-empty-actions-kicker {
+  display: block;
+}
+
 .timeline-empty-actions-copy .entry-card__title {
   font-size: var(--panel-typography-overlay-title-size, calc(18px * var(--ui-font-scale, 1)));
 }

@@ -12,7 +12,12 @@ import {
   type TimelineSelectionCommand,
   type TimelineSelectionWriteInput,
 } from '../utils/applyTimelineSelectionCommand';
-import { resolveWaveformPointerClientXToDocSec } from '../utils/waveformPointerClientXToDocSec';
+import {
+  clampPointerTimeToRegion,
+  getNeighborBoundsRouted as computeNeighborBoundsRouted,
+  resolveSubdivisionParentUnit as computeSubdivisionParentUnit,
+  resolveWaveformSurfacePointerTime,
+} from './transcriptionTimelineInteractionRouting';
 import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
@@ -86,75 +91,31 @@ export function useTranscriptionTimelineInteractionController(
 
   const resolveWaveformRegionPointerTime = useCallback(
     (regionId: string, clientX: number, fallbackTime: number): number => {
-      const ws = input.player.instanceRef.current;
-      if (!ws) return fallbackTime;
-
-      const waveCanvas = input.waveCanvasRef.current;
-      const documentSpanSec =
-        typeof input.documentSpanSec === 'number' &&
-        Number.isFinite(input.documentSpanSec) &&
-        input.documentSpanSec > 0
-          ? input.documentSpanSec
-          : ws.getDuration();
-      const zoomPxPerSec =
-        typeof input.zoomPxPerSec === 'number' &&
-        Number.isFinite(input.zoomPxPerSec) &&
-        input.zoomPxPerSec > 0
-          ? input.zoomPxPerSec
-          : 0;
-      const viewportRectLeftPx =
-        waveCanvas?.getBoundingClientRect().left ??
-        ws.getWrapper()?.parentElement?.getBoundingClientRect().left;
-      if (typeof viewportRectLeftPx !== 'number' || zoomPxPerSec <= 0) {
-        return fallbackTime;
-      }
-
-      const mapped = resolveWaveformPointerClientXToDocSec({
+      const mapped = resolveWaveformSurfacePointerTime({
         clientX,
-        viewportRectLeftPx,
-        ws,
+        fallbackTime,
+        ws: input.player.instanceRef.current,
+        waveCanvas: input.waveCanvasRef.current,
+        ...(input.documentSpanSec !== undefined ? { documentSpanSec: input.documentSpanSec } : {}),
+        ...(input.zoomPxPerSec !== undefined ? { zoomPxPerSec: input.zoomPxPerSec } : {}),
         tierScrollLeftPx: input.tierContainerRef?.current?.scrollLeft ?? 0,
-        documentSpanSec,
-        pxPerDocSec: zoomPxPerSec,
-        logicalDurationSec: documentSpanSec,
       });
-      if (mapped === null) return fallbackTime;
-
-      const timelineItem = input.waveformTimelineItems.find((item) => item.id === regionId);
-      const regionStart = timelineItem?.startTime ?? mapped;
-      const regionEnd = timelineItem?.endTime ?? mapped;
-      return Math.max(regionStart, Math.min(regionEnd, mapped));
+      return clampPointerTimeToRegion(mapped, regionId, input.waveformTimelineItems);
     },
     [input],
   );
 
   const resolveSubdivisionParentUnit = useCallback(
-    (segmentId: string, layerId: string, proposedStart?: number, proposedEnd?: number) => {
-      const routing = input.resolveSegmentRoutingForLayer(layerId);
-      if (!routing.segmentSourceLayer) return undefined;
-
-      const segmentRow = input.segmentsByLayer
-        .get(routing.sourceLayerId)
-        ?.find((segment) => segment.id === segmentId);
-      const parentUnitId =
-        typeof segmentRow?.unitId === 'string' && segmentRow.unitId.trim().length > 0
-          ? segmentRow.unitId.trim()
-          : undefined;
-
-      if (parentUnitId) {
-        return input.unitsOnCurrentMedia.find((unit) => unit.id === parentUnitId);
-      }
-
-      const fallbackStart = segmentRow?.startTime ?? proposedStart;
-      const fallbackEnd = segmentRow?.endTime ?? proposedEnd ?? fallbackStart;
-      if (typeof fallbackStart !== 'number' || typeof fallbackEnd !== 'number') {
-        return undefined;
-      }
-
-      return input.unitsOnCurrentMedia.find(
-        (unit) => unit.startTime <= fallbackStart + 0.01 && unit.endTime >= fallbackEnd - 0.01,
-      );
-    },
+    (segmentId: string, layerId: string, proposedStart?: number, proposedEnd?: number) =>
+      computeSubdivisionParentUnit({
+        segmentId,
+        layerId,
+        ...(proposedStart !== undefined ? { proposedStart } : {}),
+        ...(proposedEnd !== undefined ? { proposedEnd } : {}),
+        routing: input.resolveSegmentRoutingForLayer(layerId),
+        segmentsByLayer: input.segmentsByLayer,
+        unitsOnCurrentMedia: input.unitsOnCurrentMedia,
+      }),
     [input],
   );
 
@@ -245,42 +206,18 @@ export function useTranscriptionTimelineInteractionController(
   );
 
   const getNeighborBoundsRouted = useCallback(
-    (itemId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => {
-      if (layerId) {
-        const routing = input.resolveSegmentRoutingForLayer(layerId);
-        if (routing.segmentSourceLayer) {
-          const segments = input.segmentsByLayer.get(routing.sourceLayerId) ?? [];
-          const siblings = segments
-            .filter((segment) => segment.id !== itemId)
-            .sort((left, right) => left.startTime - right.startTime);
-          const timeline = [
-            ...siblings,
-            { id: itemId, startTime: probeStart, endTime: probeStart + 0.1 },
-          ].sort((left, right) => left.startTime - right.startTime);
-          const index = timeline.findIndex((segment) => segment.id === itemId);
-          const prev = index > 0 ? timeline[index - 1] : undefined;
-          const next = index >= 0 && index < timeline.length - 1 ? timeline[index + 1] : undefined;
-          let left = prev ? prev.endTime + 0.02 : 0;
-          let right: number | undefined = next ? next.startTime - 0.02 : undefined;
-          if (routing.editMode === 'time-subdivision') {
-            const parentUnit = resolveSubdivisionParentUnit(
-              itemId,
-              layerId,
-              probeStart,
-              probeStart + 0.1,
-            );
-            if (parentUnit) {
-              left = Math.max(left, parentUnit.startTime);
-              right =
-                right !== undefined ? Math.min(right, parentUnit.endTime) : parentUnit.endTime;
-            }
-          }
-          return { left, right };
-        }
-      }
-      return input.getNeighborBounds(itemId, mediaId, probeStart);
-    },
-    [input, resolveSubdivisionParentUnit],
+    (itemId: string, mediaId: string | undefined, probeStart: number, layerId?: string) =>
+      computeNeighborBoundsRouted({
+        itemId,
+        mediaId,
+        probeStart,
+        ...(layerId !== undefined ? { layerId } : {}),
+        ...(layerId !== undefined ? { routing: input.resolveSegmentRoutingForLayer(layerId) } : {}),
+        segmentsByLayer: input.segmentsByLayer,
+        unitsOnCurrentMedia: input.unitsOnCurrentMedia,
+        getNeighborBounds: input.getNeighborBounds,
+      }),
+    [input],
   );
 
   const saveTimingRouted = useCallback(
@@ -338,49 +275,16 @@ export function useTranscriptionTimelineInteractionController(
       }
 
       const ws = input.player.instanceRef.current;
-      let splitTime = ws?.getCurrentTime() ?? 0;
-      if (ws) {
-        const waveCanvas = input.waveCanvasRef.current;
-        const documentSpanSec =
-          typeof input.documentSpanSec === 'number' &&
-          Number.isFinite(input.documentSpanSec) &&
-          input.documentSpanSec > 0
-            ? input.documentSpanSec
-            : ws.getDuration();
-        const zoomPxPerSec =
-          typeof input.zoomPxPerSec === 'number' &&
-          Number.isFinite(input.zoomPxPerSec) &&
-          input.zoomPxPerSec > 0
-            ? input.zoomPxPerSec
-            : 0;
-        const viewportRectLeftPx =
-          waveCanvas?.getBoundingClientRect().left ??
-          ws.getWrapper()?.parentElement?.getBoundingClientRect().left;
-        if (typeof viewportRectLeftPx === 'number' && zoomPxPerSec > 0) {
-          const mapped = resolveWaveformPointerClientXToDocSec({
-            clientX: x,
-            viewportRectLeftPx,
-            ws,
-            tierScrollLeftPx: input.tierContainerRef?.current?.scrollLeft ?? 0,
-            documentSpanSec,
-            pxPerDocSec: zoomPxPerSec,
-            logicalDurationSec: documentSpanSec,
-          });
-          if (mapped !== null) {
-            splitTime = mapped;
-          }
-        } else {
-          const wrapper = ws.getWrapper();
-          const scrollParent = wrapper?.parentElement;
-          if (wrapper && scrollParent) {
-            const rect = scrollParent.getBoundingClientRect();
-            const pxOffset = x - rect.left + scrollParent.scrollLeft;
-            const totalWidth = wrapper.scrollWidth;
-            const duration = ws.getDuration() || 1;
-            splitTime = Math.max(0, Math.min(duration, (pxOffset / totalWidth) * duration));
-          }
-        }
-      }
+      const splitTime = resolveWaveformSurfacePointerTime({
+        clientX: x,
+        fallbackTime: ws?.getCurrentTime() ?? 0,
+        ws,
+        waveCanvas: input.waveCanvasRef.current,
+        ...(input.documentSpanSec !== undefined ? { documentSpanSec: input.documentSpanSec } : {}),
+        ...(input.zoomPxPerSec !== undefined ? { zoomPxPerSec: input.zoomPxPerSec } : {}),
+        tierScrollLeftPx: input.tierContainerRef?.current?.scrollLeft ?? 0,
+        allowWrapperFallback: true,
+      });
 
       const timelineItem = input.waveformTimelineItems.find((item) => item.id === regionId);
       const menuLayerIdFromItem =

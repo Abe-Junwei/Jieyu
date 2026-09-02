@@ -3,7 +3,7 @@ title: agent-runtime-security-write-gate tasks
 doc_type: execution-spec-tasks
 status: draft
 owner: ai-governance
-last_reviewed: 2026-06-09
+last_reviewed: 2026-09-02
 source_of_truth: agent-runtime-security-write-gate-spec
 depends_on:
   - ./requirements.md
@@ -18,8 +18,8 @@ depends_on:
 
 | # | 任务 | 文件 | 验证 |
 |---|------|------|------|
-| 1.1 | 扩展 `aiToolPolicyMatrix`：`effect`（read/write/destructive）、`scopeBinding` | `aiToolPolicyMatrix.ts` | vitest |
-| 1.2 | 只读工具登记 parity（localContextTools 全集） | catalog shadow / matrix | grep + test |
+| 1.1 | ✅ 扩展 `aiToolPolicyMatrix`：`effect`（read/write/destructive）、`scopeBinding` | `aiToolPolicyMatrix.ts` | vitest |
+| 1.2 | ✅ 只读工具登记 parity（localContextTools 全集） | `localContextToolEffects.ts` catalog | `localContextToolEffects.test.ts` |
 
 ## Phase 2: Last Mile gate
 

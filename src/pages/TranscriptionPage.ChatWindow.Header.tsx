@@ -87,7 +87,10 @@ export function TranscriptionPageChatWindowHeader({
     >
       <div className="transcription-chat-window-header-meta">
         {conversationManagementEnabled && conversationManagement ? (
-          <div className="ai-chat-header-anchor transcription-chat-window-conversation-anchor">
+          <div
+            className="ai-chat-header-anchor transcription-chat-window-conversation-anchor"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
             <div className="ai-chat-conversation-chrome is-floating">
               <button
                 type="button"

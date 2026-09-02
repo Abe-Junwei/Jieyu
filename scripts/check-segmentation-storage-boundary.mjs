@@ -26,6 +26,7 @@ const ALLOWED_FILES = new Set([
   'src/services/LayerSegmentQueryService.ts',
   'src/services/LayerUnitRelationQueryService.ts',
   'src/services/LayerUnitSegmentWritePrimitives.ts',
+  'src/services/LinguisticService.cleanup.ts',
 ]);
 
 function walk(dir) {
