@@ -7,6 +7,7 @@ import {
   createAgentLoopTraceContext,
   DEFAULT_AGENT_LOOP_CONFIG,
   estimateRemainingLoopTokens,
+  resolveEffectiveMaxSteps,
   shouldWarnTokenBudget,
   shouldContinueAgentLoop,
 } from './agentLoop';
@@ -285,5 +286,20 @@ describe('agentLoop helpers', () => {
     expect(tags.queryFamily).toBe('quality');
     expect(tags.scope).toBe('current_track');
     expect(tags.selectedToolCount).toBe(2);
+  });
+});
+
+describe('resolveEffectiveMaxSteps', () => {
+  it('returns base when effort scaling is disabled', () => {
+    expect(resolveEffectiveMaxSteps(6, 'count', false)).toBe(6);
+    expect(resolveEffectiveMaxSteps(6, 'search', false)).toBe(6);
+  });
+
+  it('scales count to 2 and search/detail to 4 when enabled', () => {
+    expect(resolveEffectiveMaxSteps(6, 'count', true)).toBe(2);
+    expect(resolveEffectiveMaxSteps(6, 'search', true)).toBe(4);
+    expect(resolveEffectiveMaxSteps(6, 'detail', true)).toBe(4);
+    expect(resolveEffectiveMaxSteps(6, 'selection', true)).toBe(6);
+    expect(resolveEffectiveMaxSteps(6, undefined, true)).toBe(6);
   });
 });

@@ -30,6 +30,7 @@ interface BuildAndAuditToolIntentParams {
   toolFeedbackStyle: AiToolFeedbackStyle;
   planner?: Parameters<typeof buildToolAuditContext>[5];
   memoryRecallShape?: AiMemoryRecallShapeTelemetry;
+  agentRunId?: string;
   writeToolIntentAuditLog: (
     assistantMessageId: string,
     callName: AiChatToolCall['name'],
@@ -54,6 +55,7 @@ export async function buildAndAuditToolIntent({
   toolFeedbackStyle,
   planner,
   memoryRecallShape,
+  agentRunId,
   writeToolIntentAuditLog,
 }: BuildAndAuditToolIntentParams): Promise<{
   intentAssessment: ReturnType<typeof assessToolActionIntent>;
@@ -78,6 +80,7 @@ export async function buildAndAuditToolIntent({
     planner,
     intentAssessment,
     memoryRecallShape,
+    agentRunId,
   );
 
   // 审计写入为副作用，不应阻塞主逻辑 | Audit write is a side-effect, should not block main logic

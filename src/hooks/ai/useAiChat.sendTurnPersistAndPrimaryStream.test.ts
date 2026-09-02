@@ -80,6 +80,7 @@ function makePreflight(): SendTurnPreflightContext {
     verticalWorkflowSelection: null,
     verticalOutputEnvelopeSeed: null,
     streamGenerationAtStart: 0,
+    agentRunId: 'run_test',
   };
 }
 

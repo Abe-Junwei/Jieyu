@@ -57,6 +57,7 @@ export interface ToolAuditContext {
   plannerReason?: ToolPlannerClarifyReason;
   intentAssessment?: ToolIntentAssessment;
   memoryRecallShape?: AiMemoryRecallShapeTelemetry;
+  agentRunId?: string;
 }
 
 export interface ToolIntentAuditMetadata {
@@ -66,6 +67,8 @@ export interface ToolIntentAuditMetadata {
   assistantMessageId: string;
   toolCall: AiChatToolCall;
   context: ToolAuditContext;
+  /** A8: send-turn run id when present on `context`. */
+  agentRunId?: string;
   /** P1: deduped `formatEvidenceSourceRefForAudit` keys for evidence / segment joins (see `evidenceSourceRef.ts`). */
   evidenceSourceRefs?: string[];
 }
@@ -94,6 +97,8 @@ export interface ToolDecisionAuditMetadata {
     ok: boolean;
     errorCount: number;
   };
+  /** A8: send-turn run id when present on `context`. */
+  agentRunId?: string;
   /** P1: deduped `formatEvidenceSourceRefForAudit` keys for evidence / segment joins (see `evidenceSourceRef.ts`). */
   evidenceSourceRefs?: string[];
 }

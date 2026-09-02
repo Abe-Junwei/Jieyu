@@ -87,5 +87,6 @@ export function buildSendTurnStreamCompletionEnv(
     verticalOutputEnvelopeSeed,
     shouldApplyTurnSideEffects,
     turnConversationId: sendTurnConversationId,
+    ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
   };
 }

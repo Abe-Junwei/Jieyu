@@ -391,6 +391,7 @@ export interface ToolAuditContext {
   plannerReason?: ToolPlannerClarifyReason;
   intentAssessment?: ToolIntentAssessment;
   memoryRecallShape?: AiMemoryRecallShapeTelemetry;
+  agentRunId?: string;
 }
 
 export interface AiMemoryRecallShapeTelemetry {

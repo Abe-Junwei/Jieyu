@@ -153,4 +153,5 @@ export type RunAiChatSendTurnStreamPhaseInput = Readonly<{
   markExecutedRequestId: (requestId: string) => void;
   bumpMetric: (key: keyof AiInteractionMetrics, delta?: number) => void;
   localToolCallCountRef: MutableRefObject<number>;
+  agentRunId?: string;
 }>;
