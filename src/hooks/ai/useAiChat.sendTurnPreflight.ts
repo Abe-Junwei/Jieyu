@@ -48,6 +48,8 @@ import {
   AI_CHAT_BACKGROUND_MEMORY_SANDBOX_PROFILE,
 } from './useAiChat.backgroundMemory';
 import type { AiSessionMemory, UiChatMessage } from './useAiChat.types';
+import { newAgentRunId } from '../../ai/runtime/agentRunId';
+import { getDefaultAgentCallbackRegistry } from '../../ai/runtime/agentCallbacks';
 
 export type SendTurnDbConversationHolder = {
   dbRef: Awaited<ReturnType<typeof getDb>> | null;
@@ -92,6 +94,8 @@ export type SendTurnPreflightContext = Readonly<{
   correlationId: string;
   /** G0c: generation captured immediately before seeding user/assistant UI rows. */
   streamGenerationAtStart: number;
+  /** A8: one id per user send attempt, copied onto tool audit metadata. */
+  agentRunId: string;
 }>;
 
 /** Returns null when the turn should not proceed (caller already updated UI / errors). */
@@ -359,6 +363,8 @@ export async function runAiChatSendTurnPreflight(
   }
 
   const correlationId = newMessageId('snt');
+  const agentRunId = newAgentRunId();
+  void getDefaultAgentCallbackRegistry().run('before_turn', { agentRunId });
 
   return {
     correlationId,
@@ -385,5 +391,6 @@ export async function runAiChatSendTurnPreflight(
     verticalWorkflowSelection,
     verticalOutputEnvelopeSeed,
     streamGenerationAtStart,
+    agentRunId,
   };
 }

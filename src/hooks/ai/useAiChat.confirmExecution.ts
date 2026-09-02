@@ -15,7 +15,8 @@ import {
   formatNoExecutorToolFailureDetail,
   formatToolExecutionFallbackError,
 } from '../../ai/messages';
-import { buildPostExecSessionMemory } from './useAiChat.postExecSessionPatch';
+import { runWithToolCallbacks } from '../../ai/runtime/agentCallbacks';
+import { commitToolEffects } from '../../ai/runtime/commitToolEffects';
 import { nowIso } from './useAiChat.helpers';
 import { genRequestId } from './useAiChat.toolAudit';
 import type { Locale } from '../../i18n';
@@ -421,7 +422,14 @@ export async function executeConfirmedToolCall({
         return;
       }
 
-      const result = await raceWithTimeout(onToolCall(call), TOOL_EXEC_TIMEOUT_MS);
+      const result = await runWithToolCallbacks(
+        call.name,
+        () => raceWithTimeout(onToolCall(call), TOOL_EXEC_TIMEOUT_MS),
+        {
+          ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
+          resultOk: (item) => item.ok,
+        },
+      );
       const execDurationMs = Math.round(performance.now() - execStart);
 
       if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
@@ -435,15 +443,16 @@ export async function executeConfirmedToolCall({
 
       if (result.ok) {
         bumpMetric('successCount');
-        const nextSessionMemory = buildPostExecSessionMemory({
-          sessionMemory,
-          toolName: call.name,
-          language:
-            typeof call.arguments.language === 'string' ? call.arguments.language : undefined,
-          layerId: undefined,
-        });
-        updateSessionMemory(nextSessionMemory);
-        persistSessionMemory(nextSessionMemory);
+        commitToolEffects(
+          { sessionMemory, updateSessionMemory, persistSessionMemory },
+          {
+            kind: 'chat_tool',
+            toolName: call.name,
+            ...(typeof call.arguments.language === 'string'
+              ? { language: call.arguments.language }
+              : {}),
+          },
+        );
       } else {
         bumpMetric('failureCount');
       }
@@ -849,7 +858,14 @@ export async function executeConfirmedProposedChangeBatch({
         return;
       }
 
-      const result = await raceWithTimeout(onToolCall(childWithRequestId), TOOL_EXEC_TIMEOUT_MS);
+      const result = await runWithToolCallbacks(
+        childWithRequestId.name,
+        () => raceWithTimeout(onToolCall(childWithRequestId), TOOL_EXEC_TIMEOUT_MS),
+        {
+          ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
+          resultOk: (item) => item.ok,
+        },
+      );
 
       if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
         finishIdle();
@@ -912,14 +928,13 @@ export async function executeConfirmedProposedChangeBatch({
     }
 
     bumpMetric('successCount');
-    const nextSessionMemory = buildPostExecSessionMemory({
-      sessionMemory,
-      toolName: lastOkChildName,
-      language: undefined,
-      layerId: undefined,
-    });
-    updateSessionMemory(nextSessionMemory);
-    persistSessionMemory(nextSessionMemory);
+    commitToolEffects(
+      { sessionMemory, updateSessionMemory, persistSessionMemory },
+      {
+        kind: 'chat_tool',
+        toolName: lastOkChildName,
+      },
+    );
 
     await finalizeHumanProposeChangesParentConfirmSuccess({
       assistantMessageId,

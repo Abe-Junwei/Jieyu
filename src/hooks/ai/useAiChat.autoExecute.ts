@@ -8,7 +8,8 @@ import {
   formatNoExecutorToolFailureDetail,
   formatToolExecutionFallbackError,
 } from '../../ai/messages';
-import { buildPostExecSessionMemory } from './useAiChat.postExecSessionPatch';
+import { runWithToolCallbacks } from '../../ai/runtime/agentCallbacks';
+import { commitToolEffects } from '../../ai/runtime/commitToolEffects';
 import type { AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import type { Locale } from '../../i18n';
 import type {
@@ -134,7 +135,14 @@ export async function executeAutoToolCall({
       toolName: toolCall.name,
       updatedAt: nowIso(),
     });
-    const result = await onToolCall(toolCall);
+    const result = await runWithToolCallbacks(
+      toolCall.name,
+      () => Promise.resolve(onToolCall(toolCall)),
+      {
+        ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
+        resultOk: (item) => item.ok,
+      },
+    );
     const autoExecDurationMs = Math.round(performance.now() - autoExecStart);
 
     if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
@@ -161,16 +169,19 @@ export async function executeAutoToolCall({
 
     if (result.ok) {
       bumpMetric('successCount');
-      const nextSessionMemory = buildPostExecSessionMemory({
-        sessionMemory,
-        toolName: toolCall.name,
-        language:
-          typeof toolCall.arguments.language === 'string' ? toolCall.arguments.language : undefined,
-        layerId:
-          typeof toolCall.arguments.layerId === 'string' ? toolCall.arguments.layerId : undefined,
-      });
-      updateSessionMemory(nextSessionMemory);
-      persistSessionMemory(nextSessionMemory);
+      commitToolEffects(
+        { sessionMemory, updateSessionMemory, persistSessionMemory },
+        {
+          kind: 'chat_tool',
+          toolName: toolCall.name,
+          ...(typeof toolCall.arguments.language === 'string'
+            ? { language: toolCall.arguments.language }
+            : {}),
+          ...(typeof toolCall.arguments.layerId === 'string'
+            ? { layerId: toolCall.arguments.layerId }
+            : {}),
+        },
+      );
       if (shouldBumpRecovery) {
         bumpMetric('recoveryCount');
       }

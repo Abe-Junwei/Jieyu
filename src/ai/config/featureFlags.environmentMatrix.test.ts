@@ -106,6 +106,8 @@ describe('featureFlags environment matrix', () => {
     expect(prod.aiAgentLoopContextBudgetRecalculationEnabled).toBe(true);
     expect(prod.aiToolWriteGateEnabled).toBe(false);
     expect(prod.aiAgentLoopToolResultCompactionEnabled).toBe(true);
+    expect(prod.aiAgentLoopEffortScalingEnabled).toBe(false);
+    expect(dogfood.aiAgentLoopEffortScalingEnabled).toBe(false);
   });
 
   it('respects explicit env overrides over matrix defaults', async () => {
@@ -115,10 +117,12 @@ describe('featureFlags environment matrix', () => {
       VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED: 'false',
       VITE_AI_BACKGROUND_MEMORY_SESSION_WRITE_QUOTA_ENABLED: '0',
       VITE_AI_TOOL_CALL_EXECUTOR_AUTO_RETRY_ENABLED: 'false',
+      VITE_AI_AGENT_LOOP_EFFORT_SCALING_ENABLED: 'true',
     });
 
     expect(flags.aiBackgroundToolSandboxEnabled).toBe(false);
     expect(flags.aiBackgroundMemorySessionWriteQuotaEnabled).toBe(false);
     expect(flags.aiToolCallExecutorAutoRetryEnabled).toBe(false);
+    expect(flags.aiAgentLoopEffortScalingEnabled).toBe(true);
   });
 });

@@ -59,4 +59,26 @@ describe('executeAutoToolCall turn side-effect guard', () => {
     expect(result.finalStatus).toBe('error');
     expect(result.finalErrorMessage).toBe('turn_superseded');
   });
+
+  it('commits session memory through commitToolEffects on success', async () => {
+    const persistSessionMemory = vi.fn();
+    const updateSessionMemory = vi.fn();
+    const facts = [
+      { fact: 'keep-me', source: 'user' as const, createdAt: '2026-01-01T00:00:00.000Z' },
+    ];
+
+    const result = await executeAutoToolCall({
+      ...baseParams(),
+      sessionMemory: { projectFacts: facts },
+      persistSessionMemory,
+      updateSessionMemory,
+    });
+
+    expect(result.finalStatus).toBe('done');
+    expect(updateSessionMemory).toHaveBeenCalledTimes(1);
+    expect(persistSessionMemory).toHaveBeenCalledTimes(1);
+    const next = updateSessionMemory.mock.calls[0]?.[0] as AiSessionMemory;
+    expect(next.lastToolName).toBe('set_transcription_text');
+    expect(next.projectFacts).toBe(facts);
+  });
 });

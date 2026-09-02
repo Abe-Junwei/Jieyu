@@ -70,6 +70,36 @@ describe('tool decision audit metadata', () => {
     expect(metadata.context.memoryRecallShape).toEqual(context.memoryRecallShape);
     expect(metadata.evidenceSourceRefs).toEqual(['evidence_packet:segment:seg-1']);
   });
+
+  it('copies agentRunId onto intent and decision audit metadata', () => {
+    const toolCall: AiChatToolCall = {
+      name: 'set_transcription_text',
+      arguments: { segmentId: 'seg-1', text: 'hello' },
+      requestId: 'toolreq-run-id',
+    };
+    const context = buildToolAuditContext(
+      'set text',
+      'mock',
+      'test-model',
+      'enabled',
+      'concise',
+      null,
+      undefined,
+      undefined,
+      'run_abc_def',
+    );
+    expect(context.agentRunId).toBe('run_abc_def');
+    const decision = buildToolDecisionAuditMetadata(
+      'assistant-1',
+      toolCall,
+      context,
+      'ai',
+      'confirmed',
+      true,
+    );
+    expect(decision.agentRunId).toBe('run_abc_def');
+    expect(decision.context.agentRunId).toBe('run_abc_def');
+  });
 });
 
 describe('planToolCallTargets', () => {

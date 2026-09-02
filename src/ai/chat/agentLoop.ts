@@ -5,6 +5,7 @@ import {
 import type { LocalToolMetric } from './chatDomain.types';
 import type { ReplanningDecision } from './agentLoopReplanning';
 import { featureFlags } from '../config/featureFlags';
+import type { LocalToolQueryFamily } from './localToolSlotTypes';
 import { generateTraceId } from '../../observability/aiTrace';
 
 /** Same guidance as `formatLocalContextToolResultMessage` when structured shrink still leaves gaps. */
@@ -35,6 +36,21 @@ export const DEFAULT_AGENT_LOOP_CONFIG: AgentLoopConfig = {
   maxSteps: 6,
   tokenBudgetWarningThreshold: 12000,
 };
+
+/**
+ * A4b: scale maxSteps by queryFamily when `aiAgentLoopEffortScalingEnabled` is on.
+ * Flag default is false — callers must pass the live flag value.
+ */
+export function resolveEffectiveMaxSteps(
+  base: number,
+  queryFamily: LocalToolQueryFamily | undefined,
+  enabled: boolean,
+): number {
+  if (!enabled) return base;
+  if (queryFamily === 'count') return Math.min(base, 2);
+  if (queryFamily === 'search' || queryFamily === 'detail') return Math.min(base, 4);
+  return base;
+}
 
 export function createAgentLoopTraceContext(traceId = generateTraceId()): AgentLoopTraceContext {
   return { traceId };

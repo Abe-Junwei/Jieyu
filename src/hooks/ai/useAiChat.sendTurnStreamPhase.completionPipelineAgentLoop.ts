@@ -101,6 +101,7 @@ export async function runSendTurnStreamAgentLoopAfterPrimaryCompletion(
       orchestrator,
       insertAuditLog: (entry) => db.collections.audit_logs.insert(entry),
       ...(workflowAnswerReady !== undefined ? { workflowAnswerReady } : {}),
+      ...(streamCompletionEnv.agentRunId ? { agentRunId: streamCompletionEnv.agentRunId } : {}),
     },
     {
       resolvedContent: streamCompletionResult.finalContent,

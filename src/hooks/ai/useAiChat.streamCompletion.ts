@@ -18,7 +18,6 @@ import {
   parseLocalContextToolCallsFromText,
 } from '../../ai/chat/localContextTools';
 import {
-  buildLocalToolStatePatchFromCallResult,
   detectLocalToolClarificationNeed,
   resolveLocalToolCalls,
 } from '../../ai/chat/localToolSlotResolver';
@@ -29,6 +28,11 @@ import type { AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import { t, type Locale } from '../../i18n';
 import { resolveLocalContextToolPolicyDecision } from '../../ai/policy/resolveExecutionPolicy';
 import { featureFlags } from '../../ai/config/featureFlags';
+import { runWithToolCallbacks } from '../../ai/runtime/agentCallbacks';
+import {
+  applyLocalContextToolEffects,
+  commitToolEffects,
+} from '../../ai/runtime/commitToolEffects';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
 import type {
   VerticalWorkflowOutputEnvelopeV0,
@@ -125,6 +129,8 @@ export interface ResolveAiChatStreamCompletionParams {
   shouldApplyTurnSideEffects?: () => boolean;
   /** Conversation that started this turn; used to scope session-memory Dexie writes. */
   turnConversationId?: string;
+  /** A8: one id per send-turn, copied onto tool audit metadata. */
+  agentRunId?: string;
 }
 
 export interface ResolveAiChatStreamCompletionResult {
@@ -240,35 +246,6 @@ function publishLocalToolTaskTrace(params: {
   params.setTaskSession(nextSession);
 }
 
-function mergeLocalToolSessionState(
-  sessionMemory: AiSessionMemory,
-  callResults: Array<{ call: LocalContextToolCall; ok: boolean; result: unknown }>,
-): AiSessionMemory {
-  const base = sessionMemory.localToolState ?? {
-    updatedAt: new Date().toISOString(),
-  };
-  const merged = { ...base };
-  for (const item of callResults) {
-    const patch = buildLocalToolStatePatchFromCallResult(item.call, {
-      ok: item.ok,
-      result: item.result,
-    });
-    if (patch.lastIntent) merged.lastIntent = patch.lastIntent;
-    if (patch.lastQuery) merged.lastQuery = patch.lastQuery;
-    if (patch.clearLastQuery) delete merged.lastQuery;
-    if (patch.lastScope) merged.lastScope = patch.lastScope;
-    if (patch.lastFrame) merged.lastFrame = patch.lastFrame;
-    if (patch.lastResultUnitIds !== undefined) {
-      merged.lastResultUnitIds = patch.lastResultUnitIds;
-    }
-  }
-  merged.updatedAt = new Date().toISOString();
-  return {
-    ...sessionMemory,
-    localToolState: merged,
-  };
-}
-
 function buildLocalToolPolicyBlockedMessage(locale: Locale): string {
   return t(locale, 'ai.toolWriteGate.localPolicyBlocked');
 }
@@ -316,6 +293,7 @@ export async function resolveAiChatStreamCompletion({
   resolveFreshAiContext,
   shouldApplyTurnSideEffects,
   turnConversationId,
+  agentRunId,
 }: ResolveAiChatStreamCompletionParams): Promise<ResolveAiChatStreamCompletionResult> {
   if (assistantContent.trim().length === 0) {
     const finalErrorMessage = formatEmptyModelResponseError(toolFeedbackLocale);
@@ -341,6 +319,11 @@ export async function resolveAiChatStreamCompletion({
     }
     const sharedTraceId = localToolTraceOptions?.traceId ?? generateTraceId();
     const localToolResults: LocalContextToolResult[] = [];
+    const batchCallResults: Array<{
+      call: { name: LocalContextToolCall['name']; arguments: LocalContextToolCall['arguments'] };
+      ok: boolean;
+      result: unknown;
+    }> = [];
     let rollingMemory = sessionMemory;
     for (let index = 0; index < localToolCallsParsed.length; index += 1) {
       const rawCall = localToolCallsParsed[index]!;
@@ -402,14 +385,16 @@ export async function resolveAiChatStreamCompletion({
       }
       const toolContext = resolveFreshAiContext?.() ?? aiContext;
       const startedAtMs = Date.now();
-      const result = await executeLocalContextToolCall(
-        stepCall,
-        toolContext,
-        localToolCallCountRef,
-        20,
+      const result = await runWithToolCallbacks(
+        stepCall.name,
+        () =>
+          executeLocalContextToolCall(stepCall, toolContext, localToolCallCountRef, 20, {
+            traceId: sharedTraceId,
+            step: localToolTraceOptions?.step ?? index + 1,
+          }),
         {
-          traceId: sharedTraceId,
-          step: localToolTraceOptions?.step ?? index + 1,
+          ...(agentRunId ? { agentRunId } : {}),
+          resultOk: (item) => item.ok,
         },
       );
       publishLocalToolTaskTrace({
@@ -426,17 +411,18 @@ export async function resolveAiChatStreamCompletion({
         durationMs: Math.max(0, Date.now() - startedAtMs),
       });
       localToolResults.push(result);
-      rollingMemory = mergeLocalToolSessionState(rollingMemory, [
-        {
-          call: { name: stepCall.name, arguments: stepCall.arguments },
-          ok: result.ok,
-          result: result.result,
-        },
-      ]);
+      const stepCallResult = {
+        call: { name: stepCall.name, arguments: stepCall.arguments },
+        ok: result.ok,
+        result: result.result,
+      };
+      rollingMemory = applyLocalContextToolEffects(rollingMemory, [stepCallResult]);
+      batchCallResults.push(stepCallResult);
     }
-    const mergedMemory = rollingMemory;
-    updateSessionMemory(mergedMemory);
-    persistSessionMemory(mergedMemory);
+    commitToolEffects(
+      { sessionMemory, updateSessionMemory, persistSessionMemory },
+      { kind: 'local_context', callResults: batchCallResults },
+    );
     finalContent = formatLocalContextToolBatchResultMessage(
       localToolResults,
       toolFeedbackLocale,
@@ -519,14 +505,16 @@ export async function resolveAiChatStreamCompletion({
     }
     const toolContext = resolveFreshAiContext?.() ?? aiContext;
     const startedAtMs = Date.now();
-    const localToolResult = await executeLocalContextToolCall(
-      resolvedCall,
-      toolContext,
-      localToolCallCountRef,
-      20,
+    const localToolResult = await runWithToolCallbacks(
+      resolvedCall.name,
+      () =>
+        executeLocalContextToolCall(resolvedCall, toolContext, localToolCallCountRef, 20, {
+          traceId: sharedTraceId,
+          step: localToolTraceOptions?.step ?? 1,
+        }),
       {
-        traceId: sharedTraceId,
-        step: localToolTraceOptions?.step ?? 1,
+        ...(agentRunId ? { agentRunId } : {}),
+        resultOk: (item) => item.ok,
       },
     );
     publishLocalToolTaskTrace({
@@ -542,18 +530,22 @@ export async function resolveAiChatStreamCompletion({
       ...(localToolResult.error ? { errorTaxonomy: localToolResult.error } : {}),
       durationMs: Math.max(0, Date.now() - startedAtMs),
     });
-    const mergedMemory = mergeLocalToolSessionState(sessionMemory, [
+    commitToolEffects(
+      { sessionMemory, updateSessionMemory, persistSessionMemory },
       {
-        call: {
-          name: resolvedCall.name,
-          arguments: resolvedCall.arguments,
-        },
-        ok: localToolResult.ok,
-        result: localToolResult.result,
+        kind: 'local_context',
+        callResults: [
+          {
+            call: {
+              name: resolvedCall.name,
+              arguments: resolvedCall.arguments,
+            },
+            ok: localToolResult.ok,
+            result: localToolResult.result,
+          },
+        ],
       },
-    ]);
-    updateSessionMemory(mergedMemory);
-    persistSessionMemory(mergedMemory);
+    );
     finalContent = formatLocalContextToolResultMessage(
       localToolResult,
       toolFeedbackLocale,
@@ -614,6 +606,7 @@ export async function resolveAiChatStreamCompletion({
       shouldBumpRecovery,
       ...(shouldApplyTurnSideEffects ? { shouldApplyTurnSideEffects } : {}),
       ...(turnConversationId ? { turnConversationId } : {}),
+      ...(agentRunId ? { agentRunId } : {}),
     });
     finalContent = toolDecisionResult.finalContent;
     finalStatus = toolDecisionResult.finalStatus;
