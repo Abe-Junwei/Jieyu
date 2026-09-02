@@ -2386,8 +2386,8 @@ describe('LinguisticService smoke tests', () => {
     await expect(db.layer_units.get('utt_doc_keep')).resolves.toEqual(
       expect.objectContaining({
         mediaId: 'media_doc_placeholder',
-        startTime: 0,
-        endTime: 1.2,
+        startTime: 1,
+        endTime: 3,
       }),
     );
   });
@@ -2463,8 +2463,8 @@ describe('LinguisticService smoke tests', () => {
     await expect(db.layer_units.get('utt_doc_keep_aux')).resolves.toEqual(
       expect.objectContaining({
         mediaId: 'media_doc_placeholder_aux',
-        startTime: 0,
-        endTime: 1.2,
+        startTime: 1,
+        endTime: 3,
       }),
     );
     await expect(db.media_items.get('media_doc_placeholder_aux')).resolves.toEqual(
@@ -2543,8 +2543,8 @@ describe('LinguisticService smoke tests', () => {
     await expect(db.layer_units.get('seg_doc_keep_legacy_payload_empty')).resolves.toEqual(
       expect.objectContaining({
         mediaId: 'media_doc_legacy_payload_empty',
-        startTime: 0,
-        endTime: 1.2,
+        startTime: 1,
+        endTime: 3,
       }),
     );
     await expect(db.media_items.get('media_doc_legacy_payload_empty')).resolves.toEqual(

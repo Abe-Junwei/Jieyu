@@ -2126,8 +2126,16 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes('const getNeighborBoundsRouted = useCallback(')).toBe(true);
     expect(
       hookCode.includes(
-        '(itemId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => {',
+        '(itemId: string, mediaId: string | undefined, probeStart: number, layerId?: string) =>',
       ),
+    ).toBe(true);
+    expect(
+      fs
+        .readFileSync(
+          path.resolve(process.cwd(), 'src/pages/transcriptionTimelineInteractionRouting.ts'),
+          'utf8',
+        )
+        .includes('export function getNeighborBoundsRouted('),
     ).toBe(true);
     expect(hookCode.includes('const saveTimingRouted = useCallback(')).toBe(true);
     expect(
