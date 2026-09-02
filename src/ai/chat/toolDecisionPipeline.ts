@@ -104,6 +104,7 @@ export interface ResolveToolDecisionPipelineParams {
   shouldBumpRecovery: boolean;
   shouldApplyTurnSideEffects?: () => boolean;
   turnConversationId?: string | null;
+  agentRunId?: string;
 }
 
 export interface ResolveToolDecisionPipelineResult {
@@ -154,6 +155,7 @@ export async function resolveToolDecisionPipeline({
   shouldBumpRecovery,
   shouldApplyTurnSideEffects,
   turnConversationId,
+  agentRunId,
 }: ResolveToolDecisionPipelineParams): Promise<ResolveToolDecisionPipelineResult> {
   const baseAuditContext = buildToolAuditContext(
     userText,
@@ -162,6 +164,9 @@ export async function resolveToolDecisionPipeline({
     toolDecisionMode,
     toolFeedbackStyle,
     planner,
+    undefined,
+    undefined,
+    agentRunId,
   );
 
   if (toolDecisionMode === 'rollback') {
@@ -196,6 +201,7 @@ export async function resolveToolDecisionPipeline({
     toolFeedbackStyle,
     planner,
     ...(memoryRecallShape ? { memoryRecallShape } : {}),
+    ...(agentRunId ? { agentRunId } : {}),
     writeToolIntentAuditLog,
   });
 

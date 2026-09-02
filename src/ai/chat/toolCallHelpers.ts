@@ -518,6 +518,7 @@ export function buildToolAuditContext(
   planner?: ToolPlannerResult | null,
   intentAssessment?: ToolIntentAssessment,
   memoryRecallShape?: AiMemoryRecallShapeTelemetry,
+  agentRunId?: string,
 ): ToolAuditContext {
   return {
     userText,
@@ -529,6 +530,7 @@ export function buildToolAuditContext(
     ...(planner?.reason ? { plannerReason: planner.reason } : {}),
     ...(intentAssessment ? { intentAssessment } : {}),
     ...(memoryRecallShape ? { memoryRecallShape } : {}),
+    ...(agentRunId ? { agentRunId } : {}),
   };
 }
 
@@ -545,6 +547,7 @@ export function buildToolIntentAuditMetadata(
     assistantMessageId,
     toolCall,
     context,
+    ...(context.agentRunId ? { agentRunId: context.agentRunId } : {}),
     ...(evidenceSourceRefs.length > 0 ? { evidenceSourceRefs } : {}),
   };
 }
@@ -579,6 +582,7 @@ export function buildToolDecisionAuditMetadata(
     ...(durationMs !== undefined ? { durationMs } : {}),
     ...(executionProgress ? { executionProgress } : {}),
     ...(proposeRollback ? { proposeRollback } : {}),
+    ...(context.agentRunId ? { agentRunId: context.agentRunId } : {}),
     ...(evidenceSourceRefs.length > 0 ? { evidenceSourceRefs } : {}),
   };
 }
