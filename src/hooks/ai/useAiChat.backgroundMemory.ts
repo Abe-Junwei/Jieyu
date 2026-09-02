@@ -16,7 +16,18 @@ import {
   type UserDirectiveApplicationResult,
 } from '../../ai/memory/userDirectiveRegistry';
 import type { AuditLogDocType } from '../../db/types';
+import { createAsyncMutex } from '../../utils/asyncMutex';
 import { newAuditLogId, nowIso } from './useAiChat.helpers';
+
+const backgroundMemoryFlushMutex = createAsyncMutex();
+
+function turnSideEffectsStillValid(shouldApplyTurnSideEffects?: (() => boolean) | null): boolean {
+  return (
+    shouldApplyTurnSideEffects === undefined ||
+    shouldApplyTurnSideEffects === null ||
+    shouldApplyTurnSideEffects()
+  );
+}
 
 const MAX_BACKGROUND_FACTS = 24;
 const MAX_FACT_CHARS = 240;
@@ -181,7 +192,8 @@ export function createAiChatBackgroundMemoryRuntime(
     ...(flushQuotaGate ? { flushQuotaGate } : {}),
     extractFacts: extractBackgroundMemoryFacts,
     writeFacts: async (facts, input) => {
-      if (runtime.turnSideEffectsGuard && !runtime.turnSideEffectsGuard()) {
+      const shouldApplyTurnSideEffects = runtime.turnSideEffectsGuard;
+      if (!turnSideEffectsStillValid(shouldApplyTurnSideEffects)) {
         return 0;
       }
       const directives = extractUserDirectives({
@@ -194,6 +206,9 @@ export function createAiChatBackgroundMemoryRuntime(
         boundConversationId === input.conversationId
           ? params.getSessionMemory()
           : await params.loadSessionMemoryForConversation(input.conversationId);
+      if (!turnSideEffectsStillValid(shouldApplyTurnSideEffects)) {
+        return 0;
+      }
       lastDirectiveApplication = applyUserDirectivesToSessionMemory(baseMemory, directives);
       const { nextMemory, writtenCount } = appendBackgroundFactsToSessionMemory(
         lastDirectiveApplication.nextMemory,
@@ -324,24 +339,26 @@ export async function flushBackgroundMemoryExtractor(
   insertAuditLog: (entry: AuditLogDocType) => Promise<unknown>,
   shouldApplyTurnSideEffects?: () => boolean,
 ): Promise<void> {
-  runtime.turnSideEffectsGuard = shouldApplyTurnSideEffects ?? null;
-  try {
-    const result = await runtime.extractor.flush();
-    if (!result) return;
-    const directiveApplication = runtime.getLastDirectiveApplication();
-    await insertAuditLog(buildBackgroundMemoryAuditLog(result, directiveApplication));
-    if (result.status !== 'completed') {
+  await backgroundMemoryFlushMutex.run(async () => {
+    runtime.turnSideEffectsGuard = shouldApplyTurnSideEffects ?? null;
+    try {
+      const result = await runtime.extractor.flush();
+      if (!result) return;
+      const directiveApplication = runtime.getLastDirectiveApplication();
+      await insertAuditLog(buildBackgroundMemoryAuditLog(result, directiveApplication));
+      if (result.status !== 'completed') {
+        runtime.clearLastDirectiveApplication();
+        return;
+      }
+      for (const entry of buildUserDirectiveAuditLogs(
+        directiveApplication,
+        result.inputRange.conversationId,
+      )) {
+        await insertAuditLog(entry);
+      }
       runtime.clearLastDirectiveApplication();
-      return;
+    } finally {
+      runtime.turnSideEffectsGuard = null;
     }
-    for (const entry of buildUserDirectiveAuditLogs(
-      directiveApplication,
-      result.inputRange.conversationId,
-    )) {
-      await insertAuditLog(entry);
-    }
-    runtime.clearLastDirectiveApplication();
-  } finally {
-    runtime.turnSideEffectsGuard = null;
-  }
+  });
 }
