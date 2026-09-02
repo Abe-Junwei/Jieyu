@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-02T08:02:00.075Z",
-  "aggregate": "12a97729770cd0025d9ffe24a614bb126e3174dbad4d32065d1787eb30cf2d01",
+  "generatedAt": "2026-09-02T09:11:01.882Z",
+  "aggregate": "b50dffe3a298aec76bfbb7778d6c6ade47494c558b149779796ebf1103490a4b",
   "fileHashes": {
     "src/styles/ai-hub.css": "59eabaab3ce6f597a0588cb08a544be61cfbdf81ac2b0d00459e4bcc4dead0c9",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -22,7 +22,7 @@
     "src/styles/pages/ai-chat-window.css": "954e5351b9308cfa4d85aacfb4cbaed9a466d4f3f4e47274dcb797f877e19145",
     "src/styles/pages/ai-sidebar-shell.css": "2d56d94491ad22b5617d1409fa8c84e67e3dfad980be26f6e9530370db5cc069",
     "src/styles/pages/analysis-workspace.css": "280ed99f046e1247d5d5e5862b790b29798ae41ce5381a3f75d3eeea6b744db9",
-    "src/styles/pages/app-shell-layout.css": "d7c7c5c566a961aa9457e502041e6adac7f96b9e8c0f8ee17557a42d334c3180",
+    "src/styles/pages/app-shell-layout.css": "b2029f213d2625798b9ab13bacdff078d6ccbf48d8009bfcc4b197f194081e1c",
     "src/styles/pages/feature-availability.css": "557966ee7289509abca4613b4e3a0c087cf160f8712863f325202f3797bc69eb",
     "src/styles/pages/home-page.css": "67496ad5044d0ef81b81ee584d18bbceb4eb4afe4c0ccefe1bce8ec9e2a9d741",
     "src/styles/pages/language-metadata-workspace.css": "5432fdacd408ce61a0886845805315c32df6893ebb0e1fd102e84729d66a7fdf",
