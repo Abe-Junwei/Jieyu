@@ -435,7 +435,9 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
   if (resolution.status === 'done') {
     recordCompletionSuccessMetric();
     const backgroundMemoryRuntime = backgroundMemoryRuntimeRef.current;
-    if (backgroundMemoryRuntime) {
+    const shouldApplyBackgroundMemorySideEffects = () =>
+      shouldApplyStreamUiUpdate(conversationGenerationRef, streamGenerationAtStart);
+    if (backgroundMemoryRuntime && shouldApplyBackgroundMemorySideEffects()) {
       scheduleAndFlushBackgroundMemory(
         backgroundMemoryRuntime,
         {
@@ -447,6 +449,7 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
           actorId: 'ai-chat',
         },
         (entry) => db.collections.audit_logs.insert(entry),
+        shouldApplyBackgroundMemorySideEffects,
       );
     }
   }
