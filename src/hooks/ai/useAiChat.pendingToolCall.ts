@@ -21,6 +21,7 @@ import {
   toNaturalToolCancelled,
 } from '../../ai/chat/toolCallHelpers';
 import { genRequestId } from './useAiChat.toolAudit';
+import { publishAgentWriteCancelled } from '../../ai/runtime/agentUiEvents';
 import { t, type Locale } from '../../i18n';
 import type {
   AiChatToolCall,
@@ -310,6 +311,13 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
         false,
       ),
     );
+    publishAgentWriteCancelled({
+      toolName: pending.call.name,
+      ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
+      ...((pending.call.requestId ?? pending.requestId)
+        ? { requestId: pending.call.requestId ?? pending.requestId }
+        : {}),
+    });
   }, [
     applyAssistantMessageResult,
     bumpMetric,

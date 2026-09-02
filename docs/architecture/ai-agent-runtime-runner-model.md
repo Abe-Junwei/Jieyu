@@ -45,7 +45,7 @@ User / Voice
             → commitToolEffects (A10)  ← 唯一写 session/audit/localToolState 提交点
        → runAgentLoop (LLM continuation)
        → VerticalWorkflow / ComposedWorkflow (A12)
-       → AgentUiEvent → UI (A11)
+       → AgentUiEvent bus → AlertsPanel preview (A11, flag `aiAgentUiPreviewEnabled`)
        → SemanticGuard outbound (A9)
   → Dexie audit / adoption / artifacts (B12)
 ```
@@ -72,3 +72,4 @@ User / Voice
 | --- | --- |
 | 2026-06-01 | 初版：Runner 模型对照表；并入架构补强 A10–A14。 |
 | 2026-09-02 | Wave 2：Catalog / CallbackRegistry / `commitToolEffects` 落地；shadow 改为 re-export。 |
+| 2026-09-02 | Wave 3 A11：`AgentUiEvent` bus → AlertsPanel preview（flag `aiAgentUiPreviewEnabled` 默认 false）。 |

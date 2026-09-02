@@ -1,5 +1,8 @@
 import type { PendingAiToolCall, PreviewContract } from '../chat/chatDomain.types';
-import { buildAiChangeSetFromPendingToolCall, summarizeAiChatToolArgumentsForPreview } from './AiChangeSetProtocol';
+import {
+  buildAiChangeSetFromPendingToolCall,
+  summarizeAiChatToolArgumentsForPreview,
+} from './AiChangeSetProtocol';
 
 const AI_CHANGE_TRANSACTION_PREVIEW_SCHEMA_VERSION = 1 as const;
 
@@ -25,6 +28,8 @@ export interface AiChangeTransactionPreviewV1 {
   kind: AiChangeTransactionPreviewKindV1;
   parentToolName: string;
   requestId?: string;
+  /** A8 run id when the pending call was captured (A11 preview ↔ audit join). */
+  agentRunId?: string;
   /** Batch / tool headline (matches `AiChangeSet.description`). */
   headline: string;
   /**
@@ -49,7 +54,10 @@ function inferPreviewKind(pending: PendingAiToolCall): AiChangeTransactionPrevie
 /**
  * Derives the v1 preview DTO from a pending tool call. Idempotent w.r.t. pending snapshot.
  */
-export function buildAiChangeTransactionPreviewV1(pending: PendingAiToolCall): AiChangeTransactionPreviewV1 {
+export function buildAiChangeTransactionPreviewV1(
+  pending: PendingAiToolCall,
+  agentRunId?: string,
+): AiChangeTransactionPreviewV1 {
   const changeSet = buildAiChangeSetFromPendingToolCall(pending);
   const kind = inferPreviewKind(pending);
   const argSummary = summarizeAiChatToolArgumentsForPreview(pending.call.arguments);
@@ -59,16 +67,22 @@ export function buildAiChangeTransactionPreviewV1(pending: PendingAiToolCall): A
     targetId: ch.unitId,
     argsSummary: kind === 'propose_changes' ? ch.after : argSummary,
   }));
+  const resolvedAgentRunId = agentRunId ?? pending.auditContext?.agentRunId;
   return {
     schemaVersion: AI_CHANGE_TRANSACTION_PREVIEW_SCHEMA_VERSION,
     kind,
     parentToolName: pending.call.name,
-    ...((pending.requestId ?? pending.call.requestId) ? { requestId: pending.requestId ?? pending.call.requestId } : {}),
+    ...((pending.requestId ?? pending.call.requestId)
+      ? { requestId: pending.requestId ?? pending.call.requestId }
+      : {}),
+    ...(resolvedAgentRunId ? { agentRunId: resolvedAgentRunId } : {}),
     headline: changeSet.description,
     impactPreviewSourceLines: Object.freeze([...(pending.impactPreview ?? [])]),
     ...(pending.previewContract ? { previewContract: pending.previewContract } : {}),
     childSteps: Object.freeze(childSteps),
-    ...(pending.readModelEpochCaptured !== undefined ? { readModelEpochCaptured: pending.readModelEpochCaptured } : {}),
+    ...(pending.readModelEpochCaptured !== undefined
+      ? { readModelEpochCaptured: pending.readModelEpochCaptured }
+      : {}),
     changeSetSummaryId: changeSet.id,
   };
 }
