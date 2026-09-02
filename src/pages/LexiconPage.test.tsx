@@ -112,12 +112,10 @@ describe('LexiconPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('dog').length).toBeGreaterThan(0);
       expect(screen.getByText('domesticated canine')).toBeTruthy();
+      expect(screen.getByTestId('side-pane-subtitle').textContent).toBe('dog');
     });
 
     expect(screen.getByTestId('side-pane-title').textContent).toBe('词典工作台');
-    await waitFor(() => {
-      expect(screen.getByTestId('side-pane-subtitle').textContent).toBe('dog');
-    });
     expect(screen.getByTestId('side-pane-content').textContent).toContain('canine');
   });
 
