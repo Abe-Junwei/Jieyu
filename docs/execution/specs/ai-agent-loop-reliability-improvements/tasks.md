@@ -3,7 +3,7 @@ title: ai-agent-loop-reliability-improvements tasks
 doc_type: execution-spec-tasks
 status: draft
 owner: repo
-last_reviewed: 2026-05-17
+last_reviewed: 2026-09-02
 source_of_truth: ai-agent-loop-reliability-improvements-spec
 ---
 
@@ -66,6 +66,21 @@ source_of_truth: ai-agent-loop-reliability-improvements-spec
 
 ---
 
+## A4 证据收口（2026-09-02）
+
+代码（replanning / quality / budget / compaction）已于 2026-06-09 放量；本记录关闭证据 DoD。
+
+| # | 任务 | 验证 | 状态 |
+|---|------|------|------|
+| A4.1 | `aiAgentLoopHandoffAfterReload` + search-no-results clarify 文案 e2e | `npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts` 3/3 | ✅ |
+| A4.2 | `check:agent-evals:trace` + release evidence | 17/17，`auditTracePassed=true`；报告 `docs/execution/release-gates/release-evidence/agent-evals-report.json` | ✅ |
+| A4.3 | reflection reconcile 后 envelope `status` 写入 vertical audit | `writeVerticalWorkflowAuditLogForSendTurnStreamPhase` 写入 `envelope.status`；finalize 在 reconcile 后再写一条；parser 兼容旧行 | ✅ |
+| A4.4 | 主路线图 A4 标 ✅ | [解语-主路线图](../../plans/解语-主路线图-master-roadmap-2026-06-01.md) | ✅ |
+
+人写门禁摘要：[A4-agent-loop-reliability-closeout-2026-09-02.md](../../release-gates/A4-agent-loop-reliability-closeout-2026-09-02.md)。
+
+---
+
 ## 范围外（另 spec）
 
 **per-tool 权限矩阵 / `destructiveGate` 细化** — 原 Phase 5 已移出；审计 Security P2，现有 `getAiToolPolicy` 已 per-tool，不在本 spec 实施。
@@ -92,4 +107,4 @@ source_of_truth: ai-agent-loop-reliability-improvements-spec
 
 ---
 
-*Created: 2026-05-17 · Revised: 2026-05-17（SDD 审查勘误）*
+*Created: 2026-05-17 · Revised: 2026-09-02（A4 证据收口）*

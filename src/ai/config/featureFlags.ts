@@ -75,6 +75,10 @@ const aiAgentLoopToolResultCompactionEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_AGENT_LOOP_TOOL_RESULT_COMPACTION_ENABLED,
 );
 
+const aiAgentLoopEffortScalingEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_AGENT_LOOP_EFFORT_SCALING_ENABLED,
+);
+
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
   featureFlagDeploymentEnvironment === 'staging' ||
@@ -159,4 +163,9 @@ export const featureFlags = {
    */
   aiAgentLoopToolResultCompactionEnabled:
     aiAgentLoopToolResultCompactionEnabledFromEnv ?? aiAgentLoopReliabilityFlagsDefaultEnabled,
+  /**
+   * A4b: scale agent-loop maxSteps by queryFamily (count=2, search/detail=4, else base).
+   * 默认 false；开启后才改变步数。见 spec agent-runtime-runner-foundation §5。
+   */
+  aiAgentLoopEffortScalingEnabled: aiAgentLoopEffortScalingEnabledFromEnv ?? false,
 } as const;

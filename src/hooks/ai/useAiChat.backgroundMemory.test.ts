@@ -357,4 +357,55 @@ describe('useAiChat.backgroundMemory', () => {
     expect(uiMemory.preferences?.lastLanguage).toBe('eng');
     expect(memoryByConversation.get('conv-a')?.responsePreferences?.language).toBe('zh-CN');
   });
+
+  it('skips session memory persist when turn side-effects guard is stale at flush time', async () => {
+    let memory: AiSessionMemory = {};
+    const persisted = vi.fn<(conversationId: string, next: AiSessionMemory) => void>();
+    const runtime = createAiChatBackgroundMemoryRuntime({
+      enabled: true,
+      getSessionMemory: () => memory,
+      setSessionMemory: (next) => {
+        memory = next;
+      },
+      persistSessionMemory: (conversationId, next) => {
+        memory = next;
+        persisted(conversationId, next);
+      },
+      loadSessionMemoryForConversation: memoryLoader(() => memory),
+    });
+
+    runtime.extractor.schedule({
+      conversationId: 'conv-1',
+      assistantMessageId: 'ast-1',
+      userMessageId: 'usr-1',
+      userText: '请记住：默认用中文解释',
+      assistantText: '好的。',
+      actorId: 'ai-chat',
+    });
+
+    let stale = false;
+    await flushBackgroundMemoryExtractor(
+      runtime,
+      async () => {},
+      () => !stale,
+    );
+    expect(persisted).toHaveBeenCalledTimes(1);
+
+    persisted.mockClear();
+    runtime.extractor.schedule({
+      conversationId: 'conv-1',
+      assistantMessageId: 'ast-2',
+      userMessageId: 'usr-2',
+      userText: '请记住：默认用中文解释',
+      assistantText: '好的。',
+      actorId: 'ai-chat',
+    });
+    stale = true;
+    await flushBackgroundMemoryExtractor(
+      runtime,
+      async () => {},
+      () => !stale,
+    );
+    expect(persisted).not.toHaveBeenCalled();
+  });
 });

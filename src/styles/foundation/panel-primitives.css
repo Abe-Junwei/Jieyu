@@ -411,48 +411,6 @@
   gap: 4px;
 }
 
-/* ── 面板状态展示 | Panel state display ───────────────────────── */
-.panel-state-display {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 24px 16px;
-  text-align: center;
-  min-height: 80px;
-}
-
-.panel-state-display-title {
-  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.panel-state-display-desc {
-  margin: 0;
-  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
-  color: var(--text-secondary);
-  line-height: 1.5;
-  max-width: 36ch;
-}
-
-.panel-state-display--empty .panel-state-display-desc {
-  color: var(--text-secondary);
-}
-
-.panel-state-display--loading .panel-state-display-desc {
-  color: var(--state-success-text);
-}
-
-.panel-state-display--error .panel-state-display-desc {
-  color: var(--state-danger-text);
-}
-
-.panel-state-display-action {
-  margin-top: 4px;
-}
-
 /* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
 .panel-button:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));

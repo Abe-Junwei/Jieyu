@@ -21,6 +21,7 @@ import { judgeRelevance } from '../../ai/eval/relevanceJudge';
 import { buildSourceScopeSummaryFromEvidencePackets } from '../../ai/vertical/sourceScopeSummary';
 import { buildWorkflowExplainabilityFromAssistantMessage } from '../../ai/chat/workflowExplainability';
 import { reconcileVerticalWorkflowEnvelopeStatus } from '../../ai/vertical/verticalWorkflowSelection';
+import { writeVerticalWorkflowAuditLogForSendTurnStreamPhase } from './useAiChat.sendTurnStreamPhase.verticalAudit';
 import { createLogger } from '../../observability/logger';
 import { shouldApplyStreamUiUpdate } from '../../ai/chat/conversationGeneration';
 import type { UiChatMessage } from './useAiChat.types';
@@ -57,7 +58,7 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
   } = input;
 
   const { db, ragCitations } = opening;
-  const { verticalOutputEnvelopeSeed } = streamCompletionResult;
+  const { verticalOutputEnvelopeSeed, verticalWorkflowSelection } = streamCompletionResult;
   let effectiveVerticalEnvelope = verticalOutputEnvelopeSeed;
 
   // PR-12 / PR-17: reflection audit + degradation scenarios for manual takeover UX
@@ -158,6 +159,14 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
   if (effectiveVerticalEnvelope && reflectionResult) {
     effectiveVerticalEnvelope = reconcileVerticalWorkflowEnvelopeStatus(effectiveVerticalEnvelope, {
       reflectionFlagged: reflectionResult.reflectionFlagged,
+    });
+    await writeVerticalWorkflowAuditLogForSendTurnStreamPhase({
+      db,
+      assistantId,
+      verticalOutputEnvelopeSeed: effectiveVerticalEnvelope,
+      verticalWorkflowSelection,
+      completionStatus: resolution.status,
+      completionPath: 'stream_done',
     });
   }
 
@@ -426,7 +435,9 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
   if (resolution.status === 'done') {
     recordCompletionSuccessMetric();
     const backgroundMemoryRuntime = backgroundMemoryRuntimeRef.current;
-    if (backgroundMemoryRuntime) {
+    const shouldApplyBackgroundMemorySideEffects = () =>
+      shouldApplyStreamUiUpdate(conversationGenerationRef, streamGenerationAtStart);
+    if (backgroundMemoryRuntime && shouldApplyBackgroundMemorySideEffects()) {
       scheduleAndFlushBackgroundMemory(
         backgroundMemoryRuntime,
         {
@@ -438,6 +449,7 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
           actorId: 'ai-chat',
         },
         (entry) => db.collections.audit_logs.insert(entry),
+        shouldApplyBackgroundMemorySideEffects,
       );
     }
   }

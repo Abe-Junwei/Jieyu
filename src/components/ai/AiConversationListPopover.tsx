@@ -47,6 +47,7 @@ export function AiConversationListPopover({
       if (!(target instanceof Node)) return;
       if (popoverRef.current?.contains(target)) return;
       if (titleButtonRef?.current?.contains(target)) return;
+      if (target instanceof Element && target.closest('.ai-chat-conversation-chrome')) return;
       onClose();
     };
     document.addEventListener('pointerdown', onPointerDown, true);

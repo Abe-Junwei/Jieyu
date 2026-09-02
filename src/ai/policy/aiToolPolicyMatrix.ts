@@ -5,6 +5,14 @@ type AiToolConfirmationMode = 'none' | 'pending_propose_changes' | 'host_modal';
 type AiToolTargetKind = 'none' | 'segment' | 'layer' | 'layer_link' | 'navigation' | 'project';
 export type AiToolLayerLinkActionKind = 'add_host' | 'remove_host' | 'switch_preferred_host';
 
+export type AiToolEffect = 'read' | 'write' | 'destructive';
+export type AiToolScopeBinding =
+  | 'none'
+  | 'current_selection'
+  | 'current_unit'
+  | 'current_layer'
+  | 'current_project';
+
 export interface AiToolPolicyEntry {
   toolName: AiChatToolName;
   riskTier: AiToolRiskTier;
@@ -13,356 +21,413 @@ export interface AiToolPolicyEntry {
   confirmationMode: AiToolConfirmationMode;
   targetKind: AiToolTargetKind;
   auditReasonCodes: readonly string[];
+  /** Last Mile: read / in-scope write / destructive. */
+  effect: AiToolEffect;
+  /** Last Mile: which workspace scope the tool may touch. */
+  scopeBinding: AiToolScopeBinding;
   /** A11: structured preview-diff before commit when write gate routes writes through confirm UI. */
   supportsPreview?: boolean;
   extensionCapabilityHints?: readonly string[];
 }
 
-export const AI_TOOL_POLICY_MATRIX: Record<AiChatToolName, AiToolPolicyEntry> = {
-  create_transcription_segment: {
-    toolName: 'create_transcription_segment',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_unit_target', 'unresolved_write_target'],
-  },
-  split_transcription_segment: {
-    toolName: 'split_transcription_segment',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_split_position', 'missing_unit_target', 'unresolved_write_target'],
-  },
-  merge_transcription_segments: {
-    toolName: 'merge_transcription_segments',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_unit_target', 'unresolved_write_target'],
-  },
-  delete_transcription_segment: {
-    toolName: 'delete_transcription_segment',
-    riskTier: 'high',
-    destructive: true,
-    requiresExplicitTarget: true,
-    confirmationMode: 'host_modal',
-    targetKind: 'segment',
-    auditReasonCodes: [
-      'ambiguous_target',
-      'unresolved_delete_segment_target',
-      'missing_unit_target',
-    ],
-  },
-  clear_translation_segment: {
-    toolName: 'clear_translation_segment',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_translation_layer_target', 'unresolved_write_target'],
-  },
-  set_transcription_text: {
-    toolName: 'set_transcription_text',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_unit_target', 'unresolved_write_target'],
-  },
-  set_translation_text: {
-    toolName: 'set_translation_text',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_translation_layer_target', 'unresolved_write_target'],
-  },
-  create_transcription_layer: {
-    toolName: 'create_transcription_layer',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'layer',
-    auditReasonCodes: ['missing_language_target'],
-  },
-  create_translation_layer: {
-    toolName: 'create_translation_layer',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'layer',
-    auditReasonCodes: ['missing_language_target'],
-  },
-  delete_layer: {
-    toolName: 'delete_layer',
-    riskTier: 'high',
-    destructive: true,
-    requiresExplicitTarget: true,
-    confirmationMode: 'host_modal',
-    targetKind: 'layer',
-    auditReasonCodes: ['ambiguous_target', 'missing_layer_target'],
-  },
-  link_translation_layer: {
-    toolName: 'link_translation_layer',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'layer_link',
-    auditReasonCodes: ['missing_layer_link_target'],
-    extensionCapabilityHints: ['translation_layer_linking'],
-  },
-  unlink_translation_layer: {
-    toolName: 'unlink_translation_layer',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'layer_link',
-    auditReasonCodes: ['missing_layer_link_target'],
-    extensionCapabilityHints: ['translation_layer_linking'],
-  },
-  add_host: {
-    toolName: 'add_host',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'layer_link',
-    auditReasonCodes: ['missing_layer_link_target'],
-    extensionCapabilityHints: ['translation_layer_linking'],
-  },
-  remove_host: {
-    toolName: 'remove_host',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'layer_link',
-    auditReasonCodes: ['missing_layer_link_target'],
-    extensionCapabilityHints: ['translation_layer_linking'],
-  },
-  switch_preferred_host: {
-    toolName: 'switch_preferred_host',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'layer_link',
-    auditReasonCodes: ['missing_layer_link_target'],
-    extensionCapabilityHints: ['translation_layer_linking'],
-  },
-  auto_gloss_unit: {
-    toolName: 'auto_gloss_unit',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_unit_target'],
-  },
-  set_token_pos: {
-    toolName: 'set_token_pos',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_unit_target'],
-  },
-  set_token_gloss: {
-    toolName: 'set_token_gloss',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_unit_target'],
-  },
-  propose_changes: {
-    toolName: 'propose_changes',
-    riskTier: 'high',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'pending_propose_changes',
-    targetKind: 'none',
-    auditReasonCodes: ['invalid_proposed_changes'],
-    supportsPreview: true,
-  },
-  nav_to_segment: {
-    toolName: 'nav_to_segment',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'navigation',
-    auditReasonCodes: ['missing_unit_target'],
-  },
-  nav_to_time: {
-    toolName: 'nav_to_time',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'navigation',
-    auditReasonCodes: [],
-  },
-  play_pause: {
-    toolName: 'play_pause',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'navigation',
-    auditReasonCodes: [],
-  },
-  mark_segment: {
-    toolName: 'mark_segment',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: [],
-  },
-  delete_segment: {
-    toolName: 'delete_segment',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: [],
-  },
-  split_at_time: {
-    toolName: 'split_at_time',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: [],
-  },
-  merge_prev: {
-    toolName: 'merge_prev',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_unit_target'],
-  },
-  merge_next: {
-    toolName: 'merge_next',
-    riskTier: 'medium',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_unit_target'],
-  },
-  undo: {
-    toolName: 'undo',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'none',
-    auditReasonCodes: [],
-  },
-  redo: {
-    toolName: 'redo',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'none',
-    auditReasonCodes: [],
-  },
-  focus_segment: {
-    toolName: 'focus_segment',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'navigation',
-    auditReasonCodes: ['missing_unit_target'],
-  },
-  zoom_to_segment: {
-    toolName: 'zoom_to_segment',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'navigation',
-    auditReasonCodes: ['missing_unit_target'],
-  },
-  toggle_notes: {
-    toolName: 'toggle_notes',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'navigation',
-    auditReasonCodes: [],
-  },
-  search_segments: {
-    toolName: 'search_segments',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'navigation',
-    auditReasonCodes: [],
-  },
-  auto_gloss_segment: {
-    toolName: 'auto_gloss_segment',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: true,
-    confirmationMode: 'none',
-    targetKind: 'segment',
-    auditReasonCodes: ['missing_unit_target'],
-  },
-  get_current_segment: {
-    toolName: 'get_current_segment',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'project',
-    auditReasonCodes: [],
-  },
-  get_project_summary: {
-    toolName: 'get_project_summary',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'project',
-    auditReasonCodes: [],
-  },
-  get_recent_history: {
-    toolName: 'get_recent_history',
-    riskTier: 'low',
-    destructive: false,
-    requiresExplicitTarget: false,
-    confirmationMode: 'none',
-    targetKind: 'project',
-    auditReasonCodes: [],
-  },
-};
+type AiToolPolicyEntryDraft = Omit<AiToolPolicyEntry, 'effect' | 'scopeBinding'> &
+  Partial<Pick<AiToolPolicyEntry, 'effect' | 'scopeBinding'>>;
+
+function isWriteLikeToolName(toolName: AiChatToolName): boolean {
+  if (toolName === 'propose_changes') return true;
+  return /^(create_|set_|split_|merge_|clear_|link_|unlink_|add_|remove_|switch_|auto_gloss_)/.test(
+    toolName,
+  );
+}
+
+function deriveAiToolEffect(entry: AiToolPolicyEntryDraft): AiToolEffect {
+  if (entry.effect) return entry.effect;
+  if (entry.destructive) return 'destructive';
+  return isWriteLikeToolName(entry.toolName) ? 'write' : 'read';
+}
+
+function deriveAiToolScopeBinding(entry: AiToolPolicyEntryDraft): AiToolScopeBinding {
+  if (entry.scopeBinding) return entry.scopeBinding;
+  switch (entry.targetKind) {
+    case 'segment':
+      return 'current_unit';
+    case 'layer':
+    case 'layer_link':
+      return 'current_layer';
+    case 'project':
+      return 'current_project';
+    case 'navigation':
+      return entry.requiresExplicitTarget ? 'current_unit' : 'none';
+    default:
+      return 'none';
+  }
+}
+
+function finalizeAiToolPolicyMatrix(
+  raw: Record<AiChatToolName, AiToolPolicyEntryDraft>,
+): Record<AiChatToolName, AiToolPolicyEntry> {
+  const finalized = {} as Record<AiChatToolName, AiToolPolicyEntry>;
+  for (const toolName of Object.keys(raw) as AiChatToolName[]) {
+    const entry = raw[toolName];
+    finalized[toolName] = {
+      ...entry,
+      effect: deriveAiToolEffect(entry),
+      scopeBinding: deriveAiToolScopeBinding(entry),
+    };
+  }
+  return finalized;
+}
+
+export const AI_TOOL_POLICY_MATRIX: Record<AiChatToolName, AiToolPolicyEntry> =
+  finalizeAiToolPolicyMatrix({
+    create_transcription_segment: {
+      toolName: 'create_transcription_segment',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: ['missing_unit_target', 'unresolved_write_target'],
+    },
+    split_transcription_segment: {
+      toolName: 'split_transcription_segment',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: [
+        'missing_split_position',
+        'missing_unit_target',
+        'unresolved_write_target',
+      ],
+    },
+    merge_transcription_segments: {
+      toolName: 'merge_transcription_segments',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: ['missing_unit_target', 'unresolved_write_target'],
+    },
+    delete_transcription_segment: {
+      toolName: 'delete_transcription_segment',
+      riskTier: 'high',
+      destructive: true,
+      requiresExplicitTarget: true,
+      confirmationMode: 'host_modal',
+      targetKind: 'segment',
+      auditReasonCodes: [
+        'ambiguous_target',
+        'unresolved_delete_segment_target',
+        'missing_unit_target',
+      ],
+    },
+    clear_translation_segment: {
+      toolName: 'clear_translation_segment',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: ['missing_translation_layer_target', 'unresolved_write_target'],
+    },
+    set_transcription_text: {
+      toolName: 'set_transcription_text',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: ['missing_unit_target', 'unresolved_write_target'],
+    },
+    set_translation_text: {
+      toolName: 'set_translation_text',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: ['missing_translation_layer_target', 'unresolved_write_target'],
+    },
+    create_transcription_layer: {
+      toolName: 'create_transcription_layer',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'layer',
+      auditReasonCodes: ['missing_language_target'],
+    },
+    create_translation_layer: {
+      toolName: 'create_translation_layer',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'layer',
+      auditReasonCodes: ['missing_language_target'],
+    },
+    delete_layer: {
+      toolName: 'delete_layer',
+      riskTier: 'high',
+      destructive: true,
+      requiresExplicitTarget: true,
+      confirmationMode: 'host_modal',
+      targetKind: 'layer',
+      auditReasonCodes: ['ambiguous_target', 'missing_layer_target'],
+    },
+    link_translation_layer: {
+      toolName: 'link_translation_layer',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'layer_link',
+      auditReasonCodes: ['missing_layer_link_target'],
+      extensionCapabilityHints: ['translation_layer_linking'],
+    },
+    unlink_translation_layer: {
+      toolName: 'unlink_translation_layer',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'layer_link',
+      auditReasonCodes: ['missing_layer_link_target'],
+      extensionCapabilityHints: ['translation_layer_linking'],
+    },
+    add_host: {
+      toolName: 'add_host',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'layer_link',
+      auditReasonCodes: ['missing_layer_link_target'],
+      extensionCapabilityHints: ['translation_layer_linking'],
+    },
+    remove_host: {
+      toolName: 'remove_host',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'layer_link',
+      auditReasonCodes: ['missing_layer_link_target'],
+      extensionCapabilityHints: ['translation_layer_linking'],
+    },
+    switch_preferred_host: {
+      toolName: 'switch_preferred_host',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'layer_link',
+      auditReasonCodes: ['missing_layer_link_target'],
+      extensionCapabilityHints: ['translation_layer_linking'],
+    },
+    auto_gloss_unit: {
+      toolName: 'auto_gloss_unit',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: ['missing_unit_target'],
+    },
+    set_token_pos: {
+      toolName: 'set_token_pos',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: ['missing_unit_target'],
+    },
+    set_token_gloss: {
+      toolName: 'set_token_gloss',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: ['missing_unit_target'],
+    },
+    propose_changes: {
+      toolName: 'propose_changes',
+      riskTier: 'high',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'pending_propose_changes',
+      targetKind: 'none',
+      auditReasonCodes: ['invalid_proposed_changes'],
+      supportsPreview: true,
+    },
+    nav_to_segment: {
+      toolName: 'nav_to_segment',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'navigation',
+      auditReasonCodes: ['missing_unit_target'],
+    },
+    nav_to_time: {
+      toolName: 'nav_to_time',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'navigation',
+      auditReasonCodes: [],
+    },
+    play_pause: {
+      toolName: 'play_pause',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'navigation',
+      auditReasonCodes: [],
+    },
+    mark_segment: {
+      toolName: 'mark_segment',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: [],
+    },
+    delete_segment: {
+      toolName: 'delete_segment',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: [],
+    },
+    split_at_time: {
+      toolName: 'split_at_time',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: [],
+    },
+    merge_prev: {
+      toolName: 'merge_prev',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: ['missing_unit_target'],
+    },
+    merge_next: {
+      toolName: 'merge_next',
+      riskTier: 'medium',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: ['missing_unit_target'],
+    },
+    undo: {
+      toolName: 'undo',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'none',
+      auditReasonCodes: [],
+    },
+    redo: {
+      toolName: 'redo',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'none',
+      auditReasonCodes: [],
+    },
+    focus_segment: {
+      toolName: 'focus_segment',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'navigation',
+      auditReasonCodes: ['missing_unit_target'],
+    },
+    zoom_to_segment: {
+      toolName: 'zoom_to_segment',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'navigation',
+      auditReasonCodes: ['missing_unit_target'],
+    },
+    toggle_notes: {
+      toolName: 'toggle_notes',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'navigation',
+      auditReasonCodes: [],
+    },
+    search_segments: {
+      toolName: 'search_segments',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'navigation',
+      auditReasonCodes: [],
+    },
+    auto_gloss_segment: {
+      toolName: 'auto_gloss_segment',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: true,
+      confirmationMode: 'none',
+      targetKind: 'segment',
+      auditReasonCodes: ['missing_unit_target'],
+    },
+    get_current_segment: {
+      toolName: 'get_current_segment',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'project',
+      auditReasonCodes: [],
+    },
+    get_project_summary: {
+      toolName: 'get_project_summary',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'project',
+      auditReasonCodes: [],
+    },
+    get_recent_history: {
+      toolName: 'get_recent_history',
+      riskTier: 'low',
+      destructive: false,
+      requiresExplicitTarget: false,
+      confirmationMode: 'none',
+      targetKind: 'project',
+      auditReasonCodes: [],
+    },
+  });
 
 export function getAiToolPolicy(toolName: AiChatToolName): AiToolPolicyEntry {
   return AI_TOOL_POLICY_MATRIX[toolName];
@@ -432,15 +497,6 @@ export function isAiToolSegmentTargetMaterializationTool(toolName: AiChatToolNam
   return (
     isAiToolSegmentExecutionWithExplicitTarget(toolName) &&
     toolName !== 'merge_transcription_segments'
-  );
-}
-
-function isWriteLikeToolName(toolName: AiChatToolName): boolean {
-  if (isAiToolDestructive(toolName)) return true;
-  return (
-    /^(create_|set_|split_|merge_|clear_|link_|unlink_|add_|remove_|switch_|auto_gloss_)/.test(
-      toolName,
-    ) || toolName === 'propose_changes'
   );
 }
 

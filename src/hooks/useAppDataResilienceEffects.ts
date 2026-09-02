@@ -121,7 +121,11 @@ export function useAppDataResilienceEffects(locale: Locale): {
     };
 
     window.addEventListener(E2E_DB_OPEN_FAILED_EVENT, onE2eOpenFailed);
-    return () => window.removeEventListener(E2E_DB_OPEN_FAILED_EVENT, onE2eOpenFailed);
+    document.documentElement.dataset.jieyuE2eDbOpenHook = '1';
+    return () => {
+      window.removeEventListener(E2E_DB_OPEN_FAILED_EVENT, onE2eOpenFailed);
+      delete document.documentElement.dataset.jieyuE2eDbOpenHook;
+    };
   }, []);
 
   useEffect(() => {

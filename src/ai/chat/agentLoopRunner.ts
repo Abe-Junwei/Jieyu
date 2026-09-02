@@ -13,8 +13,10 @@ import {
   createAgentLoopTraceContext,
   DEFAULT_AGENT_LOOP_CONFIG,
   estimateRemainingLoopTokens,
+  resolveEffectiveMaxSteps,
   shouldContinueAgentLoop,
   shouldWarnTokenBudget,
+  type AgentLoopConfig,
 } from './agentLoop';
 import {
   appendAgentLoopExplainability,
@@ -142,6 +144,8 @@ export interface AgentLoopRunnerDeps {
 
   /** A12: when false, agent loop must not treat the vertical workflow answer as ready. */
   workflowAnswerReady?: boolean;
+  /** A8: send-turn run id copied onto loop-step audit. */
+  agentRunId?: string;
 }
 
 // ── 核心循环 | Core loop ───────────────────────────────────────────────────
@@ -198,18 +202,28 @@ export async function runAgentLoop(
       : loopTaskStateBase;
   };
 
+  const getLoopConfig = (): AgentLoopConfig => ({
+    ...DEFAULT_AGENT_LOOP_CONFIG,
+    maxSteps: resolveEffectiveMaxSteps(
+      DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
+      currentRoutingPlan.queryFamily,
+      featureFlags.aiAgentLoopEffortScalingEnabled,
+    ),
+  });
+
   // ── 循环守卫 | Loop guard（先 replanning，再 shouldContinue；spec §2.1 顺序）──
   const shouldEnterNextLoopIteration = (): boolean => {
     if (!deps.aiChatAgentLoopEnabled || deps.signal.aborted) return false;
     if (!resolvedLocalToolResults || resolvedLocalToolResults.length === 0) return false;
 
+    const loopConfig = getLoopConfig();
     let replanningDecision: ReplanningDecision | undefined;
     if (featureFlags.aiAgentLoopClosedLoopReplanningEnabled) {
       replanningDecision = evaluateReplanningNeed(
         currentRoutingPlan,
         resolvedLocalToolResults,
         loopStep,
-        DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
+        loopConfig.maxSteps,
       );
       if (replanningDecision.action === 'replan' && replanningDecision.newPlan) {
         currentRoutingPlan = replanningDecision.newPlan;
@@ -253,14 +267,14 @@ export async function runAgentLoop(
       : undefined;
     const wouldContinue = shouldContinueAgentLoop(
       loopStep,
-      DEFAULT_AGENT_LOOP_CONFIG,
+      loopConfig,
       resolvedLocalToolResults,
       loopTaskState,
       continueOptions,
     );
     if (
       !wouldContinue &&
-      loopStep >= DEFAULT_AGENT_LOOP_CONFIG.maxSteps &&
+      loopStep >= loopConfig.maxSteps &&
       resolvedLocalToolResults &&
       resolvedLocalToolResults.length > 0
     ) {
@@ -289,7 +303,7 @@ export async function runAgentLoop(
         status: 'executing',
         updatedAt: nowIso(),
         step: loopStep,
-        maxSteps: DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
+        maxSteps: getLoopConfig().maxSteps,
       });
 
       const continuationUserText = buildAgentLoopContinuationInput(
@@ -315,7 +329,7 @@ export async function runAgentLoop(
             historyBudgetTokens,
             perStepInputTokens: observedPerStepInputTokens,
             step: loopStep,
-            maxSteps: DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
+            maxSteps: getLoopConfig().maxSteps,
           })
         : deps.historyCharBudget;
 
@@ -335,11 +349,11 @@ export async function runAgentLoop(
       const estimatedRemainingTokens = estimateRemainingLoopTokens(
         observedPerStepInputTokens,
         loopStep,
-        DEFAULT_AGENT_LOOP_CONFIG,
+        getLoopConfig(),
       );
 
       // ── Token 预算警告 | Token budget warning ──
-      if (shouldWarnTokenBudget(estimatedRemainingTokens, DEFAULT_AGENT_LOOP_CONFIG)) {
+      if (shouldWarnTokenBudget(estimatedRemainingTokens, getLoopConfig())) {
         const mem = deps.getSessionMemory();
         const pendingCheckpoint: NonNullable<AiSessionMemory['pendingAgentLoopCheckpoint']> = {
           kind: 'token_budget_warning',
@@ -458,7 +472,8 @@ export async function runAgentLoop(
           phase: 'agent_loop_step',
           requestId: `${deps.assistantId}_loop_${loopStep}`,
           step: loopStep,
-          maxSteps: DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
+          maxSteps: getLoopConfig().maxSteps,
+          ...(deps.agentRunId ? { agentRunId: deps.agentRunId } : {}),
           inputSummary: continuationUserText.slice(0, 500),
           outputSummary: continuationAssistantContent.slice(0, 500),
           durationMs: loopStepDurationMs,
