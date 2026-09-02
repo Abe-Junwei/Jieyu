@@ -408,4 +408,121 @@ describe('useAiChat.backgroundMemory', () => {
     );
     expect(persisted).not.toHaveBeenCalled();
   });
+
+  it('skips session memory persist when turn side-effects guard becomes stale during async load', async () => {
+    let memory: AiSessionMemory = {};
+    const persisted = vi.fn<(conversationId: string, next: AiSessionMemory) => void>();
+    let stale = false;
+    const runtime = createAiChatBackgroundMemoryRuntime({
+      enabled: true,
+      getSessionMemory: () => memory,
+      setSessionMemory: (next) => {
+        memory = next;
+      },
+      persistSessionMemory: (conversationId, next) => {
+        memory = next;
+        persisted(conversationId, next);
+      },
+      getBoundConversationId: () => 'conv-ui',
+      loadSessionMemoryForConversation: async () => {
+        await new Promise<void>((resolve) => {
+          setTimeout(() => {
+            stale = true;
+            resolve();
+          }, 0);
+        });
+        return memory;
+      },
+    });
+
+    runtime.extractor.schedule({
+      conversationId: 'conv-scheduled',
+      assistantMessageId: 'ast-1',
+      userMessageId: 'usr-1',
+      userText: '请记住：默认用中文解释',
+      assistantText: '好的。',
+      actorId: 'ai-chat',
+    });
+
+    await flushBackgroundMemoryExtractor(
+      runtime,
+      async () => {},
+      () => !stale,
+    );
+
+    expect(persisted).not.toHaveBeenCalled();
+  });
+
+  it('serializes concurrent background memory flushes so guards are not cleared mid-flight', async () => {
+    let memory: AiSessionMemory = {};
+    const persisted = vi.fn<(conversationId: string, next: AiSessionMemory) => void>();
+    let releaseFirstLoad: (() => void) | undefined;
+    let firstLoadStarted = false;
+    const runtime = createAiChatBackgroundMemoryRuntime({
+      enabled: true,
+      getSessionMemory: () => memory,
+      setSessionMemory: (next) => {
+        memory = next;
+      },
+      persistSessionMemory: (conversationId, next) => {
+        memory = next;
+        persisted(conversationId, next);
+      },
+      getBoundConversationId: () => 'conv-ui',
+      loadSessionMemoryForConversation: async (conversationId) => {
+        if (conversationId === 'conv-1') {
+          firstLoadStarted = true;
+          await new Promise<void>((resolve) => {
+            releaseFirstLoad = resolve;
+          });
+        }
+        return memory;
+      },
+    });
+
+    runtime.extractor.schedule({
+      conversationId: 'conv-1',
+      assistantMessageId: 'ast-1',
+      userMessageId: 'usr-1',
+      userText: '请记住：默认用中文解释',
+      assistantText: '好的。',
+      actorId: 'ai-chat',
+    });
+
+    const flush1 = flushBackgroundMemoryExtractor(
+      runtime,
+      async () => {},
+      () => true,
+    );
+    await new Promise<void>((resolve) => {
+      const waitForLoad = () => {
+        if (firstLoadStarted && releaseFirstLoad) {
+          resolve();
+          return;
+        }
+        setTimeout(waitForLoad, 0);
+      };
+      waitForLoad();
+    });
+
+    runtime.extractor.schedule({
+      conversationId: 'conv-2',
+      assistantMessageId: 'ast-2',
+      userMessageId: 'usr-2',
+      userText: '请记住：默认用中文解释',
+      assistantText: '好的。',
+      actorId: 'ai-chat',
+    });
+    const flush2 = flushBackgroundMemoryExtractor(
+      runtime,
+      async () => {},
+      () => false,
+    );
+
+    releaseFirstLoad?.();
+    await Promise.all([flush1, flush2]);
+
+    expect(persisted).toHaveBeenCalledTimes(1);
+    expect(persisted).toHaveBeenCalledWith('conv-1', expect.any(Object));
+  });
 });
