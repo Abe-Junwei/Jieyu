@@ -159,7 +159,7 @@ describe('TranscriptionPage.ChatWindow.layout', () => {
   it('does not start a header drag when the pointer target is interactive', () => {
     expect(
       isChatWindowHeaderInteractiveTarget({
-        closest: (selector) => (selector.includes('button') ? {} : null),
+        closest: (selector: string) => (selector.includes('button') ? {} : null),
       }),
     ).toBe(true);
     expect(isChatWindowHeaderInteractiveTarget({ closest: () => null })).toBe(false);
