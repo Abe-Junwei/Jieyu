@@ -335,4 +335,42 @@ describe('executeConfirmedProposedChangeBatch', () => {
     expect(last.status).toBe('idle');
     expect(last.updatedAt >= before).toBe(true);
   });
+
+  it('rolls back successful children when turn side-effects guard becomes stale mid-batch', async () => {
+    const rb1 = vi.fn(async () => {});
+    let stale = false;
+    const onToolCall = vi.fn(async (call: AiChatToolCall): Promise<AiChatToolResult> => {
+      if (call.arguments.segmentId === 'a') {
+        stale = true;
+        return { ok: true, message: 'a', rollback: rb1 };
+      }
+      return { ok: true, message: 'b' };
+    });
+    const d = makeDeps({ onToolCall });
+
+    await executeConfirmedProposedChangeBatch({
+      assistantMessageId: 'asst-1',
+      parentCall: baseParentCall(),
+      childCalls: [validSetText('a', 'ta'), validSetText('b', 'tb')],
+      auditContext: buildToolAuditContext('', 'p', 'm', 'enabled', 'concise'),
+      locale: TEST_LOCALE,
+      toolFeedbackStyle: 'concise',
+      hasPersistedExecutionForRequest: d.hasPersistedExecutionForRequest,
+      applyAssistantMessageResult: d.applyAssistantMessageResult,
+      onToolCall: d.onToolCall,
+      writeToolDecisionAuditLog: d.writeToolDecisionAuditLog,
+      setTaskSession: d.setTaskSession,
+      taskSessionId: 'ts-1',
+      markExecutedRequestId: d.markExecutedRequestId,
+      sessionMemory: {},
+      updateSessionMemory: d.updateSessionMemory,
+      persistSessionMemory: d.persistSessionMemory,
+      bumpMetric: d.bumpMetric,
+      shouldApplyTurnSideEffects: () => !stale,
+    });
+
+    expect(d.onToolCall).toHaveBeenCalledTimes(1);
+    expect(rb1).toHaveBeenCalledTimes(1);
+    expect(d.markExecutedRequestId).not.toHaveBeenCalled();
+  });
 });

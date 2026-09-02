@@ -854,6 +854,7 @@ export async function executeConfirmedProposedChangeBatch({
       };
 
       if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
+        await runProposeChangeRollbacks(rollbacks);
         finishIdle();
         return;
       }
@@ -868,6 +869,10 @@ export async function executeConfirmedProposedChangeBatch({
       );
 
       if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
+        if (result.ok && typeof result.rollback === 'function') {
+          rollbacks.push(result.rollback);
+        }
+        await runProposeChangeRollbacks(rollbacks);
         finishIdle();
         return;
       }
