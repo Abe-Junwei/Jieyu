@@ -14,12 +14,12 @@ depends_on:
 
 ## 1. 成熟方案扫描 / Research
 
-- 仓库既有：`AI_TOOL_REGISTRY_SHADOW`（schema+policy+writeMode）、`buildPostExecSessionMemory`、`mergeLocalToolSessionState`、`toolWriteGate`、`toolDecisionPipeline`
+- 仓库既有：`AI_TOOL_REGISTRY_SHADOW`（schema+policy+writeMode）、`toolWriteGate`、`toolDecisionPipeline`；`buildPostExecSessionMemory` / `mergeLocalToolSessionState` 已收口进 `commitToolEffects`（无独立 wrapper 文件）
 - 同类产品：Google ADK Runner 将 **Plugin callbacks** 挂在 Runner（`before_tool` / `after_tool` 等），Tool Catalog 为 schema 真源；LangGraph 用 node 提交 state，禁止旁路 `update`
 - 业内 best practice：单一 commit 点提交工具副作用；catalog 与 executor/eval 只读；callbacks 可短路（本切片不实现短路，留给 A9）
 - 公认不可行：引入 `@google/adk` 运行时；把业务写进 Orchestrator；每条工具路径各自 `setSessionMemory`
 - 潜在的坑：shadow 已被 MCP/evals 引用，必须 re-export；batch local tools 应合并后再一次 commit，避免逐步 persist
-- 决定：**适配** ADK 的 Runner/Catalog/Callback 形状，**自研** 最小 TypeScript 实现，复用现有 shadow 与 post-exec patch
+- 决定：**适配** ADK 的 Runner/Catalog/Callback 形状，**自研** 最小 TypeScript 实现，复用现有 shadow；post-exec patch 并入 `commitToolEffects`
 
 ## 2. 架构选择
 
