@@ -163,6 +163,8 @@ describe('TranscriptionPage.ChatWindow.layout', () => {
       }),
     ).toBe(true);
     expect(isChatWindowHeaderInteractiveTarget({ closest: () => null })).toBe(false);
+    expect(isChatWindowHeaderInteractiveTarget({})).toBe(false);
+    expect(isChatWindowHeaderInteractiveTarget(null)).toBe(false);
 
     const dragSession = { current: null as ReturnType<typeof createChatWindowDragSession> | null };
     const resizeSession = { current: null };

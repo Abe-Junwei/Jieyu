@@ -176,10 +176,15 @@ export const CHAT_WINDOW_HEADER_INTERACTIVE_SELECTOR =
   'button, input, select, textarea, a, [role="button"], [role="dialog"]';
 
 export function isChatWindowHeaderInteractiveTarget(target: unknown): boolean {
-  if (!target || typeof target !== 'object') return false;
-  const closest = (target as { closest?: (selector: string) => unknown }).closest;
+  if (target == null || typeof target !== 'object') return false;
+  const closest = (target as { closest?: unknown }).closest;
   return typeof closest === 'function'
-    ? Boolean(closest.call(target, CHAT_WINDOW_HEADER_INTERACTIVE_SELECTOR))
+    ? Boolean(
+        (closest as (selector: string) => unknown).call(
+          target,
+          CHAT_WINDOW_HEADER_INTERACTIVE_SELECTOR,
+        ),
+      )
     : false;
 }
 
