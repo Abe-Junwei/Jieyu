@@ -115,7 +115,9 @@ describe('LexiconPage', () => {
     });
 
     expect(screen.getByTestId('side-pane-title').textContent).toBe('词典工作台');
-    expect(screen.getByTestId('side-pane-subtitle').textContent).toBe('dog');
+    await waitFor(() => {
+      expect(screen.getByTestId('side-pane-subtitle').textContent).toBe('dog');
+    });
     expect(screen.getByTestId('side-pane-content').textContent).toContain('canine');
   });
 
