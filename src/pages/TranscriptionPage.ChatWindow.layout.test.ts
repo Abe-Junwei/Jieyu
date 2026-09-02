@@ -8,8 +8,10 @@ import {
   computeChatWindowResizeSize,
   createChatWindowDragSession,
   createChatWindowResizeSession,
+  createChatWindowPointerInteractionHandlers,
   createChatWindowViewportClamps,
   getDefaultChatWindowLayout,
+  isChatWindowHeaderInteractiveTarget,
   getMaximizedChatWindowLayout,
   readStoredChatWindowLayout,
   reconcileChatWindowLayoutForViewport,
@@ -152,5 +154,57 @@ describe('TranscriptionPage.ChatWindow.layout', () => {
     applyChatWindowKeyboardAction('toggle-open', { setOpen, setMinimized });
     expect(setOpen).toHaveBeenCalledWith(true);
     expect(setMinimized).toHaveBeenCalledWith(false);
+  });
+
+  it('does not start a header drag when the pointer target is interactive', () => {
+    expect(
+      isChatWindowHeaderInteractiveTarget({
+        closest: (selector) => (selector.includes('button') ? {} : null),
+      }),
+    ).toBe(true);
+    expect(isChatWindowHeaderInteractiveTarget({ closest: () => null })).toBe(false);
+
+    const dragSession = { current: null as ReturnType<typeof createChatWindowDragSession> | null };
+    const resizeSession = { current: null };
+    const setDragging = vi.fn();
+    const setPointerCapture = vi.fn();
+    const handlers = createChatWindowPointerInteractionHandlers(
+      { dragSession, resizeSession },
+      () => ({
+        open: true,
+        minimized: false,
+        maximized: false,
+        position: { x: 40, y: 60 },
+        size: { width: 480, height: 640 },
+      }),
+      {
+        setPosition: vi.fn(),
+        setSize: vi.fn(),
+        setDragging,
+        setResizing: vi.fn(),
+      },
+    );
+
+    handlers.handleHeaderPointerDown({
+      clientX: 10,
+      clientY: 10,
+      pointerId: 1,
+      currentTarget: { setPointerCapture },
+      target: { closest: () => ({}) },
+    });
+    expect(dragSession.current).toBeNull();
+    expect(setPointerCapture).not.toHaveBeenCalled();
+    expect(setDragging).not.toHaveBeenCalled();
+
+    handlers.handleHeaderPointerDown({
+      clientX: 10,
+      clientY: 10,
+      pointerId: 1,
+      currentTarget: { setPointerCapture },
+      target: { closest: () => null },
+    });
+    expect(dragSession.current).not.toBeNull();
+    expect(setPointerCapture).toHaveBeenCalledWith(1);
+    expect(setDragging).toHaveBeenCalledWith(true);
   });
 });
