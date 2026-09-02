@@ -175,10 +175,17 @@ export type ChatWindowPointerCaptureTarget = {
 export const CHAT_WINDOW_HEADER_INTERACTIVE_SELECTOR =
   'button, input, select, textarea, a, [role="button"], [role="dialog"]';
 
-export function isChatWindowHeaderInteractiveTarget(
-  target: { closest?: (selector: string) => unknown } | null | undefined,
-): boolean {
-  return Boolean(target?.closest?.(CHAT_WINDOW_HEADER_INTERACTIVE_SELECTOR));
+export function isChatWindowHeaderInteractiveTarget(target: unknown): boolean {
+  if (target == null || typeof target !== 'object') return false;
+  const closest = (target as { closest?: unknown }).closest;
+  return typeof closest === 'function'
+    ? Boolean(
+        (closest as (selector: string) => unknown).call(
+          target,
+          CHAT_WINDOW_HEADER_INTERACTIVE_SELECTOR,
+        ),
+      )
+    : false;
 }
 
 export type ChatWindowPointerEventLike = {
@@ -186,7 +193,7 @@ export type ChatWindowPointerEventLike = {
   clientY: number;
   pointerId: number;
   currentTarget: ChatWindowPointerCaptureTarget;
-  target?: { closest?: (selector: string) => unknown } | null;
+  target?: unknown;
   stopPropagation?: () => void;
 };
 
