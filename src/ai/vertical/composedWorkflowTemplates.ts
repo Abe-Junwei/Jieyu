@@ -1,4 +1,12 @@
-import { getVerticalWorkflowV0, type VerticalWorkflowId, type VerticalWorkflowV0 } from './verticalWorkflowRegistry';
+import {
+  VERTICAL_WORKFLOW_REGISTRY_V0,
+  getVerticalWorkflowV0,
+  type VerticalWorkflowId,
+  type VerticalWorkflowV0,
+} from './verticalWorkflowRegistry';
+import type { LocalContextToolName } from '../chat/localContextToolTypes';
+import { isReadOnlyLocalContextToolName } from '../policy/localContextToolEffects';
+import { assertStepKindsAlignWithSteps, type WorkflowStepKind } from './workflowStepKinds';
 import type { AnnotationQaReflectionResult } from './annotationQaReflection';
 import { buildAnnotationQaReflectionRetryPrompt } from './annotationQaReflection';
 import type { LexemeCandidatesReflectionResult } from './lexemeCandidatesReflection';
@@ -14,6 +22,8 @@ export interface ComposedWorkflowTemplate {
   id: string;
   labelKey: string;
   steps: readonly ComposedWorkflowStepId[];
+  /** A12.1 — parallel to `steps`; existing templates are sequential llm. */
+  stepKinds: readonly WorkflowStepKind[];
   keywords: readonly string[];
 }
 
@@ -40,12 +50,16 @@ export interface ComposedWorkflowState {
 }
 
 /** Drop pending reflection retry markers so a successful parse does not carry stale blobs. */
-export function stripComposedPendingReflectionRetry(state: ComposedWorkflowState): ComposedWorkflowState {
+export function stripComposedPendingReflectionRetry(
+  state: ComposedWorkflowState,
+): ComposedWorkflowState {
   const { pendingReflectionRetryStepIndex: _a, pendingReflectionRetryDetail: _b, ...rest } = state;
   return rest;
 }
 
-export function buildComposedReflectionRetryPromptAppendix(detail: ComposedReflectionRetryBlob): string {
+export function buildComposedReflectionRetryPromptAppendix(
+  detail: ComposedReflectionRetryBlob,
+): string {
   switch (detail.kind) {
     case 'segment_qa':
       return buildSegmentQaReflectionRetryPrompt(detail.result);
@@ -62,13 +76,20 @@ export const ANNOTATION_QA_THEN_LEXEME_CANDIDATES: ComposedWorkflowTemplate = {
   id: 'annotation_qa_then_lexeme_candidates',
   labelKey: 'msg.ai.vertical.composed.annotationQaThenLexemeCandidates',
   steps: ['annotation_qa', 'lexeme_candidates'] as const,
-  keywords: ['审校并生成候选词', '检查标注并建议词条', 'annotation qa then lexeme', 'qa and lexeme'],
+  stepKinds: ['llm', 'llm'] as const,
+  keywords: [
+    '审校并生成候选词',
+    '检查标注并建议词条',
+    'annotation qa then lexeme',
+    'qa and lexeme',
+  ],
 };
 
 export const SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES: ComposedWorkflowTemplate = {
   id: 'segment_qa_then_annotation_qa_then_lexeme_candidates',
   labelKey: 'msg.ai.vertical.composed.segmentQaThenAnnotationQaThenLexemeCandidates',
   steps: ['segment_qa', 'annotation_qa', 'lexeme_candidates'] as const,
+  stepKinds: ['llm', 'llm', 'llm'] as const,
   keywords: [
     '语段问答并审校生成候选词',
     '先问答再审校并建议词条',
@@ -418,7 +439,10 @@ export function resolveComposedStepWorkflowSelection(
       return { workflowId: 'annotation_qa', workflow: getVerticalWorkflowV0('annotation_qa') };
     }
     if (state.currentStepIndex === 1 || state.status === 'step1_done') {
-      return { workflowId: 'lexeme_candidates', workflow: getVerticalWorkflowV0('lexeme_candidates') };
+      return {
+        workflowId: 'lexeme_candidates',
+        workflow: getVerticalWorkflowV0('lexeme_candidates'),
+      };
     }
   }
 
@@ -430,9 +454,65 @@ export function resolveComposedStepWorkflowSelection(
       return { workflowId: 'annotation_qa', workflow: getVerticalWorkflowV0('annotation_qa') };
     }
     if (state.currentStepIndex === 2 || state.status === 'step2_done') {
-      return { workflowId: 'lexeme_candidates', workflow: getVerticalWorkflowV0('lexeme_candidates') };
+      return {
+        workflowId: 'lexeme_candidates',
+        workflow: getVerticalWorkflowV0('lexeme_candidates'),
+      };
     }
   }
 
   return null;
 }
+
+export function listComposedWorkflowTemplates(): readonly ComposedWorkflowTemplate[] {
+  return COMPOSED_WORKFLOW_TEMPLATES;
+}
+
+export function getComposedWorkflowStepKinds(
+  template: ComposedWorkflowTemplate,
+): readonly WorkflowStepKind[] {
+  assertStepKindsAlignWithSteps(template.steps.length, template.stepKinds);
+  return template.stepKinds;
+}
+
+export function assertComposedWorkflowTemplatesGoverned(
+  templates: readonly ComposedWorkflowTemplate[] = COMPOSED_WORKFLOW_TEMPLATES,
+): void {
+  for (const template of templates) {
+    assertStepKindsAlignWithSteps(template.steps.length, template.stepKinds);
+    for (const stepId of template.steps) {
+      if (!(stepId in VERTICAL_WORKFLOW_REGISTRY_V0)) {
+        throw new Error(
+          `Composed workflow ${template.id} step ${stepId} is not in VERTICAL_WORKFLOW_REGISTRY_V0`,
+        );
+      }
+    }
+  }
+}
+
+export interface ParallelReadonlyComposedStep {
+  kind: 'parallel_readonly';
+  toolNames: readonly LocalContextToolName[];
+}
+
+/** A12.3 sample — not registered in selectComposedWorkflowTemplate. */
+export function buildParallelReadonlyComposedStep(
+  toolNames: readonly LocalContextToolName[],
+): ParallelReadonlyComposedStep {
+  if (toolNames.length === 0) {
+    throw new Error('parallel_readonly step requires at least one tool');
+  }
+  for (const name of toolNames) {
+    if (!isReadOnlyLocalContextToolName(name)) {
+      throw new Error(`parallel_readonly step rejected write-like tool: ${name}`);
+    }
+  }
+  return { kind: 'parallel_readonly', toolNames };
+}
+
+export const PARALLEL_READONLY_COMPOSED_STEP_SAMPLE = buildParallelReadonlyComposedStep([
+  'search_units',
+  'list_layers',
+]);
+
+assertComposedWorkflowTemplatesGoverned();

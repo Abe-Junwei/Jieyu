@@ -6,6 +6,7 @@
 export type AgentCallbackPhase =
   | 'before_turn'
   | 'before_model'
+  | 'after_model'
   | 'before_tool'
   | 'after_tool'
   | 'before_client';
@@ -13,6 +14,7 @@ export type AgentCallbackPhase =
 export type AgentCallbackContext = {
   phase: AgentCallbackPhase;
   toolName?: string;
+  workflowId?: string;
   agentRunId?: string;
   resultOk?: boolean;
 };

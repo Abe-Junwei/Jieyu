@@ -7,6 +7,7 @@ import { featureFlags } from '../../ai/config/featureFlags';
 import { getDefaultAiChatSettings } from '../../ai/providers/providerCatalog';
 import { createMetricTags } from '../../observability/metrics';
 import type { VerticalWorkflowOutputEnvelopeV0 } from '../../ai/vertical/verticalWorkflowSelection';
+import { getVerticalWorkflowV0 } from '../../ai/vertical/verticalWorkflowRegistry';
 import type { PersistOpeningTurnAndBuildPromptContextResult } from './useAiChat.sendPersistTurnAndBuildPromptContext';
 import {
   createInitialSendTurnStreamPhaseState,
@@ -303,14 +304,7 @@ describe('runAiChatSendTurnStreamPhase', () => {
       stream: oneDone(),
       verticalWorkflowSelection: {
         workflowId: 'annotation_qa',
-        workflow: {
-          id: 'annotation_qa',
-          labelKey: 'msg.ai.vertical.workflow.annotationQa',
-          inputScope: 'selection',
-          outputKind: 'qa_findings',
-          writeMode: 'propose_only',
-          requiredCapabilities: ['read.segment'],
-        },
+        workflow: getVerticalWorkflowV0('annotation_qa'),
         confidence: 0.84,
         source: 'rule_v0',
         reasonCode: 'keyword_match',
