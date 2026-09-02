@@ -53,6 +53,7 @@ export async function writeVerticalWorkflowAuditLogForSendTurnStreamPhase(opts: 
           schemaVersion: verticalOutputEnvelopeSeed.schemaVersion,
           generatedAt: verticalOutputEnvelopeSeed.generatedAt,
           evidencePacketCount: verticalOutputEnvelopeSeed.evidencePackets.length,
+          status: verticalOutputEnvelopeSeed.status,
         },
         selection: verticalWorkflowSelection
           ? {

@@ -153,4 +153,117 @@ test.describe('T1-c AI agent loop handoff after reload', () => {
 
     await cleanupE2ETask(page);
   });
+
+  test('shows search-no-results clarify copy from aiChatCardMessages in the transcript', async ({
+    page,
+  }) => {
+    const clarifyZh = '未找到匹配的句段';
+    const clarifyEn = 'No matching units were found';
+    const conversationId = 'e2e_a4_clarify_conversation';
+    const messageId = 'e2e_a4_clarify_search_zero';
+
+    await page.goto('/transcription');
+    await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
+    await page.waitForFunction(
+      () =>
+        Boolean(
+          (globalThis as unknown as { __jieyuDexie__?: { open: () => Promise<unknown> } })
+            .__jieyuDexie__,
+        ),
+      { timeout: 25_000 },
+    );
+
+    await page.evaluate(
+      async ({ conversationId: convId, messageId: msgId, clarifyText }) => {
+        const dexie = (
+          globalThis as unknown as {
+            __jieyuDexie__: {
+              open: () => Promise<unknown>;
+              ai_conversations: {
+                delete: (k: string) => Promise<unknown>;
+                put: (row: Record<string, unknown>) => Promise<unknown>;
+                toArray: () => Promise<Array<{ textId?: string }>>;
+              };
+              ai_messages: {
+                delete: (k: string) => Promise<unknown>;
+                put: (row: Record<string, unknown>) => Promise<unknown>;
+              };
+            };
+          }
+        ).__jieyuDexie__;
+        await dexie.open();
+        await dexie.ai_conversations.delete(convId).catch(() => undefined);
+        await dexie.ai_messages.delete(msgId).catch(() => undefined);
+        const existing = (await dexie.ai_conversations.toArray()) as Array<{ textId?: string }>;
+        const scopedTextId = existing.find((row) => typeof row.textId === 'string' && row.textId.length > 0)
+          ?.textId;
+        const ts = new Date().toISOString();
+        await dexie.ai_conversations.put({
+          id: convId,
+          title: 'E2E agent loop clarify',
+          mode: 'assistant',
+          providerId: 'mock',
+          model: 'mock',
+          ...(scopedTextId ? { textId: scopedTextId } : {}),
+          createdAt: ts,
+          updatedAt: ts,
+        });
+        await dexie.ai_messages.put({
+          id: msgId,
+          conversationId: convId,
+          role: 'assistant',
+          content: clarifyText,
+          status: 'done',
+          generationSource: 'local',
+          createdAt: ts,
+          updatedAt: ts,
+        });
+      },
+      {
+        conversationId,
+        messageId,
+        clarifyText: `${clarifyZh}。请尝试更具体的关键词、缩小范围，或确认当前选区/轨道是否正确。`,
+      },
+    );
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
+
+    const chatTrigger = page.locator('.transcription-chat-window-trigger:not(.is-hidden)');
+    const chatWindow = page.locator('.transcription-chat-window');
+    if ((await chatWindow.count()) === 0) {
+      await expect(chatTrigger).toBeVisible({ timeout: 15_000 });
+      await chatTrigger.click();
+    }
+    await expect(chatWindow).toBeVisible({ timeout: 15_000 });
+
+    const listButton = page.getByRole('button', { name: /Conversation list|会话列表/i });
+    if (await listButton.isVisible().catch(() => false)) {
+      await listButton.click();
+      const popover = page.locator('.ai-conversation-list-popover');
+      await expect(popover).toBeVisible({ timeout: 5_000 });
+      await popover.getByText(/E2E agent loop clarify/i).click();
+    }
+
+    await expect(page.locator('.ai-chat-message-content')).toContainText(
+      new RegExp(`${clarifyZh}|${clarifyEn}`),
+      { timeout: 15_000 },
+    );
+
+    await page.evaluate(
+      async ({ conversationId: convId, messageId: msgId }) => {
+        const dexie = (
+          globalThis as unknown as {
+            __jieyuDexie__?: {
+              ai_conversations: { delete: (k: string) => Promise<unknown> };
+              ai_messages: { delete: (k: string) => Promise<unknown> };
+            };
+          }
+        ).__jieyuDexie__;
+        await dexie?.ai_messages.delete(msgId).catch(() => undefined);
+        await dexie?.ai_conversations.delete(convId).catch(() => undefined);
+      },
+      { conversationId, messageId },
+    );
+  });
 });

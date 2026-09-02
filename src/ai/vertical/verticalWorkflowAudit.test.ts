@@ -40,6 +40,35 @@ describe('verticalWorkflowAudit', () => {
     expect(parsed?.metadata.workflowId).toBe('annotation_qa');
     expect(parsed?.metadata.completionStatus).toBe('done');
     expect(parsed?.metadata.envelope.evidencePacketCount).toBe(0);
+    expect(parsed?.metadata.envelope.status).toBeUndefined();
+  });
+
+  it('parses envelope.status after reflection reconcile writes', () => {
+    const row = {
+      field: AI_VERTICAL_WORKFLOW_RESULT_AUDIT_FIELD,
+      documentId: 'ast_1',
+      requestId: 'ast_1_vertical_2026-01-01T00:00:00.000Z',
+      timestamp: '2026-01-01T00:00:01.000Z',
+      metadataJson: JSON.stringify({
+        schemaVersion: 1,
+        phase: 'stream_completion',
+        completionPath: 'stream_done',
+        completionStatus: 'done',
+        workflowId: 'annotation_qa',
+        writeMode: 'propose_only',
+        outputKind: 'qa_findings',
+        envelope: {
+          schemaVersion: 0,
+          generatedAt: '2026-01-01T00:00:00.000Z',
+          evidencePacketCount: 1,
+          status: 'degraded',
+        },
+        selection: null,
+      }),
+    };
+
+    const parsed = parseVerticalWorkflowAuditEntry(row);
+    expect(parsed?.metadata.envelope.status).toBe('degraded');
   });
 
   it('returns null for non-vertical audit fields or malformed metadata', () => {
