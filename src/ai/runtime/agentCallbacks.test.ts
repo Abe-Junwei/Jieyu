@@ -3,6 +3,7 @@ import {
   AgentCallbackRegistry,
   getDefaultAgentCallbackRegistry,
   runWithToolCallbacks,
+  type AgentCallbackContext,
 } from './agentCallbacks';
 
 describe('AgentCallbackRegistry', () => {
@@ -22,6 +23,27 @@ describe('AgentCallbackRegistry', () => {
     expect(seen).toEqual(['a', 'b']);
     await registry.run('after_tool', { toolName: 'search_units', resultOk: true });
     expect(seen).toEqual(['a', 'b', 'c']);
+  });
+
+  it('runs after_model with workflowId', async () => {
+    const registry = new AgentCallbackRegistry();
+    const seen: AgentCallbackContext[] = [];
+    registry.register('after_model', (ctx) => {
+      seen.push(ctx);
+    });
+    await registry.run('after_model', {
+      workflowId: 'segment_qa',
+      resultOk: true,
+      agentRunId: 'run_test',
+    });
+    expect(seen).toEqual([
+      {
+        phase: 'after_model',
+        workflowId: 'segment_qa',
+        resultOk: true,
+        agentRunId: 'run_test',
+      },
+    ]);
   });
 
   it('unregister stops a handler from running', async () => {
