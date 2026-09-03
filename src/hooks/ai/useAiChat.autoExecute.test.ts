@@ -60,6 +60,33 @@ describe('executeAutoToolCall turn side-effect guard', () => {
     expect(result.finalErrorMessage).toBe('turn_superseded');
   });
 
+  it('rolls back workspace mutation when turn side-effects guard becomes stale mid-flight', async () => {
+    let stale = false;
+    const rollback = vi.fn(async () => {});
+    const onToolCall = vi.fn(async () => {
+      stale = true;
+      return { ok: true, message: 'updated', rollback };
+    });
+    const persistSessionMemory = vi.fn();
+    const updateSessionMemory = vi.fn();
+
+    const result = await executeAutoToolCall({
+      ...baseParams({
+        onToolCall,
+        shouldApplyTurnSideEffects: () => !stale,
+      }),
+      persistSessionMemory,
+      updateSessionMemory,
+    });
+
+    expect(onToolCall).toHaveBeenCalledTimes(1);
+    expect(rollback).toHaveBeenCalledTimes(1);
+    expect(persistSessionMemory).not.toHaveBeenCalled();
+    expect(updateSessionMemory).not.toHaveBeenCalled();
+    expect(result.finalStatus).toBe('error');
+    expect(result.finalErrorMessage).toBe('turn_superseded');
+  });
+
   it('commits session memory through commitToolEffects on success', async () => {
     const persistSessionMemory = vi.fn();
     const updateSessionMemory = vi.fn();

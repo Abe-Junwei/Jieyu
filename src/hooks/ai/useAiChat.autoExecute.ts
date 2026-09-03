@@ -146,6 +146,9 @@ export async function executeAutoToolCall({
     const autoExecDurationMs = Math.round(performance.now() - autoExecStart);
 
     if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
+      if (result.ok && typeof result.rollback === 'function') {
+        await result.rollback();
+      }
       setTaskSession({
         id: taskSessionId,
         status: 'idle',
