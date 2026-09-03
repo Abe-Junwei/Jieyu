@@ -2,7 +2,10 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { evaluateTrajectorySignalsFromAudit } from './agent-evals/auditTrajectoryAssertions.mjs';
+import {
+  evaluateAgentRunIdChainFromAudit,
+  evaluateTrajectorySignalsFromAudit,
+} from './agent-evals/auditTrajectoryAssertions.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -132,6 +135,7 @@ function evaluateAuditTrace(ndjsonPath) {
     }
   }
   const t4AuditShapePassed = t4PartialProgressDecisionRowCount >= 1 && t4ProposeRollbackDecisionRowCount >= 1;
+  const agentRunChain = evaluateAgentRunIdChainFromAudit(parsed.rows);
   const trajectoryFromAudit = evaluateTrajectorySignalsFromAudit(parsed.rows, [
     'tool_selection',
     'gate_correctness',
@@ -145,6 +149,7 @@ function evaluateAuditTrace(ndjsonPath) {
     && metadataDecisionRows.length > 0
     && schemaV1DecisionRows.length > 0
     && t4AuditShapePassed
+    && agentRunChain.passed
     && trajectoryFromAudit.passed;
 
   const failureReasons = [];
@@ -166,6 +171,9 @@ function evaluateAuditTrace(ndjsonPath) {
   if (schemaV1DecisionRows.length > 0 && t4ProposeRollbackDecisionRowCount < 1) {
     failureReasons.push('missing_t4_audit_propose_rollback_error_count');
   }
+  if (!agentRunChain.passed) {
+    failureReasons.push('missing_agent_run_id_chain');
+  }
   if (!trajectoryFromAudit.passed) {
     failureReasons.push(`missing_trajectory_signals=${trajectoryFromAudit.missingSignals.join(',')}`);
   }
@@ -179,6 +187,8 @@ function evaluateAuditTrace(ndjsonPath) {
     schemaV1DecisionRowCount: schemaV1DecisionRows.length,
     t4PartialProgressDecisionRowCount,
     t4ProposeRollbackDecisionRowCount,
+    chainedRunCount: agentRunChain.chainedRunCount,
+    missingAgentRunIdCount: agentRunChain.missingAgentRunIdCount,
     parseErrorCount: parsed.errors.length,
     trajectorySignalsFromAudit: trajectoryFromAudit.coveredSignals,
     missingTrajectorySignalsFromAudit: trajectoryFromAudit.missingSignals,
@@ -322,7 +332,7 @@ function main() {
   );
   if (auditTrace.enabled) {
     process.stdout.write(
-      `[agent-evals] audit-trace: decisionRows=${auditTrace.decisionRowCount}, decisionMetadataRows=${auditTrace.metadataDecisionRowCount}, schemaV1Rows=${auditTrace.schemaV1DecisionRowCount ?? 0}, t4PartialRows=${auditTrace.t4PartialProgressDecisionRowCount ?? 0}, t4RollbackRows=${auditTrace.t4ProposeRollbackDecisionRowCount ?? 0}, parseErrors=${auditTrace.parseErrorCount}, passed=${auditTrace.passed}\n`,
+      `[agent-evals] audit-trace: decisionRows=${auditTrace.decisionRowCount}, decisionMetadataRows=${auditTrace.metadataDecisionRowCount}, schemaV1Rows=${auditTrace.schemaV1DecisionRowCount ?? 0}, t4PartialRows=${auditTrace.t4PartialProgressDecisionRowCount ?? 0}, t4RollbackRows=${auditTrace.t4ProposeRollbackDecisionRowCount ?? 0}, chainedRuns=${auditTrace.chainedRunCount ?? 0}, missingAgentRunId=${auditTrace.missingAgentRunIdCount ?? 0}, parseErrors=${auditTrace.parseErrorCount}, passed=${auditTrace.passed}\n`,
     );
   }
 

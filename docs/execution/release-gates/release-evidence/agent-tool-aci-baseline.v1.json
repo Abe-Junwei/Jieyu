@@ -1,0 +1,25 @@
+{
+  "version": "v1",
+  "distinctRunCount": 2,
+  "totalToolCalls": 2,
+  "averageToolCallsPerRun": 1,
+  "runs": [
+    {
+      "agentRunId": "run_runtime_ci_001",
+      "toolCallCount": 1,
+      "outcomes": {
+        "confirmed": 1
+      }
+    },
+    {
+      "agentRunId": "run_runtime_ci_002",
+      "toolCallCount": 1,
+      "outcomes": {
+        "policy_pending": 1
+      }
+    }
+  ],
+  "source": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+  "generatedFrom": "committed-audit-ndjson",
+  "note": "Fixture replay tool-call counts by agentRunId (not live LLM ACI). Optional pass@k is out of A14 scope."
+}

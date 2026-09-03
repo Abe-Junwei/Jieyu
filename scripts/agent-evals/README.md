@@ -12,6 +12,7 @@
 
 - 每个 case 可声明一组字符串标签；runner 会对全 suite **去重合并**，再与 `thresholds.requiredTrajectorySignals` 做 **集合包含**检查。
 - 当前语义是 **元数据层面的信号覆盖**（声明「本 case 意在覆盖哪些治理维度」），**不是**对真实工具调用轨迹的自动解析或评分。
+- `--assert-audit-trace` 另从 NDJSON **自动派生**信号（`evaluateTrajectorySignalsFromAudit`），并做 **A14 `agentRunId` 链断言**：schema-v1 `ai_tool_call_decision` 必须带 `metadata.agentRunId`（或 `metadata.context.agentRunId`）；当存在 schema-v1 decision 时，至少一条 run 还要有 `ai_tool_call_intent` 或 `ai_agent_loop_step` 同源 id（`evaluateAgentRunIdChainFromAudit` / `filterAuditRowsByAgentRunId`）。按 run 过滤后，另一条 run 的 `recovery_path` 不会误算进当前轨迹。
 
 ## 命令入口（`package.json`）
 
@@ -29,7 +30,9 @@
 node scripts/run-agent-evals.mjs --mode=enforce --assert-audit-trace=path/to/export.ndjson
 ```
 
-启用后，除原有 case 阈值外，还会校验导出中至少存在可解析的 `ai_tool_call_decision` 行，且存在带 `phase=decision`、非空 `outcome`、**`schemaVersion === 1`** 的 decision metadata（详见 `scripts/run-agent-evals.mjs` 与 `scripts/run-agent-evals.test.ts`）。
+启用后，除原有 case 阈值外，还会校验导出中至少存在可解析的 `ai_tool_call_decision` 行，且存在带 `phase=decision`、非空 `outcome`、**`schemaVersion === 1`** 的 decision metadata，以及 **A14 `agentRunId` 链**（详见 `scripts/run-agent-evals.mjs` 与 `scripts/agent-evals/auditTrajectoryAssertions.mjs`）。
+
+P2 工具调用计数基线（按 `agentRunId` 聚合，fixture 回放、非 live LLM）见 `docs/execution/release-gates/release-evidence/agent-tool-aci-baseline.v1.json`。
 
 ## CI
 
