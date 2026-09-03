@@ -13,6 +13,7 @@ import { PanelButton, PanelChip, PanelNote } from '../ui';
 import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
 import { AiChangeSetPreview } from './AiChangeSetPreview';
+import { AgentWritePreviewSection } from './AgentWritePreviewSection';
 
 interface AiChatAlertsPanelProps {
   isZh: boolean;
@@ -346,6 +347,7 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
                       {pendingChangeSet && (
                         <AiChangeSetPreview changeSet={pendingChangeSet} showActions={false} />
                       )}
+                      <AgentWritePreviewSection pending={aiPendingToolCall} />
                       {aiPendingToolCall.previewContract && (
                         <div className="ai-chat-alerts-pending-meta">
                           {aiPendingToolCall.riskTier && <span>risk:{aiPendingToolCall.riskTier}</span>}

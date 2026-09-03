@@ -28,6 +28,10 @@ import { resolveToolIntentOutcome } from '../../hooks/ai/useAiChat.intentResolut
 import { handleInvalidToolArguments } from '../../hooks/ai/useAiChat.argsValidation';
 import { resolveDestructiveGate } from '../../hooks/ai/useAiChat.destructiveGate';
 import { executeAutoToolCall } from '../../hooks/ai/useAiChat.autoExecute';
+import {
+  publishAgentWriteBlocked,
+  publishAgentWritePreviewPending,
+} from '../runtime/agentUiEvents';
 import type {
   AiChatToolCall,
   AiInteractionMetrics,
@@ -205,6 +209,18 @@ export async function resolveToolDecisionPipeline({
     writeToolIntentAuditLog,
   });
 
+  const setPendingWritePreview: ResolveToolDecisionPipelineParams['setPendingToolCall'] = (
+    value,
+  ) => {
+    setPendingToolCall(value);
+    if (value) {
+      publishAgentWritePreviewPending({
+        pending: value,
+        ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
+      });
+    }
+  };
+
   const intentOutcome = resolveToolIntentOutcome({
     intentAssessment,
     ...(planner?.decision ? { plannerDecision: planner.decision } : {}),
@@ -350,6 +366,12 @@ export async function resolveToolDecisionPipeline({
         policyDecision.reason,
       ),
     );
+    publishAgentWriteBlocked({
+      toolName: toolCall.name,
+      reasonCode: policyDecision.reason,
+      ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
+      ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
+    });
     return { finalContent, finalStatus: 'done' };
   }
 
@@ -383,6 +405,12 @@ export async function resolveToolDecisionPipeline({
           writeGateDecision.reasonCode,
         ),
       );
+      publishAgentWriteBlocked({
+        toolName: toolCall.name,
+        reasonCode: writeGateDecision.reasonCode,
+        ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
+        ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
+      });
       return { finalContent, finalStatus: 'done' };
     }
   }
@@ -405,7 +433,7 @@ export async function resolveToolDecisionPipeline({
       toolName: toolCall.name,
       updatedAt: new Date().toISOString(),
     });
-    setPendingToolCall({
+    setPendingWritePreview({
       call: toolCall,
       ...(executionCall ? { executionCall } : {}),
       assistantMessageId,
@@ -464,7 +492,7 @@ export async function resolveToolDecisionPipeline({
       toolName: toolCall.name,
       updatedAt: new Date().toISOString(),
     });
-    setPendingToolCall({
+    setPendingWritePreview({
       call: toolCall,
       ...(executionCall ? { executionCall } : {}),
       assistantMessageId,
@@ -516,7 +544,7 @@ export async function resolveToolDecisionPipeline({
     writeToolDecisionAuditLog,
     setTaskSession,
     setPendingToolCall: (value) => {
-      setPendingToolCall(value);
+      setPendingWritePreview(value);
     },
     taskSessionId,
     bumpFailureMetric: () => bumpMetric('failureCount'),

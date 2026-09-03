@@ -79,6 +79,10 @@ const aiAgentLoopEffortScalingEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_AGENT_LOOP_EFFORT_SCALING_ENABLED,
 );
 
+const aiAgentUiPreviewEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_AGENT_UI_PREVIEW_ENABLED,
+);
+
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
   featureFlagDeploymentEnvironment === 'staging' ||
@@ -168,4 +172,9 @@ export const featureFlags = {
    * 默认 false；开启后才改变步数。见 spec agent-runtime-runner-foundation §5。
    */
   aiAgentLoopEffortScalingEnabled: aiAgentLoopEffortScalingEnabledFromEnv ?? false,
+  /**
+   * A11: AgentUiEvent write preview + triage in AlertsPanel.
+   * 默认 false；开启后 pending/blocked/confirm 发同源事件并渲染结构化 preview。
+   */
+  aiAgentUiPreviewEnabled: aiAgentUiPreviewEnabledFromEnv ?? false,
 } as const;

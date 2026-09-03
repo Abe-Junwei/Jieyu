@@ -34,6 +34,29 @@ describe('buildAiChangeTransactionPreviewV1', () => {
     expect(dto.childSteps[0]?.argsSummary).toContain('hello');
     expect(dto.impactPreviewSourceLines).toEqual(['Line A', 'Line B']);
     expect(dto.requestId).toBe('req-propose-1');
+    expect(dto.agentRunId).toBeUndefined();
+  });
+
+  it('copies agentRunId from argument or pending auditContext', () => {
+    const pending: PendingAiToolCall = {
+      call: {
+        name: 'set_transcription_text',
+        arguments: { segmentId: 'u2', text: 'x' },
+      },
+      assistantMessageId: 'ast-3',
+      auditContext: {
+        userText: '',
+        providerId: 'mock',
+        model: 'm',
+        toolDecisionMode: 'enabled',
+        toolFeedbackStyle: 'concise',
+        agentRunId: 'run_from_ctx',
+      },
+    };
+    expect(buildAiChangeTransactionPreviewV1(pending).agentRunId).toBe('run_from_ctx');
+    expect(buildAiChangeTransactionPreviewV1(pending, 'run_override').agentRunId).toBe(
+      'run_override',
+    );
   });
 
   it('maps single-tool pending to kind single_tool', () => {

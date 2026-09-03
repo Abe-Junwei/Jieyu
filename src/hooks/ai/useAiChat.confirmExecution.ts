@@ -17,6 +17,7 @@ import {
 } from '../../ai/messages';
 import { runWithToolCallbacks } from '../../ai/runtime/agentCallbacks';
 import { commitToolEffects } from '../../ai/runtime/commitToolEffects';
+import { publishAgentWriteConfirmed } from '../../ai/runtime/agentUiEvents';
 import { nowIso } from './useAiChat.helpers';
 import { genRequestId } from './useAiChat.toolAudit';
 import type { Locale } from '../../i18n';
@@ -453,6 +454,11 @@ export async function executeConfirmedToolCall({
               : {}),
           },
         );
+        publishAgentWriteConfirmed({
+          toolName: call.name,
+          ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
+          ...(call.requestId ? { requestId: call.requestId } : {}),
+        });
       } else {
         bumpMetric('failureCount');
       }
@@ -940,6 +946,11 @@ export async function executeConfirmedProposedChangeBatch({
         toolName: lastOkChildName,
       },
     );
+    publishAgentWriteConfirmed({
+      toolName: lastOkChildName,
+      ...(auditContext.agentRunId ? { agentRunId: auditContext.agentRunId } : {}),
+      ...(parentCall.requestId ? { requestId: parentCall.requestId } : {}),
+    });
 
     await finalizeHumanProposeChangesParentConfirmSuccess({
       assistantMessageId,
