@@ -8,13 +8,9 @@ import { scheduleAndFlushBackgroundMemory } from './useAiChat.backgroundMemory';
 import type { DegradationScenario } from '../../ai/chat/degradationManualOverride';
 import type { ComposedReflectionRetryBlob } from '../../ai/vertical/composedWorkflowTemplates';
 import { runSendTurnStreamComposedWorkflowAfterVerticalQuality } from './useAiChat.sendTurnStreamPhase.completionPipelineVerticalComposedWorkflow';
-import { runSegmentQaReflection } from '../../ai/vertical/segmentQaReflection';
-import { runAnnotationQaReflection } from '../../ai/vertical/annotationQaReflection';
-import { runLexemeCandidatesReflection } from '../../ai/vertical/lexemeCandidatesReflection';
-import {
-  parseCompatibilityReport,
-  runElanFlexCompatibilityReflection,
-} from '../../ai/vertical/elanFlexCompatibilityWorkflow';
+import { parseCompatibilityReport } from '../../ai/vertical/elanFlexCompatibilityWorkflow';
+import { dispatchVerticalWorkflowReflection } from '../../ai/vertical/verticalWorkflowReflectionDispatch';
+import { getDefaultAgentCallbackRegistry } from '../../ai/runtime/agentCallbacks';
 import { createAdoptionItem } from '../../ai/vertical/adoptionQueue';
 import { judgeCitationAccuracyBatch } from '../../ai/eval/citationJudge';
 import { judgeRelevance } from '../../ai/eval/relevanceJudge';
@@ -75,63 +71,23 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
   let composedReflectionRetryBlob: ComposedReflectionRetryBlob | undefined;
   if (resolution.status === 'done' && verticalOutputEnvelopeSeed) {
     try {
-      let reflection: {
-        reflectionFlagged: boolean;
-        checks: { name: string; passed: boolean }[];
-        summary: string;
-      } | null = null;
-      let reflectionField: string | null = null;
-
-      if (verticalOutputEnvelopeSeed.workflowId === 'segment_qa') {
-        const r = runSegmentQaReflection(
-          resolution.content,
-          verticalOutputEnvelopeSeed.evidencePackets,
-        );
-        reflection = r;
-        reflectionField = 'ai_segment_qa_reflection';
-        if (r.reflectionFlagged) {
-          composedReflectionRetryBlob = { kind: 'segment_qa', result: r };
-        }
-      } else if (verticalOutputEnvelopeSeed.workflowId === 'annotation_qa') {
-        const r = runAnnotationQaReflection(
-          resolution.content,
-          verticalOutputEnvelopeSeed.evidencePackets,
-        );
-        reflection = r;
-        reflectionField = 'ai_annotation_qa_reflection';
-        if (r.reflectionFlagged) {
-          composedReflectionRetryBlob = { kind: 'annotation_qa', result: r };
-        }
-      } else if (verticalOutputEnvelopeSeed.workflowId === 'lexeme_candidates') {
-        const r = runLexemeCandidatesReflection(
-          resolution.content,
-          verticalOutputEnvelopeSeed.evidencePackets,
-        );
-        reflection = r;
-        reflectionField = 'ai_lexeme_candidates_reflection';
-        if (r.reflectionFlagged) {
-          composedReflectionRetryBlob = { kind: 'lexeme_candidates', result: r };
-        }
-      } else if (verticalOutputEnvelopeSeed.workflowId === 'elan_flex_compatibility') {
-        const r = runElanFlexCompatibilityReflection(
-          resolution.content,
-          verticalOutputEnvelopeSeed.evidencePackets,
-        );
-        reflection = r;
-        reflectionField = 'ai_elan_flex_compatibility_reflection';
-        if (r.reflectionFlagged) {
-          composedReflectionRetryBlob = { kind: 'elan_flex_compatibility', result: r };
-        }
-      }
-
-      if (reflection && reflectionField) {
+      const dispatched = dispatchVerticalWorkflowReflection(
+        verticalOutputEnvelopeSeed.workflowId,
+        resolution.content,
+        verticalOutputEnvelopeSeed.evidencePackets,
+      );
+      if (dispatched) {
+        const reflection = dispatched.reflection;
         reflectionResult = reflection;
+        if (dispatched.retryBlob) {
+          composedReflectionRetryBlob = dispatched.retryBlob;
+        }
         await db.collections.audit_logs.insert({
           id: newAuditLogId(),
           collection: 'ai_messages',
           documentId: assistantId,
           action: 'update',
-          field: reflectionField,
+          field: dispatched.auditField,
           oldValue: reflection.summary,
           newValue: reflection.reflectionFlagged ? 'flagged' : 'passed',
           source: 'ai',
@@ -153,6 +109,15 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
       log.error(`${verticalOutputEnvelopeSeed?.workflowId ?? 'unknown'} reflection failed`, {
         err: reflectionError,
       });
+    }
+    try {
+      await getDefaultAgentCallbackRegistry().run('after_model', {
+        workflowId: verticalOutputEnvelopeSeed.workflowId,
+        resultOk: !reflectionResult?.reflectionFlagged,
+        ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
+      });
+    } catch (afterModelError) {
+      log.error('after_model callback failed', { err: afterModelError });
     }
   }
 

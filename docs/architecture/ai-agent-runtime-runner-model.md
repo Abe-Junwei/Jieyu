@@ -23,10 +23,10 @@ depends_on:
 | --- | --- | --- |
 | **Runner** | `runAiChatSendTurn` + `commitToolEffects` | A7、A10 |
 | **yield / suspend** | stream phase 结束 → tool pipeline → loop continuation | A10 |
-| **Workflow agent** | `verticalWorkflowRegistry` + `composedWorkflowTemplates` | A12 |
+| **Workflow agent** | `verticalWorkflowRegistry` + `composedWorkflowTemplates`；`WorkflowStepKind` + registry 驱动 reflection | A12 |
 | **Session state** | `AiSessionMemory`（turn 内） | 已有 |
 | **Long-term memory** | `projectAiMemory` + Memory Broker + RAG | 已有 |
-| **Callbacks** | `AgentCallbackRegistry`（`src/ai/runtime/agentCallbacks.ts`） | A9、A10 |
+| **Callbacks** | `AgentCallbackRegistry`（`src/ai/runtime/agentCallbacks.ts`）；相位含 `after_model`（A12 reflection 后） | A9、A10、A12 |
 | **Tool catalog** | `AiToolCatalog` SSOT（`src/ai/catalog/aiToolCatalog.ts`）；shadow re-export | A10 |
 | **Eval** | `agent-evals` + trajectory（规划） | A14 |
 | **MCP tools** | 自研 server/client | B11、B12 |
@@ -36,7 +36,7 @@ depends_on:
 ```text
 User / Voice
   → Send Turn Runner (runAiChatSendTurn)
-       → AgentCallbackRegistry (before_turn / before_model / …)
+       → AgentCallbackRegistry (before_turn / before_model / after_model / …)
        → CorpusSourceSet + Memory Broker
        → LLM stream (ChatOrchestrator)
        → toolDecisionPipeline
@@ -72,3 +72,4 @@ User / Voice
 | --- | --- |
 | 2026-06-01 | 初版：Runner 模型对照表；并入架构补强 A10–A14。 |
 | 2026-09-02 | Wave 2：Catalog / CallbackRegistry / `commitToolEffects` 落地；shadow 改为 re-export。 |
+| 2026-09-02 | Wave 3 A12：`after_model` + StepKind / registry dispatch；`executeReadonlyToolBatch` 不替换 send-turn 串行 local-tool。 |

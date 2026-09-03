@@ -6,6 +6,8 @@ import {
   type VerticalWorkflowOutputKind,
   type VerticalWorkflowWriteMode,
 } from './verticalWorkflowRegistry';
+import { WORKFLOW_STEP_KINDS } from './workflowStepKinds';
+import { listWorkflowCompletionChecklistIds } from './workflowCompletionChecklist';
 import { zhCNDictionary } from '../../i18n/dictionaries/zh-CN';
 import { enUSDictionary } from '../../i18n/dictionaries/en-US';
 
@@ -65,5 +67,24 @@ describe('verticalWorkflowRegistry drift guard', () => {
     for (const [key, wf] of Object.entries(VERTICAL_WORKFLOW_REGISTRY_V0)) {
       expect(wf.id).toBe(key);
     }
+  });
+
+  it('every workflow declares A12 registry metadata', () => {
+    const workflows = listVerticalWorkflowsV0();
+    for (const wf of workflows) {
+      expect(wf.stepKinds.length).toBeGreaterThan(0);
+      for (const kind of wf.stepKinds) {
+        expect(WORKFLOW_STEP_KINDS).toContain(kind);
+      }
+      expect(wf.reflectionHandlerId).toBe(wf.id);
+      expect(wf.maxReflectionRetries).toBe(1);
+      expect(wf.outputSchemaId).toBe('envelope_v0');
+    }
+  });
+
+  it('checklist keys match registry keys', () => {
+    expect([...listWorkflowCompletionChecklistIds()].sort()).toEqual(
+      Object.keys(VERTICAL_WORKFLOW_REGISTRY_V0).sort(),
+    );
   });
 });

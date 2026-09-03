@@ -85,6 +85,10 @@ export function evaluateWorkflowCompletionChecklist(
   };
 }
 
+export function listWorkflowCompletionChecklistIds(): readonly VerticalWorkflowId[] {
+  return Object.keys(WORKFLOW_CHECKLIST_STEPS) as VerticalWorkflowId[];
+}
+
 /** A12: workflow answer must not be marked ready until checklist is closed. */
 export function canMarkWorkflowAnswerReady(
   envelope: Pick<

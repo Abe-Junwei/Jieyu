@@ -1,19 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import {
   ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+  PARALLEL_READONLY_COMPOSED_STEP_SAMPLE,
   SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
   advanceComposedWorkflowStateAfterParse,
+  assertComposedWorkflowTemplatesGoverned,
   buildComposedReflectionRetryPromptAppendix,
   buildComposedWorkflowSystemPromptAppendix,
+  buildParallelReadonlyComposedStep,
   buildStep2RetryPrompt,
   buildStep3RetryPrompt,
   createInitialComposedWorkflowState,
+  getComposedWorkflowStepKinds,
+  listComposedWorkflowTemplates,
   parseComposedWorkflowOutput,
   resolveComposedStepWorkflowSelection,
   selectComposedWorkflowTemplate,
   stripComposedPendingReflectionRetry,
 } from './composedWorkflowTemplates';
-import { getVerticalWorkflowV0 } from './verticalWorkflowRegistry';
+import { VERTICAL_WORKFLOW_REGISTRY_V0, getVerticalWorkflowV0 } from './verticalWorkflowRegistry';
 
 describe('selectComposedWorkflowTemplate', () => {
   it('returns null for empty text', () => {
@@ -59,7 +64,10 @@ describe('selectComposedWorkflowTemplate', () => {
 
 describe('buildComposedWorkflowSystemPromptAppendix', () => {
   it('includes step1 and step2 instructions for stepIndex 0', () => {
-    const appendix = buildComposedWorkflowSystemPromptAppendix(ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 0);
+    const appendix = buildComposedWorkflowSystemPromptAppendix(
+      ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+      0,
+    );
     expect(appendix).toContain('Step 1: Annotation QA');
     expect(appendix).toContain('Step 2: Lexeme Candidates');
     expect(appendix).toContain('<step1>');
@@ -68,7 +76,11 @@ describe('buildComposedWorkflowSystemPromptAppendix', () => {
 
   it('includes step1 result and step2-only instructions for stepIndex 1', () => {
     const step1Result = 'Found 3 annotation issues.';
-    const appendix = buildComposedWorkflowSystemPromptAppendix(ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 1, step1Result);
+    const appendix = buildComposedWorkflowSystemPromptAppendix(
+      ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+      1,
+      step1Result,
+    );
     expect(appendix).toContain('Previous Step 1 Result');
     expect(appendix).toContain(step1Result);
     expect(appendix).toContain('<step2>');
@@ -76,12 +88,23 @@ describe('buildComposedWorkflowSystemPromptAppendix', () => {
   });
 
   it('returns empty string for unknown template', () => {
-    const appendix = buildComposedWorkflowSystemPromptAppendix({ id: 'unknown', labelKey: '', steps: [], keywords: [] } as unknown as typeof ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 0);
+    const appendix = buildComposedWorkflowSystemPromptAppendix(
+      {
+        id: 'unknown',
+        labelKey: '',
+        steps: [],
+        keywords: [],
+      } as unknown as typeof ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+      0,
+    );
     expect(appendix).toBe('');
   });
 
   it('includes three steps for three-step template at stepIndex 0', () => {
-    const appendix = buildComposedWorkflowSystemPromptAppendix(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 0);
+    const appendix = buildComposedWorkflowSystemPromptAppendix(
+      SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+      0,
+    );
     expect(appendix).toContain('Step 1: Segment QA');
     expect(appendix).toContain('Step 2: Annotation QA');
     expect(appendix).toContain('Step 3: Lexeme Candidates');
@@ -92,7 +115,11 @@ describe('buildComposedWorkflowSystemPromptAppendix', () => {
 
   it('includes step1 result and step2+3 instructions for three-step stepIndex 1', () => {
     const step1Result = 'Segment answer.';
-    const appendix = buildComposedWorkflowSystemPromptAppendix(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 1, step1Result);
+    const appendix = buildComposedWorkflowSystemPromptAppendix(
+      SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+      1,
+      step1Result,
+    );
     expect(appendix).toContain('Previous Step 1 Result');
     expect(appendix).toContain(step1Result);
     expect(appendix).toContain('<step2>');
@@ -103,7 +130,12 @@ describe('buildComposedWorkflowSystemPromptAppendix', () => {
   it('includes step1+2 results and step3 instructions for three-step stepIndex 2', () => {
     const step1Result = 'Segment answer.';
     const step2Result = 'Annotation findings.';
-    const appendix = buildComposedWorkflowSystemPromptAppendix(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 2, step1Result, step2Result);
+    const appendix = buildComposedWorkflowSystemPromptAppendix(
+      SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+      2,
+      step1Result,
+      step2Result,
+    );
     expect(appendix).toContain('Previous Step 1 Result');
     expect(appendix).toContain(step1Result);
     expect(appendix).toContain('Previous Step 2 Result');
@@ -116,7 +148,8 @@ describe('buildComposedWorkflowSystemPromptAppendix', () => {
 
 describe('parseComposedWorkflowOutput', () => {
   it('parses valid two-step output', () => {
-    const content = 'Some intro\n<step1>\nIssue A\nIssue B\n</step1>\n<step2>\nLemma1: noun\n</step2>\nFooter';
+    const content =
+      'Some intro\n<step1>\nIssue A\nIssue B\n</step1>\n<step2>\nLemma1: noun\n</step2>\nFooter';
     const result = parseComposedWorkflowOutput(ANNOTATION_QA_THEN_LEXEME_CANDIDATES, content);
     expect(result).not.toBeNull();
     expect(result!.step1).toBe('Issue A\nIssue B');
@@ -145,7 +178,10 @@ describe('parseComposedWorkflowOutput', () => {
 
   it('parses valid three-step output', () => {
     const content = '<step1>A</step1>\n<step2>B</step2>\n<step3>C</step3>';
-    const result = parseComposedWorkflowOutput(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, content);
+    const result = parseComposedWorkflowOutput(
+      SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+      content,
+    );
     expect(result).not.toBeNull();
     expect(result!.step1).toBe('A');
     expect(result!.step2).toBe('B');
@@ -154,12 +190,16 @@ describe('parseComposedWorkflowOutput', () => {
 
   it('returns null for three-step when step3 is missing', () => {
     const content = '<step1>A</step1>\n<step2>B</step2>';
-    expect(parseComposedWorkflowOutput(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, content)).toBeNull();
+    expect(
+      parseComposedWorkflowOutput(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, content),
+    ).toBeNull();
   });
 
   it('returns null for three-step when step3 is empty', () => {
     const content = '<step1>A</step1>\n<step2>B</step2>\n<step3>   </step3>';
-    expect(parseComposedWorkflowOutput(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, content)).toBeNull();
+    expect(
+      parseComposedWorkflowOutput(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, content),
+    ).toBeNull();
   });
 });
 
@@ -219,7 +259,10 @@ describe('buildStep3RetryPrompt', () => {
 
 describe('createInitialComposedWorkflowState', () => {
   it('creates running state at step 0', () => {
-    const state = createInitialComposedWorkflowState(ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 'user query');
+    const state = createInitialComposedWorkflowState(
+      ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+      'user query',
+    );
     expect(state.templateId).toBe('annotation_qa_then_lexeme_candidates');
     expect(state.currentStepIndex).toBe(0);
     expect(state.status).toBe('running');
@@ -229,11 +272,18 @@ describe('createInitialComposedWorkflowState', () => {
 });
 
 describe('advanceComposedWorkflowStateAfterParse', () => {
-  const baseState = createInitialComposedWorkflowState(ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 'user query');
+  const baseState = createInitialComposedWorkflowState(
+    ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+    'user query',
+  );
 
   it('advances to done when both steps parsed', () => {
     const parseResult = { step1: 'Findings', step2: 'Candidates' };
-    const { nextState, step1Result, step2Result } = advanceComposedWorkflowStateAfterParse(baseState, parseResult, 'raw');
+    const { nextState, step1Result, step2Result } = advanceComposedWorkflowStateAfterParse(
+      baseState,
+      parseResult,
+      'raw',
+    );
     expect(nextState.status).toBe('done');
     expect(nextState.currentStepIndex).toBe(2);
     expect(step1Result).toBe('Findings');
@@ -254,14 +304,22 @@ describe('advanceComposedWorkflowStateAfterParse', () => {
       },
     };
     const parseResult = { step1: 'Findings', step2: 'Candidates' };
-    const { nextState } = advanceComposedWorkflowStateAfterParse(stateWithPending, parseResult, 'raw');
+    const { nextState } = advanceComposedWorkflowStateAfterParse(
+      stateWithPending,
+      parseResult,
+      'raw',
+    );
     expect(nextState.pendingReflectionRetryStepIndex).toBeUndefined();
     expect(nextState.pendingReflectionRetryDetail).toBeUndefined();
   });
 
   it('advances to step1_done when only step1 is present', () => {
     const raw = '<step1>Findings only</step1>';
-    const { nextState, step1Result, step2Result } = advanceComposedWorkflowStateAfterParse(baseState, null, raw);
+    const { nextState, step1Result, step2Result } = advanceComposedWorkflowStateAfterParse(
+      baseState,
+      null,
+      raw,
+    );
     expect(nextState.status).toBe('step1_done');
     expect(nextState.currentStepIndex).toBe(1);
     expect(step1Result).toBe('Findings only');
@@ -270,7 +328,11 @@ describe('advanceComposedWorkflowStateAfterParse', () => {
 
   it('marks failed when neither step is present', () => {
     const raw = 'No tags at all';
-    const { nextState, step1Result, step2Result } = advanceComposedWorkflowStateAfterParse(baseState, null, raw);
+    const { nextState, step1Result, step2Result } = advanceComposedWorkflowStateAfterParse(
+      baseState,
+      null,
+      raw,
+    );
     expect(nextState.status).toBe('failed');
     expect(step1Result).toBeNull();
     expect(step2Result).toBeNull();
@@ -283,11 +345,15 @@ describe('advanceComposedWorkflowStateAfterParse', () => {
   });
 
   describe('three-step template', () => {
-    const threeState = createInitialComposedWorkflowState(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 'user query');
+    const threeState = createInitialComposedWorkflowState(
+      SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+      'user query',
+    );
 
     it('advances to done when all three steps parsed', () => {
       const parseResult = { step1: 'A', step2: 'B', step3: 'C' };
-      const { nextState, step1Result, step2Result, step3Result } = advanceComposedWorkflowStateAfterParse(threeState, parseResult, 'raw');
+      const { nextState, step1Result, step2Result, step3Result } =
+        advanceComposedWorkflowStateAfterParse(threeState, parseResult, 'raw');
       expect(nextState.status).toBe('done');
       expect(nextState.currentStepIndex).toBe(3);
       expect(step1Result).toBe('A');
@@ -297,7 +363,8 @@ describe('advanceComposedWorkflowStateAfterParse', () => {
 
     it('advances to step2_done when step1+2 present but step3 missing', () => {
       const raw = '<step1>A</step1>\n<step2>B</step2>';
-      const { nextState, step1Result, step2Result, step3Result } = advanceComposedWorkflowStateAfterParse(threeState, null, raw);
+      const { nextState, step1Result, step2Result, step3Result } =
+        advanceComposedWorkflowStateAfterParse(threeState, null, raw);
       expect(nextState.status).toBe('step2_done');
       expect(nextState.currentStepIndex).toBe(2);
       expect(step1Result).toBe('A');
@@ -307,7 +374,8 @@ describe('advanceComposedWorkflowStateAfterParse', () => {
 
     it('advances to step1_done when only step1 present', () => {
       const raw = '<step1>A</step1>';
-      const { nextState, step1Result, step2Result, step3Result } = advanceComposedWorkflowStateAfterParse(threeState, null, raw);
+      const { nextState, step1Result, step2Result, step3Result } =
+        advanceComposedWorkflowStateAfterParse(threeState, null, raw);
       expect(nextState.status).toBe('step1_done');
       expect(nextState.currentStepIndex).toBe(1);
       expect(step1Result).toBe('A');
@@ -356,7 +424,10 @@ describe('resolveComposedStepWorkflowSelection', () => {
 
   describe('three-step template', () => {
     it('returns segment_qa for step 0', () => {
-      const state = createInitialComposedWorkflowState(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 'query');
+      const state = createInitialComposedWorkflowState(
+        SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+        'query',
+      );
       const selection = resolveComposedStepWorkflowSelection(state);
       expect(selection).not.toBeNull();
       expect(selection!.workflowId).toBe('segment_qa');
@@ -364,7 +435,10 @@ describe('resolveComposedStepWorkflowSelection', () => {
 
     it('returns annotation_qa for step1_done status', () => {
       const state = {
-        ...createInitialComposedWorkflowState(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 'query'),
+        ...createInitialComposedWorkflowState(
+          SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+          'query',
+        ),
         currentStepIndex: 1,
         status: 'step1_done' as const,
       };
@@ -375,7 +449,10 @@ describe('resolveComposedStepWorkflowSelection', () => {
 
     it('returns lexeme_candidates for step2_done status', () => {
       const state = {
-        ...createInitialComposedWorkflowState(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 'query'),
+        ...createInitialComposedWorkflowState(
+          SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+          'query',
+        ),
         currentStepIndex: 2,
         status: 'step2_done' as const,
       };
@@ -386,11 +463,38 @@ describe('resolveComposedStepWorkflowSelection', () => {
 
     it('returns null for done status', () => {
       const state = {
-        ...createInitialComposedWorkflowState(SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES, 'query'),
+        ...createInitialComposedWorkflowState(
+          SEGMENT_QA_THEN_ANNOTATION_QA_THEN_LEXEME_CANDIDATES,
+          'query',
+        ),
         status: 'done' as const,
         currentStepIndex: 3,
       };
       expect(resolveComposedStepWorkflowSelection(state)).toBeNull();
     });
+  });
+});
+
+describe('composed workflow A12 governance', () => {
+  it('aligns stepKinds with steps and keeps every step in the registry', () => {
+    expect(() => assertComposedWorkflowTemplatesGoverned()).not.toThrow();
+    for (const template of listComposedWorkflowTemplates()) {
+      expect(getComposedWorkflowStepKinds(template)).toEqual(template.stepKinds);
+      expect(template.stepKinds).toHaveLength(template.steps.length);
+      for (const stepId of template.steps) {
+        expect(stepId in VERTICAL_WORKFLOW_REGISTRY_V0).toBe(true);
+      }
+    }
+  });
+
+  it('builds a parallel_readonly sample of readonly local-context tools', () => {
+    expect(PARALLEL_READONLY_COMPOSED_STEP_SAMPLE).toEqual({
+      kind: 'parallel_readonly',
+      toolNames: ['search_units', 'list_layers'],
+    });
+    expect(() => buildParallelReadonlyComposedStep(['batch_apply'])).toThrow(
+      /rejected write-like tool: batch_apply/,
+    );
+    expect(() => buildParallelReadonlyComposedStep([])).toThrow(/at least one tool/);
   });
 });
