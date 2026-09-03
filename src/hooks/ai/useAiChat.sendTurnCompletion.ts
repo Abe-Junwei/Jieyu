@@ -5,6 +5,8 @@
 import { StaleConversationTurnError } from '../../ai/chat/conversationGeneration';
 import { normalizeAiProviderError } from '../../ai/providers/errorUtils';
 import { formatAbortedMessage, formatFirstChunkTimeoutError } from '../../ai/messages';
+import { formatSemanticGuardBlockedMessage } from '../../ai/messages/semanticGuardFeedback';
+import { SemanticGuardBlockedError } from '../../ai/security/semanticGuard';
 import type { SendTurnStreamPhaseState } from './useAiChat.sendTurnStreamPhase';
 import type { SendTurnPreflightContext } from './useAiChat.sendTurnPreflight';
 import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
@@ -56,6 +58,15 @@ export async function handleSendTurnStreamCatch(
     commitPrimaryStreamUsage,
     toolFeedbackLocaleRef,
   } = bundle;
+
+  if (error instanceof SemanticGuardBlockedError) {
+    const message = formatSemanticGuardBlockedMessage(toolFeedbackLocaleRef.current);
+    commitPrimaryStreamUsage();
+    await awaitQueuedPersistence();
+    await finalizeAssistantMessage('error', '', message);
+    setLastError(message);
+    return;
+  }
 
   if (error instanceof StaleConversationTurnError) {
     if (shouldTrackRemoteStatus && !phaseState.firstChunkArrived) {

@@ -4,6 +4,7 @@ import {
   handleSendTurnStreamCatch,
   type SendTurnCompletionBundle,
 } from './useAiChat.sendTurnCompletion';
+import { SemanticGuardBlockedError } from '../../ai/security/semanticGuard';
 import { createInitialSendTurnStreamPhaseState } from './useAiChat.sendTurnStreamPhase';
 import type { UiChatMessage } from './useAiChat.types';
 
@@ -114,6 +115,20 @@ describe('handleSendTurnStreamCatch', () => {
     );
     expect(bundle.setLastError).toHaveBeenCalledWith(expect.any(String));
     expect(bundle.setConnectionTestStatus).toHaveBeenCalledWith('error');
+  });
+
+  it('finalizes inbound semantic-guard blocks with dictionary copy and no connection error', async () => {
+    const bundle = makeCompletionBundle();
+    await handleSendTurnStreamCatch(bundle, new SemanticGuardBlockedError(['ignore_previous']));
+    expect(bundle.finalizeAssistantMessage).toHaveBeenCalledWith(
+      'error',
+      '',
+      '这条请求被本地安全护栏拦截，未能发送给模型。',
+    );
+    expect(bundle.setLastError).toHaveBeenCalledWith(
+      '这条请求被本地安全护栏拦截，未能发送给模型。',
+    );
+    expect(bundle.setConnectionTestStatus).not.toHaveBeenCalled();
   });
 });
 

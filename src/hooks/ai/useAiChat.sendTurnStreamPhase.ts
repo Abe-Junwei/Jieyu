@@ -14,6 +14,7 @@ import { runSendTurnStreamPostCompletionPipeline } from './useAiChat.sendTurnStr
 import { runSendTurnStreamOutputCapRetryIfNeeded } from './useAiChat.sendTurnStreamPhase.persistOutputCapRetry';
 import type { RunAiChatSendTurnStreamPhaseInput } from './useAiChat.sendTurnStreamPhase.types';
 import { writeVerticalWorkflowAuditLogForSendTurnStreamPhase } from './useAiChat.sendTurnStreamPhase.verticalAudit';
+import { applyOutboundSemanticGuard } from '../../ai/security/semanticGuard';
 
 export type {
   RunAiChatSendTurnStreamPhaseInput,
@@ -214,9 +215,13 @@ export async function runAiChatSendTurnStreamPhase(
       completionStatus: 'done',
       completionPath: 'stream_fallback',
     });
+    const fallbackContent = await applyOutboundSemanticGuard({
+      text: s.assistantContent,
+      ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
+    });
     await finalizeAssistantMessage(
       'done',
-      s.assistantContent,
+      fallbackContent,
       undefined,
       ragCitations,
       s.assistantReasoningContent,

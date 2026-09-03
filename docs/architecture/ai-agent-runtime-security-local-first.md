@@ -3,7 +3,7 @@ title: AI Agent 运行时安全 — 本地优先策略
 doc_type: architecture
 status: active
 owner: ai-governance
-last_reviewed: 2026-09-02
+last_reviewed: 2026-09-03
 source_of_truth: current-state
 depends_on:
   - ./ai-execution-capability-strategy-matrix-v0.md
@@ -92,7 +92,20 @@ Parallel:
 
 环境矩阵测试：`src/ai/config/featureFlags.environmentMatrix.test.ts`。
 
-## 6. 与现有文档关系
+## 6. A9 落地口径（本地 semantic guard）
+
+截至 2026-09-03，A9 以 **flag 默认 false** 进主链：
+
+| 项 | 代码 | 行为 |
+| --- | --- | --- |
+| 入站 | `inspectInbound` → persist `createAssistantStream` 前 | 用户 prompt 越狱 / `untrusted` RAG（pdf/note）注入 → `SemanticGuardBlockedError`，不调 LLM |
+| 出站 | `inspectOutbound` → finalize / stream fallback | 邮箱 + query/赋值密钥 redact；复用 `sensitiveKeyPolicy` |
+| Callback | `before_model` / `before_client` | 相位触发；改写仍由 pipeline 显式调用（handler 为 void） |
+| Flag | `aiSemanticGuardEnabled` / `VITE_AI_SEMANTIC_GUARD_ENABLED` | **全部环境默认 false** |
+
+工作区语段 snippet 不按越狱扫描。流式 delta 可能先于 redact 上屏；终稿与落盘走 redact 后文本。
+
+## 7. 与现有文档关系
 
 | 文档 | 关系 |
 | --- | --- |
@@ -100,11 +113,13 @@ Parallel:
 | [F4 受控矩阵](../execution/plans/F4-扩展入口-受控矩阵-2026-05-05.md) | 旁路入口登记；A6 延续 Batch B/C |
 | [ai-agent-architecture-risk-assessment](../execution/audits/ai-agent-architecture-risk-assessment-2026-05-17.md) | 可靠性 P0（闭环重规划）仍属 A4，与安全轨并行 |
 | [ADR-0031](../adr/0031-ai-chat-keyvault-and-csp-connect-src.md) | KeyVault / CSP 边界不因 A9 而夸大 |
+| [A9 SDD](../execution/specs/agent-runtime-security-semantic-guard/) | 入/出站规则与 flag 验收 |
 
-## 7. 修订记录
+## 8. 修订记录
 
 | 日期 | 说明 |
 | --- | --- |
 | 2026-06-01 | 初版：本地优先 Agent 运行时安全策略；切片 A6–A9 / B11 映射；并入主路线图。 |
 | 2026-06-01 | 对齐架构补强：排期扩至 A6–A14；任务真源改 [架构补强落地方案](../execution/plans/Agent运行时架构补强-本地优先落地方案-2026-06-01.md)；链 [Runner 模型](./ai-agent-runtime-runner-model.md)。 |
 | 2026-09-02 | A6 落地口径：sidecar 入口守卫 + 工业三开关环境矩阵（dogfood/staging ON、prod OFF）记入本文。 |
+| 2026-09-03 | A9 落地口径：本地 inspect 入站 block / 出站 redact；flag 默认 false。 |
