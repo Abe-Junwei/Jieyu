@@ -4,6 +4,7 @@ import {
   ragCitationsToEvidencePackets,
   type CorpusSourceSet,
 } from './sourceResolver';
+import { resolveCorpusSourceSetTrustTier, trustTierForCitationType } from './corpusScopeTypes';
 import type { AiPromptContext } from '../chat/chatDomain.types';
 import type { AiMessageCitation } from '../../db';
 
@@ -65,6 +66,21 @@ describe('resolveCorpusSourceSet', () => {
 
   it('returns null when aiContext is null', () => {
     expect(resolveCorpusSourceSet(null)).toBeNull();
+  });
+});
+
+describe('CorpusSourceSet trustTier helpers', () => {
+  it('defaults omitted trustTier to workspace', () => {
+    const sourceSet: CorpusSourceSet = { scope: 'project', sourceIds: [] };
+    expect(resolveCorpusSourceSetTrustTier(sourceSet)).toBe('workspace');
+    expect(resolveCorpusSourceSetTrustTier(null)).toBe('workspace');
+  });
+
+  it('treats pdf and note citations as untrusted', () => {
+    expect(trustTierForCitationType('pdf')).toBe('untrusted');
+    expect(trustTierForCitationType('note')).toBe('untrusted');
+    expect(trustTierForCitationType('unit')).toBe('workspace');
+    expect(trustTierForCitationType('schema')).toBe('workspace');
   });
 });
 

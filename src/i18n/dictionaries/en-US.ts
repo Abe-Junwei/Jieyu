@@ -2210,6 +2210,8 @@ export const enUSDictionary = {
     'Your directive preferences require confirmation before this tool call. Auto-execution is paused.',
   'ai.toolWriteGate.previewConfirmationRequired':
     'Write action requires preview confirmation before execution.',
+  'ai.semanticGuard.blocked':
+    'This request was blocked by the local safety guard and was not sent to the model.',
   'ai.alerts.agentLoopHandoffTitle': 'Agent Loop Handoff',
   'ai.alerts.agentLoopHandoffSummary':
     'A resumable checkpoint is available. Resume execution from the approval panel.',

@@ -1797,6 +1797,7 @@ export const DICT_KEYS = [
   'ai.toolWriteGate.localPolicyBlocked',
   'ai.toolWriteGate.localPolicyConfirm',
   'ai.toolWriteGate.previewConfirmationRequired',
+  'ai.semanticGuard.blocked',
   'ai.alerts.agentLoopHandoffTitle',
   'ai.alerts.agentLoopHandoffSummary',
   'ai.alerts.agentLoopHandoffWaitConfirm',

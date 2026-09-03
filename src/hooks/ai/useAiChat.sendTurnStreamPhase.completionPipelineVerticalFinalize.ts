@@ -11,6 +11,7 @@ import { runSendTurnStreamComposedWorkflowAfterVerticalQuality } from './useAiCh
 import { parseCompatibilityReport } from '../../ai/vertical/elanFlexCompatibilityWorkflow';
 import { dispatchVerticalWorkflowReflection } from '../../ai/vertical/verticalWorkflowReflectionDispatch';
 import { getDefaultAgentCallbackRegistry } from '../../ai/runtime/agentCallbacks';
+import { applyOutboundSemanticGuard } from '../../ai/security/semanticGuard';
 import { createAdoptionItem } from '../../ai/vertical/adoptionQueue';
 import { judgeCitationAccuracyBatch } from '../../ai/eval/citationJudge';
 import { judgeRelevance } from '../../ai/eval/relevanceJudge';
@@ -56,6 +57,13 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
   const { db, ragCitations } = opening;
   const { verticalOutputEnvelopeSeed, verticalWorkflowSelection } = streamCompletionResult;
   let effectiveVerticalEnvelope = verticalOutputEnvelopeSeed;
+  const clientContent =
+    resolution.status === 'done'
+      ? await applyOutboundSemanticGuard({
+          text: resolution.content,
+          ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
+        })
+      : resolution.content;
 
   // PR-12 / PR-17: reflection audit + degradation scenarios for manual takeover UX
   const degradationScenarios: DegradationScenario[] = [];
@@ -306,11 +314,11 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
         sourceAssistantMessageId: assistantId,
         outputKind: verticalOutputEnvelopeSeed.workflowId,
         title: `${titlePrefix} result`,
-        summary: resolution.content.slice(0, 200),
+        summary: clientContent.slice(0, 200),
         evidencePacketIds,
         recommendedAction: 'review_output',
         writeMode: 'append',
-        rawContent: resolution.content,
+        rawContent: clientContent,
         actionLabel: 'review_output',
       }),
     );
@@ -410,7 +418,7 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
           assistantMessageId: assistantId,
           userMessageId: userMsg.id,
           userText: effectiveUserText,
-          assistantText: resolution.content,
+          assistantText: clientContent,
           actorId: 'ai-chat',
         },
         (entry) => db.collections.audit_logs.insert(entry),
@@ -425,7 +433,7 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
   if (hasExtraFields) {
     await finalizeAssistantMessage(
       resolution.status,
-      resolution.content,
+      clientContent,
       resolution.errorMessage,
       ragCitations,
       s.assistantReasoningContent,
@@ -438,7 +446,7 @@ export async function runSendTurnStreamVerticalQualityAndFinalize(
   } else {
     await finalizeAssistantMessage(
       resolution.status,
-      resolution.content,
+      clientContent,
       resolution.errorMessage,
       ragCitations,
       s.assistantReasoningContent,

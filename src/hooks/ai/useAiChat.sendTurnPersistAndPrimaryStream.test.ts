@@ -22,6 +22,10 @@ import type {
 import { createConversationGenerationRef } from '../../ai/chat/conversationGeneration';
 import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
 import { runAiChatSendTurnPersistAndPrimaryStream } from './useAiChat.sendTurnPersistAndPrimaryStream';
+import {
+  runInboundSemanticGuard,
+  SemanticGuardBlockedError,
+} from '../../ai/security/semanticGuard';
 
 vi.mock('./useAiChat.sendPersistTurnAndBuildPromptContext', () => ({
   persistOpeningTurnAndBuildPromptContext: vi.fn(),
@@ -30,6 +34,14 @@ vi.mock('./useAiChat.sendPersistTurnAndBuildPromptContext', () => ({
 vi.mock('./useAiChat.streamFactory', () => ({
   createAssistantStream: vi.fn(),
 }));
+
+vi.mock('../../ai/security/semanticGuard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../ai/security/semanticGuard')>();
+  return {
+    ...actual,
+    runInboundSemanticGuard: vi.fn(actual.runInboundSemanticGuard),
+  };
+});
 
 const zeroMetrics: AiInteractionMetrics = {
   turnCount: 0,
@@ -188,6 +200,8 @@ describe('runAiChatSendTurnPersistAndPrimaryStream failure paths', () => {
   beforeEach(() => {
     vi.mocked(persistOpeningTurnAndBuildPromptContext).mockReset();
     vi.mocked(createAssistantStream).mockReset();
+    vi.mocked(runInboundSemanticGuard).mockReset();
+    vi.mocked(runInboundSemanticGuard).mockResolvedValue(undefined);
   });
 
   it('propagates persistOpeningTurnAndBuildPromptContext failures without starting a stream', async () => {
@@ -200,6 +214,21 @@ describe('runAiChatSendTurnPersistAndPrimaryStream failure paths', () => {
     await expect(
       runAiChatSendTurnPersistAndPrimaryStream(args, preflight, preflight.dbConversation),
     ).rejects.toThrow('persist failed');
+
+    expect(createAssistantStream).not.toHaveBeenCalled();
+  });
+
+  it('does not start a stream when inbound semantic guard blocks the turn', async () => {
+    vi.mocked(persistOpeningTurnAndBuildPromptContext).mockResolvedValue(makeOpening());
+    vi.mocked(runInboundSemanticGuard).mockRejectedValueOnce(
+      new SemanticGuardBlockedError(['ignore_previous']),
+    );
+    const args = makeSendTurnArgs();
+    const preflight = makePreflight();
+
+    await expect(
+      runAiChatSendTurnPersistAndPrimaryStream(args, preflight, preflight.dbConversation),
+    ).rejects.toBeInstanceOf(SemanticGuardBlockedError);
 
     expect(createAssistantStream).not.toHaveBeenCalled();
   });

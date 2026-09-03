@@ -37,3 +37,5 @@ export {
   formatRecoveredInterruptedMessage,
   formatToolExecutionFallbackError,
 } from './systemFeedback';
+
+export { formatSemanticGuardBlockedMessage } from './semanticGuardFeedback';

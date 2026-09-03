@@ -3,7 +3,7 @@ title: AI Agent 运行时 Runner 模型（ADK 模式借设计 · 本地实现）
 doc_type: architecture
 status: active
 owner: ai-governance
-last_reviewed: 2026-09-02
+last_reviewed: 2026-09-03
 source_of_truth: current-state
 depends_on:
   - ./ai-agent-runtime-security-local-first.md
@@ -46,7 +46,7 @@ User / Voice
        → runAgentLoop (LLM continuation)
        → VerticalWorkflow / ComposedWorkflow (A12)
        → AgentUiEvent bus → AlertsPanel preview (A11, flag `aiAgentUiPreviewEnabled`)
-       → SemanticGuard outbound (A9)
+       → SemanticGuard outbound (A9, flag `aiSemanticGuardEnabled`)
   → Dexie audit / adoption / artifacts (B12)
 ```
 
@@ -74,3 +74,4 @@ User / Voice
 | 2026-09-02 | Wave 2：Catalog / CallbackRegistry / `commitToolEffects` 落地；shadow 改为 re-export。 |
 | 2026-09-02 | Wave 3 A12：`after_model` + StepKind / registry dispatch；`executeReadonlyToolBatch` 不替换 send-turn 串行 local-tool。 |
 | 2026-09-02 | Wave 3 A11：`AgentUiEvent` bus → AlertsPanel preview（flag `aiAgentUiPreviewEnabled` 默认 false）。 |
+| 2026-09-03 | Wave 4 A9：`semanticGuard` 入站 block / 出站 redact；`before_model` / `before_client`；flag `aiSemanticGuardEnabled` 默认 false。 |

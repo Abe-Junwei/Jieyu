@@ -12,6 +12,12 @@ import type {
 } from './useAiChat.sendTurnPreflight';
 import type { RunAiChatSendTurnArgs } from './useAiChat.sendTurn.types';
 import type { UiChatMessage } from './useAiChat.types';
+import { runInboundSemanticGuard } from '../../ai/security/semanticGuard';
+import { resolveCorpusSourceSet } from '../../ai/vertical/sourceResolver';
+import {
+  resolveCorpusSourceSetTrustTier,
+  trustTierForCitationType,
+} from '../../ai/vertical/corpusScopeTypes';
 
 export type SendTurnPersistAndPrimaryStreamResult = Readonly<{
   opening: PersistOpeningTurnAndBuildPromptContextResult;
@@ -86,6 +92,22 @@ export async function runAiChatSendTurnPersistAndPrimaryStream(
   dbConversation.dbRef = opening.db;
   dbConversation.activeConversationId = opening.activeConversationId;
   const sendTurnConversationId = opening.activeConversationId;
+
+  const untrustedSnippets = opening.ragCitations
+    .filter((citation) => trustTierForCitationType(citation.type) === 'untrusted')
+    .map((citation) => citation.snippet)
+    .filter(
+      (snippet): snippet is string => typeof snippet === 'string' && snippet.trim().length > 0,
+    );
+  await runInboundSemanticGuard({
+    text: effectiveUserText,
+    snippets: untrustedSnippets,
+    trustTier:
+      untrustedSnippets.length > 0
+        ? 'untrusted'
+        : resolveCorpusSourceSetTrustTier(resolveCorpusSourceSet(opening.aiContext)),
+    ...(preflight.agentRunId ? { agentRunId: preflight.agentRunId } : {}),
+  });
 
   const { stream, generationSource, generationModel } = createAssistantStream({
     userText: effectiveUserText,

@@ -2016,6 +2016,7 @@ export const zhCNDictionary = {
   'ai.toolWriteGate.localPolicyConfirm':
     '根据你的偏好，这类工具调用需要你先确认。我已暂停自动执行。',
   'ai.toolWriteGate.previewConfirmationRequired': '写入操作需要先预览确认后才能执行。',
+  'ai.semanticGuard.blocked': '这条请求被本地安全护栏拦截，未能发送给模型。',
   'ai.alerts.agentLoopHandoffTitle': 'Agent Loop 交接',
   'ai.alerts.agentLoopHandoffSummary': '检测到可续跑检查点，可在审批面板中继续执行。',
   'ai.alerts.agentLoopHandoffWaitConfirm': '等待继续执行确认。',
