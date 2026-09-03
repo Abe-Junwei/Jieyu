@@ -1,29 +1,32 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-02T07:37:07.067Z",
+  "generatedAt": "2026-09-03T03:35:04.918Z",
   "mode": "enforce",
   "suite": {
     "suiteId": "jieyu-agent-evals-v1",
     "version": 1,
-    "description": "Golden-path agent governance regression suite. Cases tagged `tier: smoke` are the L1 pre-merge subset (≤ ~90s) covering the 3 typical AI mistake categories: 错读路径 / 业务逻辑落到编排层 / UI 文案落到 src/ai/messages/. All other cases default to `tier: full` and run via `check:agent-evals` / `:trace`.",
+    "description": "Golden-path agent governance regression suite. Cases tagged `tier: smoke` are the L1 pre-merge subset (≤ ~90s) covering the 3 typical AI mistake categories: 错读路径 / 业务逻辑落到编排层 / UI 文案落到 src/ai/messages/, plus A14 vertical citation semantic cases. All other cases default to `tier: full` and run via `check:agent-evals` / `:trace`.",
     "suitePath": "scripts/agent-evals/suite.v1.json"
   },
   "summary": {
-    "total": 3,
-    "passed": 3,
+    "total": 4,
+    "passed": 4,
     "failed": 0,
     "passRate": 1,
     "requiredPassRate": 1,
     "maxFailedCases": 0,
-    "coveredGoldenTasks": 0,
+    "coveredGoldenTasks": 12,
     "requiredGoldenTasksMin": 0,
-    "coveredTrajectorySignals": [],
+    "coveredTrajectorySignals": [
+      "gate_correctness",
+      "audit_traceability"
+    ],
     "requiredTrajectorySignals": [],
     "missingTrajectorySignals": [],
     "auditTracePassed": true,
     "thresholdPassed": true,
-    "startedAt": "2026-09-02T07:36:45.554Z",
-    "endedAt": "2026-09-02T07:37:07.067Z"
+    "startedAt": "2026-09-03T03:34:41.628Z",
+    "endedAt": "2026-09-03T03:35:04.918Z"
   },
   "cases": [
     {
@@ -35,9 +38,9 @@
       "command": "npm run typecheck",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-02T07:36:45.554Z",
-      "endedAt": "2026-09-02T07:37:06.617Z",
-      "elapsedMs": 21063,
+      "startedAt": "2026-09-03T03:34:41.629Z",
+      "endedAt": "2026-09-03T03:35:03.078Z",
+      "elapsedMs": 21449,
       "stdout": "\n> jieyu@1.1.0 typecheck\n> tsc --noEmit\n\n",
       "stderr": ""
     },
@@ -50,9 +53,9 @@
       "command": "npm run check:architecture-guard:core",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-02T07:37:06.617Z",
-      "endedAt": "2026-09-02T07:37:07.045Z",
-      "elapsedMs": 428,
+      "startedAt": "2026-09-03T03:35:03.079Z",
+      "endedAt": "2026-09-03T03:35:03.511Z",
+      "elapsedMs": 432,
       "stdout": "\n> jieyu@1.1.0 check:architecture-guard:core\n> node scripts/check-architecture-guard.mjs\n\n[check-architecture-guard] OK: guarded files stayed within architecture ceilings.\n",
       "stderr": "[check-architecture-guard] WARN: 17 hotspot(s) approaching ceilings.\n- src/hooks/voice/useVoiceInteractionSummaries.ts: line count 182/200 reached 91% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useMemo declarations 5/5 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useEffect count 2/2 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: line count 115/120 reached 96% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useMemo declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useEffect count 3/3 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useCallback declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useEffect count 2/2 reached 100% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: line count 416/420 reached 99% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: useEffect count 1/1 reached 100% of ceiling\n- src/pages/useSpeakerActionMixedSelectionMutationCluster.ts: line count 265/280 reached 95% of ceiling\n- src/pages/useSpeakerActionSelectionRoutingHandlers.ts: line count 190/220 reached 86% of ceiling\n- src/pages/useSpeakerActionFilterRoutingHandlers.ts: line count 216/240 reached 90% of ceiling\n- src/pages/useSpeakerActionRoutingHandlers.ts: line count 248/280 reached 89% of ceiling\n- src/pages/useTranscriptionChatWindowLayout.ts: line count 278/300 reached 93% of ceiling\n- src/pages/useTranscriptionChatWindowLayout.ts: useEffect count 7/8 reached 88% of ceiling\n- src/pages/useOrchestratorViewModels.ts: line count 268/300 reached 89% of ceiling\n"
     },
@@ -65,10 +68,28 @@
       "command": "node scripts/check-ai-messages-isolation.mjs",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-09-02T07:37:07.045Z",
-      "endedAt": "2026-09-02T07:37:07.067Z",
-      "elapsedMs": 22,
+      "startedAt": "2026-09-03T03:35:03.511Z",
+      "endedAt": "2026-09-03T03:35:03.534Z",
+      "elapsedMs": 23,
       "stdout": "[check-ai-messages-isolation] OK: src/ai/messages/ keeps formatter copy isolated from UI i18n.\n",
+      "stderr": ""
+    },
+    {
+      "id": "agent-evals-semantic-cases",
+      "name": "Agent eval JSON semantic cases (workflow, evidence, policy, rag, i18n)",
+      "category": "workflow",
+      "goldenTaskCount": 12,
+      "trajectorySignals": [
+        "gate_correctness",
+        "audit_traceability"
+      ],
+      "command": "npx vitest run scripts/agent-evals/cases/semantic-cases.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-09-03T03:35:03.534Z",
+      "endedAt": "2026-09-03T03:35:04.918Z",
+      "elapsedMs": 1384,
+      "stdout": "\n RUN  v4.1.9 /workspace\n\n ✓ scripts/agent-evals/cases/semantic-cases.test.ts (60 tests) 11ms\n\n Test Files  1 passed (1)\n      Tests  60 passed (60)\n   Start at  03:35:04\n   Duration  539ms (transform 258ms, setup 272ms, import 149ms, tests 11ms, environment 0ms)\n\n",
       "stderr": ""
     }
   ]
