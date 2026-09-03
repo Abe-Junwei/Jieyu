@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
@@ -13,14 +14,15 @@ import type {
   ToolIntentAuditMetadata,
 } from './chat/toolCallHelpers';
 
-const DEFAULT_OUTPUT_RELATIVE_PATH =
-  'docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson';
 const DEFAULT_REQUEST_ID = 'toolreq_runtime_ci_001';
 
 function resolveExportOutputPath(): string {
   const configured = String(process.env.RELEASE_EVIDENCE_AI_AUDIT_EXPORT ?? '').trim();
   if (!configured) {
-    return path.join(process.cwd(), DEFAULT_OUTPUT_RELATIVE_PATH);
+    // Default to tmp so the full vitest suite cannot clobber
+    // docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson.
+    // Refresh that fixture with RELEASE_EVIDENCE_AI_AUDIT_EXPORT=<repo-relative path>.
+    return path.join(os.tmpdir(), `ai-tool-decision-audit-export-${process.pid}.ndjson`);
   }
   return path.isAbsolute(configured) ? configured : path.join(process.cwd(), configured);
 }

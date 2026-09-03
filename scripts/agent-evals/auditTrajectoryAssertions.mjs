@@ -143,11 +143,13 @@ export function summarizeToolAciByAgentRunId(rows) {
     current.outcomes[outcome] = (current.outcomes[outcome] ?? 0) + 1;
     byRun.set(id, current);
   }
-  const runs = [...byRun.entries()].map(([agentRunId, stats]) => ({
-    agentRunId,
-    toolCallCount: stats.toolCallCount,
-    outcomes: stats.outcomes,
-  }));
+  const runs = [...byRun.entries()]
+    .map(([agentRunId, stats]) => ({
+      agentRunId,
+      toolCallCount: stats.toolCallCount,
+      outcomes: stats.outcomes,
+    }))
+    .sort((left, right) => left.agentRunId.localeCompare(right.agentRunId));
   const totalToolCalls = runs.reduce((sum, run) => sum + run.toolCallCount, 0);
   return {
     version: 'v1',

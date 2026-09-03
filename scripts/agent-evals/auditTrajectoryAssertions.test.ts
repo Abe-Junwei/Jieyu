@@ -168,6 +168,18 @@ describe('tool ACI baseline', () => {
     ]);
   });
 
+  it('sorts runs by agentRunId regardless of NDJSON row order', () => {
+    const summary = summarizeToolAciByAgentRunId([
+      decisionRow({
+        agentRunId: 'run_b',
+        outcome: 'policy_pending',
+        toolCall: { name: 'set_transcription_text' },
+      }),
+      decisionRow({ agentRunId: 'run_a', outcome: 'confirmed' }),
+    ]);
+    expect(summary.runs.map((run) => run.agentRunId)).toEqual(['run_a', 'run_b']);
+  });
+
   it('matches the committed fixture baseline', () => {
     const ndjsonPath = path.join(
       process.cwd(),
