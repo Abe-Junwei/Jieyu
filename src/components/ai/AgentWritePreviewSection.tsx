@@ -32,7 +32,7 @@ export function AgentWritePreviewSection({ pending }: { pending: PendingAiToolCa
 
   return (
     <div
-      className="ai-agent-write-preview"
+      className="ai-chat-alerts-pending-grid"
       data-testid="ai-agent-write-preview"
       data-agent-run-id={preview.agentRunId ?? ''}
       data-preview-kind={preview.kind}
@@ -43,7 +43,7 @@ export function AgentWritePreviewSection({ pending }: { pending: PendingAiToolCa
           {t(locale, TRIAGE_DICT_KEY[triage])}
         </div>
       ) : null}
-      <ul className="ai-agent-write-preview-steps">
+      <ul className="ai-chat-alerts-impact-list">
         {preview.childSteps.map((step) => (
           <li key={`${step.index}:${step.toolName}:${step.targetId}`}>
             <code>{step.targetId || preview.parentToolName}</code> {step.toolName}
