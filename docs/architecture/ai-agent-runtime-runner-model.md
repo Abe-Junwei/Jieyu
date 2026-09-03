@@ -3,7 +3,7 @@ title: AI Agent 运行时 Runner 模型（ADK 模式借设计 · 本地实现）
 doc_type: architecture
 status: active
 owner: ai-governance
-last_reviewed: 2026-09-02
+last_reviewed: 2026-09-03
 source_of_truth: current-state
 depends_on:
   - ./ai-agent-runtime-security-local-first.md
@@ -28,7 +28,7 @@ depends_on:
 | **Long-term memory** | `projectAiMemory` + Memory Broker + RAG | 已有 |
 | **Callbacks** | `AgentCallbackRegistry`（`src/ai/runtime/agentCallbacks.ts`）；相位含 `after_model`（A12 reflection 后） | A9、A10、A12 |
 | **Tool catalog** | `AiToolCatalog` SSOT（`src/ai/catalog/aiToolCatalog.ts`）；shadow re-export | A10 |
-| **Eval** | `agent-evals` + trajectory（规划） | A14 |
+| **Eval** | `agent-evals` + trajectory NDJSON + `agentRunId` 链断言 | A14 |
 | **MCP tools** | 自研 server/client | B11、B12 |
 
 ## 2. 分层架构
@@ -74,3 +74,4 @@ User / Voice
 | 2026-09-02 | Wave 2：Catalog / CallbackRegistry / `commitToolEffects` 落地；shadow 改为 re-export。 |
 | 2026-09-02 | Wave 3 A12：`after_model` + StepKind / registry dispatch；`executeReadonlyToolBatch` 不替换 send-turn 串行 local-tool。 |
 | 2026-09-02 | Wave 3 A11：`AgentUiEvent` bus → AlertsPanel preview（flag `aiAgentUiPreviewEnabled` 默认 false）。 |
+| 2026-09-03 | Wave 4 A14：`--assert-audit-trace` 按 `agentRunId` 链式断言；vertical citation 进 `:smoke`；P2 ACI 基线写入 release-evidence。 |

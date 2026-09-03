@@ -1,7 +1,7 @@
 {
   "suiteId": "jieyu-agent-evals-v1",
   "version": 1,
-  "description": "Golden-path agent governance regression suite. Cases tagged `tier: smoke` are the L1 pre-merge subset (≤ ~90s) covering the 3 typical AI mistake categories: 错读路径 / 业务逻辑落到编排层 / UI 文案落到 src/ai/messages/. All other cases default to `tier: full` and run via `check:agent-evals` / `:trace`.",
+  "description": "Golden-path agent governance regression suite. Cases tagged `tier: smoke` are the L1 pre-merge subset (≤ ~90s) covering the 3 typical AI mistake categories: 错读路径 / 业务逻辑落到编排层 / UI 文案落到 src/ai/messages/, plus A14 vertical citation semantic cases. All other cases default to `tier: full` and run via `check:agent-evals` / `:trace`.",
   "thresholds": {
     "requiredPassRate": 0.9,
     "maxFailedCases": 0,
@@ -11,7 +11,8 @@
       "gate_correctness",
       "recovery_path",
       "audit_traceability",
-      "approval_explainability"
+      "approval_explainability",
+      "agent_run_id_chain"
     ]
   },
   "tierThresholds": {
@@ -163,8 +164,8 @@
     },
     {
       "id": "agent-evals-trajectory-assertions",
-      "name": "Audit NDJSON trajectory signal assertions (P3)",
-      "command": "npx vitest run scripts/run-agent-evals.test.ts -t \"audit trajectory assertions\"",
+      "name": "Audit NDJSON trajectory signal assertions (P3 / A14)",
+      "command": "npx vitest run scripts/agent-evals/auditTrajectoryAssertions.test.ts scripts/run-agent-evals.test.ts",
       "category": "evidence",
       "evalSuite": "regression",
       "tiers": ["full"],
@@ -174,7 +175,8 @@
         "gate_correctness",
         "recovery_path",
         "audit_traceability",
-        "approval_explainability"
+        "approval_explainability",
+        "agent_run_id_chain"
       ]
     },
     {
@@ -183,6 +185,7 @@
       "command": "npx vitest run scripts/agent-evals/cases/semantic-cases.test.ts",
       "category": "workflow",
       "evalSuite": "regression",
+      "tiers": ["smoke", "full"],
       "goldenTaskCount": 12,
       "trajectorySignals": [
         "gate_correctness",
