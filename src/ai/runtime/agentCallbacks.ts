@@ -1,6 +1,7 @@
 /**
  * A10.1 — ADK-shaped callback registry (borrow design, no ADK dependency).
- * A9 semantic guard will register as before_model / before_tool handlers later.
+ * A9 semantic guard registers before_model / before_client; inspect still runs in the pipeline
+ * because handlers cannot return rewritten outbound text.
  */
 
 export type AgentCallbackPhase =
@@ -17,6 +18,9 @@ export type AgentCallbackContext = {
   workflowId?: string;
   agentRunId?: string;
   resultOk?: boolean;
+  text?: string;
+  snippets?: readonly string[];
+  trustTier?: 'user' | 'workspace' | 'untrusted';
 };
 
 export type AgentCallbackHandler = (ctx: AgentCallbackContext) => void | Promise<void>;

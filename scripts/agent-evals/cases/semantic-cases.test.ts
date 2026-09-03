@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveUserDirectivePolicyDecision } from '../../../src/ai/policy/resolveExecutionPolicy';
+import { inspectInbound, inspectOutbound } from '../../../src/ai/security/semanticGuard';
+import type { SemanticGuardTrustTier } from '../../../src/ai/vertical/corpusScopeTypes';
 import { buildEvidencePacketV0 } from '../../../src/ai/vertical/evidencePacket';
 import {
   buildVerticalWorkflowOutputEnvelopeV0,
@@ -58,12 +60,39 @@ function verifyOutcome(c: SemanticCase) {
       expect(() => buildEvidencePacketV0(input)).toThrow(/sourceId/i);
       break;
     }
+    case 'semantic_guard_inbound_block': {
+      const snippets = Array.isArray(c.input.snippets)
+        ? (c.input.snippets as string[])
+        : undefined;
+      const trustTier = c.input.trustTier as SemanticGuardTrustTier | undefined;
+      const result = inspectInbound({
+        text: String(c.input.text ?? ''),
+        ...(snippets ? { snippets } : {}),
+        ...(trustTier ? { trustTier } : {}),
+      });
+      expect(result.action).toBe(c.expected.action);
+      break;
+    }
+    case 'semantic_guard_outbound_redact': {
+      const result = inspectOutbound({ text: String(c.input.text ?? '') });
+      expect(result.action).toBe(c.expected.action);
+      if (typeof c.expected.mustNotContain === 'string') {
+        expect(result.text).not.toContain(c.expected.mustNotContain);
+      }
+      break;
+    }
     default:
       throw new Error(`unknown outcomeVerifier: ${c.outcomeVerifier}`);
   }
 }
 
 function runCase(c: SemanticCase) {
+  // ── semantic guard (A9) ──
+  if (c.category === 'semantic_guard') {
+    verifyOutcome(c);
+    return;
+  }
+
   // ── safety / policy / adversarial ──
   if (c.category === 'safety' || c.category === 'policy' || c.category === 'adversarial') {
     const toolCall = c.input.toolCall as { name: string; arguments: Record<string, unknown> };

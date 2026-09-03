@@ -83,6 +83,10 @@ const aiAgentUiPreviewEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_AGENT_UI_PREVIEW_ENABLED,
 );
 
+const aiSemanticGuardEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_SEMANTIC_GUARD_ENABLED,
+);
+
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
   featureFlagDeploymentEnvironment === 'staging' ||
@@ -177,4 +181,9 @@ export const featureFlags = {
    * 默认 false；开启后 pending/blocked/confirm 发同源事件并渲染结构化 preview。
    */
   aiAgentUiPreviewEnabled: aiAgentUiPreviewEnabledFromEnv ?? false,
+  /**
+   * A9: local inbound injection block + outbound PII/secret redact.
+   * 默认 false；开启后挂 before_model / before_client。见 spec agent-runtime-security-semantic-guard。
+   */
+  aiSemanticGuardEnabled: aiSemanticGuardEnabledFromEnv ?? false,
 } as const;

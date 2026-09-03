@@ -38,6 +38,8 @@ interface ImportMetaEnv {
 	readonly VITE_AI_TOOL_CALL_EXECUTOR_AUTO_RETRY_ENABLED?: string;
 	/** E2E / dogfood only: `readonly` | `restricted_write` | `deny_by_default`; default production build omits. */
 	readonly VITE_AI_BACKGROUND_MEMORY_SANDBOX_PROFILE?: string;
+	/** Optional override for `aiSemanticGuardEnabled` (true/false, 1/0). Default off. */
+	readonly VITE_AI_SEMANTIC_GUARD_ENABLED?: string;
 }
 
 interface ImportMeta {
