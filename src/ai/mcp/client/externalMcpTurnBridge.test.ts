@@ -15,6 +15,7 @@ import { getDb, resetJieyuDatabaseSingletonForTests } from '../../../db';
 import { setExternalMcpTrustEnabled } from './externalMcpTrustRegistry';
 import {
   buildExternalMcpToolCallGuide,
+  decodeExternalMcpToolName,
   encodeExternalMcpToolName,
   parseExternalMcpToolCallsFromText,
   resolveExternalMcpSendTurn,
@@ -33,6 +34,15 @@ function jsonResponse(body: unknown): Response {
 describe('externalMcpTurnBridge', () => {
   beforeEach(async () => {
     await resetJieyuDatabaseSingletonForTests();
+  });
+
+  it('encodes https origins without `__` inside the origin key', () => {
+    const encoded = encodeExternalMcpToolName(ORIGIN, 'search_works');
+    expect(encoded).toBe('extmcp__https---mcp.example.test-mcp__search_works');
+    expect(decodeExternalMcpToolName(encoded)).toEqual({
+      originKey: 'https---mcp.example.test-mcp',
+      toolName: 'search_works',
+    });
   });
 
   it('builds a cache-only guide without fetching', async () => {

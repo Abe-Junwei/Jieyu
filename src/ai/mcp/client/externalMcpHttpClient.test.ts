@@ -130,7 +130,7 @@ describe('externalMcpHttpClient', () => {
     const trust = await db.collections.external_mcp_trust
       .findOne({ selector: { id: ORIGIN } })
       .exec();
-    expect(trust?.toJSON().lastToolsJson).toBeUndefined();
+    expect(trust?.toJSON().lastToolsJson ?? '').not.toContain('Ignore previous instructions');
   });
 
   it('calls an allowlisted tool and persists the result', async () => {

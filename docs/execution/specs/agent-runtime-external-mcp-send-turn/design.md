@@ -19,7 +19,7 @@ depends_on:
 - 同类产品：Claude Code / Agent SDK 把 MCP 工具暴露为 `mcp__<server>__<tool>`（非 `[a-zA-Z0-9_-]` 替换为 `_`），权限规则按此前缀过滤。
 - 业内规范：MCP tools/list 仍是投毒面（进 prompt 前再走 B11 expose）；guide 用缓存、execute 再联网（Claude 也允许 cached tool list）。
 - 公认不可行：把外部名塞进 `AI_TOOL_CATALOG`；在 ChatWindow 热点文件接线；send-turn 每次 `tools/list`；CSP `https:` 通配。
-- 潜在的坑：`exactOptionalPropertyTypes` 不可 spread `undefined`；同源编码碰撞须 deny；local 解析先跑，外部名会被丢掉——这是刻意的 local-first。
+- 潜在的坑：`exactOptionalPropertyTypes` 不可 spread `undefined`；`https://` 若替换成 `_` 会变成 `https___` 并被 `__` 截断，originKey 须用 `-`；同源编码碰撞须 deny；local 解析先跑，外部名会被丢掉——这是刻意的 local-first。
 - 决定：**适配** Claude `mcp__server__tool` 为 `extmcp__<originKey>__<tool>`（origin 身份，避免 display name）；**复用** B13 call + B11 expose；**自研** 文本 JSON 桥，不借 SDK。
 
 ## 2. 架构选择

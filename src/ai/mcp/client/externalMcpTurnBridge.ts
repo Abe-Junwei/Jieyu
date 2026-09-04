@@ -35,7 +35,9 @@ export type ExternalMcpSendTurnResolution =
     };
 
 export function encodeExternalMcpToolName(origin: string, toolName: string): string {
-  const originKey = origin.replace(/[^a-zA-Z0-9.-]/g, '_');
+  // Origin keys must not contain `__` (the name separator). `://` would become `___`
+  // if replaced with `_`, so illegal characters become `-`.
+  const originKey = origin.replace(/[^a-zA-Z0-9.-]/g, '-');
   return `${EXTERNAL_MCP_TOOL_NAME_PREFIX}${originKey}__${toolName}`;
 }
 
