@@ -107,6 +107,10 @@ const aiExternalMcpProviderAdaptersEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED,
 );
 
+const corpusLibraryPageEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_CORPUS_LIBRARY_PAGE_ENABLED,
+);
+
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
   featureFlagDeploymentEnvironment === 'staging' ||
@@ -229,4 +233,9 @@ export const featureFlags = {
    * Default false. Depends on B13/B14; does not call OpenAlex REST or Zotero :23119.
    */
   aiExternalMcpProviderAdaptersEnabled: aiExternalMcpProviderAdaptersEnabledFromEnv ?? false,
+  /**
+   * B5a-1: corpus library readonly list + isolated workset shell.
+   * Default false; flag off keeps FeatureAvailabilityPanel.
+   */
+  corpusLibraryPageEnabled: corpusLibraryPageEnabledFromEnv ?? false,
 } as const;

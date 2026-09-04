@@ -110,7 +110,7 @@ Wave 3 — Workflow 编排 + 人在环写路径（A11/A12 已进 main）
   A12  StepKind + registry 元数据 + parallel readonly API（已进 main；send-turn 并行仍不开）
   A11  Preview UI → confirm → commitToolEffects（flag `aiAgentUiPreviewEnabled` 默认 false）
 
-Wave 4 — 安全外连 + 评测/长程 harness ← 本 PR 收口 B15
+Wave 4 — 安全外连 + 评测/长程 harness（B15 已收口）
   A9   semantic guard（flag `aiSemanticGuardEnabled` 默认 false；已进 main）→ B11 已复用 inspectInbound
   A14  按 agentRunId 强化 trajectory 断言（承接 A8；已进 main）
   A13  TaskRunner + checkpoint 合同 + parallel readonly 样本（已进 main；send-turn 仍串行）
@@ -162,7 +162,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：本 PR 收口 **B15**（Zotero/OpenAlex HTTP MCP 适配：Settings 预置 + EvidencePacket 映射，flag 默认 false；CSP 仅枚举环回 8765）。之后 Agent 轨余量：B5b 页（阻塞于 B5a）。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：本 PR 收口 **B5a-1**（语料库只读列表 + 隔离会话工作集，flag `corpusLibraryPageEnabled` 默认 false）。之后余量：**B5a-2** 项目级索引或 **B5b** 出站。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -192,7 +192,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【确认占位】**（`AnnotationPage`(25 行) = `FeatureAvailabilityPanel`）→ 新增 `annotationPageEnabled` flag（`false` 合并）；独立 controller 骨架（类型、props 流、测试桩）；IGT 行内布局 + 列表渲染 + 键盘状态机；按轨读用 `annotation/annotationLaneReadScope`(ADR-0020)；**勿向逼近阈值的现有 controller 注入逻辑** | 页面壳可渲染；flag off 行为不变；`check:architecture-guard` 无新增 hotspot | 否 |
 | **B4a-2** | 标注页 token POS/gloss 编辑 + 保存链路 + readback（P0-3 上·核心） | L | 承 B4a-1：token 行内编辑框 + POS/gloss 修改 → 统一写链路（独立 controller）→ 转写页可见；复用 `useTranscriptionAnnotationController`、`useTranscriptionUnitActions`、`useAiToolCallHandler.annotationAdapters`、i18n | 写→reload→readback；e2e:chromium；定向 vitest | 是 |
 | **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | 承 B4a-2：morpheme 分层编辑 + 手动分词 + 词典链接编辑 + Leipzig Validator 模板；细节真源见 [标注页与词典页路线图](./标注页与词典页开发路线图-2026-04-25.md) M1b | 分词/链接写→reload→readback；Validator 校验；定向 vitest | 是 |
-| **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【确认占位】**（`CorpusLibraryPage`(25 行) = `FeatureAvailabilityPanel`；PR-11 已移除无消费的 `corpusLibraryLabEnabled` 死 flag，B5a 启动时若仍需灰度开关，应新增带 owner / expiry 的专用 flag）→ 页面壳 + 多选交互 + 可见工作集；复用 `SidePaneSidebarSegmentList`（读模型）、`useTranscriptionSelectionSnapshot`、i18n；**「写」仅指工作集/筛选态持久化，禁止写 `layer_units`/`unit_tokens` 等转写真源表**。**若本切片接 AI 工具：前置 A6 + A7 + A9 + A10** | 工作集态写→reload→readback；不复刻标注写库；定向 vitest | 是 |
+| **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟡 部分落地·B5a-1】** `/corpus` 当前 text/media 只读列表 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-workset-shell/`。不复用 `SidePaneSidebarSegmentList`。**剩余 B5a-2**：项目级索引。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 工作集同会话 remount readback；换 media/text 清空；定向 vitest | 是 |
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | 承 B5a：复制 text/plain + markdown 带可追溯元数据（来源 unit/项目锚点）；与转写/标注深链对齐 | 出站 golden 对拍 + 元数据可追溯；e2e:chromium | 是 |
 | **B6** | 引用断裂态（ADR-0011，P0-6） | M | **【原语就绪·待消费】** `WORKSPACE_LEXEME_DELETED_EVENT`(soft/hard) 与 `LinguisticService.cleanup`/`TranscriptionPage.citationJump` 已存在。**剩余**=删除→引用断裂态 UI 消费 + 错误码；`LayerSegmentationTextService`、ADR-0011 回写。**segmentMeta 一致性前提**：当前 `segment_meta` 为 best-effort 最终一致性（PR-10 已落地 50ms 微批合并 + 失败日志），B6 UI 消费须兼容派生表延迟/不一致场景；若需强一致性，应先实现后台对账任务强制同步 | 删/软删后引用进断裂态、返回错误码；禁止假成功摘要；定向 vitest | 否 |
 | **B7** | 语料库 AI 分区与会话隔离（P1-1） | M | `useAiToolCallHandler.adapters`、`useAiChat.config`、`CorpusLibraryPage`；`corpusBridgeAdapter` 命名。**前置：A6 + A7 + A9 + A12** | corpus 侧复制优先、默认不写回主链；会话与转写隔离；`check:agent-evals:smoke` | 是 |
@@ -272,3 +272,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-04 | **Wave 4 B12**：inbound `resources/list|read` + `prompts/list|get`；Dexie v52 `agent_artifacts`；AdoptionQueue `artifactIds`；B5b 导出清单纯函数。Flag 默认 false。Outbound HTTP client 不在本切片。 |
 | 2026-09-04 | **Wave 4 B13**：outbound Streamable HTTP `tools/list`/`tools/call`；B11 allowlist + A9 expose；`mcp_tool_call_audits.agentRunId`；flag 默认 false。不引入 SDK，不改 CSP。 |
 | 2026-09-04 | **Wave 4 B14**：send-turn `extmcp__` 桥 + `lastToolsJson` 缓存；Settings 拉取 tools/list；flag 默认 false。不改 ChatWindow，不进 catalog，不改 CSP。 |
+| 2026-09-04 | **B5a-1**：`/corpus` 只读列表 + 隔离会话 `corpusBasket`；flag `corpusLibraryPageEnabled` 默认 false。项目级索引与出站未开始。下一刀 **B5a-2 / B5b**。 |

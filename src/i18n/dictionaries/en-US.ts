@@ -131,6 +131,25 @@ export const enUSDictionary = {
     'Clipboard and bundle export (Word / Markdown / HTML)',
   'workspace.corpus.unavailable.scope.agent':
     'Existing agents for analysis and drafting (copy-first; no silent write-back to transcription)',
+  'workspace.corpus.badge': 'Read-only workset',
+  'workspace.corpus.title': 'Corpus library',
+  'workspace.corpus.summary':
+    'Multi-select units in the current transcription scope into a workset isolated from transcription selection. Export will open later.',
+  'workspace.corpus.empty':
+    'No transcription record is in scope yet. Open the transcription workspace first.',
+  'workspace.corpus.openTranscription': 'Open transcription workspace',
+  'workspace.corpus.sidePaneTitle': 'Corpus library',
+  'workspace.corpus.sidePaneSubtitle': 'Current scope and workset',
+  'workspace.corpus.sidePaneCurrent': 'Current scope',
+  'workspace.corpus.unitCount': '{count} units',
+  'workspace.corpus.basketCount': '{count} selected',
+  'workspace.corpus.loading': 'Loading corpus scope',
+  'workspace.corpus.errorPrefix': 'Could not load corpus scope.',
+  'workspace.corpus.filterLabel': 'Filter units',
+  'workspace.corpus.filterPlaceholder': 'Filter by text',
+  'workspace.corpus.selectUnit': 'Add to workset',
+  'workspace.corpus.openInTranscription': 'Open in transcription',
+  'workspace.corpus.emptyFilter': 'No units match the current filter.',
   'workspace.lexicon.unavailable.title': 'Lexicon workspace is not open',
   'workspace.lexicon.unavailable.summary':
     'Entry management, sense editing, and reverse corpus linking are not yet a complete workflow, so this version keeps the page in planning status.',
