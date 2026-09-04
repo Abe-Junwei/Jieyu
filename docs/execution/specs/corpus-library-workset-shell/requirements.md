@@ -24,9 +24,9 @@ source_of_truth: corpus-library-workset-shell-spec
 ## 3. 验收标准（可测）
 
 - [x] `corpusLibraryPageEnabled` 默认 `false`
-- [ ] flag 关 DOM 仍为占位面板
-- [ ] 工作集 toggle → 同会话 readback；换 media/text 清空
-- [ ] `corpusViewState` 仅存筛选；basket 不进 URL / Dexie
+- [x] flag 关 DOM 仍为占位面板
+- [x] 工作集 toggle → 同会话 readback；换 media/text 清空
+- [x] `corpusViewState` 仅存筛选；basket 不进 URL / Dexie
 - [x] 不改 ChatWindow；`check:architecture-guard` 无新增 hotspot
 
 ## 4. 受影响代码地图
