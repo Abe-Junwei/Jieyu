@@ -414,6 +414,7 @@ const mcpToolCallAuditDocSchema = z.object({
   errorCode: z.number().int().optional(),
   errorMessage: z.string().optional(),
   errorDataJson: z.string().optional(),
+  agentRunId: z.string().min(1).optional(),
 });
 
 const languageCatalogSourceTypeSchema = z.enum([

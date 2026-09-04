@@ -1276,6 +1276,8 @@ export interface McpToolCallAuditDoc {
   errorCode?: number;
   errorMessage?: string;
   errorDataJson?: string;
+  /** A8: optional agent-loop / outbound client run id. */
+  agentRunId?: string;
 }
 
 export interface TrackEntityDocType {

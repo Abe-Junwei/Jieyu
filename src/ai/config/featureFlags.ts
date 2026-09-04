@@ -95,6 +95,10 @@ const aiMcpResourcesArtifactsEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_MCP_RESOURCES_ARTIFACTS_ENABLED,
 );
 
+const aiExternalMcpHttpClientEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_EXTERNAL_MCP_HTTP_CLIENT_ENABLED,
+);
+
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
   featureFlagDeploymentEnvironment === 'staging' ||
@@ -203,4 +207,8 @@ export const featureFlags = {
    * Default false; flag off keeps resources/prompts as Method not found.
    */
   aiMcpResourcesArtifactsEnabled: aiMcpResourcesArtifactsEnabledFromEnv ?? false,
+  /**
+   * B13: outbound Streamable HTTP MCP client. Default false; no fetch unless B11 origin is enabled.
+   */
+  aiExternalMcpHttpClientEnabled: aiExternalMcpHttpClientEnabledFromEnv ?? false,
 } as const;

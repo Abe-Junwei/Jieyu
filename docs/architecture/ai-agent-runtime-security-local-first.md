@@ -76,7 +76,7 @@ User / Voice
 Parallel:
   Background / sidecar → F4 sandbox (A6)
   MCP Server (inbound) → Bearer + scope hard-fail (已有)
-  MCP Client (outbound) → B11 trust registry (`exposeExternalMcpToolsToLlm`；HTTP client 另排)
+  MCP Client (outbound) → B11 trust + B13 Streamable HTTP（flag `aiExternalMcpHttpClientEnabled`）
 ```
 
 ## 5. A6 落地口径（F4 Batch B/C + 工业三开关）
@@ -117,7 +117,20 @@ Parallel:
 | UI | `SettingsAiMcpTrustSection` | 仅 `aiExternalMcpTrustEnabled` 时出现在 Settings AI tab |
 | Flag | `aiExternalMcpTrustEnabled` / `VITE_AI_EXTERNAL_MCP_TRUST_ENABLED` | **全部环境默认 false** |
 
-不实现 outbound HTTP MCP client（另排）。Jieyu inbound `McpServer` 只读合同不变。B12 在 flag 开时增加 `resources`/`prompts` 读表面。
+不实现 outbound HTTP MCP client（见 **B13 / §7b**）。Jieyu inbound `McpServer` 只读合同不变。B12 在 flag 开时增加 `resources`/`prompts` 读表面。
+
+## 7b. B13 落地口径（outbound Streamable HTTP）
+
+截至 2026-09-04，B13 以 **flag 默认 false** 进主链：
+
+| 项 | 代码 | 行为 |
+| --- | --- | --- |
+| Transport | `externalMcpHttpClient.ts` | POST JSON-RPC；`Accept: application/json, text/event-stream`；解析 JSON 或 SSE `data:` |
+| 门 | B11 `assertOriginReady` + `exposeExternalMcpToolsToLlm` | flag 关 / 未启用 origin → 零 fetch；写向 RPC → `not_supported` |
+| 审计 | `mcp_tool_call_audits.agentRunId` | list/call 成功或执行失败写 → requery |
+| Flag | `aiExternalMcpHttpClientEnabled` / `VITE_AI_EXTERNAL_MCP_HTTP_CLIENT_ENABLED` | **全部环境默认 false** |
+
+不接 ChatWindow。不放宽 ADR-0031 `connect-src`。
 
 ## 8. 与现有文档关系
 
@@ -129,6 +142,7 @@ Parallel:
 | [ADR-0031](../adr/0031-ai-chat-keyvault-and-csp-connect-src.md) | KeyVault / CSP 边界不因 A9 而夸大 |
 | [A9 SDD](../execution/specs/agent-runtime-security-semantic-guard/) | 入/出站规则与 flag 验收 |
 | [B11 SDD](../execution/specs/agent-runtime-external-mcp-trust/) | origin allowlist；schema 进 LLM 前门 |
+| [B13 SDD](../execution/specs/agent-runtime-external-mcp-http-client/) | Streamable HTTP 子集；flag 关零 fetch |
 
 ## 9. 修订记录
 
@@ -139,3 +153,4 @@ Parallel:
 | 2026-09-02 | A6 落地口径：sidecar 入口守卫 + 工业三开关环境矩阵（dogfood/staging ON、prod OFF）记入本文。 |
 | 2026-09-03 | A9 落地口径：本地 inspect 入站 block / 出站 redact；flag 默认 false。 |
 | 2026-09-04 | B11 落地口径：`external_mcp_trust` + `exposeExternalMcpToolsToLlm`；flag 默认 false；outbound HTTP client 仍属 B12。 |
+| 2026-09-04 | B13 落地口径：Streamable HTTP client；flag 默认 false；不放宽 CSP。 |

@@ -39,6 +39,7 @@ export interface PersistMcpToolCallAuditInput {
   outcome: McpToolCallAuditOutcome;
   toolResult?: McpToolCallResult;
   error?: { code?: number; message?: string; data?: unknown };
+  agentRunId?: string;
 }
 
 export async function persistMcpToolCallAudit(input: PersistMcpToolCallAuditInput): Promise<void> {
@@ -54,6 +55,8 @@ export async function persistMcpToolCallAudit(input: PersistMcpToolCallAuditInpu
     outcome: input.outcome,
     durationMs,
   };
+  const runId = input.agentRunId ?? input.runtimeContext.agentRunId;
+  if (runId) doc.agentRunId = runId;
   if (input.toolResult !== undefined) {
     doc.toolResultJson = truncateJson(stableJson(input.toolResult), MAX_TOOL_RESULT_JSON_CHARS);
   }

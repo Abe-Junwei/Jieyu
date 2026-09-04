@@ -44,4 +44,4 @@ Verified:
 
 - [ ] 自用 1 周后评估 flag 默认值
 - [ ] spec `status: completed` + `closed_at`
-- [ ] outbound HTTP MCP client 另排（不在本切片 §10）
+- [ ] ChatWindow / send-turn 接线另排（B13 已提供 HTTP 子集）
