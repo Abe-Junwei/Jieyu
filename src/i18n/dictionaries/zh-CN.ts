@@ -2902,6 +2902,8 @@ export const zhCNDictionary = {
     aiMcpTrustInvalidOrigin: 'Origin 必须是 http(s) URL，且不能含用户名或密码。',
     aiMcpTrustSchemaInvalid: 'tools/list JSON 须为 {name, description?} 数组。',
     aiMcpTrustSchemaBlocked: '工具描述未通过注入扫描，未启用该服务器。',
+    aiMcpTrustFetchToolsButton: '拉取 tools/list',
+    aiMcpTrustFetchToolsFailed: '拉取 tools/list 失败。',
     aboutVersion: '版本',
     aboutDescription: '解语 Jieyu — 濒危语言科研协作平台',
     aboutRepo: '项目仓库',

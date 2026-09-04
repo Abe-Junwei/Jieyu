@@ -37,6 +37,7 @@ import {
 } from '../../ai/chat/sessionMemory';
 import type { EmbeddingSearchService } from '../../ai/embeddings/EmbeddingSearchService';
 import { featureFlags } from '../../ai/config/featureFlags';
+import { buildExternalMcpToolCallGuide } from '../../ai/mcp/client/externalMcpTurnBridge';
 import { enrichContextWithRag } from './useAiChat.rag';
 import {
   buildSessionMemoryDigestSuppressionRefs,
@@ -346,6 +347,7 @@ export async function persistOpeningTurnAndBuildPromptContext(
     responsePolicy.style,
     routingPlan.selectedTools,
     buildUserDirectivePrompt(input.sessionMemoryRef.current),
+    featureFlags.aiExternalMcpSendTurnEnabled ? await buildExternalMcpToolCallGuide() : '',
   );
 
   // PR-7b: explicit EvidencePacket list for vertical workflows (esp. segment_qa) so the model can ground [n] markers.

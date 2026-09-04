@@ -30,6 +30,11 @@ export type ExternalMcpExposeResult<T extends ExternalMcpToolSchema> =
 
 const AUDIT_COLLECTION = 'external_mcp_trust';
 const AUDIT_FIELD = 'external_mcp_trust';
+const LAST_TOOLS_JSON_MAX = 32_000;
+
+function serializeLastToolsJson(tools: readonly ExternalMcpToolSchema[]): string {
+  return JSON.stringify(tools).slice(0, LAST_TOOLS_JSON_MAX);
+}
 
 export function normalizeExternalMcpOrigin(raw: string): string | null {
   const trimmed = raw.trim();
@@ -101,6 +106,39 @@ export async function getExternalMcpTrustEntry(
   return row?.toJSON();
 }
 
+export async function persistExternalMcpLastToolsJson(input: {
+  origin: string;
+  tools: readonly ExternalMcpToolSchema[];
+}): Promise<void> {
+  const origin = normalizeExternalMcpOrigin(input.origin);
+  if (!origin) return;
+  const db = await getDb();
+  const existing = await db.collections.external_mcp_trust
+    .findOne({ selector: { id: origin } })
+    .exec();
+  if (!existing) return;
+  const previous = existing.toJSON();
+  const timestamp = nowIso();
+  const next: ExternalMcpTrustDoc = {
+    id: origin,
+    origin,
+    enabled: previous.enabled,
+    createdAt: previous.createdAt,
+    updatedAt: timestamp,
+    lastToolsJson: serializeLastToolsJson(input.tools),
+    lastToolsFetchedAt: timestamp,
+    ...(previous.label ? { label: previous.label } : {}),
+    ...(previous.lastSchemaScanResult
+      ? { lastSchemaScanResult: previous.lastSchemaScanResult }
+      : {}),
+    ...(previous.lastSchemaScanAt ? { lastSchemaScanAt: previous.lastSchemaScanAt } : {}),
+    ...(previous.lastSchemaScanReasonsJson
+      ? { lastSchemaScanReasonsJson: previous.lastSchemaScanReasonsJson }
+      : {}),
+  };
+  await db.collections.external_mcp_trust.update(origin, next);
+}
+
 export async function setExternalMcpTrustEnabled(input: {
   origin: string;
   enabled: boolean;
@@ -141,6 +179,12 @@ export async function setExternalMcpTrustEnabled(input: {
     .exec();
   const previous = existing?.toJSON();
   const label = input.label?.trim() || previous?.label;
+  const toolsJson =
+    input.tools && input.tools.length > 0
+      ? serializeLastToolsJson(input.tools)
+      : previous?.lastToolsJson;
+  const fetchedAt =
+    input.tools && input.tools.length > 0 ? timestamp : previous?.lastToolsFetchedAt;
   const next: ExternalMcpTrustDoc = {
     id: origin,
     origin,
@@ -151,6 +195,8 @@ export async function setExternalMcpTrustEnabled(input: {
     lastSchemaScanResult: scanResult,
     lastSchemaScanAt: timestamp,
     ...(scanReasons.length > 0 ? { lastSchemaScanReasonsJson: JSON.stringify(scanReasons) } : {}),
+    ...(toolsJson ? { lastToolsJson: toolsJson } : {}),
+    ...(fetchedAt ? { lastToolsFetchedAt: fetchedAt } : {}),
   };
 
   if (existing) {

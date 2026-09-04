@@ -132,6 +132,21 @@ Parallel:
 
 不接 ChatWindow。不放宽 ADR-0031 `connect-src`。
 
+## 7c. B14 落地口径（outbound MCP send-turn）
+
+截至 2026-09-04，B14 以 **flag 默认 false** 进主链：
+
+| 项 | 代码 | 行为 |
+| --- | --- | --- |
+| 缓存 | `external_mcp_trust.lastToolsJson` | 成功 `tools/list` 或启用时带 schema 写入；不升 Dexie 版本 |
+| 命名 | `extmcp__<originKey>__<tool>` | 适配 Claude `mcp__server__tool`；不进 `AI_TOOL_CATALOG` |
+| Guide | `buildExternalMcpToolCallGuide` | 只读 Dexie；send-turn persist 不发 HTTP |
+| 执行 | `resolveExternalMcpSendTurn` | local `tool_call` 优先；空则走 B13 `tools/call` |
+| UI | Settings 拉取按钮 | 仅 `aiExternalMcpHttpClientEnabled` |
+| Flag | `aiExternalMcpSendTurnEnabled` / `VITE_AI_EXTERNAL_MCP_SEND_TURN_ENABLED` | **全部环境默认 false** |
+
+不改 ChatWindow。不放宽 CSP。
+
 ## 8. 与现有文档关系
 
 | 文档 | 关系 |
@@ -143,6 +158,7 @@ Parallel:
 | [A9 SDD](../execution/specs/agent-runtime-security-semantic-guard/) | 入/出站规则与 flag 验收 |
 | [B11 SDD](../execution/specs/agent-runtime-external-mcp-trust/) | origin allowlist；schema 进 LLM 前门 |
 | [B13 SDD](../execution/specs/agent-runtime-external-mcp-http-client/) | Streamable HTTP 子集；flag 关零 fetch |
+| [B14 SDD](../execution/specs/agent-runtime-external-mcp-send-turn/) | send-turn guide + execute；flag 关零 HTTP |
 
 ## 9. 修订记录
 
@@ -154,3 +170,4 @@ Parallel:
 | 2026-09-03 | A9 落地口径：本地 inspect 入站 block / 出站 redact；flag 默认 false。 |
 | 2026-09-04 | B11 落地口径：`external_mcp_trust` + `exposeExternalMcpToolsToLlm`；flag 默认 false；outbound HTTP client 仍属 B12。 |
 | 2026-09-04 | B13 落地口径：Streamable HTTP client；flag 默认 false；不放宽 CSP。 |
+| 2026-09-04 | B14 落地口径：send-turn `extmcp__` 桥 + `lastToolsJson` 缓存；flag 默认 false。 |

@@ -99,6 +99,10 @@ const aiExternalMcpHttpClientEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_EXTERNAL_MCP_HTTP_CLIENT_ENABLED,
 );
 
+const aiExternalMcpSendTurnEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_EXTERNAL_MCP_SEND_TURN_ENABLED,
+);
+
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
   featureFlagDeploymentEnvironment === 'staging' ||
@@ -211,4 +215,9 @@ export const featureFlags = {
    * B13: outbound Streamable HTTP MCP client. Default false; no fetch unless B11 origin is enabled.
    */
   aiExternalMcpHttpClientEnabled: aiExternalMcpHttpClientEnabledFromEnv ?? false,
+  /**
+   * B14: inject cached external MCP tools into send-turn prompt and execute `extmcp__` tool_call JSON.
+   * Default false; no guide and no outbound execute unless this flag is on.
+   */
+  aiExternalMcpSendTurnEnabled: aiExternalMcpSendTurnEnabledFromEnv ?? false,
 } as const;

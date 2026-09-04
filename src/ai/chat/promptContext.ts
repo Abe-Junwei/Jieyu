@@ -460,12 +460,15 @@ export function buildAiSystemPrompt(
   style: AiToolFeedbackStyle = 'detailed',
   activeQueryTools?: readonly string[],
   userDirectiveBlock = '',
+  externalMcpToolGuide = '',
 ): string {
   const activeToolGuide = Array.isArray(activeQueryTools) && activeQueryTools.length > 0
     ? `\nThis turn, prefer these local reads inside tool_call JSON only: ${activeQueryTools.join(', ')}.\nDo not paste these identifiers into natural-language replies to the user. Use them first for counts/lists unless the user only needs clarification.\n`
     : '';
   const directiveBlock = userDirectiveBlock.trim().length > 0 ? `\n${userDirectiveBlock.trim()}` : '';
-  const base = `${AI_FUNCTION_CALLING_SYSTEM_PROMPT}\n${AI_SYSTEM_PERSONAS[personaKey]}\n${AI_RESPONSE_STYLE_PROMPT[style]}${directiveBlock}\n${buildLocalContextToolGuide()}${activeToolGuide}`;
+  const externalGuide =
+    externalMcpToolGuide.trim().length > 0 ? `\n${externalMcpToolGuide.trim()}\n` : '';
+  const base = `${AI_FUNCTION_CALLING_SYSTEM_PROMPT}\n${AI_SYSTEM_PERSONAS[personaKey]}\n${AI_RESPONSE_STYLE_PROMPT[style]}${directiveBlock}\n${buildLocalContextToolGuide()}${activeToolGuide}${externalGuide}`;
   return contextBlock.trim().length > 0 ? `${base}\n${contextBlock}` : base;
 }
 

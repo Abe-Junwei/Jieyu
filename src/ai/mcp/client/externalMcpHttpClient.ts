@@ -10,6 +10,7 @@ import {
   exposeExternalMcpToolsToLlm,
   getExternalMcpTrustEntry,
   normalizeExternalMcpOrigin,
+  persistExternalMcpLastToolsJson,
   type ExternalMcpExposeDenial,
   type ExternalMcpToolSchema,
 } from './externalMcpTrustRegistry';
@@ -251,6 +252,7 @@ export async function listExternalMcpToolsViaHttp<T extends ExternalMcpToolSchem
     },
     input.agentRunId,
   );
+  await persistExternalMcpLastToolsJson({ origin: exposed.origin, tools: exposed.tools });
   return { ok: true, origin: exposed.origin, tools: exposed.tools };
 }
 

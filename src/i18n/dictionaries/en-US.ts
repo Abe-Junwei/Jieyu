@@ -3168,6 +3168,8 @@ export const enUSDictionary = {
     aiMcpTrustSchemaInvalid: 'tools/list JSON must be an array of {name, description?} objects.',
     aiMcpTrustSchemaBlocked:
       'Tool descriptions failed the injection scan; the server was not enabled.',
+    aiMcpTrustFetchToolsButton: 'Fetch tools/list',
+    aiMcpTrustFetchToolsFailed: 'Failed to fetch tools/list.',
     aboutVersion: 'Version',
     aboutDescription: 'Jieyu — Endangered Language Research Platform',
     aboutRepo: 'Repository',

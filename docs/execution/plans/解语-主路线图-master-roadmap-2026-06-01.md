@@ -110,13 +110,14 @@ Wave 3 — Workflow 编排 + 人在环写路径（A11/A12 已进 main）
   A12  StepKind + registry 元数据 + parallel readonly API（已进 main；send-turn 并行仍不开）
   A11  Preview UI → confirm → commitToolEffects（flag `aiAgentUiPreviewEnabled` 默认 false）
 
-Wave 4 — 安全外连 + 评测/长程 harness ← 本 PR 收口 B13
+Wave 4 — 安全外连 + 评测/长程 harness ← 本 PR 收口 B14
   A9   semantic guard（flag `aiSemanticGuardEnabled` 默认 false；已进 main）→ B11 已复用 inspectInbound
   A14  按 agentRunId 强化 trajectory 断言（承接 A8；已进 main）
   A13  TaskRunner + checkpoint 合同 + parallel readonly 样本（已进 main；send-turn 仍串行）
   B11  外部 MCP trust allowlist（flag `aiExternalMcpTrustEnabled` 默认 false）
   B12  MCP resources/prompts + AgentArtifactV0（flag `aiMcpResourcesArtifactsEnabled` 默认 false）
   B13  outbound Streamable HTTP MCP client（flag `aiExternalMcpHttpClientEnabled` 默认 false）
+  B14  outbound MCP send-turn 接线（flag `aiExternalMcpSendTurnEnabled` 默认 false）
 ```
 
 #### 2.2.3 Stage B / C 解锁对照
@@ -127,7 +128,7 @@ Wave 4 — 安全外连 + 评测/长程 harness ← 本 PR 收口 B13
 | **B4/B5 写工具最低** | A4 + **A7 + A10**（A6 已关闭） |
 | **B4 垂直 workflow 完整** | 上列 + **A8 + A11 + A12** |
 | **B7 语料 AI** | A6 + A7 + A9 + A12（完整 + **A11 + A13**） |
-| **C1 对外抽样** | A8 + A9 + A11 + A14（外连 MCP 另需 **B11 + B13**） |
+| **C1 对外抽样** | A8 + A9 + A11 + A14（外连 MCP 另需 **B11 + B13 + B14**） |
 
 #### 2.2.4 触及 Agent 切片时的统一验证
 
@@ -160,7 +161,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：本 PR 收口 **B13**（outbound Streamable HTTP `tools/list`/`tools/call`，B11 allowlist + A9 扫描，flag 默认 false）。之后 Agent 轨余量：ChatWindow 接线、Zotero/OpenAlex 专用适配、B5b 页。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：本 PR 收口 **B14**（outbound MCP send-turn：`lastToolsJson` 缓存 + `extmcp__` guide/execute，flag 默认 false）。之后 Agent 轨余量：Zotero/OpenAlex 专用适配、B5b 页。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -197,6 +198,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B11** | 外部 MCP trust allowlist | M | **【已落地·flag 关】** `externalMcpTrustRegistry` + Dexie v51 `external_mcp_trust`；`exposeExternalMcpToolsToLlm` 对未登记 / 未启用 / flag off 零暴露；首次启用带 schema 走 A9 `inspectInbound`；Settings AI 节 flag 开才渲染。Flag `aiExternalMcpTrustEnabled` 默认 **false**。**剩余**：flag 放量。Outbound HTTP 见 **B13**。SDD：`agent-runtime-external-mcp-trust/`。**依赖 A9** | 未登记 server deny；schema 零暴露；用户显式启用；审计 readback | 是 |
 | **B12** | MCP resources/prompts + AgentArtifactV0 | M | **【已落地·flag 关】** inbound `resources/list`+`read`（`jieyu://source-set/{id}`）与 `prompts/list`+`get`（A12 registry）；Dexie v52 `agent_artifacts`；AdoptionQueue `artifactIds`；`buildB5bExportManifest`。Flag `aiMcpResourcesArtifactsEnabled` 默认 **false**。SDD：`agent-runtime-mcp-resources-artifacts/`。**依赖 B11 + A12** | resource URI readback；artifact 引用链；B5b 导出清单函数 | 是 |
 | **B13** | outbound Streamable HTTP MCP client | M | **【已落地·flag 关】** `externalMcpHttpClient` POST `tools/list`/`tools/call`（JSON 或 SSE `data:`）；仅 B11 已启用 origin；写向 RPC 零 fetch；audit 写 `agentRunId`。Flag `aiExternalMcpHttpClientEnabled` 默认 **false**。不引入 SDK；不改 CSP `connect-src`；不接 ChatWindow。SDD：`agent-runtime-external-mcp-http-client/`。**依赖 B11** | flag 关零 fetch；未启用 origin 零 fetch；list 经 expose 门；write RPC deny | 是 |
+| **B14** | outbound MCP send-turn 接线 | M | **【已落地·flag 关】** `externalMcpTurnBridge`：`lastToolsJson` 缓存；`extmcp__<originKey>__<tool>` 进 prompt；local 空才执行 B13 `tools/call`。Settings 拉取 `tools/list`。Flag `aiExternalMcpSendTurnEnabled` 默认 **false**。不改 ChatWindow；不进 `AI_TOOL_CATALOG`；不改 CSP。SDD：`agent-runtime-external-mcp-send-turn/`。**依赖 B11+B13** | flag 关零 guide/零 HTTP；local 优先；cache-only guide | 是 |
 | **B8** | 词典附件能力（引用式资产，P1-2） | M | `LexiconPage`、`useTranscriptionCollaborationBridge`、`useTranscriptionData` | 附件元数据持久化+回显（写→reload→readback）；删除走引用计数安全回收 | 是 |
 | **B9** | 分析页 /analysis | — | **受限工作台已落地（非产品级开放台）**：[ADR-0033](../../adr/0033-analysis-restricted-workspace-no-transcription-dock.md) 把 `/analysis` 做成向量索引 / 语料统计入口（复用 `TranscriptionPageAnalysisRuntime`，`visibleTabs`: embedding / stats），**不嵌波形、不升格为第二转写台**。完整科研分析工作台仍不排期 | — | — |
 
@@ -267,3 +269,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-04 | **Wave 4 B11**：Dexie v51 `external_mcp_trust` + `exposeExternalMcpToolsToLlm`；A9 schema 扫描；Settings AI 节 flag 开才渲染。Flag 默认 false。下一刀 **B12**。 |
 | 2026-09-04 | **Wave 4 B12**：inbound `resources/list|read` + `prompts/list|get`；Dexie v52 `agent_artifacts`；AdoptionQueue `artifactIds`；B5b 导出清单纯函数。Flag 默认 false。Outbound HTTP client 不在本切片。 |
 | 2026-09-04 | **Wave 4 B13**：outbound Streamable HTTP `tools/list`/`tools/call`；B11 allowlist + A9 expose；`mcp_tool_call_audits.agentRunId`；flag 默认 false。不引入 SDK，不改 CSP。 |
+| 2026-09-04 | **Wave 4 B14**：send-turn `extmcp__` 桥 + `lastToolsJson` 缓存；Settings 拉取 tools/list；flag 默认 false。不改 ChatWindow，不进 catalog，不改 CSP。 |
