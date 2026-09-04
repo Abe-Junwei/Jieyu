@@ -326,6 +326,23 @@ export function newId(prefix: string): string {
 }
 
 /**
+ * Resolve which language key `pickDefaultTranscriptionText` would read from.
+ */
+export function pickDefaultTranscriptionLangKey(transcription: unknown): string {
+  if (transcription === null || transcription === undefined || typeof transcription !== 'object') {
+    return 'default';
+  }
+  const record = transcription as Record<string, unknown>;
+  const direct = typeof record.default === 'string' ? record.default.trim() : '';
+  if (direct.length > 0) return 'default';
+  for (const [key, value] of Object.entries(record)) {
+    const next = typeof value === 'string' ? value.trim() : '';
+    if (next.length > 0) return key;
+  }
+  return 'default';
+}
+
+/**
  * Extract a single displayable transcription string from a multi-key
  * transcription record (e.g. `{ default: "...", eng: "..." }`).
  * Returns the `default` key first, then falls back to any non-empty value.
@@ -335,11 +352,7 @@ export function pickDefaultTranscriptionText(transcription: unknown): string {
     return '';
   }
   const record = transcription as Record<string, unknown>;
-  const direct = typeof record.default === 'string' ? record.default.trim() : '';
-  if (direct.length > 0) return direct;
-  for (const value of Object.values(record)) {
-    const next = typeof value === 'string' ? value.trim() : '';
-    if (next.length > 0) return next;
-  }
-  return '';
+  const langKey = pickDefaultTranscriptionLangKey(record);
+  const value = record[langKey];
+  return typeof value === 'string' ? value.trim() : '';
 }

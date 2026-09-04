@@ -18,7 +18,7 @@ const TOKEN: AnnotationIgtToken = {
 describe('annotationTokenDrafts', () => {
   it('prefers default gloss lang and otherwise the first non-empty key', () => {
     expect(resolveAnnotationGlossWriteLang(undefined)).toBe('default');
-    expect(resolveAnnotationGlossWriteLang({ default: '', eng: 'hi' })).toBe('default');
+    expect(resolveAnnotationGlossWriteLang({ default: '', eng: 'hi' })).toBe('eng');
     expect(resolveAnnotationGlossWriteLang({ eng: 'hi', cmn: '你好' })).toBe('eng');
   });
 
@@ -39,6 +39,20 @@ describe('annotationTokenDrafts', () => {
         'tok-1': { pos: 'X', gloss: '  ' },
       }),
     ).toEqual([{ tokenId: 'tok-1', glossLang: 'default', gloss: null }]);
+    expect(
+      collectDirtyAnnotationTokenWrites(
+        [
+          {
+            ...TOKEN,
+            gloss: 'hi',
+            glossLang: 'eng',
+          },
+        ],
+        {
+          'tok-1': { pos: 'X', gloss: '' },
+        },
+      ),
+    ).toEqual([{ tokenId: 'tok-1', glossLang: 'eng', gloss: null }]);
   });
 
   it('overlays drafts for display and drops cleared ids', () => {

@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
+import { pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
 import { saveAnnotationIgtRowTokens } from './saveAnnotationIgtRowTokens';
 
 describe('saveAnnotationIgtRowTokens', () => {
@@ -35,6 +36,30 @@ describe('saveAnnotationIgtRowTokens', () => {
     const requery = await LinguisticService.units.listTokensByUnitIds(['unit-save-1']);
     expect(requery[0]?.pos).toBe('N');
     expect(requery[0]?.gloss?.default).toBe('greeting');
+  });
+
+  it('clears the displayed gloss language when default is empty', async () => {
+    await db.unit_tokens.put({
+      id: 'tok-save-eng',
+      textId: 'text-save-1',
+      unitId: 'unit-save-1',
+      form: { default: 'hello' },
+      gloss: { default: '', eng: 'INTJ' },
+      pos: 'X',
+      tokenIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const readback = await saveAnnotationIgtRowTokens('unit-save-1', [
+      { tokenId: 'tok-save-eng', glossLang: 'eng', gloss: null },
+    ]);
+
+    expect(readback[0]?.gloss?.eng).toBeUndefined();
+    expect(pickDefaultTranscriptionText(readback[0]?.gloss)).toBe('');
+    const requery = await LinguisticService.units.listTokensByUnitIds(['unit-save-1']);
+    expect(requery[0]?.gloss?.eng).toBeUndefined();
+    expect(pickDefaultTranscriptionText(requery[0]?.gloss)).toBe('');
   });
 
   it('rejects when readback does not contain the written token', async () => {

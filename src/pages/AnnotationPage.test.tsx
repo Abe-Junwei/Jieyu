@@ -100,7 +100,7 @@ function tokenRow(id: string, unitId: string, form: string, gloss: string, pos =
   };
 }
 
-function seedWorkspace(tokens: unknown[], units: unknown[] = [UNIT_ONE]) {
+function seedWorkspace(tokens: Array<Record<string, unknown>>, units: unknown[] = [UNIT_ONE]) {
   featureFlagState.annotationPageEnabled = true;
   mockListByTextId.mockResolvedValue(units);
   mockListLayersByTextId.mockResolvedValue([
