@@ -82,6 +82,43 @@ export function CorpusLibraryWorkspace() {
         </p>
       ) : (
         <div className="corpus-library-body">
+          <div className="corpus-library-export">
+            <button
+              type="button"
+              className="btn"
+              data-testid="corpus-library-copy-plain"
+              disabled={controller.basketCount === 0}
+              onClick={() => {
+                void controller.onCopyWorkset('plain');
+              }}
+            >
+              {t(locale, 'workspace.corpus.copyPlain')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              data-testid="corpus-library-copy-markdown"
+              disabled={controller.basketCount === 0}
+              onClick={() => {
+                void controller.onCopyWorkset('markdown');
+              }}
+            >
+              {t(locale, 'workspace.corpus.copyMarkdown')}
+            </button>
+            {controller.copyStatus === 'copied' ? (
+              <p className="corpus-library-copy-status">
+                {t(locale, 'workspace.corpus.copySuccess')}
+              </p>
+            ) : controller.copyStatus === 'empty' ? (
+              <p className="corpus-library-copy-status">
+                {t(locale, 'workspace.corpus.copyEmpty')}
+              </p>
+            ) : controller.copyStatus === 'unavailable' ? (
+              <p className="corpus-library-copy-status">
+                {t(locale, 'workspace.corpus.copyUnavailable')}
+              </p>
+            ) : null}
+          </div>
           <label className="corpus-library-filter">
             <span className="corpus-library-filter-label">
               {t(locale, 'workspace.corpus.filterLabel')}

@@ -14,6 +14,14 @@ import {
   buildTranscriptionWorkspaceReturnHref,
   readTranscriptionWorkspaceReturnHint,
 } from '../utils/transcriptionUrlDeepLink';
+import { writeCorpusWorksetClipboard } from './corpusWorksetClipboard';
+import {
+  buildCorpusWorksetExportPayload,
+  formatCorpusWorksetMarkdown,
+  formatCorpusWorksetPlain,
+  toCorpusWorksetExportUnit,
+  type CorpusWorksetExportPayload,
+} from './corpusWorksetExport';
 import {
   readCorpusBasketSession,
   syncCorpusBasketScope,
@@ -37,6 +45,7 @@ export function useCorpusLibraryController() {
   const locale = useLocale();
   const [searchParams] = useSearchParams();
   const [basketRevision, setBasketRevision] = useState(0);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'empty' | 'unavailable'>('idle');
 
   const parsed = readAnalysisDeepLinkParams(searchParams);
   const hint = readTranscriptionWorkspaceReturnHint();
@@ -76,7 +85,27 @@ export function useCorpusLibraryController() {
           })();
     const filterText = filterState.scopeKey === scopeKey ? filterState.text : '';
     const needle = filterText.trim().toLowerCase();
-    const selectedIds = new Set(readCorpusBasketSession().unitIds);
+    const basketUnitIds = readCorpusBasketSession().unitIds;
+    const selectedIds = new Set(basketUnitIds);
+    const exportUnits = scoped.map((unit) =>
+      toCorpusWorksetExportUnit({
+        id: unit.id,
+        ...(unit.textId !== undefined && unit.textId.length > 0 ? { textId: unit.textId } : {}),
+        ...(unit.mediaId !== undefined && unit.mediaId.length > 0 ? { mediaId: unit.mediaId } : {}),
+        ...(unit.layerId !== undefined && unit.layerId.length > 0 ? { layerId: unit.layerId } : {}),
+        startTime: unit.startTime,
+        endTime: unit.endTime,
+        text: getUnitTextForLayer(unit),
+        fallbackTextId: textId,
+        fallbackMediaId: mediaId,
+      }),
+    );
+    const exportPayload = buildCorpusWorksetExportPayload({
+      textId,
+      mediaId,
+      basketUnitIds,
+      units: exportUnits,
+    });
     const filtered =
       needle.length === 0
         ? scoped
@@ -106,6 +135,7 @@ export function useCorpusLibraryController() {
       basketCount: selectedIds.size,
       filterText,
       rows,
+      exportPayload,
     };
   }, [
     basketRevision,
@@ -130,6 +160,23 @@ export function useCorpusLibraryController() {
     [scopeKey],
   );
 
+  const handleCopyWorkset = useCallback(
+    async (format: 'plain' | 'markdown') => {
+      const payload: CorpusWorksetExportPayload = derived.exportPayload;
+      if (payload.units.length === 0) {
+        setCopyStatus('empty');
+        return;
+      }
+      const text =
+        format === 'markdown'
+          ? formatCorpusWorksetMarkdown(payload)
+          : formatCorpusWorksetPlain(payload);
+      const ok = await writeCorpusWorksetClipboard(text);
+      setCopyStatus(ok ? 'copied' : 'unavailable');
+    },
+    [derived.exportPayload],
+  );
+
   const loadError =
     unitsQuery.error instanceof Error
       ? unitsQuery.error.message
@@ -148,7 +195,9 @@ export function useCorpusLibraryController() {
     isLoading: textId.length > 0 && unitsQuery.isLoading,
     loadError,
     transcriptionHref: buildTranscriptionWorkspaceReturnHref(),
+    copyStatus,
     onToggleUnit: handleToggleUnit,
     onFilterChange: handleFilterChange,
+    onCopyWorkset: handleCopyWorkset,
   };
 }
