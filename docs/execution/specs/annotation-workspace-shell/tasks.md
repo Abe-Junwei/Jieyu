@@ -14,18 +14,18 @@ depends_on:
 
 ## Implementation tasks
 
-- [ ] `annotationPageEnabled` 默认 false + env 覆盖矩阵
-- [ ] 键盘 reduce + lane 投影 focused tests
-- [ ] controller / workspace 只读 IGT；flag 装配保 layout guard
-- [ ] i18n / CHANGELOG / 主路线图 / 代码地图
+- [x] `annotationPageEnabled` 默认 false + env 覆盖矩阵
+- [x] 键盘 reduce + lane 投影 focused tests
+- [x] controller / workspace 只读 IGT；flag 装配保 layout guard
+- [x] i18n / CHANGELOG / 主路线图 / 代码地图
 
 ## Pre-merge gates
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 `vitest`
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
-- [ ] Feature flag 默认 `false`
+- [x] `npm run typecheck`
+- [x] 触及域 `vitest`
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] Feature flag 默认 `false`
 
 ## Commit 阶段证据模板
 

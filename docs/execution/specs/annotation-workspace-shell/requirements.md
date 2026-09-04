@@ -23,10 +23,10 @@ source_of_truth: annotation-workspace-shell-spec
 
 ## 3. 验收标准（可测）
 
-- [ ] `annotationPageEnabled` 默认 `false`；flag 关 DOM 仍为占位面板
-- [ ] 列表不按 `unit.layerId === laneId` 自行过滤，走 `resolveCanonicalUnitForTranscriptionLaneRow`
-- [ ] 键盘纯函数覆盖 M0 表：row `Space`→playToggle；input `Space`→insertSpace；无建议 `Tab`→moveNext；`Enter`→commitStay；`Ctrl+Enter`→commitNext 且不跳行
-- [ ] 不改 ChatWindow；`check:architecture-guard` 无新增 hotspot
+- [x] `annotationPageEnabled` 默认 `false`；flag 关 DOM 仍为占位面板
+- [x] 列表不按 `unit.layerId === laneId` 自行过滤，走 `resolveCanonicalUnitForTranscriptionLaneRow`
+- [x] 键盘纯函数覆盖 M0 表：row `Space`→playToggle；input `Space`→insertSpace；无建议 `Tab`→moveNext；`Enter`→commitStay；`Ctrl+Enter`→commitNext 且不跳行
+- [x] 不改 ChatWindow；`check:architecture-guard` 无新增 hotspot
 
 ## 4. 受影响代码地图
 

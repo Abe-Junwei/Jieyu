@@ -143,6 +143,7 @@ describe('AnnotationPage', () => {
     mockListTokensByUnitIds.mockResolvedValue([]);
     renderPage('/annotation?textId=tid-1&mediaId=mid-1');
     const workspace = await screen.findByTestId('annotation-workspace', {}, { timeout: 4000 });
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
     fireEvent.keyDown(workspace, { key: ' ' });
     const status = screen.getByTestId('annotation-keyboard-status');
     expect(status.getAttribute('data-action')).toBe('playToggle');
