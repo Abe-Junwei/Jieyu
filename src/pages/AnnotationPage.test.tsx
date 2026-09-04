@@ -100,7 +100,19 @@ function tokenRow(id: string, unitId: string, form: string, gloss: string, pos =
   };
 }
 
-function seedWorkspace(tokens: unknown[], units: unknown[] = [UNIT_ONE]) {
+type TokenFixture = {
+  id: string;
+  textId: string;
+  unitId: string;
+  form: { default: string };
+  gloss?: Record<string, string>;
+  pos?: string;
+  tokenIndex: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function seedWorkspace(tokens: TokenFixture[], units: Array<typeof UNIT_ONE> = [UNIT_ONE]) {
   featureFlagState.annotationPageEnabled = true;
   mockListByTextId.mockResolvedValue(units);
   mockListLayersByTextId.mockResolvedValue([
@@ -165,17 +177,7 @@ describe('AnnotationPage', () => {
   });
 
   it('saves POS/gloss on Enter and readback replaces the row', async () => {
-    const tokens: Array<{
-      id: string;
-      textId: string;
-      unitId: string;
-      form: { default: string };
-      gloss?: Record<string, string>;
-      pos?: string;
-      tokenIndex: number;
-      createdAt: string;
-      updatedAt: string;
-    }> = [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ', 'X')];
+    const tokens: TokenFixture[] = [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ', 'X')];
     seedWorkspace(tokens);
     mockUpdateTokenGloss.mockImplementation(async (_id: string, gloss: string | null) => {
       const next = (gloss ?? '').trim();
