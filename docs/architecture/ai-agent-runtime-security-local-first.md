@@ -3,7 +3,7 @@ title: AI Agent 运行时安全 — 本地优先策略
 doc_type: architecture
 status: active
 owner: ai-governance
-last_reviewed: 2026-09-03
+last_reviewed: 2026-09-04
 source_of_truth: current-state
 depends_on:
   - ./ai-execution-capability-strategy-matrix-v0.md
@@ -76,7 +76,7 @@ User / Voice
 Parallel:
   Background / sidecar → F4 sandbox (A6)
   MCP Server (inbound) → Bearer + scope hard-fail (已有)
-  MCP Client (outbound) → B11 trust registry (未来)
+  MCP Client (outbound) → B11 trust registry (`exposeExternalMcpToolsToLlm`；HTTP client 属 B12)
 ```
 
 ## 5. A6 落地口径（F4 Batch B/C + 工业三开关）
@@ -105,7 +105,21 @@ Parallel:
 
 工作区语段 snippet 不按越狱扫描。流式 delta 可能先于 redact 上屏；终稿与落盘走 redact 后文本。
 
-## 7. 与现有文档关系
+## 7. B11 落地口径（外部 MCP trust）
+
+截至 2026-09-04，B11 以 **flag 默认 false** 进主链：
+
+| 项 | 代码 | 行为 |
+| --- | --- | --- |
+| 身份 | `normalizeExternalMcpOrigin` | http(s) host+path；拒绝 userinfo；不用 display name |
+| 门面 | `exposeExternalMcpToolsToLlm` | flag off / 未登记 / 未启用 / A9 block → schema 不进 LLM |
+| 持久化 | Dexie v51 `external_mcp_trust` | 启用写 → requery readback；`audit_logs.field === 'external_mcp_trust'` |
+| UI | `SettingsAiMcpTrustSection` | 仅 `aiExternalMcpTrustEnabled` 时出现在 Settings AI tab |
+| Flag | `aiExternalMcpTrustEnabled` / `VITE_AI_EXTERNAL_MCP_TRUST_ENABLED` | **全部环境默认 false** |
+
+不实现 outbound HTTP MCP client（属 **B12**）。Jieyu inbound `McpServer` 只读合同不变。
+
+## 8. 与现有文档关系
 
 | 文档 | 关系 |
 | --- | --- |
@@ -114,8 +128,9 @@ Parallel:
 | [ai-agent-architecture-risk-assessment](../execution/audits/ai-agent-architecture-risk-assessment-2026-05-17.md) | 可靠性 P0（闭环重规划）仍属 A4，与安全轨并行 |
 | [ADR-0031](../adr/0031-ai-chat-keyvault-and-csp-connect-src.md) | KeyVault / CSP 边界不因 A9 而夸大 |
 | [A9 SDD](../execution/specs/agent-runtime-security-semantic-guard/) | 入/出站规则与 flag 验收 |
+| [B11 SDD](../execution/specs/agent-runtime-external-mcp-trust/) | origin allowlist；schema 进 LLM 前门 |
 
-## 8. 修订记录
+## 9. 修订记录
 
 | 日期 | 说明 |
 | --- | --- |
@@ -123,3 +138,4 @@ Parallel:
 | 2026-06-01 | 对齐架构补强：排期扩至 A6–A14；任务真源改 [架构补强落地方案](../execution/plans/Agent运行时架构补强-本地优先落地方案-2026-06-01.md)；链 [Runner 模型](./ai-agent-runtime-runner-model.md)。 |
 | 2026-09-02 | A6 落地口径：sidecar 入口守卫 + 工业三开关环境矩阵（dogfood/staging ON、prod OFF）记入本文。 |
 | 2026-09-03 | A9 落地口径：本地 inspect 入站 block / 出站 redact；flag 默认 false。 |
+| 2026-09-04 | B11 落地口径：`external_mcp_trust` + `exposeExternalMcpToolsToLlm`；flag 默认 false；outbound HTTP client 仍属 B12。 |

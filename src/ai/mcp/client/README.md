@@ -1,6 +1,6 @@
-# MCP Client (预留)
+# MCP Client
 
-PR-20 数据结构预留，无 runtime 实现。
+PR-20 类型预留 + **B11 origin allowlist**。Outbound HTTP/SSE client 仍属 **B12**。
 
 ## 计划对接的 MCP Server
 
@@ -10,8 +10,9 @@ PR-20 数据结构预留，无 runtime 实现。
 ## 当前状态
 
 - `mcpClientTypes.ts`：类型定义与空注册表
-- 检索结果将自动包装为 `EvidencePacket`，进入 AI 侧边栏「文献问答」workflow
+- `externalMcpTrustRegistry.ts`：规范化 origin、Dexie `external_mcp_trust`、`exposeExternalMcpToolsToLlm` 门面。未登记 / 未启用 / flag off 的 `tools/list` **不得**进 LLM。
+- 检索结果将自动包装为 `EvidencePacket`，进入 AI 侧边栏「文献问答」workflow（B12 接线）
 
 ## 下一步
 
-待 MCP Server 生态稳定后，实现 HTTP/SSE transport 与认证层。
+B12：HTTP/SSE transport、`resources/list` / `prompts/list`、`AgentArtifactV0`。调用方只经 `exposeExternalMcpToolsToLlm`。

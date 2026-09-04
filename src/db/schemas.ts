@@ -21,6 +21,7 @@ import type {
   AiSessionMemoryDoc,
   ProjectAiMemoryDoc,
   McpToolCallAuditDoc,
+  ExternalMcpTrustDoc,
   LanguageDocType,
   LanguageDisplayNameDocType,
   LanguageAliasDocType,
@@ -354,6 +355,20 @@ const projectAiMemoryDocSchema = z.object({
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
   expiresAt: isoDateSchema.optional(),
+});
+
+const externalMcpTrustScanResultSchema = z.enum(['allow', 'block', 'skipped']);
+
+const externalMcpTrustDocSchema = z.object({
+  id: z.string().min(1),
+  origin: z.string().min(1),
+  label: z.string().min(1).optional(),
+  enabled: z.boolean(),
+  lastSchemaScanResult: externalMcpTrustScanResultSchema.optional(),
+  lastSchemaScanAt: isoDateSchema.optional(),
+  lastSchemaScanReasonsJson: z.string().optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
 });
 
 const mcpToolCallAuditOutcomeSchema = z.enum([
@@ -1375,6 +1390,10 @@ export function validateProjectAiMemoryDoc(doc: ProjectAiMemoryDoc): void {
 
 export function validateMcpToolCallAuditDoc(doc: McpToolCallAuditDoc): void {
   mcpToolCallAuditDocSchema.parse(doc);
+}
+
+export function validateExternalMcpTrustDoc(doc: ExternalMcpTrustDoc): void {
+  externalMcpTrustDocSchema.parse(doc);
 }
 
 export function validateLanguageDoc(doc: LanguageDocType): void {
