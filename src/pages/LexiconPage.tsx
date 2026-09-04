@@ -97,6 +97,7 @@ export function LexiconPage() {
   const filteredLexemes = useLexiconSearch(lexemes, deferredSearchText);
 
   useEffect(() => {
+    if (loading) return;
     if (filteredLexemes.length === 0) {
       if (selectedLexemeId) setSelectedLexemeId('');
       return;
@@ -105,7 +106,7 @@ export function LexiconPage() {
       return;
     }
     setSelectedLexemeId(filteredLexemes[0]!.id);
-  }, [filteredLexemes, selectedLexemeId]);
+  }, [filteredLexemes, loading, selectedLexemeId]);
 
   useEffect(() => {
     writeLexiconListState({ searchText, selectedLexemeId });

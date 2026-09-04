@@ -218,6 +218,48 @@ describe('LexiconPage', () => {
     });
   });
 
+  it('restores selectedLexemeId after a delayed lexeme list load', async () => {
+    let resolveLexemes: (value: LexemeDocType[]) => void = () => {};
+    mockListLexemes.mockReturnValue(
+      new Promise<LexemeDocType[]>((resolve) => {
+        resolveLexemes = resolve;
+      }),
+    );
+    window.sessionStorage.setItem(
+      'lexiconListState',
+      JSON.stringify({ searchText: '', selectedLexemeId: 'lex-run' }),
+    );
+
+    renderLexiconPage();
+
+    resolveLexemes([
+      {
+        id: 'lex-dog',
+        lemma: { default: 'dog' },
+        senses: [{ gloss: { eng: 'canine' }, definition: { eng: 'domesticated canine' } }],
+        language: 'eng',
+        createdAt: '2026-04-04T00:00:00.000Z',
+        updatedAt: '2026-04-04T00:00:00.000Z',
+      },
+      {
+        id: 'lex-run',
+        lemma: { default: 'run' },
+        senses: [{ gloss: { eng: 'move quickly' } }],
+        language: 'eng',
+        createdAt: '2026-04-03T00:00:00.000Z',
+        updatedAt: '2026-04-03T00:00:00.000Z',
+      },
+    ] satisfies LexemeDocType[]);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('move quickly').length).toBeGreaterThan(0);
+      expect(screen.queryByText('domesticated canine')).toBeNull();
+      expect(
+        JSON.parse(window.sessionStorage.getItem('lexiconListState') ?? '{}').selectedLexemeId,
+      ).toBe('lex-run');
+    });
+  });
+
   it('persists the current list state for a later return', async () => {
     renderLexiconPage();
     await screen.findByText('domesticated canine');
