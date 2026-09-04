@@ -23,11 +23,11 @@ source_of_truth: agent-runtime-external-mcp-provider-adapters-spec
 
 ## 3. 验收标准（可测）
 
-- [ ] `aiExternalMcpProviderAdaptersEnabled` 默认 `false`
-- [ ] 已知 OpenAlex/Zotero JSON → `buildEvidencePacketV0`；垃圾输入 → `[]`
-- [ ] flag 关零 packets
-- [ ] 预置只填草稿，不写 Dexie、不 fetch
-- [ ] CSP 仅增 loopback `8765`，无 `https:` 通配
+- [x] `aiExternalMcpProviderAdaptersEnabled` 默认 `false`
+- [x] 已知 OpenAlex/Zotero JSON → `buildEvidencePacketV0`；垃圾输入 → `[]`
+- [x] flag 关零 packets
+- [x] 预置只填草稿，不写 Dexie、不 fetch
+- [x] CSP 仅增 loopback `8765`，无 `https:` 通配
 
 ## 4. 受影响代码地图
 

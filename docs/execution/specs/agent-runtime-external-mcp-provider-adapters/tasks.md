@@ -22,12 +22,12 @@ depends_on:
 
 ## Pre-merge gates
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 `vitest`
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:agent-evals:smoke`
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
-- [ ] Feature flag 默认 `false`
+- [x] `npm run typecheck`
+- [x] 触及域 `vitest`（12 files / 37 passed）
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:agent-evals:smoke`（4/4）
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] Feature flag 默认 `false`
 
 ## Commit 阶段证据模板
 
@@ -36,7 +36,12 @@ feat(ai): add B15 Zotero/OpenAlex MCP adapters
 
 Verified:
 - npm run typecheck
-- npx vitest run src/ai/mcp/client ...
+- npx vitest run src/ai/mcp/client src/ai/config/featureFlags.environmentMatrix.test.ts src/components/settings/SettingsAiMcpTrustSection.test.tsx src/components/settings/SettingsAiMcpTrustSection.presets.test.tsx src/components/settings/SettingsAiMcpTrustSection.fetchTools.test.tsx → 12 files / 37 passed
+- npm run check:architecture-guard
+- npm run check:docs-governance
+- npm run check:plans-frontmatter
+- npm run check:dev-agent-workflow-verify
+- npm run check:agent-evals:smoke → 4/4
 ```
 
 ## Post-merge
