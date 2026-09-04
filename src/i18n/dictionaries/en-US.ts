@@ -150,6 +150,11 @@ export const enUSDictionary = {
   'workspace.corpus.selectUnit': 'Add to workset',
   'workspace.corpus.openInTranscription': 'Open in transcription',
   'workspace.corpus.emptyFilter': 'No units match the current filter.',
+  'workspace.corpus.copyPlain': 'Copy plain text',
+  'workspace.corpus.copyMarkdown': 'Copy Markdown',
+  'workspace.corpus.copyEmpty': 'Select units into the workset first.',
+  'workspace.corpus.copySuccess': 'Copied to clipboard',
+  'workspace.corpus.copyUnavailable': 'Could not copy to the clipboard',
   'workspace.lexicon.unavailable.title': 'Lexicon workspace is not open',
   'workspace.lexicon.unavailable.summary':
     'Entry management, sense editing, and reverse corpus linking are not yet a complete workflow, so this version keeps the page in planning status.',

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -78,6 +78,7 @@ afterEach(() => {
   featureFlagState.corpusLibraryPageEnabled = false;
   resetCorpusBasketSessionForTests();
   resetCorpusViewStateForTests();
+  vi.unstubAllGlobals();
 });
 
 describe('CorpusLibraryPage', () => {
@@ -138,5 +139,41 @@ describe('CorpusLibraryPage', () => {
     expect(sessionStorage.getItem('corpusBasket')).toBeNull();
     expect(screen.queryByTestId('corpus-library-unit-uid-2')).toBeNull();
     expect(screen.getByTestId('corpus-library-unit-uid-1')).toBeTruthy();
+  });
+
+  it('copies basket markdown even when the list filter hides a selected unit', async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    featureFlagState.corpusLibraryPageEnabled = true;
+    mockListByTextId.mockResolvedValue(SAMPLE_UNITS);
+    renderPage('/corpus?textId=tid-1&mediaId=mid-1');
+    const first = await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
+    const second = screen.getByTestId('corpus-library-unit-uid-2');
+    fireEvent.click(first.querySelector('input[type="checkbox"]') as HTMLInputElement);
+    fireEvent.click(second.querySelector('input[type="checkbox"]') as HTMLInputElement);
+    fireEvent.change(screen.getByLabelText('筛选句段'), { target: { value: 'tone' } });
+    expect(screen.queryByTestId('corpus-library-unit-uid-2')).toBeNull();
+    fireEvent.click(screen.getByTestId('corpus-library-copy-markdown'));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining('/transcription?textId=tid-1&mediaId=mid-1&unitId=uid-1'),
+    );
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining('/transcription?textId=tid-1&mediaId=mid-1&unitId=uid-2'),
+    );
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('second sentence'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('00:01.5-00:02.0'));
+  });
+
+  it('does not write the clipboard when the workset is empty', async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    featureFlagState.corpusLibraryPageEnabled = true;
+    mockListByTextId.mockResolvedValue(SAMPLE_UNITS);
+    renderPage('/corpus?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
+    expect(screen.getByTestId('corpus-library-copy-plain')).toHaveProperty('disabled', true);
+    fireEvent.click(screen.getByTestId('corpus-library-copy-plain'));
+    expect(writeText).not.toHaveBeenCalled();
   });
 });

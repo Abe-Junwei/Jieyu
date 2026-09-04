@@ -135,6 +135,11 @@ export const zhCNDictionary = {
   'workspace.corpus.selectUnit': '加入工作集',
   'workspace.corpus.openInTranscription': '在转写中打开',
   'workspace.corpus.emptyFilter': '没有符合筛选的句段。',
+  'workspace.corpus.copyPlain': '复制纯文本',
+  'workspace.corpus.copyMarkdown': '复制 Markdown',
+  'workspace.corpus.copyEmpty': '请先在工作集中选择句段。',
+  'workspace.corpus.copySuccess': '已复制到剪贴板',
+  'workspace.corpus.copyUnavailable': '无法复制到剪贴板',
   'workspace.lexicon.unavailable.title': '词典工作台未开放',
   'workspace.lexicon.unavailable.summary':
     '词条管理、义项编辑和语料反向关联尚未形成完整工作流，当前版本先明确降级为规划页。',
