@@ -26,6 +26,7 @@ source_of_truth: agent-runtime-external-mcp-trust-spec
 - [x] 未登记 / 未启用 / flag off → `exposeExternalMcpToolsToLlm` 返回空
 - [x] 启用写 → Dexie requery readback `enabled: true`
 - [x] 首次启用带 schema 时走 `inspectInbound`；block 则不启用
+- [x] 逐工具全文扫描（含 `inputSchema`）；合并文本不得 16k 截断后放行毒 payload
 - [x] 身份用规范化 origin URL，不用 display name
 - [x] `aiExternalMcpTrustEnabled` 默认 `false`
 - [x] 设置 AI 页在 flag 开时渲染 allowlist；flag 关不出现该区块

@@ -32,6 +32,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Fixed
 
+- **B11 MCP schema scan truncation**: A9 inbound scan no longer slices combined tool text at 16k. Each tool is inspected in full, including `inputSchema` JSON, so injection hidden after the old window cannot reach the LLM.
 - **E2E flaky** (`aiChatSendTurnSmoke.spec.ts`): webkit hover reliability improved with
   visibility wait + collapsed-state assertion + click fallback.
 - **Architecture guard** (`useAiChat.ts`): merged two `useMemo` declarations into one to satisfy

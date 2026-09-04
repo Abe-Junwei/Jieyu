@@ -112,7 +112,7 @@ Parallel:
 | 项 | 代码 | 行为 |
 | --- | --- | --- |
 | 身份 | `normalizeExternalMcpOrigin` | http(s) host+path；拒绝 userinfo；不用 display name |
-| 门面 | `exposeExternalMcpToolsToLlm` | flag off / 未登记 / 未启用 / A9 block → schema 不进 LLM |
+| 门面 | `exposeExternalMcpToolsToLlm` | flag off / 未登记 / 未启用 / A9 block → schema 不进 LLM；**逐工具全文扫描**（含 `inputSchema`），无合并 16k 截断 |
 | 持久化 | Dexie v51 `external_mcp_trust` | 启用写 → requery readback；`audit_logs.field === 'external_mcp_trust'` |
 | UI | `SettingsAiMcpTrustSection` | 仅 `aiExternalMcpTrustEnabled` 时出现在 Settings AI tab |
 | Flag | `aiExternalMcpTrustEnabled` / `VITE_AI_EXTERNAL_MCP_TRUST_ENABLED` | **全部环境默认 false** |
@@ -187,3 +187,4 @@ Parallel:
 | 2026-09-04 | B13 落地口径：Streamable HTTP client；flag 默认 false；不放宽 CSP。 |
 | 2026-09-04 | B14 落地口径：send-turn `extmcp__` 桥 + `lastToolsJson` 缓存；flag 默认 false。 |
 | 2026-09-04 | B15 落地口径：Zotero/OpenAlex HTTP MCP 适配 + EvidencePacket；CSP 枚举环回 8765；flag 默认 false。 |
+| 2026-09-04 | B11 扫描修正：逐工具全文 `inspectInbound`（含 `inputSchema`），去掉合并 16k 截断。 |
