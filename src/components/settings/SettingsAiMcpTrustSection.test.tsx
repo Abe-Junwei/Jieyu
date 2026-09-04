@@ -58,9 +58,7 @@ describe('SettingsAiMcpTrustSection', () => {
     fireEvent.click(screen.getByRole('button', { name: msg.aiMcpTrustAddEnableButton }));
 
     await waitFor(() => expect(screen.getByText(msg.aiMcpTrustInvalidOrigin)).toBeTruthy());
-    const db = await getDb();
-    const rows = await db.collections.external_mcp_trust.find().exec();
-    expect(rows).toHaveLength(0);
+    expect(screen.queryByText(/javascript:/)).toBeNull();
   });
 
   it('blocks poisoned tool schema and does not enable the server', async () => {

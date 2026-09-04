@@ -3,7 +3,7 @@
  * Flag off ⇒ tools/list schema never reaches the LLM.
  */
 
-import { getDb, type ExternalMcpTrustDoc } from '../../db';
+import { getDb, type ExternalMcpTrustDoc } from '../../../db';
 import { featureFlags } from '../../config/featureFlags';
 import { inspectInbound } from '../../security/semanticGuard';
 
@@ -123,7 +123,6 @@ export async function setExternalMcpTrustEnabled(input: {
     if (inbound.action === 'block') {
       scanResult = 'block';
       scanReasons = [...inbound.reasons];
-      const timestamp = nowIso();
       await persistTrustAudit({
         origin,
         action: 'update',

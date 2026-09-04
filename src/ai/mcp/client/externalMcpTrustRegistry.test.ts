@@ -9,7 +9,7 @@ vi.mock('../../config/featureFlags', () => ({
   },
 }));
 
-import { getDb, resetJieyuDatabaseSingletonForTests } from '../../db';
+import { getDb, resetJieyuDatabaseSingletonForTests } from '../../../db';
 import {
   exposeExternalMcpToolsToLlm,
   normalizeExternalMcpOrigin,
