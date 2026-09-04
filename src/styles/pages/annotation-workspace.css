@@ -1,0 +1,107 @@
+.annotation-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  height: 100%;
+}
+
+.annotation-workspace-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.annotation-workspace-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header) 8%);
+  width: fit-content;
+}
+
+.annotation-workspace-summary,
+.annotation-workspace-empty,
+.annotation-workspace-keyboard {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.annotation-workspace-return {
+  width: fit-content;
+  color: var(--header-accent);
+  text-decoration: none;
+}
+
+.annotation-workspace-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border-radius: var(--radius-xl);
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header) 6%);
+}
+
+.annotation-igt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.annotation-igt-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-header) 88%, transparent);
+}
+
+.annotation-igt-row-focused {
+  background: color-mix(in srgb, var(--tab-active) 14%, var(--surface-header));
+}
+
+.annotation-igt-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.annotation-igt-time,
+.annotation-igt-label,
+.annotation-igt-translation,
+.annotation-igt-gloss {
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  color: var(--text-secondary);
+}
+
+.annotation-igt-link {
+  color: var(--header-accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.annotation-igt-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.annotation-igt-stack {
+  display: inline-grid;
+  gap: 2px;
+}
+
+.annotation-igt-form {
+  color: var(--text-primary);
+}

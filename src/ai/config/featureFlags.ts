@@ -107,6 +107,10 @@ const aiExternalMcpProviderAdaptersEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED,
 );
 
+const annotationPageEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_ANNOTATION_PAGE_ENABLED,
+);
+
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
   featureFlagDeploymentEnvironment === 'staging' ||
@@ -229,4 +233,9 @@ export const featureFlags = {
    * Default false. Depends on B13/B14; does not call OpenAlex REST or Zotero :23119.
    */
   aiExternalMcpProviderAdaptersEnabled: aiExternalMcpProviderAdaptersEnabledFromEnv ?? false,
+  /**
+   * B4a-1: annotation workspace readonly IGT shell + keyboard skeleton.
+   * Default false; flag off keeps FeatureAvailabilityPanel.
+   */
+  annotationPageEnabled: annotationPageEnabledFromEnv ?? false,
 } as const;

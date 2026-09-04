@@ -99,6 +99,26 @@ export const enUSDictionary = {
     'Token segmentation and token-level editing',
   'workspace.annotation.unavailable.scope.gloss': 'Gloss lexicon linkage and batch revision',
   'workspace.annotation.unavailable.scope.tagging': 'Tag schema and corpus back-linking',
+  'workspace.annotation.badge': 'Read-only skeleton',
+  'workspace.annotation.title': 'Annotation workspace',
+  'workspace.annotation.summary':
+    'Browse IGT rows for the current transcription scope. POS and gloss editing will open later.',
+  'workspace.annotation.empty':
+    'No transcription record is in scope yet. Open the transcription workspace first.',
+  'workspace.annotation.emptyList': 'No annotatable units are in the current scope.',
+  'workspace.annotation.loading': 'Loading annotation scope',
+  'workspace.annotation.errorPrefix': 'Could not load annotation scope.',
+  'workspace.annotation.openTranscription': 'Open transcription workspace',
+  'workspace.annotation.openInTranscription': 'Open in transcription',
+  'workspace.annotation.sidePaneTitle': 'Annotation workspace',
+  'workspace.annotation.sidePaneSubtitle': 'Current scope and IGT list',
+  'workspace.annotation.sidePaneCurrent': 'Current scope',
+  'workspace.annotation.unitCount': '{count} units',
+  'workspace.annotation.surfaceLabel': 'Surface',
+  'workspace.annotation.translationLabel': 'Translation',
+  'workspace.annotation.translationEmpty': 'No translation yet',
+  'workspace.annotation.keyboardHint':
+    'Space on a focused row is reserved for playback; Space in input mode inserts a space. Saving is not open yet.',
   'workspace.analysis.unavailable.title': 'Analysis workspace is not open',
   'workspace.analysis.unavailable.summary':
     'Stat views, AI audit queues, and quality evaluation have not yet reached independent delivery standards, so this page remains informational.',

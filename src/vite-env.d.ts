@@ -50,6 +50,8 @@ interface ImportMetaEnv {
 	readonly VITE_AI_EXTERNAL_MCP_SEND_TURN_ENABLED?: string;
 	/** Optional override for `aiExternalMcpProviderAdaptersEnabled` (true/false, 1/0). Default off. */
 	readonly VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED?: string;
+	/** Optional override for `annotationPageEnabled` (true/false, 1/0). Default off. */
+	readonly VITE_ANNOTATION_PAGE_ENABLED?: string;
 }
 
 interface ImportMeta {

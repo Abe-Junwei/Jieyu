@@ -18,5 +18,6 @@ export type {
   MultiLangString,
   OrthographyDocType,
   SpeakerDocType,
+  UnitTokenDocType,
   UserNoteDocType,
 } from '../db';
