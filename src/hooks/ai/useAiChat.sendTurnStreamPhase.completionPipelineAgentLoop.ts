@@ -92,6 +92,7 @@ export async function runSendTurnStreamAgentLoopAfterPrimaryCompletion(
           checkpoint,
           targetId: assistantId,
           modelId: settingsRef.current.model,
+          ...(streamCompletionEnv.agentRunId ? { agentRunId: streamCompletionEnv.agentRunId } : {}),
         });
         notifyAiTasksUpdated();
         return taskId;

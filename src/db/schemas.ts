@@ -228,6 +228,7 @@ const aiTaskDocSchema = z.object({
   checkpointJson: z.string().optional(),
   resumable: z.boolean().optional(),
   handoffReason: z.string().optional(),
+  agentRunId: z.string().min(1).optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });

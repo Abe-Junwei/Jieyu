@@ -3,7 +3,7 @@ title: AI Agent 运行时 Runner 模型（ADK 模式借设计 · 本地实现）
 doc_type: architecture
 status: active
 owner: ai-governance
-last_reviewed: 2026-09-03
+last_reviewed: 2026-09-04
 source_of_truth: current-state
 depends_on:
   - ./ai-agent-runtime-security-local-first.md
@@ -29,6 +29,7 @@ depends_on:
 | **Callbacks** | `AgentCallbackRegistry`（`src/ai/runtime/agentCallbacks.ts`）；相位含 `after_model`（A12 reflection 后） | A9、A10、A12 |
 | **Tool catalog** | `AiToolCatalog` SSOT（`src/ai/catalog/aiToolCatalog.ts`）；shadow re-export | A10 |
 | **Eval** | `agent-evals` + trajectory NDJSON + `agentRunId` 链断言 | A14 |
+| **Long-running / async** | `TaskRunner.enqueue`（可 pump）与 `parkCheckpoint`（pending、不 pump）；共享 `agentRunId` | A13 |
 | **MCP tools** | 自研 server/client | B11、B12 |
 
 ## 2. 分层架构
@@ -47,6 +48,7 @@ User / Voice
        → VerticalWorkflow / ComposedWorkflow (A12)
        → AgentUiEvent bus → AlertsPanel preview (A11, flag `aiAgentUiPreviewEnabled`)
        → SemanticGuard outbound (A9, flag `aiSemanticGuardEnabled`)
+  → TaskRunner parkCheckpoint / enqueue (A13；reload resume 仍走 send-turn)
   → Dexie audit / adoption / artifacts (B12)
 ```
 
@@ -76,3 +78,4 @@ User / Voice
 | 2026-09-02 | Wave 3 A11：`AgentUiEvent` bus → AlertsPanel preview（flag `aiAgentUiPreviewEnabled` 默认 false）。 |
 | 2026-09-03 | Wave 4 A9：`semanticGuard` 入站 block / 出站 redact；`before_model` / `before_client`；flag `aiSemanticGuardEnabled` 默认 false。 |
 | 2026-09-03 | Wave 4 A14：`--assert-audit-trace` 按 `agentRunId` 链式断言；vertical citation 进 `:smoke`；P2 ACI 基线写入 release-evidence。 |
+| 2026-09-04 | Wave 4 A13：Adapt 现有 `TaskRunner`（不引入 ADK）。parked checkpoint = Dexie interrupt/resume，不是 enqueue+pump。Catalog `trust: background` 才可进后台 batch；并行只读样本为 vitest，不替换 send-turn 串行 local-tool。P4 4 态 classifier：仅 `running` 可 auto-continue；`waiting_clarify` 不得当 running。 |

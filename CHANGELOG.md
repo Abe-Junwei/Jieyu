@@ -10,6 +10,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **A13 TaskRunner**: `enqueue` / `parkCheckpoint` persist optional `agentRunId`. Parked resumable `agent_loop` checkpoints skip stale TTL recovery and do not pump. Catalog `trust: background` gates background batches. Parallel readonly sample (`search_units` + `list_layers`) runs on TaskRunner in vitest only — send-turn sequential local-tool is unchanged. Four-state reload classifier: `done` / `clarify` / `error` / `running`.
 - **A14 eval trajectory**: `--assert-audit-trace` requires schema-v1 `ai_tool_call_decision` rows to carry `agentRunId` and at least one run to chain with `ai_tool_call_intent` / `ai_agent_loop_step`. Vertical citation semantic cases join `:smoke`. Fixture tool-call counts live in `docs/execution/release-gates/release-evidence/agent-tool-aci-baseline.v1.json` (replay, not live LLM ACI).
 - **AdoptionQueue MVP** (`AiAdoptionQueuePanel`, `adoptionQueue.ts`): `AdoptionItem` extended with
   `outputKind`, `title`, `recommendedAction`, `writeMode` to align with `AdoptionCandidateV0` spec.

@@ -227,6 +227,8 @@ export interface AiTaskDoc {
   checkpointJson?: string;
   resumable?: boolean;
   handoffReason?: string;
+  /** A8/A13: shared with tool-decision audit when the task belongs to a send-turn. */
+  agentRunId?: string;
   createdAt: string;
   updatedAt: string;
 }

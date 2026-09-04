@@ -329,6 +329,72 @@ describe('TaskRunner', () => {
     expect(runningRow?.errorMessage).toContain('Recovered as stale task');
     expect(pendingRow?.errorMessage).toContain('Recovered as stale task');
   });
+
+  it('persists agentRunId on enqueue and parks checkpoints without pumping', async () => {
+    const runner = new TaskRunner(1);
+    const enqueued = await runner.enqueue({
+      taskType: 'embed',
+      targetId: 'embeddings',
+      agentRunId: 'run_enqueue',
+      run: async () => 'ok',
+    });
+    await expect(enqueued.result).resolves.toBe('ok');
+    const enqueuedRow = await db.ai_tasks.get(enqueued.taskId);
+    expect(enqueuedRow?.agentRunId).toBe('run_enqueue');
+    expect(enqueuedRow?.status).toBe('done');
+
+    const parkedId = await runner.parkCheckpoint({
+      targetId: 'assistant-park',
+      agentRunId: 'run_park',
+      handoffReason: 'token_budget_warning',
+      checkpoint: {
+        kind: 'agent_loop_token_budget_warning',
+        data: { originalUserText: 'continue', continuationInput: 'payload', step: 1 },
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    const parked = await db.ai_tasks.get(parkedId);
+    expect(parked).toMatchObject({
+      taskType: 'agent_loop',
+      status: 'pending',
+      resumable: true,
+      agentRunId: 'run_park',
+      handoffReason: 'token_budget_warning',
+      targetType: 'ai_chat_agent_loop',
+    });
+  });
+
+  it('does not recover parked resumable agent_loop checkpoints as stale', async () => {
+    const oldIso = new Date(Date.now() - 10 * 60_000).toISOString();
+    await db.ai_tasks.bulkPut([
+      {
+        id: 'parked-loop',
+        taskType: 'agent_loop',
+        status: 'pending',
+        targetId: 'assistant-parked',
+        resumable: true,
+        handoffReason: 'token_budget_warning',
+        createdAt: oldIso,
+        updatedAt: oldIso,
+      },
+      {
+        id: 'stale-running-loop',
+        taskType: 'agent_loop',
+        status: 'running',
+        targetId: 'assistant-running',
+        createdAt: oldIso,
+        updatedAt: oldIso,
+      },
+    ]);
+
+    const runner = new TaskRunner({ concurrency: 1, staleTaskTtlMs: 1000 });
+    expect(runner).toBeDefined();
+
+    await waitForTaskStatus('stale-running-loop', 'failed');
+    const parked = await db.ai_tasks.get('parked-loop');
+    expect(parked?.status).toBe('pending');
+    expect(parked?.resumable).toBe(true);
+  });
 });
 
 describe('backoffDelay', () => {
