@@ -1,7 +1,8 @@
 import { TaskRunner } from './TaskRunner';
 
-const globalTaskRunner = new TaskRunner(1);
+let globalTaskRunner: TaskRunner | undefined;
 
 export function getGlobalTaskRunner(): TaskRunner {
+  globalTaskRunner ??= new TaskRunner(1);
   return globalTaskRunner;
 }

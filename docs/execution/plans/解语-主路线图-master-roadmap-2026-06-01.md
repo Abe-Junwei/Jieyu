@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-03
+last_reviewed: 2026-09-04
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -110,10 +110,10 @@ Wave 3 — Workflow 编排 + 人在环写路径（A11/A12 已进 main）
   A12  StepKind + registry 元数据 + parallel readonly API（已进 main；send-turn 并行仍不开）
   A11  Preview UI → confirm → commitToolEffects（flag `aiAgentUiPreviewEnabled` 默认 false）
 
-Wave 4 — 安全外连 + 评测/长程 harness ← 本 PR 收口 A14
+Wave 4 — 安全外连 + 评测/长程 harness ← 本 PR 收口 A13
   A9   semantic guard（flag `aiSemanticGuardEnabled` 默认 false；已进 main）→ B11 MCP schema 隔离
-  A14  按 agentRunId 强化 trajectory 断言（承接 A8）
-  A13  TaskRunner + checkpoint 合同 + parallel readonly 样本
+  A14  按 agentRunId 强化 trajectory 断言（承接 A8；已进 main）
+  A13  TaskRunner + checkpoint 合同 + parallel readonly 样本（已落地；send-turn 仍串行）
   —    P2 工具 ACI metrics 基线写入 release evidence（归 A14/A10 验收，不新增切片）
 ```
 
@@ -158,7 +158,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：本 PR 收口 **A14**（`agentRunId` 链 + smoke citations + ACI 基线）。A9 已进 main。之后 **Wave 4 → A13**（TaskRunner）。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：本 PR 收口 **A13**（TaskRunner park/enqueue + 4 态 resume 合同 + parallel readonly vitest 样本）。A9/A14 已进 main。之后 **Wave 4 → B11**（外部 MCP trust）。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -174,8 +174,8 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **A9** | 轻量本地 semantic guard（入/出站） | 🟡 | **W4** | M | **已落地**：`src/ai/security/semanticGuard.ts`；persist `before_model` 入站 block、finalize `before_client` 出站 redact；`CorpusSourceSet.trustTier`；SDD `agent-runtime-security-semantic-guard/`。Flag `aiSemanticGuardEnabled` 默认 **false**。**剩余**：flag 放量；B11 schema 进 LLM 前复用同一 inspect。**阻塞 B11** | injection/PII 单测；`adversarial-semantic-guard-*` eval | 是 |
 | **A10** | Runner 基座：Callback + Catalog + commitToolEffects | 🟡 | **W2** | L | **已落地**：A10.1–A10.5 `agentCallbacks` / `aiToolCatalog` / `commitToolEffects`；auto/confirm/local-context 无 persist 旁路。**A10.6** `executeReadonlyToolBatch`（随 A12：拒写、`Promise.all`、一次 `commitToolEffects`）。SDD：`agent-runtime-runner-foundation/` + A12 spec。**剩余**：send-turn 多工具仍串行（policy/clarify）；并行只读不替换现网 loop | grep 无直写 localToolState/audit 旁路；catalog parity 绿；readonly batch 单测 | 是 |
 | **A11** | AgentUiEvent + Preview 统一 + triage→UI | 🟡 | **W3** | L | **已落地**：`agentUiEvents` 总线；pending/blocked/confirm/cancel 同源 `agentRunId`；`AgentWritePreviewSection` 渲染 `AiChangeTransactionPreviewV1` + triage；confirm 仍经 `commitToolEffects`。**剩余**：flag 放量后 e2e 写确认 smoke；B4 标注写工具样本。SDD：`agent-runtime-preview-ui/`。Flag `aiAgentUiPreviewEnabled` 默认 **false** | event 与 audit 同源；flag off 现网 DOM 不变 | 是 |
-| **A12** | Workflow 强化：StepKind + Reflection + Structured output | 🟡 | **W3** | L | **已落地**：`workflowCompletionChecklist`、finalize reflection reconcile、agent loop `workflowAnswerReady`；A12.1 `workflowStepKinds`；A12.2 registry `reflectionHandlerId` / `outputSchemaId` / `maxReflectionRetries` / `stepKinds`；A12.3 composed `parallel_readonly` 样本 + `executeReadonlyToolBatch`；A12.4 composed 步 ⊆ registry、checklist keys = registry keys；A12.5 `dispatchVerticalWorkflowReflection` + `after_model`。SDD：`agent-runtime-workflow-registry-v1/`。**剩余**：parallel readonly **不**接入 send-turn sequential local-tool（A13 E2E 样本） | B4 新 workflow 只登记 registry；checklist 未闭合不得 done | 是 |
-| **A13** | TaskRunner 对齐 + Parallel readonly 样本 | ⬜ | **W4** | M | 长任务 enqueue `TaskRunner`；`pendingAgentLoopCheckpoint` 4 态 resume 合同；parallel readonly E2E 样本。**依赖 A8、A12** | 长任务 + 并行读 vitest；handoff 文档进 spec | 否 |
+| **A12** | Workflow 强化：StepKind + Reflection + Structured output | 🟡 | **W3** | L | **已落地**：`workflowCompletionChecklist`、finalize reflection reconcile、agent loop `workflowAnswerReady`；A12.1 `workflowStepKinds`；A12.2 registry `reflectionHandlerId` / `outputSchemaId` / `maxReflectionRetries` / `stepKinds`；A12.3 composed `parallel_readonly` 样本 + `executeReadonlyToolBatch`；A12.4 composed 步 ⊆ registry、checklist keys = registry keys；A12.5 `dispatchVerticalWorkflowReflection` + `after_model`。SDD：`agent-runtime-workflow-registry-v1/`。**剩余**：send-turn 多工具仍串行（刻意）；并行只读样本在 **A13** vitest，不替换 sequential local-tool | B4 新 workflow 只登记 registry；checklist 未闭合不得 done | 是 |
+| **A13** | TaskRunner 对齐 + Parallel readonly 样本 | 🟡 | **W4** | M | **已落地**：`TaskRunner.enqueue`/`parkCheckpoint` 写 `agentRunId`；parked `agent_loop` 不走 pump、不被 stale TTL 回收；`pendingAgentLoopCheckpoint` 4 态 classifier（`done`/`clarify`/`error`/`running`，仅 `running` 可 auto-continue）；catalog `trust: background`；`enqueueReadonlyToolBatchTask` + `PARALLEL_READONLY_COMPOSED_STEP_SAMPLE` vitest。**不**把并行 batch 接到 send-turn。**依赖 A8、A12** | 长任务 + 并行读 vitest；handoff 进 architecture/plan | 否 |
 | **A14** | Eval trajectory + agentRunId 自动断言 | 🟡 | **W4** | M | **已落地**：suite 二分、trajectory NDJSON 断言、**A8 `agentRunId` 链式断言**、vertical citation 进 `:smoke`、P2 tool-call 计数基线（fixture 回放）。**剩余**：可选 pass@k | smoke + trace 通过；按 run 过滤 trajectory | 否 |
 
 ### Stage B — 开占位（标注 / 词典 / 语料 / 分析）
@@ -260,3 +260,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-02 | **Wave 3 A11 代码落地**：`AgentUiEvent` 总线 + AlertsPanel 结构化 preview/triage；flag `aiAgentUiPreviewEnabled` 默认 false。 |
 | 2026-09-03 | **Wave 4 A9 代码落地**：本地 `semanticGuard` 入站 block / 出站 redact；挂 `before_model` / `before_client`；`trustTier`；flag `aiSemanticGuardEnabled` 默认 false。 |
 | 2026-09-03 | **Wave 4 A14**：`--assert-audit-trace` 按 `agentRunId` 链式断言；semantic-cases 进 `:smoke`；P2 ACI 基线写入 `agent-tool-aci-baseline.v1.json`。剩余可选 pass@k。下一刀 **A13**。 |
+| 2026-09-04 | **Wave 4 A13**：`TaskRunner.parkCheckpoint` + enqueue `agentRunId`；parked resumable `agent_loop` 跳过 stale recover；4 态 resume classifier；catalog `trust: background`；parallel readonly vitest 样本（`search_units`+`list_layers`）。send-turn 仍串行。下一刀 **B11**。 |

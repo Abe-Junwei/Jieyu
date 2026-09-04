@@ -1,5 +1,6 @@
 import { getDb, type AiTaskDoc } from '../../db';
-import type { TaskRunnerCheckpoint } from '../tasks/TaskRunner';
+import type { TaskRunner, TaskRunnerCheckpoint } from '../tasks/TaskRunner';
+import { getGlobalTaskRunner } from '../tasks/taskRunnerSingleton';
 import type { AiSessionMemoryPendingAgentLoopCheckpoint } from './chatDomain.types';
 
 const AGENT_LOOP_CHECKPOINT_KIND = 'agent_loop_token_budget_warning';
@@ -7,10 +8,6 @@ const AGENT_LOOP_TARGET_TYPE = 'ai_chat_agent_loop';
 
 function nowIso(): string {
   return new Date().toISOString();
-}
-
-function createAgentLoopTaskId(): string {
-  return `task_agent_loop_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function readString(value: unknown): string {
@@ -93,47 +90,25 @@ export function fromAgentLoopTaskCheckpoint(
   };
 }
 
-export async function persistAgentLoopCheckpointTask(input: {
-  checkpoint: AiSessionMemoryPendingAgentLoopCheckpoint;
-  targetId: string;
-  modelId?: string;
-}): Promise<string> {
-  const db = await getDb();
-  const timestamp = nowIso();
-  const taskId = input.checkpoint.taskId ?? createAgentLoopTaskId();
-  const checkpointJson = JSON.stringify({
-    ...toAgentLoopTaskCheckpoint(input.checkpoint),
-    at: timestamp,
-  });
-  const existing = await db.collections.ai_tasks.findOne({ selector: { id: taskId } }).exec();
-  if (existing) {
-    await db.collections.ai_tasks.update(taskId, {
-      status: 'pending',
-      checkpointJson,
-      lastHeartbeatAt: timestamp,
-      handoffReason: 'token_budget_warning',
-      updatedAt: timestamp,
-    });
-    return taskId;
-  }
-
-  await db.collections.ai_tasks.insert({
-    id: taskId,
-    taskType: 'agent_loop',
-    status: 'pending',
+export async function persistAgentLoopCheckpointTask(
+  input: {
+    checkpoint: AiSessionMemoryPendingAgentLoopCheckpoint;
+    targetId: string;
+    modelId?: string;
+    agentRunId?: string;
+  },
+  runner: Pick<TaskRunner, 'parkCheckpoint'> = getGlobalTaskRunner(),
+): Promise<string> {
+  return runner.parkCheckpoint({
+    ...(input.checkpoint.taskId ? { taskId: input.checkpoint.taskId } : {}),
     targetId: input.targetId,
     targetType: AGENT_LOOP_TARGET_TYPE,
     ...(input.modelId ? { modelId: input.modelId } : {}),
-    attempt: 0,
-    maxAttempts: 1,
-    checkpointJson,
-    lastHeartbeatAt: timestamp,
-    resumable: true,
+    ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
+    checkpoint: toAgentLoopTaskCheckpoint(input.checkpoint),
     handoffReason: 'token_budget_warning',
-    createdAt: timestamp,
-    updatedAt: timestamp,
+    resumable: true,
   });
-  return taskId;
 }
 
 export async function loadPendingAgentLoopCheckpointFromTaskId(

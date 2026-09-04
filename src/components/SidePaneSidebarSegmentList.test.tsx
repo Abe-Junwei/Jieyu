@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { db, type LayerDocType, type LayerUnitDocType, type SpeakerDocType } from '../db';
 import { SegmentMetaService } from '../services/SegmentMetaService';
 import { getSidePaneSidebarMessages } from '../i18n/messages';
@@ -683,6 +683,9 @@ describe('SidePaneSidebarSegmentList', () => {
 
     const scoped = within(view.container);
     const keywordInput = await scoped.findByLabelText(messages.segmentListFilterPlaceholder);
+    await waitFor(() => {
+      expect(scoped.queryByText(messages.segmentListLoading)).toBeNull();
+    });
 
     fireEvent.change(keywordInput, { target: { value: '有' } });
     expect(scoped.getByText('这里有字')).toBeTruthy();
@@ -693,7 +696,7 @@ describe('SidePaneSidebarSegmentList', () => {
     expect(scoped.queryByText('这里有字')).toBeNull();
     expect(scoped.queryByText('普通文本')).toBeNull();
     expect(scoped.queryByText('无内容')).toBeNull();
-    expect(scoped.getByText(messages.segmentListNoMatches)).toBeTruthy();
+    expect(await scoped.findByText(messages.segmentListNoMatches)).toBeTruthy();
   });
 
   it('surfaces extended metadata facets from segment_meta and filters by them', async () => {

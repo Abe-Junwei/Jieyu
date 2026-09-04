@@ -22,6 +22,7 @@ describe('agentLoopCheckpoint', () => {
     const taskId = await persistAgentLoopCheckpointTask({
       targetId: 'assistant-1',
       modelId: 'mock-model',
+      agentRunId: 'run_checkpoint_1',
       checkpoint: {
         kind: 'token_budget_warning',
         originalUserText: 'count speakers',
@@ -41,7 +42,11 @@ describe('agentLoopCheckpoint', () => {
       modelId: 'mock-model',
       resumable: true,
       handoffReason: 'token_budget_warning',
+      agentRunId: 'run_checkpoint_1',
     });
+    const reloaded = await db.ai_tasks.get(taskId);
+    expect(reloaded?.agentRunId).toBe('run_checkpoint_1');
+    expect(reloaded?.status).toBe('pending');
     expect(fromAgentLoopTaskCheckpoint(task!)).toMatchObject({
       taskId,
       originalUserText: 'count speakers',

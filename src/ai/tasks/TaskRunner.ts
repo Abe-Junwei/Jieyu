@@ -30,7 +30,19 @@ export interface EnqueueTaskInput<TResult> {
   timeoutMs?: number;
   resumable?: boolean;
   initialCheckpoint?: TaskRunnerCheckpoint;
+  agentRunId?: string;
   run: (context: TaskRunContext) => Promise<TResult>;
+}
+
+export interface ParkCheckpointInput {
+  taskId?: string;
+  targetId: string;
+  targetType?: string;
+  modelId?: string;
+  agentRunId?: string;
+  checkpoint: TaskRunnerCheckpoint;
+  handoffReason: string;
+  resumable?: boolean;
 }
 
 export interface TaskRunnerOptions {
@@ -119,7 +131,14 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   if (ms <= 0) return Promise.resolve();
   return new Promise((resolve) => {
     const timer = setTimeout(resolve, ms);
-    signal?.addEventListener('abort', () => { clearTimeout(timer); resolve(); }, { once: true });
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
   });
 }
 
@@ -141,9 +160,10 @@ export class TaskRunner {
   private pumpQueued = false;
 
   constructor(concurrencyOrOptions: number | TaskRunnerOptions = 1, options?: TaskRunnerOptions) {
-    const merged = typeof concurrencyOrOptions === 'number'
-      ? { ...(options ?? {}), concurrency: concurrencyOrOptions }
-      : { ...concurrencyOrOptions };
+    const merged =
+      typeof concurrencyOrOptions === 'number'
+        ? { ...(options ?? {}), concurrency: concurrencyOrOptions }
+        : { ...concurrencyOrOptions };
 
     this.concurrency = Math.max(1, Math.floor(merged.concurrency ?? 1));
     this.defaultTimeoutMs = normalizeTimeoutMs(merged.defaultTimeoutMs, 30_000);
@@ -196,8 +216,11 @@ export class TaskRunner {
       attempt: 0,
       maxAttempts,
       timeoutMs,
-      ...(input.initialCheckpoint ? { checkpointJson: serializeCheckpoint(input.initialCheckpoint) } : {}),
+      ...(input.initialCheckpoint
+        ? { checkpointJson: serializeCheckpoint(input.initialCheckpoint) }
+        : {}),
       ...(input.resumable !== undefined ? { resumable: input.resumable } : {}),
+      ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
       createdAt: timestamp,
       updatedAt: timestamp,
     });
@@ -236,6 +259,49 @@ export class TaskRunner {
     }
   }
 
+  /**
+   * Park a resumable agent-loop checkpoint without pumping `run()`.
+   * Reload resume goes through send-turn, not TaskRunner.execute.
+   */
+  async parkCheckpoint(input: ParkCheckpointInput): Promise<string> {
+    const db = await getDb();
+    const timestamp = nowIso();
+    const taskId = input.taskId?.trim() || createTaskId('agent_loop');
+    const checkpointJson = serializeCheckpoint(input.checkpoint);
+    const existing = await db.collections.ai_tasks.findOne({ selector: { id: taskId } }).exec();
+    if (existing) {
+      await db.collections.ai_tasks.update(taskId, {
+        status: 'pending',
+        checkpointJson,
+        lastHeartbeatAt: timestamp,
+        handoffReason: input.handoffReason,
+        updatedAt: timestamp,
+        ...(input.modelId ? { modelId: input.modelId } : {}),
+        ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
+      });
+      return taskId;
+    }
+
+    await db.collections.ai_tasks.insert({
+      id: taskId,
+      taskType: 'agent_loop',
+      status: 'pending',
+      targetId: input.targetId,
+      targetType: input.targetType ?? 'ai_chat_agent_loop',
+      ...(input.modelId ? { modelId: input.modelId } : {}),
+      ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
+      attempt: 0,
+      maxAttempts: 1,
+      checkpointJson,
+      lastHeartbeatAt: timestamp,
+      resumable: input.resumable ?? true,
+      handoffReason: input.handoffReason,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    return taskId;
+  }
+
   async checkpoint(taskId: string, checkpoint: TaskRunnerCheckpoint): Promise<void> {
     const db = await getDb();
     const timestamp = nowIso();
@@ -251,7 +317,9 @@ export class TaskRunner {
     const timestamp = nowIso();
     await db.collections.ai_tasks.update(taskId, {
       lastHeartbeatAt: timestamp,
-      ...(checkpoint ? { checkpointJson: serializeCheckpoint({ ...checkpoint, at: checkpoint.at ?? timestamp }) } : {}),
+      ...(checkpoint
+        ? { checkpointJson: serializeCheckpoint({ ...checkpoint, at: checkpoint.at ?? timestamp }) }
+        : {}),
       updatedAt: timestamp,
     });
   }
@@ -294,7 +362,11 @@ export class TaskRunner {
 
         try {
           await this.updateTaskAttempt(db, task.taskId, attempt, task.maxAttempts, task.timeoutMs);
-          const result = await this.runWithTimeout(task, attempt, attempt > 1 && lastError instanceof Error ? lastError : null);
+          const result = await this.runWithTimeout(
+            task,
+            attempt,
+            attempt > 1 && lastError instanceof Error ? lastError : null,
+          );
           if (task.controller.signal.aborted) {
             throw new TaskCancelledError();
           }
@@ -318,11 +390,14 @@ export class TaskRunner {
         }
       }
 
-      const message = lastError instanceof TaskTimeoutError
-        ? lastError.message
-        : (task.controller.signal.aborted
-          ? 'Task cancelled'
-          : (lastError instanceof Error ? lastError.message : 'Task failed'));
+      const message =
+        lastError instanceof TaskTimeoutError
+          ? lastError.message
+          : task.controller.signal.aborted
+            ? 'Task cancelled'
+            : lastError instanceof Error
+              ? lastError.message
+              : 'Task failed';
 
       await this.updateTaskStatus(db, task.taskId, 'failed', message);
       terminalStatus = 'failed';
@@ -346,7 +421,11 @@ export class TaskRunner {
     }
   }
 
-  private async runWithTimeout<TResult>(task: InternalTask<TResult>, attempt: number, lastError: Error | null): Promise<TResult> {
+  private async runWithTimeout<TResult>(
+    task: InternalTask<TResult>,
+    attempt: number,
+    lastError: Error | null,
+  ): Promise<TResult> {
     const timeoutMs = task.timeoutMs;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const attemptController = new AbortController();
@@ -390,13 +469,22 @@ export class TaskRunner {
     const pendingRows = await db.collections.ai_tasks.findByIndex('status', 'pending');
     const staleRows = [...runningRows, ...pendingRows]
       .map((row) => row.toJSON())
-      .filter((row) => now - Date.parse(row.updatedAt) >= this.staleTaskTtlMs);
+      .filter((row) => {
+        // Parked send-turn checkpoints stay pending until resume; do not TTL-fail them.
+        const parkedAgentLoop =
+          row.taskType === 'agent_loop' && row.status === 'pending' && row.resumable === true;
+        if (parkedAgentLoop) return false;
+        return now - Date.parse(row.updatedAt) >= this.staleTaskTtlMs;
+      });
 
     for (const row of staleRows) {
       const current = await db.collections.ai_tasks.findOne({ selector: { id: row.id } }).exec();
       if (!current) continue;
       const currentRow = current.toJSON();
-      if (currentRow.updatedAt !== row.updatedAt || (currentRow.status !== 'running' && currentRow.status !== 'pending')) {
+      if (
+        currentRow.updatedAt !== row.updatedAt ||
+        (currentRow.status !== 'running' && currentRow.status !== 'pending')
+      ) {
         continue;
       }
       await db.collections.ai_tasks.insert({
@@ -409,9 +497,11 @@ export class TaskRunner {
 
     // 通知 UI：有过期任务被恢复 | Notify UI: stale tasks were recovered
     if (staleRows.length > 0) {
-      window.dispatchEvent(new CustomEvent('taskrunner:stale-recovered', {
-        detail: { count: staleRows.length },
-      }));
+      window.dispatchEvent(
+        new CustomEvent('taskrunner:stale-recovered', {
+          detail: { count: staleRows.length },
+        }),
+      );
     }
   }
 

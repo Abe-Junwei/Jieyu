@@ -1,6 +1,14 @@
 /**
  * Agent-loop resume: sessionStorage bridge + user text heuristics (pure, no React).
+ * Four-state reload contract: `agentLoopResumeContract.ts`.
  */
+
+export {
+  resolveAgentLoopResumeState,
+  shouldAutoContinueAgentLoop,
+  type AgentLoopResumeState,
+  type AgentLoopResumeContractInput,
+} from '../../ai/chat/agentLoopResumeContract';
 
 const AGENT_LOOP_RESUME_TASK_ID_STORAGE_KEY = 'jieyu.aiChat.resumeAgentLoopTaskId';
 
