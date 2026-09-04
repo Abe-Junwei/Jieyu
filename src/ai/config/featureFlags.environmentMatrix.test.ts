@@ -120,6 +120,8 @@ describe('featureFlags environment matrix', () => {
     expect(dogfood.aiExternalMcpHttpClientEnabled).toBe(false);
     expect(prod.aiExternalMcpSendTurnEnabled).toBe(false);
     expect(dogfood.aiExternalMcpSendTurnEnabled).toBe(false);
+    expect(prod.aiExternalMcpProviderAdaptersEnabled).toBe(false);
+    expect(dogfood.aiExternalMcpProviderAdaptersEnabled).toBe(false);
   });
 
   it('respects explicit env overrides over matrix defaults', async () => {
@@ -136,6 +138,7 @@ describe('featureFlags environment matrix', () => {
       VITE_AI_MCP_RESOURCES_ARTIFACTS_ENABLED: 'true',
       VITE_AI_EXTERNAL_MCP_HTTP_CLIENT_ENABLED: 'true',
       VITE_AI_EXTERNAL_MCP_SEND_TURN_ENABLED: 'true',
+      VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED: 'true',
     });
 
     expect(flags.aiBackgroundToolSandboxEnabled).toBe(false);
@@ -148,5 +151,6 @@ describe('featureFlags environment matrix', () => {
     expect(flags.aiMcpResourcesArtifactsEnabled).toBe(true);
     expect(flags.aiExternalMcpHttpClientEnabled).toBe(true);
     expect(flags.aiExternalMcpSendTurnEnabled).toBe(true);
+    expect(flags.aiExternalMcpProviderAdaptersEnabled).toBe(true);
   });
 });

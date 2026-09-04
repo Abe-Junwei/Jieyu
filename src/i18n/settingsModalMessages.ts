@@ -156,6 +156,9 @@ export type SettingsModalMessages = {
   aiMcpTrustSchemaBlocked: string;
   aiMcpTrustFetchToolsButton: string;
   aiMcpTrustFetchToolsFailed: string;
+  aiMcpTrustPresetZotero: string;
+  aiMcpTrustPresetOpenAlex: string;
+  aiMcpTrustPresetHint: string;
   // 关于 | About
   aboutVersion: string;
   aboutDescription: string;

@@ -103,6 +103,10 @@ const aiExternalMcpSendTurnEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_EXTERNAL_MCP_SEND_TURN_ENABLED,
 );
 
+const aiExternalMcpProviderAdaptersEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED,
+);
+
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
   featureFlagDeploymentEnvironment === 'staging' ||
@@ -220,4 +224,9 @@ export const featureFlags = {
    * Default false; no guide and no outbound execute unless this flag is on.
    */
   aiExternalMcpSendTurnEnabled: aiExternalMcpSendTurnEnabledFromEnv ?? false,
+  /**
+   * B15: Zotero / OpenAlex MCP provider adapters (Settings presets + EvidencePacket mapping).
+   * Default false. Depends on B13/B14; does not call OpenAlex REST or Zotero :23119.
+   */
+  aiExternalMcpProviderAdaptersEnabled: aiExternalMcpProviderAdaptersEnabledFromEnv ?? false,
 } as const;

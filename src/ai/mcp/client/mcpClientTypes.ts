@@ -37,5 +37,8 @@ export interface McpClientRegistryEntry {
   labelKey: string;
 }
 
-/** Placeholder registry — populated at runtime from user settings. */
+/**
+ * PR-20 placeholder. B15 origin/label drafts live in `EXTERNAL_MCP_PROVIDER_PRESETS`
+ * (`externalMcpProviderAdapters.ts`) to avoid a circular import with this types module.
+ */
 export const MCP_CLIENT_REGISTRY: McpClientRegistryEntry[] = [];

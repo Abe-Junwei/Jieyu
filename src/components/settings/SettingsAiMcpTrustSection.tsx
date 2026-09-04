@@ -4,6 +4,7 @@ import type { SettingsModalMessages } from '../../i18n/messages';
 import type { ExternalMcpTrustDoc } from '../../db';
 import { featureFlags } from '../../ai/config/featureFlags';
 import { listExternalMcpToolsViaHttp } from '../../ai/mcp/client/externalMcpHttpClient';
+import { EXTERNAL_MCP_PROVIDER_PRESETS } from '../../ai/mcp/client/externalMcpProviderAdapters';
 import type { ExternalMcpToolSchema } from '../../ai/mcp/client/externalMcpTrustRegistry';
 import {
   listExternalMcpTrustEntries,
@@ -132,6 +133,29 @@ export function SettingsAiMcpTrustSection({ msg }: { msg: SettingsModalMessages 
             aria-label={msg.aiMcpTrustLabelOptional}
           />
         </SettingRow>
+        {featureFlags.aiExternalMcpProviderAdaptersEnabled ? (
+          <>
+            <div className="settings-inline-row">
+              {EXTERNAL_MCP_PROVIDER_PRESETS.map((preset) => (
+                <button
+                  key={preset.provider}
+                  type="button"
+                  className="settings-link-btn"
+                  data-testid={`settings-ai-mcp-preset-${preset.provider}`}
+                  onClick={() => {
+                    setOriginDraft(preset.originDraft);
+                    setLabelDraft(preset.labelDraft);
+                  }}
+                >
+                  {preset.provider === 'zotero'
+                    ? msg.aiMcpTrustPresetZotero
+                    : msg.aiMcpTrustPresetOpenAlex}
+                </button>
+              ))}
+            </div>
+            <p className="settings-ai-note">{msg.aiMcpTrustPresetHint}</p>
+          </>
+        ) : null}
         <SettingRow label={msg.aiMcpTrustSchemaOptional}>
           <textarea
             className="settings-input"

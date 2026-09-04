@@ -15,8 +15,8 @@ depends_on:
 
 # AI Agent 运行时安全 — 本地优先策略
 
-> **排期真源**：[解语主路线图 §3 A6–A14](../execution/plans/解语-主路线图-master-roadmap-2026-06-01.md)  
-> **任务分解**：[Agent运行时架构补强-本地优先落地方案](../execution/plans/Agent运行时架构补强-本地优先落地方案-2026-06-01.md)（含 A6–A9 安全轨 + A10–A14 架构轨）  
+> **排期真源**：[解语主路线图 §3 A6–A14、B11–B15](../execution/plans/解语-主路线图-master-roadmap-2026-06-01.md)  
+> **任务分解**：[Agent运行时架构补强-本地优先落地方案](../execution/plans/Agent运行时架构补强-本地优先落地方案-2026-06-01.md)（含 A6–A9 安全轨 + A10–A14 架构轨 + B11–B15 MCP）  
 > **Runner 模型**：[ai-agent-runtime-runner-model.md](./ai-agent-runtime-runner-model.md)
 
 ## 1. 定位与边界
@@ -147,6 +147,20 @@ Parallel:
 
 不改 ChatWindow。不放宽 CSP。
 
+## 7d. B15 落地口径（Zotero / OpenAlex MCP 适配）
+
+截至 2026-09-04，B15 以 **flag 默认 false** 进主链：
+
+| 项 | 代码 | 行为 |
+| --- | --- | --- |
+| 指纹 | `resolveExternalMcpProviderFromToolName` | `zotero_*` / `openalex_*` 与已知集合 |
+| 映射 | `mapExternalMcpToolResultToEvidencePackets` | MCP `content[].text` JSON → `EvidencePacketV0`（`document`）；垃圾 → `[]` |
+| UI | Settings 预置按钮 | 只填 origin/label 草稿；不写 Dexie、不 fetch |
+| CSP | `index.html` connect-src | 枚举 `http://127.0.0.1:8765` 与 `http://localhost:8765`；不恢复 `https:` 通配 |
+| Flag | `aiExternalMcpProviderAdaptersEnabled` / `VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED` | **全部环境默认 false** |
+
+不 spawn stdio。不直连 `api.openalex.org` 或 Zotero `:23119`。不改 ChatWindow。不进 `AI_TOOL_CATALOG`。
+
 ## 8. 与现有文档关系
 
 | 文档 | 关系 |
@@ -159,6 +173,7 @@ Parallel:
 | [B11 SDD](../execution/specs/agent-runtime-external-mcp-trust/) | origin allowlist；schema 进 LLM 前门 |
 | [B13 SDD](../execution/specs/agent-runtime-external-mcp-http-client/) | Streamable HTTP 子集；flag 关零 fetch |
 | [B14 SDD](../execution/specs/agent-runtime-external-mcp-send-turn/) | send-turn guide + execute；flag 关零 HTTP |
+| [B15 SDD](../execution/specs/agent-runtime-external-mcp-provider-adapters/) | Zotero/OpenAlex 适配；flag 关零 packets |
 
 ## 9. 修订记录
 
@@ -171,3 +186,4 @@ Parallel:
 | 2026-09-04 | B11 落地口径：`external_mcp_trust` + `exposeExternalMcpToolsToLlm`；flag 默认 false；outbound HTTP client 仍属 B12。 |
 | 2026-09-04 | B13 落地口径：Streamable HTTP client；flag 默认 false；不放宽 CSP。 |
 | 2026-09-04 | B14 落地口径：send-turn `extmcp__` 桥 + `lastToolsJson` 缓存；flag 默认 false。 |
+| 2026-09-04 | B15 落地口径：Zotero/OpenAlex HTTP MCP 适配 + EvidencePacket；CSP 枚举环回 8765；flag 默认 false。 |

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- 安全基线：限制资源来源，降低 XSS 后数据外泄面 | Security baseline: restrict resource origins to reduce XSS exfiltration surface -->
-    <!-- HIGH-13：connect-src 仅枚举已知默认域（无 https:/wss: 通配符）；自托管 OTEL/BYO API 需在部署层追加 connect-src 或通过 HTTP 响应头覆盖 meta。`frame-ancestors` 只能走 HTTP 响应头 | connect-src lists known hosts only; custom OTLP/BYO endpoints need deploy-time CSP extension. -->
+    <!-- HIGH-13：connect-src 仅枚举已知默认域（无 https:/wss: 通配符）；自托管 OTEL/BYO API 需在部署层追加 connect-src 或通过 HTTP 响应头覆盖 meta。`frame-ancestors` 只能走 HTTP 响应头。本机环回：Whisper 3040、Zotero MCP HTTP 8765（B15）。 | connect-src lists known hosts only; custom OTLP/BYO endpoints need deploy-time CSP extension. Loopback: Whisper 3040, Zotero MCP HTTP 8765. -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
       script-src  'self' 'wasm-unsafe-eval';
@@ -15,6 +15,8 @@
       connect-src 'self' blob:
         http://127.0.0.1:3040
         http://localhost:3040
+        http://127.0.0.1:8765
+        http://localhost:8765
         https://*.supabase.co
         wss://*.supabase.co
         https://*.ingest.sentry.io

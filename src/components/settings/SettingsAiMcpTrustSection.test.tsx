@@ -87,4 +87,11 @@ describe('SettingsAiMcpTrustSection', () => {
       .exec();
     expect(stored).toBeNull();
   });
+
+  it('hides provider preset buttons when the adapter flag is off', async () => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText(msg.aiMcpTrustEmpty)).toBeTruthy());
+    expect(screen.queryByTestId('settings-ai-mcp-preset-zotero')).toBeNull();
+    expect(screen.queryByTestId('settings-ai-mcp-preset-openalex')).toBeNull();
+  });
 });

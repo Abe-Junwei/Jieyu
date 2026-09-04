@@ -26,7 +26,7 @@ source_of_truth: architecture-decision
 ### 2. CSP `connect-src` 收紧
 
 1. 从 `index.html` meta CSP **移除** `https:` / `wss:` 通配符。
-2. 保留并维护**显式枚举**：Supabase、Sentry、常用 LLM/TTS 供应商、OpenStreetMap Nominatim、BAS WebServices、Hugging Face 模型 CDN 等。
+2. 保留并维护**显式枚举**：Supabase、Sentry、常用 LLM/TTS 供应商、OpenStreetMap Nominatim、BAS WebServices、Hugging Face 模型 CDN，以及本机环回 Whisper `3040` 与 Zotero MCP HTTP `8765` 等。
 3. **自托管 OTLP / 自定义 API 基址**：部署时在反向代理 HTTP 响应头扩展 `Content-Security-Policy`，或 fork 构建时追加 host；不在 meta 中恢复全局通配符。
 
 ### 3. protobufjs 供应链
