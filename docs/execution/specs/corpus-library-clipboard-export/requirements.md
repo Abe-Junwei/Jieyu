@@ -23,10 +23,10 @@ source_of_truth: corpus-library-clipboard-export-spec
 
 ## 3. 验收标准（可测）
 
-- [ ] 空工作集不调用 `clipboard.writeText`
-- [ ] golden：plain / markdown 含 unitId、textId、mediaId、时间码、`/transcription?` 深链
-- [ ] 出站只消费 basket，不受列表筛选隐藏影响
-- [ ] flag 关 `/corpus` 仍为占位；不改 ChatWindow
+- [x] 空工作集不调用 `clipboard.writeText`
+- [x] golden：plain / markdown 含 unitId、textId、mediaId、时间码、`/transcription?` 深链
+- [x] 出站只消费 basket，不受列表筛选隐藏影响
+- [x] flag 关 `/corpus` 仍为占位；不改 ChatWindow
 
 ## 4. 受影响代码地图
 
