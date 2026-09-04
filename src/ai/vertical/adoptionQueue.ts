@@ -35,6 +35,8 @@ export interface AdoptionItem {
   recommendedAction?: string;
   /** 写入模式 | Write mode */
   writeMode?: string;
+  /** B12: AgentArtifactV0 ids cited by this queue item */
+  artifactIds?: string[];
   /** 采纳前的原始内容（用于 audit）| Pre-adoption raw content */
   rawContent?: string;
   /** 用户采纳后的结果（用于 audit）| Post-adoption outcome */
@@ -60,10 +62,7 @@ export function buildVerticalAdoptionEvidencePacketIds(options: {
   citations?: AiMessageCitation[] | null | undefined;
 }): string[] {
   const { assistantMessageId, metadata, citations } = options;
-  const n = Math.max(
-    metadata.envelope.evidencePacketCount,
-    citations?.length ?? 0,
-  );
+  const n = Math.max(metadata.envelope.evidencePacketCount, citations?.length ?? 0);
   if (n <= 0) return [];
   return Array.from({ length: n }, (_, i) => `vertical_evidence:${assistantMessageId}:${i}`);
 }
@@ -72,7 +71,9 @@ export function canAcceptAdoptionItem(item: AdoptionItem): boolean {
   return item.status === 'pending' && item.evidencePacketIds.length > 0;
 }
 
-export function createAdoptionItem(params: Omit<AdoptionItem, 'id' | 'createdAt' | 'status'>): AdoptionItem {
+export function createAdoptionItem(
+  params: Omit<AdoptionItem, 'id' | 'createdAt' | 'status'>,
+): AdoptionItem {
   return {
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
@@ -113,6 +114,7 @@ export function transitionAdoptionItem(
         if (item.title !== undefined) next.title = item.title;
         if (item.recommendedAction !== undefined) next.recommendedAction = item.recommendedAction;
         if (item.writeMode !== undefined) next.writeMode = item.writeMode;
+        if (item.artifactIds !== undefined) next.artifactIds = item.artifactIds;
         if (item.rawContent !== undefined) next.rawContent = item.rawContent;
         if (options?.outcomeContent !== undefined) next.outcomeContent = options.outcomeContent;
         return next;
@@ -194,10 +196,15 @@ export function buildAdoptionOutcomeAuditMetadata(
   reasonCode?: string;
 } {
   const toStatus: AdoptionStatus =
-    action === 'accept' ? 'accepted' :
-    action === 'ignore' ? 'ignored' :
-    action === 'copy' ? 'copied' :
-    action === 'expire' ? 'expired' : item.status;
+    action === 'accept'
+      ? 'accepted'
+      : action === 'ignore'
+        ? 'ignored'
+        : action === 'copy'
+          ? 'copied'
+          : action === 'expire'
+            ? 'expired'
+            : item.status;
 
   const meta: {
     schemaVersion: number;

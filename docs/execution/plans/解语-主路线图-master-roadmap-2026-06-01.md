@@ -110,12 +110,12 @@ Wave 3 — Workflow 编排 + 人在环写路径（A11/A12 已进 main）
   A12  StepKind + registry 元数据 + parallel readonly API（已进 main；send-turn 并行仍不开）
   A11  Preview UI → confirm → commitToolEffects（flag `aiAgentUiPreviewEnabled` 默认 false）
 
-Wave 4 — 安全外连 + 评测/长程 harness ← 本 PR 收口 B11
+Wave 4 — 安全外连 + 评测/长程 harness ← 本 PR 收口 B12
   A9   semantic guard（flag `aiSemanticGuardEnabled` 默认 false；已进 main）→ B11 已复用 inspectInbound
   A14  按 agentRunId 强化 trajectory 断言（承接 A8；已进 main）
   A13  TaskRunner + checkpoint 合同 + parallel readonly 样本（已进 main；send-turn 仍串行）
-  B11  外部 MCP trust allowlist（flag `aiExternalMcpTrustEnabled` 默认 false；registry + Settings AI 节）
-  —    P2 工具 ACI metrics 基线写入 release evidence（归 A14/A10 验收，不新增切片）
+  B11  外部 MCP trust allowlist（flag `aiExternalMcpTrustEnabled` 默认 false）
+  B12  MCP resources/prompts + AgentArtifactV0（flag `aiMcpResourcesArtifactsEnabled` 默认 false）
 ```
 
 #### 2.2.3 Stage B / C 解锁对照
@@ -159,7 +159,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：本 PR 收口 **B11**（外部 MCP origin allowlist + A9 schema 扫描 + Settings AI 节）。A9/A13/A14 已进 main。之后 **B12**（MCP resources/prompts + AgentArtifactV0）。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：本 PR 收口 **B12**（MCP `resources`/`prompts` 只读表面 + `AgentArtifactV0`）。B11 在 #131。之后 Agent 轨余量：outbound HTTP MCP client（未排进 §10）与 B5b 页接线。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -193,8 +193,8 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | 承 B5a：复制 text/plain + markdown 带可追溯元数据（来源 unit/项目锚点）；与转写/标注深链对齐 | 出站 golden 对拍 + 元数据可追溯；e2e:chromium | 是 |
 | **B6** | 引用断裂态（ADR-0011，P0-6） | M | **【原语就绪·待消费】** `WORKSPACE_LEXEME_DELETED_EVENT`(soft/hard) 与 `LinguisticService.cleanup`/`TranscriptionPage.citationJump` 已存在。**剩余**=删除→引用断裂态 UI 消费 + 错误码；`LayerSegmentationTextService`、ADR-0011 回写。**segmentMeta 一致性前提**：当前 `segment_meta` 为 best-effort 最终一致性（PR-10 已落地 50ms 微批合并 + 失败日志），B6 UI 消费须兼容派生表延迟/不一致场景；若需强一致性，应先实现后台对账任务强制同步 | 删/软删后引用进断裂态、返回错误码；禁止假成功摘要；定向 vitest | 否 |
 | **B7** | 语料库 AI 分区与会话隔离（P1-1） | M | `useAiToolCallHandler.adapters`、`useAiChat.config`、`CorpusLibraryPage`；`corpusBridgeAdapter` 命名。**前置：A6 + A7 + A9 + A12** | corpus 侧复制优先、默认不写回主链；会话与转写隔离；`check:agent-evals:smoke` | 是 |
-| **B11** | 外部 MCP trust allowlist | M | **【已落地·flag 关】** `externalMcpTrustRegistry` + Dexie v51 `external_mcp_trust`；`exposeExternalMcpToolsToLlm` 对未登记 / 未启用 / flag off 零暴露；首次启用带 schema 走 A9 `inspectInbound`；Settings AI 节 flag 开才渲染。Flag `aiExternalMcpTrustEnabled` 默认 **false**。**剩余**：flag 放量；outbound HTTP client 属 **B12**。SDD：`agent-runtime-external-mcp-trust/`。**依赖 A9** | 未登记 server deny；schema 零暴露；用户显式启用；审计 readback | 是 |
-| **B12** | MCP resources/prompts + AgentArtifactV0 | M | [架构补强](./Agent运行时架构补强-本地优先落地方案-2026-06-01.md) §10；MCP `resources/list` + `prompts/list`；`AgentArtifactV0` + AdoptionQueue。**依赖：B11 + A12** | resource URI readback；artifact 引用链；B5b 导出清单衔接 | 是 |
+| **B11** | 外部 MCP trust allowlist | M | **【已落地·flag 关】** `externalMcpTrustRegistry` + Dexie v51 `external_mcp_trust`；`exposeExternalMcpToolsToLlm` 对未登记 / 未启用 / flag off 零暴露；首次启用带 schema 走 A9 `inspectInbound`；Settings AI 节 flag 开才渲染。Flag `aiExternalMcpTrustEnabled` 默认 **false**。**剩余**：flag 放量。Outbound HTTP client 另排（不在 B12 §10）。SDD：`agent-runtime-external-mcp-trust/`。**依赖 A9** | 未登记 server deny；schema 零暴露；用户显式启用；审计 readback | 是 |
+| **B12** | MCP resources/prompts + AgentArtifactV0 | M | **【已落地·flag 关】** inbound `resources/list`+`read`（`jieyu://source-set/{id}`）与 `prompts/list`+`get`（A12 registry）；Dexie v52 `agent_artifacts`；AdoptionQueue `artifactIds`；`buildB5bExportManifest`。Flag `aiMcpResourcesArtifactsEnabled` 默认 **false**。**不**做 outbound HTTP client。SDD：`agent-runtime-mcp-resources-artifacts/`。**依赖 B11 + A12** | resource URI readback；artifact 引用链；B5b 导出清单函数 | 是 |
 | **B8** | 词典附件能力（引用式资产，P1-2） | M | `LexiconPage`、`useTranscriptionCollaborationBridge`、`useTranscriptionData` | 附件元数据持久化+回显（写→reload→readback）；删除走引用计数安全回收 | 是 |
 | **B9** | 分析页 /analysis | — | **受限工作台已落地（非产品级开放台）**：[ADR-0033](../../adr/0033-analysis-restricted-workspace-no-transcription-dock.md) 把 `/analysis` 做成向量索引 / 语料统计入口（复用 `TranscriptionPageAnalysisRuntime`，`visibleTabs`: embedding / stats），**不嵌波形、不升格为第二转写台**。完整科研分析工作台仍不排期 | — | — |
 
@@ -263,3 +263,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-03 | **Wave 4 A14**：`--assert-audit-trace` 按 `agentRunId` 链式断言；semantic-cases 进 `:smoke`；P2 ACI 基线写入 `agent-tool-aci-baseline.v1.json`。剩余可选 pass@k。下一刀 **A13**。 |
 | 2026-09-04 | **Wave 4 A13**：`TaskRunner.parkCheckpoint` + enqueue `agentRunId`；parked resumable `agent_loop` 跳过 stale recover；4 态 resume classifier；catalog `trust: background`；parallel readonly vitest 样本（`search_units`+`list_layers`）。send-turn 仍串行。下一刀 **B11**。 |
 | 2026-09-04 | **Wave 4 B11**：Dexie v51 `external_mcp_trust` + `exposeExternalMcpToolsToLlm`；A9 schema 扫描；Settings AI 节 flag 开才渲染。Flag 默认 false。下一刀 **B12**。 |
+| 2026-09-04 | **Wave 4 B12**：inbound `resources/list|read` + `prompts/list|get`；Dexie v52 `agent_artifacts`；AdoptionQueue `artifactIds`；B5b 导出清单纯函数。Flag 默认 false。Outbound HTTP client 不在本切片。 |

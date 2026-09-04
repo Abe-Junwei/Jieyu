@@ -76,7 +76,7 @@ User / Voice
 Parallel:
   Background / sidecar → F4 sandbox (A6)
   MCP Server (inbound) → Bearer + scope hard-fail (已有)
-  MCP Client (outbound) → B11 trust registry (`exposeExternalMcpToolsToLlm`；HTTP client 属 B12)
+  MCP Client (outbound) → B11 trust registry (`exposeExternalMcpToolsToLlm`；HTTP client 另排)
 ```
 
 ## 5. A6 落地口径（F4 Batch B/C + 工业三开关）
@@ -117,7 +117,7 @@ Parallel:
 | UI | `SettingsAiMcpTrustSection` | 仅 `aiExternalMcpTrustEnabled` 时出现在 Settings AI tab |
 | Flag | `aiExternalMcpTrustEnabled` / `VITE_AI_EXTERNAL_MCP_TRUST_ENABLED` | **全部环境默认 false** |
 
-不实现 outbound HTTP MCP client（属 **B12**）。Jieyu inbound `McpServer` 只读合同不变。
+不实现 outbound HTTP MCP client（另排）。Jieyu inbound `McpServer` 只读合同不变。B12 在 flag 开时增加 `resources`/`prompts` 读表面。
 
 ## 8. 与现有文档关系
 

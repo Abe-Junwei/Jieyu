@@ -12,10 +12,17 @@
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import type { JsonRpcRequest, JsonRpcResponse, McpServerOptions, McpServerRuntimeContext, McpToolCallResult } from './types';
+import type {
+  JsonRpcRequest,
+  JsonRpcResponse,
+  McpServerOptions,
+  McpServerRuntimeContext,
+  McpToolCallResult,
+} from './types';
 import { isAuthorized, sendUnauthorized } from './auth';
 import { READ_ONLY_TOOLS, TOOL_HANDLERS } from './tools';
 import { persistMcpToolCallAudit } from './mcpToolCallAudit';
+import { handleMcpReadSurface, isMcpReadSurfaceMethod } from './mcpReadSurfaces';
 
 interface McpSession {
   id: string;
@@ -45,7 +52,12 @@ function parseBody(req: IncomingMessage): Promise<Buffer> {
   });
 }
 
-function makeJsonRpcError(id: number | string | null, code: number, message: string, data?: unknown): JsonRpcResponse {
+function makeJsonRpcError(
+  id: number | string | null,
+  code: number,
+  message: string,
+  data?: unknown,
+): JsonRpcResponse {
   return { jsonrpc: '2.0', id, error: { code, message, data } };
 }
 
@@ -54,7 +66,10 @@ function makeJsonRpcResult(id: number | string | null, result: unknown): JsonRpc
 }
 
 async function runToolHandlerWithTimeout(
-  handler: (args: Record<string, unknown>, runtimeContext: McpServerRuntimeContext) => Promise<McpToolCallResult> | McpToolCallResult,
+  handler: (
+    args: Record<string, unknown>,
+    runtimeContext: McpServerRuntimeContext,
+  ) => Promise<McpToolCallResult> | McpToolCallResult,
   args: Record<string, unknown>,
   runtimeContext: McpServerRuntimeContext,
 ): Promise<McpToolCallResult> {
@@ -164,7 +179,11 @@ export class McpServer {
       return;
     }
 
-    sendJson(res, 404, makeJsonRpcError(null, -32601, `Method not found: ${req.method} ${pathname}`));
+    sendJson(
+      res,
+      404,
+      makeJsonRpcError(null, -32601, `Method not found: ${req.method} ${pathname}`),
+    );
   }
 
   private async handleSse(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -190,7 +209,13 @@ export class McpServer {
     sendSse(
       res,
       'message',
-      JSON.stringify(makeJsonRpcResult(null, { protocolVersion: '2024-11-05', capabilities: {}, serverInfo: { name: 'jieyu-mcp', version: '0.1.0' } })),
+      JSON.stringify(
+        makeJsonRpcResult(null, {
+          protocolVersion: '2024-11-05',
+          capabilities: {},
+          serverInfo: { name: 'jieyu-mcp', version: '0.1.0' },
+        }),
+      ),
     );
 
     req.on('close', () => {
@@ -209,7 +234,11 @@ export class McpServer {
     }
 
     if (!this.isLoopback(req)) {
-      sendJson(res, 403, makeJsonRpcError(null, -32003, 'Forbidden: MCP server only accepts loopback connections'));
+      sendJson(
+        res,
+        403,
+        makeJsonRpcError(null, -32003, 'Forbidden: MCP server only accepts loopback connections'),
+      );
       return;
     }
 
@@ -218,7 +247,11 @@ export class McpServer {
     const session = this.sessions.get(sessionId);
 
     if (!session) {
-      sendJson(res, 400, makeJsonRpcError(null, -32600, 'Invalid session: session not found or expired'));
+      sendJson(
+        res,
+        400,
+        makeJsonRpcError(null, -32600, 'Invalid session: session not found or expired'),
+      );
       return;
     }
 
@@ -255,7 +288,9 @@ export class McpServer {
       case 'tools/call': {
         const startedAtMs = Date.now();
         const jsonRpcId = id ?? null;
-        const args = (params as Record<string, unknown> | undefined)?.arguments as Record<string, unknown> ?? {};
+        const args =
+          ((params as Record<string, unknown> | undefined)?.arguments as Record<string, unknown>) ??
+          {};
         const runtimeContext: McpServerRuntimeContext = this.options.runtimeContext ?? {};
         const name = String((params as Record<string, unknown> | undefined)?.name ?? '');
 
@@ -299,7 +334,11 @@ export class McpServer {
             outcome: 'validation_error',
             error: { code: -32602, message: 'Invalid params: limit exceeds maximum of 100' },
           });
-          return makeJsonRpcError(id ?? null, -32602, 'Invalid params: limit exceeds maximum of 100');
+          return makeJsonRpcError(
+            id ?? null,
+            -32602,
+            'Invalid params: limit exceeds maximum of 100',
+          );
         }
         if (offset !== undefined && offset > 1000) {
           await persistMcpToolCallAudit({
@@ -311,7 +350,11 @@ export class McpServer {
             outcome: 'validation_error',
             error: { code: -32602, message: 'Invalid params: offset exceeds maximum of 1000' },
           });
-          return makeJsonRpcError(id ?? null, -32602, 'Invalid params: offset exceeds maximum of 1000');
+          return makeJsonRpcError(
+            id ?? null,
+            -32602,
+            'Invalid params: offset exceeds maximum of 1000',
+          );
         }
 
         try {
@@ -361,6 +404,11 @@ export class McpServer {
       }
 
       default: {
+        if (isMcpReadSurfaceMethod(method)) {
+          const surface = await handleMcpReadSurface(request);
+          if (surface.ok) return makeJsonRpcResult(id ?? null, surface.result);
+          return makeJsonRpcError(id ?? null, surface.code, surface.message);
+        }
         return makeJsonRpcError(id ?? null, -32601, `Method not found: ${method}`);
       }
     }
