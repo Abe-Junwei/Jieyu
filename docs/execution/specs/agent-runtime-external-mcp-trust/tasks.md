@@ -22,12 +22,12 @@ depends_on:
 
 ## Pre-merge gates
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 vitest（上列路径）
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:agent-evals:smoke`
-- [ ] `npm run check:docs-governance` + `npm run check:plans-frontmatter`
-- [ ] Flag 已注册且默认 `false`
+- [x] `npm run typecheck`
+- [x] 触及域 vitest（上列路径）
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:agent-evals:smoke`
+- [x] `npm run check:docs-governance` + `npm run check:plans-frontmatter`
+- [x] Flag 已注册且默认 `false`
 
 ## Commit 阶段证据模板
 
