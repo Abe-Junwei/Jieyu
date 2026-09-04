@@ -29,7 +29,9 @@ export function buildCorpusWorksetExportPayload(input: {
     const match = byId.get(id);
     if (match) selected.push(match);
   }
-  return { textId: input.textId, mediaId: input.mediaId, units: selected };
+  const mediaIds = [...new Set(selected.map((unit) => unit.mediaId).filter((id) => id.length > 0))];
+  const mediaId = mediaIds.length === 1 ? mediaIds[0] : mediaIds.length === 0 ? input.mediaId : '';
+  return { textId: input.textId, mediaId, units: selected };
 }
 
 export function toCorpusWorksetExportUnit(input: {
@@ -70,14 +72,22 @@ export function transcriptionHrefForExportUnit(unit: CorpusWorksetExportUnit): s
   });
 }
 
+function formatExportHeader(payload: CorpusWorksetExportPayload): string[] {
+  const header = [`textId: ${payload.textId}`];
+  if (payload.mediaId.length > 0) {
+    header.push(`mediaId: ${payload.mediaId}`);
+  }
+  return header;
+}
+
 export function formatCorpusWorksetPlain(payload: CorpusWorksetExportPayload): string {
   if (payload.units.length === 0) return '';
-  const header = [`textId: ${payload.textId}`, `mediaId: ${payload.mediaId}`];
   const lines = payload.units.map((unit) => {
+    const media = unit.mediaId.length > 0 ? `\t${unit.mediaId}` : '';
     const layer = unit.layerId.length > 0 ? `\t${unit.layerId}` : '';
-    return `${timeRange(unit)}\t${unit.unitId}${layer}\t${unit.text}`;
+    return `${timeRange(unit)}\t${unit.unitId}${media}${layer}\t${unit.text}`;
   });
-  return [...header, '', ...lines].join('\n');
+  return [...formatExportHeader(payload), '', ...lines].join('\n');
 }
 
 export function formatCorpusWorksetMarkdown(payload: CorpusWorksetExportPayload): string {
@@ -93,12 +103,9 @@ export function formatCorpusWorksetMarkdown(payload: CorpusWorksetExportPayload)
 
 ${unit.text}`;
   });
-  return [
-    `# Corpus workset`,
-    '',
-    `- textId: \`${payload.textId}\``,
-    `- mediaId: \`${payload.mediaId}\``,
-    '',
-    ...sections,
-  ].join('\n');
+  const header = [`# Corpus workset`, '', `- textId: \`${payload.textId}\``];
+  if (payload.mediaId.length > 0) {
+    header.push(`- mediaId: \`${payload.mediaId}\``);
+  }
+  return [...header, '', ...sections].join('\n');
 }

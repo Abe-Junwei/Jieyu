@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { LinguisticService } from '../app/languageAssetPageAccess';
 import { t, useLocale } from '../i18n';
-import type { LayerUnitDocType } from '../types/jieyuDbDocTypes';
 import {
   readAnalysisDeepLinkParams,
   resolveAnalysisWorkspaceScope,
@@ -29,14 +28,11 @@ import {
 } from './corpusBasketSession';
 import { readCorpusViewState, writeCorpusViewState } from './corpusViewState';
 
-function getUnitTextForLayer(unit: LayerUnitDocType): string {
-  return unit.transcription?.default ?? '';
-}
-
 export type CorpusLibraryRow = {
   id: string;
   text: string;
   timeLabel: string;
+  mediaLabel: string;
   selected: boolean;
   transcriptionHref: string;
 };
@@ -54,9 +50,9 @@ export function useCorpusLibraryController() {
     urlMediaId: parsed.mediaId,
     hint,
   });
-  const scopeKey = `${textId}\0${mediaId}`;
+  const scopeKey = textId;
 
-  syncCorpusBasketScope(textId, mediaId);
+  syncCorpusBasketScope(textId);
 
   const [filterState, setFilterState] = useState(() => ({
     scopeKey,
@@ -68,34 +64,27 @@ export function useCorpusLibraryController() {
   }
 
   const unitsQuery = useQuery({
-    queryKey: ['corpus-library-units', textId],
-    queryFn: () => LinguisticService.units.listByTextId(textId),
+    queryKey: ['corpus-library-index', textId],
+    queryFn: () => LinguisticService.units.listCorpusIndexByTextId(textId),
     enabled: textId.length > 0,
   });
 
   const derived = useMemo(() => {
     void basketRevision;
     const units = unitsQuery.data ?? [];
-    const scoped =
-      mediaId.length === 0
-        ? units
-        : (() => {
-            const matched = units.filter((unit) => unit.mediaId === mediaId);
-            return matched.length > 0 ? matched : units;
-          })();
     const filterText = filterState.scopeKey === scopeKey ? filterState.text : '';
     const needle = filterText.trim().toLowerCase();
     const basketUnitIds = readCorpusBasketSession().unitIds;
     const selectedIds = new Set(basketUnitIds);
-    const exportUnits = scoped.map((unit) =>
+    const exportUnits = units.map((unit) =>
       toCorpusWorksetExportUnit({
         id: unit.id,
-        ...(unit.textId !== undefined && unit.textId.length > 0 ? { textId: unit.textId } : {}),
-        ...(unit.mediaId !== undefined && unit.mediaId.length > 0 ? { mediaId: unit.mediaId } : {}),
-        ...(unit.layerId !== undefined && unit.layerId.length > 0 ? { layerId: unit.layerId } : {}),
+        ...(unit.textId.length > 0 ? { textId: unit.textId } : {}),
+        ...(unit.mediaId.length > 0 ? { mediaId: unit.mediaId } : {}),
+        ...(unit.layerId.length > 0 ? { layerId: unit.layerId } : {}),
         startTime: unit.startTime,
         endTime: unit.endTime,
-        text: getUnitTextForLayer(unit),
+        text: unit.defaultText,
         fallbackTextId: textId,
         fallbackMediaId: mediaId,
       }),
@@ -108,20 +97,19 @@ export function useCorpusLibraryController() {
     });
     const filtered =
       needle.length === 0
-        ? scoped
-        : scoped.filter((unit) => {
-            const haystack = `${getUnitTextForLayer(unit)} ${unit.id}`.toLowerCase();
+        ? units
+        : units.filter((unit) => {
+            const haystack = `${unit.defaultText} ${unit.id} ${unit.mediaId}`.toLowerCase();
             return haystack.includes(needle);
           });
     const rows: CorpusLibraryRow[] = filtered.map((unit) => {
-      const resolvedTextId =
-        unit.textId !== undefined && unit.textId.length > 0 ? unit.textId : textId;
-      const resolvedMediaId =
-        unit.mediaId !== undefined && unit.mediaId.length > 0 ? unit.mediaId : mediaId;
+      const resolvedTextId = unit.textId.length > 0 ? unit.textId : textId;
+      const resolvedMediaId = unit.mediaId.length > 0 ? unit.mediaId : mediaId;
       return {
         id: unit.id,
-        text: getUnitTextForLayer(unit),
+        text: unit.defaultText,
         timeLabel: formatTime(unit.startTime),
+        mediaLabel: resolvedMediaId,
         selected: selectedIds.has(unit.id),
         transcriptionHref: buildTranscriptionDeepLinkHref({
           textId: resolvedTextId,
@@ -131,7 +119,7 @@ export function useCorpusLibraryController() {
       };
     });
     return {
-      unitCount: scoped.length,
+      unitCount: units.length,
       basketCount: selectedIds.size,
       filterText,
       rows,
