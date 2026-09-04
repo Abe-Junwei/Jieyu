@@ -12,7 +12,7 @@ Outbound **B13** Streamable HTTP client (`externalMcpHttpClient.ts`) POSTs `tool
 ## 当前状态
 
 - `mcpClientTypes.ts`：类型定义与空注册表（预置 drafts 在 adapters，避免循环依赖）
-- `externalMcpTrustRegistry.ts`：B11 origin allowlist + 可选 `lastToolsJson` 缓存
+- `externalMcpTrustRegistry.ts`：B11 origin allowlist + 可选 `lastToolsJson` 缓存；schema 扫描为逐工具全文（含 `inputSchema`），无合并 16k 截断
 - `externalMcpHttpClient.ts`：B13 Streamable HTTP JSON-RPC 子集
 - `externalMcpTurnBridge.ts`：B14 send-turn guide / parse / execute
 - `externalMcpProviderAdapters.ts`：B15 指纹 + EvidencePacket 映射 + Settings 预置
