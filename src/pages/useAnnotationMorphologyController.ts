@@ -53,15 +53,16 @@ export function useAnnotationMorphologyController(input: {
   rows: readonly AnnotationIgtRow[];
   reloadWorkspace: () => Promise<unknown>;
 }): AnnotationMorphologyController {
+  const { textId, rows, reloadWorkspace } = input;
   const locale = useLocale();
   const [drafts, setDrafts] = useState<Record<string, AnnotationMorphemeDraft>>({});
   const [linkQueries, setLinkQueries] = useState<Record<string, string>>({});
   const [saveNotice, setSaveNotice] = useState<AnnotationSaveNotice>({ kind: 'idle', message: '' });
   const savingRef = useRef(false);
-  const tokenIds = input.rows.flatMap((row) => row.tokens.map((token) => token.id));
+  const tokenIds = rows.flatMap((row) => row.tokens.map((token) => token.id));
 
   const dataQuery = useQuery({
-    queryKey: ['annotation-morphology', input.textId, tokenIds.join('|')],
+    queryKey: ['annotation-morphology', textId, tokenIds.join('|')],
     queryFn: async () => {
       const [morphRows, lexemes, linkGroups] = await Promise.all([
         LinguisticService.units.listMorphemesByTokenIds(tokenIds),
@@ -89,7 +90,7 @@ export function useAnnotationMorphologyController(input: {
       }
       return { morphs: mapStoredMorphemes(morphRows), linksByTokenId };
     },
-    enabled: input.textId.length > 0,
+    enabled: textId.length > 0,
   });
 
   const morphsByTokenId = useMemo(() => {
@@ -151,15 +152,15 @@ export function useAnnotationMorphologyController(input: {
           throw new Error(t(locale, 'workspace.annotation.morphemeSplitError'));
         }
         await saveAnnotationMorphemesForToken({
-          textId: input.textId,
+          textId,
           unitId,
           tokenId,
-          morphs: buildSeedMorphemes({ textId: input.textId, unitId, tokenId, forms }),
+          morphs: buildSeedMorphemes({ textId, unitId, tokenId, forms }),
         });
         await dataQuery.refetch();
       });
     },
-    [dataQuery, input.textId, locale, run],
+    [dataQuery, locale, run, textId],
   );
 
   const onSaveMorphemes = useCallback(
@@ -170,7 +171,7 @@ export function useAnnotationMorphologyController(input: {
         if (writes.length === 0) return;
         const next = morphs.map((morph) => writes.find((item) => item.id === morph.id) ?? morph);
         await saveAnnotationMorphemesForToken({
-          textId: input.textId,
+          textId,
           unitId,
           tokenId,
           morphs: next,
@@ -184,29 +185,29 @@ export function useAnnotationMorphologyController(input: {
         await dataQuery.refetch();
       });
     },
-    [dataQuery, drafts, input.textId, morphsByTokenId, run],
+    [dataQuery, drafts, morphsByTokenId, run, textId],
   );
 
   const onSplitToken = useCallback(
     (unitId: string, tokenId: string) => {
       void run(async () => {
         await splitAnnotationUnitToken(unitId, tokenId);
-        await input.reloadWorkspace();
+        await reloadWorkspace();
         await dataQuery.refetch();
       });
     },
-    [dataQuery, input.reloadWorkspace, run],
+    [dataQuery, reloadWorkspace, run],
   );
 
   const onMergeToken = useCallback(
     (unitId: string, tokenId: string) => {
       void run(async () => {
         await mergeAnnotationUnitTokenWithNext(unitId, tokenId);
-        await input.reloadWorkspace();
+        await reloadWorkspace();
         await dataQuery.refetch();
       });
     },
-    [dataQuery, input.reloadWorkspace, run],
+    [dataQuery, reloadWorkspace, run],
   );
 
   const onLinkLexeme = useCallback(
