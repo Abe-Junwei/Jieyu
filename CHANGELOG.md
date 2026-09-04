@@ -10,6 +10,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **B4a-1 annotation workspace shell**: `/annotation` readonly IGT list for the current text/media scope, lane-scoped via ADR-0020, plus a keyboard state-machine skeleton (no save, no playback). Flag `annotationPageEnabled` default false keeps the placeholder panel.
 - **B15 Zotero/OpenAlex MCP adapters**: Settings origin/label presets; `tools/call` text JSON mapped to `EvidencePacketV0` (`document`). Flag `aiExternalMcpProviderAdaptersEnabled` default false. CSP enumerates loopback `8765` only (no `https:` wildcard). No stdio, no OpenAlex REST, no ChatWindow, no catalog mix-in.
 - **B14 outbound MCP send-turn**: Cached `lastToolsJson` on B11 trust rows; `extmcp__<originKey>__<tool>` guide in system prompt; execute via B13 after local tools. Settings can fetch `tools/list`. Flag `aiExternalMcpSendTurnEnabled` default false. No ChatWindow edits, no catalog mix-in, no CSP widening.
 - **B13 outbound Streamable HTTP MCP client**: POST `tools/list` / `tools/call` to B11-enabled origins (JSON or SSE `data:`). Write RPC methods never fetch. `mcp_tool_call_audits` may store `agentRunId`. Flag `aiExternalMcpHttpClientEnabled` default false. No SDK, no CSP widening, no ChatWindow wiring.

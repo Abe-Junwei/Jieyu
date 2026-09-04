@@ -162,7 +162,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：本 PR 收口 **B15**（Zotero/OpenAlex HTTP MCP 适配：Settings 预置 + EvidencePacket 映射，flag 默认 false；CSP 仅枚举环回 8765）。之后 Agent 轨余量：B5b 页（阻塞于 B5a）。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：本 PR 收口 **B4a-1**（标注页只读 IGT 壳 + 键盘状态机骨架，`annotationPageEnabled` 默认 false）。之后余量：**B4a-2** 编辑保存。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -189,7 +189,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B1** | 深链与返回上下文合同（P0-1） | S–M | **【部分落地】** `transcriptionUrlDeepLink`（`buildTranscriptionDeepLinkHref`/`...WorkspaceReturnHref`）已存在且词典页已用、sessionStorage 列表态已分离。**剩余**=语料/标注页开放时接入 + 统一 URL/`sessionStorage` 无双写规则核验 | 三页↔转写往返保留排序/筛选/选中/滚动；无双写 | 否 |
 | **B2** | 跨页刷新事件合同（unitId 增量，P0-2） | M | **【合同已落地·未接线】** 事件合同 v1 + `dispatch/subscribeWorkspaceEvent` 原语 + 测试已在 `appShellEvents.ts`（unit/lexeme updated、lexeme deleted soft/hard、context-sync），但**零生产消费方**。**剩余**=把事件接入页面/hook 做 unit 增量刷新 | 提交后仅触发对应 unit 增量刷新；草稿不被覆盖；定向 vitest | 是 |
 | **B3** | 词典页三栏联动（只读命中语段，P0-5） | S | **【基本落地·回归已补】** `LexiconPage` 已实现 列表/检索 + 详情(义项/词形/笔记) + 命中语段(`LinguisticService.lexemes.listTranscriptionJumpTargets`) + 深链跳转回转写 + sessionStorage 态。P0-5 验收满足。可选事件驱动刷新仍依赖 B2 | 列表/检索/详情/命中语段/深链/sessionStorage 回归；`LexiconPage.test` + `useLexiconSearch.test` + e2e criticalPaths `/lexicon` | 否 |
-| **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【确认占位】**（`AnnotationPage`(25 行) = `FeatureAvailabilityPanel`）→ 新增 `annotationPageEnabled` flag（`false` 合并）；独立 controller 骨架（类型、props 流、测试桩）；IGT 行内布局 + 列表渲染 + 键盘状态机；按轨读用 `annotation/annotationLaneReadScope`(ADR-0020)；**勿向逼近阈值的现有 controller 注入逻辑** | 页面壳可渲染；flag off 行为不变；`check:architecture-guard` 无新增 hotspot | 否 |
+| **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【🟡 已落地·flag 关】** `/annotation` 当前 text/media 只读 IGT + 键盘 reduce 骨架。Flag `annotationPageEnabled` 默认 **false**。SDD：`annotation-workspace-shell/`。按轨读 `annotationLaneReadScope`（ADR-0020）。不写 token；不接 ChatWindow / 转写 annotation controller | flag 关占位；IGT 行渲染；Space 行聚焦=playToggle、输入态=insertSpace；定向 vitest | 是 |
 | **B4a-2** | 标注页 token POS/gloss 编辑 + 保存链路 + readback（P0-3 上·核心） | L | 承 B4a-1：token 行内编辑框 + POS/gloss 修改 → 统一写链路（独立 controller）→ 转写页可见；复用 `useTranscriptionAnnotationController`、`useTranscriptionUnitActions`、`useAiToolCallHandler.annotationAdapters`、i18n | 写→reload→readback；e2e:chromium；定向 vitest | 是 |
 | **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | 承 B4a-2：morpheme 分层编辑 + 手动分词 + 词典链接编辑 + Leipzig Validator 模板；细节真源见 [标注页与词典页路线图](./标注页与词典页开发路线图-2026-04-25.md) M1b | 分词/链接写→reload→readback；Validator 校验；定向 vitest | 是 |
 | **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【确认占位】**（`CorpusLibraryPage`(25 行) = `FeatureAvailabilityPanel`；PR-11 已移除无消费的 `corpusLibraryLabEnabled` 死 flag，B5a 启动时若仍需灰度开关，应新增带 owner / expiry 的专用 flag）→ 页面壳 + 多选交互 + 可见工作集；复用 `SidePaneSidebarSegmentList`（读模型）、`useTranscriptionSelectionSnapshot`、i18n；**「写」仅指工作集/筛选态持久化，禁止写 `layer_units`/`unit_tokens` 等转写真源表**。**若本切片接 AI 工具：前置 A6 + A7 + A9 + A10** | 工作集态写→reload→readback；不复刻标注写库；定向 vitest | 是 |
@@ -273,3 +273,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-04 | **Wave 4 B13**：outbound Streamable HTTP `tools/list`/`tools/call`；B11 allowlist + A9 expose；`mcp_tool_call_audits.agentRunId`；flag 默认 false。不引入 SDK，不改 CSP。 |
 | 2026-09-04 | **Wave 4 B14**：send-turn `extmcp__` 桥 + `lastToolsJson` 缓存；Settings 拉取 tools/list；flag 默认 false。不改 ChatWindow，不进 catalog，不改 CSP。 |
 | 2026-09-04 | **B3 词典回归**：列表选中刷新详情与命中语段、sessionStorage 往返、segment 深链、`useLexiconSearch` 单测；e2e `/lexicon` 检索框+词条列表。可选 B2 事件接线仍开。 |
+| 2026-09-04 | **B4a-1**：`/annotation` 只读 IGT 壳 + 键盘骨架；`annotationPageEnabled` 默认 false。不写 token，不接 ChatWindow。下一刀 **B4a-2**。 |
