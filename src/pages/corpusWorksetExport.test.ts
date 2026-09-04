@@ -69,8 +69,11 @@ describe('corpusWorksetExport', () => {
   });
 
   it('omits a single header mediaId when the workset spans media', () => {
+    const first = UNITS.find((unit) => unit.unitId === 'uid-1');
+    expect(first).toBeTruthy();
+    if (!first) return;
     const mixed = [
-      UNITS[0],
+      first,
       toCorpusWorksetExportUnit({
         id: 'uid-3',
         textId: 'tid-1',

@@ -14,20 +14,20 @@ depends_on:
 
 ## Implementation tasks
 
-- [ ] `corpusUnitIndexQuery.ts` 投影 + 排序 + `listCorpusUnitIndexByTextId` → 验证：`npx vitest run src/services/corpusUnitIndexQuery.test.ts`
-- [ ] `LinguisticService.units.listCorpusIndexByTextId` 接线
-- [ ] basket 作用域改为 `textId`；controller 不再按 media 滤列表；行展示 mediaId
-- [ ] 导出头在混合 media 时去掉单一 `mediaId`；per-unit 保留
-- [ ] i18n / CHANGELOG / 主路线图 / 语料路线图 / 代码地图
+- [x] `corpusUnitIndexQuery.ts` 投影 + 排序 + `listCorpusUnitIndexByTextId` → 验证：`npx vitest run src/services/corpusUnitIndexQuery.test.ts`
+- [x] `LinguisticService.units.listCorpusIndexByTextId` 接线
+- [x] basket 作用域改为 `textId`；controller 不再按 media 滤列表；行展示 mediaId
+- [x] 导出头在混合 media 时去掉单一 `mediaId`；per-unit 保留
+- [x] i18n / CHANGELOG / 主路线图 / 语料路线图 / 代码地图
 
 ## Pre-merge gates
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 `vitest`（上表路径）
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
-- [ ] Feature flag 仍默认 `false`
-- [ ] `/corpus` 占位 e2e 口径不变（flag 关）
+- [x] `npm run typecheck`
+- [x] 触及域 `vitest`（上表路径）
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] Feature flag 仍默认 `false`
+- [x] `/corpus` 占位 e2e 口径不变（flag 关；由现有 criticalPaths 覆盖，本切片不改该断言）
 
 ## Commit 阶段证据模板
 

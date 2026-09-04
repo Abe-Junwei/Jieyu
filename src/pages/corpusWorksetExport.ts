@@ -30,7 +30,13 @@ export function buildCorpusWorksetExportPayload(input: {
     if (match) selected.push(match);
   }
   const mediaIds = [...new Set(selected.map((unit) => unit.mediaId).filter((id) => id.length > 0))];
-  const mediaId = mediaIds.length === 1 ? mediaIds[0] : mediaIds.length === 0 ? input.mediaId : '';
+  const onlyMediaId = mediaIds[0];
+  const mediaId =
+    mediaIds.length === 1 && onlyMediaId !== undefined
+      ? onlyMediaId
+      : mediaIds.length === 0
+        ? input.mediaId
+        : '';
   return { textId: input.textId, mediaId, units: selected };
 }
 

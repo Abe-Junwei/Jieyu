@@ -23,11 +23,11 @@ source_of_truth: corpus-library-project-index-spec
 
 ## 3. 验收标准（可测）
 
-- [ ] `listCorpusIndexByTextId` 投影稳定排序 `mediaId, startTime, unitId`
-- [ ] 两 media 的句段同时出现在列表；不再按当前 `mediaId` 丢行
-- [ ] 换 media 保留 basket；换 text 清空
-- [ ] 无 `textId` 时仍空态；flag 关仍占位
-- [ ] 不改 ChatWindow；`corpusLibraryPageEnabled` 默认 `false`
+- [x] `listCorpusIndexByTextId` 投影稳定排序 `mediaId, startTime, unitId`
+- [x] 两 media 的句段同时出现在列表；不再按当前 `mediaId` 丢行
+- [x] 换 media 保留 basket；换 text 清空
+- [x] 无 `textId` 时仍空态；flag 关仍占位
+- [x] 不改 ChatWindow；`corpusLibraryPageEnabled` 默认 `false`
 
 ## 4. 受影响代码地图
 
