@@ -23,6 +23,7 @@ import type {
   ProjectAiMemoryDoc,
   McpToolCallAuditDoc,
   ExternalMcpTrustDoc,
+  AgentArtifactDoc,
   LanguageDocType,
   LanguageDisplayNameDocType,
   LanguageAliasDocType,
@@ -75,6 +76,7 @@ import {
   validateProjectAiMemoryDoc,
   validateMcpToolCallAuditDoc,
   validateExternalMcpTrustDoc,
+  validateAgentArtifactDoc,
   validateLanguageDoc,
   validateLanguageDisplayNameDoc,
   validateLanguageAliasDoc,
@@ -146,7 +148,7 @@ export const JIEYU_DEXIE_DB_NAME = 'jieyudb_v2' as const;
  * 须与 `JieyuDexie` 构造器内**最高**的 `this.version(…)` 号一致，供健康检查 / 迁移回放测试（ARCH-5）。
  * Must match the highest `this.version(…)` in `JieyuDexie` — health + migration-replay (ARCH-5).
  */
-export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 51;
+export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 52;
 
 export function buildSegmentationV2BackfillRows(input: {
   units: LayerUnitDocType[];
@@ -412,6 +414,7 @@ export class JieyuDexie extends Dexie {
   project_ai_memories!: Table<ProjectAiMemoryDoc, string>;
   mcp_tool_call_audits!: Table<McpToolCallAuditDoc, string>;
   external_mcp_trust!: Table<ExternalMcpTrustDoc, string>;
+  agent_artifacts!: Table<AgentArtifactDoc, string>;
   languages!: Table<LanguageDocType, string>;
   language_display_names!: Table<LanguageDisplayNameDocType, string>;
   language_aliases!: Table<LanguageAliasDocType, string>;
@@ -1474,6 +1477,10 @@ export class JieyuDexie extends Dexie {
     this.version(51).stores({
       external_mcp_trust: 'id, origin, enabled, updatedAt',
     });
+
+    this.version(52).stores({
+      agent_artifacts: 'id, kind, uri, createdAt, adoptionItemId',
+    });
   }
 }
 
@@ -1704,6 +1711,7 @@ async function _createDb(): Promise<JieyuDatabase> {
       dexie.external_mcp_trust,
       validateExternalMcpTrustDoc,
     ),
+    agent_artifacts: new DexieCollectionAdapter(dexie.agent_artifacts, validateAgentArtifactDoc),
     languages: new DexieCollectionAdapter(dexie.languages, validateLanguageDoc),
     language_display_names: new DexieCollectionAdapter(
       dexie.language_display_names,

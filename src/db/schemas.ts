@@ -22,6 +22,7 @@ import type {
   ProjectAiMemoryDoc,
   McpToolCallAuditDoc,
   ExternalMcpTrustDoc,
+  AgentArtifactDoc,
   LanguageDocType,
   LanguageDisplayNameDocType,
   LanguageAliasDocType,
@@ -369,6 +370,25 @@ const externalMcpTrustDocSchema = z.object({
   lastSchemaScanReasonsJson: z.string().optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
+});
+
+const agentArtifactKindSchema = z.enum([
+  'source_set_snapshot',
+  'workflow_output',
+  'export_manifest',
+]);
+
+const agentArtifactDocSchema = z.object({
+  id: z.string().min(1),
+  schemaVersion: z.literal(0),
+  kind: agentArtifactKindSchema,
+  uri: z.string().min(1),
+  title: z.string().min(1),
+  mimeType: z.string().min(1),
+  bodyJson: z.string(),
+  agentRunId: z.string().min(1).optional(),
+  adoptionItemId: z.string().min(1).optional(),
+  createdAt: isoDateSchema,
 });
 
 const mcpToolCallAuditOutcomeSchema = z.enum([
@@ -1394,6 +1414,10 @@ export function validateMcpToolCallAuditDoc(doc: McpToolCallAuditDoc): void {
 
 export function validateExternalMcpTrustDoc(doc: ExternalMcpTrustDoc): void {
   externalMcpTrustDocSchema.parse(doc);
+}
+
+export function validateAgentArtifactDoc(doc: AgentArtifactDoc): void {
+  agentArtifactDocSchema.parse(doc);
 }
 
 export function validateLanguageDoc(doc: LanguageDocType): void {

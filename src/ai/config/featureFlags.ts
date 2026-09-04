@@ -91,6 +91,10 @@ const aiExternalMcpTrustEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_EXTERNAL_MCP_TRUST_ENABLED,
 );
 
+const aiMcpResourcesArtifactsEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_MCP_RESOURCES_ARTIFACTS_ENABLED,
+);
+
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
   featureFlagDeploymentEnvironment === 'staging' ||
@@ -194,4 +198,9 @@ export const featureFlags = {
    * B11: outbound MCP origin allowlist. Default false; untrusted schema never reaches the LLM.
    */
   aiExternalMcpTrustEnabled: aiExternalMcpTrustEnabledFromEnv ?? false,
+  /**
+   * B12: inbound MCP resources/prompts + AgentArtifactV0 persist.
+   * Default false; flag off keeps resources/prompts as Method not found.
+   */
+  aiMcpResourcesArtifactsEnabled: aiMcpResourcesArtifactsEnabledFromEnv ?? false,
 } as const;

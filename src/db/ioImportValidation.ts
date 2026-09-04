@@ -10,6 +10,7 @@ import type {
   ProjectAiMemoryDoc,
   McpToolCallAuditDoc,
   ExternalMcpTrustDoc,
+  AgentArtifactDoc,
   AuditLogDocType,
   BibliographicSourceDocType,
   CustomFieldDefinitionDocType,
@@ -60,6 +61,7 @@ import {
   validateProjectAiMemoryDoc,
   validateMcpToolCallAuditDoc,
   validateExternalMcpTrustDoc,
+  validateAgentArtifactDoc,
   validateAuditLogDoc,
   validateBibliographicSourceDoc,
   validateCustomFieldDefinitionDoc,
@@ -176,6 +178,7 @@ const validatorByCollection = {
   mcp_tool_call_audits: (value: unknown) =>
     validateMcpToolCallAuditDoc(value as McpToolCallAuditDoc),
   external_mcp_trust: (value: unknown) => validateExternalMcpTrustDoc(value as ExternalMcpTrustDoc),
+  agent_artifacts: (value: unknown) => validateAgentArtifactDoc(value as AgentArtifactDoc),
 } as const satisfies Record<string, (value: unknown) => void>;
 
 export function validateCollectionDoc(collectionName: string, value: unknown): void {

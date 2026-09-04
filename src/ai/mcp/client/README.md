@@ -1,18 +1,19 @@
-# MCP Client
+# MCP Client / Server
 
-PR-20 类型预留 + **B11 origin allowlist**。Outbound HTTP/SSE client 仍属 **B12**。
+Inbound Jieyu MCP server supports tools plus **B12** `resources/list|read` and `prompts/list|get` (flag `aiMcpResourcesArtifactsEnabled`, default false). Outbound HTTP/SSE client is **not** implemented.
 
 ## 计划对接的 MCP Server
 
-- **Zotero MCP**：写作引用管理
-- **OpenAlex MCP**：文献检索
+- **Zotero MCP**：写作引用管理（outbound，未做）
+- **OpenAlex MCP**：文献检索（outbound，未做）
 
 ## 当前状态
 
 - `mcpClientTypes.ts`：类型定义与空注册表
-- `externalMcpTrustRegistry.ts`：规范化 origin、Dexie `external_mcp_trust`、`exposeExternalMcpToolsToLlm` 门面。未登记 / 未启用 / flag off 的 `tools/list` **不得**进 LLM。
-- 检索结果将自动包装为 `EvidencePacket`，进入 AI 侧边栏「文献问答」workflow（B12 接线）
+- `externalMcpTrustRegistry.ts`：B11 origin allowlist
+- `mcpReadSurfaces.ts`：CorpusSourceSet URI + A12 workflow prompts
+- `agentArtifact.ts`：Dexie `agent_artifacts` + B5b export manifest helper
 
 ## 下一步
 
-B12：HTTP/SSE transport、`resources/list` / `prompts/list`、`AgentArtifactV0`。调用方只经 `exposeExternalMcpToolsToLlm`。
+Outbound HTTP/SSE transport 仍未排独立切片。调用外部 tools 只经 `exposeExternalMcpToolsToLlm`。

@@ -114,6 +114,8 @@ describe('featureFlags environment matrix', () => {
     expect(dogfood.aiSemanticGuardEnabled).toBe(false);
     expect(prod.aiExternalMcpTrustEnabled).toBe(false);
     expect(dogfood.aiExternalMcpTrustEnabled).toBe(false);
+    expect(prod.aiMcpResourcesArtifactsEnabled).toBe(false);
+    expect(dogfood.aiMcpResourcesArtifactsEnabled).toBe(false);
   });
 
   it('respects explicit env overrides over matrix defaults', async () => {
@@ -127,6 +129,7 @@ describe('featureFlags environment matrix', () => {
       VITE_AI_AGENT_UI_PREVIEW_ENABLED: 'true',
       VITE_AI_SEMANTIC_GUARD_ENABLED: 'true',
       VITE_AI_EXTERNAL_MCP_TRUST_ENABLED: 'true',
+      VITE_AI_MCP_RESOURCES_ARTIFACTS_ENABLED: 'true',
     });
 
     expect(flags.aiBackgroundToolSandboxEnabled).toBe(false);
@@ -136,5 +139,6 @@ describe('featureFlags environment matrix', () => {
     expect(flags.aiAgentUiPreviewEnabled).toBe(true);
     expect(flags.aiSemanticGuardEnabled).toBe(true);
     expect(flags.aiExternalMcpTrustEnabled).toBe(true);
+    expect(flags.aiMcpResourcesArtifactsEnabled).toBe(true);
   });
 });

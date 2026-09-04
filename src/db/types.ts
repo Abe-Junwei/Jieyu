@@ -1243,6 +1243,22 @@ export interface ExternalMcpTrustDoc {
   updatedAt: string;
 }
 
+/** B12: durable agent output pointer. Identity is `id`; `uri` is the resource the artifact cites. */
+export type AgentArtifactKind = 'source_set_snapshot' | 'workflow_output' | 'export_manifest';
+
+export interface AgentArtifactDoc {
+  id: string;
+  schemaVersion: 0;
+  kind: AgentArtifactKind;
+  uri: string;
+  title: string;
+  mimeType: string;
+  bodyJson: string;
+  agentRunId?: string;
+  adoptionItemId?: string;
+  createdAt: string;
+}
+
 export interface McpToolCallAuditDoc {
   id: string;
   schemaVersion: 1;
@@ -1343,6 +1359,7 @@ export type JieyuCollections = {
   project_ai_memories: CollectionAdapter<ProjectAiMemoryDoc>;
   mcp_tool_call_audits: CollectionAdapter<McpToolCallAuditDoc>;
   external_mcp_trust: CollectionAdapter<ExternalMcpTrustDoc>;
+  agent_artifacts: CollectionAdapter<AgentArtifactDoc>;
   ai_source_sets: CollectionAdapter<AiSourceSetDoc>;
 };
 
