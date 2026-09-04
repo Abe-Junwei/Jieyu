@@ -54,6 +54,8 @@ test.describe('关键路径 | Critical paths', () => {
     await expect(page.locator('nav')).toBeVisible();
     // zh-CN: 词典工作台；en: Lexicon Workspace（默认 locale 可能因环境不同）
     await expect(page.locator('body')).toContainText(/词典工作台|Lexicon Workspace/);
+    await expect(page.getByRole('searchbox')).toBeVisible();
+    await expect(page.getByRole('list', { name: /词条列表|Entry list/ })).toBeVisible();
   });
 
   test('语料库页可加载（规划页烟测子集） | Corpus page loads (ARCH-9 smoke)', async ({ page }) => {

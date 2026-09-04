@@ -38,6 +38,10 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 - **Architecture guard** (`useAiChat.ts`): merged two `useMemo` declarations into one to satisfy
   `maxUseMemoDecls: 3` ceiling.
 
+### Tests
+
+- **B3 lexicon regression**: list → detail → hit-segment refresh, sessionStorage restore, segment `unitKind` deep links, MiniSearch hook coverage; `/lexicon` e2e asserts search box and entry list.
+
 ## [1.1.0] - 2026-04-24
 
 ### Changed

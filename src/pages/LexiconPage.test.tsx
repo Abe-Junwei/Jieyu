@@ -38,7 +38,7 @@ function SidePaneSnapshot() {
   );
 }
 
-function renderLexiconPage() {
+function renderLexiconPage(path = '/lexicon') {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -49,7 +49,7 @@ function renderLexiconPage() {
 
   render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/lexicon']}>
+      <MemoryRouter initialEntries={[path]}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <SidePaneSnapshot />
@@ -145,14 +145,90 @@ describe('LexiconPage', () => {
         surfaceHint: 'dog',
         linkUpdatedAt: '2026-04-04T00:00:00.000Z',
       },
+      {
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'layer-1',
+        unitId: 'seg-1',
+        unitKind: 'segment',
+        surfaceHint: 'dogs',
+        linkUpdatedAt: '2026-04-04T00:00:00.000Z',
+      },
     ]);
 
     renderLexiconPage();
 
-    const hit = await screen.findByRole('link', { name: /dog/ });
-    expect(hit.getAttribute('href')).toBe(
+    const unitHit = await screen.findByRole('link', { name: /主句段/ });
+    expect(unitHit.getAttribute('href')).toBe(
       '/transcription?textId=text-1&mediaId=media-1&layerId=layer-1&unitId=unit-1',
     );
+    const segmentHit = screen.getByRole('link', { name: /子段/ });
+    expect(segmentHit.getAttribute('href')).toBe(
+      '/transcription?textId=text-1&mediaId=media-1&layerId=layer-1&unitId=seg-1&unitKind=segment',
+    );
+  });
+
+  it('refreshes detail and hit segments when another lexeme is selected', async () => {
+    mockListLexemeTranscriptionJumpTargets.mockImplementation(async (lexemeId: string) => {
+      if (lexemeId === 'lex-run') {
+        return [
+          {
+            textId: 'text-run',
+            mediaId: 'media-run',
+            layerId: 'layer-run',
+            unitId: 'unit-run',
+            unitKind: 'unit',
+            surfaceHint: 'running',
+            linkUpdatedAt: '2026-04-04T00:00:00.000Z',
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderLexiconPage();
+    await screen.findByText('domesticated canine');
+
+    fireEvent.click(screen.getByRole('button', { name: /run/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('move quickly').length).toBeGreaterThan(0);
+      expect(screen.getByRole('link', { name: /running/ }).getAttribute('href')).toBe(
+        '/transcription?textId=text-run&mediaId=media-run&layerId=layer-run&unitId=unit-run',
+      );
+    });
+    expect(mockListLexemeTranscriptionJumpTargets).toHaveBeenCalledWith('lex-run');
+  });
+
+  it('restores search and selection from sessionStorage', async () => {
+    window.sessionStorage.setItem(
+      'lexiconListState',
+      JSON.stringify({ searchText: 'run', selectedLexemeId: 'lex-run' }),
+    );
+
+    renderLexiconPage();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('searchbox').getAttribute('value') ??
+          (screen.getByRole('searchbox') as HTMLInputElement).value,
+      ).toBe('run');
+      expect(screen.getAllByText('move quickly').length).toBeGreaterThan(0);
+      expect(screen.queryByText('domesticated canine')).toBeNull();
+    });
+  });
+
+  it('persists the current list state for a later return', async () => {
+    renderLexiconPage();
+    await screen.findByText('domesticated canine');
+    fireEvent.click(screen.getByRole('button', { name: /run/i }));
+
+    await waitFor(() => {
+      expect(JSON.parse(window.sessionStorage.getItem('lexiconListState') ?? '{}')).toEqual({
+        searchText: '',
+        selectedLexemeId: 'lex-run',
+      });
+    });
   });
 
   it('shows empty state and quick access when no lexemes exist', async () => {
