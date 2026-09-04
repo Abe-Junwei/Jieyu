@@ -3,11 +3,17 @@ import { Link } from 'react-router-dom';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, tf, useLocale } from '../i18n';
 import { AnnotationIgtRowView } from './annotation/AnnotationIgtRow';
+import { useAnnotationMorphologyController } from './useAnnotationMorphologyController';
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
 
 export function AnnotationWorkspace() {
   const locale = useLocale();
   const controller = useAnnotationWorkspaceController();
+  const morphology = useAnnotationMorphologyController({
+    textId: controller.textId,
+    rows: controller.rows,
+    reloadWorkspace: controller.reload,
+  });
 
   const sidePaneContent = useMemo(
     () => (
@@ -36,11 +42,26 @@ export function AnnotationWorkspace() {
             <Link className="app-side-pane-feature-link" to={controller.transcriptionHref}>
               {t(locale, 'workspace.annotation.openTranscription')}
             </Link>
+            <p className="app-side-pane-feature-summary">
+              {tf(locale, 'workspace.annotation.validatorTemplate', {
+                id: morphology.validatorProfileId,
+              })}
+            </p>
+            <Link className="app-side-pane-feature-link" to={morphology.structuralProfilesHref}>
+              {t(locale, 'workspace.annotation.openStructuralProfiles')}
+            </Link>
           </div>
         </section>
       </div>
     ),
-    [controller.isEmpty, controller.transcriptionHref, controller.unitCount, locale],
+    [
+      controller.isEmpty,
+      controller.transcriptionHref,
+      controller.unitCount,
+      locale,
+      morphology.structuralProfilesHref,
+      morphology.validatorProfileId,
+    ],
   );
 
   useRegisterAppSidePane({
@@ -49,14 +70,16 @@ export function AnnotationWorkspace() {
     content: sidePaneContent,
   });
 
+  const activeNotice =
+    morphology.saveNotice.kind !== 'idle' ? morphology.saveNotice : controller.saveNotice;
   const saveStatusText =
-    controller.saveNotice.kind === 'saving'
+    activeNotice.kind === 'saving'
       ? t(locale, 'workspace.annotation.saving')
-      : controller.saveNotice.kind === 'saved'
+      : activeNotice.kind === 'saved'
         ? t(locale, 'workspace.annotation.saveSaved')
-        : controller.saveNotice.kind === 'error'
+        : activeNotice.kind === 'error'
           ? tf(locale, 'workspace.annotation.saveFailed', {
-              message: controller.saveNotice.message,
+              message: activeNotice.message,
             })
           : t(locale, 'workspace.annotation.keyboardHint');
 
@@ -98,7 +121,7 @@ export function AnnotationWorkspace() {
             data-testid="annotation-keyboard-status"
             data-mode={controller.keyboardMode}
             data-action={controller.lastAction}
-            data-save={controller.saveNotice.kind}
+            data-save={activeNotice.kind}
           >
             {saveStatusText}
           </p>
@@ -110,6 +133,7 @@ export function AnnotationWorkspace() {
                 focused={row.id === controller.focusedUnitId}
                 inputFocused={controller.keyboardMode === 'inputFocused'}
                 drafts={controller.drafts}
+                morphology={morphology}
                 onFocusRow={controller.onFocusRow}
                 onFocusInput={controller.onFocusInput}
                 onTokenDraftChange={controller.onTokenDraftChange}

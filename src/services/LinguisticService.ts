@@ -67,6 +67,7 @@ export const LinguisticService = {
     batchUpdateTokenPosByForm: linguisticServiceUnitTokenOps.batchUpdateTokenPosByForm,
     saveMorpheme: linguisticServiceUnitTokenOps.saveMorpheme,
     saveMorphemesBatch: linguisticServiceUnitTokenOps.saveMorphemesBatch,
+    replaceMorphemesForToken: linguisticServiceUnitTokenOps.replaceMorphemesForToken,
     removeToken: linguisticServiceUnitTokenOps.removeToken,
     saveTokenLexemeLink: linguisticServiceUnitTokenOps.saveTokenLexemeLink,
     listTokenLexemeLinks: linguisticServiceUnitTokenOps.getTokenLexemeLinks,

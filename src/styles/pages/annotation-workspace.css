@@ -117,3 +117,34 @@
 .annotation-igt-form {
   color: var(--text-primary);
 }
+
+.annotation-igt-field-invalid {
+  text-decoration: underline wavy;
+  text-decoration-color: color-mix(in srgb, var(--text-secondary) 70%, transparent);
+}
+
+.annotation-igt-actions,
+.annotation-igt-morphs,
+.annotation-igt-lexeme {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.annotation-igt-morph {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.annotation-igt-action {
+  margin: 0;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--surface-panel) 80%, var(--tab-active) 20%);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  cursor: pointer;
+}

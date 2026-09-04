@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
-import { t, useLocale } from '../../i18n';
+import { t, tf, useLocale } from '../../i18n';
 import type { AnnotationIgtRow, AnnotationIgtToken } from '../useAnnotationWorkspaceController';
+import type { AnnotationMorphologyController } from '../useAnnotationMorphologyController';
+import { annotationGlossHasLeipzigIssue } from './annotationLeipzigGloss';
+import { displayedAnnotationMorphemeFields } from './annotationMorphemeDrafts';
 import { displayedAnnotationTokenFields, type AnnotationTokenDraft } from './annotationTokenDrafts';
 
 type Props = {
@@ -8,6 +11,7 @@ type Props = {
   focused: boolean;
   inputFocused: boolean;
   drafts: Readonly<Record<string, AnnotationTokenDraft>>;
+  morphology: AnnotationMorphologyController;
   onFocusRow: (unitId: string) => void;
   onFocusInput: (unitId: string) => void;
   onTokenDraftChange: (
@@ -23,6 +27,7 @@ function TokenStack({
   unitId,
   inputFocused,
   drafts,
+  morphology,
   onFocusInput,
   onTokenDraftChange,
 }: {
@@ -30,11 +35,15 @@ function TokenStack({
   unitId: string;
   inputFocused: boolean;
   drafts: Readonly<Record<string, AnnotationTokenDraft>>;
+  morphology: AnnotationMorphologyController;
   onFocusInput: (unitId: string) => void;
   onTokenDraftChange: Props['onTokenDraftChange'];
 }) {
   const locale = useLocale();
   const fields = displayedAnnotationTokenFields(token, drafts);
+  const morphs = morphology.morphsByTokenId[token.id] ?? [];
+  const link = morphology.linksByTokenId[token.id];
+  const glossInvalid = annotationGlossHasLeipzigIssue(fields.gloss);
   return (
     <span className="annotation-igt-stack">
       <span className="annotation-igt-form">{token.form}</span>
@@ -50,19 +59,164 @@ function TokenStack({
             onChange={(event) => onTokenDraftChange(unitId, token.id, 'pos', event.target.value)}
           />
           <input
-            className="annotation-igt-field"
+            className={
+              glossInvalid
+                ? 'annotation-igt-field annotation-igt-field-invalid'
+                : 'annotation-igt-field'
+            }
             data-testid={`annotation-igt-gloss-${token.id}`}
             aria-label={t(locale, 'workspace.annotation.glossLabel')}
+            aria-invalid={glossInvalid}
             value={fields.gloss}
             onClick={(event) => event.stopPropagation()}
             onFocus={() => onFocusInput(unitId)}
             onChange={(event) => onTokenDraftChange(unitId, token.id, 'gloss', event.target.value)}
           />
+          <span className="annotation-igt-actions">
+            <button
+              type="button"
+              className="annotation-igt-action"
+              data-testid={`annotation-igt-split-${token.id}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                morphology.onSplitToken(unitId, token.id);
+              }}
+            >
+              {t(locale, 'workspace.annotation.tokenSplit')}
+            </button>
+            <button
+              type="button"
+              className="annotation-igt-action"
+              data-testid={`annotation-igt-merge-${token.id}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                morphology.onMergeToken(unitId, token.id);
+              }}
+            >
+              {t(locale, 'workspace.annotation.tokenMerge')}
+            </button>
+          </span>
+          <span className="annotation-igt-morphs">
+            {morphs.length === 0 ? (
+              <button
+                type="button"
+                className="annotation-igt-action"
+                data-testid={`annotation-igt-seed-morph-${token.id}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  morphology.onSeedMorphemes(unitId, token.id, token.form);
+                }}
+              >
+                {t(locale, 'workspace.annotation.morphemeSeed')}
+              </button>
+            ) : (
+              <>
+                {morphs.map((morph) => {
+                  const morphFields = displayedAnnotationMorphemeFields(morph, morphology.drafts);
+                  const morphInvalid = annotationGlossHasLeipzigIssue(morphFields.gloss);
+                  return (
+                    <span key={morph.id} className="annotation-igt-morph">
+                      <input
+                        className="annotation-igt-field"
+                        data-testid={`annotation-igt-morph-form-${morph.id}`}
+                        aria-label={t(locale, 'workspace.annotation.morphemeFormLabel')}
+                        value={morphFields.form}
+                        onClick={(event) => event.stopPropagation()}
+                        onFocus={() => onFocusInput(unitId)}
+                        onChange={(event) =>
+                          morphology.onMorphDraftChange(morph.id, 'form', event.target.value)
+                        }
+                      />
+                      <input
+                        className={
+                          morphInvalid
+                            ? 'annotation-igt-field annotation-igt-field-invalid'
+                            : 'annotation-igt-field'
+                        }
+                        data-testid={`annotation-igt-morph-gloss-${morph.id}`}
+                        aria-label={t(locale, 'workspace.annotation.morphemeGlossLabel')}
+                        aria-invalid={morphInvalid}
+                        value={morphFields.gloss}
+                        onClick={(event) => event.stopPropagation()}
+                        onFocus={() => onFocusInput(unitId)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            morphology.onSaveMorphemes(unitId, token.id);
+                          }
+                        }}
+                        onChange={(event) =>
+                          morphology.onMorphDraftChange(morph.id, 'gloss', event.target.value)
+                        }
+                      />
+                    </span>
+                  );
+                })}
+                <button
+                  type="button"
+                  className="annotation-igt-action"
+                  data-testid={`annotation-igt-save-morph-${token.id}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    morphology.onSaveMorphemes(unitId, token.id);
+                  }}
+                >
+                  {t(locale, 'workspace.annotation.morphemeSave')}
+                </button>
+              </>
+            )}
+          </span>
+          <label className="annotation-igt-lexeme">
+            <span>{t(locale, 'workspace.annotation.lexemeLinkLabel')}</span>
+            <input
+              className="annotation-igt-field"
+              data-testid={`annotation-igt-lexeme-${token.id}`}
+              value={morphology.linkQueries[token.id] ?? ''}
+              onClick={(event) => event.stopPropagation()}
+              onFocus={() => onFocusInput(unitId)}
+              onChange={(event) => morphology.onLinkQueryChange(token.id, event.target.value)}
+            />
+            <button
+              type="button"
+              className="annotation-igt-action"
+              data-testid={`annotation-igt-link-${token.id}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                morphology.onLinkLexeme(token.id);
+              }}
+            >
+              {t(locale, 'workspace.annotation.lexemeLink')}
+            </button>
+            {link ? (
+              <button
+                type="button"
+                className="annotation-igt-action"
+                data-testid={`annotation-igt-unlink-${token.id}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  morphology.onUnlinkLexeme(token.id);
+                }}
+              >
+                {tf(locale, 'workspace.annotation.lexemeLinked', { lemma: link.lemma })}
+              </button>
+            ) : null}
+          </label>
         </>
       ) : (
         <>
           <span className="annotation-igt-pos">{fields.pos}</span>
           <span className="annotation-igt-gloss">{fields.gloss}</span>
+          {morphs.length > 0 ? (
+            <span className="annotation-igt-gloss">
+              {morphs.map((morph) => morph.form).join('-')}
+            </span>
+          ) : null}
+          {link ? (
+            <span className="annotation-igt-gloss">
+              {tf(locale, 'workspace.annotation.lexemeLinked', { lemma: link.lemma })}
+            </span>
+          ) : null}
         </>
       )}
     </span>
@@ -74,6 +228,7 @@ export function AnnotationIgtRowView({
   focused,
   inputFocused,
   drafts,
+  morphology,
   onFocusRow,
   onFocusInput,
   onTokenDraftChange,
@@ -101,6 +256,7 @@ export function AnnotationIgtRowView({
               unitId={row.id}
               inputFocused={focused && inputFocused}
               drafts={drafts}
+              morphology={morphology}
               onFocusInput={onFocusInput}
               onTokenDraftChange={onTokenDraftChange}
             />

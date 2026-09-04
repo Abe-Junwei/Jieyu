@@ -277,6 +277,7 @@ export function useAnnotationWorkspaceController() {
     isLoading: textId.length > 0 && dataQuery.isLoading,
     loadError,
     transcriptionHref: buildTranscriptionWorkspaceReturnHref(),
+    reload: dataQuery.refetch,
     onFocusRow: handleFocusRow,
     onFocusInput: handleFocusInput,
     onTokenDraftChange: handleTokenDraftChange,

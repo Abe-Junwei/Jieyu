@@ -15,9 +15,11 @@ export type {
   LayerUnitDocType,
   LexemeDocType,
   MediaItemDocType,
+  TokenLexemeLinkDocType,
   MultiLangString,
   OrthographyDocType,
   SpeakerDocType,
+  UnitMorphemeDocType,
   UnitTokenDocType,
   UserNoteDocType,
 } from '../db';

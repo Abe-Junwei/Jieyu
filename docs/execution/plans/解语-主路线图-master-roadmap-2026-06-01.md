@@ -162,7 +162,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：本 PR 收口 **B4a-2**（标注页 POS/gloss 编辑 + `unit_tokens` 保存 + readback，`annotationPageEnabled` 默认 false）。之后余量：**B4b** morpheme / 分词 / Validator。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：本 PR 收口 **B4b**（标注页 morpheme / 手动分词 / 词典链接 / Leipzig 校验，`annotationPageEnabled` 默认 false）。之后余量：**B5a** 语料库工作集。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -191,7 +191,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B3** | 词典页三栏联动（只读命中语段，P0-5） | S | **【基本落地·回归已补】** `LexiconPage` 已实现 列表/检索 + 详情(义项/词形/笔记) + 命中语段(`LinguisticService.lexemes.listTranscriptionJumpTargets`) + 深链跳转回转写 + sessionStorage 态。P0-5 验收满足。可选事件驱动刷新仍依赖 B2 | 列表/检索/详情/命中语段/深链/sessionStorage 回归；`LexiconPage.test` + `useLexiconSearch.test` + e2e criticalPaths `/lexicon` | 否 |
 | **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【🟡 已落地·flag 关】** `/annotation` 当前 text/media 只读 IGT + 键盘 reduce 骨架。Flag `annotationPageEnabled` 默认 **false**。SDD：`annotation-workspace-shell/`。按轨读 `annotationLaneReadScope`（ADR-0020）。不写 token；不接 ChatWindow / 转写 annotation controller | flag 关占位；IGT 行渲染；Space 行聚焦=playToggle、输入态=insertSpace；定向 vitest | 是 |
 | **B4a-2** | 标注页 token POS/gloss 编辑 + 保存链路 + readback（P0-3 上·核心） | L | **【🟡 已落地·flag 关】** 承 B4a-1：受控 POS/gloss 输入；Enter=`commitStay`；Ctrl+Enter 仅保存成功后跳行。写 `LinguisticService.units.updateTokenPos` / `updateTokenGloss`（`unit_tokens`），再 `listTokensByUnitIds` readback。SDD：`annotation-token-edit/`。不写 `layer_units`；不接 ChatWindow / `useTranscriptionAnnotationController` / `annotationAdapters`。转写页需 reload 才见镜像 `unit.words` | 写→reload→readback；Dexie vitest；flag 默认 false | 是 |
-| **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | 承 B4a-2：morpheme 分层编辑 + 手动分词 + 词典链接编辑 + Leipzig Validator 模板；细节真源见 [标注页与词典页路线图](./标注页与词典页开发路线图-2026-04-25.md) M1b | 分词/链接写→reload→readback；Validator 校验；定向 vitest | 是 |
+| **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | **【🟡 已落地·flag 关】** 承 B4a-2：morpheme 按 `-`/`=` 分格 + gloss 写 `unit_morphemes`；token 空格/`|` 切分与与下一词合并写 `unit_tokens`；词典查询写 `token_lexeme_links`（role=`manual`）。Leipzig 内联校验 + 系统结构模板标记；模板编辑复用 `/assets/structural-profiles`。SDD：`annotation-morpheme-edit/`。不写 `layer_units`；不做二次自动分词 / note/tag；不接 ChatWindow | 分词/链接/词素写→reload→readback；Leipzig invalid；定向 vitest | 是 |
 | **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【确认占位】**（`CorpusLibraryPage`(25 行) = `FeatureAvailabilityPanel`；PR-11 已移除无消费的 `corpusLibraryLabEnabled` 死 flag，B5a 启动时若仍需灰度开关，应新增带 owner / expiry 的专用 flag）→ 页面壳 + 多选交互 + 可见工作集；复用 `SidePaneSidebarSegmentList`（读模型）、`useTranscriptionSelectionSnapshot`、i18n；**「写」仅指工作集/筛选态持久化，禁止写 `layer_units`/`unit_tokens` 等转写真源表**。**若本切片接 AI 工具：前置 A6 + A7 + A9 + A10** | 工作集态写→reload→readback；不复刻标注写库；定向 vitest | 是 |
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | 承 B5a：复制 text/plain + markdown 带可追溯元数据（来源 unit/项目锚点）；与转写/标注深链对齐 | 出站 golden 对拍 + 元数据可追溯；e2e:chromium | 是 |
 | **B6** | 引用断裂态（ADR-0011，P0-6） | M | **【原语就绪·待消费】** `WORKSPACE_LEXEME_DELETED_EVENT`(soft/hard) 与 `LinguisticService.cleanup`/`TranscriptionPage.citationJump` 已存在。**剩余**=删除→引用断裂态 UI 消费 + 错误码；`LayerSegmentationTextService`、ADR-0011 回写。**segmentMeta 一致性前提**：当前 `segment_meta` 为 best-effort 最终一致性（PR-10 已落地 50ms 微批合并 + 失败日志），B6 UI 消费须兼容派生表延迟/不一致场景；若需强一致性，应先实现后台对账任务强制同步 | 删/软删后引用进断裂态、返回错误码；禁止假成功摘要；定向 vitest | 否 |
@@ -275,3 +275,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-04 | **B3 词典回归**：列表选中刷新详情与命中语段、sessionStorage 往返、segment 深链、`useLexiconSearch` 单测；e2e `/lexicon` 检索框+词条列表。可选 B2 事件接线仍开。 |
 | 2026-09-04 | **B4a-1**：`/annotation` 只读 IGT 壳 + 键盘骨架；`annotationPageEnabled` 默认 false。不写 token，不接 ChatWindow。下一刀 **B4a-2**。 |
 | 2026-09-04 | **B4a-2**：POS/gloss 受控编辑 + `unit_tokens` 写→readback；Enter 留位、Ctrl+Enter 成功才跳行。Flag 仍默认 false。下一刀 **B4b**。 |
+| 2026-09-04 | **B4b**：morpheme 写 `unit_morphemes`、手动切分/合并 `unit_tokens`、词典链接 `token_lexeme_links`、Leipzig 内联校验。Validator 模板复用结构标注配置页。Flag 仍默认 false。下一刀 **B5a**。 |

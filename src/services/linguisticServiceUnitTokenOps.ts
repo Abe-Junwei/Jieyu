@@ -202,6 +202,21 @@ export async function saveMorphemesBatch(items: UnitMorphemeDocType[]): Promise<
   await db.collections.unit_morphemes.bulkInsert(items);
 }
 
+/** Replace all morphemes for one token, then return the stored rows. */
+export async function replaceMorphemesForToken(
+  tokenId: string,
+  items: readonly UnitMorphemeDocType[],
+): Promise<UnitMorphemeDocType[]> {
+  const id = tokenId.trim();
+  if (id.length === 0) return [];
+  const db = await getDb();
+  await db.collections.unit_morphemes.removeBySelector({ tokenId: id });
+  if (items.length > 0) {
+    await db.collections.unit_morphemes.bulkInsert([...items]);
+  }
+  return getMorphemesByTokenId(id);
+}
+
 export async function removeToken(tokenId: string): Promise<void> {
   const db = await getDb();
   await db.collections.unit_morphemes.removeBySelector({ tokenId });
