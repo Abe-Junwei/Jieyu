@@ -343,3 +343,25 @@ export function pickDefaultTranscriptionText(transcription: unknown): string {
   }
   return '';
 }
+
+/** Language key paired with {@link pickDefaultTranscriptionText} for write/read alignment. */
+export function pickDefaultTranscriptionLangKey(transcription: unknown): string {
+  if (transcription === null || transcription === undefined || typeof transcription !== 'object') {
+    return 'default';
+  }
+  const record = transcription as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(record, 'default')) {
+    const direct = typeof record.default === 'string' ? record.default.trim() : '';
+    if (direct.length > 0) return 'default';
+  }
+  for (const [key, value] of Object.entries(record)) {
+    if (key === 'default') continue;
+    const next = typeof value === 'string' ? value.trim() : '';
+    if (next.length > 0) return key;
+  }
+  if (Object.prototype.hasOwnProperty.call(record, 'default')) {
+    return 'default';
+  }
+  const keys = Object.keys(record);
+  return keys[0] ?? 'default';
+}
