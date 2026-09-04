@@ -59,7 +59,7 @@ function renderPage(path: string) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  const view = render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
         <LocaleProvider locale="zh-CN">
@@ -70,6 +70,7 @@ function renderPage(path: string) {
       </MemoryRouter>
     </QueryClientProvider>,
   );
+  return { ...view, client };
 }
 
 afterEach(() => {
@@ -163,6 +164,29 @@ describe('CorpusLibraryPage', () => {
     );
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('second sentence'));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('00:01.5-00:02.0'));
+  });
+
+  it('copies basket units when media scope tightens after selection', async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    featureFlagState.corpusLibraryPageEnabled = true;
+    const u2Only = [{ ...SAMPLE_UNITS[1], mediaId: 'mid-2' }];
+    mockListByTextId.mockResolvedValue(u2Only);
+    const { client } = renderPage('/corpus?textId=tid-1&mediaId=mid-1');
+    const row = await screen.findByTestId('corpus-library-unit-uid-2', {}, { timeout: 4000 });
+    fireEvent.click(row.querySelector('input[type="checkbox"]') as HTMLInputElement);
+    mockListByTextId.mockResolvedValue(SAMPLE_UNITS);
+    client.setQueryData(
+      ['corpus-library-units', 'tid-1'],
+      [SAMPLE_UNITS[0], { ...SAMPLE_UNITS[1], mediaId: 'mid-2' }],
+    );
+    await waitFor(() => expect(screen.queryByTestId('corpus-library-unit-uid-2')).toBeNull());
+    fireEvent.click(screen.getByTestId('corpus-library-copy-markdown'));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining('/transcription?textId=tid-1&mediaId=mid-2&unitId=uid-2'),
+    );
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('second sentence'));
   });
 
   it('does not write the clipboard when the workset is empty', async () => {
