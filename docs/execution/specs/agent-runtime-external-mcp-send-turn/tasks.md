@@ -23,12 +23,12 @@ depends_on:
 
 ## Pre-merge gates
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 `vitest`（`src/ai/mcp/client` 等）
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:agent-evals:smoke`
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
-- [ ] Feature flag 默认 `false`
+- [x] `npm run typecheck`
+- [x] 触及域 `vitest`（`src/ai/mcp/client` 等）
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:agent-evals:smoke`
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] Feature flag 默认 `false`
 
 ## Commit 阶段证据模板
 
