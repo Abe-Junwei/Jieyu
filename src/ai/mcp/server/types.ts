@@ -45,6 +45,8 @@ export interface McpServerRuntimeContext {
   textId?: string;
   currentMediaId?: string;
   currentLayerId?: string;
+  /** A8: optional send-turn / outbound client run id copied onto mcp_tool_call_audits. */
+  agentRunId?: string;
 }
 
 export interface McpServerOptions {

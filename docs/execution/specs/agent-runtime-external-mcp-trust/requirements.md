@@ -13,7 +13,7 @@ source_of_truth: agent-runtime-external-mcp-trust-spec
 
 - **要做什么**：给外部 MCP client 加 origin allowlist；未登记 / 未启用的 server 的 `tools/list` schema **不得**进 LLM；首次启用经 A9 扫描 tool 描述。
 - **为什么现在做**：A9 已进 main；主路线图 Wave 4 下一刀；C1 外连 MCP 硬前置。
-- **不做什么**：不实现 outbound HTTP MCP client（B12）；不引入 mcp-doorman / Veil 代理依赖；不改 ChatWindow；不改 inbound Jieyu MCP server 只读合同。
+- **不做什么**：不实现 outbound HTTP MCP client（**B13**）；不引入 mcp-doorman / Veil 代理依赖；不改 ChatWindow；不改 inbound Jieyu MCP server 只读合同。
 
 ## 2. 用户场景（≤ 3 条）
 

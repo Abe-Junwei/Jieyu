@@ -1,19 +1,22 @@
 # MCP Client / Server
 
-Inbound Jieyu MCP server supports tools plus **B12** `resources/list|read` and `prompts/list|get` (flag `aiMcpResourcesArtifactsEnabled`, default false). Outbound HTTP/SSE client is **not** implemented.
+Inbound Jieyu MCP server supports tools plus **B12** `resources/list|read` and `prompts/list|get` (flag `aiMcpResourcesArtifactsEnabled`, default false).
+
+Outbound **B13** Streamable HTTP client (`externalMcpHttpClient.ts`) POSTs `tools/list` / `tools/call` to B11-enabled origins (flag `aiExternalMcpHttpClientEnabled`, default false). It does not use `@modelcontextprotocol/sdk`. ChatWindow / send-turn is not wired.
 
 ## 计划对接的 MCP Server
 
-- **Zotero MCP**：写作引用管理（outbound，未做）
-- **OpenAlex MCP**：文献检索（outbound，未做）
+- **Zotero MCP**：写作引用管理（outbound transport 已有，专用适配未做）
+- **OpenAlex MCP**：文献检索（outbound transport 已有，专用适配未做）
 
 ## 当前状态
 
 - `mcpClientTypes.ts`：类型定义与空注册表
 - `externalMcpTrustRegistry.ts`：B11 origin allowlist
+- `externalMcpHttpClient.ts`：B13 Streamable HTTP JSON-RPC 子集
 - `mcpReadSurfaces.ts`：CorpusSourceSet URI + A12 workflow prompts
 - `agentArtifact.ts`：Dexie `agent_artifacts` + B5b export manifest helper
 
 ## 下一步
 
-Outbound HTTP/SSE transport 仍未排独立切片。调用外部 tools 只经 `exposeExternalMcpToolsToLlm`。
+ChatWindow 接线与 Zotero/OpenAlex 专用适配另排。浏览器 CSP `connect-src` 不因本切片放宽（ADR-0031）。

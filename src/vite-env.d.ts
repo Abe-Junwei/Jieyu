@@ -44,6 +44,8 @@ interface ImportMetaEnv {
 	readonly VITE_AI_EXTERNAL_MCP_TRUST_ENABLED?: string;
 	/** Optional override for `aiMcpResourcesArtifactsEnabled` (true/false, 1/0). Default off. */
 	readonly VITE_AI_MCP_RESOURCES_ARTIFACTS_ENABLED?: string;
+	/** Optional override for `aiExternalMcpHttpClientEnabled` (true/false, 1/0). Default off. */
+	readonly VITE_AI_EXTERNAL_MCP_HTTP_CLIENT_ENABLED?: string;
 }
 
 interface ImportMeta {
