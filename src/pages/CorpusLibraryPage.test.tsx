@@ -155,11 +155,14 @@ describe('CorpusLibraryPage', () => {
     expect(screen.queryByTestId('corpus-library-unit-uid-2')).toBeNull();
     fireEvent.click(screen.getByTestId('corpus-library-copy-markdown'));
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
-    const copied = writeText.mock.calls[0]?.[0] as string;
-    expect(copied).toContain('/transcription?textId=tid-1&mediaId=mid-1&unitId=uid-1');
-    expect(copied).toContain('/transcription?textId=tid-1&mediaId=mid-1&unitId=uid-2');
-    expect(copied).toContain('second sentence');
-    expect(copied).toContain('00:01.5-00:02.0');
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining('/transcription?textId=tid-1&mediaId=mid-1&unitId=uid-1'),
+    );
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining('/transcription?textId=tid-1&mediaId=mid-1&unitId=uid-2'),
+    );
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('second sentence'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('00:01.5-00:02.0'));
   });
 
   it('does not write the clipboard when the workset is empty', async () => {
