@@ -87,7 +87,7 @@ export function useCorpusLibraryController() {
     const needle = filterText.trim().toLowerCase();
     const basketUnitIds = readCorpusBasketSession().unitIds;
     const selectedIds = new Set(basketUnitIds);
-    const exportUnits = scoped.map((unit) =>
+    const exportUnits = units.map((unit) =>
       toCorpusWorksetExportUnit({
         id: unit.id,
         ...(unit.textId !== undefined && unit.textId.length > 0 ? { textId: unit.textId } : {}),
