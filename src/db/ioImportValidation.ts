@@ -9,6 +9,7 @@ import type {
   AnchorDocType,
   ProjectAiMemoryDoc,
   McpToolCallAuditDoc,
+  ExternalMcpTrustDoc,
   AuditLogDocType,
   BibliographicSourceDocType,
   CustomFieldDefinitionDocType,
@@ -58,6 +59,7 @@ import {
   validateAnchorDoc,
   validateProjectAiMemoryDoc,
   validateMcpToolCallAuditDoc,
+  validateExternalMcpTrustDoc,
   validateAuditLogDoc,
   validateBibliographicSourceDoc,
   validateCustomFieldDefinitionDoc,
@@ -173,6 +175,7 @@ const validatorByCollection = {
   project_ai_memories: (value: unknown) => validateProjectAiMemoryDoc(value as ProjectAiMemoryDoc),
   mcp_tool_call_audits: (value: unknown) =>
     validateMcpToolCallAuditDoc(value as McpToolCallAuditDoc),
+  external_mcp_trust: (value: unknown) => validateExternalMcpTrustDoc(value as ExternalMcpTrustDoc),
 } as const satisfies Record<string, (value: unknown) => void>;
 
 export function validateCollectionDoc(collectionName: string, value: unknown): void {

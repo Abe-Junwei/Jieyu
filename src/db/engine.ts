@@ -22,6 +22,7 @@ import type {
   AiSessionMemoryDoc,
   ProjectAiMemoryDoc,
   McpToolCallAuditDoc,
+  ExternalMcpTrustDoc,
   LanguageDocType,
   LanguageDisplayNameDocType,
   LanguageAliasDocType,
@@ -73,6 +74,7 @@ import {
   validateAiSessionMemoryDoc,
   validateProjectAiMemoryDoc,
   validateMcpToolCallAuditDoc,
+  validateExternalMcpTrustDoc,
   validateLanguageDoc,
   validateLanguageDisplayNameDoc,
   validateLanguageAliasDoc,
@@ -144,7 +146,7 @@ export const JIEYU_DEXIE_DB_NAME = 'jieyudb_v2' as const;
  * 须与 `JieyuDexie` 构造器内**最高**的 `this.version(…)` 号一致，供健康检查 / 迁移回放测试（ARCH-5）。
  * Must match the highest `this.version(…)` in `JieyuDexie` — health + migration-replay (ARCH-5).
  */
-export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 50;
+export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 51;
 
 export function buildSegmentationV2BackfillRows(input: {
   units: LayerUnitDocType[];
@@ -409,6 +411,7 @@ export class JieyuDexie extends Dexie {
   ai_session_memories!: Table<AiSessionMemoryDoc, string>;
   project_ai_memories!: Table<ProjectAiMemoryDoc, string>;
   mcp_tool_call_audits!: Table<McpToolCallAuditDoc, string>;
+  external_mcp_trust!: Table<ExternalMcpTrustDoc, string>;
   languages!: Table<LanguageDocType, string>;
   language_display_names!: Table<LanguageDisplayNameDocType, string>;
   language_aliases!: Table<LanguageAliasDocType, string>;
@@ -1467,6 +1470,10 @@ export class JieyuDexie extends Dexie {
     this.version(50).stores({
       ai_session_memories: 'conversationId, updatedAt',
     });
+
+    this.version(51).stores({
+      external_mcp_trust: 'id, origin, enabled, updatedAt',
+    });
   }
 }
 
@@ -1692,6 +1699,10 @@ async function _createDb(): Promise<JieyuDatabase> {
     mcp_tool_call_audits: new DexieCollectionAdapter(
       dexie.mcp_tool_call_audits,
       validateMcpToolCallAuditDoc,
+    ),
+    external_mcp_trust: new DexieCollectionAdapter(
+      dexie.external_mcp_trust,
+      validateExternalMcpTrustDoc,
     ),
     languages: new DexieCollectionAdapter(dexie.languages, validateLanguageDoc),
     language_display_names: new DexieCollectionAdapter(

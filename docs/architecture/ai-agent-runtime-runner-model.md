@@ -30,7 +30,7 @@ depends_on:
 | **Tool catalog** | `AiToolCatalog` SSOT（`src/ai/catalog/aiToolCatalog.ts`）；shadow re-export | A10 |
 | **Eval** | `agent-evals` + trajectory NDJSON + `agentRunId` 链断言 | A14 |
 | **Long-running / async** | `TaskRunner.enqueue`（可 pump）与 `parkCheckpoint`（pending、不 pump）；共享 `agentRunId` | A13 |
-| **MCP tools** | 自研 server/client | B11、B12 |
+| **MCP tools** | 自研 inbound server + B11 origin allowlist；HTTP client 属 B12 | B11、B12 |
 
 ## 2. 分层架构
 

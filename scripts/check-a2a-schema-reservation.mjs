@@ -86,14 +86,19 @@ check(
   'Missing v49 migration for ai_source_sets',
 );
 check(
-  engineSrc.includes('JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 50'),
-  'Target schema version is 50',
-  'Schema version not bumped to 50',
+  engineSrc.includes('JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 51'),
+  'Target schema version is 51',
+  'Schema version not bumped to 51',
 );
 check(
   engineSrc.includes("ai_session_memories: 'conversationId, updatedAt'"),
   'v50 migration includes ai_session_memories',
   'Missing v50 migration for ai_session_memories',
+);
+check(
+  engineSrc.includes("this.version(51)") && engineSrc.includes('external_mcp_trust'),
+  'v51 schema migration includes external_mcp_trust',
+  'Missing v51 migration for external_mcp_trust',
 );
 
 // MCP Client 预留

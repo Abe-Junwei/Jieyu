@@ -44,6 +44,8 @@ import {
 import { normalizeEmbeddingProviderConfig, readStoredBoolean } from './settingsHelpers';
 import type { SettingsModalMessages } from '../../i18n/messages';
 import type { Locale } from '../../i18n';
+import { featureFlags } from '../../ai/config/featureFlags';
+import { SettingsAiMcpTrustSection } from './SettingsAiMcpTrustSection';
 
 interface SettingsAiTabProps {
   locale: Locale;
@@ -328,6 +330,7 @@ export function SettingsAiTab({ locale: _locale, msg }: SettingsAiTabProps) {
               {aiSaveFlash && <span className="settings-save-flash">{msg.aiSaved}</span>}
             </div>
           </SettingsSection>
+          {featureFlags.aiExternalMcpTrustEnabled ? <SettingsAiMcpTrustSection msg={msg} /> : null}
           {activeAiProviderDef.fields.length > 0 && (
             <SettingsSection
               title={activeAiProviderDef.label}

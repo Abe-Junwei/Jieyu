@@ -110,10 +110,11 @@ Wave 3 — Workflow 编排 + 人在环写路径（A11/A12 已进 main）
   A12  StepKind + registry 元数据 + parallel readonly API（已进 main；send-turn 并行仍不开）
   A11  Preview UI → confirm → commitToolEffects（flag `aiAgentUiPreviewEnabled` 默认 false）
 
-Wave 4 — 安全外连 + 评测/长程 harness ← 本 PR 收口 A13
-  A9   semantic guard（flag `aiSemanticGuardEnabled` 默认 false；已进 main）→ B11 MCP schema 隔离
+Wave 4 — 安全外连 + 评测/长程 harness ← 本 PR 收口 B11
+  A9   semantic guard（flag `aiSemanticGuardEnabled` 默认 false；已进 main）→ B11 已复用 inspectInbound
   A14  按 agentRunId 强化 trajectory 断言（承接 A8；已进 main）
-  A13  TaskRunner + checkpoint 合同 + parallel readonly 样本（已落地；send-turn 仍串行）
+  A13  TaskRunner + checkpoint 合同 + parallel readonly 样本（已进 main；send-turn 仍串行）
+  B11  外部 MCP trust allowlist（flag `aiExternalMcpTrustEnabled` 默认 false；registry + Settings AI 节）
   —    P2 工具 ACI metrics 基线写入 release evidence（归 A14/A10 验收，不新增切片）
 ```
 
@@ -158,7 +159,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：本 PR 收口 **A13**（TaskRunner park/enqueue + 4 态 resume 合同 + parallel readonly vitest 样本）。A9/A14 已进 main。之后 **Wave 4 → B11**（外部 MCP trust）。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：本 PR 收口 **B11**（外部 MCP origin allowlist + A9 schema 扫描 + Settings AI 节）。A9/A13/A14 已进 main。之后 **B12**（MCP resources/prompts + AgentArtifactV0）。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -171,7 +172,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **A6** | F4 Batch B/C + 工业三开关 evidence | ✅ | **W1** | M–L | [架构补强](./Agent运行时架构补强-本地优先落地方案-2026-06-01.md) §3.1；Batch A 旁路已受控；Batch B = `check:ai-session-sidecar-entrypoints` 白名单；Batch C = session-sidecar + governance strict 证据门禁；工业三开关 dogfood/staging ON、prod OFF（见 [安全策略 §5](../../architecture/ai-agent-runtime-security-local-first.md)）。**B4/B5 写工具仍须 A7+A10** | `check:ai-session-sidecar-entrypoints` + `gate:release-evidence:governance:strict` 绿 | 否 |
 | **A7** | Last Mile 写 gate + per-tool policy 矩阵 v1 | 🟡 | **W1** | L | **已落地**：`toolWriteGate` Phase 2–4、`supportsPreview`、pipeline i18n（dogfood/staging write gate 默认 on）；**Phase 1（2026-09-02）**：矩阵 `effect`/`scopeBinding` + `LOCAL_CONTEXT_TOOL_POLICY` catalog parity（`localContextToolEffects` 收敛为政策表）。**剩余**：超 scope 写 block 的 B4 写工具样本仍待 A11 preview→commit | 超 scope 写 block + audit；只读零弹窗；写经 **A11** preview→commit | 是 |
 | **A8** | agentRunId + intent 审计链 | 🟡 | **W2** | M | **已落地**：`newAgentRunId()` 于 send-turn preflight；`ToolAuditContext` / decision+intent metadata / agent-loop step audit 含 `agentRunId`。A14 已按 run 过滤断言。**剩余**：MCP audit 同源字段 | Replay 可按 run 过滤；为 **A14** 按 run 断言前置 | 否 |
-| **A9** | 轻量本地 semantic guard（入/出站） | 🟡 | **W4** | M | **已落地**：`src/ai/security/semanticGuard.ts`；persist `before_model` 入站 block、finalize `before_client` 出站 redact；`CorpusSourceSet.trustTier`；SDD `agent-runtime-security-semantic-guard/`。Flag `aiSemanticGuardEnabled` 默认 **false**。**剩余**：flag 放量；B11 schema 进 LLM 前复用同一 inspect。**阻塞 B11** | injection/PII 单测；`adversarial-semantic-guard-*` eval | 是 |
+| **A9** | 轻量本地 semantic guard（入/出站） | 🟡 | **W4** | M | **已落地**：`src/ai/security/semanticGuard.ts`；persist `before_model` 入站 block、finalize `before_client` 出站 redact；`CorpusSourceSet.trustTier`；SDD `agent-runtime-security-semantic-guard/`。Flag `aiSemanticGuardEnabled` 默认 **false**。**剩余**：flag 放量。B11 已复用同一 `inspectInbound`。 | injection/PII 单测；`adversarial-semantic-guard-*` eval | 是 |
 | **A10** | Runner 基座：Callback + Catalog + commitToolEffects | 🟡 | **W2** | L | **已落地**：A10.1–A10.5 `agentCallbacks` / `aiToolCatalog` / `commitToolEffects`；auto/confirm/local-context 无 persist 旁路。**A10.6** `executeReadonlyToolBatch`（随 A12：拒写、`Promise.all`、一次 `commitToolEffects`）。SDD：`agent-runtime-runner-foundation/` + A12 spec。**剩余**：send-turn 多工具仍串行（policy/clarify）；并行只读不替换现网 loop | grep 无直写 localToolState/audit 旁路；catalog parity 绿；readonly batch 单测 | 是 |
 | **A11** | AgentUiEvent + Preview 统一 + triage→UI | 🟡 | **W3** | L | **已落地**：`agentUiEvents` 总线；pending/blocked/confirm/cancel 同源 `agentRunId`；`AgentWritePreviewSection` 渲染 `AiChangeTransactionPreviewV1` + triage；confirm 仍经 `commitToolEffects`。**剩余**：flag 放量后 e2e 写确认 smoke；B4 标注写工具样本。SDD：`agent-runtime-preview-ui/`。Flag `aiAgentUiPreviewEnabled` 默认 **false** | event 与 audit 同源；flag off 现网 DOM 不变 | 是 |
 | **A12** | Workflow 强化：StepKind + Reflection + Structured output | 🟡 | **W3** | L | **已落地**：`workflowCompletionChecklist`、finalize reflection reconcile、agent loop `workflowAnswerReady`；A12.1 `workflowStepKinds`；A12.2 registry `reflectionHandlerId` / `outputSchemaId` / `maxReflectionRetries` / `stepKinds`；A12.3 composed `parallel_readonly` 样本 + `executeReadonlyToolBatch`；A12.4 composed 步 ⊆ registry、checklist keys = registry keys；A12.5 `dispatchVerticalWorkflowReflection` + `after_model`。SDD：`agent-runtime-workflow-registry-v1/`。**剩余**：send-turn 多工具仍串行（刻意）；并行只读样本在 **A13** vitest，不替换 sequential local-tool | B4 新 workflow 只登记 registry；checklist 未闭合不得 done | 是 |
@@ -192,7 +193,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | 承 B5a：复制 text/plain + markdown 带可追溯元数据（来源 unit/项目锚点）；与转写/标注深链对齐 | 出站 golden 对拍 + 元数据可追溯；e2e:chromium | 是 |
 | **B6** | 引用断裂态（ADR-0011，P0-6） | M | **【原语就绪·待消费】** `WORKSPACE_LEXEME_DELETED_EVENT`(soft/hard) 与 `LinguisticService.cleanup`/`TranscriptionPage.citationJump` 已存在。**剩余**=删除→引用断裂态 UI 消费 + 错误码；`LayerSegmentationTextService`、ADR-0011 回写。**segmentMeta 一致性前提**：当前 `segment_meta` 为 best-effort 最终一致性（PR-10 已落地 50ms 微批合并 + 失败日志），B6 UI 消费须兼容派生表延迟/不一致场景；若需强一致性，应先实现后台对账任务强制同步 | 删/软删后引用进断裂态、返回错误码；禁止假成功摘要；定向 vitest | 否 |
 | **B7** | 语料库 AI 分区与会话隔离（P1-1） | M | `useAiToolCallHandler.adapters`、`useAiChat.config`、`CorpusLibraryPage`；`corpusBridgeAdapter` 命名。**前置：A6 + A7 + A9 + A12** | corpus 侧复制优先、默认不写回主链；会话与转写隔离；`check:agent-evals:smoke` | 是 |
-| **B11** | 外部 MCP trust allowlist | M | [架构补强](./Agent运行时架构补强-本地优先落地方案-2026-06-01.md) §9；`ExternalMcpTrustRegistry`；**trust 确认前 MCP schema 不得进 LLM**；首次连接经 **A9** 扫描。**依赖：A9**（Agent 轨 **Wave 4** 与 A9 同波收口） | 未登记 server deny；schema 零暴露；用户显式启用；审计 readback | 是 |
+| **B11** | 外部 MCP trust allowlist | M | **【已落地·flag 关】** `externalMcpTrustRegistry` + Dexie v51 `external_mcp_trust`；`exposeExternalMcpToolsToLlm` 对未登记 / 未启用 / flag off 零暴露；首次启用带 schema 走 A9 `inspectInbound`；Settings AI 节 flag 开才渲染。Flag `aiExternalMcpTrustEnabled` 默认 **false**。**剩余**：flag 放量；outbound HTTP client 属 **B12**。SDD：`agent-runtime-external-mcp-trust/`。**依赖 A9** | 未登记 server deny；schema 零暴露；用户显式启用；审计 readback | 是 |
 | **B12** | MCP resources/prompts + AgentArtifactV0 | M | [架构补强](./Agent运行时架构补强-本地优先落地方案-2026-06-01.md) §10；MCP `resources/list` + `prompts/list`；`AgentArtifactV0` + AdoptionQueue。**依赖：B11 + A12** | resource URI readback；artifact 引用链；B5b 导出清单衔接 | 是 |
 | **B8** | 词典附件能力（引用式资产，P1-2） | M | `LexiconPage`、`useTranscriptionCollaborationBridge`、`useTranscriptionData` | 附件元数据持久化+回显（写→reload→readback）；删除走引用计数安全回收 | 是 |
 | **B9** | 分析页 /analysis | — | **受限工作台已落地（非产品级开放台）**：[ADR-0033](../../adr/0033-analysis-restricted-workspace-no-transcription-dock.md) 把 `/analysis` 做成向量索引 / 语料统计入口（复用 `TranscriptionPageAnalysisRuntime`，`visibleTabs`: embedding / stats），**不嵌波形、不升格为第二转写台**。完整科研分析工作台仍不排期 | — | — |
@@ -261,3 +262,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-03 | **Wave 4 A9 代码落地**：本地 `semanticGuard` 入站 block / 出站 redact；挂 `before_model` / `before_client`；`trustTier`；flag `aiSemanticGuardEnabled` 默认 false。 |
 | 2026-09-03 | **Wave 4 A14**：`--assert-audit-trace` 按 `agentRunId` 链式断言；semantic-cases 进 `:smoke`；P2 ACI 基线写入 `agent-tool-aci-baseline.v1.json`。剩余可选 pass@k。下一刀 **A13**。 |
 | 2026-09-04 | **Wave 4 A13**：`TaskRunner.parkCheckpoint` + enqueue `agentRunId`；parked resumable `agent_loop` 跳过 stale recover；4 态 resume classifier；catalog `trust: background`；parallel readonly vitest 样本（`search_units`+`list_layers`）。send-turn 仍串行。下一刀 **B11**。 |
+| 2026-09-04 | **Wave 4 B11**：Dexie v51 `external_mcp_trust` + `exposeExternalMcpToolsToLlm`；A9 schema 扫描；Settings AI 节 flag 开才渲染。Flag 默认 false。下一刀 **B12**。 |

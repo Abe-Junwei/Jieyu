@@ -1228,6 +1228,21 @@ export type McpToolCallAuditOutcome =
   | 'timeout'
   | 'not_supported';
 
+/** B11: outbound MCP client allowlist row. Identity is normalized origin URL, not display name. */
+export type ExternalMcpTrustScanResult = 'allow' | 'block' | 'skipped';
+
+export interface ExternalMcpTrustDoc {
+  id: string;
+  origin: string;
+  label?: string;
+  enabled: boolean;
+  lastSchemaScanResult?: ExternalMcpTrustScanResult;
+  lastSchemaScanAt?: string;
+  lastSchemaScanReasonsJson?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface McpToolCallAuditDoc {
   id: string;
   schemaVersion: 1;
@@ -1327,6 +1342,7 @@ export type JieyuCollections = {
   ai_session_memories: CollectionAdapter<AiSessionMemoryDoc>;
   project_ai_memories: CollectionAdapter<ProjectAiMemoryDoc>;
   mcp_tool_call_audits: CollectionAdapter<McpToolCallAuditDoc>;
+  external_mcp_trust: CollectionAdapter<ExternalMcpTrustDoc>;
   ai_source_sets: CollectionAdapter<AiSourceSetDoc>;
 };
 

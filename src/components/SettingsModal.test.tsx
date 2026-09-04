@@ -241,6 +241,8 @@ describe('AI tab', () => {
     expect(providerSection).toBeTruthy();
     const select = within(providerSection as HTMLElement).getByRole('combobox') as HTMLSelectElement;
     expect(select.value).toBe('mock');
+    expect(screen.queryByTestId('settings-ai-mcp-trust')).toBeNull();
+    expect(screen.queryByText('外部 MCP 信任名单')).toBeNull();
   });
 
   it('persists embedding defaults and acoustic runtime defaults', async () => {

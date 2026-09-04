@@ -87,6 +87,10 @@ const aiSemanticGuardEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_AI_SEMANTIC_GUARD_ENABLED,
 );
 
+const aiExternalMcpTrustEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_AI_EXTERNAL_MCP_TRUST_ENABLED,
+);
+
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
   featureFlagDeploymentEnvironment === 'staging' ||
@@ -186,4 +190,8 @@ export const featureFlags = {
    * 默认 false；开启后挂 before_model / before_client。见 spec agent-runtime-security-semantic-guard。
    */
   aiSemanticGuardEnabled: aiSemanticGuardEnabledFromEnv ?? false,
+  /**
+   * B11: outbound MCP origin allowlist. Default false; untrusted schema never reaches the LLM.
+   */
+  aiExternalMcpTrustEnabled: aiExternalMcpTrustEnabledFromEnv ?? false,
 } as const;

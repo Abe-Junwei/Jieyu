@@ -186,6 +186,7 @@ const knownCollectionNames = [
   'ai_session_memories',
   'project_ai_memories',
   'mcp_tool_call_audits',
+  'external_mcp_trust',
   'ai_source_sets',
 ] as const;
 
@@ -238,6 +239,7 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   ai_session_memories: db.ai_session_memories,
   project_ai_memories: db.project_ai_memories,
   mcp_tool_call_audits: db.mcp_tool_call_audits,
+  external_mcp_trust: db.external_mcp_trust,
   ai_source_sets: db.ai_source_sets,
 };
 

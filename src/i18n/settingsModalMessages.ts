@@ -143,6 +143,17 @@ export type SettingsModalMessages = {
   aiVoiceApplyHint: string;
   aiDebugTitle: string;
   aiDebugContextLabel: string;
+  aiMcpTrustTitle: string;
+  aiMcpTrustHint: string;
+  aiMcpTrustOriginLabel: string;
+  aiMcpTrustOriginPlaceholder: string;
+  aiMcpTrustLabelOptional: string;
+  aiMcpTrustSchemaOptional: string;
+  aiMcpTrustAddEnableButton: string;
+  aiMcpTrustEmpty: string;
+  aiMcpTrustInvalidOrigin: string;
+  aiMcpTrustSchemaInvalid: string;
+  aiMcpTrustSchemaBlocked: string;
   // 关于 | About
   aboutVersion: string;
   aboutDescription: string;
