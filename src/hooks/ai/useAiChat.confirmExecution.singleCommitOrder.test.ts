@@ -77,12 +77,13 @@ describe('executeConfirmedToolCall — T3-c commit order', () => {
     expect(markExecutedRequestId).not.toHaveBeenCalled();
   });
 
-  it('skips side effects when conversation switched during in-flight confirm', async () => {
+  it('rolls back and skips side effects when conversation switched during in-flight confirm', async () => {
     let activeConversationId = 'conv-a';
     const shouldApplyTurnSideEffects = () => activeConversationId === 'conv-a';
+    const rollback = vi.fn(async () => {});
     const onToolCall = vi.fn(async () => {
       activeConversationId = 'conv-b';
-      return { ok: true, message: 'saved' };
+      return { ok: true, message: 'saved', rollback };
     });
     const persistSessionMemory = vi.fn();
     const markExecutedRequestId = vi.fn();
@@ -112,6 +113,7 @@ describe('executeConfirmedToolCall — T3-c commit order', () => {
     });
 
     expect(onToolCall).toHaveBeenCalledTimes(1);
+    expect(rollback).toHaveBeenCalledTimes(1);
     expect(persistSessionMemory).not.toHaveBeenCalled();
     expect(markExecutedRequestId).not.toHaveBeenCalled();
   });

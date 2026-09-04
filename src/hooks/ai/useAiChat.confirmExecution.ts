@@ -434,6 +434,9 @@ export async function executeConfirmedToolCall({
       const execDurationMs = Math.round(performance.now() - execStart);
 
       if (shouldApplyTurnSideEffects && !shouldApplyTurnSideEffects()) {
+        if (result.ok && typeof result.rollback === 'function') {
+          await result.rollback();
+        }
         setTaskSession({
           id: taskSessionId,
           status: 'idle',
