@@ -17,6 +17,7 @@ export type AnnotationKeyboardState = {
 
 export type AnnotationKeyboardEvent =
   | { type: 'focusRow'; unitId: string }
+  | { type: 'focusInput'; unitId: string }
   | {
       type: 'keydown';
       key: string;
@@ -25,7 +26,11 @@ export type AnnotationKeyboardEvent =
       hasSuggestion: boolean;
     };
 
-function stepUnitId(unitIds: readonly string[], currentId: string, delta: number): string {
+export function stepAnnotationUnitId(
+  unitIds: readonly string[],
+  currentId: string,
+  delta: number,
+): string {
   if (unitIds.length === 0) return '';
   const index = unitIds.indexOf(currentId);
   const from = index >= 0 ? index : 0;
@@ -40,10 +45,16 @@ export function reduceAnnotationKeyboard(
   event: AnnotationKeyboardEvent,
   unitIds: readonly string[],
 ): { state: AnnotationKeyboardState; action: AnnotationKeyboardAction } {
-  if (event.type === 'focusRow') {
+  if (event.type === 'focusRow' || event.type === 'focusInput') {
     const id = event.unitId.trim();
     if (id.length === 0) return { state, action: 'none' };
-    return { state: { mode: 'rowFocused', focusedUnitId: id }, action: 'none' };
+    return {
+      state: {
+        mode: event.type === 'focusInput' ? 'inputFocused' : 'rowFocused',
+        focusedUnitId: id,
+      },
+      action: 'none',
+    };
   }
 
   const focusedUnitId =
@@ -67,7 +78,7 @@ export function reduceAnnotationKeyboard(
       return { state: current, action: 'acceptSuggestion' };
     }
     const action: AnnotationKeyboardAction = shiftKey ? 'movePrev' : 'moveNext';
-    const nextId = stepUnitId(unitIds, focusedUnitId, shiftKey ? -1 : 1);
+    const nextId = stepAnnotationUnitId(unitIds, focusedUnitId, shiftKey ? -1 : 1);
     return { state: { ...current, focusedUnitId: nextId }, action };
   }
 
