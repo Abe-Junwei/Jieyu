@@ -212,6 +212,19 @@
         "approval_explainability",
         "gate_correctness"
       ]
+    },
+    {
+      "id": "external-mcp-trust-schema-scan",
+      "name": "B11 external MCP schema scan (no 16k truncation / inputSchema injection)",
+      "command": "npx vitest run src/ai/mcp/client/externalMcpTrustRegistry.test.ts",
+      "category": "policy",
+      "evalSuite": "regression",
+      "tiers": ["full"],
+      "goldenTaskCount": 2,
+      "trajectorySignals": [
+        "gate_correctness",
+        "audit_traceability"
+      ]
     }
   ]
 }

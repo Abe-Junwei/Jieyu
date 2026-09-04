@@ -62,11 +62,31 @@ function newAuditId(): string {
   return `aud_mcp_trust_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function serializeToolSchemaText(tools: readonly ExternalMcpToolSchema[]): string {
-  return tools
-    .map((tool) => `${tool.name}\n${tool.description ?? ''}`)
-    .join('\n')
-    .slice(0, 16_000);
+function serializeSingleToolSchemaText(tool: ExternalMcpToolSchema): string {
+  const parts = [tool.name, tool.description ?? ''];
+  if (tool.inputSchema !== undefined) {
+    try {
+      parts.push(JSON.stringify(tool.inputSchema));
+    } catch {
+      parts.push('[unserializable inputSchema]');
+    }
+  }
+  return parts.join('\n');
+}
+
+function inspectToolSchemas(
+  tools: readonly ExternalMcpToolSchema[],
+): ReturnType<typeof inspectInbound> {
+  for (const tool of tools) {
+    const inbound = inspectInbound({
+      text: serializeSingleToolSchemaText(tool),
+      trustTier: 'untrusted',
+    });
+    if (inbound.action === 'block') {
+      return inbound;
+    }
+  }
+  return { action: 'allow', reasons: [] };
 }
 
 async function persistTrustAudit(input: {
@@ -154,10 +174,7 @@ export async function setExternalMcpTrustEnabled(input: {
   let scanResult: ExternalMcpTrustDoc['lastSchemaScanResult'] = 'skipped';
   let scanReasons: string[] = [];
   if (input.enabled && input.tools && input.tools.length > 0) {
-    const inbound = inspectInbound({
-      text: serializeToolSchemaText(input.tools),
-      trustTier: 'untrusted',
-    });
+    const inbound = inspectToolSchemas(input.tools);
     if (inbound.action === 'block') {
       scanResult = 'block';
       scanReasons = [...inbound.reasons];
@@ -231,10 +248,7 @@ export async function exposeExternalMcpToolsToLlm<T extends ExternalMcpToolSchem
   if (!entry) return { allowed: false, reason: 'unregistered' };
   if (!entry.enabled) return { allowed: false, reason: 'disabled' };
 
-  const inbound = inspectInbound({
-    text: serializeToolSchemaText(input.tools),
-    trustTier: 'untrusted',
-  });
+  const inbound = inspectToolSchemas(input.tools);
   if (inbound.action === 'block') {
     return { allowed: false, reason: 'schema_blocked', blockReasons: inbound.reasons };
   }

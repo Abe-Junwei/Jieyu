@@ -18,7 +18,7 @@ depends_on:
 - 同类产品：Claude Code `allowedMcpServers` 按 **serverUrl / command** 而非 display name；Trail of Bits `mcp-context-protector` 对 tools/list 做 TOFU + 描述变更拦截；mcp-doorman / Veil 在 `tools/list` 扫描 tool description 注入。
 - 业内规范：MCP `tools/list` 是模型可见攻击面（tool poisoning）；OWASP LLM01 间接注入；默认 deny allowlist。
 - 公认不可行：接企业 MCP gateway SaaS；用 serverName 当 allowlist；把 schema 先拼进 prompt 再扫描；本切片实现完整 outbound client。
-- 潜在的坑：pathname 不同即不同 server；flag 关必须零暴露；Dexie 升 v51 须同步 a2a 守卫与 session-memory 版本断言。
+- 潜在的坑：pathname 不同即不同 server；flag 关必须零暴露；Dexie 升 v51 须同步 a2a 守卫与 session-memory 版本断言；**合并 tools 文本后 16k 截断会漏扫尾部注入**（已改为逐工具全文，含 `inputSchema`）。
 - 决定：**适配** Claude Code origin allowlist + protector 的 list 扫描；**复用** A9 inspect 与 Dexie audit；**自研** 浏览器内 registry（不引入代理依赖）。
 
 ## 2. 架构选择
