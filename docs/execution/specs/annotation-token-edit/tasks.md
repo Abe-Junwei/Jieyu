@@ -14,19 +14,19 @@ depends_on:
 
 ## Implementation tasks
 
-- [ ] `annotationTokenDrafts.ts` + 单测（脏字段、gloss lang=`default` 优先） → `npx vitest run src/pages/annotation/annotationTokenDrafts.test.ts`
-- [ ] `saveAnnotationIgtRowTokens.ts` Dexie 写→requery→readback → `npx vitest run src/pages/annotation/saveAnnotationIgtRowTokens.test.ts`
-- [ ] 键盘 `focusInput`；controller 草稿 + commitStay/commitNext → `AnnotationPage.test.tsx`
-- [ ] IGT 受控 POS/gloss；输入态 Space 不 playToggle；i18n / CHANGELOG / 路线图 / 代码地图
+- [x] `annotationTokenDrafts.ts` + 单测（脏字段、gloss lang=`default` 优先） → `npx vitest run src/pages/annotation/annotationTokenDrafts.test.ts`
+- [x] `saveAnnotationIgtRowTokens.ts` Dexie 写→requery→readback → `npx vitest run src/pages/annotation/saveAnnotationIgtRowTokens.test.ts`
+- [x] 键盘 `focusInput`；controller 草稿 + commitStay/commitNext → `AnnotationPage.test.tsx`
+- [x] IGT 受控 POS/gloss；输入态 Space 不 playToggle；i18n / CHANGELOG / 路线图 / 代码地图
 
 ## Pre-merge gates（与拍板 2A 一致）
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 `vitest`（上列路径 + `annotationKeyboardMachine` + layout guard + flag 矩阵）
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
-- [ ] Feature flag 仍默认 `false`
-- [ ] 不触及 `src/ai/**`（无需 agent-evals）
+- [x] `npm run typecheck`
+- [x] 触及域 `vitest`（上列路径 + `annotationKeyboardMachine` + layout guard + flag 矩阵）
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] Feature flag 仍默认 `false`
+- [x] 不触及 `src/ai/**`（无需 agent-evals）
 
 ## Commit 阶段证据模板
 

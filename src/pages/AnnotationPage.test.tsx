@@ -116,7 +116,7 @@ function seedWorkspace(tokens: unknown[], units: unknown[] = [UNIT_ONE]) {
       layerType: 'transcription',
     },
   ]);
-  mockListTokensByUnitIds.mockImplementation(async () => tokens);
+  mockListTokensByUnitIds.mockImplementation(async () => tokens.map((row) => ({ ...row })));
   mockUpdateTokenPos.mockResolvedValue(undefined);
   mockUpdateTokenGloss.mockResolvedValue(undefined);
 }
@@ -165,21 +165,31 @@ describe('AnnotationPage', () => {
   });
 
   it('saves POS/gloss on Enter and readback replaces the row', async () => {
-    const tokens = [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ', 'X')];
+    const tokens: Array<{
+      id: string;
+      textId: string;
+      unitId: string;
+      form: { default: string };
+      gloss?: Record<string, string>;
+      pos?: string;
+      tokenIndex: number;
+      createdAt: string;
+      updatedAt: string;
+    }> = [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ', 'X')];
     seedWorkspace(tokens);
-    mockUpdateTokenGloss.mockImplementation(async (tokenId: string, gloss: string | null) => {
+    mockUpdateTokenGloss.mockImplementation(async (_id: string, gloss: string | null) => {
       const next = (gloss ?? '').trim();
+      const current = tokens[0]!;
       tokens[0] = {
-        ...tokens[0]!,
+        ...current,
         gloss: next.length > 0 ? { default: next } : {},
       };
     });
-    mockUpdateTokenPos.mockImplementation(async (tokenId: string, pos: string | null) => {
+    mockUpdateTokenPos.mockImplementation(async (_id: string, pos: string | null) => {
       const next = (pos ?? '').trim();
-      tokens[0] = {
-        ...tokens[0]!,
-        ...(next.length > 0 ? { pos: next } : { pos: undefined }),
-      };
+      const current = tokens[0]!;
+      const { pos: _oldPos, ...rest } = current;
+      tokens[0] = next.length > 0 ? { ...rest, pos: next } : rest;
     });
     renderPage('/annotation?textId=tid-1&mediaId=mid-1');
     const workspace = await screen.findByTestId('annotation-workspace', {}, { timeout: 4000 });
