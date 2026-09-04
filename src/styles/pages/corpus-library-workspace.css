@@ -58,6 +58,18 @@
   color: var(--text-secondary);
 }
 
+.corpus-library-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.corpus-library-copy-status {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
 .corpus-library-list {
   display: flex;
   flex-direction: column;
