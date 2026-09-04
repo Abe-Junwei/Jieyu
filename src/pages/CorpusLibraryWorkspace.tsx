@@ -158,7 +158,12 @@ export function CorpusLibraryWorkspace() {
                     <span className="corpus-library-row-text">
                       {row.text.length > 0 ? row.text : row.id}
                     </span>
-                    <span className="corpus-library-row-time">{row.timeLabel}</span>
+                    <span className="corpus-library-row-meta">
+                      <span className="corpus-library-row-time">{row.timeLabel}</span>
+                      {row.mediaLabel.length > 0 ? (
+                        <span className="corpus-library-row-media">{row.mediaLabel}</span>
+                      ) : null}
+                    </span>
                   </label>
                   <Link className="corpus-library-row-link" to={row.transcriptionHref}>
                     {t(locale, 'workspace.corpus.openInTranscription')}

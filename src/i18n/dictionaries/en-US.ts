@@ -134,7 +134,7 @@ export const enUSDictionary = {
   'workspace.corpus.badge': 'Read-only workset',
   'workspace.corpus.title': 'Corpus library',
   'workspace.corpus.summary':
-    'Multi-select units in the current transcription scope into a workset isolated from transcription selection. Export will open later.',
+    'Browse units across all media in the current transcription record and multi-select a workset isolated from transcription selection. Copy as plain text or Markdown.',
   'workspace.corpus.empty':
     'No transcription record is in scope yet. Open the transcription workspace first.',
   'workspace.corpus.openTranscription': 'Open transcription workspace',
@@ -146,7 +146,7 @@ export const enUSDictionary = {
   'workspace.corpus.loading': 'Loading corpus scope',
   'workspace.corpus.errorPrefix': 'Could not load corpus scope.',
   'workspace.corpus.filterLabel': 'Filter units',
-  'workspace.corpus.filterPlaceholder': 'Filter by text',
+  'workspace.corpus.filterPlaceholder': 'Filter by text or media',
   'workspace.corpus.selectUnit': 'Add to workset',
   'workspace.corpus.openInTranscription': 'Open in transcription',
   'workspace.corpus.emptyFilter': 'No units match the current filter.',

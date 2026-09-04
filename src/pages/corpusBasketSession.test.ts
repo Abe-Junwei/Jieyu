@@ -19,24 +19,28 @@ afterEach(() => {
 });
 
 describe('corpusBasketSession', () => {
-  it('toggles units in the current scope', () => {
-    syncCorpusBasketScope('tid-1', 'mid-1');
+  it('toggles units in the current text scope', () => {
+    syncCorpusBasketScope('tid-1');
     expect(toggleCorpusBasketUnit('uid-1').unitIds).toEqual(['uid-1']);
     expect(toggleCorpusBasketUnit('uid-2').unitIds).toEqual(['uid-1', 'uid-2']);
     expect(toggleCorpusBasketUnit('uid-1').unitIds).toEqual(['uid-2']);
   });
 
-  it('clears the workset when text or media changes', () => {
-    syncCorpusBasketScope('tid-1', 'mid-1');
+  it('keeps the workset when called again for the same text', () => {
+    syncCorpusBasketScope('tid-1');
     toggleCorpusBasketUnit('uid-1');
-    expect(syncCorpusBasketScope('tid-1', 'mid-2').unitIds).toEqual([]);
-    toggleCorpusBasketUnit('uid-2');
-    expect(syncCorpusBasketScope('tid-9', 'mid-2').unitIds).toEqual([]);
+    expect(syncCorpusBasketScope('tid-1').unitIds).toEqual(['uid-1']);
+  });
+
+  it('clears the workset when text changes', () => {
+    syncCorpusBasketScope('tid-1');
+    toggleCorpusBasketUnit('uid-1');
+    expect(syncCorpusBasketScope('tid-9').unitIds).toEqual([]);
   });
 
   it('stays isolated from a transcription selectedUnitIds array', () => {
     const selectedUnitIds = ['u-transcription'];
-    syncCorpusBasketScope('tid-1', 'mid-1');
+    syncCorpusBasketScope('tid-1');
     toggleCorpusBasketUnit('u-corpus');
     expect(selectedUnitIds).toEqual(['u-transcription']);
     expect(readCorpusBasketSession().unitIds).toEqual(['u-corpus']);
@@ -44,7 +48,7 @@ describe('corpusBasketSession', () => {
 
   it('does not persist the workset to sessionStorage', () => {
     writeCorpusViewState({ filterText: 'tone' });
-    syncCorpusBasketScope('tid-1', 'mid-1');
+    syncCorpusBasketScope('tid-1');
     toggleCorpusBasketUnit('uid-hidden');
     expect(sessionStorage.getItem('corpusBasket')).toBeNull();
     expect(sessionStorage.getItem(CORPUS_VIEW_STATE_KEY)).toBe(

@@ -43,8 +43,8 @@ describe('corpusWorksetExport', () => {
         'textId: tid-1',
         'mediaId: mid-1',
         '',
-        '00:03.0-00:04.0\tuid-2\tsecond sentence',
-        '00:01.5-00:02.0\tuid-1\tlid-a\tfirst sentence about tone',
+        '00:03.0-00:04.0\tuid-2\tmid-1\tsecond sentence',
+        '00:01.5-00:02.0\tuid-1\tmid-1\tlid-a\tfirst sentence about tone',
       ].join('\n'),
     );
   });
@@ -66,6 +66,40 @@ describe('corpusWorksetExport', () => {
     expect(markdown).toContain('- href: `/transcription?textId=tid-1&mediaId=mid-1&unitId=uid-1`');
     expect(markdown).toContain('first sentence about tone');
     expect(markdown).not.toContain('uid-2');
+  });
+
+  it('omits a single header mediaId when the workset spans media', () => {
+    const mixed = [
+      UNITS[0],
+      toCorpusWorksetExportUnit({
+        id: 'uid-3',
+        textId: 'tid-1',
+        mediaId: 'mid-2',
+        startTime: 5,
+        endTime: 6,
+        text: 'other media',
+        fallbackTextId: 'tid-1',
+        fallbackMediaId: 'mid-2',
+      }),
+    ];
+    const payload = buildCorpusWorksetExportPayload({
+      textId: 'tid-1',
+      mediaId: 'mid-1',
+      basketUnitIds: ['uid-1', 'uid-3'],
+      units: mixed,
+    });
+    expect(payload.mediaId).toBe('');
+    const plain = formatCorpusWorksetPlain(payload);
+    expect(plain.startsWith('textId: tid-1\n\n')).toBe(true);
+    expect(plain).toContain('\tuid-1\tmid-1\t');
+    expect(plain).toContain('\tuid-3\tmid-2\t');
+    const markdown = formatCorpusWorksetMarkdown(payload);
+    const header = markdown.slice(0, markdown.indexOf('##'));
+    expect(header).toContain('- textId: `tid-1`');
+    expect(header).not.toContain('mediaId');
+    expect(markdown).toContain('- mediaId: `mid-1`');
+    expect(markdown).toContain('- mediaId: `mid-2`');
+    expect(markdown).toContain('/transcription?textId=tid-1&mediaId=mid-2&unitId=uid-3');
   });
 
   it('ignores filtered-out units that are not in the basket', () => {

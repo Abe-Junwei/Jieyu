@@ -120,7 +120,7 @@ export const zhCNDictionary = {
   'workspace.corpus.badge': '只读工作集',
   'workspace.corpus.title': '语料库',
   'workspace.corpus.summary':
-    '在当前转写范围内多选句段，组成与转写选择隔离的工作集。导出将在后续开放。',
+    '浏览当前转写记录下全部媒体的句段，多选组成与转写选择隔离的工作集。可复制纯文本或 Markdown。',
   'workspace.corpus.empty': '还没有可浏览的转写记录。请先打开转写工作台。',
   'workspace.corpus.openTranscription': '打开转写工作台',
   'workspace.corpus.sidePaneTitle': '语料库',
@@ -131,7 +131,7 @@ export const zhCNDictionary = {
   'workspace.corpus.loading': '正在载入语料范围',
   'workspace.corpus.errorPrefix': '无法载入语料范围。',
   'workspace.corpus.filterLabel': '筛选句段',
-  'workspace.corpus.filterPlaceholder': '按文本筛选',
+  'workspace.corpus.filterPlaceholder': '按文本或媒体筛选',
   'workspace.corpus.selectUnit': '加入工作集',
   'workspace.corpus.openInTranscription': '在转写中打开',
   'workspace.corpus.emptyFilter': '没有符合筛选的句段。',
