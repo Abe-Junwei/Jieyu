@@ -7,11 +7,13 @@
 import { extractJsonCandidates } from '../../chat/toolCallSchemas';
 import { featureFlags } from '../../config/featureFlags';
 import { callExternalMcpToolViaHttp } from './externalMcpHttpClient';
+import { mapExternalMcpToolResultToEvidencePackets } from './externalMcpProviderAdapters';
 import {
   exposeExternalMcpToolsToLlm,
   listExternalMcpTrustEntries,
   type ExternalMcpToolSchema,
 } from './externalMcpTrustRegistry';
+import type { EvidencePacketV0 } from '../../vertical/evidencePacket';
 
 export const EXTERNAL_MCP_TOOL_NAME_PREFIX = 'extmcp__';
 const GUIDE_MAX_CHARS = 4_000;
@@ -189,7 +191,15 @@ export async function resolveExternalMcpSendTurn(input: {
       finalErrorMessage: 'external mcp tool unresolved',
     };
   }
-  const payloads: unknown[] = [];
+  const payloads: Array<{
+    name: string;
+    ok: boolean;
+    origin?: string;
+    content?: unknown;
+    evidencePackets?: EvidencePacketV0[];
+    reason?: string;
+    message?: string;
+  }> = [];
   let anyError = false;
   for (const call of calls) {
     const result = await callExternalMcpToolViaHttp({
@@ -198,17 +208,29 @@ export async function resolveExternalMcpSendTurn(input: {
       arguments: call.arguments,
       ...(input.agentRunId ? { agentRunId: input.agentRunId } : {}),
     });
-    if (!result.ok) anyError = true;
-    payloads.push(
-      result.ok
-        ? { name: call.name, ok: true, origin: result.origin, content: result.result.content }
-        : {
-            name: call.name,
-            ok: false,
-            reason: result.reason,
-            ...(result.message ? { message: result.message } : {}),
-          },
-    );
+    if (!result.ok) {
+      anyError = true;
+      payloads.push({
+        name: call.name,
+        ok: false,
+        reason: result.reason,
+        ...(result.message ? { message: result.message } : {}),
+      });
+      continue;
+    }
+    const evidencePackets = featureFlags.aiExternalMcpProviderAdaptersEnabled
+      ? mapExternalMcpToolResultToEvidencePackets({
+          toolName: call.toolName,
+          content: result.result.content,
+        })
+      : [];
+    payloads.push({
+      name: call.name,
+      ok: true,
+      origin: result.origin,
+      content: result.result.content,
+      ...(evidencePackets.length > 0 ? { evidencePackets } : {}),
+    });
   }
   const finalContent = JSON.stringify({ external_mcp_tool_results: payloads }).slice(
     0,

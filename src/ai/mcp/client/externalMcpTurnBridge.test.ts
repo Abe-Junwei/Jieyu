@@ -95,6 +95,7 @@ describe('externalMcpTurnBridge', () => {
       if (!resolved.handled) return;
       expect(resolved.finalStatus).toBe('done');
       expect(resolved.finalContent).toContain('count');
+      expect(resolved.finalContent).not.toContain('evidencePackets');
       expect(fetchImpl).toHaveBeenCalled();
     } finally {
       globalThis.fetch = originalFetch;

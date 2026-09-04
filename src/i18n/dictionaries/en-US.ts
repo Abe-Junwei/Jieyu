@@ -3170,6 +3170,10 @@ export const enUSDictionary = {
       'Tool descriptions failed the injection scan; the server was not enabled.',
     aiMcpTrustFetchToolsButton: 'Fetch tools/list',
     aiMcpTrustFetchToolsFailed: 'Failed to fetch tools/list.',
+    aiMcpTrustPresetZotero: 'Fill Zotero local MCP',
+    aiMcpTrustPresetOpenAlex: 'Fill OpenAlex placeholder',
+    aiMcpTrustPresetHint:
+      'Presets fill the draft only; you still need Add and enable. Replace the OpenAlex placeholder with your self-hosted HTTP MCP. The default CSP does not allow public hosts.',
     aboutVersion: 'Version',
     aboutDescription: 'Jieyu — Endangered Language Research Platform',
     aboutRepo: 'Repository',

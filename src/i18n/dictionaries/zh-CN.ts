@@ -2904,6 +2904,10 @@ export const zhCNDictionary = {
     aiMcpTrustSchemaBlocked: '工具描述未通过注入扫描，未启用该服务器。',
     aiMcpTrustFetchToolsButton: '拉取 tools/list',
     aiMcpTrustFetchToolsFailed: '拉取 tools/list 失败。',
+    aiMcpTrustPresetZotero: '填入 Zotero 本机',
+    aiMcpTrustPresetOpenAlex: '填入 OpenAlex 占位',
+    aiMcpTrustPresetHint:
+      '预置只填草稿，仍需「添加并启用」。OpenAlex 须换成自托管 HTTP MCP；默认 CSP 不放行公网 host。',
     aboutVersion: '版本',
     aboutDescription: '解语 Jieyu — 濒危语言科研协作平台',
     aboutRepo: '项目仓库',
