@@ -47,10 +47,6 @@ export type AnnotationIgtRow = {
   transcriptionHref: string;
 };
 
-function glossForToken(token: UnitTokenDocType): string {
-  return pickDefaultTranscriptionText(token.gloss ?? {});
-}
-
 function isEditableFieldTarget(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLInputElement ||
@@ -119,7 +115,7 @@ export function useAnnotationWorkspaceController() {
         tokens: unitTokens.map((token) => ({
           id: token.id,
           form: pickDefaultTranscriptionText(token.form),
-          gloss: glossForToken(token),
+          gloss: pickDefaultTranscriptionText(token.gloss),
           pos: (token.pos ?? '').trim(),
           glossLang: resolveAnnotationGlossWriteLang(token.gloss),
         })),

@@ -18,16 +18,10 @@ export type AnnotationTokenWrite = {
   gloss?: string | null;
 };
 
+import { pickDefaultTranscriptionLangKey } from '../../utils/transcriptionFormatters';
+
 export function resolveAnnotationGlossWriteLang(gloss: Record<string, string> | undefined): string {
-  if (!gloss) return 'default';
-  const keys = Object.keys(gloss);
-  if (keys.length === 0) return 'default';
-  if (Object.prototype.hasOwnProperty.call(gloss, 'default')) return 'default';
-  for (const key of keys) {
-    const value = gloss[key];
-    if (typeof value === 'string' && value.trim().length > 0) return key;
-  }
-  return keys[0] ?? 'default';
+  return pickDefaultTranscriptionLangKey(gloss);
 }
 
 export function displayedAnnotationTokenFields(
