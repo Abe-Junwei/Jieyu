@@ -13,6 +13,7 @@ import * as linguisticServiceLanguageCatalogFacade from './linguisticServiceLang
 import * as linguisticServiceOrthographyFacade from './linguisticServiceOrthographyFacade';
 import * as linguisticServiceStructuralProfileFacade from './linguisticServiceStructuralProfileFacade';
 import * as linguisticServiceCollaborationCleanupFacade from './linguisticServiceCollaborationCleanupFacade';
+import { listCorpusUnitIndexByTextId } from './corpusUnitIndexQuery';
 
 export { type ImportQualityReport, validateTierConstraints } from './LinguisticService.constraints';
 
@@ -55,6 +56,7 @@ export const LinguisticService = {
     getAtTime: linguisticServiceUnitTokenOps.getUnitAtTime,
     save: linguisticServiceUnitTokenOps.saveUnit,
     listByTextId: linguisticServiceUnitTokenOps.getUnitsByTextId,
+    listCorpusIndexByTextId: listCorpusUnitIndexByTextId,
     saveBatch: linguisticServiceUnitTokenOps.saveUnitsBatch,
     listTokensByUnitId: linguisticServiceUnitTokenOps.getTokensByUnitId,
     listTokensByUnitIds: linguisticServiceUnitTokenOps.listTokensByUnitIds,

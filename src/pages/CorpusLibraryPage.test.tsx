@@ -9,15 +9,15 @@ import { LocaleProvider } from '../i18n';
 import { resetCorpusBasketSessionForTests } from './corpusBasketSession';
 import { CORPUS_VIEW_STATE_KEY, resetCorpusViewStateForTests } from './corpusViewState';
 
-const { mockListByTextId, featureFlagState } = vi.hoisted(() => ({
-  mockListByTextId: vi.fn(),
+const { mockListCorpusIndexByTextId, featureFlagState } = vi.hoisted(() => ({
+  mockListCorpusIndexByTextId: vi.fn(),
   featureFlagState: { corpusLibraryPageEnabled: false },
 }));
 
 vi.mock('../app/languageAssetPageAccess', () => ({
   LinguisticService: {
     units: {
-      listByTextId: mockListByTextId,
+      listCorpusIndexByTextId: mockListCorpusIndexByTextId,
     },
   },
 }));
@@ -37,21 +37,28 @@ const SAMPLE_UNITS = [
     id: 'uid-1',
     textId: 'tid-1',
     mediaId: 'mid-1',
+    layerId: '',
     startTime: 1.5,
     endTime: 2,
-    createdAt: '',
-    updatedAt: '',
-    transcription: { default: 'first sentence about tone' },
+    defaultText: 'first sentence about tone',
   },
   {
     id: 'uid-2',
     textId: 'tid-1',
     mediaId: 'mid-1',
+    layerId: '',
     startTime: 3,
     endTime: 4,
-    createdAt: '',
-    updatedAt: '',
-    transcription: { default: 'second sentence' },
+    defaultText: 'second sentence',
+  },
+  {
+    id: 'uid-3',
+    textId: 'tid-1',
+    mediaId: 'mid-2',
+    layerId: '',
+    startTime: 0.5,
+    endTime: 1,
+    defaultText: 'other media sentence',
   },
 ];
 
@@ -74,7 +81,7 @@ function renderPage(path: string) {
 
 afterEach(() => {
   cleanup();
-  mockListByTextId.mockReset();
+  mockListCorpusIndexByTextId.mockReset();
   featureFlagState.corpusLibraryPageEnabled = false;
   resetCorpusBasketSessionForTests();
   resetCorpusViewStateForTests();
@@ -88,9 +95,19 @@ describe('CorpusLibraryPage', () => {
     expect(screen.queryByTestId('corpus-library-workspace')).toBeNull();
   });
 
+  it('lists units from every media in the current text', async () => {
+    featureFlagState.corpusLibraryPageEnabled = true;
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
+    renderPage('/corpus?textId=tid-1&mediaId=mid-1');
+    const other = await screen.findByTestId('corpus-library-unit-uid-3', {}, { timeout: 4000 });
+    expect(screen.getByTestId('corpus-library-unit-uid-1')).toBeTruthy();
+    expect(screen.getByTestId('corpus-library-unit-uid-2')).toBeTruthy();
+    expect(other.textContent).toContain('mid-2');
+  });
+
   it('toggles a workset unit and readback after remount', async () => {
     featureFlagState.corpusLibraryPageEnabled = true;
-    mockListByTextId.mockResolvedValue(SAMPLE_UNITS);
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
     renderPage('/corpus?textId=tid-1&mediaId=mid-1');
     const row = await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
     const checkbox = row.querySelector('input[type="checkbox"]');
@@ -106,22 +123,43 @@ describe('CorpusLibraryPage', () => {
     );
   });
 
-  it('clears the workset when media scope changes', async () => {
+  it('keeps the workset when media scope changes', async () => {
     featureFlagState.corpusLibraryPageEnabled = true;
-    mockListByTextId.mockResolvedValue(SAMPLE_UNITS);
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
     renderPage('/corpus?textId=tid-1&mediaId=mid-1');
     const row = await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
     fireEvent.click(row.querySelector('input[type="checkbox"]') as HTMLInputElement);
     cleanup();
 
-    mockListByTextId.mockResolvedValue([
-      {
-        ...SAMPLE_UNITS[0],
-        mediaId: 'mid-2',
-      },
-    ]);
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
     renderPage('/corpus?textId=tid-1&mediaId=mid-2');
     const nextRow = await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
+    expect((nextRow.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(
+      true,
+    );
+  });
+
+  it('clears the workset when text scope changes', async () => {
+    featureFlagState.corpusLibraryPageEnabled = true;
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
+    renderPage('/corpus?textId=tid-1&mediaId=mid-1');
+    const row = await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
+    fireEvent.click(row.querySelector('input[type="checkbox"]') as HTMLInputElement);
+    cleanup();
+
+    mockListCorpusIndexByTextId.mockResolvedValue([
+      {
+        id: 'uid-9',
+        textId: 'tid-9',
+        mediaId: 'mid-9',
+        layerId: '',
+        startTime: 0,
+        endTime: 1,
+        defaultText: 'other text',
+      },
+    ]);
+    renderPage('/corpus?textId=tid-9&mediaId=mid-9');
+    const nextRow = await screen.findByTestId('corpus-library-unit-uid-9', {}, { timeout: 4000 });
     expect((nextRow.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(
       false,
     );
@@ -129,7 +167,7 @@ describe('CorpusLibraryPage', () => {
 
   it('writes filter text to corpusViewState only', async () => {
     featureFlagState.corpusLibraryPageEnabled = true;
-    mockListByTextId.mockResolvedValue(SAMPLE_UNITS);
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
     renderPage('/corpus?textId=tid-1&mediaId=mid-1');
     const filter = await screen.findByLabelText('筛选句段', {}, { timeout: 4000 });
     fireEvent.change(filter, { target: { value: 'tone' } });
@@ -145,7 +183,7 @@ describe('CorpusLibraryPage', () => {
     const writeText = vi.fn(async () => undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     featureFlagState.corpusLibraryPageEnabled = true;
-    mockListByTextId.mockResolvedValue(SAMPLE_UNITS);
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
     renderPage('/corpus?textId=tid-1&mediaId=mid-1');
     const first = await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
     const second = screen.getByTestId('corpus-library-unit-uid-2');
@@ -169,7 +207,7 @@ describe('CorpusLibraryPage', () => {
     const writeText = vi.fn(async () => undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     featureFlagState.corpusLibraryPageEnabled = true;
-    mockListByTextId.mockResolvedValue(SAMPLE_UNITS);
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
     renderPage('/corpus?textId=tid-1&mediaId=mid-1');
     await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
     expect(screen.getByTestId('corpus-library-copy-plain')).toHaveProperty('disabled', true);
