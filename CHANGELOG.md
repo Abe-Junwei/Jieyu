@@ -10,6 +10,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **B14 outbound MCP send-turn**: Cached `lastToolsJson` on B11 trust rows; `extmcp__<originKey>__<tool>` guide in system prompt; execute via B13 after local tools. Settings can fetch `tools/list`. Flag `aiExternalMcpSendTurnEnabled` default false. No ChatWindow edits, no catalog mix-in, no CSP widening.
 - **B13 outbound Streamable HTTP MCP client**: POST `tools/list` / `tools/call` to B11-enabled origins (JSON or SSE `data:`). Write RPC methods never fetch. `mcp_tool_call_audits` may store `agentRunId`. Flag `aiExternalMcpHttpClientEnabled` default false. No SDK, no CSP widening, no ChatWindow wiring.
 - **B12 MCP resources/prompts + AgentArtifactV0**: inbound `resources/list`/`read` (`jieyu://source-set/{id}`) and `prompts/list`/`get` (A12 vertical registry). Dexie v52 `agent_artifacts` with AdoptionQueue `artifactIds` and `buildB5bExportManifest`. Flag `aiMcpResourcesArtifactsEnabled` default false.
 - **B11 External MCP trust**: origin allowlist (`external_mcp_trust`, Dexie v51). Unregistered / disabled / flag-off origins never expose `tools/list` to the LLM. First enable with schema runs A9 `inspectInbound`. Settings AI section is flag-gated (`aiExternalMcpTrustEnabled`, default false).

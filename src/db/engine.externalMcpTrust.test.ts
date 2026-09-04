@@ -37,4 +37,24 @@ describe('external_mcp_trust Dexie table (v51)', () => {
       enabled: true,
     });
   });
+
+  it('roundtrips optional lastToolsJson without a Dexie version bump', async () => {
+    const jieyuDb = await getDb();
+    await jieyuDb.collections.external_mcp_trust.insert({
+      id: 'https://mcp.cache.test',
+      origin: 'https://mcp.cache.test',
+      enabled: true,
+      lastToolsJson: '[{"name":"search_works"}]',
+      lastToolsFetchedAt: '2026-09-04T00:00:00.000Z',
+      createdAt: '2026-09-04T00:00:00.000Z',
+      updatedAt: '2026-09-04T00:00:00.000Z',
+    });
+    const retrieved = await jieyuDb.collections.external_mcp_trust
+      .findOne({ selector: { id: 'https://mcp.cache.test' } })
+      .exec();
+    expect(retrieved?.toJSON()).toMatchObject({
+      lastToolsJson: '[{"name":"search_works"}]',
+      lastToolsFetchedAt: '2026-09-04T00:00:00.000Z',
+    });
+  });
 });

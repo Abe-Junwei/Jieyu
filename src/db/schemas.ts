@@ -368,6 +368,8 @@ const externalMcpTrustDocSchema = z.object({
   lastSchemaScanResult: externalMcpTrustScanResultSchema.optional(),
   lastSchemaScanAt: isoDateSchema.optional(),
   lastSchemaScanReasonsJson: z.string().optional(),
+  lastToolsJson: z.string().optional(),
+  lastToolsFetchedAt: isoDateSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });

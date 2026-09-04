@@ -60,9 +60,26 @@ describe('buildPromptContextBlock tiered assembly (Phase 14)', () => {
   });
 
   it('adds active-tool subset guidance into the system prompt', () => {
-    const prompt = buildAiSystemPrompt('transcription', '', 'detailed', ['get_project_stats', 'diagnose_quality']);
+    const prompt = buildAiSystemPrompt('transcription', '', 'detailed', [
+      'get_project_stats',
+      'diagnose_quality',
+    ]);
     expect(prompt).toContain('prefer these local reads inside tool_call JSON only');
     expect(prompt).toContain('get_project_stats');
     expect(prompt).toContain('diagnose_quality');
+  });
+
+  it('appends an external MCP guide only when the caller provides one', () => {
+    const base = buildAiSystemPrompt('transcription', '', 'detailed');
+    const withGuide = buildAiSystemPrompt(
+      'transcription',
+      '',
+      'detailed',
+      undefined,
+      '',
+      'External MCP tools:\n- extmcp__https_mcp.example.test__search_works',
+    );
+    expect(base).not.toContain('extmcp__');
+    expect(withGuide).toContain('extmcp__https_mcp.example.test__search_works');
   });
 });

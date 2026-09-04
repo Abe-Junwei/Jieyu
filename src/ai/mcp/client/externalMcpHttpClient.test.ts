@@ -88,6 +88,10 @@ describe('externalMcpHttpClient', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
 
     const db = await getDb();
+    const trust = await db.collections.external_mcp_trust
+      .findOne({ selector: { id: ORIGIN } })
+      .exec();
+    expect(trust?.toJSON().lastToolsJson).toBe(JSON.stringify(SAFE_TOOLS));
     const audits = await db.collections.mcp_tool_call_audits.find().exec();
     const stored = audits.map((row) => row.toJSON());
     expect(
@@ -122,6 +126,11 @@ describe('externalMcpHttpClient', () => {
     });
     expect(listed).toMatchObject({ ok: false, reason: 'schema_blocked' });
     expect(fetchImpl).toHaveBeenCalled();
+    const db = await getDb();
+    const trust = await db.collections.external_mcp_trust
+      .findOne({ selector: { id: ORIGIN } })
+      .exec();
+    expect(trust?.toJSON().lastToolsJson).toBeUndefined();
   });
 
   it('calls an allowlisted tool and persists the result', async () => {

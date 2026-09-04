@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { OptionGroup, SettingRow, SettingsSection } from '../settingsModalPrimitives';
 import type { SettingsModalMessages } from '../../i18n/messages';
 import type { ExternalMcpTrustDoc } from '../../db';
+import { featureFlags } from '../../ai/config/featureFlags';
+import { listExternalMcpToolsViaHttp } from '../../ai/mcp/client/externalMcpHttpClient';
 import type { ExternalMcpToolSchema } from '../../ai/mcp/client/externalMcpTrustRegistry';
 import {
   listExternalMcpTrustEntries,
@@ -96,6 +98,19 @@ export function SettingsAiMcpTrustSection({ msg }: { msg: SettingsModalMessages 
     await reload();
   };
 
+  const handleFetchTools = async (origin: string) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const result = await listExternalMcpToolsViaHttp({ origin });
+    setBusy(false);
+    if (!result.ok) {
+      setError(msg.aiMcpTrustFetchToolsFailed);
+      return;
+    }
+    await reload();
+  };
+
   return (
     <SettingsSection title={msg.aiMcpTrustTitle}>
       <div data-testid="settings-ai-mcp-trust">
@@ -149,6 +164,18 @@ export function SettingsAiMcpTrustSection({ msg }: { msg: SettingsModalMessages 
                   options={toggleOptions}
                   onChange={(value) => void handleToggle(entry.origin, value === 'on')}
                 />
+                {featureFlags.aiExternalMcpHttpClientEnabled ? (
+                  <button
+                    type="button"
+                    className="settings-link-btn"
+                    onClick={() => void handleFetchTools(entry.origin)}
+                    disabled={busy || !entry.enabled}
+                    aria-label={`${msg.aiMcpTrustFetchToolsButton} ${entry.origin}`}
+                    data-testid="settings-ai-mcp-fetch-tools"
+                  >
+                    {msg.aiMcpTrustFetchToolsButton}
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>

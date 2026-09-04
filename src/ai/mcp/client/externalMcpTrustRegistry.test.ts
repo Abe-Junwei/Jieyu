@@ -59,6 +59,7 @@ describe('externalMcpTrustRegistry', () => {
       origin: 'https://mcp.example.test/mcp',
       enabled: true,
       lastSchemaScanResult: 'allow',
+      lastToolsJson: JSON.stringify(SAFE_TOOLS),
     });
 
     const audits = await db.collections.audit_logs.find().exec();
@@ -104,6 +105,9 @@ describe('externalMcpTrustRegistry', () => {
       enabled: false,
     });
     expect(disabled.ok).toBe(true);
+    if (disabled.ok) {
+      expect(disabled.entry.lastToolsJson).toBe(JSON.stringify(SAFE_TOOLS));
+    }
 
     const exposed = await exposeExternalMcpToolsToLlm({
       origin: 'https://mcp.example.test',

@@ -1239,6 +1239,9 @@ export interface ExternalMcpTrustDoc {
   lastSchemaScanResult?: ExternalMcpTrustScanResult;
   lastSchemaScanAt?: string;
   lastSchemaScanReasonsJson?: string;
+  /** B14: cached tools/list JSON after expose; optional, no Dexie version bump. */
+  lastToolsJson?: string;
+  lastToolsFetchedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

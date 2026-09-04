@@ -28,6 +28,7 @@ import type { AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import { t, type Locale } from '../../i18n';
 import { resolveLocalContextToolPolicyDecision } from '../../ai/policy/resolveExecutionPolicy';
 import { featureFlags } from '../../ai/config/featureFlags';
+import { resolveExternalMcpSendTurn } from '../../ai/mcp/client/externalMcpTurnBridge';
 import { runWithToolCallbacks } from '../../ai/runtime/agentCallbacks';
 import {
   applyLocalContextToolEffects,
@@ -561,6 +562,23 @@ export async function resolveAiChatStreamCompletion({
       ...(finalErrorMessage ? { finalErrorMessage } : {}),
       localToolResults: [localToolResult],
     };
+  }
+
+  if (localToolCallsParsed.length === 0) {
+    const externalTurn = await resolveExternalMcpSendTurn({
+      assistantContent,
+      canApplySideEffects,
+      ...(agentRunId ? { agentRunId } : {}),
+    });
+    if (externalTurn.handled) {
+      return {
+        finalContent: externalTurn.finalContent,
+        finalStatus: externalTurn.finalStatus,
+        ...(externalTurn.finalErrorMessage
+          ? { finalErrorMessage: externalTurn.finalErrorMessage }
+          : {}),
+      };
+    }
   }
 
   const parsedToolCall =

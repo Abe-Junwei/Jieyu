@@ -154,6 +154,8 @@ export type SettingsModalMessages = {
   aiMcpTrustInvalidOrigin: string;
   aiMcpTrustSchemaInvalid: string;
   aiMcpTrustSchemaBlocked: string;
+  aiMcpTrustFetchToolsButton: string;
+  aiMcpTrustFetchToolsFailed: string;
   // 关于 | About
   aboutVersion: string;
   aboutDescription: string;
