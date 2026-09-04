@@ -99,10 +99,10 @@ export const enUSDictionary = {
     'Token segmentation and token-level editing',
   'workspace.annotation.unavailable.scope.gloss': 'Gloss lexicon linkage and batch revision',
   'workspace.annotation.unavailable.scope.tagging': 'Tag schema and corpus back-linking',
-  'workspace.annotation.badge': 'Read-only skeleton',
+  'workspace.annotation.badge': 'IGT editing',
   'workspace.annotation.title': 'Annotation workspace',
   'workspace.annotation.summary':
-    'Browse IGT rows for the current transcription scope. POS and gloss editing will open later.',
+    'Edit POS and gloss for units in the current transcription scope. Surface and translation stay read-only in this slice.',
   'workspace.annotation.empty':
     'No transcription record is in scope yet. Open the transcription workspace first.',
   'workspace.annotation.emptyList': 'No annotatable units are in the current scope.',
@@ -118,7 +118,13 @@ export const enUSDictionary = {
   'workspace.annotation.translationLabel': 'Translation',
   'workspace.annotation.translationEmpty': 'No translation yet',
   'workspace.annotation.keyboardHint':
-    'Space on a focused row is reserved for playback; Space in input mode inserts a space. Saving is not open yet.',
+    'Space on a focused row is reserved for playback; Space in an input writes the cell. Enter saves and stays; Ctrl+Enter jumps only after a successful save.',
+  'workspace.annotation.posLabel': 'POS',
+  'workspace.annotation.glossLabel': 'Gloss',
+  'workspace.annotation.saving': 'Saving',
+  'workspace.annotation.saveSaved': 'Saved',
+  'workspace.annotation.saveFailed': 'Save failed: {message}',
+  'workspace.annotation.saveError': 'Could not save annotation',
   'workspace.analysis.unavailable.title': 'Analysis workspace is not open',
   'workspace.analysis.unavailable.summary':
     'Stat views, AI audit queues, and quality evaluation have not yet reached independent delivery standards, so this page remains informational.',

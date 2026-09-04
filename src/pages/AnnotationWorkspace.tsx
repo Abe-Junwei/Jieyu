@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, tf, useLocale } from '../i18n';
+import { AnnotationIgtRowView } from './annotation/AnnotationIgtRow';
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
 
 export function AnnotationWorkspace() {
@@ -48,6 +49,17 @@ export function AnnotationWorkspace() {
     content: sidePaneContent,
   });
 
+  const saveStatusText =
+    controller.saveNotice.kind === 'saving'
+      ? t(locale, 'workspace.annotation.saving')
+      : controller.saveNotice.kind === 'saved'
+        ? t(locale, 'workspace.annotation.saveSaved')
+        : controller.saveNotice.kind === 'error'
+          ? tf(locale, 'workspace.annotation.saveFailed', {
+              message: controller.saveNotice.message,
+            })
+          : t(locale, 'workspace.annotation.keyboardHint');
+
   return (
     <section
       className="panel annotation-workspace"
@@ -86,56 +98,22 @@ export function AnnotationWorkspace() {
             data-testid="annotation-keyboard-status"
             data-mode={controller.keyboardMode}
             data-action={controller.lastAction}
+            data-save={controller.saveNotice.kind}
           >
-            {t(locale, 'workspace.annotation.keyboardHint')}
+            {saveStatusText}
           </p>
           <ul className="annotation-igt-list">
             {controller.rows.map((row) => (
-              <li
+              <AnnotationIgtRowView
                 key={row.id}
-                className={
-                  row.id === controller.focusedUnitId
-                    ? 'annotation-igt-row annotation-igt-row-focused'
-                    : 'annotation-igt-row'
-                }
-                data-testid={`annotation-igt-row-${row.id}`}
-                onClick={() => controller.onFocusRow(row.id)}
-              >
-                <div className="annotation-igt-meta">
-                  <span className="annotation-igt-time">{row.timeLabel}</span>
-                  <Link className="annotation-igt-link" to={row.transcriptionHref}>
-                    {t(locale, 'workspace.annotation.openInTranscription')}
-                  </Link>
-                </div>
-                <p className="annotation-igt-label">
-                  {t(locale, 'workspace.annotation.surfaceLabel')}
-                </p>
-                <div className="annotation-igt-tokens">
-                  {row.tokens.length > 0 ? (
-                    row.tokens.map((token) => (
-                      <span key={token.id} className="annotation-igt-stack">
-                        <span className="annotation-igt-form">{token.form}</span>
-                        <span className="annotation-igt-gloss">{token.gloss}</span>
-                      </span>
-                    ))
-                  ) : (
-                    <span className="annotation-igt-stack">
-                      <span className="annotation-igt-form">
-                        {row.surface.length > 0 ? row.surface : row.id}
-                      </span>
-                      <span className="annotation-igt-gloss"> </span>
-                    </span>
-                  )}
-                </div>
-                <p className="annotation-igt-label">
-                  {t(locale, 'workspace.annotation.translationLabel')}
-                </p>
-                <p className="annotation-igt-translation">
-                  {row.translation.length > 0
-                    ? row.translation
-                    : t(locale, 'workspace.annotation.translationEmpty')}
-                </p>
-              </li>
+                row={row}
+                focused={row.id === controller.focusedUnitId}
+                inputFocused={controller.keyboardMode === 'inputFocused'}
+                drafts={controller.drafts}
+                onFocusRow={controller.onFocusRow}
+                onFocusInput={controller.onFocusInput}
+                onTokenDraftChange={controller.onTokenDraftChange}
+              />
             ))}
           </ul>
         </div>

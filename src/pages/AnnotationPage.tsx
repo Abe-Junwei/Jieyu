@@ -1,6 +1,7 @@
 /**
- * 标注页。flag 关时保持占位面板；flag 开时只读 IGT 列表 + 键盘状态机骨架。
- * 按轨消费 canonical 句段走 `pages/annotation/annotationLaneReadScope`（ADR 0020），本切片不写 token / 层实例。
+ * 标注页。flag 关时保持占位面板；flag 开时 IGT 列表 + POS/gloss 受控编辑（B4a-2）。
+ * 按轨消费 canonical 句段走 `pages/annotation/annotationLaneReadScope`（ADR 0020）。
+ * Token 写 `unit_tokens`；不写 `layer_units`；不接 ChatWindow / 转写 annotation controller。
  */
 import '../styles/pages/feature-availability.css';
 import '../styles/pages/annotation-workspace.css';

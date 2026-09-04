@@ -72,4 +72,15 @@ describe('reduceAnnotationKeyboard', () => {
     expect(next.state.mode).toBe('inputFocused');
     expect(next.action).toBe('none');
   });
+
+  it('focuses a row or an input without emitting an action', () => {
+    expect(reduceAnnotationKeyboard(INPUT, { type: 'focusRow', unitId: 'u3' }, IDS)).toEqual({
+      state: { mode: 'rowFocused', focusedUnitId: 'u3' },
+      action: 'none',
+    });
+    expect(reduceAnnotationKeyboard(ROW, { type: 'focusInput', unitId: 'u1' }, IDS)).toEqual({
+      state: { mode: 'inputFocused', focusedUnitId: 'u1' },
+      action: 'none',
+    });
+  });
 });

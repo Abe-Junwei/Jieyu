@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { LinguisticService } from '../app/languageAssetPageAccess';
@@ -16,15 +16,26 @@ import {
 } from '../utils/transcriptionUrlDeepLink';
 import {
   reduceAnnotationKeyboard,
+  stepAnnotationUnitId,
   type AnnotationKeyboardAction,
   type AnnotationKeyboardMode,
 } from './annotation/annotationKeyboardMachine';
 import { projectAnnotationLaneUnits } from './annotation/annotationLaneUnitProjection';
+import {
+  collectDirtyAnnotationTokenWrites,
+  displayedAnnotationTokenFields,
+  dropDraftsForTokenIds,
+  resolveAnnotationGlossWriteLang,
+  type AnnotationIgtToken,
+  type AnnotationTokenDraft,
+} from './annotation/annotationTokenDrafts';
+import { saveAnnotationIgtRowTokens } from './annotation/saveAnnotationIgtRowTokens';
 
-export type AnnotationIgtToken = {
-  id: string;
-  form: string;
-  gloss: string;
+export type { AnnotationIgtToken };
+
+export type AnnotationSaveNotice = {
+  kind: 'idle' | 'saving' | 'saved' | 'error';
+  message: string;
 };
 
 export type AnnotationIgtRow = {
@@ -40,6 +51,14 @@ function glossForToken(token: UnitTokenDocType): string {
   return pickDefaultTranscriptionText(token.gloss ?? {});
 }
 
+function isEditableFieldTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement
+  );
+}
+
 export function useAnnotationWorkspaceController() {
   const locale = useLocale();
   const [searchParams] = useSearchParams();
@@ -48,6 +67,12 @@ export function useAnnotationWorkspaceController() {
     focusedUnitId: string;
     lastAction: AnnotationKeyboardAction;
   }>({ mode: 'rowFocused', focusedUnitId: '', lastAction: 'none' });
+  const [drafts, setDrafts] = useState<Record<string, AnnotationTokenDraft>>({});
+  const [saveNotice, setSaveNotice] = useState<AnnotationSaveNotice>({
+    kind: 'idle',
+    message: '',
+  });
+  const savingRef = useRef(false);
 
   const parsed = readAnalysisDeepLinkParams(searchParams);
   const hint = readTranscriptionWorkspaceReturnHint();
@@ -95,6 +120,8 @@ export function useAnnotationWorkspaceController() {
           id: token.id,
           form: pickDefaultTranscriptionText(token.form),
           gloss: glossForToken(token),
+          pos: (token.pos ?? '').trim(),
+          glossLang: resolveAnnotationGlossWriteLang(token.gloss),
         })),
         translation: '',
         transcriptionHref: buildTranscriptionDeepLinkHref({
@@ -121,8 +148,88 @@ export function useAnnotationWorkspaceController() {
     setKeyboard({ ...next.state, lastAction: next.action });
   }, []);
 
+  const handleFocusInput = useCallback((unitId: string) => {
+    const next = reduceAnnotationKeyboard(
+      { mode: 'inputFocused', focusedUnitId: unitId },
+      { type: 'focusInput', unitId },
+      [unitId],
+    );
+    setKeyboard({ ...next.state, lastAction: next.action });
+  }, []);
+
+  const handleTokenDraftChange = useCallback(
+    (unitId: string, tokenId: string, field: keyof AnnotationTokenDraft, value: string) => {
+      const row = derived.rows.find((item) => item.id === unitId);
+      const token = row?.tokens.find((item) => item.id === tokenId);
+      if (!token) return;
+      setDrafts((prev) => {
+        const current = displayedAnnotationTokenFields(token, prev);
+        const merged: AnnotationTokenDraft = { ...current, [field]: value };
+        if (merged.pos === token.pos && merged.gloss === token.gloss) {
+          return dropDraftsForTokenIds(prev, [tokenId]);
+        }
+        return { ...prev, [tokenId]: merged };
+      });
+    },
+    [derived.rows],
+  );
+
+  const runCommit = useCallback(
+    async (advance: boolean) => {
+      if (savingRef.current) return;
+      const unitId = derived.focusedUnitId;
+      const row = derived.rows.find((item) => item.id === unitId);
+      if (!row) return;
+      const writes = collectDirtyAnnotationTokenWrites(row.tokens, drafts);
+      savingRef.current = true;
+      setSaveNotice({ kind: 'saving', message: '' });
+      try {
+        if (writes.length > 0) {
+          await saveAnnotationIgtRowTokens(unitId, writes);
+          await dataQuery.refetch();
+        }
+        setDrafts((prev) =>
+          dropDraftsForTokenIds(
+            prev,
+            row.tokens.map((token) => token.id),
+          ),
+        );
+        setSaveNotice({ kind: 'saved', message: '' });
+        if (advance) {
+          const nextId = stepAnnotationUnitId(derived.unitIds, unitId, 1);
+          setKeyboard({
+            mode: 'inputFocused',
+            focusedUnitId: nextId,
+            lastAction: 'commitNext',
+          });
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message.trim().length > 0
+            ? error.message
+            : t(locale, 'workspace.annotation.saveError');
+        setSaveNotice({ kind: 'error', message });
+      } finally {
+        savingRef.current = false;
+      }
+    },
+    [dataQuery, derived.focusedUnitId, derived.rows, derived.unitIds, drafts, locale],
+  );
+
   const handleKeyDown = useCallback(
-    (event: { key: string; ctrlKey: boolean; shiftKey: boolean; preventDefault: () => void }) => {
+    (event: {
+      key: string;
+      ctrlKey: boolean;
+      shiftKey: boolean;
+      preventDefault: () => void;
+      target: EventTarget | null;
+    }) => {
+      if (
+        isEditableFieldTarget(event.target) &&
+        (event.key === ' ' || event.key === 'Spacebar' || event.key === 'Space')
+      ) {
+        return;
+      }
       const result = reduceAnnotationKeyboard(
         { mode: keyboard.mode, focusedUnitId: derived.focusedUnitId },
         {
@@ -143,8 +250,11 @@ export function useAnnotationWorkspaceController() {
       }
       event.preventDefault();
       setKeyboard({ ...result.state, lastAction: result.action });
+      if (result.action === 'commitStay' || result.action === 'commitNext') {
+        void runCommit(result.action === 'commitNext');
+      }
     },
-    [derived.focusedUnitId, derived.unitIds, keyboard.mode],
+    [derived.focusedUnitId, derived.unitIds, keyboard.mode, runCommit],
   );
 
   const loadError =
@@ -158,14 +268,18 @@ export function useAnnotationWorkspaceController() {
     textId,
     unitCount: derived.unitCount,
     rows: derived.rows,
+    drafts,
     focusedUnitId: derived.focusedUnitId,
     keyboardMode: keyboard.mode,
     lastAction: keyboard.lastAction,
+    saveNotice,
     isEmpty: textId.length === 0,
     isLoading: textId.length > 0 && dataQuery.isLoading,
     loadError,
     transcriptionHref: buildTranscriptionWorkspaceReturnHref(),
     onFocusRow: handleFocusRow,
+    onFocusInput: handleFocusInput,
+    onTokenDraftChange: handleTokenDraftChange,
     onKeyDown: handleKeyDown,
   };
 }
