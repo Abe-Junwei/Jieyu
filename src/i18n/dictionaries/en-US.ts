@@ -192,9 +192,15 @@ export const enUSDictionary = {
   'workspace.corpus.emptyFilter': 'No units match the current filter.',
   'workspace.corpus.copyPlain': 'Copy plain text',
   'workspace.corpus.copyMarkdown': 'Copy Markdown',
-  'workspace.corpus.copyEmpty': 'Select units into the workset first.',
+  'workspace.corpus.copyHtml': 'Copy HTML',
+  'workspace.corpus.downloadBundle': 'Download workset bundle',
+  'workspace.corpus.copyEmpty': 'Select units into the workset first (CORPUS_EXPORT_EMPTY).',
   'workspace.corpus.copySuccess': 'Copied to clipboard',
-  'workspace.corpus.copyUnavailable': 'Could not copy to the clipboard',
+  'workspace.corpus.copyTooLong': 'The workset is too large to export (CORPUS_EXPORT_TOO_LONG).',
+  'workspace.corpus.copyUnavailable':
+    'Could not copy to the clipboard (CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE).',
+  'workspace.corpus.downloadSuccess': 'Downloaded the workset bundle',
+  'workspace.corpus.downloadUnavailable': 'Could not download the workset bundle',
   'workspace.lexicon.unavailable.title': 'Lexicon workspace is not open',
   'workspace.lexicon.unavailable.summary':
     'Entry management, sense editing, and reverse corpus linking are not yet a complete workflow, so this version keeps the page in planning status.',

@@ -105,17 +105,51 @@ export function CorpusLibraryWorkspace() {
             >
               {t(locale, 'workspace.corpus.copyMarkdown')}
             </button>
+            <button
+              type="button"
+              className="btn"
+              data-testid="corpus-library-copy-html"
+              disabled={controller.basketCount === 0}
+              onClick={() => {
+                void controller.onCopyWorkset('html');
+              }}
+            >
+              {t(locale, 'workspace.corpus.copyHtml')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              data-testid="corpus-library-download-bundle"
+              disabled={controller.basketCount === 0}
+              onClick={() => {
+                controller.onDownloadBundle();
+              }}
+            >
+              {t(locale, 'workspace.corpus.downloadBundle')}
+            </button>
             {controller.copyStatus === 'copied' ? (
               <p className="corpus-library-copy-status">
                 {t(locale, 'workspace.corpus.copySuccess')}
+              </p>
+            ) : controller.copyStatus === 'downloaded' ? (
+              <p className="corpus-library-copy-status">
+                {t(locale, 'workspace.corpus.downloadSuccess')}
               </p>
             ) : controller.copyStatus === 'empty' ? (
               <p className="corpus-library-copy-status">
                 {t(locale, 'workspace.corpus.copyEmpty')}
               </p>
+            ) : controller.copyStatus === 'too-long' ? (
+              <p className="corpus-library-copy-status">
+                {t(locale, 'workspace.corpus.copyTooLong')}
+              </p>
             ) : controller.copyStatus === 'unavailable' ? (
               <p className="corpus-library-copy-status">
                 {t(locale, 'workspace.corpus.copyUnavailable')}
+              </p>
+            ) : controller.copyStatus === 'download-unavailable' ? (
+              <p className="corpus-library-copy-status">
+                {t(locale, 'workspace.corpus.downloadUnavailable')}
               </p>
             ) : null}
           </div>

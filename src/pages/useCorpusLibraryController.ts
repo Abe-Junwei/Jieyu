@@ -13,9 +13,14 @@ import {
   buildTranscriptionWorkspaceReturnHref,
   readTranscriptionWorkspaceReturnHint,
 } from '../utils/transcriptionUrlDeepLink';
-import { writeCorpusWorksetClipboard } from './corpusWorksetClipboard';
+import { buildCorpusWorksetBundleZip, downloadCorpusWorksetBundle } from './corpusWorksetBundle';
+import {
+  writeCorpusWorksetClipboard,
+  writeCorpusWorksetHtmlClipboard,
+} from './corpusWorksetClipboard';
 import {
   buildCorpusWorksetExportPayload,
+  formatCorpusWorksetHtml,
   formatCorpusWorksetMarkdown,
   formatCorpusWorksetPlain,
   toCorpusWorksetExportUnit,
@@ -41,7 +46,9 @@ export function useCorpusLibraryController() {
   const locale = useLocale();
   const [searchParams] = useSearchParams();
   const [basketRevision, setBasketRevision] = useState(0);
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'empty' | 'unavailable'>('idle');
+  const [copyStatus, setCopyStatus] = useState<
+    'idle' | 'copied' | 'downloaded' | 'empty' | 'unavailable' | 'download-unavailable' | 'too-long'
+  >('idle');
 
   const parsed = readAnalysisDeepLinkParams(searchParams);
   const hint = readTranscriptionWorkspaceReturnHint();
@@ -149,21 +156,43 @@ export function useCorpusLibraryController() {
   );
 
   const handleCopyWorkset = useCallback(
-    async (format: 'plain' | 'markdown') => {
+    async (format: 'plain' | 'markdown' | 'html') => {
       const payload: CorpusWorksetExportPayload = derived.exportPayload;
       if (payload.units.length === 0) {
         setCopyStatus('empty');
+        return;
+      }
+      if (format === 'html') {
+        const html = formatCorpusWorksetHtml(payload);
+        const plain = formatCorpusWorksetPlain(payload);
+        const result = await writeCorpusWorksetHtmlClipboard({ html, plain });
+        setCopyStatus(result.ok ? 'copied' : result.reason);
         return;
       }
       const text =
         format === 'markdown'
           ? formatCorpusWorksetMarkdown(payload)
           : formatCorpusWorksetPlain(payload);
-      const ok = await writeCorpusWorksetClipboard(text);
-      setCopyStatus(ok ? 'copied' : 'unavailable');
+      const result = await writeCorpusWorksetClipboard(text);
+      setCopyStatus(result.ok ? 'copied' : result.reason);
     },
     [derived.exportPayload],
   );
+
+  const handleDownloadBundle = useCallback(() => {
+    const payload: CorpusWorksetExportPayload = derived.exportPayload;
+    if (payload.units.length === 0) {
+      setCopyStatus('empty');
+      return;
+    }
+    const result = buildCorpusWorksetBundleZip(payload, new Date().toISOString());
+    if (!result.ok) {
+      setCopyStatus(result.reason);
+      return;
+    }
+    const ok = downloadCorpusWorksetBundle(result.bytes, payload.textId);
+    setCopyStatus(ok ? 'downloaded' : 'download-unavailable');
+  }, [derived.exportPayload]);
 
   const loadError =
     unitsQuery.error instanceof Error
@@ -187,5 +216,6 @@ export function useCorpusLibraryController() {
     onToggleUnit: handleToggleUnit,
     onFilterChange: handleFilterChange,
     onCopyWorkset: handleCopyWorkset,
+    onDownloadBundle: handleDownloadBundle,
   };
 }
