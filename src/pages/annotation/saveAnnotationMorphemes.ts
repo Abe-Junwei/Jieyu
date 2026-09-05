@@ -1,7 +1,10 @@
 import { LinguisticService } from '../../app/languageAssetPageAccess';
 import type { UnitMorphemeDocType } from '../../types/jieyuDbDocTypes';
-import { newId } from '../../utils/transcriptionFormatters';
-import { resolveAnnotationGlossWriteLang } from './annotationTokenDrafts';
+import {
+  newId,
+  pickDefaultTranscriptionLangKey,
+  pickDefaultTranscriptionText,
+} from '../../utils/transcriptionFormatters';
 import type { AnnotationIgtMorpheme } from './annotationMorphemeDrafts';
 
 export type AnnotationMorphemeWriteDeps = {
@@ -102,12 +105,12 @@ export function mapStoredMorphemes(rows: readonly UnitMorphemeDocType[]): Annota
   return [...rows]
     .sort((a, b) => a.tokenId.localeCompare(b.tokenId) || a.morphemeIndex - b.morphemeIndex)
     .map((row) => {
-      const glossLang = resolveAnnotationGlossWriteLang(row.gloss ?? row.form);
+      const glossLang = pickDefaultTranscriptionLangKey(row.gloss ?? row.form);
       return {
         id: row.id,
         tokenId: row.tokenId,
-        form: (row.form[glossLang] ?? row.form.default ?? Object.values(row.form)[0] ?? '').trim(),
-        gloss: (row.gloss?.[glossLang] ?? '').trim(),
+        form: pickDefaultTranscriptionText(row.form),
+        gloss: pickDefaultTranscriptionText(row.gloss ?? {}),
         glossLang,
         morphemeIndex: row.morphemeIndex,
       };
