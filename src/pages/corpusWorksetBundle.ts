@@ -25,12 +25,7 @@ export type CorpusWorksetBundleBuildResult =
   | { ok: false; reason: 'empty' | 'too-long' };
 
 function worksetBundleReadme(manifest: CorpusWorksetBundleManifest): string {
-  const lines = [
-    'Jieyu corpus workset bundle',
-    '解语语料工作集打包',
-    '',
-    `textId: ${manifest.textId}`,
-  ];
+  const lines = ['Jieyu corpus workset bundle', '', `textId: ${manifest.textId}`];
   if (manifest.mediaId !== null && manifest.mediaId.length > 0) {
     lines.push(`mediaId: ${manifest.mediaId}`);
   }
