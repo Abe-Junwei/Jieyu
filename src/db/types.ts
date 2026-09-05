@@ -207,6 +207,30 @@ export interface TokenLexemeLinkDocType {
   updatedAt: string;
 }
 
+/** B8: referenced lexicon attachment blob (lexeme rows hold links only). */
+export type LexemeAssetKind = 'image' | 'audio' | 'document';
+
+export interface LexemeAssetDocType {
+  id: string;
+  kind: LexemeAssetKind;
+  mimeType: string;
+  displayName: string;
+  languageCode?: string;
+  byteSize: number;
+  refCount: number;
+  blob?: Blob;
+  blobExportOmitted?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LexemeAssetLinkDocType {
+  id: string;
+  lexemeId: string;
+  assetId: string;
+  createdAt: string;
+}
+
 type AiTaskStatus = 'pending' | 'running' | 'done' | 'failed';
 type AiTaskType = 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language' | 'agent_loop';
 
@@ -1324,6 +1348,8 @@ export type JieyuCollections = {
   anchors: CollectionAdapter<AnchorDocType>;
   lexemes: CollectionAdapter<LexemeDocType>;
   token_lexeme_links: CollectionAdapter<TokenLexemeLinkDocType>;
+  lexeme_assets: CollectionAdapter<LexemeAssetDocType>;
+  lexeme_asset_links: CollectionAdapter<LexemeAssetLinkDocType>;
   ai_tasks: CollectionAdapter<AiTaskDoc>;
   embeddings: CollectionAdapter<EmbeddingDoc>;
   ai_conversations: CollectionAdapter<AiConversationDoc>;

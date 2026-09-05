@@ -10,6 +10,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **B8 lexicon referenced attachments**: Lexeme detail can attach image/audio/document files to Dexie `lexeme_assets` + `lexeme_asset_links` (v53). The lexeme row stores references only; unlink drops the link then refcount-GCs the blob. Flag `lexiconAttachmentsEnabled` default false. No ChatWindow, no FLEx/LIFT attachment export.
 - **B4b annotation morpheme / split / lexeme link**: `/annotation` (flag still default false) can seed and edit `unit_morphemes`, split/merge `unit_tokens`, and write `token_lexeme_links`. Leipzig inline check reuses `LeipzigValidator` plus the system structural profile markers; template editing stays on `/assets/structural-profiles`. Does not write `layer_units` or touch ChatWindow.
 - **B4a-2 annotation POS/gloss edit**: `/annotation` (flag `annotationPageEnabled`, default false) can edit token POS and gloss with controlled inputs. Enter saves in place; Ctrl+Enter advances only after `unit_tokens` write→readback succeeds. Does not write `layer_units` or touch ChatWindow.
 - **B4a-1 annotation workspace shell**: `/annotation` readonly IGT list for the current text/media scope, lane-scoped via ADR-0020, plus a keyboard state-machine skeleton (no save, no playback). Flag `annotationPageEnabled` default false keeps the placeholder panel.

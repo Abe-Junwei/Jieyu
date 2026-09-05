@@ -2,6 +2,7 @@ import * as linguisticServiceSpeakerOps from './linguisticServiceSpeakerOps';
 import * as linguisticServiceMediaImport from './linguisticServiceMediaImport';
 import * as linguisticServiceImportQualityReport from './linguisticServiceImportQualityReport';
 import * as linguisticServiceLexemeOps from './linguisticServiceLexemeOps';
+import * as linguisticServiceLexemeAssetOps from './linguisticServiceLexemeAssetOps';
 import * as linguisticServiceUnitTokenOps from './linguisticServiceUnitTokenOps';
 import * as linguisticServiceLayerOps from './linguisticServiceLayerOps';
 import * as linguisticServiceTextTimelineOps from './linguisticServiceTextTimelineOps';
@@ -36,6 +37,7 @@ export type {
 } from './LinguisticService.timeMapping';
 
 export type { LexemeTranscriptionJumpTarget } from './linguisticServiceLexemeOps';
+export type { LexemeAttachmentView } from './linguisticServiceLexemeAssetOps';
 
 export const LinguisticService = {
   imports: {
@@ -83,6 +85,9 @@ export const LinguisticService = {
     save: linguisticServiceLexemeOps.saveLexeme,
     matchOrCreateByForm: linguisticServiceLexemeOps.matchOrCreateLexemeByForm,
     listTranscriptionJumpTargets: linguisticServiceLexemeOps.listLexemeTranscriptionJumpTargets,
+    listAttachments: linguisticServiceLexemeAssetOps.listLexemeAttachments,
+    attachFile: linguisticServiceLexemeAssetOps.attachLexemeFile,
+    unlinkAttachment: linguisticServiceLexemeAssetOps.unlinkLexemeAttachment,
   },
   layers: {
     listDistinctProjectLanguageIds: linguisticServiceLayerOps.listDistinctProjectLanguageIds,

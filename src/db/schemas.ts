@@ -14,6 +14,8 @@ import type {
   AnchorDocType,
   LexemeDocType,
   TokenLexemeLinkDocType,
+  LexemeAssetDocType,
+  LexemeAssetLinkDocType,
   AiTaskDoc,
   EmbeddingDoc,
   AiConversationDoc,
@@ -201,6 +203,29 @@ const tokenLexemeLinkDocSchema = z.object({
   provenance: provenanceSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
+});
+
+const lexemeAssetKindSchema = z.enum(['image', 'audio', 'document']);
+
+const lexemeAssetDocSchema = z.object({
+  id: z.string().min(1),
+  kind: lexemeAssetKindSchema,
+  mimeType: z.string().min(1),
+  displayName: z.string().min(1),
+  languageCode: z.string().min(1).optional(),
+  byteSize: z.number().finite().nonnegative(),
+  refCount: z.number().int().nonnegative(),
+  blob: z.instanceof(Blob).optional(),
+  blobExportOmitted: z.boolean().optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const lexemeAssetLinkDocSchema = z.object({
+  id: z.string().min(1),
+  lexemeId: z.string().min(1),
+  assetId: z.string().min(1),
+  createdAt: isoDateSchema,
 });
 
 const aiTaskStatusSchema = z.enum(['pending', 'running', 'done', 'failed']);
@@ -1385,6 +1410,14 @@ export function validateUnitMorphemeDoc(doc: UnitMorphemeDocType): void {
 
 export function validateTokenLexemeLinkDoc(doc: TokenLexemeLinkDocType): void {
   tokenLexemeLinkDocSchema.parse(doc);
+}
+
+export function validateLexemeAssetDoc(doc: LexemeAssetDocType): void {
+  lexemeAssetDocSchema.parse(doc);
+}
+
+export function validateLexemeAssetLinkDoc(doc: LexemeAssetLinkDocType): void {
+  lexemeAssetLinkDocSchema.parse(doc);
 }
 
 export function validateAiTaskDoc(doc: AiTaskDoc): void {

@@ -86,9 +86,9 @@ check(
   'Missing v49 migration for ai_source_sets',
 );
 check(
-  engineSrc.includes('JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 52'),
-  'Target schema version is 52',
-  'Schema version not bumped to 52',
+  engineSrc.includes('JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 53'),
+  'Target schema version is 53',
+  'Schema version not bumped to 53',
 );
 check(
   engineSrc.includes("ai_session_memories: 'conversationId, updatedAt'"),
@@ -104,6 +104,11 @@ check(
   engineSrc.includes("this.version(52)") && engineSrc.includes('agent_artifacts'),
   'v52 schema migration includes agent_artifacts',
   'Missing v52 migration for agent_artifacts',
+);
+check(
+  engineSrc.includes("this.version(53)") && engineSrc.includes('lexeme_assets'),
+  'v53 schema migration includes lexeme_assets',
+  'Missing v53 migration for lexeme_assets',
 );
 
 // MCP Client 预留

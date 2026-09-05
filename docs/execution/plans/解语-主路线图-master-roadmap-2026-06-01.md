@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-04
+last_reviewed: 2026-09-05
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -162,7 +162,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：本 PR 收口 **B6**（unit 删除后引用断裂态 + 稳定错误码；禁止假成功摘要）。之后余量：语料 P1 HTML/bundle，或 B2 事件接线。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：本 PR 收口 **B8**（词典引用式附件，Dexie v53，flag 默认 false）。已在其它分支完成、待合入：B5c HTML/bundle、B2 事件接线。之后余量：**B7**（blocked on A7/A9/A12 + ChatWindow）。不启动 EAF/TextGrid。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -201,7 +201,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B13** | outbound Streamable HTTP MCP client | M | **【已落地·flag 关】** `externalMcpHttpClient` POST `tools/list`/`tools/call`（JSON 或 SSE `data:`）；仅 B11 已启用 origin；写向 RPC 零 fetch；audit 写 `agentRunId`。Flag `aiExternalMcpHttpClientEnabled` 默认 **false**。不引入 SDK；不改 CSP `connect-src`；不接 ChatWindow。SDD：`agent-runtime-external-mcp-http-client/`。**依赖 B11** | flag 关零 fetch；未启用 origin 零 fetch；list 经 expose 门；write RPC deny | 是 |
 | **B14** | outbound MCP send-turn 接线 | M | **【已落地·flag 关】** `externalMcpTurnBridge`：`lastToolsJson` 缓存；`extmcp__<originKey>__<tool>` 进 prompt；local 空才执行 B13 `tools/call`。Settings 拉取 `tools/list`。Flag `aiExternalMcpSendTurnEnabled` 默认 **false**。不改 ChatWindow；不进 `AI_TOOL_CATALOG`；不改 CSP。SDD：`agent-runtime-external-mcp-send-turn/`。**依赖 B11+B13** | flag 关零 guide/零 HTTP；local 优先；cache-only guide | 是 |
 | **B15** | Zotero/OpenAlex MCP 提供方适配 | M | **【已落地·flag 关】** `externalMcpProviderAdapters`：已知工具指纹；`tools/call` 文本 JSON → `EvidencePacketV0`（`document`）；Settings 预置只填 origin/label 草稿。Flag `aiExternalMcpProviderAdaptersEnabled` 默认 **false**。CSP 枚举环回 `8765`，不恢复 `https:` 通配；不 spawn stdio；不直连 OpenAlex REST / Zotero `:23119`。SDD：`agent-runtime-external-mcp-provider-adapters/`。**依赖 B13+B14** | flag 关零 packets / 零预置按钮；垃圾 JSON → `[]`；预置不写 Dexie | 是 |
-| **B8** | 词典附件能力（引用式资产，P1-2） | M | `LexiconPage`、`useTranscriptionCollaborationBridge`、`useTranscriptionData` | 附件元数据持久化+回显（写→reload→readback）；删除走引用计数安全回收 | 是 |
+| **B8** | 词典附件能力（引用式资产，P1-2） | M | **【已落地·flag 关】** Dexie v53 `lexeme_assets` + `lexeme_asset_links`；`linguisticServiceLexemeAssetOps`；`LexiconAttachmentSection`。Flag `lexiconAttachmentsEnabled` 默认 **false**。**不**接 `useTranscriptionData` / ChatWindow / 协作桥；**不**内嵌二进制到 lexeme；**不**复用 `media_items`。SDD：`lexicon-attachments/`。 | 写→reload→readback 保留 Blob；unlink 先断链再 refCount GC；flag 关无附件区 | 是 |
 | **B9** | 分析页 /analysis | — | **受限工作台已落地（非产品级开放台）**：[ADR-0033](../../adr/0033-analysis-restricted-workspace-no-transcription-dock.md) 把 `/analysis` 做成向量索引 / 语料统计入口（复用 `TranscriptionPageAnalysisRuntime`，`visibleTabs`: embedding / stats），**不嵌波形、不升格为第二转写台**。完整科研分析工作台仍不排期 | — | — |
 
 ### Stage C — 对外 / 协作（拍板 1B 预留）
@@ -280,3 +280,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-05 | **B5b**：工作集 clipboard plain/Markdown 出站；空选不写剪贴板；沿用页面 flag 默认 false。下一刀 **B5a-2**。 |
 | 2026-09-05 | **B5a-2**：当前 text 跨媒体查询层索引（`listCorpusIndexByTextId`）；basket 按 text 保留、换 text 清空；无 Dexie 索引表。Flag 默认 false。下一刀 **B6** 或语料 P1 HTML/bundle。 |
 | 2026-09-05 | **B6**：unit 删除后 `CITATION_UNIT_NOT_FOUND`；jump 不盲跳；RAG footer 省略 index-miss snippet；悬空 lexeme 链接可诊断。无软删列。下一刀语料 P1 HTML/bundle 或 B2 接线。 |
+| 2026-09-05 | **B8**：词典引用式附件（Dexie v53 `lexeme_assets` / `lexeme_asset_links`）；flag `lexiconAttachmentsEnabled` 默认 false。不接 ChatWindow / 转写 data hook。下一刀合入 B5c/B2，或 B7（仍 blocked）。 |

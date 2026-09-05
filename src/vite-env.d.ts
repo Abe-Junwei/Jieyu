@@ -53,6 +53,8 @@ interface ImportMetaEnv {
   readonly VITE_ANNOTATION_PAGE_ENABLED?: string;
   /** Optional override for `corpusLibraryPageEnabled` (true/false, 1/0). Default off. */
   readonly VITE_CORPUS_LIBRARY_PAGE_ENABLED?: string;
+  /** Optional override for `lexiconAttachmentsEnabled` (true/false, 1/0). Default off. */
+  readonly VITE_LEXICON_ATTACHMENTS_ENABLED?: string;
 }
 
 interface ImportMeta {

@@ -10,11 +10,13 @@ import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { LexemeDocType, MultiLangString } from '../types/jieyuDbDocTypes';
 import { useLexiconSearch } from '~/hooks/lexicon/useLexiconSearch';
 import { t, tf, useLocale } from '../i18n';
+import { featureFlags } from '../ai/config/featureFlags';
 import { LinguisticService } from '../app/languageAssetPageAccess';
 import {
   buildTranscriptionDeepLinkHref,
   buildTranscriptionWorkspaceReturnHref,
 } from '../utils/transcriptionUrlDeepLink';
+import { LexiconAttachmentSection } from './LexiconAttachmentSection';
 
 const LEXICON_LIST_STATE_KEY = 'lexiconListState';
 
@@ -435,6 +437,10 @@ export function LexiconPage() {
                   {formatMultilang(selectedLexeme.notes) || t(locale, 'workspace.lexicon.noNotes')}
                 </p>
               </PanelSection>
+
+              {featureFlags.lexiconAttachmentsEnabled ? (
+                <LexiconAttachmentSection lexemeId={selectedLexeme.id} />
+              ) : null}
             </>
           ) : (
             <PanelSummary

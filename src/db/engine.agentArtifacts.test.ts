@@ -14,7 +14,7 @@ describe('agent_artifacts Dexie table (v52)', () => {
 
   it('schema version is 52 and persists an artifact row', async () => {
     const jieyuDb = await getDb();
-    expect(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).toBe(52);
+    expect(JIEYU_DEXIE_TARGET_SCHEMA_VERSION).toBeGreaterThanOrEqual(52);
     expect(jieyuDb.dexie.verno).toBeGreaterThanOrEqual(52);
 
     await jieyuDb.collections.agent_artifacts.insert({
