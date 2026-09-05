@@ -22,13 +22,13 @@ depends_on:
 
 ## Pre-merge gates（与拍板 2A 一致）
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 vitest（上列路径）
-- [ ] 触及交互 / ReadyWorkspace / 侧栏 / 时间轴：N/A（jump 单测覆盖）
-- [ ] `npm run check:architecture-guard`
-- [ ] `src/ai/**`：N/A
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
-- [ ] 无新 feature flag
+- [x] `npm run typecheck`
+- [x] 触及域 vitest（上列路径）
+- [x] 触及交互 / ReadyWorkspace / 侧栏 / 时间轴：N/A（jump 单测覆盖）
+- [x] `npm run check:architecture-guard`
+- [x] `src/ai/**`：N/A
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] 无新 feature flag
 
 ## Commit 阶段证据模板
 
