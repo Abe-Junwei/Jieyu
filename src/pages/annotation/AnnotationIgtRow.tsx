@@ -22,6 +22,14 @@ type Props = {
   ) => void;
 };
 
+function lexemeLinkLabel(
+  locale: ReturnType<typeof useLocale>,
+  link: NonNullable<AnnotationMorphologyController['linksByTokenId'][string]>,
+): string {
+  if (link.brokenCode) return t(locale, 'workspace.annotation.lexemeBroken');
+  return tf(locale, 'workspace.annotation.lexemeLinked', { lemma: link.lemma });
+}
+
 function TokenStack({
   token,
   unitId,
@@ -198,7 +206,7 @@ function TokenStack({
                   morphology.onUnlinkLexeme(token.id);
                 }}
               >
-                {tf(locale, 'workspace.annotation.lexemeLinked', { lemma: link.lemma })}
+                {lexemeLinkLabel(locale, link)}
               </button>
             ) : null}
           </label>
@@ -213,8 +221,15 @@ function TokenStack({
             </span>
           ) : null}
           {link ? (
-            <span className="annotation-igt-gloss">
-              {tf(locale, 'workspace.annotation.lexemeLinked', { lemma: link.lemma })}
+            <span
+              className="annotation-igt-gloss"
+              data-testid={
+                link.brokenCode
+                  ? `annotation-igt-lexeme-broken-${token.id}`
+                  : `annotation-igt-lexeme-linked-${token.id}`
+              }
+            >
+              {lexemeLinkLabel(locale, link)}
             </span>
           ) : null}
         </>

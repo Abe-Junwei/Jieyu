@@ -14,6 +14,7 @@ import * as linguisticServiceOrthographyFacade from './linguisticServiceOrthogra
 import * as linguisticServiceStructuralProfileFacade from './linguisticServiceStructuralProfileFacade';
 import * as linguisticServiceCollaborationCleanupFacade from './linguisticServiceCollaborationCleanupFacade';
 import { listCorpusUnitIndexByTextId } from './corpusUnitIndexQuery';
+import { presentTokenLexemeLink, resolveUnitCitation } from './citationResolver';
 
 export { type ImportQualityReport, validateTierConstraints } from './LinguisticService.constraints';
 
@@ -169,6 +170,10 @@ export const LinguisticService = {
     deleteAudio: linguisticServiceCollaborationCleanupFacade.deleteAudio,
     removeUnit: linguisticServiceCollaborationCleanupFacade.removeUnit,
     removeUnitsBatch: linguisticServiceCollaborationCleanupFacade.removeUnitsBatch,
+  },
+  citations: {
+    resolveUnit: resolveUnitCitation,
+    presentTokenLexemeLink,
   },
 } as const;
 

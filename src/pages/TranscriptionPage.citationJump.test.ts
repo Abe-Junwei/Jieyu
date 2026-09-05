@@ -14,6 +14,9 @@ const mockDb = vi.hoisted(() => ({
     get: vi.fn(async () => undefined),
     toArray: vi.fn(async () => []),
   },
+  layer_units: {
+    get: vi.fn(async (): Promise<{ id: string; unitType?: string } | undefined> => undefined),
+  },
 }));
 
 vi.mock('../db', () => ({
@@ -24,13 +27,16 @@ import { handleTranscriptionCitationJump } from './TranscriptionPage.citationJum
 
 describe('handleTranscriptionCitationJump', () => {
   it('opens bibliography source url when pdf citation cannot resolve media item', async () => {
-    mockDb.bibliographic_sources.get.mockImplementationOnce(async () => ({
-      id: 'bib-1',
-      title: 'Field Notes PDF',
-      url: 'https://example.com/field-notes.pdf',
-      citationKey: 'BIB1',
-      createdAt: '2026-03-29T00:00:00.000Z',
-    } as any));
+    mockDb.bibliographic_sources.get.mockImplementationOnce(
+      async () =>
+        ({
+          id: 'bib-1',
+          title: 'Field Notes PDF',
+          url: 'https://example.com/field-notes.pdf',
+          citationKey: 'BIB1',
+          createdAt: '2026-03-29T00:00:00.000Z',
+        }) as any,
+    );
 
     const onOpenPdfPreviewRequest = vi.fn();
     const onSetSidebarError = vi.fn();
@@ -48,11 +54,13 @@ describe('handleTranscriptionCitationJump', () => {
       onOpenPdfPreviewRequest,
     });
 
-    expect(onOpenPdfPreviewRequest).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'Field Notes PDF',
-      page: 3,
-      sourceUrl: 'https://example.com/field-notes.pdf',
-    }));
+    expect(onOpenPdfPreviewRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Field Notes PDF',
+        page: 3,
+        sourceUrl: 'https://example.com/field-notes.pdf',
+      }),
+    );
     expect(onSetSidebarError).not.toHaveBeenCalled();
   });
 
@@ -73,11 +81,13 @@ describe('handleTranscriptionCitationJump', () => {
       onOpenPdfPreviewRequest,
     });
 
-    expect(onOpenPdfPreviewRequest).toHaveBeenCalledWith(expect.objectContaining({
-      page: 2,
-      sourceUrl: 'https://example.com/source.pdf',
-      searchSnippet: 'مرحبا بالعالم',
-    }));
+    expect(onOpenPdfPreviewRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 2,
+        sourceUrl: 'https://example.com/source.pdf',
+        searchSnippet: 'مرحبا بالعالم',
+      }),
+    );
   });
 
   it('shows bibliography guidance when pdf citation target cannot be resolved', async () => {
@@ -104,5 +114,50 @@ describe('handleTranscriptionCitationJump', () => {
     });
 
     expect(onSetSidebarError).toHaveBeenCalledWith(expect.stringContaining('补充来源 URL'));
+  });
+
+  it('does not jump when the cited unit row is missing', async () => {
+    const onJumpToEmbeddingMatch = vi.fn();
+    const onSetSidebarError = vi.fn();
+    mockDb.layer_units.get.mockResolvedValueOnce(undefined);
+
+    await handleTranscriptionCitationJump({
+      locale: 'zh-CN',
+      citationType: 'unit',
+      refId: 'utt_deleted',
+      sidePaneRows: [],
+      activeTimelineUnitId: null,
+      onJumpToEmbeddingMatch,
+      onSetNotePopover: vi.fn(),
+      onSetSidebarError,
+      onRevealSchemaLayer: vi.fn(),
+      onOpenPdfPreviewRequest: vi.fn(),
+    });
+
+    expect(onJumpToEmbeddingMatch).not.toHaveBeenCalled();
+    expect(onSetSidebarError).toHaveBeenCalledWith(expect.stringContaining('无法打开引用的句段'));
+  });
+
+  it('jumps when the cited canonical unit still exists', async () => {
+    const onJumpToEmbeddingMatch = vi.fn();
+    mockDb.layer_units.get.mockResolvedValueOnce({
+      id: 'utt_live',
+      unitType: 'unit',
+    });
+
+    await handleTranscriptionCitationJump({
+      locale: 'zh-CN',
+      citationType: 'unit',
+      refId: 'utt_live',
+      sidePaneRows: [],
+      activeTimelineUnitId: null,
+      onJumpToEmbeddingMatch,
+      onSetNotePopover: vi.fn(),
+      onSetSidebarError: vi.fn(),
+      onRevealSchemaLayer: vi.fn(),
+      onOpenPdfPreviewRequest: vi.fn(),
+    });
+
+    expect(onJumpToEmbeddingMatch).toHaveBeenCalledWith('utt_live');
   });
 });

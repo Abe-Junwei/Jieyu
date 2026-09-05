@@ -136,6 +136,7 @@ export const enUSDictionary = {
   'workspace.annotation.lexemeLink': 'Link lexeme',
   'workspace.annotation.lexemeUnlink': 'Unlink',
   'workspace.annotation.lexemeLinked': 'Linked {lemma}',
+  'workspace.annotation.lexemeBroken': 'Lexeme link is broken (CITATION_LEXEME_NOT_FOUND)',
   'workspace.annotation.validatorTemplate': 'Validator template: {id}',
   'workspace.annotation.openStructuralProfiles': 'Open structural profiles',
   'workspace.analysis.unavailable.title': 'Analysis workspace is not open',
@@ -1690,6 +1691,8 @@ export const enUSDictionary = {
   'transcription.layer.undo.deleteTranscription': 'Delete transcription layer',
   'transcription.layer.undo.deleteTranslation': 'Delete translation layer',
   'transcription.layer.undo.adjustDependency': 'Adjust layer dependency',
+  'transcription.citation.unitNotFound':
+    'Could not open the cited unit (CITATION_UNIT_NOT_FOUND). It may have been deleted.',
   'transcription.citation.noteNotFound': 'Referenced note was not found.',
   'transcription.citation.schemaNotFound': 'Referenced layer schema was not found.',
   'transcription.citation.pdfTargetNotFound':

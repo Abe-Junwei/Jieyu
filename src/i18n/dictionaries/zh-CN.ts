@@ -125,6 +125,7 @@ export const zhCNDictionary = {
   'workspace.annotation.lexemeLink': '链接词条',
   'workspace.annotation.lexemeUnlink': '解除链接',
   'workspace.annotation.lexemeLinked': '已链接 {lemma}',
+  'workspace.annotation.lexemeBroken': '词条引用已断裂（CITATION_LEXEME_NOT_FOUND）',
   'workspace.annotation.validatorTemplate': 'Validator 模板：{id}',
   'workspace.annotation.openStructuralProfiles': '打开结构标注配置',
   'workspace.analysis.unavailable.title': '分析工作台未开放',
@@ -1560,6 +1561,8 @@ export const zhCNDictionary = {
   'transcription.layer.undo.deleteTranscription': '删除转写层',
   'transcription.layer.undo.deleteTranslation': '删除翻译层',
   'transcription.layer.undo.adjustDependency': '调整层依赖',
+  'transcription.citation.unitNotFound':
+    '无法打开引用的句段（CITATION_UNIT_NOT_FOUND）。目标可能已删除。',
   'transcription.citation.noteNotFound': '未找到引用的笔记。',
   'transcription.citation.schemaNotFound': '未找到引用的层定义。',
   'transcription.citation.pdfTargetNotFound':

@@ -28,6 +28,15 @@ export {
 export { lookupIso639_3Seed } from '../services/languageCatalogSeedLookup';
 export { searchLanguageCatalogSuggestions } from '../services/LanguageCatalogSearchService';
 
-export { listOrthographyRecords, updateOrthographyRecord } from '../services/LinguisticService.orthography';
+export {
+  listOrthographyRecords,
+  updateOrthographyRecord,
+} from '../services/LinguisticService.orthography';
 
 export { LinguisticService } from '../services/LinguisticService';
+export {
+  CITATION_BROKEN_CODE,
+  CITATION_BROKEN_MESSAGE_KEY,
+  presentTokenLexemeLink,
+  resolveUnitCitation,
+} from '../services/citationResolver';
