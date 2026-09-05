@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { resolveDbResilienceProbe } from './resolveDbResilienceGate';
+import { mergeIntegrityProbeGate, resolveDbResilienceProbe } from './resolveDbResilienceGate';
 import type { JieyuDatabase } from '../db/engine';
 import type { DbIntegrityProbeResult } from '../db/dbIntegrityProbe';
 
@@ -27,7 +27,9 @@ describe('resolveDbResilienceProbe', () => {
 
   it('classifies probe ok:false as integrity', async () => {
     const getDb = vi.fn().mockResolvedValue(mockDb());
-    const probe = vi.fn().mockResolvedValue({ ok: false, reason: 'table read' } satisfies DbIntegrityProbeResult);
+    const probe = vi
+      .fn()
+      .mockResolvedValue({ ok: false, reason: 'table read' } satisfies DbIntegrityProbeResult);
     await expect(resolveDbResilienceProbe(getDb, probe)).resolves.toEqual({
       kind: 'failed',
       failureKind: 'integrity',
@@ -43,5 +45,35 @@ describe('resolveDbResilienceProbe', () => {
       failureKind: 'integrity',
       reason: 'read failed',
     });
+  });
+});
+
+describe('mergeIntegrityProbeGate', () => {
+  const openFailed = {
+    kind: 'failed' as const,
+    failureKind: 'open' as const,
+    reason: 'IndexedDB blocked',
+  };
+  const integrityFailed = {
+    kind: 'failed' as const,
+    failureKind: 'integrity' as const,
+    reason: 'table read',
+  };
+
+  it('keeps an explicit open-failure overlay when a late probe returns idle', () => {
+    expect(mergeIntegrityProbeGate(openFailed, { kind: 'idle' })).toEqual(openFailed);
+  });
+
+  it('keeps an explicit open-failure overlay when a late probe returns integrity', () => {
+    expect(mergeIntegrityProbeGate(openFailed, integrityFailed)).toEqual(openFailed);
+  });
+
+  it('applies probe idle when the current gate is not an open failure', () => {
+    expect(mergeIntegrityProbeGate({ kind: 'idle' }, { kind: 'idle' })).toEqual({ kind: 'idle' });
+    expect(mergeIntegrityProbeGate(integrityFailed, { kind: 'idle' })).toEqual({ kind: 'idle' });
+  });
+
+  it('applies probe integrity when the current gate is idle', () => {
+    expect(mergeIntegrityProbeGate({ kind: 'idle' }, integrityFailed)).toEqual(integrityFailed);
   });
 });

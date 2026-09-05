@@ -11,6 +11,20 @@ export type DbResilienceProbeOutcome =
   | { kind: 'idle' }
   | { kind: 'failed'; failureKind: DbResilienceFailureKind; reason: string };
 
+/**
+ * Keep an explicit IndexedDB open-failure overlay. A late boot probe must not
+ * replace it with idle/integrity (E2E injects open-failed after mount).
+ */
+export function mergeIntegrityProbeGate(
+  current: DbResilienceProbeOutcome,
+  next: DbResilienceProbeOutcome,
+): DbResilienceProbeOutcome {
+  if (current.kind === 'failed' && current.failureKind === 'open') {
+    return current;
+  }
+  return next;
+}
+
 export async function resolveDbResilienceProbe(
   getDb: () => Promise<JieyuDatabase>,
   probe: (db: JieyuDatabase) => Promise<DbIntegrityProbeResult>,
