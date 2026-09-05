@@ -3,7 +3,16 @@
  * Unit tests for citation footnote utilities
  */
 import { describe, it, expect } from 'vitest';
-import { buildCopyableAssistantPlainText, buildNumberedRagLines, extractCitationIndices, buildSourceListFooter, normalizeCitationSnippetPlainText, splitCitationMarkers, RAG_CITATION_INSTRUCTION, type NumberedRagSource } from './citationFootnoteUtils';
+import {
+  buildCopyableAssistantPlainText,
+  buildNumberedRagLines,
+  extractCitationIndices,
+  buildSourceListFooter,
+  normalizeCitationSnippetPlainText,
+  splitCitationMarkers,
+  RAG_CITATION_INSTRUCTION,
+  type NumberedRagSource,
+} from './citationFootnoteUtils';
 
 // ── buildNumberedRagLines ──
 
@@ -97,16 +106,34 @@ describe('buildSourceListFooter', () => {
 
   it('marks unit line when readModelIndexHit is false', () => {
     const zh = buildSourceListFooter(
-      [{ type: 'unit', refId: 'gone', label: '句段参考', snippet: 'old', readModelIndexHit: false }],
+      [
+        {
+          type: 'unit',
+          refId: 'gone',
+          label: '句段参考',
+          snippet: 'old',
+          readModelIndexHit: false,
+        },
+      ],
       'zh-CN',
     );
-    expect(zh).toContain('[1] 句段参考 [当前时间线索引未命中]:');
+    expect(zh).toContain('[1] 句段参考 [当前时间线索引未命中]');
+    expect(zh).not.toContain('old');
 
     const en = buildSourceListFooter(
-      [{ type: 'unit', refId: 'gone', label: 'Unit ref', snippet: 'old', readModelIndexHit: false }],
+      [
+        {
+          type: 'unit',
+          refId: 'gone',
+          label: 'Unit ref',
+          snippet: 'old',
+          readModelIndexHit: false,
+        },
+      ],
       'en-US',
     );
-    expect(en).toContain('[1] Unit ref [not in current timeline index]:');
+    expect(en).toContain('[1] Unit ref [not in current timeline index]');
+    expect(en).not.toContain('old');
   });
 
   it('strips bidi isolation controls and normalizes whitespace in snippets', () => {
@@ -131,7 +158,9 @@ describe('buildCopyableAssistantPlainText', () => {
   it('appends normalized source footer to assistant content', () => {
     const result = buildCopyableAssistantPlainText({
       content: '回答正文',
-      citations: [{ type: 'pdf', refId: 'p1', label: '文档参考', snippet: '\u2067مرحبا\u2069\n  بالعالم' }],
+      citations: [
+        { type: 'pdf', refId: 'p1', label: '文档参考', snippet: '\u2067مرحبا\u2069\n  بالعالم' },
+      ],
       locale: 'zh-CN',
     });
 

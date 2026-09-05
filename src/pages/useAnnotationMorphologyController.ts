@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { LinguisticService } from '../app/languageAssetPageAccess';
+import { LinguisticService, presentTokenLexemeLink } from '../app/languageAssetPageAccess';
 import { t, useLocale } from '../i18n';
 import { pickDefaultTranscriptionText } from '../utils/transcriptionFormatters';
 import { ANNOTATION_LEIPZIG_TEMPLATE_ID } from './annotation/annotationLeipzigGloss';
@@ -81,11 +81,11 @@ export function useAnnotationMorphologyController(input: {
       for (const group of linkGroups) {
         const link = group.links[0];
         linksByTokenId[group.tokenId] = link
-          ? {
+          ? presentTokenLexemeLink({
               linkId: link.id,
               lexemeId: link.lexemeId,
-              lemma: lemmaById.get(link.lexemeId) ?? link.lexemeId,
-            }
+              lemma: lemmaById.get(link.lexemeId),
+            })
           : undefined;
       }
       return { morphs: mapStoredMorphemes(morphRows), linksByTokenId };

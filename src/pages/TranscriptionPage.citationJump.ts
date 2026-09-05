@@ -1,3 +1,4 @@
+import { resolveUnitCitation } from '../app/languageAssetPageAccess';
 import type { LayerDocType, UserNoteDocType } from '../types/jieyuDbDocTypes';
 import { db as appDb } from '../app/jieyuDbPageAccess';
 import type { NotePopoverState } from '~/hooks/notes/useNoteHandlers';
@@ -93,7 +94,12 @@ export async function handleTranscriptionCitationJump({
   if (!refId) return;
 
   if (citationType === 'unit') {
-    onJumpToEmbeddingMatch(refId);
+    const resolved = await resolveUnitCitation(refId);
+    if (resolved.kind === 'broken') {
+      onSetSidebarError(t(uiLocale, 'transcription.citation.unitNotFound'));
+      return;
+    }
+    onJumpToEmbeddingMatch(resolved.unitId);
     return;
   }
 

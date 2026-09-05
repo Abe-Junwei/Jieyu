@@ -3,7 +3,7 @@ title: ADR 0011 - 写作语料引用 corpusRef 与 citationJump 边界
 doc_type: adr
 status: proposed
 owner: repo
-last_reviewed: 2026-04-21
+last_reviewed: 2026-09-05
 source_of_truth: decision-record
 ---
 
@@ -37,7 +37,7 @@ source_of_truth: decision-record
 
 **目的**：G1 实现者与导出 filter **不必从代码逆推** import 面；与 [写作路线图 2.8.6 · adapter semver](../execution/plans/写作页开发路线图-2026-04-22.md#28-可访问性事故手册大文档边界与横向收口) 同轨：**下列符号名为草案**，落地路径以 **G0 Core 抽取 PR** 定稿为准；破坏性变更须 **semver + migration note**。
 
-**模块边界（占位路径）**：`src/writing/citation-resolver/`（或 `packages/citation-resolver-core/`，**二选一**在 Core PR 写明）。
+**模块边界（占位路径）**：转写/标注消费面现落在 `src/services/citationResolver.ts`（B6）。写作 G1 仍以 `src/writing/citation-resolver/`（或 `packages/citation-resolver-core/`）为公开索引目标，**禁止** `import` `TranscriptionPage.citationJump.ts`。
 
 | 草案符号 | 职责 | 输入 / 输出（草案） |
 |----------|------|---------------------|
@@ -46,8 +46,23 @@ source_of_truth: decision-record
 | `normalizeCorpusRef(...)` | 等价形式归一（若需要） | 供 Dexie / 导出索引 |
 | `resolveCorpusSnippet(ref, ctx)` | **只读**解析到可展示片段（**无**转写侧栏 UI 依赖） | `ctx` 含 **DB 访问 / project 作用域** 等纯数据依赖；失败为 **`CorpusRefNotFoundError` / `CorpusRefBrokenError`** 等等待枚举 |
 | `CorpusRefError`（基类或联合） | 与 [路线图 2.7.1](../execution/plans/写作页开发路线图-2026-04-22.md#27-体验安全迁移与生态补充) **稳定错误码** 可映射 | 诊断包字段 **一一对应** |
+| `resolveUnitCitation`（B6） | 转写 unit 引用 live/broken | `CITATION_UNIT_NOT_FOUND`；不把 segment 残留当 live |
 
 **禁止**：写作页、`writingDocAdapter`、导出层 **`import`** `TranscriptionPage.citationJump.ts` 或等效页面模块；**仅**依赖上述 **公开索引文件**（如 `src/writing/citation-resolver/index.ts` 显式 `export` 列表）。
+
+## 语料删除后的错误码（B6 已冻结）
+
+| 错误码 | 条件 | i18n |
+|--------|------|------|
+| `CITATION_UNIT_NOT_FOUND` | canonical `layer_units` 无该 id，或该行 `unitType === 'segment'` | `transcription.citation.unitNotFound` |
+| `CITATION_NOTE_NOT_FOUND` | 笔记缺失（既有 jump 路径） | `transcription.citation.noteNotFound` |
+| `CITATION_SCHEMA_NOT_FOUND` | 层定义缺失（既有 jump 路径） | `transcription.citation.schemaNotFound` |
+| `CITATION_PDF_NOT_FOUND` | PDF/书目目标缺失（既有 jump 路径） | `transcription.citation.pdfTargetNotFound` |
+| `CITATION_LEXEME_NOT_FOUND` | `token_lexeme_links` 指向不存在的 lexeme | `workspace.annotation.lexemeBroken` |
+
+当前删除语义是 **物理删除**（`LinguisticService.cleanup.removeUnit` / 项目/音频级联）。**无** `deletedAt` 软删列；残留 `segment` 行不得把已删 unit 判为 OK（兼容 `segment_meta` 延迟）。
+
+**禁止假成功摘要**：`readModelIndexHit === false` 的复制来源行只保留诊断标记，不含旧 snippet。
 
 ## 影响
 
@@ -57,4 +72,4 @@ source_of_truth: decision-record
 
 1. Resolver Core 合入且转写 `citationJump` 已改调用后，将本 ADR 向 `accepted` 推进；`insert_corpus_example` 全链路可作为同一里程碑或紧随其后。
 2. 若转写侧 ID 模型变更，评估 superseding ADR。
-3. 语料删除/软删规则首版合入后，将 **「断裂态 / 错误码 / 导出占位」** 与单测清单链回本 ADR **§语料生命周期**。
+3. 语料删除硬删路径已回写本 ADR **§语料删除后的错误码**；软删列与写作 `jieyu:corpus:v1` 仍待 G1。

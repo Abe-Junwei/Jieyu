@@ -1,4 +1,4 @@
-import { LinguisticService } from '../../app/languageAssetPageAccess';
+import { LinguisticService, presentTokenLexemeLink } from '../../app/languageAssetPageAccess';
 import type { LexemeDocType, TokenLexemeLinkDocType } from '../../types/jieyuDbDocTypes';
 import { newId, pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
 
@@ -25,6 +25,7 @@ export type AnnotationTokenLexemeLinkView = {
   linkId: string;
   lexemeId: string;
   lemma: string;
+  brokenCode?: 'CITATION_LEXEME_NOT_FOUND';
 };
 
 export function resolveLexemeForLinkQuery(
@@ -74,11 +75,11 @@ export async function saveAnnotationTokenLexemeLink(
   if (!stored) {
     throw new Error(`lexeme link readback missing ${lexeme.id}`);
   }
-  return {
+  return presentTokenLexemeLink({
     linkId: stored.id,
     lexemeId: stored.lexemeId,
     lemma: pickDefaultTranscriptionText(lexeme.lemma),
-  };
+  });
 }
 
 export async function removeAnnotationTokenLexemeLink(

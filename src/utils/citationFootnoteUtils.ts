@@ -108,6 +108,9 @@ export function buildSourceListFooter(citations: AiMessageCitation[], locale: st
           ? ' [当前时间线索引未命中]'
           : ' [not in current timeline index]'
         : '';
+    if (c.readModelIndexHit === false) {
+      return `[${i + 1}] ${label}${stale}`;
+    }
     return `[${i + 1}] ${label}${stale}: ${snippet}${snippet.length >= 100 ? '…' : ''}`;
   });
   return `\n\n---\n${header}:\n${lines.join('\n')}`;
