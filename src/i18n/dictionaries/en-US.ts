@@ -102,7 +102,7 @@ export const enUSDictionary = {
   'workspace.annotation.badge': 'IGT editing',
   'workspace.annotation.title': 'Annotation workspace',
   'workspace.annotation.summary':
-    'Edit POS and gloss for units in the current transcription scope. Surface and translation stay read-only in this slice.',
+    'Edit POS, gloss, morphemes, and lexeme links for units in the current transcription scope. Surface and translation stay read-only in this slice.',
   'workspace.annotation.empty':
     'No transcription record is in scope yet. Open the transcription workspace first.',
   'workspace.annotation.emptyList': 'No annotatable units are in the current scope.',
@@ -125,6 +125,19 @@ export const enUSDictionary = {
   'workspace.annotation.saveSaved': 'Saved',
   'workspace.annotation.saveFailed': 'Save failed: {message}',
   'workspace.annotation.saveError': 'Could not save annotation',
+  'workspace.annotation.morphemeFormLabel': 'Morpheme form',
+  'workspace.annotation.morphemeGlossLabel': 'Morpheme gloss',
+  'workspace.annotation.morphemeSeed': 'Split morphemes on -/=',
+  'workspace.annotation.morphemeSave': 'Save morphemes',
+  'workspace.annotation.morphemeSplitError': 'Morpheme split needs - or = in the form',
+  'workspace.annotation.tokenSplit': 'Split',
+  'workspace.annotation.tokenMerge': 'Merge with next',
+  'workspace.annotation.lexemeLinkLabel': 'Lexeme link',
+  'workspace.annotation.lexemeLink': 'Link lexeme',
+  'workspace.annotation.lexemeUnlink': 'Unlink',
+  'workspace.annotation.lexemeLinked': 'Linked {lemma}',
+  'workspace.annotation.validatorTemplate': 'Validator template: {id}',
+  'workspace.annotation.openStructuralProfiles': 'Open structural profiles',
   'workspace.analysis.unavailable.title': 'Analysis workspace is not open',
   'workspace.analysis.unavailable.summary':
     'Stat views, AI audit queues, and quality evaluation have not yet reached independent delivery standards, so this page remains informational.',
