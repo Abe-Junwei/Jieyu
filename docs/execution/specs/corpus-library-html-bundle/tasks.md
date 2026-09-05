@@ -27,7 +27,7 @@ depends_on:
 - [x] `npm run check:architecture-guard`
 - [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
 - [x] Feature flag 仍默认 `false`
-- [ ] `npm run test:e2e:chromium`（`/corpus` 占位不回归）
+- [x] `npm run test:e2e:chromium`（`/corpus` 占位不回归）
 
 ## Commit 阶段证据模板
 
