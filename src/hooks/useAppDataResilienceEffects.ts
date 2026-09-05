@@ -3,7 +3,11 @@ import type { Locale } from '../i18n';
 import { getAppDataResilienceMessages } from '../i18n/messages';
 import { getDb } from '../db/engine';
 import { probeJieyuDatabaseIntegrity } from '../db/dbIntegrityProbe';
-import { resolveDbResilienceProbe, type DbResilienceProbeOutcome } from './resolveDbResilienceGate';
+import {
+  mergeIntegrityProbeGate,
+  resolveDbResilienceProbe,
+  type DbResilienceProbeOutcome,
+} from './resolveDbResilienceGate';
 import {
   readBackupReminderEnabled,
   recordBackupReminderToastShown,
@@ -62,7 +66,7 @@ export function useAppDataResilienceEffects(locale: Locale): {
     if (!readDbIntegrityProbeEnabled()) return;
     if (readDbIntegritySessionSkip()) return;
     const next = await resolveDbResilienceProbe(getDb, probeJieyuDatabaseIntegrity);
-    setDbGate(next);
+    setDbGate((current) => mergeIntegrityProbeGate(current, next));
   }, []);
 
   // ARCH-5: 监听迁移进度事件 | Listen for migration progress events (ARCH-5)
@@ -101,6 +105,7 @@ export function useAppDataResilienceEffects(locale: Locale): {
 
   useEffect(() => {
     if (import.meta.env.MODE === 'test') return;
+    if (isBrowserAutomationRuntime()) return;
     void runIntegrityProbe();
   }, [runIntegrityProbe]);
 

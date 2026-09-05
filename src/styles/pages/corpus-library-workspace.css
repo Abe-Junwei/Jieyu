@@ -104,7 +104,15 @@
   color: var(--text-primary);
 }
 
-.corpus-library-row-time {
+.corpus-library-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.corpus-library-row-time,
+.corpus-library-row-media {
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
