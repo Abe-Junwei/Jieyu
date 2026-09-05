@@ -258,6 +258,28 @@ export const enUSDictionary = {
   'workspace.lexicon.noSenses': 'This entry has no senses yet.',
   'workspace.lexicon.noForms': 'This entry has no forms yet.',
   'workspace.lexicon.noNotes': 'This entry has no notes yet.',
+  'workspace.lexicon.attachments.title': 'Entry attachments',
+  'workspace.lexicon.attachments.description':
+    'Images, audio, and documents are linked as references; binaries live in the asset table, not on the lexeme row.',
+  'workspace.lexicon.attachments.upload': 'Add attachment',
+  'workspace.lexicon.attachments.fileLabel': 'Choose an attachment file',
+  'workspace.lexicon.attachments.languageCode': 'Language code',
+  'workspace.lexicon.attachments.languageCodePlaceholder': 'Optional, e.g. yue',
+  'workspace.lexicon.attachments.empty': 'This entry has no attachments yet.',
+  'workspace.lexicon.attachments.loading': 'Loading attachments…',
+  'workspace.lexicon.attachments.remove': 'Remove attachment',
+  'workspace.lexicon.attachments.download': 'Download',
+  'workspace.lexicon.attachments.omitted':
+    'This attachment file was omitted from the imported snapshot, so preview is unavailable.',
+  'workspace.lexicon.attachments.kind.image': 'Image',
+  'workspace.lexicon.attachments.kind.audio': 'Audio',
+  'workspace.lexicon.attachments.kind.document': 'Document',
+  'workspace.lexicon.attachments.error.unsupportedType':
+    'That file type is not supported. Use PNG, JPEG, WebP, GIF, common audio, or PDF/plain text.',
+  'workspace.lexicon.attachments.error.tooLarge': 'Attachments cannot exceed 5MB.',
+  'workspace.lexicon.attachments.error.empty': 'Empty files cannot be attached.',
+  'workspace.lexicon.attachments.error.notFound': 'The lexeme or attachment could not be found.',
+  'workspace.lexicon.attachments.error.generic': 'The attachment action failed. Try again later.',
   'workspace.languageMetadata.badge': 'Language Assets',
   'workspace.languageMetadata.title': 'Language Metadata Workspace',
   'workspace.languageMetadata.summary':

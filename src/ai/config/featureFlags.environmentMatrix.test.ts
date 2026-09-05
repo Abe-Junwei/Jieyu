@@ -126,6 +126,8 @@ describe('featureFlags environment matrix', () => {
     expect(dogfood.annotationPageEnabled).toBe(false);
     expect(prod.corpusLibraryPageEnabled).toBe(false);
     expect(dogfood.corpusLibraryPageEnabled).toBe(false);
+    expect(prod.lexiconAttachmentsEnabled).toBe(false);
+    expect(dogfood.lexiconAttachmentsEnabled).toBe(false);
   });
 
   it('respects explicit env overrides over matrix defaults', async () => {
@@ -145,6 +147,7 @@ describe('featureFlags environment matrix', () => {
       VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED: 'true',
       VITE_ANNOTATION_PAGE_ENABLED: 'true',
       VITE_CORPUS_LIBRARY_PAGE_ENABLED: 'true',
+      VITE_LEXICON_ATTACHMENTS_ENABLED: 'true',
     });
 
     expect(flags.aiBackgroundToolSandboxEnabled).toBe(false);
@@ -160,5 +163,6 @@ describe('featureFlags environment matrix', () => {
     expect(flags.aiExternalMcpProviderAdaptersEnabled).toBe(true);
     expect(flags.annotationPageEnabled).toBe(true);
     expect(flags.corpusLibraryPageEnabled).toBe(true);
+    expect(flags.lexiconAttachmentsEnabled).toBe(true);
   });
 });

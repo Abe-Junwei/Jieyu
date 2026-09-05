@@ -34,6 +34,8 @@ export {
 } from '../services/LinguisticService.orthography';
 
 export { LinguisticService } from '../services/LinguisticService';
+export type { LexemeAttachmentView } from '../services/LinguisticService';
+export { lexemeAssetAcceptAttribute } from '../services/lexemeAssetMime';
 export {
   CITATION_BROKEN_CODE,
   CITATION_BROKEN_MESSAGE_KEY,

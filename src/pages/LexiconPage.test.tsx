@@ -12,9 +12,20 @@ import type { LexemeDocType } from '../db';
 import { LocaleProvider } from '../i18n';
 import { LexiconPage } from './LexiconPage';
 
-const { mockListLexemes, mockListLexemeTranscriptionJumpTargets } = vi.hoisted(() => ({
+const {
+  mockListLexemes,
+  mockListLexemeTranscriptionJumpTargets,
+  mockListAttachments,
+  mockAttachFile,
+  mockUnlinkAttachment,
+  featureFlagState,
+} = vi.hoisted(() => ({
   mockListLexemes: vi.fn(),
   mockListLexemeTranscriptionJumpTargets: vi.fn(),
+  mockListAttachments: vi.fn(),
+  mockAttachFile: vi.fn(),
+  mockUnlinkAttachment: vi.fn(),
+  featureFlagState: { lexiconAttachmentsEnabled: false },
 }));
 
 vi.mock('../services/LinguisticService', () => ({
@@ -22,6 +33,17 @@ vi.mock('../services/LinguisticService', () => ({
     lexemes: {
       list: mockListLexemes,
       listTranscriptionJumpTargets: mockListLexemeTranscriptionJumpTargets,
+      listAttachments: mockListAttachments,
+      attachFile: mockAttachFile,
+      unlinkAttachment: mockUnlinkAttachment,
+    },
+  },
+}));
+
+vi.mock('../ai/config/featureFlags', () => ({
+  featureFlags: {
+    get lexiconAttachmentsEnabled() {
+      return featureFlagState.lexiconAttachmentsEnabled;
     },
   },
 }));
@@ -67,6 +89,22 @@ describe('LexiconPage', () => {
   beforeEach(() => {
     mockListLexemes.mockReset();
     mockListLexemeTranscriptionJumpTargets.mockReset();
+    mockListAttachments.mockReset();
+    mockAttachFile.mockReset();
+    mockUnlinkAttachment.mockReset();
+    featureFlagState.lexiconAttachmentsEnabled = false;
+    mockListAttachments.mockResolvedValue([]);
+    mockAttachFile.mockResolvedValue({
+      linkId: 'll-1',
+      assetId: 'la-1',
+      kind: 'image',
+      mimeType: 'image/png',
+      displayName: 'dog.png',
+      byteSize: 8,
+      blobOmitted: false,
+      createdAt: '2026-09-05T00:00:00.000Z',
+    });
+    mockUnlinkAttachment.mockResolvedValue(undefined);
     mockListLexemes.mockResolvedValue([
       {
         id: 'lex-dog',
@@ -242,5 +280,53 @@ describe('LexiconPage', () => {
     expect(screen.getByRole('link', { name: '打开正字法管理器' }).getAttribute('href')).toBe(
       '/assets/orthographies',
     );
+  });
+
+  it('hides the attachment section when the flag is off', async () => {
+    renderLexiconPage();
+    await screen.findByText('domesticated canine');
+    expect(screen.queryByTestId('lexicon-attachments')).toBeNull();
+    expect(screen.queryByText('词条附件')).toBeNull();
+  });
+
+  it('uploads an attachment then readback-lists and removes it when the flag is on', async () => {
+    featureFlagState.lexiconAttachmentsEnabled = true;
+    const uploaded = {
+      linkId: 'll-dog',
+      assetId: 'la-dog',
+      kind: 'image' as const,
+      mimeType: 'image/png',
+      displayName: 'dog.png',
+      languageCode: 'yue',
+      byteSize: 8,
+      blobOmitted: false,
+      createdAt: '2026-09-05T00:00:00.000Z',
+    };
+    mockAttachFile.mockImplementation(async () => {
+      mockListAttachments.mockResolvedValue([uploaded]);
+      return uploaded;
+    });
+    mockUnlinkAttachment.mockImplementation(async () => {
+      mockListAttachments.mockResolvedValue([]);
+    });
+
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-attachments');
+    expect(await screen.findByText('当前词条还没有附件。')).toBeTruthy();
+
+    const file = new File(['png-bytes'], 'dog.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('选择附件文件'), { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(mockAttachFile).toHaveBeenCalled();
+      expect(screen.getByText('dog.png')).toBeTruthy();
+    });
+    expect(mockListAttachments).toHaveBeenCalledWith('lex-dog');
+
+    fireEvent.click(screen.getByRole('button', { name: '移除附件' }));
+    await waitFor(() => {
+      expect(mockUnlinkAttachment).toHaveBeenCalledWith('ll-dog');
+      expect(screen.getByText('当前词条还没有附件。')).toBeTruthy();
+    });
   });
 });

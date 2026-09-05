@@ -15,6 +15,8 @@ import type {
   AnchorDocType,
   LexemeDocType,
   TokenLexemeLinkDocType,
+  LexemeAssetDocType,
+  LexemeAssetLinkDocType,
   AiTaskDoc,
   EmbeddingDoc,
   AiConversationDoc,
@@ -68,6 +70,8 @@ import {
   validateAnchorDoc,
   validateLexemeDoc,
   validateTokenLexemeLinkDoc,
+  validateLexemeAssetDoc,
+  validateLexemeAssetLinkDoc,
   validateAiTaskDoc,
   validateEmbeddingDoc,
   validateAiConversationDoc,
@@ -148,7 +152,7 @@ export const JIEYU_DEXIE_DB_NAME = 'jieyudb_v2' as const;
  * 须与 `JieyuDexie` 构造器内**最高**的 `this.version(…)` 号一致，供健康检查 / 迁移回放测试（ARCH-5）。
  * Must match the highest `this.version(…)` in `JieyuDexie` — health + migration-replay (ARCH-5).
  */
-export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 52;
+export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 53;
 
 export function buildSegmentationV2BackfillRows(input: {
   units: LayerUnitDocType[];
@@ -406,6 +410,8 @@ export class JieyuDexie extends Dexie {
   anchors!: Table<AnchorDocType, string>;
   lexemes!: Table<LexemeDocType, string>;
   token_lexeme_links!: Table<TokenLexemeLinkDocType, string>;
+  lexeme_assets!: Table<LexemeAssetDocType, string>;
+  lexeme_asset_links!: Table<LexemeAssetLinkDocType, string>;
   ai_tasks!: Table<AiTaskDoc, string>;
   embeddings!: Table<EmbeddingDoc, string>;
   ai_conversations!: Table<AiConversationDoc, string>;
@@ -1481,6 +1487,13 @@ export class JieyuDexie extends Dexie {
     this.version(52).stores({
       agent_artifacts: 'id, kind, uri, createdAt, adoptionItemId',
     });
+
+    // v53: lexicon attachment blobs + lexeme↔asset links (B8 referenced assets).
+    this.version(53).stores({
+      lexeme_assets:
+        'id, kind, mimeType, displayName, languageCode, byteSize, refCount, createdAt, updatedAt',
+      lexeme_asset_links: 'id, lexemeId, assetId, [lexemeId+assetId], createdAt',
+    });
   }
 }
 
@@ -1690,6 +1703,11 @@ async function _createDb(): Promise<JieyuDatabase> {
     token_lexeme_links: new DexieCollectionAdapter(
       dexie.token_lexeme_links,
       validateTokenLexemeLinkDoc,
+    ),
+    lexeme_assets: new DexieCollectionAdapter(dexie.lexeme_assets, validateLexemeAssetDoc),
+    lexeme_asset_links: new DexieCollectionAdapter(
+      dexie.lexeme_asset_links,
+      validateLexemeAssetLinkDoc,
     ),
     ai_tasks: new DexieCollectionAdapter(dexie.ai_tasks, validateAiTaskDoc),
     embeddings: new DexieCollectionAdapter(dexie.embeddings, validateEmbeddingDoc),

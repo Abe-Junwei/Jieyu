@@ -69,6 +69,15 @@ export async function exportDatabaseAsJson(): Promise<{
     }
   }
 
+  const lexemeAssets = collections['lexeme_assets'] as Array<Record<string, unknown>> | undefined;
+  if (lexemeAssets) {
+    for (const item of lexemeAssets) {
+      if (!(item['blob'] instanceof Blob)) continue;
+      delete item['blob'];
+      item['blobExportOmitted'] = true;
+    }
+  }
+
   return {
     schemaVersion: SNAPSHOT_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
@@ -146,6 +155,8 @@ const knownCollectionNames = [
   'anchors',
   'lexemes',
   'token_lexeme_links',
+  'lexeme_assets',
+  'lexeme_asset_links',
   'ai_tasks',
   'embeddings',
   'ai_conversations',
@@ -201,6 +212,8 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   anchors: db.anchors,
   lexemes: db.lexemes,
   token_lexeme_links: db.token_lexeme_links,
+  lexeme_assets: db.lexeme_assets,
+  lexeme_asset_links: db.lexeme_asset_links,
   ai_tasks: db.ai_tasks,
   embeddings: db.embeddings,
   ai_conversations: db.ai_conversations,

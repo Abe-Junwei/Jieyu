@@ -113,6 +113,9 @@ const annotationPageEnabledFromEnv = readOptionalBooleanFlag(
 const corpusLibraryPageEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_CORPUS_LIBRARY_PAGE_ENABLED,
 );
+const lexiconAttachmentsEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_LEXICON_ATTACHMENTS_ENABLED,
+);
 
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
@@ -247,4 +250,9 @@ export const featureFlags = {
    * Expiry: revisit after B5b dogfood (do not default true in this slice).
    */
   corpusLibraryPageEnabled: corpusLibraryPageEnabledFromEnv ?? false,
+  /**
+   * B8: lexicon entry image/audio/document attachments (referenced IndexedDB blobs).
+   * Default false; flag off hides the attachment section on the live lexicon page.
+   */
+  lexiconAttachmentsEnabled: lexiconAttachmentsEnabledFromEnv ?? false,
 } as const;
