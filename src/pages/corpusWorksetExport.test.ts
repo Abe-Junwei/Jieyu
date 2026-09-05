@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assessCorpusExportLength,
   buildCorpusWorksetExportPayload,
+  CORPUS_EXPORT_MAX_CHARS,
+  formatCorpusWorksetHtml,
   formatCorpusWorksetMarkdown,
   formatCorpusWorksetPlain,
   toCorpusWorksetExportUnit,
@@ -125,5 +128,71 @@ describe('corpusWorksetExport', () => {
     });
     expect(formatCorpusWorksetPlain(payload)).toBe('');
     expect(formatCorpusWorksetMarkdown(payload)).toBe('');
+    expect(formatCorpusWorksetHtml(payload)).toBe('');
+  });
+
+  it('formats html with escaped text and transcription deep links', () => {
+    const payload = buildCorpusWorksetExportPayload({
+      textId: 'tid-1',
+      mediaId: 'mid-1',
+      basketUnitIds: ['uid-1'],
+      units: [
+        toCorpusWorksetExportUnit({
+          id: 'uid-1',
+          textId: 'tid-1',
+          mediaId: 'mid-1',
+          startTime: 1.5,
+          endTime: 2,
+          text: 'tone <script>alert(1)</script> & "q"',
+          fallbackTextId: 'tid-1',
+          fallbackMediaId: 'mid-1',
+        }),
+      ],
+    });
+    const html = formatCorpusWorksetHtml(payload);
+    expect(html).toContain('data-jieyu-workset="1"');
+    expect(html).toContain('<p>textId: tid-1 · mediaId: mid-1</p>');
+    expect(html).toContain('href="/transcription?textId=tid-1&amp;mediaId=mid-1&amp;unitId=uid-1"');
+    expect(html).toContain('00:01.5-00:02.0');
+    expect(html).toContain('<code>uid-1</code>');
+    expect(html).toContain('tone &lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;q&quot;');
+    expect(html).not.toContain('<script>');
+  });
+
+  it('omits the html header mediaId when the workset spans media', () => {
+    const first = UNITS.find((unit) => unit.unitId === 'uid-1');
+    expect(first).toBeTruthy();
+    if (!first) return;
+    const mixed = [
+      first,
+      toCorpusWorksetExportUnit({
+        id: 'uid-3',
+        textId: 'tid-1',
+        mediaId: 'mid-2',
+        startTime: 5,
+        endTime: 6,
+        text: 'other media',
+        fallbackTextId: 'tid-1',
+        fallbackMediaId: 'mid-2',
+      }),
+    ];
+    const payload = buildCorpusWorksetExportPayload({
+      textId: 'tid-1',
+      mediaId: 'mid-1',
+      basketUnitIds: ['uid-1', 'uid-3'],
+      units: mixed,
+    });
+    const html = formatCorpusWorksetHtml(payload);
+    expect(html).toContain('<p>textId: tid-1</p>');
+    expect(html).not.toContain(' · mediaId:');
+    expect(html).toContain('<code>mid-1</code>');
+    expect(html).toContain('<code>mid-2</code>');
+    expect(html).toContain('/transcription?textId=tid-1&amp;mediaId=mid-2&amp;unitId=uid-3');
+  });
+
+  it('classifies empty and over-cap export lengths', () => {
+    expect(assessCorpusExportLength(0)).toBe('empty');
+    expect(assessCorpusExportLength(CORPUS_EXPORT_MAX_CHARS)).toBe('ok');
+    expect(assessCorpusExportLength(CORPUS_EXPORT_MAX_CHARS + 1)).toBe('too-long');
   });
 });

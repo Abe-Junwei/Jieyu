@@ -9,10 +9,14 @@ import { LocaleProvider } from '../i18n';
 import { resetCorpusBasketSessionForTests } from './corpusBasketSession';
 import { CORPUS_VIEW_STATE_KEY, resetCorpusViewStateForTests } from './corpusViewState';
 
-const { mockListCorpusIndexByTextId, featureFlagState } = vi.hoisted(() => ({
-  mockListCorpusIndexByTextId: vi.fn(),
-  featureFlagState: { corpusLibraryPageEnabled: false },
-}));
+const { mockListCorpusIndexByTextId, featureFlagState, mockDownloadCorpusWorksetBundle } =
+  vi.hoisted(() => ({
+    mockListCorpusIndexByTextId: vi.fn(),
+    featureFlagState: { corpusLibraryPageEnabled: false },
+    mockDownloadCorpusWorksetBundle: vi.fn<(bytes: Uint8Array, textId: string) => boolean>(
+      () => true,
+    ),
+  }));
 
 vi.mock('../app/languageAssetPageAccess', () => ({
   LinguisticService: {
@@ -21,6 +25,14 @@ vi.mock('../app/languageAssetPageAccess', () => ({
     },
   },
 }));
+
+vi.mock('./corpusWorksetBundle', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./corpusWorksetBundle')>();
+  return {
+    ...actual,
+    downloadCorpusWorksetBundle: mockDownloadCorpusWorksetBundle,
+  };
+});
 
 vi.mock('../ai/config/featureFlags', () => ({
   featureFlags: {
@@ -83,6 +95,8 @@ function renderPage(path: string) {
 afterEach(() => {
   cleanup();
   mockListCorpusIndexByTextId.mockReset();
+  mockDownloadCorpusWorksetBundle.mockReset();
+  mockDownloadCorpusWorksetBundle.mockReturnValue(true);
   featureFlagState.corpusLibraryPageEnabled = false;
   resetCorpusBasketSessionForTests();
   resetCorpusViewStateForTests();
@@ -257,5 +271,57 @@ describe('CorpusLibraryPage', () => {
         'updated first sentence',
       );
     });
+  });
+
+  it('copies basket html with ClipboardItem even when the list filter hides a selected unit', async () => {
+    class FakeClipboardItem {
+      constructor(readonly items: Record<string, Blob>) {}
+    }
+    const write = vi.fn<(items: FakeClipboardItem[]) => Promise<void>>(async () => undefined);
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('ClipboardItem', FakeClipboardItem);
+    vi.stubGlobal('navigator', { clipboard: { write, writeText } });
+    featureFlagState.corpusLibraryPageEnabled = true;
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
+    renderPage('/corpus?textId=tid-1&mediaId=mid-1');
+    const first = await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
+    const second = screen.getByTestId('corpus-library-unit-uid-2');
+    fireEvent.click(first.querySelector('input[type="checkbox"]') as HTMLInputElement);
+    fireEvent.click(second.querySelector('input[type="checkbox"]') as HTMLInputElement);
+    fireEvent.change(screen.getByLabelText('筛选句段'), { target: { value: 'tone' } });
+    expect(screen.queryByTestId('corpus-library-unit-uid-2')).toBeNull();
+    fireEvent.click(screen.getByTestId('corpus-library-copy-html'));
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+    expect(writeText).not.toHaveBeenCalled();
+    const written = write.mock.calls[0]?.[0];
+    const item = written?.[0];
+    expect(item).toBeInstanceOf(FakeClipboardItem);
+    if (!(item instanceof FakeClipboardItem)) return;
+    const html = await item.items['text/html']?.text();
+    const plain = await item.items['text/plain']?.text();
+    expect(html).toContain('second sentence');
+    expect(html).toContain('uid-2');
+    expect(html).toContain('/transcription?textId=tid-1&amp;mediaId=mid-1&amp;unitId=uid-2');
+    expect(plain).toContain('second sentence');
+    expect(plain).toContain('uid-2');
+  });
+
+  it('downloads a workset bundle for selected units and skips an empty workset', async () => {
+    featureFlagState.corpusLibraryPageEnabled = true;
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
+    renderPage('/corpus?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
+    expect(screen.getByTestId('corpus-library-download-bundle')).toHaveProperty('disabled', true);
+    fireEvent.click(screen.getByTestId('corpus-library-download-bundle'));
+    expect(mockDownloadCorpusWorksetBundle).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen
+        .getByTestId('corpus-library-unit-uid-1')
+        .querySelector('input[type="checkbox"]') as HTMLInputElement,
+    );
+    fireEvent.click(screen.getByTestId('corpus-library-download-bundle'));
+    await waitFor(() => expect(mockDownloadCorpusWorksetBundle).toHaveBeenCalledTimes(1));
+    expect(mockDownloadCorpusWorksetBundle.mock.calls[0]?.[1]).toBe('tid-1');
+    expect(screen.getByText('已下载工作集打包')).toBeTruthy();
   });
 });

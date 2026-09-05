@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-10
+last_reviewed: 2026-09-11
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -162,7 +162,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：B1 列表滚动与 B2 跨页事件接线均已合入。已在其它分支完成、待合入：B5c HTML/bundle。之后余量：**B7**（blocked on A7/A9/A12 + ChatWindow）。不启动 EAF/TextGrid。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：本 PR 收口 **B5c / 语料 P1**（HTML 剪贴板 + 空选/超长/剪贴板失败诊断 + fflate 小 bundle）。B1 列表滚动与 B2 跨页事件接线均已合入。之后余量：**B7**（blocked on A7/A9/A12 + ChatWindow）。不启动 EAF/TextGrid。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -194,6 +194,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | **【🟡 已落地·flag 关】** 承 B4a-2：morpheme 按 `-`/`=` 分格 + gloss 写 `unit_morphemes`；token 空格/`|` 切分与与下一词合并写 `unit_tokens`；词典查询写 `token_lexeme_links`（role=`manual`）。Leipzig 内联校验 + 系统结构模板标记；模板编辑复用 `/assets/structural-profiles`。SDD：`annotation-morpheme-edit/`。不写 `layer_units`；不做二次自动分词 / note/tag；不接 ChatWindow | 分词/链接/词素写→reload→readback；Leipzig invalid；定向 vitest | 是 |
 | **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟡 已落地·flag 关】** `/corpus` 当前 text 下跨媒体只读索引 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-workset-shell/` + `corpus-library-project-index/`。查询层 `listCorpusIndexByTextId`，无 Dexie 索引表。换 **text** 清空工作集；换 media 保留。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 两 media 同列表；换 media 保留 basket；换 text 清空；定向 vitest | 是 |
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | **【🟡 已落地·flag 关】** 工作集复制 plain / Markdown（unit/media/时间码 + `/transcription?` 深链）；空选不写剪贴板。SDD：`corpus-library-clipboard-export/`。沿用 `corpusLibraryPageEnabled` 默认 **false**。不做 HTML/bundle/EAF；不接 ChatWindow / Resolver Core | golden 对拍 + clipboard mock；flag 关占位 e2e 不回归 | 是 |
+| **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟡 已落地·flag 关】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
 | **B6** | 引用断裂态（ADR-0011，P0-6） | M | **【🟡 已落地】** `citationResolver.resolveUnitCitation` + `citationJump` 对缺失 unit 报 `CITATION_UNIT_NOT_FOUND` 且不跳转；RAG footer 在 `readModelIndexHit === false` 时省略 snippet；悬空 lexeme 链接 `CITATION_LEXEME_NOT_FOUND`。无软删列；残留 segment 不得复活已删 unit。SDD：`citation-broken-state/`。`removeUnit` 经 B2 `unit-updated` 通知消费方增量 refetch | 删 unit 后 resolve 断裂码；jump 不盲跳；footer 无旧摘录；定向 vitest | 是 |
 | **B7** | 语料库 AI 分区与会话隔离（P1-1） | M | `useAiToolCallHandler.adapters`、`useAiChat.config`、`CorpusLibraryPage`；`corpusBridgeAdapter` 命名。**前置：A6 + A7 + A9 + A12** | corpus 侧复制优先、默认不写回主链；会话与转写隔离；`check:agent-evals:smoke` | 是 |
 | **B11** | 外部 MCP trust allowlist | M | **【已落地·flag 关】** `externalMcpTrustRegistry` + Dexie v51 `external_mcp_trust`；`exposeExternalMcpToolsToLlm` 对未登记 / 未启用 / flag off 零暴露；首次启用带 schema 走 A9 `inspectInbound`；Settings AI 节 flag 开才渲染。Flag `aiExternalMcpTrustEnabled` 默认 **false**。**剩余**：flag 放量。Outbound HTTP 见 **B13**。SDD：`agent-runtime-external-mcp-trust/`。**依赖 A9** | 未登记 server deny；schema 零暴露；用户显式启用；审计 readback | 是 |
@@ -217,7 +218,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **C3d** | Word/docx 导出 | — | **待定**：需引入 docx 生成依赖（体积/维护/许可成本需评估）。**默认不排期**，按真实诉求再决定复用方案 | — | 是（先 Research） |
 | **C4** | 协作云增强（独立切片） | — | 现状 [collaboration-cloud](../../architecture/collaboration-cloud.md) 已落地；增强项参考 M8–M14；**非本地切片门槛** | `gate:collaboration-cloud` / `gate:greenfield-local`（按需，release 窗口） | 视项 |
 
-> **导出现状（2026-06-01 代码盘点）**：**已强** = 语言学交换格式 EAF/TextGrid/TRS/Flextext/Toolbox + 原生 JYT/JYM（均带 round-trip 导入）；**已有** = 声学选区 CSV/JSON、项目归档 bundle、AI 回答带引用纯文本复制；**缺口** = 字幕(C3a)、表格(C3b)、学术 IGT LaTeX(C3c)、Word(C3d 待定)。语料库 text/plain+markdown 剪贴板出站属 **B5**，勿在 C3 重复。所有导出切片须**先建内部统一读模型再序列化**，禁止反噬编辑数据模型。
+> **导出现状（2026-09-05 代码盘点）**：**已强** = 语言学交换格式 EAF/TextGrid/TRS/Flextext/Toolbox + 原生 JYT/JYM（均带 round-trip 导入）；**已有** = 声学选区 CSV/JSON、项目归档 bundle、AI 回答带引用纯文本复制、语料库工作集 plain/Markdown/HTML 剪贴板与 fflate 小 bundle（**B5b/B5c**，页面 flag 默认关）；**缺口** = 字幕(C3a)、表格(C3b)、学术 IGT LaTeX(C3c)、Word(C3d 待定)。语料库轻量出站属 **B5**，勿在 C3 重复；EAF 等标准格式从 `/corpus` 接入仍待单独切片。所有导出切片须**先建内部统一读模型再序列化**，禁止反噬编辑数据模型。
 
 ### 各域子计划真源（切片内细节以此为准，本文不复制正文）
 
@@ -286,3 +287,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-07 | **B10**：R1–R8 联评门禁 `npm run check:r1-r8`（路径过滤 + PR 正文勾选/N/A）；含于 `check:all`；CI PR 浅克隆先 fetch base SHA。不引入 Danger.js。下一刀合入 B5c/B2，或 B7（仍 blocked）。 |
 | 2026-09-10 | **B1 滚动**：词典 `.app-main` 与语料 `.corpus-library-body` 的 `listScrollTop` 写入 sessionStorage（R8）；不双写 URL；`corpusBasket` 仍仅 Router 会话。 |
 | 2026-09-10 | **B2**：`workspaceEvents.ts` 接线；LinguisticService 单写 persist 后 emit；annotation/corpus/lexicon 按 unit/lexeme 增量刷新，草稿不覆盖。`saveUnitsBatch` 不 emit。 |
+| 2026-09-11 | **B5c / 语料 P1**：HTML `ClipboardItem` 双 MIME + 空选/超长/剪贴板失败诊断码 + fflate 工作集 zip。Flag 默认 false。下一刀 B7（仍 blocked on A7/A9/A12 + ChatWindow）或 C3a/b。 |
