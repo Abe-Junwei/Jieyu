@@ -110,6 +110,9 @@ const aiExternalMcpProviderAdaptersEnabledFromEnv = readOptionalBooleanFlag(
 const annotationPageEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_ANNOTATION_PAGE_ENABLED,
 );
+const corpusLibraryPageEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_CORPUS_LIBRARY_PAGE_ENABLED,
+);
 
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
@@ -238,4 +241,10 @@ export const featureFlags = {
    * Default false; flag off keeps FeatureAvailabilityPanel.
    */
   annotationPageEnabled: annotationPageEnabledFromEnv ?? false,
+  /**
+   * B5a-1: corpus library readonly list + isolated workset shell.
+   * Owner: corpus. Default false; flag off keeps FeatureAvailabilityPanel.
+   * Expiry: revisit after B5b dogfood (do not default true in this slice).
+   */
+  corpusLibraryPageEnabled: corpusLibraryPageEnabledFromEnv ?? false,
 } as const;

@@ -2,60 +2,61 @@
 /// <reference types="vite-plugin-pwa/client" />
 
 interface ImportMetaEnv {
-	/** Package version from `package.json`, injected at build (`vite.config.ts`). */
-	readonly VITE_APP_VERSION: string;
-	readonly VITE_M5_OBSERVABILITY_ENV?: string;
-	readonly VITE_ENABLE_SENTRY?: string;
-	readonly VITE_SENTRY_DSN?: string;
-	readonly VITE_SENTRY_TRACES_SAMPLE_RATE?: string;
-	readonly VITE_SENTRY_RELEASE?: string;
-	readonly VITE_SENTRY_ENVIRONMENT?: string;
-	readonly VITE_SENTRY_SEND_DEFAULT_PII?: string;
-	readonly VITE_SENTRY_ENABLE_BROWSER_TRACING?: string;
-	readonly VITE_ENABLE_OTEL?: string;
-	readonly VITE_OTEL_EXPORT_ENABLED?: string;
-	readonly VITE_OTEL_EXPORTER_OTLP_ENDPOINT?: string;
-	readonly VITE_OTEL_SERVICE_NAME?: string;
-	readonly VITE_OTEL_TRACES_SAMPLE_RATE?: string;
-	readonly VITE_OTEL_ENVIRONMENT?: string;
-	readonly VITE_OTEL_EXPORT_TIMEOUT_MS?: string;
-	readonly VITE_OTEL_BSP_MAX_QUEUE_SIZE?: string;
-	readonly VITE_OTEL_BSP_MAX_EXPORT_BATCH_SIZE?: string;
-	readonly VITE_OTEL_BSP_SCHEDULE_DELAY_MS?: string;
-	readonly VITE_OTEL_CIRCUIT_BREAKER_FAILURE_THRESHOLD?: string;
-	readonly VITE_OTEL_INJECT_TRACE_CONTEXT_HEADERS?: string;
-	readonly VITE_MAP_PROXY_BASE_URL?: string;
-	readonly VITE_MAP_PROXY_FALLBACK_ON_ERROR?: string;
-	/** BAS Web Services / WebMAUS host (no trailing slash), e.g. Munich BAS deployment */
-	readonly VITE_BAS_WEBSERVICES_BASE_URL?: string;
-	readonly VITE_SUPABASE_URL?: string;
-	readonly VITE_SUPABASE_ANON_KEY?: string;
-	/** E2E / dogfood only: enable `aiBackgroundToolSandboxEnabled` in the baked bundle. */
-	readonly VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED?: string;
-	/** Optional override for `aiBackgroundMemorySessionWriteQuotaEnabled` (true/false, 1/0). */
-	readonly VITE_AI_BACKGROUND_MEMORY_SESSION_WRITE_QUOTA_ENABLED?: string;
-	/** Optional override for `aiToolCallExecutorAutoRetryEnabled` (true/false, 1/0). */
-	readonly VITE_AI_TOOL_CALL_EXECUTOR_AUTO_RETRY_ENABLED?: string;
-	/** E2E / dogfood only: `readonly` | `restricted_write` | `deny_by_default`; default production build omits. */
-	readonly VITE_AI_BACKGROUND_MEMORY_SANDBOX_PROFILE?: string;
-	/** Optional override for `aiSemanticGuardEnabled` (true/false, 1/0). Default off. */
-	readonly VITE_AI_SEMANTIC_GUARD_ENABLED?: string;
-	/** Optional override for `aiExternalMcpTrustEnabled` (true/false, 1/0). Default off. */
-	readonly VITE_AI_EXTERNAL_MCP_TRUST_ENABLED?: string;
-	/** Optional override for `aiMcpResourcesArtifactsEnabled` (true/false, 1/0). Default off. */
-	readonly VITE_AI_MCP_RESOURCES_ARTIFACTS_ENABLED?: string;
-	/** Optional override for `aiExternalMcpHttpClientEnabled` (true/false, 1/0). Default off. */
-	readonly VITE_AI_EXTERNAL_MCP_HTTP_CLIENT_ENABLED?: string;
-	/** Optional override for `aiExternalMcpSendTurnEnabled` (true/false, 1/0). Default off. */
-	readonly VITE_AI_EXTERNAL_MCP_SEND_TURN_ENABLED?: string;
-	/** Optional override for `aiExternalMcpProviderAdaptersEnabled` (true/false, 1/0). Default off. */
-	readonly VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED?: string;
-	/** Optional override for `annotationPageEnabled` (true/false, 1/0). Default off. */
-	readonly VITE_ANNOTATION_PAGE_ENABLED?: string;
+  /** Package version from `package.json`, injected at build (`vite.config.ts`). */
+  readonly VITE_APP_VERSION: string;
+  readonly VITE_M5_OBSERVABILITY_ENV?: string;
+  readonly VITE_ENABLE_SENTRY?: string;
+  readonly VITE_SENTRY_DSN?: string;
+  readonly VITE_SENTRY_TRACES_SAMPLE_RATE?: string;
+  readonly VITE_SENTRY_RELEASE?: string;
+  readonly VITE_SENTRY_ENVIRONMENT?: string;
+  readonly VITE_SENTRY_SEND_DEFAULT_PII?: string;
+  readonly VITE_SENTRY_ENABLE_BROWSER_TRACING?: string;
+  readonly VITE_ENABLE_OTEL?: string;
+  readonly VITE_OTEL_EXPORT_ENABLED?: string;
+  readonly VITE_OTEL_EXPORTER_OTLP_ENDPOINT?: string;
+  readonly VITE_OTEL_SERVICE_NAME?: string;
+  readonly VITE_OTEL_TRACES_SAMPLE_RATE?: string;
+  readonly VITE_OTEL_ENVIRONMENT?: string;
+  readonly VITE_OTEL_EXPORT_TIMEOUT_MS?: string;
+  readonly VITE_OTEL_BSP_MAX_QUEUE_SIZE?: string;
+  readonly VITE_OTEL_BSP_MAX_EXPORT_BATCH_SIZE?: string;
+  readonly VITE_OTEL_BSP_SCHEDULE_DELAY_MS?: string;
+  readonly VITE_OTEL_CIRCUIT_BREAKER_FAILURE_THRESHOLD?: string;
+  readonly VITE_OTEL_INJECT_TRACE_CONTEXT_HEADERS?: string;
+  readonly VITE_MAP_PROXY_BASE_URL?: string;
+  readonly VITE_MAP_PROXY_FALLBACK_ON_ERROR?: string;
+  /** BAS Web Services / WebMAUS host (no trailing slash), e.g. Munich BAS deployment */
+  readonly VITE_BAS_WEBSERVICES_BASE_URL?: string;
+  readonly VITE_SUPABASE_URL?: string;
+  readonly VITE_SUPABASE_ANON_KEY?: string;
+  /** E2E / dogfood only: enable `aiBackgroundToolSandboxEnabled` in the baked bundle. */
+  readonly VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED?: string;
+  /** Optional override for `aiBackgroundMemorySessionWriteQuotaEnabled` (true/false, 1/0). */
+  readonly VITE_AI_BACKGROUND_MEMORY_SESSION_WRITE_QUOTA_ENABLED?: string;
+  /** Optional override for `aiToolCallExecutorAutoRetryEnabled` (true/false, 1/0). */
+  readonly VITE_AI_TOOL_CALL_EXECUTOR_AUTO_RETRY_ENABLED?: string;
+  /** E2E / dogfood only: `readonly` | `restricted_write` | `deny_by_default`; default production build omits. */
+  readonly VITE_AI_BACKGROUND_MEMORY_SANDBOX_PROFILE?: string;
+  /** Optional override for `aiSemanticGuardEnabled` (true/false, 1/0). Default off. */
+  readonly VITE_AI_SEMANTIC_GUARD_ENABLED?: string;
+  /** Optional override for `aiExternalMcpTrustEnabled` (true/false, 1/0). Default off. */
+  readonly VITE_AI_EXTERNAL_MCP_TRUST_ENABLED?: string;
+  /** Optional override for `aiMcpResourcesArtifactsEnabled` (true/false, 1/0). Default off. */
+  readonly VITE_AI_MCP_RESOURCES_ARTIFACTS_ENABLED?: string;
+  /** Optional override for `aiExternalMcpHttpClientEnabled` (true/false, 1/0). Default off. */
+  readonly VITE_AI_EXTERNAL_MCP_HTTP_CLIENT_ENABLED?: string;
+  /** Optional override for `aiExternalMcpSendTurnEnabled` (true/false, 1/0). Default off. */
+  readonly VITE_AI_EXTERNAL_MCP_SEND_TURN_ENABLED?: string;
+  /** Optional override for `aiExternalMcpProviderAdaptersEnabled` (true/false, 1/0). Default off. */
+  readonly VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED?: string;
+  readonly VITE_ANNOTATION_PAGE_ENABLED?: string;
+  /** Optional override for `corpusLibraryPageEnabled` (true/false, 1/0). Default off. */
+  readonly VITE_CORPUS_LIBRARY_PAGE_ENABLED?: string;
 }
 
 interface ImportMeta {
-	readonly env: ImportMetaEnv;
+  readonly env: ImportMetaEnv;
 }
 
 declare const __APP_VERSION__: string;

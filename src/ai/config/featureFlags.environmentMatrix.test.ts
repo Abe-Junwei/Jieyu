@@ -124,6 +124,8 @@ describe('featureFlags environment matrix', () => {
     expect(dogfood.aiExternalMcpProviderAdaptersEnabled).toBe(false);
     expect(prod.annotationPageEnabled).toBe(false);
     expect(dogfood.annotationPageEnabled).toBe(false);
+    expect(prod.corpusLibraryPageEnabled).toBe(false);
+    expect(dogfood.corpusLibraryPageEnabled).toBe(false);
   });
 
   it('respects explicit env overrides over matrix defaults', async () => {
@@ -142,6 +144,7 @@ describe('featureFlags environment matrix', () => {
       VITE_AI_EXTERNAL_MCP_SEND_TURN_ENABLED: 'true',
       VITE_AI_EXTERNAL_MCP_PROVIDER_ADAPTERS_ENABLED: 'true',
       VITE_ANNOTATION_PAGE_ENABLED: 'true',
+      VITE_CORPUS_LIBRARY_PAGE_ENABLED: 'true',
     });
 
     expect(flags.aiBackgroundToolSandboxEnabled).toBe(false);
@@ -156,5 +159,6 @@ describe('featureFlags environment matrix', () => {
     expect(flags.aiExternalMcpSendTurnEnabled).toBe(true);
     expect(flags.aiExternalMcpProviderAdaptersEnabled).toBe(true);
     expect(flags.annotationPageEnabled).toBe(true);
+    expect(flags.corpusLibraryPageEnabled).toBe(true);
   });
 });
