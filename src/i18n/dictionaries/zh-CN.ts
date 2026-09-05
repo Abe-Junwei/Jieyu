@@ -158,7 +158,7 @@ export const zhCNDictionary = {
   'workspace.corpus.badge': '只读工作集',
   'workspace.corpus.title': '语料库',
   'workspace.corpus.summary':
-    '在当前转写范围内多选句段，组成与转写选择隔离的工作集。导出将在后续开放。',
+    '在当前转写范围内多选句段，组成与转写选择隔离的工作集。可将工作集复制为纯文本或 Markdown。',
   'workspace.corpus.empty': '还没有可浏览的转写记录。请先打开转写工作台。',
   'workspace.corpus.openTranscription': '打开转写工作台',
   'workspace.corpus.sidePaneTitle': '语料库',

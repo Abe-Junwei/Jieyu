@@ -173,7 +173,7 @@ export const enUSDictionary = {
   'workspace.corpus.badge': 'Read-only workset',
   'workspace.corpus.title': 'Corpus library',
   'workspace.corpus.summary':
-    'Multi-select units in the current transcription scope into a workset isolated from transcription selection. Export will open later.',
+    'Multi-select units in the current transcription scope into a workset isolated from transcription selection. Copy the workset as plain text or Markdown.',
   'workspace.corpus.empty':
     'No transcription record is in scope yet. Open the transcription workspace first.',
   'workspace.corpus.openTranscription': 'Open transcription workspace',
