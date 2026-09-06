@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { pickDefaultTranscriptionLangKey } from '../../utils/transcriptionFormatters';
 import {
   collectDirtyAnnotationTokenWrites,
   displayedAnnotationTokenFields,
@@ -16,10 +17,32 @@ const TOKEN: AnnotationIgtToken = {
 };
 
 describe('annotationTokenDrafts', () => {
+  it('aligns gloss write lang with pickDefaultTranscriptionText semantics', () => {
+    expect(pickDefaultTranscriptionLangKey(undefined)).toBe('default');
+    expect(pickDefaultTranscriptionLangKey({ default: 'gloss', eng: 'other' })).toBe('default');
+    expect(pickDefaultTranscriptionLangKey({ default: '', eng: 'hi' })).toBe('eng');
+    expect(pickDefaultTranscriptionLangKey({ eng: 'hi', cmn: '你好' })).toBe('eng');
+  });
+
   it('prefers default gloss lang and otherwise the first non-empty key', () => {
     expect(resolveAnnotationGlossWriteLang(undefined)).toBe('default');
-    expect(resolveAnnotationGlossWriteLang({ default: '', eng: 'hi' })).toBe('default');
+    expect(resolveAnnotationGlossWriteLang({ default: '', eng: 'hi' })).toBe('eng');
     expect(resolveAnnotationGlossWriteLang({ eng: 'hi', cmn: '你好' })).toBe('eng');
+  });
+
+  it('clears gloss on the displayed lang when default is empty', () => {
+    const token: AnnotationIgtToken = {
+      id: 'tok-1',
+      form: 'hello',
+      gloss: 'hi',
+      pos: 'X',
+      glossLang: 'eng',
+    };
+    expect(
+      collectDirtyAnnotationTokenWrites([token], {
+        'tok-1': { pos: 'X', gloss: '' },
+      }),
+    ).toEqual([{ tokenId: 'tok-1', glossLang: 'eng', gloss: null }]);
   });
 
   it('collects only dirty POS/gloss fields', () => {
