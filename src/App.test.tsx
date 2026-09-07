@@ -123,6 +123,29 @@ describe('App shell', () => {
     expect(within(getLeftRailResourcesButton()).getByText(/Assets|资源/)).toBeTruthy();
   });
 
+  it('shows a lexicon return banner when lexiconReturn survives on the transcription URL', () => {
+    render(
+      <MemoryRouter initialEntries={['/transcription?lexiconReturn=lex-dog']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    const banner = screen.getByTestId('app-workspace-return');
+    expect(banner.getAttribute('data-lexicon-return')).toBe('lex-dog');
+    const back = within(banner).getByRole('link', { name: /Back to lexicon|返回词典/ });
+    expect(back.getAttribute('href')).toBe('/lexicon');
+  });
+
+  it('hides the lexicon return banner on the lexicon page', () => {
+    render(
+      <MemoryRouter initialEntries={['/lexicon?lexiconReturn=lex-dog']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId('app-workspace-return')).toBeNull();
+  });
+
   it('renders the home page at /', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>

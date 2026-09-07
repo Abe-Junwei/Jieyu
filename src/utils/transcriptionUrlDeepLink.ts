@@ -54,6 +54,8 @@ export type BuildTranscriptionDeepLinkHrefInput = {
   layerId?: string;
   unitId?: string;
   unitKind?: 'unit' | 'segment';
+  /** Survives transcription deep-link strip; not a transcription selection key. */
+  lexiconReturn?: string;
 };
 
 /** Builds `/transcription?...` for home / external entry (textId required). */
@@ -63,10 +65,14 @@ export function buildTranscriptionDeepLinkHref(input: BuildTranscriptionDeepLink
   const trimmedMediaId = input.mediaId?.trim();
   const trimmedLayerId = input.layerId?.trim();
   const trimmedUnitId = input.unitId?.trim();
+  const trimmedLexiconReturn = input.lexiconReturn?.trim();
   if (trimmedMediaId !== undefined && trimmedMediaId.length > 0) q.set('mediaId', trimmedMediaId);
   if (trimmedLayerId !== undefined && trimmedLayerId.length > 0) q.set('layerId', trimmedLayerId);
   if (trimmedUnitId !== undefined && trimmedUnitId.length > 0) q.set('unitId', trimmedUnitId);
   if (input.unitKind === 'segment') q.set('unitKind', 'segment');
+  if (trimmedLexiconReturn !== undefined && trimmedLexiconReturn.length > 0) {
+    q.set('lexiconReturn', trimmedLexiconReturn);
+  }
   const s = q.toString();
   return s.length > 0 ? `/transcription?${s}` : '/transcription';
 }

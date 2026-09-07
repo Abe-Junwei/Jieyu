@@ -214,6 +214,21 @@ describe('AnnotationPage', () => {
     expect(row.textContent).toContain('暂无译文');
   });
 
+  it('focuses the unit from the URL unitId instead of the first row', async () => {
+    seedWorkspace(
+      [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ'), tokenRow('tok-2', 'uid-2', 'next', 'ADV')],
+      [UNIT_ONE, UNIT_TWO],
+    );
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1&unitId=uid-2');
+    await screen.findByTestId('annotation-igt-row-uid-2', {}, { timeout: 4000 });
+    expect(screen.getByTestId('annotation-igt-row-uid-2').className).toContain(
+      'annotation-igt-row-focused',
+    );
+    expect(screen.getByTestId('annotation-igt-row-uid-1').className).not.toContain(
+      'annotation-igt-row-focused',
+    );
+  });
+
   it('treats Space as play on a focused row and does not playToggle from an input', async () => {
     seedWorkspace([]);
     renderPage('/annotation?textId=tid-1&mediaId=mid-1');

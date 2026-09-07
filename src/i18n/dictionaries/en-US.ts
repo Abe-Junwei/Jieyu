@@ -41,6 +41,7 @@ export const enUSDictionary = {
   'app.errorBoundary.reload': 'Reload Page',
   'app.offlineStatus.message':
     'Offline. Local data remains available; cloud sync will resume after reconnection.',
+  'app.workspaceReturn.backToLexicon': 'Back to lexicon',
   'app.sidePane.defaultTitle': 'Workspace',
   'app.sidePane.defaultSubtitle': 'Unified workspace entry',
   'app.sidePane.emptyDesc':

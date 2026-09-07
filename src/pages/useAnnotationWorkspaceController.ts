@@ -132,12 +132,15 @@ export function useAnnotationWorkspaceController() {
       };
     });
     const unitIds = rows.map((row) => row.id);
+    const urlUnitId = parsed.unitId;
     const focusedUnitId =
       keyboard.focusedUnitId.length > 0 && unitIds.includes(keyboard.focusedUnitId)
         ? keyboard.focusedUnitId
-        : (unitIds[0] ?? '');
+        : urlUnitId.length > 0 && unitIds.includes(urlUnitId)
+          ? urlUnitId
+          : (unitIds[0] ?? '');
     return { rows, unitIds, focusedUnitId, unitCount: rows.length };
-  }, [dataQuery.data, keyboard.focusedUnitId, mediaId, textId]);
+  }, [dataQuery.data, keyboard.focusedUnitId, mediaId, parsed.unitId, textId]);
 
   const handleFocusRow = useCallback((unitId: string) => {
     const next = reduceAnnotationKeyboard(

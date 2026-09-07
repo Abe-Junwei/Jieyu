@@ -352,6 +352,7 @@ export function LexiconPage() {
                         layerId: hit.layerId,
                         unitId: hit.unitId,
                         ...(hit.unitKind === 'segment' ? { unitKind: 'segment' } : {}),
+                        lexiconReturn: selectedLexeme.id,
                       });
                       return (
                         <li
