@@ -7,7 +7,7 @@
 //
 // 不引入 Danger.js / 第三方 checklist action；复用本仓库 node 守卫 + 路径过滤。
 //
-// Body 来源：R1_R8_BODY → GITHUB_EVENT_PATH.pull_request.body → `gh pr view --json body`
+// Body 来源：R1_R8_BODY → GITHUB_EVENT_PATH.pull_request.body（不 spawn gh，避免 knip unlisted binary）
 // 变更文件：PR 事件用 base.sha 与 HEAD 的两点 diff（浅克隆须先 fetch base）；
 //           本地用 origin/main + 工作区。
 // CI push（已合入）跳过；CI pull_request 在触发路径命中且清单不全时失败。
@@ -246,16 +246,7 @@ export function resolvePrBody(event) {
     ? /** @type {{ pull_request?: { body?: string | null } }} */ (event).pull_request?.body
     : undefined;
   if (typeof fromEvent === 'string') return fromEvent;
-  if (process.env.GITHUB_EVENT_NAME === 'pull_request') return '';
-
-  const gh = spawnSync('gh', ['pr', 'view', '--json', 'body'], { encoding: 'utf8' });
-  if (gh.status !== 0) return '';
-  try {
-    const parsed = JSON.parse(gh.stdout);
-    return typeof parsed?.body === 'string' ? parsed.body : '';
-  } catch {
-    return '';
-  }
+  return '';
 }
 
 /** @returns {unknown} */
