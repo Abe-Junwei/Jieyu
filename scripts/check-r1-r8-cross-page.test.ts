@@ -1,12 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — .mjs guard script without type declarations
-import {
-  evaluateR1R8Gate,
-  isR1R8TriggerPath,
-  matchR1R8TriggerFiles,
-  parseR1R8Checklist,
-  R1_R8_ITEMS,
-} from './check-r1-r8-cross-page.mjs';
+import { evaluateR1R8Gate, isR1R8TriggerPath, matchR1R8TriggerFiles, parseR1R8Checklist, R1_R8_ITEMS } from './check-r1-r8-cross-page.mjs';
 
 const COMPLETE_BODY = `
 ## R1–R8 三页联评
@@ -196,5 +191,16 @@ describe('evaluateR1R8Gate', () => {
     });
     expect(result.verdict).toBe('fail');
     expect(result.reason).toContain('R2=unchecked');
+  });
+
+  it('fails the stock PR template on a three-page product diff (no pre-filled N/A)', () => {
+    const template = readFileSync('.github/pull_request_template.md', 'utf8');
+    const result = evaluateR1R8Gate({
+      files: ['src/pages/LexiconPage.tsx'],
+      body: template,
+      eventName: 'pull_request',
+      enforce: true,
+    });
+    expect(result.verdict).toBe('fail');
   });
 });
