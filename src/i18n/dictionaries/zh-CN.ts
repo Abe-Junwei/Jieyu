@@ -37,6 +37,7 @@ export const zhCNDictionary = {
   'app.errorBoundary.retry': '重试',
   'app.errorBoundary.reload': '重载页面',
   'app.offlineStatus.message': '当前离线。本地数据仍可使用，云同步会在恢复联网后继续。',
+  'app.workspaceReturn.backToLexicon': '返回词典',
   'app.sidePane.defaultTitle': '工作台',
   'app.sidePane.defaultSubtitle': '统一工作台入口',
   'app.sidePane.emptyDesc': '当前工作区暂未接入左侧功能面板，后续页面可按路由逐步注册。',

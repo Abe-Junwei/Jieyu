@@ -198,11 +198,11 @@ describe('LexiconPage', () => {
 
     const unitHit = await screen.findByRole('link', { name: /主句段/ });
     expect(unitHit.getAttribute('href')).toBe(
-      '/transcription?textId=text-1&mediaId=media-1&layerId=layer-1&unitId=unit-1',
+      '/transcription?textId=text-1&mediaId=media-1&layerId=layer-1&unitId=unit-1&lexiconReturn=lex-dog',
     );
     const segmentHit = screen.getByRole('link', { name: /子段/ });
     expect(segmentHit.getAttribute('href')).toBe(
-      '/transcription?textId=text-1&mediaId=media-1&layerId=layer-1&unitId=seg-1&unitKind=segment',
+      '/transcription?textId=text-1&mediaId=media-1&layerId=layer-1&unitId=seg-1&unitKind=segment&lexiconReturn=lex-dog',
     );
   });
 
@@ -232,7 +232,7 @@ describe('LexiconPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('move quickly').length).toBeGreaterThan(0);
       expect(screen.getByRole('link', { name: /running/ }).getAttribute('href')).toBe(
-        '/transcription?textId=text-run&mediaId=media-run&layerId=layer-run&unitId=unit-run',
+        '/transcription?textId=text-run&mediaId=media-run&layerId=layer-run&unitId=unit-run&lexiconReturn=lex-run',
       );
     });
     expect(mockListLexemeTranscriptionJumpTargets).toHaveBeenCalledWith('lex-run');

@@ -38,6 +38,7 @@ export const DICT_KEYS = [
   'app.errorBoundary.retry',
   'app.errorBoundary.reload',
   'app.offlineStatus.message',
+  'app.workspaceReturn.backToLexicon',
   'app.sidePane.defaultTitle',
   'app.sidePane.defaultSubtitle',
   'app.sidePane.emptyDesc',

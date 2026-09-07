@@ -27,6 +27,25 @@
   line-height: 1;
 }
 
+.app-workspace-return {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 16px;
+  background: color-mix(in srgb, var(--state-info-solid) 12%, var(--bg-surface));
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.app-workspace-return-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .app-shell-body {
   position: relative;
   flex: 1;

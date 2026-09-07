@@ -11,6 +11,7 @@ import {
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AppGlobalToastHost } from './components/AppGlobalToastHost';
 import { AppOfflineStatusBanner } from './components/AppOfflineStatusBanner';
+import { WorkspaceReturnBanner } from './components/WorkspaceReturnBanner';
 import { DbIntegrityBlockingOverlay } from './components/DbIntegrityBlockingOverlay';
 import { DbMigrationOverlay } from './components/DbMigrationOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -720,6 +721,7 @@ export function App() {
             {...shellStyleProps}
           >
             <AppOfflineStatusBanner locale={locale} />
+            <WorkspaceReturnBanner locale={locale} />
             <div ref={shellBodyRef} className="app-shell-body">
               <aside
                 className="app-left-rail"
