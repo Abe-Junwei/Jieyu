@@ -63,6 +63,7 @@ export function matchR1R8TriggerFiles(files) {
 /**
  * 每一项须在正文某行出现，且该行带 `[x]`/`[X]` 或 `N/A`。
  * 未勾选的 `[ ]` 且无 N/A 视为失败。多行时任一合格行即可。
+ * Id 大小写敏感，且忽略 `R1-R8` / `R1–R8` 范围写法，避免说明段或锚点误伤。
  * @param {string} body
  * @returns {Record<string, ChecklistItemResult>}
  */
@@ -71,7 +72,7 @@ export function parseR1R8Checklist(body) {
   /** @type {Record<string, ChecklistItemResult>} */
   const results = {};
   for (const id of R1_R8_ITEMS) {
-    const re = new RegExp(`^.*\\b${id}\\b.*$`, 'gmi');
+    const re = new RegExp(`^.*\\b${id}\\b(?![-–]R\\d).*$`, 'gm');
     const lines = [...text.matchAll(re)].map((m) => m[0]);
     if (lines.length === 0) {
       results[id] = { status: 'missing' };

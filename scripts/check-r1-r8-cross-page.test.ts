@@ -110,6 +110,17 @@ R10 leftover
 `);
     expect(parsed.R1.status).toBe('ok');
   });
+
+  it('does not treat intro copy or r1-r8 anchors as a completed R1/R8 row', () => {
+    const parsed = parseR1R8Checklist(`
+命中路径时必须逐项勾选 \`[x]\`，或写明 \`N/A\`。锚点 #r1-r8-cross-page-checklist。门禁：\`npm run check:r1-r8\`。
+## R1–R8 三页联评
+- [ ] **R1** 词汇标签分轨
+- [ ] **R8** 往返上下文
+`);
+    expect(parsed.R1.status).toBe('unchecked');
+    expect(parsed.R8.status).toBe('unchecked');
+  });
 });
 
 describe('evaluateR1R8Gate', () => {
