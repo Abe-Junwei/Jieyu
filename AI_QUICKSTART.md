@@ -3,7 +3,7 @@ title: AI_QUICKSTART — 解语跨工具 AI 上手指引
 doc_type: agent-quickstart
 status: active
 owner: repo
-last_reviewed: 2026-06-01
+last_reviewed: 2026-09-07
 applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ---
 
@@ -66,6 +66,7 @@ hotspots:auto 区间由 `npm run sync:ai-quickstart-hotspots` 自动重写，请
 - `npm run check:agent-evals:smoke`（pre-merge）/ `:full`（AI 改动） — 典型 AI 失误
 - `npm run check:docs-governance` — 文档放错位置
 - `npm run check:dev-agent-workflow-verify` — SDD 触发 vs spec 活动 + Research 填实（Cursor stop hook 也会跑）
+- `npm run check:r1-r8` — 三页产品路径 PR 须勾选 R1–R8 或写 N/A（含于 `check:all`）
 - `npm run check:plans-frontmatter` — plans frontmatter 完整性
 - `npm run check:current-state-freshness` — 现状文档 staleness（90d WARN / 180d FAIL）
 

@@ -2,7 +2,7 @@
 title: AGENTS.md — Jieyu cross-tool agent baseline
 status: active
 owner: repo
-last_reviewed: 2026-05-13
+last_reviewed: 2026-09-07
 applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ---
 
@@ -126,6 +126,7 @@ For multi-step tasks, state a brief plan:
 - `npm run check:agent-evals[:smoke]` — 典型 AI 失误（错读路径、业务逻辑落到编排层、UI 文案落到 `src/ai/messages/`）
 - `npm run check:docs-governance` — 文档放错位置
 - `npm run check:dev-agent-workflow-verify` — SDD diff 启发式 + spec Research 填实（仅 dev-agent 配置改动时自举豁免）
+- `npm run check:r1-r8` — 三页产品路径须勾选 R1–R8 或写 N/A（含于 `check:all`）
 - `npm run typecheck` + 定向 `vitest` — 正确性回归
 
 合并门槛与子 agent 委托决策见 [AI_QUICKSTART.md](AI_QUICKSTART.md)。
