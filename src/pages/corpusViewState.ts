@@ -1,8 +1,11 @@
-/** sessionStorage key for corpus filter UI only (三页联评 R8). Not the workset. */
+import { readOptionalListScrollTop } from '../utils/workspaceReturnDeepLink';
+
+/** sessionStorage key for corpus filter UI + list scroll (三页联评 R8). Not the workset. */
 export const CORPUS_VIEW_STATE_KEY = 'corpusViewState';
 
 export type CorpusViewState = {
   filterText?: string;
+  listScrollTop?: number;
 };
 
 export function resetCorpusViewStateForTests(): void {
@@ -14,6 +17,15 @@ export function resetCorpusViewStateForTests(): void {
   }
 }
 
+function compactCorpusViewState(state: CorpusViewState): CorpusViewState {
+  const filterText = state.filterText?.trim() ?? '';
+  const listScrollTop = readOptionalListScrollTop(state.listScrollTop);
+  return {
+    ...(filterText.length > 0 ? { filterText } : {}),
+    ...(listScrollTop ? { listScrollTop } : {}),
+  };
+}
+
 export function readCorpusViewState(): CorpusViewState {
   if (typeof window === 'undefined') return {};
   try {
@@ -21,8 +33,7 @@ export function readCorpusViewState(): CorpusViewState {
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== 'object') return {};
-    const filterText = String((parsed as CorpusViewState).filterText ?? '').trim();
-    return filterText.length > 0 ? { filterText } : {};
+    return compactCorpusViewState(parsed as CorpusViewState);
   } catch {
     return {};
   }
@@ -31,10 +42,9 @@ export function readCorpusViewState(): CorpusViewState {
 export function writeCorpusViewState(state: CorpusViewState): void {
   if (typeof window === 'undefined') return;
   try {
-    const filterText = state.filterText?.trim() ?? '';
     window.sessionStorage.setItem(
       CORPUS_VIEW_STATE_KEY,
-      JSON.stringify(filterText.length > 0 ? { filterText } : {}),
+      JSON.stringify(compactCorpusViewState(state)),
     );
   } catch {
     /* quota / private mode */

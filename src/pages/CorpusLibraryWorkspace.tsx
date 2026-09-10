@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, tf, useLocale } from '../i18n';
@@ -7,6 +7,19 @@ import { useCorpusLibraryController } from './useCorpusLibraryController';
 export function CorpusLibraryWorkspace() {
   const locale = useLocale();
   const controller = useCorpusLibraryController();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const restoredScrollRef = useRef(false);
+
+  useEffect(() => {
+    restoredScrollRef.current = false;
+  }, [controller.textId]);
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el || restoredScrollRef.current) return;
+    if (controller.listScrollTop > 0) el.scrollTop = controller.listScrollTop;
+    restoredScrollRef.current = true;
+  }, [controller.isLoading, controller.rows.length, controller.listScrollTop]);
 
   const sidePaneContent = useMemo(
     () => (
@@ -81,7 +94,12 @@ export function CorpusLibraryWorkspace() {
           {t(locale, 'workspace.corpus.errorPrefix')} {controller.loadError}
         </p>
       ) : (
-        <div className="corpus-library-body">
+        <div
+          ref={bodyRef}
+          className="corpus-library-body"
+          data-testid="corpus-library-body"
+          onScroll={(event) => controller.onListScroll(event.currentTarget.scrollTop)}
+        >
           <div className="corpus-library-export">
             <button
               type="button"

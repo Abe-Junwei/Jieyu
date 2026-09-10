@@ -214,4 +214,27 @@ describe('CorpusLibraryPage', () => {
     fireEvent.click(screen.getByTestId('corpus-library-copy-plain'));
     expect(writeText).not.toHaveBeenCalled();
   });
+
+  it('persists and restores list scroll in corpusViewState without dual-writing the URL', async () => {
+    featureFlagState.corpusLibraryPageEnabled = true;
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
+    window.sessionStorage.setItem(
+      CORPUS_VIEW_STATE_KEY,
+      JSON.stringify({ filterText: 'tone', listScrollTop: 120 }),
+    );
+    renderPage('/corpus?textId=tid-1&mediaId=mid-1');
+    const body = await screen.findByTestId('corpus-library-body', {}, { timeout: 4000 });
+    await waitFor(() => {
+      expect(body.scrollTop).toBe(120);
+    });
+    body.scrollTop = 64;
+    fireEvent.scroll(body);
+    expect(JSON.parse(sessionStorage.getItem(CORPUS_VIEW_STATE_KEY) ?? '{}')).toEqual({
+      filterText: 'tone',
+      listScrollTop: 64,
+    });
+    expect(sessionStorage.getItem('corpusBasket')).toBeNull();
+    expect(window.location.search).not.toContain('corpusViewState');
+    expect(window.location.search).not.toContain('listScrollTop');
+  });
 });
