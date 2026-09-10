@@ -8,7 +8,6 @@ import { AppSidePaneProvider } from '../contexts/AppSidePaneContext';
 import { LocaleProvider } from '../i18n';
 import { resetCorpusBasketSessionForTests } from './corpusBasketSession';
 import { CORPUS_VIEW_STATE_KEY, resetCorpusViewStateForTests } from './corpusViewState';
-import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 
 const { mockListCorpusIndexByTextId, featureFlagState } = vi.hoisted(() => ({
   mockListCorpusIndexByTextId: vi.fn(),
