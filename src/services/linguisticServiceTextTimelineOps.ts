@@ -15,6 +15,7 @@ import {
   type TextTimeMapping,
   type UpdateTextTimeMappingInput,
 } from './LinguisticService.timeMapping';
+import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 
 export async function getUnitTexts(unitId: string): Promise<LayerUnitContentDocType[]> {
   const db = await getDb();
@@ -33,6 +34,10 @@ export async function saveUnitText(data: LayerUnitContentDocType): Promise<strin
     if (layerId && (await isDefaultTranscriptionLayerForUnitText(db, unitId, layerId))) {
       await invalidateUnitEmbeddings(db, [unitId]);
     }
+    dispatchWorkspaceUnitUpdated({
+      unitId,
+      ...(layerId ? { layerId } : {}),
+    });
   }
   return data.id;
 }

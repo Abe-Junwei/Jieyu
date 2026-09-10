@@ -43,7 +43,7 @@ A1 ReadyWorkspace合同 ─┐
 A2 声学readout打磨     │
 A3 声学inspector冻结   │   B1 深链(软地基·部分✓) ┄推荐接入┄┐
 A4 AI agent-loop收口   │   B3 词典三栏联动(基本✓·待回归) ───┤
-A4b Context JIT/步数   │   B2 事件合同(合同✓/未接线)      ┄┘
+A4b Context JIT/步数   │   B2 事件合同(已接线)            ┄┘
 A5 时间轴稳定收尾     ─┤   ├─► B4a/B4b 标注（须 A6+A7+A10）
 Agent 架构轨（§2.2）：  │   ├─► B5a/B5b 语料（须 A6+A7；AI 加 A9+A10）
 A6 F4 B/C + 工业开关   ─┤   ├─► B6 引用断裂态
@@ -64,7 +64,7 @@ A14 Eval trajectory   ─┘
 
 依赖硬约束（经 [主路线图合理性审计](../audits/主路线图合理性审计-2026-06-01.md) 修正）：
 - **B1（深链工具，部分✓）= 软地基**：B4/B5 推荐接入，但非阻塞（B3 已证明深链可独立工作）。
-- **B2（事件合同，合同✓/未接线）= 增量增强，非地基**：B3 落地未消费 B2 即为证；B4/B5 可先开放，事件驱动刷新作后续增强。
+- **B2（事件合同，已接线）= 增量增强，非地基**：LinguisticService 单写路径 persist 后 emit；annotation / corpus / lexicon 按 `unitId`/`lexemeId` 增量刷新，草稿不覆盖。`context-sync` 生产派发与 lexeme 删除 API 另切片。
 - Stage A 与 Stage B1/B3 **可并行**（不同代码域），但触碰转写内核的 A 切片优先稳定。
 - **工程治理门槛（Stage B 启动前置，硬阻塞）**：
   1. `npm run check:architecture-guard` 通过且无**新增** hotspot（当前唯一逼近项：`TranscriptionPage.ChatWindow.tsx` 766/800＝96%；若 B4/B5 需向其注入逻辑，须先预拆卫星组件或调整 ratchet 并记录原因）。
@@ -162,7 +162,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：本切片落地 **B1 列表滚动持久化**。并行 **B2** 事件接线另 PR。已在其它分支完成、待合入：B5c HTML/bundle。之后余量：**B7**（blocked on A7/A9/A12 + ChatWindow）。不启动 EAF/TextGrid。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：B1 列表滚动与 B2 跨页事件接线均已合入。已在其它分支完成、待合入：B5c HTML/bundle。之后余量：**B7**（blocked on A7/A9/A12 + ChatWindow）。不启动 EAF/TextGrid。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -187,14 +187,14 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | ID | 切片 | 粒度 | 目标 / 落位锚点（引自三页联动 P0/P1） | 验收 | SDD |
 | --- | --- | --- | --- | --- | --- |
 | **B1** | 深链与返回上下文合同（P0-1） | S–M | **【✅ 已落地】** `transcriptionUrlDeepLink` + 词典 `lexiconListState` + 语料/标注 outbound 深链。标注 URL `unitId` 聚焦行；命中语段带 `lexiconReturn`（转写 strip 后仍保留）；壳层 `WorkspaceReturnBanner` 回 `/lexicon`；`findWorkspaceStateDualWriteViolations` 锁 R8 键分轨。列表滚动：词典 `.app-main` / 语料 `.corpus-library-body` 写入 sessionStorage（`listScrollTop`）。**不**接 ChatWindow / ReadyWorkspace 装配 | 标注 `?unitId=` 聚焦；词典跳转含 `lexiconReturn`；strip 后 banner 可见；往返恢复滚动；双写用例；定向 vitest | 否 |
-| **B2** | 跨页刷新事件合同（unitId 增量，P0-2） | M | **【合同已落地·未接线】** 事件合同 v1 + `dispatch/subscribeWorkspaceEvent` 原语 + 测试已在 `appShellEvents.ts`（unit/lexeme updated、lexeme deleted soft/hard、context-sync），但**零生产消费方**。**剩余**=把事件接入页面/hook 做 unit 增量刷新 | 提交后仅触发对应 unit 增量刷新；草稿不被覆盖；定向 vitest | 是 |
-| **B3** | 词典页三栏联动（只读命中语段，P0-5） | S | **【基本落地·回归已补】** `LexiconPage` 已实现 列表/检索 + 详情(义项/词形/笔记) + 命中语段(`LinguisticService.lexemes.listTranscriptionJumpTargets`) + 深链跳转回转写 + sessionStorage 态。P0-5 验收满足。可选事件驱动刷新仍依赖 B2 | 列表/检索/详情/命中语段/深链/sessionStorage 回归；`LexiconPage.test` + `useLexiconSearch.test` + e2e criticalPaths `/lexicon` | 否 |
+| **B2** | 跨页刷新事件合同（unitId 增量，P0-2） | M | **【✅ 已接线】** `workspaceEvents.ts`（`appShellEvents.ts` 再导出）+ LinguisticService 单写路径 persist 后 emit（`saveUnit` / `saveUnitText` / POS·gloss / `removeUnit` / `saveLexeme`）；annotation / corpus / lexicon 订阅并按 `unitId`/`lexemeId` 增量 refetch。未提交草稿 → `mark-dirty` 不覆盖。`saveUnitsBatch` 不 emit。`lexeme-deleted` / `context-sync` 仅 API。SDD：`workspace-cross-page-events/` | 提交后仅对应 unit 增量刷新；草稿不被覆盖；定向 vitest | 是 |
+| **B3** | 词典页三栏联动（只读命中语段，P0-5） | S | **【基本落地·回归已补】** `LexiconPage` 已实现 列表/检索 + 详情(义项/词形/笔记) + 命中语段(`LinguisticService.lexemes.listTranscriptionJumpTargets`) + 深链跳转回转写 + sessionStorage 态。P0-5 验收满足。B2 已接线：命中语段按 `unitId` invalidate | 列表/检索/详情/命中语段/深链/sessionStorage 回归；`LexiconPage.test` + `useLexiconSearch.test` + e2e criticalPaths `/lexicon` | 否 |
 | **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【🟡 已落地·flag 关】** `/annotation` 当前 text/media 只读 IGT + 键盘 reduce 骨架。Flag `annotationPageEnabled` 默认 **false**。SDD：`annotation-workspace-shell/`。按轨读 `annotationLaneReadScope`（ADR-0020）。不写 token；不接 ChatWindow / 转写 annotation controller | flag 关占位；IGT 行渲染；Space 行聚焦=playToggle、输入态=insertSpace；定向 vitest | 是 |
 | **B4a-2** | 标注页 token POS/gloss 编辑 + 保存链路 + readback（P0-3 上·核心） | L | **【🟡 已落地·flag 关】** 承 B4a-1：受控 POS/gloss 输入；Enter=`commitStay`；Ctrl+Enter 仅保存成功后跳行。写 `LinguisticService.units.updateTokenPos` / `updateTokenGloss`（`unit_tokens`），再 `listTokensByUnitIds` readback。SDD：`annotation-token-edit/`。不写 `layer_units`；不接 ChatWindow / `useTranscriptionAnnotationController` / `annotationAdapters`。转写页需 reload 才见镜像 `unit.words` | 写→reload→readback；Dexie vitest；flag 默认 false | 是 |
 | **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | **【🟡 已落地·flag 关】** 承 B4a-2：morpheme 按 `-`/`=` 分格 + gloss 写 `unit_morphemes`；token 空格/`|` 切分与与下一词合并写 `unit_tokens`；词典查询写 `token_lexeme_links`（role=`manual`）。Leipzig 内联校验 + 系统结构模板标记；模板编辑复用 `/assets/structural-profiles`。SDD：`annotation-morpheme-edit/`。不写 `layer_units`；不做二次自动分词 / note/tag；不接 ChatWindow | 分词/链接/词素写→reload→readback；Leipzig invalid；定向 vitest | 是 |
 | **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟡 已落地·flag 关】** `/corpus` 当前 text 下跨媒体只读索引 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-workset-shell/` + `corpus-library-project-index/`。查询层 `listCorpusIndexByTextId`，无 Dexie 索引表。换 **text** 清空工作集；换 media 保留。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 两 media 同列表；换 media 保留 basket；换 text 清空；定向 vitest | 是 |
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | **【🟡 已落地·flag 关】** 工作集复制 plain / Markdown（unit/media/时间码 + `/transcription?` 深链）；空选不写剪贴板。SDD：`corpus-library-clipboard-export/`。沿用 `corpusLibraryPageEnabled` 默认 **false**。不做 HTML/bundle/EAF；不接 ChatWindow / Resolver Core | golden 对拍 + clipboard mock；flag 关占位 e2e 不回归 | 是 |
-| **B6** | 引用断裂态（ADR-0011，P0-6） | M | **【🟡 已落地】** `citationResolver.resolveUnitCitation` + `citationJump` 对缺失 unit 报 `CITATION_UNIT_NOT_FOUND` 且不跳转；RAG footer 在 `readModelIndexHit === false` 时省略 snippet；悬空 lexeme 链接 `CITATION_LEXEME_NOT_FOUND`。无软删列；残留 segment 不得复活已删 unit。SDD：`citation-broken-state/`。B2 事件仍未接线 | 删 unit 后 resolve 断裂码；jump 不盲跳；footer 无旧摘录；定向 vitest | 是 |
+| **B6** | 引用断裂态（ADR-0011，P0-6） | M | **【🟡 已落地】** `citationResolver.resolveUnitCitation` + `citationJump` 对缺失 unit 报 `CITATION_UNIT_NOT_FOUND` 且不跳转；RAG footer 在 `readModelIndexHit === false` 时省略 snippet；悬空 lexeme 链接 `CITATION_LEXEME_NOT_FOUND`。无软删列；残留 segment 不得复活已删 unit。SDD：`citation-broken-state/`。`removeUnit` 经 B2 `unit-updated` 通知消费方增量 refetch | 删 unit 后 resolve 断裂码；jump 不盲跳；footer 无旧摘录；定向 vitest | 是 |
 | **B7** | 语料库 AI 分区与会话隔离（P1-1） | M | `useAiToolCallHandler.adapters`、`useAiChat.config`、`CorpusLibraryPage`；`corpusBridgeAdapter` 命名。**前置：A6 + A7 + A9 + A12** | corpus 侧复制优先、默认不写回主链；会话与转写隔离；`check:agent-evals:smoke` | 是 |
 | **B11** | 外部 MCP trust allowlist | M | **【已落地·flag 关】** `externalMcpTrustRegistry` + Dexie v51 `external_mcp_trust`；`exposeExternalMcpToolsToLlm` 对未登记 / 未启用 / flag off 零暴露；首次启用带 schema 走 A9 `inspectInbound`；Settings AI 节 flag 开才渲染。Flag `aiExternalMcpTrustEnabled` 默认 **false**。**剩余**：flag 放量。Outbound HTTP 见 **B13**。SDD：`agent-runtime-external-mcp-trust/`。**依赖 A9** | 未登记 server deny；schema 零暴露；用户显式启用；审计 readback | 是 |
 | **B12** | MCP resources/prompts + AgentArtifactV0 | M | **【已落地·flag 关】** inbound `resources/list`+`read`（`jieyu://source-set/{id}`）与 `prompts/list`+`get`（A12 registry）；Dexie v52 `agent_artifacts`；AdoptionQueue `artifactIds`；`buildB5bExportManifest`。Flag `aiMcpResourcesArtifactsEnabled` 默认 **false**。SDD：`agent-runtime-mcp-resources-artifacts/`。**依赖 B11 + A12** | resource URI readback；artifact 引用链；B5b 导出清单函数 | 是 |
@@ -285,3 +285,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-07 | **B1 收口**：标注 URL `unitId` 聚焦；词典 outbound `lexiconReturn` 经转写 strip 保留；壳层返回词典条；R8 双写纯函数。不接 ChatWindow / ReadyWorkspace。下一刀合入 B5c/B2，或 B7（仍 blocked）。 |
 | 2026-09-07 | **B10**：R1–R8 联评门禁 `npm run check:r1-r8`（路径过滤 + PR 正文勾选/N/A）；含于 `check:all`；CI PR 浅克隆先 fetch base SHA。不引入 Danger.js。下一刀合入 B5c/B2，或 B7（仍 blocked）。 |
 | 2026-09-10 | **B1 滚动**：词典 `.app-main` 与语料 `.corpus-library-body` 的 `listScrollTop` 写入 sessionStorage（R8）；不双写 URL；`corpusBasket` 仍仅 Router 会话。 |
+| 2026-09-10 | **B2**：`workspaceEvents.ts` 接线；LinguisticService 单写 persist 后 emit；annotation/corpus/lexicon 按 unit/lexeme 增量刷新，草稿不覆盖。`saveUnitsBatch` 不 emit。 |

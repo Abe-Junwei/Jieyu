@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { LinguisticService } from '../app/languageAssetPageAccess';
+import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
 import { t, useLocale } from '../i18n';
 import {
   readAnalysisDeepLinkParams,
@@ -178,6 +179,14 @@ export function useCorpusLibraryController() {
     },
     [derived.exportPayload],
   );
+
+  useWorkspaceEventRefresh({
+    onUnitUpdated: (detail) => {
+      const rows = unitsQuery.data ?? [];
+      if (!rows.some((unit) => unit.id === detail.unitId)) return;
+      void unitsQuery.refetch();
+    },
+  });
 
   const loadError =
     unitsQuery.error instanceof Error

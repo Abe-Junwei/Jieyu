@@ -11,6 +11,7 @@ import {
 import type { LexemeDocType } from '../db';
 import { LocaleProvider } from '../i18n';
 import { LexiconPage } from './LexiconPage';
+import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 
 const {
   mockListLexemes,
@@ -206,6 +207,39 @@ describe('LexiconPage', () => {
     expect(segmentHit.getAttribute('href')).toBe(
       '/transcription?textId=text-1&mediaId=media-1&layerId=layer-1&unitId=seg-1&unitKind=segment&lexiconReturn=lex-dog',
     );
+  });
+
+  it('refetches jump targets when a listed unit is updated', async () => {
+    mockListLexemeTranscriptionJumpTargets.mockResolvedValue([
+      {
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'layer-1',
+        unitId: 'unit-1',
+        unitKind: 'unit',
+        surfaceHint: 'dog',
+        linkUpdatedAt: '2026-04-04T00:00:00.000Z',
+      },
+    ]);
+    renderLexiconPage();
+    await screen.findByRole('link', { name: /主句段/ });
+    const reads = mockListLexemeTranscriptionJumpTargets.mock.calls.length;
+    mockListLexemeTranscriptionJumpTargets.mockResolvedValue([
+      {
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'layer-1',
+        unitId: 'unit-1',
+        unitKind: 'unit',
+        surfaceHint: 'updated-dog',
+        linkUpdatedAt: '2026-09-10T00:00:00.000Z',
+      },
+    ]);
+    dispatchWorkspaceUnitUpdated({ unitId: 'unit-1', revision: 31 });
+    await waitFor(() => {
+      expect(mockListLexemeTranscriptionJumpTargets.mock.calls.length).toBeGreaterThan(reads);
+      expect(screen.getByRole('link', { name: /updated-dog/ })).toBeTruthy();
+    });
   });
 
   it('refreshes detail and hit segments when another lexeme is selected', async () => {

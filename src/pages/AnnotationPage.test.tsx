@@ -78,6 +78,7 @@ vi.mock('../ai/config/featureFlags', () => ({
 }));
 
 import { AnnotationPage } from './AnnotationPage';
+import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 
 function renderPage(path: string) {
   const client = new QueryClient({
@@ -346,6 +347,36 @@ describe('AnnotationPage', () => {
       expect(mockSaveToken).toHaveBeenCalled();
       expect(tokens.some((row) => row.form.default === 'hello')).toBe(true);
       expect(tokens.some((row) => row.form.default === 'world')).toBe(true);
+    });
+  });
+
+  it('does not refetch an IGT row that still has an uncommitted draft', async () => {
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello', 'INTJ', 'X')]);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    const workspace = await screen.findByTestId('annotation-workspace', {}, { timeout: 4000 });
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    fireEvent.keyDown(workspace, { key: 'Enter' });
+    const pos = await screen.findByTestId('annotation-igt-pos-tok-1');
+    fireEvent.change(pos, { target: { value: 'N' } });
+    const tokenReads = mockListTokensByUnitIds.mock.calls.length;
+    dispatchWorkspaceUnitUpdated({ unitId: 'uid-1', revision: 11 });
+    await waitFor(() => {
+      expect((screen.getByTestId('annotation-igt-pos-tok-1') as HTMLInputElement).value).toBe('N');
+    });
+    expect(mockListTokensByUnitIds.mock.calls.length).toBe(tokenReads);
+  });
+
+  it('refetches an IGT row when a unit event arrives without drafts', async () => {
+    const tokens: TokenFixture[] = [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ', 'X')];
+    seedWorkspace(tokens);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    tokens[0] = { ...tokens[0]!, pos: 'N', gloss: { default: 'greeting' } };
+    const tokenReads = mockListTokensByUnitIds.mock.calls.length;
+    dispatchWorkspaceUnitUpdated({ unitId: 'uid-1', revision: 12 });
+    await waitFor(() => {
+      expect(mockListTokensByUnitIds.mock.calls.length).toBeGreaterThan(tokenReads);
+      expect(screen.getByTestId('annotation-igt-row-uid-1').textContent).toContain('greeting');
     });
   });
 });
