@@ -38,3 +38,11 @@ export function findWorkspaceStateDualWriteViolations(input: {
   }
   return violations;
 }
+
+/** sessionStorage list scroll; omit 0 / NaN so empty payloads stay compact. */
+export function readOptionalListScrollTop(value: unknown): number | undefined {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return undefined;
+  const rounded = Math.round(numeric);
+  return rounded > 0 ? rounded : undefined;
+}

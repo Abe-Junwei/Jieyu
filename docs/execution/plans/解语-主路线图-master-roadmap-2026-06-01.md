@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-07
+last_reviewed: 2026-09-10
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -162,7 +162,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：本 PR 落地 **B10**（P1-5 R1–R8 联评门禁：`npm run check:r1-r8`）。已在其它分支完成、待合入：B5c HTML/bundle、B2 事件接线。之后余量：**B7**（blocked on A7/A9/A12 + ChatWindow）。不启动 EAF/TextGrid。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：本切片落地 **B1 列表滚动持久化**。并行 **B2** 事件接线另 PR。已在其它分支完成、待合入：B5c HTML/bundle。之后余量：**B7**（blocked on A7/A9/A12 + ChatWindow）。不启动 EAF/TextGrid。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -186,7 +186,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | ID | 切片 | 粒度 | 目标 / 落位锚点（引自三页联动 P0/P1） | 验收 | SDD |
 | --- | --- | --- | --- | --- | --- |
-| **B1** | 深链与返回上下文合同（P0-1） | S–M | **【🟡 基本落地】** `transcriptionUrlDeepLink` + 词典 `lexiconListState` + 语料/标注 outbound 深链。本切片：标注 URL `unitId` 聚焦行；命中语段带 `lexiconReturn`（转写 strip 后仍保留）；壳层 `WorkspaceReturnBanner` 回 `/lexicon`（选中仍走 sessionStorage，禁止 URL 双写）；`findWorkspaceStateDualWriteViolations` 锁 R8 键分轨。**不**接 ChatWindow / ReadyWorkspace 装配。滚动位置仍未持久化 | 标注 `?unitId=` 聚焦；词典跳转含 `lexiconReturn`；strip 后 banner 可见；双写用例；定向 vitest | 否 |
+| **B1** | 深链与返回上下文合同（P0-1） | S–M | **【✅ 已落地】** `transcriptionUrlDeepLink` + 词典 `lexiconListState` + 语料/标注 outbound 深链。标注 URL `unitId` 聚焦行；命中语段带 `lexiconReturn`（转写 strip 后仍保留）；壳层 `WorkspaceReturnBanner` 回 `/lexicon`；`findWorkspaceStateDualWriteViolations` 锁 R8 键分轨。列表滚动：词典 `.app-main` / 语料 `.corpus-library-body` 写入 sessionStorage（`listScrollTop`）。**不**接 ChatWindow / ReadyWorkspace 装配 | 标注 `?unitId=` 聚焦；词典跳转含 `lexiconReturn`；strip 后 banner 可见；往返恢复滚动；双写用例；定向 vitest | 否 |
 | **B2** | 跨页刷新事件合同（unitId 增量，P0-2） | M | **【合同已落地·未接线】** 事件合同 v1 + `dispatch/subscribeWorkspaceEvent` 原语 + 测试已在 `appShellEvents.ts`（unit/lexeme updated、lexeme deleted soft/hard、context-sync），但**零生产消费方**。**剩余**=把事件接入页面/hook 做 unit 增量刷新 | 提交后仅触发对应 unit 增量刷新；草稿不被覆盖；定向 vitest | 是 |
 | **B3** | 词典页三栏联动（只读命中语段，P0-5） | S | **【基本落地·回归已补】** `LexiconPage` 已实现 列表/检索 + 详情(义项/词形/笔记) + 命中语段(`LinguisticService.lexemes.listTranscriptionJumpTargets`) + 深链跳转回转写 + sessionStorage 态。P0-5 验收满足。可选事件驱动刷新仍依赖 B2 | 列表/检索/详情/命中语段/深链/sessionStorage 回归；`LexiconPage.test` + `useLexiconSearch.test` + e2e criticalPaths `/lexicon` | 否 |
 | **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【🟡 已落地·flag 关】** `/annotation` 当前 text/media 只读 IGT + 键盘 reduce 骨架。Flag `annotationPageEnabled` 默认 **false**。SDD：`annotation-workspace-shell/`。按轨读 `annotationLaneReadScope`（ADR-0020）。不写 token；不接 ChatWindow / 转写 annotation controller | flag 关占位；IGT 行渲染；Space 行聚焦=playToggle、输入态=insertSpace；定向 vitest | 是 |
@@ -284,3 +284,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-05 | **B8**：词典引用式附件（Dexie v53 `lexeme_assets` / `lexeme_asset_links`）；flag `lexiconAttachmentsEnabled` 默认 false。不接 ChatWindow / 转写 data hook。下一刀合入 B5c/B2，或 B7（仍 blocked）。 |
 | 2026-09-07 | **B1 收口**：标注 URL `unitId` 聚焦；词典 outbound `lexiconReturn` 经转写 strip 保留；壳层返回词典条；R8 双写纯函数。不接 ChatWindow / ReadyWorkspace。下一刀合入 B5c/B2，或 B7（仍 blocked）。 |
 | 2026-09-07 | **B10**：R1–R8 联评门禁 `npm run check:r1-r8`（路径过滤 + PR 正文勾选/N/A）；含于 `check:all`；CI PR 浅克隆先 fetch base SHA。不引入 Danger.js。下一刀合入 B5c/B2，或 B7（仍 blocked）。 |
+| 2026-09-10 | **B1 滚动**：词典 `.app-main` 与语料 `.corpus-library-body` 的 `listScrollTop` 写入 sessionStorage（R8）；不双写 URL；`corpusBasket` 仍仅 Router 会话。 |

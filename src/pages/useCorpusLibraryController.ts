@@ -142,11 +142,25 @@ export function useCorpusLibraryController() {
 
   const handleFilterChange = useCallback(
     (text: string) => {
-      writeCorpusViewState(text.trim().length > 0 ? { filterText: text } : {});
+      const current = readCorpusViewState();
+      writeCorpusViewState({
+        ...(text.trim().length > 0 ? { filterText: text } : {}),
+        ...(typeof current.listScrollTop === 'number'
+          ? { listScrollTop: current.listScrollTop }
+          : {}),
+      });
       setFilterState({ scopeKey, text });
     },
     [scopeKey],
   );
+
+  const handleListScroll = useCallback((scrollTop: number) => {
+    const current = readCorpusViewState();
+    writeCorpusViewState({
+      ...(current.filterText ? { filterText: current.filterText } : {}),
+      listScrollTop: scrollTop,
+    });
+  }, []);
 
   const handleCopyWorkset = useCallback(
     async (format: 'plain' | 'markdown') => {
@@ -184,8 +198,10 @@ export function useCorpusLibraryController() {
     loadError,
     transcriptionHref: buildTranscriptionWorkspaceReturnHref(),
     copyStatus,
+    listScrollTop: readCorpusViewState().listScrollTop ?? 0,
     onToggleUnit: handleToggleUnit,
     onFilterChange: handleFilterChange,
+    onListScroll: handleListScroll,
     onCopyWorkset: handleCopyWorkset,
   };
 }

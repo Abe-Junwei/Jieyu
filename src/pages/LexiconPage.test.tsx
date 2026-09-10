@@ -75,9 +75,11 @@ function renderLexiconPage(path = '/lexicon') {
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <SidePaneSnapshot />
-            <Routes>
-              <Route path="/lexicon" element={<LexiconPage />} />
-            </Routes>
+            <div className="app-main" data-testid="lexicon-scroll-root">
+              <Routes>
+                <Route path="/lexicon" element={<LexiconPage />} />
+              </Routes>
+            </div>
           </AppSidePaneProvider>
         </LocaleProvider>
       </MemoryRouter>
@@ -267,6 +269,28 @@ describe('LexiconPage', () => {
         selectedLexemeId: 'lex-run',
       });
     });
+  });
+
+  it('persists and restores list scroll from sessionStorage without writing the URL', async () => {
+    window.sessionStorage.setItem(
+      'lexiconListState',
+      JSON.stringify({ searchText: '', selectedLexemeId: 'lex-dog', listScrollTop: 144 }),
+    );
+    renderLexiconPage();
+    await screen.findByText('domesticated canine');
+    const scroller = screen.getByTestId('lexicon-scroll-root');
+    await waitFor(() => {
+      expect(scroller.scrollTop).toBe(144);
+    });
+
+    scroller.scrollTop = 88;
+    fireEvent.scroll(scroller);
+    expect(JSON.parse(window.sessionStorage.getItem('lexiconListState') ?? '{}')).toMatchObject({
+      selectedLexemeId: 'lex-dog',
+      listScrollTop: 88,
+    });
+    expect(window.location.search).not.toContain('listScrollTop');
+    expect(window.location.search).not.toContain('lexiconListState');
   });
 
   it('shows empty state and quick access when no lexemes exist', async () => {

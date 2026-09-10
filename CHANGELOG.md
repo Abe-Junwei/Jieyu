@@ -10,6 +10,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **B1 list scroll persistence**: Lexicon `lexiconListState.listScrollTop` restores `.app-main` scroll; corpus `corpusViewState.listScrollTop` restores `.corpus-library-body`. Session-only (R8); `corpusBasket` stays router-session. No ChatWindow / ReadyWorkspace changes.
 - **B10 R1–R8 cross-page checklist gate**: PRs that touch annotation / lexicon / corpus product paths must tick R1–R8 or write `N/A` in the PR body (`npm run check:r1-r8`, included in `check:all`). Push to `main` skips. No Danger.js.
 - **B1 workspace return deep links**: Annotation `?unitId=` focuses that IGT row. Lexicon hit-segment jumps add `lexiconReturn` (kept after transcription deep-link strip). Shell `WorkspaceReturnBanner` returns to `/lexicon` without dual-writing selection into the URL. R8 key owners are asserted by `findWorkspaceStateDualWriteViolations`. No ChatWindow / ReadyWorkspace assembly changes.
 - **B8 lexicon referenced attachments**: Lexeme detail can attach image/audio/document files to Dexie `lexeme_assets` + `lexeme_asset_links` (v53). The lexeme row stores references only; unlink drops the link then refcount-GCs the blob. Flag `lexiconAttachmentsEnabled` default false. No ChatWindow, no FLEx/LIFT attachment export.

@@ -4,6 +4,7 @@ import {
   buildLexiconWorkspaceHref,
   findWorkspaceStateDualWriteViolations,
   readLexiconReturnParam,
+  readOptionalListScrollTop,
 } from './workspaceReturnDeepLink';
 
 describe('workspaceReturnDeepLink', () => {
@@ -13,6 +14,14 @@ describe('workspaceReturnDeepLink', () => {
     );
     expect(readLexiconReturnParam(new URLSearchParams('unitId=u1'))).toBe('');
     expect(buildLexiconWorkspaceHref()).toBe('/lexicon');
+  });
+
+  it('keeps only positive finite list scroll offsets', () => {
+    expect(readOptionalListScrollTop(144.4)).toBe(144);
+    expect(readOptionalListScrollTop('88')).toBe(88);
+    expect(readOptionalListScrollTop(0)).toBeUndefined();
+    expect(readOptionalListScrollTop(-3)).toBeUndefined();
+    expect(readOptionalListScrollTop('nope')).toBeUndefined();
   });
 
   it('flags dual-write of frozen R8 keys across URL and sessionStorage', () => {

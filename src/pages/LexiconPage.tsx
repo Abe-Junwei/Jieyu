@@ -1,6 +1,6 @@
 import '../styles/pages/feature-availability.css';
 import '../styles/pages/lexicon-workspace.css';
-import { useEffect, useDeferredValue, useMemo, useState } from 'react';
+import { useEffect, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
@@ -16,6 +16,7 @@ import {
   buildTranscriptionDeepLinkHref,
   buildTranscriptionWorkspaceReturnHref,
 } from '../utils/transcriptionUrlDeepLink';
+import { readOptionalListScrollTop } from '../utils/workspaceReturnDeepLink';
 import { LexiconAttachmentSection } from './LexiconAttachmentSection';
 
 const LEXICON_LIST_STATE_KEY = 'lexiconListState';
@@ -23,6 +24,7 @@ const LEXICON_LIST_STATE_KEY = 'lexiconListState';
 type LexiconListState = {
   searchText?: string;
   selectedLexemeId?: string;
+  listScrollTop?: number;
 };
 
 function readFirstValue(record: Record<string, string> | undefined, fallback: string): string {
@@ -58,9 +60,11 @@ function readLexiconListState(): LexiconListState {
     if (!parsed || typeof parsed !== 'object') return {};
     const searchText = String((parsed as LexiconListState).searchText ?? '');
     const selectedLexemeId = String((parsed as LexiconListState).selectedLexemeId ?? '');
+    const listScrollTop = readOptionalListScrollTop((parsed as LexiconListState).listScrollTop);
     return {
       ...(searchText ? { searchText } : {}),
       ...(selectedLexemeId ? { selectedLexemeId } : {}),
+      ...(listScrollTop ? { listScrollTop } : {}),
     };
   } catch {
     return {};
@@ -74,6 +78,14 @@ function writeLexiconListState(state: LexiconListState): void {
   } catch {
     /* quota / private mode */
   }
+}
+
+function resolveLexiconScrollRoot(workspace: HTMLElement | null): HTMLElement | null {
+  if (!workspace) return null;
+  const shell = workspace.closest('.app-main');
+  if (shell instanceof HTMLElement) return shell;
+  const list = workspace.querySelector('.lexicon-workspace-list');
+  return list instanceof HTMLElement ? list : null;
 }
 
 export function LexiconPage() {
@@ -97,6 +109,9 @@ export function LexiconPage() {
   const [selectedLexemeId, setSelectedLexemeId] = useState(initialListState.selectedLexemeId ?? '');
   const deferredSearchText = useDeferredValue(searchText);
   const filteredLexemes = useLexiconSearch(lexemes, deferredSearchText);
+  const workspaceRef = useRef<HTMLElement>(null);
+  const listScrollTopRef = useRef(initialListState.listScrollTop ?? 0);
+  const restoredScrollRef = useRef(false);
 
   useEffect(() => {
     if (filteredLexemes.length === 0) {
@@ -110,8 +125,32 @@ export function LexiconPage() {
   }, [filteredLexemes, selectedLexemeId]);
 
   useEffect(() => {
-    writeLexiconListState({ searchText, selectedLexemeId });
+    writeLexiconListState({
+      searchText,
+      selectedLexemeId,
+      ...(listScrollTopRef.current > 0 ? { listScrollTop: listScrollTopRef.current } : {}),
+    });
   }, [searchText, selectedLexemeId]);
+
+  useEffect(() => {
+    const root = resolveLexiconScrollRoot(workspaceRef.current);
+    if (!root) return;
+    const persistScroll = () => {
+      const top = Math.round(root.scrollTop);
+      listScrollTopRef.current = top;
+      writeLexiconListState({
+        searchText,
+        selectedLexemeId,
+        ...(top > 0 ? { listScrollTop: top } : {}),
+      });
+    };
+    root.addEventListener('scroll', persistScroll, { passive: true });
+    if (!loading && !restoredScrollRef.current && listScrollTopRef.current > 0) {
+      root.scrollTop = listScrollTopRef.current;
+      restoredScrollRef.current = true;
+    }
+    return () => root.removeEventListener('scroll', persistScroll);
+  }, [loading, filteredLexemes.length, searchText, selectedLexemeId]);
 
   const selectedLexeme = filteredLexemes.find((lexeme) => lexeme.id === selectedLexemeId) ?? null;
   const selectedLexemeGloss = selectedLexeme
@@ -204,7 +243,11 @@ export function LexiconPage() {
   });
 
   return (
-    <section className="panel lexicon-workspace" aria-labelledby="lexicon-workspace-title">
+    <section
+      ref={workspaceRef}
+      className="panel lexicon-workspace"
+      aria-labelledby="lexicon-workspace-title"
+    >
       <header className="lexicon-workspace-hero">
         <span className="lexicon-workspace-badge">{t(locale, 'workspace.lexicon.badge')}</span>
         <h2 id="lexicon-workspace-title">{t(locale, 'workspace.lexicon.title')}</h2>
@@ -251,6 +294,7 @@ export function LexiconPage() {
           <div
             className="lexicon-workspace-list"
             role="list"
+            data-testid="lexicon-workspace-list"
             aria-label={t(locale, 'workspace.lexicon.listTitle')}
           >
             {filteredLexemes.map((lexeme) => {
