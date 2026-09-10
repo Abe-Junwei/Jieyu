@@ -54,6 +54,19 @@
 - 主要风险：
 - 回滚方式：
 
+## R1–R8 三页联评 | Cross-page checklist
+
+命中标注 `/annotation`、词典 `/lexicon`、语料 `/corpus` 产品路径时必须逐项勾选 `[x]`，或在该行写明 `N/A` 与理由。未触及三页产品代码时本段可全部 `N/A`。锚点：[治理补充规范 #r1-r8-cross-page-checklist](docs/execution/plans/标注词典语料-治理补充规范-2026-04-25.md#r1-r8-cross-page-checklist)。门禁：`npm run check:r1-r8`。
+
+- [ ] **R1** 词汇标签分轨（项目词典 vs 术语备忘）
+- [ ] **R2** 写库边界未被语料库越界
+- [ ] **R3** 语料库词条展示仅走只读路径
+- [ ] **R4** AI 工具分区未串线
+- [ ] **R5** 导出入口与文案分轨
+- [ ] **R6** 深链语义一致（`unitId/layer/lexemeId`）
+- [ ] **R7** 跨页刷新按约定粒度增量
+- [ ] **R8** 三页往返上下文可预测可验收
+
 ## 验证 | Validation
 
 - 手工验证：

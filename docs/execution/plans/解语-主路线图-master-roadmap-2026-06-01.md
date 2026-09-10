@@ -162,7 +162,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **Agent 轨下一刀**：本 PR 收口 **B1** 剩余深链返回上下文（标注 URL `unitId` 聚焦、`lexiconReturn` 经转写 strip 保留、壳层返回词典、R8 双写纯函数）。已在其它分支完成、待合入：B5c HTML/bundle、B2 事件接线。之后余量：**B7**（blocked on A7/A9/A12 + ChatWindow）。不启动 EAF/TextGrid。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **Agent 轨下一刀**：本 PR 落地 **B10**（P1-5 R1–R8 联评门禁：`npm run check:r1-r8`）。已在其它分支完成、待合入：B5c HTML/bundle、B2 事件接线。之后余量：**B7**（blocked on A7/A9/A12 + ChatWindow）。不启动 EAF/TextGrid。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -203,6 +203,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B15** | Zotero/OpenAlex MCP 提供方适配 | M | **【已落地·flag 关】** `externalMcpProviderAdapters`：已知工具指纹；`tools/call` 文本 JSON → `EvidencePacketV0`（`document`）；Settings 预置只填 origin/label 草稿。Flag `aiExternalMcpProviderAdaptersEnabled` 默认 **false**。CSP 枚举环回 `8765`，不恢复 `https:` 通配；不 spawn stdio；不直连 OpenAlex REST / Zotero `:23119`。SDD：`agent-runtime-external-mcp-provider-adapters/`。**依赖 B13+B14** | flag 关零 packets / 零预置按钮；垃圾 JSON → `[]`；预置不写 Dexie | 是 |
 | **B8** | 词典附件能力（引用式资产，P1-2） | M | **【已落地·flag 关】** Dexie v53 `lexeme_assets` + `lexeme_asset_links`；`linguisticServiceLexemeAssetOps`；`LexiconAttachmentSection`。Flag `lexiconAttachmentsEnabled` 默认 **false**。**不**接 `useTranscriptionData` / ChatWindow / 协作桥；**不**内嵌二进制到 lexeme；**不**复用 `media_items`。SDD：`lexicon-attachments/`。 | 写→reload→readback 保留 Blob；unlink 先断链再 refCount GC；flag 关无附件区 | 是 |
 | **B9** | 分析页 /analysis | — | **受限工作台已落地（非产品级开放台）**：[ADR-0033](../../adr/0033-analysis-restricted-workspace-no-transcription-dock.md) 把 `/analysis` 做成向量索引 / 语料统计入口（复用 `TranscriptionPageAnalysisRuntime`，`visibleTabs`: embedding / stats），**不嵌波形、不升格为第二转写台**。完整科研分析工作台仍不排期 | — | — |
+| **B10** | 联评门禁自动化（R1–R8，P1-5） | S | **【已落地】** `scripts/check-r1-r8-cross-page.mjs` + PR 模板勾选段；命中三页产品路径时 CI `pull_request` 要求正文逐项 `[x]` 或 `N/A`。含于 `check:all`。push 到 main 跳过。不引入 Danger.js。锚点：[治理补充规范 #r1-r8-cross-page-checklist](./标注词典语料-治理补充规范-2026-04-25.md#r1-r8-cross-page-checklist) | 触发路径缺清单失败；非触发路径 skip；N/A/`[x]` 通过；定向 vitest | 否 |
 
 ### Stage C — 对外 / 协作（拍板 1B 预留）
 
@@ -282,3 +283,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-05 | **B6**：unit 删除后 `CITATION_UNIT_NOT_FOUND`；jump 不盲跳；RAG footer 省略 index-miss snippet；悬空 lexeme 链接可诊断。无软删列。下一刀语料 P1 HTML/bundle 或 B2 接线。 |
 | 2026-09-05 | **B8**：词典引用式附件（Dexie v53 `lexeme_assets` / `lexeme_asset_links`）；flag `lexiconAttachmentsEnabled` 默认 false。不接 ChatWindow / 转写 data hook。下一刀合入 B5c/B2，或 B7（仍 blocked）。 |
 | 2026-09-07 | **B1 收口**：标注 URL `unitId` 聚焦；词典 outbound `lexiconReturn` 经转写 strip 保留；壳层返回词典条；R8 双写纯函数。不接 ChatWindow / ReadyWorkspace。下一刀合入 B5c/B2，或 B7（仍 blocked）。 |
+| 2026-09-07 | **B10**：R1–R8 联评门禁 `npm run check:r1-r8`（路径过滤 + PR 正文勾选/N/A）；含于 `check:all`；CI PR 浅克隆先 fetch base SHA。不引入 Danger.js。下一刀合入 B5c/B2，或 B7（仍 blocked）。 |
