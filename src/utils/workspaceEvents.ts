@@ -127,8 +127,8 @@ export function subscribeWorkspaceEvent(
 ): () => void {
   if (!canUseWindowEvents()) return () => undefined;
   const listener = (event: Event) => {
-    const detail = (event as CustomEvent<WorkspaceEventDetail>).detail;
-    if (!detail) return;
+    const detail = (event as CustomEvent<WorkspaceEventDetail | undefined>).detail;
+    if (detail === undefined) return;
     handler(detail);
   };
   window.addEventListener(type, listener);
@@ -160,10 +160,11 @@ export function dispatchWorkspaceLexemeUpdated(input: {
   const lexemeId = input.lexemeId.trim();
   if (lexemeId.length === 0) return null;
   const revision = input.revision ?? Date.now();
+  const textId = input.textId?.trim() ?? '';
   const detail: WorkspaceLexemeUpdatedDetail = {
     ...envelope(revision, buildLexemeUpdatedIdempotencyKey(lexemeId, revision)),
     lexemeId,
-    ...(input.textId && input.textId.trim().length > 0 ? { textId: input.textId.trim() } : {}),
+    ...(textId.length > 0 ? { textId } : {}),
   };
   dispatchWorkspaceEvent(WORKSPACE_LEXEME_UPDATED_EVENT, detail);
   return detail;
@@ -177,13 +178,14 @@ export function dispatchWorkspaceLexemeDeleted(input: {
   const lexemeId = input.lexemeId.trim();
   if (lexemeId.length === 0) return null;
   const eventId = newWorkspaceEventId();
+  const textId = input.textId?.trim() ?? '';
   const detail: WorkspaceLexemeDeletedDetail = {
     eventId,
     occurredAt: new Date().toISOString(),
     lexemeId,
     deletionMode: input.deletionMode,
     idempotencyKey: `lexeme:${lexemeId}:rev:${eventId}`,
-    ...(input.textId && input.textId.trim().length > 0 ? { textId: input.textId.trim() } : {}),
+    ...(textId.length > 0 ? { textId } : {}),
   };
   dispatchWorkspaceEvent(WORKSPACE_LEXEME_DELETED_EVENT, detail);
   return detail;
@@ -195,7 +197,11 @@ export function dispatchWorkspaceContextSync(
   },
 ): WorkspaceContextSyncDetail | null {
   if (!canUseWindowEvents()) return null;
-  const eventId = input.eventId?.trim() || newWorkspaceEventId();
+  const trimmedEventId = input.eventId?.trim() ?? '';
+  const eventId = trimmedEventId.length > 0 ? trimmedEventId : newWorkspaceEventId();
+  const unitId = input.unitId?.trim() ?? '';
+  const layerId = input.layerId?.trim() ?? '';
+  const lexemeId = input.lexemeId?.trim() ?? '';
   const detail: WorkspaceContextSyncDetail = {
     eventId,
     occurredAt: new Date().toISOString(),
@@ -203,9 +209,9 @@ export function dispatchWorkspaceContextSync(
     targetPage: input.targetPage,
     contextKeys: [...input.contextKeys],
     idempotencyKey: buildContextSyncIdempotencyKey(input.sourcePage, input.targetPage, eventId),
-    ...(input.unitId ? { unitId: input.unitId } : {}),
-    ...(input.layerId ? { layerId: input.layerId } : {}),
-    ...(input.lexemeId ? { lexemeId: input.lexemeId } : {}),
+    ...(unitId.length > 0 ? { unitId } : {}),
+    ...(layerId.length > 0 ? { layerId } : {}),
+    ...(lexemeId.length > 0 ? { lexemeId } : {}),
   };
   dispatchWorkspaceEvent(WORKSPACE_CONTEXT_SYNC_EVENT, detail);
   return detail;
