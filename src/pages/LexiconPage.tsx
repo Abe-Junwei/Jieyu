@@ -1,7 +1,7 @@
 import '../styles/pages/feature-availability.css';
 import '../styles/pages/lexicon-workspace.css';
 import { useEffect, useDeferredValue, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { PanelSection } from '../components/ui/PanelSection';
@@ -12,6 +12,7 @@ import { useLexiconSearch } from '~/hooks/lexicon/useLexiconSearch';
 import { t, tf, useLocale } from '../i18n';
 import { featureFlags } from '../ai/config/featureFlags';
 import { LinguisticService } from '../app/languageAssetPageAccess';
+import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
 import {
   buildTranscriptionDeepLinkHref,
   buildTranscriptionWorkspaceReturnHref,
@@ -90,6 +91,7 @@ function resolveLexiconScrollRoot(workspace: HTMLElement | null): HTMLElement | 
 
 export function LexiconPage() {
   const locale = useLocale();
+  const queryClient = useQueryClient();
   const {
     data: lexemes = [],
     isLoading: loading,
@@ -165,6 +167,21 @@ export function LexiconPage() {
     queryKey: ['lexemeTranscriptionJumpTargets', selectedLexemeId],
     queryFn: () => LinguisticService.lexemes.listTranscriptionJumpTargets(selectedLexemeId),
     enabled: Boolean(selectedLexemeId.trim()),
+  });
+
+  useWorkspaceEventRefresh({
+    onUnitUpdated: (detail) => {
+      if (!lexemeJumpTargets.some((row) => row.unitId === detail.unitId)) return;
+      void queryClient.invalidateQueries({
+        queryKey: ['lexemeTranscriptionJumpTargets', selectedLexemeId],
+      });
+    },
+    onLexemeUpdated: (detail) => {
+      void queryClient.invalidateQueries({ queryKey: ['lexemes'] });
+      void queryClient.invalidateQueries({
+        queryKey: ['lexemeTranscriptionJumpTargets', detail.lexemeId],
+      });
+    },
   });
 
   const sidePaneContent = useMemo(

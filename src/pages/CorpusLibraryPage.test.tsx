@@ -8,6 +8,7 @@ import { AppSidePaneProvider } from '../contexts/AppSidePaneContext';
 import { LocaleProvider } from '../i18n';
 import { resetCorpusBasketSessionForTests } from './corpusBasketSession';
 import { CORPUS_VIEW_STATE_KEY, resetCorpusViewStateForTests } from './corpusViewState';
+import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 
 const { mockListCorpusIndexByTextId, featureFlagState } = vi.hoisted(() => ({
   mockListCorpusIndexByTextId: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock('../ai/config/featureFlags', () => ({
 }));
 
 import { CorpusLibraryPage } from './CorpusLibraryPage';
+import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 
 const SAMPLE_UNITS = [
   {
@@ -236,5 +238,25 @@ describe('CorpusLibraryPage', () => {
     expect(sessionStorage.getItem('corpusBasket')).toBeNull();
     expect(window.location.search).not.toContain('corpusViewState');
     expect(window.location.search).not.toContain('listScrollTop');
+  });
+
+  it('refetches the current text index when a listed unit is updated', async () => {
+    featureFlagState.corpusLibraryPageEnabled = true;
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
+    renderPage('/corpus?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
+    const reads = mockListCorpusIndexByTextId.mock.calls.length;
+    mockListCorpusIndexByTextId.mockResolvedValue([
+      { ...SAMPLE_UNITS[0]!, defaultText: 'updated first sentence' },
+      SAMPLE_UNITS[1],
+      SAMPLE_UNITS[2],
+    ]);
+    dispatchWorkspaceUnitUpdated({ unitId: 'uid-1', revision: 21 });
+    await waitFor(() => {
+      expect(mockListCorpusIndexByTextId.mock.calls.length).toBeGreaterThan(reads);
+      expect(screen.getByTestId('corpus-library-unit-uid-1').textContent).toContain(
+        'updated first sentence',
+      );
+    });
   });
 });

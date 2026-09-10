@@ -1,5 +1,6 @@
 import { getDb, runDexieIndexedQueryOrElse, type LexemeDocType } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
+import { dispatchWorkspaceLexemeUpdated } from '../utils/workspaceEvents';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 
 /** 词典 → 转写深链：由 `token_lexeme_links` 解析出的可跳转时间轴单元 | Lexicon → transcription deep-link row */
@@ -48,6 +49,7 @@ export async function searchLexemes(query: string): Promise<LexemeDocType[]> {
 export async function saveLexeme(data: LexemeDocType): Promise<string> {
   const db = await getDb();
   const doc = await db.collections.lexemes.insert(data);
+  dispatchWorkspaceLexemeUpdated({ lexemeId: doc.primary });
   return doc.primary;
 }
 

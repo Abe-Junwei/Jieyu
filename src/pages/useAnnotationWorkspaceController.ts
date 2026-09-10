@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { LinguisticService } from '../app/languageAssetPageAccess';
+import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
 import { t, useLocale } from '../i18n';
 import type { UnitTokenDocType } from '../types/jieyuDbDocTypes';
 import {
@@ -218,6 +219,16 @@ export function useAnnotationWorkspaceController() {
     },
     [dataQuery, derived.focusedUnitId, derived.rows, derived.unitIds, drafts, locale],
   );
+
+  useWorkspaceEventRefresh({
+    hasDraftForUnit: (unitId) =>
+      derived.rows
+        .find((item) => item.id === unitId)
+        ?.tokens.some((token) => drafts[token.id] !== undefined) === true,
+    onUnitUpdated: (detail) => {
+      if (derived.unitIds.includes(detail.unitId)) void dataQuery.refetch();
+    },
+  });
 
   const handleKeyDown = useCallback(
     (event: {

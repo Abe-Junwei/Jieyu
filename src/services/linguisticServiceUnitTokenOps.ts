@@ -19,6 +19,7 @@ import {
 } from './LayerSegmentGraphService';
 import { enforceTimeSubdivisionParentBounds } from './LayerSegmentationTextService';
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
+import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 
 export async function saveUnit(data: LayerUnitDocType): Promise<string> {
   const db = await getDb();
@@ -35,6 +36,10 @@ export async function saveUnit(data: LayerUnitDocType): Promise<string> {
     await invalidateUnitEmbeddings(db, [normalized.id]);
   }
   scheduleSegmentMetaSyncForUnitIds([normalized.id], 'linguisticServiceUnitTokenOps.saveUnit');
+  dispatchWorkspaceUnitUpdated({
+    unitId: normalized.id,
+    ...(normalized.layerId ? { layerId: normalized.layerId } : {}),
+  });
   return normalized.id;
 }
 
@@ -122,6 +127,7 @@ export async function updateTokenPos(tokenId: string, pos: string | null): Promi
     ...(nextPos ? { pos: nextPos } : {}),
     updatedAt: new Date().toISOString(),
   });
+  dispatchWorkspaceUnitUpdated({ unitId: row.unitId });
 }
 
 export async function updateTokenGloss(
@@ -152,6 +158,7 @@ export async function updateTokenGloss(
     ...(nextGloss ? { gloss: nextGloss } : {}),
     updatedAt: new Date().toISOString(),
   });
+  dispatchWorkspaceUnitUpdated({ unitId: row.unitId });
 }
 
 export async function batchUpdateTokenPosByForm(
@@ -188,6 +195,7 @@ export async function batchUpdateTokenPosByForm(
     }),
   );
 
+  dispatchWorkspaceUnitUpdated({ unitId });
   return matches.length;
 }
 
@@ -214,7 +222,12 @@ export async function replaceMorphemesForToken(
   if (items.length > 0) {
     await db.collections.unit_morphemes.bulkInsert([...items]);
   }
-  return getMorphemesByTokenId(id);
+  const stored = await getMorphemesByTokenId(id);
+  const unitId = items[0]?.unitId ?? stored[0]?.unitId;
+  if (unitId && unitId.trim().length > 0) {
+    dispatchWorkspaceUnitUpdated({ unitId });
+  }
+  return stored;
 }
 
 export async function removeToken(tokenId: string): Promise<void> {
