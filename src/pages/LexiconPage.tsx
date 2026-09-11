@@ -163,12 +163,12 @@ export function LexiconPage() {
     : '';
   const editor = useLexiconEntryEditController({
     selectedLexeme,
-    onSaved: (stored) => {
+    onSaved: (stored, options) => {
       const current = queryClient.getQueryData<LexemeDocType[]>(['lexemes']) ?? [];
       const existed = current.some((row) => row.id === stored.id);
       queryClient.setQueryData(['lexemes'], mergeLexemeIntoList(current, stored));
       if (!existed) setSearchText('');
-      setSelectedLexemeId(stored.id);
+      if (options?.select !== false) setSelectedLexemeId(stored.id);
     },
   });
 
