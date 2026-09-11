@@ -29,18 +29,28 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
   };
 }
 
+export type LexiconEntrySavedOptions = {
+  select?: boolean;
+};
+
 export function useLexiconEntryEditController(input: {
   selectedLexeme: LexemeDocType | null;
-  onSaved: (stored: LexemeDocType) => void;
+  onSaved: (stored: LexemeDocType, options?: LexiconEntrySavedOptions) => void;
 }): LexiconEntryEditController {
   const { selectedLexeme, onSaved } = input;
   const locale = useLocale();
   const lastSavedIdRef = useRef<string | null>(null);
+  const savingRef = useRef(false);
+  const creatingRef = useRef(false);
+  const selectedLexemeIdRef = useRef<string | null>(selectedLexeme?.id ?? null);
   const [creating, setCreating] = useState(false);
   const [fields, setFields] = useState<LexiconEntryFields>(fieldsFromLexeme(selectedLexeme));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+
+  creatingRef.current = creating;
+  selectedLexemeIdRef.current = selectedLexeme?.id ?? null;
 
   useEffect(() => {
     if (creating) return;
@@ -51,18 +61,34 @@ export function useLexiconEntryEditController(input: {
   }, [creating, selectedLexeme]);
 
   const onSave = useCallback(() => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    const startedAsCreate = creating;
+    const startedLexemeId = selectedLexeme?.id ?? null;
     setSaving(true);
     setError('');
     setSaved(false);
     void saveLexiconEntry({
-      existing: creating ? null : selectedLexeme,
+      existing: startedAsCreate ? null : selectedLexeme,
       fields,
     })
       .then((stored) => {
-        lastSavedIdRef.current = stored.id;
-        setCreating(false);
-        setSaved(true);
-        onSaved(stored);
+        const stillCreating = creatingRef.current;
+        const currentLexemeId = selectedLexemeIdRef.current;
+        const shouldSelect =
+          (startedAsCreate && stillCreating) ||
+          (!startedAsCreate && !stillCreating && currentLexemeId === startedLexemeId);
+        onSaved(stored, { select: shouldSelect });
+        if (startedAsCreate && stillCreating) {
+          lastSavedIdRef.current = stored.id;
+          setCreating(false);
+          setSaved(true);
+          return;
+        }
+        if (!startedAsCreate && !stillCreating && currentLexemeId === startedLexemeId) {
+          lastSavedIdRef.current = stored.id;
+          setSaved(true);
+        }
       })
       .catch((caught) => {
         const message =
@@ -74,6 +100,7 @@ export function useLexiconEntryEditController(input: {
         setError(message);
       })
       .finally(() => {
+        savingRef.current = false;
         setSaving(false);
       });
   }, [creating, fields, locale, onSaved, selectedLexeme]);
