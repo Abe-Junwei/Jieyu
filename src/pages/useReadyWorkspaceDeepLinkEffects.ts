@@ -102,7 +102,7 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
     if (!pending) return;
     if (phase !== 'ready') return;
 
-    const projectTextId = units[0]?.textId?.trim() ?? '';
+    const projectTextId = (activeTextId ?? units[0]?.textId ?? '').trim();
     if (!projectTextId) {
       pendingPostTextIdDeepLinkRef.current = null;
       return;
@@ -184,6 +184,7 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
     pendingPostTextIdDeepLinkRef.current = null;
   }, [
     phase,
+    activeTextId,
     units,
     layers,
     mediaItems,
