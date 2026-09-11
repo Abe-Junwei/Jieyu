@@ -447,6 +447,57 @@ describe('AnnotationPage', () => {
     });
   });
 
+  it('keeps in-flight note edits when the same unit save finishes', async () => {
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello', 'INTJ')]);
+    const notesByUnit = new Map<
+      string,
+      Array<{
+        id: string;
+        content: { default: string };
+        category: string;
+        targetType: string;
+        targetId: string;
+      }>
+    >();
+    let finishSave: (() => void) | undefined;
+    mockListNotesByTarget.mockImplementation(async (_type: string, unitId: string) => {
+      return notesByUnit.get(unitId) ?? [];
+    });
+    mockSaveNote.mockImplementation(
+      async (doc: {
+        id: string;
+        content: { default: string };
+        category: string;
+        targetType: string;
+        targetId: string;
+      }) =>
+        new Promise<string>((resolve) => {
+          finishSave = () => {
+            notesByUnit.set(doc.targetId, [doc]);
+            resolve(doc.id);
+          };
+        }),
+    );
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    fireEvent.change(screen.getByTestId('annotation-igt-note-uid-1'), {
+      target: { value: 'version one' },
+    });
+    fireEvent.click(screen.getByTestId('annotation-igt-note-save-uid-1'));
+    await waitFor(() => {
+      expect(finishSave).toBeDefined();
+    });
+    fireEvent.change(screen.getByTestId('annotation-igt-note-uid-1'), {
+      target: { value: 'version two' },
+    });
+    finishSave?.();
+    await waitFor(() => {
+      expect((screen.getByTestId('annotation-igt-note-uid-1') as HTMLTextAreaElement).value).toBe(
+        'version two',
+      );
+    });
+  });
+
   it('does not clear the next unit note draft when a prior save finishes', async () => {
     seedWorkspace(
       [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ'), tokenRow('tok-2', 'uid-2', 'next', 'ADV')],
@@ -462,7 +513,7 @@ describe('AnnotationPage', () => {
         targetId: string;
       }>
     >();
-    let finishSave: (() => void) | null = null;
+    let finishSave: (() => void) | undefined;
     mockListNotesByTarget.mockImplementation(async (_type: string, unitId: string) => {
       return notesByUnit.get(unitId) ?? [];
     });
@@ -488,7 +539,7 @@ describe('AnnotationPage', () => {
     });
     fireEvent.click(screen.getByTestId('annotation-igt-note-save-uid-1'));
     await waitFor(() => {
-      expect(finishSave).not.toBeNull();
+      expect(finishSave).toBeDefined();
     });
     fireEvent.click(screen.getByTestId('annotation-igt-row-uid-2'));
     const nextNote = await screen.findByTestId('annotation-igt-note-uid-2');
