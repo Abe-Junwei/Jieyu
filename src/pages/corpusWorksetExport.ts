@@ -17,6 +17,31 @@ export type CorpusWorksetExportPayload = {
   units: CorpusWorksetExportUnit[];
 };
 
+export const CORPUS_EXPORT_MAX_CHARS = 1_000_000;
+
+export const CORPUS_EXPORT_ERROR = {
+  empty: 'CORPUS_EXPORT_EMPTY',
+  tooLong: 'CORPUS_EXPORT_TOO_LONG',
+  clipboardUnavailable: 'CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE',
+} as const;
+
+export type CorpusExportLengthStatus = 'ok' | 'empty' | 'too-long';
+
+export function assessCorpusExportLength(totalChars: number): CorpusExportLengthStatus {
+  if (totalChars <= 0) return 'empty';
+  if (totalChars > CORPUS_EXPORT_MAX_CHARS) return 'too-long';
+  return 'ok';
+}
+
+export function escapeCorpusExportHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function buildCorpusWorksetExportPayload(input: {
   textId: string;
   mediaId: string;
@@ -114,4 +139,22 @@ ${unit.text}`;
     header.push(`- mediaId: \`${payload.mediaId}\``);
   }
   return [...header, '', ...sections].join('\n');
+}
+
+export function formatCorpusWorksetHtml(payload: CorpusWorksetExportPayload): string {
+  if (payload.units.length === 0) return '';
+  const headerBits = [`textId: ${escapeCorpusExportHtml(payload.textId)}`];
+  if (payload.mediaId.length > 0) {
+    headerBits.push(`mediaId: ${escapeCorpusExportHtml(payload.mediaId)}`);
+  }
+  const items = payload.units.map((unit) => {
+    const href = escapeCorpusExportHtml(transcriptionHrefForExportUnit(unit));
+    const range = escapeCorpusExportHtml(timeRange(unit));
+    const unitId = escapeCorpusExportHtml(unit.unitId);
+    const media =
+      unit.mediaId.length > 0 ? ` <code>${escapeCorpusExportHtml(unit.mediaId)}</code>` : '';
+    const text = escapeCorpusExportHtml(unit.text);
+    return `<li><a href="${href}">${range}</a> <code>${unitId}</code>${media} ${text}</li>`;
+  });
+  return `<div data-jieyu-workset="1"><p>${headerBits.join(' · ')}</p><ul>${items.join('')}</ul></div>`;
 }
