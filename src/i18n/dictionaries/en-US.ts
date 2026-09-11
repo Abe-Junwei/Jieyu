@@ -103,7 +103,7 @@ export const enUSDictionary = {
   'workspace.annotation.badge': 'IGT editing',
   'workspace.annotation.title': 'Annotation workspace',
   'workspace.annotation.summary':
-    'Edit POS, gloss, morphemes, and lexeme links for units in the current transcription scope. Surface and translation stay read-only in this slice.',
+    'Edit POS, gloss, morphemes, and lexeme links for units in the current transcription scope. Play a unit range, save notes and self-certainty, and preview AutoGloss before applying. Surface text and timestamps stay read-only.',
   'workspace.annotation.empty':
     'No transcription record is in scope yet. Open the transcription workspace first.',
   'workspace.annotation.emptyList': 'No annotatable units are in the current scope.',
