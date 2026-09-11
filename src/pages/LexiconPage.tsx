@@ -19,6 +19,9 @@ import {
 } from '../utils/transcriptionUrlDeepLink';
 import { readOptionalListScrollTop } from '../utils/workspaceReturnDeepLink';
 import { LexiconAttachmentSection } from './LexiconAttachmentSection';
+import { LexiconEntryEditForm } from './lexicon/LexiconEntryEditForm';
+import { mergeLexemeIntoList } from './lexicon/saveLexiconEntry';
+import { useLexiconEntryEditController } from './useLexiconEntryEditController';
 
 const LEXICON_LIST_STATE_KEY = 'lexiconListState';
 
@@ -158,6 +161,16 @@ export function LexiconPage() {
   const selectedLexemeGloss = selectedLexeme
     ? readLexemePrimaryGloss(selectedLexeme, t(locale, 'workspace.lexicon.notSet'))
     : '';
+  const editor = useLexiconEntryEditController({
+    selectedLexeme,
+    onSaved: (stored) => {
+      const current = queryClient.getQueryData<LexemeDocType[]>(['lexemes']) ?? [];
+      const existed = current.some((row) => row.id === stored.id);
+      queryClient.setQueryData(['lexemes'], mergeLexemeIntoList(current, stored));
+      if (!existed) setSearchText('');
+      setSelectedLexemeId(stored.id);
+    },
+  });
 
   const {
     data: lexemeJumpTargets = [],
@@ -293,6 +306,14 @@ export function LexiconPage() {
             placeholder={t(locale, 'workspace.lexicon.searchPlaceholder')}
             aria-label={t(locale, 'workspace.lexicon.searchPlaceholder')}
           />
+          <button
+            type="button"
+            className="btn lexicon-workspace-create"
+            data-testid="lexicon-entry-create"
+            onClick={editor.onStartCreate}
+          >
+            {t(locale, 'workspace.lexicon.edit.create')}
+          </button>
 
           {loading ? (
             <p className="lexicon-workspace-state">{t(locale, 'workspace.lexicon.loading')}</p>
@@ -321,7 +342,10 @@ export function LexiconPage() {
                   key={lexeme.id}
                   type="button"
                   className={`lexicon-workspace-list-item${active ? ' lexicon-workspace-list-item-active' : ''}`}
-                  onClick={() => setSelectedLexemeId(lexeme.id)}
+                  onClick={() => {
+                    if (editor.creating) editor.onCancelCreate();
+                    setSelectedLexemeId(lexeme.id);
+                  }}
                 >
                   <span className="lexicon-workspace-list-label">{readLexemeLabel(lexeme)}</span>
                   <span className="lexicon-workspace-list-meta">
@@ -337,172 +361,203 @@ export function LexiconPage() {
         </PanelSection>
 
         <div className="lexicon-workspace-detail-column">
-          {selectedLexeme ? (
+          {editor.creating || selectedLexeme ? (
             <>
-              <PanelSummary
-                className="lexicon-workspace-summary-card"
-                title={t(locale, 'workspace.lexicon.detailTitle')}
-                description={readLexemeLabel(selectedLexeme)}
-                meta={<span className="lexicon-workspace-summary-meta">{selectedLexemeGloss}</span>}
-                supportingText={t(locale, 'workspace.lexicon.detailDescription')}
-              />
+              {selectedLexeme && !editor.creating ? (
+                <>
+                  <PanelSummary
+                    className="lexicon-workspace-summary-card"
+                    title={t(locale, 'workspace.lexicon.detailTitle')}
+                    description={readLexemeLabel(selectedLexeme)}
+                    meta={
+                      <span className="lexicon-workspace-summary-meta">{selectedLexemeGloss}</span>
+                    }
+                    supportingText={t(locale, 'workspace.lexicon.detailDescription')}
+                  />
 
-              <PanelSection
-                className="lexicon-workspace-detail-panel"
-                title={t(locale, 'workspace.lexicon.overviewTitle')}
-                description={t(locale, 'workspace.lexicon.overviewDescription')}
-              >
-                <dl className="lexicon-workspace-detail-grid">
-                  <div>
-                    <dt>{t(locale, 'workspace.lexicon.languageLabel')}</dt>
-                    <dd>{selectedLexeme.language ?? t(locale, 'workspace.lexicon.notSet')}</dd>
-                  </div>
-                  <div>
-                    <dt>{t(locale, 'workspace.lexicon.citationLabel')}</dt>
-                    <dd>{selectedLexeme.citationForm ?? t(locale, 'workspace.lexicon.notSet')}</dd>
-                  </div>
-                  <div>
-                    <dt>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</dt>
-                    <dd>{selectedLexeme.lexemeType ?? t(locale, 'workspace.lexicon.notSet')}</dd>
-                  </div>
-                  <div>
-                    <dt>{t(locale, 'workspace.lexicon.morphemeTypeLabel')}</dt>
-                    <dd>{selectedLexeme.morphemeType ?? t(locale, 'workspace.lexicon.notSet')}</dd>
-                  </div>
-                  <div>
-                    <dt>{t(locale, 'workspace.lexicon.usageCountLabel')}</dt>
-                    <dd>{String(selectedLexeme.usageCount ?? 0)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t(locale, 'workspace.lexicon.updatedAtLabel')}</dt>
-                    <dd>{selectedLexeme.updatedAt}</dd>
-                  </div>
-                </dl>
-              </PanelSection>
-
-              <PanelSection
-                className="lexicon-workspace-detail-panel"
-                title={t(locale, 'workspace.lexicon.hitSegmentsTitle')}
-                description={t(locale, 'workspace.lexicon.hitSegmentsDescription')}
-              >
-                {jumpTargetsLoading ? (
-                  <p className="lexicon-workspace-state">
-                    {t(locale, 'workspace.lexicon.hitSegmentsLoading')}
-                  </p>
-                ) : null}
-                {jumpTargetsError ? (
-                  <p className="lexicon-workspace-state lexicon-workspace-state-error">
-                    {t(locale, 'workspace.lexicon.hitSegmentsError')}
-                  </p>
-                ) : null}
-                {!jumpTargetsLoading && !jumpTargetsError && lexemeJumpTargets.length === 0 ? (
-                  <p className="lexicon-workspace-state">
-                    {t(locale, 'workspace.lexicon.hitSegmentsEmpty')}
-                  </p>
-                ) : null}
-                {!jumpTargetsLoading && !jumpTargetsError && lexemeJumpTargets.length > 0 ? (
-                  <ul
-                    className="lexicon-workspace-hit-list"
-                    aria-label={t(locale, 'workspace.lexicon.hitSegmentsTitle')}
+                  <PanelSection
+                    className="lexicon-workspace-detail-panel"
+                    title={t(locale, 'workspace.lexicon.overviewTitle')}
+                    description={t(locale, 'workspace.lexicon.overviewDescription')}
                   >
-                    {lexemeJumpTargets.map((hit) => {
-                      const primaryLabel = hit.surfaceHint?.trim() || hit.unitId;
-                      const href = buildTranscriptionDeepLinkHref({
-                        textId: hit.textId,
-                        ...(hit.mediaId ? { mediaId: hit.mediaId } : {}),
-                        layerId: hit.layerId,
-                        unitId: hit.unitId,
-                        ...(hit.unitKind === 'segment' ? { unitKind: 'segment' } : {}),
-                        lexiconReturn: selectedLexeme.id,
-                      });
-                      return (
-                        <li
-                          key={`${hit.textId}:${hit.layerId}:${hit.unitId}:${hit.unitKind}`}
-                          className="lexicon-workspace-hit-item"
-                        >
-                          <Link
-                            className="lexicon-workspace-hit-link"
-                            to={href}
-                            title={t(locale, 'workspace.lexicon.hitSegmentOpenTitle')}
-                          >
-                            <span className="lexicon-workspace-hit-primary">{primaryLabel}</span>
-                            <span className="lexicon-workspace-hit-meta">
-                              {tf(locale, 'workspace.lexicon.hitSegmentMeta', {
-                                textId: hit.textId,
-                                unitId: hit.unitId,
-                                kind:
-                                  hit.unitKind === 'segment'
-                                    ? t(locale, 'workspace.lexicon.hitSegmentKindSegment')
-                                    : t(locale, 'workspace.lexicon.hitSegmentKindUnit'),
-                              })}
-                            </span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : null}
-              </PanelSection>
+                    <dl className="lexicon-workspace-detail-grid">
+                      <div>
+                        <dt>{t(locale, 'workspace.lexicon.languageLabel')}</dt>
+                        <dd>{selectedLexeme.language ?? t(locale, 'workspace.lexicon.notSet')}</dd>
+                      </div>
+                      <div>
+                        <dt>{t(locale, 'workspace.lexicon.citationLabel')}</dt>
+                        <dd>
+                          {selectedLexeme.citationForm ?? t(locale, 'workspace.lexicon.notSet')}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</dt>
+                        <dd>
+                          {selectedLexeme.lexemeType ?? t(locale, 'workspace.lexicon.notSet')}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>{t(locale, 'workspace.lexicon.morphemeTypeLabel')}</dt>
+                        <dd>
+                          {selectedLexeme.morphemeType ?? t(locale, 'workspace.lexicon.notSet')}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>{t(locale, 'workspace.lexicon.usageCountLabel')}</dt>
+                        <dd>{String(selectedLexeme.usageCount ?? 0)}</dd>
+                      </div>
+                      <div>
+                        <dt>{t(locale, 'workspace.lexicon.updatedAtLabel')}</dt>
+                        <dd>{selectedLexeme.updatedAt}</dd>
+                      </div>
+                    </dl>
+                  </PanelSection>
 
-              <PanelSection
-                className="lexicon-workspace-detail-panel"
-                title={t(locale, 'workspace.lexicon.sensesTitle')}
-              >
-                {selectedLexeme.senses.length > 0 ? (
-                  <ol className="lexicon-workspace-sense-list">
-                    {selectedLexeme.senses.map((sense, index) => (
-                      <li
-                        key={`${selectedLexeme.id}-sense-${index}`}
-                        className="lexicon-workspace-sense-item"
+                  <PanelSection
+                    className="lexicon-workspace-detail-panel"
+                    title={t(locale, 'workspace.lexicon.hitSegmentsTitle')}
+                    description={t(locale, 'workspace.lexicon.hitSegmentsDescription')}
+                  >
+                    {jumpTargetsLoading ? (
+                      <p className="lexicon-workspace-state">
+                        {t(locale, 'workspace.lexicon.hitSegmentsLoading')}
+                      </p>
+                    ) : null}
+                    {jumpTargetsError ? (
+                      <p className="lexicon-workspace-state lexicon-workspace-state-error">
+                        {t(locale, 'workspace.lexicon.hitSegmentsError')}
+                      </p>
+                    ) : null}
+                    {!jumpTargetsLoading && !jumpTargetsError && lexemeJumpTargets.length === 0 ? (
+                      <p className="lexicon-workspace-state">
+                        {t(locale, 'workspace.lexicon.hitSegmentsEmpty')}
+                      </p>
+                    ) : null}
+                    {!jumpTargetsLoading && !jumpTargetsError && lexemeJumpTargets.length > 0 ? (
+                      <ul
+                        className="lexicon-workspace-hit-list"
+                        aria-label={t(locale, 'workspace.lexicon.hitSegmentsTitle')}
                       >
-                        <strong>
-                          {formatMultilang(sense.gloss) || t(locale, 'workspace.lexicon.notSet')}
-                        </strong>
-                        {formatMultilang(sense.definition) ? (
-                          <p>{formatMultilang(sense.definition)}</p>
-                        ) : null}
-                        {sense.category ? <span>{sense.category}</span> : null}
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="lexicon-workspace-state">
-                    {t(locale, 'workspace.lexicon.noSenses')}
-                  </p>
-                )}
-              </PanelSection>
+                        {lexemeJumpTargets.map((hit) => {
+                          const primaryLabel = hit.surfaceHint?.trim() || hit.unitId;
+                          const href = buildTranscriptionDeepLinkHref({
+                            textId: hit.textId,
+                            ...(hit.mediaId ? { mediaId: hit.mediaId } : {}),
+                            layerId: hit.layerId,
+                            unitId: hit.unitId,
+                            ...(hit.unitKind === 'segment' ? { unitKind: 'segment' } : {}),
+                            lexiconReturn: selectedLexeme.id,
+                          });
+                          return (
+                            <li
+                              key={`${hit.textId}:${hit.layerId}:${hit.unitId}:${hit.unitKind}`}
+                              className="lexicon-workspace-hit-item"
+                            >
+                              <Link
+                                className="lexicon-workspace-hit-link"
+                                to={href}
+                                title={t(locale, 'workspace.lexicon.hitSegmentOpenTitle')}
+                              >
+                                <span className="lexicon-workspace-hit-primary">
+                                  {primaryLabel}
+                                </span>
+                                <span className="lexicon-workspace-hit-meta">
+                                  {tf(locale, 'workspace.lexicon.hitSegmentMeta', {
+                                    textId: hit.textId,
+                                    unitId: hit.unitId,
+                                    kind:
+                                      hit.unitKind === 'segment'
+                                        ? t(locale, 'workspace.lexicon.hitSegmentKindSegment')
+                                        : t(locale, 'workspace.lexicon.hitSegmentKindUnit'),
+                                  })}
+                                </span>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                  </PanelSection>
 
+                  <PanelSection
+                    className="lexicon-workspace-detail-panel"
+                    title={t(locale, 'workspace.lexicon.sensesTitle')}
+                  >
+                    {selectedLexeme.senses.length > 0 ? (
+                      <ol className="lexicon-workspace-sense-list">
+                        {selectedLexeme.senses.map((sense, index) => (
+                          <li
+                            key={`${selectedLexeme.id}-sense-${index}`}
+                            className="lexicon-workspace-sense-item"
+                          >
+                            <strong>
+                              {formatMultilang(sense.gloss) ||
+                                t(locale, 'workspace.lexicon.notSet')}
+                            </strong>
+                            {formatMultilang(sense.definition) ? (
+                              <p>{formatMultilang(sense.definition)}</p>
+                            ) : null}
+                            {sense.category ? <span>{sense.category}</span> : null}
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="lexicon-workspace-state">
+                        {t(locale, 'workspace.lexicon.noSenses')}
+                      </p>
+                    )}
+                  </PanelSection>
+
+                  <PanelSection
+                    className="lexicon-workspace-detail-panel"
+                    title={t(locale, 'workspace.lexicon.formsTitle')}
+                  >
+                    {selectedLexeme.forms && selectedLexeme.forms.length > 0 ? (
+                      <ul className="lexicon-workspace-form-list">
+                        {selectedLexeme.forms.map((form, index) => (
+                          <li key={`${selectedLexeme.id}-form-${index}`}>
+                            {readFirstValue(
+                              form.transcription,
+                              t(locale, 'workspace.lexicon.notSet'),
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="lexicon-workspace-state">
+                        {t(locale, 'workspace.lexicon.noForms')}
+                      </p>
+                    )}
+                  </PanelSection>
+
+                  <PanelSection
+                    className="lexicon-workspace-detail-panel"
+                    title={t(locale, 'workspace.lexicon.notesTitle')}
+                  >
+                    <p className="lexicon-workspace-notes">
+                      {formatMultilang(selectedLexeme.notes) ||
+                        t(locale, 'workspace.lexicon.noNotes')}
+                    </p>
+                  </PanelSection>
+
+                  {featureFlags.lexiconAttachmentsEnabled ? (
+                    <LexiconAttachmentSection lexemeId={selectedLexeme.id} />
+                  ) : null}
+                </>
+              ) : (
+                <PanelSummary
+                  className="lexicon-workspace-summary-card"
+                  title={t(locale, 'workspace.lexicon.edit.create')}
+                  supportingText={t(locale, 'workspace.lexicon.edit.createHint')}
+                />
+              )}
               <PanelSection
                 className="lexicon-workspace-detail-panel"
-                title={t(locale, 'workspace.lexicon.formsTitle')}
+                title={t(locale, 'workspace.lexicon.edit.title')}
               >
-                {selectedLexeme.forms && selectedLexeme.forms.length > 0 ? (
-                  <ul className="lexicon-workspace-form-list">
-                    {selectedLexeme.forms.map((form, index) => (
-                      <li key={`${selectedLexeme.id}-form-${index}`}>
-                        {readFirstValue(form.transcription, t(locale, 'workspace.lexicon.notSet'))}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="lexicon-workspace-state">
-                    {t(locale, 'workspace.lexicon.noForms')}
-                  </p>
-                )}
+                <LexiconEntryEditForm editor={editor} />
               </PanelSection>
-
-              <PanelSection
-                className="lexicon-workspace-detail-panel"
-                title={t(locale, 'workspace.lexicon.notesTitle')}
-              >
-                <p className="lexicon-workspace-notes">
-                  {formatMultilang(selectedLexeme.notes) || t(locale, 'workspace.lexicon.noNotes')}
-                </p>
-              </PanelSection>
-
-              {featureFlags.lexiconAttachmentsEnabled ? (
-                <LexiconAttachmentSection lexemeId={selectedLexeme.id} />
-              ) : null}
             </>
           ) : (
             <PanelSummary

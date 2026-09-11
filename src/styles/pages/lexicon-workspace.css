@@ -42,7 +42,8 @@
   min-width: 0;
 }
 
-.lexicon-workspace-search {
+.lexicon-workspace-search,
+.lexicon-workspace-create {
   width: 100%;
 }
 
@@ -258,6 +259,41 @@
 .lexicon-workspace-attachment-download {
   width: fit-content;
   max-width: 100%;
+}
+
+.lexicon-workspace-create {
+  width: fit-content;
+}
+
+.lexicon-entry-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.lexicon-entry-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
+
+.lexicon-entry-edit-input,
+.lexicon-entry-edit-notes {
+  width: 100%;
+}
+
+.lexicon-entry-edit-notes {
+  min-height: 3rem;
+  resize: vertical;
+}
+
+.lexicon-entry-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 @media (max-width: 960px) {

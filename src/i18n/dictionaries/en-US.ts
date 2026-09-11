@@ -214,7 +214,7 @@ export const enUSDictionary = {
   'workspace.lexicon.badge': 'Skeleton',
   'workspace.lexicon.title': 'Lexicon Workspace',
   'workspace.lexicon.summary':
-    'The page now opens a lexeme browsing skeleton with search, list, and detail inspection. Editing, backlinks, and review flow can be layered on later.',
+    'Browse, search, and edit lemma, primary gloss, and notes. Linked hits open transcription. Attachments stay behind their own flag.',
   'workspace.lexicon.sidePaneTitle': 'Lexicon Workspace',
   'workspace.lexicon.sidePaneSubtitle': 'Current entry, filtered scope, and quick access',
   'workspace.lexicon.sidePaneCurrent': 'Current entry',
@@ -227,7 +227,7 @@ export const enUSDictionary = {
   'workspace.lexicon.searchPlaceholder': 'Filter entries by lemma, gloss, or language',
   'workspace.lexicon.listTitle': 'Entry list',
   'workspace.lexicon.listDescription':
-    'Select an entry first, then inspect the currently available detail skeleton on the right.',
+    'Select an entry first, then inspect or edit it on the right.',
   'workspace.lexicon.countLabel': '{count} results',
   'workspace.lexicon.loading': 'Loading lexicon entries...',
   'workspace.lexicon.errorPrefix': 'Failed to load lexicon entries: {message}',
@@ -236,11 +236,11 @@ export const enUSDictionary = {
     'No lexeme exists in the lexicon yet. Import, annotation backlinks, or manual creation can fill this later.',
   'workspace.lexicon.detailTitle': 'Entry detail',
   'workspace.lexicon.detailDescription':
-    'This page starts with a read-only detail skeleton so senses, backlinks, and review workflow can be added without collapsing the information architecture again.',
+    'Lemma, primary gloss, citation form, language, and notes can be edited here and saved to the local lexicon.',
   'workspace.lexicon.emptySelection': 'Select an entry to inspect its details.',
   'workspace.lexicon.overviewTitle': 'Entry overview',
   'workspace.lexicon.overviewDescription':
-    'Show stable structural fields first, instead of forcing edit flows into the page before the lexicon workflow is ready.',
+    'Structural fields stay read-only. Lemma, primary gloss, citation, language, and notes are saved from the form below.',
   'workspace.lexicon.sensesTitle': 'Senses',
   'workspace.lexicon.formsTitle': 'Forms',
   'workspace.lexicon.notesTitle': 'Notes',
@@ -265,6 +265,17 @@ export const enUSDictionary = {
   'workspace.lexicon.noSenses': 'This entry has no senses yet.',
   'workspace.lexicon.noForms': 'This entry has no forms yet.',
   'workspace.lexicon.noNotes': 'This entry has no notes yet.',
+  'workspace.lexicon.edit.title': 'Edit entry',
+  'workspace.lexicon.edit.create': 'New entry',
+  'workspace.lexicon.edit.createHint':
+    'Lemma is required. The entry appears in the list after save.',
+  'workspace.lexicon.edit.lemmaLabel': 'Lemma',
+  'workspace.lexicon.edit.glossLabel': 'Primary gloss',
+  'workspace.lexicon.edit.save': 'Save entry',
+  'workspace.lexicon.edit.saved': 'Saved',
+  'workspace.lexicon.edit.cancelCreate': 'Cancel new entry',
+  'workspace.lexicon.edit.lemmaRequired': 'Lemma cannot be empty.',
+  'workspace.lexicon.edit.saveFailed': 'Could not save the entry.',
   'workspace.lexicon.attachments.title': 'Entry attachments',
   'workspace.lexicon.attachments.description':
     'Images, audio, and documents are linked as references; binaries live in the asset table, not on the lexeme row.',
