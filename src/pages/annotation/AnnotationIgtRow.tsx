@@ -5,6 +5,9 @@ import type { AnnotationMorphologyController } from '../useAnnotationMorphologyC
 import { annotationGlossHasLeipzigIssue } from './annotationLeipzigGloss';
 import { displayedAnnotationMorphemeFields } from './annotationMorphemeDrafts';
 import { displayedAnnotationTokenFields, type AnnotationTokenDraft } from './annotationTokenDrafts';
+import { AnnotationIgtUnitExtras } from './AnnotationIgtUnitExtras';
+import type { AnnotationUnitMetaController } from '../useAnnotationUnitMetaController';
+import type { AnnotationAutoGlossController } from '../useAnnotationAutoGlossController';
 
 type Props = {
   row: AnnotationIgtRow;
@@ -12,6 +15,10 @@ type Props = {
   inputFocused: boolean;
   drafts: Readonly<Record<string, AnnotationTokenDraft>>;
   morphology: AnnotationMorphologyController;
+  unitMeta?: AnnotationUnitMetaController;
+  autoGloss?: AnnotationAutoGlossController;
+  playing?: boolean;
+  onPlay?: (unitId: string) => void;
   onFocusRow: (unitId: string) => void;
   onFocusInput: (unitId: string) => void;
   onTokenDraftChange: (
@@ -244,6 +251,10 @@ export function AnnotationIgtRowView({
   inputFocused,
   drafts,
   morphology,
+  unitMeta,
+  autoGloss,
+  playing = false,
+  onPlay,
   onFocusRow,
   onFocusInput,
   onTokenDraftChange,
@@ -291,6 +302,17 @@ export function AnnotationIgtRowView({
           ? row.translation
           : t(locale, 'workspace.annotation.translationEmpty')}
       </p>
+      {focused && unitMeta && autoGloss && onPlay ? (
+        <AnnotationIgtUnitExtras
+          unitId={row.id}
+          playing={playing}
+          matches={autoGloss.previewUnitId === row.id ? autoGloss.matches : []}
+          unitMeta={unitMeta}
+          autoGloss={autoGloss}
+          onPlay={onPlay}
+          onFocusInput={onFocusInput}
+        />
+      ) : null}
     </li>
   );
 }
