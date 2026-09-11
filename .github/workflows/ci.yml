@@ -41,6 +41,8 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      NODE_OPTIONS: --max-old-space-size=8192
     steps:
       - uses: actions/checkout@v5
       - name: Fetch PR base SHA for path-filtered gates
