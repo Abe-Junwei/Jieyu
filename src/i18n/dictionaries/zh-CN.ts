@@ -93,7 +93,7 @@ export const zhCNDictionary = {
   'workspace.annotation.badge': 'IGT 编辑',
   'workspace.annotation.title': '标注工作台',
   'workspace.annotation.summary':
-    '编辑当前转写范围内句段的词性、gloss、词素与词典链接。原文与译文此切片只读。',
+    '编辑当前转写范围内句段的词性、gloss、词素与词典链接；可播放句段、写备注与自我确信度，并预览后采纳自动对译。原文与时间码只读。',
   'workspace.annotation.empty': '还没有可浏览的转写记录。请先打开转写工作台。',
   'workspace.annotation.emptyList': '当前范围内没有可标注的句段。',
   'workspace.annotation.loading': '正在载入标注范围',

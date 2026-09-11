@@ -24,7 +24,7 @@ depends_on:
 
 - [x] `npm run typecheck`
 - [x] 触及域 `vitest`（`src/pages/annotation`、`AnnotationPage`、`AutoGlossService`、`featureFlags.environmentMatrix`）
-- [ ] `npm run test:e2e:chromium -- tests/e2e/criticalPaths.spec.ts`
+- [x] `npm run test:e2e:chromium -- tests/e2e/criticalPaths.spec.ts`
 - [x] `npm run check:architecture-guard`
 - [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
 - [x] Feature flag 默认 `true`；env 可关
