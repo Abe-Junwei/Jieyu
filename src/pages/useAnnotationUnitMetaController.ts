@@ -34,6 +34,7 @@ export function useAnnotationUnitMetaController(input: {
   const locale = useLocale();
   const queryClient = useQueryClient();
   const focusedUnitIdRef = useRef(focusedUnitId);
+  const draftEpochRef = useRef(0);
   const [noteText, setNoteText] = useState('');
   const [noteCategory, setNoteCategory] = useState<NoteCategory>('comment');
   const [edited, setEdited] = useState(false);
@@ -41,6 +42,7 @@ export function useAnnotationUnitMetaController(input: {
 
   useEffect(() => {
     focusedUnitIdRef.current = focusedUnitId;
+    draftEpochRef.current = 0;
     setEdited(false);
     setNoteText('');
     setNoteCategory('comment');
@@ -75,6 +77,7 @@ export function useAnnotationUnitMetaController(input: {
     const content = displayedText;
     const category = displayedCategory;
     const noteId = stored?.id;
+    const draftEpochAtSave = draftEpochRef.current;
     setSaveNotice({ kind: 'saving', message: '' });
     void saveAnnotationUnitNote({
       unitId: savingUnitId,
@@ -85,6 +88,7 @@ export function useAnnotationUnitMetaController(input: {
       .then(async () => {
         await queryClient.invalidateQueries({ queryKey: ['annotation-unit-note', savingUnitId] });
         if (focusedUnitIdRef.current !== savingUnitId) return;
+        if (draftEpochRef.current !== draftEpochAtSave) return;
         setEdited(false);
         setSaveNotice({ kind: 'saved', message: '' });
       })
@@ -125,10 +129,12 @@ export function useAnnotationUnitMetaController(input: {
       selfCertainty,
       saveNotice,
       onNoteTextChange: (value: string) => {
+        draftEpochRef.current += 1;
         setEdited(true);
         setNoteText(value);
       },
       onNoteCategoryChange: (value: NoteCategory) => {
+        draftEpochRef.current += 1;
         setEdited(true);
         setNoteCategory(value);
       },
