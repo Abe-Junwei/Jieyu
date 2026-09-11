@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { t, useLocale } from '../i18n';
 import type { NoteCategory } from '../types/jieyuDbDocTypes';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
@@ -32,10 +32,16 @@ export function useAnnotationUnitMetaController(input: {
 }): AnnotationUnitMetaController {
   const { textId, focusedUnitId, rows, reloadWorkspace } = input;
   const locale = useLocale();
+  const queryClient = useQueryClient();
+  const focusedUnitIdRef = useRef(focusedUnitId);
   const [noteText, setNoteText] = useState('');
   const [noteCategory, setNoteCategory] = useState<NoteCategory>('comment');
   const [edited, setEdited] = useState(false);
   const [saveNotice, setSaveNotice] = useState<AnnotationSaveNotice>({ kind: 'idle', message: '' });
+
+  useEffect(() => {
+    focusedUnitIdRef.current = focusedUnitId;
+  }, [focusedUnitId]);
 
   useEffect(() => {
     setEdited(false);
@@ -68,35 +74,48 @@ export function useAnnotationUnitMetaController(input: {
 
   const onSaveNote = useCallback(() => {
     if (focusedUnitId.length === 0) return;
+    const savingUnitId = focusedUnitId;
+    const content = displayedText;
+    const category = displayedCategory;
+    const noteId = stored?.id;
     setSaveNotice({ kind: 'saving', message: '' });
     void saveAnnotationUnitNote({
-      unitId: focusedUnitId,
-      content: displayedText,
-      category: displayedCategory,
-      ...(stored?.id ? { noteId: stored.id } : {}),
+      unitId: savingUnitId,
+      content,
+      category,
+      ...(noteId ? { noteId } : {}),
     })
       .then(async () => {
+        await queryClient.invalidateQueries({ queryKey: ['annotation-unit-note', savingUnitId] });
+        if (focusedUnitIdRef.current !== savingUnitId) return;
         setEdited(false);
-        await notesQuery.refetch();
         setSaveNotice({ kind: 'saved', message: '' });
       })
-      .catch(fail);
-  }, [displayedCategory, displayedText, fail, focusedUnitId, notesQuery, stored?.id]);
+      .catch((error) => {
+        if (focusedUnitIdRef.current !== savingUnitId) return;
+        fail(error);
+      });
+  }, [displayedCategory, displayedText, fail, focusedUnitId, queryClient, stored?.id]);
 
   const onSelfCertaintyChange = useCallback(
     (value: UnitSelfCertainty | '') => {
       if (textId.length === 0 || focusedUnitId.length === 0) return;
+      const savingUnitId = focusedUnitId;
       setSaveNotice({ kind: 'saving', message: '' });
       void saveAnnotationUnitSelfCertainty({
         textId,
-        unitId: focusedUnitId,
+        unitId: savingUnitId,
         selfCertainty: value === '' ? null : value,
       })
         .then(async () => {
           await reloadWorkspace();
+          if (focusedUnitIdRef.current !== savingUnitId) return;
           setSaveNotice({ kind: 'saved', message: '' });
         })
-        .catch(fail);
+        .catch((error) => {
+          if (focusedUnitIdRef.current !== savingUnitId) return;
+          fail(error);
+        });
     },
     [fail, focusedUnitId, reloadWorkspace, textId],
   );

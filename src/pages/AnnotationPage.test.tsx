@@ -481,6 +481,54 @@ describe('AnnotationPage', () => {
     });
   });
 
+  it('keeps the current unit note draft when another unit save completes', async () => {
+    const notes: Array<{
+      id: string;
+      content: { default: string };
+      category: string;
+      targetType: string;
+      targetId: string;
+    }> = [];
+    let resolveSave: (() => void) | undefined;
+    seedWorkspace(
+      [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ'), tokenRow('tok-2', 'uid-2', 'next', 'ADV')],
+      [UNIT_ONE, UNIT_TWO],
+    );
+    mockSaveNote.mockImplementation(
+      async (doc: {
+        id: string;
+        content: { default: string };
+        category: string;
+        targetType: string;
+        targetId: string;
+      }) => {
+        await new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        });
+        notes.splice(0, notes.length, doc);
+        return doc.id;
+      },
+    );
+    mockListNotesByTarget.mockImplementation(async () => notes);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    fireEvent.change(screen.getByTestId('annotation-igt-note-uid-1'), {
+      target: { value: 'unit one note' },
+    });
+    fireEvent.click(screen.getByTestId('annotation-igt-note-save-uid-1'));
+    fireEvent.click(screen.getByTestId('annotation-igt-row-uid-2'));
+    await screen.findByTestId('annotation-igt-note-uid-2', {}, { timeout: 4000 });
+    fireEvent.change(screen.getByTestId('annotation-igt-note-uid-2'), {
+      target: { value: 'unit two draft' },
+    });
+    resolveSave?.();
+    await waitFor(() => {
+      expect((screen.getByTestId('annotation-igt-note-uid-2') as HTMLTextAreaElement).value).toBe(
+        'unit two draft',
+      );
+    });
+  });
+
   it('previews auto-gloss without writing until apply', async () => {
     seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello', '')]);
     mockListLexemes.mockResolvedValue([
