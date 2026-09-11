@@ -14,18 +14,18 @@ depends_on:
 
 ## Implementation tasks
 
-- [ ] `saveLexiconEntry` patch + write→list readback → `npx vitest run src/pages/lexicon/saveLexiconEntry.test.ts`
-- [ ] `useLexiconEntryEditController` + `LexiconEntryEditForm`；`LexiconPage` 只装配
-- [ ] i18n；CSS 不用第 3 层容器 border
-- [ ] `LexiconPage.test.tsx`：编辑保存与新建
+- [x] `saveLexiconEntry` patch + write→list readback → `npx vitest run src/pages/lexicon/saveLexiconEntry.test.ts`
+- [x] `useLexiconEntryEditController` + `LexiconEntryEditForm`；`LexiconPage` 只装配
+- [x] i18n；CSS 不用第 3 层容器 border
+- [x] `LexiconPage.test.tsx`：编辑保存与新建
 
 ## Pre-merge gates（与拍板 2A 一致）
 
-- [ ] `npm run typecheck`
-- [ ] `npx vitest run src/pages/lexicon src/pages/LexiconPage.test.tsx src/services/linguisticServiceLexemeOps.ts`
-- [ ] `npm run test:e2e:chromium -- tests/e2e/criticalPaths.spec.ts`
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] `npm run typecheck`
+- [x] `npx vitest run src/pages/lexicon src/pages/LexiconPage.test.tsx`
+- [x] `npm run test:e2e:chromium -- tests/e2e/criticalPaths.spec.ts`
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
 
 ## Commit 阶段证据模板
 

@@ -26,10 +26,10 @@ depends_on:
 
 ## 3. 验收标准（可测）
 
-- [ ] 编辑现有词条：write→list() find id→lemma/gloss 一致
-- [ ] 新建词条：`senses` 至少 1 条；保存后 `list()` 含新 id
-- [ ] 空 lemma 拒绝写入
-- [ ] 不改 `lexiconListState` 的 search/selected/scroll 键名
+- [x] 编辑现有词条：write→list() find id→lemma/gloss 一致
+- [x] 新建词条：`senses` 至少 1 条；保存后 `list()` 含新 id
+- [x] 空 lemma 拒绝写入
+- [x] 不改 `lexiconListState` 的 search/selected/scroll 键名
 
 ## 4. 受影响代码地图
 

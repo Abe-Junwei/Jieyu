@@ -16,6 +16,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **B3b lexicon entry edit**: `/lexicon` can create and save lemma / primary gloss / citation / language / notes via `LinguisticService.lexemes.save`, then `list()` readback. Empty lemma does not write. No ChatWindow, no new flag, no R8 key split. Attachments stay behind `lexiconAttachmentsEnabled`.
 - **B4e annotation AutoGloss preview**: `/annotation` previews lexeme matches without calling `AutoGlossService.glossUnit`, then writes `unit_tokens.gloss` and `token_lexeme_links` only after confirm. Dirty drafts and tokens that already have gloss are skipped.
 - **B4d annotation notes / tags / selfCertainty**: Unit notes persist in `user_notes` (`targetType: unit`); tag is `UserNoteDocType.category`; self-certainty patches that `layer_units` row via `saveBatch` and readback. Does not edit transcription or timing.
 - **B4c annotation unit playback**: Space on a focused IGT row toggles `HTMLAudioElement` playback for `[startTime, endTime]`. Input-focused Space still inserts a space. No WaveSurfer / Orchestrator copy.
@@ -60,7 +61,8 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Tests
 
-- **B3 lexicon regression**: list → detail → hit-segment refresh, sessionStorage restore, segment `unitKind` deep links, MiniSearch hook coverage; `/lexicon` e2e asserts search box and entry list.
+- **B3 lexicon regression**: list → detail → hit-segment refresh, sessionStorage restore, segment `unitKind` deep links, MiniSearch hook coverage; `/lexicon` e2e asserts search box, entry list, and create button.
+- **B3b lexicon edit**: `saveLexiconEntry` create/update/empty-lemma + `LexiconPage` save/create/readback tests.
 
 ## [1.1.0] - 2026-04-24
 
