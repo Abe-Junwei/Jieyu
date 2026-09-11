@@ -40,13 +40,16 @@ export function useAnnotationAutoGlossController(input: {
     [drafts, rows],
   );
 
-  const fail = (error: unknown) => {
-    const message =
-      error instanceof Error && error.message.trim().length > 0
-        ? error.message
-        : t(locale, 'workspace.annotation.saveError');
-    setSaveNotice({ kind: 'error', message });
-  };
+  const fail = useCallback(
+    (error: unknown) => {
+      const message =
+        error instanceof Error && error.message.trim().length > 0
+          ? error.message
+          : t(locale, 'workspace.annotation.saveError');
+      setSaveNotice({ kind: 'error', message });
+    },
+    [locale],
+  );
 
   const onPreview = useCallback(
     (unitId: string) => {
@@ -60,7 +63,7 @@ export function useAnnotationAutoGlossController(input: {
         })
         .catch(fail);
     },
-    [locale, skipTokenIds],
+    [fail, skipTokenIds],
   );
 
   const onApply = useCallback(
@@ -76,7 +79,7 @@ export function useAnnotationAutoGlossController(input: {
         })
         .catch(fail);
     },
-    [locale, matches, previewUnitId, reloadWorkspace],
+    [fail, matches, previewUnitId, reloadWorkspace],
   );
 
   return { previewUnitId, matches, saveNotice, onPreview, onApply };
