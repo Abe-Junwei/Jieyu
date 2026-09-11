@@ -4,14 +4,11 @@ import { useSearchParams } from 'react-router-dom';
 import { LinguisticService } from '../app/languageAssetPageAccess';
 import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
 import { t, useLocale } from '../i18n';
-import type { UnitTokenDocType } from '../types/jieyuDbDocTypes';
 import {
   readAnalysisDeepLinkParams,
   resolveAnalysisWorkspaceScope,
 } from '../utils/analysisUrlDeepLink';
-import { formatTime, pickDefaultTranscriptionText } from '../utils/transcriptionFormatters';
 import {
-  buildTranscriptionDeepLinkHref,
   buildTranscriptionWorkspaceReturnHref,
   readTranscriptionWorkspaceReturnHint,
 } from '../utils/transcriptionUrlDeepLink';
@@ -26,31 +23,18 @@ import {
   collectDirtyAnnotationTokenWrites,
   displayedAnnotationTokenFields,
   dropDraftsForTokenIds,
-  resolveAnnotationGlossWriteLang,
   type AnnotationIgtToken,
   type AnnotationTokenDraft,
 } from './annotation/annotationTokenDrafts';
+import { buildAnnotationIgtRows, type AnnotationIgtRow } from './annotation/annotationIgtRows';
 import { saveAnnotationIgtRowTokens } from './annotation/saveAnnotationIgtRowTokens';
 
-export type { AnnotationIgtToken };
+export type { AnnotationIgtToken, AnnotationIgtRow };
 
 export type AnnotationSaveNotice = {
   kind: 'idle' | 'saving' | 'saved' | 'error';
   message: string;
 };
-
-export type AnnotationIgtRow = {
-  id: string;
-  timeLabel: string;
-  surface: string;
-  tokens: AnnotationIgtToken[];
-  translation: string;
-  transcriptionHref: string;
-};
-
-function glossForToken(token: UnitTokenDocType): string {
-  return pickDefaultTranscriptionText(token.gloss ?? {});
-}
 
 function isEditableFieldTarget(target: EventTarget | null): boolean {
   return (
@@ -100,37 +84,11 @@ export function useAnnotationWorkspaceController() {
   });
 
   const derived = useMemo(() => {
-    const units = dataQuery.data?.units ?? [];
-    const tokensByUnit = new Map<string, UnitTokenDocType[]>();
-    for (const token of dataQuery.data?.tokens ?? []) {
-      const list = tokensByUnit.get(token.unitId) ?? [];
-      list.push(token);
-      tokensByUnit.set(token.unitId, list);
-    }
-    const rows: AnnotationIgtRow[] = units.map((unit) => {
-      const unitTokens = [...(tokensByUnit.get(unit.id) ?? [])].sort(
-        (a, b) => a.tokenIndex - b.tokenIndex,
-      );
-      const resolvedMediaId =
-        unit.mediaId !== undefined && unit.mediaId.length > 0 ? unit.mediaId : mediaId;
-      return {
-        id: unit.id,
-        timeLabel: formatTime(unit.startTime),
-        surface: pickDefaultTranscriptionText(unit.transcription ?? {}),
-        tokens: unitTokens.map((token) => ({
-          id: token.id,
-          form: pickDefaultTranscriptionText(token.form),
-          gloss: glossForToken(token),
-          pos: (token.pos ?? '').trim(),
-          glossLang: resolveAnnotationGlossWriteLang(token.gloss),
-        })),
-        translation: '',
-        transcriptionHref: buildTranscriptionDeepLinkHref({
-          textId: unit.textId.length > 0 ? unit.textId : textId,
-          ...(resolvedMediaId.length > 0 ? { mediaId: resolvedMediaId } : {}),
-          unitId: unit.id,
-        }),
-      };
+    const rows = buildAnnotationIgtRows({
+      units: dataQuery.data?.units ?? [],
+      tokens: dataQuery.data?.tokens ?? [],
+      textId,
+      mediaId,
     });
     const unitIds = rows.map((row) => row.id);
     const urlUnitId = parsed.unitId;
@@ -237,12 +195,12 @@ export function useAnnotationWorkspaceController() {
       shiftKey: boolean;
       preventDefault: () => void;
       target: EventTarget | null;
-    }) => {
+    }): AnnotationKeyboardAction => {
       if (
         isEditableFieldTarget(event.target) &&
         (event.key === ' ' || event.key === 'Spacebar' || event.key === 'Space')
       ) {
-        return;
+        return 'insertSpace';
       }
       const result = reduceAnnotationKeyboard(
         { mode: keyboard.mode, focusedUnitId: derived.focusedUnitId },
@@ -260,13 +218,14 @@ export function useAnnotationWorkspaceController() {
         result.state.mode === keyboard.mode &&
         result.state.focusedUnitId === derived.focusedUnitId
       ) {
-        return;
+        return 'none';
       }
       event.preventDefault();
       setKeyboard({ ...result.state, lastAction: result.action });
       if (result.action === 'commitStay' || result.action === 'commitNext') {
         void runCommit(result.action === 'commitNext');
       }
+      return result.action;
     },
     [derived.focusedUnitId, derived.unitIds, keyboard.mode, runCommit],
   );
