@@ -22,7 +22,7 @@ interface UseReadyWorkspaceDeepLinkEffectsInput {
   searchParams: URLSearchParams;
   setSearchParams: SetSearchParams;
   setActiveTextId: (textId: string) => void;
-  loadSnapshot: () => Promise<unknown>;
+  loadSnapshot: (scopeTextId?: string) => Promise<unknown>;
   showToast: ToastContextValue['showToast'];
   tfB: (key: string, opts?: Record<string, unknown>) => string;
   phase: string;
@@ -88,7 +88,7 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
         return;
       }
       setActiveTextId(raw);
-      await loadSnapshot();
+      await loadSnapshot(raw);
       if (urlTextIdApplyNonceRef.current !== nonce) return;
       pendingPostTextIdDeepLinkRef.current = hasTranscriptionDeepLinkSelectionPayload(optional)
         ? optional
@@ -102,7 +102,7 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
     if (!pending) return;
     if (phase !== 'ready') return;
 
-    const projectTextId = units[0]?.textId?.trim() ?? '';
+    const projectTextId = (activeTextId ?? units[0]?.textId ?? '').trim();
     if (!projectTextId) {
       pendingPostTextIdDeepLinkRef.current = null;
       return;
@@ -197,6 +197,7 @@ export function useReadyWorkspaceDeepLinkEffects(input: UseReadyWorkspaceDeepLin
     defaultTranscriptionLayerId,
     selectedLayerId,
     transcriptionLayers,
+    activeTextId,
   ]);
 
   useEffect(() => {
