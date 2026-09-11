@@ -112,6 +112,7 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   handleExportToolbox: UseTranscriptionSectionViewModelsInput['handleExportToolbox'];
   handleExportJyt: UseTranscriptionSectionViewModelsInput['handleExportJyt'];
   handleExportJym: UseTranscriptionSectionViewModelsInput['handleExportJym'];
+  handleExportLite: UseTranscriptionSectionViewModelsInput['handleExportLite'];
   handleImportFile: UseTranscriptionSectionViewModelsInput['handleImportFile'];
   unitsOnCurrentMedia: LayerUnitDocType[];
   isTimelineLaneHeaderCollapsed: UseTranscriptionSectionViewModelsInput['isTimelineLaneHeaderCollapsed'];
@@ -244,6 +245,7 @@ export function buildOrchestratorViewModelsInput(
     handleExportToolbox,
     handleExportJyt,
     handleExportJym,
+    handleExportLite,
     handleImportFile,
     unitsOnCurrentMedia,
     isTimelineLaneHeaderCollapsed,
@@ -398,6 +400,7 @@ export function buildOrchestratorViewModelsInput(
     handleExportToolbox,
     handleExportJyt,
     handleExportJym,
+    handleExportLite,
     handleImportFile,
     unitsOnCurrentMedia,
     rulerView: rulerView ?? null,

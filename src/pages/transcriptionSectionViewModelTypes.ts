@@ -5,6 +5,7 @@ import type { TimelineUnit } from '../hooks/transcription/transcriptionTypes';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
+import type { TranscriptionLiteExportFormat } from '../utils/transcriptionLiteExport';
 import type WaveSurfer from 'wavesurfer.js';
 import type { UttOpsMenuState } from './TranscriptionPage.UIState';
 import type { TranscriptionPageTimelineContentProps } from './TranscriptionPage.TimelineContent';
@@ -69,6 +70,7 @@ export interface UseTranscriptionSectionViewModelsInput {
   handleExportToolbox: () => void;
   handleExportJyt: () => Promise<void>;
   handleExportJym: () => Promise<void>;
+  handleExportLite: (format: TranscriptionLiteExportFormat) => Promise<void>;
   handleImportFile: (file: File) => Promise<void>;
   unitsOnCurrentMedia: LayerUnitDocType[];
   rulerView: { start: number; end: number } | null;

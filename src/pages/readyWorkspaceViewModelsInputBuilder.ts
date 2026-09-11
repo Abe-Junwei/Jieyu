@@ -61,6 +61,7 @@ type ReadyWorkspaceOrchestratorRawWorkspaceTailFields = Pick<
   | 'handleExportToolbox'
   | 'handleExportJyt'
   | 'handleExportJym'
+  | 'handleExportLite'
   | 'handleImportFile'
   | 'unitsOnCurrentMedia'
   | 'isTimelineLaneHeaderCollapsed'

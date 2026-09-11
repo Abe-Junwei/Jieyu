@@ -19,6 +19,7 @@ const mockDownloadFlextext = vi.hoisted(() => vi.fn());
 const mockExportToToolbox = vi.hoisted(() => vi.fn(() => '\\_sh v3.0'));
 const mockDownloadToolbox = vi.hoisted(() => vi.fn());
 const mockGetDb = vi.hoisted(() => vi.fn());
+const mockDownloadLiteExport = vi.hoisted(() => vi.fn());
 const mockUseOrthographies = vi.hoisted(() => vi.fn(() => []));
 const mockApplyOrthographyBridgeIfNeeded = vi.hoisted(() =>
   vi.fn(async ({ text }: { text: string }) => ({ text: `xf:${text}` })),
@@ -69,6 +70,16 @@ vi.mock('../../db', async () => {
   return {
     ...actual,
     getDb: mockGetDb,
+  };
+});
+
+vi.mock('../../utils/transcriptionLiteExport', async () => {
+  const actual = await vi.importActual<typeof import('../../utils/transcriptionLiteExport')>(
+    '../../utils/transcriptionLiteExport',
+  );
+  return {
+    ...actual,
+    downloadTranscriptionExportText: mockDownloadLiteExport,
   };
 });
 
@@ -552,5 +563,89 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
     expect(arg?.segmentsByLayer?.has('trl-ind')).toBe(true);
     expect(arg?.segmentsByLayer?.has('trl-sub')).toBe(true);
     expect(mockDownloadToolbox).toHaveBeenCalledWith('\\_sh v3.0', 'demo');
+  });
+});
+
+describe('useImportExport - lite SRT/CSV export', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetDb.mockResolvedValue(buildMockDb());
+    mockUseOrthographies.mockReturnValue([]);
+    mockApplyOrthographyBridgeIfNeeded.mockImplementation(async ({ text }: { text: string }) => ({
+      text: `xf:${text}`,
+    }));
+  });
+
+  it('downloads SRT from the current-media unit read model', async () => {
+    const setSaveState = vi.fn();
+    const unit = {
+      id: 'utt-1',
+      textId: 'text-1',
+      mediaId: 'media-1',
+      startTime: 1.5,
+      endTime: 2,
+      transcription: { default: 'hello world' },
+      speaker: 'A',
+      createdAt: '2026-03-26T00:00:00.000Z',
+      updatedAt: '2026-03-26T00:00:00.000Z',
+    } as LayerUnitDocType;
+
+    const { result } = renderHook(() =>
+      useImportExport(makeInput({ unitsOnCurrentMedia: [unit], setSaveState })),
+    );
+
+    await act(async () => {
+      await result.current.handleExportLite('srt');
+    });
+
+    expect(mockDownloadLiteExport).toHaveBeenCalledTimes(1);
+    expect(mockDownloadLiteExport.mock.calls[0]?.[0]).toBe('demo.srt');
+    const body = String(mockDownloadLiteExport.mock.calls[0]?.[1]);
+    expect(body).toContain('00:00:01,500 --> 00:00:02,000');
+    expect(body).toContain('hello world');
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
+  });
+
+  it('downloads CSV with a UTF-8 BOM and RFC 4180 header', async () => {
+    const unit = {
+      id: 'utt-1',
+      textId: 'text-1',
+      mediaId: 'media-1',
+      startTime: 0,
+      endTime: 1,
+      transcription: { default: 'say "hello"' },
+      speaker: 'A',
+      createdAt: '2026-03-26T00:00:00.000Z',
+      updatedAt: '2026-03-26T00:00:00.000Z',
+    } as LayerUnitDocType;
+
+    const { result } = renderHook(() =>
+      useImportExport(makeInput({ unitsOnCurrentMedia: [unit] })),
+    );
+
+    await act(async () => {
+      await result.current.handleExportLite('csv');
+    });
+
+    expect(mockDownloadLiteExport).toHaveBeenCalledTimes(1);
+    expect(mockDownloadLiteExport.mock.calls[0]?.[0]).toBe('demo.csv');
+    const body = String(mockDownloadLiteExport.mock.calls[0]?.[1]);
+    expect(body.startsWith('\uFEFF')).toBe(true);
+    expect(body).toContain('start,end,speaker,text,gloss');
+    expect(body).toContain('"xf:say ""hello"""');
+  });
+
+  it('skips download when the current media has no units', async () => {
+    const setSaveState = vi.fn();
+    const { result } = renderHook(() =>
+      useImportExport(makeInput({ unitsOnCurrentMedia: [], setSaveState })),
+    );
+
+    await act(async () => {
+      await result.current.handleExportLite('tsv');
+    });
+
+    expect(mockDownloadLiteExport).not.toHaveBeenCalled();
+    expect(setSaveState).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
 });

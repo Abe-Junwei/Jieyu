@@ -29,6 +29,7 @@ export type BuildReadyWorkspaceProjectHubPropsInput = {
   onExportToolbox: ReadyWorkspaceProjectHubProps['onExportToolbox'];
   onExportJyt: ReadyWorkspaceProjectHubProps['onExportJyt'];
   onExportJym: ReadyWorkspaceProjectHubProps['onExportJym'];
+  onExportLite: ReadyWorkspaceProjectHubProps['onExportLite'];
 };
 
 export function buildReadyWorkspaceProjectHubProps(
@@ -109,6 +110,18 @@ export function buildReadyWorkspaceProjectHubProps(
     onExportJym: async () => {
       recordTranscriptionKeyboardAction('toolbarExportJym');
       await input.onExportJym();
+    },
+    onExportLite: async (format) => {
+      recordTranscriptionKeyboardAction(
+        format === 'srt'
+          ? 'toolbarExportSrt'
+          : format === 'vtt'
+            ? 'toolbarExportVtt'
+            : format === 'csv'
+              ? 'toolbarExportCsv'
+              : 'toolbarExportTsv',
+      );
+      await input.onExportLite(format);
     },
   };
 }

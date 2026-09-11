@@ -29,6 +29,7 @@ export function useTranscriptionSectionViewModels(
     handleExportToolbox,
     handleExportJyt,
     handleExportJym,
+    handleExportLite,
     handleImportFile,
     unitsOnCurrentMedia,
     rulerView,
@@ -72,6 +73,7 @@ export function useTranscriptionSectionViewModels(
         handleExportToolbox,
         handleExportJyt,
         handleExportJym,
+        handleExportLite,
         handleImportFile,
       }),
     [
@@ -79,6 +81,7 @@ export function useTranscriptionSectionViewModels(
       handleExportFlextext,
       handleExportJym,
       handleExportJyt,
+      handleExportLite,
       handleExportTextGrid,
       handleExportToolbox,
       handleExportTrs,

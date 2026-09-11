@@ -49,6 +49,7 @@ describe('TranscriptionPageToolbar', () => {
             onExportToolbox: vi.fn(),
             onExportJyt: vi.fn(async () => undefined),
             onExportJym: vi.fn(async () => undefined),
+            onExportLite: vi.fn(async () => undefined),
             onImportFile: vi.fn(),
           }}
           onRefresh={vi.fn()}
@@ -60,8 +61,20 @@ describe('TranscriptionPageToolbar', () => {
           onDeleteCurrentProject={vi.fn()}
           onToggleNotes={vi.fn()}
           onOpenUttOpsMenu={vi.fn()}
-          acousticRuntimeStatus={{ state: 'loading', phase: 'analyzing', progressRatio: 0.4, processedFrames: 40, totalFrames: 100 }}
-          vadCacheStatus={{ state: 'warming', engine: 'silero', progressRatio: 0.25, processedFrames: 25, totalFrames: 100 }}
+          acousticRuntimeStatus={{
+            state: 'loading',
+            phase: 'analyzing',
+            progressRatio: 0.4,
+            processedFrames: 40,
+            totalFrames: 100,
+          }}
+          vadCacheStatus={{
+            state: 'warming',
+            engine: 'silero',
+            progressRatio: 0.25,
+            processedFrames: 25,
+            totalFrames: 100,
+          }}
         />
       </LocaleProvider>,
     );
@@ -116,6 +129,7 @@ describe('TranscriptionPageToolbar', () => {
             onExportToolbox: vi.fn(),
             onExportJyt: vi.fn(async () => undefined),
             onExportJym: vi.fn(async () => undefined),
+            onExportLite: vi.fn(async () => undefined),
             onImportFile: vi.fn(),
           }}
           onRefresh={vi.fn()}
@@ -203,6 +217,7 @@ describe('TranscriptionPageToolbar', () => {
             onExportToolbox: vi.fn(),
             onExportJyt: vi.fn(async () => undefined),
             onExportJym: vi.fn(async () => undefined),
+            onExportLite: vi.fn(async () => undefined),
             onImportFile: vi.fn(),
           }}
           onRefresh={vi.fn()}
@@ -277,6 +292,7 @@ describe('TranscriptionPageToolbar', () => {
             onExportToolbox: vi.fn(),
             onExportJyt: vi.fn(async () => undefined),
             onExportJym: vi.fn(async () => undefined),
+            onExportLite: vi.fn(async () => undefined),
             onImportFile: vi.fn(),
           }}
           onRefresh={vi.fn()}
@@ -288,7 +304,13 @@ describe('TranscriptionPageToolbar', () => {
           onDeleteCurrentProject={vi.fn()}
           onToggleNotes={vi.fn()}
           onOpenUttOpsMenu={vi.fn()}
-          acousticRuntimeStatus={{ state: 'ready', phase: 'done', progressRatio: 1, processedFrames: 100, totalFrames: 100 }}
+          acousticRuntimeStatus={{
+            state: 'ready',
+            phase: 'done',
+            progressRatio: 1,
+            processedFrames: 100,
+            totalFrames: 100,
+          }}
           vadCacheStatus={{ state: 'ready', engine: 'silero', segmentCount: 3 }}
         />
       </LocaleProvider>,
