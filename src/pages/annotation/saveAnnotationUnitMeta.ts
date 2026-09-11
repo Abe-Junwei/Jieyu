@@ -69,7 +69,8 @@ export async function saveAnnotationUnitNote(
   },
   deps: AnnotationNoteDeps = defaultNoteDeps,
 ): Promise<AnnotationUnitNoteView> {
-  const existing = (await deps.listNotes(input.unitId))[0];
+  const notes = await deps.listNotes(input.unitId);
+  const existing = notes.length > 0 ? notes[notes.length - 1] : undefined;
   const now = new Date().toISOString();
   const id = input.noteId?.trim() || existing?.id || newId('note');
   const doc: UserNoteDocType = {

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { t, useLocale } from '../i18n';
 import type { AutoGlossPreviewMatch } from '../ai/autoGlossPreview';
 import type { AnnotationIgtRow } from './annotation/annotationIgtRows';
@@ -27,6 +27,7 @@ export function useAnnotationAutoGlossController(input: {
   const [matches, setMatches] = useState<AutoGlossPreviewMatch[]>([]);
   const [previewUnitId, setPreviewUnitId] = useState('');
   const [saveNotice, setSaveNotice] = useState<AnnotationSaveNotice>({ kind: 'idle', message: '' });
+  const applyingRef = useRef(false);
 
   const skipTokenIds = useCallback(
     (unitId: string) => {
@@ -68,7 +69,15 @@ export function useAnnotationAutoGlossController(input: {
 
   const onApply = useCallback(
     (unitId: string) => {
-      if (unitId.length === 0 || matches.length === 0 || previewUnitId !== unitId) return;
+      if (
+        unitId.length === 0 ||
+        matches.length === 0 ||
+        previewUnitId !== unitId ||
+        applyingRef.current
+      ) {
+        return;
+      }
+      applyingRef.current = true;
       setSaveNotice({ kind: 'saving', message: '' });
       void applyAnnotationAutoGlossPreview(unitId, matches)
         .then(async () => {
@@ -77,7 +86,10 @@ export function useAnnotationAutoGlossController(input: {
           await reloadWorkspace();
           setSaveNotice({ kind: 'saved', message: '' });
         })
-        .catch(fail);
+        .catch(fail)
+        .finally(() => {
+          applyingRef.current = false;
+        });
     },
     [fail, matches, previewUnitId, reloadWorkspace],
   );

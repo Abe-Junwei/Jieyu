@@ -18,6 +18,7 @@ export type AnnotationAutoGlossDeps = {
   listLexemes: () => Promise<LexemeDocType[]>;
   updateTokenGloss: (tokenId: string, gloss: string | null, lang?: string) => Promise<void>;
   saveTokenLexemeLink: (data: TokenLexemeLinkDocType) => Promise<string>;
+  removeTokenLexemeLinks: (targetType: 'token', targetId: string) => Promise<void>;
   listTokenLexemeLinks: (
     targetType: 'token',
     targetId: string,
@@ -31,6 +32,8 @@ const defaultDeps: AnnotationAutoGlossDeps = {
   updateTokenGloss: (tokenId, gloss, lang) =>
     LinguisticService.units.updateTokenGloss(tokenId, gloss, lang),
   saveTokenLexemeLink: (data) => LinguisticService.units.saveTokenLexemeLink(data),
+  removeTokenLexemeLinks: (targetType, targetId) =>
+    LinguisticService.units.removeTokenLexemeLinks(targetType, targetId),
   listTokenLexemeLinks: (targetType, targetId) =>
     LinguisticService.units.listTokenLexemeLinks(targetType, targetId),
   listTokensByUnitIds: (unitIds) => LinguisticService.units.listTokensByUnitIds(unitIds),
@@ -59,6 +62,7 @@ export async function applyAnnotationAutoGlossPreview(
     const text = (match.gloss[lang] ?? pickDefaultTranscriptionText(match.gloss)).trim();
     if (text.length === 0) continue;
     await deps.updateTokenGloss(match.tokenId, text, lang);
+    await deps.removeTokenLexemeLinks('token', match.tokenId);
     const role: TokenLexemeLinkRole = match.matchType;
     await deps.saveTokenLexemeLink({
       id: newId('tll'),
