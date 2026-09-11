@@ -14,6 +14,7 @@ import * as linguisticServiceLanguageCatalogFacade from './linguisticServiceLang
 import * as linguisticServiceOrthographyFacade from './linguisticServiceOrthographyFacade';
 import * as linguisticServiceStructuralProfileFacade from './linguisticServiceStructuralProfileFacade';
 import * as linguisticServiceCollaborationCleanupFacade from './linguisticServiceCollaborationCleanupFacade';
+import * as linguisticServiceNoteOps from './linguisticServiceNoteOps';
 import { listCorpusUnitIndexByTextId } from './corpusUnitIndexQuery';
 import { presentTokenLexemeLink, resolveUnitCitation } from './citationResolver';
 
@@ -107,6 +108,10 @@ export const LinguisticService = {
     updateTimeMapping: linguisticServiceTextTimelineOps.updateTextTimeMapping,
     previewTimeMapping: linguisticServiceTextTimelineOps.previewTextTimeMapping,
     invertTimeMapping: linguisticServiceTextTimelineOps.invertTextTimeMapping,
+  },
+  notes: {
+    listByTarget: linguisticServiceNoteOps.listNotesByTarget,
+    save: linguisticServiceNoteOps.saveUserNote,
   },
   media: {
     listByTextId: linguisticServiceMediaReadWrite.getMediaItemsByTextId,
