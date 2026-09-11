@@ -48,6 +48,41 @@ describe('saveAnnotationUnitMeta', () => {
     expect(after[0]?.category).toBe('todo');
   });
 
+  it('updates the latest note when multiple notes already exist for a unit', async () => {
+    await LinguisticService.notes.save({
+      id: 'note-old',
+      targetType: 'unit',
+      targetId: 'unit-note-2',
+      content: { default: 'older note' },
+      category: 'comment',
+      createdAt: now,
+      updatedAt: '2026-09-11T07:00:00.000Z',
+    });
+    await LinguisticService.notes.save({
+      id: 'note-new',
+      targetType: 'unit',
+      targetId: 'unit-note-2',
+      content: { default: 'newer note' },
+      category: 'fieldwork',
+      createdAt: now,
+      updatedAt: '2026-09-11T09:00:00.000Z',
+    });
+
+    const saved = await saveAnnotationUnitNote({
+      unitId: 'unit-note-2',
+      content: 'revised latest',
+      category: 'todo',
+    });
+    expect(saved.id).toBe('note-new');
+    expect(saved.content).toBe('revised latest');
+
+    const requery = await LinguisticService.notes.listByTarget('unit', 'unit-note-2');
+    expect(requery).toHaveLength(2);
+    const revised = requery.find((note) => note.id === 'note-new');
+    expect(revised?.content.default).toBe('revised latest');
+    expect(revised?.category).toBe('todo');
+  });
+
   it('patches only selfCertainty then readback matches', async () => {
     await LinguisticService.layers.saveTranslation({
       id: 'lane-cert-1',

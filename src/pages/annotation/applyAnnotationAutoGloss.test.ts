@@ -51,6 +51,35 @@ describe('applyAnnotationAutoGloss', () => {
     expect(links[0]?.lexemeId).toBe('lex-ag-1');
   });
 
+  it('replaces prior links when apply runs twice for the same preview', async () => {
+    await db.unit_tokens.put({
+      id: 'tok-ag-2',
+      textId: 'text-ag-2',
+      unitId: 'unit-ag-2',
+      form: { default: 'dog' },
+      tokenIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.lexemes.put({
+      id: 'lex-ag-2',
+      lemma: { default: 'dog' },
+      senses: [{ gloss: { default: 'canine' } }],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const preview = await previewAnnotationAutoGloss('unit-ag-2');
+    await Promise.all([
+      applyAnnotationAutoGlossPreview('unit-ag-2', preview.matches),
+      applyAnnotationAutoGlossPreview('unit-ag-2', preview.matches),
+    ]);
+
+    const links = await LinguisticService.units.listTokenLexemeLinks('token', 'tok-ag-2');
+    expect(links).toHaveLength(1);
+    expect(links[0]?.lexemeId).toBe('lex-ag-2');
+  });
+
   it('skips dirty or already glossed tokens in preview', () => {
     const tokens = [
       {

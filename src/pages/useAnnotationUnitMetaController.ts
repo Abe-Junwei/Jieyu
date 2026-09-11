@@ -35,6 +35,7 @@ export function useAnnotationUnitMetaController(input: {
   const queryClient = useQueryClient();
   const focusedUnitIdRef = useRef(focusedUnitId);
   const draftEpochRef = useRef(0);
+  const savingRef = useRef(false);
   const [noteText, setNoteText] = useState('');
   const [noteCategory, setNoteCategory] = useState<NoteCategory>('comment');
   const [edited, setEdited] = useState(false);
@@ -54,7 +55,10 @@ export function useAnnotationUnitMetaController(input: {
     enabled: focusedUnitId.length > 0,
   });
 
-  const stored = notesQuery.data?.[0];
+  const stored =
+    notesQuery.data && notesQuery.data.length > 0
+      ? notesQuery.data[notesQuery.data.length - 1]
+      : undefined;
   const displayedText = edited ? noteText : (stored?.content ?? '');
   const displayedCategory = edited ? noteCategory : (stored?.category ?? 'comment');
   const focusedRow = rows.find((row) => row.id === focusedUnitId);
@@ -72,7 +76,8 @@ export function useAnnotationUnitMetaController(input: {
   );
 
   const onSaveNote = useCallback(() => {
-    if (focusedUnitId.length === 0) return;
+    if (focusedUnitId.length === 0 || savingRef.current) return;
+    savingRef.current = true;
     const savingUnitId = focusedUnitId;
     const content = displayedText;
     const category = displayedCategory;
@@ -95,6 +100,9 @@ export function useAnnotationUnitMetaController(input: {
       .catch((error) => {
         if (focusedUnitIdRef.current !== savingUnitId) return;
         fail(error);
+      })
+      .finally(() => {
+        savingRef.current = false;
       });
   }, [displayedCategory, displayedText, fail, focusedUnitId, queryClient, stored?.id]);
 
