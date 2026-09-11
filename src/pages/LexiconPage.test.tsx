@@ -172,6 +172,13 @@ describe('LexiconPage', () => {
     expect(screen.getByTestId('side-pane-content').textContent).toContain('canine');
   });
 
+  it('places the edit form above the read-only hit-segment panel', async () => {
+    renderLexiconPage();
+    const form = await screen.findByTestId('lexicon-entry-edit');
+    const hits = screen.getByText('转写命中');
+    expect(form.compareDocumentPosition(hits) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
   it('filters lexemes by search text and updates the current detail selection', async () => {
     renderLexiconPage();
 

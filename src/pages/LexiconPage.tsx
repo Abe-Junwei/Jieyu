@@ -364,17 +364,30 @@ export function LexiconPage() {
           {editor.creating || selectedLexeme ? (
             <>
               {selectedLexeme && !editor.creating ? (
+                <PanelSummary
+                  className="lexicon-workspace-summary-card"
+                  title={t(locale, 'workspace.lexicon.detailTitle')}
+                  description={readLexemeLabel(selectedLexeme)}
+                  meta={
+                    <span className="lexicon-workspace-summary-meta">{selectedLexemeGloss}</span>
+                  }
+                  supportingText={t(locale, 'workspace.lexicon.detailDescription')}
+                />
+              ) : (
+                <PanelSummary
+                  className="lexicon-workspace-summary-card"
+                  title={t(locale, 'workspace.lexicon.edit.create')}
+                  supportingText={t(locale, 'workspace.lexicon.edit.createHint')}
+                />
+              )}
+              <PanelSection
+                className="lexicon-workspace-detail-panel"
+                title={t(locale, 'workspace.lexicon.edit.title')}
+              >
+                <LexiconEntryEditForm editor={editor} />
+              </PanelSection>
+              {selectedLexeme && !editor.creating ? (
                 <>
-                  <PanelSummary
-                    className="lexicon-workspace-summary-card"
-                    title={t(locale, 'workspace.lexicon.detailTitle')}
-                    description={readLexemeLabel(selectedLexeme)}
-                    meta={
-                      <span className="lexicon-workspace-summary-meta">{selectedLexemeGloss}</span>
-                    }
-                    supportingText={t(locale, 'workspace.lexicon.detailDescription')}
-                  />
-
                   <PanelSection
                     className="lexicon-workspace-detail-panel"
                     title={t(locale, 'workspace.lexicon.overviewTitle')}
@@ -545,19 +558,7 @@ export function LexiconPage() {
                     <LexiconAttachmentSection lexemeId={selectedLexeme.id} />
                   ) : null}
                 </>
-              ) : (
-                <PanelSummary
-                  className="lexicon-workspace-summary-card"
-                  title={t(locale, 'workspace.lexicon.edit.create')}
-                  supportingText={t(locale, 'workspace.lexicon.edit.createHint')}
-                />
-              )}
-              <PanelSection
-                className="lexicon-workspace-detail-panel"
-                title={t(locale, 'workspace.lexicon.edit.title')}
-              >
-                <LexiconEntryEditForm editor={editor} />
-              </PanelSection>
+              ) : null}
             </>
           ) : (
             <PanelSummary
