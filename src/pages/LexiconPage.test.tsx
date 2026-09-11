@@ -15,6 +15,7 @@ import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 
 const {
   mockListLexemes,
+  mockSaveLexeme,
   mockListLexemeTranscriptionJumpTargets,
   mockListAttachments,
   mockAttachFile,
@@ -22,6 +23,7 @@ const {
   featureFlagState,
 } = vi.hoisted(() => ({
   mockListLexemes: vi.fn(),
+  mockSaveLexeme: vi.fn(),
   mockListLexemeTranscriptionJumpTargets: vi.fn(),
   mockListAttachments: vi.fn(),
   mockAttachFile: vi.fn(),
@@ -33,6 +35,7 @@ vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
     lexemes: {
       list: mockListLexemes,
+      save: mockSaveLexeme,
       listTranscriptionJumpTargets: mockListLexemeTranscriptionJumpTargets,
       listAttachments: mockListAttachments,
       attachFile: mockAttachFile,
@@ -91,6 +94,7 @@ function renderLexiconPage(path = '/lexicon') {
 describe('LexiconPage', () => {
   beforeEach(() => {
     mockListLexemes.mockReset();
+    mockSaveLexeme.mockReset();
     mockListLexemeTranscriptionJumpTargets.mockReset();
     mockListAttachments.mockReset();
     mockAttachFile.mockReset();
@@ -139,6 +143,14 @@ describe('LexiconPage', () => {
       },
     ] satisfies LexemeDocType[]);
     mockListLexemeTranscriptionJumpTargets.mockResolvedValue([]);
+    mockSaveLexeme.mockImplementation(async (doc: LexemeDocType) => {
+      const current = (await mockListLexemes()) as LexemeDocType[];
+      const next = current.some((row) => row.id === doc.id)
+        ? current.map((row) => (row.id === doc.id ? doc : row))
+        : [...current, doc];
+      mockListLexemes.mockResolvedValue(next);
+      return doc.id;
+    });
     window.sessionStorage.clear();
   });
 
@@ -386,5 +398,56 @@ describe('LexiconPage', () => {
       expect(mockUnlinkAttachment).toHaveBeenCalledWith('ll-dog');
       expect(screen.getByText('当前词条还没有附件。')).toBeTruthy();
     });
+  });
+
+  it('saves an edited lemma and gloss then readback-lists the new values', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-lemma'), { target: { value: 'hound' } });
+    fireEvent.change(screen.getByTestId('lexicon-entry-gloss'), {
+      target: { value: 'hunting dog' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+      expect(screen.getAllByText('hound').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('hunting dog').length).toBeGreaterThan(0);
+    });
+    expect(screen.getByText('已保存')).toBeTruthy();
+    expect(JSON.parse(window.sessionStorage.getItem('lexiconListState') ?? '{}')).toMatchObject({
+      selectedLexemeId: 'lex-dog',
+    });
+  });
+
+  it('creates a new entry then selects it from list readback', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-create');
+    fireEvent.click(screen.getByTestId('lexicon-entry-create'));
+    fireEvent.change(screen.getByTestId('lexicon-entry-lemma'), { target: { value: 'cat' } });
+    fireEvent.change(screen.getByTestId('lexicon-entry-gloss'), { target: { value: 'feline' } });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+      expect(screen.getAllByText('cat').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('feline').length).toBeGreaterThan(0);
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.lemma.default).toBe('cat');
+    expect(saved.senses[0]?.gloss.default).toBe('feline');
+    expect(JSON.parse(window.sessionStorage.getItem('lexiconListState') ?? '{}')).toMatchObject({
+      selectedLexemeId: saved.id,
+    });
+  });
+
+  it('does not write when the lemma is empty', async () => {
+    renderLexiconPage();
+    fireEvent.click(await screen.findByTestId('lexicon-entry-create'));
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(screen.getByText('词元不能为空。')).toBeTruthy();
+    });
+    expect(mockSaveLexeme).not.toHaveBeenCalled();
   });
 });
