@@ -8,6 +8,10 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ## [Unreleased]
 
+### Changed
+
+- **Master roadmap recalibrated (2026-09-11)**: Stage B leftover is B5c (PR #154 conflicting), not “open B4/B5 placeholders”. ChatWindow 766/800 gate replaced with 127/220. A2/A3 marked partial. See `docs/execution/audits/主路线图代码核对-2026-09-11.md`.
+
 ### Added
 
 - **B2 cross-page unit refresh events**: Typed `jieyu:workspace.*.v1` CustomEvent bus in `workspaceEvents.ts` (re-exported from `appShellEvents.ts`). LinguisticService single-write paths emit after persist; annotation / corpus / lexicon subscribe and incremental-refetch by `unitId`/`lexemeId`. Uncommitted annotation drafts are marked dirty instead of overwritten. `saveUnitsBatch` stays silent. No ChatWindow, no BroadcastChannel, no new flag.
