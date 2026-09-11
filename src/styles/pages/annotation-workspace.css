@@ -148,3 +148,38 @@
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   cursor: pointer;
 }
+
+.annotation-igt-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--surface-panel) 82%, var(--surface-header) 18%);
+}
+
+.annotation-igt-extras-actions,
+.annotation-igt-extra-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.annotation-igt-note {
+  flex: 1;
+  min-width: 12rem;
+  min-height: 2.5rem;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header) 12%);
+  color: var(--text-primary);
+  font: inherit;
+  resize: vertical;
+}
+
+.annotation-igt-autogloss {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}

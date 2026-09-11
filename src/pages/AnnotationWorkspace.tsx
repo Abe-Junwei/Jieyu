@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, tf, useLocale } from '../i18n';
 import { AnnotationIgtRowView } from './annotation/AnnotationIgtRow';
+import { useAnnotationAutoGlossController } from './useAnnotationAutoGlossController';
 import { useAnnotationMorphologyController } from './useAnnotationMorphologyController';
+import { useAnnotationSegmentPlaybackController } from './useAnnotationSegmentPlaybackController';
+import { useAnnotationUnitMetaController } from './useAnnotationUnitMetaController';
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
 
 export function AnnotationWorkspace() {
@@ -11,6 +14,18 @@ export function AnnotationWorkspace() {
   const controller = useAnnotationWorkspaceController();
   const morphology = useAnnotationMorphologyController({
     textId: controller.textId,
+    rows: controller.rows,
+    reloadWorkspace: controller.reload,
+  });
+  const playback = useAnnotationSegmentPlaybackController(controller.textId);
+  const unitMeta = useAnnotationUnitMetaController({
+    textId: controller.textId,
+    focusedUnitId: controller.focusedUnitId,
+    rows: controller.rows,
+    reloadWorkspace: controller.reload,
+  });
+  const autoGloss = useAnnotationAutoGlossController({
+    drafts: controller.drafts,
     rows: controller.rows,
     reloadWorkspace: controller.reload,
   });
@@ -71,7 +86,13 @@ export function AnnotationWorkspace() {
   });
 
   const activeNotice =
-    morphology.saveNotice.kind !== 'idle' ? morphology.saveNotice : controller.saveNotice;
+    autoGloss.saveNotice.kind !== 'idle'
+      ? autoGloss.saveNotice
+      : unitMeta.saveNotice.kind !== 'idle'
+        ? unitMeta.saveNotice
+        : morphology.saveNotice.kind !== 'idle'
+          ? morphology.saveNotice
+          : controller.saveNotice;
   const saveStatusText =
     activeNotice.kind === 'saving'
       ? t(locale, 'workspace.annotation.saving')
@@ -81,7 +102,9 @@ export function AnnotationWorkspace() {
           ? tf(locale, 'workspace.annotation.saveFailed', {
               message: activeNotice.message,
             })
-          : t(locale, 'workspace.annotation.keyboardHint');
+          : playback.lastOutcome === 'skipped'
+            ? t(locale, 'workspace.annotation.playbackSkipped')
+            : t(locale, 'workspace.annotation.keyboardHint');
 
   return (
     <section
@@ -90,7 +113,10 @@ export function AnnotationWorkspace() {
       aria-labelledby="annotation-workspace-title"
       tabIndex={0}
       onKeyDown={(event) => {
-        controller.onKeyDown(event);
+        const action = controller.onKeyDown(event);
+        if (action === 'playToggle') {
+          void playback.onPlayToggle(controller.focusedUnitId, controller.rows);
+        }
       }}
     >
       <header className="annotation-workspace-hero">
@@ -122,6 +148,7 @@ export function AnnotationWorkspace() {
             data-mode={controller.keyboardMode}
             data-action={controller.lastAction}
             data-save={activeNotice.kind}
+            data-playback={playback.lastOutcome}
           >
             {saveStatusText}
           </p>
@@ -134,6 +161,12 @@ export function AnnotationWorkspace() {
                 inputFocused={controller.keyboardMode === 'inputFocused'}
                 drafts={controller.drafts}
                 morphology={morphology}
+                unitMeta={unitMeta}
+                autoGloss={autoGloss}
+                playing={playback.playingUnitId === row.id}
+                onPlay={(unitId) => {
+                  void playback.onPlayToggle(unitId, controller.rows);
+                }}
                 onFocusRow={controller.onFocusRow}
                 onFocusInput={controller.onFocusInput}
                 onTokenDraftChange={controller.onTokenDraftChange}

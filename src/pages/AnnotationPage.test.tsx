@@ -23,6 +23,10 @@ const {
   mockRemoveToken,
   mockSaveTokenLexemeLink,
   mockRemoveTokenLexemeLinks,
+  mockListMediaByTextId,
+  mockListNotesByTarget,
+  mockSaveNote,
+  mockSaveBatch,
   featureFlagState,
 } = vi.hoisted(() => ({
   mockListByTextId: vi.fn(),
@@ -40,6 +44,10 @@ const {
   mockRemoveToken: vi.fn(),
   mockSaveTokenLexemeLink: vi.fn(),
   mockRemoveTokenLexemeLinks: vi.fn(),
+  mockListMediaByTextId: vi.fn(),
+  mockListNotesByTarget: vi.fn(),
+  mockSaveNote: vi.fn(),
+  mockSaveBatch: vi.fn(),
   featureFlagState: { annotationPageEnabled: false },
 }));
 
@@ -58,6 +66,7 @@ vi.mock('../app/languageAssetPageAccess', () => ({
       removeToken: mockRemoveToken,
       saveTokenLexemeLink: mockSaveTokenLexemeLink,
       removeTokenLexemeLinks: mockRemoveTokenLexemeLinks,
+      saveBatch: mockSaveBatch,
     },
     lexemes: {
       list: mockListLexemes,
@@ -65,6 +74,13 @@ vi.mock('../app/languageAssetPageAccess', () => ({
     },
     layers: {
       listByTextId: mockListLayersByTextId,
+    },
+    media: {
+      listByTextId: mockListMediaByTextId,
+    },
+    notes: {
+      listByTarget: mockListNotesByTarget,
+      save: mockSaveNote,
     },
   },
 }));
@@ -174,6 +190,10 @@ function seedWorkspace(tokens: TokenFixture[], units: Array<typeof UNIT_ONE> = [
   mockRemoveToken.mockResolvedValue(undefined);
   mockSaveTokenLexemeLink.mockImplementation(async (row: { id: string }) => row.id);
   mockRemoveTokenLexemeLinks.mockResolvedValue(undefined);
+  mockListMediaByTextId.mockResolvedValue([]);
+  mockListNotesByTarget.mockResolvedValue([]);
+  mockSaveNote.mockImplementation(async (doc: { id: string }) => doc.id);
+  mockSaveBatch.mockResolvedValue(undefined);
 }
 
 afterEach(() => {
@@ -193,6 +213,10 @@ afterEach(() => {
   mockRemoveToken.mockReset();
   mockSaveTokenLexemeLink.mockReset();
   mockRemoveTokenLexemeLinks.mockReset();
+  mockListMediaByTextId.mockReset();
+  mockListNotesByTarget.mockReset();
+  mockSaveNote.mockReset();
+  mockSaveBatch.mockReset();
   featureFlagState.annotationPageEnabled = false;
 });
 
@@ -377,6 +401,156 @@ describe('AnnotationPage', () => {
     await waitFor(() => {
       expect(mockListTokensByUnitIds.mock.calls.length).toBeGreaterThan(tokenReads);
       expect(screen.getByTestId('annotation-igt-row-uid-1').textContent).toContain('greeting');
+    });
+  });
+
+  it('records skipped playback when Space is pressed without media', async () => {
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello', 'INTJ')]);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    const workspace = await screen.findByTestId('annotation-workspace', {}, { timeout: 4000 });
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    fireEvent.keyDown(workspace, { key: ' ' });
+    await waitFor(() => {
+      const status = screen.getByTestId('annotation-keyboard-status');
+      expect(status.getAttribute('data-action')).toBe('playToggle');
+      expect(status.getAttribute('data-playback')).toBe('skipped');
+    });
+  });
+
+  it('patches selfCertainty through LinguisticService.units.saveBatch', async () => {
+    const units: Array<typeof UNIT_ONE & { selfCertainty?: string }> = [{ ...UNIT_ONE }];
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello', 'INTJ')], units);
+    mockListByTextId.mockImplementation(async () => units.map((row) => ({ ...row })));
+    mockSaveBatch.mockImplementation(async (items: Array<(typeof units)[number]>) => {
+      for (const item of items) {
+        const index = units.findIndex((row) => row.id === item.id);
+        if (index >= 0) units[index] = { ...units[index]!, ...item };
+      }
+    });
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    fireEvent.change(screen.getByTestId('annotation-igt-self-certainty-uid-1'), {
+      target: { value: 'uncertain' },
+    });
+    await waitFor(() => {
+      expect(mockSaveBatch).toHaveBeenCalled();
+      const payload = mockSaveBatch.mock.calls[0]?.[0]?.[0] as {
+        selfCertainty?: string;
+        transcription?: { default: string };
+        startTime?: number;
+        endTime?: number;
+      };
+      expect(payload.selfCertainty).toBe('uncertain');
+      expect(payload.transcription).toEqual({ default: 'hello world' });
+      expect(payload.startTime).toBe(1.5);
+      expect(payload.endTime).toBe(2);
+    });
+  });
+
+  it('saves a unit note through LinguisticService.notes', async () => {
+    const notes: Array<{
+      id: string;
+      content: { default: string };
+      category: string;
+      targetType: string;
+      targetId: string;
+    }> = [];
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello', 'INTJ')]);
+    mockSaveNote.mockImplementation(
+      async (doc: {
+        id: string;
+        content: { default: string };
+        category: string;
+        targetType: string;
+        targetId: string;
+      }) => {
+        notes.splice(0, notes.length, doc);
+        return doc.id;
+      },
+    );
+    mockListNotesByTarget.mockImplementation(async () => notes);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    fireEvent.change(screen.getByTestId('annotation-igt-note-uid-1'), {
+      target: { value: 'field reminder' },
+    });
+    fireEvent.click(screen.getByTestId('annotation-igt-note-save-uid-1'));
+    await waitFor(() => {
+      expect(mockSaveNote).toHaveBeenCalled();
+      expect(notes[0]?.content.default).toBe('field reminder');
+    });
+  });
+
+  it('keeps the next unit note draft when a prior unit save finishes later', async () => {
+    const notes: Array<{
+      id: string;
+      content: { default: string };
+      category: string;
+      targetType: string;
+      targetId: string;
+    }> = [];
+    let resolveSave: (() => void) | undefined;
+    seedWorkspace(
+      [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ'), tokenRow('tok-2', 'uid-2', 'next', 'ADV')],
+      [UNIT_ONE, UNIT_TWO],
+    );
+    mockSaveNote.mockImplementation(
+      async (doc: {
+        id: string;
+        content: { default: string };
+        category: string;
+        targetType: string;
+        targetId: string;
+      }) => {
+        await new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        });
+        notes.splice(0, notes.length, doc);
+        return doc.id;
+      },
+    );
+    mockListNotesByTarget.mockImplementation(async () => notes);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    fireEvent.change(screen.getByTestId('annotation-igt-note-uid-1'), {
+      target: { value: 'unit one note' },
+    });
+    fireEvent.click(screen.getByTestId('annotation-igt-note-save-uid-1'));
+    fireEvent.click(screen.getByTestId('annotation-igt-row-uid-2'));
+    await screen.findByTestId('annotation-igt-note-uid-2', {}, { timeout: 4000 });
+    fireEvent.change(screen.getByTestId('annotation-igt-note-uid-2'), {
+      target: { value: 'unit two draft' },
+    });
+    resolveSave?.();
+    await waitFor(() => {
+      expect((screen.getByTestId('annotation-igt-note-uid-2') as HTMLTextAreaElement).value).toBe(
+        'unit two draft',
+      );
+    });
+  });
+
+  it('previews auto-gloss without writing until apply', async () => {
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello', '')]);
+    mockListLexemes.mockResolvedValue([
+      {
+        id: 'lex-hello',
+        lemma: { default: 'hello' },
+        senses: [{ gloss: { default: 'INTJ' } }],
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    fireEvent.click(screen.getByTestId('annotation-igt-autogloss-preview-uid-1'));
+    await waitFor(() => {
+      expect(screen.getByTestId('annotation-igt-autogloss-uid-1').textContent).toContain('hello');
+      expect(mockUpdateTokenGloss).not.toHaveBeenCalled();
+    });
+    fireEvent.click(screen.getByTestId('annotation-igt-autogloss-apply-uid-1'));
+    await waitFor(() => {
+      expect(mockUpdateTokenGloss).toHaveBeenCalled();
+      expect(mockSaveTokenLexemeLink).toHaveBeenCalled();
     });
   });
 });
