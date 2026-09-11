@@ -447,6 +447,60 @@ describe('AnnotationPage', () => {
     });
   });
 
+  it('does not clear the next unit note draft when a prior save finishes', async () => {
+    seedWorkspace(
+      [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ'), tokenRow('tok-2', 'uid-2', 'next', 'ADV')],
+      [UNIT_ONE, UNIT_TWO],
+    );
+    const notesByUnit = new Map<
+      string,
+      Array<{
+        id: string;
+        content: { default: string };
+        category: string;
+        targetType: string;
+        targetId: string;
+      }>
+    >();
+    let finishSave: (() => void) | null = null;
+    mockListNotesByTarget.mockImplementation(async (_type: string, unitId: string) => {
+      return notesByUnit.get(unitId) ?? [];
+    });
+    mockSaveNote.mockImplementation(
+      async (doc: {
+        id: string;
+        content: { default: string };
+        category: string;
+        targetType: string;
+        targetId: string;
+      }) =>
+        new Promise<string>((resolve) => {
+          finishSave = () => {
+            notesByUnit.set(doc.targetId, [doc]);
+            resolve(doc.id);
+          };
+        }),
+    );
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    fireEvent.change(screen.getByTestId('annotation-igt-note-uid-1'), {
+      target: { value: 'unit one note' },
+    });
+    fireEvent.click(screen.getByTestId('annotation-igt-note-save-uid-1'));
+    await waitFor(() => {
+      expect(finishSave).not.toBeNull();
+    });
+    fireEvent.click(screen.getByTestId('annotation-igt-row-uid-2'));
+    const nextNote = await screen.findByTestId('annotation-igt-note-uid-2');
+    fireEvent.change(nextNote, { target: { value: 'keep unit two draft' } });
+    finishSave?.();
+    await waitFor(() => {
+      expect((screen.getByTestId('annotation-igt-note-uid-2') as HTMLTextAreaElement).value).toBe(
+        'keep unit two draft',
+      );
+    });
+  });
+
   it('saves a unit note through LinguisticService.notes', async () => {
     const notes: Array<{
       id: string;
