@@ -15,6 +15,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **B3b lexicon entry edit**: `/lexicon` can create and save lemma / primary gloss / citation / language / notes via `LinguisticService.lexemes.save`, then `list()` readback. Empty lemma does not write. No ChatWindow, no new flag, no R8 key split. Attachments stay behind `lexiconAttachmentsEnabled`.
 - **B2 cross-page unit refresh events**: Typed `jieyu:workspace.*.v1` CustomEvent bus in `workspaceEvents.ts` (re-exported from `appShellEvents.ts`). LinguisticService single-write paths emit after persist; annotation / corpus / lexicon subscribe and incremental-refetch by `unitId`/`lexemeId`. Uncommitted annotation drafts are marked dirty instead of overwritten. `saveUnitsBatch` stays silent. No ChatWindow, no BroadcastChannel, no new flag.
 - **B1 list scroll persistence**: Lexicon `lexiconListState.listScrollTop` restores `.app-main` scroll; corpus `corpusViewState.listScrollTop` restores `.corpus-library-body`. Session-only (R8); `corpusBasket` stays router-session. No ChatWindow / ReadyWorkspace changes.
 - **B10 R1–R8 cross-page checklist gate**: PRs that touch annotation / lexicon / corpus product paths must tick R1–R8 or write `N/A` in the PR body (`npm run check:r1-r8`, included in `check:all`). Push to `main` skips. No Danger.js.
@@ -56,7 +57,8 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Tests
 
-- **B3 lexicon regression**: list → detail → hit-segment refresh, sessionStorage restore, segment `unitKind` deep links, MiniSearch hook coverage; `/lexicon` e2e asserts search box and entry list.
+- **B3 lexicon regression**: list → detail → hit-segment refresh, sessionStorage restore, segment `unitKind` deep links, MiniSearch hook coverage; `/lexicon` e2e asserts search box, entry list, and create button.
+- **B3b lexicon edit**: `saveLexiconEntry` create/update/empty-lemma + `LexiconPage` save/create/readback tests.
 
 ## [1.1.0] - 2026-04-24
 
