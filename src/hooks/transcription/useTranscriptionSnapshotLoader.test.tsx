@@ -373,4 +373,116 @@ describe('useTranscriptionSnapshotLoader', () => {
       }),
     ).rejects.toThrow(/transcription-dependency-invariant/);
   });
+
+  it('scopes layers to scopeTextId instead of globally first unit textId', async () => {
+    const now = new Date().toISOString();
+
+    await LayerTierUnifiedService.createLayer({
+      id: 'layer-a',
+      textId: 'text-a',
+      key: 'trc_a',
+      name: { zho: 'A转写' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      isDefault: true,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType);
+
+    await LayerTierUnifiedService.createLayer({
+      id: 'layer-b',
+      textId: 'text-b',
+      key: 'trc_b',
+      name: { zho: 'B转写' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      isDefault: true,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType);
+
+    await putTestUnitAsLayerUnit(
+      db,
+      {
+        id: 'unit-a',
+        textId: 'text-a',
+        mediaId: 'media-a',
+        startTime: 0,
+        endTime: 1,
+        transcription: { default: 'alpha' },
+        createdAt: now,
+        updatedAt: now,
+      } as LayerUnitDocType,
+      'layer-a',
+    );
+
+    await putTestUnitAsLayerUnit(
+      db,
+      {
+        id: 'unit-b',
+        textId: 'text-b',
+        mediaId: 'media-b',
+        startTime: 10,
+        endTime: 11,
+        transcription: { default: 'beta' },
+        createdAt: now,
+        updatedAt: now,
+      } as LayerUnitDocType,
+      'layer-b',
+    );
+
+    await db.media_items.bulkPut([
+      {
+        id: 'media-a',
+        textId: 'text-a',
+        filename: 'a.wav',
+        isOfflineCached: false,
+        createdAt: now,
+        updatedAt: now,
+      } as MediaItemDocType,
+      {
+        id: 'media-b',
+        textId: 'text-b',
+        filename: 'b.wav',
+        isOfflineCached: false,
+        createdAt: now,
+        updatedAt: now,
+      } as MediaItemDocType,
+    ]);
+
+    let capturedLayers: LayerDocType[] = [];
+    const setLayers = vi.fn((next: React.SetStateAction<LayerDocType[]>) => {
+      capturedLayers = typeof next === 'function' ? next(capturedLayers) : next;
+    });
+
+    const dbNameRef = { current: undefined as string | undefined };
+    const { result } = renderHook(() =>
+      useTranscriptionSnapshotLoader({
+        dbNameRef,
+        setAnchors: vi.fn(),
+        setLayerLinks: vi.fn(),
+        setLayers,
+        setMediaItems: vi.fn(),
+        setSpeakers: vi.fn(),
+        setSelectedLayerId: vi.fn(),
+        setSelectedUnitIds: vi.fn(),
+        setSelectedTimelineUnit: vi.fn(),
+        setSelectedMediaId: vi.fn(),
+        setState: vi.fn(),
+        setTranslations: vi.fn(),
+        setUnitDrafts: vi.fn(),
+        setUnits: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.loadSnapshot('text-b');
+    });
+
+    expect(capturedLayers.map((layer) => layer.id)).toEqual(['layer-b']);
+  });
 });
