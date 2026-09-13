@@ -1,6 +1,7 @@
 import type { AnnotationImportBridgeStrategy } from '~/hooks/importExport/useImportExport.annotationImport';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
 import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
+import { outboundExportActionId } from './transcriptionExportCallbacks';
 
 type ReadyWorkspaceProjectHubProps =
   TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps']['projectHubProps'];
@@ -112,15 +113,7 @@ export function buildReadyWorkspaceProjectHubProps(
       await input.onExportJym();
     },
     onExportLite: async (format) => {
-      recordTranscriptionKeyboardAction(
-        format === 'srt'
-          ? 'toolbarExportSrt'
-          : format === 'vtt'
-            ? 'toolbarExportVtt'
-            : format === 'csv'
-              ? 'toolbarExportCsv'
-              : 'toolbarExportTsv',
-      );
+      recordTranscriptionKeyboardAction(outboundExportActionId(format));
       await input.onExportLite(format);
     },
   };

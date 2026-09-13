@@ -80,6 +80,7 @@ export type ActionId =
   | 'toolbarExportVtt'
   | 'toolbarExportCsv'
   | 'toolbarExportTsv'
+  | 'toolbarExportTex'
   | 'toolbarImportAnnotationFile'
   | 'toolbarOpenSpeakerManagementPanel'
   | 'toolbarPreviewProjectArchiveImport'

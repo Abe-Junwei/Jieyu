@@ -63,15 +63,18 @@ const DEFAULT_SYSTEM_PROMPT = [
   '{"type":"tool","toolName":"<tool_name>","params":{},"raw":"<\u539f\u6587>"}',
   '{"type":"chat","text":"<\u539f\u6587>","raw":"<\u539f\u6587>"}',
   '{"tool_call":{"name":"<tool_name>","arguments":{}}}',
-  'ActionId \u4ec5\u5141\u8bb8\uff1aplayPause,markSegment,cancel,deleteSegment,mergePrev,mergeNext,splitSegment,undo,redo,selectBefore,selectAfter,selectAll,navPrev,navNext,navToIndex,tabNext,tabPrev,stepBack,stepForward,reviewNext,reviewPrev,search,toggleNotes,toggleVoice,seekBack10Sec,seekForward10Sec,toggleGlobalLoop,autoSegmentRun,deleteTimelineAudio,deleteTranscriptionProject,toolbarPlaybackRateChange,toolbarVolumeChange,toolbarViewOptionsToggle,toolbarDisplayModeWaveform,toolbarDisplayModeSpectrogram,toolbarDisplayModeSplit,toolbarVisualStyleBalanced,toolbarVisualStyleDense,toolbarVisualStyleContrast,toolbarVisualStyleLine,toolbarAcousticOverlayNone,toolbarAcousticOverlayF0,toolbarAcousticOverlayIntensity,toolbarAcousticOverlayBoth,toolbarRefresh,toolbarOpenProjectSetup,toolbarOpenAudioImport,toolbarOpenUttOpsMenu,toolbarReviewMenuToggle,toolbarReviewPresetAll,toolbarReviewPresetTime,toolbarReviewPresetContentConcern,toolbarReviewPresetContentMissing,toolbarReviewPresetManualAttention,toolbarReviewPresetPendingReview,toolbarExportMenuToggle,toolbarExportEaf,toolbarExportTextGrid,toolbarExportTrs,toolbarExportFlextext,toolbarExportToolbox,toolbarExportJyt,toolbarExportJym,toolbarExportSrt,toolbarExportVtt,toolbarExportCsv,toolbarExportTsv,toolbarImportAnnotationFile,toolbarOpenSpeakerManagementPanel,toolbarPreviewProjectArchiveImport,toolbarImportProjectArchive,toolbarApplyTextTimeMapping,timelineLaneHeaderToggle,timelineSeek,timelineWaveformResizeStart,timelineSearchNavigateToUnit,timelineSearchReplace,timelineSearchClose,timelineZoomFitAll,timelineZoomFitSelection,timelineZoomOneToOne,timelineZoomSliderChange,timelineZoomSnapToggle,timelineZoomAutoScrollToggle,timelineHistoryPanelToggle,timelineHistoryJumpToIndex,timelineHistoryRedo,timelineAxisExpandLogicalDuration,timelineWorkspaceLayoutHorizontal,timelineWorkspaceLayoutVertical,timelinePairedReadingColumnBoth,timelinePairedReadingColumnSource,timelinePairedReadingColumnTarget,timelineVideoResizeHandle,toolbarOpenTextTimeMappingDialog,toolbarCloseTextTimeMappingDialog,toolbarOpenProjectArchivePicker,toolbarOpenAnnotationImportPicker,toolbarProjectHubMenuToggle,toolbarTimeMappingFormHistorySelect,waveformAmplitudeSliderChange,waveformAmplitudeReset,timelineVideoLayoutModeTop,timelineVideoLayoutModeRight,timelineVideoLayoutModeLeft,timelineLaneLabelResizeStart,workspaceObserverRecommendationExecute,workspaceBatchOpsClose,workspaceBatchOpsOffset,workspaceBatchOpsScale,workspaceBatchOpsSplitByRegex,workspaceBatchOpsMerge,workspaceBatchOpsJumpToUnit,overlayCloseContextMenu,overlayCloseUttOpsMenu,overlayMergeSelection,overlayOpenNoteFromMenu,overlayDeleteDialogDismiss,overlayDeleteDialogConfirm,overlayCloseNotePopover,overlayNoteAdd,overlayNoteUpdate,overlayNoteDelete,overlayAssignSpeaker,overlaySetSelfCertainty,overlayToggleSkipProcessing,overlayLayerDisplayUpdate,overlayLayerDisplayReset,workspaceRecoveryApply,workspaceRecoveryDismiss,workspaceAiPanelToggle,workspaceAiPanelResizeStart,workspaceTimelineLassoPointerDown,workspaceTimelineLassoPointerUp,workspaceConflictApplyRemote,workspaceConflictKeepLocal,workspaceConflictPostpone,workspaceDirectMediaImportSelect\u3002',
+  'ActionId \u4ec5\u5141\u8bb8\uff1aplayPause,markSegment,cancel,deleteSegment,mergePrev,mergeNext,splitSegment,undo,redo,selectBefore,selectAfter,selectAll,navPrev,navNext,navToIndex,tabNext,tabPrev,stepBack,stepForward,reviewNext,reviewPrev,search,toggleNotes,toggleVoice,seekBack10Sec,seekForward10Sec,toggleGlobalLoop,autoSegmentRun,deleteTimelineAudio,deleteTranscriptionProject,toolbarPlaybackRateChange,toolbarVolumeChange,toolbarViewOptionsToggle,toolbarDisplayModeWaveform,toolbarDisplayModeSpectrogram,toolbarDisplayModeSplit,toolbarVisualStyleBalanced,toolbarVisualStyleDense,toolbarVisualStyleContrast,toolbarVisualStyleLine,toolbarAcousticOverlayNone,toolbarAcousticOverlayF0,toolbarAcousticOverlayIntensity,toolbarAcousticOverlayBoth,toolbarRefresh,toolbarOpenProjectSetup,toolbarOpenAudioImport,toolbarOpenUttOpsMenu,toolbarReviewMenuToggle,toolbarReviewPresetAll,toolbarReviewPresetTime,toolbarReviewPresetContentConcern,toolbarReviewPresetContentMissing,toolbarReviewPresetManualAttention,toolbarReviewPresetPendingReview,toolbarExportMenuToggle,toolbarExportEaf,toolbarExportTextGrid,toolbarExportTrs,toolbarExportFlextext,toolbarExportToolbox,toolbarExportJyt,toolbarExportJym,toolbarExportSrt,toolbarExportVtt,toolbarExportCsv,toolbarExportTsv,toolbarExportTex,toolbarImportAnnotationFile,toolbarOpenSpeakerManagementPanel,toolbarPreviewProjectArchiveImport,toolbarImportProjectArchive,toolbarApplyTextTimeMapping,timelineLaneHeaderToggle,timelineSeek,timelineWaveformResizeStart,timelineSearchNavigateToUnit,timelineSearchReplace,timelineSearchClose,timelineZoomFitAll,timelineZoomFitSelection,timelineZoomOneToOne,timelineZoomSliderChange,timelineZoomSnapToggle,timelineZoomAutoScrollToggle,timelineHistoryPanelToggle,timelineHistoryJumpToIndex,timelineHistoryRedo,timelineAxisExpandLogicalDuration,timelineWorkspaceLayoutHorizontal,timelineWorkspaceLayoutVertical,timelinePairedReadingColumnBoth,timelinePairedReadingColumnSource,timelinePairedReadingColumnTarget,timelineVideoResizeHandle,toolbarOpenTextTimeMappingDialog,toolbarCloseTextTimeMappingDialog,toolbarOpenProjectArchivePicker,toolbarOpenAnnotationImportPicker,toolbarProjectHubMenuToggle,toolbarTimeMappingFormHistorySelect,waveformAmplitudeSliderChange,waveformAmplitudeReset,timelineVideoLayoutModeTop,timelineVideoLayoutModeRight,timelineVideoLayoutModeLeft,timelineLaneLabelResizeStart,workspaceObserverRecommendationExecute,workspaceBatchOpsClose,workspaceBatchOpsOffset,workspaceBatchOpsScale,workspaceBatchOpsSplitByRegex,workspaceBatchOpsMerge,workspaceBatchOpsJumpToUnit,overlayCloseContextMenu,overlayCloseUttOpsMenu,overlayMergeSelection,overlayOpenNoteFromMenu,overlayDeleteDialogDismiss,overlayDeleteDialogConfirm,overlayCloseNotePopover,overlayNoteAdd,overlayNoteUpdate,overlayNoteDelete,overlayAssignSpeaker,overlaySetSelfCertainty,overlayToggleSkipProcessing,overlayLayerDisplayUpdate,overlayLayerDisplayReset,workspaceRecoveryApply,workspaceRecoveryDismiss,workspaceAiPanelToggle,workspaceAiPanelResizeStart,workspaceTimelineLassoPointerDown,workspaceTimelineLassoPointerUp,workspaceConflictApplyRemote,workspaceConflictKeepLocal,workspaceConflictPostpone,workspaceDirectMediaImportSelect\u3002',
   '\u989d\u5916\u5141\u8bb8\u7684\u5de5\u5177\uff08\u8fd4\u56de type:"tool"\uff0ctoolName \u9009\u5176\u4e00\uff09\uff1a',
   'nav_to_segment, nav_to_time, play_pause, mark_segment, delete_segment, split_at_time, merge_prev, merge_next, undo, redo, focus_segment, zoom_to_segment, toggle_notes, search_segments, auto_gloss_segment, get_current_segment, get_project_summary, get_recent_history。',
 ].join('\n');
 
 const DEFAULT_MODE_PROMPTS: Record<VoiceResolverMode, string> = {
-  command: '\u4f18\u5148\u89e3\u6790\u4e3a action/tool\uff1b\u4ec5\u5728\u65e0\u6cd5\u6620\u5c04\u52a8\u4f5c\u65f6\u8fd4\u56de chat\u3002',
-  dictation: '\u82e5\u5185\u5bb9\u50cf\u53e3\u8ff0\u6587\u672c\u5219\u4f18\u5148\u8fd4\u56de chat\uff0c\u4e0d\u8981\u7f16\u9020 action\u3002',
-  analysis: '\u4f18\u5148\u8fd4\u56de chat \u6216 tool\uff0c\u7528\u4e8e\u5206\u6790\u4e0e\u95ee\u7b54\u3002',
+  command:
+    '\u4f18\u5148\u89e3\u6790\u4e3a action/tool\uff1b\u4ec5\u5728\u65e0\u6cd5\u6620\u5c04\u52a8\u4f5c\u65f6\u8fd4\u56de chat\u3002',
+  dictation:
+    '\u82e5\u5185\u5bb9\u50cf\u53e3\u8ff0\u6587\u672c\u5219\u4f18\u5148\u8fd4\u56de chat\uff0c\u4e0d\u8981\u7f16\u9020 action\u3002',
+  analysis:
+    '\u4f18\u5148\u8fd4\u56de chat \u6216 tool\uff0c\u7528\u4e8e\u5206\u6790\u4e0e\u95ee\u7b54\u3002',
 };
 
 const DEFAULT_SCHEMA: VoiceIntentLlmSchemaConfig = {
@@ -130,7 +133,8 @@ export function parseVoiceIntentFromLlmResponseDetailed(
   const candidate = extractJsonCandidate(responseText);
   if (!candidate) {
     const trimmedResponse = responseText.trim();
-    const looksLikeBrokenJson = trimmedResponse.startsWith('{') || trimmedResponse.startsWith('```');
+    const looksLikeBrokenJson =
+      trimmedResponse.startsWith('{') || trimmedResponse.startsWith('```');
     return {
       ok: false,
       errorKind: looksLikeBrokenJson ? 'invalid-json' : 'missing-json',
@@ -149,7 +153,8 @@ export function parseVoiceIntentFromLlmResponseDetailed(
     return {
       ok: false,
       errorKind: 'invalid-json',
-      message: 'LLM \u8fd4\u56de\u4e86 JSON \u7247\u6bb5\uff0c\u4f46 JSON \u8bed\u6cd5\u65e0\u6548\u3002',
+      message:
+        'LLM \u8fd4\u56de\u4e86 JSON \u7247\u6bb5\uff0c\u4f46 JSON \u8bed\u6cd5\u65e0\u6548\u3002',
       rawResponse: responseText,
     };
   }
@@ -237,7 +242,8 @@ export function parseVoiceIntentFromLlmResponseDetailed(
   return {
     ok: false,
     errorKind: 'invalid-shape',
-    message: 'LLM \u8fd4\u56de\u7684 JSON \u7f3a\u5c11\u53ef\u8bc6\u522b\u7684 type \u6216 tool_call \u7ed3\u6784\u3002',
+    message:
+      'LLM \u8fd4\u56de\u7684 JSON \u7f3a\u5c11\u53ef\u8bc6\u522b\u7684 type \u6216 tool_call \u7ed3\u6784\u3002',
     rawResponse: responseText,
   };
 }
@@ -245,7 +251,7 @@ export function parseVoiceIntentFromLlmResponseDetailed(
 export async function resolveVoiceIntentWithLlmUsingConfig(
   input: ResolveVoiceIntentWithLlmInput,
   config: VoiceIntentLlmResolverConfig,
-) : Promise<VoiceIntentLlmParseResult> {
+): Promise<VoiceIntentLlmParseResult> {
   const transcript = input.transcript.trim();
   if (!transcript) {
     return {
