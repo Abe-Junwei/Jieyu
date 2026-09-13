@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-11
+last_reviewed: 2026-09-13
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -219,11 +219,11 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **C2** | i18n 基线计划性消减（6B） | M | 拍板 6B；`check:i18n-hardcoded:guard` 不新增债 + 按目录消减；AI 文案走 `src/ai/messages/` 与 UI `dictKeys` 分离 | 基线 hits 按目标下降；guard 绿 | 否 |
 | **C3a** | 字幕导出（SRT + WebVTT） | M | **【已落地】** 同一 `layer_units` 读模型（`buildOrthographyAwareExportUnits`）→ `transcriptionLiteExport` 序列化 SubRip + WebVTT（无 STYLE/NOTE/定位）→ 项目中心导出菜单 + `handleExportLite`；不写回编辑模型。锚点：`src/utils/transcriptionLiteExport.ts`、`useImportExport.handleExportLite`、`transcriptionExportCallbacks` | golden 对拍 + 定向 vitest；空语段不下载 | 否 |
 | **C3b** | 表格转写导出（CSV / TSV） | M | **【已落地】** 与 C3a 同一读模型与单一 `onExportLite(format)`；RFC 4180 CSV（UTF-8 BOM）+ TSV（tab 净化）；逐语段 start/end/speaker/text/gloss | golden 对拍 + 定向 vitest | 否 |
-| **C3c** | 学术 IGT LaTeX 导出（Leipzig） | L | 缺口项。token 层（text/gloss/translation）→ Leipzig `gll`/expex 序列化；复用 [`LeipzigValidator`](../../../src/ai/LeipzigValidator.ts) / `AutoGlossService`；导出菜单项 + i18n | golden 对拍 + Leipzig 校验通过 + 定向 vitest | 是 |
+| **C3c** | 学术 IGT LaTeX 导出（Leipzig） | L | **【已落地】** 同一 `layer_units` 读模型 + 首个翻译层 → `transcriptionIgtLatexExport` 序列化 gb4e `\gll`/`\glt`（不写回、不调 `AutoGlossService.glossUnit`）；`onExportLite('tex')` + 项目中心菜单。锚点：`src/utils/transcriptionIgtLatexExport.ts`、`LeipzigValidator`（测试断言） | golden 对拍 + Leipzig 校验通过 + 定向 vitest | 是 |
 | **C3d** | Word/docx 导出 | — | **待定**：需引入 docx 生成依赖（体积/维护/许可成本需评估）。**默认不排期**，按真实诉求再决定复用方案 | — | 是（先 Research） |
 | **C4** | 协作云增强（独立切片） | — | 现状 [collaboration-cloud](../../architecture/collaboration-cloud.md) 已落地；增强项参考 M8–M14；**非本地切片门槛** | `gate:collaboration-cloud` / `gate:greenfield-local`（按需，release 窗口） | 视项 |
 
-> **导出现状（2026-09-11 代码盘点）**：**已强** = 语言学交换格式 EAF/TextGrid/TRS/Flextext/Toolbox + 原生 JYT/JYM（均带 round-trip 导入）；**已有** = 声学选区 CSV/JSON、项目归档 bundle、AI 回答带引用纯文本复制、语料库工作集 plain/Markdown/HTML 剪贴板与 fflate 小 bundle（**B5b/B5c**，页面 flag 默认关）、转写字幕 SRT/WebVTT 与语段表 CSV/TSV（**C3a/C3b**，只出站不 round-trip）；**缺口** = 学术 IGT LaTeX(C3c)、Word(C3d 待定)。语料库轻量出站属 **B5**，勿在 C3 重复；EAF 等标准格式从 `/corpus` 接入仍待单独切片。所有导出切片须**先建内部统一读模型再序列化**，禁止反噬编辑数据模型。
+> **导出现状（2026-09-13 代码盘点）**：**已强** = 语言学交换格式 EAF/TextGrid/TRS/Flextext/Toolbox + 原生 JYT/JYM（均带 round-trip 导入）；**已有** = 声学选区 CSV/JSON、项目归档 bundle、AI 回答带引用纯文本复制、语料库工作集 plain/Markdown/HTML 剪贴板与 fflate 小 bundle（**B5b/B5c**，页面 flag 默认关）、转写字幕 SRT/WebVTT、语段表 CSV/TSV（**C3a/C3b**）与 Leipzig IGT LaTeX/`gb4e`（**C3c**，只出站不 round-trip）；**缺口** = Word(C3d 待定)。语料库轻量出站属 **B5**，勿在 C3 重复；EAF 等标准格式从 `/corpus` 接入仍待单独切片。所有导出切片须**先建内部统一读模型再序列化**，禁止反噬编辑数据模型。
 
 ### 各域子计划真源（切片内细节以此为准，本文不复制正文）
 
@@ -295,3 +295,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-11 | **B5c / 语料 P1**：HTML `ClipboardItem` 双 MIME + 空选/超长/剪贴板失败诊断码 + fflate 工作集 zip。Flag 默认 false。下一刀 C3a/b 或 B4c；B7 仍 blocked on ChatWindow 会话隔离。 |
 | 2026-09-11 | **后续评估**：[详细评估](../audits/后续路线图详细评估-2026-09-11.md)。B5c 随本 PR 合入。新增 **B4c/B4d/B3b** 余量行。Dogfood ≠ 产品开放。B7 按 L 估。 |
 | 2026-09-11 | **C3a/C3b**：转写导出菜单 SRT/WebVTT/CSV/TSV；同一 `layer_units` 读模型只序列化。下一刀 **B4c**。开放门槛现状表改为 flag-off 壳层 / Analysis ADR-0033，仍 NO-GO。 |
+| 2026-09-13 | **C3c**：Leipzig IGT LaTeX（gb4e `\gll`/`\glt`）；`onExportLite('tex')`；不写回、不调 AutoGloss。下一刀仍不排 C3d Word。 |
