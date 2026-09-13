@@ -115,7 +115,7 @@ function wordColumns(word: IgtLatexExportWord): { surface: string; gloss: string
 
 function fallbackSurfaceTokens(unit: IgtLatexExportUnit): string[] {
   const text = firstLocalizedValue(unit.transcription);
-  if (!text) return [];
+  if (text.length === 0) return [];
   return text.split(/\s+/).filter((token) => token.length > 0);
 }
 
@@ -124,11 +124,13 @@ function translationForUnit(
   translations: readonly IgtLatexTranslationRow[],
   translationLayerId: string | undefined,
 ): string {
-  if (!translationLayerId) return '';
+  if (translationLayerId === undefined || translationLayerId.length === 0) return '';
   for (const row of translations) {
     if (row.unitId !== unitId) continue;
     if (row.layerId !== translationLayerId) continue;
-    if (row.modality && row.modality !== 'text') continue;
+    if (typeof row.modality === 'string' && row.modality.length > 0 && row.modality !== 'text') {
+      continue;
+    }
     const text = typeof row.text === 'string' ? row.text.trim() : '';
     if (text.length > 0) return text;
   }
