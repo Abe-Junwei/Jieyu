@@ -13,6 +13,7 @@ type TailSliceInjectedKeys =
   | 'setShowExportMenu'
   | 'handleExportJyt'
   | 'handleExportJym'
+  | 'handleExportLite'
   | 'handleImportFile'
   | 'handleDeleteCurrentAudio'
   | 'handleDeleteCurrentProject'
@@ -88,6 +89,7 @@ export function buildReadyWorkspaceViewModelsTailSlice(
     setShowExportMenu: importExportController.setShowExportMenu,
     handleExportJyt: importExportController.handleExportJyt,
     handleExportJym: importExportController.handleExportJym,
+    handleExportLite: importExportController.handleExportLite,
     handleImportFile: importExportController.handleImportFile,
     handleDeleteCurrentAudio: projectMediaController.handleDeleteCurrentAudio,
     handleDeleteCurrentProject: projectMediaController.handleDeleteCurrentProject,

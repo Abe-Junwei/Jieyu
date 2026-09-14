@@ -17,6 +17,12 @@ import { useOrthographies } from '../orthography/useOrthographies';
 import { isImportMismatchRequiresAckError } from '../../utils/timelineImportMismatchAckError';
 import type { TimelineImportMismatchNotice } from '../../utils/timelineImportMismatch';
 import type { AnnotationImportBridgeStrategy } from './useImportExport.annotationImport';
+import {
+  downloadTranscriptionExportText,
+  serializeTranscriptionLiteExport,
+  toTranscriptionLiteExportCues,
+  type TranscriptionLiteExportFormat,
+} from '../../utils/transcriptionLiteExport';
 
 type ExportSupportModules = {
   layerSegmentQueryService: typeof import('../../services/LayerSegmentQueryService');
@@ -806,6 +812,58 @@ export function useImportExport(input: UseImportExportInput) {
         });
       },
 
+      handleExportLite: async (format: TranscriptionLiteExportFormat) => {
+        await runExport(format, async () => {
+          if (unitsOnCurrentMedia.length === 0) return;
+          const transcriptionLayer =
+            layers.find((layer) => layer.id === defaultTranscriptionLayerId) ??
+            layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault) ??
+            layers.find((layer) => layer.layerType === 'transcription');
+          const exportUnits = await buildOrthographyAwareExportUnits(
+            unitsOnCurrentMedia,
+            transcriptionLayer,
+          );
+          const relevantSpeakerIds = new Set(
+            exportUnits
+              .map((unit) => unit.speakerId)
+              .filter((id): id is string => typeof id === 'string' && id.length > 0),
+          );
+          const db = await getDb();
+          const speakers =
+            relevantSpeakerIds.size === 0
+              ? []
+              : (await db.dexie.speakers.toArray()).filter((speaker) =>
+                  relevantSpeakerIds.has(speaker.id),
+                );
+          const speakerNameById = new Map(
+            speakers.map((speaker) => [speaker.id, speaker.name] as const),
+          );
+          const cues = toTranscriptionLiteExportCues(exportUnits, speakerNameById);
+          const payload = serializeTranscriptionLiteExport(cues, format);
+          const baseName = exportNamingMediaItem
+            ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
+            : 'export';
+          downloadTranscriptionExportText(
+            `${baseName}.${payload.extension}`,
+            payload.body,
+            payload.mime,
+          );
+          const doneKey =
+            format === 'srt'
+              ? 'transcription.importExport.exportDone.srt'
+              : format === 'vtt'
+                ? 'transcription.importExport.exportDone.vtt'
+                : format === 'csv'
+                  ? 'transcription.importExport.exportDone.csv'
+                  : 'transcription.importExport.exportDone.tsv';
+          setSaveState({
+            kind: 'done',
+            message: t(locale, doneKey),
+          });
+          setShowExportMenu(false);
+        });
+      },
+
       handleExportJym: async () => {
         await runExport('jym', async () => {
           const jymService = await loadArchiveExportModule();
@@ -987,6 +1045,7 @@ export function useImportExport(input: UseImportExportInput) {
     handleExportToolbox: exportMenuActions.handleExportToolbox,
     handleExportJyt: exportMenuActions.handleExportJyt,
     handleExportJym: exportMenuActions.handleExportJym,
+    handleExportLite: exportMenuActions.handleExportLite,
     previewProjectArchiveImport: archiveImportActions.previewProjectArchiveImport,
     importProjectArchive: archiveImportActions.importProjectArchive,
     handleImportFile,

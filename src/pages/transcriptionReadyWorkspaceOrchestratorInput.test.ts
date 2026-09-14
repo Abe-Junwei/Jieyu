@@ -184,6 +184,7 @@ function makeInput(
     handleExportToolbox: vi.fn(),
     handleExportJyt: vi.fn(),
     handleExportJym: vi.fn(),
+    handleExportLite: vi.fn(),
     handleImportFile: vi.fn(),
     unitsOnCurrentMedia: [],
     isTimelineLaneHeaderCollapsed: false,

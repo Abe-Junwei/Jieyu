@@ -106,6 +106,9 @@ export interface UseOrchestratorViewModelsInput {
   >[0]['handleExportToolbox'];
   handleExportJyt: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleExportJyt'];
   handleExportJym: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleExportJym'];
+  handleExportLite: Parameters<
+    typeof useTranscriptionSectionViewModelsInput
+  >[0]['handleExportLite'];
   handleImportFile: Parameters<
     typeof useTranscriptionSectionViewModelsInput
   >[0]['handleImportFile'];
@@ -228,6 +231,7 @@ export function useOrchestratorViewModels(
     handleExportToolbox: input.handleExportToolbox,
     handleExportJyt: input.handleExportJyt,
     handleExportJym: input.handleExportJym,
+    handleExportLite: input.handleExportLite,
     handleImportFile: input.handleImportFile,
     unitsOnCurrentMedia: input.unitsOnCurrentMedia,
     rulerView: input.rulerView,

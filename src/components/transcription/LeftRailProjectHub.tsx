@@ -15,6 +15,7 @@ import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHubPreview';
 import { recordTranscriptionKeyboardAction } from '../../utils/transcriptionKeyboardActionTelemetry';
+import type { TranscriptionLiteExportFormat } from '../../utils/transcriptionLiteExport';
 import { createLogger } from '../../observability/logger';
 import { ModalPanel } from '../ui/ModalPanel';
 import { PanelButton } from '../ui/PanelButton';
@@ -93,6 +94,7 @@ interface LeftRailProjectHubProps {
   onExportToolbox: () => void;
   onExportJyt: () => Promise<void>;
   onExportJym: () => Promise<void>;
+  onExportLite: (format: TranscriptionLiteExportFormat) => Promise<void>;
 }
 
 const log = createLogger('LeftRailProjectHub');
@@ -132,6 +134,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     onExportToolbox,
     onExportJyt,
     onExportJym,
+    onExportLite,
   } = props;
 
   const showProjectHubLogicalTimeExchange = typeof onApplyTextTimeMapping === 'function';
@@ -559,6 +562,42 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       { label: t(locale, 'transcription.toolbar.export.flextext'), onClick: onExportFlextext },
       { label: t(locale, 'transcription.toolbar.export.toolbox'), onClick: onExportToolbox },
       {
+        label: t(locale, 'transcription.toolbar.export.srt'),
+        onClick: () => {
+          fireAndForget(onExportLite('srt'), {
+            context: 'src/components/transcription/LeftRailProjectHub.tsx:L567',
+            policy: 'user-visible',
+          });
+        },
+      },
+      {
+        label: t(locale, 'transcription.toolbar.export.vtt'),
+        onClick: () => {
+          fireAndForget(onExportLite('vtt'), {
+            context: 'src/components/transcription/LeftRailProjectHub.tsx:L576',
+            policy: 'user-visible',
+          });
+        },
+      },
+      {
+        label: t(locale, 'transcription.toolbar.export.csv'),
+        onClick: () => {
+          fireAndForget(onExportLite('csv'), {
+            context: 'src/components/transcription/LeftRailProjectHub.tsx:L585',
+            policy: 'user-visible',
+          });
+        },
+      },
+      {
+        label: t(locale, 'transcription.toolbar.export.tsv'),
+        onClick: () => {
+          fireAndForget(onExportLite('tsv'), {
+            context: 'src/components/transcription/LeftRailProjectHub.tsx:L594',
+            policy: 'user-visible',
+          });
+        },
+      },
+      {
         label: t(locale, 'transcription.toolbar.export.jyt'),
         separatorBefore: true,
         onClick: () => {
@@ -642,6 +681,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     onExportFlextext,
     onExportJym,
     onExportJyt,
+    onExportLite,
     onExportTextGrid,
     onExportToolbox,
     onExportTrs,

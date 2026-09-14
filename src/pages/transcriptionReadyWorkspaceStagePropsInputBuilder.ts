@@ -22,6 +22,7 @@ export type BuildReadyWorkspaceStagePropsInputFromControllers = Omit<
   | 'onExportToolbox'
   | 'onExportJyt'
   | 'onExportJym'
+  | 'onExportLite'
   | 'mediaFileInputRef'
   | 'onDirectMediaImport'
   | 'activeWaveformUnitId'
@@ -51,6 +52,7 @@ export type BuildReadyWorkspaceStagePropsInputFromControllers = Omit<
     handleExportToolbox: BuildReadyWorkspaceStagePropsInput['onExportToolbox'];
     handleExportJyt: BuildReadyWorkspaceStagePropsInput['onExportJyt'];
     handleExportJym: BuildReadyWorkspaceStagePropsInput['onExportJym'];
+    handleExportLite: BuildReadyWorkspaceStagePropsInput['onExportLite'];
   };
   applyTextTimeMapping: NonNullable<BuildReadyWorkspaceStagePropsInput['onApplyTextTimeMapping']>;
   segmentScopeMediaId?: string;
@@ -105,6 +107,7 @@ export function buildReadyWorkspaceStagePropsInput(
     onExportToolbox: importExportController.handleExportToolbox,
     onExportJyt: importExportController.handleExportJyt,
     onExportJym: importExportController.handleExportJym,
+    onExportLite: importExportController.handleExportLite,
     mediaFileInputRef: projectMediaController.mediaFileInputRef,
     onDirectMediaImport: projectMediaController.handleDirectMediaImport,
     activeWaveformUnitId:

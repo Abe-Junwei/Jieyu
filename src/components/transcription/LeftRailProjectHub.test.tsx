@@ -77,6 +77,7 @@ function renderHub(overrides: Partial<Parameters<typeof LeftRailProjectHub>[0]> 
         onExportToolbox={vi.fn()}
         onExportJyt={vi.fn(async () => undefined)}
         onExportJym={vi.fn(async () => undefined)}
+        onExportLite={vi.fn(async () => undefined)}
         {...overrides}
       />
     </LocaleProvider>,
@@ -429,6 +430,7 @@ describe('LeftRailProjectHub project import dialog', () => {
           onExportToolbox={vi.fn()}
           onExportJyt={vi.fn(async () => undefined)}
           onExportJym={vi.fn(async () => undefined)}
+          onExportLite={vi.fn(async () => undefined)}
         />
       </LocaleProvider>,
     );
@@ -438,5 +440,20 @@ describe('LeftRailProjectHub project import dialog', () => {
     fireEvent.mouseEnter(exportText.closest('button') as HTMLButtonElement);
 
     expect(screen.queryByText('校准时间映射…')).toBeNull();
+  });
+
+  it('offers SRT and CSV export items and calls onExportLite', async () => {
+    const onExportLite = vi.fn(async () => undefined);
+    renderHub({ onExportLite });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    fireEvent.mouseEnter((await screen.findByText('导出')).closest('button') as HTMLButtonElement);
+
+    const srtItem = await screen.findByText('导出为字幕 SRT (.srt)');
+    expect(await screen.findByText('导出为字幕 WebVTT (.vtt)')).toBeTruthy();
+    expect(await screen.findByText('导出为表格 CSV (.csv)')).toBeTruthy();
+    expect(await screen.findByText('导出为表格 TSV (.tsv)')).toBeTruthy();
+    fireEvent.click(srtItem);
+    expect(onExportLite).toHaveBeenCalledWith('srt');
   });
 });

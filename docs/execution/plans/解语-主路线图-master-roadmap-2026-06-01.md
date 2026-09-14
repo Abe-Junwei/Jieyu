@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-11）**：本 PR 收口 **B5c / 语料 P1**（HTML 剪贴板 + 诊断 + fflate 小 bundle）。之后余量：C3a/b 或 **B4c**；**B7** 仍 blocked on ChatWindow 会话隔离（非缺 A7 代码）。不启动 EAF/TextGrid；不把 dogfood 当产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-11）**：**B4c** 标注段播放（键盘合同已有，缺接线）。本切片已收口 **C3a/C3b**（转写 SRT/WebVTT/CSV/TSV 只读导出）。**B7** 仍 blocked on ChatWindow 会话隔离（非缺 A7 代码）。不启动 EAF/TextGrid；不把 dogfood 当产品开放；不切 `annotationPageEnabled` / `corpusLibraryPageEnabled` 默认 `true`。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -217,13 +217,13 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | --- | --- | --- | --- | --- | --- |
 | **C1** | 对外前最小检查执行 | M | [对外前最小检查](../release-gates/对外前最小检查-2026-05-11.md)：隐私/导出范围说明、发布 smoke、**Agent 架构节（A8 + A9 + A11 + A14 抽样）** | 检查单逐项过；`test:e2e:chromium` 全绿；单次 send turn 可串联 audit + trajectory | 否 |
 | **C2** | i18n 基线计划性消减（6B） | M | 拍板 6B；`check:i18n-hardcoded:guard` 不新增债 + 按目录消减；AI 文案走 `src/ai/messages/` 与 UI `dictKeys` 分离 | 基线 hits 按目标下降；guard 绿 | 否 |
-| **C3a** | 字幕导出（SRT + WebVTT） | M | 缺口项。时码语段读模型 → 新增 `subtitleExportSerialization` 工具 → 转写导出菜单项 + 下载 + i18n；锚点同 `transcriptionExportCallbacks` / `useImportExport.ts` 导出菜单 | golden fixture 序列化对拍 + 定向 vitest；UI 触发可下载 | 否 |
-| **C3b** | 表格转写导出（CSV / TSV） | M | 缺口项。逐语段行（start/end/speaker/text/可选 gloss）→ 序列化工具 → 导出菜单项 + i18n | golden 对拍 + 定向 vitest | 否 |
+| **C3a** | 字幕导出（SRT + WebVTT） | M | **【已落地】** 同一 `layer_units` 读模型（`buildOrthographyAwareExportUnits`）→ `transcriptionLiteExport` 序列化 SubRip + WebVTT（无 STYLE/NOTE/定位）→ 项目中心导出菜单 + `handleExportLite`；不写回编辑模型。锚点：`src/utils/transcriptionLiteExport.ts`、`useImportExport.handleExportLite`、`transcriptionExportCallbacks` | golden 对拍 + 定向 vitest；空语段不下载 | 否 |
+| **C3b** | 表格转写导出（CSV / TSV） | M | **【已落地】** 与 C3a 同一读模型与单一 `onExportLite(format)`；RFC 4180 CSV（UTF-8 BOM）+ TSV（tab 净化）；逐语段 start/end/speaker/text/gloss | golden 对拍 + 定向 vitest | 否 |
 | **C3c** | 学术 IGT LaTeX 导出（Leipzig） | L | 缺口项。token 层（text/gloss/translation）→ Leipzig `gll`/expex 序列化；复用 [`LeipzigValidator`](../../../src/ai/LeipzigValidator.ts) / `AutoGlossService`；导出菜单项 + i18n | golden 对拍 + Leipzig 校验通过 + 定向 vitest | 是 |
 | **C3d** | Word/docx 导出 | — | **待定**：需引入 docx 生成依赖（体积/维护/许可成本需评估）。**默认不排期**，按真实诉求再决定复用方案 | — | 是（先 Research） |
 | **C4** | 协作云增强（独立切片） | — | 现状 [collaboration-cloud](../../architecture/collaboration-cloud.md) 已落地；增强项参考 M8–M14；**非本地切片门槛** | `gate:collaboration-cloud` / `gate:greenfield-local`（按需，release 窗口） | 视项 |
 
-> **导出现状（2026-09-11 代码盘点）**：**已强** = 语言学交换格式 EAF/TextGrid/TRS/Flextext/Toolbox + 原生 JYT/JYM（均带 round-trip 导入）；**已有** = 声学选区 CSV/JSON、项目归档 bundle、AI 回答带引用纯文本复制、语料库工作集 plain/Markdown/HTML 剪贴板与 fflate 小 bundle（**B5b/B5c**，页面 flag 默认关）；**缺口** = 字幕(C3a)、表格(C3b)、学术 IGT LaTeX(C3c)、Word(C3d 待定)。语料库轻量出站属 **B5**，勿在 C3 重复；EAF 等标准格式从 `/corpus` 接入仍待单独切片。所有导出切片须**先建内部统一读模型再序列化**，禁止反噬编辑数据模型。
+> **导出现状（2026-09-11 代码盘点）**：**已强** = 语言学交换格式 EAF/TextGrid/TRS/Flextext/Toolbox + 原生 JYT/JYM（均带 round-trip 导入）；**已有** = 声学选区 CSV/JSON、项目归档 bundle、AI 回答带引用纯文本复制、语料库工作集 plain/Markdown/HTML 剪贴板与 fflate 小 bundle（**B5b/B5c**，页面 flag 默认关）、转写字幕 SRT/WebVTT 与语段表 CSV/TSV（**C3a/C3b**，只出站不 round-trip）；**缺口** = 学术 IGT LaTeX(C3c)、Word(C3d 待定)。语料库轻量出站属 **B5**，勿在 C3 重复；EAF 等标准格式从 `/corpus` 接入仍待单独切片。所有导出切片须**先建内部统一读模型再序列化**，禁止反噬编辑数据模型。
 
 ### 各域子计划真源（切片内细节以此为准，本文不复制正文）
 
@@ -294,3 +294,4 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-10 | **B2**：`workspaceEvents.ts` 接线；LinguisticService 单写 persist 后 emit；annotation/corpus/lexicon 按 unit/lexeme 增量刷新，草稿不覆盖。`saveUnitsBatch` 不 emit。 |
 | 2026-09-11 | **B5c / 语料 P1**：HTML `ClipboardItem` 双 MIME + 空选/超长/剪贴板失败诊断码 + fflate 工作集 zip。Flag 默认 false。下一刀 C3a/b 或 B4c；B7 仍 blocked on ChatWindow 会话隔离。 |
 | 2026-09-11 | **后续评估**：[详细评估](../audits/后续路线图详细评估-2026-09-11.md)。B5c 随本 PR 合入。新增 **B4c/B4d/B3b** 余量行。Dogfood ≠ 产品开放。B7 按 L 估。 |
+| 2026-09-11 | **C3a/C3b**：转写导出菜单 SRT/WebVTT/CSV/TSV；同一 `layer_units` 读模型只序列化。下一刀 **B4c**。开放门槛现状表改为 flag-off 壳层 / Analysis ADR-0033，仍 NO-GO。 |

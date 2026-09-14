@@ -71,6 +71,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   onExportToolbox: BuildReadyWorkspaceProjectHubPropsInput['onExportToolbox'];
   onExportJyt: BuildReadyWorkspaceProjectHubPropsInput['onExportJyt'];
   onExportJym: BuildReadyWorkspaceProjectHubPropsInput['onExportJym'];
+  onExportLite: BuildReadyWorkspaceProjectHubPropsInput['onExportLite'];
   mediaFileInputRef: BuildReadyWorkspaceMediaInputPropsInput['mediaFileInputRef'];
   onDirectMediaImport: BuildReadyWorkspaceMediaInputPropsInput['onDirectMediaImport'];
   waveformSectionRef: ReadyWorkspaceWorkspaceAreaProps['waveformSectionRef'];
@@ -255,6 +256,7 @@ export function buildReadyWorkspaceStageProps(
       onExportToolbox: input.onExportToolbox,
       onExportJyt: input.onExportJyt,
       onExportJym: input.onExportJym,
+      onExportLite: input.onExportLite,
     }),
     mediaInputProps: buildReadyWorkspaceMediaInputProps({
       mediaFileInputRef: input.mediaFileInputRef,

@@ -18,6 +18,7 @@ import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import type { TranscriptionReviewPreset } from '../utils/transcriptionReviewQueue';
 import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
+import type { TranscriptionLiteExportFormat } from '../utils/transcriptionLiteExport';
 
 export type TranscriptionPageToolbarProps = {
   filename: string;
@@ -57,6 +58,7 @@ export type TranscriptionPageToolbarProps = {
     onExportToolbox: () => void;
     onExportJyt: () => Promise<void>;
     onExportJym: () => Promise<void>;
+    onExportLite: (format: TranscriptionLiteExportFormat) => Promise<void>;
     onImportFile: (file: File) => void;
   };
   onRefresh: () => void;

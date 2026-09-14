@@ -57,9 +57,23 @@ function parseActionLabelKeysFromVoiceIntentUi(source) {
   const out = [];
   const lineRe =
     /^\s{2}([a-zA-Z][a-zA-Z0-9_]*):\s*'(transcription\.voiceAction\.[^']+)'\s*,?\s*$/;
-  for (const line of source.split('\n')) {
+  const wrappedKeyRe = /^\s{2}([a-zA-Z][a-zA-Z0-9_]*)\s*:\s*$/;
+  const wrappedValueRe = /^\s+'(transcription\.voiceAction\.[^']+)'\s*,?\s*$/;
+  const lines = source.split('\n');
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? '';
     const m = line.match(lineRe);
-    if (m) out.push({ actionId: m[1], dictKey: m[2] });
+    if (m) {
+      out.push({ actionId: m[1], dictKey: m[2] });
+      continue;
+    }
+    const wrap = line.match(wrappedKeyRe);
+    if (!wrap) continue;
+    const next = lines[i + 1] ?? '';
+    const vm = next.match(wrappedValueRe);
+    if (!vm) continue;
+    out.push({ actionId: wrap[1], dictKey: vm[1] });
+    i += 1;
   }
   return out;
 }
