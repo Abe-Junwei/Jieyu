@@ -55,150 +55,172 @@ export function useTranscriptionSnapshotLoader({
   setUnitDrafts,
   setUnits,
 }: Params) {
-  const loadSnapshot = useCallback(async () => {
-    const db = await getDb();
-    const [unitRowsRaw, anchorDocs, layerDocs, mediaDocs, speakerDocs, linkDocs] =
-      await Promise.all([
-        listUnitDocsFromCanonicalLayerUnits(db),
-        db.collections.anchors.find().exec(),
-        db.collections.layers.find().exec(),
-        db.collections.media_items.find().exec(),
-        db.collections.speakers.find().exec(),
-        db.collections.layer_links.find().exec(),
-      ]);
-    const anchorRows = anchorDocs.map((doc) => doc.toJSON() as unknown as AnchorDocType);
-    const allLayerRows = layerDocs.map((doc) => doc.toJSON() as unknown as LayerDocType);
-    const translationRows = await listUnitTextsFromSegmentation(db);
-    const mediaRows = mediaDocs.map((doc) => doc.toJSON() as unknown as MediaItemDocType);
-    const speakerRows = speakerDocs.map((doc) => doc.toJSON() as unknown as SpeakerDocType);
-    const linkRows = linkDocs.map((doc) => doc.toJSON() as unknown as LayerLinkDocType);
+  const loadSnapshot = useCallback(
+    async (scopeTextId?: string) => {
+      const db = await getDb();
+      const [unitRowsRaw, anchorDocs, layerDocs, mediaDocs, speakerDocs, linkDocs] =
+        await Promise.all([
+          listUnitDocsFromCanonicalLayerUnits(db),
+          db.collections.anchors.find().exec(),
+          db.collections.layers.find().exec(),
+          db.collections.media_items.find().exec(),
+          db.collections.speakers.find().exec(),
+          db.collections.layer_links.find().exec(),
+        ]);
+      const anchorRows = anchorDocs.map((doc) => doc.toJSON() as unknown as AnchorDocType);
+      const allLayerRows = layerDocs.map((doc) => doc.toJSON() as unknown as LayerDocType);
+      const translationRows = await listUnitTextsFromSegmentation(db);
+      const mediaRows = mediaDocs.map((doc) => doc.toJSON() as unknown as MediaItemDocType);
+      const speakerRows = speakerDocs.map((doc) => doc.toJSON() as unknown as SpeakerDocType);
+      const linkRows = linkDocs.map((doc) => doc.toJSON() as unknown as LayerLinkDocType);
 
-    // token/morpheme 延迟加载，不阻塞首屏 | Deferred to loadLinguisticAnnotations
-    const unitRows = unitRowsRaw;
+      // token/morpheme 延迟加载，不阻塞首屏 | Deferred to loadLinguisticAnnotations
+      const unitRows = unitRowsRaw;
 
-    const activeTextId = unitRows[0]?.textId;
-    const layerRows = activeTextId
-      ? allLayerRows.filter((l) => l.textId === activeTextId)
-      : allLayerRows;
+      const scopedTextId = typeof scopeTextId === 'string' ? scopeTextId.trim() : '';
+      const firstUnitTextId =
+        typeof unitRows[0]?.textId === 'string' ? unitRows[0].textId.trim() : '';
+      const resolvedTextId = scopedTextId.length > 0 ? scopedTextId : firstUnitTextId;
+      const layerRows =
+        resolvedTextId.length > 0
+          ? allLayerRows.filter((l) => l.textId === resolvedTextId)
+          : allLayerRows;
 
-    const projectLayerIds = new Set(layerRows.map((l) => l.id));
-    const scopedLinksForInvariant = scopeLayerLinksToLayerIdSet(linkRows, projectLayerIds);
-    assertTranscriptionDependencyLayerInvariant({
-      layers: layerRows,
-      layerLinks: scopedLinksForInvariant,
-    });
+      const projectLayerIds = new Set(layerRows.map((l) => l.id));
+      const scopedLinksForInvariant = scopeLayerLinksToLayerIdSet(linkRows, projectLayerIds);
+      assertTranscriptionDependencyLayerInvariant({
+        layers: layerRows,
+        layerLinks: scopedLinksForInvariant,
+      });
 
-    setUnits(unitRows);
-    setAnchors(anchorRows);
-    setLayers(layerRows);
-    setTranslations(translationRows);
-    setMediaItems(mediaRows);
-    setSpeakers(speakerRows);
-    setLayerLinks(linkRows);
+      setUnits(unitRows);
+      setAnchors(anchorRows);
+      setLayers(layerRows);
+      setTranslations(translationRows);
+      setMediaItems(mediaRows);
+      setSpeakers(speakerRows);
+      setLayerLinks(linkRows);
 
-    if (setSelectedMediaId) {
-      const textId = activeTextId ?? '';
-      const projectMedia = textId ? mediaRows.filter((m) => m.textId === textId) : mediaRows;
-      const fromUnit = unitRows
-        .map((u) => u.mediaId?.trim())
-        .find((id): id is string => Boolean(id && projectMedia.some((m) => m.id === id)));
-      const initialMediaId = fromUnit ?? projectMedia[0]?.id;
-      if (initialMediaId) {
-        setSelectedMediaId((prev) => {
-          const p = typeof prev === 'string' ? prev.trim() : '';
-          return p.length > 0 ? prev : initialMediaId;
-        });
-      }
-    }
+      const scopedUnits =
+        resolvedTextId.length > 0
+          ? unitRows.filter((row) => row.textId === resolvedTextId)
+          : unitRows;
 
-    setUnitDrafts(() => {
-      const next: Record<string, string> = {};
-      unitRows.forEach((row) => {
-        const defaultTrcLayer =
-          layerRows.find((l) => l.layerType === 'transcription' && l.isDefault) ??
-          layerRows.find((l) => l.layerType === 'transcription');
-        if (defaultTrcLayer) {
-          const tr = translationRows.find(
-            (t) => t.unitId === row.id && t.layerId === defaultTrcLayer.id,
+      if (setSelectedMediaId) {
+        const projectMedia =
+          resolvedTextId.length > 0
+            ? mediaRows.filter((m) => m.textId === resolvedTextId)
+            : mediaRows;
+        const fromUnit = scopedUnits
+          .map((u) => u.mediaId?.trim())
+          .find(
+            (id): id is string =>
+              typeof id === 'string' && id.length > 0 && projectMedia.some((m) => m.id === id),
           );
-          next[row.id] = tr?.text ?? '';
-        } else {
-          next[row.id] = row.transcription?.default ?? '';
+        const initialMediaId = fromUnit ?? projectMedia[0]?.id;
+        if (typeof initialMediaId === 'string' && initialMediaId.length > 0) {
+          setSelectedMediaId((prev) => {
+            const p = typeof prev === 'string' ? prev.trim() : '';
+            return p.length > 0 ? prev : initialMediaId;
+          });
         }
-      });
-      return next;
-    });
-
-    const effectiveSelectedUnitId = unitRows[0]?.id || '';
-    const initialSelectedLayerId =
-      layerRows.find((item) => item.layerType === 'translation')?.id ??
-      layerRows.find((item) => item.layerType === 'transcription')?.id ??
-      '';
-    setSelectedUnitIds?.(effectiveSelectedUnitId ? new Set([effectiveSelectedUnitId]) : new Set());
-    setSelectedTimelineUnit?.(
-      effectiveSelectedUnitId
-        ? createTimelineUnit(initialSelectedLayerId, effectiveSelectedUnitId, 'unit')
-        : null,
-    );
-    setSelectedLayerId((prev) => {
-      if (!prev) {
-        if (initialSelectedLayerId) return initialSelectedLayerId;
       }
-      return prev;
-    });
 
-    dbNameRef.current = db.name;
-    const translationLayerRows = layerRows.filter((l) => l.layerType === 'translation');
-    const projectTextId = unitRows[0]?.textId ?? layerRows[0]?.textId ?? '';
-    const unitCount = unitRows.length;
-    let unifiedUnitCount = unitCount;
-    let textLogicalDurationSecFromSnapshot: number | undefined;
-    if (projectTextId.trim()) {
-      const [projectSegments, textDoc] = await Promise.all([
-        LayerSegmentQueryService.listSegmentsByTextId(projectTextId),
-        LinguisticService.timeline.getTextById(projectTextId),
-      ]);
-      unifiedUnitCount = mergedTimelineUnitSemanticKeyCount({
-        unitIds: unitRows.map((row) => row.id),
-        segments: projectSegments,
+      setUnitDrafts(() => {
+        const next: Record<string, string> = {};
+        unitRows.forEach((row) => {
+          const defaultTrcLayer =
+            layerRows.find((l) => l.layerType === 'transcription' && l.isDefault) ??
+            layerRows.find((l) => l.layerType === 'transcription');
+          if (defaultTrcLayer) {
+            const tr = translationRows.find(
+              (t) => t.unitId === row.id && t.layerId === defaultTrcLayer.id,
+            );
+            next[row.id] = tr?.text ?? '';
+          } else {
+            next[row.id] = row.transcription?.default ?? '';
+          }
+        });
+        return next;
       });
-      const m = textDoc?.metadata as { logicalDurationSec?: unknown } | undefined;
-      if (
-        typeof m?.logicalDurationSec === 'number' &&
-        Number.isFinite(m.logicalDurationSec) &&
-        m.logicalDurationSec > 0
-      ) {
-        textLogicalDurationSecFromSnapshot = m.logicalDurationSec;
-      }
-    }
 
-    setState({
-      phase: 'ready',
-      dbName: db.name,
-      unitCount,
-      unifiedUnitCount,
-      ...(textLogicalDurationSecFromSnapshot !== undefined
-        ? { textLogicalDurationSecFromSnapshot }
-        : {}),
-      translationLayerCount: translationLayerRows.length,
-      translationRecordCount: translationRows.length,
-    });
-  }, [
-    dbNameRef,
-    setAnchors,
-    setLayerLinks,
-    setLayers,
-    setMediaItems,
-    setSpeakers,
-    setSelectedLayerId,
-    setSelectedUnitIds,
-    setSelectedTimelineUnit,
-    setState,
-    setSelectedMediaId,
-    setTranslations,
-    setUnitDrafts,
-    setUnits,
-  ]);
+      const rawSelectedUnitId = scopedUnits[0]?.id;
+      const effectiveSelectedUnitId =
+        typeof rawSelectedUnitId === 'string' ? rawSelectedUnitId.trim() : '';
+      const initialSelectedLayerId =
+        layerRows.find((item) => item.layerType === 'translation')?.id ??
+        layerRows.find((item) => item.layerType === 'transcription')?.id ??
+        '';
+      setSelectedUnitIds?.(
+        effectiveSelectedUnitId.length > 0 ? new Set([effectiveSelectedUnitId]) : new Set(),
+      );
+      setSelectedTimelineUnit?.(
+        effectiveSelectedUnitId.length > 0
+          ? createTimelineUnit(initialSelectedLayerId, effectiveSelectedUnitId, 'unit')
+          : null,
+      );
+      setSelectedLayerId((prev) => {
+        if (!prev) {
+          if (initialSelectedLayerId) return initialSelectedLayerId;
+        }
+        return prev;
+      });
+
+      dbNameRef.current = db.name;
+      const translationLayerRows = layerRows.filter((l) => l.layerType === 'translation');
+      const projectTextId =
+        resolvedTextId.length > 0 ? resolvedTextId : (layerRows[0]?.textId ?? '');
+      const unitCount = unitRows.length;
+      let unifiedUnitCount = unitCount;
+      let textLogicalDurationSecFromSnapshot: number | undefined;
+      if (projectTextId.trim()) {
+        const [projectSegments, textDoc] = await Promise.all([
+          LayerSegmentQueryService.listSegmentsByTextId(projectTextId),
+          LinguisticService.timeline.getTextById(projectTextId),
+        ]);
+        unifiedUnitCount = mergedTimelineUnitSemanticKeyCount({
+          unitIds: unitRows.map((row) => row.id),
+          segments: projectSegments,
+        });
+        const m = textDoc?.metadata as { logicalDurationSec?: unknown } | undefined;
+        if (
+          typeof m?.logicalDurationSec === 'number' &&
+          Number.isFinite(m.logicalDurationSec) &&
+          m.logicalDurationSec > 0
+        ) {
+          textLogicalDurationSecFromSnapshot = m.logicalDurationSec;
+        }
+      }
+
+      setState({
+        phase: 'ready',
+        dbName: db.name,
+        unitCount,
+        unifiedUnitCount,
+        ...(textLogicalDurationSecFromSnapshot !== undefined
+          ? { textLogicalDurationSecFromSnapshot }
+          : {}),
+        translationLayerCount: translationLayerRows.length,
+        translationRecordCount: translationRows.length,
+      });
+    },
+    [
+      dbNameRef,
+      setAnchors,
+      setLayerLinks,
+      setLayers,
+      setMediaItems,
+      setSpeakers,
+      setSelectedLayerId,
+      setSelectedUnitIds,
+      setSelectedTimelineUnit,
+      setState,
+      setSelectedMediaId,
+      setTranslations,
+      setUnitDrafts,
+      setUnits,
+    ],
+  );
 
   /**
    * 延迟加载 token/morpheme 并合并到 units 的 words 缓存 |
