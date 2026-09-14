@@ -16,6 +16,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **B4f annotation secondary auto-tokenization**: `/annotation` previews Unicode word splits with no writes, then replaces `unit_tokens` only when the unit has no POS, gloss, morphemes, lexeme links, or dirty drafts. Annotated units store a pending `alternativeAnalysis` candidate instead. Empty or unchanged proposals do not write. No new flag.
 - **B3b lexicon entry edit**: `/lexicon` can create and save lemma / primary gloss / citation / language / notes via `LinguisticService.lexemes.save`, then `list()` readback. Empty lemma does not write. No ChatWindow, no new flag, no R8 key split. Attachments stay behind `lexiconAttachmentsEnabled`.
 - **B4e annotation AutoGloss preview**: `/annotation` previews lexeme matches without calling `AutoGlossService.glossUnit`, then writes `unit_tokens.gloss` and `token_lexeme_links` only after confirm. Dirty drafts and tokens that already have gloss are skipped.
 - **B4d annotation notes / tags / selfCertainty**: Unit notes persist in `user_notes` (`targetType: unit`); tag is `UserNoteDocType.category`; self-certainty patches that `layer_units` row via `saveBatch` and readback. Does not edit transcription or timing.
