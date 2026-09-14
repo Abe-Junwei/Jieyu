@@ -121,6 +121,10 @@ export function useTranscriptionSnapshotLoader({
         if (typeof initialMediaId === 'string' && initialMediaId.length > 0) {
           setSelectedMediaId((prev) => {
             const p = typeof prev === 'string' ? prev.trim() : '';
+            if (scopedTextId.length > 0) {
+              const prevInProject = p.length > 0 && projectMedia.some((m) => m.id === p);
+              return prevInProject ? prev : initialMediaId;
+            }
             return p.length > 0 ? prev : initialMediaId;
           });
         }
@@ -179,7 +183,7 @@ export function useTranscriptionSnapshotLoader({
           LinguisticService.timeline.getTextById(projectTextId),
         ]);
         unifiedUnitCount = mergedTimelineUnitSemanticKeyCount({
-          unitIds: unitRows.map((row) => row.id),
+          unitIds: scopedUnits.map((row) => row.id),
           segments: projectSegments,
         });
         const m = textDoc?.metadata as { logicalDurationSec?: unknown } | undefined;

@@ -457,7 +457,7 @@ describe('useTranscriptionSnapshotLoader', () => {
     let capturedLayers: LayerDocType[] = [];
     let capturedUnits: LayerUnitDocType[] = [];
     let capturedSelectedUnitIds = new Set<string>();
-    let capturedMediaId = '';
+    let capturedMediaId = 'media-a';
     const setLayers = vi.fn((next: React.SetStateAction<LayerDocType[]>) => {
       capturedLayers = typeof next === 'function' ? next(capturedLayers) : next;
     });
@@ -470,6 +470,7 @@ describe('useTranscriptionSnapshotLoader', () => {
     const setSelectedMediaId = vi.fn((next: React.SetStateAction<string>) => {
       capturedMediaId = typeof next === 'function' ? next(capturedMediaId) : next;
     });
+    const setState = vi.fn<(next: React.SetStateAction<DbState>) => void>();
 
     const dbNameRef = { current: undefined as string | undefined };
     const { result } = renderHook(() =>
@@ -484,7 +485,7 @@ describe('useTranscriptionSnapshotLoader', () => {
         setSelectedUnitIds,
         setSelectedTimelineUnit: vi.fn(),
         setSelectedMediaId,
-        setState: vi.fn(),
+        setState,
         setTranslations: vi.fn(),
         setUnitDrafts: vi.fn(),
         setUnits,
@@ -499,5 +500,17 @@ describe('useTranscriptionSnapshotLoader', () => {
     expect(capturedUnits.map((unit) => unit.id).sort()).toEqual(['unit-a', 'unit-b']);
     expect([...capturedSelectedUnitIds]).toEqual(['unit-b']);
     expect(capturedMediaId).toBe('media-b');
+
+    const readyPayload = setState.mock.calls
+      .map((c) => c[0])
+      .find(
+        (arg): arg is Extract<DbState, { phase: 'ready' }> =>
+          typeof arg === 'object' &&
+          arg !== null &&
+          'phase' in arg &&
+          (arg as DbState).phase === 'ready',
+      );
+    expect(readyPayload?.unitCount).toBe(2);
+    expect(readyPayload?.unifiedUnitCount).toBe(1);
   });
 });
