@@ -458,6 +458,7 @@ describe('useTranscriptionSnapshotLoader', () => {
     let capturedUnits: LayerUnitDocType[] = [];
     let capturedSelectedUnitIds = new Set<string>();
     let capturedMediaId = 'media-a';
+    let capturedLayerId = 'layer-a';
     const setLayers = vi.fn((next: React.SetStateAction<LayerDocType[]>) => {
       capturedLayers = typeof next === 'function' ? next(capturedLayers) : next;
     });
@@ -470,6 +471,9 @@ describe('useTranscriptionSnapshotLoader', () => {
     const setSelectedMediaId = vi.fn((next: React.SetStateAction<string>) => {
       capturedMediaId = typeof next === 'function' ? next(capturedMediaId) : next;
     });
+    const setSelectedLayerId = vi.fn((next: React.SetStateAction<string>) => {
+      capturedLayerId = typeof next === 'function' ? next(capturedLayerId) : next;
+    });
     const setState = vi.fn<(next: React.SetStateAction<DbState>) => void>();
 
     const dbNameRef = { current: undefined as string | undefined };
@@ -481,7 +485,7 @@ describe('useTranscriptionSnapshotLoader', () => {
         setLayers,
         setMediaItems: vi.fn(),
         setSpeakers: vi.fn(),
-        setSelectedLayerId: vi.fn(),
+        setSelectedLayerId,
         setSelectedUnitIds,
         setSelectedTimelineUnit: vi.fn(),
         setSelectedMediaId,
@@ -500,6 +504,7 @@ describe('useTranscriptionSnapshotLoader', () => {
     expect(capturedUnits.map((unit) => unit.id).sort()).toEqual(['unit-a', 'unit-b']);
     expect([...capturedSelectedUnitIds]).toEqual(['unit-b']);
     expect(capturedMediaId).toBe('media-b');
+    expect(capturedLayerId).toBe('layer-b');
 
     const readyPayload = setState.mock.calls
       .map((c) => c[0])

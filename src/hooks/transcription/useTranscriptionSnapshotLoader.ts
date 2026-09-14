@@ -164,8 +164,14 @@ export function useTranscriptionSnapshotLoader({
           : null,
       );
       setSelectedLayerId((prev) => {
-        if (!prev) {
-          if (initialSelectedLayerId) return initialSelectedLayerId;
+        const prevId = typeof prev === 'string' ? prev.trim() : '';
+        const prevInProject = prevId.length > 0 && layerRows.some((layer) => layer.id === prevId);
+        if (scopedTextId.length > 0) {
+          if (prevInProject) return prev;
+          return initialSelectedLayerId.length > 0 ? initialSelectedLayerId : prev;
+        }
+        if (prevId.length === 0 && initialSelectedLayerId.length > 0) {
+          return initialSelectedLayerId;
         }
         return prev;
       });
