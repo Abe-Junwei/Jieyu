@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  pruneCorpusBasketToExistingUnitIds,
   readCorpusBasketSession,
   resetCorpusBasketSessionForTests,
   syncCorpusBasketScope,
@@ -44,6 +45,14 @@ describe('corpusBasketSession', () => {
     toggleCorpusBasketUnit('u-corpus');
     expect(selectedUnitIds).toEqual(['u-transcription']);
     expect(readCorpusBasketSession().unitIds).toEqual(['u-corpus']);
+  });
+
+  it('prunes unit ids that disappeared from the current text index', () => {
+    syncCorpusBasketScope('tid-1');
+    toggleCorpusBasketUnit('uid-1');
+    toggleCorpusBasketUnit('uid-gone');
+    expect(pruneCorpusBasketToExistingUnitIds(['uid-1', 'uid-2']).unitIds).toEqual(['uid-1']);
+    expect(readCorpusBasketSession().unitIds).toEqual(['uid-1']);
   });
 
   it('does not persist the workset to sessionStorage', () => {

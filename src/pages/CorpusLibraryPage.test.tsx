@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppSidePaneProvider } from '../contexts/AppSidePaneContext';
 import { LocaleProvider } from '../i18n';
-import { resetCorpusBasketSessionForTests } from './corpusBasketSession';
+import { readCorpusBasketSession, resetCorpusBasketSessionForTests } from './corpusBasketSession';
 import { CORPUS_VIEW_STATE_KEY, resetCorpusViewStateForTests } from './corpusViewState';
 
 const { mockListCorpusIndexByTextId, featureFlagState, mockDownloadCorpusWorksetBundle } =
@@ -271,6 +271,28 @@ describe('CorpusLibraryPage', () => {
         'updated first sentence',
       );
     });
+  });
+
+  it('drops deleted units from the workset instead of exporting a silent partial basket', async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    featureFlagState.corpusLibraryPageEnabled = true;
+    mockListCorpusIndexByTextId.mockResolvedValue(SAMPLE_UNITS);
+    renderPage('/corpus?textId=tid-1&mediaId=mid-1');
+    const first = await screen.findByTestId('corpus-library-unit-uid-1', {}, { timeout: 4000 });
+    fireEvent.click(first.querySelector('input[type="checkbox"]') as HTMLInputElement);
+    expect((first.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByTestId('corpus-library-copy-plain')).toHaveProperty('disabled', false);
+
+    mockListCorpusIndexByTextId.mockResolvedValue([SAMPLE_UNITS[1], SAMPLE_UNITS[2]]);
+    dispatchWorkspaceUnitUpdated({ unitId: 'uid-1', revision: 22 });
+    await waitFor(() => {
+      expect(screen.queryByTestId('corpus-library-unit-uid-1')).toBeNull();
+      expect(screen.getByTestId('corpus-library-copy-plain')).toHaveProperty('disabled', true);
+    });
+    expect(readCorpusBasketSession().unitIds).toEqual([]);
+    fireEvent.click(screen.getByTestId('corpus-library-copy-plain'));
+    expect(writeText).not.toHaveBeenCalled();
   });
 
   it('copies basket html with ClipboardItem even when the list filter hides a selected unit', async () => {
