@@ -10,6 +10,9 @@ export const TRANSCRIPTION_LITE_EXPORT_FORMATS = ['srt', 'vtt', 'csv', 'tsv'] as
 
 export type TranscriptionLiteExportFormat = (typeof TRANSCRIPTION_LITE_EXPORT_FORMATS)[number];
 
+/** C3a/b lite formats plus C3c gb4e LaTeX (`tex`). */
+export type TranscriptionOutboundExportFormat = TranscriptionLiteExportFormat | 'tex';
+
 export type TranscriptionLiteExportCue = {
   startSec: number;
   endSec: number;

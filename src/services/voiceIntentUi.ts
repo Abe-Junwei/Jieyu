@@ -76,6 +76,7 @@ const ACTION_LABEL_KEYS: Record<ActionId, DictKey> = {
   toolbarExportVtt: 'transcription.voiceAction.toolbarExportVtt',
   toolbarExportCsv: 'transcription.voiceAction.toolbarExportCsv',
   toolbarExportTsv: 'transcription.voiceAction.toolbarExportTsv',
+  toolbarExportTex: 'transcription.voiceAction.toolbarExportTex',
   toolbarImportAnnotationFile: 'transcription.voiceAction.toolbarImportAnnotationFile',
   toolbarOpenSpeakerManagementPanel: 'transcription.voiceAction.toolbarOpenSpeakerManagementPanel',
   toolbarPreviewProjectArchiveImport:
@@ -170,11 +171,13 @@ const VOICE_ALIAS_REASON_KEYS = {
 function isVoiceAliasLearningLogEntry(entry: unknown): entry is VoiceAliasLearningLogEntry {
   if (!entry || typeof entry !== 'object') return false;
   const candidate = entry as Record<string, unknown>;
-  return typeof candidate.timestamp === 'number'
-    && typeof candidate.phrase === 'string'
-    && typeof candidate.actionId === 'string'
-    && candidate.actionId in ACTION_LABEL_KEYS
-    && typeof candidate.reason === 'string';
+  return (
+    typeof candidate.timestamp === 'number' &&
+    typeof candidate.phrase === 'string' &&
+    typeof candidate.actionId === 'string' &&
+    candidate.actionId in ACTION_LABEL_KEYS &&
+    typeof candidate.reason === 'string'
+  );
 }
 
 function resolveVoiceIntentLocale(locale?: Locale): Locale {
@@ -185,7 +188,10 @@ export function getActionLabel(actionId: ActionId, locale?: Locale): string {
   return t(resolveVoiceIntentLocale(locale), ACTION_LABEL_KEYS[actionId]);
 }
 
-export function getVoiceAliasLearningReasonLabel(reason: VoiceAliasLearningLogEntry['reason'], locale?: Locale): string {
+export function getVoiceAliasLearningReasonLabel(
+  reason: VoiceAliasLearningLogEntry['reason'],
+  locale?: Locale,
+): string {
   return t(resolveVoiceIntentLocale(locale), VOICE_ALIAS_REASON_KEYS[reason]);
 }
 

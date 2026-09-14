@@ -131,6 +131,7 @@ test.describe('关键路径 | Critical paths', () => {
     await expect(exportSubmenu).toBeVisible({ timeout: 15_000 });
     await expect(exportSubmenu.getByRole('menuitem', { name: /JYT/i })).toBeVisible();
     await expect(exportSubmenu.getByRole('menuitem', { name: /JYM/i })).toBeVisible();
+    await expect(exportSubmenu.getByRole('menuitem', { name: /Leipzig IGT|IGT/i })).toBeVisible();
   });
 
   test('应用壳搜索事件打开搜索定位面板 | App shell search event opens search panel', async ({ page }) => {

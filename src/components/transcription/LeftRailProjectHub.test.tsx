@@ -456,4 +456,16 @@ describe('LeftRailProjectHub project import dialog', () => {
     fireEvent.click(srtItem);
     expect(onExportLite).toHaveBeenCalledWith('srt');
   });
+
+  it('offers Leipzig IGT LaTeX export and calls onExportLite with tex', async () => {
+    const onExportLite = vi.fn(async () => undefined);
+    renderHub({ onExportLite });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    fireEvent.mouseEnter((await screen.findByText('导出')).closest('button') as HTMLButtonElement);
+
+    const texItem = await screen.findByText('导出为 Leipzig IGT（LaTeX）(.tex)');
+    fireEvent.click(texItem);
+    expect(onExportLite).toHaveBeenCalledWith('tex');
+  });
 });

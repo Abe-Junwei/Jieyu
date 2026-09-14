@@ -1098,6 +1098,7 @@ export const zhCNDictionary = {
   'transcription.toolbar.export.vtt': '导出为字幕 WebVTT (.vtt)',
   'transcription.toolbar.export.csv': '导出为表格 CSV (.csv)',
   'transcription.toolbar.export.tsv': '导出为表格 TSV (.tsv)',
+  'transcription.toolbar.export.tex': '导出为 Leipzig IGT（LaTeX）(.tex)',
   'transcription.toolbar.importMenu': '导入 EAF / TextGrid / TRS / FLEx / Toolbox / JYT / JYM',
   'transcription.toolbar.verticalView': '双列对照',
   'transcription.toolbar.horizontalView': '多轨时间轴',
@@ -1347,6 +1348,7 @@ export const zhCNDictionary = {
   'transcription.voiceAction.toolbarExportVtt': '导出字幕 WebVTT',
   'transcription.voiceAction.toolbarExportCsv': '导出表格 CSV',
   'transcription.voiceAction.toolbarExportTsv': '导出表格 TSV',
+  'transcription.voiceAction.toolbarExportTex': '导出 Leipzig IGT LaTeX',
   'transcription.voiceAction.toolbarImportAnnotationFile': '导入标注文件',
   'transcription.voiceAction.toolbarOpenSpeakerManagementPanel': '打开说话人管理',
   'transcription.voiceAction.toolbarPreviewProjectArchiveImport': '预览工程包导入',
@@ -1755,6 +1757,7 @@ export const zhCNDictionary = {
   'transcription.importExport.exportDone.vtt': 'WebVTT 已导出。',
   'transcription.importExport.exportDone.csv': 'CSV 已导出。',
   'transcription.importExport.exportDone.tsv': 'TSV 已导出。',
+  'transcription.importExport.exportDone.tex': 'Leipzig IGT LaTeX 已导出。',
   'transcription.importExport.exportDone.archiveEncrypted': '{kind} 加密项目文件已导出。',
   'transcription.importExport.archiveExportConfirm':
     '即将导出 {kind} 项目归档，可能包含转写、注释与元数据。是否继续？',

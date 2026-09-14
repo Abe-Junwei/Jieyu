@@ -21,8 +21,9 @@ import {
   downloadTranscriptionExportText,
   serializeTranscriptionLiteExport,
   toTranscriptionLiteExportCues,
-  type TranscriptionLiteExportFormat,
+  type TranscriptionOutboundExportFormat,
 } from '../../utils/transcriptionLiteExport';
+import { serializeTranscriptionIgtLatex } from '../../utils/transcriptionIgtLatexExport';
 
 type ExportSupportModules = {
   layerSegmentQueryService: typeof import('../../services/LayerSegmentQueryService');
@@ -812,7 +813,7 @@ export function useImportExport(input: UseImportExportInput) {
         });
       },
 
-      handleExportLite: async (format: TranscriptionLiteExportFormat) => {
+      handleExportLite: async (format: TranscriptionOutboundExportFormat) => {
         await runExport(format, async () => {
           if (unitsOnCurrentMedia.length === 0) return;
           const transcriptionLayer =
@@ -823,6 +824,27 @@ export function useImportExport(input: UseImportExportInput) {
             unitsOnCurrentMedia,
             transcriptionLayer,
           );
+          const baseName = exportNamingMediaItem
+            ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
+            : 'export';
+          if (format === 'tex') {
+            const payload = serializeTranscriptionIgtLatex(exportUnits, {
+              translations,
+              layers,
+            });
+            if (payload.body.length === 0) return;
+            downloadTranscriptionExportText(
+              `${baseName}.${payload.extension}`,
+              payload.body,
+              payload.mime,
+            );
+            setSaveState({
+              kind: 'done',
+              message: t(locale, 'transcription.importExport.exportDone.tex'),
+            });
+            setShowExportMenu(false);
+            return;
+          }
           const relevantSpeakerIds = new Set(
             exportUnits
               .map((unit) => unit.speakerId)
@@ -840,9 +862,6 @@ export function useImportExport(input: UseImportExportInput) {
           );
           const cues = toTranscriptionLiteExportCues(exportUnits, speakerNameById);
           const payload = serializeTranscriptionLiteExport(cues, format);
-          const baseName = exportNamingMediaItem
-            ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
-            : 'export';
           downloadTranscriptionExportText(
             `${baseName}.${payload.extension}`,
             payload.body,

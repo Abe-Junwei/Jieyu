@@ -1187,6 +1187,7 @@ export const enUSDictionary = {
   'transcription.toolbar.export.vtt': 'Export as WebVTT (.vtt)',
   'transcription.toolbar.export.csv': 'Export as CSV (.csv)',
   'transcription.toolbar.export.tsv': 'Export as TSV (.tsv)',
+  'transcription.toolbar.export.tex': 'Export as Leipzig IGT (LaTeX) (.tex)',
   'transcription.toolbar.importMenu': 'Import EAF / TextGrid / TRS / FLEx / Toolbox / JYT / JYM',
   'transcription.toolbar.verticalView': 'Paired columns',
   'transcription.toolbar.horizontalView': 'Multi-track timeline',
@@ -1454,6 +1455,7 @@ export const enUSDictionary = {
   'transcription.voiceAction.toolbarExportVtt': 'Export WebVTT subtitles',
   'transcription.voiceAction.toolbarExportCsv': 'Export CSV table',
   'transcription.voiceAction.toolbarExportTsv': 'Export TSV table',
+  'transcription.voiceAction.toolbarExportTex': 'Export Leipzig IGT LaTeX',
   'transcription.voiceAction.toolbarImportAnnotationFile': 'Import annotation file',
   'transcription.voiceAction.toolbarOpenSpeakerManagementPanel': 'Open speaker management',
   'transcription.voiceAction.toolbarPreviewProjectArchiveImport': 'Preview project archive import',
@@ -1895,6 +1897,7 @@ export const enUSDictionary = {
   'transcription.importExport.exportDone.vtt': 'WebVTT exported.',
   'transcription.importExport.exportDone.csv': 'CSV exported.',
   'transcription.importExport.exportDone.tsv': 'TSV exported.',
+  'transcription.importExport.exportDone.tex': 'Leipzig IGT LaTeX exported.',
   'transcription.importExport.exportDone.archiveEncrypted':
     '{kind} encrypted project archive exported.',
   'transcription.importExport.archiveExportConfirm':

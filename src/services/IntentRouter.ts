@@ -95,6 +95,7 @@ const ACTION_ID_SET: ReadonlySet<ActionId> = new Set<ActionId>([
   'toolbarExportVtt',
   'toolbarExportCsv',
   'toolbarExportTsv',
+  'toolbarExportTex',
   'toolbarImportAnnotationFile',
   'toolbarOpenSpeakerManagementPanel',
   'toolbarPreviewProjectArchiveImport',

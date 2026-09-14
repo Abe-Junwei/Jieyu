@@ -1,7 +1,23 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
 import { recordTranscriptionKeyboardAction } from '../utils/transcriptionKeyboardActionTelemetry';
-import type { TranscriptionLiteExportFormat } from '../utils/transcriptionLiteExport';
+import type { ActionId } from '../types/intentActionId';
+import type { TranscriptionOutboundExportFormat } from '../utils/transcriptionLiteExport';
+
+export function outboundExportActionId(format: TranscriptionOutboundExportFormat): ActionId {
+  switch (format) {
+    case 'srt':
+      return 'toolbarExportSrt';
+    case 'vtt':
+      return 'toolbarExportVtt';
+    case 'csv':
+      return 'toolbarExportCsv';
+    case 'tsv':
+      return 'toolbarExportTsv';
+    case 'tex':
+      return 'toolbarExportTex';
+  }
+}
 
 interface CreateTranscriptionExportCallbacksInput {
   setShowExportMenu: Dispatch<SetStateAction<boolean>>;
@@ -12,7 +28,7 @@ interface CreateTranscriptionExportCallbacksInput {
   handleExportToolbox: () => void;
   handleExportJyt: () => Promise<void>;
   handleExportJym: () => Promise<void>;
-  handleExportLite: (format: TranscriptionLiteExportFormat) => Promise<void>;
+  handleExportLite: (format: TranscriptionOutboundExportFormat) => Promise<void>;
   handleImportFile: (file: File) => Promise<void>;
 }
 
@@ -53,15 +69,7 @@ export function createTranscriptionExportCallbacks(
       await input.handleExportJym();
     },
     onExportLite: async (format) => {
-      recordTranscriptionKeyboardAction(
-        format === 'srt'
-          ? 'toolbarExportSrt'
-          : format === 'vtt'
-            ? 'toolbarExportVtt'
-            : format === 'csv'
-              ? 'toolbarExportCsv'
-              : 'toolbarExportTsv',
-      );
+      recordTranscriptionKeyboardAction(outboundExportActionId(format));
       await input.handleExportLite(format);
     },
     onImportFile: (file: File) => {

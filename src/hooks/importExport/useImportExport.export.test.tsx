@@ -648,4 +648,36 @@ describe('useImportExport - lite SRT/CSV export', () => {
     expect(mockDownloadLiteExport).not.toHaveBeenCalled();
     expect(setSaveState).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
+
+  it('downloads gb4e LaTeX from token glosses and the first translation layer', async () => {
+    const setSaveState = vi.fn();
+    const unit = {
+      id: 'utt-1',
+      textId: 'text-1',
+      mediaId: 'media-1',
+      startTime: 1,
+      endTime: 2,
+      transcription: { default: 'na-wapa-naka' },
+      words: [{ form: { default: 'na-wapa-naka' }, gloss: { eng: '3.SG-see-PST' } }],
+      createdAt: '2026-03-26T00:00:00.000Z',
+      updatedAt: '2026-03-26T00:00:00.000Z',
+    } as LayerUnitDocType;
+
+    const { result } = renderHook(() =>
+      useImportExport(makeInput({ unitsOnCurrentMedia: [unit], setSaveState })),
+    );
+
+    await act(async () => {
+      await result.current.handleExportLite('tex');
+    });
+
+    expect(mockDownloadLiteExport).toHaveBeenCalledTimes(1);
+    expect(mockDownloadLiteExport.mock.calls[0]?.[0]).toBe('demo.tex');
+    const body = String(mockDownloadLiteExport.mock.calls[0]?.[1]);
+    expect(body).toContain('\\begin{exe}');
+    expect(body).toContain('\\gll na-wapa-naka \\\\');
+    expect(body).toContain('3.SG-see-PST');
+    expect(body).toContain("\\glt `hello'");
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
+  });
 });

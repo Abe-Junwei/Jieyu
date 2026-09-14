@@ -15,7 +15,7 @@ import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHubPreview';
 import { recordTranscriptionKeyboardAction } from '../../utils/transcriptionKeyboardActionTelemetry';
-import type { TranscriptionLiteExportFormat } from '../../utils/transcriptionLiteExport';
+import type { TranscriptionOutboundExportFormat } from '../../utils/transcriptionLiteExport';
 import { createLogger } from '../../observability/logger';
 import { ModalPanel } from '../ui/ModalPanel';
 import { PanelButton } from '../ui/PanelButton';
@@ -94,7 +94,7 @@ interface LeftRailProjectHubProps {
   onExportToolbox: () => void;
   onExportJyt: () => Promise<void>;
   onExportJym: () => Promise<void>;
-  onExportLite: (format: TranscriptionLiteExportFormat) => Promise<void>;
+  onExportLite: (format: TranscriptionOutboundExportFormat) => Promise<void>;
 }
 
 const log = createLogger('LeftRailProjectHub');
@@ -593,6 +593,15 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         onClick: () => {
           fireAndForget(onExportLite('tsv'), {
             context: 'src/components/transcription/LeftRailProjectHub.tsx:L594',
+            policy: 'user-visible',
+          });
+        },
+      },
+      {
+        label: t(locale, 'transcription.toolbar.export.tex'),
+        onClick: () => {
+          fireAndForget(onExportLite('tex'), {
+            context: 'src/components/transcription/LeftRailProjectHub.tsx:L603',
             policy: 'user-visible',
           });
         },
