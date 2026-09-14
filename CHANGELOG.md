@@ -10,11 +10,15 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Changed
 
+- **Annotation page open (B4c/d/e)**: `annotationPageEnabled` now defaults to `true`. `/annotation` is an IGT workbench with unit-range playback, notes/tags/self-certainty, and AutoGloss preview-then-apply. Env `VITE_ANNOTATION_PAGE_ENABLED=false` still shows the placeholder panel. Corpus / MCP / lexicon-attachment flags stay false.
 - **Master roadmap subsequent-slice eval (2026-09-11)**: Next knife is #165 then B5c rebase; added B4c/B4d/B3b leftover rows. Dogfood ≠ product-open. See `docs/execution/audits/后续路线图详细评估-2026-09-11.md`.
 - **Master roadmap recalibrated (2026-09-11)**: Stage B leftover is B5c (PR #154 conflicting), not “open B4/B5 placeholders”. ChatWindow 766/800 gate replaced with 127/220. A2/A3 marked partial. See `docs/execution/audits/主路线图代码核对-2026-09-11.md`.
 
 ### Added
 
+- **B4e annotation AutoGloss preview**: `/annotation` previews lexeme matches without calling `AutoGlossService.glossUnit`, then writes `unit_tokens.gloss` and `token_lexeme_links` only after confirm. Dirty drafts and tokens that already have gloss are skipped.
+- **B4d annotation notes / tags / selfCertainty**: Unit notes persist in `user_notes` (`targetType: unit`); tag is `UserNoteDocType.category`; self-certainty patches that `layer_units` row via `saveBatch` and readback. Does not edit transcription or timing.
+- **B4c annotation unit playback**: Space on a focused IGT row toggles `HTMLAudioElement` playback for `[startTime, endTime]`. Input-focused Space still inserts a space. No WaveSurfer / Orchestrator copy.
 - **B2 cross-page unit refresh events**: Typed `jieyu:workspace.*.v1` CustomEvent bus in `workspaceEvents.ts` (re-exported from `appShellEvents.ts`). LinguisticService single-write paths emit after persist; annotation / corpus / lexicon subscribe and incremental-refetch by `unitId`/`lexemeId`. Uncommitted annotation drafts are marked dirty instead of overwritten. `saveUnitsBatch` stays silent. No ChatWindow, no BroadcastChannel, no new flag.
 - **B1 list scroll persistence**: Lexicon `lexiconListState.listScrollTop` restores `.app-main` scroll; corpus `corpusViewState.listScrollTop` restores `.corpus-library-body`. Session-only (R8); `corpusBasket` stays router-session. No ChatWindow / ReadyWorkspace changes.
 - **B10 R1–R8 cross-page checklist gate**: PRs that touch annotation / lexicon / corpus product paths must tick R1–R8 or write `N/A` in the PR body (`npm run check:r1-r8`, included in `check:all`). Push to `main` skips. No Danger.js.

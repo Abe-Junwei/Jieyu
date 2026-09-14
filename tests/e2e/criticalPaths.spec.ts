@@ -64,6 +64,13 @@ test.describe('关键路径 | Critical paths', () => {
     await expect(page.locator('body')).toContainText(/语料库未开放|Corpus library is not open yet/);
   });
 
+  test('标注页打开工作台 | Annotation workspace opens', async ({ page }) => {
+    await page.goto('/annotation');
+    await expect(page.locator('nav')).toBeVisible();
+    await expect(page.getByTestId('annotation-workspace')).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('body')).not.toContainText(/标注工作台未开放|Annotation workspace is not open/);
+  });
+
   test('CSP 不阻断核心资源加载 | CSP does not block core resources', async ({ page, browserName }) => {
     const cspViolations: string[] = [];
     page.on('console', (msg) => {

@@ -240,10 +240,10 @@ export const featureFlags = {
    */
   aiExternalMcpProviderAdaptersEnabled: aiExternalMcpProviderAdaptersEnabledFromEnv ?? false,
   /**
-   * B4a-1: annotation workspace readonly IGT shell + keyboard skeleton.
-   * Default false; flag off keeps FeatureAvailabilityPanel.
+   * B4 / annotation M1: IGT workspace with playback, notes, and AutoGloss preview.
+   * Default true so `/annotation` is an open workbench. Env `false` keeps FeatureAvailabilityPanel.
    */
-  annotationPageEnabled: annotationPageEnabledFromEnv ?? false,
+  annotationPageEnabled: annotationPageEnabledFromEnv ?? true,
   /**
    * B5a-1: corpus library readonly list + isolated workset shell.
    * Owner: corpus. Default false; flag off keeps FeatureAvailabilityPanel.
