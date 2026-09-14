@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-14）**：标注 M1（B4c/d/e）已开放 `/annotation`（flag 默认 true）。**C3a/C3b/C3c** 已合入。余量：**B3b** 词典编辑、**B4f** 二次分词；**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-14）**：标注 M1（B4c/d/e）已开放 `/annotation`（flag 默认 true）。**C3a/C3b/C3c** 已合入。**B3b** 词典编辑已合入。余量：**B4f** 二次分词；**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -191,7 +191,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B1** | 深链与返回上下文合同（P0-1） | S–M | **【✅ 已落地】** `transcriptionUrlDeepLink` + 词典 `lexiconListState` + 语料/标注 outbound 深链。标注 URL `unitId` 聚焦行；命中语段带 `lexiconReturn`（转写 strip 后仍保留）；壳层 `WorkspaceReturnBanner` 回 `/lexicon`；`findWorkspaceStateDualWriteViolations` 锁 R8 键分轨。列表滚动：词典 `.app-main` / 语料 `.corpus-library-body` 写入 sessionStorage（`listScrollTop`）。**不**接 ChatWindow / ReadyWorkspace 装配 | 标注 `?unitId=` 聚焦；词典跳转含 `lexiconReturn`；strip 后 banner 可见；往返恢复滚动；双写用例；定向 vitest | 否 |
 | **B2** | 跨页刷新事件合同（unitId 增量，P0-2） | M | **【✅ 已接线】** `workspaceEvents.ts`（`appShellEvents.ts` 再导出）+ LinguisticService 单写路径 persist 后 emit（`saveUnit` / `saveUnitText` / POS·gloss / `removeUnit` / `saveLexeme`）；annotation / corpus / lexicon 订阅并按 `unitId`/`lexemeId` 增量 refetch。未提交草稿 → `mark-dirty` 不覆盖。`saveUnitsBatch` 不 emit。`lexeme-deleted` / `context-sync` 仅 API。SDD：`workspace-cross-page-events/` | 提交后仅对应 unit 增量刷新；草稿不被覆盖；定向 vitest | 是 |
 | **B3** | 词典页三栏联动（只读命中语段，P0-5） | S | **【基本落地·回归已补】** `LexiconPage` 已实现 列表/检索 + 详情(义项/词形/笔记) + 命中语段(`LinguisticService.lexemes.listTranscriptionJumpTargets`) + 深链跳转回转写 + sessionStorage 态。P0-5 验收满足。B2 已接线：命中语段按 `unitId` invalidate | 列表/检索/详情/命中语段/深链/sessionStorage 回归；`LexiconPage.test` + `useLexiconSearch.test` + e2e criticalPaths `/lexicon` | 否 |
-| **B3b** | 词典词条编辑表单 | L | **【⬜ 未开始】** `saveLexeme` 在 LinguisticService；页面层 **零调用**。与只读 B3 分轨；不接 ChatWindow；附件仍走 B8 flag | 写→reload→readback；不改 R8 键分轨 | 是 |
+| **B3b** | 词典词条编辑表单 | L | **【✅ 已落地】** `saveLexeme` 经 `saveLexiconEntry` 从 `/lexicon` 调用；lemma / 主 gloss / citation / language / notes；新建；空 lemma 不写。不接 ChatWindow；附件仍走 B8 flag。SDD：`lexicon-entry-edit/` | 写→reload→readback；不改 R8 键分轨 | 是 |
 | **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【✅ 已落地】** `/annotation` 当前 text/media 只读 IGT + 键盘 reduce 骨架。Flag `annotationPageEnabled` 现默认 **true**（M1 开放）。SDD：`annotation-workspace-shell/`。按轨读 `annotationLaneReadScope`（ADR-0020）。不写 token；不接 ChatWindow / 转写 annotation controller | flag 关占位；IGT 行渲染；Space 行聚焦=playToggle、输入态=insertSpace；定向 vitest | 是 |
 | **B4a-2** | 标注页 token POS/gloss 编辑 + 保存链路 + readback（P0-3 上·核心） | L | **【✅ 已落地】** 承 B4a-1：受控 POS/gloss 输入；Enter=`commitStay`；Ctrl+Enter 仅保存成功后跳行。写 `LinguisticService.units.updateTokenPos` / `updateTokenGloss`（`unit_tokens`），再 `listTokensByUnitIds` readback。SDD：`annotation-token-edit/`。不改转写文本/时间码；不接 ChatWindow / `useTranscriptionAnnotationController` / `annotationAdapters`。转写页需 reload 才见镜像 `unit.words` | 写→reload→readback；Dexie vitest | 是 |
 | **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | **【✅ 已落地】** 承 B4a-2：morpheme 按 `-`/`=` 分格 + gloss 写 `unit_morphemes`；token 空格/`|` 切分与与下一词合并写 `unit_tokens`；词典查询写 `token_lexeme_links`（role=`manual`）。Leipzig 内联校验 + 系统结构模板标记；模板编辑复用 `/assets/structural-profiles`。SDD：`annotation-morpheme-edit/`。不做二次自动分词 | 分词/链接/词素写→reload→readback；Leipzig invalid；定向 vitest | 是 |
@@ -297,4 +297,5 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-11 | **后续评估**：[详细评估](../audits/后续路线图详细评估-2026-09-11.md)。B5c 随本 PR 合入。新增 **B4c/B4d/B3b** 余量行。Dogfood ≠ 产品开放。B7 按 L 估。 |
 | 2026-09-11 | **C3a/C3b**：转写导出菜单 SRT/WebVTT/CSV/TSV；同一 `layer_units` 读模型只序列化。开放门槛现状表改为 flag-off 壳层 / Analysis ADR-0033，仍 NO-GO。 |
 | 2026-09-13 | **C3c**：Leipzig IGT LaTeX（gb4e `\gll`/`\glt`）；`onExportLite('tex')`；不写回、不调 AutoGloss。不排 C3d Word。 |
-| 2026-09-11 | **B4c/d/e 标注 M1 开放**：段播放 + `user_notes`/selfCertainty + AutoGloss 预览采纳。`annotationPageEnabled` 默认 true。SDD：`annotation-m1-open/`。余量 B3b、B4f。 |
+| 2026-09-11 | **B4c/d/e 标注 M1 开放**：段播放 + `user_notes`/selfCertainty + AutoGloss 预览采纳。`annotationPageEnabled` 默认 true。SDD：`annotation-m1-open/`。余量 B4f。 |
+| 2026-09-11 | **B3b**：词典页 lemma / 主 gloss / citation / language / notes 编辑与新建；`saveLexeme` 写后 `list()` readback；空 lemma 不写。不接 ChatWindow；不改 R8 键。附件仍 flag 关。 |
