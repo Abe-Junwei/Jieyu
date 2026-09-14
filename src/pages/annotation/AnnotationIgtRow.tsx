@@ -8,6 +8,7 @@ import { displayedAnnotationTokenFields, type AnnotationTokenDraft } from './ann
 import { AnnotationIgtUnitExtras } from './AnnotationIgtUnitExtras';
 import type { AnnotationUnitMetaController } from '../useAnnotationUnitMetaController';
 import type { AnnotationAutoGlossController } from '../useAnnotationAutoGlossController';
+import type { AnnotationRetokenizeController } from '../useAnnotationRetokenizeController';
 
 type Props = {
   row: AnnotationIgtRow;
@@ -17,6 +18,7 @@ type Props = {
   morphology: AnnotationMorphologyController;
   unitMeta?: AnnotationUnitMetaController;
   autoGloss?: AnnotationAutoGlossController;
+  retokenize?: AnnotationRetokenizeController;
   playing?: boolean;
   onPlay?: (unitId: string) => void;
   onFocusRow: (unitId: string) => void;
@@ -253,6 +255,7 @@ export function AnnotationIgtRowView({
   morphology,
   unitMeta,
   autoGloss,
+  retokenize,
   playing = false,
   onPlay,
   onFocusRow,
@@ -302,13 +305,14 @@ export function AnnotationIgtRowView({
           ? row.translation
           : t(locale, 'workspace.annotation.translationEmpty')}
       </p>
-      {focused && unitMeta && autoGloss && onPlay ? (
+      {focused && unitMeta && autoGloss && retokenize && onPlay ? (
         <AnnotationIgtUnitExtras
           unitId={row.id}
           playing={playing}
           matches={autoGloss.previewUnitId === row.id ? autoGloss.matches : []}
           unitMeta={unitMeta}
           autoGloss={autoGloss}
+          retokenize={retokenize}
           onPlay={onPlay}
           onFocusInput={onFocusInput}
         />

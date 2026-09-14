@@ -150,6 +150,10 @@ export const zhCNDictionary = {
   'workspace.annotation.autoGlossApply': '采纳建议',
   'workspace.annotation.autoGlossEmpty': '没有可采纳的自动对译建议。',
   'workspace.annotation.autoGlossMatch': '{form} → {gloss}',
+  'workspace.annotation.retokenizePreview': '预览二次分词',
+  'workspace.annotation.retokenizeApply': '确认二次分词',
+  'workspace.annotation.retokenizeEmpty': '没有可采纳的二次分词建议。',
+  'workspace.annotation.retokenizeProposal': '{forms}',
   'workspace.analysis.unavailable.title': '分析工作台未开放',
   'workspace.analysis.unavailable.summary':
     '统计视图、AI 审计队列与质量评估还未达到可独立交付标准，因此暂时保留为说明页。',

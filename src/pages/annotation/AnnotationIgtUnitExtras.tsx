@@ -4,6 +4,7 @@ import type { AutoGlossPreviewMatch } from '../../ai/autoGlossPreview';
 import { pickDefaultTranscriptionText } from '../../utils/transcriptionFormatters';
 import type { AnnotationUnitMetaController } from '../useAnnotationUnitMetaController';
 import type { AnnotationAutoGlossController } from '../useAnnotationAutoGlossController';
+import type { AnnotationRetokenizeController } from '../useAnnotationRetokenizeController';
 
 type Props = {
   unitId: string;
@@ -11,6 +12,7 @@ type Props = {
   matches: readonly AutoGlossPreviewMatch[];
   unitMeta: AnnotationUnitMetaController;
   autoGloss: AnnotationAutoGlossController;
+  retokenize: AnnotationRetokenizeController;
   onPlay: (unitId: string) => void;
   onFocusInput: (unitId: string) => void;
 };
@@ -51,10 +53,14 @@ export function AnnotationIgtUnitExtras({
   matches,
   unitMeta,
   autoGloss,
+  retokenize,
   onPlay,
   onFocusInput,
 }: Props) {
   const locale = useLocale();
+  const retokenizePreviewActive = retokenize.previewUnitId === unitId;
+  const retokenizeApplyDisabled =
+    !retokenizePreviewActive || retokenize.unchanged || retokenize.proposedForms.length === 0;
   return (
     <div className="annotation-igt-extras">
       <div className="annotation-igt-extras-actions">
@@ -93,6 +99,29 @@ export function AnnotationIgtUnitExtras({
           }}
         >
           {t(locale, 'workspace.annotation.autoGlossApply')}
+        </button>
+        <button
+          type="button"
+          className="annotation-igt-action"
+          data-testid={`annotation-igt-retokenize-preview-${unitId}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            retokenize.onPreview(unitId);
+          }}
+        >
+          {t(locale, 'workspace.annotation.retokenizePreview')}
+        </button>
+        <button
+          type="button"
+          className="annotation-igt-action"
+          data-testid={`annotation-igt-retokenize-apply-${unitId}`}
+          disabled={retokenizeApplyDisabled}
+          onClick={(event) => {
+            event.stopPropagation();
+            retokenize.onApply(unitId);
+          }}
+        >
+          {t(locale, 'workspace.annotation.retokenizeApply')}
         </button>
       </div>
       <label className="annotation-igt-extra-field">
@@ -171,6 +200,13 @@ export function AnnotationIgtUnitExtras({
                 }),
               )
               .join(' · ')}
+      </p>
+      <p className="annotation-igt-autogloss" data-testid={`annotation-igt-retokenize-${unitId}`}>
+        {!retokenizePreviewActive || retokenize.proposedForms.length === 0
+          ? t(locale, 'workspace.annotation.retokenizeEmpty')
+          : tf(locale, 'workspace.annotation.retokenizeProposal', {
+              forms: retokenize.proposedForms.join(' · '),
+            })}
       </p>
     </div>
   );
