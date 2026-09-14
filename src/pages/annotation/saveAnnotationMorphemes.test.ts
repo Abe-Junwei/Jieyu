@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
 import { planMorphemeFormsFromToken } from './annotationMorphemeDrafts';
-import { buildSeedMorphemes, saveAnnotationMorphemesForToken } from './saveAnnotationMorphemes';
+import {
+  buildSeedMorphemes,
+  mapStoredMorphemes,
+  saveAnnotationMorphemesForToken,
+} from './saveAnnotationMorphemes';
 
 describe('saveAnnotationMorphemesForToken', () => {
   const now = '2026-09-04T16:00:00.000Z';
@@ -46,5 +50,34 @@ describe('saveAnnotationMorphemesForToken', () => {
 
     const requery = await LinguisticService.units.listMorphemesByTokenIds(['tok-morph-1']);
     expect(requery.map((row) => row.id)).toEqual(seeded.map((row) => row.id));
+  });
+
+  it('maps imported morphemes with empty default to the first non-empty lang', async () => {
+    const now = '2026-09-04T16:00:00.000Z';
+    await db.unit_morphemes.put({
+      id: 'mor-import-1',
+      textId: 'text-morph-1',
+      unitId: 'unit-morph-1',
+      tokenId: 'tok-morph-1',
+      form: { default: '', eng: 'un' },
+      gloss: { default: '', eng: 'one' },
+      morphemeIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const mapped = mapStoredMorphemes(
+      await LinguisticService.units.listMorphemesByTokenIds(['tok-morph-1']),
+    );
+    expect(mapped).toEqual([
+      {
+        id: 'mor-import-1',
+        tokenId: 'tok-morph-1',
+        form: 'un',
+        gloss: 'one',
+        glossLang: 'eng',
+        morphemeIndex: 0,
+      },
+    ]);
   });
 });
