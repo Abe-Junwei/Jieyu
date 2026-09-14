@@ -1,5 +1,10 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it } from 'vitest';
 import {
+  annotationMediaHasPlayableSrc,
+  annotationPlaybackSourceKey,
+  pickAnnotationPlaybackMedia,
   resolveAnnotationMediaSrc,
   resolveAnnotationPlaybackRange,
   shouldStopAnnotationPlayback,
@@ -86,5 +91,26 @@ describe('playAnnotationUnitRange', () => {
       objectUrl: null,
     });
     expect(resolveAnnotationMediaSrc({ details: {} })).toBeNull();
+  });
+
+  it('picks fallback media without allocating object URLs, then caches by resolved id', () => {
+    const created: string[] = [];
+    const originalCreate = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = ((_blob: Blob) => {
+      const url = `blob:test-${created.length}`;
+      created.push(url);
+      return url;
+    }) as typeof URL.createObjectURL;
+    try {
+      const blobItem = { id: 'm-blob', details: { audioBlob: new Blob(['x']) } };
+      const urlItem = { id: 'm-url', url: ' https://example.test/a.wav ' };
+      expect(annotationMediaHasPlayableSrc(blobItem)).toBe(true);
+      expect(pickAnnotationPlaybackMedia([blobItem, urlItem], '')).toEqual(blobItem);
+      expect(created).toEqual([]);
+      expect(annotationPlaybackSourceKey('tid', blobItem.id)).toBe('tid:m-blob');
+      expect(pickAnnotationPlaybackMedia([blobItem, urlItem], 'm-url')?.id).toBe('m-url');
+    } finally {
+      URL.createObjectURL = originalCreate;
+    }
   });
 });

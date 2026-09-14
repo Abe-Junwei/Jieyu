@@ -448,6 +448,28 @@ describe('LexiconPage', () => {
     });
   });
 
+  it('keeps a newly created entry selected after clearing an active search', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-create');
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'dog' } });
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /run/i })).toBeNull();
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-create'));
+    fireEvent.change(screen.getByTestId('lexicon-entry-lemma'), { target: { value: 'cat' } });
+    fireEvent.change(screen.getByTestId('lexicon-entry-gloss'), { target: { value: 'feline' } });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+      const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+      expect(
+        JSON.parse(window.sessionStorage.getItem('lexiconListState') ?? '{}').selectedLexemeId,
+      ).toBe(saved.id);
+      expect((screen.getByTestId('lexicon-entry-lemma') as HTMLInputElement).value).toBe('cat');
+    });
+  });
+
   it('does not write when the lemma is empty', async () => {
     renderLexiconPage();
     fireEvent.click(await screen.findByTestId('lexicon-entry-create'));

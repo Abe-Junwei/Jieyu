@@ -119,15 +119,22 @@ export function LexiconPage() {
   const restoredScrollRef = useRef(false);
 
   useEffect(() => {
+    if (filteredLexemes.some((lexeme) => lexeme.id === selectedLexemeId)) {
+      return;
+    }
+    if (
+      searchText.length === 0 &&
+      selectedLexemeId.length > 0 &&
+      lexemes.some((lexeme) => lexeme.id === selectedLexemeId)
+    ) {
+      return;
+    }
     if (filteredLexemes.length === 0) {
       if (selectedLexemeId) setSelectedLexemeId('');
       return;
     }
-    if (filteredLexemes.some((lexeme) => lexeme.id === selectedLexemeId)) {
-      return;
-    }
     setSelectedLexemeId(filteredLexemes[0]!.id);
-  }, [filteredLexemes, selectedLexemeId]);
+  }, [filteredLexemes, lexemes, searchText, selectedLexemeId]);
 
   useEffect(() => {
     writeLexiconListState({
@@ -157,7 +164,10 @@ export function LexiconPage() {
     return () => root.removeEventListener('scroll', persistScroll);
   }, [loading, filteredLexemes.length, searchText, selectedLexemeId]);
 
-  const selectedLexeme = filteredLexemes.find((lexeme) => lexeme.id === selectedLexemeId) ?? null;
+  const selectedLexeme =
+    lexemes.find((lexeme) => lexeme.id === selectedLexemeId) ??
+    filteredLexemes.find((lexeme) => lexeme.id === selectedLexemeId) ??
+    null;
   const selectedLexemeGloss = selectedLexeme
     ? readLexemePrimaryGloss(selectedLexeme, t(locale, 'workspace.lexicon.notSet'))
     : '';
