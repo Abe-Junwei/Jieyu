@@ -161,6 +161,10 @@ export const enUSDictionary = {
   'workspace.annotation.autoGlossApply': 'Apply suggestions',
   'workspace.annotation.autoGlossEmpty': 'No auto-gloss suggestions to apply.',
   'workspace.annotation.autoGlossMatch': '{form} → {gloss}',
+  'workspace.annotation.retokenizePreview': 'Preview retokenize',
+  'workspace.annotation.retokenizeApply': 'Apply retokenize',
+  'workspace.annotation.retokenizeEmpty': 'No retokenize suggestion to apply.',
+  'workspace.annotation.retokenizeProposal': '{forms}',
   'workspace.analysis.unavailable.title': 'Analysis workspace is not open',
   'workspace.analysis.unavailable.summary':
     'Stat views, AI audit queues, and quality evaluation have not yet reached independent delivery standards, so this page remains informational.',

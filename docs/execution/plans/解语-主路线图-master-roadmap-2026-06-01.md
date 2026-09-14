@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-13
+last_reviewed: 2026-09-14
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-14）**：标注 M1（B4c/d/e）已开放 `/annotation`（flag 默认 true）。**C3a/C3b/C3c** 已合入。**B3b** 词典编辑已合入。余量：**B4f** 二次分词；**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-14）**：标注 M1（B4c/d/e）与 **B4f** 二次自动分词已落地（`annotationPageEnabled` 默认 true）。**C3a/C3b/C3c** 已合入。**B3b** 词典编辑已合入。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -198,6 +198,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B4c** | 标注页段播放（键盘合同接线） | M | **【✅ 已落地】** Space 行聚焦切换 `HTMLAudioElement` 段播放 `[startTime,endTime]`；输入态仍 `insertSpace`。不挂 WaveSurfer / Orchestrator。SDD：`annotation-m1-open/` | Space 非输入态切播放；无媒体 skipped；定向 vitest + e2e:chromium | 是 |
 | **B4d** | 标注页 note / tag / selfCertainty | L | **【✅ 已落地】** 备注写 `user_notes`（`targetType: unit`）；标签=`category`；selfCertainty 只补丁该 `layer_units` 行。禁止第二套真源与 `resolveSelfCertaintyHostUnitId`。SDD：`annotation-m1-open/` | 写→reload→readback；R1–R8；不改转写文本/时间码 | 是 |
 | **B4e** | 标注页 AutoGloss 预览采纳 | M | **【✅ 已落地】** `/annotation` 只读 `previewAutoGlossMatches`，确认后写 gloss + `token_lexeme_links`。不调用 `glossUnit` 做 preview；不接 ChatWindow。SDD：`annotation-m1-open/` | preview 零写入；采纳 readback；脏草稿跳过 | 是 |
+| **B4f** | 标注页二次自动分词（保守模式） | M | **【✅ 已落地】** `/annotation` 预览 Unicode 词边界切分，无人工痕迹时确认写 `unit_tokens`；有 POS/gloss/词素/链接/脏草稿时只写 pending `alternativeAnalysis`。空原文或建议不变不写库。无新 flag。SDD：`annotation-retokenize/`。不做强制覆盖/快照回滚；不接 ChatWindow | preview 零写入；未标注 readback；已标注 candidate；定向 vitest | 是 |
 | **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟡 已落地·flag 关】** `/corpus` 当前 text 下跨媒体只读索引 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-workset-shell/` + `corpus-library-project-index/`。查询层 `listCorpusIndexByTextId`，无 Dexie 索引表。换 **text** 清空工作集；换 media 保留。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 两 media 同列表；换 media 保留 basket；换 text 清空；定向 vitest | 是 |
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | **【🟡 已落地·flag 关】** 工作集复制 plain / Markdown（unit/media/时间码 + `/transcription?` 深链）；空选不写剪贴板。SDD：`corpus-library-clipboard-export/`。沿用 `corpusLibraryPageEnabled` 默认 **false**。不做 HTML/bundle/EAF；不接 ChatWindow / Resolver Core | golden 对拍 + clipboard mock；flag 关占位 e2e 不回归 | 是 |
 | **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟡 已落地·flag 关】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
@@ -298,4 +299,5 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-11 | **C3a/C3b**：转写导出菜单 SRT/WebVTT/CSV/TSV；同一 `layer_units` 读模型只序列化。开放门槛现状表改为 flag-off 壳层 / Analysis ADR-0033，仍 NO-GO。 |
 | 2026-09-13 | **C3c**：Leipzig IGT LaTeX（gb4e `\gll`/`\glt`）；`onExportLite('tex')`；不写回、不调 AutoGloss。不排 C3d Word。 |
 | 2026-09-11 | **B4c/d/e 标注 M1 开放**：段播放 + `user_notes`/selfCertainty + AutoGloss 预览采纳。`annotationPageEnabled` 默认 true。SDD：`annotation-m1-open/`。余量 B4f。 |
+| 2026-09-14 | **B4f**：`/annotation` 二次自动分词预览确认。未标注写 `unit_tokens` readback；已标注 pending `alternativeAnalysis`。无新 flag。SDD：`annotation-retokenize/`。下一刀 **B7**（仍 blocked on ChatWindow 会话隔离）。 |
 | 2026-09-11 | **B3b**：词典页 lemma / 主 gloss / citation / language / notes 编辑与新建；`saveLexeme` 写后 `list()` readback；空 lemma 不写。不接 ChatWindow；不改 R8 键。附件仍 flag 关。 |
