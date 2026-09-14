@@ -268,6 +268,15 @@ describe('AnnotationPage', () => {
     expect(status.getAttribute('data-action')).toBe('insertSpace');
   });
 
+  it('does not treat Space on the extras Play button as playToggle', async () => {
+    seedWorkspace([]);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    const play = await screen.findByTestId('annotation-igt-play-uid-1', {}, { timeout: 4000 });
+    fireEvent.keyDown(play, { key: ' ' });
+    const status = screen.getByTestId('annotation-keyboard-status');
+    expect(status.getAttribute('data-action')).not.toBe('playToggle');
+  });
+
   it('saves POS/gloss on Enter and readback replaces the row', async () => {
     const tokens: TokenFixture[] = [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ', 'X')];
     seedWorkspace(tokens);

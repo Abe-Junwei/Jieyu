@@ -13,6 +13,11 @@ import {
   readTranscriptionWorkspaceReturnHint,
 } from '../utils/transcriptionUrlDeepLink';
 import {
+  isAnnotationNativeSpaceActivationTarget,
+  isAnnotationSpaceShortcutKey,
+  isAnnotationTypingTarget,
+} from './annotation/annotationKeyboardTarget';
+import {
   reduceAnnotationKeyboard,
   stepAnnotationUnitId,
   type AnnotationKeyboardAction,
@@ -35,14 +40,6 @@ export type AnnotationSaveNotice = {
   kind: 'idle' | 'saving' | 'saved' | 'error';
   message: string;
 };
-
-function isEditableFieldTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement
-  );
-}
 
 export function useAnnotationWorkspaceController() {
   const locale = useLocale();
@@ -196,11 +193,9 @@ export function useAnnotationWorkspaceController() {
       preventDefault: () => void;
       target: EventTarget | null;
     }): AnnotationKeyboardAction => {
-      if (
-        isEditableFieldTarget(event.target) &&
-        (event.key === ' ' || event.key === 'Spacebar' || event.key === 'Space')
-      ) {
-        return 'insertSpace';
+      if (isAnnotationSpaceShortcutKey(event.key)) {
+        if (isAnnotationTypingTarget(event.target)) return 'insertSpace';
+        if (isAnnotationNativeSpaceActivationTarget(event.target)) return 'none';
       }
       const result = reduceAnnotationKeyboard(
         { mode: keyboard.mode, focusedUnitId: derived.focusedUnitId },
