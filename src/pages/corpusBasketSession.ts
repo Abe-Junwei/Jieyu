@@ -39,3 +39,16 @@ export function toggleCorpusBasketUnit(unitId: string): CorpusBasketSession {
   };
   return readCorpusBasketSession();
 }
+
+/** Drop workset ids that are no longer in the current text index (e.g. after unit delete). */
+export function pruneCorpusBasketToExistingUnitIds(
+  existingUnitIds: readonly string[],
+): CorpusBasketSession {
+  const allowed = new Set(existingUnitIds.map((id) => id.trim()).filter((id) => id.length > 0));
+  const next = session.unitIds.filter((id) => allowed.has(id));
+  if (next.length === session.unitIds.length) {
+    return readCorpusBasketSession();
+  }
+  session = { ...session, unitIds: next };
+  return readCorpusBasketSession();
+}

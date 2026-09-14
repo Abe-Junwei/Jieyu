@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { LinguisticService } from '../app/languageAssetPageAccess';
@@ -28,6 +28,7 @@ import {
   type CorpusWorksetExportPayload,
 } from './corpusWorksetExport';
 import {
+  pruneCorpusBasketToExistingUnitIds,
   readCorpusBasketSession,
   syncCorpusBasketScope,
   toggleCorpusBasketUnit,
@@ -128,7 +129,7 @@ export function useCorpusLibraryController() {
     });
     return {
       unitCount: units.length,
-      basketCount: selectedIds.size,
+      basketCount: exportPayload.units.length,
       filterText,
       rows,
       exportPayload,
@@ -147,6 +148,15 @@ export function useCorpusLibraryController() {
     toggleCorpusBasketUnit(unitId);
     setBasketRevision((current) => current + 1);
   }, []);
+
+  useEffect(() => {
+    if (unitsQuery.data === undefined) return;
+    const before = readCorpusBasketSession().unitIds;
+    const after = pruneCorpusBasketToExistingUnitIds(unitsQuery.data.map((unit) => unit.id));
+    if (after.unitIds.length !== before.length) {
+      setBasketRevision((current) => current + 1);
+    }
+  }, [unitsQuery.data]);
 
   const handleFilterChange = useCallback(
     (text: string) => {
@@ -212,7 +222,9 @@ export function useCorpusLibraryController() {
   useWorkspaceEventRefresh({
     onUnitUpdated: (detail) => {
       const rows = unitsQuery.data ?? [];
-      if (!rows.some((unit) => unit.id === detail.unitId)) return;
+      const inIndex = rows.some((unit) => unit.id === detail.unitId);
+      const inBasket = readCorpusBasketSession().unitIds.includes(detail.unitId);
+      if (!inIndex && !inBasket) return;
       void unitsQuery.refetch();
     },
   });
