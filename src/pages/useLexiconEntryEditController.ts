@@ -51,14 +51,17 @@ export function useLexiconEntryEditController(input: {
 
   creatingRef.current = creating;
   selectedLexemeIdRef.current = selectedLexeme?.id ?? null;
+  const selectedLexemeRef = useRef(selectedLexeme);
+  selectedLexemeRef.current = selectedLexeme;
+  const selectedLexemeId = selectedLexeme?.id ?? '';
 
   useEffect(() => {
     if (creating) return;
-    setFields(fieldsFromLexeme(selectedLexeme));
+    setFields(fieldsFromLexeme(selectedLexemeRef.current));
     setError('');
-    if (selectedLexeme?.id === lastSavedIdRef.current) return;
+    if (selectedLexemeId === lastSavedIdRef.current) return;
     setSaved(false);
-  }, [creating, selectedLexeme]);
+  }, [creating, selectedLexemeId]);
 
   const onSave = useCallback(() => {
     if (savingRef.current) return;

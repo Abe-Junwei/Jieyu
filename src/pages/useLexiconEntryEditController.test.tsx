@@ -101,4 +101,20 @@ describe('useLexiconEntryEditController', () => {
     expect(saveSpy).toHaveBeenCalledTimes(1);
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps in-progress edits when the same lexeme object is replaced', () => {
+    const onSaved = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ selectedLexeme }) => useLexiconEntryEditController({ selectedLexeme, onSaved }),
+      { initialProps: { selectedLexeme: dog as LexemeDocType | null } },
+    );
+
+    act(() => {
+      result.current.onFieldChange('lemma', 'hound');
+    });
+
+    rerender({ selectedLexeme: { ...dog, updatedAt: '2026-09-14T00:00:00.000Z' } });
+
+    expect(result.current.fields.lemma).toBe('hound');
+  });
 });
