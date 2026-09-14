@@ -285,6 +285,53 @@ describe('AnnotationPage', () => {
     });
   });
 
+  it('clears gloss on the displayed language key when default is empty', async () => {
+    const tokens: TokenFixture[] = [
+      {
+        id: 'tok-1',
+        textId: 'tid-1',
+        unitId: 'uid-1',
+        form: { default: 'hello' },
+        gloss: { default: '', eng: 'INTJ' },
+        pos: 'X',
+        tokenIndex: 0,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
+    seedWorkspace(tokens);
+    mockUpdateTokenGloss.mockImplementation(
+      async (_id: string, gloss: string | null, lang?: string) => {
+        const current = tokens[0]!;
+        const nextGloss = { ...(current.gloss ?? {}) };
+        const trimmed = (gloss ?? '').trim();
+        if (trimmed.length > 0) {
+          nextGloss[lang ?? 'default'] = trimmed;
+        } else if (lang && Object.prototype.hasOwnProperty.call(nextGloss, lang)) {
+          delete nextGloss[lang];
+        }
+        tokens[0] = { ...current, gloss: nextGloss };
+      },
+    );
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    const workspace = await screen.findByTestId('annotation-workspace', {}, { timeout: 4000 });
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    fireEvent.keyDown(workspace, { key: 'Enter' });
+    const gloss = await screen.findByTestId('annotation-igt-gloss-tok-1');
+    fireEvent.change(gloss, { target: { value: '' } });
+    fireEvent.keyDown(workspace, { key: 'Enter' });
+    await waitFor(() => {
+      expect(mockUpdateTokenGloss).toHaveBeenCalledWith('tok-1', null, 'eng');
+      expect(screen.getByTestId('annotation-keyboard-status').getAttribute('data-save')).toBe(
+        'saved',
+      );
+    });
+    fireEvent.keyDown(workspace, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.getByTestId('annotation-igt-row-uid-1').textContent).not.toContain('INTJ');
+    });
+  });
+
   it('keeps focus on the current row when Ctrl+Enter save fails', async () => {
     seedWorkspace(
       [tokenRow('tok-1', 'uid-1', 'hello', 'INTJ', 'X'), tokenRow('tok-2', 'uid-2', 'next', 'ADV')],
