@@ -16,6 +16,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **B3c lexicon extra senses and wordforms**: `/lexicon` can add or edit additional `senses` (gloss + optional definition) and `forms` transcriptions on the existing lexeme row. Empty extra glosses and blank wordforms are dropped. No new flag, no new Dexie table, no sense tree.
 - **B4f annotation secondary auto-tokenization**: `/annotation` previews Unicode word splits with no writes, then replaces `unit_tokens` only when the unit has no POS, gloss, morphemes, lexeme links, or dirty drafts. Annotated units store a pending `alternativeAnalysis` candidate instead. Empty or unchanged proposals do not write. No new flag.
 - **B3b lexicon entry edit**: `/lexicon` can create and save lemma / primary gloss / citation / language / notes via `LinguisticService.lexemes.save`, then `list()` readback. Empty lemma does not write. No ChatWindow, no new flag, no R8 key split. Attachments stay behind `lexiconAttachmentsEnabled`.
 - **B4e annotation AutoGloss preview**: `/annotation` previews lexeme matches without calling `AutoGlossService.glossUnit`, then writes `unit_tokens.gloss` and `token_lexeme_links` only after confirm. Dirty drafts and tokens that already have gloss are skipped.

@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-14
+last_reviewed: 2026-09-19
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-14）**：标注 M1（B4c/d/e）与 **B4f** 二次自动分词已落地（`annotationPageEnabled` 默认 true）。**C3a/C3b/C3c** 已合入。**B3b** 词典编辑已合入。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-19）**：标注 M1、B4f 与 **B3c** 词典额外义项/词形已落地。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -192,6 +192,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B2** | 跨页刷新事件合同（unitId 增量，P0-2） | M | **【✅ 已接线】** `workspaceEvents.ts`（`appShellEvents.ts` 再导出）+ LinguisticService 单写路径 persist 后 emit（`saveUnit` / `saveUnitText` / POS·gloss / `removeUnit` / `saveLexeme`）；annotation / corpus / lexicon 订阅并按 `unitId`/`lexemeId` 增量 refetch。未提交草稿 → `mark-dirty` 不覆盖。`saveUnitsBatch` 不 emit。`lexeme-deleted` / `context-sync` 仅 API。SDD：`workspace-cross-page-events/` | 提交后仅对应 unit 增量刷新；草稿不被覆盖；定向 vitest | 是 |
 | **B3** | 词典页三栏联动（只读命中语段，P0-5） | S | **【基本落地·回归已补】** `LexiconPage` 已实现 列表/检索 + 详情(义项/词形/笔记) + 命中语段(`LinguisticService.lexemes.listTranscriptionJumpTargets`) + 深链跳转回转写 + sessionStorage 态。P0-5 验收满足。B2 已接线：命中语段按 `unitId` invalidate | 列表/检索/详情/命中语段/深链/sessionStorage 回归；`LexiconPage.test` + `useLexiconSearch.test` + e2e criticalPaths `/lexicon` | 否 |
 | **B3b** | 词典词条编辑表单 | L | **【✅ 已落地】** `saveLexeme` 经 `saveLexiconEntry` 从 `/lexicon` 调用；lemma / 主 gloss / citation / language / notes；新建；空 lemma 不写。不接 ChatWindow；附件仍走 B8 flag。SDD：`lexicon-entry-edit/` | 写→reload→readback；不改 R8 键分轨 | 是 |
+| **B3c** | 词典额外义项与词形 | M | **【✅ 已落地】** `/lexicon` 编辑 `senses[1…]`（gloss + 可选 definition）与 `forms` transcription；空行丢弃；全部词形为空则去掉 `forms`。无新 flag、无新表。SDD：`lexicon-senses-forms/`。不做义项树 / variant-entry / 删除词条 | extra sense + forms write→list readback | 是 |
 | **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【✅ 已落地】** `/annotation` 当前 text/media 只读 IGT + 键盘 reduce 骨架。Flag `annotationPageEnabled` 现默认 **true**（M1 开放）。SDD：`annotation-workspace-shell/`。按轨读 `annotationLaneReadScope`（ADR-0020）。不写 token；不接 ChatWindow / 转写 annotation controller | flag 关占位；IGT 行渲染；Space 行聚焦=playToggle、输入态=insertSpace；定向 vitest | 是 |
 | **B4a-2** | 标注页 token POS/gloss 编辑 + 保存链路 + readback（P0-3 上·核心） | L | **【✅ 已落地】** 承 B4a-1：受控 POS/gloss 输入；Enter=`commitStay`；Ctrl+Enter 仅保存成功后跳行。写 `LinguisticService.units.updateTokenPos` / `updateTokenGloss`（`unit_tokens`），再 `listTokensByUnitIds` readback。SDD：`annotation-token-edit/`。不改转写文本/时间码；不接 ChatWindow / `useTranscriptionAnnotationController` / `annotationAdapters`。转写页需 reload 才见镜像 `unit.words` | 写→reload→readback；Dexie vitest | 是 |
 | **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | **【✅ 已落地】** 承 B4a-2：morpheme 按 `-`/`=` 分格 + gloss 写 `unit_morphemes`；token 空格/`|` 切分与与下一词合并写 `unit_tokens`；词典查询写 `token_lexeme_links`（role=`manual`）。Leipzig 内联校验 + 系统结构模板标记；模板编辑复用 `/assets/structural-profiles`。SDD：`annotation-morpheme-edit/`。不做二次自动分词 | 分词/链接/词素写→reload→readback；Leipzig invalid；定向 vitest | 是 |
@@ -300,4 +301,5 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-13 | **C3c**：Leipzig IGT LaTeX（gb4e `\gll`/`\glt`）；`onExportLite('tex')`；不写回、不调 AutoGloss。不排 C3d Word。 |
 | 2026-09-11 | **B4c/d/e 标注 M1 开放**：段播放 + `user_notes`/selfCertainty + AutoGloss 预览采纳。`annotationPageEnabled` 默认 true。SDD：`annotation-m1-open/`。余量 B4f。 |
 | 2026-09-14 | **B4f**：`/annotation` 二次自动分词预览确认。未标注写 `unit_tokens` readback；已标注 pending `alternativeAnalysis`。无新 flag。SDD：`annotation-retokenize/`。下一刀 **B7**（仍 blocked on ChatWindow 会话隔离）。 |
+| 2026-09-19 | **B3c**：`/lexicon` 额外义项（gloss + definition）与词形 transcription 写入既有 `senses`/`forms`；空行丢弃。无新 flag。SDD：`lexicon-senses-forms/`。下一刀仍不排 B7 / C3d / flag 放量。 |
 | 2026-09-11 | **B3b**：词典页 lemma / 主 gloss / citation / language / notes 编辑与新建；`saveLexeme` 写后 `list()` readback；空 lemma 不写。不接 ChatWindow；不改 R8 键。附件仍 flag 关。 |
