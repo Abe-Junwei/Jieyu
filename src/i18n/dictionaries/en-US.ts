@@ -301,6 +301,11 @@ export const enUSDictionary = {
   'workspace.lexicon.edit.cancelCreate': 'Cancel new entry',
   'workspace.lexicon.edit.lemmaRequired': 'Lemma cannot be empty.',
   'workspace.lexicon.edit.saveFailed': 'Could not save the entry.',
+  'workspace.lexicon.edit.delete': 'Delete entry',
+  'workspace.lexicon.edit.deleteTitle': 'Delete entry',
+  'workspace.lexicon.edit.deleteConfirm':
+    'This cannot be undone. Linked transcription hits and unshared attachments are removed.',
+  'workspace.lexicon.edit.deleteFailed': 'Could not delete the entry.',
   'workspace.lexicon.attachments.title': 'Entry attachments',
   'workspace.lexicon.attachments.description':
     'Images, audio, and documents are linked as references; binaries live in the asset table, not on the lexeme row.',

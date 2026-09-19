@@ -16,6 +16,7 @@ import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 const {
   mockListLexemes,
   mockSaveLexeme,
+  mockDeleteLexeme,
   mockListLexemeTranscriptionJumpTargets,
   mockListAttachments,
   mockAttachFile,
@@ -24,6 +25,7 @@ const {
 } = vi.hoisted(() => ({
   mockListLexemes: vi.fn(),
   mockSaveLexeme: vi.fn(),
+  mockDeleteLexeme: vi.fn(),
   mockListLexemeTranscriptionJumpTargets: vi.fn(),
   mockListAttachments: vi.fn(),
   mockAttachFile: vi.fn(),
@@ -36,6 +38,7 @@ vi.mock('../services/LinguisticService', () => ({
     lexemes: {
       list: mockListLexemes,
       save: mockSaveLexeme,
+      delete: mockDeleteLexeme,
       listTranscriptionJumpTargets: mockListLexemeTranscriptionJumpTargets,
       listAttachments: mockListAttachments,
       attachFile: mockAttachFile,
@@ -95,6 +98,7 @@ describe('LexiconPage', () => {
   beforeEach(() => {
     mockListLexemes.mockReset();
     mockSaveLexeme.mockReset();
+    mockDeleteLexeme.mockReset();
     mockListLexemeTranscriptionJumpTargets.mockReset();
     mockListAttachments.mockReset();
     mockAttachFile.mockReset();
@@ -150,6 +154,10 @@ describe('LexiconPage', () => {
         : [...current, doc];
       mockListLexemes.mockResolvedValue(next);
       return doc.id;
+    });
+    mockDeleteLexeme.mockImplementation(async (lexemeId: string) => {
+      const current = (await mockListLexemes()) as LexemeDocType[];
+      mockListLexemes.mockResolvedValue(current.filter((row) => row.id !== lexemeId));
     });
     window.sessionStorage.clear();
   });
@@ -478,5 +486,27 @@ describe('LexiconPage', () => {
       expect(screen.getByText('词元不能为空。')).toBeTruthy();
     });
     expect(mockSaveLexeme).not.toHaveBeenCalled();
+  });
+
+  it('deletes the selected entry after confirm and drops it from the list', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-delete');
+    fireEvent.click(screen.getByTestId('lexicon-entry-delete'));
+    fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
+    await waitFor(() => {
+      expect(mockDeleteLexeme).toHaveBeenCalledWith('lex-dog');
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /dog/i })).toBeNull();
+    });
+  });
+
+  it('does not write when delete is cancelled', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-delete');
+    fireEvent.click(screen.getByTestId('lexicon-entry-delete'));
+    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    expect(mockDeleteLexeme).not.toHaveBeenCalled();
+    expect(screen.getAllByText('dog').length).toBeGreaterThan(0);
   });
 });

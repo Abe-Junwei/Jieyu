@@ -278,6 +278,10 @@ export const zhCNDictionary = {
   'workspace.lexicon.edit.cancelCreate': '取消新建',
   'workspace.lexicon.edit.lemmaRequired': '词元不能为空。',
   'workspace.lexicon.edit.saveFailed': '无法保存词条。',
+  'workspace.lexicon.edit.delete': '删除词条',
+  'workspace.lexicon.edit.deleteTitle': '删除词条',
+  'workspace.lexicon.edit.deleteConfirm': '删除后无法恢复。关联的转写链接与未共享附件会一并去掉。',
+  'workspace.lexicon.edit.deleteFailed': '无法删除词条。',
   'workspace.lexicon.attachments.title': '词条附件',
   'workspace.lexicon.attachments.description':
     '图片、音频与文档以引用方式挂到词条；二进制存在统一资产表，不写入词条本身。',

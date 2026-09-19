@@ -1,3 +1,4 @@
+import { ConfirmDeleteDialog } from '../../components/ConfirmDeleteDialog';
 import { t, useLocale } from '../../i18n';
 import type { LexiconEntryEditController } from '../useLexiconEntryEditController';
 
@@ -85,8 +86,26 @@ export function LexiconEntryEditForm({ editor }: Props) {
           >
             {t(locale, 'workspace.lexicon.edit.cancelCreate')}
           </button>
-        ) : null}
+        ) : (
+          <button
+            type="button"
+            className="btn"
+            data-testid="lexicon-entry-delete"
+            disabled={editor.deleting}
+            onClick={editor.onRequestDelete}
+          >
+            {t(locale, 'workspace.lexicon.edit.delete')}
+          </button>
+        )}
       </div>
+      <ConfirmDeleteDialog
+        locale={locale}
+        open={editor.confirmDelete}
+        title={t(locale, 'workspace.lexicon.edit.deleteTitle')}
+        description={t(locale, 'workspace.lexicon.edit.deleteConfirm')}
+        onCancel={editor.onCancelDelete}
+        onConfirm={editor.onConfirmDelete}
+      />
     </form>
   );
 }
