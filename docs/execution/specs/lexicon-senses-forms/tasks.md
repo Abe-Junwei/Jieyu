@@ -21,12 +21,12 @@ depends_on:
 
 ## Pre-merge gates（与拍板 2A 一致）
 
-- [ ] `npm run typecheck`
-- [ ] `npx vitest run src/pages/lexicon/saveLexiconEntry.test.ts src/pages/LexiconPage.test.tsx src/pages/useLexiconEntryEditController.test.tsx`
-- [ ] `npm run test:e2e:chromium -- tests/e2e/criticalPaths.spec.ts`
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
-- [ ] 无新 feature flag
+- [x] `npm run typecheck`
+- [x] `npx vitest run src/pages/lexicon/saveLexiconEntry.test.ts src/pages/LexiconPage.test.tsx src/pages/useLexiconEntryEditController.test.tsx`
+- [x] `npm run test:e2e:chromium -- tests/e2e/criticalPaths.spec.ts`
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] 无新 feature flag
 
 ## Commit 阶段证据模板
 
