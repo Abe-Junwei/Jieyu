@@ -34,6 +34,81 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('gloss', event.target.value)}
         />
       </label>
+      <div className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.extraSensesLabel')}</span>
+        {editor.fields.extraSenses.map((sense, index) => (
+          <div key={`extra-sense-${index}`} className="lexicon-entry-edit-row">
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseGlossLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-gloss`}
+                value={sense.gloss}
+                onChange={(event) => editor.onExtraSenseChange(index, 'gloss', event.target.value)}
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseDefinitionLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-definition`}
+                value={sense.definition}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'definition', event.target.value)
+                }
+              />
+            </label>
+            <button
+              type="button"
+              className="btn"
+              data-testid={`lexicon-entry-remove-sense-${index}`}
+              onClick={() => editor.onRemoveExtraSense(index)}
+            >
+              {t(locale, 'workspace.lexicon.edit.removeSense')}
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn"
+          data-testid="lexicon-entry-add-sense"
+          onClick={editor.onAddExtraSense}
+        >
+          {t(locale, 'workspace.lexicon.edit.addSense')}
+        </button>
+      </div>
+      <div className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.formsLabel')}</span>
+        {editor.fields.forms.map((form, index) => (
+          <div key={`form-${index}`} className="lexicon-entry-edit-row">
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.formTranscriptionLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-form-${index}`}
+                value={form}
+                onChange={(event) => editor.onFormChange(index, event.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn"
+              data-testid={`lexicon-entry-remove-form-${index}`}
+              onClick={() => editor.onRemoveForm(index)}
+            >
+              {t(locale, 'workspace.lexicon.edit.removeForm')}
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn"
+          data-testid="lexicon-entry-add-form"
+          onClick={editor.onAddForm}
+        >
+          {t(locale, 'workspace.lexicon.edit.addForm')}
+        </button>
+      </div>
       <label className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.citationLabel')}</span>
         <input
