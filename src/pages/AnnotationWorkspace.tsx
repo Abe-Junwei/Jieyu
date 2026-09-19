@@ -5,6 +5,7 @@ import { t, tf, useLocale } from '../i18n';
 import { AnnotationIgtRowView } from './annotation/AnnotationIgtRow';
 import { useAnnotationAutoGlossController } from './useAnnotationAutoGlossController';
 import { useAnnotationMorphologyController } from './useAnnotationMorphologyController';
+import { useAnnotationRetokenizeController } from './useAnnotationRetokenizeController';
 import { useAnnotationSegmentPlaybackController } from './useAnnotationSegmentPlaybackController';
 import { useAnnotationUnitMetaController } from './useAnnotationUnitMetaController';
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
@@ -25,6 +26,12 @@ export function AnnotationWorkspace() {
     reloadWorkspace: controller.reload,
   });
   const autoGloss = useAnnotationAutoGlossController({
+    drafts: controller.drafts,
+    rows: controller.rows,
+    reloadWorkspace: controller.reload,
+  });
+  const retokenize = useAnnotationRetokenizeController({
+    textId: controller.textId,
     drafts: controller.drafts,
     rows: controller.rows,
     reloadWorkspace: controller.reload,
@@ -88,11 +95,13 @@ export function AnnotationWorkspace() {
   const activeNotice =
     autoGloss.saveNotice.kind !== 'idle'
       ? autoGloss.saveNotice
-      : unitMeta.saveNotice.kind !== 'idle'
-        ? unitMeta.saveNotice
-        : morphology.saveNotice.kind !== 'idle'
-          ? morphology.saveNotice
-          : controller.saveNotice;
+      : retokenize.saveNotice.kind !== 'idle'
+        ? retokenize.saveNotice
+        : unitMeta.saveNotice.kind !== 'idle'
+          ? unitMeta.saveNotice
+          : morphology.saveNotice.kind !== 'idle'
+            ? morphology.saveNotice
+            : controller.saveNotice;
   const saveStatusText =
     activeNotice.kind === 'saving'
       ? t(locale, 'workspace.annotation.saving')
@@ -163,6 +172,7 @@ export function AnnotationWorkspace() {
                 morphology={morphology}
                 unitMeta={unitMeta}
                 autoGloss={autoGloss}
+                retokenize={retokenize}
                 playing={playback.playingUnitId === row.id}
                 onPlay={(unitId) => {
                   void playback.onPlayToggle(unitId, controller.rows);

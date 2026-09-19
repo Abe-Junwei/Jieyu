@@ -619,4 +619,37 @@ describe('AnnotationPage', () => {
       expect(mockSaveTokenLexemeLink).toHaveBeenCalled();
     });
   });
+
+  it('previews retokenize without writing until apply', async () => {
+    const tokens: TokenFixture[] = [tokenRow('tok-1', 'uid-1', 'hello world', '')];
+    seedWorkspace(tokens);
+    mockRemoveToken.mockImplementation(async (id: string) => {
+      const index = tokens.findIndex((item) => item.id === id);
+      if (index >= 0) tokens.splice(index, 1);
+    });
+    mockSaveToken.mockImplementation(async (row: TokenFixture) => {
+      const index = tokens.findIndex((item) => item.id === row.id);
+      if (index >= 0) tokens[index] = { ...tokens[index]!, ...row };
+      else tokens.push(row);
+      return row.id;
+    });
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    expect(screen.getByTestId('annotation-igt-retokenize-preview-uid-1')).toBeTruthy();
+    expect(
+      (screen.getByTestId('annotation-igt-retokenize-apply-uid-1') as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fireEvent.click(screen.getByTestId('annotation-igt-retokenize-preview-uid-1'));
+    await waitFor(() => {
+      expect(screen.getByTestId('annotation-igt-retokenize-uid-1').textContent).toContain('hello');
+      expect(mockRemoveToken).not.toHaveBeenCalled();
+      expect(mockSaveToken).not.toHaveBeenCalled();
+    });
+    fireEvent.click(screen.getByTestId('annotation-igt-retokenize-apply-uid-1'));
+    await waitFor(() => {
+      expect(mockRemoveToken).toHaveBeenCalledWith('tok-1');
+      expect(tokens.some((row) => row.form.default === 'hello')).toBe(true);
+      expect(tokens.some((row) => row.form.default === 'world')).toBe(true);
+    });
+  });
 });
