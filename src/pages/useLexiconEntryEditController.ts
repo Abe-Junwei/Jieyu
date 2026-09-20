@@ -6,6 +6,7 @@ import {
   readPrimaryMultiLang,
   saveLexiconEntry,
   type LexiconEntryFields,
+  type LexiconEntryScalarField,
 } from './lexicon/saveLexiconEntry';
 
 export type LexiconEntryEditController = {
@@ -14,9 +15,15 @@ export type LexiconEntryEditController = {
   saving: boolean;
   deleting: boolean;
   confirmDelete: boolean;
-  error: string;
   saved: boolean;
-  onFieldChange: (field: keyof LexiconEntryFields, value: string) => void;
+  error: string;
+  onFieldChange: (field: LexiconEntryScalarField, value: string) => void;
+  onExtraSenseChange: (index: number, field: 'gloss' | 'definition', value: string) => void;
+  onAddExtraSense: () => void;
+  onRemoveExtraSense: (index: number) => void;
+  onFormChange: (index: number, value: string) => void;
+  onAddForm: () => void;
+  onRemoveForm: (index: number) => void;
   onStartCreate: () => void;
   onCancelCreate: () => void;
   onSave: () => void;
@@ -32,6 +39,13 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
+    extraSenses: (lexeme?.senses.slice(1) ?? []).map((sense) => ({
+      gloss: readPrimaryMultiLang(sense.gloss),
+      definition: readPrimaryMultiLang(sense.definition),
+    })),
+    forms: (lexeme?.forms ?? []).map((form) =>
+      readPrimaryMultiLang(form.transcription as Parameters<typeof readPrimaryMultiLang>[0]),
+    ),
   };
 }
 
@@ -157,9 +171,50 @@ export function useLexiconEntryEditController(input: {
       confirmDelete,
       error,
       saved,
-      onFieldChange: (field: keyof LexiconEntryFields, value: string) => {
+      onFieldChange: (field, value) => {
         setSaved(false);
         setFields((prev) => ({ ...prev, [field]: value }));
+      },
+      onExtraSenseChange: (index, field, value) => {
+        setSaved(false);
+        setFields((prev) => ({
+          ...prev,
+          extraSenses: prev.extraSenses.map((sense, senseIndex) =>
+            senseIndex === index ? { ...sense, [field]: value } : sense,
+          ),
+        }));
+      },
+      onAddExtraSense: () => {
+        setSaved(false);
+        setFields((prev) => ({
+          ...prev,
+          extraSenses: [...prev.extraSenses, { gloss: '', definition: '' }],
+        }));
+      },
+      onRemoveExtraSense: (index) => {
+        setSaved(false);
+        setFields((prev) => ({
+          ...prev,
+          extraSenses: prev.extraSenses.filter((_, senseIndex) => senseIndex !== index),
+        }));
+      },
+      onFormChange: (index, value) => {
+        setSaved(false);
+        setFields((prev) => ({
+          ...prev,
+          forms: prev.forms.map((form, formIndex) => (formIndex === index ? value : form)),
+        }));
+      },
+      onAddForm: () => {
+        setSaved(false);
+        setFields((prev) => ({ ...prev, forms: [...prev.forms, ''] }));
+      },
+      onRemoveForm: (index) => {
+        setSaved(false);
+        setFields((prev) => ({
+          ...prev,
+          forms: prev.forms.filter((_, formIndex) => formIndex !== index),
+        }));
       },
       onStartCreate: () => {
         setCreating(true);

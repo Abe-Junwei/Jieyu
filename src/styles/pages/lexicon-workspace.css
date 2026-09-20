@@ -290,6 +290,16 @@
   resize: vertical;
 }
 
+.lexicon-entry-edit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 8px;
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header) 12%);
+}
+
 .lexicon-entry-edit-actions {
   display: flex;
   flex-wrap: wrap;

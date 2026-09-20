@@ -2,12 +2,21 @@ import { LinguisticService } from '../../app/languageAssetPageAccess';
 import type { LexemeDocType, MultiLangString } from '../../types/jieyuDbDocTypes';
 import { newId } from '../../utils/transcriptionFormatters';
 
+export type LexiconEntryScalarField = 'lemma' | 'gloss' | 'citationForm' | 'language' | 'notes';
+
+export type LexiconSenseDraft = {
+  gloss: string;
+  definition: string;
+};
+
 export type LexiconEntryFields = {
   lemma: string;
   gloss: string;
   citationForm: string;
   language: string;
   notes: string;
+  extraSenses: LexiconSenseDraft[];
+  forms: string[];
 };
 
 export type LexiconEntrySaveDeps = {
@@ -56,11 +65,43 @@ export function applyLexiconEntryFields(
   const id = existing?.id ?? newId('lex');
   const firstSense = existing?.senses[0];
   const nextGloss = writePrimaryMultiLang(firstSense?.gloss, gloss.length > 0 ? gloss : lemma);
-  const restSenses = existing?.senses.slice(1) ?? [];
+  const extraSenses = fields.extraSenses.flatMap((draft, index) => {
+    const glossText = draft.gloss.trim();
+    if (glossText.length === 0) return [];
+    const previous = existing?.senses[index + 1];
+    const definitionText = draft.definition.trim();
+    const { definition: _oldDefinition, ...previousRest } = previous ?? {
+      gloss: { default: glossText },
+    };
+    return [
+      {
+        ...previousRest,
+        gloss: writePrimaryMultiLang(previous?.gloss, glossText),
+        ...(definitionText.length > 0
+          ? { definition: writePrimaryMultiLang(previous?.definition, definitionText) }
+          : {}),
+      },
+    ];
+  });
+  const nextForms = fields.forms.flatMap((draft, index) => {
+    const text = draft.trim();
+    if (text.length === 0) return [];
+    const previous = existing?.forms?.[index];
+    return [
+      {
+        ...(previous ?? {}),
+        transcription: writePrimaryMultiLang(
+          previous?.transcription as MultiLangString | undefined,
+          text,
+        ),
+      },
+    ];
+  });
   const {
     citationForm: _oldCitation,
     language: _oldLanguage,
     notes: _oldNotes,
+    forms: _oldForms,
     ...rest
   } = existing ?? {
     id,
@@ -73,10 +114,11 @@ export function applyLexiconEntryFields(
     ...rest,
     id,
     lemma: writePrimaryMultiLang(existing?.lemma, lemma),
-    senses: [{ ...(firstSense ?? {}), gloss: nextGloss }, ...restSenses],
+    senses: [{ ...(firstSense ?? {}), gloss: nextGloss }, ...extraSenses],
     ...(citationForm.length > 0 ? { citationForm } : {}),
     ...(language.length > 0 ? { language } : {}),
     ...(notes.length > 0 ? { notes: writePrimaryMultiLang(existing?.notes, notes) } : {}),
+    ...(nextForms.length > 0 ? { forms: nextForms } : {}),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
@@ -101,6 +143,28 @@ export async function saveLexiconEntry(
   if (!stored) throw new Error(`lexeme readback missing ${doc.id}`);
   if (readPrimaryMultiLang(stored.lemma) !== fieldsLemma(input.fields)) {
     throw new Error(`lexeme lemma readback mismatch for ${doc.id}`);
+  }
+  const expectedExtra = input.fields.extraSenses
+    .map((sense) => sense.gloss.trim())
+    .filter((value) => value.length > 0);
+  const storedExtra = stored.senses.slice(1).map((sense) => readPrimaryMultiLang(sense.gloss));
+  if (
+    expectedExtra.length !== storedExtra.length ||
+    expectedExtra.some((value, index) => value !== storedExtra[index])
+  ) {
+    throw new Error(`lexeme extra-sense readback mismatch for ${doc.id}`);
+  }
+  const expectedForms = input.fields.forms
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  const storedForms = (stored.forms ?? []).map((form) =>
+    readPrimaryMultiLang(form.transcription as MultiLangString | undefined),
+  );
+  if (
+    expectedForms.length !== storedForms.length ||
+    expectedForms.some((value, index) => value !== storedForms[index])
+  ) {
+    throw new Error(`lexeme form readback mismatch for ${doc.id}`);
   }
   return stored;
 }
