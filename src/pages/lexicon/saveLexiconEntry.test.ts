@@ -124,6 +124,24 @@ describe('saveLexiconEntry', () => {
     expect(created.senses[1]?.gloss.default).toBe('pet');
     expect(created.senses[1]?.definition?.default).toBe('companion animal');
     expect(created.forms?.map((form) => form.transcription.default)).toEqual(['dogs', 'doggie']);
+    expect(created.senses[0]?.id).toMatch(/^sense_/);
+    expect(created.senses[1]?.id).toMatch(/^sense_/);
+    expect(created.forms?.[0]?.id).toMatch(/^form_/);
+    expect(created.forms?.[1]?.id).toMatch(/^form_/);
+    const senseIds = created.senses.map((sense) => sense.id);
+    const formIds = (created.forms ?? []).map((form) => form.id);
+
+    const updated = await saveLexiconEntry({
+      existing: created,
+      fields: fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        extraSenses: [{ gloss: 'pet', definition: 'companion animal' }],
+        forms: ['dogs', 'doggie'],
+      }),
+    });
+    expect(updated.senses.map((sense) => sense.id)).toEqual(senseIds);
+    expect((updated.forms ?? []).map((form) => form.id)).toEqual(formIds);
 
     const cleared = await saveLexiconEntry({
       existing: created,

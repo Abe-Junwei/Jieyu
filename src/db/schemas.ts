@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { annotationAnalysisGraphFixtureSchema } from '../annotation/analysisGraph';
 import { structuralRuleProfileSchema } from '../annotation/structuralRuleProfile';
 import { UNIT_SELF_CERTAINTY_VALUES } from '../utils/unitSelfCertainty';
+import { assignLexemeNestedIdsInPlace } from './lexemeNestedIds';
 import type {
   TextDocType,
   MediaItemDocType,
@@ -170,6 +171,7 @@ const lexemeDocSchema = z.object({
     .array(
       z
         .object({
+          id: z.string().min(1),
           gloss: multiLangStringSchema,
           definition: multiLangStringSchema.optional(),
           category: z.string().optional(),
@@ -177,7 +179,9 @@ const lexemeDocSchema = z.object({
         .passthrough(),
     )
     .min(1),
-  forms: z.array(z.object({ transcription: transcriptionSchema }).passthrough()).optional(),
+  forms: z
+    .array(z.object({ id: z.string().min(1), transcription: transcriptionSchema }).passthrough())
+    .optional(),
   language: z.string().optional(),
   notes: multiLangStringSchema.optional(),
   tags: z.record(z.string(), z.boolean()).optional(),
@@ -1393,6 +1397,7 @@ export function validateMediaItemDoc(doc: MediaItemDocType): void {
 }
 
 export function validateLexemeDoc(doc: LexemeDocType): void {
+  assignLexemeNestedIdsInPlace(doc);
   lexemeDocSchema.parse(doc);
 }
 

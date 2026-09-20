@@ -16,6 +16,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Lexicon sense/form stable ids**: `senses` and `forms` get persistent `id`s. `saveLexeme` / B3c apply keep existing ids and assign `newId` for new rows. Dexie v54 backfills older lexeme rows. No sense-tree UI, no DMLex, no new flag.
 - **C4 project-scoped collaboration snapshots**: Auto snapshot, first-device hydration, and panel restore now export/import only the current `textId` transcription graph. Restore prunes that project then upserts; it no longer `replace-all`s IndexedDB. Lexemes and language assets stay local (ADR-0034). Inbound sync advances last-seen revision only after apply succeeds. Boot feature-detects `navigator.storage.persist()`.
 - **B3d lexicon entry hard-delete**: `/lexicon` confirms then hard-deletes a selected lexeme. `deleteLexeme` drops the row, `token_lexeme_links` for that id, and unshared attachments, then `list()` readback. Emits existing `jieyu:workspace.lexeme-deleted.v1` (`hard`). No new flag, no soft-delete column.
 - **B3c lexicon extra senses and wordforms**: `/lexicon` can add or edit additional `senses` (gloss + optional definition) and `forms` transcriptions on the existing lexeme row. Empty extra glosses and blank wordforms are dropped. No new flag, no new Dexie table, no sense tree.

@@ -1,4 +1,10 @@
-import { getDb, runDexieIndexedQueryOrElse, withTransaction, type LexemeDocType } from '../db';
+import {
+  ensureLexemeNestedIds,
+  getDb,
+  runDexieIndexedQueryOrElse,
+  withTransaction,
+  type LexemeDocType,
+} from '../db';
 import { newId } from '../utils/transcriptionFormatters';
 import {
   dispatchWorkspaceLexemeDeleted,
@@ -51,7 +57,8 @@ export async function searchLexemes(query: string): Promise<LexemeDocType[]> {
 
 export async function saveLexeme(data: LexemeDocType): Promise<string> {
   const db = await getDb();
-  const doc = await db.collections.lexemes.insert(data);
+  const stored = ensureLexemeNestedIds(data);
+  const doc = await db.collections.lexemes.insert(stored);
   dispatchWorkspaceLexemeUpdated({ lexemeId: doc.primary });
   return doc.primary;
 }
@@ -137,7 +144,7 @@ export async function matchOrCreateLexemeByForm(input: {
     id,
     lemma: { default: form },
     // Schema requires ≥1 sense; import creates a placeholder gloss from the surface form.
-    senses: [{ gloss: { default: form } }],
+    senses: [{ id: newId('sense'), gloss: { default: form } }],
     ...(language ? { language } : {}),
     createdAt: now,
     updatedAt: now,

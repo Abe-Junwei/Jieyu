@@ -160,14 +160,16 @@ export interface AnchorDocType {
   createdAt: string;
 }
 
-interface Sense {
+export interface Sense {
+  id?: string;
   gloss: MultiLangString;
   definition?: MultiLangString;
   category?: string;
   [key: string]: unknown;
 }
 
-interface Form {
+export interface Form {
+  id?: string;
   transcription: Transcription;
   [key: string]: unknown;
 }
