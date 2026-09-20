@@ -59,6 +59,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Fixed
 
+- **Lexicon nested ids on row delete**: extra-sense/form editor drafts carry stored `id`s. `applyLexiconEntryFields` looks up the previous row by that id (index only if the draft has no id), so deleting a non-last extra sense or wordform does not remap remaining nested ids.
 - **B11 MCP schema scan truncation**: A9 inbound scan no longer slices combined tool text at 16k. Each tool is inspected in full, including `inputSchema` JSON, so injection hidden after the old window cannot reach the LLM.
 - **E2E flaky** (`aiChatSendTurnSmoke.spec.ts`): webkit hover reliability improved with
   visibility wait + collapsed-state assertion + click fallback.

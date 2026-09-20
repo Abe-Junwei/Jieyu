@@ -117,4 +117,52 @@ describe('useLexiconEntryEditController', () => {
 
     expect(result.current.fields.lemma).toBe('hound');
   });
+
+  it('carries nested ids on drafts and keeps them after removing a middle row', () => {
+    const selected: LexemeDocType = {
+      ...dog,
+      senses: [
+        { id: 'sense_primary', gloss: { default: 'canine' } },
+        { id: 'sense_pet', gloss: { default: 'pet' }, definition: { default: 'companion' } },
+        { id: 'sense_follow', gloss: { default: 'follow' } },
+        { id: 'sense_food', gloss: { default: 'hot dog' } },
+      ],
+      forms: [
+        { id: 'form_dogs', transcription: { default: 'dogs' } },
+        { id: 'form_doggie', transcription: { default: 'doggie' } },
+        { id: 'form_hound', transcription: { default: 'hound' } },
+      ],
+    };
+    const onSaved = vi.fn();
+    const { result } = renderHook(() =>
+      useLexiconEntryEditController({ selectedLexeme: selected, onSaved }),
+    );
+
+    expect(result.current.fields.extraSenses.map((sense) => sense.id)).toEqual([
+      'sense_pet',
+      'sense_follow',
+      'sense_food',
+    ]);
+    expect(result.current.fields.forms.map((form) => form.id)).toEqual([
+      'form_dogs',
+      'form_doggie',
+      'form_hound',
+    ]);
+
+    act(() => {
+      result.current.onRemoveExtraSense(1);
+      result.current.onRemoveForm(1);
+    });
+
+    expect(result.current.fields.extraSenses.map((sense) => sense.id)).toEqual([
+      'sense_pet',
+      'sense_food',
+    ]);
+    expect(
+      result.current.fields.forms.map((form) => ({ id: form.id, text: form.transcription })),
+    ).toEqual([
+      { id: 'form_dogs', text: 'dogs' },
+      { id: 'form_hound', text: 'hound' },
+    ]);
+  });
 });

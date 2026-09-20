@@ -38,7 +38,7 @@ export function LexiconEntryEditForm({ editor }: Props) {
       <div className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.edit.extraSensesLabel')}</span>
         {editor.fields.extraSenses.map((sense, index) => (
-          <div key={`extra-sense-${index}`} className="lexicon-entry-edit-row">
+          <div key={sense.id ?? `extra-sense-${index}`} className="lexicon-entry-edit-row">
             <label className="lexicon-entry-edit-field">
               <span>{t(locale, 'workspace.lexicon.edit.senseGlossLabel')}</span>
               <input
@@ -81,13 +81,13 @@ export function LexiconEntryEditForm({ editor }: Props) {
       <div className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.edit.formsLabel')}</span>
         {editor.fields.forms.map((form, index) => (
-          <div key={`form-${index}`} className="lexicon-entry-edit-row">
+          <div key={form.id ?? `form-${index}`} className="lexicon-entry-edit-row">
             <label className="lexicon-entry-edit-field">
               <span>{t(locale, 'workspace.lexicon.edit.formTranscriptionLabel')}</span>
               <input
                 className="input lexicon-entry-edit-input"
                 data-testid={`lexicon-entry-form-${index}`}
-                value={form}
+                value={form.transcription}
                 onChange={(event) => editor.onFormChange(index, event.target.value)}
               />
             </label>

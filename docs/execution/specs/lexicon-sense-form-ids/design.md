@@ -14,10 +14,10 @@ depends_on:
 
 ## 1. 成熟方案扫描 / Research
 
-- 仓库既有：B3c `applyLexiconEntryFields` 按下标对齐 extra sense/form；`saveLexeme` Dexie `insert`；B8 v53 `lexeme_assets`；`upgradeM42TrackEntityDocumentIds` 数据迁移范式。
+- 仓库既有：B3c `applyLexiconEntryFields`；`saveLexeme` Dexie `insert`；B8 v53 `lexeme_assets`；`upgradeM42TrackEntityDocumentIds` 数据迁移范式。apply 按草稿 nested id 查找已有行，无 id 时才回退下标（兼容旧测试）。
 - 同类产品：FLEx/WeSay LIFT 导出要求 **entry 与 sense 都有 unique id**（sense 多为 GUID）；FLEx 用 guid 做 merge 键。词形在 LIFT 里是 `lexical-unit/form` 按 `@lang`，**没有独立 form id**。
 - 业内：SIL LIFT 0.13（程序仍用 0.13，0.15 未普及）；TEI Lex-0 用 `xml:id`；OASIS DMLex 1.0（2025）内部 metamodel 过重，本切片不做。
-- 公认不可行：用数组下标当长期 identity；为 form 建独立 Dexie 表；一次上 DMLex/LIFT 出站；把 id 只写 UI draft 不落库。
+- 公认不可行：用数组下标当长期 identity；为 form 建独立 Dexie 表；一次上 DMLex/LIFT 出站；把 id 只写 UI draft 不落库；apply 只按下标对齐（删中间行会把删掉的 id 接到留下的内容上）。
 - 潜在的坑：`validateLexemeDoc` 若要求 id 但不补，旧快照导入失败；`dexie.lexemes.put` 绕过 adapter。v54 索引仍是 `id, updatedAt`，只做 nested 回填。
 - 决定：**复用** nested JSON 与 B3c apply；**适配** LIFT sense id；form 给**内部** id 供编辑稳定（非 LIFT 字段）；**自研** `assignLexemeNestedIdsInPlace` + v54 modify。不新增依赖。
 
@@ -34,7 +34,8 @@ depends_on:
 | `src/db/lexemeNestedIds.ts` | 就地补缺 id | < 80 |
 | `src/db/migrations/m54LexemeNestedIds.ts` | v54 modify lexemes | < 40 |
 | `src/db/schemas.ts` / `types.ts` / `engine.ts` | Zod + TARGET=54 | 增量 |
-| `saveLexiconEntry.ts` / `saveLexeme` | 保留已有 id | 增量 |
+| `saveLexiconEntry.ts` / `saveLexeme` | 草稿携带 id；apply 按 id 查找 | 增量 |
+| `useLexiconEntryEditController.ts` | `fieldsFromLexeme` 映射 nested id | 增量 |
 
 约束自查：无 `src/features/`；无新 hook；无第三层 border。
 
@@ -56,5 +57,5 @@ depends_on:
 | 验证类型 | 命令 | 期望 |
 | --- | --- | --- |
 | typecheck | `npm run typecheck` | 0 errors |
-| 持久化 | m54 + saveLexiconEntry + saveLexeme readback | pass |
+| 持久化 | m54 + saveLexiconEntry + saveLexeme readback；删中间行剩余 id 不变 | pass |
 | 守卫 | architecture-guard / docs / workflow | OK |

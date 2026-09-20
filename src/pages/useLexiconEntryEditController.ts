@@ -3,6 +3,7 @@ import { t, useLocale } from '../i18n';
 import type { LexemeDocType } from '../types/jieyuDbDocTypes';
 import { deleteLexiconEntry } from './lexicon/deleteLexiconEntry';
 import {
+  draftIdFromNested,
   readPrimaryMultiLang,
   saveLexiconEntry,
   type LexiconEntryFields,
@@ -40,12 +41,16 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
     extraSenses: (lexeme?.senses.slice(1) ?? []).map((sense) => ({
+      ...draftIdFromNested(sense.id),
       gloss: readPrimaryMultiLang(sense.gloss),
       definition: readPrimaryMultiLang(sense.definition),
     })),
-    forms: (lexeme?.forms ?? []).map((form) =>
-      readPrimaryMultiLang(form.transcription as Parameters<typeof readPrimaryMultiLang>[0]),
-    ),
+    forms: (lexeme?.forms ?? []).map((form) => ({
+      ...draftIdFromNested(form.id),
+      transcription: readPrimaryMultiLang(
+        form.transcription as Parameters<typeof readPrimaryMultiLang>[0],
+      ),
+    })),
   };
 }
 
@@ -202,12 +207,14 @@ export function useLexiconEntryEditController(input: {
         setSaved(false);
         setFields((prev) => ({
           ...prev,
-          forms: prev.forms.map((form, formIndex) => (formIndex === index ? value : form)),
+          forms: prev.forms.map((form, formIndex) =>
+            formIndex === index ? { ...form, transcription: value } : form,
+          ),
         }));
       },
       onAddForm: () => {
         setSaved(false);
-        setFields((prev) => ({ ...prev, forms: [...prev.forms, ''] }));
+        setFields((prev) => ({ ...prev, forms: [...prev.forms, { transcription: '' }] }));
       },
       onRemoveForm: (index) => {
         setSaved(false);

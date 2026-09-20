@@ -4,6 +4,7 @@ import { db } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
 import {
   applyLexiconEntryFields,
+  draftIdFromNested,
   mergeLexemeIntoList,
   readPrimaryMultiLang,
   saveLexiconEntry,
@@ -17,8 +18,8 @@ function fields(
     citationForm: string;
     language: string;
     notes: string;
-    extraSenses: { gloss: string; definition: string }[];
-    forms: string[];
+    extraSenses: { id?: string; gloss: string; definition: string }[];
+    forms: { id?: string; transcription: string }[];
   }> & { lemma: string },
 ) {
   return {
@@ -117,7 +118,7 @@ describe('saveLexiconEntry', () => {
           { gloss: 'pet', definition: 'companion animal' },
           { gloss: '  ', definition: 'ignored' },
         ],
-        forms: ['dogs', '  ', 'doggie'],
+        forms: [{ transcription: 'dogs' }, { transcription: '  ' }, { transcription: 'doggie' }],
       }),
     });
     expect(created.senses).toHaveLength(2);
@@ -137,7 +138,7 @@ describe('saveLexiconEntry', () => {
         lemma: 'dog',
         gloss: 'canine',
         extraSenses: [{ gloss: 'pet', definition: 'companion animal' }],
-        forms: ['dogs', 'doggie'],
+        forms: [{ transcription: 'dogs' }, { transcription: 'doggie' }],
       }),
     });
     expect(updated.senses.map((sense) => sense.id)).toEqual(senseIds);
@@ -149,10 +150,97 @@ describe('saveLexiconEntry', () => {
         lemma: 'dog',
         gloss: 'canine',
         extraSenses: [{ gloss: '', definition: '' }],
-        forms: ['', ''],
+        forms: [{ transcription: '' }, { transcription: '' }],
       }),
     });
     expect(cleared.senses).toHaveLength(1);
     expect(cleared.forms).toBeUndefined();
+  });
+
+  it('keeps remaining nested ids after a middle extra sense or form is removed', async () => {
+    const created = await saveLexiconEntry({
+      existing: null,
+      fields: fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        extraSenses: [
+          { gloss: 'pet', definition: 'companion' },
+          { gloss: 'follow', definition: 'pursue' },
+          { gloss: 'hot dog', definition: 'food' },
+        ],
+        forms: [{ transcription: 'dogs' }, { transcription: 'doggie' }, { transcription: 'hound' }],
+      }),
+    });
+    const extra = created.senses.slice(1);
+    const storedForms = created.forms ?? [];
+    expect(extra).toHaveLength(3);
+    expect(storedForms).toHaveLength(3);
+
+    const afterDelete = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        extraSenses: [
+          { ...draftIdFromNested(extra[0]?.id), gloss: 'pet', definition: 'companion' },
+          { ...draftIdFromNested(extra[2]?.id), gloss: 'hot dog', definition: 'food' },
+        ],
+        forms: [
+          { ...draftIdFromNested(storedForms[0]?.id), transcription: 'dogs' },
+          { ...draftIdFromNested(storedForms[2]?.id), transcription: 'hound' },
+        ],
+      }),
+      now,
+    );
+    expect(afterDelete.senses.map((sense) => sense.id)).toEqual([
+      created.senses[0]?.id,
+      extra[0]?.id,
+      extra[2]?.id,
+    ]);
+    expect((afterDelete.forms ?? []).map((form) => form.id)).toEqual([
+      storedForms[0]?.id,
+      storedForms[2]?.id,
+    ]);
+    expect(afterDelete.senses.map((sense) => readPrimaryMultiLang(sense.gloss))).toEqual([
+      'canine',
+      'pet',
+      'hot dog',
+    ]);
+
+    const stored = await saveLexiconEntry({
+      existing: created,
+      fields: fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        extraSenses: [
+          { ...draftIdFromNested(extra[0]?.id), gloss: 'pet', definition: 'companion' },
+          { ...draftIdFromNested(extra[2]?.id), gloss: 'hot dog', definition: 'food' },
+        ],
+        forms: [
+          { ...draftIdFromNested(storedForms[0]?.id), transcription: 'dogs' },
+          { ...draftIdFromNested(storedForms[2]?.id), transcription: 'hound' },
+        ],
+      }),
+    });
+    expect(stored.senses.map((sense) => sense.id)).toEqual([
+      created.senses[0]?.id,
+      extra[0]?.id,
+      extra[2]?.id,
+    ]);
+    expect((stored.forms ?? []).map((form) => form.id)).toEqual([
+      storedForms[0]?.id,
+      storedForms[2]?.id,
+    ]);
+    const requery = await LinguisticService.lexemes.list();
+    const readback = requery.find((row) => row.id === created.id);
+    expect(readback?.senses.map((sense) => sense.id)).toEqual([
+      created.senses[0]?.id,
+      extra[0]?.id,
+      extra[2]?.id,
+    ]);
+    expect((readback?.forms ?? []).map((form) => form.id)).toEqual([
+      storedForms[0]?.id,
+      storedForms[2]?.id,
+    ]);
   });
 });

@@ -13,7 +13,7 @@ depends_on:
 
 ## 1. What & Why
 
-- **要做什么**：给 `LexemeDocType.senses[]` / `forms[]` 补稳定 `id`；`saveLexeme` 与 B3c apply 保留已有 id、新行 `newId`；Dexie v54 回填旧行。
+- **要做什么**：给 `LexemeDocType.senses[]` / `forms[]` 补稳定 `id`；`saveLexeme` 与 B3c apply 保留已有 id、新行 `newId`；Dexie v54 回填旧行；编辑草稿携带 nested id，删行按 id 对齐。
 - **为什么现在做**：B3c 用数组下标当 identity，重排/删行会错位；LIFT 0.13 要求 sense `id`；后续义项树需要稳定键。
 - **不做什么**：不做义项树 UI、DMLex 内部 metamodel、LIFT 出站、ChatWindow、新 flag、不改附件表索引。
 
@@ -21,11 +21,12 @@ depends_on:
 
 1. 保存额外义项后 reload，`senses[1].id` 仍是同一字符串。
 2. 打开旧库（无 nested id）升到 v54 后每条 sense/form 都有非空 id。
-3. 改 gloss 不换 id；新增词形得到新 `form_*` id。
+3. 改 gloss 不换 id；新增词形得到新 `form_*` id；删掉中间额外义项/词形后，留下的行仍是原来的 id。
 
 ## 3. 验收标准（可测）
 
 - [x] `saveLexeme` / `saveLexiconEntry` write→list readback：nested `id` 非空且二次保存不变
+- [x] 删中间 extra sense/form：剩余 nested `id` 不变（草稿携带 id；apply 按 id 查找）
 - [x] v54 upgrade 回填缺 id、保留已有 id
 - [x] Zod sense/form 要求 `id` min(1)；validate 先补 id 再 parse（兼容旧快照写入）
 - [x] 无新 flag；B3c extra-sense/forms 用例仍绿
@@ -36,7 +37,8 @@ depends_on:
 | --- | --- | --- |
 | Schema / DB | `types.ts` `schemas.ts` `engine.ts` `lexemeNestedIds.ts` `migrations/m54LexemeNestedIds.ts` | 新增 id + v54 |
 | Service | `linguisticServiceLexemeOps.ts` | save / matchOrCreate 补 id |
-| Helper | `saveLexiconEntry.ts` | 保留/分配 nested id |
+| Helper | `saveLexiconEntry.ts` | 草稿 id + 按 id 对齐 |
+| Controller | `useLexiconEntryEditController.ts` | `fieldsFromLexeme` 携带 nested id |
 | 测试 | m54 + saveLexiconEntry + engine.lexemeAssets | 新增 / 修改 |
 
 ## 5. 已知风险与依赖
