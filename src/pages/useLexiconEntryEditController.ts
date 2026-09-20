@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t, useLocale } from '../i18n';
 import type { LexemeDocType } from '../types/jieyuDbDocTypes';
+import { deleteLexiconEntry } from './lexicon/deleteLexiconEntry';
 import {
   readPrimaryMultiLang,
   saveLexiconEntry,
@@ -12,6 +13,8 @@ export type LexiconEntryEditController = {
   fields: LexiconEntryFields;
   creating: boolean;
   saving: boolean;
+  deleting: boolean;
+  confirmDelete: boolean;
   saved: boolean;
   error: string;
   onFieldChange: (field: LexiconEntryScalarField, value: string) => void;
@@ -24,6 +27,9 @@ export type LexiconEntryEditController = {
   onStartCreate: () => void;
   onCancelCreate: () => void;
   onSave: () => void;
+  onRequestDelete: () => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void;
 };
 
 function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
@@ -50,16 +56,20 @@ export type LexiconEntrySavedOptions = {
 export function useLexiconEntryEditController(input: {
   selectedLexeme: LexemeDocType | null;
   onSaved: (stored: LexemeDocType, options?: LexiconEntrySavedOptions) => void;
+  onDeleted?: (lexemeId: string) => void;
 }): LexiconEntryEditController {
-  const { selectedLexeme, onSaved } = input;
+  const { selectedLexeme, onSaved, onDeleted } = input;
   const locale = useLocale();
   const lastSavedIdRef = useRef<string | null>(null);
   const savingRef = useRef(false);
+  const deletingRef = useRef(false);
   const creatingRef = useRef(false);
   const selectedLexemeIdRef = useRef<string | null>(selectedLexeme?.id ?? null);
   const [creating, setCreating] = useState(false);
   const [fields, setFields] = useState<LexiconEntryFields>(fieldsFromLexeme(selectedLexeme));
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
 
@@ -73,6 +83,7 @@ export function useLexiconEntryEditController(input: {
     if (creating) return;
     setFields(fieldsFromLexeme(selectedLexemeRef.current));
     setError('');
+    setConfirmDelete(false);
     if (selectedLexemeId === lastSavedIdRef.current) return;
     setSaved(false);
   }, [creating, selectedLexemeId]);
@@ -122,11 +133,42 @@ export function useLexiconEntryEditController(input: {
       });
   }, [creating, fields, locale, onSaved, selectedLexeme]);
 
+  const onConfirmDelete = useCallback(() => {
+    if (deletingRef.current || creating || !selectedLexeme) return;
+    deletingRef.current = true;
+    const startedLexemeId = selectedLexeme.id;
+    setDeleting(true);
+    setError('');
+    void deleteLexiconEntry(startedLexemeId)
+      .then(() => {
+        setConfirmDelete(false);
+        if (selectedLexemeIdRef.current === startedLexemeId) {
+          onDeleted?.(startedLexemeId);
+        }
+      })
+      .catch((caught) => {
+        const message =
+          caught instanceof Error && caught.message.trim().length > 0
+            ? caught.message === 'NOT_FOUND'
+              ? t(locale, 'workspace.lexicon.edit.deleteFailed')
+              : caught.message
+            : t(locale, 'workspace.lexicon.edit.deleteFailed');
+        setError(message);
+        setConfirmDelete(false);
+      })
+      .finally(() => {
+        deletingRef.current = false;
+        setDeleting(false);
+      });
+  }, [creating, locale, onDeleted, selectedLexeme]);
+
   return useMemo(
     () => ({
       fields,
       creating,
       saving,
+      deleting,
+      confirmDelete,
       error,
       saved,
       onFieldChange: (field, value) => {
@@ -179,15 +221,36 @@ export function useLexiconEntryEditController(input: {
         setFields(fieldsFromLexeme(null));
         setError('');
         setSaved(false);
+        setConfirmDelete(false);
       },
       onCancelCreate: () => {
         setCreating(false);
         setFields(fieldsFromLexeme(selectedLexeme));
         setError('');
         setSaved(false);
+        setConfirmDelete(false);
       },
       onSave,
+      onRequestDelete: () => {
+        if (creating || !selectedLexeme) return;
+        setConfirmDelete(true);
+      },
+      onCancelDelete: () => {
+        setConfirmDelete(false);
+      },
+      onConfirmDelete,
     }),
-    [creating, error, fields, onSave, saved, saving, selectedLexeme],
+    [
+      confirmDelete,
+      creating,
+      deleting,
+      error,
+      fields,
+      onConfirmDelete,
+      onSave,
+      saved,
+      saving,
+      selectedLexeme,
+    ],
   );
 }

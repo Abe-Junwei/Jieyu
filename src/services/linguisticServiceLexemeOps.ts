@@ -1,6 +1,9 @@
-import { getDb, runDexieIndexedQueryOrElse, type LexemeDocType } from '../db';
+import { getDb, runDexieIndexedQueryOrElse, withTransaction, type LexemeDocType } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
-import { dispatchWorkspaceLexemeUpdated } from '../utils/workspaceEvents';
+import {
+  dispatchWorkspaceLexemeDeleted,
+  dispatchWorkspaceLexemeUpdated,
+} from '../utils/workspaceEvents';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 
 /** 词典 → 转写深链：由 `token_lexeme_links` 解析出的可跳转时间轴单元 | Lexicon → transcription deep-link row */
@@ -51,6 +54,51 @@ export async function saveLexeme(data: LexemeDocType): Promise<string> {
   const doc = await db.collections.lexemes.insert(data);
   dispatchWorkspaceLexemeUpdated({ lexemeId: doc.primary });
   return doc.primary;
+}
+
+export async function deleteLexeme(lexemeId: string): Promise<void> {
+  const id = lexemeId.trim();
+  if (!id) throw new Error('empty lexeme id');
+  const db = await getDb();
+  const existing = await db.collections.lexemes.findOne({ selector: { id } }).exec();
+  if (!existing) throw new Error('NOT_FOUND');
+
+  await withTransaction(
+    db,
+    'rw',
+    [
+      db.dexie.lexemes,
+      db.dexie.token_lexeme_links,
+      db.dexie.lexeme_asset_links,
+      db.dexie.lexeme_assets,
+    ],
+    async () => {
+      const assetLinks = await db.collections.lexeme_asset_links.findByIndex('lexemeId', id);
+      for (const linkDoc of assetLinks) {
+        const link = linkDoc.toJSON();
+        await db.collections.lexeme_asset_links.remove(link.id);
+        const assetDoc = await db.collections.lexeme_assets
+          .findOne({ selector: { id: link.assetId } })
+          .exec();
+        if (!assetDoc) continue;
+        const asset = assetDoc.toJSON();
+        const nextCount = asset.refCount - 1;
+        if (nextCount <= 0) {
+          await db.collections.lexeme_assets.remove(asset.id);
+          continue;
+        }
+        await db.collections.lexeme_assets.update(asset.id, {
+          refCount: nextCount,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      await db.collections.token_lexeme_links.removeBySelector({ lexemeId: id });
+      await db.collections.lexemes.remove(id);
+    },
+    { label: 'lexeme-delete' },
+  );
+
+  dispatchWorkspaceLexemeDeleted({ lexemeId: id, deletionMode: 'hard' });
 }
 
 function lemmaSurface(lexeme: LexemeDocType): string {

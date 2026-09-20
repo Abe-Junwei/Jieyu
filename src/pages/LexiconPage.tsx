@@ -180,6 +180,15 @@ export function LexiconPage() {
       if (!existed) setSearchText('');
       if (options?.select !== false) setSelectedLexemeId(stored.id);
     },
+    onDeleted: (lexemeId) => {
+      const current = queryClient.getQueryData<LexemeDocType[]>(['lexemes']) ?? [];
+      queryClient.setQueryData(
+        ['lexemes'],
+        current.filter((row) => row.id !== lexemeId),
+      );
+      void queryClient.removeQueries({ queryKey: ['lexemeTranscriptionJumpTargets', lexemeId] });
+      setSelectedLexemeId((currentId) => (currentId === lexemeId ? '' : currentId));
+    },
   });
 
   const {
@@ -204,6 +213,17 @@ export function LexiconPage() {
       void queryClient.invalidateQueries({
         queryKey: ['lexemeTranscriptionJumpTargets', detail.lexemeId],
       });
+    },
+    onLexemeDeleted: (detail) => {
+      const current = queryClient.getQueryData<LexemeDocType[]>(['lexemes']) ?? [];
+      queryClient.setQueryData(
+        ['lexemes'],
+        current.filter((row) => row.id !== detail.lexemeId),
+      );
+      void queryClient.removeQueries({
+        queryKey: ['lexemeTranscriptionJumpTargets', detail.lexemeId],
+      });
+      setSelectedLexemeId((currentId) => (currentId === detail.lexemeId ? '' : currentId));
     },
   });
 

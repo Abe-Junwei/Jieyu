@@ -84,6 +84,7 @@ export const LinguisticService = {
     list: linguisticServiceLexemeOps.listLexemes,
     search: linguisticServiceLexemeOps.searchLexemes,
     save: linguisticServiceLexemeOps.saveLexeme,
+    delete: linguisticServiceLexemeOps.deleteLexeme,
     matchOrCreateByForm: linguisticServiceLexemeOps.matchOrCreateLexemeByForm,
     listTranscriptionJumpTargets: linguisticServiceLexemeOps.listLexemeTranscriptionJumpTargets,
     listAttachments: linguisticServiceLexemeAssetOps.listLexemeAttachments,
