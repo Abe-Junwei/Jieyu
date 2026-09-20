@@ -26,7 +26,7 @@ depends_on:
 - [x] `npm run check:architecture-guard`
 - [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
 - [x] 无新 feature flag；ChatWindow 零 diff
-- [ ] 交互页按钮：`npm run test:e2e:chromium -- tests/e2e/criticalPaths.spec.ts`（环境允许时）
+- [x] 交互页按钮：`npm run test:e2e:chromium -- tests/e2e/criticalPaths.spec.ts`（12 passed，含 `lexicon-lift-export` 可见）
 
 ## Commit 阶段证据模板
 
