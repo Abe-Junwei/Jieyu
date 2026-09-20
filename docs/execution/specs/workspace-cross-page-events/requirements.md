@@ -3,7 +3,7 @@ title: workspace-cross-page-events requirements
 doc_type: execution-spec-requirements
 status: active
 owner: corpus
-last_reviewed: 2026-09-10
+last_reviewed: 2026-09-20
 source_of_truth: workspace-cross-page-events-spec
 ---
 
@@ -27,6 +27,9 @@ source_of_truth: workspace-cross-page-events-spec
 - [x] 同 `idempotencyKey` 第二次 `apply` 为 false
 - [x] 目标页有未提交草稿 → `mark-dirty`，不 refetch 该 unit
 - [x] `updateTokenPos` / `saveUnit` / `saveUnitText` / `removeUnit` / `saveLexeme` 成功后派发
+- [x] `saveUnitsBatch` persist 后按 unique `unitId` 派发 `unit-updated`
+- [x] `saveTokenLexemeLink` / `removeTokenLexemeLinks` / `removeTokenLexemeLinksByIds` persist 后派发 `unit-updated`（查 token/morpheme）与 `lexeme-updated`
+- [x] `saveUserNote` 在 `targetType` 为 unit/token/morpheme 且能解析 `unitId` 时派发 `unit-updated`
 - [x] 不改 ChatWindow；不新增 feature flag
 
 ## 4. 受影响代码地图
@@ -35,7 +38,7 @@ source_of_truth: workspace-cross-page-events-spec
 | --- | --- | --- |
 | Helper | `src/utils/workspaceEvents.ts` | 总线 + 去重决策 |
 | Re-export | `src/utils/appShellEvents.ts` | 计划书锚点 |
-| Service | unit/lexeme/cleanup 写路径 | persist 后 emit |
+| Service | unit/lexeme/note/cleanup 写路径 | persist 后 emit（含 batch unique unitId、token↔lexeme 链接） |
 | Hook | `src/hooks/useWorkspaceEventRefresh.ts` | 订阅 |
 | Controller | annotation / corpus | 增量 invalidate |
 | 测试 | events + page | 去重 / 草稿 / 刷新 |
