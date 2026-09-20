@@ -51,6 +51,12 @@ export function writePrimaryMultiLang(
   return { ...record, [firstKey]: trimmed };
 }
 
+function keepOrCreateNestedId(existing: { id?: unknown } | undefined, prefix: string): string {
+  const raw = existing?.id;
+  const id = typeof raw === 'string' ? raw.trim() : '';
+  return id.length > 0 ? id : newId(prefix);
+}
+
 export function applyLexiconEntryFields(
   existing: LexemeDocType | null,
   fields: LexiconEntryFields,
@@ -76,6 +82,7 @@ export function applyLexiconEntryFields(
     return [
       {
         ...previousRest,
+        id: keepOrCreateNestedId(previous, 'sense'),
         gloss: writePrimaryMultiLang(previous?.gloss, glossText),
         ...(definitionText.length > 0
           ? { definition: writePrimaryMultiLang(previous?.definition, definitionText) }
@@ -90,6 +97,7 @@ export function applyLexiconEntryFields(
     return [
       {
         ...(previous ?? {}),
+        id: keepOrCreateNestedId(previous, 'form'),
         transcription: writePrimaryMultiLang(
           previous?.transcription as MultiLangString | undefined,
           text,
@@ -114,7 +122,10 @@ export function applyLexiconEntryFields(
     ...rest,
     id,
     lemma: writePrimaryMultiLang(existing?.lemma, lemma),
-    senses: [{ ...(firstSense ?? {}), gloss: nextGloss }, ...extraSenses],
+    senses: [
+      { ...(firstSense ?? {}), id: keepOrCreateNestedId(firstSense, 'sense'), gloss: nextGloss },
+      ...extraSenses,
+    ],
     ...(citationForm.length > 0 ? { citationForm } : {}),
     ...(language.length > 0 ? { language } : {}),
     ...(notes.length > 0 ? { notes: writePrimaryMultiLang(existing?.notes, notes) } : {}),

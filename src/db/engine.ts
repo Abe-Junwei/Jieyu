@@ -124,6 +124,7 @@ import {
 import { upgradeM18LinguisticUnitCutover } from './migrations/m18LinguisticUnitCutover';
 import { upgradeM41SelfCertaintyHostDepollute } from './migrations/m41SelfCertaintyHostDepollute';
 import { upgradeM42TrackEntityDocumentIds } from './migrations/m42TrackEntityDocumentIds';
+import { upgradeV54LexemeNestedIds } from './migrations/m54LexemeNestedIds';
 import { DEFAULT_LEIPZIG_STRUCTURAL_PROFILE } from '../annotation/structuralRuleProfile';
 import { markBackupDirtySinceLastExport } from '../utils/backupExportReminderState';
 import {
@@ -152,7 +153,7 @@ export const JIEYU_DEXIE_DB_NAME = 'jieyudb_v2' as const;
  * 须与 `JieyuDexie` 构造器内**最高**的 `this.version(…)` 号一致，供健康检查 / 迁移回放测试（ARCH-5）。
  * Must match the highest `this.version(…)` in `JieyuDexie` — health + migration-replay (ARCH-5).
  */
-export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 53;
+export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 54;
 
 export function buildSegmentationV2BackfillRows(input: {
   units: LayerUnitDocType[];
@@ -1494,6 +1495,13 @@ export class JieyuDexie extends Dexie {
         'id, kind, mimeType, displayName, languageCode, byteSize, refCount, createdAt, updatedAt',
       lexeme_asset_links: 'id, lexemeId, assetId, [lexemeId+assetId], createdAt',
     });
+
+    // v54: backfill stable ids on lexeme senses/forms (indexes unchanged).
+    this.version(54)
+      .stores({})
+      .upgrade(async (tx) => {
+        await upgradeV54LexemeNestedIds(tx);
+      });
   }
 }
 
