@@ -1,7 +1,7 @@
 ---
 title: lexicon-lift-export tasks
 doc_type: execution-spec-tasks
-status: active
+status: completed
 owner: lexicon
 last_reviewed: 2026-09-20
 source_of_truth: lexicon-lift-export-spec
@@ -40,5 +40,5 @@ Verified:
 
 ## Post-merge
 
-- [ ] spec frontmatter `status: completed` after merge
-- [ ] LIFT 导入 / 附件包 / 义项树另切片
+- [x] spec frontmatter `status: completed` after merge
+- [x] LIFT 导入见 `lexicon-lift-import/`；附件包 / 义项树另切片

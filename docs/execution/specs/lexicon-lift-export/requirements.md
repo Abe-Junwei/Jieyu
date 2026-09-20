@@ -1,7 +1,7 @@
 ---
 title: lexicon-lift-export requirements
 doc_type: execution-spec-requirements
-status: active
+status: completed
 owner: lexicon
 last_reviewed: 2026-09-20
 source_of_truth: lexicon-lift-export-spec
