@@ -16,6 +16,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Lexicon LIFT 0.13 export (B3e)**: `/lexicon` downloads the current lexeme list as SIL LIFT 0.13 XML (lemma / sense gloss+definition / allomorph `variant`). Outbound only. Empty lexicon does not download. No import, no sense tree, no corpus lexicon pack, no new flag.
 - **Lexicon sense/form stable ids**: `senses` and `forms` get persistent `id`s. `saveLexeme` / B3c apply keep existing ids and assign `newId` for new rows. Dexie v54 backfills older lexeme rows. No sense-tree UI, no DMLex, no new flag.
 - **C4 project-scoped collaboration snapshots**: Auto snapshot, first-device hydration, and panel restore now export/import only the current `textId` transcription graph. Restore prunes that project then upserts; it no longer `replace-all`s IndexedDB. Lexemes and language assets stay local (ADR-0034). Inbound sync advances last-seen revision only after apply succeeds. Boot feature-detects `navigator.storage.persist()`.
 - **B3d lexicon entry hard-delete**: `/lexicon` confirms then hard-deletes a selected lexeme. `deleteLexeme` drops the row, `token_lexeme_links` for that id, and unshared attachments, then `list()` readback. Emits existing `jieyu:workspace.lexeme-deleted.v1` (`hard`). No new flag, no soft-delete column.

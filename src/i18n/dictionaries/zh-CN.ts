@@ -271,6 +271,7 @@ export const zhCNDictionary = {
   'workspace.lexicon.edit.title': '编辑词条',
   'workspace.lexicon.edit.create': '新建词条',
   'workspace.lexicon.edit.createHint': 'lemma 必填。保存后会出现在左侧列表。',
+  'workspace.lexicon.exportLift': '导出 LIFT',
   'workspace.lexicon.edit.lemmaLabel': '词元',
   'workspace.lexicon.edit.glossLabel': '主 gloss',
   'workspace.lexicon.edit.extraSensesLabel': '额外义项',

@@ -40,4 +40,4 @@ Verified:
 ## Post-merge
 
 - [ ] spec frontmatter `status: completed` after merge
-- [ ] 义项树 UI 另切片；LIFT 出站另切片
+- [x] LIFT 出站见 `lexicon-lift-export/`；义项树 UI 另切片
