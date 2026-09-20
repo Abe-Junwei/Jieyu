@@ -3,7 +3,7 @@ title: workspace-cross-page-events design
 doc_type: execution-spec-design
 status: active
 owner: corpus
-last_reviewed: 2026-09-10
+last_reviewed: 2026-09-20
 source_of_truth: workspace-cross-page-events-spec
 depends_on:
   - ./requirements.md
@@ -18,7 +18,7 @@ depends_on:
 - 同类产品：ELAN 用内部 selection/change 通知刷新 Concordance，不整页重载；FLEx 词典与 Texts 用脏标记，未保存记录不覆盖。
 - 业内：浏览器同页用 DOM CustomEvent；跨标签才上 BroadcastChannel。React Query 用 `invalidateQueries` / `setQueryData`，避免 `window.location.reload`。
 - 公认不可行：`document.execCommand` 式全局 reload；Node `EventEmitter` 进页面；把事件写进 Dexie 当事务日志；从 ChatWindow 发刷新。
-- 潜在的坑：2026-06 审计写 `appShellEvents` 已有总线，接线前**生产代码没有**；`saveUnitsBatch` 导入会事件风暴故本切片不 emit；`saveUnitText` 是 P0-2「提交文本」单写路径，必须 emit；草稿覆盖是合同硬约束。
+- 潜在的坑：2026-06 审计写 `appShellEvents` 已有总线，接线前**生产代码没有**；初版因导入风暴让 `saveUnitsBatch` 静默，但标注 `saveAnnotationUnitMeta` 走 `saveBatch`，故本切片改为 persist 后按 **unique unitId** emit。`token_lexeme_links` 无 unitId，须查 `unit_tokens` / `unit_morphemes`。`saveUnitText` 是 P0-2「提交文本」单写路径，必须 emit；草稿覆盖是合同硬约束。
 - 决定：**复用** 仓内 CustomEvent 模式；**适配** 治理规范 §3.2 名字与幂等键；**自研** 去重 + 草稿门；**不**上 BroadcastChannel。
 
 ## 2. 架构选择
