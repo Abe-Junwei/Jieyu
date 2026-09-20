@@ -512,6 +512,43 @@ describe('LexiconPage', () => {
     expect(saved.forms?.map((form) => form.transcription.default)).toEqual(['dogs', 'doggie']);
   });
 
+  it('does not remap remaining nested ids when a middle extra sense or form is removed', async () => {
+    mockListLexemes.mockResolvedValue([
+      {
+        id: 'lex-dog',
+        lemma: { default: 'dog' },
+        senses: [
+          { id: 'sense_primary', gloss: { default: 'canine' } },
+          { id: 'sense_pet', gloss: { default: 'pet' } },
+          { id: 'sense_follow', gloss: { default: 'follow' } },
+          { id: 'sense_food', gloss: { default: 'hot dog' } },
+        ],
+        forms: [
+          { id: 'form_dogs', transcription: { default: 'dogs' } },
+          { id: 'form_doggie', transcription: { default: 'doggie' } },
+          { id: 'form_hound', transcription: { default: 'hound' } },
+        ],
+        createdAt: '2026-04-04T00:00:00.000Z',
+        updatedAt: '2026-04-04T00:00:00.000Z',
+      },
+    ] satisfies LexemeDocType[]);
+
+    renderLexiconPage();
+    fireEvent.click(await screen.findByTestId('lexicon-entry-remove-sense-1'));
+    fireEvent.click(screen.getByTestId('lexicon-entry-remove-form-1'));
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses.map((sense) => sense.id)).toEqual([
+      'sense_primary',
+      'sense_pet',
+      'sense_food',
+    ]);
+    expect((saved.forms ?? []).map((form) => form.id)).toEqual(['form_dogs', 'form_hound']);
+  });
+
   it('deletes the selected entry after confirm and drops it from the list', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-delete');

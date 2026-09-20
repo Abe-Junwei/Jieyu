@@ -5,8 +5,14 @@ import { newId } from '../../utils/transcriptionFormatters';
 export type LexiconEntryScalarField = 'lemma' | 'gloss' | 'citationForm' | 'language' | 'notes';
 
 export type LexiconSenseDraft = {
+  id?: string;
   gloss: string;
   definition: string;
+};
+
+export type LexiconFormDraft = {
+  id?: string;
+  transcription: string;
 };
 
 export type LexiconEntryFields = {
@@ -16,7 +22,7 @@ export type LexiconEntryFields = {
   language: string;
   notes: string;
   extraSenses: LexiconSenseDraft[];
-  forms: string[];
+  forms: LexiconFormDraft[];
 };
 
 export type LexiconEntrySaveDeps = {
@@ -51,10 +57,38 @@ export function writePrimaryMultiLang(
   return { ...record, [firstKey]: trimmed };
 }
 
-function keepOrCreateNestedId(existing: { id?: unknown } | undefined, prefix: string): string {
-  const raw = existing?.id;
-  const id = typeof raw === 'string' ? raw.trim() : '';
-  return id.length > 0 ? id : newId(prefix);
+function nestedIdOf(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+/** Carry a stored nested id onto an editor draft without writing blank/undefined keys. */
+export function draftIdFromNested(id: unknown): { id: string } | Record<string, never> {
+  const value = nestedIdOf(id);
+  return value.length > 0 ? { id: value } : {};
+}
+
+function keepOrCreateNestedId(
+  preferred: { id?: unknown } | undefined,
+  fallback: { id?: unknown } | undefined,
+  prefix: string,
+): string {
+  const preferredId = nestedIdOf(preferred?.id);
+  if (preferredId.length > 0) return preferredId;
+  const fallbackId = nestedIdOf(fallback?.id);
+  if (fallbackId.length > 0) return fallbackId;
+  return newId(prefix);
+}
+
+function findExistingRow<T extends { id?: unknown }>(
+  rows: T[] | undefined,
+  draftId: unknown,
+  index: number,
+): T | undefined {
+  const id = nestedIdOf(draftId);
+  if (id.length > 0 && rows) {
+    return rows.find((row) => nestedIdOf(row.id) === id);
+  }
+  return rows?.[index];
 }
 
 export function applyLexiconEntryFields(
@@ -74,7 +108,7 @@ export function applyLexiconEntryFields(
   const extraSenses = fields.extraSenses.flatMap((draft, index) => {
     const glossText = draft.gloss.trim();
     if (glossText.length === 0) return [];
-    const previous = existing?.senses[index + 1];
+    const previous = findExistingRow(existing?.senses.slice(1), draft.id, index);
     const definitionText = draft.definition.trim();
     const { definition: _oldDefinition, ...previousRest } = previous ?? {
       gloss: { default: glossText },
@@ -82,7 +116,7 @@ export function applyLexiconEntryFields(
     return [
       {
         ...previousRest,
-        id: keepOrCreateNestedId(previous, 'sense'),
+        id: keepOrCreateNestedId(draft, previous, 'sense'),
         gloss: writePrimaryMultiLang(previous?.gloss, glossText),
         ...(definitionText.length > 0
           ? { definition: writePrimaryMultiLang(previous?.definition, definitionText) }
@@ -91,13 +125,13 @@ export function applyLexiconEntryFields(
     ];
   });
   const nextForms = fields.forms.flatMap((draft, index) => {
-    const text = draft.trim();
+    const text = draft.transcription.trim();
     if (text.length === 0) return [];
-    const previous = existing?.forms?.[index];
+    const previous = findExistingRow(existing?.forms, draft.id, index);
     return [
       {
         ...(previous ?? {}),
-        id: keepOrCreateNestedId(previous, 'form'),
+        id: keepOrCreateNestedId(draft, previous, 'form'),
         transcription: writePrimaryMultiLang(
           previous?.transcription as MultiLangString | undefined,
           text,
@@ -123,7 +157,11 @@ export function applyLexiconEntryFields(
     id,
     lemma: writePrimaryMultiLang(existing?.lemma, lemma),
     senses: [
-      { ...(firstSense ?? {}), id: keepOrCreateNestedId(firstSense, 'sense'), gloss: nextGloss },
+      {
+        ...(firstSense ?? {}),
+        id: keepOrCreateNestedId(firstSense, undefined, 'sense'),
+        gloss: nextGloss,
+      },
       ...extraSenses,
     ],
     ...(citationForm.length > 0 ? { citationForm } : {}),
@@ -166,7 +204,7 @@ export async function saveLexiconEntry(
     throw new Error(`lexeme extra-sense readback mismatch for ${doc.id}`);
   }
   const expectedForms = input.fields.forms
-    .map((value) => value.trim())
+    .map((value) => value.transcription.trim())
     .filter((value) => value.length > 0);
   const storedForms = (stored.forms ?? []).map((form) =>
     readPrimaryMultiLang(form.transcription as MultiLangString | undefined),
