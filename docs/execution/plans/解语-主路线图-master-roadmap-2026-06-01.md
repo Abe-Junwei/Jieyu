@@ -225,7 +225,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **C3b** | 表格转写导出（CSV / TSV） | M | **【已落地】** 与 C3a 同一读模型与单一 `onExportLite(format)`；RFC 4180 CSV（UTF-8 BOM）+ TSV（tab 净化）；逐语段 start/end/speaker/text/gloss | golden 对拍 + 定向 vitest | 否 |
 | **C3c** | 学术 IGT LaTeX 导出（Leipzig） | L | **【已落地】** 同一 `layer_units` 读模型 + 首个翻译层 → `transcriptionIgtLatexExport` 序列化 gb4e `\gll`/`\glt`（不写回、不调 `AutoGlossService.glossUnit`）；`onExportLite('tex')` + 项目中心菜单。锚点：`src/utils/transcriptionIgtLatexExport.ts`、`LeipzigValidator`（测试断言） | golden 对拍 + Leipzig 校验通过 + 定向 vitest | 是 |
 | **C3d** | Word/docx 导出 | — | **待定**：需引入 docx 生成依赖（体积/维护/许可成本需评估）。**默认不排期**，按真实诉求再决定复用方案 | — | 是（先 Research） |
-| **C4** | 协作云增强（独立切片） | — | 现状 [collaboration-cloud](../../architecture/collaboration-cloud.md) 已落地；增强项参考 M8–M14；**非本地切片门槛** | `gate:collaboration-cloud` / `gate:greenfield-local`（按需，release 窗口） | 视项 |
+| **C4** | 协作云增强（独立切片） | — | 协议与转写 bridge **已接线**；项目快照按 `textId` 裁剪、restore 禁止整库 replace-all、入站 apply 成功后再推进 cursor（ADR-0034）。词库仍不同步。增强项参考 M8–M14；**非本地切片门槛** | `gate:collaboration-cloud` / `gate:greenfield-local`（按需，release 窗口） | 视项 |
 
 > **导出现状（2026-09-13 代码盘点）**：**已强** = 语言学交换格式 EAF/TextGrid/TRS/Flextext/Toolbox + 原生 JYT/JYM（均带 round-trip 导入）；**已有** = 声学选区 CSV/JSON、项目归档 bundle、AI 回答带引用纯文本复制、语料库工作集 plain/Markdown/HTML 剪贴板与 fflate 小 bundle（**B5b/B5c**，页面 flag 默认关）、转写字幕 SRT/WebVTT、语段表 CSV/TSV（**C3a/C3b**）与 Leipzig IGT LaTeX/`gb4e`（**C3c**，只出站不 round-trip）；**缺口** = Word(C3d 待定)。语料库轻量出站属 **B5**，勿在 C3 重复；EAF 等标准格式从 `/corpus` 接入仍待单独切片。所有导出切片须**先建内部统一读模型再序列化**，禁止反噬编辑数据模型。
 
@@ -304,4 +304,5 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-14 | **B4f**：`/annotation` 二次自动分词预览确认。未标注写 `unit_tokens` readback；已标注 pending `alternativeAnalysis`。无新 flag。SDD：`annotation-retokenize/`。下一刀 **B7**（仍 blocked on ChatWindow 会话隔离）。 |
 | 2026-09-19 | **B3d**：`/lexicon` 确认后硬删除词条；级联 `token_lexeme_links` 与未共享附件；`list()` readback 无该 id；emit `lexeme-deleted`（`hard`）。无新 flag。SDD：`lexicon-entry-delete/`。下一刀仍不排 B7 / C3d / flag 放量。 |
 | 2026-09-19 | **B3c**：`/lexicon` 额外义项（gloss + definition）与词形 transcription 写入既有 `senses`/`forms`；空行丢弃。无新 flag。SDD：`lexicon-senses-forms/`。下一刀仍不排 B7 / C3d / flag 放量。 |
+| 2026-09-20 | **C4 快照热修**：协作项目快照按当前 `textId` 裁剪（不含词库/语言资产）；restore/水合 prune+upsert；入站 apply 成功后再推进 cursor。ADR-0034。不接协作重 gate 到 PR。 |
 | 2026-09-11 | **B3b**：词典页 lemma / 主 gloss / citation / language / notes 编辑与新建；`saveLexeme` 写后 `list()` readback；空 lemma 不写。不接 ChatWindow；不改 R8 键。附件仍 flag 关。 |

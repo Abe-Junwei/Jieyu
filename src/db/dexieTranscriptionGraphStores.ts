@@ -211,3 +211,28 @@ export function dexieStoresForDeleteProjectByTextIdCascadeRw(db: JieyuDatabase) 
     db.dexie.texts,
   ] as const;
 }
+
+/** RW: collaboration project snapshot restore — prune this textId's graph, never speakers/lexemes/AI. */
+export function dexieStoresForProjectScopedSnapshotPruneRw(db: JieyuDatabase) {
+  return [
+    db.dexie.layer_unit_contents,
+    db.dexie.layer_units,
+    db.dexie.unit_relations,
+    db.dexie.unit_tokens,
+    db.dexie.unit_morphemes,
+    db.dexie.token_lexeme_links,
+    db.dexie.user_notes,
+    db.dexie.tier_annotations,
+    db.dexie.tier_definitions,
+    db.dexie.layer_links,
+    db.dexie.media_items,
+    db.dexie.anchors,
+    db.dexie.segment_meta,
+    db.dexie.segment_quality_snapshots,
+    db.dexie.scope_stats_snapshots,
+    db.dexie.speaker_profile_snapshots,
+    db.dexie.translation_status_snapshots,
+    db.dexie.track_entities,
+    db.dexie.texts,
+  ] as const;
+}

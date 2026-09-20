@@ -53,6 +53,7 @@ source_of_truth: decision-index
 - [0031-ai-chat-keyvault-and-csp-connect-src.md](./0031-ai-chat-keyvault-and-csp-connect-src.md)（AI Chat KeyVault 与 connect-src）
 - [0032-transcription-ai-chat-floating-window-only.md](./0032-transcription-ai-chat-floating-window-only.md)（转写页对话仅浮窗；分析右栏已由 ADR-0033 迁出；`accepted`）
 - [0033-analysis-restricted-workspace-no-transcription-dock.md](./0033-analysis-restricted-workspace-no-transcription-dock.md)（`/analysis` 受限工作台承接向量+统计；转写拆 AI 右栏；声学留在转写检查条；`accepted`）
+- [0034-collaboration-project-snapshot-excludes-global-catalogs.md](./0034-collaboration-project-snapshot-excludes-global-catalogs.md)（协作项目快照按 `textId` 裁剪；不含词库/语言资产；restore 禁止整库 replace-all）
 
 ## 建议格式
 
