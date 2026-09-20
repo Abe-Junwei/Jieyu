@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { exportDatabaseAsJson } from '../../db';
+import { exportProjectScopedDatabaseAsJson } from '../../db';
 import {
   getSupabaseUserId,
   hasSupabaseBrowserClientConfig,
@@ -32,7 +32,7 @@ export interface UseCloudSyncAutoSnapshotParams {
 }
 
 /**
- * Periodic full-database snapshot upload to collaboration cloud.
+ * Periodic project-scoped snapshot upload to collaboration cloud (ADR-0034).
  */
 export function useCloudSyncAutoSnapshot({
   phase,
@@ -63,7 +63,9 @@ export function useCloudSyncAutoSnapshot({
           const snapshots = await listProjectSnapshots({ limit: 1, offset: 0 });
           const head = snapshots[0];
           const nextVersion = head !== undefined ? head.version + 1 : 1;
-          const payloadSnapshot = await runWithDbMutex(() => exportDatabaseAsJson());
+          const payloadSnapshot = await runWithDbMutex(() =>
+            exportProjectScopedDatabaseAsJson(collaborationProjectId),
+          );
           const payloadJson = JSON.stringify(payloadSnapshot);
           await createProjectSnapshot({
             version: nextVersion,

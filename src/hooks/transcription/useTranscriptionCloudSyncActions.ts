@@ -235,13 +235,13 @@ export function useTranscriptionCloudSyncActions({
       const restored = await restoreProjectSnapshotById(snapshotId);
       await runWithDbMutex(() =>
         LinguisticService.database
-          .importFromJSON(restored.payloadJson, 'replace-all')
+          .importProjectScopedFromJSON(restored.payloadJson, collaborationProjectId)
           .then(() => undefined),
       );
       await loadSnapshot();
       return restored.record;
     },
-    [loadSnapshot, restoreProjectSnapshotById, runWithDbMutex],
+    [collaborationProjectId, loadSnapshot, restoreProjectSnapshotById, runWithDbMutex],
   );
 
   useCloudSyncAutoSnapshot({

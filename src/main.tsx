@@ -9,6 +9,7 @@ import { initLcpMetricObserver } from './observability/webVitals';
 import { createLogger } from './observability/logger';
 import { initIconEffect } from './utils/iconEffect';
 import { initTheme } from './utils/theme';
+import { requestPersistentStorage } from './utils/requestPersistentStorage';
 import './styles/app-foundation.css';
 
 const log = createLogger('main');
@@ -41,6 +42,7 @@ void initSentryForReleaseStage();
 initLcpMetricObserver();
 initTheme(); // 初始化配色主题 | Initialize appearance theme
 initIconEffect(); // 图标效果 material / motion | Icon effect preference
+void requestPersistentStorage();
 
 void (async () => {
   try {
