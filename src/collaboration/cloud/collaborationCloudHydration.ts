@@ -70,7 +70,7 @@ export async function hydrateCollaborationProjectFromCloud(
         if (isImportableDatabaseSnapshot(parsedPayload)) {
           await deps.runWithDbMutex(() =>
             LinguisticService.database
-              .importFromJSON(restored.payloadJson, 'replace-all')
+              .importProjectScopedFromJSON(restored.payloadJson, deps.collaborationProjectId)
               .then(() => undefined),
           );
           if (deps.isCancelled()) {

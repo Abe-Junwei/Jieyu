@@ -251,13 +251,14 @@ export function useTranscriptionCollaborationBridge({
           }
         },
         onApplyRemoteChange: async (change) => {
-          commitLatestRevision(change.projectRevision);
           if (change.clientId === clientIdRef.current) {
+            commitLatestRevision(change.projectRevision);
             return;
           }
           if (onApplyRemoteChange) {
             await onApplyRemoteChange(change);
           }
+          commitLatestRevision(change.projectRevision);
         },
         onSendLocalChanges: async (changes) => {
           if (changes.length === 0) return;

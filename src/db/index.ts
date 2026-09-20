@@ -39,6 +39,7 @@ export {
   dexieStoresForCustomFieldDefinitionDeleteCascadeRw,
   dexieStoresForDeleteAudioKeepTimeline,
   dexieStoresForDeleteProjectByTextIdCascadeRw,
+  dexieStoresForProjectScopedSnapshotPruneRw,
   dexieStoresForGetUnitLinguisticMemoryRead,
   dexieStoresForLanguageAssetOverviewRw,
   dexieStoresForLanguageCatalogMutateRw,
@@ -65,6 +66,12 @@ export {
   downloadDatabaseAsJson,
   importDatabaseFromJson,
 } from './io';
+export {
+  COLLAB_PROJECT_SNAPSHOT_EXCLUDED_COLLECTIONS,
+  exportProjectScopedDatabaseAsJson,
+  filterCollectionsForProject,
+  importProjectScopedDatabaseFromJson,
+} from './projectScopedSnapshot';
 
 // ── 事务门面 | Transaction facade ──
 export { withTransaction } from './withTransaction';
