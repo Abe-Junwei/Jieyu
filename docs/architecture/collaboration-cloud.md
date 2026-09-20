@@ -3,19 +3,23 @@ title: 托管协作云（Supabase）现状基线
 doc_type: architecture-current-state
 status: active
 owner: collaboration-cloud
-last_reviewed: 2026-04-19
+last_reviewed: 2026-09-20
 source_of_truth: current-state
 ---
 
 # 托管协作云（Supabase）现状基线
 
+> 文档角色：长期有效的当前现状文档。最后更新：2026-09-20。
+
 ## 数据流（摘要）
 
 1. **本地编辑**：`useTranscriptionData` → `useTranscriptionCloudSyncActions`（包装 `wrappedActions`）→ `useTranscriptionCollaborationBridge.enqueueMutation` → `CollaborationSyncBridge` 出站队列 → `project_changes` insert。
-2. **入站**：Realtime INSERT → `CollaborationSyncBridge` → `CollaborationInboundApplier` → `onApplyRemoteChange` → `applyRemoteChangeToLocal`（冲突治理 + Dexie 写回）。
+2. **入站**：Realtime INSERT → `CollaborationSyncBridge` → `CollaborationInboundApplier` → `onApplyRemoteChange`（**先 apply，成功后再** `commitLatestRevision`）→ `applyRemoteChangeToLocal`（冲突治理 + Dexie 写回）。
 3. **Presence**：`CollaborationPresenceService`（Realtime track）+ `upsertCollaborationPresenceRecord` → `project_presence`。
 4. **目录**：`CollaborationDirectoryService` → `projects` / `project_members`（供侧栏 `CollaborationCloudPanel.directory`）。
 5. **协议守卫**：`evaluateCollaborationProtocolGuard`（`projects.app_min_version`）→ 禁写时 UI：`CollaborationCloudReadOnlyBanner` + `CollaborationSyncBadge`。
+6. **项目快照**（ADR-0034）：自动上传与 restore/首台水合走 `exportProjectScopedDatabaseAsJson` / `importProjectScopedFromJSON`。范围是当前 `textId` 转写图；**不含**词库、语言资产、AI/MCP 表。Restore 对该项目 prune + upsert，**禁止**整库 `replace-all`。用户整库 JSON 备份仍走 ADR-0008。
+7. **持久化配额**：应用启动时特性检测调用 `navigator.storage.persist()`；不支持或拒绝则 no-op。
 
 ## 工程约束
 

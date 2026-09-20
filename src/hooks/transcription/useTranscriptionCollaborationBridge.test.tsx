@@ -105,6 +105,8 @@ vi.mock('../../collaboration/cloud/collaborationSupabaseFacade', () => ({
 }));
 
 import { useTranscriptionCollaborationBridge } from './useTranscriptionCollaborationBridge';
+import { loadProjectLastSeenRevision } from '../../collaboration/cloud/CollaborationClientStateStore';
+import type { CollaborationProjectChangeRecord } from '../../collaboration/cloud/syncTypes';
 
 describe('useTranscriptionCollaborationBridge', () => {
   beforeEach(() => {
@@ -124,6 +126,7 @@ describe('useTranscriptionCollaborationBridge', () => {
     getUserId.mockResolvedValue('user-1');
     lastBridgeOptions.current = null;
     bridgeCtorCalls.length = 0;
+    window.localStorage.clear();
   });
 
   it('启动后创建桥接，停用时停止桥接 | starts bridge when enabled and stops when disabled', async () => {
@@ -345,5 +348,80 @@ describe('useTranscriptionCollaborationBridge', () => {
     });
 
     expect(bridgeEnqueue).not.toHaveBeenCalled();
+  });
+
+  it('advances last-seen revision only after remote apply succeeds', async () => {
+    const onApplyRemoteChange = vi.fn().mockResolvedValue(undefined);
+    renderHook(() =>
+      useTranscriptionCollaborationBridge({
+        enabled: true,
+        projectId: 'project-1',
+        onApplyRemoteChange,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    const options = lastBridgeOptions.current as {
+      onApplyRemoteChange: (change: CollaborationProjectChangeRecord) => Promise<void>;
+    };
+    const change: CollaborationProjectChangeRecord = {
+      id: 'ch-ok',
+      projectId: 'project-1',
+      actorId: 'user-2',
+      clientId: 'other-client',
+      clientOpId: 'op-ok',
+      protocolVersion: 1,
+      projectRevision: 7,
+      baseRevision: 6,
+      entityType: 'layer_unit',
+      entityId: 'unit-1',
+      opType: 'upsert_unit',
+      sourceKind: 'sync',
+      createdAt: '2026-09-20T00:00:00.000Z',
+    };
+
+    await options.onApplyRemoteChange(change);
+    expect(onApplyRemoteChange).toHaveBeenCalledTimes(1);
+    expect(loadProjectLastSeenRevision('project-1')).toBe(7);
+  });
+
+  it('does not advance last-seen revision when remote apply throws', async () => {
+    const onApplyRemoteChange = vi.fn().mockRejectedValue(new Error('apply-failed'));
+    renderHook(() =>
+      useTranscriptionCollaborationBridge({
+        enabled: true,
+        projectId: 'project-1',
+        onApplyRemoteChange,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    const options = lastBridgeOptions.current as {
+      onApplyRemoteChange: (change: CollaborationProjectChangeRecord) => Promise<void>;
+    };
+    const change: CollaborationProjectChangeRecord = {
+      id: 'ch-fail',
+      projectId: 'project-1',
+      actorId: 'user-2',
+      clientId: 'other-client',
+      clientOpId: 'op-fail',
+      protocolVersion: 1,
+      projectRevision: 9,
+      baseRevision: 8,
+      entityType: 'layer_unit',
+      entityId: 'unit-1',
+      opType: 'upsert_unit',
+      sourceKind: 'sync',
+      createdAt: '2026-09-20T00:00:00.000Z',
+    };
+
+    await expect(options.onApplyRemoteChange(change)).rejects.toThrow('apply-failed');
+    expect(loadProjectLastSeenRevision('project-1')).toBe(0);
   });
 });

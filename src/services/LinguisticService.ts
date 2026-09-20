@@ -126,6 +126,8 @@ export const LinguisticService = {
   database: {
     exportToJSON: linguisticServiceDatabaseIo.exportToJSON,
     importFromJSON: linguisticServiceDatabaseIo.importFromJSON,
+    exportProjectScopedToJSON: linguisticServiceDatabaseIo.exportProjectScopedToJSON,
+    importProjectScopedFromJSON: linguisticServiceDatabaseIo.importProjectScopedFromJSON,
   },
   tiers: {
     getDefinitions: linguisticServiceTierFacade.getTierDefinitions,
