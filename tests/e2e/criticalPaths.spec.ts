@@ -57,6 +57,7 @@ test.describe('关键路径 | Critical paths', () => {
     await expect(page.getByRole('searchbox')).toBeVisible();
     await expect(page.getByRole('list', { name: /词条列表|Entry list/ })).toBeAttached();
     await expect(page.getByTestId('lexicon-entry-create')).toBeVisible();
+    await expect(page.getByTestId('lexicon-lift-export')).toBeVisible();
   });
 
   test('语料库页可加载（规划页烟测子集） | Corpus page loads (ARCH-9 smoke)', async ({ page }) => {

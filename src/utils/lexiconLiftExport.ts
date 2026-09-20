@@ -1,0 +1,156 @@
+/**
+ * Lexicon outbound: SIL LIFT 0.13 XML.
+ *
+ * Research: FLEx/WeSay still use 0.13 (not 0.15). lexical-unit = lemma;
+ * sense gloss/definition; entry-level variant = allomorph (not a variant-entry).
+ * Outbound only — never write back. No attachments, no DMLex, no flextext mix-in.
+ */
+import type { LexemeDocType, MultiLangString } from '../types/jieyuDbDocTypes';
+
+export const LIFT_VERSION = '0.13';
+export const LIFT_PRODUCER = 'Jieyu';
+export const LIFT_MIME = 'application/xml';
+export const LIFT_FILENAME = 'jieyu-lexicon.lift';
+
+export type LexiconLiftExportResult =
+  | { ok: true; xml: string }
+  | { ok: false; reason: 'empty' | 'download-unavailable' };
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function vernacularLang(lexeme: LexemeDocType): string {
+  const language = lexeme.language?.trim() ?? '';
+  return language.length > 0 ? language : 'und';
+}
+
+function liftLang(key: string, vernacular: string): string {
+  const trimmed = key.trim();
+  if (trimmed.length === 0 || trimmed === 'default') return vernacular;
+  return trimmed;
+}
+
+function formsFromMultiLang(
+  record: MultiLangString | undefined,
+  vernacular: string,
+): Array<{ lang: string; text: string }> {
+  if (!record) return [];
+  const seen = new Set<string>();
+  const out: Array<{ lang: string; text: string }> = [];
+  const entries = Object.entries(record);
+  const ordered = [
+    ...entries.filter(([key]) => key !== 'default'),
+    ...entries.filter(([key]) => key === 'default'),
+  ];
+  for (const [key, raw] of ordered) {
+    const text = raw.trim();
+    if (text.length === 0) continue;
+    const lang = liftLang(key, vernacular);
+    if (seen.has(lang)) continue;
+    seen.add(lang);
+    out.push({ lang, text });
+  }
+  return out;
+}
+
+function xmlForm(lang: string, text: string): string {
+  return `<form lang="${escapeXml(lang)}"><text>${escapeXml(text)}</text></form>`;
+}
+
+function xmlGloss(lang: string, text: string): string {
+  return `<gloss lang="${escapeXml(lang)}"><text>${escapeXml(text)}</text></gloss>`;
+}
+
+function xmlFormList(forms: Array<{ lang: string; text: string }>): string {
+  return forms.map((form) => xmlForm(form.lang, form.text)).join('');
+}
+
+function serializeSense(
+  lexemeId: string,
+  sense: LexemeDocType['senses'][number],
+  index: number,
+  vernacular: string,
+): string {
+  const storedId = typeof sense.id === 'string' ? sense.id.trim() : '';
+  const senseId = storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`;
+  const glosses = formsFromMultiLang(sense.gloss, vernacular)
+    .map((form) => xmlGloss(form.lang, form.text))
+    .join('');
+  const definitionForms = formsFromMultiLang(sense.definition, vernacular);
+  const definition =
+    definitionForms.length > 0 ? `<definition>${xmlFormList(definitionForms)}</definition>` : '';
+  const category = sense.category?.trim() ?? '';
+  const grammaticalInfo =
+    category.length > 0 ? `<grammatical-info value="${escapeXml(category)}"/>` : '';
+  return `<sense id="${escapeXml(senseId)}" order="${index}">${grammaticalInfo}${glosses}${definition}</sense>`;
+}
+
+function serializeEntry(lexeme: LexemeDocType): string | null {
+  const vernacular = vernacularLang(lexeme);
+  const lemmaForms = formsFromMultiLang(lexeme.lemma, vernacular);
+  if (lemmaForms.length === 0) return null;
+  const attrs = [`id="${escapeXml(lexeme.id)}"`];
+  const created = lexeme.createdAt.trim();
+  const updated = lexeme.updatedAt.trim();
+  if (created.length > 0) attrs.push(`dateCreated="${escapeXml(created)}"`);
+  if (updated.length > 0) attrs.push(`dateModified="${escapeXml(updated)}"`);
+  const citation = lexeme.citationForm?.trim() ?? '';
+  const citationXml =
+    citation.length > 0 ? `<citation>${xmlForm(vernacular, citation)}</citation>` : '';
+  const morphType = (lexeme.morphemeType ?? lexeme.lexemeType)?.trim() ?? '';
+  const morphTrait =
+    morphType.length > 0 ? `<trait name="morph-type" value="${escapeXml(morphType)}"/>` : '';
+  const notes = formsFromMultiLang(lexeme.notes, vernacular);
+  const noteXml = notes.length > 0 ? `<note>${xmlFormList(notes)}</note>` : '';
+  const senses = lexeme.senses
+    .map((sense, index) => serializeSense(lexeme.id, sense, index, vernacular))
+    .join('');
+  const variants = (lexeme.forms ?? [])
+    .flatMap((form) => {
+      const formRows = formsFromMultiLang(
+        form.transcription as MultiLangString | undefined,
+        vernacular,
+      );
+      if (formRows.length === 0) return [];
+      return [`<variant>${xmlFormList(formRows)}</variant>`];
+    })
+    .join('');
+  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${morphTrait}${noteXml}${senses}${variants}</entry>`;
+}
+
+export function serializeLexemesToLift(lexemes: LexemeDocType[]): string | null {
+  const entries = lexemes
+    .map((lexeme) => serializeEntry(lexeme))
+    .filter((entry): entry is string => entry !== null);
+  if (entries.length === 0) return null;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<lift version="${LIFT_VERSION}" producer="${LIFT_PRODUCER}">${entries.join('')}</lift>\n`;
+}
+
+export function downloadLexiconLift(xml: string): boolean {
+  if (typeof document === 'undefined' || typeof URL.createObjectURL !== 'function') {
+    return false;
+  }
+  const blob = new Blob([xml], { type: LIFT_MIME });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = LIFT_FILENAME;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+export function exportLexemesAsLift(lexemes: LexemeDocType[]): LexiconLiftExportResult {
+  const xml = serializeLexemesToLift(lexemes);
+  if (xml === null) return { ok: false, reason: 'empty' };
+  if (!downloadLexiconLift(xml)) return { ok: false, reason: 'download-unavailable' };
+  return { ok: true, xml };
+}

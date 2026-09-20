@@ -294,6 +294,7 @@ export const enUSDictionary = {
   'workspace.lexicon.edit.create': 'New entry',
   'workspace.lexicon.edit.createHint':
     'Lemma is required. The entry appears in the list after save.',
+  'workspace.lexicon.exportLift': 'Export LIFT',
   'workspace.lexicon.edit.lemmaLabel': 'Lemma',
   'workspace.lexicon.edit.glossLabel': 'Primary gloss',
   'workspace.lexicon.edit.extraSensesLabel': 'Additional senses',

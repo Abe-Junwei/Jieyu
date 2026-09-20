@@ -178,6 +178,9 @@ describe('LexiconPage', () => {
 
     expect(screen.getByTestId('side-pane-title').textContent).toBe('词典工作台');
     expect(screen.getByTestId('side-pane-content').textContent).toContain('canine');
+    expect(screen.getByTestId('lexicon-entry-create')).toBeTruthy();
+    expect(screen.getByTestId('lexicon-lift-export')).toBeTruthy();
+    expect((screen.getByTestId('lexicon-lift-export') as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('places the edit form above the read-only hit-segment panel', async () => {
@@ -365,6 +368,7 @@ describe('LexiconPage', () => {
     expect(screen.getByRole('link', { name: '打开正字法管理器' }).getAttribute('href')).toBe(
       '/assets/orthographies',
     );
+    expect((screen.getByTestId('lexicon-lift-export') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('hides the attachment section when the flag is off', async () => {
@@ -547,6 +551,25 @@ describe('LexiconPage', () => {
       'sense_food',
     ]);
     expect((saved.forms ?? []).map((form) => form.id)).toEqual(['form_dogs', 'form_hound']);
+  });
+
+  it('exports the loaded lexeme list as LIFT', async () => {
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:lift');
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    renderLexiconPage();
+    await screen.findByText('domesticated canine');
+    const exportButton = screen.getByTestId('lexicon-lift-export') as HTMLButtonElement;
+    expect(exportButton.disabled).toBe(false);
+    fireEvent.click(exportButton);
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    const blob = createObjectURL.mock.calls[0]?.[0] as Blob;
+    expect(blob).toBeInstanceOf(Blob);
+    const xml = await blob.text();
+    expect(xml).toContain('<lift version="0.13" producer="Jieyu">');
+    expect(xml).toContain('id="lex-dog"');
+    expect(xml).toContain('id="lex-run"');
+    createObjectURL.mockRestore();
+    revokeObjectURL.mockRestore();
   });
 
   it('deletes the selected entry after confirm and drops it from the list', async () => {

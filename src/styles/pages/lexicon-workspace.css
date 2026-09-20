@@ -43,7 +43,8 @@
 }
 
 .lexicon-workspace-search,
-.lexicon-workspace-create {
+.lexicon-workspace-create,
+.lexicon-workspace-export {
   width: 100%;
 }
 

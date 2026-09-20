@@ -257,6 +257,7 @@ export const DICT_KEYS = [
   'workspace.lexicon.edit.title',
   'workspace.lexicon.edit.create',
   'workspace.lexicon.edit.createHint',
+  'workspace.lexicon.exportLift',
   'workspace.lexicon.edit.lemmaLabel',
   'workspace.lexicon.edit.glossLabel',
   'workspace.lexicon.edit.extraSensesLabel',
