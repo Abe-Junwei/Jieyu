@@ -479,4 +479,28 @@ describe('LexiconPage', () => {
     });
     expect(mockSaveLexeme).not.toHaveBeenCalled();
   });
+
+  it('saves an extra sense and wordform then shows them in the detail lists', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.click(screen.getByTestId('lexicon-entry-add-sense'));
+    fireEvent.change(screen.getByTestId('lexicon-entry-extra-sense-0-gloss'), {
+      target: { value: 'pet' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-extra-sense-0-definition'), {
+      target: { value: 'companion animal' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-add-form'));
+    fireEvent.change(screen.getByTestId('lexicon-entry-form-1'), { target: { value: 'doggie' } });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+      expect(screen.getByText('pet')).toBeTruthy();
+      expect(screen.getByText('companion animal')).toBeTruthy();
+      expect(screen.getByText('doggie')).toBeTruthy();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[1]?.gloss.default).toBe('pet');
+    expect(saved.forms?.map((form) => form.transcription.default)).toEqual(['dogs', 'doggie']);
+  });
 });

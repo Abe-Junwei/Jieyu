@@ -10,6 +10,28 @@ import {
   writePrimaryMultiLang,
 } from './saveLexiconEntry';
 
+function fields(
+  partial: Partial<{
+    lemma: string;
+    gloss: string;
+    citationForm: string;
+    language: string;
+    notes: string;
+    extraSenses: { gloss: string; definition: string }[];
+    forms: string[];
+  }> & { lemma: string },
+) {
+  return {
+    gloss: '',
+    citationForm: '',
+    language: '',
+    notes: '',
+    extraSenses: [],
+    forms: [],
+    ...partial,
+  };
+}
+
 describe('saveLexiconEntry', () => {
   const now = '2026-09-11T10:00:00.000Z';
 
@@ -43,31 +65,21 @@ describe('saveLexiconEntry', () => {
   });
 
   it('rejects an empty lemma', () => {
-    expect(() =>
-      applyLexiconEntryFields(
-        null,
-        {
-          lemma: '  ',
-          gloss: 'x',
-          citationForm: '',
-          language: '',
-          notes: '',
-        },
-        now,
-      ),
-    ).toThrow(/empty lemma/);
+    expect(() => applyLexiconEntryFields(null, fields({ lemma: '  ', gloss: 'x' }), now)).toThrow(
+      /empty lemma/,
+    );
   });
 
   it('creates then updates a lexeme with list readback', async () => {
     const created = await saveLexiconEntry({
       existing: null,
-      fields: {
+      fields: fields({
         lemma: 'dog',
         gloss: 'canine',
         citationForm: 'dog',
         language: 'eng',
         notes: 'field note',
-      },
+      }),
     });
     expect(created.lemma.default).toBe('dog');
     expect(created.senses[0]?.gloss.default).toBe('canine');
@@ -78,13 +90,13 @@ describe('saveLexiconEntry', () => {
 
     const updated = await saveLexiconEntry({
       existing: created,
-      fields: {
+      fields: fields({
         lemma: 'hound',
         gloss: 'hunting dog',
         citationForm: '',
         language: 'eng',
         notes: '',
-      },
+      }),
     });
     expect(updated.id).toBe(created.id);
     expect(updated.lemma.default).toBe('hound');
@@ -93,5 +105,36 @@ describe('saveLexiconEntry', () => {
     expect(after.find((row) => row.id === created.id)?.senses[0]?.gloss.default).toBe(
       'hunting dog',
     );
+  });
+
+  it('writes extra senses and forms then drops empty rows', async () => {
+    const created = await saveLexiconEntry({
+      existing: null,
+      fields: fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        extraSenses: [
+          { gloss: 'pet', definition: 'companion animal' },
+          { gloss: '  ', definition: 'ignored' },
+        ],
+        forms: ['dogs', '  ', 'doggie'],
+      }),
+    });
+    expect(created.senses).toHaveLength(2);
+    expect(created.senses[1]?.gloss.default).toBe('pet');
+    expect(created.senses[1]?.definition?.default).toBe('companion animal');
+    expect(created.forms?.map((form) => form.transcription.default)).toEqual(['dogs', 'doggie']);
+
+    const cleared = await saveLexiconEntry({
+      existing: created,
+      fields: fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        extraSenses: [{ gloss: '', definition: '' }],
+        forms: ['', ''],
+      }),
+    });
+    expect(cleared.senses).toHaveLength(1);
+    expect(cleared.forms).toBeUndefined();
   });
 });
