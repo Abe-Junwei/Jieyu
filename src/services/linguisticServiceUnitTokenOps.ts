@@ -19,7 +19,58 @@ import {
 } from './LayerSegmentGraphService';
 import { enforceTimeSubdivisionParentBounds } from './LayerSegmentationTextService';
 import { scheduleSegmentMetaSyncForUnitIds } from './segmentMetaSyncBestEffort';
-import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
+import {
+  dispatchWorkspaceLexemeUpdated,
+  dispatchWorkspaceUnitUpdated,
+} from '../utils/workspaceEvents';
+
+type JieyuDb = Awaited<ReturnType<typeof getDb>>;
+
+async function lookupUnitIdForLexemeLinkTarget(
+  db: JieyuDb,
+  targetType: TokenLexemeLinkTargetType,
+  targetId: string,
+): Promise<string> {
+  if (targetType === 'token') {
+    const tok = await db.dexie.unit_tokens.get(targetId);
+    return tok?.unitId.trim() ?? '';
+  }
+  const mor = await db.dexie.unit_morphemes.get(targetId);
+  return mor?.unitId.trim() ?? '';
+}
+
+function emitUniqueUnitUpdated(items: readonly LayerUnitDocType[]): void {
+  const seen = new Set<string>();
+  for (const row of items) {
+    const unitId = row.id.trim();
+    if (unitId.length === 0 || seen.has(unitId)) continue;
+    seen.add(unitId);
+    dispatchWorkspaceUnitUpdated({
+      unitId,
+      ...(row.layerId ? { layerId: row.layerId } : {}),
+    });
+  }
+}
+
+async function emitWorkspaceRefreshForTokenLexemeLinks(
+  db: JieyuDb,
+  links: readonly Pick<TokenLexemeLinkDocType, 'targetType' | 'targetId' | 'lexemeId'>[],
+): Promise<void> {
+  const unitIds = new Set<string>();
+  const lexemeIds = new Set<string>();
+  for (const link of links) {
+    const lexemeId = link.lexemeId.trim();
+    if (lexemeId.length > 0) lexemeIds.add(lexemeId);
+    const unitId = await lookupUnitIdForLexemeLinkTarget(db, link.targetType, link.targetId);
+    if (unitId.length > 0) unitIds.add(unitId);
+  }
+  for (const unitId of unitIds) {
+    dispatchWorkspaceUnitUpdated({ unitId });
+  }
+  for (const lexemeId of lexemeIds) {
+    dispatchWorkspaceLexemeUpdated({ lexemeId });
+  }
+}
 
 export async function saveUnit(data: LayerUnitDocType): Promise<string> {
   const db = await getDb();
@@ -63,6 +114,7 @@ export async function saveUnitsBatch(items: LayerUnitDocType[]): Promise<void> {
     normalized.map((item) => item.id),
     'linguisticServiceUnitTokenOps.saveUnits',
   );
+  emitUniqueUnitUpdated(normalized);
 }
 
 export async function getTokensByUnitId(unitId: string): Promise<UnitTokenDocType[]> {
@@ -243,6 +295,7 @@ export async function removeToken(tokenId: string): Promise<void> {
 export async function saveTokenLexemeLink(data: TokenLexemeLinkDocType): Promise<string> {
   const db = await getDb();
   const doc = await db.collections.token_lexeme_links.insert(data);
+  await emitWorkspaceRefreshForTokenLexemeLinks(db, [data]);
   return doc.primary;
 }
 
@@ -262,17 +315,30 @@ export async function removeTokenLexemeLinks(
   targetId: string,
 ): Promise<void> {
   const db = await getDb();
+  const existing = await db.dexie.token_lexeme_links
+    .where('[targetType+targetId]')
+    .equals([targetType, targetId])
+    .toArray();
   await db.collections.token_lexeme_links.removeBySelector({ targetType, targetId });
+  await emitWorkspaceRefreshForTokenLexemeLinks(db, existing);
 }
 
 /** Remove specific lexeme↔token links by primary id (e.g. auto-gloss rollback). */
 export async function removeTokenLexemeLinksByIds(linkIds: readonly string[]): Promise<void> {
   if (linkIds.length === 0) return;
   const db = await getDb();
+  const existing: TokenLexemeLinkDocType[] = [];
+  for (const id of linkIds) {
+    const trimmed = id.trim();
+    if (trimmed.length === 0) continue;
+    const row = await db.dexie.token_lexeme_links.get(trimmed);
+    if (row !== undefined) existing.push(row);
+  }
   for (let i = linkIds.length - 1; i >= 0; i -= 1) {
     const id = linkIds[i]!;
     await db.collections.token_lexeme_links.remove(id);
   }
+  await emitWorkspaceRefreshForTokenLexemeLinks(db, existing);
 }
 
 export async function getAllUnits(): Promise<LayerUnitDocType[]> {

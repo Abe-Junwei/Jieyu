@@ -3,7 +3,7 @@ title: workspace-cross-page-events tasks
 doc_type: execution-spec-tasks
 status: active
 owner: corpus
-last_reviewed: 2026-09-10
+last_reviewed: 2026-09-20
 source_of_truth: workspace-cross-page-events-spec
 depends_on:
   - ./requirements.md
@@ -16,6 +16,7 @@ depends_on:
 
 - [x] `workspaceEvents.ts` 四类事件 + dispatch/subscribe + 幂等决策 golden
 - [x] LinguisticService 单写路径 persist 后 emit（POS/gloss、saveUnit、saveUnitText、removeUnit、saveLexeme）
+- [x] `saveUnitsBatch` unique `unitId` emit；token↔lexeme 链接 save/remove emit；unit/token/morpheme note emit
 - [x] `useWorkspaceEventRefresh` 接到 annotation / corpus / lexicon
 - [x] 草稿不覆盖 + 定向 page 测试
 - [x] 回写路线图 / 代码地图 / CHANGELOG；纠正「总线已在 appShellEvents」的过时说法
@@ -47,4 +48,3 @@ Verified:
 ## Post-merge
 
 - [ ] `context-sync` 生产派发另切片
-- [ ] lexeme 删除 API 补齐后再接 `lexeme-deleted` 生产者
