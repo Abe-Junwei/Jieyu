@@ -180,6 +180,7 @@ describe('LexiconPage', () => {
     expect(screen.getByTestId('side-pane-content').textContent).toContain('canine');
     expect(screen.getByTestId('lexicon-entry-create')).toBeTruthy();
     expect(screen.getByTestId('lexicon-lift-export')).toBeTruthy();
+    expect(screen.getByTestId('lexicon-lift-import')).toBeTruthy();
     expect((screen.getByTestId('lexicon-lift-export') as HTMLButtonElement).disabled).toBe(false);
   });
 
@@ -570,6 +571,40 @@ describe('LexiconPage', () => {
     expect(xml).toContain('id="lex-run"');
     createObjectURL.mockRestore();
     revokeObjectURL.mockRestore();
+  });
+
+  it('imports a LIFT file and readback-lists the new entry', async () => {
+    mockListLexemes.mockResolvedValue([]);
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-lift-import');
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="Jieyu"><entry id="lex-fox"><lexical-unit><form lang="eng"><text>fox</text></form></lexical-unit><sense id="sense_fox" order="0"><gloss lang="eng"><text>vulpine</text></gloss></sense></entry></lift>
+`;
+    const input = screen.getByTestId('lexicon-lift-import-input') as HTMLInputElement;
+    const file = new File([xml], 'jieyu-lexicon.lift', { type: 'application/xml' });
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.id).toBe('lex-fox');
+    expect(Object.values(saved.lemma)).toContain('fox');
+    expect((await screen.findAllByText('fox')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/vulpine/).length).toBeGreaterThan(0);
+  });
+
+  it('does not write when the LIFT file is invalid', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-lift-import-input');
+    const input = screen.getByTestId('lexicon-lift-import-input') as HTMLInputElement;
+    const file = new File(['<not-lift/>'], 'bad.lift', { type: 'application/xml' });
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => {
+      expect(screen.getByTestId('lexicon-lift-import-error').textContent).toContain(
+        '无法读取这个 LIFT 文件',
+      );
+    });
+    expect(mockSaveLexeme).not.toHaveBeenCalled();
   });
 
   it('deletes the selected entry after confirm and drops it from the list', async () => {

@@ -23,6 +23,7 @@ import { LexiconEntryEditForm } from './lexicon/LexiconEntryEditForm';
 import { mergeLexemeIntoList } from './lexicon/saveLexiconEntry';
 import { useLexiconEntryEditController } from './useLexiconEntryEditController';
 import { exportLexemesAsLift } from '../utils/lexiconLiftExport';
+import { importLexemesFromLiftFile } from '../utils/lexiconLiftImport';
 
 const LEXICON_LIST_STATE_KEY = 'lexiconListState';
 
@@ -116,8 +117,10 @@ export function LexiconPage() {
   const deferredSearchText = useDeferredValue(searchText);
   const filteredLexemes = useLexiconSearch(lexemes, deferredSearchText);
   const workspaceRef = useRef<HTMLElement>(null);
+  const liftImportInputRef = useRef<HTMLInputElement>(null);
   const listScrollTopRef = useRef(initialListState.listScrollTop ?? 0);
   const restoredScrollRef = useRef(false);
+  const [importError, setImportError] = useState('');
 
   useEffect(() => {
     if (filteredLexemes.some((lexeme) => lexeme.id === selectedLexemeId)) {
@@ -356,6 +359,44 @@ export function LexiconPage() {
           >
             {t(locale, 'workspace.lexicon.exportLift')}
           </button>
+          <input
+            ref={liftImportInputRef}
+            type="file"
+            accept=".lift,.xml,application/xml,text/xml"
+            data-testid="lexicon-lift-import-input"
+            hidden
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = '';
+              if (!file) return;
+              void importLexemesFromLiftFile(file).then((result) => {
+                if (!result.ok) {
+                  const key =
+                    result.reason === 'empty'
+                      ? 'workspace.lexicon.importLiftEmpty'
+                      : result.reason === 'unsupported-version'
+                        ? 'workspace.lexicon.importLiftUnsupported'
+                        : 'workspace.lexicon.importLiftInvalid';
+                  setImportError(t(locale, key));
+                  return;
+                }
+                setImportError('');
+                queryClient.setQueryData(['lexemes'], result.readback);
+                const first = result.readback[0];
+                if (first) setSelectedLexemeId(first.id);
+              });
+            }}
+          />
+          <button
+            type="button"
+            className="btn lexicon-workspace-import"
+            data-testid="lexicon-lift-import"
+            onClick={() => {
+              liftImportInputRef.current?.click();
+            }}
+          >
+            {t(locale, 'workspace.lexicon.importLift')}
+          </button>
 
           {loading ? (
             <p className="lexicon-workspace-state">{t(locale, 'workspace.lexicon.loading')}</p>
@@ -363,6 +404,14 @@ export function LexiconPage() {
           {!loading && error ? (
             <p className="lexicon-workspace-state lexicon-workspace-state-error">
               {t(locale, 'workspace.lexicon.errorPrefix').replace('{message}', error)}
+            </p>
+          ) : null}
+          {importError ? (
+            <p
+              className="lexicon-workspace-state lexicon-workspace-state-error"
+              data-testid="lexicon-lift-import-error"
+            >
+              {importError}
             </p>
           ) : null}
           {!loading && !error && filteredLexemes.length === 0 ? (

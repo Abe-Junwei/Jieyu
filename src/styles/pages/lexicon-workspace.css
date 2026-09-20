@@ -44,7 +44,8 @@
 
 .lexicon-workspace-search,
 .lexicon-workspace-create,
-.lexicon-workspace-export {
+.lexicon-workspace-export,
+.lexicon-workspace-import {
   width: 100%;
 }
 
