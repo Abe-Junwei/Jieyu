@@ -134,6 +134,23 @@ describe('useLexiconEntryEditController', () => {
     });
   });
 
+  it('keeps an extra sense added immediately after the selected lexeme first lands', () => {
+    const onSaved = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ selectedLexeme }) => useLexiconEntryEditController({ selectedLexeme, onSaved }),
+      { initialProps: { selectedLexeme: null as LexemeDocType | null } },
+    );
+
+    rerender({ selectedLexeme: dog });
+    act(() => {
+      result.current.onAddExtraSense();
+    });
+
+    expect(result.current.fields.lemma).toBe('dog');
+    expect(result.current.fields.gloss).toBe('canine');
+    expect(result.current.fields.extraSenses).toHaveLength(1);
+  });
+
   it('keeps in-progress edits when the same lexeme object is replaced', () => {
     const onSaved = vi.fn();
     const { result, rerender } = renderHook(

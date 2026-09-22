@@ -423,6 +423,7 @@ describe('LexiconPage', () => {
   it('saves an edited lemma and gloss then readback-lists the new values', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
+    expect((screen.getByTestId('lexicon-entry-lemma') as HTMLInputElement).value).toBe('dog');
     fireEvent.change(screen.getByTestId('lexicon-entry-lemma'), { target: { value: 'hound' } });
     fireEvent.change(screen.getByTestId('lexicon-entry-gloss'), {
       target: { value: 'hunting dog' },
@@ -502,8 +503,9 @@ describe('LexiconPage', () => {
   it('saves an extra sense and wordform then shows them in the detail lists', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
+    expect((screen.getByTestId('lexicon-entry-lemma') as HTMLInputElement).value).toBe('dog');
     fireEvent.click(screen.getByTestId('lexicon-entry-add-sense'));
-    fireEvent.change(screen.getByTestId('lexicon-entry-extra-sense-0-gloss'), {
+    fireEvent.change(await screen.findByTestId('lexicon-entry-extra-sense-0-gloss'), {
       target: { value: 'pet' },
     });
     fireEvent.change(screen.getByTestId('lexicon-entry-extra-sense-0-definition'), {
@@ -526,8 +528,9 @@ describe('LexiconPage', () => {
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
+    expect((screen.getByTestId('lexicon-entry-lemma') as HTMLInputElement).value).toBe('dog');
     fireEvent.click(screen.getByTestId('lexicon-entry-add-subsense-primary'));
-    fireEvent.change(screen.getByTestId('lexicon-entry-extra-sense-0-gloss'), {
+    fireEvent.change(await screen.findByTestId('lexicon-entry-extra-sense-0-gloss'), {
       target: { value: 'canid' },
     });
     fireEvent.click(screen.getByTestId('lexicon-entry-save'));

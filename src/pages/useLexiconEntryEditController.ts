@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { t, useLocale } from '../i18n';
 import type { LexemeDocType } from '../types/jieyuDbDocTypes';
 import { descendantDraftIndexes, readSenseParentId } from '../utils/lexemeSenseTree';
@@ -94,15 +94,24 @@ export function useLexiconEntryEditController(input: {
   const fieldsRef = useRef(fields);
   fieldsRef.current = fields;
   const selectedLexemeId = selectedLexeme?.id ?? '';
+  const fieldsSyncKeyRef = useRef<string | null>(selectedLexemeId);
 
-  useEffect(() => {
-    if (creating) return;
-    setFields(fieldsFromLexeme(selectedLexemeRef.current));
+  // Sync fields in render (not an effect) so the form never paints the previous
+  // lexeme/empty draft before selection is applied. An effect left a window where
+  // add-sense / lemma edits were wiped when selectedLexemeId first landed.
+  if (creating) {
+    fieldsSyncKeyRef.current = null;
+  } else if (fieldsSyncKeyRef.current !== selectedLexemeId) {
+    fieldsSyncKeyRef.current = selectedLexemeId;
+    const nextFields = fieldsFromLexeme(selectedLexeme);
+    fieldsRef.current = nextFields;
+    setFields(nextFields);
     setError('');
     setConfirmDelete(false);
-    if (selectedLexemeId === lastSavedIdRef.current) return;
-    setSaved(false);
-  }, [creating, selectedLexemeId]);
+    if (selectedLexemeId !== lastSavedIdRef.current) {
+      setSaved(false);
+    }
+  }
 
   const onSave = useCallback(() => {
     if (savingRef.current) return;
