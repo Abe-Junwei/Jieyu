@@ -16,6 +16,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Lexicon sense tree (B3g)**: `/lexicon` extra senses can nest via optional `parentId`. Saving readback-keeps the parent chain; deleting a parent drops descendants. LIFT 0.13 export/import uses `<subsense>`. No drag-reorder, DMLex, or new flag.
 - **Lexicon LIFT 0.13 import (B3f)**: `/lexicon` imports a `.lift` file (SIL 0.13 subset), upserts by entry id via `saveLexeme`, then `list()` readback. Invalid XML / non-0.13 / empty files do not write. No sense tree, no attachments, no corpus lexicon pack, no new flag.
 - **Lexicon LIFT 0.13 export (B3e)**: `/lexicon` downloads the current lexeme list as SIL LIFT 0.13 XML (lemma / sense gloss+definition / allomorph `variant`). Outbound only. Empty lexicon does not download. No import, no sense tree, no corpus lexicon pack, no new flag.
 - **Lexicon sense/form stable ids**: `senses` and `forms` get persistent `id`s. `saveLexeme` / B3c apply keep existing ids and assign `newId` for new rows. Dexie v54 backfills older lexeme rows. No sense-tree UI, no DMLex, no new flag.
