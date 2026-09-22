@@ -136,13 +136,13 @@
 }
 
 .lexicon-workspace-sense-item[data-depth='1'] {
-  margin-left: 16px;
+  margin-left: var(--space-8);
 }
 
 .lexicon-workspace-sense-item[data-depth='2'],
 .lexicon-workspace-sense-item[data-depth='3'],
 .lexicon-workspace-sense-item[data-depth='4'] {
-  margin-left: 32px;
+  margin-left: var(--space-16);
 }
 
 .lexicon-workspace-sense-item p,
@@ -313,13 +313,13 @@
 }
 
 .lexicon-entry-edit-row[data-depth='1'] {
-  margin-left: 16px;
+  margin-left: var(--space-8);
 }
 
 .lexicon-entry-edit-row[data-depth='2'],
 .lexicon-entry-edit-row[data-depth='3'],
 .lexicon-entry-edit-row[data-depth='4'] {
-  margin-left: 32px;
+  margin-left: var(--space-16);
 }
 
 .lexicon-entry-edit-actions {

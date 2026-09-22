@@ -91,6 +91,8 @@ export function useLexiconEntryEditController(input: {
   selectedLexemeIdRef.current = selectedLexeme?.id ?? null;
   const selectedLexemeRef = useRef(selectedLexeme);
   selectedLexemeRef.current = selectedLexeme;
+  const fieldsRef = useRef(fields);
+  fieldsRef.current = fields;
   const selectedLexemeId = selectedLexeme?.id ?? '';
 
   useEffect(() => {
@@ -112,7 +114,7 @@ export function useLexiconEntryEditController(input: {
     setSaved(false);
     void saveLexiconEntry({
       existing: startedAsCreate ? null : selectedLexeme,
-      fields,
+      fields: fieldsRef.current,
     })
       .then((stored) => {
         const stillCreating = creatingRef.current;
@@ -145,7 +147,7 @@ export function useLexiconEntryEditController(input: {
         savingRef.current = false;
         setSaving(false);
       });
-  }, [creating, fields, locale, onSaved, selectedLexeme]);
+  }, [creating, locale, onSaved, selectedLexeme]);
 
   const onConfirmDelete = useCallback(() => {
     if (deletingRef.current || creating || !selectedLexeme) return;

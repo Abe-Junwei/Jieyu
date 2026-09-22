@@ -21,13 +21,13 @@ depends_on:
 
 ## Pre-merge gates（与拍板 2A 一致）
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 vitest
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
-- [ ] 无新 feature flag；ChatWindow 零 diff
-- [ ] `npm run test:visual-css`（若改 lexicon CSS）
-- [ ] `npm run test:e2e:chromium -- tests/e2e/criticalPaths.spec.ts`（环境允许时）
+- [x] `npm run typecheck`
+- [x] 触及域 vitest（lexemeSenseTree / save / LIFT / LexiconPage / edit controller）
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] 无新 feature flag；ChatWindow 零 diff
+- [x] `npm run test:visual-css`（lexicon CSS 缩进改 token 后重写 baseline）
+- [x] `npm run test:e2e:chromium -- tests/e2e/criticalPaths.spec.ts`（12 passed）
 
 ## Commit 阶段证据模板
 

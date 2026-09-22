@@ -431,7 +431,13 @@ describe('LexiconPage', () => {
 
     await waitFor(() => {
       expect(mockSaveLexeme).toHaveBeenCalled();
-      expect(screen.getAllByText('hound').length).toBeGreaterThan(0);
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.lemma.default).toBe('hound');
+    expect(saved.senses[0]?.gloss.eng).toBe('hunting dog');
+    await waitFor(() => {
+      expect(screen.getByTestId('lexicon-workspace-list').textContent).toContain('hound');
+      expect(screen.getByTestId('side-pane-subtitle').textContent).toBe('hound');
       expect(screen.getAllByText('hunting dog').length).toBeGreaterThan(0);
     });
     expect(screen.getByText('已保存')).toBeTruthy();

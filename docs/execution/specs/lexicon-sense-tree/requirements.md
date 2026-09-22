@@ -26,11 +26,11 @@ depends_on:
 
 ## 3. 验收标准（可测）
 
-- [ ] `applyLexiconEntryFields` 写入 `parentId`；无 parent 的额外义项仍是根
-- [ ] `saveLexeme` → `list()` readback 保留 parent 链
-- [ ] 删父义项后子行不残留
-- [ ] serialize/parse LIFT：`<subsense>` 嵌套；无 parentId 时仍扁平 `<sense>`
-- [ ] 无新 flag；ChatWindow 零 diff
+- [x] `applyLexiconEntryFields` 写入 `parentId`；无 parent 的额外义项仍是根
+- [x] `saveLexeme` → `list()` readback 保留 parent 链
+- [x] 删父义项后子行不残留
+- [x] serialize/parse LIFT：`<subsense>` 嵌套；无 parentId 时仍扁平 `<sense>`
+- [x] 无新 flag；ChatWindow 零 diff
 
 ## 4. 受影响代码地图
 
