@@ -303,6 +303,7 @@ export const enUSDictionary = {
   'workspace.lexicon.edit.glossLabel': 'Primary gloss',
   'workspace.lexicon.edit.extraSensesLabel': 'Additional senses',
   'workspace.lexicon.edit.addSense': 'Add sense',
+  'workspace.lexicon.edit.addSubsense': 'Add subsense',
   'workspace.lexicon.edit.removeSense': 'Remove sense',
   'workspace.lexicon.edit.senseGlossLabel': 'Sense gloss',
   'workspace.lexicon.edit.senseDefinitionLabel': 'Sense definition',

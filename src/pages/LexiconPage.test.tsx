@@ -517,6 +517,23 @@ describe('LexiconPage', () => {
     expect(saved.forms?.map((form) => form.transcription.default)).toEqual(['dogs', 'doggie']);
   });
 
+  it('saves a subsense under the primary gloss with parentId', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.click(screen.getByTestId('lexicon-entry-add-subsense-primary'));
+    fireEvent.change(screen.getByTestId('lexicon-entry-extra-sense-0-gloss'), {
+      target: { value: 'canid' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[1]?.gloss.default).toBe('canid');
+    expect(saved.senses[1]?.parentId).toBe(saved.senses[0]?.id);
+    expect(screen.getByTestId('lexicon-workspace-sense-1').getAttribute('data-depth')).toBe('1');
+  });
+
   it('does not remap remaining nested ids when a middle extra sense or form is removed', async () => {
     mockListLexemes.mockResolvedValue([
       {

@@ -111,6 +111,23 @@ function parseSense(
   };
 }
 
+function parseSenseTree(
+  sense: Element,
+  index: number,
+  lexemeId: string,
+  vernacular: string,
+  parentId: string | undefined,
+): LexemeDocType['senses'] {
+  const parsed = parseSense(sense, index, lexemeId, vernacular);
+  if (!parsed) return [];
+  const withParent =
+    parentId !== undefined && parentId.length > 0 ? { ...parsed, parentId } : parsed;
+  const children = directChildren(sense, 'subsense').flatMap((child, childIndex) =>
+    parseSenseTree(child, childIndex, lexemeId, vernacular, parsed.id),
+  );
+  return [withParent, ...children];
+}
+
 function parseEntry(entry: Element, now: string): LexemeDocType | null {
   const lexicalUnit = directChildren(entry, 'lexical-unit')[0];
   if (!lexicalUnit) return null;
@@ -127,9 +144,9 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
   const morphType =
     directChildren(entry, 'trait').find((trait) => attr(trait, 'name') === 'morph-type') ?? null;
   const lexemeType = morphType ? attr(morphType, 'value') : '';
-  const senses = directChildren(entry, 'sense')
-    .map((sense, index) => parseSense(sense, index, id, language))
-    .filter((sense): sense is NonNullable<typeof sense> => sense !== null);
+  const senses = directChildren(entry, 'sense').flatMap((sense, index) =>
+    parseSenseTree(sense, index, id, language, undefined),
+  );
   const forms = directChildren(entry, 'variant').flatMap((variant) => {
     const transcription = multiLangFromForms(variant);
     if (!transcription) return [];

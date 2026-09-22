@@ -24,6 +24,7 @@ import { mergeLexemeIntoList } from './lexicon/saveLexiconEntry';
 import { useLexiconEntryEditController } from './useLexiconEntryEditController';
 import { exportLexemesAsLift } from '../utils/lexiconLiftExport';
 import { importLexemesFromLiftFile } from '../utils/lexiconLiftImport';
+import { readSenseId, senseDepth } from '../utils/lexemeSenseTree';
 
 const LEXICON_LIST_STATE_KEY = 'lexiconListState';
 
@@ -592,8 +593,10 @@ export function LexiconPage() {
                       <ol className="lexicon-workspace-sense-list">
                         {selectedLexeme.senses.map((sense, index) => (
                           <li
-                            key={`${selectedLexeme.id}-sense-${index}`}
+                            key={readSenseId(sense) || `${selectedLexeme.id}-sense-${index}`}
                             className="lexicon-workspace-sense-item"
+                            data-depth={senseDepth(selectedLexeme.senses, readSenseId(sense))}
+                            data-testid={`lexicon-workspace-sense-${index}`}
                           >
                             <strong>
                               {formatMultilang(sense.gloss) ||

@@ -6,6 +6,7 @@
  * Outbound only — never write back. No attachments, no DMLex, no flextext mix-in.
  */
 import type { LexemeDocType, MultiLangString } from '../types/jieyuDbDocTypes';
+import { liftSenseChildren, liftSenseRoots, readSenseId } from './lexemeSenseTree';
 
 export const LIFT_VERSION = '0.13';
 export const LIFT_PRODUCER = 'Jieyu';
@@ -71,14 +72,16 @@ function xmlFormList(forms: Array<{ lang: string; text: string }>): string {
   return forms.map((form) => xmlForm(form.lang, form.text)).join('');
 }
 
-function serializeSense(
+function serializeSenseNode(
+  tag: 'sense' | 'subsense',
   lexemeId: string,
   sense: LexemeDocType['senses'][number],
-  index: number,
+  siblingIndex: number,
   vernacular: string,
+  all: LexemeDocType['senses'],
 ): string {
-  const storedId = typeof sense.id === 'string' ? sense.id.trim() : '';
-  const senseId = storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`;
+  const storedId = readSenseId(sense);
+  const senseId = storedId.length > 0 ? storedId : `${lexemeId}-sense-${siblingIndex}`;
   const glosses = formsFromMultiLang(sense.gloss, vernacular)
     .map((form) => xmlGloss(form.lang, form.text))
     .join('');
@@ -88,7 +91,10 @@ function serializeSense(
   const category = sense.category?.trim() ?? '';
   const grammaticalInfo =
     category.length > 0 ? `<grammatical-info value="${escapeXml(category)}"/>` : '';
-  return `<sense id="${escapeXml(senseId)}" order="${index}">${grammaticalInfo}${glosses}${definition}</sense>`;
+  const nested = liftSenseChildren(all, senseId)
+    .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
+    .join('');
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {
@@ -108,8 +114,10 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
     morphType.length > 0 ? `<trait name="morph-type" value="${escapeXml(morphType)}"/>` : '';
   const notes = formsFromMultiLang(lexeme.notes, vernacular);
   const noteXml = notes.length > 0 ? `<note>${xmlFormList(notes)}</note>` : '';
-  const senses = lexeme.senses
-    .map((sense, index) => serializeSense(lexeme.id, sense, index, vernacular))
+  const senses = liftSenseRoots(lexeme.senses)
+    .map((sense, index) =>
+      serializeSenseNode('sense', lexeme.id, sense, index, vernacular, lexeme.senses),
+    )
     .join('');
   const variants = (lexeme.forms ?? [])
     .flatMap((form) => {

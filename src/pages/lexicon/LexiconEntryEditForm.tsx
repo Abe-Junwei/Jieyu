@@ -1,5 +1,6 @@
 import { ConfirmDeleteDialog } from '../../components/ConfirmDeleteDialog';
 import { t, useLocale } from '../../i18n';
+import { senseDepth } from '../../utils/lexemeSenseTree';
 import type { LexiconEntryEditController } from '../useLexiconEntryEditController';
 
 type Props = {
@@ -35,10 +36,29 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('gloss', event.target.value)}
         />
       </label>
+      <button
+        type="button"
+        className="btn"
+        data-testid="lexicon-entry-add-subsense-primary"
+        onClick={() => editor.onAddSubsense('primary')}
+      >
+        {t(locale, 'workspace.lexicon.edit.addSubsense')}
+      </button>
       <div className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.edit.extraSensesLabel')}</span>
         {editor.fields.extraSenses.map((sense, index) => (
-          <div key={sense.id ?? `extra-sense-${index}`} className="lexicon-entry-edit-row">
+          <div
+            key={sense.id ?? `extra-sense-${index}`}
+            className="lexicon-entry-edit-row"
+            data-depth={senseDepth(
+              [
+                ...(editor.fields.primarySenseId ? [{ id: editor.fields.primarySenseId }] : []),
+                ...editor.fields.extraSenses,
+              ],
+              sense.id ?? '',
+            )}
+            data-testid={`lexicon-entry-extra-sense-${index}`}
+          >
             <label className="lexicon-entry-edit-field">
               <span>{t(locale, 'workspace.lexicon.edit.senseGlossLabel')}</span>
               <input
@@ -59,6 +79,14 @@ export function LexiconEntryEditForm({ editor }: Props) {
                 }
               />
             </label>
+            <button
+              type="button"
+              className="btn"
+              data-testid={`lexicon-entry-add-subsense-${index}`}
+              onClick={() => editor.onAddSubsense(index)}
+            >
+              {t(locale, 'workspace.lexicon.edit.addSubsense')}
+            </button>
             <button
               type="button"
               className="btn"

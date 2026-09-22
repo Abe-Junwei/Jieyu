@@ -52,6 +52,26 @@ describe('lexiconLiftImport', () => {
     ]);
   });
 
+  it('round-trips nested subsense parentId', () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          dog.senses[0]!,
+          { id: 'sense_pet', parentId: 'sense_primary', gloss: { default: 'pet' } },
+        ],
+      },
+    ]);
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses.map((sense) => sense.id)).toEqual([
+      'sense_primary',
+      'sense_pet',
+    ]);
+    expect(parsed.lexemes[0]?.senses[1]?.parentId).toBe('sense_primary');
+  });
+
   it('rejects invalid xml, wrong version, and empty lifts without saving', async () => {
     const save = vi.fn();
     const list = vi.fn(async () => [] as LexemeDocType[]);

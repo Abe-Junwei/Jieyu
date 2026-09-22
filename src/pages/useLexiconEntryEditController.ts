@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t, useLocale } from '../i18n';
 import type { LexemeDocType } from '../types/jieyuDbDocTypes';
+import { descendantDraftIndexes, readSenseParentId } from '../utils/lexemeSenseTree';
+import { newId } from '../utils/transcriptionFormatters';
 import { deleteLexiconEntry } from './lexicon/deleteLexiconEntry';
 import {
   draftIdFromNested,
@@ -21,6 +23,7 @@ export type LexiconEntryEditController = {
   onFieldChange: (field: LexiconEntryScalarField, value: string) => void;
   onExtraSenseChange: (index: number, field: 'gloss' | 'definition', value: string) => void;
   onAddExtraSense: () => void;
+  onAddSubsense: (parent: 'primary' | number) => void;
   onRemoveExtraSense: (index: number) => void;
   onFormChange: (index: number, value: string) => void;
   onAddForm: () => void;
@@ -34,17 +37,23 @@ export type LexiconEntryEditController = {
 };
 
 function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
+  const primaryId = typeof lexeme?.senses[0]?.id === 'string' ? lexeme.senses[0].id.trim() : '';
   return {
     lemma: readPrimaryMultiLang(lexeme?.lemma),
     gloss: readPrimaryMultiLang(lexeme?.senses[0]?.gloss),
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
-    extraSenses: (lexeme?.senses.slice(1) ?? []).map((sense) => ({
-      ...draftIdFromNested(sense.id),
-      gloss: readPrimaryMultiLang(sense.gloss),
-      definition: readPrimaryMultiLang(sense.definition),
-    })),
+    ...(primaryId.length > 0 ? { primarySenseId: primaryId } : {}),
+    extraSenses: (lexeme?.senses.slice(1) ?? []).map((sense) => {
+      const parentId = readSenseParentId(sense);
+      return {
+        ...draftIdFromNested(sense.id),
+        ...(parentId.length > 0 ? { parentId } : {}),
+        gloss: readPrimaryMultiLang(sense.gloss),
+        definition: readPrimaryMultiLang(sense.definition),
+      };
+    }),
     forms: (lexeme?.forms ?? []).map((form) => ({
       ...draftIdFromNested(form.id),
       transcription: readPrimaryMultiLang(
@@ -193,15 +202,41 @@ export function useLexiconEntryEditController(input: {
         setSaved(false);
         setFields((prev) => ({
           ...prev,
-          extraSenses: [...prev.extraSenses, { gloss: '', definition: '' }],
+          extraSenses: [...prev.extraSenses, { id: newId('sense'), gloss: '', definition: '' }],
         }));
+      },
+      onAddSubsense: (parent) => {
+        setSaved(false);
+        setFields((prev) => {
+          const primarySenseId = prev.primarySenseId ?? newId('sense');
+          const parentId =
+            parent === 'primary'
+              ? primarySenseId
+              : (prev.extraSenses[parent]?.id ?? newId('sense'));
+          const extraSenses = prev.extraSenses.map((sense, index) =>
+            parent === index && (sense.id ?? '').trim().length === 0
+              ? { ...sense, id: parentId }
+              : sense,
+          );
+          return {
+            ...prev,
+            primarySenseId,
+            extraSenses: [
+              ...extraSenses,
+              { id: newId('sense'), parentId, gloss: '', definition: '' },
+            ],
+          };
+        });
       },
       onRemoveExtraSense: (index) => {
         setSaved(false);
-        setFields((prev) => ({
-          ...prev,
-          extraSenses: prev.extraSenses.filter((_, senseIndex) => senseIndex !== index),
-        }));
+        setFields((prev) => {
+          const drop = new Set(descendantDraftIndexes(prev.extraSenses, index));
+          return {
+            ...prev,
+            extraSenses: prev.extraSenses.filter((_, senseIndex) => !drop.has(senseIndex)),
+          };
+        });
       },
       onFormChange: (index, value) => {
         setSaved(false);
