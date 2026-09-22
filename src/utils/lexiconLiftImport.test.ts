@@ -1,0 +1,98 @@
+// @vitest-environment jsdom
+
+import { describe, expect, it, vi } from 'vitest';
+import type { LexemeDocType } from '../types/jieyuDbDocTypes';
+import { serializeLexemesToLift } from './lexiconLiftExport';
+import { importLexemesFromLiftXml, parseLiftXml } from './lexiconLiftImport';
+
+const now = '2026-09-20T12:00:00.000Z';
+
+const dog: LexemeDocType = {
+  id: 'lex-dog',
+  lemma: { default: 'dog', eng: 'hound' },
+  citationForm: 'dog',
+  language: 'eng',
+  lexemeType: 'word',
+  notes: { zho: '常见家养动物' },
+  senses: [
+    {
+      id: 'sense_primary',
+      gloss: { eng: 'canine' },
+      definition: { eng: 'domesticated canine' },
+      category: 'noun',
+    },
+    { id: 'sense_pet', gloss: { default: 'pet' }, definition: { default: 'companion' } },
+  ],
+  forms: [
+    { id: 'form_dogs', transcription: { default: 'dogs' } },
+    { id: 'form_doggie', transcription: { default: 'doggie' } },
+  ],
+  createdAt: now,
+  updatedAt: now,
+};
+
+describe('lexiconLiftImport', () => {
+  it('round-trips B3e XML for id, lemma text, sense ids and glosses', () => {
+    const xml = serializeLexemesToLift([dog]);
+    expect(xml).toBeTruthy();
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const entry = parsed.lexemes[0]!;
+    expect(entry.id).toBe('lex-dog');
+    expect(Object.values(entry.lemma)).toContain('hound');
+    expect(entry.senses.map((sense) => sense.id)).toEqual(['sense_primary', 'sense_pet']);
+    expect(entry.senses[0]?.gloss.eng ?? entry.senses[0]?.gloss.default).toBe('canine');
+    expect(entry.senses[0]?.definition?.eng ?? entry.senses[0]?.definition?.default).toBe(
+      'domesticated canine',
+    );
+    expect(entry.forms?.map((form) => Object.values(form.transcription)[0])).toEqual([
+      'dogs',
+      'doggie',
+    ]);
+  });
+
+  it('rejects invalid xml, wrong version, and empty lifts without saving', async () => {
+    const save = vi.fn();
+    const list = vi.fn(async () => [] as LexemeDocType[]);
+    expect(parseLiftXml('<not-lift/>').ok).toBe(false);
+    expect(parseLiftXml('<lift version="0.15"></lift>')).toEqual({
+      ok: false,
+      reason: 'unsupported-version',
+    });
+    expect(parseLiftXml('<lift version="0.13"></lift>')).toEqual({ ok: false, reason: 'empty' });
+    const invalid = await importLexemesFromLiftXml('<lift>', { save, list });
+    expect(invalid.ok).toBe(false);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('upserts by entry id and keeps unmapped fields from the existing row', async () => {
+    const xml = serializeLexemesToLift([dog]);
+    expect(xml).toBeTruthy();
+    const existing: LexemeDocType = {
+      ...dog,
+      lemma: { default: 'old' },
+      usageCount: 9,
+      tags: { keep: true },
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      const index = store.findIndex((row) => row.id === doc.id);
+      if (index >= 0) store[index] = doc;
+      else store.push(doc);
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(xml!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(save).toHaveBeenCalledTimes(1);
+    const saved = store[0]!;
+    expect(Object.values(saved.lemma)).toContain('hound');
+    expect(saved.usageCount).toBe(9);
+    expect(saved.tags).toEqual({ keep: true });
+    expect(result.readback[0]?.id).toBe('lex-dog');
+  });
+});

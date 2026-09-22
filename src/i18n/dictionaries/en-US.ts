@@ -295,6 +295,10 @@ export const enUSDictionary = {
   'workspace.lexicon.edit.createHint':
     'Lemma is required. The entry appears in the list after save.',
   'workspace.lexicon.exportLift': 'Export LIFT',
+  'workspace.lexicon.importLift': 'Import LIFT',
+  'workspace.lexicon.importLiftEmpty': 'This LIFT file has no entries to import.',
+  'workspace.lexicon.importLiftInvalid': 'This LIFT file could not be read.',
+  'workspace.lexicon.importLiftUnsupported': 'Only LIFT 0.13 is supported.',
   'workspace.lexicon.edit.lemmaLabel': 'Lemma',
   'workspace.lexicon.edit.glossLabel': 'Primary gloss',
   'workspace.lexicon.edit.extraSensesLabel': 'Additional senses',
