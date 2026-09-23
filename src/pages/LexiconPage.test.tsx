@@ -543,6 +543,36 @@ describe('LexiconPage', () => {
     expect(screen.getByTestId('lexicon-workspace-sense-1').getAttribute('data-depth')).toBe('1');
   });
 
+  it('moves a sibling extra sense down and saves that order', async () => {
+    mockListLexemes.mockResolvedValue([
+      {
+        id: 'lex-dog',
+        lemma: { default: 'dog' },
+        senses: [
+          { id: 'sense_primary', gloss: { default: 'canine' } },
+          { id: 'sense_pet', gloss: { default: 'pet' } },
+          { id: 'sense_hound', gloss: { default: 'hound' } },
+        ],
+        language: 'eng',
+        createdAt: '2026-04-04T00:00:00.000Z',
+        updatedAt: '2026-04-04T00:00:00.000Z',
+      },
+    ] satisfies LexemeDocType[]);
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    expect((screen.getByTestId('lexicon-entry-lemma') as HTMLInputElement).value).toBe('dog');
+    expect(
+      (screen.getByTestId('lexicon-entry-move-sense-up-0') as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fireEvent.click(screen.getByTestId('lexicon-entry-move-sense-down-0'));
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses.map((sense) => sense.gloss.default)).toEqual(['canine', 'hound', 'pet']);
+  });
+
   it('does not remap remaining nested ids when a middle extra sense or form is removed', async () => {
     mockListLexemes.mockResolvedValue([
       {

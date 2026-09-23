@@ -72,6 +72,29 @@ describe('lexiconLiftImport', () => {
     expect(parsed.lexemes[0]?.senses[1]?.parentId).toBe('sense_primary');
   });
 
+  it('sorts sibling senses by the LIFT order attribute', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <sense id="sense_second" order="1"><gloss lang="eng"><text>second</text></gloss>
+      <subsense id="sense_child_b" order="1"><gloss lang="eng"><text>child-b</text></gloss></subsense>
+      <subsense id="sense_child_a" order="0"><gloss lang="eng"><text>child-a</text></gloss></subsense>
+    </sense>
+    <sense id="sense_first" order="0"><gloss lang="eng"><text>first</text></gloss></sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses.map((sense) => sense.id)).toEqual([
+      'sense_first',
+      'sense_second',
+      'sense_child_a',
+      'sense_child_b',
+    ]);
+  });
+
   it('rejects invalid xml, wrong version, and empty lifts without saving', async () => {
     const save = vi.fn();
     const list = vi.fn(async () => [] as LexemeDocType[]);

@@ -1,6 +1,6 @@
 import { ConfirmDeleteDialog } from '../../components/ConfirmDeleteDialog';
 import { t, useLocale } from '../../i18n';
-import { senseDepth } from '../../utils/lexemeSenseTree';
+import { moveSenseSiblingBlock, senseDepth } from '../../utils/lexemeSenseTree';
 import type { LexiconEntryEditController } from '../useLexiconEntryEditController';
 
 type Props = {
@@ -86,6 +86,30 @@ export function LexiconEntryEditForm({ editor }: Props) {
               onClick={() => editor.onAddSubsense(index)}
             >
               {t(locale, 'workspace.lexicon.edit.addSubsense')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              data-testid={`lexicon-entry-move-sense-up-${index}`}
+              disabled={
+                moveSenseSiblingBlock(editor.fields.extraSenses, index, -1) ===
+                editor.fields.extraSenses
+              }
+              onClick={() => editor.onMoveExtraSense(index, -1)}
+            >
+              {t(locale, 'workspace.lexicon.edit.moveSenseUp')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              data-testid={`lexicon-entry-move-sense-down-${index}`}
+              disabled={
+                moveSenseSiblingBlock(editor.fields.extraSenses, index, 1) ===
+                editor.fields.extraSenses
+              }
+              onClick={() => editor.onMoveExtraSense(index, 1)}
+            >
+              {t(locale, 'workspace.lexicon.edit.moveSenseDown')}
             </button>
             <button
               type="button"

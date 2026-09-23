@@ -35,7 +35,10 @@ export function senseDepth(nodes: SenseTreeNode[], id: string): number {
   return depth;
 }
 
-export function descendantDraftIndexes(drafts: SenseTreeNode[], startIndex: number): number[] {
+export function descendantDraftIndexes(
+  drafts: readonly SenseTreeNode[],
+  startIndex: number,
+): number[] {
   if (startIndex < 0 || startIndex >= drafts.length) return [];
   const startId = readSenseId(drafts[startIndex] ?? {});
   const droppedIds = new Set<string>(startId.length > 0 ? [startId] : []);
@@ -67,4 +70,41 @@ export function liftSenseRoots<T extends SenseTreeNode>(senses: T[]): T[] {
 export function liftSenseChildren<T extends SenseTreeNode>(senses: T[], parentId: string): T[] {
   if (parentId.length === 0) return [];
   return senses.filter((sense) => readSenseParentId(sense) === parentId);
+}
+
+/** Move one sibling and its descendant block. No-op returns the same array. */
+export function moveSenseSiblingBlock<T extends SenseTreeNode>(
+  drafts: readonly T[],
+  index: number,
+  direction: -1 | 1,
+): readonly T[] {
+  if (index < 0 || index >= drafts.length || (direction !== -1 && direction !== 1)) return drafts;
+  const parent = readSenseParentId(drafts[index] ?? {});
+  const siblingIndexes = drafts.flatMap((draft, draftIndex) =>
+    readSenseParentId(draft) === parent ? [draftIndex] : [],
+  );
+  const neighborIndex = siblingIndexes[siblingIndexes.indexOf(index) + direction];
+  if (neighborIndex === undefined) return drafts;
+  const selfSet = new Set(descendantDraftIndexes(drafts, index));
+  const neighborSet = new Set(descendantDraftIndexes(drafts, neighborIndex));
+  for (const row of selfSet) {
+    if (neighborSet.has(row)) return drafts;
+  }
+  const selfItems = drafts.filter((_, row) => selfSet.has(row));
+  const neighborItems = drafts.filter((_, row) => neighborSet.has(row));
+  const earlier = direction < 0 ? selfItems : neighborItems;
+  const later = direction < 0 ? neighborItems : selfItems;
+  const out: T[] = [];
+  let inserted = false;
+  drafts.forEach((draft, row) => {
+    if (selfSet.has(row) || neighborSet.has(row)) {
+      if (!inserted) {
+        out.push(...earlier, ...later);
+        inserted = true;
+      }
+      return;
+    }
+    out.push(draft);
+  });
+  return out;
 }

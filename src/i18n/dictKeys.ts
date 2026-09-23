@@ -267,6 +267,8 @@ export const DICT_KEYS = [
   'workspace.lexicon.edit.extraSensesLabel',
   'workspace.lexicon.edit.addSense',
   'workspace.lexicon.edit.addSubsense',
+  'workspace.lexicon.edit.moveSenseUp',
+  'workspace.lexicon.edit.moveSenseDown',
   'workspace.lexicon.edit.removeSense',
   'workspace.lexicon.edit.senseGlossLabel',
   'workspace.lexicon.edit.senseDefinitionLabel',

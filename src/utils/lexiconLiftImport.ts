@@ -38,6 +38,22 @@ function directChildren(parent: Element, localName: string): Element[] {
   return Array.from(parent.children).filter((child) => child.localName === localName);
 }
 
+/** FLEx sense `order` starts at 0. Missing order keeps document order. */
+function sortByLiftOrder(elements: Element[]): Element[] {
+  return elements
+    .map((element, index) => {
+      const raw = attr(element, 'order');
+      const parsed = Number(raw);
+      const order = raw.length > 0 && Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+      return { element, index, order };
+    })
+    .sort((left, right) => {
+      if (left.order !== right.order) return left.order - right.order;
+      return left.index - right.index;
+    })
+    .map((row) => row.element);
+}
+
 function attr(el: Element, name: string): string {
   return (el.getAttribute(name) ?? '').trim();
 }
@@ -122,7 +138,7 @@ function parseSenseTree(
   if (!parsed) return [];
   const withParent =
     parentId !== undefined && parentId.length > 0 ? { ...parsed, parentId } : parsed;
-  const children = directChildren(sense, 'subsense').flatMap((child, childIndex) =>
+  const children = sortByLiftOrder(directChildren(sense, 'subsense')).flatMap((child, childIndex) =>
     parseSenseTree(child, childIndex, lexemeId, vernacular, parsed.id),
   );
   return [withParent, ...children];
@@ -144,7 +160,7 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
   const morphType =
     directChildren(entry, 'trait').find((trait) => attr(trait, 'name') === 'morph-type') ?? null;
   const lexemeType = morphType ? attr(morphType, 'value') : '';
-  const senses = directChildren(entry, 'sense').flatMap((sense, index) =>
+  const senses = sortByLiftOrder(directChildren(entry, 'sense')).flatMap((sense, index) =>
     parseSenseTree(sense, index, id, language, undefined),
   );
   const forms = directChildren(entry, 'variant').flatMap((variant) => {
