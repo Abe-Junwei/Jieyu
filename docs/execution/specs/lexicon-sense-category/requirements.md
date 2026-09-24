@@ -25,9 +25,9 @@ depends_on:
 
 ## 3. 验收标准（可测）
 
-- [ ] 主义项与额外义项 `category` write→list readback
-- [ ] 空白词类不写入
-- [ ] 无新 flag、无新表
+- [x] 主义项与额外义项 `category` write→list readback
+- [x] 空白词类不写入
+- [x] 无新 flag、无新表
 
 ## 4. 受影响代码地图
 
