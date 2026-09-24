@@ -301,6 +301,8 @@ export const enUSDictionary = {
   'workspace.lexicon.importLiftUnsupported': 'Only LIFT 0.13 is supported.',
   'workspace.lexicon.edit.lemmaLabel': 'Lemma',
   'workspace.lexicon.edit.glossLabel': 'Primary gloss',
+  'workspace.lexicon.edit.categoryLabel': 'Part of speech',
+  'workspace.lexicon.edit.senseCategoryLabel': 'Sense part of speech',
   'workspace.lexicon.edit.extraSensesLabel': 'Additional senses',
   'workspace.lexicon.edit.addSense': 'Add sense',
   'workspace.lexicon.edit.addSubsense': 'Add subsense',

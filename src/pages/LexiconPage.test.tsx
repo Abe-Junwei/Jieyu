@@ -525,6 +525,29 @@ describe('LexiconPage', () => {
     expect(saved.forms?.map((form) => form.transcription.default)).toEqual(['dogs', 'doggie']);
   });
 
+  it('saves a part of speech on the primary sense and an extra sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    expect((screen.getByTestId('lexicon-entry-lemma') as HTMLInputElement).value).toBe('dog');
+    fireEvent.change(screen.getByTestId('lexicon-entry-category'), { target: { value: 'noun' } });
+    fireEvent.click(screen.getByTestId('lexicon-entry-add-sense'));
+    fireEvent.change(await screen.findByTestId('lexicon-entry-extra-sense-0-gloss'), {
+      target: { value: 'pet' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-extra-sense-0-category'), {
+      target: { value: 'verb' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.category).toBe('noun');
+    expect(saved.senses[1]?.category).toBe('verb');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-category').textContent).toBe('noun');
+    expect(screen.getByTestId('lexicon-workspace-sense-1-category').textContent).toBe('verb');
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

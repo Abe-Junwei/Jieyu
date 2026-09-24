@@ -278,6 +278,8 @@ export const zhCNDictionary = {
   'workspace.lexicon.importLiftUnsupported': '只支持 LIFT 0.13。',
   'workspace.lexicon.edit.lemmaLabel': '词元',
   'workspace.lexicon.edit.glossLabel': '主 gloss',
+  'workspace.lexicon.edit.categoryLabel': '词类',
+  'workspace.lexicon.edit.senseCategoryLabel': '义项词类',
   'workspace.lexicon.edit.extraSensesLabel': '额外义项',
   'workspace.lexicon.edit.addSense': '添加义项',
   'workspace.lexicon.edit.addSubsense': '添加子义项',

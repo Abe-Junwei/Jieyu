@@ -605,7 +605,11 @@ export function LexiconPage() {
                             {formatMultilang(sense.definition) ? (
                               <p>{formatMultilang(sense.definition)}</p>
                             ) : null}
-                            {sense.category ? <span>{sense.category}</span> : null}
+                            {sense.category ? (
+                              <span data-testid={`lexicon-workspace-sense-${index}-category`}>
+                                {sense.category}
+                              </span>
+                            ) : null}
                           </li>
                         ))}
                       </ol>

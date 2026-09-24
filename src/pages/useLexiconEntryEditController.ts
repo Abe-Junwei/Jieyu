@@ -28,7 +28,11 @@ export type LexiconEntryEditController = {
   saved: boolean;
   error: string;
   onFieldChange: (field: LexiconEntryScalarField, value: string) => void;
-  onExtraSenseChange: (index: number, field: 'gloss' | 'definition', value: string) => void;
+  onExtraSenseChange: (
+    index: number,
+    field: 'gloss' | 'definition' | 'category',
+    value: string,
+  ) => void;
   onAddExtraSense: () => void;
   onAddSubsense: (parent: 'primary' | number) => void;
   onMoveExtraSense: (index: number, direction: -1 | 1) => void;
@@ -80,6 +84,8 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
   return {
     lemma: readPrimaryMultiLang(lexeme?.lemma),
     gloss: readPrimaryMultiLang(lexeme?.senses[0]?.gloss),
+    category:
+      typeof lexeme?.senses[0]?.category === 'string' ? lexeme.senses[0].category.trim() : '',
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -91,6 +97,9 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
         ...(parentId.length > 0 ? { parentId } : {}),
         gloss: readPrimaryMultiLang(sense.gloss),
         definition: readPrimaryMultiLang(sense.definition),
+        ...(typeof sense.category === 'string' && sense.category.trim().length > 0
+          ? { category: sense.category.trim() }
+          : {}),
       };
     }),
     forms: (lexeme?.forms ?? []).map((form) => ({
