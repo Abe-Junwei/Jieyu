@@ -2,8 +2,11 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { t, useLocale } from '../i18n';
 import type { LexemeDocType } from '../types/jieyuDbDocTypes';
 import {
+  demoteSense,
   descendantDraftIndexes,
   moveSenseSiblingBlock,
+  promoteSense,
+  readSenseId,
   readSenseParentId,
 } from '../utils/lexemeSenseTree';
 import { newId } from '../utils/transcriptionFormatters';
@@ -29,6 +32,8 @@ export type LexiconEntryEditController = {
   onAddExtraSense: () => void;
   onAddSubsense: (parent: 'primary' | number) => void;
   onMoveExtraSense: (index: number, direction: -1 | 1) => void;
+  onPromoteExtraSense: (index: number) => void;
+  onDemoteExtraSense: (index: number) => void;
   onRemoveExtraSense: (index: number) => void;
   onFormChange: (index: number, value: string) => void;
   onAddForm: () => void;
@@ -40,6 +45,35 @@ export type LexiconEntryEditController = {
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
 };
+
+function applyExtraSenseDemote(prev: LexiconEntryFields, index: number): LexiconEntryFields {
+  const row = prev.extraSenses[index];
+  if (!row) return prev;
+  const parent = readSenseParentId(row);
+  const siblings = prev.extraSenses.flatMap((sense, senseIndex) =>
+    readSenseParentId(sense) === parent ? [senseIndex] : [],
+  );
+  const position = siblings.indexOf(index);
+  const previousIndex = position > 0 ? siblings[position - 1] : undefined;
+  let extraSenses = prev.extraSenses;
+  let primarySenseId = prev.primarySenseId ?? '';
+  if (previousIndex === undefined) {
+    if (parent.length > 0) return prev;
+    if (primarySenseId.length === 0) primarySenseId = newId('sense');
+  } else if (readSenseId(extraSenses[previousIndex] ?? {}).length === 0) {
+    const siblingId = newId('sense');
+    extraSenses = extraSenses.map((sense, senseIndex) =>
+      senseIndex === previousIndex ? { ...sense, id: siblingId } : sense,
+    );
+  }
+  const next = demoteSense(extraSenses, index, primarySenseId);
+  if (next === extraSenses) return prev;
+  return {
+    ...prev,
+    ...(primarySenseId.length > 0 ? { primarySenseId } : {}),
+    extraSenses: [...next],
+  };
+}
 
 function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
   const primaryId = typeof lexeme?.senses[0]?.id === 'string' ? lexeme.senses[0].id.trim() : '';
@@ -251,6 +285,18 @@ export function useLexiconEntryEditController(input: {
           if (extraSenses === prev.extraSenses) return prev;
           return { ...prev, extraSenses: [...extraSenses] };
         });
+      },
+      onPromoteExtraSense: (index) => {
+        setSaved(false);
+        setFields((prev) => {
+          const extraSenses = promoteSense(prev.extraSenses, index, prev.primarySenseId ?? '');
+          if (extraSenses === prev.extraSenses) return prev;
+          return { ...prev, extraSenses: [...extraSenses] };
+        });
+      },
+      onDemoteExtraSense: (index) => {
+        setSaved(false);
+        setFields((prev) => applyExtraSenseDemote(prev, index));
       },
       onRemoveExtraSense: (index) => {
         setSaved(false);

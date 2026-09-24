@@ -177,6 +177,53 @@ describe('useLexiconEntryEditController', () => {
     ]);
   });
 
+  it('promotes a subsense of the primary gloss to a root extra sense', () => {
+    const selected: LexemeDocType = {
+      ...dog,
+      senses: [
+        { id: 'sense_primary', gloss: { default: 'canine' } },
+        { id: 'sense_pet', parentId: 'sense_primary', gloss: { default: 'pet' } },
+      ],
+    };
+    const onSaved = vi.fn();
+    const { result } = renderHook(() =>
+      useLexiconEntryEditController({ selectedLexeme: selected, onSaved }),
+    );
+
+    act(() => {
+      result.current.onPromoteExtraSense(0);
+    });
+
+    expect(result.current.fields.extraSenses[0]?.parentId).toBeUndefined();
+    expect(result.current.fields.primarySenseId).toBe('sense_primary');
+  });
+
+  it('demotes the second primary child under the previous sibling', () => {
+    const selected: LexemeDocType = {
+      ...dog,
+      senses: [
+        { id: 'sense_primary', gloss: { default: 'canine' } },
+        { id: 'sense_pet', parentId: 'sense_primary', gloss: { default: 'pet' } },
+        { id: 'sense_pup', parentId: 'sense_pet', gloss: { default: 'pup' } },
+        { id: 'sense_hound', parentId: 'sense_primary', gloss: { default: 'hound' } },
+      ],
+    };
+    const onSaved = vi.fn();
+    const { result } = renderHook(() =>
+      useLexiconEntryEditController({ selectedLexeme: selected, onSaved }),
+    );
+
+    act(() => {
+      result.current.onDemoteExtraSense(2);
+    });
+
+    expect(result.current.fields.extraSenses.map((sense) => sense.parentId)).toEqual([
+      'sense_primary',
+      'sense_pet',
+      'sense_pet',
+    ]);
+  });
+
   it('keeps in-progress edits when the same lexeme object is replaced', () => {
     const onSaved = vi.fn();
     const { result, rerender } = renderHook(

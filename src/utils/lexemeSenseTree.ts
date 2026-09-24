@@ -108,3 +108,89 @@ export function moveSenseSiblingBlock<T extends SenseTreeNode>(
   });
   return out;
 }
+
+function withSenseParent<T extends SenseTreeNode>(node: T, parentId: string): T {
+  const { parentId: _parentId, ...rest } = node;
+  if (parentId.length === 0) return rest as T;
+  return { ...rest, parentId } as T;
+}
+
+function extraSenseDepth(
+  drafts: readonly SenseTreeNode[],
+  index: number,
+  primaryId: string,
+): number {
+  let depth = 0;
+  let parent = readSenseParentId(drafts[index] ?? {});
+  const seen = new Set<string>();
+  const primary = primaryId.trim();
+  while (parent.length > 0 && depth < 8) {
+    if (seen.has(parent)) return depth;
+    seen.add(parent);
+    if (primary.length > 0 && parent === primary) return depth + 1;
+    const parentNode = drafts.find((draft) => readSenseId(draft) === parent);
+    if (!parentNode) return depth;
+    depth += 1;
+    parent = readSenseParentId(parentNode);
+  }
+  return depth;
+}
+
+function siblingDraftIndexes(drafts: readonly SenseTreeNode[], parentId: string): number[] {
+  return drafts.flatMap((draft, index) => (readSenseParentId(draft) === parentId ? [index] : []));
+}
+
+/** Raise one sense one level. No-op returns the same array. Does not reorder. */
+export function promoteSense<T extends SenseTreeNode>(
+  drafts: readonly T[],
+  index: number,
+  primaryId: string,
+): readonly T[] {
+  const row = drafts[index];
+  if (!row) return drafts;
+  const parent = readSenseParentId(row);
+  if (parent.length === 0) return drafts;
+  const primary = primaryId.trim();
+  let nextParent = '';
+  if (parent !== primary) {
+    const parentNode = drafts.find((draft) => readSenseId(draft) === parent);
+    nextParent = parentNode ? readSenseParentId(parentNode) : '';
+  }
+  if (nextParent === parent) return drafts;
+  return drafts.map((draft, rowIndex) =>
+    rowIndex === index ? withSenseParent(draft, nextParent) : draft,
+  );
+}
+
+/** True when demote would change parentId, including when the controller must assign an id first. */
+export function canDemoteSense(
+  drafts: readonly SenseTreeNode[],
+  index: number,
+  primaryId: string,
+): boolean {
+  if (index < 0 || index >= drafts.length) return false;
+  if (extraSenseDepth(drafts, index, primaryId) >= 8) return false;
+  const parent = readSenseParentId(drafts[index] ?? {});
+  const position = siblingDraftIndexes(drafts, parent).indexOf(index);
+  if (position > 0) return true;
+  return parent.length === 0;
+}
+
+/** Lower one sense under the previous sibling, or under the primary gloss. No-op returns the same array. */
+export function demoteSense<T extends SenseTreeNode>(
+  drafts: readonly T[],
+  index: number,
+  primaryId: string,
+): readonly T[] {
+  if (!canDemoteSense(drafts, index, primaryId)) return drafts;
+  const parent = readSenseParentId(drafts[index] ?? {});
+  const siblings = siblingDraftIndexes(drafts, parent);
+  const previousIndex = siblings[siblings.indexOf(index) - 1];
+  const primary = primaryId.trim();
+  const nextParent =
+    previousIndex === undefined ? primary : readSenseId(drafts[previousIndex] ?? {});
+  if (nextParent.length === 0 || nextParent === parent) return drafts;
+  return drafts.map((draft, rowIndex) =>
+    rowIndex === index ? withSenseParent(draft, nextParent) : draft,
+  );
+}
