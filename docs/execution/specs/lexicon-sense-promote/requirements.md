@@ -26,10 +26,10 @@ depends_on:
 
 ## 3. 验收标准（可测）
 
-- [ ] `promoteSense` / `demoteSense` 只改目标行的 `parentId`，数组顺序与子孙 `parentId` 不变
-- [ ] 不能提升根额外义项；不能降级某级的第一个义项；深度已到 8 不再降级
-- [ ] 保存后 `senses[].parentId` 与详情 `data-depth` 为降级后的值
-- [ ] 无新 flag
+- [x] `promoteSense` / `demoteSense` 只改目标行的 `parentId`，数组顺序与子孙 `parentId` 不变
+- [x] 不能提升根额外义项；不能降级某级的第一个义项；深度已到 8 不再降级
+- [x] 保存后 `senses[].parentId` 与详情 `data-depth` 为降级后的值
+- [x] 无新 flag
 
 ## 4. 受影响代码地图
 

@@ -14,17 +14,17 @@ depends_on:
 
 ## Implementation tasks
 
-- [ ] `promoteSense` / `demoteSense` → `npx vitest run src/utils/lexemeSenseTree.test.ts`
-- [ ] 编辑表单提升/降级并保存 `parentId` → LexiconPage + controller vitest
-- [ ] 路线图 B3i / 代码地图 / CHANGELOG
+- [x] `promoteSense` / `demoteSense` → `npx vitest run src/utils/lexemeSenseTree.test.ts`
+- [x] 编辑表单提升/降级并保存 `parentId` → LexiconPage + controller vitest
+- [x] 路线图 B3i / 代码地图 / CHANGELOG
 
 ## Pre-merge gates（与拍板 2A 一致）
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 vitest（tree / LexiconPage / controller）
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
-- [ ] 无新 feature flag；ChatWindow 零 diff
+- [x] `npm run typecheck`
+- [x] 触及域 vitest（tree / LexiconPage / controller）
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] 无新 feature flag；ChatWindow 零 diff
 
 ## Post-merge
 
