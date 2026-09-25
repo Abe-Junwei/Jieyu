@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-25）**：标注 M1、**B4f–B4h**、**B3c–B3k** 已落地。B4h 在聚焦句段上只读展示 gloss 结构切段和复核。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / DMLex / M2 typed relation；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-25）**：标注 M1、**B4f–B4i**、**B3c–B3k** 已落地。B4i 在 IGT 行只读显示同一句段的翻译层文本。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / DMLex / M2 typed relation；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -210,6 +210,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B4f** | 标注页二次自动分词（保守模式） | M | **【✅ 已落地】** `/annotation` 预览 Unicode 词边界切分，无人工痕迹时确认写 `unit_tokens`；有 POS/gloss/词素/链接/脏草稿时只写 pending `alternativeAnalysis`。空原文或建议不变不写库。无新 flag。SDD：`annotation-retokenize/`。不做强制覆盖/快照回滚；不接 ChatWindow | preview 零写入；未标注 readback；已标注 candidate；定向 vitest | 是 |
 | **B4g** | 标注页二次分词强制覆盖与恢复 | M | **【✅ 已落地】** 已标注句段的确认仍只写 candidate。用户再点覆盖时，先把 token/词素/链接写入 pending `retokenize-snapshot`，再替换 `unit_tokens`。恢复按原 id 写回并 reject 快照。脏草稿不覆盖。无新 flag。SDD：`annotation-retokenize-force/`。不接 ChatWindow | force write→readback；restore gloss/词素/链接；定向 vitest | 是 |
 | **B4h** | 标注页结构校验面板 | M | **【✅ 已落地】** 聚焦句段把非空 gloss 交给既有结构 preview，显示切段、Leipzig 缩写问题和需复核。不调用 confirm，不写 `unit_relations`。模板编辑仍在 `/assets/structural-profiles`。无新 flag。SDD：`annotation-validator-panel/`。不做 M2 typed relation | 只读 preview；未闭合中缀需复核；定向 vitest | 是 |
+| **B4i** | 标注页译文行 | S | **【✅ 已落地】** `/annotation` IGT 译文行显示同一 unit 在翻译层上的文本。无翻译层或无文本时仍是空文案。音频模态不显示。不写译文、不改转写文本。无新 flag。SDD：`annotation-translation-line/`。不做时间重叠对齐，不做 M2 typed relation | 翻译层文本出现在行上；无层时仍是空文案；定向 vitest | 是 |
 | **B5a** | 语料库 P0 工作集 + 多选（P0-4 上半） | **L** | **【🟡 已落地·flag 关】** `/corpus` 当前 text 下跨媒体只读索引 + Router 会话 `corpusBasket`（与转写 `selectedUnitIds` 隔离，不落 URL/Dexie/`sessionStorage`）；筛选写入 `corpusViewState`。Flag `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-workset-shell/` + `corpus-library-project-index/`。查询层 `listCorpusIndexByTextId`，无 Dexie 索引表。换 **text** 清空工作集；换 media 保留。**「写」仅指工作集/筛选态，禁止写 `layer_units`/`unit_tokens`。** 本切片不接 AI | 两 media 同列表；换 media 保留 basket；换 text 清空；定向 vitest | 是 |
 | **B5b** | 语料库最小出站（text/plain + markdown，P0-4 下半） | M | **【🟡 已落地·flag 关】** 工作集复制 plain / Markdown（unit/media/时间码 + `/transcription?` 深链）；空选不写剪贴板。SDD：`corpus-library-clipboard-export/`。沿用 `corpusLibraryPageEnabled` 默认 **false**。不做 HTML/bundle/EAF；不接 ChatWindow / Resolver Core | golden 对拍 + clipboard mock；flag 关占位 e2e 不回归 | 是 |
 | **B5c** | 语料 P1 HTML 剪贴板 + 诊断 + 小 bundle | M | **【🟡 已落地·flag 关】** ClipboardItem `text/html`+`text/plain` Blob；空选 `CORPUS_EXPORT_EMPTY`、超长 `CORPUS_EXPORT_TOO_LONG`、剪贴板失败 `CORPUS_EXPORT_CLIPBOARD_UNAVAILABLE`；`fflate` zip（`README.txt` + `snippets.*` + `manifest.json`）。沿用 `corpusLibraryPageEnabled` 默认 **false**。SDD：`corpus-library-html-bundle/`。不做 EAF/TextGrid 第二管线；不接 ChatWindow；不复用 B12 artifact manifest | HTML golden + ClipboardItem mock；空选不写/不下载；zip 解包对拍；flag 关占位 e2e | 是 |
@@ -315,6 +316,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-19 | **B3c**：`/lexicon` 额外义项（gloss + definition）与词形 transcription 写入既有 `senses`/`forms`；空行丢弃。无新 flag。SDD：`lexicon-senses-forms/`。下一刀仍不排 B7 / C3d / flag 放量。 |
 | 2026-09-20 | **B3e LIFT 出站**：`/lexicon` 导出 SIL LIFT 0.13（lemma / sense / variant allomorph）；只出站不写库。无新 flag。SDD：`lexicon-lift-export/`。 |
 | 2026-09-20 | **B3f LIFT 入站**：`/lexicon` 导入 SIL LIFT 0.13；按 entry id upsert；坏文件零写入。无新 flag。SDD：`lexicon-lift-import/`。 |
+| 2026-09-25 | **B4i 译文行**：`/annotation` IGT 译文行只读显示同一 unit 的翻译层文本。无翻译层时仍是空文案。音频模态不显示。不写译文。无新 flag。SDD：`annotation-translation-line/`。下一刀仍不排 B7 / C3d / DMLex / M2 typed relation / flag 放量。 |
 | 2026-09-25 | **B4h 结构校验面板**：聚焦句段只读展示 gloss 切段、Leipzig 缩写问题和需复核。不写分析图候选。模板编辑仍在结构标注配置页。无新 flag。SDD：`annotation-validator-panel/`。下一刀仍不排 B7 / C3d / DMLex / M2 typed relation / flag 放量。 |
 | 2026-09-25 | **B4g 二次分词强制覆盖**：已标注句段仍先写 candidate。覆盖前把 token/词素/链接写入 pending `retokenize-snapshot`，再替换词列。恢复按原 id 写回。脏草稿不覆盖。无新 flag。SDD：`annotation-retokenize-force/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-25 | **B3k 词条类型**：`/lexicon` 编辑 `lexemeType`，对应已有 LIFT `morph-type`。空白省略。已有 `morphemeType` 保留。无封闭类型表、无 DMLex、无新 flag。SDD：`lexicon-lexeme-type/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
