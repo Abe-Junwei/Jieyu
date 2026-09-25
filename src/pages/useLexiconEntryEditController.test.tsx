@@ -151,6 +151,32 @@ describe('useLexiconEntryEditController', () => {
     expect(result.current.fields.extraSenses).toHaveLength(1);
   });
 
+  it('reorders extra-sense sibling blocks', () => {
+    const selected: LexemeDocType = {
+      ...dog,
+      senses: [
+        { id: 'sense_primary', gloss: { default: 'canine' } },
+        { id: 'sense_pet', parentId: 'sense_primary', gloss: { default: 'pet' } },
+        { id: 'sense_pup', parentId: 'sense_pet', gloss: { default: 'pup' } },
+        { id: 'sense_hound', parentId: 'sense_primary', gloss: { default: 'hound' } },
+      ],
+    };
+    const onSaved = vi.fn();
+    const { result } = renderHook(() =>
+      useLexiconEntryEditController({ selectedLexeme: selected, onSaved }),
+    );
+
+    act(() => {
+      result.current.onMoveExtraSense(0, 1);
+    });
+
+    expect(result.current.fields.extraSenses.map((sense) => sense.id)).toEqual([
+      'sense_hound',
+      'sense_pet',
+      'sense_pup',
+    ]);
+  });
+
   it('keeps in-progress edits when the same lexeme object is replaced', () => {
     const onSaved = vi.fn();
     const { result, rerender } = renderHook(

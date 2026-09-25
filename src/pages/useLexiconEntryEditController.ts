@@ -1,7 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { t, useLocale } from '../i18n';
 import type { LexemeDocType } from '../types/jieyuDbDocTypes';
-import { descendantDraftIndexes, readSenseParentId } from '../utils/lexemeSenseTree';
+import {
+  descendantDraftIndexes,
+  moveSenseSiblingBlock,
+  readSenseParentId,
+} from '../utils/lexemeSenseTree';
 import { newId } from '../utils/transcriptionFormatters';
 import { deleteLexiconEntry } from './lexicon/deleteLexiconEntry';
 import {
@@ -24,6 +28,7 @@ export type LexiconEntryEditController = {
   onExtraSenseChange: (index: number, field: 'gloss' | 'definition', value: string) => void;
   onAddExtraSense: () => void;
   onAddSubsense: (parent: 'primary' | number) => void;
+  onMoveExtraSense: (index: number, direction: -1 | 1) => void;
   onRemoveExtraSense: (index: number) => void;
   onFormChange: (index: number, value: string) => void;
   onAddForm: () => void;
@@ -237,6 +242,14 @@ export function useLexiconEntryEditController(input: {
               { id: newId('sense'), parentId, gloss: '', definition: '' },
             ],
           };
+        });
+      },
+      onMoveExtraSense: (index, direction) => {
+        setSaved(false);
+        setFields((prev) => {
+          const extraSenses = moveSenseSiblingBlock(prev.extraSenses, index, direction);
+          if (extraSenses === prev.extraSenses) return prev;
+          return { ...prev, extraSenses: [...extraSenses] };
         });
       },
       onRemoveExtraSense: (index) => {
