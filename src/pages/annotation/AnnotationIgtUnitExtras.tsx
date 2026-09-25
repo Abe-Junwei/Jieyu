@@ -123,6 +123,32 @@ export function AnnotationIgtUnitExtras({
         >
           {t(locale, 'workspace.annotation.retokenizeApply')}
         </button>
+        {retokenize.forceUnitId === unitId ? (
+          <button
+            type="button"
+            className="annotation-igt-action"
+            data-testid={`annotation-igt-retokenize-overwrite-${unitId}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              retokenize.onOverwrite(unitId);
+            }}
+          >
+            {t(locale, 'workspace.annotation.retokenizeOverwrite')}
+          </button>
+        ) : null}
+        {retokenize.snapshotUnitId === unitId ? (
+          <button
+            type="button"
+            className="annotation-igt-action"
+            data-testid={`annotation-igt-retokenize-restore-${unitId}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              retokenize.onRestore(unitId);
+            }}
+          >
+            {t(locale, 'workspace.annotation.retokenizeRestore')}
+          </button>
+        ) : null}
       </div>
       <label className="annotation-igt-extra-field">
         <span>{t(locale, 'workspace.annotation.noteLabel')}</span>
