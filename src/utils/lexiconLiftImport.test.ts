@@ -275,6 +275,7 @@ describe('lexiconLiftImport', () => {
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     expect(parsed.lexemes[0]?.bibliography).toBe('Smith 1990');
+    expect(parsed.lexemes[0]?.restrictions).toBe('secret');
     expect(parsed.lexemes[0]?.notes).toEqual({ zho: '常见', default: '常见' });
   });
 
@@ -301,6 +302,37 @@ describe('lexiconLiftImport', () => {
     expect(result.ok).toBe(true);
     expect(store[0]?.bibliography).toBe('Smith 1990');
     expect(store[0]?.notes?.zho).toBe('常见家养动物');
+  });
+
+  it('round-trips restrictions and keeps bibliography when the restrictions note is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      { ...dog, bibliography: 'Smith 1990', restrictions: 'internal' },
+    ]);
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.restrictions).toBe('internal');
+    expect(parsed.lexemes[0]?.bibliography).toBe('Smith 1990');
+
+    const bare = serializeLexemesToLift([{ ...dog, bibliography: 'Smith 1990' }]);
+    expect(bare).not.toContain('type="restrictions"');
+    const existing: LexemeDocType = {
+      ...dog,
+      bibliography: 'Smith 1990',
+      restrictions: 'internal',
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.restrictions).toBe('internal');
+    expect(store[0]?.bibliography).toBe('Smith 1990');
   });
 
   it('sorts sibling senses by the LIFT order attribute', () => {

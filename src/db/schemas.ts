@@ -175,6 +175,7 @@ const lexemeDocSchema = z.object({
     .optional(),
   literalMeaning: z.string().optional(),
   bibliography: z.string().optional(),
+  restrictions: z.string().optional(),
   morphemeType: z.string().optional(),
   citationForm: z.string().optional(),
   senses: z

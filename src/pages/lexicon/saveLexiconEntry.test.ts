@@ -26,6 +26,7 @@ function fields(
     etymologySourceLanguage: string;
     literalMeaning: string;
     bibliography: string;
+    restrictions: string;
     primarySenseId: string;
     examples: { source: string; translation?: string }[];
     extraSenses: {
@@ -52,6 +53,7 @@ function fields(
     etymologySourceLanguage: '',
     literalMeaning: '',
     bibliography: '',
+    restrictions: '',
     examples: [],
     extraSenses: [],
     forms: [],
@@ -273,6 +275,36 @@ describe('saveLexiconEntry', () => {
     );
     expect(cleared.bibliography).toBeUndefined();
     expect(cleared.notes?.default).toBe('field note');
+    expect(cleared.morphemeType).toBe('prefix');
+  });
+
+  it('writes a trimmed restrictions value and omits a blank one', () => {
+    const existing = applyLexiconEntryFields(
+      null,
+      fields({ lemma: 'dog', gloss: 'canine', bibliography: 'Smith 1990' }),
+      now,
+    );
+    const withMorph = { ...existing, morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withMorph,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        bibliography: 'Smith 1990',
+        restrictions: ' internal ',
+      }),
+      now,
+    );
+    expect(updated.restrictions).toBe('internal');
+    expect(updated.bibliography).toBe('Smith 1990');
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({ lemma: 'dog', gloss: 'canine', bibliography: 'Smith 1990', restrictions: ' ' }),
+      now,
+    );
+    expect(cleared.restrictions).toBeUndefined();
+    expect(cleared.bibliography).toBe('Smith 1990');
     expect(cleared.morphemeType).toBe('prefix');
   });
 

@@ -654,6 +654,21 @@ describe('LexiconPage', () => {
     expect(screen.getByTestId('lexicon-workspace-bibliography').textContent).toBe('Smith 1990');
   });
 
+  it('saves restrictions and shows them in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-restrictions'), {
+      target: { value: 'internal' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.restrictions).toBe('internal');
+    expect(screen.getByTestId('lexicon-workspace-restrictions').textContent).toBe('internal');
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

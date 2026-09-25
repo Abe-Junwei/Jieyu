@@ -204,6 +204,8 @@ export interface LexemeDocType {
   literalMeaning?: string;
   /** First LIFT entry `<note type="bibliography"><form>` text. Untyped notes stay on `notes`. */
   bibliography?: string;
+  /** First LIFT entry `<note type="restrictions"><form>` text. */
+  restrictions?: string;
   morphemeType?: string;
   citationForm?: string;
   senses: Sense[];
