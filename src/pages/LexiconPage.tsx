@@ -574,6 +574,13 @@ export function LexiconPage() {
                                 {sense.category}
                               </span>
                             ) : null}
+                            {sense.scientificName ? (
+                              <span
+                                data-testid={`lexicon-workspace-sense-${index}-scientific-name`}
+                              >
+                                {sense.scientificName}
+                              </span>
+                            ) : null}
                             {(sense.examples ?? []).map((example, exampleIndex) => (
                               <span
                                 key={`${readSenseId(sense)}-example-${exampleIndex}`}

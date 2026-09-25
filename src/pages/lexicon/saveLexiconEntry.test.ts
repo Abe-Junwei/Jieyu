@@ -19,6 +19,7 @@ function fields(
     language: string;
     notes: string;
     category: string;
+    scientificName: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -36,6 +37,7 @@ function fields(
       gloss: string;
       definition: string;
       category?: string;
+      scientificName?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -44,6 +46,7 @@ function fields(
   return {
     gloss: '',
     category: '',
+    scientificName: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -129,6 +132,40 @@ describe('saveLexiconEntry', () => {
     );
     expect(cleared.senses[0]?.category).toBeUndefined();
     expect(cleared.senses[1]?.category).toBeUndefined();
+  });
+
+  it('writes a trimmed scientific name on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        category: 'noun',
+        scientificName: ' Canis familiaris ',
+        extraSenses: [{ gloss: 'pet', definition: '', scientificName: ' Canis lupus ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.scientificName).toBe('Canis familiaris');
+    expect(created.senses[0]?.category).toBe('noun');
+    expect(created.senses[1]?.scientificName).toBe('Canis lupus');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        category: 'noun',
+        scientificName: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', scientificName: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.scientificName).toBeUndefined();
+    expect(cleared.senses[0]?.category).toBe('noun');
+    expect(cleared.senses[1]?.scientificName).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

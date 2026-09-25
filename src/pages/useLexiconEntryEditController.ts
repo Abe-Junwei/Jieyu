@@ -34,7 +34,7 @@ export type LexiconEntryEditController = {
   onFieldChange: (field: LexiconEntryScalarField, value: string) => void;
   onExtraSenseChange: (
     index: number,
-    field: 'gloss' | 'definition' | 'category',
+    field: 'gloss' | 'definition' | 'category' | 'scientificName',
     value: string,
   ) => void;
   onExampleChange: (
@@ -98,6 +98,10 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     gloss: readPrimaryMultiLang(lexeme?.senses[0]?.gloss),
     category:
       typeof lexeme?.senses[0]?.category === 'string' ? lexeme.senses[0].category.trim() : '',
+    scientificName:
+      typeof lexeme?.senses[0]?.scientificName === 'string'
+        ? lexeme.senses[0].scientificName.trim()
+        : '',
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -122,6 +126,9 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
         definition: readPrimaryMultiLang(sense.definition),
         ...(typeof sense.category === 'string' && sense.category.trim().length > 0
           ? { category: sense.category.trim() }
+          : {}),
+        ...(typeof sense.scientificName === 'string' && sense.scientificName.trim().length > 0
+          ? { scientificName: sense.scientificName.trim() }
           : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };

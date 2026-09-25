@@ -105,6 +105,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('category', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.scientificNameLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-scientific-name"
+          value={editor.fields.scientificName}
+          onChange={(event) => editor.onFieldChange('scientificName', event.target.value)}
+        />
+      </label>
       <SenseExampleFields
         locale={locale}
         examples={editor.fields.examples}
@@ -153,6 +162,17 @@ export function LexiconEntryEditForm({ editor }: Props) {
                 value={sense.category ?? ''}
                 onChange={(event) =>
                   editor.onExtraSenseChange(index, 'category', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseScientificNameLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-scientific-name`}
+                value={sense.scientificName ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'scientificName', event.target.value)
                 }
               />
             </label>

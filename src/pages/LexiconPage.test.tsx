@@ -686,6 +686,23 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves a scientific name and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-scientific-name'), {
+      target: { value: 'Canis familiaris' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.scientificName).toBe('Canis familiaris');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-scientific-name').textContent).toBe(
+      'Canis familiaris',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
