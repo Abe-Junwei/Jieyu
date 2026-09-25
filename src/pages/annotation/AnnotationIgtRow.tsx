@@ -9,6 +9,7 @@ import { AnnotationIgtUnitExtras } from './AnnotationIgtUnitExtras';
 import type { AnnotationUnitMetaController } from '../useAnnotationUnitMetaController';
 import type { AnnotationAutoGlossController } from '../useAnnotationAutoGlossController';
 import type { AnnotationRetokenizeController } from '../useAnnotationRetokenizeController';
+import type { AnnotationValidatorPanelController } from '../useAnnotationValidatorPanelController';
 
 type Props = {
   row: AnnotationIgtRow;
@@ -19,6 +20,7 @@ type Props = {
   unitMeta?: AnnotationUnitMetaController;
   autoGloss?: AnnotationAutoGlossController;
   retokenize?: AnnotationRetokenizeController;
+  validator?: AnnotationValidatorPanelController;
   playing?: boolean;
   onPlay?: (unitId: string) => void;
   onFocusRow: (unitId: string) => void;
@@ -256,6 +258,7 @@ export function AnnotationIgtRowView({
   unitMeta,
   autoGloss,
   retokenize,
+  validator,
   playing = false,
   onPlay,
   onFocusRow,
@@ -305,7 +308,7 @@ export function AnnotationIgtRowView({
           ? row.translation
           : t(locale, 'workspace.annotation.translationEmpty')}
       </p>
-      {focused && unitMeta && autoGloss && retokenize && onPlay ? (
+      {focused && unitMeta && autoGloss && retokenize && validator && onPlay ? (
         <AnnotationIgtUnitExtras
           unitId={row.id}
           playing={playing}
@@ -313,6 +316,7 @@ export function AnnotationIgtRowView({
           unitMeta={unitMeta}
           autoGloss={autoGloss}
           retokenize={retokenize}
+          validator={validator}
           onPlay={onPlay}
           onFocusInput={onFocusInput}
         />

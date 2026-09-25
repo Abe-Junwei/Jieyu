@@ -6,6 +6,7 @@ import { AnnotationIgtRowView } from './annotation/AnnotationIgtRow';
 import { useAnnotationAutoGlossController } from './useAnnotationAutoGlossController';
 import { useAnnotationMorphologyController } from './useAnnotationMorphologyController';
 import { useAnnotationRetokenizeController } from './useAnnotationRetokenizeController';
+import { useAnnotationValidatorPanelController } from './useAnnotationValidatorPanelController';
 import { useAnnotationSegmentPlaybackController } from './useAnnotationSegmentPlaybackController';
 import { useAnnotationUnitMetaController } from './useAnnotationUnitMetaController';
 import { useAnnotationWorkspaceController } from './useAnnotationWorkspaceController';
@@ -35,6 +36,11 @@ export function AnnotationWorkspace() {
     drafts: controller.drafts,
     rows: controller.rows,
     reloadWorkspace: controller.reload,
+  });
+  const validator = useAnnotationValidatorPanelController({
+    focusedUnitId: controller.focusedUnitId,
+    rows: controller.rows,
+    drafts: controller.drafts,
   });
 
   const sidePaneContent = useMemo(
@@ -173,6 +179,7 @@ export function AnnotationWorkspace() {
                 unitMeta={unitMeta}
                 autoGloss={autoGloss}
                 retokenize={retokenize}
+                validator={validator}
                 playing={playback.playingUnitId === row.id}
                 onPlay={(unitId) => {
                   void playback.onPlayToggle(unitId, controller.rows);
