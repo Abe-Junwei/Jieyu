@@ -106,6 +106,16 @@ function glossRecord(sense: Element, vernacular: string): MultiLangString | unde
   return record;
 }
 
+function parseExamples(sense: Element): Array<{ source: string; translation?: string }> {
+  return directChildren(sense, 'example').flatMap((example) => {
+    const source = formPairs(example)[0]?.text ?? '';
+    if (source.length === 0) return [];
+    const translationParent = directChildren(example, 'translation')[0];
+    const translation = translationParent ? (formPairs(translationParent)[0]?.text ?? '') : '';
+    return translation.length > 0 ? [{ source, translation }] : [{ source }];
+  });
+}
+
 function parseSense(
   sense: Element,
   index: number,
@@ -119,11 +129,13 @@ function parseSense(
   const definition = multiLangFromForms(definitionParent);
   const grammatical = directChildren(sense, 'grammatical-info')[0];
   const category = grammatical ? attr(grammatical, 'value') : '';
+  const examples = parseExamples(sense);
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
     ...(definition ? { definition } : {}),
     ...(category.length > 0 ? { category } : {}),
+    ...(examples.length > 0 ? { examples } : {}),
   };
 }
 

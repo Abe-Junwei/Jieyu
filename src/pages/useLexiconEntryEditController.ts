@@ -13,8 +13,12 @@ import { newId } from '../utils/transcriptionFormatters';
 import { deleteLexiconEntry } from './lexicon/deleteLexiconEntry';
 import {
   draftIdFromNested,
+  exampleDraftsFromStored,
   readPrimaryMultiLang,
   saveLexiconEntry,
+  withAddedExample,
+  withExampleChange,
+  withoutExample,
   type LexiconEntryFields,
   type LexiconEntryScalarField,
 } from './lexicon/saveLexiconEntry';
@@ -33,6 +37,14 @@ export type LexiconEntryEditController = {
     field: 'gloss' | 'definition' | 'category',
     value: string,
   ) => void;
+  onExampleChange: (
+    sense: 'primary' | number,
+    index: number,
+    field: 'source' | 'translation',
+    value: string,
+  ) => void;
+  onAddExample: (sense: 'primary' | number) => void;
+  onRemoveExample: (sense: 'primary' | number, index: number) => void;
   onAddExtraSense: () => void;
   onAddSubsense: (parent: 'primary' | number) => void;
   onMoveExtraSense: (index: number, direction: -1 | 1) => void;
@@ -91,8 +103,10 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     notes: readPrimaryMultiLang(lexeme?.notes),
     lexemeType: (lexeme?.lexemeType ?? '').trim(),
     ...(primaryId.length > 0 ? { primarySenseId: primaryId } : {}),
+    examples: exampleDraftsFromStored(lexeme?.senses[0]?.examples),
     extraSenses: (lexeme?.senses.slice(1) ?? []).map((sense) => {
       const parentId = readSenseParentId(sense);
+      const examples = exampleDraftsFromStored(sense.examples);
       return {
         ...draftIdFromNested(sense.id),
         ...(parentId.length > 0 ? { parentId } : {}),
@@ -101,6 +115,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
         ...(typeof sense.category === 'string' && sense.category.trim().length > 0
           ? { category: sense.category.trim() }
           : {}),
+        ...(examples.length > 0 ? { examples } : {}),
       };
     }),
     forms: (lexeme?.forms ?? []).map((form) => ({
@@ -257,6 +272,52 @@ export function useLexiconEntryEditController(input: {
             senseIndex === index ? { ...sense, [field]: value } : sense,
           ),
         }));
+      },
+      onExampleChange: (sense, index, field, value) => {
+        setSaved(false);
+        setFields((prev) => {
+          if (sense === 'primary') {
+            return { ...prev, examples: withExampleChange(prev.examples, index, field, value) };
+          }
+          return {
+            ...prev,
+            extraSenses: prev.extraSenses.map((row, senseIndex) =>
+              senseIndex === sense
+                ? { ...row, examples: withExampleChange(row.examples, index, field, value) }
+                : row,
+            ),
+          };
+        });
+      },
+      onAddExample: (sense) => {
+        setSaved(false);
+        setFields((prev) => {
+          if (sense === 'primary') {
+            return { ...prev, examples: withAddedExample(prev.examples) };
+          }
+          return {
+            ...prev,
+            extraSenses: prev.extraSenses.map((row, senseIndex) =>
+              senseIndex === sense ? { ...row, examples: withAddedExample(row.examples) } : row,
+            ),
+          };
+        });
+      },
+      onRemoveExample: (sense, index) => {
+        setSaved(false);
+        setFields((prev) => {
+          if (sense === 'primary') {
+            return { ...prev, examples: withoutExample(prev.examples, index) };
+          }
+          return {
+            ...prev,
+            extraSenses: prev.extraSenses.map((row, senseIndex) =>
+              senseIndex === sense
+                ? { ...row, examples: withoutExample(row.examples, index) }
+                : row,
+            ),
+          };
+        });
       },
       onAddExtraSense: () => {
         setSaved(false);
