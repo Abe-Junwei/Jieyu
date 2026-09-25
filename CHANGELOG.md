@@ -16,6 +16,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Lexicon entry etymology (B3n)**: `/lexicon` edits one entry `etymology` (source form, optional gloss, optional source language). Save readback shows it in the entry overview. A blank source form omits the key. LIFT import/export map this to `<etymology>`. Source language is `<trait name="languages">`. The obsolete `source` attribute is ignored. No comments, bibliography, second etymology, DMLex, or new flag.
 - **Lexicon entry pronunciation (B3m)**: `/lexicon` edits entry `pronunciation` (the first LIFT `<pronunciation>` form text). Save readback shows it in the entry overview. A blank value omits the key. Export writes one element with `lang="und-fonipa"`. Import skips media-only blocks and keeps an existing value when the element is omitted. No media, tone, CV pattern, second pronunciation, DMLex, or new flag.
 - **Lexicon sense examples (B3l)**: `/lexicon` edits sense `examples` (sentence plus optional translation). Save readback shows them in the sense list. A blank sentence drops the row; a blank translation omits the key. LIFT import/export map this to `<example>`. Entry-level `examples: string[]` stays untouched. No bibliographic source, no DMLex, no new flag.
 - **Lexicon entry type (B3k)**: `/lexicon` edits `lexemeType`. Save readback shows it in the entry overview. A blank value omits the key. An existing `morphemeType` stays on the row. LIFT import/export already map `lexemeType` to `morph-type`. No closed type list, no DMLex, no new flag.
