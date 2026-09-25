@@ -272,6 +272,7 @@ export const enUSDictionary = {
   'workspace.lexicon.languageLabel': 'Language',
   'workspace.lexicon.citationLabel': 'Citation form',
   'workspace.lexicon.lexemeTypeLabel': 'Lexeme type',
+  'workspace.lexicon.pronunciationLabel': 'Pronunciation',
   'workspace.lexicon.morphemeTypeLabel': 'Morpheme type',
   'workspace.lexicon.usageCountLabel': 'Usage count',
   'workspace.lexicon.updatedAtLabel': 'Last updated',

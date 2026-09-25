@@ -112,6 +112,14 @@ describe('lexiconLiftExport', () => {
     expect(xml?.match(/<form lang="eng">/g)?.length).toBe(1);
   });
 
+  it('emits the first pronunciation as und-fonipa and omits a blank one', () => {
+    const xml = serializeLexemesToLift([{ ...dog, pronunciation: ' dɔg ' }]);
+    expect(xml).toContain(
+      '<pronunciation><form lang="und-fonipa"><text>dɔg</text></form></pronunciation>',
+    );
+    expect(serializeLexemesToLift([dog])).not.toContain('<pronunciation>');
+  });
+
   it('returns null for an empty list or entries without lemma text', () => {
     expect(serializeLexemesToLift([])).toBeNull();
     expect(

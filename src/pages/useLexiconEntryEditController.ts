@@ -102,6 +102,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
     lexemeType: (lexeme?.lexemeType ?? '').trim(),
+    pronunciation: (lexeme?.pronunciation ?? '').trim(),
     ...(primaryId.length > 0 ? { primarySenseId: primaryId } : {}),
     examples: exampleDraftsFromStored(lexeme?.senses[0]?.examples),
     extraSenses: (lexeme?.senses.slice(1) ?? []).map((sense) => {

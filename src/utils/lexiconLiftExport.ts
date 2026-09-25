@@ -121,6 +121,11 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
   const citation = lexeme.citationForm?.trim() ?? '';
   const citationXml =
     citation.length > 0 ? `<citation>${xmlForm(vernacular, citation)}</citation>` : '';
+  const pronunciation = lexeme.pronunciation?.trim() ?? '';
+  const pronunciationXml =
+    pronunciation.length > 0
+      ? `<pronunciation>${xmlForm('und-fonipa', pronunciation)}</pronunciation>`
+      : '';
   const morphType = (lexeme.morphemeType ?? lexeme.lexemeType)?.trim() ?? '';
   const morphTrait =
     morphType.length > 0 ? `<trait name="morph-type" value="${escapeXml(morphType)}"/>` : '';
@@ -141,7 +146,7 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
       return [`<variant>${xmlFormList(formRows)}</variant>`];
     })
     .join('');
-  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${morphTrait}${noteXml}${senses}${variants}</entry>`;
+  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${pronunciationXml}${morphTrait}${noteXml}${senses}${variants}</entry>`;
 }
 
 export function serializeLexemesToLift(lexemes: LexemeDocType[]): string | null {
