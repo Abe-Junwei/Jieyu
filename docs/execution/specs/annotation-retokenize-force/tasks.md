@@ -29,4 +29,4 @@ depends_on:
 ## Post-merge
 
 - [ ] spec frontmatter `status: completed` after merge
-- [ ] 更完整 Validator 面板另切片
+- [x] 更完整 Validator 面板另切片（B4h）

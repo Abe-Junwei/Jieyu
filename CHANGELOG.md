@@ -16,6 +16,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Annotation structure check (B4h)**: On a focused `/annotation` unit, non-empty glosses show parsed segments, Leipzig abbreviation problems, and whether the structure needs review. The check is read-only and does not write an analysis-graph candidate. Template editing stays on `/assets/structural-profiles`. No new flag.
 - **Annotation retokenize overwrite (B4g)**: On `/annotation`, confirming a retokenize of an already annotated unit still writes only a pending candidate. Overwrite first stores the tokens, morphemes, and lexeme links in a pending `retokenize-snapshot`, then replaces `unit_tokens`. Restore writes those rows back by their original ids and rejects the snapshot. A dirty token draft is not overwritten. No new flag.
 - **Lexicon entry type (B3k)**: `/lexicon` edits `lexemeType`. Save readback shows it in the entry overview. A blank value omits the key. An existing `morphemeType` stays on the row. LIFT import/export already map `lexemeType` to `morph-type`. No closed type list, no DMLex, no new flag.
 - **Lexicon sense part of speech (B3j)**: `/lexicon` edits `senses[].category` on the primary gloss and on extra senses. Save readback shows it in the sense list. A blank value omits the key. LIFT import/export already map this field to `grammatical-info`. No closed POS list, no DMLex, no new flag.
