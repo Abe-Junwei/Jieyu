@@ -19,6 +19,7 @@ function fields(
     language: string;
     notes: string;
     category: string;
+    lexemeType: string;
     primarySenseId: string;
     extraSenses: {
       id?: string;
@@ -36,6 +37,7 @@ function fields(
     citationForm: '',
     language: '',
     notes: '',
+    lexemeType: '',
     extraSenses: [],
     forms: [],
     ...partial,
@@ -108,6 +110,25 @@ describe('saveLexiconEntry', () => {
     );
     expect(cleared.senses[0]?.category).toBeUndefined();
     expect(cleared.senses[1]?.category).toBeUndefined();
+  });
+
+  it('writes lexeme type, drops it when cleared, and keeps morpheme type', () => {
+    const existing = applyLexiconEntryFields(null, fields({ lemma: 'dog', gloss: 'canine' }), now);
+    const withTypes = { ...existing, lexemeType: 'word', morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withTypes,
+      fields({ lemma: 'dog', gloss: 'canine', lexemeType: ' stem ' }),
+      now,
+    );
+    expect(updated.lexemeType).toBe('stem');
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({ lemma: 'dog', gloss: 'canine', lexemeType: ' ' }),
+      now,
+    );
+    expect(cleared.lexemeType).toBeUndefined();
+    expect(cleared.morphemeType).toBe('prefix');
   });
 
   it('creates then updates a lexeme with list readback', async () => {

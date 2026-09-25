@@ -89,6 +89,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
+    lexemeType: (lexeme?.lexemeType ?? '').trim(),
     ...(primaryId.length > 0 ? { primarySenseId: primaryId } : {}),
     extraSenses: (lexeme?.senses.slice(1) ?? []).map((sense) => {
       const parentId = readSenseParentId(sense);
