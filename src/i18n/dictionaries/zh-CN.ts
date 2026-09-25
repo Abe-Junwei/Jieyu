@@ -280,6 +280,7 @@ export const zhCNDictionary = {
   'workspace.lexicon.edit.glossLabel': '主 gloss',
   'workspace.lexicon.edit.extraSensesLabel': '额外义项',
   'workspace.lexicon.edit.addSense': '添加义项',
+  'workspace.lexicon.edit.addSubsense': '添加子义项',
   'workspace.lexicon.edit.removeSense': '删除义项',
   'workspace.lexicon.edit.senseGlossLabel': '义项 gloss',
   'workspace.lexicon.edit.senseDefinitionLabel': '义项释义',

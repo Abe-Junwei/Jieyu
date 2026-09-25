@@ -175,6 +175,7 @@ const lexemeDocSchema = z.object({
           gloss: multiLangStringSchema,
           definition: multiLangStringSchema.optional(),
           category: z.string().optional(),
+          parentId: z.string().min(1).optional(),
         })
         .passthrough(),
     )

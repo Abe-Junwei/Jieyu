@@ -18,7 +18,8 @@ function fields(
     citationForm: string;
     language: string;
     notes: string;
-    extraSenses: { id?: string; gloss: string; definition: string }[];
+    primarySenseId: string;
+    extraSenses: { id?: string; parentId?: string; gloss: string; definition: string }[];
     forms: { id?: string; transcription: string }[];
   }> & { lemma: string },
 ) {
@@ -241,6 +242,56 @@ describe('saveLexiconEntry', () => {
     expect((readback?.forms ?? []).map((form) => form.id)).toEqual([
       storedForms[0]?.id,
       storedForms[2]?.id,
+    ]);
+  });
+
+  it('persists a subsense parentId and drops children when the parent extra sense is removed', async () => {
+    const created = await saveLexiconEntry({
+      existing: null,
+      fields: fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        extraSenses: [{ gloss: 'pet', definition: 'companion' }],
+      }),
+    });
+    const primaryId = created.senses[0]?.id;
+    const petId = created.senses[1]?.id;
+    expect(primaryId).toBeTruthy();
+    expect(petId).toBeTruthy();
+    if (primaryId === undefined || petId === undefined) return;
+
+    const withChild = await saveLexiconEntry({
+      existing: created,
+      fields: fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        primarySenseId: primaryId,
+        extraSenses: [
+          { ...draftIdFromNested(petId), gloss: 'pet', definition: 'companion' },
+          {
+            gloss: 'puppy',
+            definition: 'young dog',
+            parentId: petId,
+          },
+        ],
+      }),
+    });
+    expect(withChild.senses[2]?.parentId).toBe(petId);
+    const requery = await LinguisticService.lexemes.list();
+    const readback = requery.find((row) => row.id === created.id);
+    expect(readback?.senses[2]?.parentId).toBe(petId);
+
+    const afterDelete = applyLexiconEntryFields(
+      withChild,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        extraSenses: [],
+      }),
+      now,
+    );
+    expect(afterDelete.senses.map((sense) => readPrimaryMultiLang(sense.gloss))).toEqual([
+      'canine',
     ]);
   });
 });

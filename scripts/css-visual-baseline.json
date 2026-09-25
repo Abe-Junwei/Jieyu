@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-20T12:35:07.879Z",
-  "aggregate": "2aee90b5a43a61639bfa6e1bc46c982964f98e93a6b7c536615846e1cd6112f5",
+  "generatedAt": "2026-09-22T12:35:07.371Z",
+  "aggregate": "e99434e393aa5c795d6ba8b4e549ee617998491e0b6d09e02bf15530dbfc0ab8",
   "fileHashes": {
     "src/styles/ai-hub.css": "59eabaab3ce6f597a0588cb08a544be61cfbdf81ac2b0d00459e4bcc4dead0c9",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -28,7 +28,7 @@
     "src/styles/pages/feature-availability.css": "557966ee7289509abca4613b4e3a0c087cf160f8712863f325202f3797bc69eb",
     "src/styles/pages/home-page.css": "67496ad5044d0ef81b81ee584d18bbceb4eb4afe4c0ccefe1bce8ec9e2a9d741",
     "src/styles/pages/language-metadata-workspace.css": "5432fdacd408ce61a0886845805315c32df6893ebb0e1fd102e84729d66a7fdf",
-    "src/styles/pages/lexicon-workspace.css": "afb0fbab6708d0d4756f581ff61611bb0e466f074dc42935bbcd9b9f68142ec3",
+    "src/styles/pages/lexicon-workspace.css": "eae419d4e8b892ece59851840736944d3377c786da85fb91f07574b8853243d4",
     "src/styles/pages/orthography-bridge-workspace.css": "1e2d2c4f21c6604ef99fea464abd772dee86ad311c0838222129c20a374dee61",
     "src/styles/pages/orthography-manager-panel.css": "cf40ebe72d7eae75832fd2667be871cc00138339c35466f60adb5a90aa17c68e",
     "src/styles/pages/timeline/time-ruler.css": "9d144061c31516582a4d4ab004955bce67f17b46485646e558e130250e669a94",

@@ -423,6 +423,7 @@ describe('LexiconPage', () => {
   it('saves an edited lemma and gloss then readback-lists the new values', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
+    expect((screen.getByTestId('lexicon-entry-lemma') as HTMLInputElement).value).toBe('dog');
     fireEvent.change(screen.getByTestId('lexicon-entry-lemma'), { target: { value: 'hound' } });
     fireEvent.change(screen.getByTestId('lexicon-entry-gloss'), {
       target: { value: 'hunting dog' },
@@ -431,7 +432,13 @@ describe('LexiconPage', () => {
 
     await waitFor(() => {
       expect(mockSaveLexeme).toHaveBeenCalled();
-      expect(screen.getAllByText('hound').length).toBeGreaterThan(0);
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.lemma.default).toBe('hound');
+    expect(saved.senses[0]?.gloss.eng).toBe('hunting dog');
+    await waitFor(() => {
+      expect(screen.getByTestId('lexicon-workspace-list').textContent).toContain('hound');
+      expect(screen.getByTestId('side-pane-subtitle').textContent).toBe('hound');
       expect(screen.getAllByText('hunting dog').length).toBeGreaterThan(0);
     });
     expect(screen.getByText('已保存')).toBeTruthy();
@@ -496,8 +503,9 @@ describe('LexiconPage', () => {
   it('saves an extra sense and wordform then shows them in the detail lists', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
+    expect((screen.getByTestId('lexicon-entry-lemma') as HTMLInputElement).value).toBe('dog');
     fireEvent.click(screen.getByTestId('lexicon-entry-add-sense'));
-    fireEvent.change(screen.getByTestId('lexicon-entry-extra-sense-0-gloss'), {
+    fireEvent.change(await screen.findByTestId('lexicon-entry-extra-sense-0-gloss'), {
       target: { value: 'pet' },
     });
     fireEvent.change(screen.getByTestId('lexicon-entry-extra-sense-0-definition'), {
@@ -515,6 +523,24 @@ describe('LexiconPage', () => {
     const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
     expect(saved.senses[1]?.gloss.default).toBe('pet');
     expect(saved.forms?.map((form) => form.transcription.default)).toEqual(['dogs', 'doggie']);
+  });
+
+  it('saves a subsense under the primary gloss with parentId', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    expect((screen.getByTestId('lexicon-entry-lemma') as HTMLInputElement).value).toBe('dog');
+    fireEvent.click(screen.getByTestId('lexicon-entry-add-subsense-primary'));
+    fireEvent.change(await screen.findByTestId('lexicon-entry-extra-sense-0-gloss'), {
+      target: { value: 'canid' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[1]?.gloss.default).toBe('canid');
+    expect(saved.senses[1]?.parentId).toBe(saved.senses[0]?.id);
+    expect(screen.getByTestId('lexicon-workspace-sense-1').getAttribute('data-depth')).toBe('1');
   });
 
   it('does not remap remaining nested ids when a middle extra sense or form is removed', async () => {

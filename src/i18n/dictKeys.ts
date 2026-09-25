@@ -266,6 +266,7 @@ export const DICT_KEYS = [
   'workspace.lexicon.edit.glossLabel',
   'workspace.lexicon.edit.extraSensesLabel',
   'workspace.lexicon.edit.addSense',
+  'workspace.lexicon.edit.addSubsense',
   'workspace.lexicon.edit.removeSense',
   'workspace.lexicon.edit.senseGlossLabel',
   'workspace.lexicon.edit.senseDefinitionLabel',

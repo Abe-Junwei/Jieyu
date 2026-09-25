@@ -165,6 +165,7 @@ export interface Sense {
   gloss: MultiLangString;
   definition?: MultiLangString;
   category?: string;
+  parentId?: string;
   [key: string]: unknown;
 }
 

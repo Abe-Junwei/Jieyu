@@ -60,6 +60,21 @@ describe('lexiconLiftExport', () => {
     expect(xml).not.toContain('form_dogs');
   });
 
+  it('nests parented senses as LIFT subsense elements', () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          dog.senses[0]!,
+          { id: 'sense_pet', parentId: 'sense_primary', gloss: { default: 'pet' } },
+        ],
+      },
+    ]);
+    expect(xml).toContain('<sense id="sense_primary" order="0">');
+    expect(xml).toContain('<subsense id="sense_pet" order="0">');
+    expect(xml).not.toContain('<sense id="sense_pet"');
+  });
+
   it('escapes XML and maps default lang without duplicating vernacular form', () => {
     const xml = serializeLexemesToLift([
       {

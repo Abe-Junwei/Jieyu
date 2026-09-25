@@ -1,11 +1,13 @@
 import { LinguisticService } from '../../app/languageAssetPageAccess';
 import type { LexemeDocType, MultiLangString } from '../../types/jieyuDbDocTypes';
+import { readSenseParentId } from '../../utils/lexemeSenseTree';
 import { newId } from '../../utils/transcriptionFormatters';
 
 export type LexiconEntryScalarField = 'lemma' | 'gloss' | 'citationForm' | 'language' | 'notes';
 
 export type LexiconSenseDraft = {
   id?: string;
+  parentId?: string;
   gloss: string;
   definition: string;
 };
@@ -21,6 +23,7 @@ export type LexiconEntryFields = {
   citationForm: string;
   language: string;
   notes: string;
+  primarySenseId?: string;
   extraSenses: LexiconSenseDraft[];
   forms: LexiconFormDraft[];
 };
@@ -105,14 +108,20 @@ export function applyLexiconEntryFields(
   const id = existing?.id ?? newId('lex');
   const firstSense = existing?.senses[0];
   const nextGloss = writePrimaryMultiLang(firstSense?.gloss, gloss.length > 0 ? gloss : lemma);
+  const primarySenseId = keepOrCreateNestedId({ id: fields.primarySenseId }, firstSense, 'sense');
   const extraSenses = fields.extraSenses.flatMap((draft, index) => {
     const glossText = draft.gloss.trim();
     if (glossText.length === 0) return [];
     const previous = findExistingRow(existing?.senses.slice(1), draft.id, index);
     const definitionText = draft.definition.trim();
-    const { definition: _oldDefinition, ...previousRest } = previous ?? {
+    const {
+      definition: _oldDefinition,
+      parentId: _oldParentId,
+      ...previousRest
+    } = previous ?? {
       gloss: { default: glossText },
     };
+    const parentId = readSenseParentId(draft);
     return [
       {
         ...previousRest,
@@ -121,6 +130,7 @@ export function applyLexiconEntryFields(
         ...(definitionText.length > 0
           ? { definition: writePrimaryMultiLang(previous?.definition, definitionText) }
           : {}),
+        ...(parentId.length > 0 ? { parentId } : {}),
       },
     ];
   });
@@ -159,7 +169,7 @@ export function applyLexiconEntryFields(
     senses: [
       {
         ...(firstSense ?? {}),
-        id: keepOrCreateNestedId(firstSense, undefined, 'sense'),
+        id: primarySenseId,
         gloss: nextGloss,
       },
       ...extraSenses,

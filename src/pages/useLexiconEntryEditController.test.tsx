@@ -102,6 +102,55 @@ describe('useLexiconEntryEditController', () => {
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
 
+  it('saves the latest lemma even when a stale onSave identity is invoked', async () => {
+    const saveSpy = vi.spyOn(await import('./lexicon/saveLexiconEntry'), 'saveLexiconEntry');
+    saveSpy.mockResolvedValue({
+      ...dog,
+      lemma: { default: 'hound' },
+      senses: [{ gloss: { default: 'hunting dog' } }],
+      updatedAt: '2026-09-22T12:00:00.000Z',
+    });
+
+    const onSaved = vi.fn();
+    const { result } = renderHook(() =>
+      useLexiconEntryEditController({ selectedLexeme: dog, onSaved }),
+    );
+    const staleSave = result.current.onSave;
+
+    act(() => {
+      result.current.onFieldChange('lemma', 'hound');
+      result.current.onFieldChange('gloss', 'hunting dog');
+    });
+
+    act(() => {
+      staleSave();
+    });
+
+    await waitFor(() => {
+      expect(saveSpy).toHaveBeenCalled();
+    });
+    expect(saveSpy.mock.calls[0]?.[0]).toMatchObject({
+      fields: { lemma: 'hound', gloss: 'hunting dog' },
+    });
+  });
+
+  it('keeps an extra sense added immediately after the selected lexeme first lands', () => {
+    const onSaved = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ selectedLexeme }) => useLexiconEntryEditController({ selectedLexeme, onSaved }),
+      { initialProps: { selectedLexeme: null as LexemeDocType | null } },
+    );
+
+    rerender({ selectedLexeme: dog });
+    act(() => {
+      result.current.onAddExtraSense();
+    });
+
+    expect(result.current.fields.lemma).toBe('dog');
+    expect(result.current.fields.gloss).toBe('canine');
+    expect(result.current.fields.extraSenses).toHaveLength(1);
+  });
+
   it('keeps in-progress edits when the same lexeme object is replaced', () => {
     const onSaved = vi.fn();
     const { result, rerender } = renderHook(
