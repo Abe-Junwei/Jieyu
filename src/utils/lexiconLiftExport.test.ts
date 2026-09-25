@@ -133,6 +133,14 @@ describe('lexiconLiftExport', () => {
     expect(serializeLexemesToLift([dog])).not.toContain('<etymology>');
   });
 
+  it('emits literal meaning as a field and omits a blank one', () => {
+    const xml = serializeLexemesToLift([{ ...dog, literalMeaning: ' domestic animal ' }]);
+    expect(xml).toContain(
+      '<field type="literal-meaning"><form lang="und"><text>domestic animal</text></form></field>',
+    );
+    expect(serializeLexemesToLift([dog])).not.toContain('literal-meaning');
+  });
+
   it('returns null for an empty list or entries without lemma text', () => {
     expect(serializeLexemesToLift([])).toBeNull();
     expect(

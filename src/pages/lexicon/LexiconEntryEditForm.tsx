@@ -336,6 +336,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
         />
       </label>
       <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.literalMeaningLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-literal-meaning"
+          value={editor.fields.literalMeaning}
+          onChange={(event) => editor.onFieldChange('literalMeaning', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</span>
         <input
           className="input lexicon-entry-edit-input"

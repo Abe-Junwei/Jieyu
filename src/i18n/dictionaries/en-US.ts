@@ -274,6 +274,7 @@ export const enUSDictionary = {
   'workspace.lexicon.lexemeTypeLabel': 'Lexeme type',
   'workspace.lexicon.pronunciationLabel': 'Pronunciation',
   'workspace.lexicon.etymologyLabel': 'Etymology',
+  'workspace.lexicon.literalMeaningLabel': 'Literal meaning',
   'workspace.lexicon.morphemeTypeLabel': 'Morpheme type',
   'workspace.lexicon.usageCountLabel': 'Usage count',
   'workspace.lexicon.updatedAtLabel': 'Last updated',

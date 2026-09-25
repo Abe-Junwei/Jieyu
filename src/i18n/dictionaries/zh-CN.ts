@@ -253,6 +253,7 @@ export const zhCNDictionary = {
   'workspace.lexicon.lexemeTypeLabel': '词条类型',
   'workspace.lexicon.pronunciationLabel': '发音',
   'workspace.lexicon.etymologyLabel': '词源',
+  'workspace.lexicon.literalMeaningLabel': '字面意义',
   'workspace.lexicon.morphemeTypeLabel': '语素类型',
   'workspace.lexicon.usageCountLabel': '使用次数',
   'workspace.lexicon.updatedAtLabel': '最近更新',

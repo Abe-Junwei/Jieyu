@@ -200,6 +200,8 @@ export interface LexemeDocType {
    * `sourceLanguage` is `<trait name="languages">`, not the obsolete `source` attribute.
    */
   etymology?: LexemeEtymology;
+  /** First LIFT `<field type="literal-meaning"><form>` text. */
+  literalMeaning?: string;
   morphemeType?: string;
   citationForm?: string;
   senses: Sense[];
