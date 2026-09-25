@@ -141,6 +141,19 @@ describe('lexiconLiftExport', () => {
     expect(serializeLexemesToLift([dog])).not.toContain('literal-meaning');
   });
 
+  it('emits bibliography as a typed note after the untyped note', () => {
+    const xml = serializeLexemesToLift([{ ...dog, bibliography: ' Smith 1990 ' }]);
+    expect(xml).toContain('<note><form lang="zho"><text>常见家养动物</text></form></note>');
+    expect(xml).toContain(
+      '<note type="bibliography"><form lang="und"><text>Smith 1990</text></form></note>',
+    );
+    const noteAt = xml?.indexOf('<note>') ?? -1;
+    const bibliographyAt = xml?.indexOf('<note type="bibliography">') ?? -1;
+    expect(noteAt).toBeGreaterThanOrEqual(0);
+    expect(bibliographyAt).toBeGreaterThan(noteAt);
+    expect(serializeLexemesToLift([dog])).not.toContain('type="bibliography"');
+  });
+
   it('returns null for an empty list or entries without lemma text', () => {
     expect(serializeLexemesToLift([])).toBeNull();
     expect(

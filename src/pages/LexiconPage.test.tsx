@@ -639,6 +639,21 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves a bibliography and shows it in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-bibliography'), {
+      target: { value: 'Smith 1990' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.bibliography).toBe('Smith 1990');
+    expect(screen.getByTestId('lexicon-workspace-bibliography').textContent).toBe('Smith 1990');
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

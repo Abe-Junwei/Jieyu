@@ -345,6 +345,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
         />
       </label>
       <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.bibliographyLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-bibliography"
+          value={editor.fields.bibliography}
+          onChange={(event) => editor.onFieldChange('bibliography', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</span>
         <input
           className="input lexicon-entry-edit-input"
