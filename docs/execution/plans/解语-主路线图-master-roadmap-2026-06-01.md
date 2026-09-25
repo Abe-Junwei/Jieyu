@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-25）**：标注 M1、B4f、**B3c–B3k**（含 LIFT、义项树、同级排序、提升/降级、义项词类与词条类型）已落地。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / DMLex；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-25）**：标注 M1、B4f、**B3c–B3l**（含 LIFT、义项树、同级排序、提升/降级、义项词类、词条类型与义项例证）已落地。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / DMLex；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -201,6 +201,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B3i** | 词典义项提升/降级 | S | **【✅ 已落地】** 额外义项「提升/降级」只改 `parentId`（降到上一同级之下，或升到父级的上一级）。主 gloss 仍是 `senses[0]`。无拖拽、无 DMLex、无新 flag。SDD：`lexicon-sense-promote/` | parentId write→list depth readback；定向 vitest | 是 |
 | **B3j** | 词典义项词类 | S | **【✅ 已落地】** `/lexicon` 编辑主义项与额外义项的 `category`（LIFT `grammatical-info`）。空白省略该键。无新表、无封闭词表、无 DMLex、无新 flag。SDD：`lexicon-sense-category/` | category write→list readback；清空后键消失；定向 vitest | 是 |
 | **B3k** | 词典词条类型 | S | **【✅ 已落地】** `/lexicon` 编辑 `lexemeType`（LIFT `morph-type`）。空白省略该键。已有 `morphemeType` 保留。无封闭类型表、无 DMLex、无新 flag。SDD：`lexicon-lexeme-type/` | lexemeType write→概览 readback；清空后键消失；定向 vitest | 是 |
+| **B3l** | 词典义项例证 | S | **【✅ 已落地】** `/lexicon` 编辑义项 `examples`（原文 + 可选译文，LIFT `<example>`）。空白原文丢弃该行；空白译文省略键。词条级 `examples: string[]` 保留。无书目来源、无 DMLex、无新 flag。SDD：`lexicon-sense-examples/` | examples write→义项列表 readback；`<example>` 往返；定向 vitest | 是 |
 | **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【✅ 已落地】** `/annotation` 当前 text/media 只读 IGT + 键盘 reduce 骨架。Flag `annotationPageEnabled` 现默认 **true**（M1 开放）。SDD：`annotation-workspace-shell/`。按轨读 `annotationLaneReadScope`（ADR-0020）。不写 token；不接 ChatWindow / 转写 annotation controller | flag 关占位；IGT 行渲染；Space 行聚焦=playToggle、输入态=insertSpace；定向 vitest | 是 |
 | **B4a-2** | 标注页 token POS/gloss 编辑 + 保存链路 + readback（P0-3 上·核心） | L | **【✅ 已落地】** 承 B4a-1：受控 POS/gloss 输入；Enter=`commitStay`；Ctrl+Enter 仅保存成功后跳行。写 `LinguisticService.units.updateTokenPos` / `updateTokenGloss`（`unit_tokens`），再 `listTokensByUnitIds` readback。SDD：`annotation-token-edit/`。不改转写文本/时间码；不接 ChatWindow / `useTranscriptionAnnotationController` / `annotationAdapters`。转写页需 reload 才见镜像 `unit.words` | 写→reload→readback；Dexie vitest | 是 |
 | **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | **【✅ 已落地】** 承 B4a-2：morpheme 按 `-`/`=` 分格 + gloss 写 `unit_morphemes`；token 空格/`|` 切分与与下一词合并写 `unit_tokens`；词典查询写 `token_lexeme_links`（role=`manual`）。Leipzig 内联校验 + 系统结构模板标记；模板编辑复用 `/assets/structural-profiles`。SDD：`annotation-morpheme-edit/`。不做二次自动分词 | 分词/链接/词素写→reload→readback；Leipzig invalid；定向 vitest | 是 |
@@ -313,6 +314,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-19 | **B3c**：`/lexicon` 额外义项（gloss + definition）与词形 transcription 写入既有 `senses`/`forms`；空行丢弃。无新 flag。SDD：`lexicon-senses-forms/`。下一刀仍不排 B7 / C3d / flag 放量。 |
 | 2026-09-20 | **B3e LIFT 出站**：`/lexicon` 导出 SIL LIFT 0.13（lemma / sense / variant allomorph）；只出站不写库。无新 flag。SDD：`lexicon-lift-export/`。 |
 | 2026-09-20 | **B3f LIFT 入站**：`/lexicon` 导入 SIL LIFT 0.13；按 entry id upsert；坏文件零写入。无新 flag。SDD：`lexicon-lift-import/`。 |
+| 2026-09-25 | **B3l 义项例证**：`/lexicon` 编辑义项 `examples`（原文 + 可选译文），对应 LIFT `<example>`。空白原文丢弃；空白译文省略。词条级 `examples: string[]` 保留。无书目来源、无 DMLex、无新 flag。SDD：`lexicon-sense-examples/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-25 | **B3k 词条类型**：`/lexicon` 编辑 `lexemeType`，对应已有 LIFT `morph-type`。空白省略。已有 `morphemeType` 保留。无封闭类型表、无 DMLex、无新 flag。SDD：`lexicon-lexeme-type/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-24 | **B3j 义项词类**：`/lexicon` 编辑 `senses[].category`，对应已有 LIFT `grammatical-info`。空白省略。无新表、无 DMLex、无新 flag。SDD：`lexicon-sense-category/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-24 | **B3i 义项提升/降级**：额外义项只改 `parentId`。降到上一同级之下，或升到父级的上一级。主 gloss 仍是 `senses[0]`。无拖拽、无 DMLex、无新 flag。SDD：`lexicon-sense-promote/`。下一刀仍不排 B7 / C3d / flag 放量。 |
