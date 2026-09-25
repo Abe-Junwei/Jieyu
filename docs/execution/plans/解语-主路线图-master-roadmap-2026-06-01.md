@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-25）**：标注 M1、B4f、**B3c–B3s**（含 LIFT、义项树、同级排序、提升/降级、义项词类、词条类型、义项例证、词条发音、词源、字面意义、参考文献、限制、概要定义与义项学名）已落地。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / DMLex；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-25）**：标注 M1、B4f、**B3c–B3t**（含 LIFT、义项树、同级排序、提升/降级、义项词类、词条类型、义项例证、词条发音、词源、字面意义、参考文献、限制、概要定义、义项学名与义项人类学注释）已落地。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / DMLex；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -209,6 +209,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B3q** | 词典限制 | S | **【✅ 已落地】** `/lexicon` 编辑词条 `restrictions`（LIFT 词条 `<note type="restrictions">` 第一条 form 文本）。空白省略该键。出站 lang 为 `und`，排在参考文献之后。不读义项 note。无 DMLex、无新 flag。SDD：`lexicon-lexeme-restrictions/` | restrictions write→概览 readback；参考文献仍在；定向 vitest | 是 |
 | **B3r** | 词典概要定义 | S | **【✅ 已落地】** `/lexicon` 编辑词条 `summaryDefinition`（LIFT `<field type="summary-definition">` 第一条 form 文本）。空白省略该键。出站 lang 为 `und`，排在 `literal-meaning` 之后。不读义项里的同名 field。无 DMLex、无新 flag。SDD：`lexicon-lexeme-summary-definition/` | summaryDefinition write→概览 readback；字面意义仍在；定向 vitest | 是 |
 | **B3s** | 词典义项学名 | S | **【✅ 已落地】** `/lexicon` 编辑义项 `scientificName`（LIFT 义项 `<field type="scientific-name">` 第一条 form 文本）。空白省略该键。出站 lang 为 `und`，排在例证之后、子义项之前。不读词条级同名 field。再次导入省略该 field 时学名随 `senses` 整段替换而消失。无 DMLex、无新 flag。SDD：`lexicon-sense-scientific-name/` | scientificName write→义项列表 readback；词类仍在；定向 vitest | 是 |
+| **B3t** | 词典义项人类学注释 | S | **【✅ 已落地】** `/lexicon` 编辑义项 `anthropologyNote`（LIFT 义项 `<note type="anthropology">` 第一条 form 文本）。空白省略该键。出站 lang 为 `und`，排在学名之后、子义项之前。不读词条级同名 note，也不读义项参考文献。再次导入省略该 note 时注释随 `senses` 整段替换而消失。无 DMLex、无新 flag。SDD：`lexicon-sense-anthropology-note/` | anthropologyNote write→义项列表 readback；学名仍在；定向 vitest | 是 |
 | **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【✅ 已落地】** `/annotation` 当前 text/media 只读 IGT + 键盘 reduce 骨架。Flag `annotationPageEnabled` 现默认 **true**（M1 开放）。SDD：`annotation-workspace-shell/`。按轨读 `annotationLaneReadScope`（ADR-0020）。不写 token；不接 ChatWindow / 转写 annotation controller | flag 关占位；IGT 行渲染；Space 行聚焦=playToggle、输入态=insertSpace；定向 vitest | 是 |
 | **B4a-2** | 标注页 token POS/gloss 编辑 + 保存链路 + readback（P0-3 上·核心） | L | **【✅ 已落地】** 承 B4a-1：受控 POS/gloss 输入；Enter=`commitStay`；Ctrl+Enter 仅保存成功后跳行。写 `LinguisticService.units.updateTokenPos` / `updateTokenGloss`（`unit_tokens`），再 `listTokensByUnitIds` readback。SDD：`annotation-token-edit/`。不改转写文本/时间码；不接 ChatWindow / `useTranscriptionAnnotationController` / `annotationAdapters`。转写页需 reload 才见镜像 `unit.words` | 写→reload→readback；Dexie vitest | 是 |
 | **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | **【✅ 已落地】** 承 B4a-2：morpheme 按 `-`/`=` 分格 + gloss 写 `unit_morphemes`；token 空格/`|` 切分与与下一词合并写 `unit_tokens`；词典查询写 `token_lexeme_links`（role=`manual`）。Leipzig 内联校验 + 系统结构模板标记；模板编辑复用 `/assets/structural-profiles`。SDD：`annotation-morpheme-edit/`。不做二次自动分词 | 分词/链接/词素写→reload→readback；Leipzig invalid；定向 vitest | 是 |
@@ -321,6 +322,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-19 | **B3c**：`/lexicon` 额外义项（gloss + definition）与词形 transcription 写入既有 `senses`/`forms`；空行丢弃。无新 flag。SDD：`lexicon-senses-forms/`。下一刀仍不排 B7 / C3d / flag 放量。 |
 | 2026-09-20 | **B3e LIFT 出站**：`/lexicon` 导出 SIL LIFT 0.13（lemma / sense / variant allomorph）；只出站不写库。无新 flag。SDD：`lexicon-lift-export/`。 |
 | 2026-09-20 | **B3f LIFT 入站**：`/lexicon` 导入 SIL LIFT 0.13；按 entry id upsert；坏文件零写入。无新 flag。SDD：`lexicon-lift-import/`。 |
+| 2026-09-25 | **B3t 义项人类学注释**：`/lexicon` 编辑义项 `anthropologyNote`，对应 LIFT 义项 `<note type="anthropology">` 第一条 form 文本。空白省略。出站 lang 为 `und`，排在学名之后、子义项之前。不读词条级同名 note，也不读义项参考文献。再次导入省略该 note 时注释随 `senses` 整段替换而消失。无 DMLex、无新 flag。SDD：`lexicon-sense-anthropology-note/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-25 | **B3s 义项学名**：`/lexicon` 编辑义项 `scientificName`，对应 LIFT 义项 `<field type="scientific-name">` 第一条 form 文本。空白省略。出站 lang 为 `und`，排在例证之后、子义项之前。不读词条级同名 field。再次导入省略该 field 时学名随 `senses` 整段替换而消失。无 DMLex、无新 flag。SDD：`lexicon-sense-scientific-name/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-25 | **B3r 概要定义**：`/lexicon` 编辑词条 `summaryDefinition`，对应 LIFT `<field type="summary-definition">` 第一条 form 文本。空白省略。出站 lang 为 `und`，排在 `literal-meaning` 之后。不读义项里的同名 field。无 DMLex、无新 flag。SDD：`lexicon-lexeme-summary-definition/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-25 | **B3q 限制**：`/lexicon` 编辑词条 `restrictions`，对应 LIFT 词条 `<note type="restrictions">` 第一条 form 文本。空白省略。出站 lang 为 `und`，排在参考文献之后。不读义项 note。无 DMLex、无新 flag。SDD：`lexicon-lexeme-restrictions/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
