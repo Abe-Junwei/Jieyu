@@ -180,6 +180,8 @@ export interface Sense {
   category?: string;
   /** First LIFT sense `<field type="scientific-name"><form>` text. */
   scientificName?: string;
+  /** First LIFT sense `<note type="anthropology"><form>` text. */
+  anthropologyNote?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

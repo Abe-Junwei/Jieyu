@@ -20,6 +20,7 @@ function fields(
     notes: string;
     category: string;
     scientificName: string;
+    anthropologyNote: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -38,6 +39,7 @@ function fields(
       definition: string;
       category?: string;
       scientificName?: string;
+      anthropologyNote?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -47,6 +49,7 @@ function fields(
     gloss: '',
     category: '',
     scientificName: '',
+    anthropologyNote: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -166,6 +169,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.scientificName).toBeUndefined();
     expect(cleared.senses[0]?.category).toBe('noun');
     expect(cleared.senses[1]?.scientificName).toBeUndefined();
+  });
+
+  it('writes a trimmed anthropology note on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        scientificName: 'Canis familiaris',
+        anthropologyNote: ' kept at home ',
+        extraSenses: [{ gloss: 'pet', definition: '', anthropologyNote: ' companion ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(created.senses[0]?.scientificName).toBe('Canis familiaris');
+    expect(created.senses[1]?.anthropologyNote).toBe('companion');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        scientificName: 'Canis familiaris',
+        anthropologyNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', anthropologyNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.anthropologyNote).toBeUndefined();
+    expect(cleared.senses[0]?.scientificName).toBe('Canis familiaris');
+    expect(cleared.senses[1]?.anthropologyNote).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {
