@@ -548,6 +548,21 @@ describe('LexiconPage', () => {
     expect(screen.getByTestId('lexicon-workspace-sense-1-category').textContent).toBe('verb');
   });
 
+  it('saves an edited lexeme type and shows it in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    const input = screen.getByTestId('lexicon-entry-lexeme-type') as HTMLInputElement;
+    expect(input.value).toBe('word');
+    fireEvent.change(input, { target: { value: 'stem' } });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.lexemeType).toBe('stem');
+    expect(screen.getByTestId('lexicon-workspace-lexeme-type').textContent).toBe('stem');
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
