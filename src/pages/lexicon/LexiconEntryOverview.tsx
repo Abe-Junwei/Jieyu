@@ -70,6 +70,11 @@ export function LexiconEntryOverview({ lexeme }: { lexeme: LexemeDocType }) {
           testId="lexicon-workspace-restrictions"
         />
         <OverviewField
+          label={t(locale, 'workspace.lexicon.summaryDefinitionLabel')}
+          value={lexeme.summaryDefinition ?? notSet}
+          testId="lexicon-workspace-summary-definition"
+        />
+        <OverviewField
           label={t(locale, 'workspace.lexicon.lexemeTypeLabel')}
           value={lexeme.lexemeType ?? notSet}
           testId="lexicon-workspace-lexeme-type"

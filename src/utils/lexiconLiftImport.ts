@@ -199,13 +199,21 @@ function parseRestrictions(entry: Element): string {
   return parseTypedNote(entry, 'restrictions');
 }
 
-function parseLiteralMeaning(entry: Element): string {
+function parseFieldText(entry: Element, type: string): string {
   for (const field of directChildren(entry, 'field')) {
-    if (attr(field, 'type') !== 'literal-meaning') continue;
+    if (attr(field, 'type') !== type) continue;
     const text = formPairs(field)[0]?.text ?? '';
     if (text.length > 0) return text;
   }
   return '';
+}
+
+function parseLiteralMeaning(entry: Element): string {
+  return parseFieldText(entry, 'literal-meaning');
+}
+
+function parseSummaryDefinition(entry: Element): string {
+  return parseFieldText(entry, 'summary-definition');
 }
 
 function parsePronunciation(entry: Element): string {
@@ -235,6 +243,7 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
   const pronunciation = parsePronunciation(entry);
   const etymology = parseEtymology(entry);
   const literalMeaning = parseLiteralMeaning(entry);
+  const summaryDefinition = parseSummaryDefinition(entry);
   const bibliography = parseBibliography(entry);
   const restrictions = parseRestrictions(entry);
   const senses = sortByLiftOrder(directChildren(entry, 'sense')).flatMap((sense, index) =>
@@ -261,6 +270,7 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
     ...(pronunciation.length > 0 ? { pronunciation } : {}),
     ...(etymology ? { etymology } : {}),
     ...(literalMeaning.length > 0 ? { literalMeaning } : {}),
+    ...(summaryDefinition.length > 0 ? { summaryDefinition } : {}),
     ...(bibliography.length > 0 ? { bibliography } : {}),
     ...(restrictions.length > 0 ? { restrictions } : {}),
     ...(notes ? { notes } : {}),
@@ -300,6 +310,7 @@ function mergeParsed(
   const pronunciation = parsed.pronunciation ?? existing.pronunciation;
   const etymology = parsed.etymology ?? existing.etymology;
   const literalMeaning = parsed.literalMeaning ?? existing.literalMeaning;
+  const summaryDefinition = parsed.summaryDefinition ?? existing.summaryDefinition;
   const bibliography = parsed.bibliography ?? existing.bibliography;
   const restrictions = parsed.restrictions ?? existing.restrictions;
   const notes = parsed.notes ?? existing.notes;
@@ -316,6 +327,9 @@ function mergeParsed(
     ...(pronunciation !== undefined && pronunciation.length > 0 ? { pronunciation } : {}),
     ...(etymology !== undefined && etymology.form.length > 0 ? { etymology } : {}),
     ...(literalMeaning !== undefined && literalMeaning.length > 0 ? { literalMeaning } : {}),
+    ...(summaryDefinition !== undefined && summaryDefinition.length > 0
+      ? { summaryDefinition }
+      : {}),
     ...(bibliography !== undefined && bibliography.length > 0 ? { bibliography } : {}),
     ...(restrictions !== undefined && restrictions.length > 0 ? { restrictions } : {}),
     ...(notes !== undefined ? { notes } : {}),

@@ -16,6 +16,7 @@ const lexeme: LexemeDocType = {
   literalMeaning: 'domestic animal',
   bibliography: 'Smith 1990',
   restrictions: 'internal',
+  summaryDefinition: 'a canine kept at home',
   lexemeType: 'stem',
   senses: [{ id: 'sense-1', gloss: { default: 'canine' } }],
   createdAt: '2026-09-25T00:00:00.000Z',
@@ -42,6 +43,9 @@ describe('LexiconEntryOverview', () => {
     );
     expect(screen.getByTestId('lexicon-workspace-bibliography').textContent).toBe('Smith 1990');
     expect(screen.getByTestId('lexicon-workspace-restrictions').textContent).toBe('internal');
+    expect(screen.getByTestId('lexicon-workspace-summary-definition').textContent).toBe(
+      'a canine kept at home',
+    );
     expect(screen.getByTestId('lexicon-workspace-lexeme-type').textContent).toBe('stem');
     expect(screen.getByText('eng')).toBeTruthy();
     expect(screen.getByText('2026-09-25T01:00:00.000Z')).toBeTruthy();
@@ -54,6 +58,7 @@ describe('LexiconEntryOverview', () => {
       literalMeaning: _literalMeaning,
       bibliography: _bibliography,
       restrictions: _restrictions,
+      summaryDefinition: _summaryDefinition,
       lexemeType: _lexemeType,
       ...bare
     } = lexeme;
@@ -65,5 +70,6 @@ describe('LexiconEntryOverview', () => {
     expect(screen.getByTestId('lexicon-workspace-pronunciation').textContent).toBe('Not set');
     expect(screen.getByTestId('lexicon-workspace-etymology').textContent).toBe('Not set');
     expect(screen.getByTestId('lexicon-workspace-restrictions').textContent).toBe('Not set');
+    expect(screen.getByTestId('lexicon-workspace-summary-definition').textContent).toBe('Not set');
   });
 });

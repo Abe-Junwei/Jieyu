@@ -669,6 +669,23 @@ describe('LexiconPage', () => {
     expect(screen.getByTestId('lexicon-workspace-restrictions').textContent).toBe('internal');
   });
 
+  it('saves a summary definition and shows it in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-summary-definition'), {
+      target: { value: 'a canine kept at home' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.summaryDefinition).toBe('a canine kept at home');
+    expect(screen.getByTestId('lexicon-workspace-summary-definition').textContent).toBe(
+      'a canine kept at home',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

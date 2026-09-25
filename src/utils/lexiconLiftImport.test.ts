@@ -253,6 +253,61 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.literalMeaning).toBe('domestic animal');
   });
 
+  it('reads the first summary-definition field and keeps literal meaning', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <field type="literal-meaning"><form lang="en"><text>domestic animal</text></form></field>
+    <field type="summary-definition">
+      <form><text>nolang</text></form>
+      <form lang="en"><text>a canine kept at home</text></form>
+    </field>
+    <field type="summary-definition"><form lang="en"><text>second</text></form></field>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <field type="summary-definition"><form lang="en"><text>sense def</text></form></field>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.summaryDefinition).toBe('a canine kept at home');
+    expect(parsed.lexemes[0]?.literalMeaning).toBe('domestic animal');
+  });
+
+  it('round-trips summary definition and keeps an existing value when the field is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      { ...dog, literalMeaning: 'domestic animal', summaryDefinition: 'a canine kept at home' },
+    ]);
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.summaryDefinition).toBe('a canine kept at home');
+    expect(parsed.lexemes[0]?.literalMeaning).toBe('domestic animal');
+
+    const bare = serializeLexemesToLift([{ ...dog, literalMeaning: 'domestic animal' }]);
+    expect(bare).not.toContain('summary-definition');
+    const existing: LexemeDocType = {
+      ...dog,
+      literalMeaning: 'domestic animal',
+      summaryDefinition: 'a canine kept at home',
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.summaryDefinition).toBe('a canine kept at home');
+    expect(store[0]?.literalMeaning).toBe('domestic animal');
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

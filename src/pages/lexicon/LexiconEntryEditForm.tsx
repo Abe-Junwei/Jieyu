@@ -363,6 +363,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
         />
       </label>
       <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.summaryDefinitionLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-summary-definition"
+          value={editor.fields.summaryDefinition}
+          onChange={(event) => editor.onFieldChange('summaryDefinition', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</span>
         <input
           className="input lexicon-entry-edit-input"
