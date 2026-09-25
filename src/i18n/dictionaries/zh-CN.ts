@@ -283,6 +283,8 @@ export const zhCNDictionary = {
   'workspace.lexicon.edit.addSubsense': '添加子义项',
   'workspace.lexicon.edit.moveSenseUp': '上移义项',
   'workspace.lexicon.edit.moveSenseDown': '下移义项',
+  'workspace.lexicon.edit.promoteSense': '提升义项',
+  'workspace.lexicon.edit.demoteSense': '降级义项',
   'workspace.lexicon.edit.removeSense': '删除义项',
   'workspace.lexicon.edit.senseGlossLabel': '义项 gloss',
   'workspace.lexicon.edit.senseDefinitionLabel': '义项释义',

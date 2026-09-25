@@ -306,6 +306,8 @@ export const enUSDictionary = {
   'workspace.lexicon.edit.addSubsense': 'Add subsense',
   'workspace.lexicon.edit.moveSenseUp': 'Move sense up',
   'workspace.lexicon.edit.moveSenseDown': 'Move sense down',
+  'workspace.lexicon.edit.promoteSense': 'Promote sense',
+  'workspace.lexicon.edit.demoteSense': 'Demote sense',
   'workspace.lexicon.edit.removeSense': 'Remove sense',
   'workspace.lexicon.edit.senseGlossLabel': 'Sense gloss',
   'workspace.lexicon.edit.senseDefinitionLabel': 'Sense definition',

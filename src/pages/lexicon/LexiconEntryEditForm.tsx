@@ -1,6 +1,11 @@
 import { ConfirmDeleteDialog } from '../../components/ConfirmDeleteDialog';
 import { t, useLocale } from '../../i18n';
-import { moveSenseSiblingBlock, senseDepth } from '../../utils/lexemeSenseTree';
+import {
+  canDemoteSense,
+  moveSenseSiblingBlock,
+  promoteSense,
+  senseDepth,
+} from '../../utils/lexemeSenseTree';
 import type { LexiconEntryEditController } from '../useLexiconEntryEditController';
 
 type Props = {
@@ -110,6 +115,36 @@ export function LexiconEntryEditForm({ editor }: Props) {
               onClick={() => editor.onMoveExtraSense(index, 1)}
             >
               {t(locale, 'workspace.lexicon.edit.moveSenseDown')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              data-testid={`lexicon-entry-promote-sense-${index}`}
+              disabled={
+                promoteSense(
+                  editor.fields.extraSenses,
+                  index,
+                  editor.fields.primarySenseId ?? '',
+                ) === editor.fields.extraSenses
+              }
+              onClick={() => editor.onPromoteExtraSense(index)}
+            >
+              {t(locale, 'workspace.lexicon.edit.promoteSense')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              data-testid={`lexicon-entry-demote-sense-${index}`}
+              disabled={
+                !canDemoteSense(
+                  editor.fields.extraSenses,
+                  index,
+                  editor.fields.primarySenseId ?? '',
+                )
+              }
+              onClick={() => editor.onDemoteExtraSense(index)}
+            >
+              {t(locale, 'workspace.lexicon.edit.demoteSense')}
             </button>
             <button
               type="button"

@@ -3,7 +3,7 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-09-23
+last_reviewed: 2026-09-24
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-23）**：标注 M1、B4f、**B3c–B3h**（含 LIFT、义项 `parentId` 树与同级上移/下移）已落地。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-24）**：标注 M1、B4f、**B3c–B3i**（含 LIFT、义项 `parentId` 树、同级上移/下移与提升/降级）已落地。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -198,6 +198,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B3f** | 词典 LIFT 入站 | M | **【✅ 已落地】** `/lexicon` 选择 `.lift`，解析 0.13 子集后按 entry `id` upsert（覆盖已映射字段，保留 `usageCount` 等未映射字段），`list()` readback。坏 XML / 非 0.13 / 无 entry 零写入。无新 flag。SDD：`lexicon-lift-import/`。不做附件 / 三档冲突 UI | 往返 B3e XML；非法文件零 save；定向 vitest | 是 |
 | **B3g** | 词典义项树 | M | **【✅ 已落地】** 既有 `senses[]` 加可选 `parentId`；编辑表单可添加子义项；删父带子；详情按 depth 缩进。LIFT 出站/入站用 `<subsense>`。无新 flag、无新表。SDD：`lexicon-sense-tree/`。不做拖拽排序 / DMLex / variant-entry | parentId write→list readback；`<subsense>` 往返；定向 vitest | 是 |
 | **B3h** | 词典义项同级排序 | S | **【✅ 已落地】** 额外义项「上移/下移」整块交换同级（子树跟着走）。LIFT 入站按 sense `order` 排序。无拖拽库、无 promote/demote、无新 flag。SDD：`lexicon-sense-reorder/` | 顺序 write→list readback；`order` 与文档顺序不一致时按 `order`；定向 vitest | 是 |
+| **B3i** | 词典义项提升/降级 | S | **【✅ 已落地】** 额外义项「提升/降级」只改 `parentId`（降到上一同级之下，或升到父级的上一级）。主 gloss 仍是 `senses[0]`。无拖拽、无 DMLex、无新 flag。SDD：`lexicon-sense-promote/` | parentId write→list depth readback；定向 vitest | 是 |
 | **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【✅ 已落地】** `/annotation` 当前 text/media 只读 IGT + 键盘 reduce 骨架。Flag `annotationPageEnabled` 现默认 **true**（M1 开放）。SDD：`annotation-workspace-shell/`。按轨读 `annotationLaneReadScope`（ADR-0020）。不写 token；不接 ChatWindow / 转写 annotation controller | flag 关占位；IGT 行渲染；Space 行聚焦=playToggle、输入态=insertSpace；定向 vitest | 是 |
 | **B4a-2** | 标注页 token POS/gloss 编辑 + 保存链路 + readback（P0-3 上·核心） | L | **【✅ 已落地】** 承 B4a-1：受控 POS/gloss 输入；Enter=`commitStay`；Ctrl+Enter 仅保存成功后跳行。写 `LinguisticService.units.updateTokenPos` / `updateTokenGloss`（`unit_tokens`），再 `listTokensByUnitIds` readback。SDD：`annotation-token-edit/`。不改转写文本/时间码；不接 ChatWindow / `useTranscriptionAnnotationController` / `annotationAdapters`。转写页需 reload 才见镜像 `unit.words` | 写→reload→readback；Dexie vitest | 是 |
 | **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | **【✅ 已落地】** 承 B4a-2：morpheme 按 `-`/`=` 分格 + gloss 写 `unit_morphemes`；token 空格/`|` 切分与与下一词合并写 `unit_tokens`；词典查询写 `token_lexeme_links`（role=`manual`）。Leipzig 内联校验 + 系统结构模板标记；模板编辑复用 `/assets/structural-profiles`。SDD：`annotation-morpheme-edit/`。不做二次自动分词 | 分词/链接/词素写→reload→readback；Leipzig invalid；定向 vitest | 是 |
@@ -310,6 +311,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-19 | **B3c**：`/lexicon` 额外义项（gloss + definition）与词形 transcription 写入既有 `senses`/`forms`；空行丢弃。无新 flag。SDD：`lexicon-senses-forms/`。下一刀仍不排 B7 / C3d / flag 放量。 |
 | 2026-09-20 | **B3e LIFT 出站**：`/lexicon` 导出 SIL LIFT 0.13（lemma / sense / variant allomorph）；只出站不写库。无新 flag。SDD：`lexicon-lift-export/`。 |
 | 2026-09-20 | **B3f LIFT 入站**：`/lexicon` 导入 SIL LIFT 0.13；按 entry id upsert；坏文件零写入。无新 flag。SDD：`lexicon-lift-import/`。 |
+| 2026-09-24 | **B3i 义项提升/降级**：额外义项只改 `parentId`。降到上一同级之下，或升到父级的上一级。主 gloss 仍是 `senses[0]`。无拖拽、无 DMLex、无新 flag。SDD：`lexicon-sense-promote/`。下一刀仍不排 B7 / C3d / flag 放量。 |
 | 2026-09-23 | **B3h 义项同级排序**：额外义项上移/下移整块；LIFT 入站按 `order`。无拖拽库、无 promote/demote、无新 flag。SDD：`lexicon-sense-reorder/`。下一刀仍不排 B7 / C3d / flag 放量。 |
 | 2026-09-22 | **B3g 义项树**：`senses[].parentId`；子义项 UI + LIFT `<subsense>` 往返。无新 flag。SDD：`lexicon-sense-tree/`。下一刀仍不排 B7 / C3d / flag 放量。 |
 | 2026-09-20 | **Sense/Form 稳定 id**：`senses`/`forms` nested `id`；save 保留已有、新行 `newId`；Dexie v54 回填。编辑草稿携带 id，删中间行按 id 对齐、不按下标错位。无义项树 / DMLex / 新 flag。SDD：`lexicon-sense-form-ids/`。 |

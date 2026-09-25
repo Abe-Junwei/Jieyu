@@ -573,6 +573,40 @@ describe('LexiconPage', () => {
     expect(saved.senses.map((sense) => sense.gloss.default)).toEqual(['canine', 'hound', 'pet']);
   });
 
+  it('demotes the second subsense under the previous sibling and saves that parentId', async () => {
+    mockListLexemes.mockResolvedValue([
+      {
+        id: 'lex-dog',
+        lemma: { default: 'dog' },
+        senses: [
+          { id: 'sense_primary', gloss: { default: 'canine' } },
+          { id: 'sense_pet', parentId: 'sense_primary', gloss: { default: 'pet' } },
+          { id: 'sense_hound', parentId: 'sense_primary', gloss: { default: 'hound' } },
+        ],
+        language: 'eng',
+        createdAt: '2026-04-04T00:00:00.000Z',
+        updatedAt: '2026-04-04T00:00:00.000Z',
+      },
+    ] satisfies LexemeDocType[]);
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    expect((screen.getByTestId('lexicon-entry-lemma') as HTMLInputElement).value).toBe('dog');
+    expect((screen.getByTestId('lexicon-entry-demote-sense-0') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(screen.getByTestId('lexicon-entry-extra-sense-1').getAttribute('data-depth')).toBe('1');
+    fireEvent.click(screen.getByTestId('lexicon-entry-demote-sense-1'));
+    expect(screen.getByTestId('lexicon-entry-extra-sense-1').getAttribute('data-depth')).toBe('2');
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[2]?.parentId).toBe('sense_pet');
+    expect(saved.senses.map((sense) => sense.gloss.default)).toEqual(['canine', 'pet', 'hound']);
+    expect(screen.getByTestId('lexicon-workspace-sense-2').getAttribute('data-depth')).toBe('2');
+  });
+
   it('does not remap remaining nested ids when a middle extra sense or form is removed', async () => {
     mockListLexemes.mockResolvedValue([
       {
