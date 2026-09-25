@@ -10,6 +10,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Changed
 
+- **Lexicon entry overview**: The entry overview grid lives in `LexiconEntryOverview`. `LexiconPage` only assembles that panel. Field values and test ids are unchanged.
 - **Annotation page open (B4c/d/e)**: `annotationPageEnabled` now defaults to `true`. `/annotation` is an IGT workbench with unit-range playback, notes/tags/self-certainty, and AutoGloss preview-then-apply. Env `VITE_ANNOTATION_PAGE_ENABLED=false` still shows the placeholder panel. Corpus / MCP / lexicon-attachment flags stay false.
 - **Master roadmap subsequent-slice eval (2026-09-11)**: Next knife is #165 then B5c rebase; added B4c/B4d/B3b leftover rows. Dogfood ≠ product-open. See `docs/execution/audits/后续路线图详细评估-2026-09-11.md`.
 - **Master roadmap recalibrated (2026-09-11)**: Stage B leftover is B5c (PR #154 conflicting), not “open B4/B5 placeholders”. ChatWindow 766/800 gate replaced with 127/220. A2/A3 marked partial. See `docs/execution/audits/主路线图代码核对-2026-09-11.md`.
