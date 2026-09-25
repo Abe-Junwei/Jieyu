@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-25）**：标注 M1、B4f、**B3c–B3p**（含 LIFT、义项树、同级排序、提升/降级、义项词类、词条类型、义项例证、词条发音、词源、字面意义与参考文献）已落地。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / DMLex；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-25）**：标注 M1、B4f、**B3c–B3q**（含 LIFT、义项树、同级排序、提升/降级、义项词类、词条类型、义项例证、词条发音、词源、字面意义、参考文献与限制）已落地。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / DMLex；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -206,6 +206,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | **B3n** | 词典词条词源 | S | **【✅ 已落地】** `/lexicon` 编辑一条 `etymology`（来源词形 + 可选释义 + 可选来源语言）。空白词形省略该键。来源语言对应 `<trait name="languages">`。不读过时 `source` 属性，不存注释/书目/第二条词源。无 DMLex、无新 flag。SDD：`lexicon-lexeme-etymology/` | etymology write→概览 readback；`<etymology>` 往返；定向 vitest | 是 |
 | **B3o** | 词典字面意义 | S | **【✅ 已落地】** `/lexicon` 编辑词条 `literalMeaning`（LIFT `<field type="literal-meaning">` 第一条 form 文本）。空白省略该键。出站 lang 为 `und`。不读其他 field 类型。无 DMLex、无新 flag。SDD：`lexicon-lexeme-literal-meaning/` | literalMeaning write→概览 readback；`literal-meaning` 往返；定向 vitest | 是 |
 | **B3p** | 词典参考文献 | S | **【✅ 已落地】** `/lexicon` 编辑词条 `bibliography`（LIFT 词条 `<note type="bibliography">` 第一条 form 文本）。空白省略该键。出站 lang 为 `und`，排在无 type 备注之后。不读义项 note、其他 note type、词源 `<field type="bibliography">`。无 DMLex、无新 flag。SDD：`lexicon-lexeme-bibliography/` | bibliography write→概览 readback；无 type 备注仍在；定向 vitest | 是 |
+| **B3q** | 词典限制 | S | **【✅ 已落地】** `/lexicon` 编辑词条 `restrictions`（LIFT 词条 `<note type="restrictions">` 第一条 form 文本）。空白省略该键。出站 lang 为 `und`，排在参考文献之后。不读义项 note。无 DMLex、无新 flag。SDD：`lexicon-lexeme-restrictions/` | restrictions write→概览 readback；参考文献仍在；定向 vitest | 是 |
 | **B4a-1** | 标注页壳 + IGT 列表渲染 + 键盘状态机骨架（P0-3 上·前置） | M | **【✅ 已落地】** `/annotation` 当前 text/media 只读 IGT + 键盘 reduce 骨架。Flag `annotationPageEnabled` 现默认 **true**（M1 开放）。SDD：`annotation-workspace-shell/`。按轨读 `annotationLaneReadScope`（ADR-0020）。不写 token；不接 ChatWindow / 转写 annotation controller | flag 关占位；IGT 行渲染；Space 行聚焦=playToggle、输入态=insertSpace；定向 vitest | 是 |
 | **B4a-2** | 标注页 token POS/gloss 编辑 + 保存链路 + readback（P0-3 上·核心） | L | **【✅ 已落地】** 承 B4a-1：受控 POS/gloss 输入；Enter=`commitStay`；Ctrl+Enter 仅保存成功后跳行。写 `LinguisticService.units.updateTokenPos` / `updateTokenGloss`（`unit_tokens`），再 `listTokensByUnitIds` readback。SDD：`annotation-token-edit/`。不改转写文本/时间码；不接 ChatWindow / `useTranscriptionAnnotationController` / `annotationAdapters`。转写页需 reload 才见镜像 `unit.words` | 写→reload→readback；Dexie vitest | 是 |
 | **B4b** | 标注页 morpheme / 手动分词 / Validator（P0-3 下半） | L | **【✅ 已落地】** 承 B4a-2：morpheme 按 `-`/`=` 分格 + gloss 写 `unit_morphemes`；token 空格/`|` 切分与与下一词合并写 `unit_tokens`；词典查询写 `token_lexeme_links`（role=`manual`）。Leipzig 内联校验 + 系统结构模板标记；模板编辑复用 `/assets/structural-profiles`。SDD：`annotation-morpheme-edit/`。不做二次自动分词 | 分词/链接/词素写→reload→readback；Leipzig invalid；定向 vitest | 是 |
@@ -318,6 +319,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-19 | **B3c**：`/lexicon` 额外义项（gloss + definition）与词形 transcription 写入既有 `senses`/`forms`；空行丢弃。无新 flag。SDD：`lexicon-senses-forms/`。下一刀仍不排 B7 / C3d / flag 放量。 |
 | 2026-09-20 | **B3e LIFT 出站**：`/lexicon` 导出 SIL LIFT 0.13（lemma / sense / variant allomorph）；只出站不写库。无新 flag。SDD：`lexicon-lift-export/`。 |
 | 2026-09-20 | **B3f LIFT 入站**：`/lexicon` 导入 SIL LIFT 0.13；按 entry id upsert；坏文件零写入。无新 flag。SDD：`lexicon-lift-import/`。 |
+| 2026-09-25 | **B3q 限制**：`/lexicon` 编辑词条 `restrictions`，对应 LIFT 词条 `<note type="restrictions">` 第一条 form 文本。空白省略。出站 lang 为 `und`，排在参考文献之后。不读义项 note。无 DMLex、无新 flag。SDD：`lexicon-lexeme-restrictions/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-25 | **B3p 参考文献**：`/lexicon` 编辑词条 `bibliography`，对应 LIFT 词条 `<note type="bibliography">` 第一条 form 文本。空白省略。出站 lang 为 `und`，排在无 type 备注之后。不读义项 note、其他 note type 或词源 field。无 DMLex、无新 flag。SDD：`lexicon-lexeme-bibliography/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-25 | **B3o 字面意义**：`/lexicon` 编辑词条 `literalMeaning`，对应 LIFT `<field type="literal-meaning">` 第一条 form 文本。空白省略。出站 lang 为 `und`。不读其他 field 类型。无 DMLex、无新 flag。SDD：`lexicon-lexeme-literal-meaning/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
 | 2026-09-25 | **B3n 词条词源**：`/lexicon` 编辑一条 `etymology`（来源词形、可选释义、可选来源语言），对应 LIFT `<etymology>`。空白词形省略。来源语言走 `trait name="languages"`。不读过时 `source` 属性，不存注释、书目或第二条词源。无 DMLex、无新 flag。SDD：`lexicon-lexeme-etymology/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
