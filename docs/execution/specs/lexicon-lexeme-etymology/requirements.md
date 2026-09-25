@@ -25,11 +25,11 @@ depends_on:
 
 ## 3. 验收标准（可测）
 
-- [ ] 词源 write→概览 readback
-- [ ] 空白词形省略整个 `etymology`；空白释义和来源语言省略对应键
-- [ ] LIFT `<etymology>` 往返第一条有词形的块；来源语言走 `trait name="languages"`
-- [ ] 过时 `source` 属性不写入；省略元素时保留已有词源
-- [ ] 无新 flag、无新表
+- [x] 词源 write→概览 readback
+- [x] 空白词形省略整个 `etymology`；空白释义和来源语言省略对应键
+- [x] LIFT `<etymology>` 往返第一条有词形的块；来源语言走 `trait name="languages"`
+- [x] 过时 `source` 属性不写入；省略元素时保留已有词源
+- [x] 无新 flag、无新表
 
 ## 4. 受影响代码地图
 

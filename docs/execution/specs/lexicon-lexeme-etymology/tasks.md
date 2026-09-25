@@ -14,18 +14,18 @@ depends_on:
 
 ## Implementation tasks
 
-- [ ] 保存一条词源，空白词形省略，且保留 `morphemeType` → `npx vitest run src/pages/lexicon/saveLexiconEntry.test.ts`
-- [ ] LIFT `<etymology>` 往返 → `npx vitest run src/utils/lexiconLiftImport.test.ts src/utils/lexiconLiftExport.test.ts`
-- [ ] 编辑表单写入后概览可见 → `npx vitest run src/pages/LexiconPage.test.tsx`
-- [ ] 路线图 B3n / 代码地图 / CHANGELOG
+- [x] 保存一条词源，空白词形省略，且保留 `morphemeType` → `npx vitest run src/pages/lexicon/saveLexiconEntry.test.ts`
+- [x] LIFT `<etymology>` 往返 → `npx vitest run src/utils/lexiconLiftImport.test.ts src/utils/lexiconLiftExport.test.ts`
+- [x] 编辑表单写入后概览可见 → `npx vitest run src/pages/LexiconPage.test.tsx`
+- [x] 路线图 B3n / 代码地图 / CHANGELOG
 
 ## Pre-merge gates（与拍板 2A 一致）
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 vitest（save / LexiconPage / LIFT）
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
-- [ ] 无新 feature flag；ChatWindow 零 diff
+- [x] `npm run typecheck`
+- [x] 触及域 vitest（save / LexiconPage / LIFT）
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] 无新 feature flag；ChatWindow 零 diff
 
 ## Post-merge
 
