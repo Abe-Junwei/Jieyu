@@ -34,7 +34,13 @@ export type LexiconEntryEditController = {
   onFieldChange: (field: LexiconEntryScalarField, value: string) => void;
   onExtraSenseChange: (
     index: number,
-    field: 'gloss' | 'definition' | 'category' | 'scientificName' | 'anthropologyNote',
+    field:
+      | 'gloss'
+      | 'definition'
+      | 'category'
+      | 'scientificName'
+      | 'anthropologyNote'
+      | 'discourseNote',
     value: string,
   ) => void;
   onExampleChange: (
@@ -106,6 +112,10 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
       typeof lexeme?.senses[0]?.anthropologyNote === 'string'
         ? lexeme.senses[0].anthropologyNote.trim()
         : '',
+    discourseNote:
+      typeof lexeme?.senses[0]?.discourseNote === 'string'
+        ? lexeme.senses[0].discourseNote.trim()
+        : '',
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -136,6 +146,9 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
           : {}),
         ...(typeof sense.anthropologyNote === 'string' && sense.anthropologyNote.trim().length > 0
           ? { anthropologyNote: sense.anthropologyNote.trim() }
+          : {}),
+        ...(typeof sense.discourseNote === 'string' && sense.discourseNote.trim().length > 0
+          ? { discourseNote: sense.discourseNote.trim() }
           : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };

@@ -21,6 +21,7 @@ function fields(
     category: string;
     scientificName: string;
     anthropologyNote: string;
+    discourseNote: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -40,6 +41,7 @@ function fields(
       category?: string;
       scientificName?: string;
       anthropologyNote?: string;
+      discourseNote?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -50,6 +52,7 @@ function fields(
     category: '',
     scientificName: '',
     anthropologyNote: '',
+    discourseNote: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -203,6 +206,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.anthropologyNote).toBeUndefined();
     expect(cleared.senses[0]?.scientificName).toBe('Canis familiaris');
     expect(cleared.senses[1]?.anthropologyNote).toBeUndefined();
+  });
+
+  it('writes a trimmed discourse note on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        anthropologyNote: 'kept at home',
+        discourseNote: ' narrative use ',
+        extraSenses: [{ gloss: 'pet', definition: '', discourseNote: ' vocative ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.discourseNote).toBe('narrative use');
+    expect(created.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(created.senses[1]?.discourseNote).toBe('vocative');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        anthropologyNote: 'kept at home',
+        discourseNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', discourseNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.discourseNote).toBeUndefined();
+    expect(cleared.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(cleared.senses[1]?.discourseNote).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

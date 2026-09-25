@@ -182,6 +182,8 @@ export interface Sense {
   scientificName?: string;
   /** First LIFT sense `<note type="anthropology"><form>` text. */
   anthropologyNote?: string;
+  /** First LIFT sense `<note type="discourse"><form>` text. */
+  discourseNote?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;
