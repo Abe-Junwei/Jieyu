@@ -166,6 +166,13 @@ const lexemeDocSchema = z.object({
   lemma: transcriptionSchema,
   lexemeType: z.string().optional(),
   pronunciation: z.string().optional(),
+  etymology: z
+    .object({
+      form: z.string().min(1),
+      gloss: z.string().min(1).optional(),
+      sourceLanguage: z.string().min(1).optional(),
+    })
+    .optional(),
   morphemeType: z.string().optional(),
   citationForm: z.string().optional(),
   senses: z

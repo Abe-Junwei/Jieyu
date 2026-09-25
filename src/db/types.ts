@@ -160,6 +160,13 @@ export interface AnchorDocType {
   createdAt: string;
 }
 
+/** One FLEx etymology. Comments, notes, and bibliography fields are not stored. */
+export interface LexemeEtymology {
+  form: string;
+  gloss?: string;
+  sourceLanguage?: string;
+}
+
 /** Sense example sentence. `source` is the LIFT `<example><form>` text, not bibliographic `<source>`. */
 export interface SenseExample {
   source: string;
@@ -188,6 +195,11 @@ export interface LexemeDocType {
   lexemeType?: string;
   /** First LIFT `<pronunciation><form>` text. Media, tone, and CV pattern are not stored. */
   pronunciation?: string;
+  /**
+   * First LIFT `<etymology>` with a form. `form` is the source form.
+   * `sourceLanguage` is `<trait name="languages">`, not the obsolete `source` attribute.
+   */
+  etymology?: LexemeEtymology;
   morphemeType?: string;
   citationForm?: string;
   senses: Sense[];

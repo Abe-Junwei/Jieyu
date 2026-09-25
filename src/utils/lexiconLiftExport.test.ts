@@ -120,6 +120,19 @@ describe('lexiconLiftExport', () => {
     expect(serializeLexemesToLift([dog])).not.toContain('<pronunciation>');
   });
 
+  it('emits one etymology and omits a blank source form', () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        etymology: { form: 'perro', gloss: 'dog', sourceLanguage: 'Spanish' },
+      },
+    ]);
+    expect(xml).toContain(
+      '<etymology><trait name="languages" value="Spanish"/><form lang="und"><text>perro</text></form><gloss lang="und"><text>dog</text></gloss></etymology>',
+    );
+    expect(serializeLexemesToLift([dog])).not.toContain('<etymology>');
+  });
+
   it('returns null for an empty list or entries without lemma text', () => {
     expect(serializeLexemesToLift([])).toBeNull();
     expect(

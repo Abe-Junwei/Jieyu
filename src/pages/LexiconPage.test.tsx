@@ -599,6 +599,29 @@ describe('LexiconPage', () => {
     expect(screen.getByTestId('lexicon-workspace-pronunciation').textContent).toBe('dɔg');
   });
 
+  it('saves an etymology and shows it in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-etymology-form'), {
+      target: { value: 'perro' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-etymology-gloss'), {
+      target: { value: 'dog' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-etymology-source'), {
+      target: { value: 'Spanish' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.etymology).toEqual({ form: 'perro', gloss: 'dog', sourceLanguage: 'Spanish' });
+    expect(screen.getByTestId('lexicon-workspace-etymology').textContent).toBe(
+      'perro · dog · Spanish',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

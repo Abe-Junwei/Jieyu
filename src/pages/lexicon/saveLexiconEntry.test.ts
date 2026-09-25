@@ -21,6 +21,9 @@ function fields(
     category: string;
     lexemeType: string;
     pronunciation: string;
+    etymologyForm: string;
+    etymologyGloss: string;
+    etymologySourceLanguage: string;
     primarySenseId: string;
     examples: { source: string; translation?: string }[];
     extraSenses: {
@@ -42,6 +45,9 @@ function fields(
     notes: '',
     lexemeType: '',
     pronunciation: '',
+    etymologyForm: '',
+    etymologyGloss: '',
+    etymologySourceLanguage: '',
     examples: [],
     extraSenses: [],
     forms: [],
@@ -189,6 +195,31 @@ describe('saveLexiconEntry', () => {
       now,
     );
     expect(cleared.pronunciation).toBeUndefined();
+    expect(cleared.morphemeType).toBe('prefix');
+  });
+
+  it('writes one etymology and omits it when the source form is blank', () => {
+    const existing = applyLexiconEntryFields(null, fields({ lemma: 'dog', gloss: 'canine' }), now);
+    const withMorph = { ...existing, morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withMorph,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        etymologyForm: ' perro ',
+        etymologyGloss: ' dog ',
+        etymologySourceLanguage: ' Spanish ',
+      }),
+      now,
+    );
+    expect(updated.etymology).toEqual({ form: 'perro', gloss: 'dog', sourceLanguage: 'Spanish' });
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({ lemma: 'dog', gloss: 'canine', etymologyForm: ' ' }),
+      now,
+    );
+    expect(cleared.etymology).toBeUndefined();
     expect(cleared.morphemeType).toBe('prefix');
   });
 

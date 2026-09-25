@@ -11,7 +11,10 @@ export type LexiconEntryScalarField =
   | 'language'
   | 'notes'
   | 'lexemeType'
-  | 'pronunciation';
+  | 'pronunciation'
+  | 'etymologyForm'
+  | 'etymologyGloss'
+  | 'etymologySourceLanguage';
 
 export type LexiconExampleDraft = {
   source: string;
@@ -41,6 +44,9 @@ export type LexiconEntryFields = {
   notes: string;
   lexemeType: string;
   pronunciation: string;
+  etymologyForm: string;
+  etymologyGloss: string;
+  etymologySourceLanguage: string;
   primarySenseId?: string;
   examples: LexiconExampleDraft[];
   extraSenses: LexiconSenseDraft[];
@@ -168,6 +174,19 @@ export function applyLexiconEntryFields(
   const notes = fields.notes.trim();
   const lexemeType = fields.lexemeType.trim();
   const pronunciation = fields.pronunciation.trim();
+  const etymologyForm = fields.etymologyForm.trim();
+  const etymologyGloss = fields.etymologyGloss.trim();
+  const etymologySourceLanguage = fields.etymologySourceLanguage.trim();
+  const etymology =
+    etymologyForm.length > 0
+      ? {
+          form: etymologyForm,
+          ...(etymologyGloss.length > 0 ? { gloss: etymologyGloss } : {}),
+          ...(etymologySourceLanguage.length > 0
+            ? { sourceLanguage: etymologySourceLanguage }
+            : {}),
+        }
+      : undefined;
   const primaryExamples = exampleDraftsFromStored(fields.examples);
   const id = existing?.id ?? newId('lex');
   const firstSense = existing?.senses[0];
@@ -233,6 +252,7 @@ export function applyLexiconEntryFields(
     forms: _oldForms,
     lexemeType: _oldLexemeType,
     pronunciation: _oldPronunciation,
+    etymology: _oldEtymology,
     ...rest
   } = existing ?? {
     id,
@@ -259,6 +279,7 @@ export function applyLexiconEntryFields(
     ...(language.length > 0 ? { language } : {}),
     ...(lexemeType.length > 0 ? { lexemeType } : {}),
     ...(pronunciation.length > 0 ? { pronunciation } : {}),
+    ...(etymology ? { etymology } : {}),
     ...(notes.length > 0 ? { notes: writePrimaryMultiLang(existing?.notes, notes) } : {}),
     ...(nextForms.length > 0 ? { forms: nextForms } : {}),
     createdAt: existing?.createdAt ?? now,
