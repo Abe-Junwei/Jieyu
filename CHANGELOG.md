@@ -16,6 +16,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Lexicon sense part of speech (B3j)**: `/lexicon` edits `senses[].category` on the primary gloss and on extra senses. Save readback shows it in the sense list. A blank value omits the key. LIFT import/export already map this field to `grammatical-info`. No closed POS list, no DMLex, no new flag.
 - **Lexicon sense promote/demote (B3i)**: `/lexicon` promotes or demotes an extra sense by changing only `parentId`. Demote hangs the sense under the previous sibling, or under the primary gloss when it is the first root extra. Promote moves it up one level and does not replace the primary gloss. Save readback keeps the new depth. No drag library, no DMLex, no new flag.
 - **Lexicon sense reorder (B3h)**: `/lexicon` moves an extra sense up or down as a sibling block, including its subsenses. Save readback keeps that `senses[]` order and `parentId`. LIFT import sorts senses by the `order` attribute. No drag library, no promote/demote, no new flag.
 - **Lexicon LIFT 0.13 import (B3f)**: `/lexicon` imports a `.lift` file (SIL 0.13 subset), upserts by entry id via `saveLexeme`, then `list()` readback. Invalid XML / non-0.13 / empty files do not write. No sense tree, no attachments, no corpus lexicon pack, no new flag.

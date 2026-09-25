@@ -264,6 +264,8 @@ export const DICT_KEYS = [
   'workspace.lexicon.importLiftUnsupported',
   'workspace.lexicon.edit.lemmaLabel',
   'workspace.lexicon.edit.glossLabel',
+  'workspace.lexicon.edit.categoryLabel',
+  'workspace.lexicon.edit.senseCategoryLabel',
   'workspace.lexicon.edit.extraSensesLabel',
   'workspace.lexicon.edit.addSense',
   'workspace.lexicon.edit.addSubsense',

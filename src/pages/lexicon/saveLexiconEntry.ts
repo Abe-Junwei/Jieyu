@@ -3,13 +3,20 @@ import type { LexemeDocType, MultiLangString } from '../../types/jieyuDbDocTypes
 import { readSenseParentId } from '../../utils/lexemeSenseTree';
 import { newId } from '../../utils/transcriptionFormatters';
 
-export type LexiconEntryScalarField = 'lemma' | 'gloss' | 'citationForm' | 'language' | 'notes';
+export type LexiconEntryScalarField =
+  | 'lemma'
+  | 'gloss'
+  | 'category'
+  | 'citationForm'
+  | 'language'
+  | 'notes';
 
 export type LexiconSenseDraft = {
   id?: string;
   parentId?: string;
   gloss: string;
   definition: string;
+  category?: string;
 };
 
 export type LexiconFormDraft = {
@@ -20,6 +27,7 @@ export type LexiconFormDraft = {
 export type LexiconEntryFields = {
   lemma: string;
   gloss: string;
+  category: string;
   citationForm: string;
   language: string;
   notes: string;
@@ -58,6 +66,10 @@ export function writePrimaryMultiLang(
   const firstKey = Object.keys(record)[0];
   if (!firstKey) return { default: trimmed };
   return { ...record, [firstKey]: trimmed };
+}
+
+function readCategory(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 function nestedIdOf(value: unknown): string {
@@ -102,6 +114,7 @@ export function applyLexiconEntryFields(
   const lemma = fields.lemma.trim();
   if (lemma.length === 0) throw new Error('empty lemma');
   const gloss = fields.gloss.trim();
+  const category = readCategory(fields.category);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -117,11 +130,13 @@ export function applyLexiconEntryFields(
     const {
       definition: _oldDefinition,
       parentId: _oldParentId,
+      category: _oldCategory,
       ...previousRest
     } = previous ?? {
       gloss: { default: glossText },
     };
     const parentId = readSenseParentId(draft);
+    const senseCategory = readCategory(draft.category);
     return [
       {
         ...previousRest,
@@ -130,6 +145,7 @@ export function applyLexiconEntryFields(
         ...(definitionText.length > 0
           ? { definition: writePrimaryMultiLang(previous?.definition, definitionText) }
           : {}),
+        ...(senseCategory.length > 0 ? { category: senseCategory } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
     ];
@@ -149,6 +165,9 @@ export function applyLexiconEntryFields(
       },
     ];
   });
+  const { category: _oldPrimaryCategory, ...primarySenseRest } = firstSense ?? {
+    gloss: nextGloss,
+  };
   const {
     citationForm: _oldCitation,
     language: _oldLanguage,
@@ -168,9 +187,10 @@ export function applyLexiconEntryFields(
     lemma: writePrimaryMultiLang(existing?.lemma, lemma),
     senses: [
       {
-        ...(firstSense ?? {}),
+        ...primarySenseRest,
         id: primarySenseId,
         gloss: nextGloss,
+        ...(category.length > 0 ? { category } : {}),
       },
       ...extraSenses,
     ],

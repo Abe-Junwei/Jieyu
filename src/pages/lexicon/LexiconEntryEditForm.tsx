@@ -41,6 +41,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('gloss', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.categoryLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-category"
+          value={editor.fields.category}
+          onChange={(event) => editor.onFieldChange('category', event.target.value)}
+        />
+      </label>
       <button
         type="button"
         className="btn"
@@ -71,6 +80,17 @@ export function LexiconEntryEditForm({ editor }: Props) {
                 data-testid={`lexicon-entry-extra-sense-${index}-gloss`}
                 value={sense.gloss}
                 onChange={(event) => editor.onExtraSenseChange(index, 'gloss', event.target.value)}
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseCategoryLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-category`}
+                value={sense.category ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'category', event.target.value)
+                }
               />
             </label>
             <label className="lexicon-entry-edit-field">

@@ -18,13 +18,21 @@ function fields(
     citationForm: string;
     language: string;
     notes: string;
+    category: string;
     primarySenseId: string;
-    extraSenses: { id?: string; parentId?: string; gloss: string; definition: string }[];
+    extraSenses: {
+      id?: string;
+      parentId?: string;
+      gloss: string;
+      definition: string;
+      category?: string;
+    }[];
     forms: { id?: string; transcription: string }[];
   }> & { lemma: string },
 ) {
   return {
     gloss: '',
+    category: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -70,6 +78,36 @@ describe('saveLexiconEntry', () => {
     expect(() => applyLexiconEntryFields(null, fields({ lemma: '  ', gloss: 'x' }), now)).toThrow(
       /empty lemma/,
     );
+  });
+
+  it('writes a sense part of speech and drops it when cleared', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        category: ' noun ',
+        extraSenses: [{ gloss: 'pet', definition: '', category: ' verb ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.category).toBe('noun');
+    expect(created.senses[1]?.category).toBe('verb');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        category: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', category: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.category).toBeUndefined();
+    expect(cleared.senses[1]?.category).toBeUndefined();
   });
 
   it('creates then updates a lexeme with list readback', async () => {
