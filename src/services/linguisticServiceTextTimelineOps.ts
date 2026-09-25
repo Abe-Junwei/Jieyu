@@ -4,7 +4,11 @@ import {
   isDefaultTranscriptionLayerForUnitText,
 } from '../ai/embeddings/EmbeddingInvalidationService';
 import { getUnitDocProjectionById } from './LayerSegmentGraphService';
-import { listUnitTextsByUnit, syncUnitTextToSegmentationV2 } from './LayerSegmentationTextService';
+import {
+  listUnitTextsByUnit,
+  listUnitTextsByUnits,
+  syncUnitTextToSegmentationV2,
+} from './LayerSegmentationTextService';
 import {
   invertTextTimeMapping as invertTextTimeMappingImpl,
   mergeTextTimeMappingHistory,
@@ -20,6 +24,13 @@ import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 export async function getUnitTexts(unitId: string): Promise<LayerUnitContentDocType[]> {
   const db = await getDb();
   return listUnitTextsByUnit(db, unitId);
+}
+
+export async function listUnitTextsByUnitIds(
+  unitIds: readonly string[],
+): Promise<LayerUnitContentDocType[]> {
+  const db = await getDb();
+  return listUnitTextsByUnits(db, unitIds);
 }
 
 export async function saveUnitText(data: LayerUnitContentDocType): Promise<string> {

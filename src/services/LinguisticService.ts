@@ -101,6 +101,7 @@ export const LinguisticService = {
   },
   timeline: {
     listUnitTexts: linguisticServiceTextTimelineOps.getUnitTexts,
+    listUnitTextsByUnitIds: linguisticServiceTextTimelineOps.listUnitTextsByUnitIds,
     saveUnitText: linguisticServiceTextTimelineOps.saveUnitText,
     listTexts: linguisticServiceTextTimelineOps.getAllTexts,
     getTextById: linguisticServiceTextTimelineOps.getTextById,
