@@ -25,10 +25,10 @@ depends_on:
 
 ## 3. 验收标准（可测）
 
-- [ ] `lexemeType` write→list readback
-- [ ] 空白词条类型不写入
-- [ ] 保存不清除 `morphemeType`
-- [ ] 无新 flag、无新表
+- [x] `lexemeType` write→list readback
+- [x] 空白词条类型不写入
+- [x] 保存不清除 `morphemeType`
+- [x] 无新 flag、无新表
 
 ## 4. 受影响代码地图
 
