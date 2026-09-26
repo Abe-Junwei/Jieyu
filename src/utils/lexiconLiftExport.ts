@@ -103,10 +103,15 @@ function serializeSenseNode(
       return [`<example>${xmlForm(vernacular, source)}${translationXml}</example>`];
     })
     .join('');
+  const scientificName = sense.scientificName?.trim() ?? '';
+  const scientificNameXml =
+    scientificName.length > 0
+      ? `<field type="scientific-name">${xmlForm('und', scientificName)}</field>`
+      : '';
   const nested = liftSenseChildren(all, senseId)
     .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
     .join('');
-  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${nested}</${tag}>`;
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {

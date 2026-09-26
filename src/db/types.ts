@@ -178,6 +178,8 @@ export interface Sense {
   gloss: MultiLangString;
   definition?: MultiLangString;
   category?: string;
+  /** First LIFT sense `<field type="scientific-name"><form>` text. */
+  scientificName?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

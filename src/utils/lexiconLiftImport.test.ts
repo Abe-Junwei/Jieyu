@@ -308,6 +308,77 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.literalMeaning).toBe('domestic animal');
   });
 
+  it('reads a sense scientific name and ignores an entry-level field', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <field type="scientific-name"><form lang="en"><text>entry name</text></form></field>
+    <sense id="sense_primary">
+      <grammatical-info value="noun"/>
+      <gloss lang="eng"><text>canine</text></gloss>
+      <field type="scientific-name">
+        <form><text>nolang</text></form>
+        <form lang="en"><text>Canis familiaris</text></form>
+      </field>
+      <field type="scientific-name"><form lang="en"><text>second</text></form></field>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <field type="scientific-name"><form lang="en"><text>Canis lupus</text></form></field>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('scientificName');
+    expect(parsed.lexemes[0]?.summaryDefinition).toBeUndefined();
+    expect(parsed.lexemes[0]?.senses[0]?.scientificName).toBe('Canis familiaris');
+    expect(parsed.lexemes[0]?.senses[0]?.category).toBe('noun');
+    expect(parsed.lexemes[0]?.senses[1]?.scientificName).toBe('Canis lupus');
+  });
+
+  it('round-trips sense scientific names and drops them when the sense field is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          { ...dog.senses[0]!, scientificName: 'Canis familiaris' },
+          { ...dog.senses[1]!, scientificName: 'Canis lupus' },
+        ],
+      },
+    ]);
+    expect(xml).toContain(
+      '<field type="scientific-name"><form lang="und"><text>Canis familiaris</text></form></field>',
+    );
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.scientificName).toBe('Canis familiaris');
+    expect(parsed.lexemes[0]?.senses[1]?.scientificName).toBe('Canis lupus');
+
+    const bare = serializeLexemesToLift([dog]);
+    expect(bare).not.toContain('scientific-name');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [{ ...dog.senses[0]!, scientificName: 'Canis familiaris' }, dog.senses[1]!],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.scientificName).toBeUndefined();
+    expect(store[0]?.senses[0]?.category).toBe('noun');
+    expect(store[0]?.senses[1]?.scientificName).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

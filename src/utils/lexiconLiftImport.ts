@@ -130,11 +130,13 @@ function parseSense(
   const grammatical = directChildren(sense, 'grammatical-info')[0];
   const category = grammatical ? attr(grammatical, 'value') : '';
   const examples = parseExamples(sense);
+  const scientificName = parseFieldText(sense, 'scientific-name');
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
     ...(definition ? { definition } : {}),
     ...(category.length > 0 ? { category } : {}),
+    ...(scientificName.length > 0 ? { scientificName } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }

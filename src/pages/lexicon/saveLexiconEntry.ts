@@ -7,6 +7,7 @@ export type LexiconEntryScalarField =
   | 'lemma'
   | 'gloss'
   | 'category'
+  | 'scientificName'
   | 'citationForm'
   | 'language'
   | 'notes'
@@ -31,6 +32,7 @@ export type LexiconSenseDraft = {
   gloss: string;
   definition: string;
   category?: string;
+  scientificName?: string;
   examples?: LexiconExampleDraft[];
 };
 
@@ -43,6 +45,7 @@ export type LexiconEntryFields = {
   lemma: string;
   gloss: string;
   category: string;
+  scientificName: string;
   citationForm: string;
   language: string;
   notes: string;
@@ -177,6 +180,7 @@ export function applyLexiconEntryFields(
   if (lemma.length === 0) throw new Error('empty lemma');
   const gloss = fields.gloss.trim();
   const category = readCategory(fields.category);
+  const scientificName = readCategory(fields.scientificName);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -213,6 +217,7 @@ export function applyLexiconEntryFields(
       definition: _oldDefinition,
       parentId: _oldParentId,
       category: _oldCategory,
+      scientificName: _oldScientificName,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -220,6 +225,7 @@ export function applyLexiconEntryFields(
     };
     const parentId = readSenseParentId(draft);
     const senseCategory = readCategory(draft.category);
+    const senseScientificName = readCategory(draft.scientificName);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -230,6 +236,7 @@ export function applyLexiconEntryFields(
           ? { definition: writePrimaryMultiLang(previous?.definition, definitionText) }
           : {}),
         ...(senseCategory.length > 0 ? { category: senseCategory } : {}),
+        ...(senseScientificName.length > 0 ? { scientificName: senseScientificName } : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -252,6 +259,7 @@ export function applyLexiconEntryFields(
   });
   const {
     category: _oldPrimaryCategory,
+    scientificName: _oldPrimaryScientificName,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -287,6 +295,7 @@ export function applyLexiconEntryFields(
         id: primarySenseId,
         gloss: nextGloss,
         ...(category.length > 0 ? { category } : {}),
+        ...(scientificName.length > 0 ? { scientificName } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,
