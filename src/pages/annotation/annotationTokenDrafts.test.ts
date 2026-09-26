@@ -16,9 +16,12 @@ const TOKEN: AnnotationIgtToken = {
 };
 
 describe('annotationTokenDrafts', () => {
-  it('prefers default gloss lang and otherwise the first non-empty key', () => {
+  it('writes the lang key that the displayed gloss came from', () => {
     expect(resolveAnnotationGlossWriteLang(undefined)).toBe('default');
-    expect(resolveAnnotationGlossWriteLang({ default: '', eng: 'hi' })).toBe('default');
+    expect(resolveAnnotationGlossWriteLang({})).toBe('default');
+    expect(resolveAnnotationGlossWriteLang({ default: 'hi', eng: 'hello' })).toBe('default');
+    expect(resolveAnnotationGlossWriteLang({ default: '', eng: 'hi' })).toBe('eng');
+    expect(resolveAnnotationGlossWriteLang({ default: '  ', eng: 'hi' })).toBe('eng');
     expect(resolveAnnotationGlossWriteLang({ eng: 'hi', cmn: '你好' })).toBe('eng');
   });
 

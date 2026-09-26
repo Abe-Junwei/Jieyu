@@ -2,8 +2,13 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
+import type { UnitMorphemeDocType } from '../../types/jieyuDbDocTypes';
 import { planMorphemeFormsFromToken } from './annotationMorphemeDrafts';
-import { buildSeedMorphemes, saveAnnotationMorphemesForToken } from './saveAnnotationMorphemes';
+import {
+  buildSeedMorphemes,
+  mapStoredMorphemes,
+  saveAnnotationMorphemesForToken,
+} from './saveAnnotationMorphemes';
 
 describe('saveAnnotationMorphemesForToken', () => {
   const now = '2026-09-04T16:00:00.000Z';
@@ -46,5 +51,52 @@ describe('saveAnnotationMorphemesForToken', () => {
 
     const requery = await LinguisticService.units.listMorphemesByTokenIds(['tok-morph-1']);
     expect(requery.map((row) => row.id)).toEqual(seeded.map((row) => row.id));
+  });
+});
+
+describe('mapStoredMorphemes', () => {
+  const now = '2026-09-04T16:00:00.000Z';
+
+  function row(patch: Pick<UnitMorphemeDocType, 'form' | 'gloss'>): UnitMorphemeDocType {
+    return {
+      id: 'mor-1',
+      textId: 'text-1',
+      unitId: 'unit-1',
+      tokenId: 'tok-1',
+      morphemeIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+      ...patch,
+    };
+  }
+
+  it('uses the displayed gloss key when gloss has text', () => {
+    expect(
+      mapStoredMorphemes([
+        row({ form: { default: 'dog' }, gloss: { default: '', eng: 'canine' } }),
+      ]),
+    ).toEqual([
+      {
+        id: 'mor-1',
+        tokenId: 'tok-1',
+        form: 'dog',
+        gloss: 'canine',
+        glossLang: 'eng',
+        morphemeIndex: 0,
+      },
+    ]);
+  });
+
+  it('uses the displayed form key when gloss is blank', () => {
+    expect(mapStoredMorphemes([row({ form: { eng: 'dog' }, gloss: { default: '' } })])).toEqual([
+      {
+        id: 'mor-1',
+        tokenId: 'tok-1',
+        form: 'dog',
+        gloss: '',
+        glossLang: 'eng',
+        morphemeIndex: 0,
+      },
+    ]);
   });
 });
