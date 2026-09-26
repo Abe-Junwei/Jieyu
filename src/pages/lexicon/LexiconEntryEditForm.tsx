@@ -114,6 +114,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('scientificName', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.anthropologyNoteLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-anthropology-note"
+          value={editor.fields.anthropologyNote}
+          onChange={(event) => editor.onFieldChange('anthropologyNote', event.target.value)}
+        />
+      </label>
       <SenseExampleFields
         locale={locale}
         examples={editor.fields.examples}
@@ -173,6 +182,17 @@ export function LexiconEntryEditForm({ editor }: Props) {
                 value={sense.scientificName ?? ''}
                 onChange={(event) =>
                   editor.onExtraSenseChange(index, 'scientificName', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseAnthropologyNoteLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-anthropology-note`}
+                value={sense.anthropologyNote ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'anthropologyNote', event.target.value)
                 }
               />
             </label>
