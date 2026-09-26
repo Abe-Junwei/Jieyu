@@ -96,6 +96,16 @@ function mountApp(): void {
 /** B-1 + B-5：首屏门闩 — 当前界面语言词表与 VAD 浏览器后端并行就绪后再挂载根组件。 */
 void (async () => {
   try {
+    const { dropDevServiceWorkerRegistration } = await import('./utils/devRuntimeRecovery');
+    const droppedStaleWorker = await dropDevServiceWorkerRegistration();
+    if (droppedStaleWorker) {
+      window.location.reload();
+      return;
+    }
+  } catch (error) {
+    log.warn('dev service worker recovery failed; continuing boot', { err: error });
+  }
+  try {
     const { detectLocale, preloadLocaleDictionary } = await import('./i18n');
     const locale = detectLocale();
     await Promise.all([
