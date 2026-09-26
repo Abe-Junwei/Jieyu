@@ -1,0 +1,142 @@
+<?xml version='1.0' encoding='utf-8'?>
+<lift producer="SIL.FLEx 9.0.17.44391" version="0.13">
+<!-- Excerpt of the first 8 entries, distributed with fmatter/cldflex under Apache-2.0. --><header>
+<ranges>
+<range id="dialect" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="etymology" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="grammatical-info" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="lexical-relation" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="note-type" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="paradigm" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="reversal-type" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="semantic-domain-ddp4" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="status" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="users" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="location" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+
+<range id="anthro-code" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="translation-type" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+
+<range id="from-part-of-speech" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="morph-type" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="exception-feature" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="inflection-feature" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="inflection-feature-type" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+<range id="do-not-publish-in" href="file:///home/florianm/Dropbox/development/cldflex/var/apalai/apalai.lift-ranges" />
+</ranges>
+<fields>
+<field tag="cv-pattern">
+<form lang="en"><text>This records the syllable pattern for a LexPronunciation in FieldWorks.</text></form>
+</field>
+<field tag="tone">
+<form lang="en"><text>This records the tone information for a LexPronunciation in FieldWorks.</text></form>
+</field>
+<field tag="comment">
+<form lang="en"><text>This records a comment (note) in a LexEtymology in FieldWorks.</text></form>
+</field>
+<field tag="import-residue">
+<form lang="en"><text>This records residue left over from importing a standard format file into FieldWorks (or LinguaLinks).</text></form>
+</field>
+<field tag="literal-meaning">
+<form lang="en"><text>This field is used to store a literal meaning of the entry.  Typically, this field is necessary only for a compound or an idiom where the meaning of the whole is different from the sum of its parts.</text></form>
+</field>
+<field tag="summary-definition">
+<form lang="en"><text>A summary definition (located at the entry level in the Entry pane) is a general definition summarizing all the senses of a primary entry. It has no theoretical value; its use is solely pragmatic.</text></form>
+</field>
+<field tag="scientific-name">
+<form lang="en"><text>This field stores the scientific name pertinent to the current sense.</text></form>
+</field>
+</fields>
+</header>
+<entry dateCreated="2022-11-11T16:53:50Z" dateModified="2022-11-11T16:53:50Z" id="kae_0120348c-3314-4b4a-b1a7-af670f998f36" guid="0120348c-3314-4b4a-b1a7-af670f998f36">
+<lexical-unit>
+<form lang="apy"><text>kae</text></form>
+</lexical-unit>
+<trait name="morph-type" value="root" />
+<sense id="86751791-855e-43d9-98b1-6657ac110330">
+<grammatical-info value="Adverb">
+</grammatical-info>
+<gloss lang="en"><text>high</text></gloss>
+</sense>
+</entry>
+<entry dateCreated="2022-11-12T01:05:48Z" dateModified="2022-11-12T01:05:48Z" id="taky_016021f9-25e5-4201-afa8-2248c1aa7f00" guid="016021f9-25e5-4201-afa8-2248c1aa7f00">
+<lexical-unit>
+<form lang="apy"><text>taky</text></form>
+</lexical-unit>
+<trait name="morph-type" value="root" />
+<sense id="9fa89a43-3eb9-4087-9d34-ff9da3acebcf">
+<grammatical-info value="Noun">
+</grammatical-info>
+<gloss lang="en"><text>bow</text></gloss>
+</sense>
+</entry>
+<entry dateCreated="2022-11-14T22:55:20Z" dateModified="2022-11-14T22:55:20Z" id="ywy_04f7475f-f1e6-49da-b26e-1bf38424f539" guid="04f7475f-f1e6-49da-b26e-1bf38424f539">
+<lexical-unit>
+<form lang="apy"><text>ywy</text></form>
+</lexical-unit>
+<trait name="morph-type" value="root" />
+<sense id="351d2ad7-de22-49d2-a9df-330045a9f549">
+<grammatical-info value="Pronoun">
+</grammatical-info>
+<gloss lang="en"><text>1</text></gloss>
+</sense>
+</entry>
+<entry dateCreated="2022-11-11T23:42:46Z" dateModified="2022-11-15T05:34:30Z" id="-no1_061e8b95-05d4-4100-965e-fb2fc225dfda" guid="061e8b95-05d4-4100-965e-fb2fc225dfda" order="1">
+<lexical-unit>
+<form lang="apy"><text>-no</text></form>
+</lexical-unit>
+<trait name="morph-type" value="suffix" />
+<sense id="c9997b50-01e4-476c-88b6-d448e3277903">
+<grammatical-info value="Verb">
+<trait name="type" value="inflAffix" />
+</grammatical-info>
+<gloss lang="en"><text>HORT</text></gloss>
+</sense>
+</entry>
+<entry dateCreated="2022-11-14T23:14:34Z" dateModified="2022-11-14T23:14:34Z" id="-hnao_06766d5b-eac6-4f3b-9a53-a6fc8b5f90fc" guid="06766d5b-eac6-4f3b-9a53-a6fc8b5f90fc">
+<lexical-unit>
+<form lang="apy"><text>-hnao</text></form>
+</lexical-unit>
+<trait name="morph-type" value="suffix" />
+<sense id="98bfbd66-1b3b-4ed8-b27b-455ee42a24cc">
+<grammatical-info value="Adverb">
+<trait name="type" value="derivAffix" />
+<trait name="from-part-of-speech" value="Noun" />
+</grammatical-info>
+<gloss lang="en"><text>PRIV.ADVZ</text></gloss>
+</sense>
+</entry>
+<entry dateCreated="2022-11-11T17:00:02Z" dateModified="2022-11-11T17:00:02Z" id="kakoxi_088662ea-b4b9-42f4-a8b2-ced25656d52f" guid="088662ea-b4b9-42f4-a8b2-ced25656d52f">
+<lexical-unit>
+<form lang="apy"><text>kakoxi</text></form>
+</lexical-unit>
+<trait name="morph-type" value="root" />
+<sense id="24dacbbd-866c-4f22-a010-8b7879d912cc">
+<grammatical-info value="Adverb">
+</grammatical-info>
+<gloss lang="en"><text>above</text></gloss>
+</sense>
+</entry>
+<entry dateCreated="2022-11-11T16:48:49Z" dateModified="2022-11-11T16:48:49Z" id="rahkene_0b0d5da3-a94c-4fd8-9a58-870c3e30609b" guid="0b0d5da3-a94c-4fd8-9a58-870c3e30609b">
+<lexical-unit>
+<form lang="apy"><text>rahkene</text></form>
+</lexical-unit>
+<trait name="morph-type" value="root" />
+<sense id="046589c6-eb1d-4d42-bdd3-f7c86bed8e00">
+<grammatical-info value="Particle">
+</grammatical-info>
+<gloss lang="en"><text>really</text></gloss>
+</sense>
+</entry>
+<entry dateCreated="2022-11-22T04:54:41Z" dateModified="2022-11-22T04:54:41Z" id="poeto_0d8fdbc4-52fe-4be4-8b6b-3a6b7db0e02b" guid="0d8fdbc4-52fe-4be4-8b6b-3a6b7db0e02b">
+<lexical-unit>
+<form lang="apy"><text>poeto</text></form>
+</lexical-unit>
+<trait name="morph-type" value="stem" />
+<sense id="ab38e3ff-b00e-438f-94ae-15b4e6c66ff5">
+<grammatical-info value="Noun">
+</grammatical-info>
+<gloss lang="en"><text>child</text></gloss>
+</sense>
+</entry>
+</lift>

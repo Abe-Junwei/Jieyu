@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "path": "elan/fanbyak-ws1-4a.eaf",
+      "format": "eaf",
+      "language": "Fanbyak",
+      "family": "Austronesian, Oceanic",
+      "region": "Vanuatu",
+      "license": "CC-BY-4.0",
+      "excerpt": false,
+      "source": "Franjieh, Michael. 2024. Fanbyak DoReCo dataset. DoReCo 2.0.",
+      "doi": "10.34847/nkl.02084446",
+      "origin": "ELAR http://hdl.handle.net/2196/00-0000-0000-0011-70E5-9"
+    },
+    {
+      "path": "elan/sumi-pearstory.eaf",
+      "format": "eaf",
+      "language": "Sümi",
+      "family": "Sino-Tibetan",
+      "region": "Nagaland, India",
+      "license": "CC-BY-4.0",
+      "excerpt": false,
+      "source": "Teo, Amos. 2024. Sümi DoReCo dataset. DoReCo 2.0.",
+      "doi": "10.34847/nkl.5ad4t01p",
+      "origin": "PARADISEC https://dx.doi.org/10.26278/5df25604792f4"
+    },
+    {
+      "path": "elan/evenki-hantayskoye.eaf",
+      "format": "eaf",
+      "language": "Evenki",
+      "family": "Tungusic",
+      "region": "Siberia",
+      "license": "CC-BY-4.0",
+      "excerpt": true,
+      "source": "Kazakevich, Olga and Elena Klyachko. 2024. Evenki DoReCo dataset. DoReCo 2.0.",
+      "doi": "10.34847/nkl.5e0d27cu"
+    },
+    {
+      "path": "elan/nng-nf091001.eaf",
+      "format": "eaf",
+      "language": "Nǁng",
+      "family": "Tuu",
+      "region": "South Africa",
+      "license": "CC-BY-4.0",
+      "excerpt": true,
+      "source": "Güldemann, Tom, Martina Ernszt, Sven Siegmund and Alena Witzlack-Makarevich. 2024. Nǁng DoReCo dataset. DoReCo 2.0.",
+      "doi": "10.34847/nkl.f6c37fi0"
+    },
+    {
+      "path": "elan/goemai-musu.eaf",
+      "format": "eaf",
+      "language": "Goemai",
+      "family": "Afro-Asiatic, Chadic",
+      "region": "Nigeria",
+      "license": "CC-BY-4.0",
+      "excerpt": true,
+      "source": "Hellwig, Birgit. 2024. Goemai DoReCo dataset. DoReCo 2.0.",
+      "doi": "10.34847/nkl.b93664ml",
+      "origin": "TLA https://hdl.handle.net/1839/00-0000-0000-0000-6B5E-B"
+    },
+    {
+      "path": "elan/ruuli-sokoso.eaf",
+      "format": "eaf",
+      "language": "Ruuli",
+      "family": "Atlantic-Congo, Bantu",
+      "region": "Uganda",
+      "license": "CC-BY-4.0",
+      "excerpt": true,
+      "source": "Witzlack-Makarevich, Alena, Saudah Namyalo, Anatol Kiriggwajjo and Zarina Molochieva. 2024. Ruuli DoReCo dataset. DoReCo 2.0.",
+      "doi": "10.34847/nkl.fde4pp1u"
+    },
+    {
+      "path": "elan/komnzo-tci20120817.eaf",
+      "format": "eaf",
+      "language": "Komnzo",
+      "family": "Yam",
+      "region": "Papua New Guinea",
+      "license": "CC-BY-4.0",
+      "excerpt": true,
+      "source": "Döhler, Christian. 2024. Komnzo DoReCo dataset. DoReCo 2.0.",
+      "doi": "10.34847/nkl.c5e6dudv",
+      "origin": "Depositor collection https://doi.org/10.5281/zenodo.4695271"
+    },
+    {
+      "path": "elan/kurmanji-chako.eaf",
+      "format": "eaf",
+      "language": "Northern Kurdish",
+      "family": "Indo-European, Iranian",
+      "region": "Kurdistan",
+      "license": "CC-BY-4.0",
+      "excerpt": true,
+      "source": "Haig, Geoff, Maria Vollmer and Hanna Thiele. 2024. Northern Kurdish (Kurmanji) DoReCo dataset. DoReCo 2.0.",
+      "doi": "10.34847/nkl.ca10ez5t"
+    },
+    {
+      "path": "elan/toba-batak-tintin.eaf",
+      "format": "eaf",
+      "language": "Toba Batak",
+      "family": "Austronesian",
+      "region": "Sumatra, Indonesia",
+      "license": "CC-BY-4.0",
+      "excerpt": false,
+      "source": "Br Marpaung, Magdalena. 2026. The ELAN Annotation. Zenodo.",
+      "doi": "10.5281/zenodo.20306721"
+    },
+    {
+      "path": "elan/okinawan-itoman-yukkanuhii.eaf",
+      "format": "eaf",
+      "language": "Itoman Okinawan",
+      "family": "Japonic, Ryukyuan",
+      "region": "Okinawa, Japan",
+      "license": "CC-BY-4.0",
+      "excerpt": true,
+      "source": "Kato, Kanji and Hideo Miyagi. 2024. A monologue narrative text of the Itoman dialect of Okinawan. Zenodo.",
+      "doi": "10.5281/zenodo.12592977"
+    },
+    {
+      "path": "flex/warao-ine-warao.flextext",
+      "format": "flextext",
+      "language": "Warao",
+      "family": "Isolate",
+      "region": "Venezuela / Guyana",
+      "license": "CC-BY-4.0",
+      "excerpt": true,
+      "source": "Guzmán Tesara, Melisa. 2024. Segmentation and glossing of Ine Warao. Zenodo.",
+      "doi": "10.5281/zenodo.10730621"
+    },
+    {
+      "path": "flex/apalai-kaikuxi.flextext",
+      "format": "flextext",
+      "language": "Apalaí",
+      "family": "Cariban",
+      "region": "Brazil",
+      "license": "Apache-2.0",
+      "excerpt": true,
+      "source": "Excerpt of Kaikuxi as distributed in fmatter/cldflex tests/data. File source field: koehn1994textos.",
+      "doi": "https://github.com/fmatter/cldflex"
+    },
+    {
+      "path": "lift/apalai-excerpt.lift",
+      "format": "lift",
+      "language": "Apalaí",
+      "family": "Cariban",
+      "region": "Brazil",
+      "license": "Apache-2.0",
+      "excerpt": true,
+      "source": "Excerpt of the LIFT lexicon distributed in fmatter/cldflex tests/data.",
+      "doi": "https://github.com/fmatter/cldflex"
+    },
+    {
+      "path": "pangloss/breton-jouitteau-excerpt.xml",
+      "format": "pangloss-xml",
+      "language": "Breton",
+      "family": "Indo-European, Celtic",
+      "region": "Brittany, France",
+      "license": "CC-BY-SA-4.0",
+      "excerpt": true,
+      "source": "Jouitteau, Mélanie. Pangloss elicitation with Janig Bodioù.",
+      "doi": "https://cocoon.huma-num.fr/data/jouitteau/JOUM_001.xml"
+    }
+  ]
+}

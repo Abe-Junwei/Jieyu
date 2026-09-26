@@ -1,0 +1,638 @@
+<?xml version='1.0' encoding='utf-8'?>
+<document version="2">
+  <!-- Excerpt of the first 4 phrases of Kaikuxi, distributed with fmatter/cldflex under Apache-2.0. Source field in the file: koehn1994textos. --><interlinear-text guid="bfd12693-a187-4dce-9a8a-bfbe9828d04c">
+    <item type="title" lang="apy">Kaikuxi</item>
+    <item type="title" lang="en">The jaguar</item>
+    <item type="title-abbreviation" lang="apy">po2</item>
+    <item type="title-abbreviation" lang="en">po2-english</item>
+    <item type="source" lang="en">koehn1994textos[po2]</item>
+    <paragraphs>
+      <paragraph guid="3af1324c-2e0a-4220-9fcc-4c38c05d7e82">
+        <phrases>
+          <phrase guid="85affd4b-785c-42a1-804d-6ce30ce45fd6">
+            <item type="segnum" lang="en">1</item>
+            <words>
+              <word guid="6c4b8bbc-a567-4ac0-b837-81c699cc6535">
+                <item type="txt" lang="apy">Sero</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">sero</item>
+                    <item type="cf" lang="apy">sero</item>
+                    <item type="gls" lang="en">PROX.INAN</item>
+                    <item type="msa" lang="en">dem</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">PROX.INAN</item>
+                <item type="pos" lang="en">dem</item>
+              </word>
+              <word guid="3eaa4e77-3508-45cf-be4a-84519403d9f6">
+                <item type="txt" lang="apy">kaikuxi</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">kaikuxi</item>
+                    <item type="cf" lang="apy">kaikuxi</item>
+                    <item type="gls" lang="en">jaguar</item>
+                    <item type="msa" lang="en">n</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">jaguar</item>
+                <item type="pos" lang="en">n</item>
+              </word>
+              <word guid="2a33db2d-dace-4b3b-93cb-0349594130fd">
+                <item type="txt" lang="apy">a</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">a</item>
+                    <item type="cf" lang="apy">a</item>
+                    <item type="hn" lang="apy">1</item>
+                    <item type="gls" lang="en">ERG</item>
+                    <item type="msa" lang="en">post</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">ERG</item>
+                <item type="pos" lang="en">post</item>
+              </word>
+              <word guid="f23cf4b4-ab7b-4484-ad50-9dd6f438ba0c">
+                <item type="txt" lang="apy">ahno</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">ahno</item>
+                    <item type="cf" lang="apy">ahno</item>
+                    <item type="gls" lang="en">people</item>
+                    <item type="msa" lang="en">n</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">people</item>
+                <item type="pos" lang="en">n</item>
+              </word>
+              <word guid="a0a9d6f5-d930-406e-9694-9f08fac65e16">
+                <item type="txt" lang="apy">ekahmatopõpyry</item>
+              </word>
+              <word>
+                <item type="punct" lang="apy">.</item>
+              </word>
+            </words>
+            <item type="gls" lang="en">This is about a jaguar who followed people.</item>
+          </phrase>
+        </phrases>
+      </paragraph>
+      <paragraph guid="99d01436-08ef-41a7-b52e-12255a0159ed">
+        <phrases>
+          <phrase guid="b3aeaf1d-d7e0-4c3e-8159-d4f38167cca1">
+            <item type="segnum" lang="en">2</item>
+            <words>
+              <word guid="b66012e6-1304-4ea3-8a24-533fcd0d9279">
+                <item type="txt" lang="apy">Mame</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">mame</item>
+                    <item type="cf" lang="apy">mame</item>
+                    <item type="gls" lang="en">then</item>
+                    <item type="msa" lang="en">prt</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">then</item>
+                <item type="pos" lang="en">prt</item>
+              </word>
+              <word guid="f5b1a6ac-da45-4db5-894b-7607d04dad35">
+                <item type="txt" lang="apy">arimi</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">arimi</item>
+                    <item type="cf" lang="apy">arimi</item>
+                    <item type="gls" lang="en">spider monkey</item>
+                    <item type="msa" lang="en">n</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">spider monkey</item>
+                <item type="pos" lang="en">n</item>
+              </word>
+              <word guid="3a585eb2-8394-4667-8ed0-2d073f9f7e0e">
+                <item type="txt" lang="apy">wose</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">wo</item>
+                    <item type="cf" lang="apy">wo</item>
+                    <item type="gls" lang="en">shoot</item>
+                    <item type="msa" lang="en">vt</item>
+                  </morph>
+                  <morph type="suffix" guid="d7f713dd-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">-se</item>
+                    <item type="cf" lang="apy">-se</item>
+                    <item type="gls" lang="en">SUP</item>
+                    <item type="msa" lang="en">v&gt;adv</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">shoot</item>
+                <item type="pos" lang="en">vt</item>
+              </word>
+              <word guid="84d04646-5e1e-4954-9586-ea23e0cf3f0c">
+                <item type="txt" lang="apy">toytose</item>
+                <morphemes>
+                  <morph type="prefix" guid="d7f713db-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">t-</item>
+                    <item type="cf" lang="apy">t-...-se</item>
+                    <item type="gls" lang="en">PST.CPL</item>
+                    <item type="msa" lang="en">v:Any</item>
+                  </morph>
+                  <morph type="prefix" guid="d7f713db-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">o-</item>
+                    <item type="cf" lang="apy">o-</item>
+                    <item type="gls" lang="en">Sa</item>
+                    <item type="msa" lang="en">Intransitive verb</item>
+                  </morph>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">yto</item>
+                    <item type="cf" lang="apy">yto</item>
+                    <item type="gls" lang="en">go</item>
+                    <item type="msa" lang="en">vi</item>
+                  </morph>
+                  <morph type="suffix" guid="d7f713dd-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">-se</item>
+                    <item type="cf" lang="apy">t-...-se</item>
+                    <item type="gls" lang="en">PST.CPL</item>
+                    <item type="msa" lang="en">v:Any</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">go</item>
+                <item type="pos" lang="en">vi</item>
+              </word>
+              <word guid="03f15e9c-bbd5-415f-a4cb-91f8c0dfccc8">
+                <item type="txt" lang="apy">papa</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">papa</item>
+                    <item type="cf" lang="apy">papa</item>
+                    <item type="gls" lang="en">1.father</item>
+                    <item type="msa" lang="en">n</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">1.father</item>
+                <item type="pos" lang="en">n</item>
+              </word>
+              <word guid="22caee08-7411-4e01-bda9-43c28df07d85">
+                <item type="txt" lang="apy">repe</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">repe</item>
+                    <item type="cf" lang="apy">repe</item>
+                    <item type="gls" lang="en">FRUS</item>
+                    <item type="msa" lang="en">prt</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">FRUS</item>
+                <item type="pos" lang="en">prt</item>
+              </word>
+              <word>
+                <item type="punct" lang="apy">.</item>
+              </word>
+            </words>
+            <item type="gls" lang="en">My father went to hunt spider monkey.</item>
+          </phrase>
+        </phrases>
+      </paragraph>
+      <paragraph guid="88e8f549-4bd1-48ff-8c3d-44b5e542ef74">
+        <phrases>
+          <phrase guid="9818137c-a9ad-4ff9-a331-ef8d61bdf3c5">
+            <item type="segnum" lang="en">3</item>
+            <words>
+              <word guid="b66012e6-1304-4ea3-8a24-533fcd0d9279">
+                <item type="txt" lang="apy">Mame</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">mame</item>
+                    <item type="cf" lang="apy">mame</item>
+                    <item type="gls" lang="en">then</item>
+                    <item type="msa" lang="en">prt</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">then</item>
+                <item type="pos" lang="en">prt</item>
+              </word>
+              <word guid="8bb5765a-1995-4749-90b9-7f453b454d3b">
+                <item type="txt" lang="apy">akono</item>
+                <morphemes>
+                  <morph type="prefix" guid="d7f713db-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">a-</item>
+                    <item type="cf" lang="apy">a-</item>
+                    <item type="gls" lang="en">3</item>
+                    <item type="msa" lang="en">n:Any</item>
+                  </morph>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">kono</item>
+                    <item type="cf" lang="apy">kono</item>
+                    <item type="gls" lang="en">brother in law</item>
+                    <item type="msa" lang="en">n</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">brother in law</item>
+                <item type="pos" lang="en">n</item>
+              </word>
+              <word guid="84d04646-5e1e-4954-9586-ea23e0cf3f0c">
+                <item type="txt" lang="apy">toytose</item>
+                <morphemes>
+                  <morph type="prefix" guid="d7f713db-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">t-</item>
+                    <item type="cf" lang="apy">t-...-se</item>
+                    <item type="gls" lang="en">PST.CPL</item>
+                    <item type="msa" lang="en">v:Any</item>
+                  </morph>
+                  <morph type="prefix" guid="d7f713db-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">o-</item>
+                    <item type="cf" lang="apy">o-</item>
+                    <item type="gls" lang="en">Sa</item>
+                    <item type="msa" lang="en">Intransitive verb</item>
+                  </morph>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">yto</item>
+                    <item type="cf" lang="apy">yto</item>
+                    <item type="gls" lang="en">go</item>
+                    <item type="msa" lang="en">vi</item>
+                  </morph>
+                  <morph type="suffix" guid="d7f713dd-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">-se</item>
+                    <item type="cf" lang="apy">t-...-se</item>
+                    <item type="gls" lang="en">PST.CPL</item>
+                    <item type="msa" lang="en">v:Any</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">go</item>
+                <item type="pos" lang="en">vi</item>
+              </word>
+              <word guid="42ddc2ed-6b8a-401c-985b-96118a172126">
+                <item type="txt" lang="apy">moino</item>
+                <morphemes>
+                  <morph type="stem" guid="d7f713e8-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">moino</item>
+                    <item type="cf" lang="apy">moino</item>
+                    <item type="gls" lang="en">from there</item>
+                    <item type="msa" lang="en">post</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">from there</item>
+                <item type="pos" lang="en">post</item>
+              </word>
+              <word guid="a9471aa4-ff1a-41c5-9ee9-99e01973848e">
+                <item type="txt" lang="apy">pata</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">pata</item>
+                    <item type="cf" lang="apy">pata</item>
+                    <item type="gls" lang="en">village</item>
+                    <item type="msa" lang="en">n</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">village</item>
+                <item type="pos" lang="en">n</item>
+              </word>
+              <word guid="71a81604-baf3-4fa7-af65-882763b640ac">
+                <item type="txt" lang="apy">imepỹ</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">imepỹ</item>
+                    <item type="cf" lang="apy">imepỹ</item>
+                    <item type="gls" lang="en">other</item>
+                    <item type="msa" lang="en">adv</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">other</item>
+                <item type="pos" lang="en">adv</item>
+              </word>
+              <word guid="5b0a78ab-a73e-4be3-9cc3-b4fd7c6366e9">
+                <item type="txt" lang="apy">poe</item>
+                <morphemes>
+                  <morph type="stem" guid="d7f713e8-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">poe</item>
+                    <item type="cf" lang="apy">poe</item>
+                    <item type="gls" lang="en">from flat place</item>
+                    <item type="msa" lang="en">post</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">from flat place</item>
+                <item type="pos" lang="en">post</item>
+              </word>
+              <word>
+                <item type="punct" lang="apy">.</item>
+              </word>
+            </words>
+            <item type="gls" lang="en">His brother-in-law came from another village.</item>
+          </phrase>
+        </phrases>
+      </paragraph>
+      <paragraph guid="3e4c7a7f-cb67-4311-9a96-4805833a4b6e">
+        <phrases>
+          <phrase guid="165c9655-4de1-4a22-bb05-745e46eea76e">
+            <item type="segnum" lang="en">4</item>
+            <words>
+              <word guid="b66012e6-1304-4ea3-8a24-533fcd0d9279">
+                <item type="txt" lang="apy">Mame</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">mame</item>
+                    <item type="cf" lang="apy">mame</item>
+                    <item type="gls" lang="en">then</item>
+                    <item type="msa" lang="en">prt</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">then</item>
+                <item type="pos" lang="en">prt</item>
+              </word>
+              <word guid="e575d404-7899-4077-8cc2-5f122f22ff0d">
+                <item type="txt" lang="apy">tõseporyse</item>
+                <morphemes>
+                  <morph type="prefix" guid="d7f713db-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">t-</item>
+                    <item type="cf" lang="apy">t-...-se</item>
+                    <item type="gls" lang="en">PST.CPL</item>
+                    <item type="msa" lang="en">v:Any</item>
+                  </morph>
+                  <morph type="prefix" guid="d7f713db-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">o-</item>
+                    <item type="cf" lang="apy">o-</item>
+                    <item type="gls" lang="en">Sa</item>
+                    <item type="msa" lang="en">Intransitive verb</item>
+                  </morph>
+                  <morph type="prefix" guid="d7f713db-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">os-</item>
+                    <item type="cf" lang="apy">os-</item>
+                    <item type="gls" lang="en">DETRZ</item>
+                    <item type="msa" lang="en">vt&gt;vi</item>
+                  </morph>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">epory</item>
+                    <item type="cf" lang="apy">epory</item>
+                    <item type="gls" lang="en">find</item>
+                    <item type="msa" lang="en">vt</item>
+                  </morph>
+                  <morph type="suffix" guid="d7f713dd-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">-se</item>
+                    <item type="cf" lang="apy">t-...-se</item>
+                    <item type="gls" lang="en">PST.CPL</item>
+                    <item type="msa" lang="en">v:Any</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">find</item>
+                <item type="pos" lang="en">vt</item>
+              </word>
+              <word guid="b7b1492d-aa35-4e82-99d0-bd089ac79fc4">
+                <item type="txt" lang="apy">toto</item>
+                <morphemes>
+                  <morph type="root" guid="d7f713e5-e8cf-11d3-9764-00c04f186933">
+                    <item type="txt" lang="apy">toto</item>
+                    <item type="cf" lang="apy">toto</item>
+                    <item type="gls" lang="en">3PL</item>
+                    <item type="msa" lang="en">&lt;Not Sure&gt;</item>
+                  </morph>
+                </morphemes>
+                <item type="gls" lang="en">3PL</item>
+              </word>
+              <word>
+                <item type="punct" lang="apy">.</item>
+              </word>
+            </words>
+            <item type="gls" lang="en">They met up with each other.</item>
+          </phrase>
+        </phrases>
+      </paragraph>
+      <paragraph guid="9c386669-c805-41cb-8788-e4c3518e0503">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="ea22eac2-c165-4869-8d9a-ef9eaf19c37c">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="680434e7-efb3-47dc-94fc-e99e1c6f06cc">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="0ae4e2a8-313f-48c7-89db-da5c25a8a0f0">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="0d66fc88-0092-4c5d-8ebe-c56d2647292d">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="7bb61dd5-804e-4dbc-a3f9-c3e7e41617ba">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="939b2342-bbbb-45f0-9ffd-fad0ae8bd987">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="c6456ee4-a4e8-45dd-95ad-8a7fd4906ecb">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="b3b4ee40-e97f-4f01-a4fe-f59340b04af7">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="a7cafd5b-71d4-49ea-8e95-d2eeb473aa7e">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="0c0e7abb-59dc-4e58-b9df-e8d72a12ef8c">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="705a5293-fa46-44f1-9284-4a2fb3ecb01c">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="4ad0bed9-09e2-4040-a24e-0f531674b256">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="fe020ed9-37e2-4b44-a86b-be85df17db68">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="795e110d-c639-4502-a724-a0ed3a098b91">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="28aab1cc-0a05-4bac-8cff-7bc2c7fb25c1">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="17ea0c74-5088-4530-a89c-90dfc3e68c99">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="8bb34f1a-7fb1-49c6-a740-8438c91be859">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="94e9569f-6633-4ee1-a714-54b7b82142f2">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="5e089024-906b-4649-8f8b-d4c4a3ed537e">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="9b027ea5-4296-4c37-8d35-f75b596cd271">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="a47365fb-1198-4b3b-8ce8-1f8a1d9238ac">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="55a9e47f-2135-4cd8-bb11-7bed2076ccf0">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="267d3e81-065e-4ae1-a57b-8cbcbea230aa">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="cc8ae299-4fd3-4833-ab0c-c9120d40acb4">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="e4012084-3714-4c22-83e2-e7dae6a1c3ae">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="7c9513d3-1c1b-44e3-9ef0-07ad716773cf">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="7b92ae45-28f3-439f-a3b1-830e16d7e015">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="398a3bcb-b8f9-4210-91bb-6ceedbb8214a">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="c161371a-c872-4354-914f-3206b7be42c0">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="4fe026bb-1bef-4da4-b501-4f10e483bd15">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="67175c8b-f498-4b3f-b945-0383f9ecc65b">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="a38a179c-6a87-4546-a1e6-56fc47e9c127">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="585869e9-bb14-4d6d-856b-c768bcdcf4c3">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="f7c9362a-8478-4b6b-87e3-c1274a520be7">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="cc032d34-b33c-40a0-85e8-63d001c8fba9">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="bbaa6dc8-ca07-4b44-a232-e945f9f509d0">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="3436b8b7-0444-4252-bda3-907729dfd936">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="92aaef1d-dccf-4e39-97d5-3a88908dc554">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="5bccc4f3-f5a2-44d7-a267-aba983643d97">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="8bd5423f-25ed-4505-9c2a-f80399fb524a">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="e064804d-f2bb-455b-bdf0-da8102f5c5af">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="3f1e39c0-9920-4646-9c2a-8e1a473dbf91">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="9f15c232-5e87-43f8-9bcb-7d2d0a655013">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="3cde8561-5a26-4d8d-93da-f3d2c0c4f688">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="f243a882-fd7d-41b0-807d-61cb32aa627a">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="8f74f3e6-4e7a-4474-a71d-c810092ac7de">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="6efb8876-9e84-4267-a054-f885ad6c452f">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="def73e85-77bd-4948-80ba-0ffdd8c0a37c">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="0273cbbb-8bc3-4fab-a9d2-862a44772c26">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="0fb7607c-5885-49a2-a579-c459f04580d9">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="5f9356ad-04ef-439c-afaa-d3fa207e4554">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="21569b0d-7444-42aa-ad8f-ee55c45876cf">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="7fe7f300-81e7-4e84-a7cd-291b115286e1">
+        <phrases>
+          </phrases>
+      </paragraph>
+      <paragraph guid="855f8a3a-45fd-44fb-9c48-697c85049eaa">
+        <phrases>
+          </phrases>
+      </paragraph>
+    </paragraphs>
+    <languages>
+      <language lang="apy" font="Charis SIL" vernacular="true" />
+      <language lang="en" font="Times New Roman" />
+    </languages>
+  </interlinear-text>
+  <interlinear-text guid="07f074ba-8d54-41ea-a2d7-9a334860ffea">
+    <item type="title" lang="apy">Urakanase ytotopõpo poko</item>
+    <item type="title" lang="en">About a hunting trip</item>
+    <item type="title-abbreviation" lang="en">ner1</item>
+    <paragraphs>
+      <paragraph guid="14acce27-3d04-4878-bdc4-dd0349ce85e8">
+        <phrases>
+          </phrases>
+      </paragraph>
+    </paragraphs>
+    <languages>
+      <language lang="apy" font="Charis SIL" vernacular="true" />
+      <language lang="en" font="Times New Roman" />
+    </languages>
+  </interlinear-text>
+</document>

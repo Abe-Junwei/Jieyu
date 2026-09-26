@@ -1,0 +1,766 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="" DATE="2026-01-01T14:05:15+08:00"
+    FORMAT="3.0" VERSION="3.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.mpi.nl/tools/elan/EAFv3.0.xsd">
+    <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+        <MEDIA_DESCRIPTOR
+            MEDIA_URL="file:///C:/Users/ACER/Downloads/yt1z.net - ADAT BATAK - PASAHAT TINTIN MARAKKUP (320 KBps) (1).wav" MIME_TYPE="audio/x-wav"/>
+        <PROPERTY NAME="URN">urn:nl-mpi-tools-elan-eaf:5b3001e9-07c1-4e97-86a2-be7298c47d2a</PROPERTY>
+        <PROPERTY NAME="lastUsedAnnotationId">92</PROPERTY>
+    </HEADER>
+    <TIME_ORDER>
+        <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="53690"/>
+        <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="55720"/>
+        <TIME_SLOT TIME_SLOT_ID="ts3" TIME_VALUE="57290"/>
+        <TIME_SLOT TIME_SLOT_ID="ts4" TIME_VALUE="60940"/>
+        <TIME_SLOT TIME_SLOT_ID="ts5" TIME_VALUE="61880"/>
+        <TIME_SLOT TIME_SLOT_ID="ts6" TIME_VALUE="71340"/>
+        <TIME_SLOT TIME_SLOT_ID="ts7" TIME_VALUE="72940"/>
+        <TIME_SLOT TIME_SLOT_ID="ts8" TIME_VALUE="77550"/>
+        <TIME_SLOT TIME_SLOT_ID="ts9" TIME_VALUE="78700"/>
+        <TIME_SLOT TIME_SLOT_ID="ts10" TIME_VALUE="83320"/>
+        <TIME_SLOT TIME_SLOT_ID="ts11" TIME_VALUE="84560"/>
+        <TIME_SLOT TIME_SLOT_ID="ts12" TIME_VALUE="88350"/>
+        <TIME_SLOT TIME_SLOT_ID="ts13" TIME_VALUE="88700"/>
+        <TIME_SLOT TIME_SLOT_ID="ts14" TIME_VALUE="90970"/>
+        <TIME_SLOT TIME_SLOT_ID="ts15" TIME_VALUE="91190"/>
+        <TIME_SLOT TIME_SLOT_ID="ts16" TIME_VALUE="93310"/>
+        <TIME_SLOT TIME_SLOT_ID="ts17" TIME_VALUE="93660"/>
+        <TIME_SLOT TIME_SLOT_ID="ts18" TIME_VALUE="95700"/>
+        <TIME_SLOT TIME_SLOT_ID="ts19" TIME_VALUE="96670"/>
+        <TIME_SLOT TIME_SLOT_ID="ts20" TIME_VALUE="100860"/>
+        <TIME_SLOT TIME_SLOT_ID="ts21" TIME_VALUE="101220"/>
+        <TIME_SLOT TIME_SLOT_ID="ts22" TIME_VALUE="106060"/>
+        <TIME_SLOT TIME_SLOT_ID="ts23" TIME_VALUE="106590"/>
+        <TIME_SLOT TIME_SLOT_ID="ts24" TIME_VALUE="110200"/>
+        <TIME_SLOT TIME_SLOT_ID="ts25" TIME_VALUE="111550"/>
+        <TIME_SLOT TIME_SLOT_ID="ts26" TIME_VALUE="112720"/>
+        <TIME_SLOT TIME_SLOT_ID="ts27" TIME_VALUE="112860"/>
+        <TIME_SLOT TIME_SLOT_ID="ts28" TIME_VALUE="114300"/>
+        <TIME_SLOT TIME_SLOT_ID="ts29" TIME_VALUE="115370"/>
+        <TIME_SLOT TIME_SLOT_ID="ts30" TIME_VALUE="116380"/>
+        <TIME_SLOT TIME_SLOT_ID="ts31" TIME_VALUE="116900"/>
+        <TIME_SLOT TIME_SLOT_ID="ts32" TIME_VALUE="118100"/>
+        <TIME_SLOT TIME_SLOT_ID="ts33" TIME_VALUE="118880"/>
+        <TIME_SLOT TIME_SLOT_ID="ts34" TIME_VALUE="120070"/>
+        <TIME_SLOT TIME_SLOT_ID="ts35" TIME_VALUE="120710"/>
+        <TIME_SLOT TIME_SLOT_ID="ts36" TIME_VALUE="123040"/>
+        <TIME_SLOT TIME_SLOT_ID="ts37" TIME_VALUE="123670"/>
+        <TIME_SLOT TIME_SLOT_ID="ts38" TIME_VALUE="125920"/>
+        <TIME_SLOT TIME_SLOT_ID="ts39" TIME_VALUE="126370"/>
+        <TIME_SLOT TIME_SLOT_ID="ts40" TIME_VALUE="128040"/>
+        <TIME_SLOT TIME_SLOT_ID="ts41" TIME_VALUE="128810"/>
+        <TIME_SLOT TIME_SLOT_ID="ts42" TIME_VALUE="130050"/>
+        <TIME_SLOT TIME_SLOT_ID="ts43" TIME_VALUE="130660"/>
+        <TIME_SLOT TIME_SLOT_ID="ts44" TIME_VALUE="132690"/>
+        <TIME_SLOT TIME_SLOT_ID="ts45" TIME_VALUE="133440"/>
+        <TIME_SLOT TIME_SLOT_ID="ts46" TIME_VALUE="136900"/>
+        <TIME_SLOT TIME_SLOT_ID="ts47" TIME_VALUE="137540"/>
+        <TIME_SLOT TIME_SLOT_ID="ts48" TIME_VALUE="139190"/>
+        <TIME_SLOT TIME_SLOT_ID="ts49" TIME_VALUE="139990"/>
+        <TIME_SLOT TIME_SLOT_ID="ts50" TIME_VALUE="141010"/>
+        <TIME_SLOT TIME_SLOT_ID="ts51" TIME_VALUE="141580"/>
+        <TIME_SLOT TIME_SLOT_ID="ts52" TIME_VALUE="144950"/>
+        <TIME_SLOT TIME_SLOT_ID="ts53" TIME_VALUE="145410"/>
+        <TIME_SLOT TIME_SLOT_ID="ts54" TIME_VALUE="147300"/>
+        <TIME_SLOT TIME_SLOT_ID="ts55" TIME_VALUE="147740"/>
+        <TIME_SLOT TIME_SLOT_ID="ts56" TIME_VALUE="151020"/>
+        <TIME_SLOT TIME_SLOT_ID="ts57" TIME_VALUE="151520"/>
+        <TIME_SLOT TIME_SLOT_ID="ts58" TIME_VALUE="155360"/>
+        <TIME_SLOT TIME_SLOT_ID="ts59" TIME_VALUE="155700"/>
+        <TIME_SLOT TIME_SLOT_ID="ts60" TIME_VALUE="159750"/>
+        <TIME_SLOT TIME_SLOT_ID="ts61" TIME_VALUE="163380"/>
+        <TIME_SLOT TIME_SLOT_ID="ts62" TIME_VALUE="165060"/>
+        <TIME_SLOT TIME_SLOT_ID="ts63" TIME_VALUE="166100"/>
+        <TIME_SLOT TIME_SLOT_ID="ts64" TIME_VALUE="167790"/>
+        <TIME_SLOT TIME_SLOT_ID="ts65" TIME_VALUE="168380"/>
+        <TIME_SLOT TIME_SLOT_ID="ts66" TIME_VALUE="169210"/>
+        <TIME_SLOT TIME_SLOT_ID="ts67" TIME_VALUE="170820"/>
+        <TIME_SLOT TIME_SLOT_ID="ts68" TIME_VALUE="173310"/>
+        <TIME_SLOT TIME_SLOT_ID="ts69" TIME_VALUE="174200"/>
+        <TIME_SLOT TIME_SLOT_ID="ts70" TIME_VALUE="175180"/>
+        <TIME_SLOT TIME_SLOT_ID="ts71" TIME_VALUE="177050"/>
+        <TIME_SLOT TIME_SLOT_ID="ts72" TIME_VALUE="178120"/>
+        <TIME_SLOT TIME_SLOT_ID="ts73" TIME_VALUE="178520"/>
+        <TIME_SLOT TIME_SLOT_ID="ts74" TIME_VALUE="180070"/>
+        <TIME_SLOT TIME_SLOT_ID="ts75" TIME_VALUE="181050"/>
+        <TIME_SLOT TIME_SLOT_ID="ts76" TIME_VALUE="183250"/>
+        <TIME_SLOT TIME_SLOT_ID="ts77" TIME_VALUE="183420"/>
+        <TIME_SLOT TIME_SLOT_ID="ts78" TIME_VALUE="184210"/>
+        <TIME_SLOT TIME_SLOT_ID="ts79" TIME_VALUE="185740"/>
+        <TIME_SLOT TIME_SLOT_ID="ts80" TIME_VALUE="188500"/>
+        <TIME_SLOT TIME_SLOT_ID="ts81" TIME_VALUE="190060"/>
+        <TIME_SLOT TIME_SLOT_ID="ts82" TIME_VALUE="191620"/>
+        <TIME_SLOT TIME_SLOT_ID="ts83" TIME_VALUE="192750"/>
+        <TIME_SLOT TIME_SLOT_ID="ts84" TIME_VALUE="194720"/>
+        <TIME_SLOT TIME_SLOT_ID="ts85" TIME_VALUE="195800"/>
+        <TIME_SLOT TIME_SLOT_ID="ts86" TIME_VALUE="197090"/>
+        <TIME_SLOT TIME_SLOT_ID="ts87" TIME_VALUE="197910"/>
+        <TIME_SLOT TIME_SLOT_ID="ts88" TIME_VALUE="199110"/>
+        <TIME_SLOT TIME_SLOT_ID="ts89" TIME_VALUE="200250"/>
+        <TIME_SLOT TIME_SLOT_ID="ts90" TIME_VALUE="201250"/>
+        <TIME_SLOT TIME_SLOT_ID="ts91" TIME_VALUE="201990"/>
+        <TIME_SLOT TIME_SLOT_ID="ts92" TIME_VALUE="203090"/>
+        <TIME_SLOT TIME_SLOT_ID="ts93" TIME_VALUE="205230"/>
+        <TIME_SLOT TIME_SLOT_ID="ts94" TIME_VALUE="206800"/>
+        <TIME_SLOT TIME_SLOT_ID="ts95" TIME_VALUE="207480"/>
+        <TIME_SLOT TIME_SLOT_ID="ts96" TIME_VALUE="209240"/>
+        <TIME_SLOT TIME_SLOT_ID="ts97" TIME_VALUE="209780"/>
+        <TIME_SLOT TIME_SLOT_ID="ts98" TIME_VALUE="211100"/>
+        <TIME_SLOT TIME_SLOT_ID="ts99" TIME_VALUE="211660"/>
+        <TIME_SLOT TIME_SLOT_ID="ts100" TIME_VALUE="212860"/>
+        <TIME_SLOT TIME_SLOT_ID="ts101" TIME_VALUE="214230"/>
+        <TIME_SLOT TIME_SLOT_ID="ts102" TIME_VALUE="214900"/>
+        <TIME_SLOT TIME_SLOT_ID="ts103" TIME_VALUE="215450"/>
+        <TIME_SLOT TIME_SLOT_ID="ts104" TIME_VALUE="217690"/>
+        <TIME_SLOT TIME_SLOT_ID="ts105" TIME_VALUE="218850"/>
+        <TIME_SLOT TIME_SLOT_ID="ts106" TIME_VALUE="221330"/>
+        <TIME_SLOT TIME_SLOT_ID="ts107" TIME_VALUE="222370"/>
+        <TIME_SLOT TIME_SLOT_ID="ts108" TIME_VALUE="223640"/>
+        <TIME_SLOT TIME_SLOT_ID="ts109" TIME_VALUE="224300"/>
+        <TIME_SLOT TIME_SLOT_ID="ts110" TIME_VALUE="225660"/>
+        <TIME_SLOT TIME_SLOT_ID="ts111" TIME_VALUE="226260"/>
+        <TIME_SLOT TIME_SLOT_ID="ts112" TIME_VALUE="230100"/>
+        <TIME_SLOT TIME_SLOT_ID="ts113" TIME_VALUE="231310"/>
+        <TIME_SLOT TIME_SLOT_ID="ts114" TIME_VALUE="232520"/>
+        <TIME_SLOT TIME_SLOT_ID="ts115" TIME_VALUE="233470"/>
+        <TIME_SLOT TIME_SLOT_ID="ts116" TIME_VALUE="235070"/>
+        <TIME_SLOT TIME_SLOT_ID="ts117" TIME_VALUE="236910"/>
+        <TIME_SLOT TIME_SLOT_ID="ts118" TIME_VALUE="238970"/>
+        <TIME_SLOT TIME_SLOT_ID="ts119" TIME_VALUE="240140"/>
+        <TIME_SLOT TIME_SLOT_ID="ts120" TIME_VALUE="242230"/>
+        <TIME_SLOT TIME_SLOT_ID="ts121" TIME_VALUE="243050"/>
+        <TIME_SLOT TIME_SLOT_ID="ts122" TIME_VALUE="244890"/>
+        <TIME_SLOT TIME_SLOT_ID="ts123" TIME_VALUE="245080"/>
+        <TIME_SLOT TIME_SLOT_ID="ts124" TIME_VALUE="247200"/>
+        <TIME_SLOT TIME_SLOT_ID="ts125" TIME_VALUE="248560"/>
+        <TIME_SLOT TIME_SLOT_ID="ts126" TIME_VALUE="249690"/>
+        <TIME_SLOT TIME_SLOT_ID="ts127" TIME_VALUE="251410"/>
+        <TIME_SLOT TIME_SLOT_ID="ts128" TIME_VALUE="254070"/>
+        <TIME_SLOT TIME_SLOT_ID="ts129" TIME_VALUE="254960"/>
+        <TIME_SLOT TIME_SLOT_ID="ts130" TIME_VALUE="257200"/>
+        <TIME_SLOT TIME_SLOT_ID="ts131" TIME_VALUE="258560"/>
+        <TIME_SLOT TIME_SLOT_ID="ts132" TIME_VALUE="259820"/>
+        <TIME_SLOT TIME_SLOT_ID="ts133" TIME_VALUE="260270"/>
+        <TIME_SLOT TIME_SLOT_ID="ts134" TIME_VALUE="261770"/>
+        <TIME_SLOT TIME_SLOT_ID="ts135" TIME_VALUE="262860"/>
+        <TIME_SLOT TIME_SLOT_ID="ts136" TIME_VALUE="264380"/>
+        <TIME_SLOT TIME_SLOT_ID="ts137" TIME_VALUE="265000"/>
+        <TIME_SLOT TIME_SLOT_ID="ts138" TIME_VALUE="266390"/>
+        <TIME_SLOT TIME_SLOT_ID="ts139" TIME_VALUE="267040"/>
+        <TIME_SLOT TIME_SLOT_ID="ts140" TIME_VALUE="269220"/>
+        <TIME_SLOT TIME_SLOT_ID="ts141" TIME_VALUE="269870"/>
+        <TIME_SLOT TIME_SLOT_ID="ts142" TIME_VALUE="271720"/>
+        <TIME_SLOT TIME_SLOT_ID="ts143" TIME_VALUE="272150"/>
+        <TIME_SLOT TIME_SLOT_ID="ts144" TIME_VALUE="272970"/>
+        <TIME_SLOT TIME_SLOT_ID="ts145" TIME_VALUE="274500"/>
+        <TIME_SLOT TIME_SLOT_ID="ts146" TIME_VALUE="275710"/>
+        <TIME_SLOT TIME_SLOT_ID="ts147" TIME_VALUE="276410"/>
+        <TIME_SLOT TIME_SLOT_ID="ts148" TIME_VALUE="279760"/>
+        <TIME_SLOT TIME_SLOT_ID="ts149" TIME_VALUE="280340"/>
+        <TIME_SLOT TIME_SLOT_ID="ts150" TIME_VALUE="282980"/>
+        <TIME_SLOT TIME_SLOT_ID="ts151" TIME_VALUE="284880"/>
+        <TIME_SLOT TIME_SLOT_ID="ts152" TIME_VALUE="285830"/>
+        <TIME_SLOT TIME_SLOT_ID="ts153" TIME_VALUE="286520"/>
+        <TIME_SLOT TIME_SLOT_ID="ts154" TIME_VALUE="291980"/>
+        <TIME_SLOT TIME_SLOT_ID="ts155" TIME_VALUE="292930"/>
+        <TIME_SLOT TIME_SLOT_ID="ts156" TIME_VALUE="294110"/>
+        <TIME_SLOT TIME_SLOT_ID="ts157" TIME_VALUE="294850"/>
+        <TIME_SLOT TIME_SLOT_ID="ts158" TIME_VALUE="297540"/>
+        <TIME_SLOT TIME_SLOT_ID="ts159" TIME_VALUE="298370"/>
+        <TIME_SLOT TIME_SLOT_ID="ts160" TIME_VALUE="300070"/>
+        <TIME_SLOT TIME_SLOT_ID="ts161" TIME_VALUE="300320"/>
+        <TIME_SLOT TIME_SLOT_ID="ts162" TIME_VALUE="301960"/>
+        <TIME_SLOT TIME_SLOT_ID="ts163" TIME_VALUE="302000"/>
+        <TIME_SLOT TIME_SLOT_ID="ts164" TIME_VALUE="302920"/>
+        <TIME_SLOT TIME_SLOT_ID="ts165" TIME_VALUE="303190"/>
+        <TIME_SLOT TIME_SLOT_ID="ts166" TIME_VALUE="305910"/>
+        <TIME_SLOT TIME_SLOT_ID="ts167" TIME_VALUE="306760"/>
+        <TIME_SLOT TIME_SLOT_ID="ts168" TIME_VALUE="307720"/>
+        <TIME_SLOT TIME_SLOT_ID="ts169" TIME_VALUE="307960"/>
+        <TIME_SLOT TIME_SLOT_ID="ts170" TIME_VALUE="311610"/>
+        <TIME_SLOT TIME_SLOT_ID="ts171" TIME_VALUE="311850"/>
+        <TIME_SLOT TIME_SLOT_ID="ts172" TIME_VALUE="318720"/>
+        <TIME_SLOT TIME_SLOT_ID="ts173" TIME_VALUE="318740"/>
+        <TIME_SLOT TIME_SLOT_ID="ts174" TIME_VALUE="319520"/>
+        <TIME_SLOT TIME_SLOT_ID="ts175" TIME_VALUE="320560"/>
+        <TIME_SLOT TIME_SLOT_ID="ts176" TIME_VALUE="322590"/>
+        <TIME_SLOT TIME_SLOT_ID="ts177" TIME_VALUE="323280"/>
+        <TIME_SLOT TIME_SLOT_ID="ts178" TIME_VALUE="324330"/>
+        <TIME_SLOT TIME_SLOT_ID="ts179" TIME_VALUE="325710"/>
+        <TIME_SLOT TIME_SLOT_ID="ts180" TIME_VALUE="327360"/>
+        <TIME_SLOT TIME_SLOT_ID="ts181" TIME_VALUE="328430"/>
+        <TIME_SLOT TIME_SLOT_ID="ts182" TIME_VALUE="331940"/>
+        <TIME_SLOT TIME_SLOT_ID="ts183" TIME_VALUE="332260"/>
+        <TIME_SLOT TIME_SLOT_ID="ts184" TIME_VALUE="335130"/>
+    </TIME_ORDER>
+    <TIER ANNOTATOR="Magda" LINGUISTIC_TYPE_REF="Conversation"
+        PARTICIPANT="Speaker" TIER_ID="Parhata Par-anak">
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1"
+                TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+                <ANNOTATION_VALUE>di-lean di hita ha&lt;hipas&gt;on.........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a2"
+                TIME_SLOT_REF1="ts3" TIME_SLOT_REF2="ts4">
+                <ANNOTATION_VALUE>di na ro hami nasogot......tulang raja bolon.................</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a3"
+                TIME_SLOT_REF1="ts5" TIME_SLOT_REF2="ts6">
+                <ANNOTATION_VALUE>tu alaman ni marga sinaga......................... hu-sungkun-hami do nangkin ...........................................marga aha si-jalo tintin ma-rangkup..........marga sitorus inna</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a4"
+                TIME_SLOT_REF1="ts7" TIME_SLOT_REF2="ts8">
+                <ANNOTATION_VALUE>tulang santabi raja bolon............. na mang-ido do hami tu adop-an na mar-tua debata</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a5"
+                TIME_SLOT_REF1="ts9" TIME_SLOT_REF2="ts10">
+                <ANNOTATION_VALUE>alana molo dang adong boru....................... torus dang adong hami marga hutapea</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a6"
+                TIME_SLOT_REF1="ts11" TIME_SLOT_REF2="ts12">
+                <ANNOTATION_VALUE>alai di par&lt;tingki&gt;an on............. tulang raja bolon dohot nantulang........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a7"
+                TIME_SLOT_REF1="ts13" TIME_SLOT_REF2="ts14">
+                <ANNOTATION_VALUE>songon na ni-[dok-on] ni na tua-tua.........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a8"
+                TIME_SLOT_REF1="ts15" TIME_SLOT_REF2="ts16">
+                <ANNOTATION_VALUE>rundut di eme do inna gabe-na.............</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a9"
+                TIME_SLOT_REF1="ts17" TIME_SLOT_REF2="ts18">
+                <ANNOTATION_VALUE>[ula-hon]-on-nami tulang ate nantulang</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a10"
+                TIME_SLOT_REF1="ts19" TIME_SLOT_REF2="ts20">
+                <ANNOTATION_VALUE>santabi ma mang-ido sangap hami tu hamu tulang dohot hamu nantulang.........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a11"
+                TIME_SLOT_REF1="ts21" TIME_SLOT_REF2="ts22">
+                <ANNOTATION_VALUE>sotung dia-dia roha-muna apalagi namboru-nami naung par-jolo naung par-jolo hian ni......</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a12"
+                TIME_SLOT_REF1="ts23" TIME_SLOT_REF2="ts24">
+                <ANNOTATION_VALUE>sotung di-bege angka pang&lt;hata-i&gt;on-on ...........mauliate ma........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a13"
+                TIME_SLOT_REF1="ts25" TIME_SLOT_REF2="ts26">
+                <ANNOTATION_VALUE>santabi tulang........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a14"
+                TIME_SLOT_REF1="ts27" TIME_SLOT_REF2="ts28">
+                <ANNOTATION_VALUE>di son appara si-doli........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a15"
+                TIME_SLOT_REF1="ts29" TIME_SLOT_REF2="ts30">
+                <ANNOTATION_VALUE>ro do hami....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a16"
+                TIME_SLOT_REF1="ts31" TIME_SLOT_REF2="ts32">
+                <ANNOTATION_VALUE>mam-boan................</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a17"
+                TIME_SLOT_REF1="ts33" TIME_SLOT_REF2="ts34">
+                <ANNOTATION_VALUE>boru-nami on..........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a18"
+                TIME_SLOT_REF1="ts35" TIME_SLOT_REF2="ts36">
+                <ANNOTATION_VALUE>na ni-alap ni marga sinaga............</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a19"
+                TIME_SLOT_REF1="ts37" TIME_SLOT_REF2="ts38">
+                <ANNOTATION_VALUE>na gabe dohot...............boru-muna.............</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a20"
+                TIME_SLOT_REF1="ts39" TIME_SLOT_REF2="ts40">
+                <ANNOTATION_VALUE>godang do hu-jalo-hami......</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a21"
+                TIME_SLOT_REF1="ts41" TIME_SLOT_REF2="ts42">
+                <ANNOTATION_VALUE>tulang appara sidoli....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a22"
+                TIME_SLOT_REF1="ts43" TIME_SLOT_REF2="ts44">
+                <ANNOTATION_VALUE>sinamot ni ..................boru-ta i.........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a23"
+                TIME_SLOT_REF1="ts45" TIME_SLOT_REF2="ts46">
+                <ANNOTATION_VALUE>tung so sadia pe na i-[pa-sahat] hami on tu hamu appara si-doli....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a24"
+                TIME_SLOT_REF1="ts47" TIME_SLOT_REF2="ts48">
+                <ANNOTATION_VALUE>las ma..........roha-muna.........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a25"
+                TIME_SLOT_REF1="ts49" TIME_SLOT_REF2="ts50">
+                <ANNOTATION_VALUE>man-jalo..............</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a26"
+                TIME_SLOT_REF1="ts51" TIME_SLOT_REF2="ts52">
+                <ANNOTATION_VALUE>asa ni-dok ni hata ni na tua-tua ma .....satitik na t&gt;in&lt;ompa....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a27"
+                TIME_SLOT_REF1="ts53" TIME_SLOT_REF2="ts54">
+                <ANNOTATION_VALUE>golang-golang bahen panga-rahut-na</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a28"
+                TIME_SLOT_REF1="ts55" TIME_SLOT_REF2="ts56">
+                <ANNOTATION_VALUE>otik so sadia hu-[pa-sahat]-hami tu hamu tuhor ni boru-ta on.......</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a29"
+                TIME_SLOT_REF1="ts57" TIME_SLOT_REF2="ts58">
+                <ANNOTATION_VALUE>anggo par&lt;tingki&gt;an par&lt;horas&gt;an Tuhan-ta ma na mang-[gok-i]......</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a30"
+                TIME_SLOT_REF1="ts59" TIME_SLOT_REF2="ts60">
+                <ANNOTATION_VALUE>par&lt;tingki&gt;an on hu-[pa-sahat]-hami ma tu ise ma appara si-doli...a........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a31"
+                TIME_SLOT_REF1="ts61" TIME_SLOT_REF2="ts62">
+                <ANNOTATION_VALUE>mauliate ma di hamu.......</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a32"
+                TIME_SLOT_REF1="ts63" TIME_SLOT_REF2="ts64">
+                <ANNOTATION_VALUE>appara si-doli-nami.............</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a33"
+                TIME_SLOT_REF1="ts175" TIME_SLOT_REF2="ts176">
+                <ANNOTATION_VALUE>mauliate ma tulang appara si-doli</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a34"
+                TIME_SLOT_REF1="ts177" TIME_SLOT_REF2="ts178">
+                <ANNOTATION_VALUE>amang pande nami..</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a35"
+                TIME_SLOT_REF1="ts179" TIME_SLOT_REF2="ts180">
+                <ANNOTATION_VALUE>naeng jalang-on nami ma......</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a36"
+                TIME_SLOT_REF1="ts181" TIME_SLOT_REF2="ts182">
+                <ANNOTATION_VALUE>tulang i raja bolon.............. raja torus......... appara si-doli-nami..............</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a37"
+                TIME_SLOT_REF1="ts183" TIME_SLOT_REF2="ts184">
+                <ANNOTATION_VALUE>bahen hamu ma jo musik na hombar tu si...bahen hamu ma amang...</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+    </TIER>
+    <TIER ANNOTATOR="Magda" LINGUISTIC_TYPE_REF="Conversation"
+        PARTICIPANT="Speaker" TIER_ID="Parhata Hula-hula">
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a38"
+                TIME_SLOT_REF1="ts65" TIME_SLOT_REF2="ts66">
+                <ANNOTATION_VALUE>memang.....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a39"
+                TIME_SLOT_REF1="ts67" TIME_SLOT_REF2="ts68">
+                <ANNOTATION_VALUE>molo hamu amang-boru [dok-on]-on-ku ma amang-boru sahali ate...</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a40"
+                TIME_SLOT_REF1="ts69" TIME_SLOT_REF2="ts70">
+                <ANNOTATION_VALUE>tangkas on.........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a41"
+                TIME_SLOT_REF1="ts71" TIME_SLOT_REF2="ts72">
+                <ANNOTATION_VALUE>tar-ida do...............</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a42"
+                TIME_SLOT_REF1="ts73" TIME_SLOT_REF2="ts74">
+                <ANNOTATION_VALUE>di hamu appara si-doli-nami..</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a43"
+                TIME_SLOT_REF1="ts75" TIME_SLOT_REF2="ts76">
+                <ANNOTATION_VALUE>na pa-[tanda-hon] si sada boru ma hita...</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a44"
+                TIME_SLOT_REF1="ts77" TIME_SLOT_REF2="ts78">
+                <ANNOTATION_VALUE>di boru-ta on....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a45"
+                TIME_SLOT_REF1="ts79" TIME_SLOT_REF2="ts80">
+                <ANNOTATION_VALUE>di-[pa-sahat] hamu do sebagian sinamot ni boru-ta i..</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a46"
+                TIME_SLOT_REF1="ts81" TIME_SLOT_REF2="ts82">
+                <ANNOTATION_VALUE>na pa-[tanda-hon] si sada boru</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a47"
+                TIME_SLOT_REF1="ts83" TIME_SLOT_REF2="ts84">
+                <ANNOTATION_VALUE>tung mansai.........las roha-nami.......</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a48"
+                TIME_SLOT_REF1="ts85" TIME_SLOT_REF2="ts86">
+                <ANNOTATION_VALUE>asa anggiat ma tutu.....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a49"
+                TIME_SLOT_REF1="ts87" TIME_SLOT_REF2="ts88">
+                <ANNOTATION_VALUE>to jolo-an ni ari on....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a50"
+                TIME_SLOT_REF1="ts89" TIME_SLOT_REF2="ts90">
+                <ANNOTATION_VALUE>molo tung adong...</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a51"
+                TIME_SLOT_REF1="ts91" TIME_SLOT_REF2="ts92">
+                <ANNOTATION_VALUE>ula-on ni sinaga on...</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a52"
+                TIME_SLOT_REF1="ts93" TIME_SLOT_REF2="ts94">
+                <ANNOTATION_VALUE>molo tung hamu pe di jolo....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a53"
+                TIME_SLOT_REF1="ts95" TIME_SLOT_REF2="ts96">
+                <ANNOTATION_VALUE>di pudi muna...........ma hami.....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a54"
+                TIME_SLOT_REF1="ts97" TIME_SLOT_REF2="ts98">
+                <ANNOTATION_VALUE>molo tung hami pe di jolo</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a55"
+                TIME_SLOT_REF1="ts99" TIME_SLOT_REF2="ts100">
+                <ANNOTATION_VALUE>di pudi-nami ma hamu</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a56"
+                TIME_SLOT_REF1="ts101" TIME_SLOT_REF2="ts102">
+                <ANNOTATION_VALUE>jadi...........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a57"
+                TIME_SLOT_REF1="ts103" TIME_SLOT_REF2="ts104">
+                <ANNOTATION_VALUE>nga jelas roha-nami di par&lt;hite&gt;an ni i.......</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a58"
+                TIME_SLOT_REF1="ts105" TIME_SLOT_REF2="ts106">
+                <ANNOTATION_VALUE>asa mago do tong na marhalto dolok i do na marubean</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a59"
+                TIME_SLOT_REF1="ts107" TIME_SLOT_REF2="ts108">
+                <ANNOTATION_VALUE>horas do hami na man-jalo</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a60"
+                TIME_SLOT_REF1="ts109" TIME_SLOT_REF2="ts110">
+                <ANNOTATION_VALUE>sinamot ni boru-ta i.....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a61"
+                TIME_SLOT_REF1="ts111" TIME_SLOT_REF2="ts112">
+                <ANNOTATION_VALUE>sai mar-[tamba-tamba] ma di hamu appara si-doli-nami singkap ni na mangalean</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a62"
+                TIME_SLOT_REF1="ts113" TIME_SLOT_REF2="ts114">
+                <ANNOTATION_VALUE>na [pa-tanda]-hon....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a63"
+                TIME_SLOT_REF1="ts115" TIME_SLOT_REF2="ts116">
+                <ANNOTATION_VALUE>hami ma............tulang-mu.......</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a64"
+                TIME_SLOT_REF1="ts117" TIME_SLOT_REF2="ts118">
+                <ANNOTATION_VALUE>adong do hata i.........na man-dok........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a65"
+                TIME_SLOT_REF1="ts119" TIME_SLOT_REF2="ts120">
+                <ANNOTATION_VALUE>on pe jabu i sang tong do i mar-[gulang-gulang]</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a66"
+                TIME_SLOT_REF1="ts121" TIME_SLOT_REF2="ts122">
+                <ANNOTATION_VALUE>tung boru apa pe di-alap ho bere.....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a67"
+                TIME_SLOT_REF1="ts123" TIME_SLOT_REF2="ts124">
+                <ANNOTATION_VALUE>tongtong do i na gabe boru ni tulang.........</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a68"
+                TIME_SLOT_REF1="ts125" TIME_SLOT_REF2="ts126">
+                <ANNOTATION_VALUE>i bagas-an ni i......</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a69"
+                TIME_SLOT_REF1="ts127" TIME_SLOT_REF2="ts128">
+                <ANNOTATION_VALUE>tongtong do hami mar-tangian tu amata na mar-tua debata</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a70"
+                TIME_SLOT_REF1="ts129" TIME_SLOT_REF2="ts130">
+                <ANNOTATION_VALUE>di par&lt;hite&gt;an ni naung ma-jalo pasu-pasu ho</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a71"
+                TIME_SLOT_REF1="ts131" TIME_SLOT_REF2="ts132">
+                <ANNOTATION_VALUE>sian balinta...................</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a72"
+                TIME_SLOT_REF1="ts133" TIME_SLOT_REF2="ts134">
+                <ANNOTATION_VALUE>anggiat ma tutu di tangiang-nami</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a73"
+                TIME_SLOT_REF1="ts135" TIME_SLOT_REF2="ts136">
+                <ANNOTATION_VALUE>gabe rumahtangga na denggan ho...</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a74"
+                TIME_SLOT_REF1="ts137" TIME_SLOT_REF2="ts138">
+                <ANNOTATION_VALUE>rumahtangga na bahagia...</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a75"
+                TIME_SLOT_REF1="ts139" TIME_SLOT_REF2="ts140">
+                <ANNOTATION_VALUE>rumahtangga ni si-tiru-on di tonga-tonga ni keluarga</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a76"
+                TIME_SLOT_REF1="ts141" TIME_SLOT_REF2="ts142">
+                <ANNOTATION_VALUE>suang songon ni di jolo ni Tuhan-ta</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a77"
+                TIME_SLOT_REF1="ts143" TIME_SLOT_REF2="ts144">
+                <ANNOTATION_VALUE>Tuan-hami....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a78"
+                TIME_SLOT_REF1="ts145" TIME_SLOT_REF2="ts146">
+                <ANNOTATION_VALUE>aii....molo...............</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a79"
+                TIME_SLOT_REF1="ts147" TIME_SLOT_REF2="ts148">
+                <ANNOTATION_VALUE>di keluarga on dang adong na songon .....adong na h&gt;um&lt;urang</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a80"
+                TIME_SLOT_REF1="ts149" TIME_SLOT_REF2="ts150">
+                <ANNOTATION_VALUE>alai molo tung adong di panga-laho ni bere-nami on sogot</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a81"
+                TIME_SLOT_REF1="ts151" TIME_SLOT_REF2="ts152">
+                <ANNOTATION_VALUE>sotung lao ho....</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a82"
+                TIME_SLOT_REF1="ts153" TIME_SLOT_REF2="ts154">
+                <ANNOTATION_VALUE>tu jabu ni amang ate dohot da inang ate...........ro mang-[alu-alu] tu jabu-nami asa adong dalan-nami pa-ingot-on bere-nami on</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a83"
+                TIME_SLOT_REF1="ts155" TIME_SLOT_REF2="ts156">
+                <ANNOTATION_VALUE>i ma [pang-ido]-an-nami</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a84"
+                TIME_SLOT_REF1="ts157" TIME_SLOT_REF2="ts158">
+                <ANNOTATION_VALUE>asa anggiat ma tutu di par&lt;hite&gt;an naung man-jalo pasu-pasu i hamu...</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a85"
+                TIME_SLOT_REF1="ts159" TIME_SLOT_REF2="ts160">
+                <ANNOTATION_VALUE>asa malintang ma tong pa-gabe</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a86"
+                TIME_SLOT_REF1="ts161" TIME_SLOT_REF2="ts162">
+                <ANNOTATION_VALUE>tu mandang-kon ma tong sitado-an</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a87"
+                TIME_SLOT_REF1="ts163" TIME_SLOT_REF2="ts164">
+                <ANNOTATION_VALUE>ari-mu do gabe...</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a88"
+                TIME_SLOT_REF1="ts165" TIME_SLOT_REF2="ts166">
+                <ANNOTATION_VALUE>molo denggan jala uli hamu di angka naung par-si-[olo-olo-an]</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a89"
+                TIME_SLOT_REF1="ts167" TIME_SLOT_REF2="ts168">
+                <ANNOTATION_VALUE>[murmuring.....]</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a90"
+                TIME_SLOT_REF1="ts169" TIME_SLOT_REF2="ts170">
+                <ANNOTATION_VALUE>nunga hu-jalo-hami sinamot sian appara si-doli-hami marga hutapea</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a91"
+                TIME_SLOT_REF1="ts171" TIME_SLOT_REF2="ts172">
+                <ANNOTATION_VALUE>rap ma hita leleng ma-ngolu sahat tu pang&lt;gabe&gt;an sahat tu par&lt;horas&gt;an ............sai tongtong di pa-rorot Tuhan....songon ni ma hata sian hami</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a92"
+                TIME_SLOT_REF1="ts173" TIME_SLOT_REF2="ts174">
+                <ANNOTATION_VALUE>appara si-doli</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+    </TIER>
+    <LINGUISTIC_TYPE GRAPHIC_REFERENCES="false"
+        LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true"/>
+    <LINGUISTIC_TYPE GRAPHIC_REFERENCES="false"
+        LINGUISTIC_TYPE_ID="Conversation" TIME_ALIGNABLE="true"/>
+    <CONSTRAINT
+        DESCRIPTION="Time subdivision of parent annotation's time interval, no time gaps allowed within this interval" STEREOTYPE="Time_Subdivision"/>
+    <CONSTRAINT
+        DESCRIPTION="Symbolic subdivision of a parent annotation. Annotations refering to the same parent are ordered" STEREOTYPE="Symbolic_Subdivision"/>
+    <CONSTRAINT DESCRIPTION="1-1 association with a parent annotation" STEREOTYPE="Symbolic_Association"/>
+    <CONSTRAINT
+        DESCRIPTION="Time alignable annotations within the parent annotation's time interval, gaps are allowed" STEREOTYPE="Included_In"/>
+</ANNOTATION_DOCUMENT>

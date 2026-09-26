@@ -1,0 +1,36 @@
+# 开放语料测试集
+
+这里存放可以再分发的真实标注样本，用来检验解语的 ELAN、FLEx、LIFT 导入。清单在 `manifest.json`。每个文件保留原许可，不并入本仓库的 ISC 许可。
+
+摘录只保留不超过 20 秒的前 8 条非空标注，以及与之对齐的词、语素和注释层。音视频没有入库。
+
+## 已入库
+
+| 语言 | 区域 / 谱系 | 格式 | 许可 | 来源 |
+| --- | --- | --- | --- | --- |
+| Fanbyak | 瓦努阿图 / 南岛语 | ELAN，全文 | CC BY 4.0 | DoReCo；原档在 ELAR |
+| Sümi | 那加兰 / 汉藏语 | ELAN，全文 | CC BY 4.0 | DoReCo；原档在 PARADISEC |
+| Evenki | 西伯利亚 / 通古斯语 | ELAN 摘录 | CC BY 4.0 | DoReCo |
+| Nǁng | 南非 / 图语 | ELAN 摘录 | CC BY 4.0 | DoReCo |
+| Goemai | 尼日利亚 / 乍得语 | ELAN 摘录 | CC BY 4.0 | DoReCo；原档在 TLA |
+| Ruuli | 乌干达 / 班图语 | ELAN 摘录 | CC BY 4.0 | DoReCo |
+| Komnzo | 巴布亚新几内亚 / 亚姆语 | ELAN 摘录 | CC BY 4.0 | DoReCo |
+| 北库尔德语 | 伊朗语支 | ELAN 摘录 | CC BY 4.0 | DoReCo |
+| 多巴巴塔克语 | 苏门答腊 / 南岛语 | ELAN，全文 | CC BY 4.0 | Zenodo 10.5281/zenodo.20306721 |
+| 糸满冲绳语 | 琉球语 | ELAN 摘录 | CC BY 4.0 | Zenodo 10.5281/zenodo.12592977 |
+| 瓦劳语 | 委内瑞拉、圭亚那 / 孤立语 | FLEx 摘录 | CC BY 4.0 | Zenodo 10.5281/zenodo.10730621 |
+| 阿帕拉伊语 | 巴西 / 加勒比语 | FLEx、LIFT 摘录 | Apache-2.0 | fmatter/cldflex 测试数据 |
+| 布列塔尼语 | 法国 / 凯尔特语 | Pangloss XML 摘录 | CC BY-SA 4.0 | Pangloss / Cocoon |
+
+引用以各文件头注释和 `manifest.json` 的 `source`、`doi` 为准。使用其中任何一份数据时，引用该份数据的作者，不要只写“解语测试集”。
+
+## 看过但没有入库
+
+- **Pangloss**：抽查了嘉绒语、姆沃特拉普语、纳语、卡卡贝语、林布语、也门阿拉伯语等条目。多数是 CC BY-NC-ND 或 CC BY-NC-SA，不能放进可商用仓库。布列塔尼语那份是 CC BY-SA，所以只收了摘录。
+- **ELAR / ELDP**：目录页写明数据文件适用 ELAR Access Conditions，目录本身是 CC BY-NC-SA。本环境访问 elararchive.org 时被 Preservica 拦截（HTTP 403）。Fanbyak 的标注是存款人经 DoReCo 以 CC BY 再发布的版本，ELAR 原包没有复制进来。
+- **Language Documentation & Conservation（ScholarSpace）**：巽他语、沃莱艾语的“北风与太阳 / 梨子的故事”等课堂存款可以下载 `.eaf` / `.flextext`，但条目和馆藏都没有写再分发许可，因此不入库。期刊 PDF 本身多是 CC BY，附件并不自动沿用这个许可。
+- **Toolbox**：这次打开的附录里没有找到许可允许再分发的标准格式（SFM）文本。Toolbox 解析仍由 `tests/golden/toolbox/` 的合成样本覆盖。
+
+## 测试
+
+`openCorporaImport.test.ts` 对每份 ELAN / FLEx / LIFT 文件做导入，并在有转写句时做一次导出再导入。Pangloss XML 只检查句子和译文是否读得出来；解语目前没有这个格式的导入器。
