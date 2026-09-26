@@ -593,6 +593,13 @@ export function LexiconPage() {
                                 {sense.discourseNote}
                               </span>
                             ) : null}
+                            {sense.encyclopedicNote ? (
+                              <span
+                                data-testid={`lexicon-workspace-sense-${index}-encyclopedic-note`}
+                              >
+                                {sense.encyclopedicNote}
+                              </span>
+                            ) : null}
                             {(sense.examples ?? []).map((example, exampleIndex) => (
                               <span
                                 key={`${readSenseId(sense)}-example-${exampleIndex}`}

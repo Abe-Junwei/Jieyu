@@ -184,6 +184,8 @@ export interface Sense {
   anthropologyNote?: string;
   /** First LIFT sense `<note type="discourse"><form>` text. */
   discourseNote?: string;
+  /** First LIFT sense `<note type="encyclopedic"><form>` text. */
+  encyclopedicNote?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;
