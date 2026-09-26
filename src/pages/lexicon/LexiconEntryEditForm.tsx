@@ -300,6 +300,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
         />
       </label>
       <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.pronunciationLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-pronunciation"
+          value={editor.fields.pronunciation}
+          onChange={(event) => editor.onFieldChange('pronunciation', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</span>
         <input
           className="input lexicon-entry-edit-input"

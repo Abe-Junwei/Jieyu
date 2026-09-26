@@ -101,6 +101,53 @@ describe('lexiconLiftImport', () => {
     expect(parsed.lexemes[0]?.examples).toBeUndefined();
   });
 
+  it('reads the first pronunciation form and skips a media-only block', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <pronunciation><media href="dog.wav"/></pronunciation>
+    <pronunciation>
+      <form><text>nolang</text></form>
+      <form lang="und-fonipa"><text>dɔg</text></form>
+      <form lang="eng-fonipa"><text>ignored</text></form>
+    </pronunciation>
+    <pronunciation><form lang="und-fonipa"><text>second</text></form></pronunciation>
+    <sense id="sense_primary"><gloss lang="eng"><text>canine</text></gloss></sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.pronunciation).toBe('dɔg');
+  });
+
+  it('round-trips pronunciation and keeps an existing value when the element is omitted', async () => {
+    const xml = serializeLexemesToLift([{ ...dog, pronunciation: 'dɔg' }]);
+    expect(xml).toContain(
+      '<pronunciation><form lang="und-fonipa"><text>dɔg</text></form></pronunciation>',
+    );
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.pronunciation).toBe('dɔg');
+
+    const bare = serializeLexemesToLift([dog]);
+    expect(bare).not.toContain('<pronunciation>');
+    const existing: LexemeDocType = { ...dog, pronunciation: 'dɔg' };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.pronunciation).toBe('dɔg');
+  });
+
   it('sorts sibling senses by the LIFT order attribute', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

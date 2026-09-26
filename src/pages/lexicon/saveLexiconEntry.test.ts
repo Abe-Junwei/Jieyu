@@ -20,6 +20,7 @@ function fields(
     notes: string;
     category: string;
     lexemeType: string;
+    pronunciation: string;
     primarySenseId: string;
     examples: { source: string; translation?: string }[];
     extraSenses: {
@@ -40,6 +41,7 @@ function fields(
     language: '',
     notes: '',
     lexemeType: '',
+    pronunciation: '',
     examples: [],
     extraSenses: [],
     forms: [],
@@ -169,6 +171,24 @@ describe('saveLexiconEntry', () => {
       now,
     );
     expect(cleared.lexemeType).toBeUndefined();
+  });
+
+  it('writes a trimmed pronunciation and omits a blank one', () => {
+    const existing = applyLexiconEntryFields(null, fields({ lemma: 'dog', gloss: 'canine' }), now);
+    const withMorph = { ...existing, morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withMorph,
+      fields({ lemma: 'dog', gloss: 'canine', pronunciation: ' dɔg ' }),
+      now,
+    );
+    expect(updated.pronunciation).toBe('dɔg');
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({ lemma: 'dog', gloss: 'canine', pronunciation: ' ' }),
+      now,
+    );
+    expect(cleared.pronunciation).toBeUndefined();
     expect(cleared.morphemeType).toBe('prefix');
   });
 

@@ -156,6 +156,14 @@ function parseSenseTree(
   return [withParent, ...children];
 }
 
+function parsePronunciation(entry: Element): string {
+  for (const block of directChildren(entry, 'pronunciation')) {
+    const text = formPairs(block)[0]?.text ?? '';
+    if (text.length > 0) return text;
+  }
+  return '';
+}
+
 function parseEntry(entry: Element, now: string): LexemeDocType | null {
   const lexicalUnit = directChildren(entry, 'lexical-unit')[0];
   if (!lexicalUnit) return null;
@@ -172,6 +180,7 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
   const morphType =
     directChildren(entry, 'trait').find((trait) => attr(trait, 'name') === 'morph-type') ?? null;
   const lexemeType = morphType ? attr(morphType, 'value') : '';
+  const pronunciation = parsePronunciation(entry);
   const senses = sortByLiftOrder(directChildren(entry, 'sense')).flatMap((sense, index) =>
     parseSenseTree(sense, index, id, language, undefined),
   );
@@ -193,6 +202,7 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
     updatedAt,
     ...(citation.length > 0 ? { citationForm: citation } : {}),
     ...(lexemeType.length > 0 ? { lexemeType } : {}),
+    ...(pronunciation.length > 0 ? { pronunciation } : {}),
     ...(notes ? { notes } : {}),
     ...(forms.length > 0 ? { forms } : {}),
   };
@@ -227,6 +237,7 @@ function mergeParsed(
   }
   const citationForm = parsed.citationForm ?? existing.citationForm;
   const lexemeType = parsed.lexemeType ?? existing.lexemeType;
+  const pronunciation = parsed.pronunciation ?? existing.pronunciation;
   const notes = parsed.notes ?? existing.notes;
   const forms = parsed.forms ?? existing.forms;
   return {
@@ -238,6 +249,7 @@ function mergeParsed(
     createdAt: existing.createdAt,
     ...(citationForm !== undefined ? { citationForm } : {}),
     ...(lexemeType !== undefined && lexemeType.length > 0 ? { lexemeType } : {}),
+    ...(pronunciation !== undefined && pronunciation.length > 0 ? { pronunciation } : {}),
     ...(notes !== undefined ? { notes } : {}),
     ...(forms !== undefined ? { forms } : {}),
   };

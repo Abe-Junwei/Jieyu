@@ -10,7 +10,8 @@ export type LexiconEntryScalarField =
   | 'citationForm'
   | 'language'
   | 'notes'
-  | 'lexemeType';
+  | 'lexemeType'
+  | 'pronunciation';
 
 export type LexiconExampleDraft = {
   source: string;
@@ -39,6 +40,7 @@ export type LexiconEntryFields = {
   language: string;
   notes: string;
   lexemeType: string;
+  pronunciation: string;
   primarySenseId?: string;
   examples: LexiconExampleDraft[];
   extraSenses: LexiconSenseDraft[];
@@ -165,6 +167,7 @@ export function applyLexiconEntryFields(
   const language = fields.language.trim();
   const notes = fields.notes.trim();
   const lexemeType = fields.lexemeType.trim();
+  const pronunciation = fields.pronunciation.trim();
   const primaryExamples = exampleDraftsFromStored(fields.examples);
   const id = existing?.id ?? newId('lex');
   const firstSense = existing?.senses[0];
@@ -229,6 +232,7 @@ export function applyLexiconEntryFields(
     notes: _oldNotes,
     forms: _oldForms,
     lexemeType: _oldLexemeType,
+    pronunciation: _oldPronunciation,
     ...rest
   } = existing ?? {
     id,
@@ -254,6 +258,7 @@ export function applyLexiconEntryFields(
     ...(citationForm.length > 0 ? { citationForm } : {}),
     ...(language.length > 0 ? { language } : {}),
     ...(lexemeType.length > 0 ? { lexemeType } : {}),
+    ...(pronunciation.length > 0 ? { pronunciation } : {}),
     ...(notes.length > 0 ? { notes: writePrimaryMultiLang(existing?.notes, notes) } : {}),
     ...(nextForms.length > 0 ? { forms: nextForms } : {}),
     createdAt: existing?.createdAt ?? now,

@@ -186,6 +186,8 @@ export interface LexemeDocType {
   id: string;
   lemma: Transcription;
   lexemeType?: string;
+  /** First LIFT `<pronunciation><form>` text. Media, tone, and CV pattern are not stored. */
+  pronunciation?: string;
   morphemeType?: string;
   citationForm?: string;
   senses: Sense[];

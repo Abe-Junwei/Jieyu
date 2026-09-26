@@ -584,6 +584,21 @@ describe('LexiconPage', () => {
     expect(screen.getByTestId('lexicon-workspace-lexeme-type').textContent).toBe('stem');
   });
 
+  it('saves a pronunciation and shows it in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-pronunciation'), {
+      target: { value: 'dɔg' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.pronunciation).toBe('dɔg');
+    expect(screen.getByTestId('lexicon-workspace-pronunciation').textContent).toBe('dɔg');
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
