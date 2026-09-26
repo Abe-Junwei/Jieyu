@@ -91,10 +91,45 @@ function serializeSenseNode(
   const category = sense.category?.trim() ?? '';
   const grammaticalInfo =
     category.length > 0 ? `<grammatical-info value="${escapeXml(category)}"/>` : '';
+  const examples = (sense.examples ?? [])
+    .flatMap((example) => {
+      const source = example.source.trim();
+      if (source.length === 0) return [];
+      const translation = example.translation?.trim() ?? '';
+      const translationXml =
+        translation.length > 0
+          ? `<translation>${xmlForm(vernacular, translation)}</translation>`
+          : '';
+      return [`<example>${xmlForm(vernacular, source)}${translationXml}</example>`];
+    })
+    .join('');
+  const scientificName = sense.scientificName?.trim() ?? '';
+  const scientificNameXml =
+    scientificName.length > 0
+      ? `<field type="scientific-name">${xmlForm('und', scientificName)}</field>`
+      : '';
+  const anthropologyNote = sense.anthropologyNote?.trim() ?? '';
+  const anthropologyNoteXml =
+    anthropologyNote.length > 0
+      ? `<note type="anthropology">${xmlForm('und', anthropologyNote)}</note>`
+      : '';
+  const discourseNote = sense.discourseNote?.trim() ?? '';
+  const discourseNoteXml =
+    discourseNote.length > 0
+      ? `<note type="discourse">${xmlForm('und', discourseNote)}</note>`
+      : '';
+  const encyclopedicNote = sense.encyclopedicNote?.trim() ?? '';
+  const encyclopedicNoteXml =
+    encyclopedicNote.length > 0
+      ? `<note type="encyclopedic">${xmlForm('und', encyclopedicNote)}</note>`
+      : '';
+  const grammarNote = sense.grammarNote?.trim() ?? '';
+  const grammarNoteXml =
+    grammarNote.length > 0 ? `<note type="grammar">${xmlForm('und', grammarNote)}</note>` : '';
   const nested = liftSenseChildren(all, senseId)
     .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
     .join('');
-  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${nested}</${tag}>`;
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {
@@ -109,11 +144,48 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
   const citation = lexeme.citationForm?.trim() ?? '';
   const citationXml =
     citation.length > 0 ? `<citation>${xmlForm(vernacular, citation)}</citation>` : '';
+  const pronunciation = lexeme.pronunciation?.trim() ?? '';
+  const pronunciationXml =
+    pronunciation.length > 0
+      ? `<pronunciation>${xmlForm('und-fonipa', pronunciation)}</pronunciation>`
+      : '';
+  const etymologyForm = lexeme.etymology?.form.trim() ?? '';
+  const etymologyGloss = lexeme.etymology?.gloss?.trim() ?? '';
+  const etymologySource = lexeme.etymology?.sourceLanguage?.trim() ?? '';
+  const etymologyTrait =
+    etymologySource.length > 0
+      ? `<trait name="languages" value="${escapeXml(etymologySource)}"/>`
+      : '';
+  const etymologyGlossXml = etymologyGloss.length > 0 ? xmlGloss('und', etymologyGloss) : '';
+  const etymologyXml =
+    etymologyForm.length > 0
+      ? `<etymology>${etymologyTrait}${xmlForm('und', etymologyForm)}${etymologyGlossXml}</etymology>`
+      : '';
+  const literalMeaning = lexeme.literalMeaning?.trim() ?? '';
+  const literalMeaningXml =
+    literalMeaning.length > 0
+      ? `<field type="literal-meaning">${xmlForm('und', literalMeaning)}</field>`
+      : '';
+  const summaryDefinition = lexeme.summaryDefinition?.trim() ?? '';
+  const summaryDefinitionXml =
+    summaryDefinition.length > 0
+      ? `<field type="summary-definition">${xmlForm('und', summaryDefinition)}</field>`
+      : '';
   const morphType = (lexeme.morphemeType ?? lexeme.lexemeType)?.trim() ?? '';
   const morphTrait =
     morphType.length > 0 ? `<trait name="morph-type" value="${escapeXml(morphType)}"/>` : '';
   const notes = formsFromMultiLang(lexeme.notes, vernacular);
   const noteXml = notes.length > 0 ? `<note>${xmlFormList(notes)}</note>` : '';
+  const bibliography = lexeme.bibliography?.trim() ?? '';
+  const bibliographyXml =
+    bibliography.length > 0
+      ? `<note type="bibliography">${xmlForm('und', bibliography)}</note>`
+      : '';
+  const restrictions = lexeme.restrictions?.trim() ?? '';
+  const restrictionsXml =
+    restrictions.length > 0
+      ? `<note type="restrictions">${xmlForm('und', restrictions)}</note>`
+      : '';
   const senses = liftSenseRoots(lexeme.senses)
     .map((sense, index) =>
       serializeSenseNode('sense', lexeme.id, sense, index, vernacular, lexeme.senses),
@@ -129,7 +201,7 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
       return [`<variant>${xmlFormList(formRows)}</variant>`];
     })
     .join('');
-  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${morphTrait}${noteXml}${senses}${variants}</entry>`;
+  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${pronunciationXml}${etymologyXml}${literalMeaningXml}${summaryDefinitionXml}${morphTrait}${noteXml}${bibliographyXml}${restrictionsXml}${senses}${variants}</entry>`;
 }
 
 export function serializeLexemesToLift(lexemes: LexemeDocType[]): string | null {
