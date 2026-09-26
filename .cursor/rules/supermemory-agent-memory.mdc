@@ -1,0 +1,20 @@
+---
+description: SuperMemory 只记编码代理的跨会话工作约束，不是架构或语料库
+alwaysApply: true
+---
+
+# SuperMemory
+
+项目 MCP 在 `.cursor/mcp.json`，服务器是 `https://mcp.supermemory.ai/mcp`。登录一次后，编码代理用它记住仓库文档里没有的工作约束。
+
+可以记：本机路径、不要提交的本地语料、分支和 PR 的处理约定、已经拍板但还没写进文档的个人偏好。
+
+仍然写进仓库，不要只写进 SuperMemory：
+
+- 产品架构决定进 `docs/adr/` 或 `docs/architecture/`
+- 代理基线进 `AGENTS.md` / `AI_QUICKSTART.md`
+
+禁止：
+
+- 不要用 SuperMemory 代替 `src/ai/chat/sessionMemory.ts` 或 `ProjectMemoryStore`
+- 不要上传或粘贴 EAF、FlexText、LIFT、录音、转写原文。木雅语料只留在本机
