@@ -1,10 +1,10 @@
 # 开放语料测试集
 
-这里存放可以再分发的真实标注样本，用来检验解语的 ELAN、FLEx、LIFT 导入。清单在 `manifest.json`。每个文件保留原许可，不并入本仓库的 ISC 许可。
+这些标注文件只在本机使用，用来检验解语的 ELAN、FLEx、LIFT 导入。`.eaf`、`.flextext`、`.lift`、`.xml` 已写入 `.gitignore`，提交和发布都不包含它们。清单在 `manifest.json`。每个文件保留原许可，不并入本仓库的 ISC 许可。
 
-摘录只保留不超过 20 秒的前 8 条非空标注，以及与之对齐的词、语素和注释层。音视频没有入库。
+摘录只保留不超过 20 秒的前 8 条非空标注，以及与之对齐的词、语素和注释层。音视频没有下载。
 
-## 已入库
+## 本地文件
 
 | 语言 | 区域 / 谱系 | 格式 | 许可 | 来源 |
 | --- | --- | --- | --- | --- |
@@ -24,13 +24,13 @@
 
 引用以各文件头注释和 `manifest.json` 的 `source`、`doi` 为准。使用其中任何一份数据时，引用该份数据的作者，不要只写“解语测试集”。
 
-## 看过但没有入库
+## 看过但没有留在本机
 
-- **Pangloss**：抽查了嘉绒语、姆沃特拉普语、纳语、卡卡贝语、林布语、也门阿拉伯语等条目。多数是 CC BY-NC-ND 或 CC BY-NC-SA，不能放进可商用仓库。布列塔尼语那份是 CC BY-SA，所以只收了摘录。
+- **Pangloss**：抽查了嘉绒语、姆沃特拉普语、纳语、卡卡贝语、林布语、也门阿拉伯语等条目。多数是 CC BY-NC-ND 或 CC BY-NC-SA。布列塔尼语那份是 CC BY-SA，所以本机留了摘录。
 - **ELAR / ELDP**：目录页写明数据文件适用 ELAR Access Conditions，目录本身是 CC BY-NC-SA。本环境访问 elararchive.org 时被 Preservica 拦截（HTTP 403）。Fanbyak 的标注是存款人经 DoReCo 以 CC BY 再发布的版本，ELAR 原包没有复制进来。
-- **Language Documentation & Conservation（ScholarSpace）**：巽他语、沃莱艾语的“北风与太阳 / 梨子的故事”等课堂存款可以下载 `.eaf` / `.flextext`，但条目和馆藏都没有写再分发许可，因此不入库。期刊 PDF 本身多是 CC BY，附件并不自动沿用这个许可。
+- **Language Documentation & Conservation（ScholarSpace）**：巽他语、沃莱艾语的“北风与太阳 / 梨子的故事”等课堂存款可以下载 `.eaf` / `.flextext`，但条目和馆藏都没有写再分发许可，因此没有留在本机。期刊 PDF 本身多是 CC BY，附件并不自动沿用这个许可。
 - **Toolbox**：这次打开的附录里没有找到许可允许再分发的标准格式（SFM）文本。Toolbox 解析仍由 `tests/golden/toolbox/` 的合成样本覆盖。
 
 ## 测试
 
-`openCorporaImport.test.ts` 对每份 ELAN / FLEx / LIFT 文件做导入，并在有转写句时做一次导出再导入。Pangloss XML 只检查句子和译文是否读得出来；解语目前没有这个格式的导入器。
+`openCorporaImport.test.ts` 在本机文件存在时导入每份 ELAN / FLEx / LIFT，并在有转写句时做一次导出再导入。文件不在本机时，对应用例跳过。Pangloss XML 只检查句子和译文是否读得出来；解语目前没有这个格式的导入器。

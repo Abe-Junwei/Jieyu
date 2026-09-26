@@ -49,3 +49,10 @@ docs/execution/release-gates/release-evidence/logs/*
 # Code-scale baseline JSON (regenerate with npm run report:code-scale:archive)
 reports/code-scale/baseline-*.json
 reports/code-scale/latest.json
+
+# Open-corpus annotation files are local test input only.
+# Do not commit them and do not ship them in a release.
+tests/fixtures/open-corpora/**/*.eaf
+tests/fixtures/open-corpora/**/*.flextext
+tests/fixtures/open-corpora/**/*.lift
+tests/fixtures/open-corpora/**/*.xml

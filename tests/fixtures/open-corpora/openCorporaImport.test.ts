@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /**
- * Imports real open-license annotation files from tests/fixtures/open-corpora.
+ * Imports local open-license annotation files from tests/fixtures/open-corpora.
+ * The annotation files are gitignored. Each case skips when the file is absent.
  * Licenses and citations live in manifest.json and README.md.
  */
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
 
@@ -34,7 +35,7 @@ function hasLetters(value: string): boolean {
 describe('open corpora fixtures', () => {
   const files = loadManifest();
 
-  it('only vendors licenses that allow redistribution', () => {
+  it('records a redistribution-compatible license for each local file', () => {
     expect(files.length).toBeGreaterThan(0);
     for (const file of files) {
       expect(ALLOWED_LICENSES.has(file.license), file.path).toBe(true);
@@ -43,7 +44,9 @@ describe('open corpora fixtures', () => {
 
   describe('ELAN', () => {
     for (const file of files.filter((entry) => entry.format === 'eaf')) {
-      it(`${file.language} (${file.path}) imports linguistic text`, () => {
+      it.skipIf(!existsSync(join(ROOT, file.path)))(
+        `${file.language} (${file.path}) imports linguistic text`,
+        () => {
         const raw = readFileSync(join(ROOT, file.path), 'utf-8');
         const imported = importFromEaf(raw);
         const texts = [
@@ -76,13 +79,16 @@ describe('open corpora fixtures', () => {
         });
         const reimported = importFromEaf(exported);
         expect(reimported.units[0]?.transcription).toBe(unit.transcription);
-      });
+      },
+      );
     }
   });
 
   describe('FLEx', () => {
     for (const file of files.filter((entry) => entry.format === 'flextext')) {
-      it(`${file.language} (${file.path}) imports phrases and morphemes`, () => {
+      it.skipIf(!existsSync(join(ROOT, file.path)))(
+        `${file.language} (${file.path}) imports phrases and morphemes`,
+        () => {
         const raw = readFileSync(join(ROOT, file.path), 'utf-8');
         const imported = importFromFlextext(raw);
         expect(imported.units.length).toBeGreaterThan(0);
@@ -99,13 +105,16 @@ describe('open corpora fixtures', () => {
         );
         expect(morphemes.length).toBeGreaterThan(0);
         expect(morphemes.some((morph) => hasLetters(Object.values(morph.form).join('')))).toBe(true);
-      });
+      },
+      );
     }
   });
 
   describe('LIFT', () => {
     for (const file of files.filter((entry) => entry.format === 'lift')) {
-      it(`${file.language} (${file.path}) imports lexemes`, () => {
+      it.skipIf(!existsSync(join(ROOT, file.path)))(
+        `${file.language} (${file.path}) imports lexemes`,
+        () => {
         const raw = readFileSync(join(ROOT, file.path), 'utf-8');
         const parsed = parseLiftXml(raw);
         expect(parsed.ok).toBe(true);
@@ -116,13 +125,16 @@ describe('open corpora fixtures', () => {
             Object.values(lexeme.lemma).some((value) => hasLetters(value)),
           ),
         ).toBe(true);
-      });
+      },
+      );
     }
   });
 
   describe('Pangloss XML', () => {
     for (const file of files.filter((entry) => entry.format === 'pangloss-xml')) {
-      it(`${file.language} (${file.path}) keeps sentences and translations`, () => {
+      it.skipIf(!existsSync(join(ROOT, file.path)))(
+        `${file.language} (${file.path}) keeps sentences and translations`,
+        () => {
         const raw = readFileSync(join(ROOT, file.path), 'utf-8');
         const doc = new DOMParser().parseFromString(raw, 'application/xml');
         expect(doc.querySelector('parsererror')).toBeNull();
@@ -134,7 +146,8 @@ describe('open corpora fixtures', () => {
           .filter(hasLetters);
         expect(forms.length).toBeGreaterThan(0);
         expect(translations.length).toBeGreaterThan(0);
-      });
+      },
+      );
     }
   });
 });
