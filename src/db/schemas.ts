@@ -165,6 +165,18 @@ const lexemeDocSchema = z.object({
   id: z.string().min(1),
   lemma: transcriptionSchema,
   lexemeType: z.string().optional(),
+  pronunciation: z.string().optional(),
+  etymology: z
+    .object({
+      form: z.string().min(1),
+      gloss: z.string().min(1).optional(),
+      sourceLanguage: z.string().min(1).optional(),
+    })
+    .optional(),
+  literalMeaning: z.string().optional(),
+  summaryDefinition: z.string().optional(),
+  bibliography: z.string().optional(),
+  restrictions: z.string().optional(),
   morphemeType: z.string().optional(),
   citationForm: z.string().optional(),
   senses: z
@@ -175,7 +187,20 @@ const lexemeDocSchema = z.object({
           gloss: multiLangStringSchema,
           definition: multiLangStringSchema.optional(),
           category: z.string().optional(),
+          scientificName: z.string().optional(),
+          anthropologyNote: z.string().optional(),
+          discourseNote: z.string().optional(),
+          encyclopedicNote: z.string().optional(),
+          grammarNote: z.string().optional(),
           parentId: z.string().min(1).optional(),
+          examples: z
+            .array(
+              z.object({
+                source: z.string().min(1),
+                translation: z.string().min(1).optional(),
+              }),
+            )
+            .optional(),
         })
         .passthrough(),
     )

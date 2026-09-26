@@ -13,8 +13,12 @@ import { newId } from '../utils/transcriptionFormatters';
 import { deleteLexiconEntry } from './lexicon/deleteLexiconEntry';
 import {
   draftIdFromNested,
+  exampleDraftsFromStored,
   readPrimaryMultiLang,
   saveLexiconEntry,
+  withAddedExample,
+  withExampleChange,
+  withoutExample,
   type LexiconEntryFields,
   type LexiconEntryScalarField,
 } from './lexicon/saveLexiconEntry';
@@ -30,9 +34,25 @@ export type LexiconEntryEditController = {
   onFieldChange: (field: LexiconEntryScalarField, value: string) => void;
   onExtraSenseChange: (
     index: number,
-    field: 'gloss' | 'definition' | 'category',
+    field:
+      | 'gloss'
+      | 'definition'
+      | 'category'
+      | 'scientificName'
+      | 'anthropologyNote'
+      | 'discourseNote'
+      | 'encyclopedicNote'
+      | 'grammarNote',
     value: string,
   ) => void;
+  onExampleChange: (
+    sense: 'primary' | number,
+    index: number,
+    field: 'source' | 'translation',
+    value: string,
+  ) => void;
+  onAddExample: (sense: 'primary' | number) => void;
+  onRemoveExample: (sense: 'primary' | number, index: number) => void;
   onAddExtraSense: () => void;
   onAddSubsense: (parent: 'primary' | number) => void;
   onMoveExtraSense: (index: number, direction: -1 | 1) => void;
@@ -86,13 +106,41 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     gloss: readPrimaryMultiLang(lexeme?.senses[0]?.gloss),
     category:
       typeof lexeme?.senses[0]?.category === 'string' ? lexeme.senses[0].category.trim() : '',
+    scientificName:
+      typeof lexeme?.senses[0]?.scientificName === 'string'
+        ? lexeme.senses[0].scientificName.trim()
+        : '',
+    anthropologyNote:
+      typeof lexeme?.senses[0]?.anthropologyNote === 'string'
+        ? lexeme.senses[0].anthropologyNote.trim()
+        : '',
+    discourseNote:
+      typeof lexeme?.senses[0]?.discourseNote === 'string'
+        ? lexeme.senses[0].discourseNote.trim()
+        : '',
+    encyclopedicNote:
+      typeof lexeme?.senses[0]?.encyclopedicNote === 'string'
+        ? lexeme.senses[0].encyclopedicNote.trim()
+        : '',
+    grammarNote:
+      typeof lexeme?.senses[0]?.grammarNote === 'string' ? lexeme.senses[0].grammarNote.trim() : '',
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
     lexemeType: (lexeme?.lexemeType ?? '').trim(),
+    pronunciation: (lexeme?.pronunciation ?? '').trim(),
+    etymologyForm: (lexeme?.etymology?.form ?? '').trim(),
+    etymologyGloss: (lexeme?.etymology?.gloss ?? '').trim(),
+    etymologySourceLanguage: (lexeme?.etymology?.sourceLanguage ?? '').trim(),
+    literalMeaning: (lexeme?.literalMeaning ?? '').trim(),
+    summaryDefinition: (lexeme?.summaryDefinition ?? '').trim(),
+    bibliography: (lexeme?.bibliography ?? '').trim(),
+    restrictions: (lexeme?.restrictions ?? '').trim(),
     ...(primaryId.length > 0 ? { primarySenseId: primaryId } : {}),
+    examples: exampleDraftsFromStored(lexeme?.senses[0]?.examples),
     extraSenses: (lexeme?.senses.slice(1) ?? []).map((sense) => {
       const parentId = readSenseParentId(sense);
+      const examples = exampleDraftsFromStored(sense.examples);
       return {
         ...draftIdFromNested(sense.id),
         ...(parentId.length > 0 ? { parentId } : {}),
@@ -101,6 +149,22 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
         ...(typeof sense.category === 'string' && sense.category.trim().length > 0
           ? { category: sense.category.trim() }
           : {}),
+        ...(typeof sense.scientificName === 'string' && sense.scientificName.trim().length > 0
+          ? { scientificName: sense.scientificName.trim() }
+          : {}),
+        ...(typeof sense.anthropologyNote === 'string' && sense.anthropologyNote.trim().length > 0
+          ? { anthropologyNote: sense.anthropologyNote.trim() }
+          : {}),
+        ...(typeof sense.discourseNote === 'string' && sense.discourseNote.trim().length > 0
+          ? { discourseNote: sense.discourseNote.trim() }
+          : {}),
+        ...(typeof sense.encyclopedicNote === 'string' && sense.encyclopedicNote.trim().length > 0
+          ? { encyclopedicNote: sense.encyclopedicNote.trim() }
+          : {}),
+        ...(typeof sense.grammarNote === 'string' && sense.grammarNote.trim().length > 0
+          ? { grammarNote: sense.grammarNote.trim() }
+          : {}),
+        ...(examples.length > 0 ? { examples } : {}),
       };
     }),
     forms: (lexeme?.forms ?? []).map((form) => ({
@@ -257,6 +321,52 @@ export function useLexiconEntryEditController(input: {
             senseIndex === index ? { ...sense, [field]: value } : sense,
           ),
         }));
+      },
+      onExampleChange: (sense, index, field, value) => {
+        setSaved(false);
+        setFields((prev) => {
+          if (sense === 'primary') {
+            return { ...prev, examples: withExampleChange(prev.examples, index, field, value) };
+          }
+          return {
+            ...prev,
+            extraSenses: prev.extraSenses.map((row, senseIndex) =>
+              senseIndex === sense
+                ? { ...row, examples: withExampleChange(row.examples, index, field, value) }
+                : row,
+            ),
+          };
+        });
+      },
+      onAddExample: (sense) => {
+        setSaved(false);
+        setFields((prev) => {
+          if (sense === 'primary') {
+            return { ...prev, examples: withAddedExample(prev.examples) };
+          }
+          return {
+            ...prev,
+            extraSenses: prev.extraSenses.map((row, senseIndex) =>
+              senseIndex === sense ? { ...row, examples: withAddedExample(row.examples) } : row,
+            ),
+          };
+        });
+      },
+      onRemoveExample: (sense, index) => {
+        setSaved(false);
+        setFields((prev) => {
+          if (sense === 'primary') {
+            return { ...prev, examples: withoutExample(prev.examples, index) };
+          }
+          return {
+            ...prev,
+            extraSenses: prev.extraSenses.map((row, senseIndex) =>
+              senseIndex === sense
+                ? { ...row, examples: withoutExample(row.examples, index) }
+                : row,
+            ),
+          };
+        });
       },
       onAddExtraSense: () => {
         setSaved(false);

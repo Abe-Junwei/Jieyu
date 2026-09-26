@@ -548,6 +548,27 @@ describe('LexiconPage', () => {
     expect(screen.getByTestId('lexicon-workspace-sense-1-category').textContent).toBe('verb');
   });
 
+  it('saves a sense example and shows it in the sense list', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.click(screen.getByTestId('lexicon-entry-add-example'));
+    fireEvent.change(screen.getByTestId('lexicon-entry-example-0-source'), {
+      target: { value: 'the dog runs' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-example-0-translation'), {
+      target: { value: '狗在跑' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.examples).toEqual([{ source: 'the dog runs', translation: '狗在跑' }]);
+    expect(screen.getByTestId('lexicon-workspace-sense-0-example-0').textContent).toBe(
+      'the dog runs / 狗在跑',
+    );
+  });
+
   it('saves an edited lexeme type and shows it in the overview', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
@@ -561,6 +582,193 @@ describe('LexiconPage', () => {
     const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
     expect(saved.lexemeType).toBe('stem');
     expect(screen.getByTestId('lexicon-workspace-lexeme-type').textContent).toBe('stem');
+  });
+
+  it('saves a pronunciation and shows it in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-pronunciation'), {
+      target: { value: 'dɔg' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.pronunciation).toBe('dɔg');
+    expect(screen.getByTestId('lexicon-workspace-pronunciation').textContent).toBe('dɔg');
+  });
+
+  it('saves an etymology and shows it in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-etymology-form'), {
+      target: { value: 'perro' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-etymology-gloss'), {
+      target: { value: 'dog' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-etymology-source'), {
+      target: { value: 'Spanish' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.etymology).toEqual({ form: 'perro', gloss: 'dog', sourceLanguage: 'Spanish' });
+    expect(screen.getByTestId('lexicon-workspace-etymology').textContent).toBe(
+      'perro · dog · Spanish',
+    );
+  });
+
+  it('saves a literal meaning and shows it in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-literal-meaning'), {
+      target: { value: 'domestic animal' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.literalMeaning).toBe('domestic animal');
+    expect(screen.getByTestId('lexicon-workspace-literal-meaning').textContent).toBe(
+      'domestic animal',
+    );
+  });
+
+  it('saves a bibliography and shows it in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-bibliography'), {
+      target: { value: 'Smith 1990' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.bibliography).toBe('Smith 1990');
+    expect(screen.getByTestId('lexicon-workspace-bibliography').textContent).toBe('Smith 1990');
+  });
+
+  it('saves restrictions and shows them in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-restrictions'), {
+      target: { value: 'internal' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.restrictions).toBe('internal');
+    expect(screen.getByTestId('lexicon-workspace-restrictions').textContent).toBe('internal');
+  });
+
+  it('saves a summary definition and shows it in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-summary-definition'), {
+      target: { value: 'a canine kept at home' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.summaryDefinition).toBe('a canine kept at home');
+    expect(screen.getByTestId('lexicon-workspace-summary-definition').textContent).toBe(
+      'a canine kept at home',
+    );
+  });
+
+  it('saves a scientific name and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-scientific-name'), {
+      target: { value: 'Canis familiaris' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.scientificName).toBe('Canis familiaris');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-scientific-name').textContent).toBe(
+      'Canis familiaris',
+    );
+  });
+
+  it('saves an anthropology note and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-anthropology-note'), {
+      target: { value: 'kept at home' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-anthropology-note').textContent).toBe(
+      'kept at home',
+    );
+  });
+
+  it('saves a discourse note and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-discourse-note'), {
+      target: { value: 'narrative use' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.discourseNote).toBe('narrative use');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-discourse-note').textContent).toBe(
+      'narrative use',
+    );
+  });
+
+  it('saves an encyclopedic note and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-encyclopedic-note'), {
+      target: { value: 'domestic canine' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-encyclopedic-note').textContent).toBe(
+      'domestic canine',
+    );
+  });
+
+  it('saves a grammar note and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-grammar-note'), {
+      target: { value: 'count noun' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.grammarNote).toBe('count noun');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-grammar-note').textContent).toBe(
+      'count noun',
+    );
   });
 
   it('saves a subsense under the primary gloss with parentId', async () => {

@@ -19,14 +19,34 @@ function fields(
     language: string;
     notes: string;
     category: string;
+    scientificName: string;
+    anthropologyNote: string;
+    discourseNote: string;
+    encyclopedicNote: string;
+    grammarNote: string;
     lexemeType: string;
+    pronunciation: string;
+    etymologyForm: string;
+    etymologyGloss: string;
+    etymologySourceLanguage: string;
+    literalMeaning: string;
+    summaryDefinition: string;
+    bibliography: string;
+    restrictions: string;
     primarySenseId: string;
+    examples: { source: string; translation?: string }[];
     extraSenses: {
       id?: string;
       parentId?: string;
       gloss: string;
       definition: string;
       category?: string;
+      scientificName?: string;
+      anthropologyNote?: string;
+      discourseNote?: string;
+      encyclopedicNote?: string;
+      grammarNote?: string;
+      examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
   }> & { lemma: string },
@@ -34,10 +54,24 @@ function fields(
   return {
     gloss: '',
     category: '',
+    scientificName: '',
+    anthropologyNote: '',
+    discourseNote: '',
+    encyclopedicNote: '',
+    grammarNote: '',
     citationForm: '',
     language: '',
     notes: '',
     lexemeType: '',
+    pronunciation: '',
+    etymologyForm: '',
+    etymologyGloss: '',
+    etymologySourceLanguage: '',
+    literalMeaning: '',
+    summaryDefinition: '',
+    bibliography: '',
+    restrictions: '',
+    examples: [],
     extraSenses: [],
     forms: [],
     ...partial,
@@ -112,6 +146,214 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[1]?.category).toBeUndefined();
   });
 
+  it('writes a trimmed scientific name on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        category: 'noun',
+        scientificName: ' Canis familiaris ',
+        extraSenses: [{ gloss: 'pet', definition: '', scientificName: ' Canis lupus ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.scientificName).toBe('Canis familiaris');
+    expect(created.senses[0]?.category).toBe('noun');
+    expect(created.senses[1]?.scientificName).toBe('Canis lupus');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        category: 'noun',
+        scientificName: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', scientificName: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.scientificName).toBeUndefined();
+    expect(cleared.senses[0]?.category).toBe('noun');
+    expect(cleared.senses[1]?.scientificName).toBeUndefined();
+  });
+
+  it('writes a trimmed anthropology note on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        scientificName: 'Canis familiaris',
+        anthropologyNote: ' kept at home ',
+        extraSenses: [{ gloss: 'pet', definition: '', anthropologyNote: ' companion ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(created.senses[0]?.scientificName).toBe('Canis familiaris');
+    expect(created.senses[1]?.anthropologyNote).toBe('companion');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        scientificName: 'Canis familiaris',
+        anthropologyNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', anthropologyNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.anthropologyNote).toBeUndefined();
+    expect(cleared.senses[0]?.scientificName).toBe('Canis familiaris');
+    expect(cleared.senses[1]?.anthropologyNote).toBeUndefined();
+  });
+
+  it('writes a trimmed discourse note on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        anthropologyNote: 'kept at home',
+        discourseNote: ' narrative use ',
+        extraSenses: [{ gloss: 'pet', definition: '', discourseNote: ' vocative ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.discourseNote).toBe('narrative use');
+    expect(created.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(created.senses[1]?.discourseNote).toBe('vocative');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        anthropologyNote: 'kept at home',
+        discourseNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', discourseNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.discourseNote).toBeUndefined();
+    expect(cleared.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(cleared.senses[1]?.discourseNote).toBeUndefined();
+  });
+
+  it('writes a trimmed encyclopedic note on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        discourseNote: 'narrative use',
+        encyclopedicNote: ' domestic canine ',
+        extraSenses: [{ gloss: 'pet', definition: '', encyclopedicNote: ' household companion ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(created.senses[0]?.discourseNote).toBe('narrative use');
+    expect(created.senses[1]?.encyclopedicNote).toBe('household companion');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        discourseNote: 'narrative use',
+        encyclopedicNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', encyclopedicNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.encyclopedicNote).toBeUndefined();
+    expect(cleared.senses[0]?.discourseNote).toBe('narrative use');
+    expect(cleared.senses[1]?.encyclopedicNote).toBeUndefined();
+  });
+
+  it('writes a trimmed grammar note on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        encyclopedicNote: 'domestic canine',
+        grammarNote: ' count noun ',
+        extraSenses: [{ gloss: 'pet', definition: '', grammarNote: ' used with classifiers ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.grammarNote).toBe('count noun');
+    expect(created.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(created.senses[1]?.grammarNote).toBe('used with classifiers');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        encyclopedicNote: 'domestic canine',
+        grammarNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', grammarNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.grammarNote).toBeUndefined();
+    expect(cleared.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(cleared.senses[1]?.grammarNote).toBeUndefined();
+  });
+
+  it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {
+    const existing = applyLexiconEntryFields(null, fields({ lemma: 'dog', gloss: 'canine' }), now);
+    const withLegacy = { ...existing, examples: ['legacy note'] };
+    const updated = applyLexiconEntryFields(
+      withLegacy,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        examples: [{ source: ' the dog runs ', translation: ' 狗在跑 ' }],
+        extraSenses: [
+          { gloss: 'pet', definition: '', examples: [{ source: 'my pet', translation: ' ' }] },
+        ],
+      }),
+      now,
+    );
+    expect(updated.senses[0]?.examples).toEqual([
+      { source: 'the dog runs', translation: '狗在跑' },
+    ]);
+    expect(updated.senses[1]?.examples).toEqual([{ source: 'my pet' }]);
+    expect(updated.examples).toEqual(['legacy note']);
+    const extraId = updated.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        examples: [{ source: '  ', translation: 'gone' }],
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', examples: [] }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.examples).toBeUndefined();
+    expect(cleared.senses[1]?.examples).toBeUndefined();
+    expect(cleared.examples).toEqual(['legacy note']);
+  });
+
   it('writes lexeme type, drops it when cleared, and keeps morpheme type', () => {
     const existing = applyLexiconEntryFields(null, fields({ lemma: 'dog', gloss: 'canine' }), now);
     const withTypes = { ...existing, lexemeType: 'word', morphemeType: 'prefix' };
@@ -128,6 +370,163 @@ describe('saveLexiconEntry', () => {
       now,
     );
     expect(cleared.lexemeType).toBeUndefined();
+  });
+
+  it('writes a trimmed pronunciation and omits a blank one', () => {
+    const existing = applyLexiconEntryFields(null, fields({ lemma: 'dog', gloss: 'canine' }), now);
+    const withMorph = { ...existing, morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withMorph,
+      fields({ lemma: 'dog', gloss: 'canine', pronunciation: ' dɔg ' }),
+      now,
+    );
+    expect(updated.pronunciation).toBe('dɔg');
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({ lemma: 'dog', gloss: 'canine', pronunciation: ' ' }),
+      now,
+    );
+    expect(cleared.pronunciation).toBeUndefined();
+    expect(cleared.morphemeType).toBe('prefix');
+  });
+
+  it('writes one etymology and omits it when the source form is blank', () => {
+    const existing = applyLexiconEntryFields(null, fields({ lemma: 'dog', gloss: 'canine' }), now);
+    const withMorph = { ...existing, morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withMorph,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        etymologyForm: ' perro ',
+        etymologyGloss: ' dog ',
+        etymologySourceLanguage: ' Spanish ',
+      }),
+      now,
+    );
+    expect(updated.etymology).toEqual({ form: 'perro', gloss: 'dog', sourceLanguage: 'Spanish' });
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({ lemma: 'dog', gloss: 'canine', etymologyForm: ' ' }),
+      now,
+    );
+    expect(cleared.etymology).toBeUndefined();
+    expect(cleared.morphemeType).toBe('prefix');
+  });
+
+  it('writes a trimmed literal meaning and omits a blank one', () => {
+    const existing = applyLexiconEntryFields(null, fields({ lemma: 'dog', gloss: 'canine' }), now);
+    const withMorph = { ...existing, morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withMorph,
+      fields({ lemma: 'dog', gloss: 'canine', literalMeaning: ' domestic animal ' }),
+      now,
+    );
+    expect(updated.literalMeaning).toBe('domestic animal');
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({ lemma: 'dog', gloss: 'canine', literalMeaning: ' ' }),
+      now,
+    );
+    expect(cleared.literalMeaning).toBeUndefined();
+    expect(cleared.morphemeType).toBe('prefix');
+  });
+
+  it('writes a trimmed summary definition and omits a blank one', () => {
+    const existing = applyLexiconEntryFields(
+      null,
+      fields({ lemma: 'dog', gloss: 'canine', literalMeaning: 'domestic animal' }),
+      now,
+    );
+    const withMorph = { ...existing, morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withMorph,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        literalMeaning: 'domestic animal',
+        summaryDefinition: ' a canine kept at home ',
+      }),
+      now,
+    );
+    expect(updated.summaryDefinition).toBe('a canine kept at home');
+    expect(updated.literalMeaning).toBe('domestic animal');
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        literalMeaning: 'domestic animal',
+        summaryDefinition: ' ',
+      }),
+      now,
+    );
+    expect(cleared.summaryDefinition).toBeUndefined();
+    expect(cleared.literalMeaning).toBe('domestic animal');
+    expect(cleared.morphemeType).toBe('prefix');
+  });
+
+  it('writes a trimmed bibliography and omits a blank one', () => {
+    const existing = applyLexiconEntryFields(
+      null,
+      fields({ lemma: 'dog', gloss: 'canine', notes: 'field note' }),
+      now,
+    );
+    const withMorph = { ...existing, morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withMorph,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        notes: 'field note',
+        bibliography: ' Smith 1990 ',
+      }),
+      now,
+    );
+    expect(updated.bibliography).toBe('Smith 1990');
+    expect(updated.notes?.default).toBe('field note');
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({ lemma: 'dog', gloss: 'canine', notes: 'field note', bibliography: ' ' }),
+      now,
+    );
+    expect(cleared.bibliography).toBeUndefined();
+    expect(cleared.notes?.default).toBe('field note');
+    expect(cleared.morphemeType).toBe('prefix');
+  });
+
+  it('writes a trimmed restrictions value and omits a blank one', () => {
+    const existing = applyLexiconEntryFields(
+      null,
+      fields({ lemma: 'dog', gloss: 'canine', bibliography: 'Smith 1990' }),
+      now,
+    );
+    const withMorph = { ...existing, morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withMorph,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        bibliography: 'Smith 1990',
+        restrictions: ' internal ',
+      }),
+      now,
+    );
+    expect(updated.restrictions).toBe('internal');
+    expect(updated.bibliography).toBe('Smith 1990');
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({ lemma: 'dog', gloss: 'canine', bibliography: 'Smith 1990', restrictions: ' ' }),
+      now,
+    );
+    expect(cleared.restrictions).toBeUndefined();
+    expect(cleared.bibliography).toBe('Smith 1990');
     expect(cleared.morphemeType).toBe('prefix');
   });
 

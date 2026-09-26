@@ -60,6 +60,27 @@ describe('lexiconLiftExport', () => {
     expect(xml).not.toContain('form_dogs');
   });
 
+  it('writes sense examples as LIFT example elements and ignores entry-level example strings', () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        examples: ['legacy note'],
+        senses: [
+          {
+            ...dog.senses[0]!,
+            examples: [{ source: 'the dog runs', translation: '狗在跑' }, { source: 'a <dog>' }],
+          },
+          dog.senses[1]!,
+        ],
+      },
+    ]);
+    expect(xml).toContain(
+      '<example><form lang="eng"><text>the dog runs</text></form><translation><form lang="eng"><text>狗在跑</text></form></translation></example>',
+    );
+    expect(xml).toContain('<example><form lang="eng"><text>a &lt;dog&gt;</text></form></example>');
+    expect(xml).not.toContain('legacy note');
+  });
+
   it('nests parented senses as LIFT subsense elements', () => {
     const xml = serializeLexemesToLift([
       {
@@ -89,6 +110,74 @@ describe('lexiconLiftExport', () => {
     expect(xml).toContain('<form lang="eng"><text>a &amp; b &lt;c&gt;</text></form>');
     expect(xml).toContain('<gloss lang="eng"><text>and/or</text></gloss>');
     expect(xml?.match(/<form lang="eng">/g)?.length).toBe(1);
+  });
+
+  it('emits the first pronunciation as und-fonipa and omits a blank one', () => {
+    const xml = serializeLexemesToLift([{ ...dog, pronunciation: ' dɔg ' }]);
+    expect(xml).toContain(
+      '<pronunciation><form lang="und-fonipa"><text>dɔg</text></form></pronunciation>',
+    );
+    expect(serializeLexemesToLift([dog])).not.toContain('<pronunciation>');
+  });
+
+  it('emits one etymology and omits a blank source form', () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        etymology: { form: 'perro', gloss: 'dog', sourceLanguage: 'Spanish' },
+      },
+    ]);
+    expect(xml).toContain(
+      '<etymology><trait name="languages" value="Spanish"/><form lang="und"><text>perro</text></form><gloss lang="und"><text>dog</text></gloss></etymology>',
+    );
+    expect(serializeLexemesToLift([dog])).not.toContain('<etymology>');
+  });
+
+  it('emits literal meaning as a field and omits a blank one', () => {
+    const xml = serializeLexemesToLift([{ ...dog, literalMeaning: ' domestic animal ' }]);
+    expect(xml).toContain(
+      '<field type="literal-meaning"><form lang="und"><text>domestic animal</text></form></field>',
+    );
+    expect(serializeLexemesToLift([dog])).not.toContain('literal-meaning');
+  });
+
+  it('emits summary definition after literal meaning and omits a blank one', () => {
+    const xml = serializeLexemesToLift([
+      { ...dog, literalMeaning: 'domestic animal', summaryDefinition: ' a canine kept at home ' },
+    ]);
+    expect(xml).toContain(
+      '<field type="summary-definition"><form lang="und"><text>a canine kept at home</text></form></field>',
+    );
+    const literalAt = xml?.indexOf('type="literal-meaning"') ?? -1;
+    const summaryAt = xml?.indexOf('type="summary-definition"') ?? -1;
+    expect(summaryAt).toBeGreaterThan(literalAt);
+    expect(serializeLexemesToLift([dog])).not.toContain('summary-definition');
+  });
+
+  it('emits bibliography as a typed note after the untyped note', () => {
+    const xml = serializeLexemesToLift([{ ...dog, bibliography: ' Smith 1990 ' }]);
+    expect(xml).toContain('<note><form lang="zho"><text>常见家养动物</text></form></note>');
+    expect(xml).toContain(
+      '<note type="bibliography"><form lang="und"><text>Smith 1990</text></form></note>',
+    );
+    const noteAt = xml?.indexOf('<note>') ?? -1;
+    const bibliographyAt = xml?.indexOf('<note type="bibliography">') ?? -1;
+    expect(noteAt).toBeGreaterThanOrEqual(0);
+    expect(bibliographyAt).toBeGreaterThan(noteAt);
+    expect(serializeLexemesToLift([dog])).not.toContain('type="bibliography"');
+  });
+
+  it('emits restrictions after bibliography and omits a blank one', () => {
+    const xml = serializeLexemesToLift([
+      { ...dog, bibliography: 'Smith 1990', restrictions: ' internal ' },
+    ]);
+    expect(xml).toContain(
+      '<note type="restrictions"><form lang="und"><text>internal</text></form></note>',
+    );
+    const bibliographyAt = xml?.indexOf('<note type="bibliography">') ?? -1;
+    const restrictionsAt = xml?.indexOf('<note type="restrictions">') ?? -1;
+    expect(restrictionsAt).toBeGreaterThan(bibliographyAt);
+    expect(serializeLexemesToLift([dog])).not.toContain('type="restrictions"');
   });
 
   it('returns null for an empty list or entries without lemma text', () => {
