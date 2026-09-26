@@ -125,6 +125,7 @@ export function LexiconPage() {
   const [importError, setImportError] = useState('');
 
   useEffect(() => {
+    if (loading) return;
     if (filteredLexemes.some((lexeme) => lexeme.id === selectedLexemeId)) {
       return;
     }
@@ -140,7 +141,7 @@ export function LexiconPage() {
       return;
     }
     setSelectedLexemeId(filteredLexemes[0]!.id);
-  }, [filteredLexemes, lexemes, searchText, selectedLexemeId]);
+  }, [filteredLexemes, lexemes, loading, searchText, selectedLexemeId]);
 
   useEffect(() => {
     writeLexiconListState({
