@@ -253,6 +253,56 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.literalMeaning).toBe('domestic animal');
   });
 
+  it('reads an entry bibliography note and leaves the untyped note alone', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <note type="bibliography">
+      <form><text>nolang</text></form>
+      <form lang="en"><text>Smith 1990</text></form>
+    </note>
+    <note type="restrictions"><form lang="en"><text>secret</text></form></note>
+    <note><form lang="zho"><text>常见</text></form></note>
+    <field type="bibliography"><form lang="en"><text>not entry</text></form></field>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <note type="bibliography"><form lang="en"><text>sense bib</text></form></note>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.bibliography).toBe('Smith 1990');
+    expect(parsed.lexemes[0]?.notes).toEqual({ zho: '常见', default: '常见' });
+  });
+
+  it('round-trips bibliography and keeps an existing value when the note is omitted', async () => {
+    const xml = serializeLexemesToLift([{ ...dog, bibliography: 'Smith 1990' }]);
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.bibliography).toBe('Smith 1990');
+    expect(parsed.lexemes[0]?.notes?.zho).toBe('常见家养动物');
+
+    const bare = serializeLexemesToLift([dog]);
+    expect(bare).not.toContain('type="bibliography"');
+    const existing: LexemeDocType = { ...dog, bibliography: 'Smith 1990' };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.bibliography).toBe('Smith 1990');
+    expect(store[0]?.notes?.zho).toBe('常见家养动物');
+  });
+
   it('sorts sibling senses by the LIFT order attribute', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

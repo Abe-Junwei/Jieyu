@@ -148,6 +148,11 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
     morphType.length > 0 ? `<trait name="morph-type" value="${escapeXml(morphType)}"/>` : '';
   const notes = formsFromMultiLang(lexeme.notes, vernacular);
   const noteXml = notes.length > 0 ? `<note>${xmlFormList(notes)}</note>` : '';
+  const bibliography = lexeme.bibliography?.trim() ?? '';
+  const bibliographyXml =
+    bibliography.length > 0
+      ? `<note type="bibliography">${xmlForm('und', bibliography)}</note>`
+      : '';
   const senses = liftSenseRoots(lexeme.senses)
     .map((sense, index) =>
       serializeSenseNode('sense', lexeme.id, sense, index, vernacular, lexeme.senses),
@@ -163,7 +168,7 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
       return [`<variant>${xmlFormList(formRows)}</variant>`];
     })
     .join('');
-  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${pronunciationXml}${etymologyXml}${literalMeaningXml}${morphTrait}${noteXml}${senses}${variants}</entry>`;
+  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${pronunciationXml}${etymologyXml}${literalMeaningXml}${morphTrait}${noteXml}${bibliographyXml}${senses}${variants}</entry>`;
 }
 
 export function serializeLexemesToLift(lexemes: LexemeDocType[]): string | null {

@@ -15,7 +15,8 @@ export type LexiconEntryScalarField =
   | 'etymologyForm'
   | 'etymologyGloss'
   | 'etymologySourceLanguage'
-  | 'literalMeaning';
+  | 'literalMeaning'
+  | 'bibliography';
 
 export type LexiconExampleDraft = {
   source: string;
@@ -49,6 +50,7 @@ export type LexiconEntryFields = {
   etymologyGloss: string;
   etymologySourceLanguage: string;
   literalMeaning: string;
+  bibliography: string;
   primarySenseId?: string;
   examples: LexiconExampleDraft[];
   extraSenses: LexiconSenseDraft[];
@@ -180,6 +182,7 @@ export function applyLexiconEntryFields(
   const etymologyGloss = fields.etymologyGloss.trim();
   const etymologySourceLanguage = fields.etymologySourceLanguage.trim();
   const literalMeaning = fields.literalMeaning.trim();
+  const bibliography = fields.bibliography.trim();
   const etymology =
     etymologyForm.length > 0
       ? {
@@ -257,6 +260,7 @@ export function applyLexiconEntryFields(
     pronunciation: _oldPronunciation,
     etymology: _oldEtymology,
     literalMeaning: _oldLiteralMeaning,
+    bibliography: _oldBibliography,
     ...rest
   } = existing ?? {
     id,
@@ -285,6 +289,7 @@ export function applyLexiconEntryFields(
     ...(pronunciation.length > 0 ? { pronunciation } : {}),
     ...(etymology ? { etymology } : {}),
     ...(literalMeaning.length > 0 ? { literalMeaning } : {}),
+    ...(bibliography.length > 0 ? { bibliography } : {}),
     ...(notes.length > 0 ? { notes: writePrimaryMultiLang(existing?.notes, notes) } : {}),
     ...(nextForms.length > 0 ? { forms: nextForms } : {}),
     createdAt: existing?.createdAt ?? now,
