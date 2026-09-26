@@ -25,6 +25,7 @@ function fields(
     etymologyGloss: string;
     etymologySourceLanguage: string;
     literalMeaning: string;
+    summaryDefinition: string;
     bibliography: string;
     restrictions: string;
     primarySenseId: string;
@@ -52,6 +53,7 @@ function fields(
     etymologyGloss: '',
     etymologySourceLanguage: '',
     literalMeaning: '',
+    summaryDefinition: '',
     bibliography: '',
     restrictions: '',
     examples: [],
@@ -245,6 +247,41 @@ describe('saveLexiconEntry', () => {
       now,
     );
     expect(cleared.literalMeaning).toBeUndefined();
+    expect(cleared.morphemeType).toBe('prefix');
+  });
+
+  it('writes a trimmed summary definition and omits a blank one', () => {
+    const existing = applyLexiconEntryFields(
+      null,
+      fields({ lemma: 'dog', gloss: 'canine', literalMeaning: 'domestic animal' }),
+      now,
+    );
+    const withMorph = { ...existing, morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withMorph,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        literalMeaning: 'domestic animal',
+        summaryDefinition: ' a canine kept at home ',
+      }),
+      now,
+    );
+    expect(updated.summaryDefinition).toBe('a canine kept at home');
+    expect(updated.literalMeaning).toBe('domestic animal');
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        literalMeaning: 'domestic animal',
+        summaryDefinition: ' ',
+      }),
+      now,
+    );
+    expect(cleared.summaryDefinition).toBeUndefined();
+    expect(cleared.literalMeaning).toBe('domestic animal');
     expect(cleared.morphemeType).toBe('prefix');
   });
 

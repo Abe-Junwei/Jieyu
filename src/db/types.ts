@@ -202,6 +202,8 @@ export interface LexemeDocType {
   etymology?: LexemeEtymology;
   /** First LIFT `<field type="literal-meaning"><form>` text. */
   literalMeaning?: string;
+  /** First LIFT entry `<field type="summary-definition"><form>` text. */
+  summaryDefinition?: string;
   /** First LIFT entry `<note type="bibliography"><form>` text. Untyped notes stay on `notes`. */
   bibliography?: string;
   /** First LIFT entry `<note type="restrictions"><form>` text. */

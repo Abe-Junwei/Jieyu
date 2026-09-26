@@ -143,6 +143,11 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
     literalMeaning.length > 0
       ? `<field type="literal-meaning">${xmlForm('und', literalMeaning)}</field>`
       : '';
+  const summaryDefinition = lexeme.summaryDefinition?.trim() ?? '';
+  const summaryDefinitionXml =
+    summaryDefinition.length > 0
+      ? `<field type="summary-definition">${xmlForm('und', summaryDefinition)}</field>`
+      : '';
   const morphType = (lexeme.morphemeType ?? lexeme.lexemeType)?.trim() ?? '';
   const morphTrait =
     morphType.length > 0 ? `<trait name="morph-type" value="${escapeXml(morphType)}"/>` : '';
@@ -173,7 +178,7 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
       return [`<variant>${xmlFormList(formRows)}</variant>`];
     })
     .join('');
-  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${pronunciationXml}${etymologyXml}${literalMeaningXml}${morphTrait}${noteXml}${bibliographyXml}${restrictionsXml}${senses}${variants}</entry>`;
+  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${pronunciationXml}${etymologyXml}${literalMeaningXml}${summaryDefinitionXml}${morphTrait}${noteXml}${bibliographyXml}${restrictionsXml}${senses}${variants}</entry>`;
 }
 
 export function serializeLexemesToLift(lexemes: LexemeDocType[]): string | null {

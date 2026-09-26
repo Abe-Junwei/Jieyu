@@ -16,6 +16,7 @@ export type LexiconEntryScalarField =
   | 'etymologyGloss'
   | 'etymologySourceLanguage'
   | 'literalMeaning'
+  | 'summaryDefinition'
   | 'bibliography'
   | 'restrictions';
 
@@ -51,6 +52,7 @@ export type LexiconEntryFields = {
   etymologyGloss: string;
   etymologySourceLanguage: string;
   literalMeaning: string;
+  summaryDefinition: string;
   bibliography: string;
   restrictions: string;
   primarySenseId?: string;
@@ -184,6 +186,7 @@ export function applyLexiconEntryFields(
   const etymologyGloss = fields.etymologyGloss.trim();
   const etymologySourceLanguage = fields.etymologySourceLanguage.trim();
   const literalMeaning = fields.literalMeaning.trim();
+  const summaryDefinition = fields.summaryDefinition.trim();
   const bibliography = fields.bibliography.trim();
   const restrictions = fields.restrictions.trim();
   const etymology =
@@ -263,6 +266,7 @@ export function applyLexiconEntryFields(
     pronunciation: _oldPronunciation,
     etymology: _oldEtymology,
     literalMeaning: _oldLiteralMeaning,
+    summaryDefinition: _oldSummaryDefinition,
     bibliography: _oldBibliography,
     restrictions: _oldRestrictions,
     ...rest
@@ -293,6 +297,7 @@ export function applyLexiconEntryFields(
     ...(pronunciation.length > 0 ? { pronunciation } : {}),
     ...(etymology ? { etymology } : {}),
     ...(literalMeaning.length > 0 ? { literalMeaning } : {}),
+    ...(summaryDefinition.length > 0 ? { summaryDefinition } : {}),
     ...(bibliography.length > 0 ? { bibliography } : {}),
     ...(restrictions.length > 0 ? { restrictions } : {}),
     ...(notes.length > 0 ? { notes: writePrimaryMultiLang(existing?.notes, notes) } : {}),

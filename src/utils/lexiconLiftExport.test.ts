@@ -141,6 +141,19 @@ describe('lexiconLiftExport', () => {
     expect(serializeLexemesToLift([dog])).not.toContain('literal-meaning');
   });
 
+  it('emits summary definition after literal meaning and omits a blank one', () => {
+    const xml = serializeLexemesToLift([
+      { ...dog, literalMeaning: 'domestic animal', summaryDefinition: ' a canine kept at home ' },
+    ]);
+    expect(xml).toContain(
+      '<field type="summary-definition"><form lang="und"><text>a canine kept at home</text></form></field>',
+    );
+    const literalAt = xml?.indexOf('type="literal-meaning"') ?? -1;
+    const summaryAt = xml?.indexOf('type="summary-definition"') ?? -1;
+    expect(summaryAt).toBeGreaterThan(literalAt);
+    expect(serializeLexemesToLift([dog])).not.toContain('summary-definition');
+  });
+
   it('emits bibliography as a typed note after the untyped note', () => {
     const xml = serializeLexemesToLift([{ ...dog, bibliography: ' Smith 1990 ' }]);
     expect(xml).toContain('<note><form lang="zho"><text>常见家养动物</text></form></note>');
