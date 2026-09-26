@@ -93,6 +93,33 @@ vi.mock('../ai/config/featureFlags', () => ({
   },
 }));
 
+vi.mock('./annotation/annotationStructuralPreviewController', () => ({
+  previewAnnotationStructuralCandidate: vi.fn(async (input: { glossText: string }) => {
+    const needsReview = input.glossText.includes('<') && !input.glossText.includes('>');
+    const segments = input.glossText
+      .split('-')
+      .filter((part) => part.length > 0)
+      .map((text, index) => ({ id: `s-${index}`, text, kind: 'stem' }));
+    return {
+      segments,
+      boundaries: [],
+      warnings: needsReview
+        ? [{ type: 'unmatched_wrapper', message: 'Missing infix end marker.', severity: 'warning' }]
+        : [],
+      diagnostics: [],
+      canConfirmWithoutReview: !needsReview,
+      candidateGraph: {
+        id: 'preview',
+        text: input.glossText,
+        displayGloss: input.glossText,
+        nodes: [],
+        relations: [],
+        projectionDiagnostics: [],
+      },
+    };
+  }),
+}));
+
 import { AnnotationPage } from './AnnotationPage';
 import { dispatchWorkspaceUnitUpdated } from '../utils/workspaceEvents';
 
@@ -651,5 +678,25 @@ describe('AnnotationPage', () => {
       expect(tokens.some((row) => row.form.default === 'hello')).toBe(true);
       expect(tokens.some((row) => row.form.default === 'world')).toBe(true);
     });
+  });
+
+  it('shows an empty structure check when the focused unit has no gloss', async () => {
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello world', '')]);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    const panel = await screen.findByTestId('annotation-validator-uid-1', {}, { timeout: 4000 });
+    expect(panel.textContent).toContain('当前句段还没有 gloss。');
+  });
+
+  it('shows parsed gloss segments on the focused structure check', async () => {
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'dogs', 'dog-PL')]);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    const line = await screen.findByTestId(
+      'annotation-validator-token-tok-1',
+      {},
+      { timeout: 4000 },
+    );
+    expect(line.textContent).toContain('dogs: dog-PL');
+    expect(line.textContent).toContain('切段 dog · PL');
+    expect(line.textContent).toContain('可解析');
   });
 });

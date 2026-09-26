@@ -1,22 +1,22 @@
 ---
-title: annotation-retokenize-force tasks
+title: annotation-validator-panel tasks
 doc_type: execution-spec-tasks
 status: active
 owner: annotation
 last_reviewed: 2026-09-25
-source_of_truth: annotation-retokenize-force-spec
+source_of_truth: annotation-validator-panel-spec
 depends_on:
   - ./requirements.md
   - ./design.md
 ---
 
-# Tasks — Annotation Retokenize Force (B4g)
+# Tasks — Annotation Validator Panel (B4h)
 
 ## Implementation tasks
 
-- [x] 强制覆盖写快照并替换词列，恢复后 gloss / 词素 / 链接回来 → `npx vitest run src/pages/annotation/annotationRetokenize.test.ts`
-- [x] 脏草稿不覆盖
-- [x] 路线图 B4g / 代码地图 / CHANGELOG
+- [x] 只读预览 `dog-PL` 与 `touch<PRS`，relation 仍为 0 → `npx vitest run src/pages/annotation/annotationValidatorPanel.test.ts`
+- [x] 聚焦行渲染结构校验；无 gloss 显示空态
+- [x] 路线图 B4h / 代码地图 / CHANGELOG
 
 ## Pre-merge gates（与拍板 2A 一致）
 
@@ -29,4 +29,3 @@ depends_on:
 ## Post-merge
 
 - [ ] spec frontmatter `status: completed` after merge
-- [x] 更完整 Validator 面板另切片（B4h）

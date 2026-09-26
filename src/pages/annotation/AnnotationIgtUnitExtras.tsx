@@ -5,6 +5,7 @@ import { pickDefaultTranscriptionText } from '../../utils/transcriptionFormatter
 import type { AnnotationUnitMetaController } from '../useAnnotationUnitMetaController';
 import type { AnnotationAutoGlossController } from '../useAnnotationAutoGlossController';
 import type { AnnotationRetokenizeController } from '../useAnnotationRetokenizeController';
+import type { AnnotationValidatorPanelController } from '../useAnnotationValidatorPanelController';
 
 type Props = {
   unitId: string;
@@ -13,6 +14,7 @@ type Props = {
   unitMeta: AnnotationUnitMetaController;
   autoGloss: AnnotationAutoGlossController;
   retokenize: AnnotationRetokenizeController;
+  validator: AnnotationValidatorPanelController;
   onPlay: (unitId: string) => void;
   onFocusInput: (unitId: string) => void;
 };
@@ -54,6 +56,7 @@ export function AnnotationIgtUnitExtras({
   unitMeta,
   autoGloss,
   retokenize,
+  validator,
   onPlay,
   onFocusInput,
 }: Props) {
@@ -227,6 +230,45 @@ export function AnnotationIgtUnitExtras({
               )
               .join(' · ')}
       </p>
+      {validator.unitId === unitId ? (
+        <div className="annotation-igt-autogloss" data-testid={`annotation-validator-${unitId}`}>
+          <p>{t(locale, 'workspace.annotation.validatorPanelTitle')}</p>
+          {validator.pending ? (
+            <p>{t(locale, 'workspace.annotation.validatorPanelPending')}</p>
+          ) : null}
+          {validator.errorMessage.length > 0 ? (
+            <p>
+              {tf(locale, 'workspace.annotation.validatorPanelFailed', {
+                message: validator.errorMessage,
+              })}
+            </p>
+          ) : null}
+          {validator.items.length === 0 &&
+          !validator.pending &&
+          validator.errorMessage.length === 0 ? (
+            <p>{t(locale, 'workspace.annotation.validatorPanelEmpty')}</p>
+          ) : null}
+          {validator.items.map((item) => (
+            <p key={item.tokenId} data-testid={`annotation-validator-token-${item.tokenId}`}>
+              {item.form}: {item.gloss}
+              {item.segments.length > 0
+                ? ` · ${tf(locale, 'workspace.annotation.validatorPanelSegments', {
+                    segments: item.segments.join(' · '),
+                  })}`
+                : ''}
+              {` · ${
+                item.needsReview
+                  ? t(locale, 'workspace.annotation.validatorPanelReview')
+                  : t(locale, 'workspace.annotation.validatorPanelReady')
+              }`}
+              {item.leipzigInvalid
+                ? ` · ${t(locale, 'workspace.annotation.validatorPanelLeipzig')}`
+                : ''}
+              {item.warnings.length > 0 ? ` · ${item.warnings.join(' · ')}` : ''}
+            </p>
+          ))}
+        </div>
+      ) : null}
       <p className="annotation-igt-autogloss" data-testid={`annotation-igt-retokenize-${unitId}`}>
         {!retokenizePreviewActive || retokenize.proposedForms.length === 0
           ? t(locale, 'workspace.annotation.retokenizeEmpty')
