@@ -154,6 +154,19 @@ describe('lexiconLiftExport', () => {
     expect(serializeLexemesToLift([dog])).not.toContain('type="bibliography"');
   });
 
+  it('emits restrictions after bibliography and omits a blank one', () => {
+    const xml = serializeLexemesToLift([
+      { ...dog, bibliography: 'Smith 1990', restrictions: ' internal ' },
+    ]);
+    expect(xml).toContain(
+      '<note type="restrictions"><form lang="und"><text>internal</text></form></note>',
+    );
+    const bibliographyAt = xml?.indexOf('<note type="bibliography">') ?? -1;
+    const restrictionsAt = xml?.indexOf('<note type="restrictions">') ?? -1;
+    expect(restrictionsAt).toBeGreaterThan(bibliographyAt);
+    expect(serializeLexemesToLift([dog])).not.toContain('type="restrictions"');
+  });
+
   it('returns null for an empty list or entries without lemma text', () => {
     expect(serializeLexemesToLift([])).toBeNull();
     expect(

@@ -185,10 +185,18 @@ function entryNote(entry: Element, type: string): Element | undefined {
   return directChildren(entry, 'note').find((note) => attr(note, 'type') === type);
 }
 
-function parseBibliography(entry: Element): string {
-  const note = entryNote(entry, 'bibliography');
+function parseTypedNote(entry: Element, type: string): string {
+  const note = entryNote(entry, type);
   if (!note) return '';
   return formPairs(note)[0]?.text ?? '';
+}
+
+function parseBibliography(entry: Element): string {
+  return parseTypedNote(entry, 'bibliography');
+}
+
+function parseRestrictions(entry: Element): string {
+  return parseTypedNote(entry, 'restrictions');
 }
 
 function parseLiteralMeaning(entry: Element): string {
@@ -228,6 +236,7 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
   const etymology = parseEtymology(entry);
   const literalMeaning = parseLiteralMeaning(entry);
   const bibliography = parseBibliography(entry);
+  const restrictions = parseRestrictions(entry);
   const senses = sortByLiftOrder(directChildren(entry, 'sense')).flatMap((sense, index) =>
     parseSenseTree(sense, index, id, language, undefined),
   );
@@ -253,6 +262,7 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
     ...(etymology ? { etymology } : {}),
     ...(literalMeaning.length > 0 ? { literalMeaning } : {}),
     ...(bibliography.length > 0 ? { bibliography } : {}),
+    ...(restrictions.length > 0 ? { restrictions } : {}),
     ...(notes ? { notes } : {}),
     ...(forms.length > 0 ? { forms } : {}),
   };
@@ -291,6 +301,7 @@ function mergeParsed(
   const etymology = parsed.etymology ?? existing.etymology;
   const literalMeaning = parsed.literalMeaning ?? existing.literalMeaning;
   const bibliography = parsed.bibliography ?? existing.bibliography;
+  const restrictions = parsed.restrictions ?? existing.restrictions;
   const notes = parsed.notes ?? existing.notes;
   const forms = parsed.forms ?? existing.forms;
   return {
@@ -306,6 +317,7 @@ function mergeParsed(
     ...(etymology !== undefined && etymology.form.length > 0 ? { etymology } : {}),
     ...(literalMeaning !== undefined && literalMeaning.length > 0 ? { literalMeaning } : {}),
     ...(bibliography !== undefined && bibliography.length > 0 ? { bibliography } : {}),
+    ...(restrictions !== undefined && restrictions.length > 0 ? { restrictions } : {}),
     ...(notes !== undefined ? { notes } : {}),
     ...(forms !== undefined ? { forms } : {}),
   };

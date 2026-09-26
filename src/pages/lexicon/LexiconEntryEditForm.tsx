@@ -354,6 +354,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
         />
       </label>
       <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.restrictionsLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-restrictions"
+          value={editor.fields.restrictions}
+          onChange={(event) => editor.onFieldChange('restrictions', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</span>
         <input
           className="input lexicon-entry-edit-input"

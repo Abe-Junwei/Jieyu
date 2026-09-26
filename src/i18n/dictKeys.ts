@@ -242,6 +242,7 @@ export const DICT_KEYS = [
   'workspace.lexicon.etymologyLabel',
   'workspace.lexicon.literalMeaningLabel',
   'workspace.lexicon.bibliographyLabel',
+  'workspace.lexicon.restrictionsLabel',
   'workspace.lexicon.morphemeTypeLabel',
   'workspace.lexicon.usageCountLabel',
   'workspace.lexicon.updatedAtLabel',

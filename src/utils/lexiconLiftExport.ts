@@ -153,6 +153,11 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
     bibliography.length > 0
       ? `<note type="bibliography">${xmlForm('und', bibliography)}</note>`
       : '';
+  const restrictions = lexeme.restrictions?.trim() ?? '';
+  const restrictionsXml =
+    restrictions.length > 0
+      ? `<note type="restrictions">${xmlForm('und', restrictions)}</note>`
+      : '';
   const senses = liftSenseRoots(lexeme.senses)
     .map((sense, index) =>
       serializeSenseNode('sense', lexeme.id, sense, index, vernacular, lexeme.senses),
@@ -168,7 +173,7 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
       return [`<variant>${xmlFormList(formRows)}</variant>`];
     })
     .join('');
-  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${pronunciationXml}${etymologyXml}${literalMeaningXml}${morphTrait}${noteXml}${bibliographyXml}${senses}${variants}</entry>`;
+  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${pronunciationXml}${etymologyXml}${literalMeaningXml}${morphTrait}${noteXml}${bibliographyXml}${restrictionsXml}${senses}${variants}</entry>`;
 }
 
 export function serializeLexemesToLift(lexemes: LexemeDocType[]): string | null {
