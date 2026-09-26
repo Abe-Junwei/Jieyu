@@ -11,6 +11,7 @@ export type LexiconEntryScalarField =
   | 'anthropologyNote'
   | 'discourseNote'
   | 'encyclopedicNote'
+  | 'grammarNote'
   | 'citationForm'
   | 'language'
   | 'notes'
@@ -39,6 +40,7 @@ export type LexiconSenseDraft = {
   anthropologyNote?: string;
   discourseNote?: string;
   encyclopedicNote?: string;
+  grammarNote?: string;
   examples?: LexiconExampleDraft[];
 };
 
@@ -55,6 +57,7 @@ export type LexiconEntryFields = {
   anthropologyNote: string;
   discourseNote: string;
   encyclopedicNote: string;
+  grammarNote: string;
   citationForm: string;
   language: string;
   notes: string;
@@ -193,6 +196,7 @@ export function applyLexiconEntryFields(
   const anthropologyNote = readCategory(fields.anthropologyNote);
   const discourseNote = readCategory(fields.discourseNote);
   const encyclopedicNote = readCategory(fields.encyclopedicNote);
+  const grammarNote = readCategory(fields.grammarNote);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -233,6 +237,7 @@ export function applyLexiconEntryFields(
       anthropologyNote: _oldAnthropologyNote,
       discourseNote: _oldDiscourseNote,
       encyclopedicNote: _oldEncyclopedicNote,
+      grammarNote: _oldGrammarNote,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -244,6 +249,7 @@ export function applyLexiconEntryFields(
     const senseAnthropologyNote = readCategory(draft.anthropologyNote);
     const senseDiscourseNote = readCategory(draft.discourseNote);
     const senseEncyclopedicNote = readCategory(draft.encyclopedicNote);
+    const senseGrammarNote = readCategory(draft.grammarNote);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -258,6 +264,7 @@ export function applyLexiconEntryFields(
         ...(senseAnthropologyNote.length > 0 ? { anthropologyNote: senseAnthropologyNote } : {}),
         ...(senseDiscourseNote.length > 0 ? { discourseNote: senseDiscourseNote } : {}),
         ...(senseEncyclopedicNote.length > 0 ? { encyclopedicNote: senseEncyclopedicNote } : {}),
+        ...(senseGrammarNote.length > 0 ? { grammarNote: senseGrammarNote } : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -284,6 +291,7 @@ export function applyLexiconEntryFields(
     anthropologyNote: _oldPrimaryAnthropologyNote,
     discourseNote: _oldPrimaryDiscourseNote,
     encyclopedicNote: _oldPrimaryEncyclopedicNote,
+    grammarNote: _oldPrimaryGrammarNote,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -323,6 +331,7 @@ export function applyLexiconEntryFields(
         ...(anthropologyNote.length > 0 ? { anthropologyNote } : {}),
         ...(discourseNote.length > 0 ? { discourseNote } : {}),
         ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
+        ...(grammarNote.length > 0 ? { grammarNote } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,

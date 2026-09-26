@@ -186,6 +186,8 @@ export interface Sense {
   discourseNote?: string;
   /** First LIFT sense `<note type="encyclopedic"><form>` text. */
   encyclopedicNote?: string;
+  /** First LIFT sense `<note type="grammar"><form>` text. */
+  grammarNote?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

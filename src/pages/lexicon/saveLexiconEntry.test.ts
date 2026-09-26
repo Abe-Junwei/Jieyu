@@ -23,6 +23,7 @@ function fields(
     anthropologyNote: string;
     discourseNote: string;
     encyclopedicNote: string;
+    grammarNote: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -44,6 +45,7 @@ function fields(
       anthropologyNote?: string;
       discourseNote?: string;
       encyclopedicNote?: string;
+      grammarNote?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -56,6 +58,7 @@ function fields(
     anthropologyNote: '',
     discourseNote: '',
     encyclopedicNote: '',
+    grammarNote: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -277,6 +280,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.encyclopedicNote).toBeUndefined();
     expect(cleared.senses[0]?.discourseNote).toBe('narrative use');
     expect(cleared.senses[1]?.encyclopedicNote).toBeUndefined();
+  });
+
+  it('writes a trimmed grammar note on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        encyclopedicNote: 'domestic canine',
+        grammarNote: ' count noun ',
+        extraSenses: [{ gloss: 'pet', definition: '', grammarNote: ' used with classifiers ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.grammarNote).toBe('count noun');
+    expect(created.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(created.senses[1]?.grammarNote).toBe('used with classifiers');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        encyclopedicNote: 'domestic canine',
+        grammarNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', grammarNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.grammarNote).toBeUndefined();
+    expect(cleared.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(cleared.senses[1]?.grammarNote).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

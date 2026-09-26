@@ -600,6 +600,11 @@ export function LexiconPage() {
                                 {sense.encyclopedicNote}
                               </span>
                             ) : null}
+                            {sense.grammarNote ? (
+                              <span data-testid={`lexicon-workspace-sense-${index}-grammar-note`}>
+                                {sense.grammarNote}
+                              </span>
+                            ) : null}
                             {(sense.examples ?? []).map((example, exampleIndex) => (
                               <span
                                 key={`${readSenseId(sense)}-example-${exampleIndex}`}
