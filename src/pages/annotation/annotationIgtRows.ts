@@ -26,6 +26,7 @@ export function buildAnnotationIgtRows(input: {
   tokens: readonly UnitTokenDocType[];
   textId: string;
   mediaId: string;
+  translations?: ReadonlyMap<string, string>;
 }): AnnotationIgtRow[] {
   const tokensByUnit = new Map<string, UnitTokenDocType[]>();
   for (const token of input.tokens) {
@@ -54,7 +55,7 @@ export function buildAnnotationIgtRows(input: {
         pos: (token.pos ?? '').trim(),
         glossLang: resolveAnnotationGlossWriteLang(token.gloss),
       })),
-      translation: '',
+      translation: input.translations?.get(unit.id) ?? '',
       transcriptionHref: buildTranscriptionDeepLinkHref({
         textId: unit.textId.length > 0 ? unit.textId : input.textId,
         ...(resolvedMediaId.length > 0 ? { mediaId: resolvedMediaId } : {}),

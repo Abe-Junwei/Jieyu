@@ -16,6 +16,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Annotation translation line (B4i)**: `/annotation` shows the translation-layer text for the same unit on the IGT free-translation line. With no translation layer or no text, the line stays empty. Audio modality is skipped. The line is read-only. No new flag.
 - **Annotation structure check (B4h)**: On a focused `/annotation` unit, non-empty glosses show parsed segments, Leipzig abbreviation problems, and whether the structure needs review. The check is read-only and does not write an analysis-graph candidate. Template editing stays on `/assets/structural-profiles`. No new flag.
 - **Annotation retokenize overwrite (B4g)**: On `/annotation`, confirming a retokenize of an already annotated unit still writes only a pending candidate. Overwrite first stores the tokens, morphemes, and lexeme links in a pending `retokenize-snapshot`, then replaces `unit_tokens`. Restore writes those rows back by their original ids and rejects the snapshot. A dirty token draft is not overwritten. No new flag.
 - **Lexicon entry type (B3k)**: `/lexicon` edits `lexemeType`. Save readback shows it in the entry overview. A blank value omits the key. An existing `morphemeType` stays on the row. LIFT import/export already map `lexemeType` to `morph-type`. No closed type list, no DMLex, no new flag.
