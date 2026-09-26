@@ -309,6 +309,33 @@ export function LexiconEntryEditForm({ editor }: Props) {
         />
       </label>
       <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.etymologyFormLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-etymology-form"
+          value={editor.fields.etymologyForm}
+          onChange={(event) => editor.onFieldChange('etymologyForm', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.etymologyGlossLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-etymology-gloss"
+          value={editor.fields.etymologyGloss}
+          onChange={(event) => editor.onFieldChange('etymologyGloss', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.etymologySourceLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-etymology-source"
+          value={editor.fields.etymologySourceLanguage}
+          onChange={(event) => editor.onFieldChange('etymologySourceLanguage', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</span>
         <input
           className="input lexicon-entry-edit-input"

@@ -103,6 +103,9 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     notes: readPrimaryMultiLang(lexeme?.notes),
     lexemeType: (lexeme?.lexemeType ?? '').trim(),
     pronunciation: (lexeme?.pronunciation ?? '').trim(),
+    etymologyForm: (lexeme?.etymology?.form ?? '').trim(),
+    etymologyGloss: (lexeme?.etymology?.gloss ?? '').trim(),
+    etymologySourceLanguage: (lexeme?.etymology?.sourceLanguage ?? '').trim(),
     ...(primaryId.length > 0 ? { primarySenseId: primaryId } : {}),
     examples: exampleDraftsFromStored(lexeme?.senses[0]?.examples),
     extraSenses: (lexeme?.senses.slice(1) ?? []).map((sense) => {

@@ -503,6 +503,20 @@ export function LexiconPage() {
                         </dd>
                       </div>
                       <div>
+                        <dt>{t(locale, 'workspace.lexicon.etymologyLabel')}</dt>
+                        <dd data-testid="lexicon-workspace-etymology">
+                          {selectedLexeme.etymology
+                            ? [
+                                selectedLexeme.etymology.form,
+                                selectedLexeme.etymology.gloss,
+                                selectedLexeme.etymology.sourceLanguage,
+                              ]
+                                .filter((part) => (part ?? '').length > 0)
+                                .join(' · ')
+                            : t(locale, 'workspace.lexicon.notSet')}
+                        </dd>
+                      </div>
+                      <div>
                         <dt>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</dt>
                         <dd data-testid="lexicon-workspace-lexeme-type">
                           {selectedLexeme.lexemeType ?? t(locale, 'workspace.lexicon.notSet')}

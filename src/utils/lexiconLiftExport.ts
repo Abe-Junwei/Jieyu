@@ -126,6 +126,18 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
     pronunciation.length > 0
       ? `<pronunciation>${xmlForm('und-fonipa', pronunciation)}</pronunciation>`
       : '';
+  const etymologyForm = lexeme.etymology?.form.trim() ?? '';
+  const etymologyGloss = lexeme.etymology?.gloss?.trim() ?? '';
+  const etymologySource = lexeme.etymology?.sourceLanguage?.trim() ?? '';
+  const etymologyTrait =
+    etymologySource.length > 0
+      ? `<trait name="languages" value="${escapeXml(etymologySource)}"/>`
+      : '';
+  const etymologyGlossXml = etymologyGloss.length > 0 ? xmlGloss('und', etymologyGloss) : '';
+  const etymologyXml =
+    etymologyForm.length > 0
+      ? `<etymology>${etymologyTrait}${xmlForm('und', etymologyForm)}${etymologyGlossXml}</etymology>`
+      : '';
   const morphType = (lexeme.morphemeType ?? lexeme.lexemeType)?.trim() ?? '';
   const morphTrait =
     morphType.length > 0 ? `<trait name="morph-type" value="${escapeXml(morphType)}"/>` : '';
@@ -146,7 +158,7 @@ function serializeEntry(lexeme: LexemeDocType): string | null {
       return [`<variant>${xmlFormList(formRows)}</variant>`];
     })
     .join('');
-  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${pronunciationXml}${morphTrait}${noteXml}${senses}${variants}</entry>`;
+  return `<entry ${attrs.join(' ')}><lexical-unit>${xmlFormList(lemmaForms)}</lexical-unit>${citationXml}${pronunciationXml}${etymologyXml}${morphTrait}${noteXml}${senses}${variants}</entry>`;
 }
 
 export function serializeLexemesToLift(lexemes: LexemeDocType[]): string | null {

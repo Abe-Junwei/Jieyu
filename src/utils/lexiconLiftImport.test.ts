@@ -148,6 +148,68 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.pronunciation).toBe('dɔg');
   });
 
+  it('reads the first etymology form, gloss, and languages trait', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <etymology source="ignored">
+      <gloss lang="en"><text>only gloss</text></gloss>
+    </etymology>
+    <etymology source="also ignored">
+      <trait name="languages" value="Spanish"/>
+      <form lang="es"><text>perro</text></form>
+      <gloss lang="en"><text>dog</text></gloss>
+      <field type="note"><form lang="en"><text>skip note</text></form></field>
+    </etymology>
+    <etymology>
+      <form lang="und"><text>second</text></form>
+    </etymology>
+    <sense id="sense_primary"><gloss lang="eng"><text>canine</text></gloss></sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.etymology).toEqual({
+      form: 'perro',
+      gloss: 'dog',
+      sourceLanguage: 'Spanish',
+    });
+  });
+
+  it('round-trips etymology and keeps an existing value when the element is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      { ...dog, etymology: { form: 'perro', gloss: 'dog', sourceLanguage: 'Spanish' } },
+    ]);
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.etymology).toEqual({
+      form: 'perro',
+      gloss: 'dog',
+      sourceLanguage: 'Spanish',
+    });
+
+    const bare = serializeLexemesToLift([dog]);
+    expect(bare).not.toContain('<etymology>');
+    const existing: LexemeDocType = {
+      ...dog,
+      etymology: { form: 'perro', sourceLanguage: 'Spanish' },
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.etymology).toEqual({ form: 'perro', sourceLanguage: 'Spanish' });
+  });
+
   it('sorts sibling senses by the LIFT order attribute', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">
