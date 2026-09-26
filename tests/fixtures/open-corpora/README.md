@@ -31,6 +31,17 @@
 - **Language Documentation & Conservation（ScholarSpace）**：巽他语、沃莱艾语的“北风与太阳 / 梨子的故事”等课堂存款可以下载 `.eaf` / `.flextext`，但条目和馆藏都没有写再分发许可，因此没有留在本机。期刊 PDF 本身多是 CC BY，附件并不自动沿用这个许可。
 - **Toolbox**：这次打开的附录里没有找到许可允许再分发的标准格式（SFM）文本。Toolbox 解析仍由 `tests/golden/toolbox/` 的合成样本覆盖。
 
+## 私人田野材料
+
+木雅语两份 ELAN 来自采集人自己的校对稿，许可记为 `private-local`：只在本机跑导入，不公开、不随发布分发。媒体地址改成相对文件名，绝对备份路径没有留在副本里。
+
+| 文本 | 文件 |
+| --- | --- |
+| The adventure of three children | `elan/munya-0105a-three-children.eaf` |
+| Grandpa lytsa autobiography | `elan/munya-0101b-lytsa-autobiography.eaf` |
+
+两份都是全文。转写层是 `Transcription`（`mvm-fonipa-x-emic`），译文层是 `Phrase Free Translation`。
+
 ## 本机补入
 
 这些文件同样只在本机，不进入提交。DoReCo 标注按 CC BY 4.0 摘录。Pangloss 上的多续、尔苏、里汝、车臣语是 CC BY-NC-ND 2.5。多特亚尔语史诗摘录在档案中标为可自由访问，版权归 Michailovsky，没有 Creative Commons 许可。

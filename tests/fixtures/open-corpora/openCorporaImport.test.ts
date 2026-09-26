@@ -20,6 +20,7 @@ const ALLOWED_LICENSES = new Set([
   'CC-BY-NC-ND-2.5',
   'CC-BY-NC-SA-4.0',
   'freely-accessible',
+  'private-local',
 ]);
 
 interface CorpusRecord {

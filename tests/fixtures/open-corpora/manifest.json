@@ -411,6 +411,26 @@
       "excerpt": true,
       "source": "Michailovsky, Boyd. Annotation of Chiya and Bhiya Kathayat, recorded in 1969 by Marc Gaborieau and Mireille Helffer. Pangloss / COCOON. Copyright Michailovsky; archive marks the file freely accessible.",
       "doi": "https://cocoon.huma-num.fr/data/michailovsky/masters/crdo-NEP_CHIYA69.xml"
+    },
+    {
+      "path": "elan/munya-0105a-three-children.eaf",
+      "format": "eaf",
+      "language": "Munya",
+      "family": "Sino-Tibetan, Qiangic",
+      "region": "western Sichuan",
+      "license": "private-local",
+      "excerpt": false,
+      "source": "Bai, Junwei. Munya text Third_trip_0105A The adventure of three children. Local fieldwork, March 2025 proofread edition. Not for redistribution."
+    },
+    {
+      "path": "elan/munya-0101b-lytsa-autobiography.eaf",
+      "format": "eaf",
+      "language": "Munya",
+      "family": "Sino-Tibetan, Qiangic",
+      "region": "western Sichuan",
+      "license": "private-local",
+      "excerpt": false,
+      "source": "Bai, Junwei. Munya text Third_trip_0101B Grandpa lytsa autobiography. Local fieldwork, March 2025 proofread edition. Not for redistribution."
     }
   ]
 }
