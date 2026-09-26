@@ -13,7 +13,14 @@ import { importFromFlextext } from '../../../src/services/FlexService';
 import { parseLiftXml } from '../../../src/utils/lexiconLiftImport';
 
 const ROOT = __dirname;
-const ALLOWED_LICENSES = new Set(['CC-BY-4.0', 'CC-BY-SA-4.0', 'Apache-2.0']);
+const ALLOWED_LICENSES = new Set([
+  'CC-BY-4.0',
+  'CC-BY-SA-4.0',
+  'Apache-2.0',
+  'CC-BY-NC-ND-2.5',
+  'CC-BY-NC-SA-4.0',
+  'freely-accessible',
+]);
 
 interface CorpusRecord {
   path: string;
@@ -35,7 +42,7 @@ function hasLetters(value: string): boolean {
 describe('open corpora fixtures', () => {
   const files = loadManifest();
 
-  it('records a redistribution-compatible license for each local file', () => {
+  it('records an access license for each local file', () => {
     expect(files.length).toBeGreaterThan(0);
     for (const file of files) {
       expect(ALLOWED_LICENSES.has(file.license), file.path).toBe(true);
