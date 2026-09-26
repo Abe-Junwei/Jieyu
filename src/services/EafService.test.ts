@@ -430,6 +430,49 @@ describe('EafService export', () => {
       bridgeId: 'xf-ar-latn',
     });
   });
+
+  it('reads tier LANG_REF and does not treat ELAN font properties as languages', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="field" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
+    <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+        <MEDIA_DESCRIPTOR MEDIA_URL="file:///demo.wav" MIME_TYPE="audio/x-wav" />
+        <PROPERTY NAME="languages">mvm-fonipa-x-emic en zh-CN</PROPERTY>
+        <PROPERTY NAME="mvm-fonipa-x-emic">Charis SIL-true</PROPERTY>
+        <PROPERTY NAME="en">Charis SIL</PROPERTY>
+        <PROPERTY NAME="zh-CN">Source Han Serif CN-true</PROPERTY>
+    </HEADER>
+    <TIME_ORDER>
+        <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+        <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000" />
+    </TIME_ORDER>
+    <TIER LANG_REF="mvm-fonipa-x-emic" LINGUISTIC_TYPE_REF="phrase-txt" TIER_ID="Transcription">
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+                <ANNOTATION_VALUE>tsəkə́</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+    </TIER>
+    <TIER LANG_REF="en" LINGUISTIC_TYPE_REF="phrase-gls" PARENT_REF="Transcription" TIER_ID="Phrase Free Translation">
+        <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="g1" ANNOTATION_REF="a1">
+                <ANNOTATION_VALUE>then</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+        </ANNOTATION>
+    </TIER>
+    <LINGUISTIC_TYPE GRAPHIC_REFERENCES="false" LINGUISTIC_TYPE_ID="phrase-txt" TIME_ALIGNABLE="true" />
+    <LINGUISTIC_TYPE CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" LINGUISTIC_TYPE_ID="phrase-gls" TIME_ALIGNABLE="false" />
+    <LANGUAGE LANG_DEF="mvm-fonipa-x-emic" LANG_ID="mvm-fonipa-x-emic" LANG_LABEL="mvm-fonipa-x-emic" />
+    <LANGUAGE LANG_DEF="en" LANG_ID="en" LANG_LABEL="en" />
+</ANNOTATION_DOCUMENT>`;
+
+    const result = importFromEaf(xml);
+    expect(result.defaultLocale).toBe('mvm-fonipa-x-emic');
+    expect(result.tierLocales.get('Phrase Free Translation')).toBe('en');
+    expect(result.languageLabels.get('en')).toBe('en');
+    expect(result.tierMetadata.size).toBe(0);
+    expect([...result.translationTiers.keys()]).toEqual(['Phrase Free Translation']);
+    expect([...result.translationTiers.keys()]).not.toContain('zh-CN');
+  });
 });
 
 describe('EafService logical timeline round-trip', () => {
