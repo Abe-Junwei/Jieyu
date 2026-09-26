@@ -517,6 +517,12 @@ export function LexiconPage() {
                         </dd>
                       </div>
                       <div>
+                        <dt>{t(locale, 'workspace.lexicon.literalMeaningLabel')}</dt>
+                        <dd data-testid="lexicon-workspace-literal-meaning">
+                          {selectedLexeme.literalMeaning ?? t(locale, 'workspace.lexicon.notSet')}
+                        </dd>
+                      </div>
+                      <div>
                         <dt>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</dt>
                         <dd data-testid="lexicon-workspace-lexeme-type">
                           {selectedLexeme.lexemeType ?? t(locale, 'workspace.lexicon.notSet')}

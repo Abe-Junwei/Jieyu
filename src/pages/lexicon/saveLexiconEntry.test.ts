@@ -24,6 +24,7 @@ function fields(
     etymologyForm: string;
     etymologyGloss: string;
     etymologySourceLanguage: string;
+    literalMeaning: string;
     primarySenseId: string;
     examples: { source: string; translation?: string }[];
     extraSenses: {
@@ -48,6 +49,7 @@ function fields(
     etymologyForm: '',
     etymologyGloss: '',
     etymologySourceLanguage: '',
+    literalMeaning: '',
     examples: [],
     extraSenses: [],
     forms: [],
@@ -220,6 +222,25 @@ describe('saveLexiconEntry', () => {
       now,
     );
     expect(cleared.etymology).toBeUndefined();
+    expect(cleared.morphemeType).toBe('prefix');
+  });
+
+  it('writes a trimmed literal meaning and omits a blank one', () => {
+    const existing = applyLexiconEntryFields(null, fields({ lemma: 'dog', gloss: 'canine' }), now);
+    const withMorph = { ...existing, morphemeType: 'prefix' };
+    const updated = applyLexiconEntryFields(
+      withMorph,
+      fields({ lemma: 'dog', gloss: 'canine', literalMeaning: ' domestic animal ' }),
+      now,
+    );
+    expect(updated.literalMeaning).toBe('domestic animal');
+    expect(updated.morphemeType).toBe('prefix');
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({ lemma: 'dog', gloss: 'canine', literalMeaning: ' ' }),
+      now,
+    );
+    expect(cleared.literalMeaning).toBeUndefined();
     expect(cleared.morphemeType).toBe('prefix');
   });
 

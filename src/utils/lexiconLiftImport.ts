@@ -181,6 +181,15 @@ function parseEtymology(entry: Element): LexemeDocType['etymology'] {
   return undefined;
 }
 
+function parseLiteralMeaning(entry: Element): string {
+  for (const field of directChildren(entry, 'field')) {
+    if (attr(field, 'type') !== 'literal-meaning') continue;
+    const text = formPairs(field)[0]?.text ?? '';
+    if (text.length > 0) return text;
+  }
+  return '';
+}
+
 function parsePronunciation(entry: Element): string {
   for (const block of directChildren(entry, 'pronunciation')) {
     const text = formPairs(block)[0]?.text ?? '';
@@ -207,6 +216,7 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
   const lexemeType = morphType ? attr(morphType, 'value') : '';
   const pronunciation = parsePronunciation(entry);
   const etymology = parseEtymology(entry);
+  const literalMeaning = parseLiteralMeaning(entry);
   const senses = sortByLiftOrder(directChildren(entry, 'sense')).flatMap((sense, index) =>
     parseSenseTree(sense, index, id, language, undefined),
   );
@@ -230,6 +240,7 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
     ...(lexemeType.length > 0 ? { lexemeType } : {}),
     ...(pronunciation.length > 0 ? { pronunciation } : {}),
     ...(etymology ? { etymology } : {}),
+    ...(literalMeaning.length > 0 ? { literalMeaning } : {}),
     ...(notes ? { notes } : {}),
     ...(forms.length > 0 ? { forms } : {}),
   };
@@ -266,6 +277,7 @@ function mergeParsed(
   const lexemeType = parsed.lexemeType ?? existing.lexemeType;
   const pronunciation = parsed.pronunciation ?? existing.pronunciation;
   const etymology = parsed.etymology ?? existing.etymology;
+  const literalMeaning = parsed.literalMeaning ?? existing.literalMeaning;
   const notes = parsed.notes ?? existing.notes;
   const forms = parsed.forms ?? existing.forms;
   return {
@@ -279,6 +291,7 @@ function mergeParsed(
     ...(lexemeType !== undefined && lexemeType.length > 0 ? { lexemeType } : {}),
     ...(pronunciation !== undefined && pronunciation.length > 0 ? { pronunciation } : {}),
     ...(etymology !== undefined && etymology.form.length > 0 ? { etymology } : {}),
+    ...(literalMeaning !== undefined && literalMeaning.length > 0 ? { literalMeaning } : {}),
     ...(notes !== undefined ? { notes } : {}),
     ...(forms !== undefined ? { forms } : {}),
   };

@@ -622,6 +622,23 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves a literal meaning and shows it in the overview', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-literal-meaning'), {
+      target: { value: 'domestic animal' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.literalMeaning).toBe('domestic animal');
+    expect(screen.getByTestId('lexicon-workspace-literal-meaning').textContent).toBe(
+      'domestic animal',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
