@@ -588,6 +588,11 @@ export function LexiconPage() {
                                 {sense.anthropologyNote}
                               </span>
                             ) : null}
+                            {sense.discourseNote ? (
+                              <span data-testid={`lexicon-workspace-sense-${index}-discourse-note`}>
+                                {sense.discourseNote}
+                              </span>
+                            ) : null}
                             {(sense.examples ?? []).map((example, exampleIndex) => (
                               <span
                                 key={`${readSenseId(sense)}-example-${exampleIndex}`}

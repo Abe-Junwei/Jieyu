@@ -720,6 +720,23 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves a discourse note and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-discourse-note'), {
+      target: { value: 'narrative use' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.discourseNote).toBe('narrative use');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-discourse-note').textContent).toBe(
+      'narrative use',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

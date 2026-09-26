@@ -189,6 +189,7 @@ const lexemeDocSchema = z.object({
           category: z.string().optional(),
           scientificName: z.string().optional(),
           anthropologyNote: z.string().optional(),
+          discourseNote: z.string().optional(),
           parentId: z.string().min(1).optional(),
           examples: z
             .array(
