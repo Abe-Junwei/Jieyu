@@ -20,6 +20,7 @@ import {
 import { readOptionalListScrollTop } from '../utils/workspaceReturnDeepLink';
 import { LexiconAttachmentSection } from './LexiconAttachmentSection';
 import { LexiconEntryEditForm } from './lexicon/LexiconEntryEditForm';
+import { LexiconEntryOverview } from './lexicon/LexiconEntryOverview';
 import { mergeLexemeIntoList } from './lexicon/saveLexiconEntry';
 import { useLexiconEntryEditController } from './useLexiconEntryEditController';
 import { exportLexemesAsLift } from '../utils/lexiconLiftExport';
@@ -480,82 +481,7 @@ export function LexiconPage() {
               </PanelSection>
               {selectedLexeme && !editor.creating ? (
                 <>
-                  <PanelSection
-                    className="lexicon-workspace-detail-panel"
-                    title={t(locale, 'workspace.lexicon.overviewTitle')}
-                    description={t(locale, 'workspace.lexicon.overviewDescription')}
-                  >
-                    <dl className="lexicon-workspace-detail-grid">
-                      <div>
-                        <dt>{t(locale, 'workspace.lexicon.languageLabel')}</dt>
-                        <dd>{selectedLexeme.language ?? t(locale, 'workspace.lexicon.notSet')}</dd>
-                      </div>
-                      <div>
-                        <dt>{t(locale, 'workspace.lexicon.citationLabel')}</dt>
-                        <dd>
-                          {selectedLexeme.citationForm ?? t(locale, 'workspace.lexicon.notSet')}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>{t(locale, 'workspace.lexicon.pronunciationLabel')}</dt>
-                        <dd data-testid="lexicon-workspace-pronunciation">
-                          {selectedLexeme.pronunciation ?? t(locale, 'workspace.lexicon.notSet')}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>{t(locale, 'workspace.lexicon.etymologyLabel')}</dt>
-                        <dd data-testid="lexicon-workspace-etymology">
-                          {selectedLexeme.etymology
-                            ? [
-                                selectedLexeme.etymology.form,
-                                selectedLexeme.etymology.gloss,
-                                selectedLexeme.etymology.sourceLanguage,
-                              ]
-                                .filter((part) => (part ?? '').length > 0)
-                                .join(' · ')
-                            : t(locale, 'workspace.lexicon.notSet')}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>{t(locale, 'workspace.lexicon.literalMeaningLabel')}</dt>
-                        <dd data-testid="lexicon-workspace-literal-meaning">
-                          {selectedLexeme.literalMeaning ?? t(locale, 'workspace.lexicon.notSet')}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>{t(locale, 'workspace.lexicon.bibliographyLabel')}</dt>
-                        <dd data-testid="lexicon-workspace-bibliography">
-                          {selectedLexeme.bibliography ?? t(locale, 'workspace.lexicon.notSet')}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>{t(locale, 'workspace.lexicon.restrictionsLabel')}</dt>
-                        <dd data-testid="lexicon-workspace-restrictions">
-                          {selectedLexeme.restrictions ?? t(locale, 'workspace.lexicon.notSet')}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</dt>
-                        <dd data-testid="lexicon-workspace-lexeme-type">
-                          {selectedLexeme.lexemeType ?? t(locale, 'workspace.lexicon.notSet')}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>{t(locale, 'workspace.lexicon.morphemeTypeLabel')}</dt>
-                        <dd>
-                          {selectedLexeme.morphemeType ?? t(locale, 'workspace.lexicon.notSet')}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>{t(locale, 'workspace.lexicon.usageCountLabel')}</dt>
-                        <dd>{String(selectedLexeme.usageCount ?? 0)}</dd>
-                      </div>
-                      <div>
-                        <dt>{t(locale, 'workspace.lexicon.updatedAtLabel')}</dt>
-                        <dd>{selectedLexeme.updatedAt}</dd>
-                      </div>
-                    </dl>
-                  </PanelSection>
+                  <LexiconEntryOverview lexeme={selectedLexeme} />
 
                   <PanelSection
                     className="lexicon-workspace-detail-panel"
