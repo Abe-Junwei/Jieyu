@@ -431,6 +431,50 @@
       "license": "private-local",
       "excerpt": false,
       "source": "Bai, Junwei. Munya text Third_trip_0101B Grandpa lytsa autobiography. Local fieldwork, March 2025 proofread edition. Not for redistribution."
+    },
+    {
+      "path": "elan/sundanese-north-wind.eaf",
+      "format": "eaf",
+      "language": "Sundanese",
+      "family": "Austronesian",
+      "region": "West Java",
+      "license": "open-access",
+      "excerpt": false,
+      "source": "Setiani, Dewi (speaker); Ludlow, Sydney and Sou, Jenny (annotators); McDonnell, Bradley (depositor). North Wind and the Sun, FM4-023-02. Kaipuleohone. https://hdl.handle.net/10125/107755",
+      "doi": "https://hdl.handle.net/10125/107755"
+    },
+    {
+      "path": "flex/sundanese-north-wind.flextext",
+      "format": "flextext",
+      "language": "Sundanese",
+      "family": "Austronesian",
+      "region": "West Java",
+      "license": "open-access",
+      "excerpt": false,
+      "source": "Setiani, Dewi (speaker); McDonnell, Bradley (depositor). North Wind and the Sun, FM4-023-02 flextext. Kaipuleohone. https://hdl.handle.net/10125/107755",
+      "doi": "https://hdl.handle.net/10125/107755"
+    },
+    {
+      "path": "elan/woleaian-pear-story.eaf",
+      "format": "eaf",
+      "language": "Woleaian",
+      "family": "Austronesian, Oceanic",
+      "region": "Eauripik, Yap",
+      "license": "open-access",
+      "excerpt": false,
+      "source": "Saumar, Lenny (speaker); McDonnell, Bradley (depositor). Pear story, FM6-032-01-A. Kaipuleohone. https://hdl.handle.net/10125/107779",
+      "doi": "https://hdl.handle.net/10125/107779"
+    },
+    {
+      "path": "elan/palauan-frog-story.eaf",
+      "format": "eaf",
+      "language": "Palauan",
+      "family": "Austronesian",
+      "region": "Palau",
+      "license": "open-access",
+      "excerpt": false,
+      "source": "Field Methods class deposit. Frog story, FM8-020-01. Kaipuleohone. https://hdl.handle.net/10125/107823",
+      "doi": "https://hdl.handle.net/10125/107823"
     }
   ]
 }

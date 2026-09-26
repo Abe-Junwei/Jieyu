@@ -28,7 +28,15 @@
 
 - **Pangloss**：抽查了嘉绒语、姆沃特拉普语、纳语、卡卡贝语、林布语、也门阿拉伯语等条目。多数是 CC BY-NC-ND 或 CC BY-NC-SA。布列塔尼语那份是 CC BY-SA，所以本机留了摘录。
 - **ELAR / ELDP**：目录页写明数据文件适用 ELAR Access Conditions，目录本身是 CC BY-NC-SA。本环境访问 elararchive.org 时被 Preservica 拦截（HTTP 403）。Fanbyak 的标注是存款人经 DoReCo 以 CC BY 再发布的版本，ELAR 原包没有复制进来。
-- **Language Documentation & Conservation（ScholarSpace）**：期刊社区 426 个条目的附件已逐份看过。没有 `.eaf`、`.flextext` 或 `.lift`。非 PDF 附件是音视频、两份双语 `.srt`（苏格兰盖尔语教堂讲解、提库纳语视频）、Nxaʔamxcín 词典的 TEI ODD 模式文件，以及一份 ffmpeg 脚本。`.srt` 解语只导出、不导入；ODD 是模式，不是词条。埃涅茨语的 `Archive.zip` 只有 mp3/wav。课堂存款（巽他语、沃莱艾语的“北风与太阳 / 梨子的故事”）可以下到 `.eaf` / `.flextext`，但条目没有写再分发许可，没有留在本机。
+- **Language Documentation & Conservation（ScholarSpace）**：期刊社区 426 个条目的附件已逐份看过。没有 `.eaf`、`.flextext` 或 `.lift`。非 PDF 附件是音视频、两份双语 `.srt`、Nxaʔamxcín 词典的 TEI ODD 模式，以及一份 ffmpeg 脚本。`.srt` 解语只导出、不导入。
+
+Kaipuleohone 的田野课存款是开放访问，版权仍在存款人。下面三份只留在本机，许可记为 `open-access`，不进入提交。曼孔语 `LDTC-nge01-01.eaf` 打开后只有英语讲述，没有收。
+
+| 语言 | 文本 | 文件 |
+| --- | --- | --- |
+| 巽他语 | 北风与太阳 | `elan/sundanese-north-wind.eaf`、`flex/sundanese-north-wind.flextext` |
+| 沃莱艾语 | 梨子的故事 | `elan/woleaian-pear-story.eaf` |
+| 帕劳语 | 青蛙的故事 | `elan/palauan-frog-story.eaf` |
 - **Toolbox**：这次打开的附录里没有找到许可允许再分发的标准格式（SFM）文本。Toolbox 解析仍由 `tests/golden/toolbox/` 的合成样本覆盖。
 
 ## 私人田野材料
