@@ -545,6 +545,97 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.discourseNote).toBeUndefined();
   });
 
+  it('reads a sense encyclopedic note and ignores an entry-level note', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <note type="encyclopedic"><form lang="en"><text>entry note</text></form></note>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <note type="discourse"><form lang="en"><text>narrative use</text></form></note>
+      <note type="encyclopedic">
+        <form><text>nolang</text></form>
+        <form lang="en"><text>domestic canine</text></form>
+      </note>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <note type="encyclopedic"><form lang="en"><text>household companion</text></form></note>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('encyclopedicNote');
+    expect(parsed.lexemes[0]?.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(parsed.lexemes[0]?.senses[0]?.discourseNote).toBe('narrative use');
+    expect(parsed.lexemes[0]?.senses[1]?.encyclopedicNote).toBe('household companion');
+  });
+
+  it('round-trips sense encyclopedic notes and drops them when the sense note is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            discourseNote: 'narrative use',
+            encyclopedicNote: 'domestic canine',
+          },
+          { ...dog.senses[1]!, encyclopedicNote: 'household companion' },
+        ],
+      },
+    ]);
+    const discourseAt = xml!.indexOf('<note type="discourse">');
+    const encyclopedicAt = xml!.indexOf('<note type="encyclopedic">');
+    expect(discourseAt).toBeGreaterThanOrEqual(0);
+    expect(encyclopedicAt).toBeGreaterThan(discourseAt);
+    expect(xml).toContain(
+      '<note type="encyclopedic"><form lang="und"><text>domestic canine</text></form></note>',
+    );
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(parsed.lexemes[0]?.senses[0]?.discourseNote).toBe('narrative use');
+    expect(parsed.lexemes[0]?.senses[1]?.encyclopedicNote).toBe('household companion');
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, discourseNote: 'narrative use' }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('encyclopedic');
+    expect(bare).toContain('type="discourse"');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          discourseNote: 'narrative use',
+          encyclopedicNote: 'domestic canine',
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.encyclopedicNote).toBeUndefined();
+    expect(store[0]?.senses[0]?.discourseNote).toBe('narrative use');
+    expect(store[0]?.senses[1]?.encyclopedicNote).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

@@ -737,6 +737,23 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves an encyclopedic note and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-encyclopedic-note'), {
+      target: { value: 'domestic canine' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-encyclopedic-note').textContent).toBe(
+      'domestic canine',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

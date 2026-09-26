@@ -133,6 +133,7 @@ function parseSense(
   const scientificName = parseFieldText(sense, 'scientific-name');
   const anthropologyNote = parseTypedNote(sense, 'anthropology');
   const discourseNote = parseTypedNote(sense, 'discourse');
+  const encyclopedicNote = parseTypedNote(sense, 'encyclopedic');
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -141,6 +142,7 @@ function parseSense(
     ...(scientificName.length > 0 ? { scientificName } : {}),
     ...(anthropologyNote.length > 0 ? { anthropologyNote } : {}),
     ...(discourseNote.length > 0 ? { discourseNote } : {}),
+    ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }

@@ -118,10 +118,15 @@ function serializeSenseNode(
     discourseNote.length > 0
       ? `<note type="discourse">${xmlForm('und', discourseNote)}</note>`
       : '';
+  const encyclopedicNote = sense.encyclopedicNote?.trim() ?? '';
+  const encyclopedicNoteXml =
+    encyclopedicNote.length > 0
+      ? `<note type="encyclopedic">${xmlForm('und', encyclopedicNote)}</note>`
+      : '';
   const nested = liftSenseChildren(all, senseId)
     .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
     .join('');
-  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${nested}</${tag}>`;
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {

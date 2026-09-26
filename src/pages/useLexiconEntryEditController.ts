@@ -40,7 +40,8 @@ export type LexiconEntryEditController = {
       | 'category'
       | 'scientificName'
       | 'anthropologyNote'
-      | 'discourseNote',
+      | 'discourseNote'
+      | 'encyclopedicNote',
     value: string,
   ) => void;
   onExampleChange: (
@@ -116,6 +117,10 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
       typeof lexeme?.senses[0]?.discourseNote === 'string'
         ? lexeme.senses[0].discourseNote.trim()
         : '',
+    encyclopedicNote:
+      typeof lexeme?.senses[0]?.encyclopedicNote === 'string'
+        ? lexeme.senses[0].encyclopedicNote.trim()
+        : '',
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -149,6 +154,9 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
           : {}),
         ...(typeof sense.discourseNote === 'string' && sense.discourseNote.trim().length > 0
           ? { discourseNote: sense.discourseNote.trim() }
+          : {}),
+        ...(typeof sense.encyclopedicNote === 'string' && sense.encyclopedicNote.trim().length > 0
+          ? { encyclopedicNote: sense.encyclopedicNote.trim() }
           : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };
