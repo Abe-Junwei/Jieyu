@@ -34,7 +34,15 @@ export type LexiconEntryEditController = {
   onFieldChange: (field: LexiconEntryScalarField, value: string) => void;
   onExtraSenseChange: (
     index: number,
-    field: 'gloss' | 'definition' | 'category',
+    field:
+      | 'gloss'
+      | 'definition'
+      | 'category'
+      | 'scientificName'
+      | 'anthropologyNote'
+      | 'discourseNote'
+      | 'encyclopedicNote'
+      | 'grammarNote',
     value: string,
   ) => void;
   onExampleChange: (
@@ -98,10 +106,36 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     gloss: readPrimaryMultiLang(lexeme?.senses[0]?.gloss),
     category:
       typeof lexeme?.senses[0]?.category === 'string' ? lexeme.senses[0].category.trim() : '',
+    scientificName:
+      typeof lexeme?.senses[0]?.scientificName === 'string'
+        ? lexeme.senses[0].scientificName.trim()
+        : '',
+    anthropologyNote:
+      typeof lexeme?.senses[0]?.anthropologyNote === 'string'
+        ? lexeme.senses[0].anthropologyNote.trim()
+        : '',
+    discourseNote:
+      typeof lexeme?.senses[0]?.discourseNote === 'string'
+        ? lexeme.senses[0].discourseNote.trim()
+        : '',
+    encyclopedicNote:
+      typeof lexeme?.senses[0]?.encyclopedicNote === 'string'
+        ? lexeme.senses[0].encyclopedicNote.trim()
+        : '',
+    grammarNote:
+      typeof lexeme?.senses[0]?.grammarNote === 'string' ? lexeme.senses[0].grammarNote.trim() : '',
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
     lexemeType: (lexeme?.lexemeType ?? '').trim(),
+    pronunciation: (lexeme?.pronunciation ?? '').trim(),
+    etymologyForm: (lexeme?.etymology?.form ?? '').trim(),
+    etymologyGloss: (lexeme?.etymology?.gloss ?? '').trim(),
+    etymologySourceLanguage: (lexeme?.etymology?.sourceLanguage ?? '').trim(),
+    literalMeaning: (lexeme?.literalMeaning ?? '').trim(),
+    summaryDefinition: (lexeme?.summaryDefinition ?? '').trim(),
+    bibliography: (lexeme?.bibliography ?? '').trim(),
+    restrictions: (lexeme?.restrictions ?? '').trim(),
     ...(primaryId.length > 0 ? { primarySenseId: primaryId } : {}),
     examples: exampleDraftsFromStored(lexeme?.senses[0]?.examples),
     extraSenses: (lexeme?.senses.slice(1) ?? []).map((sense) => {
@@ -114,6 +148,21 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
         definition: readPrimaryMultiLang(sense.definition),
         ...(typeof sense.category === 'string' && sense.category.trim().length > 0
           ? { category: sense.category.trim() }
+          : {}),
+        ...(typeof sense.scientificName === 'string' && sense.scientificName.trim().length > 0
+          ? { scientificName: sense.scientificName.trim() }
+          : {}),
+        ...(typeof sense.anthropologyNote === 'string' && sense.anthropologyNote.trim().length > 0
+          ? { anthropologyNote: sense.anthropologyNote.trim() }
+          : {}),
+        ...(typeof sense.discourseNote === 'string' && sense.discourseNote.trim().length > 0
+          ? { discourseNote: sense.discourseNote.trim() }
+          : {}),
+        ...(typeof sense.encyclopedicNote === 'string' && sense.encyclopedicNote.trim().length > 0
+          ? { encyclopedicNote: sense.encyclopedicNote.trim() }
+          : {}),
+        ...(typeof sense.grammarNote === 'string' && sense.grammarNote.trim().length > 0
+          ? { grammarNote: sense.grammarNote.trim() }
           : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };

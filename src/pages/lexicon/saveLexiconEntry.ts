@@ -7,10 +7,23 @@ export type LexiconEntryScalarField =
   | 'lemma'
   | 'gloss'
   | 'category'
+  | 'scientificName'
+  | 'anthropologyNote'
+  | 'discourseNote'
+  | 'encyclopedicNote'
+  | 'grammarNote'
   | 'citationForm'
   | 'language'
   | 'notes'
-  | 'lexemeType';
+  | 'lexemeType'
+  | 'pronunciation'
+  | 'etymologyForm'
+  | 'etymologyGloss'
+  | 'etymologySourceLanguage'
+  | 'literalMeaning'
+  | 'summaryDefinition'
+  | 'bibliography'
+  | 'restrictions';
 
 export type LexiconExampleDraft = {
   source: string;
@@ -23,6 +36,11 @@ export type LexiconSenseDraft = {
   gloss: string;
   definition: string;
   category?: string;
+  scientificName?: string;
+  anthropologyNote?: string;
+  discourseNote?: string;
+  encyclopedicNote?: string;
+  grammarNote?: string;
   examples?: LexiconExampleDraft[];
 };
 
@@ -35,10 +53,23 @@ export type LexiconEntryFields = {
   lemma: string;
   gloss: string;
   category: string;
+  scientificName: string;
+  anthropologyNote: string;
+  discourseNote: string;
+  encyclopedicNote: string;
+  grammarNote: string;
   citationForm: string;
   language: string;
   notes: string;
   lexemeType: string;
+  pronunciation: string;
+  etymologyForm: string;
+  etymologyGloss: string;
+  etymologySourceLanguage: string;
+  literalMeaning: string;
+  summaryDefinition: string;
+  bibliography: string;
+  restrictions: string;
   primarySenseId?: string;
   examples: LexiconExampleDraft[];
   extraSenses: LexiconSenseDraft[];
@@ -161,10 +192,33 @@ export function applyLexiconEntryFields(
   if (lemma.length === 0) throw new Error('empty lemma');
   const gloss = fields.gloss.trim();
   const category = readCategory(fields.category);
+  const scientificName = readCategory(fields.scientificName);
+  const anthropologyNote = readCategory(fields.anthropologyNote);
+  const discourseNote = readCategory(fields.discourseNote);
+  const encyclopedicNote = readCategory(fields.encyclopedicNote);
+  const grammarNote = readCategory(fields.grammarNote);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
   const lexemeType = fields.lexemeType.trim();
+  const pronunciation = fields.pronunciation.trim();
+  const etymologyForm = fields.etymologyForm.trim();
+  const etymologyGloss = fields.etymologyGloss.trim();
+  const etymologySourceLanguage = fields.etymologySourceLanguage.trim();
+  const literalMeaning = fields.literalMeaning.trim();
+  const summaryDefinition = fields.summaryDefinition.trim();
+  const bibliography = fields.bibliography.trim();
+  const restrictions = fields.restrictions.trim();
+  const etymology =
+    etymologyForm.length > 0
+      ? {
+          form: etymologyForm,
+          ...(etymologyGloss.length > 0 ? { gloss: etymologyGloss } : {}),
+          ...(etymologySourceLanguage.length > 0
+            ? { sourceLanguage: etymologySourceLanguage }
+            : {}),
+        }
+      : undefined;
   const primaryExamples = exampleDraftsFromStored(fields.examples);
   const id = existing?.id ?? newId('lex');
   const firstSense = existing?.senses[0];
@@ -179,6 +233,11 @@ export function applyLexiconEntryFields(
       definition: _oldDefinition,
       parentId: _oldParentId,
       category: _oldCategory,
+      scientificName: _oldScientificName,
+      anthropologyNote: _oldAnthropologyNote,
+      discourseNote: _oldDiscourseNote,
+      encyclopedicNote: _oldEncyclopedicNote,
+      grammarNote: _oldGrammarNote,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -186,6 +245,11 @@ export function applyLexiconEntryFields(
     };
     const parentId = readSenseParentId(draft);
     const senseCategory = readCategory(draft.category);
+    const senseScientificName = readCategory(draft.scientificName);
+    const senseAnthropologyNote = readCategory(draft.anthropologyNote);
+    const senseDiscourseNote = readCategory(draft.discourseNote);
+    const senseEncyclopedicNote = readCategory(draft.encyclopedicNote);
+    const senseGrammarNote = readCategory(draft.grammarNote);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -196,6 +260,11 @@ export function applyLexiconEntryFields(
           ? { definition: writePrimaryMultiLang(previous?.definition, definitionText) }
           : {}),
         ...(senseCategory.length > 0 ? { category: senseCategory } : {}),
+        ...(senseScientificName.length > 0 ? { scientificName: senseScientificName } : {}),
+        ...(senseAnthropologyNote.length > 0 ? { anthropologyNote: senseAnthropologyNote } : {}),
+        ...(senseDiscourseNote.length > 0 ? { discourseNote: senseDiscourseNote } : {}),
+        ...(senseEncyclopedicNote.length > 0 ? { encyclopedicNote: senseEncyclopedicNote } : {}),
+        ...(senseGrammarNote.length > 0 ? { grammarNote: senseGrammarNote } : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -218,6 +287,11 @@ export function applyLexiconEntryFields(
   });
   const {
     category: _oldPrimaryCategory,
+    scientificName: _oldPrimaryScientificName,
+    anthropologyNote: _oldPrimaryAnthropologyNote,
+    discourseNote: _oldPrimaryDiscourseNote,
+    encyclopedicNote: _oldPrimaryEncyclopedicNote,
+    grammarNote: _oldPrimaryGrammarNote,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -229,6 +303,12 @@ export function applyLexiconEntryFields(
     notes: _oldNotes,
     forms: _oldForms,
     lexemeType: _oldLexemeType,
+    pronunciation: _oldPronunciation,
+    etymology: _oldEtymology,
+    literalMeaning: _oldLiteralMeaning,
+    summaryDefinition: _oldSummaryDefinition,
+    bibliography: _oldBibliography,
+    restrictions: _oldRestrictions,
     ...rest
   } = existing ?? {
     id,
@@ -247,6 +327,11 @@ export function applyLexiconEntryFields(
         id: primarySenseId,
         gloss: nextGloss,
         ...(category.length > 0 ? { category } : {}),
+        ...(scientificName.length > 0 ? { scientificName } : {}),
+        ...(anthropologyNote.length > 0 ? { anthropologyNote } : {}),
+        ...(discourseNote.length > 0 ? { discourseNote } : {}),
+        ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
+        ...(grammarNote.length > 0 ? { grammarNote } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,
@@ -254,6 +339,12 @@ export function applyLexiconEntryFields(
     ...(citationForm.length > 0 ? { citationForm } : {}),
     ...(language.length > 0 ? { language } : {}),
     ...(lexemeType.length > 0 ? { lexemeType } : {}),
+    ...(pronunciation.length > 0 ? { pronunciation } : {}),
+    ...(etymology ? { etymology } : {}),
+    ...(literalMeaning.length > 0 ? { literalMeaning } : {}),
+    ...(summaryDefinition.length > 0 ? { summaryDefinition } : {}),
+    ...(bibliography.length > 0 ? { bibliography } : {}),
+    ...(restrictions.length > 0 ? { restrictions } : {}),
     ...(notes.length > 0 ? { notes: writePrimaryMultiLang(existing?.notes, notes) } : {}),
     ...(nextForms.length > 0 ? { forms: nextForms } : {}),
     createdAt: existing?.createdAt ?? now,

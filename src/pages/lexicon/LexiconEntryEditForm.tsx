@@ -105,6 +105,51 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('category', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.scientificNameLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-scientific-name"
+          value={editor.fields.scientificName}
+          onChange={(event) => editor.onFieldChange('scientificName', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.anthropologyNoteLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-anthropology-note"
+          value={editor.fields.anthropologyNote}
+          onChange={(event) => editor.onFieldChange('anthropologyNote', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.discourseNoteLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-discourse-note"
+          value={editor.fields.discourseNote}
+          onChange={(event) => editor.onFieldChange('discourseNote', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.encyclopedicNoteLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-encyclopedic-note"
+          value={editor.fields.encyclopedicNote}
+          onChange={(event) => editor.onFieldChange('encyclopedicNote', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.grammarNoteLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-grammar-note"
+          value={editor.fields.grammarNote}
+          onChange={(event) => editor.onFieldChange('grammarNote', event.target.value)}
+        />
+      </label>
       <SenseExampleFields
         locale={locale}
         examples={editor.fields.examples}
@@ -153,6 +198,61 @@ export function LexiconEntryEditForm({ editor }: Props) {
                 value={sense.category ?? ''}
                 onChange={(event) =>
                   editor.onExtraSenseChange(index, 'category', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseScientificNameLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-scientific-name`}
+                value={sense.scientificName ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'scientificName', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseAnthropologyNoteLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-anthropology-note`}
+                value={sense.anthropologyNote ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'anthropologyNote', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseDiscourseNoteLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-discourse-note`}
+                value={sense.discourseNote ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'discourseNote', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseEncyclopedicNoteLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-encyclopedic-note`}
+                value={sense.encyclopedicNote ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'encyclopedicNote', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseGrammarNoteLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-grammar-note`}
+                value={sense.grammarNote ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'grammarNote', event.target.value)
                 }
               />
             </label>
@@ -297,6 +397,78 @@ export function LexiconEntryEditForm({ editor }: Props) {
           data-testid="lexicon-entry-citation"
           value={editor.fields.citationForm}
           onChange={(event) => editor.onFieldChange('citationForm', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.pronunciationLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-pronunciation"
+          value={editor.fields.pronunciation}
+          onChange={(event) => editor.onFieldChange('pronunciation', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.etymologyFormLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-etymology-form"
+          value={editor.fields.etymologyForm}
+          onChange={(event) => editor.onFieldChange('etymologyForm', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.etymologyGlossLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-etymology-gloss"
+          value={editor.fields.etymologyGloss}
+          onChange={(event) => editor.onFieldChange('etymologyGloss', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.etymologySourceLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-etymology-source"
+          value={editor.fields.etymologySourceLanguage}
+          onChange={(event) => editor.onFieldChange('etymologySourceLanguage', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.literalMeaningLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-literal-meaning"
+          value={editor.fields.literalMeaning}
+          onChange={(event) => editor.onFieldChange('literalMeaning', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.bibliographyLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-bibliography"
+          value={editor.fields.bibliography}
+          onChange={(event) => editor.onFieldChange('bibliography', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.restrictionsLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-restrictions"
+          value={editor.fields.restrictions}
+          onChange={(event) => editor.onFieldChange('restrictions', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.summaryDefinitionLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-summary-definition"
+          value={editor.fields.summaryDefinition}
+          onChange={(event) => editor.onFieldChange('summaryDefinition', event.target.value)}
         />
       </label>
       <label className="lexicon-entry-edit-field">

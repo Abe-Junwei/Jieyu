@@ -130,11 +130,21 @@ function parseSense(
   const grammatical = directChildren(sense, 'grammatical-info')[0];
   const category = grammatical ? attr(grammatical, 'value') : '';
   const examples = parseExamples(sense);
+  const scientificName = parseFieldText(sense, 'scientific-name');
+  const anthropologyNote = parseTypedNote(sense, 'anthropology');
+  const discourseNote = parseTypedNote(sense, 'discourse');
+  const encyclopedicNote = parseTypedNote(sense, 'encyclopedic');
+  const grammarNote = parseTypedNote(sense, 'grammar');
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
     ...(definition ? { definition } : {}),
     ...(category.length > 0 ? { category } : {}),
+    ...(scientificName.length > 0 ? { scientificName } : {}),
+    ...(anthropologyNote.length > 0 ? { anthropologyNote } : {}),
+    ...(discourseNote.length > 0 ? { discourseNote } : {}),
+    ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
+    ...(grammarNote.length > 0 ? { grammarNote } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }
@@ -156,6 +166,74 @@ function parseSenseTree(
   return [withParent, ...children];
 }
 
+function firstGlossText(parent: Element): string {
+  for (const gloss of directChildren(parent, 'gloss')) {
+    const text = (directChildren(gloss, 'text')[0]?.textContent ?? '').trim();
+    if (text.length > 0) return text;
+  }
+  return '';
+}
+
+function parseEtymology(entry: Element): LexemeDocType['etymology'] {
+  for (const block of directChildren(entry, 'etymology')) {
+    const form = formPairs(block)[0]?.text ?? '';
+    if (form.length === 0) continue;
+    const gloss = firstGlossText(block);
+    const sourceTrait =
+      directChildren(block, 'trait').find((trait) => attr(trait, 'name') === 'languages') ?? null;
+    const sourceLanguage = sourceTrait ? attr(sourceTrait, 'value') : '';
+    return {
+      form,
+      ...(gloss.length > 0 ? { gloss } : {}),
+      ...(sourceLanguage.length > 0 ? { sourceLanguage } : {}),
+    };
+  }
+  return undefined;
+}
+
+function entryNote(entry: Element, type: string): Element | undefined {
+  return directChildren(entry, 'note').find((note) => attr(note, 'type') === type);
+}
+
+function parseTypedNote(entry: Element, type: string): string {
+  const note = entryNote(entry, type);
+  if (!note) return '';
+  return formPairs(note)[0]?.text ?? '';
+}
+
+function parseBibliography(entry: Element): string {
+  return parseTypedNote(entry, 'bibliography');
+}
+
+function parseRestrictions(entry: Element): string {
+  return parseTypedNote(entry, 'restrictions');
+}
+
+function parseFieldText(entry: Element, type: string): string {
+  for (const field of directChildren(entry, 'field')) {
+    if (attr(field, 'type') !== type) continue;
+    const text = formPairs(field)[0]?.text ?? '';
+    if (text.length > 0) return text;
+  }
+  return '';
+}
+
+function parseLiteralMeaning(entry: Element): string {
+  return parseFieldText(entry, 'literal-meaning');
+}
+
+function parseSummaryDefinition(entry: Element): string {
+  return parseFieldText(entry, 'summary-definition');
+}
+
+function parsePronunciation(entry: Element): string {
+  for (const block of directChildren(entry, 'pronunciation')) {
+    const text = formPairs(block)[0]?.text ?? '';
+    if (text.length > 0) return text;
+  }
+  return '';
+}
+
 function parseEntry(entry: Element, now: string): LexemeDocType | null {
   const lexicalUnit = directChildren(entry, 'lexical-unit')[0];
   if (!lexicalUnit) return null;
@@ -167,11 +245,17 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
   const language = firstLang.length > 0 ? firstLang : 'und';
   const citationParent = directChildren(entry, 'citation')[0];
   const citation = citationParent ? (formPairs(citationParent)[0]?.text ?? '') : '';
-  const notesParent = directChildren(entry, 'note')[0];
+  const notesParent = entryNote(entry, '');
   const notes = multiLangFromForms(notesParent);
   const morphType =
     directChildren(entry, 'trait').find((trait) => attr(trait, 'name') === 'morph-type') ?? null;
   const lexemeType = morphType ? attr(morphType, 'value') : '';
+  const pronunciation = parsePronunciation(entry);
+  const etymology = parseEtymology(entry);
+  const literalMeaning = parseLiteralMeaning(entry);
+  const summaryDefinition = parseSummaryDefinition(entry);
+  const bibliography = parseBibliography(entry);
+  const restrictions = parseRestrictions(entry);
   const senses = sortByLiftOrder(directChildren(entry, 'sense')).flatMap((sense, index) =>
     parseSenseTree(sense, index, id, language, undefined),
   );
@@ -193,6 +277,12 @@ function parseEntry(entry: Element, now: string): LexemeDocType | null {
     updatedAt,
     ...(citation.length > 0 ? { citationForm: citation } : {}),
     ...(lexemeType.length > 0 ? { lexemeType } : {}),
+    ...(pronunciation.length > 0 ? { pronunciation } : {}),
+    ...(etymology ? { etymology } : {}),
+    ...(literalMeaning.length > 0 ? { literalMeaning } : {}),
+    ...(summaryDefinition.length > 0 ? { summaryDefinition } : {}),
+    ...(bibliography.length > 0 ? { bibliography } : {}),
+    ...(restrictions.length > 0 ? { restrictions } : {}),
     ...(notes ? { notes } : {}),
     ...(forms.length > 0 ? { forms } : {}),
   };
@@ -227,6 +317,12 @@ function mergeParsed(
   }
   const citationForm = parsed.citationForm ?? existing.citationForm;
   const lexemeType = parsed.lexemeType ?? existing.lexemeType;
+  const pronunciation = parsed.pronunciation ?? existing.pronunciation;
+  const etymology = parsed.etymology ?? existing.etymology;
+  const literalMeaning = parsed.literalMeaning ?? existing.literalMeaning;
+  const summaryDefinition = parsed.summaryDefinition ?? existing.summaryDefinition;
+  const bibliography = parsed.bibliography ?? existing.bibliography;
+  const restrictions = parsed.restrictions ?? existing.restrictions;
   const notes = parsed.notes ?? existing.notes;
   const forms = parsed.forms ?? existing.forms;
   return {
@@ -238,6 +334,14 @@ function mergeParsed(
     createdAt: existing.createdAt,
     ...(citationForm !== undefined ? { citationForm } : {}),
     ...(lexemeType !== undefined && lexemeType.length > 0 ? { lexemeType } : {}),
+    ...(pronunciation !== undefined && pronunciation.length > 0 ? { pronunciation } : {}),
+    ...(etymology !== undefined && etymology.form.length > 0 ? { etymology } : {}),
+    ...(literalMeaning !== undefined && literalMeaning.length > 0 ? { literalMeaning } : {}),
+    ...(summaryDefinition !== undefined && summaryDefinition.length > 0
+      ? { summaryDefinition }
+      : {}),
+    ...(bibliography !== undefined && bibliography.length > 0 ? { bibliography } : {}),
+    ...(restrictions !== undefined && restrictions.length > 0 ? { restrictions } : {}),
     ...(notes !== undefined ? { notes } : {}),
     ...(forms !== undefined ? { forms } : {}),
   };

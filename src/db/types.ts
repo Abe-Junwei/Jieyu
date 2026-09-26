@@ -160,6 +160,13 @@ export interface AnchorDocType {
   createdAt: string;
 }
 
+/** One FLEx etymology. Comments, notes, and bibliography fields are not stored. */
+export interface LexemeEtymology {
+  form: string;
+  gloss?: string;
+  sourceLanguage?: string;
+}
+
 /** Sense example sentence. `source` is the LIFT `<example><form>` text, not bibliographic `<source>`. */
 export interface SenseExample {
   source: string;
@@ -171,6 +178,16 @@ export interface Sense {
   gloss: MultiLangString;
   definition?: MultiLangString;
   category?: string;
+  /** First LIFT sense `<field type="scientific-name"><form>` text. */
+  scientificName?: string;
+  /** First LIFT sense `<note type="anthropology"><form>` text. */
+  anthropologyNote?: string;
+  /** First LIFT sense `<note type="discourse"><form>` text. */
+  discourseNote?: string;
+  /** First LIFT sense `<note type="encyclopedic"><form>` text. */
+  encyclopedicNote?: string;
+  /** First LIFT sense `<note type="grammar"><form>` text. */
+  grammarNote?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;
@@ -186,6 +203,21 @@ export interface LexemeDocType {
   id: string;
   lemma: Transcription;
   lexemeType?: string;
+  /** First LIFT `<pronunciation><form>` text. Media, tone, and CV pattern are not stored. */
+  pronunciation?: string;
+  /**
+   * First LIFT `<etymology>` with a form. `form` is the source form.
+   * `sourceLanguage` is `<trait name="languages">`, not the obsolete `source` attribute.
+   */
+  etymology?: LexemeEtymology;
+  /** First LIFT `<field type="literal-meaning"><form>` text. */
+  literalMeaning?: string;
+  /** First LIFT entry `<field type="summary-definition"><form>` text. */
+  summaryDefinition?: string;
+  /** First LIFT entry `<note type="bibliography"><form>` text. Untyped notes stay on `notes`. */
+  bibliography?: string;
+  /** First LIFT entry `<note type="restrictions"><form>` text. */
+  restrictions?: string;
   morphemeType?: string;
   citationForm?: string;
   senses: Sense[];
