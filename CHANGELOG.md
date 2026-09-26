@@ -16,6 +16,7 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Added
 
+- **Lexicon sense examples (B3l)**: `/lexicon` edits sense `examples` (sentence plus optional translation). Save readback shows them in the sense list. A blank sentence drops the row; a blank translation omits the key. LIFT import/export map this to `<example>`. Entry-level `examples: string[]` stays untouched. No bibliographic source, no DMLex, no new flag.
 - **Lexicon entry type (B3k)**: `/lexicon` edits `lexemeType`. Save readback shows it in the entry overview. A blank value omits the key. An existing `morphemeType` stays on the row. LIFT import/export already map `lexemeType` to `morph-type`. No closed type list, no DMLex, no new flag.
 - **Lexicon sense part of speech (B3j)**: `/lexicon` edits `senses[].category` on the primary gloss and on extra senses. Save readback shows it in the sense list. A blank value omits the key. LIFT import/export already map this field to `grammatical-info`. No closed POS list, no DMLex, no new flag.
 - **Lexicon sense promote/demote (B3i)**: `/lexicon` promotes or demotes an extra sense by changing only `parentId`. Demote hangs the sense under the previous sibling, or under the primary gloss when it is the first root extra. Promote moves it up one level and does not replace the primary gloss. Save readback keeps the new depth. No drag library, no DMLex, no new flag.

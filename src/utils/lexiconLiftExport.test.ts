@@ -60,6 +60,27 @@ describe('lexiconLiftExport', () => {
     expect(xml).not.toContain('form_dogs');
   });
 
+  it('writes sense examples as LIFT example elements and ignores entry-level example strings', () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        examples: ['legacy note'],
+        senses: [
+          {
+            ...dog.senses[0]!,
+            examples: [{ source: 'the dog runs', translation: '狗在跑' }, { source: 'a <dog>' }],
+          },
+          dog.senses[1]!,
+        ],
+      },
+    ]);
+    expect(xml).toContain(
+      '<example><form lang="eng"><text>the dog runs</text></form><translation><form lang="eng"><text>狗在跑</text></form></translation></example>',
+    );
+    expect(xml).toContain('<example><form lang="eng"><text>a &lt;dog&gt;</text></form></example>');
+    expect(xml).not.toContain('legacy note');
+  });
+
   it('nests parented senses as LIFT subsense elements', () => {
     const xml = serializeLexemesToLift([
       {

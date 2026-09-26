@@ -91,10 +91,22 @@ function serializeSenseNode(
   const category = sense.category?.trim() ?? '';
   const grammaticalInfo =
     category.length > 0 ? `<grammatical-info value="${escapeXml(category)}"/>` : '';
+  const examples = (sense.examples ?? [])
+    .flatMap((example) => {
+      const source = example.source.trim();
+      if (source.length === 0) return [];
+      const translation = example.translation?.trim() ?? '';
+      const translationXml =
+        translation.length > 0
+          ? `<translation>${xmlForm(vernacular, translation)}</translation>`
+          : '';
+      return [`<example>${xmlForm(vernacular, source)}${translationXml}</example>`];
+    })
+    .join('');
   const nested = liftSenseChildren(all, senseId)
     .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
     .join('');
-  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${nested}</${tag}>`;
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {

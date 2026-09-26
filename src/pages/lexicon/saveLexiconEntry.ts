@@ -12,12 +12,18 @@ export type LexiconEntryScalarField =
   | 'notes'
   | 'lexemeType';
 
+export type LexiconExampleDraft = {
+  source: string;
+  translation?: string;
+};
+
 export type LexiconSenseDraft = {
   id?: string;
   parentId?: string;
   gloss: string;
   definition: string;
   category?: string;
+  examples?: LexiconExampleDraft[];
 };
 
 export type LexiconFormDraft = {
@@ -34,6 +40,7 @@ export type LexiconEntryFields = {
   notes: string;
   lexemeType: string;
   primarySenseId?: string;
+  examples: LexiconExampleDraft[];
   extraSenses: LexiconSenseDraft[];
   forms: LexiconFormDraft[];
 };
@@ -72,6 +79,43 @@ export function writePrimaryMultiLang(
 
 function readCategory(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+export function exampleDraftsFromStored(examples: unknown): LexiconExampleDraft[] {
+  if (!Array.isArray(examples)) return [];
+  return examples.flatMap((row) => {
+    if (!row || typeof row !== 'object') return [];
+    const sourceValue = 'source' in row ? row.source : undefined;
+    const source = typeof sourceValue === 'string' ? sourceValue.trim() : '';
+    if (source.length === 0) return [];
+    const translationValue = 'translation' in row ? row.translation : undefined;
+    const translation = typeof translationValue === 'string' ? translationValue.trim() : '';
+    return translation.length > 0 ? [{ source, translation }] : [{ source }];
+  });
+}
+
+export function withExampleChange(
+  examples: LexiconExampleDraft[] | undefined,
+  index: number,
+  field: 'source' | 'translation',
+  value: string,
+): LexiconExampleDraft[] {
+  return (examples ?? []).map((row, rowIndex) =>
+    rowIndex === index ? { ...row, [field]: value } : row,
+  );
+}
+
+export function withAddedExample(
+  examples: LexiconExampleDraft[] | undefined,
+): LexiconExampleDraft[] {
+  return [...(examples ?? []), { source: '' }];
+}
+
+export function withoutExample(
+  examples: LexiconExampleDraft[] | undefined,
+  index: number,
+): LexiconExampleDraft[] {
+  return (examples ?? []).filter((_, rowIndex) => rowIndex !== index);
 }
 
 function nestedIdOf(value: unknown): string {
@@ -121,6 +165,7 @@ export function applyLexiconEntryFields(
   const language = fields.language.trim();
   const notes = fields.notes.trim();
   const lexemeType = fields.lexemeType.trim();
+  const primaryExamples = exampleDraftsFromStored(fields.examples);
   const id = existing?.id ?? newId('lex');
   const firstSense = existing?.senses[0];
   const nextGloss = writePrimaryMultiLang(firstSense?.gloss, gloss.length > 0 ? gloss : lemma);
@@ -134,12 +179,14 @@ export function applyLexiconEntryFields(
       definition: _oldDefinition,
       parentId: _oldParentId,
       category: _oldCategory,
+      examples: _oldExamples,
       ...previousRest
     } = previous ?? {
       gloss: { default: glossText },
     };
     const parentId = readSenseParentId(draft);
     const senseCategory = readCategory(draft.category);
+    const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
         ...previousRest,
@@ -149,6 +196,7 @@ export function applyLexiconEntryFields(
           ? { definition: writePrimaryMultiLang(previous?.definition, definitionText) }
           : {}),
         ...(senseCategory.length > 0 ? { category: senseCategory } : {}),
+        ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
     ];
@@ -168,7 +216,11 @@ export function applyLexiconEntryFields(
       },
     ];
   });
-  const { category: _oldPrimaryCategory, ...primarySenseRest } = firstSense ?? {
+  const {
+    category: _oldPrimaryCategory,
+    examples: _oldPrimaryExamples,
+    ...primarySenseRest
+  } = firstSense ?? {
     gloss: nextGloss,
   };
   const {
@@ -195,6 +247,7 @@ export function applyLexiconEntryFields(
         id: primarySenseId,
         gloss: nextGloss,
         ...(category.length > 0 ? { category } : {}),
+        ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,
     ],

@@ -72,6 +72,35 @@ describe('lexiconLiftImport', () => {
     expect(parsed.lexemes[0]?.senses[1]?.parentId).toBe('sense_primary');
   });
 
+  it('reads the example sentence and the first translation, not the bibliographic source', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <example>
+        <form lang="eng"><text>the dog runs</text></form>
+        <translation><form lang="en"><text>狗在跑</text></form></translation>
+        <source>field notes</source>
+      </example>
+      <example>
+        <form lang="eng"><text>a dog</text></form>
+      </example>
+      <example><source>ignored</source></example>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.examples).toEqual([
+      { source: 'the dog runs', translation: '狗在跑' },
+      { source: 'a dog' },
+    ]);
+    expect(parsed.lexemes[0]?.examples).toBeUndefined();
+  });
+
   it('sorts sibling senses by the LIFT order attribute', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

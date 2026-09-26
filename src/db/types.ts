@@ -160,12 +160,19 @@ export interface AnchorDocType {
   createdAt: string;
 }
 
+/** Sense example sentence. `source` is the LIFT `<example><form>` text, not bibliographic `<source>`. */
+export interface SenseExample {
+  source: string;
+  translation?: string;
+}
+
 export interface Sense {
   id?: string;
   gloss: MultiLangString;
   definition?: MultiLangString;
   category?: string;
   parentId?: string;
+  examples?: SenseExample[];
   [key: string]: unknown;
 }
 

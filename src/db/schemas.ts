@@ -176,6 +176,14 @@ const lexemeDocSchema = z.object({
           definition: multiLangStringSchema.optional(),
           category: z.string().optional(),
           parentId: z.string().min(1).optional(),
+          examples: z
+            .array(
+              z.object({
+                source: z.string().min(1),
+                translation: z.string().min(1).optional(),
+              }),
+            )
+            .optional(),
         })
         .passthrough(),
     )

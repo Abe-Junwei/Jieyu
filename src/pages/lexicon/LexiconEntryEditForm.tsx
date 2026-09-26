@@ -1,16 +1,71 @@
 import { ConfirmDeleteDialog } from '../../components/ConfirmDeleteDialog';
-import { t, useLocale } from '../../i18n';
+import { t, useLocale, type Locale } from '../../i18n';
 import {
   canDemoteSense,
   moveSenseSiblingBlock,
   promoteSense,
   senseDepth,
 } from '../../utils/lexemeSenseTree';
+import type { LexiconExampleDraft } from './saveLexiconEntry';
 import type { LexiconEntryEditController } from '../useLexiconEntryEditController';
 
 type Props = {
   editor: LexiconEntryEditController;
 };
+
+function SenseExampleFields({
+  locale,
+  examples,
+  idPrefix,
+  onChange,
+  onAdd,
+  onRemove,
+}: {
+  locale: Locale;
+  examples: LexiconExampleDraft[];
+  idPrefix: string;
+  onChange: (index: number, field: 'source' | 'translation', value: string) => void;
+  onAdd: () => void;
+  onRemove: (index: number) => void;
+}) {
+  return (
+    <div className="lexicon-entry-edit-field">
+      {examples.map((example, index) => (
+        <div key={`${idPrefix}-example-${index}`} className="lexicon-entry-edit-field">
+          <label className="lexicon-entry-edit-field">
+            <span>{t(locale, 'workspace.lexicon.edit.exampleSourceLabel')}</span>
+            <input
+              className="input lexicon-entry-edit-input"
+              data-testid={`${idPrefix}-example-${index}-source`}
+              value={example.source}
+              onChange={(event) => onChange(index, 'source', event.target.value)}
+            />
+          </label>
+          <label className="lexicon-entry-edit-field">
+            <span>{t(locale, 'workspace.lexicon.edit.exampleTranslationLabel')}</span>
+            <input
+              className="input lexicon-entry-edit-input"
+              data-testid={`${idPrefix}-example-${index}-translation`}
+              value={example.translation ?? ''}
+              onChange={(event) => onChange(index, 'translation', event.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn"
+            data-testid={`${idPrefix}-remove-example-${index}`}
+            onClick={() => onRemove(index)}
+          >
+            {t(locale, 'workspace.lexicon.edit.removeExample')}
+          </button>
+        </div>
+      ))}
+      <button type="button" className="btn" data-testid={`${idPrefix}-add-example`} onClick={onAdd}>
+        {t(locale, 'workspace.lexicon.edit.addExample')}
+      </button>
+    </div>
+  );
+}
 
 export function LexiconEntryEditForm({ editor }: Props) {
   const locale = useLocale();
@@ -50,6 +105,14 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('category', event.target.value)}
         />
       </label>
+      <SenseExampleFields
+        locale={locale}
+        examples={editor.fields.examples}
+        idPrefix="lexicon-entry"
+        onChange={(index, field, value) => editor.onExampleChange('primary', index, field, value)}
+        onAdd={() => editor.onAddExample('primary')}
+        onRemove={(index) => editor.onRemoveExample('primary', index)}
+      />
       <button
         type="button"
         className="btn"
@@ -104,6 +167,16 @@ export function LexiconEntryEditForm({ editor }: Props) {
                 }
               />
             </label>
+            <SenseExampleFields
+              locale={locale}
+              examples={sense.examples ?? []}
+              idPrefix={`lexicon-entry-extra-sense-${index}`}
+              onChange={(exampleIndex, field, value) =>
+                editor.onExampleChange(index, exampleIndex, field, value)
+              }
+              onAdd={() => editor.onAddExample(index)}
+              onRemove={(exampleIndex) => editor.onRemoveExample(index, exampleIndex)}
+            />
             <button
               type="button"
               className="btn"

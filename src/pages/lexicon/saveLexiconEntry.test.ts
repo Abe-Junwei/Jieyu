@@ -21,12 +21,14 @@ function fields(
     category: string;
     lexemeType: string;
     primarySenseId: string;
+    examples: { source: string; translation?: string }[];
     extraSenses: {
       id?: string;
       parentId?: string;
       gloss: string;
       definition: string;
       category?: string;
+      examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
   }> & { lemma: string },
@@ -38,6 +40,7 @@ function fields(
     language: '',
     notes: '',
     lexemeType: '',
+    examples: [],
     extraSenses: [],
     forms: [],
     ...partial,
@@ -110,6 +113,44 @@ describe('saveLexiconEntry', () => {
     );
     expect(cleared.senses[0]?.category).toBeUndefined();
     expect(cleared.senses[1]?.category).toBeUndefined();
+  });
+
+  it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {
+    const existing = applyLexiconEntryFields(null, fields({ lemma: 'dog', gloss: 'canine' }), now);
+    const withLegacy = { ...existing, examples: ['legacy note'] };
+    const updated = applyLexiconEntryFields(
+      withLegacy,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        examples: [{ source: ' the dog runs ', translation: ' 狗在跑 ' }],
+        extraSenses: [
+          { gloss: 'pet', definition: '', examples: [{ source: 'my pet', translation: ' ' }] },
+        ],
+      }),
+      now,
+    );
+    expect(updated.senses[0]?.examples).toEqual([
+      { source: 'the dog runs', translation: '狗在跑' },
+    ]);
+    expect(updated.senses[1]?.examples).toEqual([{ source: 'my pet' }]);
+    expect(updated.examples).toEqual(['legacy note']);
+    const extraId = updated.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      updated,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        examples: [{ source: '  ', translation: 'gone' }],
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', examples: [] }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.examples).toBeUndefined();
+    expect(cleared.senses[1]?.examples).toBeUndefined();
+    expect(cleared.examples).toEqual(['legacy note']);
   });
 
   it('writes lexeme type, drops it when cleared, and keeps morpheme type', () => {

@@ -610,6 +610,16 @@ export function LexiconPage() {
                                 {sense.category}
                               </span>
                             ) : null}
+                            {(sense.examples ?? []).map((example, exampleIndex) => (
+                              <span
+                                key={`${readSenseId(sense)}-example-${exampleIndex}`}
+                                data-testid={`lexicon-workspace-sense-${index}-example-${exampleIndex}`}
+                              >
+                                {example.translation
+                                  ? `${example.source} / ${example.translation}`
+                                  : example.source}
+                              </span>
+                            ))}
                           </li>
                         ))}
                       </ol>
