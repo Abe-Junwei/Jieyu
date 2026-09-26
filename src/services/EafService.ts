@@ -118,9 +118,9 @@ export interface EafImportResult {
       annotationId?: string;
     }>
   >;
-  /** DEFAULT_LOCALE of the first (transcription) tier, if present | 首层的 DEFAULT_LOCALE */
+  /** Language of the first transcription tier: LANG_REF, else DEFAULT_LOCALE */
   defaultLocale?: string;
-  /** Map of tier name → DEFAULT_LOCALE for additional tiers | 附加层的语言 */
+  /** Map of tier name → language id (LANG_REF, else DEFAULT_LOCALE) | 附加层的语言 */
   tierLocales: Map<string, string>;
   /** Unique PARTICIPANT values found across tiers | 所有层中出现的 PARTICIPANT */
   participants: string[];
@@ -1047,6 +1047,17 @@ function attachWordTierTokensToUnits(
   }
 }
 
+/**
+ * ELAN 3 tiers point at `<LANGUAGE LANG_ID>` via `LANG_REF`.
+ * Older files only set `DEFAULT_LOCALE`. Font `<PROPERTY>` rows are not languages.
+ */
+function readEafTierLanguageId(tier: Element): string | undefined {
+  const langRef = tier.getAttribute('LANG_REF')?.trim() ?? '';
+  if (langRef.length > 0) return langRef;
+  const locale = tier.getAttribute('DEFAULT_LOCALE')?.trim() ?? '';
+  return locale.length > 0 ? locale : undefined;
+}
+
 // ── Import ──────────────────────────────────────────────────
 
 export function importFromEaf(xmlString: string): EafImportResult {
@@ -1151,7 +1162,7 @@ export function importFromEaf(xmlString: string): EafImportResult {
   tiers.forEach((tier, tierIndex) => {
     const tierId = tier.getAttribute('TIER_ID') ?? `tier_${tierIndex}`;
     const participant = tier.getAttribute('PARTICIPANT') ?? undefined;
-    const locale = tier.getAttribute('DEFAULT_LOCALE') ?? undefined;
+    const locale = readEafTierLanguageId(tier);
     const typeRef = tier.getAttribute('LINGUISTIC_TYPE_REF') ?? undefined;
     const parentRef = tier.getAttribute('PARENT_REF') ?? undefined;
 
