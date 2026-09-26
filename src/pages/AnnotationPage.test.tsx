@@ -27,6 +27,7 @@ const {
   mockListNotesByTarget,
   mockSaveNote,
   mockSaveBatch,
+  mockListUnitTextsByUnitIds,
   featureFlagState,
 } = vi.hoisted(() => ({
   mockListByTextId: vi.fn(),
@@ -48,6 +49,7 @@ const {
   mockListNotesByTarget: vi.fn(),
   mockSaveNote: vi.fn(),
   mockSaveBatch: vi.fn(),
+  mockListUnitTextsByUnitIds: vi.fn(),
   featureFlagState: { annotationPageEnabled: false },
 }));
 
@@ -82,6 +84,9 @@ vi.mock('../app/languageAssetPageAccess', () => ({
       listByTarget: mockListNotesByTarget,
       save: mockSaveNote,
     },
+    timeline: {
+      listUnitTextsByUnitIds: mockListUnitTextsByUnitIds,
+    },
   },
 }));
 
@@ -91,6 +96,33 @@ vi.mock('../ai/config/featureFlags', () => ({
       return featureFlagState.annotationPageEnabled;
     },
   },
+}));
+
+vi.mock('./annotation/annotationStructuralPreviewController', () => ({
+  previewAnnotationStructuralCandidate: vi.fn(async (input: { glossText: string }) => {
+    const needsReview = input.glossText.includes('<') && !input.glossText.includes('>');
+    const segments = input.glossText
+      .split('-')
+      .filter((part) => part.length > 0)
+      .map((text, index) => ({ id: `s-${index}`, text, kind: 'stem' }));
+    return {
+      segments,
+      boundaries: [],
+      warnings: needsReview
+        ? [{ type: 'unmatched_wrapper', message: 'Missing infix end marker.', severity: 'warning' }]
+        : [],
+      diagnostics: [],
+      canConfirmWithoutReview: !needsReview,
+      candidateGraph: {
+        id: 'preview',
+        text: input.glossText,
+        displayGloss: input.glossText,
+        nodes: [],
+        relations: [],
+        projectionDiagnostics: [],
+      },
+    };
+  }),
 }));
 
 import { AnnotationPage } from './AnnotationPage';
@@ -194,6 +226,7 @@ function seedWorkspace(tokens: TokenFixture[], units: Array<typeof UNIT_ONE> = [
   mockListNotesByTarget.mockResolvedValue([]);
   mockSaveNote.mockImplementation(async (doc: { id: string }) => doc.id);
   mockSaveBatch.mockResolvedValue(undefined);
+  mockListUnitTextsByUnitIds.mockResolvedValue([]);
 }
 
 afterEach(() => {
@@ -217,6 +250,7 @@ afterEach(() => {
   mockListNotesByTarget.mockReset();
   mockSaveNote.mockReset();
   mockSaveBatch.mockReset();
+  mockListUnitTextsByUnitIds.mockReset();
   featureFlagState.annotationPageEnabled = false;
 });
 
@@ -237,6 +271,41 @@ describe('AnnotationPage', () => {
     expect(row.textContent).toContain('hello');
     expect(row.textContent).toContain('INTJ');
     expect(row.textContent).toContain('暂无译文');
+  });
+
+  it('shows translation-layer text on the IGT row', async () => {
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello', 'INTJ')]);
+    mockListLayersByTextId.mockResolvedValue([
+      {
+        id: 'lane-1',
+        textId: 'tid-1',
+        key: 'lane-1',
+        name: { default: 'lane' },
+        languageId: 'und',
+        modality: 'text',
+        createdAt: '',
+        updatedAt: '',
+        layerType: 'transcription',
+      },
+      {
+        id: 'tl-1',
+        textId: 'tid-1',
+        key: 'tl-1',
+        name: { default: 'translation' },
+        languageId: 'zho',
+        modality: 'text',
+        createdAt: '',
+        updatedAt: '',
+        layerType: 'translation',
+      },
+    ]);
+    mockListUnitTextsByUnitIds.mockResolvedValue([
+      { unitId: 'uid-1', layerId: 'tl-1', modality: 'text', text: '你好' },
+    ]);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    const row = await screen.findByTestId('annotation-igt-row-uid-1', {}, { timeout: 4000 });
+    expect(row.textContent).toContain('你好');
+    expect(row.textContent).not.toContain('暂无译文');
   });
 
   it('focuses the unit from the URL unitId instead of the first row', async () => {
@@ -651,5 +720,25 @@ describe('AnnotationPage', () => {
       expect(tokens.some((row) => row.form.default === 'hello')).toBe(true);
       expect(tokens.some((row) => row.form.default === 'world')).toBe(true);
     });
+  });
+
+  it('shows an empty structure check when the focused unit has no gloss', async () => {
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'hello world', '')]);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    const panel = await screen.findByTestId('annotation-validator-uid-1', {}, { timeout: 4000 });
+    expect(panel.textContent).toContain('当前句段还没有 gloss。');
+  });
+
+  it('shows parsed gloss segments on the focused structure check', async () => {
+    seedWorkspace([tokenRow('tok-1', 'uid-1', 'dogs', 'dog-PL')]);
+    renderPage('/annotation?textId=tid-1&mediaId=mid-1');
+    const line = await screen.findByTestId(
+      'annotation-validator-token-tok-1',
+      {},
+      { timeout: 4000 },
+    );
+    expect(line.textContent).toContain('dogs: dog-PL');
+    expect(line.textContent).toContain('切段 dog · PL');
+    expect(line.textContent).toContain('可解析');
   });
 });

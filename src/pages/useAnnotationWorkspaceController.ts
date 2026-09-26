@@ -32,6 +32,7 @@ import {
   type AnnotationTokenDraft,
 } from './annotation/annotationTokenDrafts';
 import { buildAnnotationIgtRows, type AnnotationIgtRow } from './annotation/annotationIgtRows';
+import { pickAnnotationTranslationText } from './annotation/annotationTranslationText';
 import { saveAnnotationIgtRowTokens } from './annotation/saveAnnotationIgtRowTokens';
 
 export type { AnnotationIgtToken, AnnotationIgtRow };
@@ -72,20 +73,30 @@ export function useAnnotationWorkspaceController() {
         LinguisticService.layers.listByTextId(textId),
       ]);
       const laneUnits = projectAnnotationLaneUnits({ units, layers, mediaId });
-      const tokens = await LinguisticService.units.listTokensByUnitIds(
-        laneUnits.map((unit) => unit.id),
-      );
-      return { units: laneUnits, tokens };
+      const unitIds = laneUnits.map((unit) => unit.id);
+      const [tokens, contents] = await Promise.all([
+        LinguisticService.units.listTokensByUnitIds(unitIds),
+        LinguisticService.timeline.listUnitTextsByUnitIds(unitIds),
+      ]);
+      const translationLayerIds = layers
+        .filter((layer) => layer.layerType === 'translation')
+        .map((layer) => layer.id);
+      return { units: laneUnits, tokens, contents, translationLayerIds };
     },
     enabled: textId.length > 0,
   });
 
   const derived = useMemo(() => {
+    const translations = pickAnnotationTranslationText({
+      contents: dataQuery.data?.contents ?? [],
+      translationLayerIds: dataQuery.data?.translationLayerIds ?? [],
+    });
     const rows = buildAnnotationIgtRows({
       units: dataQuery.data?.units ?? [],
       tokens: dataQuery.data?.tokens ?? [],
       textId,
       mediaId,
+      translations,
     });
     const unitIds = rows.map((row) => row.id);
     const urlUnitId = parsed.unitId;
