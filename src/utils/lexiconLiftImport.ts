@@ -134,6 +134,7 @@ function parseSense(
   const anthropologyNote = parseTypedNote(sense, 'anthropology');
   const discourseNote = parseTypedNote(sense, 'discourse');
   const encyclopedicNote = parseTypedNote(sense, 'encyclopedic');
+  const grammarNote = parseTypedNote(sense, 'grammar');
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -143,6 +144,7 @@ function parseSense(
     ...(anthropologyNote.length > 0 ? { anthropologyNote } : {}),
     ...(discourseNote.length > 0 ? { discourseNote } : {}),
     ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
+    ...(grammarNote.length > 0 ? { grammarNote } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }

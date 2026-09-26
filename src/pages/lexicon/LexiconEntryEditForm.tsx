@@ -141,6 +141,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('encyclopedicNote', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.grammarNoteLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-grammar-note"
+          value={editor.fields.grammarNote}
+          onChange={(event) => editor.onFieldChange('grammarNote', event.target.value)}
+        />
+      </label>
       <SenseExampleFields
         locale={locale}
         examples={editor.fields.examples}
@@ -233,6 +242,17 @@ export function LexiconEntryEditForm({ editor }: Props) {
                 value={sense.encyclopedicNote ?? ''}
                 onChange={(event) =>
                   editor.onExtraSenseChange(index, 'encyclopedicNote', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseGrammarNoteLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-grammar-note`}
+                value={sense.grammarNote ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'grammarNote', event.target.value)
                 }
               />
             </label>

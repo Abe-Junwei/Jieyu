@@ -754,6 +754,23 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves a grammar note and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-grammar-note'), {
+      target: { value: 'count noun' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.grammarNote).toBe('count noun');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-grammar-note').textContent).toBe(
+      'count noun',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

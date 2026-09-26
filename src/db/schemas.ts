@@ -191,6 +191,7 @@ const lexemeDocSchema = z.object({
           anthropologyNote: z.string().optional(),
           discourseNote: z.string().optional(),
           encyclopedicNote: z.string().optional(),
+          grammarNote: z.string().optional(),
           parentId: z.string().min(1).optional(),
           examples: z
             .array(
