@@ -54,6 +54,7 @@ source_of_truth: decision-index
 - [0032-transcription-ai-chat-floating-window-only.md](./0032-transcription-ai-chat-floating-window-only.md)（转写页对话仅浮窗；分析右栏已由 ADR-0033 迁出；`accepted`）
 - [0033-analysis-restricted-workspace-no-transcription-dock.md](./0033-analysis-restricted-workspace-no-transcription-dock.md)（`/analysis` 受限工作台承接向量+统计；转写拆 AI 右栏；声学留在转写检查条；`accepted`）
 - [0034-collaboration-project-snapshot-excludes-global-catalogs.md](./0034-collaboration-project-snapshot-excludes-global-catalogs.md)（协作项目快照按 `textId` 裁剪；不含词库/语言资产；restore 禁止整库 replace-all）
+- [0035-lexicon-edit-baseline-dmlex.md](./0035-lexicon-edit-baseline-dmlex.md)（词典编辑基准用 DMLex 1.0 JSON Schema；LIFT 只做投影；解语附加字段放在 schema 外）
 
 ## 建议格式
 

@@ -164,7 +164,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 ### Stage A — 稳主线
 
-> **当前下一刀（2026-09-27）**：标注 M1、**B4f–B4i**、**B3c–B3am**（含 LIFT、义项树、同级排序、提升/降级、义项词类、词条类型、义项例证、词条发音、词源、字面意义、参考文献、限制、概要定义、义项学名、义项人类学注释、义项语篇注释、义项百科注释、义项语法注释、义项语义域、义项音系注释、义项语义注释、义项社会语言学注释、义项来源注释、义项用法、义项类型、义项学术领域、义项人类学类别、义项状态、义项方言标签、义项限制、义项导入残留、义项反转、义项参考文献与义项一般注释）已落地。B4i 在 IGT 行只读显示同一句段的翻译层文本。余量：**B7** 仍 blocked on ChatWindow 会话隔离。不排 C3d Word / DMLex / M2 typed relation / 语义域浏览；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
+> **当前下一刀（2026-09-27）**：标注 M1、**B4f–B4i**、**B3c–B3am**（含 LIFT、义项树、同级排序、提升/降级、义项词类、词条类型、义项例证、词条发音、词源、字面意义、参考文献、限制、概要定义、义项学名、义项人类学注释、义项语篇注释、义项百科注释、义项语法注释、义项语义域、义项音系注释、义项语义注释、义项社会语言学注释、义项来源注释、义项用法、义项类型、义项学术领域、义项人类学类别、义项状态、义项方言标签、义项限制、义项导入残留、义项反转、义项参考文献与义项一般注释）已落地。B4i 在 IGT 行只读显示同一句段的翻译层文本。余量：**B7** 仍 blocked on ChatWindow 会话隔离。词典下一刀改为 DMLex 编辑基准（[ADR 0035](../../adr/0035-lexicon-edit-baseline-dmlex.md)、[计划](词典编辑改用DMLex基准-2026-09-27.md)），运行时代码仍是 LIFT 形状，直到该计划切片 1。不排 C3d Word / M2 typed relation / 语义域浏览；语料 flag 仍默认 false。Dogfood ≠ 产品开放。详见 [后续路线图详细评估](../audits/后续路线图详细评估-2026-09-11.md)。状态图例：✅ 已关闭 · 🟡 部分落地 · ⬜ 未开始。
 
 | ID | 切片 | 状态 | 波次 | 粒度 | 目标 / 落位锚点 | 验收（DoD 之上的关键项） | SDD |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -347,6 +347,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 | 2026-09-25 | **B4i 译文行**：`/annotation` IGT 译文行只读显示同一 unit 的翻译层文本。无翻译层时仍是空文案。音频模态不显示。不写译文。无新 flag。SDD：`annotation-translation-line/`。下一刀仍不排 B7 / C3d / DMLex / M2 typed relation / flag 放量。 |
 | 2026-09-25 | **B4h 结构校验面板**：聚焦句段只读展示 gloss 切段、Leipzig 缩写问题和需复核。不写分析图候选。模板编辑仍在结构标注配置页。无新 flag。SDD：`annotation-validator-panel/`。下一刀仍不排 B7 / C3d / DMLex / M2 typed relation / flag 放量。 |
 | 2026-09-25 | **B4g 二次分词强制覆盖**：已标注句段仍先写 candidate。覆盖前把 token/词素/链接写入 pending `retokenize-snapshot`，再替换词列。恢复按原 id 写回。脏草稿不覆盖。无新 flag。SDD：`annotation-retokenize-force/`。下一刀仍不排 B7 / C3d / DMLex / flag 放量。 |
+| 2026-09-27 | **词典编辑基准改为 DMLex**：采用 OASIS DMLex 1.0 带跨语言模块的 JSON Schema（`docs/architecture/dmlex/dmlex.schema.json`）作为编辑对象。LIFT 改为导入导出投影。解语的语段引用和自由文本注释放在 schema 外。无存量词条，不新增 Dexie 版本，不加 flag。运行时代码尚未替换。ADR 0035；计划 `词典编辑改用DMLex基准-2026-09-27.md`。 |
 | 2026-09-27 | **B3am 义项一般注释**：`/lexicon` 编辑义项 `generalNote`，对应 LIFT 义项上无 `type` 的 `<note>` 第一条 form 文本。空白省略。出站不写 `type`，lang 为 `und`，排在百科注释之后、语法注释之前。不读词条级无 type note，也不把带 type 的义项 note 写进一般注释，也不改词条 `notes`。再次导入省略该 note 时一般注释随 `senses` 整段替换而消失。无 DMLex、无新 flag。SDD：`lexicon-sense-general-note/`。下一刀仍不排 B7 / C3d / DMLex / 语义域浏览 / 词汇关系 / 图片 / flag 放量。 |
 | 2026-09-27 | **B3al 义项参考文献**：`/lexicon` 编辑义项 `senseBibliography`，对应 LIFT 义项 `<note type="bibliography">` 第一条 form 文本。空白省略。出站 lang 为 `und`，排在人类学注释之后、语篇注释之前。不读词条级同名 note，也不读无 type 的 General Note，也不改词条参考文献。再次导入省略该 note 时义项参考文献随 `senses` 整段替换而消失。无 DMLex、无新 flag。SDD：`lexicon-sense-bibliography/`。下一刀仍不排 B7 / C3d / DMLex / 语义域浏览 / 词汇关系 / 图片 / flag 放量。 |
 | 2026-09-27 | **B3ak 义项反转**：`/lexicon` 按书写系统编辑义项 `reversals`，对应 LIFT `<reversal type>` 与嵌套 `<main>` 单链。空白书写系统或空白形式省略该条。空白上级跳过并保留子级。出站排在 gloss 之后、definition 之前。不读词条级 `<reversal>`，也不把反转上的 grammatical-info 当成义项词类。并列的第二个 `main` 不写入。再次导入省略这些元素时反转随 `senses` 整段替换而消失。无 DMLex、无新 flag。SDD：`lexicon-sense-reversals/`。下一刀仍不排 B7 / C3d / DMLex / 语义域浏览 / 词汇关系 / flag 放量。 |
