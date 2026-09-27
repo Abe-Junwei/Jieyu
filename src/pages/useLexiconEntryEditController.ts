@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { DmlexRelation } from '../db/dmlexTypes';
 import { t, useLocale } from '../i18n';
-import type { LexemeEntryDoc } from '../types/jieyuDbDocTypes';
+import type { DmlexRelation, LexemeEntryDoc } from '../types/jieyuDbDocTypes';
 import {
   emptyEntryFields,
   emptySenseDraft,

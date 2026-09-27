@@ -16,6 +16,7 @@ export type {
   LexemeDocType,
   LexemeEntryDoc,
   LexemeResourceDoc,
+  DmlexRelation,
   NoteCategory,
   TokenLexemeLinkDocType,
   TokenLexemeLinkRole,
