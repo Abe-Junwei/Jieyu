@@ -145,6 +145,7 @@ function parseSense(
   const academicDomains = parseAcademicDomains(sense);
   const anthropologyCategories = parseAnthropologyCategories(sense);
   const senseStatus = parseTraitValue(sense, 'status');
+  const dialectLabels = parseDialectLabels(sense);
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -165,6 +166,7 @@ function parseSense(
     ...(academicDomains.length > 0 ? { academicDomains } : {}),
     ...(anthropologyCategories.length > 0 ? { anthropologyCategories } : {}),
     ...(senseStatus.length > 0 ? { senseStatus } : {}),
+    ...(dialectLabels.length > 0 ? { dialectLabels } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }
@@ -239,6 +241,10 @@ function parseAcademicDomains(sense: Element): string[] {
 
 function parseAnthropologyCategories(sense: Element): string[] {
   return parseTraitValues(sense, 'anthro-code');
+}
+
+function parseDialectLabels(sense: Element): string[] {
+  return parseTraitValues(sense, 'dialect-labels');
 }
 
 function parseTraitValues(sense: Element, name: string): string[] {

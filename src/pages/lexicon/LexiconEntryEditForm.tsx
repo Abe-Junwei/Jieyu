@@ -189,6 +189,17 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('senseStatus', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.dialectLabelsLabel')}</span>
+        <textarea
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-dialect-labels"
+          rows={3}
+          placeholder={t(locale, 'workspace.lexicon.edit.dialectLabelsHint')}
+          value={editor.fields.dialectLabels}
+          onChange={(event) => editor.onFieldChange('dialectLabels', event.target.value)}
+        />
+      </label>
       <LexiconSenseExampleFields
         locale={locale}
         examples={editor.fields.examples}

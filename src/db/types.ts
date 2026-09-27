@@ -208,6 +208,8 @@ export interface Sense {
   anthropologyCategories?: string[];
   /** First LIFT sense `<trait name="status">` value. */
   senseStatus?: string;
+  /** LIFT sense `<trait name="dialect-labels">` values. */
+  dialectLabels?: string[];
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

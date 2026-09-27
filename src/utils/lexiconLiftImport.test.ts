@@ -1714,6 +1714,102 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.senseStatus).toBeUndefined();
   });
 
+  it('reads sense dialect labels and ignores an entry-level trait', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <trait name="dialect-labels" value="entry dialect"/>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <trait name="status" value="Confirmed"/>
+      <trait name="dialect-labels" value=""/>
+      <trait name="dialect-labels" value="northern"/>
+      <trait name="dialect-labels" value="northern"/>
+      <trait name="dialect-labels" value="southern"/>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <trait name="dialect-labels" value="highland"/>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('dialectLabels');
+    expect(parsed.lexemes[0]?.senses[0]?.dialectLabels).toEqual(['northern', 'southern']);
+    expect(parsed.lexemes[0]?.senses[0]?.senseStatus).toBe('Confirmed');
+    expect(parsed.lexemes[0]?.senses[1]?.dialectLabels).toEqual(['highland']);
+  });
+
+  it('round-trips sense dialect labels and drops them when the traits are omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            senseStatus: 'Confirmed',
+            dialectLabels: ['northern', 'southern'],
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            dialectLabels: ['highland'],
+          },
+        ],
+      },
+    ]);
+    const statusAt = xml!.indexOf('<trait name="status"');
+    const labelAt = xml!.indexOf('<trait name="dialect-labels"');
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(statusAt).toBeGreaterThanOrEqual(0);
+    expect(labelAt).toBeGreaterThan(statusAt);
+    expect(subsenseAt).toBeGreaterThan(labelAt);
+    expect(xml).toContain('<trait name="dialect-labels" value="northern"/>');
+    expect(xml).toContain('<trait name="dialect-labels" value="southern"/>');
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.dialectLabels).toEqual(['northern', 'southern']);
+    expect(parsed.lexemes[0]?.senses[0]?.senseStatus).toBe('Confirmed');
+    expect(parsed.lexemes[0]?.senses[1]?.dialectLabels).toEqual(['highland']);
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, senseStatus: 'Confirmed' }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('dialect-labels');
+    expect(bare).toContain('name="status"');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          senseStatus: 'Confirmed',
+          dialectLabels: ['northern', 'southern'],
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.dialectLabels).toBeUndefined();
+    expect(store[0]?.senses[0]?.senseStatus).toBe('Confirmed');
+    expect(store[0]?.senses[1]?.dialectLabels).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

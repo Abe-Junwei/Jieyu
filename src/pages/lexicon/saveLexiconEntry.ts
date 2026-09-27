@@ -22,6 +22,7 @@ export type LexiconEntryScalarField =
   | 'academicDomains'
   | 'anthropologyCategories'
   | 'senseStatus'
+  | 'dialectLabels'
   | 'citationForm'
   | 'language'
   | 'notes'
@@ -61,6 +62,7 @@ export type LexiconSenseDraft = {
   academicDomains?: string;
   anthropologyCategories?: string;
   senseStatus?: string;
+  dialectLabels?: string;
   examples?: LexiconExampleDraft[];
 };
 
@@ -88,6 +90,7 @@ export type LexiconEntryFields = {
   academicDomains: string;
   anthropologyCategories: string;
   senseStatus: string;
+  dialectLabels: string;
   citationForm: string;
   language: string;
   notes: string;
@@ -189,6 +192,14 @@ export function anthropologyCategoriesDraft(categories: unknown): string {
   return semanticDomainsDraft(categories);
 }
 
+export function readDialectLabelLines(value: unknown): string[] {
+  return readSemanticDomainLines(value);
+}
+
+export function dialectLabelsDraft(labels: unknown): string {
+  return semanticDomainsDraft(labels);
+}
+
 export function exampleDraftsFromStored(examples: unknown): LexiconExampleDraft[] {
   if (!Array.isArray(examples)) return [];
   return examples.flatMap((row) => {
@@ -284,6 +295,7 @@ export function applyLexiconEntryFields(
   const academicDomains = readAcademicDomainLines(fields.academicDomains);
   const anthropologyCategories = readAnthropologyCategoryLines(fields.anthropologyCategories);
   const senseStatus = readCategory(fields.senseStatus);
+  const dialectLabels = readDialectLabelLines(fields.dialectLabels);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -335,6 +347,7 @@ export function applyLexiconEntryFields(
       academicDomains: _oldAcademicDomains,
       anthropologyCategories: _oldAnthropologyCategories,
       senseStatus: _oldSenseStatus,
+      dialectLabels: _oldDialectLabels,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -357,6 +370,7 @@ export function applyLexiconEntryFields(
     const senseAcademicDomains = readAcademicDomainLines(draft.academicDomains);
     const senseAnthropologyCategories = readAnthropologyCategoryLines(draft.anthropologyCategories);
     const extraSenseStatus = readCategory(draft.senseStatus);
+    const senseDialectLabels = readDialectLabelLines(draft.dialectLabels);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -386,6 +400,7 @@ export function applyLexiconEntryFields(
           ? { anthropologyCategories: senseAnthropologyCategories }
           : {}),
         ...(extraSenseStatus.length > 0 ? { senseStatus: extraSenseStatus } : {}),
+        ...(senseDialectLabels.length > 0 ? { dialectLabels: senseDialectLabels } : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -423,6 +438,7 @@ export function applyLexiconEntryFields(
     academicDomains: _oldPrimaryAcademicDomains,
     anthropologyCategories: _oldPrimaryAnthropologyCategories,
     senseStatus: _oldPrimarySenseStatus,
+    dialectLabels: _oldPrimaryDialectLabels,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -473,6 +489,7 @@ export function applyLexiconEntryFields(
         ...(academicDomains.length > 0 ? { academicDomains } : {}),
         ...(anthropologyCategories.length > 0 ? { anthropologyCategories } : {}),
         ...(senseStatus.length > 0 ? { senseStatus } : {}),
+        ...(dialectLabels.length > 0 ? { dialectLabels } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,

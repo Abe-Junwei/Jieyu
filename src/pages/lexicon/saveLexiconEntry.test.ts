@@ -34,6 +34,7 @@ function fields(
     academicDomains: string;
     anthropologyCategories: string;
     senseStatus: string;
+    dialectLabels: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -66,6 +67,7 @@ function fields(
       academicDomains?: string;
       anthropologyCategories?: string;
       senseStatus?: string;
+      dialectLabels?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -89,6 +91,7 @@ function fields(
     academicDomains: '',
     anthropologyCategories: '',
     senseStatus: '',
+    dialectLabels: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -689,6 +692,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.senseStatus).toBeUndefined();
     expect(cleared.senses[0]?.anthropologyCategories).toEqual(['kin']);
     expect(cleared.senses[1]?.senseStatus).toBeUndefined();
+  });
+
+  it('writes trimmed dialect labels on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        senseStatus: 'Confirmed',
+        dialectLabels: ' northern \n\nnorthern\nsouthern ',
+        extraSenses: [{ gloss: 'pet', definition: '', dialectLabels: 'highland\nhighland\n ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.dialectLabels).toEqual(['northern', 'southern']);
+    expect(created.senses[0]?.senseStatus).toBe('Confirmed');
+    expect(created.senses[1]?.dialectLabels).toEqual(['highland']);
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        senseStatus: 'Confirmed',
+        dialectLabels: ' \n ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', dialectLabels: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.dialectLabels).toBeUndefined();
+    expect(cleared.senses[0]?.senseStatus).toBe('Confirmed');
+    expect(cleared.senses[1]?.dialectLabels).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

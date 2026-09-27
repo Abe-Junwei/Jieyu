@@ -1048,6 +1048,30 @@ describe('LexiconPage', () => {
     ).toBe('kin');
   });
 
+  it('saves dialect labels and shows them on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-sense-status'), {
+      target: { value: 'Confirmed' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-dialect-labels'), {
+      target: { value: 'northern\nsouthern' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.dialectLabels).toEqual(['northern', 'southern']);
+    expect(saved.senses[0]?.senseStatus).toBe('Confirmed');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-dialect-labels').textContent).toBe(
+      'northern · southern',
+    );
+    expect(screen.getByTestId('lexicon-workspace-sense-0-sense-status').textContent).toBe(
+      'Confirmed',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
