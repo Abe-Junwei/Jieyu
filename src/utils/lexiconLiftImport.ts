@@ -135,6 +135,7 @@ function parseSense(
   const discourseNote = parseTypedNote(sense, 'discourse');
   const encyclopedicNote = parseTypedNote(sense, 'encyclopedic');
   const grammarNote = parseTypedNote(sense, 'grammar');
+  const semanticDomains = parseSemanticDomains(sense);
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -145,6 +146,7 @@ function parseSense(
     ...(discourseNote.length > 0 ? { discourseNote } : {}),
     ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
     ...(grammarNote.length > 0 ? { grammarNote } : {}),
+    ...(semanticDomains.length > 0 ? { semanticDomains } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }
@@ -199,6 +201,19 @@ function parseTypedNote(entry: Element, type: string): string {
   const note = entryNote(entry, type);
   if (!note) return '';
   return formPairs(note)[0]?.text ?? '';
+}
+
+function parseSemanticDomains(sense: Element): string[] {
+  const seen = new Set<string>();
+  const domains: string[] = [];
+  for (const trait of directChildren(sense, 'trait')) {
+    if (attr(trait, 'name') !== 'semantic-domain-ddp4') continue;
+    const value = attr(trait, 'value');
+    if (value.length === 0 || seen.has(value)) continue;
+    seen.add(value);
+    domains.push(value);
+  }
+  return domains;
 }
 
 function parseBibliography(entry: Element): string {

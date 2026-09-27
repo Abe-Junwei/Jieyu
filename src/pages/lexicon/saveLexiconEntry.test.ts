@@ -24,6 +24,7 @@ function fields(
     discourseNote: string;
     encyclopedicNote: string;
     grammarNote: string;
+    semanticDomains: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -46,6 +47,7 @@ function fields(
       discourseNote?: string;
       encyclopedicNote?: string;
       grammarNote?: string;
+      semanticDomains?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -59,6 +61,7 @@ function fields(
     discourseNote: '',
     encyclopedicNote: '',
     grammarNote: '',
+    semanticDomains: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -314,6 +317,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.grammarNote).toBeUndefined();
     expect(cleared.senses[0]?.encyclopedicNote).toBe('domestic canine');
     expect(cleared.senses[1]?.grammarNote).toBeUndefined();
+  });
+
+  it('writes trimmed semantic domains on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        grammarNote: 'count noun',
+        semanticDomains: ' 1.1 Sky \n\n1.1 Sky\n1.2 World ',
+        extraSenses: [{ gloss: 'pet', definition: '', semanticDomains: '2.1 Body\n2.1 Body\n ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.semanticDomains).toEqual(['1.1 Sky', '1.2 World']);
+    expect(created.senses[0]?.grammarNote).toBe('count noun');
+    expect(created.senses[1]?.semanticDomains).toEqual(['2.1 Body']);
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        grammarNote: 'count noun',
+        semanticDomains: ' \n ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', semanticDomains: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.semanticDomains).toBeUndefined();
+    expect(cleared.senses[0]?.grammarNote).toBe('count noun');
+    expect(cleared.senses[1]?.semanticDomains).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

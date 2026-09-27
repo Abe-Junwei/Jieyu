@@ -12,6 +12,7 @@ export type LexiconEntryScalarField =
   | 'discourseNote'
   | 'encyclopedicNote'
   | 'grammarNote'
+  | 'semanticDomains'
   | 'citationForm'
   | 'language'
   | 'notes'
@@ -41,6 +42,7 @@ export type LexiconSenseDraft = {
   discourseNote?: string;
   encyclopedicNote?: string;
   grammarNote?: string;
+  semanticDomains?: string;
   examples?: LexiconExampleDraft[];
 };
 
@@ -58,6 +60,7 @@ export type LexiconEntryFields = {
   discourseNote: string;
   encyclopedicNote: string;
   grammarNote: string;
+  semanticDomains: string;
   citationForm: string;
   language: string;
   notes: string;
@@ -110,6 +113,29 @@ export function writePrimaryMultiLang(
 
 function readCategory(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+/** One domain per line. Blank lines and duplicates are dropped; order is kept. */
+export function readSemanticDomainLines(value: unknown): string[] {
+  if (typeof value !== 'string') return [];
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  for (const raw of value.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (line.length === 0 || seen.has(line)) continue;
+    seen.add(line);
+    lines.push(line);
+  }
+  return lines;
+}
+
+export function semanticDomainsDraft(domains: unknown): string {
+  if (!Array.isArray(domains)) return '';
+  return domains
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+    .join('\n');
 }
 
 export function exampleDraftsFromStored(examples: unknown): LexiconExampleDraft[] {
@@ -197,6 +223,7 @@ export function applyLexiconEntryFields(
   const discourseNote = readCategory(fields.discourseNote);
   const encyclopedicNote = readCategory(fields.encyclopedicNote);
   const grammarNote = readCategory(fields.grammarNote);
+  const semanticDomains = readSemanticDomainLines(fields.semanticDomains);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -238,6 +265,7 @@ export function applyLexiconEntryFields(
       discourseNote: _oldDiscourseNote,
       encyclopedicNote: _oldEncyclopedicNote,
       grammarNote: _oldGrammarNote,
+      semanticDomains: _oldSemanticDomains,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -250,6 +278,7 @@ export function applyLexiconEntryFields(
     const senseDiscourseNote = readCategory(draft.discourseNote);
     const senseEncyclopedicNote = readCategory(draft.encyclopedicNote);
     const senseGrammarNote = readCategory(draft.grammarNote);
+    const senseSemanticDomains = readSemanticDomainLines(draft.semanticDomains);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -265,6 +294,7 @@ export function applyLexiconEntryFields(
         ...(senseDiscourseNote.length > 0 ? { discourseNote: senseDiscourseNote } : {}),
         ...(senseEncyclopedicNote.length > 0 ? { encyclopedicNote: senseEncyclopedicNote } : {}),
         ...(senseGrammarNote.length > 0 ? { grammarNote: senseGrammarNote } : {}),
+        ...(senseSemanticDomains.length > 0 ? { semanticDomains: senseSemanticDomains } : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -292,6 +322,7 @@ export function applyLexiconEntryFields(
     discourseNote: _oldPrimaryDiscourseNote,
     encyclopedicNote: _oldPrimaryEncyclopedicNote,
     grammarNote: _oldPrimaryGrammarNote,
+    semanticDomains: _oldPrimarySemanticDomains,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -332,6 +363,7 @@ export function applyLexiconEntryFields(
         ...(discourseNote.length > 0 ? { discourseNote } : {}),
         ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
         ...(grammarNote.length > 0 ? { grammarNote } : {}),
+        ...(semanticDomains.length > 0 ? { semanticDomains } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,

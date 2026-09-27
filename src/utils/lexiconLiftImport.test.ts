@@ -729,6 +729,100 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.grammarNote).toBeUndefined();
   });
 
+  it('reads sense semantic domains and ignores an entry-level trait', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <trait name="semantic-domain-ddp4" value="9.1 Entry"/>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <note type="grammar"><form lang="en"><text>count noun</text></form></note>
+      <trait name="semantic-domain-ddp4" value="1.1 Sky"/>
+      <trait name="morph-type" value="stem"/>
+      <trait name="semantic-domain-ddp4" value=""/>
+      <trait name="semantic-domain-ddp4" value="1.1 Sky"/>
+      <trait name="semantic-domain-ddp4" value="1.2 World"/>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <trait name="semantic-domain-ddp4" value="2.1 Body"/>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('semanticDomains');
+    expect(parsed.lexemes[0]?.senses[0]?.semanticDomains).toEqual(['1.1 Sky', '1.2 World']);
+    expect(parsed.lexemes[0]?.senses[0]?.grammarNote).toBe('count noun');
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('stem');
+    expect(parsed.lexemes[0]?.senses[1]?.semanticDomains).toEqual(['2.1 Body']);
+  });
+
+  it('round-trips sense semantic domains and drops them when the traits are omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            grammarNote: 'count noun',
+            semanticDomains: ['1.1 Sky', 'Sky & weather'],
+          },
+          { ...dog.senses[1]!, parentId: 'sense_primary', semanticDomains: ['2.1 Body'] },
+        ],
+      },
+    ]);
+    const grammarAt = xml!.indexOf('<note type="grammar">');
+    const traitAt = xml!.indexOf('<trait name="semantic-domain-ddp4"');
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(grammarAt).toBeGreaterThanOrEqual(0);
+    expect(traitAt).toBeGreaterThan(grammarAt);
+    expect(subsenseAt).toBeGreaterThan(traitAt);
+    expect(xml).toContain('<trait name="semantic-domain-ddp4" value="1.1 Sky"/>');
+    expect(xml).toContain('<trait name="semantic-domain-ddp4" value="Sky &amp; weather"/>');
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.semanticDomains).toEqual(['1.1 Sky', 'Sky & weather']);
+    expect(parsed.lexemes[0]?.senses[0]?.grammarNote).toBe('count noun');
+    expect(parsed.lexemes[0]?.senses[1]?.semanticDomains).toEqual(['2.1 Body']);
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, grammarNote: 'count noun' }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('semantic-domain-ddp4');
+    expect(bare).toContain('type="grammar"');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          grammarNote: 'count noun',
+          semanticDomains: ['1.1 Sky'],
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.semanticDomains).toBeUndefined();
+    expect(store[0]?.senses[0]?.grammarNote).toBe('count noun');
+    expect(store[0]?.senses[1]?.semanticDomains).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

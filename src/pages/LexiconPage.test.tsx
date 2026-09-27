@@ -817,6 +817,23 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves semantic domains and shows them on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-semantic-domains'), {
+      target: { value: '1.1 Sky\n1.2 World' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.semanticDomains).toEqual(['1.1 Sky', '1.2 World']);
+    expect(screen.getByTestId('lexicon-workspace-sense-0-semantic-domains').textContent).toBe(
+      '1.1 Sky · 1.2 World',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

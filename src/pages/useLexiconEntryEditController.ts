@@ -16,6 +16,7 @@ import {
   exampleDraftsFromStored,
   readPrimaryMultiLang,
   saveLexiconEntry,
+  semanticDomainsDraft,
   withAddedExample,
   withExampleChange,
   withoutExample,
@@ -42,7 +43,8 @@ export type LexiconEntryEditController = {
       | 'anthropologyNote'
       | 'discourseNote'
       | 'encyclopedicNote'
-      | 'grammarNote',
+      | 'grammarNote'
+      | 'semanticDomains',
     value: string,
   ) => void;
   onExampleChange: (
@@ -124,6 +126,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
         : '',
     grammarNote:
       typeof lexeme?.senses[0]?.grammarNote === 'string' ? lexeme.senses[0].grammarNote.trim() : '',
+    semanticDomains: semanticDomainsDraft(lexeme?.senses[0]?.semanticDomains),
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -141,6 +144,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     extraSenses: (lexeme?.senses.slice(1) ?? []).map((sense) => {
       const parentId = readSenseParentId(sense);
       const examples = exampleDraftsFromStored(sense.examples);
+      const semanticDomains = semanticDomainsDraft(sense.semanticDomains);
       return {
         ...draftIdFromNested(sense.id),
         ...(parentId.length > 0 ? { parentId } : {}),
@@ -164,6 +168,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
         ...(typeof sense.grammarNote === 'string' && sense.grammarNote.trim().length > 0
           ? { grammarNote: sense.grammarNote.trim() }
           : {}),
+        ...(semanticDomains.length > 0 ? { semanticDomains } : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };
     }),

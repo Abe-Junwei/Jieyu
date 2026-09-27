@@ -150,6 +150,17 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('grammarNote', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.semanticDomainsLabel')}</span>
+        <textarea
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-semantic-domains"
+          rows={3}
+          placeholder={t(locale, 'workspace.lexicon.edit.semanticDomainsHint')}
+          value={editor.fields.semanticDomains}
+          onChange={(event) => editor.onFieldChange('semanticDomains', event.target.value)}
+        />
+      </label>
       <SenseExampleFields
         locale={locale}
         examples={editor.fields.examples}
@@ -253,6 +264,19 @@ export function LexiconEntryEditForm({ editor }: Props) {
                 value={sense.grammarNote ?? ''}
                 onChange={(event) =>
                   editor.onExtraSenseChange(index, 'grammarNote', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseSemanticDomainsLabel')}</span>
+              <textarea
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-semantic-domains`}
+                rows={3}
+                placeholder={t(locale, 'workspace.lexicon.edit.semanticDomainsHint')}
+                value={sense.semanticDomains ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'semanticDomains', event.target.value)
                 }
               />
             </label>

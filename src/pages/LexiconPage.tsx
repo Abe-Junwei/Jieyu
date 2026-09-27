@@ -606,6 +606,13 @@ export function LexiconPage() {
                                 {sense.grammarNote}
                               </span>
                             ) : null}
+                            {(sense.semanticDomains?.length ?? 0) > 0 ? (
+                              <span
+                                data-testid={`lexicon-workspace-sense-${index}-semantic-domains`}
+                              >
+                                {sense.semanticDomains?.join(' · ')}
+                              </span>
+                            ) : null}
                             {(sense.examples ?? []).map((example, exampleIndex) => (
                               <span
                                 key={`${readSenseId(sense)}-example-${exampleIndex}`}

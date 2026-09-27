@@ -188,6 +188,8 @@ export interface Sense {
   encyclopedicNote?: string;
   /** First LIFT sense `<note type="grammar"><form>` text. */
   grammarNote?: string;
+  /** LIFT sense `<trait name="semantic-domain-ddp4">` values, abbreviation plus name. */
+  semanticDomains?: string[];
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

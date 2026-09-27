@@ -192,6 +192,7 @@ const lexemeDocSchema = z.object({
           discourseNote: z.string().optional(),
           encyclopedicNote: z.string().optional(),
           grammarNote: z.string().optional(),
+          semanticDomains: z.array(z.string().min(1)).optional(),
           parentId: z.string().min(1).optional(),
           examples: z
             .array(
