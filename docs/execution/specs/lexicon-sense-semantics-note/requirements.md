@@ -25,11 +25,11 @@ depends_on:
 
 ## 3. 验收标准（可测）
 
-- [ ] 语义注释 write→义项列表 readback，音系注释仍在
-- [ ] 空白省略 `semanticsNote`
-- [ ] LIFT 义项 `note type="semantics"` 往返第一条 form 文本，出站 lang 为 `und`，并排在音系注释之后、子义项之前
-- [ ] 词条级同名 note 和无 type 的 General Note 不写入；再次导入省略该 note 时注释随 `senses` 整段替换而消失
-- [ ] 无新 flag、无新表
+- [x] 语义注释 write→义项列表 readback，音系注释仍在
+- [x] 空白省略 `semanticsNote`
+- [x] LIFT 义项 `note type="semantics"` 往返第一条 form 文本，出站 lang 为 `und`，并排在音系注释之后、子义项之前
+- [x] 词条级同名 note 和无 type 的 General Note 不写入；再次导入省略该 note 时注释随 `senses` 整段替换而消失
+- [x] 无新 flag、无新表
 
 ## 4. 受影响代码地图
 

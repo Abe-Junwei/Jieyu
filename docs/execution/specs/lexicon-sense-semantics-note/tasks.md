@@ -14,18 +14,18 @@ depends_on:
 
 ## Implementation tasks
 
-- [ ] 保存义项语义注释，空白省略，且保留音系注释 → `npx vitest run src/pages/lexicon/saveLexiconEntry.test.ts`
-- [ ] LIFT 义项 `note type="semantics"` 往返，词条级同名 note 忽略，省略时随 senses 替换掉 → `npx vitest run src/utils/lexiconLiftImport.test.ts src/utils/lexiconLiftExport.test.ts`
-- [ ] 编辑表单写入后义项列表可见 → `npx vitest run src/pages/LexiconPage.test.tsx`
-- [ ] 路线图 B3z / 代码地图 / CHANGELOG
+- [x] 保存义项语义注释，空白省略，且保留音系注释 → `npx vitest run src/pages/lexicon/saveLexiconEntry.test.ts`
+- [x] LIFT 义项 `note type="semantics"` 往返，词条级同名 note 忽略，省略时随 senses 替换掉 → `npx vitest run src/utils/lexiconLiftImport.test.ts src/utils/lexiconLiftExport.test.ts`
+- [x] 编辑表单写入后义项列表可见 → `npx vitest run src/pages/LexiconPage.test.tsx`
+- [x] 路线图 B3z / 代码地图 / CHANGELOG
 
 ## Pre-merge gates（与拍板 2A 一致）
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 vitest（save / LexiconPage / LIFT）
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
-- [ ] 无新 feature flag；ChatWindow 零 diff
+- [x] `npm run typecheck`
+- [x] 触及域 vitest（save / LexiconPage / LIFT）
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:docs-governance` + `check:plans-frontmatter` + `check:dev-agent-workflow-verify`
+- [x] 无新 feature flag；ChatWindow 零 diff
 
 ## Post-merge
 
