@@ -7,6 +7,7 @@ import {
 } from '../../utils/lexemeSenseTree';
 import type { LexiconEntryEditController } from '../useLexiconEntryEditController';
 import { LexiconSenseExampleFields } from './LexiconSenseExampleFields';
+import { LexiconSenseReversalFields } from './LexiconSenseReversalFields';
 
 export function LexiconExtraSenseEditor({
   editor,
@@ -244,6 +245,13 @@ export function LexiconExtraSenseEditor({
               }
             />
           </label>
+          <LexiconSenseReversalFields
+            locale={locale}
+            reversals={sense.reversals ?? []}
+            idPrefix={`lexicon-entry-extra-sense-${index}`}
+            labelKey="workspace.lexicon.edit.senseReversalsLabel"
+            onChange={(reversals) => editor.onReversalsChange(index, reversals)}
+          />
           <label className="lexicon-entry-edit-field">
             <span>{t(locale, 'workspace.lexicon.edit.senseImportResidueLabel')}</span>
             <input

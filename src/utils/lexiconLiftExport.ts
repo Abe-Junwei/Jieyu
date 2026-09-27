@@ -5,8 +5,9 @@
  * sense gloss/definition; entry-level variant = allomorph (not a variant-entry).
  * Outbound only — never write back. No attachments, no DMLex, no flextext mix-in.
  */
-import type { LexemeDocType, MultiLangString } from '../types/jieyuDbDocTypes';
+import type { LexemeDocType, MultiLangString, SenseReversalNode } from '../types/jieyuDbDocTypes';
 import { liftSenseChildren, liftSenseRoots, readSenseId } from './lexemeSenseTree';
+import { normalizeSenseReversals } from './senseReversals';
 
 export const LIFT_VERSION = '0.13';
 export const LIFT_PRODUCER = 'Jieyu';
@@ -60,6 +61,22 @@ function formsFromMultiLang(
   return out;
 }
 
+function reversalMainXml(lang: string, node: SenseReversalNode | undefined): string {
+  if (!node) return '';
+  const text = node.text.trim();
+  if (text.length === 0) return reversalMainXml(lang, node.main);
+  return `<main>${xmlForm(lang, text)}${reversalMainXml(lang, node.main)}</main>`;
+}
+
+function reversalElementsXml(value: LexemeDocType['senses'][number]['reversals']): string {
+  return normalizeSenseReversals(value)
+    .map((reversal) => {
+      const main = reversalMainXml(reversal.lang, reversal.main);
+      return `<reversal type="${escapeXml(reversal.lang)}">${xmlForm(reversal.lang, reversal.text)}${main}</reversal>`;
+    })
+    .join('');
+}
+
 function xmlForm(lang: string, text: string): string {
   return `<form lang="${escapeXml(lang)}"><text>${escapeXml(text)}</text></form>`;
 }
@@ -88,6 +105,7 @@ function serializeSenseNode(
   const definitionForms = formsFromMultiLang(sense.definition, vernacular);
   const definition =
     definitionForms.length > 0 ? `<definition>${xmlFormList(definitionForms)}</definition>` : '';
+  const reversalXml = reversalElementsXml(sense.reversals);
   const category = sense.category?.trim() ?? '';
   const grammaticalInfo =
     category.length > 0 ? `<grammatical-info value="${escapeXml(category)}"/>` : '';
@@ -188,7 +206,7 @@ function serializeSenseNode(
   const nested = liftSenseChildren(all, senseId)
     .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
     .join('');
-  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${semanticsNoteXml}${sociolinguisticsNoteXml}${sourceNoteXml}${usageXml}${senseTypeXml}${academicDomainXml}${anthropologyCategoryXml}${senseStatusXml}${dialectLabelXml}${senseRestrictionsXml}${importResidueXml}${nested}</${tag}>`;
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${reversalXml}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${semanticsNoteXml}${sociolinguisticsNoteXml}${sourceNoteXml}${usageXml}${senseTypeXml}${academicDomainXml}${anthropologyCategoryXml}${senseStatusXml}${dialectLabelXml}${senseRestrictionsXml}${importResidueXml}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {

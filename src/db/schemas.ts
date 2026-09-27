@@ -161,6 +161,21 @@ const unitMorphemeDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
+type SenseReversalNodeInput = { text: string; main?: SenseReversalNodeInput | undefined };
+
+const senseReversalNodeSchema: z.ZodType<SenseReversalNodeInput> = z.lazy(() =>
+  z.object({
+    text: z.string().min(1),
+    main: senseReversalNodeSchema.optional(),
+  }),
+);
+
+const senseReversalSchema = z.object({
+  lang: z.string().min(1),
+  text: z.string().min(1),
+  main: senseReversalNodeSchema.optional(),
+});
+
 const lexemeDocSchema = z.object({
   id: z.string().min(1),
   lemma: transcriptionSchema,
@@ -205,6 +220,7 @@ const lexemeDocSchema = z.object({
           dialectLabels: z.array(z.string().min(1)).optional(),
           senseRestrictions: z.string().optional(),
           importResidue: z.string().optional(),
+          reversals: z.array(senseReversalSchema).optional(),
           parentId: z.string().min(1).optional(),
           examples: z
             .array(

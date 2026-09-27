@@ -3,6 +3,7 @@ import { t, useLocale } from '../../i18n';
 import type { LexiconEntryEditController } from '../useLexiconEntryEditController';
 import { LexiconExtraSenseEditor } from './LexiconExtraSenseEditor';
 import { LexiconSenseExampleFields } from './LexiconSenseExampleFields';
+import { LexiconSenseReversalFields } from './LexiconSenseReversalFields';
 
 type Props = {
   editor: LexiconEntryEditController;
@@ -209,6 +210,13 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('senseRestrictions', event.target.value)}
         />
       </label>
+      <LexiconSenseReversalFields
+        locale={locale}
+        reversals={editor.fields.reversals}
+        idPrefix="lexicon-entry"
+        labelKey="workspace.lexicon.edit.reversalsLabel"
+        onChange={(reversals) => editor.onReversalsChange('primary', reversals)}
+      />
       <label className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.edit.importResidueLabel')}</span>
         <input

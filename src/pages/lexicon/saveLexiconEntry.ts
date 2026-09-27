@@ -1,5 +1,6 @@
 import { LinguisticService } from '../../app/languageAssetPageAccess';
-import type { LexemeDocType, MultiLangString } from '../../types/jieyuDbDocTypes';
+import type { LexemeDocType, MultiLangString, SenseReversal } from '../../types/jieyuDbDocTypes';
+import { normalizeSenseReversals } from '../../utils/senseReversals';
 import { readSenseParentId } from '../../utils/lexemeSenseTree';
 import { newId } from '../../utils/transcriptionFormatters';
 
@@ -67,6 +68,7 @@ export type LexiconSenseDraft = {
   dialectLabels?: string;
   senseRestrictions?: string;
   importResidue?: string;
+  reversals?: SenseReversal[];
   examples?: LexiconExampleDraft[];
 };
 
@@ -97,6 +99,7 @@ export type LexiconEntryFields = {
   dialectLabels: string;
   senseRestrictions: string;
   importResidue: string;
+  reversals: SenseReversal[];
   citationForm: string;
   language: string;
   notes: string;
@@ -304,6 +307,7 @@ export function applyLexiconEntryFields(
   const dialectLabels = readDialectLabelLines(fields.dialectLabels);
   const senseRestrictions = readCategory(fields.senseRestrictions);
   const importResidue = readCategory(fields.importResidue);
+  const primaryReversals = normalizeSenseReversals(fields.reversals);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -358,6 +362,7 @@ export function applyLexiconEntryFields(
       dialectLabels: _oldDialectLabels,
       senseRestrictions: _oldSenseRestrictions,
       importResidue: _oldImportResidue,
+      reversals: _oldReversals,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -383,6 +388,7 @@ export function applyLexiconEntryFields(
     const senseDialectLabels = readDialectLabelLines(draft.dialectLabels);
     const extraSenseRestrictions = readCategory(draft.senseRestrictions);
     const extraImportResidue = readCategory(draft.importResidue);
+    const extraReversals = normalizeSenseReversals(draft.reversals);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -415,6 +421,7 @@ export function applyLexiconEntryFields(
         ...(senseDialectLabels.length > 0 ? { dialectLabels: senseDialectLabels } : {}),
         ...(extraSenseRestrictions.length > 0 ? { senseRestrictions: extraSenseRestrictions } : {}),
         ...(extraImportResidue.length > 0 ? { importResidue: extraImportResidue } : {}),
+        ...(extraReversals.length > 0 ? { reversals: extraReversals } : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -455,6 +462,7 @@ export function applyLexiconEntryFields(
     dialectLabels: _oldPrimaryDialectLabels,
     senseRestrictions: _oldPrimarySenseRestrictions,
     importResidue: _oldPrimaryImportResidue,
+    reversals: _oldPrimaryReversals,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -508,6 +516,7 @@ export function applyLexiconEntryFields(
         ...(dialectLabels.length > 0 ? { dialectLabels } : {}),
         ...(senseRestrictions.length > 0 ? { senseRestrictions } : {}),
         ...(importResidue.length > 0 ? { importResidue } : {}),
+        ...(primaryReversals.length > 0 ? { reversals: primaryReversals } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,

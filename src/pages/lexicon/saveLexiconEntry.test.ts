@@ -37,6 +37,11 @@ function fields(
     dialectLabels: string;
     senseRestrictions: string;
     importResidue: string;
+    reversals: {
+      lang: string;
+      text: string;
+      main?: { text: string; main?: { text: string } };
+    }[];
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -72,6 +77,11 @@ function fields(
       dialectLabels?: string;
       senseRestrictions?: string;
       importResidue?: string;
+      reversals?: {
+        lang: string;
+        text: string;
+        main?: { text: string; main?: { text: string } };
+      }[];
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -98,6 +108,7 @@ function fields(
     dialectLabels: '',
     senseRestrictions: '',
     importResidue: '',
+    reversals: [],
     citationForm: '',
     language: '',
     notes: '',
@@ -817,6 +828,54 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.senseRestrictions).toBe('not used with elders');
     expect(cleared.senses[1]?.importResidue).toBeUndefined();
     expect(cleared.senses[1]?.senseRestrictions).toBe('avoid in ritual');
+  });
+
+  it('writes sense reversals per writing system and keeps the main chain', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        importResidue: 'kept marker',
+        reversals: [
+          {
+            lang: ' en ',
+            text: ' Buick ',
+            main: { text: ' ', main: { text: ' car ' } },
+          },
+          { lang: 'en', text: 'house' },
+          { lang: '', text: 'skip' },
+          { lang: 'es', text: ' ' },
+        ],
+        extraSenses: [
+          { gloss: 'pet', definition: '', reversals: [{ lang: ' es ', text: ' casa ' }] },
+        ],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.reversals).toEqual([
+      { lang: 'en', text: 'Buick', main: { text: 'car' } },
+      { lang: 'en', text: 'house' },
+    ]);
+    expect(created.senses[0]?.importResidue).toBe('kept marker');
+    expect(created.senses[1]?.reversals).toEqual([{ lang: 'es', text: 'casa' }]);
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        importResidue: 'kept marker',
+        reversals: [],
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', reversals: [] }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.reversals).toBeUndefined();
+    expect(cleared.senses[0]?.importResidue).toBe('kept marker');
+    expect(cleared.senses[1]?.reversals).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

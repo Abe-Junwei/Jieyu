@@ -22,6 +22,8 @@ export type {
   MediaItemDocType,
   MultiLangString,
   OrthographyDocType,
+  SenseReversal,
+  SenseReversalNode,
   SpeakerDocType,
   UnitMorphemeDocType,
   UnitTokenDocType,

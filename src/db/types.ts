@@ -173,6 +173,19 @@ export interface SenseExample {
   translation?: string;
 }
 
+/** One owning entry in a LIFT `<reversal><main>` chain. Schema allows one nested main. */
+export interface SenseReversalNode {
+  text: string;
+  main?: SenseReversalNode;
+}
+
+/** One LIFT sense `<reversal>`, keyed by writing system. `main` nests toward the top. */
+export interface SenseReversal {
+  lang: string;
+  text: string;
+  main?: SenseReversalNode;
+}
+
 export interface Sense {
   id?: string;
   gloss: MultiLangString;
@@ -214,6 +227,8 @@ export interface Sense {
   senseRestrictions?: string;
   /** First LIFT sense `<field type="import-residue"><form>` text. */
   importResidue?: string;
+  /** LIFT sense `<reversal>` rows, one writing system each, with a nested `<main>` chain. */
+  reversals?: SenseReversal[];
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

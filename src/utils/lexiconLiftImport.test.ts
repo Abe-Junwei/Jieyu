@@ -2018,6 +2018,129 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.importResidue).toBeUndefined();
   });
 
+  it('reads sense reversals by writing system and keeps one main chain', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <reversal type="en"><form lang="en"><text>entry reversal</text></form></reversal>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <grammatical-info value="noun"/>
+      <reversal type="en">
+        <form><text>nolang</text></form>
+        <form lang="en"><text>Buick</text></form>
+        <grammatical-info value="Noun"/>
+        <main>
+          <form lang="en"><text>American</text></form>
+          <main><form lang="en"><text>car</text></form></main>
+          <main><form lang="en"><text>dropped sibling</text></form></main>
+        </main>
+      </reversal>
+      <reversal type="en"><form lang="en"><text>house</text></form></reversal>
+      <reversal type="es"><form lang="es"><text>casa</text></form></reversal>
+      <field type="import-residue"><form lang="en"><text>kept marker</text></form></field>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('reversals');
+    expect(parsed.lexemes[0]?.senses[0]?.category).toBe('noun');
+    expect(parsed.lexemes[0]?.senses[0]?.reversals).toEqual([
+      { lang: 'en', text: 'Buick', main: { text: 'American', main: { text: 'car' } } },
+      { lang: 'en', text: 'house' },
+      { lang: 'es', text: 'casa' },
+    ]);
+    expect(parsed.lexemes[0]?.senses[0]?.importResidue).toBe('kept marker');
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('dropped sibling');
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('entry reversal');
+  });
+
+  it('round-trips sense reversals and drops them when the elements are omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            importResidue: 'kept marker',
+            reversals: [
+              {
+                lang: 'en',
+                text: 'Buick & Co',
+                main: { text: 'American', main: { text: 'car' } },
+              },
+              { lang: 'es', text: 'casa' },
+            ],
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            reversals: [{ lang: 'es', text: 'mascota' }],
+          },
+        ],
+      },
+    ]);
+    const senseAt = xml!.indexOf('<sense');
+    const glossAt = xml!.indexOf('<gloss', senseAt);
+    const reversalAt = xml!.indexOf('<reversal', senseAt);
+    const definitionAt = xml!.indexOf('<definition', senseAt);
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(glossAt).toBeGreaterThanOrEqual(0);
+    expect(reversalAt).toBeGreaterThan(glossAt);
+    expect(definitionAt).toBeGreaterThan(reversalAt);
+    expect(subsenseAt).toBeGreaterThan(reversalAt);
+    expect(xml).toContain(
+      '<reversal type="en"><form lang="en"><text>Buick &amp; Co</text></form><main><form lang="en"><text>American</text></form><main><form lang="en"><text>car</text></form></main></main></reversal>',
+    );
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.reversals?.[0]).toEqual({
+      lang: 'en',
+      text: 'Buick & Co',
+      main: { text: 'American', main: { text: 'car' } },
+    });
+    expect(parsed.lexemes[0]?.senses[0]?.reversals?.[1]).toEqual({ lang: 'es', text: 'casa' });
+    expect(parsed.lexemes[0]?.senses[0]?.importResidue).toBe('kept marker');
+    expect(parsed.lexemes[0]?.senses[1]?.reversals).toEqual([{ lang: 'es', text: 'mascota' }]);
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, importResidue: 'kept marker' }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('<reversal');
+    expect(bare).toContain('import-residue');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          importResidue: 'kept marker',
+          reversals: [{ lang: 'en', text: 'Buick', main: { text: 'car' } }],
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.reversals).toBeUndefined();
+    expect(store[0]?.senses[0]?.importResidue).toBe('kept marker');
+    expect(store[0]?.senses[1]?.reversals).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

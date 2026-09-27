@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { t, useLocale } from '../i18n';
-import type { LexemeDocType } from '../types/jieyuDbDocTypes';
+import type { LexemeDocType, SenseReversal } from '../types/jieyuDbDocTypes';
 import {
   demoteSense,
   descendantDraftIndexes,
@@ -9,6 +9,7 @@ import {
   readSenseId,
   readSenseParentId,
 } from '../utils/lexemeSenseTree';
+import { normalizeSenseReversals } from '../utils/senseReversals';
 import { newId } from '../utils/transcriptionFormatters';
 import { deleteLexiconEntry } from './lexicon/deleteLexiconEntry';
 import {
@@ -71,6 +72,7 @@ export type LexiconEntryEditController = {
   ) => void;
   onAddExample: (sense: 'primary' | number) => void;
   onRemoveExample: (sense: 'primary' | number, index: number) => void;
+  onReversalsChange: (sense: 'primary' | number, reversals: SenseReversal[]) => void;
   onAddExtraSense: () => void;
   onAddSubsense: (parent: 'primary' | number) => void;
   onMoveExtraSense: (index: number, direction: -1 | 1) => void;
@@ -173,6 +175,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
       typeof lexeme?.senses[0]?.importResidue === 'string'
         ? lexeme.senses[0].importResidue.trim()
         : '',
+    reversals: normalizeSenseReversals(lexeme?.senses[0]?.reversals),
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -195,6 +198,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
       const academicDomains = academicDomainsDraft(sense.academicDomains);
       const anthropologyCategories = anthropologyCategoriesDraft(sense.anthropologyCategories);
       const dialectLabels = dialectLabelsDraft(sense.dialectLabels);
+      const reversals = normalizeSenseReversals(sense.reversals);
       return {
         ...draftIdFromNested(sense.id),
         ...(parentId.length > 0 ? { parentId } : {}),
@@ -248,6 +252,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
         ...(typeof sense.importResidue === 'string' && sense.importResidue.trim().length > 0
           ? { importResidue: sense.importResidue.trim() }
           : {}),
+        ...(reversals.length > 0 ? { reversals } : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };
     }),
@@ -448,6 +453,18 @@ export function useLexiconEntryEditController(input: {
               senseIndex === sense
                 ? { ...row, examples: withoutExample(row.examples, index) }
                 : row,
+            ),
+          };
+        });
+      },
+      onReversalsChange: (sense, reversals) => {
+        setSaved(false);
+        setFields((prev) => {
+          if (sense === 'primary') return { ...prev, reversals };
+          return {
+            ...prev,
+            extraSenses: prev.extraSenses.map((row, senseIndex) =>
+              senseIndex === sense ? { ...row, reversals } : row,
             ),
           };
         });

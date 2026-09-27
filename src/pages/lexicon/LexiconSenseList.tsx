@@ -1,6 +1,7 @@
 import { t, useLocale } from '../../i18n';
 import type { LexemeDocType, MultiLangString } from '../../types/jieyuDbDocTypes';
 import { readSenseId, senseDepth } from '../../utils/lexemeSenseTree';
+import { formatSenseReversal } from '../../utils/senseReversals';
 
 function formatMultilang(record: MultiLangString | undefined): string {
   if (!record) return '';
@@ -122,6 +123,14 @@ export function LexiconSenseList({
               {sense.importResidue}
             </span>
           ) : null}
+          {(sense.reversals ?? []).map((reversal, reversalIndex) => (
+            <span
+              key={`${readSenseId(sense)}-reversal-${reversalIndex}`}
+              data-testid={`lexicon-workspace-sense-${index}-reversal-${reversalIndex}`}
+            >
+              {formatSenseReversal(reversal)}
+            </span>
+          ))}
           {(sense.examples ?? []).map((example, exampleIndex) => (
             <span
               key={`${readSenseId(sense)}-example-${exampleIndex}`}

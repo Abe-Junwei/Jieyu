@@ -5,7 +5,7 @@
  * Conflict policy = FLEx option 2 (overwrite mapped fields). Fields LIFT
  * does not carry stay on the existing row. No attachments / relations / sense tree.
  */
-import type { LexemeDocType, MultiLangString } from '../types/jieyuDbDocTypes';
+import type { LexemeDocType, MultiLangString, SenseReversal } from '../types/jieyuDbDocTypes';
 import { LinguisticService } from '../services/LinguisticService';
 import { newId } from './transcriptionFormatters';
 import { LIFT_VERSION } from './lexiconLiftExport';
@@ -148,6 +148,7 @@ function parseSense(
   const dialectLabels = parseDialectLabels(sense);
   const senseRestrictions = parseTypedNote(sense, 'restrictions');
   const importResidue = parseFieldText(sense, 'import-residue');
+  const reversals = parseReversals(sense);
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -171,6 +172,7 @@ function parseSense(
     ...(dialectLabels.length > 0 ? { dialectLabels } : {}),
     ...(senseRestrictions.length > 0 ? { senseRestrictions } : {}),
     ...(importResidue.length > 0 ? { importResidue } : {}),
+    ...(reversals.length > 0 ? { reversals } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }
@@ -270,6 +272,30 @@ function parseBibliography(entry: Element): string {
 
 function parseRestrictions(entry: Element): string {
   return parseTypedNote(entry, 'restrictions');
+}
+
+function parseReversalNode(element: Element): SenseReversal['main'] {
+  const text = formPairs(element)[0]?.text ?? '';
+  const nested = directChildren(element, 'main')[0];
+  const main = nested ? parseReversalNode(nested) : undefined;
+  if (text.length === 0) return main;
+  return main ? { text, main } : { text };
+}
+
+function parseReversals(sense: Element): SenseReversal[] {
+  const reversals: SenseReversal[] = [];
+  for (const reversal of directChildren(sense, 'reversal')) {
+    const forms = formPairs(reversal);
+    const type = attr(reversal, 'type');
+    const lang = type.length > 0 ? type : (forms[0]?.lang ?? '');
+    if (lang.length === 0) continue;
+    const text = forms.find((form) => form.lang === lang)?.text ?? forms[0]?.text ?? '';
+    if (text.length === 0) continue;
+    const nested = directChildren(reversal, 'main')[0];
+    const main = nested ? parseReversalNode(nested) : undefined;
+    reversals.push(main ? { lang, text, main } : { lang, text });
+  }
+  return reversals;
 }
 
 function parseFieldText(entry: Element, type: string): string {
