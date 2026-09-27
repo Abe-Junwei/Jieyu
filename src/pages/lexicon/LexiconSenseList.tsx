@@ -92,6 +92,11 @@ export function LexiconSenseList({
               {sense.senseType}
             </span>
           ) : null}
+          {(sense.academicDomains?.length ?? 0) > 0 ? (
+            <span data-testid={`lexicon-workspace-sense-${index}-academic-domains`}>
+              {sense.academicDomains?.join(' · ')}
+            </span>
+          ) : null}
           {(sense.examples ?? []).map((example, exampleIndex) => (
             <span
               key={`${readSenseId(sense)}-example-${exampleIndex}`}

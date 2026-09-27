@@ -184,6 +184,19 @@ export function LexiconExtraSenseEditor({
             />
           </label>
           <label className="lexicon-entry-edit-field">
+            <span>{t(locale, 'workspace.lexicon.edit.senseAcademicDomainsLabel')}</span>
+            <textarea
+              className="input lexicon-entry-edit-input"
+              data-testid={`lexicon-entry-extra-sense-${index}-academic-domains`}
+              rows={3}
+              placeholder={t(locale, 'workspace.lexicon.edit.academicDomainsHint')}
+              value={sense.academicDomains ?? ''}
+              onChange={(event) =>
+                editor.onExtraSenseChange(index, 'academicDomains', event.target.value)
+              }
+            />
+          </label>
+          <label className="lexicon-entry-edit-field">
             <span>{t(locale, 'workspace.lexicon.edit.senseDefinitionLabel')}</span>
             <input
               className="input lexicon-entry-edit-input"

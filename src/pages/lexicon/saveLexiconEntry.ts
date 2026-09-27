@@ -19,6 +19,7 @@ export type LexiconEntryScalarField =
   | 'sourceNote'
   | 'usages'
   | 'senseType'
+  | 'academicDomains'
   | 'citationForm'
   | 'language'
   | 'notes'
@@ -55,6 +56,7 @@ export type LexiconSenseDraft = {
   sourceNote?: string;
   usages?: string;
   senseType?: string;
+  academicDomains?: string;
   examples?: LexiconExampleDraft[];
 };
 
@@ -79,6 +81,7 @@ export type LexiconEntryFields = {
   sourceNote: string;
   usages: string;
   senseType: string;
+  academicDomains: string;
   citationForm: string;
   language: string;
   notes: string;
@@ -162,6 +165,14 @@ export function readUsageLines(value: unknown): string[] {
 
 export function usagesDraft(usages: unknown): string {
   return semanticDomainsDraft(usages);
+}
+
+export function readAcademicDomainLines(value: unknown): string[] {
+  return readSemanticDomainLines(value);
+}
+
+export function academicDomainsDraft(domains: unknown): string {
+  return semanticDomainsDraft(domains);
 }
 
 export function exampleDraftsFromStored(examples: unknown): LexiconExampleDraft[] {
@@ -256,6 +267,7 @@ export function applyLexiconEntryFields(
   const sourceNote = readCategory(fields.sourceNote);
   const usages = readUsageLines(fields.usages);
   const senseType = readCategory(fields.senseType);
+  const academicDomains = readAcademicDomainLines(fields.academicDomains);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -304,6 +316,7 @@ export function applyLexiconEntryFields(
       sourceNote: _oldSourceNote,
       usages: _oldUsages,
       senseType: _oldSenseType,
+      academicDomains: _oldAcademicDomains,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -323,6 +336,7 @@ export function applyLexiconEntryFields(
     const senseSourceNote = readCategory(draft.sourceNote);
     const senseUsages = readUsageLines(draft.usages);
     const extraSenseType = readCategory(draft.senseType);
+    const senseAcademicDomains = readAcademicDomainLines(draft.academicDomains);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -347,6 +361,7 @@ export function applyLexiconEntryFields(
         ...(senseSourceNote.length > 0 ? { sourceNote: senseSourceNote } : {}),
         ...(senseUsages.length > 0 ? { usages: senseUsages } : {}),
         ...(extraSenseType.length > 0 ? { senseType: extraSenseType } : {}),
+        ...(senseAcademicDomains.length > 0 ? { academicDomains: senseAcademicDomains } : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -381,6 +396,7 @@ export function applyLexiconEntryFields(
     sourceNote: _oldPrimarySourceNote,
     usages: _oldPrimaryUsages,
     senseType: _oldPrimarySenseType,
+    academicDomains: _oldPrimaryAcademicDomains,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -428,6 +444,7 @@ export function applyLexiconEntryFields(
         ...(sourceNote.length > 0 ? { sourceNote } : {}),
         ...(usages.length > 0 ? { usages } : {}),
         ...(senseType.length > 0 ? { senseType } : {}),
+        ...(academicDomains.length > 0 ? { academicDomains } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,

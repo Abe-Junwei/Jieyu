@@ -18,6 +18,7 @@ import {
   saveLexiconEntry,
   semanticDomainsDraft,
   usagesDraft,
+  academicDomainsDraft,
   withAddedExample,
   withExampleChange,
   withoutExample,
@@ -51,7 +52,8 @@ export type LexiconEntryEditController = {
       | 'sociolinguisticsNote'
       | 'sourceNote'
       | 'usages'
-      | 'senseType',
+      | 'senseType'
+      | 'academicDomains',
     value: string,
   ) => void;
   onExampleChange: (
@@ -151,6 +153,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     usages: usagesDraft(lexeme?.senses[0]?.usages),
     senseType:
       typeof lexeme?.senses[0]?.senseType === 'string' ? lexeme.senses[0].senseType.trim() : '',
+    academicDomains: academicDomainsDraft(lexeme?.senses[0]?.academicDomains),
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -170,6 +173,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
       const examples = exampleDraftsFromStored(sense.examples);
       const semanticDomains = semanticDomainsDraft(sense.semanticDomains);
       const usages = usagesDraft(sense.usages);
+      const academicDomains = academicDomainsDraft(sense.academicDomains);
       return {
         ...draftIdFromNested(sense.id),
         ...(parentId.length > 0 ? { parentId } : {}),
@@ -211,6 +215,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
         ...(typeof sense.senseType === 'string' && sense.senseType.trim().length > 0
           ? { senseType: sense.senseType.trim() }
           : {}),
+        ...(academicDomains.length > 0 ? { academicDomains } : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };
     }),

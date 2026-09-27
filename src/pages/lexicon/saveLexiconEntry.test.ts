@@ -31,6 +31,7 @@ function fields(
     sourceNote: string;
     usages: string;
     senseType: string;
+    academicDomains: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -60,6 +61,7 @@ function fields(
       sourceNote?: string;
       usages?: string;
       senseType?: string;
+      academicDomains?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -80,6 +82,7 @@ function fields(
     sourceNote: '',
     usages: '',
     senseType: '',
+    academicDomains: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -574,6 +577,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.senseType).toBeUndefined();
     expect(cleared.senses[0]?.usages).toEqual(['formal']);
     expect(cleared.senses[1]?.senseType).toBeUndefined();
+  });
+
+  it('writes trimmed academic domains on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        senseType: 'figurative',
+        academicDomains: ' linguistics \n\nlinguistics\nbotany ',
+        extraSenses: [{ gloss: 'pet', definition: '', academicDomains: 'medicine\nmedicine\n ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.academicDomains).toEqual(['linguistics', 'botany']);
+    expect(created.senses[0]?.senseType).toBe('figurative');
+    expect(created.senses[1]?.academicDomains).toEqual(['medicine']);
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        senseType: 'figurative',
+        academicDomains: ' \n ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', academicDomains: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.academicDomains).toBeUndefined();
+    expect(cleared.senses[0]?.senseType).toBe('figurative');
+    expect(cleared.senses[1]?.academicDomains).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

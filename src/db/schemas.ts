@@ -199,6 +199,7 @@ const lexemeDocSchema = z.object({
           sourceNote: z.string().optional(),
           usages: z.array(z.string().min(1)).optional(),
           senseType: z.string().optional(),
+          academicDomains: z.array(z.string().min(1)).optional(),
           parentId: z.string().min(1).optional(),
           examples: z
             .array(

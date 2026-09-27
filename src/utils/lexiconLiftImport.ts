@@ -142,6 +142,7 @@ function parseSense(
   const sourceNote = parseTypedNote(sense, 'source');
   const usages = parseUsages(sense);
   const senseType = parseTraitValue(sense, 'sense-type');
+  const academicDomains = parseAcademicDomains(sense);
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -159,6 +160,7 @@ function parseSense(
     ...(sourceNote.length > 0 ? { sourceNote } : {}),
     ...(usages.length > 0 ? { usages } : {}),
     ...(senseType.length > 0 ? { senseType } : {}),
+    ...(academicDomains.length > 0 ? { academicDomains } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }
@@ -225,6 +227,10 @@ function parseUsages(sense: Element): string[] {
 
 function parseTraitValue(sense: Element, name: string): string {
   return parseTraitValues(sense, name)[0] ?? '';
+}
+
+function parseAcademicDomains(sense: Element): string[] {
+  return parseTraitValues(sense, 'domain-type');
 }
 
 function parseTraitValues(sense: Element, name: string): string[] {

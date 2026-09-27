@@ -202,6 +202,8 @@ export interface Sense {
   usages?: string[];
   /** First LIFT sense `<trait name="sense-type">` value. */
   senseType?: string;
+  /** LIFT sense `<trait name="domain-type">` values. */
+  academicDomains?: string[];
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

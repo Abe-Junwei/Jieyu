@@ -1424,6 +1424,104 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.senseType).toBeUndefined();
   });
 
+  it('reads sense academic domains and ignores an entry-level trait', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <trait name="domain-type" value="entry domain"/>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <trait name="sense-type" value="figurative"/>
+      <trait name="semantic-domain-ddp4" value="1.1 Sky"/>
+      <trait name="domain-type" value=""/>
+      <trait name="domain-type" value="linguistics"/>
+      <trait name="domain-type" value="linguistics"/>
+      <trait name="domain-type" value="botany"/>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <trait name="domain-type" value="medicine"/>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('academicDomains');
+    expect(parsed.lexemes[0]?.senses[0]?.academicDomains).toEqual(['linguistics', 'botany']);
+    expect(parsed.lexemes[0]?.senses[0]?.senseType).toBe('figurative');
+    expect(parsed.lexemes[0]?.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
+    expect(parsed.lexemes[0]?.senses[1]?.academicDomains).toEqual(['medicine']);
+  });
+
+  it('round-trips sense academic domains and drops them when the traits are omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            senseType: 'figurative',
+            academicDomains: ['linguistics', 'botany'],
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            academicDomains: ['medicine'],
+          },
+        ],
+      },
+    ]);
+    const typeAt = xml!.indexOf('<trait name="sense-type"');
+    const domainAt = xml!.indexOf('<trait name="domain-type"');
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(typeAt).toBeGreaterThanOrEqual(0);
+    expect(domainAt).toBeGreaterThan(typeAt);
+    expect(subsenseAt).toBeGreaterThan(domainAt);
+    expect(xml).toContain('<trait name="domain-type" value="linguistics"/>');
+    expect(xml).toContain('<trait name="domain-type" value="botany"/>');
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.academicDomains).toEqual(['linguistics', 'botany']);
+    expect(parsed.lexemes[0]?.senses[0]?.senseType).toBe('figurative');
+    expect(parsed.lexemes[0]?.senses[1]?.academicDomains).toEqual(['medicine']);
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, senseType: 'figurative' }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('domain-type');
+    expect(bare).toContain('sense-type');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          senseType: 'figurative',
+          academicDomains: ['linguistics', 'botany'],
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.academicDomains).toBeUndefined();
+    expect(store[0]?.senses[0]?.senseType).toBe('figurative');
+    expect(store[0]?.senses[1]?.academicDomains).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

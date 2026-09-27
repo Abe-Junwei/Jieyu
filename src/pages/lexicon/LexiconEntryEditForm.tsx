@@ -158,6 +158,17 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('senseType', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.academicDomainsLabel')}</span>
+        <textarea
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-academic-domains"
+          rows={3}
+          placeholder={t(locale, 'workspace.lexicon.edit.academicDomainsHint')}
+          value={editor.fields.academicDomains}
+          onChange={(event) => editor.onFieldChange('academicDomains', event.target.value)}
+        />
+      </label>
       <LexiconSenseExampleFields
         locale={locale}
         examples={editor.fields.examples}
