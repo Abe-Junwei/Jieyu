@@ -396,6 +396,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "@vitest/coverage-v8": "^4.1.9",
+    "ajv": "^8.20.0",
     "country-state-city": "^3.2.1",
     "cross-env": "^10.1.0",
     "css-tree": "^3.2.1",

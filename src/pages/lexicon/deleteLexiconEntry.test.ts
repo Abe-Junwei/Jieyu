@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
 import * as workspaceEvents from '../../utils/workspaceEvents';
+import { entryDoc } from '../../utils/dmlexEntry';
 import { deleteLexiconEntry } from './deleteLexiconEntry';
 
 const now = '2026-09-19T12:00:00.000Z';
@@ -24,13 +25,15 @@ describe('deleteLexiconEntry', () => {
   it('hard-deletes a lexeme, cascades links and unshared attachments, then list readback is empty', async () => {
     const deleted = vi.spyOn(workspaceEvents, 'dispatchWorkspaceLexemeDeleted');
 
-    await LinguisticService.lexemes.save({
-      id: 'lex-dog',
-      lemma: { default: 'dog' },
-      senses: [{ gloss: { default: 'canine' } }],
-      createdAt: now,
-      updatedAt: now,
-    });
+    await LinguisticService.lexemes.save(
+      entryDoc({
+        id: 'lex-dog',
+        headword: 'dog',
+        definition: 'canine',
+        createdAt: now,
+        updatedAt: now,
+      }),
+    );
     await db.token_lexeme_links.put({
       id: 'link-dog-1',
       targetType: 'token',

@@ -1,6 +1,8 @@
 import { PanelSection } from '../../components/ui/PanelSection';
+import type { DmlexRelation } from '../../db/dmlexTypes';
 import { t, useLocale } from '../../i18n';
-import type { LexemeDocType } from '../../types/jieyuDbDocTypes';
+import type { LexemeEntryDoc } from '../../types/jieyuDbDocTypes';
+import { homographPartnerId } from '../../utils/dmlexEntry';
 
 function OverviewField({
   label,
@@ -19,16 +21,20 @@ function OverviewField({
   );
 }
 
-function etymologyText(lexeme: LexemeDocType, notSet: string): string {
-  if (!lexeme.etymology) return notSet;
-  return [lexeme.etymology.form, lexeme.etymology.gloss, lexeme.etymology.sourceLanguage]
-    .filter((part) => (part ?? '').length > 0)
-    .join(' · ');
-}
-
-export function LexiconEntryOverview({ lexeme }: { lexeme: LexemeDocType }) {
+export function LexiconEntryOverview({
+  lexeme,
+  relations = [],
+}: {
+  lexeme: LexemeEntryDoc;
+  relations?: readonly DmlexRelation[];
+}) {
   const locale = useLocale();
   const notSet = t(locale, 'workspace.lexicon.notSet');
+  const entry = lexeme.entry;
+  const pronunciation = entry.pronunciations?.[0]?.transcriptions?.[0]?.text ?? '';
+  const etymon = entry.etymologies?.[0]?.etymons?.[0]?.etymonUnits?.[0];
+  const etymology = etymon ? [etymon.text, etymon.langCode].filter(Boolean).join(' · ') : '';
+  const note = lexeme.jieyu?.notes?.find((row) => row.owner === 'entry' && row.ref === lexeme.id);
   return (
     <PanelSection
       className="lexicon-workspace-detail-panel"
@@ -37,51 +43,39 @@ export function LexiconEntryOverview({ lexeme }: { lexeme: LexemeDocType }) {
     >
       <dl className="lexicon-workspace-detail-grid">
         <OverviewField
-          label={t(locale, 'workspace.lexicon.languageLabel')}
-          value={lexeme.language ?? notSet}
-        />
-        <OverviewField
-          label={t(locale, 'workspace.lexicon.citationLabel')}
-          value={lexeme.citationForm ?? notSet}
+          label={t(locale, 'workspace.lexicon.edit.partsOfSpeechLabel')}
+          value={(entry.partsOfSpeech ?? []).join(', ') || notSet}
+          testId="lexicon-workspace-parts-of-speech"
         />
         <OverviewField
           label={t(locale, 'workspace.lexicon.pronunciationLabel')}
-          value={lexeme.pronunciation ?? notSet}
+          value={pronunciation || notSet}
           testId="lexicon-workspace-pronunciation"
         />
         <OverviewField
-          label={t(locale, 'workspace.lexicon.etymologyLabel')}
-          value={etymologyText(lexeme, notSet)}
+          label={t(locale, 'workspace.lexicon.edit.etymonLabel')}
+          value={etymology || notSet}
           testId="lexicon-workspace-etymology"
         />
         <OverviewField
-          label={t(locale, 'workspace.lexicon.literalMeaningLabel')}
-          value={lexeme.literalMeaning ?? notSet}
-          testId="lexicon-workspace-literal-meaning"
+          label={t(locale, 'workspace.lexicon.edit.inflectedFormLabel')}
+          value={(entry.inflectedForms ?? []).map((form) => form.text).join(', ') || notSet}
+          testId="lexicon-workspace-inflected-forms"
         />
         <OverviewField
-          label={t(locale, 'workspace.lexicon.bibliographyLabel')}
-          value={lexeme.bibliography ?? notSet}
-          testId="lexicon-workspace-bibliography"
+          label={t(locale, 'workspace.lexicon.edit.labelsLabel')}
+          value={(entry.labels ?? []).join(', ') || notSet}
+          testId="lexicon-workspace-labels"
         />
         <OverviewField
-          label={t(locale, 'workspace.lexicon.restrictionsLabel')}
-          value={lexeme.restrictions ?? notSet}
-          testId="lexicon-workspace-restrictions"
+          label={t(locale, 'workspace.lexicon.edit.homographLinkLabel')}
+          value={homographPartnerId(lexeme.id, relations) || notSet}
+          testId="lexicon-workspace-homograph"
         />
         <OverviewField
-          label={t(locale, 'workspace.lexicon.summaryDefinitionLabel')}
-          value={lexeme.summaryDefinition ?? notSet}
-          testId="lexicon-workspace-summary-definition"
-        />
-        <OverviewField
-          label={t(locale, 'workspace.lexicon.lexemeTypeLabel')}
-          value={lexeme.lexemeType ?? notSet}
-          testId="lexicon-workspace-lexeme-type"
-        />
-        <OverviewField
-          label={t(locale, 'workspace.lexicon.morphemeTypeLabel')}
-          value={lexeme.morphemeType ?? notSet}
+          label={t(locale, 'workspace.lexicon.edit.noteLabel')}
+          value={note?.text || notSet}
+          testId="lexicon-workspace-note"
         />
         <OverviewField
           label={t(locale, 'workspace.lexicon.usageCountLabel')}

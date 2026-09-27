@@ -131,7 +131,7 @@ describe('open corpora fixtures', () => {
         expect(parsed.lexemes.length).toBeGreaterThan(0);
         expect(
           parsed.lexemes.some((lexeme) =>
-            Object.values(lexeme.lemma).some((value) => hasLetters(value)),
+            hasLetters(lexeme.entry.headword),
           ),
         ).toBe(true);
       },

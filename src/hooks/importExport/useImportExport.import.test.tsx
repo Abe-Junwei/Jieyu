@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { db, getDb } from '../../db';
+import { db, getDb, isLexemeEntry } from '../../db';
 import type { LayerDocType } from '../../db';
 import { useImportExport } from './useImportExport';
 
@@ -1374,8 +1374,10 @@ describe('useImportExport - import success under stop-write', () => {
       }),
     ]);
     const lexeme = await db.lexemes.get(tokens[0]!.lexemeId!);
-    expect(lexeme?.lemma.default).toBe('extra');
-    expect(lexeme?.senses?.length).toBeGreaterThanOrEqual(1);
+    expect(lexeme && isLexemeEntry(lexeme) ? lexeme.entry.headword : undefined).toBe('extra');
+    expect(
+      lexeme && isLexemeEntry(lexeme) ? (lexeme.entry.senses?.length ?? 0) : 0,
+    ).toBeGreaterThanOrEqual(1);
     const links = await db.token_lexeme_links
       .where('[targetType+targetId]')
       .equals(['token', tokens[0]!.id])
@@ -1572,8 +1574,8 @@ describe('useImportExport - import success under stop-write', () => {
     expect(
       tokens.every((token) => typeof token.lexemeId === 'string' && token.lexemeId.length > 0),
     ).toBe(true);
-    const lexemes = await db.lexemes.toArray();
-    expect(lexemes.map((lexeme) => lexeme.lemma.default).sort()).toEqual(['hello', 'world']);
+    const lexemes = (await db.lexemes.toArray()).filter(isLexemeEntry);
+    expect(lexemes.map((lexeme) => lexeme.entry.headword).sort()).toEqual(['hello', 'world']);
   });
 
   it('imports independent-boundary translation tier segments by overlap, not exact unit timing', async () => {

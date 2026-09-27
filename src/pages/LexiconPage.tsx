@@ -7,7 +7,8 @@ import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { PanelSection } from '../components/ui/PanelSection';
 import { PanelSummary } from '../components/ui/PanelSummary';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
-import type { LexemeDocType, MultiLangString } from '../types/jieyuDbDocTypes';
+import type { LexemeEntryDoc } from '../types/jieyuDbDocTypes';
+import { lexemeHeadword, lexemePrimaryTranslation } from '../utils/dmlexEntry';
 import { useLexiconSearch } from '~/hooks/lexicon/useLexiconSearch';
 import { t, tf, useLocale } from '../i18n';
 import { featureFlags } from '../ai/config/featureFlags';
@@ -35,28 +36,12 @@ type LexiconListState = {
   listScrollTop?: number;
 };
 
-function readFirstValue(record: Record<string, string> | undefined, fallback: string): string {
-  const firstValue = record
-    ? Object.values(record).find((value) => value.trim().length > 0)
-    : undefined;
-  return firstValue ?? fallback;
+function readLexemeLabel(lexeme: LexemeEntryDoc): string {
+  return lexemeHeadword(lexeme) || lexeme.id;
 }
 
-function formatMultilang(record: MultiLangString | undefined): string {
-  if (!record) return '';
-  return Object.values(record)
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .join(' / ');
-}
-
-function readLexemeLabel(lexeme: LexemeDocType): string {
-  return readFirstValue(lexeme.lemma, lexeme.id);
-}
-
-function readLexemePrimaryGloss(lexeme: LexemeDocType, fallback: string): string {
-  const firstSense = lexeme.senses[0];
-  return formatMultilang(firstSense?.gloss) || fallback;
+function readLexemePrimaryGloss(lexeme: LexemeEntryDoc, fallback: string): string {
+  return lexemePrimaryTranslation(lexeme) || fallback;
 }
 
 function readLexiconListState(): LexiconListState {
@@ -100,13 +85,19 @@ export function LexiconPage() {
   const locale = useLocale();
   const queryClient = useQueryClient();
   const {
-    data: lexemes = [],
+    data: listed = [],
     isLoading: loading,
     error: queryError,
   } = useQuery({
     queryKey: ['lexemes'],
     queryFn: () => LinguisticService.lexemes.list(),
   });
+  const lexemes = listed;
+  const { data: dmlexResource } = useQuery({
+    queryKey: ['dmlex-resource'],
+    queryFn: () => LinguisticService.lexemes.getResource(),
+  });
+  const relations = dmlexResource?.resource.relations ?? [];
   const error =
     queryError instanceof Error
       ? queryError.message
@@ -180,15 +171,17 @@ export function LexiconPage() {
     : '';
   const editor = useLexiconEntryEditController({
     selectedLexeme,
-    onSaved: (stored, options) => {
-      const current = queryClient.getQueryData<LexemeDocType[]>(['lexemes']) ?? [];
+    relations,
+    onSaved: (stored) => {
+      const current = queryClient.getQueryData<LexemeEntryDoc[]>(['lexemes']) ?? [];
       const existed = current.some((row) => row.id === stored.id);
       queryClient.setQueryData(['lexemes'], mergeLexemeIntoList(current, stored));
+      void queryClient.invalidateQueries({ queryKey: ['dmlex-resource'] });
       if (!existed) setSearchText('');
-      if (options?.select !== false) setSelectedLexemeId(stored.id);
+      setSelectedLexemeId(stored.id);
     },
     onDeleted: (lexemeId) => {
-      const current = queryClient.getQueryData<LexemeDocType[]>(['lexemes']) ?? [];
+      const current = queryClient.getQueryData<LexemeEntryDoc[]>(['lexemes']) ?? [];
       queryClient.setQueryData(
         ['lexemes'],
         current.filter((row) => row.id !== lexemeId),
@@ -222,7 +215,7 @@ export function LexiconPage() {
       });
     },
     onLexemeDeleted: (detail) => {
-      const current = queryClient.getQueryData<LexemeDocType[]>(['lexemes']) ?? [];
+      const current = queryClient.getQueryData<LexemeEntryDoc[]>(['lexemes']) ?? [];
       queryClient.setQueryData(
         ['lexemes'],
         current.filter((row) => row.id !== detail.lexemeId),
@@ -357,7 +350,7 @@ export function LexiconPage() {
             data-testid="lexicon-lift-export"
             disabled={lexemes.length === 0}
             onClick={() => {
-              exportLexemesAsLift(lexemes);
+              exportLexemesAsLift(lexemes, relations);
             }}
           >
             {t(locale, 'workspace.lexicon.exportLift')}
@@ -385,6 +378,14 @@ export function LexiconPage() {
                 }
                 setImportError('');
                 queryClient.setQueryData(['lexemes'], result.readback);
+                if (result.diagnostics.length > 0) {
+                  setImportError(
+                    tf(locale, 'workspace.lexicon.importLiftDiagnostics', {
+                      count: String(result.diagnostics.length),
+                    }),
+                  );
+                }
+                void queryClient.invalidateQueries({ queryKey: ['dmlex-resource'] });
                 const first = result.readback[0];
                 if (first) setSelectedLexemeId(first.id);
               });
@@ -446,7 +447,10 @@ export function LexiconPage() {
                     <span>
                       {readLexemePrimaryGloss(lexeme, t(locale, 'workspace.lexicon.notSet'))}
                     </span>
-                    <span>{lexeme.language ?? t(locale, 'workspace.lexicon.notSet')}</span>
+                    <span>
+                      {(lexeme.entry.partsOfSpeech ?? []).join(', ') ||
+                        t(locale, 'workspace.lexicon.notSet')}
+                    </span>
                   </span>
                 </button>
               );
@@ -482,7 +486,7 @@ export function LexiconPage() {
               </PanelSection>
               {selectedLexeme && !editor.creating ? (
                 <>
-                  <LexiconEntryOverview lexeme={selectedLexeme} />
+                  <LexiconEntryOverview lexeme={selectedLexeme} relations={relations} />
 
                   <PanelSection
                     className="lexicon-workspace-detail-panel"
@@ -554,10 +558,11 @@ export function LexiconPage() {
                     className="lexicon-workspace-detail-panel"
                     title={t(locale, 'workspace.lexicon.sensesTitle')}
                   >
-                    {selectedLexeme.senses.length > 0 ? (
+                    {(selectedLexeme.entry.senses ?? []).length > 0 ? (
                       <LexiconSenseList
-                        lexemeId={selectedLexeme.id}
-                        senses={selectedLexeme.senses}
+                        senses={selectedLexeme.entry.senses ?? []}
+                        {...(selectedLexeme.jieyu ? { extras: selectedLexeme.jieyu } : {})}
+                        relations={relations}
                       />
                     ) : (
                       <p className="lexicon-workspace-state">
@@ -570,15 +575,10 @@ export function LexiconPage() {
                     className="lexicon-workspace-detail-panel"
                     title={t(locale, 'workspace.lexicon.formsTitle')}
                   >
-                    {selectedLexeme.forms && selectedLexeme.forms.length > 0 ? (
+                    {(selectedLexeme.entry.inflectedForms ?? []).length > 0 ? (
                       <ul className="lexicon-workspace-form-list">
-                        {selectedLexeme.forms.map((form, index) => (
-                          <li key={`${selectedLexeme.id}-form-${index}`}>
-                            {readFirstValue(
-                              form.transcription,
-                              t(locale, 'workspace.lexicon.notSet'),
-                            )}
-                          </li>
+                        {(selectedLexeme.entry.inflectedForms ?? []).map((form, index) => (
+                          <li key={`${selectedLexeme.id}-form-${index}`}>{form.text}</li>
                         ))}
                       </ul>
                     ) : (
@@ -593,8 +593,10 @@ export function LexiconPage() {
                     title={t(locale, 'workspace.lexicon.notesTitle')}
                   >
                     <p className="lexicon-workspace-notes">
-                      {formatMultilang(selectedLexeme.notes) ||
-                        t(locale, 'workspace.lexicon.noNotes')}
+                      {selectedLexeme.jieyu?.notes
+                        ?.filter((note) => note.owner === 'entry')
+                        .map((note) => note.text)
+                        .join(' / ') || t(locale, 'workspace.lexicon.noNotes')}
                     </p>
                   </PanelSection>
 
