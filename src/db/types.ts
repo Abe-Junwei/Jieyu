@@ -200,6 +200,8 @@ export interface Sense {
   sourceNote?: string;
   /** LIFT sense `<trait name="usage-type">` values. */
   usages?: string[];
+  /** First LIFT sense `<trait name="sense-type">` value. */
+  senseType?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

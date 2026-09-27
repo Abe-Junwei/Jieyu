@@ -141,6 +141,7 @@ function parseSense(
   const sociolinguisticsNote = parseTypedNote(sense, 'sociolinguistics');
   const sourceNote = parseTypedNote(sense, 'source');
   const usages = parseUsages(sense);
+  const senseType = parseTraitValue(sense, 'sense-type');
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -157,6 +158,7 @@ function parseSense(
     ...(sociolinguisticsNote.length > 0 ? { sociolinguisticsNote } : {}),
     ...(sourceNote.length > 0 ? { sourceNote } : {}),
     ...(usages.length > 0 ? { usages } : {}),
+    ...(senseType.length > 0 ? { senseType } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }
@@ -219,6 +221,10 @@ function parseSemanticDomains(sense: Element): string[] {
 
 function parseUsages(sense: Element): string[] {
   return parseTraitValues(sense, 'usage-type');
+}
+
+function parseTraitValue(sense: Element, name: string): string {
+  return parseTraitValues(sense, name)[0] ?? '';
 }
 
 function parseTraitValues(sense: Element, name: string): string[] {

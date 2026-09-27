@@ -1327,6 +1327,103 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.usages).toBeUndefined();
   });
 
+  it('reads one sense type and ignores an entry-level trait', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <trait name="sense-type" value="entry type"/>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <trait name="usage-type" value="formal"/>
+      <trait name="morph-type" value="stem"/>
+      <trait name="sense-type" value=""/>
+      <trait name="sense-type" value="figurative"/>
+      <trait name="sense-type" value="primary"/>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <trait name="sense-type" value="literal"/>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('senseType');
+    expect(parsed.lexemes[0]?.lexemeType).toBeUndefined();
+    expect(parsed.lexemes[0]?.senses[0]?.senseType).toBe('figurative');
+    expect(parsed.lexemes[0]?.senses[0]?.usages).toEqual(['formal']);
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('stem');
+    expect(parsed.lexemes[0]?.senses[1]?.senseType).toBe('literal');
+  });
+
+  it('round-trips one sense type and drops it when the trait is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            usages: ['formal'],
+            senseType: 'figurative & extended',
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            senseType: 'literal',
+          },
+        ],
+      },
+    ]);
+    const usageAt = xml!.indexOf('<trait name="usage-type"');
+    const typeAt = xml!.indexOf('<trait name="sense-type"');
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(usageAt).toBeGreaterThanOrEqual(0);
+    expect(typeAt).toBeGreaterThan(usageAt);
+    expect(subsenseAt).toBeGreaterThan(typeAt);
+    expect(xml).toContain('<trait name="sense-type" value="figurative &amp; extended"/>');
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.senseType).toBe('figurative & extended');
+    expect(parsed.lexemes[0]?.senses[0]?.usages).toEqual(['formal']);
+    expect(parsed.lexemes[0]?.senses[1]?.senseType).toBe('literal');
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, usages: ['formal'] }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('sense-type');
+    expect(bare).toContain('usage-type');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          usages: ['formal'],
+          senseType: 'figurative',
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.senseType).toBeUndefined();
+    expect(store[0]?.senses[0]?.usages).toEqual(['formal']);
+    expect(store[0]?.senses[1]?.senseType).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

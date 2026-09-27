@@ -50,7 +50,8 @@ export type LexiconEntryEditController = {
       | 'semanticsNote'
       | 'sociolinguisticsNote'
       | 'sourceNote'
-      | 'usages',
+      | 'usages'
+      | 'senseType',
     value: string,
   ) => void;
   onExampleChange: (
@@ -148,6 +149,8 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     sourceNote:
       typeof lexeme?.senses[0]?.sourceNote === 'string' ? lexeme.senses[0].sourceNote.trim() : '',
     usages: usagesDraft(lexeme?.senses[0]?.usages),
+    senseType:
+      typeof lexeme?.senses[0]?.senseType === 'string' ? lexeme.senses[0].senseType.trim() : '',
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -205,6 +208,9 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
           ? { sourceNote: sense.sourceNote.trim() }
           : {}),
         ...(usages.length > 0 ? { usages } : {}),
+        ...(typeof sense.senseType === 'string' && sense.senseType.trim().length > 0
+          ? { senseType: sense.senseType.trim() }
+          : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };
     }),

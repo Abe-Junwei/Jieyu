@@ -198,6 +198,7 @@ const lexemeDocSchema = z.object({
           sociolinguisticsNote: z.string().optional(),
           sourceNote: z.string().optional(),
           usages: z.array(z.string().min(1)).optional(),
+          senseType: z.string().optional(),
           parentId: z.string().min(1).optional(),
           examples: z
             .array(

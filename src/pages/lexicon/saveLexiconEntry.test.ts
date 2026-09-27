@@ -30,6 +30,7 @@ function fields(
     sociolinguisticsNote: string;
     sourceNote: string;
     usages: string;
+    senseType: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -58,6 +59,7 @@ function fields(
       sociolinguisticsNote?: string;
       sourceNote?: string;
       usages?: string;
+      senseType?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -77,6 +79,7 @@ function fields(
     sociolinguisticsNote: '',
     sourceNote: '',
     usages: '',
+    senseType: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -536,6 +539,41 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.usages).toBeUndefined();
     expect(cleared.senses[0]?.sourceNote).toBe('from a neighboring dialect');
     expect(cleared.senses[1]?.usages).toBeUndefined();
+  });
+
+  it('writes a trimmed sense type on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        usages: 'formal',
+        senseType: ' figurative ',
+        extraSenses: [{ gloss: 'pet', definition: '', senseType: ' literal ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.senseType).toBe('figurative');
+    expect(created.senses[0]?.usages).toEqual(['formal']);
+    expect(created.lexemeType).toBeUndefined();
+    expect(created.senses[1]?.senseType).toBe('literal');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        usages: 'formal',
+        senseType: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', senseType: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.senseType).toBeUndefined();
+    expect(cleared.senses[0]?.usages).toEqual(['formal']);
+    expect(cleared.senses[1]?.senseType).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {
