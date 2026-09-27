@@ -663,7 +663,7 @@ describe('lexiconLiftImport', () => {
     expect(parsed.lexemes[0]).not.toHaveProperty('grammarNote');
     expect(parsed.lexemes[0]?.senses[0]?.grammarNote).toBe('count noun');
     expect(parsed.lexemes[0]?.senses[0]?.encyclopedicNote).toBe('domestic canine');
-    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('general note');
+    expect(parsed.lexemes[0]?.senses[0]?.generalNote).toBe('general note');
     expect(parsed.lexemes[0]?.senses[1]?.grammarNote).toBe('used with classifiers');
   });
 
@@ -850,7 +850,7 @@ describe('lexiconLiftImport', () => {
     expect(parsed.lexemes[0]).not.toHaveProperty('phonologyNote');
     expect(parsed.lexemes[0]?.senses[0]?.phonologyNote).toBe('tone on the first syllable');
     expect(parsed.lexemes[0]?.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
-    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('general note');
+    expect(parsed.lexemes[0]?.senses[0]?.generalNote).toBe('general note');
     expect(parsed.lexemes[0]?.senses[1]?.phonologyNote).toBe('stress final');
   });
 
@@ -951,7 +951,7 @@ describe('lexiconLiftImport', () => {
     expect(parsed.lexemes[0]?.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
     expect(parsed.lexemes[0]?.senses[0]?.phonologyNote).toBe('tone on the first syllable');
     expect(parsed.lexemes[0]?.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
-    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('general note');
+    expect(parsed.lexemes[0]?.senses[0]?.generalNote).toBe('general note');
     expect(parsed.lexemes[0]?.senses[1]?.semanticsNote).toBe('companion animal');
   });
 
@@ -1053,7 +1053,7 @@ describe('lexiconLiftImport', () => {
     expect(parsed.lexemes[0]).not.toHaveProperty('sociolinguisticsNote');
     expect(parsed.lexemes[0]?.senses[0]?.sociolinguisticsNote).toBe('used by elders');
     expect(parsed.lexemes[0]?.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
-    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('general note');
+    expect(parsed.lexemes[0]?.senses[0]?.generalNote).toBe('general note');
     expect(parsed.lexemes[0]?.senses[1]?.sociolinguisticsNote).toBe('child directed');
   });
 
@@ -1155,7 +1155,7 @@ describe('lexiconLiftImport', () => {
     expect(parsed.lexemes[0]).not.toHaveProperty('sourceNote');
     expect(parsed.lexemes[0]?.senses[0]?.sourceNote).toBe('from a neighboring dialect');
     expect(parsed.lexemes[0]?.senses[0]?.sociolinguisticsNote).toBe('used by elders');
-    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('general note');
+    expect(parsed.lexemes[0]?.senses[0]?.generalNote).toBe('general note');
     expect(parsed.lexemes[0]?.senses[1]?.sourceNote).toBe('borrowed in speech');
   });
 
@@ -1836,7 +1836,7 @@ describe('lexiconLiftImport', () => {
     expect(parsed.lexemes[0]).not.toHaveProperty('senseRestrictions');
     expect(parsed.lexemes[0]?.senses[0]?.senseRestrictions).toBe('not used with elders');
     expect(parsed.lexemes[0]?.senses[0]?.dialectLabels).toEqual(['northern']);
-    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('sense general');
+    expect(parsed.lexemes[0]?.senses[0]?.generalNote).toBe('sense general');
     expect(parsed.lexemes[0]?.senses[1]?.senseRestrictions).toBe('avoid in ritual');
   });
 
@@ -2171,7 +2171,7 @@ describe('lexiconLiftImport', () => {
     expect(parsed.lexemes[0]).not.toHaveProperty('senseBibliography');
     expect(parsed.lexemes[0]?.senses[0]?.senseBibliography).toBe('sense source');
     expect(parsed.lexemes[0]?.senses[0]?.anthropologyNote).toBe('kept at home');
-    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('sense general');
+    expect(parsed.lexemes[0]?.senses[0]?.generalNote).toBe('sense general');
     expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('dropped');
     expect(parsed.lexemes[0]?.senses[1]?.senseBibliography).toBe('pet source');
   });
@@ -2255,6 +2255,114 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[0]?.senseBibliography).toBeUndefined();
     expect(store[0]?.senses[0]?.anthropologyNote).toBe('kept at home');
     expect(store[0]?.senses[1]?.senseBibliography).toBeUndefined();
+  });
+
+  it('reads an untyped sense note and leaves the entry note alone', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <note><form lang="en"><text>entry note</text></form></note>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <note type="encyclopedic"><form lang="en"><text>domestic canine</text></form></note>
+      <note>
+        <form><text>nolang</text></form>
+        <form lang="en"><text>seen in town</text></form>
+      </note>
+      <note><form lang="en"><text>dropped</text></form></note>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <note><form lang="en"><text>household</text></form></note>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.notes).toEqual({ en: 'entry note', default: 'entry note' });
+    expect(parsed.lexemes[0]).not.toHaveProperty('generalNote');
+    expect(parsed.lexemes[0]?.senses[0]?.generalNote).toBe('seen in town');
+    expect(parsed.lexemes[0]?.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('dropped');
+    expect(parsed.lexemes[0]?.senses[1]?.generalNote).toBe('household');
+  });
+
+  it('round-trips an untyped sense note and drops it when the note is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            encyclopedicNote: 'domestic canine',
+            generalNote: 'seen & noted',
+            grammarNote: 'count noun',
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            generalNote: 'household',
+          },
+        ],
+      },
+    ]);
+    const senseAt = xml!.indexOf('<sense');
+    const encyclopedicAt = xml!.indexOf('<note type="encyclopedic"', senseAt);
+    const generalAt = xml!.indexOf('<note>', senseAt);
+    const grammarAt = xml!.indexOf('<note type="grammar"', senseAt);
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(xml!.indexOf('<note>')).toBeLessThan(senseAt);
+    expect(encyclopedicAt).toBeGreaterThanOrEqual(0);
+    expect(generalAt).toBeGreaterThan(encyclopedicAt);
+    expect(grammarAt).toBeGreaterThan(generalAt);
+    expect(subsenseAt).toBeGreaterThan(generalAt);
+    expect(xml).toContain('<note><form lang="und"><text>seen &amp; noted</text></form></note>');
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.notes?.zho).toBe('常见家养动物');
+    expect(parsed.lexemes[0]?.senses[0]?.generalNote).toBe('seen & noted');
+    expect(parsed.lexemes[0]?.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(parsed.lexemes[0]?.senses[0]?.grammarNote).toBe('count noun');
+    expect(parsed.lexemes[0]?.senses[1]?.generalNote).toBe('household');
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, encyclopedicNote: 'domestic canine' }, dog.senses[1]!],
+      },
+    ]);
+    const bareSenseAt = bare!.indexOf('<sense');
+    expect(bare!.indexOf('<note>', bareSenseAt)).toBe(-1);
+    expect(bare!.indexOf('<note>')).toBeLessThan(bareSenseAt);
+    expect(bare).toContain('type="encyclopedic"');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          encyclopedicNote: 'domestic canine',
+          generalNote: 'seen in town',
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.notes?.zho).toBe('常见家养动物');
+    expect(store[0]?.senses[0]?.generalNote).toBeUndefined();
+    expect(store[0]?.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(store[0]?.senses[1]?.generalNote).toBeUndefined();
   });
 
   it('reads an entry bibliography note and leaves the untyped note alone', () => {

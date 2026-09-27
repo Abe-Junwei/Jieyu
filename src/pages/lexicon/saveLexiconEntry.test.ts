@@ -24,6 +24,7 @@ function fields(
     senseBibliography: string;
     discourseNote: string;
     encyclopedicNote: string;
+    generalNote: string;
     grammarNote: string;
     semanticDomains: string;
     phonologyNote: string;
@@ -65,6 +66,7 @@ function fields(
       senseBibliography?: string;
       discourseNote?: string;
       encyclopedicNote?: string;
+      generalNote?: string;
       grammarNote?: string;
       semanticDomains?: string;
       phonologyNote?: string;
@@ -97,6 +99,7 @@ function fields(
     senseBibliography: '',
     discourseNote: '',
     encyclopedicNote: '',
+    generalNote: '',
     grammarNote: '',
     semanticDomains: '',
     phonologyNote: '',
@@ -371,6 +374,44 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.encyclopedicNote).toBeUndefined();
     expect(cleared.senses[0]?.discourseNote).toBe('narrative use');
     expect(cleared.senses[1]?.encyclopedicNote).toBeUndefined();
+  });
+
+  it('writes a trimmed sense general note and keeps the encyclopedic note and entry notes', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        notes: 'entry note',
+        encyclopedicNote: 'domestic canine',
+        generalNote: ' seen in town ',
+        extraSenses: [{ gloss: 'pet', definition: '', generalNote: ' household ' }],
+      }),
+      now,
+    );
+    expect(created.notes?.default).toBe('entry note');
+    expect(created.senses[0]?.generalNote).toBe('seen in town');
+    expect(created.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(created.senses[1]?.generalNote).toBe('household');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        notes: 'entry note',
+        encyclopedicNote: 'domestic canine',
+        generalNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', generalNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.notes?.default).toBe('entry note');
+    expect(cleared.senses[0]?.generalNote).toBeUndefined();
+    expect(cleared.senses[0]?.encyclopedicNote).toBe('domestic canine');
+    expect(cleared.senses[1]?.generalNote).toBeUndefined();
   });
 
   it('writes a trimmed grammar note on the primary and extra sense', () => {

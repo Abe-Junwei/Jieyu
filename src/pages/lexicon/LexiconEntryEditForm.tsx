@@ -227,6 +227,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
         />
       </label>
       <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.generalNoteLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-general-note"
+          value={editor.fields.generalNote}
+          onChange={(event) => editor.onFieldChange('generalNote', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.edit.importResidueLabel')}</span>
         <input
           className="input lexicon-entry-edit-input"

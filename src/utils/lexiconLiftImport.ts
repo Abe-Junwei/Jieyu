@@ -135,6 +135,7 @@ function parseSense(
   const senseBibliography = parseTypedNote(sense, 'bibliography');
   const discourseNote = parseTypedNote(sense, 'discourse');
   const encyclopedicNote = parseTypedNote(sense, 'encyclopedic');
+  const generalNote = parseTypedNote(sense, '');
   const grammarNote = parseTypedNote(sense, 'grammar');
   const semanticDomains = parseSemanticDomains(sense);
   const phonologyNote = parseTypedNote(sense, 'phonology');
@@ -160,6 +161,7 @@ function parseSense(
     ...(senseBibliography.length > 0 ? { senseBibliography } : {}),
     ...(discourseNote.length > 0 ? { discourseNote } : {}),
     ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
+    ...(generalNote.length > 0 ? { generalNote } : {}),
     ...(grammarNote.length > 0 ? { grammarNote } : {}),
     ...(semanticDomains.length > 0 ? { semanticDomains } : {}),
     ...(phonologyNote.length > 0 ? { phonologyNote } : {}),

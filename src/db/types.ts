@@ -201,6 +201,8 @@ export interface Sense {
   discourseNote?: string;
   /** First LIFT sense `<note type="encyclopedic"><form>` text. */
   encyclopedicNote?: string;
+  /** First form text of an untyped LIFT sense `<note>`. Distinct from entry `notes`. */
+  generalNote?: string;
   /** First LIFT sense `<note type="grammar"><form>` text. */
   grammarNote?: string;
   /** LIFT sense `<trait name="semantic-domain-ddp4">` values, abbreviation plus name. */

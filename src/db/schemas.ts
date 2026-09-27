@@ -207,6 +207,7 @@ const lexemeDocSchema = z.object({
           senseBibliography: z.string().optional(),
           discourseNote: z.string().optional(),
           encyclopedicNote: z.string().optional(),
+          generalNote: z.string().optional(),
           grammarNote: z.string().optional(),
           semanticDomains: z.array(z.string().min(1)).optional(),
           phonologyNote: z.string().optional(),

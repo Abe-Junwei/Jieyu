@@ -123,6 +123,11 @@ export function LexiconSenseList({
               {sense.importResidue}
             </span>
           ) : null}
+          {sense.generalNote ? (
+            <span data-testid={`lexicon-workspace-sense-${index}-general-note`}>
+              {sense.generalNote}
+            </span>
+          ) : null}
           {sense.senseBibliography ? (
             <span data-testid={`lexicon-workspace-sense-${index}-sense-bibliography`}>
               {sense.senseBibliography}

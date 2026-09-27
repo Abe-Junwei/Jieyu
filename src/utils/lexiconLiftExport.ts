@@ -146,6 +146,9 @@ function serializeSenseNode(
     encyclopedicNote.length > 0
       ? `<note type="encyclopedic">${xmlForm('und', encyclopedicNote)}</note>`
       : '';
+  const generalNote = sense.generalNote?.trim() ?? '';
+  const generalNoteXml =
+    generalNote.length > 0 ? `<note>${xmlForm('und', generalNote)}</note>` : '';
   const grammarNote = sense.grammarNote?.trim() ?? '';
   const grammarNoteXml =
     grammarNote.length > 0 ? `<note type="grammar">${xmlForm('und', grammarNote)}</note>` : '';
@@ -211,7 +214,7 @@ function serializeSenseNode(
   const nested = liftSenseChildren(all, senseId)
     .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
     .join('');
-  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${reversalXml}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${senseBibliographyXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${semanticsNoteXml}${sociolinguisticsNoteXml}${sourceNoteXml}${usageXml}${senseTypeXml}${academicDomainXml}${anthropologyCategoryXml}${senseStatusXml}${dialectLabelXml}${senseRestrictionsXml}${importResidueXml}${nested}</${tag}>`;
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${reversalXml}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${senseBibliographyXml}${discourseNoteXml}${encyclopedicNoteXml}${generalNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${semanticsNoteXml}${sociolinguisticsNoteXml}${sourceNoteXml}${usageXml}${senseTypeXml}${academicDomainXml}${anthropologyCategoryXml}${senseStatusXml}${dialectLabelXml}${senseRestrictionsXml}${importResidueXml}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {
