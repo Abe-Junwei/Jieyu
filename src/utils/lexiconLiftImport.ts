@@ -139,6 +139,7 @@ function parseSense(
   const phonologyNote = parseTypedNote(sense, 'phonology');
   const semanticsNote = parseTypedNote(sense, 'semantics');
   const sociolinguisticsNote = parseTypedNote(sense, 'sociolinguistics');
+  const sourceNote = parseTypedNote(sense, 'source');
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -153,6 +154,7 @@ function parseSense(
     ...(phonologyNote.length > 0 ? { phonologyNote } : {}),
     ...(semanticsNote.length > 0 ? { semanticsNote } : {}),
     ...(sociolinguisticsNote.length > 0 ? { sociolinguisticsNote } : {}),
+    ...(sourceNote.length > 0 ? { sourceNote } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }

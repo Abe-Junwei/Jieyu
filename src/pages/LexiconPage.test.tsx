@@ -906,6 +906,30 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves a source note and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-sociolinguistics-note'), {
+      target: { value: 'used by elders' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-source-note'), {
+      target: { value: 'from a neighboring dialect' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.sourceNote).toBe('from a neighboring dialect');
+    expect(saved.senses[0]?.sociolinguisticsNote).toBe('used by elders');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-source-note').textContent).toBe(
+      'from a neighboring dialect',
+    );
+    expect(screen.getByTestId('lexicon-workspace-sense-0-sociolinguistics-note').textContent).toBe(
+      'used by elders',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

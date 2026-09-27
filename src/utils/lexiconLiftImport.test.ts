@@ -1128,6 +1128,105 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.sociolinguisticsNote).toBeUndefined();
   });
 
+  it('reads a sense source note and ignores an entry-level note', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <note type="source"><form lang="en"><text>entry source</text></form></note>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <note type="sociolinguistics"><form lang="en"><text>used by elders</text></form></note>
+      <note><form lang="en"><text>general note</text></form></note>
+      <note type="source">
+        <form><text>nolang</text></form>
+        <form lang="en"><text>from a neighboring dialect</text></form>
+      </note>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <note type="source"><form lang="en"><text>borrowed in speech</text></form></note>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('sourceNote');
+    expect(parsed.lexemes[0]?.senses[0]?.sourceNote).toBe('from a neighboring dialect');
+    expect(parsed.lexemes[0]?.senses[0]?.sociolinguisticsNote).toBe('used by elders');
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('general note');
+    expect(parsed.lexemes[0]?.senses[1]?.sourceNote).toBe('borrowed in speech');
+  });
+
+  it('round-trips sense source notes and drops them when the sense note is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            sociolinguisticsNote: 'used by elders',
+            sourceNote: 'from a neighboring dialect',
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            sourceNote: 'borrowed in speech',
+          },
+        ],
+      },
+    ]);
+    const socioAt = xml!.indexOf('<note type="sociolinguistics">');
+    const sourceAt = xml!.indexOf('<note type="source">');
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(socioAt).toBeGreaterThanOrEqual(0);
+    expect(sourceAt).toBeGreaterThan(socioAt);
+    expect(subsenseAt).toBeGreaterThan(sourceAt);
+    expect(xml).toContain(
+      '<note type="source"><form lang="und"><text>from a neighboring dialect</text></form></note>',
+    );
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.sourceNote).toBe('from a neighboring dialect');
+    expect(parsed.lexemes[0]?.senses[0]?.sociolinguisticsNote).toBe('used by elders');
+    expect(parsed.lexemes[0]?.senses[1]?.sourceNote).toBe('borrowed in speech');
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, sociolinguisticsNote: 'used by elders' }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('type="source"');
+    expect(bare).toContain('type="sociolinguistics"');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          sociolinguisticsNote: 'used by elders',
+          sourceNote: 'from a neighboring dialect',
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.sourceNote).toBeUndefined();
+    expect(store[0]?.senses[0]?.sociolinguisticsNote).toBe('used by elders');
+    expect(store[0]?.senses[1]?.sourceNote).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

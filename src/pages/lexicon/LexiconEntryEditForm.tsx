@@ -188,6 +188,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('sociolinguisticsNote', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.sourceNoteLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-source-note"
+          value={editor.fields.sourceNote}
+          onChange={(event) => editor.onFieldChange('sourceNote', event.target.value)}
+        />
+      </label>
       <SenseExampleFields
         locale={locale}
         examples={editor.fields.examples}
@@ -337,6 +346,17 @@ export function LexiconEntryEditForm({ editor }: Props) {
                 value={sense.sociolinguisticsNote ?? ''}
                 onChange={(event) =>
                   editor.onExtraSenseChange(index, 'sociolinguisticsNote', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseSourceNoteLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-source-note`}
+                value={sense.sourceNote ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'sourceNote', event.target.value)
                 }
               />
             </label>

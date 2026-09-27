@@ -28,6 +28,7 @@ function fields(
     phonologyNote: string;
     semanticsNote: string;
     sociolinguisticsNote: string;
+    sourceNote: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -54,6 +55,7 @@ function fields(
       phonologyNote?: string;
       semanticsNote?: string;
       sociolinguisticsNote?: string;
+      sourceNote?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -71,6 +73,7 @@ function fields(
     phonologyNote: '',
     semanticsNote: '',
     sociolinguisticsNote: '',
+    sourceNote: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -462,6 +465,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.sociolinguisticsNote).toBeUndefined();
     expect(cleared.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
     expect(cleared.senses[1]?.sociolinguisticsNote).toBeUndefined();
+  });
+
+  it('writes a trimmed source note on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        sociolinguisticsNote: 'used by elders',
+        sourceNote: ' from a neighboring dialect ',
+        extraSenses: [{ gloss: 'pet', definition: '', sourceNote: ' borrowed in speech ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.sourceNote).toBe('from a neighboring dialect');
+    expect(created.senses[0]?.sociolinguisticsNote).toBe('used by elders');
+    expect(created.senses[1]?.sourceNote).toBe('borrowed in speech');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        sociolinguisticsNote: 'used by elders',
+        sourceNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', sourceNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.sourceNote).toBeUndefined();
+    expect(cleared.senses[0]?.sociolinguisticsNote).toBe('used by elders');
+    expect(cleared.senses[1]?.sourceNote).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

@@ -196,6 +196,8 @@ export interface Sense {
   semanticsNote?: string;
   /** First LIFT sense `<note type="sociolinguistics"><form>` text. */
   sociolinguisticsNote?: string;
+  /** First LIFT sense `<note type="source"><form>` text. */
+  sourceNote?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

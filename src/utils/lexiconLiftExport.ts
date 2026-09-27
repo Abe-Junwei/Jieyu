@@ -146,10 +146,13 @@ function serializeSenseNode(
     sociolinguisticsNote.length > 0
       ? `<note type="sociolinguistics">${xmlForm('und', sociolinguisticsNote)}</note>`
       : '';
+  const sourceNote = sense.sourceNote?.trim() ?? '';
+  const sourceNoteXml =
+    sourceNote.length > 0 ? `<note type="source">${xmlForm('und', sourceNote)}</note>` : '';
   const nested = liftSenseChildren(all, senseId)
     .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
     .join('');
-  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${semanticsNoteXml}${sociolinguisticsNoteXml}${nested}</${tag}>`;
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${semanticsNoteXml}${sociolinguisticsNoteXml}${sourceNoteXml}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {
