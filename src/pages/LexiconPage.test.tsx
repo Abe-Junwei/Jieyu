@@ -1024,6 +1024,30 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves a sense status and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-anthropology-categories'), {
+      target: { value: 'kin' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-sense-status'), {
+      target: { value: 'Confirmed' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.senseStatus).toBe('Confirmed');
+    expect(saved.senses[0]?.anthropologyCategories).toEqual(['kin']);
+    expect(screen.getByTestId('lexicon-workspace-sense-0-sense-status').textContent).toBe(
+      'Confirmed',
+    );
+    expect(
+      screen.getByTestId('lexicon-workspace-sense-0-anthropology-categories').textContent,
+    ).toBe('kin');
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

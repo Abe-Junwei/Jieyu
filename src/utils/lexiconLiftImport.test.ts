@@ -1620,6 +1620,100 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.anthropologyCategories).toBeUndefined();
   });
 
+  it('reads one sense status and ignores an entry-level trait', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <trait name="status" value="Tentative"/>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <trait name="anthro-code" value="kin"/>
+      <trait name="status" value=""/>
+      <trait name="status" value="Confirmed"/>
+      <trait name="status" value="Approved"/>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <trait name="status" value="Pending"/>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('senseStatus');
+    expect(parsed.lexemes[0]?.senses[0]?.senseStatus).toBe('Confirmed');
+    expect(parsed.lexemes[0]?.senses[0]?.anthropologyCategories).toEqual(['kin']);
+    expect(parsed.lexemes[0]?.senses[1]?.senseStatus).toBe('Pending');
+  });
+
+  it('round-trips one sense status and drops it when the trait is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            anthropologyCategories: ['kin'],
+            senseStatus: 'Confirmed & published',
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            senseStatus: 'Pending',
+          },
+        ],
+      },
+    ]);
+    const codeAt = xml!.indexOf('<trait name="anthro-code"');
+    const statusAt = xml!.indexOf('<trait name="status"');
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(codeAt).toBeGreaterThanOrEqual(0);
+    expect(statusAt).toBeGreaterThan(codeAt);
+    expect(subsenseAt).toBeGreaterThan(statusAt);
+    expect(xml).toContain('<trait name="status" value="Confirmed &amp; published"/>');
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.senseStatus).toBe('Confirmed & published');
+    expect(parsed.lexemes[0]?.senses[0]?.anthropologyCategories).toEqual(['kin']);
+    expect(parsed.lexemes[0]?.senses[1]?.senseStatus).toBe('Pending');
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, anthropologyCategories: ['kin'] }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('name="status"');
+    expect(bare).toContain('anthro-code');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          anthropologyCategories: ['kin'],
+          senseStatus: 'Confirmed',
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.senseStatus).toBeUndefined();
+    expect(store[0]?.senses[0]?.anthropologyCategories).toEqual(['kin']);
+    expect(store[0]?.senses[1]?.senseStatus).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

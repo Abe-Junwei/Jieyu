@@ -55,7 +55,8 @@ export type LexiconEntryEditController = {
       | 'usages'
       | 'senseType'
       | 'academicDomains'
-      | 'anthropologyCategories',
+      | 'anthropologyCategories'
+      | 'senseStatus',
     value: string,
   ) => void;
   onExampleChange: (
@@ -157,6 +158,8 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
       typeof lexeme?.senses[0]?.senseType === 'string' ? lexeme.senses[0].senseType.trim() : '',
     academicDomains: academicDomainsDraft(lexeme?.senses[0]?.academicDomains),
     anthropologyCategories: anthropologyCategoriesDraft(lexeme?.senses[0]?.anthropologyCategories),
+    senseStatus:
+      typeof lexeme?.senses[0]?.senseStatus === 'string' ? lexeme.senses[0].senseStatus.trim() : '',
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -221,6 +224,9 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
           : {}),
         ...(academicDomains.length > 0 ? { academicDomains } : {}),
         ...(anthropologyCategories.length > 0 ? { anthropologyCategories } : {}),
+        ...(typeof sense.senseStatus === 'string' && sense.senseStatus.trim().length > 0
+          ? { senseStatus: sense.senseStatus.trim() }
+          : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };
     }),

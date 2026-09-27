@@ -33,6 +33,7 @@ function fields(
     senseType: string;
     academicDomains: string;
     anthropologyCategories: string;
+    senseStatus: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -64,6 +65,7 @@ function fields(
       senseType?: string;
       academicDomains?: string;
       anthropologyCategories?: string;
+      senseStatus?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -86,6 +88,7 @@ function fields(
     senseType: '',
     academicDomains: '',
     anthropologyCategories: '',
+    senseStatus: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -652,6 +655,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.academicDomains).toEqual(['linguistics']);
     expect(cleared.senses[0]?.anthropologyNote).toBe('kept at home');
     expect(cleared.senses[1]?.anthropologyCategories).toBeUndefined();
+  });
+
+  it('writes one trimmed sense status and keeps anthropology categories', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        anthropologyCategories: 'kin',
+        senseStatus: ' Confirmed ',
+        extraSenses: [{ gloss: 'pet', definition: '', senseStatus: ' Pending ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.senseStatus).toBe('Confirmed');
+    expect(created.senses[0]?.anthropologyCategories).toEqual(['kin']);
+    expect(created.senses[1]?.senseStatus).toBe('Pending');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        anthropologyCategories: 'kin',
+        senseStatus: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', senseStatus: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.senseStatus).toBeUndefined();
+    expect(cleared.senses[0]?.anthropologyCategories).toEqual(['kin']);
+    expect(cleared.senses[1]?.senseStatus).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

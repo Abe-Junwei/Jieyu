@@ -206,6 +206,8 @@ export interface Sense {
   academicDomains?: string[];
   /** LIFT sense `<trait name="anthro-code">` abbreviations. */
   anthropologyCategories?: string[];
+  /** First LIFT sense `<trait name="status">` value. */
+  senseStatus?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;
