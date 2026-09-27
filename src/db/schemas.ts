@@ -195,6 +195,7 @@ const lexemeDocSchema = z.object({
           semanticDomains: z.array(z.string().min(1)).optional(),
           phonologyNote: z.string().optional(),
           semanticsNote: z.string().optional(),
+          sociolinguisticsNote: z.string().optional(),
           parentId: z.string().min(1).optional(),
           examples: z
             .array(

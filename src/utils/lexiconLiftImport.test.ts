@@ -1026,6 +1026,108 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.semanticsNote).toBeUndefined();
   });
 
+  it('reads a sense sociolinguistics note and ignores an entry-level note', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <note type="sociolinguistics"><form lang="en"><text>entry note</text></form></note>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <note type="semantics"><form lang="en"><text>narrows to the daytime sky</text></form></note>
+      <note><form lang="en"><text>general note</text></form></note>
+      <note type="sociolinguistics">
+        <form><text>nolang</text></form>
+        <form lang="en"><text>used by elders</text></form>
+      </note>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <note type="sociolinguistics"><form lang="en"><text>child directed</text></form></note>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('sociolinguisticsNote');
+    expect(parsed.lexemes[0]?.senses[0]?.sociolinguisticsNote).toBe('used by elders');
+    expect(parsed.lexemes[0]?.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('general note');
+    expect(parsed.lexemes[0]?.senses[1]?.sociolinguisticsNote).toBe('child directed');
+  });
+
+  it('round-trips sense sociolinguistics notes and drops them when the sense note is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            semanticsNote: 'narrows to the daytime sky',
+            sociolinguisticsNote: 'used by elders',
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            sociolinguisticsNote: 'child directed',
+          },
+        ],
+      },
+    ]);
+    const semanticsAt = xml!.indexOf('<note type="semantics">');
+    const socioAt = xml!.indexOf('<note type="sociolinguistics">');
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(semanticsAt).toBeGreaterThanOrEqual(0);
+    expect(socioAt).toBeGreaterThan(semanticsAt);
+    expect(subsenseAt).toBeGreaterThan(socioAt);
+    expect(xml).toContain(
+      '<note type="sociolinguistics"><form lang="und"><text>used by elders</text></form></note>',
+    );
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.sociolinguisticsNote).toBe('used by elders');
+    expect(parsed.lexemes[0]?.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
+    expect(parsed.lexemes[0]?.senses[1]?.sociolinguisticsNote).toBe('child directed');
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          { ...dog.senses[0]!, semanticsNote: 'narrows to the daytime sky' },
+          dog.senses[1]!,
+        ],
+      },
+    ]);
+    expect(bare).not.toContain('type="sociolinguistics"');
+    expect(bare).toContain('type="semantics"');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          semanticsNote: 'narrows to the daytime sky',
+          sociolinguisticsNote: 'used by elders',
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.sociolinguisticsNote).toBeUndefined();
+    expect(store[0]?.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
+    expect(store[0]?.senses[1]?.sociolinguisticsNote).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

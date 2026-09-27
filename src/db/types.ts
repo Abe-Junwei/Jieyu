@@ -194,6 +194,8 @@ export interface Sense {
   phonologyNote?: string;
   /** First LIFT sense `<note type="semantics"><form>` text. */
   semanticsNote?: string;
+  /** First LIFT sense `<note type="sociolinguistics"><form>` text. */
+  sociolinguisticsNote?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

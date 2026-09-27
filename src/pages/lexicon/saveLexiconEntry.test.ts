@@ -27,6 +27,7 @@ function fields(
     semanticDomains: string;
     phonologyNote: string;
     semanticsNote: string;
+    sociolinguisticsNote: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -52,6 +53,7 @@ function fields(
       semanticDomains?: string;
       phonologyNote?: string;
       semanticsNote?: string;
+      sociolinguisticsNote?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -68,6 +70,7 @@ function fields(
     semanticDomains: '',
     phonologyNote: '',
     semanticsNote: '',
+    sociolinguisticsNote: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -425,6 +428,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.semanticsNote).toBeUndefined();
     expect(cleared.senses[0]?.phonologyNote).toBe('tone on the first syllable');
     expect(cleared.senses[1]?.semanticsNote).toBeUndefined();
+  });
+
+  it('writes a trimmed sociolinguistics note on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        semanticsNote: 'narrows to the daytime sky',
+        sociolinguisticsNote: ' used by elders ',
+        extraSenses: [{ gloss: 'pet', definition: '', sociolinguisticsNote: ' child directed ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.sociolinguisticsNote).toBe('used by elders');
+    expect(created.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
+    expect(created.senses[1]?.sociolinguisticsNote).toBe('child directed');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        semanticsNote: 'narrows to the daytime sky',
+        sociolinguisticsNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', sociolinguisticsNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.sociolinguisticsNote).toBeUndefined();
+    expect(cleared.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
+    expect(cleared.senses[1]?.sociolinguisticsNote).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

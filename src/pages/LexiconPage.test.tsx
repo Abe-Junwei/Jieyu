@@ -882,6 +882,30 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves a sociolinguistics note and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-semantics-note'), {
+      target: { value: 'narrows to the daytime sky' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-sociolinguistics-note'), {
+      target: { value: 'used by elders' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.sociolinguisticsNote).toBe('used by elders');
+    expect(saved.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-sociolinguistics-note').textContent).toBe(
+      'used by elders',
+    );
+    expect(screen.getByTestId('lexicon-workspace-sense-0-semantics-note').textContent).toBe(
+      'narrows to the daytime sky',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

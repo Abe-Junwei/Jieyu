@@ -15,6 +15,7 @@ export type LexiconEntryScalarField =
   | 'semanticDomains'
   | 'phonologyNote'
   | 'semanticsNote'
+  | 'sociolinguisticsNote'
   | 'citationForm'
   | 'language'
   | 'notes'
@@ -47,6 +48,7 @@ export type LexiconSenseDraft = {
   semanticDomains?: string;
   phonologyNote?: string;
   semanticsNote?: string;
+  sociolinguisticsNote?: string;
   examples?: LexiconExampleDraft[];
 };
 
@@ -67,6 +69,7 @@ export type LexiconEntryFields = {
   semanticDomains: string;
   phonologyNote: string;
   semanticsNote: string;
+  sociolinguisticsNote: string;
   citationForm: string;
   language: string;
   notes: string;
@@ -232,6 +235,7 @@ export function applyLexiconEntryFields(
   const semanticDomains = readSemanticDomainLines(fields.semanticDomains);
   const phonologyNote = readCategory(fields.phonologyNote);
   const semanticsNote = readCategory(fields.semanticsNote);
+  const sociolinguisticsNote = readCategory(fields.sociolinguisticsNote);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -276,6 +280,7 @@ export function applyLexiconEntryFields(
       semanticDomains: _oldSemanticDomains,
       phonologyNote: _oldPhonologyNote,
       semanticsNote: _oldSemanticsNote,
+      sociolinguisticsNote: _oldSociolinguisticsNote,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -291,6 +296,7 @@ export function applyLexiconEntryFields(
     const senseSemanticDomains = readSemanticDomainLines(draft.semanticDomains);
     const sensePhonologyNote = readCategory(draft.phonologyNote);
     const senseSemanticsNote = readCategory(draft.semanticsNote);
+    const senseSociolinguisticsNote = readCategory(draft.sociolinguisticsNote);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -309,6 +315,9 @@ export function applyLexiconEntryFields(
         ...(senseSemanticDomains.length > 0 ? { semanticDomains: senseSemanticDomains } : {}),
         ...(sensePhonologyNote.length > 0 ? { phonologyNote: sensePhonologyNote } : {}),
         ...(senseSemanticsNote.length > 0 ? { semanticsNote: senseSemanticsNote } : {}),
+        ...(senseSociolinguisticsNote.length > 0
+          ? { sociolinguisticsNote: senseSociolinguisticsNote }
+          : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -339,6 +348,7 @@ export function applyLexiconEntryFields(
     semanticDomains: _oldPrimarySemanticDomains,
     phonologyNote: _oldPrimaryPhonologyNote,
     semanticsNote: _oldPrimarySemanticsNote,
+    sociolinguisticsNote: _oldPrimarySociolinguisticsNote,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -382,6 +392,7 @@ export function applyLexiconEntryFields(
         ...(semanticDomains.length > 0 ? { semanticDomains } : {}),
         ...(phonologyNote.length > 0 ? { phonologyNote } : {}),
         ...(semanticsNote.length > 0 ? { semanticsNote } : {}),
+        ...(sociolinguisticsNote.length > 0 ? { sociolinguisticsNote } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,
