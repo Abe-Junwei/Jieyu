@@ -147,6 +147,7 @@ function parseSense(
   const senseStatus = parseTraitValue(sense, 'status');
   const dialectLabels = parseDialectLabels(sense);
   const senseRestrictions = parseTypedNote(sense, 'restrictions');
+  const importResidue = parseFieldText(sense, 'import-residue');
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -169,6 +170,7 @@ function parseSense(
     ...(senseStatus.length > 0 ? { senseStatus } : {}),
     ...(dialectLabels.length > 0 ? { dialectLabels } : {}),
     ...(senseRestrictions.length > 0 ? { senseRestrictions } : {}),
+    ...(importResidue.length > 0 ? { importResidue } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }

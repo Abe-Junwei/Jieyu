@@ -24,6 +24,7 @@ export type LexiconEntryScalarField =
   | 'senseStatus'
   | 'dialectLabels'
   | 'senseRestrictions'
+  | 'importResidue'
   | 'citationForm'
   | 'language'
   | 'notes'
@@ -65,6 +66,7 @@ export type LexiconSenseDraft = {
   senseStatus?: string;
   dialectLabels?: string;
   senseRestrictions?: string;
+  importResidue?: string;
   examples?: LexiconExampleDraft[];
 };
 
@@ -94,6 +96,7 @@ export type LexiconEntryFields = {
   senseStatus: string;
   dialectLabels: string;
   senseRestrictions: string;
+  importResidue: string;
   citationForm: string;
   language: string;
   notes: string;
@@ -300,6 +303,7 @@ export function applyLexiconEntryFields(
   const senseStatus = readCategory(fields.senseStatus);
   const dialectLabels = readDialectLabelLines(fields.dialectLabels);
   const senseRestrictions = readCategory(fields.senseRestrictions);
+  const importResidue = readCategory(fields.importResidue);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -353,6 +357,7 @@ export function applyLexiconEntryFields(
       senseStatus: _oldSenseStatus,
       dialectLabels: _oldDialectLabels,
       senseRestrictions: _oldSenseRestrictions,
+      importResidue: _oldImportResidue,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -377,6 +382,7 @@ export function applyLexiconEntryFields(
     const extraSenseStatus = readCategory(draft.senseStatus);
     const senseDialectLabels = readDialectLabelLines(draft.dialectLabels);
     const extraSenseRestrictions = readCategory(draft.senseRestrictions);
+    const extraImportResidue = readCategory(draft.importResidue);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -408,6 +414,7 @@ export function applyLexiconEntryFields(
         ...(extraSenseStatus.length > 0 ? { senseStatus: extraSenseStatus } : {}),
         ...(senseDialectLabels.length > 0 ? { dialectLabels: senseDialectLabels } : {}),
         ...(extraSenseRestrictions.length > 0 ? { senseRestrictions: extraSenseRestrictions } : {}),
+        ...(extraImportResidue.length > 0 ? { importResidue: extraImportResidue } : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -447,6 +454,7 @@ export function applyLexiconEntryFields(
     senseStatus: _oldPrimarySenseStatus,
     dialectLabels: _oldPrimaryDialectLabels,
     senseRestrictions: _oldPrimarySenseRestrictions,
+    importResidue: _oldPrimaryImportResidue,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -499,6 +507,7 @@ export function applyLexiconEntryFields(
         ...(senseStatus.length > 0 ? { senseStatus } : {}),
         ...(dialectLabels.length > 0 ? { dialectLabels } : {}),
         ...(senseRestrictions.length > 0 ? { senseRestrictions } : {}),
+        ...(importResidue.length > 0 ? { importResidue } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,

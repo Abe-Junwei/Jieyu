@@ -245,6 +245,17 @@ export function LexiconExtraSenseEditor({
             />
           </label>
           <label className="lexicon-entry-edit-field">
+            <span>{t(locale, 'workspace.lexicon.edit.senseImportResidueLabel')}</span>
+            <input
+              className="input lexicon-entry-edit-input"
+              data-testid={`lexicon-entry-extra-sense-${index}-import-residue`}
+              value={sense.importResidue ?? ''}
+              onChange={(event) =>
+                editor.onExtraSenseChange(index, 'importResidue', event.target.value)
+              }
+            />
+          </label>
+          <label className="lexicon-entry-edit-field">
             <span>{t(locale, 'workspace.lexicon.edit.senseDefinitionLabel')}</span>
             <input
               className="input lexicon-entry-edit-input"

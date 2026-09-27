@@ -209,6 +209,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('senseRestrictions', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.importResidueLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-import-residue"
+          value={editor.fields.importResidue}
+          onChange={(event) => editor.onFieldChange('importResidue', event.target.value)}
+        />
+      </label>
       <LexiconSenseExampleFields
         locale={locale}
         examples={editor.fields.examples}

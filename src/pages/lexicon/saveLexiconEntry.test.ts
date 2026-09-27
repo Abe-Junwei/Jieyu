@@ -36,6 +36,7 @@ function fields(
     senseStatus: string;
     dialectLabels: string;
     senseRestrictions: string;
+    importResidue: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -70,6 +71,7 @@ function fields(
       senseStatus?: string;
       dialectLabels?: string;
       senseRestrictions?: string;
+      importResidue?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -95,6 +97,7 @@ function fields(
     senseStatus: '',
     dialectLabels: '',
     senseRestrictions: '',
+    importResidue: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -767,6 +770,53 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.senseRestrictions).toBeUndefined();
     expect(cleared.senses[0]?.dialectLabels).toEqual(['northern']);
     expect(cleared.senses[1]?.senseRestrictions).toBeUndefined();
+  });
+
+  it('writes a trimmed sense import residue and keeps sense restrictions', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        restrictions: 'secret',
+        senseRestrictions: 'not used with elders',
+        importResidue: ' leftover marker ',
+        extraSenses: [{ gloss: 'pet', definition: '', importResidue: ' second residue ' }],
+      }),
+      now,
+    );
+    expect(created.restrictions).toBe('secret');
+    expect(created.senses[0]?.importResidue).toBe('leftover marker');
+    expect(created.senses[0]?.senseRestrictions).toBe('not used with elders');
+    expect(created.senses[1]?.importResidue).toBe('second residue');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        restrictions: 'secret',
+        senseRestrictions: 'not used with elders',
+        importResidue: ' ',
+        extraSenses: [
+          {
+            id: extraId,
+            gloss: 'pet',
+            definition: '',
+            senseRestrictions: 'avoid in ritual',
+            importResidue: '',
+          },
+        ],
+      }),
+      now,
+    );
+    expect(cleared.restrictions).toBe('secret');
+    expect(cleared.senses[0]?.importResidue).toBeUndefined();
+    expect(cleared.senses[0]?.senseRestrictions).toBe('not used with elders');
+    expect(cleared.senses[1]?.importResidue).toBeUndefined();
+    expect(cleared.senses[1]?.senseRestrictions).toBe('avoid in ritual');
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

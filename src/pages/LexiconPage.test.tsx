@@ -1096,6 +1096,30 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves sense import residue and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-sense-restrictions'), {
+      target: { value: 'not used with elders' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-import-residue'), {
+      target: { value: 'kept marker' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.importResidue).toBe('kept marker');
+    expect(saved.senses[0]?.senseRestrictions).toBe('not used with elders');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-import-residue').textContent).toBe(
+      'kept marker',
+    );
+    expect(screen.getByTestId('lexicon-workspace-sense-0-sense-restrictions').textContent).toBe(
+      'not used with elders',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

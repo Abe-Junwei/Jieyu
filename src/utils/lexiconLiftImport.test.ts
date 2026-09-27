@@ -1917,6 +1917,107 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.senseRestrictions).toBeUndefined();
   });
 
+  it('reads a sense import residue and ignores an entry-level field', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <field type="import-residue"><form lang="en"><text>entry residue</text></form></field>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <note type="restrictions"><form lang="en"><text>not used with elders</text></form></note>
+      <field type="scientific-name"><form lang="en"><text>Canis</text></form></field>
+      <field type="import-residue">
+        <form><text>nolang</text></form>
+        <form lang="en"><text>kept marker</text></form>
+      </field>
+      <field type="import-residue"><form lang="en"><text>dropped</text></form></field>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <field type="import-residue"><form lang="en"><text>pet residue</text></form></field>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('importResidue');
+    expect(parsed.lexemes[0]?.senses[0]?.importResidue).toBe('kept marker');
+    expect(parsed.lexemes[0]?.senses[0]?.scientificName).toBe('Canis');
+    expect(parsed.lexemes[0]?.senses[0]?.senseRestrictions).toBe('not used with elders');
+    expect(parsed.lexemes[0]?.senses[1]?.importResidue).toBe('pet residue');
+  });
+
+  it('round-trips a sense import residue and drops it when the field is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            senseRestrictions: 'not used with elders',
+            importResidue: 'kept & marked',
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            importResidue: 'pet residue',
+          },
+        ],
+      },
+    ]);
+    const senseAt = xml!.indexOf('<sense');
+    const noteAt = xml!.indexOf('<note type="restrictions"', senseAt);
+    const fieldAt = xml!.indexOf('<field type="import-residue"', senseAt);
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(noteAt).toBeGreaterThanOrEqual(0);
+    expect(fieldAt).toBeGreaterThan(noteAt);
+    expect(subsenseAt).toBeGreaterThan(fieldAt);
+    expect(xml).toContain(
+      '<field type="import-residue"><form lang="und"><text>kept &amp; marked</text></form></field>',
+    );
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.importResidue).toBe('kept & marked');
+    expect(parsed.lexemes[0]?.senses[0]?.senseRestrictions).toBe('not used with elders');
+    expect(parsed.lexemes[0]?.senses[1]?.importResidue).toBe('pet residue');
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, senseRestrictions: 'not used with elders' }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('import-residue');
+    expect(bare).toContain('type="restrictions"');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          senseRestrictions: 'not used with elders',
+          importResidue: 'kept marker',
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.importResidue).toBeUndefined();
+    expect(store[0]?.senses[0]?.senseRestrictions).toBe('not used with elders');
+    expect(store[0]?.senses[1]?.importResidue).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

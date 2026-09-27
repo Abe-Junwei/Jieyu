@@ -117,6 +117,11 @@ export function LexiconSenseList({
               {sense.senseRestrictions}
             </span>
           ) : null}
+          {sense.importResidue ? (
+            <span data-testid={`lexicon-workspace-sense-${index}-import-residue`}>
+              {sense.importResidue}
+            </span>
+          ) : null}
           {(sense.examples ?? []).map((example, exampleIndex) => (
             <span
               key={`${readSenseId(sense)}-example-${exampleIndex}`}

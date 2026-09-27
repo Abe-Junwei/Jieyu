@@ -204,6 +204,7 @@ const lexemeDocSchema = z.object({
           senseStatus: z.string().optional(),
           dialectLabels: z.array(z.string().min(1)).optional(),
           senseRestrictions: z.string().optional(),
+          importResidue: z.string().optional(),
           parentId: z.string().min(1).optional(),
           examples: z
             .array(

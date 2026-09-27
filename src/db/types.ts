@@ -212,6 +212,8 @@ export interface Sense {
   dialectLabels?: string[];
   /** First LIFT sense `<note type="restrictions"><form>` text. */
   senseRestrictions?: string;
+  /** First LIFT sense `<field type="import-residue"><form>` text. */
+  importResidue?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;
