@@ -140,6 +140,7 @@ function parseSense(
   const semanticsNote = parseTypedNote(sense, 'semantics');
   const sociolinguisticsNote = parseTypedNote(sense, 'sociolinguistics');
   const sourceNote = parseTypedNote(sense, 'source');
+  const usages = parseUsages(sense);
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -155,6 +156,7 @@ function parseSense(
     ...(semanticsNote.length > 0 ? { semanticsNote } : {}),
     ...(sociolinguisticsNote.length > 0 ? { sociolinguisticsNote } : {}),
     ...(sourceNote.length > 0 ? { sourceNote } : {}),
+    ...(usages.length > 0 ? { usages } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }
@@ -212,16 +214,24 @@ function parseTypedNote(entry: Element, type: string): string {
 }
 
 function parseSemanticDomains(sense: Element): string[] {
+  return parseTraitValues(sense, 'semantic-domain-ddp4');
+}
+
+function parseUsages(sense: Element): string[] {
+  return parseTraitValues(sense, 'usage-type');
+}
+
+function parseTraitValues(sense: Element, name: string): string[] {
   const seen = new Set<string>();
-  const domains: string[] = [];
+  const values: string[] = [];
   for (const trait of directChildren(sense, 'trait')) {
-    if (attr(trait, 'name') !== 'semantic-domain-ddp4') continue;
+    if (attr(trait, 'name') !== name) continue;
     const value = attr(trait, 'value');
     if (value.length === 0 || seen.has(value)) continue;
     seen.add(value);
-    domains.push(value);
+    values.push(value);
   }
-  return domains;
+  return values;
 }
 
 function parseBibliography(entry: Element): string {

@@ -930,6 +930,30 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves usages and shows them on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-source-note'), {
+      target: { value: 'from a neighboring dialect' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-usages'), {
+      target: { value: 'formal\nchild directed' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.usages).toEqual(['formal', 'child directed']);
+    expect(saved.senses[0]?.sourceNote).toBe('from a neighboring dialect');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-usages').textContent).toBe(
+      'formal · child directed',
+    );
+    expect(screen.getByTestId('lexicon-workspace-sense-0-source-note').textContent).toBe(
+      'from a neighboring dialect',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

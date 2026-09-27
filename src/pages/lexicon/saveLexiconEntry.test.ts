@@ -29,6 +29,7 @@ function fields(
     semanticsNote: string;
     sociolinguisticsNote: string;
     sourceNote: string;
+    usages: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -56,6 +57,7 @@ function fields(
       semanticsNote?: string;
       sociolinguisticsNote?: string;
       sourceNote?: string;
+      usages?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -74,6 +76,7 @@ function fields(
     semanticsNote: '',
     sociolinguisticsNote: '',
     sourceNote: '',
+    usages: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -499,6 +502,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.sourceNote).toBeUndefined();
     expect(cleared.senses[0]?.sociolinguisticsNote).toBe('used by elders');
     expect(cleared.senses[1]?.sourceNote).toBeUndefined();
+  });
+
+  it('writes trimmed usages on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        sourceNote: 'from a neighboring dialect',
+        usages: ' formal \n\nformal\nchild directed ',
+        extraSenses: [{ gloss: 'pet', definition: '', usages: 'informal\ninformal\n ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.usages).toEqual(['formal', 'child directed']);
+    expect(created.senses[0]?.sourceNote).toBe('from a neighboring dialect');
+    expect(created.senses[1]?.usages).toEqual(['informal']);
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        sourceNote: 'from a neighboring dialect',
+        usages: ' \n ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', usages: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.usages).toBeUndefined();
+    expect(cleared.senses[0]?.sourceNote).toBe('from a neighboring dialect');
+    expect(cleared.senses[1]?.usages).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

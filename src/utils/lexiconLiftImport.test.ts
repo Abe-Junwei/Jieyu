@@ -1227,6 +1227,106 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.sourceNote).toBeUndefined();
   });
 
+  it('reads sense usages and ignores an entry-level trait', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <trait name="usage-type" value="archaic"/>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <note type="source"><form lang="en"><text>from a neighboring dialect</text></form></note>
+      <trait name="morph-type" value="stem"/>
+      <trait name="semantic-domain-ddp4" value="1.1 Sky"/>
+      <trait name="usage-type" value=""/>
+      <trait name="usage-type" value="formal"/>
+      <trait name="usage-type" value="formal"/>
+      <trait name="usage-type" value="child directed"/>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <trait name="usage-type" value="informal"/>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('usages');
+    expect(parsed.lexemes[0]?.senses[0]?.usages).toEqual(['formal', 'child directed']);
+    expect(parsed.lexemes[0]?.senses[0]?.sourceNote).toBe('from a neighboring dialect');
+    expect(parsed.lexemes[0]?.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('stem');
+    expect(parsed.lexemes[0]?.senses[1]?.usages).toEqual(['informal']);
+  });
+
+  it('round-trips sense usages and drops them when the traits are omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            sourceNote: 'from a neighboring dialect',
+            usages: ['formal', 'child directed'],
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            usages: ['informal'],
+          },
+        ],
+      },
+    ]);
+    const sourceAt = xml!.indexOf('<note type="source">');
+    const usageAt = xml!.indexOf('<trait name="usage-type"');
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(sourceAt).toBeGreaterThanOrEqual(0);
+    expect(usageAt).toBeGreaterThan(sourceAt);
+    expect(subsenseAt).toBeGreaterThan(usageAt);
+    expect(xml).toContain('<trait name="usage-type" value="formal"/>');
+    expect(xml).toContain('<trait name="usage-type" value="child directed"/>');
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.usages).toEqual(['formal', 'child directed']);
+    expect(parsed.lexemes[0]?.senses[0]?.sourceNote).toBe('from a neighboring dialect');
+    expect(parsed.lexemes[0]?.senses[1]?.usages).toEqual(['informal']);
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, sourceNote: 'from a neighboring dialect' }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('usage-type');
+    expect(bare).toContain('type="source"');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          sourceNote: 'from a neighboring dialect',
+          usages: ['formal', 'child directed'],
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.usages).toBeUndefined();
+    expect(store[0]?.senses[0]?.sourceNote).toBe('from a neighboring dialect');
+    expect(store[0]?.senses[1]?.usages).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

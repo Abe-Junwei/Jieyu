@@ -82,6 +82,11 @@ export function LexiconSenseList({
               {sense.sourceNote}
             </span>
           ) : null}
+          {(sense.usages?.length ?? 0) > 0 ? (
+            <span data-testid={`lexicon-workspace-sense-${index}-usages`}>
+              {sense.usages?.join(' · ')}
+            </span>
+          ) : null}
           {(sense.examples ?? []).map((example, exampleIndex) => (
             <span
               key={`${readSenseId(sense)}-example-${exampleIndex}`}

@@ -17,6 +17,7 @@ export type LexiconEntryScalarField =
   | 'semanticsNote'
   | 'sociolinguisticsNote'
   | 'sourceNote'
+  | 'usages'
   | 'citationForm'
   | 'language'
   | 'notes'
@@ -51,6 +52,7 @@ export type LexiconSenseDraft = {
   semanticsNote?: string;
   sociolinguisticsNote?: string;
   sourceNote?: string;
+  usages?: string;
   examples?: LexiconExampleDraft[];
 };
 
@@ -73,6 +75,7 @@ export type LexiconEntryFields = {
   semanticsNote: string;
   sociolinguisticsNote: string;
   sourceNote: string;
+  usages: string;
   citationForm: string;
   language: string;
   notes: string;
@@ -148,6 +151,14 @@ export function semanticDomainsDraft(domains: unknown): string {
     .map((item) => item.trim())
     .filter((item) => item.length > 0)
     .join('\n');
+}
+
+export function readUsageLines(value: unknown): string[] {
+  return readSemanticDomainLines(value);
+}
+
+export function usagesDraft(usages: unknown): string {
+  return semanticDomainsDraft(usages);
 }
 
 export function exampleDraftsFromStored(examples: unknown): LexiconExampleDraft[] {
@@ -240,6 +251,7 @@ export function applyLexiconEntryFields(
   const semanticsNote = readCategory(fields.semanticsNote);
   const sociolinguisticsNote = readCategory(fields.sociolinguisticsNote);
   const sourceNote = readCategory(fields.sourceNote);
+  const usages = readUsageLines(fields.usages);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -286,6 +298,7 @@ export function applyLexiconEntryFields(
       semanticsNote: _oldSemanticsNote,
       sociolinguisticsNote: _oldSociolinguisticsNote,
       sourceNote: _oldSourceNote,
+      usages: _oldUsages,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -303,6 +316,7 @@ export function applyLexiconEntryFields(
     const senseSemanticsNote = readCategory(draft.semanticsNote);
     const senseSociolinguisticsNote = readCategory(draft.sociolinguisticsNote);
     const senseSourceNote = readCategory(draft.sourceNote);
+    const senseUsages = readUsageLines(draft.usages);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -325,6 +339,7 @@ export function applyLexiconEntryFields(
           ? { sociolinguisticsNote: senseSociolinguisticsNote }
           : {}),
         ...(senseSourceNote.length > 0 ? { sourceNote: senseSourceNote } : {}),
+        ...(senseUsages.length > 0 ? { usages: senseUsages } : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -357,6 +372,7 @@ export function applyLexiconEntryFields(
     semanticsNote: _oldPrimarySemanticsNote,
     sociolinguisticsNote: _oldPrimarySociolinguisticsNote,
     sourceNote: _oldPrimarySourceNote,
+    usages: _oldPrimaryUsages,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -402,6 +418,7 @@ export function applyLexiconEntryFields(
         ...(semanticsNote.length > 0 ? { semanticsNote } : {}),
         ...(sociolinguisticsNote.length > 0 ? { sociolinguisticsNote } : {}),
         ...(sourceNote.length > 0 ? { sourceNote } : {}),
+        ...(usages.length > 0 ? { usages } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,

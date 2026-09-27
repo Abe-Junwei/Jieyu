@@ -17,6 +17,7 @@ import {
   readPrimaryMultiLang,
   saveLexiconEntry,
   semanticDomainsDraft,
+  usagesDraft,
   withAddedExample,
   withExampleChange,
   withoutExample,
@@ -48,7 +49,8 @@ export type LexiconEntryEditController = {
       | 'phonologyNote'
       | 'semanticsNote'
       | 'sociolinguisticsNote'
-      | 'sourceNote',
+      | 'sourceNote'
+      | 'usages',
     value: string,
   ) => void;
   onExampleChange: (
@@ -145,6 +147,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
         : '',
     sourceNote:
       typeof lexeme?.senses[0]?.sourceNote === 'string' ? lexeme.senses[0].sourceNote.trim() : '',
+    usages: usagesDraft(lexeme?.senses[0]?.usages),
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -163,6 +166,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
       const parentId = readSenseParentId(sense);
       const examples = exampleDraftsFromStored(sense.examples);
       const semanticDomains = semanticDomainsDraft(sense.semanticDomains);
+      const usages = usagesDraft(sense.usages);
       return {
         ...draftIdFromNested(sense.id),
         ...(parentId.length > 0 ? { parentId } : {}),
@@ -200,6 +204,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
         ...(typeof sense.sourceNote === 'string' && sense.sourceNote.trim().length > 0
           ? { sourceNote: sense.sourceNote.trim() }
           : {}),
+        ...(usages.length > 0 ? { usages } : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };
     }),
