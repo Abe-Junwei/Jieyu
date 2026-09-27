@@ -15,7 +15,9 @@ export function isLexemeResource(doc: LexemeDocType): doc is LexemeResourceDoc {
 }
 
 export function isLexemeEntry(doc: LexemeDocType): doc is LexemeEntryDoc {
-  return doc.kind !== 'resource';
+  if (doc.kind === 'resource') return false;
+  const headword = (doc as { entry?: { headword?: unknown } }).entry?.headword;
+  return typeof headword === 'string' && headword.length > 0;
 }
 
 export function assignLexemeNestedIdsInPlace(lexeme: {

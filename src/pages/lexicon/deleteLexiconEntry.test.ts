@@ -22,6 +22,18 @@ describe('deleteLexiconEntry', () => {
     await expect(deleteLexiconEntry('  ')).rejects.toThrow(/empty lexeme id/);
   });
 
+  it('list skips a row that has no DMLex entry', async () => {
+    await db.lexemes.put({
+      id: 'old-dog',
+      lemma: { default: 'dog' },
+      senses: [{ gloss: { default: 'canine' } }],
+      createdAt: now,
+      updatedAt: now,
+    } as never);
+    const listed = await LinguisticService.lexemes.list();
+    expect(listed.map((row) => row.id)).not.toContain('old-dog');
+  });
+
   it('hard-deletes a lexeme, cascades links and unshared attachments, then list readback is empty', async () => {
     const deleted = vi.spyOn(workspaceEvents, 'dispatchWorkspaceLexemeDeleted');
 
