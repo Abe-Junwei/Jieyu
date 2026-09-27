@@ -823,6 +823,105 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.semanticDomains).toBeUndefined();
   });
 
+  it('reads a sense phonology note and ignores an entry-level note', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <note type="phonology"><form lang="en"><text>entry note</text></form></note>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <trait name="semantic-domain-ddp4" value="1.1 Sky"/>
+      <note><form lang="en"><text>general note</text></form></note>
+      <note type="phonology">
+        <form><text>nolang</text></form>
+        <form lang="en"><text>tone on the first syllable</text></form>
+      </note>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <note type="phonology"><form lang="en"><text>stress final</text></form></note>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('phonologyNote');
+    expect(parsed.lexemes[0]?.senses[0]?.phonologyNote).toBe('tone on the first syllable');
+    expect(parsed.lexemes[0]?.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('general note');
+    expect(parsed.lexemes[0]?.senses[1]?.phonologyNote).toBe('stress final');
+  });
+
+  it('round-trips sense phonology notes and drops them when the sense note is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            semanticDomains: ['1.1 Sky'],
+            phonologyNote: 'tone on the first syllable',
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            phonologyNote: 'stress final',
+          },
+        ],
+      },
+    ]);
+    const domainAt = xml!.indexOf('<trait name="semantic-domain-ddp4"');
+    const phonologyAt = xml!.indexOf('<note type="phonology">');
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(domainAt).toBeGreaterThanOrEqual(0);
+    expect(phonologyAt).toBeGreaterThan(domainAt);
+    expect(subsenseAt).toBeGreaterThan(phonologyAt);
+    expect(xml).toContain(
+      '<note type="phonology"><form lang="und"><text>tone on the first syllable</text></form></note>',
+    );
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.phonologyNote).toBe('tone on the first syllable');
+    expect(parsed.lexemes[0]?.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
+    expect(parsed.lexemes[0]?.senses[1]?.phonologyNote).toBe('stress final');
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, semanticDomains: ['1.1 Sky'] }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('type="phonology"');
+    expect(bare).toContain('semantic-domain-ddp4');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          semanticDomains: ['1.1 Sky'],
+          phonologyNote: 'tone on the first syllable',
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.phonologyNote).toBeUndefined();
+    expect(store[0]?.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
+    expect(store[0]?.senses[1]?.phonologyNote).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

@@ -190,6 +190,8 @@ export interface Sense {
   grammarNote?: string;
   /** LIFT sense `<trait name="semantic-domain-ddp4">` values, abbreviation plus name. */
   semanticDomains?: string[];
+  /** First LIFT sense `<note type="phonology"><form>` text. */
+  phonologyNote?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

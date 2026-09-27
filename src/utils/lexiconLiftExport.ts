@@ -131,10 +131,15 @@ function serializeSenseNode(
     .filter((domain) => domain.length > 0)
     .map((domain) => `<trait name="semantic-domain-ddp4" value="${escapeXml(domain)}"/>`)
     .join('');
+  const phonologyNote = sense.phonologyNote?.trim() ?? '';
+  const phonologyNoteXml =
+    phonologyNote.length > 0
+      ? `<note type="phonology">${xmlForm('und', phonologyNote)}</note>`
+      : '';
   const nested = liftSenseChildren(all, senseId)
     .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
     .join('');
-  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${nested}</${tag}>`;
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {

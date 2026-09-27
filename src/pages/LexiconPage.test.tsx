@@ -834,6 +834,30 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves a phonology note and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-semantic-domains'), {
+      target: { value: '1.1 Sky' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-phonology-note'), {
+      target: { value: 'tone on the first syllable' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.phonologyNote).toBe('tone on the first syllable');
+    expect(saved.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
+    expect(screen.getByTestId('lexicon-workspace-sense-0-phonology-note').textContent).toBe(
+      'tone on the first syllable',
+    );
+    expect(screen.getByTestId('lexicon-workspace-sense-0-semantic-domains').textContent).toBe(
+      '1.1 Sky',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

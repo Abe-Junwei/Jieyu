@@ -161,6 +161,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('semanticDomains', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.phonologyNoteLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-phonology-note"
+          value={editor.fields.phonologyNote}
+          onChange={(event) => editor.onFieldChange('phonologyNote', event.target.value)}
+        />
+      </label>
       <SenseExampleFields
         locale={locale}
         examples={editor.fields.examples}
@@ -277,6 +286,17 @@ export function LexiconEntryEditForm({ editor }: Props) {
                 value={sense.semanticDomains ?? ''}
                 onChange={(event) =>
                   editor.onExtraSenseChange(index, 'semanticDomains', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.sensePhonologyNoteLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-phonology-note`}
+                value={sense.phonologyNote ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'phonologyNote', event.target.value)
                 }
               />
             </label>

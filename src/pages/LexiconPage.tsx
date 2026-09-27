@@ -21,11 +21,11 @@ import { readOptionalListScrollTop } from '../utils/workspaceReturnDeepLink';
 import { LexiconAttachmentSection } from './LexiconAttachmentSection';
 import { LexiconEntryEditForm } from './lexicon/LexiconEntryEditForm';
 import { LexiconEntryOverview } from './lexicon/LexiconEntryOverview';
+import { LexiconSenseList } from './lexicon/LexiconSenseList';
 import { mergeLexemeIntoList } from './lexicon/saveLexiconEntry';
 import { useLexiconEntryEditController } from './useLexiconEntryEditController';
 import { exportLexemesAsLift } from '../utils/lexiconLiftExport';
 import { importLexemesFromLiftFile } from '../utils/lexiconLiftImport';
-import { readSenseId, senseDepth } from '../utils/lexemeSenseTree';
 
 const LEXICON_LIST_STATE_KEY = 'lexiconListState';
 
@@ -555,77 +555,10 @@ export function LexiconPage() {
                     title={t(locale, 'workspace.lexicon.sensesTitle')}
                   >
                     {selectedLexeme.senses.length > 0 ? (
-                      <ol className="lexicon-workspace-sense-list">
-                        {selectedLexeme.senses.map((sense, index) => (
-                          <li
-                            key={readSenseId(sense) || `${selectedLexeme.id}-sense-${index}`}
-                            className="lexicon-workspace-sense-item"
-                            data-depth={senseDepth(selectedLexeme.senses, readSenseId(sense))}
-                            data-testid={`lexicon-workspace-sense-${index}`}
-                          >
-                            <strong>
-                              {formatMultilang(sense.gloss) ||
-                                t(locale, 'workspace.lexicon.notSet')}
-                            </strong>
-                            {formatMultilang(sense.definition) ? (
-                              <p>{formatMultilang(sense.definition)}</p>
-                            ) : null}
-                            {sense.category ? (
-                              <span data-testid={`lexicon-workspace-sense-${index}-category`}>
-                                {sense.category}
-                              </span>
-                            ) : null}
-                            {sense.scientificName ? (
-                              <span
-                                data-testid={`lexicon-workspace-sense-${index}-scientific-name`}
-                              >
-                                {sense.scientificName}
-                              </span>
-                            ) : null}
-                            {sense.anthropologyNote ? (
-                              <span
-                                data-testid={`lexicon-workspace-sense-${index}-anthropology-note`}
-                              >
-                                {sense.anthropologyNote}
-                              </span>
-                            ) : null}
-                            {sense.discourseNote ? (
-                              <span data-testid={`lexicon-workspace-sense-${index}-discourse-note`}>
-                                {sense.discourseNote}
-                              </span>
-                            ) : null}
-                            {sense.encyclopedicNote ? (
-                              <span
-                                data-testid={`lexicon-workspace-sense-${index}-encyclopedic-note`}
-                              >
-                                {sense.encyclopedicNote}
-                              </span>
-                            ) : null}
-                            {sense.grammarNote ? (
-                              <span data-testid={`lexicon-workspace-sense-${index}-grammar-note`}>
-                                {sense.grammarNote}
-                              </span>
-                            ) : null}
-                            {(sense.semanticDomains?.length ?? 0) > 0 ? (
-                              <span
-                                data-testid={`lexicon-workspace-sense-${index}-semantic-domains`}
-                              >
-                                {sense.semanticDomains?.join(' · ')}
-                              </span>
-                            ) : null}
-                            {(sense.examples ?? []).map((example, exampleIndex) => (
-                              <span
-                                key={`${readSenseId(sense)}-example-${exampleIndex}`}
-                                data-testid={`lexicon-workspace-sense-${index}-example-${exampleIndex}`}
-                              >
-                                {example.translation
-                                  ? `${example.source} / ${example.translation}`
-                                  : example.source}
-                              </span>
-                            ))}
-                          </li>
-                        ))}
-                      </ol>
+                      <LexiconSenseList
+                        lexemeId={selectedLexeme.id}
+                        senses={selectedLexeme.senses}
+                      />
                     ) : (
                       <p className="lexicon-workspace-state">
                         {t(locale, 'workspace.lexicon.noSenses')}

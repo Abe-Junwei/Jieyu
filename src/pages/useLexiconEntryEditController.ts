@@ -44,7 +44,8 @@ export type LexiconEntryEditController = {
       | 'discourseNote'
       | 'encyclopedicNote'
       | 'grammarNote'
-      | 'semanticDomains',
+      | 'semanticDomains'
+      | 'phonologyNote',
     value: string,
   ) => void;
   onExampleChange: (
@@ -127,6 +128,10 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     grammarNote:
       typeof lexeme?.senses[0]?.grammarNote === 'string' ? lexeme.senses[0].grammarNote.trim() : '',
     semanticDomains: semanticDomainsDraft(lexeme?.senses[0]?.semanticDomains),
+    phonologyNote:
+      typeof lexeme?.senses[0]?.phonologyNote === 'string'
+        ? lexeme.senses[0].phonologyNote.trim()
+        : '',
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -169,6 +174,9 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
           ? { grammarNote: sense.grammarNote.trim() }
           : {}),
         ...(semanticDomains.length > 0 ? { semanticDomains } : {}),
+        ...(typeof sense.phonologyNote === 'string' && sense.phonologyNote.trim().length > 0
+          ? { phonologyNote: sense.phonologyNote.trim() }
+          : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };
     }),

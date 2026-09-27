@@ -13,6 +13,7 @@ export type LexiconEntryScalarField =
   | 'encyclopedicNote'
   | 'grammarNote'
   | 'semanticDomains'
+  | 'phonologyNote'
   | 'citationForm'
   | 'language'
   | 'notes'
@@ -43,6 +44,7 @@ export type LexiconSenseDraft = {
   encyclopedicNote?: string;
   grammarNote?: string;
   semanticDomains?: string;
+  phonologyNote?: string;
   examples?: LexiconExampleDraft[];
 };
 
@@ -61,6 +63,7 @@ export type LexiconEntryFields = {
   encyclopedicNote: string;
   grammarNote: string;
   semanticDomains: string;
+  phonologyNote: string;
   citationForm: string;
   language: string;
   notes: string;
@@ -224,6 +227,7 @@ export function applyLexiconEntryFields(
   const encyclopedicNote = readCategory(fields.encyclopedicNote);
   const grammarNote = readCategory(fields.grammarNote);
   const semanticDomains = readSemanticDomainLines(fields.semanticDomains);
+  const phonologyNote = readCategory(fields.phonologyNote);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -266,6 +270,7 @@ export function applyLexiconEntryFields(
       encyclopedicNote: _oldEncyclopedicNote,
       grammarNote: _oldGrammarNote,
       semanticDomains: _oldSemanticDomains,
+      phonologyNote: _oldPhonologyNote,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -279,6 +284,7 @@ export function applyLexiconEntryFields(
     const senseEncyclopedicNote = readCategory(draft.encyclopedicNote);
     const senseGrammarNote = readCategory(draft.grammarNote);
     const senseSemanticDomains = readSemanticDomainLines(draft.semanticDomains);
+    const sensePhonologyNote = readCategory(draft.phonologyNote);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -295,6 +301,7 @@ export function applyLexiconEntryFields(
         ...(senseEncyclopedicNote.length > 0 ? { encyclopedicNote: senseEncyclopedicNote } : {}),
         ...(senseGrammarNote.length > 0 ? { grammarNote: senseGrammarNote } : {}),
         ...(senseSemanticDomains.length > 0 ? { semanticDomains: senseSemanticDomains } : {}),
+        ...(sensePhonologyNote.length > 0 ? { phonologyNote: sensePhonologyNote } : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -323,6 +330,7 @@ export function applyLexiconEntryFields(
     encyclopedicNote: _oldPrimaryEncyclopedicNote,
     grammarNote: _oldPrimaryGrammarNote,
     semanticDomains: _oldPrimarySemanticDomains,
+    phonologyNote: _oldPrimaryPhonologyNote,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -364,6 +372,7 @@ export function applyLexiconEntryFields(
         ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
         ...(grammarNote.length > 0 ? { grammarNote } : {}),
         ...(semanticDomains.length > 0 ? { semanticDomains } : {}),
+        ...(phonologyNote.length > 0 ? { phonologyNote } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,

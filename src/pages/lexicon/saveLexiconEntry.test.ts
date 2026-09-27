@@ -25,6 +25,7 @@ function fields(
     encyclopedicNote: string;
     grammarNote: string;
     semanticDomains: string;
+    phonologyNote: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -48,6 +49,7 @@ function fields(
       encyclopedicNote?: string;
       grammarNote?: string;
       semanticDomains?: string;
+      phonologyNote?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -62,6 +64,7 @@ function fields(
     encyclopedicNote: '',
     grammarNote: '',
     semanticDomains: '',
+    phonologyNote: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -351,6 +354,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.semanticDomains).toBeUndefined();
     expect(cleared.senses[0]?.grammarNote).toBe('count noun');
     expect(cleared.senses[1]?.semanticDomains).toBeUndefined();
+  });
+
+  it('writes a trimmed phonology note on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        semanticDomains: '1.1 Sky',
+        phonologyNote: ' tone on the first syllable ',
+        extraSenses: [{ gloss: 'pet', definition: '', phonologyNote: ' stress final ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.phonologyNote).toBe('tone on the first syllable');
+    expect(created.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
+    expect(created.senses[1]?.phonologyNote).toBe('stress final');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        semanticDomains: '1.1 Sky',
+        phonologyNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', phonologyNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.phonologyNote).toBeUndefined();
+    expect(cleared.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
+    expect(cleared.senses[1]?.phonologyNote).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {
