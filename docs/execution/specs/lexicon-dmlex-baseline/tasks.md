@@ -22,9 +22,9 @@ depends_on:
 
 ## Pre-merge gates
 
-- [ ] `npm run typecheck`
-- [ ] 触及域 vitest
-- [ ] `npm run test:e2e:chromium`
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:docs-governance`
-- [ ] `npm run check:dev-agent-workflow-verify`
+- [x] `npm run typecheck`
+- [x] 触及域 vitest
+- [x] `npm run test:e2e:chromium` — 39 passed
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:docs-governance`
+- [x] `npm run check:dev-agent-workflow-verify`
