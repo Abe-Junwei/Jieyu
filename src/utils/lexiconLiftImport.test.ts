@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { importLexemesFromLiftXml, parseLiftXml } from './lexiconLiftImport';
 import { serializeLexemesToLift } from './lexiconLiftExport';
