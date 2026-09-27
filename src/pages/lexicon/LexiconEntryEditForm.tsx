@@ -218,6 +218,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
         onChange={(reversals) => editor.onReversalsChange('primary', reversals)}
       />
       <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.senseBibliographyLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-sense-bibliography"
+          value={editor.fields.senseBibliography}
+          onChange={(event) => editor.onFieldChange('senseBibliography', event.target.value)}
+        />
+      </label>
+      <label className="lexicon-entry-edit-field">
         <span>{t(locale, 'workspace.lexicon.edit.importResidueLabel')}</span>
         <input
           className="input lexicon-entry-edit-input"

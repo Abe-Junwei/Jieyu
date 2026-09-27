@@ -123,6 +123,11 @@ export function LexiconSenseList({
               {sense.importResidue}
             </span>
           ) : null}
+          {sense.senseBibliography ? (
+            <span data-testid={`lexicon-workspace-sense-${index}-sense-bibliography`}>
+              {sense.senseBibliography}
+            </span>
+          ) : null}
           {(sense.reversals ?? []).map((reversal, reversalIndex) => (
             <span
               key={`${readSenseId(sense)}-reversal-${reversalIndex}`}

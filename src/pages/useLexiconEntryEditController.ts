@@ -46,6 +46,7 @@ export type LexiconEntryEditController = {
       | 'category'
       | 'scientificName'
       | 'anthropologyNote'
+      | 'senseBibliography'
       | 'discourseNote'
       | 'encyclopedicNote'
       | 'grammarNote'
@@ -134,6 +135,10 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
       typeof lexeme?.senses[0]?.anthropologyNote === 'string'
         ? lexeme.senses[0].anthropologyNote.trim()
         : '',
+    senseBibliography:
+      typeof lexeme?.senses[0]?.senseBibliography === 'string'
+        ? lexeme.senses[0].senseBibliography.trim()
+        : '',
     discourseNote:
       typeof lexeme?.senses[0]?.discourseNote === 'string'
         ? lexeme.senses[0].discourseNote.trim()
@@ -212,6 +217,9 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
           : {}),
         ...(typeof sense.anthropologyNote === 'string' && sense.anthropologyNote.trim().length > 0
           ? { anthropologyNote: sense.anthropologyNote.trim() }
+          : {}),
+        ...(typeof sense.senseBibliography === 'string' && sense.senseBibliography.trim().length > 0
+          ? { senseBibliography: sense.senseBibliography.trim() }
           : {}),
         ...(typeof sense.discourseNote === 'string' && sense.discourseNote.trim().length > 0
           ? { discourseNote: sense.discourseNote.trim() }

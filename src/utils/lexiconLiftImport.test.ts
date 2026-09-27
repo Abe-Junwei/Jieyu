@@ -2141,6 +2141,122 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.reversals).toBeUndefined();
   });
 
+  it('reads a sense bibliography note and leaves the entry note alone', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <note type="bibliography"><form lang="en"><text>Smith 1990</text></form></note>
+    <note><form lang="en"><text>general</text></form></note>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <note type="anthropology"><form lang="en"><text>kept at home</text></form></note>
+      <note><form lang="en"><text>sense general</text></form></note>
+      <note type="bibliography">
+        <form><text>nolang</text></form>
+        <form lang="en"><text>sense source</text></form>
+      </note>
+      <note type="bibliography"><form lang="en"><text>dropped</text></form></note>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <note type="bibliography"><form lang="en"><text>pet source</text></form></note>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.bibliography).toBe('Smith 1990');
+    expect(parsed.lexemes[0]).not.toHaveProperty('senseBibliography');
+    expect(parsed.lexemes[0]?.senses[0]?.senseBibliography).toBe('sense source');
+    expect(parsed.lexemes[0]?.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('sense general');
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('dropped');
+    expect(parsed.lexemes[0]?.senses[1]?.senseBibliography).toBe('pet source');
+  });
+
+  it('round-trips a sense bibliography note and drops it when the note is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        bibliography: 'Smith 1990',
+        senses: [
+          {
+            ...dog.senses[0]!,
+            anthropologyNote: 'kept at home',
+            senseBibliography: 'sense & source',
+            discourseNote: 'narrative use',
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            senseBibliography: 'pet source',
+          },
+        ],
+      },
+    ]);
+    const senseAt = xml!.indexOf('<sense');
+    const anthroAt = xml!.indexOf('<note type="anthropology"', senseAt);
+    const bibAt = xml!.indexOf('<note type="bibliography"', senseAt);
+    const discourseAt = xml!.indexOf('<note type="discourse"', senseAt);
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(xml!.indexOf('<note type="bibliography"')).toBeLessThan(senseAt);
+    expect(anthroAt).toBeGreaterThanOrEqual(0);
+    expect(bibAt).toBeGreaterThan(anthroAt);
+    expect(discourseAt).toBeGreaterThan(bibAt);
+    expect(subsenseAt).toBeGreaterThan(bibAt);
+    expect(xml).toContain(
+      '<note type="bibliography"><form lang="und"><text>sense &amp; source</text></form></note>',
+    );
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.bibliography).toBe('Smith 1990');
+    expect(parsed.lexemes[0]?.senses[0]?.senseBibliography).toBe('sense & source');
+    expect(parsed.lexemes[0]?.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(parsed.lexemes[0]?.senses[0]?.discourseNote).toBe('narrative use');
+    expect(parsed.lexemes[0]?.senses[1]?.senseBibliography).toBe('pet source');
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        bibliography: 'Smith 1990',
+        senses: [{ ...dog.senses[0]!, anthropologyNote: 'kept at home' }, dog.senses[1]!],
+      },
+    ]);
+    const bareSenseAt = bare!.indexOf('<sense');
+    expect(bare!.indexOf('<note type="bibliography"', bareSenseAt)).toBe(-1);
+    expect(bare).toContain('Smith 1990');
+    expect(bare).toContain('type="anthropology"');
+    const existing: LexemeDocType = {
+      ...dog,
+      bibliography: 'Smith 1990',
+      senses: [
+        {
+          ...dog.senses[0]!,
+          anthropologyNote: 'kept at home',
+          senseBibliography: 'sense source',
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.bibliography).toBe('Smith 1990');
+    expect(store[0]?.senses[0]?.senseBibliography).toBeUndefined();
+    expect(store[0]?.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(store[0]?.senses[1]?.senseBibliography).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

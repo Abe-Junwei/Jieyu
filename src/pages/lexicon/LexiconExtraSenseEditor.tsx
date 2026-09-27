@@ -253,6 +253,17 @@ export function LexiconExtraSenseEditor({
             onChange={(reversals) => editor.onReversalsChange(index, reversals)}
           />
           <label className="lexicon-entry-edit-field">
+            <span>{t(locale, 'workspace.lexicon.edit.senseSenseBibliographyLabel')}</span>
+            <input
+              className="input lexicon-entry-edit-input"
+              data-testid={`lexicon-entry-extra-sense-${index}-sense-bibliography`}
+              value={sense.senseBibliography ?? ''}
+              onChange={(event) =>
+                editor.onExtraSenseChange(index, 'senseBibliography', event.target.value)
+              }
+            />
+          </label>
+          <label className="lexicon-entry-edit-field">
             <span>{t(locale, 'workspace.lexicon.edit.senseImportResidueLabel')}</span>
             <input
               className="input lexicon-entry-edit-input"

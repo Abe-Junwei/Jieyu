@@ -21,6 +21,7 @@ function fields(
     category: string;
     scientificName: string;
     anthropologyNote: string;
+    senseBibliography: string;
     discourseNote: string;
     encyclopedicNote: string;
     grammarNote: string;
@@ -61,6 +62,7 @@ function fields(
       category?: string;
       scientificName?: string;
       anthropologyNote?: string;
+      senseBibliography?: string;
       discourseNote?: string;
       encyclopedicNote?: string;
       grammarNote?: string;
@@ -92,6 +94,7 @@ function fields(
     category: '',
     scientificName: '',
     anthropologyNote: '',
+    senseBibliography: '',
     discourseNote: '',
     encyclopedicNote: '',
     grammarNote: '',
@@ -262,6 +265,44 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.anthropologyNote).toBeUndefined();
     expect(cleared.senses[0]?.scientificName).toBe('Canis familiaris');
     expect(cleared.senses[1]?.anthropologyNote).toBeUndefined();
+  });
+
+  it('writes a trimmed sense bibliography and keeps the anthropology note and entry bibliography', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        bibliography: ' Smith 1990 ',
+        anthropologyNote: 'kept at home',
+        senseBibliography: ' sense source ',
+        extraSenses: [{ gloss: 'pet', definition: '', senseBibliography: ' pet source ' }],
+      }),
+      now,
+    );
+    expect(created.bibliography).toBe('Smith 1990');
+    expect(created.senses[0]?.senseBibliography).toBe('sense source');
+    expect(created.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(created.senses[1]?.senseBibliography).toBe('pet source');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        bibliography: 'Smith 1990',
+        anthropologyNote: 'kept at home',
+        senseBibliography: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', senseBibliography: '' }],
+      }),
+      now,
+    );
+    expect(cleared.bibliography).toBe('Smith 1990');
+    expect(cleared.senses[0]?.senseBibliography).toBeUndefined();
+    expect(cleared.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(cleared.senses[1]?.senseBibliography).toBeUndefined();
   });
 
   it('writes a trimmed discourse note on the primary and extra sense', () => {

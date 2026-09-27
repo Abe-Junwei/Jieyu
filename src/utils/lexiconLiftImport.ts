@@ -132,6 +132,7 @@ function parseSense(
   const examples = parseExamples(sense);
   const scientificName = parseFieldText(sense, 'scientific-name');
   const anthropologyNote = parseTypedNote(sense, 'anthropology');
+  const senseBibliography = parseTypedNote(sense, 'bibliography');
   const discourseNote = parseTypedNote(sense, 'discourse');
   const encyclopedicNote = parseTypedNote(sense, 'encyclopedic');
   const grammarNote = parseTypedNote(sense, 'grammar');
@@ -156,6 +157,7 @@ function parseSense(
     ...(category.length > 0 ? { category } : {}),
     ...(scientificName.length > 0 ? { scientificName } : {}),
     ...(anthropologyNote.length > 0 ? { anthropologyNote } : {}),
+    ...(senseBibliography.length > 0 ? { senseBibliography } : {}),
     ...(discourseNote.length > 0 ? { discourseNote } : {}),
     ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
     ...(grammarNote.length > 0 ? { grammarNote } : {}),

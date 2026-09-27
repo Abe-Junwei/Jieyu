@@ -10,6 +10,7 @@ export type LexiconEntryScalarField =
   | 'category'
   | 'scientificName'
   | 'anthropologyNote'
+  | 'senseBibliography'
   | 'discourseNote'
   | 'encyclopedicNote'
   | 'grammarNote'
@@ -52,6 +53,7 @@ export type LexiconSenseDraft = {
   category?: string;
   scientificName?: string;
   anthropologyNote?: string;
+  senseBibliography?: string;
   discourseNote?: string;
   encyclopedicNote?: string;
   grammarNote?: string;
@@ -83,6 +85,7 @@ export type LexiconEntryFields = {
   category: string;
   scientificName: string;
   anthropologyNote: string;
+  senseBibliography: string;
   discourseNote: string;
   encyclopedicNote: string;
   grammarNote: string;
@@ -291,6 +294,7 @@ export function applyLexiconEntryFields(
   const category = readCategory(fields.category);
   const scientificName = readCategory(fields.scientificName);
   const anthropologyNote = readCategory(fields.anthropologyNote);
+  const senseBibliography = readCategory(fields.senseBibliography);
   const discourseNote = readCategory(fields.discourseNote);
   const encyclopedicNote = readCategory(fields.encyclopedicNote);
   const grammarNote = readCategory(fields.grammarNote);
@@ -346,6 +350,7 @@ export function applyLexiconEntryFields(
       category: _oldCategory,
       scientificName: _oldScientificName,
       anthropologyNote: _oldAnthropologyNote,
+      senseBibliography: _oldSenseBibliography,
       discourseNote: _oldDiscourseNote,
       encyclopedicNote: _oldEncyclopedicNote,
       grammarNote: _oldGrammarNote,
@@ -372,6 +377,7 @@ export function applyLexiconEntryFields(
     const senseCategory = readCategory(draft.category);
     const senseScientificName = readCategory(draft.scientificName);
     const senseAnthropologyNote = readCategory(draft.anthropologyNote);
+    const extraSenseBibliography = readCategory(draft.senseBibliography);
     const senseDiscourseNote = readCategory(draft.discourseNote);
     const senseEncyclopedicNote = readCategory(draft.encyclopedicNote);
     const senseGrammarNote = readCategory(draft.grammarNote);
@@ -401,6 +407,7 @@ export function applyLexiconEntryFields(
         ...(senseCategory.length > 0 ? { category: senseCategory } : {}),
         ...(senseScientificName.length > 0 ? { scientificName: senseScientificName } : {}),
         ...(senseAnthropologyNote.length > 0 ? { anthropologyNote: senseAnthropologyNote } : {}),
+        ...(extraSenseBibliography.length > 0 ? { senseBibliography: extraSenseBibliography } : {}),
         ...(senseDiscourseNote.length > 0 ? { discourseNote: senseDiscourseNote } : {}),
         ...(senseEncyclopedicNote.length > 0 ? { encyclopedicNote: senseEncyclopedicNote } : {}),
         ...(senseGrammarNote.length > 0 ? { grammarNote: senseGrammarNote } : {}),
@@ -446,6 +453,7 @@ export function applyLexiconEntryFields(
     category: _oldPrimaryCategory,
     scientificName: _oldPrimaryScientificName,
     anthropologyNote: _oldPrimaryAnthropologyNote,
+    senseBibliography: _oldPrimarySenseBibliography,
     discourseNote: _oldPrimaryDiscourseNote,
     encyclopedicNote: _oldPrimaryEncyclopedicNote,
     grammarNote: _oldPrimaryGrammarNote,
@@ -500,6 +508,7 @@ export function applyLexiconEntryFields(
         ...(category.length > 0 ? { category } : {}),
         ...(scientificName.length > 0 ? { scientificName } : {}),
         ...(anthropologyNote.length > 0 ? { anthropologyNote } : {}),
+        ...(senseBibliography.length > 0 ? { senseBibliography } : {}),
         ...(discourseNote.length > 0 ? { discourseNote } : {}),
         ...(encyclopedicNote.length > 0 ? { encyclopedicNote } : {}),
         ...(grammarNote.length > 0 ? { grammarNote } : {}),

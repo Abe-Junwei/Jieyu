@@ -204,6 +204,7 @@ const lexemeDocSchema = z.object({
           category: z.string().optional(),
           scientificName: z.string().optional(),
           anthropologyNote: z.string().optional(),
+          senseBibliography: z.string().optional(),
           discourseNote: z.string().optional(),
           encyclopedicNote: z.string().optional(),
           grammarNote: z.string().optional(),

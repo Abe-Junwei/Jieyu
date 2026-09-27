@@ -1158,6 +1158,30 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves sense bibliography and shows it on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-anthropology-note'), {
+      target: { value: 'kept at home' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-sense-bibliography'), {
+      target: { value: 'Smith 1990' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.senseBibliography).toBe('Smith 1990');
+    expect(saved.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(screen.getByTestId('lexicon-workspace-sense-0-sense-bibliography').textContent).toBe(
+      'Smith 1990',
+    );
+    expect(screen.getByTestId('lexicon-workspace-sense-0-anthropology-note').textContent).toBe(
+      'kept at home',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');
