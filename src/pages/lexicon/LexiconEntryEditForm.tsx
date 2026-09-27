@@ -170,6 +170,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('phonologyNote', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.semanticsNoteLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-semantics-note"
+          value={editor.fields.semanticsNote}
+          onChange={(event) => editor.onFieldChange('semanticsNote', event.target.value)}
+        />
+      </label>
       <SenseExampleFields
         locale={locale}
         examples={editor.fields.examples}
@@ -297,6 +306,17 @@ export function LexiconEntryEditForm({ editor }: Props) {
                 value={sense.phonologyNote ?? ''}
                 onChange={(event) =>
                   editor.onExtraSenseChange(index, 'phonologyNote', event.target.value)
+                }
+              />
+            </label>
+            <label className="lexicon-entry-edit-field">
+              <span>{t(locale, 'workspace.lexicon.edit.senseSemanticsNoteLabel')}</span>
+              <input
+                className="input lexicon-entry-edit-input"
+                data-testid={`lexicon-entry-extra-sense-${index}-semantics-note`}
+                value={sense.semanticsNote ?? ''}
+                onChange={(event) =>
+                  editor.onExtraSenseChange(index, 'semanticsNote', event.target.value)
                 }
               />
             </label>

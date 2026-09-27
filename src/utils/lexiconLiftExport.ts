@@ -136,10 +136,15 @@ function serializeSenseNode(
     phonologyNote.length > 0
       ? `<note type="phonology">${xmlForm('und', phonologyNote)}</note>`
       : '';
+  const semanticsNote = sense.semanticsNote?.trim() ?? '';
+  const semanticsNoteXml =
+    semanticsNote.length > 0
+      ? `<note type="semantics">${xmlForm('und', semanticsNote)}</note>`
+      : '';
   const nested = liftSenseChildren(all, senseId)
     .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
     .join('');
-  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${nested}</${tag}>`;
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${semanticsNoteXml}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {

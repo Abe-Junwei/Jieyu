@@ -192,6 +192,8 @@ export interface Sense {
   semanticDomains?: string[];
   /** First LIFT sense `<note type="phonology"><form>` text. */
   phonologyNote?: string;
+  /** First LIFT sense `<note type="semantics"><form>` text. */
+  semanticsNote?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

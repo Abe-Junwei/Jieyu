@@ -67,6 +67,11 @@ export function LexiconSenseList({
               {sense.phonologyNote}
             </span>
           ) : null}
+          {sense.semanticsNote ? (
+            <span data-testid={`lexicon-workspace-sense-${index}-semantics-note`}>
+              {sense.semanticsNote}
+            </span>
+          ) : null}
           {(sense.examples ?? []).map((example, exampleIndex) => (
             <span
               key={`${readSenseId(sense)}-example-${exampleIndex}`}

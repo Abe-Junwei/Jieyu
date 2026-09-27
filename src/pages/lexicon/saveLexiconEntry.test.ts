@@ -26,6 +26,7 @@ function fields(
     grammarNote: string;
     semanticDomains: string;
     phonologyNote: string;
+    semanticsNote: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -50,6 +51,7 @@ function fields(
       grammarNote?: string;
       semanticDomains?: string;
       phonologyNote?: string;
+      semanticsNote?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -65,6 +67,7 @@ function fields(
     grammarNote: '',
     semanticDomains: '',
     phonologyNote: '',
+    semanticsNote: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -388,6 +391,40 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.phonologyNote).toBeUndefined();
     expect(cleared.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
     expect(cleared.senses[1]?.phonologyNote).toBeUndefined();
+  });
+
+  it('writes a trimmed semantics note on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        phonologyNote: 'tone on the first syllable',
+        semanticsNote: ' narrows to the daytime sky ',
+        extraSenses: [{ gloss: 'pet', definition: '', semanticsNote: ' companion animal ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
+    expect(created.senses[0]?.phonologyNote).toBe('tone on the first syllable');
+    expect(created.senses[1]?.semanticsNote).toBe('companion animal');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        phonologyNote: 'tone on the first syllable',
+        semanticsNote: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', semanticsNote: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.semanticsNote).toBeUndefined();
+    expect(cleared.senses[0]?.phonologyNote).toBe('tone on the first syllable');
+    expect(cleared.senses[1]?.semanticsNote).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

@@ -137,6 +137,7 @@ function parseSense(
   const grammarNote = parseTypedNote(sense, 'grammar');
   const semanticDomains = parseSemanticDomains(sense);
   const phonologyNote = parseTypedNote(sense, 'phonology');
+  const semanticsNote = parseTypedNote(sense, 'semantics');
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -149,6 +150,7 @@ function parseSense(
     ...(grammarNote.length > 0 ? { grammarNote } : {}),
     ...(semanticDomains.length > 0 ? { semanticDomains } : {}),
     ...(phonologyNote.length > 0 ? { phonologyNote } : {}),
+    ...(semanticsNote.length > 0 ? { semanticsNote } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }

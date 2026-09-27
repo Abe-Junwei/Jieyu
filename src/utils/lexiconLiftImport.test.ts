@@ -922,6 +922,110 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.phonologyNote).toBeUndefined();
   });
 
+  it('reads a sense semantics note and ignores an entry-level note', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <note type="semantics"><form lang="en"><text>entry note</text></form></note>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <note type="phonology"><form lang="en"><text>tone on the first syllable</text></form></note>
+      <note><form lang="en"><text>general note</text></form></note>
+      <trait name="semantic-domain-ddp4" value="1.1 Sky"/>
+      <note type="semantics">
+        <form><text>nolang</text></form>
+        <form lang="en"><text>narrows to the daytime sky</text></form>
+      </note>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <note type="semantics"><form lang="en"><text>companion animal</text></form></note>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('semanticsNote');
+    expect(parsed.lexemes[0]?.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
+    expect(parsed.lexemes[0]?.senses[0]?.phonologyNote).toBe('tone on the first syllable');
+    expect(parsed.lexemes[0]?.senses[0]?.semanticDomains).toEqual(['1.1 Sky']);
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('general note');
+    expect(parsed.lexemes[0]?.senses[1]?.semanticsNote).toBe('companion animal');
+  });
+
+  it('round-trips sense semantics notes and drops them when the sense note is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            phonologyNote: 'tone on the first syllable',
+            semanticsNote: 'narrows to the daytime sky',
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            semanticsNote: 'companion animal',
+          },
+        ],
+      },
+    ]);
+    const phonologyAt = xml!.indexOf('<note type="phonology">');
+    const semanticsAt = xml!.indexOf('<note type="semantics">');
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(phonologyAt).toBeGreaterThanOrEqual(0);
+    expect(semanticsAt).toBeGreaterThan(phonologyAt);
+    expect(subsenseAt).toBeGreaterThan(semanticsAt);
+    expect(xml).toContain(
+      '<note type="semantics"><form lang="und"><text>narrows to the daytime sky</text></form></note>',
+    );
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.semanticsNote).toBe('narrows to the daytime sky');
+    expect(parsed.lexemes[0]?.senses[0]?.phonologyNote).toBe('tone on the first syllable');
+    expect(parsed.lexemes[0]?.senses[1]?.semanticsNote).toBe('companion animal');
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          { ...dog.senses[0]!, phonologyNote: 'tone on the first syllable' },
+          dog.senses[1]!,
+        ],
+      },
+    ]);
+    expect(bare).not.toContain('type="semantics"');
+    expect(bare).toContain('type="phonology"');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          phonologyNote: 'tone on the first syllable',
+          semanticsNote: 'narrows to the daytime sky',
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.semanticsNote).toBeUndefined();
+    expect(store[0]?.senses[0]?.phonologyNote).toBe('tone on the first syllable');
+    expect(store[0]?.senses[1]?.semanticsNote).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">
