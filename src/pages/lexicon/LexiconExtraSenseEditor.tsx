@@ -234,6 +234,17 @@ export function LexiconExtraSenseEditor({
             />
           </label>
           <label className="lexicon-entry-edit-field">
+            <span>{t(locale, 'workspace.lexicon.edit.senseSenseRestrictionsLabel')}</span>
+            <input
+              className="input lexicon-entry-edit-input"
+              data-testid={`lexicon-entry-extra-sense-${index}-sense-restrictions`}
+              value={sense.senseRestrictions ?? ''}
+              onChange={(event) =>
+                editor.onExtraSenseChange(index, 'senseRestrictions', event.target.value)
+              }
+            />
+          </label>
+          <label className="lexicon-entry-edit-field">
             <span>{t(locale, 'workspace.lexicon.edit.senseDefinitionLabel')}</span>
             <input
               className="input lexicon-entry-edit-input"

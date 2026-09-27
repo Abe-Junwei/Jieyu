@@ -1810,6 +1810,113 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.dialectLabels).toBeUndefined();
   });
 
+  it('reads a sense restrictions note and leaves the entry note alone', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <note type="restrictions"><form lang="en"><text>secret</text></form></note>
+    <note><form lang="en"><text>general</text></form></note>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <trait name="dialect-labels" value="northern"/>
+      <note><form lang="en"><text>sense general</text></form></note>
+      <note type="restrictions"><form lang="en"><text>not used with elders</text></form></note>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <note type="restrictions"><form lang="en"><text>avoid in ritual</text></form></note>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.restrictions).toBe('secret');
+    expect(parsed.lexemes[0]).not.toHaveProperty('senseRestrictions');
+    expect(parsed.lexemes[0]?.senses[0]?.senseRestrictions).toBe('not used with elders');
+    expect(parsed.lexemes[0]?.senses[0]?.dialectLabels).toEqual(['northern']);
+    expect(JSON.stringify(parsed.lexemes[0]?.senses[0])).not.toContain('sense general');
+    expect(parsed.lexemes[0]?.senses[1]?.senseRestrictions).toBe('avoid in ritual');
+  });
+
+  it('round-trips a sense restrictions note and drops it when the note is omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        restrictions: 'secret',
+        senses: [
+          {
+            ...dog.senses[0]!,
+            dialectLabels: ['northern'],
+            senseRestrictions: 'not used & sacred',
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            senseRestrictions: 'avoid in ritual',
+          },
+        ],
+      },
+    ]);
+    const senseAt = xml!.indexOf('<sense');
+    const labelAt = xml!.indexOf('<trait name="dialect-labels"', senseAt);
+    const noteAt = xml!.indexOf('<note type="restrictions"', senseAt);
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(xml!.indexOf('<note type="restrictions"')).toBeLessThan(senseAt);
+    expect(labelAt).toBeGreaterThanOrEqual(0);
+    expect(noteAt).toBeGreaterThan(labelAt);
+    expect(subsenseAt).toBeGreaterThan(noteAt);
+    expect(xml).toContain(
+      '<note type="restrictions"><form lang="und"><text>not used &amp; sacred</text></form></note>',
+    );
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.restrictions).toBe('secret');
+    expect(parsed.lexemes[0]?.senses[0]?.senseRestrictions).toBe('not used & sacred');
+    expect(parsed.lexemes[0]?.senses[0]?.dialectLabels).toEqual(['northern']);
+    expect(parsed.lexemes[0]?.senses[1]?.senseRestrictions).toBe('avoid in ritual');
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        restrictions: 'secret',
+        senses: [{ ...dog.senses[0]!, dialectLabels: ['northern'] }, dog.senses[1]!],
+      },
+    ]);
+    const bareSenseAt = bare!.indexOf('<sense');
+    expect(bare!.indexOf('<note type="restrictions"', bareSenseAt)).toBe(-1);
+    expect(bare).toContain('secret');
+    expect(bare).toContain('dialect-labels');
+    const existing: LexemeDocType = {
+      ...dog,
+      restrictions: 'secret',
+      senses: [
+        {
+          ...dog.senses[0]!,
+          dialectLabels: ['northern'],
+          senseRestrictions: 'not used with elders',
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.restrictions).toBe('secret');
+    expect(store[0]?.senses[0]?.senseRestrictions).toBeUndefined();
+    expect(store[0]?.senses[0]?.dialectLabels).toEqual(['northern']);
+    expect(store[0]?.senses[1]?.senseRestrictions).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

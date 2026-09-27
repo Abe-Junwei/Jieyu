@@ -210,6 +210,8 @@ export interface Sense {
   senseStatus?: string;
   /** LIFT sense `<trait name="dialect-labels">` values. */
   dialectLabels?: string[];
+  /** First LIFT sense `<note type="restrictions"><form>` text. */
+  senseRestrictions?: string;
   parentId?: string;
   examples?: SenseExample[];
   [key: string]: unknown;

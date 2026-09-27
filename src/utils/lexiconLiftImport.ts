@@ -146,6 +146,7 @@ function parseSense(
   const anthropologyCategories = parseAnthropologyCategories(sense);
   const senseStatus = parseTraitValue(sense, 'status');
   const dialectLabels = parseDialectLabels(sense);
+  const senseRestrictions = parseTypedNote(sense, 'restrictions');
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -167,6 +168,7 @@ function parseSense(
     ...(anthropologyCategories.length > 0 ? { anthropologyCategories } : {}),
     ...(senseStatus.length > 0 ? { senseStatus } : {}),
     ...(dialectLabels.length > 0 ? { dialectLabels } : {}),
+    ...(senseRestrictions.length > 0 ? { senseRestrictions } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }

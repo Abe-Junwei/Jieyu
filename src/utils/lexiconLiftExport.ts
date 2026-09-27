@@ -175,10 +175,15 @@ function serializeSenseNode(
     .filter((label) => label.length > 0)
     .map((label) => `<trait name="dialect-labels" value="${escapeXml(label)}"/>`)
     .join('');
+  const senseRestrictions = sense.senseRestrictions?.trim() ?? '';
+  const senseRestrictionsXml =
+    senseRestrictions.length > 0
+      ? `<note type="restrictions">${xmlForm('und', senseRestrictions)}</note>`
+      : '';
   const nested = liftSenseChildren(all, senseId)
     .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
     .join('');
-  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${semanticsNoteXml}${sociolinguisticsNoteXml}${sourceNoteXml}${usageXml}${senseTypeXml}${academicDomainXml}${anthropologyCategoryXml}${senseStatusXml}${dialectLabelXml}${nested}</${tag}>`;
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${semanticsNoteXml}${sociolinguisticsNoteXml}${sourceNoteXml}${usageXml}${senseTypeXml}${academicDomainXml}${anthropologyCategoryXml}${senseStatusXml}${dialectLabelXml}${senseRestrictionsXml}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {

@@ -200,6 +200,15 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('dialectLabels', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.senseRestrictionsLabel')}</span>
+        <input
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-sense-restrictions"
+          value={editor.fields.senseRestrictions}
+          onChange={(event) => editor.onFieldChange('senseRestrictions', event.target.value)}
+        />
+      </label>
       <LexiconSenseExampleFields
         locale={locale}
         examples={editor.fields.examples}

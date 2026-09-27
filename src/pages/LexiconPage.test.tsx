@@ -1072,6 +1072,30 @@ describe('LexiconPage', () => {
     );
   });
 
+  it('saves sense restrictions and shows them on the primary sense', async () => {
+    renderLexiconPage();
+    await screen.findByTestId('lexicon-entry-edit');
+    fireEvent.change(screen.getByTestId('lexicon-entry-dialect-labels'), {
+      target: { value: 'northern' },
+    });
+    fireEvent.change(screen.getByTestId('lexicon-entry-sense-restrictions'), {
+      target: { value: 'not used with elders' },
+    });
+    fireEvent.click(screen.getByTestId('lexicon-entry-save'));
+    await waitFor(() => {
+      expect(mockSaveLexeme).toHaveBeenCalled();
+    });
+    const saved = mockSaveLexeme.mock.calls[0]?.[0] as LexemeDocType;
+    expect(saved.senses[0]?.senseRestrictions).toBe('not used with elders');
+    expect(saved.senses[0]?.dialectLabels).toEqual(['northern']);
+    expect(screen.getByTestId('lexicon-workspace-sense-0-sense-restrictions').textContent).toBe(
+      'not used with elders',
+    );
+    expect(screen.getByTestId('lexicon-workspace-sense-0-dialect-labels').textContent).toBe(
+      'northern',
+    );
+  });
+
   it('saves a subsense under the primary gloss with parentId', async () => {
     renderLexiconPage();
     await screen.findByTestId('lexicon-entry-edit');

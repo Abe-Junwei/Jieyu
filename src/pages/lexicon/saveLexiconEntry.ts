@@ -23,6 +23,7 @@ export type LexiconEntryScalarField =
   | 'anthropologyCategories'
   | 'senseStatus'
   | 'dialectLabels'
+  | 'senseRestrictions'
   | 'citationForm'
   | 'language'
   | 'notes'
@@ -63,6 +64,7 @@ export type LexiconSenseDraft = {
   anthropologyCategories?: string;
   senseStatus?: string;
   dialectLabels?: string;
+  senseRestrictions?: string;
   examples?: LexiconExampleDraft[];
 };
 
@@ -91,6 +93,7 @@ export type LexiconEntryFields = {
   anthropologyCategories: string;
   senseStatus: string;
   dialectLabels: string;
+  senseRestrictions: string;
   citationForm: string;
   language: string;
   notes: string;
@@ -296,6 +299,7 @@ export function applyLexiconEntryFields(
   const anthropologyCategories = readAnthropologyCategoryLines(fields.anthropologyCategories);
   const senseStatus = readCategory(fields.senseStatus);
   const dialectLabels = readDialectLabelLines(fields.dialectLabels);
+  const senseRestrictions = readCategory(fields.senseRestrictions);
   const citationForm = fields.citationForm.trim();
   const language = fields.language.trim();
   const notes = fields.notes.trim();
@@ -348,6 +352,7 @@ export function applyLexiconEntryFields(
       anthropologyCategories: _oldAnthropologyCategories,
       senseStatus: _oldSenseStatus,
       dialectLabels: _oldDialectLabels,
+      senseRestrictions: _oldSenseRestrictions,
       examples: _oldExamples,
       ...previousRest
     } = previous ?? {
@@ -371,6 +376,7 @@ export function applyLexiconEntryFields(
     const senseAnthropologyCategories = readAnthropologyCategoryLines(draft.anthropologyCategories);
     const extraSenseStatus = readCategory(draft.senseStatus);
     const senseDialectLabels = readDialectLabelLines(draft.dialectLabels);
+    const extraSenseRestrictions = readCategory(draft.senseRestrictions);
     const senseExamples = exampleDraftsFromStored(draft.examples);
     return [
       {
@@ -401,6 +407,7 @@ export function applyLexiconEntryFields(
           : {}),
         ...(extraSenseStatus.length > 0 ? { senseStatus: extraSenseStatus } : {}),
         ...(senseDialectLabels.length > 0 ? { dialectLabels: senseDialectLabels } : {}),
+        ...(extraSenseRestrictions.length > 0 ? { senseRestrictions: extraSenseRestrictions } : {}),
         ...(senseExamples.length > 0 ? { examples: senseExamples } : {}),
         ...(parentId.length > 0 ? { parentId } : {}),
       },
@@ -439,6 +446,7 @@ export function applyLexiconEntryFields(
     anthropologyCategories: _oldPrimaryAnthropologyCategories,
     senseStatus: _oldPrimarySenseStatus,
     dialectLabels: _oldPrimaryDialectLabels,
+    senseRestrictions: _oldPrimarySenseRestrictions,
     examples: _oldPrimaryExamples,
     ...primarySenseRest
   } = firstSense ?? {
@@ -490,6 +498,7 @@ export function applyLexiconEntryFields(
         ...(anthropologyCategories.length > 0 ? { anthropologyCategories } : {}),
         ...(senseStatus.length > 0 ? { senseStatus } : {}),
         ...(dialectLabels.length > 0 ? { dialectLabels } : {}),
+        ...(senseRestrictions.length > 0 ? { senseRestrictions } : {}),
         ...(primaryExamples.length > 0 ? { examples: primaryExamples } : {}),
       },
       ...extraSenses,

@@ -35,6 +35,7 @@ function fields(
     anthropologyCategories: string;
     senseStatus: string;
     dialectLabels: string;
+    senseRestrictions: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -68,6 +69,7 @@ function fields(
       anthropologyCategories?: string;
       senseStatus?: string;
       dialectLabels?: string;
+      senseRestrictions?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -92,6 +94,7 @@ function fields(
     anthropologyCategories: '',
     senseStatus: '',
     dialectLabels: '',
+    senseRestrictions: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -726,6 +729,44 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.dialectLabels).toBeUndefined();
     expect(cleared.senses[0]?.senseStatus).toBe('Confirmed');
     expect(cleared.senses[1]?.dialectLabels).toBeUndefined();
+  });
+
+  it('writes a trimmed sense restrictions note and keeps dialect labels and entry restrictions', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        restrictions: ' secret ',
+        dialectLabels: 'northern',
+        senseRestrictions: ' not used with elders ',
+        extraSenses: [{ gloss: 'pet', definition: '', senseRestrictions: ' avoid in ritual ' }],
+      }),
+      now,
+    );
+    expect(created.restrictions).toBe('secret');
+    expect(created.senses[0]?.senseRestrictions).toBe('not used with elders');
+    expect(created.senses[0]?.dialectLabels).toEqual(['northern']);
+    expect(created.senses[1]?.senseRestrictions).toBe('avoid in ritual');
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        restrictions: 'secret',
+        dialectLabels: 'northern',
+        senseRestrictions: ' ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', senseRestrictions: '' }],
+      }),
+      now,
+    );
+    expect(cleared.restrictions).toBe('secret');
+    expect(cleared.senses[0]?.senseRestrictions).toBeUndefined();
+    expect(cleared.senses[0]?.dialectLabels).toEqual(['northern']);
+    expect(cleared.senses[1]?.senseRestrictions).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {
