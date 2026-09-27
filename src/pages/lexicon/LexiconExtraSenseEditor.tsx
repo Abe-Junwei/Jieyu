@@ -197,6 +197,19 @@ export function LexiconExtraSenseEditor({
             />
           </label>
           <label className="lexicon-entry-edit-field">
+            <span>{t(locale, 'workspace.lexicon.edit.senseAnthropologyCategoriesLabel')}</span>
+            <textarea
+              className="input lexicon-entry-edit-input"
+              data-testid={`lexicon-entry-extra-sense-${index}-anthropology-categories`}
+              rows={3}
+              placeholder={t(locale, 'workspace.lexicon.edit.anthropologyCategoriesHint')}
+              value={sense.anthropologyCategories ?? ''}
+              onChange={(event) =>
+                editor.onExtraSenseChange(index, 'anthropologyCategories', event.target.value)
+              }
+            />
+          </label>
+          <label className="lexicon-entry-edit-field">
             <span>{t(locale, 'workspace.lexicon.edit.senseDefinitionLabel')}</span>
             <input
               className="input lexicon-entry-edit-input"

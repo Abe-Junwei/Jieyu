@@ -200,6 +200,7 @@ const lexemeDocSchema = z.object({
           usages: z.array(z.string().min(1)).optional(),
           senseType: z.string().optional(),
           academicDomains: z.array(z.string().min(1)).optional(),
+          anthropologyCategories: z.array(z.string().min(1)).optional(),
           parentId: z.string().min(1).optional(),
           examples: z
             .array(

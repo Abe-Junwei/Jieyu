@@ -162,10 +162,15 @@ function serializeSenseNode(
     .filter((domain) => domain.length > 0)
     .map((domain) => `<trait name="domain-type" value="${escapeXml(domain)}"/>`)
     .join('');
+  const anthropologyCategoryXml = (sense.anthropologyCategories ?? [])
+    .map((category) => category.trim())
+    .filter((category) => category.length > 0)
+    .map((category) => `<trait name="anthro-code" value="${escapeXml(category)}"/>`)
+    .join('');
   const nested = liftSenseChildren(all, senseId)
     .map((child, index) => serializeSenseNode('subsense', lexemeId, child, index, vernacular, all))
     .join('');
-  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${semanticsNoteXml}${sociolinguisticsNoteXml}${sourceNoteXml}${usageXml}${senseTypeXml}${academicDomainXml}${nested}</${tag}>`;
+  return `<${tag} id="${escapeXml(senseId)}" order="${siblingIndex}">${grammaticalInfo}${glosses}${definition}${examples}${scientificNameXml}${anthropologyNoteXml}${discourseNoteXml}${encyclopedicNoteXml}${grammarNoteXml}${semanticDomainXml}${phonologyNoteXml}${semanticsNoteXml}${sociolinguisticsNoteXml}${sourceNoteXml}${usageXml}${senseTypeXml}${academicDomainXml}${anthropologyCategoryXml}${nested}</${tag}>`;
 }
 
 function serializeEntry(lexeme: LexemeDocType): string | null {

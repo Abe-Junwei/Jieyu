@@ -32,6 +32,7 @@ function fields(
     usages: string;
     senseType: string;
     academicDomains: string;
+    anthropologyCategories: string;
     lexemeType: string;
     pronunciation: string;
     etymologyForm: string;
@@ -62,6 +63,7 @@ function fields(
       usages?: string;
       senseType?: string;
       academicDomains?: string;
+      anthropologyCategories?: string;
       examples?: { source: string; translation?: string }[];
     }[];
     forms: { id?: string; transcription: string }[];
@@ -83,6 +85,7 @@ function fields(
     usages: '',
     senseType: '',
     academicDomains: '',
+    anthropologyCategories: '',
     citationForm: '',
     language: '',
     notes: '',
@@ -611,6 +614,44 @@ describe('saveLexiconEntry', () => {
     expect(cleared.senses[0]?.academicDomains).toBeUndefined();
     expect(cleared.senses[0]?.senseType).toBe('figurative');
     expect(cleared.senses[1]?.academicDomains).toBeUndefined();
+  });
+
+  it('writes trimmed anthropology categories on the primary and extra sense', () => {
+    const created = applyLexiconEntryFields(
+      null,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        academicDomains: 'linguistics',
+        anthropologyNote: 'kept at home',
+        anthropologyCategories: ' kin \n\nkin\nritual ',
+        extraSenses: [{ gloss: 'pet', definition: '', anthropologyCategories: '290\n290\n ' }],
+      }),
+      now,
+    );
+    expect(created.senses[0]?.anthropologyCategories).toEqual(['kin', 'ritual']);
+    expect(created.senses[0]?.academicDomains).toEqual(['linguistics']);
+    expect(created.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(created.senses[1]?.anthropologyCategories).toEqual(['290']);
+    const extraId = created.senses[1]?.id;
+    expect(extraId).toBeTruthy();
+    if (!extraId) return;
+    const cleared = applyLexiconEntryFields(
+      created,
+      fields({
+        lemma: 'dog',
+        gloss: 'canine',
+        academicDomains: 'linguistics',
+        anthropologyNote: 'kept at home',
+        anthropologyCategories: ' \n ',
+        extraSenses: [{ id: extraId, gloss: 'pet', definition: '', anthropologyCategories: '' }],
+      }),
+      now,
+    );
+    expect(cleared.senses[0]?.anthropologyCategories).toBeUndefined();
+    expect(cleared.senses[0]?.academicDomains).toEqual(['linguistics']);
+    expect(cleared.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(cleared.senses[1]?.anthropologyCategories).toBeUndefined();
   });
 
   it('writes sense examples, drops a blank source, and keeps entry-level examples', () => {

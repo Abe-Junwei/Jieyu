@@ -19,6 +19,7 @@ import {
   semanticDomainsDraft,
   usagesDraft,
   academicDomainsDraft,
+  anthropologyCategoriesDraft,
   withAddedExample,
   withExampleChange,
   withoutExample,
@@ -53,7 +54,8 @@ export type LexiconEntryEditController = {
       | 'sourceNote'
       | 'usages'
       | 'senseType'
-      | 'academicDomains',
+      | 'academicDomains'
+      | 'anthropologyCategories',
     value: string,
   ) => void;
   onExampleChange: (
@@ -154,6 +156,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
     senseType:
       typeof lexeme?.senses[0]?.senseType === 'string' ? lexeme.senses[0].senseType.trim() : '',
     academicDomains: academicDomainsDraft(lexeme?.senses[0]?.academicDomains),
+    anthropologyCategories: anthropologyCategoriesDraft(lexeme?.senses[0]?.anthropologyCategories),
     citationForm: (lexeme?.citationForm ?? '').trim(),
     language: (lexeme?.language ?? '').trim(),
     notes: readPrimaryMultiLang(lexeme?.notes),
@@ -174,6 +177,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
       const semanticDomains = semanticDomainsDraft(sense.semanticDomains);
       const usages = usagesDraft(sense.usages);
       const academicDomains = academicDomainsDraft(sense.academicDomains);
+      const anthropologyCategories = anthropologyCategoriesDraft(sense.anthropologyCategories);
       return {
         ...draftIdFromNested(sense.id),
         ...(parentId.length > 0 ? { parentId } : {}),
@@ -216,6 +220,7 @@ function fieldsFromLexeme(lexeme: LexemeDocType | null): LexiconEntryFields {
           ? { senseType: sense.senseType.trim() }
           : {}),
         ...(academicDomains.length > 0 ? { academicDomains } : {}),
+        ...(anthropologyCategories.length > 0 ? { anthropologyCategories } : {}),
         ...(examples.length > 0 ? { examples } : {}),
       };
     }),

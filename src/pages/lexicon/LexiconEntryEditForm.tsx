@@ -169,6 +169,17 @@ export function LexiconEntryEditForm({ editor }: Props) {
           onChange={(event) => editor.onFieldChange('academicDomains', event.target.value)}
         />
       </label>
+      <label className="lexicon-entry-edit-field">
+        <span>{t(locale, 'workspace.lexicon.edit.anthropologyCategoriesLabel')}</span>
+        <textarea
+          className="input lexicon-entry-edit-input"
+          data-testid="lexicon-entry-anthropology-categories"
+          rows={3}
+          placeholder={t(locale, 'workspace.lexicon.edit.anthropologyCategoriesHint')}
+          value={editor.fields.anthropologyCategories}
+          onChange={(event) => editor.onFieldChange('anthropologyCategories', event.target.value)}
+        />
+      </label>
       <LexiconSenseExampleFields
         locale={locale}
         examples={editor.fields.examples}

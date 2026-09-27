@@ -143,6 +143,7 @@ function parseSense(
   const usages = parseUsages(sense);
   const senseType = parseTraitValue(sense, 'sense-type');
   const academicDomains = parseAcademicDomains(sense);
+  const anthropologyCategories = parseAnthropologyCategories(sense);
   return {
     id: storedId.length > 0 ? storedId : `${lexemeId}-sense-${index}`,
     gloss,
@@ -161,6 +162,7 @@ function parseSense(
     ...(usages.length > 0 ? { usages } : {}),
     ...(senseType.length > 0 ? { senseType } : {}),
     ...(academicDomains.length > 0 ? { academicDomains } : {}),
+    ...(anthropologyCategories.length > 0 ? { anthropologyCategories } : {}),
     ...(examples.length > 0 ? { examples } : {}),
   };
 }
@@ -231,6 +233,10 @@ function parseTraitValue(sense: Element, name: string): string {
 
 function parseAcademicDomains(sense: Element): string[] {
   return parseTraitValues(sense, 'domain-type');
+}
+
+function parseAnthropologyCategories(sense: Element): string[] {
+  return parseTraitValues(sense, 'anthro-code');
 }
 
 function parseTraitValues(sense: Element, name: string): string[] {

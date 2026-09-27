@@ -1522,6 +1522,104 @@ describe('lexiconLiftImport', () => {
     expect(store[0]?.senses[1]?.academicDomains).toBeUndefined();
   });
 
+  it('reads sense anthropology categories and ignores an entry-level trait', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<lift version="0.13" producer="FLEx">
+  <entry id="lex-dog">
+    <lexical-unit><form lang="eng"><text>dog</text></form></lexical-unit>
+    <trait name="anthro-code" value="entry code"/>
+    <sense id="sense_primary">
+      <gloss lang="eng"><text>canine</text></gloss>
+      <note type="anthropology"><form lang="en"><text>kept at home</text></form></note>
+      <trait name="domain-type" value="linguistics"/>
+      <trait name="anthro-code" value=""/>
+      <trait name="anthro-code" value="kin"/>
+      <trait name="anthro-code" value="kin"/>
+      <trait name="anthro-code" value="ritual"/>
+    </sense>
+    <sense id="sense_pet">
+      <gloss lang="eng"><text>pet</text></gloss>
+      <trait name="anthro-code" value="290"/>
+    </sense>
+  </entry>
+</lift>`;
+    const parsed = parseLiftXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]).not.toHaveProperty('anthropologyCategories');
+    expect(parsed.lexemes[0]?.senses[0]?.anthropologyCategories).toEqual(['kin', 'ritual']);
+    expect(parsed.lexemes[0]?.senses[0]?.anthropologyNote).toBe('kept at home');
+    expect(parsed.lexemes[0]?.senses[0]?.academicDomains).toEqual(['linguistics']);
+    expect(parsed.lexemes[0]?.senses[1]?.anthropologyCategories).toEqual(['290']);
+  });
+
+  it('round-trips sense anthropology categories and drops them when the traits are omitted', async () => {
+    const xml = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [
+          {
+            ...dog.senses[0]!,
+            academicDomains: ['linguistics'],
+            anthropologyCategories: ['kin', 'ritual'],
+          },
+          {
+            ...dog.senses[1]!,
+            parentId: 'sense_primary',
+            anthropologyCategories: ['290'],
+          },
+        ],
+      },
+    ]);
+    const domainAt = xml!.indexOf('<trait name="domain-type"');
+    const codeAt = xml!.indexOf('<trait name="anthro-code"');
+    const subsenseAt = xml!.indexOf('<subsense');
+    expect(domainAt).toBeGreaterThanOrEqual(0);
+    expect(codeAt).toBeGreaterThan(domainAt);
+    expect(subsenseAt).toBeGreaterThan(codeAt);
+    expect(xml).toContain('<trait name="anthro-code" value="kin"/>');
+    expect(xml).toContain('<trait name="anthro-code" value="ritual"/>');
+    const parsed = parseLiftXml(xml!);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.lexemes[0]?.senses[0]?.anthropologyCategories).toEqual(['kin', 'ritual']);
+    expect(parsed.lexemes[0]?.senses[0]?.academicDomains).toEqual(['linguistics']);
+    expect(parsed.lexemes[0]?.senses[1]?.anthropologyCategories).toEqual(['290']);
+
+    const bare = serializeLexemesToLift([
+      {
+        ...dog,
+        senses: [{ ...dog.senses[0]!, academicDomains: ['linguistics'] }, dog.senses[1]!],
+      },
+    ]);
+    expect(bare).not.toContain('anthro-code');
+    expect(bare).toContain('domain-type');
+    const existing: LexemeDocType = {
+      ...dog,
+      senses: [
+        {
+          ...dog.senses[0]!,
+          academicDomains: ['linguistics'],
+          anthropologyCategories: ['kin', 'ritual'],
+        },
+        dog.senses[1]!,
+      ],
+    };
+    const store = [existing];
+    const save = vi.fn(async (doc: LexemeDocType) => {
+      store[0] = doc;
+      return doc.id;
+    });
+    const result = await importLexemesFromLiftXml(bare!, {
+      save,
+      list: async () => [...store],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[0]?.senses[0]?.anthropologyCategories).toBeUndefined();
+    expect(store[0]?.senses[0]?.academicDomains).toEqual(['linguistics']);
+    expect(store[0]?.senses[1]?.anthropologyCategories).toBeUndefined();
+  });
+
   it('reads an entry bibliography note and leaves the untyped note alone', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <lift version="0.13" producer="FLEx">

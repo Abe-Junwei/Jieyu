@@ -97,6 +97,11 @@ export function LexiconSenseList({
               {sense.academicDomains?.join(' · ')}
             </span>
           ) : null}
+          {(sense.anthropologyCategories?.length ?? 0) > 0 ? (
+            <span data-testid={`lexicon-workspace-sense-${index}-anthropology-categories`}>
+              {sense.anthropologyCategories?.join(' · ')}
+            </span>
+          ) : null}
           {(sense.examples ?? []).map((example, exampleIndex) => (
             <span
               key={`${readSenseId(sense)}-example-${exampleIndex}`}
