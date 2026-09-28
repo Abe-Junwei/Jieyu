@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db';
+import { entryDoc } from '../utils/dmlexEntry';
 import { LinguisticService } from './LinguisticService';
 
 describe('LinguisticService.lexemes.listTranscriptionJumpTargets', () => {
@@ -65,13 +66,9 @@ describe('LinguisticService.lexemes.listTranscriptionJumpTargets', () => {
       createdAt: now,
       updatedAt: now,
     });
-    await db.lexemes.put({
-      id: 'lex-jt-1',
-      lemma: { default: 'hello' },
-      senses: [],
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db.lexemes.put(
+      entryDoc({ id: 'lex-jt-1', headword: 'hello', createdAt: now, updatedAt: now }),
+    );
     await db.token_lexeme_links.put({
       id: 'link-jt-1',
       targetType: 'token',
@@ -144,13 +141,9 @@ describe('LinguisticService.lexemes.listTranscriptionJumpTargets', () => {
       createdAt: now,
       updatedAt: now,
     });
-    await db.lexemes.put({
-      id: 'lex-jt-2',
-      lemma: { default: 'ya' },
-      senses: [],
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db.lexemes.put(
+      entryDoc({ id: 'lex-jt-2', headword: 'ya', createdAt: now, updatedAt: now }),
+    );
     await db.token_lexeme_links.put({
       id: 'link-jt-2',
       targetType: 'morpheme',

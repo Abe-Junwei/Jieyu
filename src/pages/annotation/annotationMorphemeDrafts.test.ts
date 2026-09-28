@@ -7,6 +7,7 @@ import {
 } from './annotationMorphemeDrafts';
 import { annotationGlossHasLeipzigIssue } from './annotationLeipzigGloss';
 import { planTokenSplit } from './splitMergeAnnotationTokens';
+import { entryDoc } from '../../utils/dmlexEntry';
 import { resolveLexemeForLinkQuery } from './saveAnnotationLexemeLink';
 
 const MORPH: AnnotationIgtMorpheme = {
@@ -50,15 +51,7 @@ describe('annotation morpheme helpers', () => {
   });
 
   it('resolves a unique lexeme hit by lemma or id', () => {
-    const hits = [
-      {
-        id: 'lex-1',
-        lemma: { default: 'hello' },
-        senses: [],
-        createdAt: '',
-        updatedAt: '',
-      },
-    ];
+    const hits = [entryDoc({ id: 'lex-1', headword: 'hello', createdAt: '', updatedAt: '' })];
     expect(resolveLexemeForLinkQuery('hello', hits)?.id).toBe('lex-1');
     expect(resolveLexemeForLinkQuery('lex-1', hits)?.id).toBe('lex-1');
     expect(resolveLexemeForLinkQuery('nope', hits)).toBeUndefined();

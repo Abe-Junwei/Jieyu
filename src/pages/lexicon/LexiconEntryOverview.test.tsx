@@ -2,23 +2,23 @@
 
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { DMLEX_HOMOGRAPH } from '../../db/dmlexTypes';
 import { LocaleProvider } from '../../i18n';
-import type { LexemeDocType } from '../../types/jieyuDbDocTypes';
+import type { LexemeEntryDoc } from '../../types/jieyuDbDocTypes';
 import { LexiconEntryOverview } from './LexiconEntryOverview';
 
-const lexeme: LexemeDocType = {
+const lexeme: LexemeEntryDoc = {
   id: 'lex-dog',
-  lemma: { default: 'dog' },
-  language: 'eng',
-  citationForm: 'dog',
-  pronunciation: 'dɔg',
-  etymology: { form: 'perro', gloss: 'dog', sourceLanguage: 'Spanish' },
-  literalMeaning: 'domestic animal',
-  bibliography: 'Smith 1990',
-  restrictions: 'internal',
-  summaryDefinition: 'a canine kept at home',
-  lexemeType: 'stem',
-  senses: [{ id: 'sense-1', gloss: { default: 'canine' } }],
+  entry: {
+    id: 'lex-dog',
+    headword: 'dog',
+    partsOfSpeech: ['noun'],
+    pronunciations: [{ transcriptions: [{ text: 'dɔg' }] }],
+    inflectedForms: [{ text: 'dogs' }],
+    etymologies: [{ etymons: [{ etymonUnits: [{ text: 'perro', langCode: 'es' }] }] }],
+    senses: [{ id: 'sense-1', headwordTranslations: [{ text: 'canine', langCode: 'en' }] }],
+  },
+  jieyu: { notes: [{ owner: 'entry', ref: 'lex-dog', text: 'field note' }] },
   createdAt: '2026-09-25T00:00:00.000Z',
   updatedAt: '2026-09-25T01:00:00.000Z',
 };
@@ -28,48 +28,21 @@ afterEach(() => {
 });
 
 describe('LexiconEntryOverview', () => {
-  it('shows stored entry fields and joins etymology parts', () => {
+  it('shows pronunciation, etymon, note, and the linked homograph', () => {
     render(
       <LocaleProvider locale="en-US">
-        <LexiconEntryOverview lexeme={lexeme} />
+        <LexiconEntryOverview
+          lexeme={lexeme}
+          relations={[
+            { type: DMLEX_HOMOGRAPH, members: [{ ref: 'lex-dog' }, { ref: 'lex-hound' }] },
+          ]}
+        />
       </LocaleProvider>,
     );
     expect(screen.getByTestId('lexicon-workspace-pronunciation').textContent).toBe('dɔg');
-    expect(screen.getByTestId('lexicon-workspace-etymology').textContent).toBe(
-      'perro · dog · Spanish',
-    );
-    expect(screen.getByTestId('lexicon-workspace-literal-meaning').textContent).toBe(
-      'domestic animal',
-    );
-    expect(screen.getByTestId('lexicon-workspace-bibliography').textContent).toBe('Smith 1990');
-    expect(screen.getByTestId('lexicon-workspace-restrictions').textContent).toBe('internal');
-    expect(screen.getByTestId('lexicon-workspace-summary-definition').textContent).toBe(
-      'a canine kept at home',
-    );
-    expect(screen.getByTestId('lexicon-workspace-lexeme-type').textContent).toBe('stem');
-    expect(screen.getByText('eng')).toBeTruthy();
-    expect(screen.getByText('2026-09-25T01:00:00.000Z')).toBeTruthy();
-  });
-
-  it('uses the empty label when optional fields are missing', () => {
-    const {
-      pronunciation: _pronunciation,
-      etymology: _etymology,
-      literalMeaning: _literalMeaning,
-      bibliography: _bibliography,
-      restrictions: _restrictions,
-      summaryDefinition: _summaryDefinition,
-      lexemeType: _lexemeType,
-      ...bare
-    } = lexeme;
-    render(
-      <LocaleProvider locale="en-US">
-        <LexiconEntryOverview lexeme={bare} />
-      </LocaleProvider>,
-    );
-    expect(screen.getByTestId('lexicon-workspace-pronunciation').textContent).toBe('Not set');
-    expect(screen.getByTestId('lexicon-workspace-etymology').textContent).toBe('Not set');
-    expect(screen.getByTestId('lexicon-workspace-restrictions').textContent).toBe('Not set');
-    expect(screen.getByTestId('lexicon-workspace-summary-definition').textContent).toBe('Not set');
+    expect(screen.getByTestId('lexicon-workspace-etymology').textContent).toBe('perro · es');
+    expect(screen.getByTestId('lexicon-workspace-note').textContent).toBe('field note');
+    expect(screen.getByTestId('lexicon-workspace-homograph').textContent).toBe('lex-hound');
+    expect(screen.getByTestId('lexicon-workspace-inflected-forms').textContent).toBe('dogs');
   });
 });
