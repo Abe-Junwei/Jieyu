@@ -58,6 +58,10 @@ source_of_truth: decision-index
 - [0036-eaf-import-is-interchange.md](./0036-eaf-import-is-interchange.md)（EAF 是文本交换；`.jyt` / `.jym` 继续做原 id 备份；往返键是文稿 + 外部层 id + 标注 id）
 - [0037-interchange-loss-report.md](./0037-interchange-loss-report.md)（标注和 LIFT 导入共用一份丢失清单；有稳定 id 才往返；不接入 Pepper / Corflow / reBabel）
 - [0038-eaf-tier-pick-by-content.md](./0038-eaf-tier-pick-by-content.md)（没有角色表时按正文和层名选 EAF 转写层；一句对一句的细分层不当词；没有媒体时独立翻译挂到已有语段）
+- [0039-flex-elan-import-field-map.md](./0039-flex-elan-import-field-map.md)（FLEx 与 ELAN 的元素按说明文档写进解语已有字段；词级 `gls` 不进转写页翻译行）
+- [0040-eaf-ph-phonetic-transcription.md](./0040-eaf-ph-phonetic-transcription.md)（DoReCo `ph` 是语音转写层，写入已有的附加转写层，不计丢失）
+- [0041-eaf-nt-note-fn-translation.md](./0041-eaf-nt-note-fn-translation.md)（DoReCo `nt` 写入句子备注，`fn` 与 `ft` 同为翻译且不合并）
+- [0042-eaf-unnamed-date-tier.md](./0042-eaf-unnamed-date-tier.md)（层名对不上时，闭集日期记入丢失，不进翻译行，也不当转写）
 
 ## 建议格式
 

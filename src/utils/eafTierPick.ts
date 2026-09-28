@@ -8,10 +8,33 @@ import type { EafRolePromptTier } from './eafTierRole';
  */
 
 const TRANSCRIPTION_TOKENS = new Set(['tx', 'trs', 'transcription', '转写']);
-const TRANSLATION_TOKENS = new Set(['ft', 'gls', 'translation', 'free', '翻译']);
+const TRANSLATION_TOKENS = new Set(['ft', 'fn', 'gls', 'translation', 'free', '翻译']);
+/** Toolbox / DoReCo note tier. A whole token, so `note` and `notes` stay anchors. */
+const UTTERANCE_NOTE_TOKEN = 'nt';
 const ANCHOR_TOKENS = new Set(['ref', 'segnum', 'note', 'notes', 'comment']);
 const ANCHOR_PHRASES = new Set(['document_notes', 'page_no']);
-const WORD_TOKENS = new Set(['wd', 'mb', 'morph', 'word', '单词', 'ps', 'gl']);
+const WORD_TOKENS = new Set(['wd', 'mb', 'morph', 'word', '单词', 'ps', 'gl', 'segmentation']);
+/** DoReCo phone tier. A whole token, so `phrase` and `phonetic` are not this layer. */
+const PHONETIC_TOKEN = 'ph';
+/** DoReCo session fields. The stem is the tier id before `@`, not a free translation. */
+const RECORDING_METADATA_STEMS = new Set([
+  'sound',
+  'sum',
+  'dt_rec',
+  'loc_rec',
+  'part_rec',
+  'qua_rec',
+  'vid_rec',
+  'aud_rec',
+  'af',
+  'dt_trans',
+  'part_trans',
+  'dt',
+  'media',
+  'part',
+  'publ',
+  'ed_or',
+]);
 /** FlexConstants.DEFINED_TYPES, longest first, plus the manual's phrase-parent alternative `segnum`. */
 const FLEX_ITEM_TYPES = [
   'title-abbreviation',
@@ -20,6 +43,7 @@ const FLEX_ITEM_TYPES = [
   'description',
   'comment',
   'source',
+  'note',
   'segnum',
   'title',
   'txt',
@@ -27,6 +51,10 @@ const FLEX_ITEM_TYPES = [
   'lit',
   'msa',
   'pos',
+  'punct',
+  'type',
+  'cf',
+  'hn',
 ] as const;
 const HEADER_ITEM_TYPES = new Set([
   'title',
@@ -35,9 +63,18 @@ const HEADER_ITEM_TYPES = new Set([
   'comment',
   'description',
 ]);
-const WORD_ELEMENTS = new Set(['word', 'morph', '单词', '语素']);
-const PHRASE_ELEMENTS = new Set(['phrase', '句子', 'transcription']);
-const PHRASE_ITEM_TYPES = new Set(['txt', 'gls', 'lit', 'segnum']);
+const OMIT_ITEM_TYPES = new Set([
+  'cf',
+  'hn',
+  'varianttypes',
+  'punct',
+  'text-is-translation',
+  'type',
+]);
+const PHRASE_ELEMENTS = new Set(['phrase', '句子', 'transcription', 'transcribe']);
+const TRANSLATION_ELEMENTS = new Set(['translation', '翻译']);
+const MORPH_ELEMENTS = new Set(['morph', '语素']);
+const WORD_ONLY_ELEMENTS = new Set(['word', '单词']);
 
 const TIME_SLOP_SEC = 0.05;
 
@@ -68,7 +105,78 @@ export type EafPickAnnotation = {
   text: string;
   annotationId?: string;
   annotationRef?: string;
+  previousAnnotationId?: string;
+  lexemeId?: string;
 };
+
+function optionalAttr(el: Element, name: string): string | undefined {
+  const raw = el.getAttribute(name);
+  if (raw === null) return undefined;
+  const value = raw.trim();
+  return value.length > 0 ? value : undefined;
+}
+
+/** Parse ALIGNABLE_ANNOTATION rows. Times come from the file's time slots. */
+export function parseAlignableAnnotations(
+  tier: Element,
+  timeSlotMap: Map<string, number>,
+): EafPickAnnotation[] {
+  const result: EafPickAnnotation[] = [];
+  tier.querySelectorAll('ALIGNABLE_ANNOTATION').forEach((ann) => {
+    const annotationId = optionalAttr(ann, 'ANNOTATION_ID');
+    const annotationRef = optionalAttr(ann, 'ANNOTATION_REF');
+    const previousAnnotationId = optionalAttr(ann, 'PREVIOUS_ANNOTATION');
+    const lexemeId = optionalAttr(ann, 'JIEYU_LEXEME_ID');
+    const ts1 = ann.getAttribute('TIME_SLOT_REF1');
+    const ts2 = ann.getAttribute('TIME_SLOT_REF2');
+    const value = ann.querySelector('ANNOTATION_VALUE')?.textContent ?? '';
+    if (ts1 !== null && ts2 !== null) {
+      const startTime = timeSlotMap.get(ts1);
+      const endTime = timeSlotMap.get(ts2);
+      if (startTime != null && endTime != null) {
+        result.push({
+          startTime,
+          endTime,
+          text: value,
+          ...(filled(annotationId) ? { annotationId } : {}),
+          ...(filled(annotationRef) ? { annotationRef } : {}),
+          ...(filled(previousAnnotationId) ? { previousAnnotationId } : {}),
+          ...(filled(lexemeId) ? { lexemeId } : {}),
+        });
+      }
+    }
+  });
+  return result;
+}
+
+/** Parse REF_ANNOTATION rows. Time is copied from the parent annotation when known. */
+export function parseRefAnnotations(
+  tier: Element,
+  annotationTimeMap: Map<string, { startTime: number; endTime: number }>,
+): EafPickAnnotation[] {
+  const result: EafPickAnnotation[] = [];
+  tier.querySelectorAll('REF_ANNOTATION').forEach((ann) => {
+    const annotationId = optionalAttr(ann, 'ANNOTATION_ID');
+    const annotationRef = optionalAttr(ann, 'ANNOTATION_REF');
+    const previousAnnotationId = optionalAttr(ann, 'PREVIOUS_ANNOTATION');
+    const lexemeId = optionalAttr(ann, 'JIEYU_LEXEME_ID');
+    const value = ann.querySelector('ANNOTATION_VALUE')?.textContent ?? '';
+    if (annotationRef !== undefined) {
+      const parentTime = annotationTimeMap.get(annotationRef);
+      result.push({
+        startTime: parentTime?.startTime ?? 0,
+        endTime: parentTime?.endTime ?? 0,
+        text: value,
+        ...(filled(annotationId) ? { annotationId } : {}),
+        annotationRef,
+        ...(filled(previousAnnotationId) ? { previousAnnotationId } : {}),
+        ...(filled(lexemeId) ? { lexemeId } : {}),
+      });
+      if (filled(annotationId) && parentTime) annotationTimeMap.set(annotationId, parentTime);
+    }
+  });
+  return result;
+}
 
 export type EafPickedUnit = {
   startTime: number;
@@ -91,7 +199,73 @@ type NameSignals = {
 type FlexTierName = {
   element: string;
   itemType: string;
+  lang?: string;
 };
+
+export type FlexTierDisposition =
+  | 'phrase-transcription'
+  | 'phrase-translation'
+  | 'phrase-note'
+  | 'segnum'
+  | 'word-form'
+  | 'word-gloss'
+  | 'word-pos'
+  | 'morph-form'
+  | 'morph-gloss'
+  | 'morph-pos'
+  | 'header-title'
+  | 'header-source'
+  | 'header-comment'
+  | 'participant-note'
+  | 'omit';
+
+export function flexTierDisposition(tierId: string): FlexTierDisposition | undefined {
+  const flex = parseFlexTierName(tierId);
+  if (!flex) return undefined;
+  const element = flex.element.toLowerCase();
+  const itemType = flex.itemType;
+  if (element === 'interlinear-text' || element === 'interlinear') {
+    if (itemType === 'title') return 'header-title';
+    if (itemType === 'source') return 'header-source';
+    if (itemType === 'comment' || itemType === 'description' || itemType === 'title-abbreviation') {
+      return 'header-comment';
+    }
+    return 'omit';
+  }
+  if (OMIT_ITEM_TYPES.has(itemType)) return 'omit';
+  if (element === 'participant' && itemType === 'note') return 'participant-note';
+  const phraseLike = PHRASE_ELEMENTS.has(element) || TRANSLATION_ELEMENTS.has(element);
+  if (phraseLike && (itemType === 'gls' || itemType === 'lit')) return 'phrase-translation';
+  if (PHRASE_ELEMENTS.has(element) && itemType === 'txt') return 'phrase-transcription';
+  if (PHRASE_ELEMENTS.has(element) && (itemType === 'note' || itemType === 'comment')) {
+    return 'phrase-note';
+  }
+  if (itemType === 'segnum') return 'segnum';
+  if (MORPH_ELEMENTS.has(element) && itemType === 'txt') return 'morph-form';
+  if (MORPH_ELEMENTS.has(element) && itemType === 'gls') return 'morph-gloss';
+  if (MORPH_ELEMENTS.has(element) && (itemType === 'msa' || itemType === 'pos')) return 'morph-pos';
+  if (WORD_ONLY_ELEMENTS.has(element) && itemType === 'txt') return 'word-form';
+  if (WORD_ONLY_ELEMENTS.has(element) && itemType === 'gls') return 'word-gloss';
+  if (WORD_ONLY_ELEMENTS.has(element) && itemType === 'pos') return 'word-pos';
+  if (HEADER_ITEM_TYPES.has(itemType)) return 'header-comment';
+  return 'omit';
+}
+
+export function countsAsEafSpeakerTier(tierId: string): boolean {
+  const kind = flexTierDisposition(tierId);
+  if (kind === undefined) return true;
+  return (
+    kind === 'phrase-transcription' ||
+    kind === 'phrase-translation' ||
+    kind === 'phrase-note' ||
+    kind === 'segnum' ||
+    kind === 'participant-note'
+  );
+}
+
+function acceptFlexElement(element: string): boolean {
+  return element.length > 0 && !element.includes('_') && !element.includes('@');
+}
 
 function parseFlexTierName(tierId: string): FlexTierName | undefined {
   const underscore = tierId.indexOf('_');
@@ -99,13 +273,35 @@ function parseFlexTierName(tierId: string): FlexTierName | undefined {
   for (const body of bodies) {
     const lower = body.toLowerCase();
     for (const itemType of FLEX_ITEM_TYPES) {
-      const at = lower.indexOf(`-${itemType}-`);
-      if (at <= 0) continue;
-      const element = body.slice(0, at);
-      if (element.length === 0 || element.includes('_') || element.includes('@')) continue;
-      return { element, itemType };
+      const mid = `-${itemType}-`;
+      const at = lower.indexOf(mid);
+      if (at > 0) {
+        const element = body.slice(0, at);
+        if (!acceptFlexElement(element)) continue;
+        const lang = body.slice(at + mid.length);
+        return { element, itemType, ...(lang.length > 0 ? { lang } : {}) };
+      }
+      const suffix = `-${itemType}`;
+      if (lower.endsWith(suffix) && lower.length > suffix.length) {
+        const element = body.slice(0, body.length - suffix.length);
+        if (!acceptFlexElement(element)) continue;
+        return { element, itemType };
+      }
     }
   }
+  return undefined;
+}
+
+/** LANG_REF, else the language slot in a FLEx tier name, else DEFAULT_LOCALE. */
+export function flexTierLocale(
+  tierId: string,
+  langRef: string | undefined,
+  defaultLocale: string | undefined,
+): string | undefined {
+  if (filled(langRef)) return langRef;
+  const named = parseFlexTierName(tierId)?.lang;
+  if (filled(named)) return named;
+  if (filled(defaultLocale)) return defaultLocale;
   return undefined;
 }
 
@@ -128,6 +324,67 @@ export function tokenizeEafLabel(value: string): string[] {
     .toLowerCase()
     .split(/[^\p{L}]+/u)
     .filter((token) => token.length > 0);
+}
+
+/** `ph` / `ph@NHK` is a phonetic transcription tier, not a gloss or a loss. */
+export function isPhoneticTranscriptionTier(tierId: string): boolean {
+  return tokenizeEafLabel(tierId).includes(PHONETIC_TOKEN);
+}
+
+/** `nt` / `nt@NHK` is an utterance note, not a translation row. */
+export function isUtteranceNoteTier(tierId: string): boolean {
+  return tokenizeEafLabel(tierId).includes(UTTERANCE_NOTE_TOKEN);
+}
+
+function isNotePlaceholder(text: string): boolean {
+  const value = text.trim();
+  if (value.length === 0) return true;
+  if (/^<\s*p\s*:\s*>$/i.test(value)) return true;
+  return /^\*+$/.test(value);
+}
+
+export function utteranceNoteRows(annotations: readonly EafPickAnnotation[]): Array<{
+  startTime: number;
+  endTime: number;
+  text: string;
+  annotationRef?: string;
+  targetType: 'unit';
+  category: 'comment';
+}> {
+  return annotations
+    .filter((row) => !isNotePlaceholder(row.text))
+    .map((row) => ({
+      startTime: row.startTime,
+      endTime: row.endTime,
+      text: row.text,
+      ...(filled(row.annotationRef) ? { annotationRef: row.annotationRef } : {}),
+      targetType: 'unit' as const,
+      category: 'comment' as const,
+    }));
+}
+
+export function phoneticTranscriptionTier(input: {
+  tierId: string;
+  locale?: string;
+  speakerId?: string;
+  annotations: readonly EafPickAnnotation[];
+}): { tierName: string; locale?: string; units: EafPickedUnit[] } | undefined {
+  if (!isPhoneticTranscriptionTier(input.tierId)) return undefined;
+  const units = input.annotations
+    .filter((row) => row.text.trim().length > 0)
+    .map((row) => ({
+      startTime: row.startTime,
+      endTime: row.endTime,
+      transcription: row.text,
+      ...(filled(input.speakerId) ? { speakerId: input.speakerId } : {}),
+      ...(filled(row.annotationId) ? { annotationId: row.annotationId } : {}),
+    }));
+  if (units.length === 0) return undefined;
+  return {
+    tierName: input.tierId,
+    ...(filled(input.locale) ? { locale: input.locale } : {}),
+    units,
+  };
 }
 
 function filled(value: string | undefined): value is string {
@@ -155,24 +412,28 @@ function signalsFromTokens(tierId: string): NameSignals {
 }
 
 function signalsFor(tierId: string): NameSignals {
-  const flex = parseFlexTierName(tierId);
-  if (!flex) return signalsFromTokens(tierId);
-  const element = flex.element.toLowerCase();
-  const itemType = flex.itemType;
-  const header =
-    element === 'interlinear-text' || element === 'interlinear' || HEADER_ITEM_TYPES.has(itemType);
-  const wordElement = WORD_ELEMENTS.has(element);
-  const phraseElement = PHRASE_ELEMENTS.has(element);
-  const transcription = !header && !wordElement && itemType === 'txt' && phraseElement;
-  const translation =
-    !header && (itemType === 'gls' || itemType === 'lit' || itemType === 'text-is-translation');
+  const kind = flexTierDisposition(tierId);
+  if (kind === undefined) return signalsFromTokens(tierId);
+  const word =
+    kind === 'word-form' ||
+    kind === 'word-gloss' ||
+    kind === 'word-pos' ||
+    kind === 'morph-form' ||
+    kind === 'morph-gloss' ||
+    kind === 'morph-pos';
   return {
-    transcription,
-    translation,
-    anchor: !transcription && itemType === 'segnum',
-    word: wordElement || itemType === 'pos' || itemType === 'msa',
-    header,
-    phrase: !header && phraseElement && PHRASE_ITEM_TYPES.has(itemType),
+    transcription: kind === 'phrase-transcription',
+    translation: kind === 'phrase-translation',
+    anchor: kind === 'segnum',
+    word,
+    header:
+      kind === 'header-title' ||
+      kind === 'header-source' ||
+      kind === 'header-comment' ||
+      kind === 'participant-note' ||
+      kind === 'phrase-note' ||
+      kind === 'omit',
+    phrase: kind === 'phrase-transcription' || kind === 'phrase-translation' || kind === 'segnum',
   };
 }
 
@@ -220,6 +481,7 @@ function isIndependentTimeAligned(tier: EafTierPickFact): boolean {
 
 function isRoleChoice(tier: EafTierPickFact, name: NameSignals): boolean {
   if (name.header) return false;
+  if (isUnnamedEafDateTier(tier.tierId, tier.nonemptyTexts)) return false;
   if (name.phrase || name.transcription || name.translation) return true;
   return isIndependentTimeAligned(tier);
 }
@@ -260,6 +522,7 @@ export function pickEafTiers(tiers: readonly EafTierPickFact[]): EafTierPick {
     if (tier.nonemptyTexts.length === 0) return false;
     if (name.header) return false;
     if (isAnchorTier(tier, name)) return false;
+    if (isUnnamedEafDateTier(tier.tierId, tier.nonemptyTexts)) return false;
     if (!name.transcription) return false;
     return !isSkipped(tier);
   });
@@ -272,10 +535,17 @@ export function pickEafTiers(tiers: readonly EafTierPickFact[]): EafTierPick {
       isIndependentTimeAligned(tier) &&
       !names.get(tier.tierId)!.header &&
       tier.nonemptyTexts.length > 0 &&
-      !isAnchorTier(tier, names.get(tier.tierId)!),
+      !isAnchorTier(tier, names.get(tier.tierId)!) &&
+      !isUnnamedEafDateTier(tier.tierId, tier.nonemptyTexts),
   );
+  const lastResort =
+    firstIndependent &&
+    !isAnchorTier(firstIndependent, names.get(firstIndependent.tierId)!) &&
+    !isUnnamedEafDateTier(firstIndependent.tierId, firstIndependent.nonemptyTexts)
+      ? firstIndependent.tierId
+      : undefined;
   const transcriptionTierId =
-    transcriptionCandidates[0]?.tierId ?? nonemptyIndependent?.tierId ?? firstIndependent?.tierId;
+    transcriptionCandidates[0]?.tierId ?? nonemptyIndependent?.tierId ?? lastResort;
 
   const anchorTierIds = new Set(
     tiers
@@ -354,6 +624,19 @@ export function unitsFromPickedAnnotations(
   return { units, childAnnotationIdByParentId };
 }
 
+export function unitsFromAnchorAnnotations(
+  anchors: readonly EafPickAnnotation[],
+  speakerId?: string,
+): EafPickedUnit[] {
+  return anchors.map((anchor) => ({
+    startTime: anchor.startTime,
+    endTime: anchor.endTime,
+    transcription: '',
+    ...(filled(speakerId) ? { speakerId } : {}),
+    ...(filled(anchor.annotationId) ? { annotationId: anchor.annotationId } : {}),
+  }));
+}
+
 export function anchorNotesForUnits(
   anchors: readonly EafPickAnnotation[],
   units: readonly EafPickedUnit[],
@@ -399,6 +682,333 @@ export function linkAnnotationsToUnits<T extends EafPickAnnotation>(
     if (!filled(hostId)) return annotation;
     return { ...annotation, annotationRef: hostId };
   });
+}
+
+const WORD_CHILD_FIELDS = {
+  'word-gloss': 'gloss',
+  'word-pos': 'pos',
+  'morph-form': 'morph-form',
+} as const;
+
+export function absorbEafFlexTier(input: {
+  disposition: FlexTierDisposition;
+  tierId: string;
+  parentTierId?: string;
+  locale?: string;
+  participant?: string;
+  eafConstraint?: string;
+  annotations: readonly EafPickAnnotation[];
+  translationTiers: Map<string, EafPickAnnotation[]>;
+  anchorSources: EafPickAnnotation[];
+  wordForms: Array<{ tierId: string; anns: EafPickAnnotation[] }>;
+  wordChildren: Map<
+    string,
+    Array<{
+      tierId: string;
+      eafConstraint?: string;
+      field?: 'gloss' | 'pos' | 'morph-form';
+      anns: EafPickAnnotation[];
+    }>
+  >;
+  notes: Array<{
+    startTime: number;
+    endTime: number;
+    text: string;
+    annotationRef?: string;
+    targetType?: 'unit' | 'text';
+    category?: 'comment' | 'fieldwork';
+  }>;
+  documentTitle: Record<string, string>;
+  speakerNotes: Array<{ participant: string; text: string; lang?: string }>;
+  unmappedTierIds: string[];
+  baseline: { wordTierId?: string; speakerId?: string };
+}): void {
+  const nonempty = input.annotations.filter((row) => row.text.trim().length > 0);
+  const speaker =
+    filled(input.participant) && input.participant !== '***' ? input.participant : undefined;
+  if (input.disposition === 'phrase-translation') {
+    publishFilledTier(input.translationTiers, input.tierId, input.annotations);
+    return;
+  }
+  if (input.disposition === 'segnum') {
+    input.anchorSources.push(...input.annotations);
+    if (filled(speaker) && !filled(input.baseline.speakerId)) input.baseline.speakerId = speaker;
+    return;
+  }
+  if (input.disposition === 'phrase-note') {
+    for (const row of nonempty) {
+      input.notes.push({
+        startTime: row.startTime,
+        endTime: row.endTime,
+        text: row.text,
+        ...(filled(row.annotationRef) ? { annotationRef: row.annotationRef } : {}),
+        targetType: 'unit',
+        category: 'comment',
+      });
+    }
+    return;
+  }
+  if (input.disposition === 'header-title') {
+    const text = nonempty[0]?.text.trim() ?? '';
+    if (text.length > 0) {
+      const lang = filled(input.locale) ? input.locale : 'default';
+      if (!filled(input.documentTitle[lang])) input.documentTitle[lang] = text;
+    }
+    return;
+  }
+  if (input.disposition === 'header-source' || input.disposition === 'header-comment') {
+    for (const row of nonempty) {
+      input.notes.push({
+        startTime: row.startTime,
+        endTime: row.endTime,
+        text: row.text,
+        targetType: 'text',
+        category: input.disposition === 'header-source' ? 'fieldwork' : 'comment',
+      });
+    }
+    return;
+  }
+  if (input.disposition === 'participant-note') {
+    if (filled(speaker)) {
+      for (const row of nonempty) {
+        input.speakerNotes.push({
+          participant: speaker,
+          text: row.text,
+          ...(filled(input.locale) ? { lang: input.locale } : {}),
+        });
+      }
+    }
+    return;
+  }
+  if (input.disposition === 'word-form') {
+    input.wordForms.push({ tierId: input.tierId, anns: [...input.annotations] });
+    if (!filled(input.baseline.wordTierId)) input.baseline.wordTierId = input.tierId;
+    return;
+  }
+  const childField = WORD_CHILD_FIELDS[input.disposition as keyof typeof WORD_CHILD_FIELDS];
+  if (childField !== undefined && filled(input.parentTierId)) {
+    const list = input.wordChildren.get(input.parentTierId) ?? [];
+    list.push({
+      tierId: input.tierId,
+      ...(filled(input.eafConstraint) ? { eafConstraint: input.eafConstraint } : {}),
+      field: childField,
+      anns: [...input.annotations],
+    });
+    input.wordChildren.set(input.parentTierId, list);
+    return;
+  }
+  if (input.disposition === 'morph-gloss' || input.disposition === 'morph-pos') return;
+  if (nonempty.length > 0) input.unmappedTierIds.push(input.tierId);
+}
+
+/**
+ * How a morph-tier child is stored. `gloss` here is the Jieyu export name
+ * `morph-gloss`; it is not added to the word-token set used for free translations.
+ */
+export function morphDescendantSlot(tierId: string): 'pos' | 'gloss' | 'skip' {
+  const kind = flexTierDisposition(tierId);
+  if (kind === 'omit') return 'skip';
+  if (kind === 'morph-pos') return 'pos';
+  if (kind === 'morph-gloss') return 'gloss';
+  if (kind !== undefined) return 'skip';
+  const tokens = tokenizeEafLabel(tierId);
+  const posToken =
+    (tokens.includes('ps') || tokens.includes('pos')) &&
+    !tokens.includes('gl') &&
+    !tokens.includes('gloss');
+  if (posToken) return 'pos';
+  if (tokens.includes('gl') || tokens.includes('gloss')) return 'gloss';
+  return 'skip';
+}
+
+/** Controlled-vocabulary rows are side-channel notes, not translation text. */
+export function recordControlledVocabularyNotes(
+  notes: Array<{
+    kind: 'controlled-vocabulary' | 'speaker-dialect' | 'addressee';
+    text: string;
+    parentAnnotationId?: string;
+  }>,
+  annotations: readonly EafPickAnnotation[],
+): void {
+  for (const annotation of annotations) {
+    if (annotation.text.trim().length === 0) continue;
+    const parentAnnotationId = annotation.annotationRef ?? annotation.annotationId;
+    notes.push({
+      kind: 'controlled-vocabulary',
+      text: annotation.text,
+      ...(filled(parentAnnotationId) ? { parentAnnotationId } : {}),
+    });
+  }
+}
+
+/** Keep a tier only when at least one annotation has text. */
+export function publishFilledTier<T extends { text: string }>(
+  target: Map<string, T[]>,
+  tierId: string,
+  annotations: readonly T[],
+): void {
+  const filledRows = annotations.filter((row) => row.text.trim().length > 0);
+  if (filledRows.length === 0) return;
+  target.set(tierId, [...filledRows]);
+}
+
+export function isRecordingMetadataTier(tierId: string): boolean {
+  const at = tierId.indexOf('@');
+  const stem = (at > 0 ? tierId.slice(0, at) : tierId).toLowerCase();
+  return RECORDING_METADATA_STEMS.has(stem);
+}
+
+const DATE_MONTH =
+  /^(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)$/i;
+
+/** Closed date shapes. A sentence that merely contains a date does not match. */
+export function isEafDateText(value: string): boolean {
+  const text = value.trim();
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) return true;
+  if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(text)) return true;
+  const slash = text.split('/');
+  if (slash.length !== 3) return false;
+  const day = slash[0] ?? '';
+  const month = slash[1] ?? '';
+  const year = slash[2] ?? '';
+  if (!/^\d{1,2}$/.test(day) || !/^\d{2,4}$/.test(year)) return false;
+  if (/^\d{1,2}$/.test(month)) return true;
+  return DATE_MONTH.test(month);
+}
+
+/** At least four fifths of the non-placeholder cells are dates. */
+export function isEafDateTier(texts: readonly string[]): boolean {
+  const considered = texts.map((text) => text.trim()).filter((text) => !isNotePlaceholder(text));
+  if (considered.length === 0) return false;
+  const hits = considered.filter(isEafDateText).length;
+  return hits * 5 >= considered.length * 4;
+}
+
+/** A name the importer already classifies. Date text does not override it. */
+export function hasKnownEafTierName(tierId: string): boolean {
+  if (flexTierDisposition(tierId) !== undefined) return true;
+  if (isPhoneticTranscriptionTier(tierId)) return true;
+  if (isUtteranceNoteTier(tierId)) return true;
+  if (isRecordingMetadataTier(tierId)) return true;
+  const name = signalsFromTokens(tierId);
+  return name.transcription || name.translation || name.anchor || name.word;
+}
+
+function isUnnamedEafDateTier(tierId: string, texts: readonly string[]): boolean {
+  return !hasKnownEafTierName(tierId) && isEafDateTier(texts);
+}
+
+/** Recording-session tiers and unnamed date tiers are losses. Other nonempty tiers stay translation rows. */
+export function publishTranslationTier<T extends { text: string }>(
+  target: Map<string, T[]>,
+  tierId: string,
+  annotations: readonly T[],
+  unmappedTierIds: string[],
+): void {
+  if (isRecordingMetadataTier(tierId)) {
+    if (annotations.some((row) => row.text.trim().length > 0)) unmappedTierIds.push(tierId);
+    return;
+  }
+  if (
+    isUnnamedEafDateTier(
+      tierId,
+      annotations.map((row) => row.text),
+    )
+  ) {
+    unmappedTierIds.push(tierId);
+    return;
+  }
+  publishFilledTier(target, tierId, annotations);
+}
+
+export function isEafMorphTier(input: {
+  tierId: string;
+  field?: 'gloss' | 'pos' | 'morph-form';
+  eafConstraint?: string;
+}): boolean {
+  if (input.field === 'morph-form') return true;
+  if (input.field !== undefined) return false;
+  if (input.eafConstraint === 'Symbolic_Subdivision') return true;
+  const tokens = tokenizeEafLabel(input.tierId);
+  return tokens.includes('mb') || tokens.includes('morph');
+}
+
+/**
+ * A tier the role dialog did not assign. Anchors and word-family tiers stay out of
+ * the translation list; everything else can still be published.
+ */
+export function stashUnassignedTier(input: {
+  tierId: string;
+  parentTierId?: string | undefined;
+  eafConstraint?: string | undefined;
+  annotations: EafPickAnnotation[];
+  alignable?: EafPickAnnotation[];
+  pick: EafTierPick;
+  anchorSources: EafPickAnnotation[];
+  wordTierEntries: Array<{ tierId: string; anns: EafPickAnnotation[] }>;
+  childOfWordTier: Map<
+    string,
+    Array<{ tierId: string; eafConstraint?: string; anns: EafPickAnnotation[] }>
+  >;
+}): boolean {
+  const annotations =
+    input.annotations.length > 0 ? input.annotations : (input.alignable ?? input.annotations);
+  if (input.pick.anchorTierIds.has(input.tierId)) {
+    input.anchorSources.push(...annotations);
+    return true;
+  }
+  const parentId = input.parentTierId;
+  const parentIsWord = parentId !== undefined && input.pick.wordTierIds.has(parentId);
+  const parentIsAnchor = parentId !== undefined && input.pick.anchorTierIds.has(parentId);
+  if (!input.pick.wordTierIds.has(input.tierId) || parentId === undefined) return false;
+  if (!parentIsWord && !parentIsAnchor) return false;
+  if (parentIsWord) {
+    const list = input.childOfWordTier.get(parentId) ?? [];
+    list.push({
+      tierId: input.tierId,
+      ...(input.eafConstraint !== undefined && input.eafConstraint.length > 0
+        ? { eafConstraint: input.eafConstraint }
+        : {}),
+      anns: annotations,
+    });
+    input.childOfWordTier.set(parentId, list);
+    return true;
+  }
+  input.wordTierEntries.push({ tierId: input.tierId, anns: annotations });
+  return true;
+}
+
+/** Drop morph children that were published as translation rows. Unknown slots stay a loss. */
+export function detachMorphChildTiers(input: {
+  translationTiers: Map<string, Array<{ text: string }>>;
+  parentTierIdByTierId: ReadonlyMap<string, string>;
+  childOfWordTier: ReadonlyMap<
+    string,
+    ReadonlyArray<{
+      tierId: string;
+      eafConstraint?: string;
+      field?: 'gloss' | 'pos' | 'morph-form';
+    }>
+  >;
+  unmappedTierIds: string[];
+}): void {
+  const morphTierIds = new Set<string>();
+  for (const children of input.childOfWordTier.values()) {
+    for (const child of children) {
+      if (isEafMorphTier(child)) morphTierIds.add(child.tierId);
+    }
+  }
+  for (const [tierId, annotations] of input.translationTiers) {
+    const parentId = input.parentTierIdByTierId.get(tierId);
+    if (parentId === undefined || !morphTierIds.has(parentId)) continue;
+    input.translationTiers.delete(tierId);
+    if (
+      morphDescendantSlot(tierId) === 'skip' &&
+      annotations.some((row) => row.text.trim().length > 0)
+    ) {
+      input.unmappedTierIds.push(tierId);
+    }
+  }
 }
 
 export function retargetAnnotationsToChildIds<T extends EafPickAnnotation>(
