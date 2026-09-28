@@ -10,7 +10,7 @@ import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { LexemeEntryDoc } from '../types/jieyuDbDocTypes';
 import { lexemeHeadword, lexemePrimaryTranslation } from '../utils/dmlexEntry';
 import { useLexiconSearch } from '~/hooks/lexicon/useLexiconSearch';
-import { t, tf, useLocale } from '../i18n';
+import { t, tf, useLocale, type DictKey } from '../i18n';
 import { featureFlags } from '../ai/config/featureFlags';
 import { LinguisticService } from '../app/languageAssetPageAccess';
 import { useWorkspaceEventRefresh } from '../hooks/useWorkspaceEventRefresh';
@@ -28,6 +28,7 @@ import { useLexiconEntryEditController } from './useLexiconEntryEditController';
 import { exportLexemesAsDmlex } from '../utils/dmlexJsonExport';
 import { exportLexemesAsLift } from '../utils/lexiconLiftExport';
 import { importLexemesFromLiftFile } from '../utils/lexiconLiftImport';
+import { formatLexiconImportNotice } from '../utils/interchangeLossReport';
 
 const LEXICON_LIST_STATE_KEY = 'lexiconListState';
 
@@ -390,13 +391,13 @@ export function LexiconPage() {
                 }
                 setImportError('');
                 queryClient.setQueryData(['lexemes'], result.readback);
-                if (result.diagnostics.length > 0) {
-                  setImportError(
-                    tf(locale, 'workspace.lexicon.importLiftDiagnostics', {
-                      count: String(result.diagnostics.length),
-                    }),
-                  );
-                }
+                const importNotice = formatLexiconImportNotice(
+                  result.diagnostics,
+                  result.losses,
+                  (key, params) =>
+                    params ? tf(locale, key as DictKey, params) : t(locale, key as DictKey),
+                );
+                if (importNotice.length > 0) setImportError(importNotice);
                 void queryClient.invalidateQueries({ queryKey: ['dmlex-resource'] });
                 const first = result.readback[0];
                 if (first) setSelectedLexemeId(first.id);

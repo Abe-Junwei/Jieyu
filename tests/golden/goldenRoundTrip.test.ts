@@ -521,12 +521,12 @@ describe('Golden Round-trip: FLExText', () => {
     expect(words0).toHaveLength(3);
     expect(words0![0]!.form.default).toBe('tɕʰa');
     expect(words0![0]!.morphemes).toHaveLength(1);
-    expect(words0![0]!.morphemes![0]!.gloss!.eng).toBe('tea');
+    expect(words0![0]!.morphemes![0]!.gloss!.en).toBe('tea');
 
     // Third word has 2 morphemes
     expect(words0![2]!.morphemes).toHaveLength(2);
-    expect(words0![2]!.morphemes![0]!.gloss!.eng).toBe('hot');
-    expect(words0![2]!.morphemes![1]!.gloss!.eng).toBe('COP');
+    expect(words0![2]!.morphemes![0]!.gloss!.en).toBe('hot');
+    expect(words0![2]!.morphemes![1]!.gloss!.en).toBe('COP');
 
     // Phrase glosses
     expect(imported.phraseGlosses.size).toBeGreaterThanOrEqual(2);
