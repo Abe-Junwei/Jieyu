@@ -1,13 +1,48 @@
 import { ConfirmDeleteDialog } from '../../components/ConfirmDeleteDialog';
 import { t, useLocale } from '../../i18n';
+import type { LexiconSenseDraft } from '../../utils/dmlexEntry';
 import type { LexiconEntryEditController } from '../useLexiconEntryEditController';
-import { LexiconExtraSenseEditor } from './LexiconExtraSenseEditor';
-import { LexiconSenseExampleFields } from './LexiconSenseExampleFields';
-import { LexiconSenseReversalFields } from './LexiconSenseReversalFields';
 
 type Props = {
   editor: LexiconEntryEditController;
 };
+
+function draftDepth(senses: readonly LexiconSenseDraft[], index: number): number {
+  let depth = 0;
+  let parent = senses[index]?.parentId ?? '';
+  const seen = new Set<string>();
+  while (parent.length > 0 && depth < 8 && !seen.has(parent)) {
+    seen.add(parent);
+    depth += 1;
+    const row = senses.find((sense) => sense.id === parent);
+    parent = row?.parentId ?? '';
+  }
+  return depth;
+}
+
+function TextField({
+  label,
+  testId,
+  value,
+  onChange,
+}: {
+  label: string;
+  testId: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="lexicon-entry-edit-field">
+      <span>{label}</span>
+      <input
+        className="input lexicon-entry-edit-input"
+        data-testid={testId}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
 
 export function LexiconEntryEditForm({ editor }: Props) {
   const locale = useLocale();
@@ -20,369 +55,154 @@ export function LexiconEntryEditForm({ editor }: Props) {
         editor.onSave();
       }}
     >
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.lemmaLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-lemma"
-          value={editor.fields.lemma}
-          onChange={(event) => editor.onFieldChange('lemma', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.glossLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-gloss"
-          value={editor.fields.gloss}
-          onChange={(event) => editor.onFieldChange('gloss', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.categoryLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-category"
-          value={editor.fields.category}
-          onChange={(event) => editor.onFieldChange('category', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.scientificNameLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-scientific-name"
-          value={editor.fields.scientificName}
-          onChange={(event) => editor.onFieldChange('scientificName', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.anthropologyNoteLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-anthropology-note"
-          value={editor.fields.anthropologyNote}
-          onChange={(event) => editor.onFieldChange('anthropologyNote', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.discourseNoteLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-discourse-note"
-          value={editor.fields.discourseNote}
-          onChange={(event) => editor.onFieldChange('discourseNote', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.encyclopedicNoteLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-encyclopedic-note"
-          value={editor.fields.encyclopedicNote}
-          onChange={(event) => editor.onFieldChange('encyclopedicNote', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.grammarNoteLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-grammar-note"
-          value={editor.fields.grammarNote}
-          onChange={(event) => editor.onFieldChange('grammarNote', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.semanticDomainsLabel')}</span>
-        <textarea
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-semantic-domains"
-          rows={3}
-          placeholder={t(locale, 'workspace.lexicon.edit.semanticDomainsHint')}
-          value={editor.fields.semanticDomains}
-          onChange={(event) => editor.onFieldChange('semanticDomains', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.phonologyNoteLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-phonology-note"
-          value={editor.fields.phonologyNote}
-          onChange={(event) => editor.onFieldChange('phonologyNote', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.semanticsNoteLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-semantics-note"
-          value={editor.fields.semanticsNote}
-          onChange={(event) => editor.onFieldChange('semanticsNote', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.sociolinguisticsNoteLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-sociolinguistics-note"
-          value={editor.fields.sociolinguisticsNote}
-          onChange={(event) => editor.onFieldChange('sociolinguisticsNote', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.sourceNoteLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-source-note"
-          value={editor.fields.sourceNote}
-          onChange={(event) => editor.onFieldChange('sourceNote', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.usagesLabel')}</span>
-        <textarea
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-usages"
-          rows={3}
-          placeholder={t(locale, 'workspace.lexicon.edit.usagesHint')}
-          value={editor.fields.usages}
-          onChange={(event) => editor.onFieldChange('usages', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.senseTypeLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-sense-type"
-          value={editor.fields.senseType}
-          onChange={(event) => editor.onFieldChange('senseType', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.academicDomainsLabel')}</span>
-        <textarea
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-academic-domains"
-          rows={3}
-          placeholder={t(locale, 'workspace.lexicon.edit.academicDomainsHint')}
-          value={editor.fields.academicDomains}
-          onChange={(event) => editor.onFieldChange('academicDomains', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.anthropologyCategoriesLabel')}</span>
-        <textarea
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-anthropology-categories"
-          rows={3}
-          placeholder={t(locale, 'workspace.lexicon.edit.anthropologyCategoriesHint')}
-          value={editor.fields.anthropologyCategories}
-          onChange={(event) => editor.onFieldChange('anthropologyCategories', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.senseStatusLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-sense-status"
-          value={editor.fields.senseStatus}
-          onChange={(event) => editor.onFieldChange('senseStatus', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.dialectLabelsLabel')}</span>
-        <textarea
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-dialect-labels"
-          rows={3}
-          placeholder={t(locale, 'workspace.lexicon.edit.dialectLabelsHint')}
-          value={editor.fields.dialectLabels}
-          onChange={(event) => editor.onFieldChange('dialectLabels', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.senseRestrictionsLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-sense-restrictions"
-          value={editor.fields.senseRestrictions}
-          onChange={(event) => editor.onFieldChange('senseRestrictions', event.target.value)}
-        />
-      </label>
-      <LexiconSenseReversalFields
-        locale={locale}
-        reversals={editor.fields.reversals}
-        idPrefix="lexicon-entry"
-        labelKey="workspace.lexicon.edit.reversalsLabel"
-        onChange={(reversals) => editor.onReversalsChange('primary', reversals)}
+      <TextField
+        label={t(locale, 'workspace.lexicon.edit.headwordLabel')}
+        testId="lexicon-entry-headword"
+        value={editor.fields.headword}
+        onChange={(value) => editor.onFieldChange('headword', value)}
       />
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.importResidueLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-import-residue"
-          value={editor.fields.importResidue}
-          onChange={(event) => editor.onFieldChange('importResidue', event.target.value)}
-        />
-      </label>
-      <LexiconSenseExampleFields
-        locale={locale}
-        examples={editor.fields.examples}
-        idPrefix="lexicon-entry"
-        onChange={(index, field, value) => editor.onExampleChange('primary', index, field, value)}
-        onAdd={() => editor.onAddExample('primary')}
-        onRemove={(index) => editor.onRemoveExample('primary', index)}
+      <TextField
+        label={t(locale, 'workspace.lexicon.edit.homographNumberLabel')}
+        testId="lexicon-entry-homograph-number"
+        value={editor.fields.homographNumber}
+        onChange={(value) => editor.onFieldChange('homographNumber', value)}
       />
+      <TextField
+        label={t(locale, 'workspace.lexicon.edit.partsOfSpeechLabel')}
+        testId="lexicon-entry-parts-of-speech"
+        value={editor.fields.partsOfSpeech}
+        onChange={(value) => editor.onFieldChange('partsOfSpeech', value)}
+      />
+      <TextField
+        label={t(locale, 'workspace.lexicon.edit.labelsLabel')}
+        testId="lexicon-entry-labels"
+        value={editor.fields.labels}
+        onChange={(value) => editor.onFieldChange('labels', value)}
+      />
+      <TextField
+        label={t(locale, 'workspace.lexicon.edit.pronunciationLabel')}
+        testId="lexicon-entry-pronunciation"
+        value={editor.fields.pronunciation}
+        onChange={(value) => editor.onFieldChange('pronunciation', value)}
+      />
+      <TextField
+        label={t(locale, 'workspace.lexicon.edit.inflectedFormLabel')}
+        testId="lexicon-entry-inflected-forms"
+        value={editor.fields.inflectedForms}
+        onChange={(value) => editor.onFieldChange('inflectedForms', value)}
+      />
+      <TextField
+        label={t(locale, 'workspace.lexicon.edit.etymonLabel')}
+        testId="lexicon-entry-etymon"
+        value={editor.fields.etymon}
+        onChange={(value) => editor.onFieldChange('etymon', value)}
+      />
+      <TextField
+        label={t(locale, 'workspace.lexicon.edit.noteLabel')}
+        testId="lexicon-entry-note"
+        value={editor.fields.note}
+        onChange={(value) => editor.onFieldChange('note', value)}
+      />
+      <TextField
+        label={t(locale, 'workspace.lexicon.edit.homographLinkLabel')}
+        testId="lexicon-entry-homograph"
+        value={editor.fields.homographEntryId}
+        onChange={(value) => editor.onFieldChange('homographEntryId', value)}
+      />
+      {editor.fields.senses.map((sense, index) => {
+        const depth = String(draftDepth(editor.fields.senses, index));
+        return (
+          <div
+            key={sense.id || `sense-${index}`}
+            className="lexicon-entry-edit-row"
+            data-depth={depth}
+            data-testid={`lexicon-entry-sense-${index}`}
+          >
+            <TextField
+              label={t(locale, 'workspace.lexicon.edit.translationLabel')}
+              testId={
+                index === 0
+                  ? 'lexicon-entry-translation'
+                  : `lexicon-entry-sense-${index}-translation`
+              }
+              value={sense.translation}
+              onChange={(value) => editor.onSenseChange(index, 'translation', value)}
+            />
+            <TextField
+              label={t(locale, 'workspace.lexicon.edit.explanationLabel')}
+              testId={`lexicon-entry-sense-${index}-explanation`}
+              value={sense.explanation}
+              onChange={(value) => editor.onSenseChange(index, 'explanation', value)}
+            />
+            <TextField
+              label={t(locale, 'workspace.lexicon.edit.definitionLabel')}
+              testId={`lexicon-entry-sense-${index}-definition`}
+              value={sense.definition}
+              onChange={(value) => editor.onSenseChange(index, 'definition', value)}
+            />
+            <TextField
+              label={t(locale, 'workspace.lexicon.edit.exampleLabel')}
+              testId={`lexicon-entry-sense-${index}-example`}
+              value={sense.example}
+              onChange={(value) => editor.onSenseChange(index, 'example', value)}
+            />
+            <TextField
+              label={t(locale, 'workspace.lexicon.edit.exampleTranslationLabel')}
+              testId={`lexicon-entry-sense-${index}-example-translation`}
+              value={sense.exampleTranslation}
+              onChange={(value) => editor.onSenseChange(index, 'exampleTranslation', value)}
+            />
+            <TextField
+              label={t(locale, 'workspace.lexicon.edit.exampleSegmentLabel')}
+              testId={`lexicon-entry-sense-${index}-example-segment`}
+              value={sense.exampleSegmentId}
+              onChange={(value) => editor.onSenseChange(index, 'exampleSegmentId', value)}
+            />
+            <div className="lexicon-entry-edit-actions">
+              <button
+                type="button"
+                className="btn"
+                data-testid={`lexicon-entry-add-subsense-${index}`}
+                onClick={() => editor.onAddSubsense(index)}
+              >
+                {t(locale, 'workspace.lexicon.edit.addSubsense')}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                data-testid={`lexicon-entry-move-sense-up-${index}`}
+                onClick={() => editor.onMoveSense(index, -1)}
+              >
+                {t(locale, 'workspace.lexicon.edit.moveSenseUp')}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                data-testid={`lexicon-entry-move-sense-down-${index}`}
+                onClick={() => editor.onMoveSense(index, 1)}
+              >
+                {t(locale, 'workspace.lexicon.edit.moveSenseDown')}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                data-testid={`lexicon-entry-remove-sense-${index}`}
+                onClick={() => editor.onRemoveSense(index)}
+              >
+                {t(locale, 'workspace.lexicon.edit.removeSense')}
+              </button>
+            </div>
+          </div>
+        );
+      })}
       <button
         type="button"
         className="btn"
-        data-testid="lexicon-entry-add-subsense-primary"
-        onClick={() => editor.onAddSubsense('primary')}
+        data-testid="lexicon-entry-add-sense"
+        onClick={editor.onAddSense}
       >
-        {t(locale, 'workspace.lexicon.edit.addSubsense')}
+        {t(locale, 'workspace.lexicon.edit.addSense')}
       </button>
-      <LexiconExtraSenseEditor editor={editor} locale={locale} />
-      <div className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.formsLabel')}</span>
-        {editor.fields.forms.map((form, index) => (
-          <div key={form.id ?? `form-${index}`} className="lexicon-entry-edit-row">
-            <label className="lexicon-entry-edit-field">
-              <span>{t(locale, 'workspace.lexicon.edit.formTranscriptionLabel')}</span>
-              <input
-                className="input lexicon-entry-edit-input"
-                data-testid={`lexicon-entry-form-${index}`}
-                value={form.transcription}
-                onChange={(event) => editor.onFormChange(index, event.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              className="btn"
-              data-testid={`lexicon-entry-remove-form-${index}`}
-              onClick={() => editor.onRemoveForm(index)}
-            >
-              {t(locale, 'workspace.lexicon.edit.removeForm')}
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="btn"
-          data-testid="lexicon-entry-add-form"
-          onClick={editor.onAddForm}
-        >
-          {t(locale, 'workspace.lexicon.edit.addForm')}
-        </button>
-      </div>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.citationLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-citation"
-          value={editor.fields.citationForm}
-          onChange={(event) => editor.onFieldChange('citationForm', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.pronunciationLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-pronunciation"
-          value={editor.fields.pronunciation}
-          onChange={(event) => editor.onFieldChange('pronunciation', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.etymologyFormLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-etymology-form"
-          value={editor.fields.etymologyForm}
-          onChange={(event) => editor.onFieldChange('etymologyForm', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.etymologyGlossLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-etymology-gloss"
-          value={editor.fields.etymologyGloss}
-          onChange={(event) => editor.onFieldChange('etymologyGloss', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.edit.etymologySourceLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-etymology-source"
-          value={editor.fields.etymologySourceLanguage}
-          onChange={(event) => editor.onFieldChange('etymologySourceLanguage', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.literalMeaningLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-literal-meaning"
-          value={editor.fields.literalMeaning}
-          onChange={(event) => editor.onFieldChange('literalMeaning', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.bibliographyLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-bibliography"
-          value={editor.fields.bibliography}
-          onChange={(event) => editor.onFieldChange('bibliography', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.restrictionsLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-restrictions"
-          value={editor.fields.restrictions}
-          onChange={(event) => editor.onFieldChange('restrictions', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.summaryDefinitionLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-summary-definition"
-          value={editor.fields.summaryDefinition}
-          onChange={(event) => editor.onFieldChange('summaryDefinition', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.lexemeTypeLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-lexeme-type"
-          value={editor.fields.lexemeType}
-          onChange={(event) => editor.onFieldChange('lexemeType', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.languageLabel')}</span>
-        <input
-          className="input lexicon-entry-edit-input"
-          data-testid="lexicon-entry-language"
-          value={editor.fields.language}
-          onChange={(event) => editor.onFieldChange('language', event.target.value)}
-        />
-      </label>
-      <label className="lexicon-entry-edit-field">
-        <span>{t(locale, 'workspace.lexicon.notesTitle')}</span>
-        <textarea
-          className="input lexicon-entry-edit-notes"
-          data-testid="lexicon-entry-notes"
-          value={editor.fields.notes}
-          onChange={(event) => editor.onFieldChange('notes', event.target.value)}
-        />
-      </label>
       {editor.error.length > 0 ? (
         <p className="lexicon-workspace-state lexicon-workspace-state-error">{editor.error}</p>
       ) : null}

@@ -157,7 +157,12 @@ export function useAiPanelLogic({
         .search(token)
         .then((items) => {
           if (lexemeSearchRequestRef.current !== requestId) return;
-          setLexemeMatches(items.slice(0, 8));
+          setLexemeMatches(
+            items.slice(0, 8).map((item) => ({
+              id: item.id,
+              lemma: { default: item.entry.headword },
+            })),
+          );
         })
         .catch(() => {
           if (lexemeSearchRequestRef.current !== requestId) return;
