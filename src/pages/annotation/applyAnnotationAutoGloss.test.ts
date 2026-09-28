@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
 import { previewAutoGlossMatches } from '../../ai/autoGlossPreview';
+import { entryDoc } from '../../utils/dmlexEntry';
 import {
   applyAnnotationAutoGlossPreview,
   previewAnnotationAutoGloss,
@@ -25,13 +26,15 @@ describe('applyAnnotationAutoGloss', () => {
       createdAt: now,
       updatedAt: now,
     });
-    await db.lexemes.put({
-      id: 'lex-ag-1',
-      lemma: { default: 'dog' },
-      senses: [{ gloss: { default: 'canine' } }],
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db.lexemes.put(
+      entryDoc({
+        id: 'lex-ag-1',
+        headword: 'dog',
+        definition: 'canine',
+        createdAt: now,
+        updatedAt: now,
+      }),
+    );
 
     const preview = await previewAnnotationAutoGloss('unit-ag-1');
     expect(preview.matches).toHaveLength(1);
@@ -61,13 +64,15 @@ describe('applyAnnotationAutoGloss', () => {
       createdAt: now,
       updatedAt: now,
     });
-    await db.lexemes.put({
-      id: 'lex-ag-2',
-      lemma: { default: 'dog' },
-      senses: [{ gloss: { default: 'canine' } }],
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db.lexemes.put(
+      entryDoc({
+        id: 'lex-ag-2',
+        headword: 'dog',
+        definition: 'canine',
+        createdAt: now,
+        updatedAt: now,
+      }),
+    );
 
     const preview = await previewAnnotationAutoGloss('unit-ag-2');
     await Promise.all([
@@ -105,13 +110,13 @@ describe('applyAnnotationAutoGloss', () => {
     const result = previewAutoGlossMatches(
       tokens,
       [
-        {
+        entryDoc({
           id: 'lex',
-          lemma: { default: 'dog' },
-          senses: [{ gloss: { default: 'canine' } }],
+          headword: 'dog',
+          definition: 'canine',
           createdAt: now,
           updatedAt: now,
-        },
+        }),
       ],
       new Set(['tok-dirty']),
     );

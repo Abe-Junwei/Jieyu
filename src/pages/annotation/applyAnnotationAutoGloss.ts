@@ -69,6 +69,7 @@ export async function applyAnnotationAutoGlossPreview(
       targetType: 'token',
       targetId: match.tokenId,
       lexemeId: match.lexemeId,
+      ...(match.senseId ? { senseId: match.senseId } : {}),
       role,
       confidence: match.confidence,
       createdAt: now,

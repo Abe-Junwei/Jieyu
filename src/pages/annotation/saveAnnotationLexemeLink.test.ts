@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../db';
 import { LinguisticService } from '../../services/LinguisticService';
+import { entryDoc } from '../../utils/dmlexEntry';
 import {
   removeAnnotationTokenLexemeLink,
   saveAnnotationTokenLexemeLink,
@@ -12,13 +13,9 @@ describe('saveAnnotationLexemeLink', () => {
 
   beforeEach(async () => {
     await Promise.all([db.lexemes.clear(), db.token_lexeme_links.clear()]);
-    await db.lexemes.put({
-      id: 'lex-hello',
-      lemma: { default: 'hello' },
-      senses: [],
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db.lexemes.put(
+      entryDoc({ id: 'lex-hello', headword: 'hello', createdAt: now, updatedAt: now }),
+    );
   });
 
   it('links a token to a lexeme then readback matches', async () => {

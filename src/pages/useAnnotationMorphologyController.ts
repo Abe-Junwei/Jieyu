@@ -2,7 +2,6 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LinguisticService, presentTokenLexemeLink } from '../app/languageAssetPageAccess';
 import { t, useLocale } from '../i18n';
-import { pickDefaultTranscriptionText } from '../utils/transcriptionFormatters';
 import { ANNOTATION_LEIPZIG_TEMPLATE_ID } from './annotation/annotationLeipzigGloss';
 import {
   collectDirtyAnnotationMorphemeWrites,
@@ -74,9 +73,7 @@ export function useAnnotationMorphologyController(input: {
           })),
         ),
       ]);
-      const lemmaById = new Map(
-        lexemes.map((lexeme) => [lexeme.id, pickDefaultTranscriptionText(lexeme.lemma)]),
-      );
+      const lemmaById = new Map(lexemes.map((lexeme) => [lexeme.id, lexeme.entry.headword]));
       const linksByTokenId: Record<string, AnnotationTokenLexemeLinkView | undefined> = {};
       for (const group of linkGroups) {
         const link = group.links[0];
